@@ -50,7 +50,8 @@ export interface ReservationRequest {
   departureLetterSent: boolean;
   currentInvoiceNo: number;
   creditDue: number;
-  isActive: boolean; 
+  isActive: boolean;
+  isDeleted?: boolean;
 }
 
 export interface ReservationResponse {
@@ -106,6 +107,7 @@ export interface ReservationResponse {
   currentInvoiceNo: number;
   creditDue: number;
   isActive: boolean;
+  isDeleted?: boolean;
   createdOn?: string | null;
   createdBy?: string | null;
   modifiedOn?: string | null;
@@ -144,6 +146,7 @@ export interface ReservationListResponse {
   currentInvoiceNo: number;
   creditDue: number;
   isActive: boolean;
+  isDeleted?: boolean;
   createdOn: string;
 }
 
@@ -177,6 +180,7 @@ export interface ReservationListDisplay {
   creditDue: number;
   hasCredit?: boolean | null;
   isActive: boolean;
+  isDeleted?: boolean;
   createdOn: string;
 }
 

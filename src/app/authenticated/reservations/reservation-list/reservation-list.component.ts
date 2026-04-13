@@ -12,6 +12,9 @@ import { MaterialModule } from '../../../material.module';
 import { AuthService } from '../../../services/auth.service';
 import { MappingService } from '../../../services/mapping.service';
 import { UtilityService } from '../../../services/utility.service';
+import { EmailRequest } from '../../email/models/email.model';
+import { EmailType } from '../../email/models/email.enum';
+import { EmailService } from '../../email/services/email.service';
 import { OfficeResponse } from '../../organizations/models/office.model';
 import { GlobalSelectionService } from '../../organizations/services/global-selection.service';
 import { OfficeService } from '../../organizations/services/office.service';
@@ -99,6 +102,7 @@ export class ReservationListComponent implements OnInit, OnDestroy, OnChanges {
     public route: ActivatedRoute,
     public mappingService: MappingService,
     private propertyService: PropertyService,
+    private emailService: EmailService,
     private utilityService: UtilityService,
     private officeService: OfficeService,
     private globalSelectionService: GlobalSelectionService,
@@ -309,8 +313,10 @@ export class ReservationListComponent implements OnInit, OnDestroy, OnChanges {
         return;
       }
 
+      const deletedReservation = { ...reservation, isDeleted: true };
       this.reservationService.deleteReservation(reservation.reservationId).pipe(take(1)).subscribe({
         next: () => {
+          this.sendReservationDeletedNotification(deletedReservation);
           this.toastr.success('Reservation deleted successfully', CommonMessage.Success);
           this.allReservations = this.allReservations.filter(r => r.reservationId !== reservation.reservationId);
           this.applyFilters();
@@ -320,46 +326,6 @@ export class ReservationListComponent implements OnInit, OnDestroy, OnChanges {
     });
   }
 
-  onReservationCheckboxChange(event: ReservationListDisplay): void {
-    if (!this.canEditIsActiveCheckbox) {
-      return;
-    }
-
-    const changedCheckboxColumn = (event as any)?.__changedCheckboxColumn;
-    if (changedCheckboxColumn !== 'isActive') {
-      return;
-    }
-
-    const previousValue = (event as any)?.__previousCheckboxValue === true;
-    const nextValue = (event as any)?.__checkboxValue === true;
-    if (previousValue === nextValue) {
-      return;
-    }
-
-    this.applyReservationIsActiveValue(event.reservationId, nextValue);
-
-    this.reservationService.getReservationByGuid(event.reservationId).pipe(
-      take(1),
-      finalize(() => this.applyFilters())
-    ).subscribe({
-      next: (reservation: ReservationResponse) => {
-        const request = this.buildReservationRequestForIsActiveUpdate(reservation, nextValue);
-        this.reservationService.updateReservation(request).pipe(take(1)).subscribe({
-          next: () => {
-            this.toastr.success('Reservation updated.', CommonMessage.Success);
-          },
-          error: () => {
-            this.applyReservationIsActiveValue(event.reservationId, previousValue);
-            this.toastr.error('Unable to update reservation.', CommonMessage.Error);
-          }
-        });
-      },
-      error: () => {
-        this.applyReservationIsActiveValue(event.reservationId, previousValue);
-        this.toastr.error('Unable to update reservation.', CommonMessage.Error);
-      }
-    });
-  }
   //#endregion
 
   //#region Routing Methods
@@ -590,15 +556,123 @@ export class ReservationListComponent implements OnInit, OnDestroy, OnChanges {
   }
   //#endregion
 
-  //#region Utility Methods
-  updateDisplayedColumns(): void {
-    this.isCompactView = window.innerWidth <= this.compactViewportWidth;
-    this.reservationsDisplayedColumns = this.isCompactView ? this.compactReservationsDisplayedColumns : this.fullReservationsDisplayedColumns;
+  //#region Email Methods
+  sendReservationDeletedNotification(reservation: ReservationListDisplay): void {
+    if ((reservation as any)?.isDeleted !== true) {
+      return;
+    }
+
+    const office = this.offices.find(item => item.officeId === reservation.officeId) || null;
+    const emailList = String(office?.emailListForReservations || '').trim();
+    const toRecipients = this.parseSemicolonEmailRecipients(emailList);
+    if (!toRecipients.length) {
+      return;
+    }
+
+    const user = this.authService.getUser();
+    const fromEmail = String(user?.email || '').trim();
+    if (!fromEmail) {
+      return;
+    }
+
+    const fromName = `${user?.firstName || ''} ${user?.lastName || ''}`.trim() || 'RentAll User';
+    const reservationLabel = this.getReservationDeletedLabel(reservation);
+    const propertyCode = String(reservation.propertyCode || '').trim();
+    const arrivalDate = this.getReservationDateText(reservation.arrivalDate);
+    const departureDate = this.getReservationDateText(reservation.departureDate);
+    const request: EmailRequest = {
+      organizationId: String(user?.organizationId || '').trim(),
+      officeId: reservation.officeId,
+      propertyId: reservation.propertyId || null,
+      reservationId: reservation.reservationId || null,
+      fromRecipient: {
+        email: fromEmail,
+        name: fromName
+      },
+      toRecipients,
+      ccRecipients: [],
+      bccRecipients: [],
+      subject: `Reservation Update: ${reservationLabel}`,
+      plainTextContent: `A reservation was cancelled.\n\nPropertyCode: ${propertyCode}\nReservation: ${reservationLabel}\nArrival Date: ${arrivalDate}\nDeparture Date: ${departureDate}`,
+      htmlContent: `<p>A reservation was cancelled.</p><p><strong>PropertyCode:</strong> ${propertyCode}<br><strong>Reservation:</strong> ${reservationLabel}<br><strong>Arrival Date:</strong> ${arrivalDate}<br><strong>Departure Date:</strong> ${departureDate}</p>`,
+      emailTypeId: EmailType.Other
+    };
+
+    this.emailService.sendEmail(request).pipe(take(1)).subscribe({
+      next: () => {},
+      error: () => {}
+    });
   }
 
+  parseSemicolonEmailRecipients(value: string): { email: string; name: string }[] {
+    return (value || '')
+      .split(';')
+      .map(email => email.trim())
+      .filter(email => email.length > 0)
+      .map(email => ({ email, name: '' }));
+  }
+
+  getReservationDeletedLabel(reservation: ReservationListDisplay): string {
+    const contactLabel = String(reservation.contactName || reservation.tenantName || reservation.companyName || '').trim();
+    const code = String(reservation.reservationCode || reservation.reservationId).trim();
+    return contactLabel ? `${code}: ${contactLabel}` : code;
+  }
+
+  getReservationDateText(value: string | Date | null | undefined): string {
+    const parsed = value ? new Date(value) : null;
+    if (!parsed || isNaN(parsed.getTime())) {
+      return '';
+    }
+    parsed.setHours(0, 0, 0, 0);
+    return `${parsed.getMonth() + 1}/${parsed.getDate()}/${parsed.getFullYear()}`;
+  }
+  //#endregion
+
+  //#region Is Active Support Methods
   setIsActiveCheckboxEditability(): void {
     this.canEditIsActiveCheckbox = this.isAdmin;
     this.fullReservationsDisplayedColumns['isActive'].checkboxEditable = this.canEditIsActiveCheckbox;
+  }
+
+  onReservationCheckboxChange(event: ReservationListDisplay): void {
+    if (!this.canEditIsActiveCheckbox) {
+      return;
+    }
+
+    const changedCheckboxColumn = (event as any)?.__changedCheckboxColumn;
+    if (changedCheckboxColumn !== 'isActive') {
+      return;
+    }
+
+    const previousValue = (event as any)?.__previousCheckboxValue === true;
+    const nextValue = (event as any)?.__checkboxValue === true;
+    if (previousValue === nextValue) {
+      return;
+    }
+
+    this.applyReservationIsActiveValue(event.reservationId, nextValue);
+
+    this.reservationService.getReservationByGuid(event.reservationId).pipe(
+      take(1),
+      finalize(() => this.applyFilters())
+    ).subscribe({
+      next: (reservation: ReservationResponse) => {
+        const request = this.buildReservationRequestForIsActiveUpdate(reservation, nextValue);
+        this.reservationService.updateReservation(request).pipe(take(1)).subscribe({
+          next: () => {
+            this.toastr.success('Reservation updated.', CommonMessage.Success);
+          },
+          error: () => {
+            this.applyReservationIsActiveValue(event.reservationId, previousValue);
+            this.toastr.error('Unable to update reservation.', CommonMessage.Error);
+          }
+        });
+      },
+      error: () => {
+        this.applyReservationIsActiveValue(event.reservationId, previousValue);
+        this.toastr.error('Unable to update reservation.', CommonMessage.Error);
+      }
+    });
   }
 
   applyReservationIsActiveValue(reservationId: string, isActive: boolean): void {
@@ -678,6 +752,13 @@ export class ReservationListComponent implements OnInit, OnDestroy, OnChanges {
       creditDue: reservation.creditDue,
       isActive
     };
+  }
+  //#endregion
+
+  //#region Utility Methods
+  updateDisplayedColumns(): void {
+    this.isCompactView = window.innerWidth <= this.compactViewportWidth;
+    this.reservationsDisplayedColumns = this.isCompactView ? this.compactReservationsDisplayedColumns : this.fullReservationsDisplayedColumns;
   }
 
   ngOnDestroy(): void {

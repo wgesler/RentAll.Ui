@@ -25,8 +25,10 @@ import { ContactResponse } from '../../contacts/models/contact.model';
 import { ContactService } from '../../contacts/services/contact.service';
 import { DocumentListComponent } from '../../documents/document-list/document-list.component';
 import { DocumentType } from '../../documents/models/document.enum';
+import { EmailRequest } from '../../email/models/email.model';
 import { EmailListComponent } from '../../email/email-list/email-list.component';
 import { EmailType } from '../../email/models/email.enum';
+import { EmailService } from '../../email/services/email.service';
 import { AgentResponse } from '../../organizations/models/agent.model';
 import { OfficeResponse } from '../../organizations/models/office.model';
 import { OrganizationResponse } from '../../organizations/models/organization.model';
@@ -63,6 +65,14 @@ interface AdditionalContactRow {
   contactPhone: string;
   contactEmail: string;
 }
+
+type ReservationNotificationContext = {
+  shouldNotify: boolean;
+  isNewReservation: boolean;
+  isCancellation: boolean;
+  arrivalDateChanged: boolean;
+  departureDateChanged: boolean;
+};
 
 @Component({
     standalone: true,
@@ -156,6 +166,7 @@ export class ReservationComponent implements OnInit, OnDestroy, CanComponentDeac
     private propertyService: PropertyService,
     private agentService: AgentService,
     private officeService: OfficeService,
+    private emailService: EmailService,
     private commonService: CommonService,
     private authService: AuthService,
     public formatterService: FormatterService,
@@ -478,12 +489,20 @@ export class ReservationComponent implements OnInit, OnDestroy, CanComponentDeac
         return;
       }
 
+      const deletedReservation = this.reservation ? { ...this.reservation, isDeleted: true } : null;
       this.isSubmitting = true;
       this.reservationService.deleteReservation(this.reservationId).pipe(
         take(1),
         finalize(() => this.isSubmitting = false)
       ).subscribe({
         next: () => {
+          this.sendReservationChangeNotification(deletedReservation, {
+            shouldNotify: true,
+            isNewReservation: false,
+            isCancellation: true,
+            arrivalDateChanged: false,
+            departureDateChanged: false
+          });
           this.toastr.success('Reservation deleted successfully', CommonMessage.Success, { timeOut: CommonTimeouts.Success });
           this.navigateToReservationEntryOrigin();
         },
@@ -584,6 +603,7 @@ export class ReservationComponent implements OnInit, OnDestroy, CanComponentDeac
       reservationRequest.reservationCode = this.reservation?.reservationCode || formValue.reservationCode || '';
     }
 
+    const reservationNotificationContext = this.getReservationNotificationContext(formValue);
 
     const save$ = this.isAddMode
       ? this.reservationService.createReservation(reservationRequest)
@@ -593,6 +613,7 @@ export class ReservationComponent implements OnInit, OnDestroy, CanComponentDeac
       next: (response: ReservationResponse) => {
         const message = this.isAddMode ? 'Reservation created successfully' : 'Reservation updated successfully';
         this.toastr.success(message, CommonMessage.Success, { timeOut: CommonTimeouts.Success });
+        this.sendReservationChangeNotification(response, reservationNotificationContext);
         
         if (this.isAddMode && response) {
           this.captureSavedStateSignature();
@@ -866,7 +887,132 @@ export class ReservationComponent implements OnInit, OnDestroy, CanComponentDeac
   }; 
   //#endregion
 
-  //#region Form Value Change Handlers
+  //#region Data Load Methods
+  loadContacts(): void {
+    this.contactService.ensureContactsLoaded().pipe(take(1), finalize(() => { this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'contacts'); })).subscribe({
+      next: (contacts) => {
+        this.contacts = contacts || [];
+        this.companyContacts = this.contacts.filter(c => c.entityTypeId === EntityType.Company);
+        if (this.additionalContactRows.length > 0) {
+          this.buildAdditionalContactRows(this.getSelectedContactIdsFromForm());
+        }
+      },
+      error: () => {
+        this.contacts = [];
+        this.companyContacts = [];
+        this.additionalContactRows = [];
+      }
+    });
+  }
+
+  loadOrganization(): void {
+    this.commonService.getOrganization().pipe(filter(org => org !== null), take(1)).subscribe({
+      next: (organization: OrganizationResponse) => {
+        this.organization = organization;
+      },
+      error: () => {}
+    });
+  }
+
+  loadReservation(reservationId?: string): void {
+    if (this.isAddMode) {
+      return;
+    }
+
+    const targetReservationId = reservationId ?? this.reservationId;
+    if (!targetReservationId || this.reservation?.reservationId === targetReservationId) {
+      return;
+    }
+
+    const isInitialLoad = !reservationId;
+    this.utilityService.addLoadItem(this.itemsToLoad$, 'reservation');
+    this.reservationService.getReservationByGuid(targetReservationId).pipe(take(1),finalize(() => { this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'reservation'); })).subscribe({
+      next: (response: ReservationResponse) => {
+        this.reservationId = response.reservationId;
+        this.reservation = response;
+        this.selectedProperty = this.properties.find(p => p.propertyId === response.propertyId) || null;
+        this.selectedContact = this.contacts.find(c => c.contactId === this.getPrimaryReservationContactId(response)) || null;
+        this.populateForm();
+      },
+      error: () => {
+        if (isInitialLoad) {
+          this.isServiceError = true;
+        }
+      }
+    });
+  }
+  
+  loadAgents(): void {
+    this.agentService.getAgents().pipe(take(1), finalize(() => { this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'agents'); })).subscribe({
+      next: (agents: AgentResponse[]) => {
+        this.agents = agents;
+      },
+      error: () => {
+        this.agents = [];
+      }
+    });
+  }
+
+  loadProperties(): void {
+    this.propertyService.getPropertyList().pipe(take(1), finalize(() => { this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'properties'); })).subscribe({
+      next: (properties: PropertyListResponse[]) => {
+        this.properties = properties;
+        this.filterPropertiesByOffice();
+       },
+      error: () => {
+        this.properties = [];
+        this.availableProperties = [];
+      }
+    });
+  }
+
+  loadOffices(): void {
+    this.globalSelectionService.ensureOfficeScope(this.organizationId, this.preferredOfficeId).pipe(take(1)).subscribe({
+      next: () => {
+        this.offices = this.officeService.getAllOfficesValue() || [];
+        this.availableOffices = this.mappingService.mapOfficesToDropdown(this.offices);
+        this.selectedOffice = this.offices.find(o => o.officeId === this.selectedProperty?.officeId) || null;
+        if (this.selectedOffice) {
+          this.loadCostCodes();
+        }
+        this.filterPropertiesByOffice();
+      },
+      error: () => {
+        this.offices = [];
+        this.availableOffices = [];
+      }
+    });
+  }
+
+  loadCostCodes(): void {
+    if (!this.selectedOffice) {
+      this.chargeCostCodes = [];
+      this.availableChargeCostCodes = [];
+      return;
+    }
+
+    // Wait for cost codes to be loaded, then filter for charge types
+    this.costCodesService.areCostCodesLoaded().pipe(filter(loaded => loaded === true), take(1)).subscribe({
+      next: () => {
+        this.costCodesSubscription = this.costCodesService.getAllCostCodes().subscribe(() => {
+          // Get cost codes for the selected office and filter for charge types (non-payment)
+          const costCodes = this.costCodesService.getCostCodesForOffice(this.selectedOffice!.officeId);
+          this.chargeCostCodes = costCodes.filter(c => c.isActive && c.transactionTypeId !== TransactionType.Payment);
+          this.availableChargeCostCodes = this.chargeCostCodes.map(c => ({
+            value: parseInt(c.costCodeId, 10),
+            label: `${c.costCode}: ${c.description}`
+          }));
+        });
+      },
+      error: () => {
+        this.chargeCostCodes = [];
+        this.availableChargeCostCodes = [];
+      }
+    });
+  }
+  //#endregion
+
+ //#region Form Value Change Handlers
   setupFormHandlers(): void {
     // Prevent setting up handlers multiple times
     if (this.handlersSetup) {
@@ -1972,128 +2118,180 @@ export class ReservationComponent implements OnInit, OnDestroy, CanComponentDeac
   }
   //#endregion
 
-  //#region Data Load Methods
-  loadContacts(): void {
-    this.contactService.ensureContactsLoaded().pipe(take(1), finalize(() => { this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'contacts'); })).subscribe({
-      next: (contacts) => {
-        this.contacts = contacts || [];
-        this.companyContacts = this.contacts.filter(c => c.entityTypeId === EntityType.Company);
-        if (this.additionalContactRows.length > 0) {
-          this.buildAdditionalContactRows(this.getSelectedContactIdsFromForm());
-        }
-      },
-      error: () => {
-        this.contacts = [];
-        this.companyContacts = [];
-        this.additionalContactRows = [];
-      }
-    });
+  //#region Reservation Change Notification
+  getReservationNotificationContext(formValue: any): ReservationNotificationContext {
+    if (this.isAddMode) {
+      return {
+        shouldNotify: true,
+        isNewReservation: true,
+        isCancellation: false,
+        arrivalDateChanged: false,
+        departureDateChanged: false
+      };
+    }
+
+    if (!this.reservation) {
+      return {
+        shouldNotify: false,
+        isNewReservation: false,
+        isCancellation: false,
+        arrivalDateChanged: false,
+        departureDateChanged: false
+      };
+    }
+
+    const arrivalDateChanged = !this.isSameDateOnly(this.reservation.arrivalDate, formValue.arrivalDate);
+    const departureDateChanged = !this.isSameDateOnly(this.reservation.departureDate, formValue.departureDate);
+    const shouldNotify = arrivalDateChanged || departureDateChanged;
+
+    return {
+      shouldNotify,
+      isNewReservation: false,
+      isCancellation: false,
+      arrivalDateChanged,
+      departureDateChanged
+    };
   }
 
-  loadOrganization(): void {
-    this.commonService.getOrganization().pipe(filter(org => org !== null), take(1)).subscribe({
-      next: (organization: OrganizationResponse) => {
-        this.organization = organization;
+  sendReservationChangeNotification(response: ReservationResponse | null | undefined, context: ReservationNotificationContext): void {
+    if (!response || !context.shouldNotify) {
+      return;
+    }
+    if (context.isCancellation && !this.isReservationMarkedDeleted(response)) {
+      return;
+    }
+
+    const officeId = Number(response.officeId || this.selectedOffice?.officeId || 0);
+    const emailList = this.getReservationNotificationEmailList(officeId);
+    const toRecipients = this.parseSemicolonEmailRecipients(emailList);
+    if (!officeId || !toRecipients.length) {
+      return;
+    }
+
+    const user = this.authService.getUser();
+    const fromEmail = String(user?.email || '').trim();
+    if (!fromEmail) {
+      return;
+    }
+
+    const fromName = `${user?.firstName || ''} ${user?.lastName || ''}`.trim() || 'RentAll User';
+    const reservationLabel = this.getReservationNotificationLabel(response);
+    const propertyCode = this.getReservationNotificationPropertyCode(response);
+    const arrivalDate = this.getReservationNotificationDateText(response.arrivalDate);
+    const departureDate = this.getReservationNotificationDateText(response.departureDate);
+    const reservationUrl = this.getReservationNotificationUrl(response.reservationId);
+    const reason = this.getReservationNotificationReason(context);
+    const subject = `Reservation Update: ${reservationLabel}`;
+    const includeLink = !context.isCancellation;
+    const plainTextContent = includeLink
+      ? `${reason}\n\nPropertyCode: ${propertyCode}\nReservation: ${reservationLabel}\nArrival Date: ${arrivalDate}\nDeparture Date: ${departureDate}\nLink: ${reservationUrl}`
+      : `${reason}\n\nPropertyCode: ${propertyCode}\nReservation: ${reservationLabel}\nArrival Date: ${arrivalDate}\nDeparture Date: ${departureDate}`;
+    const htmlContent = includeLink
+      ? `<p>${reason}</p><p><strong>PropertyCode:</strong> ${propertyCode}<br><strong>Reservation:</strong> ${reservationLabel}<br><strong>Arrival Date:</strong> ${arrivalDate}<br><strong>Departure Date:</strong> ${departureDate}</p><p><a href="${reservationUrl}">${reservationUrl}</a></p>`
+      : `<p>${reason}</p><p><strong>PropertyCode:</strong> ${propertyCode}<br><strong>Reservation:</strong> ${reservationLabel}<br><strong>Arrival Date:</strong> ${arrivalDate}<br><strong>Departure Date:</strong> ${departureDate}</p>`;
+
+    const request: EmailRequest = {
+      organizationId: response.organizationId || user?.organizationId || '',
+      officeId,
+      propertyId: response.propertyId || null,
+      reservationId: response.reservationId || null,
+      fromRecipient: {
+        email: fromEmail,
+        name: fromName
       },
+      toRecipients,
+      ccRecipients: [],
+      bccRecipients: [],
+      subject,
+      plainTextContent,
+      htmlContent,
+      emailTypeId: EmailType.Other
+    };
+
+    this.emailService.sendEmail(request).pipe(take(1)).subscribe({
+      next: () => {},
       error: () => {}
     });
   }
 
-  loadReservation(reservationId?: string): void {
-    if (this.isAddMode) {
-      return;
+  getReservationNotificationEmailList(officeId: number): string {
+    if (!officeId) {
+      return '';
     }
+    const office = this.offices.find(item => item.officeId === officeId)
+      || (this.selectedOffice?.officeId === officeId ? this.selectedOffice : null);
+    return String(office?.emailListForReservations || '').trim();
+  }
 
-    const targetReservationId = reservationId ?? this.reservationId;
-    if (!targetReservationId || this.reservation?.reservationId === targetReservationId) {
-      return;
+  parseSemicolonEmailRecipients(value: string): { email: string; name: string }[] {
+    return (value || '')
+      .split(';')
+      .map(email => email.trim())
+      .filter(email => email.length > 0)
+      .map(email => ({ email, name: '' }));
+  }
+
+  getReservationNotificationLabel(reservation: ReservationResponse): string {
+    const contactId = this.getPrimaryReservationContactId(reservation);
+    const contact = this.contacts.find(item => item.contactId === contactId) || this.selectedContact || null;
+    return this.utilityService.buildReservationCodeNameLabel(reservation, contact)
+      || reservation.reservationCode
+      || reservation.reservationId;
+  }
+
+  getReservationNotificationReason(context: ReservationNotificationContext): string {
+    if (context.isNewReservation) {
+      return 'A new reservation was created.';
     }
-
-    const isInitialLoad = !reservationId;
-    this.utilityService.addLoadItem(this.itemsToLoad$, 'reservation');
-    this.reservationService.getReservationByGuid(targetReservationId).pipe(take(1),finalize(() => { this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'reservation'); })).subscribe({
-      next: (response: ReservationResponse) => {
-        this.reservationId = response.reservationId;
-        this.reservation = response;
-        this.selectedProperty = this.properties.find(p => p.propertyId === response.propertyId) || null;
-        this.selectedContact = this.contacts.find(c => c.contactId === this.getPrimaryReservationContactId(response)) || null;
-        this.populateForm();
-      },
-      error: () => {
-        if (isInitialLoad) {
-          this.isServiceError = true;
-        }
-      }
-    });
-  }
-  
-  loadAgents(): void {
-    this.agentService.getAgents().pipe(take(1), finalize(() => { this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'agents'); })).subscribe({
-      next: (agents: AgentResponse[]) => {
-        this.agents = agents;
-      },
-      error: () => {
-        this.agents = [];
-      }
-    });
-  }
-
-  loadProperties(): void {
-    this.propertyService.getPropertyList().pipe(take(1), finalize(() => { this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'properties'); })).subscribe({
-      next: (properties: PropertyListResponse[]) => {
-        this.properties = properties;
-        this.filterPropertiesByOffice();
-       },
-      error: () => {
-        this.properties = [];
-        this.availableProperties = [];
-      }
-    });
-  }
-
-  loadOffices(): void {
-    this.globalSelectionService.ensureOfficeScope(this.organizationId, this.preferredOfficeId).pipe(take(1)).subscribe({
-      next: () => {
-        this.offices = this.officeService.getAllOfficesValue() || [];
-        this.availableOffices = this.mappingService.mapOfficesToDropdown(this.offices);
-        this.selectedOffice = this.offices.find(o => o.officeId === this.selectedProperty?.officeId) || null;
-        if (this.selectedOffice) {
-          this.loadCostCodes();
-        }
-        this.filterPropertiesByOffice();
-      },
-      error: () => {
-        this.offices = [];
-        this.availableOffices = [];
-      }
-    });
-  }
-
-  loadCostCodes(): void {
-    if (!this.selectedOffice) {
-      this.chargeCostCodes = [];
-      this.availableChargeCostCodes = [];
-      return;
+    if (context.isCancellation) {
+      return 'A reservation was cancelled.';
     }
+    if (context.arrivalDateChanged && context.departureDateChanged) {
+      return 'Reservation arrival and departure dates were updated.';
+    }
+    if (context.arrivalDateChanged) {
+      return 'Reservation arrival date was updated.';
+    }
+    if (context.departureDateChanged) {
+      return 'Reservation departure date was updated.';
+    }
+    return 'Reservation was updated.';
+  }
 
-    // Wait for cost codes to be loaded, then filter for charge types
-    this.costCodesService.areCostCodesLoaded().pipe(filter(loaded => loaded === true), take(1)).subscribe({
-      next: () => {
-        this.costCodesSubscription = this.costCodesService.getAllCostCodes().subscribe(() => {
-          // Get cost codes for the selected office and filter for charge types (non-payment)
-          const costCodes = this.costCodesService.getCostCodesForOffice(this.selectedOffice!.officeId);
-          this.chargeCostCodes = costCodes.filter(c => c.isActive && c.transactionTypeId !== TransactionType.Payment);
-          this.availableChargeCostCodes = this.chargeCostCodes.map(c => ({
-            value: parseInt(c.costCodeId, 10),
-            label: `${c.costCode}: ${c.description}`
-          }));
-        });
-      },
-      error: () => {
-        this.chargeCostCodes = [];
-        this.availableChargeCostCodes = [];
-      }
-    });
+  getReservationNotificationPropertyCode(reservation: ReservationResponse): string {
+    const propertyId = String(reservation.propertyId || '').trim();
+    return this.selectedProperty?.propertyCode
+      || this.properties.find(property => property.propertyId === propertyId)?.propertyCode
+      || '';
+  }
+
+  getReservationNotificationDateText(value: string | Date | null | undefined): string {
+    const parsed = this.parseDateOnly(value);
+    return parsed ? this.formatDateForMessage(parsed) : '';
+  }
+
+  getReservationNotificationUrl(reservationId: string): string {
+    const relativePath = `/${RouterUrl.replaceTokens(RouterUrl.Reservation, [reservationId])}`;
+    if (typeof window === 'undefined' || !window.location?.origin) {
+      return relativePath;
+    }
+    return `${window.location.origin}${relativePath}`;
+  }
+
+  isSameDateOnly(left: string | Date | null | undefined, right: string | Date | null | undefined): boolean {
+    const leftDate = this.parseDateOnly(left);
+    const rightDate = this.parseDateOnly(right);
+    if (!leftDate && !rightDate) {
+      return true;
+    }
+    if (!leftDate || !rightDate) {
+      return false;
+    }
+    return leftDate.getTime() === rightDate.getTime();
+  }
+
+  isReservationMarkedDeleted(reservation: ReservationResponse | null | undefined): boolean {
+    return (reservation as any)?.isDeleted === true;
   }
   //#endregion
 
@@ -2488,7 +2686,6 @@ export class ReservationComponent implements OnInit, OnDestroy, CanComponentDeac
   //#endregion
 
   //#region Utility Methods
-  /** Safe targets after create or Back from new reservation (board vs rentals vs reservations list). */
   navigateToReservationEntryOrigin(): void {
     const qp = this.route.snapshot.queryParamMap;
     const returnTo = qp.get('returnTo');

@@ -154,6 +154,15 @@
                       <input matInput formControlName="website" type="url">
                     </mat-form-field>
                   </div>
+
+                  <mat-form-field appearance="outline" class="col-span-4 w-full">
+                    <mat-label>Emails to Notify of Reservation Changes (semicolon-separated emails)</mat-label>
+                    <textarea
+                      matInput
+                      rows="2"
+                      formControlName="emailListForReservations"
+                      placeholder="semicolon-separated emails"></textarea>
+                  </mat-form-field>
                 </div>
 
                 <!-- Office Logo Section -->
@@ -446,6 +455,7 @@
                     </mat-form-field>
                   </div>
                 </div>
+
               </mat-expansion-panel>
 
             </mat-accordion>

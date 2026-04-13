@@ -219,7 +219,8 @@ export class OfficeComponent implements OnInit, OnDestroy, OnChanges {
       maidThreeBed: formValue.maidThreeBed ? parseFloat(formValue.maidThreeBed.toString()) : 0,
       maidFourBed: formValue.maidFourBed ? parseFloat(formValue.maidFourBed.toString()) : 0,
       parkingLowEnd: formValue.parkingLowEnd ? parseFloat(formValue.parkingLowEnd.toString()) : 0,
-      parkingHighEnd: formValue.parkingHighEnd ? parseFloat(formValue.parkingHighEnd.toString()) : 0
+      parkingHighEnd: formValue.parkingHighEnd ? parseFloat(formValue.parkingHighEnd.toString()) : 0,
+      emailListForReservations: (formValue.emailListForReservations || '').trim() || null
     };
 
     const orgId = (this.organizationId || this.office?.organizationId || user?.organizationId || '').trim();
@@ -348,7 +349,8 @@ export class OfficeComponent implements OnInit, OnDestroy, OnChanges {
       maidThreeBed: new FormControl<string>('0.00', [Validators.required]),
       maidFourBed: new FormControl<string>('0.00', [Validators.required]),
       parkingLowEnd: new FormControl<string>('0.00', [Validators.required]),
-      parkingHighEnd: new FormControl<string>('0.00', [Validators.required])
+      parkingHighEnd: new FormControl<string>('0.00', [Validators.required]),
+      emailListForReservations: new FormControl<string>('')
     });
 
     // Setup conditional validation for international addresses
@@ -395,7 +397,8 @@ export class OfficeComponent implements OnInit, OnDestroy, OnChanges {
           maidThreeBed: this.office.maidThreeBed !== null && this.office.maidThreeBed !== undefined ? this.office.maidThreeBed.toFixed(2) : '0.00',
           maidFourBed: this.office.maidFourBed !== null && this.office.maidFourBed !== undefined ? this.office.maidFourBed.toFixed(2) : '0.00',
           parkingLowEnd: this.office.parkingLowEnd !== null && this.office.parkingLowEnd !== undefined ? this.office.parkingLowEnd.toFixed(2) : '0.00',
-          parkingHighEnd: this.office.parkingHighEnd !== null && this.office.parkingHighEnd !== undefined ? this.office.parkingHighEnd.toFixed(2) : '0.00'
+          parkingHighEnd: this.office.parkingHighEnd !== null && this.office.parkingHighEnd !== undefined ? this.office.parkingHighEnd.toFixed(2) : '0.00',
+          emailListForReservations: this.office.emailListForReservations || ''
         });
       }, 0);
     }
@@ -439,7 +442,8 @@ export class OfficeComponent implements OnInit, OnDestroy, OnChanges {
       maidThreeBed: o.maidThreeBed != null ? o.maidThreeBed.toFixed(2) : '0.00',
       maidFourBed: o.maidFourBed != null ? o.maidFourBed.toFixed(2) : '0.00',
       parkingLowEnd: o.parkingLowEnd != null ? o.parkingLowEnd.toFixed(2) : '0.00',
-      parkingHighEnd: o.parkingHighEnd != null ? o.parkingHighEnd.toFixed(2) : '0.00'
+      parkingHighEnd: o.parkingHighEnd != null ? o.parkingHighEnd.toFixed(2) : '0.00',
+      emailListForReservations: o.emailListForReservations || ''
     }, { emitEvent: false });
   }
 

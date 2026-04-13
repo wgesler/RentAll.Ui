@@ -39,6 +39,7 @@ export interface OfficeRequest {
   maidFourBed: number;
   parkingLowEnd: number;
   parkingHighEnd: number;
+  emailListForReservations?: string | null;
 }
 
 export interface OfficeResponse {
@@ -80,6 +81,7 @@ export interface OfficeResponse {
   maidFourBed: number;
   parkingLowEnd: number;
   parkingHighEnd: number;
+  emailListForReservations?: string | null;
 }
 
 export interface OfficeListDisplay {
