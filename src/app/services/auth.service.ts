@@ -4,7 +4,8 @@ import { MatDialog } from '@angular/material/dialog';
 import { Router } from '@angular/router';
 import { JwtHelperService } from '@auth0/angular-jwt';
 import { BehaviorSubject, Observable, of, take, tap } from 'rxjs';
-import { RouterToken } from '../app.routes';
+import { RouterToken, RouterUrl } from '../app.routes';
+import { StartupPage } from '../authenticated/users/models/user-enums';
 import { StorageKey } from '../enums/storage-keys.enum';
 import { AuthResponse } from '../public/login/models/auth-response';
 import { JwtContainer, JwtUser } from '../public/login/models/jwt';
@@ -115,6 +116,26 @@ export class AuthService {
 
     getSessionId(): string | null {
         return this.jwtContainer$?.value?.sub;
+    }
+
+    getStartupPageUrl(): string {
+        const startupPageId = this.getUser()?.startupPage ?? this.getUser()?.startupPageId ?? StartupPage.Dashboard;
+        switch (startupPageId) {
+            case StartupPage.Dashboard:
+                return RouterUrl.Dashboard;
+            case StartupPage.Boards:
+                return RouterUrl.ReservationBoard;
+            case StartupPage.Reservations:
+                return RouterUrl.ReservationList;
+            case StartupPage.Properties:
+                return RouterUrl.PropertyList;
+            case StartupPage.Accounting:
+                return RouterUrl.AccountingList;
+            case StartupPage.Organizations:
+                return RouterUrl.OrganizationList;
+            default:
+                return RouterUrl.Dashboard;
+        }
     }
 
     setAuthData(response: AuthResponse): void {

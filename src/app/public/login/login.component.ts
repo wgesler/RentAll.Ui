@@ -5,9 +5,6 @@ import { FormBuilder, FormControl, FormGroup, FormsModule, ReactiveFormsModule, 
 import { Router } from '@angular/router';
 import { ToastrService } from 'ngx-toastr';
 import { finalize, take } from 'rxjs';
-import { RouterUrl } from '../../app.routes';
-import { hasInspectorRole, hasOwnerRole } from '../../authenticated/shared/access/role-access';
-import { StartupPage } from '../../authenticated/users/models/user-enums';
 import { StorageKey } from '../../enums/storage-keys.enum';
 import { MaterialModule } from '../../material.module';
 import { emailRegex } from '../../regex/email-regex';
@@ -80,46 +77,7 @@ export class LoginComponent {
     this.authService.login(this.getLoginRequest()).pipe(take(1), finalize(() => this.isSubmitting = false)).subscribe({
       next: () => {
         if (this.authService.getIsLoggedIn()) {
-          const user = this.authService.getUser();
-
-          if (hasOwnerRole(user?.userGroups as Array<string | number> | undefined)) {
-            this.router.navigateByUrl(RouterUrl.DashboardOwner);
-            return;
-          }
-          if (hasInspectorRole(user?.userGroups as Array<string | number> | undefined)) {
-            this.router.navigateByUrl(RouterUrl.MaintenanceList);
-            return;
-          }
-
-          const startupPageId = user?.startupPage ?? user?.startupPageId ?? StartupPage.Dashboard;
-          
-          // Redirect based on user's startup page preference
-          let redirectUrl: string;
-          switch (startupPageId) {
-            case StartupPage.Dashboard:
-              redirectUrl = RouterUrl.Dashboard;
-              break;
-            case StartupPage.Boards:
-              redirectUrl = RouterUrl.ReservationBoard;
-              break;
-            case StartupPage.Reservations:
-              redirectUrl = RouterUrl.ReservationList;
-              break;
-            case StartupPage.Properties:
-              redirectUrl = RouterUrl.PropertyList;
-              break;
-            case StartupPage.Accounting:
-              redirectUrl = RouterUrl.AccountingList;
-              break;
-            case StartupPage.Organizations:
-              redirectUrl = RouterUrl.OrganizationList;
-              break;
-             default:
-              redirectUrl = RouterUrl.Dashboard;
-              break;
-          }
-          
-          this.router.navigateByUrl(redirectUrl);
+          this.router.navigateByUrl(this.authService.getStartupPageUrl());
         } else {
            this.toastr.error('User is not logged in', 'Redirect Failed...');
         }
