@@ -1,0 +1,110 @@
+@if (isLoading) {
+  <div class="loading-container">
+    <mat-spinner [diameter]="40"></mat-spinner>
+    <p>Loading alerts...</p>
+  </div>
+} @else if (!isServiceError) {
+  @if (hideHeader) {
+    <div class="mat list-layout-standard dbg-band-main">
+      <div class="tableDiv">
+        <app-data-table
+          [data]="alerts"
+          [columns]="alertsDisplayedColumns"
+          [hasColumnIndex]="false"
+          [hasFilter]="true"
+          [hasToggleTop]="false"
+          [hasButtonTop]="false"
+          [hasActionsRowClick]="true"
+          [hasActionsView]="false"
+          [hasActionsEdit]="true"
+          [hasActionsDelete]="true"
+          [deleteConfirmTitle]="'Delete Alert'"
+          [deleteConfirmMessage]="'Are you sure you want to delete this alert?'"
+          [itemsPerPage]="100"
+          (editEvent)="editAlert($event)"
+          (rowClickEvent)="editAlert($event)"
+          (deleteEvent)="deleteAlert($event)">
+          <div dataTableFilterActions>
+            <div class="table-filter-actions-group form-titlebar-actions-wrap uniform-gap">
+              <button mat-raised-button type="button" color="primary" id="add-button" class="text-nowrap flex-shrink-0" (click)="addAlert()">
+                <mat-icon>add</mat-icon>
+                Add
+              </button>
+            </div>
+          </div>
+        </app-data-table>
+      </div>
+    </div>
+  } @else {
+    <div class="flex content-card-wrap justify-center" fxLayout="row wrap">
+      <section class="content-card">
+        <div class="flex justify-between items-center gap-3 bg-slate-300 rounded-t-lg py-0 pl-8 pr-4 property-titlebar dbg-band-actions">
+          <div class="flex items-center flex-wrap py-4">
+            <span class="flex flex-column items-center gap-3 flex-shrink-0">
+              <mat-icon class="flex-shrink-0">notifications</mat-icon>
+              <span class="flex-shrink-0 text-xl font-medium">Alerts</span>
+            </span>
+            <div class="header-title form-titlebar-fields-wrap">
+              @if (showOfficeDropdown) {
+                <app-title-bar-select
+                  [label]="selectedOfficeId ? 'Office' : 'All Offices'"
+                  [formFieldClass]="'titlebar-field-office'"
+                  [value]="selectedOfficeId"
+                  [options]="officeOptions"
+                  [nullOptionLabel]="'All Offices'"
+                  [noResultsText]="'No offices match your search'"
+                  (valueChange)="onOfficeDropdownChange($event)">
+                </app-title-bar-select>
+              }
+              @if (source === 'property' || source === 'reservation') {
+                <mat-form-field appearance="outline" class="titlebar-field-property-code">
+                  <mat-label>Property Code</mat-label>
+                  <input matInput [value]="propertyCode || ''" readonly [disabled]="true">
+                </mat-form-field>
+              }
+              <app-title-bar-select
+                [label]="'Reservations'"
+                [formFieldClass]="'titlebar-field-reservation'"
+                [value]="selectedReservationId"
+                [options]="reservationOptions"
+                [nullOptionLabel]="'All Reservations'"
+                [noResultsText]="'No reservations match your search'"
+                (valueChange)="onReservationDropdownChange($event)">
+              </app-title-bar-select>
+            </div>
+          </div>
+          <div class="form-titlebar-actions-wrap">
+            <button mat-raised-button type="button" color="primary" (click)="addAlert()">+ Add Alert</button>
+          </div>
+        </div>
+        <mat-card>
+          <div class="mat list-layout-standard dbg-band-main">
+            <div class="tableDiv">
+              <app-data-table
+                [data]="alerts"
+                [columns]="alertsDisplayedColumns"
+                [hasColumnIndex]="false"
+                [hasFilter]="true"
+                [hasToggleTop]="false"
+                [hasActionsRowClick]="true"
+                [hasActionsView]="false"
+                [hasActionsEdit]="true"
+                [hasActionsDelete]="true"
+                [deleteConfirmTitle]="'Delete Alert'"
+                [deleteConfirmMessage]="'Are you sure you want to delete this alert?'"
+                [itemsPerPage]="100"
+                (editEvent)="editAlert($event)"
+                (rowClickEvent)="editAlert($event)"
+                (deleteEvent)="deleteAlert($event)">
+              </app-data-table>
+            </div>
+          </div>
+        </mat-card>
+      </section>
+    </div>
+  }
+} @else {
+  <div class="loading-container">
+    <p>Could not load alerts at this time.</p>
+  </div>
+}

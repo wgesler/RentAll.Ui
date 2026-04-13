@@ -6,6 +6,7 @@ import { EntityType, getEntityType } from '../authenticated/contacts/models/cont
 import { ContactListDisplay, ContactResponse } from '../authenticated/contacts/models/contact.model';
 import { DocumentType, getDocumentTypeLabel } from '../authenticated/documents/models/document.enum';
 import { DocumentListDisplay, DocumentResponse } from '../authenticated/documents/models/document.model';
+import { AlertListDisplay, AlertResponse } from '../authenticated/email/models/alert.model';
 import { EmailListDisplay, EmailResponse } from '../authenticated/email/models/email.model';
 import { EmailHtmlResponse } from '../authenticated/email/models/email-html.model';
 import { MaintenanceListBedDropdownCell, MaintenanceListDisplay, MaintenanceListPropertyRow, MaintenanceListResponse, MaintenanceListStatusDropdownCell, MaintenanceListUserDropdownCell } from '../authenticated/maintenance/models/maintenance.model';
@@ -24,7 +25,7 @@ import { RegionListDisplay, RegionResponse } from '../authenticated/organization
 import { ManagementFeeType, PropertyType, TrashDays, getBedSizeType, getPropertyStatus, getPropertyStatusLetter, getPropertyType } from '../authenticated/properties/models/property-enums';
 import { PropertyListDisplay, PropertyListResponse, PropertyResponse } from '../authenticated/properties/models/property.model';
 import { BoardProperty } from '../authenticated/reservations/models/reservation-board-model';
-import { getReservationStatus } from '../authenticated/reservations/models/reservation-enum';
+import { getFrequency, getReservationStatus } from '../authenticated/reservations/models/reservation-enum';
 import { ReservationListDisplay, ReservationListResponse } from '../authenticated/reservations/models/reservation-model';
 import { UserResponse } from '../authenticated/users/models/user.model';
 import { FormatterService } from './formatter-service';
@@ -353,6 +354,45 @@ export class MappingService {
     return emails.map(email => ({
       ...email,
       officeName: officeNameById.get(email.officeId) || email.officeName || ''
+    }));
+  }
+
+  mapAlertListDisplays(alerts: any): AlertListDisplay[] {
+    if (!alerts) {
+      return [];
+    }
+    const alertArray = Array.isArray(alerts) ? alerts : [alerts];
+    return alertArray.map<AlertListDisplay>((alert: AlertResponse | any) => ({
+      alertId: alert?.alertId ?? '',
+      officeId: String(alert?.officeId ?? ''),
+      propertyId: alert?.propertyId ?? undefined,
+      propertyCode: alert?.propertyCode ?? '',
+      reservationId: alert?.reservationId ?? undefined,
+      reservationCode: alert?.reservationCode ?? '',
+      officeName: alert?.officeName ?? '',
+      toEmail: this.getPrimaryRecipientEmail(alert?.toRecipients, alert?.toEmail),
+      toName: this.getPrimaryRecipientName(alert?.toRecipients, alert?.toName),
+      fromEmail: alert?.fromRecipient?.email ?? alert?.fromEmail ?? '',
+      fromName: alert?.fromRecipient?.name ?? alert?.fromName ?? '',
+      subject: alert?.subject ?? '',
+      emailTypeId: Number(alert?.emailTypeId ?? 0),
+      startDate: this.formatter.formatDateString(alert?.startDate) || (alert?.startDate ?? ''),
+      frequencyId: Number(alert?.frequencyId ?? 0),
+      frequencyLabel: getFrequency(Number(alert?.frequencyId ?? 0)),
+      createdOn: this.formatter.formatDateTimeString(alert?.createdOn) || (alert?.createdOn ?? '')
+    }));
+  }
+
+  mapAlertOfficeNames(alerts: AlertListDisplay[], offices: OfficeResponse[]): AlertListDisplay[] {
+    if (!alerts || alerts.length === 0 || !offices || offices.length === 0) {
+      return alerts || [];
+    }
+    const officeNameById = new Map<string, string>(
+      offices.map(office => [office.officeId.toString(), office.name])
+    );
+    return alerts.map(alert => ({
+      ...alert,
+      officeName: officeNameById.get(alert.officeId) || alert.officeName || ''
     }));
   }
 

@@ -13,9 +13,11 @@ import { DashboardOwnerComponent } from './authenticated/dashboards/dashboard-ow
 import { DocumentListComponent } from './authenticated/documents/document-list/document-list.component';
 import { DocumentViewComponent } from './authenticated/documents/document-view/document-view.component';
 import { DocumentComponent } from './authenticated/documents/document/document.component';
-import { EmailListComponent } from './authenticated/email/email-list/email-list.component';
 import { EmailCreateComponent } from './authenticated/email/email-create/email-create.component';
 import { EmailComponent } from './authenticated/email/email/email.component';
+import { EmailsShellComponent } from './authenticated/email/emails-shell/emails-shell.component';
+import { AlertListComponent } from './authenticated/email/alert-list/alert-list.component';
+import { AlertComponent } from './authenticated/email/alert/alert.component';
 import { AccountingOfficeListComponent } from './authenticated/organizations/accounting-office-list/accounting-office-list.component';
 import { AccountingOfficeComponent } from './authenticated/organizations/accounting-office/accounting-office.component';
 import { AgentListComponent } from './authenticated/organizations/agent-list/agent-list.component';
@@ -73,8 +75,10 @@ export enum RouterToken {
   Document = RouterToken.DocumentList + '/:id',
   DocumentView = RouterToken.DocumentList + '/:id/view',
   EmailList = 'emails',
+  AlertList = 'alerts',
   EmailCreate = RouterToken.EmailList + '/create',
   Email = RouterToken.EmailList + '/:id',
+  Alert = RouterToken.AlertList + '/:id',
   AccountingList = 'accounting',
   Accounting = RouterToken.AccountingList + '/:id',
   Billing = 'billing/:id',
@@ -126,8 +130,10 @@ export enum RouterUrl {
   Document               = `${RouterToken.Auth}/${RouterToken.Document}`,
   DocumentView           = `${RouterToken.Auth}/${RouterToken.DocumentView}`,
   EmailList              = `${RouterToken.Auth}/${RouterToken.EmailList}`,
+  AlertList              = `${RouterToken.Auth}/${RouterToken.AlertList}`,
   EmailCreate            = `${RouterToken.Auth}/${RouterToken.EmailCreate}`,
   Email                  = `${RouterToken.Auth}/${RouterToken.Email}`,
+  Alert                  = `${RouterToken.Auth}/${RouterToken.Alert}`,
   AccountingList         = `${RouterToken.Auth}/${RouterToken.AccountingList}`,
   Accounting             = `${RouterToken.Auth}/${RouterToken.Accounting}`,
   Billing                = `${RouterToken.Auth}/${RouterToken.Billing}`,
@@ -185,9 +191,11 @@ export const authRoutes: Routes = [
   { path: RouterToken.DocumentList, component: DocumentListComponent, canActivate: [authRouteGuard] },
   { path: RouterToken.DocumentView, component: DocumentViewComponent, canActivate: [authRouteGuard] },
   { path: RouterToken.Document, component: DocumentComponent, canActivate: [authRouteGuard] },
-  { path: RouterToken.EmailList, component: EmailListComponent, canActivate: [authRouteGuard] },
+  { path: RouterToken.EmailList, component: EmailsShellComponent, canActivate: [authRouteGuard] },
+  { path: RouterToken.AlertList, component: AlertListComponent, canActivate: [authRouteGuard] },
   { path: RouterToken.EmailCreate, component: EmailCreateComponent, canActivate: [authRouteGuard] },
   { path: RouterToken.Email, component: EmailComponent, canActivate: [authRouteGuard] },
+  { path: RouterToken.Alert, component: AlertComponent, canActivate: [authRouteGuard] },
   { path: RouterToken.AccountingList, component: AccountingComponent, canActivate: [authRouteGuard] },
   { path: RouterToken.Accounting, component: InvoiceComponent, canActivate: [authRouteGuard] },
   { path: RouterToken.Billing, component: BillingComponent, canActivate: [authRouteGuard] },

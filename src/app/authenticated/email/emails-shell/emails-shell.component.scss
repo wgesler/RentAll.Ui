@@ -1,0 +1,9 @@
+.property-titlebar {
+  height: 70px;
+  min-height: 70px;
+  box-sizing: border-box;
+}
+
+:host ::ng-deep .property-tabs .mat-mdc-tab-body-content {
+  overflow-y: hidden !important;
+}

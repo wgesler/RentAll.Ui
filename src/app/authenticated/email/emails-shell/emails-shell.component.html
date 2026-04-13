@@ -1,0 +1,100 @@
+<div class="flex content-card-wrap justify-center">
+  <section class="content-card">
+    <div class="flex justify-between items-center gap-3 bg-slate-300 rounded-t-lg py-0 pl-8 pr-4 property-titlebar dbg-band-actions">
+      <div class="flex items-center flex-wrap py-4">
+        <span class="flex flex-column items-center gap-3 flex-shrink-0">
+          <mat-icon class="flex-shrink-0">{{ shellIcon }}</mat-icon>
+          <span class="flex-shrink-0 text-xl font-medium">{{ shellTitle }}</span>
+        </span>
+        <div class="header-title form-titlebar-fields-wrap">
+          @if (showOfficeDropdown) {
+            <app-title-bar-select
+              [label]="selectedOfficeId ? 'Office' : 'All Offices'"
+              [formFieldClass]="'titlebar-field-office'"
+              [value]="selectedOfficeId"
+              [options]="officeOptions"
+              [nullOptionLabel]="'All Offices'"
+              [noResultsText]="'No offices match your search'"
+              (valueChange)="onOfficeDropdownChange($event)">
+            </app-title-bar-select>
+          }
+          <app-title-bar-select
+            [label]="'Property Code'"
+            [formFieldClass]="'titlebar-field-property-code'"
+            [value]="selectedPropertyId"
+            [options]="propertyOptions"
+            [nullOptionLabel]="'All Properties'"
+            [noResultsText]="'No properties match your search'"
+            (valueChange)="onPropertyDropdownChange($event)">
+          </app-title-bar-select>
+          <app-title-bar-select
+            [label]="'Reservations'"
+            [formFieldClass]="'titlebar-field-reservation'"
+            [value]="selectedReservationId"
+            [options]="reservationOptions"
+            [nullOptionLabel]="'All Reservations'"
+            [noResultsText]="'No reservations match your search'"
+            (valueChange)="onReservationDropdownChange($event)">
+          </app-title-bar-select>
+        </div>
+      </div>
+      <div class="flex items-center gap-3 ml-[10px]">
+        <div class="uniform-gap form-titlebar-actions-wrap">
+          @if (selectedTabIndex === 1 && selectedAlertId) {
+            <button mat-raised-button type="button" color="accent" id="back-button" (click)="onAlertBack()" class="text-nowrap flex-shrink-0">
+              <mat-icon>arrow_back</mat-icon>
+              Back
+            </button>
+          }
+        </div>
+      </div>
+    </div>
+
+    <mat-card>
+      <mat-tab-group [selectedIndex]="selectedTabIndex" [animationDuration]="'0ms'" class="property-tabs dbg-band-tabs" (selectedIndexChange)="onTabIndexChange($event)">
+        <mat-tab label="Emails">
+          <app-email-list
+            #emailsTabList
+            [hideHeader]="true"
+            [hideFilters]="true"
+            [source]="'emails'"
+            [officeId]="selectedOfficeId"
+            [propertyId]="selectedPropertyId"
+            [reservationId]="selectedReservationId"
+            [propertyCode]="selectedPropertyCode"
+            [reservations]="reservations">
+          </app-email-list>
+        </mat-tab>
+        <mat-tab label="Alerts">
+          @if (!selectedAlertId) {
+            <app-alert-list
+              #alertsTabList
+              [hideHeader]="true"
+              [hideFilters]="true"
+              [source]="'alerts'"
+              [officeId]="selectedOfficeId"
+              [propertyId]="selectedPropertyId"
+              [reservationId]="selectedReservationId"
+              [propertyCode]="selectedPropertyCode"
+              [reservations]="reservations"
+              (alertEdit)="onAlertEdit($event)"
+              (alertSelected)="onAlertSelected($event)">
+            </app-alert-list>
+          } @else {
+            <app-alert
+              [alertId]="selectedAlertId"
+              [alertResponse]="selectedAlertResponse"
+              [embeddedInEmailShell]="true"
+              [organizationId]="organizationId"
+              [officeId]="selectedOfficeId"
+              [propertyId]="selectedPropertyId"
+              [reservationId]="selectedReservationId"
+              (backEvent)="onAlertBack()"
+              (savedEvent)="onAlertSaved()">
+            </app-alert>
+          }
+        </mat-tab>
+      </mat-tab-group>
+    </mat-card>
+  </section>
+</div>

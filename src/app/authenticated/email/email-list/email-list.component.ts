@@ -71,6 +71,7 @@ export class EmailListComponent implements OnInit, OnDestroy, OnChanges {
   officeScopeResolved: boolean = false;
 
   emailsDisplayedColumns: ColumnSet = {
+    propertyCode: { displayAs: 'Property', maxWidth: '15ch', sortType: 'natural' },
     reservationCode: { displayAs: 'Reservation', maxWidth: '15ch', sortType: 'natural' },
     subject: { displayAs: 'Subject', maxWidth: '30ch' },
     toEmail: { displayAs: 'To Email', maxWidth: '25ch' },

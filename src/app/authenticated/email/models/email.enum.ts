@@ -1,9 +1,16 @@
+//#region Email Type
 export enum EmailType {
   Other = 0,
   PropertyLetter = 1,
   ReservationLease = 2,
   Invoice = 3,
-  WorkOrder = 4
+  WorkOrder = 4,
+  Inspection = 5,
+  InspectionIssues = 6,
+  PropertyAlert = 7,
+  ReservationAlert = 8,
+  MaintenanceAlert = 9,
+  GeneralAlert = 10
 }
 
 export function getEmailType(emailTypeId: number | undefined): string {
@@ -14,7 +21,13 @@ export function getEmailType(emailTypeId: number | undefined): string {
     [EmailType.PropertyLetter]: 'Welcome Letter',
     [EmailType.ReservationLease]: 'Reservation Lease',
     [EmailType.Invoice]: 'Invoice',
-    [EmailType.WorkOrder]: 'Work Order'
+    [EmailType.WorkOrder]: 'Work Order',
+    [EmailType.Inspection]: 'Inspection',
+    [EmailType.InspectionIssues]: 'Inspection Issues',
+    [EmailType.PropertyAlert]: 'Property Alert',
+    [EmailType.ReservationAlert]: 'Reservation Alert',
+    [EmailType.MaintenanceAlert]: 'Maintenance Alert',
+    [EmailType.GeneralAlert]: 'Alert'
   };
 
   return typeMap[emailTypeId] || '';
@@ -23,7 +36,9 @@ export function getEmailType(emailTypeId: number | undefined): string {
 export function getEmailTypeLabel(emailType: EmailType): string {
   return getEmailType(emailType) || EmailType[emailType] || 'Other';
 }
+//#endregion
 
+//#region Email Status
 export enum EmailStatus {
   Unsent = 0,
   Attempting = 1,
@@ -47,3 +62,4 @@ export function getEmailStatus(emailStatusId: number | undefined): string {
 export function getEmailStatusLabel(emailStatus: EmailStatus): string {
   return getEmailStatus(emailStatus) || EmailStatus[emailStatus] || 'Unsent';
 }
+//#endregion

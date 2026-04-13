@@ -1,0 +1,158 @@
+@if (isLoading) {
+  <div class="loading-container">
+    <mat-spinner [diameter]="40"></mat-spinner>
+    <p>Loading alert...</p>
+  </div>
+} @else if (!isServiceError) {
+  @if (!embeddedInEmailShell) {
+    <div class="flex content-card-wrap justify-center" fxLayout="row wrap">
+      <section class="content-card">
+        <div class="flex justify-between items-center gap-3 bg-slate-300 rounded-t-lg py-0 pl-8 pr-4">
+          <span class="flex flex-column items-center gap-3 py-4">
+            <mat-icon class="flex-shrink-0">notifications</mat-icon>
+            <span class="flex-shrink-0 text-xl font-medium">{{ isAddMode ? 'Add Alert' : 'Edit Alert' }}</span>
+          </span>
+          <div class="flex gap-2">
+            <button mat-raised-button type="button" color="accent" (click)="back()" class="scale-90 text-nowrap flex-shrink-0">
+              <mat-icon>arrow_back</mat-icon>
+              Back
+            </button>
+            <button mat-raised-button type="button" color="primary" (click)="save()" [disabled]="isSubmitting" class="scale-90 text-nowrap flex-shrink-0">
+              <mat-icon>save</mat-icon>
+              {{ isSubmitting ? 'Saving...' : 'Save' }}
+            </button>
+          </div>
+        </div>
+        <mat-card>
+          <form [formGroup]="form" class="email-container alert-compact-form">
+            <div class="alert-hero">
+              <mat-icon class="alert-hero-icon">notification_important</mat-icon>
+              <div class="alert-hero-text">
+                <div class="alert-hero-title">{{ isAddMode ? 'New Alert' : 'Scheduled Alert' }}</div>
+                <div class="alert-hero-subtitle">Future delivery configuration</div>
+              </div>
+            </div>
+            @if (!isAddMode && alert) {
+              <div class="email-header-row">
+                <div class="email-subject">{{ alert.subject }}</div>
+                <div class="email-created">{{ formattedCreatedOn }}</div>
+              </div>
+            }
+            <div class="email-address-line email-address-grid">
+              <span class="line-label">To:</span>
+              <input type="email" class="email-line-input" formControlName="toEmail" placeholder="recipient@example.com" />
+            </div>
+            <div class="email-address-line email-address-grid">
+              <span class="line-label">CC:</span>
+              <input type="text" class="email-line-input" formControlName="ccEmails" placeholder="Comma-separated emails" />
+            </div>
+            <div class="email-address-line email-address-grid">
+              <span class="line-label">BCC:</span>
+              <input type="text" class="email-line-input" formControlName="bccEmails" placeholder="Comma-separated emails" />
+            </div>
+            <mat-divider></mat-divider>
+            <div class="alert-extra-fields-grid">
+              <mat-form-field appearance="outline" class="email-body-field">
+                <mat-label>Start Date</mat-label>
+                <input matInput [matDatepicker]="startDatePicker" formControlName="startDate" />
+                <mat-datepicker-toggle matIconSuffix [for]="startDatePicker"></mat-datepicker-toggle>
+                <mat-datepicker #startDatePicker></mat-datepicker>
+              </mat-form-field>
+              <mat-form-field appearance="outline" class="email-body-field">
+                <mat-label>Frequency</mat-label>
+                <mat-select formControlName="frequencyId">
+                  @for (frequency of frequencyOptions; track frequency.value) {
+                    <mat-option [value]="frequency.value">{{ frequency.label }}</mat-option>
+                  }
+                </mat-select>
+              </mat-form-field>
+            </div>
+            <mat-form-field appearance="outline" class="email-body-field">
+              <mat-label>Subject</mat-label>
+              <input matInput type="text" formControlName="subject" />
+            </mat-form-field>
+            <mat-form-field appearance="outline" class="email-body-field">
+              <mat-label>Alert Message</mat-label>
+              <textarea matInput rows="6" formControlName="plainTextContent"></textarea>
+            </mat-form-field>
+          </form>
+        </mat-card>
+      </section>
+    </div>
+  } @else {
+    <div class="info-form">
+      <form [formGroup]="form" class="property-page-form form-hide-error-text alert-embedded-form">
+        <div class="property-tab-actions-band">
+          <div class="property-tab-actions-band__row">
+            <div class="table-filter-actions-group form-titlebar-actions-wrap uniform-gap">
+              <button mat-raised-button type="button" color="primary" id="save-button" (click)="save()" [disabled]="isSubmitting" class="text-nowrap flex-shrink-0">
+                <mat-icon>save</mat-icon>
+                {{ isSubmitting ? 'Saving...' : 'Save' }}
+              </button>
+            </div>
+          </div>
+        </div>
+        <div class="property-tab-main-area alert-embedded-main-area">
+          <mat-card>
+            <div class="email-container alert-compact-form">
+              <div class="alert-hero">
+                <mat-icon class="alert-hero-icon">notification_important</mat-icon>
+                <div class="alert-hero-text">
+                  <div class="alert-hero-title">{{ isAddMode ? 'New Alert' : 'Scheduled Alert' }}</div>
+                  <div class="alert-hero-subtitle">Future delivery configuration</div>
+                </div>
+              </div>
+              @if (!isAddMode && alert) {
+                <div class="email-header-row">
+                  <div class="email-subject">{{ alert.subject }}</div>
+                  <div class="email-created">{{ formattedCreatedOn }}</div>
+                </div>
+              }
+              <div class="email-address-line email-address-grid">
+                <span class="line-label">To:</span>
+                <input type="email" class="email-line-input" formControlName="toEmail" placeholder="recipient@example.com" />
+              </div>
+              <div class="email-address-line email-address-grid">
+                <span class="line-label">CC:</span>
+                <input type="text" class="email-line-input" formControlName="ccEmails" placeholder="Comma-separated emails" />
+              </div>
+              <div class="email-address-line email-address-grid">
+                <span class="line-label">BCC:</span>
+                <input type="text" class="email-line-input" formControlName="bccEmails" placeholder="Comma-separated emails" />
+              </div>
+              <mat-divider></mat-divider>
+              <div class="alert-extra-fields-grid">
+                <mat-form-field appearance="outline" class="email-body-field">
+                  <mat-label>Start Date</mat-label>
+                  <input matInput [matDatepicker]="startDatePicker" formControlName="startDate" />
+                  <mat-datepicker-toggle matIconSuffix [for]="startDatePicker"></mat-datepicker-toggle>
+                  <mat-datepicker #startDatePicker></mat-datepicker>
+                </mat-form-field>
+                <mat-form-field appearance="outline" class="email-body-field">
+                  <mat-label>Frequency</mat-label>
+                  <mat-select formControlName="frequencyId">
+                    @for (frequency of frequencyOptions; track frequency.value) {
+                      <mat-option [value]="frequency.value">{{ frequency.label }}</mat-option>
+                    }
+                  </mat-select>
+                </mat-form-field>
+              </div>
+              <mat-form-field appearance="outline" class="email-body-field">
+                <mat-label>Subject</mat-label>
+                <input matInput type="text" formControlName="subject" />
+              </mat-form-field>
+              <mat-form-field appearance="outline" class="email-body-field">
+                <mat-label>Alert Message</mat-label>
+                <textarea matInput rows="6" formControlName="plainTextContent"></textarea>
+              </mat-form-field>
+            </div>
+          </mat-card>
+        </div>
+      </form>
+    </div>
+  }
+} @else {
+  <div class="loading-container">
+    <p>Could not load this alert.</p>
+  </div>
+}
