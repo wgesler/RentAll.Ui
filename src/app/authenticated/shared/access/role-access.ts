@@ -165,9 +165,52 @@ export function hasInspectorRole(userGroups: UserGroupInput): boolean {
   return getUserGroupNumbers(userGroups).includes(UserGroups.Inspector);
 }
 
-function isInspectorOnlyUser(userGroups: UserGroupInput): boolean {
+export function hasHousekeepingRole(userGroups: UserGroupInput): boolean {
+  return getUserGroupNumbers(userGroups).includes(UserGroups.Housekeeping);
+}
+
+export function hasVendorRole(userGroups: UserGroupInput): boolean {
+  return getUserGroupNumbers(userGroups).includes(UserGroups.Vendor);
+}
+
+const ONLY_ROLE_EXCLUSIONS: UserGroups[] = [
+  UserGroups.SuperAdmin,
+  UserGroups.Admin,
+  UserGroups.Accounting,
+  UserGroups.AccountingAdmin,
+  UserGroups.Agent,
+  UserGroups.AgentAdmin,
+  UserGroups.PropertyManager,
+  UserGroups.PropertyManagerAdmin
+];
+
+export function hasMainRole(userGroups: UserGroupInput): boolean {
   const groups = getUserGroupNumbers(userGroups).filter(group => group !== UserGroups.Unknown);
-  return groups.length === 1 && groups[0] === UserGroups.Inspector;
+  return ONLY_ROLE_EXCLUSIONS.some(role => groups.includes(role));
+}
+
+function hasRoleWithoutExcludedRoles(userGroups: UserGroupInput, requiredRole: UserGroups): boolean {
+  const groups = getUserGroupNumbers(userGroups).filter(group => group !== UserGroups.Unknown);
+  if (!groups.includes(requiredRole)) {
+    return false;
+  }
+  return !ONLY_ROLE_EXCLUSIONS.some(role => groups.includes(role));
+}
+
+export function hasInspectorOnlyRole(userGroups: UserGroupInput): boolean {
+  return hasRoleWithoutExcludedRoles(userGroups, UserGroups.Inspector);
+}
+
+export function hasHouseKeeperOnlyRole(userGroups: UserGroupInput): boolean {
+  return hasRoleWithoutExcludedRoles(userGroups, UserGroups.Housekeeping);
+}
+
+export function hasVendorOnlyRole(userGroups: UserGroupInput): boolean {
+  return hasRoleWithoutExcludedRoles(userGroups, UserGroups.Vendor);
+}
+
+function isInspectorOnlyUser(userGroups: UserGroupInput): boolean {
+  return hasInspectorOnlyRole(userGroups);
 }
 
 export function hasAccessByRule(userGroups: UserGroupInput, rule: AccessRule): boolean {

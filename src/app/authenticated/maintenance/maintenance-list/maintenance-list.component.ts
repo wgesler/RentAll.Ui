@@ -22,7 +22,7 @@ import { PropertyService } from '../../properties/services/property.service';
 import { DataTableComponent } from '../../shared/data-table/data-table.component';
 import { ColumnSet } from '../../shared/data-table/models/column-data';
 import { AddAlertDialogComponent, AddAlertDialogData } from '../../shared/modals/add-alert-dialog/add-alert-dialog.component';
-import { hasInspectorRole } from '../../shared/access/role-access';
+import { hasMainRole } from '../../shared/access/role-access';
 import { MaintenanceListBedDropdownCell, MaintenanceListDisplay, MaintenanceListUserDropdownCell, MaintenanceRequest } from '../models/maintenance.model';
 import { MaintenanceItemResponse } from '../models/maintenance-item.model';
 import { INSPECTION_SECTIONS } from '../models/checklist-sections';
@@ -69,7 +69,7 @@ export class MaintenanceListComponent implements OnInit, OnDestroy, OnChanges {
   preferredOfficeId: number | null = null;
   officeScopeResolved = false;
   isCompactView = false;
-  isInspectorView = false;
+  isVendorView = false;
   inspectorPropertyIds = new Set<string>();
   upcomingDeparturePropertyIds = new Set<string>();
   currentReservationByPropertyId: MaintenanceListCurrentReservationByPropertyId = new Map();
@@ -150,8 +150,9 @@ export class MaintenanceListComponent implements OnInit, OnDestroy, OnChanges {
     this.organizationId = this.authService.getUser()?.organizationId?.trim() ?? '';
     this.preferredOfficeId = this.authService.getUser()?.defaultOfficeId ?? null;
 
-    // If the user is an inspector, the admin can limit the properties they view
-    this.isInspectorView = hasInspectorRole(this.authService.getUser()?.userGroups as Array<string | number> | undefined);
+    // Main-role users get the full maintenance table; all others get inspector-style columns.
+    const userGroups = this.authService.getUser()?.userGroups as Array<string | number> | undefined;
+    this.isVendorView = !hasMainRole(userGroups);
     this.inspectorPropertyIds = new Set(
       (this.authService.getUser()?.properties || [])
         .map(propertyId => propertyId.trim().toLowerCase())
@@ -343,7 +344,7 @@ export class MaintenanceListComponent implements OnInit, OnDestroy, OnChanges {
           inspectorUsers: this.inspectorUsers,
           housekeepingById: this.housekeepingById,
           inspectorById: this.inspectorById,
-          isInspectorView: this.isInspectorView,
+          isInspectorView: this.isVendorView,
           inspectorPropertyIds: this.inspectorPropertyIds,
           currentReservationByPropertyId: this.currentReservationByPropertyId
         };
@@ -987,7 +988,7 @@ export class MaintenanceListComponent implements OnInit, OnDestroy, OnChanges {
       return;
     }
 
-    this.propertiesDisplayedColumns = this.isInspectorView
+    this.propertiesDisplayedColumns = this.isVendorView
       ? this.inspectorPropertiesDisplayedColumns
       : this.fullPropertiesDisplayedColumns;
   }
