@@ -1108,10 +1108,13 @@ export class ReservationComponent implements OnInit, OnDestroy, CanComponentDeac
 
   //#region Contact List Methods
   get contactNameOptionsNoCreate(): SearchableSelectOption[] {
-    return this.filteredContacts.map(contact => ({
-      value: contact.contactId,
-      label: this.getContactNameLabel(contact)
-    }));
+    return [
+      { value: this.newContactOptionValue, label: 'New Contact' },
+      ...this.filteredContacts.map(contact => ({
+        value: contact.contactId,
+        label: this.getContactNameLabel(contact)
+      }))
+    ];
   }
 
   get companyContactOptions(): SearchableSelectOption[] {
@@ -1139,17 +1142,28 @@ export class ReservationComponent implements OnInit, OnDestroy, CanComponentDeac
 
   onAdditionalContactNameChange(index: number, contactId: string | number | null): void {
     const normalizedContactId = contactId === null || contactId === undefined ? '' : String(contactId).trim();
+    if (normalizedContactId === this.newContactOptionValue) {
+      this.additionalContactRows[index] = {
+        contactId: '',
+        contactPhone: '',
+        contactEmail: ''
+      };
+      this.openNewContactDialog(index);
+      return;
+    }
+
     const selectedContact = normalizedContactId ? this.contacts.find(c => c.contactId === normalizedContactId) || null : null;
     this.additionalContactRows[index] = {
       contactId: normalizedContactId,
       contactPhone: selectedContact ? (this.formatterService.phoneNumber(selectedContact.phone) || '') : '',
       contactEmail: selectedContact?.email || ''
     };
+    this.syncTenantNamesFromSelectedContacts();
     this.validateNumberOfPeopleAgainstContacts();
   }
 
   addAdditionalContactRow(): void {
-    this.additionalContactRows.push({
+    this.additionalContactRows.unshift({
       contactId: '',
       contactPhone: '',
       contactEmail: ''
@@ -1162,6 +1176,7 @@ export class ReservationComponent implements OnInit, OnDestroy, CanComponentDeac
       return;
     }
     this.additionalContactRows.splice(index, 1);
+    this.syncTenantNamesFromSelectedContacts();
     this.validateNumberOfPeopleAgainstContacts();
   }
 
@@ -1201,8 +1216,8 @@ export class ReservationComponent implements OnInit, OnDestroy, CanComponentDeac
     if (this.additionalContactRows.length === 0) {
       return true;
     }
-    const lastContactId = String(this.additionalContactRows[this.additionalContactRows.length - 1]?.contactId || '').trim();
-    return !!lastContactId;
+    const topContactId = String(this.additionalContactRows[0]?.contactId || '').trim();
+    return !!topContactId;
   }
 
   validateNumberOfPeopleAgainstContacts(): boolean {
@@ -1452,12 +1467,12 @@ export class ReservationComponent implements OnInit, OnDestroy, CanComponentDeac
     this.form.patchValue(contactFieldPatch, { emitEvent: false });
 
     if (reservationTypeId === ReservationType.Owner) {
-      this.form.patchValue({ tenantName: selectedContactFullName }, { emitEvent: false });
+      this.syncTenantNamesFromSelectedContacts(selectedContactFullName);
       return;
     }
 
     if (reservationTypeId === ReservationType.Individual || reservationTypeId === ReservationType.Platform) {
-      this.form.patchValue({ tenantName: selectedContactFullName }, { emitEvent: false });
+      this.syncTenantNamesFromSelectedContacts(selectedContactFullName);
       return;
     }
 
@@ -1471,6 +1486,32 @@ export class ReservationComponent implements OnInit, OnDestroy, CanComponentDeac
       this.form.patchValue({ referenceNo: '' }, { emitEvent: false });
     }
  }
+
+  getContactTenantDisplayName(contact: ContactResponse | null): string {
+    if (!contact) {
+      return '';
+    }
+    if (contact.entityTypeId === EntityType.Company) {
+      return String(contact.displayName || contact.companyName || '').trim();
+    }
+    return String(contact.fullName || `${contact.firstName || ''} ${contact.lastName || ''}`).trim();
+  }
+
+  syncTenantNamesFromSelectedContacts(fallbackName: string = ''): void {
+    const reservationTypeId = this.form?.get('reservationTypeId')?.value as number | null;
+    if (reservationTypeId !== ReservationType.Owner && reservationTypeId !== ReservationType.Individual && reservationTypeId !== ReservationType.Platform) {
+      return;
+    }
+
+    const selectedContactIds = this.getSelectedContactIdsFromForm();
+    const tenantNames = selectedContactIds
+      .map(contactId => this.contacts.find(c => c.contactId === contactId) || null)
+      .map(contact => this.getContactTenantDisplayName(contact))
+      .filter(name => !!name);
+
+    const tenantNameValue = tenantNames.length > 0 ? tenantNames.join(', ') : fallbackName;
+    this.form.patchValue({ tenantName: tenantNameValue }, { emitEvent: false });
+  }
 
   applyPlatformCompanyDetails(companyId: string | null, companyName: string | null): void {
     const reservationTypeId = this.form?.get('reservationTypeId')?.value as number | null;
@@ -1527,7 +1568,7 @@ export class ReservationComponent implements OnInit, OnDestroy, CanComponentDeac
     return reservationTypeId === ReservationType.Owner;
   }
 
-  openNewContactDialog(): void {
+  openNewContactDialog(targetAdditionalContactRowIndex?: number): void {
     const reservationTypeId = this.form?.get('reservationTypeId')?.value as number | null;
     let entityTypeId: number | null = null;
 
@@ -1562,6 +1603,22 @@ export class ReservationComponent implements OnInit, OnDestroy, CanComponentDeac
         next: (contacts) => {
           this.contacts = contacts || [];
           this.companyContacts = this.contacts.filter(c => c.entityTypeId === EntityType.Company);
+
+          if (targetAdditionalContactRowIndex !== undefined) {
+            const newContact = this.contacts.find(c => c.contactId === result.contactId) || null;
+            if (targetAdditionalContactRowIndex >= 0 && targetAdditionalContactRowIndex < this.additionalContactRows.length) {
+              this.additionalContactRows[targetAdditionalContactRowIndex] = {
+                contactId: result.contactId,
+                contactPhone: newContact ? (this.formatterService.phoneNumber(newContact.phone) || '') : '',
+                contactEmail: newContact?.email || ''
+              };
+            }
+            this.updateContactsByReservationType();
+            this.syncTenantNamesFromSelectedContacts();
+            this.validateNumberOfPeopleAgainstContacts();
+            return;
+          }
+
           let targetReservationTypeId: number | null = null;
           if (result.entityTypeId === EntityType.Tenant) {
             targetReservationTypeId = ReservationType.Individual;
