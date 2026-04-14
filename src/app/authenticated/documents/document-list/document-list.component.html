@@ -54,7 +54,7 @@
           }
           @if (source === 'reservation' || source === 'invoice') {
             @if (source === 'reservation') {
-              <mat-form-field appearance="outline" class="flex-shrink-0 field-width-18ch">
+              <mat-form-field appearance="outline" class="field-width-18ch">
                 <mat-label>Property Code</mat-label>
                 <input matInput [value]="propertyCode || ''" readonly [disabled]="true">
               </mat-form-field>
@@ -81,7 +81,7 @@
               (valueChange)="onReservationDropdownChange($event)">
             </app-title-bar-select>
           } @else if (source === 'property') {
-            <mat-form-field appearance="outline" class="flex-shrink-0 field-width-18ch">
+            <mat-form-field appearance="outline" class="field-width-18ch">
               <mat-label>Property Code</mat-label>
               <input matInput [value]="propertyCode || ''" readonly [disabled]="true">
             </mat-form-field>
@@ -201,7 +201,7 @@
                 }
                 @if (source === 'reservation' || source === 'invoice') {
                   @if (source === 'reservation') {
-                    <mat-form-field appearance="outline" class="flex-shrink-0 field-width-18ch">
+                    <mat-form-field appearance="outline" class="field-width-18ch">
                       <mat-label>Property Code</mat-label>
                       <input matInput [value]="propertyCode || ''" readonly [disabled]="true">
                     </mat-form-field>
@@ -228,7 +228,7 @@
                     (valueChange)="onReservationDropdownChange($event)">
                   </app-title-bar-select>
                 } @else if (source === 'property') {
-                  <mat-form-field appearance="outline" class="flex-shrink-0 field-width-18ch">
+                  <mat-form-field appearance="outline" class="field-width-18ch">
                     <mat-label>Property Code</mat-label>
                     <input matInput [value]="propertyCode || ''" readonly [disabled]="true">
                   </mat-form-field>

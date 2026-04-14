@@ -36,20 +36,13 @@
 }
 
 .property-titlebar {
-  height: 70px;
-  min-height: 70px;
+  min-height: var(--property-titlebar-height);
   box-sizing: border-box;
 }
 
-.titlebar-reservation-slot {
-  width: 400px;
-  min-width: 400px;
-  display: flex;
-  align-items: center;
-  flex-shrink: 0;
-}
-
 .maintenance-titlebar-property-code {
-  width: 22ch;
-  min-width: 22ch;
+  flex: 0 1 22ch;
+  width: auto;
+  min-width: var(--titlebar-field-min-property-code);
+  max-width: 22ch;
 }

@@ -56,7 +56,7 @@
                 </app-title-bar-select>
               }
               @if (source === 'property' || source === 'reservation') {
-                <mat-form-field appearance="outline" class="flex-shrink-0 titlebar-field-property-code">
+                <mat-form-field appearance="outline" class="titlebar-field-property-code">
                   <mat-label>Property Code</mat-label>
                   <input matInput [value]="propertyCode || ''" readonly [disabled]="true">
                 </mat-form-field>

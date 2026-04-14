@@ -15,7 +15,7 @@
               @if (isHeaderOfficeEditable) {
                 <app-title-bar-select
                   [label]="'Office'"
-                  [formFieldClass]="'flex-shrink-0 titlebar-field-office'"
+                  [formFieldClass]="'titlebar-field-office'"
                   [value]="titleBarOfficeId"
                   [options]="officeOptions"
                   [nullOptionLabel]="'Select Office'"
@@ -28,7 +28,7 @@
               } @else {
                 <mat-form-field
                   appearance="outline"
-                  class="flex-shrink-0 titlebar-field-office"
+                  class="titlebar-field-office"
                   [class.mat-form-field-invalid]="propertySection?.showTitleBarOfficeError"
                   [class.mat-mdc-form-field-invalid]="propertySection?.showTitleBarOfficeError">
                   <mat-label>
@@ -50,7 +50,7 @@
 
             <mat-form-field
               appearance="outline"
-              class="flex-shrink-0 titlebar-field-property-code"
+              class="titlebar-field-property-code"
               [class.mat-form-field-invalid]="propertySection?.showTitleBarPropertyCodeError"
               [class.mat-mdc-form-field-invalid]="propertySection?.showTitleBarPropertyCodeError">
               <mat-label>
@@ -93,7 +93,7 @@
               <div class="titlebar-reservation-slot">
                 <app-title-bar-select
                   [label]="'Reservation'"
-                  [formFieldClass]="'flex-shrink-0 header-title-reservation titlebar-field-reservation'"
+                  [formFieldClass]="'header-title-reservation titlebar-field-reservation'"
                   [required]="false"
                   [value]="selectedReservationId ?? null"
                   [options]="reservationOptions"

@@ -120,8 +120,7 @@
 }
 
 .property-titlebar {
-  height: 70px;
-  min-height: 70px;
+  min-height: var(--property-titlebar-height);
   box-sizing: border-box;
 }
 

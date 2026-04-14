@@ -33,7 +33,7 @@
                 <input matInput [value]="selectedOfficeName" readonly [disabled]="true" class="readonly-field">
               </mat-form-field>
             }
-            <mat-form-field appearance="outline" class="flex-shrink-0 titlebar-field-property-code">
+            <mat-form-field appearance="outline" class="titlebar-field-property-code">
               <mat-label>Property Code</mat-label>
               <input matInput [value]="selectedPropertyCode" readonly [disabled]="true" class="readonly-field">
             </mat-form-field>
@@ -41,7 +41,7 @@
               <div class="titlebar-reservation-slot">
                 <app-title-bar-select
                   [label]="'Reservation'"
-                  [formFieldClass]="'flex-shrink-0 header-title-reservation titlebar-field-reservation'"
+                  [formFieldClass]="'header-title-reservation titlebar-field-reservation'"
                   [required]="false"
                   [value]="selectedHeaderReservationId ?? null"
                   [options]="availableHeaderReservations"
