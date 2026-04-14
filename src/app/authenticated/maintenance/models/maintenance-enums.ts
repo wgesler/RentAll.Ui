@@ -57,3 +57,36 @@ export function getInspectionTypes(): { value: number; label: string }[] {
     }));
 }
 //#endregion
+
+//#region MaidServiceType
+export enum MaidServiceType {
+  Online = 0,
+  Offline = 1,
+  Scheduled = 2,
+  Departure = 3
+}
+
+export function getMaidServiceType(maidServiceTypeId: number | undefined | null): string {
+  if (maidServiceTypeId === undefined || maidServiceTypeId === null) {
+    return '';
+  }
+
+  const typeMap: { [key: number]: string } = {
+    [MaidServiceType.Online]: 'Online',
+    [MaidServiceType.Offline]: 'Offline',
+    [MaidServiceType.Scheduled]: 'Scheduled',
+    [MaidServiceType.Departure]: 'Departure'
+  };
+
+  return typeMap[maidServiceTypeId] || '';
+}
+
+export function getMaidServiceTypes(): { value: number; label: string }[] {
+  return Object.keys(MaidServiceType)
+    .filter(key => isNaN(Number(key)))
+    .map(key => ({
+      value: MaidServiceType[key as keyof typeof MaidServiceType],
+      label: getMaidServiceType(MaidServiceType[key as keyof typeof MaidServiceType])
+    }));
+}
+//#endregion
