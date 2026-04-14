@@ -118,7 +118,7 @@ const INSPECTOR_ALLOWED_SEGMENTS = new Set<string>([
   'receipt'
 ]);
 
-export const NAV_ITEMS: NavItemDefinition[] = [
+export const COMPANY_USERS_NAV_ITEMS: NavItemDefinition[] = [
   { icon: 'dashboard', displayName: 'Dashboard', url: ROUTER_TOKEN.Dashboard, ...openToAllExceptSuperAdmin },
   { icon: 'grid_view', displayName: 'Boards', url: ROUTER_TOKEN.ReservationBoard, ...openToAllExceptSuperAdmin },
   { icon: 'handshake', displayName: 'Reservations', url: ROUTER_TOKEN.RentalList, ...openToAllExceptSuperAdmin },
@@ -128,10 +128,30 @@ export const NAV_ITEMS: NavItemDefinition[] = [
   { icon: 'mail', displayName: 'Emails', url: ROUTER_TOKEN.EmailList, ...openToAll },
   { icon: 'description', displayName: 'Documents', url: ROUTER_TOKEN.DocumentList, ...openToAllExceptSuperAdmin },
   { icon: 'contacts', displayName: 'Contacts', url: ROUTER_TOKEN.Contacts, ...openToAllExceptSuperAdmin },
-  { icon: 'corporate_fare', displayName: 'Organizations', url: ROUTER_TOKEN.OrganizationList, ...superAdminOnly },
   { icon: 'people', displayName: 'Users', url: ROUTER_TOKEN.UserList, ...adminOnly },
   { icon: 'settings', displayName: 'Settings', url: ROUTER_TOKEN.OrganizationConfiguration, ...settingsAccess }
 ];
+
+export const SUPER_USER_NAV_ITEMS: NavItemDefinition[] = [
+  { icon: 'corporate_fare', displayName: 'Organizations', url: ROUTER_TOKEN.OrganizationList, ...superAdminOnly },
+  { icon: 'account_balance', displayName: 'Accounting', url: ROUTER_TOKEN.AccountingList, ...accountingOnly },
+  { icon: 'mail', displayName: 'Emails', url: ROUTER_TOKEN.EmailList, ...openToAll },
+  { icon: 'people', displayName: 'Users', url: ROUTER_TOKEN.UserList, ...adminOnly },
+  { icon: 'settings', displayName: 'Settings', url: ROUTER_TOKEN.OrganizationConfiguration, ...settingsAccess }
+];
+
+export const SERVICE_PROVIDERS_NAV_ITEMS: NavItemDefinition[] = [
+  { icon: 'dashboard', displayName: 'Dashboard', url: ROUTER_TOKEN.Dashboard, ...openToAllExceptSuperAdmin },
+  { icon: 'build', displayName: 'Maintenance', url: ROUTER_TOKEN.MaintenanceList, ...openToAllExceptSuperAdmin }
+];
+
+export const NAV_ITEMS_BY_GROUP = {
+  SuperUser: SUPER_USER_NAV_ITEMS,
+  CompanyUsers: COMPANY_USERS_NAV_ITEMS,
+  ServiceProviders: SERVICE_PROVIDERS_NAV_ITEMS
+} as const;
+
+export const NAV_ITEMS: NavItemDefinition[] = COMPANY_USERS_NAV_ITEMS;
 
 const routeRulesBySegment: Record<string, AccessRule> = {
   [ROUTER_TOKEN.Dashboard]: openToAllExceptSuperAdmin,
@@ -291,24 +311,17 @@ export function canUserAccessUrl(userGroups: UserGroupInput, url: string): boole
 
 export function getVisibleNavItems(userGroups: UserGroupInput): NavItemDefinition[] {
   if (hasOwnerRole(userGroups)) {
-    const dashboardItem = NAV_ITEMS.find(item => item.url === ROUTER_TOKEN.Dashboard);
+    const dashboardItem = COMPANY_USERS_NAV_ITEMS.find(item => item.url === ROUTER_TOKEN.Dashboard);
     return dashboardItem ? [{ ...dashboardItem, url: ROUTER_TOKEN.DashboardOwner }] : [];
   }
-  if (isInspectorOnlyUser(userGroups)) {
-    const maintenanceItem = NAV_ITEMS.find(item => item.url === ROUTER_TOKEN.MaintenanceList);
-    return maintenanceItem ? [{ ...maintenanceItem }] : [];
+  if (getUserGroupNumbers(userGroups).includes(UserGroups.SuperAdmin)) {
+    return SUPER_USER_NAV_ITEMS.filter(item => hasAccessByRule(userGroups, item));
+  }
+  if (isServiceProvider(userGroups)) {
+    return SERVICE_PROVIDERS_NAV_ITEMS.filter(item => hasAccessByRule(userGroups, item));
   }
 
-  const visibleItems = NAV_ITEMS.filter(item => hasAccessByRule(userGroups, item));
-  const userGroupNumbers = getUserGroupNumbers(userGroups);
-
-  if (userGroupNumbers.includes(UserGroups.SuperAdmin)) {
-    const organizationsItem = visibleItems.find(item => item.url === ROUTER_TOKEN.OrganizationList);
-    const otherItems = visibleItems.filter(item => item.url !== ROUTER_TOKEN.OrganizationList);
-    return organizationsItem ? [organizationsItem, ...otherItems] : otherItems;
-  }
-
-  return visibleItems;
+  return COMPANY_USERS_NAV_ITEMS.filter(item => hasAccessByRule(userGroups, item));
 }
 
 export function getAuthorizedFallbackUrl(userGroups: UserGroupInput): string {
