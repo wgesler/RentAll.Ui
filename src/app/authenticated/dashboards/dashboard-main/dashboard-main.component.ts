@@ -991,7 +991,7 @@ export class DashboardMainComponent implements OnInit, OnDestroy {
       return {
         propertyId: property.propertyId,
         propertyCode: property.propertyCode,
-        propertyLeaseId: property.propertyLeaseId,
+        propertyLeaseTypeId: property.propertyLeaseTypeId,
         shortAddress: property.shortAddress,
         officeId: property.officeId,
         officeName: property.officeName,

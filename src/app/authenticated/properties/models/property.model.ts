@@ -4,7 +4,7 @@ export interface PropertyRequest {
   propertyId?: string | null;
   organizationId: string;
   propertyCode: string;
-  propertyLeaseId: number;
+  propertyLeaseTypeId: number;
   owner1Id?: string | null;
   owner2Id?: string | null;
   owner3Id?: string | null;
@@ -128,7 +128,7 @@ export interface PropertyResponse {
   propertyId: string;
   organizationId: string;
   propertyCode: string;
-  propertyLeaseId: number;
+  propertyLeaseTypeId: number;
   owner1Id?: string | null;
   owner2Id?: string | null;
   owner3Id?: string | null;
@@ -251,7 +251,7 @@ export interface PropertyResponse {
 export interface PropertyListResponse{
   propertyId: string;
   propertyCode: string;
-  propertyLeaseId: number;
+  propertyLeaseTypeId: number;
   shortAddress: string;
   availableFrom?: string | null;
   availableUntil?: string | null;
@@ -287,7 +287,7 @@ export interface PropertyListResponse{
 export interface PropertyListDisplay {
   propertyId: string;
   propertyCode: string;
-  propertyLeaseId: number;
+  propertyLeaseTypeId: number;
   shortAddress:string;
   officeId: number;  
   officeName: string;

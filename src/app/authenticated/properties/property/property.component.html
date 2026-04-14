@@ -15,7 +15,7 @@
                   <div class="header-title flex-shrink-0">
                     <mat-form-field appearance="outline" class="titlebar-field-company">
                       <mat-label>Property Lease Type</mat-label>
-                      <mat-select formControlName="propertyLeaseId">
+                      <mat-select formControlName="propertyLeaseTypeId">
                         @for (opt of propertyLeaseTypeOptions; track opt.value) {
                           <mat-option [value]="opt.value">{{ opt.label }}</mat-option>
                         }

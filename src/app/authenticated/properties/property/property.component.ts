@@ -330,9 +330,9 @@ export class PropertyComponent implements OnInit, OnDestroy, CanComponentDeactiv
     // Ensure time fields are integers
     propertyRequest.checkInTimeId = normalizeCheckInTimeId(formValue.checkInTimeId);
     propertyRequest.checkOutTimeId = normalizeCheckOutTimeId(formValue.checkOutTimeId);
-    propertyRequest.propertyLeaseId = normalizePropertyLeaseTypeId(formValue.propertyLeaseId);
+    propertyRequest.propertyLeaseTypeId = normalizePropertyLeaseTypeId(formValue.propertyLeaseTypeId);
 
-    if (propertyRequest.propertyLeaseId === PropertyLeaseType.PropertyManagement) {
+    if (propertyRequest.propertyLeaseTypeId === PropertyLeaseType.PropertyManagement) {
       propertyRequest.vendorId = null;
     } else {
       propertyRequest.owner1Id = undefined;
@@ -591,7 +591,7 @@ export class PropertyComponent implements OnInit, OnDestroy, CanComponentDeactiv
       longitude: new FormControl('-0.00', [Validators.pattern(/^-?\d+(\.\d{1,8})?$/)]),
       
       isActive: new FormControl(true),
-      propertyLeaseId: new FormControl<number>(PropertyLeaseType.PropertyManagement, [Validators.required])
+      propertyLeaseTypeId: new FormControl<number>(PropertyLeaseType.PropertyManagement, [Validators.required])
     }, { validators: [this.bedSelectionValidator] });
   }
 
@@ -629,11 +629,11 @@ export class PropertyComponent implements OnInit, OnDestroy, CanComponentDeactiv
       formData.propertyStyle = propertyStyleValue;
       formData.propertyStatus = propertyStatusValue;
       formData.propertyType = propertyTypeValue;
-      formData.propertyLeaseId = this.property.propertyLeaseId != null && this.property.propertyLeaseId !== undefined
-        ? Number(this.property.propertyLeaseId)
+      formData.propertyLeaseTypeId = this.property.propertyLeaseTypeId != null && this.property.propertyLeaseTypeId !== undefined
+        ? Number(this.property.propertyLeaseTypeId)
         : PropertyLeaseType.PropertyManagement;
 
-      const leaseNorm = normalizePropertyLeaseTypeId(formData.propertyLeaseId);
+      const leaseNorm = normalizePropertyLeaseTypeId(formData.propertyLeaseTypeId);
       if (leaseNorm === PropertyLeaseType.PropertyManagement) {
         formData.vendorId = null;
       } else {
@@ -733,7 +733,7 @@ export class PropertyComponent implements OnInit, OnDestroy, CanComponentDeactiv
     if (!this.form) return;
     this.form.patchValue({
       propertyCode: this.propertyCodeDefaultPrompt,
-      propertyLeaseId: PropertyLeaseType.PropertyManagement,
+      propertyLeaseTypeId: PropertyLeaseType.PropertyManagement,
       vendorId: null,
       unitLevel: 1,
       checkInTimeId: CheckinTimes.FourPM,
@@ -756,7 +756,7 @@ export class PropertyComponent implements OnInit, OnDestroy, CanComponentDeactiv
 
   //#region Validators
   setupLeaseTypeOwnerVendorValidators(): void {
-    this.form.get('propertyLeaseId')?.valueChanges.pipe(takeUntil(this.destroy$)).subscribe(() => {
+    this.form.get('propertyLeaseTypeId')?.valueChanges.pipe(takeUntil(this.destroy$)).subscribe(() => {
       this.applyOwnerVendorLeaseValidators();
     });
   }
@@ -764,7 +764,7 @@ export class PropertyComponent implements OnInit, OnDestroy, CanComponentDeactiv
   applyOwnerVendorLeaseValidators(): void {
     const owner1 = this.form?.get('owner1Id');
     const vendor = this.form?.get('vendorId');
-    const leaseCtl = this.form?.get('propertyLeaseId');
+    const leaseCtl = this.form?.get('propertyLeaseTypeId');
     if (!this.form || !owner1 || !vendor || !leaseCtl) {
       return;
     }
@@ -1126,7 +1126,7 @@ export class PropertyComponent implements OnInit, OnDestroy, CanComponentDeactiv
     if (!this.form) {
       return true;
     }
-    return normalizePropertyLeaseTypeId(this.form.get('propertyLeaseId')?.value) === PropertyLeaseType.PropertyManagement;
+    return normalizePropertyLeaseTypeId(this.form.get('propertyLeaseTypeId')?.value) === PropertyLeaseType.PropertyManagement;
   }
 
   get ownerContacts(): ContactResponse[] {

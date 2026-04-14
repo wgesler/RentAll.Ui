@@ -991,7 +991,7 @@ export class ContactComponent implements OnInit, OnDestroy {
     return {
       propertyId: '',
       propertyCode,
-      propertyLeaseId: 0,
+      propertyLeaseTypeId: 0,
       shortAddress: '',
       officeId,
       officeName,
