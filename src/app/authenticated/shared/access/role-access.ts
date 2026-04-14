@@ -1,18 +1,42 @@
 import { UserGroups } from '../../users/models/user-enums';
 
-export type UserGroupInput = Array<string | number> | undefined;
-
 export interface AccessRule {
   requiredRoles: UserGroups[];
   excludedRoles: UserGroups[];
 }
-
 export interface NavItemDefinition extends AccessRule {
   icon: string;
   displayName: string;
   url: string;
 }
 
+export type UserGroupInput = Array<string | number> | undefined;
+
+//#region Defined Groups
+const COMPANY_ROLES: UserGroups[] = [
+  UserGroups.SuperAdmin,
+  UserGroups.Admin,
+  UserGroups.Accounting,
+  UserGroups.AccountingAdmin,
+  UserGroups.Agent,
+  UserGroups.AgentAdmin,
+  UserGroups.PropertyManager,
+  UserGroups.PropertyManagerAdmin
+];
+
+const OUTSIDE_ROLES: UserGroups[] = [
+  UserGroups.Facilities,
+  UserGroups.Housekeeping,
+  UserGroups.Company,
+  UserGroups.Vendor,
+  UserGroups.Tenant,
+  UserGroups.Owner,
+  UserGroups.Inspector
+];
+//#endregion
+
+
+//#region Route Tokens
 const ROUTER_TOKEN = {
   Auth: 'auth',
   Dashboard: 'dashboard',
@@ -40,6 +64,13 @@ const ROUTER_TOKEN = {
   UserList: 'users',
   OrganizationList: 'organizations'
 } as const;
+//#endregion
+
+//#region Access Rules
+const superAdminOnly: AccessRule = {
+  requiredRoles: [UserGroups.SuperAdmin],
+  excludedRoles: []
+};
 
 const openToAllExceptSuperAdmin: AccessRule = {
   requiredRoles: [],
@@ -73,16 +104,13 @@ const settingsAccess: AccessRule = {
   excludedRoles: []
 };
 
-const superAdminOnly: AccessRule = {
-  requiredRoles: [UserGroups.SuperAdmin],
-  excludedRoles: []
-};
-
 const ownerOnly: AccessRule = {
   requiredRoles: [UserGroups.Owner],
   excludedRoles: []
 };
+//#endregion
 
+//#region Segment and Nav Definitions
 const INSPECTOR_ALLOWED_SEGMENTS = new Set<string>([
   ROUTER_TOKEN.MaintenanceList,
   'work-order',
@@ -138,7 +166,9 @@ const routeRulesBySegment: Record<string, AccessRule> = {
 
   [ROUTER_TOKEN.DashboardOwner]: ownerOnly
 };
+//#endregion
 
+//#region Role Checks
 export function getUserGroupNumbers(userGroups: UserGroupInput): number[] {
   return (userGroups || [])
     .map(group => {
@@ -173,20 +203,25 @@ export function hasVendorRole(userGroups: UserGroupInput): boolean {
   return getUserGroupNumbers(userGroups).includes(UserGroups.Vendor);
 }
 
-const ONLY_ROLE_EXCLUSIONS: UserGroups[] = [
-  UserGroups.SuperAdmin,
-  UserGroups.Admin,
-  UserGroups.Accounting,
-  UserGroups.AccountingAdmin,
-  UserGroups.Agent,
-  UserGroups.AgentAdmin,
-  UserGroups.PropertyManager,
-  UserGroups.PropertyManagerAdmin
-];
-
-export function hasMainRole(userGroups: UserGroupInput): boolean {
+export function hasCompanyRole(userGroups: UserGroupInput): boolean {
   const groups = getUserGroupNumbers(userGroups).filter(group => group !== UserGroups.Unknown);
-  return ONLY_ROLE_EXCLUSIONS.some(role => groups.includes(role));
+  return COMPANY_ROLES.some(role => groups.includes(role));
+}
+
+export function isInspectorOnlyUser(userGroups: UserGroupInput): boolean {
+  return hasRoleWithoutExcludedRoles(userGroups, UserGroups.Inspector);
+}
+
+export function isHouseKeeperOnlyUser(userGroups: UserGroupInput): boolean {
+  return hasRoleWithoutExcludedRoles(userGroups, UserGroups.Housekeeping);
+}
+
+export function isVendorOnlyUser(userGroups: UserGroupInput): boolean {
+  return hasRoleWithoutExcludedRoles(userGroups, UserGroups.Vendor);
+}
+
+export function isServiceProvider(userGroups: UserGroupInput): boolean {
+  return isInspectorOnlyUser(userGroups) || isHouseKeeperOnlyUser(userGroups) || isVendorOnlyUser(userGroups);
 }
 
 function hasRoleWithoutExcludedRoles(userGroups: UserGroupInput, requiredRole: UserGroups): boolean {
@@ -194,25 +229,11 @@ function hasRoleWithoutExcludedRoles(userGroups: UserGroupInput, requiredRole: U
   if (!groups.includes(requiredRole)) {
     return false;
   }
-  return !ONLY_ROLE_EXCLUSIONS.some(role => groups.includes(role));
+  return !COMPANY_ROLES.some(role => groups.includes(role));
 }
+//#endregion
 
-export function hasInspectorOnlyRole(userGroups: UserGroupInput): boolean {
-  return hasRoleWithoutExcludedRoles(userGroups, UserGroups.Inspector);
-}
-
-export function hasHouseKeeperOnlyRole(userGroups: UserGroupInput): boolean {
-  return hasRoleWithoutExcludedRoles(userGroups, UserGroups.Housekeeping);
-}
-
-export function hasVendorOnlyRole(userGroups: UserGroupInput): boolean {
-  return hasRoleWithoutExcludedRoles(userGroups, UserGroups.Vendor);
-}
-
-function isInspectorOnlyUser(userGroups: UserGroupInput): boolean {
-  return hasInspectorOnlyRole(userGroups);
-}
-
+//#region Access Helpers
 export function hasAccessByRule(userGroups: UserGroupInput, rule: AccessRule): boolean {
   const userGroupNumbers = getUserGroupNumbers(userGroups);
 
@@ -249,7 +270,9 @@ export function getRouteRuleForUrl(url: string): AccessRule | null {
   }
   return routeRulesBySegment[segment] ?? null;
 }
+//#endregion
 
+//#region Navigation and Routing
 export function canUserAccessUrl(userGroups: UserGroupInput, url: string): boolean {
   const segment = getPrimaryAuthSegment(url);
   if (hasOwnerRole(userGroups)) {
@@ -296,3 +319,4 @@ export function getAuthorizedFallbackUrl(userGroups: UserGroupInput): string {
   const token = firstVisibleItem?.url || ROUTER_TOKEN.Dashboard;
   return `/${ROUTER_TOKEN.Auth}/${token}`;
 }
+//#endregion

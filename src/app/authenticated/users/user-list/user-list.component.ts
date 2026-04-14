@@ -17,7 +17,7 @@ import { OrganizationService } from '../../organizations/services/organization.s
 import { DataTableComponent } from '../../shared/data-table/data-table.component';
 import { DataTableFilterActionsDirective } from '../../shared/data-table/data-table-filter-actions.directive';
 import { ColumnSet } from '../../shared/data-table/models/column-data';
-import { hasHousekeepingRole, hasInspectorRole, hasMainRole, hasOwnerRole, hasVendorRole } from '../../shared/access/role-access';
+import { hasCompanyRole, hasHousekeepingRole, hasInspectorRole, hasOwnerRole, hasVendorRole } from '../../shared/access/role-access';
 import { EMPLOYEE_USER_GROUPS, getStartupPage, SPECIALTY_ONLY_TAB_USER_GROUPS, UserGroups } from '../models/user-enums';
 import { UserListDisplay, UserRequest, UserResponse } from '../models/user.model';
 import { UserService } from '../services/user.service';
@@ -192,7 +192,7 @@ export class UserListComponent implements OnInit, OnDestroy, OnChanges {
     }
 
     const tabPredicates: Array<(user: UserListDisplay) => boolean> = [
-      (user) => hasMainRole(user.userGroups),
+      (user) => hasCompanyRole(user.userGroups),
       (user) => hasOwnerRole(user.userGroups),
       (user) => hasHousekeepingRole(user.userGroups),
       (user) => hasInspectorRole(user.userGroups),

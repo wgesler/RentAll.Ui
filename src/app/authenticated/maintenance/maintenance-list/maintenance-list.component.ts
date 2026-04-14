@@ -22,7 +22,7 @@ import { PropertyService } from '../../properties/services/property.service';
 import { DataTableComponent } from '../../shared/data-table/data-table.component';
 import { ColumnSet } from '../../shared/data-table/models/column-data';
 import { AddAlertDialogComponent, AddAlertDialogData } from '../../shared/modals/add-alert-dialog/add-alert-dialog.component';
-import { hasMainRole } from '../../shared/access/role-access';
+import { hasCompanyRole } from '../../shared/access/role-access';
 import { MaintenanceListBedDropdownCell, MaintenanceListDisplay, MaintenanceListUserDropdownCell, MaintenanceRequest } from '../models/maintenance.model';
 import { MaintenanceItemResponse } from '../models/maintenance-item.model';
 import { INSPECTION_SECTIONS } from '../models/checklist-sections';
@@ -152,7 +152,7 @@ export class MaintenanceListComponent implements OnInit, OnDestroy, OnChanges {
 
     // Main-role users get the full maintenance table; all others get inspector-style columns.
     const userGroups = this.authService.getUser()?.userGroups as Array<string | number> | undefined;
-    this.isVendorView = !hasMainRole(userGroups);
+    this.isVendorView = !hasCompanyRole(userGroups);
     this.inspectorPropertyIds = new Set(
       (this.authService.getUser()?.properties || [])
         .map(propertyId => propertyId.trim().toLowerCase())
