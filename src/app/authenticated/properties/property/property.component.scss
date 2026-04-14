@@ -278,15 +278,23 @@
     gap: 4px 6px;
   }
 
-  /* Address extras row: Unit level & Mailbox = 1; Neighborhood, Cross, View = 2 */
+  /* Fifteen equal tracks: Unit Level, Bldg No, Mailbox span 1; Neighborhood, Cross Street, View span 4 (1+1+1+4+4+4=15) */
   .phone-line-grid {
     display: grid;
-    grid-template-columns: minmax(0, 1fr) minmax(0, 2fr) minmax(0, 2fr) minmax(0, 2fr) minmax(0, 1fr);
+    grid-template-columns: repeat(15, minmax(0, 1fr));
     gap: 4px 6px;
     width: 100%;
 
     > mat-form-field {
       min-width: 0;
+    }
+
+    > .phone-line-span-1 {
+      grid-column: span 1;
+    }
+
+    > .phone-line-span-4 {
+      grid-column: span 4;
     }
   }
 

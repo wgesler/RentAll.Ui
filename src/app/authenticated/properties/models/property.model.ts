@@ -27,6 +27,7 @@ export interface PropertyRequest {
   maidServiceFee: number;
   petFee: number;
   unitLevel: number;
+  bldgNo?: string | null;
   bedrooms: number;
   bathrooms: number;
   accomodates: number;
@@ -151,6 +152,7 @@ export interface PropertyResponse {
   maidServiceFee: number;
   petFee: number;
   unitLevel: number;
+  bldgNo?: string | null;
   bedrooms: number;
   bathrooms: number;
   accomodates: number;

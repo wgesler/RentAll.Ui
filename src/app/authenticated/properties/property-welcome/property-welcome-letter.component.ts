@@ -489,6 +489,7 @@ export class PropertyWelcomeLetterComponent extends BaseDocumentComponent implem
 
     if (this.organization) {    
       result = result.replace(/\{\{organizationName\}\}/g, this.getOrganizationName());
+      result = result.replace(/\{\{companyName\}\}/g, this.organization.name);
     }
 
     if (this.selectedReservation) {
@@ -507,7 +508,7 @@ export class PropertyWelcomeLetterComponent extends BaseDocumentComponent implem
       result = result.replace(/\{\{communityAddress\}\}/g, this.getCommunityAddress() || '');
       result = result.replace(/\{\{apartmentAddress\}\}/g, this.getApartmentAddress() || '');
       result = result.replace(/\{\{buildingCommunity\}\}/g, this.getBuildingCommunityDescription() || 'N/A');
-      result = result.replace(/\{\{buildingName\}\}/g, this.getBuildingDescription() || 'N/A');
+      result = result.replace(/\{\{bldgNo\}\}/g, this.property.bldgNo || 'N/A');
       result = result.replace(/\{\{size\}\}/g,  `${this.property.bedrooms}/${this.property.bathrooms}` || 'N/A');
       result = result.replace(/\{\{unitLevel\}\}/g, this.getUnitFloorLevel());
       result = result.replace(/\{\{phone\}\}/g, this.formatterService.phoneNumber(this.property.phone) || 'N/A');
@@ -520,7 +521,7 @@ export class PropertyWelcomeLetterComponent extends BaseDocumentComponent implem
       result = this.applyOptionalCodePlaceholder(result, 'gateCode', this.property.gateCode);
       result = this.applyOptionalCodePlaceholder(result, 'trashCode', this.property.trashCode);
       result = this.applyOptionalCodePlaceholder(result, 'mailcode', this.property.mailRoomCode);
-
+      result = result.replace(/\{\{internetPassword\}\}/g, this.property.internetPassword || 'N/A');
     }
 
     if (this.propertyLetter) {

@@ -859,13 +859,25 @@ export class MappingService {
 
   mapPropertyResponse(raw: Record<string, unknown>): PropertyResponse {
     const leaseTypeId = raw['propertyLeaseTypeId'] ?? raw['propertyLeaseId'];
-    const { propertyLeaseTypeId: _propertyLeaseTypeId, propertyLeaseId: _propertyLeaseId, ...rest } = raw as Record<string, unknown> & {
+    const {
+      propertyLeaseTypeId: _propertyLeaseTypeId,
+      propertyLeaseId: _propertyLeaseId,
+      bldgNo: _bldgNoCamel,
+      BldgNo: _bldgNoPascal,
+      ...rest
+    } = raw as Record<string, unknown> & {
       propertyLeaseTypeId?: number;
       propertyLeaseId?: number;
+      bldgNo?: string | null;
+      BldgNo?: string | null;
     };
+    const bldgNoRaw = raw['bldgNo'] ?? raw['BldgNo'];
+    const bldgNo =
+      bldgNoRaw != null && String(bldgNoRaw).trim() !== '' ? String(bldgNoRaw).trim() : undefined;
     return {
       ...rest,
-      propertyLeaseTypeId: Number(leaseTypeId ?? 0)
+      propertyLeaseTypeId: Number(leaseTypeId ?? 0),
+      ...(bldgNo !== undefined ? { bldgNo } : {})
     } as unknown as PropertyResponse;
   }
 

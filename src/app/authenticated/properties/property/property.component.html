@@ -205,9 +205,9 @@
                     }
                   </mat-form-field>
                 </div>
-                <!-- Under address: Unit level (1), Neighborhood/Cross/View (2 each), Mailbox (1) -->
+                <!-- Fifteen-column row: Unit Level, Bldg No, Mailbox = 1 track each; Neighborhood, Cross Street, View = 4 tracks each -->
                 <div class="basic-row phone-line-grid gap-x-1.5 gap-y-1">
-                  <mat-form-field appearance="outline" class="basic-compact min-w-0">
+                  <mat-form-field appearance="outline" class="basic-compact min-w-0 phone-line-span-1">
                     <mat-label>Unit Level</mat-label>
                     <input
                       matInput
@@ -225,21 +225,25 @@
                       <mat-error>Must be 0 or greater</mat-error>
                     }
                   </mat-form-field>
-                  <mat-form-field appearance="outline" class="basic-compact min-w-0">
+                  <mat-form-field appearance="outline" class="basic-compact min-w-0 phone-line-span-1">
+                    <mat-label>Bldg No</mat-label>
+                    <input matInput formControlName="bldgNo" maxlength="32">
+                  </mat-form-field>
+                  <mat-form-field appearance="outline" class="basic-compact min-w-0 phone-line-span-1">
+                    <mat-label>Mailbox</mat-label>
+                    <input matInput formControlName="mailbox">
+                  </mat-form-field>
+                  <mat-form-field appearance="outline" class="basic-compact min-w-0 phone-line-span-4">
                     <mat-label>Neighborhood</mat-label>
                     <input matInput formControlName="neighborhood">
                   </mat-form-field>
-                  <mat-form-field appearance="outline" class="basic-compact min-w-0">
+                  <mat-form-field appearance="outline" class="basic-compact min-w-0 phone-line-span-4">
                     <mat-label>Cross Street</mat-label>
                     <input matInput formControlName="crossStreet">
                   </mat-form-field>
-                  <mat-form-field appearance="outline" class="basic-compact min-w-0">
+                  <mat-form-field appearance="outline" class="basic-compact min-w-0 phone-line-span-4">
                     <mat-label>View</mat-label>
                     <input matInput formControlName="view">
-                  </mat-form-field>
-                  <mat-form-field appearance="outline" class="basic-compact min-w-0">
-                    <mat-label>Mailbox</mat-label>
-                    <input matInput formControlName="mailbox">
                   </mat-form-field>
                 </div>
                 <!-- Under phone: Region/Area/Build -->

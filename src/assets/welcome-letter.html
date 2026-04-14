@@ -69,6 +69,11 @@
     .optional-code-line {
       white-space: nowrap;
     }
+
+    .smoking-disclaimer {
+      font-size: 10pt;
+      font-style: italic;
+    }
   </style>
 </head>
 
@@ -108,7 +113,7 @@
       <p><span class="label">Your Apartment Address:</span> {{apartmentAddress}}</p>
 
       <p>
-        <span class="label">Building:</span> {{buildingName}}
+        <span class="label">Building:</span> {{bldgNo}}
         <span class="label separator-label">Bed/Bath:</span> {{size}}
         <span class="label separator-label">Unit Level:</span> {{unitLevel}}
         <span class="label separator-label">Building Code:</span> {{bldgcode}}
@@ -155,5 +160,10 @@
       <p><span class="label">After Hours:</span> {{afterHoursPhone}}</p>
     </div>
   </div>
+
+  <p class="smoking-disclaimer">Please note that smoking is not permitted in the apartment, including the balcony or patio areas. 
+    Please check with your {{companyName}} representative to determine where smoking is allowed, as many properties are entirely smoke-free.
+    Smoking in any unauthorized area will result in substantial fines.
+  </p>
 </body>
 </html>

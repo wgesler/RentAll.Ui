@@ -379,6 +379,9 @@ export class PropertyComponent implements OnInit, OnDestroy, CanComponentDeactiv
       }
     });
 
+    const bldgNoTrim = String(formValue.bldgNo ?? '').trim();
+    propertyRequest.bldgNo = bldgNoTrim.length > 0 ? bldgNoTrim : undefined;
+
     const existingPhone = this.property?.phone;
     propertyRequest.phone = !this.isAddMode && existingPhone != null && String(existingPhone).trim() !== '' ? String(existingPhone).trim() : undefined;
     
@@ -491,6 +494,7 @@ export class PropertyComponent implements OnInit, OnDestroy, CanComponentDeactiv
       propertyStatus: new FormControl<number>(PropertyStatus.Vacant, [Validators.required]),
       propertyType: new FormControl<number>(PropertyType.Unspecified, [Validators.required]),
       unitLevel: new FormControl<number>(1, [Validators.required, Validators.min(0)]),
+      bldgNo: new FormControl(''),
       accomodates: new FormControl(0, [Validators.required, Validators.min(1)]),
       dailyRate: new FormControl<string>('0.00', [Validators.required]),
       monthlyRate: new FormControl<string>('0.00', [Validators.required]),
@@ -653,7 +657,7 @@ export class PropertyComponent implements OnInit, OnDestroy, CanComponentDeactiv
       formData.sofabed = Number(this.property.sofabed ?? 0);
      
       // Handle string fields that might be null/undefined - convert to empty strings
-      const stringFields = ['address2', 'suite', 'neighborhood', 'crossStreet', 'view',
+      const stringFields = ['address2', 'suite', 'bldgNo', 'neighborhood', 'crossStreet', 'view',
                            'trashRemoval', 'amenities', 'alarmCode', 'unitMstrCode', 'unitTenantCode',
                            'bldgMstrCode', 'bldgTenantCode', 'mailRoomCode', 'garageCode',
                            'gateCode', 'trashCode', 'storageCode',
@@ -673,6 +677,11 @@ export class PropertyComponent implements OnInit, OnDestroy, CanComponentDeactiv
         this.property.unitLevel != null && this.property.unitLevel !== undefined
           ? Number(this.property.unitLevel)
           : 1;
+
+      formData.bldgNo =
+        this.property.bldgNo != null && String(this.property.bldgNo).trim() !== ''
+          ? String(this.property.bldgNo).trim()
+          : '';
 
       // Assign location IDs directly from API (now GUIDs)
       formData.officeId = this.property.officeId || null;
@@ -736,6 +745,7 @@ export class PropertyComponent implements OnInit, OnDestroy, CanComponentDeactiv
       propertyLeaseTypeId: PropertyLeaseType.PropertyManagement,
       vendorId: null,
       unitLevel: 1,
+      bldgNo: '',
       checkInTimeId: CheckinTimes.FourPM,
       checkOutTimeId: CheckoutTimes.ElevenAM,
       heating: true,
