@@ -488,13 +488,15 @@ export class InvoiceComponent implements OnInit, OnDestroy {
       invoiceCode: invoiceCode,
       reservationId: formValue.reservationId || null,
       reservationCode: reservationCode,
-      startDate: formValue.startDate ? new Date(formValue.startDate).toISOString() : '',
-      endDate: formValue.endDate ? new Date(formValue.endDate).toISOString() : '',
-      invoiceDate: formValue.invoiceDate ? new Date(formValue.invoiceDate).toISOString() : '',
-      dueDate: formValue.dueDate ? new Date(formValue.dueDate).toISOString() : '',
-      invoicePeriod: formValue.startDate && formValue.endDate
-        ? `${this.formatter.dateOnly(new Date(formValue.startDate))} - ${this.formatter.dateOnly(new Date(formValue.endDate))}`
-        : '',
+      startDate: this.utilityService.toDateOnlyJsonString(formValue.startDate) ?? '',
+      endDate: this.utilityService.toDateOnlyJsonString(formValue.endDate) ?? '',
+      invoiceDate: this.utilityService.toDateOnlyJsonString(formValue.invoiceDate) ?? '',
+      dueDate: this.utilityService.toDateOnlyJsonString(formValue.dueDate) ?? '',
+      invoicePeriod: (() => {
+        const sd = this.utilityService.parseCalendarDateInput(formValue.startDate);
+        const ed = this.utilityService.parseCalendarDateInput(formValue.endDate);
+        return sd && ed ? `${this.formatter.dateOnly(sd)} - ${this.formatter.dateOnly(ed)}` : '';
+      })(),
       totalAmount: invoicedAmount,
       paidAmount: paidAmount,
       notes: formValue.notes || null,
@@ -731,8 +733,8 @@ export class InvoiceComponent implements OnInit, OnDestroy {
     const request: InvoiceMonthlyDataRequest = {
       invoiceCode: invoiceCode,
       reservationId: reservationId,
-      startDate: startDate ? new Date(startDate).toISOString() : '',
-      endDate: endDate ? new Date(endDate).toISOString() : ''
+      startDate: this.utilityService.toDateOnlyJsonString(startDate) ?? '',
+      endDate: this.utilityService.toDateOnlyJsonString(endDate) ?? ''
     };
     
     this.accountingService.getMonthlyLedgerLines(request).pipe(take(1)).subscribe({
@@ -794,11 +796,17 @@ export class InvoiceComponent implements OnInit, OnDestroy {
 
     this.form.get('startDate')?.valueChanges.subscribe((startDateValue) => {
       if (startDateValue) {
-        const startDate = new Date(startDateValue);
+        const startDate = this.utilityService.parseCalendarDateInput(startDateValue);
+        if (!startDate) {
+          return;
+        }
         const endDate = this.form.get('endDate')?.value;
         
         if (endDate) {
-          const currentEndDate = new Date(endDate);
+          const currentEndDate = this.utilityService.parseCalendarDateInput(endDate);
+          if (!currentEndDate) {
+            return;
+          }
           const startMonth = startDate.getMonth();
           const startYear = startDate.getFullYear();
           const endMonth = currentEndDate.getMonth();
@@ -830,10 +838,12 @@ export class InvoiceComponent implements OnInit, OnDestroy {
         officeName: this.invoice.officeName || '',
         reservationId: this.invoice.reservationId || null,
         reservationCode: this.invoice.reservationCode || '',
-        startDate: this.invoice.startDate ? new Date(this.invoice.startDate) : null,
-        endDate: this.invoice.endDate ? new Date(this.invoice.endDate) : null,
-        invoiceDate: this.invoice.invoiceDate ? new Date(this.invoice.invoiceDate) : null,
-        dueDate: this.invoice.dueDate ? new Date(this.invoice.dueDate) : (this.invoice.invoiceDate ? new Date(this.invoice.invoiceDate) : null),
+        startDate: this.utilityService.parseCalendarDateInput(this.invoice.startDate),
+        endDate: this.utilityService.parseCalendarDateInput(this.invoice.endDate),
+        invoiceDate: this.utilityService.parseCalendarDateInput(this.invoice.invoiceDate),
+        dueDate:
+          this.utilityService.parseCalendarDateInput(this.invoice.dueDate) ??
+          this.utilityService.parseCalendarDateInput(this.invoice.invoiceDate),
         invoiceTotal: this.invoice.totalAmount || '',
         invoiceCode: this.invoice.invoiceCode || '',
         invoicedAmount: this.invoice.totalAmount.toFixed(2),
@@ -1248,16 +1258,7 @@ export class InvoiceComponent implements OnInit, OnDestroy {
     notes: string | null;
     isActive: boolean;
   } {
-    const toDateKey = (value: any): string | null => {
-      if (!value) {
-        return null;
-      }
-      const parsed = new Date(value);
-      if (isNaN(parsed.getTime())) {
-        return null;
-      }
-      return parsed.toISOString().slice(0, 10);
-    };
+    const toDateKey = (value: any): string | null => this.utilityService.toDateOnlyJsonString(value);
 
     return {
       officeId: formValue?.officeId ?? null,
@@ -1505,8 +1506,11 @@ export class InvoiceComponent implements OnInit, OnDestroy {
       return null;
     }
     
-    const endDate = new Date(control.value);
-    const start = new Date(startDate);
+    const endDate = this.utilityService.parseCalendarDateInput(control.value);
+    const start = this.utilityService.parseCalendarDateInput(startDate);
+    if (!endDate || !start) {
+      return null;
+    }
     
     endDate.setHours(0, 0, 0, 0);
     start.setHours(0, 0, 0, 0);

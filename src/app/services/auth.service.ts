@@ -98,20 +98,26 @@ export class AuthService {
         return this.jwtContainer$.value?.user;
     }
 
-    isAdmin(): boolean {
-        const userGroups = this.getUser()?.userGroups;
+    /** Whether `groups` (default: signed-in user) includes the given role (string or numeric token from JWT). */
+    hasRole(role: UserGroups, groups?: Array<string | number> | undefined): boolean {
+        const userGroups = groups ?? this.getUser()?.userGroups;
         if (!userGroups?.length) {
             return false;
         }
-
-        const adminIds = new Set<number>([UserGroups.Admin, UserGroups.SuperAdmin]);
         return userGroups.some(group => {
-            if (group === 'Admin' || group === 'SuperAdmin') {
-                return true;
+            if (typeof group === 'string') {
+                if (group === UserGroups[role]) {
+                    return true;
+                }
+                const parsed = Number(group);
+                return !isNaN(parsed) && parsed === role;
             }
-            const parsed = parseInt(String(group), 10);
-            return !isNaN(parsed) && adminIds.has(parsed);
+            return typeof group === 'number' && group === role;
         });
+    }
+
+    isAdmin(): boolean {
+        return this.hasRole(UserGroups.Admin) || this.hasRole(UserGroups.SuperAdmin);
     }
 
     getSessionId(): string | null {

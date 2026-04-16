@@ -6,7 +6,6 @@ import { Subject, takeUntil } from 'rxjs';
 import { RouterUrl } from '../../../app.routes';
 import { MaterialModule } from '../../../material.module';
 import { AuthService } from '../../../services/auth.service';
-import { UtilityService } from '../../../services/utility.service';
 import { OrganizationResponse } from '../../organizations/models/organization.model';
 import { OrganizationService } from '../../organizations/services/organization.service';
 import { OfficeResponse } from '../../organizations/models/office.model';
@@ -63,7 +62,6 @@ export class AccountingComponent implements OnInit, OnDestroy {
     private router: Router,
     private route: ActivatedRoute,
     private authService: AuthService,
-    private utilityService: UtilityService,
     private organizationService: OrganizationService,
     private costCodesService: CostCodesService
   ) { }
@@ -81,8 +79,7 @@ export class AccountingComponent implements OnInit, OnDestroy {
   }
 
   initializeSuperAdminFilters(): void {
-    const user = this.authService.getUser();
-    this.isSuperAdmin = this.utilityService.hasRole(user?.userGroups, UserGroups.SuperAdmin);
+    this.isSuperAdmin = this.authService.hasRole(UserGroups.SuperAdmin);
     if (!this.isSuperAdmin) {
       return;
     }

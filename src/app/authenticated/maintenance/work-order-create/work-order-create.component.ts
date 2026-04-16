@@ -598,7 +598,7 @@ export class WorkOrderCreateComponent extends BaseDocumentComponent implements O
   getWorkOrderFileName(): string {
     const propertyCode = (this.property?.propertyCode || this.workOrder?.propertyCode || 'Property').replace(/[^a-zA-Z0-9-]/g, '');
     const workOrderCode = (this.workOrder?.workOrderId || 'WorkOrder').replace(/[^a-zA-Z0-9-]/g, '');
-    const date = new Date().toISOString().split('T')[0];
+    const date = this.utilityService.todayAsCalendarDateString();
     return `WorkOrder_${propertyCode}_${workOrderCode}_${date}.pdf`;
   }
 

@@ -751,7 +751,8 @@ export class BillingCreateComponent extends BaseDocumentComponent implements OnI
     }
 
     const invoiceCode = this.selectedInvoice.invoiceCode?.replace(/[^a-zA-Z0-9-]/g, '') || this.selectedInvoice.invoiceId;
-    const fileName = `Invoice_${invoiceCode}_${new Date().toISOString().split('T')[0]}.pdf`;
+    const dateStamp = this.utilityService.todayAsCalendarDateString();
+    const fileName = `Invoice_${invoiceCode}_${dateStamp}.pdf`;
 
     const downloadConfig: DownloadConfig = {
       fileName: fileName,
@@ -783,7 +784,7 @@ export class BillingCreateComponent extends BaseDocumentComponent implements OnI
     const accountingPhone = this.formatterService.phoneNumber(this.selectedAccountingOffice?.phone) || '';
     const plainTextContent = '';
     const invoiceCode = this.selectedInvoice?.invoiceCode?.replace(/[^a-zA-Z0-9-]/g, '') || this.selectedInvoice?.invoiceId || 'Invoice';
-    const attachmentFileName = `Invoice_${invoiceCode}_${new Date().toISOString().split('T')[0]}.pdf`;
+    const attachmentFileName = `Invoice_${invoiceCode}_${this.utilityService.todayAsCalendarDateString()}.pdf`;
     const emailSubject = (this.emailHtml?.invoiceSubject || 'Invoice {{invoiceCode}}').trim().replace(/\{\{invoiceCode\}\}/g, invoiceCode || '');
     const emailTemplateHtml = this.emailHtml?.invoice || '';
     const emailBodyHtml = emailTemplateHtml

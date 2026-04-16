@@ -1251,7 +1251,10 @@ export class LeaseComponent extends BaseDocumentComponent implements OnInit, OnD
       result = result.replace(/\{\{depositLabel\}\}/g, this.getDepositLabel());      
       result = result.replace(/\{\{depositText\}\}/g, this.getDepositRequirementText());
       result = result.replace(/\{\{depositText2\}\}/g, this.getDepositRequirementText2());
-      result = result.replace(/\{\{reservationDate\}\}/g, this.formatterService.formatDateStringLong(new Date().toISOString()) || '');
+      result = result.replace(
+        /\{\{reservationDate\}\}/g,
+        this.formatterService.formatDateStringLong(this.utilityService.todayAsCalendarDateString()) || ''
+      );
       result = result.replace(/\{\{checkInTime\}\}/g, getCheckInTime(this.selectedReservation.checkInTimeId) || '');
       result = result.replace(/\{\{checkOutTime\}\}/g, getCheckOutTime(this.selectedReservation.checkOutTimeId) || '');
       result = result.replace(/\{\{reservationNotice\}\}/g, this.getReservationNoticeText());

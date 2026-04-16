@@ -7,6 +7,7 @@ import { catchError, finalize, forkJoin, of, Subject, take, takeUntil } from 'rx
 import { CommonMessage } from '../../../../enums/common-message.enum';
 import { MaterialModule } from '../../../../material.module';
 import { AuthService } from '../../../../services/auth.service';
+import { UtilityService } from '../../../../services/utility.service';
 import { EmailType } from '../../../email/models/email.enum';
 import { AlertRequest } from '../../../email/models/alert.model';
 import { AlertService } from '../../../email/services/alert.service';
@@ -65,6 +66,7 @@ export class AddAlertDialogComponent implements OnInit, OnDestroy {
     private reservationService: ReservationService,
     private alertService: AlertService,
     private toastr: ToastrService,
+    private utilityService: UtilityService,
     private dialogRef: MatDialogRef<AddAlertDialogComponent>,
     @Inject(MAT_DIALOG_DATA) public data: AddAlertDialogData
   ) {}
@@ -113,7 +115,8 @@ export class AddAlertDialogComponent implements OnInit, OnDestroy {
       subject: String(value.subject || '').trim(),
       plainTextContent: String(value.plainTextContent || ''),
       emailTypeId: this.alertEmailTypeId,
-      startDate: value.startDate ? new Date(value.startDate).toISOString() : new Date().toISOString(),
+      startDate:
+        this.utilityService.toDateOnlyJsonString(value.startDate) ?? this.utilityService.todayAsCalendarDateString(),
       daysBeforeDeparture: reservationId ? (String(value.daysBeforeDeparture || '').trim() || null) : null,
       frequencyId: Number(value.frequencyId || 0),
       isActive: true

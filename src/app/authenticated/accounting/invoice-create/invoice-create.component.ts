@@ -1339,7 +1339,8 @@ loadContact(): void {
     }
 
     const invoiceCode = this.selectedInvoice.invoiceCode?.replace(/[^a-zA-Z0-9-]/g, '') || this.selectedInvoice.invoiceId;
-    const fileName = `Invoice_${invoiceCode}_${new Date().toISOString().split('T')[0]}.pdf`;
+    const dateStamp = this.utilityService.todayAsCalendarDateString();
+    const fileName = `Invoice_${invoiceCode}_${dateStamp}.pdf`;
 
     const downloadConfig: DownloadConfig = {
       fileName: fileName,
@@ -1369,7 +1370,7 @@ loadContact(): void {
     const accountingPhone = this.formatterService.phoneNumber(this.selectedAccountingOffice?.phone) || '';
      const plainTextContent = '';
     const invoiceCode = this.selectedInvoice?.invoiceCode?.replace(/[^a-zA-Z0-9-]/g, '') || this.selectedInvoice?.invoiceId || 'Invoice';
-    const attachmentFileName = `Invoice_${invoiceCode}_${new Date().toISOString().split('T')[0]}.pdf`;
+    const attachmentFileName = `Invoice_${invoiceCode}_${this.utilityService.todayAsCalendarDateString()}.pdf`;
     const emailTemplateHtml = (this.contact?.entityTypeId === EntityType.Company) ? (this.emailHtml?.corporateInvoice || '') : (this.emailHtml?.invoice || '');
 
     const emailSubject = this.emailHtml?.invoiceSubject?.trim()

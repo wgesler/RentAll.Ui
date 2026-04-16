@@ -291,7 +291,8 @@ export class WorkOrderComponent implements OnInit, OnChanges, OnDestroy {
     }
 
     const now = new Date();
-    const nowIso = now.toISOString();
+    const todayCalendar =
+      this.utilityService.formatDateOnlyForApi(now) ?? this.utilityService.todayAsCalendarDateString();
     const workOrderRef = this.form.get('workOrderCode')?.value || this.workOrder?.workOrderCode || this.workOrder?.workOrderId || this.workOrderId || 'Work Order';
     const roundedTotalAmount = Math.round(totalAmount * 100) / 100;
 
@@ -313,10 +314,10 @@ export class WorkOrderComponent implements OnInit, OnChanges, OnDestroy {
       reservationId: workOrder.reservationId,
       reservationCode: workOrder.reservationCode,
       invoiceCode: workOrder.workOrderCode,
-      startDate: nowIso,
-      endDate: nowIso,
-      invoiceDate: nowIso,
-      dueDate: nowIso,
+      startDate: todayCalendar,
+      endDate: todayCalendar,
+      invoiceDate: todayCalendar,
+      dueDate: todayCalendar,
       invoicePeriod: `${this.formatter.dateOnly(now)} - ${this.formatter.dateOnly(now)}`,
       totalAmount: roundedTotalAmount,
       paidAmount: 0,

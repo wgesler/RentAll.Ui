@@ -568,26 +568,26 @@ export class MaintenanceListComponent implements OnInit, OnDestroy, OnChanges {
   }
 
   onMaintenanceDateChange(event: MaintenanceListDisplay, columnName: 'cleaningDate' | 'carpetDate' | 'inspectingDate', dateValue: string): void {
-    const isoDate = this.mappingService.toIsoDateOrNull(dateValue);
+    const dateOnlyJson = this.mappingService.toDateOnlyJsonString(dateValue);
     const cleanerUserId = event.cleanerUserId ?? null;
     const carpetUserId = event.carpetUserId ?? null;
     const inspectorUserId = event.inspectorUserId ?? null;
     const dateOverrides = columnName === 'cleaningDate'
       ? {
-          cleaningDate: cleanerUserId ? isoDate : null as string | null,
+          cleaningDate: cleanerUserId ? dateOnlyJson : null as string | null,
           carpetDate: undefined as string | null | undefined,
           inspectingDate: undefined as string | null | undefined
         }
       : columnName === 'carpetDate'
         ? {
             cleaningDate: undefined as string | null | undefined,
-            carpetDate: carpetUserId ? isoDate : null as string | null,
+            carpetDate: carpetUserId ? dateOnlyJson : null as string | null,
             inspectingDate: undefined as string | null | undefined
           }
         : {
             cleaningDate: undefined as string | null | undefined,
             carpetDate: undefined as string | null | undefined,
-            inspectingDate: inspectorUserId ? isoDate : null as string | null
+            inspectingDate: inspectorUserId ? dateOnlyJson : null as string | null
           };
 
     this.maintenanceService.getByPropertyId(event.propertyId).pipe(take(1), switchMap((existing) => {
@@ -1028,8 +1028,8 @@ export class MaintenanceListComponent implements OnInit, OnDestroy, OnChanges {
         return;
       }
 
-      const departureDate = new Date(reservation.departureDate);
-      if (Number.isNaN(departureDate.getTime())) {
+      const departureDate = this.utilityService.parseCalendarDateInput(reservation.departureDate);
+      if (!departureDate || Number.isNaN(departureDate.getTime())) {
         return;
       }
 
@@ -1073,7 +1073,7 @@ export class MaintenanceListComponent implements OnInit, OnDestroy, OnChanges {
 
     for (const item of items) {
       const monthsBetweenService = Math.max(0, Number(item.monthsBetweenService ?? 0));
-      const lastServicedOn = this.parseDateOnly(item.lastServicedOn);
+      const lastServicedOn = this.utilityService.parseCalendarDateInput(item.lastServicedOn);
 
       const redThreshold = new Date(today);
       redThreshold.setMonth(redThreshold.getMonth() - monthsBetweenService);
@@ -1089,18 +1089,6 @@ export class MaintenanceListComponent implements OnInit, OnDestroy, OnChanges {
     }
 
     return hasYellow ? 'yellow' : 'green';
-  }
-
-  parseDateOnly(value: string | null | undefined): Date | null {
-    if (!value) {
-      return null;
-    }
-    const parsed = new Date(value);
-    if (Number.isNaN(parsed.getTime())) {
-      return null;
-    }
-    parsed.setHours(0, 0, 0, 0);
-    return parsed;
   }
 
   ngOnDestroy(): void {

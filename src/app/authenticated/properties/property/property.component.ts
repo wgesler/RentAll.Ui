@@ -354,9 +354,10 @@ export class PropertyComponent implements OnInit, OnDestroy, CanComponentDeactiv
     propertyRequest.bedroomId3 = formValue.bedroomId3 ? Number(formValue.bedroomId3) : 0;
     propertyRequest.bedroomId4 = formValue.bedroomId4 ? Number(formValue.bedroomId4) : 0;
     
-    // Convert Date objects to ISO strings for API (use null if not set)
-    propertyRequest.availableFrom = formValue.availableFrom ? (formValue.availableFrom as Date).toISOString() : undefined;
-    propertyRequest.availableUntil = formValue.availableUntil ? (formValue.availableUntil as Date).toISOString() : undefined;
+    propertyRequest.availableFrom =
+      this.utilityService.formatDateOnlyForApi(formValue.availableFrom as Date | null | undefined) ?? undefined;
+    propertyRequest.availableUntil =
+      this.utilityService.formatDateOnlyForApi(formValue.availableUntil as Date | null | undefined) ?? undefined;
     
     // Map enum fields to Id fields
     propertyRequest.propertyStyleId = formValue.propertyStyle ?? PropertyStyle.Standard;
@@ -621,9 +622,8 @@ export class PropertyComponent implements OnInit, OnDestroy, CanComponentDeactiv
       formData.minStay = this.property.minStay ?? 0;
       formData.maxStay = this.property.maxStay ?? 0;
       
-      // Convert date strings to Date objects
-      formData.availableFrom = this.property.availableFrom ? new Date(this.property.availableFrom) : null;
-      formData.availableUntil = this.property.availableUntil ? new Date(this.property.availableUntil) : null;
+      formData.availableFrom = this.utilityService.parseDateOnlyStringToDate(this.property.availableFrom ?? null);
+      formData.availableUntil = this.utilityService.parseDateOnlyStringToDate(this.property.availableUntil ?? null);
       // Normalize values
       formData.checkInTimeId = normalizeCheckInTimeId(this.property.checkInTimeId);
       formData.checkOutTimeId = normalizeCheckOutTimeId(this.property.checkOutTimeId);

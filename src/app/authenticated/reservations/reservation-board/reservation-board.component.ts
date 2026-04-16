@@ -322,8 +322,8 @@ export class ReservationBoardComponent implements OnInit, OnDestroy {
     const dayNames = ['S', 'M', 'T', 'W', 'T', 'F', 'S'];
     const monthNames = ['JAN', 'FEB', 'MAR', 'APR', 'MAY', 'JUN', 'JUL', 'AUG', 'SEP', 'OCT', 'NOV', 'DEC'];
 
-    const start = this.startDate ? new Date(this.startDate) : new Date();
-    const end = this.endDate ? new Date(this.endDate) : new Date();
+    const start = this.startDate ? this.parseDateOnly(this.startDate) ?? new Date() : new Date();
+    const end = this.endDate ? this.parseDateOnly(this.endDate) ?? new Date() : new Date();
     start.setHours(0, 0, 0, 0);
     end.setHours(0, 0, 0, 0);
 
@@ -443,11 +443,11 @@ export class ReservationBoardComponent implements OnInit, OnDestroy {
       if (r.propertyId !== propertyId || !r.arrivalDate || !r.departureDate) {
         return false;
       }
-      const arrival = new Date(r.arrivalDate);
-      const departure = new Date(r.departureDate);
-      // Reset time to compare dates only
-      arrival.setHours(0, 0, 0, 0);
-      departure.setHours(0, 0, 0, 0);
+      const arrival = this.parseDateOnly(r.arrivalDate);
+      const departure = this.parseDateOnly(r.departureDate);
+      if (!arrival || !departure) {
+        return false;
+      }
       const compareDate = new Date(date);
       compareDate.setHours(0, 0, 0, 0);
       return compareDate >= arrival && compareDate <= departure;
@@ -460,10 +460,9 @@ export class ReservationBoardComponent implements OnInit, OnDestroy {
     // If multiple reservations overlap on the same date, prioritize most recent arrival date.
     matchingReservations.sort((a, b) => {
       if (!a.arrivalDate || !b.arrivalDate) return 0;
-      const dateA = new Date(a.arrivalDate);
-      const dateB = new Date(b.arrivalDate);
-      dateA.setHours(0, 0, 0, 0);
-      dateB.setHours(0, 0, 0, 0);
+      const dateA = this.parseDateOnly(a.arrivalDate);
+      const dateB = this.parseDateOnly(b.arrivalDate);
+      if (!dateA || !dateB) return 0;
       return dateB.getTime() - dateA.getTime();
     });
 
@@ -479,10 +478,11 @@ export class ReservationBoardComponent implements OnInit, OnDestroy {
     const compareDate = new Date(date);
     compareDate.setHours(0, 0, 0, 0);
     
-    const arrival = new Date(reservation.arrivalDate);
-    arrival.setHours(0, 0, 0, 0);
-    const departure = new Date(reservation.departureDate);
-    departure.setHours(0, 0, 0, 0);
+    const arrival = this.parseDateOnly(reservation.arrivalDate);
+    const departure = this.parseDateOnly(reservation.departureDate);
+    if (!arrival || !departure) {
+      return '';
+    }
 
     if (compareDate.getTime() === arrival.getTime()) {
       return 'reservation-arrival';
@@ -503,10 +503,11 @@ export class ReservationBoardComponent implements OnInit, OnDestroy {
     const compareDate = new Date(date);
     compareDate.setHours(0, 0, 0, 0);
     
-    const arrival = new Date(reservation.arrivalDate);
-    arrival.setHours(0, 0, 0, 0);
-    const departure = new Date(reservation.departureDate);
-    departure.setHours(0, 0, 0, 0);
+    const arrival = this.parseDateOnly(reservation.arrivalDate);
+    const departure = this.parseDateOnly(reservation.departureDate);
+    if (!arrival || !departure) {
+      return null;
+    }
 
     if (compareDate.getTime() === arrival.getTime() || compareDate.getTime() === departure.getTime()) {
       return this.colorMap.get(ReservationStatus.ArrivalDeparture) || null;
@@ -558,10 +559,8 @@ export class ReservationBoardComponent implements OnInit, OnDestroy {
       return ' '.repeat(lastDayOfMonth);
     }
 
-    const arrDate = arrivalDate ? new Date(arrivalDate) : null;
-    const depDate = departureDate ? new Date(departureDate) : null;
-    arrDate?.setHours(0, 0, 0, 0);
-    depDate?.setHours(0, 0, 0, 0);
+    const arrDate = arrivalDate ? this.parseDateOnly(arrivalDate) : null;
+    const depDate = departureDate ? this.parseDateOnly(departureDate) : null;
 
     // EOM: last day of month we may use. Never use the last day; if last day is Departure, EOM = last day - 2.
     const isDepartureOnLastDay = depDate && depDate.getFullYear() === year && depDate.getMonth() === month && depDate.getDate() === lastDayOfMonth;
@@ -724,10 +723,11 @@ export class ReservationBoardComponent implements OnInit, OnDestroy {
     }
     const compareDate = new Date(date);
     compareDate.setHours(0, 0, 0, 0);
-    const arrival = new Date(reservation.arrivalDate);
-    arrival.setHours(0, 0, 0, 0);
-    const departure = new Date(reservation.departureDate);
-    departure.setHours(0, 0, 0, 0);
+    const arrival = this.parseDateOnly(reservation.arrivalDate);
+    const departure = this.parseDateOnly(reservation.departureDate);
+    if (!arrival || !departure) {
+      return '';
+    }
 
     // Arrival day always shows A and departure day always shows D, regardless of status (including OwnerBlocked and Maintenance)
     if (compareDate.getTime() === arrival.getTime()) {
@@ -832,7 +832,7 @@ export class ReservationBoardComponent implements OnInit, OnDestroy {
         queryParams: {
           returnTo: 'reservation-board',
           propertyId,
-          startDate: selectedDate.toISOString().split('T')[0]
+          startDate: this.utilityService.formatDateOnlyForApi(selectedDate) ?? this.utilityService.todayAsCalendarDateString()
         }
       }
     );

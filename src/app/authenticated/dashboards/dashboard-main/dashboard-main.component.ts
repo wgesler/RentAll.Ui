@@ -181,9 +181,9 @@ export class DashboardMainComponent implements OnInit, OnDestroy {
     this.user = this.authService.getUser();
     this.isAdmin = this.authService.isAdmin();
     this.canViewCommissions =
-      this.utilityService.hasRole(this.user?.userGroups, UserGroups.SuperAdmin)
-      || this.utilityService.hasRole(this.user?.userGroups, UserGroups.Admin)
-      || this.utilityService.hasRole(this.user?.userGroups, UserGroups.Agent);
+      this.authService.hasRole(UserGroups.SuperAdmin)
+      || this.authService.hasRole(UserGroups.Admin)
+      || this.authService.hasRole(UserGroups.Agent);
     this.organizationId = this.user?.organizationId?.trim() ?? '';
     this.preferredOfficeId = this.user?.defaultOfficeId ?? null;
     this.setTodayDate();
@@ -493,8 +493,10 @@ export class DashboardMainComponent implements OnInit, OnDestroy {
       if (!reservation.arrivalDate || !reservation.isActive) {
         return false;
       }
-      const arrivalDate = new Date(reservation.arrivalDate);
-      arrivalDate.setHours(0, 0, 0, 0);
+      const arrivalDate = this.utilityService.parseDateOnlyStringToDate(reservation.arrivalDate);
+      if (!arrivalDate) {
+        return false;
+      }
       return arrivalDate.getTime() === today.getTime();
     });
 
@@ -502,8 +504,10 @@ export class DashboardMainComponent implements OnInit, OnDestroy {
       if (!reservation.departureDate || !reservation.isActive) {
         return false;
       }
-      const departureDate = new Date(reservation.departureDate);
-      departureDate.setHours(0, 0, 0, 0);
+      const departureDate = this.utilityService.parseDateOnlyStringToDate(reservation.departureDate);
+      if (!departureDate) {
+        return false;
+      }
       return departureDate.getTime() === today.getTime();
     });
 
@@ -511,8 +515,10 @@ export class DashboardMainComponent implements OnInit, OnDestroy {
       if (!reservation.arrivalDate || !reservation.isActive) {
         return false;
       }
-      const arrivalDate = new Date(reservation.arrivalDate);
-      arrivalDate.setHours(0, 0, 0, 0);
+      const arrivalDate = this.utilityService.parseDateOnlyStringToDate(reservation.arrivalDate);
+      if (!arrivalDate) {
+        return false;
+      }
       return arrivalDate.getTime() === tomorrow.getTime();
     });
 
@@ -520,8 +526,10 @@ export class DashboardMainComponent implements OnInit, OnDestroy {
       if (!reservation.departureDate || !reservation.isActive) {
         return false;
       }
-      const departureDate = new Date(reservation.departureDate);
-      departureDate.setHours(0, 0, 0, 0);
+      const departureDate = this.utilityService.parseDateOnlyStringToDate(reservation.departureDate);
+      if (!departureDate) {
+        return false;
+      }
       return departureDate.getTime() === tomorrow.getTime();
     });
 
@@ -530,14 +538,16 @@ export class DashboardMainComponent implements OnInit, OnDestroy {
         return false;
       }
       
-      const arrivalDate = new Date(reservation.arrivalDate);
-      arrivalDate.setHours(0, 0, 0, 0);
+      const arrivalDate = this.utilityService.parseDateOnlyStringToDate(reservation.arrivalDate);
+      if (!arrivalDate) {
+        return false;
+      }
       
       return arrivalDate.getTime() >= today.getTime() && 
              arrivalDate.getTime() <= fifteenDaysFromNow.getTime();
     }).sort((a, b) => {
-      const aDate = this.utilityService.parseDateTimeStringToDate(a.arrivalDate);
-      const bDate = this.utilityService.parseDateTimeStringToDate(b.arrivalDate);
+      const aDate = this.utilityService.parseDateOnlyStringToDate(a.arrivalDate);
+      const bDate = this.utilityService.parseDateOnlyStringToDate(b.arrivalDate);
       return (aDate?.getTime() ?? 0) - (bDate?.getTime() ?? 0);
     }).map(reservation => this.mapTurnoverReservationStatus(reservation, propertyStatusByPropertyId));
 
@@ -546,14 +556,16 @@ export class DashboardMainComponent implements OnInit, OnDestroy {
         return false;
       }
       
-      const departureDate = new Date(reservation.departureDate);
-      departureDate.setHours(0, 0, 0, 0);
+      const departureDate = this.utilityService.parseDateOnlyStringToDate(reservation.departureDate);
+      if (!departureDate) {
+        return false;
+      }
       
       return departureDate.getTime() >= today.getTime() && 
              departureDate.getTime() <= fifteenDaysFromNow.getTime();
     }).sort((a, b) => {
-      const aDate = this.utilityService.parseDateTimeStringToDate(a.departureDate);
-      const bDate = this.utilityService.parseDateTimeStringToDate(b.departureDate);
+      const aDate = this.utilityService.parseDateOnlyStringToDate(a.departureDate);
+      const bDate = this.utilityService.parseDateOnlyStringToDate(b.departureDate);
       return (aDate?.getTime() ?? 0) - (bDate?.getTime() ?? 0);
     }).map(reservation => this.mapTurnoverReservationStatus(reservation, propertyStatusByPropertyId));
   }
@@ -610,24 +622,30 @@ export class DashboardMainComponent implements OnInit, OnDestroy {
       if (!arrivalDate || !departureDate) {
         return false;
       }
-      const reservationStart = new Date(arrivalDate);
-      const reservationEnd = new Date(departureDate);
-      reservationStart.setHours(0, 0, 0, 0);
-      reservationEnd.setHours(23, 59, 59, 999);
-      return reservationStart.getTime() <= monthEnd.getTime() && reservationEnd.getTime() >= monthStart.getTime();
+      const reservationStart = this.utilityService.parseDateOnlyStringToDate(arrivalDate);
+      const reservationEnd = this.utilityService.parseDateOnlyStringToDate(departureDate);
+      if (!reservationStart || !reservationEnd) {
+        return false;
+      }
+      const reservationEndEod = new Date(reservationEnd.getTime());
+      reservationEndEod.setHours(23, 59, 59, 999);
+      return reservationStart.getTime() <= monthEnd.getTime() && reservationEndEod.getTime() >= monthStart.getTime();
     };
 
     const getDaysRentedInCurrentMonth = (arrivalDate?: string, departureDate?: string): number => {
       if (!arrivalDate || !departureDate) {
         return 0;
       }
-      const reservationStart = new Date(arrivalDate);
-      const reservationEnd = new Date(departureDate);
-      reservationStart.setHours(0, 0, 0, 0);
-      reservationEnd.setHours(23, 59, 59, 999);
+      const reservationStart = this.utilityService.parseDateOnlyStringToDate(arrivalDate);
+      const reservationEnd = this.utilityService.parseDateOnlyStringToDate(departureDate);
+      if (!reservationStart || !reservationEnd) {
+        return 0;
+      }
+      const reservationEndEod = new Date(reservationEnd.getTime());
+      reservationEndEod.setHours(23, 59, 59, 999);
 
       const overlapStart = reservationStart > monthStart ? reservationStart : monthStart;
-      const overlapEnd = reservationEnd < monthEnd ? reservationEnd : monthEnd;
+      const overlapEnd = reservationEndEod < monthEnd ? reservationEndEod : monthEnd;
       if (overlapStart.getTime() > overlapEnd.getTime()) {
         return 0;
       }
@@ -686,8 +704,8 @@ export class DashboardMainComponent implements OnInit, OnDestroy {
           return agentCompare;
         }
 
-        const arrivalA = this.utilityService.parseDateTimeStringToDate(a.arrivalDate)?.getTime() ?? 0;
-        const arrivalB = this.utilityService.parseDateTimeStringToDate(b.arrivalDate)?.getTime() ?? 0;
+        const arrivalA = this.utilityService.parseDateOnlyStringToDate(a.arrivalDate)?.getTime() ?? 0;
+        const arrivalB = this.utilityService.parseDateOnlyStringToDate(b.arrivalDate)?.getTime() ?? 0;
         if (arrivalA !== arrivalB) {
           return arrivalA - arrivalB;
         }
@@ -952,8 +970,8 @@ export class DashboardMainComponent implements OnInit, OnDestroy {
     const latestPastDepartureByProperty = new Map<string, Date>();
 
     activeReservations.forEach(reservation => {
-      const arrivalDate = this.utilityService.parseDateTimeStringToDate(reservation.arrivalDate);
-      const departureDate = this.utilityService.parseDateTimeStringToDate(reservation.departureDate);
+      const arrivalDate = this.utilityService.parseDateOnlyStringToDate(reservation.arrivalDate);
+      const departureDate = this.utilityService.parseDateOnlyStringToDate(reservation.departureDate);
       if (!arrivalDate || !departureDate || !reservation.propertyId) {
         return;
       }
@@ -966,7 +984,7 @@ export class DashboardMainComponent implements OnInit, OnDestroy {
       if (!reservation.propertyId) {
         return;
       }
-      const departureDate = this.utilityService.parseDateTimeStringToDate(reservation.departureDate);
+      const departureDate = this.utilityService.parseDateOnlyStringToDate(reservation.departureDate);
       if (!departureDate || departureDate.getTime() > today.getTime()) {
         return;
       }

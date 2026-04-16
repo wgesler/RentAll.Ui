@@ -283,8 +283,8 @@ export class ReservationComponent implements OnInit, OnDestroy, CanComponentDeac
 
     const today = new Date();
     today.setHours(0, 0, 0, 0);
-    const arrivalSource = source.arrivalDate ? new Date(source.arrivalDate) : null;
-    const departureSource = source.departureDate ? new Date(source.departureDate) : null;
+    const arrivalSource = this.parseDateOnly(source.arrivalDate);
+    const departureSource = this.parseDateOnly(source.departureDate);
     const stayDays = arrivalSource && departureSource
       ? Math.max(1, Math.ceil((departureSource.getTime() - arrivalSource.getTime()) / (24 * 60 * 60 * 1000)))
       : 1;
@@ -561,8 +561,12 @@ export class ReservationComponent implements OnInit, OnDestroy, CanComponentDeac
       hasPets: formValue.pets ?? false,
       tenantName: formValue.tenantName || '',
       referenceNo: formValue.referenceNo || '',
-      arrivalDate: formValue.arrivalDate ? (formValue.arrivalDate as Date).toISOString() : new Date().toISOString(),
-      departureDate: formValue.departureDate ? (formValue.departureDate as Date).toISOString() : new Date().toISOString(),
+      arrivalDate:
+        this.utilityService.formatDateOnlyForApi(formValue.arrivalDate as Date | null | undefined) ??
+        this.utilityService.todayAsCalendarDateString(),
+      departureDate:
+        this.utilityService.formatDateOnlyForApi(formValue.departureDate as Date | null | undefined) ??
+        this.utilityService.todayAsCalendarDateString(),
       checkInTimeId: normalizeCheckInTimeId(formValue.checkInTimeId),
       checkOutTimeId: normalizeCheckOutTimeId(formValue.checkOutTimeId),
       lockBoxCode: formValue.lockBoxCode || null,
@@ -577,7 +581,9 @@ export class ReservationComponent implements OnInit, OnDestroy, CanComponentDeac
       maidService: formValue.maidService ?? false,
       maidServiceFee: formValue.maidServiceFee ? parseFloat(formValue.maidServiceFee.toString()) : 0,
       frequencyId: formValue.frequencyId ?? Frequency.NA,
-      maidStartDate: formValue.maidStartDate ? (formValue.maidStartDate as Date).toISOString() : new Date().toISOString(),
+      maidStartDate:
+        this.utilityService.formatDateOnlyForApi(formValue.maidStartDate as Date | null | undefined) ??
+        this.utilityService.todayAsCalendarDateString(),
       petFee: formValue.petFee ? parseFloat(formValue.petFee.toString()) : 0,
       numberOfPets: formValue.numberOfPets ? Number(formValue.numberOfPets) : 0,
       petDescription: formValue.petDescription || undefined,
@@ -748,8 +754,8 @@ export class ReservationComponent implements OnInit, OnDestroy, CanComponentDeac
       referenceNo: this.reservation.referenceNo || '',
       reservationStatusId: this.reservation.reservationStatusId,
       reservationNoticeId: this.reservation.reservationNoticeId,
-      arrivalDate: this.reservation.arrivalDate ? new Date(this.reservation.arrivalDate) : null,
-      departureDate: this.reservation.departureDate ? new Date(this.reservation.departureDate) : null,
+      arrivalDate: this.parseDateOnly(this.reservation.arrivalDate),
+      departureDate: this.parseDateOnly(this.reservation.departureDate),
       checkInTimeId: this.reservation.checkInTimeId,
       checkOutTimeId: this.reservation.checkOutTimeId,
       lockBoxCode: this.reservation.lockBoxCode || '',
@@ -767,7 +773,7 @@ export class ReservationComponent implements OnInit, OnDestroy, CanComponentDeac
       numberOfPets: this.reservation.numberOfPets ?? 0,
       petDescription: this.reservation.petDescription || '',
       maidService: this.reservation.maidService ?? false,
-      maidStartDate: this.reservation.maidStartDate ? new Date(this.reservation.maidStartDate) : null,
+      maidStartDate: this.parseDateOnly(this.reservation.maidStartDate),
       maidServiceFee: (this.reservation.maidServiceFee ?? 0).toFixed(2),
       frequencyId: this.reservation.frequencyId ?? Frequency.NA,
       taxes: this.reservation.taxes === 0 ? null : this.reservation.taxes,
@@ -790,23 +796,26 @@ export class ReservationComponent implements OnInit, OnDestroy, CanComponentDeac
     const arr = this.form.get('arrivalDate')?.value;
     const dep = this.form.get('departureDate')?.value;
     if (arr && dep) {
-      const a = new Date(arr);
-      a.setHours(0, 0, 0, 0);
-      const d = new Date(dep);
-      d.setHours(0, 0, 0, 0);
-      if (d.getTime() > a.getTime()) {
-        this.departureDateStartAt = new Date(dep);
+      const a = this.parseDateOnly(arr);
+      const d = this.parseDateOnly(dep);
+      if (!a || !d) {
+        this.departureDateStartAt = null;
+      } else if (d.getTime() > a.getTime()) {
+        this.departureDateStartAt = new Date(d.getTime());
       } else {
-        const s = new Date(arr);
-        s.setHours(0, 0, 0, 0);
+        const s = new Date(a.getTime());
         s.setDate(s.getDate() + 1);
         this.departureDateStartAt = s;
       }
     } else if (arr && !dep) {
-      const s = new Date(arr);
-      s.setHours(0, 0, 0, 0);
-      s.setDate(s.getDate() + 1);
-      this.departureDateStartAt = s;
+      const a0 = this.parseDateOnly(arr);
+      if (!a0) {
+        this.departureDateStartAt = null;
+      } else {
+        const s = new Date(a0.getTime());
+        s.setDate(s.getDate() + 1);
+        this.departureDateStartAt = s;
+      }
     } else {
       this.departureDateStartAt = null;
     }
@@ -852,10 +861,11 @@ export class ReservationComponent implements OnInit, OnDestroy, CanComponentDeac
     if (!arrivalRaw || !departureRaw) {
       return null;
     }
-    const arrival = new Date(arrivalRaw);
-    const departure = new Date(departureRaw);
-    arrival.setHours(0, 0, 0, 0);
-    departure.setHours(0, 0, 0, 0);
+    const arrival = this.parseDateOnly(arrivalRaw);
+    const departure = this.parseDateOnly(departureRaw);
+    if (!arrival || !departure) {
+      return null;
+    }
     return departure.getTime() > arrival.getTime() ? null : { departureAfterArrival: true };
   };
 
@@ -867,8 +877,11 @@ export class ReservationComponent implements OnInit, OnDestroy, CanComponentDeac
     if (!arrivalDate) {
       return null;
     }
-    const d = new Date(arrivalDate);
-    d.setHours(0, 0, 0, 0);
+    const base = this.parseDateOnly(arrivalDate);
+    if (!base) {
+      return null;
+    }
+    const d = new Date(base.getTime());
     d.setDate(d.getDate() + 1);
     return d;
   }
@@ -1134,10 +1147,13 @@ export class ReservationComponent implements OnInit, OnDestroy, CanComponentDeac
     // Always update maidStartDate to arrivalDate + 7 days when arrivalDate changes
     // (field will be disabled/grayed out if maidService is false)
     if (arrivalDate && maidStartDateControl) {
-      const arrival = new Date(arrivalDate);
-      const arrivalPlus7Days = new Date(arrival);
+      const arrival = this.parseDateOnly(arrivalDate);
+      if (!arrival) {
+        return;
+      }
+      const arrivalPlus7Days = new Date(arrival.getTime());
       arrivalPlus7Days.setDate(arrivalPlus7Days.getDate() + 7);
-      const currentMaidStartDate = maidStartDateControl.value ? new Date(maidStartDateControl.value) : null;
+      const currentMaidStartDate = this.parseDateOnly(maidStartDateControl.value);
       
       // If maidStartDate is null or before arrivalDate, set it to arrivalDate + 7 days
       if (!currentMaidStartDate || currentMaidStartDate < arrival) {
@@ -1170,20 +1186,22 @@ export class ReservationComponent implements OnInit, OnDestroy, CanComponentDeac
 
       // If arrival date is set and departure date is unset, start calendar at first allowed departure day
       if (arrivalDate && !departureDate) {
-        const start = new Date(arrivalDate);
-        start.setHours(0, 0, 0, 0);
-        start.setDate(start.getDate() + 1);
-        this.departureDateStartAt = start;
+        const a0 = this.parseDateOnly(arrivalDate);
+        if (!a0) {
+          this.departureDateStartAt = null;
+        } else {
+          const start = new Date(a0.getTime());
+          start.setDate(start.getDate() + 1);
+          this.departureDateStartAt = start;
+        }
       } else if (!arrivalDate) {
         this.departureDateStartAt = null;
       }
 
       if (arrivalDate && departureDate) {
-        const a = new Date(arrivalDate);
-        a.setHours(0, 0, 0, 0);
-        const dep = new Date(departureDate);
-        dep.setHours(0, 0, 0, 0);
-        if (dep.getTime() <= a.getTime()) {
+        const a = this.parseDateOnly(arrivalDate);
+        const dep = this.parseDateOnly(departureDate);
+        if (a && dep && dep.getTime() <= a.getTime()) {
           departureControl?.setValue(null, { emitEvent: true });
         }
       }
@@ -1511,10 +1529,12 @@ export class ReservationComponent implements OnInit, OnDestroy, CanComponentDeac
       const arrivalDate = this.form.get('arrivalDate')?.value;
       const departureDate = this.form.get('departureDate')?.value;
       if (arrivalDate && !departureDate) {
-        const start = new Date(arrivalDate);
-        start.setHours(0, 0, 0, 0);
-        start.setDate(start.getDate() + 1);
-        this.departureDateStartAt = start;
+        const a0 = this.parseDateOnly(arrivalDate);
+        if (a0) {
+          const start = new Date(a0.getTime());
+          start.setDate(start.getDate() + 1);
+          this.departureDateStartAt = start;
+        }
       }
     }
 
@@ -1959,9 +1979,7 @@ export class ReservationComponent implements OnInit, OnDestroy, CanComponentDeac
   }
 
   normalizeDateForConflict(value: string | Date | null | undefined): Date {
-    const d = value instanceof Date ? new Date(value) : new Date(value as string);
-    d.setHours(0, 0, 0, 0);
-    return d;
+    return this.parseDateOnly(value) ?? new Date(NaN);
   }
 
   applySelectedPropertyClearIfOfficeMismatch(): void {
@@ -2334,13 +2352,14 @@ export class ReservationComponent implements OnInit, OnDestroy, CanComponentDeac
       return;
     }
 
-    // Convert dates to Date objects if they aren't already
-    const arrival = arrivalDate instanceof Date ? new Date(arrivalDate) : new Date(arrivalDate);
-    const departure = departureDate instanceof Date ? new Date(departureDate) : new Date(departureDate);
-
-    // Reset time to compare dates only
-    arrival.setHours(0, 0, 0, 0);
-    departure.setHours(0, 0, 0, 0);
+    const arrival = this.parseDateOnly(arrivalDate);
+    const departure = this.parseDateOnly(departureDate);
+    if (!arrival || !departure) {
+      if (offendingField === 'save') {
+        this.performSave();
+      }
+      return;
+    }
 
     if (departure.getTime() <= arrival.getTime()) {
       this.toastr.error('Departure date must be after the arrival date.', CommonMessage.Error);
@@ -2378,10 +2397,11 @@ export class ReservationComponent implements OnInit, OnDestroy, CanComponentDeac
           return false;
         }
 
-        const rArrival = new Date(r.arrivalDate);
-        const rDeparture = new Date(r.departureDate);
-        rArrival.setHours(0, 0, 0, 0);
-        rDeparture.setHours(0, 0, 0, 0);
+        const rArrival = this.parseDateOnly(r.arrivalDate);
+        const rDeparture = this.parseDateOnly(r.departureDate);
+        if (!rArrival || !rDeparture) {
+          return false;
+        }
 
         // Strict overlap: both `arrival < rDeparture` and `departure > rArrival`. Boundary equality = no conflict
         // (same calendar day for one's departure and the other's arrival is allowed).
@@ -2413,17 +2433,23 @@ export class ReservationComponent implements OnInit, OnDestroy, CanComponentDeac
   }
 
   parseDateOnly(value: string | Date | null | undefined): Date | null {
-    if (!value) {
+    if (value == null || value === '') {
       return null;
     }
-
-    const parsed = value instanceof Date ? new Date(value) : new Date(value);
-    if (isNaN(parsed.getTime())) {
+    if (value instanceof Date) {
+      const d = new Date(value.getTime());
+      if (isNaN(d.getTime())) {
+        return null;
+      }
+      d.setHours(0, 0, 0, 0);
+      return d;
+    }
+    const d = this.utilityService.parseDateOnlyStringToDate(String(value));
+    if (!d) {
       return null;
     }
-
-    parsed.setHours(0, 0, 0, 0);
-    return parsed;
+    d.setHours(0, 0, 0, 0);
+    return d;
   }
 
   formatDateForMessage(date: Date): string {

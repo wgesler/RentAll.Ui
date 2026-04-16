@@ -2,6 +2,7 @@ import { CommonModule } from '@angular/common';
 import { Component, EventEmitter, Input, OnChanges, Output, SimpleChanges } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { MaterialModule } from '../../../material.module';
+import { UtilityService } from '../../../services/utility.service';
 import { PropertyResponse } from '../../properties/models/property.model';
 import { MaintenanceItemRequest, MaintenanceItemResponse } from '../models/maintenance-item.model';
 
@@ -22,6 +23,8 @@ interface MaintenanceItemEditRow {
   styleUrl: './maintenance-item-list.component.scss'
 })
 export class MaintenanceItemListComponent implements OnChanges {
+  constructor(private utilityService: UtilityService) {}
+
   @Input() maintenanceItems: MaintenanceItemResponse[] = [];
   @Input() isLoading = false;
   @Input() isSaving = false;
@@ -200,7 +203,7 @@ export class MaintenanceItemListComponent implements OnChanges {
     if (!parsed) {
       return null;
     }
-    return parsed.toISOString().slice(0, 10);
+    return this.utilityService.formatDateOnlyForApi(parsed);
   }
 
   normalizeComparable(row: MaintenanceItemEditRow): { name: string; notes: string; monthsBetweenService: number; lastServicedOn: string | null } {

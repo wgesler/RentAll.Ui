@@ -8,6 +8,7 @@ import { RouterUrl } from '../../../app.routes';
 import { CommonMessage } from '../../../enums/common-message.enum';
 import { MaterialModule } from '../../../material.module';
 import { AuthService } from '../../../services/auth.service';
+import { UtilityService } from '../../../services/utility.service';
 import { FormatterService } from '../../../services/formatter-service';
 import { EmailType } from '../models/email.enum';
 import { getFrequencies } from '../../reservations/models/reservation-enum';
@@ -65,6 +66,7 @@ export class AlertComponent implements OnInit, OnChanges, OnDestroy {
     private propertyService: PropertyService,
     private reservationService: ReservationService,
     private formatter: FormatterService,
+    private utilityService: UtilityService,
     private toastr: ToastrService
   ) {}
 
@@ -160,7 +162,7 @@ export class AlertComponent implements OnInit, OnChanges, OnDestroy {
       subject: String(value.subject || '').trim(),
       plainTextContent: String(value.plainTextContent || ''),
       emailTypeId: this.alertEmailTypeId,
-      startDate: value.startDate ? new Date(value.startDate).toISOString() : new Date().toISOString(),
+      startDate: this.utilityService.toDateOnlyJsonString(value.startDate) ?? this.utilityService.todayAsCalendarDateString(),
       daysBeforeDeparture: selectedReservationId ? (String(value.daysBeforeDeparture || '').trim() || null) : null,
       frequencyId: Number(value.frequencyId || 0),
       isActive: value.isActive !== false
@@ -275,7 +277,7 @@ export class AlertComponent implements OnInit, OnChanges, OnDestroy {
       ccEmails: (response.ccRecipients || []).map(recipient => recipient.email).join(', '),
       bccEmails: (response.bccRecipients || []).map(recipient => recipient.email).join(', '),
       plainTextContent: response.plainTextContent || '',
-      startDate: response.startDate ? new Date(response.startDate) : null,
+      startDate: this.utilityService.parseCalendarDateInput(response.startDate),
       daysBeforeDeparture: response.daysBeforeDeparture || '',
       frequencyId: response.frequencyId ?? null,
       isActive: response.isActive ?? true

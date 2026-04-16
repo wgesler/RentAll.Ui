@@ -10,6 +10,7 @@ import { RouterUrl } from '../../../app.routes';
 import { CommonMessage } from '../../../enums/common-message.enum';
 import { MaterialModule } from '../../../material.module';
 import { AuthService } from '../../../services/auth.service';
+import { FormatterService } from '../../../services/formatter-service';
 import { MappingService } from '../../../services/mapping.service';
 import { UtilityService } from '../../../services/utility.service';
 import { EmailRequest } from '../../email/models/email.model';
@@ -101,6 +102,7 @@ export class ReservationListComponent implements OnInit, OnDestroy, OnChanges {
     public router: Router,
     public route: ActivatedRoute,
     public mappingService: MappingService,
+    private formatterService: FormatterService,
     private propertyService: PropertyService,
     private emailService: EmailService,
     private utilityService: UtilityService,
@@ -268,7 +270,7 @@ export class ReservationListComponent implements OnInit, OnDestroy, OnChanges {
   deleteReservation(reservation: ReservationListDisplay): void {
     const now = new Date();
     now.setHours(0, 0, 0, 0);
-    const arrivalDate = reservation.arrivalDate ? new Date(reservation.arrivalDate) : null;
+    const arrivalDate = this.utilityService.parseCalendarDateInput(reservation.arrivalDate);
     if (arrivalDate && !isNaN(arrivalDate.getTime())) {
       arrivalDate.setHours(0, 0, 0, 0);
       if (now >= arrivalDate) {
@@ -479,8 +481,8 @@ export class ReservationListComponent implements OnInit, OnDestroy, OnChanges {
     if (this.startDate || this.endDate) {
       filtered = filtered.filter(reservation => {
         // Normalize filter dates to midnight for accurate comparison
-        const start = this.startDate ? new Date(this.startDate) : null;
-        const end = this.endDate ? new Date(this.endDate) : null;
+        const start = this.startDate ? this.utilityService.parseCalendarDateInput(this.startDate) : null;
+        const end = this.endDate ? this.utilityService.parseCalendarDateInput(this.endDate) : null;
         
         if (start) {
           start.setHours(0, 0, 0, 0);
@@ -491,7 +493,10 @@ export class ReservationListComponent implements OnInit, OnDestroy, OnChanges {
 
         // Check if arrival date falls within range (inclusive)
         if (reservation.arrivalDate) {
-          const arrivalDate = new Date(reservation.arrivalDate);
+          const arrivalDate = this.utilityService.parseCalendarDateInput(reservation.arrivalDate);
+          if (!arrivalDate) {
+            return false;
+          }
           arrivalDate.setHours(0, 0, 0, 0);
           
           const arrivalMatches = (!start || arrivalDate.getTime() >= start.getTime()) && 
@@ -503,7 +508,10 @@ export class ReservationListComponent implements OnInit, OnDestroy, OnChanges {
 
         // Check if departure date falls within range (inclusive)
         if (reservation.departureDate) {
-          const departureDate = new Date(reservation.departureDate);
+          const departureDate = this.utilityService.parseCalendarDateInput(reservation.departureDate);
+          if (!departureDate) {
+            return false;
+          }
           departureDate.setHours(0, 0, 0, 0);
           
           const departureMatches = (!start || departureDate.getTime() >= start.getTime()) && 
@@ -619,12 +627,11 @@ export class ReservationListComponent implements OnInit, OnDestroy, OnChanges {
   }
 
   getReservationDateText(value: string | Date | null | undefined): string {
-    const parsed = value ? new Date(value) : null;
-    if (!parsed || isNaN(parsed.getTime())) {
+    const dateOnly = this.utilityService.toDateOnlyJsonString(value);
+    if (!dateOnly) {
       return '';
     }
-    parsed.setHours(0, 0, 0, 0);
-    return `${parsed.getMonth() + 1}/${parsed.getDate()}/${parsed.getFullYear()}`;
+    return this.formatterService.formatDateString(dateOnly) || '';
   }
   //#endregion
 

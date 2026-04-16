@@ -29,6 +29,7 @@ import { getFrequency, getReservationStatus } from '../authenticated/reservation
 import { ReservationListDisplay, ReservationListResponse } from '../authenticated/reservations/models/reservation-model';
 import { UserResponse } from '../authenticated/users/models/user.model';
 import { FormatterService } from './formatter-service';
+import { UtilityService } from './utility.service';
 
 export type MaintenanceListLoadResponse = {
   properties?: PropertyListResponse[] | null;
@@ -59,7 +60,10 @@ export type MaintenanceListMappingContext = {
 })
 
 export class MappingService {
-  constructor(private formatter: FormatterService) { }
+  constructor(
+    private formatter: FormatterService,
+    private utility: UtilityService
+  ) { }
   
   //#region Map Functions (Alphabetical)
   mapAgents(agents: AgentResponse[]): AgentListDisplay[] {
@@ -691,8 +695,8 @@ export class MappingService {
           return false;
         }
 
-        const parsedDate = new Date(dateValue);
-        if (Number.isNaN(parsedDate.getTime())) {
+        const parsedDate = this.utility.parseDateOnlyStringToDate(String(dateValue));
+        if (!parsedDate) {
           return true;
         }
 
@@ -709,8 +713,8 @@ export class MappingService {
           return false;
         }
 
-        const parsedDate = new Date(dateValue);
-        if (Number.isNaN(parsedDate.getTime())) {
+        const parsedDate = this.utility.parseDateOnlyStringToDate(String(dateValue));
+        if (!parsedDate) {
           return true;
         }
 
@@ -895,7 +899,11 @@ export class MappingService {
     if (!value) {
       return 'Never rented';
     }
-    return this.formatter.formatDateString(value.toISOString()) || 'Never rented';
+    const api = this.utility.formatDateOnlyForApi(value);
+    if (!api) {
+      return 'Never rented';
+    }
+    return this.formatter.formatDateString(api) || 'Never rented';
   }
 
   mapRegions(regions: RegionResponse[]): RegionListDisplay[] {
@@ -1033,13 +1041,11 @@ export class MappingService {
         continue;
       }
 
-      const arrivalDate = new Date(reservation.arrivalDate);
-      const departureDate = new Date(reservation.departureDate);
-      if (Number.isNaN(arrivalDate.getTime()) || Number.isNaN(departureDate.getTime())) {
+      const arrivalDate = this.utility.parseDateOnlyStringToDate(reservation.arrivalDate);
+      const departureDate = this.utility.parseDateOnlyStringToDate(reservation.departureDate);
+      if (!arrivalDate || !departureDate) {
         continue;
       }
-      arrivalDate.setHours(0, 0, 0, 0);
-      departureDate.setHours(0, 0, 0, 0);
 
       if (today.getTime() < arrivalDate.getTime() || today.getTime() > departureDate.getTime()) {
         continue;
@@ -1081,30 +1087,8 @@ export class MappingService {
     return result;
   }
 
-  parseDateOrNull(value: string | null | undefined): Date | null {
-    if (!value) {
-      return null;
-    }
-    const parsed = new Date(value);
-    return Number.isNaN(parsed.getTime()) ? null : parsed;
-  }
-
-  toIsoDateOrNull(value: unknown): string | null {
-    if (!value) {
-      return null;
-    }
-    if (value instanceof Date) {
-      return Number.isNaN(value.getTime()) ? null : value.toISOString();
-    }
-    if (typeof value === 'string') {
-      const trimmed = value.trim();
-      if (!trimmed) {
-        return null;
-      }
-      const parsed = new Date(trimmed);
-      return Number.isNaN(parsed.getTime()) ? null : parsed.toISOString();
-    }
-    return null;
+  toDateOnlyJsonString(value: unknown): string | null {
+    return this.utility.toDateOnlyJsonString(value);
   }
 
   toBooleanValue(value: unknown): boolean {

@@ -116,7 +116,7 @@ export class InspectionComponent implements OnChanges, OnDestroy, OnInit {
   //#region Checklist
   ngOnInit(): void {
     this.user = this.authService.getUser();
-    this.isAdmin = this.authService.isAdmin() || this.utilityService.hasRole(this.user?.userGroups, UserGroups.PropertyManagerAdmin);
+    this.isAdmin = this.authService.isAdmin() || this.authService.hasRole(UserGroups.PropertyManagerAdmin);
     this.todayDate = new Date().toLocaleDateString();
     this.inspectorName = `${this.user?.firstName || ''} ${this.user?.lastName || ''}`.trim() || 'Unknown User';
     this.sectionTemplates = INSPECTION_SECTIONS;

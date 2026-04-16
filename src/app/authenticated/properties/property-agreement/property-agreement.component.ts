@@ -230,7 +230,7 @@ export class PropertyAgreementComponent implements OnInit, OnChanges, OnDestroy 
     if (!this.agreementForm) {
       return;
     }
-    const insuranceExpirationDate = this.utilityService.parseDateTimeStringToDate(data.insuranceExpiration ?? null);
+    const insuranceExpirationDate = this.utilityService.parseDateOnlyStringToDate(data.insuranceExpiration ?? null);
     this.agreementForm.patchValue({
       markup: this.formatterService.formatPercentageValue(data.markup, 25),
       revenueSplitOwner: this.formatAgreementPercentForDisplay(data.revenueSplitOwner),

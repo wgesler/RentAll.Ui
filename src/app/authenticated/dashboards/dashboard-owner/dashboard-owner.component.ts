@@ -185,9 +185,12 @@ export class DashboardOwnerComponent implements OnInit, OnDestroy {
         return;
       }
 
-      const arrivalDate = new Date(reservation.arrivalDate);
+      const arrivalDate = this.utilityService.parseCalendarDateInput(reservation.arrivalDate);
+      const departureDate = this.utilityService.parseCalendarDateInput(reservation.departureDate);
+      if (!arrivalDate || !departureDate) {
+        return;
+      }
       arrivalDate.setHours(0, 0, 0, 0);
-      const departureDate = new Date(reservation.departureDate);
       departureDate.setHours(0, 0, 0, 0);
 
       if (today.getTime() >= arrivalDate.getTime() && today.getTime() <= departureDate.getTime()) {

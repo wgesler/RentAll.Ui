@@ -113,11 +113,11 @@ export class MaintenanceComponent implements OnInit, OnDestroy, OnChanges {
       propertyId: raw.propertyId || this.maintenanceRecord?.propertyId || this.property?.propertyId || '',
       inspectionCheckList: this.maintenanceRecord?.inspectionCheckList || '',
       cleanerUserId,
-      cleaningDate: cleanerUserId ? this.mappingService.toIsoDateOrNull(raw.cleaningDate) : null,
+      cleaningDate: cleanerUserId ? this.mappingService.toDateOnlyJsonString(raw.cleaningDate) : null,
       carpetUserId,
-      carpetDate: carpetUserId ? this.mappingService.toIsoDateOrNull(raw.carpetDate) : null,
+      carpetDate: carpetUserId ? this.mappingService.toDateOnlyJsonString(raw.carpetDate) : null,
       inspectorUserId,
-      inspectingDate: inspectorUserId ? this.mappingService.toIsoDateOrNull(raw.inspectingDate) : null,
+      inspectingDate: inspectorUserId ? this.mappingService.toDateOnlyJsonString(raw.inspectingDate) : null,
       notes: this.nullIfBlank(raw.notes),
       isActive: raw.isActive ?? this.maintenanceRecord?.isActive ?? true
     };
@@ -510,11 +510,11 @@ export class MaintenanceComponent implements OnInit, OnDestroy, OnChanges {
       propertyId: source?.propertyId ?? this.property?.propertyId ?? '',
       inspectionCheckList: source?.inspectionCheckList ?? '',
       cleanerUserId: source?.cleanerUserId ?? null,
-      cleaningDate: this.utilityService.parseDateTimeStringToDate(source?.cleaningDate ?? null),
+      cleaningDate: this.utilityService.parseCalendarDateInput(source?.cleaningDate ?? null),
       carpetUserId: source?.carpetUserId ?? null,
-      carpetDate: this.utilityService.parseDateTimeStringToDate(source?.carpetDate ?? null),
+      carpetDate: this.utilityService.parseCalendarDateInput(source?.carpetDate ?? null),
       inspectorUserId: source?.inspectorUserId ?? null,
-      inspectingDate: this.utilityService.parseDateTimeStringToDate(source?.inspectingDate ?? null),
+      inspectingDate: this.utilityService.parseCalendarDateInput(source?.inspectingDate ?? null),
       notes: source?.notes ?? '',
       isActive: source?.isActive ?? true
     }, { emitEvent: false });
@@ -625,12 +625,11 @@ export class MaintenanceComponent implements OnInit, OnDestroy, OnChanges {
         return null;
       }
 
-      const date = value instanceof Date ? value : new Date(value);
-      if (Number.isNaN(date.getTime())) {
+      const selectedDay = this.utilityService.parseCalendarDateInput(value);
+      if (!selectedDay) {
         return null;
       }
 
-      const selectedDay = new Date(date.getFullYear(), date.getMonth(), date.getDate());
       const today = new Date();
       const todayDay = new Date(today.getFullYear(), today.getMonth(), today.getDate());
       return selectedDay > todayDay ? { futureDate: true } : null;

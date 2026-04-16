@@ -228,9 +228,11 @@ export class BillingComponent implements OnInit, OnDestroy {
     const invoiceCode = formValue.invoiceCode || '';
     const invoicedAmount = this.calculateInvoicedAmount();
     const paidAmount = this.calculatePaidAmount();
-    const invoicePeriod = formValue.startDate && formValue.endDate
-      ? `${this.formatter.dateOnly(new Date(formValue.startDate))} - ${this.formatter.dateOnly(new Date(formValue.endDate))}`
-      : '';
+    const invoicePeriod = (() => {
+      const sd = this.utilityService.parseCalendarDateInput(formValue.startDate);
+      const ed = this.utilityService.parseCalendarDateInput(formValue.endDate);
+      return sd && ed ? `${this.formatter.dateOnly(sd)} - ${this.formatter.dateOnly(ed)}` : '';
+    })();
     
     const invoiceRequest: InvoiceRequest = {
       organizationId: this.billingOrganization.organizationId || '',
@@ -239,10 +241,10 @@ export class BillingComponent implements OnInit, OnDestroy {
       invoiceCode: invoiceCode,
       reservationId: this.selectedOrganization.organizationId,
       reservationCode: this.selectedOrganization.organizationCode,
-      startDate: formValue.startDate ? new Date(formValue.startDate).toISOString() : '',
-      endDate: formValue.endDate ? new Date(formValue.endDate).toISOString() : '',
-      invoiceDate: formValue.invoiceDate ? new Date(formValue.invoiceDate).toISOString() : '',
-      dueDate: formValue.dueDate ? new Date(formValue.dueDate).toISOString() : '',
+      startDate: this.utilityService.toDateOnlyJsonString(formValue.startDate) ?? '',
+      endDate: this.utilityService.toDateOnlyJsonString(formValue.endDate) ?? '',
+      invoiceDate: this.utilityService.toDateOnlyJsonString(formValue.invoiceDate) ?? '',
+      dueDate: this.utilityService.toDateOnlyJsonString(formValue.dueDate) ?? '',
       invoicePeriod: invoicePeriod,
       totalAmount: invoicedAmount,
       paidAmount: paidAmount,
@@ -334,12 +336,18 @@ export class BillingComponent implements OnInit, OnDestroy {
     // Set up startDate change handler to validate endDate and auto-update endDate if month changes
     this.form.get('startDate')?.valueChanges.subscribe((startDateValue) => {
       if (startDateValue) {
-        const startDate = new Date(startDateValue);
+        const startDate = this.utilityService.parseCalendarDateInput(startDateValue);
+        if (!startDate) {
+          return;
+        }
         const endDate = this.form.get('endDate')?.value;
         
         // Check if endDate exists and if it's in a different month/year than startDate
         if (endDate) {
-          const currentEndDate = new Date(endDate);
+          const currentEndDate = this.utilityService.parseCalendarDateInput(endDate);
+          if (!currentEndDate) {
+            return;
+          }
           const startMonth = startDate.getMonth();
           const startYear = startDate.getFullYear();
           const endMonth = currentEndDate.getMonth();
@@ -402,10 +410,12 @@ export class BillingComponent implements OnInit, OnDestroy {
 
       this.form.patchValue({
         organizationId: resolvedRecipientOrganizationId,
-        startDate: resolvedStartDate ? new Date(resolvedStartDate) : null,
-        endDate: resolvedEndDate ? new Date(resolvedEndDate) : null,
-        invoiceDate: this.invoice.invoiceDate ? new Date(this.invoice.invoiceDate) : null,
-        dueDate: this.invoice.dueDate ? new Date(this.invoice.dueDate) : (this.invoice.invoiceDate ? new Date(this.invoice.invoiceDate) : null),
+        startDate: this.utilityService.parseCalendarDateInput(resolvedStartDate),
+        endDate: this.utilityService.parseCalendarDateInput(resolvedEndDate),
+        invoiceDate: this.utilityService.parseCalendarDateInput(this.invoice.invoiceDate),
+        dueDate:
+          this.utilityService.parseCalendarDateInput(this.invoice.dueDate) ??
+          this.utilityService.parseCalendarDateInput(this.invoice.invoiceDate),
         invoiceTotal: this.invoice.totalAmount || '',
         invoiceCode: this.invoice.invoiceCode || '',
         invoicedAmount: this.invoice.totalAmount.toFixed(2),
@@ -1013,8 +1023,8 @@ export class BillingComponent implements OnInit, OnDestroy {
     const request: BillingMonthlyDataRequest = {
       invoiceCode: this.form.get('invoiceCode')?.value || '',
       organizationId: organizationId,
-      startDate: new Date(startDate).toISOString(),
-      endDate: new Date(endDate).toISOString()
+      startDate: this.utilityService.toDateOnlyJsonString(startDate) ?? '',
+      endDate: this.utilityService.toDateOnlyJsonString(endDate) ?? ''
     };
 
     this.accountingService.getBillingMonthlyLedgerLines(request).pipe(take(1)).subscribe({
@@ -1113,8 +1123,11 @@ export class BillingComponent implements OnInit, OnDestroy {
       return null; // Don't validate if startDate is not set
     }
     
-    const endDate = new Date(control.value);
-    const start = new Date(startDate);
+    const endDate = this.utilityService.parseCalendarDateInput(control.value);
+    const start = this.utilityService.parseCalendarDateInput(startDate);
+    if (!endDate || !start) {
+      return null;
+    }
     
     // Set hours to 0 for accurate date comparison
     endDate.setHours(0, 0, 0, 0);

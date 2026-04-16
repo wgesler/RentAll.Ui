@@ -4,8 +4,6 @@ import { ContactResponse } from '../authenticated/contacts/models/contact.model'
 import { EntityType } from '../authenticated/contacts/models/contact-enum';
 import { ReservationListResponse, ReservationResponse } from '../authenticated/reservations/models/reservation-model';
 import { ReservationType } from '../authenticated/reservations/models/reservation-enum';
-import { UserGroups } from '../authenticated/users/models/user-enums';
-
 /** SQL **DATE** / JSON calendar (`YYYY-MM-DD`); not a zoned instant. */
 export type CalendarDateString = string;
 
@@ -15,9 +13,12 @@ export type CalendarDateString = string;
 export class UtilityService {
   constructor() { }
 
-  //#region Calendar dates
-  /** Local `Date` at start of the calendar day from an API string (uses `YYYY-MM-DD` before `T`). */
-  parseDateTimeStringToDate(value: string | null | undefined): Date | null {
+  //#region To/From the API (calendar / DateOnly)
+  /**
+   * **From API:** JSON calendar / `DateOnly` string → local start-of-day `Date`.
+   * Uses only the `YYYY-MM-DD` segment (text before `T`); any time portion in the string is ignored.
+   */
+  parseDateOnlyStringToDate(value: string | null | undefined): Date | null {
     if (value == null || String(value).trim() === '') {
       return null;
     }
@@ -29,7 +30,7 @@ export class UtilityService {
     return !isNaN(d.getTime()) ? d : null;
   }
 
-  /** Local `Date` → `YYYY-MM-DD` for API calendar fields. */
+  /** **To API:** local `Date` → `yyyy-MM-dd` for calendar fields on the wire. */
   formatDateOnlyForApi(value: Date | null | undefined): string | null {
     if (!value || !(value instanceof Date) || isNaN(value.getTime())) {
       return null;
@@ -37,12 +38,62 @@ export class UtilityService {
     return `${value.getFullYear()}-${String(value.getMonth() + 1).padStart(2, '0')}-${String(value.getDate()).padStart(2, '0')}`;
   }
 
-  /** Local today as `YYYY-MM-DD`. */
+  /**
+   * **To API:** coerce a control or loose UI value → `yyyy-MM-dd` for JSON calendar fields.
+   * Accepts `Date`, or strings such as `2026-04-16` or values with an ISO date prefix.
+   */
+  toDateOnlyJsonString(value: unknown): string | null {
+    if (value == null || value === '') {
+      return null;
+    }
+    if (value instanceof Date) {
+      return this.formatDateOnlyForApi(value);
+    }
+    if (typeof value === 'string') {
+      const trimmed = value.trim();
+      if (!trimmed) {
+        return null;
+      }
+      const datePart = trimmed.split('T')[0]?.split(' ')[0] ?? '';
+      if (/^\d{4}-\d{2}-\d{2}$/.test(datePart)) {
+        return datePart;
+      }
+      const parsed = new Date(trimmed);
+      if (!Number.isNaN(parsed.getTime())) {
+        return this.formatDateOnlyForApi(parsed);
+      }
+      return null;
+    }
+    return null;
+  }
+
+  /** **To API:** today in the org’s local calendar as `yyyy-MM-dd` (defaults, queries). */
   todayAsCalendarDateString(): CalendarDateString {
     const t = new Date();
     return `${t.getFullYear()}-${String(t.getMonth() + 1).padStart(2, '0')}-${String(t.getDate()).padStart(2, '0')}`;
   }
+  //#endregion
 
+  //#region UI (forms & pickers — calendar day)
+  /**
+   * Same calendar rules as {@link parseDateOnlyStringToDate} for strings, plus `Date` from pickers (time stripped).
+   * Use on reactive controls where the value may be `Date | string`.
+   */
+  parseCalendarDateInput(value: string | Date | null | undefined): Date | null {
+    if (value == null || value === '') {
+      return null;
+    }
+    if (value instanceof Date) {
+      if (isNaN(value.getTime())) {
+        return null;
+      }
+      return new Date(value.getFullYear(), value.getMonth(), value.getDate());
+    }
+    return this.parseDateOnlyStringToDate(String(value));
+  }
+  //#endregion
+
+  //#region Calendar strings (compare & sort — client-side)
   /** Sort key for calendar strings (`YYYYMMDD`), or `null` if not parseable. */
   parseCalendarDateToOrdinal(value: string | null | undefined): number | null {
     const part = String(value ?? '').trim().split('T')[0] ?? '';
@@ -94,7 +145,7 @@ export class UtilityService {
   }
   //#endregion
 
-  // Adds an item to a BehaviorSubject<Set<string>>
+  //#region Load tracking
   addLoadItem(itemsToLoad$: BehaviorSubject<Set<string>>, key: string): void {
     const currentSet = itemsToLoad$.value;
     if (!currentSet.has(key)) {
@@ -104,7 +155,6 @@ export class UtilityService {
     }
   }
 
-  // Removes an item from a BehaviorSubject<Set<string>>
   removeLoadItemFromSet(itemsToLoad$: BehaviorSubject<Set<string>>, key: string): void {
     const currentSet = itemsToLoad$.value;
     if (currentSet.has(key)) {
@@ -113,7 +163,9 @@ export class UtilityService {
       itemsToLoad$.next(newSet);
     }
   }
+  //#endregion
 
+  //#region Office selection
   resolveSelectedOfficeById<T extends { officeId: number }>(offices: T[], officeId: number | null): T | null {
     if (!offices?.length) {
       return null;
@@ -123,14 +175,54 @@ export class UtilityService {
     }
     return offices.length === 1 ? offices[0] : null;
   }
+  //#endregion
 
-  // Gets formatted reservation label for display in dropdowns and lists
+  //#region Reservations
   getReservationLabel(reservation: ReservationListResponse): string {
     const code = reservation.reservationCode || reservation.reservationId.substring(0, 8);
     const contactName = reservation.contactName || 'N/A';
     return `${code}: ${contactName}`;
   }
 
+  /** Display name for reservation board: company/contact name (corporate vs individual). */
+  getReservationDisplayName(reservation: ReservationListResponse, contact: ContactResponse | null): string {
+    const shortCompanyName = contact?.displayName || this.getCompanyDisplayToken(contact?.companyName ?? reservation.companyName);
+    const contactName = reservation.contactName ?? (contact ? (contact.firstName + ' ' + contact.lastName).trim() : '');
+    const isCorporate = (reservation.reservationTypeId === ReservationType.Corporate || contact?.entityTypeId === EntityType.Company);
+    const formatWithCompanyToken = (name: string): string => {
+      if (!shortCompanyName) {
+        return name;
+      }
+      if (!name) {
+        return shortCompanyName;
+      }
+      return `${shortCompanyName}: ${name}`;
+    };
+    if (isCorporate) {
+      return formatWithCompanyToken(reservation.tenantName || '');
+    }
+    return formatWithCompanyToken(contactName || '');
+  }
+
+  /** Label for reservation dropdown: ReservationCode: getReservationDisplayName(). */
+  getReservationDropdownLabel(reservation: ReservationListResponse, contact: ContactResponse | null): string {
+    const code = reservation.reservationCode || reservation.reservationId.substring(0, 8);
+    return `${code}: ${this.getReservationDisplayName(reservation, contact)}`;
+  }
+
+  buildReservationCodeNameLabel(
+    reservation: ReservationListResponse | ReservationResponse | null | undefined,
+    contact: ContactResponse | null
+  ): string | undefined {
+    if (!reservation) {
+      return undefined;
+    }
+    const label = this.getReservationDropdownLabel(reservation as ReservationListResponse, contact).trim();
+    return label.length > 0 ? label : undefined;
+  }
+  //#endregion
+
+  //#region Document filenames
   generateDocumentFileName(
     type: 'lease' | 'welcomeLetter' | 'invoice' | 'inspection',
     propertyCode?: string | null,
@@ -176,24 +268,9 @@ export class UtilityService {
     const min = String(d.getMinutes()).padStart(2, '0');
     return `${y}-${m}-${day}_${h}-${min}`;
   }
+  //#endregion
 
-  hasRole(groups: Array<string | number> | undefined, role: UserGroups): boolean {
-    if (!groups || groups.length === 0) {
-      return false;
-    }
-
-    return groups.some(group => {
-      if (typeof group === 'string') {
-        if (group === UserGroups[role]) {
-          return true;
-        }
-        const parsed = Number(group);
-        return !isNaN(parsed) && parsed === role;
-      }
-      return typeof group === 'number' && group === role;
-    });
-  }
-
+  //#region Company display
   getCompanyDisplayToken(companyName: string | null | undefined): string {
     const words = (companyName || '')
       .trim()
@@ -208,42 +285,6 @@ export class UtilityService {
 
     return firstMeaningfulWord || '';
   }
-
-  /** Display name for reservation board: company/contact name (corporate vs individual). */
-  getReservationDisplayName(reservation: ReservationListResponse, contact: ContactResponse | null): string {
-    const shortCompanyName = contact?.displayName || this.getCompanyDisplayToken(contact?.companyName ?? reservation.companyName);
-    const contactName = reservation.contactName ?? (contact ? (contact.firstName + ' ' + contact.lastName).trim() : '');
-    const isCorporate = (reservation.reservationTypeId === ReservationType.Corporate || contact?.entityTypeId === EntityType.Company);
-    const formatWithCompanyToken = (name: string): string => {
-      if (!shortCompanyName) {
-        return name;
-      }
-      if (!name) {
-        return shortCompanyName;
-      }
-      return `${shortCompanyName}: ${name}`;
-    };
-    if (isCorporate) {
-      return formatWithCompanyToken(reservation.tenantName || '');
-    }
-    return formatWithCompanyToken(contactName || '');
-  }
-
-  /** Label for reservation dropdown: ReservationCode: getReservationDisplayName(). */
-  getReservationDropdownLabel(reservation: ReservationListResponse, contact: ContactResponse | null): string {
-    const code = reservation.reservationCode || reservation.reservationId.substring(0, 8);
-    return `${code}: ${this.getReservationDisplayName(reservation, contact)}`;
-  }
-
-  buildReservationCodeNameLabel(
-    reservation: ReservationListResponse | ReservationResponse | null | undefined,
-    contact: ContactResponse | null
-  ): string | undefined {
-    if (!reservation) {
-      return undefined;
-    }
-    const label = this.getReservationDropdownLabel(reservation as ReservationListResponse, contact).trim();
-    return label.length > 0 ? label : undefined;
-  }
+  //#endregion
 
 }
