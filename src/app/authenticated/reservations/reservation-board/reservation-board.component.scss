@@ -43,8 +43,9 @@
     overflow: visible;
   }
 
-  mat-card {
+  > mat-card {
     padding: 0 !important;
+    margin: 0 !important;
     overflow: hidden;
     display: flex;
     flex-direction: column;
@@ -244,7 +245,6 @@
   box-sizing: border-box;
   height: 100%;
   position: relative;
-  padding-top: 16px;
 }
 
 .reservation-table {

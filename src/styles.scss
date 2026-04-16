@@ -1103,6 +1103,11 @@ mat-form-field.company-dropdown {
 			padding:16px 20px;
 		}
 
+    .content-card.reservation-board-card > mat-card {
+      padding: 0 !important;
+      margin: 0 !important;
+    }
+
     @media screen and (max-width: 959px) {
         width: 100%;
     }
