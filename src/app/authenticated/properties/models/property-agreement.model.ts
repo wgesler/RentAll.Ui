@@ -1,10 +1,11 @@
 import { FileDetails } from '../../documents/models/document.model';
+import type { CalendarDateString } from '../../../services/utility.service';
 
 export interface PropertyAgreementRequest {
   propertyId: string;
   w9FileDetails?: FileDetails | null;
   insuranceFileDetails?: FileDetails | null;
-  insuranceExpiration?: string | null;
+  insuranceExpiration?: CalendarDateString | null;
   w9Path?: string | null;
   insurancePath?: string | null;
   agreementPath?: string | null;
@@ -31,7 +32,7 @@ export interface PropertyAgreementResponse {
   w9Path?: string | null;
   w9FileDetails?: FileDetails | null;
   insurancePath?: string | null;
-  insuranceExpiration?: string | null;
+  insuranceExpiration?: CalendarDateString | null;
   insuranceFileDetails?: FileDetails | null;
   agreementPath?: string | null;
   agreementFileDetails?: FileDetails | null;

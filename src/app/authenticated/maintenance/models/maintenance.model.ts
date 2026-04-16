@@ -1,4 +1,5 @@
 import type { PropertyListDisplay } from '../../properties/models/property.model';
+import type { CalendarDateString } from '../../../services/utility.service';
 
 export interface MaintenanceRequest {
   maintenanceId?: string;
@@ -8,11 +9,11 @@ export interface MaintenanceRequest {
   propertyId: string;
   inspectionCheckList: string;
   cleanerUserId?: string | null;
-  cleaningDate?: string | null;
+  cleaningDate?: CalendarDateString | null;
   inspectorUserId?: string | null;
-  inspectingDate?: string | null;
+  inspectingDate?: CalendarDateString | null;
   carpetUserId?: string | null;
-  carpetDate?: string | null;
+  carpetDate?: CalendarDateString | null;
   notes?: string | null;
   isActive: boolean;
 }
@@ -25,11 +26,11 @@ export interface MaintenanceResponse {
   propertyId: string;
   inspectionCheckList: string;
   cleanerUserId?: string | null;
-  cleaningDate?: string | null;
+  cleaningDate?: CalendarDateString | null;
   inspectorUserId?: string | null;
-  inspectingDate?: string | null;
+  inspectingDate?: CalendarDateString | null;
   carpetUserId?: string | null;
-  carpetDate?: string | null;
+  carpetDate?: CalendarDateString | null;
   notes?: string | null;
   isActive: boolean;
   createdOn: string;
@@ -47,11 +48,11 @@ export interface MaintenanceListResponse {
   propertyAddress: string;
   inspectionCheckList: string;
   cleanerUserId?: string | null;
-  cleaningDate?: string | null;
+  cleaningDate?: CalendarDateString | null;
   inspectorUserId?: string | null;
-  inspectingDate?: string | null;  
+  inspectingDate?: CalendarDateString | null;  
   carpetUserId?: string | null;
-  carpetDate?: string | null;
+  carpetDate?: CalendarDateString | null;
   needsMaintenance: boolean;
   bedroomId1: number;
   bedroomId2: number;
@@ -127,7 +128,7 @@ export interface MaintenanceListDisplay extends PropertyListDisplay {
   bed2Text: MaintenanceListBedDropdownCell;
   bed3Text: MaintenanceListBedDropdownCell;
   bed4Text: MaintenanceListBedDropdownCell;
-  departureDate: string;
+  departureDate: CalendarDateString;
   /** Epoch ms at start of checkout day; `Number.MAX_SAFE_INTEGER` when no current stay (sorts last). */
   departureSortTime: number;
   petsAllowed: boolean;

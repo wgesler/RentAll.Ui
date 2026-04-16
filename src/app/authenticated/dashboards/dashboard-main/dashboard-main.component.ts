@@ -536,8 +536,8 @@ export class DashboardMainComponent implements OnInit, OnDestroy {
       return arrivalDate.getTime() >= today.getTime() && 
              arrivalDate.getTime() <= fifteenDaysFromNow.getTime();
     }).sort((a, b) => {
-      const aDate = this.parseDateAtMidnight(a.arrivalDate);
-      const bDate = this.parseDateAtMidnight(b.arrivalDate);
+      const aDate = this.utilityService.parseDateTimeStringToDate(a.arrivalDate);
+      const bDate = this.utilityService.parseDateTimeStringToDate(b.arrivalDate);
       return (aDate?.getTime() ?? 0) - (bDate?.getTime() ?? 0);
     }).map(reservation => this.mapTurnoverReservationStatus(reservation, propertyStatusByPropertyId));
 
@@ -552,8 +552,8 @@ export class DashboardMainComponent implements OnInit, OnDestroy {
       return departureDate.getTime() >= today.getTime() && 
              departureDate.getTime() <= fifteenDaysFromNow.getTime();
     }).sort((a, b) => {
-      const aDate = this.parseDateAtMidnight(a.departureDate);
-      const bDate = this.parseDateAtMidnight(b.departureDate);
+      const aDate = this.utilityService.parseDateTimeStringToDate(a.departureDate);
+      const bDate = this.utilityService.parseDateTimeStringToDate(b.departureDate);
       return (aDate?.getTime() ?? 0) - (bDate?.getTime() ?? 0);
     }).map(reservation => this.mapTurnoverReservationStatus(reservation, propertyStatusByPropertyId));
   }
@@ -686,8 +686,8 @@ export class DashboardMainComponent implements OnInit, OnDestroy {
           return agentCompare;
         }
 
-        const arrivalA = this.parseDateAtMidnight(a.arrivalDate)?.getTime() ?? 0;
-        const arrivalB = this.parseDateAtMidnight(b.arrivalDate)?.getTime() ?? 0;
+        const arrivalA = this.utilityService.parseDateTimeStringToDate(a.arrivalDate)?.getTime() ?? 0;
+        const arrivalB = this.utilityService.parseDateTimeStringToDate(b.arrivalDate)?.getTime() ?? 0;
         if (arrivalA !== arrivalB) {
           return arrivalA - arrivalB;
         }
@@ -952,8 +952,8 @@ export class DashboardMainComponent implements OnInit, OnDestroy {
     const latestPastDepartureByProperty = new Map<string, Date>();
 
     activeReservations.forEach(reservation => {
-      const arrivalDate = this.parseDateAtMidnight(reservation.arrivalDate);
-      const departureDate = this.parseDateAtMidnight(reservation.departureDate);
+      const arrivalDate = this.utilityService.parseDateTimeStringToDate(reservation.arrivalDate);
+      const departureDate = this.utilityService.parseDateTimeStringToDate(reservation.departureDate);
       if (!arrivalDate || !departureDate || !reservation.propertyId) {
         return;
       }
@@ -966,7 +966,7 @@ export class DashboardMainComponent implements OnInit, OnDestroy {
       if (!reservation.propertyId) {
         return;
       }
-      const departureDate = this.parseDateAtMidnight(reservation.departureDate);
+      const departureDate = this.utilityService.parseDateTimeStringToDate(reservation.departureDate);
       if (!departureDate || departureDate.getTime() > today.getTime()) {
         return;
       }
@@ -1042,18 +1042,6 @@ export class DashboardMainComponent implements OnInit, OnDestroy {
 
     this.rentedCount = rentedPropertyIds.size;
     this.vacantCount = this.propertiesByVacancy.length;
-  }
-
-  parseDateAtMidnight(value: string | null | undefined): Date | null {
-    if (!value) {
-      return null;
-    }
-    const parsed = new Date(value);
-    if (Number.isNaN(parsed.getTime())) {
-      return null;
-    }
-    parsed.setHours(0, 0, 0, 0);
-    return parsed;
   }
 
   mapTurnoverReservationStatus(

@@ -510,11 +510,11 @@ export class MaintenanceComponent implements OnInit, OnDestroy, OnChanges {
       propertyId: source?.propertyId ?? this.property?.propertyId ?? '',
       inspectionCheckList: source?.inspectionCheckList ?? '',
       cleanerUserId: source?.cleanerUserId ?? null,
-      cleaningDate: this.mappingService.parseDateOrNull(source?.cleaningDate),
+      cleaningDate: this.utilityService.parseDateTimeStringToDate(source?.cleaningDate ?? null),
       carpetUserId: source?.carpetUserId ?? null,
-      carpetDate: this.mappingService.parseDateOrNull(source?.carpetDate),
+      carpetDate: this.utilityService.parseDateTimeStringToDate(source?.carpetDate ?? null),
       inspectorUserId: source?.inspectorUserId ?? null,
-      inspectingDate: this.mappingService.parseDateOrNull(source?.inspectingDate),
+      inspectingDate: this.utilityService.parseDateTimeStringToDate(source?.inspectingDate ?? null),
       notes: source?.notes ?? '',
       isActive: source?.isActive ?? true
     }, { emitEvent: false });

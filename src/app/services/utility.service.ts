@@ -6,11 +6,93 @@ import { ReservationListResponse, ReservationResponse } from '../authenticated/r
 import { ReservationType } from '../authenticated/reservations/models/reservation-enum';
 import { UserGroups } from '../authenticated/users/models/user-enums';
 
+/** SQL **DATE** / JSON calendar (`YYYY-MM-DD`); not a zoned instant. */
+export type CalendarDateString = string;
+
 @Injectable({
   providedIn: 'root'
 })
 export class UtilityService {
   constructor() { }
+
+  //#region Calendar dates
+  /** Local `Date` at start of the calendar day from an API string (uses `YYYY-MM-DD` before `T`). */
+  parseDateTimeStringToDate(value: string | null | undefined): Date | null {
+    if (value == null || String(value).trim() === '') {
+      return null;
+    }
+    const datePart = String(value).split('T')[0] ?? '';
+    if (!datePart) {
+      return null;
+    }
+    const d = new Date(`${datePart}T00:00:00`);
+    return !isNaN(d.getTime()) ? d : null;
+  }
+
+  /** Local `Date` → `YYYY-MM-DD` for API calendar fields. */
+  formatDateOnlyForApi(value: Date | null | undefined): string | null {
+    if (!value || !(value instanceof Date) || isNaN(value.getTime())) {
+      return null;
+    }
+    return `${value.getFullYear()}-${String(value.getMonth() + 1).padStart(2, '0')}-${String(value.getDate()).padStart(2, '0')}`;
+  }
+
+  /** Local today as `YYYY-MM-DD`. */
+  todayAsCalendarDateString(): CalendarDateString {
+    const t = new Date();
+    return `${t.getFullYear()}-${String(t.getMonth() + 1).padStart(2, '0')}-${String(t.getDate()).padStart(2, '0')}`;
+  }
+
+  /** Sort key for calendar strings (`YYYYMMDD`), or `null` if not parseable. */
+  parseCalendarDateToOrdinal(value: string | null | undefined): number | null {
+    const part = String(value ?? '').trim().split('T')[0] ?? '';
+    const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(part);
+    if (!m) {
+      return null;
+    }
+    const y = Number(m[1]);
+    const mo = Number(m[2]);
+    const d = Number(m[3]);
+    if (!Number.isFinite(y) || !Number.isFinite(mo) || !Number.isFinite(d) || mo < 1 || mo > 12 || d < 1 || d > 31) {
+      return null;
+    }
+    return y * 10000 + mo * 100 + d;
+  }
+
+  compareCalendarDateStrings(a: string | null | undefined, b: string | null | undefined): number {
+    const ao = this.parseCalendarDateToOrdinal(a);
+    const bo = this.parseCalendarDateToOrdinal(b);
+    if (ao === null && bo === null) {
+      return 0;
+    }
+    if (ao === null) {
+      return -1;
+    }
+    if (bo === null) {
+      return 1;
+    }
+    return ao - bo;
+  }
+
+  isSameCalendarDayStrings(a: string | null | undefined, b: string | null | undefined): boolean {
+    const ao = this.parseCalendarDateToOrdinal(a);
+    const bo = this.parseCalendarDateToOrdinal(b);
+    return ao !== null && ao === bo;
+  }
+
+  isSameCalendarDayStringAndLocalDate(value: string | null | undefined, day: Date): boolean {
+    const o1 = this.parseCalendarDateToOrdinal(value);
+    if (o1 === null) {
+      return false;
+    }
+    const o2 = day.getFullYear() * 10000 + (day.getMonth() + 1) * 100 + day.getDate();
+    return o1 === o2;
+  }
+
+  isSameLocalCalendarDate(a: Date, b: Date): boolean {
+    return a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth() && a.getDate() === b.getDate();
+  }
+  //#endregion
 
   // Adds an item to a BehaviorSubject<Set<string>>
   addLoadItem(itemsToLoad$: BehaviorSubject<Set<string>>, key: string): void {
@@ -95,27 +177,6 @@ export class UtilityService {
     return `${y}-${m}-${day}_${h}-${min}`;
   }
 
-  /** Local calendar date → `YYYY-MM-DD` for API date-only fields (e.g. insurance expiration). */
-  formatDateOnlyForApi(value: Date | null | undefined): string | null {
-    if (!value || !(value instanceof Date) || isNaN(value.getTime())) {
-      return null;
-    }
-    return `${value.getFullYear()}-${String(value.getMonth() + 1).padStart(2, '0')}-${String(value.getDate()).padStart(2, '0')}`;
-  }
-
-  /** API ISO or date-only string → local `Date` at midnight for datepicker controls. */
-  parseApiDateOnlyToDate(value: string | null | undefined): Date | null {
-    if (value == null || String(value).trim() === '') {
-      return null;
-    }
-    const datePart = String(value).split('T')[0] ?? '';
-    if (!datePart) {
-      return null;
-    }
-    const d = new Date(`${datePart}T00:00:00`);
-    return !isNaN(d.getTime()) ? d : null;
-  }
-  
   hasRole(groups: Array<string | number> | undefined, role: UserGroups): boolean {
     if (!groups || groups.length === 0) {
       return false;

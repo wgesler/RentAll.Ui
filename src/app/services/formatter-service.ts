@@ -40,6 +40,29 @@ export class FormatterService {
 
     
     /*******************  Dates *******************/
+    /**
+     * Parses leading `YYYY-MM-DD` (segment before `T`) as a local calendar day for display.
+     * Returns `null` if the prefix is not a valid calendar date.
+     */
+    private parseCalendarPrefixToLocalDate(value?: string | null): Date | null {
+        if (value == null || String(value).trim() === '') {
+            return null;
+        }
+        const part = String(value).split('T')[0]?.trim() ?? '';
+        const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(part);
+        if (!m) {
+            return null;
+        }
+        const y = Number(m[1]);
+        const mo = Number(m[2]);
+        const d = Number(m[3]);
+        if (!Number.isFinite(y) || !Number.isFinite(mo) || !Number.isFinite(d) || mo < 1 || mo > 12 || d < 1 || d > 31) {
+            return null;
+        }
+        const dt = new Date(y, mo - 1, d);
+        return isNaN(dt.getTime()) ? null : dt;
+    }
+
     // Formats a date to MM/DD/YYYY hh:mm AM/PM format
     date(value: Date): string {
         return this.datePipe.transform(value, 'MM/dd/yyyy hh:mm a');
@@ -54,9 +77,13 @@ export class FormatterService {
         return this.datePipe.transform(value, 'MM/dd/yyyy');
     }
 
-    // Formats a date string to MM/DD/YYYY format
+    /** Calendar / SQL **DATE** string (`YYYY-MM-DD` or ISO with that prefix) → `MM/dd/yyyy`. */
     formatDateString(dateString?: string): string {
         if (!dateString) return '';
+        const fromCalendar = this.parseCalendarPrefixToLocalDate(dateString);
+        if (fromCalendar) {
+            return this.datePipe.transform(fromCalendar, 'MM/dd/yyyy') || '';
+        }
         try {
             const date = new Date(dateString);
             if (isNaN(date.getTime())) {
@@ -85,9 +112,13 @@ export class FormatterService {
         }
     }
 
-    // Formats a date string to long format (e.g., "December 25, 2023")
+    /** Calendar / SQL **DATE** string → long US format (e.g. "December 25, 2023"). */
     formatDateStringLong(dateString?: string): string {
         if (!dateString) return '';
+        const fromCalendar = this.parseCalendarPrefixToLocalDate(dateString);
+        if (fromCalendar) {
+            return fromCalendar.toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
+        }
         try {
             const date = new Date(dateString);
             return date.toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });

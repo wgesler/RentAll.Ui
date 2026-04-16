@@ -1,4 +1,5 @@
 import { FileDetails } from "../../documents/models/document.model";
+import type { CalendarDateString } from '../../../services/utility.service';
 
 export interface ContactRequest {
   contactId?: string;
@@ -30,7 +31,7 @@ export interface ContactRequest {
   w9FileDetails?: FileDetails | null;
   insurancePath?: string | null;
   insuranceFileDetails?: FileDetails | null;
-  insuranceExpiration?: string | null;
+  insuranceExpiration?: CalendarDateString | null;
   markup?: number | null;
   revenueSplitOwner?: number | null;
   revenueSplitOffice?: number | null;
@@ -75,7 +76,7 @@ export interface ContactResponse {
   w9FileDetails?: FileDetails | null;
   insurancePath?: string | null;
   insuranceFileDetails?: FileDetails | null;
-  insuranceExpiration?: string | null;
+  insuranceExpiration?: CalendarDateString | null;
   markup?: number | null;
   revenueSplitOwner?: number | null;
   revenueSplitOffice?: number | null;

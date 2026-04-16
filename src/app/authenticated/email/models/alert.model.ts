@@ -1,3 +1,4 @@
+import type { CalendarDateString } from '../../../services/utility.service';
 import { EmailAddress } from './email.model';
 
 export interface AlertRequest {
@@ -13,7 +14,7 @@ export interface AlertRequest {
   subject: string;
   plainTextContent: string;
   emailTypeId: number;
-  startDate: string;
+  startDate: CalendarDateString;
   daysBeforeDeparture?: string | null;
   frequencyId: number;
   isActive: boolean;
@@ -34,7 +35,7 @@ export interface AlertResponse {
   subject: string;
   plainTextContent: string;
   emailTypeId: number;
-  startDate: string;
+  startDate: CalendarDateString;
   nextAlertDate: string;
   daysBeforeDeparture?: string | null;
   frequencyId: number;
@@ -64,7 +65,7 @@ export interface AlertListDisplay {
   fromName: string;
   subject: string;
   emailTypeId: number;
-  startDate: string;
+  startDate: CalendarDateString;
   frequencyId: number;
   frequencyLabel: string;
   nextAlertDate: string;

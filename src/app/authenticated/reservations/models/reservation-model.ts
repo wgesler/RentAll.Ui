@@ -1,3 +1,5 @@
+import type { CalendarDateString } from '../../../services/utility.service';
+
 // Reservation models will be added here
 
 export interface ReservationRequest {
@@ -16,8 +18,8 @@ export interface ReservationRequest {
   numberOfPeople: number;
   tenantName: string;
   referenceNo: string;
-  arrivalDate: string;
-  departureDate: string;
+  arrivalDate: CalendarDateString;
+  departureDate: CalendarDateString;
   checkInTimeId: number;
   checkOutTimeId: number;
   lockBoxCode?: string | null;
@@ -37,7 +39,7 @@ export interface ReservationRequest {
   maidService: boolean;
   maidServiceFee: number;
   frequencyId: number;
-  maidStartDate: string;
+  maidStartDate: CalendarDateString;
   extraFeeLines: ExtraFeeLineRequest[];
   notes?: string | null;
   allowExtensions: boolean;
@@ -72,8 +74,8 @@ export interface ReservationResponse {
   numberOfPeople: number;
   tenantName: string;
   referenceNo: string;
-  arrivalDate: string;
-  departureDate: string;
+  arrivalDate: CalendarDateString;
+  departureDate: CalendarDateString;
   checkInTimeId: number;
   checkOutTimeId: number;
   lockBoxCode?: string | null;
@@ -93,7 +95,7 @@ export interface ReservationResponse {
   maidService: boolean;
   maidServiceFee: number;
   frequencyId: number;
-  maidStartDate: string;
+  maidStartDate: CalendarDateString;
   extraFeeLines?: ExtraFeeLineResponse[] | null;
   notes?: string | null;
   allowExtensions: boolean;
@@ -132,8 +134,8 @@ export interface ReservationListResponse {
   tenantName: string;
   agentCode?: string | null;
   monthlyRate: number;
-  arrivalDate: string;
-  departureDate: string;
+  arrivalDate: CalendarDateString;
+  departureDate: CalendarDateString;
   reservationStatusId: number;
   hasPets?: boolean | null;
   paymentReceived: boolean;
@@ -167,8 +169,8 @@ export interface ReservationListDisplay {
   companyName: string;
   agentCode?: string | null;
   monthlyRate: number;
-  arrivalDate: string;
-  departureDate: string;
+  arrivalDate: CalendarDateString;
+  departureDate: CalendarDateString;
   reservationStatusId: number;
   paymentReceived: boolean;
   welcomeLetterChecked: boolean;

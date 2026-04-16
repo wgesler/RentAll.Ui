@@ -1,3 +1,5 @@
+import type { CalendarDateString } from '../../../services/utility.service';
+
 export interface InvoiceRequest {
   invoiceId?: string;
   organizationId: string;
@@ -8,8 +10,8 @@ export interface InvoiceRequest {
   reservationCode?: string | null;
   startDate: string;
   endDate: string;
-  invoiceDate: string;
-  dueDate?: string;
+  invoiceDate: CalendarDateString;
+  dueDate?: CalendarDateString;
   invoicePeriod?: string;
   totalAmount: number;
   paidAmount: number;
@@ -30,8 +32,8 @@ export interface InvoiceResponse {
   responsibleParty: string | null;
   startDate: string;
   endDate: string;
-  invoiceDate: string;
-  dueDate?: string;
+  invoiceDate: CalendarDateString;
+  dueDate?: CalendarDateString;
   invoicePeriod?: string;
   totalAmount: number;
   paidAmount: number;

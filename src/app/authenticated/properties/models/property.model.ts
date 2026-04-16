@@ -1,3 +1,5 @@
+import type { CalendarDateString } from '../../../services/utility.service';
+
 export interface PropertyRequest {
   // Top section
   propertyId?: string | null;
@@ -11,8 +13,8 @@ export interface PropertyRequest {
   isActive: boolean;
   
   // Availability section
-  availableFrom?: string | null;
-  availableUntil?: string | null;
+  availableFrom?: CalendarDateString | null;
+  availableUntil?: CalendarDateString | null;
   checkInTimeId: number;
   checkOutTimeId: number;
   minStay: number;
@@ -136,8 +138,8 @@ export interface PropertyResponse {
   isActive: boolean;
    
   // Availability section
-  availableFrom?: string | null;
-  availableUntil?: string | null;
+  availableFrom?: CalendarDateString | null;
+  availableUntil?: CalendarDateString | null;
   checkInTimeId: number;
   checkOutTimeId: number;
   minStay: number;
@@ -260,8 +262,8 @@ export interface PropertyListResponse{
   owner1Id?: string | null;
   vendorId?: string| null;
   contactName: string;
-  availableFrom?: string | null;
-  availableUntil?: string | null;
+  availableFrom?: CalendarDateString | null;
+  availableUntil?: CalendarDateString | null;
   unitLevel: number;
   bedrooms: number;
   bathrooms: number;

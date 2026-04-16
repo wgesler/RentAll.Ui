@@ -661,7 +661,7 @@ export class ContactComponent implements OnInit, OnDestroy {
       const rawCodes = (this.contact.properties ?? []) as string[] | string;
       const propertyCodesArray = Array.isArray(rawCodes) ? rawCodes : (typeof rawCodes === 'string' && rawCodes ? rawCodes.split(',').map(c => c.trim()).filter(c => c) : []);
 
-      const insuranceExpirationDate = this.utilityService.parseApiDateOnlyToDate(this.contact.insuranceExpiration ?? null);
+      const insuranceExpirationDate = this.utilityService.parseDateTimeStringToDate(this.contact.insuranceExpiration ?? null);
       this.form.patchValue({
         contactCode: this.contact.contactCode,
         entityTypeId: entityTypeId,
