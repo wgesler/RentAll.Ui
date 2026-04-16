@@ -369,7 +369,7 @@ export class PropertyComponent implements OnInit, OnDestroy, CanComponentDeactiv
     }
     
     // Handle optional nullable string fields - keep as undefined if empty
-    const optionalStringFields = ['address2', 'suite', 'neighborhood', 'crossStreet',
+    const optionalStringFields = ['address2', 'suite', 'communityAddress', 'neighborhood', 'crossStreet',
                                    'view', 'mailbox', 'amenities', 'alarmCode',
                                    'unitMstrCode', 'unitTenantCode', 'bldgMstrCode', 'bldgTenantCode',
                                    'mailRoomCode', 'garageCode', 'trashRemoval', 'description', 'notes'];
@@ -418,6 +418,8 @@ export class PropertyComponent implements OnInit, OnDestroy, CanComponentDeactiv
       const s = String(v).trim();
       return s.length > 0 ? s : null;
     };
+
+    propertyRequest.communityAddress = trimOrNull(formValue.communityAddress) ?? undefined;
 
     propertyRequest.gateCode = trimOrNull(formValue.gateCode);
     propertyRequest.trashCode = trimOrNull(formValue.trashCode);
@@ -505,6 +507,7 @@ export class PropertyComponent implements OnInit, OnDestroy, CanComponentDeactiv
       
       // Details tab
       address1: new FormControl('', [Validators.required]),
+      communityAddress: new FormControl(''),
       address2: new FormControl(''),
       suite: new FormControl(''),
       city: new FormControl('', [Validators.required]),
@@ -657,7 +660,7 @@ export class PropertyComponent implements OnInit, OnDestroy, CanComponentDeactiv
       formData.sofabed = Number(this.property.sofabed ?? 0);
      
       // Handle string fields that might be null/undefined - convert to empty strings
-      const stringFields = ['address2', 'suite', 'bldgNo', 'neighborhood', 'crossStreet', 'view',
+      const stringFields = ['address2', 'suite', 'communityAddress', 'bldgNo', 'neighborhood', 'crossStreet', 'view',
                            'trashRemoval', 'amenities', 'alarmCode', 'unitMstrCode', 'unitTenantCode',
                            'bldgMstrCode', 'bldgTenantCode', 'mailRoomCode', 'garageCode',
                            'gateCode', 'trashCode', 'storageCode',

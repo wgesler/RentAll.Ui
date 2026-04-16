@@ -1,4 +1,3 @@
-// Ordered to match form layout - Updated to match API PropertyResponseDto
 export interface PropertyRequest {
   // Top section
   propertyId?: string | null;
@@ -46,6 +45,7 @@ export interface PropertyRequest {
   state: string;
   zip: string;
   phone?: string | null;
+  communityAddress?: string | null;
   neighborhood?: string | null;
   crossStreet?: string | null;
   view?: string | null;
@@ -124,7 +124,6 @@ export interface PropertyRequest {
   description?: string | null;
   notes?: string | null;
 }
-
 export interface PropertyResponse {
   propertyId: string;
   organizationId: string;
@@ -171,6 +170,7 @@ export interface PropertyResponse {
   state: string;
   zip: string;
   phone?: string | null;
+  communityAddress?: string | null;
   neighborhood?: string | null;
   crossStreet?: string | null;
   view?: string | null;
@@ -255,21 +255,22 @@ export interface PropertyListResponse{
   propertyCode: string;
   propertyLeaseTypeId: number;
   shortAddress: string;
-  availableFrom?: string | null;
-  availableUntil?: string | null;
   officeId: number;  
   officeName: string;
   owner1Id?: string | null;
   vendorId?: string| null;
   contactName: string;
+  availableFrom?: string | null;
+  availableUntil?: string | null;
   unitLevel: number;
   bedrooms: number;
   bathrooms: number;
   accomodates: number;
   squareFeet: number;
+  propertyTypeId: number;
+  unfurnished?: boolean;
   monthlyRate: number;
   dailyRate: number;
-  propertyTypeId: number;
   departureFee: number;
   petFee: number;
   maidServiceFee: number;
@@ -278,14 +279,8 @@ export interface PropertyListResponse{
   bedroomId2: number;
   bedroomId3: number;
   bedroomId4: number;
-  lastFilterChangeDate?: string | null;
-  lastSmokeChangeDate?: string | null;
-  licenseDate?: string | null;
-  hvacServiced?: string | null;
-  fireplaceServiced?: string | null;
   isActive: boolean;
-  unfurnished?: boolean;
-}
+ }
 export interface PropertyListDisplay {
   propertyId: string;
   propertyCode: string;
@@ -313,11 +308,7 @@ export interface PropertyListDisplay {
   bedroomId2: number;
   bedroomId3: number;
   bedroomId4: number;
-  lastFilterChangeDate?: string | null;
-  lastSmokeChangeDate?: string | null;
-  licenseDate?: string | null;
-  hvacServiced?: string | null;
-  fireplaceServiced?: string | null;
+
   isActive: boolean;
   unfurnished: boolean;
 }

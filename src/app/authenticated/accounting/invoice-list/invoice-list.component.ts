@@ -434,7 +434,7 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
       params.push(`companyId=${companyIdToUse}`);
     }
     if (this.isSuperUser && reservationId) {
-      params.push(`OrganizationId=${reservationId}`);
+      params.push(`organizationId=${reservationId}`);
     }
     // Add returnTo parameter based on source input (explicit tracking)
     if (this.source === 'reservation') {

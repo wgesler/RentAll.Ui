@@ -116,7 +116,7 @@ export class BillingComponent implements OnInit, OnDestroy {
   }
 
   processQueryParams(queryParams: any): void {
-    const organizationIdParam = queryParams['OrganizationId'] ?? queryParams['organizationId'];
+    const organizationIdParam = queryParams['organizationId'];
 
     const organizationControl = this.form?.get('organizationId');
     if (organizationControl && organizationControl.value !== organizationIdParam) {
@@ -1144,10 +1144,10 @@ export class BillingComponent implements OnInit, OnDestroy {
     const organizationIdToUse = this.form?.get('organizationId')?.value || formValue?.organizationId || invoiceToUse.organizationId;
 
     if (organizationIdToUse) {
-      params.push(`OrganizationId=${organizationIdToUse}`);
+      params.push(`organizationId=${organizationIdToUse}`);
     }
 
-    params.push(`InvoiceId=${invoiceToUse.invoiceId}`);
+    params.push(`invoiceId=${invoiceToUse.invoiceId}`);
 
     const billingCreateUrl = `${RouterUrl.BillingCreate}?${params.join('&')}`;
     this.router.navigateByUrl(billingCreateUrl);

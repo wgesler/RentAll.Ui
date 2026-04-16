@@ -7,9 +7,8 @@ export class JwtContainer {
     constructor(sub: string, exp: number, user: any) {
         this.sub = sub;
         this.exp = exp;
-        // API returns PascalCase, so we need to access properties with PascalCase
         // Parse userGroups from comma-delimited string to array
-        const userGroupsRaw = user.UserGroups || user.userGroups;
+        const userGroupsRaw = user.userGroups;
         let userGroups: string[] = [];
         if (userGroupsRaw) {
             if (Array.isArray(userGroupsRaw)) {
@@ -20,7 +19,7 @@ export class JwtContainer {
         }
         
         // Parse officeAccess from comma-delimited string to number array
-        const officeAccessRaw = user.OfficeAccess || user.officeAccess;
+        const officeAccessRaw = user.officeAccess;
         let officeAccess: number[] = [];
         if (officeAccessRaw) {
             if (Array.isArray(officeAccessRaw)) {
@@ -40,24 +39,24 @@ export class JwtContainer {
             }
         }
         
-        const startupPageRaw = user.StartupPage ?? user.startupPage ?? user.StartupPageId ?? user.startupPageId;
+        const startupPageRaw = user.startupPage ?? user.startupPageId;
         const startupPage = startupPageRaw !== undefined && startupPageRaw !== null
             ? (typeof startupPageRaw === 'number' ? startupPageRaw : parseInt(String(startupPageRaw), 10))
             : 0;
-        const defaultOfficeIdRaw = user.DefaultOfficeId ?? user.defaultOfficeId ?? user.DefaultOffice ?? user.defaultOffice;
+        const defaultOfficeIdRaw = user.defaultOfficeId ?? user.defaultOffice;
         const defaultOfficeId = defaultOfficeIdRaw !== undefined && defaultOfficeIdRaw !== null
             ? (typeof defaultOfficeIdRaw === 'number' ? defaultOfficeIdRaw : parseInt(String(defaultOfficeIdRaw), 10))
             : null;
-        const agentId = user.AgentId || user.agentId || null;
-        const userGuid = user.UserGuid || user.userGuid || user.UserId || user.userId || '';
+        const agentId = user.agentId ?? null;
+        const userGuid = user.userGuid || user.userId || '';
         
         this.user = new JwtUser(
             userGuid,
-            user.OrganizationId || user.organizationId || '',
-            user.FirstName || user.firstName || '',
-            user.LastName || user.lastName || '',
-            user.Email || user.email || '',
-            user.Phone || user.phone || '',
+            user.organizationId || '',
+            user.firstName || '',
+            user.lastName || '',
+            user.email || '',
+            user.phone || '',
             userGroups,
             officeAccess,
             startupPage,

@@ -643,11 +643,6 @@ export class MappingService {
         bedroomId2: o.bedroomId2,
         bedroomId3: o.bedroomId3,
         bedroomId4: o.bedroomId4,
-        lastFilterChangeDate: o.lastFilterChangeDate ?? undefined,
-        lastSmokeChangeDate: o.lastSmokeChangeDate ?? undefined,
-        licenseDate: o.licenseDate ?? undefined,
-        hvacServiced: o.hvacServiced ?? undefined,
-        fireplaceServiced: o.fireplaceServiced ?? undefined,
         isActive: o.isActive,
         unfurnished: this.toBooleanValue(o.unfurnished),
       };
@@ -780,11 +775,6 @@ export class MappingService {
         petsAllowed: maintenanceRow?.petsAllowed ?? false,
         needsMaintenance: needsMaintenance,
         needsMaintenanceState,
-        licenseDate: this.formatter.formatDateString(maintenanceRow?.licenseDate ?? undefined),
-        lastFilterChangeDate: this.formatter.formatDateString(maintenanceRow?.lastFilterChangeDate ?? undefined),
-        lastSmokeChangeDate: this.formatter.formatDateString(maintenanceRow?.lastSmokeChangeDate ?? undefined),
-        hvacServiced: this.formatter.formatDateString(maintenanceRow?.hvacServiced ?? undefined),
-        fireplaceServiced: this.formatter.formatDateString(maintenanceRow?.fireplaceServiced ?? undefined)
       };
       return row;
     });
@@ -863,21 +853,27 @@ export class MappingService {
       propertyLeaseTypeId: _propertyLeaseTypeId,
       propertyLeaseId: _propertyLeaseId,
       bldgNo: _bldgNoCamel,
-      BldgNo: _bldgNoPascal,
+      communityAddress: _communityAddressCamel,
       ...rest
     } = raw as Record<string, unknown> & {
       propertyLeaseTypeId?: number;
       propertyLeaseId?: number;
       bldgNo?: string | null;
-      BldgNo?: string | null;
+      communityAddress?: string | null;
     };
-    const bldgNoRaw = raw['bldgNo'] ?? raw['BldgNo'];
+    const bldgNoRaw = raw['bldgNo'];
     const bldgNo =
       bldgNoRaw != null && String(bldgNoRaw).trim() !== '' ? String(bldgNoRaw).trim() : undefined;
+    const communityAddressRaw = raw['communityAddress'];
+    const communityAddress =
+      communityAddressRaw != null && String(communityAddressRaw).trim() !== ''
+        ? String(communityAddressRaw).trim()
+        : undefined;
     return {
       ...rest,
       propertyLeaseTypeId: Number(leaseTypeId ?? 0),
-      ...(bldgNo !== undefined ? { bldgNo } : {})
+      ...(bldgNo !== undefined ? { bldgNo } : {}),
+      ...(communityAddress !== undefined ? { communityAddress } : {})
     } as unknown as PropertyResponse;
   }
 

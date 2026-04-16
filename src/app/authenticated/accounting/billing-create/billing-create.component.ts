@@ -110,13 +110,13 @@ export class BillingCreateComponent extends BaseDocumentComponent implements OnI
   //#region Create Invoice Methods
   ngOnInit(): void {
     this.route.queryParams.pipe(take(1)).subscribe((queryParams) => {
-      const organizationIdParam = queryParams['OrganizationId'] ?? queryParams['organizationId'];
+      const organizationIdParam = queryParams['organizationId'];
       if (organizationIdParam) {
         this.selectedOrganizationId = organizationIdParam;
       } else if (this.organizationId) {
         this.selectedOrganizationId = this.organizationId;
       }
-      const invoiceIdParam = queryParams['InvoiceId'] ?? queryParams['invoiceId'];
+      const invoiceIdParam = queryParams['invoiceId'];
       if (invoiceIdParam && this.invoiceId === null) {
         this.invoiceId = invoiceIdParam;
       }
@@ -833,10 +833,10 @@ export class BillingCreateComponent extends BaseDocumentComponent implements OnI
     const organizationId = this.recipientOrganization?.organizationId || this.selectedOrganizationId;
     
     if (organizationId) {
-      params.push(`OrganizationId=${organizationId}`);
+      params.push(`organizationId=${organizationId}`);
     }
     if (invoiceId !== null && invoiceId !== undefined && invoiceId !== '') {
-      params.push(`InvoiceId=${invoiceId}`);
+      params.push(`invoiceId=${invoiceId}`);
     }
     
     if (returnTo === 'accounting' || !returnTo) {

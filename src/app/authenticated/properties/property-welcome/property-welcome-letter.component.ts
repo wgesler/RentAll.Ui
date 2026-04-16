@@ -505,7 +505,7 @@ export class PropertyWelcomeLetterComponent extends BaseDocumentComponent implem
 
     if (this.property) {
       result = result.replace(/\{\{propertyCode\}\}/g, this.propertyCode || this.property?.propertyCode || '');
-      result = result.replace(/\{\{communityAddress\}\}/g, this.getCommunityAddress() || '');
+      result = result.replace(/\{\{communityAddressLine\}\}/g, this.getCommunityAddress() || '');
       result = result.replace(/\{\{apartmentAddress\}\}/g, this.getApartmentAddress() || '');
       result = result.replace(/\{\{buildingCommunity\}\}/g, this.getBuildingCommunityDescription() || 'N/A');
       result = result.replace(/\{\{bldgNo\}\}/g, this.property.bldgNo || 'N/A');
@@ -641,14 +641,8 @@ export class PropertyWelcomeLetterComponent extends BaseDocumentComponent implem
   }
 
   getCommunityAddress(): string {
-    if (!this.property) return '';
-    const parts = [
-      this.property.address1,
-      this.property.city,
-      this.property.state,
-      this.property.zip
-    ].filter(p => p);
-    return parts.join(', ');
+    const communityAddressTrimmed = (this.property.communityAddress || '').trim();
+    return communityAddressTrimmed ? `<p><span class="label">Community Address:</span> ${this.escapeHtml(communityAddressTrimmed)}</p>` : '';
   }
 
   getApartmentAddress(): string {
@@ -711,12 +705,16 @@ export class PropertyWelcomeLetterComponent extends BaseDocumentComponent implem
     if (!this.property) {
       return null;
     }
+
+    // If this is a building, provide the building name
     if (this.property.buildingId != null && this.buildings?.length) {
       const building = this.buildings.find(b => this.buildingIdsMatch(b.buildingId, this.property!.buildingId));
       if (building?.name) {
         return building.name;
       }
     }
+
+    // Finally, if there's a neighborhood description, use that
     return this.property.neighborhood || null;
   }
 
