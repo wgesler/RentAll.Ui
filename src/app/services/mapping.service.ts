@@ -27,7 +27,7 @@ import { PropertyBedDropdownCell, PropertyListDisplay, PropertyListResponse, Pro
 import { BoardProperty } from '../authenticated/reservations/models/reservation-board-model';
 import { getFrequency, getReservationStatus } from '../authenticated/reservations/models/reservation-enum';
 import { ExtraFeeLineRequest, ExtraFeeLineResponse, ReservationListDisplay, ReservationListResponse, ReservationRequest, ReservationResponse } from '../authenticated/reservations/models/reservation-model';
-import { MaintenanceListDisplay } from '../authenticated/shared/models/mixed-models';
+import { MaintenanceListDisplay, ReservationPropertyMaintenance, ReservationTurnoverEventDisplay } from '../authenticated/shared/models/mixed-models';
 import { FormatterService } from './formatter-service';
 import { UtilityService } from './utility.service';
 
@@ -866,6 +866,32 @@ export class MappingService {
         createdOn: this.formatter.formatDateTimeString(o.createdOn)
       };
     });
+  }
+
+  mapReservationPropertyMaintenanceToTurnoverDisplay(rpm: ReservationPropertyMaintenance): ReservationTurnoverEventDisplay {
+    return {
+      propertyId: this.utility.normalizeId(rpm.propertyId),
+      propertyCode: String(rpm.propertyCode ?? '').trim(),
+      officeId: rpm.officeId,
+      reservationId: this.utility.normalizeId(rpm.reservationId),
+      reservationCode: String(rpm.reservationCode ?? '').trim(),
+      contactId: this.utility.normalizeId(rpm.contactId),
+      companyName: String(rpm.companyName ?? '').trim(),
+      agentCode: rpm.agentCode ?? null,
+      tenantName: String(rpm.tenantName ?? '').trim(),
+      contactName: String(rpm.contactName ?? '').trim(),
+      officeName: String(rpm.officeName ?? '').trim(),
+      arrivalDateDisplay: String(rpm.arrivalDateDisplay ?? '').trim() || this.formatter.formatDateString(rpm.arrivalDate) || '',
+      departureDateDisplay: String(rpm.departureDateDisplay ?? '').trim() || this.formatter.formatDateString(rpm.departureDate) || '',
+      reservationStatusDisplay: getReservationStatus(rpm.reservationStatusId),
+      paymentReceived: rpm.paymentReceived,
+      welcomeLetterChecked: rpm.welcomeLetterChecked,
+      welcomeLetterSent: rpm.welcomeLetterSent,
+      readyForArrival: rpm.readyForArrival,
+      code: rpm.code,
+      departureLetterChecked: rpm.departureLetterChecked,
+      departureLetterSent: rpm.departureLetterSent
+    };
   }
 
   mapReservationResponseToRequest(

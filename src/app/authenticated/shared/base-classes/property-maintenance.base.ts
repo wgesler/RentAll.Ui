@@ -16,7 +16,7 @@ import { PropertyService } from '../../properties/services/property.service';
 import { Frequency } from '../../reservations/models/reservation-enum';
 import { ReservationListDisplay, ReservationListResponse } from '../../reservations/models/reservation-model';
 import { ReservationService } from '../../reservations/services/reservation.service';
-import { PropertyMaintenance, ReservationPropertyMaintenance } from '../models/mixed-models';
+import { PropertyMaintenance, PropertyVacancyDisplay, ReservationPropertyMaintenance } from '../models/mixed-models';
 import { ServiceType, getServiceType } from '../models/mixed-enums';
 @Directive()
 export class PropertyMaintenanceBase implements OnInit, OnDestroy {
@@ -26,8 +26,10 @@ export class PropertyMaintenanceBase implements OnInit, OnDestroy {
   globalOfficeSubscription?: Subscription;
 
   reservationList: ReservationListDisplay[] = [];
+  activeReservationList: ReservationListDisplay[] = [];
   propertyList: PropertyListResponse[] = [];
   maintenanceList: MaintenanceListResponse[] = [];
+  maintenanceByPropertyId = new Map<string, MaintenanceListResponse>();
   propertyMaintenanceList: PropertyMaintenance[] = [];
   reservationPropertyMaintenanceList: ReservationPropertyMaintenance[] = [];
 
@@ -53,16 +55,20 @@ export class PropertyMaintenanceBase implements OnInit, OnDestroy {
   tomorrowDayOrdinal = 0;
   isServiceError = false;
 
+  rentedCount = 0;
+  vacantCount = 0;
+  propertiesByVacancy: PropertyVacancyDisplay[] = [];
+
   constructor(
     protected authService: AuthService,
-    private reservationService: ReservationService,
+    protected reservationService: ReservationService,
     protected mixedMappingService: MixedMappingService,
     protected mappingService: MappingService,
-    private propertyService: PropertyService,
-    private maintenanceService: MaintenanceService,
+    protected propertyService: PropertyService,
+    protected maintenanceService: MaintenanceService,
     protected utilityService: UtilityService,
-    private officeService: OfficeService,
-    private globalSelectionService: GlobalSelectionService
+    protected officeService: OfficeService,
+    protected globalSelectionService: GlobalSelectionService
   ) { }
 
   //#region Property-Maintenance Base
@@ -113,12 +119,14 @@ export class PropertyMaintenanceBase implements OnInit, OnDestroy {
   }
 
   loadActiveReservations(): void {
-    this.reservationService.getActiveReservationList().pipe(take(1), finalize(() => {this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'activeReservations');})).subscribe({
+    this.reservationService.getReservationList().pipe(take(1), finalize(() => { this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'activeReservations'); })).subscribe({
       next: (response: ReservationListResponse[]) => {
         this.reservationList = this.mappingService.mapReservationList(response);
+        this.activeReservationList = this.reservationList.filter(r => r.isActive === true);
       },
       error: () => {
         this.reservationList = [];
+        this.activeReservationList = [];
       }
     });
   }
@@ -133,21 +141,32 @@ export class PropertyMaintenanceBase implements OnInit, OnDestroy {
             this.propertyList = mapped.properties;
             this.maintenanceList = mapped.maintenanceList;
             this.propertyMaintenanceList = mapped.propertyMaintenanceList;
+            this.rebuildMaintenanceByPropertyIdMap();
           },
           error: (_err: HttpErrorResponse) => {
             this.isServiceError = true;
             this.propertyList = [];
             this.maintenanceList = [];
             this.propertyMaintenanceList = [];
+            this.rebuildMaintenanceByPropertyIdMap();
           }
         });
+  }
+
+  rebuildMaintenanceByPropertyIdMap(): void {
+    this.maintenanceByPropertyId = new Map();
+    for (const row of this.maintenanceList) {
+      if (row?.propertyId) {
+        this.maintenanceByPropertyId.set(row.propertyId, row);
+      }
+    }
   }
   //#endregion
 
   //#region Main Data Setup
   recomputeDashboardData(userId: string | null = null): void {
     this.reservationPropertyMaintenanceList = this.mixedMappingService.mapReservationPropertyMaintenance(
-      this.reservationList, this.propertyList, this.maintenanceList);
+      this.activeReservationList, this.propertyList, this.maintenanceList);
 
     const assigneeUserId = this.utilityService.normalizeIdOrNull(userId);
     this.offlineProperties = this.getPropertiesGoingOffline(assigneeUserId);
@@ -159,7 +178,97 @@ export class PropertyMaintenanceBase implements OnInit, OnDestroy {
     this.todayArriveDepartCount = this.getArrivalsDeparturesForToday();
     this.tomorrowArriveDepartCount = this.getArrivalsDeparturesForTomorrow();
 
+    this.recomputeVacantPropertyStats();
+
     this.onAfterRecomputeDashboardData(assigneeUserId);
+  }
+
+  recomputeVacantPropertyStats(): void {
+    if (this.propertyList.length === 0) {
+      this.rentedCount = 0;
+      this.vacantCount = 0;
+      this.propertiesByVacancy = [];
+      return;
+    }
+
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const propertiesForScope = !this.selectedOffice
+      ? this.propertyList
+      : this.propertyList.filter(p => p.officeId === this.selectedOffice!.officeId);
+    const reservationsForScope = !this.selectedOffice
+      ? this.reservationList
+      : this.reservationList.filter(r => r.officeId === this.selectedOffice!.officeId);
+
+    const propertyIdsWithCurrentStay = new Set<string>();
+    reservationsForScope.forEach(reservation => {
+      if (!reservation.isActive || !reservation.propertyId) {
+        return;
+      }
+      const arrivalDate = this.utilityService.parseDateOnlyStringToDate(reservation.arrivalDate);
+      const departureDate = this.utilityService.parseDateOnlyStringToDate(reservation.departureDate);
+      if (!arrivalDate || !departureDate) {
+        return;
+      }
+      if (today.getTime() >= arrivalDate.getTime() && today.getTime() <= departureDate.getTime()) {
+        propertyIdsWithCurrentStay.add(reservation.propertyId);
+      }
+    });
+
+    const latestPastDepartureByProperty = new Map<string, Date>();
+    reservationsForScope.forEach(reservation => {
+      if (!reservation.propertyId) {
+        return;
+      }
+      const departureDate = this.utilityService.parseDateOnlyStringToDate(reservation.departureDate);
+      if (!departureDate || departureDate.getTime() > today.getTime()) {
+        return;
+      }
+      const existingLatestDeparture = latestPastDepartureByProperty.get(reservation.propertyId);
+      if (!existingLatestDeparture || departureDate.getTime() > existingLatestDeparture.getTime()) {
+        latestPastDepartureByProperty.set(reservation.propertyId, departureDate);
+      }
+    });
+
+    this.propertiesByVacancy = propertiesForScope
+      .filter(property => !propertyIdsWithCurrentStay.has(property.propertyId))
+      .map(property => {
+        const latestPastDeparture = latestPastDepartureByProperty.get(property.propertyId);
+        const vacancyDays = latestPastDeparture
+          ? Math.max(Math.floor((today.getTime() - latestPastDeparture.getTime()) / (1000 * 60 * 60 * 24)), 0)
+          : null;
+        const vacancyDaysDisplay: string | number = vacancyDays === null ? 'Never rented' : vacancyDays;
+        const lastDepartureDate = this.mappingService.mapVacantPropertyLastDepartureDate(latestPastDeparture ?? null);
+
+        return {
+          ...property,
+          bedroomId1: this.mappingService.readPropertyListBedroomTypeId(property, 1),
+          bedroomId2: this.mappingService.readPropertyListBedroomTypeId(property, 2),
+          bedroomId3: this.mappingService.readPropertyListBedroomTypeId(property, 3),
+          bedroomId4: this.mappingService.readPropertyListBedroomTypeId(property, 4),
+          vacancyDays,
+          vacancyDaysDisplay,
+          lastDepartureDate
+        };
+      })
+      .sort((a, b) => {
+        const aDays = a.vacancyDays;
+        const bDays = b.vacancyDays;
+
+        if (aDays === null && bDays === null) {
+          return (a.propertyCode || '').localeCompare(b.propertyCode || '');
+        }
+        if (aDays === null) {
+          return -1;
+        }
+        if (bDays === null) {
+          return 1;
+        }
+        return bDays - aDays;
+      });
+
+    this.rentedCount = propertyIdsWithCurrentStay.size;
+    this.vacantCount = this.propertiesByVacancy.length;
   }
 
   protected onAfterRecomputeDashboardData(assigneeUserId: string | null): void {

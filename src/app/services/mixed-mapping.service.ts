@@ -99,7 +99,13 @@ export class MixedMappingService {
       maintenanceByPropertyId.set(row.propertyId, row);
     }
 
-    return reservations.map((reservation): ReservationPropertyMaintenance => {
+    return reservations.filter(reservation => {
+      const rawPid = reservation.propertyId;
+      if (rawPid == null || String(rawPid).trim() === '') {
+        return false;
+      }
+      return propertyById.has(reservation.propertyId);
+    }).map((reservation): ReservationPropertyMaintenance => {
       const property = propertyById.get(reservation.propertyId)!;
       const maintenance = maintenanceByPropertyId.get(reservation.propertyId);
       const bedCells = this.mappingService.buildPropertyRowBedDropdownCells(property, maintenance, true);
@@ -116,6 +122,7 @@ export class MixedMappingService {
         companyName: reservation.companyName ?? null,
         tenantName: reservation.tenantName ?? '',
         agentCode: reservation.agentCode ?? null,
+        reservationStatusId: reservation.reservationStatusId,
         arrivalDate: reservation.arrivalDate,
         arrivalDateOrdinal: this.utilityService.parseCalendarDateToOrdinal(reservation.arrivalDate),
         arrivalDateDisplay: this.formatter.formatDateString(reservation.arrivalDate) || '',
@@ -436,6 +443,7 @@ export class MixedMappingService {
       companyName: null,
       tenantName: '',
       agentCode: null,
+      reservationStatusId: 0,
       arrivalDate: eventCal,
       arrivalDateOrdinal: eventOrd,
       arrivalDateDisplay: eventDisp,
@@ -469,6 +477,10 @@ export class MixedMappingService {
   //#endregion
 
   //#region Utility Methods
+  toBoolean(value: unknown): boolean {
+    return this.mappingService.toBooleanValue(value);
+  }
+
   toEventDateSortTime(value: string | null | undefined): number {
     return this.utilityService.parseCalendarDateToOrdinal(value) ?? MixedMappingService.maintenanceListNoDepartureSortTime;
   }

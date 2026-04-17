@@ -67,6 +67,7 @@ export interface ReservationPropertyMaintenance extends PropertyMaintenance {
   companyName?: string | null;
   tenantName: string;
   agentCode?: string | null;
+  reservationStatusId: number;
   arrivalDate: CalendarDateString;
   arrivalDateOrdinal: number | null;
   arrivalDateDisplay: string;
@@ -157,6 +158,36 @@ export type DashboardPropertyTurnoverRow = PropertyListDisplay & {
   availableAfter: string;
   availableUntil: string;
 };
+
+export type PropertyVacancyDisplay = PropertyListResponse & {
+  vacancyDays: number | null;
+  vacancyDaysDisplay: string | number;
+  lastDepartureDate: string | null;
+};
+
+export interface ReservationTurnoverEventDisplay {
+  propertyId: string;
+  propertyCode: string;
+  officeId: number;
+  reservationId: string;
+  reservationCode: string;
+  contactId: string;
+  companyName: string;
+  agentCode: string | null;
+  tenantName: string;
+  contactName: string;
+  officeName: string;
+  arrivalDateDisplay: string;
+  departureDateDisplay: string;
+  reservationStatusDisplay: string;
+  paymentReceived: boolean;
+  welcomeLetterChecked: boolean;
+  welcomeLetterSent: boolean;
+  readyForArrival: boolean;
+  code: boolean;
+  departureLetterChecked: boolean;
+  departureLetterSent: boolean;
+}
 
 export type MaintenanceListLoadResponse = {
   properties?: PropertyListResponse[] | null;

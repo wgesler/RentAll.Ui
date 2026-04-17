@@ -339,6 +339,11 @@ export function getBedSizeTypes(): { value: number, label: string }[] {
     }));
 }
 
+/** Label strings for bed-size dropdowns (e.g. data-table column `options`). */
+export function getBedTypeOptionLabels(): string[] {
+  return getBedSizeTypes().map(bed => bed.label);
+}
+
 /** Slots above the property bedroom count use None (lists: maintenance, dashboard turnover). */
 export function effectiveBedTypeIdForPropertySlot(
   slot: 1 | 2 | 3 | 4,

@@ -13,6 +13,8 @@
   overflow: visible;
   /* Matches welcome row: padding-left after the border (space before person icon). */
   --dashboard-titlebar-line-inset: 0.65rem;
+  /* Vertical rules between date/tiles and tile groups — match welcome column border height (~avatar row). */
+  --dashboard-titlebar-vertical-divider-height: 2.35rem;
   /* Fixed tile box: same outer width × height for every stat (border-box includes padding + border). */
   --dashboard-titlebar-tile-width: 6.75rem;
   --dashboard-titlebar-tile-height: 3.625rem;
@@ -31,13 +33,14 @@
     min-width: 0;
     margin-left: var(--dashboard-titlebar-line-inset);
     padding-left: var(--dashboard-titlebar-line-inset);
-    border-left: 1px solid rgba(71, 85, 105, 0.22);
+    border-left: calc(1px + 1pt) solid rgba(15, 23, 42, 0.72);
   }
 
   .dashboard-titlebar-stats {
     display: flex;
     align-items: stretch;
-    gap: 0;
+    /* Same as welcome `margin-left` before the vertical rule (title → profile rhythm). */
+    gap: var(--dashboard-titlebar-line-inset);
     flex: 0 0 auto;
     margin-left: auto;
     overflow: visible;
@@ -79,23 +82,29 @@
     gap: 0;
   }
 
-  .dashboard-titlebar-stat-tiles > .dashboard-titlebar-stat--today .dashboard-titlebar-stat-metric,
-  .dashboard-titlebar-stat-tiles > .dashboard-titlebar-stat--tomorrow .dashboard-titlebar-stat-metric {
+  .dashboard-titlebar-stat-tiles > .dashboard-titlebar-stat--blue .dashboard-titlebar-stat-metric,
+  .dashboard-titlebar-stat-tiles > .dashboard-titlebar-stat--pink .dashboard-titlebar-stat-metric,
+  .dashboard-titlebar-stat-tiles > .dashboard-titlebar-stat--green .dashboard-titlebar-stat-metric,
+  .dashboard-titlebar-stat-tiles > .dashboard-titlebar-stat--yellow .dashboard-titlebar-stat-metric {
     margin-top: 0.35rem;
     padding-left: 0;
     padding-right: 0;
   }
 
-  .dashboard-titlebar-stat-tiles > .dashboard-titlebar-stat--today .dashboard-titlebar-stat-icon,
-  .dashboard-titlebar-stat-tiles > .dashboard-titlebar-stat--tomorrow .dashboard-titlebar-stat-icon {
+  .dashboard-titlebar-stat-tiles > .dashboard-titlebar-stat--blue .dashboard-titlebar-stat-icon,
+  .dashboard-titlebar-stat-tiles > .dashboard-titlebar-stat--pink .dashboard-titlebar-stat-icon,
+  .dashboard-titlebar-stat-tiles > .dashboard-titlebar-stat--green .dashboard-titlebar-stat-icon,
+  .dashboard-titlebar-stat-tiles > .dashboard-titlebar-stat--yellow .dashboard-titlebar-stat-icon {
     width: var(--dashboard-titlebar-calendar-icon-size);
     height: var(--dashboard-titlebar-calendar-icon-size);
     font-size: var(--dashboard-titlebar-calendar-icon-size);
     line-height: 1;
   }
 
-  .dashboard-titlebar-stat-tiles > .dashboard-titlebar-stat--today .dashboard-titlebar-stat-value,
-  .dashboard-titlebar-stat-tiles > .dashboard-titlebar-stat--tomorrow .dashboard-titlebar-stat-value {
+  .dashboard-titlebar-stat-tiles > .dashboard-titlebar-stat--blue .dashboard-titlebar-stat-value,
+  .dashboard-titlebar-stat-tiles > .dashboard-titlebar-stat--pink .dashboard-titlebar-stat-value,
+  .dashboard-titlebar-stat-tiles > .dashboard-titlebar-stat--green .dashboard-titlebar-stat-value,
+  .dashboard-titlebar-stat-tiles > .dashboard-titlebar-stat--yellow .dashboard-titlebar-stat-value {
     font-size: 0.75rem;
     line-height: 1;
   }
@@ -147,11 +156,11 @@
     flex-direction: row;
     align-items: stretch;
     flex-shrink: 0;
-    gap: 0;
+    /* Same as welcome `padding-left` after the vertical rule (date → divider). */
+    gap: var(--dashboard-titlebar-line-inset);
     min-width: 0;
     padding: 2px 0 2px 2px;
-    /* Same as welcome padding-left after line: one inset before colored tiles */
-    margin-right: var(--dashboard-titlebar-line-inset);
+    margin-right: 0;
   }
 
   .dashboard-titlebar-date-block {
@@ -164,8 +173,7 @@
     min-width: 0;
     max-width: 10.5rem;
     padding: 2px 0 2px 0;
-    /* Same inset after date text, before vertical rule */
-    margin-right: var(--dashboard-titlebar-line-inset);
+    margin-right: 0;
   }
 
   .dashboard-titlebar-date {
@@ -179,13 +187,27 @@
     text-overflow: ellipsis;
   }
 
+  /* Single hairline like welcome `border-left`; spacing from flex `gap` only (`--dashboard-titlebar-line-inset`). */
   .dashboard-titlebar-stats-divider {
-    width: 1px;
+    box-sizing: border-box;
+    width: 0;
     flex-shrink: 0;
-    align-self: stretch;
-    min-height: 2.75rem;
-    background: rgba(71, 85, 105, 0.22);
-    border-radius: 1px;
+    align-self: center;
+    height: var(--dashboard-titlebar-vertical-divider-height);
+    min-height: var(--dashboard-titlebar-vertical-divider-height);
+    max-height: var(--dashboard-titlebar-vertical-divider-height);
+    margin: 0;
+    padding: 0;
+    border: none;
+    border-left: calc(1px + 1pt) solid rgba(15, 23, 42, 0.72);
+    background: transparent;
+  }
+
+  .dashboard-titlebar-stat-tiles > .dashboard-titlebar-stat-tiles-divider {
+    align-self: center;
+    height: var(--dashboard-titlebar-vertical-divider-height);
+    min-height: var(--dashboard-titlebar-vertical-divider-height);
+    max-height: var(--dashboard-titlebar-vertical-divider-height);
   }
 
   .dashboard-titlebar-welcome-row {
@@ -238,19 +260,29 @@
     text-overflow: ellipsis;
   }
 
-  .dashboard-titlebar-stat--today {
+  .dashboard-titlebar-stat--blue {
     background-color: #e3f2fd;
     border: 1px solid #90caf9;
   }
 
-  .dashboard-titlebar-stat--tomorrow {
-    background-color: #f3e5f5;
-    border: 1px solid #ce93d8;
+  .dashboard-titlebar-stat--pink {
+    background-color: #fce4ec;
+    border: 1px solid #f48fb1;
+  }
+
+  .dashboard-titlebar-stat--green {
+    background-color: #e8f5e9;
+    border: 1px solid #a5d6a7;
+  }
+
+  .dashboard-titlebar-stat--yellow {
+    background-color: #fffde7;
+    border: 1px solid #fff59d;
   }
 
   .dashboard-titlebar-stat--props {
-    background-color: #e8f5e9;
-    border: 1px solid #a5d6a7;
+    background-color: #f3e5f5;
+    border: 1px solid #ce93d8;
   }
 
   .dashboard-titlebar-stat--commissions {
@@ -360,7 +392,7 @@
   .dashboard-titlebar-prop-label {
     font-size: 10px;
     font-weight: 600;
-    color: #1565c0;
+    color: #555;
     white-space: nowrap;
   }
 
@@ -419,8 +451,51 @@
     margin-top: 4px;
   }
 
-  .dashboard-titlebar-stat--today .dashboard-titlebar-stat-line,
-  .dashboard-titlebar-stat--tomorrow .dashboard-titlebar-stat-line,
+  .dashboard-titlebar-stat--blue .dashboard-titlebar-stat-line,
+  .dashboard-titlebar-stat--blue .dashboard-titlebar-stat-sub {
+    color: #1565c0;
+  }
+
+  .dashboard-titlebar-stat--pink .dashboard-titlebar-stat-line,
+  .dashboard-titlebar-stat--pink .dashboard-titlebar-stat-sub {
+    color: #c2185b;
+  }
+
+  .dashboard-titlebar-stat--green .dashboard-titlebar-stat-line,
+  .dashboard-titlebar-stat--green .dashboard-titlebar-stat-sub {
+    color: #2e7d32;
+  }
+
+  .dashboard-titlebar-stat--yellow .dashboard-titlebar-stat-line,
+  .dashboard-titlebar-stat--yellow .dashboard-titlebar-stat-sub {
+    color: #f57f17;
+  }
+
+  .dashboard-titlebar-stat--props .dashboard-titlebar-stat-line {
+    color: #4a148c;
+  }
+
+  .dashboard-titlebar-stat--props .dashboard-titlebar-prop-label {
+    color: #6a1b9a;
+  }
+
+  .dashboard-titlebar-stat--props .dashboard-titlebar-prop-value {
+    color: #111;
+  }
+
+  .dashboard-titlebar-stat--commissions .dashboard-titlebar-stat-line,
+  .dashboard-titlebar-stat--commissions .dashboard-titlebar-stat-sub {
+    color: #e65100;
+  }
+
+  .dashboard-titlebar-stat--commissions .dashboard-titlebar-commission-agent {
+    color: #e65100;
+  }
+
+  .dashboard-titlebar-stat--blue .dashboard-titlebar-stat-line,
+  .dashboard-titlebar-stat--pink .dashboard-titlebar-stat-line,
+  .dashboard-titlebar-stat--green .dashboard-titlebar-stat-line,
+  .dashboard-titlebar-stat--yellow .dashboard-titlebar-stat-line,
   .dashboard-titlebar-stat--props .dashboard-titlebar-stat-line,
   .dashboard-titlebar-stat--commissions .dashboard-titlebar-stat-line {
     font-size: calc(11px + 0.5pt);
@@ -473,14 +548,6 @@
   font-weight: 500;
 }
 
-.section-title {
-  font-size: 16px;
-  font-weight: 600;
-  margin: 0;
-  line-height: 1.2;
-  color: rgba(0, 0, 0, 0.87);
-}
-
 .dashboard-group-title {
   margin: 0 0 12px;
   font-size: 13px;
@@ -508,9 +575,9 @@
 }
 
 .dashboard-group-divider {
-  margin: 0;
-  padding-top: 26px;
-  border-top: 1px solid rgba(71, 85, 105, 0.25);
+  margin: 10px 0 0;
+  padding-top: 32px;
+  border-top: calc(1px + 1pt) solid rgba(15, 23, 42, 0.82);
 }
 
 /* Keep first table subheader aligned with dashboard section heading color. */

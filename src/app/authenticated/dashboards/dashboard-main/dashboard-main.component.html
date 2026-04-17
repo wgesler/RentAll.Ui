@@ -28,7 +28,7 @@
           </div>
 
           <div class="dashboard-titlebar-stat-tiles">
-          <div class="dashboard-titlebar-stat dashboard-titlebar-stat--today">
+          <div class="dashboard-titlebar-stat dashboard-titlebar-stat--blue">
             <div class="dashboard-titlebar-stat-body">
               <h4 class="dashboard-titlebar-stat-heading">
                 <span class="dashboard-titlebar-stat-line">Arrive/Depart</span>
@@ -36,12 +36,12 @@
               </h4>
               <div class="dashboard-titlebar-stat-metric">
                 <mat-icon class="dashboard-titlebar-stat-icon">calendar_today</mat-icon>
-                <span class="dashboard-titlebar-stat-value">{{ getTodayTotal() }}</span>
+                <span class="dashboard-titlebar-stat-value">{{ todayArriveDepartCount }}</span>
               </div>
             </div>
           </div>
 
-          <div class="dashboard-titlebar-stat dashboard-titlebar-stat--tomorrow">
+          <div class="dashboard-titlebar-stat dashboard-titlebar-stat--pink">
             <div class="dashboard-titlebar-stat-body">
               <h4 class="dashboard-titlebar-stat-heading">
                 <span class="dashboard-titlebar-stat-line">Arrive/Depart</span>
@@ -49,17 +49,47 @@
               </h4>
               <div class="dashboard-titlebar-stat-metric">
                 <mat-icon class="dashboard-titlebar-stat-icon">event</mat-icon>
-                <span class="dashboard-titlebar-stat-value">{{ getTomorrowTotal() }}</span>
+                <span class="dashboard-titlebar-stat-value">{{ tomorrowArriveDepartCount }}</span>
               </div>
             </div>
           </div>
+
+          <div class="dashboard-titlebar-stats-divider dashboard-titlebar-stat-tiles-divider" aria-hidden="true"></div>
+
+          <div class="dashboard-titlebar-stat dashboard-titlebar-stat--green">
+            <div class="dashboard-titlebar-stat-body">
+              <h4 class="dashboard-titlebar-stat-heading">
+                <span class="dashboard-titlebar-stat-line">On/Offline</span>
+                <span class="dashboard-titlebar-stat-sub">Today</span>
+              </h4>
+              <div class="dashboard-titlebar-stat-metric">
+                <mat-icon class="dashboard-titlebar-stat-icon">calendar_today</mat-icon>
+                <span class="dashboard-titlebar-stat-value">{{ getOnlineOfflineTodayCount() }}</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="dashboard-titlebar-stat dashboard-titlebar-stat--yellow">
+            <div class="dashboard-titlebar-stat-body">
+              <h4 class="dashboard-titlebar-stat-heading">
+                <span class="dashboard-titlebar-stat-line">On/Offline</span>
+                <span class="dashboard-titlebar-stat-sub">Tomorrow</span>
+              </h4>
+              <div class="dashboard-titlebar-stat-metric">
+                <mat-icon class="dashboard-titlebar-stat-icon">event</mat-icon>
+                <span class="dashboard-titlebar-stat-value">{{ getOnlineOfflineTomorrowCount() }}</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="dashboard-titlebar-stats-divider dashboard-titlebar-stat-tiles-divider" aria-hidden="true"></div>
 
           <div class="dashboard-titlebar-stat dashboard-titlebar-stat--props">
             <div class="dashboard-titlebar-stat-body">
               <h4 class="dashboard-titlebar-stat-heading dashboard-titlebar-stat-heading-single">
                 <span class="dashboard-titlebar-stat-line">Properties</span>
               </h4>
-              @if (isLoadingProperties) {
+              @if (isLoading$ | async) {
                 <div class="dashboard-titlebar-spinner">
                   <mat-spinner [diameter]="16"></mat-spinner>
                 </div>
@@ -78,7 +108,7 @@
             </div>
           </div>
 
-          @if (canViewCommissions) {
+          @if (showCommissionsUi) {
             <div
               class="dashboard-titlebar-stat dashboard-titlebar-stat--commissions"
               [class.commission-tile-clickable]="isAdmin && getMonthlyCommissionTotal() > 0"
@@ -105,12 +135,12 @@
           </div>
         </div>
       </div>
-      @if (canViewCommissions && isAdmin && getMonthlyCommissionTotal() > 0 && showCommissionBreakdown) {
+      @if (showCommissionsUi && isAdmin && getMonthlyCommissionTotal() > 0 && showCommissionBreakdown) {
         <div class="commission-breakdown-popover commission-breakdown-popover--under-titlebar">
           @for (row of getMonthlyCommissionTileRows(); track row.agentCode) {
             <div class="commission-breakdown-row">
               <span class="commission-breakdown-agent">{{ row.agentCode }}</span>
-              <span class="commission-breakdown-amount">${{ row.amount.toFixed(2) }}</span>
+              <span class="commission-breakdown-amount">{{ formatUsd(row.amount) }}</span>
             </div>
           }
         </div>
@@ -122,47 +152,25 @@
         <div class="dashboard-main-content">
           <!-- Reservation Tables -->
           <div class="reservation-tables">
+            <mat-accordion multi="true">
             <!-- Upcoming Properties Table -->
             <mat-expansion-panel
               [(expanded)]="expandedSections.properties">
               <mat-expansion-panel-header>
-                <mat-panel-title>
-                  <span class="section-title">Reservation Turnover</span>
-                </mat-panel-title>
+                <mat-panel-title>Reservation Turnover</mat-panel-title>
               </mat-expansion-panel-header>
-              @if (isLoadingReservations) {
+              @if (isLoading$ | async) {
                 <div class="loading-container">
                   <mat-spinner [diameter]="40"></mat-spinner>
-                  <p>Loading reservations...</p>
+                  <p>Loading…</p>
                 </div>
               } @else {
                 <div class="tableDiv">
-                  <app-data-table
-                    [data]="upcomingArrivals"
-                    [columns]="arrivalsReservationsDisplayedColumns"
-                    [subheaderLabel]="'Upcoming Arrivals (Next 15 Days)'"
-                    [hasColumnIndex]="false"
-                    [hasFilter]="false"
-                    [hasToggleTop]="false"
-                    [hasButtonTop]="false"
-                    [hasActionsRowClick]="true"
-                    [hasActionsEdit]="true"
-                    [hasActionsDelete]="false"
-                    [hasPropertyCodeLink]="true"
-                    [itemsPerPage]="50"
-                    (checkboxChangeEvent)="onTurnoverReservationCheckboxChange($event)"
-                    (editEvent)="goToReservation($event)"
-                    (rowClickEvent)="goToReservation($event)"
-                    (propertyCodeClickEvent)="goToProperty($event)"
-                    (contactClickEvent)="goToContact($event)"/>
-
-                  @if (upcomingDepartures.length > 0) {
-                    <div class="dashboard-group-divider">
-                      <span class="dashboard-group-title">Upcoming Departures (Next 15 Days)</span>
-                    </div>
+                  @if (reservationTurnoverArrivalRows.length > 0) {
                     <app-data-table
-                      [data]="upcomingDepartures"
-                      [columns]="departuresReservationsDisplayedColumns"
+                      [data]="reservationTurnoverArrivalRows"
+                      [columns]="reservationTurnoverArrivalDisplayedColumns"
+                      [subheaderLabel]="'Upcoming Arrivals (Next 15 Days)'"
                       [hasColumnIndex]="false"
                       [hasFilter]="false"
                       [hasToggleTop]="false"
@@ -171,12 +179,42 @@
                       [hasActionsEdit]="true"
                       [hasActionsDelete]="false"
                       [hasPropertyCodeLink]="true"
-                      [itemsPerPage]="50"
-                      (checkboxChangeEvent)="onTurnoverReservationCheckboxChange($event)"
-                      (editEvent)="goToReservation($event)"
-                      (rowClickEvent)="goToReservation($event)"
+                      [itemsPerPage]="100"
+                      (editEvent)="onReservationTurnoverRowNavigate($event)"
+                      (rowClickEvent)="onReservationTurnoverRowNavigate($event)"
                       (propertyCodeClickEvent)="goToProperty($event)"
-                      (contactClickEvent)="goToContact($event)"/>
+                      (contactClickEvent)="onReservationTurnoverContactNavigate($event)"
+                      (checkboxChangeEvent)="onReservationTurnoverCheckboxChange($event)"/>
+                  }
+
+                  @if (reservationTurnoverDepartureRows.length > 0) {
+                    @if (reservationTurnoverArrivalRows.length > 0) {
+                      <div class="dashboard-group-divider">
+                        <span class="dashboard-group-title">Upcoming Departures (Next 15 Days)</span>
+                      </div>
+                    }
+                    <app-data-table
+                      [data]="reservationTurnoverDepartureRows"
+                      [columns]="reservationTurnoverDepartureDisplayedColumns"
+                      [subheaderLabel]="reservationTurnoverArrivalRows.length > 0 ? '' : 'Upcoming Departures (Next 15 Days)'"
+                      [hasColumnIndex]="false"
+                      [hasFilter]="false"
+                      [hasToggleTop]="false"
+                      [hasButtonTop]="false"
+                      [hasActionsRowClick]="true"
+                      [hasActionsEdit]="true"
+                      [hasActionsDelete]="false"
+                      [hasPropertyCodeLink]="true"
+                      [itemsPerPage]="100"
+                      (editEvent)="onReservationTurnoverRowNavigate($event)"
+                      (rowClickEvent)="onReservationTurnoverRowNavigate($event)"
+                      (propertyCodeClickEvent)="goToProperty($event)"
+                      (contactClickEvent)="onReservationTurnoverContactNavigate($event)"
+                      (checkboxChangeEvent)="onReservationTurnoverCheckboxChange($event)"/>
+                  }
+
+                  @if (reservationTurnoverArrivalRows.length === 0 && reservationTurnoverDepartureRows.length === 0) {
+                    <p class="dashboard-property-turnover-empty">No reservation turnover events in the current window for the selected scope.</p>
                   }
                 </div>
               }
@@ -185,14 +223,12 @@
             <mat-expansion-panel
               [(expanded)]="expandedSections.propertyTurnover">
               <mat-expansion-panel-header>
-                <mat-panel-title>
-                  <span class="section-title">Property Turnover</span>
-                </mat-panel-title>
+                <mat-panel-title>Property Turnover</mat-panel-title>
               </mat-expansion-panel-header>
-              @if (isLoadingProperties) {
+              @if (isLoading$ | async) {
                 <div class="loading-container">
                   <mat-spinner [diameter]="40"></mat-spinner>
-                  <p>Loading properties...</p>
+                  <p>Loading…</p>
                 </div>
               } @else {
                 <div class="tableDiv">
@@ -249,14 +285,12 @@
             <mat-expansion-panel
               [(expanded)]="expandedSections.vacantProperties">
               <mat-expansion-panel-header>
-                <mat-panel-title>
-                  <span class="section-title">Vacant Properties</span>
-                </mat-panel-title>
+                <mat-panel-title>Vacant Properties</mat-panel-title>
               </mat-expansion-panel-header>
-              @if (isLoadingProperties || isLoadingReservations) {
+              @if (isLoading$ | async) {
                 <div class="loading-container">
                   <mat-spinner [diameter]="40"></mat-spinner>
-                  <p>Loading...</p>
+                  <p>Loading…</p>
                 </div>
               } @else {
                 <div class="tableDiv">
@@ -280,25 +314,23 @@
             </mat-expansion-panel>
 
             <!-- Monthly Commissions Table -->
-            @if (canViewCommissions) {
+            @if (showCommissionsUi) {
               <mat-expansion-panel 
                 [(expanded)]="expandedSections.monthlyCommissions">
                 <mat-expansion-panel-header>
                   <mat-panel-title>
-                    <span class="section-title">
-                      Monthly Commissions
-                      @if (currentUserAgentCode && currentUserAgentCode.toUpperCase() !== 'ALL') {
-                        <span> - {{ currentUserAgentCode }}</span>
-                      }
-                    </span>
+                    Monthly Commissions
+                    @if (currentUserAgentCode && currentUserAgentCode.toUpperCase() !== 'ALL') {
+                      <span> - {{ currentUserAgentCode }}</span>
+                    }
                   </mat-panel-title>
                 </mat-expansion-panel-header>
-                @if (isLoadingReservations) {
+                @if (isLoading$ | async) {
                   <div class="loading-container">
                     <mat-spinner [diameter]="40"></mat-spinner>
-                    <p>Loading reservations...</p>
+                    <p>Loading…</p>
                   </div>
-                } @else if (!currentUserAgentId) {
+                } @else if (!isAdmin && !currentUserAgentId) {
                   <div class="tableDiv">
                     <p>No agent is assigned to this user.</p>
                   </div>
@@ -325,6 +357,7 @@
               </mat-expansion-panel>
             }
 
+            </mat-accordion>
           </div>
         </div>
       </div>

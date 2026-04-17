@@ -1,4 +1,15 @@
-import { ReservationListResponse } from '../../reservations/models/reservation-model';
+import { ReservationListDisplay, ReservationListResponse } from '../../reservations/models/reservation-model';
+
+export interface MonthlyCommissionDisplay extends ReservationListDisplay {
+  daysRented: number;
+  commission: number;
+  commissionDisplay: string;
+}
+
+export interface MonthlyCommissionTileRow {
+  agentCode: string;
+  amount: number;
+}
 
 export interface PropertyMaintenanceReservation {
   //Property Values

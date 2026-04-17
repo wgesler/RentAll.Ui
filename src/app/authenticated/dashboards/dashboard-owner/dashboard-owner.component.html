@@ -15,11 +15,10 @@
 
         <div class="dashboard-main-content">
           <div class="reservation-tables">
-            <mat-expansion-panel class="reservation-section" [expanded]="true">
+            <mat-accordion multi="true">
+            <mat-expansion-panel [expanded]="true">
               <mat-expansion-panel-header>
-                <mat-panel-title>
-                  <span class="section-title">Owner Properties</span>
-                </mat-panel-title>
+                <mat-panel-title>Owner Properties</mat-panel-title>
               </mat-expansion-panel-header>
               @if (isLoadingProperties) {
                 <div class="loading-container">
@@ -43,11 +42,9 @@
               }
             </mat-expansion-panel>
 
-            <mat-expansion-panel class="reservation-section" [expanded]="true">
+            <mat-expansion-panel [expanded]="true">
               <mat-expansion-panel-header>
-                <mat-panel-title>
-                  <span class="section-title">Reservations</span>
-                </mat-panel-title>
+                <mat-panel-title>Reservations</mat-panel-title>
               </mat-expansion-panel-header>
               @if (isLoadingReservations) {
                 <div class="loading-container">
@@ -70,6 +67,7 @@
                 </div>
               }
             </mat-expansion-panel>
+            </mat-accordion>
           </div>
 
           <aside class="dashboard-sidebar">

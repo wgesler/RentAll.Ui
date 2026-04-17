@@ -28,54 +28,54 @@ import { ReservationPropertyMaintenance } from '../../shared/models/mixed-models
 export class DashboardServiceComponent extends PropertyMaintenanceBase implements OnInit, OnDestroy {
   
   readonly scheduledCleaningColumns: ColumnSet = {
-    propertyCode: { displayAs: 'Property', maxWidth: '15ch', sortType: 'natural' },
-    shortAddress: { displayAs: 'Address', maxWidth: '25ch', wrap: false },
-    eventTypeDisplay: { displayAs: 'Event Type', maxWidth: '15ch', wrap: false, alignment: 'center' },
-    departureDateDisplay: { displayAs: 'Event Date', maxWidth: '15ch', wrap: false, alignment: 'center' },
-    cleaningDateDisplay: { displayAs: 'Cleaning Date', maxWidth: '15ch', wrap: false, alignment: 'center' },
-    hasPets: { displayAs: 'Pets', isCheckbox: true, sort: false, wrap: false, alignment: 'center', maxWidth: '10ch' },
-    bedrooms: { displayAs: 'Beds', maxWidth: '10ch', alignment: 'center' },
-    bathrooms: { displayAs: 'Baths', maxWidth: '10ch', alignment: 'center' },
-    squareFeet: { displayAs: 'Sq Ft', maxWidth: '10ch', alignment: 'center' },
-    bed1Text: { displayAs: 'Bed1', maxWidth: '10ch', alignment: 'center' },
-    bed2Text: { displayAs: 'Bed2', maxWidth: '10ch', alignment: 'center' },
-    bed3Text: { displayAs: 'Bed3', maxWidth: '10ch', alignment: 'center' },
-    bed4Text: { displayAs: 'Bed4', maxWidth: '10ch', alignment: 'center' },
-    maintenanceNotes: { displayAs: 'Notes', maxWidth: '24ch', wrap: false }
+    'propertyCode': { displayAs: 'Property', maxWidth: '15ch', sortType: 'natural' },
+    'shortAddress': { displayAs: 'Address', maxWidth: '25ch', wrap: false },
+    'eventTypeDisplay': { displayAs: 'Event Type', maxWidth: '15ch', wrap: false, alignment: 'center' },
+    'departureDateDisplay': { displayAs: 'Event Date', maxWidth: '15ch', wrap: false, alignment: 'center' },
+    'cleaningDateDisplay': { displayAs: 'Cleaning Date', maxWidth: '15ch', wrap: false, alignment: 'center' },
+    'hasPets': { displayAs: 'Pets', isCheckbox: true, sort: false, wrap: false, alignment: 'center', maxWidth: '10ch' },
+    'bedrooms': { displayAs: 'Beds', maxWidth: '10ch', alignment: 'center' },
+    'bathrooms': { displayAs: 'Baths', maxWidth: '10ch', alignment: 'center' },
+    'squareFeet': { displayAs: 'Sq Ft', maxWidth: '10ch', alignment: 'center' },
+    'bed1Text': { displayAs: 'Bed1', maxWidth: '10ch', alignment: 'center' },
+    'bed2Text': { displayAs: 'Bed2', maxWidth: '10ch', alignment: 'center' },
+    'bed3Text': { displayAs: 'Bed3', maxWidth: '10ch', alignment: 'center' },
+    'bed4Text': { displayAs: 'Bed4', maxWidth: '10ch', alignment: 'center' },
+    'maintenanceNotes': { displayAs: 'Notes', maxWidth: '24ch', wrap: false }
   };
-  
+
   readonly scheduledCarpetCleaningColumns: ColumnSet = {
-    propertyCode: { displayAs: 'Property', maxWidth: '15ch', sortType: 'natural' },
-    shortAddress: { displayAs: 'Address', maxWidth: '25ch', wrap: false },
-    eventTypeDisplay: { displayAs: 'Event Type', maxWidth: '15ch', wrap: false, alignment: 'center' },
-    departureDateDisplay: { displayAs: 'Event Date', maxWidth: '15ch', wrap: false, alignment: 'center' },
-    carpetDateDisplay: { displayAs: 'Carpet Date', maxWidth: '15ch', wrap: false, alignment: 'center' },
-    hasPets: { displayAs: 'Pets', isCheckbox: true, sort: false, wrap: false, alignment: 'center', maxWidth: '10ch' },
-    bedrooms: { displayAs: 'Beds', maxWidth: '10ch', alignment: 'center' },
-    bathrooms: { displayAs: 'Baths', maxWidth: '10ch', alignment: 'center' },
-    squareFeet: { displayAs: 'Sq Ft', maxWidth: '10ch', alignment: 'center' },
-    bed1Text: { displayAs: 'Bed1', maxWidth: '10ch', alignment: 'center' },
-    bed2Text: { displayAs: 'Bed2', maxWidth: '10ch', alignment: 'center' },
-    bed3Text: { displayAs: 'Bed3', maxWidth: '10ch', alignment: 'center' },
-    bed4Text: { displayAs: 'Bed4', maxWidth: '10ch', alignment: 'center' },
-    maintenanceNotes: { displayAs: 'Notes', maxWidth: '24ch', wrap: false }
+    'propertyCode': { displayAs: 'Property', maxWidth: '15ch', sortType: 'natural' },
+    'shortAddress': { displayAs: 'Address', maxWidth: '25ch', wrap: false },
+    'eventTypeDisplay': { displayAs: 'Event Type', maxWidth: '15ch', wrap: false, alignment: 'center' },
+    'departureDateDisplay': { displayAs: 'Event Date', maxWidth: '15ch', wrap: false, alignment: 'center' },
+    'carpetDateDisplay': { displayAs: 'Carpet Date', maxWidth: '15ch', wrap: false, alignment: 'center' },
+    'hasPets': { displayAs: 'Pets', isCheckbox: true, sort: false, wrap: false, alignment: 'center', maxWidth: '10ch' },
+    'bedrooms': { displayAs: 'Beds', maxWidth: '10ch', alignment: 'center' },
+    'bathrooms': { displayAs: 'Baths', maxWidth: '10ch', alignment: 'center' },
+    'squareFeet': { displayAs: 'Sq Ft', maxWidth: '10ch', alignment: 'center' },
+    'bed1Text': { displayAs: 'Bed1', maxWidth: '10ch', alignment: 'center' },
+    'bed2Text': { displayAs: 'Bed2', maxWidth: '10ch', alignment: 'center' },
+    'bed3Text': { displayAs: 'Bed3', maxWidth: '10ch', alignment: 'center' },
+    'bed4Text': { displayAs: 'Bed4', maxWidth: '10ch', alignment: 'center' },
+    'maintenanceNotes': { displayAs: 'Notes', maxWidth: '24ch', wrap: false }
   };
 
   readonly scheduledInspectionColumns: ColumnSet = {
-    propertyCode: { displayAs: 'Property', maxWidth: '15ch', sortType: 'natural' },
-    shortAddress: { displayAs: 'Address', maxWidth: '25ch', wrap: false },
-    eventTypeDisplay: { displayAs: 'Event Type', maxWidth: '15ch', wrap: false, alignment: 'center' },
-    departureDateDisplay: { displayAs: 'Event Date', maxWidth: '15ch', wrap: false, alignment: 'center' },
-    inspectingDateDisplay: { displayAs: 'Inspection Date', maxWidth: '15ch', wrap: false, alignment: 'center' },
-    hasPets: { displayAs: 'Pets', isCheckbox: true, sort: false, wrap: false, alignment: 'center', maxWidth: '10ch' },
-    bedrooms: { displayAs: 'Beds', maxWidth: '10ch', alignment: 'center' },
-    bathrooms: { displayAs: 'Baths', maxWidth: '10ch', alignment: 'center' },
-    squareFeet: { displayAs: 'Sq Ft', maxWidth: '10ch', alignment: 'center' },
-    bed1Text: { displayAs: 'Bed1', maxWidth: '10ch', alignment: 'center' },
-    bed2Text: { displayAs: 'Bed2', maxWidth: '10ch', alignment: 'center' },
-    bed3Text: { displayAs: 'Bed3', maxWidth: '10ch', alignment: 'center' },
-    bed4Text: { displayAs: 'Bed4', maxWidth: '10ch', alignment: 'center' },
-    maintenanceNotes: { displayAs: 'Notes', maxWidth: '24ch', wrap: false }
+    'propertyCode': { displayAs: 'Property', maxWidth: '15ch', sortType: 'natural' },
+    'shortAddress': { displayAs: 'Address', maxWidth: '25ch', wrap: false },
+    'eventTypeDisplay': { displayAs: 'Event Type', maxWidth: '15ch', wrap: false, alignment: 'center' },
+    'departureDateDisplay': { displayAs: 'Event Date', maxWidth: '15ch', wrap: false, alignment: 'center' },
+    'inspectingDateDisplay': { displayAs: 'Inspection Date', maxWidth: '15ch', wrap: false, alignment: 'center' },
+    'hasPets': { displayAs: 'Pets', isCheckbox: true, sort: false, wrap: false, alignment: 'center', maxWidth: '10ch' },
+    'bedrooms': { displayAs: 'Beds', maxWidth: '10ch', alignment: 'center' },
+    'bathrooms': { displayAs: 'Baths', maxWidth: '10ch', alignment: 'center' },
+    'squareFeet': { displayAs: 'Sq Ft', maxWidth: '10ch', alignment: 'center' },
+    'bed1Text': { displayAs: 'Bed1', maxWidth: '10ch', alignment: 'center' },
+    'bed2Text': { displayAs: 'Bed2', maxWidth: '10ch', alignment: 'center' },
+    'bed3Text': { displayAs: 'Bed3', maxWidth: '10ch', alignment: 'center' },
+    'bed4Text': { displayAs: 'Bed4', maxWidth: '10ch', alignment: 'center' },
+    'maintenanceNotes': { displayAs: 'Notes', maxWidth: '24ch', wrap: false }
   };
   
   todayDate = '';

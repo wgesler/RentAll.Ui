@@ -121,6 +121,12 @@ export class AuthService {
         return this.hasRole(UserGroups.Admin) || this.hasRole(UserGroups.SuperAdmin);
     }
 
+    canViewCommissions(): boolean {
+        return this.hasRole(UserGroups.SuperAdmin)
+            || this.hasRole(UserGroups.Admin)
+            || this.hasRole(UserGroups.Agent);
+    }
+
     getSessionId(): string | null {
         return this.jwtContainer$?.value?.sub;
     }

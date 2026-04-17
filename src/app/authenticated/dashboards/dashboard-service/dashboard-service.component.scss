@@ -13,6 +13,7 @@
   overflow: visible;
   /* Matches welcome row: padding-left after the border (space before person icon). */
   --dashboard-titlebar-line-inset: 0.65rem;
+  --dashboard-titlebar-vertical-divider-height: 2.35rem;
 
   .dashboard-titlebar-inner {
     align-items: center;
@@ -27,13 +28,13 @@
     min-width: 0;
     margin-left: var(--dashboard-titlebar-line-inset);
     padding-left: var(--dashboard-titlebar-line-inset);
-    border-left: 1px solid rgba(71, 85, 105, 0.22);
+    border-left: calc(1px + 1pt) solid rgba(15, 23, 42, 0.72);
   }
 
   .dashboard-titlebar-stats {
     display: flex;
     align-items: stretch;
-    gap: 0;
+    gap: var(--dashboard-titlebar-line-inset);
     flex: 0 0 auto;
     margin-left: auto;
     overflow: visible;
@@ -47,7 +48,7 @@
     flex-direction: row;
     align-items: stretch;
     flex-shrink: 0;
-    gap: 0;
+    gap: var(--dashboard-titlebar-line-inset);
     min-width: 0;
     padding: 2px 0 2px 2px;
     margin-right: 0;
@@ -63,7 +64,7 @@
     min-width: 0;
     max-width: 10.5rem;
     padding: 2px 0 2px 0;
-    margin-right: var(--dashboard-titlebar-line-inset);
+    margin-right: 0;
   }
 
   .dashboard-titlebar-date {
@@ -78,12 +79,18 @@
   }
 
   .dashboard-titlebar-stats-divider {
-    width: 1px;
+    box-sizing: border-box;
+    width: 0;
     flex-shrink: 0;
-    align-self: stretch;
-    min-height: 2.75rem;
-    background: rgba(71, 85, 105, 0.22);
-    border-radius: 1px;
+    align-self: center;
+    height: var(--dashboard-titlebar-vertical-divider-height);
+    min-height: var(--dashboard-titlebar-vertical-divider-height);
+    max-height: var(--dashboard-titlebar-vertical-divider-height);
+    margin: 0;
+    padding: 0;
+    border: none;
+    border-left: calc(1px + 1pt) solid rgba(15, 23, 42, 0.72);
+    background: transparent;
   }
 
   .dashboard-titlebar-welcome-row {
@@ -165,7 +172,7 @@
   .dashboard-titlebar-prop-label {
     font-size: 10px;
     font-weight: 600;
-    color: #1565c0;
+    color: #555;
     white-space: nowrap;
   }
 
@@ -331,7 +338,7 @@
 
   .dashboard-titlebar-stat--yellow {
     background-color: #fffde7;
-    border: 1px solid #ffee58;
+    border: 1px solid #fff59d;
   }
 
   .dashboard-titlebar-stat-body {
@@ -606,14 +613,6 @@
   min-width: 0;
 }
 
-.section-title {
-  font-size: 16px;
-  font-weight: 600;
-  margin: 0;
-  line-height: 1.2;
-  color: rgba(0, 0, 0, 0.87);
-}
-
 .dashboard-group-title {
   margin: 0 0 12px;
   font-size: 13px;
@@ -641,9 +640,9 @@
 }
 
 .dashboard-group-divider {
-  margin: 0;
-  padding-top: 26px;
-  border-top: 1px solid rgba(71, 85, 105, 0.25);
+  margin: 10px 0 0;
+  padding-top: 32px;
+  border-top: calc(1px + 1pt) solid rgba(15, 23, 42, 0.82);
 }
 
 /* Keep first table subheader aligned with dashboard section heading color. */
