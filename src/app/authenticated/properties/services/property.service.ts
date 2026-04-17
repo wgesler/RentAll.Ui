@@ -1,6 +1,6 @@
 import { HttpClient } from '@angular/common/http';
 import { Injectable } from '@angular/core';
-import { Observable } from 'rxjs';
+import { Observable, firstValueFrom } from 'rxjs';
 import { catchError } from 'rxjs/operators';
 import { map } from 'rxjs/operators';
 import { ConfigService } from '../../../services/config.service';
@@ -51,6 +51,19 @@ export class PropertyService {
     return this.http.put<PropertyResponse>(this.controller, property).pipe(
       map((dto) => this.mappingService.mapPropertyResponse(dto as unknown as Record<string, unknown>))
     );
+  }
+
+  /**
+   * Loads the property by id, maps response to a full update request, merges overrides, then PUTs.
+   */
+  async updateModifiedProperty(
+    propertyId: string,
+    overrides: Partial<PropertyRequest> | ((property: PropertyResponse) => Partial<PropertyRequest>)
+  ): Promise<PropertyResponse> {
+    const property = await firstValueFrom(this.getPropertyByGuid(propertyId));
+    const patch = typeof overrides === 'function' ? overrides(property) : overrides;
+    const request = this.mappingService.mapPropertyResponseToRequest(property, patch);
+    return firstValueFrom(this.updateProperty(request));
   }
 
   // DELETE: Delete property

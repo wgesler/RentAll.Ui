@@ -4,7 +4,7 @@ import { FormsModule } from '@angular/forms';
 import { MatSlideToggleChange } from '@angular/material/slide-toggle';
 import { Router, RouterLink } from '@angular/router';
 import { ToastrService } from 'ngx-toastr';
-import { BehaviorSubject, Observable, Subject, distinctUntilChanged, filter, finalize, map, skip, switchMap, take, takeUntil } from 'rxjs';
+import { BehaviorSubject, Observable, Subject, distinctUntilChanged, filter, finalize, map, skip, take, takeUntil } from 'rxjs';
 import { RouterUrl } from '../../../app.routes';
 import { CommonMessage } from '../../../enums/common-message.enum';
 import { MaterialModule } from '../../../material.module';
@@ -20,7 +20,7 @@ import { GlobalSelectionService } from '../../organizations/services/global-sele
 import { OfficeService } from '../../organizations/services/office.service';
 import { getPropertyStatusLetter, getPropertyStatuses } from '../../properties/models/property-enums';
 import { PropertySelectionResponse } from '../../properties/models/property-selection.model';
-import { PropertyListResponse, PropertyRequest, PropertyResponse } from '../../properties/models/property.model';
+import { PropertyListResponse } from '../../properties/models/property.model';
 import { PropertySelectionFilterService } from '../../properties/services/property-selection-filter.service';
 import { PropertyService } from '../../properties/services/property.service';
 import { hasOwnerRole } from '../../shared/access/role-access';
@@ -886,22 +886,16 @@ export class ReservationBoardComponent implements OnInit, OnDestroy {
     property.propertyStatusId = statusId;
     property.statusLetter = getPropertyStatusLetter(statusId);
 
-    this.propertyService.getPropertyByGuid(property.propertyId).pipe(take(1),
-      switchMap((fullProperty: PropertyResponse) => this.propertyService.updateProperty(this.buildPropertyStatusUpdateRequest(fullProperty, statusId)).pipe(take(1))),
-      finalize(() => {
-        this.updatingPropertyStatusIds.delete(property.propertyId);
-      })
-    ).subscribe({
-      next: () => {
-        property.propertyStatusId = statusId;
-        property.statusLetter = getPropertyStatusLetter(statusId);
-        this.toastr.success('Property status updated.', CommonMessage.Success);
-      },
-      error: () => {
-        property.propertyStatusId = previousStatusId;
-        property.statusLetter = getPropertyStatusLetter(previousStatusId);
-        this.toastr.error('Unable to update property status.', CommonMessage.Error);
-      }
+    void this.propertyService.updateModifiedProperty(property.propertyId, { propertyStatusId: statusId }).then(() => {
+      property.propertyStatusId = statusId;
+      property.statusLetter = getPropertyStatusLetter(statusId);
+      this.toastr.success('Property status updated.', CommonMessage.Success);
+    }).catch(() => {
+      property.propertyStatusId = previousStatusId;
+      property.statusLetter = getPropertyStatusLetter(previousStatusId);
+      this.toastr.error('Unable to update property status.', CommonMessage.Error);
+    }).finally(() => {
+      this.updatingPropertyStatusIds.delete(property.propertyId);
     });
   }
 
@@ -918,15 +912,6 @@ export class ReservationBoardComponent implements OnInit, OnDestroy {
       return text;
     }
     return text.slice(0, this.boardAddressMaxChars) + '…';
-  }
-
-  buildPropertyStatusUpdateRequest(property: PropertyResponse, propertyStatusId: number): PropertyRequest {
-    const { officeName: _officeName, parkingNotes, ...requestBase } = property;
-    return {
-      ...requestBase,
-      propertyStatusId,
-      parkingnotes: parkingNotes
-    };
   }
 
   ngOnDestroy(): void {

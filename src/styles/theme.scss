@@ -1,3 +1,4 @@
+@use 'sass:map';
 @use '@angular/material' as mat;
 
 $custom-primary-palette: (
@@ -67,3 +68,8 @@ $custom-theme: mat.m2-define-light-theme((color: (
 ));
 
 @include mat.all-component-themes($custom-theme);
+
+:root {
+  --rentall-color-primary-50: #{map.get($custom-primary-palette, 50)};
+  --rentall-color-primary-100: #{map.get($custom-primary-palette, 100)};
+}

@@ -729,6 +729,21 @@
                 <mat-datepicker-toggle matIconSuffix [for]="maidStartDatePicker"></mat-datepicker-toggle>
                 <mat-datepicker #maidStartDatePicker></mat-datepicker>
               </mat-form-field>
+
+              <app-searchable-select
+                class="flex-1"
+                [renderInFormField]="true"
+                [formFieldLabel]="'Assigned Cleaner'"
+                [value]="form.get('maidUserId')?.value ?? null"
+                [options]="assignedMaidHousekeepingOptions"
+                [disabled]="form.get('maidUserId')?.disabled ?? false"
+                [showSearchInput]="true"
+                [hideSearchHint]="true"
+                [hideSearchText]="true"
+                [nullOptionLabel]="'Select assigned cleaner'"
+                [noResultsText]="'No assigned cleaners match your search'"
+                (valueChange)="onAssignedMaidDropdownChange($event)">
+              </app-searchable-select>
             </div>
 
             <!-- Extra Fee Lines Section -->

@@ -16,7 +16,7 @@ import { UtilityService } from '../../../services/utility.service';
 import { OfficeResponse } from '../../organizations/models/office.model';
 import { GlobalSelectionService } from '../../organizations/services/global-selection.service';
 import { OfficeService } from '../../organizations/services/office.service';
-import { ExtraFeeLineRequest, ExtraFeeLineResponse, ReservationListResponse, ReservationRequest } from '../../reservations/models/reservation-model';
+import { ReservationListResponse } from '../../reservations/models/reservation-model';
 import { ReservationService } from '../../reservations/services/reservation.service';
 import { ApplyCreditToInvoiceDialogComponent, ApplyCreditToInvoiceDialogData } from '../../shared/modals/apply-credit-to-invoice/apply-credit-to-invoice-dialog.component';
 import { ApplyCreditDialogComponent, ApplyCreditDialogData } from '../../shared/modals/apply-credit/apply-credit-dialog.component';
@@ -360,71 +360,9 @@ export class InvoiceComponent implements OnInit, OnDestroy {
     }
 
     try {
-      const reservation = await firstValueFrom(
-        this.reservationService.getReservationByGuid(this.selectedReservation.reservationId).pipe(take(1))
-      );
-
-      const newCreditDue = Math.max(0, (reservation.creditDue || 0) - creditAmount);
-
-      const reservationRequest: ReservationRequest = {
-        reservationId: reservation.reservationId,
-        organizationId: reservation.organizationId,
-        officeId: reservation.officeId,
-        agentId: reservation.agentId ?? null,
-        propertyId: reservation.propertyId,
-        contactIds: (reservation.contactIds || []).filter(id => String(id || '').trim().length > 0),
-        reservationCode: reservation.reservationCode,
-        reservationTypeId: reservation.reservationTypeId,
-        reservationStatusId: reservation.reservationStatusId,
-        reservationNoticeId: reservation.reservationNoticeId ?? 0,
-        numberOfPeople: reservation.numberOfPeople,
-        tenantName: reservation.tenantName,
-        referenceNo: reservation.referenceNo || '',
-        arrivalDate: reservation.arrivalDate,
-        departureDate: reservation.departureDate,
-        checkInTimeId: reservation.checkInTimeId,
-        checkOutTimeId: reservation.checkOutTimeId,
-        billingMethodId: reservation.billingMethodId,
-        prorateTypeId: reservation.prorateTypeId,
-        billingTypeId: reservation.billingTypeId,
-        billingRate: reservation.billingRate,
-        deposit: reservation.deposit,
-        depositTypeId: reservation.depositTypeId ?? 0,
-        departureFee: reservation.departureFee,
-        taxes: reservation.taxes,
-        hasPets: reservation.hasPets,
-        petFee: reservation.petFee,
-        numberOfPets: reservation.numberOfPets,
-        petDescription: reservation.petDescription,
-        maidService: reservation.maidService,
-        maidServiceFee: reservation.maidServiceFee,
-        frequencyId: reservation.frequencyId,
-        maidStartDate: reservation.maidStartDate,
-        extraFeeLines: (reservation.extraFeeLines || []).map((line: ExtraFeeLineResponse): ExtraFeeLineRequest => ({
-          extraFeeLineId: line.extraFeeLineId,
-          reservationId: line.reservationId,
-          feeDescription: line.feeDescription,
-          feeAmount: line.feeAmount,
-          feeFrequencyId: line.feeFrequencyId,
-          costCodeId: line.costCodeId
-        })),
-        notes: reservation.notes,
-        allowExtensions: reservation.allowExtensions,
-        paymentReceived: reservation.paymentReceived,
-        welcomeLetterChecked: reservation.welcomeLetterChecked,
-        welcomeLetterSent: reservation.welcomeLetterSent,
-        readyForArrival: reservation.readyForArrival,
-        code: reservation.code,
-        departureLetterChecked: reservation.departureLetterChecked,
-        departureLetterSent: reservation.departureLetterSent,
-        currentInvoiceNo: reservation.currentInvoiceNo,
-        creditDue: newCreditDue,
-        isActive: reservation.isActive
-      };
-
-      await firstValueFrom(
-        this.reservationService.updateReservation(reservationRequest).pipe(take(1))
-      );
+      await this.reservationService.updateModifiedReservation(this.selectedReservation.reservationId, reservation => ({
+        creditDue: Math.max(0, (reservation.creditDue || 0) - creditAmount)
+      }));
     } catch (err: any) {
       
     }

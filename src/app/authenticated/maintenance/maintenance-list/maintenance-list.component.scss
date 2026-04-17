@@ -29,21 +29,13 @@ body {
   }
 }
 
-/* Cleaner/Inspector dropdowns should match Status font sizing. */
+/* Cleaner/Inspector dropdowns should match Status font sizing. (Bed/sofabed: app-data-table global styles.) */
 :host ::ng-deep td.mat-cell.mat-column-cleaner,
 :host ::ng-deep td.mat-mdc-cell.mat-column-cleaner,
 :host ::ng-deep td.mat-cell.mat-column-carpet,
 :host ::ng-deep td.mat-mdc-cell.mat-column-carpet,
 :host ::ng-deep td.mat-cell.mat-column-inspector,
-:host ::ng-deep td.mat-mdc-cell.mat-column-inspector,
-:host ::ng-deep td.mat-cell.mat-column-bed1Text,
-:host ::ng-deep td.mat-mdc-cell.mat-column-bed1Text,
-:host ::ng-deep td.mat-cell.mat-column-bed2Text,
-:host ::ng-deep td.mat-mdc-cell.mat-column-bed2Text,
-:host ::ng-deep td.mat-cell.mat-column-bed3Text,
-:host ::ng-deep td.mat-mdc-cell.mat-column-bed3Text,
-:host ::ng-deep td.mat-cell.mat-column-bed4Text,
-:host ::ng-deep td.mat-mdc-cell.mat-column-bed4Text {
+:host ::ng-deep td.mat-mdc-cell.mat-column-inspector {
   .mat-mdc-select-trigger {
     display: flex !important;
     align-items: center !important;
@@ -70,45 +62,12 @@ body {
   }
 }
 
-/* Bed dropdown text should be underlined. */
-:host ::ng-deep td.mat-cell.mat-column-bed1Text,
-:host ::ng-deep td.mat-mdc-cell.mat-column-bed1Text,
-:host ::ng-deep td.mat-cell.mat-column-bed2Text,
-:host ::ng-deep td.mat-mdc-cell.mat-column-bed2Text,
-:host ::ng-deep td.mat-cell.mat-column-bed3Text,
-:host ::ng-deep td.mat-mdc-cell.mat-column-bed3Text,
-:host ::ng-deep td.mat-cell.mat-column-bed4Text,
-:host ::ng-deep td.mat-mdc-cell.mat-column-bed4Text {
-  .mat-mdc-select,
-  .mat-mdc-select-min-line,
-  .mat-mdc-select-value,
-  .mat-mdc-select-value-text {
-    color: #1d4ed8 !important;
-    text-decoration: underline !important;
-  }
-}
-
-/* Keep dropdown behavior but hide arrow icons in this list to reduce visual noise. */
+/* Keep dropdown behavior but hide arrow icons for status in this list. */
 :host ::ng-deep td.mat-cell.mat-column-propertyStatusDropdown,
-:host ::ng-deep td.mat-mdc-cell.mat-column-propertyStatusDropdown,
-:host ::ng-deep td.mat-cell.mat-column-bed1Text,
-:host ::ng-deep td.mat-mdc-cell.mat-column-bed1Text,
-:host ::ng-deep td.mat-cell.mat-column-bed2Text,
-:host ::ng-deep td.mat-mdc-cell.mat-column-bed2Text,
-:host ::ng-deep td.mat-cell.mat-column-bed3Text,
-:host ::ng-deep td.mat-mdc-cell.mat-column-bed3Text,
-:host ::ng-deep td.mat-cell.mat-column-bed4Text,
-:host ::ng-deep td.mat-mdc-cell.mat-column-bed4Text {
+:host ::ng-deep td.mat-mdc-cell.mat-column-propertyStatusDropdown {
   .mat-mdc-select-arrow-wrapper {
     display: none !important;
   }
-}
-
-/* Bed dropdowns can be narrower than other list dropdowns. */
-:host ::ng-deep .datatable-bed-dropdown-panel {
-  min-width: 130px !important;
-  width: 130px !important;
-  max-width: 130px !important;
 }
 
  .mat-expansion-panel-header-title {

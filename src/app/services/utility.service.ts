@@ -15,19 +15,44 @@ export class UtilityService {
 
   //#region To/From the API (calendar / DateOnly)
   /**
-   * **From API:** JSON calendar / `DateOnly` string → local start-of-day `Date`.
-   * Uses only the `YYYY-MM-DD` segment (text before `T`); any time portion in the string is ignored.
+   * **From API / UI:** calendar string → local start-of-day `Date`.
+   * Accepts `YYYY-MM-DD`, US `M/d/yyyy`, then a generic `Date` parse fallback (segment before `T` / first space).
    */
   parseDateOnlyStringToDate(value: string | null | undefined): Date | null {
     if (value == null || String(value).trim() === '') {
       return null;
     }
-    const datePart = String(value).split('T')[0] ?? '';
+    const datePart = String(value).split('T')[0]?.split(' ')[0] ?? '';
     if (!datePart) {
       return null;
     }
-    const d = new Date(`${datePart}T00:00:00`);
-    return !isNaN(d.getTime()) ? d : null;
+    // `YYYY-MM-DD` (same segment rules as {@link parseCalendarDateToOrdinal}).
+    const mIso = /^(\d{4})-(\d{2})-(\d{2})$/.exec(datePart);
+    if (mIso) {
+      const y = Number(mIso[1]);
+      const mo = Number(mIso[2]);
+      const d = Number(mIso[3]);
+      if (!Number.isFinite(y) || !Number.isFinite(mo) || !Number.isFinite(d) || mo < 1 || mo > 12 || d < 1 || d > 31) {
+        return null;
+      }
+      return new Date(y, mo - 1, d);
+    }
+    // US `M/d/yyyy` or `MM/DD/YYYY` (list/formatter display dates).
+    const us = /^(\d{1,2})\/(\d{1,2})\/(\d{4})$/.exec(datePart);
+    if (us) {
+      const mo = Number(us[1]);
+      const d = Number(us[2]);
+      const y = Number(us[3]);
+      if (!Number.isFinite(y) || !Number.isFinite(mo) || !Number.isFinite(d) || mo < 1 || mo > 12 || d < 1 || d > 31) {
+        return null;
+      }
+      return new Date(y, mo - 1, d);
+    }
+    const parsed = new Date(`${datePart}T00:00:00`);
+    if (isNaN(parsed.getTime())) {
+      return null;
+    }
+    return new Date(parsed.getFullYear(), parsed.getMonth(), parsed.getDate());
   }
 
   /** **To API:** local `Date` → `yyyy-MM-dd` for calendar fields on the wire. */
@@ -97,17 +122,38 @@ export class UtilityService {
   /** Sort key for calendar strings (`YYYYMMDD`), or `null` if not parseable. */
   parseCalendarDateToOrdinal(value: string | null | undefined): number | null {
     const part = String(value ?? '').trim().split('T')[0] ?? '';
+    // API / wire calendar: `YYYY-MM-DD` (optional `T…` time suffix on `value` is stripped via `part`).
     const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(part);
-    if (!m) {
+    if (m) {
+      const y = Number(m[1]);
+      const mo = Number(m[2]);
+      const d = Number(m[3]);
+      if (!Number.isFinite(y) || !Number.isFinite(mo) || !Number.isFinite(d) || mo < 1 || mo > 12 || d < 1 || d > 31) {
+        return null;
+      }
+      return y * 10000 + mo * 100 + d;
+    }
+    // Display / formatter output: US `M/d/yyyy` or `MM/DD/YYYY` (same convention as `formatDateString`).
+    const us = /^(\d{1,2})\/(\d{1,2})\/(\d{4})$/.exec(part);
+    if (us) {
+      const mo = Number(us[1]);
+      const d = Number(us[2]);
+      const y = Number(us[3]);
+      if (!Number.isFinite(y) || !Number.isFinite(mo) || !Number.isFinite(d) || mo < 1 || mo > 12 || d < 1 || d > 31) {
+        return null;
+      }
+      return y * 10000 + mo * 100 + d;
+    }
+    // Loose UI / legacy strings and `Date` pickers → normalize to `YYYY-MM-DD` then reuse the strict branch above.
+    const parsed = this.parseCalendarDateInput(value);
+    if (!parsed) {
       return null;
     }
-    const y = Number(m[1]);
-    const mo = Number(m[2]);
-    const d = Number(m[3]);
-    if (!Number.isFinite(y) || !Number.isFinite(mo) || !Number.isFinite(d) || mo < 1 || mo > 12 || d < 1 || d > 31) {
+    const api = this.formatDateOnlyForApi(parsed);
+    if (!api) {
       return null;
     }
-    return y * 10000 + mo * 100 + d;
+    return this.parseCalendarDateToOrdinal(api);
   }
 
   compareCalendarDateStrings(a: string | null | undefined, b: string | null | undefined): number {
@@ -142,6 +188,15 @@ export class UtilityService {
 
   isSameLocalCalendarDate(a: Date, b: Date): boolean {
     return a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth() && a.getDate() === b.getDate();
+  }
+
+  normalizeId(value: string | null | undefined): string {
+    return String(value ?? '').trim().toLowerCase();
+  }
+
+  normalizeIdOrNull(value: string | null | undefined): string | null {
+    const s = this.normalizeId(value);
+    return s === '' ? null : s;
   }
   //#endregion
 

@@ -28,7 +28,8 @@
   --global-form-field-gap-x: 6px;
   --global-form-field-gap-y: 4px;
   --global-form-row-gap: 8px;
-  --global-accordion-gap: 4px;
+  /* Vertical gap between stacked mat-expansion-panels (~1/3 of 1rem; tighter than former mb-4). */
+  --global-accordion-gap: calc(1rem / 3);
   --global-dropdown-font-size: 14px;
   --global-dropdown-option-min-height: 34px;
   --global-alert-bell-color: #dc2626;
@@ -1365,7 +1366,7 @@ mat-form-field input,
   font-weight: 500;
 }
 
-// Global expansion panel style baseline (matches dashboard)
+// Global mat-expansion-panel look (property page, dashboards, and other screens — single source of truth)
 .mat-expansion-panel {
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1) !important;
   border: 1px solid rgba(0, 0, 0, 0.12) !important;
@@ -1399,12 +1400,11 @@ mat-form-field input,
   fill: #000000 !important;
 }
 
-// Global expansion panel content spacing baseline
 .mat-expansion-panel .mat-expansion-panel-body {
   padding: 16px !important;
 }
 
-/* Global accordion spacing baseline between panels. */
+/* Spacing between stacked panels: mat-accordion (e.g. property form) */
 .mat-accordion .mat-expansion-panel {
   margin-bottom: var(--global-accordion-gap) !important;
 }
@@ -1416,6 +1416,15 @@ mat-form-field input,
 }
 
 .mat-accordion .mat-expansion-panel:last-child {
+  margin-bottom: 0 !important;
+}
+
+/* Dashboards (and similar): panels are often siblings without mat-accordion — same gap as property */
+.reservation-tables > mat-expansion-panel {
+  margin-bottom: var(--global-accordion-gap) !important;
+}
+
+.reservation-tables > mat-expansion-panel:last-child {
   margin-bottom: 0 !important;
 }
 

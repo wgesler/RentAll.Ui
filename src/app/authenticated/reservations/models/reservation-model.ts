@@ -22,6 +22,7 @@ export interface ReservationRequest {
   departureDate: CalendarDateString;
   checkInTimeId: number;
   checkOutTimeId: number;
+  maidUserId?: string | null;
   lockBoxCode?: string | null;
   unitTenantCode?: string | null;
   billingMethodId: number;
@@ -78,6 +79,7 @@ export interface ReservationResponse {
   departureDate: CalendarDateString;
   checkInTimeId: number;
   checkOutTimeId: number;
+  maidUserId?: string | null;
   lockBoxCode?: string | null;
   unitTenantCode?: string | null;
   billingMethodId: number;
@@ -128,16 +130,17 @@ export interface ReservationListResponse {
   contactName: string;
   companyId?: string | null;
   companyName?: string | null;
-  entityId?: string | null;
-  entityTypeId?: number | null;
-  displayName?: string | null;
   tenantName: string;
   agentCode?: string | null;
   monthlyRate: number;
   arrivalDate: CalendarDateString;
   departureDate: CalendarDateString;
   reservationStatusId: number;
-  hasPets?: boolean | null;
+  hasPets: boolean;
+  maidUserId: string | null;
+  maidStartDate: string | null;
+  frequencyId: number;
+  maidServiceFee: number;
   paymentReceived: boolean;
   welcomeLetterChecked: boolean;
   welcomeLetterSent: boolean;
@@ -148,7 +151,6 @@ export interface ReservationListResponse {
   currentInvoiceNo: number;
   creditDue: number;
   isActive: boolean;
-  isDeleted?: boolean;
   createdOn: string;
 }
 
@@ -166,12 +168,19 @@ export interface ReservationListDisplay {
   entityTypeId?: number | null;
   contactName: string;
   tenantName: string;
+  companyId?: string | null;
   companyName: string;
   agentCode?: string | null;
   monthlyRate: number;
   arrivalDate: CalendarDateString;
   departureDate: CalendarDateString;
   reservationStatusId: number;
+  hasPets?: boolean | null;
+  maidUserId: string | null;
+  maidStartDate?: string | null;
+  frequencyId?: number | null;
+  maidService?: boolean | null;
+  currentInvoiceNo: number;
   paymentReceived: boolean;
   welcomeLetterChecked: boolean;
   welcomeLetterSent: boolean;

@@ -6,7 +6,7 @@ import { MatDialog, MatDialogConfig } from '@angular/material/dialog';
 import { MatSlideToggleChange } from '@angular/material/slide-toggle';
 import { ActivatedRoute, NavigationEnd, Router } from '@angular/router';
 import { ToastrService } from 'ngx-toastr';
-import { BehaviorSubject, Observable, Subject, Subscription, filter, finalize, map, switchMap, take, takeUntil } from 'rxjs';
+import { BehaviorSubject, Observable, Subject, Subscription, filter, finalize, map, take, takeUntil } from 'rxjs';
 import { RouterUrl } from '../../../app.routes';
 import { CommonMessage } from '../../../enums/common-message.enum';
 import { MaterialModule } from '../../../material.module';
@@ -23,7 +23,7 @@ import { AddAlertDialogComponent, AddAlertDialogData } from '../../shared/modals
 import { CalendarUrlResponse } from '../models/property-calendar';
 import { getPropertyStatuses } from '../models/property-enums';
 import { PropertySelectionResponse } from '../models/property-selection.model';
-import { PropertyListDisplay, PropertyRequest, PropertyResponse } from '../models/property.model';
+import { PropertyListDisplay } from '../models/property.model';
 import { PropertyCalendarUrlDialogComponent, PropertyCalendarUrlDialogData } from '../property-calendar-url-dialog/property-calendar-url-dialog.component';
 import { PropertySelectionFilterService } from '../services/property-selection-filter.service';
 import { PropertyService } from '../services/property.service';
@@ -256,18 +256,12 @@ export class PropertyListComponent implements OnInit, OnDestroy, OnChanges {
 
     this.applyPropertyIsActiveValue(event.propertyId, nextValue);
 
-    this.propertyService.getPropertyByGuid(event.propertyId).pipe(take(1),
-      switchMap((property: PropertyResponse) => this.propertyService.updateProperty(this.buildPropertyIsActiveUpdateRequest(property, nextValue)).pipe(take(1))),
-      finalize(() => this.applyFilters())
-    ).subscribe({
-      next: () => {
-        this.toastr.success('Property updated.', CommonMessage.Success);
-      },
-      error: () => {
-        this.applyPropertyIsActiveValue(event.propertyId, previousValue);
-        this.toastr.error('Unable to update property.', CommonMessage.Error);
-      }
-    });
+    void this.propertyService.updateModifiedProperty(event.propertyId, { isActive: nextValue }).then(() => {
+      this.toastr.success('Property updated.', CommonMessage.Success);
+    }).catch(() => {
+      this.applyPropertyIsActiveValue(event.propertyId, previousValue);
+      this.toastr.error('Unable to update property.', CommonMessage.Error);
+    }).finally(() => this.applyFilters());
   }
   //#endregion
   
@@ -442,19 +436,14 @@ export class PropertyListComponent implements OnInit, OnDestroy, OnChanges {
 
     event.propertyStatusDropdown = this.buildStatusDropdownCell(selectedLabel, false);
 
-    // We allow the user to update the property status in-line on a property row
-    this.propertyService.getPropertyByGuid(event.propertyId).pipe(take(1),
-      switchMap((property: PropertyResponse) => this.propertyService.updateProperty(this.buildPropertyStatusUpdateRequest(property, selectedStatusId)).pipe(take(1))),
-      finalize(() => {  event.propertyStatusDropdown = this.buildStatusDropdownCell(event.propertyStatusText); })
-    ).subscribe({
-      next: () => {
-        this.updatePropertyStatusDisplay(event.propertyId, selectedStatusId, selectedLabel);
-        this.toastr.success('Property status updated.', CommonMessage.Success);
-      },
-      error: (err: HttpErrorResponse) => {
-        this.updatePropertyStatusDisplay(event.propertyId, previousStatusId, previousLabel);
-        this.toastr.error('Unable to update property status.', CommonMessage.Error);
-      }
+    void this.propertyService.updateModifiedProperty(event.propertyId, { propertyStatusId: selectedStatusId }).then(() => {
+      this.updatePropertyStatusDisplay(event.propertyId, selectedStatusId, selectedLabel);
+      this.toastr.success('Property status updated.', CommonMessage.Success);
+    }).catch(() => {
+      this.updatePropertyStatusDisplay(event.propertyId, previousStatusId, previousLabel);
+      this.toastr.error('Unable to update property status.', CommonMessage.Error);
+    }).finally(() => {
+      event.propertyStatusDropdown = this.buildStatusDropdownCell(event.propertyStatusText);
     });
   }
 
@@ -463,24 +452,6 @@ export class PropertyListComponent implements OnInit, OnDestroy, OnChanges {
       value: label,
       isOverridable,
       toString: () => label
-    };
-  }
-
-  buildPropertyStatusUpdateRequest(property: PropertyResponse, propertyStatusId: number): PropertyRequest {
-    const { officeName: _officeName, parkingNotes, ...requestBase } = property;
-    return {
-      ...requestBase,
-      propertyStatusId,
-      parkingnotes: parkingNotes
-    };
-  }
-
-  buildPropertyIsActiveUpdateRequest(property: PropertyResponse, isActive: boolean): PropertyRequest {
-    const { officeName: _officeName, parkingNotes, ...requestBase } = property;
-    return {
-      ...requestBase,
-      isActive,
-      parkingnotes: parkingNotes
     };
   }
 

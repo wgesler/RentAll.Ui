@@ -338,6 +338,19 @@ export function getBedSizeTypes(): { value: number, label: string }[] {
       label: getBedSizeType(BedSizeType[key as keyof typeof BedSizeType])
     }));
 }
+
+/** Slots above the property bedroom count use None (lists: maintenance, dashboard turnover). */
+export function effectiveBedTypeIdForPropertySlot(
+  slot: 1 | 2 | 3 | 4,
+  bedroomCount: number,
+  bedroomTypeId: number
+): number {
+  if (!Number.isFinite(bedroomCount) || bedroomCount < 1) {
+    return bedroomTypeId;
+  }
+  const maxSlot = Math.min(4, Math.floor(bedroomCount));
+  return slot > maxSlot ? 0 : bedroomTypeId;
+}
 //#endregion
 
 //#region ManagementFeeType

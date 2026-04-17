@@ -40,6 +40,7 @@ const OUTSIDE_ROLES: UserGroups[] = [
 const ROUTER_TOKEN = {
   Auth: 'auth',
   Dashboard: 'dashboard',
+  DashboardService: 'dashboard-service',
   DashboardOwner: 'dashboard-owner',
   ReservationBoard: 'boards',
   RentalList: 'rentals',
@@ -112,6 +113,7 @@ const ownerOnly: AccessRule = {
 
 //#region Segment and Nav Definitions
 const INSPECTOR_ALLOWED_SEGMENTS = new Set<string>([
+  ROUTER_TOKEN.DashboardService,
   ROUTER_TOKEN.MaintenanceList,
   'work-order',
   ROUTER_TOKEN.WorkOrderCreate,
@@ -141,7 +143,7 @@ export const SUPER_USER_NAV_ITEMS: NavItemDefinition[] = [
 ];
 
 export const SERVICE_PROVIDERS_NAV_ITEMS: NavItemDefinition[] = [
-  { icon: 'dashboard', displayName: 'Dashboard', url: ROUTER_TOKEN.Dashboard, ...openToAllExceptSuperAdmin },
+  { icon: 'dashboard', displayName: 'Dashboard', url: ROUTER_TOKEN.DashboardService, ...openToAllExceptSuperAdmin },
   { icon: 'build', displayName: 'Maintenance', url: ROUTER_TOKEN.MaintenanceList, ...openToAllExceptSuperAdmin }
 ];
 
@@ -155,6 +157,7 @@ export const NAV_ITEMS: NavItemDefinition[] = COMPANY_USERS_NAV_ITEMS;
 
 const routeRulesBySegment: Record<string, AccessRule> = {
   [ROUTER_TOKEN.Dashboard]: openToAllExceptSuperAdmin,
+  [ROUTER_TOKEN.DashboardService]: openToAllExceptSuperAdmin,
   [ROUTER_TOKEN.ReservationBoard]: openToAllExceptSuperAdmin,
   [ROUTER_TOKEN.RentalList]: openToAllExceptSuperAdmin,
   [ROUTER_TOKEN.PropertyList]: openToAllExceptSuperAdmin,

@@ -11,19 +11,21 @@ import { CommonMessage } from '../../../enums/common-message.enum';
 import { MaterialModule } from '../../../material.module';
 import { AuthService } from '../../../services/auth.service';
 import { FormatterService } from '../../../services/formatter-service';
-import { MaintenanceListCurrentReservationByPropertyId, MaintenanceListMappingContext, MappingService } from '../../../services/mapping.service';
+import { MaintenanceListCurrentReservationByPropertyId, MaintenanceListMappingContext } from '../../shared/models/mixed-models';
+import { MixedMappingService } from '../../../services/mixed-mapping.service';
+import { MappingService } from '../../../services/mapping.service';
 import { UtilityService } from '../../../services/utility.service';
 import { OfficeResponse } from '../../organizations/models/office.model';
 import { GlobalSelectionService } from '../../organizations/services/global-selection.service';
 import { OfficeService } from '../../organizations/services/office.service';
-import { getBedSizeType, getBedSizeTypes, getPropertyStatuses } from '../../properties/models/property-enums';
-import { PropertyRequest, PropertyResponse } from '../../properties/models/property.model';
+import { getBedSizeTypes, getPropertyStatuses } from '../../properties/models/property-enums';
 import { PropertyService } from '../../properties/services/property.service';
 import { DataTableComponent } from '../../shared/data-table/data-table.component';
 import { ColumnSet } from '../../shared/data-table/models/column-data';
+import { MaintenanceListDisplay } from '../../shared/models/mixed-models';
 import { AddAlertDialogComponent, AddAlertDialogData } from '../../shared/modals/add-alert-dialog/add-alert-dialog.component';
 import { hasCompanyRole } from '../../shared/access/role-access';
-import { MaintenanceListBedDropdownCell, MaintenanceListDisplay, MaintenanceListUserDropdownCell, MaintenanceRequest } from '../models/maintenance.model';
+import { MaintenanceListResponse, MaintenanceListUserDropdownCell, MaintenanceRequest } from '../models/maintenance.model';
 import { MaintenanceItemResponse } from '../models/maintenance-item.model';
 import { INSPECTION_SECTIONS } from '../models/checklist-sections';
 import { MaintenanceService } from '../services/maintenance.service';
@@ -70,7 +72,7 @@ export class MaintenanceListComponent implements OnInit, OnDestroy, OnChanges {
   officeScopeResolved = false;
   isCompactView = false;
   isVendorView = false;
-  inspectorPropertyIds = new Set<string>();
+  vendorRestrictedPropertyIds = new Set<string>();
   upcomingDeparturePropertyIds = new Set<string>();
   currentReservationByPropertyId: MaintenanceListCurrentReservationByPropertyId = new Map();
   maintenanceItemsByPropertyId = new Map<string, MaintenanceItemResponse[]>();
@@ -88,10 +90,10 @@ export class MaintenanceListComponent implements OnInit, OnDestroy, OnChanges {
   private readonly propertyStatusByLabel = new Map(this.propertyStatuses.map(status => [status.label, status.value]));
   private readonly fullPropertiesDisplayedColumns: ColumnSet = {
     'propertyCode': { displayAs: 'Code', maxWidth: '15ch', sortType: 'natural', wrap: false },
-    'departureDate': { displayAs: 'Departure', maxWidth: '15ch', alignment: 'center', wrap: false },
+    'eventDate': { displayAs: 'Event Date', maxWidth: '15ch', alignment: 'center', wrap: false },
     'propertyStatusDropdown': { displayAs: 'Status', wrap: false, maxWidth: '15ch', sort: true, options: this.propertyStatusLabels },
     'needsMaintenance': { displayAs: 'Maint', isCheckbox: true, sort: false, wrap: false, alignment: 'center', maxWidth: '10ch' },
-    'petsAllowed': { displayAs: 'Pets', isCheckbox: true, sort: false, wrap: false, alignment: 'center', maxWidth: '10ch' },
+    'hasPets': { displayAs: 'Pets', isCheckbox: true, sort: false, wrap: false, alignment: 'center', maxWidth: '10ch' },
     'cleaningDate': { displayAs: 'Cleaner Date', maxWidth: '18ch', alignment: 'center', editableType: 'date' },
     'cleaner': { displayAs: 'Cleaner', maxWidth: '20ch', alignment: 'center', wrap: false, options: this.housekeepingUserOptions },
     'carpetDate': { displayAs: 'Carpet Date', maxWidth: '18ch', alignment: 'center', editableType: 'date' },
@@ -99,25 +101,25 @@ export class MaintenanceListComponent implements OnInit, OnDestroy, OnChanges {
     'inspectingDate': { displayAs: 'Inspector Date', maxWidth: '18ch', alignment: 'center', editableType: 'date' },
     'inspector': { displayAs: 'Inspector', maxWidth: '20ch', alignment: 'center', wrap: false, options: this.inspectorUserOptions },
     };
-    
-  private readonly compactPropertiesDisplayedColumns: ColumnSet = {
-    'propertyCode': { displayAs: 'Code', maxWidth: '15ch', sortType: 'natural', wrap: false },
-    'departureDate': { displayAs: 'Departure', maxWidth: '15ch', alignment: 'center', wrap: false }
-  };
 
   private readonly inspectorPropertiesDisplayedColumns: ColumnSet = {
     'propertyCode': { displayAs: 'Code', maxWidth: '15ch', sortType: 'natural', wrap: false },
-    'departureDate': { displayAs: 'Departure', maxWidth: '15ch', alignment: 'center', wrap: false },
+    'eventDate': { displayAs: 'Event Date', maxWidth: '15ch', alignment: 'center', wrap: false },
     'propertyAddress': { displayAs: 'Address', maxWidth: '25ch', sortType: 'natural', wrap: false },
     'propertyStatusDropdown': { displayAs: 'Status', wrap: false, maxWidth: '15ch', sort: true, options: this.propertyStatusLabels },
     'bedrooms': { displayAs: 'Beds', wrap: false , maxWidth: '12ch', alignment: 'center'},
     'bathrooms': { displayAs: 'Baths', wrap: false , maxWidth: '13ch', alignment: 'center'},
     'squareFeet': { displayAs: 'Sq Ft', wrap: false, maxWidth: '12ch', alignment: 'center'},
-    'petsAllowed': { displayAs: 'Pets', isCheckbox: true, sort: false, wrap: false, alignment: 'center', maxWidth: '10ch' },
+    'hasPets': { displayAs: 'Pets', isCheckbox: true, sort: false, wrap: false, alignment: 'center', maxWidth: '10ch' },
     'bed1Text': { displayAs: 'Bed1', wrap: false , maxWidth: '12ch', alignment: 'center', options: this.bedTypeOptions},
     'bed2Text': { displayAs: 'Bed2', wrap: false , maxWidth: '12ch', alignment: 'center', options: this.bedTypeOptions},
     'bed3Text': { displayAs: 'Bed3', wrap: false , maxWidth: '12ch', alignment: 'center', options: this.bedTypeOptions},
     'bed4Text': { displayAs: 'Bed4', wrap: false , maxWidth: '12ch', alignment: 'center', options: this.bedTypeOptions},
+  };
+
+  private readonly compactPropertiesDisplayedColumns: ColumnSet = {
+    'propertyCode': { displayAs: 'Code', maxWidth: '15ch', sortType: 'natural', wrap: false },
+    'eventDate': { displayAs: 'Event Date', maxWidth: '15ch', alignment: 'center', wrap: false }
   };
   propertiesDisplayedColumns: ColumnSet = this.fullPropertiesDisplayedColumns;
 
@@ -129,6 +131,7 @@ export class MaintenanceListComponent implements OnInit, OnDestroy, OnChanges {
     public toastr: ToastrService,
     public router: Router,
     public formatterService: FormatterService,
+    public mixedMappingService: MixedMappingService,
     public mappingService: MappingService,
     public authService: AuthService,
     public officeService: OfficeService,
@@ -150,20 +153,21 @@ export class MaintenanceListComponent implements OnInit, OnDestroy, OnChanges {
     this.organizationId = this.authService.getUser()?.organizationId?.trim() ?? '';
     this.preferredOfficeId = this.authService.getUser()?.defaultOfficeId ?? null;
 
-    // Main-role users get the full maintenance table; all others get inspector-style columns.
     const userGroups = this.authService.getUser()?.userGroups as Array<string | number> | undefined;
     this.isVendorView = !hasCompanyRole(userGroups);
-    this.inspectorPropertyIds = new Set(
-      (this.authService.getUser()?.properties || [])
+    this.vendorRestrictedPropertyIds = new Set((this.authService.getUser()?.properties || [])
         .map(propertyId => propertyId.trim().toLowerCase())
         .filter(propertyId => propertyId !== '')
     );
+
+
+    this.loadOffices();
+    this.loadActiveReservations();
+    this.updateDisplayedColumns();
     this.loadHousekeepingUsers();
     this.loadCarpetUsers();
     this.loadInspectorUsers();
-    this.loadActiveReservations();
-    this.updateDisplayedColumns();
-    this.loadOffices();
+
     this.globalOfficeSubscription = this.globalSelectionService.getSelectedOfficeId$().pipe(skip(1)).subscribe(officeId => {
       if (this.offices.length > 0) {
         this.resolveOfficeScope(officeId, true);
@@ -249,7 +253,7 @@ export class MaintenanceListComponent implements OnInit, OnDestroy, OnChanges {
     }
 
     filtered = [...filtered].sort((a, b) => {
-      const byDeparture = a.departureSortTime - b.departureSortTime;
+      const byDeparture = a.eventDateSortTime - b.eventDateSortTime;
       if (byDeparture !== 0) {
         return byDeparture;
       }
@@ -266,8 +270,8 @@ export class MaintenanceListComponent implements OnInit, OnDestroy, OnChanges {
     this.reservationService.getActiveReservationList().pipe(take(1), finalize(() => this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'reservations'))).subscribe({
       next: (reservations: ReservationListResponse[]) => {
         this.upcomingDeparturePropertyIds = this.buildUpcomingDeparturePropertyIds(reservations || []);
-        this.currentReservationByPropertyId = this.mappingService.getReservationData(reservations || []);
-        this.allProperties = this.mappingService.mapMaintenanceListRowsFromCurrentReservationData(
+        this.currentReservationByPropertyId = this.mixedMappingService.getReservationData(reservations ?? []);
+        this.allProperties = this.mixedMappingService.mapMaintenanceListRowsFromCurrentReservationData(
           this.allProperties,
           this.currentReservationByPropertyId
         );
@@ -276,7 +280,7 @@ export class MaintenanceListComponent implements OnInit, OnDestroy, OnChanges {
       error: () => {
         this.upcomingDeparturePropertyIds = new Set<string>();
         this.currentReservationByPropertyId = new Map();
-        this.allProperties = this.mappingService.mapMaintenanceListRowsFromCurrentReservationData(
+        this.allProperties = this.mixedMappingService.mapMaintenanceListRowsFromCurrentReservationData(
           this.allProperties,
           this.currentReservationByPropertyId
         );
@@ -297,38 +301,21 @@ export class MaintenanceListComponent implements OnInit, OnDestroy, OnChanges {
     }
 
     this.propertyService.getActivePropertiesBySelectionCriteria(this.userId).pipe(take(1),
-      switchMap(properties => this.maintenanceService.getMaintenanceList().pipe(
-        take(1),
+      switchMap(properties => this.maintenanceService.getMaintenanceList().pipe(take(1),
         switchMap(maintenanceList => {
-          const propertyIds = (properties || [])
-            .map(property => property.propertyId)
-            .filter(propertyId => !!propertyId);
-
+          const propertyIds = (properties || []).map(property => property.propertyId).filter(propertyId => !!propertyId);
           if (propertyIds.length === 0) {
-            return of({
-              properties,
-              maintenanceList,
-              maintenanceItemsByPropertyId: new Map<string, MaintenanceItemResponse[]>()
-            });
+            return of({ properties, maintenanceList,  maintenanceItemsByPropertyId: new Map<string, MaintenanceItemResponse[]>() });
           }
 
           const maintenanceItemsRequests$ = propertyIds.map(propertyId =>
-            this.maintenanceItemsService.getMaintenanceItemsByPropertyId(propertyId).pipe(
-              take(1),
-              catchError(() => of([] as MaintenanceItemResponse[]))
-            )
-          );
+            this.maintenanceItemsService.getMaintenanceItemsByPropertyId(propertyId).pipe(take(1),catchError(() => of([] as MaintenanceItemResponse[]))));
 
           return forkJoin(maintenanceItemsRequests$).pipe(map(maintenanceItemsResponses => {
             const maintenanceItemsByPropertyId = new Map<string, MaintenanceItemResponse[]>();
             propertyIds.forEach((propertyId, index) => {
-              maintenanceItemsByPropertyId.set(propertyId, maintenanceItemsResponses[index] || []);
-            });
-            return {
-              properties,
-              maintenanceList,
-              maintenanceItemsByPropertyId
-            };
+              maintenanceItemsByPropertyId.set(propertyId, maintenanceItemsResponses[index] || []);});
+            return { properties, maintenanceList,  maintenanceItemsByPropertyId };
           }));
         })
       )),
@@ -341,17 +328,16 @@ export class MaintenanceListComponent implements OnInit, OnDestroy, OnChanges {
         this.maintenanceItemsByPropertyId = loadResponse.maintenanceItemsByPropertyId;
         const mappingContext: MaintenanceListMappingContext = {
           housekeepingUsers: this.housekeepingUsers,
+          carpetUsers: this.carpetUsers,
           inspectorUsers: this.inspectorUsers,
           housekeepingById: this.housekeepingById,
+          carpetById: this.carpetById,
           inspectorById: this.inspectorById,
-          isInspectorView: this.isVendorView,
-          inspectorPropertyIds: this.inspectorPropertyIds,
+          isVendorView: this.isVendorView,
+          vendorRestrictedPropertyIds: this.vendorRestrictedPropertyIds,
           currentReservationByPropertyId: this.currentReservationByPropertyId
         };
-        this.allProperties = this.mappingService.mapMaintenanceListDisplayRowsFromLoadResponse(
-          loadResponse,
-          mappingContext
-        );
+        this.allProperties = this.mixedMappingService.mapMaintenanceListDisplayRowsFromLoadResponse(loadResponse,mappingContext);
         this.applyMaintenanceStatusFromServiceDates();
         this.remapCleanerInspectorDropdowns();
       },
@@ -632,52 +618,34 @@ export class MaintenanceListComponent implements OnInit, OnDestroy, OnChanges {
 
     event.propertyStatusDropdown = this.buildStatusDropdownCell(selectedLabel, false);
 
-    this.propertyService.getPropertyByGuid(event.propertyId).pipe(take(1),
-      switchMap((property: PropertyResponse) => this.propertyService.updateProperty(this.buildPropertyStatusUpdateRequest(property, selectedStatusId)).pipe(take(1))),
-      finalize(() => {
-        event.propertyStatusDropdown = this.buildStatusDropdownCell(event.propertyStatusText);
-      })
-    ).subscribe({
-      next: () => {
-        this.updatePropertyStatusDisplay(event.propertyId, selectedStatusId, selectedLabel);
-        this.toastr.success('Property status updated.', CommonMessage.Success);
-      },
-      error: (err: HttpErrorResponse) => {
-        console.error('Error updating property status:', err);
-        this.updatePropertyStatusDisplay(event.propertyId, previousStatusId, previousLabel);
-        this.toastr.error('Unable to update property status.', CommonMessage.Error);
-      }
+    void this.propertyService.updateModifiedProperty(event.propertyId, { propertyStatusId: selectedStatusId }).then(() => {
+      this.updatePropertyStatusDisplay(event.propertyId, selectedStatusId, selectedLabel);
+      this.toastr.success('Property status updated.', CommonMessage.Success);
+    }).catch((err: unknown) => {
+      console.error('Error updating property status:', err);
+      this.updatePropertyStatusDisplay(event.propertyId, previousStatusId, previousLabel);
+      this.toastr.error('Unable to update property status.', CommonMessage.Error);
+    }).finally(() => {
+      event.propertyStatusDropdown = this.buildStatusDropdownCell(event.propertyStatusText);
     });
   }
 
   onBedTypesChange(event: MaintenanceListDisplay, bed1Id: number, bed2Id: number, bed3Id: number, bed4Id: number): void {
-    this.propertyService.getPropertyByGuid(event.propertyId).pipe(take(1),switchMap((property: PropertyResponse) => {
-        const request = this.buildPropertyUpdateRequest(property);
-        request.bedroomId1 = bed1Id;
-        request.bedroomId2 = bed2Id;
-        request.bedroomId3 = bed3Id;
-        request.bedroomId4 = bed4Id;
-        return this.propertyService.updateProperty(request).pipe(take(1));
-      })
-    ).subscribe({
-      next: () => {
-        event.bedroomId1 = bed1Id;
-        event.bedroomId2 = bed2Id;
-        event.bedroomId3 = bed3Id;
-        event.bedroomId4 = bed4Id;
-        event.bed1Text = this.buildBedDropdownCell(bed1Id);
-        event.bed2Text = this.buildBedDropdownCell(bed2Id);
-        event.bed3Text = this.buildBedDropdownCell(bed3Id);
-        event.bed4Text = this.buildBedDropdownCell(bed4Id);
-        this.toastr.success('Property updated.', CommonMessage.Success);
-      },
-      error: () => {
-        event.bed1Text = this.buildBedDropdownCell(event.bedroomId1 ?? 0);
-        event.bed2Text = this.buildBedDropdownCell(event.bedroomId2 ?? 0);
-        event.bed3Text = this.buildBedDropdownCell(event.bedroomId3 ?? 0);
-        event.bed4Text = this.buildBedDropdownCell(event.bedroomId4 ?? 0);
-        this.toastr.error('Unable to update property.', CommonMessage.Error);
-      }
+    void this.propertyService.updateModifiedProperty(event.propertyId, {
+      bedroomId1: bed1Id,
+      bedroomId2: bed2Id,
+      bedroomId3: bed3Id,
+      bedroomId4: bed4Id
+    }).then(() => {
+      event.bedroomId1 = bed1Id;
+      event.bedroomId2 = bed2Id;
+      event.bedroomId3 = bed3Id;
+      event.bedroomId4 = bed4Id;
+      Object.assign(event, this.mappingService.buildPropertyRowBedDropdownCells(event, undefined));
+      this.toastr.success('Property updated.', CommonMessage.Success);
+    }).catch(() => {
+      Object.assign(event, this.mappingService.buildPropertyRowBedDropdownCells(event, undefined));
+      this.toastr.error('Unable to update property.', CommonMessage.Error);
     });
   }
 
@@ -783,20 +751,6 @@ export class MaintenanceListComponent implements OnInit, OnDestroy, OnChanges {
       options,
       panelClass: ['datatable-dropdown-panel', 'datatable-dropdown-panel-open-left'],
       toString: () => label
-    };
-  }
-
-  buildPropertyStatusUpdateRequest(property: PropertyResponse, propertyStatusId: number): PropertyRequest {
-    const request = this.buildPropertyUpdateRequest(property);
-    request.propertyStatusId = propertyStatusId;
-    return request;
-  }
-
-  buildPropertyUpdateRequest(property: PropertyResponse): PropertyRequest {
-    const { officeName: _officeName, parkingNotes, ...requestBase } = property;
-    return {
-      ...requestBase,
-      parkingnotes: parkingNotes
     };
   }
 
@@ -963,15 +917,6 @@ export class MaintenanceListComponent implements OnInit, OnDestroy, OnChanges {
  //#endregion
 
   //#region Bedroom Display
-  buildBedDropdownCell(bedId: number): MaintenanceListBedDropdownCell {
-    const value = getBedSizeType(bedId);
-    return {
-      value,
-      isOverridable: true,
-      toString: () => value
-    };
-  }
-
   getBedTypeIdFromLabel(label: string | undefined): number {
     if (!label) {
       return 0;
@@ -988,9 +933,10 @@ export class MaintenanceListComponent implements OnInit, OnDestroy, OnChanges {
       return;
     }
 
-    this.propertiesDisplayedColumns = this.isVendorView
-      ? this.inspectorPropertiesDisplayedColumns
-      : this.fullPropertiesDisplayedColumns;
+    //this.propertiesDisplayedColumns = this.fullPropertiesDisplayedColumns;
+     this.propertiesDisplayedColumns = this.isVendorView
+       ? this.inspectorPropertiesDisplayedColumns
+       : this.fullPropertiesDisplayedColumns;
   }
 
   splitPropertiesByUpcomingDepartures(): void {
@@ -1003,7 +949,7 @@ export class MaintenanceListComponent implements OnInit, OnDestroy, OnChanges {
     const upcomingProperties: MaintenanceListDisplay[] = [];
     const remainingProperties: MaintenanceListDisplay[] = [];
     this.propertiesDisplay.forEach(property => {
-      const normalizedPropertyId = this.normalizePropertyId(property.propertyId);
+      const normalizedPropertyId = this.utilityService.normalizeId(property.propertyId);
       if (normalizedPropertyId && this.upcomingDeparturePropertyIds.has(normalizedPropertyId)) {
         upcomingProperties.push(property);
         return;
@@ -1036,7 +982,7 @@ export class MaintenanceListComponent implements OnInit, OnDestroy, OnChanges {
       departureDate.setHours(0, 0, 0, 0);
       const departureTime = departureDate.getTime();
       if (departureTime >= today.getTime() && departureTime <= windowEnd.getTime()) {
-        const normalizedPropertyId = this.normalizePropertyId(reservation.propertyId);
+        const normalizedPropertyId = this.utilityService.normalizeId(reservation.propertyId);
         if (normalizedPropertyId) {
           propertyIds.add(normalizedPropertyId);
         }
@@ -1046,9 +992,6 @@ export class MaintenanceListComponent implements OnInit, OnDestroy, OnChanges {
     return propertyIds;
   }
 
-  normalizePropertyId(propertyId: string | null | undefined): string {
-    return (propertyId ?? '').trim().toLowerCase();
-  }
 
   applyMaintenanceStatusFromServiceDates(): void {
     this.allProperties = (this.allProperties || []).map(property => {

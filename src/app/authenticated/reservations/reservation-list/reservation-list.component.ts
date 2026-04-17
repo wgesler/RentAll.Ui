@@ -29,7 +29,7 @@ import { ColumnSet } from '../../shared/data-table/models/column-data';
 import { AddAlertDialogComponent, AddAlertDialogData } from '../../shared/modals/add-alert-dialog/add-alert-dialog.component';
 import { GenericModalComponent } from '../../shared/modals/generic/generic-modal.component';
 import { GenericModalData } from '../../shared/modals/generic/models/generic-modal-data';
-import { ExtraFeeLineRequest, ReservationListDisplay, ReservationListResponse, ReservationRequest, ReservationResponse } from '../models/reservation-model';
+import { ReservationListDisplay, ReservationListResponse, ReservationResponse } from '../models/reservation-model';
 import { ReservationService } from '../services/reservation.service';
 
 @Component({
@@ -659,27 +659,12 @@ export class ReservationListComponent implements OnInit, OnDestroy, OnChanges {
 
     this.applyReservationIsActiveValue(event.reservationId, nextValue);
 
-    this.reservationService.getReservationByGuid(event.reservationId).pipe(
-      take(1),
-      finalize(() => this.applyFilters())
-    ).subscribe({
-      next: (reservation: ReservationResponse) => {
-        const request = this.buildReservationRequestForIsActiveUpdate(reservation, nextValue);
-        this.reservationService.updateReservation(request).pipe(take(1)).subscribe({
-          next: () => {
-            this.toastr.success('Reservation updated.', CommonMessage.Success);
-          },
-          error: () => {
-            this.applyReservationIsActiveValue(event.reservationId, previousValue);
-            this.toastr.error('Unable to update reservation.', CommonMessage.Error);
-          }
-        });
-      },
-      error: () => {
-        this.applyReservationIsActiveValue(event.reservationId, previousValue);
-        this.toastr.error('Unable to update reservation.', CommonMessage.Error);
-      }
-    });
+    void this.reservationService.updateModifiedReservation(event.reservationId, { isActive: nextValue }).then(() => {
+      this.toastr.success('Reservation updated.', CommonMessage.Success);
+    }).catch(() => {
+      this.applyReservationIsActiveValue(event.reservationId, previousValue);
+      this.toastr.error('Unable to update reservation.', CommonMessage.Error);
+    }).finally(() => this.applyFilters());
   }
 
   applyReservationIsActiveValue(reservationId: string, isActive: boolean): void {
@@ -696,70 +681,6 @@ export class ReservationListComponent implements OnInit, OnDestroy, OnChanges {
     );
   }
 
-  buildReservationRequestForIsActiveUpdate(reservation: ReservationResponse, isActive: boolean): ReservationRequest {
-    const extraFeeLines: ExtraFeeLineRequest[] = (reservation.extraFeeLines || []).map(line => ({
-      extraFeeLineId: line.extraFeeLineId,
-      reservationId: line.reservationId,
-      feeDescription: line.feeDescription,
-      feeAmount: line.feeAmount,
-      feeFrequencyId: line.feeFrequencyId,
-      costCodeId: line.costCodeId
-    }));
-    const contactIds = (reservation.contactIds || []).filter(id => String(id || '').trim().length > 0);
-
-    return {
-      reservationId: reservation.reservationId,
-      organizationId: reservation.organizationId || '',
-      officeId: reservation.officeId,
-      agentId: reservation.agentId ?? null,
-      propertyId: reservation.propertyId,
-      contactIds,
-      companyId: reservation.companyId ?? null,
-      companyName: reservation.companyName ?? null,
-      reservationCode: reservation.reservationCode,
-      reservationTypeId: reservation.reservationTypeId,
-      reservationStatusId: reservation.reservationStatusId,
-      reservationNoticeId: reservation.reservationNoticeId ?? 0,
-      numberOfPeople: reservation.numberOfPeople,
-      tenantName: reservation.tenantName || '',
-      referenceNo: reservation.referenceNo || '',
-      arrivalDate: reservation.arrivalDate,
-      departureDate: reservation.departureDate,
-      checkInTimeId: reservation.checkInTimeId,
-      checkOutTimeId: reservation.checkOutTimeId,
-      lockBoxCode: reservation.lockBoxCode ?? null,
-      unitTenantCode: reservation.unitTenantCode ?? null,
-      billingMethodId: reservation.billingMethodId,
-      prorateTypeId: reservation.prorateTypeId,
-      billingTypeId: reservation.billingTypeId,
-      billingRate: reservation.billingRate,
-      deposit: reservation.deposit,
-      depositTypeId: reservation.depositTypeId ?? 0,
-      departureFee: reservation.departureFee,
-      taxes: reservation.taxes,
-      hasPets: reservation.hasPets,
-      petFee: reservation.petFee,
-      numberOfPets: reservation.numberOfPets,
-      petDescription: reservation.petDescription ?? null,
-      maidService: reservation.maidService,
-      maidServiceFee: reservation.maidServiceFee,
-      frequencyId: reservation.frequencyId,
-      maidStartDate: reservation.maidStartDate,
-      extraFeeLines,
-      notes: reservation.notes ?? null,
-      allowExtensions: reservation.allowExtensions,
-      paymentReceived: reservation.paymentReceived,
-      welcomeLetterChecked: reservation.welcomeLetterChecked,
-      welcomeLetterSent: reservation.welcomeLetterSent,
-      readyForArrival: reservation.readyForArrival,
-      code: reservation.code,
-      departureLetterChecked: reservation.departureLetterChecked,
-      departureLetterSent: reservation.departureLetterSent,
-      currentInvoiceNo: reservation.currentInvoiceNo,
-      creditDue: reservation.creditDue,
-      isActive
-    };
-  }
   //#endregion
 
   //#region Utility Methods

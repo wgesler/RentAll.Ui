@@ -302,6 +302,7 @@ export interface PropertyListDisplay {
   dailyRate: number;
   propertyTypeId: number;
   propertyType: string;
+  unfurnished: boolean;
   departureFee: number;
   petFee: number;
   maidServiceFee: number;
@@ -310,7 +311,17 @@ export interface PropertyListDisplay {
   bedroomId2: number;
   bedroomId3: number;
   bedroomId4: number;
-
+  bed1Text: PropertyBedDropdownCell;
+  bed2Text: PropertyBedDropdownCell;
+  bed3Text: PropertyBedDropdownCell;
+  bed4Text: PropertyBedDropdownCell;
   isActive: boolean;
-  unfurnished: boolean;
+}
+
+export interface PropertyBedDropdownCell {
+  value: string;
+  isOverridable: boolean;
+  panelClass?: string | string[];
+  dropdownReadOnly?: boolean;
+  toString: () => string;
 }

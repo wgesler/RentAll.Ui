@@ -1,8 +1,9 @@
 import { HttpClient } from '@angular/common/http';
 import { Injectable } from '@angular/core';
-import { Observable } from 'rxjs';
+import { Observable, firstValueFrom } from 'rxjs';
 import { map } from 'rxjs/operators';
 import { ConfigService } from '../../../services/config.service';
+import { MappingService } from '../../../services/mapping.service';
 import { ReservationListResponse, ReservationRequest, ReservationResponse } from '../models/reservation-model';
 
 @Injectable({
@@ -14,7 +15,9 @@ export class ReservationService {
 
   constructor(
     private http: HttpClient,
-    private configService: ConfigService) {
+    private configService: ConfigService,
+    private mappingService: MappingService
+  ) {
   }
 
   // GET: Get reservation list (summary view)
@@ -54,6 +57,15 @@ export class ReservationService {
   // PUT: Update entire reservation
   updateReservation(reservation: ReservationRequest): Observable<ReservationResponse> {
     return this.http.put<ReservationResponse>(this.controller, reservation);
+  }
+
+  // Loads the reservation by id, maps it to a full ReservationRequest, merges overrides, then PUTs.
+  async updateModifiedReservation( reservationId: string,
+    overrides: Partial<ReservationRequest> | ((reservation: ReservationResponse) => Partial<ReservationRequest>)
+  ): Promise<ReservationResponse> {
+    const reservation = await firstValueFrom(this.getReservationByGuid(reservationId));
+    const patch = typeof overrides === 'function' ? overrides(reservation) : overrides;
+    return firstValueFrom(this.updateReservation(this.mappingService.mapReservationResponseToRequest(reservation, patch)));
   }
 
   // DELETE: Delete reservation

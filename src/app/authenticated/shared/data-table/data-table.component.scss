@@ -190,6 +190,55 @@ tr.mat-mdc-row.mat-no-data-row,
     width: 100%;
 }
 
+.datatable-dropdown-trigger--read-only {
+    cursor: default;
+    user-select: none;
+    pointer-events: none;
+}
+
+/* Bed / sofabed mat-select cells — same typography and link-style value as maintenance list */
+:host ::ng-deep td.mat-cell.mat-column-bed1Text,
+:host ::ng-deep td.mat-mdc-cell.mat-column-bed1Text,
+:host ::ng-deep td.mat-cell.mat-column-bed2Text,
+:host ::ng-deep td.mat-mdc-cell.mat-column-bed2Text,
+:host ::ng-deep td.mat-cell.mat-column-bed3Text,
+:host ::ng-deep td.mat-mdc-cell.mat-column-bed3Text,
+:host ::ng-deep td.mat-cell.mat-column-bed4Text,
+:host ::ng-deep td.mat-mdc-cell.mat-column-bed4Text,
+:host ::ng-deep td.mat-cell.mat-column-sofabedText,
+:host ::ng-deep td.mat-mdc-cell.mat-column-sofabedText {
+    .mat-mdc-select-trigger {
+        display: flex !important;
+        align-items: center !important;
+        justify-content: space-between !important;
+        width: 100% !important;
+    }
+
+    .mat-mdc-select-arrow-wrapper {
+        display: none !important;
+    }
+
+    .mat-mdc-select,
+    .mat-mdc-select-min-line,
+    .mat-mdc-select-value,
+    .mat-mdc-select-value-text {
+        font-size: inherit !important;
+        line-height: inherit !important;
+        color: #1d4ed8 !important;
+        text-decoration: underline !important;
+    }
+
+    .datatable-dropdown-trigger--read-only {
+        .mat-mdc-select,
+        .mat-mdc-select-min-line,
+        .mat-mdc-select-value,
+        .mat-mdc-select-value-text {
+            color: rgba(0, 0, 0, 0.87) !important;
+            text-decoration: none !important;
+        }
+    }
+}
+
 /* Keep inline dropdown menu options aligned with list row typography. */
 ::ng-deep .datatable-dropdown-panel .mat-mdc-option .mdc-list-item__primary-text {
     font-size: 12px !important;
@@ -207,6 +256,12 @@ tr.mat-mdc-row.mat-no-data-row,
     min-width: 280px !important;
     width: max-content !important;
     max-width: min(520px, 90vw) !important;
+}
+
+::ng-deep .datatable-bed-dropdown-panel {
+    min-width: 130px !important;
+    width: 130px !important;
+    max-width: 130px !important;
 }
 
 ::ng-deep .datatable-dropdown-panel .mat-mdc-option .mdc-list-item__primary-text {

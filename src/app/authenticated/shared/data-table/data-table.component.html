@@ -308,12 +308,17 @@
                     </div>
                   } @else if (item[column.name]?.options?.length || column.options?.length) {
                     @if (item[column.name]?.isOverridable) {
-                      <div class="datatable-dropdown-trigger" (click)="openDropdown($event, dropdownSelect)" (mousedown)="$event.stopPropagation()">
+                      <div
+                        class="datatable-dropdown-trigger"
+                        [class.datatable-dropdown-trigger--read-only]="item[column.name]?.dropdownReadOnly"
+                        (click)="onDatatableDropdownTriggerClick($event, dropdownSelect, item, column.name)"
+                        (mousedown)="$event.stopPropagation()">
                         <mat-select #dropdownSelect [(ngModel)]="item[column.name].value" name="option" id="select-{{column}}-{{i}}"
                           (click)="$event.stopPropagation()"
                           (mousedown)="$event.stopPropagation()"
                           [panelClass]="item[column.name]?.panelClass || 'datatable-dropdown-panel'"
-                          [disabled]="!item[column.name]?.isOverridable" (ngModelChange)="emitDropdownChangeEvent(item, column.name)">
+                          [disabled]="item[column.name]?.dropdownReadOnly === true || !item[column.name]?.isOverridable"
+                          (ngModelChange)="emitDropdownChangeEvent(item, column.name)">
                           @if (item[column.name]?.triggerText) {
                             <mat-select-trigger>{{ item[column.name]?.triggerText }}</mat-select-trigger>
                           }

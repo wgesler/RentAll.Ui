@@ -10,6 +10,7 @@ import { ContactComponent } from './authenticated/contacts/contact/contact.compo
 import { ContactsShellComponent } from './authenticated/contacts/contacts-shell/contacts-shell.component';
 import { DashboardMainComponent } from './authenticated/dashboards/dashboard-main/dashboard-main.component';
 import { DashboardOwnerComponent } from './authenticated/dashboards/dashboard-owner/dashboard-owner.component';
+import { DashboardServiceComponent } from './authenticated/dashboards/dashboard-service/dashboard-service.component';
 import { DocumentListComponent } from './authenticated/documents/document-list/document-list.component';
 import { DocumentViewComponent } from './authenticated/documents/document-view/document-view.component';
 import { DocumentComponent } from './authenticated/documents/document/document.component';
@@ -59,6 +60,7 @@ export enum RouterToken {
   Login = 'login',
   Auth = 'auth',
   Dashboard = 'dashboard',
+  DashboardService = 'dashboard-service',
   DashboardOwner = 'dashboard-owner',
   RentalList = 'rentals',
   ContactList = 'contacts',
@@ -114,6 +116,7 @@ export enum RouterToken {
 
 export enum RouterUrl {
   Dashboard             = `${RouterToken.Auth}/${RouterToken.Dashboard}`,
+  DashboardService      = `${RouterToken.Auth}/${RouterToken.DashboardService}`,
   DashboardOwner        = `${RouterToken.Auth}/${RouterToken.DashboardOwner}`,
   RentalList            = `${RouterToken.Auth}/${RouterToken.RentalList}`,
   ContactList           = `${RouterToken.Auth}/${RouterToken.ContactList}`,
@@ -176,6 +179,7 @@ export namespace RouterUrl {
 export const authRoutes: Routes = [
   { path: '', redirectTo: RouterToken.Default, pathMatch: 'full' },
   { path: RouterToken.Dashboard, component: DashboardMainComponent, canActivate: [authRouteGuard] },
+  { path: RouterToken.DashboardService, component: DashboardServiceComponent, canActivate: [authRouteGuard] },
   { path: RouterToken.DashboardOwner, component: DashboardOwnerComponent, canActivate: [authRouteGuard] },
   { path: RouterToken.RentalList, component: ReservationListComponent, canActivate: [authRouteGuard] },
   { path: RouterToken.ContactList, component: ContactsShellComponent, canActivate: [authRouteGuard] },

@@ -299,8 +299,7 @@ export class DocumentViewComponent implements OnInit, OnDestroy, AfterViewInit {
                   printButton.dispatchEvent(mouseDown);
                   printButton.dispatchEvent(mouseUp);
                   printButton.dispatchEvent(click);
-                } catch (e) {
-                  console.warn('[IFRAME] Mouse events failed:', e);
+                } catch {
                 }
                 
                 return true;
@@ -330,9 +329,7 @@ export class DocumentViewComponent implements OnInit, OnDestroy, AfterViewInit {
         iframeDoc.body.appendChild(script);
         return;
       }
-    } catch (error) {
-      // Cross-origin or other access error
-      console.warn('Cannot access iframe content:', error);
+    } catch {
     }
 
     // If script injection failed and haven't exceeded max attempts, retry

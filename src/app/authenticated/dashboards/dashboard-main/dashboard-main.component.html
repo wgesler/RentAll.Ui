@@ -1,136 +1,123 @@
 <div class="flex content-card-wrap justify-center">
   <section class="content-card">
-    <div class="flex justify-between items-center gap-3 bg-slate-300 rounded-t-lg py-0 pl-8 pr-4 property-titlebar dbg-band-actions">
-      <div class="flex items-center flex-wrap py-4">
+    <div class="flex justify-between items-center gap-3 bg-slate-300 rounded-t-lg property-titlebar dbg-band-actions dashboard-main-titlebar">
+      <div class="flex items-center flex-wrap min-w-0 flex-1 dashboard-titlebar-inner">
         <span class="flex flex-column items-center gap-3 flex-shrink-0">
           <mat-icon class="flex-shrink-0">dashboard</mat-icon>
-          <span class="flex-shrink-0 text-xl font-medium dashboard-title">Dashboard</span>
+          <span class="flex-shrink-0 text-xl font-medium">Dashboard</span>
         </span>
-        <div class="header-title form-titlebar-fields-wrap">
-          @if (showOfficeDropdown) {
-            <mat-form-field appearance="outline" class="titlebar-field-office">
-              <mat-label>Office</mat-label>
-              <mat-select [(ngModel)]="selectedOffice" (selectionChange)="onOfficeChange()" [ngModelOptions]="{ standalone: true }" [canSelectNullableOptions]="true">
-                <mat-option [value]="null">All Offices</mat-option>
-                @for (office of offices; track office.officeId) {
-                  <mat-option [value]="office">{{ office.name }}</mat-option>
-                }
-              </mat-select>
-            </mat-form-field>
+        <div class="dashboard-titlebar-welcome-next-title">
+          <div class="dashboard-titlebar-welcome-row">
+            @if (profilePictureUrl) {
+              <img [src]="profilePictureUrl" alt="" class="dashboard-titlebar-avatar" />
+            } @else {
+              <mat-icon class="dashboard-titlebar-avatar-icon">person</mat-icon>
+            }
+            <div class="dashboard-titlebar-welcome-text">
+              <span class="dashboard-titlebar-welcome-label">Welcome</span>
+              <span class="dashboard-titlebar-user-name">{{ getFullName() }}</span>
+            </div>
+          </div>
+        </div>
+        <div class="dashboard-titlebar-stats">
+          <div class="dashboard-titlebar-date-cluster">
+            <div class="dashboard-titlebar-date-block">
+              <p class="dashboard-titlebar-date">{{ todayDate }}</p>
+            </div>
+            <div class="dashboard-titlebar-stats-divider" aria-hidden="true"></div>
+          </div>
+
+          <div class="dashboard-titlebar-stat-tiles">
+          <div class="dashboard-titlebar-stat dashboard-titlebar-stat--today">
+            <div class="dashboard-titlebar-stat-body">
+              <h4 class="dashboard-titlebar-stat-heading">
+                <span class="dashboard-titlebar-stat-line">Arrive/Depart</span>
+                <span class="dashboard-titlebar-stat-sub">Today</span>
+              </h4>
+              <div class="dashboard-titlebar-stat-metric">
+                <mat-icon class="dashboard-titlebar-stat-icon">calendar_today</mat-icon>
+                <span class="dashboard-titlebar-stat-value">{{ getTodayTotal() }}</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="dashboard-titlebar-stat dashboard-titlebar-stat--tomorrow">
+            <div class="dashboard-titlebar-stat-body">
+              <h4 class="dashboard-titlebar-stat-heading">
+                <span class="dashboard-titlebar-stat-line">Arrive/Depart</span>
+                <span class="dashboard-titlebar-stat-sub">Tomorrow</span>
+              </h4>
+              <div class="dashboard-titlebar-stat-metric">
+                <mat-icon class="dashboard-titlebar-stat-icon">event</mat-icon>
+                <span class="dashboard-titlebar-stat-value">{{ getTomorrowTotal() }}</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="dashboard-titlebar-stat dashboard-titlebar-stat--props">
+            <div class="dashboard-titlebar-stat-body">
+              <h4 class="dashboard-titlebar-stat-heading dashboard-titlebar-stat-heading-single">
+                <span class="dashboard-titlebar-stat-line">Properties</span>
+              </h4>
+              @if (isLoadingProperties) {
+                <div class="dashboard-titlebar-spinner">
+                  <mat-spinner [diameter]="16"></mat-spinner>
+                </div>
+              } @else {
+                <div class="dashboard-titlebar-prop-stats dashboard-titlebar-prop-stats--stacked">
+                  <div class="dashboard-titlebar-prop-row">
+                    <span class="dashboard-titlebar-prop-label">Rented</span>
+                    <span class="dashboard-titlebar-prop-value">{{ rentedCount }}</span>
+                  </div>
+                  <div class="dashboard-titlebar-prop-row">
+                    <span class="dashboard-titlebar-prop-label">Vacant</span>
+                    <span class="dashboard-titlebar-prop-value">{{ vacantCount }}</span>
+                  </div>
+                </div>
+              }
+            </div>
+          </div>
+
+          @if (canViewCommissions) {
+            <div
+              class="dashboard-titlebar-stat dashboard-titlebar-stat--commissions"
+              [class.commission-tile-clickable]="isAdmin && getMonthlyCommissionTotal() > 0"
+              (mousedown)="onCommissionPreviewMouseDown($event)"
+              (touchstart)="onCommissionPreviewTouchStart($event)">
+              <div class="dashboard-titlebar-stat-body">
+                <h4 class="dashboard-titlebar-stat-heading">
+                  <span class="dashboard-titlebar-stat-line">Commissions</span>
+                  <span class="dashboard-titlebar-stat-sub">{{ getCurrentMonthDisplay() }}</span>
+                </h4>
+                <div class="dashboard-titlebar-commission-row">
+                  <span class="dashboard-titlebar-commission-agent">{{ currentUserAgentCode || 'N/A' }}</span>
+                  <button
+                    type="button"
+                    class="commission-toggle-button dashboard-titlebar-commission-amt"
+                    [attr.aria-label]="'Press and hold to show monthly commission total and agent breakdown'"
+                    title="Press and hold to show amount and breakdown">
+                    {{ getCommissionAmountDisplay(getMonthlyCommissionTotal()) }}
+                  </button>
+                </div>
+              </div>
+            </div>
           }
+          </div>
         </div>
       </div>
+      @if (canViewCommissions && isAdmin && getMonthlyCommissionTotal() > 0 && showCommissionBreakdown) {
+        <div class="commission-breakdown-popover commission-breakdown-popover--under-titlebar">
+          @for (row of getMonthlyCommissionTileRows(); track row.agentCode) {
+            <div class="commission-breakdown-row">
+              <span class="commission-breakdown-agent">{{ row.agentCode }}</span>
+              <span class="commission-breakdown-amount">${{ row.amount.toFixed(2) }}</span>
+            </div>
+          }
+        </div>
+      }
     </div>
     <mat-card>
       <div class="dashboard-content dbg-band-main">
-        <!-- Welcome Tile -->
-        <div class="welcome-tile">
-          <div class="welcome-stats-strip">
-            <div class="day-box day-box-profile day-box-compact">
-              <p class="date-text">{{ todayDate }}</p>
-              <div class="welcome-content">
-                @if (profilePictureUrl) {
-                  <img [src]="profilePictureUrl" alt="Profile Picture" class="profile-picture" />
-                } @else {
-                  <mat-icon class="profile-icon">person</mat-icon>
-                }
-                <div class="welcome-text">
-                  <span class="welcome-label">Welcome</span>
-                  <span class="user-name">{{ getFullName() }}</span>
-                </div>
-              </div>
-            </div>
-
-            <div class="day-box day-box-today day-box-compact">
-              <div class="day-box-text">
-                <h4 class="day-title">
-                  <span>Arrivals/Departures</span>
-                  <span class="day-name">Today</span>
-                </h4>
-                <div class="icon-number-row">
-                  <mat-icon class="calendar-icon-below">calendar_today</mat-icon>
-                  <span class="total-number">{{ getTodayTotal() }}</span>
-                </div>
-              </div>
-            </div>
-
-            <div class="day-box day-box-tomorrow day-box-compact">
-              <div class="day-box-text">
-                <h4 class="day-title">
-                  <span>Arrivals/Departures</span>
-                  <span class="day-name">Tomorrow</span>
-                </h4>
-                <div class="icon-number-row">
-                  <mat-icon class="calendar-icon-below">event</mat-icon>
-                  <span class="total-number">{{ getTomorrowTotal() }}</span>
-                </div>
-              </div>
-            </div>
-
-            <div class="day-box day-box-reservations day-box-compact">
-              <div class="day-box-text">
-                <h4 class="day-title">
-                  <span>Properties</span>
-                </h4>
-                @if (isLoadingProperties) {
-                  <div class="loading-container-small">
-                    <mat-spinner [diameter]="18"></mat-spinner>
-                  </div>
-                } @else {
-                  <div class="reservations-stats compact-stats">
-                    <div class="stat-row">
-                      <span class="stat-label">Rented</span>
-                      <span class="stat-value">{{ rentedCount }}</span>
-                    </div>
-                    <div class="stat-row">
-                      <span class="stat-label">Vacant</span>
-                      <span class="stat-value">{{ vacantCount }}</span>
-                    </div>
-                  </div>
-                }
-              </div>
-            </div>
-
-            @if (canViewCommissions) {
-              <div
-                class="day-box day-box-commissions day-box-compact"
-                [class.commission-tile-clickable]="isAdmin && getMonthlyCommissionTotal() > 0"
-                (click)="onCommissionTileClick($event)">
-                <div class="day-box-text">
-                  <h4 class="day-title">
-                    <span>Commissions</span>
-                    <span class="day-name">{{ getCurrentMonthDisplay() }}</span>
-                  </h4>
-                  <div class="stat-row commission-summary-row">
-                    <span class="stat-label">
-                      {{ currentUserAgentCode || 'N/A' }}
-                    </span>
-                    <button
-                      type="button"
-                      class="commission-toggle-button stat-value commission-amount"
-                      (click)="toggleMonthlyCommissionAmount()"
-                      [attr.aria-label]="showMonthlyCommissionAmount ? 'Hide monthly commission amount' : 'Show monthly commission amount'"
-                      [title]="showMonthlyCommissionAmount ? 'Click to hide amount' : 'Show amount'">
-                      {{ getCommissionAmountDisplay(getMonthlyCommissionTotal()) }}
-                    </button>
-                  </div>
-                </div>
-                @if (isAdmin && getMonthlyCommissionTotal() > 0 && showCommissionBreakdown) {
-                  <div class="commission-breakdown-popover">
-                    @for (row of getMonthlyCommissionTileRows(); track row.agentCode) {
-                      <div class="commission-breakdown-row">
-                        <span class="commission-breakdown-agent">{{ row.agentCode }}</span>
-                        <span class="commission-breakdown-amount">${{ row.amount.toFixed(2) }}</span>
-                      </div>
-                    }
-                  </div>
-                }
-              </div>
-            }
-
-          </div>
-        </div>
-
         <!-- Main Content Area -->
         <div class="dashboard-main-content">
           <!-- Reservation Tables -->
@@ -163,7 +150,6 @@
                     [hasActionsDelete]="false"
                     [hasPropertyCodeLink]="true"
                     [itemsPerPage]="50"
-                    (dropdownChangeEvent)="onTurnoverPropertyStatusChange($event)"
                     (checkboxChangeEvent)="onTurnoverReservationCheckboxChange($event)"
                     (editEvent)="goToReservation($event)"
                     (rowClickEvent)="goToReservation($event)"
@@ -186,17 +172,94 @@
                       [hasActionsDelete]="false"
                       [hasPropertyCodeLink]="true"
                       [itemsPerPage]="50"
-                      (dropdownChangeEvent)="onTurnoverPropertyStatusChange($event)"
                       (checkboxChangeEvent)="onTurnoverReservationCheckboxChange($event)"
                       (editEvent)="goToReservation($event)"
                       (rowClickEvent)="goToReservation($event)"
                       (propertyCodeClickEvent)="goToProperty($event)"
                       (contactClickEvent)="goToContact($event)"/>
                   }
+                </div>
+              }
+            </mat-expansion-panel>
 
-                  <div class="dashboard-group-divider">
-                    <span class="dashboard-group-title">Vacant Properties</span>
-                  </div>
+            <mat-expansion-panel
+              [(expanded)]="expandedSections.propertyTurnover">
+              <mat-expansion-panel-header>
+                <mat-panel-title>
+                  <span class="section-title">Property Turnover</span>
+                </mat-panel-title>
+              </mat-expansion-panel-header>
+              @if (isLoadingProperties) {
+                <div class="loading-container">
+                  <mat-spinner [diameter]="40"></mat-spinner>
+                  <p>Loading properties...</p>
+                </div>
+              } @else {
+                <div class="tableDiv">
+                  @if (comingOnlinePropertyRows.length > 0) {
+                    <app-data-table
+                      [data]="comingOnlinePropertyRows"
+                      [columns]="propertyOnlineDisplayedColumns"
+                      [subheaderLabel]="'Coming Online (Next 15 Days)'"
+                      [hasColumnIndex]="false"
+                      [hasFilter]="false"
+                      [hasToggleTop]="false"
+                      [hasButtonTop]="false"
+                      [hasActionsRowClick]="true"
+                      [hasActionsEdit]="true"
+                      [hasActionsDelete]="false"
+                      [hasPropertyCodeLink]="true"
+                      [itemsPerPage]="50"
+                      (editEvent)="goToProperty($event)"
+                      (rowClickEvent)="goToProperty($event)"
+                      (propertyCodeClickEvent)="goToProperty($event)"/>
+                  }
+
+                  @if (goingOfflinePropertyRows.length > 0) {
+                    @if (comingOnlinePropertyRows.length > 0) {
+                      <div class="dashboard-group-divider">
+                        <span class="dashboard-group-title">Going Offline</span>
+                      </div>
+                    }
+                    <app-data-table
+                      [data]="goingOfflinePropertyRows"
+                      [columns]="propertyOfflineDisplayedColumns"
+                      [subheaderLabel]="comingOnlinePropertyRows.length > 0 ? '' : 'Going Offline'"
+                      [hasColumnIndex]="false"
+                      [hasFilter]="false"
+                      [hasToggleTop]="false"
+                      [hasButtonTop]="false"
+                      [hasActionsRowClick]="true"
+                      [hasActionsEdit]="true"
+                      [hasActionsDelete]="false"
+                      [hasPropertyCodeLink]="true"
+                      [itemsPerPage]="50"
+                      (editEvent)="goToProperty($event)"
+                      (rowClickEvent)="goToProperty($event)"
+                      (propertyCodeClickEvent)="goToProperty($event)"/>
+                  }
+
+                  @if (comingOnlinePropertyRows.length === 0 && goingOfflinePropertyRows.length === 0) {
+                    <p class="dashboard-property-turnover-empty">No properties coming online or going offline in the current window.</p>
+                  }
+                </div>
+              }
+            </mat-expansion-panel>
+
+            <mat-expansion-panel
+              [(expanded)]="expandedSections.vacantProperties">
+              <mat-expansion-panel-header>
+                <mat-panel-title>
+                  <span class="section-title">Vacant Properties</span>
+                </mat-panel-title>
+              </mat-expansion-panel-header>
+              @if (isLoadingProperties || isLoadingReservations) {
+                <div class="loading-container">
+                  <mat-spinner [diameter]="40"></mat-spinner>
+                  <p>Loading...</p>
+                </div>
+              } @else {
+                <div class="tableDiv">
                   <app-data-table
                     [data]="propertiesByVacancy"
                     [columns]="propertiesDisplayedColumns"

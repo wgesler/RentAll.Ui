@@ -8,6 +8,7 @@ import { MatPaginator } from '@angular/material/paginator';
 import { MatSort } from '@angular/material/sort';
 import { MatTableDataSource } from '@angular/material/table';
 import { take } from 'rxjs';
+import { effectiveBedTypeIdForPropertySlot, getBedSizeType } from '../../properties/models/property-enums';
 import { FormatterService } from '../../../../app/services/formatter-service';
 import { getStatus } from '../../../enums/status.enum';
 import { MaterialModule } from '../../../material.module';
@@ -438,6 +439,13 @@ export class DataTableComponent implements OnChanges, OnInit {
   }
 
   emitDropdownChangeEvent(rowItem: PurposefulAny, columnName?: string): void {
+    if (columnName && rowItem[columnName]?.dropdownReadOnly) {
+      const id = this.getBedColumnSourceId(rowItem, columnName);
+      if (id !== undefined) {
+        rowItem[columnName].value = getBedSizeType(id);
+      }
+      return;
+    }
     if (columnName) {
       rowItem.__changedDropdownColumn = columnName;
     }
@@ -480,6 +488,38 @@ export class DataTableComponent implements OnChanges, OnInit {
   openDropdown(event: Event, dropdown: { open: () => void } | undefined): void {
     event.stopPropagation();
     dropdown?.open();
+  }
+
+  onDatatableDropdownTriggerClick(
+    event: Event,
+    dropdown: { open: () => void } | undefined,
+    item: PurposefulAny,
+    columnName: string | undefined
+  ): void {
+    event.stopPropagation();
+    if (!columnName || item[columnName]?.dropdownReadOnly) {
+      return;
+    }
+    dropdown?.open();
+  }
+
+  getBedColumnSourceId(row: PurposefulAny, column: string): number | undefined {
+    const n = (v: unknown): number => (v === null || v === undefined ? 0 : Number(v));
+    const bedrooms = n(row.bedrooms);
+    switch (column) {
+      case 'bed1Text':
+        return effectiveBedTypeIdForPropertySlot(1, bedrooms, n(row.bedroomId1));
+      case 'bed2Text':
+        return effectiveBedTypeIdForPropertySlot(2, bedrooms, n(row.bedroomId2));
+      case 'bed3Text':
+        return effectiveBedTypeIdForPropertySlot(3, bedrooms, n(row.bedroomId3));
+      case 'bed4Text':
+        return effectiveBedTypeIdForPropertySlot(4, bedrooms, n(row.bedroomId4));
+      case 'sofabedText':
+        return n(row.sofabed);
+      default:
+        return undefined;
+    }
   }
 
   emitButtonEvent(rowItem: PurposefulAny): void {

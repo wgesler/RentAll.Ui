@@ -49,6 +49,9 @@ import { BillingMethod, BillingType, DepositType, Frequency, ProrateType, Reserv
 import { ExtraFeeLineRequest, ReservationListResponse, ReservationRequest, ReservationResponse } from '../models/reservation-model';
 import { LeaseReloadService } from '../services/lease-reload.service';
 import { ReservationService } from '../services/reservation.service';
+import { UserGroups } from '../../users/models/user-enums';
+import { UserResponse } from '../../users/models/user.model';
+import { UserService } from '../../users/services/user.service';
 
 // Display interface for ExtraFeeLine in the UI
 interface ExtraFeeLineDisplay {
@@ -116,6 +119,9 @@ export class ReservationComponent implements OnInit, OnDestroy, CanComponentDeac
   reservation: ReservationResponse;
   organization: OrganizationResponse | null = null;
   agents: AgentResponse[] = [];
+  housekeepingUsers: UserResponse[] = [];
+  housekeepingById = new Map<string, string>();
+  housekeepingUserOptions: string[] = [];
   contacts: ContactResponse[] = [];
   companyContacts: ContactResponse[] = [];
   filteredContacts: ContactResponse[] = [];
@@ -141,11 +147,12 @@ export class ReservationComponent implements OnInit, OnDestroy, CanComponentDeac
   availableChargeCostCodes: { value: number, label: string }[] = [];
   costCodesSubscription?: Subscription;
 
-  itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['agents', 'properties', 'contacts']));
+  itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['agents', 'properties', 'contacts', 'cleaners']));
   isLoading$: Observable<boolean> = this.itemsToLoad$.pipe(map(items => items.size > 0));
   destroy$ = new Subject<void>();
   readonly newContactOptionValue = '__new_contact__';
   readonly noneAgentOptionValue = '__none_agent__';
+  readonly noneAssignedMaidOptionValue = '__none_assigned_maid__';
   savedFormState: Record<string, unknown> | null = null;
   savedExtraFeeLinesState: ExtraFeeLineDisplay[] = [];
   readonly agentSelectionRequiredValidator: ValidatorFn = (control: AbstractControl) => {
@@ -176,7 +183,8 @@ export class ReservationComponent implements OnInit, OnDestroy, CanComponentDeac
     private utilityService: UtilityService,
     private costCodesService: CostCodesService,
     private globalSelectionService: GlobalSelectionService,
-    private unsavedChangesDialogService: UnsavedChangesDialogService
+    private unsavedChangesDialogService: UnsavedChangesDialogService,
+    private userService: UserService
   ) {
   }
 
@@ -188,6 +196,7 @@ export class ReservationComponent implements OnInit, OnDestroy, CanComponentDeac
     this.loadOrganization();
     this.loadProperties();
     this.loadAgents();
+    this.loadHousekeepingUsers();
     this.loadOffices();
 
     this.globalOfficeSubscription = this.globalSelectionService.getSelectedOfficeId$().pipe(skip(1), takeUntil(this.destroy$)).subscribe(officeId => {
@@ -337,6 +346,9 @@ export class ReservationComponent implements OnInit, OnDestroy, CanComponentDeac
         d.setDate(d.getDate() + 7);
         return d;
       })(),
+      maidUserId: (source.maidUserId && String(source.maidUserId).trim())
+        ? String(source.maidUserId).trim()
+        : this.noneAssignedMaidOptionValue,
       maidServiceFee: (source.maidServiceFee ?? 0).toFixed(2),
       frequencyId: source.frequencyId ?? Frequency.NA,
       taxes: source.taxes === 0 ? null : source.taxes,
@@ -699,6 +711,7 @@ export class ReservationComponent implements OnInit, OnDestroy, CanComponentDeac
       petDescription: new FormControl(''),
       maidService: new FormControl(false, [Validators.required]),
       maidStartDate: new FormControl<Date | null>(null),
+      maidUserId: new FormControl<string>(this.noneAssignedMaidOptionValue),
       phone: new FormControl({ value: '', disabled: true }),
       email: new FormControl({ value: '', disabled: true }),
       depositType: new FormControl(DepositType.Deposit, [Validators.required]),
@@ -774,6 +787,9 @@ export class ReservationComponent implements OnInit, OnDestroy, CanComponentDeac
       petDescription: this.reservation.petDescription || '',
       maidService: this.reservation.maidService ?? false,
       maidStartDate: this.parseDateOnly(this.reservation.maidStartDate),
+     maidUserId: (this.reservation.maidUserId && String(this.reservation.maidUserId).trim())
+        ? String(this.reservation.maidUserId).trim()
+        : this.noneAssignedMaidOptionValue,
       maidServiceFee: (this.reservation.maidServiceFee ?? 0).toFixed(2),
       frequencyId: this.reservation.frequencyId ?? Frequency.NA,
       taxes: this.reservation.taxes === 0 ? null : this.reservation.taxes,
@@ -962,6 +978,23 @@ export class ReservationComponent implements OnInit, OnDestroy, CanComponentDeac
       },
       error: () => {
         this.agents = [];
+      }
+    });
+  }
+
+  loadHousekeepingUsers(): void {
+    this.userService.getUsersByType(UserGroups[UserGroups.Housekeeping]).pipe(take(1), finalize(() => this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'cleaners'))).subscribe({
+      next: (users: UserResponse[]) => {
+        this.housekeepingUsers = users || [];
+        this.housekeepingById = new Map(this.housekeepingUsers.map(user => [user.userId, `${user.firstName ?? ''} ${user.lastName ?? ''}`.trim()]));
+        const names = this.housekeepingUsers.map(user => `${user.firstName ?? ''} ${user.lastName ?? ''}`.trim()).filter(name => name !== '');
+        names.unshift('Clear Selection');
+        this.housekeepingUserOptions.splice(0, this.housekeepingUserOptions.length, ...names);
+      },
+      error: () => {
+        this.housekeepingUsers = [];
+        this.housekeepingById = new Map<string, string>();
+        this.housekeepingUserOptions.splice(0, this.housekeepingUserOptions.length, 'Clear Selection');
       }
     });
   }
@@ -1464,6 +1497,24 @@ export class ReservationComponent implements OnInit, OnDestroy, CanComponentDeac
     ];
   }
 
+  onAssignedMaidDropdownChange(value: string | number | null): void {
+    const normalized = value == null || value === '' ? this.noneAssignedMaidOptionValue : String(value).trim();
+    const maidUserControl = this.form.get('maidUserId');
+    maidUserControl?.setValue(normalized === '' ? this.noneAssignedMaidOptionValue : normalized);
+    maidUserControl?.markAsTouched();
+    maidUserControl?.markAsDirty();
+  }
+
+  get assignedMaidHousekeepingOptions(): SearchableSelectOption[] {
+    return [
+      { value: this.noneAssignedMaidOptionValue, label: 'None' },
+      ...this.housekeepingUsers.map(u => ({
+        value: u.userId,
+        label: this.housekeepingById.get(u.userId) || u.email || u.userId
+      }))
+    ];
+  }
+
   updateReservationStatusesByReservationType(): void {
     if (!this.form) {
       this.availableReservationStatuses = this.allReservationStatuses;
@@ -1900,6 +1951,7 @@ export class ReservationComponent implements OnInit, OnDestroy, CanComponentDeac
       this.disableFieldWithValidation('frequencyId');
 
       this.disableFieldWithValidation('maidStartDate');
+      this.disableFieldWithValidation('maidUserId');
 
     } 
     else {
@@ -1919,6 +1971,7 @@ export class ReservationComponent implements OnInit, OnDestroy, CanComponentDeac
       this.enableFieldWithValidation('frequencyId', [Validators.required]);
 
       this.enableFieldWithValidation('maidStartDate', [Validators.required]);
+      this.enableFieldWithValidation('maidUserId');
     }
   }
 

@@ -6,6 +6,7 @@ import { JwtHelperService } from '@auth0/angular-jwt';
 import { BehaviorSubject, Observable, of, take, tap } from 'rxjs';
 import { RouterToken, RouterUrl } from '../app.routes';
 import { StartupPage } from '../authenticated/users/models/user-enums';
+import { isServiceProvider } from '../authenticated/shared/access/role-access';
 import { StorageKey } from '../enums/storage-keys.enum';
 import { AuthResponse } from '../public/login/models/auth-response';
 import { JwtContainer, JwtUser } from '../public/login/models/jwt';
@@ -125,9 +126,13 @@ export class AuthService {
     }
 
     getStartupPageUrl(): string {
+        const userGroups = this.getUser()?.userGroups as Array<string | number> | undefined;
         const startupPageId = this.getUser()?.startupPage ?? this.getUser()?.startupPageId ?? StartupPage.Dashboard;
         switch (startupPageId) {
             case StartupPage.Dashboard:
+                if (isServiceProvider(userGroups)) {
+                    return RouterUrl.DashboardService;
+                }
                 return RouterUrl.Dashboard;
             case StartupPage.Boards:
                 return RouterUrl.ReservationBoard;

@@ -3,13 +3,13 @@ import { Component, Inject, OnInit } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { MAT_DIALOG_DATA, MatDialogRef } from '@angular/material/dialog';
 import { ToastrService } from 'ngx-toastr';
-import { finalize, take } from 'rxjs';
+import { firstValueFrom, take } from 'rxjs';
 import { CommonMessage } from '../../../../enums/common-message.enum';
 import { MaterialModule } from '../../../../material.module';
 import { FormatterService } from '../../../../services/formatter-service';
 import { InvoicePaymentRequest } from '../../../accounting/models/invoice.model';
 import { InvoiceService } from '../../../accounting/services/invoice.service';
-import { ExtraFeeLineRequest, ExtraFeeLineResponse, ReservationListResponse, ReservationRequest, ReservationResponse } from '../../../reservations/models/reservation-model';
+import { ReservationListResponse } from '../../../reservations/models/reservation-model';
 import { ReservationService } from '../../../reservations/services/reservation.service';
 
 export interface ApplyCreditDialogData {
@@ -75,7 +75,7 @@ export class ApplyCreditDialogComponent implements OnInit {
     this.dialogRef.close();
   }
   
-  apply(): void {
+  async apply(): Promise<void> {
     if (!this.selectedReservation?.reservationId) {
       return;
     }
@@ -87,98 +87,26 @@ export class ApplyCreditDialogComponent implements OnInit {
     }
     
     this.isSubmitting = true;
-    
-    // First, get the reservation and update its creditDue
-    this.reservationService.getReservationByGuid(this.selectedReservation.reservationId).pipe(take(1)).subscribe({
-      next: (reservation: ReservationResponse) => {
-        // Convert ReservationResponse to ReservationRequest and update creditDue
-        const reservationRequest: ReservationRequest = {
-          reservationId: reservation.reservationId,
-          organizationId: reservation.organizationId,
-          officeId: reservation.officeId,
-          agentId: reservation.agentId ?? null,
-          propertyId: reservation.propertyId,
-          contactIds: (reservation.contactIds || []).filter(id => String(id || '').trim().length > 0),
-          reservationCode: reservation.reservationCode,
-          reservationTypeId: reservation.reservationTypeId,
-          reservationStatusId: reservation.reservationStatusId,
-          reservationNoticeId: reservation.reservationNoticeId ?? 0, // Required field, default to 0 if undefined
-          numberOfPeople: reservation.numberOfPeople,
-          tenantName: reservation.tenantName,
-          referenceNo: reservation.referenceNo || '',
-          arrivalDate: reservation.arrivalDate,
-          departureDate: reservation.departureDate,
-          checkInTimeId: reservation.checkInTimeId,
-          checkOutTimeId: reservation.checkOutTimeId,
-          billingMethodId: reservation.billingMethodId,
-          prorateTypeId: reservation.prorateTypeId,
-          billingTypeId: reservation.billingTypeId,
-          billingRate: reservation.billingRate,
-          deposit: reservation.deposit,
-          depositTypeId: reservation.depositTypeId ?? 0, // Required field, default to 0 if undefined
-          departureFee: reservation.departureFee,
-          taxes: reservation.taxes,
-          hasPets: reservation.hasPets,
-          petFee: reservation.petFee,
-          numberOfPets: reservation.numberOfPets,
-          petDescription: reservation.petDescription,
-          maidService: reservation.maidService,
-          maidServiceFee: reservation.maidServiceFee,
-          frequencyId: reservation.frequencyId,
-          maidStartDate: reservation.maidStartDate,
-          extraFeeLines: (reservation.extraFeeLines || []).map((line: ExtraFeeLineResponse): ExtraFeeLineRequest => ({
-            extraFeeLineId: line.extraFeeLineId,
-            reservationId: line.reservationId,
-            feeDescription: line.feeDescription,
-            feeAmount: line.feeAmount,
-            feeFrequencyId: line.feeFrequencyId,
-            costCodeId: line.costCodeId
-          })),
-          notes: reservation.notes,
-          allowExtensions: reservation.allowExtensions,
-          paymentReceived: reservation.paymentReceived,
-          welcomeLetterChecked: reservation.welcomeLetterChecked,
-          welcomeLetterSent: reservation.welcomeLetterSent,
-          readyForArrival: reservation.readyForArrival,
-          code: reservation.code,
-          departureLetterChecked: reservation.departureLetterChecked,
-          departureLetterSent: reservation.departureLetterSent,
-          currentInvoiceNo: reservation.currentInvoiceNo,
-          creditDue: (reservation.creditDue || 0) + this.creditAmount, // Add the credit amount to existing creditDue
-          isActive: reservation.isActive
-        };
 
-        // Update the reservation
-        this.reservationService.updateReservation(reservationRequest).pipe(take(1)).subscribe({
-          next: () => {
-            // Now apply the payment to the invoice
-            const paymentRequest: InvoicePaymentRequest = {
-              costCodeId: this.data.costCodeId,
-              description: this.data.description || '',
-              amount: Math.abs(this.creditAmount), // Credit amount should be positive
-              invoices: [this.data.invoiceId] // List containing one GUID
-            };
-            
-            this.accountingService.applyPayment(paymentRequest).pipe(
-              take(1),
-              finalize(() => this.isSubmitting = false)
-            ).subscribe({
-              next: (response) => {
-                this.toastr.success(`Credit of $${this.formatter.currency(this.creditAmount)} applied`, CommonMessage.Success);
-                this.dialogRef.close({ success: true });
-              },
-              error: () => {}
-            });
-          },
-          error: () => {
-            this.isSubmitting = false;
-          }
-        });
-      },
-      error: () => {
-        this.isSubmitting = false;
-      }
-    });
+    const paymentRequest: InvoicePaymentRequest = {
+      costCodeId: this.data.costCodeId,
+      description: this.data.description || '',
+      amount: Math.abs(this.creditAmount),
+      invoices: [this.data.invoiceId]
+    };
+
+    try {
+      await this.reservationService.updateModifiedReservation(this.selectedReservation.reservationId, res => ({
+        creditDue: (res.creditDue || 0) + this.creditAmount,
+        notes: res.notes ?? null
+      }));
+      await firstValueFrom(this.accountingService.applyPayment(paymentRequest).pipe(take(1)));
+      this.toastr.success(`Credit of $${this.formatter.currency(this.creditAmount)} applied`, CommonMessage.Success);
+      this.dialogRef.close({ success: true });
+    } catch {
+    } finally {
+      this.isSubmitting = false;
+    }
   }
   
   get isFormValid(): boolean {
