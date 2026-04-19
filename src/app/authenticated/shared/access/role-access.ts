@@ -143,8 +143,7 @@ export const SUPER_USER_NAV_ITEMS: NavItemDefinition[] = [
 ];
 
 export const SERVICE_PROVIDERS_NAV_ITEMS: NavItemDefinition[] = [
-  { icon: 'dashboard', displayName: 'Dashboard', url: ROUTER_TOKEN.DashboardService, ...openToAllExceptSuperAdmin },
-  { icon: 'build', displayName: 'Maintenance', url: ROUTER_TOKEN.MaintenanceList, ...openToAllExceptSuperAdmin }
+  { icon: 'dashboard', displayName: 'Dashboard', url: ROUTER_TOKEN.DashboardService, ...openToAllExceptSuperAdmin }
 ];
 
 export const NAV_ITEMS_BY_GROUP = {
@@ -329,7 +328,7 @@ export function getVisibleNavItems(userGroups: UserGroupInput): NavItemDefinitio
 
 export function getAuthorizedFallbackUrl(userGroups: UserGroupInput): string {
   if (isInspectorOnlyUser(userGroups)) {
-    return `/${ROUTER_TOKEN.Auth}/${ROUTER_TOKEN.MaintenanceList}`;
+    return `/${ROUTER_TOKEN.Auth}/${ROUTER_TOKEN.DashboardService}`;
   }
   const firstVisibleItem = getVisibleNavItems(userGroups)[0];
   const token = firstVisibleItem?.url || ROUTER_TOKEN.Dashboard;

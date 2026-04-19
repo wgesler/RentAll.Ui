@@ -1,4 +1,5 @@
 import { Component, OnDestroy, OnInit } from '@angular/core';
+import { Router } from '@angular/router';
 import { BehaviorSubject, Observable, Subscription, filter, finalize, map, take } from 'rxjs';
 import { MaterialModule } from '../../../material.module';
 import { AuthService } from '../../../services/auth.service';
@@ -19,6 +20,7 @@ import { PropertyMaintenanceBase } from '../../shared/base-classes/property-main
 import { ReservationPropertyMaintenance } from '../../shared/models/mixed-models';
 import { ServiceType, getServiceType } from '../../shared/models/mixed-enums';
 import { FormatterService } from '../../../services/formatter-service';
+import { RouterUrl } from '../../../app.routes';
 
 @Component({
   standalone: true,
@@ -115,7 +117,8 @@ export class DashboardServiceComponent extends PropertyMaintenanceBase implement
     utilityService: UtilityService,
     officeService: OfficeService,
     globalSelectionService: GlobalSelectionService,
-    private formatterService: FormatterService
+    private formatterService: FormatterService,
+    private router: Router
   ) {
     super(authService, reservationService, mixedMappingService, mappingService, propertyService, maintenanceService, utilityService, officeService, globalSelectionService);
   }
@@ -378,6 +381,13 @@ export class DashboardServiceComponent extends PropertyMaintenanceBase implement
         this.profilePictureUrl = null;
       }
     });
+  }
+
+  goToMaintenanceInspection(event: ReservationPropertyMaintenance): void {
+    if (!event?.propertyId?.trim()) {
+      return;
+    }
+    this.router.navigateByUrl(`${RouterUrl.replaceTokens(RouterUrl.Maintenance, [event.propertyId])}?tab=0`);
   }
   //#endregion
 

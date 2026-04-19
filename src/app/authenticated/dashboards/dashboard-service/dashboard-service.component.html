@@ -235,8 +235,9 @@
                       [hasActionsRowClick]="false"
                       [hasActionsEdit]="false"
                       [hasActionsDelete]="false"
-                      [hasPropertyCodeLink]="false"
-                      [itemsPerPage]="50"/>
+                      [hasPropertyCodeLink]="true"
+                      [itemsPerPage]="50"
+                      (propertyCodeClickEvent)="goToMaintenanceInspection($event)"/>
                   </div>
                 </mat-expansion-panel>
               }
