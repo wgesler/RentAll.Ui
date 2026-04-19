@@ -125,6 +125,22 @@ export interface PropertyRequest {
   amenities?: string | null;
   description?: string | null;
   notes?: string | null;
+
+  // Online Service Providers
+  onCleanerUserId?: string | null;
+  onCleaningDate?: CalendarDateString | null;
+  onCarpetUserId?: string | null;
+  onCarpetDate?: CalendarDateString | null;
+  onInspectorUserId?: string | null;
+  onInspectingDate?: CalendarDateString | null;
+
+  // Offline Service Providers
+  offCleanerUserId?: string | null;
+  offCleaningDate?: CalendarDateString | null;
+  offCarpetUserId?: string | null;
+  offCarpetDate?: CalendarDateString | null;
+  offInspectorUserId?: string | null;
+  offInspectingDate?: CalendarDateString | null;
 }
 export interface PropertyResponse {
   propertyId: string;
@@ -251,6 +267,22 @@ export interface PropertyResponse {
   amenities?: string | null;
   description?: string | null;
   notes?: string | null;
+
+  // Online Service Providers
+  onCleanerUserId?: string | null;
+  onCleaningDate?: CalendarDateString | null;
+  onCarpetUserId?: string | null;
+  onCarpetDate?: CalendarDateString | null;
+  onInspectorUserId?: string | null;
+  onInspectingDate?: CalendarDateString | null;
+
+  // Offline Service Providers
+  offCleanerUserId?: string | null;
+  offCleaningDate?: CalendarDateString | null;
+  offCarpetUserId?: string | null;
+  offCarpetDate?: CalendarDateString | null;
+  offInspectorUserId?: string | null;
+  offInspectingDate?: CalendarDateString | null;
 }
 export interface PropertyListResponse{
   propertyId: string;
@@ -281,6 +313,18 @@ export interface PropertyListResponse{
   bedroomId2: number;
   bedroomId3: number;
   bedroomId4: number;
+  onCleanerUserId?: string | null;
+  onCleaningDate?: CalendarDateString | null;
+  onCarpetUserId?: string | null;
+  onCarpetDate?: CalendarDateString | null;
+  onInspectorUserId?: string | null;
+  onInspectingDate?: CalendarDateString | null;
+  offCleanerUserId?: string | null;
+  offCleaningDate?: CalendarDateString | null;
+  offCarpetUserId?: string | null;
+  offCarpetDate?: CalendarDateString | null;
+  offInspectorUserId?: string | null;
+  offInspectingDate?: CalendarDateString | null;
   isActive: boolean;
  }
 export interface PropertyListDisplay {
@@ -315,6 +359,19 @@ export interface PropertyListDisplay {
   bed2Text: PropertyBedDropdownCell;
   bed3Text: PropertyBedDropdownCell;
   bed4Text: PropertyBedDropdownCell;
+  
+  onCleanerUserId?: string | null;
+  onCleaningDate?: CalendarDateString | null;
+  onCarpetUserId?: string | null;
+  onCarpetDate?: CalendarDateString | null;
+  onInspectorUserId?: string | null;
+  onInspectingDate?: CalendarDateString | null;
+  offCleanerUserId?: string | null;
+  offCleaningDate?: CalendarDateString | null;
+  offCarpetUserId?: string | null;
+  offCarpetDate?: CalendarDateString | null;
+  offInspectorUserId?: string | null;
+  offInspectingDate?: CalendarDateString | null;
   isActive: boolean;
 }
 

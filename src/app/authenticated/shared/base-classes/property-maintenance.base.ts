@@ -1,4 +1,3 @@
-import { HttpErrorResponse } from '@angular/common/http';
 import { Directive, OnDestroy, OnInit } from '@angular/core';
 import { BehaviorSubject, Subscription, finalize, map, skip, switchMap, take } from 'rxjs';
 import { JwtUser } from '../../../public/login/models/jwt';
@@ -25,14 +24,18 @@ export class PropertyMaintenanceBase implements OnInit, OnDestroy {
   user: JwtUser | null = null;
   globalOfficeSubscription?: Subscription;
 
-  reservationList: ReservationListDisplay[] = [];
-  activeReservationList: ReservationListDisplay[] = [];
-  propertyList: PropertyListResponse[] = [];
-  maintenanceList: MaintenanceListResponse[] = [];
-  maintenanceByPropertyId = new Map<string, MaintenanceListResponse>();
-  propertyMaintenanceList: PropertyMaintenance[] = [];
-  reservationPropertyMaintenanceList: ReservationPropertyMaintenance[] = [];
+  // Should not be used by derived classes. 
+  private reservationList: ReservationListDisplay[] = [];
+  private activeReservationList: ReservationListDisplay[] = [];
+  private propertyList: PropertyListResponse[] = [];
+  private maintenanceList: MaintenanceListResponse[] = [];
+  private maintenanceByPropertyId = new Map<string, MaintenanceListResponse>();
+  private propertyMaintenanceList: PropertyMaintenance[] = [];
+  private reservationPropertyMaintenanceList: ReservationPropertyMaintenance[] = [];
 
+  // Used by Derived classes
+  filteredPropertyMaintenanceList: PropertyMaintenance[] = [];
+  filteredReservationPropertyMaintenanceList: ReservationPropertyMaintenance[] = [];
   offlineProperties: PropertyMaintenance[] = [];
   onlineProperties: PropertyMaintenance[] = [];
   arrivalReservations: ReservationPropertyMaintenance[] = [];
@@ -84,11 +87,12 @@ export class PropertyMaintenanceBase implements OnInit, OnDestroy {
     this.loadOffices();
     this.loadActiveReservations();
     this.loadPropertyMaintenance();
+    this.loadReservationPropertyMaintenance();
 
     this.globalOfficeSubscription = this.globalSelectionService.getSelectedOfficeId$().pipe(skip(1)).subscribe(officeId => {
       this.resolveOfficeScope(officeId);
       if (this.itemsToLoad$.value.size === 0) {
-        this.recomputeDashboardData();
+        this.recomputeBackendData();
       }
     });
   }
@@ -98,8 +102,47 @@ export class PropertyMaintenanceBase implements OnInit, OnDestroy {
   }
   //#endregion
 
+  //#region Main Data Setup
+  protected getMaintenanceListResponseForPropertyId(propertyId: string, propertyIdAlt?: string): MaintenanceListResponse | null {
+    const lookupId = propertyId || propertyIdAlt || '';
+    if (!lookupId) {
+      return null;
+    }
+    return this.maintenanceByPropertyId.get(lookupId) ?? null;
+  }
+
+  protected recomputeBackendData(userId: string | null = null): void {
+    this.loadReservationPropertyMaintenance();
+    this.filteredPropertyMaintenanceList = this.filterPropertyMaintenanceListForSelectedOffice();
+    this.filteredReservationPropertyMaintenanceList = this.filterReservationPropertyMaintenanceListForSelectedOffice();
+
+    const assigneeUserId = this.utilityService.normalizeIdOrNull(userId);
+    this.offlineProperties = this.getPropertiesGoingOffline(assigneeUserId);
+    this.onlineProperties = this.getPropertiesComingOnline(assigneeUserId);
+    this.arrivalReservations = this.getReservationsWithArrivals(assigneeUserId);
+    this.departureReservations = this.getReservationsWithDepartures(assigneeUserId);
+    this.cleaningReservations = this.getReservationsWithCleanings(assigneeUserId);
+
+    this.todayArriveDepartCount = this.getArrivalsDeparturesForToday();
+    this.tomorrowArriveDepartCount = this.getArrivalsDeparturesForTomorrow();
+
+    this.recomputeVacantPropertyStats();
+
+    this.onAfterRecomputeBackendData(assigneeUserId);
+  }
+
+  protected onAfterRecomputeBackendData(assigneeUserId: string | null): void {
+    void assigneeUserId;
+  }
+
+  protected applyReservationListMappingsFromServer(displayRows: ReservationListDisplay[]): void {
+    this.reservationList = displayRows;
+    this.activeReservationList = this.reservationList.filter(r => r.isActive === true);
+  }
+  //#endregion
+
   //#region Data Loading Methods
-  loadOffices(): void {
+  private loadOffices(): void {
     this.globalSelectionService.ensureOfficeScope(this.organizationId, this.preferredOfficeId).pipe(take(1), switchMap(() => {
       this.offices = this.officeService.getAllOfficesValue() || [];
       return this.globalSelectionService.getOfficeUiState$(this.offices, { explicitOfficeId: null, requireExplicitOfficeUnset: false }).pipe(take(1));
@@ -114,15 +157,18 @@ export class PropertyMaintenanceBase implements OnInit, OnDestroy {
     });
   }
 
-  resolveOfficeScope(officeId: number | null): void {
+  protected resolveOfficeScope(officeId: number | null): void {
     this.selectedOffice = this.utilityService.resolveSelectedOfficeById(this.offices, officeId);
   }
 
-  loadActiveReservations(): void {
+  protected onOfficeChange(): void {
+    this.globalSelectionService.setSelectedOfficeId(this.selectedOffice?.officeId ?? null);
+  }
+
+  private loadActiveReservations(): void {
     this.reservationService.getReservationList().pipe(take(1), finalize(() => { this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'activeReservations'); })).subscribe({
       next: (response: ReservationListResponse[]) => {
-        this.reservationList = this.mappingService.mapReservationList(response);
-        this.activeReservationList = this.reservationList.filter(r => r.isActive === true);
+        this.applyReservationListMappingsFromServer(this.mappingService.mapReservationList(response));
       },
       error: () => {
         this.reservationList = [];
@@ -131,7 +177,7 @@ export class PropertyMaintenanceBase implements OnInit, OnDestroy {
     });
   }
 
-  loadPropertyMaintenance(): void {
+  private loadPropertyMaintenance(): void {
     this.isServiceError = false;
     this.propertyService.getActivePropertyList().pipe(take(1),
       switchMap(properties => this.maintenanceService.getMaintenanceList().pipe(take(1),
@@ -142,18 +188,26 @@ export class PropertyMaintenanceBase implements OnInit, OnDestroy {
             this.maintenanceList = mapped.maintenanceList;
             this.propertyMaintenanceList = mapped.propertyMaintenanceList;
             this.rebuildMaintenanceByPropertyIdMap();
+            this.loadReservationPropertyMaintenance();
           },
-          error: (_err: HttpErrorResponse) => {
+          error: () => {
             this.isServiceError = true;
             this.propertyList = [];
             this.maintenanceList = [];
             this.propertyMaintenanceList = [];
+            this.filteredPropertyMaintenanceList = [];
+            this.filteredReservationPropertyMaintenanceList = [];
             this.rebuildMaintenanceByPropertyIdMap();
           }
         });
   }
 
-  rebuildMaintenanceByPropertyIdMap(): void {
+  private loadReservationPropertyMaintenance(): void {
+    this.reservationPropertyMaintenanceList = this.mixedMappingService.mapReservationPropertyMaintenance(
+      this.activeReservationList, this.propertyList, this.maintenanceList);
+  }
+
+  private rebuildMaintenanceByPropertyIdMap(): void {
     this.maintenanceByPropertyId = new Map();
     for (const row of this.maintenanceList) {
       if (row?.propertyId) {
@@ -163,125 +217,31 @@ export class PropertyMaintenanceBase implements OnInit, OnDestroy {
   }
   //#endregion
 
-  //#region Main Data Setup
-  recomputeDashboardData(userId: string | null = null): void {
-    this.reservationPropertyMaintenanceList = this.mixedMappingService.mapReservationPropertyMaintenance(
-      this.activeReservationList, this.propertyList, this.maintenanceList);
-
-    const assigneeUserId = this.utilityService.normalizeIdOrNull(userId);
-    this.offlineProperties = this.getPropertiesGoingOffline(assigneeUserId);
-    this.onlineProperties = this.getPropertiesComingOnline(assigneeUserId);
-    this.arrivalReservations = this.getReservationsWithArrivals(assigneeUserId);
-    this.departureReservations = this.getReservationsWithDepartures(assigneeUserId);
-    this.cleaningReservations = this.getReservationsWithCleanings(assigneeUserId);
-
-    this.todayArriveDepartCount = this.getArrivalsDeparturesForToday();
-    this.tomorrowArriveDepartCount = this.getArrivalsDeparturesForTomorrow();
-
-    this.recomputeVacantPropertyStats();
-
-    this.onAfterRecomputeDashboardData(assigneeUserId);
-  }
-
-  recomputeVacantPropertyStats(): void {
-    if (this.propertyList.length === 0) {
-      this.rentedCount = 0;
-      this.vacantCount = 0;
-      this.propertiesByVacancy = [];
-      return;
+  //#region Getting/Filtering Methods
+  private filterPropertyMaintenanceListForSelectedOffice(): PropertyMaintenance[] {
+    const officeId = this.selectedOffice?.officeId;
+    if (officeId == null) {
+      return [...this.propertyMaintenanceList];
     }
-
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    const propertiesForScope = !this.selectedOffice
-      ? this.propertyList
-      : this.propertyList.filter(p => p.officeId === this.selectedOffice!.officeId);
-    const reservationsForScope = !this.selectedOffice
-      ? this.reservationList
-      : this.reservationList.filter(r => r.officeId === this.selectedOffice!.officeId);
-
-    const propertyIdsWithCurrentStay = new Set<string>();
-    reservationsForScope.forEach(reservation => {
-      if (!reservation.isActive || !reservation.propertyId) {
-        return;
-      }
-      const arrivalDate = this.utilityService.parseDateOnlyStringToDate(reservation.arrivalDate);
-      const departureDate = this.utilityService.parseDateOnlyStringToDate(reservation.departureDate);
-      if (!arrivalDate || !departureDate) {
-        return;
-      }
-      if (today.getTime() >= arrivalDate.getTime() && today.getTime() <= departureDate.getTime()) {
-        propertyIdsWithCurrentStay.add(reservation.propertyId);
-      }
-    });
-
-    const latestPastDepartureByProperty = new Map<string, Date>();
-    reservationsForScope.forEach(reservation => {
-      if (!reservation.propertyId) {
-        return;
-      }
-      const departureDate = this.utilityService.parseDateOnlyStringToDate(reservation.departureDate);
-      if (!departureDate || departureDate.getTime() > today.getTime()) {
-        return;
-      }
-      const existingLatestDeparture = latestPastDepartureByProperty.get(reservation.propertyId);
-      if (!existingLatestDeparture || departureDate.getTime() > existingLatestDeparture.getTime()) {
-        latestPastDepartureByProperty.set(reservation.propertyId, departureDate);
-      }
-    });
-
-    this.propertiesByVacancy = propertiesForScope
-      .filter(property => !propertyIdsWithCurrentStay.has(property.propertyId))
-      .map(property => {
-        const latestPastDeparture = latestPastDepartureByProperty.get(property.propertyId);
-        const vacancyDays = latestPastDeparture
-          ? Math.max(Math.floor((today.getTime() - latestPastDeparture.getTime()) / (1000 * 60 * 60 * 24)), 0)
-          : null;
-        const vacancyDaysDisplay: string | number = vacancyDays === null ? 'Never rented' : vacancyDays;
-        const lastDepartureDate = this.mappingService.mapVacantPropertyLastDepartureDate(latestPastDeparture ?? null);
-
-        return {
-          ...property,
-          bedroomId1: this.mappingService.readPropertyListBedroomTypeId(property, 1),
-          bedroomId2: this.mappingService.readPropertyListBedroomTypeId(property, 2),
-          bedroomId3: this.mappingService.readPropertyListBedroomTypeId(property, 3),
-          bedroomId4: this.mappingService.readPropertyListBedroomTypeId(property, 4),
-          vacancyDays,
-          vacancyDaysDisplay,
-          lastDepartureDate
-        };
-      })
-      .sort((a, b) => {
-        const aDays = a.vacancyDays;
-        const bDays = b.vacancyDays;
-
-        if (aDays === null && bDays === null) {
-          return (a.propertyCode || '').localeCompare(b.propertyCode || '');
-        }
-        if (aDays === null) {
-          return -1;
-        }
-        if (bDays === null) {
-          return 1;
-        }
-        return bDays - aDays;
-      });
-
-    this.rentedCount = propertyIdsWithCurrentStay.size;
-    this.vacantCount = this.propertiesByVacancy.length;
+    return this.propertyMaintenanceList.filter(pm => pm.officeId === officeId);
   }
 
-  protected onAfterRecomputeDashboardData(assigneeUserId: string | null): void {
+  private filterReservationPropertyMaintenanceListForSelectedOffice(): ReservationPropertyMaintenance[] {
+    const officeId = this.selectedOffice?.officeId;
+    if (officeId == null) {
+      return [...this.reservationPropertyMaintenanceList];
+    }
+    return this.reservationPropertyMaintenanceList.filter(rpm => rpm.officeId === officeId);
   }
 
-  getPropertiesGoingOffline(userId: string | null = null): PropertyMaintenance[] {
+  private getPropertiesGoingOffline(userId: string | null = null): PropertyMaintenance[] {
     const bounds = this.getInclusiveNextFifteenDayOrdinalBounds();
     if (!bounds) {
       return [];
     }
     const { lo, hi } = bounds;
     const result: PropertyMaintenance[] = [];
-    for (const pm of this.propertyMaintenanceList) {
+    for (const pm of this.filteredPropertyMaintenanceList) {
       const untilOrdinal = pm.availableUntilOrdinal;
       const inWindow = untilOrdinal !== null && untilOrdinal >= lo && untilOrdinal <= hi;
       const assigneeOk = userId === null
@@ -301,14 +261,14 @@ export class PropertyMaintenanceBase implements OnInit, OnDestroy {
     return result;
   }
 
-  getPropertiesComingOnline(userId: string | null = null): PropertyMaintenance[] {
+  private getPropertiesComingOnline(userId: string | null = null): PropertyMaintenance[] {
     const bounds = this.getInclusiveNextFifteenDayOrdinalBounds();
     if (!bounds) {
       return [];
     }
     const { lo, hi } = bounds;
     const result: PropertyMaintenance[] = [];
-    for (const pm of this.propertyMaintenanceList) {
+    for (const pm of this.filteredPropertyMaintenanceList) {
       const fromOrdinal = pm.availableFromOrdinal;
       if (fromOrdinal !== null && fromOrdinal >= lo && fromOrdinal <= hi
         && (userId === null
@@ -328,14 +288,14 @@ export class PropertyMaintenanceBase implements OnInit, OnDestroy {
     return result;
   }
 
-  getReservationsWithArrivals(userId: string | null = null): ReservationPropertyMaintenance[] {
+  private getReservationsWithArrivals(userId: string | null = null): ReservationPropertyMaintenance[] {
     const bounds = this.getInclusiveNextFifteenDayOrdinalBounds();
     if (!bounds) {
       return [];
     }
     const { lo, hi } = bounds;
     const result: ReservationPropertyMaintenance[] = [];
-    for (const rpm of this.reservationPropertyMaintenanceList) {
+    for (const rpm of this.filteredReservationPropertyMaintenanceList) {
       const arrivalOrdinal = rpm.arrivalDateOrdinal;
       const inLo = arrivalOrdinal !== null && arrivalOrdinal >= lo;
       const inHi = arrivalOrdinal !== null && arrivalOrdinal <= hi;
@@ -356,14 +316,14 @@ export class PropertyMaintenanceBase implements OnInit, OnDestroy {
     return result;
   }
 
-  getReservationsWithDepartures(userId: string | null = null): ReservationPropertyMaintenance[] {
+  private getReservationsWithDepartures(userId: string | null = null): ReservationPropertyMaintenance[] {
     const bounds = this.getInclusiveNextFifteenDayOrdinalBounds();
     if (!bounds) {
       return [];
     }
     const { lo, hi } = bounds;
     const result: ReservationPropertyMaintenance[] = [];
-    for (const rpm of this.reservationPropertyMaintenanceList) {
+    for (const rpm of this.filteredReservationPropertyMaintenanceList) {
       const departureOrdinal = rpm.departureDateOrdinal;
       if (departureOrdinal !== null && departureOrdinal >= lo && departureOrdinal <= hi
         && (userId === null
@@ -383,7 +343,7 @@ export class PropertyMaintenanceBase implements OnInit, OnDestroy {
     return result;
   }
 
-  getReservationsWithCleanings(userId: string | null = null): ReservationPropertyMaintenance[] {
+  private getReservationsWithCleanings(userId: string | null = null): ReservationPropertyMaintenance[] {
     const bounds = this.getInclusiveNextFifteenDayOrdinalBounds();
     if (!bounds) {
       return [];
@@ -476,7 +436,7 @@ export class PropertyMaintenanceBase implements OnInit, OnDestroy {
     };
 
     const result: ReservationPropertyMaintenance[] = [];
-    for (const row of this.reservationPropertyMaintenanceList) {
+    for (const row of this.filteredReservationPropertyMaintenanceList) {
       const frequencyId = Number(row.frequencyId);
       const safeFreq = Number.isFinite(frequencyId) ? frequencyId : 0;
       const cleaningOccurrences = buildMaidCleaningOccurrencesUpToHi(row.maidStartDate, safeFreq, hi);
@@ -504,8 +464,8 @@ export class PropertyMaintenanceBase implements OnInit, OnDestroy {
       }
       result.push({
         ...row,
-        eventType: ServiceType.Scheduled,
-        eventTypeDisplay: getServiceType(ServiceType.Scheduled),
+        eventType: ServiceType.MaidService,
+        eventTypeDisplay: getServiceType(ServiceType.MaidService),
         eventDate: chosen.api,
         eventDateSortTime: chosen.ordinal
       });
@@ -513,7 +473,95 @@ export class PropertyMaintenanceBase implements OnInit, OnDestroy {
     return result;
   }
 
-  getInclusiveNextFifteenDayOrdinalBounds(): { lo: number; hi: number } | null {
+  private recomputeVacantPropertyStats(): void {
+    if (this.propertyList.length === 0) {
+      this.rentedCount = 0;
+      this.vacantCount = 0;
+      this.propertiesByVacancy = [];
+      return;
+    }
+
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const propertiesForScope = !this.selectedOffice
+      ? this.propertyList
+      : this.propertyList.filter(p => p.officeId === this.selectedOffice!.officeId);
+    const reservationsForScope = !this.selectedOffice
+      ? this.reservationList
+      : this.reservationList.filter(r => r.officeId === this.selectedOffice!.officeId);
+
+    const propertyIdsWithCurrentStay = new Set<string>();
+    reservationsForScope.forEach(reservation => {
+      if (!reservation.isActive || !reservation.propertyId) {
+        return;
+      }
+      const arrivalDate = this.utilityService.parseDateOnlyStringToDate(reservation.arrivalDate);
+      const departureDate = this.utilityService.parseDateOnlyStringToDate(reservation.departureDate);
+      if (!arrivalDate || !departureDate) {
+        return;
+      }
+      if (today.getTime() >= arrivalDate.getTime() && today.getTime() <= departureDate.getTime()) {
+        propertyIdsWithCurrentStay.add(reservation.propertyId);
+      }
+    });
+
+    const latestPastDepartureByProperty = new Map<string, Date>();
+    reservationsForScope.forEach(reservation => {
+      if (!reservation.propertyId) {
+        return;
+      }
+      const departureDate = this.utilityService.parseDateOnlyStringToDate(reservation.departureDate);
+      if (!departureDate || departureDate.getTime() > today.getTime()) {
+        return;
+      }
+      const existingLatestDeparture = latestPastDepartureByProperty.get(reservation.propertyId);
+      if (!existingLatestDeparture || departureDate.getTime() > existingLatestDeparture.getTime()) {
+        latestPastDepartureByProperty.set(reservation.propertyId, departureDate);
+      }
+    });
+
+    this.propertiesByVacancy = propertiesForScope
+      .filter(property => !propertyIdsWithCurrentStay.has(property.propertyId))
+      .map(property => {
+        const latestPastDeparture = latestPastDepartureByProperty.get(property.propertyId);
+        const vacancyDays = latestPastDeparture
+          ? Math.max(Math.floor((today.getTime() - latestPastDeparture.getTime()) / (1000 * 60 * 60 * 24)), 0)
+          : null;
+        const vacancyDaysDisplay: string | number = vacancyDays === null ? 'Never rented' : vacancyDays;
+        const lastDepartureDate = this.mappingService.mapVacantPropertyLastDepartureDate(latestPastDeparture ?? null);
+
+        return {
+          ...property,
+          bedroomId1: this.mappingService.readPropertyListBedroomTypeId(property, 1),
+          bedroomId2: this.mappingService.readPropertyListBedroomTypeId(property, 2),
+          bedroomId3: this.mappingService.readPropertyListBedroomTypeId(property, 3),
+          bedroomId4: this.mappingService.readPropertyListBedroomTypeId(property, 4),
+          vacancyDays,
+          vacancyDaysDisplay,
+          lastDepartureDate
+        };
+      })
+      .sort((a, b) => {
+        const aDays = a.vacancyDays;
+        const bDays = b.vacancyDays;
+
+        if (aDays === null && bDays === null) {
+          return (a.propertyCode || '').localeCompare(b.propertyCode || '');
+        }
+        if (aDays === null) {
+          return -1;
+        }
+        if (bDays === null) {
+          return 1;
+        }
+        return bDays - aDays;
+      });
+
+    this.rentedCount = propertyIdsWithCurrentStay.size;
+    this.vacantCount = this.propertiesByVacancy.length;
+  }
+
+  private getInclusiveNextFifteenDayOrdinalBounds(): { lo: number; hi: number } | null {
     const hi = this.utilityService.parseCalendarDateToOrdinal(this.utilityService.formatDateOnlyForApi(this.fifteenDaysAtMidnight));
     if (hi === null) {
       return null;
@@ -523,7 +571,7 @@ export class PropertyMaintenanceBase implements OnInit, OnDestroy {
   //#endregion
 
   //#region Titlebar Methods
-  initializeDateBoundaries(): void {
+  private initializeDateBoundaries(): void {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
     this.todayAtMidnight = today;
@@ -533,12 +581,12 @@ export class PropertyMaintenanceBase implements OnInit, OnDestroy {
     this.fifteenDaysAtMidnight = fifteen;
   }
 
-  cacheTodayCalendar(): void {
+  private cacheTodayCalendar(): void {
     this.todayCalendarDate = this.utilityService.formatDateOnlyForApi(this.todayAtMidnight);
     this.todayDayOrdinal = this.utilityService.parseCalendarDateToOrdinal(this.todayCalendarDate)!;
   }
 
-  cacheTomorrowCalendar(): void {
+  private cacheTomorrowCalendar(): void {
     this.tomorrowAtMidnight = new Date(this.todayAtMidnight);
     this.tomorrowAtMidnight.setDate(this.tomorrowAtMidnight.getDate() + 1);
     this.tomorrowAtMidnight.setHours(0, 0, 0, 0);
@@ -548,7 +596,7 @@ export class PropertyMaintenanceBase implements OnInit, OnDestroy {
   //#endregion
 
   //#region Get Today/Tomorrow Methods
-  getArrivalsDeparturesForToday(): number {
+  protected getArrivalsDeparturesForToday(): number {
     const ids = new Set<string>();
     for (const r of this.arrivalReservations) {
       if (r.arrivalDateOrdinal === this.todayDayOrdinal) {
@@ -563,7 +611,7 @@ export class PropertyMaintenanceBase implements OnInit, OnDestroy {
     return ids.size;
   }
 
-  getArrivalsDeparturesForTomorrow(): number {
+  protected getArrivalsDeparturesForTomorrow(): number {
     const ids = new Set<string>();
     for (const r of this.arrivalReservations) {
       if (r.arrivalDateOrdinal === this.tomorrowDayOrdinal) {
@@ -578,7 +626,7 @@ export class PropertyMaintenanceBase implements OnInit, OnDestroy {
     return ids.size;
   }
 
-  getOnlineOfflineTodayCount(): number {
+  protected getOnlineOfflineTodayCount(): number {
     const ids = new Set<string>();
     for (const p of this.offlineProperties) {
       if (p.availableUntilOrdinal === this.todayDayOrdinal) {
@@ -593,7 +641,7 @@ export class PropertyMaintenanceBase implements OnInit, OnDestroy {
     return ids.size;
   }
 
-  getOnlineOfflineTomorrowCount(): number {
+  protected getOnlineOfflineTomorrowCount(): number {
     const ids = new Set<string>();
     for (const p of this.offlineProperties) {
       if (p.availableUntilOrdinal === this.tomorrowDayOrdinal) {

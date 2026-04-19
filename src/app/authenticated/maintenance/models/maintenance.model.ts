@@ -7,12 +7,6 @@ export interface MaintenanceRequest {
   officeName: string;
   propertyId: string;
   inspectionCheckList: string;
-  cleanerUserId?: string | null;
-  cleaningDate?: CalendarDateString | null;
-  inspectorUserId?: string | null;
-  inspectingDate?: CalendarDateString | null;
-  carpetUserId?: string | null;
-  carpetDate?: CalendarDateString | null;
   notes?: string | null;
   isActive: boolean;
 }
@@ -25,12 +19,6 @@ export interface MaintenanceResponse {
   propertyId: string;
   propertyCode: string;
   inspectionCheckList: string;
-  cleanerUserId?: string | null;
-  cleaningDate?: CalendarDateString | null;
-  inspectorUserId?: string | null;
-  inspectingDate?: CalendarDateString | null;
-  carpetUserId?: string | null;
-  carpetDate?: CalendarDateString | null;
   notes?: string | null;
   isActive: boolean;
 }
@@ -43,13 +31,6 @@ export interface MaintenanceListResponse {
   propertyId: string;
   propertyCode: string;
   propertyAddress: string;
-  inspectionCheckList: string;
-  cleanerUserId?: string | null;
-  cleaningDate?: CalendarDateString | null;
-  inspectorUserId?: string | null;
-  inspectingDate?: CalendarDateString | null;  
-  carpetUserId?: string | null;
-  carpetDate?: CalendarDateString | null;
   bedroomId1: number;
   bedroomId2: number;
   bedroomId3: number;

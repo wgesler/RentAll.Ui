@@ -4,9 +4,7 @@ export enum ServiceType {
   Offline = 1,
   Arrival = 2,
   Departure = 3,
-  Scheduled = 4,
-  ScheduledCarpet = 5,
-  ScheduledInspection = 6
+  MaidService = 4
 }
 
 export function getServiceType(ServiceTypeId: number | undefined | null): string {
@@ -19,9 +17,7 @@ export function getServiceType(ServiceTypeId: number | undefined | null): string
     [ServiceType.Offline]: 'Offline',
     [ServiceType.Arrival]: 'Arrival',
     [ServiceType.Departure]: 'Departure',
-    [ServiceType.Scheduled]: 'Scheduled',
-    [ServiceType.ScheduledCarpet]: 'Scheduled (Carpet)',
-    [ServiceType.ScheduledInspection]: 'Scheduled (Inspection)'
+    [ServiceType.MaidService]: 'Maid Service'
   };
 
   return typeMap[ServiceTypeId] || '';

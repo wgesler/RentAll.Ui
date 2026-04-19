@@ -42,49 +42,195 @@
         </div>
       } @else {
         <div class="mat list-layout-standard dbg-band-main">
-          <div class="tableDiv">
-            <app-data-table
-              [class.compact-code-only-table]="isCompactView"
-              [data]="upcomingDeparturePropertiesDisplay.length > 0 ? upcomingDeparturePropertiesDisplay : propertiesDisplay"
-              [columns]="propertiesDisplayedColumns"
-              [hasColumnIndex]="true"
-              [hasFilter]="true"
-              [subheaderLabel]="upcomingDeparturePropertiesDisplay.length > 0 && remainingPropertiesDisplay.length > 0 ? 'Upcoming Departures (Next 15 Days)' : ''"
-              [hasActionsRowClick]="true"
-              [hasPropertyCodeLink]="true"
-              [hasActionsEdit]="true"
-              [hasActionsInspect]="true"
-              [itemsPerPage]="100"
-              (dropdownChangeEvent)="onDropdownChange($event)"
-              (inlineEditChangeEvent)="onInlineEditChange($event)"
-              (editEvent)="goToPropertyMaintenance($event)"
-              (inspectEvent)="goToInspection($event)"
-              (rowClickEvent)="goToInspection($event)"
-              (propertyCodeClickEvent)="goToProperty($event)"
-              (contactClickEvent)="goToContact($event)"/>
+          <div class="maintenance-list-accordion">
+            @if (arrivalMaintenanceDisplay.length > 0 || departureMaintenanceDisplay.length > 0 || comingOnlineMaintenanceDisplay.length > 0 || goingOfflineMaintenanceDisplay.length > 0 || maidMaintenanceDisplay.length > 0 || otherPropertiesMaintenanceDisplay.length > 0) {
+            <mat-accordion multi="true">
+              @if (arrivalMaintenanceDisplay.length > 0 || departureMaintenanceDisplay.length > 0) {
+              <mat-expansion-panel [(expanded)]="expandedSections.reservationTurnover">
+                <mat-expansion-panel-header>
+                  <mat-panel-title>Reservation Turnover</mat-panel-title>
+                </mat-expansion-panel-header>
+                <div class="tableDiv">
+                  @if (arrivalMaintenanceDisplay.length > 0) {
+                    <app-data-table
+                      [class.compact-code-only-table]="isCompactView"
+                      [data]="arrivalMaintenanceDisplay"
+                      [columns]="arrivalMaintenanceColumns"
+                      [subheaderLabel]="'Upcoming Arrivals (Next 15 Days)'"
+                      [hasColumnIndex]="true"
+                      [hasFilter]="false"
+                      [hasToggleTop]="false"
+                      [hasButtonTop]="false"
+                      [hasActionsRowClick]="true"
+                      [hasPropertyCodeLink]="true"
+                      [hasActionsEdit]="true"
+                      [hasActionsInspect]="true"
+                      [itemsPerPage]="100"
+                      (dropdownChangeEvent)="onDropdownChange($event)"
+                      (inlineEditChangeEvent)="handleMaintenanceInlineDateChange($event)"
+                      (editEvent)="goToPropertyMaintenance($event)"
+                      (inspectEvent)="goToInspection($event)"
+                      (rowClickEvent)="goToInspection($event)"
+                      (propertyCodeClickEvent)="goToProperty($event)"
+                      (contactClickEvent)="goToContact($event)"/>
+                  }
+                  @if (departureMaintenanceDisplay.length > 0) {
+                    @if (arrivalMaintenanceDisplay.length > 0) {
+                      <div class="maintenance-group-divider">
+                        <span class="maintenance-group-title">Upcoming Departures (Next 15 Days)</span>
+                      </div>
+                    }
+                    <app-data-table
+                      [class.compact-code-only-table]="isCompactView"
+                      [data]="departureMaintenanceDisplay"
+                      [columns]="departureMaintenanceColumns"
+                      [subheaderLabel]="arrivalMaintenanceDisplay.length > 0 ? '' : 'Upcoming Departures (Next 15 Days)'"
+                      [hasColumnIndex]="true"
+                      [hasFilter]="false"
+                      [hasToggleTop]="false"
+                      [hasButtonTop]="false"
+                      [hasActionsRowClick]="true"
+                      [hasPropertyCodeLink]="true"
+                      [hasActionsEdit]="true"
+                      [hasActionsInspect]="true"
+                      [itemsPerPage]="100"
+                      (dropdownChangeEvent)="onDropdownChange($event)"
+                      (inlineEditChangeEvent)="handleMaintenanceInlineDateChange($event)"
+                      (editEvent)="goToPropertyMaintenance($event)"
+                      (inspectEvent)="goToInspection($event)"
+                      (rowClickEvent)="goToInspection($event)"
+                      (propertyCodeClickEvent)="goToProperty($event)"
+                      (contactClickEvent)="goToContact($event)"/>
+                  }
+                </div>
+              </mat-expansion-panel>
+              }
 
-            @if (upcomingDeparturePropertiesDisplay.length > 0 && remainingPropertiesDisplay.length > 0) {
-              <div class="maintenance-list-group-divider">
-                <span class="maintenance-list-group-title">Other Properties</span>
-              </div>
-              <app-data-table
-                [class.compact-code-only-table]="isCompactView"
-                [data]="remainingPropertiesDisplay"
-                [columns]="propertiesDisplayedColumns"
-                [hasColumnIndex]="true"
-                [hasFilter]="false"
-                [hasActionsRowClick]="true"
-                [hasPropertyCodeLink]="true"
-                [hasActionsEdit]="true"
-                [hasActionsInspect]="true"
-                [itemsPerPage]="100"
-                (dropdownChangeEvent)="onDropdownChange($event)"
-                (inlineEditChangeEvent)="onInlineEditChange($event)"
-                (editEvent)="goToPropertyMaintenance($event)"
-                (inspectEvent)="goToInspection($event)"
-                (rowClickEvent)="goToInspection($event)"
-                (propertyCodeClickEvent)="goToProperty($event)"
-                (contactClickEvent)="goToContact($event)"/>
+              @if (comingOnlineMaintenanceDisplay.length > 0 || goingOfflineMaintenanceDisplay.length > 0) {
+              <mat-expansion-panel [(expanded)]="expandedSections.propertyTurnover">
+                <mat-expansion-panel-header>
+                  <mat-panel-title>Property Turnover</mat-panel-title>
+                </mat-expansion-panel-header>
+                <div class="tableDiv">
+                  @if (comingOnlineMaintenanceDisplay.length > 0) {
+                    <app-data-table
+                      [class.compact-code-only-table]="isCompactView"
+                      [data]="comingOnlineMaintenanceDisplay"
+                      [columns]="comingOnlineMaintenanceColumns"
+                      [subheaderLabel]="'Coming Online (Next 15 Days)'"
+                      [hasColumnIndex]="true"
+                      [hasFilter]="false"
+                      [hasToggleTop]="false"
+                      [hasButtonTop]="false"
+                      [hasActionsRowClick]="true"
+                      [hasPropertyCodeLink]="true"
+                      [hasActionsEdit]="true"
+                      [hasActionsInspect]="true"
+                      [itemsPerPage]="100"
+                      (dropdownChangeEvent)="onDropdownChange($event)"
+                      (inlineEditChangeEvent)="handleMaintenanceInlineDateChange($event)"
+                      (editEvent)="goToPropertyMaintenance($event)"
+                      (inspectEvent)="goToInspection($event)"
+                      (rowClickEvent)="goToInspection($event)"
+                      (propertyCodeClickEvent)="goToProperty($event)"
+                      (contactClickEvent)="goToContact($event)"/>
+                  }
+                  @if (goingOfflineMaintenanceDisplay.length > 0) {
+                    @if (comingOnlineMaintenanceDisplay.length > 0) {
+                      <div class="maintenance-group-divider">
+                        <span class="maintenance-group-title">Going Offline (Next 15 Days)</span>
+                      </div>
+                    }
+                    <app-data-table
+                      [class.compact-code-only-table]="isCompactView"
+                      [data]="goingOfflineMaintenanceDisplay"
+                      [columns]="goingOfflineMaintenanceColumns"
+                      [subheaderLabel]="comingOnlineMaintenanceDisplay.length > 0 ? '' : 'Going Offline (Next 15 Days)'"
+                      [hasColumnIndex]="true"
+                      [hasFilter]="false"
+                      [hasToggleTop]="false"
+                      [hasButtonTop]="false"
+                      [hasActionsRowClick]="true"
+                      [hasPropertyCodeLink]="true"
+                      [hasActionsEdit]="true"
+                      [hasActionsInspect]="true"
+                      [itemsPerPage]="100"
+                      (dropdownChangeEvent)="onDropdownChange($event)"
+                      (inlineEditChangeEvent)="handleMaintenanceInlineDateChange($event)"
+                      (editEvent)="goToPropertyMaintenance($event)"
+                      (inspectEvent)="goToInspection($event)"
+                      (rowClickEvent)="goToInspection($event)"
+                      (propertyCodeClickEvent)="goToProperty($event)"
+                      (contactClickEvent)="goToContact($event)"/>
+                  }
+                </div>
+              </mat-expansion-panel>
+              }
+
+              @if (maidMaintenanceDisplay.length > 0) {
+              <mat-expansion-panel [(expanded)]="expandedSections.maidService">
+                <mat-expansion-panel-header>
+                  <mat-panel-title>Maid Service</mat-panel-title>
+                </mat-expansion-panel-header>
+                <div class="tableDiv">
+                  <app-data-table
+                    [class.compact-code-only-table]="isCompactView"
+                    [data]="maidMaintenanceDisplay"
+                    [columns]="maidMaintenanceColumns"
+                    [subheaderLabel]="'Maid Service (Next 15 Days)'"
+                    [hasColumnIndex]="true"
+                    [hasFilter]="false"
+                    [hasToggleTop]="false"
+                    [hasButtonTop]="false"
+                    [hasActionsRowClick]="true"
+                    [hasPropertyCodeLink]="true"
+                    [hasActionsEdit]="true"
+                    [hasActionsInspect]="true"
+                    [itemsPerPage]="100"
+                    (dropdownChangeEvent)="onDropdownChange($event)"
+                    (inlineEditChangeEvent)="handleMaintenanceInlineDateChange($event)"
+                    (editEvent)="goToPropertyMaintenance($event)"
+                    (inspectEvent)="goToInspection($event)"
+                    (rowClickEvent)="goToInspection($event)"
+                    (propertyCodeClickEvent)="goToProperty($event)"
+                    (contactClickEvent)="goToContact($event)"/>
+                </div>
+              </mat-expansion-panel>
+              }
+
+              @if (otherPropertiesMaintenanceDisplay.length > 0) {
+              <mat-expansion-panel [(expanded)]="expandedSections.otherProperties">
+                <mat-expansion-panel-header>
+                  <mat-panel-title>Other Properties</mat-panel-title>
+                </mat-expansion-panel-header>
+                <div class="tableDiv">
+                  <app-data-table
+                    [class.compact-code-only-table]="isCompactView"
+                    [data]="otherPropertiesMaintenanceDisplay"
+                    [columns]="otherPropertiesMaintenanceColumns"
+                    [subheaderLabel]="'Other Properties'"
+                    [hasColumnIndex]="true"
+                    [hasFilter]="false"
+                    [hasToggleTop]="false"
+                    [hasButtonTop]="false"
+                    [hasActionsRowClick]="true"
+                    [hasPropertyCodeLink]="true"
+                    [hasActionsEdit]="true"
+                    [hasActionsInspect]="true"
+                    [itemsPerPage]="100"
+                    (dropdownChangeEvent)="onDropdownChange($event)"
+                    (inlineEditChangeEvent)="handleMaintenanceInlineDateChange($event)"
+                    (editEvent)="goToPropertyMaintenance($event)"
+                    (inspectEvent)="goToInspection($event)"
+                    (rowClickEvent)="goToInspection($event)"
+                    (propertyCodeClickEvent)="goToProperty($event)"
+                    (contactClickEvent)="goToContact($event)"/>
+                </div>
+              </mat-expansion-panel>
+              }
+            </mat-accordion>
+            } @else {
+              <p class="p-6 text-center text-gray-600">No properties to show for the current scope.</p>
             }
           </div>
         </div>

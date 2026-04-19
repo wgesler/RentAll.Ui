@@ -1,7 +1,8 @@
 import { HttpClient } from '@angular/common/http';
 import { Injectable } from '@angular/core';
-import { Observable } from 'rxjs';
+import { Observable, firstValueFrom } from 'rxjs';
 import { ConfigService } from '../../../services/config.service';
+import { MappingService } from '../../../services/mapping.service';
 import { MaintenanceListResponse, MaintenanceRequest, MaintenanceResponse } from '../models/maintenance.model';
 
 @Injectable({
@@ -14,7 +15,8 @@ export class MaintenanceService {
 
   constructor(
     http: HttpClient,
-    configService: ConfigService
+    configService: ConfigService,
+    private mappingService: MappingService
   ) {
     this.http = http;
     this.configService = configService;
@@ -39,6 +41,15 @@ export class MaintenanceService {
 
   updateMaintenance(request: MaintenanceRequest): Observable<MaintenanceResponse> {
     return this.http.put<MaintenanceResponse>(this.controller, request);
+  }
+
+  async updateModifiedMaintenance(
+    maintenanceId: string,
+    overrides: Partial<MaintenanceRequest> | ((maintenance: MaintenanceResponse) => Partial<MaintenanceRequest>)
+  ): Promise<MaintenanceResponse> {
+    const maintenance = await firstValueFrom(this.getMaintenanceByGuid(maintenanceId));
+    const patch = typeof overrides === 'function' ? overrides(maintenance) : overrides;
+    return firstValueFrom(this.updateMaintenance(this.mappingService.mapMaintenanceResponseToRequest(maintenance, patch)));
   }
 
   deleteMaintenance(maintenanceId: string): Observable<void> {

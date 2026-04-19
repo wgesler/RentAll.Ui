@@ -1,6 +1,6 @@
 import { Injectable } from '@angular/core';
 import { MaintenanceListResponse, MaintenanceListStatusDropdownCell, MaintenanceListUserDropdownCell } from '../authenticated/maintenance/models/maintenance.model';
-import { PropertyListResponse } from '../authenticated/properties/models/property.model';
+import { PropertyListDisplay, PropertyListResponse } from '../authenticated/properties/models/property.model';
 import { ReservationListDisplay, ReservationListResponse } from '../authenticated/reservations/models/reservation-model';
 import {
   DashboardPropertyTurnoverRow,
@@ -10,10 +10,8 @@ import {
   MaintenanceListLoadResponse,
   MaintenanceListMappingContext,
   PropertyMaintenance,
-  ReservationPropertyMaintenance,
-  ReservationPropertyMaintenanceDisplayList
+  ReservationPropertyMaintenance
 } from '../authenticated/shared/models/mixed-models';
-import { ServiceType, getServiceType } from '../authenticated/shared/models/mixed-enums';
 import { UserResponse } from '../authenticated/users/models/user.model';
 import { FormatterService } from './formatter-service';
 import { MappingService } from './mapping.service';
@@ -206,35 +204,6 @@ export class MixedMappingService {
 
     const rows = propertyRows.map((property): MaintenanceListDisplay => {
       const maintenanceRow = maintenanceByPropertyId.get(property.propertyId);
-      const isDateMissing = (dateValue: string | null | undefined): boolean =>
-        !dateValue || String(dateValue).trim() === '';
-
-      const isDateOlderThanYears = (dateValue: string | null | undefined, years: number): boolean => {
-        if (isDateMissing(dateValue)) {
-          return false;
-        }
-        const parsedDate = this.utilityService.parseDateOnlyStringToDate(String(dateValue));
-        if (!parsedDate) {
-          return true;
-        }
-        const threshold = new Date();
-        threshold.setFullYear(threshold.getFullYear() - years);
-        return parsedDate < threshold;
-      };
-
-      const isDateOlderThanMonths = (dateValue: string | null | undefined, months: number): boolean => {
-        if (isDateMissing(dateValue)) {
-          return false;
-        }
-        const parsedDate = this.utilityService.parseDateOnlyStringToDate(String(dateValue));
-        if (!parsedDate) {
-          return true;
-        }
-        const threshold = new Date();
-        threshold.setMonth(threshold.getMonth() - months);
-        return parsedDate <= threshold;
-      };
-
       const reservationRow = this.getMaintenanceListCurrentReservationFields(property.propertyId, currentReservationByPropertyId);
       const cleanerId = maintenanceRow?.cleanerUserId ?? null;
       const carpetId = maintenanceRow?.carpetUserId ?? null;
@@ -242,6 +211,7 @@ export class MixedMappingService {
 
       return {
         ...property,
+        maintenanceId: maintenanceRow?.maintenanceId,
         propertyAddress: property.shortAddress ?? '',
         cleanerUserId: cleanerId,
         carpetUserId: carpetId,
@@ -295,6 +265,69 @@ export class MixedMappingService {
       loadResponse.maintenanceList || [],
       context
     );
+  }
+
+  mapMaintenanceListDisplayFromMixedTurnoverRow(params: {
+    mixedRow: PropertyMaintenance;
+    propertyRow: PropertyListDisplay & { propertyStatusText: string; propertyStatusDropdown: { value: string; isOverridable: boolean; toString: () => string } };
+    maintenanceRecord: MaintenanceListResponse | null | undefined;
+    context: MaintenanceListMappingContext;
+    eventDateDisplay: string;
+    eventDateSortTime: number;
+    hasPets: boolean;
+  }): MaintenanceListDisplay {
+    const { mixedRow, propertyRow, maintenanceRecord, context, eventDateDisplay, eventDateSortTime, hasPets } = params;
+    const {
+      housekeepingUsers,
+      carpetUsers,
+      inspectorUsers,
+      housekeepingById,
+      carpetById,
+      inspectorById
+    } = context;
+
+    const cleanerId = mixedRow.cleanerUserId ?? null;
+    const carpetId = mixedRow.carpetUserId ?? null;
+    const inspectorId = mixedRow.inspectorUserId ?? null;
+    const reservationMaidUserId =
+      'maidUserId' in mixedRow
+        ? this.utilityService.normalizeIdOrNull((mixedRow as ReservationPropertyMaintenance).maidUserId)
+        : null;
+
+    return {
+      ...propertyRow,
+      maintenanceId: maintenanceRecord?.maintenanceId,
+      propertyAddress: propertyRow.shortAddress ?? '',
+      cleanerUserId: cleanerId,
+      maidUserId: reservationMaidUserId,
+      carpetUserId: carpetId,
+      inspectorUserId: inspectorId,
+      propertyStatusDropdown: this.buildMaintenanceStatusDropdownCell(propertyRow.propertyStatusText),
+      cleaner: this.buildMaintenanceUserDropdownCell(
+        this.resolveMaintenanceUserName(cleanerId ?? '', propertyRow.officeId, housekeepingUsers, housekeepingById, ''),
+        this.getMaintenanceUserOptionsForOffice(housekeepingUsers, propertyRow.officeId, 'Clear Selection')
+      ),
+      carpet: this.buildMaintenanceUserDropdownCell(
+        this.resolveMaintenanceUserName(carpetId ?? '', propertyRow.officeId, carpetUsers, carpetById, ''),
+        this.getMaintenanceUserOptionsForOffice(carpetUsers, propertyRow.officeId, 'Clear Selection')
+      ),
+      cleaningDate: mixedRow.cleaningDateDisplay,
+      carpetDate: mixedRow.carpetDateDisplay,
+      inspector: this.buildMaintenanceUserDropdownCell(
+        this.resolveMaintenanceUserName(inspectorId ?? '', propertyRow.officeId, inspectorUsers, inspectorById, ''),
+        this.getMaintenanceUserOptionsForOffice(inspectorUsers, propertyRow.officeId, 'Clear Selection')
+      ),
+      inspectingDate: mixedRow.inspectingDateDisplay,
+      bed1Text: mixedRow.bed1Text,
+      bed2Text: mixedRow.bed2Text,
+      bed3Text: mixedRow.bed3Text,
+      bed4Text: mixedRow.bed4Text,
+      eventDate: eventDateDisplay.trim() === '' ? 'N/A' : eventDateDisplay,
+      eventDateSortTime,
+      hasPets,
+      needsMaintenance: false,
+      needsMaintenanceState: 'green'
+    };
   }
 
   getReservationData(reservations: ReservationListResponse[]): MaintenanceListCurrentReservationByPropertyId {

@@ -34,20 +34,33 @@ export interface PropertyMaintenance {
   bed3Text: PropertyBedDropdownCell;
   bed4Text: PropertyBedDropdownCell;
 
-  cleanerUserId?: string | null;
-  cleaningDate?: CalendarDateString | null;
-  cleaningDateOrdinal: number | null;
-  cleaningDateDisplay: string;
-  carpetUserId?: string | null;
-  carpetDate?: CalendarDateString | null;
-  carpetDateOrdinal: number | null;
-  carpetDateDisplay: string;
-  inspectorUserId?: string | null;
-  inspectingDate?: CalendarDateString | null;
-  inspectingDateOrdinal: number | null;
-  inspectingDateDisplay: string;
-  maintenanceNotes: string;
+  onCleanerUserId?: string | null;
+  onCleaningDate?: CalendarDateString | null;
+  onCleaningDateOrdinal: number | null;
+  onCleaningDateDisplay: string;
+  onCarpetUserId?: string | null;
+  onCarpetDate?: CalendarDateString | null;
+  onCarpetDateOrdinal: number | null;
+  onCarpetDateDisplay: string;
+  onInspectorUserId?: string | null;
+  onInspectingDate?: CalendarDateString | null;
+  onInspectingDateOrdinal: number | null;
+  onInspectingDateDisplay: string;
 
+  offCleanerUserId?: string | null;
+  offCleaningDate?: CalendarDateString | null;
+  offCleaningDateOrdinal: number | null;
+  offCleaningDateDisplay: string;
+  offCarpetUserId?: string | null;
+  offCarpetDate?: CalendarDateString | null;
+  offCarpetDateOrdinal: number | null;
+  offCarpetDateDisplay: string;
+  offInspectorUserId?: string | null;
+  offInspectingDate?: CalendarDateString | null;
+  offInspectingDateOrdinal: number | null;
+  offInspectingDateDisplay: string;
+
+  maintenanceNotes: string;
   eventType?: ServiceType | null;
   eventTypeDisplay?: string | null;
   eventDate?: CalendarDateString | null;
@@ -88,6 +101,32 @@ export interface ReservationPropertyMaintenance extends PropertyMaintenance {
   code: boolean;
   departureLetterChecked: boolean;
   departureLetterSent: boolean;
+  
+  aCleanerUserId?: string | null;
+  aCleaningDate?: CalendarDateString | null;
+  aCleaningDateOrdinal: number | null;
+  acleaningDateDisplay: string;
+  aCarpetUserId?: string | null;
+  aCarpetDate?: CalendarDateString | null;
+  aCarpetDateOrdinal: number | null;
+  aCarpetDateDisplay: string;
+  aInspectorUserId?: string | null;
+  aInspectingDate?: CalendarDateString | null;
+  aInspectingDateOrdinal: number | null;
+  aInspectingDateDisplay: string;
+
+  dCleanerUserId?: string | null;
+  dCleaningDate?: CalendarDateString | null;
+  dCleaningDateOrdinal: number | null;
+  dCleaningDateDisplay: string;
+  dCarpetUserId?: string | null;
+  dCarpetDate?: CalendarDateString | null;
+  dCarpetDateOrdinal: number | null;
+  dCarpetDateDisplay: string;
+  dInspectorUserId?: string | null;
+  dInspectingDate?: CalendarDateString | null;
+  dInspectingDateOrdinal: number | null;
+  dInspectingDateDisplay: string;
   rowActive?: boolean;
 }
 
@@ -98,17 +137,16 @@ export interface ReservationPropertyMaintenanceDisplayList {
   reservationCode: string;
   officeId: number;
   officeName: string;
-
   propertyAddress: string;
   propertyStatusText: string;
   propertyStatusDropdown: MaintenanceListStatusDropdownCell;
+
   cleaner: MaintenanceListUserDropdownCell;
   cleanerUserId?: string | null;
   cleaningDate: string;
   carpet: MaintenanceListUserDropdownCell;
   carpetUserId?: string | null;
   carpetDate: string;
-  inspector: MaintenanceListUserDropdownCell;
   inspectorUserId?: string | null;
   inspectingDate: string;
   bed1Text: PropertyBedDropdownCell;
@@ -127,13 +165,13 @@ export interface ReservationPropertyMaintenanceDisplayList {
   eventDateSortTime?: number;
 }
 
-
-
-
 export interface MaintenanceListDisplay extends PropertyListDisplay {
+  maintenanceId?: string;
   propertyAddress: string;
   propertyStatusText: string;
   propertyStatusDropdown: MaintenanceListStatusDropdownCell;
+  
+  maidUserId?: string | null;
   cleaner: MaintenanceListUserDropdownCell;
   cleanerUserId?: string | null;
   cleaningDate: string;
@@ -143,6 +181,7 @@ export interface MaintenanceListDisplay extends PropertyListDisplay {
   inspector: MaintenanceListUserDropdownCell;
   inspectorUserId?: string | null;
   inspectingDate: string;
+
   bed1Text: PropertyBedDropdownCell;
   bed2Text: PropertyBedDropdownCell;
   bed3Text: PropertyBedDropdownCell;

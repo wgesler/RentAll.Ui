@@ -17,6 +17,8 @@ import { DataTableComponent } from '../../shared/data-table/data-table.component
 import { ColumnSet } from '../../shared/data-table/models/column-data';
 import { PropertyMaintenanceBase } from '../../shared/base-classes/property-maintenance.base';
 import { ReservationPropertyMaintenance } from '../../shared/models/mixed-models';
+import { ServiceType, getServiceType } from '../../shared/models/mixed-enums';
+import { FormatterService } from '../../../services/formatter-service';
 
 @Component({
   standalone: true,
@@ -26,7 +28,31 @@ import { ReservationPropertyMaintenance } from '../../shared/models/mixed-models
   styleUrl: './dashboard-service.component.scss'
 })
 export class DashboardServiceComponent extends PropertyMaintenanceBase implements OnInit, OnDestroy {
-  
+  todayDate = '';
+  tomorrowDate = '';
+  userId?: string | null;
+  profilePictureUrl?: string | null = null;
+  userSubscription?: Subscription;
+  initLoadCompleteSubscription?: Subscription;
+  expandedSections = { schedule: true, scheduledCleanings: true, scheduledCarpetCleanings: true, scheduledInspections: true };
+
+  serviceDashboardReservationRows: ReservationListDisplay[] = [];
+  serviceDashboardUserPropertyIds = new Set<string>();
+  scheduledCleaningsDisplay: ReservationPropertyMaintenance[] = [];
+  scheduledCarpetCleaningsDisplay: ReservationPropertyMaintenance[] = [];
+  scheduledInspectionsDisplay: ReservationPropertyMaintenance[] = [];
+
+  readonly scheduleCalendarWeekdayLabels = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'] as const;
+  scheduleCalendarCurrentTitle = '';
+  scheduleCalendarNextTitle = '';
+  scheduleCalendarCurrentCells: { day: number | null; dateKey: string | null; isToday: boolean; isWeekend: boolean; }[] = [];
+  scheduleCalendarNextCells: { day: number | null; dateKey: string | null; isToday: boolean; isWeekend: boolean; }[] = [];
+  scheduledDayKeys = new Set<string>();
+  selectedScheduleCalendarDayKey: string | null = null;
+
+  override itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['currentUser', 'offices', 'activeReservations', 'propertyMaintenanceList']));
+  isLoading$: Observable<boolean> = this.itemsToLoad$.pipe(map(s => s.size > 0));
+
   readonly scheduledCleaningColumns: ColumnSet = {
     'propertyCode': { displayAs: 'Property', maxWidth: '15ch', sortType: 'natural' },
     'shortAddress': { displayAs: 'Address', maxWidth: '25ch', wrap: false },
@@ -77,32 +103,6 @@ export class DashboardServiceComponent extends PropertyMaintenanceBase implement
     'bed4Text': { displayAs: 'Bed4', maxWidth: '10ch', alignment: 'center' },
     'maintenanceNotes': { displayAs: 'Notes', maxWidth: '24ch', wrap: false }
   };
-  
-  todayDate = '';
-  tomorrowDate = '';
-  userId?: string | null;
-  profilePictureUrl?: string | null = null;
-  userSubscription?: Subscription;
-  initLoadCompleteSubscription?: Subscription;
-  expandedSections = { schedule: true, scheduledCleanings: true, scheduledCarpetCleanings: true, scheduledInspections: true };
-
-  serviceDashboardReservationRows: ReservationListDisplay[] = [];
-  serviceDashboardUserPropertyIds = new Set<string>();
-  scheduledCleaningsDisplay: ReservationPropertyMaintenance[] = [];
-  scheduledCarpetCleaningsDisplay: ReservationPropertyMaintenance[] = [];
-  scheduledInspectionsDisplay: ReservationPropertyMaintenance[] = [];
-
-  readonly scheduleCalendarWeekdayLabels = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'] as const;
-  scheduleCalendarCurrentTitle = '';
-  scheduleCalendarNextTitle = '';
-  scheduleCalendarCurrentCells: { day: number | null; dateKey: string | null; isToday: boolean; isWeekend: boolean; }[] = [];
-  scheduleCalendarNextCells: { day: number | null; dateKey: string | null; isToday: boolean; isWeekend: boolean; }[] = [];
-  scheduledDayKeys = new Set<string>();
-  selectedScheduleCalendarDayKey: string | null = null;
-
-  override itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['currentUser', 'offices', 'activeReservations', 'propertyMaintenanceList']));
-  isLoading$: Observable<boolean> = this.itemsToLoad$.pipe(map(s => s.size > 0));
-
 
   constructor(
     authService: AuthService,
@@ -114,7 +114,8 @@ export class DashboardServiceComponent extends PropertyMaintenanceBase implement
     maintenanceService: MaintenanceService,
     utilityService: UtilityService,
     officeService: OfficeService,
-    globalSelectionService: GlobalSelectionService
+    globalSelectionService: GlobalSelectionService,
+    private formatterService: FormatterService
   ) {
     super(authService, reservationService, mixedMappingService, mappingService, propertyService, maintenanceService, utilityService, officeService, globalSelectionService);
   }
@@ -126,7 +127,7 @@ export class DashboardServiceComponent extends PropertyMaintenanceBase implement
     this.loadCurrentUser(this.userId);
 
     this.initLoadCompleteSubscription = this.itemsToLoad$.pipe(filter(s => s.size === 0), take(1)).subscribe(() => {
-      this.recomputeDashboardData(this.userId);
+      this.recomputeBackendData(this.userId);
     });
 
     super.ngOnInit();
@@ -134,47 +135,92 @@ export class DashboardServiceComponent extends PropertyMaintenanceBase implement
   //#endregion
 
   //#region Main Data Setup
-  protected override onAfterRecomputeDashboardData(userAssignedId: string | null): void {
-    const baseRows = this.buildScheduledBoardBaseRows();
-    this.buildScheduledCleaningsList(userAssignedId, baseRows);
-    this.buildScheduledCarpetCleaningsList(userAssignedId, baseRows);
-    this.buildScheduledInspectionsList(userAssignedId, baseRows);
+  protected override onAfterRecomputeBackendData(userAssignedId: string | null): void {
+    const cleaningRows: ReservationPropertyMaintenance[] = [];
+    const carpetRows: ReservationPropertyMaintenance[] = [];
+    const inspectionRows: ReservationPropertyMaintenance[] = [];
+
+    const toEventDisplayRow = (row: ReservationPropertyMaintenance, eventType: ServiceType): ReservationPropertyMaintenance => ({
+      ...row,
+      eventType,
+      eventTypeDisplay: getServiceType(eventType),
+      departureDateDisplay: this.formatterService.formatDateString(row.eventDate ?? undefined) || row.departureDateDisplay || ''
+    });
+
+    const canAssignCleaning = (row: ReservationPropertyMaintenance): boolean =>
+      userAssignedId === null || row.maidUserId === userAssignedId || row.cleanerUserId === userAssignedId;
+    const canAssignCarpet = (row: ReservationPropertyMaintenance): boolean =>
+      userAssignedId === null || row.carpetUserId === userAssignedId;
+    const canAssignInspection = (row: ReservationPropertyMaintenance): boolean =>
+      userAssignedId === null || row.inspectorUserId === userAssignedId;
+
+    for (const row of this.arrivalReservations) {
+      if (canAssignCleaning(row)) {
+        cleaningRows.push(toEventDisplayRow(row, ServiceType.Arrival));
+      }
+      if (canAssignCarpet(row)) {
+        carpetRows.push(toEventDisplayRow(row, ServiceType.Arrival));
+      }
+      if (canAssignInspection(row)) {
+        inspectionRows.push(toEventDisplayRow(row, ServiceType.Arrival));
+      }
+    }
+
+    for (const row of this.departureReservations) {
+      if (canAssignCleaning(row)) {
+        cleaningRows.push(toEventDisplayRow(row, ServiceType.Departure));
+      }
+      if (canAssignCarpet(row)) {
+        carpetRows.push(toEventDisplayRow(row, ServiceType.Departure));
+      }
+      if (canAssignInspection(row)) {
+        inspectionRows.push(toEventDisplayRow(row, ServiceType.Departure));
+      }
+    }
+
+    for (const row of this.cleaningReservations) {
+      if (canAssignCleaning(row)) {
+        cleaningRows.push(toEventDisplayRow(row, ServiceType.MaidService));
+      }
+    }
+ 
+    for (const row of this.onlineProperties) {
+      const eventRow = this.mixedMappingService.mapPropertyMaintenanceToServiceDashboardScheduleRow(row);
+      if (canAssignCleaning(eventRow)) {
+        cleaningRows.push(toEventDisplayRow(eventRow, ServiceType.Online));
+      }
+      if (canAssignCarpet(eventRow)) {
+        carpetRows.push(toEventDisplayRow(eventRow, ServiceType.Online));
+      }
+      if (canAssignInspection(eventRow)) {
+        inspectionRows.push(toEventDisplayRow(eventRow, ServiceType.Online));
+      }
+    }
+
+    for (const row of this.offlineProperties) {
+      const eventRow = this.mixedMappingService.mapPropertyMaintenanceToServiceDashboardScheduleRow(row);
+      if (canAssignCleaning(eventRow)) {
+        cleaningRows.push(toEventDisplayRow(eventRow, ServiceType.Offline));
+      }
+      if (canAssignCarpet(eventRow)) {
+        carpetRows.push(toEventDisplayRow(eventRow, ServiceType.Offline));
+      }
+      if (canAssignInspection(eventRow)) {
+        inspectionRows.push(toEventDisplayRow(eventRow, ServiceType.Offline));
+      }
+    }
+
+    const sortByEvent = (a: ReservationPropertyMaintenance, b: ReservationPropertyMaintenance): number =>
+      Number(a.eventDateSortTime ?? Number.MAX_SAFE_INTEGER) - Number(b.eventDateSortTime ?? Number.MAX_SAFE_INTEGER);
+
+    this.scheduledCleaningsDisplay = cleaningRows.sort(sortByEvent);
+    this.scheduledCarpetCleaningsDisplay = carpetRows.sort(sortByEvent);
+    this.scheduledInspectionsDisplay = inspectionRows.sort(sortByEvent);
+  
     this.selectedScheduleCalendarDayKey = null;
     this.refreshScheduleCalendars();
   }
 
-  buildScheduledCleaningsList(userAssignedId: string | null, baseRows: ReservationPropertyMaintenance[]): void {
-    this.scheduledCleaningsDisplay = baseRows.filter(r =>
-      userAssignedId === null || r.maidUserId === userAssignedId || r.cleanerUserId === userAssignedId
-    );
-  }
-
-  buildScheduledCarpetCleaningsList(userAssignedId: string | null, baseRows: ReservationPropertyMaintenance[]): void {
-    this.scheduledCarpetCleaningsDisplay = baseRows.filter(r =>
-      userAssignedId === null || r.carpetUserId === userAssignedId
-    );
-  }
-
-  buildScheduledInspectionsList(userAssignedId: string | null, baseRows: ReservationPropertyMaintenance[]): void {
-    this.scheduledInspectionsDisplay = baseRows.filter(r =>
-      userAssignedId === null || r.inspectorUserId === userAssignedId
-    );
-  }
-
-  buildScheduledBoardBaseRows(): ReservationPropertyMaintenance[] {
-    const office = this.selectedOffice;
-    const combined: ReservationPropertyMaintenance[] = [
-      ...this.offlineProperties.map(pm => this.mixedMappingService.mapPropertyMaintenanceToServiceDashboardScheduleRow(pm)),
-      ...this.onlineProperties.map(pm => this.mixedMappingService.mapPropertyMaintenanceToServiceDashboardScheduleRow(pm)),
-      ...this.departureReservations.map(r => this.mixedMappingService.mapReservationPropertyMaintenanceServiceDashboardScheduleRow(r)),
-      ...this.cleaningReservations.map(r => this.mixedMappingService.mapReservationPropertyMaintenanceServiceDashboardScheduleRow(r))
-    ];
-    let rows = combined;
-    if (office) {
-      rows = rows.filter(r => r.officeId === office.officeId);
-    }
-    return [...rows].sort((a, b) => (a.eventDateSortTime ?? 0) - (b.eventDateSortTime ?? 0));
-  }
   //#endregion
 
   //#region Calendar Methods
@@ -318,7 +364,7 @@ export class DashboardServiceComponent extends PropertyMaintenanceBase implement
   //#endregion
 
   //#region Utility Methods
-    override ngOnDestroy(): void {
+  override ngOnDestroy(): void {
     this.userSubscription?.unsubscribe();
     this.initLoadCompleteSubscription?.unsubscribe();
     super.ngOnDestroy();

@@ -9,7 +9,7 @@ import { DocumentListDisplay, DocumentResponse } from '../authenticated/document
 import { AlertListDisplay, AlertResponse } from '../authenticated/email/models/alert.model';
 import { EmailListDisplay, EmailResponse } from '../authenticated/email/models/email.model';
 import { EmailHtmlResponse } from '../authenticated/email/models/email-html.model';
-import { MaintenanceListResponse } from '../authenticated/maintenance/models/maintenance.model';
+import { MaintenanceListResponse, MaintenanceRequest, MaintenanceResponse } from '../authenticated/maintenance/models/maintenance.model';
 import { InspectionDisplayList, InspectionResponse } from '../authenticated/maintenance/models/inspection.model';
 import { ReceiptDisplayList, ReceiptResponse } from '../authenticated/maintenance/models/receipt.model';
 import { getInspectionType, getWorkOrderType } from '../authenticated/maintenance/models/maintenance-enums';
@@ -22,12 +22,12 @@ import { ColorListDisplay, ColorResponse } from '../authenticated/organizations/
 import { OfficeListDisplay, OfficeResponse } from '../authenticated/organizations/models/office.model';
 import { OrganizationListDisplay, OrganizationResponse } from '../authenticated/organizations/models/organization.model';
 import { RegionListDisplay, RegionResponse } from '../authenticated/organizations/models/region.model';
-import { ManagementFeeType, PropertyType, TrashDays, effectiveBedTypeIdForPropertySlot, getBedSizeType, getPropertyStatus, getPropertyStatusLetter, getPropertyStatuses, getPropertyType } from '../authenticated/properties/models/property-enums';
+import { ManagementFeeType, PropertyType, TrashDays, effectiveBedTypeIdForPropertySlot, getBedSizeType, getPropertyStatus, getPropertyStatusLetter, getPropertyType } from '../authenticated/properties/models/property-enums';
 import { PropertyBedDropdownCell, PropertyListDisplay, PropertyListResponse, PropertyRequest, PropertyResponse } from '../authenticated/properties/models/property.model';
 import { BoardProperty } from '../authenticated/reservations/models/reservation-board-model';
 import { getFrequency, getReservationStatus } from '../authenticated/reservations/models/reservation-enum';
 import { ExtraFeeLineRequest, ExtraFeeLineResponse, ReservationListDisplay, ReservationListResponse, ReservationRequest, ReservationResponse } from '../authenticated/reservations/models/reservation-model';
-import { MaintenanceListDisplay, ReservationPropertyMaintenance, ReservationTurnoverEventDisplay } from '../authenticated/shared/models/mixed-models';
+import { MaintenanceListDisplay, PropertyMaintenance, ReservationPropertyMaintenance, ReservationTurnoverEventDisplay } from '../authenticated/shared/models/mixed-models';
 import { FormatterService } from './formatter-service';
 import { UtilityService } from './utility.service';
 
@@ -328,7 +328,6 @@ export class MappingService {
     return ledgerLines.map<LedgerLineListDisplay>((line: LedgerLineResponse) => {
       const costCodeId = line.costCodeId || null;
       let matchingCostCode: CostCodesResponse | undefined = undefined;
-      let costCode: string | null = null;
       let transactionTypeId: number | undefined = line.transactionTypeId;
       
       if (costCodeId && costCodes && costCodes.length > 0) {
@@ -336,7 +335,6 @@ export class MappingService {
         matchingCostCode = costCodes.find(c => c.costCodeId === costCodeId);
         
         if (matchingCostCode) {
-          costCode = matchingCostCode.costCode || null;
           transactionTypeId = matchingCostCode.transactionTypeId;
         }
       }
@@ -583,18 +581,46 @@ export class MappingService {
     });
   }
 
+  mapPropertyMaintenanceToPropertyListResponseForDashboard(pm: PropertyMaintenance): PropertyListResponse {
+    return {
+      propertyId: pm.propertyId,
+      propertyCode: pm.propertyCode,
+      propertyLeaseTypeId: 0,
+      shortAddress: pm.shortAddress ?? '',
+      officeId: pm.officeId,
+      officeName: pm.officeName ?? '',
+      owner1Id: null,
+      vendorId: null,
+      contactName: '',
+      availableFrom: pm.availableFrom ?? null,
+      availableUntil: pm.availableUntil ?? null,
+      unitLevel: 0,
+      bedrooms: pm.bedrooms,
+      bathrooms: pm.bathrooms,
+      accomodates: pm.accomodates,
+      squareFeet: pm.squareFeet,
+      propertyTypeId: 0,
+      unfurnished: false,
+      monthlyRate: 0,
+      dailyRate: 0,
+      departureFee: 0,
+      petFee: 0,
+      maidServiceFee: 0,
+      propertyStatusId: pm.propertyStatusId,
+      bedroomId1: pm.bedroomId1,
+      bedroomId2: pm.bedroomId2,
+      bedroomId3: pm.bedroomId3,
+      bedroomId4: pm.bedroomId4,
+      isActive: true
+    };
+  }
+
   mapPropertyResponse(raw: Record<string, unknown>): PropertyResponse {
     const leaseTypeId = raw['propertyLeaseTypeId'] ?? raw['propertyLeaseId'];
-    const {
-      propertyLeaseTypeId: _propertyLeaseTypeId,
-      propertyLeaseId: _propertyLeaseId,
-      bldgNo: _bldgNoCamel,
-      ...rest
-    } = raw as Record<string, unknown> & {
-      propertyLeaseTypeId?: number;
-      propertyLeaseId?: number;
-      bldgNo?: string | null;
-    };
+    const rest = { ...(raw as Record<string, unknown>) };
+    delete rest['propertyLeaseTypeId'];
+    delete rest['propertyLeaseId'];
+    delete rest['bldgNo'];
     const bldgNoRaw = raw['bldgNo'];
     const bldgNo = bldgNoRaw != null && String(bldgNoRaw).trim() !== '' ? String(bldgNoRaw).trim() : undefined;
     return {
@@ -650,7 +676,7 @@ export class MappingService {
   }
 
   mapPropertyResponseToRequest(property: PropertyResponse, overrides?: Partial<PropertyRequest>): PropertyRequest {
-    const { officeName: _officeName, parkingNotes, ...requestBase } = property;
+    const { parkingNotes, ...requestBase } = property;
     const base = {
       ...requestBase,
       parkingnotes: parkingNotes ?? null
@@ -659,6 +685,7 @@ export class MappingService {
   }
 
   mapPropertiesToBoardProperties(properties: PropertyListResponse[], reservations: ReservationListResponse[]): BoardProperty[] {
+    void reservations;
     return (properties || []).map(p => ({
       propertyId: p.propertyId,
       propertyCode: p.propertyCode,
@@ -757,6 +784,28 @@ export class MappingService {
   //#endregion
 
   //#region Maintenance Mapping
+
+  mapMaintenanceResponseToRequest(maintenance: MaintenanceResponse, overrides?: Partial<MaintenanceRequest>): MaintenanceRequest {
+    const rest = { ...(maintenance as MaintenanceResponse & { propertyCode?: string }) };
+    delete (rest as Record<string, unknown>)['propertyCode'];
+    const base: MaintenanceRequest = {
+      maintenanceId: rest.maintenanceId,
+      organizationId: rest.organizationId,
+      officeId: rest.officeId,
+      officeName: rest.officeName,
+      propertyId: rest.propertyId,
+      inspectionCheckList: rest.inspectionCheckList,
+      cleanerUserId: rest.cleanerUserId ?? null,
+      cleaningDate: rest.cleaningDate ?? null,
+      inspectorUserId: rest.inspectorUserId ?? null,
+      inspectingDate: rest.inspectingDate ?? null,
+      carpetUserId: rest.carpetUserId ?? null,
+      carpetDate: rest.carpetDate ?? null,
+      notes: rest.notes ?? null,
+      isActive: rest.isActive
+    };
+    return { ...base, ...(overrides ?? {}) };
+  }
 
   mapInspection(inspection: InspectionResponse): InspectionResponse {
     return {
@@ -950,8 +999,7 @@ export class MappingService {
       departureLetterSent: reservation.departureLetterSent,
       currentInvoiceNo: reservation.currentInvoiceNo,
       creditDue: reservation.creditDue,
-      isActive: reservation.isActive,
-      isDeleted: reservation.isDeleted
+      isActive: reservation.isActive
     };
     return { ...base, ...overrides };
   }

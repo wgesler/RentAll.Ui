@@ -45,6 +45,31 @@ const reservationTurnoverCheckboxColumns = new Set<string>([
     styleUrl: './dashboard-main.component.scss'
 })
 export class DashboardMainComponent extends PropertyMaintenanceBase implements OnInit, OnDestroy {
+  destroy$ = new Subject<void>();
+  profilePictureUrl: string | null = null;
+  todayDate = '';
+  isAdmin: boolean = false;
+  currentUserAgentId: string | null = null;
+  currentUserAgentCode: string | null = null;
+  currentUserCommissionRate: number = 0;
+  canViewCommissions: boolean = false;
+
+  adminUsers: UserResponse[] = [];
+  adminAgents: AgentResponse[] = [];
+  adminCommissionRatesByAgentCode = new Map<string, number>();
+  showMonthlyCommissionAmount: boolean = false;
+  showCommissionBreakdown: boolean = false;
+  monthlyCommissions: MonthlyCommissionDisplay[] = [];
+
+  reservationTurnoverArrivalRows: ReservationTurnoverEventDisplay[] = [];
+  reservationTurnoverDepartureRows: ReservationTurnoverEventDisplay[] = [];
+  comingOnlinePropertyRows: DashboardPropertyTurnoverRow[] = [];
+  goingOfflinePropertyRows: DashboardPropertyTurnoverRow[] = [];
+
+  expandedSections = { monthlyCommissions: true, properties: true, propertyTurnover: true, vacantProperties: true };
+  override itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['currentUser', 'offices', 'activeReservations', 'propertyMaintenanceList']));
+  isLoading$: Observable<boolean> = this.itemsToLoad$.pipe(map(items => items.size > 0));
+
   reservationTurnoverArrivalDisplayedColumns: ColumnSet = {
     'propertyCode': { displayAs: 'Property', maxWidth: '15ch', sortType: 'natural' },
     'reservationCode': { displayAs: 'Reservation', maxWidth: '15ch', sortType: 'natural' },
@@ -120,31 +145,6 @@ export class DashboardMainComponent extends PropertyMaintenanceBase implements O
     'commissionDisplay': { displayAs: 'Comm', maxWidth: '20ch', alignment: 'center' },
   };
 
-  destroy$ = new Subject<void>();
-  profilePictureUrl: string | null = null;
-  todayDate = '';
-  isAdmin: boolean = false;
-  currentUserAgentId: string | null = null;
-  currentUserAgentCode: string | null = null;
-  currentUserCommissionRate: number = 0;
-  canViewCommissions: boolean = false;
-
-  adminUsers: UserResponse[] = [];
-  adminAgents: AgentResponse[] = [];
-  adminCommissionRatesByAgentCode = new Map<string, number>();
-  showMonthlyCommissionAmount: boolean = false;
-  showCommissionBreakdown: boolean = false;
-  monthlyCommissions: MonthlyCommissionDisplay[] = [];
-
-  reservationTurnoverArrivalRows: ReservationTurnoverEventDisplay[] = [];
-  reservationTurnoverDepartureRows: ReservationTurnoverEventDisplay[] = [];
-  comingOnlinePropertyRows: DashboardPropertyTurnoverRow[] = [];
-  goingOfflinePropertyRows: DashboardPropertyTurnoverRow[] = [];
-
-  expandedSections = { monthlyCommissions: true, properties: true, propertyTurnover: true, vacantProperties: true };
-  override itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['currentUser', 'offices', 'activeReservations', 'propertyMaintenanceList']));
-  isLoading$: Observable<boolean> = this.itemsToLoad$.pipe(map(items => items.size > 0));
-
   constructor(
     authService: AuthService,
     private userService: UserService,
@@ -177,7 +177,7 @@ export class DashboardMainComponent extends PropertyMaintenanceBase implements O
     } 
 
     this.itemsToLoad$.pipe(filter(s => s.size === 0), take(1), takeUntil(this.destroy$)).subscribe(() => {
-      this.recomputeDashboardData();
+      this.recomputeBackendData();
     });
 
     super.ngOnInit();
@@ -185,24 +185,21 @@ export class DashboardMainComponent extends PropertyMaintenanceBase implements O
   //#endregion
 
   //#region Main Data Setup
-  protected override onAfterRecomputeDashboardData(_userAssignedId: string | null): void {
+  protected override onAfterRecomputeBackendData(userAssignedId: string | null): void {
+    void userAssignedId;
     this.buildPropertyTurnoverFromBaseLists();
     this.buildReservationTurnoverFromBaseLists();
     this.buildCommissionsList();
   }
 
   buildReservationTurnoverFromBaseLists(): void {
-    const office = this.selectedOffice;
-    const matchesOffice = (row: { officeId: number }): boolean =>
-      !office || row.officeId === office.officeId;
-
-    const arrivalRows = this.arrivalReservations.filter(matchesOffice);
+    const arrivalRows = this.arrivalReservations;
     arrivalRows.sort((a, b) => (a.arrivalDateOrdinal ?? 0) - (b.arrivalDateOrdinal ?? 0));
     this.reservationTurnoverArrivalRows = arrivalRows.map(r =>
       this.mappingService.mapReservationPropertyMaintenanceToTurnoverDisplay(r)
     );
 
-    const departureRows = this.departureReservations.filter(matchesOffice);
+    const departureRows = this.departureReservations;
     departureRows.sort((a, b) => (a.departureDateOrdinal ?? 0) - (b.departureDateOrdinal ?? 0));
     this.reservationTurnoverDepartureRows = departureRows.map(r =>
       this.mappingService.mapReservationPropertyMaintenanceToTurnoverDisplay(r)
@@ -210,40 +207,23 @@ export class DashboardMainComponent extends PropertyMaintenanceBase implements O
   }
 
   buildPropertyTurnoverFromBaseLists(): void {
-    const propertiesForScope = !this.selectedOffice ? this.propertyList : this.propertyList.filter(p => p.officeId === this.selectedOffice!.officeId);
-    const todayTime = this.todayAtMidnight.getTime();
-    const windowEndTime = this.fifteenDaysAtMidnight.getTime();
+    const onlineRows = [...this.onlineProperties];
+    onlineRows.sort((a, b) => (Number(a.eventDateSortTime ?? a.availableFromOrdinal) || 0) - (Number(b.eventDateSortTime ?? b.availableFromOrdinal) || 0));
+    this.comingOnlinePropertyRows = onlineRows.map(pm =>
+      this.mixedMappingService.mapDashboardPropertyTurnoverRow(
+        this.mappingService.mapPropertyMaintenanceToPropertyListResponseForDashboard(pm),
+        this.getMaintenanceListResponseForPropertyId(pm.propertyId) ?? null
+      )
+    );
 
-    const inComingWindow = (calendar: string | null | undefined): boolean => {
-      const d = this.utilityService.parseDateOnlyStringToDate(calendar ?? null);
-      if (!d) {
-        return false;
-      }
-      const t = d.getTime();
-      return t >= todayTime && t <= windowEndTime;
-    };
-
-    this.comingOnlinePropertyRows = propertiesForScope
-      .filter(p => p.isActive && inComingWindow(p.availableFrom))
-      .sort((a, b) => {
-        const ad = this.utilityService.parseDateOnlyStringToDate(a.availableFrom ?? null)?.getTime() ?? 0;
-        const bd = this.utilityService.parseDateOnlyStringToDate(b.availableFrom ?? null)?.getTime() ?? 0;
-        return ad - bd;
-      })
-      .map(p =>
-        this.mixedMappingService.mapDashboardPropertyTurnoverRow(p, this.maintenanceByPropertyId.get(p.propertyId) ?? null)
-      );
-
-    this.goingOfflinePropertyRows = propertiesForScope
-      .filter(p => p.isActive && inComingWindow(p.availableUntil))
-      .sort((a, b) => {
-        const ad = this.utilityService.parseDateOnlyStringToDate(a.availableUntil ?? null)?.getTime() ?? 0;
-        const bd = this.utilityService.parseDateOnlyStringToDate(b.availableUntil ?? null)?.getTime() ?? 0;
-        return ad - bd;
-      })
-      .map(p =>
-        this.mixedMappingService.mapDashboardPropertyTurnoverRow(p, this.maintenanceByPropertyId.get(p.propertyId) ?? null)
-      );
+    const offlineRows = [...this.offlineProperties];
+    offlineRows.sort((a, b) => (Number(a.eventDateSortTime ?? a.availableUntilOrdinal) || 0) - (Number(b.eventDateSortTime ?? b.availableUntilOrdinal) || 0));
+    this.goingOfflinePropertyRows = offlineRows.map(pm =>
+      this.mixedMappingService.mapDashboardPropertyTurnoverRow(
+        this.mappingService.mapPropertyMaintenanceToPropertyListResponseForDashboard(pm),
+        this.getMaintenanceListResponseForPropertyId(pm.propertyId) ?? null
+      )
+    );
   }
 
   buildCommissionsList(): void {
@@ -390,116 +370,51 @@ export class DashboardMainComponent extends PropertyMaintenanceBase implements O
       return;
     }
 
-    if (!this.isAdmin && !this.currentUserAgentCode) {
-      this.monthlyCommissions = [];
-      return;
-    }
-
     const now = new Date();
-    const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
-    const monthEnd = new Date(now.getFullYear(), now.getMonth() + 1, 0);
-    monthStart.setHours(0, 0, 0, 0);
-    monthEnd.setHours(23, 59, 59, 999);
+    const monthLo = this.getMonthStartAsOrdinal(now)!;
+    const monthHi = this.getMonthEndAsOrdinal(now)!;
+    const daysInMonth = monthHi % 100;
 
-    const overlapsCurrentMonth = (arrivalDate?: string, departureDate?: string): boolean => {
-      if (!arrivalDate || !departureDate) {
-        return false;
-      }
-      const reservationStart = this.utilityService.parseDateOnlyStringToDate(arrivalDate);
-      const reservationEnd = this.utilityService.parseDateOnlyStringToDate(departureDate);
-      if (!reservationStart || !reservationEnd) {
-        return false;
-      }
-      const reservationEndEod = new Date(reservationEnd.getTime());
-      reservationEndEod.setHours(23, 59, 59, 999);
-      return reservationStart.getTime() <= monthEnd.getTime() && reservationEndEod.getTime() >= monthStart.getTime();
+    const overlapsCurrentMonth = (a: number, d: number) => a <= monthHi && d >= monthLo;
+
+    const getDaysRentedInCurrentMonth = (arrivalOrdinal: number, departureOrdinal: number): number => {
+      const overlapStart = Math.max(arrivalOrdinal, monthLo);
+      const overlapEnd = Math.min(departureOrdinal, monthHi);
+      if (overlapStart > overlapEnd) return 0;
+      return this.toJulianDay(overlapEnd) - this.toJulianDay(overlapStart) + 1;
     };
 
-    const getDaysRentedInCurrentMonth = (arrivalDate?: string, departureDate?: string): number => {
-      if (!arrivalDate || !departureDate) {
-        return 0;
-      }
-      const reservationStart = this.utilityService.parseDateOnlyStringToDate(arrivalDate);
-      const reservationEnd = this.utilityService.parseDateOnlyStringToDate(departureDate);
-      if (!reservationStart || !reservationEnd) {
-        return 0;
-      }
-      const reservationEndEod = new Date(reservationEnd.getTime());
-      reservationEndEod.setHours(23, 59, 59, 999);
+    const resolveCommissionRate = (row: { agentCode?: string | null }): number => this.isAdmin
+      ? Number(this.adminCommissionRatesByAgentCode.get((row.agentCode || '').trim().toLowerCase()) ?? 0)
+      : Number(this.currentUserCommissionRate ?? 0);
 
-      const overlapStart = reservationStart > monthStart ? reservationStart : monthStart;
-      const overlapEnd = reservationEndEod < monthEnd ? reservationEndEod : monthEnd;
-      if (overlapStart.getTime() > overlapEnd.getTime()) {
-        return 0;
-      }
-
-      // Inclusive day count.
-      return Math.floor((overlapEnd.getTime() - overlapStart.getTime()) / (1000 * 60 * 60 * 24)) + 1;
-    };
-
-    const getCommission = (daysRented: number, commissionRate: number): number => {
-      if (daysRented <= 0) {
-        return 0;
-      }
-
-      const isFullMonth = daysRented === new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
-      if (isFullMonth || daysRented >= 30) {
-        return Number(commissionRate.toFixed(2));
-      }
-
-      return Number(((commissionRate / 30) * daysRented).toFixed(2));
-    };
+    const getCommission = (daysRented: number, rate: number): number => daysRented >= 30 || daysRented === daysInMonth
+        ? Number(rate.toFixed(2))
+        : Number(((rate / 30) * daysRented).toFixed(2));
 
     const agentCode = (this.currentUserAgentCode || '').trim().toLowerCase();
-    const resolveCommissionRate = (reservation: ReservationListDisplay): number => {
-      if (this.isAdmin) {
-        const normalizedReservationAgentCode = (reservation.agentCode || '').trim().toLowerCase();
-        return Number(this.adminCommissionRatesByAgentCode.get(normalizedReservationAgentCode) ?? 0);
-      }
-      return Number(this.currentUserCommissionRate ?? 0);
-    };
 
-    const reservationsForCommissions = !this.selectedOffice
-      ? this.reservationList
-      : this.reservationList.filter(r => r.officeId === this.selectedOffice!.officeId);
-    this.monthlyCommissions = reservationsForCommissions
-      .filter(reservation =>
-        this.isAdmin
-          ? (reservation.agentCode || '').trim().length > 0
-          : (reservation.agentCode || '').trim().toLowerCase() === agentCode
+    this.monthlyCommissions = this.filteredReservationPropertyMaintenanceList
+      .filter(row => this.isAdmin ? (row.agentCode || '').trim().length > 0 : (row.agentCode || '').trim().toLowerCase() === agentCode)
+      .filter(row => resolveCommissionRate(row) > 0)
+      .filter(row => overlapsCurrentMonth(row.arrivalDateOrdinal!, row.departureDateOrdinal!))
+      .sort((a, b) =>
+        (a.agentCode || '').localeCompare(b.agentCode || '') ||
+        ((a.arrivalDateOrdinal || 0) - (b.arrivalDateOrdinal || 0)) ||
+        (a.reservationCode || '').localeCompare(b.reservationCode || '')
       )
-      .filter(reservation => resolveCommissionRate(reservation) > 0)
-      .filter(reservation =>
-        overlapsCurrentMonth(reservation.arrivalDate, reservation.departureDate)
-      )
-      .map(reservation => {
-        const commissionRate = resolveCommissionRate(reservation);
-        const daysRented = getDaysRentedInCurrentMonth(reservation.arrivalDate, reservation.departureDate);
-        const commission = getCommission(daysRented, commissionRate);
+      .map(row => {
+        const daysRented = getDaysRentedInCurrentMonth(row.arrivalDateOrdinal!, row.departureDateOrdinal!);
+        const commission = getCommission(daysRented, resolveCommissionRate(row));
         return {
-          ...reservation,
-          daysRented: daysRented,
+          ...(row as unknown as MonthlyCommissionDisplay),
+          daysRented,
           commission,
           commissionDisplay: this.formatUsd(commission)
         };
       })
-      .filter(reservation => Number(reservation.commission ?? 0) > 0)
-      .sort((a, b) => {
-        const agentA = (a.agentCode || '').trim().toLowerCase();
-        const agentB = (b.agentCode || '').trim().toLowerCase();
-        const agentCompare = agentA.localeCompare(agentB);
-        if (agentCompare !== 0) {
-          return agentCompare;
-        }
-
-        const arrivalA = this.utilityService.parseDateOnlyStringToDate(a.arrivalDate)?.getTime() ?? 0;
-        const arrivalB = this.utilityService.parseDateOnlyStringToDate(b.arrivalDate)?.getTime() ?? 0;
-        if (arrivalA !== arrivalB) {
-          return arrivalA - arrivalB;
-        }
-
-        return (a.reservationCode || '').localeCompare(b.reservationCode || '');
-      });
+      .filter(row => row.commission > 0)
+      ;
   }
 
   getMonthlyCommissionTotal(): number {
@@ -546,6 +461,7 @@ export class DashboardMainComponent extends PropertyMaintenanceBase implements O
   }
 
   onCommissionPreviewTouchStart(event: TouchEvent): void {
+    void event;
     if (!this.showCommissionsUi || !this.isAdmin || this.getMonthlyCommissionTotal() <= 0) {
       return;
     }
@@ -659,8 +575,8 @@ export class DashboardMainComponent extends PropertyMaintenanceBase implements O
 
     const patch = { [column]: nextValue } as Partial<ReservationRequest>;
     void this.reservationService.updateModifiedReservation(reservationId, patch).then(() => {
+      this.applyReservationTurnoverCheckboxValue(reservationId, column, nextValue);
       this.toastr.success('Reservation updated.', CommonMessage.Success);
-      this.refreshReservationListsFromServer();
     }).catch(() => {
       this.applyReservationTurnoverCheckboxValue(reservationId, column, previousValue);
       this.toastr.error('Unable to update reservation.', CommonMessage.Error);
@@ -676,19 +592,33 @@ export class DashboardMainComponent extends PropertyMaintenanceBase implements O
     this.reservationTurnoverDepartureRows = apply(this.reservationTurnoverDepartureRows);
   }
 
-  refreshReservationListsFromServer(): void {
-    this.reservationService.getReservationList().pipe(take(1), takeUntil(this.destroy$)).subscribe({
-      next: response => {
-        this.reservationList = this.mappingService.mapReservationList(response);
-        this.activeReservationList = this.reservationList.filter(r => r.isActive === true);
-        this.recomputeDashboardData();
-      },
-      error: () => {}
-    });
-  }
   //#endregion
 
   //#region Utility Methods
+  getMonthStartAsOrdinal(referenceDate: Date): number | null {
+    const monthStart = new Date(referenceDate.getFullYear(), referenceDate.getMonth(), 1);
+    monthStart.setHours(0, 0, 0, 0);
+    const api = this.utilityService.formatDateOnlyForApi(monthStart);
+    return api ? this.utilityService.parseCalendarDateToOrdinal(api) : null;
+  }
+
+  getMonthEndAsOrdinal(referenceDate: Date): number | null {
+    const monthEnd = new Date(referenceDate.getFullYear(), referenceDate.getMonth() + 1, 0);
+    monthEnd.setHours(0, 0, 0, 0);
+    const api = this.utilityService.formatDateOnlyForApi(monthEnd);
+    return api ? this.utilityService.parseCalendarDateToOrdinal(api) : null;
+  }
+
+  toJulianDay(ordinal: number): number {
+    const year = Math.floor(ordinal / 10000);
+    const month = Math.floor((ordinal % 10000) / 100);
+    const day = ordinal % 100;
+    const a = Math.floor((14 - month) / 12);
+    const y = year + 4800 - a;
+    const m = month + 12 * a - 3;
+    return day + Math.floor((153 * m + 2) / 5) + 365 * y + Math.floor(y / 4) - Math.floor(y / 100) + Math.floor(y / 400) - 32045;
+  }
+
   override ngOnDestroy(): void {
     this.destroy$.next();
     this.destroy$.complete();

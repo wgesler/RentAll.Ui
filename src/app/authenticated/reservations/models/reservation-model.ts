@@ -25,6 +25,8 @@ export interface ReservationRequest {
   maidUserId?: string | null;
   lockBoxCode?: string | null;
   unitTenantCode?: string | null;
+  currentInvoiceNo: number;
+  creditDue: number;
   billingMethodId: number;
   prorateTypeId: number;
   billingTypeId: number;
@@ -51,10 +53,20 @@ export interface ReservationRequest {
   code: boolean;
   departureLetterChecked: boolean;
   departureLetterSent: boolean;
-  currentInvoiceNo: number;
-  creditDue: number;
+
+  aCleanerUserId?: string | null;
+  aCleaningDate?: CalendarDateString | null;
+  aCarpetUserId?: string | null;
+  aCarpetDate?: CalendarDateString | null;
+  aInspectorUserId?: string | null;
+  aInspectingDate?: CalendarDateString | null;
+  dCleanerUserId?: string | null;
+  dCleaningDate?: CalendarDateString | null;
+  dCarpetUserId?: string | null;
+  dCarpetDate?: CalendarDateString | null;
+  dInspectorUserId?: string | null;
+  dInspectingDate?: CalendarDateString | null;
   isActive: boolean;
-  isDeleted?: boolean;
 }
 
 export interface ReservationResponse {
@@ -82,6 +94,8 @@ export interface ReservationResponse {
   maidUserId?: string | null;
   lockBoxCode?: string | null;
   unitTenantCode?: string | null;
+  currentInvoiceNo: number;
+  creditDue: number;
   billingMethodId: number;
   prorateTypeId: number;
   billingTypeId: number;
@@ -108,8 +122,19 @@ export interface ReservationResponse {
   code: boolean;
   departureLetterChecked: boolean;
   departureLetterSent: boolean;
-  currentInvoiceNo: number;
-  creditDue: number;
+
+  aCleanerUserId?: string | null;
+  aCleaningDate?: CalendarDateString | null;
+  aCarpetUserId?: string | null;
+  aCarpetDate?: CalendarDateString | null;
+  aInspectorUserId?: string | null;
+  aInspectingDate?: CalendarDateString | null;
+  dCleanerUserId?: string | null;
+  dCleaningDate?: CalendarDateString | null;
+  dCarpetUserId?: string | null;
+  dCarpetDate?: CalendarDateString | null;
+  dInspectorUserId?: string | null;
+  dInspectingDate?: CalendarDateString | null;
   isActive: boolean;
   isDeleted?: boolean;
   createdOn?: string | null;
@@ -141,6 +166,8 @@ export interface ReservationListResponse {
   maidStartDate: string | null;
   frequencyId: number;
   maidServiceFee: number;
+  currentInvoiceNo: number;
+  creditDue: number;
   paymentReceived: boolean;
   welcomeLetterChecked: boolean;
   welcomeLetterSent: boolean;
@@ -148,8 +175,19 @@ export interface ReservationListResponse {
   code: boolean;
   departureLetterChecked: boolean;
   departureLetterSent: boolean;
-  currentInvoiceNo: number;
-  creditDue: number;
+
+  aCleanerUserId?: string | null;
+  aCleaningDate?: CalendarDateString | null;
+  aCarpetUserId?: string | null;
+  aCarpetDate?: CalendarDateString | null;
+  aInspectorUserId?: string | null;
+  aInspectingDate?: CalendarDateString | null;
+  dCleanerUserId?: string | null;
+  dCleaningDate?: CalendarDateString | null;
+  dCarpetUserId?: string | null;
+  dCarpetDate?: CalendarDateString | null;
+  dInspectorUserId?: string | null;
+  dInspectingDate?: CalendarDateString | null;
   isActive: boolean;
   createdOn: string;
 }
@@ -181,6 +219,8 @@ export interface ReservationListDisplay {
   frequencyId?: number | null;
   maidService?: boolean | null;
   currentInvoiceNo: number;
+  creditDue: number;
+  hasCredit?: boolean | null;
   paymentReceived: boolean;
   welcomeLetterChecked: boolean;
   welcomeLetterSent: boolean;
@@ -188,10 +228,20 @@ export interface ReservationListDisplay {
   code: boolean;
   departureLetterChecked: boolean;
   departureLetterSent: boolean;
-  creditDue: number;
-  hasCredit?: boolean | null;
+  
+  aCleanerUserId?: string | null;
+  aCleaningDate?: CalendarDateString | null;
+  aCarpetUserId?: string | null;
+  aCarpetDate?: CalendarDateString | null;
+  aInspectorUserId?: string | null;
+  aInspectingDate?: CalendarDateString | null;
+  dCleanerUserId?: string | null;
+  dCleaningDate?: CalendarDateString | null;
+  dCarpetUserId?: string | null;
+  dCarpetDate?: CalendarDateString | null;
+  dInspectorUserId?: string | null;
+  dInspectingDate?: CalendarDateString | null;  
   isActive: boolean;
-  isDeleted?: boolean;
   createdOn: string;
 }
 
