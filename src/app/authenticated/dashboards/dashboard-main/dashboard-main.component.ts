@@ -196,13 +196,13 @@ export class DashboardMainComponent extends PropertyMaintenanceBase implements O
     const arrivalRows = this.arrivalReservations;
     arrivalRows.sort((a, b) => (a.arrivalDateOrdinal ?? 0) - (b.arrivalDateOrdinal ?? 0));
     this.reservationTurnoverArrivalRows = arrivalRows.map(r =>
-      this.mappingService.mapReservationPropertyMaintenanceToTurnoverDisplay(r)
+      this.mixedMappingService.mapReservationPropertyMaintenanceToTurnoverDisplay(r)
     );
 
     const departureRows = this.departureReservations;
     departureRows.sort((a, b) => (a.departureDateOrdinal ?? 0) - (b.departureDateOrdinal ?? 0));
     this.reservationTurnoverDepartureRows = departureRows.map(r =>
-      this.mappingService.mapReservationPropertyMaintenanceToTurnoverDisplay(r)
+      this.mixedMappingService.mapReservationPropertyMaintenanceToTurnoverDisplay(r)
     );
   }
 
@@ -210,18 +210,20 @@ export class DashboardMainComponent extends PropertyMaintenanceBase implements O
     const onlineRows = [...this.onlineProperties];
     onlineRows.sort((a, b) => (Number(a.eventDateSortTime ?? a.availableFromOrdinal) || 0) - (Number(b.eventDateSortTime ?? b.availableFromOrdinal) || 0));
     this.comingOnlinePropertyRows = onlineRows.map(pm =>
-      this.mixedMappingService.mapDashboardPropertyTurnoverRow(
+      this.mixedMappingService.mapDashboardMainPropertyTurnoverRow(
         this.mappingService.mapPropertyMaintenanceToPropertyListResponseForDashboard(pm),
-        this.getMaintenanceListResponseForPropertyId(pm.propertyId) ?? null
+        this.getMaintenanceListResponseForPropertyId(pm.propertyId) ?? null,
+        pm
       )
     );
 
     const offlineRows = [...this.offlineProperties];
     offlineRows.sort((a, b) => (Number(a.eventDateSortTime ?? a.availableUntilOrdinal) || 0) - (Number(b.eventDateSortTime ?? b.availableUntilOrdinal) || 0));
     this.goingOfflinePropertyRows = offlineRows.map(pm =>
-      this.mixedMappingService.mapDashboardPropertyTurnoverRow(
+      this.mixedMappingService.mapDashboardMainPropertyTurnoverRow(
         this.mappingService.mapPropertyMaintenanceToPropertyListResponseForDashboard(pm),
-        this.getMaintenanceListResponseForPropertyId(pm.propertyId) ?? null
+        this.getMaintenanceListResponseForPropertyId(pm.propertyId) ?? null,
+        pm
       )
     );
   }

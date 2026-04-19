@@ -1,4 +1,4 @@
-@if (isLoading$ | async) {
+@if (isPageLoading) {
   <div class="loading-container">
     <mat-spinner [diameter]="32"></mat-spinner>
     <p>Loading maintenance...</p>
@@ -12,58 +12,6 @@
         <mat-icon>save</mat-icon>
         Save
       </button>
-    </div>
-    <div class="maintenance-form-row maintenance-form-row-six form-standard-grid">
-      <mat-form-field appearance="outline">
-        <mat-label>Cleaner</mat-label>
-        <mat-select formControlName="cleanerUserId" [canSelectNullableOptions]="true">
-          <mat-option [value]="null">Select Cleaner</mat-option>
-          @for (user of getCleanerOptionsForOffice(); track user.userId) {
-            <mat-option [value]="user.userId">{{ getUserFullName(user) }}</mat-option>
-          }
-        </mat-select>
-      </mat-form-field>
-
-      <mat-form-field appearance="outline">
-        <mat-label>Cleaning Date</mat-label>
-        <input matInput [matDatepicker]="cleaningDatePicker" formControlName="cleaningDate" />
-        <mat-datepicker-toggle matSuffix [for]="cleaningDatePicker"></mat-datepicker-toggle>
-        <mat-datepicker #cleaningDatePicker></mat-datepicker>
-      </mat-form-field>
-
-      <mat-form-field appearance="outline">
-        <mat-label>Carpet Cleaner</mat-label>
-        <mat-select formControlName="carpetUserId" [canSelectNullableOptions]="true">
-          <mat-option [value]="null">Select Carpet Cleaner</mat-option>
-          @for (user of getCleanerOptionsForOffice(); track user.userId) {
-            <mat-option [value]="user.userId">{{ getUserFullName(user) }}</mat-option>
-          }
-        </mat-select>
-      </mat-form-field>
-
-      <mat-form-field appearance="outline">
-        <mat-label>Carpet Date</mat-label>
-        <input matInput [matDatepicker]="carpetDatePicker" formControlName="carpetDate" />
-        <mat-datepicker-toggle matSuffix [for]="carpetDatePicker"></mat-datepicker-toggle>
-        <mat-datepicker #carpetDatePicker></mat-datepicker>
-      </mat-form-field>
-
-      <mat-form-field appearance="outline">
-        <mat-label>Inspector</mat-label>
-        <mat-select formControlName="inspectorUserId" [canSelectNullableOptions]="true">
-          <mat-option [value]="null">Select Inspector</mat-option>
-          @for (user of getInspectorOptionsForOffice(); track user.userId) {
-            <mat-option [value]="user.userId">{{ getUserFullName(user) }}</mat-option>
-          }
-        </mat-select>
-      </mat-form-field>
-
-      <mat-form-field appearance="outline">
-        <mat-label>Inspecting Date</mat-label>
-        <input matInput [matDatepicker]="inspectingDatePicker" formControlName="inspectingDate" />
-        <mat-datepicker-toggle matSuffix [for]="inspectingDatePicker"></mat-datepicker-toggle>
-        <mat-datepicker #inspectingDatePicker></mat-datepicker>
-      </mat-form-field>
     </div>
     <div class="maintenance-form-row form-standard-grid">
       <mat-form-field appearance="outline" class="maintenance-field-full">
@@ -79,7 +27,7 @@
       </mat-expansion-panel-header>
       <app-maintenance-item-list
         [maintenanceItems]="maintenanceItems"
-        [isLoading]="isLoadingMaintenanceItems"
+        [isLoading]="isPageLoading"
         [isSaving]="isSavingMaintenanceItems"
         [property]="property"
         (deleteExisting)="onMaintenanceItemDelete($event)"
@@ -92,7 +40,7 @@
       </mat-expansion-panel-header>
       <app-maintenance-appliance-list
         [appliances]="appliances"
-        [isLoading]="isLoadingAppliances"
+        [isLoading]="isPageLoading"
         [isSaving]="isSavingAppliances"
         [property]="property"
         (deleteExisting)="onApplianceDelete($event)"
@@ -105,7 +53,7 @@
       </mat-expansion-panel-header>
       <app-maintenance-utility-list
         [utilities]="utilities"
-        [isLoading]="isLoadingUtilities"
+        [isLoading]="isPageLoading"
         [isSaving]="isSavingUtilities"
         [property]="property"
         (deleteExisting)="onUtilityDelete($event)"

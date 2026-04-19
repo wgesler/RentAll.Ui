@@ -168,7 +168,26 @@ export class PropertyMaintenanceBase implements OnInit, OnDestroy {
   private loadActiveReservations(): void {
     this.reservationService.getReservationList().pipe(take(1), finalize(() => { this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'activeReservations'); })).subscribe({
       next: (response: ReservationListResponse[]) => {
-        this.applyReservationListMappingsFromServer(this.mappingService.mapReservationList(response));
+        const mappedRows = this.mappingService.mapReservationList(response);
+        this.applyReservationListMappingsFromServer(
+          this.mixedMappingService.mapReservationListDisplayWithProviderFields(response, mappedRows)
+        );
+        console.groupCollapsed('[PMBase] Active reservations loaded');
+        console.log('totalReservations:', response.length, 'activeReservations:', this.activeReservationList.length);
+        console.table(this.activeReservationList.map(r => ({
+          reservationId: r.reservationId,
+          propertyId: r.propertyId,
+          reservationCode: r.reservationCode,
+          arrivalDate: r.arrivalDate,
+          departureDate: r.departureDate,
+          aCleanerUserId: r.aCleanerUserId ?? null,
+          aCleaningDate: r.aCleaningDate ?? null,
+          dCleanerUserId: r.dCleanerUserId ?? null,
+          dCleaningDate: r.dCleaningDate ?? null,
+          maidUserId: r.maidUserId ?? null,
+          maidStartDate: r.maidStartDate ?? null
+        })));
+        console.groupEnd();
       },
       error: () => {
         this.reservationList = [];
@@ -245,9 +264,9 @@ export class PropertyMaintenanceBase implements OnInit, OnDestroy {
       const untilOrdinal = pm.availableUntilOrdinal;
       const inWindow = untilOrdinal !== null && untilOrdinal >= lo && untilOrdinal <= hi;
       const assigneeOk = userId === null
-        || pm.cleanerUserId === userId
-        || pm.carpetUserId === userId
-        || pm.inspectorUserId === userId;
+        || pm.offCleanerUserId === userId
+        || pm.offCarpetUserId === userId
+        || pm.offInspectorUserId === userId;
       if (inWindow && assigneeOk) {
         result.push({
           ...pm,
@@ -272,9 +291,9 @@ export class PropertyMaintenanceBase implements OnInit, OnDestroy {
       const fromOrdinal = pm.availableFromOrdinal;
       if (fromOrdinal !== null && fromOrdinal >= lo && fromOrdinal <= hi
         && (userId === null
-          || pm.cleanerUserId === userId
-          || pm.carpetUserId === userId
-          || pm.inspectorUserId === userId)
+          || pm.onCleanerUserId === userId
+          || pm.onCarpetUserId === userId
+          || pm.onInspectorUserId === userId)
       ) {
         result.push({
           ...pm,
@@ -300,9 +319,9 @@ export class PropertyMaintenanceBase implements OnInit, OnDestroy {
       const inLo = arrivalOrdinal !== null && arrivalOrdinal >= lo;
       const inHi = arrivalOrdinal !== null && arrivalOrdinal <= hi;
       const assigneeOk = userId === null
-        || rpm.cleanerUserId === userId
-        || rpm.carpetUserId === userId
-        || rpm.inspectorUserId === userId;
+        || rpm.aCleanerUserId === userId
+        || rpm.aCarpetUserId === userId
+        || rpm.aInspectorUserId === userId;
       if (inLo && inHi && assigneeOk) {
         result.push({
           ...rpm,
@@ -327,9 +346,9 @@ export class PropertyMaintenanceBase implements OnInit, OnDestroy {
       const departureOrdinal = rpm.departureDateOrdinal;
       if (departureOrdinal !== null && departureOrdinal >= lo && departureOrdinal <= hi
         && (userId === null
-          || rpm.cleanerUserId === userId
-          || rpm.carpetUserId === userId
-          || rpm.inspectorUserId === userId)
+          || rpm.dCleanerUserId === userId
+          || rpm.dCarpetUserId === userId
+          || rpm.dInspectorUserId === userId)
       ) {
         result.push({
           ...rpm,
@@ -453,7 +472,11 @@ export class PropertyMaintenanceBase implements OnInit, OnDestroy {
         if (calendarDaysBetween(cleanDay, startOfDay(departureDay)) < 7) {
           continue;
         }
-        if (userId !== null && row.maidUserId !== userId && row.cleanerUserId !== userId) {
+        if (userId !== null
+          && row.maidUserId !== userId
+          && row.aCleanerUserId !== userId
+          && row.dCleanerUserId !== userId
+        ) {
           continue;
         }
         chosen = occ;

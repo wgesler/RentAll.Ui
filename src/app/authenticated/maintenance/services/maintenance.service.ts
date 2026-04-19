@@ -2,7 +2,7 @@ import { HttpClient } from '@angular/common/http';
 import { Injectable } from '@angular/core';
 import { Observable, firstValueFrom } from 'rxjs';
 import { ConfigService } from '../../../services/config.service';
-import { MappingService } from '../../../services/mapping.service';
+import { MixedMappingService } from '../../../services/mixed-mapping.service';
 import { MaintenanceListResponse, MaintenanceRequest, MaintenanceResponse } from '../models/maintenance.model';
 
 @Injectable({
@@ -16,7 +16,7 @@ export class MaintenanceService {
   constructor(
     http: HttpClient,
     configService: ConfigService,
-    private mappingService: MappingService
+    private mixedMappingService: MixedMappingService
   ) {
     this.http = http;
     this.configService = configService;
@@ -49,7 +49,7 @@ export class MaintenanceService {
   ): Promise<MaintenanceResponse> {
     const maintenance = await firstValueFrom(this.getMaintenanceByGuid(maintenanceId));
     const patch = typeof overrides === 'function' ? overrides(maintenance) : overrides;
-    return firstValueFrom(this.updateMaintenance(this.mappingService.mapMaintenanceResponseToRequest(maintenance, patch)));
+    return firstValueFrom(this.updateMaintenance(this.mixedMappingService.mapMaintenanceResponseToRequest(maintenance, patch)));
   }
 
   deleteMaintenance(maintenanceId: string): Observable<void> {

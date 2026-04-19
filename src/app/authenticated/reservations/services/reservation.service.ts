@@ -3,7 +3,7 @@ import { Injectable } from '@angular/core';
 import { Observable, firstValueFrom } from 'rxjs';
 import { map } from 'rxjs/operators';
 import { ConfigService } from '../../../services/config.service';
-import { MappingService } from '../../../services/mapping.service';
+import { MixedMappingService } from '../../../services/mixed-mapping.service';
 import { ReservationListResponse, ReservationRequest, ReservationResponse } from '../models/reservation-model';
 
 @Injectable({
@@ -16,7 +16,7 @@ export class ReservationService {
   constructor(
     private http: HttpClient,
     private configService: ConfigService,
-    private mappingService: MappingService
+    private mixedMappingService: MixedMappingService
   ) {
   }
 
@@ -65,7 +65,8 @@ export class ReservationService {
   ): Promise<ReservationResponse> {
     const reservation = await firstValueFrom(this.getReservationByGuid(reservationId));
     const patch = typeof overrides === 'function' ? overrides(reservation) : overrides;
-    return firstValueFrom(this.updateReservation(this.mappingService.mapReservationResponseToRequest(reservation, patch)));
+    const request = this.mixedMappingService.mapReservationResponseToRequest(reservation, patch);
+    return firstValueFrom(this.updateReservation(request));
   }
 
   // DELETE: Delete reservation

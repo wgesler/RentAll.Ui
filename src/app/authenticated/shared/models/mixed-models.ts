@@ -167,6 +167,8 @@ export interface ReservationPropertyMaintenanceDisplayList {
 
 export interface MaintenanceListDisplay extends PropertyListDisplay {
   maintenanceId?: string;
+  reservationId?: string | null;
+  eventType?: ServiceType | null;
   propertyAddress: string;
   propertyStatusText: string;
   propertyStatusDropdown: MaintenanceListStatusDropdownCell;
@@ -196,6 +198,12 @@ export interface MaintenanceListDisplay extends PropertyListDisplay {
 export type DashboardPropertyTurnoverRow = PropertyListDisplay & {
   availableAfter: string;
   availableUntil: string;
+  cleanerUserId?: string | null;
+  carpetUserId?: string | null;
+  inspectorUserId?: string | null;
+  cleaningDateDisplay?: string;
+  carpetDateDisplay?: string;
+  inspectingDateDisplay?: string;
 };
 
 export type PropertyVacancyDisplay = PropertyListResponse & {
@@ -226,6 +234,12 @@ export interface ReservationTurnoverEventDisplay {
   code: boolean;
   departureLetterChecked: boolean;
   departureLetterSent: boolean;
+  cleanerUserId?: string | null;
+  carpetUserId?: string | null;
+  inspectorUserId?: string | null;
+  cleaningDateDisplay?: string;
+  carpetDateDisplay?: string;
+  inspectingDateDisplay?: string;
 }
 
 export type MaintenanceListLoadResponse = {

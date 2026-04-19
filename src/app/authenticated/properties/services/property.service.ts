@@ -5,6 +5,7 @@ import { catchError } from 'rxjs/operators';
 import { map } from 'rxjs/operators';
 import { ConfigService } from '../../../services/config.service';
 import { MappingService } from '../../../services/mapping.service';
+import { MixedMappingService } from '../../../services/mixed-mapping.service';
 import { CalendarUrlRequest, CalendarUrlResponse } from '../models/property-calendar';
 import { PropertySelectionRequest, PropertySelectionResponse } from '../models/property-selection.model';
 import { PropertyListResponse, PropertyRequest, PropertyResponse } from '../models/property.model';
@@ -20,7 +21,8 @@ export class PropertyService {
   constructor(
       private http: HttpClient,
       private configService: ConfigService,
-      private mappingService: MappingService) {
+      private mappingService: MappingService,
+      private mixedMappingService: MixedMappingService) {
   }
 
   // GET: Get property list (summary view)
@@ -62,7 +64,7 @@ export class PropertyService {
   ): Promise<PropertyResponse> {
     const property = await firstValueFrom(this.getPropertyByGuid(propertyId));
     const patch = typeof overrides === 'function' ? overrides(property) : overrides;
-    const request = this.mappingService.mapPropertyResponseToRequest(property, patch);
+    const request = this.mixedMappingService.mapPropertyResponseToRequest(property, patch);
     return firstValueFrom(this.updateProperty(request));
   }
 

@@ -9,7 +9,7 @@ import { DocumentListDisplay, DocumentResponse } from '../authenticated/document
 import { AlertListDisplay, AlertResponse } from '../authenticated/email/models/alert.model';
 import { EmailListDisplay, EmailResponse } from '../authenticated/email/models/email.model';
 import { EmailHtmlResponse } from '../authenticated/email/models/email-html.model';
-import { MaintenanceListResponse, MaintenanceRequest, MaintenanceResponse } from '../authenticated/maintenance/models/maintenance.model';
+import { MaintenanceListResponse } from '../authenticated/maintenance/models/maintenance.model';
 import { InspectionDisplayList, InspectionResponse } from '../authenticated/maintenance/models/inspection.model';
 import { ReceiptDisplayList, ReceiptResponse } from '../authenticated/maintenance/models/receipt.model';
 import { getInspectionType, getWorkOrderType } from '../authenticated/maintenance/models/maintenance-enums';
@@ -23,11 +23,11 @@ import { OfficeListDisplay, OfficeResponse } from '../authenticated/organization
 import { OrganizationListDisplay, OrganizationResponse } from '../authenticated/organizations/models/organization.model';
 import { RegionListDisplay, RegionResponse } from '../authenticated/organizations/models/region.model';
 import { ManagementFeeType, PropertyType, TrashDays, effectiveBedTypeIdForPropertySlot, getBedSizeType, getPropertyStatus, getPropertyStatusLetter, getPropertyType } from '../authenticated/properties/models/property-enums';
-import { PropertyBedDropdownCell, PropertyListDisplay, PropertyListResponse, PropertyRequest, PropertyResponse } from '../authenticated/properties/models/property.model';
+import { PropertyBedDropdownCell, PropertyListDisplay, PropertyListResponse, PropertyResponse } from '../authenticated/properties/models/property.model';
 import { BoardProperty } from '../authenticated/reservations/models/reservation-board-model';
 import { getFrequency, getReservationStatus } from '../authenticated/reservations/models/reservation-enum';
-import { ExtraFeeLineRequest, ExtraFeeLineResponse, ReservationListDisplay, ReservationListResponse, ReservationRequest, ReservationResponse } from '../authenticated/reservations/models/reservation-model';
-import { MaintenanceListDisplay, PropertyMaintenance, ReservationPropertyMaintenance, ReservationTurnoverEventDisplay } from '../authenticated/shared/models/mixed-models';
+import { ExtraFeeLineRequest, ExtraFeeLineResponse, ReservationListDisplay, ReservationListResponse } from '../authenticated/reservations/models/reservation-model';
+import { MaintenanceListDisplay, PropertyMaintenance, ReservationPropertyMaintenance } from '../authenticated/shared/models/mixed-models';
 import { FormatterService } from './formatter-service';
 import { UtilityService } from './utility.service';
 
@@ -675,15 +675,6 @@ export class MappingService {
     return Number.isFinite(n) ? n : 0;
   }
 
-  mapPropertyResponseToRequest(property: PropertyResponse, overrides?: Partial<PropertyRequest>): PropertyRequest {
-    const { parkingNotes, ...requestBase } = property;
-    const base = {
-      ...requestBase,
-      parkingnotes: parkingNotes ?? null
-    } as PropertyRequest;
-    return { ...base, ...(overrides ?? {}) };
-  }
-
   mapPropertiesToBoardProperties(properties: PropertyListResponse[], reservations: ReservationListResponse[]): BoardProperty[] {
     void reservations;
     return (properties || []).map(p => ({
@@ -784,28 +775,6 @@ export class MappingService {
   //#endregion
 
   //#region Maintenance Mapping
-
-  mapMaintenanceResponseToRequest(maintenance: MaintenanceResponse, overrides?: Partial<MaintenanceRequest>): MaintenanceRequest {
-    const rest = { ...(maintenance as MaintenanceResponse & { propertyCode?: string }) };
-    delete (rest as Record<string, unknown>)['propertyCode'];
-    const base: MaintenanceRequest = {
-      maintenanceId: rest.maintenanceId,
-      organizationId: rest.organizationId,
-      officeId: rest.officeId,
-      officeName: rest.officeName,
-      propertyId: rest.propertyId,
-      inspectionCheckList: rest.inspectionCheckList,
-      cleanerUserId: rest.cleanerUserId ?? null,
-      cleaningDate: rest.cleaningDate ?? null,
-      inspectorUserId: rest.inspectorUserId ?? null,
-      inspectingDate: rest.inspectingDate ?? null,
-      carpetUserId: rest.carpetUserId ?? null,
-      carpetDate: rest.carpetDate ?? null,
-      notes: rest.notes ?? null,
-      isActive: rest.isActive
-    };
-    return { ...base, ...(overrides ?? {}) };
-  }
 
   mapInspection(inspection: InspectionResponse): InspectionResponse {
     return {
@@ -915,93 +884,6 @@ export class MappingService {
         createdOn: this.formatter.formatDateTimeString(o.createdOn)
       };
     });
-  }
-
-  mapReservationPropertyMaintenanceToTurnoverDisplay(rpm: ReservationPropertyMaintenance): ReservationTurnoverEventDisplay {
-    return {
-      propertyId: this.utility.normalizeId(rpm.propertyId),
-      propertyCode: String(rpm.propertyCode ?? '').trim(),
-      officeId: rpm.officeId,
-      reservationId: this.utility.normalizeId(rpm.reservationId),
-      reservationCode: String(rpm.reservationCode ?? '').trim(),
-      contactId: this.utility.normalizeId(rpm.contactId),
-      companyName: String(rpm.companyName ?? '').trim(),
-      agentCode: rpm.agentCode ?? null,
-      tenantName: String(rpm.tenantName ?? '').trim(),
-      contactName: String(rpm.contactName ?? '').trim(),
-      officeName: String(rpm.officeName ?? '').trim(),
-      arrivalDateDisplay: String(rpm.arrivalDateDisplay ?? '').trim() || this.formatter.formatDateString(rpm.arrivalDate) || '',
-      departureDateDisplay: String(rpm.departureDateDisplay ?? '').trim() || this.formatter.formatDateString(rpm.departureDate) || '',
-      reservationStatusDisplay: getReservationStatus(rpm.reservationStatusId),
-      paymentReceived: rpm.paymentReceived,
-      welcomeLetterChecked: rpm.welcomeLetterChecked,
-      welcomeLetterSent: rpm.welcomeLetterSent,
-      readyForArrival: rpm.readyForArrival,
-      code: rpm.code,
-      departureLetterChecked: rpm.departureLetterChecked,
-      departureLetterSent: rpm.departureLetterSent
-    };
-  }
-
-  mapReservationResponseToRequest(
-    reservation: ReservationResponse,
-    overrides?: Partial<ReservationRequest>
-  ): ReservationRequest {
-    const contactIds = (reservation.contactIds || []).filter(id => String(id || '').trim().length > 0);
-    const base: ReservationRequest = {
-      reservationId: reservation.reservationId,
-      organizationId: reservation.organizationId || '',
-      officeId: reservation.officeId,
-      agentId: reservation.agentId ?? null,
-      propertyId: reservation.propertyId,
-      reservationCode: reservation.reservationCode ?? null,
-      reservationTypeId: reservation.reservationTypeId,
-      reservationStatusId: reservation.reservationStatusId,
-      reservationNoticeId: reservation.reservationNoticeId ?? 0,
-      contactIds,
-      companyId: reservation.companyId ?? null,
-      companyName: reservation.companyName ?? null,
-      numberOfPeople: reservation.numberOfPeople,
-      tenantName: reservation.tenantName || '',
-      referenceNo: reservation.referenceNo || '',
-      arrivalDate: reservation.arrivalDate,
-      departureDate: reservation.departureDate,
-      checkInTimeId: reservation.checkInTimeId,
-      checkOutTimeId: reservation.checkOutTimeId,
-      lockBoxCode: reservation.lockBoxCode ?? null,
-      unitTenantCode: reservation.unitTenantCode ?? null,
-      billingMethodId: reservation.billingMethodId,
-      prorateTypeId: reservation.prorateTypeId,
-      billingTypeId: reservation.billingTypeId,
-      billingRate: reservation.billingRate,
-      deposit: reservation.deposit,
-      depositTypeId: reservation.depositTypeId ?? 0,
-      departureFee: reservation.departureFee,
-      taxes: reservation.taxes,
-      hasPets: reservation.hasPets,
-      petFee: reservation.petFee,
-      numberOfPets: reservation.numberOfPets,
-      petDescription: reservation.petDescription ?? null,
-      maidService: reservation.maidService,
-      maidServiceFee: reservation.maidServiceFee,
-      frequencyId: reservation.frequencyId,
-      maidStartDate: reservation.maidStartDate,
-      maidUserId: reservation.maidUserId ?? null,
-      extraFeeLines: this.mapExtraFeeLinesResponseToRequest(reservation.extraFeeLines),
-      notes: reservation.notes ?? null,
-      allowExtensions: reservation.allowExtensions,
-      paymentReceived: reservation.paymentReceived,
-      welcomeLetterChecked: reservation.welcomeLetterChecked,
-      welcomeLetterSent: reservation.welcomeLetterSent,
-      readyForArrival: reservation.readyForArrival,
-      code: reservation.code,
-      departureLetterChecked: reservation.departureLetterChecked,
-      departureLetterSent: reservation.departureLetterSent,
-      currentInvoiceNo: reservation.currentInvoiceNo,
-      creditDue: reservation.creditDue,
-      isActive: reservation.isActive
-    };
-    return { ...base, ...overrides };
   }
 
   mapExtraFeeLinesResponseToRequest(lines: ExtraFeeLineResponse[] | null | undefined): ExtraFeeLineRequest[] {

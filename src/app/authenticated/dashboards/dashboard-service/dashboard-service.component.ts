@@ -140,19 +140,33 @@ export class DashboardServiceComponent extends PropertyMaintenanceBase implement
     const carpetRows: ReservationPropertyMaintenance[] = [];
     const inspectionRows: ReservationPropertyMaintenance[] = [];
 
-    const toEventDisplayRow = (row: ReservationPropertyMaintenance, eventType: ServiceType): ReservationPropertyMaintenance => ({
-      ...row,
-      eventType,
-      eventTypeDisplay: getServiceType(eventType),
-      departureDateDisplay: this.formatterService.formatDateString(row.eventDate ?? undefined) || row.departureDateDisplay || ''
-    });
+    const toEventDisplayRow = (row: ReservationPropertyMaintenance, eventType: ServiceType): ReservationPropertyMaintenance =>
+      this.mixedMappingService.mapReservationPropertyMaintenanceDashboardServiceScheduleRow({
+        ...row,
+        eventType,
+        eventTypeDisplay: getServiceType(eventType),
+        departureDateDisplay: this.formatterService.formatDateString(row.eventDate ?? undefined) || row.departureDateDisplay || ''
+      });
 
     const canAssignCleaning = (row: ReservationPropertyMaintenance): boolean =>
-      userAssignedId === null || row.maidUserId === userAssignedId || row.cleanerUserId === userAssignedId;
+      userAssignedId === null
+      || row.maidUserId === userAssignedId
+      || row.aCleanerUserId === userAssignedId
+      || row.dCleanerUserId === userAssignedId
+      || row.onCleanerUserId === userAssignedId
+      || row.offCleanerUserId === userAssignedId;
     const canAssignCarpet = (row: ReservationPropertyMaintenance): boolean =>
-      userAssignedId === null || row.carpetUserId === userAssignedId;
+      userAssignedId === null
+      || row.aCarpetUserId === userAssignedId
+      || row.dCarpetUserId === userAssignedId
+      || row.onCarpetUserId === userAssignedId
+      || row.offCarpetUserId === userAssignedId;
     const canAssignInspection = (row: ReservationPropertyMaintenance): boolean =>
-      userAssignedId === null || row.inspectorUserId === userAssignedId;
+      userAssignedId === null
+      || row.aInspectorUserId === userAssignedId
+      || row.dInspectorUserId === userAssignedId
+      || row.onInspectorUserId === userAssignedId
+      || row.offInspectorUserId === userAssignedId;
 
     for (const row of this.arrivalReservations) {
       if (canAssignCleaning(row)) {
@@ -185,7 +199,9 @@ export class DashboardServiceComponent extends PropertyMaintenanceBase implement
     }
  
     for (const row of this.onlineProperties) {
-      const eventRow = this.mixedMappingService.mapPropertyMaintenanceToServiceDashboardScheduleRow(row);
+      const eventRow = this.mixedMappingService.mapReservationPropertyMaintenanceDashboardServiceScheduleRow(
+        this.mixedMappingService.mapPropertyMaintenanceToDashboardServiceScheduleRow(row)
+      );
       if (canAssignCleaning(eventRow)) {
         cleaningRows.push(toEventDisplayRow(eventRow, ServiceType.Online));
       }
@@ -198,7 +214,9 @@ export class DashboardServiceComponent extends PropertyMaintenanceBase implement
     }
 
     for (const row of this.offlineProperties) {
-      const eventRow = this.mixedMappingService.mapPropertyMaintenanceToServiceDashboardScheduleRow(row);
+      const eventRow = this.mixedMappingService.mapReservationPropertyMaintenanceDashboardServiceScheduleRow(
+        this.mixedMappingService.mapPropertyMaintenanceToDashboardServiceScheduleRow(row)
+      );
       if (canAssignCleaning(eventRow)) {
         cleaningRows.push(toEventDisplayRow(eventRow, ServiceType.Offline));
       }

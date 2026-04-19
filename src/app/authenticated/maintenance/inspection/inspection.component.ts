@@ -376,10 +376,6 @@ export class InspectionComponent implements OnChanges, OnDestroy, OnInit {
           officeName: existing?.officeName ?? this.property!.officeName ?? '',
           propertyId: this.property!.propertyId,
           inspectionCheckList: checklistJson,
-          cleanerUserId: existing?.cleanerUserId ?? this.user?.userId ?? '',
-          cleaningDate: existing?.cleaningDate ?? undefined,
-          inspectorUserId: existing?.inspectorUserId ?? this.user?.userId ?? '',
-          inspectingDate: existing?.inspectingDate ?? undefined,
           notes: existing?.notes ?? null,
           isActive: existing?.isActive ?? true
         };
@@ -456,10 +452,6 @@ export class InspectionComponent implements OnChanges, OnDestroy, OnInit {
       officeName: this.property.officeName ?? '',
       propertyId,
       inspectionCheckList: this.buildDefaultTemplateJson(INSPECTION_SECTIONS, false),
-      cleanerUserId: this.user?.userId ?? '',
-      cleaningDate: undefined,
-      inspectorUserId: this.user?.userId ?? '',
-      inspectingDate: undefined,
       notes: null,
       isActive: true
     };
