@@ -50,6 +50,7 @@ export class DashboardServiceComponent extends PropertyMaintenanceBase implement
   scheduleCalendarCurrentCells: { day: number | null; dateKey: string | null; isToday: boolean; isWeekend: boolean; }[] = [];
   scheduleCalendarNextCells: { day: number | null; dateKey: string | null; isToday: boolean; isWeekend: boolean; }[] = [];
   scheduledDayKeys = new Set<string>();
+  scheduleDotTypeByDayKey = new Map<string, 'blue' | 'green' | 'pink' | 'mixed'>();
   selectedScheduleCalendarDayKey: string | null = null;
 
   override itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['currentUser', 'offices', 'activeReservations', 'propertyMaintenanceList']));
@@ -247,16 +248,19 @@ export class DashboardServiceComponent extends PropertyMaintenanceBase implement
   //#region Calendar Methods
   refreshScheduleCalendars(): void {
     const keys = new Set<string>();
-    const addKey = (r: ReservationPropertyMaintenance) => {
-      const k = this.eventRowToScheduleDayKey(r);
-      if (k) {
-        keys.add(k);
+    const dotTypeByDayKey = new Map<string, 'blue' | 'green' | 'pink' | 'mixed'>();
+    const addKey = (value: string | null | undefined) => {
+      const dayKey = this.toScheduleDayKey(value);
+      if (dayKey) {
+        keys.add(dayKey);
       }
+      return dayKey;
     };
-    this.scheduledCleaningsDisplay.forEach(addKey);
-    this.scheduledCarpetCleaningsDisplay.forEach(addKey);
-    this.scheduledInspectionsDisplay.forEach(addKey);
+    this.scheduledCleaningsDisplay.forEach(row => this.assignScheduleDotType(dotTypeByDayKey, addKey(this.getCleaningDateDisplayForScheduleRow(row)), 'blue'));
+    this.scheduledCarpetCleaningsDisplay.forEach(row => this.assignScheduleDotType(dotTypeByDayKey, addKey(this.getCarpetDateDisplayForScheduleRow(row)), 'green'));
+    this.scheduledInspectionsDisplay.forEach(row => this.assignScheduleDotType(dotTypeByDayKey, addKey(this.getInspectionDateDisplayForScheduleRow(row)), 'pink'));
     this.scheduledDayKeys = keys;
+    this.scheduleDotTypeByDayKey = dotTypeByDayKey;
     const now = new Date();
     const curMonthStart = new Date(now.getFullYear(), now.getMonth(), 1);
     const nextMonthStart = new Date(now.getFullYear(), now.getMonth() + 1, 1);
@@ -295,16 +299,88 @@ export class DashboardServiceComponent extends PropertyMaintenanceBase implement
     return cells;
   }
 
-  eventRowToScheduleDayKey(row: ReservationPropertyMaintenance): string | null {
-    const v = row.eventDate;
-    if (v == null || String(v).trim() === '') {
+  toScheduleDayKey(value: string | null | undefined): string | null {
+    if (value == null || String(value).trim() === '') {
       return null;
     }
-    const parsed = this.utilityService.parseDateOnlyStringToDate(String(v));
+    const parsed = this.utilityService.parseDateOnlyStringToDate(String(value));
     if (!parsed) {
-      return String(v).trim();
+      return null;
     }
     return this.utilityService.formatDateOnlyForApi(parsed);
+  }
+
+  assignScheduleDotType(
+    dotTypeByDayKey: Map<string, 'blue' | 'green' | 'pink' | 'mixed'>,
+    dayKey: string | null,
+    type: 'blue' | 'green' | 'pink'
+  ): void {
+    if (!dayKey) {
+      return;
+    }
+    const existing = dotTypeByDayKey.get(dayKey);
+    if (!existing) {
+      dotTypeByDayKey.set(dayKey, type);
+      return;
+    }
+    if (existing !== type) {
+      dotTypeByDayKey.set(dayKey, 'mixed');
+    }
+  }
+
+  getScheduleDotClass(dateKey: string | null): string {
+    if (!dateKey) {
+      return 'dot-blue';
+    }
+    const type = this.scheduleDotTypeByDayKey.get(dateKey) ?? 'blue';
+    return type === 'mixed' ? 'dot-mixed' : `dot-${type}`;
+  }
+
+  getCleaningDateDisplayForScheduleRow(row: ReservationPropertyMaintenance): string {
+    switch (row.eventType) {
+      case ServiceType.Arrival:
+        return row.acleaningDateDisplay || '';
+      case ServiceType.Departure:
+        return row.dCleaningDateDisplay || '';
+      case ServiceType.Online:
+        return row.onCleaningDateDisplay || '';
+      case ServiceType.Offline:
+        return row.offCleaningDateDisplay || '';
+      case ServiceType.MaidService:
+        return row.maidStartDateDisplay || '';
+      default:
+        return '';
+    }
+  }
+
+  getCarpetDateDisplayForScheduleRow(row: ReservationPropertyMaintenance): string {
+    switch (row.eventType) {
+      case ServiceType.Arrival:
+        return row.aCarpetDateDisplay || '';
+      case ServiceType.Departure:
+        return row.dCarpetDateDisplay || '';
+      case ServiceType.Online:
+        return row.onCarpetDateDisplay || '';
+      case ServiceType.Offline:
+        return row.offCarpetDateDisplay || '';
+      default:
+        return '';
+    }
+  }
+
+  getInspectionDateDisplayForScheduleRow(row: ReservationPropertyMaintenance): string {
+    switch (row.eventType) {
+      case ServiceType.Arrival:
+        return row.aInspectingDateDisplay || '';
+      case ServiceType.Departure:
+        return row.dInspectingDateDisplay || '';
+      case ServiceType.Online:
+        return row.onInspectingDateDisplay || '';
+      case ServiceType.Offline:
+        return row.offInspectingDateDisplay || '';
+      default:
+        return '';
+    }
   }
 
   onScheduleCalendarDayClick(dateKey: string | null): void {
@@ -321,14 +397,14 @@ export class DashboardServiceComponent extends PropertyMaintenanceBase implement
 
   syncScheduleRowHighlight(): void {
     const sel = this.selectedScheduleCalendarDayKey;
-    const apply = (rows: ReservationPropertyMaintenance[]) => {
+    const apply = (rows: ReservationPropertyMaintenance[], getDate: (row: ReservationPropertyMaintenance) => string | null | undefined) => {
       for (const row of rows) {
-        row.rowActive = !!sel && this.eventRowToScheduleDayKey(row) === sel;
+        row.rowActive = !!sel && this.toScheduleDayKey(getDate(row)) === sel;
       }
     };
-    apply(this.scheduledCleaningsDisplay);
-    apply(this.scheduledCarpetCleaningsDisplay);
-    apply(this.scheduledInspectionsDisplay);
+    apply(this.scheduledCleaningsDisplay, row => this.getCleaningDateDisplayForScheduleRow(row));
+    apply(this.scheduledCarpetCleaningsDisplay, row => this.getCarpetDateDisplayForScheduleRow(row));
+    apply(this.scheduledInspectionsDisplay, row => this.getInspectionDateDisplayForScheduleRow(row));
     this.scheduledCleaningsDisplay = [...this.scheduledCleaningsDisplay];
     this.scheduledCarpetCleaningsDisplay = [...this.scheduledCarpetCleaningsDisplay];
     this.scheduledInspectionsDisplay = [...this.scheduledInspectionsDisplay];

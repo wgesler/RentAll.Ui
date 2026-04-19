@@ -15,6 +15,13 @@ body {
   box-sizing: border-box;
 }
 
+.maintenance-list-office-field {
+  flex: 0 0 200px !important;
+  width: 200px !important;
+  min-width: 200px !important;
+  max-width: 200px !important;
+}
+
 /* Status dropdown should read like a link and match row text size. */
 :host ::ng-deep td.mat-cell.mat-column-propertyStatusDropdown,
 :host ::ng-deep td.mat-mdc-cell.mat-column-propertyStatusDropdown {
@@ -89,6 +96,366 @@ body {
 
 .maintenance-list-accordion {
   min-width: 0;
+}
+
+.dashboard-service-schedule-calendars {
+  --dashboard-schedule-stat-tile-width: 9.75rem;
+  --dashboard-schedule-stat-tile-height: 5.375rem;
+  --dashboard-schedule-stat-icon-size: 1.5625rem;
+
+  display: block;
+  margin: 0;
+  padding: 16px 24px 18px;
+  border: none;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+
+  .dashboard-service-schedule-calendars-layout {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    align-items: stretch;
+    align-content: center;
+    gap: 28px 52px;
+  }
+
+  .dashboard-service-schedule-stat-column {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    flex: 0 0 auto;
+    align-self: center;
+    min-width: 0;
+  }
+
+  .dashboard-service-schedule-stat-column-date {
+    margin: 0 0 10px;
+    padding: 0 4px;
+    width: 100%;
+    box-sizing: border-box;
+    text-align: center;
+    font-size: 0.8125rem;
+    font-weight: 600;
+    line-height: 1.35;
+    color: var(--mat-sys-on-surface, rgba(0, 0, 0, 0.88));
+  }
+
+  .dashboard-service-schedule-calendar-pair {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    align-items: stretch;
+    gap: 14px 72px;
+    flex: 0 1 auto;
+    min-width: 0;
+  }
+
+  .dashboard-service-schedule-stat-tiles {
+    display: flex;
+    flex-direction: row;
+    flex-wrap: nowrap;
+    align-items: stretch;
+    justify-content: center;
+    gap: 18px;
+    flex: 0 0 auto;
+    min-width: 0;
+  }
+
+  .dashboard-service-schedule-stat-tiles > .dashboard-titlebar-stat {
+    box-sizing: border-box;
+    flex: 0 0 auto;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    width: var(--dashboard-schedule-stat-tile-width);
+    min-width: var(--dashboard-schedule-stat-tile-width);
+    max-width: var(--dashboard-schedule-stat-tile-width);
+    height: var(--dashboard-schedule-stat-tile-height);
+    min-height: var(--dashboard-schedule-stat-tile-height);
+    max-height: var(--dashboard-schedule-stat-tile-height);
+    padding: 8px 12px;
+    margin: 0;
+    overflow: hidden;
+    align-items: stretch;
+    border-radius: 8px;
+  }
+
+  .dashboard-service-schedule-stat-tiles > .dashboard-titlebar-stat .dashboard-titlebar-stat-body {
+    min-width: 0;
+    min-height: 0;
+    flex: 1 1 auto;
+    justify-content: center;
+    gap: 4px;
+  }
+
+  .dashboard-service-schedule-stat-tiles > .dashboard-titlebar-stat--blue .dashboard-titlebar-stat-metric,
+  .dashboard-service-schedule-stat-tiles > .dashboard-titlebar-stat--pink .dashboard-titlebar-stat-metric,
+  .dashboard-service-schedule-stat-tiles > .dashboard-titlebar-stat--green .dashboard-titlebar-stat-metric,
+  .dashboard-service-schedule-stat-tiles > .dashboard-titlebar-stat--yellow .dashboard-titlebar-stat-metric {
+    margin-top: 0.45rem;
+    padding-left: 0;
+    padding-right: 0;
+    gap: 6px;
+  }
+
+  .dashboard-service-schedule-stat-tiles > .dashboard-titlebar-stat--blue .dashboard-titlebar-stat-icon,
+  .dashboard-service-schedule-stat-tiles > .dashboard-titlebar-stat--pink .dashboard-titlebar-stat-icon,
+  .dashboard-service-schedule-stat-tiles > .dashboard-titlebar-stat--green .dashboard-titlebar-stat-icon,
+  .dashboard-service-schedule-stat-tiles > .dashboard-titlebar-stat--yellow .dashboard-titlebar-stat-icon {
+    width: var(--dashboard-schedule-stat-icon-size);
+    height: var(--dashboard-schedule-stat-icon-size);
+    font-size: var(--dashboard-schedule-stat-icon-size);
+    line-height: 1;
+  }
+
+  .dashboard-service-schedule-stat-tiles > .dashboard-titlebar-stat--blue .dashboard-titlebar-stat-value,
+  .dashboard-service-schedule-stat-tiles > .dashboard-titlebar-stat--pink .dashboard-titlebar-stat-value,
+  .dashboard-service-schedule-stat-tiles > .dashboard-titlebar-stat--green .dashboard-titlebar-stat-value,
+  .dashboard-service-schedule-stat-tiles > .dashboard-titlebar-stat--yellow .dashboard-titlebar-stat-value {
+    font-size: 0.9375rem;
+    line-height: 1;
+  }
+
+  .dashboard-titlebar-stat--blue {
+    background-color: #e3f2fd;
+    border: 1px solid #90caf9;
+  }
+
+  .dashboard-titlebar-stat--pink {
+    background-color: #fce4ec;
+    border: 1px solid #f48fb1;
+  }
+
+  .dashboard-titlebar-stat--green {
+    background-color: #e8f5e9;
+    border: 1px solid #a5d6a7;
+  }
+
+  .dashboard-titlebar-stat--yellow {
+    background-color: #fffde7;
+    border: 1px solid #fff59d;
+  }
+
+  .dashboard-titlebar-stat-body {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    gap: 1px;
+    min-height: 0;
+  }
+
+  .dashboard-titlebar-stat-heading {
+    margin: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 1px;
+    line-height: 1.15;
+    white-space: nowrap;
+  }
+
+  .dashboard-titlebar-stat-line {
+    font-size: 12px;
+    font-weight: 600;
+    color: #1565c0;
+    line-height: 1.15;
+  }
+
+  .dashboard-titlebar-stat-sub {
+    font-size: 11px;
+    font-weight: 600;
+    color: #1565c0;
+    line-height: 1.15;
+    padding-left: 0;
+  }
+
+  .dashboard-titlebar-stat-metric {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 4px;
+    margin-top: 1px;
+    padding-left: 2px;
+    padding-right: 2px;
+  }
+
+  .dashboard-titlebar-stat-icon {
+    width: 16px;
+    height: 16px;
+    font-size: 16px;
+    color: #555;
+  }
+
+  .dashboard-titlebar-stat-value {
+    font-size: 13px;
+    font-weight: 600;
+    color: #333;
+    line-height: 1;
+  }
+}
+
+.dashboard-service-schedule-calendar {
+  display: flex;
+  flex-direction: column;
+  flex: 0 0 auto;
+  align-self: stretch;
+  width: min(236px, 44vw);
+  min-width: 0;
+  max-width: 236px;
+}
+
+.dashboard-service-schedule-calendar-title {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  margin: 0 0 10px;
+  font-size: 1.0625rem;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+  color: var(--mat-sys-on-surface, rgba(0, 0, 0, 0.87));
+  text-align: center;
+}
+
+.dashboard-service-schedule-calendar-title-icon {
+  width: 1.5rem;
+  height: 1.5rem;
+  font-size: 1.5rem;
+  color: var(--mat-sys-primary, #3949ab);
+  flex-shrink: 0;
+  opacity: 0.92;
+}
+
+.dashboard-service-schedule-calendar-body {
+  flex: 1 1 auto;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  border: 1px solid color-mix(in srgb, var(--mat-sys-primary, #3949ab) 22%, var(--mat-sys-outline, #cbd5e1));
+  border-radius: 10px;
+  padding: 8px 14px 10px;
+  background: linear-gradient(
+    165deg,
+    var(--rentall-color-primary-100, #c5cbe9) 0%,
+    color-mix(in srgb, var(--rentall-color-primary-100, #c5cbe9) 88%, #fff) 52%,
+    color-mix(in srgb, var(--rentall-color-primary-50, #e8eaf6) 65%, #fff) 100%
+  );
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.45);
+  box-sizing: border-box;
+}
+
+.dashboard-service-schedule-calendar-weekdays {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 1px;
+  margin-bottom: 6px;
+  padding-bottom: 4px;
+  border-bottom: 1px solid color-mix(in srgb, var(--mat-sys-on-surface, #000) 10%, transparent);
+}
+
+.dashboard-service-schedule-calendar-weekday {
+  text-align: center;
+  font-size: 0.6rem;
+  font-weight: 600;
+  color: var(--mat-sys-on-surface-variant, #64748b);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.dashboard-service-schedule-calendar-grid {
+  flex: 1 1 auto;
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  grid-auto-rows: min-content;
+  align-content: start;
+  gap: 2px;
+}
+
+.dashboard-service-schedule-calendar-cell {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 2px;
+  min-height: 1.85rem;
+  padding: 2px 1px 3px;
+  border: 1px solid var(--mat-sys-outline-variant, rgba(71, 85, 105, 0.22));
+  border-radius: 6px;
+  background: color-mix(in srgb, var(--mat-sys-surface, #fff) 92%, transparent);
+  font: inherit;
+  cursor: pointer;
+  color: var(--mat-sys-on-surface, rgba(0, 0, 0, 0.87));
+  transition:
+    background-color 0.12s ease,
+    border-color 0.12s ease,
+    box-shadow 0.12s ease;
+}
+
+.dashboard-service-schedule-calendar-cell.is-weekend:not(:disabled) {
+  background: color-mix(in srgb, var(--mat-sys-surface-container-low, #f8fafc) 88%, transparent);
+}
+
+.dashboard-service-schedule-calendar-cell:disabled {
+  cursor: default;
+  background: transparent;
+  border-color: transparent;
+  color: transparent;
+}
+
+.dashboard-service-schedule-calendar-cell:not(:disabled):hover {
+  background: color-mix(in srgb, var(--mat-sys-primary, #3949ab) 10%, var(--mat-sys-surface, #fff));
+  border-color: color-mix(in srgb, var(--mat-sys-primary, #3949ab) 38%, var(--mat-sys-outline, #cbd5e1));
+}
+
+.dashboard-service-schedule-calendar-cell.is-today:not(:disabled) {
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--mat-sys-primary, #3949ab) 55%, transparent);
+  border-color: color-mix(in srgb, var(--mat-sys-primary, #3949ab) 45%, var(--mat-sys-outline, #cbd5e1));
+}
+
+.dashboard-service-schedule-calendar-cell.is-selected:not(:disabled) {
+  background: color-mix(in srgb, var(--mat-sys-primary, #3949ab) 20%, var(--mat-sys-surface, #fff));
+  border-color: color-mix(in srgb, var(--mat-sys-primary, #3949ab) 55%, var(--mat-sys-outline, #cbd5e1));
+  box-shadow:
+    0 0 0 1px color-mix(in srgb, var(--mat-sys-primary, #3949ab) 28%, transparent),
+    0 1px 3px color-mix(in srgb, var(--mat-sys-primary, #3949ab) 18%, transparent);
+}
+
+.dashboard-service-schedule-calendar-cell-day {
+  font-size: 0.75rem;
+  font-weight: 600;
+  line-height: 1.1;
+}
+
+.dashboard-service-schedule-calendar-dot {
+  flex-shrink: 0;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: radial-gradient(circle at 30% 28%, color-mix(in srgb, #fff 35%, transparent), #3b82f6 42%, color-mix(in srgb, #3b82f6 85%, #000) 100%);
+  box-shadow: 0 1px 2px color-mix(in srgb, #3b82f6 35%, transparent);
+}
+
+.dashboard-service-schedule-calendar-dot.dot-blue {
+  background: radial-gradient(circle at 30% 28%, color-mix(in srgb, #fff 35%, transparent), #3b82f6 42%, color-mix(in srgb, #3b82f6 85%, #000) 100%);
+  box-shadow: 0 1px 2px color-mix(in srgb, #3b82f6 35%, transparent);
+}
+
+.dashboard-service-schedule-calendar-dot.dot-green {
+  background: radial-gradient(circle at 30% 28%, color-mix(in srgb, #fff 35%, transparent), #22c55e 42%, color-mix(in srgb, #22c55e 85%, #000) 100%);
+  box-shadow: 0 1px 2px color-mix(in srgb, #22c55e 35%, transparent);
+}
+
+.dashboard-service-schedule-calendar-dot.dot-pink {
+  background: radial-gradient(circle at 30% 28%, color-mix(in srgb, #fff 35%, transparent), #ec4899 42%, color-mix(in srgb, #ec4899 85%, #000) 100%);
+  box-shadow: 0 1px 2px color-mix(in srgb, #ec4899 35%, transparent);
+}
+
+.dashboard-service-schedule-calendar-dot.dot-mixed {
+  background: conic-gradient(from 210deg, #3b82f6 0deg 120deg, #22c55e 120deg 240deg, #ec4899 240deg 360deg);
+  box-shadow: 0 1px 2px rgba(30, 41, 59, 0.35);
 }
 
 .maintenance-group-title {

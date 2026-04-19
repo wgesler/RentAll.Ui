@@ -262,7 +262,5 @@ export type MaintenanceListMappingContext = {
   housekeepingById: Map<string, string>;
   carpetById: Map<string, string>;
   inspectorById: Map<string, string>;
-  isVendorView: boolean;
-  vendorRestrictedPropertyIds: Set<string>;
   currentReservationByPropertyId: MaintenanceListCurrentReservationByPropertyId;
 };

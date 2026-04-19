@@ -21,7 +21,6 @@ import { PropertyService } from '../../properties/services/property.service';
 import { DataTableComponent } from '../../shared/data-table/data-table.component';
 import { ColumnSet } from '../../shared/data-table/models/column-data';
 import { AddAlertDialogComponent, AddAlertDialogData } from '../../shared/modals/add-alert-dialog/add-alert-dialog.component';
-import { hasCompanyRole } from '../../shared/access/role-access';
 import { MaintenanceListUserDropdownCell } from '../models/maintenance.model';
 import { MaintenanceItemResponse } from '../models/maintenance-item.model';
 import { INSPECTION_SECTIONS } from '../models/checklist-sections';
@@ -56,10 +55,9 @@ export class MaintenanceListComponent extends PropertyMaintenanceBase implements
   goingOfflineMaintenanceDisplay: MaintenanceListDisplay[] = [];
   otherPropertiesMaintenanceDisplay: MaintenanceListDisplay[] = [];
   showOfficeDropdown: boolean = true;
-  expandedSections = { reservationTurnover: true, propertyTurnover: true, maidService: true, otherProperties: true };
+  expandedSections = { calendarAtAGlance: true, reservationTurnover: true, propertyTurnover: true, maidService: true, otherProperties: true };
 
   userId: string = '';
-  userGroups: (string | number)[];
   housekeepingUsers: UserResponse[] = [];
   carpetUsers: UserResponse[] = [];
   inspectorUsers: UserResponse[] = [];
@@ -67,15 +65,24 @@ export class MaintenanceListComponent extends PropertyMaintenanceBase implements
   carpetById = new Map<string, string>();
   inspectorById = new Map<string, string>();
   isCompactView = false;
-  isVendorView = false;
-  vendorRestrictedPropertyIds = new Set<string>();
   maintenanceItemsByPropertyId = new Map<string, MaintenanceItemResponse[]>();
+  todayDate = '';
+  tomorrowDate = '';
+  readonly scheduleCalendarWeekdayLabels = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'] as const;
+  scheduleCalendarCurrentTitle = '';
+  scheduleCalendarNextTitle = '';
+  scheduleCalendarCurrentCells: { day: number | null; dateKey: string | null; isToday: boolean; isWeekend: boolean; }[] = [];
+  scheduleCalendarNextCells: { day: number | null; dateKey: string | null; isToday: boolean; isWeekend: boolean; }[] = [];
+  scheduledDayKeys = new Set<string>();
+  scheduleDotTypeByDayKey = new Map<string, 'blue' | 'green' | 'pink' | 'mixed'>();
+  selectedScheduleCalendarDayKey: string | null = null;
+  selectedServiceProviderUserId: string | null = null;
+  serviceProviderFilterOptions: { userId: string; displayName: string; }[] = [];
 
   private readonly compactViewportWidth = 1024;
   private readonly housekeepingUserOptions: string[] = ['Clear Selection'];
   private readonly carpetUserOptions: string[] = ['Clear Selection'];
   private readonly inspectorUserOptions: string[] = ['Clear Selection'];
-  private readonly bedTypeOptions: string[] = getBedSizeTypes().map(bed => bed.label);
   private readonly propertyStatuses = getPropertyStatuses();
   private readonly bedTypes = getBedSizeTypes();
   private readonly bedTypeByLabel = new Map(this.bedTypes.map(bed => [bed.label, bed.value]));
@@ -95,20 +102,6 @@ export class MaintenanceListComponent extends PropertyMaintenanceBase implements
     'inspectingDate': { displayAs: 'Inspector Date', maxWidth: '18ch', alignment: 'center', editableType: 'date' },
     'inspector': { displayAs: 'Inspector', maxWidth: '20ch', alignment: 'center', wrap: false, options: this.inspectorUserOptions },
     };
-
-  private readonly serviceProviderPropertiesDisplayedColumns: ColumnSet = {
-    'propertyCode': { displayAs: 'Code', maxWidth: '15ch', sortType: 'natural', wrap: false },
-    'propertyAddress': { displayAs: 'Address', maxWidth: '25ch', sortType: 'natural', wrap: false },
-    'eventDate': { displayAs: 'Event Date', maxWidth: '15ch', alignment: 'center', wrap: false },
-    'hasPets': { displayAs: 'Pets', isCheckbox: true, sort: false, wrap: false, alignment: 'center', maxWidth: '10ch' },
-    'bedrooms': { displayAs: 'Beds', wrap: false , maxWidth: '12ch', alignment: 'center'},
-    'bathrooms': { displayAs: 'Baths', wrap: false , maxWidth: '13ch', alignment: 'center'},
-    'squareFeet': { displayAs: 'Sq Ft', wrap: false, maxWidth: '12ch', alignment: 'center'},
-    'bed1Text': { displayAs: 'Bed1', wrap: false , maxWidth: '12ch', alignment: 'center', options: this.bedTypeOptions},
-    'bed2Text': { displayAs: 'Bed2', wrap: false , maxWidth: '12ch', alignment: 'center', options: this.bedTypeOptions},
-    'bed3Text': { displayAs: 'Bed3', wrap: false , maxWidth: '12ch', alignment: 'center', options: this.bedTypeOptions},
-    'bed4Text': { displayAs: 'Bed4', wrap: false , maxWidth: '12ch', alignment: 'center', options: this.bedTypeOptions},
-  };
 
   private readonly compactPropertiesDisplayedColumns: ColumnSet = {
     'propertyCode': { displayAs: 'Code', maxWidth: '15ch', sortType: 'natural', wrap: false },
@@ -150,12 +143,7 @@ export class MaintenanceListComponent extends PropertyMaintenanceBase implements
   //#region Maintenance-List
   override ngOnInit(): void {
     this.userId = this.authService.getUser()?.userId || '';
-    this.userGroups = this.authService.getUser()?.userGroups as Array<string | number> | undefined;
-    this.isVendorView = !hasCompanyRole(this.userGroups);
-    this.vendorRestrictedPropertyIds = new Set((this.authService.getUser()?.properties || [])
-      .map(propertyId => propertyId.trim().toLowerCase())
-      .filter(propertyId => propertyId !== '')
-    );
+    this.setTodayDate();
 
     this.loadHousekeepingUsers();
     this.loadCarpetUsers();
@@ -183,17 +171,12 @@ export class MaintenanceListComponent extends PropertyMaintenanceBase implements
     }
   }
 
-  override recomputeBackendData(_userId: string | null = null): void {
-    void _userId;
-    const assigneeForBase =
-      this.isVendorView && this.userId?.trim()
-        ? this.userId.trim()
-        : null;
-    super.recomputeBackendData(assigneeForBase);
-  }
-
   protected override onAfterRecomputeBackendData(userAssignedId: string | null): void {
     this.rebuildMaintenanceListFromBase(userAssignedId);
+  }
+
+  override recomputeBackendData(userId: string | null = this.selectedServiceProviderUserId): void {
+    super.recomputeBackendData(userId);
   }
 
   getMappedPropertyListDisplaysForMaintenanceList(): ReturnType<MappingService['mapPropertyListRows']> {
@@ -216,8 +199,6 @@ export class MaintenanceListComponent extends PropertyMaintenanceBase implements
       housekeepingById: this.housekeepingById,
       carpetById: this.carpetById,
       inspectorById: this.inspectorById,
-      isVendorView: this.isVendorView,
-      vendorRestrictedPropertyIds: this.vendorRestrictedPropertyIds,
       currentReservationByPropertyId
     };
 
@@ -229,9 +210,6 @@ export class MaintenanceListComponent extends PropertyMaintenanceBase implements
       hasPets: boolean
     ): MaintenanceListDisplay | null => {
       if (!mixed.propertyId) {
-        return null;
-      }
-      if (this.isVendorView && this.vendorRestrictedPropertyIds.size > 0 && !this.vendorRestrictedPropertyIds.has(mixed.propertyId)) {
         return null;
       }
       const propertyRow = propertyById.get(mixed.propertyId);
@@ -329,9 +307,6 @@ export class MaintenanceListComponent extends PropertyMaintenanceBase implements
         if (!pm.propertyId) {
           return false;
         }
-        if (this.isVendorView && this.vendorRestrictedPropertyIds.size > 0 && !this.vendorRestrictedPropertyIds.has(pm.propertyId)) {
-          return false;
-        }
         return !displayedPropertyIds.has(pm.propertyId);
       })
       .map(pm => {
@@ -362,6 +337,8 @@ export class MaintenanceListComponent extends PropertyMaintenanceBase implements
     this.syncAllDisplayedPropertiesFromTurnoverLists();
     this.applyMaintenanceStateFromServiceDates();
     this.remapCleanerInspectorDropdowns();
+    this.selectedScheduleCalendarDayKey = null;
+    this.refreshScheduleCalendars();
   }
 
   syncAllDisplayedPropertiesFromTurnoverLists(): void {
@@ -384,12 +361,14 @@ export class MaintenanceListComponent extends PropertyMaintenanceBase implements
         const names = this.housekeepingUsers.map(user => `${user.firstName ?? ''} ${user.lastName ?? ''}`.trim()).filter(name => name !== '');
         names.unshift('Clear Selection');
         this.housekeepingUserOptions.splice(0, this.housekeepingUserOptions.length, ...names);
+        this.rebuildServiceProviderFilterOptions();
         this.remapCleanerInspectorDropdowns();
       },
       error: () => {
         this.housekeepingUsers = [];
         this.housekeepingById = new Map<string, string>();
         this.housekeepingUserOptions.splice(0, this.housekeepingUserOptions.length, 'Clear Selection');
+        this.rebuildServiceProviderFilterOptions();
         this.remapCleanerInspectorDropdowns();
       }
     });
@@ -403,12 +382,14 @@ export class MaintenanceListComponent extends PropertyMaintenanceBase implements
         const names = this.carpetUsers.map(user => `${user.firstName ?? ''} ${user.lastName ?? ''}`.trim()).filter(name => name !== '');
         names.unshift('Clear Selection');
         this.carpetUserOptions.splice(0, this.carpetUserOptions.length, ...names);
+        this.rebuildServiceProviderFilterOptions();
         this.remapCleanerInspectorDropdowns();
       },
       error: () => {
         this.carpetUsers = [];
         this.carpetById = new Map<string, string>();
         this.carpetUserOptions.splice(0, this.carpetUserOptions.length, 'Clear Selection');
+        this.rebuildServiceProviderFilterOptions();
         this.remapCleanerInspectorDropdowns();
       }
     });
@@ -422,12 +403,14 @@ export class MaintenanceListComponent extends PropertyMaintenanceBase implements
         const names = this.inspectorUsers.map(user => `${user.firstName ?? ''} ${user.lastName ?? ''}`.trim()).filter(name => name !== '');
         names.unshift('Clear Selection');
         this.inspectorUserOptions.splice(0, this.inspectorUserOptions.length, ...names);
+        this.rebuildServiceProviderFilterOptions();
         this.remapCleanerInspectorDropdowns();
       },
       error: () => {
         this.inspectorUsers = [];
         this.inspectorById = new Map<string, string>();
         this.inspectorUserOptions.splice(0, this.inspectorUserOptions.length, 'Clear Selection');
+        this.rebuildServiceProviderFilterOptions();
         this.remapCleanerInspectorDropdowns();
       }
     });
@@ -568,6 +551,181 @@ export class MaintenanceListComponent extends PropertyMaintenanceBase implements
   }
   //#endregion
 
+  //#region Calendar Methods
+  setTodayDate(): void {
+    const options: Intl.DateTimeFormatOptions = {
+      weekday: 'long',
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric'
+    };
+    this.todayDate = new Date().toLocaleDateString('en-US', options);
+    const tomorrow = new Date();
+    tomorrow.setDate(tomorrow.getDate() + 1);
+    this.tomorrowDate = tomorrow.toLocaleDateString('en-US', options);
+  }
+
+  refreshScheduleCalendars(): void {
+    const keys = new Set<string>();
+    const dotTypeByDayKey = new Map<string, 'blue' | 'green' | 'pink' | 'mixed'>();
+    const addKey = (row: MaintenanceListDisplay): void => {
+      const dayEntries = this.getScheduleDayEntriesForRow(row);
+      for (const dayEntry of dayEntries) {
+        const dayKey = dayEntry.dayKey;
+        keys.add(dayKey);
+        this.assignScheduleDotType(dotTypeByDayKey, dayKey, dayEntry.type);
+      }
+    };
+
+    this.allDisplayedProperties.forEach(addKey);
+    this.scheduledDayKeys = keys;
+    this.scheduleDotTypeByDayKey = dotTypeByDayKey;
+    const now = new Date();
+    const currentMonthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+    const nextMonthStart = new Date(now.getFullYear(), now.getMonth() + 1, 1);
+    this.scheduleCalendarCurrentCells = this.buildScheduleCalendarMonthCells(currentMonthStart);
+    this.scheduleCalendarNextCells = this.buildScheduleCalendarMonthCells(nextMonthStart);
+    this.scheduleCalendarCurrentTitle = new Intl.DateTimeFormat('en-US', { month: 'long', year: 'numeric' }).format(currentMonthStart);
+    this.scheduleCalendarNextTitle = new Intl.DateTimeFormat('en-US', { month: 'long', year: 'numeric' }).format(nextMonthStart);
+    this.syncScheduleRowHighlight();
+  }
+
+  buildScheduleCalendarMonthCells(monthAnchor: Date): { day: number | null; dateKey: string | null; isToday: boolean; isWeekend: boolean; }[] {
+    const year = monthAnchor.getFullYear();
+    const month = monthAnchor.getMonth();
+    const firstDay = new Date(year, month, 1);
+    const monthLastDay = new Date(year, month + 1, 0).getDate();
+    const startPadding = firstDay.getDay();
+    const todayKey = this.utilityService.formatDateOnlyForApi(new Date());
+    const cells: { day: number | null; dateKey: string | null; isToday: boolean; isWeekend: boolean; }[] = [];
+    const pushCell = (day: number | null, dateKey: string | null): void => {
+      const weekDayColumn = cells.length % 7;
+      cells.push({ day, dateKey, isToday: !!dateKey && dateKey === todayKey, isWeekend: weekDayColumn === 0 || weekDayColumn === 6 });
+    };
+
+    for (let i = 0; i < startPadding; i++) {
+      pushCell(null, null);
+    }
+    for (let day = 1; day <= monthLastDay; day++) {
+      const date = new Date(year, month, day);
+      pushCell(day, this.utilityService.formatDateOnlyForApi(date));
+    }
+    while (cells.length % 7 !== 0) {
+      pushCell(null, null);
+    }
+    return cells;
+  }
+
+  getScheduleDayEntriesForRow(row: MaintenanceListDisplay): { dayKey: string; type: 'blue' | 'green' | 'pink' }[] {
+    const selectedUserId = this.selectedServiceProviderUserId;
+    const cleanerMatches = selectedUserId === null || row.cleanerUserId === selectedUserId || row.maidUserId === selectedUserId;
+    const carpetMatches = selectedUserId === null || row.carpetUserId === selectedUserId;
+    const inspectorMatches = selectedUserId === null || row.inspectorUserId === selectedUserId;
+    const candidates: { value: string | null | undefined; type: 'blue' | 'green' | 'pink' }[] = [
+      { value: cleanerMatches ? row.cleaningDate : null, type: 'blue' },
+      { value: carpetMatches ? row.carpetDate : null, type: 'green' },
+      { value: inspectorMatches ? row.inspectingDate : null, type: 'pink' }
+    ];
+    const entries = new Map<string, 'blue' | 'green' | 'pink'>();
+    for (const candidate of candidates) {
+      if (candidate.value == null || String(candidate.value).trim() === '') {
+        continue;
+      }
+      const parsed = this.utilityService.parseDateOnlyStringToDate(String(candidate.value));
+      if (!parsed) {
+        continue;
+      }
+      const dayKey = this.utilityService.formatDateOnlyForApi(parsed);
+      if (dayKey) {
+        entries.set(dayKey, candidate.type);
+      }
+    }
+    return Array.from(entries.entries()).map(([dayKey, type]) => ({ dayKey, type }));
+  }
+
+  getScheduleDayKeysForRow(row: MaintenanceListDisplay): string[] {
+    return this.getScheduleDayEntriesForRow(row).map(entry => entry.dayKey);
+  }
+
+  assignScheduleDotType(
+    dotTypeByDayKey: Map<string, 'blue' | 'green' | 'pink' | 'mixed'>,
+    dayKey: string,
+    type: 'blue' | 'green' | 'pink'
+  ): void {
+    const existing = dotTypeByDayKey.get(dayKey);
+    if (!existing) {
+      dotTypeByDayKey.set(dayKey, type);
+      return;
+    }
+    if (existing !== type) {
+      dotTypeByDayKey.set(dayKey, 'mixed');
+    }
+  }
+
+  getScheduleDotClass(dateKey: string | null): string {
+    if (!dateKey) {
+      return 'dot-blue';
+    }
+    const type = this.scheduleDotTypeByDayKey.get(dateKey) ?? 'blue';
+    return type === 'mixed' ? 'dot-mixed' : `dot-${type}`;
+  }
+
+  onScheduleCalendarDayClick(dateKey: string | null): void {
+    if (!dateKey) {
+      return;
+    }
+    if (this.selectedScheduleCalendarDayKey === dateKey) {
+      this.selectedScheduleCalendarDayKey = null;
+    } else {
+      this.selectedScheduleCalendarDayKey = dateKey;
+    }
+    this.syncScheduleRowHighlight();
+  }
+
+  syncScheduleRowHighlight(): void {
+    const selectedDate = this.selectedScheduleCalendarDayKey;
+    const apply = (rows: MaintenanceListDisplay[]): MaintenanceListDisplay[] =>
+      rows.map(row => ({ ...row, rowActive: !!selectedDate && this.getScheduleDayKeysForRow(row).includes(selectedDate) }));
+
+    this.arrivalMaintenanceDisplay = apply(this.arrivalMaintenanceDisplay);
+    this.departureMaintenanceDisplay = apply(this.departureMaintenanceDisplay);
+    this.maidMaintenanceDisplay = apply(this.maidMaintenanceDisplay);
+    this.comingOnlineMaintenanceDisplay = apply(this.comingOnlineMaintenanceDisplay);
+    this.goingOfflineMaintenanceDisplay = apply(this.goingOfflineMaintenanceDisplay);
+    this.otherPropertiesMaintenanceDisplay = apply(this.otherPropertiesMaintenanceDisplay);
+    this.syncAllDisplayedPropertiesFromTurnoverLists();
+  }
+
+  onServiceProviderFilterChange(): void {
+    this.selectedScheduleCalendarDayKey = null;
+    this.recomputeBackendData(this.selectedServiceProviderUserId);
+  }
+
+  rebuildServiceProviderFilterOptions(): void {
+    const combined = [...this.housekeepingUsers, ...this.inspectorUsers, ...this.carpetUsers];
+    const byUserId = new Map<string, string>();
+    for (const user of combined) {
+      const userId = (user.userId ?? '').trim();
+      if (!userId) {
+        continue;
+      }
+      const displayName = `${user.firstName ?? ''} ${user.lastName ?? ''}`.trim() || userId;
+      if (!byUserId.has(userId)) {
+        byUserId.set(userId, displayName);
+      }
+    }
+    this.serviceProviderFilterOptions = Array.from(byUserId.entries())
+      .map(([userId, displayName]) => ({ userId, displayName }))
+      .sort((a, b) => a.displayName.localeCompare(b.displayName, undefined, { sensitivity: 'base' }));
+
+    if (this.selectedServiceProviderUserId && !byUserId.has(this.selectedServiceProviderUserId)) {
+      this.selectedServiceProviderUserId = null;
+      this.selectedScheduleCalendarDayKey = null;
+      this.recomputeBackendData(null);
+    }
+  }
+  //#endregion
+
   //#region Dropdown Methods
   onDropdownChange(event: MaintenanceListDisplay): void {
     const changedColumn = (event as unknown as { __changedDropdownColumn?: string }).__changedDropdownColumn;
@@ -592,9 +750,7 @@ export class MaintenanceListComponent extends PropertyMaintenanceBase implements
     if (this.isCompactView) {
       this.propertiesDisplayedColumns = this.compactPropertiesDisplayedColumns;
     } else {
-      this.propertiesDisplayedColumns = this.isVendorView
-        ? this.serviceProviderPropertiesDisplayedColumns
-        : this.fullPropertiesDisplayedColumns;
+      this.propertiesDisplayedColumns = this.fullPropertiesDisplayedColumns;
     }
     this.syncSectionMaintenanceColumns();
   }

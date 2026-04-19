@@ -207,8 +207,6 @@ export class MixedMappingService {
       housekeepingById,
       carpetById,
       inspectorById,
-      isVendorView,
-      vendorRestrictedPropertyIds,
       currentReservationByPropertyId
     } = context;
 
@@ -269,9 +267,7 @@ export class MixedMappingService {
       };
     });
 
-    return isVendorView && vendorRestrictedPropertyIds.size > 0
-      ? rows.filter(property => vendorRestrictedPropertyIds.has(property.propertyId))
-      : rows;
+    return rows;
   }
 
   mapMaintenanceListRowsFromCurrentReservationData(

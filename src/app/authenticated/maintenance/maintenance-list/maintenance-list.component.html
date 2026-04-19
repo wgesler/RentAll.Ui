@@ -8,7 +8,7 @@
         </span>
         <div class="header-title form-titlebar-fields-wrap">
           @if (showOfficeDropdown) {
-            <mat-form-field appearance="outline" class="titlebar-field-office">
+            <mat-form-field appearance="outline" class="titlebar-field-office maintenance-list-office-field">
               <mat-label>Office</mat-label>
               <mat-select [(ngModel)]="selectedOffice" (selectionChange)="onOfficeChange()" [ngModelOptions]="{ standalone: true }" [canSelectNullableOptions]="true">
                 <mat-option [value]="null">All Offices</mat-option>
@@ -18,6 +18,19 @@
               </mat-select>
             </mat-form-field>
           }
+          <mat-form-field appearance="outline" class="titlebar-field-reservation">
+            <mat-label>Service Provider</mat-label>
+            <mat-select
+              [(ngModel)]="selectedServiceProviderUserId"
+              (selectionChange)="onServiceProviderFilterChange()"
+              [canSelectNullableOptions]="true"
+              [ngModelOptions]="{ standalone: true }">
+              <mat-option [value]="null">All Service Providers</mat-option>
+              @for (provider of serviceProviderFilterOptions; track provider.userId) {
+                <mat-option [value]="provider.userId">{{ provider.displayName }}</mat-option>
+              }
+            </mat-select>
+          </mat-form-field>
         </div>
       </div>
       <div class="form-titlebar-actions-wrap uniform-gap">
@@ -45,6 +58,147 @@
           <div class="maintenance-list-accordion">
             @if (arrivalMaintenanceDisplay.length > 0 || departureMaintenanceDisplay.length > 0 || comingOnlineMaintenanceDisplay.length > 0 || goingOfflineMaintenanceDisplay.length > 0 || maidMaintenanceDisplay.length > 0 || otherPropertiesMaintenanceDisplay.length > 0) {
             <mat-accordion multi="true">
+              <mat-expansion-panel [(expanded)]="expandedSections.calendarAtAGlance">
+                <mat-expansion-panel-header>
+                  <mat-panel-title>Calendar At-A-Glance</mat-panel-title>
+                </mat-expansion-panel-header>
+                <div class="dashboard-service-schedule-calendars" aria-label="Calendar at-a-glance">
+                  <div class="dashboard-service-schedule-calendars-layout">
+                    <div class="dashboard-service-schedule-stat-column dashboard-service-schedule-stat-column--left">
+                      <p class="dashboard-service-schedule-stat-column-date">{{ todayDate }}</p>
+                      <div class="dashboard-titlebar-stat-tiles dashboard-service-schedule-stat-tiles">
+                        <div class="dashboard-titlebar-stat dashboard-titlebar-stat--blue">
+                          <div class="dashboard-titlebar-stat-body">
+                            <h4 class="dashboard-titlebar-stat-heading">
+                              <span class="dashboard-titlebar-stat-line">Arrive/Depart</span>
+                              <span class="dashboard-titlebar-stat-sub">Today</span>
+                            </h4>
+                            <div class="dashboard-titlebar-stat-metric">
+                              <mat-icon class="dashboard-titlebar-stat-icon">calendar_today</mat-icon>
+                              <span class="dashboard-titlebar-stat-value">{{ todayArriveDepartCount }}</span>
+                            </div>
+                          </div>
+                        </div>
+                        <div class="dashboard-titlebar-stat dashboard-titlebar-stat--pink">
+                          <div class="dashboard-titlebar-stat-body">
+                            <h4 class="dashboard-titlebar-stat-heading">
+                              <span class="dashboard-titlebar-stat-line">On/Offline</span>
+                              <span class="dashboard-titlebar-stat-sub">Today</span>
+                            </h4>
+                            <div class="dashboard-titlebar-stat-metric">
+                              <mat-icon class="dashboard-titlebar-stat-icon">calendar_today</mat-icon>
+                              <span class="dashboard-titlebar-stat-value">{{ getOnlineOfflineTodayCount() }}</span>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div class="dashboard-service-schedule-calendar-pair">
+                      <div class="dashboard-service-schedule-calendar">
+                        <h3 class="dashboard-service-schedule-calendar-title">
+                          <mat-icon class="dashboard-service-schedule-calendar-title-icon">calendar_month</mat-icon>
+                          <span>{{ scheduleCalendarCurrentTitle }}</span>
+                        </h3>
+                        <div class="dashboard-service-schedule-calendar-body">
+                          <div class="dashboard-service-schedule-calendar-weekdays" role="row">
+                            @for (wd of scheduleCalendarWeekdayLabels; track wd) {
+                              <span class="dashboard-service-schedule-calendar-weekday">{{ wd }}</span>
+                            }
+                          </div>
+                          <div class="dashboard-service-schedule-calendar-grid" role="grid">
+                            @for (cell of scheduleCalendarCurrentCells; track $index) {
+                              <button
+                                type="button"
+                                class="dashboard-service-schedule-calendar-cell"
+                                [class.is-empty]="!cell.dateKey"
+                                [class.is-weekend]="cell.isWeekend"
+                                [class.is-today]="cell.isToday"
+                                [class.has-schedule]="cell.dateKey && scheduledDayKeys.has(cell.dateKey)"
+                                [class.is-selected]="cell.dateKey && cell.dateKey === selectedScheduleCalendarDayKey"
+                                [disabled]="!cell.dateKey"
+                                (click)="onScheduleCalendarDayClick(cell.dateKey)">
+                                @if (cell.day !== null) {
+                                  <span class="dashboard-service-schedule-calendar-cell-day">{{ cell.day }}</span>
+                                  @if (cell.dateKey && scheduledDayKeys.has(cell.dateKey)) {
+                                    <span class="dashboard-service-schedule-calendar-dot" [ngClass]="getScheduleDotClass(cell.dateKey)" aria-hidden="true"></span>
+                                  }
+                                }
+                              </button>
+                            }
+                          </div>
+                        </div>
+                      </div>
+
+                      <div class="dashboard-service-schedule-calendar">
+                        <h3 class="dashboard-service-schedule-calendar-title">
+                          <mat-icon class="dashboard-service-schedule-calendar-title-icon">calendar_month</mat-icon>
+                          <span>{{ scheduleCalendarNextTitle }}</span>
+                        </h3>
+                        <div class="dashboard-service-schedule-calendar-body">
+                          <div class="dashboard-service-schedule-calendar-weekdays" role="row">
+                            @for (wd of scheduleCalendarWeekdayLabels; track wd) {
+                              <span class="dashboard-service-schedule-calendar-weekday">{{ wd }}</span>
+                            }
+                          </div>
+                          <div class="dashboard-service-schedule-calendar-grid" role="grid">
+                            @for (cell of scheduleCalendarNextCells; track $index) {
+                              <button
+                                type="button"
+                                class="dashboard-service-schedule-calendar-cell"
+                                [class.is-empty]="!cell.dateKey"
+                                [class.is-weekend]="cell.isWeekend"
+                                [class.is-today]="cell.isToday"
+                                [class.has-schedule]="cell.dateKey && scheduledDayKeys.has(cell.dateKey)"
+                                [class.is-selected]="cell.dateKey && cell.dateKey === selectedScheduleCalendarDayKey"
+                                [disabled]="!cell.dateKey"
+                                (click)="onScheduleCalendarDayClick(cell.dateKey)">
+                                @if (cell.day !== null) {
+                                  <span class="dashboard-service-schedule-calendar-cell-day">{{ cell.day }}</span>
+                                  @if (cell.dateKey && scheduledDayKeys.has(cell.dateKey)) {
+                                    <span class="dashboard-service-schedule-calendar-dot" [ngClass]="getScheduleDotClass(cell.dateKey)" aria-hidden="true"></span>
+                                  }
+                                }
+                              </button>
+                            }
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div class="dashboard-service-schedule-stat-column dashboard-service-schedule-stat-column--right">
+                      <p class="dashboard-service-schedule-stat-column-date">{{ tomorrowDate }}</p>
+                      <div class="dashboard-titlebar-stat-tiles dashboard-service-schedule-stat-tiles">
+                        <div class="dashboard-titlebar-stat dashboard-titlebar-stat--green">
+                          <div class="dashboard-titlebar-stat-body">
+                            <h4 class="dashboard-titlebar-stat-heading">
+                              <span class="dashboard-titlebar-stat-line">Arrive/Depart</span>
+                              <span class="dashboard-titlebar-stat-sub">Tomorrow</span>
+                            </h4>
+                            <div class="dashboard-titlebar-stat-metric">
+                              <mat-icon class="dashboard-titlebar-stat-icon">event</mat-icon>
+                              <span class="dashboard-titlebar-stat-value">{{ tomorrowArriveDepartCount }}</span>
+                            </div>
+                          </div>
+                        </div>
+                        <div class="dashboard-titlebar-stat dashboard-titlebar-stat--yellow">
+                          <div class="dashboard-titlebar-stat-body">
+                            <h4 class="dashboard-titlebar-stat-heading">
+                              <span class="dashboard-titlebar-stat-line">On/Offline</span>
+                              <span class="dashboard-titlebar-stat-sub">Tomorrow</span>
+                            </h4>
+                            <div class="dashboard-titlebar-stat-metric">
+                              <mat-icon class="dashboard-titlebar-stat-icon">event</mat-icon>
+                              <span class="dashboard-titlebar-stat-value">{{ getOnlineOfflineTomorrowCount() }}</span>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </mat-expansion-panel>
+
               @if (arrivalMaintenanceDisplay.length > 0 || departureMaintenanceDisplay.length > 0) {
               <mat-expansion-panel [(expanded)]="expandedSections.reservationTurnover">
                 <mat-expansion-panel-header>

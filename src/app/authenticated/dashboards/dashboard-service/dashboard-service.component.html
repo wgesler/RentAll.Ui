@@ -103,7 +103,7 @@
                         @if (cell.day !== null) {
                           <span class="dashboard-service-schedule-calendar-cell-day">{{ cell.day }}</span>
                           @if (cell.dateKey && scheduledDayKeys.has(cell.dateKey)) {
-                            <span class="dashboard-service-schedule-calendar-dot" aria-hidden="true"></span>
+                            <span class="dashboard-service-schedule-calendar-dot" [ngClass]="getScheduleDotClass(cell.dateKey)" aria-hidden="true"></span>
                           }
                         }
                       </button>
@@ -137,7 +137,7 @@
                         @if (cell.day !== null) {
                           <span class="dashboard-service-schedule-calendar-cell-day">{{ cell.day }}</span>
                           @if (cell.dateKey && scheduledDayKeys.has(cell.dateKey)) {
-                            <span class="dashboard-service-schedule-calendar-dot" aria-hidden="true"></span>
+                            <span class="dashboard-service-schedule-calendar-dot" [ngClass]="getScheduleDotClass(cell.dateKey)" aria-hidden="true"></span>
                           }
                         }
                       </button>

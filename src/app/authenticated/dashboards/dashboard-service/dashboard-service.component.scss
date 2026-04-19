@@ -528,7 +528,7 @@
   display: flex;
   flex-direction: column;
   align-items: center;
-  justify-content: center;
+  justify-content: flex-start;
   gap: 2px;
   min-height: 1.85rem;
   padding: 2px 1px 3px;
@@ -584,13 +584,28 @@
   width: 10px;
   height: 10px;
   border-radius: 50%;
-  background: radial-gradient(
-    circle at 30% 28%,
-    color-mix(in srgb, var(--mat-sys-surface, #fff) 35%, transparent),
-    var(--mat-sys-primary, #3949ab) 42%,
-    color-mix(in srgb, var(--mat-sys-primary, #3949ab) 85%, #000) 100%
-  );
-  box-shadow: 0 1px 2px color-mix(in srgb, var(--mat-sys-primary, #3949ab) 35%, transparent);
+  background: radial-gradient(circle at 30% 28%, color-mix(in srgb, #fff 35%, transparent), #3b82f6 42%, color-mix(in srgb, #3b82f6 85%, #000) 100%);
+  box-shadow: 0 1px 2px color-mix(in srgb, #3b82f6 35%, transparent);
+}
+
+.dashboard-service-schedule-calendar-dot.dot-blue {
+  background: radial-gradient(circle at 30% 28%, color-mix(in srgb, #fff 35%, transparent), #3b82f6 42%, color-mix(in srgb, #3b82f6 85%, #000) 100%);
+  box-shadow: 0 1px 2px color-mix(in srgb, #3b82f6 35%, transparent);
+}
+
+.dashboard-service-schedule-calendar-dot.dot-green {
+  background: radial-gradient(circle at 30% 28%, color-mix(in srgb, #fff 35%, transparent), #22c55e 42%, color-mix(in srgb, #22c55e 85%, #000) 100%);
+  box-shadow: 0 1px 2px color-mix(in srgb, #22c55e 35%, transparent);
+}
+
+.dashboard-service-schedule-calendar-dot.dot-pink {
+  background: radial-gradient(circle at 30% 28%, color-mix(in srgb, #fff 35%, transparent), #ec4899 42%, color-mix(in srgb, #ec4899 85%, #000) 100%);
+  box-shadow: 0 1px 2px color-mix(in srgb, #ec4899 35%, transparent);
+}
+
+.dashboard-service-schedule-calendar-dot.dot-mixed {
+  background: conic-gradient(from 210deg, #3b82f6 0deg 120deg, #22c55e 120deg 240deg, #ec4899 240deg 360deg);
+  box-shadow: 0 1px 2px rgba(30, 41, 59, 0.35);
 }
 
 .reservation-tables {
