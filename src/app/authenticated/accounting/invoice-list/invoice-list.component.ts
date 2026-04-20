@@ -651,7 +651,8 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
     // Map invoices to include expand button data for DataTableComponent
     this.invoicesDisplay = filtered.map(invoice => {
       const rawLedgerLines = invoice.ledgerLines ?? [];
-      const mappedLedgerLines = this.mappingService.mapLedgerLines(rawLedgerLines, this.costCodes, this.transactionTypes);
+      const costCodesForInvoice = this.allCostCodes.filter(costCode => costCode.officeId === invoice.officeId);
+      const mappedLedgerLines = this.mappingService.mapLedgerLines(rawLedgerLines, costCodesForInvoice, this.transactionTypes);
       const totalAmount = invoice.totalAmount || 0;
       const paidAmount = this.getPaidAmountFromLedgerLines(rawLedgerLines, invoice.officeId);
       
@@ -1139,7 +1140,7 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
 
   getCostCodeDescription(costCodeId: number | string | undefined, officeId: number): string {
     if (!costCodeId) return '-';
-    let costCode = this.costCodes.find(
+    const costCode = this.allCostCodes.find(
       c => (c.costCodeId === costCodeId || c.costCode?.toString() === costCodeId?.toString()) && c.officeId === officeId
     );
     
