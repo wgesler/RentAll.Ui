@@ -22,7 +22,7 @@
             <mat-label>Service Provider</mat-label>
             <mat-select
               [(ngModel)]="selectedServiceProviderUserId"
-              (selectionChange)="onServiceProviderFilterChange()"
+              (selectionChange)="onServiceProviderFilterChange($event.value)"
               [canSelectNullableOptions]="true"
               [ngModelOptions]="{ standalone: true }">
               <mat-option [value]="null">All Service Providers</mat-option>

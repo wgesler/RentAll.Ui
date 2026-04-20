@@ -181,7 +181,12 @@ export class MaintenanceListComponent extends PropertyMaintenanceBase implements
   protected override resolveOfficeScope(officeId: number | null): void {
     super.resolveOfficeScope(officeId);
     this.selectedServiceProviderUserId = null;
+    this.selectedScheduleCalendarDayKey = null;
     this.rebuildServiceProviderFilterOptions();
+    if (this.itemsToLoad$.value.size === 0) {
+      this.recomputeBackendData(null);
+      this.refreshScheduleCalendars();
+    }
   }
 
   refreshMaidServiceRowsFromBase(userId: string | null = this.selectedServiceProviderUserId): void {
@@ -392,13 +397,18 @@ export class MaintenanceListComponent extends PropertyMaintenanceBase implements
   //#region TopBar Response Methods
   protected override onOfficeChange(): void {
     this.selectedServiceProviderUserId = null;
+    this.selectedScheduleCalendarDayKey = null;
     super.onOfficeChange();
     this.rebuildServiceProviderFilterOptions();
+    this.recomputeBackendData(null);
+    this.refreshScheduleCalendars();
   }
 
-  onServiceProviderFilterChange(): void {
+  onServiceProviderFilterChange(userId: string | null = this.selectedServiceProviderUserId): void {
+    this.selectedServiceProviderUserId = this.utilityService.normalizeIdOrNull(userId);
     this.selectedScheduleCalendarDayKey = null;
     this.recomputeBackendData(this.selectedServiceProviderUserId);
+    this.refreshScheduleCalendars();
   }
 
   rebuildServiceProviderFilterOptions(): void {
