@@ -45,6 +45,7 @@ export class ReservationBoardComponent implements OnInit, OnDestroy {
   propertyRows: PropertyListResponse[] = [];
   calendarDays: CalendarDay[] = [];
   reservations: ReservationListResponse[] = [];
+  offices: OfficeResponse[] = [];
   contacts: ContactResponse[] = [];
   colors: ColorResponse[] = [];
   colorMap: Map<number, string> = new Map(); // Maps reservationStatusId to color hex
@@ -184,11 +185,13 @@ export class ReservationBoardComponent implements OnInit, OnDestroy {
   loadOfficeSettings(): void {
     this.officeService.ensureOfficesLoaded(this.organizationId).pipe(take(1)).subscribe({
       next: (offices: OfficeResponse[]) => {
+        this.offices = offices || [];
         this.officeUseDailyOnBoardById = new Map(
-          (offices || []).map(office => [office.officeId, office.useDailyOnResBoard === true])
+          this.offices.map(office => [office.officeId, office.useDailyOnResBoard === true])
         );
       },
       error: () => {
+        this.offices = [];
         this.officeUseDailyOnBoardById = new Map();
       }
     });
@@ -324,6 +327,14 @@ export class ReservationBoardComponent implements OnInit, OnDestroy {
   //#region Board Supporting Methods
   onUnfurnishedToggle(event: MatSlideToggleChange): void {
     this.globalSelectionService.setFurnishedPropertySelection(event.checked);
+  }
+
+  onOfficeDropdownChange(): void {
+    this.globalSelectionService.setSelectedOfficeId(this.selectedOfficeId);
+  }
+
+  get officeOptions(): OfficeResponse[] {
+    return this.offices;
   }
 
   applyBoardPropertyFilter(): void {
