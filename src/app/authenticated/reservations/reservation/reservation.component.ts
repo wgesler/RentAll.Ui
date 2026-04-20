@@ -5,7 +5,7 @@ import { AbstractControl, FormBuilder, FormControl, FormGroup, FormsModule, Reac
 import { MatDialog } from '@angular/material/dialog';
 import { ActivatedRoute, ParamMap, Router } from '@angular/router';
 import { ToastrService } from 'ngx-toastr';
-import { BehaviorSubject, Observable, Subject, Subscription, catchError, filter, finalize, firstValueFrom, map, of, skip, take, takeUntil } from 'rxjs';
+import { BehaviorSubject, Observable, Subject, Subscription, catchError, filter, finalize, firstValueFrom, map, of, pairwise, skip, startWith, take, takeUntil } from 'rxjs';
 import { RouterUrl } from '../../../app.routes';
 import { CanComponentDeactivate } from '../../../guards/can-deactivate-guard';
 import { CommonMessage, CommonTimeouts } from '../../../enums/common-message.enum';
@@ -362,7 +362,7 @@ export class ReservationComponent implements OnInit, OnDestroy, CanComponentDeac
     this.updateContactFields();
     this.applyPlatformCompanyDetails(source.companyId ?? null, source.companyName ?? null);
     this.updatePetFields(false);
-    this.updateMaidServiceFields();
+    this.updateMaidServiceFields(false);
     this.updateMaidStartDate();
     if (source.extraFeeLines?.length) {
       this.extraFeeLines = source.extraFeeLines.map(line => ({
@@ -804,7 +804,7 @@ export class ReservationComponent implements OnInit, OnDestroy, CanComponentDeac
    
     // Update pet and maid service fields after patching
     this.updatePetFields(false);
-    this.updateMaidServiceFields();
+    this.updateMaidServiceFields(false);
     this.loadExtraFeeLines();
     this.updateMaidStartDate();
     this.updatePropertyIdEditState();
@@ -1107,8 +1107,8 @@ export class ReservationComponent implements OnInit, OnDestroy, CanComponentDeac
       this.updateDepositValues();
       this.updateBillingValues();
       this.updateDepartureFeeValue();
-      this.updatePetFields();
-      this.updateMaidServiceFields();
+      this.updatePetFields(this.isAddMode);
+      this.updateMaidServiceFields(this.isAddMode);
       this.updateContactFields();
     });
   }
@@ -1168,8 +1168,9 @@ export class ReservationComponent implements OnInit, OnDestroy, CanComponentDeac
   }
 
   setupPetFeeHandler(): void {
-    this.form.get('pets')?.valueChanges.pipe(takeUntil(this.destroy$)).subscribe(pets => {
-      this.updatePetFields();
+    this.form.get('pets')?.valueChanges.pipe(startWith(this.form.get('pets')?.value ?? false), pairwise(), takeUntil(this.destroy$)).subscribe(([previousPets, currentPets]) => {
+      const applyEnabledDefaults = !Boolean(previousPets) && Boolean(currentPets);
+      this.updatePetFields(applyEnabledDefaults);
     });
   }
 
@@ -1196,11 +1197,12 @@ export class ReservationComponent implements OnInit, OnDestroy, CanComponentDeac
   }
 
   setupMaidServiceHandler(): void {
-    this.form.get('maidService')?.valueChanges.pipe(takeUntil(this.destroy$)).subscribe(maidService => {
-      this.updateMaidServiceFields();
+    this.form.get('maidService')?.valueChanges.pipe(startWith(this.form.get('maidService')?.value ?? false), pairwise(), takeUntil(this.destroy$)).subscribe(([previousMaidService, currentMaidService]) => {
+      const applyEnabledDefaults = !Boolean(previousMaidService) && Boolean(currentMaidService);
+      this.updateMaidServiceFields(applyEnabledDefaults);
       
       // When maidService becomes enabled, initialize maidStartDate if arrivalDate exists
-      if (maidService) {
+      if (applyEnabledDefaults && currentMaidService) {
         this.updateMaidStartDate();
       }
     });
@@ -1573,8 +1575,8 @@ export class ReservationComponent implements OnInit, OnDestroy, CanComponentDeac
       this.enableFieldWithValidation('taxes');
       this.enableFieldWithValidation('pets', [Validators.required]);      
       this.enableFieldWithValidation('maidService', [Validators.required]);      
-      this.updatePetFields();
-      this.updateMaidServiceFields();
+      this.updatePetFields(this.isAddMode);
+      this.updateMaidServiceFields(this.isAddMode);
       
       // Set departureDateStartAt if arrival date is set and departure date is unset
       const arrivalDate = this.form.get('arrivalDate')?.value;
@@ -1939,7 +1941,7 @@ export class ReservationComponent implements OnInit, OnDestroy, CanComponentDeac
     }
   }
   
-  updateMaidServiceFields(): void {
+  updateMaidServiceFields(applyEnabledDefaults: boolean = true): void {
     const hasMaidService = this.form.get('maidService')?.value ?? false;
     const maidServiceFeeControl = this.form.get('maidServiceFee');
     const frequencyControl = this.form.get('frequencyId');
@@ -1961,13 +1963,17 @@ export class ReservationComponent implements OnInit, OnDestroy, CanComponentDeac
         return;
       }
       
-      maidServiceFeeControl.setValue(this.selectedProperty.maidServiceFee.toFixed(2), { emitEvent: false });
+      if (applyEnabledDefaults) {
+        maidServiceFeeControl.setValue(this.selectedProperty.maidServiceFee.toFixed(2), { emitEvent: false });
+      }
       this.enableFieldWithValidation('maidServiceFee', [Validators.required]);
 
-      // Only set frequency to OneTime if it's currently NA (don't override existing values from API)
-      const currentFrequency = frequencyControl.value;
-      if (currentFrequency === null || currentFrequency === undefined || currentFrequency === Frequency.NA) {
-        frequencyControl.setValue(Frequency.OneTime, { emitEvent: false });
+      // Only set frequency default on explicit defaulting flows.
+      if (applyEnabledDefaults) {
+        const currentFrequency = frequencyControl.value;
+        if (currentFrequency === null || currentFrequency === undefined || currentFrequency === Frequency.NA) {
+          frequencyControl.setValue(Frequency.OneTime, { emitEvent: false });
+        }
       }
       this.enableFieldWithValidation('frequencyId', [Validators.required]);
 
@@ -2700,8 +2706,8 @@ export class ReservationComponent implements OnInit, OnDestroy, CanComponentDeac
     this.updateDepositValues();
     this.updateBillingValues();
     this.updateDepartureFeeValue();
-    this.updatePetFields();
-    this.updateMaidServiceFields();
+    this.updatePetFields(false);
+    this.updateMaidServiceFields(false);
     this.updateMaidStartDate();
 
     this.form.markAsPristine();
