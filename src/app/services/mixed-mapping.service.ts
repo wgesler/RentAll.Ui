@@ -319,10 +319,13 @@ export class MixedMappingService {
         ? this.utilityService.normalizeIdOrNull((mixedRow as ReservationPropertyMaintenance).maidUserId)
         : null;
 
+    const reservationSnapshot = context.currentReservationByPropertyId.get(propertyRow.propertyId);
     return {
       ...propertyRow,
       maintenanceId: maintenanceRecord?.maintenanceId,
-      reservationId: 'reservationId' in mixedRow ? this.utilityService.normalizeIdOrNull((mixedRow as ReservationPropertyMaintenance).reservationId) : null,
+      reservationId: 'reservationId' in mixedRow
+        ? this.utilityService.normalizeIdOrNull((mixedRow as ReservationPropertyMaintenance).reservationId)
+        : this.utilityService.normalizeIdOrNull(reservationSnapshot?.reservationId ?? null),
       eventType: mixedRow.eventType ?? null,
       propertyAddress: propertyRow.shortAddress ?? '',
       cleanerUserId: cleanerId,
@@ -358,48 +361,76 @@ export class MixedMappingService {
   }
 
   getReservationData(reservations: ReservationListResponse[]): MaintenanceListCurrentReservationByPropertyId {
-    type Agg = { departureTime: number; eventDate: string; hasPets: boolean };
+    type Agg = {
+      reservationId: string;
+      departureTime: number;
+      arrivalTime: number;
+      eventDate: string;
+      hasPets: boolean;
+      rank: 0 | 1 | 2;
+    };
     const byProperty = new Map<string, Agg>();
     const todayOrdinal = this.utilityService.parseCalendarDateToOrdinal(this.utilityService.todayAsCalendarDateString());
+    if (todayOrdinal === null) {
+      return new Map();
+    }
 
     for (const reservation of reservations) {
       const arrivalOrdinal = this.utilityService.parseCalendarDateToOrdinal(reservation.arrivalDate);
       const departureOrdinal = this.utilityService.parseCalendarDateToOrdinal(reservation.departureDate);
       if (
-        todayOrdinal === null ||
         arrivalOrdinal === null ||
-        departureOrdinal === null ||
-        todayOrdinal < arrivalOrdinal ||
-        todayOrdinal > departureOrdinal
+        departureOrdinal === null
       ) {
         continue;
       }
 
       const propertyId = reservation.propertyId;
+      const reservationId = (reservation.reservationId ?? '').trim();
+      if (!propertyId || !reservationId) {
+        continue;
+      }
+      const rank: 0 | 1 | 2 =
+        todayOrdinal >= arrivalOrdinal && todayOrdinal <= departureOrdinal
+          ? 0
+          : arrivalOrdinal > todayOrdinal
+            ? 1
+            : 2;
 
-      const departureTime = departureOrdinal;
       const eventDateDisplay = this.formatter.formatDateString(reservation.departureDate) || '';
       const hasPets = reservation.hasPets === true;
       const existing = byProperty.get(propertyId);
+      const shouldReplace = (() => {
+        if (!existing) {
+          return true;
+        }
+        if (rank !== existing.rank) {
+          return rank < existing.rank;
+        }
+        if (rank === 1) {
+          return arrivalOrdinal < existing.arrivalTime;
+        }
+        return departureOrdinal > existing.departureTime;
+      })();
 
-      if (!existing || departureTime > existing.departureTime) {
-        byProperty.set(propertyId, {
-          departureTime,
-          eventDate: eventDateDisplay,
-          hasPets: (existing?.hasPets ?? false) || hasPets
-        });
-      } else {
-        byProperty.set(propertyId, {
-          ...existing,
-          hasPets: existing.hasPets || hasPets
-        });
+      if (!shouldReplace) {
+        continue;
       }
+      byProperty.set(propertyId, {
+        reservationId,
+        departureTime: departureOrdinal,
+        arrivalTime: arrivalOrdinal,
+        eventDate: eventDateDisplay,
+        hasPets,
+        rank
+      });
     }
 
     const result: MaintenanceListCurrentReservationByPropertyId = new Map();
     byProperty.forEach((v, k) => {
       const eventDate = v.eventDate.trim() !== '' ? v.eventDate : 'N/A';
       result.set(k, {
+        reservationId: v.reservationId,
         eventDate,
         hasPets: v.hasPets,
         eventDateSortTime: v.departureTime
@@ -415,6 +446,7 @@ export class MixedMappingService {
   ): MaintenanceListCurrentReservationSnapshot {
     return (
       currentReservationByPropertyId.get(propertyId) ?? {
+        reservationId: null,
         hasPets: false,
         eventDate: 'N/A',
         eventDateSortTime: MixedMappingService.maintenanceListNoDepartureSortTime
@@ -457,11 +489,14 @@ export class MixedMappingService {
     ) {
       return defaultLabel;
     }
-    const officeUser = users.find(user => user.userId === userIdOrName && (user.officeAccess || []).includes(officeId));
+    const officeUser = users.find(user =>
+      user.userId === userIdOrName
+      && (user.officeAccess || []).includes(officeId)
+    );
     if (officeUser) {
       return `${officeUser.firstName ?? ''} ${officeUser.lastName ?? ''}`.trim();
     }
-    return userById.get(userIdOrName) ?? userIdOrName;
+    return userById.get(userIdOrName) ?? defaultLabel;
   }
 
   getMaintenanceUserOptionsForOffice(users: UserResponse[], officeId: number, defaultLabel: string): string[] {

@@ -128,8 +128,13 @@ export class UserListComponent implements OnInit, OnDestroy, OnChanges {
   }
   
   goToUser(event: UserListDisplay): void {
+    const userId = (event.userId || '').trim();
+    if (!userId) {
+      this.toastr.error('Unable to open user: missing user ID.', CommonMessage.Error);
+      return;
+    }
     this.openUser.emit({
-      userId: event.userId,
+      userId,
       tabIndex: this.selectedTabIndex
     });
   }
@@ -412,11 +417,15 @@ export class UserListComponent implements OnInit, OnDestroy, OnChanges {
       'Unknown': 'Unknown'
     };
 
-    this.allUsers = this.users.map<UserListDisplay>((user: UserResponse) => {
+    this.allUsers = this.users.map((user: UserResponse): UserListDisplay | null => {
+      const userId = (user.userId || '').trim();
+      if (!userId) {
+        return null;
+      }
       const userGroups = user.userGroups || [];
       const userGroupsDisplay = userGroups.map(g => groupLabels[g] || g).join(', ');
       return {
-        userId: user.userId,
+        userId,
         fullName: user.firstName + ' ' + user.lastName,
         email: user.email,
         phone: this.formatterService.phoneNumber(user.phone || ''),
@@ -429,7 +438,7 @@ export class UserListComponent implements OnInit, OnDestroy, OnChanges {
         userGroupsDisplay: userGroupsDisplay,
         isActive: user.isActive
       };
-    });
+    }).filter((user): user is UserListDisplay => user !== null);
 
     this.applyFilters();
   }

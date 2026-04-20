@@ -48,6 +48,9 @@ export class UsersShellComponent implements OnInit, AfterViewInit, OnDestroy {
 
   onTabIndexChange(tabIndex: number): void {
     this.selectedTabIndex = tabIndex;
+    this.showUserForm = false;
+    this.formUserId = null;
+    this.formTabIndex = null;
     this.updateUrlWithCurrentState();
     queueMicrotask(() => {
       this.syncActiveSection();
@@ -56,7 +59,7 @@ export class UsersShellComponent implements OnInit, AfterViewInit, OnDestroy {
 
   onOpenUser(event: { userId: string; tabIndex?: number }): void {
     this.formUserId = event.userId;
-    this.formTabIndex = event.tabIndex ?? this.selectedTabIndex;
+    this.formTabIndex = this.selectedTabIndex;
     this.showUserForm = true;
   }
 

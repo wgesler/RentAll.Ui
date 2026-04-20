@@ -13,8 +13,9 @@ import { MaintenanceService } from '../../maintenance/services/maintenance.servi
 import { PropertyListResponse } from '../../properties/models/property.model';
 import { PropertyService } from '../../properties/services/property.service';
 import { Frequency } from '../../reservations/models/reservation-enum';
-import { ReservationListDisplay, ReservationListResponse } from '../../reservations/models/reservation-model';
+import { ReservationListDisplay, ReservationListResponse, ReservationResponse } from '../../reservations/models/reservation-model';
 import { ReservationService } from '../../reservations/services/reservation.service';
+import { UserResponse } from '../../users/models/user.model';
 import { PropertyMaintenance, PropertyVacancyDisplay, ReservationPropertyMaintenance } from '../models/mixed-models';
 import { ServiceType, getServiceType } from '../models/mixed-enums';
 @Directive()
@@ -47,10 +48,14 @@ export class PropertyMaintenanceBase implements OnInit, OnDestroy {
 
   offices: OfficeResponse[] = [];
   selectedOffice: OfficeResponse | null = null;
+  housekeepingUsers: UserResponse[] = [];
+  carpetUsers: UserResponse[] = [];
+  inspectorUsers: UserResponse[] = [];
   organizationId = '';
   preferredOfficeId: number | null = null;
   todayAtMidnight: Date = new Date();
   fifteenDaysAtMidnight: Date = new Date();
+  nextTwoMonthsAtMidnight: Date = new Date();
   tomorrowAtMidnight: Date = new Date();
   todayCalendarDate: string | null = null;
   tomorrowCalendarDate: string | null = null;
@@ -139,6 +144,24 @@ export class PropertyMaintenanceBase implements OnInit, OnDestroy {
     this.reservationList = displayRows;
     this.activeReservationList = this.reservationList.filter(r => r.isActive === true);
   }
+
+  protected upsertReservationInCachedLists(reservation: ReservationResponse): void {
+    const source = reservation as unknown as ReservationListResponse;
+    const mappedRows = this.mappingService.mapReservationList([source]);
+    const displayRows = this.mixedMappingService.mapReservationListDisplayWithProviderFields([source], mappedRows);
+    const next = displayRows[0];
+    if (!next) {
+      return;
+    }
+    const reservationId = this.utilityService.normalizeId(next.reservationId);
+    const existingIndex = this.reservationList.findIndex(row => this.utilityService.normalizeId(row.reservationId) === reservationId);
+    if (existingIndex >= 0) {
+      this.reservationList[existingIndex] = next;
+    } else {
+      this.reservationList.push(next);
+    }
+    this.activeReservationList = this.reservationList.filter(r => r.isActive === true);
+  }
   //#endregion
 
   //#region Data Loading Methods
@@ -172,22 +195,6 @@ export class PropertyMaintenanceBase implements OnInit, OnDestroy {
         this.applyReservationListMappingsFromServer(
           this.mixedMappingService.mapReservationListDisplayWithProviderFields(response, mappedRows)
         );
-        console.groupCollapsed('[PMBase] Active reservations loaded');
-        console.log('totalReservations:', response.length, 'activeReservations:', this.activeReservationList.length);
-        console.table(this.activeReservationList.map(r => ({
-          reservationId: r.reservationId,
-          propertyId: r.propertyId,
-          reservationCode: r.reservationCode,
-          arrivalDate: r.arrivalDate,
-          departureDate: r.departureDate,
-          aCleanerUserId: r.aCleanerUserId ?? null,
-          aCleaningDate: r.aCleaningDate ?? null,
-          dCleanerUserId: r.dCleanerUserId ?? null,
-          dCleaningDate: r.dCleaningDate ?? null,
-          maidUserId: r.maidUserId ?? null,
-          maidStartDate: r.maidStartDate ?? null
-        })));
-        console.groupEnd();
       },
       error: () => {
         this.reservationList = [];
@@ -362,8 +369,8 @@ export class PropertyMaintenanceBase implements OnInit, OnDestroy {
     return result;
   }
 
-  private getReservationsWithCleanings(userId: string | null = null): ReservationPropertyMaintenance[] {
-    const bounds = this.getInclusiveNextFifteenDayOrdinalBounds();
+  protected getReservationsWithCleanings(userId: string | null = null): ReservationPropertyMaintenance[] {
+    const bounds = this.getInclusiveNextTwoMonthsOrdinalBounds();
     if (!bounds) {
       return [];
     }
@@ -459,7 +466,6 @@ export class PropertyMaintenanceBase implements OnInit, OnDestroy {
       const frequencyId = Number(row.frequencyId);
       const safeFreq = Number.isFinite(frequencyId) ? frequencyId : 0;
       const cleaningOccurrences = buildMaidCleaningOccurrencesUpToHi(row.maidStartDate, safeFreq, hi);
-      let chosen: { api: string; ordinal: number } | null = null;
       for (const occ of cleaningOccurrences) {
         if (occ.ordinal < lo || occ.ordinal > hi) {
           continue;
@@ -479,21 +485,70 @@ export class PropertyMaintenanceBase implements OnInit, OnDestroy {
         ) {
           continue;
         }
-        chosen = occ;
-        break;
+        result.push({
+          ...row,
+          eventType: ServiceType.MaidService,
+          eventTypeDisplay: getServiceType(ServiceType.MaidService),
+          eventDate: occ.api,
+          eventDateSortTime: occ.ordinal
+        });
       }
-      if (!chosen) {
-        continue;
-      }
-      result.push({
-        ...row,
-        eventType: ServiceType.MaidService,
-        eventTypeDisplay: getServiceType(ServiceType.MaidService),
-        eventDate: chosen.api,
-        eventDateSortTime: chosen.ordinal
-      });
     }
     return result;
+  }
+
+  protected getHousekeepingUsersForScope(officeId: number): UserResponse[] {
+    const scopedOfficeId = this.selectedOffice?.officeId ?? 0;
+    if (scopedOfficeId === 0 || officeId === 0) {
+      return this.housekeepingUsers;
+    }
+    return this.housekeepingUsers.filter(user => (user.officeAccess || []).includes(scopedOfficeId));
+  }
+
+  protected getInspectorUsersForScope(officeId: number): UserResponse[] {
+    const scopedOfficeId = this.selectedOffice?.officeId ?? 0;
+    if (scopedOfficeId === 0 || officeId === 0) {
+      return this.inspectorUsers;
+    }
+    return this.inspectorUsers.filter(user => (user.officeAccess || []).includes(scopedOfficeId));
+  }
+
+  protected getCarpetUsersForScope(officeId: number): UserResponse[] {
+    const scopedOfficeId = this.selectedOffice?.officeId ?? 0;
+    if (scopedOfficeId === 0 || officeId === 0) {
+      return this.carpetUsers;
+    }
+    return this.carpetUsers.filter(user => (user.officeAccess || []).includes(scopedOfficeId));
+  }
+
+  protected getServiceProviders(): { userId: string; displayName: string }[] {
+    const scopedOfficeId = this.selectedOffice?.officeId ?? 0;
+    const combined = [
+      ...this.getHousekeepingUsersForScope(scopedOfficeId),
+      ...this.getInspectorUsersForScope(scopedOfficeId),
+      ...this.getCarpetUsersForScope(scopedOfficeId)
+    ];
+    const byUserId = new Map<string, string>();
+    for (const user of combined) {
+      const userId = (user.userId ?? '').trim();
+      if (!userId) {
+        continue;
+      }
+      const displayName = `${user.firstName ?? ''} ${user.lastName ?? ''}`.trim() || userId;
+      if (!byUserId.has(userId)) {
+        byUserId.set(userId, displayName);
+      }
+    }
+    return Array.from(byUserId.entries())
+      .map(([userId, displayName]) => ({ userId, displayName }))
+      .sort((a, b) => a.displayName.localeCompare(b.displayName, undefined, { sensitivity: 'base' }));
+  }
+
+  protected refreshCleaningReservations(userId: string | null = null): ReservationPropertyMaintenance[] {
+    this.loadReservationPropertyMaintenance();
+    this.filteredReservationPropertyMaintenanceList = this.filterReservationPropertyMaintenanceListForSelectedOffice();
+    this.cleaningReservations = this.getReservationsWithCleanings(this.utilityService.normalizeIdOrNull(userId));
+    return this.cleaningReservations;
   }
 
   private recomputeVacantPropertyStats(): void {
@@ -591,6 +646,14 @@ export class PropertyMaintenanceBase implements OnInit, OnDestroy {
     }
     return { lo: this.todayDayOrdinal, hi };
   }
+
+  private getInclusiveNextTwoMonthsOrdinalBounds(): { lo: number; hi: number } | null {
+    const hi = this.utilityService.parseCalendarDateToOrdinal(this.utilityService.formatDateOnlyForApi(this.nextTwoMonthsAtMidnight));
+    if (hi === null) {
+      return null;
+    }
+    return { lo: this.todayDayOrdinal, hi };
+  }
   //#endregion
 
   //#region Titlebar Methods
@@ -598,10 +661,16 @@ export class PropertyMaintenanceBase implements OnInit, OnDestroy {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
     this.todayAtMidnight = today;
+
     const fifteen = new Date(today);
     fifteen.setDate(fifteen.getDate() + 15);
     fifteen.setHours(0, 0, 0, 0);
     this.fifteenDaysAtMidnight = fifteen;
+
+    const twoMonthsAhead = new Date(today);
+    twoMonthsAhead.setMonth(twoMonthsAhead.getMonth() + 2);
+    twoMonthsAhead.setHours(0, 0, 0, 0);
+    this.nextTwoMonthsAtMidnight = twoMonthsAhead;
   }
 
   private cacheTodayCalendar(): void {

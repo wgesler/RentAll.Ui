@@ -22,6 +22,13 @@ body {
   max-width: 200px !important;
 }
 
+.maintenance-list-provider-field {
+  flex: 0 0 260px !important;
+  width: 260px !important;
+  min-width: 260px !important;
+  max-width: 260px !important;
+}
+
 /* Status dropdown should read like a link and match row text size. */
 :host ::ng-deep td.mat-cell.mat-column-propertyStatusDropdown,
 :host ::ng-deep td.mat-mdc-cell.mat-column-propertyStatusDropdown {
@@ -69,6 +76,12 @@ body {
   }
 }
 
+/* Maid service cleaning date is read-only by design. */
+:host ::ng-deep .maid-service-table td.mat-cell.mat-column-cleaningDate,
+:host ::ng-deep .maid-service-table td.mat-mdc-cell.mat-column-cleaningDate {
+  color: #6b7280 !important;
+}
+
 /* Keep dropdown behavior but hide arrow icons for status in this list. */
 :host ::ng-deep td.mat-cell.mat-column-propertyStatusDropdown,
 :host ::ng-deep td.mat-mdc-cell.mat-column-propertyStatusDropdown {
@@ -96,6 +109,35 @@ body {
 
 .maintenance-list-accordion {
   min-width: 0;
+}
+
+:host ::ng-deep .calendar-at-a-glance-title {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+:host ::ng-deep .calendar-dot-key {
+  display: inline-flex;
+  align-items: center;
+  gap: 12px;
+  font-size: 12px;
+  font-weight: 500;
+  color: rgba(0, 0, 0, 0.78);
+}
+
+:host ::ng-deep .calendar-dot-key-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  white-space: nowrap;
+}
+
+:host ::ng-deep .calendar-dot-key .dashboard-service-schedule-calendar-dot {
+  width: 9px;
+  height: 9px;
 }
 
 .dashboard-service-schedule-calendars {
@@ -443,6 +485,11 @@ body {
   box-shadow: 0 1px 2px color-mix(in srgb, #3b82f6 35%, transparent);
 }
 
+.dashboard-service-schedule-calendar-dot.dot-purple {
+  background: radial-gradient(circle at 30% 28%, color-mix(in srgb, #fff 35%, transparent), #8b5cf6 42%, color-mix(in srgb, #8b5cf6 85%, #000) 100%);
+  box-shadow: 0 1px 2px color-mix(in srgb, #8b5cf6 35%, transparent);
+}
+
 .dashboard-service-schedule-calendar-dot.dot-green {
   background: radial-gradient(circle at 30% 28%, color-mix(in srgb, #fff 35%, transparent), #22c55e 42%, color-mix(in srgb, #22c55e 85%, #000) 100%);
   box-shadow: 0 1px 2px color-mix(in srgb, #22c55e 35%, transparent);
@@ -454,7 +501,7 @@ body {
 }
 
 .dashboard-service-schedule-calendar-dot.dot-mixed {
-  background: conic-gradient(from 210deg, #3b82f6 0deg 120deg, #22c55e 120deg 240deg, #ec4899 240deg 360deg);
+  background: conic-gradient(from 210deg, #8b5cf6 0deg 90deg, #3b82f6 90deg 180deg, #22c55e 180deg 270deg, #ec4899 270deg 360deg);
   box-shadow: 0 1px 2px rgba(30, 41, 59, 0.35);
 }
 

@@ -248,6 +248,7 @@ export type MaintenanceListLoadResponse = {
 };
 
 export type MaintenanceListCurrentReservationSnapshot = {
+  reservationId: string | null;
   hasPets: boolean;
   eventDate: string;
   eventDateSortTime: number;

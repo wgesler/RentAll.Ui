@@ -58,9 +58,6 @@ export class MaintenanceListComponent extends PropertyMaintenanceBase implements
   expandedSections = { calendarAtAGlance: true, reservationTurnover: true, propertyTurnover: true, maidService: true, otherProperties: true };
 
   userId: string = '';
-  housekeepingUsers: UserResponse[] = [];
-  carpetUsers: UserResponse[] = [];
-  inspectorUsers: UserResponse[] = [];
   housekeepingById = new Map<string, string>();
   carpetById = new Map<string, string>();
   inspectorById = new Map<string, string>();
@@ -74,7 +71,7 @@ export class MaintenanceListComponent extends PropertyMaintenanceBase implements
   scheduleCalendarCurrentCells: { day: number | null; dateKey: string | null; isToday: boolean; isWeekend: boolean; }[] = [];
   scheduleCalendarNextCells: { day: number | null; dateKey: string | null; isToday: boolean; isWeekend: boolean; }[] = [];
   scheduledDayKeys = new Set<string>();
-  scheduleDotTypeByDayKey = new Map<string, 'blue' | 'green' | 'pink' | 'mixed'>();
+  scheduleDotTypeByDayKey = new Map<string, Set<'blue' | 'purple' | 'green' | 'pink'>>();
   selectedScheduleCalendarDayKey: string | null = null;
   selectedServiceProviderUserId: string | null = null;
   serviceProviderFilterOptions: { userId: string; displayName: string; }[] = [];
@@ -163,8 +160,10 @@ export class MaintenanceListComponent extends PropertyMaintenanceBase implements
       const previousOfficeId = changes['officeId'].previousValue;
       
       if (previousOfficeId === undefined || newOfficeId !== previousOfficeId) {
+        this.selectedServiceProviderUserId = null;
         if (this.offices.length > 0) {
           super.resolveOfficeScope(newOfficeId ?? null);
+          this.rebuildServiceProviderFilterOptions();
           this.remapCleanerInspectorDropdowns();
         }
       }
@@ -179,6 +178,18 @@ export class MaintenanceListComponent extends PropertyMaintenanceBase implements
     super.recomputeBackendData(userId);
   }
 
+  protected override resolveOfficeScope(officeId: number | null): void {
+    super.resolveOfficeScope(officeId);
+    this.selectedServiceProviderUserId = null;
+    this.rebuildServiceProviderFilterOptions();
+  }
+
+  refreshMaidServiceRowsFromBase(userId: string | null = this.selectedServiceProviderUserId): void {
+    const assigneeUserId = this.utilityService.normalizeIdOrNull(userId);
+    this.refreshCleaningReservations(assigneeUserId);
+    this.rebuildMaintenanceListFromBase(assigneeUserId);
+  }
+
   getMappedPropertyListDisplaysForMaintenanceList(): ReturnType<MappingService['mapPropertyListRows']> {
     return this.mappingService.mapPropertyListRows(
       this.filteredPropertyMaintenanceList.map(pm => this.mappingService.mapPropertyMaintenanceToPropertyListResponseForDashboard(pm))
@@ -191,6 +202,9 @@ export class MaintenanceListComponent extends PropertyMaintenanceBase implements
 
     const currentReservationByPropertyId: MaintenanceListCurrentReservationByPropertyId =
       this.mixedMappingService.getReservationData(this.filteredReservationPropertyMaintenanceList as unknown as ReservationListResponse[]);
+    const reservationById = new Map(
+      this.filteredReservationPropertyMaintenanceList.map(row => [this.utilityService.normalizeId(row.reservationId), row] as const)
+    );
 
     const mappingContext: MaintenanceListMappingContext = {
       housekeepingUsers: this.housekeepingUsers,
@@ -311,8 +325,30 @@ export class MaintenanceListComponent extends PropertyMaintenanceBase implements
       })
       .map(pm => {
         const snap = this.mixedMappingService.getMaintenanceListCurrentReservationFields(pm.propertyId, currentReservationByPropertyId);
+        const reservationLookupId = this.utilityService.normalizeId(snap.reservationId ?? '');
+        const reservationRow = reservationLookupId ? (reservationById.get(reservationLookupId) ?? null) : null;
+        const mixedForOtherRow = reservationRow
+          ? ({
+              ...pm,
+              reservationId: reservationRow.reservationId,
+              eventType: ServiceType.Departure,
+              dCleanerUserId: reservationRow.dCleanerUserId,
+              dCleaningDate: reservationRow.dCleaningDate,
+              dCleaningDateOrdinal: reservationRow.dCleaningDateOrdinal,
+              dCleaningDateDisplay: reservationRow.dCleaningDateDisplay,
+              dCarpetUserId: reservationRow.dCarpetUserId,
+              dCarpetDate: reservationRow.dCarpetDate,
+              dCarpetDateOrdinal: reservationRow.dCarpetDateOrdinal,
+              dCarpetDateDisplay: reservationRow.dCarpetDateDisplay,
+              dInspectorUserId: reservationRow.dInspectorUserId,
+              dInspectingDate: reservationRow.dInspectingDate,
+              dInspectingDateOrdinal: reservationRow.dInspectingDateOrdinal,
+              dInspectingDateDisplay: reservationRow.dInspectingDateDisplay,
+              maidUserId: reservationRow.maidUserId
+            } as unknown as PropertyMaintenance)
+          : pm;
         return mapMixedRow(
-          pm,
+          mixedForOtherRow,
           snap.eventDate,
           snap.eventDateSortTime,
           snap.hasPets
@@ -325,7 +361,8 @@ export class MaintenanceListComponent extends PropertyMaintenanceBase implements
           return byEvent;
         }
         return (a.propertyCode ?? '').localeCompare(b.propertyCode ?? '', undefined, { sensitivity: 'base' });
-      });
+      })
+      .map(row => this.clearProviderFieldsWhenReservationMissing(row));
 
     this.arrivalMaintenanceDisplay = this.filterArrivalMaintenanceDisplayForUserAssignedId(userAssignedId, arrivalRows);
     this.departureMaintenanceDisplay = this.filterDepartureMaintenanceDisplayForUserAssignedId(userAssignedId, departureRows);
@@ -349,6 +386,29 @@ export class MaintenanceListComponent extends PropertyMaintenanceBase implements
       ...this.comingOnlineMaintenanceDisplay,
       ...this.goingOfflineMaintenanceDisplay
     ];
+  }
+  //#endregion
+
+  //#region TopBar Response Methods
+  protected override onOfficeChange(): void {
+    this.selectedServiceProviderUserId = null;
+    super.onOfficeChange();
+    this.rebuildServiceProviderFilterOptions();
+  }
+
+  onServiceProviderFilterChange(): void {
+    this.selectedScheduleCalendarDayKey = null;
+    this.recomputeBackendData(this.selectedServiceProviderUserId);
+  }
+
+  rebuildServiceProviderFilterOptions(): void {
+    this.serviceProviderFilterOptions = this.getServiceProviders();
+    const optionIds = new Set(this.serviceProviderFilterOptions.map(option => option.userId));
+    if (this.selectedServiceProviderUserId && !optionIds.has(this.selectedServiceProviderUserId)) {
+      this.selectedServiceProviderUserId = null;
+      this.selectedScheduleCalendarDayKey = null;
+      this.recomputeBackendData(null);
+    }
   }
   //#endregion
 
@@ -567,7 +627,7 @@ export class MaintenanceListComponent extends PropertyMaintenanceBase implements
 
   refreshScheduleCalendars(): void {
     const keys = new Set<string>();
-    const dotTypeByDayKey = new Map<string, 'blue' | 'green' | 'pink' | 'mixed'>();
+    const dotTypeByDayKey = new Map<string, Set<'blue' | 'purple' | 'green' | 'pink'>>();
     const addKey = (row: MaintenanceListDisplay): void => {
       const dayEntries = this.getScheduleDayEntriesForRow(row);
       for (const dayEntry of dayEntries) {
@@ -616,17 +676,17 @@ export class MaintenanceListComponent extends PropertyMaintenanceBase implements
     return cells;
   }
 
-  getScheduleDayEntriesForRow(row: MaintenanceListDisplay): { dayKey: string; type: 'blue' | 'green' | 'pink' }[] {
+  getScheduleDayEntriesForRow(row: MaintenanceListDisplay): { dayKey: string; type: 'blue' | 'purple' | 'green' | 'pink' }[] {
     const selectedUserId = this.selectedServiceProviderUserId;
     const cleanerMatches = selectedUserId === null || row.cleanerUserId === selectedUserId || row.maidUserId === selectedUserId;
     const carpetMatches = selectedUserId === null || row.carpetUserId === selectedUserId;
     const inspectorMatches = selectedUserId === null || row.inspectorUserId === selectedUserId;
-    const candidates: { value: string | null | undefined; type: 'blue' | 'green' | 'pink' }[] = [
-      { value: cleanerMatches ? row.cleaningDate : null, type: 'blue' },
+    const candidates: { value: string | null | undefined; type: 'blue' | 'purple' | 'green' | 'pink' }[] = [
+      { value: cleanerMatches ? row.cleaningDate : null, type: row.eventType === ServiceType.MaidService ? 'pink' : 'blue' },
       { value: carpetMatches ? row.carpetDate : null, type: 'green' },
-      { value: inspectorMatches ? row.inspectingDate : null, type: 'pink' }
+      { value: inspectorMatches ? row.inspectingDate : null, type: 'purple' }
     ];
-    const entries = new Map<string, 'blue' | 'green' | 'pink'>();
+    const entries = new Map<string, 'blue' | 'purple' | 'green' | 'pink'>();
     for (const candidate of candidates) {
       if (candidate.value == null || String(candidate.value).trim() === '') {
         continue;
@@ -648,26 +708,61 @@ export class MaintenanceListComponent extends PropertyMaintenanceBase implements
   }
 
   assignScheduleDotType(
-    dotTypeByDayKey: Map<string, 'blue' | 'green' | 'pink' | 'mixed'>,
+    dotTypeByDayKey: Map<string, Set<'blue' | 'purple' | 'green' | 'pink'>>,
     dayKey: string,
-    type: 'blue' | 'green' | 'pink'
+    type: 'blue' | 'purple' | 'green' | 'pink'
   ): void {
     const existing = dotTypeByDayKey.get(dayKey);
     if (!existing) {
-      dotTypeByDayKey.set(dayKey, type);
+      dotTypeByDayKey.set(dayKey, new Set([type]));
       return;
     }
-    if (existing !== type) {
-      dotTypeByDayKey.set(dayKey, 'mixed');
-    }
+    existing.add(type);
   }
 
   getScheduleDotClass(dateKey: string | null): string {
     if (!dateKey) {
       return 'dot-blue';
     }
-    const type = this.scheduleDotTypeByDayKey.get(dateKey) ?? 'blue';
-    return type === 'mixed' ? 'dot-mixed' : `dot-${type}`;
+    const types = this.scheduleDotTypeByDayKey.get(dateKey);
+    if (!types || types.size === 0) {
+      return 'dot-blue';
+    }
+    if (types.size === 1) {
+      return `dot-${Array.from(types)[0]}`;
+    }
+    return 'dot-mixed';
+  }
+
+  getScheduleDotStyle(dateKey: string | null): Record<string, string> | null {
+    if (!dateKey) {
+      return null;
+    }
+    const types = this.scheduleDotTypeByDayKey.get(dateKey);
+    if (!types || types.size <= 1) {
+      return null;
+    }
+    const colorByType: Record<'blue' | 'purple' | 'green' | 'pink', string> = {
+      blue: '#3b82f6',
+      green: '#22c55e',
+      purple: '#8b5cf6',
+      pink: '#ec4899'
+    };
+    const orderedTypes: Array<'blue' | 'green' | 'purple' | 'pink'> = ['blue', 'green', 'purple', 'pink'];
+    const activeColors = orderedTypes.filter(type => types.has(type)).map(type => colorByType[type]);
+    if (activeColors.length <= 1) {
+      return null;
+    }
+    const slice = 360 / activeColors.length;
+    const gradientStops = activeColors.map((color, index) => {
+      const start = Math.round(index * slice);
+      const end = Math.round((index + 1) * slice);
+      return `${color} ${start}deg ${end}deg`;
+    });
+    return {
+      background: `conic-gradient(from 210deg, ${gradientStops.join(', ')})`,
+      boxShadow: '0 1px 2px rgba(30, 41, 59, 0.35)'
+    };
   }
 
   onScheduleCalendarDayClick(dateKey: string | null): void {
@@ -694,35 +789,6 @@ export class MaintenanceListComponent extends PropertyMaintenanceBase implements
     this.goingOfflineMaintenanceDisplay = apply(this.goingOfflineMaintenanceDisplay);
     this.otherPropertiesMaintenanceDisplay = apply(this.otherPropertiesMaintenanceDisplay);
     this.syncAllDisplayedPropertiesFromTurnoverLists();
-  }
-
-  onServiceProviderFilterChange(): void {
-    this.selectedScheduleCalendarDayKey = null;
-    this.recomputeBackendData(this.selectedServiceProviderUserId);
-  }
-
-  rebuildServiceProviderFilterOptions(): void {
-    const combined = [...this.housekeepingUsers, ...this.inspectorUsers, ...this.carpetUsers];
-    const byUserId = new Map<string, string>();
-    for (const user of combined) {
-      const userId = (user.userId ?? '').trim();
-      if (!userId) {
-        continue;
-      }
-      const displayName = `${user.firstName ?? ''} ${user.lastName ?? ''}`.trim() || userId;
-      if (!byUserId.has(userId)) {
-        byUserId.set(userId, displayName);
-      }
-    }
-    this.serviceProviderFilterOptions = Array.from(byUserId.entries())
-      .map(([userId, displayName]) => ({ userId, displayName }))
-      .sort((a, b) => a.displayName.localeCompare(b.displayName, undefined, { sensitivity: 'base' }));
-
-    if (this.selectedServiceProviderUserId && !byUserId.has(this.selectedServiceProviderUserId)) {
-      this.selectedServiceProviderUserId = null;
-      this.selectedScheduleCalendarDayKey = null;
-      this.recomputeBackendData(null);
-    }
   }
   //#endregion
 
@@ -755,17 +821,17 @@ export class MaintenanceListComponent extends PropertyMaintenanceBase implements
     this.syncSectionMaintenanceColumns();
   }
 
-  private syncSectionMaintenanceColumns(): void {
+  syncSectionMaintenanceColumns(): void {
     const base = this.propertiesDisplayedColumns;
     this.arrivalMaintenanceColumns = this.cloneColumnSetWithEventDateLabel(base, 'Arrival Date');
     this.departureMaintenanceColumns = this.cloneColumnSetWithEventDateLabel(base, 'Departure Date');
-    this.maidMaintenanceColumns = this.cloneColumnSetWithEventDateLabel(base, 'Cleaning Date');
+    this.maidMaintenanceColumns = this.cloneMaidColumnSet(base);
     this.comingOnlineMaintenanceColumns = this.cloneColumnSetWithEventDateLabel(base, 'Online Date');
     this.goingOfflineMaintenanceColumns = this.cloneColumnSetWithEventDateLabel(base, 'Offline Date');
     this.otherPropertiesMaintenanceColumns = this.cloneColumnSetWithEventDateLabel(base, 'Departure Date');
   }
 
-  private cloneColumnSetWithEventDateLabel(source: ColumnSet, eventDateLabel: string): ColumnSet {
+  cloneColumnSetWithEventDateLabel(source: ColumnSet, eventDateLabel: string): ColumnSet {
     const eventCol = source['eventDate'];
     if (!eventCol) {
       return { ...source };
@@ -776,8 +842,67 @@ export class MaintenanceListComponent extends PropertyMaintenanceBase implements
     };
   }
 
+  cloneMaidColumnSet(source: ColumnSet): ColumnSet {
+    const maidColumns = this.cloneColumnSetWithEventDateLabel(source, 'Cleaning Date');
+    const cleaningDateColumn = maidColumns['cleaningDate'];
+    const nextColumns = { ...maidColumns };
+    if (cleaningDateColumn) {
+      const { editableType: _editableType, ...cleaningDateNoEdit } = cleaningDateColumn;
+      void _editableType;
+      nextColumns['cleaningDate'] = cleaningDateNoEdit;
+    }
+    delete nextColumns['carpetDate'];
+    delete nextColumns['carpet'];
+    delete nextColumns['inspectingDate'];
+    delete nextColumns['inspector'];
+    return nextColumns;
+  }
+
   getProviderTargetForRow(event: MaintenanceListDisplay): ServiceType | null {
     return event.eventType ?? null;
+  }
+
+  getEffectiveProviderTargetForRow(event: MaintenanceListDisplay): ServiceType | null {
+    const explicitTarget = this.getProviderTargetForRow(event);
+    if (explicitTarget !== null) {
+      return explicitTarget;
+    }
+    const reservationId = (event.reservationId || '').trim();
+    return reservationId !== '' ? ServiceType.Departure : null;
+  }
+
+  clearProviderFieldsWhenReservationMissing(row: MaintenanceListDisplay): MaintenanceListDisplay {
+    const reservationId = (row.reservationId || '').trim();
+    if (reservationId !== '') {
+      return row;
+    }
+    const next = {
+      ...row,
+      cleanerUserId: null,
+      carpetUserId: null,
+      inspectorUserId: null,
+      maidUserId: null,
+      cleaningDate: '',
+      carpetDate: '',
+      inspectingDate: '',
+      cleaner: this.buildHiddenUserDropdownCell(),
+      carpet: this.buildHiddenUserDropdownCell(),
+      inspector: this.buildHiddenUserDropdownCell()
+    } as MaintenanceListDisplay & {
+      cleaningDateReadOnly?: boolean;
+      carpetDateReadOnly?: boolean;
+      inspectingDateReadOnly?: boolean;
+    };
+    next.cleaningDateReadOnly = true;
+    next.carpetDateReadOnly = true;
+    next.inspectingDateReadOnly = true;
+    return next;
+  }
+
+  buildHiddenUserDropdownCell(): MaintenanceListUserDropdownCell {
+    const cell = this.buildUserDropdownCell('NONE', []);
+    cell.isOverridable = false;
+    return cell;
   }
 
   applyProviderValuesToEvent(
@@ -812,53 +937,88 @@ export class MaintenanceListComponent extends PropertyMaintenanceBase implements
 
   //#region Assignee Methods
   
-  //#region User Selection Methods
+  //#region User/Date Selection Methods
   buildUserDropdownCell(label: string, options: string[]): MaintenanceListUserDropdownCell {
+    const normalizedLabel = label === 'Clear Selection' ? '' : label;
     return {
-      value: label,
+      value: normalizedLabel,
       isOverridable: true,
       options,
       panelClass: ['datatable-dropdown-panel', 'datatable-dropdown-panel-open-left'],
-      toString: () => label
+      toString: () => normalizedLabel
     };
   }
 
   handleMaintenanceAssigneeDropdownChange(event: MaintenanceListDisplay): void {
+    const cleanerOptions = this.getCleanerOptionsForOffice(event.officeId);
+    const carpetOptions = this.getCarpetOptionsForOffice(event.officeId);
+    const inspectorOptions = this.getInspectorOptionsForOffice(event.officeId);
     const selectedCleanerLabel = event.cleaner?.value ?? '';
     const selectedCarpetLabel = event.carpet?.value ?? '';
     const selectedInspectorLabel = event.inspector?.value ?? '';
+    const clearCleanerRequested = selectedCleanerLabel === 'Clear Selection';
+    const clearCarpetRequested = selectedCarpetLabel === 'Clear Selection';
+    const clearInspectorRequested = selectedInspectorLabel === 'Clear Selection';
     const selectedCleanerId = this.resolveCleanerIdFromLabel(selectedCleanerLabel, event.officeId);
     const selectedCarpetId = this.resolveCarpetIdFromLabel(selectedCarpetLabel, event.officeId);
     const selectedInspectorId = this.resolveInspectorIdFromLabel(selectedInspectorLabel, event.officeId);
     const currentCleanerId = event.cleanerUserId ?? null;
     const currentCarpetId = event.carpetUserId ?? null;
     const currentInspectorId = event.inspectorUserId ?? null;
-    const shouldClearCleanerDate = selectedCleanerId === null && (event.cleaningDate ?? '').trim() !== '';
-    const shouldClearCarpetDate = selectedCarpetId === null && (event.carpetDate ?? '').trim() !== '';
-    const shouldClearInspectorDate = selectedInspectorId === null && (event.inspectingDate ?? '').trim() !== '';
-    if (selectedCleanerId !== currentCleanerId || selectedCarpetId !== currentCarpetId || selectedInspectorId !== currentInspectorId || shouldClearCleanerDate || shouldClearCarpetDate || shouldClearInspectorDate) {
+    const shouldClearCleanerDate =
+      selectedCleanerId === null
+      && (clearCleanerRequested || selectedCleanerId !== currentCleanerId)
+      && (event.cleaningDate ?? '').trim() !== '';
+    const shouldClearCarpetDate =
+      selectedCarpetId === null
+      && (clearCarpetRequested || selectedCarpetId !== currentCarpetId)
+      && (event.carpetDate ?? '').trim() !== '';
+    const shouldClearInspectorDate =
+      selectedInspectorId === null
+      && (clearInspectorRequested || selectedInspectorId !== currentInspectorId)
+      && (event.inspectingDate ?? '').trim() !== '';
+    if (
+      selectedCleanerId !== currentCleanerId
+      || selectedCarpetId !== currentCarpetId
+      || selectedInspectorId !== currentInspectorId
+      || shouldClearCleanerDate
+      || shouldClearCarpetDate
+      || shouldClearInspectorDate
+    ) {
       this.onMaintenanceAssigneesChange(event, selectedCleanerId, selectedCarpetId, selectedInspectorId);
       return;
     }
     if (selectedCleanerLabel === 'Clear Selection' || selectedCarpetLabel === 'Clear Selection' || selectedInspectorLabel === 'Clear Selection') {
       event.cleaner = this.buildUserDropdownCell(
         this.resolveCleanerName(event.cleanerUserId ?? '', event.officeId),
-        this.getCleanerOptionsForOffice(event.officeId)
+        cleanerOptions
       );
       event.carpet = this.buildUserDropdownCell(
         this.resolveCarpetName(event.carpetUserId ?? '', event.officeId),
-        this.getCarpetOptionsForOffice(event.officeId)
+        carpetOptions
       );
       event.inspector = this.buildUserDropdownCell(
         this.resolveInspectorName(event.inspectorUserId ?? '', event.officeId),
-        this.getInspectorOptionsForOffice(event.officeId)
+        inspectorOptions
       );
+      if (selectedCleanerLabel === 'Clear Selection') {
+        event.cleaner.value = '';
+      }
+      if (selectedCarpetLabel === 'Clear Selection') {
+        event.carpet.value = '';
+      }
+      if (selectedInspectorLabel === 'Clear Selection') {
+        event.inspector.value = '';
+      }
     }
   }
 
   onMaintenanceAssigneesChange(event: MaintenanceListDisplay, cleanerUserId: string | null, carpetUserId: string | null, inspectorUserId: string | null): void {
-    const target = this.getProviderTargetForRow(event);
-    const cleaningDate = cleanerUserId ? (this.mappingService.toDateOnlyJsonString(event.cleaningDate) ?? null) : null;
+    const target = this.getEffectiveProviderTargetForRow(event);
+    const currentCleaningDate = this.mappingService.toDateOnlyJsonString(event.cleaningDate) ?? null;
+    const cleaningDate = target === ServiceType.MaidService
+      ? currentCleaningDate
+      : (cleanerUserId ? currentCleaningDate : null);
     const carpetDate = carpetUserId ? (this.mappingService.toDateOnlyJsonString(event.carpetDate) ?? null) : null;
     const inspectingDate = inspectorUserId ? (this.mappingService.toDateOnlyJsonString(event.inspectingDate) ?? null) : null;
 
@@ -874,7 +1034,7 @@ export class MaintenanceListComponent extends PropertyMaintenanceBase implements
       );
       this.toastr.success('Provider assignments updated.', CommonMessage.Success);
     };
-    const onSaveErr = () => {
+    const onSaveErr = (error?: unknown) => {
       event.cleaner = this.buildUserDropdownCell(
         this.resolveCleanerName(event.cleanerUserId ?? '', event.officeId),
         this.getCleanerOptionsForOffice(event.officeId)
@@ -887,7 +1047,8 @@ export class MaintenanceListComponent extends PropertyMaintenanceBase implements
         this.resolveInspectorName(event.inspectorUserId ?? '', event.officeId),
         this.getInspectorOptionsForOffice(event.officeId)
       );
-      this.toastr.error('Unable to update provider assignments.', CommonMessage.Error);
+      const detail = this.utilityService.extractApiErrorMessage(error);
+      this.toastr.error(detail ? `Unable to update provider assignments. ${detail}` : 'Unable to update provider assignments.', CommonMessage.Error);
     };
 
     if (target === ServiceType.Online || target === ServiceType.Offline) {
@@ -908,14 +1069,13 @@ export class MaintenanceListComponent extends PropertyMaintenanceBase implements
             offInspectorUserId: inspectorUserId,
             offInspectingDate: inspectingDate
           };
-      void this.propertyService.updateModifiedProperty(event.propertyId, patch).then(onSaveOk).catch(onSaveErr);
+      void this.propertyService.updateModifiedProperty(event.propertyId, patch).then(onSaveOk).catch(error => onSaveErr(error));
       return;
     }
 
     const reservationId = (event.reservationId || '').trim();
     if (!reservationId) {
       this.toastr.error('Reservation not found for provider update.', CommonMessage.Error);
-      onSaveErr();
       return;
     }
 
@@ -937,25 +1097,26 @@ export class MaintenanceListComponent extends PropertyMaintenanceBase implements
             dInspectorUserId: inspectorUserId,
             dInspectingDate: inspectingDate
           };
-      void this.reservationService.updateModifiedReservation(reservationId, patch).then(onSaveOk).catch(onSaveErr);
+      void this.reservationService.updateModifiedReservation(reservationId, patch).then(onSaveOk).catch(error => onSaveErr(error));
       return;
     }
 
     if (target === ServiceType.MaidService) {
       const patch = {
-        maidUserId: cleanerUserId,
-        maidStartDate: cleaningDate
+        maidUserId: cleanerUserId
       };
-      void this.reservationService.updateModifiedReservation(reservationId, patch).then(onSaveOk).catch(onSaveErr);
+      void this.reservationService.updateModifiedReservation(reservationId, patch).then(updatedReservation => {
+        this.upsertReservationInCachedLists(updatedReservation);
+        onSaveOk();
+        this.refreshMaidServiceRowsFromBase(this.selectedServiceProviderUserId);
+      }).catch(error => onSaveErr(error));
       return;
     }
 
     this.toastr.error('Unable to determine where provider changes should be saved.', CommonMessage.Error);
     onSaveErr();
   }  
-  //#endregion
 
-  //#region Date Methods
   handleMaintenanceInlineDateChange(event: MaintenanceListDisplay & { __changedInlineColumn?: string; __inlineValue?: string }): void {
     const col = event.__changedInlineColumn;
     if (col !== 'cleaningDate' && col !== 'carpetDate' && col !== 'inspectingDate') {
@@ -965,7 +1126,7 @@ export class MaintenanceListComponent extends PropertyMaintenanceBase implements
   }
   
   onMaintenanceDateChange(event: MaintenanceListDisplay, columnName: 'cleaningDate' | 'carpetDate' | 'inspectingDate', dateValue: string): void {
-    const target = this.getProviderTargetForRow(event);
+    const target = this.getEffectiveProviderTargetForRow(event);
     const dateOnlyJson = this.mappingService.toDateOnlyJsonString(dateValue);
     const cleanerUserId = event.cleanerUserId ?? null;
     const carpetUserId = event.carpetUserId ?? null;
@@ -986,8 +1147,9 @@ export class MaintenanceListComponent extends PropertyMaintenanceBase implements
       );
       this.toastr.success('Provider date updated.', CommonMessage.Success);
     };
-    const onSaveErr = () => {
-      this.toastr.error('Unable to update provider date.', CommonMessage.Error);
+    const onSaveErr = (error?: unknown) => {
+      const detail = this.utilityService.extractApiErrorMessage(error);
+      this.toastr.error(detail ? `Unable to update provider date. ${detail}` : 'Unable to update provider date.', CommonMessage.Error);
     };
 
     if (target === ServiceType.Online || target === ServiceType.Offline) {
@@ -1002,7 +1164,7 @@ export class MaintenanceListComponent extends PropertyMaintenanceBase implements
           : columnName === 'carpetDate'
             ? { offCarpetDate: nextCarpetDate }
             : { offInspectingDate: nextInspectingDate };
-      void this.propertyService.updateModifiedProperty(event.propertyId, patch).then(onSaveOk).catch(onSaveErr);
+      void this.propertyService.updateModifiedProperty(event.propertyId, patch).then(onSaveOk).catch(error => onSaveErr(error));
       return;
     }
 
@@ -1024,7 +1186,7 @@ export class MaintenanceListComponent extends PropertyMaintenanceBase implements
           : columnName === 'carpetDate'
             ? { dCarpetDate: nextCarpetDate }
             : { dInspectingDate: nextInspectingDate };
-      void this.reservationService.updateModifiedReservation(reservationId, patch).then(onSaveOk).catch(onSaveErr);
+      void this.reservationService.updateModifiedReservation(reservationId, patch).then(onSaveOk).catch(error => onSaveErr(error));
       return;
     }
 
@@ -1033,7 +1195,11 @@ export class MaintenanceListComponent extends PropertyMaintenanceBase implements
         this.toastr.error('Only cleaning date applies to maid service.', CommonMessage.Error);
         return;
       }
-      void this.reservationService.updateModifiedReservation(reservationId, { maidStartDate: nextCleaningDate }).then(onSaveOk).catch(onSaveErr);
+      void this.reservationService.updateModifiedReservation(reservationId, { maidStartDate: nextCleaningDate }).then(updatedReservation => {
+        this.upsertReservationInCachedLists(updatedReservation);
+        onSaveOk();
+        this.refreshMaidServiceRowsFromBase(this.selectedServiceProviderUserId);
+      }).catch(error => onSaveErr(error));
       return;
     }
 
@@ -1211,33 +1377,17 @@ export class MaintenanceListComponent extends PropertyMaintenanceBase implements
     return user?.userId ?? null;
   }
 
-  getHousekeepingUsersForScope(officeId: number): UserResponse[] {
-    const scopedOfficeId = this.selectedOffice?.officeId ?? 0;
-    if (scopedOfficeId === 0 || officeId === 0) {
-      return this.housekeepingUsers;
-    }
-    return this.housekeepingUsers.filter(user => (user.officeAccess || []).includes(scopedOfficeId));
-  }
-
-  getInspectorUsersForScope(officeId: number): UserResponse[] {
-    const scopedOfficeId = this.selectedOffice?.officeId ?? 0;
-    if (scopedOfficeId === 0 || officeId === 0) {
-      return this.inspectorUsers;
-    }
-    return this.inspectorUsers.filter(user => (user.officeAccess || []).includes(scopedOfficeId));
-  }
-
-  getCarpetUsersForScope(officeId: number): UserResponse[] {
-    const scopedOfficeId = this.selectedOffice?.officeId ?? 0;
-    if (scopedOfficeId === 0 || officeId === 0) {
-      return this.carpetUsers;
-    }
-    return this.carpetUsers.filter(user => (user.officeAccess || []).includes(scopedOfficeId));
-  }
-
    remapCleanerInspectorDropdowns(): void {
     const remapRows = (rows: MaintenanceListDisplay[]) =>
       rows.map(property => {
+        if (property.eventType == null && !(property.reservationId || '').trim()) {
+          return {
+            ...property,
+            cleaner: this.buildHiddenUserDropdownCell(),
+            carpet: this.buildHiddenUserDropdownCell(),
+            inspector: this.buildHiddenUserDropdownCell()
+          };
+        }
         const cleanerKey = (property.cleaner as unknown as { value?: string })?.value ?? (property.cleaner as unknown as string) ?? '';
         const carpetKey = (property.carpet as unknown as { value?: string })?.value ?? (property.carpet as unknown as string) ?? '';
         const inspectorKey = (property.inspector as unknown as { value?: string })?.value ?? (property.inspector as unknown as string) ?? '';

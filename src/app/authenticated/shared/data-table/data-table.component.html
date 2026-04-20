@@ -259,7 +259,7 @@
                       {{item[column.name]}}
                     }
                   } @default {
-                  @if (column.editableType === 'date') {
+                  @if (column.editableType === 'date' && item[(column.name ?? '') + 'ReadOnly'] !== true) {
                     <input type="date"
                       [ngModel]="getDateInputValue(item[column.name])"
                       [class.datatable-editable-date-input-empty]="getDateInputValue(item[column.name]) === ''"
@@ -267,6 +267,8 @@
                       (click)="$event.stopPropagation()"
                       (mousedown)="$event.stopPropagation()"
                       class="datatable-editable-date-input" />
+                  } @else if (column.editableType === 'date') {
+                    @if (item[column.name] !== 'NONE') { {{item[column.name]}} }
                   } @else if (column.obfuscate) {
                     <span>
                       {{item.obfuscate ? obfuscateValue(item[column.name]) : item[column.name]}}

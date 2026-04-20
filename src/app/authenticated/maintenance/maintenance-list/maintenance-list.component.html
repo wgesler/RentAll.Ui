@@ -18,7 +18,7 @@
               </mat-select>
             </mat-form-field>
           }
-          <mat-form-field appearance="outline" class="titlebar-field-reservation">
+          <mat-form-field appearance="outline" class="titlebar-field-reservation maintenance-list-provider-field">
             <mat-label>Service Provider</mat-label>
             <mat-select
               [(ngModel)]="selectedServiceProviderUserId"
@@ -60,7 +60,27 @@
             <mat-accordion multi="true">
               <mat-expansion-panel [(expanded)]="expandedSections.calendarAtAGlance">
                 <mat-expansion-panel-header>
-                  <mat-panel-title>Calendar At-A-Glance</mat-panel-title>
+                  <mat-panel-title class="calendar-at-a-glance-title">
+                    <span>Calendar At-A-Glance</span>
+                    <span class="calendar-dot-key" aria-label="Calendar dot key">
+                      <span class="calendar-dot-key-item">
+                        <span class="dashboard-service-schedule-calendar-dot dot-blue" aria-hidden="true"></span>
+                        <span>Cleaning</span>
+                      </span>
+                      <span class="calendar-dot-key-item">
+                        <span class="dashboard-service-schedule-calendar-dot dot-green" aria-hidden="true"></span>
+                        <span>Carpet</span>
+                      </span>
+                      <span class="calendar-dot-key-item">
+                        <span class="dashboard-service-schedule-calendar-dot dot-purple" aria-hidden="true"></span>
+                        <span>Inspection</span>
+                      </span>
+                      <span class="calendar-dot-key-item">
+                        <span class="dashboard-service-schedule-calendar-dot dot-pink" aria-hidden="true"></span>
+                        <span>Maid Service</span>
+                      </span>
+                    </span>
+                  </mat-panel-title>
                 </mat-expansion-panel-header>
                 <div class="dashboard-service-schedule-calendars" aria-label="Calendar at-a-glance">
                   <div class="dashboard-service-schedule-calendars-layout">
@@ -121,7 +141,7 @@
                                 @if (cell.day !== null) {
                                   <span class="dashboard-service-schedule-calendar-cell-day">{{ cell.day }}</span>
                                   @if (cell.dateKey && scheduledDayKeys.has(cell.dateKey)) {
-                                    <span class="dashboard-service-schedule-calendar-dot" [ngClass]="getScheduleDotClass(cell.dateKey)" aria-hidden="true"></span>
+                                    <span class="dashboard-service-schedule-calendar-dot" [ngClass]="getScheduleDotClass(cell.dateKey)" [ngStyle]="getScheduleDotStyle(cell.dateKey)" aria-hidden="true"></span>
                                   }
                                 }
                               </button>
@@ -156,7 +176,7 @@
                                 @if (cell.day !== null) {
                                   <span class="dashboard-service-schedule-calendar-cell-day">{{ cell.day }}</span>
                                   @if (cell.dateKey && scheduledDayKeys.has(cell.dateKey)) {
-                                    <span class="dashboard-service-schedule-calendar-dot" [ngClass]="getScheduleDotClass(cell.dateKey)" aria-hidden="true"></span>
+                                    <span class="dashboard-service-schedule-calendar-dot" [ngClass]="getScheduleDotClass(cell.dateKey)" [ngStyle]="getScheduleDotStyle(cell.dateKey)" aria-hidden="true"></span>
                                   }
                                 }
                               </button>
@@ -329,9 +349,10 @@
                 <div class="tableDiv">
                   <app-data-table
                     [class.compact-code-only-table]="isCompactView"
+                    class="maid-service-table"
                     [data]="maidMaintenanceDisplay"
                     [columns]="maidMaintenanceColumns"
-                    [subheaderLabel]="'Maid Service (Next 15 Days)'"
+                    [subheaderLabel]="'Maid Service (Next 2 Months)'"
                     [hasColumnIndex]="true"
                     [hasFilter]="false"
                     [hasToggleTop]="false"

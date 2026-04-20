@@ -1,4 +1,5 @@
 import { Injectable } from '@angular/core';
+import { HttpErrorResponse } from '@angular/common/http';
 import { BehaviorSubject } from 'rxjs';
 import { ContactResponse } from '../authenticated/contacts/models/contact.model';
 import { EntityType } from '../authenticated/contacts/models/contact-enum';
@@ -197,6 +198,40 @@ export class UtilityService {
   normalizeIdOrNull(value: string | null | undefined): string | null {
     const s = this.normalizeId(value);
     return s === '' ? null : s;
+  }
+
+  extractApiErrorMessage(error: unknown): string {
+    if (error instanceof HttpErrorResponse) {
+      const body = error.error as { message?: string; title?: string; errors?: Record<string, string[] | string> } | string | null;
+      if (typeof body === 'string' && body.trim() !== '') {
+        return body.trim();
+      }
+      if (body && typeof body === 'object') {
+        if (typeof body.message === 'string' && body.message.trim() !== '') {
+          return body.message.trim();
+        }
+        if (typeof body.title === 'string' && body.title.trim() !== '') {
+          return body.title.trim();
+        }
+        const errors = body.errors;
+        if (errors && typeof errors === 'object') {
+          const firstValue = Object.values(errors)[0];
+          if (Array.isArray(firstValue) && firstValue.length > 0 && typeof firstValue[0] === 'string' && firstValue[0].trim() !== '') {
+            return firstValue[0].trim();
+          }
+          if (typeof firstValue === 'string' && firstValue.trim() !== '') {
+            return firstValue.trim();
+          }
+        }
+      }
+      if (typeof error.message === 'string' && error.message.trim() !== '') {
+        return error.message.trim();
+      }
+    }
+    if (error instanceof Error && error.message.trim() !== '') {
+      return error.message.trim();
+    }
+    return '';
   }
   //#endregion
 

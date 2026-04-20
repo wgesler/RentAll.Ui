@@ -50,7 +50,7 @@ export class DashboardServiceComponent extends PropertyMaintenanceBase implement
   scheduleCalendarCurrentCells: { day: number | null; dateKey: string | null; isToday: boolean; isWeekend: boolean; }[] = [];
   scheduleCalendarNextCells: { day: number | null; dateKey: string | null; isToday: boolean; isWeekend: boolean; }[] = [];
   scheduledDayKeys = new Set<string>();
-  scheduleDotTypeByDayKey = new Map<string, 'blue' | 'green' | 'pink' | 'mixed'>();
+  scheduleDotTypeByDayKey = new Map<string, Set<'blue' | 'purple' | 'green' | 'pink'>>();
   selectedScheduleCalendarDayKey: string | null = null;
 
   override itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['currentUser', 'offices', 'activeReservations', 'propertyMaintenanceList']));
@@ -242,13 +242,12 @@ export class DashboardServiceComponent extends PropertyMaintenanceBase implement
     this.selectedScheduleCalendarDayKey = null;
     this.refreshScheduleCalendars();
   }
-
   //#endregion
 
   //#region Calendar Methods
   refreshScheduleCalendars(): void {
     const keys = new Set<string>();
-    const dotTypeByDayKey = new Map<string, 'blue' | 'green' | 'pink' | 'mixed'>();
+    const dotTypeByDayKey = new Map<string, Set<'blue' | 'purple' | 'green' | 'pink'>>();
     const addKey = (value: string | null | undefined) => {
       const dayKey = this.toScheduleDayKey(value);
       if (dayKey) {
@@ -256,9 +255,11 @@ export class DashboardServiceComponent extends PropertyMaintenanceBase implement
       }
       return dayKey;
     };
-    this.scheduledCleaningsDisplay.forEach(row => this.assignScheduleDotType(dotTypeByDayKey, addKey(this.getCleaningDateDisplayForScheduleRow(row)), 'blue'));
+    this.scheduledCleaningsDisplay.forEach(row =>
+      this.assignScheduleDotType(dotTypeByDayKey, addKey(this.getCleaningDateDisplayForScheduleRow(row)), this.getCleaningDotTypeForScheduleRow(row))
+    );
     this.scheduledCarpetCleaningsDisplay.forEach(row => this.assignScheduleDotType(dotTypeByDayKey, addKey(this.getCarpetDateDisplayForScheduleRow(row)), 'green'));
-    this.scheduledInspectionsDisplay.forEach(row => this.assignScheduleDotType(dotTypeByDayKey, addKey(this.getInspectionDateDisplayForScheduleRow(row)), 'pink'));
+    this.scheduledInspectionsDisplay.forEach(row => this.assignScheduleDotType(dotTypeByDayKey, addKey(this.getInspectionDateDisplayForScheduleRow(row)), 'purple'));
     this.scheduledDayKeys = keys;
     this.scheduleDotTypeByDayKey = dotTypeByDayKey;
     const now = new Date();
@@ -311,29 +312,68 @@ export class DashboardServiceComponent extends PropertyMaintenanceBase implement
   }
 
   assignScheduleDotType(
-    dotTypeByDayKey: Map<string, 'blue' | 'green' | 'pink' | 'mixed'>,
+    dotTypeByDayKey: Map<string, Set<'blue' | 'purple' | 'green' | 'pink'>>,
     dayKey: string | null,
-    type: 'blue' | 'green' | 'pink'
+    type: 'blue' | 'purple' | 'green' | 'pink'
   ): void {
     if (!dayKey) {
       return;
     }
     const existing = dotTypeByDayKey.get(dayKey);
     if (!existing) {
-      dotTypeByDayKey.set(dayKey, type);
+      dotTypeByDayKey.set(dayKey, new Set([type]));
       return;
     }
-    if (existing !== type) {
-      dotTypeByDayKey.set(dayKey, 'mixed');
-    }
+    existing.add(type);
   }
 
   getScheduleDotClass(dateKey: string | null): string {
     if (!dateKey) {
       return 'dot-blue';
     }
-    const type = this.scheduleDotTypeByDayKey.get(dateKey) ?? 'blue';
-    return type === 'mixed' ? 'dot-mixed' : `dot-${type}`;
+    const types = this.scheduleDotTypeByDayKey.get(dateKey);
+    if (!types || types.size === 0) {
+      return 'dot-blue';
+    }
+    if (types.size === 1) {
+      return `dot-${Array.from(types)[0]}`;
+    }
+    return 'dot-mixed';
+  }
+
+  getScheduleDotStyle(dateKey: string | null): Record<string, string> | null {
+    if (!dateKey) {
+      return null;
+    }
+    const types = this.scheduleDotTypeByDayKey.get(dateKey);
+    if (!types || types.size <= 1) {
+      return null;
+    }
+    const colorByType: Record<'blue' | 'purple' | 'green' | 'pink', string> = {
+      blue: '#3b82f6',
+      green: '#22c55e',
+      purple: '#8b5cf6',
+      pink: '#ec4899'
+    };
+    const orderedTypes: Array<'blue' | 'green' | 'purple' | 'pink'> = ['blue', 'green', 'purple', 'pink'];
+    const activeColors = orderedTypes.filter(type => types.has(type)).map(type => colorByType[type]);
+    if (activeColors.length <= 1) {
+      return null;
+    }
+    const slice = 360 / activeColors.length;
+    const gradientStops = activeColors.map((color, index) => {
+      const start = Math.round(index * slice);
+      const end = Math.round((index + 1) * slice);
+      return `${color} ${start}deg ${end}deg`;
+    });
+    return {
+      background: `conic-gradient(from 210deg, ${gradientStops.join(', ')})`,
+      boxShadow: '0 1px 2px rgba(30, 41, 59, 0.35)'
+    };
+  }
+
+  getCleaningDotTypeForScheduleRow(row: ReservationPropertyMaintenance): 'blue' | 'pink' {
+    return row.eventType === ServiceType.MaidService ? 'pink' : 'blue';
   }
 
   getCleaningDateDisplayForScheduleRow(row: ReservationPropertyMaintenance): string {
