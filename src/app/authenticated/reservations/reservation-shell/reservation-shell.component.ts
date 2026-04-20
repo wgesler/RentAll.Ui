@@ -230,13 +230,6 @@ export class ReservationShellComponent implements OnInit, AfterViewInit, OnDestr
     }
   }
 
-  onOfficeDropdownChange(officeId: string | number | null): void {
-    this.selectedOfficeId = officeId == null || officeId === '' ? null : Number(officeId);
-    this.resolveOfficeScope(this.selectedOfficeId);
-    this.refreshHeaderReservationOptions();
-    this.onHeaderReservationChange();
-  }
-
   onReservationLoaded(): void {
     const reservation = this.reservationSection;
     if (!reservation) {
@@ -308,7 +301,12 @@ export class ReservationShellComponent implements OnInit, AfterViewInit, OnDestr
   }
 
   get selectedOfficeName(): string {
-    return this.selectedOffice?.name ?? this.offices.find(office => office.officeId === this.selectedOfficeId)?.name ?? '';
+    const officeId = this.displayOfficeId;
+    return this.selectedOffice?.name ?? this.offices.find(office => office.officeId === officeId)?.name ?? '';
+  }
+
+  get displayOfficeId(): number | null {
+    return this.reservationSection?.sharedOfficeId ?? this.selectedOfficeId ?? null;
   }
   //#endregion
 

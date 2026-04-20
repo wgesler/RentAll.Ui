@@ -20,12 +20,11 @@
               <app-title-bar-select
                 [label]="'Office'"
                 [formFieldClass]="'titlebar-field-office'"
-                [value]="selectedOfficeId"
+                [value]="displayOfficeId"
                 [options]="officeOptions"
                 [disabled]="true"
                 [nullOptionLabel]="'All Offices'"
-                [noResultsText]="'No offices match your search'"
-                (valueChange)="onOfficeDropdownChange($event)">
+                [noResultsText]="'No offices match your search'">
               </app-title-bar-select>
             } @else {
               <mat-form-field appearance="outline" class="titlebar-field-office">
