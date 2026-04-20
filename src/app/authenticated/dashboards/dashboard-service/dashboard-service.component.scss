@@ -198,12 +198,13 @@
   box-shadow: none;
 
   .dashboard-service-schedule-calendars-layout {
-    display: flex;
-    flex-wrap: wrap;
+    display: grid;
+    grid-template-columns: max-content max-content max-content;
+    grid-template-areas: "left calendars right";
     justify-content: center;
-    align-items: stretch;
-    align-content: center;
-    gap: 28px 52px;
+    align-items: center;
+    column-gap: clamp(12px, 3vw, 52px);
+    row-gap: 20px;
   }
 
   .dashboard-service-schedule-stat-column {
@@ -214,6 +215,14 @@
     flex: 0 0 auto;
     align-self: center;
     min-width: 0;
+  }
+
+  .dashboard-service-schedule-stat-column--left {
+    grid-area: left;
+  }
+
+  .dashboard-service-schedule-stat-column--right {
+    grid-area: right;
   }
 
   .dashboard-service-schedule-stat-column-date {
@@ -229,11 +238,12 @@
   }
 
   .dashboard-service-schedule-calendar-pair {
+    grid-area: calendars;
     display: flex;
-    flex-wrap: wrap;
+    flex-wrap: nowrap;
     justify-content: center;
     align-items: stretch;
-    gap: 14px 72px;
+    gap: 14px clamp(12px, 3vw, 72px);
     flex: 0 1 auto;
     min-width: 0;
   }
@@ -425,23 +435,32 @@
     font-size: calc(12px + 0.5pt);
   }
 
-  @media (max-width: 768px) {
-    .dashboard-service-schedule-calendar-pair {
-      flex: 1 1 100%;
-      order: -1;
-      width: 100%;
-    }
+  @media (max-width: 1320px) {
+    --dashboard-schedule-stat-tile-width: clamp(8.4rem, 18vw, 9.75rem);
 
     .dashboard-service-schedule-calendars-layout {
-      gap: 22px 28px;
+      grid-template-columns: max-content max-content;
+      grid-template-areas:
+        "calendars calendars"
+        "left right";
+      column-gap: 16px;
+      row-gap: 16px;
     }
-  }
 
-  @media (max-width: 420px) {
+    .dashboard-service-schedule-calendar-pair {
+      grid-area: calendars;
+      flex: 0 1 auto;
+      justify-content: center;
+      gap: 12px 20px;
+    }
+
+    .dashboard-service-schedule-stat-column--left,
+    .dashboard-service-schedule-stat-column--right {
+      flex: 0 1 auto;
+    }
+
     .dashboard-service-schedule-stat-tiles {
-      flex-direction: column;
-      align-items: center;
-      gap: 14px;
+      gap: 12px;
     }
   }
 }

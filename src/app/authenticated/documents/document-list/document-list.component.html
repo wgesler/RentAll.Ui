@@ -54,13 +54,13 @@
           }
           @if (source === 'reservation' || source === 'invoice') {
             @if (source === 'reservation') {
-              <mat-form-field appearance="outline" class="field-width-18ch">
+              <mat-form-field appearance="outline" class="titlebar-field-property-code">
                 <mat-label>Property Code</mat-label>
                 <input matInput [value]="propertyCode || ''" readonly [disabled]="true">
               </mat-form-field>
             }
             @if (source === 'invoice') {
-              <mat-form-field appearance="outline" class="field-width-300">
+              <mat-form-field appearance="outline" class="titlebar-field-company">
                 <mat-label>{{ selectedCompany ? 'Company' : 'All Companies' }}</mat-label>
                 <mat-select [(ngModel)]="selectedCompany" (selectionChange)="onCompanyChange()">
                   <mat-option [value]="null">All Companies</mat-option>
@@ -72,7 +72,7 @@
             }
             <app-title-bar-select
               [label]="'Reservation'"
-              [formFieldClass]="'reservation-dropdown'"
+              [formFieldClass]="'titlebar-field-reservation'"
               [value]="selectedReservationId"
               [options]="reservationOptions"
               [disabled]="isReservationDisabled"
@@ -81,13 +81,13 @@
               (valueChange)="onReservationDropdownChange($event)">
             </app-title-bar-select>
           } @else if (source === 'property') {
-            <mat-form-field appearance="outline" class="field-width-18ch">
+            <mat-form-field appearance="outline" class="titlebar-field-property-code">
               <mat-label>Property Code</mat-label>
               <input matInput [value]="propertyCode || ''" readonly [disabled]="true">
             </mat-form-field>
             <app-title-bar-select
               [label]="'Reservation'"
-              [formFieldClass]="'reservation-dropdown'"
+              [formFieldClass]="'titlebar-field-reservation'"
               [value]="selectedReservationId"
               [options]="reservationOptions"
               [nullOptionLabel]="'Select Reservation'"
@@ -130,7 +130,7 @@
         <div class="property-tab-actions-band__row list-top-controls list-top-controls--tabbed flex gap-4 items-center px-4">
           <app-title-bar-select
             [label]="'Reservation'"
-            [formFieldClass]="'reservation-dropdown'"
+            [formFieldClass]="'titlebar-field-reservation'"
             [value]="selectedReservationId"
             [options]="reservationOptions"
             [nullOptionLabel]="'Select Reservation'"
@@ -201,13 +201,13 @@
                 }
                 @if (source === 'reservation' || source === 'invoice') {
                   @if (source === 'reservation') {
-                    <mat-form-field appearance="outline" class="field-width-18ch">
+                    <mat-form-field appearance="outline" class="titlebar-field-property-code">
                       <mat-label>Property Code</mat-label>
                       <input matInput [value]="propertyCode || ''" readonly [disabled]="true">
                     </mat-form-field>
                   }
                   @if (source === 'invoice') {
-                    <mat-form-field appearance="outline" class="field-width-300">
+                    <mat-form-field appearance="outline" class="titlebar-field-company">
                       <mat-label>{{ selectedCompany ? 'Company' : 'All Companies' }}</mat-label>
                       <mat-select [(ngModel)]="selectedCompany" (selectionChange)="onCompanyChange()">
                         <mat-option [value]="null">All Companies</mat-option>
@@ -219,7 +219,7 @@
                   }
                   <app-title-bar-select
                     [label]="'Reservation'"
-                    [formFieldClass]="'reservation-dropdown'"
+                    [formFieldClass]="'titlebar-field-reservation'"
                     [value]="selectedReservationId"
                     [options]="reservationOptions"
                     [disabled]="isReservationDisabled"
@@ -228,13 +228,13 @@
                     (valueChange)="onReservationDropdownChange($event)">
                   </app-title-bar-select>
                 } @else if (source === 'property') {
-                  <mat-form-field appearance="outline" class="field-width-18ch">
+                  <mat-form-field appearance="outline" class="titlebar-field-property-code">
                     <mat-label>Property Code</mat-label>
                     <input matInput [value]="propertyCode || ''" readonly [disabled]="true">
                   </mat-form-field>
                   <app-title-bar-select
                     [label]="'Reservation'"
-                    [formFieldClass]="'reservation-dropdown'"
+                    [formFieldClass]="'titlebar-field-reservation'"
                     [value]="selectedReservationId"
                     [options]="reservationOptions"
                     [nullOptionLabel]="'Select Reservation'"

@@ -59,7 +59,7 @@
                   </mat-select>
                 </mat-form-field>
               }
-              <mat-form-field appearance="outline" class="field-width-300">
+              <mat-form-field appearance="outline" class="titlebar-field-reservation">
                 <mat-label>Reservation</mat-label>
                 <mat-select [(ngModel)]="selectedReservation" (selectionChange)="onReservationChange()" [compareWith]="compareReservationById" [canSelectNullableOptions]="true">
                   <mat-option [value]="null">Select Reservation</mat-option>

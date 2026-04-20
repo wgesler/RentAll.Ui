@@ -47,7 +47,7 @@
               @if (source === 'invoice') {
                 <app-title-bar-select
                   [label]="selectedCompanyContact ? 'Company' : 'All Companies'"
-                  [formFieldClass]="'field-width-300'"
+                  [formFieldClass]="'titlebar-field-company'"
                   [value]="selectedCompanyContactId"
                   [options]="companyOptions"
                   [nullOptionLabel]="'All Companies'"
@@ -62,7 +62,7 @@
                 </mat-form-field>
                 <app-title-bar-select
                   [label]="'Reservation'"
-                  [formFieldClass]="'reservation-dropdown'"
+                  [formFieldClass]="'titlebar-field-reservation'"
                   [value]="selectedReservationId"
                   [options]="reservationOptions"
                   [nullOptionLabel]="'Select Reservation'"
@@ -132,7 +132,7 @@
               @if (source === 'invoice') {
                 <app-title-bar-select
                   [label]="selectedCompanyContact ? 'Company' : 'All Companies'"
-                  [formFieldClass]="'field-width-300'"
+                  [formFieldClass]="'titlebar-field-company'"
                   [value]="selectedCompanyContactId"
                   [options]="companyOptions"
                   [nullOptionLabel]="'All Companies'"
@@ -147,7 +147,7 @@
                 </mat-form-field>
                 <app-title-bar-select
                   [label]="'Reservation'"
-                  [formFieldClass]="'field-width-300'"
+                  [formFieldClass]="'titlebar-field-reservation'"
                   [value]="selectedReservationId"
                   [options]="reservationOptions"
                   [nullOptionLabel]="'Select Reservation'"

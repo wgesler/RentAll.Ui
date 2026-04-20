@@ -32,7 +32,7 @@
             <mat-form-field appearance="outline" class="titlebar-field-property-code maintenance-titlebar-property-code">
               <mat-label>Property Code</mat-label>
               <mat-select [(ngModel)]="selectedPropertyId" (selectionChange)="onPropertyCodeChange()" [canSelectNullableOptions]="true">
-                <mat-option [value]="null">Select Property</mat-option>
+                <mat-option [value]="null">Properties</mat-option>
                 @for (propertyOption of availableProperties; track propertyOption.propertyId) {
                   <mat-option [value]="propertyOption.propertyId">{{ propertyOption.propertyCode }}</mat-option>
                 }

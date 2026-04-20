@@ -36,7 +36,7 @@
   /* Title-bar fields: default max widths when space allows; shrink on narrow viewports. */
   --titlebar-field-min-office: 92px;
   --titlebar-field-min-company: 108px;
-  --titlebar-field-min-property-code: 9ch;
+  --titlebar-field-min-property-code: 14ch;
   --titlebar-field-min-reservation: 120px;
   --titlebar-field-min-document-type: 100px;
 }
@@ -720,9 +720,12 @@ app-searchable-select .searchable-select-field.searchable-invalid .mat-mdc-selec
   flex-wrap: nowrap;
   align-items: center;
   gap: 0.5rem;
+  flex: 1 1 auto;
+  width: auto;
+  max-width: 100%;
+  min-width: 0;
   margin-left: 2.5rem;
   padding: 4px;
-  min-width: 0;
 }
 
 /* Hoist title-bar selects so width/flex apply to mat-form-field (avoids host wrapper blocking shrink). */
@@ -770,23 +773,29 @@ app-searchable-select .searchable-select-field.searchable-invalid .mat-mdc-selec
 }
 
 .titlebar-field-property-code {
-  flex: 0 1 18ch;
+  flex: 0 1 16ch;
   width: auto;
   min-width: var(--titlebar-field-min-property-code);
-  max-width: 18ch;
+  max-width: 16ch;
 }
 
 .header-title .field-width-18ch.mat-mdc-form-field {
-  flex: 0 1 18ch;
+  flex: 0 1 16ch;
   width: auto;
   min-width: var(--titlebar-field-min-property-code);
-  max-width: 18ch;
+  max-width: 16ch;
 }
 
 .header-title .titlebar-field-property-code.titlebar-default-code {
   input.mat-mdc-input-element {
     color: var(--mdc-theme-error, #f44336) !important;
   }
+}
+
+/* Property Code needs tighter horizontal inset so full codes fit. */
+.header-title .titlebar-field-property-code.mat-mdc-form-field .mat-mdc-text-field-wrapper {
+  padding-left: 10px !important;
+  padding-right: 10px !important;
 }
 
 /* Keep Office / Property Code / Reservation at identical vertical height. */
@@ -944,10 +953,10 @@ app-searchable-select .searchable-select-field.searchable-invalid .mat-mdc-selec
 }
 
 .titlebar-field-reservation {
-  flex: 0 1 460px;
+  flex: 0 1 307px;
   width: auto;
   min-width: var(--titlebar-field-min-reservation);
-  max-width: 460px;
+  max-width: 307px;
 }
 
 /* Reservation lives inside a slot wrapper on some shells; fill slot width when the slot shrinks. */
@@ -959,9 +968,10 @@ app-searchable-select .searchable-select-field.searchable-invalid .mat-mdc-selec
 .titlebar-reservation-slot {
   display: flex;
   align-items: center;
-  flex: 0 1 460px;
+  flex: 0 1 307px;
+  width: auto;
   min-width: var(--titlebar-field-min-reservation);
-  max-width: 460px;
+  max-width: 307px;
 }
 
 .titlebar-field-document-type {
@@ -1454,8 +1464,7 @@ mat-form-field input,
   margin-top: 0.75rem;
 }
 
-.list-top-controls .organization-dropdown,
-.list-top-controls mat-form-field {
+.list-top-controls .organization-dropdown {
   width: 300px;
   min-width: 300px;
   max-width: 300px;
@@ -1468,35 +1477,6 @@ mat-form-field input,
 .list-top-controls > app-title-bar-select,
 .list-top-controls > app-searchable-select {
   display: contents;
-}
-
-.list-top-controls .office-dropdown {
-  flex: 0 1 200px;
-  width: auto;
-  min-width: var(--titlebar-field-min-office);
-  max-width: 200px;
-}
-
-.list-top-controls .company-dropdown {
-  flex: 0 1 300px;
-  width: auto;
-  min-width: var(--titlebar-field-min-company);
-  max-width: 300px;
-}
-
-.list-top-controls .field-width-18ch.mat-mdc-form-field {
-  flex: 0 1 18ch;
-  width: auto;
-  min-width: var(--titlebar-field-min-property-code);
-  max-width: 18ch;
-}
-
-/* Reservation dropdown in list-top-controls: wider for "ReservationCode: displayName" */
-.list-top-controls .reservation-dropdown {
-  flex: 0 1 460px;
-  width: auto;
-  min-width: var(--titlebar-field-min-reservation);
-  max-width: 460px;
 }
 
 .list-top-actions {

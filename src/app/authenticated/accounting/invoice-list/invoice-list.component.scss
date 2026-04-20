@@ -43,13 +43,6 @@
     box-sizing: border-box;
   }
 
-  // Ensure form fields maintain their width
-  mat-form-field {
-    flex-shrink: 0;
-    max-width: 300px;
-    box-sizing: border-box;
-  }
-
 }
 
 .payment-form-box {
