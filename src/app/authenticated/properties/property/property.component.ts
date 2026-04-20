@@ -63,6 +63,7 @@ export class PropertyComponent implements OnInit, OnDestroy, CanComponentDeactiv
   readonly propertyLeaseTypeOptions = getPropertyLeaseTypes();
 
   isAdmin = false;
+  isInAccounting = false;
   isServiceError: boolean = false;
   form: FormGroup;
   @ViewChild(PropertyAgreementComponent) propertyAgreementSection?: PropertyAgreementComponent;
@@ -137,9 +138,10 @@ export class PropertyComponent implements OnInit, OnDestroy, CanComponentDeactiv
   //#region Property
   ngOnInit(): void {
     this.isAdmin = this.authService.isAdmin();
+    this.isInAccounting = this.authService.isInAccounting();
     const initialRouteId = this.route.snapshot.paramMap.get('id');
     if (initialRouteId) {
-      this.expandedSections.agreement = this.isAdmin;
+      this.expandedSections.agreement = this.isInAccounting;
     }
 
     this.loadStates();
@@ -175,7 +177,7 @@ export class PropertyComponent implements OnInit, OnDestroy, CanComponentDeactiv
     this.route.paramMap.pipe(takeUntil(this.destroy$), map(pm => pm.get('id')), filter((id): id is string => id != null && id !== ''), distinctUntilChanged()).subscribe(id => {
       this.propertyId = id;
       this.isAddMode = id === 'new';
-      this.expandedSections.agreement = this.isAdmin;
+      this.expandedSections.agreement = this.isInAccounting;
 
       const codeControl = this.form.get('propertyCode');
       if (this.isAddMode) {

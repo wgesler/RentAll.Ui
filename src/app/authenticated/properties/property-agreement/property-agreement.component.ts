@@ -30,7 +30,7 @@ import { ImageViewDialogData } from '../../shared/modals/image-view-dialog/image
 export class PropertyAgreementComponent implements OnInit, OnChanges, OnDestroy {
   @Input({ required: true }) propertyId!: string;
   @Input({ required: true }) isAddMode!: boolean;
-  @Input({ required: true }) isAdmin!: boolean;
+  @Input({ required: true }) canManageAgreement!: boolean;
   @Input() officeId: number | null = null;
 
   readonly ManagementFeeType = ManagementFeeType;
@@ -105,7 +105,7 @@ export class PropertyAgreementComponent implements OnInit, OnChanges, OnDestroy 
     }
     const id = changes['propertyId'];
     const add = changes['isAddMode'];
-    const adm = changes['isAdmin'];
+    const adm = changes['canManageAgreement'];
     const shouldReload =
       (id && !id.firstChange) ||
       (add && !add.firstChange) ||
@@ -120,7 +120,7 @@ export class PropertyAgreementComponent implements OnInit, OnChanges, OnDestroy 
   }
 
   persistAgreementIfDirty(): Observable<boolean> {
-    if (!this.isAdmin || !this.agreementForm) {
+    if (!this.canManageAgreement || !this.agreementForm) {
       return of(true);
     }
     if (!this.agreementForm.dirty) {
@@ -163,7 +163,7 @@ export class PropertyAgreementComponent implements OnInit, OnChanges, OnDestroy 
   }
 
   persistAgreementForNewProperty(propertyId: string): Observable<boolean> {
-    if (!this.isAdmin || !this.agreementForm || !propertyId) {
+    if (!this.canManageAgreement || !this.agreementForm || !propertyId) {
       return of(true);
     }
     if (!this.agreementForm.dirty) {
@@ -259,7 +259,7 @@ export class PropertyAgreementComponent implements OnInit, OnChanges, OnDestroy 
 
   //#region Property Agreement Methods
   loadPropertyAgreement(): void {
-    if (!this.propertyId || !this.isAdmin || !this.agreementForm) {
+    if (!this.propertyId || !this.canManageAgreement || !this.agreementForm) {
       return;
     }
     if (this.isAddMode) {

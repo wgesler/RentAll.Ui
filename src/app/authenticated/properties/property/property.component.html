@@ -697,7 +697,7 @@
               </div>
             </mat-expansion-panel>
 
-            @if (isAdmin && propertyId) {
+            @if (isInAccounting && propertyId) {
             <mat-expansion-panel [expanded]="expandedSections.agreement" (opened)="onPanelOpened('agreement')" (closed)="onPanelClosed('agreement')" class="mb-4">
               <mat-expansion-panel-header>
                 <mat-panel-title>Property Agreements</mat-panel-title>
@@ -705,7 +705,7 @@
               <app-property-agreement
                 [propertyId]="propertyId"
                 [isAddMode]="isAddMode"
-                [isAdmin]="isAdmin"
+                [canManageAgreement]="isInAccounting"
                 [officeId]="sharedOfficeId"
               />
             </mat-expansion-panel>
