@@ -62,24 +62,17 @@
                     aria-hidden="true">*</span>
                 }
               </mat-label>
-              @if (!(propertySection?.isAddMode ?? false)) {
+              @if (isHeaderPropertyCodeEditable) {
                 <input
                   matInput
-                  [value]="sharedPropertyCode || 'Code'"
-                  readonly
-                  [disabled]="true"
-                  class="readonly-field">
-              } @else if (isHeaderPropertyCodeEditable) {
-                <input
-                  matInput
-                  [value]="titleBarPropertyCode"
+                  [value]="titleBarPropertyCode || sharedPropertyCode || ((propertySection?.isAddMode ?? false) ? propertySection?.propertyCodeDefaultPrompt : 'Code')"
                   maxlength="15"
                   (focus)="onPropertyCodeFocus($event)"
                   (input)="onPropertyCodeInput($event)">
               } @else {
                 <input
                   matInput
-                  [value]="sharedPropertyCode || (propertySection?.isAddMode ? propertySection?.propertyCodeDefaultPrompt : '')"
+                  [value]="sharedPropertyCode || ((propertySection?.isAddMode ?? false) ? propertySection?.propertyCodeDefaultPrompt : '')"
                   readonly
                   [disabled]="true"
                   class="readonly-field">

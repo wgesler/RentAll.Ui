@@ -361,7 +361,7 @@ export class ReservationComponent implements OnInit, OnDestroy, CanComponentDeac
     this.buildAdditionalContactRows(source.contactIds || []);
     this.updateContactFields();
     this.applyPlatformCompanyDetails(source.companyId ?? null, source.companyName ?? null);
-    this.updatePetFields();
+    this.updatePetFields(false);
     this.updateMaidServiceFields();
     this.updateMaidStartDate();
     if (source.extraFeeLines?.length) {
@@ -803,7 +803,7 @@ export class ReservationComponent implements OnInit, OnDestroy, CanComponentDeac
     this.applyPlatformCompanyDetails(this.reservation.companyId ?? null, this.reservation.companyName ?? null);
    
     // Update pet and maid service fields after patching
-    this.updatePetFields();
+    this.updatePetFields(false);
     this.updateMaidServiceFields();
     this.loadExtraFeeLines();
     this.updateMaidStartDate();
@@ -1903,7 +1903,7 @@ export class ReservationComponent implements OnInit, OnDestroy, CanComponentDeac
     departureControl.setValue(departureFee, { emitEvent: false });
   }
 
-  updatePetFields(): void {
+  updatePetFields(applyEnabledDefaults: boolean = true): void {
     const hasPets = this.form.get('pets')?.value ?? false;
     const petFeeControl = this.form.get('petFee');
     const numberOfPetsControl = this.form.get('numberOfPets');
@@ -1924,14 +1924,15 @@ export class ReservationComponent implements OnInit, OnDestroy, CanComponentDeac
       if (!this.selectedProperty) {
         return;
       }
-      
-      const petFee = this.selectedProperty.petFee != null 
-        ? this.selectedProperty.petFee.toFixed(2) 
-        : '0.00';
-      petFeeControl.setValue(petFee, { emitEvent: false });
+
+      if (applyEnabledDefaults) {
+        const petFee = this.selectedProperty.petFee != null
+          ? this.selectedProperty.petFee.toFixed(2)
+          : '0.00';
+        petFeeControl.setValue(petFee, { emitEvent: false });
+        numberOfPetsControl.setValue(1, { emitEvent: false });
+      }
       this.enableFieldWithValidation('petFee', [Validators.required]);
-      
-      numberOfPetsControl.setValue(1, { emitEvent: false });
       this.enableFieldWithValidation('numberOfPets', [Validators.required]);
       
       this.enableFieldWithValidation('petDescription', [Validators.required]);
