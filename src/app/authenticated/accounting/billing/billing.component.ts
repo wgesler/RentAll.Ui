@@ -15,7 +15,7 @@ import { MappingService } from '../../../services/mapping.service';
 import { UtilityService } from '../../../services/utility.service';
 import { OrganizationRequest, OrganizationResponse } from '../../organizations/models/organization.model';
 import { OrganizationService } from '../../organizations/services/organization.service';
-import { TransactionType, TransactionTypeLabels } from '../models/accounting-enum';
+import { TransactionType, TransactionTypeLabels, getTransactionTypeLabel as getAccountingTransactionTypeLabel } from '../models/accounting-enum';
 import { CostCodesResponse } from '../models/cost-codes.model';
 import { BillingMonthlyDataRequest, BillingMonthlyDataResponse, InvoiceRequest, InvoiceResponse, LedgerLineListDisplay, LedgerLineRequest } from '../models/invoice.model';
 import { InvoiceService } from '../services/invoice.service';
@@ -524,18 +524,15 @@ export class BillingComponent implements OnInit, OnDestroy {
   }
 
   getTransactionTypeLabel(transactionType: number): string {
-    const types = ['Debit', 'Credit', 'Payment', 'Refund', 'Charge', 'Deposit', 'Adjustment'];
-    return types[transactionType] || 'Unknown';
+    return getAccountingTransactionTypeLabel(transactionType, this.transactionTypes);
   }
 
   isPaymentLine(line: LedgerLineListDisplay): boolean {
-    // Check if transactionType is "Payment" or transactionTypeId is Payment (11)
     const transactionTypeId = (line as any).transactionTypeId;
     if (transactionTypeId !== undefined && transactionTypeId !== null) {
-      return transactionTypeId === TransactionType.Payment || transactionTypeId === TransactionType.Payment;
+      return transactionTypeId === TransactionType.Payment;
     }
-    // Fallback to checking transactionType string
-    return line.transactionType === 'Payment' || line.transactionType === 'Credit' || line.transactionType === 'Refund';
+    return line.transactionType === 'Payment';
   }
   //#endregion
 
@@ -1029,7 +1026,7 @@ export class BillingComponent implements OnInit, OnDestroy {
 
     this.accountingService.getBillingMonthlyLedgerLines(request).pipe(take(1)).subscribe({
       next: (response: BillingMonthlyDataResponse) => {
-        const rawLedgerLines = response.ledgerLines || (response as any).ledgerLines || [];
+        const rawLedgerLines = response.ledgerLines || [];
         this.ledgerLines = this.mappingService.mapLedgerLines(rawLedgerLines, this.billingCostCodes, this.transactionTypes);
         this.normalizePaymentLineSigns();
         this.originalLedgerLines = JSON.parse(JSON.stringify(this.ledgerLines));

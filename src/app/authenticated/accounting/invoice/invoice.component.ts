@@ -22,7 +22,7 @@ import { ApplyCreditToInvoiceDialogComponent, ApplyCreditToInvoiceDialogData } f
 import { ApplyCreditDialogComponent, ApplyCreditDialogData } from '../../shared/modals/apply-credit/apply-credit-dialog.component';
 import { SearchableSelectComponent } from '../../shared/searchable-select/searchable-select.component';
 import { TitleBarSelectComponent } from '../../shared/titlebar-select/titlebar-select.component';
-import { TransactionType, TransactionTypeLabels } from '../models/accounting-enum';
+import { TransactionType, TransactionTypeLabels, getTransactionTypeLabel as getAccountingTransactionTypeLabel } from '../models/accounting-enum';
 import { CostCodesResponse } from '../models/cost-codes.model';
 import { InvoiceMonthlyDataRequest, InvoiceMonthlyDataResponse, InvoiceRequest, InvoiceResponse, LedgerLineListDisplay, LedgerLineRequest } from '../models/invoice.model';
 import { InvoiceService } from '../services/invoice.service';
@@ -537,16 +537,15 @@ export class InvoiceComponent implements OnInit, OnDestroy {
   }
 
   getTransactionTypeLabel(transactionType: number): string {
-    const types = ['Debit', 'Credit', 'Payment', 'Refund', 'Charge', 'Deposit', 'Adjustment'];
-    return types[transactionType] || 'Unknown';
+    return getAccountingTransactionTypeLabel(transactionType, this.transactionTypes);
   }
 
   isPaymentLine(line: LedgerLineListDisplay): boolean {
     const transactionTypeId = (line as any).transactionTypeId;
     if (transactionTypeId !== undefined && transactionTypeId !== null) {
-      return transactionTypeId === TransactionType.Payment || transactionTypeId === TransactionType.Payment;
+      return transactionTypeId === TransactionType.Payment;
     }
-    return line.transactionType === 'Payment' || line.transactionType === 'Credit' || line.transactionType === 'Refund';
+    return line.transactionType === 'Payment';
   }
   //#endregion
 
@@ -677,7 +676,7 @@ export class InvoiceComponent implements OnInit, OnDestroy {
     
     this.accountingService.getMonthlyLedgerLines(request).pipe(take(1)).subscribe({
       next: (response: InvoiceMonthlyDataResponse) => {
-        const rawLedgerLines = response.ledgerLines || (response as any).ledgerLines || (response as any).LedgerLineResponse || [];
+        const rawLedgerLines = response.ledgerLines || [];
         this.ledgerLines = this.mappingService.mapLedgerLines(rawLedgerLines, this.officeCostCodes, this.transactionTypes);
         this.normalizePaymentLineSigns();
         this.originalLedgerLines = JSON.parse(JSON.stringify(this.ledgerLines));

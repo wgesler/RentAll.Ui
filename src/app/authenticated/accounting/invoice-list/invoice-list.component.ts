@@ -64,6 +64,7 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
 
   expandedInvoices: Set<string> = new Set(); // Track which invoices are expanded
   isAllExpanded: boolean = false; // Track if all rows are expanded
+  loadingInvoiceLedgerLines: Set<string> = new Set();
 
   offices: OfficeResponse[] = [];
   availableOffices: { value: number, name: string }[] = [];
@@ -327,6 +328,43 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
     this.accountingService.getInvoicesByOffice(this.selectedOffice.officeId).pipe(take(1), finalize(() => { this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'invoices'); })).subscribe({
       next: (invoices) => {
         this.allInvoices = invoices || [];
+        const ledgerLineValuesByInvoice = this.allInvoices.map(invoice => ({
+          invoiceId: invoice.invoiceId,
+          invoiceCode: invoice.invoiceCode,
+          ledgerLines: this.mappingService
+            .mapLedgerLines(invoice.ledgerLines ?? [], this.costCodes, this.transactionTypes)
+            .map(line => ({
+              costCode: line.costCode,
+              transactionType: line.transactionType,
+              amount: line.amount
+            }))
+        }));
+        const ledgerLineValuesFlat = ledgerLineValuesByInvoice.flatMap(invoice =>
+          invoice.ledgerLines.map(line => ({
+            invoiceId: invoice.invoiceId,
+            invoiceCode: invoice.invoiceCode,
+            costCode: line.costCode,
+            transactionType: line.transactionType,
+            amount: line.amount
+          }))
+        );
+        console.log('[InvoiceList] getInvoicesByOffice response', {
+          officeId: this.selectedOffice?.officeId ?? null,
+          invoiceCount: this.allInvoices.length,
+          ledgerLineCounts: this.allInvoices.map(invoice => ({
+            invoiceId: invoice.invoiceId,
+            invoiceCode: invoice.invoiceCode,
+            ledgerLineCount: Array.isArray((invoice as any).ledgerLines) ? (invoice as any).ledgerLines.length : 0
+          })),
+          ledgerLinesByInvoice: this.allInvoices.map(invoice => ({
+            invoiceId: invoice.invoiceId,
+            invoiceCode: invoice.invoiceCode,
+            ledgerLines: invoice.ledgerLines ?? []
+          })),
+          ledgerLineValuesByInvoice: ledgerLineValuesByInvoice,
+          ledgerLineValuesFlatCount: ledgerLineValuesFlat.length
+        });
+        console.table(ledgerLineValuesFlat);
          this.applyFilters();
       },
       error: (err: HttpErrorResponse) => {
@@ -612,8 +650,7 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
 
     // Map invoices to include expand button data for DataTableComponent
     this.invoicesDisplay = filtered.map(invoice => {
-      // Angular HTTP converts PascalCase to camelCase, so use ledgerLines
-      const rawLedgerLines = invoice['ledgerLines'] ?? [];
+      const rawLedgerLines = invoice.ledgerLines ?? [];
       const mappedLedgerLines = this.mappingService.mapLedgerLines(rawLedgerLines, this.costCodes, this.transactionTypes);
       const totalAmount = invoice.totalAmount || 0;
       const paidAmount = this.getPaidAmountFromLedgerLines(rawLedgerLines, invoice.officeId);
@@ -656,13 +693,14 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
       dueDate: this.formatter.formatDateString(invoice.dueDate),
       expand: invoice.invoiceId, // Store invoiceId for expand functionality
       expanded: this.expandedInvoices.has(invoice.invoiceId), // Restore expanded state from Set
-      LedgerLines: mappedLedgerLines, 
+      ledgerLines: mappedLedgerLines,
       expandClick: (event: Event, item: any) => {
         event.stopPropagation();
         if (this.expandedInvoices.has(item.invoiceId)) {
           this.expandedInvoices.delete(item.invoiceId);
         } else {
           this.expandedInvoices.add(item.invoiceId);
+          this.ensureInvoiceLedgerLinesLoaded(item.invoiceId);
         }
         this.applyFilters();
       }
@@ -826,6 +864,51 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
       invoice.invoiceId && this.expandedInvoices.has(invoice.invoiceId)
     );
   }
+
+  ensureInvoiceLedgerLinesLoaded(invoiceId: string | null | undefined): void {
+    if (!invoiceId || this.loadingInvoiceLedgerLines.has(invoiceId)) {
+      return;
+    }
+
+    const existingInvoice = this.allInvoices.find(invoice => invoice.invoiceId === invoiceId);
+    if (!existingInvoice || (existingInvoice.ledgerLines?.length ?? 0) > 0) {
+      return;
+    }
+
+    this.loadingInvoiceLedgerLines.add(invoiceId);
+    this.accountingService.getInvoiceByGuid(invoiceId).pipe(
+      take(1),
+      finalize(() => this.loadingInvoiceLedgerLines.delete(invoiceId))
+    ).subscribe({
+      next: (fullInvoice) => {
+        const targetIndex = this.allInvoices.findIndex(invoice => invoice.invoiceId === invoiceId);
+        if (targetIndex === -1) {
+          return;
+        }
+
+        this.allInvoices[targetIndex] = {
+          ...this.allInvoices[targetIndex],
+          ...fullInvoice,
+          ledgerLines: fullInvoice.ledgerLines ?? []
+        };
+
+        console.log('[InvoiceList] loaded full invoice ledger lines', {
+          invoiceId,
+          ledgerLineCount: this.allInvoices[targetIndex].ledgerLines?.length ?? 0
+        });
+        console.table((this.allInvoices[targetIndex].ledgerLines ?? []).map(line => ({
+          invoiceId,
+          invoiceCode: this.allInvoices[targetIndex].invoiceCode,
+          costCodeId: line.costCodeId,
+          transactionTypeId: line.transactionTypeId,
+          amount: line.amount
+        })));
+
+        this.applyFilters();
+      },
+      error: () => {}
+    });
+  }
   //#endregion
 
   //#region Dropdowns
@@ -923,6 +1006,42 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
     this.accountingService.getAllInvoices().pipe(take(1), finalize(() => { this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'invoices'); })).subscribe({
       next: (invoices) => {
         this.allInvoices = invoices || [];
+        const ledgerLineValuesByInvoice = this.allInvoices.map(invoice => ({
+          invoiceId: invoice.invoiceId,
+          invoiceCode: invoice.invoiceCode,
+          ledgerLines: this.mappingService
+            .mapLedgerLines(invoice.ledgerLines ?? [], this.costCodes, this.transactionTypes)
+            .map(line => ({
+              costCode: line.costCode,
+              transactionType: line.transactionType,
+              amount: line.amount
+            }))
+        }));
+        const ledgerLineValuesFlat = ledgerLineValuesByInvoice.flatMap(invoice =>
+          invoice.ledgerLines.map(line => ({
+            invoiceId: invoice.invoiceId,
+            invoiceCode: invoice.invoiceCode,
+            costCode: line.costCode,
+            transactionType: line.transactionType,
+            amount: line.amount
+          }))
+        );
+        console.log('[InvoiceList] getAllInvoices response', {
+          invoiceCount: this.allInvoices.length,
+          ledgerLineCounts: this.allInvoices.map(invoice => ({
+            invoiceId: invoice.invoiceId,
+            invoiceCode: invoice.invoiceCode,
+            ledgerLineCount: Array.isArray((invoice as any).ledgerLines) ? (invoice as any).ledgerLines.length : 0
+          })),
+          ledgerLinesByInvoice: this.allInvoices.map(invoice => ({
+            invoiceId: invoice.invoiceId,
+            invoiceCode: invoice.invoiceCode,
+            ledgerLines: invoice.ledgerLines ?? []
+          })),
+          ledgerLineValuesByInvoice: ledgerLineValuesByInvoice,
+          ledgerLineValuesFlatCount: ledgerLineValuesFlat.length
+        });
+        console.table(ledgerLineValuesFlat);
         this.applyFilters();
       },
       error: (err: HttpErrorResponse) => {

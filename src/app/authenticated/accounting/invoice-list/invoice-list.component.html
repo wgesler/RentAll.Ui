@@ -1,7 +1,7 @@
 <!-- Ledger lines template -->
 <ng-template #ledgerLinesTemplate let-invoice>
   <div class="detail-lines-wrapper">
-    @if (invoice?.LedgerLines && invoice.LedgerLines.length > 0) {
+    @if (invoice?.ledgerLines && invoice.ledgerLines.length > 0) {
       <table>
         <thead>
           <tr>
@@ -18,7 +18,7 @@
           </tr>
         </thead>
         <tbody>
-          @for (line of invoice.LedgerLines; track line.ledgerLineId; let i = $index) {
+          @for (line of invoice.ledgerLines; track line.ledgerLineId; let i = $index) {
             <tr [style.background-color]="line.rowColor || ''" 
                 [class.detail-row-colored]="line.rowColor">
               @for (columnName of getLedgerLineColumnNames(); track columnName) {

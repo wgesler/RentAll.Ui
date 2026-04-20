@@ -53,6 +53,7 @@ export class DashboardMainComponent extends PropertyMaintenanceBase implements O
   currentUserAgentCode: string | null = null;
   currentUserCommissionRate: number = 0;
   canViewCommissions: boolean = false;
+  canViewAllCommissions: boolean = false;
 
   adminUsers: UserResponse[] = [];
   adminAgents: AgentResponse[] = [];
@@ -169,6 +170,7 @@ export class DashboardMainComponent extends PropertyMaintenanceBase implements O
     this.setTodayDate();
     this.isAdmin = this.authService.isAdmin();
     this.canViewCommissions = this.authService.canViewCommissions();
+    this.canViewAllCommissions = this.authService.isInAccounting();
     this.loadCurrentUser(this.authService.getUser()?.userId ?? '');
 
     if (this.canViewCommissions) {
@@ -233,7 +235,7 @@ export class DashboardMainComponent extends PropertyMaintenanceBase implements O
       return;
     }
 
-    if (this.isAdmin) {
+    if (this.canViewAllCommissions) {
       const pending = this.itemsToLoad$.value;
       if (pending.has('users') || pending.has('agents')) {
         return;
@@ -335,7 +337,7 @@ export class DashboardMainComponent extends PropertyMaintenanceBase implements O
       return;
     }
 
-    if (this.isAdmin) {
+    if (this.canViewAllCommissions) {
       this.currentUserAgentCode = 'ALL';
       this.getCommissions();
       return;
@@ -357,13 +359,7 @@ export class DashboardMainComponent extends PropertyMaintenanceBase implements O
   }
 
   get showCommissionsUi(): boolean {
-    if (!this.canViewCommissions) {
-      return false;
-    }
-    if (this.isAdmin) {
-      return true;
-    }
-    return !!this.currentUserAgentId && Number(this.currentUserCommissionRate) > 0;
+    return this.canViewCommissions;
   }
 
   getCommissions(): void {
@@ -386,7 +382,7 @@ export class DashboardMainComponent extends PropertyMaintenanceBase implements O
       return this.toJulianDay(overlapEnd) - this.toJulianDay(overlapStart) + 1;
     };
 
-    const resolveCommissionRate = (row: { agentCode?: string | null }): number => this.isAdmin
+    const resolveCommissionRate = (row: { agentCode?: string | null }): number => this.canViewAllCommissions
       ? Number(this.adminCommissionRatesByAgentCode.get((row.agentCode || '').trim().toLowerCase()) ?? 0)
       : Number(this.currentUserCommissionRate ?? 0);
 
@@ -397,7 +393,7 @@ export class DashboardMainComponent extends PropertyMaintenanceBase implements O
     const agentCode = (this.currentUserAgentCode || '').trim().toLowerCase();
 
     this.monthlyCommissions = this.filteredReservationPropertyMaintenanceList
-      .filter(row => this.isAdmin ? (row.agentCode || '').trim().length > 0 : (row.agentCode || '').trim().toLowerCase() === agentCode)
+      .filter(row => this.canViewAllCommissions ? (row.agentCode || '').trim().length > 0 : (row.agentCode || '').trim().toLowerCase() === agentCode)
       .filter(row => resolveCommissionRate(row) > 0)
       .filter(row => overlapsCurrentMonth(row.arrivalDateOrdinal!, row.departureDateOrdinal!))
       .sort((a, b) =>
@@ -454,7 +450,7 @@ export class DashboardMainComponent extends PropertyMaintenanceBase implements O
     if (event.button !== 0) {
       return;
     }
-    if (!this.showCommissionsUi || !this.isAdmin || this.getMonthlyCommissionTotal() <= 0) {
+    if (!this.showCommissionsUi || !this.canViewAllCommissions || this.getMonthlyCommissionTotal() <= 0) {
       return;
     }
     event.preventDefault();
@@ -464,7 +460,7 @@ export class DashboardMainComponent extends PropertyMaintenanceBase implements O
 
   onCommissionPreviewTouchStart(event: TouchEvent): void {
     void event;
-    if (!this.showCommissionsUi || !this.isAdmin || this.getMonthlyCommissionTotal() <= 0) {
+    if (!this.showCommissionsUi || !this.canViewAllCommissions || this.getMonthlyCommissionTotal() <= 0) {
       return;
     }
     this.showMonthlyCommissionAmount = true;

@@ -111,7 +111,7 @@
           @if (showCommissionsUi) {
             <div
               class="dashboard-titlebar-stat dashboard-titlebar-stat--commissions"
-              [class.commission-tile-clickable]="isAdmin && getMonthlyCommissionTotal() > 0"
+              [class.commission-tile-clickable]="canViewAllCommissions && getMonthlyCommissionTotal() > 0"
               (mousedown)="onCommissionPreviewMouseDown($event)"
               (touchstart)="onCommissionPreviewTouchStart($event)">
               <div class="dashboard-titlebar-stat-body">
@@ -135,7 +135,7 @@
           </div>
         </div>
       </div>
-      @if (showCommissionsUi && isAdmin && getMonthlyCommissionTotal() > 0 && showCommissionBreakdown) {
+      @if (showCommissionsUi && canViewAllCommissions && getMonthlyCommissionTotal() > 0 && showCommissionBreakdown) {
         <div class="commission-breakdown-popover commission-breakdown-popover--under-titlebar">
           @for (row of getMonthlyCommissionTileRows(); track row.agentCode) {
             <div class="commission-breakdown-row">
