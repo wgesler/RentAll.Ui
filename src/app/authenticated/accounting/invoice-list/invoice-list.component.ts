@@ -328,43 +328,6 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
     this.accountingService.getInvoicesByOffice(this.selectedOffice.officeId).pipe(take(1), finalize(() => { this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'invoices'); })).subscribe({
       next: (invoices) => {
         this.allInvoices = invoices || [];
-        const ledgerLineValuesByInvoice = this.allInvoices.map(invoice => ({
-          invoiceId: invoice.invoiceId,
-          invoiceCode: invoice.invoiceCode,
-          ledgerLines: this.mappingService
-            .mapLedgerLines(invoice.ledgerLines ?? [], this.costCodes, this.transactionTypes)
-            .map(line => ({
-              costCode: line.costCode,
-              transactionType: line.transactionType,
-              amount: line.amount
-            }))
-        }));
-        const ledgerLineValuesFlat = ledgerLineValuesByInvoice.flatMap(invoice =>
-          invoice.ledgerLines.map(line => ({
-            invoiceId: invoice.invoiceId,
-            invoiceCode: invoice.invoiceCode,
-            costCode: line.costCode,
-            transactionType: line.transactionType,
-            amount: line.amount
-          }))
-        );
-        console.log('[InvoiceList] getInvoicesByOffice response', {
-          officeId: this.selectedOffice?.officeId ?? null,
-          invoiceCount: this.allInvoices.length,
-          ledgerLineCounts: this.allInvoices.map(invoice => ({
-            invoiceId: invoice.invoiceId,
-            invoiceCode: invoice.invoiceCode,
-            ledgerLineCount: Array.isArray((invoice as any).ledgerLines) ? (invoice as any).ledgerLines.length : 0
-          })),
-          ledgerLinesByInvoice: this.allInvoices.map(invoice => ({
-            invoiceId: invoice.invoiceId,
-            invoiceCode: invoice.invoiceCode,
-            ledgerLines: invoice.ledgerLines ?? []
-          })),
-          ledgerLineValuesByInvoice: ledgerLineValuesByInvoice,
-          ledgerLineValuesFlatCount: ledgerLineValuesFlat.length
-        });
-        console.table(ledgerLineValuesFlat);
          this.applyFilters();
       },
       error: (err: HttpErrorResponse) => {
@@ -893,18 +856,6 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
           ledgerLines: fullInvoice.ledgerLines ?? []
         };
 
-        console.log('[InvoiceList] loaded full invoice ledger lines', {
-          invoiceId,
-          ledgerLineCount: this.allInvoices[targetIndex].ledgerLines?.length ?? 0
-        });
-        console.table((this.allInvoices[targetIndex].ledgerLines ?? []).map(line => ({
-          invoiceId,
-          invoiceCode: this.allInvoices[targetIndex].invoiceCode,
-          costCodeId: line.costCodeId,
-          transactionTypeId: line.transactionTypeId,
-          amount: line.amount
-        })));
-
         this.applyFilters();
       },
       error: () => {}
@@ -1007,42 +958,6 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
     this.accountingService.getAllInvoices().pipe(take(1), finalize(() => { this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'invoices'); })).subscribe({
       next: (invoices) => {
         this.allInvoices = invoices || [];
-        const ledgerLineValuesByInvoice = this.allInvoices.map(invoice => ({
-          invoiceId: invoice.invoiceId,
-          invoiceCode: invoice.invoiceCode,
-          ledgerLines: this.mappingService
-            .mapLedgerLines(invoice.ledgerLines ?? [], this.costCodes, this.transactionTypes)
-            .map(line => ({
-              costCode: line.costCode,
-              transactionType: line.transactionType,
-              amount: line.amount
-            }))
-        }));
-        const ledgerLineValuesFlat = ledgerLineValuesByInvoice.flatMap(invoice =>
-          invoice.ledgerLines.map(line => ({
-            invoiceId: invoice.invoiceId,
-            invoiceCode: invoice.invoiceCode,
-            costCode: line.costCode,
-            transactionType: line.transactionType,
-            amount: line.amount
-          }))
-        );
-        console.log('[InvoiceList] getAllInvoices response', {
-          invoiceCount: this.allInvoices.length,
-          ledgerLineCounts: this.allInvoices.map(invoice => ({
-            invoiceId: invoice.invoiceId,
-            invoiceCode: invoice.invoiceCode,
-            ledgerLineCount: Array.isArray((invoice as any).ledgerLines) ? (invoice as any).ledgerLines.length : 0
-          })),
-          ledgerLinesByInvoice: this.allInvoices.map(invoice => ({
-            invoiceId: invoice.invoiceId,
-            invoiceCode: invoice.invoiceCode,
-            ledgerLines: invoice.ledgerLines ?? []
-          })),
-          ledgerLineValuesByInvoice: ledgerLineValuesByInvoice,
-          ledgerLineValuesFlatCount: ledgerLineValuesFlat.length
-        });
-        console.table(ledgerLineValuesFlat);
         this.applyFilters();
       },
       error: (err: HttpErrorResponse) => {

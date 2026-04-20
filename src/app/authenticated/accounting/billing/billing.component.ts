@@ -234,13 +234,18 @@ export class BillingComponent implements OnInit, OnDestroy {
       return sd && ed ? `${this.formatter.dateOnly(sd)} - ${this.formatter.dateOnly(ed)}` : '';
     })();
     
+    const recipientOrganization =
+      this.selectedOrganization ||
+      this.organizations.find(o => o.organizationId === formValue.organizationId) ||
+      null;
+
     const invoiceRequest: InvoiceRequest = {
       organizationId: this.billingOrganization.organizationId || '',
       officeId: 1,
       officeName: "Denver",
       invoiceCode: invoiceCode,
-      reservationId: this.selectedOrganization.organizationId,
-      reservationCode: this.selectedOrganization.organizationCode,
+      reservationId: recipientOrganization?.organizationId ?? null,
+      reservationCode: recipientOrganization?.organizationCode ?? null,
       startDate: this.utilityService.toDateOnlyJsonString(formValue.startDate) ?? '',
       endDate: this.utilityService.toDateOnlyJsonString(formValue.endDate) ?? '',
       invoiceDate: this.utilityService.toDateOnlyJsonString(formValue.invoiceDate) ?? '',
@@ -250,6 +255,7 @@ export class BillingComponent implements OnInit, OnDestroy {
       paidAmount: paidAmount,
       notes: formValue.notes || null,
       isActive: formValue.isActive !== undefined ? formValue.isActive : true,
+      responsibleParty: recipientOrganization?.name ?? null,
       ledgerLines: ledgerLines
     };
 

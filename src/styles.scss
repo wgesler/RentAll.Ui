@@ -37,6 +37,7 @@
   --titlebar-field-min-office: 92px;
   --titlebar-field-min-company: 108px;
   --titlebar-field-min-property-code: 14ch;
+  --titlebar-field-min-invoice-no: 24ch;
   --titlebar-field-min-reservation: 120px;
   --titlebar-field-min-document-type: 100px;
 }
@@ -786,6 +787,13 @@ app-searchable-select .searchable-select-field.searchable-invalid .mat-mdc-selec
   max-width: 16ch;
 }
 
+.titlebar-field-invoice-no {
+  flex: 0 1 24ch;
+  width: auto;
+  min-width: var(--titlebar-field-min-invoice-no);
+  max-width: 24ch;
+}
+
 .header-title .titlebar-field-property-code.titlebar-default-code {
   input.mat-mdc-input-element {
     color: var(--mdc-theme-error, #f44336) !important;
@@ -802,6 +810,7 @@ app-searchable-select .searchable-select-field.searchable-invalid .mat-mdc-selec
 .header-title .titlebar-field-office.mat-mdc-form-field,
 .header-title .titlebar-field-company.mat-mdc-form-field,
 .header-title .titlebar-field-property-code.mat-mdc-form-field,
+.header-title .titlebar-field-invoice-no.mat-mdc-form-field,
 .header-title .titlebar-field-reservation.mat-mdc-form-field,
 .header-title .titlebar-field-document-type.mat-mdc-form-field,
 .header-title .reservation-dropdown.mat-mdc-form-field,
@@ -906,6 +915,7 @@ app-searchable-select .searchable-select-field.searchable-invalid .mat-mdc-selec
 .header-title .titlebar-field-office.mat-mdc-form-field .mdc-floating-label:not(.mdc-floating-label--float-above),
 .header-title .titlebar-field-company.mat-mdc-form-field .mdc-floating-label:not(.mdc-floating-label--float-above),
 .header-title .titlebar-field-property-code.mat-mdc-form-field .mdc-floating-label:not(.mdc-floating-label--float-above),
+.header-title .titlebar-field-invoice-no.mat-mdc-form-field .mdc-floating-label:not(.mdc-floating-label--float-above),
 .header-title .titlebar-field-reservation.mat-mdc-form-field .mdc-floating-label:not(.mdc-floating-label--float-above),
 .header-title .titlebar-field-document-type.mat-mdc-form-field .mdc-floating-label:not(.mdc-floating-label--float-above),
 .header-title .reservation-dropdown.mat-mdc-form-field .mdc-floating-label:not(.mdc-floating-label--float-above),

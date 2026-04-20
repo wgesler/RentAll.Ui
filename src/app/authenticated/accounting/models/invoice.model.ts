@@ -8,6 +8,7 @@ export interface InvoiceRequest {
   invoiceCode?: string;
   reservationId?: string | null;
   reservationCode?: string | null;
+  responsibleParty?: string | null;
   startDate: string;
   endDate: string;
   invoiceDate: CalendarDateString;
