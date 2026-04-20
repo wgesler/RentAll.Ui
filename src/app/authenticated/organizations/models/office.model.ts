@@ -22,6 +22,7 @@ export interface OfficeRequest {
   maintenanceEmail?: string;
   afterHoursPhone?: string;
   afterHoursInstructions?: string;
+  useDailyOnResBoard: boolean
   daysToRefundDeposit: number;
   defaultDeposit: number;
   defaultSdw: number;
@@ -64,6 +65,7 @@ export interface OfficeResponse {
   maintenanceEmail?: string;
   afterHoursPhone?: string;
   afterHoursInstructions?: string;
+  useDailyOnResBoard: boolean
   daysToRefundDeposit: number;
   defaultDeposit: number;
   defaultSdw: number;

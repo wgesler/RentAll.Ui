@@ -3,6 +3,7 @@ export interface BoardProperty {
   propertyCode: string;
   address: string;
   monthlyRate: number;
+  dailyRate: number;
   bedsBaths: string;
   propertyStatusId: number;
   statusLetter: string;

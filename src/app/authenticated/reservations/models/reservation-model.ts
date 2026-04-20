@@ -157,6 +157,7 @@ export interface ReservationListResponse {
   companyName?: string | null;
   tenantName: string;
   agentCode?: string | null;
+  billingTypeId?: number | null;
   monthlyRate: number;
   arrivalDate: CalendarDateString;
   departureDate: CalendarDateString;

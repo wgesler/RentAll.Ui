@@ -79,7 +79,7 @@
             <tr class="header-row header-row-2">
               <th class="property-header-cell code-header">Code</th>
               <th class="property-header-cell address-header">Address</th>
-              <th class="property-header-cell rent-header">RENT/M</th>
+              <th class="property-header-cell rent-header">RENT</th>
               <th class="property-header-cell beds-header">B/B</th>
               <th class="property-header-cell status-header">ST</th>
               @for (day of calendarDays; track day.date.getTime()) {
@@ -109,7 +109,7 @@
                   }
                 </td>
                 <td class="property-cell address-cell" [title]="property.address">{{ formatBoardAddressForCell(property.address) }}</td>
-                <td class="property-cell rent-cell">${{ property.monthlyRate }}</td>
+                <td class="property-cell rent-cell">{{ getBoardRentDisplay(property) }}</td>
                 <td class="property-cell beds-cell">{{ property.bedsBaths }}</td>
                 <td class="property-cell status-cell" (click)="$event.stopPropagation()" (mousedown)="$event.stopPropagation()">
                   @if (readOnly) {

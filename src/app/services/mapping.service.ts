@@ -682,6 +682,7 @@ export class MappingService {
       propertyCode: p.propertyCode,
       address: p.shortAddress,
       monthlyRate: p.monthlyRate,
+      dailyRate: p.dailyRate,
       bedsBaths: `${p.bedrooms}/${p.bathrooms}`,
       propertyStatusId: p.propertyStatusId,
       statusLetter: getPropertyStatusLetter(p.propertyStatusId),

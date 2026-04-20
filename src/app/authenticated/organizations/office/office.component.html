@@ -217,6 +217,15 @@
 
                 <!-- First Row: Default Rental Deposit, Security Deposit Waiver, Default Key Fee -->
                 <div class="flex gap-4 mb-4">
+                  <div class="flex-1 flex items-center justify-center">
+                    <mat-checkbox formControlName="useDailyOnResBoard" color="primary">
+                      <span class="inline-block text-left leading-tight">
+                        Use Daily Amount<br>
+                        on Reservation Board
+                      </span>
+                    </mat-checkbox>
+                  </div>
+
                   <!-- Default Rental Deposit -->
                   <mat-form-field appearance="outline" class="flex-1">
                     <mat-label>Default Rental Deposit</mat-label>
