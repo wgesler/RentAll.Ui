@@ -679,6 +679,7 @@ export class MappingService {
     void reservations;
     return (properties || []).map(p => ({
       propertyId: p.propertyId,
+      officeId: p.officeId,
       propertyCode: p.propertyCode,
       address: p.shortAddress,
       monthlyRate: p.monthlyRate,

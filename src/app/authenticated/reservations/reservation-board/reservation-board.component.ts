@@ -72,6 +72,7 @@ export class ReservationBoardComponent implements OnInit, OnDestroy {
   updatingPropertyStatusIds = new Set<string>();
   private isLoadingReservations = false;
   private lastLoadedOfficeId: number | null | undefined = undefined;
+  private officeUseDailyOnBoardById = new Map<number, boolean>();
 
   private readonly boardAddressMaxChars = 23;
 
@@ -100,6 +101,7 @@ export class ReservationBoardComponent implements OnInit, OnDestroy {
     this.generateCalendarDays();
     this.loadContacts();
     this.loadColors();
+    this.loadOfficeSettings();
     this.initializeOfficeScope();
 
     // Reload when user changes working office (skip(1) = ignore initial emission, so we don't load twice on init)
@@ -175,6 +177,19 @@ export class ReservationBoardComponent implements OnInit, OnDestroy {
       },
       error: () => {
         this.contacts = [];
+      }
+    });
+  }
+
+  loadOfficeSettings(): void {
+    this.officeService.ensureOfficesLoaded(this.organizationId).pipe(take(1)).subscribe({
+      next: (offices: OfficeResponse[]) => {
+        this.officeUseDailyOnBoardById = new Map(
+          (offices || []).map(office => [office.officeId, office.useDailyOnResBoard === true])
+        );
+      },
+      error: () => {
+        this.officeUseDailyOnBoardById = new Map();
       }
     });
   }
@@ -906,6 +921,24 @@ export class ReservationBoardComponent implements OnInit, OnDestroy {
   //#endregion
 
   //#region Utility Methods
+  getBoardRentDisplay(property: BoardProperty): string {
+    const useDaily = this.officeUseDailyOnBoardById.get(property.officeId) === true;
+    const rate = useDaily ? property.dailyRate : property.monthlyRate;
+    const suffix = useDaily ? '/D' : '/M';
+    return `${this.formatCompactRate(rate)}${suffix}`;
+  }
+
+  formatCompactRate(value: number | null | undefined): string {
+    const normalized = Number(value ?? 0);
+    if (!Number.isFinite(normalized)) {
+      return '$0';
+    }
+    const text = normalized % 1 === 0
+      ? String(normalized)
+      : String(normalized).replace(/\.0+$/, '');
+    return `$${text}`;
+  }
+
   formatBoardAddressForCell(address: string | null | undefined): string {
     const text = address ?? '';
     if (text.length <= this.boardAddressMaxChars) {

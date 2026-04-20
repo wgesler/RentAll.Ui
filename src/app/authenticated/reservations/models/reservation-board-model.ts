@@ -1,5 +1,6 @@
 export interface BoardProperty {
   propertyId: string;
+  officeId: number;
   propertyCode: string;
   address: string;
   monthlyRate: number;
