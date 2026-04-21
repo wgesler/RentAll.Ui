@@ -23,7 +23,7 @@ import { WorkOrderComponent } from '../work-order/work-order.component';
 import { DocumentListComponent } from '../../documents/document-list/document-list.component';
 import { DocumentType } from '../../documents/models/document.enum';
 import { EmailListComponent } from '../../email/email-list/email-list.component';
-import { hasInspectorRole } from '../../shared/access/role-access';
+import { isInspectorOnlyUser } from '../../shared/access/role-access';
 import { MaintenanceComponent } from '../maintenance/maintenance.component';
 import { UnsavedChangesDialogService } from '../../shared/modals/unsaved-changes/unsaved-changes-dialog.service';
 import { SearchableSelectOption } from '../../shared/searchable-select/searchable-select.component';
@@ -110,7 +110,7 @@ export class MaintenanceShellComponent implements OnInit, CanComponentDeactivate
     this.preferredOfficeId = this.authService.getUser()?.defaultOfficeId ?? null;
     this.loadTitleBarOfficeScope();
 
-    this.isInspectorView = hasInspectorRole(this.authService.getUser()?.userGroups as Array<string | number> | undefined);
+    this.isInspectorView = isInspectorOnlyUser(this.authService.getUser()?.userGroups as Array<string | number> | undefined);
     this.showWorkOrdersTab = !this.isInspectorView;
     this.inspectorPropertyIds = new Set(
       (this.authService.getUser()?.properties || [])

@@ -1,9 +1,14 @@
 import { CommonModule } from '@angular/common';
 import { HttpClient, HttpErrorResponse, HttpHeaders, HttpResponse } from '@angular/common/http';
-import { Component, OnInit } from '@angular/core';
+import { Component, Inject, OnInit } from '@angular/core';
 import { FormBuilder, FormControl, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
+import { MAT_DIALOG_DATA, MatDialogRef } from '@angular/material/dialog';
 import { finalize, take } from 'rxjs';
-import { MaterialModule } from '../../../material.module';
+import { MaterialModule } from '../../../../material.module';
+
+export interface PropertyCalendarTesterDialogData {
+  initialUrl?: string | null;
+}
 
 type ParsedCalendarEvent = {
   uid: string;
@@ -16,12 +21,12 @@ type ParsedCalendarEvent = {
 
 @Component({
   standalone: true,
-  selector: 'app-property-calendar-tester',
+  selector: 'app-property-calendar-tester-dialog',
   imports: [CommonModule, ReactiveFormsModule, MaterialModule],
-  templateUrl: './property-calendar-tester.component.html',
-  styleUrl: './property-calendar-tester.component.scss'
+  templateUrl: './property-calendar-tester-dialog.component.html',
+  styleUrl: './property-calendar-tester-dialog.component.scss'
 })
-export class PropertyCalendarTesterComponent implements OnInit {
+export class PropertyCalendarTesterDialogComponent implements OnInit {
   form: FormGroup;
   isLoading = false;
   fetchUrl = '';
@@ -34,12 +39,17 @@ export class PropertyCalendarTesterComponent implements OnInit {
   parsedEvents: ParsedCalendarEvent[] = [];
   errorMessage = '';
 
-  constructor(private http: HttpClient, private fb: FormBuilder) {}
+  constructor(
+    private http: HttpClient,
+    private fb: FormBuilder,
+    private dialogRef: MatDialogRef<PropertyCalendarTesterDialogComponent>,
+    @Inject(MAT_DIALOG_DATA) public data: PropertyCalendarTesterDialogData
+  ) {}
 
-  //#region Calendar-Tester
+  //#region Calendar-Tester-Dialog
   ngOnInit(): void {
     this.form = this.fb.group({
-      url: new FormControl('', [Validators.required])
+      url: new FormControl(this.data?.initialUrl ?? '', [Validators.required])
     });
   }
 
@@ -60,6 +70,10 @@ export class PropertyCalendarTesterComponent implements OnInit {
       next: (response: HttpResponse<string>) => this.handleSuccessResponse(response),
       error: (error: HttpErrorResponse) => this.handleErrorResponse(error)
     });
+  }
+
+  close(): void {
+    this.dialogRef.close();
   }
   //#endregion
 

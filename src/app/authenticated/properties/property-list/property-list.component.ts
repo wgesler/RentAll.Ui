@@ -20,6 +20,7 @@ import { DataTableComponent } from '../../shared/data-table/data-table.component
 import { DataTableFilterActionsDirective } from '../../shared/data-table/data-table-filter-actions.directive';
 import { ColumnSet } from '../../shared/data-table/models/column-data';
 import { AddAlertDialogComponent, AddAlertDialogData } from '../../shared/modals/add-alert-dialog/add-alert-dialog.component';
+import { PropertyCalendarTesterDialogComponent } from '../../shared/modals/property-calendar-tester-dialog/property-calendar-tester-dialog.component';
 import { CalendarUrlResponse } from '../models/property-calendar';
 import { getPropertyStatuses } from '../models/property-enums';
 import { PropertySelectionResponse } from '../models/property-selection.model';
@@ -302,7 +303,13 @@ export class PropertyListComponent implements OnInit, OnDestroy, OnChanges {
   }
 
   goToPropertyCalendarTester(): void {
-    this.router.navigateByUrl(RouterUrl.PropertyCalendarTester);
+    this.dialog.open(PropertyCalendarTesterDialogComponent, {
+      width: '95vw',
+      maxWidth: '1200px',
+      maxHeight: '95vh',
+      autoFocus: true,
+      restoreFocus: true
+    });
   }
 
   openPropertyCalendar(property: PropertyListDisplay): void {
@@ -321,7 +328,8 @@ export class PropertyListComponent implements OnInit, OnDestroy, OnChanges {
           hasBackdrop: true,
           data: {
             propertyCode: property.propertyCode,
-            subscriptionUrl: response.subscriptionUrl
+            subscriptionUrl: response.subscriptionUrl,
+            calendarLinkResponse: response as unknown as Record<string, unknown>
           }
         };
 

@@ -9,6 +9,7 @@ import { MaterialModule } from '../../../material.module';
 export interface PropertyCalendarUrlDialogData {
   propertyCode: string;
   subscriptionUrl: string | { subscriptionUrl?: string } | null | undefined;
+  calendarLinkResponse?: Record<string, unknown> | null;
 }
 
 @Component({
@@ -27,6 +28,18 @@ export class PropertyCalendarUrlDialogComponent {
 
   get resolvedSubscriptionUrl(): string {
     return this.extractSubscriptionUrl(this.data.subscriptionUrl);
+  }
+
+  get responseKeyValuePairs(): Array<{ key: string; value: string }> {
+    const response = this.data.calendarLinkResponse;
+    if (!response || typeof response !== 'object') {
+      return [];
+    }
+
+    return Object.entries(response).map(([key, value]) => ({
+      key,
+      value: this.formatResponseValue(value)
+    }));
   }
 
   copyUrl(): void {
@@ -48,6 +61,22 @@ export class PropertyCalendarUrlDialogComponent {
     }
 
     return '';
+  }
+
+  formatResponseValue(value: unknown): string {
+    if (value === null || value === undefined) {
+      return '';
+    }
+
+    if (typeof value === 'string' || typeof value === 'number' || typeof value === 'boolean') {
+      return String(value);
+    }
+
+    try {
+      return JSON.stringify(value);
+    } catch {
+      return String(value);
+    }
   }
 
   closeDialog(): void {

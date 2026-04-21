@@ -4,8 +4,8 @@
       <mat-icon color="primary">calendar_month</mat-icon>
       Property Calendar URL
     </span>
-    <button mat-mini-fab mat-dialog-close class="bg-transparent" id="exit-calendar-url-dialog" color="none">
-      <mat-icon>close</mat-icon>
+    <button mat-raised-button mat-dialog-close type="button" color="accent" id="close-calendar-url-dialog" class="text-nowrap flex-shrink-0">
+      Close
     </button>
   </div>
 
@@ -25,13 +25,18 @@
         <mat-icon>content_copy</mat-icon>
       </button>
     </mat-form-field>
+
+    @if (responseKeyValuePairs.length > 0) {
+      <div class="calendar-response-pairs mt-3">
+        <h4 class="mb-2">API Response</h4>
+        @for (pair of responseKeyValuePairs; track pair.key) {
+          <div class="mb-1">
+            <strong>{{ pair.key }}:</strong> {{ pair.value }}
+          </div>
+        }
+      </div>
+    }
   </mat-dialog-content>
 
-  <mat-divider class="flex-shrink-0 w-full"></mat-divider>
-  <div class="flex flex-1 justify-end gap-3 p-3">
-    <button mat-raised-button color="primary" (click)="closeDialog()" id="close-calendar-url-dialog">
-      Close
-    </button>
-  </div>
 </div>
 
