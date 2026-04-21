@@ -31,6 +31,21 @@ body {
   box-sizing: border-box;
 }
 
+.property-list-ical-tester-button {
+  margin-right: 0 !important;
+  align-self: center !important;
+  margin-top: 0 !important;
+  margin-bottom: 0 !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+}
+
+.property-list-ical-tester-button .mat-icon {
+  display: block;
+  line-height: 1;
+}
+
 /* Status dropdown should read like a link and match row text size. */
 :host ::ng-deep td.mat-cell.mat-column-propertyStatusDropdown,
 :host ::ng-deep td.mat-mdc-cell.mat-column-propertyStatusDropdown {

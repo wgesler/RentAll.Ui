@@ -301,6 +301,10 @@ export class PropertyListComponent implements OnInit, OnDestroy, OnChanges {
     });
   }
 
+  goToPropertyCalendarTester(): void {
+    this.router.navigateByUrl(RouterUrl.PropertyCalendarTester);
+  }
+
   openPropertyCalendar(property: PropertyListDisplay): void {
     this.propertyService.getPropertyCalendarUrl(property.propertyId).pipe(take(1)).subscribe({
       next: (response: CalendarUrlResponse) => {

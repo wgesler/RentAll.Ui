@@ -42,6 +42,7 @@ import { WorkOrderComponent } from './authenticated/maintenance/work-order/work-
 import { WorkOrderCreateComponent } from './authenticated/maintenance/work-order-create/work-order-create.component';
 import { ReceiptComponent } from './authenticated/maintenance/receipt/receipt.component';
 import { PropertyListComponent } from './authenticated/properties/property-list/property-list.component';
+import { PropertyCalendarTesterComponent } from './authenticated/properties/property-calendar-tester/property-calendar-tester.component';
 import { PropertyShellComponent } from './authenticated/properties/property-shell/property-shell.component';
 import { PropertySelectionComponent } from './authenticated/properties/property-selection/property-selection.component';
 import { ReservationBoardComponent } from './authenticated/reservations/reservation-board/reservation-board.component';
@@ -72,6 +73,7 @@ export enum RouterToken {
   WorkOrderCreate = 'work-order-create',
   MaintenanceReceipt = 'receipt/:id',
   PropertyList = 'properties',
+  PropertyCalendarTester = 'property-calendar-tester',
   Property = RouterToken.PropertyList + '/:id',
   DocumentList = 'documents',
   Document = RouterToken.DocumentList + '/:id',
@@ -128,6 +130,7 @@ export enum RouterUrl {
   WorkOrderCreate       = `${RouterToken.Auth}/${RouterToken.WorkOrderCreate}`,
   MaintenanceReceipt     = `${RouterToken.Auth}/${RouterToken.MaintenanceReceipt}`,
   PropertyList          = `${RouterToken.Auth}/${RouterToken.PropertyList}`,
+  PropertyCalendarTester = `${RouterToken.Auth}/${RouterToken.PropertyCalendarTester}`,
   Property              = `${RouterToken.Auth}/${RouterToken.Property}`,
   DocumentList           = `${RouterToken.Auth}/${RouterToken.DocumentList}`,
   Document               = `${RouterToken.Auth}/${RouterToken.Document}`,
@@ -191,6 +194,7 @@ export const authRoutes: Routes = [
   { path: RouterToken.MaintenanceReceipt, component: ReceiptComponent, canActivate: [authRouteGuard] },
   { path: RouterToken.Maintenance, component: MaintenanceShellComponent, canActivate: [authRouteGuard], canDeactivate: [canDeactivateGuard] },
   { path: RouterToken.PropertyList, component: PropertyListComponent, canActivate: [authRouteGuard] },
+  { path: RouterToken.PropertyCalendarTester, component: PropertyCalendarTesterComponent, canActivate: [authRouteGuard] },
   { path: RouterToken.Property, component: PropertyShellComponent, canActivate: [authRouteGuard], canDeactivate: [canDeactivateGuard] },
   { path: RouterToken.DocumentList, component: DocumentListComponent, canActivate: [authRouteGuard] },
   { path: RouterToken.DocumentView, component: DocumentViewComponent, canActivate: [authRouteGuard] },
