@@ -39,6 +39,14 @@ export class PropertyCalendarTesterDialogComponent implements OnInit {
   parsedEvents: ParsedCalendarEvent[] = [];
   errorMessage = '';
 
+  get prettyRawResponse(): string {
+    return this.prettyPrintText(this.rawResponse, '[empty response body]');
+  }
+
+  get prettyFullHttpResponse(): string {
+    return this.prettyPrintText(this.fullHttpResponse, '[no response object]');
+  }
+
   constructor(
     private http: HttpClient,
     private fb: FormBuilder,
@@ -260,6 +268,20 @@ export class PropertyCalendarTesterDialogComponent implements OnInit {
     }
 
     return value;
+  }
+
+  prettyPrintText(value: string, fallbackText: string): string {
+    const normalizedValue = String(value ?? '');
+    const trimmedValue = normalizedValue.trim();
+    if (!trimmedValue) {
+      return fallbackText;
+    }
+
+    try {
+      return JSON.stringify(JSON.parse(trimmedValue), null, 2);
+    } catch {
+      return normalizedValue.replace(/\r\n/g, '\n').replace(/\r/g, '\n');
+    }
   }
   //#endregion
 }

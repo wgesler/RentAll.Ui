@@ -28,10 +28,11 @@
 
     @if (responseKeyValuePairs.length > 0) {
       <div class="calendar-response-pairs mt-3">
-        <h4 class="mb-2">API Response</h4>
+        <h4 class="mb-2 calendar-response-heading"><strong>API Response:</strong></h4>
         @for (pair of responseKeyValuePairs; track pair.key) {
-          <div class="mb-1">
-            <strong>{{ pair.key }}:</strong> {{ pair.value }}
+          <div class="calendar-response-row mb-1">
+            <strong>{{ pair.key }}:</strong>
+            <span class="calendar-response-value">{{ pair.value }}</span>
           </div>
         }
       </div>

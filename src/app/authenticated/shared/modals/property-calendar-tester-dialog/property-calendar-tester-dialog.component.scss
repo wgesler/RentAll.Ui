@@ -17,13 +17,30 @@
 
 .tester-results {
   margin-top: 1rem;
+  font-size: 0.82rem;
+  max-width: 110ch;
+}
+
+.tester-results h3 {
+  font-size: 0.9rem;
+  margin: 0.75rem 0 0.5rem;
+}
+
+.tester-response-heading {
+  text-decoration: underline;
 }
 
 .tester-meta {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(240px, 1fr));
-  gap: 0.5rem 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
   margin-bottom: 1rem;
+}
+
+.tester-meta-fetch-url {
+  white-space: normal;
+  overflow-wrap: anywhere;
+  word-break: break-word;
 }
 
 .tester-error {
@@ -46,13 +63,14 @@
   padding: 0.5rem;
   text-align: left;
   vertical-align: top;
+  white-space: nowrap;
 }
 
 .raw-response {
   margin: 0;
   padding: 0.75rem;
-  max-height: 320px;
-  overflow: auto;
+  font-size: 0.82rem;
   white-space: pre-wrap;
+  overflow-wrap: anywhere;
   word-break: break-word;
 }

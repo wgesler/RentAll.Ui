@@ -12,7 +12,7 @@
   <mat-dialog-content class="flex-shrink-0 w-full p-6">
     <form [formGroup]="form" class="info-form form-standard-top-padding">
       <div class="tester-row">
-        <mat-form-field appearance="outline" class="tester-url-field">
+        <mat-form-field appearance="outline" subscriptSizing="dynamic" class="tester-url-field">
           <mat-label>Calendar URL</mat-label>
           <input matInput formControlName="url" placeholder="Paste property subscription URL" />
         </mat-form-field>
@@ -32,7 +32,7 @@
     @if (!isLoading && (statusCode !== null || errorMessage || rawResponse)) {
       <div class="tester-results">
         <div class="tester-meta">
-          <div><strong>Fetch URL:</strong> {{ fetchUrl }}</div>
+          <div class="tester-meta-fetch-url"><strong>FetchURL:</strong> {{ fetchUrl }}</div>
           <div><strong>Status:</strong> {{ statusCode ?? 'n/a' }}</div>
           <div><strong>Content-Type:</strong> {{ contentType || 'n/a' }}</div>
           <div><strong>Lines:</strong> {{ lineCount }}</div>
@@ -73,11 +73,11 @@
           <p>No VEVENT entries parsed.</p>
         }
 
-        <h3>Raw Response</h3>
-        <pre class="raw-response">{{ rawResponse || '[empty response body]' }}</pre>
+        <h3 class="tester-response-heading"><strong>Raw Response:</strong></h3>
+        <pre class="raw-response">{{ prettyRawResponse }}</pre>
 
-        <h3>Full HttpResponse</h3>
-        <pre class="raw-response">{{ fullHttpResponse || '[no response object]' }}</pre>
+        <h3 class="tester-response-heading"><strong>Full HTTP Response:</strong></h3>
+        <pre class="raw-response">{{ prettyFullHttpResponse }}</pre>
       </div>
     }
   </mat-dialog-content>

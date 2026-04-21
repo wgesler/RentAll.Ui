@@ -6,3 +6,23 @@ mat-dialog-content {
   min-width: 520px;
 }
 
+.calendar-response-pairs {
+  overflow: visible;
+}
+
+.calendar-response-heading {
+  text-decoration: underline;
+}
+
+.calendar-response-row {
+  display: block;
+  font-size: 0.82rem;
+  white-space: normal;
+}
+
+.calendar-response-value {
+  white-space: normal;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+
