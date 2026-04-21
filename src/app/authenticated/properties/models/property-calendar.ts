@@ -5,7 +5,10 @@ export interface CalendarUrlRequest {
 }
 
 export interface CalendarUrlResponse {
-  propertyId: string;
-  organizationId: string;
+  configuredBaseUrl?: string;
+  fallbackBaseUrl?: string;
+  finalBaseUrl?: string;
   subscriptionUrl: string;
+  propertyId?: string;
+  organizationId?: string;
 }

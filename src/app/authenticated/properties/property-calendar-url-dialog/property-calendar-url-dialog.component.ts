@@ -8,7 +8,7 @@ import { MaterialModule } from '../../../material.module';
 
 export interface PropertyCalendarUrlDialogData {
   propertyCode: string;
-  subscriptionUrl: string;
+  subscriptionUrl: string | { subscriptionUrl?: string } | null | undefined;
 }
 
 @Component({
@@ -25,13 +25,29 @@ export class PropertyCalendarUrlDialogComponent {
     private clipboard: Clipboard,
     private toastr: ToastrService) {}
 
+  get resolvedSubscriptionUrl(): string {
+    return this.extractSubscriptionUrl(this.data.subscriptionUrl);
+  }
+
   copyUrl(): void {
-    const wasCopied = this.clipboard.copy(this.data.subscriptionUrl || '');
+    const wasCopied = this.clipboard.copy(this.resolvedSubscriptionUrl);
     if (wasCopied) {
       this.toastr.success('Calendar URL copied to clipboard.', CommonMessage.Success);
     } else {
       this.toastr.error('Unable to copy the calendar URL.', CommonMessage.Error);
     }
+  }
+
+  extractSubscriptionUrl(value: PropertyCalendarUrlDialogData['subscriptionUrl']): string {
+    if (typeof value === 'string') {
+      return value;
+    }
+
+    if (value && typeof value === 'object' && typeof value.subscriptionUrl === 'string') {
+      return value.subscriptionUrl;
+    }
+
+    return '';
   }
 
   closeDialog(): void {
