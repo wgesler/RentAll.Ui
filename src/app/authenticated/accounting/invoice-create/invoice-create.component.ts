@@ -1011,7 +1011,7 @@ loadContact(): void {
     // Replace accounting office placeholders
     if (this.selectedAccountingOffice) {
       result = result.replace(/\{\{accountingOfficeName\}\}/g, this.selectedAccountingOffice.name || '');
-      result = result.replace(/\{\{accountingOfficeAddress\}\}/g, this.selectedAccountingOffice.address1 || '');
+      result = result.replace(/\{\{accountingOfficeAddress\}\}/g, this.getAccountingOfficeAddress() || '');
       result = result.replace(/\{\{accountingOfficeCityStateZip\}\}/g, this.selectedAccountingOffice.city + ', ' + this.selectedAccountingOffice.state + ' ' + this.selectedAccountingOffice.zip|| '');
       result = result.replace(/\{\{accountingOfficeEmail\}\}/g, this.selectedAccountingOffice.email || '');
       result = result.replace(/\{\{accountingOfficePhone\}\}/g, this.formatterService.phoneNumber(this.selectedAccountingOffice.phone) || '');
@@ -1032,7 +1032,7 @@ loadContact(): void {
     return result;
   }
 
-  private applyInvoiceLedgerSectionPlaceholders(html: string): string {
+  applyInvoiceLedgerSectionPlaceholders(html: string): string {
     let result = html;
     const invoice = this.selectedInvoice;
     const emptyRows = '';
@@ -1090,7 +1090,7 @@ loadContact(): void {
     return result;
   }
 
-  private formatInvoiceLedgerRowHtml(line: LedgerLineResponse, usePositiveAmount: boolean): string {
+  formatInvoiceLedgerRowHtml(line: LedgerLineResponse, usePositiveAmount: boolean): string {
     const date = this.formatterService.formatDateString(this.selectedInvoice!.invoiceDate) || '';
     const description = (line.description || '').replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
     const raw = line.amount || 0;
@@ -1121,6 +1121,11 @@ loadContact(): void {
     if (!this.property) return '';
     let address =  this.property.address1 + ' ' + this.property.city + ', ' +  this.property.state + ' ' +   this.property.zip
     return address 
+  }
+
+  getAccountingOfficeAddress(): string {
+    if (!this.selectedAccountingOffice) return '';
+    return `${this.selectedAccountingOffice.address1 || ''} ${this.selectedAccountingOffice.suite || ''}`.trim(); 
   }
   //#endregion
 
