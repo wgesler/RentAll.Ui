@@ -341,7 +341,7 @@
               </mat-expansion-panel>
               }
 
-              @if (true) {
+              @if (proportiesInProgressMaintenanceDisplay.length > 0) {
               <mat-expansion-panel [(expanded)]="expandedSections.propertiesInProgress">
                 <mat-expansion-panel-header>
                   <mat-panel-title>Properties in Progress</mat-panel-title>
@@ -404,7 +404,7 @@
               </mat-expansion-panel>
               }
 
-              @if (true) {
+              @if (otherPropertiesMaintenanceDisplay.length > 0) {
               <mat-expansion-panel [(expanded)]="expandedSections.otherProperties">
                 <mat-expansion-panel-header>
                   <mat-panel-title>Other Properties</mat-panel-title>
