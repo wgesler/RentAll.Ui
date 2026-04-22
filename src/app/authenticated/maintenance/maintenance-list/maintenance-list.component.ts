@@ -16,7 +16,7 @@ import { MappingService } from '../../../services/mapping.service';
 import { UtilityService } from '../../../services/utility.service';
 import { GlobalSelectionService } from '../../organizations/services/global-selection.service';
 import { OfficeService } from '../../organizations/services/office.service';
-import { getBedSizeTypes, getPropertyStatuses } from '../../properties/models/property-enums';
+import { PropertyStatus, getBedSizeTypes, getPropertyStatuses } from '../../properties/models/property-enums';
 import { PropertyService } from '../../properties/services/property.service';
 import { DataTableComponent } from '../../shared/data-table/data-table.component';
 import { ColumnSet } from '../../shared/data-table/models/column-data';
@@ -54,8 +54,9 @@ export class MaintenanceListComponent extends PropertyMaintenanceBase implements
   comingOnlineMaintenanceDisplay: MaintenanceListDisplay[] = [];
   goingOfflineMaintenanceDisplay: MaintenanceListDisplay[] = [];
   otherPropertiesMaintenanceDisplay: MaintenanceListDisplay[] = [];
+  proportiesInProgressMaintenanceDisplay: MaintenanceListDisplay[] = [];
   showOfficeDropdown: boolean = true;
-  expandedSections = { calendarAtAGlance: true, reservationTurnover: true, propertyTurnover: true, maidService: true, otherProperties: true };
+  expandedSections = { calendarAtAGlance: true, reservationTurnover: true, propertyTurnover: true, propertiesInProgress: true, maidService: true, otherProperties: true };
 
   userId: string = '';
   housekeepingById = new Map<string, string>();
@@ -110,6 +111,7 @@ export class MaintenanceListComponent extends PropertyMaintenanceBase implements
   maidMaintenanceColumns: ColumnSet = this.fullPropertiesDisplayedColumns;
   comingOnlineMaintenanceColumns: ColumnSet = this.fullPropertiesDisplayedColumns;
   goingOfflineMaintenanceColumns: ColumnSet = this.fullPropertiesDisplayedColumns;
+  proportiesInProgressMaintenanceColumns: ColumnSet = this.fullPropertiesDisplayedColumns;
   otherPropertiesMaintenanceColumns: ColumnSet = this.fullPropertiesDisplayedColumns;
 
   override itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['offices','activeReservations','propertyMaintenanceList','cleaners','carpetUsers','inspectors']));
@@ -369,12 +371,26 @@ export class MaintenanceListComponent extends PropertyMaintenanceBase implements
       })
       .map(row => this.clearProviderFieldsWhenReservationMissing(row));
 
+    const inProgressRows: MaintenanceListDisplay[] = [];
+    const remainingOtherRows: MaintenanceListDisplay[] = [];
+    for (const row of otherRows) {
+      if (this.isPropertiesInProgressRow(row)) {
+        inProgressRows.push(row);
+      } else {
+        remainingOtherRows.push(row);
+      }
+    }
+    if (inProgressRows.length === 0 && remainingOtherRows.length === 0 && otherRows.length > 0) {
+      remainingOtherRows.push(...otherRows);
+    }
+
     this.arrivalMaintenanceDisplay = this.filterArrivalMaintenanceDisplayForUserAssignedId(userAssignedId, arrivalRows);
     this.departureMaintenanceDisplay = this.filterDepartureMaintenanceDisplayForUserAssignedId(userAssignedId, departureRows);
     this.maidMaintenanceDisplay = this.filterMaidServiceMaintenanceDisplayForUserAssignedId(userAssignedId, maidRows);
     this.comingOnlineMaintenanceDisplay = this.filterComingOnlineMaintenanceDisplayForUserAssignedId(userAssignedId, onlineRows);
     this.goingOfflineMaintenanceDisplay = this.filterGoingOfflineMaintenanceDisplayForUserAssignedId(userAssignedId, offlineRows);
-    this.otherPropertiesMaintenanceDisplay = this.filterOtherPropertiesMaintenanceDisplayForUserAssignedId(userAssignedId, otherRows);
+    this.proportiesInProgressMaintenanceDisplay = this.filterPropertiesInProgressMaintenanceDisplayForUserAssignedId(userAssignedId, inProgressRows);
+    this.otherPropertiesMaintenanceDisplay = this.filterOtherPropertiesMaintenanceDisplayForUserAssignedId(userAssignedId, remainingOtherRows);
 
     this.syncAllDisplayedPropertiesFromTurnoverLists();
     this.applyMaintenanceStateFromServiceDates();
@@ -547,6 +563,7 @@ export class MaintenanceListComponent extends PropertyMaintenanceBase implements
     this.maidMaintenanceDisplay = sortRows(this.maidMaintenanceDisplay);
     this.comingOnlineMaintenanceDisplay = sortRows(this.comingOnlineMaintenanceDisplay);
     this.goingOfflineMaintenanceDisplay = sortRows(this.goingOfflineMaintenanceDisplay);
+    this.proportiesInProgressMaintenanceDisplay = sortRows(this.proportiesInProgressMaintenanceDisplay);
     this.otherPropertiesMaintenanceDisplay = sortRows(this.otherPropertiesMaintenanceDisplay);
     this.syncAllDisplayedPropertiesFromTurnoverLists();
   }
@@ -605,6 +622,18 @@ export class MaintenanceListComponent extends PropertyMaintenanceBase implements
     }
     return rows.filter(
       row => row.maidUserId === userAssignedId || row.cleanerUserId === userAssignedId
+    );
+  }
+
+  filterPropertiesInProgressMaintenanceDisplayForUserAssignedId(userAssignedId: string | null, rows: MaintenanceListDisplay[]): MaintenanceListDisplay[] {
+    if (userAssignedId === null) {
+      return [...rows];
+    }
+    return rows.filter(
+      row =>
+        row.cleanerUserId === userAssignedId ||
+        row.carpetUserId === userAssignedId ||
+        row.inspectorUserId === userAssignedId
     );
   }
 
@@ -797,6 +826,7 @@ export class MaintenanceListComponent extends PropertyMaintenanceBase implements
     this.maidMaintenanceDisplay = apply(this.maidMaintenanceDisplay);
     this.comingOnlineMaintenanceDisplay = apply(this.comingOnlineMaintenanceDisplay);
     this.goingOfflineMaintenanceDisplay = apply(this.goingOfflineMaintenanceDisplay);
+    this.proportiesInProgressMaintenanceDisplay = apply(this.proportiesInProgressMaintenanceDisplay);
     this.otherPropertiesMaintenanceDisplay = apply(this.otherPropertiesMaintenanceDisplay);
     this.syncAllDisplayedPropertiesFromTurnoverLists();
   }
@@ -838,6 +868,7 @@ export class MaintenanceListComponent extends PropertyMaintenanceBase implements
     this.maidMaintenanceColumns = this.cloneMaidColumnSet(base);
     this.comingOnlineMaintenanceColumns = this.cloneColumnSetWithEventDateLabel(base, 'Online Date');
     this.goingOfflineMaintenanceColumns = this.cloneColumnSetWithEventDateLabel(base, 'Offline Date');
+    this.proportiesInProgressMaintenanceColumns = this.cloneColumnSetWithEventDateLabel(base, 'Departure Date');
     this.otherPropertiesMaintenanceColumns = this.cloneColumnSetWithEventDateLabel(base, 'Departure Date');
   }
 
@@ -1314,6 +1345,7 @@ export class MaintenanceListComponent extends PropertyMaintenanceBase implements
     patch(this.maidMaintenanceDisplay);
     patch(this.comingOnlineMaintenanceDisplay);
     patch(this.goingOfflineMaintenanceDisplay);
+    patch(this.proportiesInProgressMaintenanceDisplay);
     patch(this.otherPropertiesMaintenanceDisplay);
     this.syncAllDisplayedPropertiesFromTurnoverLists();
     this.applyFilters();
@@ -1422,6 +1454,7 @@ export class MaintenanceListComponent extends PropertyMaintenanceBase implements
     this.maidMaintenanceDisplay = remapRows(this.maidMaintenanceDisplay);
     this.comingOnlineMaintenanceDisplay = remapRows(this.comingOnlineMaintenanceDisplay);
     this.goingOfflineMaintenanceDisplay = remapRows(this.goingOfflineMaintenanceDisplay);
+    this.proportiesInProgressMaintenanceDisplay = remapRows(this.proportiesInProgressMaintenanceDisplay);
     this.otherPropertiesMaintenanceDisplay = remapRows(this.otherPropertiesMaintenanceDisplay);
     this.syncAllDisplayedPropertiesFromTurnoverLists();
     this.applyFilters();
@@ -1478,6 +1511,7 @@ export class MaintenanceListComponent extends PropertyMaintenanceBase implements
     this.maidMaintenanceDisplay = applyToRows(this.maidMaintenanceDisplay);
     this.comingOnlineMaintenanceDisplay = applyToRows(this.comingOnlineMaintenanceDisplay);
     this.goingOfflineMaintenanceDisplay = applyToRows(this.goingOfflineMaintenanceDisplay);
+    this.proportiesInProgressMaintenanceDisplay = applyToRows(this.proportiesInProgressMaintenanceDisplay);
     this.otherPropertiesMaintenanceDisplay = applyToRows(this.otherPropertiesMaintenanceDisplay);
     this.syncAllDisplayedPropertiesFromTurnoverLists();
   }
@@ -1513,6 +1547,12 @@ export class MaintenanceListComponent extends PropertyMaintenanceBase implements
   //#endregion
 
   //#region Utility Methods
+  isPropertiesInProgressRow(row: MaintenanceListDisplay): boolean {
+    return row.propertyStatusId !== PropertyStatus.Ready
+      && row.propertyStatusId !== PropertyStatus.Occupied
+      && row.propertyStatusId !== PropertyStatus.Offline;
+  }
+
   @HostListener('window:resize')
   onWindowResize(): void {
     this.updateDisplayedColumns();

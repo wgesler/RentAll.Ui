@@ -56,7 +56,7 @@
       } @else {
         <div class="mat list-layout-standard dbg-band-main">
           <div class="maintenance-list-accordion">
-            @if (arrivalMaintenanceDisplay.length > 0 || departureMaintenanceDisplay.length > 0 || comingOnlineMaintenanceDisplay.length > 0 || goingOfflineMaintenanceDisplay.length > 0 || maidMaintenanceDisplay.length > 0 || otherPropertiesMaintenanceDisplay.length > 0) {
+            @if (arrivalMaintenanceDisplay.length > 0 || departureMaintenanceDisplay.length > 0 || comingOnlineMaintenanceDisplay.length > 0 || goingOfflineMaintenanceDisplay.length > 0 || proportiesInProgressMaintenanceDisplay.length > 0 || maidMaintenanceDisplay.length > 0 || otherPropertiesMaintenanceDisplay.length > 0) {
             <mat-accordion multi="true">
               <mat-expansion-panel [(expanded)]="expandedSections.calendarAtAGlance">
                 <mat-expansion-panel-header>
@@ -341,6 +341,37 @@
               </mat-expansion-panel>
               }
 
+              @if (true) {
+              <mat-expansion-panel [(expanded)]="expandedSections.propertiesInProgress">
+                <mat-expansion-panel-header>
+                  <mat-panel-title>Properties in Progress</mat-panel-title>
+                </mat-expansion-panel-header>
+                <div class="tableDiv">
+                  <app-data-table
+                    [class.compact-code-only-table]="isCompactView"
+                    [data]="proportiesInProgressMaintenanceDisplay"
+                    [columns]="proportiesInProgressMaintenanceColumns"
+                    [subheaderLabel]="'Properties in Progress'"
+                    [hasColumnIndex]="true"
+                    [hasFilter]="false"
+                    [hasToggleTop]="false"
+                    [hasButtonTop]="false"
+                    [hasActionsRowClick]="true"
+                    [hasPropertyCodeLink]="true"
+                    [hasActionsEdit]="true"
+                    [hasActionsInspect]="true"
+                    [itemsPerPage]="100"
+                    (dropdownChangeEvent)="onDropdownChange($event)"
+                    (inlineEditChangeEvent)="handleMaintenanceInlineDateChange($event)"
+                    (editEvent)="goToPropertyMaintenance($event)"
+                    (inspectEvent)="goToInspection($event)"
+                    (rowClickEvent)="goToInspection($event)"
+                    (propertyCodeClickEvent)="goToProperty($event)"
+                    (contactClickEvent)="goToContact($event)"/>
+                </div>
+              </mat-expansion-panel>
+              }
+
               @if (maidMaintenanceDisplay.length > 0) {
               <mat-expansion-panel [(expanded)]="expandedSections.maidService">
                 <mat-expansion-panel-header>
@@ -373,7 +404,7 @@
               </mat-expansion-panel>
               }
 
-              @if (otherPropertiesMaintenanceDisplay.length > 0) {
+              @if (true) {
               <mat-expansion-panel [(expanded)]="expandedSections.otherProperties">
                 <mat-expansion-panel-header>
                   <mat-panel-title>Other Properties</mat-panel-title>
