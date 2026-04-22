@@ -4,7 +4,7 @@ import { MAT_DIALOG_DATA, MatDialog } from '@angular/material/dialog';
 import { FormBuilder, FormControl, FormGroup, FormsModule, ReactiveFormsModule, Validators } from '@angular/forms';
 import { ActivatedRoute, Router } from '@angular/router';
 import { ToastrService } from 'ngx-toastr';
-import { BehaviorSubject, Observable, Subject, Subscription, filter, finalize, forkJoin, map, skip, switchMap, take, takeUntil } from 'rxjs';
+import { BehaviorSubject, Observable, Subject, Subscription, filter, finalize, forkJoin, map, of, skip, switchMap, take, takeUntil } from 'rxjs';
 import { RouterUrl } from '../../../app.routes';
 import { CommonMessage, CommonTimeouts } from '../../../enums/common-message.enum';
 import { MaterialModule } from '../../../material.module';
@@ -1254,6 +1254,9 @@ export class ContactComponent implements OnInit, OnDestroy {
 
   //#region User Create Methods
   shouldCreateOwnerUser(savedContact: ContactResponse): boolean {
+    if ((savedContact?.userId || '').trim().length > 0) {
+      return false;
+    }
     const email = (savedContact?.email || '').trim();
     const code = (savedContact?.contactCode || '').trim();
     return email.length > 0 && code.length > 0;
@@ -1275,13 +1278,12 @@ export class ContactComponent implements OnInit, OnDestroy {
     }
 
     const officeAccess = this.mappingService.normalizeOfficeAccessNumbers(savedContact.officeAccess ?? contactRequest.officeAccess);
-    const officeId = Number(savedContact.officeId ?? contactRequest.officeId);
+    const officeId = this.resolveValidOfficeIdForUser(savedContact, contactRequest, officeAccess);
     const firstName = (savedContact.firstName || contactRequest.firstName || '').trim();
     const lastName = (savedContact.lastName || contactRequest.lastName || '').trim();
     const phone = this.formatterService.stripPhoneFormatting(savedContact.phone || contactRequest.phone || '');
 
     return {
-      userId: email,
       organizationId: savedContact.organizationId || contactRequest.organizationId,
       firstName: firstName || 'Owner',
       lastName: lastName || 'Owner',
@@ -1289,10 +1291,11 @@ export class ContactComponent implements OnInit, OnDestroy {
       phone: phone || '',
       password: contactCode,
       userGroups: [UserGroups[UserGroups.Owner]],
-      officeAccess: officeAccess.length > 0 ? officeAccess : [officeId],
+      officeAccess: officeAccess.length > 0 ? officeAccess : (officeId != null ? [officeId] : []),
       properties: contactRequest.properties || [],
       startupPageId: 0,
       defaultOfficeId: officeId,
+      contactId: savedContact.contactId,
       isActive: typeof savedContact.isActive === 'number' ? savedContact.isActive === 1 : !!savedContact.isActive
     };
   }
@@ -1305,7 +1308,7 @@ export class ContactComponent implements OnInit, OnDestroy {
     }
 
     const officeAccess = this.mappingService.normalizeOfficeAccessNumbers(savedContact.officeAccess ?? contactRequest.officeAccess);
-    const officeId = Number(savedContact.officeId ?? contactRequest.officeId);
+    const officeId = this.resolveValidOfficeIdForUser(savedContact, contactRequest, officeAccess);
     const firstName = (savedContact?.firstName || contactRequest.firstName || '').trim() || (savedContact?.companyName || contactRequest.companyName || 'Vendor').trim();
     const lastName = (savedContact?.lastName || contactRequest.lastName || '').trim() || 'Vendor';
     const phone = this.formatterService.stripPhoneFormatting(savedContact?.phone || contactRequest.phone || '');
@@ -1318,35 +1321,34 @@ export class ContactComponent implements OnInit, OnDestroy {
       phone: phone || '',
       password: vendorCode,
       userGroups: [UserGroups[UserGroups.Vendor]],
-      officeAccess: officeAccess.length > 0 ? officeAccess : [officeId],
+      officeAccess: officeAccess.length > 0 ? officeAccess : (officeId != null ? [officeId] : []),
       properties: [],
       startupPageId: 0,
       defaultOfficeId: officeId,
+      contactId: savedContact.contactId,
       isActive: !!savedContact?.isActive
     };
   }
 
-  userResponseToUserRequestForUpdate(user: UserResponse, overrides: Partial<UserRequest>): UserRequest {
-    return {
-      userId: user.userId,
-      organizationId: user.organizationId,
-      firstName: user.firstName,
-      lastName: user.lastName,
-      email: user.email,
-      phone: this.formatterService.stripPhoneFormatting(user.phone || '') || '',
-      password: null,
-      userGroups: user.userGroups || [],
-      officeAccess: user.officeAccess || [],
-      properties: user.properties || [],
-      profilePath: user.profilePath,
-      fileDetails: user.fileDetails,
-      startupPageId: user.startupPageId ?? 0,
-      defaultOfficeId: user.defaultOfficeId ?? null,
-      agentId: user.agentId ?? null,
-      commissionRate: user.commissionRate ?? null,
-      contactId: overrides.contactId !== undefined ? overrides.contactId : user.contactId,
-      isActive: user.isActive
-    };
+  resolveValidOfficeIdForUser(savedContact: ContactResponse,contactRequest: ContactRequest,normalizedOfficeAccess: number[]): number | null {
+    const rawOfficeId = Number(savedContact.officeId ?? contactRequest.officeId);
+    if (Number.isFinite(rawOfficeId) && rawOfficeId > 0) {
+      return rawOfficeId;
+    }
+    return normalizedOfficeAccess.length > 0 ? normalizedOfficeAccess[0] : null;
+  }
+
+  resolveCreatedUserId(createdUser: UserResponse | null | undefined, userRequest: UserRequest): string | null {
+    const fromResponse = (createdUser?.userId || '').trim();
+    if (fromResponse) {
+      return fromResponse;
+    }
+    const fromRequest = (userRequest.userId || '').trim();
+    if (fromRequest) {
+      return fromRequest;
+    }
+    const fromEmail = (userRequest.email || '').trim();
+    return fromEmail || null;
   }
 
   buildContactRequestWithUserId(savedContact: ContactResponse, originalRequest: ContactRequest, userId: string): ContactRequest {
@@ -1398,25 +1400,21 @@ export class ContactComponent implements OnInit, OnDestroy {
     };
   }
 
-  runCreateUserAndLinkContact(
-    savedContact: ContactResponse,
-    contactRequest: ContactRequest,
-    userRequest: UserRequest,
-    successMessage: string,
-    failureMessage: string,
-    finalizeContactSave: () => void
-  ): void {
+  runCreateUserAndLinkContact(savedContact: ContactResponse,contactRequest: ContactRequest,userRequest: UserRequest,successMessage: string,failureMessage: string, finalizeContactSave: () => void): void {
     this.userService.createUser(userRequest).pipe(
-      switchMap(created =>
-        this.userService.getUserByGuid(created.userId).pipe(
-          switchMap(retrieved =>
-            this.userService.updateUser(this.userResponseToUserRequestForUpdate(retrieved, { contactId: savedContact.contactId }))
-          ),
-          switchMap(() =>
-            this.contactService.updateContact(this.buildContactRequestWithUserId(savedContact, contactRequest, created.userId))
-          )
-        )
-      ),
+      switchMap(created => {
+        const createdUserId = this.resolveCreatedUserId(created, userRequest);
+        if (!createdUserId) {
+          throw new Error('Created user id was empty.');
+        }
+
+        const currentLinkedUserId = (savedContact.userId || '').trim();
+        if (currentLinkedUserId === createdUserId) {
+          return of(savedContact);
+        }
+
+        return this.contactService.updateContact(this.buildContactRequestWithUserId(savedContact, contactRequest, createdUserId));
+      }),
       take(1)
     ).subscribe({
       next: () => {
