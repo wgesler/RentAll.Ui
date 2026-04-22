@@ -675,7 +675,7 @@ export class DocumentListComponent implements OnInit, OnDestroy, OnChanges {
 
     this.availableCompanies = filteredCompanies.map(c => ({
       value: c,
-      label: c.contactCode ? `${c.contactCode}: ${c.displayName || c.companyName || c.fullName || ''}` : (c.displayName || c.companyName || c.fullName || '')
+      label: this.utilityService.getCompanyDropdownLabel(c)
     }));
 
     if (this.selectedCompany && !filteredCompanies.some(c => c.contactId === this.selectedCompany?.contactId)) {

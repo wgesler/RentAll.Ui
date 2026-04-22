@@ -300,6 +300,13 @@ export class UtilityService {
     return `${code}: ${this.getReservationDisplayName(reservation, contact)}`;
   }
 
+  getCompanyDropdownLabel(contact: ContactResponse | null | undefined): string {
+    if (!contact) {
+      return '';
+    }
+    return (contact.companyName || '').trim();
+  }
+
   buildReservationCodeNameLabel(
     reservation: ReservationListResponse | ReservationResponse | null | undefined,
     contact: ContactResponse | null

@@ -395,7 +395,7 @@ export class EmailListComponent implements OnInit, OnDestroy, OnChanges {
 
     this.availableCompanyContacts = filtered.map(c => ({
       value: c,
-      label: c.contactCode ? `${c.contactCode}: ${c.displayName || c.companyName || c.fullName || ''}` : (c.displayName || c.companyName || c.fullName || '')
+      label: this.utilityService.getCompanyDropdownLabel(c)
     }));
 
     if (this.selectedCompanyContact && !filtered.some(c => c.contactId === this.selectedCompanyContact?.contactId)) {

@@ -637,17 +637,13 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
       : this.reservations;
 
     // In Accounting mode, when a company contact is selected, only show reservations linked to that contact.
-    if (this.source === 'accounting' && this.selectedCompanyContact?.contactId) {
-      const selectedContactId = this.selectedCompanyContact.contactId;
-      filteredReservations = filteredReservations.filter(r => {
-        const reservationAny = r as ReservationListResponse & {
-          entityId?: string | null;
-          EntityId?: string | null;
-          contactId?: string;
-        };
-        const reservationEntityId = reservationAny.entityId ?? reservationAny.EntityId ?? reservationAny.contactId ?? null;
-        return reservationEntityId === selectedContactId;
-      });
+    if (this.source === 'accounting' && this.selectedCompanyContact) {
+      const selectedCompanyName = (this.selectedCompanyContact.companyName || this.selectedCompanyContact.fullName || '').trim().toLowerCase();
+      if (selectedCompanyName) {
+        filteredReservations = filteredReservations.filter(r =>
+          (r.companyName || '').trim().toLowerCase() === selectedCompanyName
+        );
+      }
     }
 
     this.availableReservations = filteredReservations.map(r => ({
@@ -681,7 +677,7 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
       : this.companyContacts.filter(c => c.isActive);
     this.availableCompanyContacts = filtered.map(c => ({
       value: c,
-      label: c.contactCode ? `${c.contactCode}: ${c.displayName || c.companyName || c.fullName || ''}` : (c.displayName || c.companyName || c.fullName || '')
+      label: this.utilityService.getCompanyDropdownLabel(c)
     }));
 
     if (this.selectedCompanyContact && !filtered.some(c => c.contactId === this.selectedCompanyContact?.contactId)) {

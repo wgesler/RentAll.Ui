@@ -6,9 +6,11 @@ import { Subject, takeUntil } from 'rxjs';
 import { RouterUrl } from '../../../app.routes';
 import { MaterialModule } from '../../../material.module';
 import { AuthService } from '../../../services/auth.service';
+import { UtilityService } from '../../../services/utility.service';
 import { OrganizationResponse } from '../../organizations/models/organization.model';
 import { OrganizationService } from '../../organizations/services/organization.service';
 import { OfficeResponse } from '../../organizations/models/office.model';
+import { ContactResponse } from '../../contacts/models/contact.model';
 import { UserGroups } from '../../users/models/user-enums';
 import { DocumentListComponent } from '../../documents/document-list/document-list.component';
 import { DocumentType } from '../../documents/models/document.enum';
@@ -63,7 +65,8 @@ export class AccountingComponent implements OnInit, OnDestroy {
     private route: ActivatedRoute,
     private authService: AuthService,
     private organizationService: OrganizationService,
-    private costCodesService: CostCodesService
+    private costCodesService: CostCodesService,
+    private utilityService: UtilityService
   ) { }
 
   //#region Accounting
@@ -260,8 +263,37 @@ export class AccountingComponent implements OnInit, OnDestroy {
     return (offices || []).map(office => ({ value: office.officeId, label: office.name }));
   }
 
-  getCompanyOptions(companies: { value: { contactId: string }, label: string }[] | null | undefined): { value: string, label: string }[] {
-    return (companies || []).map(company => ({ value: company.value.contactId, label: company.label }));
+  getAccountingCompanyOptions(contacts: ContactResponse[] | null | undefined, selectedOfficeId: number | null | undefined): { value: string, label: string }[] {
+    const dedupedByCompanyLabel = new Map<string, { value: string, label: string }>();
+
+    (contacts || [])
+      .filter(contact => !!contact?.isActive)
+      .filter(contact => selectedOfficeId == null || contact.officeId === selectedOfficeId)
+      .forEach(contact => {
+        const label = this.getAccountingCompanyLabel(contact);
+        if (!label) {
+          return;
+        }
+        const dedupeKey = label.toLowerCase();
+
+        if (!dedupedByCompanyLabel.has(dedupeKey)) {
+          dedupedByCompanyLabel.set(dedupeKey, {
+            value: contact.contactId,
+            label
+          });
+        }
+      });
+
+    return Array.from(dedupedByCompanyLabel.values())
+      .sort((a, b) =>
+        a.label.localeCompare(b.label, undefined, { sensitivity: 'base' })
+        || a.value.localeCompare(b.value, undefined, { sensitivity: 'base' })
+      )
+      .map(({ value, label }) => ({ value, label }));
+  }
+
+  getAccountingCompanyLabel(contact: ContactResponse | null | undefined): string {
+    return this.utilityService.getCompanyDropdownLabel(contact);
   }
 
   getReservationOptions(reservations: { value: { reservationId: string }, label: string }[] | null | undefined): { value: string, label: string }[] {
@@ -304,7 +336,11 @@ export class AccountingComponent implements OnInit, OnDestroy {
     }
     const contactId = value == null || value === '' ? null : String(value);
     this.accountingInvoiceList.selectedCompanyContact = contactId
-      ? this.accountingInvoiceList.availableCompanyContacts.find(company => company.value.contactId === contactId)?.value || null
+      ? this.accountingInvoiceList.companyContacts.find(company =>
+          company.contactId === contactId
+          && (!this.accountingInvoiceList?.selectedOffice || company.officeId === this.accountingInvoiceList.selectedOffice.officeId)
+          && !!company.isActive
+        ) || null
       : null;
     this.accountingInvoiceList.onCompanyChange();
   }
@@ -345,7 +381,11 @@ export class AccountingComponent implements OnInit, OnDestroy {
     }
     const contactId = value == null || value === '' ? null : String(value);
     this.accountingGeneralLedger.selectedCompanyContact = contactId
-      ? this.accountingGeneralLedger.availableCompanyContacts.find(company => company.value.contactId === contactId)?.value || null
+      ? this.accountingGeneralLedger.companyContacts.find(company =>
+          company.contactId === contactId
+          && (this.accountingGeneralLedger?.selectedOfficeId == null || company.officeId === this.accountingGeneralLedger.selectedOfficeId)
+          && !!company.isActive
+        ) || null
       : null;
     this.accountingGeneralLedger.onCompanyChange();
   }
@@ -372,7 +412,11 @@ export class AccountingComponent implements OnInit, OnDestroy {
     }
     const contactId = value == null || value === '' ? null : String(value);
     this.accountingEmailList.selectedCompanyContact = contactId
-      ? this.accountingEmailList.availableCompanyContacts.find(company => company.value.contactId === contactId)?.value || null
+      ? this.accountingEmailList.companyContacts.find(company =>
+          company.contactId === contactId
+          && (this.accountingEmailList?.selectedOfficeId == null || company.officeId === this.accountingEmailList.selectedOfficeId)
+          && !!company.isActive
+        ) || null
       : null;
     this.accountingEmailList.onCompanyChange();
   }
@@ -399,7 +443,11 @@ export class AccountingComponent implements OnInit, OnDestroy {
     }
     const contactId = value == null || value === '' ? null : String(value);
     this.accountingDocumentList.selectedCompany = contactId
-      ? this.accountingDocumentList.availableCompanies.find(company => company.value.contactId === contactId)?.value || null
+      ? this.accountingDocumentList.companies.find(company =>
+          company.contactId === contactId
+          && (this.accountingDocumentList?.selectedOfficeId == null || company.officeId === this.accountingDocumentList.selectedOfficeId)
+          && !!company.isActive
+        ) || null
       : null;
     this.accountingDocumentList.onCompanyChange();
   }

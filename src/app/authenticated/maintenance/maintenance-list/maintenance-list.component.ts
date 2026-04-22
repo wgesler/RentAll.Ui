@@ -366,13 +366,7 @@ export class MaintenanceListComponent extends PropertyMaintenanceBase implements
         );
       })
       .filter((row): row is MaintenanceListDisplay => row !== null)
-      .sort((a, b) => {
-        const byEvent = a.eventDateSortTime - b.eventDateSortTime;
-        if (byEvent !== 0) {
-          return byEvent;
-        }
-        return (a.propertyCode ?? '').localeCompare(b.propertyCode ?? '', undefined, { sensitivity: 'base' });
-      });
+      .sort((a, b) => (a.propertyCode ?? '').localeCompare(b.propertyCode ?? '', undefined, { sensitivity: 'base' }));
 
     const inProgressRows: MaintenanceListDisplay[] = [];
     const remainingOtherRows: MaintenanceListDisplay[] = [];
@@ -553,7 +547,7 @@ export class MaintenanceListComponent extends PropertyMaintenanceBase implements
 
   //#region Filter Methods
   applyFilters(): void {
-    const sortRows = (rows: MaintenanceListDisplay[]) =>
+    const sortRowsByEventDateThenPropertyCode = (rows: MaintenanceListDisplay[]) =>
       [...rows].sort((a, b) => {
         const byEvent = a.eventDateSortTime - b.eventDateSortTime;
         if (byEvent !== 0) {
@@ -561,13 +555,15 @@ export class MaintenanceListComponent extends PropertyMaintenanceBase implements
         }
         return (a.propertyCode ?? '').localeCompare(b.propertyCode ?? '', undefined, { sensitivity: 'base' });
       });
-    this.arrivalMaintenanceDisplay = sortRows(this.arrivalMaintenanceDisplay);
-    this.departureMaintenanceDisplay = sortRows(this.departureMaintenanceDisplay);
-    this.maidMaintenanceDisplay = sortRows(this.maidMaintenanceDisplay);
-    this.comingOnlineMaintenanceDisplay = sortRows(this.comingOnlineMaintenanceDisplay);
-    this.goingOfflineMaintenanceDisplay = sortRows(this.goingOfflineMaintenanceDisplay);
-    this.proportiesInProgressMaintenanceDisplay = sortRows(this.proportiesInProgressMaintenanceDisplay);
-    this.otherPropertiesMaintenanceDisplay = sortRows(this.otherPropertiesMaintenanceDisplay);
+    const sortRowsByPropertyCode = (rows: MaintenanceListDisplay[]) =>
+      [...rows].sort((a, b) => (a.propertyCode ?? '').localeCompare(b.propertyCode ?? '', undefined, { sensitivity: 'base' }));
+    this.arrivalMaintenanceDisplay = sortRowsByEventDateThenPropertyCode(this.arrivalMaintenanceDisplay);
+    this.departureMaintenanceDisplay = sortRowsByEventDateThenPropertyCode(this.departureMaintenanceDisplay);
+    this.maidMaintenanceDisplay = sortRowsByEventDateThenPropertyCode(this.maidMaintenanceDisplay);
+    this.comingOnlineMaintenanceDisplay = sortRowsByEventDateThenPropertyCode(this.comingOnlineMaintenanceDisplay);
+    this.goingOfflineMaintenanceDisplay = sortRowsByEventDateThenPropertyCode(this.goingOfflineMaintenanceDisplay);
+    this.proportiesInProgressMaintenanceDisplay = sortRowsByPropertyCode(this.proportiesInProgressMaintenanceDisplay);
+    this.otherPropertiesMaintenanceDisplay = sortRowsByPropertyCode(this.otherPropertiesMaintenanceDisplay);
     this.syncAllDisplayedPropertiesFromTurnoverLists();
   }
     
