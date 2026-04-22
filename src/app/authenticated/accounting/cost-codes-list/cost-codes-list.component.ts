@@ -48,7 +48,7 @@ export class CostCodesListComponent implements OnInit, OnDestroy, OnChanges {
   officesSubscription?: Subscription;
   globalOfficeSubscription?: Subscription;
   selectedOffice: OfficeResponse | null = null;
-  showOfficeDropdown: boolean = true;
+  showOfficeDropdown: boolean = false;
   officeScopeResolved: boolean = false;
   isEditingCostCodes: boolean = false;
   costCodesId: string | number | null = null;

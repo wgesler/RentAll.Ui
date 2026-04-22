@@ -126,7 +126,7 @@ export class GlobalSelectionService {
         return {
           selectedOfficeId,
           selectedOffice: accessibleOffices.find(office => office.officeId === selectedOfficeId) || null,
-          showOfficeDropdown: !autoSelectSingleOffice,
+          showOfficeDropdown: accessibleOffices.length > 1,
           autoSelectedOfficeId
         };
       })

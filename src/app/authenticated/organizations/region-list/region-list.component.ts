@@ -39,7 +39,7 @@ export class RegionListComponent implements OnInit, OnDestroy {
   offices: OfficeResponse[] = [];
   officesSubscription?: Subscription;
   selectedOffice: OfficeResponse | null = null;
-  showOfficeDropdown: boolean = true;
+  showOfficeDropdown: boolean = false;
   officeScopeResolved: boolean = false;
 
   regionsDisplayedColumns: ColumnSet = {

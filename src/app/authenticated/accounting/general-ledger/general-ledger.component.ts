@@ -86,7 +86,7 @@ export class GeneralLedgerComponent implements OnInit, OnChanges, OnDestroy {
   ledgerRows: GeneralLedgerDisplayRow[] = [];
   isLoading: boolean = false;
   showInactive: boolean = false;
-  showOfficeDropdown: boolean = true;
+  showOfficeDropdown: boolean = false;
   officeScopeResolved: boolean = false;
   preferredOfficeId: number | null = null;
   generalLedgerColumns: ColumnSet = {
@@ -206,7 +206,7 @@ export class GeneralLedgerComponent implements OnInit, OnChanges, OnDestroy {
       next: () => {
         this.offices = this.officeService.getAllOfficesValue() || [];
         this.availableOffices = this.mappingService.mapOfficesToDropdown(this.offices);
-        this.showOfficeDropdown = true;
+        this.showOfficeDropdown = this.offices.length > 1;
         this.resolveOfficeScope(this.officeId ?? this.globalSelectionService.getSelectedOfficeIdValue(), this.officeId === null || this.officeId === undefined);
       },
       error: () => {

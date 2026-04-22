@@ -20,15 +20,17 @@
           </span>
 
           <div class="header-title form-titlebar-fields-wrap">
-            <mat-form-field appearance="outline" class="titlebar-field-office">
-              <mat-label>Office</mat-label>
-              <mat-select [(ngModel)]="selectedOfficeId" (selectionChange)="onOfficeChange()" [canSelectNullableOptions]="true">
-                <mat-option [value]="null">All Offices</mat-option>
-                @for (office of offices; track office.officeId) {
-                  <mat-option [value]="office.officeId">{{ office.name }}</mat-option>
-                }
-              </mat-select>
-            </mat-form-field>
+            @if (showOfficeDropdown) {
+              <mat-form-field appearance="outline" class="titlebar-field-office">
+                <mat-label>Office</mat-label>
+                <mat-select [(ngModel)]="selectedOfficeId" (selectionChange)="onOfficeChange()" [canSelectNullableOptions]="true">
+                  <mat-option [value]="null">All Offices</mat-option>
+                  @for (office of offices; track office.officeId) {
+                    <mat-option [value]="office.officeId">{{ office.name }}</mat-option>
+                  }
+                </mat-select>
+              </mat-form-field>
+            }
             <mat-form-field appearance="outline" class="titlebar-field-property-code maintenance-titlebar-property-code">
               <mat-label>Property Code</mat-label>
               <mat-select [(ngModel)]="selectedPropertyId" (selectionChange)="onPropertyCodeChange()" [canSelectNullableOptions]="true">

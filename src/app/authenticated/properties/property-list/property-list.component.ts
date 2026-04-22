@@ -66,7 +66,7 @@ export class PropertyListComponent implements OnInit, OnDestroy, OnChanges {
   destroy$ = new Subject<void>();
   officeScopeResolved = false;
   selectedOffice: OfficeResponse | null = null;
-  showOfficeDropdown: boolean = true;
+  showOfficeDropdown: boolean = false;
   user: any;
   isAdmin = false;
   userId: string = '';

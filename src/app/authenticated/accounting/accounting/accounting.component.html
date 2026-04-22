@@ -20,6 +20,7 @@
           </div>
         } @else if (selectedTabIndex === 0 && accountingInvoiceList && !accountingInvoiceList.showPaymentForm) {
           <div class="header-title form-titlebar-fields-wrap">
+            @if (accountingInvoiceList.showOfficeDropdown) {
             <app-title-bar-select
               [label]="'Office'"
               [formFieldClass]="'titlebar-field-office'"
@@ -29,6 +30,7 @@
               [noResultsText]="'No offices match your search'"
               (valueChange)="onAccountingInvoiceOfficeDropdownChange($event)">
             </app-title-bar-select>
+            }
             <app-title-bar-select
               [label]="'Companies'"
               [formFieldClass]="'titlebar-field-company'"
@@ -48,7 +50,7 @@
               (valueChange)="onAccountingInvoiceReservationDropdownChange($event)">
             </app-title-bar-select>
           </div>
-        } @else if (selectedTabIndex === 1 && !isSuperAdmin && accountingCostCodes) {
+        } @else if (selectedTabIndex === 1 && !isSuperAdmin && accountingCostCodes?.showOfficeDropdown) {
           <div class="header-title form-titlebar-fields-wrap">
             <app-title-bar-select
               [label]="'Office'"
@@ -62,6 +64,7 @@
           </div>
         } @else if (selectedTabIndex === 2 && !isSuperAdmin && accountingGeneralLedger) {
           <div class="header-title form-titlebar-fields-wrap">
+            @if (accountingGeneralLedger.showOfficeDropdown) {
             <app-title-bar-select
               [label]="'Office'"
               [formFieldClass]="'titlebar-field-office'"
@@ -71,6 +74,7 @@
               [noResultsText]="'No offices match your search'"
               (valueChange)="onAccountingGeneralLedgerOfficeDropdownChange($event)">
             </app-title-bar-select>
+            }
             <app-title-bar-select
               [label]="'Companies'"
               [formFieldClass]="'titlebar-field-company'"
@@ -92,6 +96,7 @@
           </div>
         } @else if (selectedTabIndex === 3 && !isSuperAdmin && accountingEmailList) {
           <div class="header-title form-titlebar-fields-wrap">
+            @if (accountingEmailList.showOfficeDropdown) {
             <app-title-bar-select
               [label]="'Office'"
               [formFieldClass]="'titlebar-field-office'"
@@ -101,6 +106,7 @@
               [noResultsText]="'No offices match your search'"
               (valueChange)="onAccountingEmailOfficeDropdownChange($event)">
             </app-title-bar-select>
+            }
             <app-title-bar-select
               [label]="'Companies'"
               [formFieldClass]="'titlebar-field-company'"
@@ -122,6 +128,7 @@
           </div>
         } @else if (selectedTabIndex === 4 && !isSuperAdmin && accountingDocumentList) {
           <div class="header-title form-titlebar-fields-wrap">
+            @if (accountingDocumentList.showOfficeDropdown) {
             <app-title-bar-select
               [label]="'Office'"
               [formFieldClass]="'titlebar-field-office'"
@@ -131,6 +138,7 @@
               [noResultsText]="'No offices match your search'"
               (valueChange)="onAccountingDocumentOfficeDropdownChange($event)">
             </app-title-bar-select>
+            }
             <app-title-bar-select
               [label]="'Companies'"
               [formFieldClass]="'titlebar-field-company'"

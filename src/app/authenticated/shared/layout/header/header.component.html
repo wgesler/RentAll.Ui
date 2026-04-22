@@ -62,22 +62,30 @@
                 <div class="email" (click)="openUserDialog(); menuTrigger.closeMenu()">{{ user?.email }}</div>
               </div>
 
-              <div class="account-pair office-pair">
-                <div class="office-label">Working Office</div>
-                <div class="office-value" [matMenuTriggerFor]="officeSelectionMenu">{{ getSelectedOfficeName() }}</div>
-              </div>
+              @if (offices.length > 1) {
+                <div class="account-pair office-pair">
+                  <div class="office-label">Working Office</div>
+                  <div class="office-value" [matMenuTriggerFor]="officeSelectionMenu">{{ getSelectedOfficeName() }}</div>
+                </div>
+              }
             </div>
           </div>
 
           <mat-divider></mat-divider>
 
-          <mat-menu #officeSelectionMenu="matMenu" xPosition="before">
-            <button mat-menu-item (click)="onGlobalOfficeSelect(null)">
-              All Offices
+          <mat-menu #officeSelectionMenu="matMenu" xPosition="before" class="profile-office-selection-menu" panelClass="profile-office-selection-menu">
+            <button mat-menu-item class="office-menu-item" (click)="onGlobalOfficeSelect(null)">
+              <span class="office-menu-label">All Offices</span>
+              @if (selectedGlobalOfficeId === null) {
+                <mat-icon class="mdc-list-item__end office-selected-check">check</mat-icon>
+              }
             </button>
             @for (office of offices; track office.officeId) {
-              <button mat-menu-item (click)="onGlobalOfficeSelect(office.officeId)">
-                {{ office.name }}
+              <button mat-menu-item class="office-menu-item" (click)="onGlobalOfficeSelect(office.officeId)">
+                <span class="office-menu-label">{{ office.name }}</span>
+                @if (selectedGlobalOfficeId === office.officeId) {
+                  <mat-icon class="mdc-list-item__end office-selected-check">check</mat-icon>
+                }
               </button>
             }
           </mat-menu>

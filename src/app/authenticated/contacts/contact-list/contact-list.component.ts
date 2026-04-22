@@ -47,7 +47,7 @@ export class ContactListComponent implements OnInit, OnDestroy, OnChanges {
   availableOffices: { value: number, name: string }[] = [];
   officesSubscription?: Subscription;
   selectedOffice: OfficeResponse | null = null;
-  showOfficeDropdown: boolean = true;
+  showOfficeDropdown: boolean = false;
   user: any;
   isAdmin = false;
   officeScopeResolved: boolean = false;

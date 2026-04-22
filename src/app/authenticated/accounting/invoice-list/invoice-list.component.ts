@@ -72,7 +72,7 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
   globalOfficeSubscription?: Subscription;
   queryParamsSubscription?: Subscription;
   selectedOffice: OfficeResponse | null = null;
-  showOfficeDropdown: boolean = true;
+  showOfficeDropdown: boolean = false;
   isSuperUser: boolean = false;
   officeScopeResolved: boolean = false;
 

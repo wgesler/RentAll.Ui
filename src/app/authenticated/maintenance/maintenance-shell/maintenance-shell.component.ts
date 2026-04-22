@@ -64,7 +64,7 @@ export class MaintenanceShellComponent implements OnInit, CanComponentDeactivate
 
   userId = '';
   organizationId = '';
-  showOfficeDropdown = true;
+  showOfficeDropdown = false;
   offices: OfficeResponse[] = [];
   selectedOfficeId: number | null = null;
 

@@ -45,7 +45,7 @@ export class UserListComponent implements OnInit, OnDestroy, OnChanges {
   offices: OfficeResponse[] = [];
   availableOffices: { value: number, name: string }[] = [];
   selectedOffice: OfficeResponse | null = null;
-  showOfficeDropdown: boolean = true;
+  showOfficeDropdown: boolean = false;
   officesSubscription?: Subscription;
   globalOfficeSubscription?: Subscription;
   isSuperAdminUser: boolean = false;
@@ -337,13 +337,13 @@ export class UserListComponent implements OnInit, OnDestroy, OnChanges {
           this.availableOffices = this.mappingService.mapOfficesToDropdown(this.offices);
           this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'offices');
 
-          this.showOfficeDropdown = this.offices.length !== 1;
+          this.showOfficeDropdown = this.offices.length > 1;
           this.resolveOfficeScope(this.globalSelectionService.getSelectedOfficeIdValue());
         },
         error: () => {
           this.offices = [];
           this.availableOffices = [];
-          this.showOfficeDropdown = true;
+          this.showOfficeDropdown = false;
           this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'offices');
           this.resolveOfficeScope(null);
         }

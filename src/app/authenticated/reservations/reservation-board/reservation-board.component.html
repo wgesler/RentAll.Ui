@@ -12,15 +12,17 @@
         }
         @if (!isOwner) {
           <div class="header-title form-titlebar-fields-wrap header-date-controls">
-            <mat-form-field appearance="outline" class="titlebar-field-office">
-              <mat-label>Office</mat-label>
-              <mat-select [(ngModel)]="selectedOfficeId" (selectionChange)="onOfficeDropdownChange()" [ngModelOptions]="{ standalone: true }" [canSelectNullableOptions]="true">
-                <mat-option [value]="null">All Offices</mat-option>
-                @for (office of officeOptions; track office.officeId) {
-                  <mat-option [value]="office.officeId">{{ office.name }}</mat-option>
-                }
-              </mat-select>
-            </mat-form-field>
+            @if (showOfficeDropdown) {
+              <mat-form-field appearance="outline" class="titlebar-field-office">
+                <mat-label>Office</mat-label>
+                <mat-select [(ngModel)]="selectedOfficeId" (selectionChange)="onOfficeDropdownChange()" [ngModelOptions]="{ standalone: true }" [canSelectNullableOptions]="true">
+                  <mat-option [value]="null">All Offices</mat-option>
+                  @for (office of officeOptions; track office.officeId) {
+                    <mat-option [value]="office.officeId">{{ office.name }}</mat-option>
+                  }
+                </mat-select>
+              </mat-form-field>
+            }
 
             <mat-form-field appearance="outline" class="titlebar-field-office">
               <mat-label>Start Date</mat-label>

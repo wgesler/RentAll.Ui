@@ -87,8 +87,9 @@ export class PropertyComponent implements OnInit, OnDestroy, CanComponentDeactiv
   checkOutTimes: { value: number, label: string }[] = [];
 
   offices: OfficeResponse[] = [];
+  // Global office selection used by the title bar "Office" filter.
   selectedOffice: OfficeResponse | null = null;
-  showOfficeDropdown: boolean = true;
+  showOfficeDropdown: boolean = false;
  
   reservations: ReservationListResponse[] = [];
   availableReservations: { value: ReservationListResponse, label: string }[] = [];
@@ -152,14 +153,9 @@ export class PropertyComponent implements OnInit, OnDestroy, CanComponentDeactiv
     this.loadBuildings();
 
     this.globalOfficeSubscription = this.globalSelectionService.getSelectedOfficeId$().pipe(skip(1), takeUntil(this.destroy$)).subscribe(officeId => {
-      if (this.offices.length > 0 && !this.property) {
+      if (this.offices.length > 0) {
         this.resolveOfficeScope(officeId);
-        if (this.form) {
-          this.form.patchValue({ officeId: this.selectedOffice?.officeId ?? null });
-          this.filterLocationLookupsByOffice();
-          this.filterReservations();
-          this.emitTitleBarContextToShell();
-        }
+        this.emitTitleBarContextToShell();
       }
     });
 
@@ -394,7 +390,7 @@ export class PropertyComponent implements OnInit, OnDestroy, CanComponentDeactiv
     }
 
     // Assign location IDs directly
-    const officeId = formValue.officeId ?? this.selectedOffice?.officeId ?? this.property?.officeId ?? null;
+    const officeId = formValue.officeId ?? this.property?.officeId ?? null;
     if (!officeId) {
       this.form.get('officeId')?.markAsTouched();
       this.toastr.error('Office is required', CommonMessage.Error);
@@ -701,13 +697,8 @@ export class PropertyComponent implements OnInit, OnDestroy, CanComponentDeactiv
         formData.trashPickupId = TrashDays.None;
       }
       
-      // Set selectedOffice if offices are already loaded
-      if (formData.officeId && this.offices.length > 0) {
-        this.selectedOffice = this.offices.find(o => o.officeId === formData.officeId) || null;
-        // Filter reservations after setting office
-        if (this.reservations.length > 0) {
-          this.filterReservations();
-        }
+      if (this.reservations.length > 0) {
+        this.filterReservations();
       }
       
       // Remove reservationId from formData (it's not a property field, only used in title bar)
@@ -909,8 +900,7 @@ export class PropertyComponent implements OnInit, OnDestroy, CanComponentDeactiv
     }
     const officeId =
       this.form.getRawValue().officeId ??
-      this.selectedOffice?.officeId ??
-      this.globalSelectionService.getSelectedOfficeIdValue() ??
+      this.property?.officeId ??
       this.offices[0]?.officeId ??
       null;
     if (officeId == null || officeId === '') {
@@ -1100,13 +1090,25 @@ export class PropertyComponent implements OnInit, OnDestroy, CanComponentDeactiv
     const resRaw = this.form.get('reservationId')?.value ?? this.selectedReservationId;
     const codeRaw = this.form.get('propertyCode')?.value;
     this.titleBarContextChange.emit({
+      globalOfficeId: this.selectedOffice?.officeId ?? this.globalSelectionService.getSelectedOfficeIdValue() ?? null,
       officeId: officeRaw == null || officeRaw === '' ? null : Number(officeRaw),
       reservationId: resRaw == null || resRaw === '' ? null : String(resRaw),
       propertyCode: codeRaw == null || codeRaw === undefined ? null : (String(codeRaw).trim() === '' ? null : String(codeRaw).trim())
     });
   }
 
-  applyTitleBarOfficeSelection(value: string | number | null): void {
+  applyTitleBarGlobalOfficeSelection(value: string | number | null): void {
+    const nextId = value == null || value === '' ? null : Number(value);
+    const current = this.selectedOffice?.officeId ?? this.globalSelectionService.getSelectedOfficeIdValue() ?? null;
+    if (nextId === current) {
+      return;
+    }
+    this.globalSelectionService.setSelectedOfficeId(nextId);
+    this.resolveOfficeScope(nextId);
+    this.emitTitleBarContextToShell();
+  }
+
+  applyTitleBarPropertyOfficeSelection(value: string | number | null): void {
     const nextId = value == null || value === '' ? null : Number(value);
     const cur = this.form.get('officeId')?.value;
     const curNum = cur == null || cur === '' ? null : Number(cur);
@@ -1195,8 +1197,8 @@ export class PropertyComponent implements OnInit, OnDestroy, CanComponentDeactiv
     return this.buildings.map(building => ({ value: building.buildingId, label: `${building.buildingCode} - ${building.name}` }));
   }
 
-  get sharedOfficeId(): number | null {
-    return this.form?.get('officeId')?.value ?? this.selectedOffice?.officeId ?? this.property?.officeId ?? null;
+  get sharedPropertyOfficeId(): number | null {
+    return this.form?.get('officeId')?.value ?? this.property?.officeId ?? null;
   }
 
   get sharedPropertyCode(): string | null {
@@ -1208,18 +1210,32 @@ export class PropertyComponent implements OnInit, OnDestroy, CanComponentDeactiv
     return this.property?.propertyCode ?? null;
   }
 
-  get sharedOfficeName(): string {
+  get sharedGlobalOfficeName(): string {
     if (this.selectedOffice?.name) {
       return this.selectedOffice.name;
     }
-    const officeId = this.sharedOfficeId;
+    const officeId = this.globalSelectionService.getSelectedOfficeIdValue();
     if (officeId != null) {
       const office = this.offices.find(o => o.officeId === officeId);
       if (office?.name) {
         return office.name;
       }
     }
-    return this.property?.officeName || '';
+    return '';
+  }
+
+  get sharedPropertyOfficeName(): string {
+    const officeId = this.sharedPropertyOfficeId;
+    if (officeId != null) {
+      const office = this.offices.find(o => o.officeId === officeId);
+      if (office?.name) {
+        return office.name;
+      }
+    }
+    if (this.property?.officeName) {
+      return this.property.officeName;
+    }
+    return '';
   }
 
   get showTitleBarOfficeError(): boolean {
@@ -1230,7 +1246,7 @@ export class PropertyComponent implements OnInit, OnDestroy, CanComponentDeactiv
     if (!c?.touched) {
       return false;
     }
-    const effectiveId = this.form.getRawValue().officeId ?? this.selectedOffice?.officeId ?? null;
+    const effectiveId = this.form.getRawValue().officeId ?? null;
     return effectiveId == null || effectiveId === '';
   }
 
@@ -1404,7 +1420,7 @@ export class PropertyComponent implements OnInit, OnDestroy, CanComponentDeactiv
     if (!orgId) {
       this.offices = [];
       this.selectedOffice = null;
-      this.showOfficeDropdown = true;
+      this.showOfficeDropdown = false;
       this.form?.patchValue({ officeId: null }, { emitEvent: false });
       this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'offices');
       this.emitTitleBarContextToShell();
@@ -1414,37 +1430,12 @@ export class PropertyComponent implements OnInit, OnDestroy, CanComponentDeactiv
     this.officeService.getOffices(orgId).pipe(take(1), finalize(() => { this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'offices'); })).subscribe({
       next: (offices) => {
         this.offices = (offices || []).filter(f => f.organizationId === orgId && f.isActive);
-
-        if (!this.property && this.form) {
-          const globalOfficeId = this.globalSelectionService.getSelectedOfficeIdValue();
-          const globalOffice = globalOfficeId != null
-            ? this.offices.find(o => o.officeId === globalOfficeId) || null
-            : null;
-
-          // Add mode defaults:
-          // - Specific global office -> preselect it
-          // - Global "All Offices" (null) -> keep null so user must pick a specific office
-          this.selectedOffice = globalOffice;
-          this.showOfficeDropdown = true;
-          this.form.patchValue({ officeId: this.selectedOffice?.officeId ?? null }, { emitEvent: false });
-          this.filterReservations();
-        } else {
-          this.globalSelectionService.getOfficeUiState$(this.offices, { useGlobalSelection: false, disableSingleOfficeRule: !!this.property?.officeId }).pipe(take(1)).subscribe({
-            next: uiState => {
-              this.showOfficeDropdown = uiState.showOfficeDropdown;
-              if (uiState.autoSelectedOfficeId !== null) {
-                this.selectedOffice = uiState.selectedOffice;
-                this.form?.patchValue({ officeId: uiState.autoSelectedOfficeId }, { emitEvent: false });
-              }
-            }
-          });
-        }
+        this.showOfficeDropdown = this.offices.length > 1;
+        const globalOfficeId = this.globalSelectionService.getSelectedOfficeIdValue();
+        this.resolveOfficeScope(globalOfficeId);
 
         if (this.property && this.form) {
           const propertyOfficeId = this.property.officeId;
-          if (propertyOfficeId) {
-            this.selectedOffice = this.offices.find(o => o.officeId === propertyOfficeId) || null;
-          }
           this.form.patchValue({
             officeId: propertyOfficeId || null,
             regionId: this.property.regionId || null,
@@ -1460,7 +1451,7 @@ export class PropertyComponent implements OnInit, OnDestroy, CanComponentDeactiv
       error: () => {
         this.offices = [];
         this.selectedOffice = null;
-        this.showOfficeDropdown = true;
+        this.showOfficeDropdown = false;
         this.form?.patchValue({ officeId: null }, { emitEvent: false });
         this.emitTitleBarContextToShell();
       }
@@ -1531,7 +1522,7 @@ export class PropertyComponent implements OnInit, OnDestroy, CanComponentDeactiv
   }
 
   filterLocationLookupsByOffice(): void {
-    const officeId = this.form?.get('officeId')?.value ?? this.selectedOffice?.officeId ?? null;
+    const officeId = this.form?.get('officeId')?.value ?? null;
     const officeNum = officeId != null ? Number(officeId) : null;
 
     this.regions = officeNum != null ? this.allRegionsByOrg.filter(r => Number(r.officeId) === officeNum) : [];
@@ -1639,8 +1630,8 @@ export class PropertyComponent implements OnInit, OnDestroy, CanComponentDeactiv
   }
 
   onOfficeChange(): void {
-    this.globalSelectionService.setSelectedOfficeId(this.form.get('officeId')?.value ?? null);
-    this.resolveOfficeScope(this.form.get('officeId')?.value ?? null);
+    this.form.get('officeId')?.markAsDirty();
+    this.form.get('officeId')?.markAsTouched();
     this.filterLocationLookupsByOffice();
     this.filterReservations();
     this.form.get('reservationId')?.setValue(null, { emitEvent: false });

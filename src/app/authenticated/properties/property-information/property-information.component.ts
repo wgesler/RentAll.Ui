@@ -40,7 +40,7 @@ export class PropertyInformationComponent implements OnInit, OnDestroy, OnChange
   organization: OrganizationResponse | null = null;
   offices: OfficeResponse[] = [];
   selectedOffice: OfficeResponse | null = null;
-  showOfficeDropdown: boolean = true;
+  showOfficeDropdown: boolean = false;
   officesSubscription?: Subscription;
 
   itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['property', 'organization', 'propertyInformation', 'offices']));

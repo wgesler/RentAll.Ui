@@ -40,7 +40,7 @@ export class BuildingListComponent implements OnInit, OnDestroy {
   officesSubscription?: Subscription;
   globalOfficeSubscription?: Subscription;
   selectedOffice: OfficeResponse | null = null;
-  showOfficeDropdown: boolean = true;
+  showOfficeDropdown: boolean = false;
   officeScopeResolved: boolean = false;
 
   buildingsDisplayedColumns: ColumnSet = {

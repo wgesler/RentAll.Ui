@@ -1293,6 +1293,30 @@ mat-form-field input,
   line-height: 1.2 !important;
 }
 
+/* Header profile office selector: selected check on right in blue. */
+.mat-mdc-menu-panel .office-menu-item {
+  position: relative !important;
+}
+
+.mat-mdc-menu-panel .office-menu-item .mat-mdc-menu-item-text {
+  display: block !important;
+  width: 100% !important;
+}
+
+.mat-mdc-menu-panel .office-menu-item .office-menu-label {
+  display: block !important;
+  padding-right: 28px !important;
+}
+
+.mat-mdc-menu-panel .office-menu-item .office-selected-check {
+  position: absolute !important;
+  right: 12px !important;
+  top: 50% !important;
+  transform: translateY(-50%) !important;
+  margin: 0 !important;
+  color: #2563eb !important;
+}
+
 .datatable-add-btn {
   > * {
     display: contents;

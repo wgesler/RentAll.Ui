@@ -46,7 +46,8 @@ export class PropertyShellComponent implements OnInit, CanComponentDeactivate {
   readonly DocumentType = DocumentType;
   readonly EmailType = EmailType;
 
-  titleBarOfficeId: number | null = null;
+  titleBarGlobalOfficeId: number | null = null;
+  titleBarPropertyOfficeId: number | null = null;
   titleBarReservationId: string | null = null;
   titleBarPropertyCode = '';
 
@@ -71,7 +72,7 @@ export class PropertyShellComponent implements OnInit, CanComponentDeactivate {
   //#endregion
 
   //#region Getter Methods
-  get isHeaderOfficeEditable(): boolean {
+  get isHeaderPropertyOfficeEditable(): boolean {
     return !!this.propertySection?.isAdmin && this.selectedTabIndex <= 1;
   }
 
@@ -95,8 +96,8 @@ export class PropertyShellComponent implements OnInit, CanComponentDeactivate {
     return this.titleBarReservationId;
   }
 
-  get sharedOfficeName(): string {
-    const id = this.titleBarOfficeId;
+  get sharedPropertyOfficeName(): string {
+    const id = this.titleBarPropertyOfficeId;
     const offices = this.propertySection?.offices ?? [];
     if (id != null) {
       const o = offices.find(x => x.officeId === id);
@@ -104,7 +105,7 @@ export class PropertyShellComponent implements OnInit, CanComponentDeactivate {
         return o.name;
       }
     }
-    return this.propertySection?.property?.officeName ?? '';
+    return this.propertySection?.sharedPropertyOfficeName ?? '';
   }
 
   get sharedPropertyCode(): string | null {
@@ -118,13 +119,24 @@ export class PropertyShellComponent implements OnInit, CanComponentDeactivate {
 
   //#region Top Bar Event Methods
   onTitleBarContextFromProperty(ctx: PropertyTitleBarContext): void {
-    this.titleBarOfficeId = ctx.officeId;
+    this.titleBarGlobalOfficeId = ctx.globalOfficeId;
+    this.titleBarPropertyOfficeId = ctx.officeId;
     this.titleBarReservationId = ctx.reservationId;
     this.titleBarPropertyCode = ctx.propertyCode ?? '';
   }
 
-  onOfficeDropdownChange(value: string | number | null): void {
-    this.propertySection?.applyTitleBarOfficeSelection(value);
+  async onGlobalOfficeDropdownChange(value: string | number | null): Promise<void> {
+    this.propertySection?.applyTitleBarGlobalOfficeSelection(value);
+    if (this.shouldRouteToPropertyListForGlobalOfficeMismatch(value)) {
+      const canLeave = await (this.propertySection?.confirmNavigationWithUnsavedChanges() ?? Promise.resolve(true));
+      if (canLeave) {
+        this.router.navigateByUrl(RouterUrl.PropertyList);
+      }
+    }
+  }
+
+  onPropertyOfficeDropdownChange(value: string | number | null): void {
+    this.propertySection?.applyTitleBarPropertyOfficeSelection(value);
   }
 
   onReservationDropdownChange(value: string | number | null): void {
@@ -151,7 +163,7 @@ export class PropertyShellComponent implements OnInit, CanComponentDeactivate {
 
   openAddAlertDialog(): void {
     const dialogData: AddAlertDialogData = {
-      officeId: this.titleBarOfficeId,
+      officeId: this.titleBarPropertyOfficeId,
       propertyId: this.propertySection?.isAddMode ? null : (this.propertySection?.propertyId ?? null),
       reservationId: this.titleBarReservationId ?? null,
       source: 'property'
@@ -172,7 +184,21 @@ export class PropertyShellComponent implements OnInit, CanComponentDeactivate {
   }
 
   onChildTabOfficeChange(officeId: number | null): void {
-    this.propertySection?.applyTitleBarOfficeSelection(officeId);
+    this.propertySection?.applyTitleBarGlobalOfficeSelection(officeId);
+  }
+  //#endregion
+
+  //#region Utility Methods
+  shouldRouteToPropertyListForGlobalOfficeMismatch(value: string | number | null): boolean {
+    if (this.propertySection?.isAddMode) {
+      return false;
+    }
+    const selectedGlobalOfficeId = value == null || value === '' ? null : Number(value);
+    const propertyOfficeId = this.propertySection?.sharedPropertyOfficeId ?? null;
+    if (selectedGlobalOfficeId == null || propertyOfficeId == null) {
+      return false;
+    }
+    return selectedGlobalOfficeId !== propertyOfficeId;
   }
   //#endregion
 

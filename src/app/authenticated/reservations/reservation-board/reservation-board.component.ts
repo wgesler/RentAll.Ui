@@ -337,6 +337,10 @@ export class ReservationBoardComponent implements OnInit, OnDestroy {
     return this.offices;
   }
 
+  get showOfficeDropdown(): boolean {
+    return this.officeOptions.length > 1;
+  }
+
   applyBoardPropertyFilter(): void {
     const showUnfurnished = this.globalSelectionService.getFurnishedPropertySelection() === true;
     this.propertyRows = (this.allPropertyRows || []).filter(p => this.mappingService.toBooleanValue(p.unfurnished) === showUnfurnished);

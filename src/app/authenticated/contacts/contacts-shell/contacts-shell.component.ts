@@ -35,7 +35,7 @@ export class ContactsShellComponent implements OnInit, OnDestroy {
   officesSubscription?: Subscription;
   globalOfficeSubscription?: Subscription;
   selectedOffice: OfficeResponse | null = null;
-  showOfficeDropdown: boolean = true;
+  showOfficeDropdown: boolean = false;
   destroy$ = new Subject<void>();
 
   /** Embedded contact form: when set, show form in the tab with this index instead of list. */
@@ -159,7 +159,7 @@ export class ContactsShellComponent implements OnInit, OnDestroy {
     this.officeService.areOfficesLoaded().pipe(filter(loaded => loaded === true), take(1)).subscribe(() => {
       this.officesSubscription = this.officeService.getAllOffices().subscribe(allOffices => {
         this.offices = allOffices || [];
-        this.showOfficeDropdown = this.offices.length !== 1;
+        this.showOfficeDropdown = this.offices.length > 1;
         this.applyQueryParamState(this.route.snapshot.queryParams);
 
         let didSetInitialOffice = false;

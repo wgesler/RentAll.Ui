@@ -55,7 +55,7 @@ export class MaintenanceListComponent extends PropertyMaintenanceBase implements
   goingOfflineMaintenanceDisplay: MaintenanceListDisplay[] = [];
   otherPropertiesMaintenanceDisplay: MaintenanceListDisplay[] = [];
   proportiesInProgressMaintenanceDisplay: MaintenanceListDisplay[] = [];
-  showOfficeDropdown: boolean = true;
+  showOfficeDropdown: boolean = false;
   expandedSections = { calendarAtAGlance: true, reservationTurnover: true, propertyTurnover: true, propertiesInProgress: true, maidService: true, otherProperties: true };
 
   userId: string = '';
@@ -182,6 +182,7 @@ export class MaintenanceListComponent extends PropertyMaintenanceBase implements
 
   protected override resolveOfficeScope(officeId: number | null): void {
     super.resolveOfficeScope(officeId);
+    this.showOfficeDropdown = this.offices.length > 1;
     this.selectedServiceProviderUserId = null;
     this.selectedScheduleCalendarDayKey = null;
     this.rebuildServiceProviderFilterOptions();
@@ -353,7 +354,10 @@ export class MaintenanceListComponent extends PropertyMaintenanceBase implements
               dInspectingDateDisplay: reservationRow.dInspectingDateDisplay,
               maidUserId: reservationRow.maidUserId
             } as unknown as PropertyMaintenance)
-          : pm;
+          : ({
+              ...pm,
+              eventType: ServiceType.Online
+            } as PropertyMaintenance);
         return mapMixedRow(
           mixedForOtherRow,
           snap.eventDate,
@@ -368,8 +372,7 @@ export class MaintenanceListComponent extends PropertyMaintenanceBase implements
           return byEvent;
         }
         return (a.propertyCode ?? '').localeCompare(b.propertyCode ?? '', undefined, { sensitivity: 'base' });
-      })
-      .map(row => this.clearProviderFieldsWhenReservationMissing(row));
+      });
 
     const inProgressRows: MaintenanceListDisplay[] = [];
     const remainingOtherRows: MaintenanceListDisplay[] = [];
@@ -909,41 +912,7 @@ export class MaintenanceListComponent extends PropertyMaintenanceBase implements
       return explicitTarget;
     }
     const reservationId = (event.reservationId || '').trim();
-    return reservationId !== '' ? ServiceType.Departure : null;
-  }
-
-  clearProviderFieldsWhenReservationMissing(row: MaintenanceListDisplay): MaintenanceListDisplay {
-    const reservationId = (row.reservationId || '').trim();
-    if (reservationId !== '') {
-      return row;
-    }
-    const next = {
-      ...row,
-      cleanerUserId: null,
-      carpetUserId: null,
-      inspectorUserId: null,
-      maidUserId: null,
-      cleaningDate: '',
-      carpetDate: '',
-      inspectingDate: '',
-      cleaner: this.buildHiddenUserDropdownCell(),
-      carpet: this.buildHiddenUserDropdownCell(),
-      inspector: this.buildHiddenUserDropdownCell()
-    } as MaintenanceListDisplay & {
-      cleaningDateReadOnly?: boolean;
-      carpetDateReadOnly?: boolean;
-      inspectingDateReadOnly?: boolean;
-    };
-    next.cleaningDateReadOnly = true;
-    next.carpetDateReadOnly = true;
-    next.inspectingDateReadOnly = true;
-    return next;
-  }
-
-  buildHiddenUserDropdownCell(): MaintenanceListUserDropdownCell {
-    const cell = this.buildUserDropdownCell('NONE', []);
-    cell.isOverridable = false;
-    return cell;
+    return reservationId !== '' ? ServiceType.Departure : ServiceType.Online;
   }
 
   applyProviderValuesToEvent(
@@ -1422,14 +1391,6 @@ export class MaintenanceListComponent extends PropertyMaintenanceBase implements
    remapCleanerInspectorDropdowns(): void {
     const remapRows = (rows: MaintenanceListDisplay[]) =>
       rows.map(property => {
-        if (property.eventType == null && !(property.reservationId || '').trim()) {
-          return {
-            ...property,
-            cleaner: this.buildHiddenUserDropdownCell(),
-            carpet: this.buildHiddenUserDropdownCell(),
-            inspector: this.buildHiddenUserDropdownCell()
-          };
-        }
         const cleanerKey = (property.cleaner as unknown as { value?: string })?.value ?? (property.cleaner as unknown as string) ?? '';
         const carpetKey = (property.carpet as unknown as { value?: string })?.value ?? (property.carpet as unknown as string) ?? '';
         const inspectorKey = (property.inspector as unknown as { value?: string })?.value ?? (property.inspector as unknown as string) ?? '';

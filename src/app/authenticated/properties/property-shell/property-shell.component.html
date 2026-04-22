@@ -12,40 +12,50 @@
         @if (propertySection?.form) {
           <div class="header-title form-titlebar-fields-wrap">
             @if (propertySection?.showOfficeDropdown) {
-              @if (isHeaderOfficeEditable) {
-                <app-title-bar-select
-                  [label]="'Office'"
-                  [formFieldClass]="'titlebar-field-office'"
-                  [value]="titleBarOfficeId"
-                  [options]="officeOptions"
-                  [nullOptionLabel]="'Select Office'"
-                  [noResultsText]="'No offices match your search'"
-                  [labelRequiredAsterisk]="!!propertySection?.isAddMode"
-                  [showError]="!!propertySection?.showTitleBarOfficeError"
-                  [errorText]="'Required'"
-                  (valueChange)="onOfficeDropdownChange($event)">
-                </app-title-bar-select>
-              } @else {
-                <mat-form-field
-                  appearance="outline"
-                  class="titlebar-field-office"
-                  [class.mat-form-field-invalid]="propertySection?.showTitleBarOfficeError"
-                  [class.mat-mdc-form-field-invalid]="propertySection?.showTitleBarOfficeError">
-                  <mat-label>
-                    Office
-                    @if (propertySection?.isAddMode) {
-                      <span
-                        class="property-titlebar-mat-required-asterisk"
-                        [class.property-titlebar-mat-required-asterisk--error]="propertySection?.showTitleBarOfficeError"
-                        aria-hidden="true">*</span>
-                    }
-                  </mat-label>
-                  <input matInput [value]="sharedOfficeName" readonly [disabled]="true" class="readonly-field">
-                  @if (propertySection?.showTitleBarOfficeError) {
-                    <mat-error>Required</mat-error>
+              <app-title-bar-select
+                [label]="'Office'"
+                [formFieldClass]="'titlebar-field-office'"
+                [value]="titleBarGlobalOfficeId"
+                [options]="officeOptions"
+                [nullOptionLabel]="'All Offices'"
+                [noResultsText]="'No offices match your search'"
+                (valueChange)="onGlobalOfficeDropdownChange($event)">
+              </app-title-bar-select>
+            }
+
+            @if (isHeaderPropertyOfficeEditable) {
+              <app-title-bar-select
+                [label]="'Property Office'"
+                [formFieldClass]="'titlebar-field-office'"
+                [value]="titleBarPropertyOfficeId"
+                [options]="officeOptions"
+                [nullOptionLabel]="'Select Office'"
+                [noResultsText]="'No offices match your search'"
+                [labelRequiredAsterisk]="!!propertySection?.isAddMode"
+                [showError]="!!propertySection?.showTitleBarOfficeError"
+                [errorText]="'Required'"
+                (valueChange)="onPropertyOfficeDropdownChange($event)">
+              </app-title-bar-select>
+            } @else {
+              <mat-form-field
+                appearance="outline"
+                class="titlebar-field-office"
+                [class.mat-form-field-invalid]="propertySection?.showTitleBarOfficeError"
+                [class.mat-mdc-form-field-invalid]="propertySection?.showTitleBarOfficeError">
+                <mat-label>
+                  Property Office
+                  @if (propertySection?.isAddMode) {
+                    <span
+                      class="property-titlebar-mat-required-asterisk"
+                      [class.property-titlebar-mat-required-asterisk--error]="propertySection?.showTitleBarOfficeError"
+                      aria-hidden="true">*</span>
                   }
-                </mat-form-field>
-              }
+                </mat-label>
+                <input matInput [value]="sharedPropertyOfficeName" readonly [disabled]="true" class="readonly-field">
+                @if (propertySection?.showTitleBarOfficeError) {
+                  <mat-error>Required</mat-error>
+                }
+              </mat-form-field>
             }
 
             <mat-form-field
@@ -124,7 +134,7 @@
           <app-property-information
             [propertyId]="propertySection?.isAddMode ? null : (propertySection?.propertyId ?? null)"
             [copiedPropertyInformation]="propertySection?.copiedPropertyInformation ?? null"
-            [officeId]="titleBarOfficeId"
+            [officeId]="titleBarPropertyOfficeId"
             [propertyCode]="sharedPropertyCode"
             [hideOfficeAndPropertyCode]="true">
           </app-property-information>
@@ -134,7 +144,7 @@
           <app-property-welcome-letter
             [propertyId]="propertySection?.isAddMode ? null : (propertySection?.propertyId ?? null)"
             [titleBarReservationId]="titleBarReservationId"
-            [officeId]="titleBarOfficeId"
+            [officeId]="titleBarPropertyOfficeId"
             [propertyCode]="sharedPropertyCode"
             [hideOfficePropertyReservation]="true"
             [reservations]="propertySection?.reservations ?? []"
@@ -147,7 +157,7 @@
             #propertyEmailList
             [propertyId]="propertySection?.isAddMode ? null : (propertySection?.propertyId ?? null)"
             [propertyCode]="sharedPropertyCode"
-            [officeId]="titleBarOfficeId"
+            [officeId]="titleBarPropertyOfficeId"
             [reservationId]="titleBarReservationId"
             [emailTypeId]="EmailType.PropertyLetter"
             [source]="'property'"
@@ -165,7 +175,7 @@
             [propertyId]="propertySection?.isAddMode ? null : (propertySection?.propertyId ?? null)"
             [propertyCode]="sharedPropertyCode"
             [documentTypeId]="DocumentType.PropertyLetter"
-            [officeId]="titleBarOfficeId"
+            [officeId]="titleBarPropertyOfficeId"
             [reservationId]="titleBarReservationId"
             [source]="'property'"
             [reservations]="propertySection?.reservations ?? []"

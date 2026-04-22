@@ -46,7 +46,7 @@ export class EmailsShellComponent implements OnInit, OnDestroy {
   selectedReservationSummary: ReservationListResponse | null = null;
 
   offices: OfficeResponse[] = [];
-  showOfficeDropdown = true;
+  showOfficeDropdown = false;
   properties: PropertyListResponse[] = [];
   availableProperties: SearchableSelectOption[] = [];
   reservations: ReservationListResponse[] = [];
@@ -230,7 +230,7 @@ export class EmailsShellComponent implements OnInit, OnDestroy {
       },
       error: () => {
         this.offices = [];
-        this.showOfficeDropdown = true;
+        this.showOfficeDropdown = false;
         this.selectedOfficeId = null;
         this.refreshPropertyOptions();
         this.refreshReservationOptions();

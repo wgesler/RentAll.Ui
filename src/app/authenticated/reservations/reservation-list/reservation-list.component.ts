@@ -63,7 +63,7 @@ export class ReservationListComponent implements OnInit, OnDestroy, OnChanges {
   lastNavigationUrl = '';
 
   selectedOffice: OfficeResponse | null = null;
-  showOfficeDropdown: boolean = true;
+  showOfficeDropdown: boolean = false;
   user: any;
   isAdmin = false;
   

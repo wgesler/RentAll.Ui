@@ -64,7 +64,7 @@ export class EmailListComponent implements OnInit, OnDestroy, OnChanges {
   availableCompanyContacts: { value: ContactResponse, label: string }[] = [];
   selectedCompanyContact: ContactResponse | null = null;
   
-  showOfficeDropdown = true;
+  showOfficeDropdown = false;
   preferredOfficeId: number | null = null;
   officesSubscription?: Subscription;
   globalOfficeSubscription?: Subscription;
@@ -205,7 +205,7 @@ export class EmailListComponent implements OnInit, OnDestroy, OnChanges {
       },
       error: () => {
         this.offices = [];
-        this.showOfficeDropdown = true;
+        this.showOfficeDropdown = false;
         this.resolveOfficeScope(null, false);
       }
     });

@@ -49,7 +49,7 @@ export class ReservationShellComponent implements OnInit, AfterViewInit, OnDestr
   selectedOfficeId: number | null = null;
   selectedOffice: OfficeResponse | null = null;
   selectedPropertyIdSeed: string | null = null;
-  showOfficeDropdown: boolean = true;
+  showOfficeDropdown: boolean = false;
   selectedHeaderReservationId: string | null = null;
   routeReservationId: string | null = null;
   selectedReservationSummary: ReservationListResponse | null = null;
@@ -318,7 +318,7 @@ export class ReservationShellComponent implements OnInit, AfterViewInit, OnDestr
         this.availableOffices = this.mappingService.mapOfficesToDropdown(this.offices);
         if (this.selectedOfficeId != null) {
           this.resolveOfficeScope(this.selectedOfficeId);
-          this.showOfficeDropdown = true;
+          this.showOfficeDropdown = this.offices.length > 1;
           this.refreshHeaderReservationOptions();
           return;
         }

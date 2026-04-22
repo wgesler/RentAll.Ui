@@ -57,7 +57,7 @@ export class AlertListComponent implements OnInit, OnChanges, OnDestroy {
   selectedOfficeId: number | null = null;
   availableReservations: { value: ReservationListResponse; label: string }[] = [];
   selectedReservationId: string | null = null;
-  showOfficeDropdown = true;
+  showOfficeDropdown = false;
   preferredOfficeId: number | null = null;
   officesSubscription?: Subscription;
   globalOfficeSubscription?: Subscription;
@@ -168,7 +168,7 @@ export class AlertListComponent implements OnInit, OnChanges, OnDestroy {
       },
       error: () => {
         this.offices = [];
-        this.showOfficeDropdown = true;
+        this.showOfficeDropdown = false;
         this.resolveOfficeScope(null, false);
       }
     });

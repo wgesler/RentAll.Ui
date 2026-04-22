@@ -60,7 +60,7 @@ export class DocumentListComponent implements OnInit, OnDestroy, OnChanges {
   allDocuments: DocumentListDisplay[] = [];
   documentsDisplay: DocumentListDisplay[] = [];
   
-  showOfficeDropdown: boolean = true;
+  showOfficeDropdown: boolean = false;
   preferredOfficeId: number | null = null;
   offices: OfficeResponse[] = [];
   selectedOfficeId: number | null = null;
