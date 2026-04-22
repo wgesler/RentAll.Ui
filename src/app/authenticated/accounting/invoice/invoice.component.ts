@@ -417,7 +417,9 @@ export class InvoiceComponent implements OnInit, OnDestroy {
     const selectedReservation = this.reservations.find(res => res.reservationId === formValue.reservationId);
     const reservationCode = selectedReservation?.reservationCode || null;
     const invoicedAmount = this.calculateInvoicedAmount();
-    const paidAmount = this.calculatePaidAmount();
+    const paidAmount = this.isPaymentMode
+      ? this.calculateNewPaymentAmount()
+      : this.calculatePaidAmount();
     
     const invoiceRequest: InvoiceRequest = {
       organizationId: user?.organizationId || '',
@@ -1053,6 +1055,19 @@ export class InvoiceComponent implements OnInit, OnDestroy {
     }
     return this.ledgerLines.reduce((sum, line) => {
       if (this.isPaymentLine(line)) {
+        const amount = Math.abs(line.amount || 0);
+        return sum + amount;
+      }
+      return sum;
+    }, 0);
+  }
+
+  calculateNewPaymentAmount(): number {
+    if (!this.ledgerLines || this.ledgerLines.length === 0) {
+      return 0;
+    }
+    return this.ledgerLines.reduce((sum, line) => {
+      if (line.isNew === true && this.isPaymentLine(line)) {
         const amount = Math.abs(line.amount || 0);
         return sum + amount;
       }

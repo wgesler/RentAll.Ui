@@ -120,6 +120,10 @@
                           IsActive
                         </mat-checkbox>
                       }
+                      <button mat-raised-button type="button" color="accent" (click)="addLedgerLine()" 
+                        class="text-nowrap flex-shrink-0">
+                        {{ isAddMode ? 'Add Charge' : 'Add Line' }}
+                      </button>
                       @if (isAddMode) {
                         <button mat-raised-button type="button" color="accent" (click)="generateLedgerLines()" 
                           class="text-nowrap flex-shrink-0"
@@ -127,10 +131,6 @@
                           Get Charges
                         </button>
                       }
-                      <button mat-raised-button type="button" color="accent" (click)="addLedgerLine()" 
-                        class="text-nowrap flex-shrink-0">
-                        {{ isAddMode ? 'Add Charge' : 'Add Line' }}
-                      </button>
                       @if (!isAddMode && !isPaymentMode && invoice?.invoiceId) {
                         <button mat-raised-button type="button" color="primary" (click)="toInvoiceCreate(invoice, form.getRawValue())"
                           class="text-nowrap flex-shrink-0">

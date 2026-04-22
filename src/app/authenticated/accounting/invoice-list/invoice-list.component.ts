@@ -122,31 +122,6 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
     applyAmount: { displayAs: 'Apply', maxWidth: '20ch', alignment: 'right', headerAlignment: 'right' }
   };
 
-  get invoicesDisplayedColumns(): ColumnSet {
-    const columns = { ...this.baseInvoicesDisplayedColumns };
-    if (this.source === 'accounting' && this.isSuperUser) {
-      columns['reservationCode'] = { ...columns['reservationCode'], displayAs: 'Company' };
-    }
-    
-    // Only show applyAmount column when manual apply mode is active (Apply Manually button pressed)
-    if (!this.isManualApplyMode) {
-      // Return columns without applyAmount
-      const { applyAmount, ...columnsWithoutApply } = columns;
-      return columnsWithoutApply;
-    }
-    
-    return columns;
-  }
-
-  get dueInvoicesCount(): number {
-    return this.invoicesDisplay.filter(invoice => (invoice?.dueAmountValue || 0) > 0).length;
-  }
-
-  get canShowApplyPaymentButton(): boolean {
-    const hasReservationOrCompanySelection = !!this.selectedReservation || !!this.selectedCompanyContact;
-    return hasReservationOrCompanySelection && this.dueInvoicesCount > 1;
-  }
-
   ledgerLinesDisplayedColumns: ColumnSet = {
     lineNo: { displayAs: 'No', maxWidth: '5ch', wrap: false, alignment: 'left' },
     costCode: { displayAs: 'Cost Code', maxWidth: '25ch', wrap: false },
@@ -157,11 +132,6 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
 
   itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['offices', 'reservations', 'invoices', 'officeScope']));
   isLoading$: Observable<boolean> = this.itemsToLoad$.pipe(map(items => items.size > 0));
-  get useRouteQueryParams(): boolean {
-    // When embedded in parent tabs, parent inputs are the source of truth.
-    // Keep Accounting defaults at All* and avoid route-driven preselection.
-    return this.source !== 'reservation' && this.source !== 'accounting';
-  }
 
   constructor(
     public accountingService: InvoiceService,
@@ -556,20 +526,6 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
   //#endregion
 
   //#region Filter methods
-  getCompanyIdToApply(): string | null {
-    if (this.companyId !== null && this.companyId !== undefined && this.companyId !== '') {
-      return this.companyId;
-    }
-
-    // In embedded reservation mode, never consume route query params.
-    if (!this.useRouteQueryParams) {
-      return null;
-    }
-
-    const routeCompanyId = this.route.snapshot.queryParams['companyId'];
-    return routeCompanyId ? String(routeCompanyId) : null;
-  }
-
   toggleInactive(): void {
     this.showInactive = !this.showInactive;
     this.applyFilters();
@@ -674,58 +630,6 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
     this.updateIsAllExpanded();
   }
 
-  getPaidAmountFromLedgerLines(ledgerLines: any[], officeId: number): number {
-    if (!ledgerLines || ledgerLines.length === 0) {
-      return 0;
-    }
-
-    return ledgerLines.reduce((sum, line) => {
-      const transactionTypeId = line?.transactionTypeId ?? this.getTransactionTypeIdFromCostCode(line?.costCodeId, officeId);
-      const transactionTypeLabel = (line?.transactionType || '').toString().toLowerCase();
-      const isPaymentLine = transactionTypeId === TransactionType.Payment || transactionTypeLabel === 'payment';
-
-      if (isPaymentLine) {
-        const amount = Number(line?.amount || 0);
-        return sum + Math.abs(isNaN(amount) ? 0 : amount);
-      }
-
-      return sum;
-    }, 0);
-  }
-
-  getTransactionTypeIdFromCostCode(costCodeId: string | null | undefined, officeId: number): number | null {
-    if (!costCodeId) {
-      return null;
-    }
-
-    const matchingCostCode = this.allCostCodes.find(c => c.costCodeId === costCodeId && c.officeId === officeId);
-    return matchingCostCode?.transactionTypeId ?? null;
-  }
-
-  getRecipientDisplay(invoice: InvoiceResponse): string {
-    if (this.source === 'accounting' && this.isSuperUser) {
-      return this.getOrganizationNameById(invoice.reservationId)
-        || this.organizationName
-        || invoice.responsibleParty
-        || '';
-    }
-    return invoice.responsibleParty || '';
-  }
-
-  getCompanyCodeDisplay(invoice: InvoiceResponse): string {
-    if (this.source === 'accounting' && this.isSuperUser) {
-      return invoice.reservationCode || '-';
-    }
-    return invoice.reservationCode || '-';
-  }
-
-  getOrganizationNameById(organizationId: string | null | undefined): string | null {
-    if (!organizationId) {
-      return null;
-    }
-    return this.organizationOptions.find(organization => organization.value === organizationId)?.label || null;
-  }
-
   filterReservations(): void {
     // When All Offices is selected, show the full reservation list as loaded for this login.
     let filteredReservations = this.selectedOffice
@@ -800,33 +704,29 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
       }
     }
   }
-
-  toggleExpandAll(expanded: boolean): void {
-    this.isAllExpanded = expanded;
-    if (expanded) {
-      // Expand all: add all invoice IDs to the set
-      this.invoicesDisplay.forEach(invoice => {
-        if (invoice.invoiceId) {
-          this.expandedInvoices.add(invoice.invoiceId);
-        }
-      });
-    } else {
-      // Collapse all: clear the set
-      this.expandedInvoices.clear();
-    }
-    // Update the expanded state for all invoices
-    this.applyFilters();
-  }
-
-  updateIsAllExpanded(): void {
-    // Check if all visible invoices are expanded
-    if (this.invoicesDisplay.length === 0) {
-      this.isAllExpanded = false;
+    
+  filterCostCodes(): void {
+    if (!this.selectedOffice) {
+      this.costCodes = [];
+      this.availableCostCodes = [];
+      this.creditCostCodes = [];
       return;
     }
-    this.isAllExpanded = this.invoicesDisplay.every(invoice => 
-      invoice.invoiceId && this.expandedInvoices.has(invoice.invoiceId)
-    );
+    
+    // Get cost codes for the selected office from the observable data
+    this.costCodes = this.costCodesService.getCostCodesForOffice(this.selectedOffice.officeId);
+    this.availableCostCodes = this.costCodes.filter(c => c.isActive).map(c => ({
+        value: c.costCodeId,
+        label: `${c.costCode}: ${c.description}`
+      }));
+    
+    // Filter to only credit cost codes (transactionTypeId === Payment) for payment form
+    this.creditCostCodes = this.costCodes
+      .filter(c => c.isActive && c.transactionTypeId === TransactionType.Payment)
+      .map(c => ({
+        value: parseInt(c.costCodeId, 10),
+        label: `${c.costCode}: ${c.description}`
+      }));
   }
 
   ensureInvoiceLedgerLinesLoaded(invoiceId: string | null | undefined): void {
@@ -860,32 +760,36 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
       },
       error: () => {}
     });
-  }
+  }  
   //#endregion
 
-  //#region Dropdowns
-  filterCostCodes(): void {
-    if (!this.selectedOffice) {
-      this.costCodes = [];
-      this.availableCostCodes = [];
-      this.creditCostCodes = [];
+  //#region Expand All Methods
+  toggleExpandAll(expanded: boolean): void {
+    this.isAllExpanded = expanded;
+    if (expanded) {
+      // Expand all: add all invoice IDs to the set
+      this.invoicesDisplay.forEach(invoice => {
+        if (invoice.invoiceId) {
+          this.expandedInvoices.add(invoice.invoiceId);
+        }
+      });
+    } else {
+      // Collapse all: clear the set
+      this.expandedInvoices.clear();
+    }
+    // Update the expanded state for all invoices
+    this.applyFilters();
+  }
+
+  updateIsAllExpanded(): void {
+    // Check if all visible invoices are expanded
+    if (this.invoicesDisplay.length === 0) {
+      this.isAllExpanded = false;
       return;
     }
-    
-    // Get cost codes for the selected office from the observable data
-    this.costCodes = this.costCodesService.getCostCodesForOffice(this.selectedOffice.officeId);
-    this.availableCostCodes = this.costCodes.filter(c => c.isActive).map(c => ({
-        value: c.costCodeId,
-        label: `${c.costCode}: ${c.description}`
-      }));
-    
-    // Filter to only credit cost codes (transactionTypeId === Payment) for payment form
-    this.creditCostCodes = this.costCodes
-      .filter(c => c.isActive && c.transactionTypeId === TransactionType.Payment)
-      .map(c => ({
-        value: parseInt(c.costCodeId, 10),
-        label: `${c.costCode}: ${c.description}`
-      }));
+    this.isAllExpanded = this.invoicesDisplay.every(invoice => 
+      invoice.invoiceId && this.expandedInvoices.has(invoice.invoiceId)
+    );
   }
   //#endregion
 
@@ -1046,6 +950,128 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
         window.scrollTo({ top: scrollTop, behavior: 'auto' });
       }
     });
+  }
+  //#endregion
+
+  //#region Get Methods
+  get invoicesDisplayedColumns(): ColumnSet {
+    const columns = { ...this.baseInvoicesDisplayedColumns };
+    if (this.source === 'accounting' && this.isSuperUser) {
+      columns['reservationCode'] = { ...columns['reservationCode'], displayAs: 'Company' };
+    }
+    
+    // Only show applyAmount column when manual apply mode is active (Apply Manually button pressed)
+    if (!this.isManualApplyMode) {
+      // Return columns without applyAmount
+      const { applyAmount, ...columnsWithoutApply } = columns;
+      return columnsWithoutApply;
+    }
+    
+    return columns;
+  }
+
+  get dueInvoicesCount(): number {
+    return this.invoicesDisplay.filter(invoice => (invoice?.dueAmountValue || 0) > 0).length;
+  }
+
+  get canShowApplyPaymentButton(): boolean {
+    const hasReservationOrCompanySelection = !!this.selectedReservation || !!this.selectedCompanyContact;
+    return hasReservationOrCompanySelection && this.dueInvoicesCount > 1;
+  }
+
+  get useRouteQueryParams(): boolean {
+    // When embedded in parent tabs, parent inputs are the source of truth.
+    // Keep Accounting defaults at All* and avoid route-driven preselection.
+    return this.source !== 'reservation' && this.source !== 'accounting';
+  }
+
+  get isPaymentFormValid(): boolean {
+    const baseValid = !!this.selectedPaymentCostCodeId && this.paymentAmount !== 0;
+    
+    // In manual apply mode, also require that remaining amount equals 0
+    if (this.isManualApplyMode) {
+      return baseValid && this.remainingAmount === 0;
+    }
+    
+    return baseValid;
+  }
+
+  getPaymentRequestDescription(): string {
+    const trimmedDescription = (this.paymentDescription || '').trim();
+    if (trimmedDescription) {
+      return trimmedDescription;
+    }
+
+    // Ensure each payment request gets a concrete description so it is persisted as a distinct line.
+    const now = new Date();
+    const isoStamp = now.toISOString().replace('T', ' ').slice(0, 19);
+    return `Payment ${isoStamp}`;
+  }
+
+  getCompanyIdToApply(): string | null {
+    if (this.companyId !== null && this.companyId !== undefined && this.companyId !== '') {
+      return this.companyId;
+    }
+
+    // In embedded reservation mode, never consume route query params.
+    if (!this.useRouteQueryParams) {
+      return null;
+    }
+
+    const routeCompanyId = this.route.snapshot.queryParams['companyId'];
+    return routeCompanyId ? String(routeCompanyId) : null;
+  }
+
+  getPaidAmountFromLedgerLines(ledgerLines: any[], officeId: number): number {
+    if (!ledgerLines || ledgerLines.length === 0) {
+      return 0;
+    }
+
+    return ledgerLines.reduce((sum, line) => {
+      const transactionTypeId = line?.transactionTypeId ?? this.getTransactionTypeIdFromCostCode(line?.costCodeId, officeId);
+      const transactionTypeLabel = (line?.transactionType || '').toString().toLowerCase();
+      const isPaymentLine = transactionTypeId === TransactionType.Payment || transactionTypeLabel === 'payment';
+
+      if (isPaymentLine) {
+        const amount = Number(line?.amount || 0);
+        return sum + Math.abs(isNaN(amount) ? 0 : amount);
+      }
+
+      return sum;
+    }, 0);
+  }
+
+  getTransactionTypeIdFromCostCode(costCodeId: string | null | undefined, officeId: number): number | null {
+    if (!costCodeId) {
+      return null;
+    }
+
+    const matchingCostCode = this.allCostCodes.find(c => c.costCodeId === costCodeId && c.officeId === officeId);
+    return matchingCostCode?.transactionTypeId ?? null;
+  }
+
+  getRecipientDisplay(invoice: InvoiceResponse): string {
+    if (this.source === 'accounting' && this.isSuperUser) {
+      return this.getOrganizationNameById(invoice.reservationId)
+        || this.organizationName
+        || invoice.responsibleParty
+        || '';
+    }
+    return invoice.responsibleParty || '';
+  }
+
+  getCompanyCodeDisplay(invoice: InvoiceResponse): string {
+    if (this.source === 'accounting' && this.isSuperUser) {
+      return invoice.reservationCode || '-';
+    }
+    return invoice.reservationCode || '-';
+  }
+
+  getOrganizationNameById(organizationId: string | null | undefined): string | null {
+    if (!organizationId) {
+      return null;
+    }
+    return this.organizationOptions.find(organization => organization.value === organizationId)?.label || null;
   }
 
   getTransactionTypeLabel(transactionTypeId: number): string {
@@ -1276,6 +1302,7 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
 
     // Process payments sequentially to avoid race conditions
     // Create an array of payment data
+    const paymentDescription = this.getPaymentRequestDescription();
     const paymentData = invoicesWithPayments.map(invoice => {
       const paidAmount = Math.abs(invoice.applyAmountValue || 0); // Convert negative to positive
       return {
@@ -1283,7 +1310,7 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
         paidAmount,
         paymentRequest: {
           costCodeId: this.selectedPaymentCostCodeId!,
-          description: this.paymentDescription || '',
+          description: paymentDescription,
           amount: paidAmount,
           invoices: [invoice.invoiceId] // Single invoice per request
         } as InvoicePaymentRequest
@@ -1334,8 +1361,8 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
   applyPayment(invoiceIds: string[]): void {
     const paymentRequest: InvoicePaymentRequest = {
       costCodeId: this.selectedPaymentCostCodeId!,
-      description: this.paymentDescription || '',
-      amount: Math.abs(this.paymentAmount), // Payment should be positive
+      description: this.getPaymentRequestDescription(),
+      amount: Math.abs(this.paymentAmount),
       invoices: invoiceIds
     };
 
@@ -1465,17 +1492,6 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
     }
   }
 
-  get isPaymentFormValid(): boolean {
-    const baseValid = !!this.selectedPaymentCostCodeId && this.paymentAmount !== 0;
-    
-    // In manual apply mode, also require that remaining amount equals 0
-    if (this.isManualApplyMode) {
-      return baseValid && this.remainingAmount === 0;
-    }
-    
-    return baseValid;
-  }
-
   handlePaymentResponse(response: InvoicePaymentResponse, paymentRequest: InvoicePaymentRequest): void {
     this.toastr.success(`Payment of $${this.formatter.currency(paymentRequest.amount)} applied`, CommonMessage.Success);
     response.invoices.forEach(i => {
@@ -1544,7 +1560,7 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
   //#endregion
 
   //#region Total Row Methods
-   get totalAmountSum(): number {
+  get totalAmountSum(): number {
     return this.invoicesDisplay.reduce((sum, inv) => sum + (inv.totalAmountValue || 0), 0);
   }
 
