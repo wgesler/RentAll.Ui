@@ -29,7 +29,7 @@
       </div>
       }
       <mat-card>
-        <form id="colorForm" [formGroup]="form" (ngSubmit)="saveColor()" (keydown.enter)="onEnterKey($event)" class="info-form mb-8 form-hide-error-text" [class.pt-5]="!embeddedInSettings" [class.pt-10]="embeddedInSettings">
+        <form id="colorForm" [formGroup]="form" (ngSubmit)="saveColor()" (keydown.enter)="onEnterKey($event)" class="info-form mb-8 form-hide-error-text" [class.pt-5]="!embeddedInSettings" [class.settings-embedded-edit-top-offset]="embeddedInSettings">
             <div class="grid grid-cols-4 gap-x-1.5 gap-y-1">
               @if (embeddedInSettings) {
                 <div class="col-span-4 flex justify-end settings-embedded-edit-actions">

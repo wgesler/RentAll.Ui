@@ -29,6 +29,7 @@ export class RegionComponent implements OnInit, OnDestroy, OnChanges {
   @Input() id: string | number | null = null;
   @Input() embeddedInSettings: boolean = false;
   @Output() backEvent = new EventEmitter<void>();
+  @Output() savedEvent = new EventEmitter<void>();
   @ViewChild('firstInput') firstInputRef: ElementRef<HTMLInputElement>;
   
   isServiceError: boolean = false;
@@ -145,6 +146,7 @@ export class RegionComponent implements OnInit, OnDestroy, OnChanges {
       this.regionService.createRegion(regionRequest).pipe(take(1), finalize(() => this.isSubmitting = false)).subscribe({
         next: (response: RegionResponse) => {
           this.toastr.success('Region created successfully', CommonMessage.Success, { timeOut: CommonTimeouts.Success });
+          this.savedEvent.emit();
           this.backEvent.emit();
         },
         error: (err: HttpErrorResponse) => {
@@ -165,6 +167,7 @@ export class RegionComponent implements OnInit, OnDestroy, OnChanges {
       this.regionService.updateRegion(regionRequest).pipe(take(1), finalize(() => this.isSubmitting = false)).subscribe({
         next: (response: RegionResponse) => {
           this.toastr.success('Region updated successfully', CommonMessage.Success, { timeOut: CommonTimeouts.Success });
+          this.savedEvent.emit();
           this.backEvent.emit();
         },
         error: (err: HttpErrorResponse) => {

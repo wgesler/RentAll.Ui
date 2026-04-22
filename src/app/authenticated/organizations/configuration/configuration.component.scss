@@ -86,17 +86,35 @@
   }
 }
 
-/* Settings accordion embedded lists: remove extra top gaps so list Add aligns with embedded Save. */
-.agents-container .list-layout-tabbed .list-top-controls.list-top-controls--tabbed {
+/* Settings accordion embedded lists: tighten top/action band spacing to align with embedded Save row. */
+:host ::ng-deep .agents-container .list-layout-tabbed .list-top-controls.list-top-controls--tabbed {
   margin-top: 0 !important;
-}
-
-.agents-container .list-layout-tabbed app-data-table .datatable-search-wrap {
-  margin-top: 0 !important;
-}
-
-.agents-container .list-layout-tabbed .tableDiv {
   padding-top: 0 !important;
+}
+
+:host ::ng-deep .agents-container .list-layout-tabbed .tableDiv {
+  padding-top: 0 !important;
+  margin-top: 0 !important;
+}
+
+:host ::ng-deep .agents-container .list-layout-tabbed app-data-table .datatable-search-wrap {
+  min-height: var(--settings-embedded-actions-band-height) !important;
+  padding-top: 0 !important;
+  padding-bottom: 0 !important;
+  margin-top: 0 !important;
+  margin-bottom: var(--settings-embedded-actions-band-margin-bottom) !important;
+}
+
+/* Embedded settings lists: match add/edit action-row top offset exactly. */
+:host ::ng-deep .agents-container app-office-list .list-layout-tabbed .tableDiv,
+:host ::ng-deep .agents-container app-accounting-office-list .list-layout-tabbed .tableDiv,
+:host ::ng-deep .agents-container app-agent-list .list-layout-tabbed .tableDiv,
+:host ::ng-deep .agents-container app-region-list .list-layout-tabbed .tableDiv,
+:host ::ng-deep .agents-container app-area-list .list-layout-tabbed .tableDiv,
+:host ::ng-deep .agents-container app-building-list .list-layout-tabbed .tableDiv,
+:host ::ng-deep .agents-container app-color-list .list-layout-tabbed .tableDiv,
+:host ::ng-deep .agents-container app-cost-codes-list .list-layout-tabbed .tableDiv {
+  margin-top: calc(var(--settings-embedded-actions-top-offset) - var(--settings-embedded-list-actions-visual-adjust)) !important;
 }
 
 .organization-info-form {

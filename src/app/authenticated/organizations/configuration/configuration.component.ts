@@ -80,21 +80,28 @@ export class ConfigurationComponent implements OnInit, OnDestroy {
   };
   isEditingAgent: boolean = false;
   agentId: string | null = null;
+  shouldRefreshAgents: boolean = false;
   isEditingOffice: boolean = false;
   officeId: string | number | null = null;
   copyOfficeData: OfficeResponse | null = null;
+  shouldRefreshOffices: boolean = false;
   isEditingAccountingOffice: boolean = false;
   accountingOfficeId: string | number | null = null;
   copyAccountingOfficeData: AccountingOfficeResponse | null = null;
+  shouldRefreshAccountingOffices: boolean = false;
   isEditingRegion: boolean = false;
   regionId: string | number | null = null;
+  shouldRefreshRegions: boolean = false;
   isEditingArea: boolean = false;
   areaId: string | number | null = null;
+  shouldRefreshAreas: boolean = false;
   isEditingBuilding: boolean = false;
   buildingId: string | number | null = null;
+  shouldRefreshBuildings: boolean = false;
   selectedCostCodesOfficeId: number | null = null;
   isEditingColor: boolean = false;
   colorId: string | number | null = null;
+  shouldRefreshColors: boolean = false;
 
   // Organization dropdown (SuperAdmin only)
   isSuperAdmin: boolean = false;
@@ -242,10 +249,17 @@ export class ConfigurationComponent implements OnInit, OnDestroy {
   }
 
   onOfficeBack(): void {
-    this.officeListComponent?.getOffices();
+    if (this.shouldRefreshOffices) {
+      this.officeListComponent?.getOffices();
+    }
+    this.shouldRefreshOffices = false;
     this.officeId = null;
     this.copyOfficeData = null;
     this.isEditingOffice = false;
+  }
+
+  onOfficeSaved(): void {
+    this.shouldRefreshOffices = true;
   }
 
   onAccountingOfficeSelected(accountingOfficeId: string | number | null): void {
@@ -265,10 +279,17 @@ export class ConfigurationComponent implements OnInit, OnDestroy {
   }
 
   onAccountingOfficeBack(): void {
-    this.accountingOfficeListComponent?.getAccountingOffices();
+    if (this.shouldRefreshAccountingOffices) {
+      this.accountingOfficeListComponent?.getAccountingOffices();
+    }
+    this.shouldRefreshAccountingOffices = false;
     this.accountingOfficeId = null;
     this.copyAccountingOfficeData = null;
     this.isEditingAccountingOffice = false;
+  }
+
+  onAccountingOfficeSaved(): void {
+    this.shouldRefreshAccountingOffices = true;
   }
 
   onAgentSelected(agentId: string | number | null): void {
@@ -280,9 +301,16 @@ export class ConfigurationComponent implements OnInit, OnDestroy {
   }
 
   onAgentBack(): void {
-    this.agentListComponent?.getAgents();
+    if (this.shouldRefreshAgents) {
+      this.agentListComponent?.getAgents();
+    }
+    this.shouldRefreshAgents = false;
     this.agentId = null;
     this.isEditingAgent = false;
+  }
+
+  onAgentSaved(): void {
+    this.shouldRefreshAgents = true;
   }
 
   onRegionSelected(regionId: string | number | null): void {
@@ -294,9 +322,16 @@ export class ConfigurationComponent implements OnInit, OnDestroy {
   }
 
   onRegionBack(): void {
-    this.regionListComponent?.getRegions();
+    if (this.shouldRefreshRegions) {
+      this.regionListComponent?.getRegions();
+    }
+    this.shouldRefreshRegions = false;
     this.regionId = null;
     this.isEditingRegion = false;
+  }
+
+  onRegionSaved(): void {
+    this.shouldRefreshRegions = true;
   }
 
   onAreaSelected(areaId: string | number | null): void {
@@ -308,9 +343,16 @@ export class ConfigurationComponent implements OnInit, OnDestroy {
   }
 
   onAreaBack(): void {
-    this.areaListComponent?.getAreas();
+    if (this.shouldRefreshAreas) {
+      this.areaListComponent?.getAreas();
+    }
+    this.shouldRefreshAreas = false;
     this.areaId = null;
     this.isEditingArea = false;
+  }
+
+  onAreaSaved(): void {
+    this.shouldRefreshAreas = true;
   }
 
   onBuildingSelected(buildingId: string | number | null): void {
@@ -322,9 +364,16 @@ export class ConfigurationComponent implements OnInit, OnDestroy {
   }
 
   onBuildingBack(): void {
-    this.buildingListComponent?.getBuildings();
+    if (this.shouldRefreshBuildings) {
+      this.buildingListComponent?.getBuildings();
+    }
+    this.shouldRefreshBuildings = false;
     this.buildingId = null;
     this.isEditingBuilding = false;
+  }
+
+  onBuildingSaved(): void {
+    this.shouldRefreshBuildings = true;
   }
 
   onColorSelected(colorId: string | number | null): void {
@@ -336,9 +385,16 @@ export class ConfigurationComponent implements OnInit, OnDestroy {
   }
 
   onColorBack(): void {
-    this.colorListComponent?.getColors();
+    if (this.shouldRefreshColors) {
+      this.colorListComponent?.getColors();
+    }
+    this.shouldRefreshColors = false;
     this.colorId = null;
     this.isEditingColor = false;
+  }
+
+  onColorSaved(): void {
+    this.shouldRefreshColors = true;
   }
 
   onPanelOpened(section: string): void {

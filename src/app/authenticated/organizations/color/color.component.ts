@@ -27,6 +27,7 @@ export class ColorComponent implements OnInit, OnDestroy, OnChanges {
   @Input() id: string | number | null = null;
   @Input() embeddedInSettings: boolean = false;
   @Output() backEvent = new EventEmitter<void>();
+  @Output() savedEvent = new EventEmitter<void>();
   @ViewChild('firstInput') firstInputRef: MatSelect;
   
   isServiceError: boolean = false;
@@ -141,6 +142,7 @@ export class ColorComponent implements OnInit, OnDestroy, OnChanges {
       this.colorService.createColor(colorRequest).pipe(take(1), finalize(() => this.isSubmitting = false)).subscribe({
         next: (response: ColorResponse) => {
           this.toastr.success('Color created successfully', CommonMessage.Success, { timeOut: CommonTimeouts.Success });
+          this.savedEvent.emit();
           this.backEvent.emit();
         },
         error: (_err: HttpErrorResponse) => {}
@@ -158,6 +160,7 @@ export class ColorComponent implements OnInit, OnDestroy, OnChanges {
       this.colorService.updateColor(colorRequest).pipe(take(1), finalize(() => this.isSubmitting = false)).subscribe({
         next: (response: ColorResponse) => {
           this.toastr.success('Color updated successfully', CommonMessage.Success, { timeOut: CommonTimeouts.Success });
+          this.savedEvent.emit();
           this.backEvent.emit();
         },
         error: (_err: HttpErrorResponse) => {}

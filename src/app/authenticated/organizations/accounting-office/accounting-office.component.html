@@ -29,7 +29,7 @@
       </div>
       }
       <mat-card>
-        <form id="accountingOfficeForm" [formGroup]="form" (ngSubmit)="saveOffice()" (keydown.enter)="onEnterKey($event)" class="info-form mb-8 form-hide-error-text" [class.pt-5]="!embeddedInSettings" [class.pt-10]="embeddedInSettings">
+        <form id="accountingOfficeForm" [formGroup]="form" (ngSubmit)="saveOffice()" (keydown.enter)="onEnterKey($event)" class="info-form mb-8 form-hide-error-text" [class.pt-5]="!embeddedInSettings" [class.settings-embedded-edit-top-offset]="embeddedInSettings">
             <div class="mb-4 flex justify-end" [class.settings-embedded-edit-actions]="embeddedInSettings">
               <mat-checkbox formControlName="isActive" color="primary">
                 IsActive

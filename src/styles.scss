@@ -40,6 +40,14 @@
   --titlebar-field-min-invoice-no: 24ch;
   --titlebar-field-min-reservation: 120px;
   --titlebar-field-min-document-type: 100px;
+  --global-action-button-height: 36px;
+  --global-action-button-radius: 6px;
+  --global-action-button-padding-x: 14px;
+  /* Settings accordion alignment: shared top offset for embedded action rows/lists. */
+  --settings-embedded-actions-top-offset: 1.5rem;
+  --settings-embedded-list-actions-visual-adjust: 0.1875rem;
+  --settings-embedded-actions-band-height: 2.75rem;
+  --settings-embedded-actions-band-margin-bottom: 0.75rem;
 }
 
 .titlebar-alert-bell-icon {
@@ -1196,14 +1204,19 @@ mat-form-field.company-dropdown {
   align-items: center;
   justify-content: flex-end;
   gap: 0.75rem;
+  min-height: var(--settings-embedded-actions-band-height);
+  padding-top: 0;
+  padding-bottom: 0;
   padding-right: calc(1rem + var(--datatable-search-wrap-extra-padding-right));
-  margin-bottom: 1rem;
+  margin-bottom: var(--settings-embedded-actions-band-margin-bottom);
+  box-sizing: border-box;
 }
 
 .settings-embedded-edit-actions .mat-mdc-raised-button {
-  min-height: 36px;
-  border-radius: 6px;
-  padding: 0 14px;
+  min-height: var(--global-action-button-height);
+  height: var(--global-action-button-height);
+  border-radius: var(--global-action-button-radius);
+  padding: 0 var(--global-action-button-padding-x);
 }
 
 .settings-section-stack {
@@ -1212,6 +1225,10 @@ mat-form-field.company-dropdown {
 
 .settings-section-hidden {
   display: none !important;
+}
+
+.settings-embedded-edit-top-offset {
+  padding-top: var(--settings-embedded-actions-top-offset) !important;
 }
 
 .page-loading-container {
@@ -1581,15 +1598,17 @@ mat-form-field input,
 }
 
 .list-top-actions--standard button[mat-raised-button] {
-  height: 36px;
-  border-radius: 6px;
-  padding: 0 14px;
+  height: var(--global-action-button-height);
+  min-height: var(--global-action-button-height);
+  border-radius: var(--global-action-button-radius);
+  padding: 0 var(--global-action-button-padding-x);
 }
 
 .list-top-actions--tabbed button[mat-raised-button] {
-  height: 34px;
-  border-radius: 4px;
-  padding: 0 12px;
+  height: var(--global-action-button-height);
+  min-height: var(--global-action-button-height);
+  border-radius: var(--global-action-button-radius);
+  padding: 0 var(--global-action-button-padding-x);
 }
 
 /* Shared app-data-table top-row styles for non-tabbed pages */
@@ -1634,8 +1653,10 @@ app-data-table .datatable-search-wrap {
 }
 
 .list-layout-standard app-data-table .datatable-add-btn {
-  min-height: 36px;
-  border-radius: 6px;
+  min-height: var(--global-action-button-height);
+  height: var(--global-action-button-height);
+  border-radius: var(--global-action-button-radius);
+  padding: 0 var(--global-action-button-padding-x);
 }
 
 /*
@@ -1669,8 +1690,10 @@ app-data-table .datatable-search-wrap {
 }
 
 .list-layout-tabbed app-data-table .datatable-add-btn {
-  min-height: 34px;
-  border-radius: 4px;
+  min-height: var(--global-action-button-height);
+  height: var(--global-action-button-height);
+  border-radius: var(--global-action-button-radius);
+  padding: 0 var(--global-action-button-padding-x);
 }
 
 /* Desktop: stretch filter + actions to same row height (mobile column layout unchanged). */

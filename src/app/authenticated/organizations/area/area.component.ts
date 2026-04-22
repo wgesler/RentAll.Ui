@@ -29,6 +29,7 @@ export class AreaComponent implements OnInit, OnDestroy, OnChanges {
   @Input() id: string | number | null = null;
   @Input() embeddedInSettings: boolean = false;
   @Output() backEvent = new EventEmitter<void>();
+  @Output() savedEvent = new EventEmitter<void>();
   @ViewChild('firstInput') firstInputRef: ElementRef<HTMLInputElement>;
   
   isServiceError: boolean = false;
@@ -143,6 +144,7 @@ export class AreaComponent implements OnInit, OnDestroy, OnChanges {
       this.areaService.createArea(areaRequest).pipe(take(1), finalize(() => this.isSubmitting = false)).subscribe({
         next: (response: AreaResponse) => {
           this.toastr.success('Area created successfully', CommonMessage.Success, { timeOut: CommonTimeouts.Success });
+          this.savedEvent.emit();
           this.backEvent.emit();
         },
         error: (_err: HttpErrorResponse) => {}
@@ -159,6 +161,7 @@ export class AreaComponent implements OnInit, OnDestroy, OnChanges {
       this.areaService.updateArea(areaRequest).pipe(take(1), finalize(() => this.isSubmitting = false)).subscribe({
         next: (response: AreaResponse) => {
           this.toastr.success('Area updated successfully', CommonMessage.Success, { timeOut: CommonTimeouts.Success });
+          this.savedEvent.emit();
           this.backEvent.emit();
         },
         error: (_err: HttpErrorResponse) => {}

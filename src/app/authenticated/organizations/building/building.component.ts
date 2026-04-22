@@ -30,6 +30,7 @@ export class BuildingComponent implements OnInit, OnDestroy, OnChanges {
   @Input() id: string | number | null = null;
   @Input() embeddedInSettings: boolean = false;
   @Output() backEvent = new EventEmitter<void>();
+  @Output() savedEvent = new EventEmitter<void>();
   @ViewChild('firstInput') firstInputRef: ElementRef<HTMLInputElement>;
   
   isServiceError: boolean = false;
@@ -170,6 +171,7 @@ export class BuildingComponent implements OnInit, OnDestroy, OnChanges {
       this.buildingService.createBuilding(buildingRequest).pipe(take(1), finalize(() => this.isSubmitting = false)).subscribe({
         next: (response: BuildingResponse) => {
           this.toastr.success('Building created successfully', CommonMessage.Success, { timeOut: CommonTimeouts.Success });
+          this.savedEvent.emit();
           this.backEvent.emit();
         },
         error: (_err: HttpErrorResponse) => {}
@@ -186,6 +188,7 @@ export class BuildingComponent implements OnInit, OnDestroy, OnChanges {
       this.buildingService.updateBuilding(buildingRequest).pipe(take(1), finalize(() => this.isSubmitting = false)).subscribe({
         next: (response: BuildingResponse) => {
           this.toastr.success('Building updated successfully', CommonMessage.Success, { timeOut: CommonTimeouts.Success });
+          this.savedEvent.emit();
           this.backEvent.emit();
         },
         error: (_err: HttpErrorResponse) => {}

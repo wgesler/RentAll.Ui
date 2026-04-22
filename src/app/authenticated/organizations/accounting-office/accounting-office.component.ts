@@ -34,6 +34,7 @@ export class AccountingOfficeComponent implements OnInit, OnDestroy, OnChanges {
   @Input() copyFrom: AccountingOfficeResponse | null = null; // When set in add mode, form is pre-filled (name cleared)
   @Input() embeddedInSettings: boolean = false;
   @Output() backEvent = new EventEmitter<void>();
+  @Output() savedEvent = new EventEmitter<void>();
   @ViewChild('firstInput') firstInputRef: MatSelect;
   
   isServiceError: boolean = false;
@@ -247,6 +248,7 @@ export class AccountingOfficeComponent implements OnInit, OnDestroy, OnChanges {
       this.accountingOfficeService.createAccountingOffice(officeRequest).pipe(take(1), finalize(() => this.isSubmitting = false)).subscribe({
         next: (response: AccountingOfficeResponse) => {
           this.toastr.success('Office created successfully', CommonMessage.Success, { timeOut: CommonTimeouts.Success });
+          this.savedEvent.emit();
           this.backEvent.emit();
         },
         error: (_err: HttpErrorResponse) => {}
@@ -265,6 +267,7 @@ export class AccountingOfficeComponent implements OnInit, OnDestroy, OnChanges {
       this.accountingOfficeService.updateAccountingOffice(officeRequest).pipe(take(1), finalize(() => this.isSubmitting = false)).subscribe({
         next: (response: AccountingOfficeResponse) => {
           this.toastr.success('Office updated successfully', CommonMessage.Success, { timeOut: CommonTimeouts.Success });
+          this.savedEvent.emit();
           this.backEvent.emit();
         },
         error: (_err: HttpErrorResponse) => {}

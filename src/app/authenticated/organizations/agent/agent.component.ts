@@ -29,6 +29,7 @@ export class AgentComponent implements OnInit, OnDestroy, OnChanges {
   @Input() agentId: string | number | null = null;
   @Input() embeddedInSettings: boolean = false;
   @Output() backEvent = new EventEmitter<void>();
+  @Output() savedEvent = new EventEmitter<void>();
   @ViewChild('firstInput') firstInputRef: ElementRef<HTMLInputElement>;
   
   isServiceError: boolean = false;
@@ -137,6 +138,7 @@ export class AgentComponent implements OnInit, OnDestroy, OnChanges {
       this.agentService.createAgent(agentRequest).pipe(take(1), finalize(() => this.isSubmitting = false)).subscribe({
         next: (response: AgentResponse) => {
           this.toastr.success('Agent created successfully', CommonMessage.Success, { timeOut: CommonTimeouts.Success });
+          this.savedEvent.emit();
           this.backEvent.emit();
         },
         error: (_err: HttpErrorResponse) => {}
@@ -149,6 +151,7 @@ export class AgentComponent implements OnInit, OnDestroy, OnChanges {
       this.agentService.updateAgent(agentRequest).pipe(take(1), finalize(() => this.isSubmitting = false)).subscribe({
         next: (response: AgentResponse) => {
           this.toastr.success('Agent updated successfully', CommonMessage.Success, { timeOut: CommonTimeouts.Success });
+          this.savedEvent.emit();
           this.backEvent.emit();
         },
         error: (_err: HttpErrorResponse) => {}

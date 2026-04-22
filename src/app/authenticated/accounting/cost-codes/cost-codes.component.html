@@ -29,7 +29,7 @@
       </div>
       }
       <mat-card>
-        <form id="costCodeForm" [formGroup]="form" (ngSubmit)="saveCostCode()" (keydown.enter)="onEnterKey($event)" class="info-form mb-8 form-hide-error-text" [class.pt-5]="source !== 'configuration'" [class.pt-10]="source === 'configuration'">
+        <form id="costCodeForm" [formGroup]="form" (ngSubmit)="saveCostCode()" (keydown.enter)="onEnterKey($event)" class="info-form mb-8 form-hide-error-text" [class.pt-5]="source !== 'configuration'" [class.settings-embedded-edit-top-offset]="source === 'configuration'">
           <div class="grid grid-cols-4 gap-x-1.5 gap-y-1">
             <div class="col-span-4 flex items-center justify-end" [class.settings-embedded-edit-actions]="source === 'configuration'">
               <mat-checkbox formControlName="isActive" color="primary">
