@@ -50,11 +50,14 @@
                 <mat-panel-title>Offices</mat-panel-title>
               </mat-expansion-panel-header>
               <div class="agents-container">
-                @if (isEditingOffice && officeId) {
-                  <app-office [id]="officeId" [organizationId]="effectiveOrganizationId" [copyFrom]="copyOfficeData" (backEvent)="onOfficeBack()"></app-office>
-                } @else {
+                <div class="settings-section-stack">
+                  <div [class.settings-section-hidden]="isEditingOffice && officeId">
                   <app-office-list [embeddedInSettings]="true" [organizationId]="effectiveOrganizationId" (officeSelected)="onOfficeSelected($event)" (copyOfficeEvent)="onCopyOffice($event)"></app-office-list>
-                }
+                  </div>
+                  @if (isEditingOffice && officeId) {
+                    <app-office [id]="officeId" [organizationId]="effectiveOrganizationId" [copyFrom]="copyOfficeData" [embeddedInSettings]="true" (backEvent)="onOfficeBack()"></app-office>
+                  }
+                </div>
               </div>
             </mat-expansion-panel>
           }
@@ -69,11 +72,14 @@
                 <mat-panel-title>Agents</mat-panel-title>
               </mat-expansion-panel-header>
               <div class="agents-container">
-                @if (isEditingAgent && agentId) {
-                  <app-agent [agentId]="agentId" (backEvent)="onAgentBack()"></app-agent>
-                } @else {
+                <div class="settings-section-stack">
+                  <div [class.settings-section-hidden]="isEditingAgent && agentId">
                   <app-agent-list [embeddedInSettings]="true" (agentSelected)="onAgentSelected($event)"></app-agent-list>
-                }
+                  </div>
+                  @if (isEditingAgent && agentId) {
+                    <app-agent [agentId]="agentId" [embeddedInSettings]="true" (backEvent)="onAgentBack()"></app-agent>
+                  }
+                </div>
               </div>
             </mat-expansion-panel>
           }
@@ -88,11 +94,14 @@
                 <mat-panel-title>Regions</mat-panel-title>
               </mat-expansion-panel-header>
               <div class="agents-container">
-                @if (isEditingRegion && regionId) {
-                  <app-region [id]="regionId" (backEvent)="onRegionBack()"></app-region>
-                } @else {
+                <div class="settings-section-stack">
+                  <div [class.settings-section-hidden]="isEditingRegion && regionId">
                   <app-region-list [embeddedInSettings]="true" (regionSelected)="onRegionSelected($event)"></app-region-list>
-                }
+                  </div>
+                  @if (isEditingRegion && regionId) {
+                    <app-region [id]="regionId" [embeddedInSettings]="true" (backEvent)="onRegionBack()"></app-region>
+                  }
+                </div>
               </div>
             </mat-expansion-panel>
           }
@@ -107,11 +116,14 @@
                 <mat-panel-title>Areas</mat-panel-title>
               </mat-expansion-panel-header>
               <div class="agents-container">
-                @if (isEditingArea && areaId) {
-                  <app-area [id]="areaId" (backEvent)="onAreaBack()"></app-area>
-                } @else {
+                <div class="settings-section-stack">
+                  <div [class.settings-section-hidden]="isEditingArea && areaId">
                   <app-area-list [embeddedInSettings]="true" (areaSelected)="onAreaSelected($event)"></app-area-list>
-                }
+                  </div>
+                  @if (isEditingArea && areaId) {
+                    <app-area [id]="areaId" [embeddedInSettings]="true" (backEvent)="onAreaBack()"></app-area>
+                  }
+                </div>
               </div>
             </mat-expansion-panel>
           }
@@ -126,11 +138,14 @@
                 <mat-panel-title>Buildings</mat-panel-title>
               </mat-expansion-panel-header>
               <div class="agents-container">
-                @if (isEditingBuilding && buildingId) {
-                  <app-building [id]="buildingId" (backEvent)="onBuildingBack()"></app-building>
-                } @else {
+                <div class="settings-section-stack">
+                  <div [class.settings-section-hidden]="isEditingBuilding && buildingId">
                   <app-building-list [embeddedInSettings]="true" (buildingSelected)="onBuildingSelected($event)"></app-building-list>
-                }
+                  </div>
+                  @if (isEditingBuilding && buildingId) {
+                    <app-building [id]="buildingId" [embeddedInSettings]="true" (backEvent)="onBuildingBack()"></app-building>
+                  }
+                </div>
               </div>
             </mat-expansion-panel>
           }
@@ -145,11 +160,14 @@
                 <mat-panel-title>Accounting</mat-panel-title>
               </mat-expansion-panel-header>
               <div class="agents-container">
-                @if (isEditingAccountingOffice && accountingOfficeId) {
-                  <app-accounting-office [id]="accountingOfficeId" [copyFrom]="copyAccountingOfficeData" (backEvent)="onAccountingOfficeBack()"></app-accounting-office>
-                } @else {
+                <div class="settings-section-stack">
+                  <div [class.settings-section-hidden]="isEditingAccountingOffice && accountingOfficeId">
                   <app-accounting-office-list [embeddedInSettings]="true" (officeSelected)="onAccountingOfficeSelected($event)" (copyAccountingOfficeEvent)="onCopyAccountingOffice($event)"></app-accounting-office-list>
-                }
+                  </div>
+                  @if (isEditingAccountingOffice && accountingOfficeId) {
+                    <app-accounting-office [id]="accountingOfficeId" [copyFrom]="copyAccountingOfficeData" [embeddedInSettings]="true" (backEvent)="onAccountingOfficeBack()"></app-accounting-office>
+                  }
+                </div>
               </div>
             </mat-expansion-panel>
           }
@@ -184,11 +202,14 @@
                 <mat-panel-title>Colors</mat-panel-title>
               </mat-expansion-panel-header>
               <div class="agents-container">
-                @if (isEditingColor && colorId) {
-                  <app-color [id]="colorId" (backEvent)="onColorBack()"></app-color>
-                } @else {
+                <div class="settings-section-stack">
+                  <div [class.settings-section-hidden]="isEditingColor && colorId">
                   <app-color-list [embeddedInSettings]="true" (colorSelected)="onColorSelected($event)"></app-color-list>
-                }
+                  </div>
+                  @if (isEditingColor && colorId) {
+                    <app-color [id]="colorId" [embeddedInSettings]="true" (backEvent)="onColorBack()"></app-color>
+                  }
+                </div>
               </div>
             </mat-expansion-panel>
           }

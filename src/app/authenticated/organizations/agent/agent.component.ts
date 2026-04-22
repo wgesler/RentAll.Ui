@@ -27,6 +27,7 @@ import { OfficeService } from '../services/office.service';
 
 export class AgentComponent implements OnInit, OnDestroy, OnChanges {
   @Input() agentId: string | number | null = null;
+  @Input() embeddedInSettings: boolean = false;
   @Output() backEvent = new EventEmitter<void>();
   @ViewChild('firstInput') firstInputRef: ElementRef<HTMLInputElement>;
   

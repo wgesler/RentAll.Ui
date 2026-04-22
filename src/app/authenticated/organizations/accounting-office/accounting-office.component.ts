@@ -32,6 +32,7 @@ import { OfficeService } from '../services/office.service';
 export class AccountingOfficeComponent implements OnInit, OnDestroy, OnChanges {
   @Input() id: string | number | null = null;
   @Input() copyFrom: AccountingOfficeResponse | null = null; // When set in add mode, form is pre-filled (name cleared)
+  @Input() embeddedInSettings: boolean = false;
   @Output() backEvent = new EventEmitter<void>();
   @ViewChild('firstInput') firstInputRef: MatSelect;
   

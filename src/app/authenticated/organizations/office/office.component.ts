@@ -31,6 +31,7 @@ export class OfficeComponent implements OnInit, OnDestroy, OnChanges {
   @Input() id: string | number | null = null;
   @Input() organizationId: string | null = null; // Organization ID from parent (for SuperAdmin)
   @Input() copyFrom: OfficeResponse | null = null; // When set in add mode, form is pre-filled (name cleared)
+  @Input() embeddedInSettings: boolean = false;
   @Output() backEvent = new EventEmitter<void>();
   @ViewChild('firstInput') firstInputRef: ElementRef<HTMLInputElement>;
   

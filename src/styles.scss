@@ -1170,6 +1170,50 @@ mat-form-field.company-dropdown {
   }
 }
 
+/* Embedded settings editors inside accordion panels: remove card page spacing/chrome. */
+.settings-embedded-edit-wrap.content-card-wrap {
+  margin-bottom: 0 !important;
+}
+
+.settings-embedded-edit-wrap.content-card-wrap .content-card {
+  width: 100% !important;
+  margin-top: 0 !important;
+  margin-bottom: 0 !important;
+}
+
+.settings-embedded-edit-wrap.content-card-wrap .content-card > mat-card,
+.settings-embedded-edit-wrap.content-card-wrap .content-card .mat-mdc-card {
+  box-shadow: none !important;
+  border: 0 !important;
+  background: transparent !important;
+  border-radius: 0 !important;
+  padding: 0 !important;
+}
+
+/* Embedded settings edit action row: align with list Add actions. */
+.settings-embedded-edit-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 0.75rem;
+  padding-right: calc(1rem + var(--datatable-search-wrap-extra-padding-right));
+  margin-bottom: 1rem;
+}
+
+.settings-embedded-edit-actions .mat-mdc-raised-button {
+  min-height: 36px;
+  border-radius: 6px;
+  padding: 0 14px;
+}
+
+.settings-section-stack {
+  width: 100%;
+}
+
+.settings-section-hidden {
+  display: none !important;
+}
+
 .page-loading-container {
   display: flex;
   flex-direction: column;

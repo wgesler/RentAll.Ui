@@ -86,6 +86,19 @@
   }
 }
 
+/* Settings accordion embedded lists: remove extra top gaps so list Add aligns with embedded Save. */
+.agents-container .list-layout-tabbed .list-top-controls.list-top-controls--tabbed {
+  margin-top: 0 !important;
+}
+
+.agents-container .list-layout-tabbed app-data-table .datatable-search-wrap {
+  margin-top: 0 !important;
+}
+
+.agents-container .list-layout-tabbed .tableDiv {
+  padding-top: 0 !important;
+}
+
 .organization-info-form {
   .inline-spinner {
     display: inline-block;

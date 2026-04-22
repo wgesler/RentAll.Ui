@@ -27,6 +27,7 @@ import { RegionService } from '../services/region.service';
 
 export class RegionComponent implements OnInit, OnDestroy, OnChanges {
   @Input() id: string | number | null = null;
+  @Input() embeddedInSettings: boolean = false;
   @Output() backEvent = new EventEmitter<void>();
   @ViewChild('firstInput') firstInputRef: ElementRef<HTMLInputElement>;
   

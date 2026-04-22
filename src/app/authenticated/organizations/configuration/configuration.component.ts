@@ -1,6 +1,6 @@
 
 import { HttpErrorResponse } from '@angular/common/http';
-import { Component, OnDestroy, OnInit } from '@angular/core';
+import { Component, OnDestroy, OnInit, ViewChild } from '@angular/core';
 import { FormsModule, ReactiveFormsModule } from '@angular/forms';
 import { ActivatedRoute, Router } from '@angular/router';
 import { take } from 'rxjs';
@@ -60,6 +60,14 @@ import { TitleBarSelectComponent } from '../../shared/titlebar-select/titlebar-s
     styleUrls: ['./configuration.component.scss']
 })
 export class ConfigurationComponent implements OnInit, OnDestroy {
+  @ViewChild(OfficeListComponent) officeListComponent?: OfficeListComponent;
+  @ViewChild(AgentListComponent) agentListComponent?: AgentListComponent;
+  @ViewChild(RegionListComponent) regionListComponent?: RegionListComponent;
+  @ViewChild(AreaListComponent) areaListComponent?: AreaListComponent;
+  @ViewChild(BuildingListComponent) buildingListComponent?: BuildingListComponent;
+  @ViewChild(AccountingOfficeListComponent) accountingOfficeListComponent?: AccountingOfficeListComponent;
+  @ViewChild(ColorListComponent) colorListComponent?: ColorListComponent;
+
   expandedSections = {
     offices: false,
     accountingOffices: false,
@@ -234,6 +242,7 @@ export class ConfigurationComponent implements OnInit, OnDestroy {
   }
 
   onOfficeBack(): void {
+    this.officeListComponent?.getOffices();
     this.officeId = null;
     this.copyOfficeData = null;
     this.isEditingOffice = false;
@@ -256,6 +265,7 @@ export class ConfigurationComponent implements OnInit, OnDestroy {
   }
 
   onAccountingOfficeBack(): void {
+    this.accountingOfficeListComponent?.getAccountingOffices();
     this.accountingOfficeId = null;
     this.copyAccountingOfficeData = null;
     this.isEditingAccountingOffice = false;
@@ -270,6 +280,7 @@ export class ConfigurationComponent implements OnInit, OnDestroy {
   }
 
   onAgentBack(): void {
+    this.agentListComponent?.getAgents();
     this.agentId = null;
     this.isEditingAgent = false;
   }
@@ -283,6 +294,7 @@ export class ConfigurationComponent implements OnInit, OnDestroy {
   }
 
   onRegionBack(): void {
+    this.regionListComponent?.getRegions();
     this.regionId = null;
     this.isEditingRegion = false;
   }
@@ -296,6 +308,7 @@ export class ConfigurationComponent implements OnInit, OnDestroy {
   }
 
   onAreaBack(): void {
+    this.areaListComponent?.getAreas();
     this.areaId = null;
     this.isEditingArea = false;
   }
@@ -309,6 +322,7 @@ export class ConfigurationComponent implements OnInit, OnDestroy {
   }
 
   onBuildingBack(): void {
+    this.buildingListComponent?.getBuildings();
     this.buildingId = null;
     this.isEditingBuilding = false;
   }
@@ -322,6 +336,7 @@ export class ConfigurationComponent implements OnInit, OnDestroy {
   }
 
   onColorBack(): void {
+    this.colorListComponent?.getColors();
     this.colorId = null;
     this.isEditingColor = false;
   }

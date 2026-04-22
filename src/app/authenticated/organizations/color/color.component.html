@@ -4,8 +4,9 @@
     <p>Loading color...</p>
   </div>
 } @else if (!isServiceError) {
-  <div class="flex content-card-wrap justify-center" fxLayout="row wrap">
+  <div class="flex content-card-wrap justify-center" fxLayout="row wrap" [class.settings-embedded-edit-wrap]="embeddedInSettings">
     <section class="content-card">
+      @if (!embeddedInSettings) {
       <div class="flex justify-between items-center gap-3 py-2 px-4 border-b">
         <span class="flex flex-column items-center gap-2">
           <mat-icon class="flex-shrink-0">palette</mat-icon>
@@ -26,9 +27,24 @@
           </button>
         </div>
       </div>
+      }
       <mat-card>
-        <form id="colorForm" [formGroup]="form" (ngSubmit)="saveColor()" (keydown.enter)="onEnterKey($event)" class="info-form mb-8 pt-5">
+        <form id="colorForm" [formGroup]="form" (ngSubmit)="saveColor()" (keydown.enter)="onEnterKey($event)" class="info-form mb-8 form-hide-error-text" [class.pt-5]="!embeddedInSettings" [class.pt-10]="embeddedInSettings">
             <div class="grid grid-cols-4 gap-x-1.5 gap-y-1">
+              @if (embeddedInSettings) {
+                <div class="col-span-4 flex justify-end settings-embedded-edit-actions">
+                  <button mat-raised-button type="button" color="accent" id="back-button-embedded" (click)="back()"
+                    class="text-nowrap flex-shrink-0">
+                    <mat-icon>arrow_back</mat-icon>
+                    Back
+                  </button>
+                  <button mat-raised-button type="submit" form="colorForm" color="primary" id="save-button-embedded" (click)="saveColor()"
+                    class="text-nowrap flex-shrink-0" [disabled]="isSubmitting || !form.valid">
+                    <mat-icon>save</mat-icon>
+                    Save
+                  </button>
+                </div>
+              }
               <mat-form-field appearance="outline" class="col-span-2">
                 <mat-label>Reservation Status</mat-label>
                 <mat-select #firstInput formControlName="reservationStatusId" required>

@@ -4,8 +4,9 @@
     <p>Loading office...</p>
   </div>
 } @else if (!isServiceError) {
-  <div class="flex content-card-wrap justify-center" fxLayout="row wrap">
+  <div class="flex content-card-wrap justify-center" fxLayout="row wrap" [class.settings-embedded-edit-wrap]="embeddedInSettings">
     <section class="content-card">
+      @if (!embeddedInSettings) {
       <div class="flex justify-between items-center gap-3 py-2 px-4 border-b">
         <span class="flex flex-column items-center gap-2">
           <mat-icon class="flex-shrink-0">store</mat-icon>
@@ -26,12 +27,25 @@
           </button>
         </div>
       </div>
+      }
       <mat-card>
-        <form id="accountingOfficeForm" [formGroup]="form" (ngSubmit)="saveOffice()" (keydown.enter)="onEnterKey($event)" class="info-form mb-8 pt-5">
-            <div class="mb-4 flex justify-end" style="padding-right: 5px;">
+        <form id="accountingOfficeForm" [formGroup]="form" (ngSubmit)="saveOffice()" (keydown.enter)="onEnterKey($event)" class="info-form mb-8 form-hide-error-text" [class.pt-5]="!embeddedInSettings" [class.pt-10]="embeddedInSettings">
+            <div class="mb-4 flex justify-end" [class.settings-embedded-edit-actions]="embeddedInSettings">
               <mat-checkbox formControlName="isActive" color="primary">
                 IsActive
               </mat-checkbox>
+              @if (embeddedInSettings) {
+                <button mat-raised-button type="button" color="accent" id="back-button-embedded" (click)="back()"
+                  class="text-nowrap flex-shrink-0">
+                  <mat-icon>arrow_back</mat-icon>
+                  Back
+                </button>
+                <button mat-raised-button type="submit" form="accountingOfficeForm" color="primary" id="save-button-embedded" (click)="saveOffice()"
+                  class="text-nowrap flex-shrink-0" [disabled]="isSubmitting">
+                  <mat-icon>save</mat-icon>
+                  Save
+                </button>
+              }
             </div>
 
             <mat-accordion multi="true">

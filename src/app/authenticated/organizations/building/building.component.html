@@ -4,8 +4,9 @@
     <p>Loading building...</p>
   </div>
 } @else if (!isServiceError) {
-  <div class="flex content-card-wrap justify-center" fxLayout="row wrap">
+  <div class="flex content-card-wrap justify-center" fxLayout="row wrap" [class.settings-embedded-edit-wrap]="embeddedInSettings">
     <section class="content-card">
+      @if (!embeddedInSettings) {
       <div class="flex justify-between items-center gap-3 py-2 px-4 border-b">
         <span class="flex flex-column items-center gap-2">
           <mat-icon class="flex-shrink-0">business</mat-icon>
@@ -26,13 +27,26 @@
           </button>
         </div>
       </div>
+      }
       <mat-card>
-        <form id="buildingForm" [formGroup]="form" (ngSubmit)="saveBuilding()" (keydown.enter)="onEnterKey($event)" class="info-form mb-8 pt-5">
-            <div class="grid grid-cols-4 gap-x-1.5 gap-y-1">
-              <div class="col-span-4 flex items-center justify-end">
+        <form id="buildingForm" [formGroup]="form" (ngSubmit)="saveBuilding()" (keydown.enter)="onEnterKey($event)" class="info-form mb-8 form-hide-error-text" [class.pt-5]="!embeddedInSettings" [class.pt-10]="embeddedInSettings">
+            <div class="grid grid-cols-4 gap-x-1.5 gap-y-1 building-edit-grid">
+              <div class="col-span-4 flex items-center justify-end" [class.settings-embedded-edit-actions]="embeddedInSettings">
                 <mat-checkbox formControlName="isActive" color="primary">
                   IsActive
                 </mat-checkbox>
+                @if (embeddedInSettings) {
+                  <button mat-raised-button type="button" color="accent" id="back-button-embedded" (click)="back()"
+                    class="text-nowrap flex-shrink-0">
+                    <mat-icon>arrow_back</mat-icon>
+                    Back
+                  </button>
+                  <button mat-raised-button type="submit" form="buildingForm" color="primary" id="save-button-embedded" (click)="saveBuilding()"
+                    class="text-nowrap flex-shrink-0" [disabled]="isSubmitting || !form.valid">
+                    <mat-icon>save</mat-icon>
+                    Save
+                  </button>
+                }
               </div>
 
               <mat-form-field appearance="outline" class="col-span-2">
@@ -70,7 +84,7 @@
               </mat-form-field>
 
               <!-- HOA Fields on same line -->
-              <div class="col-span-4 flex gap-x-1.5">
+              <div class="col-span-4 flex gap-x-1.5 building-hoa-row">
                 <mat-form-field appearance="outline" class="flex-1">
                   <mat-label>HOA Name</mat-label>
                   <input matInput formControlName="hoaName">
@@ -94,7 +108,7 @@
                 </mat-form-field>
               </div>
 
-              <mat-accordion class="col-span-4 building-features-accordion" multi="true">
+              <mat-accordion class="col-span-4 building-features-accordion building-features-accordion-spaced" multi="true">
                 <mat-expansion-panel [expanded]="true" class="mb-4 features-panel-compact">
                   <mat-expansion-panel-header>
                     <mat-panel-title>Building Ammenities</mat-panel-title>

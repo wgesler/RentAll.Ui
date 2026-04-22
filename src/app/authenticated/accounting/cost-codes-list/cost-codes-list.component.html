@@ -1,12 +1,6 @@
-@if (embeddedInSettings && isEditingCostCodes && costCodesId) {
-  <app-cost-codes
-    [id]="costCodesId"
-    [officeId]="costCodesOfficeId"
-    [source]="'configuration'"
-    (backEvent)="onCostCodesBack()"
-    (savedEvent)="onCostCodesSaved()">
-  </app-cost-codes>
-} @else if (!(isLoading$ | async)) {
+@if (!(isLoading$ | async)) {
+  <div class="settings-section-stack">
+    <div [class.settings-section-hidden]="embeddedInSettings && isEditingCostCodes && costCodesId">
   <div class="mat list-layout-standard">
     @if (showInactiveInput === undefined) {
       <!-- Office dropdown row -->
@@ -58,6 +52,17 @@
         }
       </app-data-table>
     </div>
+  </div>
+    </div>
+    @if (embeddedInSettings && isEditingCostCodes && costCodesId) {
+      <app-cost-codes
+        [id]="costCodesId"
+        [officeId]="costCodesOfficeId"
+        [source]="'configuration'"
+        (backEvent)="onCostCodesBack()"
+        (savedEvent)="onCostCodesSaved()">
+      </app-cost-codes>
+    }
   </div>
 } @else {
   <div class="loading-container">

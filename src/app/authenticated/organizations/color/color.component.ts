@@ -25,6 +25,7 @@ import { ColorService } from '../services/color.service';
 
 export class ColorComponent implements OnInit, OnDestroy, OnChanges {
   @Input() id: string | number | null = null;
+  @Input() embeddedInSettings: boolean = false;
   @Output() backEvent = new EventEmitter<void>();
   @ViewChild('firstInput') firstInputRef: MatSelect;
   
