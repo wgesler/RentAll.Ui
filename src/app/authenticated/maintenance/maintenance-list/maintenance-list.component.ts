@@ -21,6 +21,8 @@ import { PropertyService } from '../../properties/services/property.service';
 import { DataTableComponent } from '../../shared/data-table/data-table.component';
 import { ColumnSet } from '../../shared/data-table/models/column-data';
 import { AddAlertDialogComponent, AddAlertDialogData } from '../../shared/modals/add-alert-dialog/add-alert-dialog.component';
+import { SearchableSelectOption } from '../../shared/searchable-select/searchable-select.component';
+import { TitleBarSelectComponent } from '../../shared/titlebar-select/titlebar-select.component';
 import { MaintenanceListUserDropdownCell } from '../models/maintenance.model';
 import { MaintenanceItemResponse } from '../models/maintenance-item.model';
 import { INSPECTION_SECTIONS } from '../models/checklist-sections';
@@ -39,7 +41,7 @@ import { ServiceType } from '../../shared/models/mixed-enums';
   selector: 'app-maintenance-list',
   templateUrl: './maintenance-list.component.html',
   styleUrls: ['./maintenance-list.component.scss'],
-  imports: [CommonModule, MaterialModule, FormsModule, DataTableComponent]
+  imports: [CommonModule, MaterialModule, FormsModule, DataTableComponent, TitleBarSelectComponent]
 })
 export class MaintenanceListComponent extends PropertyMaintenanceBase implements OnInit, OnDestroy, OnChanges {
   @Input() officeId: number | null = null;
@@ -78,6 +80,12 @@ export class MaintenanceListComponent extends PropertyMaintenanceBase implements
   selectedPropertyFilterId: string | null = null;
   serviceProviderFilterOptions: { userId: string; displayName: string; }[] = [];
   propertyFilterOptions: { propertyId: string; propertyCode: string; }[] = [];
+  get propertyFilterSelectOptions(): SearchableSelectOption[] {
+    return this.propertyFilterOptions.map(option => ({
+      value: option.propertyId,
+      label: option.propertyCode
+    }));
+  }
 
   private readonly compactViewportWidth = 1024;
   private readonly housekeepingUserOptions: string[] = ['Clear Selection'];
@@ -441,8 +449,8 @@ export class MaintenanceListComponent extends PropertyMaintenanceBase implements
     this.refreshScheduleCalendars();
   }
 
-  onPropertyCodeFilterChange(propertyId: string | null = this.selectedPropertyFilterId): void {
-    this.selectedPropertyFilterId = this.utilityService.normalizeIdOrNull(propertyId);
+  onPropertyCodeFilterChange(propertyId: string | number | null = this.selectedPropertyFilterId): void {
+    this.selectedPropertyFilterId = this.utilityService.normalizeIdOrNull(propertyId != null ? String(propertyId) : null);
     this.selectedScheduleCalendarDayKey = null;
     this.recomputeBackendData(this.selectedServiceProviderUserId);
     this.refreshScheduleCalendars();
