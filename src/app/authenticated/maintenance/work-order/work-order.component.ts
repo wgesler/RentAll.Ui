@@ -116,15 +116,10 @@ export class WorkOrderComponent implements OnInit, OnChanges, OnDestroy {
     });
 
     // Only Tenant types have reservations...
-    this.form.get('workOrderTypeId')?.valueChanges.subscribe(typeId => {
-      if (Number(typeId) !== 0) {
-        this.form.patchValue({ reservationId: null }, { emitEvent: false });
-        if (this.workOrder) {
-          this.workOrder.reservationId = null;
-          this.workOrder.reservationCode = null;
-        }
-      }
+    this.form.get('workOrderTypeId')?.valueChanges.pipe(takeUntil(this.destroy$)).subscribe(typeId => {
+      this.updateReservationRequirementByType(typeId);
     });
+    this.updateReservationRequirementByType(this.form.get('workOrderTypeId')?.value);
 
     this.selectedPropertyId = this.property?.propertyId ?? null;
     this.isAddMode = this.workOrderId == null;
@@ -446,10 +441,8 @@ export class WorkOrderComponent implements OnInit, OnChanges, OnDestroy {
 
   //#region Work Order Items
   addWorkOrderItem(): void {
-    if (!this.hasSelectedWorkOrderType()) {
+    if (!this.canAddItem()) {
       this.form.markAllAsTouched();
-      this.form.get('workOrderTypeId')?.markAsTouched();
-      this.form.get('workOrderTypeId')?.updateValueAndValidity({ emitEvent: false });
       return;
     }
 
@@ -973,9 +966,29 @@ export class WorkOrderComponent implements OnInit, OnChanges, OnDestroy {
   //#endregion
 
   //#region Utility Methods
-  hasSelectedWorkOrderType(): boolean {
-    const workOrderTypeId = this.form.get('workOrderTypeId')?.value;
-    return workOrderTypeId !== null && workOrderTypeId !== undefined;
+  canAddItem(): boolean {
+    return this.form.valid;
+  }
+
+  updateReservationRequirementByType(typeId: number | null | undefined): void {
+    const reservationControl = this.form.get('reservationId');
+    if (!reservationControl) {
+      return;
+    }
+
+    const isTenantType = Number(typeId) === WorkOrderType.Tenant;
+    if (isTenantType) {
+      reservationControl.setValidators([Validators.required]);
+    } else {
+      reservationControl.clearValidators();
+      reservationControl.setValue(null, { emitEvent: false });
+      if (this.workOrder) {
+        this.workOrder.reservationId = null;
+        this.workOrder.reservationCode = null;
+      }
+    }
+
+    reservationControl.updateValueAndValidity({ emitEvent: false });
   }
 
   back(): void {
