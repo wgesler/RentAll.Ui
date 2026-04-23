@@ -46,6 +46,7 @@ const ROUTER_TOKEN = {
   RentalList: 'rentals',
   PropertyList: 'properties',
   MaintenanceList: 'maintenance',
+  TicketList: 'tickets',
   WorkOrderCreate: 'work-order-create',
   EmailList: 'emails',
   DocumentList: 'documents',
@@ -109,6 +110,11 @@ const ownerOnly: AccessRule = {
   requiredRoles: [UserGroups.Owner],
   excludedRoles: []
 };
+
+const noAccess: AccessRule = {
+  requiredRoles: [UserGroups.SuperAdmin],
+  excludedRoles: [UserGroups.SuperAdmin]
+};
 //#endregion
 
 //#region Segment and Nav Definitions
@@ -126,6 +132,7 @@ export const COMPANY_USERS_NAV_ITEMS: NavItemDefinition[] = [
   { icon: 'handshake', displayName: 'Reservations', url: ROUTER_TOKEN.RentalList, ...openToAllExceptSuperAdmin },
   { icon: 'home', displayName: 'Properties', url: ROUTER_TOKEN.PropertyList, ...openToAllExceptSuperAdmin },
   { icon: 'build', displayName: 'Maintenance', url: ROUTER_TOKEN.MaintenanceList, ...openToAllExceptSuperAdmin },
+  { icon: 'confirmation_number', displayName: 'Tickets', url: ROUTER_TOKEN.TicketList, ...noAccess },
   { icon: 'account_balance', displayName: 'Accounting', url: ROUTER_TOKEN.AccountingList, ...accountingOnly },
   { icon: 'mail', displayName: 'Emails', url: ROUTER_TOKEN.EmailList, ...openToAll },
   { icon: 'description', displayName: 'Documents', url: ROUTER_TOKEN.DocumentList, ...openToAllExceptSuperAdmin },
@@ -161,6 +168,7 @@ const routeRulesBySegment: Record<string, AccessRule> = {
   [ROUTER_TOKEN.RentalList]: openToAllExceptSuperAdmin,
   [ROUTER_TOKEN.PropertyList]: openToAllExceptSuperAdmin,
   [ROUTER_TOKEN.MaintenanceList]: openToAllExceptSuperAdmin,
+  [ROUTER_TOKEN.TicketList]: noAccess,
   'work-order': openToAllExceptSuperAdmin,
   [ROUTER_TOKEN.WorkOrderCreate]: openToAllExceptSuperAdmin,
   receipt: openToAllExceptSuperAdmin,

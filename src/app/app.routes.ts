@@ -41,6 +41,8 @@ import { MaintenanceShellComponent } from './authenticated/maintenance/maintenan
 import { WorkOrderComponent } from './authenticated/maintenance/work-order/work-order.component';
 import { WorkOrderCreateComponent } from './authenticated/maintenance/work-order-create/work-order-create.component';
 import { ReceiptComponent } from './authenticated/maintenance/receipt/receipt.component';
+import { TicketListComponent } from './authenticated/tickets/ticket-list/ticket-list.component';
+import { TicketComponent } from './authenticated/tickets/ticket/ticket.component';
 import { PropertyListComponent } from './authenticated/properties/property-list/property-list.component';
 import { PropertyShellComponent } from './authenticated/properties/property-shell/property-shell.component';
 import { PropertySelectionComponent } from './authenticated/properties/property-selection/property-selection.component';
@@ -68,6 +70,8 @@ export enum RouterToken {
   Contact = RouterToken.ContactList + '/:id',
   MaintenanceList = 'maintenance',
   Maintenance = RouterToken.MaintenanceList + '/:id',
+  TicketList = 'tickets',
+  Ticket = RouterToken.TicketList + '/:id',
   MaintenanceWorkOrder = 'work-order/:id',
   WorkOrderCreate = 'work-order-create',
   MaintenanceReceipt = 'receipt/:id',
@@ -124,6 +128,8 @@ export enum RouterUrl {
   Contact               = `${RouterToken.Auth}/${RouterToken.Contact}`,
   MaintenanceList       = `${RouterToken.Auth}/${RouterToken.MaintenanceList}`,
   Maintenance           = `${RouterToken.Auth}/${RouterToken.Maintenance}`,
+  TicketList            = `${RouterToken.Auth}/${RouterToken.TicketList}`,
+  Ticket                = `${RouterToken.Auth}/${RouterToken.Ticket}`,
   MaintenanceWorkOrder  = `${RouterToken.Auth}/${RouterToken.MaintenanceWorkOrder}`,
   WorkOrderCreate       = `${RouterToken.Auth}/${RouterToken.WorkOrderCreate}`,
   MaintenanceReceipt     = `${RouterToken.Auth}/${RouterToken.MaintenanceReceipt}`,
@@ -186,6 +192,8 @@ export const authRoutes: Routes = [
   { path: RouterToken.Contacts, component: ContactsShellComponent, canActivate: [authRouteGuard] },
   { path: RouterToken.Contact, component: ContactComponent, canActivate: [authRouteGuard] },
   { path: RouterToken.MaintenanceList, component: MaintenanceListComponent, canActivate: [authRouteGuard] },
+  { path: RouterToken.TicketList, component: TicketListComponent, canActivate: [authRouteGuard] },
+  { path: RouterToken.Ticket, component: TicketComponent, canActivate: [authRouteGuard], canDeactivate: [canDeactivateGuard] },
   { path: RouterToken.MaintenanceWorkOrder, component: WorkOrderComponent, canActivate: [authRouteGuard] },
   { path: RouterToken.WorkOrderCreate, component: WorkOrderCreateComponent, canActivate: [authRouteGuard] },
   { path: RouterToken.MaintenanceReceipt, component: ReceiptComponent, canActivate: [authRouteGuard] },

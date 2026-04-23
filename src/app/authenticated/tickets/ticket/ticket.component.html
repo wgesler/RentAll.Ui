@@ -1,0 +1,82 @@
+@if (isLoading$ | async) {
+  <div class="loading-container">
+    <mat-spinner [diameter]="40"></mat-spinner>
+    <p>Loading ticket...</p>
+  </div>
+} @else if (!isServiceError) {
+  <div class="flex content-card-wrap justify-center" fxLayout="row wrap" [class.settings-embedded-edit-wrap]="embeddedInSettings">
+    <section class="content-card">
+      @if (!embeddedInSettings) {
+      <div class="flex justify-between items-center gap-3 py-2 px-4 border-b">
+        <span class="flex flex-column items-center gap-2">
+          <mat-icon class="flex-shrink-0">confirmation_number</mat-icon>
+          <span class="flex-shrink-0 text-lg font-medium">
+            {{ isAddMode ? 'Add Ticket' : 'Edit Ticket' }}
+          </span>
+        </span>
+        <div class="flex gap-2">
+          <button mat-raised-button type="button" color="accent" id="back-button" (click)="back()"
+            class="text-nowrap flex-shrink-0">
+            <mat-icon>arrow_back</mat-icon>
+            Back
+          </button>
+          <button mat-raised-button type="submit" form="ticketForm" color="primary" id="save-button" (click)="saveTicket()"
+            class="text-nowrap flex-shrink-0" [disabled]="isSubmitting || !form.valid">
+            <mat-icon>save</mat-icon>
+            Save
+          </button>
+        </div>
+      </div>
+      }
+      <mat-card>
+        <form id="ticketForm" [formGroup]="form" (ngSubmit)="saveTicket()" class="info-form mb-8 form-hide-error-text" [class.pt-5]="!embeddedInSettings" [class.settings-embedded-edit-top-offset]="embeddedInSettings">
+          <div class="grid grid-cols-4 gap-x-1.5 gap-y-1">
+            @if (embeddedInSettings) {
+              <div class="col-span-4 flex justify-end settings-embedded-edit-actions">
+                <button mat-raised-button type="button" color="accent" id="back-button-embedded" (click)="back()"
+                  class="text-nowrap flex-shrink-0">
+                  <mat-icon>arrow_back</mat-icon>
+                  Back
+                </button>
+                <button mat-raised-button type="submit" form="ticketForm" color="primary" id="save-button-embedded" (click)="saveTicket()"
+                  class="text-nowrap flex-shrink-0" [disabled]="isSubmitting || !form.valid">
+                  <mat-icon>save</mat-icon>
+                  Save
+                </button>
+              </div>
+            }
+
+            <mat-form-field appearance="outline" class="col-span-1">
+              <mat-label>Ticket Code</mat-label>
+              <input matInput formControlName="ticketCode" required>
+            </mat-form-field>
+
+            <mat-form-field appearance="outline" class="col-span-2">
+              <mat-label>State</mat-label>
+              <mat-select formControlName="ticketStateTypeId" required>
+                @for (state of ticketStateTypes; track state.value) {
+                  <mat-option [value]="state.value">{{ state.label }}</mat-option>
+                }
+              </mat-select>
+            </mat-form-field>
+
+            <mat-checkbox formControlName="isActive" color="primary" class="col-span-1 flex items-center">
+              IsActive
+            </mat-checkbox>
+
+            <mat-form-field appearance="outline" class="col-span-4">
+              <mat-label>Description</mat-label>
+              <textarea matInput rows="3" formControlName="description" required></textarea>
+            </mat-form-field>
+
+            <mat-checkbox formControlName="permissionToEnter" color="primary" class="col-span-1">Permission to Enter</mat-checkbox>
+            <mat-checkbox formControlName="ownerContacted" color="primary" class="col-span-1">Owner Contacted</mat-checkbox>
+            <mat-checkbox formControlName="confirmedWithTenant" color="primary" class="col-span-1">Confirmed with Tenant</mat-checkbox>
+            <mat-checkbox formControlName="followedUpWithOwner" color="primary" class="col-span-1">Followed Up with Owner</mat-checkbox>
+            <mat-checkbox formControlName="workOrderCompleted" color="primary" class="col-span-1">Work Order Completed</mat-checkbox>
+          </div>
+        </form>
+      </mat-card>
+    </section>
+  </div>
+}
