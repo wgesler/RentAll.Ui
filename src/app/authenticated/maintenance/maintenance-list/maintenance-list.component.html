@@ -31,6 +31,19 @@
               }
             </mat-select>
           </mat-form-field>
+          <mat-form-field appearance="outline" class="titlebar-field-property-code">
+            <mat-label>Property Code</mat-label>
+            <mat-select
+              [(ngModel)]="selectedPropertyFilterId"
+              (selectionChange)="onPropertyCodeFilterChange($event.value)"
+              [canSelectNullableOptions]="true"
+              [ngModelOptions]="{ standalone: true }">
+              <mat-option [value]="null">All Properties</mat-option>
+              @for (propertyOption of propertyFilterOptions; track propertyOption.propertyId) {
+                <mat-option [value]="propertyOption.propertyId">{{ propertyOption.propertyCode }}</mat-option>
+              }
+            </mat-select>
+          </mat-form-field>
         </div>
       </div>
       <div class="form-titlebar-actions-wrap uniform-gap">

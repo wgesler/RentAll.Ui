@@ -124,6 +124,13 @@ export class MaintenanceShellComponent implements OnInit, CanComponentDeactivate
       if (normalizedTab !== null) {
         this.selectedTabIndex = normalizedTab;
       }
+
+      const workOrderIdParam = (params.get('workOrderId') || '').trim();
+      if (this.showWorkOrdersTab && workOrderIdParam !== '') {
+        this.selectedTabIndex = this.workOrdersTabIndex;
+        this.selectedWorkOrderId = workOrderIdParam;
+        this.showWorkOrderDetail = true;
+      }
     });
 
     this.route.paramMap.pipe(filter(params => params.has('id')), take(1)).subscribe(params => {

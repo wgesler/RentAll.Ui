@@ -138,7 +138,7 @@ export class WorkOrderListComponent implements OnInit, OnChanges {
     if (!workOrderId) return;
     const propertyId = this.property?.propertyId ?? this.selectedPropertyId ?? '';
     this.router.navigateByUrl(
-      `${RouterUrl.WorkOrderCreate}?workOrderId=${encodeURIComponent(workOrderId)}&propertyId=${encodeURIComponent(propertyId)}`
+      `${RouterUrl.WorkOrderCreate}?workOrderId=${encodeURIComponent(workOrderId)}&propertyId=${encodeURIComponent(propertyId)}&returnTo=work-order-list`
     );
   }
 

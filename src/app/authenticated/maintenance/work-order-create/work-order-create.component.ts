@@ -48,6 +48,7 @@ import { OrganizationService } from '../../organizations/services/organization.s
 export class WorkOrderCreateComponent extends BaseDocumentComponent implements OnInit {
   workOrderId: string | null = null;
   propertyId: string | null = null;
+  returnTo: string | null = null;
 
   workOrder: WorkOrderResponse | null = null;
   property: PropertyResponse | null = null;
@@ -105,6 +106,7 @@ export class WorkOrderCreateComponent extends BaseDocumentComponent implements O
     this.route.queryParams.pipe(take(1)).subscribe(params => {
       this.workOrderId = params['workOrderId'] ?? null;
       this.propertyId = params['propertyId'] ?? null;
+      this.returnTo = params['returnTo'] ?? null;
       this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'params');
       this.loadData();
     });
@@ -748,9 +750,36 @@ export class WorkOrderCreateComponent extends BaseDocumentComponent implements O
   }
 
   goBack(): void {
-    if (this.workOrder?.workOrderId) {
-      const path = '/' + RouterUrl.replaceTokens(RouterUrl.MaintenanceWorkOrder, [this.workOrder.workOrderId]);
-      this.router.navigate([path], { queryParams: { propertyId: this.property?.propertyId || this.workOrder.propertyId } });
+    const workOrderId = this.workOrder?.workOrderId ?? this.workOrderId;
+    const propertyId = this.property?.propertyId || this.workOrder?.propertyId || this.propertyId;
+    if (this.returnTo === 'work-order' && workOrderId) {
+      if (propertyId) {
+        const path = '/' + RouterUrl.replaceTokens(RouterUrl.Maintenance, [propertyId]);
+        this.router.navigate([path], {
+          queryParams: {
+            tab: 3,
+            workOrderId
+          }
+        });
+        return;
+      }
+      const fallbackPath = '/' + RouterUrl.replaceTokens(RouterUrl.MaintenanceWorkOrder, [workOrderId]);
+      this.router.navigate([fallbackPath]);
+      return;
+    }
+    if (this.returnTo === 'work-order-list' && propertyId) {
+      const path = '/' + RouterUrl.replaceTokens(RouterUrl.Maintenance, [propertyId]);
+      this.router.navigate([path], { queryParams: { tab: 3 } });
+      return;
+    }
+    if (workOrderId && propertyId) {
+      const path = '/' + RouterUrl.replaceTokens(RouterUrl.Maintenance, [propertyId]);
+      this.router.navigate([path], {
+        queryParams: {
+          tab: 3,
+          workOrderId
+        }
+      });
       return;
     }
     this.router.navigateByUrl(RouterUrl.MaintenanceList);

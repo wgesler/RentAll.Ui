@@ -75,7 +75,9 @@ export class MaintenanceListComponent extends PropertyMaintenanceBase implements
   scheduleDotTypeByDayKey = new Map<string, Set<'blue' | 'purple' | 'green' | 'pink'>>();
   selectedScheduleCalendarDayKey: string | null = null;
   selectedServiceProviderUserId: string | null = null;
+  selectedPropertyFilterId: string | null = null;
   serviceProviderFilterOptions: { userId: string; displayName: string; }[] = [];
+  propertyFilterOptions: { propertyId: string; propertyCode: string; }[] = [];
 
   private readonly compactViewportWidth = 1024;
   private readonly housekeepingUserOptions: string[] = ['Clear Selection'];
@@ -206,6 +208,7 @@ export class MaintenanceListComponent extends PropertyMaintenanceBase implements
 
   rebuildMaintenanceListFromBase(userAssignedId: string | null = null): void {
     const propertyRows = this.getMappedPropertyListDisplaysForMaintenanceList();
+    this.rebuildPropertyFilterOptions(propertyRows);
     const propertyById = new Map(propertyRows.map(p => [p.propertyId, p] as const));
 
     const currentReservationByPropertyId: MaintenanceListCurrentReservationByPropertyId =
@@ -381,13 +384,27 @@ export class MaintenanceListComponent extends PropertyMaintenanceBase implements
       remainingOtherRows.push(...otherRows);
     }
 
-    this.arrivalMaintenanceDisplay = this.filterArrivalMaintenanceDisplayForUserAssignedId(userAssignedId, arrivalRows);
-    this.departureMaintenanceDisplay = this.filterDepartureMaintenanceDisplayForUserAssignedId(userAssignedId, departureRows);
-    this.maidMaintenanceDisplay = this.filterMaidServiceMaintenanceDisplayForUserAssignedId(userAssignedId, maidRows);
-    this.comingOnlineMaintenanceDisplay = this.filterComingOnlineMaintenanceDisplayForUserAssignedId(userAssignedId, onlineRows);
-    this.goingOfflineMaintenanceDisplay = this.filterGoingOfflineMaintenanceDisplayForUserAssignedId(userAssignedId, offlineRows);
-    this.proportiesInProgressMaintenanceDisplay = this.filterPropertiesInProgressMaintenanceDisplayForUserAssignedId(userAssignedId, inProgressRows);
-    this.otherPropertiesMaintenanceDisplay = this.filterOtherPropertiesMaintenanceDisplayForUserAssignedId(userAssignedId, remainingOtherRows);
+    this.arrivalMaintenanceDisplay = this.filterMaintenanceDisplayForSelectedProperty(
+      this.filterArrivalMaintenanceDisplayForUserAssignedId(userAssignedId, arrivalRows)
+    );
+    this.departureMaintenanceDisplay = this.filterMaintenanceDisplayForSelectedProperty(
+      this.filterDepartureMaintenanceDisplayForUserAssignedId(userAssignedId, departureRows)
+    );
+    this.maidMaintenanceDisplay = this.filterMaintenanceDisplayForSelectedProperty(
+      this.filterMaidServiceMaintenanceDisplayForUserAssignedId(userAssignedId, maidRows)
+    );
+    this.comingOnlineMaintenanceDisplay = this.filterMaintenanceDisplayForSelectedProperty(
+      this.filterComingOnlineMaintenanceDisplayForUserAssignedId(userAssignedId, onlineRows)
+    );
+    this.goingOfflineMaintenanceDisplay = this.filterMaintenanceDisplayForSelectedProperty(
+      this.filterGoingOfflineMaintenanceDisplayForUserAssignedId(userAssignedId, offlineRows)
+    );
+    this.proportiesInProgressMaintenanceDisplay = this.filterMaintenanceDisplayForSelectedProperty(
+      this.filterPropertiesInProgressMaintenanceDisplayForUserAssignedId(userAssignedId, inProgressRows)
+    );
+    this.otherPropertiesMaintenanceDisplay = this.filterMaintenanceDisplayForSelectedProperty(
+      this.filterOtherPropertiesMaintenanceDisplayForUserAssignedId(userAssignedId, remainingOtherRows)
+    );
 
     this.syncAllDisplayedPropertiesFromTurnoverLists();
     this.applyMaintenanceStateFromServiceDates();
@@ -424,6 +441,13 @@ export class MaintenanceListComponent extends PropertyMaintenanceBase implements
     this.refreshScheduleCalendars();
   }
 
+  onPropertyCodeFilterChange(propertyId: string | null = this.selectedPropertyFilterId): void {
+    this.selectedPropertyFilterId = this.utilityService.normalizeIdOrNull(propertyId);
+    this.selectedScheduleCalendarDayKey = null;
+    this.recomputeBackendData(this.selectedServiceProviderUserId);
+    this.refreshScheduleCalendars();
+  }
+
   rebuildServiceProviderFilterOptions(): void {
     this.serviceProviderFilterOptions = this.getServiceProviders();
     const optionIds = new Set(this.serviceProviderFilterOptions.map(option => option.userId));
@@ -431,6 +455,21 @@ export class MaintenanceListComponent extends PropertyMaintenanceBase implements
       this.selectedServiceProviderUserId = null;
       this.selectedScheduleCalendarDayKey = null;
       this.recomputeBackendData(null);
+    }
+  }
+
+  rebuildPropertyFilterOptions(propertyRows: ReturnType<MappingService['mapPropertyListRows']>): void {
+    this.propertyFilterOptions = [...propertyRows]
+      .filter(row => !!row.propertyId)
+      .map(row => ({
+        propertyId: row.propertyId,
+        propertyCode: row.propertyCode || ''
+      }))
+      .sort((a, b) => (a.propertyCode ?? '').localeCompare(b.propertyCode ?? '', undefined, { sensitivity: 'base' }));
+
+    const selectedId = this.utilityService.normalizeIdOrNull(this.selectedPropertyFilterId);
+    if (selectedId && !this.propertyFilterOptions.some(option => this.utilityService.normalizeId(option.propertyId) === selectedId)) {
+      this.selectedPropertyFilterId = null;
     }
   }
   //#endregion
@@ -646,6 +685,14 @@ export class MaintenanceListComponent extends PropertyMaintenanceBase implements
         row.carpetUserId === userAssignedId ||
         row.inspectorUserId === userAssignedId
     );
+  }
+
+  filterMaintenanceDisplayForSelectedProperty(rows: MaintenanceListDisplay[]): MaintenanceListDisplay[] {
+    const selectedPropertyId = this.utilityService.normalizeIdOrNull(this.selectedPropertyFilterId);
+    if (!selectedPropertyId) {
+      return [...rows];
+    }
+    return rows.filter(row => this.utilityService.normalizeIdOrNull(row.propertyId) === selectedPropertyId);
   }
   //#endregion
 
