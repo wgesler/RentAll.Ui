@@ -153,40 +153,57 @@ export class DocumentViewComponent implements OnInit, OnDestroy, AfterViewInit {
     }
 
     // Use FileDetails.dataUrl if available, otherwise fall back to download endpoint
-    if (this.document.fileDetails?.dataUrl) {
-      // Use the dataUrl directly from FileDetails
-      this.iframeSrc = this.sanitizer.bypassSecurityTrustResourceUrl(this.document.fileDetails.dataUrl);
-      this.iframeKey++; // Force iframe refresh
-      // Set up load listener if printing is needed
-      if (this.shouldPrint) {
-        setTimeout(() => this.setupIframeLoadListener(), 200);
-      }
-    } else if (this.document.fileDetails?.file && this.document.fileDetails?.contentType) {
-      // Construct dataUrl from base64 file and contentType
-      const dataUrl = `data:${this.document.fileDetails.contentType};base64,${this.document.fileDetails.file}`;
-      this.iframeSrc = this.sanitizer.bypassSecurityTrustResourceUrl(dataUrl);
+    const embeddedSrc = this.getEmbeddedDocumentSrc(this.document);
+    if (embeddedSrc) {
+      // Use embedded file details first (same behavior style as inventory/embedded viewers).
+      this.iframeSrc = this.sanitizer.bypassSecurityTrustResourceUrl(embeddedSrc);
       this.iframeKey++; // Force iframe refresh
       // Set up load listener if printing is needed
       if (this.shouldPrint) {
         setTimeout(() => this.setupIframeLoadListener(), 200);
       }
     } else {
-      // Fallback to download endpoint if FileDetails doesn't have the data
-      this.documentService.downloadDocument(this.documentId).pipe(take(1)).subscribe({
-        next: (blob: Blob) => {
-          // Create a blob URL for the document
-          const blobUrl = URL.createObjectURL(blob);
-          // Sanitize the URL for use in iframe
-          this.iframeSrc = this.sanitizer.bypassSecurityTrustResourceUrl(blobUrl);
-          this.iframeKey++; // Force iframe refresh
-          // Set up load listener if printing is needed
-          if (this.shouldPrint) {
-            setTimeout(() => this.setupIframeLoadListener(), 200);
-          }
-        },
-        error: () => {}
-      });
+      this.loadDocumentContentFromDownloadEndpoint();
     }
+  }
+
+  getEmbeddedDocumentSrc(document: DocumentResponse): string | null {
+    const dataUrl = (document.fileDetails?.dataUrl || '').trim();
+    if (dataUrl.startsWith('data:')) {
+      return dataUrl;
+    }
+
+    const file = (document.fileDetails?.file || '').trim();
+    const contentType = (document.fileDetails?.contentType || document.contentType || '').trim();
+    if (!file || !contentType) {
+      return null;
+    }
+
+    // Some payloads already return a full data URL in file.
+    if (file.startsWith('data:')) {
+      return file;
+    }
+
+    // Basic sanity check to avoid rendering obviously invalid/empty content.
+    if (file.length < 16) {
+      return null;
+    }
+
+    return `data:${contentType};base64,${file}`;
+  }
+
+  loadDocumentContentFromDownloadEndpoint(): void {
+    this.documentService.downloadDocument(this.documentId).pipe(take(1)).subscribe({
+      next: (blob: Blob) => {
+        const blobUrl = URL.createObjectURL(blob);
+        this.iframeSrc = this.sanitizer.bypassSecurityTrustResourceUrl(blobUrl);
+        this.iframeKey++;
+        if (this.shouldPrint) {
+          setTimeout(() => this.setupIframeLoadListener(), 200);
+        }
+      },
+      error: () => {}
+    });
   }
 
   isViewableInBrowser(contentType: string, fileExtension: string): boolean {
