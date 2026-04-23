@@ -44,6 +44,26 @@
   flex-wrap: nowrap;
 }
 
+.work-order-tenant-field {
+  flex: 0 0 30%;
+  min-width: 0;
+  max-width: 30%;
+}
+
+.work-order-description-row {
+  margin-top: 0.25rem;
+}
+
+.work-order-description-field {
+  width: 100%;
+
+  textarea.mat-mdc-input-element,
+  textarea.mat-mdc-input-element::placeholder {
+    font-size: 13px !important;
+    line-height: 1.3 !important;
+  }
+}
+
 .work-order-items-section {
   margin-top: 1.5rem;
 }

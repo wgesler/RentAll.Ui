@@ -51,13 +51,10 @@
                     <mat-option [value]="opt.value">{{ opt.label }}</mat-option>
                   }
                 </mat-select>
-                @if (form.get('workOrderTypeId')?.hasError('required') && form.get('workOrderTypeId')?.touched) {
-                  <mat-error>Work order type is required</mat-error>
-                }
               </mat-form-field>
 
               @if (isTenantTypeSelected()) {
-                <mat-form-field appearance="outline" style="flex: 0 0 20%; min-width: 0; max-width: 20%;">
+                <mat-form-field appearance="outline" class="work-order-tenant-field">
                   <mat-label>Tenant</mat-label>
                   <mat-select formControlName="reservationId">
                     <mat-option [value]="null">Select Reservation</mat-option>
@@ -69,10 +66,12 @@
                   </mat-select>
                 </mat-form-field>
               }
+            </div>
 
-              <mat-form-field appearance="outline" style="flex: 1 1 auto; min-width: 0;">
+            <div class="col-span-4 work-order-description-row">
+              <mat-form-field appearance="outline" class="work-order-description-field">
                 <mat-label>Description</mat-label>
-                <input matInput formControlName="description" placeholder="Work order description" maxlength="250">
+                <textarea matInput formControlName="description" rows="3" maxlength="250" required></textarea>
               </mat-form-field>
             </div>
 

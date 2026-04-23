@@ -128,10 +128,6 @@ export class WorkOrderComponent implements OnInit, OnChanges, OnDestroy {
 
     this.selectedPropertyId = this.property?.propertyId ?? null;
     this.isAddMode = this.workOrderId == null;
-    if (this.isAddMode) {
-      this.form.patchValue({ workOrderTypeId: this.form.get('workOrderTypeId')?.value ?? 0 });
-    }
-
     if (!this.embeddedInMaintenance) {
       const workOrderIdParam = this.route.snapshot.paramMap.get('id');
       if (workOrderIdParam !== null)
@@ -368,9 +364,9 @@ export class WorkOrderComponent implements OnInit, OnChanges, OnDestroy {
       workOrderCode: new FormControl(''),
       officeName: new FormControl(''),
       propertyCode: new FormControl(''),
-      workOrderTypeId: new FormControl(0, [Validators.required]),
+      workOrderTypeId: new FormControl<number | null>(null, [Validators.required]),
       reservationId: new FormControl<string | null>(null),
-      description: new FormControl(''),
+      description: new FormControl('', [Validators.required]),
       isActive: new FormControl(true)
     });
   }
@@ -423,7 +419,7 @@ export class WorkOrderComponent implements OnInit, OnChanges, OnDestroy {
     this.workOrderItems.forEach(item => {
       if (item.itemSource === 'receipt' && item.receiptId != null) {
         const amt = this.propertyReceipts.find(r => r.receiptId === item.receiptId)?.amount ?? 0;
-        (item as WorkOrderItemEditable).receiptAmount = this.applyOwnerMarkup(amt);
+        (item as WorkOrderItemEditable).receiptAmount = this.applyPropertyAgreementMarkup(amt);
       }
     });
   }
@@ -450,6 +446,13 @@ export class WorkOrderComponent implements OnInit, OnChanges, OnDestroy {
 
   //#region Work Order Items
   addWorkOrderItem(): void {
+    if (!this.hasSelectedWorkOrderType()) {
+      this.form.markAllAsTouched();
+      this.form.get('workOrderTypeId')?.markAsTouched();
+      this.form.get('workOrderTypeId')?.updateValueAndValidity({ emitEvent: false });
+      return;
+    }
+
     const newItem: WorkOrderItemEditable = {
       description: '',
       receiptId: null,
@@ -510,7 +513,7 @@ export class WorkOrderComponent implements OnInit, OnChanges, OnDestroy {
     item.itemSource = receiptId == null ? 'noReceipt' : 'receipt';
     item.receiptId = receiptId;
     const receipt = receiptId != null ? this.propertyReceipts.find(r => r.receiptId === receiptId) : null;
-    const receiptAmount = this.applyOwnerMarkup(receipt?.amount ?? 0);
+    const receiptAmount = this.applyPropertyAgreementMarkup(receipt?.amount ?? 0);
     item.receiptAmount = receiptAmount;
     if (receipt?.description != null && receipt.description !== '') {
       this.updateWorkOrderItemField(itemIndex, 'description', receipt.description);
@@ -587,6 +590,11 @@ export class WorkOrderComponent implements OnInit, OnChanges, OnDestroy {
 
   applyPropertyAgreementMarkup(baseAmount: number): number {
     const amount = Number(baseAmount) || 0;
+    const workOrderTypeId = Number(this.form.get('workOrderTypeId')?.value ?? -1);
+    if (workOrderTypeId !== WorkOrderType.Owner) {
+      return Math.round(amount * 100) / 100;
+    }
+
     const markupPct = Number(this.propertyAgreement?.markup ?? 0);
     if (!Number.isFinite(markupPct) || markupPct === 0) {
       return Math.round(amount * 100) / 100;
@@ -874,10 +882,6 @@ export class WorkOrderComponent implements OnInit, OnChanges, OnDestroy {
   //#endregion
 
   //#region Property Agreement Defaults
-  applyOwnerMarkup(baseAmount: number): number {
-    return this.applyPropertyAgreementMarkup(baseAmount);
-  }
-
   applyDefaultLaborCostToUnsavedItems(): void {
     if (!this.workOrderItems?.length) {
       return;
@@ -969,6 +973,11 @@ export class WorkOrderComponent implements OnInit, OnChanges, OnDestroy {
   //#endregion
 
   //#region Utility Methods
+  hasSelectedWorkOrderType(): boolean {
+    const workOrderTypeId = this.form.get('workOrderTypeId')?.value;
+    return workOrderTypeId !== null && workOrderTypeId !== undefined;
+  }
+
   back(): void {
     if (this.embeddedInMaintenance) {
       this.backEvent.emit();

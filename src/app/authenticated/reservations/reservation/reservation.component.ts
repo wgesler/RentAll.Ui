@@ -1888,8 +1888,11 @@ export class ReservationComponent implements OnInit, OnDestroy, CanComponentDeac
       return;
     }
 
+    const billingTypeId = this.form.get('billingTypeId')?.value;
     const billingControl = this.form.get('billingRate')!;
-    const billingRate = this.selectedProperty.monthlyRate.toFixed(2);
+    const billingRate = billingTypeId === BillingType.Monthly
+      ? this.selectedProperty.monthlyRate.toFixed(2)
+      : this.selectedProperty.dailyRate.toFixed(2);
     billingControl.setValue(billingRate, { emitEvent: false });
   }
 
