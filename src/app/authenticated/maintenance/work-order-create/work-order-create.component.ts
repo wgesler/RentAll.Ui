@@ -4,7 +4,7 @@ import { Component, OnInit } from '@angular/core';
 import { DomSanitizer, SafeHtml } from '@angular/platform-browser';
 import { ActivatedRoute, Router } from '@angular/router';
 import { ToastrService } from 'ngx-toastr';
-import { BehaviorSubject, finalize, map, Observable, take } from 'rxjs';
+import { BehaviorSubject, catchError, finalize, forkJoin, map, Observable, of, take } from 'rxjs';
 import { RouterUrl } from '../../../app.routes';
 import { MaterialModule } from '../../../material.module';
 import { AuthService } from '../../../services/auth.service';
@@ -221,8 +221,44 @@ export class WorkOrderCreateComponent extends BaseDocumentComponent implements O
     if (!propertyId) return;
     this.receiptService.getReceiptsByPropertyId(propertyId).pipe(take(1)).subscribe({
       next: receipts => {
-        this.propertyReceipts = receipts ?? [];
-        this.tryGeneratePreview();
+        const baseReceipts = receipts ?? [];
+        const includedReceiptIds = this.getIncludedReceiptIds();
+        if (!includedReceiptIds.length) {
+          this.propertyReceipts = baseReceipts;
+          this.tryGeneratePreview();
+          return;
+        }
+
+        const detailRequests = includedReceiptIds.map(receiptId =>
+          this.receiptService.getReceiptById(receiptId).pipe(
+            take(1),
+            catchError(() => of(null))
+          )
+        );
+        forkJoin(detailRequests).pipe(take(1)).subscribe({
+          next: detailedReceipts => {
+            const detailsById = new Map<number, ReceiptResponse>();
+            detailedReceipts.forEach(receipt => {
+              if (receipt?.receiptId != null) {
+                detailsById.set(receipt.receiptId, receipt);
+              }
+            });
+
+            const mergedReceipts = baseReceipts.map(receipt => detailsById.get(receipt.receiptId) ?? receipt);
+            detailsById.forEach((receipt, receiptId) => {
+              if (!mergedReceipts.some(existing => existing.receiptId === receiptId)) {
+                mergedReceipts.push(receipt);
+              }
+            });
+
+            this.propertyReceipts = mergedReceipts;
+            this.tryGeneratePreview();
+          },
+          error: () => {
+            this.propertyReceipts = baseReceipts;
+            this.tryGeneratePreview();
+          }
+        });
       },
       error: () => {
         this.propertyReceipts = [];
@@ -304,6 +340,15 @@ export class WorkOrderCreateComponent extends BaseDocumentComponent implements O
       result = result.replace(/<img[^>]*\{\{orgLogoBase64\}\}[^>]*\s*\/?>/gi, '');
     }
 
+    const receiptPagesHtml = this.generateIncludedReceiptPagesHtml();
+    if (receiptPagesHtml) {
+      if (/<\/body>/i.test(result)) {
+        result = result.replace(/<\/body>/i, `${receiptPagesHtml}</body>`);
+      } else {
+        result += receiptPagesHtml;
+      }
+    }
+
     // Remove any unresolved placeholders.
     result = result.replace(/\{\{[^}]+\}\}/g, '');
     return result;
@@ -330,6 +375,106 @@ export class WorkOrderCreateComponent extends BaseDocumentComponent implements O
                 <td class="text-right">${itemTotal}</td>
               </tr>`;
     }).join('\n');
+  }
+
+  generateIncludedReceiptPagesHtml(): string {
+    if (!this.workOrder?.workOrderItems?.length || !this.propertyReceipts?.length) {
+      return '';
+    }
+
+    const includedReceiptIds = this.getIncludedReceiptIds();
+    if (!includedReceiptIds.length) {
+      return '';
+    }
+
+    const receiptBlocks = includedReceiptIds.map(receiptId => {
+      const receipt = this.propertyReceipts.find(r => r.receiptId === receiptId);
+      if (!receipt) {
+        return '';
+      }
+
+      const description = this.escapeHtml(this.getShortReceiptDescription(receipt.description));
+      const amount = this.escapeHtml('$' + this.formatter.currency(receipt.amount ?? 0));
+      const imageSrc = this.getReceiptImageSrc(receipt);
+      const receiptSummaryLine = `<p style="text-align: left; margin: 0 0 8px; font-size: 10pt; line-height: 1.4;">
+      <span style="font-weight: 700;">Receipt Description:</span>
+      <span style="font-weight: 400;">${description}</span>
+      <span style="font-weight: 700; margin-left: 8px;">Amount:</span>
+      <span style="font-weight: 400;">${amount}</span>
+    </p>`;
+      const imageHtml = imageSrc
+        ? `<img src="${imageSrc}" alt="Receipt #${receipt.receiptId}" style="max-width: 100%; max-height: 3.8in; display: block; margin-top: 8px; border: 1px solid #ddd;">`
+        : '<div style="margin-top: 12px; padding: 12px; border: 1px dashed #ccc; color: #666; font-size: 10pt;">No uploaded receipt image available.</div>';
+
+      return `<div style="padding: 10px 10px 12px;">
+  ${receiptSummaryLine}
+  ${imageHtml}
+</div>`;
+    }).filter(block => block.length > 0);
+
+    if (!receiptBlocks.length) {
+      return '';
+    }
+
+    const pages: string[] = [];
+    for (let i = 0; i < receiptBlocks.length; i += 2) {
+      const pageBlocks = receiptBlocks.slice(i, i + 2).join('\n');
+      pages.push(`<div class="page">${pageBlocks}</div>`);
+    }
+
+    return `<p class="breakhere"></p>${pages.join('\n<p class="breakhere"></p>\n')}`;
+  }
+
+  getIncludedReceiptIds(): number[] {
+    if (!this.workOrder?.workOrderItems?.length) {
+      return [];
+    }
+
+    return [...new Set(
+      this.workOrder.workOrderItems
+        .map(item => item.receiptId)
+        .filter((receiptId): receiptId is number => Number(receiptId) > 0)
+    )];
+  }
+
+  getShortReceiptDescription(description: string | null | undefined): string {
+    const text = (description ?? '').trim();
+    if (text.length <= 120) {
+      return text;
+    }
+    return `${text.slice(0, 117)}...`;
+  }
+
+  getReceiptImageSrc(receipt: ReceiptResponse): string {
+    const dataUrl = receipt.fileDetails?.dataUrl;
+    if (typeof dataUrl === 'string' && dataUrl.trim() !== '') {
+      return dataUrl.trim();
+    }
+
+    const file = receipt.fileDetails?.file;
+    const contentType = receipt.fileDetails?.contentType;
+    if (typeof file === 'string' && file.trim() !== '' && typeof contentType === 'string' && contentType.trim() !== '') {
+      if (file.startsWith('data:')) {
+        return file;
+      }
+      return `data:${contentType};base64,${file}`;
+    }
+
+    const receiptPath = receipt.receiptPath;
+    if (typeof receiptPath === 'string' && receiptPath.trim() !== '') {
+      return receiptPath.trim();
+    }
+
+    return '';
+  }
+
+  escapeHtml(value: string): string {
+    return value
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#39;');
   }
 
   loadClientPartyData(): void {

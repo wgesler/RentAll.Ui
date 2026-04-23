@@ -223,6 +223,10 @@ export class WorkOrderComponent implements OnInit, OnChanges, OnDestroy {
 
     this.isSubmitting = true;
 
+    const previousReceiptIds = this.workOrder?.workOrderItems
+      ?.map(item => item.receiptId)
+      .filter((id): id is number => Number(id) > 0) ?? [];
+
     const save$ = this.workOrder?.workOrderId
       ? this.workOrderService.updateWorkOrder(payload)
       : this.workOrderService.createWorkOrder(payload);
@@ -268,7 +272,7 @@ export class WorkOrderComponent implements OnInit, OnChanges, OnDestroy {
         if (wasCreate) {
           this.updateAccountingOfficeWorkOrderNoAfterCreate();
         }
-        this.updateReceiptsWorkOrderCode(saved.workOrderCode ?? this.generatedWorkOrderCode ?? '');
+        this.updateReceiptsWorkOrderCode(saved.workOrderCode ?? this.generatedWorkOrderCode ?? '', previousReceiptIds);
         this.loadPropertyReceipts(); /* refresh receipts so dropdown and display stay in sync */
         this.toastr.success('Work order saved.', 'Success');
 
@@ -930,11 +934,15 @@ export class WorkOrderComponent implements OnInit, OnChanges, OnDestroy {
     });
   }
 
-  updateReceiptsWorkOrderCode(workOrderCode: string): void {
-    const receiptIds = [...new Set(this.workOrderItems.map(i => i.receiptId).filter((id): id is number => id != null))];
-    if (receiptIds.length === 0) return;
-    const updates = receiptIds.map(receiptId => {
-      const receipt = this.propertyReceipts.find(r => r.receiptId === receiptId);
+  updateReceiptsWorkOrderCode(workOrderCode: string, previousReceiptIds: number[] = []): void {
+    const currentReceiptIds = [...new Set(this.workOrderItems.map(i => i.receiptId).filter((id): id is number => Number(id) > 0))];
+    const currentReceiptIdSet = new Set(currentReceiptIds);
+    const removedReceiptIds = [...new Set(previousReceiptIds.filter(id => !currentReceiptIdSet.has(id)))];
+    const updates = [
+      ...currentReceiptIds.map(receiptId => ({ receiptId, nextWorkOrderCode: workOrderCode })),
+      ...removedReceiptIds.map(receiptId => ({ receiptId, nextWorkOrderCode: '' }))
+    ].map(update => {
+      const receipt = this.propertyReceipts.find(r => r.receiptId === update.receiptId);
       if (!receipt) return of(null);
       const payload: ReceiptRequest = {
         receiptId: receipt.receiptId,
@@ -944,22 +952,27 @@ export class WorkOrderComponent implements OnInit, OnChanges, OnDestroy {
         maintenanceId: receipt.maintenanceId,
         description: receipt.description ?? '',
         amount: receipt.amount ?? 0,
-        workOrderCode,
+        workOrderCode: update.nextWorkOrderCode,
         receiptPath: receipt.receiptPath ?? undefined,
         fileDetails: receipt.fileDetails ?? undefined,
         isActive: receipt.isActive ?? true
       };
       return this.receiptService.updateReceipt(payload);
     });
+    if (updates.length === 0) return;
     forkJoin(updates).pipe(take(1)).subscribe({
       next: () => {
-        receiptIds.forEach(id => {
+        currentReceiptIds.forEach(id => {
           const r = this.propertyReceipts.find(x => x.receiptId === id);
           if (r) r.workOrderCode = workOrderCode;
         });
+        removedReceiptIds.forEach(id => {
+          const r = this.propertyReceipts.find(x => x.receiptId === id);
+          if (r) r.workOrderCode = '';
+        });
       },
       error: () => {
-        this.toastr.warning('Work order saved, but one or more receipts could not be updated with the work order code.', 'Partial Update');
+        this.toastr.warning('Work order saved, but one or more receipts could not be synchronized.', 'Partial Update');
       }
     });
   }
