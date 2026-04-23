@@ -4,7 +4,7 @@ import { Component, EventEmitter, Input, OnChanges, OnDestroy, OnInit, Output, S
 import { FormBuilder, FormControl, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
 import { ActivatedRoute, Router } from '@angular/router';
 import { ToastrService } from 'ngx-toastr';
-import { BehaviorSubject, Observable, forkJoin, finalize, filter, map, of, switchMap, take } from 'rxjs';
+import { BehaviorSubject, forkJoin, finalize, of, switchMap, take, Subject, takeUntil } from 'rxjs';
 import { RouterUrl } from '../../../app.routes';
 import { FormatterService } from '../../../services/formatter-service';
 import { MaterialModule } from '../../../material.module';
@@ -14,14 +14,14 @@ import { AccountingOfficeRequest, AccountingOfficeResponse } from '../../organiz
 import { AccountingOfficeService } from '../../organizations/services/accounting-office.service';
 import { PropertyResponse } from '../../properties/models/property.model';
 import { PropertyService } from '../../properties/services/property.service';
-import { ReservationListResponse, ReservationResponse } from '../../reservations/models/reservation-model';
+import { PropertyAgreementService } from '../../properties/services/property-agreement.service';
+import { ReservationListResponse } from '../../reservations/models/reservation-model';
 import { ReservationService } from '../../reservations/services/reservation.service';
-import { ContactResponse } from '../../contacts/models/contact.model';
-import { ContactService } from '../../contacts/services/contact.service';
 import { TransactionType } from '../../accounting/models/accounting-enum';
 import { InvoiceRequest, LedgerLineRequest } from '../../accounting/models/invoice.model';
 import { CostCodesService } from '../../accounting/services/cost-codes.service';
 import { InvoiceService } from '../../accounting/services/invoice.service';
+import { PropertyAgreementResponse } from '../../properties/models/property-agreement.model';
 import { getWorkOrderTypes, WorkOrderType } from '../models/maintenance-enums';
 import { ReceiptRequest, ReceiptResponse } from '../models/receipt.model';
 import { WorkOrderRequest, WorkOrderResponse, WorkOrderItemResponse, WorkOrderItemRequest } from '../models/work-order.model';
@@ -29,7 +29,11 @@ import { ReceiptService } from '../services/receipt.service';
 import { WorkOrderService } from '../services/work-order.service';
 
 /** Editable work order item (new rows have no workOrderItemId/workOrderId; GUIDs from response). itemAmount is auto-calculated as receiptAmount + (laborHours * laborCost). */
-export type WorkOrderItemEditable = Partial<Pick<WorkOrderItemResponse, 'workOrderItemId' | 'workOrderId'>> & Pick<WorkOrderItemResponse, 'description' | 'laborHours' | 'laborCost' | 'itemAmount'> & { receiptId?: number | null; receiptAmount?: number };
+export type WorkOrderItemEditable = Partial<Pick<WorkOrderItemResponse, 'workOrderItemId' | 'workOrderId'>> & Pick<WorkOrderItemResponse, 'description' | 'laborHours' | 'laborCost' | 'itemAmount'> & {
+  receiptId?: number | null;
+  receiptAmount?: number;
+  itemSource?: 'noReceipt' | 'receipt' | 'inventory';
+};
 
 @Component({
   standalone: true,
@@ -42,6 +46,8 @@ export class WorkOrderComponent implements OnInit, OnChanges, OnDestroy {
 
   readonly parseInt = parseInt;
   readonly costCode = '4100';
+  readonly noReceiptOptionValue = 0;
+  readonly inventoryItemOptionValue = -1;
 
   @Input() property: PropertyResponse | null = null;
   @Input() workOrderId: string | null = null;
@@ -53,6 +59,7 @@ export class WorkOrderComponent implements OnInit, OnChanges, OnDestroy {
 
   fb: FormBuilder;
   form: FormGroup;
+  isPageLoading = true;
   authService: AuthService;
   workOrderService: WorkOrderService;
   isAddMode: boolean = true;
@@ -68,13 +75,14 @@ export class WorkOrderComponent implements OnInit, OnChanges, OnDestroy {
   generatedWorkOrderCode: string | null = null;
   nextWorkOrderNo: number | null = null;
   propertyReservations: ReservationListResponse[] = [];
-  ownerContact: ContactResponse | null = null;
+  propertyAgreement: PropertyAgreementResponse | null = null;
   costCodeId: string | null = null;
-  focusedCurrencyField: { index: number; field: 'laborCost'; editValue: string } | null = null;
+  defaultLaborCost: number = 0;
+  focusedCurrencyField: { index: number; field: 'laborCost' | 'amount'; editValue: string } | null = null;
 
-  itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['workOrder', 'property']));
-  isLoading$: Observable<boolean> = this.itemsToLoad$.pipe(map(items => items.size > 0));
-
+  itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['property', 'workOrder', 'costCode', 'propertyAgreement', 'propertyReceipts', 'propertyReservations', 'workOrderNumber']));
+  destroy$ = new Subject<void>();
+  
   constructor(
     fb: FormBuilder,
     authService: AuthService,
@@ -82,7 +90,7 @@ export class WorkOrderComponent implements OnInit, OnChanges, OnDestroy {
     private route: ActivatedRoute,
     private router: Router,
     private propertyService: PropertyService,
-    private contactService: ContactService,
+    private propertyAgreementService: PropertyAgreementService,
     private costCodeService: CostCodesService,
     private invoiceService: InvoiceService,
     private accountingOfficeService: AccountingOfficeService,
@@ -99,10 +107,15 @@ export class WorkOrderComponent implements OnInit, OnChanges, OnDestroy {
 
   //#region Work Order
   ngOnInit(): void {
-    this.organizationId = this.property?.organizationId ?? this.authService.getUser()?.organizationId ?? '';
+    this.organizationId = this.authService.getUser()?.organizationId ?? '';
     this.buildForm();
-    this.loadCostCode();
 
+    // Wait to load page until all data is available
+    this.itemsToLoad$.pipe(takeUntil(this.destroy$)).subscribe(items => {
+      this.isPageLoading = items.size > 0;
+    });
+
+    // Only Tenant types have reservations...
     this.form.get('workOrderTypeId')?.valueChanges.subscribe(typeId => {
       if (Number(typeId) !== 0) {
         this.form.patchValue({ reservationId: null }, { emitEvent: false });
@@ -111,58 +124,48 @@ export class WorkOrderComponent implements OnInit, OnChanges, OnDestroy {
           this.workOrder.reservationCode = null;
         }
       }
-      this.loadOwnerContactForMarkup();
     });
 
-    if (this.embeddedInMaintenance) {
-      this.isAddMode = this.workOrderId == null;
-      this.selectedPropertyId = this.property?.propertyId ?? null;
-      if (this.isAddMode) {
-        this.form.patchValue({ workOrderTypeId: this.form.get('workOrderTypeId')?.value ?? 0 });
-      }
-      this.loadProperty();
-      this.loadWorkOrder();
-      return;
+    this.selectedPropertyId = this.property?.propertyId ?? null;
+    this.isAddMode = this.workOrderId == null;
+    if (this.isAddMode) {
+      this.form.patchValue({ workOrderTypeId: this.form.get('workOrderTypeId')?.value ?? 0 });
     }
-    
-    this.route.paramMap.pipe(take(1)).subscribe(paramMap => {
-      const workOrderIdParam = paramMap.get('id');
+
+    if (!this.embeddedInMaintenance) {
+      const workOrderIdParam = this.route.snapshot.paramMap.get('id');
       if (workOrderIdParam !== null)
         this.workOrderId = workOrderIdParam === 'new' ? null : workOrderIdParam;
-
-      this.isAddMode = this.workOrderId == null;
       this.selectedPropertyId = this.property?.propertyId ?? this.route.snapshot.queryParamMap.get('propertyId') ?? null;
-      if (this.isAddMode) {
-        this.form.patchValue({ workOrderTypeId: this.form.get('workOrderTypeId')?.value ?? 0 });
-      }
+    }
 
-      this.loadProperty();
-      this.loadWorkOrder();
-    });
+    this.loadProperty();
+    this.loadWorkOrder();
+    this.loadAccountingOfficeForWorkOrderCode();
+    this.loadPropertyReservations();
+    this.loadPropertyReceipts();
+    this.loadPropertyAgreement();
+    this.loadCostCode();
   }
 
   ngOnChanges(changes: SimpleChanges): void {
     if (changes['property'] && !changes['property'].firstChange) {
-      const curr = this.property;
-      if (curr?.propertyId) {
-        this.selectedPropertyId = curr.propertyId;
-      }
-      if (curr?.organizationId) {
-        this.organizationId = curr.organizationId;
-      }
-      if (curr && this.embeddedInMaintenance) {
+      this.selectedPropertyId = this.property?.propertyId ?? null;
+
+      if (this.selectedPropertyId && this.embeddedInMaintenance) {
         this.form.patchValue({
           workOrderCode: this.generatedWorkOrderCode ?? '',
-          officeName: curr.officeName || '',
-          propertyCode: curr.propertyCode || ''
+          officeName: this.property.officeName || '',
+          propertyCode: this.property.propertyCode || ''
         }, { emitEvent: false });
         this.loadAccountingOfficeForWorkOrderCode();
         this.loadPropertyReservations();
         this.loadPropertyReceipts();
-        this.loadOwnerContactForMarkup();
+        this.loadPropertyAgreement();
         this.loadCostCode();
       }
     }
+
     if (changes['workOrderId'] && !changes['workOrderId'].firstChange) {
       this.isAddMode = this.workOrderId == null;
       this.loadWorkOrder();
@@ -249,7 +252,13 @@ export class WorkOrderComponent implements OnInit, OnChanges, OnDestroy {
           isActive: saved.isActive
         });
         this.workOrderItems = (saved.workOrderItems ?? []).map(item => {
-          const receiptAmount = item.receiptId != null ? (this.propertyReceipts.find(r => r.receiptId === item.receiptId)?.amount ?? 0) : 0;
+          const itemSource = this.resolveItemSourceFromReceiptId(item.receiptId);
+          const laborHours = Math.floor(Number(item.laborHours)) || 0;
+          const laborCost = Number(item.laborCost) || 0;
+          const derivedInventoryAmount = Math.round(((Number(item.itemAmount) || 0) - (laborHours * laborCost)) * 100) / 100;
+          const receiptAmount = itemSource === 'receipt'
+            ? (this.propertyReceipts.find(r => r.receiptId === item.receiptId)?.amount ?? 0)
+            : (itemSource === 'inventory' ? derivedInventoryAmount : 0);
           totalAmount += item.itemAmount;
           return {
             workOrderItemId: item.workOrderItemId,
@@ -257,8 +266,9 @@ export class WorkOrderComponent implements OnInit, OnChanges, OnDestroy {
             description: item.description ?? '',
             receiptId: item.receiptId ?? null,
             receiptAmount,
-            laborHours: Math.floor(Number(item.laborHours)) || 0,
-            laborCost: item.laborCost ?? 0,
+            itemSource,
+            laborHours,
+            laborCost,
             itemAmount: item.itemAmount ?? 0
           };
         });
@@ -377,44 +387,45 @@ export class WorkOrderComponent implements OnInit, OnChanges, OnDestroy {
     });
 
     this.workOrderItems = (workOrder.workOrderItems ?? []).map(item => ({
-      workOrderItemId: item.workOrderItemId,
-      workOrderId: item.workOrderId,
-      description: item.description ?? '',
-      receiptId: item.receiptId ?? null,
-      receiptAmount: item.receiptId != null ? (this.propertyReceipts.find(r => r.receiptId === item.receiptId)?.amount ?? 0) : 0,
-      laborHours: Math.floor(Number(item.laborHours)) || 0,
-      laborCost: item.laborCost ?? 0,
-      itemAmount: item.itemAmount ?? 0
+      ...(() => {
+        const itemSource = this.resolveItemSourceFromReceiptId(item.receiptId);
+        const laborHours = Math.floor(Number(item.laborHours)) || 0;
+        const laborCost = Number(item.laborCost) || 0;
+        const derivedInventoryAmount = Math.round(((Number(item.itemAmount) || 0) - (laborHours * laborCost)) * 100) / 100;
+        const receiptAmount = itemSource === 'receipt'
+          ? (this.propertyReceipts.find(r => r.receiptId === item.receiptId)?.amount ?? 0)
+          : (itemSource === 'inventory' ? derivedInventoryAmount : 0);
+        return {
+          workOrderItemId: item.workOrderItemId,
+          workOrderId: item.workOrderId,
+          description: item.description ?? '',
+          receiptId: item.receiptId ?? null,
+          receiptAmount,
+          itemSource,
+          laborHours,
+          laborCost,
+          itemAmount: item.itemAmount ?? 0
+        };
+      })()
     }));
     this.syncReceiptAmounts();
   }
 
+  isInventoryItemSelected(item: WorkOrderItemEditable): boolean {
+    return item.itemSource === 'inventory';
+  }
+  
+  isTenantTypeSelected(): boolean {
+    return Number(this.form.get('workOrderTypeId')?.value ?? -1) === 0;
+  }
+
   syncReceiptAmounts(): void {
     this.workOrderItems.forEach(item => {
-      if (item.receiptId != null) {
+      if (item.itemSource === 'receipt' && item.receiptId != null) {
         const amt = this.propertyReceipts.find(r => r.receiptId === item.receiptId)?.amount ?? 0;
         (item as WorkOrderItemEditable).receiptAmount = this.applyOwnerMarkup(amt);
       }
     });
-  }
-
-  isViewModeBeforeChanges(): boolean {
-    if (this.isAddMode || !this.workOrder?.workOrderId) {
-      return false;
-    }
-    const payload: WorkOrderRequest = {
-      organizationId: this.property?.organizationId ?? this.workOrder.organizationId,
-      officeId: this.property?.officeId ?? this.workOrder.officeId,
-      propertyId: this.property?.propertyId ?? this.workOrder.propertyId,
-      workOrderTypeId: this.form.get('workOrderTypeId')?.value ?? 0,
-      reservationId: this.isTenantTypeSelected() ? (this.form.get('reservationId')?.value ?? null) : null,
-      reservationCode: this.isTenantTypeSelected() ? this.getSelectedReservationCode() : null,
-      description: (this.form.get('description')?.value ?? '').trim(),
-      workOrderItems: this.mapWorkOrderItemsForSave(false),
-      isActive: this.form.get('isActive')?.value ?? true,
-      workOrderId: this.workOrder.workOrderId
-    };
-    return !this.hasWorkOrderUpdates(payload);
   }
 
   onPrimaryAction(): void {
@@ -443,8 +454,9 @@ export class WorkOrderComponent implements OnInit, OnChanges, OnDestroy {
       description: '',
       receiptId: null,
       receiptAmount: 0,
+      itemSource: 'noReceipt',
       laborHours: 0,
-      laborCost: 0,
+      laborCost: this.defaultLaborCost,
       itemAmount: 0
     };
     this.workOrderItems.push(newItem);
@@ -462,11 +474,6 @@ export class WorkOrderComponent implements OnInit, OnChanges, OnDestroy {
     }
   }
 
-  /**
-   * Receipts available for the dropdown: all property receipts are loaded for display.
-   * For picking a receipt we show only those not yet assigned to a work order, or already assigned to this work order,
-   * and exclude receipts already selected by another line item (except this item's current selection).
-   */
   getAvailableReceiptsForItem(itemIndex: number): ReceiptResponse[] {
     const currentWorkOrderCode = this.workOrder?.workOrderCode ?? this.generatedWorkOrderCode ?? '';
     const eligible = this.propertyReceipts.filter(r => {
@@ -486,57 +493,107 @@ export class WorkOrderComponent implements OnInit, OnChanges, OnDestroy {
     );
   }
 
-  onReceiptSelectionChange(itemIndex: number, receiptId: number | null): void {
-    this.updateWorkOrderItemField(itemIndex, 'receiptId', receiptId);
+  onReceiptSelectionChange(itemIndex: number, receiptSelectionValue: number | null): void {
+    const item = this.workOrderItems[itemIndex] as WorkOrderItemEditable;
+    if (!item) {
+      return;
+    }
+
+    if (receiptSelectionValue === this.inventoryItemOptionValue) {
+      item.itemSource = 'inventory';
+      item.receiptId = 0;
+      item.receiptAmount = 0;
+      return;
+    }
+
+    const receiptId = receiptSelectionValue === this.noReceiptOptionValue ? null : receiptSelectionValue;
+    item.itemSource = receiptId == null ? 'noReceipt' : 'receipt';
+    item.receiptId = receiptId;
     const receipt = receiptId != null ? this.propertyReceipts.find(r => r.receiptId === receiptId) : null;
     const receiptAmount = this.applyOwnerMarkup(receipt?.amount ?? 0);
-    (this.workOrderItems[itemIndex] as WorkOrderItemEditable).receiptAmount = receiptAmount;
+    item.receiptAmount = receiptAmount;
     if (receipt?.description != null && receipt.description !== '') {
       this.updateWorkOrderItemField(itemIndex, 'description', receipt.description);
     }
   }
 
-  isOwnerTypeSelected(): boolean {
-    return Number(this.form.get('workOrderTypeId')?.value ?? -1) === WorkOrderType.Owner;
+  getReceiptSelectionValue(item: WorkOrderItemEditable): number {
+    if (item.itemSource === 'inventory') {
+      return this.inventoryItemOptionValue;
+    }
+    if (item.receiptId != null) {
+      return item.receiptId;
+    }
+    return this.noReceiptOptionValue;
   }
 
-  loadOwnerContactForMarkup(): void {
-    if (!this.isOwnerTypeSelected()) {
-      this.ownerContact = null;
-      this.syncReceiptAmounts();
-      return;
+  resolveItemSourceFromReceiptId(receiptId: number | null | undefined): 'noReceipt' | 'receipt' | 'inventory' {
+    if (receiptId === 0) {
+      return 'inventory';
     }
-    const ownerId = this.property?.owner1Id ?? null;
-    if (!ownerId) {
-      this.ownerContact = null;
-      this.syncReceiptAmounts();
-      return;
+    if (receiptId != null) {
+      return 'receipt';
     }
-    this.contactService.getContactByGuid(ownerId).pipe(take(1)).subscribe({
-      next: owner => {
-        this.ownerContact = owner;
-        this.syncReceiptAmounts();
-      },
-      error: () => {
-        this.ownerContact = null;
-        this.syncReceiptAmounts();
-      }
-    });
+    return 'noReceipt';
   }
 
-  applyOwnerMarkup(baseAmount: number): number {
+  onAmountInput(itemIndex: number, event: Event): void {
+    const item = this.workOrderItems[itemIndex] as WorkOrderItemEditable;
+    if (!item || item.itemSource !== 'inventory') {
+      return;
+    }
+
+    const input = event.target as HTMLInputElement;
+    if (this.focusedCurrencyField?.index === itemIndex && this.focusedCurrencyField?.field === 'amount') {
+      this.focusedCurrencyField = { ...this.focusedCurrencyField, editValue: input.value };
+    }
+    const sanitized = input.value.replace(/[^0-9.-]/g, '');
+    const parsed = parseFloat(sanitized);
+    item.receiptAmount = this.applyPropertyAgreementMarkup(Number.isFinite(parsed) ? parsed : 0);
+  }
+
+  getAmountInputValue(item: WorkOrderItemEditable): string {
+    const itemIndex = this.workOrderItems.indexOf(item);
+    if (item.itemSource === 'inventory'
+      && this.focusedCurrencyField?.field === 'amount'
+      && this.focusedCurrencyField?.index === itemIndex) {
+      return this.focusedCurrencyField.editValue;
+    }
+    return '$' + this.formatter.currency(Number(item.receiptAmount) || 0);
+  }
+
+  onAmountFocus(index: number, event: Event): void {
+    const item = this.workOrderItems[index] as WorkOrderItemEditable;
+    if (!item || item.itemSource !== 'inventory') {
+      return;
+    }
+    const raw = item.receiptAmount != null ? String(item.receiptAmount) : '';
+    this.focusedCurrencyField = { index, field: 'amount', editValue: raw };
+    setTimeout(() => (event.target as HTMLInputElement)?.select(), 0);
+  }
+
+  onAmountBlur(index: number, event: Event): void {
+    const item = this.workOrderItems[index] as WorkOrderItemEditable;
+    if (!item || item.itemSource !== 'inventory') {
+      this.focusedCurrencyField = null;
+      return;
+    }
+    const input = event.target as HTMLInputElement;
+    const sanitized = input.value.replace(/[^0-9.-]/g, '');
+    const parsed = parseFloat(sanitized);
+    item.receiptAmount = this.applyPropertyAgreementMarkup(Number.isFinite(parsed) ? parsed : 0);
+    this.focusedCurrencyField = null;
+  }
+
+  applyPropertyAgreementMarkup(baseAmount: number): number {
     const amount = Number(baseAmount) || 0;
-    if (!this.isOwnerTypeSelected()) {
-      return Math.round(amount * 100) / 100;
-    }
-    const markupPct = Number(this.ownerContact?.markup ?? 0);
+    const markupPct = Number(this.propertyAgreement?.markup ?? 0);
     if (!Number.isFinite(markupPct) || markupPct === 0) {
       return Math.round(amount * 100) / 100;
     }
     return Math.round(amount * (1 + markupPct / 100) * 100) / 100;
   }
 
-  /** Total = receipt amount + (labor hours × labor cost). Used for display and save. */
   getItemTotal(item: WorkOrderItemEditable | WorkOrderItemResponse): number {
     const editable = item as WorkOrderItemEditable;
     const receiptAmt = editable.receiptAmount != null
@@ -551,18 +608,12 @@ export class WorkOrderComponent implements OnInit, OnChanges, OnDestroy {
     return '$' + this.formatter.currency(this.getItemTotal(item));
   }
 
-  /** Sum of all work order item totals (for Total Amount display). */
   getTotalAmount(): number {
     return this.workOrderItems.reduce((sum, item) => sum + this.getItemTotal(item), 0);
   }
 
   getTotalAmountDisplay(): string {
     return '$' + this.formatter.currency(this.getTotalAmount());
-  }
-
-  getReceiptAmountDisplay(item: WorkOrderItemEditable): string {
-    const amt = item.receiptAmount ?? 0;
-    return '$' + this.formatter.currency(amt);
   }
 
   getLaborCostDisplay(index: number, item: WorkOrderItemEditable): string {
@@ -593,12 +644,54 @@ export class WorkOrderComponent implements OnInit, OnChanges, OnDestroy {
     }
   }
 
-  /** Map editable items to request shape. On create omit workOrderId and workOrderItemId (GUIDs returned in response); on update include them. */
+  getSelectedReservationCode(): string | null {
+    const reservationId = this.form.get('reservationId')?.value ?? null;
+    if (!reservationId) {
+      return null;
+    }
+    const fromList = this.propertyReservations.find(r => r.reservationId === reservationId)?.reservationCode ?? null;
+    if (fromList) {
+      return fromList;
+    }
+    // Fallback for edit mode if reservation list has not loaded yet.
+    if (this.workOrder?.reservationId === reservationId) {
+      return this.workOrder.reservationCode ?? null;
+    }
+    return null;
+  }
+
+  getReservationLabel(reservation: ReservationListResponse): string {
+    const reservationName = reservation.reservationCode || 'Reservation';
+    const tenantName = reservation.tenantName || reservation.contactName || '';
+    return `${reservationName}: ${tenantName}`.trim();
+  }
+  //#endregion
+
+  //#region Save Detection
+  isViewModeBeforeChanges(): boolean {
+    if (this.isAddMode || !this.workOrder?.workOrderId) {
+      return false;
+    }
+    const payload: WorkOrderRequest = {
+      organizationId: this.property?.organizationId ?? this.workOrder.organizationId,
+      officeId: this.property?.officeId ?? this.workOrder.officeId,
+      propertyId: this.property?.propertyId ?? this.workOrder.propertyId,
+      workOrderTypeId: this.form.get('workOrderTypeId')?.value ?? 0,
+      reservationId: this.isTenantTypeSelected() ? (this.form.get('reservationId')?.value ?? null) : null,
+      reservationCode: this.isTenantTypeSelected() ? this.getSelectedReservationCode() : null,
+      description: (this.form.get('description')?.value ?? '').trim(),
+      workOrderItems: this.mapWorkOrderItemsForSave(false),
+      isActive: this.form.get('isActive')?.value ?? true,
+      workOrderId: this.workOrder.workOrderId
+    };
+    return !this.hasWorkOrderUpdates(payload);
+  }
+
   mapWorkOrderItemsForSave(isCreate: boolean): WorkOrderItemRequest[] {
     return this.workOrderItems.map(item => {
       const base: WorkOrderItemRequest = {
         description: (item.description ?? '').trim(),
-        receiptId: item.receiptId ?? undefined,
+        receiptId: item.itemSource === 'inventory' ? 0 : (item.receiptId ?? undefined),
         laborHours: Math.floor(Number(item.laborHours)) || 0,
         laborCost: Number(item.laborCost) || 0,
         itemAmount: this.getItemTotal(item)
@@ -644,42 +737,17 @@ export class WorkOrderComponent implements OnInit, OnChanges, OnDestroy {
       this.hasWorkOrderItemsChanged()
     );
   }
-
-  getSelectedReservationCode(): string | null {
-    const reservationId = this.form.get('reservationId')?.value ?? null;
-    if (!reservationId) {
-      return null;
-    }
-    const fromList = this.propertyReservations.find(r => r.reservationId === reservationId)?.reservationCode ?? null;
-    if (fromList) {
-      return fromList;
-    }
-    // Fallback for edit mode if reservation list has not loaded yet.
-    if (this.workOrder?.reservationId === reservationId) {
-      return this.workOrder.reservationCode ?? null;
-    }
-    return null;
-  }
-
-  isTenantTypeSelected(): boolean {
-    return Number(this.form.get('workOrderTypeId')?.value ?? -1) === 0;
-  }
-
-  getReservationLabel(reservation: ReservationListResponse): string {
-    const reservationName = reservation.reservationCode || 'Reservation';
-    const tenantName = reservation.tenantName || reservation.contactName || '';
-    return `${reservationName}: ${tenantName}`.trim();
-  }
-  //#endregion
+  //#endregion 
 
   //#region Data Load Methods
   loadCostCode(): void {
     const officeId = this.property?.officeId ?? null;
     if (!officeId) {
       this.costCodeId = null;
+      this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'costCode');
       return;
     }
-    this.costCodeService.getCostCodeByCode(this.costCode, officeId).pipe(take(1)).subscribe({
+    this.costCodeService.getCostCodeByCode(this.costCode, officeId).pipe(takeUntil(this.destroy$), take(1), finalize(() => { this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'costCode'); })).subscribe({
       next: (costCode) => {
         this.costCodeId = costCode?.costCodeId ?? null;
       },
@@ -695,9 +763,7 @@ export class WorkOrderComponent implements OnInit, OnChanges, OnDestroy {
       return;
     }
 
-    this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'workOrderNumber');
-
-    this.workOrderService.getWorkOrder(this.organizationId, this.workOrderId).pipe(take(1), finalize(() => { this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'workOrder'); })).subscribe({
+    this.workOrderService.getWorkOrder(this.organizationId, this.workOrderId).pipe(takeUntil(this.destroy$), take(1), finalize(() => { this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'workOrder'); })).subscribe({
       next: (workOrder: WorkOrderResponse) => {
         this.workOrder = workOrder;
         this.populateForm(workOrder);
@@ -709,47 +775,49 @@ export class WorkOrderComponent implements OnInit, OnChanges, OnDestroy {
   }
 
   loadProperty(): void {
-    if (this.property || !this.selectedPropertyId) {
+    if (this.property) {
       this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'property');
-      if (this.property) {
-        this.loadAccountingOfficeForWorkOrderCode();
-        this.loadPropertyReservations();
-        this.loadPropertyReceipts();
-        this.loadOwnerContactForMarkup();
-        this.loadCostCode();
-      }
       return;
     }
-    this.propertyService.getPropertyByGuid(this.selectedPropertyId).pipe(take(1), finalize(() => { this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'property'); })).subscribe({
-      next: (p) => {
-        this.property = p;
-        if (this.property?.organizationId) {
-          this.organizationId = this.property.organizationId;
-        }
-        this.form.patchValue({
-          workOrderCode: this.generatedWorkOrderCode ?? '',
-          officeName: this.property?.officeName || '',
-          propertyCode: this.property?.propertyCode || '',
-        });
-        this.loadAccountingOfficeForWorkOrderCode();
-        this.loadPropertyReservations();
-        this.loadPropertyReceipts();
-        this.loadOwnerContactForMarkup();
-        this.loadCostCode();
-      },
+
+    this.propertyService.getPropertyByGuid(this.selectedPropertyId).pipe(takeUntil(this.destroy$), take(1), finalize(() => { this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'property'); })).subscribe({
+      next: (property) => {
+        this.property = property;
+     },
       error: () => {
         this.toastr.error('Unable to load property.', 'Error');
       }
     });
   }
 
-  loadPropertyReceipts(): void {
-    const propertyId = this.property?.propertyId ?? null;
-    if (!propertyId) {
-      this.propertyReceipts = [];
+  loadPropertyAgreement(): void {
+    if (!this.selectedPropertyId) {
+      this.propertyAgreement = null;
+      this.defaultLaborCost = 0;
+      this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'propertyAgreement');
       return;
     }
-    this.receiptService.getReceiptsByPropertyId(propertyId).pipe(take(1)).subscribe({
+
+    this.propertyAgreementService.getPropertyAgreement(this.selectedPropertyId).pipe(takeUntil(this.destroy$), take(1), finalize(() => { this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'propertyAgreement'); })).subscribe({
+      next: agreement => {
+        this.propertyAgreement = agreement;
+        this.defaultLaborCost = Number(agreement?.hourlyLaborCost) || 0;
+        this.applyDefaultLaborCostToUnsavedItems();
+      },
+      error: () => {
+        this.propertyAgreement = null;
+        this.defaultLaborCost = 0;
+      }
+    });
+  }
+
+  loadPropertyReceipts(): void {
+    if (!this.selectedPropertyId) {
+      this.propertyReceipts = [];
+      this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'propertyReceipts');
+      return;
+    }
+    this.receiptService.getReceiptsByPropertyId(this.selectedPropertyId).pipe(takeUntil(this.destroy$), take(1), finalize(() => { this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'propertyReceipts'); })).subscribe({
       next: (receipts) => {
         this.propertyReceipts = (receipts ?? []).filter(r => r.isActive !== false);
         this.syncReceiptAmounts();
@@ -761,12 +829,12 @@ export class WorkOrderComponent implements OnInit, OnChanges, OnDestroy {
   }
 
   loadPropertyReservations(): void {
-    const propertyId = this.property?.propertyId ?? null;
-    if (!propertyId) {
+    if (!this.selectedPropertyId) {
       this.propertyReservations = [];
+      this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'propertyReservations');
       return;
     }
-    this.reservationService.getReservationsByPropertyId(propertyId).pipe(take(1)).subscribe({
+    this.reservationService.getReservationsByPropertyId(this.selectedPropertyId).pipe(takeUntil(this.destroy$), take(1), finalize(() => { this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'propertyReservations'); })).subscribe({
       next: reservations => {
         this.propertyReservations = (reservations ?? []).filter(r => r.isActive !== false);
       },
@@ -781,24 +849,9 @@ export class WorkOrderComponent implements OnInit, OnChanges, OnDestroy {
       this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'workOrderNumber');
       return;
     }
-    const officeId = Number(this.property.officeId);
-    if (Number.isNaN(officeId)) {
-      this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'workOrderNumber');
-      this.applyAccountingOfficeSequenceFromOffice(null);
-      return;
-    }
 
-    const organizationId = this.property.organizationId?.trim() ?? '';
-    if (!organizationId) {
-      this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'workOrderNumber');
-      this.applyAccountingOfficeSequenceFromOffice(null);
-      return;
-    }
-
-    this.utilityService.addLoadItem(this.itemsToLoad$, 'workOrderNumber');
-
-    this.accountingOfficeService.ensureAccountingOfficesLoaded(organizationId).pipe(take(1), finalize(() => { this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'workOrderNumber'); })).subscribe(list => {
-      const office = (list || []).find(o => Number(o.officeId) === officeId) ?? null;
+    this.accountingOfficeService.ensureAccountingOfficesLoaded(this.organizationId).pipe(takeUntil(this.destroy$), take(1), finalize(() => { this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'workOrderNumber'); })).subscribe(list => {
+      const office = (list || []).find(o => Number(o.officeId) === this.property?.officeId) ?? null;
       this.applyAccountingOfficeSequenceFromOffice(office);
     });
   }
@@ -817,6 +870,26 @@ export class WorkOrderComponent implements OnInit, OnChanges, OnDestroy {
     const paddedCode = String(this.nextWorkOrderNo).padStart(5, '0');
     this.generatedWorkOrderCode = `WO-${paddedCode}`;
     this.form.patchValue({ workOrderCode: this.generatedWorkOrderCode }, { emitEvent: false });
+  }
+  //#endregion
+
+  //#region Property Agreement Defaults
+  applyOwnerMarkup(baseAmount: number): number {
+    return this.applyPropertyAgreementMarkup(baseAmount);
+  }
+
+  applyDefaultLaborCostToUnsavedItems(): void {
+    if (!this.workOrderItems?.length) {
+      return;
+    }
+
+    this.workOrderItems.forEach(item => {
+      const isUnsavedItem = !item.workOrderItemId;
+      const hasManualLaborCost = Number(item.laborCost) > 0;
+      if (isUnsavedItem && !hasManualLaborCost) {
+        item.laborCost = this.defaultLaborCost;
+      }
+    });
   }
   //#endregion
 
@@ -910,6 +983,8 @@ export class WorkOrderComponent implements OnInit, OnChanges, OnDestroy {
   }
 
   ngOnDestroy(): void {
+    this.destroy$.next();
+    this.destroy$.complete();
     this.itemsToLoad$.complete();
   }
   //#endregion

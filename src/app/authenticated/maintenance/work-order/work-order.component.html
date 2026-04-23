@@ -1,4 +1,4 @@
-@if (isLoading$ | async) {
+@if (isPageLoading) {
   <div class="loading-container">
     <mat-spinner [diameter]="40"></mat-spinner>
     <p>Loading work order...</p>
@@ -105,7 +105,7 @@
                         <th class="wo-col-receipt">Receipt</th>
                         <th class="wo-col-amount text-right">Amount</th>
                         <th class="wo-col-hours line-items-two-line-header">Hours</th>
-                        <th class="wo-col-cost line-items-two-line-header text-right">Cost</th>
+                        <th class="wo-col-cost line-items-two-line-header text-right">Labor Cost</th>
                         <th class="wo-col-total text-right">Total</th>
                         <th class="wo-col-actions text-right"></th>
                       </tr>
@@ -117,17 +117,18 @@
                           <td class="wo-col-description line-items-desc-cell">
                             <input
                               type="text"
-                              class="w-full ledger-input-no-border line-items-desc-input"
+                              class="w-full line-items-desc-input line-item-field-box line-item-description-box"
                               [value]="item.description ?? ''"
                               (input)="updateWorkOrderItemField(i, 'description', $any($event.target).value)"
                               maxlength="250">
                           </td>
                           <td class="wo-col-receipt receipt-cell">
                             <mat-select
-                              [value]="item.receiptId ?? null"
+                              [value]="getReceiptSelectionValue(item)"
                               (selectionChange)="onReceiptSelectionChange(i, $event.value)"
                               class="w-full receipt-select">
-                              <mat-option [value]="null">No receipt</mat-option>
+                              <mat-option [value]="noReceiptOptionValue">No Receipt</mat-option>
+                              <mat-option [value]="inventoryItemOptionValue">Inventory Item</mat-option>
                               @for (r of getAvailableReceiptsForItem(i); track r.receiptId) {
                                 <mat-option [value]="r.receiptId">
                                   {{ r.description || ('Receipt #' + r.receiptId) }}
@@ -136,12 +137,20 @@
                             </mat-select>
                           </td>
                           <td class="wo-col-amount amount-value-cell text-right">
-                            <input type="text" class="w-full border-0 readonly-input" [value]="getReceiptAmountDisplay(item)" readonly>
+                            <input
+                              type="text"
+                              class="w-full border-0 line-item-field-box amount-field-input"
+                              [class.amount-field-input--readonly]="!isInventoryItemSelected(item)"
+                              [value]="getAmountInputValue(item)"
+                              [readonly]="!isInventoryItemSelected(item)"
+                              (focus)="onAmountFocus(i, $event)"
+                              (blur)="onAmountBlur(i, $event)"
+                              (input)="onAmountInput(i, $event)">
                           </td>
                           <td class="wo-col-hours hours-cell">
                             <input
                               type="number"
-                              class="w-full ledger-input-no-border work-order-item-hours wo-hours-shift wo-hours-value-shift"
+                              class="w-full work-order-item-hours wo-hours-shift wo-hours-value-shift line-item-field-box"
                               [value]="item.laborHours ?? ''"
                               (input)="updateWorkOrderItemField(i, 'laborHours', parseInt($any($event.target).value, 10) || 0)"
                               min="0"
@@ -150,7 +159,7 @@
                           <td class="wo-col-cost cost-cell text-right">
                             <input
                               type="text"
-                              class="w-full ledger-input-no-border"
+                              class="w-full line-item-field-box line-item-labor-cost-box"
                               inputmode="decimal"
                               [value]="getLaborCostDisplay(i, item)"
                               (focus)="onLaborCostFocus(i, $event)"
@@ -158,10 +167,12 @@
                               (input)="onLaborCostInput(i, $event)">
                           </td>
                           <td class="wo-col-total total-value-cell text-right">
-                            <input type="text" class="w-full border-0 readonly-input" [value]="getTotalDisplay(item)" readonly>
-                            @if (getItemTotal(item) <= 0) {
-                              <span class="text-xs text-red-600 block mt-0.5">Total must be &gt; 0</span>
-                            }
+                            <input
+                              type="text"
+                              class="w-full border-0 readonly-input line-item-field-box line-item-field-box--readonly"
+                              [class.line-item-field-box--error]="getItemTotal(item) <= 0"
+                              [value]="getTotalDisplay(item)"
+                              readonly>
                           </td>
                           <td class="wo-col-actions text-right">
                             <button
@@ -181,7 +192,7 @@
                       <tr class="line-items-total-row">
                         <td colspan="6"></td>
                         <td class="wo-col-total text-right">
-                          <input type="text" class="w-full border-0 readonly-input total-amount-input" [value]="getTotalAmountDisplay()" readonly>
+                          <input type="text" class="w-full border-0 readonly-input total-amount-input line-item-field-box line-item-field-box--readonly" [value]="getTotalAmountDisplay()" readonly>
                         </td>
                         <td class="wo-col-actions grand-total-label-cell">Total</td>
                       </tr>

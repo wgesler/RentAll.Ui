@@ -100,14 +100,14 @@
   table-layout: fixed; /* keep column widths consistent so Grand Total aligns with Total column */
 
   /* Single source of truth for all column widths */
-  col.wo-col-no { width: 50px; }
-  col.wo-col-description { width: 160px; }
-  col.wo-col-receipt { width: 200px; }
+  col.wo-col-no { width: 32px; }
+  col.wo-col-description { width: 212px; }
+  col.wo-col-receipt { width: 176px; }
   col.wo-col-amount { width: 110px; }
   col.wo-col-hours { width: 90px; }
   col.wo-col-cost { width: 90px; }
   col.wo-col-total { width: 110px; }
-  col.wo-col-actions { width: 50px; }
+  col.wo-col-actions { width: 40px; }
 
   th,
   td {
@@ -138,7 +138,7 @@
 
   .line-items-desc-header,
   .line-items-desc-cell {
-    max-width: 160px;
+    max-width: 212px;
   }
 
   .line-items-desc-cell .line-items-desc-input {
@@ -166,6 +166,19 @@
 
   tbody td {
     font-size: 14px !important;
+    vertical-align: top !important;
+  }
+
+  .wo-col-no {
+    padding-right: 2px !important;
+  }
+
+  tbody td.wo-col-no {
+    vertical-align: middle !important;
+  }
+
+  .line-items-desc-cell {
+    padding-left: 2px !important;
   }
 
   .receipt-cell {
@@ -268,72 +281,103 @@
     }
   }
 
-  /* Receipt dropdown - match Invoice cost-code-select so text is same size as line */
+  /* Receipt dropdown: keep exact same row geometry as other inputs */
   .receipt-select {
     width: 100%;
+    display: block;
+    margin: 0;
     font-size: 14px !important;
-    line-height: 1.25 !important;
+    line-height: 2rem !important;
 
     ::ng-deep {
-      * {
-        font-size: 14px !important;
+      &.mat-mdc-select {
+        display: block;
       }
 
       .mat-mdc-select-trigger {
-        height: 32px;
-        padding: 0 6px;
+        min-height: 2rem !important;
+        height: 2rem !important;
+        border: 1px solid #cbd5e1 !important;
+        border-radius: 0.375rem !important;
+        background: #fff !important;
+        padding: 0 0.5rem !important;
         display: flex;
         align-items: center;
+        box-sizing: border-box !important;
         font-size: 14px !important;
-        line-height: 1.25 !important;
-
-        * {
-          font-size: 14px !important;
-        }
-
-        .mat-mdc-select-value {
-          flex: 1;
-          text-align: left;
-          font-size: 14px !important;
-          line-height: 1.25 !important;
-
-          * {
-            font-size: 14px !important;
-          }
-
-          .mat-mdc-select-value-text {
-            font-size: 14px !important;
-            line-height: 1.25 !important;
-
-            * {
-              font-size: 14px !important;
-            }
-          }
-        }
+        line-height: 2rem !important;
       }
 
-      .mat-mdc-select-panel .mat-mdc-option {
+      .mat-mdc-select-value,
+      .mat-mdc-select-value-text,
+      .mat-mdc-select-arrow {
+        font-size: 14px !important;
+        line-height: 2rem !important;
+      }
+
+      .mat-mdc-select-panel .mat-mdc-option,
+      .mat-mdc-select-panel .mat-mdc-option .mdc-list-item__primary-text {
         font-size: 14px !important;
         line-height: 1.25 !important;
-
-        .mdc-list-item__primary-text {
-          font-size: 14px !important;
-          line-height: 1.25 !important;
-        }
       }
     }
   }
 
-  .receipt-cell .receipt-select {
-    ::ng-deep {
-      .mat-mdc-select-value-text,
-      .mat-mdc-select-value-text *,
-      .mat-mdc-select-trigger *,
-      .mat-mdc-select-value * {
-        font-size: 14px !important;
-        line-height: 1.25 !important;
-      }
+  .line-item-field-box {
+    height: 2rem !important;
+    min-height: 2rem !important;
+    border: 1px solid #cbd5e1 !important;
+    border-radius: 0.375rem !important;
+    background: #fff !important;
+    padding: 0 0.5rem !important;
+    box-sizing: border-box !important;
+
+    &:focus {
+      border-color: #64748b !important;
+      outline: none !important;
     }
+  }
+
+  .line-item-field-box--readonly {
+    background: #f8fafc !important;
+    color: #475569;
+  }
+
+  .line-item-field-box--error {
+    border-color: #dc2626 !important;
+    color: #dc2626 !important;
+  }
+
+  .amount-field-input {
+    background: #fff !important;
+  }
+
+  .amount-field-input--readonly {
+    background: #fff !important;
+    color: #64748b !important;
+    cursor: default;
+  }
+
+  .line-items-table input.line-item-field-box {
+    border: 1px solid #cbd5e1 !important;
+    border-radius: 0.375rem !important;
+    background: #fff !important;
+  }
+
+  .line-items-table input.line-item-description-box,
+  .line-items-table input.line-item-labor-cost-box {
+    border: 1px solid #94a3b8 !important;
+    border-radius: 0.375rem !important;
+    background: #fff !important;
+    box-shadow: none !important;
+  }
+
+  .line-items-table input.line-item-field-box.line-item-field-box--readonly {
+    background: #f8fafc !important;
+  }
+
+  .receipt-cell {
+    vertical-align: top !important;
   }
 }
 

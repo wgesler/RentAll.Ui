@@ -66,11 +66,12 @@ export class MaintenanceComponent implements OnInit, OnDestroy, OnChanges {
 
   //#region Maintenance
   ngOnInit(): void {
+    this.user = this.authService.getUser();
+
     this.itemsToLoad$.pipe(takeUntil(this.destroy$)).subscribe(items => {
       this.isPageLoading = items.size > 0;
     });
-    this.user = this.authService.getUser();
-
+  
     this.loadMaintenance();
     this.loadAppliances();
     this.loadUtilities();
