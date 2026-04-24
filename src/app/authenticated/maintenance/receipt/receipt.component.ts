@@ -1,7 +1,7 @@
 import { CommonModule } from '@angular/common';
 import { HttpErrorResponse } from '@angular/common/http';
 import { Component, EventEmitter, Input, OnDestroy, OnInit, Output } from '@angular/core';
-import { FormBuilder, FormControl, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
+import { FormArray, FormBuilder, FormControl, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
 import { ActivatedRoute, Router } from '@angular/router';
 import { ToastrService } from 'ngx-toastr';
 import { BehaviorSubject, Observable, finalize, map, take } from 'rxjs';
@@ -13,7 +13,7 @@ import { AuthService } from '../../../services/auth.service';
 import { UtilityService } from '../../../services/utility.service';
 import { PropertyResponse } from '../../properties/models/property.model';
 import { PropertyService } from '../../properties/services/property.service';
-import { ReceiptRequest, ReceiptResponse } from '../models/receipt.model';
+import { ReceiptRequest, ReceiptResponse, Split } from '../models/receipt.model';
 import { ReceiptService } from '../services/receipt.service';
 
 @Component({
@@ -28,8 +28,7 @@ export class ReceiptComponent implements OnInit, OnDestroy {
   @Input() receiptId: number | null = null;
   @Input() maintenanceId: string | null = null;
   @Input() showBackButton: boolean = true;
-  /** When true, component is shown inside maintenance tabs; uses @Input() receiptId and back/saved emit only (no route nav). */
-  @Input() embeddedInMaintenance = false;
+   @Input() embeddedInMaintenance = false;
   @Output() backEvent = new EventEmitter<void>();
   @Output() savedEvent = new EventEmitter<void>();
 
@@ -51,8 +50,12 @@ export class ReceiptComponent implements OnInit, OnDestroy {
   /** When true, amount input shows raw value for editing (no $); when false, shows getAmountDisplay() with $ prefix. */
   amountFocused = false;
   amountEditValue = '';
+  focusedSplitAmountIndex: number | null = null;
+  splitAmountEditValue = '';
   receiptImageTargetMinBytes = 150 * 1024;
   receiptImageTargetMaxBytes = 500 * 1024;
+  splitTotalValidationError = false;
+  isSyncingInitialSplit = false;
 
   itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['receipt', 'property']));
   isLoading$: Observable<boolean> = this.itemsToLoad$.pipe(map(items => items.size > 0));
@@ -91,7 +94,6 @@ export class ReceiptComponent implements OnInit, OnDestroy {
 
       this.isAddMode = this.receiptId == null;
       this.selectedPropertyId = this.property?.propertyId ?? this.route.snapshot.queryParamMap.get('propertyId') ?? null;
-
       this.loadProperty();
       this.loadReceipt();
     });
@@ -111,8 +113,20 @@ export class ReceiptComponent implements OnInit, OnDestroy {
 
     const sendNewReceipt = this.hasNewReceiptUpload;
     const receiptPathValue = this.form.get('receiptPath')?.value ?? this.receipt?.receiptPath ?? null;
-    const amountStr = this.form.get('amount')?.value?.toString().replace(/[^0-9.]/g, '') ?? '';
+    const amountStr = this.sanitizeSignedDecimalInput(this.form.get('amount')?.value?.toString() ?? '');
     const amountValue = parseFloat(amountStr) || 0;
+    const payloadSplits = this.getPayloadSplitsFromForm();
+    if (payloadSplits.length === 0) {
+      this.toastr.warning('At least one split line is required.', 'Missing split');
+      return;
+    }
+    const splitTotalAmount = this.getSplitTotalAmount(payloadSplits);
+    if (splitTotalAmount > amountValue) {
+      this.splitTotalValidationError = true;
+      this.toastr.warning('Split total cannot be greater than the receipt amount.', 'Invalid split total');
+      return;
+    }
+    this.splitTotalValidationError = false;
     const payload: ReceiptRequest = {
       receiptId: this.receipt?.receiptId,
       organizationId: this.organizationId,
@@ -121,7 +135,7 @@ export class ReceiptComponent implements OnInit, OnDestroy {
       maintenanceId: this.receipt?.maintenanceId || this.maintenanceId || '',
       description: (this.form.get('description')?.value || '').trim(),
       amount: amountValue,
-      workOrderCode: (this.receipt?.workOrderCode || '').trim(),
+      splits: payloadSplits,
       receiptPath: sendNewReceipt ? undefined : receiptPathValue,
       fileDetails: sendNewReceipt ? this.receiptFileDetails : undefined,
       isActive: this.form.get('isActive')?.value
@@ -134,6 +148,7 @@ export class ReceiptComponent implements OnInit, OnDestroy {
       const hasReceiptUpdates = this.receipt
         ? (payload.description !== (this.receipt.description ?? '').trim()) ||
           payload.amount !== (this.receipt.amount ?? 0) ||
+          this.haveSplitsChanged(payload.splits, this.receipt.splits || []) ||
           payload.isActive !== this.receipt.isActive ||
           hasReceiptChange
         : true;
@@ -163,6 +178,7 @@ export class ReceiptComponent implements OnInit, OnDestroy {
           receiptPath: saved.receiptPath || '',
           isActive: saved.isActive
         });
+        this.replaceSplitLines(saved.splits || []);
         this.receiptFileDetails = saved.fileDetails || this.receiptFileDetails;
         if (saved.fileDetails?.file && saved.fileDetails?.contentType) {
           this.receiptPreviewDataUrl = saved.fileDetails.dataUrl
@@ -174,6 +190,7 @@ export class ReceiptComponent implements OnInit, OnDestroy {
         }
         this.hasNewReceiptUpload = false;
         this.originalReceiptPath = saved.receiptPath ?? null;
+        this.splitTotalValidationError = false;
         this.savedEvent.emit();
         this.toastr.success('Receipt saved.', 'Success');
         if (this.selectedPropertyId) {
@@ -194,9 +211,11 @@ export class ReceiptComponent implements OnInit, OnDestroy {
       propertyCode: new FormControl(''),
       amount: new FormControl('0.00', [Validators.required]),
       description: new FormControl('', [Validators.required]),
+      splits: this.fb.array([]),
       receiptPath: new FormControl(''),
       isActive: new FormControl(true)
     });
+    this.ensureAtLeastOneSplit();
   }
 
   populateForm(receipt: ReceiptResponse): void {
@@ -208,9 +227,11 @@ export class ReceiptComponent implements OnInit, OnDestroy {
       receiptPath: receipt.receiptPath || '',
       isActive: receipt.isActive
     });
+    this.replaceSplitLines(receipt.splits || []);
     this.receiptFileDetails = receipt.fileDetails || null;
     this.hasNewReceiptUpload = false;
     this.originalReceiptPath = receipt.receiptPath ?? null;
+    this.splitTotalValidationError = false;
     if (receipt.fileDetails?.file && receipt.fileDetails?.contentType) {
       this.receiptPreviewDataUrl = receipt.fileDetails.dataUrl || `data:${receipt.fileDetails.contentType};base64,${receipt.fileDetails.file}`;
       this.receiptFileName = receipt.fileDetails.fileName || this.extractFileName(receipt.receiptPath || '');
@@ -464,19 +485,18 @@ export class ReceiptComponent implements OnInit, OnDestroy {
     this.formatter.formatDecimalOnEnter(event as KeyboardEvent, this.form.get('amount'));
   }
 
-  /** Display amount with $ prefix when not focused (like work-order Receipt Amount). */
   getAmountDisplay(): string {
     if (this.amountFocused) {
       return this.amountEditValue;
     }
-    const raw = this.form.get('amount')?.value?.toString().replace(/[^0-9.]/g, '') ?? '';
+    const raw = this.sanitizeSignedDecimalInput(this.form.get('amount')?.value?.toString() ?? '');
     const num = parseFloat(raw) || 0;
     return '$' + this.formatter.currency(num);
   }
 
   onAmountFocus(event: Event): void {
     const control = this.form.get('amount');
-    const current = control?.value?.toString().replace(/[^0-9.]/g, '') ?? '';
+    const current = this.sanitizeSignedDecimalInput(control?.value?.toString() ?? '');
     this.amountEditValue = current || '';
     this.amountFocused = true;
     setTimeout(() => (event.target as HTMLInputElement)?.select(), 0);
@@ -484,12 +504,13 @@ export class ReceiptComponent implements OnInit, OnDestroy {
 
   onAmountBlur(event: Event): void {
     const input = event.target as HTMLInputElement;
-    const raw = input?.value?.replace(/[^0-9.]/g, '') ?? '';
+    const raw = this.sanitizeSignedDecimalInput(input?.value ?? '');
     const num = parseFloat(raw) || 0;
     const formatted = num.toFixed(2);
     const control = this.form.get('amount');
     control?.setValue(formatted, { emitEvent: false });
     control?.markAsTouched();
+    this.syncInitialSplitWithOverallIfNeeded();
     this.amountFocused = false;
     this.amountEditValue = '';
   }
@@ -497,10 +518,176 @@ export class ReceiptComponent implements OnInit, OnDestroy {
   onAmountInput(event: Event): void {
     const input = event.target as HTMLInputElement;
     const value = input?.value ?? '';
-    const cleaned = value.replace(/[^0-9.]/g, '');
-    const parts = cleaned.split('.');
-    this.amountEditValue = parts.length > 2 ? parts[0] + '.' + parts.slice(1).join('') : cleaned;
+    this.amountEditValue = this.sanitizeSignedDecimalInput(value);
     this.form.get('amount')?.setValue(this.amountEditValue, { emitEvent: false });
+  }
+
+  getSplitAmountDisplay(index: number): string {
+    const amountControl = this.splitsFormArray.at(index)?.get('amount');
+    const raw = this.sanitizeSignedDecimalInput(amountControl?.value?.toString() ?? '');
+    if (this.focusedSplitAmountIndex === index) {
+      return this.splitAmountEditValue;
+    }
+    const num = parseFloat(raw) || 0;
+    return '$' + this.formatter.currency(num);
+  }
+
+  onSplitAmountFocus(event: Event, index: number): void {
+    const amountControl = this.splitsFormArray.at(index)?.get('amount');
+    const current = this.sanitizeSignedDecimalInput(amountControl?.value?.toString() ?? '');
+    this.focusedSplitAmountIndex = index;
+    this.splitAmountEditValue = current || '';
+    setTimeout(() => (event.target as HTMLInputElement)?.select(), 0);
+  }
+
+  onSplitAmountInput(event: Event, index: number): void {
+    const input = event.target as HTMLInputElement;
+    const value = input?.value ?? '';
+    this.splitAmountEditValue = this.sanitizeSignedDecimalInput(value);
+    const amountControl = this.splitsFormArray.at(index)?.get('amount');
+    amountControl?.setValue(this.splitAmountEditValue, { emitEvent: false });
+  }
+
+  onSplitAmountBlur(event: Event, index: number): void {
+    const input = event.target as HTMLInputElement;
+    const raw = this.sanitizeSignedDecimalInput(input?.value ?? '');
+    const num = parseFloat(raw) || 0;
+    const formatted = num.toFixed(2);
+    const amountControl = this.splitsFormArray.at(index)?.get('amount');
+    amountControl?.setValue(formatted, { emitEvent: false });
+    amountControl?.markAsTouched();
+    if (this.focusedSplitAmountIndex === index) {
+      this.focusedSplitAmountIndex = null;
+      this.splitAmountEditValue = '';
+    }
+  }
+
+  onSplitAmountKeydown(event: Event, index: number): void {
+    const amountControl = this.splitsFormArray.at(index)?.get('amount');
+    this.formatter.formatDecimalOnEnter(event as KeyboardEvent, amountControl);
+  }
+
+  onOverallDescriptionBlur(): void {
+    if (this.amountFocused) {
+      return;
+    }
+    this.syncInitialSplitWithOverallIfNeeded();
+  }
+
+  get splitsFormArray(): FormArray {
+    return this.form.get('splits') as FormArray;
+  }
+
+  addSplitLine(): void {
+    this.splitsFormArray.push(this.createSplitFormGroup());
+  }
+
+  removeSplitLine(index: number): void {
+    if (this.splitsFormArray.length <= 1) {
+      return;
+    }
+    this.splitsFormArray.removeAt(index);
+    this.ensureAtLeastOneSplit();
+  }
+
+  getDisplayedSplitTotal(): number {
+    return this.getSplitTotalAmount(this.getPayloadSplitsFromForm());
+  }
+
+  isDisplayedSplitTotalInvalid(): boolean {
+    return this.getDisplayedSplitTotal() > this.getReceiptAmountValue();
+  }
+
+  createSplitFormGroup(split?: Partial<Split>): FormGroup {
+    const amount = Number(split?.amount);
+    return this.fb.group({
+      amount: new FormControl(Number.isFinite(amount) ? amount.toFixed(2) : '', [Validators.required]),
+      description: new FormControl((split?.description || '').trim(), [Validators.required]),
+      workOrder: new FormControl((split?.workOrder || '').trim())
+    });
+  }
+
+  ensureAtLeastOneSplit(): void {
+    if (this.splitsFormArray.length > 0) {
+      return;
+    }
+    this.splitsFormArray.push(this.createSplitFormGroup());
+  }
+
+  replaceSplitLines(splits: Split[]): void {
+    this.splitsFormArray.clear();
+    (splits || []).forEach(split => this.splitsFormArray.push(this.createSplitFormGroup(split)));
+    this.ensureAtLeastOneSplit();
+  }
+
+  getPayloadSplitsFromForm(): Split[] {
+    return this.splitsFormArray.controls.map(control => {
+      const amountRaw = this.sanitizeSignedDecimalInput(control.get('amount')?.value?.toString() ?? '');
+      return {
+        amount: parseFloat(amountRaw) || 0,
+        description: (control.get('description')?.value || '').trim(),
+        workOrder: (control.get('workOrder')?.value || '').trim()
+      };
+    });
+  }
+
+  syncInitialSplitWithOverallIfNeeded(): void {
+    if (this.isSyncingInitialSplit || this.splitsFormArray.length !== 1) {
+      return;
+    }
+
+    const splitGroup = this.splitsFormArray.at(0) as FormGroup;
+    const splitAmountControl = splitGroup.get('amount');
+    const splitDescriptionControl = splitGroup.get('description');
+    const splitAmountRaw = this.sanitizeSignedDecimalInput(splitAmountControl?.value?.toString() ?? '');
+    const splitAmount = parseFloat(splitAmountRaw) || 0;
+    const splitDescription = (splitDescriptionControl?.value || '').trim();
+    const splitWorkOrder = (splitGroup.get('workOrder')?.value || '').trim();
+    const isBlankInitialSplit = splitAmount <= 0 && !splitDescription && !splitWorkOrder;
+
+    if (!isBlankInitialSplit) {
+      return;
+    }
+
+    this.isSyncingInitialSplit = true;
+    splitGroup.patchValue({
+      amount: this.getReceiptAmountValue().toFixed(2),
+      description: (this.form.get('description')?.value || '').trim()
+    }, { emitEvent: false });
+    this.isSyncingInitialSplit = false;
+  }
+
+  getSplitTotalAmount(splits: Split[]): number {
+    return (splits || []).reduce((sum, split) => sum + (Number(split.amount) || 0), 0);
+  }
+
+  haveSplitsChanged(nextSplits: Split[], currentSplits: Split[]): boolean {
+    return JSON.stringify(this.normalizeSplits(nextSplits)) !== JSON.stringify(this.normalizeSplits(currentSplits));
+  }
+
+  normalizeSplits(splits: Split[]): Split[] {
+    return (splits || []).map(split => ({
+      amount: Number(split.amount) || 0,
+      description: (split.description || '').trim(),
+      workOrder: (split.workOrder || '').trim()
+    }));
+  }
+
+  getReceiptAmountValue(): number {
+    const raw = this.sanitizeSignedDecimalInput(this.form.get('amount')?.value?.toString() ?? '');
+    return parseFloat(raw) || 0;
+  }
+
+  sanitizeSignedDecimalInput(value: string): string {
+    if (!value) {
+      return '';
+    }
+    const cleaned = value.replace(/[^0-9.\-]/g, '');
+    const isNegative = cleaned.startsWith('-');
+    const unsigned = cleaned.replace(/-/g, '');
+    const parts = unsigned.split('.');
+    const numericPortion = parts.length > 1 ? `${parts[0]}.${parts.slice(1).join('')}` : parts[0];
+    return `${isNegative ? '-' : ''}${numericPortion}`;
   }
   //#endregion
 

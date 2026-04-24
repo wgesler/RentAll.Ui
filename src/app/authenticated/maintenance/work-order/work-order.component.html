@@ -39,7 +39,7 @@
 
           <div class="grid grid-cols-4 gap-x-1.5 gap-y-1">
             <div class="col-span-4 flex items-center gap-x-1.5 work-order-header-fields-row" style="min-width: 0;">
-              <mat-form-field appearance="outline" style="flex: 0 0 14%; min-width: 0; max-width: 14%;">
+              <mat-form-field appearance="outline" class="work-order-code-field" style="flex: 0 0 14%; min-width: 0; max-width: 14%;">
                 <mat-label>Code</mat-label>
                 <input matInput [value]="form.get('workOrderCode')?.value || ''" readonly disabled>
               </mat-form-field>
@@ -52,6 +52,12 @@
                   }
                 </mat-select>
               </mat-form-field>
+
+              @if (isOwnerTypeSelected()) {
+                <mat-checkbox formControlName="applyMarkup" color="primary" class="work-order-apply-markup-checkbox">
+                  Apply Markup
+                </mat-checkbox>
+              }
 
               @if (isTenantTypeSelected()) {
                 <mat-form-field appearance="outline" class="work-order-tenant-field">
@@ -126,12 +132,13 @@
                             <mat-select
                               [value]="getReceiptSelectionValue(item)"
                               (selectionChange)="onReceiptSelectionChange(i, $event.value)"
+                              panelClass="work-order-receipt-select-panel"
                               class="w-full receipt-select">
                               <mat-option [value]="noReceiptOptionValue">No Receipt</mat-option>
                               <mat-option [value]="inventoryItemOptionValue">Inventory Item</mat-option>
-                              @for (r of getAvailableReceiptsForItem(i); track r.receiptId) {
-                                <mat-option [value]="r.receiptId">
-                                  {{ r.description || ('Receipt #' + r.receiptId) }}
+                              @for (splitOption of getAvailableReceiptsForItem(i); track splitOption.key) {
+                                <mat-option [value]="splitOption.key">
+                                  {{ splitOption.label }}
                                 </mat-option>
                               }
                             </mat-select>
@@ -170,7 +177,7 @@
                             <input
                               type="text"
                               class="w-full border-0 readonly-input line-item-field-box line-item-field-box--readonly"
-                              [class.line-item-field-box--error]="getItemTotal(item) <= 0"
+                              [class.line-item-field-box--error]="getItemTotal(item) === 0"
                               [value]="getTotalDisplay(item)"
                               readonly>
                           </td>

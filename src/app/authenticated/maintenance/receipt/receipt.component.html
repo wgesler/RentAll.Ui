@@ -31,25 +31,20 @@
 
       <mat-card>
         <form [formGroup]="form" (ngSubmit)="saveReceipt()" class="info-form mb-8 pt-5">
-          <div class="mb-4 flex justify-end" style="padding-right: 5px;">
+          <div class="receipt-status-row">
+            <span class="text-lg font-medium">Full Receipt</span>
             <mat-checkbox formControlName="isActive" color="primary">
               IsActive
             </mat-checkbox>
           </div>
 
-          <div class="grid grid-cols-4 gap-x-1.5 gap-y-1">
-            <div class="col-span-4 flex items-center gap-x-1.5" style="min-width: 0;">
-              @if (!isAddMode) {
-                <mat-form-field appearance="outline" style="flex: 0 0 20%; min-width: 0; max-width: 20%;">
-                  <mat-label>No</mat-label>
-                  <input matInput [value]="receipt?.receiptId || ''" readonly disabled>
-                </mat-form-field>
-              }
-
-            </div>
-
-            <div class="col-span-4 flex items-center gap-x-1.5" style="min-width: 0;">
-              <mat-form-field appearance="outline" class="receipt-amount-field" style="flex: 0 0 15%; min-width: 0; max-width: 15%;">
+          <div class="grid grid-cols-4 gap-x-1.5 gap-y-1 receipt-form-grid">
+            <div class="col-span-4 receipt-overall-row">
+              <mat-form-field appearance="outline" class="receipt-overall-compact-field">
+                <mat-label>No</mat-label>
+                <input matInput [value]="isAddMode ? '' : (receipt?.receiptId || '')" readonly disabled>
+              </mat-form-field>
+              <mat-form-field appearance="outline" class="receipt-overall-compact-field">
                 <mat-label>Amount</mat-label>
                 <input matInput type="text" inputmode="decimal" [value]="getAmountDisplay()"
                   (focus)="onAmountFocus($event)"
@@ -60,17 +55,88 @@
                   <mat-error>Amount is required</mat-error>
                 }
               </mat-form-field>
-              <mat-form-field appearance="outline" style="flex: 1; min-width: 0;">
+              <mat-form-field appearance="outline" class="receipt-overall-description-field">
                 <mat-label>Description</mat-label>
-                <input matInput formControlName="description" required>
+                <input matInput formControlName="description" required (blur)="onOverallDescriptionBlur()">
                 @if (form.get('description')?.hasError('required') && form.get('description')?.touched) {
                   <mat-error>Description is required</mat-error>
                 }
               </mat-form-field>
             </div>
+            <div class="col-span-4 receipt-overall-summary-row">
+              <div class="receipt-overall-summary">
+                <span class="receipt-overall-summary-label">Split Total:</span>
+                <span class="receipt-overall-summary-value" [class.split-total-invalid]="isDisplayedSplitTotalInvalid() || splitTotalValidationError">
+                  ${{ formatter.currency(getDisplayedSplitTotal()) }} / Receipt: ${{ formatter.currency(getReceiptAmountValue()) }}
+                </span>
+              </div>
+            </div>
+
+            <div class="col-span-4 receipt-splits-section">
+              <div class="receipt-splits-header">
+                <span class="text-lg font-medium">Split Lines</span>
+                <button type="button" mat-raised-button color="primary" (click)="addSplitLine()">
+                  <mat-icon>add</mat-icon>
+                  Add Split
+                </button>
+              </div>
+              <div class="receipt-splits-list" formArrayName="splits">
+                <div class="receipt-splits-table-wrap">
+                  <table class="split-lines-table">
+                    <thead>
+                      <tr>
+                        <th class="split-col-no">No</th>
+                        <th class="split-col-amount">Amount</th>
+                        <th>Description</th>
+                        <th class="split-col-work-order">Work Order</th>
+                        <th class="split-col-actions"></th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      @for (splitGroup of splitsFormArray.controls; track $index) {
+                        <tr [formGroupName]="$index">
+                          <td class="split-col-no">{{ $index + 1 }}</td>
+                          <td class="split-col-amount">
+                            <input type="text" inputmode="decimal" [value]="getSplitAmountDisplay($index)" required class="split-editable-input"
+                              (focus)="onSplitAmountFocus($event, $index)"
+                              (blur)="onSplitAmountBlur($event, $index)"
+                              (input)="onSplitAmountInput($event, $index)"
+                              (keydown.enter)="onSplitAmountKeydown($event, $index)"
+                              [class.split-input-invalid]="splitGroup.get('amount')?.hasError('required') && splitGroup.get('amount')?.touched">
+                          </td>
+                          <td>
+                            <input type="text" formControlName="description" required class="split-editable-input"
+                              [class.split-input-invalid]="splitGroup.get('description')?.hasError('required') && splitGroup.get('description')?.touched">
+                          </td>
+                          <td class="split-col-work-order">
+                            <input type="text" formControlName="workOrder" readonly class="split-readonly-input">
+                          </td>
+                          <td class="split-col-actions">
+                            <button
+                              type="button"
+                              mat-icon-button
+                              color="accent"
+                              [disabled]="splitsFormArray.length <= 1"
+                              (click)="removeSplitLine($index)"
+                              matTooltip="Remove this split line">
+                              <mat-icon>close</mat-icon>
+                            </button>
+                          </td>
+                        </tr>
+                      }
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+              @if (isDisplayedSplitTotalInvalid() || splitTotalValidationError) {
+                <div class="split-total-error">
+                  Split total cannot be greater than the receipt amount.
+                </div>
+              }
+            </div>
 
             <div class="col-span-4 receipt-image-section">
-              <mat-label class="text-sm font-medium block mb-2">Receipt *</mat-label>
+              <span class="text-lg font-medium block mb-2">Receipt *</span>
               <div class="flex items-center gap-3">
                 @if (receiptPreviewDataUrl) {
                   <img [src]="receiptPreviewDataUrl" alt="Receipt preview" class="object-contain max-w-xs max-h-28 border rounded p-1" />

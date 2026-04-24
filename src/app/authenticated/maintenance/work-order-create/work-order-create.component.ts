@@ -25,8 +25,8 @@ import { EmailCreateDraftService } from '../../email/services/email-create-draft
 import { EmailHtmlResponse } from '../../email/models/email-html.model';
 import { EmailHtmlService } from '../../email/services/email-html.service';
 import { getWorkOrderType, WorkOrderType } from '../models/maintenance-enums';
-import { ReceiptResponse } from '../models/receipt.model';
-import { WorkOrderResponse } from '../models/work-order.model';
+import { ReceiptResponse, Split } from '../models/receipt.model';
+import { WorkOrderItemResponse, WorkOrderResponse } from '../models/work-order.model';
 import { ReceiptService } from '../services/receipt.service';
 import { WorkOrderService } from '../services/work-order.service';
 import { BaseDocumentComponent, DocumentConfig, DownloadConfig, EmailConfig } from '../../shared/base-document.component';
@@ -192,6 +192,7 @@ export class WorkOrderCreateComponent extends BaseDocumentComponent implements O
   loadAccountingOffice(): void {
     const officeId = this.workOrder?.officeId ?? this.property?.officeId ?? null;
     if (!officeId) {
+      this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'workOrderNumber');
       return;
     }
     this.accountingOfficeService.ensureAccountingOfficesLoaded(this.organizationId).pipe(take(1), finalize(() => { this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'workOrderNumber'); })).subscribe({
@@ -354,7 +355,7 @@ export class WorkOrderCreateComponent extends BaseDocumentComponent implements O
     result = result.replace(/\{\{workOrderDescription\}\}/g, (this.workOrder.description ?? '').replace(/</g, '&lt;').replace(/>/g, '&gt;'));
     result = result.replace(/\{\{workOrderItems\}\}/g, rows);
     result = result.replace(/\{\{workOrderItemRows\}\}/g, rows);
-    result = result.replace(/\{\{totalDue\}\}/g, this.formatter.currency(total));
+    result = result.replace(/\{\{totalDue\}\}/g, '$' + this.formatter.currency(total));
 
     // Owner work orders should not show the Company Name row.
     if (this.workOrder.workOrderTypeId === WorkOrderType.Owner) {
@@ -404,13 +405,14 @@ export class WorkOrderCreateComponent extends BaseDocumentComponent implements O
       return '';
     }
     const date = this.formatter.formatDateString(this.workOrder.modifiedOn) || '';
+    const usedSplitIndexesByReceipt = new Map<number, Set<number>>();
     return this.workOrder.workOrderItems.map(item => {
-      const itemDescription = (item.description || '').replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
-      const receipt = item.receiptId != null ? this.propertyReceipts.find(r => r.receiptId === item.receiptId) : null;
-      const receiptAmount = this.formatter.currency(receipt?.amount ?? 0);
-      const itemHours = this.formatter.currency(item.laborHours || 0);
-      const itemCost = this.formatter.currency(item.laborCost || 0);
-      const itemTotal = this.formatter.currency(item.itemAmount || 0);
+      const resolvedSplit = this.resolveSplitForWorkOrderItem(item, usedSplitIndexesByReceipt);
+      const itemDescription = (resolvedSplit?.description || item.description || '').replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+      const receiptAmount = '$' + this.formatter.currency(this.getReceiptAmountForWorkOrderItem(item));
+      const itemHours = String(Math.floor(Number(item.laborHours)) || 0);
+      const itemCost = '$' + this.formatter.currency(item.laborCost || 0);
+      const itemTotal = '$' + this.formatter.currency(item.itemAmount || 0);
        return `              <tr class="ledger-line-row">
                 <td>${date}</td>
                 <td>${itemDescription}</td>
@@ -420,6 +422,85 @@ export class WorkOrderCreateComponent extends BaseDocumentComponent implements O
                 <td class="text-right">${itemTotal}</td>
               </tr>`;
     }).join('\n');
+  }
+
+  resolveSplitForWorkOrderItem(
+    item: WorkOrderItemResponse,
+    usedSplitIndexesByReceipt: Map<number, Set<number>>
+  ): { description: string; amount: number } | null {
+    const receiptId = Number(item.receiptId);
+    if (!Number.isFinite(receiptId) || receiptId <= 0) {
+      return null;
+    }
+
+    const receipt = this.propertyReceipts.find(r => r.receiptId === receiptId);
+    if (!receipt) {
+      return null;
+    }
+
+    const currentWorkOrderCode = (this.workOrder?.workOrderCode || '').trim();
+    const candidateSplits = this.getReceiptSplitsForWorkOrder(receipt, currentWorkOrderCode);
+    if (!candidateSplits.length) {
+      return null;
+    }
+
+    const usedIndexes = usedSplitIndexesByReceipt.get(receiptId) ?? new Set<number>();
+    const availableSplits = candidateSplits.filter(candidate => !usedIndexes.has(candidate.index));
+    const targetAmount = this.getReceiptAmountForWorkOrderItem(item);
+    const targetDescription = (item.description || '').trim().toLowerCase();
+
+    const findBy = (
+      predicate: (candidate: { split: Split; index: number }) => boolean
+    ): { split: Split; index: number } | null => availableSplits.find(predicate) ?? null;
+
+    const amountMatches = (value: number): boolean => Math.abs(this.roundCurrency(value) - this.roundCurrency(targetAmount)) < 0.005;
+    const descriptionMatches = (value: string | undefined): boolean => (value || '').trim().toLowerCase() === targetDescription;
+
+    const chosen =
+      findBy(candidate => amountMatches(Number(candidate.split.amount) || 0) && descriptionMatches(candidate.split.description)) ||
+      findBy(candidate => amountMatches(Number(candidate.split.amount) || 0)) ||
+      findBy(candidate => descriptionMatches(candidate.split.description)) ||
+      (availableSplits[0] ?? null);
+
+    if (!chosen) {
+      return null;
+    }
+
+    usedIndexes.add(chosen.index);
+    usedSplitIndexesByReceipt.set(receiptId, usedIndexes);
+
+    return {
+      description: (chosen.split.description || '').trim() || (item.description || ''),
+      amount: this.roundCurrency(Number(chosen.split.amount) || 0)
+    };
+  }
+
+  getReceiptSplitsForWorkOrder(receipt: ReceiptResponse, workOrderCode: string): { split: Split; index: number }[] {
+    const normalizedSplits = (receipt.splits && receipt.splits.length > 0)
+      ? receipt.splits
+      : [{
+          amount: Number(receipt.amount) || 0,
+          description: receipt.description || '',
+          workOrder: ''
+        }];
+
+    return normalizedSplits
+      .map((split, index) => ({ split, index }))
+      .filter(({ split }) => {
+        const assignedCode = (split.workOrder || '').trim();
+        return !assignedCode || (!!workOrderCode && assignedCode === workOrderCode);
+      });
+  }
+
+  getReceiptAmountForWorkOrderItem(item: WorkOrderItemResponse): number {
+    const laborHours = Math.floor(Number(item.laborHours)) || 0;
+    const laborCost = Number(item.laborCost) || 0;
+    const itemAmount = Number(item.itemAmount) || 0;
+    return this.roundCurrency(itemAmount - laborHours * laborCost);
+  }
+
+  roundCurrency(value: number): number {
+    return Math.round((Number(value) || 0) * 100) / 100;
   }
 
   generateIncludedReceiptPagesHtml(): string {

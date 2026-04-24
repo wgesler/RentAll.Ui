@@ -1,14 +1,19 @@
 import { FileDetails } from "../../documents/models/document.model";
 
+export interface Split {
+  amount: number;
+  description: string;
+  workOrder?: string;
+}
 export interface ReceiptRequest {
   receiptId?: number;
   organizationId: string;
   officeId: number;
   propertyId: string;
   maintenanceId: string;
-  description: string;
   amount: number;
-  workOrderCode: string;
+  description: string;
+  splits: Split[];
   receiptPath?: string | null;
   fileDetails?: FileDetails | null;
   isActive: boolean;
@@ -24,7 +29,7 @@ export interface ReceiptResponse {
   maintenanceId: string;
   description: string;
   amount: number;
-  workOrderCode: string;
+  splits: Split[];
   receiptPath?: string | null;
   fileDetails?: FileDetails | null;
   isActive: boolean;
@@ -39,12 +44,18 @@ export interface ReceiptDisplayList {
   propertyId: string;
   propertyCode: string;
   maintenanceId: string;
-  workOrderCode: string;
-  description: string;
   amount: number;
   amountDisplay?: string; // formatted for list (e.g. $0.00)
-  receiptPath?: string | null;
+  splits: Split[];
+  splitTotalAmount?: number;
+  splitTotalDisplay?: string;
+  splitSummaryDisplay?: string;
+  isSplitAmountValid?: boolean;
+  workOrderDisplay?: string;
+  descriptionDisplay?: string;
   isActive: boolean;
+  receiptPath?: string | null;
+  description: string;
   modifiedOn: string;
   modifiedBy: string;
 }

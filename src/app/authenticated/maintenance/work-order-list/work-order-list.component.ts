@@ -2,7 +2,7 @@ import { CommonModule } from '@angular/common';
 import { Component, EventEmitter, Input, OnChanges, OnInit, Output, SimpleChanges } from '@angular/core';
 import { Router } from '@angular/router';
 import { ToastrService } from 'ngx-toastr';
-import { finalize, take } from 'rxjs';
+import { catchError, concatMap, finalize, from, of, take, toArray } from 'rxjs';
 import { RouterUrl } from '../../../app.routes';
 import { MaterialModule } from '../../../material.module';
 import { MappingService } from '../../../services/mapping.service';
@@ -40,7 +40,8 @@ export class WorkOrderListComponent implements OnInit, OnChanges {
     propertyCode: { displayAs: 'Property', wrap: false, maxWidth: '15ch' },
     workOrderType: { displayAs: 'Type', wrap: false, maxWidth: '15ch' },
     reservationCode: { displayAs: 'Reservation', wrap: false, maxWidth: '20ch' },
-    description: { displayAs: 'Description', wrap: false, maxWidth: '40ch' },
+    description: { displayAs: 'Description', wrap: false, maxWidth: '25ch' },
+    amountDisplay: { displayAs: 'Amount', wrap: false, maxWidth: '12ch', alignment: 'center' },
     modifiedOn: { displayAs: 'Modified On', wrap: false, maxWidth: '25ch', alignment: 'center' },
     modifiedBy: { displayAs: 'Modified By', wrap: false, maxWidth: '20ch' },
     isActive: { displayAs: 'IsActive', isCheckbox: true, sort: false, wrap: false, alignment: 'center', maxWidth: '15ch' }
@@ -83,17 +84,46 @@ export class WorkOrderListComponent implements OnInit, OnChanges {
   getWorkOrders(propertyId: string): void {
     this.isServiceError = false;
     this.isLoading = true;
-    this.workOrderService.getWorkOrdersByPropertyId(propertyId).pipe(take(1), finalize(() => (this.isLoading = false))).subscribe({
+    this.workOrderService.getWorkOrdersByPropertyId(propertyId).pipe(take(1)).subscribe({
       next: (workOrders: WorkOrderResponse[]) => {
-        this.workOrders = workOrders || [];
-        this.allWorkOrders = this.mappingService.mapWorkOrderDisplays(this.workOrders);
-        this.applyFilters();
+        this.loadWorkOrderDetailsForDisplay(workOrders || []);
       },
       error: () => {
         this.isServiceError = true;
         this.workOrders = [];
         this.allWorkOrders = [];
         this.workOrdersDisplay = [];
+        this.isLoading = false;
+      }
+    });
+  }
+
+  loadWorkOrderDetailsForDisplay(workOrders: WorkOrderResponse[]): void {
+    if (!workOrders.length) {
+      this.workOrders = [];
+      this.allWorkOrders = [];
+      this.workOrdersDisplay = [];
+      this.isLoading = false;
+      return;
+    }
+
+    from(workOrders).pipe(
+      concatMap(workOrder => this.workOrderService.getWorkOrderById(String(workOrder.workOrderId)).pipe(
+        take(1),
+        catchError(() => of(workOrder))
+      )),
+      toArray(),
+      finalize(() => (this.isLoading = false))
+    ).subscribe({
+      next: (detailedWorkOrders: WorkOrderResponse[]) => {
+        this.workOrders = detailedWorkOrders;
+        this.allWorkOrders = this.mappingService.mapWorkOrderDisplays(this.workOrders);
+        this.applyFilters();
+      },
+      error: () => {
+        this.workOrders = workOrders;
+        this.allWorkOrders = this.mappingService.mapWorkOrderDisplays(this.workOrders);
+        this.applyFilters();
       }
     });
   }
@@ -141,7 +171,6 @@ export class WorkOrderListComponent implements OnInit, OnChanges {
       `${RouterUrl.WorkOrderCreate}?workOrderId=${encodeURIComponent(workOrderId)}&propertyId=${encodeURIComponent(propertyId)}&returnTo=work-order-list`
     );
   }
-
   //#endregion
 
   //#region Filter Methods

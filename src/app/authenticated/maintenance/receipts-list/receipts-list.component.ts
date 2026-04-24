@@ -26,9 +26,7 @@ import { ReceiptService } from '../services/receipt.service';
 })
 export class ReceiptsListComponent implements OnInit, OnChanges {
   @Input() property: PropertyResponse | null = null;
-  /** When true, selection is emitted via receiptSelect and no navigation occurs (e.g. embedded in maintenance). */
   @Input() embeddedInMaintenance = false;
-  /** Increment from parent to trigger a refresh (e.g. after a work order save updates receipts). */
   @Input() refreshTrigger: number = 0;
   @Output() receiptSelect = new EventEmitter<number | null>();
 
@@ -44,11 +42,13 @@ export class ReceiptsListComponent implements OnInit, OnChanges {
 
   receiptDisplayedColumns: ColumnSet = {
     propertyCode: { displayAs: 'Property', wrap: false, maxWidth: '15ch' },
-    workOrderCode: { displayAs: 'WO Code', wrap: false, maxWidth: '15ch' },
-    receipt: { displayAs: 'Receipt', wrap: false, sort: false, maxWidth: '12ch' },
-    amountDisplay: { displayAs: 'Amount', wrap: false, maxWidth: '12ch' },
-    description: { displayAs: 'Description', wrap: true, maxWidth: '30ch' },
-    modifiedOn: { displayAs: 'Modified On', wrap: false, maxWidth: '25ch', alignment: 'center' },
+    workOrderDisplay: { displayAs: 'WO Code(s)', wrap: true, maxWidth: '25ch' },
+    receipt: { displayAs: 'Receipt', wrap: false, sort: false, maxWidth: '12ch', alignment: 'center'  },
+    amountDisplay: { displayAs: 'Amount', wrap: false, maxWidth: '12ch', alignment: 'center'  },
+    descriptionDisplay: { displayAs: 'Description', wrap: true, maxWidth: '25ch' },
+    splitSummaryDisplay: { displayAs: 'Splits', wrap: false, maxWidth: '10ch', alignment: 'center' },
+    splitTotalDisplay: { displayAs: 'Split Total', wrap: false, maxWidth: '12ch', alignment: 'center' },
+    modifiedOn: { displayAs: 'Modified On', wrap: false, maxWidth: '20ch', alignment: 'center' },
     modifiedBy: { displayAs: 'Modified By', wrap: false, maxWidth: '20ch' },
     isActive: { displayAs: 'IsActive', isCheckbox: true, sort: false, wrap: false, alignment: 'center', maxWidth: '15ch' }
   };

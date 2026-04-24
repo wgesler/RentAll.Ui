@@ -24,16 +24,9 @@ import { InvoiceService } from '../../accounting/services/invoice.service';
 import { PropertyAgreementResponse } from '../../properties/models/property-agreement.model';
 import { getWorkOrderTypes, WorkOrderType } from '../models/maintenance-enums';
 import { ReceiptRequest, ReceiptResponse } from '../models/receipt.model';
-import { WorkOrderRequest, WorkOrderResponse, WorkOrderItemResponse, WorkOrderItemRequest } from '../models/work-order.model';
+import { ReceiptSplitOption, WorkOrderItemEditable, WorkOrderItemRequest, WorkOrderItemResponse, WorkOrderItemSnapshot, WorkOrderRequest, WorkOrderResponse } from '../models/work-order.model';
 import { ReceiptService } from '../services/receipt.service';
 import { WorkOrderService } from '../services/work-order.service';
-
-/** Editable work order item (new rows have no workOrderItemId/workOrderId; GUIDs from response). itemAmount is auto-calculated as receiptAmount + (laborHours * laborCost). */
-export type WorkOrderItemEditable = Partial<Pick<WorkOrderItemResponse, 'workOrderItemId' | 'workOrderId'>> & Pick<WorkOrderItemResponse, 'description' | 'laborHours' | 'laborCost' | 'itemAmount'> & {
-  receiptId?: number | null;
-  receiptAmount?: number;
-  itemSource?: 'noReceipt' | 'receipt' | 'inventory';
-};
 
 @Component({
   standalone: true,
@@ -44,11 +37,6 @@ export type WorkOrderItemEditable = Partial<Pick<WorkOrderItemResponse, 'workOrd
 })
 export class WorkOrderComponent implements OnInit, OnChanges, OnDestroy {
 
-  readonly parseInt = parseInt;
-  readonly costCode = '4100';
-  readonly noReceiptOptionValue = 0;
-  readonly inventoryItemOptionValue = -1;
-
   @Input() property: PropertyResponse | null = null;
   @Input() workOrderId: string | null = null;
   @Input() maintenanceId: string | null = null;
@@ -56,6 +44,11 @@ export class WorkOrderComponent implements OnInit, OnChanges, OnDestroy {
   @Input() embeddedInMaintenance = false;
   @Output() backEvent = new EventEmitter<void>();
   @Output() savedEvent = new EventEmitter<void>();
+  
+  readonly parseInt = parseInt;
+  readonly costCode = '4100';
+  readonly noReceiptOptionValue = 0;
+  readonly inventoryItemOptionValue = -1;
 
   fb: FormBuilder;
   form: FormGroup;
@@ -79,6 +72,8 @@ export class WorkOrderComponent implements OnInit, OnChanges, OnDestroy {
   costCodeId: string | null = null;
   defaultLaborCost: number = 0;
   focusedCurrencyField: { index: number; field: 'laborCost' | 'amount'; editValue: string } | null = null;
+  initialWorkOrderItemsSnapshot: WorkOrderItemSnapshot[] = [];
+  lastMarkupFactor: number = 1;
 
   itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['property', 'workOrder', 'costCode', 'propertyAgreement', 'propertyReceipts', 'propertyReservations', 'workOrderNumber']));
   destroy$ = new Subject<void>();
@@ -117,9 +112,12 @@ export class WorkOrderComponent implements OnInit, OnChanges, OnDestroy {
 
     // Only Tenant types have reservations...
     this.form.get('workOrderTypeId')?.valueChanges.pipe(takeUntil(this.destroy$)).subscribe(typeId => {
-      this.updateReservationRequirementByType(typeId);
+      this.onWorkOrderTypeChanged(typeId);
     });
-    this.updateReservationRequirementByType(this.form.get('workOrderTypeId')?.value);
+    this.form.get('applyMarkup')?.valueChanges.pipe(takeUntil(this.destroy$)).subscribe(() => {
+      this.reapplyMarkupToCurrentItems();
+    });
+    this.onWorkOrderTypeChanged(this.form.get('workOrderTypeId')?.value);
 
     this.selectedPropertyId = this.property?.propertyId ?? null;
     this.isAddMode = this.workOrderId == null;
@@ -188,10 +186,10 @@ export class WorkOrderComponent implements OnInit, OnChanges, OnDestroy {
       return;
     }
     const workOrderItemsForSave = this.mapWorkOrderItemsForSave(isCreate);
-    const invalidItem = workOrderItemsForSave.find(item => item.itemAmount <= 0);
+    const invalidItem = workOrderItemsForSave.find(item => item.itemAmount === 0);
     if (invalidItem) {
       this.form.markAllAsTouched();
-      this.toastr.warning('Each work order item must have a Total greater than 0. Total = receipt amount + (labor hours × labor cost).', 'Item Total Required');
+      this.toastr.warning('Each work order item must have a non-zero Total. Total = receipt amount + (labor hours × labor cost).', 'Item Total Required');
       return;
     }
 
@@ -201,6 +199,7 @@ export class WorkOrderComponent implements OnInit, OnChanges, OnDestroy {
       propertyId: this.property.propertyId,
       workOrderCode: isCreate ? (this.generatedWorkOrderCode ?? undefined) : (this.workOrder?.workOrderCode ?? undefined),
       workOrderTypeId: this.form.get('workOrderTypeId')?.value ?? 0,
+      applyMarkup: this.isOwnerTypeSelected() ? (this.form.get('applyMarkup')?.value === true) : false,
       reservationId: this.isTenantTypeSelected() ? (this.form.get('reservationId')?.value ?? null) : null,
       reservationCode: this.isTenantTypeSelected() ? this.getSelectedReservationCode() : null,
       description: (this.form.get('description')?.value ?? '').trim(),
@@ -223,9 +222,20 @@ export class WorkOrderComponent implements OnInit, OnChanges, OnDestroy {
 
     this.isSubmitting = true;
 
-    const previousReceiptIds = this.workOrder?.workOrderItems
-      ?.map(item => item.receiptId)
-      .filter((id): id is number => Number(id) > 0) ?? [];
+    const previousAssignedSplitKeys = this.getAssignedSplitKeysForWorkOrderCode(this.workOrder?.workOrderCode ?? this.generatedWorkOrderCode ?? '');
+    const selectedSplitKeysForSave: string[] = [];
+    const usedSplitKeys = new Set<string>();
+    const currentWorkOrderCodeForSelection = (this.workOrder?.workOrderCode ?? this.generatedWorkOrderCode ?? this.form.get('workOrderCode')?.value ?? '').toString();
+    this.workOrderItems
+      .filter(item => item.itemSource === 'receipt' && item.receiptId != null && Number(item.receiptId) > 0)
+      .forEach(item => {
+        const splitKey = item.receiptSplitKey || this.resolveInitialSplitKeyForItem(item.receiptId as number, currentWorkOrderCodeForSelection, usedSplitKeys);
+        if (splitKey) {
+          item.receiptSplitKey = splitKey;
+          usedSplitKeys.add(splitKey);
+          selectedSplitKeysForSave.push(splitKey);
+        }
+      });
 
     const save$ = this.workOrder?.workOrderId
       ? this.workOrderService.updateWorkOrder(payload)
@@ -242,6 +252,7 @@ export class WorkOrderComponent implements OnInit, OnChanges, OnDestroy {
           officeName: saved.officeName || this.property?.officeName || '',
           propertyCode: saved.propertyCode || this.property?.propertyCode || '',
           workOrderTypeId: saved.workOrderTypeId,
+          applyMarkup: saved.applyMarkup === true,
           reservationId: saved.reservationId ?? null,
           description: saved.description ?? '',
           isActive: saved.isActive
@@ -260,6 +271,7 @@ export class WorkOrderComponent implements OnInit, OnChanges, OnDestroy {
             workOrderId: item.workOrderId,
             description: item.description ?? '',
             receiptId: item.receiptId ?? null,
+            receiptSplitKey: null,
             receiptAmount,
             itemSource,
             laborHours,
@@ -268,12 +280,13 @@ export class WorkOrderComponent implements OnInit, OnChanges, OnDestroy {
           };
         });
         this.syncReceiptAmounts();
+        this.captureInitialWorkOrderItemsSnapshot();
         this.savedEvent.emit();
         if (wasCreate) {
           this.updateAccountingOfficeWorkOrderNoAfterCreate();
         }
-        this.updateReceiptsWorkOrderCode(saved.workOrderCode ?? this.generatedWorkOrderCode ?? '', previousReceiptIds);
-        this.loadPropertyReceipts(); /* refresh receipts so dropdown and display stay in sync */
+        const effectiveWorkOrderCode = saved.workOrderCode ?? this.form.get('workOrderCode')?.value ?? this.generatedWorkOrderCode ?? '';
+        this.updateReceiptsWorkOrderCode(effectiveWorkOrderCode, selectedSplitKeysForSave, previousAssignedSplitKeys);
         this.toastr.success('Work order saved.', 'Success');
 
         // Save this work order as an invoice that can be paid
@@ -364,10 +377,12 @@ export class WorkOrderComponent implements OnInit, OnChanges, OnDestroy {
       officeName: new FormControl(''),
       propertyCode: new FormControl(''),
       workOrderTypeId: new FormControl<number | null>(null, [Validators.required]),
+      applyMarkup: new FormControl(false),
       reservationId: new FormControl<string | null>(null),
       description: new FormControl('', [Validators.required]),
       isActive: new FormControl(true)
     });
+    this.lastMarkupFactor = this.getMarkupFactor();
   }
 
   populateForm(workOrder: WorkOrderResponse): void {
@@ -376,6 +391,7 @@ export class WorkOrderComponent implements OnInit, OnChanges, OnDestroy {
       officeName: this.property?.officeName ?? '',
       propertyCode: this.property?.propertyCode ?? '',
       workOrderTypeId: workOrder.workOrderTypeId ?? 0,
+      applyMarkup: workOrder.applyMarkup === true,
       reservationId: workOrder.reservationId ?? null,
       description: workOrder.description ?? '',
       isActive: workOrder.isActive
@@ -395,6 +411,7 @@ export class WorkOrderComponent implements OnInit, OnChanges, OnDestroy {
           workOrderId: item.workOrderId,
           description: item.description ?? '',
           receiptId: item.receiptId ?? null,
+          receiptSplitKey: null,
           receiptAmount,
           itemSource,
           laborHours,
@@ -404,6 +421,8 @@ export class WorkOrderComponent implements OnInit, OnChanges, OnDestroy {
       })()
     }));
     this.syncReceiptAmounts();
+    this.lastMarkupFactor = this.getMarkupFactor();
+    this.captureInitialWorkOrderItemsSnapshot();
   }
 
   isInventoryItemSelected(item: WorkOrderItemEditable): boolean {
@@ -414,10 +433,55 @@ export class WorkOrderComponent implements OnInit, OnChanges, OnDestroy {
     return Number(this.form.get('workOrderTypeId')?.value ?? -1) === 0;
   }
 
+  isOwnerTypeSelected(): boolean {
+    return Number(this.form.get('workOrderTypeId')?.value ?? -1) === WorkOrderType.Owner;
+  }
+
+  onWorkOrderTypeChanged(typeId: number | null | undefined): void {
+    this.updateReservationRequirementByType(typeId);
+    const isOwner = Number(typeId) === WorkOrderType.Owner;
+    const applyMarkupControl = this.form.get('applyMarkup');
+    if (this.isAddMode) {
+      applyMarkupControl?.setValue(isOwner, { emitEvent: false });
+    } else if (!isOwner) {
+      applyMarkupControl?.setValue(false, { emitEvent: false });
+    }
+    this.reapplyMarkupToCurrentItems();
+  }
+
+  reapplyMarkupToCurrentItems(): void {
+    const previousFactor = this.lastMarkupFactor;
+    const nextFactor = this.getMarkupFactor();
+    if (Math.abs(previousFactor - nextFactor) < 0.000001) {
+      this.lastMarkupFactor = nextFactor;
+      return;
+    }
+
+    this.syncReceiptAmounts();
+    this.workOrderItems.forEach(item => {
+      if (item.itemSource !== 'inventory') {
+        return;
+      }
+      const currentAmount = Number(item.receiptAmount) || 0;
+      const baseAmount = previousFactor !== 0 ? (currentAmount / previousFactor) : currentAmount;
+      item.receiptAmount = Math.round((baseAmount * nextFactor) * 100) / 100;
+    });
+    this.lastMarkupFactor = nextFactor;
+  }
+
   syncReceiptAmounts(): void {
+    const currentWorkOrderCode = this.workOrder?.workOrderCode ?? this.generatedWorkOrderCode ?? '';
+    const usedSplitKeys = new Set<string>();
     this.workOrderItems.forEach(item => {
       if (item.itemSource === 'receipt' && item.receiptId != null) {
-        const amt = this.propertyReceipts.find(r => r.receiptId === item.receiptId)?.amount ?? 0;
+        if (!item.receiptSplitKey) {
+          item.receiptSplitKey = this.resolveInitialSplitKeyForItem(item.receiptId, currentWorkOrderCode, usedSplitKeys);
+        }
+        if (item.receiptSplitKey) {
+          usedSplitKeys.add(item.receiptSplitKey);
+        }
+        const splitOption = item.receiptSplitKey ? this.getSplitOptionByKey(item.receiptSplitKey) : null;
+        const amt = splitOption?.amount ?? this.propertyReceipts.find(r => r.receiptId === item.receiptId)?.amount ?? 0;
         (item as WorkOrderItemEditable).receiptAmount = this.applyPropertyAgreementMarkup(amt);
       }
     });
@@ -453,6 +517,7 @@ export class WorkOrderComponent implements OnInit, OnChanges, OnDestroy {
     const newItem: WorkOrderItemEditable = {
       description: '',
       receiptId: null,
+      receiptSplitKey: null,
       receiptAmount: 0,
       itemSource: 'noReceipt',
       laborHours: 0,
@@ -474,26 +539,22 @@ export class WorkOrderComponent implements OnInit, OnChanges, OnDestroy {
     }
   }
 
-  getAvailableReceiptsForItem(itemIndex: number): ReceiptResponse[] {
+  getAvailableReceiptsForItem(itemIndex: number): ReceiptSplitOption[] {
     const currentWorkOrderCode = this.workOrder?.workOrderCode ?? this.generatedWorkOrderCode ?? '';
-    const eligible = this.propertyReceipts.filter(r => {
-      const unassigned = !r.workOrderCode || (typeof r.workOrderCode === 'string' && r.workOrderCode.trim() === '');
-      const onThisWorkOrder = !!currentWorkOrderCode && r.workOrderCode === currentWorkOrderCode;
-      return unassigned || onThisWorkOrder;
-    });
-    const usedByOthers = new Set<number>();
+    const eligible = this.propertyReceipts.flatMap(receipt => this.getReceiptSplitOptions(receipt, currentWorkOrderCode));
+    const usedByOthers = new Set<string>();
     this.workOrderItems.forEach((it, i) => {
-      if (i !== itemIndex && it.receiptId != null) {
-        usedByOthers.add(it.receiptId);
+      if (i !== itemIndex && it.itemSource === 'receipt' && it.receiptSplitKey) {
+        usedByOthers.add(it.receiptSplitKey);
       }
     });
-    const currentReceiptId = this.workOrderItems[itemIndex]?.receiptId ?? null;
+    const currentReceiptSplitKey = this.workOrderItems[itemIndex]?.receiptSplitKey ?? null;
     return eligible.filter(
-      r => !usedByOthers.has(r.receiptId) || r.receiptId === currentReceiptId
+      option => !usedByOthers.has(option.key) || option.key === currentReceiptSplitKey
     );
   }
 
-  onReceiptSelectionChange(itemIndex: number, receiptSelectionValue: number | null): void {
+  onReceiptSelectionChange(itemIndex: number, receiptSelectionValue: number | string | null): void {
     const item = this.workOrderItems[itemIndex] as WorkOrderItemEditable;
     if (!item) {
       return;
@@ -502,27 +563,32 @@ export class WorkOrderComponent implements OnInit, OnChanges, OnDestroy {
     if (receiptSelectionValue === this.inventoryItemOptionValue) {
       item.itemSource = 'inventory';
       item.receiptId = 0;
+      item.receiptSplitKey = null;
       item.receiptAmount = 0;
       return;
     }
 
-    const receiptId = receiptSelectionValue === this.noReceiptOptionValue ? null : receiptSelectionValue;
+    const splitKey = receiptSelectionValue === this.noReceiptOptionValue
+      ? null
+      : (typeof receiptSelectionValue === 'string' ? receiptSelectionValue : null);
+    const splitOption = splitKey ? this.getSplitOptionByKey(splitKey) : null;
+    const receiptId = splitOption?.receiptId ?? null;
     item.itemSource = receiptId == null ? 'noReceipt' : 'receipt';
     item.receiptId = receiptId;
-    const receipt = receiptId != null ? this.propertyReceipts.find(r => r.receiptId === receiptId) : null;
-    const receiptAmount = this.applyPropertyAgreementMarkup(receipt?.amount ?? 0);
+    item.receiptSplitKey = splitOption?.key ?? null;
+    const receiptAmount = this.applyPropertyAgreementMarkup(splitOption?.amount ?? 0);
     item.receiptAmount = receiptAmount;
-    if (receipt?.description != null && receipt.description !== '') {
-      this.updateWorkOrderItemField(itemIndex, 'description', receipt.description);
+    if (splitOption?.description) {
+      this.updateWorkOrderItemField(itemIndex, 'description', splitOption.description);
     }
   }
 
-  getReceiptSelectionValue(item: WorkOrderItemEditable): number {
+  getReceiptSelectionValue(item: WorkOrderItemEditable): number | string {
     if (item.itemSource === 'inventory') {
       return this.inventoryItemOptionValue;
     }
-    if (item.receiptId != null) {
-      return item.receiptId;
+    if (item.itemSource === 'receipt' && item.receiptSplitKey) {
+      return item.receiptSplitKey;
     }
     return this.noReceiptOptionValue;
   }
@@ -567,7 +633,8 @@ export class WorkOrderComponent implements OnInit, OnChanges, OnDestroy {
     if (!item || item.itemSource !== 'inventory') {
       return;
     }
-    const raw = item.receiptAmount != null ? String(item.receiptAmount) : '';
+    const baseAmount = this.removePropertyAgreementMarkup(Number(item.receiptAmount) || 0);
+    const raw = String(baseAmount);
     this.focusedCurrencyField = { index, field: 'amount', editValue: raw };
     setTimeout(() => (event.target as HTMLInputElement)?.select(), 0);
   }
@@ -587,16 +654,34 @@ export class WorkOrderComponent implements OnInit, OnChanges, OnDestroy {
 
   applyPropertyAgreementMarkup(baseAmount: number): number {
     const amount = Number(baseAmount) || 0;
+    const markupFactor = this.getMarkupFactor();
+    return Math.round(amount * markupFactor * 100) / 100;
+  }
+
+  removePropertyAgreementMarkup(markedAmount: number): number {
+    const amount = Number(markedAmount) || 0;
+    const markupFactor = this.getMarkupFactor();
+    if (!Number.isFinite(markupFactor) || markupFactor === 0) {
+      return Math.round(amount * 100) / 100;
+    }
+    return Math.round((amount / markupFactor) * 100) / 100;
+  }
+
+  getMarkupFactor(): number {
     const workOrderTypeId = Number(this.form.get('workOrderTypeId')?.value ?? -1);
     if (workOrderTypeId !== WorkOrderType.Owner) {
-      return Math.round(amount * 100) / 100;
+      return 1;
+    }
+    if (this.form.get('applyMarkup')?.value !== true) {
+      return 1;
     }
 
     const markupPct = Number(this.propertyAgreement?.markup ?? 0);
     if (!Number.isFinite(markupPct) || markupPct === 0) {
-      return Math.round(amount * 100) / 100;
+      return 1;
     }
-    return Math.round(amount * (1 + markupPct / 100) * 100) / 100;
+
+    return 1 + (markupPct / 100);
   }
 
   getItemTotal(item: WorkOrderItemEditable | WorkOrderItemResponse): number {
@@ -682,6 +767,7 @@ export class WorkOrderComponent implements OnInit, OnChanges, OnDestroy {
       officeId: this.property?.officeId ?? this.workOrder.officeId,
       propertyId: this.property?.propertyId ?? this.workOrder.propertyId,
       workOrderTypeId: this.form.get('workOrderTypeId')?.value ?? 0,
+      applyMarkup: this.isOwnerTypeSelected() ? (this.form.get('applyMarkup')?.value === true) : false,
       reservationId: this.isTenantTypeSelected() ? (this.form.get('reservationId')?.value ?? null) : null,
       reservationCode: this.isTenantTypeSelected() ? this.getSelectedReservationCode() : null,
       description: (this.form.get('description')?.value ?? '').trim(),
@@ -712,35 +798,80 @@ export class WorkOrderComponent implements OnInit, OnChanges, OnDestroy {
   }
 
   hasWorkOrderItemsChanged(): boolean {
-    const existing = this.workOrder?.workOrderItems ?? [];
-    if (this.workOrderItems.length !== existing.length) return true;
+    const baseline = this.initialWorkOrderItemsSnapshot ?? [];
+    if (this.workOrderItems.length !== baseline.length) {
+      return true;
+    }
     for (let i = 0; i < this.workOrderItems.length; i++) {
-      const a = this.workOrderItems[i];
-      const b = existing[i];
-      if (!b) return true;
-      const serverTotal = Math.round((Number(b.itemAmount) ?? 0) * 100) / 100;
-      const currentTotal = this.getItemTotal(a);
-      if ((a.description ?? '') !== (b.description ?? '') ||
-          (a.receiptId ?? null) !== (b.receiptId ?? null) ||
-          (Math.floor(Number(a.laborHours)) || 0) !== (Math.floor(Number(b.laborHours)) || 0) ||
-          (a.laborCost ?? 0) !== (b.laborCost ?? 0) ||
-          currentTotal !== serverTotal) return true;
+      const current = this.workOrderItems[i];
+      const original = baseline[i];
+      if (!original) {
+        return true;
+      }
+      const currentTotal = this.getItemTotal(current);
+      const currentDescription = (current.description ?? '').trim();
+      const currentReceiptId = current.receiptId ?? null;
+      const currentSplitKey = current.receiptSplitKey ?? null;
+      const currentLaborHours = Math.floor(Number(current.laborHours)) || 0;
+      const currentLaborCost = Number(current.laborCost) || 0;
+
+      if (currentDescription !== original.description ||
+          currentReceiptId !== original.receiptId ||
+          currentSplitKey !== original.receiptSplitKey ||
+          currentLaborHours !== original.laborHours ||
+          currentLaborCost !== original.laborCost ||
+          currentTotal !== original.itemAmount ||
+          (current.workOrderItemId ? String(current.workOrderItemId) : null) !== original.workOrderItemId) {
+        return true;
+      }
     }
     return false;
+  }
+
+  captureInitialWorkOrderItemsSnapshot(): void {
+    this.initialWorkOrderItemsSnapshot = this.workOrderItems.map(item => ({
+      workOrderItemId: item.workOrderItemId ? String(item.workOrderItemId) : null,
+      description: (item.description ?? '').trim(),
+      receiptId: item.receiptId ?? null,
+      receiptSplitKey: item.receiptSplitKey ?? null,
+      laborHours: Math.floor(Number(item.laborHours)) || 0,
+      laborCost: Number(item.laborCost) || 0,
+      itemAmount: this.getItemTotal(item)
+    }));
   }
 
   hasWorkOrderUpdates(payload: WorkOrderRequest): boolean {
     if (!this.workOrder) {
       return true;
     }
+    const payloadReservationId = this.normalizeComparableString(payload.reservationId);
+    const workOrderReservationId = this.normalizeComparableString(this.workOrder.reservationId);
+    const payloadReservationCode = this.normalizeComparableString(payload.reservationCode);
+    const workOrderReservationCode = this.normalizeComparableString(this.workOrder.reservationCode);
+    const payloadDescription = this.normalizeComparableString(payload.description) ?? '';
+    const workOrderDescription = this.normalizeComparableString(this.workOrder.description) ?? '';
+
     return (
       payload.workOrderTypeId !== this.workOrder.workOrderTypeId ||
-      (payload.reservationId ?? null) !== (this.workOrder.reservationId ?? null) ||
-      (payload.reservationCode ?? null) !== (this.workOrder.reservationCode ?? null) ||
-      (payload.description ?? '') !== (this.workOrder.description ?? '') ||
+      payload.applyMarkup !== (this.workOrder.applyMarkup === true) ||
+      payloadReservationId !== workOrderReservationId ||
+      payloadReservationCode !== workOrderReservationCode ||
+      payloadDescription !== workOrderDescription ||
       payload.isActive !== this.workOrder.isActive ||
       this.hasWorkOrderItemsChanged()
     );
+  }
+
+  normalizeComparableString(value: string | null | undefined): string | null {
+    const normalized = (value ?? '').toString().trim();
+    return normalized.length > 0 ? normalized : null;
+  }
+
+  refreshBaselineAfterDataLoad(): void {
+    if (this.isAddMode || !this.workOrder?.workOrderId || this.isSubmitting) {
+      return;
+    }
+    this.captureInitialWorkOrderItemsSnapshot();
   }
   //#endregion 
 
@@ -826,9 +957,12 @@ export class WorkOrderComponent implements OnInit, OnChanges, OnDestroy {
       next: (receipts) => {
         this.propertyReceipts = (receipts ?? []).filter(r => r.isActive !== false);
         this.syncReceiptAmounts();
+        this.refreshBaselineAfterDataLoad();
       },
       error: () => {
         this.propertyReceipts = [];
+        this.syncReceiptAmounts();
+        this.refreshBaselineAfterDataLoad();
       }
     });
   }
@@ -934,16 +1068,55 @@ export class WorkOrderComponent implements OnInit, OnChanges, OnDestroy {
     });
   }
 
-  updateReceiptsWorkOrderCode(workOrderCode: string, previousReceiptIds: number[] = []): void {
-    const currentReceiptIds = [...new Set(this.workOrderItems.map(i => i.receiptId).filter((id): id is number => Number(id) > 0))];
-    const currentReceiptIdSet = new Set(currentReceiptIds);
-    const removedReceiptIds = [...new Set(previousReceiptIds.filter(id => !currentReceiptIdSet.has(id)))];
-    const updates = [
-      ...currentReceiptIds.map(receiptId => ({ receiptId, nextWorkOrderCode: workOrderCode })),
-      ...removedReceiptIds.map(receiptId => ({ receiptId, nextWorkOrderCode: '' }))
-    ].map(update => {
-      const receipt = this.propertyReceipts.find(r => r.receiptId === update.receiptId);
-      if (!receipt) return of(null);
+  updateReceiptsWorkOrderCode(workOrderCode: string, selectedSplitKeys: string[] = [], previousSplitKeys: string[] = []): void {
+    const activeWorkOrderCode = (workOrderCode || '').trim();
+    if (!activeWorkOrderCode) {
+      return;
+    }
+
+    const currentSplitKeys = new Set(selectedSplitKeys || []);
+    const previousSplitKeySet = new Set(previousSplitKeys);
+
+    const affectedReceiptIds = new Set<number>();
+    [...currentSplitKeys, ...previousSplitKeySet].forEach(splitKey => {
+      const parsed = this.parseSplitKey(splitKey);
+      if (parsed) {
+        affectedReceiptIds.add(parsed.receiptId);
+      }
+    });
+
+    const updates = [...affectedReceiptIds].map(receiptId => {
+      const receipt = this.propertyReceipts.find(r => r.receiptId === receiptId);
+      if (!receipt) {
+        return of(null);
+      }
+
+      const normalizedSplits = (receipt.splits && receipt.splits.length > 0)
+        ? receipt.splits.map(split => ({ ...split }))
+        : [{
+            amount: Number(receipt.amount) || 0,
+            description: receipt.description || '',
+            workOrder: ''
+          }];
+
+      const nextSplits = normalizedSplits.map((split, index) => {
+        const splitKey = this.buildSplitKey(receipt.receiptId, index);
+        const currentlySelected = currentSplitKeys.has(splitKey);
+        const previouslySelected = previousSplitKeySet.has(splitKey);
+        const existingCode = this.getSplitWorkOrder(split);
+        if (currentlySelected) {
+          return { ...split, workOrder: activeWorkOrderCode };
+        }
+        if (previouslySelected && existingCode === activeWorkOrderCode) {
+          return { ...split, workOrder: '' };
+        }
+        return split;
+      });
+
+      if (JSON.stringify(nextSplits) === JSON.stringify(normalizedSplits)) {
+        return of(null);
+      }
+
       const payload: ReceiptRequest = {
         receiptId: receipt.receiptId,
         organizationId: receipt.organizationId,
@@ -952,29 +1125,118 @@ export class WorkOrderComponent implements OnInit, OnChanges, OnDestroy {
         maintenanceId: receipt.maintenanceId,
         description: receipt.description ?? '',
         amount: receipt.amount ?? 0,
-        workOrderCode: update.nextWorkOrderCode,
+        splits: nextSplits,
         receiptPath: receipt.receiptPath ?? undefined,
         fileDetails: receipt.fileDetails ?? undefined,
         isActive: receipt.isActive ?? true
       };
       return this.receiptService.updateReceipt(payload);
     });
+
     if (updates.length === 0) return;
     forkJoin(updates).pipe(take(1)).subscribe({
       next: () => {
-        currentReceiptIds.forEach(id => {
-          const r = this.propertyReceipts.find(x => x.receiptId === id);
-          if (r) r.workOrderCode = workOrderCode;
-        });
-        removedReceiptIds.forEach(id => {
-          const r = this.propertyReceipts.find(x => x.receiptId === id);
-          if (r) r.workOrderCode = '';
-        });
+        this.loadPropertyReceipts();
       },
       error: () => {
         this.toastr.warning('Work order saved, but one or more receipts could not be synchronized.', 'Partial Update');
       }
     });
+  }
+
+  getAssignedSplitKeysForWorkOrderCode(workOrderCode: string): string[] {
+    const currentCode = (workOrderCode || '').trim();
+    if (!currentCode) {
+      return [];
+    }
+    return this.propertyReceipts.flatMap(receipt =>
+      (receipt.splits || [])
+        .map((split, index) => ({ split, index }))
+        .filter(({ split }) => this.getSplitWorkOrder(split) === currentCode)
+        .map(({ index }) => this.buildSplitKey(receipt.receiptId, index))
+    );
+  }
+
+  getReceiptSplitOptions(receipt: ReceiptResponse, currentWorkOrderCode: string): ReceiptSplitOption[] {
+    const normalizedSplits = (receipt.splits && receipt.splits.length > 0)
+      ? receipt.splits
+      : [{
+          amount: Number(receipt.amount) || 0,
+          description: receipt.description || '',
+          workOrder: ''
+        }];
+
+    return normalizedSplits
+      .map((split, index) => ({ split, index }))
+      .filter(({ split }) => {
+        const splitCode = this.getSplitWorkOrder(split);
+        return !splitCode || (!!currentWorkOrderCode && splitCode === currentWorkOrderCode);
+      })
+      .map(({ split, index }) => {
+        const amount = Number(split.amount) || 0;
+        const description = (split.description || '').trim();
+        const displayDescription = description || `Split ${index + 1}`;
+        return {
+          key: this.buildSplitKey(receipt.receiptId, index),
+          receiptId: receipt.receiptId,
+          splitIndex: index,
+          amount,
+          description,
+          workOrder: this.getSplitWorkOrder(split),
+          label: `R${receipt.receiptId}: ${displayDescription} - $${this.formatter.currency(amount)}`
+        };
+      });
+  }
+
+  getSplitOptionByKey(splitKey: string): ReceiptSplitOption | null {
+    if (!splitKey) {
+      return null;
+    }
+    const parsed = this.parseSplitKey(splitKey);
+    if (!parsed) {
+      return null;
+    }
+    const receipt = this.propertyReceipts.find(r => r.receiptId === parsed.receiptId);
+    if (!receipt) {
+      return null;
+    }
+    const currentWorkOrderCode = this.workOrder?.workOrderCode ?? this.generatedWorkOrderCode ?? '';
+    return this.getReceiptSplitOptions(receipt, currentWorkOrderCode).find(option => option.key === splitKey) ?? null;
+  }
+
+  buildSplitKey(receiptId: number, splitIndex: number): string {
+    return `${receiptId}::${splitIndex}`;
+  }
+
+  parseSplitKey(splitKey: string): { receiptId: number; splitIndex: number } | null {
+    const parts = (splitKey || '').split('::');
+    if (parts.length !== 2) {
+      return null;
+    }
+    const receiptId = Number(parts[0]);
+    const splitIndex = Number(parts[1]);
+    if (!Number.isFinite(receiptId) || !Number.isFinite(splitIndex)) {
+      return null;
+    }
+    return { receiptId, splitIndex };
+  }
+
+  getSplitWorkOrder(split: { workOrder?: string } | null | undefined): string {
+    return (split?.workOrder || '').trim();
+  }
+
+  resolveInitialSplitKeyForItem(receiptId: number, currentWorkOrderCode: string, usedKeys: Set<string>): string | null {
+    const receipt = this.propertyReceipts.find(r => r.receiptId === receiptId);
+    if (!receipt) {
+      return null;
+    }
+    const options = this.getReceiptSplitOptions(receipt, currentWorkOrderCode);
+    const preferredAssigned = options.find(option => (option.workOrder || '').trim() === (currentWorkOrderCode || '').trim() && !usedKeys.has(option.key));
+    if (preferredAssigned) {
+      return preferredAssigned.key;
+    }
+    const firstUnused = options.find(option => !usedKeys.has(option.key));
+    return firstUnused?.key ?? null;
   }
   //#endregion
 

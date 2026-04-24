@@ -185,8 +185,13 @@
       box-sizing: border-box;
     }
 
+    .charges-title {
+      margin-bottom: 14px !important;
+    }
+
     .charges-table th {
       font-weight: 600;
+      font-size: 9pt;
       background-color: #f5f5f5;
       padding: 8px;
       text-align: left;
@@ -205,6 +210,16 @@
 
     .charges-table td.text-right {
       text-align: right;
+    }
+
+    /* Keep Amount / Labor Hours / Labor Cost centered under their headers */
+    .charges-table th:nth-child(3),
+    .charges-table th:nth-child(4),
+    .charges-table th:nth-child(5),
+    .charges-table td:nth-child(3),
+    .charges-table td:nth-child(4),
+    .charges-table td:nth-child(5) {
+      text-align: center;
     }
 
     .charges-table .ledger-line-row td {
@@ -376,15 +391,15 @@
       <tr valign="top">
         <td colspan="2" style="padding: 5px;">
           <div class="border">
-            <h3>Charges</h3>
+            <h3 class="charges-title">Charges</h3>
             <table class="charges-table">
               <thead>
                 <tr>
                   <th>Date</th>
                   <th>Description</th>
                   <th>Amount</th>
-                  <th>Hours</th>
-                  <th>Cost</th>
+                  <th>Labor Hours</th>
+                  <th>Labor Cost</th>
                   <th class="text-right">Total</th>
                 </tr>
               </thead>

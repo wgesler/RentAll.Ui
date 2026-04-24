@@ -11,7 +11,7 @@ import { EmailListDisplay, EmailResponse } from '../authenticated/email/models/e
 import { EmailHtmlResponse } from '../authenticated/email/models/email-html.model';
 import { MaintenanceListResponse } from '../authenticated/maintenance/models/maintenance.model';
 import { InspectionDisplayList, InspectionResponse } from '../authenticated/maintenance/models/inspection.model';
-import { ReceiptDisplayList, ReceiptResponse } from '../authenticated/maintenance/models/receipt.model';
+import { ReceiptDisplayList, ReceiptResponse, Split } from '../authenticated/maintenance/models/receipt.model';
 import { getInspectionType, getWorkOrderType } from '../authenticated/maintenance/models/maintenance-enums';
 import { WorkOrderDisplayList, WorkOrderResponse } from '../authenticated/maintenance/models/work-order.model';
 import { AccountingOfficeListDisplay, AccountingOfficeResponse } from '../authenticated/organizations/models/accounting-office.model';
@@ -807,39 +807,204 @@ export class MappingService {
   }
 
   mapWorkOrderDisplays(workOrders: WorkOrderResponse[]): WorkOrderDisplayList[] {
-    return (workOrders || []).map<WorkOrderDisplayList>((workOrder: WorkOrderResponse) => ({
-      workOrderId: workOrder.workOrderId,
-      officeId: workOrder.officeId,
-      officeName: workOrder.officeName,
-      propertyId: workOrder.propertyId,
-      propertyCode: workOrder.propertyCode,
-      reservationCode: workOrder.reservationCode ?? '',
-      description: workOrder.description ?? '',
-      workOrderTypeId: workOrder.workOrderTypeId,
-      workOrderType: getWorkOrderType(workOrder.workOrderTypeId),
-      isActive: workOrder.isActive,
-      modifiedOn: this.formatter.formatDateString(workOrder.modifiedOn),
-      modifiedBy: workOrder.modifiedBy
-    }));
+    return (workOrders || []).map<WorkOrderDisplayList>((workOrder: WorkOrderResponse) => {
+      const amount = this.resolveWorkOrderDisplayAmount(workOrder);
+      return {
+        amount,
+        amountDisplay: '$' + this.formatter.currency(amount),
+        workOrderId: workOrder.workOrderId,
+        officeId: workOrder.officeId,
+        officeName: workOrder.officeName,
+        propertyId: workOrder.propertyId,
+        propertyCode: workOrder.propertyCode,
+        reservationCode: workOrder.reservationCode ?? '',
+        description: workOrder.description ?? '',
+        workOrderTypeId: workOrder.workOrderTypeId,
+        workOrderType: getWorkOrderType(workOrder.workOrderTypeId),
+        applyMarkup: workOrder.applyMarkup === true,
+        isActive: workOrder.isActive,
+        modifiedOn: this.formatter.formatDateString(workOrder.modifiedOn),
+        modifiedBy: workOrder.modifiedBy
+      };
+    });
+  }
+
+  resolveWorkOrderDisplayAmount(workOrder: WorkOrderResponse): number {
+    const row = workOrder as unknown as Record<string, unknown>;
+    const scalarKeys = [
+      'amount', 'Amount',
+      'totalAmount', 'TotalAmount',
+      'workOrderAmount', 'WorkOrderAmount',
+      'workOrderTotal', 'WorkOrderTotal',
+      'total', 'Total',
+      'itemAmount', 'ItemAmount'
+    ];
+    const collectionKeys = [
+      'workOrderItems', 'WorkOrderItems',
+      'workorderItems',
+      'workOrderItem', 'WorkOrderItem',
+      'items', 'Items',
+      'lines', 'Lines',
+      'workOrderLines', 'WorkOrderLines'
+    ];
+    for (const collectionKey of collectionKeys) {
+      const collectionValue = row[collectionKey];
+      const totalFromCollection = this.sumWorkOrderCollection(collectionValue);
+      if (totalFromCollection !== null) {
+        return totalFromCollection;
+      }
+    }
+
+    for (const scalarKey of scalarKeys) {
+      const parsedScalar = this.parseLooseNumber(row[scalarKey]);
+      if (parsedScalar !== null) {
+        return parsedScalar;
+      }
+    }
+
+    return 0;
+  }
+
+  sumWorkOrderCollection(collectionValue: unknown): number | null {
+    let entries: unknown[] | null = null;
+
+    if (Array.isArray(collectionValue)) {
+      entries = collectionValue;
+    } else if (collectionValue && typeof collectionValue === 'object') {
+      const asRecord = collectionValue as Record<string, unknown>;
+      if (Array.isArray(asRecord['$values'])) {
+        entries = asRecord['$values'] as unknown[];
+      }
+    } else if (typeof collectionValue === 'string') {
+      const raw = collectionValue.trim();
+      if (raw.startsWith('[') || raw.startsWith('{')) {
+        try {
+          const parsed = JSON.parse(raw) as unknown;
+          if (Array.isArray(parsed)) {
+            entries = parsed;
+          } else if (parsed && typeof parsed === 'object' && Array.isArray((parsed as Record<string, unknown>)['$values'])) {
+            entries = (parsed as Record<string, unknown>)['$values'] as unknown[];
+          }
+        } catch {
+          entries = null;
+        }
+      }
+    }
+
+    if (!entries && collectionValue && typeof collectionValue === 'object') {
+      const asRecord = collectionValue as Record<string, unknown>;
+      const objectEntries = Object.values(asRecord).filter(value => value && typeof value === 'object');
+      if (objectEntries.length > 0) {
+        entries = objectEntries;
+      }
+    }
+
+    if (!entries) {
+      return null;
+    }
+
+    return Math.round(entries.reduce<number>((sum, entry) => {
+      if (!entry || typeof entry !== 'object') {
+        return sum;
+      }
+      const item = entry as Record<string, unknown>;
+      const lineTotal = this.resolveWorkOrderItemTotal(item);
+      if (lineTotal !== null) {
+        return sum + lineTotal;
+      }
+      return sum;
+    }, 0) * 100) / 100;
+  }
+
+  resolveWorkOrderItemTotal(item: Record<string, unknown>): number | null {
+    const laborHours = this.parseLooseNumber(item['laborHours']) ?? this.parseLooseNumber(item['LaborHours']) ?? 0;
+    const laborCost = this.parseLooseNumber(item['laborCost']) ?? this.parseLooseNumber(item['LaborCost']) ?? 0;
+    const laborTotal = laborHours * laborCost;
+
+    const explicitReceiptAmount = this.parseLooseNumber(item['receiptAmount']) ?? this.parseLooseNumber(item['ReceiptAmount']);
+    if (explicitReceiptAmount !== null) {
+      return Math.round((explicitReceiptAmount + laborTotal) * 100) / 100;
+    }
+
+    const itemAmount = this.parseLooseNumber(item['itemAmount'])
+      ?? this.parseLooseNumber(item['ItemAmount'])
+      ?? this.parseLooseNumber(item['amount'])
+      ?? this.parseLooseNumber(item['Amount'])
+      ?? this.parseLooseNumber(item['totalAmount'])
+      ?? this.parseLooseNumber(item['TotalAmount'])
+      ?? this.parseLooseNumber(item['total'])
+      ?? this.parseLooseNumber(item['Total'])
+      ?? this.parseLooseNumber(item['lineAmount'])
+      ?? this.parseLooseNumber(item['LineAmount']);
+
+    if (itemAmount !== null) {
+      const derivedReceiptAmount = itemAmount - laborTotal;
+      return Math.round((derivedReceiptAmount + laborTotal) * 100) / 100;
+    }
+
+    return null;
+  }
+
+  parseLooseNumber(value: unknown): number | null {
+    if (value === null || value === undefined || value === '') {
+      return null;
+    }
+    if (typeof value === 'number') {
+      return Number.isFinite(value) ? value : null;
+    }
+    if (typeof value === 'string') {
+      const cleaned = value.replace(/[$,]/g, '').trim();
+      if (!cleaned) {
+        return null;
+      }
+      const parsed = Number(cleaned);
+      return Number.isFinite(parsed) ? parsed : null;
+    }
+    return null;
   }
 
   mapReceiptDisplays(receipts: ReceiptResponse[]): ReceiptDisplayList[] {
-    return (receipts || []).map((receipt: ReceiptResponse): ReceiptDisplayList => ({
-      receiptId: receipt.receiptId,
-      officeId: receipt.officeId,
-      officeName: receipt.officeName,
-      propertyId: receipt.propertyId,
-      propertyCode: receipt.propertyCode,
-      maintenanceId: receipt.maintenanceId,
-      workOrderCode: receipt.workOrderCode ?? '',
-      description: receipt.description,
-      amount: receipt.amount ?? 0,
-      amountDisplay: '$' + this.formatter.currency(receipt.amount ?? 0),
-      receiptPath: receipt.receiptPath ?? null,
-      isActive: receipt.isActive,
-      modifiedOn: this.formatter.formatDateString(receipt.modifiedOn),
-      modifiedBy: receipt.modifiedBy
-    }));
+    return (receipts || []).map((receipt: ReceiptResponse): ReceiptDisplayList => {
+      const splits = (receipt.splits || []).map((split: Split) => ({
+        amount: Number(split.amount) || 0,
+        description: split.description || '',
+        workOrder: split.workOrder || ''
+      }));
+      const splitTotalAmount = splits.reduce((sum, split) => sum + (Number(split.amount) || 0), 0);
+      const receiptAmount = Number(receipt.amount) || 0;
+      const distinctWorkOrders = Array.from(
+        new Set(
+          splits
+            .map(split => (split.workOrder || '').trim())
+            .filter(code => code.length > 0)
+        )
+      );
+      const workOrderDisplay = distinctWorkOrders.join(', ');
+      const isSplitAmountValid = splitTotalAmount <= receiptAmount;
+
+      return {
+        receiptId: receipt.receiptId,
+        officeId: receipt.officeId,
+        officeName: receipt.officeName,
+        propertyId: receipt.propertyId,
+        propertyCode: receipt.propertyCode,
+        maintenanceId: receipt.maintenanceId,
+        description: receipt.description || '',
+        descriptionDisplay: receipt.description || '',
+        amount: receiptAmount,
+        amountDisplay: '$' + this.formatter.currency(receiptAmount),
+        splits,
+        splitTotalAmount,
+        splitTotalDisplay: '$' + this.formatter.currency(splitTotalAmount),
+        splitSummaryDisplay: `${splits.length} split${splits.length === 1 ? '' : 's'}`,
+        isSplitAmountValid,
+        workOrderDisplay,
+        receiptPath: receipt.receiptPath ?? null,
+        isActive: receipt.isActive,
+        modifiedOn: this.formatter.formatDateString(receipt.modifiedOn),
+        modifiedBy: receipt.modifiedBy
+      };
+    });
   }
   //#endregion
 
