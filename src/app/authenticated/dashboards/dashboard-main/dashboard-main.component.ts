@@ -448,7 +448,7 @@ export class DashboardMainComponent extends PropertyMaintenanceBase implements O
   }
 
   formatUsd(amount: number): string {
-    return '$' + this.formatterService.currency(amount);
+    return this.formatterService.currencyUsd(amount);
   }
 
   onCommissionPreviewMouseDown(event: MouseEvent): void {

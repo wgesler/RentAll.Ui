@@ -13,6 +13,12 @@ export class FormatterService {
         return this.decimalPipe.transform(value === null ? 0 : value, '1.2-2');
     }
 
+    currencyUsd(value: number): string {
+        const numeric = Number(value) || 0;
+        const absoluteDisplay = this.currency(Math.abs(numeric));
+        return numeric < 0 ? `-$${absoluteDisplay}` : `$${absoluteDisplay}`;
+    }
+
     percentage(value: number): string{
         return this.decimalPipe.transform(value*100,'1.2-4');
     }

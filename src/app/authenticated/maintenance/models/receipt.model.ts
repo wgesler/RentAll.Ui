@@ -5,11 +5,12 @@ export interface Split {
   description: string;
   workOrder?: string;
 }
+
 export interface ReceiptRequest {
   receiptId?: number;
   organizationId: string;
   officeId: number;
-  propertyId: string;
+  propertyIds: string[];
   maintenanceId: string;
   amount: number;
   description: string;
@@ -24,8 +25,7 @@ export interface ReceiptResponse {
   organizationId: string;
   officeId: number;
   officeName: string;
-  propertyId: string;
-  propertyCode: string;
+  propertyIds: string[];
   maintenanceId: string;
   description: string;
   amount: number;
@@ -41,8 +41,8 @@ export interface ReceiptDisplayList {
   receiptId: number;
   officeId: number;
   officeName: string;
-  propertyId: string;
-  propertyCode: string;
+  propertyIds: string[];
+  propertyCode?: string;
   maintenanceId: string;
   amount: number;
   amountDisplay?: string; // formatted for list (e.g. $0.00)

@@ -44,6 +44,19 @@
                 <mat-label>No</mat-label>
                 <input matInput [value]="isAddMode ? '' : (receipt?.receiptId || '')" readonly disabled>
               </mat-form-field>
+              <mat-form-field appearance="outline" class="receipt-overall-property-field">
+                <mat-label>Properties</mat-label>
+                <mat-select formControlName="propertyIds" multiple required>
+                  @for (option of propertyOptions; track option.propertyId) {
+                    <mat-option [value]="option.propertyId">
+                      {{ option.propertyCode }}
+                    </mat-option>
+                  }
+                </mat-select>
+                @if (form.get('propertyIds')?.invalid && form.get('propertyIds')?.touched) {
+                  <mat-error>At least one property is required</mat-error>
+                }
+              </mat-form-field>
               <mat-form-field appearance="outline" class="receipt-overall-compact-field">
                 <mat-label>Amount</mat-label>
                 <input matInput type="text" inputmode="decimal" [value]="getAmountDisplay()"

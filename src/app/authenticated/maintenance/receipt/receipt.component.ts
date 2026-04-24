@@ -11,7 +11,7 @@ import { FormatterService } from '../../../services/formatter-service';
 import { MaterialModule } from '../../../material.module';
 import { AuthService } from '../../../services/auth.service';
 import { UtilityService } from '../../../services/utility.service';
-import { PropertyResponse } from '../../properties/models/property.model';
+import { PropertyListResponse, PropertyResponse } from '../../properties/models/property.model';
 import { PropertyService } from '../../properties/services/property.service';
 import { ReceiptRequest, ReceiptResponse, Split } from '../models/receipt.model';
 import { ReceiptService } from '../services/receipt.service';
@@ -56,8 +56,9 @@ export class ReceiptComponent implements OnInit, OnDestroy {
   receiptImageTargetMaxBytes = 500 * 1024;
   splitTotalValidationError = false;
   isSyncingInitialSplit = false;
+  propertyOptions: PropertyListResponse[] = [];
 
-  itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['receipt', 'property']));
+  itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['receipt', 'property', 'properties']));
   isLoading$: Observable<boolean> = this.itemsToLoad$.pipe(map(items => items.size > 0));
 
   constructor(
@@ -84,6 +85,7 @@ export class ReceiptComponent implements OnInit, OnDestroy {
       this.isAddMode = this.receiptId == null;
       this.selectedPropertyId = this.property?.propertyId ?? null;
       this.loadProperty();
+      this.loadProperties();
       this.loadReceipt();
       return;
     }
@@ -95,6 +97,7 @@ export class ReceiptComponent implements OnInit, OnDestroy {
       this.isAddMode = this.receiptId == null;
       this.selectedPropertyId = this.property?.propertyId ?? this.route.snapshot.queryParamMap.get('propertyId') ?? null;
       this.loadProperty();
+      this.loadProperties();
       this.loadReceipt();
     });
   }
@@ -102,6 +105,12 @@ export class ReceiptComponent implements OnInit, OnDestroy {
   saveReceipt(): void {
     if (!this.property || !this.organizationId || this.form.invalid) {
       this.form.markAllAsTouched();
+      return;
+    }
+    const selectedPropertyIds = this.getSelectedPropertyIds();
+    if (selectedPropertyIds.length === 0) {
+      this.form.get('propertyIds')?.markAsTouched();
+      this.toastr.warning('At least one property must be selected.', 'Missing property');
       return;
     }
 
@@ -131,7 +140,7 @@ export class ReceiptComponent implements OnInit, OnDestroy {
       receiptId: this.receipt?.receiptId,
       organizationId: this.organizationId,
       officeId: this.receipt?.officeId || this.property.officeId,
-      propertyId: this.property.propertyId,
+      propertyIds: selectedPropertyIds,
       maintenanceId: this.receipt?.maintenanceId || this.maintenanceId || '',
       description: (this.form.get('description')?.value || '').trim(),
       amount: amountValue,
@@ -148,6 +157,7 @@ export class ReceiptComponent implements OnInit, OnDestroy {
       const hasReceiptUpdates = this.receipt
         ? (payload.description !== (this.receipt.description ?? '').trim()) ||
           payload.amount !== (this.receipt.amount ?? 0) ||
+          this.havePropertyIdsChanged(payload.propertyIds, this.receipt.propertyIds || []) ||
           this.haveSplitsChanged(payload.splits, this.receipt.splits || []) ||
           payload.isActive !== this.receipt.isActive ||
           hasReceiptChange
@@ -172,7 +182,8 @@ export class ReceiptComponent implements OnInit, OnDestroy {
         this.isAddMode = false;
         this.form.patchValue({
           officeName: saved.officeName || this.property?.officeName || '',
-          propertyCode: saved.propertyCode || this.property?.propertyCode || '',
+          propertyCode: this.getPropertyCodesDisplay(saved.propertyIds || []) || this.property?.propertyCode || '',
+          propertyIds: saved.propertyIds || [],
           description: saved.description || '',
           amount: saved.amount != null ? this.formatter.currency(saved.amount) : '0.00',
           receiptPath: saved.receiptPath || '',
@@ -209,6 +220,7 @@ export class ReceiptComponent implements OnInit, OnDestroy {
     this.form = this.fb.group({
       officeName: new FormControl(''),
       propertyCode: new FormControl(''),
+      propertyIds: new FormControl<string[]>([], [Validators.required]),
       amount: new FormControl('0.00', [Validators.required]),
       description: new FormControl('', [Validators.required]),
       splits: this.fb.array([]),
@@ -221,7 +233,8 @@ export class ReceiptComponent implements OnInit, OnDestroy {
   populateForm(receipt: ReceiptResponse): void {
     this.form.patchValue({
       officeName: this.property?.officeName || '',
-      propertyCode: this.property?.propertyCode || '',
+      propertyCode: this.getPropertyCodesDisplay(receipt.propertyIds || []) || this.property?.propertyCode || '',
+      propertyIds: receipt.propertyIds || [],
       description: receipt.description || '',
       amount: receipt.amount != null ? this.formatter.currency(receipt.amount) : '0.00',
       receiptPath: receipt.receiptPath || '',
@@ -262,6 +275,12 @@ export class ReceiptComponent implements OnInit, OnDestroy {
 
   loadProperty(): void {
     if (this.property || !this.selectedPropertyId) {
+      if (this.isAddMode) {
+        const defaultPropertyId = this.selectedPropertyId || this.property?.propertyId || null;
+        if (defaultPropertyId) {
+          this.form.patchValue({ propertyIds: [defaultPropertyId] });
+        }
+      }
       this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'property');
       return;
     }
@@ -271,10 +290,33 @@ export class ReceiptComponent implements OnInit, OnDestroy {
         this.form.patchValue({
           officeName: this.property?.officeName || '',
           propertyCode: this.property?.propertyCode || '',
+          propertyIds: this.isAddMode && this.property?.propertyId ? [this.property.propertyId] : this.getSelectedPropertyIds(),
         });
       },
       error: () => {
         this.toastr.error('Unable to load property.', 'Error');
+      }
+    });
+  }
+
+  loadProperties(): void {
+    const userId = this.authService.getUser()?.userId?.trim() ?? '';
+    if (!userId) {
+      this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'properties');
+      return;
+    }
+    this.propertyService.getPropertiesBySelectionCriteria(userId).pipe(take(1), finalize(() => { this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'properties'); })).subscribe({
+      next: (properties) => {
+        this.propertyOptions = (properties || []).filter(p => !!p.propertyId);
+        if (this.isAddMode && this.selectedPropertyId) {
+          this.form.patchValue({ propertyIds: [this.selectedPropertyId] });
+        } else {
+          this.form.patchValue({ propertyCode: this.getPropertyCodesDisplay(this.getSelectedPropertyIds()) });
+        }
+      },
+      error: () => {
+        this.propertyOptions = [];
+        this.toastr.error('Unable to load properties.', 'Error');
       }
     });
   }
@@ -671,6 +713,36 @@ export class ReceiptComponent implements OnInit, OnDestroy {
       description: (split.description || '').trim(),
       workOrder: (split.workOrder || '').trim()
     }));
+  }
+
+  getSelectedPropertyIds(): string[] {
+    const value = this.form.get('propertyIds')?.value;
+    if (!Array.isArray(value)) {
+      return [];
+    }
+    return value
+      .map(propertyId => (propertyId || '').toString().trim())
+      .filter(propertyId => propertyId.length > 0);
+  }
+
+  havePropertyIdsChanged(nextPropertyIds: string[], currentPropertyIds: string[]): boolean {
+    const normalize = (ids: string[]) =>
+      (ids || [])
+        .map(id => (id || '').trim())
+        .filter(id => id.length > 0)
+        .sort();
+    return JSON.stringify(normalize(nextPropertyIds)) !== JSON.stringify(normalize(currentPropertyIds));
+  }
+
+  getPropertyCodesDisplay(propertyIds: string[] | null | undefined): string {
+    const codeLookup = new Map(
+      (this.propertyOptions || []).map(property => [property.propertyId, (property.propertyCode || '').trim()])
+    );
+    return (propertyIds || [])
+      .map(propertyId => (propertyId || '').trim())
+      .filter(propertyId => propertyId.length > 0)
+      .map(propertyId => codeLookup.get(propertyId) || propertyId)
+      .join(', ');
   }
 
   getReceiptAmountValue(): number {

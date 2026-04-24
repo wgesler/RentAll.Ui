@@ -107,7 +107,7 @@ export class MaintenanceShellComponent implements OnInit, CanComponentDeactivate
   ngOnInit(): void {
     this.userId = this.authService.getUser()?.userId?.trim() ?? '';
     this.organizationId = this.authService.getUser()?.organizationId?.trim() ?? '';
-    this.preferredOfficeId = this.authService.getUser()?.defaultOfficeId ?? null;
+    this.preferredOfficeId = this.normalizeOfficeId(this.authService.getUser()?.defaultOfficeId ?? null);
     this.loadTitleBarOfficeScope();
 
     this.isInspectorView = isInspectorOnlyUser(this.authService.getUser()?.userGroups as Array<string | number> | undefined);
@@ -178,17 +178,21 @@ export class MaintenanceShellComponent implements OnInit, CanComponentDeactivate
         this.offices = this.officeService.getAllOfficesValue() || [];
         this.globalSelectionService.getOfficeUiState$(this.offices, { requireExplicitOfficeUnset: true }).pipe(take(1)).subscribe({
           next: uiState => {
-            this.showOfficeDropdown = uiState.showOfficeDropdown;
-            this.selectedOfficeId = uiState.selectedOfficeId;
-            this.loadTitleBarProperties();
+            setTimeout(() => {
+              this.showOfficeDropdown = uiState.showOfficeDropdown;
+              this.selectedOfficeId = this.normalizeOfficeId(uiState.selectedOfficeId);
+              this.loadTitleBarProperties();
+            }, 0);
           }
         });
       },
       error: () => {
-        this.offices = [];
-        this.showOfficeDropdown = false;
-        this.selectedOfficeId = null;
-        this.loadTitleBarProperties();
+        setTimeout(() => {
+          this.offices = [];
+          this.showOfficeDropdown = false;
+          this.selectedOfficeId = null;
+          this.loadTitleBarProperties();
+        }, 0);
       }
     });
   }
@@ -335,6 +339,14 @@ export class MaintenanceShellComponent implements OnInit, CanComponentDeactivate
     if (this.selectedPropertyId && !this.availableProperties.some(property => property.propertyId === this.selectedPropertyId)) {
       this.selectedPropertyId = null;
     }
+  }
+
+  normalizeOfficeId(value: number | null | undefined): number | null {
+    const numericValue = Number(value);
+    if (!Number.isFinite(numericValue) || numericValue <= 0) {
+      return null;
+    }
+    return numericValue;
   }
   //#endregion
 

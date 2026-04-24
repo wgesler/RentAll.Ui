@@ -156,7 +156,10 @@ export class GlobalSelectionService {
     }
 
     const parsedValue = Number(rawValue);
-    return Number.isFinite(parsedValue) ? parsedValue : null;
+    if (!Number.isFinite(parsedValue) || parsedValue <= 0) {
+      return null;
+    }
+    return parsedValue;
   }
 
   private writeOfficeIdToStorage(officeId: number | null): void {

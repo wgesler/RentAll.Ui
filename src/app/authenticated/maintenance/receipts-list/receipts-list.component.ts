@@ -7,10 +7,12 @@ import { finalize, take } from 'rxjs';
 import { RouterUrl } from '../../../app.routes';
 import { CommonMessage } from '../../../enums/common-message.enum';
 import { MaterialModule } from '../../../material.module';
+import { AuthService } from '../../../services/auth.service';
 import { ImageViewDialogComponent } from '../../shared/modals/image-view-dialog/image-view-dialog.component';
 import { ImageViewDialogData } from '../../shared/modals/image-view-dialog/image-view-dialog-data';
 import { MappingService } from '../../../services/mapping.service';
 import { PropertyResponse } from '../../properties/models/property.model';
+import { PropertyService } from '../../properties/services/property.service';
 import { DataTableComponent } from '../../shared/data-table/data-table.component';
 import { DataTableFilterActionsDirective } from '../../shared/data-table/data-table-filter-actions.directive';
 import { ColumnSet } from '../../shared/data-table/models/column-data';
@@ -36,6 +38,7 @@ export class ReceiptsListComponent implements OnInit, OnChanges {
   receipts: ReceiptResponse[] = [];
   receiptsDisplay: ReceiptDisplayList[] = [];
   allReceipts: ReceiptDisplayList[] = [];
+  propertyCodeLookup = new Map<string, string>();
 
   selectedProperty: PropertyResponse | null = null;
   selectedPropertyId: string | null = null;
@@ -56,6 +59,8 @@ export class ReceiptsListComponent implements OnInit, OnChanges {
   constructor(
     private receiptService: ReceiptService,
     private mappingService: MappingService,
+    private propertyService: PropertyService,
+    private authService: AuthService,
     private router: Router,
     private dialog: MatDialog,
     private toastr: ToastrService
@@ -63,6 +68,7 @@ export class ReceiptsListComponent implements OnInit, OnChanges {
 
   //#region Receipts List
   ngOnInit(): void {
+    this.loadPropertyLookup();
     const propertyId = this.property?.propertyId || null;
     if (propertyId) {
       this.selectedPropertyId = propertyId;
@@ -98,6 +104,7 @@ export class ReceiptsListComponent implements OnInit, OnChanges {
       next: (receipts: ReceiptResponse[]) => {
         this.receipts = receipts || [];
         this.allReceipts = this.mappingService.mapReceiptDisplays(this.receipts);
+        this.applyPropertyCodesToDisplays();
         this.applyFilters();
       },
       error: () => {
@@ -172,6 +179,32 @@ export class ReceiptsListComponent implements OnInit, OnChanges {
     this.receiptsDisplay = this.showInactive
       ? [...this.allReceipts]
       : this.allReceipts.filter(receipt => receipt.isActive !== false);
+  }
+
+  loadPropertyLookup(): void {
+    const userId = this.authService.getUser()?.userId?.trim() ?? '';
+    if (!userId) {
+      return;
+    }
+    this.propertyService.getPropertiesBySelectionCriteria(userId).pipe(take(1)).subscribe({
+      next: properties => {
+        this.propertyCodeLookup = new Map(
+          (properties || []).map(property => [property.propertyId, property.propertyCode || ''])
+        );
+        this.applyPropertyCodesToDisplays();
+        this.applyFilters();
+      }
+    });
+  }
+
+  applyPropertyCodesToDisplays(): void {
+    this.allReceipts = (this.allReceipts || []).map(receipt => ({
+      ...receipt,
+      propertyCode: (receipt.propertyIds || [])
+        .map(propertyId => this.propertyCodeLookup.get(propertyId) || propertyId)
+        .filter(code => (code || '').trim().length > 0)
+        .join(', ')
+    }));
   }
   //#endregion
 }

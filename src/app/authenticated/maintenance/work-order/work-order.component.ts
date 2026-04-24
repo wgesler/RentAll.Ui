@@ -115,7 +115,7 @@ export class WorkOrderComponent implements OnInit, OnChanges, OnDestroy {
       this.onWorkOrderTypeChanged(typeId);
     });
     this.form.get('applyMarkup')?.valueChanges.pipe(takeUntil(this.destroy$)).subscribe(() => {
-      this.reapplyMarkupToCurrentItems();
+      this.reapplyMarkupToCurrentItems(true);
     });
     this.onWorkOrderTypeChanged(this.form.get('workOrderTypeId')?.value);
 
@@ -180,8 +180,8 @@ export class WorkOrderComponent implements OnInit, OnChanges, OnDestroy {
     }
 
     const isCreate = this.workOrder?.workOrderId == null;
-    if (isCreate && (!this.accountingOffice || this.nextWorkOrderNo == null || !this.generatedWorkOrderCode)) {
-      this.toastr.warning('Accounting Office sequence is still loading. Please try Save again.', 'Please Wait');
+    if (isCreate && !this.generatedWorkOrderCode) {
+      this.toastr.warning('Work order code is still loading. Please try Save again.', 'Please Wait');
       this.loadAccountingOfficeForWorkOrderCode();
       return;
     }
@@ -256,7 +256,8 @@ export class WorkOrderComponent implements OnInit, OnChanges, OnDestroy {
           reservationId: saved.reservationId ?? null,
           description: saved.description ?? '',
           isActive: saved.isActive
-        });
+        }, { emitEvent: false });
+        setTimeout(() => this.onWorkOrderTypeChanged(saved.workOrderTypeId), 0);
         this.workOrderItems = (saved.workOrderItems ?? []).map(item => {
           const itemSource = this.resolveItemSourceFromReceiptId(item.receiptId);
           const laborHours = Math.floor(Number(item.laborHours)) || 0;
@@ -285,16 +286,25 @@ export class WorkOrderComponent implements OnInit, OnChanges, OnDestroy {
         if (wasCreate) {
           this.updateAccountingOfficeWorkOrderNoAfterCreate();
         }
-        const effectiveWorkOrderCode = saved.workOrderCode ?? this.form.get('workOrderCode')?.value ?? this.generatedWorkOrderCode ?? '';
-        this.updateReceiptsWorkOrderCode(effectiveWorkOrderCode, selectedSplitKeysForSave, previousAssignedSplitKeys);
+        const hasReceiptItems = this.workOrderItems.some(item => item.itemSource === 'receipt');
+        if (hasReceiptItems) {
+          const effectiveWorkOrderCode = saved.workOrderCode ?? this.form.get('workOrderCode')?.value ?? this.generatedWorkOrderCode ?? '';
+          this.updateReceiptsWorkOrderCode(effectiveWorkOrderCode, selectedSplitKeysForSave, previousAssignedSplitKeys);
+        }
         this.toastr.success('Work order saved.', 'Success');
 
         // Save this work order as an invoice that can be paid
         this.saveWorkOrderAsInvoice(saved, totalAmount);
 
-        if (this.selectedPropertyId) {
-          this.back();
+        if (saved.workOrderId) {
+          const propertyId = this.property?.propertyId ?? this.selectedPropertyId ?? '';
+          this.router.navigateByUrl(
+            `${RouterUrl.WorkOrderCreate}?workOrderId=${encodeURIComponent(saved.workOrderId)}&propertyId=${encodeURIComponent(propertyId)}&returnTo=work-order`
+          );
+          return;
         }
+
+        this.toastr.warning('Work order saved, but unable to open the preview page.', 'Navigation Warning');
       },
       error: (_err: HttpErrorResponse) => {
         this.toastr.error('Unable to save work order.', 'Error');
@@ -361,7 +371,6 @@ export class WorkOrderComponent implements OnInit, OnChanges, OnDestroy {
         if (!invoice) {
           return;
         }
-        this.toastr.success(`Invoice ${invoice.invoiceCode || ''} saved from work order.`, 'Success');
       },
       error: () => {
         this.toastr.error('Unable to save invoice from work order.', 'Error');
@@ -395,7 +404,8 @@ export class WorkOrderComponent implements OnInit, OnChanges, OnDestroy {
       reservationId: workOrder.reservationId ?? null,
       description: workOrder.description ?? '',
       isActive: workOrder.isActive
-    });
+    }, { emitEvent: false });
+    setTimeout(() => this.onWorkOrderTypeChanged(workOrder.workOrderTypeId ?? 0), 0);
 
     this.workOrderItems = (workOrder.workOrderItems ?? []).map(item => ({
       ...(() => {
@@ -446,26 +456,56 @@ export class WorkOrderComponent implements OnInit, OnChanges, OnDestroy {
     } else if (!isOwner) {
       applyMarkupControl?.setValue(false, { emitEvent: false });
     }
-    this.reapplyMarkupToCurrentItems();
+    this.reapplyMarkupToCurrentItems(true);
   }
 
-  reapplyMarkupToCurrentItems(): void {
-    const previousFactor = this.lastMarkupFactor;
-    const nextFactor = this.getMarkupFactor();
-    if (Math.abs(previousFactor - nextFactor) < 0.000001) {
+  onApplyMarkupToggle(): void {
+    const currentApplyMarkup = this.form.get('applyMarkup')?.value === true;
+    const previousFactor = this.getMarkupFactorForApplyState(!currentApplyMarkup);
+    const nextFactor = this.getMarkupFactorForApplyState(currentApplyMarkup);
+    const previousReceiptAmounts = this.workOrderItems.map(item => Number(item.receiptAmount) || 0);
+    this.workOrderItems.forEach(item => {
+      item.receiptAmount = undefined;
+    });
+    this.reapplyMarkupToCurrentItems(true, previousFactor, nextFactor, previousReceiptAmounts);
+  }
+
+  reapplyMarkupToCurrentItems(
+    forceReevaluate: boolean = false,
+    previousFactorOverride?: number,
+    nextFactorOverride?: number,
+    previousReceiptAmounts?: number[]
+  ): void {
+    const previousFactor = previousFactorOverride ?? this.lastMarkupFactor;
+    const nextFactor = nextFactorOverride ?? this.getMarkupFactor();
+    if (!forceReevaluate && Math.abs(previousFactor - nextFactor) < 0.000001) {
       this.lastMarkupFactor = nextFactor;
       return;
     }
 
-    this.syncReceiptAmounts();
-    this.workOrderItems.forEach(item => {
-      if (item.itemSource !== 'inventory') {
-        return;
+    const currentWorkOrderCode = this.workOrder?.workOrderCode ?? this.generatedWorkOrderCode ?? '';
+    const usedSplitKeys = new Set<string>();
+    this.workOrderItems.forEach((item, index) => {
+      if (item.itemSource === 'receipt' && item.receiptId != null) {
+        if (!item.receiptSplitKey) {
+          item.receiptSplitKey = this.resolveInitialSplitKeyForItem(item.receiptId, currentWorkOrderCode, usedSplitKeys);
+        }
+        if (item.receiptSplitKey) {
+          usedSplitKeys.add(item.receiptSplitKey);
+        }
+        const splitOption = item.receiptSplitKey ? this.getSplitOptionByKey(item.receiptSplitKey) : null;
+        const baseAmount = splitOption?.amount ?? this.propertyReceipts.find(r => r.receiptId === item.receiptId)?.amount ?? 0;
+        item.receiptAmount = Math.round((baseAmount * nextFactor) * 100) / 100;
+      } else if (item.itemSource === 'inventory') {
+        const currentAmount = previousReceiptAmounts?.[index] ?? (Number(item.receiptAmount) || 0);
+        const baseAmount = previousFactor !== 0 ? (currentAmount / previousFactor) : currentAmount;
+        item.receiptAmount = Math.round((baseAmount * nextFactor) * 100) / 100;
       }
-      const currentAmount = Number(item.receiptAmount) || 0;
-      const baseAmount = previousFactor !== 0 ? (currentAmount / previousFactor) : currentAmount;
-      item.receiptAmount = Math.round((baseAmount * nextFactor) * 100) / 100;
+
+      // Persist recalculated amount onto the line item model immediately.
+      item.itemAmount = this.getItemTotal(item);
     });
+
     this.lastMarkupFactor = nextFactor;
   }
 
@@ -625,7 +665,10 @@ export class WorkOrderComponent implements OnInit, OnChanges, OnDestroy {
       && this.focusedCurrencyField?.index === itemIndex) {
       return this.focusedCurrencyField.editValue;
     }
-    return '$' + this.formatter.currency(Number(item.receiptAmount) || 0);
+    if (item.receiptAmount === null || item.receiptAmount === undefined) {
+      return '';
+    }
+    return this.formatter.currencyUsd(Number(item.receiptAmount) || 0);
   }
 
   onAmountFocus(index: number, event: Event): void {
@@ -668,11 +711,13 @@ export class WorkOrderComponent implements OnInit, OnChanges, OnDestroy {
   }
 
   getMarkupFactor(): number {
+    const applyMarkup = this.form.get('applyMarkup')?.value === true;
+    return this.getMarkupFactorForApplyState(applyMarkup);
+  }
+
+  getMarkupFactorForApplyState(applyMarkup: boolean): number {
     const workOrderTypeId = Number(this.form.get('workOrderTypeId')?.value ?? -1);
-    if (workOrderTypeId !== WorkOrderType.Owner) {
-      return 1;
-    }
-    if (this.form.get('applyMarkup')?.value !== true) {
+    if (workOrderTypeId !== WorkOrderType.Owner || !applyMarkup) {
       return 1;
     }
 
@@ -681,7 +726,9 @@ export class WorkOrderComponent implements OnInit, OnChanges, OnDestroy {
       return 1;
     }
 
-    return 1 + (markupPct / 100);
+    // Support both percent-style (25 => +25%) and ratio-style (0.25 => +25%) values.
+    const normalizedPercent = Math.abs(markupPct) <= 1 ? (markupPct * 100) : markupPct;
+    return 1 + (normalizedPercent / 100);
   }
 
   getItemTotal(item: WorkOrderItemEditable | WorkOrderItemResponse): number {
@@ -695,7 +742,7 @@ export class WorkOrderComponent implements OnInit, OnChanges, OnDestroy {
   }
 
   getTotalDisplay(item: WorkOrderItemEditable): string {
-    return '$' + this.formatter.currency(this.getItemTotal(item));
+    return this.formatter.currencyUsd(this.getItemTotal(item));
   }
 
   getTotalAmount(): number {
@@ -703,14 +750,14 @@ export class WorkOrderComponent implements OnInit, OnChanges, OnDestroy {
   }
 
   getTotalAmountDisplay(): string {
-    return '$' + this.formatter.currency(this.getTotalAmount());
+    return this.formatter.currencyUsd(this.getTotalAmount());
   }
 
   getLaborCostDisplay(index: number, item: WorkOrderItemEditable): string {
     if (this.focusedCurrencyField?.index === index && this.focusedCurrencyField?.field === 'laborCost') {
       return this.focusedCurrencyField.editValue;
     }
-    return '$' + this.formatter.currency(Number(item.laborCost) || 0);
+    return this.formatter.currencyUsd(Number(item.laborCost) || 0);
   }
 
   onLaborCostFocus(index: number, event: Event): void {
@@ -939,10 +986,12 @@ export class WorkOrderComponent implements OnInit, OnChanges, OnDestroy {
         this.propertyAgreement = agreement;
         this.defaultLaborCost = Number(agreement?.hourlyLaborCost) || 0;
         this.applyDefaultLaborCostToUnsavedItems();
+        this.reapplyMarkupToCurrentItems(true);
       },
       error: () => {
         this.propertyAgreement = null;
         this.defaultLaborCost = 0;
+        this.reapplyMarkupToCurrentItems(true);
       }
     });
   }
@@ -1121,7 +1170,7 @@ export class WorkOrderComponent implements OnInit, OnChanges, OnDestroy {
         receiptId: receipt.receiptId,
         organizationId: receipt.organizationId,
         officeId: receipt.officeId,
-        propertyId: receipt.propertyId,
+        propertyIds: (receipt.propertyIds || []).map(propertyId => (propertyId || '').trim()).filter(propertyId => propertyId.length > 0),
         maintenanceId: receipt.maintenanceId,
         description: receipt.description ?? '',
         amount: receipt.amount ?? 0,

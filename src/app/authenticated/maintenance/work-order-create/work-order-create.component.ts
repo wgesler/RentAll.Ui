@@ -36,6 +36,8 @@ import { ReservationListResponse } from '../../reservations/models/reservation-m
 import { ReservationService } from '../../reservations/services/reservation.service';
 import { AccountingOfficeResponse } from '../../organizations/models/accounting-office.model';
 import { AccountingOfficeService } from '../../organizations/services/accounting-office.service';
+import { OrganizationResponse } from '../../organizations/models/organization.model';
+import { OrganizationService } from '../../organizations/services/organization.service';
 
 @Component({
   standalone: true,
@@ -73,10 +75,11 @@ export class WorkOrderCreateComponent extends BaseDocumentComponent implements O
   emailHtml: EmailHtmlResponse | null = null;
   selectedAccountingOffice: AccountingOfficeResponse | null = null;
   accountingOfficeLogo = '';
+  organization: OrganizationResponse | null = null;
 
 
 
-  itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['property', 'workOrder', 'costCode', 'propertyAgreement', 'propertyReceipts', 'propertyReservations', 'workOrderNumber', 'contacts']));
+  itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['property', 'workOrder', 'costCode', 'propertyAgreement', 'propertyReceipts', 'propertyReservations', 'workOrderNumber', 'contacts', 'organization']));
   destroy$ = new Subject<void>();
 
   constructor(
@@ -96,6 +99,7 @@ export class WorkOrderCreateComponent extends BaseDocumentComponent implements O
     private emailCreateDraftService: EmailCreateDraftService,
     private documentReloadService: DocumentReloadService,
     private accountingOfficeService: AccountingOfficeService,
+    private organizationService: OrganizationService,
     private formatterService: FormatterService,
     documentService: DocumentService,
     documentExportService: DocumentExportService,
@@ -136,6 +140,7 @@ export class WorkOrderCreateComponent extends BaseDocumentComponent implements O
       this.loadEmailHtml();
       this.loadWorkOrder();
       this.loadContacts();
+      this.loadOrganization();
       this.loadProperty();
       this.loadPropertyReservations();
      });
@@ -189,16 +194,32 @@ export class WorkOrderCreateComponent extends BaseDocumentComponent implements O
     });
   }
 
+  loadOrganization(): void {
+    if (!this.organizationId) {
+      this.organization = null;
+      this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'organization');
+      return;
+    }
+
+    this.organizationService.getOrganizationByGuid(this.organizationId).pipe(take(1),finalize(() => { this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'organization'); })).subscribe({
+      next: organization => {
+        this.organization = organization;
+      },
+      error: () => {
+        this.organization = null;
+      }
+    });
+  }
+
   loadAccountingOffice(): void {
     const officeId = this.workOrder?.officeId ?? this.property?.officeId ?? null;
     if (!officeId) {
       this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'workOrderNumber');
       return;
     }
-    this.accountingOfficeService.ensureAccountingOfficesLoaded(this.organizationId).pipe(take(1), finalize(() => { this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'workOrderNumber'); })).subscribe({
-      next: offices => {
-        const activeOffices = (offices || []).filter(o => o.isActive !== false);
-        this.selectedAccountingOffice = activeOffices.find(o => o.officeId === officeId) ?? null;
+    this.accountingOfficeService.getAccountingOfficeById(officeId).pipe(take(1), finalize(() => { this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'workOrderNumber'); })).subscribe({
+      next: office => {
+        this.selectedAccountingOffice = office;
         this.updateAccountingOfficeLogo();
       },
       error: () => {
@@ -339,7 +360,7 @@ export class WorkOrderCreateComponent extends BaseDocumentComponent implements O
     const officeName = this.selectedAccountingOffice?.name || this.workOrder.officeName || this.property?.officeName || '';
     const typeLabel = getWorkOrderType(this.workOrder.workOrderTypeId);
     const clientDetails = this.getClientDetailsByType();
-    const rows = this.generateWorkOrderRows();
+    const chargeSections = this.generateWorkOrderChargeSections();
     const officeLogoDataUrl = this.accountingOfficeLogo;
 
     let result = html;
@@ -348,14 +369,16 @@ export class WorkOrderCreateComponent extends BaseDocumentComponent implements O
     result = result.replace(/\{\{propertyCode\}\}/g, this.property?.propertyCode || this.workOrder.propertyCode || '');
     result = result.replace(/\{\{contactName\}\}/g, clientDetails.contactName);
     result = result.replace(/\{\{contactAddress\}\}/g, clientDetails.contactAddress);
+    result = result.replace(/\{\{tenantName\}\}/g, clientDetails.tenantName);
     result = result.replace(/\{\{propertyAddress\}\}/g, propertyAddress);
     result = result.replace(/\{\{propertySuite\}\}/g, this.property?.suite || '');
     result = result.replace(/\{\{billingMethod\}\}/g, typeLabel);
     result = result.replace(/\{\{workOrderCode\}\}/g, this.workOrder.workOrderCode ?? '');
     result = result.replace(/\{\{workOrderDescription\}\}/g, (this.workOrder.description ?? '').replace(/</g, '&lt;').replace(/>/g, '&gt;'));
-    result = result.replace(/\{\{workOrderItems\}\}/g, rows);
-    result = result.replace(/\{\{workOrderItemRows\}\}/g, rows);
-    result = result.replace(/\{\{totalDue\}\}/g, '$' + this.formatter.currency(total));
+    result = result.replace(/\{\{workOrderChargeSections\}\}/g, chargeSections);
+    result = result.replace(/\{\{workOrderItems\}\}/g, chargeSections);
+    result = result.replace(/\{\{workOrderItemRows\}\}/g, chargeSections);
+    result = result.replace(/\{\{totalDue\}\}/g, this.formatter.currencyUsd(total));
 
     // Owner work orders should not show the Company Name row.
     if (this.workOrder.workOrderTypeId === WorkOrderType.Owner) {
@@ -364,6 +387,17 @@ export class WorkOrderCreateComponent extends BaseDocumentComponent implements O
     // Organization work orders should not show the Client Name row.
     if (this.workOrder.workOrderTypeId === WorkOrderType.Organization) {
       result = result.replace(/<span class="label">Client Name:<\/span>\s*\{\{contactName\}\}<br>\s*/g, '');
+    }
+    // Owner and Company/Organization work orders should not show Payment Information section.
+    if (this.workOrder.workOrderTypeId === WorkOrderType.Owner || this.workOrder.workOrderTypeId === WorkOrderType.Organization) {
+      result = result.replace(
+        /<tr valign="top">\s*<td colspan="2" style="padding: 5px;">\s*<div class="border">\s*<h3 style="text-align: left; padding-left: 15px;">Payment Information<\/h3>[\s\S]*?<\/div>\s*<\/td>\s*<\/tr>/i,
+        ''
+      );
+      result = result.replace(
+        /<div class="border charges-border">/i,
+        '<div class="border charges-border charges-border-fill">'
+      );
     }
 
     result = result.replace(/\{\{officeLogoBase64\}\}/g, officeLogoDataUrl || '');
@@ -400,28 +434,87 @@ export class WorkOrderCreateComponent extends BaseDocumentComponent implements O
     return result;
   }
 
-  generateWorkOrderRows(): string {
+  generateWorkOrderChargeSections(): string {
     if (!this.workOrder?.workOrderItems?.length) {
       return '';
     }
-    const date = this.formatter.formatDateString(this.workOrder.modifiedOn) || '';
+
     const usedSplitIndexesByReceipt = new Map<number, Set<number>>();
-    return this.workOrder.workOrderItems.map(item => {
+    const receiptRows: string[] = [];
+    const laborRows: string[] = [];
+
+    this.workOrder.workOrderItems.forEach(item => {
       const resolvedSplit = this.resolveSplitForWorkOrderItem(item, usedSplitIndexesByReceipt);
       const itemDescription = (resolvedSplit?.description || item.description || '').replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
-      const receiptAmount = '$' + this.formatter.currency(this.getReceiptAmountForWorkOrderItem(item));
-      const itemHours = String(Math.floor(Number(item.laborHours)) || 0);
-      const itemCost = '$' + this.formatter.currency(item.laborCost || 0);
-      const itemTotal = '$' + this.formatter.currency(item.itemAmount || 0);
-       return `              <tr class="ledger-line-row">
-                <td>${date}</td>
+      const receiptAmountValue = this.getReceiptAmountForWorkOrderItem(item);
+      const laborHours = Math.floor(Number(item.laborHours)) || 0;
+      const laborCost = Number(item.laborCost) || 0;
+
+      if (item.receiptId != null || Math.abs(receiptAmountValue) > 0.000001) {
+        receiptRows.push(`              <tr class="ledger-line-row">
                 <td>${itemDescription}</td>
-                <td>${receiptAmount}</td>
-                <td>${itemHours}</td>
-                <td>${itemCost}</td>
-                <td class="text-right">${itemTotal}</td>
-              </tr>`;
-    }).join('\n');
+                <td class="text-center"></td>
+                <td class="text-right">${this.formatter.currencyUsd(receiptAmountValue)}</td>
+                <td class="text-right">${this.formatter.currencyUsd(receiptAmountValue)}</td>
+              </tr>`);
+      }
+
+      if (laborHours > 0) {
+        const laborTotal = laborHours * laborCost;
+        laborRows.push(`              <tr class="ledger-line-row">
+                <td>${itemDescription}</td>
+                <td class="text-center">${laborHours}</td>
+                <td class="text-right">${this.formatter.currencyUsd(laborCost)}</td>
+                <td class="text-right">${this.formatter.currencyUsd(laborTotal)}</td>
+              </tr>`);
+      }
+    });
+
+    const receiptsTable = `
+            <h4 class="charges-section-title">Receipts</h4>
+            <table class="charges-table">
+              <colgroup>
+                <col class="charges-col-description">
+                <col class="charges-col-hours">
+                <col class="charges-col-cost">
+                <col class="charges-col-total">
+              </colgroup>
+              <thead>
+                <tr>
+                  <th>Description</th>
+                  <th class="text-center"></th>
+                  <th class="text-right">Amount</th>
+                  <th class="text-right">Total</th>
+                </tr>
+              </thead>
+              <tbody>
+                ${receiptRows.length > 0 ? receiptRows.join('\n') : '<tr class="ledger-line-row"><td colspan="4">No receipt charges.</td></tr>'}
+              </tbody>
+            </table>`;
+
+    const laborTable = `
+            <h4 class="charges-section-title charges-section-title-labor">Labor</h4>
+            <table class="charges-table">
+              <colgroup>
+                <col class="charges-col-description">
+                <col class="charges-col-hours">
+                <col class="charges-col-cost">
+                <col class="charges-col-total">
+              </colgroup>
+              <thead>
+                <tr>
+                  <th>Description</th>
+                  <th class="text-center">Hours</th>
+                  <th class="text-right">Labor Cost</th>
+                  <th class="text-right">Total</th>
+                </tr>
+              </thead>
+              <tbody>
+                ${laborRows.length > 0 ? laborRows.join('\n') : '<tr class="ledger-line-row"><td colspan="4">No labor charges.</td></tr>'}
+              </tbody>
+            </table>`;
+
+    return `${receiptsTable}\n${laborTable}`;
   }
 
   resolveSplitForWorkOrderItem(
@@ -520,7 +613,7 @@ export class WorkOrderCreateComponent extends BaseDocumentComponent implements O
       }
 
       const description = this.escapeHtml(this.getShortReceiptDescription(receipt.description));
-      const amount = this.escapeHtml('$' + this.formatter.currency(receipt.amount ?? 0));
+      const amount = this.escapeHtml(this.formatter.currencyUsd(receipt.amount ?? 0));
       const imageSrc = this.getReceiptImageSrc(receipt);
       const receiptSummaryLine = `<p style="text-align: left; margin: 0 0 8px; font-size: 10pt; line-height: 1.4;">
       <span style="font-weight: 700;">Receipt Description:</span>
@@ -690,33 +783,39 @@ export class WorkOrderCreateComponent extends BaseDocumentComponent implements O
     }
   }
 
-  getClientDetailsByType(): { contactName: string; contactAddress: string } {
+  getClientDetailsByType(): { contactName: string; contactAddress: string; tenantName: string} {
     if (!this.workOrder) {
-      return { contactName: '', contactAddress: '' };
+      return { contactName: '', contactAddress: '', tenantName: '' };
     }
 
     if (this.workOrder.workOrderTypeId === WorkOrderType.Tenant) {
-      const contactName = this.reservationContact?.fullName || this.reservation?.tenantName || '';
+      var contactName = '';
+      if(this.reservationContact?.entityTypeId == EntityType.Company)
+        contactName = this.reservationContact.companyName || '';
+      else
+        contactName = this.reservationContact?.fullName || this.reservation?.tenantName || '';
       const contactAddress = this.getContactAddress(this.reservationContact);
-      return { contactName, contactAddress };
-    }
+      const tenantName = this.reservation.tenantName;
+      return { contactName, contactAddress, tenantName };
+   }
 
     if (this.workOrder.workOrderTypeId === WorkOrderType.Owner) {
       return {
         contactName: this.ownerContact?.fullName || '',
-        contactAddress: this.getContactAddress(this.ownerContact)
+        contactAddress: this.getContactAddress(this.ownerContact),
+        tenantName: ''
       };
     }
 
     if (this.workOrder.workOrderTypeId === WorkOrderType.Organization) {
-      const organizationContact = this.getOrganizationContactFromContacts();
-      return {
-        contactName: organizationContact?.fullName || organizationContact?.companyName || organizationContact?.displayName || '',
-        contactAddress: this.getContactAddress(organizationContact)
+       return {
+        contactName: this.organization?.name || '',
+        contactAddress: this.getOrganizationAddress(),
+        tenantName: ''
       };
     }
 
-    return { contactName: '', contactAddress: '' };
+    return { contactName: '', contactAddress: '', tenantName: ''};
   }
 
   getContactAddress(contact: ContactResponse | null): string {
@@ -724,14 +823,11 @@ export class WorkOrderCreateComponent extends BaseDocumentComponent implements O
     return `${contact.address1 || ''} ${contact.city || ''}, ${contact.state || ''} ${contact.zip || ''}`.trim();
   }
 
-  getOrganizationContactFromContacts(): ContactResponse | null {
-    const orgCompanyContacts = this.companyContacts.filter(c => c.organizationId === this.organizationId && c.isActive !== false);
-    if (orgCompanyContacts.length > 0) {
-      return orgCompanyContacts[0];
-    }
-    const activeCompanyContacts = this.companyContacts.filter(c => c.isActive !== false);
-    return activeCompanyContacts.length > 0 ? activeCompanyContacts[0] : null;
+  getOrganizationAddress(): string {
+    if (!this.organization) return '';
+    return `${this.organization.address1 || ''} ${this.organization.suite || ''}, ${this.organization.city || ''}, ${this.organization.state || ''} ${this.organization.zip || ''}`.trim();
   }
+
 
   getEmailRecipientByType(): { email: string; name: string, salutationName: string } {
     if (!this.workOrder) {
@@ -751,19 +847,6 @@ export class WorkOrderCreateComponent extends BaseDocumentComponent implements O
         email: this.reservationContact?.email || '',
         name: this.reservationContact?.fullName || `${this.reservationContact?.firstName || ''} ${this.reservationContact?.lastName || ''}`.trim(),
         salutationName: `${this.reservationContact?.firstName || ''}`.trim()
-      };
-    }
-
-    if (this.workOrder.workOrderTypeId === WorkOrderType.Organization) {
-      const organizationContact = this.getOrganizationContactFromContacts();
-      const organizationName = organizationContact?.fullName || organizationContact?.companyName || organizationContact?.displayName || '';
-      const firstName = (organizationContact?.firstName || '').trim();
-      const fullName = (organizationContact?.fullName || '').trim();
-      const salutationName = firstName || (fullName ? fullName.split(/\s+/)[0] : organizationName);
-      return {
-        email: organizationContact?.email || organizationContact?.companyEmail || '',
-        name: organizationName,
-        salutationName
       };
     }
 

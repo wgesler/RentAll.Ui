@@ -193,7 +193,7 @@
       font-weight: 600;
       font-size: 9pt;
       background-color: #f5f5f5;
-      padding: 8px;
+      padding: 8px 12px;
       text-align: left;
       border: none;
     }
@@ -203,7 +203,7 @@
     }
 
     .charges-table td {
-      padding: 8px;
+      padding: 8px 12px;
       text-align: left;
       border: none;
     }
@@ -212,14 +212,56 @@
       text-align: right;
     }
 
-    /* Keep Amount / Labor Hours / Labor Cost centered under their headers */
-    .charges-table th:nth-child(3),
-    .charges-table th:nth-child(4),
-    .charges-table th:nth-child(5),
-    .charges-table td:nth-child(3),
-    .charges-table td:nth-child(4),
-    .charges-table td:nth-child(5) {
-      text-align: center;
+    .charges-col-description {
+      width: 50%;
+    }
+
+    .charges-col-hours,
+    .charges-col-cost,
+    .charges-col-total {
+      width: 16.6667%;
+    }
+
+    .charges-table th:nth-child(2),
+    .charges-table td:nth-child(2) {
+      text-align: center !important;
+    }
+
+    .charges-section-title {
+      margin: 10px 0 6px;
+      font-size: 10pt;
+      font-weight: 700;
+    }
+
+    .charges-section-title-labor {
+      margin-top: 18px;
+    }
+
+    .charges-balance-row {
+      display: flex;
+      justify-content: flex-end;
+      align-items: center;
+      gap: 10px;
+      border-top: 2px solid #000;
+      padding-top: 8px;
+      padding-right: 12px;
+      margin-top: 4px;
+      font-size: 11pt;
+      font-weight: 700;
+    }
+
+    .charges-border-fill {
+      min-height: 430px;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .charges-fill-spacer {
+      height: 0;
+    }
+
+    .charges-border-fill .charges-fill-spacer {
+      flex: 2 1 auto;
     }
 
     .charges-table .ledger-line-row td {
@@ -390,28 +432,14 @@
 
       <tr valign="top">
         <td colspan="2" style="padding: 5px;">
-          <div class="border">
+          <div class="border charges-border">
             <h3 class="charges-title">Charges</h3>
-            <table class="charges-table">
-              <thead>
-                <tr>
-                  <th>Date</th>
-                  <th>Description</th>
-                  <th>Amount</th>
-                  <th>Labor Hours</th>
-                  <th>Labor Cost</th>
-                  <th class="text-right">Total</th>
-                </tr>
-              </thead>
-              <tbody>
-                <!-- Work Order Items will be inserted here -->
-                {{workOrderItemRows}}
-                <tr class="total-row">
-                  <td colspan="5" class="text-right"><span class="label">Balance Due:</span></td>
-                  <td class="text-right">{{totalDue}}</td>
-                </tr>
-              </tbody>
-            </table>
+            {{workOrderChargeSections}}
+            <div class="charges-balance-row">
+              <span>Balance Due:</span>
+              <span>{{totalDue}}</span>
+            </div>
+            <div class="charges-fill-spacer"></div>
           </div>
         </td>
       </tr>
