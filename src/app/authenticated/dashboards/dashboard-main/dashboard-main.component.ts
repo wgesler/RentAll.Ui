@@ -368,9 +368,9 @@ export class DashboardMainComponent extends PropertyMaintenanceBase implements O
       return;
     }
 
-    const now = new Date();
-    const monthLo = this.getMonthStartAsOrdinal(now)!;
-    const monthHi = this.getMonthEndAsOrdinal(now)!;
+    const commissionMonth = this.getCommissionMonthReferenceDate();
+    const monthLo = this.getMonthStartAsOrdinal(commissionMonth)!;
+    const monthHi = this.getMonthEndAsOrdinal(commissionMonth)!;
     const daysInMonth = monthHi % 100;
 
     const overlapsCurrentMonth = (a: number, d: number) => a <= monthHi && d >= monthLo;
@@ -420,7 +420,12 @@ export class DashboardMainComponent extends PropertyMaintenanceBase implements O
   }
 
   getCurrentMonthDisplay(): string {
-    return new Date().toLocaleDateString('en-US', { month: 'long' });
+    return this.getCommissionMonthReferenceDate().toLocaleDateString('en-US', { month: 'long' });
+  }
+
+  getCommissionMonthReferenceDate(): Date {
+    const now = new Date();
+    return new Date(now.getFullYear(), now.getMonth() - 1, 1);
   }
 
   getMonthlyCommissionTileRows(): MonthlyCommissionTileRow[] {
