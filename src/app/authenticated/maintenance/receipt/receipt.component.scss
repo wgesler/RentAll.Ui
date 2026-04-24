@@ -64,10 +64,16 @@
   max-width: 15%;
 }
 
-.receipt-overall-property-field {
-  flex: 0 0 25%;
+.receipt-overall-no-field {
+  flex: 0 0 9%;
   min-width: 0;
-  max-width: 25%;
+  max-width: 9%;
+}
+
+.receipt-overall-property-field {
+  flex: 0 0 20%;
+  min-width: 0;
+  max-width: 20%;
 }
 
 .receipt-overall-description-field {
