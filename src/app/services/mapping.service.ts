@@ -817,6 +817,7 @@ export class MappingService {
         officeName: workOrder.officeName,
         propertyId: workOrder.propertyId,
         propertyCode: workOrder.propertyCode,
+        reservationId: workOrder.reservationId ?? null,
         reservationCode: workOrder.reservationCode ?? '',
         description: workOrder.description ?? '',
         workOrderTypeId: workOrder.workOrderTypeId,

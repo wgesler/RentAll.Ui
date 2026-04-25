@@ -21,20 +21,23 @@ export class WorkOrderService {
     this.controller = this.configService.config().apiUrl + 'maintenance/work-order/';
   }
 
-  getWorkOrdersByPropertyId(propertyId: string): Observable<WorkOrderResponse[]> {
-    return this.http.get<WorkOrderResponse[]>(this.controller + 'property/' + propertyId);
+
+  getWorkOrders(propertyId?: string | null, officeId?: number | null): Observable<WorkOrderResponse[]> {
+    if (propertyId) {
+      return this.http.get<WorkOrderResponse[]>(this.controller + 'property/' + propertyId);
+    }
+    if (officeId != null && Number.isFinite(officeId) && officeId > 0) {
+      return this.http.get<WorkOrderResponse[]>(this.controller + 'office/' + officeId);
+    }
+    return this.http.get<WorkOrderResponse[]>(this.controller);
   }
 
-  getWorkOrderByPropertyId(propertyId: string): Observable<WorkOrderResponse[]> {
-    return this.getWorkOrdersByPropertyId(propertyId);
-  }
+  getWorkOrdersByPropertyId(propertyId: string): Observable<WorkOrderResponse[]> {
+    return this.http.get<WorkOrderResponse[]>(this.controller + 'property/' + propertyId);
+  } 
 
   getWorkOrderById(workOrderId: string): Observable<WorkOrderResponse> {
     return this.http.get<WorkOrderResponse>(this.controller + workOrderId);
-  }
-
-  getWorkOrder(organizationId: string, workOrderId: string): Observable<WorkOrderResponse> {
-    return this.http.get<WorkOrderResponse>(this.controller + workOrderId + '?organizationId=' + organizationId);
   }
 
   createWorkOrder(request: WorkOrderRequest): Observable<WorkOrderResponse> {

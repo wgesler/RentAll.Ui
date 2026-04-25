@@ -28,6 +28,8 @@ import { ReceiptService } from '../services/receipt.service';
 })
 export class ReceiptsListComponent implements OnInit, OnChanges {
   @Input() property: PropertyResponse | null = null;
+  @Input() officeId: number | null = null;
+  @Input() isActiveTab = false;
   @Input() embeddedInMaintenance = false;
   @Input() refreshTrigger: number = 0;
   @Output() receiptSelect = new EventEmitter<number | null>();
@@ -68,39 +70,54 @@ export class ReceiptsListComponent implements OnInit, OnChanges {
 
   //#region Receipts List
   ngOnInit(): void {
-    this.loadPropertyLookup();
-    const propertyId = this.property?.propertyId || null;
-    if (propertyId) {
-      this.selectedPropertyId = propertyId;
-      this.getReceipts(propertyId);
+    if (!this.isActiveTab) {
+      return;
     }
+    this.loadPropertyLookup();
+    this.getReceipts();
   }
 
   ngOnChanges(changes: SimpleChanges): void {
+    if (changes['isActiveTab']) {
+      if (!this.isActiveTab) {
+        return;
+      }
+      this.loadPropertyLookup();
+      this.getReceipts();
+      return;
+    }
+
+    if (!this.isActiveTab) {
+      return;
+    }
+
     if (changes['property']) {
       const propertyId = this.property?.propertyId || null;
       if (!propertyId) {
         this.selectedPropertyId = null;
-        this.receipts = [];
-        this.allReceipts = [];
-        this.receiptsDisplay = [];
+        this.getReceipts();
         return;
       }
 
       if (this.selectedPropertyId !== propertyId) {
         this.selectedPropertyId = propertyId;
-        this.getReceipts(propertyId);
+        this.getReceipts();
       }
     }
-    if (changes['refreshTrigger'] && this.property?.propertyId) {
-      this.getReceipts(this.property.propertyId);
+    if (changes['officeId'] && !this.property?.propertyId) {
+      this.getReceipts();
+    }
+    if (changes['refreshTrigger']) {
+      this.getReceipts();
     }
   }
 
-  getReceipts(propertyId: string): void {
+  getReceipts(): void {
     this.isServiceError = false;
     this.isLoading = true;
-    this.receiptService.getReceiptsByPropertyId(propertyId).pipe(take(1), finalize(() => (this.isLoading = false))).subscribe({
+    const propertyId = this.property?.propertyId ?? null;
+    const officeId = this.officeId ?? null;
+    this.receiptService.getReceipts(propertyId, officeId).pipe(take(1), finalize(() => (this.isLoading = false))).subscribe({
       next: (receipts: ReceiptResponse[]) => {
         this.receipts = receipts || [];
         this.allReceipts = this.mappingService.mapReceiptDisplays(this.receipts);

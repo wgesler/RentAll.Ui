@@ -16,7 +16,7 @@ import { OfficeService } from '../../organizations/services/office.service';
 import { ReservationListResponse } from '../../reservations/models/reservation-model';
 import { ReservationService } from '../../reservations/services/reservation.service';
 import { InspectionComponent } from '../inspection/inspection.component';
-import { WorkOrderListComponent } from '../work-order-list/work-order-list.component';
+import { WorkOrderListComponent, WorkOrderSelection } from '../work-order-list/work-order-list.component';
 import { ReceiptsListComponent } from '../receipts-list/receipts-list.component';
 import { ReceiptComponent } from '../receipt/receipt.component';
 import { WorkOrderComponent } from '../work-order/work-order.component';
@@ -85,6 +85,7 @@ export class MaintenanceShellComponent implements OnInit, CanComponentDeactivate
   availableProperties: { propertyId: string; propertyCode: string }[] = [];
   allProperties: PropertyListResponse[] = [];
   inspectorPropertyIds = new Set<string>();
+  skipNextPropertyCodeChange = false;
 
   itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['property']));
   isLoading$: Observable<boolean> = this.itemsToLoad$.pipe(map(items => items.size > 0));
@@ -141,7 +142,7 @@ export class MaintenanceShellComponent implements OnInit, CanComponentDeactivate
   //#endregion
 
   //#region Data Load Methods
-  loadProperty(propertyId: string): void {
+  loadProperty(propertyId: string, onLoaded?: () => void, preferredReservationId?: string | null): void {
     this.propertyService.getPropertyByGuid(propertyId).pipe(take(1),
       switchMap(property =>
         this.reservationService.getReservationsByPropertyId(property.propertyId).pipe(take(1),
@@ -153,14 +154,16 @@ export class MaintenanceShellComponent implements OnInit, CanComponentDeactivate
       next: ({ property, reservations }) => {
         this.property = property;
         this.shellReservations = reservations;
-        this.titleBarReservationId = null;
         this.syncTitleBarSelections();
+        this.setTitleBarReservationForCurrentProperty(preferredReservationId ?? null);
+        onLoaded?.();
       },
       error: () => {
         this.property = null;
         this.shellReservations = [];
         this.titleBarReservationId = null;
         this.isServiceError = true;
+        onLoaded?.();
       }
     });
   }
@@ -259,11 +262,11 @@ export class MaintenanceShellComponent implements OnInit, CanComponentDeactivate
     if (this.selectedTabIndex === 0) {
       return true;
     }
-    return this.showWorkOrdersTab && this.selectedTabIndex === this.workOrdersTabIndex;
+    return this.showWorkOrdersTab && this.selectedTabIndex === this.workOrdersTabIndex && !this.showWorkOrderDetail;
   }
 
   get titleBarReservationNullLabel(): string {
-    return 'Select Reservation';
+    return 'All Reservations';
   }
 
   get titleBarReservationDisplayLabel(): string {
@@ -282,11 +285,25 @@ export class MaintenanceShellComponent implements OnInit, CanComponentDeactivate
     this.updateAvailableProperties();
     if (this.property && this.selectedOfficeId !== this.property.officeId) {
       this.selectedPropertyId = null;
+      this.property = null;
+      this.titleBarReservationId = null;
+      this.shellReservations = [];
+      this.showReceiptDetail = false;
+      this.selectedReceiptId = null;
+      this.showWorkOrderDetail = false;
+      this.selectedWorkOrderId = null;
+      if (this.selectedTabIndex === this.receiptsTabIndex) {
+        this.refreshReceiptsTrigger++;
+      }
     }
   }
 
   async onPropertyCodeChange(): Promise<void> {
-    if (!this.selectedPropertyId || this.selectedPropertyId === this.property?.propertyId) {
+    if (this.skipNextPropertyCodeChange) {
+      this.skipNextPropertyCodeChange = false;
+      return;
+    }
+    if (this.selectedPropertyId === this.property?.propertyId) {
       return;
     }
 
@@ -304,6 +321,13 @@ export class MaintenanceShellComponent implements OnInit, CanComponentDeactivate
     this.shellReservations = [];
     this.property = null;
     this.isServiceError = false;
+    if (!this.selectedPropertyId) {
+      if (this.selectedTabIndex === this.receiptsTabIndex) {
+        this.refreshReceiptsTrigger++;
+      }
+      return;
+    }
+
     this.utilityService.addLoadItem(this.itemsToLoad$, 'property');
     this.loadProperty(this.selectedPropertyId);
     this.router.navigateByUrl(`${RouterUrl.replaceTokens(RouterUrl.Maintenance, [this.selectedPropertyId])}?tab=${this.selectedTabIndex}`);
@@ -347,6 +371,19 @@ export class MaintenanceShellComponent implements OnInit, CanComponentDeactivate
       return null;
     }
     return numericValue;
+  }
+
+  setTitleBarReservationForCurrentProperty(reservationId: string | null): void {
+    const normalizedReservationId = (reservationId || '').trim();
+    if (!normalizedReservationId) {
+      this.titleBarReservationId = null;
+      return;
+    }
+    this.titleBarReservationId = (this.shellReservations || []).some(
+      reservation => String(reservation.reservationId ?? '').trim() === normalizedReservationId
+    )
+      ? normalizedReservationId
+      : null;
   }
   //#endregion
 
@@ -414,9 +451,22 @@ export class MaintenanceShellComponent implements OnInit, CanComponentDeactivate
     this.maintenanceReceiptsList.applyFilters();
   }
 
-  onWorkOrderSelect(workOrderId: string | null): void {
-    this.showWorkOrderDetail = true;
-    this.selectedWorkOrderId = workOrderId;
+  onWorkOrderSelect(selection: WorkOrderSelection): void {
+    const workOrderId = selection?.workOrderId ?? null;
+    const targetPropertyId = (selection?.propertyId || '').trim() || null;
+    const openWorkOrderDetail = () => {
+      this.showWorkOrderDetail = true;
+      this.selectedWorkOrderId = workOrderId;
+    };
+
+    if (targetPropertyId && targetPropertyId !== this.selectedPropertyId) {
+      this.skipNextPropertyCodeChange = true;
+      this.selectedPropertyId = targetPropertyId;
+      this.utilityService.addLoadItem(this.itemsToLoad$, 'property');
+      this.loadProperty(targetPropertyId, () => openWorkOrderDetail(), null);
+      return;
+    }
+    openWorkOrderDetail();
   }
 
   onWorkOrderBack(): void {

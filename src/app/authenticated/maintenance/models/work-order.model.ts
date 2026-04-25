@@ -38,6 +38,7 @@ export interface WorkOrderDisplayList {
   officeName: string;
   propertyId: string;
   propertyCode: string;
+  reservationId?: string | null;
   reservationCode?: string | null;
   description?: string | null;
   amount?: number;

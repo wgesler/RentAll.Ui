@@ -21,8 +21,26 @@ export class ReceiptService {
     this.controller = this.configService.config().apiUrl + 'maintenance/receipt/';
   }
 
+  getAllReceipts(): Observable<ReceiptResponse[]> {
+    return this.http.get<ReceiptResponse[]>(this.controller);
+  }
+
+  getReceipts(propertyId?: string | null, officeId?: number | null): Observable<ReceiptResponse[]> {
+    if (propertyId) {
+      return this.http.get<ReceiptResponse[]>(this.controller + 'property/' + propertyId);
+    }
+    if (officeId != null && Number.isFinite(officeId) && officeId > 0) {
+      return this.http.get<ReceiptResponse[]>(this.controller + 'office/' + officeId);
+    }
+    return this.http.get<ReceiptResponse[]>(this.controller);
+  }
+
   getReceiptsByPropertyId(propertyId: string): Observable<ReceiptResponse[]> {
     return this.http.get<ReceiptResponse[]>(this.controller + 'property/' + propertyId);
+  }
+
+  getReceiptsByOfficeId(officeId: number): Observable<ReceiptResponse[]> {
+    return this.http.get<ReceiptResponse[]>(this.controller + 'office/' + officeId);
   }
 
   getReceiptByPropertyId(propertyId: string): Observable<ReceiptResponse[]> {

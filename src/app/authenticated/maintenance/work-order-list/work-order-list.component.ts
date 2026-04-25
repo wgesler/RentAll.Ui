@@ -2,7 +2,7 @@ import { CommonModule } from '@angular/common';
 import { Component, EventEmitter, Input, OnChanges, OnInit, Output, SimpleChanges } from '@angular/core';
 import { Router } from '@angular/router';
 import { ToastrService } from 'ngx-toastr';
-import { catchError, concatMap, finalize, from, of, take, toArray } from 'rxjs';
+import { catchError, concatMap, finalize, forkJoin, from, map, Observable, of, switchMap, take, toArray } from 'rxjs';
 import { RouterUrl } from '../../../app.routes';
 import { MaterialModule } from '../../../material.module';
 import { MappingService } from '../../../services/mapping.service';
@@ -10,8 +10,15 @@ import { PropertyResponse } from '../../properties/models/property.model';
 import { DataTableComponent } from '../../shared/data-table/data-table.component';
 import { DataTableFilterActionsDirective } from '../../shared/data-table/data-table-filter-actions.directive';
 import { ColumnSet } from '../../shared/data-table/models/column-data';
+import { ReceiptRequest, ReceiptResponse } from '../models/receipt.model';
 import { WorkOrderDisplayList, WorkOrderResponse } from '../models/work-order.model';
+import { ReceiptService } from '../services/receipt.service';
 import { WorkOrderService } from '../services/work-order.service';
+
+export interface WorkOrderSelection {
+  workOrderId: string | null;
+  propertyId: string | null;
+}
 
 @Component({
   standalone: true,
@@ -22,9 +29,12 @@ import { WorkOrderService } from '../services/work-order.service';
 })
 export class WorkOrderListComponent implements OnInit, OnChanges {
   @Input() property: PropertyResponse | null = null;
+  @Input() officeId: number | null = null;
+  @Input() reservationId: string | null = null;
+  @Input() isActiveTab = false;
   /** When true, selection is emitted via workOrderSelect and no navigation occurs (e.g. embedded in maintenance). */
   @Input() embeddedInMaintenance = false;
-  @Output() workOrderSelect = new EventEmitter<string | null>();
+  @Output() workOrderSelect = new EventEmitter<WorkOrderSelection>();
 
   isLoading: boolean = false;
   isServiceError: boolean = false;
@@ -49,6 +59,7 @@ export class WorkOrderListComponent implements OnInit, OnChanges {
 
   constructor(
     private workOrderService: WorkOrderService,
+    private receiptService: ReceiptService,
     private mappingService: MappingService,
     private router: Router,
     private toastr: ToastrService
@@ -56,35 +67,52 @@ export class WorkOrderListComponent implements OnInit, OnChanges {
 
   //#region Work-Order List
   ngOnInit(): void {
-    const propertyId = this.property?.propertyId || null;
-    if (propertyId) {
-      this.selectedPropertyId = propertyId;
-      this.getWorkOrders(propertyId);
+    if (!this.isActiveTab) {
+      return;
     }
+    this.getWorkOrders();
   }
 
   ngOnChanges(changes: SimpleChanges): void {
+    if (changes['isActiveTab']) {
+      if (!this.isActiveTab) {
+        return;
+      }
+      this.getWorkOrders();
+      return;
+    }
+
+    if (!this.isActiveTab) {
+      return;
+    }
+
     if (changes['property']) {
       const propertyId = this.property?.propertyId || null;
       if (!propertyId) {
         this.selectedPropertyId = null;
-        this.workOrders = [];
-        this.allWorkOrders = [];
-        this.workOrdersDisplay = [];
+        this.getWorkOrders();
         return;
       }
 
       if (this.selectedPropertyId !== propertyId) {
         this.selectedPropertyId = propertyId;
-        this.getWorkOrders(propertyId);
+        this.getWorkOrders();
       }
+    }
+    if (changes['officeId'] && !this.property?.propertyId) {
+      this.getWorkOrders();
+    }
+    if (changes['reservationId']) {
+      this.applyFilters();
     }
   }
 
-  getWorkOrders(propertyId: string): void {
+  getWorkOrders(): void {
     this.isServiceError = false;
     this.isLoading = true;
-    this.workOrderService.getWorkOrdersByPropertyId(propertyId).pipe(take(1)).subscribe({
+    const propertyId = this.property?.propertyId ?? null;
+    const officeId = this.officeId ?? null;
+    this.workOrderService.getWorkOrders(propertyId, officeId).pipe(take(1)).subscribe({
       next: (workOrders: WorkOrderResponse[]) => {
         this.loadWorkOrderDetailsForDisplay(workOrders || []);
       },
@@ -108,13 +136,8 @@ export class WorkOrderListComponent implements OnInit, OnChanges {
     }
 
     from(workOrders).pipe(
-      concatMap(workOrder => this.workOrderService.getWorkOrderById(String(workOrder.workOrderId)).pipe(
-        take(1),
-        catchError(() => of(workOrder))
-      )),
-      toArray(),
-      finalize(() => (this.isLoading = false))
-    ).subscribe({
+      concatMap(workOrder => this.workOrderService.getWorkOrderById(String(workOrder.workOrderId)).pipe(take(1),catchError(() => of(workOrder)))),
+      toArray(),finalize(() => (this.isLoading = false))).subscribe({
       next: (detailedWorkOrders: WorkOrderResponse[]) => {
         this.workOrders = detailedWorkOrders;
         this.allWorkOrders = this.mappingService.mapWorkOrderDisplays(this.workOrders);
@@ -131,7 +154,10 @@ export class WorkOrderListComponent implements OnInit, OnChanges {
   addWorkOrder(): void {
     if (!this.property) return;
     if (this.embeddedInMaintenance) {
-      this.workOrderSelect.emit(null);
+      this.workOrderSelect.emit({
+        workOrderId: null,
+        propertyId: this.property?.propertyId ?? null
+      });
       return;
     }
     const url = '/' + RouterUrl.replaceTokens(RouterUrl.MaintenanceWorkOrder, ['new']);
@@ -141,7 +167,17 @@ export class WorkOrderListComponent implements OnInit, OnChanges {
   deleteWorkOrder(event: WorkOrderDisplayList): void {
     const id = String(event.workOrderId);
     if (!id) return;
-    this.workOrderService.deleteWorkOrder(id).pipe(take(1)).subscribe({
+    const targetWorkOrder = this.workOrders.find(workOrder => String(workOrder.workOrderId) === id);
+    const workOrderCode = (targetWorkOrder?.workOrderCode || '').trim();
+    const associatedReceiptIds = Array.from(
+      new Set(
+        (targetWorkOrder?.workOrderItems || [])
+          .map(item => Number(item.receiptId))
+          .filter(receiptId => Number.isFinite(receiptId) && receiptId > 0)
+      )
+    );
+
+    this.removeWorkOrderAssociationsFromReceipts(workOrderCode, associatedReceiptIds).pipe(switchMap(() => this.workOrderService.deleteWorkOrder(id)), take(1)).subscribe({
       next: () => {
         this.workOrders = this.workOrders.filter(workOrder => String(workOrder.workOrderId) !== String(event.workOrderId));
         this.allWorkOrders = this.mappingService.mapWorkOrderDisplays(this.workOrders);
@@ -149,16 +185,20 @@ export class WorkOrderListComponent implements OnInit, OnChanges {
       },
       error: () => {
         this.isServiceError = true;
+        this.toastr.error('Unable to delete work order and clear receipt associations.', 'Error');
       }
     });
   }
   
   goToWorkOrder(event: WorkOrderDisplayList): void {
-    if (!this.property) return;
     if (this.embeddedInMaintenance) {
-      this.workOrderSelect.emit(String(event.workOrderId));
+      this.workOrderSelect.emit({
+        workOrderId: String(event.workOrderId),
+        propertyId: event.propertyId ?? this.property?.propertyId ?? null
+      });
       return;
     }
+    if (!this.property) return;
     const url = '/' + RouterUrl.replaceTokens(RouterUrl.MaintenanceWorkOrder, [String(event.workOrderId)]);
     this.router.navigate([url], { queryParams: { propertyId: this.property.propertyId }, state: { property: this.property } });
   }
@@ -173,6 +213,67 @@ export class WorkOrderListComponent implements OnInit, OnChanges {
   }
   //#endregion
 
+  //#region Receipt Update Methods
+  removeWorkOrderAssociationsFromReceipts(workOrderCode: string, receiptIds: number[]): Observable<void> {
+    if (!workOrderCode || !receiptIds.length) {
+      return of(void 0);
+    }
+
+    return from(receiptIds).pipe(
+      concatMap(receiptId => this.receiptService.getReceiptById(receiptId).pipe(catchError(() => of(null)))),
+      toArray(),
+      concatMap((receipts: Array<ReceiptResponse | null>) => {
+        const updateRequests = receipts.filter((receipt): receipt is ReceiptResponse => receipt != null).map(receipt => {
+            const currentSplits = receipt.splits || [];
+            const nextSplits = currentSplits.map(split => {
+              const nextWorkOrder = this.removeWorkOrderCodeFromList(split.workOrder, workOrderCode);
+              if (nextWorkOrder === (split.workOrder || '')) {
+                return split;
+              }
+              return { ...split, workOrder: nextWorkOrder };
+            });
+
+            if (JSON.stringify(nextSplits) === JSON.stringify(currentSplits)) {
+              return null;
+            }
+
+            const payload: ReceiptRequest = {
+              receiptId: receipt.receiptId,
+              organizationId: receipt.organizationId,
+              officeId: receipt.officeId,
+              propertyIds: receipt.propertyIds || [],
+              maintenanceId: receipt.maintenanceId,
+              amount: receipt.amount,
+              description: receipt.description,
+              splits: nextSplits,
+              receiptPath: receipt.receiptPath ?? null,
+              fileDetails: receipt.fileDetails ?? null,
+              isActive: receipt.isActive
+            };
+
+            return this.receiptService.updateReceipt(payload);
+          })
+          .filter((request): request is Observable<ReceiptResponse> => request != null);
+
+        if (!updateRequests.length) {
+          return of(void 0);
+        }
+
+        return forkJoin(updateRequests).pipe(map(() => void 0));
+      })
+    );
+  }
+
+  removeWorkOrderCodeFromList(currentValue: string | undefined, workOrderCode: string): string {
+    const tokens = (currentValue || '')
+      .split(',')
+      .map(token => token.trim())
+      .filter(token => token.length > 0);
+    const remainingTokens = tokens.filter(token => token !== workOrderCode);
+    return remainingTokens.join(', ');
+  }
+  //#endregion
+
   //#region Filter Methods
   toggleInactive(): void {
     this.showInactive = !this.showInactive;
@@ -180,9 +281,13 @@ export class WorkOrderListComponent implements OnInit, OnChanges {
   }
 
   applyFilters(): void {
-    this.workOrdersDisplay = this.showInactive
+    const activeScoped = this.showInactive
       ? [...this.allWorkOrders]
       : this.allWorkOrders.filter(workOrder => workOrder.isActive !== false);
+    const selectedReservationId = (this.reservationId || '').trim();
+    this.workOrdersDisplay = !selectedReservationId
+      ? activeScoped
+      : activeScoped.filter(workOrder => (workOrder.reservationId || '').trim() === selectedReservationId);
   }
   //#endregion
 }

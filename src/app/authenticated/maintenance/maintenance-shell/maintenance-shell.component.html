@@ -34,7 +34,7 @@
             <mat-form-field appearance="outline" class="titlebar-field-property-code">
               <mat-label>Property Code</mat-label>
               <mat-select [(ngModel)]="selectedPropertyId" (selectionChange)="onPropertyCodeChange()" [canSelectNullableOptions]="true">
-                <mat-option [value]="null">Properties</mat-option>
+                  <mat-option [value]="null">All Properties</mat-option>
                 @for (propertyOption of availableProperties; track propertyOption.propertyId) {
                   <mat-option [value]="propertyOption.propertyId">{{ propertyOption.propertyCode }}</mat-option>
                 }
@@ -131,6 +131,8 @@
               <app-receipts-list
                 #maintenanceReceiptsList
                 [property]="property"
+                [officeId]="selectedOfficeId"
+                [isActiveTab]="selectedTabIndex === receiptsTabIndex"
                 [embeddedInMaintenance]="true"
                 [refreshTrigger]="refreshReceiptsTrigger"
                 (receiptSelect)="onReceiptSelect($event)" />
@@ -149,6 +151,9 @@
                 <app-work-order-list
                   #maintenanceWorkOrderList
                   [property]="property"
+                  [officeId]="selectedOfficeId"
+                  [reservationId]="titleBarReservationId"
+                  [isActiveTab]="selectedTabIndex === workOrdersTabIndex"
                   [embeddedInMaintenance]="true"
                   (workOrderSelect)="onWorkOrderSelect($event)" />
               }
