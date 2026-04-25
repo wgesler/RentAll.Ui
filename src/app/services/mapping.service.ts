@@ -28,6 +28,7 @@ import { BoardProperty } from '../authenticated/reservations/models/reservation-
 import { getFrequency, getReservationStatus } from '../authenticated/reservations/models/reservation-enum';
 import { ExtraFeeLineRequest, ExtraFeeLineResponse, ReservationListDisplay, ReservationListResponse } from '../authenticated/reservations/models/reservation-model';
 import { MaintenanceListDisplay, PropertyMaintenance, ReservationPropertyMaintenance } from '../authenticated/shared/models/mixed-models';
+import { WorkOrderAmountService } from '../authenticated/maintenance/services/work-order-amount.service';
 import { FormatterService } from './formatter-service';
 import { UtilityService } from './utility.service';
 
@@ -38,7 +39,8 @@ import { UtilityService } from './utility.service';
 export class MappingService {
   constructor(
     private formatter: FormatterService,
-    private utility: UtilityService
+    private utility: UtilityService,
+    private workOrderAmountService: WorkOrderAmountService
   ) { }
   
   //#region Organization Mapping
@@ -808,7 +810,7 @@ export class MappingService {
 
   mapWorkOrderDisplays(workOrders: WorkOrderResponse[]): WorkOrderDisplayList[] {
     return (workOrders || []).map<WorkOrderDisplayList>((workOrder: WorkOrderResponse) => {
-      const amount = this.resolveWorkOrderDisplayAmount(workOrder);
+      const amount = this.workOrderAmountService.resolveWorkOrderDisplayAmount(workOrder);
       return {
         amount,
         amountDisplay: this.formatter.currencyUsd(amount),
@@ -828,140 +830,6 @@ export class MappingService {
         modifiedBy: workOrder.modifiedBy
       };
     });
-  }
-
-  resolveWorkOrderDisplayAmount(workOrder: WorkOrderResponse): number {
-    const row = workOrder as unknown as Record<string, unknown>;
-    const scalarKeys = [
-      'amount', 'Amount',
-      'totalAmount', 'TotalAmount',
-      'workOrderAmount', 'WorkOrderAmount',
-      'workOrderTotal', 'WorkOrderTotal',
-      'total', 'Total',
-      'itemAmount', 'ItemAmount'
-    ];
-    const collectionKeys = [
-      'workOrderItems', 'WorkOrderItems',
-      'workorderItems',
-      'workOrderItem', 'WorkOrderItem',
-      'items', 'Items',
-      'lines', 'Lines',
-      'workOrderLines', 'WorkOrderLines'
-    ];
-    for (const collectionKey of collectionKeys) {
-      const collectionValue = row[collectionKey];
-      const totalFromCollection = this.sumWorkOrderCollection(collectionValue);
-      if (totalFromCollection !== null) {
-        return totalFromCollection;
-      }
-    }
-
-    for (const scalarKey of scalarKeys) {
-      const parsedScalar = this.parseLooseNumber(row[scalarKey]);
-      if (parsedScalar !== null) {
-        return parsedScalar;
-      }
-    }
-
-    return 0;
-  }
-
-  sumWorkOrderCollection(collectionValue: unknown): number | null {
-    let entries: unknown[] | null = null;
-
-    if (Array.isArray(collectionValue)) {
-      entries = collectionValue;
-    } else if (collectionValue && typeof collectionValue === 'object') {
-      const asRecord = collectionValue as Record<string, unknown>;
-      if (Array.isArray(asRecord['$values'])) {
-        entries = asRecord['$values'] as unknown[];
-      }
-    } else if (typeof collectionValue === 'string') {
-      const raw = collectionValue.trim();
-      if (raw.startsWith('[') || raw.startsWith('{')) {
-        try {
-          const parsed = JSON.parse(raw) as unknown;
-          if (Array.isArray(parsed)) {
-            entries = parsed;
-          } else if (parsed && typeof parsed === 'object' && Array.isArray((parsed as Record<string, unknown>)['$values'])) {
-            entries = (parsed as Record<string, unknown>)['$values'] as unknown[];
-          }
-        } catch {
-          entries = null;
-        }
-      }
-    }
-
-    if (!entries && collectionValue && typeof collectionValue === 'object') {
-      const asRecord = collectionValue as Record<string, unknown>;
-      const objectEntries = Object.values(asRecord).filter(value => value && typeof value === 'object');
-      if (objectEntries.length > 0) {
-        entries = objectEntries;
-      }
-    }
-
-    if (!entries) {
-      return null;
-    }
-
-    return Math.round(entries.reduce<number>((sum, entry) => {
-      if (!entry || typeof entry !== 'object') {
-        return sum;
-      }
-      const item = entry as Record<string, unknown>;
-      const lineTotal = this.resolveWorkOrderItemTotal(item);
-      if (lineTotal !== null) {
-        return sum + lineTotal;
-      }
-      return sum;
-    }, 0) * 100) / 100;
-  }
-
-  resolveWorkOrderItemTotal(item: Record<string, unknown>): number | null {
-    const laborHours = this.parseLooseNumber(item['laborHours']) ?? this.parseLooseNumber(item['LaborHours']) ?? 0;
-    const laborCost = this.parseLooseNumber(item['laborCost']) ?? this.parseLooseNumber(item['LaborCost']) ?? 0;
-    const laborTotal = laborHours * laborCost;
-
-    const explicitReceiptAmount = this.parseLooseNumber(item['receiptAmount']) ?? this.parseLooseNumber(item['ReceiptAmount']);
-    if (explicitReceiptAmount !== null) {
-      return Math.round((explicitReceiptAmount + laborTotal) * 100) / 100;
-    }
-
-    const itemAmount = this.parseLooseNumber(item['itemAmount'])
-      ?? this.parseLooseNumber(item['ItemAmount'])
-      ?? this.parseLooseNumber(item['amount'])
-      ?? this.parseLooseNumber(item['Amount'])
-      ?? this.parseLooseNumber(item['totalAmount'])
-      ?? this.parseLooseNumber(item['TotalAmount'])
-      ?? this.parseLooseNumber(item['total'])
-      ?? this.parseLooseNumber(item['Total'])
-      ?? this.parseLooseNumber(item['lineAmount'])
-      ?? this.parseLooseNumber(item['LineAmount']);
-
-    if (itemAmount !== null) {
-      const derivedReceiptAmount = itemAmount - laborTotal;
-      return Math.round((derivedReceiptAmount + laborTotal) * 100) / 100;
-    }
-
-    return null;
-  }
-
-  parseLooseNumber(value: unknown): number | null {
-    if (value === null || value === undefined || value === '') {
-      return null;
-    }
-    if (typeof value === 'number') {
-      return Number.isFinite(value) ? value : null;
-    }
-    if (typeof value === 'string') {
-      const cleaned = value.replace(/[$,]/g, '').trim();
-      if (!cleaned) {
-        return null;
-      }
-      const parsed = Number(cleaned);
-      return Number.isFinite(parsed) ? parsed : null;
-    }
-    return null;
   }
 
   mapReceiptDisplays(receipts: ReceiptResponse[]): ReceiptDisplayList[] {

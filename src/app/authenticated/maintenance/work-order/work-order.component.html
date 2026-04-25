@@ -54,9 +54,20 @@
               </mat-form-field>
 
               @if (isOwnerTypeSelected()) {
-                <mat-checkbox formControlName="applyMarkup" color="primary" class="work-order-apply-markup-checkbox" (change)="onApplyMarkupToggle()">
-                  Apply Markup
-                </mat-checkbox>
+                <div class="work-order-markup-group">
+                  <mat-form-field appearance="outline" class="work-order-markup-field">
+                    <mat-label>Property Markup</mat-label>
+                    <input
+                      matInput
+                      [value]="getMarkupAmountDisplay()"
+                      readonly
+                      disabled
+                      aria-label="Markup amount">
+                  </mat-form-field>
+                  <mat-checkbox formControlName="applyMarkup" color="primary" class="work-order-apply-markup-checkbox" (change)="onApplyMarkupToggle()">
+                    Apply Markup
+                  </mat-checkbox>
+                </div>
               }
 
               @if (isTenantTypeSelected()) {

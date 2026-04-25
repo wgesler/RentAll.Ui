@@ -25,6 +25,7 @@ import { PropertyAgreementResponse } from '../../properties/models/property-agre
 import { getWorkOrderTypes, WorkOrderType } from '../models/maintenance-enums';
 import { ReceiptRequest, ReceiptResponse } from '../models/receipt.model';
 import { ReceiptSplitOption, WorkOrderItemEditable, WorkOrderItemRequest, WorkOrderItemResponse, WorkOrderItemSnapshot, WorkOrderRequest, WorkOrderResponse } from '../models/work-order.model';
+import { WorkOrderAmountService } from '../services/work-order-amount.service';
 import { ReceiptService } from '../services/receipt.service';
 import { WorkOrderService } from '../services/work-order.service';
 
@@ -91,6 +92,7 @@ export class WorkOrderComponent implements OnInit, OnChanges, OnDestroy {
     private accountingOfficeService: AccountingOfficeService,
     private reservationService: ReservationService,
     private receiptService: ReceiptService,
+    private workOrderAmountService: WorkOrderAmountService,
     private utilityService: UtilityService,
     private formatter: FormatterService,
     private toastr: ToastrService
@@ -696,18 +698,19 @@ export class WorkOrderComponent implements OnInit, OnChanges, OnDestroy {
   }
 
   applyPropertyAgreementMarkup(baseAmount: number): number {
-    const amount = Number(baseAmount) || 0;
-    const markupFactor = this.getMarkupFactor();
-    return Math.round(amount * markupFactor * 100) / 100;
+    return this.workOrderAmountService.applyMarkupToReceiptAmount(baseAmount, {
+      applyMarkup: this.form.get('applyMarkup')?.value === true,
+      isOwnerType: this.isOwnerTypeSelected(),
+      markupPercent: this.propertyAgreement?.markup
+    });
   }
 
   removePropertyAgreementMarkup(markedAmount: number): number {
-    const amount = Number(markedAmount) || 0;
-    const markupFactor = this.getMarkupFactor();
-    if (!Number.isFinite(markupFactor) || markupFactor === 0) {
-      return Math.round(amount * 100) / 100;
-    }
-    return Math.round((amount / markupFactor) * 100) / 100;
+    return this.workOrderAmountService.removeMarkupFromReceiptAmount(markedAmount, {
+      applyMarkup: this.form.get('applyMarkup')?.value === true,
+      isOwnerType: this.isOwnerTypeSelected(),
+      markupPercent: this.propertyAgreement?.markup
+    });
   }
 
   getMarkupFactor(): number {
@@ -716,19 +719,20 @@ export class WorkOrderComponent implements OnInit, OnChanges, OnDestroy {
   }
 
   getMarkupFactorForApplyState(applyMarkup: boolean): number {
-    const workOrderTypeId = Number(this.form.get('workOrderTypeId')?.value ?? -1);
-    if (workOrderTypeId !== WorkOrderType.Owner || !applyMarkup) {
-      return 1;
-    }
+    return this.workOrderAmountService.getMarkupFactor({
+      applyMarkup,
+      isOwnerType: this.isOwnerTypeSelected(),
+      markupPercent: this.propertyAgreement?.markup
+    });
+  }
 
-    const markupPct = Number(this.propertyAgreement?.markup ?? 0);
-    if (!Number.isFinite(markupPct) || markupPct === 0) {
-      return 1;
+  getMarkupAmountDisplay(): string {
+    const parsed = this.workOrderAmountService.parseMarkupPercent(this.propertyAgreement?.markup);
+    if (parsed === null) {
+      return '0%';
     }
-
-    // Support both percent-style (25 => +25%) and ratio-style (0.25 => +25%) values.
-    const normalizedPercent = Math.abs(markupPct) <= 1 ? (markupPct * 100) : markupPct;
-    return 1 + (normalizedPercent / 100);
+    const normalized = Math.abs(parsed) <= 1 ? parsed * 100 : parsed;
+    return `${Math.round(normalized)}%`;
   }
 
   getItemTotal(item: WorkOrderItemEditable | WorkOrderItemResponse): number {
@@ -736,9 +740,7 @@ export class WorkOrderComponent implements OnInit, OnChanges, OnDestroy {
     const receiptAmt = editable.receiptAmount != null
       ? Number(editable.receiptAmount)
       : (item.receiptId != null ? (this.propertyReceipts.find(r => r.receiptId === item.receiptId)?.amount ?? 0) : 0);
-    const hours = Math.floor(Number(item.laborHours)) || 0;
-    const cost = Number(item.laborCost) || 0;
-    return Math.round((receiptAmt + hours * cost) * 100) / 100;
+    return this.workOrderAmountService.calculateLineTotal(receiptAmt, item.laborHours, item.laborCost);
   }
 
   getTotalDisplay(item: WorkOrderItemEditable): string {
