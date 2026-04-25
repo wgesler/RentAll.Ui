@@ -2315,7 +2315,7 @@ export class ReservationComponent implements OnInit, OnDestroy, CanComponentDeac
   getReservationNotificationLabel(reservation: ReservationResponse): string {
     const contactId = this.getPrimaryReservationContactId(reservation);
     const contact = this.contacts.find(item => item.contactId === contactId) || this.selectedContact || null;
-    return this.utilityService.buildReservationCodeNameLabel(reservation, contact)
+    return this.utilityService.getReservationDropdownLabel(reservation, contact)
       || reservation.reservationCode
       || reservation.reservationId;
   }

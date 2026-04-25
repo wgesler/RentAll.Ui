@@ -312,7 +312,7 @@ export class InvoiceComponent implements OnInit, OnDestroy {
       creditAmount: creditAmount,
       reservations: [{
         value: this.selectedReservation,
-        label: this.utilityService.getReservationLabel(this.selectedReservation)
+        label: this.utilityService.getReservationDropdownLabel(this.selectedReservation, null)
       }],
       invoiceId: '',
       costCodeId: parseInt(debitCostCode.costCodeId, 10),
@@ -605,7 +605,7 @@ export class InvoiceComponent implements OnInit, OnDestroy {
         } else {
           this.availableReservations = this.reservations.map(r => ({
             value: r.reservationId,
-            label: this.utilityService.getReservationLabel(r)
+            label: this.utilityService.getReservationDropdownLabel(r, null)
           }));
         }
       },
@@ -927,12 +927,12 @@ export class InvoiceComponent implements OnInit, OnDestroy {
       const filteredReservations = this.reservations.filter(r => r.officeId === this.selectedOffice.officeId);
       this.availableReservations = filteredReservations.map(r => ({
         value: r.reservationId,
-        label: this.utilityService.getReservationLabel(r)
+        label: this.utilityService.getReservationDropdownLabel(r, null)
       }));
     } else {
       this.availableReservations = this.reservations.map(r => ({
         value: r.reservationId,
-        label: this.utilityService.getReservationLabel(r)
+        label: this.utilityService.getReservationDropdownLabel(r, null)
       }));
     }
   }

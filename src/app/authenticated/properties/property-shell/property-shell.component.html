@@ -72,21 +72,17 @@
                     aria-hidden="true">*</span>
                 }
               </mat-label>
-              @if (isHeaderPropertyCodeEditable) {
-                <input
-                  matInput
-                  [value]="titleBarPropertyCode || sharedPropertyCode || ((propertySection?.isAddMode ?? false) ? propertySection?.propertyCodeDefaultPrompt : 'Code')"
-                  maxlength="15"
-                  (focus)="onPropertyCodeFocus($event)"
-                  (input)="onPropertyCodeInput($event)">
-              } @else {
-                <input
-                  matInput
-                  [value]="sharedPropertyCode || ((propertySection?.isAddMode ?? false) ? propertySection?.propertyCodeDefaultPrompt : '')"
-                  readonly
-                  [disabled]="true"
-                  class="readonly-field">
-              }
+              <input
+                matInput
+                [value]="isHeaderPropertyCodeEditable
+                  ? (titleBarPropertyCode || sharedPropertyCode || ((propertySection?.isAddMode ?? false) ? propertySection?.propertyCodeDefaultPrompt : 'Code'))
+                  : (sharedPropertyCode || ((propertySection?.isAddMode ?? false) ? propertySection?.propertyCodeDefaultPrompt : ''))"
+                maxlength="15"
+                [readonly]="!isHeaderPropertyCodeEditable"
+                [disabled]="!isHeaderPropertyCodeEditable"
+                [class.readonly-field]="!isHeaderPropertyCodeEditable"
+                (focus)="onPropertyCodeFocus($event)"
+                (input)="onPropertyCodeInput($event)">
               @if (propertySection?.showTitleBarPropertyCodeError) {
                 <mat-error>Required</mat-error>
               }
@@ -142,6 +138,7 @@
 
         <mat-tab label="Welcome Letter">
           <app-property-welcome-letter
+            [isAddMode]="propertySection?.isAddMode ?? false"
             [propertyId]="propertySection?.isAddMode ? null : (propertySection?.propertyId ?? null)"
             [titleBarReservationId]="titleBarReservationId"
             [officeId]="titleBarPropertyOfficeId"

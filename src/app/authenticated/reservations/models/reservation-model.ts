@@ -146,7 +146,6 @@ export interface ReservationResponse {
 export interface ReservationListResponse {
   reservationId: string;
   reservationCode: string;
-  reservationTypeId?: number | null;
   propertyId: string;
   propertyCode: string;
   officeId: number;
@@ -161,6 +160,7 @@ export interface ReservationListResponse {
   monthlyRate: number;
   arrivalDate: CalendarDateString;
   departureDate: CalendarDateString;
+  reservationTypeId: number;
   reservationStatusId: number;
   hasPets: boolean;
   maidUserId: string | null;
@@ -196,7 +196,6 @@ export interface ReservationListResponse {
 export interface ReservationListDisplay {
   reservationId: string;
   reservationCode: string;
-  reservationTypeId?: number | null;
   propertyId: string;
   propertyCode: string;
   officeId: number;
@@ -213,6 +212,7 @@ export interface ReservationListDisplay {
   monthlyRate: number;
   arrivalDate: CalendarDateString;
   departureDate: CalendarDateString;
+  reservationTypeId: number;
   reservationStatusId: number;
   hasPets?: boolean | null;
   maidUserId: string | null;

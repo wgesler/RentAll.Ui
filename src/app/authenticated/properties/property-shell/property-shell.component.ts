@@ -6,6 +6,7 @@ import { ActivatedRoute, Router } from '@angular/router';
 import { CanComponentDeactivate } from '../../../guards/can-deactivate-guard';
 import { MaterialModule } from '../../../material.module';
 import { RouterUrl } from '../../../app.routes';
+import { AuthService } from '../../../services/auth.service';
 import { DocumentListComponent } from '../../documents/document-list/document-list.component';
 import { DocumentType } from '../../documents/models/document.enum';
 import { EmailListComponent } from '../../email/email-list/email-list.component';
@@ -50,22 +51,23 @@ export class PropertyShellComponent implements OnInit, CanComponentDeactivate {
   titleBarPropertyOfficeId: number | null = null;
   titleBarReservationId: string | null = null;
   titleBarPropertyCode = '';
+  isAdminUser = false;
 
   constructor(
     private route: ActivatedRoute,
     private router: Router,
-    private dialog: MatDialog
+    private dialog: MatDialog,
+    private authService: AuthService
   ) {}
 
   //#region Property-Shell
   ngOnInit(): void {
+    this.isAdminUser = this.authService.isAdmin();
     this.route.queryParams.subscribe(queryParams => {
       if (queryParams['tab'] === 'documents') {
         this.selectedTabIndex = 4;
       } else if (queryParams['tab'] === 'email') {
         this.selectedTabIndex = 3;
-      } else {
-        this.selectedTabIndex = 0;
       }
     });
   }
@@ -73,11 +75,11 @@ export class PropertyShellComponent implements OnInit, CanComponentDeactivate {
 
   //#region Getter Methods
   get isHeaderPropertyOfficeEditable(): boolean {
-    return !!this.propertySection?.isAdmin && this.selectedTabIndex <= 1;
+    return this.selectedTabIndex === 0;
   }
 
   get isHeaderPropertyCodeEditable(): boolean {
-    return !!this.propertySection?.isAdmin && this.selectedTabIndex <= 1;
+    return this.isAdminUser && this.selectedTabIndex === 0;
   }
 
   get officeOptions(): SearchableSelectOption[] {

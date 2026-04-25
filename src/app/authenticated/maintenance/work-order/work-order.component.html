@@ -84,7 +84,7 @@
                     <mat-option [value]="null">Select Reservation</mat-option>
                     @for (reservation of propertyReservations; track reservation.reservationId) {
                       <mat-option [value]="reservation.reservationId">
-                        {{ getReservationLabel(reservation) }}
+                        {{ utilityService.getReservationDropdownLabel(reservation, null) }}
                       </mat-option>
                     }
                   </mat-select>

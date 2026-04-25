@@ -93,7 +93,7 @@ export class WorkOrderComponent implements OnInit, OnChanges, OnDestroy {
     private reservationService: ReservationService,
     private receiptService: ReceiptService,
     private workOrderAmountService: WorkOrderAmountService,
-    private utilityService: UtilityService,
+    public utilityService: UtilityService,
     private formatter: FormatterService,
     private toastr: ToastrService
   ) {
@@ -803,11 +803,6 @@ export class WorkOrderComponent implements OnInit, OnChanges, OnDestroy {
     return null;
   }
 
-  getReservationLabel(reservation: ReservationListResponse): string {
-    const reservationName = reservation.reservationCode || 'Reservation';
-    const tenantName = reservation.tenantName || reservation.contactName || '';
-    return `${reservationName}: ${tenantName}`.trim();
-  }
   //#endregion
 
   //#region Save Detection

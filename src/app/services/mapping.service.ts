@@ -901,6 +901,7 @@ export class MappingService {
         monthlyRate: o.monthlyRate,
         arrivalDate: this.formatter.formatDateString(o.arrivalDate),
         departureDate: this.formatter.formatDateString(o.departureDate),
+        reservationTypeId: o.reservationTypeId,
         reservationStatusId: o.reservationStatusId,
         hasPets: this.toBooleanValue(o.hasPets),
         maidUserId: this.utility.normalizeIdOrNull(o.maidUserId),

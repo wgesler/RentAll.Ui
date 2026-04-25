@@ -53,6 +53,7 @@ import { EntityType } from '../../contacts/models/contact-enum';
 })
 export class PropertyWelcomeLetterComponent extends BaseDocumentComponent implements OnInit, OnDestroy, OnChanges {
   @Input() propertyId: string;
+  @Input() isAddMode: boolean = false;
   @Input() titleBarReservationId: string | null = null;
   @Input() officeId: number | null = null;
   @Input() propertyCode: string | null = null;
@@ -83,6 +84,8 @@ export class PropertyWelcomeLetterComponent extends BaseDocumentComponent implem
   isDownloading: boolean = false;
   welcomeLetterReloadSubscription?: Subscription;
   debuggingHtml: boolean = true;
+  isPageReady: boolean = false;
+  propertyReservationsLoaded: boolean = false;
    
   itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['property', 'reservations', 'welcomeLetter', 'propertyLetter', 'organization', 'offices', 'contacts', 'buildings', 'emailHtml']));
   isLoading$: Observable<boolean> = this.itemsToLoad$.pipe(map(items => items.size > 0));
@@ -120,13 +123,17 @@ export class PropertyWelcomeLetterComponent extends BaseDocumentComponent implem
 
   //#region Welcome Letter
   ngOnInit(): void {
+    this.itemsToLoad$.pipe(filter(items => items.size === 0), take(1)).subscribe(() => {
+      this.isPageReady = true;
+    });
+
     this.loadOffices();
     this.loadEmailHtml();
     this.loadOrganization();
     this.loadContacts();
     this.loadBuildings();
 
-    if (!this.propertyId) {
+    if (this.isAddMode || !this.propertyId) {
       this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'property');
       this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'propertyLetter');
       this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'welcomeLetter');
@@ -136,6 +143,7 @@ export class PropertyWelcomeLetterComponent extends BaseDocumentComponent implem
     }
 
     if (this.reservations && this.reservations.length > 0) {
+      this.propertyReservationsLoaded = true;
       this.filterReservations();
       this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'reservations');
     } else {
@@ -154,6 +162,7 @@ export class PropertyWelcomeLetterComponent extends BaseDocumentComponent implem
   ngOnChanges(changes: SimpleChanges): void {
     if (changes['reservations'] && !changes['reservations'].firstChange) {
       if (this.reservations && this.reservations.length > 0) {
+        this.propertyReservationsLoaded = true;
         this.filterReservations();
         this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'reservations');
       }
@@ -227,10 +236,10 @@ export class PropertyWelcomeLetterComponent extends BaseDocumentComponent implem
     const fileName = this.utilityService.generateDocumentFileName(
       'welcomeLetter',
       this.propertyCode,
-      this.utilityService.buildReservationCodeNameLabel(
+      this.utilityService.getReservationDropdownLabel(
         this.selectedReservation,
         this.contacts.find(c => c.contactId === this.getPrimaryReservationContactId(this.selectedReservation)) ?? null
-      )
+      ).trim() || undefined
     );
     const generateDto: GenerateDocumentFromHtmlDto = {
       htmlContent: htmlWithStyles,
@@ -273,6 +282,8 @@ export class PropertyWelcomeLetterComponent extends BaseDocumentComponent implem
     this.contactService.ensureContactsLoaded().pipe(take(1), finalize(() => { this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'contacts'); })).subscribe({
       next: (contacts) => {
         this.contacts = contacts || [];
+        // Rebuild reservation labels now that contact display names are available.
+        this.filterReservations();
       },
       error: () => {
         this.contacts = [];
@@ -355,10 +366,12 @@ export class PropertyWelcomeLetterComponent extends BaseDocumentComponent implem
     this.reservationService.getReservationsByPropertyId(this.propertyId).pipe(take(1), finalize(() => { this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'reservations'); })).subscribe({
       next: (reservations) => {
         this.reservations = reservations || [];
-        this.filterReservations();
+        this.propertyReservationsLoaded = true;
+        this.buildReservationDropdownLabels();
       },
       error: () => {
         this.reservations = [];
+        this.propertyReservationsLoaded = true;
         this.availableReservations = [];
       }
     });
@@ -427,7 +440,11 @@ export class PropertyWelcomeLetterComponent extends BaseDocumentComponent implem
   }
   
   filterReservations(): void {
-    if (!this.selectedOffice) {
+    this.buildReservationDropdownLabels();
+  }
+
+  buildReservationDropdownLabels(): void {
+    if (!this.propertyReservationsLoaded || !this.selectedOffice) {
       this.availableReservations = [];
       this.form.get('selectedReservationId')?.disable();
       return;
@@ -439,7 +456,26 @@ export class PropertyWelcomeLetterComponent extends BaseDocumentComponent implem
       const filteredReservations = this.reservations.filter(r => r.officeId === this.selectedOffice.officeId);
       this.availableReservations = filteredReservations.map(r => ({
         value: r,
-        label: this.utilityService.getReservationDropdownLabel(r, this.contacts.find(c => c.contactId === r.contactId) ?? null)
+        label: this.utilityService.getReservationDropdownLabel(
+          r,
+          this.contacts.find(c => c.contactId === r.contactId)
+          ?? this.contacts.find(c => c.contactId === r.companyId)
+          ?? null
+        )
+      }));
+      console.log('[PropertyWelcome.buildReservationDropdownLabels] reservation label inputs:', filteredReservations.map(r => {
+        const contact =
+          this.contacts.find(c => c.contactId === r.contactId)
+          ?? this.contacts.find(c => c.contactId === r.companyId)
+          ?? null;
+        return {
+          reservationCode: r.reservationCode,
+          reservationTypeId: r.reservationTypeId,
+          contactDisplayName: contact?.displayName,
+          contactCompanyName: contact?.companyName,
+          reservationCompanyName: r.companyName,
+          computedLabel: this.utilityService.getReservationDropdownLabel(r, contact)
+        };
       }));
     } else {
       this.availableReservations = [];
@@ -864,10 +900,10 @@ export class PropertyWelcomeLetterComponent extends BaseDocumentComponent implem
     const fileName = this.utilityService.generateDocumentFileName(
       'welcomeLetter',
       this.propertyCode,
-      this.utilityService.buildReservationCodeNameLabel(
+      this.utilityService.getReservationDropdownLabel(
         this.selectedReservation,
         this.contacts.find(c => c.contactId === this.getPrimaryReservationContactId(this.selectedReservation)) ?? null
-      )
+      ).trim() || undefined
     );
 
     const downloadConfig: DownloadConfig = {
@@ -899,10 +935,10 @@ export class PropertyWelcomeLetterComponent extends BaseDocumentComponent implem
     const attachmentFileName = this.utilityService.generateDocumentFileName(
       'welcomeLetter',
       this.propertyCode,
-      this.utilityService.buildReservationCodeNameLabel(
+      this.utilityService.getReservationDropdownLabel(
         this.selectedReservation,
         this.contacts.find(c => c.contactId === this.getPrimaryReservationContactId(this.selectedReservation)) ?? null
-      )
+      ).trim() || undefined
     );
     const emailSubject = this.emailHtml?.letterSubject?.trim() || 'Your Upcoming Visit';
     const emailTemplateHtml = (contact?.entityTypeId === EntityType.Company) ? (this.emailHtml?.corporateLetter || '') : (this.emailHtml?.welcomeLetter || '');

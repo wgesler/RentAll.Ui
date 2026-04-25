@@ -301,10 +301,10 @@ export class LeaseComponent extends BaseDocumentComponent implements OnInit, OnD
     const fileName = this.utilityService.generateDocumentFileName(
       'lease',
       this.property.propertyCode,
-      this.utilityService.buildReservationCodeNameLabel(
+      this.utilityService.getReservationDropdownLabel(
         this.selectedReservation,
         this.contacts.find(c => c.contactId === this.getPrimaryReservationContactId(this.selectedReservation)) ?? null
-      )
+      ).trim() || undefined
     );
     const generateDto: GenerateDocumentFromHtmlDto = {
       htmlContent: htmlWithStyles,
@@ -1555,10 +1555,10 @@ export class LeaseComponent extends BaseDocumentComponent implements OnInit, OnD
     const fileName = this.utilityService.generateDocumentFileName(
       'lease',
       this.property.propertyCode,
-      this.utilityService.buildReservationCodeNameLabel(
+      this.utilityService.getReservationDropdownLabel(
         this.selectedReservation,
         this.contacts.find(c => c.contactId === this.getPrimaryReservationContactId(this.selectedReservation)) ?? null
-      )
+      ).trim() || undefined
     );
     const downloadConfig: DownloadConfig = {
       fileName: fileName,
@@ -1588,10 +1588,10 @@ export class LeaseComponent extends BaseDocumentComponent implements OnInit, OnD
     const attachmentFileName = this.utilityService.generateDocumentFileName(
       'lease',
       this.property.propertyCode,
-      this.utilityService.buildReservationCodeNameLabel(
+      this.utilityService.getReservationDropdownLabel(
         this.selectedReservation,
         this.contacts.find(c => c.contactId === this.getPrimaryReservationContactId(this.selectedReservation)) ?? null
-      )
+      ).trim() || undefined
     );
     const reservationCode = this.selectedReservation?.reservationCode;
     const emailTemplateHtml = (this.contact?.entityTypeId === EntityType.Company) ? (this.emailHtml?.corporateLease || '') : (this.emailHtml?.lease || '');

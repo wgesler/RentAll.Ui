@@ -268,36 +268,47 @@ export class UtilityService {
   //#endregion
 
   //#region Reservations
-  getReservationLabel(reservation: ReservationListResponse): string {
-    const code = reservation.reservationCode || reservation.reservationId.substring(0, 8);
-    const contactName = reservation.contactName || 'N/A';
+  /** Label for reservation dropdown: ReservationCode + company/contact display name. */
+  getReservationDropdownLabel(reservation: ReservationListResponse | ReservationResponse | null | undefined, contact: ContactResponse | null): string {
+    if (!reservation) {
+      return '';
+    }
+    const code = reservation.reservationCode;
+    const reservationTypeId = Number(reservation.reservationTypeId);
+    const isCorporateLike =
+      reservationTypeId === ReservationType.Corporate
+      || reservationTypeId === ReservationType.Platform
+      || contact?.entityTypeId === EntityType.Company
+      || !!reservation.companyId
+      || !!reservation.companyName;
+
+    if (isCorporateLike) {
+      const boardLabel = this.getReservationBoardLabel(reservation, contact);
+      return `${code}: ${boardLabel}`;
+    }
+
+    const fallbackName = (contact ? (contact.firstName + ' ' + contact.lastName).trim() : '') || reservation.tenantName;
+    const contactName = reservation.contactName ?? fallbackName;
     return `${code}: ${contactName}`;
   }
 
-  /** Display name for reservation board: company/contact name (corporate vs individual). */
-  getReservationDisplayName(reservation: ReservationListResponse, contact: ContactResponse | null): string {
-    const shortCompanyName = contact?.displayName || this.getCompanyDisplayToken(contact?.companyName ?? reservation.companyName);
-    const contactName = reservation.contactName ?? (contact ? (contact.firstName + ' ' + contact.lastName).trim() : '');
-    const isCorporate = (reservation.reservationTypeId === ReservationType.Corporate || contact?.entityTypeId === EntityType.Company);
-    const formatWithCompanyToken = (name: string): string => {
-      if (!shortCompanyName) {
-        return name;
-      }
-      if (!name) {
-        return shortCompanyName;
-      }
-      return `${shortCompanyName}: ${name}`;
-    };
-    if (isCorporate) {
-      return formatWithCompanyToken(reservation.tenantName || '');
+  getReservationBoardLabel(
+    reservation: ReservationListResponse | ReservationResponse | null | undefined,
+    contact: ContactResponse | null
+  ): string {
+    if (!reservation) {
+      return '';
     }
-    return formatWithCompanyToken(contactName || '');
-  }
-
-  /** Label for reservation dropdown: ReservationCode: getReservationDisplayName(). */
-  getReservationDropdownLabel(reservation: ReservationListResponse, contact: ContactResponse | null): string {
-    const code = reservation.reservationCode || reservation.reservationId.substring(0, 8);
-    return `${code}: ${this.getReservationDisplayName(reservation, contact)}`;
+    const shortCompanyName = contact?.displayName || this.getCompanyDisplayToken(contact?.companyName ?? reservation.companyName);
+    const tenantName = reservation.tenantName;
+    const reservationTypeId = Number(reservation.reservationTypeId);
+    switch (reservationTypeId) {
+      case ReservationType.Corporate:
+      case ReservationType.Platform:
+        return shortCompanyName ? `${shortCompanyName}: ${tenantName}` : tenantName;
+      default:
+        return `${tenantName}`;
+    }
   }
 
   getCompanyDropdownLabel(contact: ContactResponse | null | undefined): string {
@@ -307,16 +318,6 @@ export class UtilityService {
     return (contact.companyName || '').trim();
   }
 
-  buildReservationCodeNameLabel(
-    reservation: ReservationListResponse | ReservationResponse | null | undefined,
-    contact: ContactResponse | null
-  ): string | undefined {
-    if (!reservation) {
-      return undefined;
-    }
-    const label = this.getReservationDropdownLabel(reservation as ReservationListResponse, contact).trim();
-    return label.length > 0 ? label : undefined;
-  }
   //#endregion
 
   //#region Document filenames
