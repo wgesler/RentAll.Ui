@@ -10,6 +10,7 @@ export interface WorkOrderRequest {
   workOrderTypeId: number;
   applyMarkup: boolean;
   workOrderItems: WorkOrderItemRequest[];
+  workOrderDate: string;
   isActive: boolean;
 }
 
@@ -27,6 +28,7 @@ export interface WorkOrderResponse {
   workOrderTypeId: number;
   workOrderItems: WorkOrderItemResponse[];
   applyMarkup: boolean;
+  workOrderDate: string;
   isActive: boolean;
   modifiedOn: string;
   modifiedBy: string;

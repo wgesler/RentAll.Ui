@@ -44,6 +44,13 @@
                 <input matInput [value]="form.get('workOrderCode')?.value || ''" readonly disabled>
               </mat-form-field>
 
+              <mat-form-field appearance="outline" class="work-order-date-field" style="flex: 0 0 13%; min-width: 0; max-width: 13%;">
+                <mat-label>Work Order Date</mat-label>
+                <input matInput [matDatepicker]="workOrderDatePicker" formControlName="workOrderDate" required>
+                <mat-datepicker-toggle matIconSuffix [for]="workOrderDatePicker"></mat-datepicker-toggle>
+                <mat-datepicker #workOrderDatePicker></mat-datepicker>
+              </mat-form-field>
+
               <mat-form-field appearance="outline" style="flex: 0 0 18%; min-width: 0; max-width: 18%;">
                 <mat-label>Work Order Type</mat-label>
                 <mat-select formControlName="workOrderTypeId" required>

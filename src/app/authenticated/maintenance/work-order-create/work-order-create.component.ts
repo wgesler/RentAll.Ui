@@ -354,11 +354,21 @@ export class WorkOrderCreateComponent extends BaseDocumentComponent implements O
     }
 
     const total = this.workOrder.workOrderItems?.reduce((sum, item) => sum + (Number(item.itemAmount) || 0), 0) ?? 0;
-    const propertyAddress = this.property
-      ? `${this.property.address1 || ''} ${this.property.city || ''}, ${this.property.state || ''} ${this.property.zip || ''}`.trim()
+    const suite = (this.property?.suite || '').trim();
+    const propertyAddressLine1 = this.property
+      ? [this.property.address1 || '', suite ? `#${suite}` : ''].filter(part => part.trim().length > 0).join(' ')
       : '';
+    const propertyAddressLine2 = this.property
+      ? `${[this.property.city || '', this.property.state || ''].filter(part => part.trim().length > 0).join(', ')}${this.property.zip ? ` ${this.property.zip}` : ''}`.trim()
+      : '';
+    const propertyAddress = [propertyAddressLine1, propertyAddressLine2].filter(part => part.length > 0).join(' ');
     const officeName = this.selectedAccountingOffice?.name || this.workOrder.officeName || this.property?.officeName || '';
     const typeLabel = getWorkOrderType(this.workOrder.workOrderTypeId);
+    const workOrderDateDisplay = this.formatter.formatDateString(this.workOrder.workOrderDate) || '';
+    const workOrderItemCount = this.workOrder.workOrderItems?.length ?? 0;
+    const isTenantWorkOrder = this.workOrder.workOrderTypeId === WorkOrderType.Tenant;
+    const tenantSpacingClass = isTenantWorkOrder ? (workOrderItemCount >= 6 ? 'tenant-extra-compact' : (workOrderItemCount >= 4 ? 'tenant-compact' : '')) : '';
+    const accountingOfficeRemitTo = this.getAccountingOfficeRemitToLine(isTenantWorkOrder && workOrderItemCount >= 6);
     const clientDetails = this.getClientDetailsByType();
     const chargeSections = this.generateWorkOrderChargeSections();
     const officeLogoDataUrl = this.accountingOfficeLogo;
@@ -371,14 +381,19 @@ export class WorkOrderCreateComponent extends BaseDocumentComponent implements O
     result = result.replace(/\{\{contactAddress\}\}/g, clientDetails.contactAddress);
     result = result.replace(/\{\{tenantName\}\}/g, clientDetails.tenantName);
     result = result.replace(/\{\{propertyAddress\}\}/g, propertyAddress);
+    result = result.replace(/\{\{propertyAddressLine1\}\}/g, propertyAddressLine1);
+    result = result.replace(/\{\{propertyAddressLine2\}\}/g, propertyAddressLine2);
     result = result.replace(/\{\{propertySuite\}\}/g, this.property?.suite || '');
     result = result.replace(/\{\{billingMethod\}\}/g, typeLabel);
     result = result.replace(/\{\{workOrderCode\}\}/g, this.workOrder.workOrderCode ?? '');
+    result = result.replace(/\{\{workOrderDateDisplay\}\}/g, workOrderDateDisplay);
     result = result.replace(/\{\{workOrderDescription\}\}/g, (this.workOrder.description ?? '').replace(/</g, '&lt;').replace(/>/g, '&gt;'));
     result = result.replace(/\{\{workOrderChargeSections\}\}/g, chargeSections);
     result = result.replace(/\{\{workOrderItems\}\}/g, chargeSections);
     result = result.replace(/\{\{workOrderItemRows\}\}/g, chargeSections);
     result = result.replace(/\{\{totalDue\}\}/g, this.formatter.currencyUsd(total));
+    result = result.replace(/\{\{tenantSpacingClass\}\}/g, tenantSpacingClass);
+    result = result.replace(/\{\{accountingOfficeRemitTo\}\}/g, accountingOfficeRemitTo);
 
     // Owner work orders should not show the Company Name row.
     if (this.workOrder.workOrderTypeId === WorkOrderType.Owner) {
@@ -670,6 +685,23 @@ export class WorkOrderCreateComponent extends BaseDocumentComponent implements O
       return text;
     }
     return `${text.slice(0, 117)}...`;
+  }
+
+  getAccountingOfficeRemitToLine(extraCompactTenantLayout: boolean): string {
+    const officeName = (this.selectedAccountingOffice?.name || '').trim();
+    const officeAddress = (this.selectedAccountingOffice?.address1 || '').trim();
+    const officeCityStateZip = `${this.selectedAccountingOffice?.city || ''}, ${this.selectedAccountingOffice?.state || ''} ${this.selectedAccountingOffice?.zip || ''}`.trim();
+    if (extraCompactTenantLayout) {
+      const fullAddressLine = [officeAddress, officeCityStateZip]
+        .filter(part => part.length > 0)
+        .join(', ');
+      return [officeName, fullAddressLine]
+        .filter(part => part.length > 0)
+        .join('<br>');
+    }
+    return [officeName, officeAddress, officeCityStateZip]
+      .filter(part => part.length > 0)
+      .join('<br>');
   }
 
   getReceiptImageSrc(receipt: ReceiptResponse): string {

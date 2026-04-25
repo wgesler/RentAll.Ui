@@ -275,6 +275,95 @@
       font-weight: bold;
     }
 
+    /* Tenant work orders include Payment Information, so tighten spacing to fit more line items on one page. */
+    .page.tenant-compact .border {
+      margin-top: 6px;
+      padding: 8px;
+    }
+
+    .page.tenant-compact #container tbody tr:nth-child(2) td {
+      padding: 8px 5px 4px 5px !important;
+    }
+
+    .page.tenant-compact #container tbody tr:nth-child(3) td,
+    .page.tenant-compact #container tbody tr:nth-child(4) td {
+      padding: 4px 5px !important;
+    }
+
+    .page.tenant-compact #container .border h3 {
+      margin-top: 8px !important;
+      margin-bottom: 4px !important;
+    }
+
+    .page.tenant-compact #container tbody tr:nth-child(2) .border h3,
+    .page.tenant-compact #container tbody tr:nth-child(3) .charges-title,
+    .page.tenant-compact #container tbody tr:nth-child(4) .border h3 {
+      margin-top: 2px !important;
+    }
+
+    .page.tenant-compact .charges-title {
+      margin-bottom: 8px !important;
+    }
+
+    .page.tenant-compact .charges-section-title {
+      margin: 6px 0 4px;
+    }
+
+    .page.tenant-compact .charges-section-title-labor {
+      margin-top: 10px;
+    }
+
+    .page.tenant-compact .charges-table th,
+    .page.tenant-compact .charges-table td {
+      padding: 6px 10px;
+    }
+
+    .page.tenant-compact .charges-balance-row {
+      padding-top: 6px;
+      margin-top: 2px;
+    }
+
+    .page.tenant-extra-compact .border {
+      margin-top: 4px;
+      padding: 7px;
+    }
+
+    .page.tenant-extra-compact #container tbody tr:nth-child(2) td {
+      padding: 6px 5px 3px 5px !important;
+    }
+
+    .page.tenant-extra-compact #container tbody tr:nth-child(3) td,
+    .page.tenant-extra-compact #container tbody tr:nth-child(4) td {
+      padding: 3px 5px !important;
+    }
+
+    .page.tenant-extra-compact #container .border h3 {
+      margin-top: 1px !important;
+      margin-bottom: 3px !important;
+    }
+
+    .page.tenant-extra-compact .charges-title {
+      margin-bottom: 6px !important;
+    }
+
+    .page.tenant-extra-compact .charges-section-title {
+      margin: 4px 0 3px;
+    }
+
+    .page.tenant-extra-compact .charges-section-title-labor {
+      margin-top: 8px;
+    }
+
+    .page.tenant-extra-compact .charges-table th,
+    .page.tenant-extra-compact .charges-table td {
+      padding: 5px 8px;
+    }
+
+    .page.tenant-extra-compact .charges-balance-row {
+      padding-top: 4px;
+      margin-top: 1px;
+    }
+
     .totals {
       margin-top: 24px;
       margin-left: auto;
@@ -342,6 +431,17 @@
       text-decoration: underline;
     }
 
+    .work-order-header-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-top: 20px;
+      margin-bottom: 10px;
+      padding: 0 6px;
+      font-size: 12pt;
+      font-weight: 600;
+    }
+
     #footer {
       max-width: 100% !important;
       width: 100% !important;
@@ -371,7 +471,7 @@
 </head>
 
 <body>
-<div class="page">
+<div class="page {{tenantSpacingClass}}">
   <!-- Header Row: Accounting Office Information and Invoice Information -->
   <div class="header-row">
     <div class="logo-container">
@@ -396,7 +496,10 @@
   </div>
 
   <!-- ===================== MAIN CONTENT ===================== -->
-  <h3 style="text-align: center; margin-top: 20px; margin-bottom: 10px;"><span class="label">Work Order No:</span> {{workOrderCode}}</h3>
+  <div class="work-order-header-row">
+    <div><span class="label">Work Order No:</span> {{workOrderCode}}</div>
+    <div><span class="label">Date:</span> {{workOrderDateDisplay}}</div>
+  </div>
   <table id="container" cellspacing="0" cellpadding="0" width="100%" align="center">
     <tbody>
       <tr valign="top">
@@ -414,8 +517,8 @@
           <div class="border">
             <p>
                <span class="label">Property Code:</span> {{propertyCode}}<br>
-              <span class="label">Property Address:</span> {{propertyAddress}}<br>
-              <span class="label">Billing Type:</span> {{billingMethod}}<br>
+              <span class="label">Property Address:</span> {{propertyAddressLine1}}<br>
+              {{propertyAddressLine2}}<br>
             </p>
           </div>
         </td>
@@ -449,7 +552,7 @@
           <div class="border">
             <h3 style="text-align: left; padding-left: 15px;">Payment Information</h3>
             <p style="padding-left: 15px;">Please remit payments to:</p>
-            <p style="padding-left: 15px;"><strong>{{accountingOfficeName}}<br>{{accountingOfficeAddress}}<br>{{accountingOfficeCityStateZip}}</strong></p>
+            <p style="padding-left: 15px;"><strong>{{accountingOfficeRemitTo}}</strong></p>
 
             <table width="100%" cellspacing="0" cellpadding="0">
               <tr valign="top">

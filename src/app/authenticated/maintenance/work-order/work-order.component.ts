@@ -200,6 +200,7 @@ export class WorkOrderComponent implements OnInit, OnChanges, OnDestroy {
       officeId: this.property.officeId,
       propertyId: this.property.propertyId,
       workOrderCode: isCreate ? (this.generatedWorkOrderCode ?? undefined) : (this.workOrder?.workOrderCode ?? undefined),
+      workOrderDate: this.getWorkOrderDateForApi(),
       workOrderTypeId: this.form.get('workOrderTypeId')?.value ?? 0,
       applyMarkup: this.isOwnerTypeSelected() ? (this.form.get('applyMarkup')?.value === true) : false,
       reservationId: this.isTenantTypeSelected() ? (this.form.get('reservationId')?.value ?? null) : null,
@@ -251,6 +252,7 @@ export class WorkOrderComponent implements OnInit, OnChanges, OnDestroy {
         let totalAmount: number = 0;
         this.form.patchValue({
           workOrderCode: saved.workOrderCode ?? this.generatedWorkOrderCode ?? '',
+          workOrderDate: this.getWorkOrderDateControlValue(saved.workOrderDate),
           officeName: saved.officeName || this.property?.officeName || '',
           propertyCode: saved.propertyCode || this.property?.propertyCode || '',
           workOrderTypeId: saved.workOrderTypeId,
@@ -385,6 +387,7 @@ export class WorkOrderComponent implements OnInit, OnChanges, OnDestroy {
   buildForm(): void {
     this.form = this.fb.group({
       workOrderCode: new FormControl(''),
+      workOrderDate: new FormControl(this.getWorkOrderDateControlValue(this.getTodayWorkOrderDate()), [Validators.required]),
       officeName: new FormControl(''),
       propertyCode: new FormControl(''),
       workOrderTypeId: new FormControl<number | null>(null, [Validators.required]),
@@ -399,6 +402,7 @@ export class WorkOrderComponent implements OnInit, OnChanges, OnDestroy {
   populateForm(workOrder: WorkOrderResponse): void {
     this.form.patchValue({
       workOrderCode: workOrder.workOrderCode ?? '',
+      workOrderDate: this.getWorkOrderDateControlValue(workOrder.workOrderDate),
       officeName: this.property?.officeName ?? '',
       propertyCode: this.property?.propertyCode ?? '',
       workOrderTypeId: workOrder.workOrderTypeId ?? 0,
@@ -815,6 +819,7 @@ export class WorkOrderComponent implements OnInit, OnChanges, OnDestroy {
       organizationId: this.property?.organizationId ?? this.workOrder.organizationId,
       officeId: this.property?.officeId ?? this.workOrder.officeId,
       propertyId: this.property?.propertyId ?? this.workOrder.propertyId,
+      workOrderDate: this.getWorkOrderDateForApi(),
       workOrderTypeId: this.form.get('workOrderTypeId')?.value ?? 0,
       applyMarkup: this.isOwnerTypeSelected() ? (this.form.get('applyMarkup')?.value === true) : false,
       reservationId: this.isTenantTypeSelected() ? (this.form.get('reservationId')?.value ?? null) : null,
@@ -901,8 +906,11 @@ export class WorkOrderComponent implements OnInit, OnChanges, OnDestroy {
     const workOrderReservationCode = this.normalizeComparableString(this.workOrder.reservationCode);
     const payloadDescription = this.normalizeComparableString(payload.description) ?? '';
     const workOrderDescription = this.normalizeComparableString(this.workOrder.description) ?? '';
+    const payloadWorkOrderDate = this.normalizeComparableString(payload.workOrderDate) ?? '';
+    const workOrderWorkOrderDate = this.normalizeComparableString(this.normalizeWorkOrderDate(this.workOrder.workOrderDate)) ?? '';
 
     return (
+      payloadWorkOrderDate !== workOrderWorkOrderDate ||
       payload.workOrderTypeId !== this.workOrder.workOrderTypeId ||
       payload.applyMarkup !== (this.workOrder.applyMarkup === true) ||
       payloadReservationId !== workOrderReservationId ||
@@ -916,6 +924,23 @@ export class WorkOrderComponent implements OnInit, OnChanges, OnDestroy {
   normalizeComparableString(value: string | null | undefined): string | null {
     const normalized = (value ?? '').toString().trim();
     return normalized.length > 0 ? normalized : null;
+  }
+
+  getTodayWorkOrderDate(): string {
+    return this.utilityService.todayAsCalendarDateString();
+  }
+
+  getWorkOrderDateForApi(): string {
+    const dateValue = this.form.get('workOrderDate')?.value;
+    return this.utilityService.toDateOnlyJsonString(dateValue) ?? this.getTodayWorkOrderDate();
+  }
+
+  normalizeWorkOrderDate(value: string | null | undefined): string | null {
+    return this.utilityService.toDateOnlyJsonString(value);
+  }
+
+  getWorkOrderDateControlValue(value: string | null | undefined): Date {
+    return this.utilityService.parseCalendarDateInput(value) ?? new Date();
   }
 
   refreshBaselineAfterDataLoad(): void {
