@@ -878,8 +878,10 @@ export class WorkOrderComponent implements OnInit, OnChanges, OnDestroy {
   }
 
   captureInitialWorkOrderItemsSnapshot(): void {
+    const snapshotWorkOrderCode = this.workOrder?.workOrderCode ?? this.form.get('workOrderCode')?.value ?? null;
     this.initialWorkOrderItemsSnapshot = this.workOrderItems.map(item => ({
       workOrderItemId: item.workOrderItemId ? String(item.workOrderItemId) : null,
+      workOrderCode: snapshotWorkOrderCode,
       description: (item.description ?? '').trim(),
       receiptId: item.receiptId ?? null,
       receiptSplitKey: item.receiptSplitKey ?? null,

@@ -106,15 +106,15 @@
                       </tr>
                     </thead>
                     <tbody>
-                      @for (splitGroup of splitsFormArray.controls; track $index) {
-                        <tr [formGroupName]="$index">
-                          <td class="split-col-no">{{ $index + 1 }}</td>
+                      @for (splitGroup of splitsFormArray.controls; track splitGroup; let splitIndex = $index) {
+                        <tr [formGroupName]="splitIndex">
+                          <td class="split-col-no">{{ splitIndex + 1 }}</td>
                           <td class="split-col-amount">
-                            <input type="text" inputmode="decimal" [value]="getSplitAmountDisplay($index)" required class="split-editable-input"
-                              (focus)="onSplitAmountFocus($event, $index)"
-                              (blur)="onSplitAmountBlur($event, $index)"
-                              (input)="onSplitAmountInput($event, $index)"
-                              (keydown.enter)="onSplitAmountKeydown($event, $index)"
+                            <input type="text" inputmode="decimal" [value]="getSplitAmountDisplay(splitIndex)" required class="split-editable-input"
+                              (focus)="onSplitAmountFocus($event, splitIndex)"
+                              (blur)="onSplitAmountBlur($event, splitIndex)"
+                              (input)="onSplitAmountInput($event, splitIndex)"
+                              (keydown.enter)="onSplitAmountKeydown($event, splitIndex)"
                               [class.split-input-invalid]="splitGroup.get('amount')?.hasError('required') && splitGroup.get('amount')?.touched">
                           </td>
                           <td>
@@ -130,7 +130,7 @@
                               mat-icon-button
                               color="accent"
                               [disabled]="splitsFormArray.length <= 1"
-                              (click)="removeSplitLine($index)"
+                              (click)="removeSplitLine(splitIndex)"
                               matTooltip="Remove this split line">
                               <mat-icon>close</mat-icon>
                             </button>

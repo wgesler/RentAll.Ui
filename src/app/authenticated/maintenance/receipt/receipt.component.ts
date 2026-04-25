@@ -103,8 +103,12 @@ export class ReceiptComponent implements OnInit, OnDestroy {
   }
 
   saveReceipt(): void {
-    if (!this.property || !this.organizationId || this.form.invalid) {
+    if (!this.organizationId || this.form.invalid) {
       this.form.markAllAsTouched();
+      return;
+    }
+    if (this.isAddMode && !this.property) {
+      this.toastr.warning('Select a property before saving a new receipt.', 'Missing property');
       return;
     }
     const selectedPropertyIds = this.getSelectedPropertyIds();
@@ -139,7 +143,7 @@ export class ReceiptComponent implements OnInit, OnDestroy {
     const payload: ReceiptRequest = {
       receiptId: this.receipt?.receiptId,
       organizationId: this.organizationId,
-      officeId: this.receipt?.officeId || this.property.officeId,
+      officeId: this.receipt?.officeId || this.property?.officeId || 0,
       propertyIds: selectedPropertyIds,
       maintenanceId: this.receipt?.maintenanceId || this.maintenanceId || '',
       description: (this.form.get('description')?.value || '').trim(),
@@ -625,10 +629,18 @@ export class ReceiptComponent implements OnInit, OnDestroy {
   }
 
   removeSplitLine(index: number): void {
-    if (this.splitsFormArray.length <= 1) {
+    if (this.splitsFormArray.length <= 1 || index < 0 || index >= this.splitsFormArray.length) {
       return;
     }
     this.splitsFormArray.removeAt(index);
+    if (this.focusedSplitAmountIndex !== null) {
+      if (this.focusedSplitAmountIndex === index) {
+        this.focusedSplitAmountIndex = null;
+        this.splitAmountEditValue = '';
+      } else if (this.focusedSplitAmountIndex > index) {
+        this.focusedSplitAmountIndex = this.focusedSplitAmountIndex - 1;
+      }
+    }
     this.ensureAtLeastOneSplit();
   }
 

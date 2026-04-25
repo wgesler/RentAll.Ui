@@ -34,6 +34,7 @@ export interface WorkOrderResponse {
 
 export interface WorkOrderDisplayList {
   workOrderId: string;
+  workOrderCode: string;
   officeId: number;
   officeName: string;
   propertyId: string;
@@ -96,6 +97,7 @@ export interface ReceiptSplitOption {
 
 export interface WorkOrderItemSnapshot {
   workOrderItemId: string | null;
+  workOrderCode: string | null;
   description: string;
   receiptId: number | null;
   receiptSplitKey: string | null;

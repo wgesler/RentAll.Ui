@@ -47,6 +47,7 @@ export class WorkOrderListComponent implements OnInit, OnChanges {
   selectedPropertyId: string | null = null;
 
   workOrderDisplayedColumns: ColumnSet = {
+    workOrderCode: { displayAs: 'Code', wrap: false, maxWidth: '15ch' },
     propertyCode: { displayAs: 'Property', wrap: false, maxWidth: '15ch' },
     workOrderType: { displayAs: 'Type', wrap: false, maxWidth: '15ch' },
     reservationCode: { displayAs: 'Reservation', wrap: false, maxWidth: '20ch' },
@@ -168,7 +169,7 @@ export class WorkOrderListComponent implements OnInit, OnChanges {
     const id = String(event.workOrderId);
     if (!id) return;
     const targetWorkOrder = this.workOrders.find(workOrder => String(workOrder.workOrderId) === id);
-    const workOrderCode = (targetWorkOrder?.workOrderCode || '').trim();
+    const workOrderCode = (targetWorkOrder?.workOrderCode || event.workOrderCode || '').trim();
     const associatedReceiptIds = Array.from(
       new Set(
         (targetWorkOrder?.workOrderItems || [])
@@ -177,7 +178,13 @@ export class WorkOrderListComponent implements OnInit, OnChanges {
       )
     );
 
-    this.removeWorkOrderAssociationsFromReceipts(workOrderCode, associatedReceiptIds).pipe(switchMap(() => this.workOrderService.deleteWorkOrder(id)), take(1)).subscribe({
+    this.collectReceiptIdsWithWorkOrderCode(workOrderCode, associatedReceiptIds)
+      .pipe(
+        switchMap((receiptIdsToUpdate: number[]) => this.removeWorkOrderAssociationsFromReceipts(workOrderCode, receiptIdsToUpdate)),
+        switchMap(() => this.workOrderService.deleteWorkOrder(id)),
+        take(1)
+      )
+      .subscribe({
       next: () => {
         this.workOrders = this.workOrders.filter(workOrder => String(workOrder.workOrderId) !== String(event.workOrderId));
         this.allWorkOrders = this.mappingService.mapWorkOrderDisplays(this.workOrders);
@@ -265,12 +272,44 @@ export class WorkOrderListComponent implements OnInit, OnChanges {
   }
 
   removeWorkOrderCodeFromList(currentValue: string | undefined, workOrderCode: string): string {
+    const normalizedTarget = (workOrderCode || '').trim().toLowerCase();
     const tokens = (currentValue || '')
       .split(',')
       .map(token => token.trim())
       .filter(token => token.length > 0);
-    const remainingTokens = tokens.filter(token => token !== workOrderCode);
+    const remainingTokens = tokens.filter(token => token.toLowerCase() !== normalizedTarget);
     return remainingTokens.join(', ');
+  }
+
+  collectReceiptIdsWithWorkOrderCode(workOrderCode: string, seedReceiptIds: number[]): Observable<number[]> {
+    const normalizedCode = (workOrderCode || '').trim();
+    if (!normalizedCode) {
+      return of(seedReceiptIds);
+    }
+
+    const seedSet = new Set<number>((seedReceiptIds || []).filter(id => Number.isFinite(id) && id > 0));
+    const propertyId = this.property?.propertyId ?? null;
+    const officeId = this.officeId ?? null;
+
+    return this.receiptService.getReceipts(propertyId, officeId).pipe(
+      take(1),
+      map((receipts: ReceiptResponse[]) => {
+        (receipts || []).forEach(receipt => {
+          const hasCode = (receipt.splits || []).some(split => {
+            const tokens = (split.workOrder || '')
+              .split(',')
+              .map(token => token.trim().toLowerCase())
+              .filter(token => token.length > 0);
+            return tokens.includes(normalizedCode.toLowerCase());
+          });
+          if (hasCode && Number.isFinite(receipt.receiptId) && receipt.receiptId > 0) {
+            seedSet.add(receipt.receiptId);
+          }
+        });
+        return Array.from(seedSet);
+      }),
+      catchError(() => of(Array.from(seedSet)))
+    );
   }
   //#endregion
 

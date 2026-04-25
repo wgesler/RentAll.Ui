@@ -815,6 +815,7 @@ export class MappingService {
         amount,
         amountDisplay: this.formatter.currencyUsd(amount),
         workOrderId: workOrder.workOrderId,
+        workOrderCode: workOrder.workOrderCode ?? '',
         officeId: workOrder.officeId,
         officeName: workOrder.officeName,
         propertyId: workOrder.propertyId,
