@@ -158,11 +158,11 @@ export class ReceiptsListComponent implements OnInit, OnChanges {
   }
 
   goToReceipt(event: ReceiptDisplayList): void {
-    if (!this.property) return;
     if (this.embeddedInMaintenance) {
       this.receiptSelect.emit(event.receiptId);
       return;
     }
+    if (!this.property) return;
     const url = '/' + RouterUrl.replaceTokens(RouterUrl.MaintenanceReceipt, [String(event.receiptId)]);
     this.router.navigate([url], { queryParams: { propertyId: this.property.propertyId }, state: { property: this.property } });
   }
