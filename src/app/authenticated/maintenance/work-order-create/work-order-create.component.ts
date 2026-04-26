@@ -831,11 +831,7 @@ export class WorkOrderCreateComponent extends BaseDocumentComponent implements O
 
       return [
         `<span style="font-weight: bold">Client:</span> ${responsibleParty}<br>`,
-        useSingleAddressLine
-          ? `<span style="font-weight: bold">Address:</span> ${responsiblePartyAddressSingleLine}<br>`
-          : `<span style="font-weight: bold">Address:</span> ${responsiblePartyAddress1}<br>`,
-        ...(!useSingleAddressLine && responsiblePartyAddress2 ? [`&nbsp;&nbsp;&nbsp;&nbsp;${responsiblePartyAddress2}<br>`] : []),
-       ].join('');
+        ].join('');
     }
     else 
     {
@@ -960,8 +956,8 @@ export class WorkOrderCreateComponent extends BaseDocumentComponent implements O
   getOrganizationAddress1(): string {
     if (!this.organization) return '';
 
-    const address1 = String(this.property?.address1 ?? '').trim();
-    const suite = String(this.property?.suite ?? '').trim();
+    const address1 = String(this.organization?.address1 ?? '').trim();
+    const suite = String(this.organization?.suite ?? '').trim();
     return suite ? `${address1}, ${suite}` : address1;
   }
    
