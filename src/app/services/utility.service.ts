@@ -12,6 +12,7 @@ export type CalendarDateString = string;
   providedIn: 'root'
 })
 export class UtilityService {
+  formatterService: any;
   constructor() { }
 
   //#region To/From the API (calendar / DateOnly)
@@ -268,7 +269,6 @@ export class UtilityService {
   //#endregion
 
   //#region Reservations
-  /** Label for reservation dropdown: ReservationCode + company/contact display name. */
   getReservationDropdownLabel(reservation: ReservationListResponse | ReservationResponse | null | undefined, contact: ContactResponse | null): string {
     if (!reservation) {
       return '';
@@ -292,13 +292,10 @@ export class UtilityService {
     return `${code}: ${contactName}`;
   }
 
-  getReservationBoardLabel(
-    reservation: ReservationListResponse | ReservationResponse | null | undefined,
-    contact: ContactResponse | null
-  ): string {
-    if (!reservation) {
+  getReservationBoardLabel(reservation: ReservationListResponse | ReservationResponse | null | undefined, contact: ContactResponse | null) {
+    if (!reservation) 
       return '';
-    }
+    
     const shortCompanyName = contact?.displayName || this.getCompanyDisplayToken(contact?.companyName ?? reservation.companyName);
     const tenantName = reservation.tenantName;
     const reservationTypeId = Number(reservation.reservationTypeId);
@@ -311,13 +308,65 @@ export class UtilityService {
     }
   }
 
+  getResponsibleParty(reservation: ReservationListResponse | ReservationResponse | null | undefined, contact: ContactResponse | null): string {
+    if (!contact) 
+      return '';
+    
+    const reservationTypeId = Number(reservation?.reservationTypeId);
+    switch (reservationTypeId) {
+      case ReservationType.Corporate:
+      case ReservationType.Platform:
+         return (contact.companyName || contact.displayName || contact.fullName || '').trim();
+      default:
+        if (contact.entityTypeId === EntityType.Company) {
+          return (contact.companyName || contact.displayName || contact.fullName || '').trim();
+        }
+        return (`${contact.firstName || ''} ${contact.lastName || ''}`).trim();
+    }
+  }
+
+  getResponsiblePartyAddress1(reservation: ReservationListResponse | ReservationResponse | null | undefined, contact: ContactResponse | null): string {
+    if (!contact) 
+      return '';
+  
+    const isInternational = contact.isInternational || false;
+    if (isInternational) {
+      return contact?.address1 || '';
+    }
+
+    return (`${contact.address1 || ''} ${contact.address2 || ''}`).trim();
+  }
+
+  getResponsiblePartyAddress2(reservation: ReservationListResponse | ReservationResponse | null | undefined, contact: ContactResponse | null): string {
+    if (!contact) 
+      return '';
+  
+    const isInternational = contact.isInternational || false;
+    if (isInternational) {
+      return contact?.address2 || '';
+    }
+
+    return (`${contact.city ? `${contact.city}, ` : ''}${contact.state || ''} ${contact.zip || ''}`).trim();
+  }
+  
+  getResponsiblePartyPhone(contact: ContactResponse | null): string {
+    return this.formatterService.phoneNumber(contact?.phone) || '';
+  }
+
+  getResponsiblePartyEmail(contact: ContactResponse | null): string {
+    return contact?.email || '';
+  }
+
+  getResponsiblePartyOccupant(reservation: ReservationListResponse | ReservationResponse | null, contact: ContactResponse | null): string {
+    return (reservation.tenantName || '').trim();
+  }
+
   getCompanyDropdownLabel(contact: ContactResponse | null | undefined): string {
     if (!contact) {
       return '';
     }
     return (contact.companyName || '').trim();
   }
-
   //#endregion
 
   //#region Document filenames

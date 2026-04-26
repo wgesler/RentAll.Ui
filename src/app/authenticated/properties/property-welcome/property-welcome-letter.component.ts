@@ -1,4 +1,4 @@
-import { AsyncPipe, CommonModule } from '@angular/common';
+import { CommonModule } from '@angular/common';
 import { HttpClient } from '@angular/common/http';
 import { Component, EventEmitter, Input, OnChanges, OnDestroy, OnInit, Output, SimpleChanges } from '@angular/core';
 import { FormBuilder, FormControl, FormGroup, FormsModule, ReactiveFormsModule } from '@angular/forms';
@@ -47,7 +47,7 @@ import { EntityType } from '../../contacts/models/contact-enum';
 @Component({
     standalone: true,
     selector: 'app-property-welcome-letter',
-    imports: [CommonModule, MaterialModule, FormsModule, ReactiveFormsModule, AsyncPipe],
+    imports: [CommonModule, MaterialModule, FormsModule, ReactiveFormsModule],
     templateUrl: './property-welcome-letter.component.html',
     styleUrls: ['./property-welcome-letter.component.scss']
 })

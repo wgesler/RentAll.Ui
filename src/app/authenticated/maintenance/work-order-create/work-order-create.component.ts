@@ -32,12 +32,13 @@ import { WorkOrderService } from '../services/work-order.service';
 import { BaseDocumentComponent, DocumentConfig, DownloadConfig, EmailConfig } from '../../shared/base-document.component';
 import { PropertyResponse } from '../../properties/models/property.model';
 import { PropertyService } from '../../properties/services/property.service';
-import { ReservationListResponse } from '../../reservations/models/reservation-model';
+import { ReservationListResponse, ReservationResponse } from '../../reservations/models/reservation-model';
 import { ReservationService } from '../../reservations/services/reservation.service';
 import { AccountingOfficeResponse } from '../../organizations/models/accounting-office.model';
 import { AccountingOfficeService } from '../../organizations/services/accounting-office.service';
 import { OrganizationResponse } from '../../organizations/models/organization.model';
 import { OrganizationService } from '../../organizations/services/organization.service';
+import { getBillingMethod } from '../../reservations/models/reservation-enum';
 
 @Component({
   standalone: true,
@@ -63,10 +64,9 @@ export class WorkOrderCreateComponent extends BaseDocumentComponent implements O
 
   workOrder: WorkOrderResponse | null = null;
   property: PropertyResponse | null = null;
-  reservation: ReservationListResponse | null = null;
+  selectedReservation: ReservationResponse | null = null;
   propertyReservations: ReservationListResponse[] = [];
-  reservationContact: ContactResponse | null = null;
-  ownerContact: ContactResponse | null = null;
+  selectedContact: ContactResponse | null = null;
   contacts: ContactResponse[] = [];
   companyContacts: ContactResponse[] = [];
   additionalContactRows: { contactId: string | null }[] = [];
@@ -169,6 +169,7 @@ export class WorkOrderCreateComponent extends BaseDocumentComponent implements O
         this.workOrder = wo;
         this.loadPropertyReceipts();
         this.loadAccountingOffice();
+        this.loadReservation(wo.reservationId);
       },
       error: () => {
         this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'workOrderNumber');
@@ -315,7 +316,7 @@ export class WorkOrderCreateComponent extends BaseDocumentComponent implements O
   loadPropertyReservations(): void {
     if (!this.propertyId) {
       this.propertyReservations = [];
-      this.reservation = null;
+      this.selectedReservation = null;
       this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'propertyReservations');
       return;
     }
@@ -326,9 +327,40 @@ export class WorkOrderCreateComponent extends BaseDocumentComponent implements O
       },
       error: () => {
         this.propertyReservations = [];
-        this.reservation = null;
+        this.selectedReservation = null;
       }
     });
+  }
+
+  loadReservation(reservationId?: string): void {
+    if(!reservationId)
+      return;
+    
+    this.utilityService.addLoadItem(this.itemsToLoad$, 'reservation');
+    this.reservationService.getReservationByGuid(reservationId).pipe(take(1),finalize(() => { this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'reservation'); })).subscribe({
+      next: (response: ReservationResponse) => {
+        this.selectedReservation = response;
+      },
+      error: () => {
+        this.selectedReservation = null;
+      }
+    });
+  }
+    
+  loadClientPartyData(): void {
+    if (!this.workOrder) return;
+
+    switch(this.workOrder.workOrderTypeId)
+    {
+      case WorkOrderType.Tenant:
+        this.selectedContact = this.getPrimaryResponsibleContact();
+        break;
+     case WorkOrderType.Owner:
+        this.selectedContact = this.contacts.find(c => c.contactId === this.property?.owner1Id) ?? null;
+        break;
+     default:
+        return null;
+    }
   }
 
   buildAdditionalContactRows(_selectedContactIds: string[]): void {
@@ -369,22 +401,23 @@ export class WorkOrderCreateComponent extends BaseDocumentComponent implements O
     const isTenantWorkOrder = this.workOrder.workOrderTypeId === WorkOrderType.Tenant;
     const tenantSpacingClass = isTenantWorkOrder ? (workOrderItemCount >= 6 ? 'tenant-extra-compact' : (workOrderItemCount >= 4 ? 'tenant-compact' : '')) : '';
     const accountingOfficeRemitTo = this.getAccountingOfficeRemitToLine(isTenantWorkOrder && workOrderItemCount >= 6);
-    const clientDetails = this.getClientDetailsByType();
     const chargeSections = this.generateWorkOrderChargeSections();
     const officeLogoDataUrl = this.accountingOfficeLogo;
 
     let result = html;
     result = result.replace(/\{\{invoiceName\}\}/g, this.workOrder.workOrderId || '');
-    result = result.replace(/\{\{reservationCode\}\}/g, this.reservation?.reservationCode || this.property?.propertyCode || this.workOrder.propertyCode || '');
-    result = result.replace(/\{\{propertyCode\}\}/g, this.property?.propertyCode || this.workOrder.propertyCode || '');
-    result = result.replace(/\{\{contactName\}\}/g, clientDetails.contactName);
-    result = result.replace(/\{\{contactAddress\}\}/g, clientDetails.contactAddress);
-    result = result.replace(/\{\{tenantName\}\}/g, clientDetails.tenantName);
-    result = result.replace(/\{\{propertyAddress\}\}/g, propertyAddress);
-    result = result.replace(/\{\{propertyAddressLine1\}\}/g, propertyAddressLine1);
-    result = result.replace(/\{\{propertyAddressLine2\}\}/g, propertyAddressLine2);
-    result = result.replace(/\{\{propertySuite\}\}/g, this.property?.suite || '');
-    result = result.replace(/\{\{billingMethod\}\}/g, typeLabel);
+     
+    // Replace responsible parties block.
+    const isOrganizationWorkOrder = this.workOrder.workOrderTypeId === WorkOrderType.Organization;
+    if (isOrganizationWorkOrder || this.selectedReservation || this.selectedContact) {
+      result = result.replace(/\{\{responsiblePartiesBlock\}\}/g, this.getResponsiblePartiesBlock() || '');
+    }
+
+    // Replace property placeholders
+    if (this.property) {
+       result = result.replace(/\{\{propertySideBlock\}\}/g, this.getPropertySideBlock() || '');
+    }
+   
     result = result.replace(/\{\{workOrderCode\}\}/g, this.workOrder.workOrderCode ?? '');
     result = result.replace(/\{\{workOrderDateDisplay\}\}/g, workOrderDateDisplay);
     result = result.replace(/\{\{workOrderDescription\}\}/g, (this.workOrder.description ?? '').replace(/</g, '&lt;').replace(/>/g, '&gt;'));
@@ -787,9 +820,136 @@ export class WorkOrderCreateComponent extends BaseDocumentComponent implements O
     return normalized + '='.repeat(4 - remainder);
   }
 
+  getResponsiblePartiesBlock(): string {
+    if (!this.selectedContact)
+    {
+      const responsibleParty = this.escapeHtml(this.organization?.name || '');
+      const responsiblePartyAddress1 = this.escapeHtml(this.getOrganizationAddress1());
+      const responsiblePartyAddress2 = this.escapeHtml(this.getOrganizationAddress2());
+      const responsiblePartyAddressSingleLine = [responsiblePartyAddress1, responsiblePartyAddress2].filter(part => part).join(', ');
+      const useSingleAddressLine = responsiblePartyAddressSingleLine.length <= 37;
+
+      return [
+        `<span style="font-weight: bold">Client:</span> ${responsibleParty}<br>`,
+        useSingleAddressLine
+          ? `<span style="font-weight: bold">Address:</span> ${responsiblePartyAddressSingleLine}<br>`
+          : `<span style="font-weight: bold">Address:</span> ${responsiblePartyAddress1}<br>`,
+        ...(!useSingleAddressLine && responsiblePartyAddress2 ? [`&nbsp;&nbsp;&nbsp;&nbsp;${responsiblePartyAddress2}<br>`] : []),
+       ].join('');
+    }
+    else 
+    {
+      const responsibleParty = this.escapeHtml(this.utilityService.getResponsibleParty(this.selectedReservation, this.selectedContact));
+      const responsiblePartyAddress1 = this.escapeHtml(this.utilityService.getResponsiblePartyAddress1(this.selectedReservation, this.selectedContact));
+      const responsiblePartyAddress2 = this.escapeHtml(this.utilityService.getResponsiblePartyAddress2(this.selectedReservation, this.selectedContact));
+      const responsiblePartyOccupant = this.escapeHtml(this.selectedReservation?.tenantName || '');
+      const responsiblePartyRefNo = this.escapeHtml(this.selectedReservation?.referenceNo || '');
+      const responsiblePartyAddressSingleLine = [responsiblePartyAddress1, responsiblePartyAddress2].filter(part => part).join(', ');
+      const useSingleAddressLine = responsiblePartyAddressSingleLine.length <= 37;
+
+      return [
+        `<span style="font-weight: bold">Client:</span> ${responsibleParty}<br>`,
+        useSingleAddressLine
+          ? `<span style="font-weight: bold">Address:</span> ${responsiblePartyAddressSingleLine}<br>`
+          : `<span style="font-weight: bold">Address:</span> ${responsiblePartyAddress1}<br>`,
+        ...(!useSingleAddressLine && responsiblePartyAddress2 ? [`&nbsp;&nbsp;&nbsp;&nbsp;${responsiblePartyAddress2}<br>`] : []),
+        ...(responsiblePartyOccupant ? [`<span style="font-weight: bold">Occupant:</span> ${responsiblePartyOccupant}<br>`] : []),
+        ...(responsiblePartyRefNo ? [`<span style="font-weight: bold">Ref No:</span> ${responsiblePartyRefNo}<br>`] : [])
+      ].join('');
+    }
+  }
+
+  getPropertySideBlock(): string {
+    if (!this.property) 
+      return '';
+  
+    const propertyAddress1 = this.escapeHtml(this.getPropertyAddress1());
+    const propertyAddress2 = this.escapeHtml(this.getPropertyAddress2());
+    const propertyCode = this.escapeHtml(this.property.propertyCode || '');
+    const billingType = this.escapeHtml(getBillingMethod(this.selectedReservation?.billingMethodId));
+    const propertyAddressSingleLine = [propertyAddress1, propertyAddress2].filter(part => part).join(', ');
+    const useSingleAddressLine = propertyAddressSingleLine.length <= 37;
+    return [
+      `<span style="font-weight: bold">Property Code:</span> ${propertyCode}<br>`,
+      useSingleAddressLine
+        ? `<span style="font-weight: bold">Property Address:</span> ${propertyAddressSingleLine}<br>`
+        : `<span style="font-weight: bold">Property Address:</span> ${propertyAddress1}<br>`,
+      ...(!useSingleAddressLine && propertyAddress2 ? [`&nbsp;&nbsp;&nbsp;&nbsp;${propertyAddress2}<br>`] : []),
+      ...(billingType ? [`<span style="font-weight: bold">Billing Type:</span> ${billingType}<br>`] : [])
+    ].join('');
+  }
+
+  getResponsibleParty(): string {
+    return this.utilityService.getResponsibleParty(this.selectedReservation, this.getPrimaryResponsibleContact());
+  }
+
+  getResponsiblePartyAddress1() {
+    return this.utilityService.getResponsiblePartyAddress1(this.selectedReservation, this.getPrimaryResponsibleContact());
+  }
+
+  getResponsiblePartyAddress2() {
+    return this.utilityService.getResponsiblePartyAddress2(this.selectedReservation, this.getPrimaryResponsibleContact());
+  }
+
+  getResponsiblePartyPhone() {
+    return this.utilityService.getResponsiblePartyPhone(this.getPrimaryResponsibleContact());
+  }
+
+  getResponsiblePartyEmail() {
+    return this.utilityService.getResponsiblePartyEmail(this.getPrimaryResponsibleContact());
+  }
+
+  getPropertyAddress1() {
+    if (!this.property) {
+      return '';
+    }
+    return [this.property.address1, this.property.suite]
+      .map(part => String(part ?? '').trim())
+      .filter(part => part.length > 0)
+      .join(' ');
+  }
+
+  getPropertyAddress2() {
+    if (!this.property) {
+      return '';
+    }
+    const city = String(this.property.city ?? '').trim();
+    const state = String(this.property.state ?? '').trim();
+    const zip = String(this.property.zip ?? '').trim();
+    const stateZip = [state, zip].filter(part => part.length > 0).join(' ');
+    return [city, stateZip].filter(part => part.length > 0).join(', ');
+  }
+  
+  getPrimaryResponsibleContact(): ContactResponse | null {
+    return this.getResponsibleContacts()[0] || null;
+  }
+
+  getResponsibleContacts(): ContactResponse[] {
+    const selectedContactIds = this.selectedReservation?.contactIds || [];
+    const uniqueContactIds = new Set<string>();
+    const contacts: ContactResponse[] = [];
+
+    selectedContactIds.forEach(contactId => {
+      const normalizedContactId = String(contactId || '').trim();
+      if (!normalizedContactId || uniqueContactIds.has(normalizedContactId)) {
+        return;
+      }
+      const reservationContact = this.contacts.find(c => c.contactId === normalizedContactId);
+      if (reservationContact) {
+        uniqueContactIds.add(normalizedContactId);
+        contacts.push(reservationContact);
+      }
+    });
+
+    if (contacts.length === 0 && this.selectedContact) {
+      contacts.push(this.selectedContact);
+    }
+
+    return contacts;
+  }
 
   escapeHtml(value: string): string {
-    return value
+    return String(value || '')
       .replace(/&/g, '&amp;')
       .replace(/</g, '&lt;')
       .replace(/>/g, '&gt;')
@@ -797,92 +957,29 @@ export class WorkOrderCreateComponent extends BaseDocumentComponent implements O
       .replace(/'/g, '&#39;');
   }
 
-  loadClientPartyData(): void {
-    if (!this.workOrder) return;
-
-    this.reservation = null;
-    this.reservationContact = null;
-    this.ownerContact = null;
-
-    if (this.workOrder.workOrderTypeId === WorkOrderType.Tenant) {
-      this.reservation = this.propertyReservations.find(r => r.reservationId === this.workOrder?.reservationId) ?? null;
-      const reservationContactId = this.reservation?.contactId ?? null;
-      this.reservationContact = reservationContactId ? (this.contacts.find(c => c.contactId === reservationContactId) ?? null) : null;
-    }
-
-    if (this.workOrder.workOrderTypeId === WorkOrderType.Owner && this.property?.owner1Id) {
-      this.ownerContact = this.contacts.find(c => c.contactId === this.property?.owner1Id) ?? null;
-    }
-  }
-
-  getClientDetailsByType(): { contactName: string; contactAddress: string; tenantName: string} {
-    if (!this.workOrder) {
-      return { contactName: '', contactAddress: '', tenantName: '' };
-    }
-
-    if (this.workOrder.workOrderTypeId === WorkOrderType.Tenant) {
-      var contactName = '';
-      if(this.reservationContact?.entityTypeId == EntityType.Company)
-        contactName = this.reservationContact.companyName || '';
-      else
-        contactName = this.reservationContact?.fullName || this.reservation?.tenantName || '';
-      const contactAddress = this.getContactAddress(this.reservationContact);
-      const tenantName = this.reservation.tenantName;
-      return { contactName, contactAddress, tenantName };
-   }
-
-    if (this.workOrder.workOrderTypeId === WorkOrderType.Owner) {
-      return {
-        contactName: this.ownerContact?.fullName || '',
-        contactAddress: this.getContactAddress(this.ownerContact),
-        tenantName: ''
-      };
-    }
-
-    if (this.workOrder.workOrderTypeId === WorkOrderType.Organization) {
-       return {
-        contactName: this.organization?.name || '',
-        contactAddress: this.getOrganizationAddress(),
-        tenantName: ''
-      };
-    }
-
-    return { contactName: '', contactAddress: '', tenantName: ''};
-  }
-
-  getContactAddress(contact: ContactResponse | null): string {
-    if (!contact) return '';
-    return `${contact.address1 || ''} ${contact.city || ''}, ${contact.state || ''} ${contact.zip || ''}`.trim();
-  }
-
-  getOrganizationAddress(): string {
+  getOrganizationAddress1(): string {
     if (!this.organization) return '';
-    return `${this.organization.address1 || ''} ${this.organization.suite || ''}, ${this.organization.city || ''}, ${this.organization.state || ''} ${this.organization.zip || ''}`.trim();
-  }
 
+    const address1 = String(this.property?.address1 ?? '').trim();
+    const suite = String(this.property?.suite ?? '').trim();
+    return suite ? `${address1}, ${suite}` : address1;
+  }
+   
+  getOrganizationAddress2(): string {
+    if (!this.organization) return '';
+    return `${this.organization.city || ''}, ${this.organization.state || ''} ${this.organization.zip || ''}`.trim();
+  }
 
   getEmailRecipientByType(): { email: string; name: string, salutationName: string } {
     if (!this.workOrder) {
       return { email: '', name: '', salutationName: '' };
     }
 
-    if (this.workOrder.workOrderTypeId === WorkOrderType.Owner) {
-      return {
-        email: this.ownerContact?.email || '',
-        name: this.ownerContact?.fullName || `${this.ownerContact?.firstName || ''} ${this.ownerContact?.lastName || ''}`.trim(),
-        salutationName: `${this.ownerContact?.firstName || ''}`.trim()
-      };
-    }
-
-    if (this.workOrder.workOrderTypeId === WorkOrderType.Tenant) {
-      return {
-        email: this.reservationContact?.email || '',
-        name: this.reservationContact?.fullName || `${this.reservationContact?.firstName || ''} ${this.reservationContact?.lastName || ''}`.trim(),
-        salutationName: `${this.reservationContact?.firstName || ''}`.trim()
-      };
-    }
-
-    return { email: '', name: '', salutationName: '' };
+    return {  
+      email: this.selectedContact?.email || '',
+      name: this.selectedContact?.fullName || `${this.selectedContact?.firstName || ''} ${this.selectedContact?.lastName || ''}`.trim(),
+      salutationName: `${this.selectedContact?.firstName || ''}`.trim()
+    };
   }
 
   getWorkOrderFileName(): string {
@@ -941,8 +1038,8 @@ export class WorkOrderCreateComponent extends BaseDocumentComponent implements O
         officeId: config.selectedOfficeId,
         officeName: config.selectedOfficeName || '',
         propertyId: config.propertyId || null,
-        reservationId: this.workOrder.reservationId ?? this.reservation?.reservationId ?? null,
-        reservationCode: this.workOrder.reservationCode ?? this.reservation?.reservationCode ?? null,
+        reservationId: this.workOrder.reservationId ?? this.selectedReservation?.reservationId ?? null,
+        reservationCode: this.workOrder.reservationCode ?? this.selectedReservation?.reservationCode ?? null,
         documentTypeId: DocumentType.WorkOrder,
         fileName: this.getWorkOrderFileName(),
         generatePdf: true

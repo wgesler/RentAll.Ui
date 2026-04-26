@@ -850,19 +850,23 @@ export class LeaseComponent extends BaseDocumentComponent implements OnInit, OnD
   }
 
   getResponsibleParty(): string {
-    return this.getResponsiblePartyValue(this.getPrimaryResponsibleContact());
+    return this.utilityService.getResponsibleParty(this.selectedReservation, this.getPrimaryResponsibleContact());
   }
 
-  getResponsiblePartyAddress() {
-    return this.getResponsiblePartyAddressValue(this.getPrimaryResponsibleContact());
+  getResponsiblePartyAddress1() {
+    return this.utilityService.getResponsiblePartyAddress1(this.selectedReservation, this.getPrimaryResponsibleContact());
+  }
+
+  getResponsiblePartyAddress2() {
+    return this.utilityService.getResponsiblePartyAddress2(this.selectedReservation, this.getPrimaryResponsibleContact());
   }
 
   getResponsiblePartyPhone() {
-    return this.getResponsiblePartyPhoneValue(this.getPrimaryResponsibleContact());
+    return this.utilityService.getResponsiblePartyPhone(this.getPrimaryResponsibleContact());
   }
 
   getResponsiblePartyEmail() {
-    return this.getResponsiblePartyEmailValue(this.getPrimaryResponsibleContact());
+    return this.utilityService.getResponsiblePartyEmail(this.getPrimaryResponsibleContact());
   }
 
   getResponsiblePartiesBlock(): string {
@@ -872,14 +876,16 @@ export class LeaseComponent extends BaseDocumentComponent implements OnInit, OnD
     }
 
     return contacts.map(contact => {
-      const responsibleParty = this.escapeHtml(this.getResponsiblePartyValue(contact));
-      const responsiblePartyAddress = this.escapeHtml(this.getResponsiblePartyAddressValue(contact));
-      const responsiblePartyPhone = this.escapeHtml(this.getResponsiblePartyPhoneValue(contact));
-      const responsiblePartyEmail = this.escapeHtml(this.getResponsiblePartyEmailValue(contact));
+      const responsibleParty = this.escapeHtml(this.utilityService.getResponsibleParty(this.selectedReservation, contact));
+      const responsiblePartyAddress1 = this.escapeHtml(this.utilityService.getResponsiblePartyAddress1(this.selectedReservation, contact));
+      const responsiblePartyAddress2 = this.escapeHtml(this.utilityService.getResponsiblePartyAddress2(this.selectedReservation, contact));
+      const responsiblePartyPhone = this.escapeHtml(this.utilityService.getResponsiblePartyPhone(contact));
+      const responsiblePartyEmail = this.escapeHtml(this.utilityService.getResponsiblePartyEmail(contact));
 
       return [
         `<span style="font-weight: bold">Name(s):</span> ${responsibleParty}<br>`,
-        `<span style="font-weight: bold">Address:</span> ${responsiblePartyAddress}<br>`,
+        `<span style="font-weight: bold">Address:</span> ${responsiblePartyAddress1}<br>`,
+        `&nbsp;&nbsp;&nbsp;&nbsp;${responsiblePartyAddress2}<br>`,
         `<span style="font-weight: bold">Phone:</span> ${responsiblePartyPhone}<br>`,
         `<span style="font-weight: bold">Email:</span> ${responsiblePartyEmail}<br>`
       ].join('');
@@ -912,42 +918,6 @@ export class LeaseComponent extends BaseDocumentComponent implements OnInit, OnD
     }
 
     return contacts;
-  }
-
-  getResponsiblePartyValue(contact: ContactResponse | null): string {
-    if (!contact) {
-      return '';
-    }
-
-    const reservationTypeId = this.selectedReservation?.reservationTypeId;
-    if (reservationTypeId === ReservationType.Corporate) {
-      return (contact.companyName || `${contact.firstName || ''} ${contact.lastName || ''}`).trim();
-    }
-
-    return `${contact.firstName || ''} ${contact.lastName || ''}`.trim();
-  }
-
-  getResponsiblePartyAddressValue(contact: ContactResponse | null): string {
-    if (!contact) {
-      return '';
-    }
-
-    const isInternational = contact.isInternational || false;
-    if (isInternational) {
-      const parts = [contact.address1, contact.address2].filter(p => p);
-      return parts.join(', ');
-    }
-
-    const parts = [contact.address1, contact.city, contact.state, contact.zip].filter(p => p);
-    return parts.join(', ');
-  }
-
-  getResponsiblePartyPhoneValue(contact: ContactResponse | null): string {
-    return this.formatterService.phoneNumber(contact?.phone) || '';
-  }
-
-  getResponsiblePartyEmailValue(contact: ContactResponse | null): string {
-    return contact?.email || '';
   }
 
   escapeHtml(value: string): string {
@@ -1229,7 +1199,8 @@ export class LeaseComponent extends BaseDocumentComponent implements OnInit, OnD
       result = result.replace(/\{\{reservationCode\}\}/g, this.selectedReservation.reservationCode || '');
       result = result.replace(/\{\{responsibleParty\}\}/g, this.getResponsibleParty());
       result = result.replace(/\{\{responsiblePartyNoun\}\}/g, this.getResponsibleNoun());
-      result = result.replace(/\{\{responsiblePartyAddress\}\}/g, this.getResponsiblePartyAddress());
+      result = result.replace(/\{\{responsiblePartyAddress1\}\}/g, this.getResponsiblePartyAddress1());
+      result = result.replace(/\{\{responsiblePartyAddress1\}\}/g, this.getResponsiblePartyAddress2());
       result = result.replace(/\{\{responsiblePartyPhone\}\}/g, this.getResponsiblePartyPhone());
       result = result.replace(/\{\{responsiblePartyEmail\}\}/g, this.getResponsiblePartyEmail());
       result = result.replace(/\{\{responsiblePartiesBlock\}\}/g, this.getResponsiblePartiesBlock());

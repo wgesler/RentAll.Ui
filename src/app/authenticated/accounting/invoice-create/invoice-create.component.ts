@@ -435,6 +435,19 @@ export class InvoiceCreateComponent extends BaseDocumentComponent implements OnI
     });
   }
 
+  loadReservation(reservationId?: string): void {
+    this.utilityService.addLoadItem(this.itemsToLoad$, 'reservation');
+    this.reservationService.getReservationByGuid(reservationId).pipe(take(1),finalize(() => { this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'reservation'); })).subscribe({
+      next: (response: ReservationResponse) => {
+        this.reservationId = response.reservationId;
+        this.selectedReservation = response;
+      },
+      error: () => {
+        this.selectedReservation = null;
+      }
+    });
+  }
+
   loadInvoicesForReservation(reservationId: string): void {
     if (!this.selectedOffice) {
       this.invoices = [];
@@ -640,7 +653,7 @@ export class InvoiceCreateComponent extends BaseDocumentComponent implements OnI
     });
   }
 
-loadContact(): void {
+  loadContact(): void {
     const reservationContactId = this.getPrimaryReservationContactId(this.selectedReservation);
     if (!reservationContactId) {
       this.contact = null;
@@ -954,36 +967,13 @@ loadContact(): void {
     }
 
     // Replace reservation placeholders
-    if (this.selectedReservation) {
-      result = result.replace(/\{\{billingMethod\}\}/g, getBillingMethod(this.selectedReservation.billingMethodId) || '');
-      result = result.replace(/\{\{tenantName\}\}/g, this.selectedReservation.tenantName || '');
-      result = result.replace(/\{\{reservationCode\}\}/g, this.selectedReservation.reservationCode || '');
-      result = result.replace(/\{\{referenceNo\}\}/g, this.selectedReservation.referenceNo || '');
-      result = result.replace(/\{\{arrivalDate\}\}/g, this.formatterService.formatDateString(this.selectedReservation.arrivalDate) || '');
-      result = result.replace(/\{\{departureDate\}\}/g, this.formatterService.formatDateString(this.selectedReservation.departureDate) || '');
-    }
-
-    // Replace contact placeholders
-    if (this.contact) {
-      result = result.replace(/\{\{responsibleParty\}\}/g, this.getResponsibleParty());
-      result = result.replace(/\{\{contactName\}\}/g, `${this.contact.firstName || ''}`.trim());
-      result = result.replace(/\{\{contactPhone\}\}/g, this.formatterService.phoneNumber(this.contact.phone) || '');
-      result = result.replace(/\{\{contactEmail\}\}/g, this.contact.email || '');
-      
-      // Use contact address
-      result = result.replace(/\{\{contactAddress1\}\}/g, this.contact.address1 || '');
-      result = result.replace(/\{\{contactAddress2\}\}/g, this.contact.address2 || '');
-      result = result.replace(/\{\{contactCity\}\}/g, this.contact.city || '');
-      result = result.replace(/\{\{contactState\}\}/g, this.contact.state || '');
-      result = result.replace(/\{\{contactZip\}\}/g, this.contact.zip || '');
-      result = result.replace(/\{\{contactAddress\}\}/g, this.getContactAddress() || '');
+    if (this.selectedReservation && this.contact) {
+      result = result.replace(/\{\{responsiblePartiesBlock\}\}/g, this.getResponsiblePartiesBlock() || '');
     }
 
     // Replace property placeholders
     if (this.property) {
-      result = result.replace(/\{\{propertyCode\}\}/g, this.property.propertyCode || '');
-      result = result.replace(/\{\{propertyAddress\}\}/g, this.getPropertyAddress() || '');
-      result = result.replace(/\{\{propertySuite\}\}/g, this.property.suite || '');
+       result = result.replace(/\{\{propertySideBlock\}\}/g, this.getPropertySideBlock() || '');
     }
 
     // Replace office placeholders
@@ -1102,25 +1092,131 @@ loadContact(): void {
                 <td class="text-right">${amount}</td>
               </tr>`;
   }
+  
+  getResponsiblePartiesBlock(): string {
+    const contacts = this.getResponsibleContacts();
+    if (contacts.length === 0) {
+      return '';
+    }
+
+    return contacts.map(contact => {
+      const responsibleParty = this.escapeHtml(this.utilityService.getResponsibleParty(this.selectedReservation, contact));
+      const responsiblePartyAddress1 = this.escapeHtml(this.utilityService.getResponsiblePartyAddress1(this.selectedReservation, contact));
+      const responsiblePartyAddress2 = this.escapeHtml(this.utilityService.getResponsiblePartyAddress2(this.selectedReservation, contact));
+      const responsiblePartyOccupant = this.escapeHtml(this.selectedReservation.tenantName);
+      const responsiblePartyRefNo = this.escapeHtml(this.selectedReservation.referenceNo);
+      const responsiblePartyAddressSingleLine = [responsiblePartyAddress1, responsiblePartyAddress2].filter(part => part).join(', ');
+      const useSingleAddressLine = responsiblePartyAddressSingleLine.length <= 37;
+
+      return [
+        `<span style="font-weight: bold">Client:</span> ${responsibleParty}<br>`,
+        useSingleAddressLine
+          ? `<span style="font-weight: bold">Address:</span> ${responsiblePartyAddressSingleLine}<br>`
+          : `<span style="font-weight: bold">Address:</span> ${responsiblePartyAddress1}<br>`,
+        ...(!useSingleAddressLine && responsiblePartyAddress2 ? [`&nbsp;&nbsp;&nbsp;&nbsp;${responsiblePartyAddress2}<br>`] : []),
+        `<span style="font-weight: bold">Occupant:</span> ${responsiblePartyOccupant}<br>`,
+        ...(responsiblePartyRefNo ? [`<span style="font-weight: bold">Ref No:</span> ${responsiblePartyRefNo}<br>`] : [])
+      ].join('');
+    }).join('<br>');
+  }
+
+  getPropertySideBlock(): string {
+    if (!this.property) 
+      return '';
+  
+    const propertyAddress1 = this.escapeHtml(this.getPropertyAddress1());
+    const propertyAddress2 = this.escapeHtml(this.getPropertyAddress2());
+    const propertyCode = this.escapeHtml(this.property.propertyCode || '');
+    const billingType = this.escapeHtml(getBillingMethod(this.selectedReservation?.billingMethodId));
+    const propertyAddressSingleLine = [propertyAddress1, propertyAddress2].filter(part => part).join(', ');
+    const useSingleAddressLine = propertyAddressSingleLine.length <= 37;
+
+    return [
+      `<span style="font-weight: bold">Property Code:</span> ${propertyCode}<br>`,
+      useSingleAddressLine
+        ? `<span style="font-weight: bold">Property Address:</span> ${propertyAddressSingleLine}<br>`
+        : `<span style="font-weight: bold">Property Address:</span> ${propertyAddress1}<br>`,
+      ...(!useSingleAddressLine ? [`&nbsp;&nbsp;&nbsp;&nbsp;${propertyAddress2}<br>`] : []),
+      `<span style="font-weight: bold">Billing Type:</span> ${billingType}<br>`
+    ].join('');
+  }
 
   getResponsibleParty(): string {
-    if(!this.contact ) return '';
-    if (this.contact.entityTypeId === EntityType.Company) {
-      return (this.contact.companyName || '').trim();
+    return this.utilityService.getResponsibleParty(this.selectedReservation, this.getPrimaryResponsibleContact());
+  }
+
+  getResponsiblePartyAddress1() {
+    return this.utilityService.getResponsiblePartyAddress1(this.selectedReservation, this.getPrimaryResponsibleContact());
+  }
+
+  getResponsiblePartyAddress2() {
+    return this.utilityService.getResponsiblePartyAddress2(this.selectedReservation, this.getPrimaryResponsibleContact());
+  }
+
+  getResponsiblePartyPhone() {
+    return this.utilityService.getResponsiblePartyPhone(this.getPrimaryResponsibleContact());
+  }
+
+  getResponsiblePartyEmail() {
+    return this.utilityService.getResponsiblePartyEmail(this.getPrimaryResponsibleContact());
+  }
+
+  getPropertyAddress1() {
+    if (!this.property) {
+      return '';
     }
-    return `${this.contact.firstName || ''} ${this.contact.lastName || ''}`.trim();
+    return [this.property.address1, this.property.suite]
+      .map(part => String(part ?? '').trim())
+      .filter(part => part.length > 0)
+      .join(' ');
   }
 
-  getContactAddress(): string {
-    if (!this.contact) return '';
-    let address = this.contact.address1 + ' ' + this.contact.city + ', ' +  this.contact.state + ' ' +   this.contact.zip;
-    return address
+  getPropertyAddress2() {
+    if (!this.property) {
+      return '';
+    }
+    const city = String(this.property.city ?? '').trim();
+    const state = String(this.property.state ?? '').trim();
+    const zip = String(this.property.zip ?? '').trim();
+    const stateZip = [state, zip].filter(part => part.length > 0).join(' ');
+    return [city, stateZip].filter(part => part.length > 0).join(', ');
+  }
+  
+  getPrimaryResponsibleContact(): ContactResponse | null {
+    return this.getResponsibleContacts()[0] || null;
   }
 
-  getPropertyAddress(): string {
-    if (!this.property) return '';
-    let address =  this.property.address1 + ' ' + this.property.city + ', ' +  this.property.state + ' ' +   this.property.zip
-    return address 
+  getResponsibleContacts(): ContactResponse[] {
+    const selectedContactIds = this.selectedReservation?.contactIds || [];
+    const uniqueContactIds = new Set<string>();
+    const contacts: ContactResponse[] = [];
+
+    selectedContactIds.forEach(contactId => {
+      const normalizedContactId = String(contactId || '').trim();
+      if (!normalizedContactId || uniqueContactIds.has(normalizedContactId)) {
+        return;
+      }
+      const reservationContact = this.contacts.find(c => c.contactId === normalizedContactId);
+      if (reservationContact) {
+        uniqueContactIds.add(normalizedContactId);
+        contacts.push(reservationContact);
+      }
+    });
+
+    if (contacts.length === 0 && this.contact) {
+      contacts.push(this.contact);
+    }
+
+    return contacts;
+  }
+
+  escapeHtml(value: string): string {
+    return String(value || '')
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#39;');
   }
 
   getAccountingOfficeAddress(): string {
@@ -1415,13 +1511,6 @@ loadContact(): void {
   //#endregion
 
   //#region Utility Methods
-  ngOnDestroy(): void {
-    this.officesSubscription?.unsubscribe();
-    this.globalOfficeSubscription?.unsubscribe();
-    this.accountingOfficesSubscription?.unsubscribe();
-    this.itemsToLoad$.complete();
-  }
-
   goBack(): void {
     const queryParams = this.route.snapshot.queryParams;
     const returnTo = queryParams['returnTo'];
@@ -1500,5 +1589,12 @@ loadContact(): void {
       this.router.navigateByUrl(accountingUrl);
     }
   }
- //#endregion
+  
+  ngOnDestroy(): void {
+    this.officesSubscription?.unsubscribe();
+    this.globalOfficeSubscription?.unsubscribe();
+    this.accountingOfficesSubscription?.unsubscribe();
+    this.itemsToLoad$.complete();
+  }
+  //#endregion
 }
