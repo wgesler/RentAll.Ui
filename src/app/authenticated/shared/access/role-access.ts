@@ -178,7 +178,7 @@ const routeRulesBySegment: Record<string, AccessRule> = {
 
   [ROUTER_TOKEN.AccountingList]: accountingOnly,
   billing: accountingOnly,
-  [ROUTER_TOKEN.BillingCreate]: accountingOnly,
+  [ROUTER_TOKEN.BillingCreate]: superAdminOnly,
   [ROUTER_TOKEN.InvoiceCreate]: accountingOnly,
   [ROUTER_TOKEN.CostCodesList]: accountingOnly,
 

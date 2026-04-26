@@ -293,7 +293,7 @@ export class ReservationShellComponent implements OnInit, AfterViewInit, OnDestr
 
   //#region Reservation Context Getters
   get activeReservationId(): string | null {
-    return this.selectedHeaderReservationId ?? this.reservationSection?.sharedReservationId ?? null;
+    return this.selectedHeaderReservationId;
   }
 
   get selectedPropertyCode(): string {

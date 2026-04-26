@@ -827,7 +827,7 @@ export class WorkOrderCreateComponent extends BaseDocumentComponent implements O
       const responsiblePartyAddress1 = this.escapeHtml(this.getOrganizationAddress1());
       const responsiblePartyAddress2 = this.escapeHtml(this.getOrganizationAddress2());
       const responsiblePartyAddressSingleLine = [responsiblePartyAddress1, responsiblePartyAddress2].filter(part => part).join(', ');
-      const useSingleAddressLine = responsiblePartyAddressSingleLine.length <= 37;
+      const useSingleAddressLine = responsiblePartyAddressSingleLine.length <= 47;
 
       return [
         `<span style="font-weight: bold">Client:</span> ${responsibleParty}<br>`,
@@ -845,7 +845,7 @@ export class WorkOrderCreateComponent extends BaseDocumentComponent implements O
       const responsiblePartyOccupant = this.escapeHtml(this.selectedReservation?.tenantName || '');
       const responsiblePartyRefNo = this.escapeHtml(this.selectedReservation?.referenceNo || '');
       const responsiblePartyAddressSingleLine = [responsiblePartyAddress1, responsiblePartyAddress2].filter(part => part).join(', ');
-      const useSingleAddressLine = responsiblePartyAddressSingleLine.length <= 37;
+      const useSingleAddressLine = responsiblePartyAddressSingleLine.length <= 47;
 
       return [
         `<span style="font-weight: bold">Client:</span> ${responsibleParty}<br>`,
@@ -868,7 +868,7 @@ export class WorkOrderCreateComponent extends BaseDocumentComponent implements O
     const propertyCode = this.escapeHtml(this.property.propertyCode || '');
     const billingType = this.escapeHtml(getBillingMethod(this.selectedReservation?.billingMethodId));
     const propertyAddressSingleLine = [propertyAddress1, propertyAddress2].filter(part => part).join(', ');
-    const useSingleAddressLine = propertyAddressSingleLine.length <= 37;
+    const useSingleAddressLine = propertyAddressSingleLine.length <= 47;
     return [
       `<span style="font-weight: bold">Property Code:</span> ${propertyCode}<br>`,
       useSingleAddressLine
@@ -1094,6 +1094,8 @@ export class WorkOrderCreateComponent extends BaseDocumentComponent implements O
       .replace(/\{\{workOrderId\}\}/g, this.workOrder.workOrderId || '');
     const body = (this.emailHtml?.invoice || '<p>Please find your work order attached.</p>')
       .replace(/\{\{salutationName\}\}/g, recipient.salutationName)
+      .replace(/\{\{fromName\}\}/g, fromName)
+      .replace(/\{\{fromEmail\}\}/g, fromEmail)
       .replace(/\{\{accountingName\}\}/g, accountingName)
       .replace(/\{\{accountingPhone\}\}/g, accountingPhone);
 

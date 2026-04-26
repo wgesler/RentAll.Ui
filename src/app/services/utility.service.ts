@@ -5,6 +5,7 @@ import { ContactResponse } from '../authenticated/contacts/models/contact.model'
 import { EntityType } from '../authenticated/contacts/models/contact-enum';
 import { ReservationListResponse, ReservationResponse } from '../authenticated/reservations/models/reservation-model';
 import { ReservationType } from '../authenticated/reservations/models/reservation-enum';
+import { FormatterService } from './formatter-service';
 /** SQL **DATE** / JSON calendar (`YYYY-MM-DD`); not a zoned instant. */
 export type CalendarDateString = string;
 
@@ -12,8 +13,7 @@ export type CalendarDateString = string;
   providedIn: 'root'
 })
 export class UtilityService {
-  formatterService: any;
-  constructor() { }
+  constructor(private formatterService: FormatterService) { }
 
   //#region To/From the API (calendar / DateOnly)
   /**

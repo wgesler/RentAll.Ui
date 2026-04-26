@@ -13,6 +13,8 @@ import { AuthService } from '../../../services/auth.service';
 import { FormatterService } from '../../../services/formatter-service';
 import { MappingService } from '../../../services/mapping.service';
 import { UtilityService } from '../../../services/utility.service';
+import { getUserGroupNumbers } from '../../shared/access/role-access';
+import { UserGroups } from '../../users/models/user-enums';
 import { OrganizationRequest, OrganizationResponse } from '../../organizations/models/organization.model';
 import { OrganizationService } from '../../organizations/services/organization.service';
 import { TransactionType, TransactionTypeLabels, getTransactionTypeLabel as getAccountingTransactionTypeLabel } from '../models/accounting-enum';
@@ -1150,6 +1152,14 @@ export class BillingComponent implements OnInit, OnDestroy {
   navigateToBillingCreate(invoiceToUse: InvoiceResponse | null | undefined, formValue?: any): void {
     if (!invoiceToUse?.invoiceId) {
       this.navigateBack(formValue || this.form?.getRawValue() || {});
+      return;
+    }
+
+    const userGroups = this.authService.getUser()?.userGroups as Array<string | number> | undefined;
+    const isSuperUser = getUserGroupNumbers(userGroups).includes(UserGroups.SuperAdmin);
+    if (!isSuperUser) {
+      const accountingUrl = RouterUrl.replaceTokens(RouterUrl.Accounting, [invoiceToUse.invoiceId]);
+      this.router.navigateByUrl(accountingUrl);
       return;
     }
 

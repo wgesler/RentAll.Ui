@@ -43,6 +43,7 @@ import { PropertyLetterService } from '../services/property-letter.service';
 import { PropertyService } from '../services/property.service';
 import { WelcomeLetterReloadService } from '../services/welcome-letter-reload.service';
 import { EntityType } from '../../contacts/models/contact-enum';
+import { environment } from '../../../../environments/environment';
 
 @Component({
     standalone: true,
@@ -83,7 +84,7 @@ export class PropertyWelcomeLetterComponent extends BaseDocumentComponent implem
   iframeKey: number = 0;
   isDownloading: boolean = false;
   welcomeLetterReloadSubscription?: Subscription;
-  debuggingHtml: boolean = true;
+  debuggingHtml: boolean = environment.local || environment.dev;
   isPageReady: boolean = false;
   propertyReservationsLoaded: boolean = false;
    

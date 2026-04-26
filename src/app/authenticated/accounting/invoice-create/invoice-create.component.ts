@@ -1106,7 +1106,7 @@ export class InvoiceCreateComponent extends BaseDocumentComponent implements OnI
       const responsiblePartyOccupant = this.escapeHtml(this.selectedReservation.tenantName);
       const responsiblePartyRefNo = this.escapeHtml(this.selectedReservation.referenceNo);
       const responsiblePartyAddressSingleLine = [responsiblePartyAddress1, responsiblePartyAddress2].filter(part => part).join(', ');
-      const useSingleAddressLine = responsiblePartyAddressSingleLine.length <= 37;
+      const useSingleAddressLine = responsiblePartyAddressSingleLine.length <= 47;
 
       return [
         `<span style="font-weight: bold">Client:</span> ${responsibleParty}<br>`,
@@ -1129,7 +1129,7 @@ export class InvoiceCreateComponent extends BaseDocumentComponent implements OnI
     const propertyCode = this.escapeHtml(this.property.propertyCode || '');
     const billingType = this.escapeHtml(getBillingMethod(this.selectedReservation?.billingMethodId));
     const propertyAddressSingleLine = [propertyAddress1, propertyAddress2].filter(part => part).join(', ');
-    const useSingleAddressLine = propertyAddressSingleLine.length <= 37;
+    const useSingleAddressLine = propertyAddressSingleLine.length <= 47;
 
     return [
       `<span style="font-weight: bold">Property Code:</span> ${propertyCode}<br>`,

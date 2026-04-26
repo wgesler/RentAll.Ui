@@ -75,6 +75,11 @@
         }
         <span class="text-sm completion-count-text">{{ completedCount }}/{{ totalItems }} complete</span>
         @if (!isReadonlyMode) {
+          @if (errorsCount > 0) {
+            <button mat-raised-button color="accent" type="button" class="text-nowrap flex-shrink-0" (click)="openIssuesDialog()">
+              Issues
+            </button>
+          }
           @if (!isTemplateMode) {
             <button mat-raised-button color="primary" type="button" class="text-nowrap flex-shrink-0" (click)="clearAll()">Clear</button>
           }
@@ -84,11 +89,6 @@
           <button mat-raised-button color="primary" type="button" class="text-nowrap flex-shrink-0" [disabled]="isSavingInProgress" (click)="saveChecklistData(canSubmitInspection)">
             {{ saveButtonText }}
           </button>
-          @if (errorsCount > 0) {
-            <button mat-raised-button color="accent" type="button" class="text-nowrap flex-shrink-0" (click)="openIssuesDialog()">
-              Issues
-            </button>
-          }
         }
       </div>
     </div>

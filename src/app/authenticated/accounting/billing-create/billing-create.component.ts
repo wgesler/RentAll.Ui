@@ -789,6 +789,7 @@ export class BillingCreateComponent extends BaseDocumentComponent implements OnI
     const emailTemplateHtml = this.emailHtml?.invoice || '';
     const emailBodyHtml = emailTemplateHtml
       .replace(/\{\{toName\}\}/g, salutationName)
+      .replace(/\{\{fromName\}\}/g, fromName)
       .replace(/\{\{accountingName\}\}/g, accountingName || '')
       .replace(/\{\{accountingPhone\}\}/g, accountingPhone || '');
 

@@ -8,7 +8,7 @@
 
 .inspection-controls-row {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: minmax(120px, auto) minmax(220px, 1fr) minmax(420px, auto);
   align-items: center;
   gap: 0.75rem;
 }
@@ -26,7 +26,7 @@
 }
 
 .inspection-controls-cell--type {
-  justify-content: flex-start;
+  justify-content: center;
 }
 
 .inspection-controls-cell--actions {
@@ -35,7 +35,7 @@
 
 .inspection-actions-cluster {
   display: flex;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
   align-items: center;
   justify-content: flex-end;
   gap: 0.5rem;

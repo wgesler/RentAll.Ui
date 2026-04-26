@@ -200,9 +200,22 @@ export class LeaseComponent extends BaseDocumentComponent implements OnInit, OnD
   getLease(): void {
     this.utilityService.addLoadItem(this.itemsToLoad$, 'lease');
 
-    // This loads on add reservation, do nothing
+    // No reservation/property selected yet: show base lease template in the editor/preview.
     if (!this.propertyId) {
       this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'lease');
+      this.http.get('assets/reservation-lease.html', { responseType: 'text' }).pipe(take(1), finalize(() => { this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'lease'); })).subscribe({
+        next: (html: string) => {
+          if (html) {
+            this.form.patchValue({ lease: html });
+            this.processAndSetHtml(html);
+          } else {
+            this.previewIframeHtml = '';
+          }
+        },
+        error: () => {
+          this.previewIframeHtml = '';
+        }
+      });
       return;
     }
 
@@ -510,6 +523,7 @@ export class LeaseComponent extends BaseDocumentComponent implements OnInit, OnD
           // If coming from reservation but no reservation loaded yet, try to find office from reservationId
           // This will be handled when reservation loads
         }
+
       },
       error: () => {
         this.offices = [];
@@ -881,11 +895,15 @@ export class LeaseComponent extends BaseDocumentComponent implements OnInit, OnD
       const responsiblePartyAddress2 = this.escapeHtml(this.utilityService.getResponsiblePartyAddress2(this.selectedReservation, contact));
       const responsiblePartyPhone = this.escapeHtml(this.utilityService.getResponsiblePartyPhone(contact));
       const responsiblePartyEmail = this.escapeHtml(this.utilityService.getResponsiblePartyEmail(contact));
+      const responsiblePartyAddressSingleLine = [responsiblePartyAddress1, responsiblePartyAddress2].filter(part => part).join(', ');
+      const useSingleAddressLine = responsiblePartyAddressSingleLine.length <= 47;
 
       return [
         `<span style="font-weight: bold">Name(s):</span> ${responsibleParty}<br>`,
-        `<span style="font-weight: bold">Address:</span> ${responsiblePartyAddress1}<br>`,
-        `&nbsp;&nbsp;&nbsp;&nbsp;${responsiblePartyAddress2}<br>`,
+        useSingleAddressLine
+          ? `<span style="font-weight: bold">Address:</span> ${responsiblePartyAddressSingleLine}<br>`
+          : `<span style="font-weight: bold">Address:</span> ${responsiblePartyAddress1}<br>`,
+        ...(!useSingleAddressLine && responsiblePartyAddress2 ? [`&nbsp;&nbsp;&nbsp;&nbsp;${responsiblePartyAddress2}<br>`] : []),
         `<span style="font-weight: bold">Phone:</span> ${responsiblePartyPhone}<br>`,
         `<span style="font-weight: bold">Email:</span> ${responsiblePartyEmail}<br>`
       ].join('');
@@ -1573,6 +1591,7 @@ export class LeaseComponent extends BaseDocumentComponent implements OnInit, OnD
       .replace(/\{\{salutationName\}\}/g, salutationName)
       .replace(/\{\{tenantName\}\}/g, tenantName)
       .replace(/\{\{fromName\}\}/g, fromName)
+      .replace(/\{\{fromEmail\}\}/g, fromEmail)
       .replace(/\{\{companyName\}\}/g, companyName || '')
       .replace(/\{\{companyPhone\}\}/g, companyPhone || '');
 
