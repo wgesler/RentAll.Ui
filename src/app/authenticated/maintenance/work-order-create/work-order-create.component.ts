@@ -836,11 +836,11 @@ export class WorkOrderCreateComponent extends BaseDocumentComponent implements O
     }
     else 
     {
-      var pContact = this.contacts.find(c => c.contactId === this.selectedReservation.companyId) ?? contact;
+      var pContact = this.contacts.find(c => c.contactId === this.selectedReservation.companyId) ?? this.selectedContact;
       const responsibleParty = this.escapeHtml(this.utilityService.getResponsibleParty(this.selectedReservation, pContact));
       const responsiblePartyAddress1 = this.escapeHtml(this.utilityService.getResponsiblePartyAddress1(this.selectedReservation, pContact));
       const responsiblePartyAddress2 = this.escapeHtml(this.utilityService.getResponsiblePartyAddress2(this.selectedReservation, pContact));
-      const responsiblePartyOccupant = this.escapeHtml(this.selectedReservation?.tenantName || '');
+      const responsiblePartyOccupant = this.escapeHtml(this.selectedReservation.tenantName);
       const responsiblePartyRefNo = this.escapeHtml(this.selectedReservation?.referenceNo || '');
       const responsiblePartyAddressSingleLine = [responsiblePartyAddress1, responsiblePartyAddress2].filter(part => part).join(', ');
       const useSingleAddressLine = responsiblePartyAddressSingleLine.length <= 47;
