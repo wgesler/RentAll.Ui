@@ -399,7 +399,7 @@ export class WorkOrderCreateComponent extends BaseDocumentComponent implements O
     const workOrderDateDisplay = this.formatter.formatDateString(this.workOrder.workOrderDate) || '';
     const workOrderItemCount = this.workOrder.workOrderItems?.length ?? 0;
     const isTenantWorkOrder = this.workOrder.workOrderTypeId === WorkOrderType.Tenant;
-    const tenantSpacingClass = isTenantWorkOrder ? (workOrderItemCount >= 6 ? 'tenant-extra-compact' : (workOrderItemCount >= 4 ? 'tenant-compact' : '')) : '';
+    const tenantSpacingClass = isTenantWorkOrder ? (workOrderItemCount >= 6 ? 'tenant-extra-compact' : (workOrderItemCount >= 2 ? 'tenant-compact' : '')) : '';
     const accountingOfficeRemitTo = this.getAccountingOfficeRemitToLine(isTenantWorkOrder && workOrderItemCount >= 6);
     const chargeSections = this.generateWorkOrderChargeSections();
     const officeLogoDataUrl = this.accountingOfficeLogo;
@@ -450,8 +450,8 @@ export class WorkOrderCreateComponent extends BaseDocumentComponent implements O
 
     result = result.replace(/\{\{officeLogoBase64\}\}/g, officeLogoDataUrl || '');
     result = result.replace(/\{\{orgLogoBase64\}\}/g, officeLogoDataUrl || '');
-    result = result.replace(/\{\{accountingOfficeName\}\}/g, officeName);
-    result = result.replace(/\{\{accountingOfficeAddress\}\}/g, this.selectedAccountingOffice?.address1 || '');
+    result = result.replace(/\{\{accountingOfficeName\}\}/g, this.selectedAccountingOffice.name);
+    result = result.replace(/\{\{accountingOfficeAddress\}\}/g, this.getAccountingOfficeAddress() || '');
     result = result.replace(/\{\{accountingOfficeCityStateZip\}\}/g, `${this.selectedAccountingOffice?.city || ''}, ${this.selectedAccountingOffice?.state || ''} ${this.selectedAccountingOffice?.zip || ''}`.trim());
     result = result.replace(/\{\{accountingOfficeEmail\}\}/g, this.selectedAccountingOffice?.email || '');
     result = result.replace(/\{\{accountingOfficePhone\}\}/g, this.formatter.phoneNumber(this.selectedAccountingOffice?.phone) || '');
@@ -462,6 +462,7 @@ export class WorkOrderCreateComponent extends BaseDocumentComponent implements O
     result = result.replace(/\{\{accountingOfficeSwithCode\}\}/g, this.selectedAccountingOffice?.bankSwiftCode || '');
     result = result.replace(/\{\{accountingOfficeBankAddress\}\}/g, this.selectedAccountingOffice?.bankAddress || '');
     result = result.replace(/\{\{accountingOfficeBankPhone\}\}/g, this.formatter.phoneNumber(this.selectedAccountingOffice?.bankPhone) || '');
+    result = result.replace(/\{\{thankYou\}\}/g, this.getThankYou());
 
     if (!officeLogoDataUrl) {
       result = result.replace(/<img[^>]*\{\{officeLogoBase64\}\}[^>]*\s*\/?>/gi, '');
@@ -915,6 +916,10 @@ export class WorkOrderCreateComponent extends BaseDocumentComponent implements O
     const stateZip = [state, zip].filter(part => part.length > 0).join(' ');
     return [city, stateZip].filter(part => part.length > 0).join(', ');
   }
+
+  getThankYou() {
+    return this.workOrder.workOrderTypeId == WorkOrderType.Owner ?  '' : `Thank you for staying with ${this.selectedAccountingOffice.name}.`;
+  }
   
   getPrimaryResponsibleContact(): ContactResponse | null {
     return this.getResponsibleContacts()[0] || null;
@@ -951,6 +956,11 @@ export class WorkOrderCreateComponent extends BaseDocumentComponent implements O
       .replace(/>/g, '&gt;')
       .replace(/"/g, '&quot;')
       .replace(/'/g, '&#39;');
+  }
+
+  getAccountingOfficeAddress(): string {
+    if (!this.selectedAccountingOffice) return '';
+    return `${this.selectedAccountingOffice.address1 || ''} ${this.selectedAccountingOffice.suite || ''}`.trim(); 
   }
 
   getOrganizationAddress1(): string {
