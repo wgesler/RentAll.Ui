@@ -1100,9 +1100,10 @@ export class InvoiceCreateComponent extends BaseDocumentComponent implements OnI
     }
 
     return contacts.map(contact => {
-      const responsibleParty = this.escapeHtml(this.utilityService.getResponsibleParty(this.selectedReservation, contact));
-      const responsiblePartyAddress1 = this.escapeHtml(this.utilityService.getResponsiblePartyAddress1(this.selectedReservation, contact));
-      const responsiblePartyAddress2 = this.escapeHtml(this.utilityService.getResponsiblePartyAddress2(this.selectedReservation, contact));
+      var pContact = this.contacts.find(c => c.contactId === this.selectedReservation.companyId) ?? contact;
+      const responsibleParty = this.escapeHtml(this.utilityService.getResponsibleParty(this.selectedReservation, pContact));
+      const responsiblePartyAddress1 = this.escapeHtml(this.utilityService.getResponsiblePartyAddress1(this.selectedReservation, pContact));
+      const responsiblePartyAddress2 = this.escapeHtml(this.utilityService.getResponsiblePartyAddress2(this.selectedReservation, pContact));
       const responsiblePartyOccupant = this.escapeHtml(this.selectedReservation.tenantName);
       const responsiblePartyRefNo = this.escapeHtml(this.selectedReservation.referenceNo);
       const responsiblePartyAddressSingleLine = [responsiblePartyAddress1, responsiblePartyAddress2].filter(part => part).join(', ');
