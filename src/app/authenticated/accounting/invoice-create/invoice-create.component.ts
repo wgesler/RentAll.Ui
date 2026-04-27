@@ -73,7 +73,6 @@ export class InvoiceCreateComponent extends BaseDocumentComponent implements OnI
 
   accountingOffices: AccountingOfficeResponse[] = [];
   selectedAccountingOffice: AccountingOfficeResponse | null = null;
-  accountingOfficesSubscription?: Subscription;
   
   accountingOfficeLogo: string = '';
   officeLogo: string = '';
@@ -337,14 +336,11 @@ export class InvoiceCreateComponent extends BaseDocumentComponent implements OnI
 
     // Load accounting office if not provided
     if (!this.selectedAccountingOffice && this.selectedOffice) {
-      const orgId = this.authService.getUser()?.organizationId?.trim() ?? '';
-      if (orgId) {
-        const accountingOffices = await firstValueFrom(
-          this.accountingOfficeService.ensureAccountingOfficesLoaded(orgId).pipe(take(1))
-        );
-        this.selectedAccountingOffice = accountingOffices.find(ao => ao.officeId === this.selectedOffice.officeId) || null;
-        this.updateAccountingOfficeLogo();
-      }
+      const accountingOffices = await firstValueFrom(
+        this.accountingOfficeService.ensureAccountingOfficesLoaded().pipe(take(1))
+      );
+      this.selectedAccountingOffice = accountingOffices.find(ao => ao.officeId === this.selectedOffice.officeId) || null;
+      this.updateAccountingOfficeLogo();
     }
 
     // Load organization if not provided
@@ -400,20 +396,9 @@ export class InvoiceCreateComponent extends BaseDocumentComponent implements OnI
   }
 
   loadAccountingOffices(): void {
-    const organizationId = this.authService.getUser()?.organizationId?.trim() ?? '';
-    if (!organizationId) {
-      this.accountingOffices = [];
-      this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'accountingOffices');
-      return;
-    }
-
-    this.accountingOfficeService.ensureAccountingOfficesLoaded(organizationId).pipe(take(1), finalize(() => { this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'accountingOffices'); })).subscribe({
+    this.accountingOfficeService.ensureAccountingOfficesLoaded().pipe(take(1), finalize(() => { this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'accountingOffices'); })).subscribe({
       next: (list) => {
         this.accountingOffices = list || [];
-        this.accountingOfficesSubscription?.unsubscribe();
-        this.accountingOfficesSubscription = this.accountingOfficeService.getAllAccountingOffices().subscribe(accountingOffices => {
-          this.accountingOffices = accountingOffices || [];
-        });
       },
       error: () => {
         this.accountingOffices = [];
@@ -1594,7 +1579,6 @@ export class InvoiceCreateComponent extends BaseDocumentComponent implements OnI
   ngOnDestroy(): void {
     this.officesSubscription?.unsubscribe();
     this.globalOfficeSubscription?.unsubscribe();
-    this.accountingOfficesSubscription?.unsubscribe();
     this.itemsToLoad$.complete();
   }
   //#endregion

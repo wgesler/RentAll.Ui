@@ -28,6 +28,8 @@ import { EmailCreateDraftService } from '../../email/services/email-create-draft
 import { DocumentService } from '../../documents/services/document.service';
 import { OfficeResponse } from '../../organizations/models/office.model';
 import { OrganizationResponse } from '../../organizations/models/organization.model';
+import { AccountingOfficeResponse } from '../../organizations/models/accounting-office.model';
+import { AccountingOfficeService } from '../../organizations/services/accounting-office.service';
 import { OfficeService } from '../../organizations/services/office.service';
 import { GlobalSelectionService } from '../../organizations/services/global-selection.service';
 import { getCheckInTime, getCheckOutTime } from '../../properties/models/property-enums';
@@ -62,27 +64,34 @@ export class LeaseComponent extends BaseDocumentComponent implements OnInit, OnD
   
   isSubmitting: boolean = false;
   form: FormGroup;
+
   property: PropertyResponse | null = null;
   organization: OrganizationResponse | null = null;
+  organizationId: string = '';
+  preferredOfficeId: number | null = null;
+
   reservations: ReservationListResponse[] = [];
   availableReservations: { value: ReservationListResponse, label: string }[] = [];
   selectedReservation: ReservationResponse | null = null;
-  propertyHtml: PropertyHtmlResponse | null = null;
-  emailHtml: EmailHtmlResponse | null = null;
-  leaseInformation: LeaseInformationResponse | null = null;
+
   contacts: ContactResponse[] = [];
   contact: ContactResponse | null = null;
   companyContact: ContactResponse | null = null;
+
   offices: OfficeResponse[] = [];
   availableOffices: { value: number, name: string }[] = [];
   officesSubscription?: Subscription;
-  contactsSubscription?: Subscription;
   selectedOffice: OfficeResponse | null = null;
+  accountingOffices: AccountingOfficeResponse[] = [];
+
   previewIframeHtml: string = '';
   previewIframeStyles: string = '';
   safeHtml: SafeHtml | null = null;
   iframeKey: number = 0;
   isDownloading: boolean = false;
+  propertyHtml: PropertyHtmlResponse | null = null;
+  emailHtml: EmailHtmlResponse | null = null;
+  leaseInformation: LeaseInformationResponse | null = null;
   leaseReloadSubscription?: Subscription;
   includeLease: boolean = true;
   includeLetterOfResponsibility: boolean = true;
@@ -92,10 +101,8 @@ export class LeaseComponent extends BaseDocumentComponent implements OnInit, OnD
   includeRentalCreditApplication: boolean = false;
   isCompanyRental: boolean = true;
   debuggingHtml: boolean = environment.local || environment.dev;
-  organizationId: string = '';
-  preferredOfficeId: number | null = null;
 
-  itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['offices', 'organization', 'property', 'leaseInformation', 'reservation', 'reservations', 'contacts', 'emailHtml'])); 
+  itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['offices', 'organization', 'property', 'leaseInformation', 'reservation', 'reservations', 'contacts', 'emailHtml', 'accountingOffices'])); 
   isLoading$: Observable<boolean> = this.itemsToLoad$.pipe(map(items => items.size > 0));
 
 
@@ -110,6 +117,7 @@ export class LeaseComponent extends BaseDocumentComponent implements OnInit, OnD
     private emailHtmlService: EmailHtmlService,
     private leaseInformationService: LeaseInformationService,
     private officeService: OfficeService,
+    private accountingOfficeService: AccountingOfficeService,
     private authService: AuthService,
     private fb: FormBuilder,
     private formatterService: FormatterService,
@@ -139,6 +147,7 @@ export class LeaseComponent extends BaseDocumentComponent implements OnInit, OnD
     this.loadContacts();
     this.loadEmailHtml();
     this.loadOffices();
+    this.loadAccountingOffices();
     this.loadReservations();
     this.loadReservation();
     this.loadProperty();
@@ -239,10 +248,7 @@ export class LeaseComponent extends BaseDocumentComponent implements OnInit, OnD
   }
 
   reloadLease(): void {
-    // Build array of observables to wait for
     const reloadObservables: Observable<any>[] = [];
-    
-    // Reload reservation data to get latest information
     if (this.reservationId) {
       reloadObservables.push(
         this.reservationService.getReservationByGuid(this.reservationId).pipe(take(1),
@@ -523,11 +529,21 @@ export class LeaseComponent extends BaseDocumentComponent implements OnInit, OnD
           // If coming from reservation but no reservation loaded yet, try to find office from reservationId
           // This will be handled when reservation loads
         }
-
       },
       error: () => {
         this.offices = [];
         this.availableOffices = [];
+      }
+    });
+  }
+  
+  loadAccountingOffices(): void {
+    this.accountingOfficeService.ensureAccountingOfficesLoaded().pipe(take(1), finalize(() => { this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'accountingOffices'); })).subscribe({
+      next: (accountingOffices) => {
+        this.accountingOffices = accountingOffices || [];
+      },
+      error: () => {
+        this.accountingOffices = [];
       }
     });
   }
@@ -636,9 +652,33 @@ export class LeaseComponent extends BaseDocumentComponent implements OnInit, OnD
       this.form.patchValue({ includeBusinessCreditApplication: false });
     }
   }
+
   //#endregion
 
   //#region Field Replacement Helpers
+  getAccountingOfficeAddress(): string {
+    if (!this.property) {
+      return '';
+    }
+
+    const ao = this.accountingOffices.find(a => a.officeId === this.property?.officeId);
+    const officeAddressSource = ao || this.selectedOffice;
+    if (!officeAddressSource) {
+      return '';
+    }
+
+    const address1 = String(officeAddressSource.address1 || '').trim();
+    const suite = String((officeAddressSource as any).suite || '').trim();
+    const address1WithSuite = suite ? `${address1}, ${suite}` : address1;
+    const parts = [
+      address1WithSuite,
+      officeAddressSource.city,
+      officeAddressSource.state,
+      officeAddressSource.zip
+    ].filter(p => p);
+    return parts.join(', ');
+  }
+
   getContactAddress(): string {
     if (!this.contact) return '';
     const isInternational = (this.contact as any).isInternational || false;
@@ -1214,6 +1254,7 @@ export class LeaseComponent extends BaseDocumentComponent implements OnInit, OnD
         referenceNo = this.selectedReservation.referenceNo;
       }
 
+      result = result.replace(/\{\{accountingOfficeAddress\}\}/g, this.getAccountingOfficeAddress());
       result = result.replace(/\{\{reservationCode\}\}/g, this.selectedReservation.reservationCode || '');
       result = result.replace(/\{\{responsibleParty\}\}/g, this.getResponsibleParty());
       result = result.replace(/\{\{responsiblePartyNoun\}\}/g, this.getResponsibleNoun());
@@ -1335,9 +1376,25 @@ export class LeaseComponent extends BaseDocumentComponent implements OnInit, OnD
   generatePreviewIframe(): void {
     const formReservationId = this.form.get('selectedReservationId')?.value;
     const shouldMerge = !!formReservationId;
+    console.log('[LeasePreview] generatePreviewIframe:start', {
+      shouldMerge,
+      formReservationId,
+      selectedReservationId: this.selectedReservation?.reservationId ?? null,
+      selectedOfficeId: this.selectedOffice?.officeId ?? null,
+      includeLease: this.includeLease,
+      includeLetterOfResponsibility: this.includeLetterOfResponsibility,
+      includeNoticeToVacate: this.includeNoticeToVacate,
+      includeCreditCardAuthorization: this.includeCreditCardAuthorization,
+      includeBusinessCreditApplication: this.includeBusinessCreditApplication,
+      includeRentalCreditApplication: this.includeRentalCreditApplication
+    });
 
     // If merge was requested but required merge context has not loaded yet, keep preview empty.
     if (shouldMerge && (!this.selectedOffice || !this.selectedReservation)) {
+      console.warn('[LeasePreview] blocked merge: missing merge context', {
+        hasSelectedOffice: !!this.selectedOffice,
+        hasSelectedReservation: !!this.selectedReservation
+      });
       this.previewIframeHtml = '';
       return;
     }
@@ -1345,6 +1402,14 @@ export class LeaseComponent extends BaseDocumentComponent implements OnInit, OnD
     // Load HTML files and process them
     this.loadHtmlFiles().pipe(take(1)).subscribe({
       next: (htmlFiles) => {
+        console.log('[LeasePreview] loadHtmlFiles:success', {
+          leaseLength: htmlFiles.lease?.length ?? 0,
+          letterOfResponsibilityLength: htmlFiles.letterOfResponsibility?.length ?? 0,
+          noticeToVacateLength: htmlFiles.noticeToVacate?.length ?? 0,
+          creditAuthorizationLength: htmlFiles.creditAuthorization?.length ?? 0,
+          creditApplicationLength: htmlFiles.creditApplication?.length ?? 0,
+          rentalCreditApplicationLength: htmlFiles.rentalCreditApplication?.length ?? 0
+        });
         // Get selected checkboxes
         const selectedDocuments: string[] = [];
 
@@ -1369,9 +1434,11 @@ export class LeaseComponent extends BaseDocumentComponent implements OnInit, OnD
 
         // If no documents selected, show empty
         if (selectedDocuments.length === 0) {
+          console.warn('[LeasePreview] no selected documents');
           this.previewIframeHtml = '';
           return;
         }
+        console.log('[LeasePreview] selected documents count', selectedDocuments.length);
 
         try {
       // If only one document selected, use it as-is
@@ -1445,10 +1512,12 @@ export class LeaseComponent extends BaseDocumentComponent implements OnInit, OnD
 
         this.processAndSetHtml(combinedHtml);
         } catch (error) {
+          console.error('[LeasePreview] processing error', error);
           this.previewIframeHtml = '';
         }
       },
-      error: () => {
+      error: (error) => {
+        console.error('[LeasePreview] loadHtmlFiles:error', error);
         this.previewIframeHtml = '';
       }
     });
@@ -1459,6 +1528,7 @@ export class LeaseComponent extends BaseDocumentComponent implements OnInit, OnD
   }
 
   processAndSetHtml(html: string): void {
+    console.log('[LeasePreview] processAndSetHtml:input length', html?.length ?? 0);
     const result = this.documentHtmlService.processHtml(html, true);
     this.previewIframeHtml = result.processedHtml;
     const leaseLogoStyles = `
@@ -1493,6 +1563,11 @@ export class LeaseComponent extends BaseDocumentComponent implements OnInit, OnD
     this.previewIframeStyles = `${result.extractedStyles}\n${leaseLogoStyles}`;
     this.safeHtml = this.sanitizer.bypassSecurityTrustHtml(result.processedHtml);
     this.iframeKey++; // Force iframe refresh
+    console.log('[LeasePreview] processAndSetHtml:output', {
+      processedHtmlLength: this.previewIframeHtml?.length ?? 0,
+      extractedStylesLength: this.previewIframeStyles?.length ?? 0,
+      iframeKey: this.iframeKey
+    });
   }
 
   loadHtmlFiles(): Observable<{ lease: string; letterOfResponsibility: string; noticeToVacate: string; creditAuthorization: string; creditApplication: string; rentalCreditApplication: string }> {
@@ -1641,7 +1716,6 @@ export class LeaseComponent extends BaseDocumentComponent implements OnInit, OnD
 
   ngOnDestroy(): void {
     this.officesSubscription?.unsubscribe();
-    this.contactsSubscription?.unsubscribe();
     this.leaseReloadSubscription?.unsubscribe();
     this.itemsToLoad$.complete();
   }

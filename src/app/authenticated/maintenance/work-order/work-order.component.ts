@@ -1083,7 +1083,7 @@ export class WorkOrderComponent implements OnInit, OnChanges, OnDestroy {
       return;
     }
 
-    this.accountingOfficeService.ensureAccountingOfficesLoaded(this.organizationId).pipe(takeUntil(this.destroy$), take(1), finalize(() => { this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'workOrderNumber'); })).subscribe(list => {
+    this.accountingOfficeService.ensureAccountingOfficesLoaded().pipe(takeUntil(this.destroy$), take(1), finalize(() => { this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'workOrderNumber'); })).subscribe(list => {
       const office = (list || []).find(o => Number(o.officeId) === this.property?.officeId) ?? null;
       this.applyAccountingOfficeSequenceFromOffice(office);
     });

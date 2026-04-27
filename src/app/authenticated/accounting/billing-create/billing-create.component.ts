@@ -371,8 +371,7 @@ export class BillingCreateComponent extends BaseDocumentComponent implements OnI
       return;
     }
 
-    const orgId = this.billingOrganization.organizationId.trim();
-    this.accountingOfficeService.ensureAccountingOfficesLoaded(orgId).pipe(take(1), finalize(() => this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'accountingOffice'))).subscribe({
+    this.accountingOfficeService.ensureAccountingOfficesLoaded().pipe(take(1), finalize(() => this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'accountingOffice'))).subscribe({
       next: (offices: AccountingOfficeResponse[]) => {
         const list = offices || [];
         const preferredOfficeId = this.selectedInvoice?.officeId || 1;
