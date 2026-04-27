@@ -931,12 +931,14 @@ export class LeaseComponent extends BaseDocumentComponent implements OnInit, OnD
 
     return contacts.map(contact => {
       const responsibleParty = this.escapeHtml(this.utilityService.getResponsibleParty(this.selectedReservation, contact));
-      const responsiblePartyAddress1 = this.escapeHtml(this.utilityService.getResponsiblePartyAddress1(this.selectedReservation, contact));
-      const responsiblePartyAddress2 = this.escapeHtml(this.utilityService.getResponsiblePartyAddress2(this.selectedReservation, contact));
+      const responsiblePartyAddress1Raw = this.utilityService.getResponsiblePartyAddress1(this.selectedReservation, contact);
+      const responsiblePartyAddress2Raw = this.utilityService.getResponsiblePartyAddress2(this.selectedReservation, contact);
+      const responsiblePartyAddress1 = this.escapeHtml(responsiblePartyAddress1Raw);
+      const responsiblePartyAddress2 = this.escapeHtml(responsiblePartyAddress2Raw);
+      const responsiblePartyAddressSingleLine = [responsiblePartyAddress1, responsiblePartyAddress2].filter(part => part).join(', ');
       const responsiblePartyPhone = this.escapeHtml(this.utilityService.getResponsiblePartyPhone(contact));
       const responsiblePartyEmail = this.escapeHtml(this.utilityService.getResponsiblePartyEmail(contact));
-      const responsiblePartyAddressSingleLine = [responsiblePartyAddress1, responsiblePartyAddress2].filter(part => part).join(', ');
-      const useSingleAddressLine = responsiblePartyAddressSingleLine.length <= 47;
+      const useSingleAddressLine = this.utilityService.isAddressSingleLine("Address:", responsiblePartyAddress1Raw, responsiblePartyAddress2Raw);
 
       return [
         `<span style="font-weight: bold">Name(s):</span> ${responsibleParty}<br>`,

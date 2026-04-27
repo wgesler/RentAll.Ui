@@ -13,6 +13,8 @@ export type CalendarDateString = string;
   providedIn: 'root'
 })
 export class UtilityService {
+  private measurementCanvas: HTMLCanvasElement | null = null;
+
   constructor(private formatterService: FormatterService) { }
 
   //#region To/From the API (calendar / DateOnly)
@@ -253,6 +255,36 @@ export class UtilityService {
       newSet.delete(key);
       itemsToLoad$.next(newSet);
     }
+  }
+  //#endregion
+
+  //#region Text/layout helpers
+  isAddressSingleLine(label: string, address1: string | null | undefined, address2: string | null | undefined): boolean {
+    const singleLine = [String(address1 || '').trim(), String(address2 || '').trim()].filter(part => part.length > 0).join(', ');
+    return !singleLine || this.measureTextWidthPx(`${String(label || '').trim()} ${singleLine}`.trim(), "10pt arial, sans-serif") <= 315;
+  }
+
+  measureTextWidthPx(text: string, font: string = "10pt arial, sans-serif"): number {
+    const value = String(text || "");
+    if (!value) {
+      return 0;
+    }
+
+    if (typeof document === "undefined") {
+      return value.length * 7;
+    }
+
+    if (!this.measurementCanvas) {
+      this.measurementCanvas = document.createElement("canvas");
+    }
+
+    const context = this.measurementCanvas.getContext("2d");
+    if (!context) {
+      return value.length * 7;
+    }
+
+    context.font = font;
+    return context.measureText(value).width;
   }
   //#endregion
 

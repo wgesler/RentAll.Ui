@@ -1087,12 +1087,14 @@ export class InvoiceCreateComponent extends BaseDocumentComponent implements OnI
     return contacts.map(contact => {
       var pContact = this.contacts.find(c => c.contactId === this.selectedReservation.companyId) ?? contact;
       const responsibleParty = this.escapeHtml(this.utilityService.getResponsibleParty(this.selectedReservation, pContact));
-      const responsiblePartyAddress1 = this.escapeHtml(this.utilityService.getResponsiblePartyAddress1(this.selectedReservation, pContact));
-      const responsiblePartyAddress2 = this.escapeHtml(this.utilityService.getResponsiblePartyAddress2(this.selectedReservation, pContact));
+      const responsiblePartyAddress1Raw = this.utilityService.getResponsiblePartyAddress1(this.selectedReservation, pContact);
+      const responsiblePartyAddress2Raw = this.utilityService.getResponsiblePartyAddress2(this.selectedReservation, pContact);
+      const responsiblePartyAddress1 = this.escapeHtml(responsiblePartyAddress1Raw);
+      const responsiblePartyAddress2 = this.escapeHtml(responsiblePartyAddress2Raw);
+      const responsiblePartyAddressSingleLine = [responsiblePartyAddress1, responsiblePartyAddress2].filter(part => part).join(', ');
       const responsiblePartyOccupant = this.escapeHtml(this.selectedReservation.tenantName);
       const responsiblePartyRefNo = this.escapeHtml(this.selectedReservation.referenceNo);
-      const responsiblePartyAddressSingleLine = [responsiblePartyAddress1, responsiblePartyAddress2].filter(part => part).join(', ');
-      const useSingleAddressLine = responsiblePartyAddressSingleLine.length <= 47;
+      const useSingleAddressLine = this.utilityService.isAddressSingleLine("Address:", responsiblePartyAddress1Raw, responsiblePartyAddress2Raw);
 
       return [
         `<span style="font-weight: bold">Client:</span> ${responsibleParty}<br>`,
@@ -1110,12 +1112,14 @@ export class InvoiceCreateComponent extends BaseDocumentComponent implements OnI
     if (!this.property) 
       return '';
   
-    const propertyAddress1 = this.escapeHtml(this.getPropertyAddress1());
-    const propertyAddress2 = this.escapeHtml(this.getPropertyAddress2());
+    const propertyAddress1Raw = this.getPropertyAddress1();
+    const propertyAddress2Raw = this.getPropertyAddress2();
+    const propertyAddress1 = this.escapeHtml(propertyAddress1Raw);
+    const propertyAddress2 = this.escapeHtml(propertyAddress2Raw);
+    const propertyAddressSingleLine = [propertyAddress1, propertyAddress2].filter(part => part).join(', ');
     const propertyCode = this.escapeHtml(this.property.propertyCode || '');
     const billingType = this.escapeHtml(getBillingMethod(this.selectedReservation?.billingMethodId));
-    const propertyAddressSingleLine = [propertyAddress1, propertyAddress2].filter(part => part).join(', ');
-    const useSingleAddressLine = propertyAddressSingleLine.length <= 47;
+    const useSingleAddressLine = this.utilityService.isAddressSingleLine("Property Address:", propertyAddress1Raw, propertyAddress2Raw);
 
     return [
       `<span style="font-weight: bold">Property Code:</span> ${propertyCode}<br>`,

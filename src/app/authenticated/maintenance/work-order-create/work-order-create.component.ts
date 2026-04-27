@@ -450,7 +450,7 @@ export class WorkOrderCreateComponent extends BaseDocumentComponent implements O
 
     result = result.replace(/\{\{officeLogoBase64\}\}/g, officeLogoDataUrl || '');
     result = result.replace(/\{\{orgLogoBase64\}\}/g, officeLogoDataUrl || '');
-    result = result.replace(/\{\{accountingOfficeName\}\}/g, this.selectedAccountingOffice.name);
+    result = result.replace(/\{\{accountingOfficeName\}\}/g, this.selectedAccountingOffice?.name || '');
     result = result.replace(/\{\{accountingOfficeAddress\}\}/g, this.getAccountingOfficeAddress() || '');
     result = result.replace(/\{\{accountingOfficeCityStateZip\}\}/g, `${this.selectedAccountingOffice?.city || ''}, ${this.selectedAccountingOffice?.state || ''} ${this.selectedAccountingOffice?.zip || ''}`.trim());
     result = result.replace(/\{\{accountingOfficeEmail\}\}/g, this.selectedAccountingOffice?.email || '');
@@ -822,35 +822,28 @@ export class WorkOrderCreateComponent extends BaseDocumentComponent implements O
   }
 
   getResponsiblePartiesBlock(): string {
-    if (!this.selectedContact)
-    {
+    const isOrganizationWorkOrder = this.workOrder?.workOrderTypeId === WorkOrderType.Organization;
+    if (isOrganizationWorkOrder || !this.selectedContact) {
       const responsibleParty = this.escapeHtml(this.organization?.name || '');
-      const responsiblePartyAddress1 = this.escapeHtml(this.getOrganizationAddress1());
-      const responsiblePartyAddress2 = this.escapeHtml(this.getOrganizationAddress2());
-      const responsiblePartyAddressSingleLine = [responsiblePartyAddress1, responsiblePartyAddress2].filter(part => part).join(', ');
-      const useSingleAddressLine = responsiblePartyAddressSingleLine.length <= 47;
-
       return [
         `<span style="font-weight: bold">Client:</span> ${responsibleParty}<br>`,
         ].join('');
     }
-    else 
-    {
-      var pContact = this.contacts.find(c => c.contactId === this.selectedReservation.companyId) ?? this.selectedContact;
+    else {
+      const pContact = this.contacts.find(c => c.contactId === this.selectedReservation?.companyId) ?? this.selectedContact;
       const responsibleParty = this.escapeHtml(this.utilityService.getResponsibleParty(this.selectedReservation, pContact));
       const responsiblePartyAddress1 = this.escapeHtml(this.utilityService.getResponsiblePartyAddress1(this.selectedReservation, pContact));
       const responsiblePartyAddress2 = this.escapeHtml(this.utilityService.getResponsiblePartyAddress2(this.selectedReservation, pContact));
-      const responsiblePartyOccupant = this.escapeHtml(this.selectedReservation.tenantName);
+      const responsiblePartyOccupant = this.escapeHtml(this.selectedReservation?.tenantName || '');
       const responsiblePartyRefNo = this.escapeHtml(this.selectedReservation?.referenceNo || '');
-      const responsiblePartyAddressSingleLine = [responsiblePartyAddress1, responsiblePartyAddress2].filter(part => part).join(', ');
-      const useSingleAddressLine = responsiblePartyAddressSingleLine.length <= 47;
+      const useSingleAddressLine = this.utilityService.isAddressSingleLine("Address:", responsiblePartyAddress1, responsiblePartyAddress2);
 
       return [
         `<span style="font-weight: bold">Client:</span> ${responsibleParty}<br>`,
         useSingleAddressLine
-          ? `<span style="font-weight: bold">Address:</span> ${responsiblePartyAddressSingleLine}<br>`
+          ? `<span style="font-weight: bold">Address:</span> ${responsiblePartyAddress1}, ${responsiblePartyAddress2}<br>`
           : `<span style="font-weight: bold">Address:</span> ${responsiblePartyAddress1}<br>`,
-        ...(!useSingleAddressLine && responsiblePartyAddress2 ? [`&nbsp;&nbsp;&nbsp;&nbsp;${responsiblePartyAddress2}<br>`] : []),
+        ...(responsiblePartyAddress2 ? [`&nbsp;&nbsp;&nbsp;&nbsp;${responsiblePartyAddress2}<br>`] : []),
         ...(responsiblePartyOccupant ? [`<span style="font-weight: bold">Occupant:</span> ${responsiblePartyOccupant}<br>`] : []),
         ...(responsiblePartyRefNo ? [`<span style="font-weight: bold">Ref No:</span> ${responsiblePartyRefNo}<br>`] : [])
       ].join('');
@@ -865,14 +858,14 @@ export class WorkOrderCreateComponent extends BaseDocumentComponent implements O
     const propertyAddress2 = this.escapeHtml(this.getPropertyAddress2());
     const propertyCode = this.escapeHtml(this.property.propertyCode || '');
     const billingType = this.escapeHtml(getBillingMethod(this.selectedReservation?.billingMethodId));
-    const propertyAddressSingleLine = [propertyAddress1, propertyAddress2].filter(part => part).join(', ');
-    const useSingleAddressLine = propertyAddressSingleLine.length <= 47;
+    const useSingleAddressLine = this.utilityService.isAddressSingleLine("Address:", propertyAddress1, propertyAddress2);
+
     return [
       `<span style="font-weight: bold">Property Code:</span> ${propertyCode}<br>`,
       useSingleAddressLine
-        ? `<span style="font-weight: bold">Property Address:</span> ${propertyAddressSingleLine}<br>`
-        : `<span style="font-weight: bold">Property Address:</span> ${propertyAddress1}<br>`,
-      ...(!useSingleAddressLine && propertyAddress2 ? [`&nbsp;&nbsp;&nbsp;&nbsp;${propertyAddress2}<br>`] : []),
+        ? `<span style="font-weight: bold">Address:</span> ${propertyAddress1}, ${propertyAddress2}<br>`
+        : `<span style="font-weight: bold">Address:</span> ${propertyAddress1}<br>`,
+      ...(propertyAddress2 ? [`&nbsp;&nbsp;&nbsp;&nbsp;${propertyAddress2}<br>`] : []),
       ...(billingType ? [`<span style="font-weight: bold">Billing Type:</span> ${billingType}<br>`] : [])
     ].join('');
   }
@@ -919,7 +912,11 @@ export class WorkOrderCreateComponent extends BaseDocumentComponent implements O
   }
 
   getThankYou() {
-    return this.workOrder.workOrderTypeId == WorkOrderType.Owner ?  '' : `Thank you for staying with ${this.selectedAccountingOffice.name}.`;
+    if (!this.workOrder || this.workOrder.workOrderTypeId !== WorkOrderType.Tenant) {
+      return '';
+    }
+    const officeName = this.selectedAccountingOffice?.name || '';
+    return officeName ? `Thank you for staying with ${officeName}.` : '';
   }
   
   getPrimaryResponsibleContact(): ContactResponse | null {
