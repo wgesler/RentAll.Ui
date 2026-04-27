@@ -1127,16 +1127,16 @@ export class ReservationComponent implements OnInit, OnDestroy, CanComponentDeac
   }
 
   setupReservationTypeHandler(): void {
-    this.form.get('reservationTypeId')?.valueChanges.pipe(takeUntil(this.destroy$)).subscribe(reservationTypeId => {
-      // Filter statuses and contacts based on reservation type
+    const reservationTypeControl = this.form.get('reservationTypeId');
+    reservationTypeControl?.valueChanges.pipe(startWith(reservationTypeControl.value), pairwise(), takeUntil(this.destroy$)).subscribe(([previousReservationTypeId, reservationTypeId]) => {
       this.updateReservationStatusesByReservationType();
       this.updateContactsByReservationType();
       this.applyDefaultProrateTypeByReservationType(reservationTypeId);
       this.applyDefaultDepositTypeByReservationType(reservationTypeId);
       this.updateEnabledFieldsByReservationType();
 
-      // When reservation type changes, always clear contact-related fields
-      this.form.patchValue({ 
+      const shouldPreserveContactId = this.isIndividualPlatformReservationTypeChange(previousReservationTypeId as number | null, reservationTypeId as number | null);
+      this.form.patchValue({
         contactPhone: '',
         contactEmail: '',
         phone: '',
@@ -1145,11 +1145,18 @@ export class ReservationComponent implements OnInit, OnDestroy, CanComponentDeac
         companyContact: '',
         tenantName: '',
         referenceNo: '',
-        contactId: ''
+        contactId: shouldPreserveContactId ? this.form.get('contactId')?.value || '' : ''
       }, { emitEvent: false });
-      
-      // Clear selected contact reference
-      this.selectedContact = null;
+
+      // Clear selected contact reference except Individual <-> Platform switches.
+      if (shouldPreserveContactId) {
+        const preservedContactId = (this.form.get('contactId')?.value || '').toString().trim();
+        this.selectedContact = preservedContactId
+          ? this.contacts.find(contact => contact.contactId === preservedContactId) || null
+          : null;
+      } else {
+        this.selectedContact = null;
+      }
       this.additionalContactRows = [];
       this.updateContactFields();
     });
@@ -1780,6 +1787,17 @@ export class ReservationComponent implements OnInit, OnDestroy, CanComponentDeac
   get showCompanyRow(): boolean {
     const reservationTypeId = this.form?.get('reservationTypeId')?.value as number | null;
     return reservationTypeId === ReservationType.Platform;
+  }
+
+  isIndividualPlatformReservationTypeChange(
+    previousReservationTypeId: number | null,
+    currentReservationTypeId: number | null
+  ): boolean {
+    const isPreviousIndividualOrPlatform =
+      previousReservationTypeId === ReservationType.Individual || previousReservationTypeId === ReservationType.Platform;
+    const isCurrentIndividualOrPlatform =
+      currentReservationTypeId === ReservationType.Individual || currentReservationTypeId === ReservationType.Platform;
+    return isPreviousIndividualOrPlatform && isCurrentIndividualOrPlatform;
   }
 
   get isOwnerReservationType(): boolean {
