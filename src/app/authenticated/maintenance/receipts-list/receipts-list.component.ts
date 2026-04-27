@@ -175,7 +175,7 @@ export class ReceiptsListComponent implements OnInit, OnChanges {
           fd?.dataUrl ||
           (fd?.file && fd?.contentType ? `data:${fd.contentType};base64,${fd.file}` : null);
         if (!imageSrc) {
-          this.toastr.warning('Receipt image is not available.', 'Receipt');
+          this.toastr.warning('Receipt file is not available.', 'Receipt');
           return;
         }
         const data: ImageViewDialogData = { imageSrc, title: 'Receipt' };

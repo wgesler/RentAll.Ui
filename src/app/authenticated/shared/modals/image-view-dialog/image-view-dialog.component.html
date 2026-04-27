@@ -5,18 +5,34 @@
     }
   </div>
   <mat-dialog-content class="image-view-dialog-content">
-    <div class="image-view-zoom-wrapper">
-      <img [src]="data.imageSrc" alt="Image" class="image-view-img" [style.transform]="'scale(' + zoomScale + ')'" />
-    </div>
-    <div class="image-view-zoom-controls">
-      <button mat-icon-button type="button" (click)="zoomOut()" [disabled]="zoomScale <= minZoom" aria-label="Zoom out">
-        <mat-icon>zoom_out</mat-icon>
-      </button>
-      <span class="image-view-zoom-label">{{ (zoomScale * 100) | number:'1.0-0' }}%</span>
-      <button mat-icon-button type="button" (click)="zoomIn()" [disabled]="zoomScale >= maxZoom" aria-label="Zoom in">
-        <mat-icon>zoom_in</mat-icon>
-      </button>
-    </div>
+    @if (isPdf) {
+      <div class="image-view-pdf-wrapper">
+        @if (isLoadingPdfThumbnail) {
+          <div class="image-view-pdf-loading">
+            <mat-spinner [diameter]="40"></mat-spinner>
+          </div>
+        } @else if (pdfThumbnailSrc) {
+          <img [src]="pdfThumbnailSrc" alt="PDF first page preview" class="image-view-pdf-thumbnail-img" />
+        } @else {
+          <div class="image-view-pdf-loading">
+            <span class="text-sm">Unable to render PDF preview.</span>
+          </div>
+        }
+      </div>
+    } @else {
+      <div class="image-view-zoom-wrapper">
+        <img [src]="data.imageSrc" alt="Image" class="image-view-img" [style.transform]="'scale(' + zoomScale + ')'" />
+      </div>
+      <div class="image-view-zoom-controls">
+        <button mat-icon-button type="button" (click)="zoomOut()" [disabled]="zoomScale <= minZoom" aria-label="Zoom out">
+          <mat-icon>zoom_out</mat-icon>
+        </button>
+        <span class="image-view-zoom-label">{{ (zoomScale * 100) | number:'1.0-0' }}%</span>
+        <button mat-icon-button type="button" (click)="zoomIn()" [disabled]="zoomScale >= maxZoom" aria-label="Zoom in">
+          <mat-icon>zoom_in</mat-icon>
+        </button>
+      </div>
+    }
   </mat-dialog-content>
   <mat-dialog-actions class="image-view-dialog-actions">
     <button mat-raised-button color="primary" (click)="close()">Close</button>

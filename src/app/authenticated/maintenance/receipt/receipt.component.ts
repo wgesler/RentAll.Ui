@@ -10,6 +10,7 @@ import { FileDetails } from '../../documents/models/document.model';
 import { FormatterService } from '../../../services/formatter-service';
 import { MaterialModule } from '../../../material.module';
 import { AuthService } from '../../../services/auth.service';
+import { PdfThumbnailService } from '../../../services/pdf-thumbnail.service';
 import { UtilityService } from '../../../services/utility.service';
 import { PropertyListResponse, PropertyResponse } from '../../properties/models/property.model';
 import { PropertyService } from '../../properties/services/property.service';
@@ -45,6 +46,7 @@ export class ReceiptComponent implements OnInit, OnDestroy {
   receiptPreviewDataUrl: string | null = null;
   receiptFileName: string | null = null;
   receiptFileDetails: FileDetails | null = null;
+  receiptPdfThumbnailUrl: string | null = null;
   hasNewReceiptUpload: boolean = false;
   originalReceiptPath: string | null = null;
   /** When true, amount input shows raw value for editing (no $); when false, shows getAmountDisplay() with $ prefix. */
@@ -69,6 +71,7 @@ export class ReceiptComponent implements OnInit, OnDestroy {
     private router: Router,
     private propertyService: PropertyService,
     private utilityService: UtilityService,
+    private pdfThumbnailService: PdfThumbnailService,
     public formatter: FormatterService,
     private toastr: ToastrService
   ) {
@@ -118,9 +121,9 @@ export class ReceiptComponent implements OnInit, OnDestroy {
       return;
     }
 
-    const hasReceiptImage = !!(this.receiptFileDetails?.file) || !!(this.form.get('receiptPath')?.value) || !!(this.receipt?.receiptPath);
-    if (!hasReceiptImage) {
-      this.toastr.warning('A receipt image is required before saving.', 'Receipt required');
+    const hasReceiptFile = !!(this.receiptFileDetails?.file) || !!(this.form.get('receiptPath')?.value) || !!(this.receipt?.receiptPath);
+    if (!hasReceiptFile) {
+      this.toastr.warning('A receipt file is required before saving.', 'Receipt required');
       return;
     }
 
@@ -199,8 +202,10 @@ export class ReceiptComponent implements OnInit, OnDestroy {
           this.receiptPreviewDataUrl = saved.fileDetails.dataUrl
             || `data:${saved.fileDetails.contentType};base64,${saved.fileDetails.file}`;
           this.receiptFileName = saved.fileDetails.fileName || this.extractFileName(saved.receiptPath || '');
+          this.setReceiptPdfThumbnail(this.receiptPreviewDataUrl, saved.fileDetails.contentType);
         } else {
           this.receiptPreviewDataUrl = null;
+          this.receiptPdfThumbnailUrl = null;
           this.receiptFileName = this.extractFileName(saved.receiptPath || '');
         }
         this.hasNewReceiptUpload = false;
@@ -252,8 +257,10 @@ export class ReceiptComponent implements OnInit, OnDestroy {
     if (receipt.fileDetails?.file && receipt.fileDetails?.contentType) {
       this.receiptPreviewDataUrl = receipt.fileDetails.dataUrl || `data:${receipt.fileDetails.contentType};base64,${receipt.fileDetails.file}`;
       this.receiptFileName = receipt.fileDetails.fileName || this.extractFileName(receipt.receiptPath || '');
+      this.setReceiptPdfThumbnail(this.receiptPreviewDataUrl, receipt.fileDetails.contentType);
     } else {
       this.receiptPreviewDataUrl = null;
+      this.receiptPdfThumbnailUrl = null;
       this.receiptFileName = this.extractFileName(receipt.receiptPath || '');
     }
   }
@@ -354,6 +361,7 @@ export class ReceiptComponent implements OnInit, OnDestroy {
         dataUrl: optimizedDataUrl
       };
       this.receiptPreviewDataUrl = optimizedDataUrl;
+      this.setReceiptPdfThumbnail(optimizedDataUrl, optimizedBlob.type || file.type || '');
       this.receiptFileName = optimizedName;
       this.hasNewReceiptUpload = true;
       this.form.patchValue({ receiptPath: '' });
@@ -367,6 +375,7 @@ export class ReceiptComponent implements OnInit, OnDestroy {
         dataUrl: originalDataUrl
       };
       this.receiptPreviewDataUrl = originalDataUrl;
+      this.setReceiptPdfThumbnail(originalDataUrl, file.type || '');
       this.receiptFileName = file.name;
       this.hasNewReceiptUpload = true;
       this.form.patchValue({ receiptPath: '' });
@@ -516,6 +525,7 @@ export class ReceiptComponent implements OnInit, OnDestroy {
       this.receipt.fileDetails = null;
     }
     this.receiptPreviewDataUrl = null;
+    this.receiptPdfThumbnailUrl = null;
     this.receiptFileName = null;
     this.receiptFileDetails = null;
     this.hasNewReceiptUpload = false;
@@ -525,6 +535,42 @@ export class ReceiptComponent implements OnInit, OnDestroy {
     if (!path) return null;
     const parts = path.split(/[\\/]/);
     return parts.length ? parts[parts.length - 1] : null;
+  }
+
+  isReceiptPreviewPdf(): boolean {
+    const contentType = this.getReceiptPreviewContentType();
+    return contentType === 'application/pdf';
+  }
+
+  getReceiptPreviewContentType(): string {
+    const previewDataUrl = (this.receiptPreviewDataUrl || '').trim();
+    const dataUrlMatch = previewDataUrl.match(/^data:([^;]+);/i);
+    if (dataUrlMatch?.[1]) {
+      return dataUrlMatch[1].toLowerCase();
+    }
+
+    const detailsContentType = (this.receiptFileDetails?.contentType || '').trim().toLowerCase();
+    if (detailsContentType) {
+      return detailsContentType;
+    }
+
+    const fileName = (this.receiptFileName || '').trim().toLowerCase();
+    if (fileName.endsWith('.pdf')) {
+      return 'application/pdf';
+    }
+
+    return '';
+  }
+
+  setReceiptPdfThumbnail(dataUrl: string | null, contentType: string | null): void {
+    if (!dataUrl || !contentType?.toLowerCase().includes('pdf')) {
+      this.receiptPdfThumbnailUrl = null;
+      return;
+    }
+    this.receiptPdfThumbnailUrl = null;
+    this.pdfThumbnailService.getFirstPageDataUrl(dataUrl).then(url => {
+      this.receiptPdfThumbnailUrl = url;
+    });
   }
 
   onAmountKeydown(event: Event): void {
@@ -693,21 +739,31 @@ export class ReceiptComponent implements OnInit, OnDestroy {
     const splitGroup = this.splitsFormArray.at(0) as FormGroup;
     const splitAmountControl = splitGroup.get('amount');
     const splitDescriptionControl = splitGroup.get('description');
-    const splitAmountRaw = this.sanitizeSignedDecimalInput(splitAmountControl?.value?.toString() ?? '');
-    const splitAmount = parseFloat(splitAmountRaw) || 0;
+    const splitAmountRaw = this.sanitizeSignedDecimalInput(splitAmountControl?.value?.toString() ?? '').trim();
+    const splitAmountValue = parseFloat(splitAmountRaw);
     const splitDescription = (splitDescriptionControl?.value || '').trim();
     const splitWorkOrder = (splitGroup.get('workOrder')?.value || '').trim();
-    const isBlankInitialSplit = splitAmount <= 0 && !splitDescription && !splitWorkOrder;
+    if (splitWorkOrder) {
+      return;
+    }
 
-    if (!isBlankInitialSplit) {
+    const overallAmount = this.getReceiptAmountValue().toFixed(2);
+    const overallDescription = (this.form.get('description')?.value || '').trim();
+    const patch: { amount?: string; description?: string } = {};
+
+    const isSplitAmountEmptyOrZero = !splitAmountRaw || !Number.isFinite(splitAmountValue) || Math.abs(splitAmountValue) < 0.000001;
+    if (isSplitAmountEmptyOrZero && overallAmount) {
+      patch.amount = overallAmount;
+    }
+    if (!splitDescription && overallDescription) {
+      patch.description = overallDescription;
+    }
+    if (Object.keys(patch).length === 0) {
       return;
     }
 
     this.isSyncingInitialSplit = true;
-    splitGroup.patchValue({
-      amount: this.getReceiptAmountValue().toFixed(2),
-      description: (this.form.get('description')?.value || '').trim()
-    }, { emitEvent: false });
+    splitGroup.patchValue(patch, { emitEvent: false });
     this.isSyncingInitialSplit = false;
   }
 

@@ -664,6 +664,7 @@ export class WorkOrderCreateComponent extends BaseDocumentComponent implements O
       const description = this.escapeHtml(this.getShortReceiptDescription(receipt.description));
       const amount = this.escapeHtml(this.formatter.currencyUsd(receipt.amount ?? 0));
       const imageSrc = this.getReceiptImageSrc(receipt);
+      const pdfSrc = this.getReceiptPdfSrc(receipt);
       const receiptSummaryLine = `<p style="text-align: left; margin: 0 0 8px; font-size: 10pt; line-height: 1.4;">
       <span style="font-weight: 700;">Receipt Description:</span>
       <span style="font-weight: 400;">${description}</span>
@@ -672,7 +673,9 @@ export class WorkOrderCreateComponent extends BaseDocumentComponent implements O
     </p>`;
       const imageHtml = imageSrc
         ? `<img src="${imageSrc}" alt="Receipt #${receipt.receiptId}" style="max-width: 100%; max-height: 3.8in; display: block; margin-top: 6px; border: 1px solid #ddd;">`
-        : '<div style="margin-top: 12px; padding: 12px; border: 1px dashed #ccc; color: #666; font-size: 10pt;">No uploaded receipt image available.</div>';
+        : (pdfSrc
+          ? `<embed src="${pdfSrc}" type="application/pdf" style="width: 100%; height: 3.8in; display: block; margin-top: 6px; border: 1px solid #ddd;" />`
+          : '<div style="margin-top: 12px; padding: 12px; border: 1px dashed #ccc; color: #666; font-size: 10pt;">No uploaded receipt image available.</div>');
 
       return `<div style="padding: 8px 10px 10px;">
   ${receiptSummaryLine}
@@ -743,6 +746,11 @@ export class WorkOrderCreateComponent extends BaseDocumentComponent implements O
     return rawSrc.startsWith('data:image/') ? rawSrc : '';
   }
 
+  getReceiptPdfSrc(receipt: ReceiptResponse): string {
+    const rawSrc = this.getRawReceiptImageSrc(receipt);
+    return rawSrc.startsWith('data:application/pdf;') ? rawSrc : '';
+  }
+
   getRawReceiptImageSrc(receipt: ReceiptResponse): string {
     const dataUrl = receipt.fileDetails?.dataUrl;
     if (typeof dataUrl === 'string' && dataUrl.trim() !== '') {
@@ -771,7 +779,7 @@ export class WorkOrderCreateComponent extends BaseDocumentComponent implements O
 
   withReceiptDataUrl(receipt: ReceiptResponse): ReceiptResponse {
     const dataUrl = this.getRawReceiptImageSrc(receipt);
-    if (!dataUrl.startsWith('data:image/')) {
+    if (!dataUrl.startsWith('data:image/') && !dataUrl.startsWith('data:application/pdf;')) {
       return receipt;
     }
     const base64Payload = dataUrl.split(',')[1] || '';
@@ -789,7 +797,7 @@ export class WorkOrderCreateComponent extends BaseDocumentComponent implements O
 
   normalizeImageDataUrl(dataUrl: string): string | null {
     const value = (dataUrl || '').trim();
-    const match = value.match(/^data:(image\/[a-z0-9.+-]+);base64,(.+)$/i);
+    const match = value.match(/^data:((?:image\/[a-z0-9.+-]+)|(?:application\/pdf));base64,(.+)$/i);
     if (!match) {
       return null;
     }
