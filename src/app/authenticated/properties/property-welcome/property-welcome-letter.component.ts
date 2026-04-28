@@ -561,6 +561,8 @@ export class PropertyWelcomeLetterComponent extends BaseDocumentComponent implem
       result = result.replace(/\{\{internetService\}\}/g, this.propertyLetter.internetService || '');
       result = result.replace(/\{\{keyReturn\}\}/g, this.propertyLetter.keyReturn || '');
       result = result.replace(/\{\{concierge\}\}/g, this.propertyLetter.concierge || '');
+      result = result.replace(/\{\{additionalNotesLine\}\}/g, this.getAdditionalNotesLine());
+      result = this.applyOptionalCodePlaceholder(result, 'additionalNotes', this.propertyLetter.additionalNotes);
     }
 
     if (this.selectedOffice) {
@@ -695,6 +697,14 @@ export class PropertyWelcomeLetterComponent extends BaseDocumentComponent implem
     }
     
     return 'N/A';
+  }
+
+  getAdditionalNotesLine(): string {
+    const additionalNotes = (this.propertyLetter?.additionalNotes || '').trim();
+    if (!additionalNotes) {
+      return '';
+    }
+    return `<p><span class="label">Additional Notes:</span> ${this.escapeHtml(additionalNotes)}</p>`;
   }
 
   getUnitFloorLevel(): string {  

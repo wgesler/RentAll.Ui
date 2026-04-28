@@ -2568,13 +2568,15 @@ export class InspectionComponent implements OnChanges, OnDestroy, OnInit {
   get propertyAddress(): string {
     if (!this.property) return 'N/A';
 
+    const suitePart = String(this.property.suite ?? '').trim();
     const parts = [
       this.property.address1,
       this.property.address2,
+      suitePart ? `#${suitePart.replace(/^#/, '')}` : '',
       this.property.city,
       this.property.state,
       this.property.zip
-    ].filter(Boolean);
+    ].map(part => String(part ?? '').trim()).filter(part => part.length > 0);
 
     return parts.length > 0 ? parts.join(', ') : 'N/A';
   }
