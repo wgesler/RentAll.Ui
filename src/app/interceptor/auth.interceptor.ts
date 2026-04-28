@@ -40,21 +40,33 @@ function extractApiErrorMessage(error: HttpErrorResponse): string | null {
 
     const title = (errorData as any).title;
     if (typeof title === 'string' && title.trim()) {
+      const detail = (errorData as any).detail;
+      if (typeof detail === 'string' && detail.trim()) {
+        return `${title.trim()}: ${detail.trim()}`;
+      }
       return title.trim();
+    }
+
+    const detailOnly = (errorData as any).detail;
+    if (typeof detailOnly === 'string' && detailOnly.trim()) {
+      return detailOnly.trim();
     }
 
     const errors = (errorData as any).errors;
     if (errors && typeof errors === 'object') {
+      const flattened: string[] = [];
       for (const key of Object.keys(errors)) {
         const value = errors[key];
         if (Array.isArray(value)) {
-          const first = value.find(item => typeof item === 'string' && item.trim());
-          if (first) {
-            return first.trim();
-          }
+          flattened.push(...value
+            .filter(item => typeof item === 'string' && item.trim())
+            .map(item => `${key}: ${String(item).trim()}`));
         } else if (typeof value === 'string' && value.trim()) {
-          return value.trim();
+          flattened.push(`${key}: ${value.trim()}`);
         }
+      }
+      if (flattened.length > 0) {
+        return flattened.join(' | ');
       }
     }
   }
@@ -70,10 +82,17 @@ function showErrorToast(error: HttpErrorResponse, toastrService: ToastrService, 
     return;
   }
   
-  // Fallback: if no API message but we need to show something (e.g., 500 without message)
-  if (appendTryAgain) {
-    toastrService.error(CommonMessage.Unexpected + CommonMessage.TryAgain, title);
-  }
+  // Temporary debug-friendly fallback so we can see what backend actually returned.
+  const raw = typeof error.error === 'string'
+    ? error.error
+    : (error.error ? JSON.stringify(error.error) : '');
+  const snippet = raw && raw.length > 280 ? `${raw.slice(0, 280)}...` : raw;
+  const statusPart = error.status ? `HTTP ${error.status}${error.statusText ? ` ${error.statusText}` : ''}` : CommonMessage.Unexpected;
+  const composed = snippet
+    ? `${statusPart}: ${snippet}`
+    : statusPart;
+  const finalMessage = appendTryAgain ? composed + CommonMessage.TryAgain : composed;
+  toastrService.error(finalMessage, title);
 }
 
 function addToken(req: HttpRequest<PurposefulAny>, authService: AuthService): HttpRequest<PurposefulAny> {

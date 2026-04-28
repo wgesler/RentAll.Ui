@@ -205,34 +205,65 @@ export class UtilityService {
 
   extractApiErrorMessage(error: unknown): string {
     if (error instanceof HttpErrorResponse) {
-      const body = error.error as { message?: string; title?: string; errors?: Record<string, string[] | string> } | string | null;
-      if (typeof body === 'string' && body.trim() !== '') {
-        return body.trim();
-      }
-      if (body && typeof body === 'object') {
-        if (typeof body.message === 'string' && body.message.trim() !== '') {
-          return body.message.trim();
-        }
-        if (typeof body.title === 'string' && body.title.trim() !== '') {
-          return body.title.trim();
-        }
-        const errors = body.errors;
-        if (errors && typeof errors === 'object') {
-          const firstValue = Object.values(errors)[0];
-          if (Array.isArray(firstValue) && firstValue.length > 0 && typeof firstValue[0] === 'string' && firstValue[0].trim() !== '') {
-            return firstValue[0].trim();
-          }
-          if (typeof firstValue === 'string' && firstValue.trim() !== '') {
-            return firstValue.trim();
-          }
-        }
+      const bodyMessage = this.extractApiErrorMessageFromPayload(error.error);
+      if (bodyMessage) {
+        return bodyMessage;
       }
       if (typeof error.message === 'string' && error.message.trim() !== '') {
         return error.message.trim();
       }
     }
+    const directPayloadMessage = this.extractApiErrorMessageFromPayload(error);
+    if (directPayloadMessage) {
+      return directPayloadMessage;
+    }
     if (error instanceof Error && error.message.trim() !== '') {
       return error.message.trim();
+    }
+    return '';
+  }
+
+  extractApiErrorMessageFromPayload(payload: unknown): string {
+    if (typeof payload === 'string') {
+      return payload.trim();
+    }
+    if (!payload || typeof payload !== 'object') {
+      return '';
+    }
+
+    const obj = payload as Record<string, unknown>;
+    const message = typeof obj['message'] === 'string' ? obj['message'].trim() : '';
+    if (message) {
+      return message;
+    }
+
+    const title = typeof obj['title'] === 'string' ? obj['title'].trim() : '';
+    const detail = typeof obj['detail'] === 'string' ? obj['detail'].trim() : '';
+    const errors = obj['errors'];
+    if (errors && typeof errors === 'object') {
+      const flattened = Object.entries(errors as Record<string, unknown>)
+        .flatMap(([field, value]) => {
+          if (Array.isArray(value)) {
+            return value
+              .filter((item): item is string => typeof item === 'string' && item.trim().length > 0)
+              .map(item => `${field}: ${item.trim()}`);
+          }
+          if (typeof value === 'string' && value.trim().length > 0) {
+            return [`${field}: ${value.trim()}`];
+          }
+          return [];
+        });
+      if (flattened.length > 0) {
+        const parts = [title || 'Validation error', ...flattened];
+        return parts.join(' | ');
+      }
+    }
+
+    if (detail) {
+      return detail;
+    }
+    if (title) {
+      return title;
     }
     return '';
   }
