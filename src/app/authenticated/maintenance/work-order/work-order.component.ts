@@ -4,7 +4,7 @@ import { Component, EventEmitter, Input, OnChanges, OnDestroy, OnInit, Output, S
 import { FormBuilder, FormControl, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
 import { ActivatedRoute, Router } from '@angular/router';
 import { ToastrService } from 'ngx-toastr';
-import { BehaviorSubject, forkJoin, finalize, of, switchMap, take, Subject, takeUntil } from 'rxjs';
+import { BehaviorSubject, forkJoin, finalize, of, skip, Subject, Subscription, switchMap, take, takeUntil } from 'rxjs';
 import { RouterUrl } from '../../../app.routes';
 import { FormatterService } from '../../../services/formatter-service';
 import { MaterialModule } from '../../../material.module';
@@ -12,6 +12,9 @@ import { AuthService } from '../../../services/auth.service';
 import { UtilityService } from '../../../services/utility.service';
 import { AccountingOfficeRequest, AccountingOfficeResponse } from '../../organizations/models/accounting-office.model';
 import { AccountingOfficeService } from '../../organizations/services/accounting-office.service';
+import { OfficeResponse } from '../../organizations/models/office.model';
+import { OfficeService } from '../../organizations/services/office.service';
+import { GlobalSelectionService } from '../../organizations/services/global-selection.service';
 import { PropertyResponse } from '../../properties/models/property.model';
 import { PropertyService } from '../../properties/services/property.service';
 import { PropertyAgreementService } from '../../properties/services/property-agreement.service';
@@ -47,7 +50,6 @@ export class WorkOrderComponent implements OnInit, OnChanges, OnDestroy {
   @Output() savedEvent = new EventEmitter<void>();
   
   readonly parseInt = parseInt;
-  readonly costCode = '4100';
   readonly noReceiptOptionValue = 0;
   readonly inventoryItemOptionValue = -1;
 
@@ -64,20 +66,24 @@ export class WorkOrderComponent implements OnInit, OnChanges, OnDestroy {
   workOrder: WorkOrderResponse | null = null;
   workOrderTypeOptions = getWorkOrderTypes();
   workOrderItems: WorkOrderItemEditable[] = [];
+  offices: OfficeResponse[] = [];
   propertyReceipts: ReceiptResponse[] = [];
   accountingOffice: AccountingOfficeResponse | null = null;
   generatedWorkOrderCode: string | null = null;
   nextWorkOrderNo: number | null = null;
   propertyReservations: ReservationListResponse[] = [];
   propertyAgreement: PropertyAgreementResponse | null = null;
-  costCodeId: number | null = null;
+  tenantDamagesCcId: number | null = null;
   defaultLaborCost: number = 0;
   focusedCurrencyField: { index: number; field: 'laborCost' | 'amount'; editValue: string } | null = null;
   initialWorkOrderItemsSnapshot: WorkOrderItemSnapshot[] = [];
   lastMarkupFactor: number = 1;
 
-  itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['property', 'workOrder', 'costCode', 'propertyAgreement', 'propertyReceipts', 'propertyReservations', 'workOrderNumber']));
+  itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['property', 'workOrder', 'propertyAgreement', 'propertyReceipts', 'propertyReservations', 'workOrderNumber']));
   destroy$ = new Subject<void>();
+  selectedGlobalOfficeId: number | null = null;
+  officesSubscription?: Subscription;
+  globalOfficeSubscription?: Subscription;
   
   constructor(
     fb: FormBuilder,
@@ -90,6 +96,8 @@ export class WorkOrderComponent implements OnInit, OnChanges, OnDestroy {
     private costCodeService: CostCodesService,
     private invoiceService: InvoiceService,
     private accountingOfficeService: AccountingOfficeService,
+    private officeService: OfficeService,
+    private globalSelectionService: GlobalSelectionService,
     private reservationService: ReservationService,
     private receiptService: ReceiptService,
     private workOrderAmountService: WorkOrderAmountService,
@@ -106,6 +114,11 @@ export class WorkOrderComponent implements OnInit, OnChanges, OnDestroy {
   ngOnInit(): void {
     this.organizationId = this.authService.getUser()?.organizationId ?? '';
     this.buildForm();
+    this.selectedGlobalOfficeId = this.globalSelectionService.getSelectedOfficeIdValue();
+    this.globalOfficeSubscription = this.globalSelectionService.getSelectedOfficeId$().pipe(skip(1)).subscribe(officeId => {
+      this.selectedGlobalOfficeId = officeId;
+    });
+    this.loadOffices();
 
     // Wait to load page until all data is available
     this.itemsToLoad$.pipe(takeUntil(this.destroy$)).subscribe(items => {
@@ -136,7 +149,6 @@ export class WorkOrderComponent implements OnInit, OnChanges, OnDestroy {
     this.loadPropertyReservations();
     this.loadPropertyReceipts();
     this.loadPropertyAgreement();
-    this.loadCostCode();
   }
 
   ngOnChanges(changes: SimpleChanges): void {
@@ -153,7 +165,6 @@ export class WorkOrderComponent implements OnInit, OnChanges, OnDestroy {
         this.loadPropertyReservations();
         this.loadPropertyReceipts();
         this.loadPropertyAgreement();
-        this.loadCostCode();
       }
     }
 
@@ -205,6 +216,7 @@ export class WorkOrderComponent implements OnInit, OnChanges, OnDestroy {
       applyMarkup: this.isOwnerTypeSelected() ? (this.form.get('applyMarkup')?.value === true) : false,
       reservationId: this.isTenantTypeSelected() ? (this.form.get('reservationId')?.value ?? null) : null,
       reservationCode: this.isTenantTypeSelected() ? this.getSelectedReservationCode() : null,
+      useDepartureFee: this.isTenantTypeSelected() ? (this.form.get('useDepartureFee')?.value === true) : false,
       description: (this.form.get('description')?.value ?? '').trim(),
       workOrderItems: workOrderItemsForSave,
       isActive: this.form.get('isActive')?.value ?? true
@@ -258,6 +270,7 @@ export class WorkOrderComponent implements OnInit, OnChanges, OnDestroy {
           workOrderTypeId: saved.workOrderTypeId,
           applyMarkup: saved.applyMarkup === true,
           reservationId: saved.reservationId ?? null,
+          useDepartureFee: saved.useDepartureFee === true,
           description: saved.description ?? '',
           isActive: saved.isActive
         }, { emitEvent: false });
@@ -322,9 +335,11 @@ export class WorkOrderComponent implements OnInit, OnChanges, OnDestroy {
 
   saveWorkOrderAsInvoice(workOrder: WorkOrderResponse, totalAmount: number): void {
     const workOrderTypeId = Number(this.form.get('workOrderTypeId')?.value ?? -1);
-    if (workOrderTypeId !== WorkOrderType.Tenant) {
+    const useDepartureFee = this.form.get('useDepartureFee')?.value === true;
+    if (workOrderTypeId !== WorkOrderType.Tenant || useDepartureFee) {
       return;
     }
+    
     const numericCostCodeId = this.getNumericCostCodeIdForInvoice();
     if (numericCostCodeId === null) {
       this.toastr.warning('Work order saved, but invoice was not created because Cost Code is invalid.', 'Partial Update');
@@ -406,6 +421,7 @@ export class WorkOrderComponent implements OnInit, OnChanges, OnDestroy {
       workOrderTypeId: new FormControl<number | null>(null, [Validators.required]),
       applyMarkup: new FormControl(false),
       reservationId: new FormControl<string | null>(null),
+      useDepartureFee: new FormControl(false),
       description: new FormControl('', [Validators.required]),
       isActive: new FormControl(true)
     });
@@ -416,11 +432,12 @@ export class WorkOrderComponent implements OnInit, OnChanges, OnDestroy {
     this.form.patchValue({
       workOrderCode: workOrder.workOrderCode ?? '',
       workOrderDate: this.getWorkOrderDateControlValue(workOrder.workOrderDate),
-      officeName: this.property?.officeName ?? '',
-      propertyCode: this.property?.propertyCode ?? '',
+      officeName: workOrder.officeName ?? this.property?.officeName ?? '',
+      propertyCode: workOrder.propertyCode ?? this.property?.propertyCode ?? '',
       workOrderTypeId: workOrder.workOrderTypeId ?? 0,
       applyMarkup: workOrder.applyMarkup === true,
       reservationId: workOrder.reservationId ?? null,
+      useDepartureFee: workOrder.useDepartureFee === true,
       description: workOrder.description ?? '',
       isActive: workOrder.isActive
     }, { emitEvent: false });
@@ -468,12 +485,17 @@ export class WorkOrderComponent implements OnInit, OnChanges, OnDestroy {
 
   onWorkOrderTypeChanged(typeId: number | null | undefined): void {
     this.updateReservationRequirementByType(typeId);
+    const isTenant = Number(typeId) === WorkOrderType.Tenant;
     const isOwner = Number(typeId) === WorkOrderType.Owner;
     const applyMarkupControl = this.form.get('applyMarkup');
+    const useDepartureFeeControl = this.form.get('useDepartureFee');
     if (this.isAddMode) {
       applyMarkupControl?.setValue(isOwner, { emitEvent: false });
     } else if (!isOwner) {
       applyMarkupControl?.setValue(false, { emitEvent: false });
+    }
+    if (!isTenant) {
+      useDepartureFeeControl?.setValue(false, { emitEvent: false });
     }
     this.reapplyMarkupToCurrentItems(true);
   }
@@ -832,6 +854,7 @@ export class WorkOrderComponent implements OnInit, OnChanges, OnDestroy {
       applyMarkup: this.isOwnerTypeSelected() ? (this.form.get('applyMarkup')?.value === true) : false,
       reservationId: this.isTenantTypeSelected() ? (this.form.get('reservationId')?.value ?? null) : null,
       reservationCode: this.isTenantTypeSelected() ? this.getSelectedReservationCode() : null,
+      useDepartureFee: this.isTenantTypeSelected() ? (this.form.get('useDepartureFee')?.value === true) : false,
       description: (this.form.get('description')?.value ?? '').trim(),
       workOrderItems: this.mapWorkOrderItemsForSave(false),
       isActive: this.form.get('isActive')?.value ?? true,
@@ -923,6 +946,7 @@ export class WorkOrderComponent implements OnInit, OnChanges, OnDestroy {
       payload.applyMarkup !== (this.workOrder.applyMarkup === true) ||
       payloadReservationId !== workOrderReservationId ||
       payloadReservationCode !== workOrderReservationCode ||
+      payload.useDepartureFee !== (this.workOrder.useDepartureFee === true) ||
       payloadDescription !== workOrderDescription ||
       payload.isActive !== this.workOrder.isActive ||
       this.hasWorkOrderItemsChanged()
@@ -981,22 +1005,31 @@ export class WorkOrderComponent implements OnInit, OnChanges, OnDestroy {
   //#endregion 
 
   //#region Data Load Methods
-  loadCostCode(): void {
-    const officeId = this.property?.officeId ?? null;
-    if (!officeId) {
-      this.costCodeId = null;
-      this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'costCode');
+  loadOffices(): void {
+    const bindOfficeStream = (): void => {
+      this.officesSubscription?.unsubscribe();
+      this.officesSubscription = this.officeService.getAllOffices().subscribe(offices => {
+        this.offices = offices || [];
+      });
+    };
+
+    const organizationId = this.authService.getUser()?.organizationId?.trim() ?? '';
+    if (!organizationId) {
+      this.offices = [];
       return;
     }
-    this.costCodeService.getCostCodeByCode(this.costCode, officeId).pipe(takeUntil(this.destroy$), take(1), finalize(() => { this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'costCode'); })).subscribe({
-      next: (costCode) => {
-        const numericCostCodeId = Number(costCode?.costCodeId);
-        this.costCodeId = Number.isInteger(numericCostCodeId) && numericCostCodeId > 0 ? numericCostCodeId : null;
-      },
+
+    this.officeService.ensureOfficesLoaded(organizationId).pipe(takeUntil(this.destroy$), take(1)).subscribe({
+      next: () => bindOfficeStream(),
       error: () => {
-        this.costCodeId = null;
+        this.offices = [];
       }
     });
+  }
+
+  getOfficeCostCodes(officeId: number): void {
+    const office = this.offices.find(o => o.officeId === officeId) ?? null;
+    this.tenantDamagesCcId = office?.tenantChargeCcId ?? null;
   }
 
   loadWorkOrder(): void {
@@ -1018,6 +1051,7 @@ export class WorkOrderComponent implements OnInit, OnChanges, OnDestroy {
 
   loadProperty(): void {
     if (this.property) {
+      this.getOfficeCostCodes(this.property.officeId);
       this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'property');
       return;
     }
@@ -1025,6 +1059,7 @@ export class WorkOrderComponent implements OnInit, OnChanges, OnDestroy {
     this.propertyService.getPropertyByGuid(this.selectedPropertyId).pipe(takeUntil(this.destroy$), take(1), finalize(() => { this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'property'); })).subscribe({
       next: (property) => {
         this.property = property;
+        this.getOfficeCostCodes(property.officeId);
      },
       error: () => {
         this.toastr.error('Unable to load property.', 'Error');
@@ -1350,7 +1385,7 @@ export class WorkOrderComponent implements OnInit, OnChanges, OnDestroy {
 
   //#region Utility Methods
   getNumericCostCodeIdForInvoice(): number | null {
-    const numericValue = Number(this.costCodeId);
+    const numericValue = Number(this.tenantDamagesCcId);
     if (!Number.isInteger(numericValue) || numericValue <= 0) {
       return null;
     }
@@ -1375,6 +1410,8 @@ export class WorkOrderComponent implements OnInit, OnChanges, OnDestroy {
   }
 
   ngOnDestroy(): void {
+    this.officesSubscription?.unsubscribe();
+    this.globalOfficeSubscription?.unsubscribe();
     this.destroy$.next();
     this.destroy$.complete();
     this.itemsToLoad$.complete();

@@ -80,17 +80,22 @@
               }
 
               @if (isTenantTypeSelected()) {
-                <mat-form-field appearance="outline" class="work-order-tenant-field">
-                  <mat-label>Tenant</mat-label>
-                  <mat-select formControlName="reservationId">
-                    <mat-option [value]="null">Select Reservation</mat-option>
-                    @for (reservation of propertyReservations; track reservation.reservationId) {
-                      <mat-option [value]="reservation.reservationId">
-                        {{ utilityService.getReservationDropdownLabel(reservation, null) }}
-                      </mat-option>
-                    }
-                  </mat-select>
-                </mat-form-field>
+                <div class="work-order-tenant-group">
+                  <mat-form-field appearance="outline" class="work-order-tenant-field">
+                    <mat-label>Tenant</mat-label>
+                    <mat-select formControlName="reservationId">
+                      <mat-option [value]="null">Select Reservation</mat-option>
+                      @for (reservation of propertyReservations; track reservation.reservationId) {
+                        <mat-option [value]="reservation.reservationId">
+                          {{ utilityService.getReservationDropdownLabel(reservation, null) }}
+                        </mat-option>
+                      }
+                    </mat-select>
+                  </mat-form-field>
+                  <mat-checkbox formControlName="useDepartureFee" color="primary" class="work-order-use-departure-fee-checkbox">
+                    Use Departure Fee
+                  </mat-checkbox>
+                </div>
               }
             </div>
 

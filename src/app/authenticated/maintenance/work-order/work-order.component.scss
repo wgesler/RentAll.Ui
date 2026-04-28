@@ -45,9 +45,21 @@
 }
 
 .work-order-tenant-field {
-  flex: 0 0 30%;
+  flex: 1 1 auto;
   min-width: 0;
-  max-width: 30%;
+}
+
+.work-order-tenant-group {
+  flex: 0 0 42%;
+  min-width: 0;
+  max-width: 42%;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.work-order-use-departure-fee-checkbox {
+  white-space: nowrap;
 }
 
 .work-order-apply-markup-checkbox {

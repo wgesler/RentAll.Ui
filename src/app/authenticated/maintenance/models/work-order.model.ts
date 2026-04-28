@@ -11,6 +11,7 @@ export interface WorkOrderRequest {
   applyMarkup: boolean;
   workOrderItems: WorkOrderItemRequest[];
   workOrderDate: string;
+  useDepartureFee: boolean; 
   isActive: boolean;
 }
 
@@ -29,6 +30,7 @@ export interface WorkOrderResponse {
   workOrderItems: WorkOrderItemResponse[];
   applyMarkup: boolean;
   workOrderDate: string;
+  useDepartureFee: boolean; 
   isActive: boolean;
   modifiedOn: string;
   modifiedBy: string;
