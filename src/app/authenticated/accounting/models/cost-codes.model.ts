@@ -1,5 +1,5 @@
 export interface CostCodesRequest {
-  costCodeId?: string;
+  costCodeId?: number;
   organizationId: string;
   officeId: number;
   costCode: string;
@@ -9,7 +9,7 @@ export interface CostCodesRequest {
 }
 
 export interface CostCodesResponse {
-  costCodeId: string;
+  costCodeId: number;
   organizationId: string;
   officeId: number;
   costCode: string;
@@ -19,7 +19,7 @@ export interface CostCodesResponse {
 }
 
 export interface CostCodesListDisplay {
-  costCodeId: string;
+  costCodeId: number;
   officeId: number;
   officeName: string;
   costCode: string;

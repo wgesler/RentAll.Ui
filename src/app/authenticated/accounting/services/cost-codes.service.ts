@@ -23,8 +23,10 @@ export class CostCodesService {
 
   // Transform API response: map "Code" property to "costCode"
   transformCostCodeResponse(item: any): CostCodesResponse {
+    const numericCostCodeId = Number(item?.costCodeId);
     return {
       ...item,
+      costCodeId: Number.isInteger(numericCostCodeId) ? numericCostCodeId : 0,
       costCode: item.code || item.Code || item.costCode || ''
     };
   }
@@ -42,7 +44,7 @@ export class CostCodesService {
   }
 
   // GET: Get cost code by office ID and cost code ID
-  getCostCodeById(costCodeId: string, officeId: number): Observable<CostCodesResponse> {
+  getCostCodeById(costCodeId: number, officeId: number): Observable<CostCodesResponse> {
     return this.http.get<any>(this.controller + 'office/' + officeId + '/costcodeId/' + costCodeId).pipe(
       map(item => this.transformCostCodeResponse(item))
     );
@@ -72,7 +74,7 @@ export class CostCodesService {
   }
 
   // DELETE: Delete cost code by office ID and cost code ID
-  deleteCostCode(officeId: number, costCodeId: string): Observable<void> {
+  deleteCostCode(officeId: number, costCodeId: number): Observable<void> {
     return this.http.delete<void>(this.controller + 'office/' + officeId + '/costcodeid/' + costCodeId);
   }
 

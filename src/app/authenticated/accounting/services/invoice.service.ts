@@ -17,6 +17,30 @@ export class InvoiceService {
       private configService: ConfigService) {
   }
 
+  private normalizeInvoiceRequest(invoice: InvoiceRequest): InvoiceRequest {
+    const normalizedLedgerLines = (invoice.ledgerLines ?? []).map(line => {
+      const numericCostCodeId = Number(line.costCodeId);
+      const numericLineNumber = Number(line.lineNumber);
+      const numericTransactionTypeId = Number(line.transactionTypeId);
+      const numericAmount = Number(line.amount);
+
+      return {
+        ...line,
+        lineNumber: Number.isFinite(numericLineNumber) ? numericLineNumber : 0,
+        transactionTypeId: Number.isFinite(numericTransactionTypeId) ? numericTransactionTypeId : 0,
+        amount: Number.isFinite(numericAmount) ? numericAmount : 0,
+        // Force an int payload so model binding never fails on this field.
+        // Invalid values become 0 and are handled by API IsValid() as a clear validation message.
+        costCodeId: Number.isInteger(numericCostCodeId) ? numericCostCodeId : 0
+      };
+    });
+
+    return {
+      ...invoice,
+      ledgerLines: normalizedLedgerLines
+    };
+  }
+
   // GET: Get all invoices
   getAllInvoices(): Observable<InvoiceResponse[]> {
     return this.http.get<InvoiceResponse[]>(this.controller + 'invoice');
@@ -49,12 +73,14 @@ export class InvoiceService {
 
   // POST: Create a new invoice
   createInvoice(invoice: InvoiceRequest): Observable<InvoiceResponse> {
-    return this.http.post<InvoiceResponse>(this.controller + 'invoice', invoice);
+    const normalized = this.normalizeInvoiceRequest(invoice);
+    return this.http.post<InvoiceResponse>(this.controller + 'invoice', normalized);
   }
 
   // PUT: Update entire invoice
   updateInvoice(invoice: InvoiceRequest): Observable<InvoiceResponse> {
-    return this.http.put<InvoiceResponse>(this.controller + 'invoice', invoice);
+    const normalized = this.normalizeInvoiceRequest(invoice);
+    return this.http.put<InvoiceResponse>(this.controller + 'invoice', normalized);
   }
 
 
