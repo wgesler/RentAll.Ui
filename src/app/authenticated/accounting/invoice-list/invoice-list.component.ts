@@ -87,7 +87,7 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
  
   costCodes: CostCodesResponse[] = [];
   allCostCodes: CostCodesResponse[] = [];
-  availableCostCodes: { value: string, label: string }[] = [];
+  availableCostCodes: { value: number, label: string }[] = [];
   costCodesSubscription?: Subscription;
   
   transactionTypes: { value: number, label: string }[] = TransactionTypeLabels;
@@ -720,7 +720,7 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
     this.creditCostCodes = this.costCodes
       .filter(c => c.isActive && c.transactionTypeId === TransactionType.Payment)
       .map(c => ({
-        value: parseInt(c.costCodeId, 10),
+        value: c.costCodeId,
         label: `${c.costCode}: ${c.description}`
       }));
   }
@@ -1037,8 +1037,8 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
     }, 0);
   }
 
-  getTransactionTypeIdFromCostCode(costCodeId: string | null | undefined, officeId: number): number | null {
-    if (!costCodeId) {
+  getTransactionTypeIdFromCostCode(costCodeId: number | null | undefined, officeId: number): number | null {
+    if (costCodeId == null) {
       return null;
     }
 
@@ -1075,10 +1075,10 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
     return transactionType?.label || 'Unknown';
   }
 
-  getCostCodeDescription(costCodeId: number | string | undefined, officeId: number): string {
-    if (!costCodeId) return '-';
+  getCostCodeDescription(costCodeId: number | undefined, officeId: number): string {
+    if (costCodeId == null) return '-';
     const costCode = this.allCostCodes.find(
-      c => (c.costCodeId === costCodeId || c.costCode?.toString() === costCodeId?.toString()) && c.officeId === officeId
+      c => c.costCodeId === costCodeId && c.officeId === officeId
     );
     
     return costCode?.description || costCodeId.toString();
@@ -1126,7 +1126,7 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
   onPaymentCostCodeChange(costCodeId: number | null): void {
     this.selectedPaymentCostCodeId = costCodeId;
     if (costCodeId !== null) {
-      this.selectedPaymentCostCode = this.costCodes.find(c => parseInt(c.costCodeId, 10) === costCodeId) || null;
+      this.selectedPaymentCostCode = this.costCodes.find(c => c.costCodeId === costCodeId) || null;
       if (this.selectedPaymentCostCode) {
         const transactionType = this.transactionTypes.find(t => t.value === this.selectedPaymentCostCode!.transactionTypeId);
         this.paymentTransactionType = transactionType?.label || '';

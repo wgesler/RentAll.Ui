@@ -36,7 +36,7 @@ export class CostCodesListComponent implements OnInit, OnDestroy, OnChanges {
   @Input() showOfficeDropdownInEmbedded: boolean = false; // Show office dropdown when embedded (settings use-case)
   @Output() officeIdChange = new EventEmitter<number | null>(); // Emit office changes to parent
   @Output() addCostCodeEvent = new EventEmitter<void>();
-  @Output() editCostCodeEvent = new EventEmitter<{ costCodeId: string, officeId: number | null }>();
+  @Output() editCostCodeEvent = new EventEmitter<{ costCodeId: number, officeId: number | null }>();
    
   isServiceError: boolean = false;
   showInactive: boolean = false;
@@ -55,7 +55,7 @@ export class CostCodesListComponent implements OnInit, OnDestroy, OnChanges {
   costCodesOfficeId: number | null = null;
 
   costCodes: CostCodesResponse[] = [];
-  availableCostCodes: { value: string, label: string }[] = [];
+  availableCostCodes: { value: number, label: string }[] = [];
   costCodesSubscription?: Subscription;
   
   transactionTypes: { value: number, label: string }[] = TransactionTypeLabels;

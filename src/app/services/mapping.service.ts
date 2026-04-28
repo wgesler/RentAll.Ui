@@ -328,14 +328,13 @@ export class MappingService {
 
   mapLedgerLines(ledgerLines: LedgerLineResponse[], costCodes?: CostCodesResponse[], transactionTypes?: { value: number, label: string }[]): LedgerLineListDisplay[] {
     return ledgerLines.map<LedgerLineListDisplay>((line: LedgerLineResponse) => {
-      const numericCostCodeId = line.costCodeId ?? null;
-      const costCodeId = numericCostCodeId === null ? null : String(numericCostCodeId);
+      const costCodeId = line.costCodeId ?? null;
       let matchingCostCode: CostCodesResponse | undefined = undefined;
       let transactionTypeId: number | undefined = line.transactionTypeId;
       
-      if (numericCostCodeId !== null && costCodes && costCodes.length > 0) {
+      if (costCodeId !== null && costCodes && costCodes.length > 0) {
         // Find cost code by costCodeId (costCodes array is already filtered by office if needed)
-        matchingCostCode = costCodes.find(c => Number(c.costCodeId) === Number(numericCostCodeId));
+        matchingCostCode = costCodes.find(c => c.costCodeId === costCodeId);
         
         if (matchingCostCode) {
           transactionTypeId = matchingCostCode.transactionTypeId;
@@ -357,7 +356,7 @@ export class MappingService {
         costCodeId: costCodeId, // From invoice.ledgerLine.costCodeId
         costCode: matchingCostCode 
           ? `${matchingCostCode.costCode}: ${matchingCostCode.description}` 
-          : (costCodeId ? `Cost Code ${costCodeId}` : ''),
+          : (costCodeId != null ? `Cost Code ${costCodeId}` : ''),
         transactionType: transactionTypeLabel, // Translated from CostCode.transactionTypeId
         description: line.description || '',
         amount: line.amount,

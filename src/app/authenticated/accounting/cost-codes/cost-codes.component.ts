@@ -34,7 +34,7 @@ export class CostCodesComponent implements OnInit, OnDestroy, OnChanges {
   @ViewChild('firstInput') firstInputRef: MatSelect;
   
   isServiceError: boolean = false;
-  costCodeId: string;
+  costCodeId: number | null = null;
   costCode: CostCodesResponse;
   form: FormGroup;
   fromAccountingTab: boolean = false; // Track if navigated from Accounting tab
@@ -83,7 +83,7 @@ export class CostCodesComponent implements OnInit, OnDestroy, OnChanges {
           this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'costCode');
           this.scheduleFocusFirstField();
         } else {
-          this.costCodeId = idStr;
+          this.costCodeId = Number(idStr);
           if (this.selectedOffice) {
             this.getCostCode();
           } else if (this.offices.length > 0) {
@@ -116,7 +116,7 @@ export class CostCodesComponent implements OnInit, OnDestroy, OnChanges {
           this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'costCode');
           this.scheduleFocusFirstField();
         } else {
-          this.costCodeId = idStr;
+          this.costCodeId = Number(idStr);
           if (this.selectedOffice) {
             this.getCostCode();
           } else if (this.offices.length > 0) {

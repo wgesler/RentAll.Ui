@@ -128,7 +128,7 @@ export interface LedgerLineResponse {
 export interface LedgerLineListDisplay {
   ledgerLineId: string;
   lineNumber: number;
-  costCodeId: string | null; // ID reference for dropdowns and saving
+  costCodeId: number | null; // ID reference for dropdowns and saving
   costCode: string | null; // Display value retrieved from CostCodes
   transactionType: string;
   description: string;

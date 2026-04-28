@@ -61,8 +61,8 @@ export class InvoiceComponent implements OnInit, OnDestroy {
   officeCostCodes:CostCodesResponse[] = [];
   debitCostCodes: CostCodesResponse[] = [];
   creditCostCodes: CostCodesResponse[] = [];
-  availableCostCodes: { value: string, label: string }[] = [];
-  officeAvailableCostCodes: { value: string, label: string }[] = [];
+  availableCostCodes: { value: number, label: string }[] = [];
+  officeAvailableCostCodes: { value: number, label: string }[] = [];
   costCodesSubscription?: Subscription;
   isPaymentMode: boolean = false;
   
@@ -315,7 +315,7 @@ export class InvoiceComponent implements OnInit, OnDestroy {
         label: this.utilityService.getReservationDropdownLabel(this.selectedReservation, null)
       }],
       invoiceId: '',
-      costCodeId: parseInt(debitCostCode.costCodeId, 10),
+      costCodeId: debitCostCode.costCodeId,
       description: 'Credit applied from reservation'
     };
 
@@ -379,7 +379,7 @@ export class InvoiceComponent implements OnInit, OnDestroy {
     const incompleteLines: number[] = [];
     this.ledgerLines.forEach((line, index) => {
       const hasTransactionTypeId = (line as any).transactionTypeId !== undefined && (line as any).transactionTypeId !== null;
-      const parsedCostCodeId = line.costCodeId == null || line.costCodeId === '' ? NaN : Number(line.costCodeId);
+      const parsedCostCodeId = line.costCodeId == null ? NaN : Number(line.costCodeId);
       const hasCostCodeId = Number.isInteger(parsedCostCodeId) && parsedCostCodeId > 0;
       const hasDescription = line.description && line.description.trim() !== '';
       const hasAmount = line.amount !== null && line.amount !== undefined && line.amount !== 0;
@@ -399,7 +399,7 @@ export class InvoiceComponent implements OnInit, OnDestroy {
     const user = this.authService.getUser();
          
     const ledgerLines: LedgerLineRequest[] = this.ledgerLines.map((line, index) => {
-        const numericCostCodeId = line.costCodeId == null || line.costCodeId === '' ? NaN : Number(line.costCodeId);
+        const numericCostCodeId = line.costCodeId == null ? NaN : Number(line.costCodeId);
         const ledgerLine: LedgerLineRequest = {
           ledgerLineId: line.ledgerLineId || undefined,
           invoiceId: this.isAddMode ? undefined : this.invoiceId,
@@ -510,7 +510,7 @@ export class InvoiceComponent implements OnInit, OnDestroy {
       }));
   }
   
-  getCostCodesForLine(line: LedgerLineListDisplay): { value: string, label: string }[] {
+  getCostCodesForLine(line: LedgerLineListDisplay): { value: number, label: string }[] {
     if (line.isNew !== true) {
       return this.officeAvailableCostCodes;
     }
@@ -971,7 +971,8 @@ export class InvoiceComponent implements OnInit, OnDestroy {
   }
 
   onCostCodeChange(index: number, costCodeId: string | number | null): void {
-    const normalizedCostCodeId = costCodeId === null || costCodeId === undefined ? null : String(costCodeId);
+    const parsedCostCodeId = costCodeId === null || costCodeId === undefined || costCodeId === '' ? NaN : Number(costCodeId);
+    const normalizedCostCodeId = Number.isInteger(parsedCostCodeId) ? parsedCostCodeId : null;
     if (normalizedCostCodeId === null) {
       this.updateLedgerLineField(index, 'costCodeId', null);
       this.updateLedgerLineField(index, 'costCode', null);
@@ -983,9 +984,9 @@ export class InvoiceComponent implements OnInit, OnDestroy {
       const currentAmount = line.amount || 0;
       
       this.updateLedgerLineField(index, 'costCodeId', normalizedCostCodeId);
-      const matchingCostCode = this.officeCostCodes.find(c => String(c.costCodeId) === normalizedCostCodeId)
+      const matchingCostCode = this.officeCostCodes.find(c => c.costCodeId === normalizedCostCodeId)
         ?? this.allCostCodes.find(c =>
-          String(c.costCodeId) === normalizedCostCodeId
+          c.costCodeId === normalizedCostCodeId
           && (!this.selectedOffice || c.officeId === this.selectedOffice.officeId)
         );
       if (matchingCostCode) {
@@ -1390,7 +1391,7 @@ export class InvoiceComponent implements OnInit, OnDestroy {
     const newLine: LedgerLineListDisplay = {
       ledgerLineId: null,
       lineNumber: this.ledgerLines.length + 1,
-      costCodeId: null as string | null,
+      costCodeId: null as number | null,
       costCode: null,
       transactionType: '',
       description: '',

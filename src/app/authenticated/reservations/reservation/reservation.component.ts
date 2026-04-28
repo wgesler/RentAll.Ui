@@ -1045,7 +1045,7 @@ export class ReservationComponent implements OnInit, OnDestroy, CanComponentDeac
           const costCodes = this.costCodesService.getCostCodesForOffice(this.selectedOffice!.officeId);
           this.chargeCostCodes = costCodes.filter(c => c.isActive && c.transactionTypeId !== TransactionType.Payment);
           this.availableChargeCostCodes = this.chargeCostCodes.map(c => ({
-            value: parseInt(c.costCodeId, 10),
+            value: c.costCodeId,
             label: `${c.costCode}: ${c.description}`
           }));
         });

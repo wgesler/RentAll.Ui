@@ -165,12 +165,12 @@
                         </tr>
                       </thead>
                       <tbody>
-                        @for (line of ledgerLines; track line.ledgerLineId; let i = $index) {
+                        @for (line of ledgerLines; track (line.ledgerLineId + '-' + $index); let i = $index) {
                           <tr class="border-b" [class.payment-line]="isPaymentLine(line)">
                             <td class="ledger-col-no">{{ i + 1 }}</td>
                             <td class="cost-center-cell ledger-col-cost-center">
                               <app-searchable-select
-                                [value]="line.costCodeId && line.costCodeId !== null && line.costCodeId !== '' ? line.costCodeId : null"
+                                [value]="line.costCodeId != null ? line.costCodeId : null"
                                 [options]="getCostCodesForLine(line)"
                                 [disabled]="isPaymentMode && !line.isNew"
                                 [nullOptionLabel]="'Select Cost Code'"

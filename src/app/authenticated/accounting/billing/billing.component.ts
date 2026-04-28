@@ -49,7 +49,7 @@ export class BillingComponent implements OnInit, OnDestroy {
   hasInitializedBillingCostCodes: boolean = false;
   debitCostCodes: CostCodesResponse[] = [];
   creditCostCodes: CostCodesResponse[] = [];
-  availableCostCodes: { value: string, label: string }[] = [];
+  availableCostCodes: { value: number, label: string }[] = [];
   costCodesSubscription?: Subscription;
   isPaymentMode: boolean = false; // Track if we're adding a payment (from payable action)
   
@@ -194,7 +194,7 @@ export class BillingComponent implements OnInit, OnDestroy {
     const incompleteLines: number[] = [];
     this.ledgerLines.forEach((line, index) => {
       const hasTransactionTypeId = (line as any).transactionTypeId !== undefined && (line as any).transactionTypeId !== null;
-      const parsedCostCodeId = line.costCodeId == null || line.costCodeId === '' ? NaN : Number(line.costCodeId);
+      const parsedCostCodeId = line.costCodeId == null ? NaN : Number(line.costCodeId);
       const hasCostCodeId = Number.isInteger(parsedCostCodeId) && parsedCostCodeId > 0;
       const hasDescription = line.description && line.description.trim() !== '';
       const hasAmount = line.amount !== null && line.amount !== undefined && line.amount !== 0;
@@ -215,7 +215,7 @@ export class BillingComponent implements OnInit, OnDestroy {
          
     // Convert ledger lines from display format to request format
     const ledgerLines: LedgerLineRequest[] = this.ledgerLines.map((line, index) => {
-        const numericCostCodeId = line.costCodeId == null || line.costCodeId === '' ? NaN : Number(line.costCodeId);
+        const numericCostCodeId = line.costCodeId == null ? NaN : Number(line.costCodeId);
         const ledgerLine: LedgerLineRequest = {
           ledgerLineId: line.ledgerLineId || undefined,
           invoiceId: this.isAddMode ? undefined : this.invoiceId,
@@ -529,7 +529,7 @@ export class BillingComponent implements OnInit, OnDestroy {
     this.hasInitializedBillingCostCodes = true;
   }
   
-  getCostCodesForLine(_line: LedgerLineListDisplay): { value: string, label: string }[] {
+  getCostCodesForLine(_line: LedgerLineListDisplay): { value: number, label: string }[] {
     return this.availableCostCodes;
   }
 
@@ -684,8 +684,8 @@ export class BillingComponent implements OnInit, OnDestroy {
     }
   }
 
-  onCostCodeChange(index: number, costCodeId: string | null): void {
-    const normalizedCostCodeId = costCodeId === null || costCodeId === undefined ? null : String(costCodeId);
+  onCostCodeChange(index: number, costCodeId: number | null): void {
+    const normalizedCostCodeId = costCodeId === null || costCodeId === undefined ? null : Number(costCodeId);
     if (normalizedCostCodeId === null) {
       this.updateLedgerLineField(index, 'costCodeId', null);
       this.updateLedgerLineField(index, 'costCode', null);
@@ -699,7 +699,7 @@ export class BillingComponent implements OnInit, OnDestroy {
       
       this.updateLedgerLineField(index, 'costCodeId', normalizedCostCodeId);
       // Find the cost code and update costCode display value and transactionTypeId
-      const matchingCostCode = this.billingCostCodes.find(c => String(c.costCodeId) === normalizedCostCodeId);
+      const matchingCostCode = this.billingCostCodes.find(c => c.costCodeId === normalizedCostCodeId);
       if (matchingCostCode) {
         this.updateLedgerLineField(index, 'costCode', matchingCostCode.costCode);
         // Update transactionTypeId from CostCode
@@ -1056,7 +1056,7 @@ export class BillingComponent implements OnInit, OnDestroy {
     const newLine: LedgerLineListDisplay = {
       ledgerLineId: null, // Temporary ID, will be assigned when saved
       lineNumber: this.ledgerLines.length + 1, // Assign line number based on current array length
-      costCodeId: null as string | null, // null makes dropdown show "Select Cost Code"
+      costCodeId: null as number | null, // null makes dropdown show "Select Cost Code"
       costCode: null, // Will be populated when costCodeId is selected
       transactionType: '', // Empty string for display
       description: '', // Empty string makes it editable per HTML template check
