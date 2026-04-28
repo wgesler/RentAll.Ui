@@ -1378,18 +1378,6 @@ export class LeaseComponent extends BaseDocumentComponent implements OnInit, OnD
   generatePreviewIframe(): void {
     const formReservationId = this.form.get('selectedReservationId')?.value;
     const shouldMerge = !!formReservationId;
-    console.log('[LeasePreview] generatePreviewIframe:start', {
-      shouldMerge,
-      formReservationId,
-      selectedReservationId: this.selectedReservation?.reservationId ?? null,
-      selectedOfficeId: this.selectedOffice?.officeId ?? null,
-      includeLease: this.includeLease,
-      includeLetterOfResponsibility: this.includeLetterOfResponsibility,
-      includeNoticeToVacate: this.includeNoticeToVacate,
-      includeCreditCardAuthorization: this.includeCreditCardAuthorization,
-      includeBusinessCreditApplication: this.includeBusinessCreditApplication,
-      includeRentalCreditApplication: this.includeRentalCreditApplication
-    });
 
     // If merge was requested but required merge context has not loaded yet, keep preview empty.
     if (shouldMerge && (!this.selectedOffice || !this.selectedReservation)) {
@@ -1404,14 +1392,6 @@ export class LeaseComponent extends BaseDocumentComponent implements OnInit, OnD
     // Load HTML files and process them
     this.loadHtmlFiles().pipe(take(1)).subscribe({
       next: (htmlFiles) => {
-        console.log('[LeasePreview] loadHtmlFiles:success', {
-          leaseLength: htmlFiles.lease?.length ?? 0,
-          letterOfResponsibilityLength: htmlFiles.letterOfResponsibility?.length ?? 0,
-          noticeToVacateLength: htmlFiles.noticeToVacate?.length ?? 0,
-          creditAuthorizationLength: htmlFiles.creditAuthorization?.length ?? 0,
-          creditApplicationLength: htmlFiles.creditApplication?.length ?? 0,
-          rentalCreditApplicationLength: htmlFiles.rentalCreditApplication?.length ?? 0
-        });
         // Get selected checkboxes
         const selectedDocuments: string[] = [];
 
@@ -1440,7 +1420,6 @@ export class LeaseComponent extends BaseDocumentComponent implements OnInit, OnD
           this.previewIframeHtml = '';
           return;
         }
-        console.log('[LeasePreview] selected documents count', selectedDocuments.length);
 
         try {
       // If only one document selected, use it as-is
@@ -1530,7 +1509,6 @@ export class LeaseComponent extends BaseDocumentComponent implements OnInit, OnD
   }
 
   processAndSetHtml(html: string): void {
-    console.log('[LeasePreview] processAndSetHtml:input length', html?.length ?? 0);
     const result = this.documentHtmlService.processHtml(html, true);
     this.previewIframeHtml = result.processedHtml;
     const leaseLogoStyles = `
@@ -1565,11 +1543,6 @@ export class LeaseComponent extends BaseDocumentComponent implements OnInit, OnD
     this.previewIframeStyles = `${result.extractedStyles}\n${leaseLogoStyles}`;
     this.safeHtml = this.sanitizer.bypassSecurityTrustHtml(result.processedHtml);
     this.iframeKey++; // Force iframe refresh
-    console.log('[LeasePreview] processAndSetHtml:output', {
-      processedHtmlLength: this.previewIframeHtml?.length ?? 0,
-      extractedStylesLength: this.previewIframeStyles?.length ?? 0,
-      iframeKey: this.iframeKey
-    });
   }
 
   loadHtmlFiles(): Observable<{ lease: string; letterOfResponsibility: string; noticeToVacate: string; creditAuthorization: string; creditApplication: string; rentalCreditApplication: string }> {

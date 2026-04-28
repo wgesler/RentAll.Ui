@@ -464,20 +464,6 @@ export class PropertyWelcomeLetterComponent extends BaseDocumentComponent implem
           ?? null
         )
       }));
-      console.log('[PropertyWelcome.buildReservationDropdownLabels] reservation label inputs:', filteredReservations.map(r => {
-        const contact =
-          this.contacts.find(c => c.contactId === r.contactId)
-          ?? this.contacts.find(c => c.contactId === r.companyId)
-          ?? null;
-        return {
-          reservationCode: r.reservationCode,
-          reservationTypeId: r.reservationTypeId,
-          contactDisplayName: contact?.displayName,
-          contactCompanyName: contact?.companyName,
-          reservationCompanyName: r.companyName,
-          computedLabel: this.utilityService.getReservationDropdownLabel(r, contact)
-        };
-      }));
     } else {
       this.availableReservations = [];
     }
