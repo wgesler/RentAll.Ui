@@ -75,22 +75,40 @@
 
         <div class="flex items-center gap-3 ml-[10px]">
           <div class="uniform-gap form-titlebar-actions-wrap">
-            @if (selectedTabIndex === receiptsTabIndex && !showReceiptDetail && maintenanceReceiptsList) {
-              <button mat-raised-button type="button" color="accent" id="back-button" (click)="back()"
+            @if (isReceiptDetailActive) {
+              <button mat-raised-button type="button" color="accent" id="back-button" (click)="onTopBarBackClick()"
                 class="text-nowrap flex-shrink-0">
                 <mat-icon>arrow_back</mat-icon>
                 Back
               </button>
-            }
-            @if (showWorkOrdersTab && selectedTabIndex === workOrdersTabIndex && !showWorkOrderDetail && maintenanceWorkOrderList) {
-              <button mat-raised-button type="button" color="accent" id="back-button" (click)="back()"
+              <button
+                mat-raised-button
+                type="button"
+                color="primary"
+                (click)="onTopBarReceiptPrimaryActionClick()"
+                [disabled]="receiptPrimaryActionDisabled"
+                class="text-nowrap flex-shrink-0">
+                <mat-icon>{{ receiptPrimaryActionIcon }}</mat-icon>
+                {{ receiptPrimaryActionLabel }}
+              </button>
+            } @else if (isWorkOrderDetailActive) {
+              <button mat-raised-button type="button" color="accent" id="back-button" (click)="onTopBarBackClick()"
                 class="text-nowrap flex-shrink-0">
                 <mat-icon>arrow_back</mat-icon>
                 Back
               </button>
-            }
-            @if (!((selectedTabIndex === receiptsTabIndex && !showReceiptDetail && maintenanceReceiptsList) || (showWorkOrdersTab && selectedTabIndex === workOrdersTabIndex && !showWorkOrderDetail && maintenanceWorkOrderList))) {
-              <button mat-raised-button type="button" color="accent" id="back-button" (click)="back()"
+              <button
+                mat-raised-button
+                type="button"
+                color="primary"
+                (click)="onTopBarWorkOrderPrimaryActionClick()"
+                [disabled]="workOrderPrimaryActionDisabled"
+                class="text-nowrap flex-shrink-0">
+                <mat-icon>{{ workOrderPrimaryActionIcon }}</mat-icon>
+                {{ workOrderPrimaryActionLabel }}
+              </button>
+            } @else {
+              <button mat-raised-button type="button" color="accent" id="back-button" (click)="onTopBarBackClick()"
                 class="text-nowrap flex-shrink-0">
                 <mat-icon>arrow_back</mat-icon>
                 Back
@@ -122,6 +140,7 @@
           <mat-tab label="Receipts">
             @if (showReceiptDetail) {
               <app-receipt
+                #maintenanceReceiptDetail
                 [property]="property"
                 [receiptId]="selectedReceiptId"
                 [embeddedInMaintenance]="true"
@@ -142,6 +161,7 @@
             <mat-tab label="Work Orders">
               @if (showWorkOrderDetail) {
                 <app-work-order
+                  #maintenanceWorkOrderDetail
                   [property]="property"
                   [workOrderId]="selectedWorkOrderId"
                   [embeddedInMaintenance]="true"

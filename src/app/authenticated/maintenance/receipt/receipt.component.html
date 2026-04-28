@@ -6,28 +6,30 @@
 } @else {
   <div class="flex content-card-wrap justify-center">
     <section class="content-card">
-      <div class="flex justify-between items-center gap-3 bg-slate-200 rounded-t-lg py-0 pl-8 pr-4">
-        <span class="flex flex-column items-center gap-3 py-4">
-          <mat-icon class="flex-shrink-0">receipt</mat-icon>
-          <span class="flex-shrink-0 text-xl font-medium">
-            {{ isAddMode ? 'Add Receipt' : 'Edit Receipt' }}
+      @if (!embeddedInMaintenance) {
+        <div class="flex justify-between items-center gap-3 bg-slate-200 rounded-t-lg py-0 pl-8 pr-4">
+          <span class="flex flex-column items-center gap-3 py-4">
+            <mat-icon class="flex-shrink-0">receipt</mat-icon>
+            <span class="flex-shrink-0 text-xl font-medium">
+              {{ isAddMode ? 'Add Receipt' : 'Edit Receipt' }}
+            </span>
           </span>
-        </span>
-        <div class="flex gap-2">
-          @if (showBackButton) {
-            <button mat-raised-button type="button" color="accent" (click)="back()"
-              class="scale-90 text-nowrap flex-shrink-0">
-              <mat-icon>arrow_back</mat-icon>
-              Back
+          <div class="flex gap-2">
+            @if (showBackButton) {
+              <button mat-raised-button type="button" color="accent" (click)="back()"
+                class="scale-90 text-nowrap flex-shrink-0">
+                <mat-icon>arrow_back</mat-icon>
+                Back
+              </button>
+            }
+            <button mat-raised-button type="button" color="primary" (click)="saveReceipt()"
+              class="scale-90 text-nowrap flex-shrink-0" [disabled]="isSubmitting || !form.valid">
+              <mat-icon>save</mat-icon>
+              Save
             </button>
-          }
-          <button mat-raised-button type="button" color="primary" (click)="saveReceipt()"
-            class="scale-90 text-nowrap flex-shrink-0" [disabled]="isSubmitting || !form.valid">
-            <mat-icon>save</mat-icon>
-            Save
-          </button>
+          </div>
         </div>
-      </div>
+      }
 
       <mat-card>
         <form [formGroup]="form" (ngSubmit)="saveReceipt()" class="info-form mb-8 pt-5">

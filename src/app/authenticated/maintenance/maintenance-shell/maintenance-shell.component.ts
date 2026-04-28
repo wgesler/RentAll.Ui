@@ -54,7 +54,9 @@ export class MaintenanceShellComponent implements OnInit, CanComponentDeactivate
   @ViewChild('maintenanceSection') maintenanceSection?: MaintenanceComponent;
   @ViewChild('maintenanceDocumentList') maintenanceDocumentList?: DocumentListComponent;
   @ViewChild('maintenanceWorkOrderList') maintenanceWorkOrderList?: WorkOrderListComponent;
+  @ViewChild('maintenanceWorkOrderDetail') maintenanceWorkOrderDetail?: WorkOrderComponent;
   @ViewChild('maintenanceReceiptsList') maintenanceReceiptsList?: ReceiptsListComponent;
+  @ViewChild('maintenanceReceiptDetail') maintenanceReceiptDetail?: ReceiptComponent;
   @ViewChild('maintenanceEmailList') maintenanceEmailList?: EmailListComponent;
 
   property: PropertyResponse | null = null;
@@ -277,6 +279,53 @@ export class MaintenanceShellComponent implements OnInit, CanComponentDeactivate
     const row = (this.shellReservations || []).find(r => String(r.reservationId ?? '').trim() === id);
     return row ? this.utilityService.getReservationDropdownLabel(row, null).trim() : '';
   }
+
+  get isWorkOrderDetailActive(): boolean {
+    return this.showWorkOrdersTab && this.selectedTabIndex === this.workOrdersTabIndex && this.showWorkOrderDetail;
+  }
+
+  get isReceiptDetailActive(): boolean {
+    return this.selectedTabIndex === this.receiptsTabIndex && this.showReceiptDetail;
+  }
+
+  get workOrderPrimaryActionLabel(): string {
+    if (!this.isWorkOrderDetailActive || !this.maintenanceWorkOrderDetail) {
+      return 'Save';
+    }
+    return this.maintenanceWorkOrderDetail.isViewModeBeforeChanges() ? 'View' : 'Save';
+  }
+
+  get workOrderPrimaryActionIcon(): string {
+    if (!this.isWorkOrderDetailActive || !this.maintenanceWorkOrderDetail) {
+      return 'save';
+    }
+    return this.maintenanceWorkOrderDetail.isViewModeBeforeChanges() ? 'visibility' : 'save';
+  }
+
+  get workOrderPrimaryActionDisabled(): boolean {
+    if (!this.isWorkOrderDetailActive || !this.maintenanceWorkOrderDetail) {
+      return true;
+    }
+    if (this.maintenanceWorkOrderDetail.isSubmitting) {
+      return true;
+    }
+    return !this.maintenanceWorkOrderDetail.isViewModeBeforeChanges() && !this.maintenanceWorkOrderDetail.form?.valid;
+  }
+
+  get receiptPrimaryActionLabel(): string {
+    return 'Save';
+  }
+
+  get receiptPrimaryActionIcon(): string {
+    return 'save';
+  }
+
+  get receiptPrimaryActionDisabled(): boolean {
+    if (!this.isReceiptDetailActive || !this.maintenanceReceiptDetail) {
+      return true;
+    }
+    return this.maintenanceReceiptDetail.isSubmitting || !this.maintenanceReceiptDetail.form?.valid;
+  }
   //#endregion
 
   //#region Top Bar Event Methods
@@ -478,6 +527,32 @@ export class MaintenanceShellComponent implements OnInit, CanComponentDeactivate
     this.showWorkOrderDetail = false;
     this.selectedWorkOrderId = null;
     this.refreshReceiptsTrigger++;
+  }
+
+  onTopBarBackClick(): void {
+    if (this.isReceiptDetailActive) {
+      this.onReceiptBack();
+      return;
+    }
+    if (this.isWorkOrderDetailActive) {
+      this.onWorkOrderBack();
+      return;
+    }
+    void this.back();
+  }
+
+  onTopBarWorkOrderPrimaryActionClick(): void {
+    if (!this.isWorkOrderDetailActive) {
+      return;
+    }
+    this.maintenanceWorkOrderDetail?.onPrimaryAction();
+  }
+
+  onTopBarReceiptPrimaryActionClick(): void {
+    if (!this.isReceiptDetailActive) {
+      return;
+    }
+    this.maintenanceReceiptDetail?.saveReceipt();
   }
 
   onMaintenanceWorkOrderInactiveChange(showInactive: boolean): void {

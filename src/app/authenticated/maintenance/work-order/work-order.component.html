@@ -6,28 +6,30 @@
 } @else {
   <div class="flex content-card-wrap justify-center">
     <section class="content-card">
-      <div class="flex justify-between items-center gap-3 bg-slate-200 rounded-t-lg py-0 pl-8 pr-4">
-        <span class="flex flex-column items-center gap-3 py-4">
-          <mat-icon class="flex-shrink-0">build</mat-icon>
-          <span class="flex-shrink-0 text-xl font-medium">
-            {{ isAddMode ? 'Add Work Order' : 'Edit Work Order' }}
+      @if (!embeddedInMaintenance) {
+        <div class="flex justify-between items-center gap-3 bg-slate-200 rounded-t-lg py-0 pl-8 pr-4">
+          <span class="flex flex-column items-center gap-3 py-4">
+            <mat-icon class="flex-shrink-0">build</mat-icon>
+            <span class="flex-shrink-0 text-xl font-medium">
+              {{ isAddMode ? 'Add Work Order' : 'Edit Work Order' }}
+            </span>
           </span>
-        </span>
-        <div class="flex gap-2">
-          @if (showBackButton) {
-            <button mat-raised-button type="button" color="accent" (click)="back()"
-              class="scale-90 text-nowrap flex-shrink-0">
-              <mat-icon>arrow_back</mat-icon>
-              Back
+          <div class="flex gap-2">
+            @if (showBackButton) {
+              <button mat-raised-button type="button" color="accent" (click)="back()"
+                class="scale-90 text-nowrap flex-shrink-0">
+                <mat-icon>arrow_back</mat-icon>
+                Back
+              </button>
+            }
+            <button mat-raised-button type="button" color="primary" (click)="onPrimaryAction()"
+              class="scale-90 text-nowrap flex-shrink-0" [disabled]="isSubmitting || (!isViewModeBeforeChanges() && !form.valid)">
+              <mat-icon>{{ isViewModeBeforeChanges() ? 'visibility' : 'save' }}</mat-icon>
+              {{ isViewModeBeforeChanges() ? 'View' : 'Save' }}
             </button>
-          }
-          <button mat-raised-button type="button" color="primary" (click)="onPrimaryAction()"
-            class="scale-90 text-nowrap flex-shrink-0" [disabled]="isSubmitting || (!isViewModeBeforeChanges() && !form.valid)">
-            <mat-icon>{{ isViewModeBeforeChanges() ? 'visibility' : 'save' }}</mat-icon>
-            {{ isViewModeBeforeChanges() ? 'View' : 'Save' }}
-          </button>
+          </div>
         </div>
-      </div>
+      }
 
       <mat-card>
         <form [formGroup]="form" (ngSubmit)="saveWorkOrder()" class="info-form mb-8 pt-5">
@@ -105,7 +107,7 @@
                 <span class="text-lg font-medium">Work Order Items</span>
                 <button mat-raised-button type="button" color="accent" (click)="addWorkOrderItem()"
                   [disabled]="!canAddItem()"
-                  class="scale-90 text-nowrap flex-shrink-0">
+                  class="text-nowrap flex-shrink-0">
                   Add Item
                 </button>
               </div>
