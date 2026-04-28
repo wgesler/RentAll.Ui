@@ -194,7 +194,8 @@ export class BillingComponent implements OnInit, OnDestroy {
     const incompleteLines: number[] = [];
     this.ledgerLines.forEach((line, index) => {
       const hasTransactionTypeId = (line as any).transactionTypeId !== undefined && (line as any).transactionTypeId !== null;
-      const hasCostCodeId = line.costCodeId && line.costCodeId !== null && line.costCodeId !== '';
+      const parsedCostCodeId = line.costCodeId == null || line.costCodeId === '' ? NaN : Number(line.costCodeId);
+      const hasCostCodeId = Number.isInteger(parsedCostCodeId) && parsedCostCodeId > 0;
       const hasDescription = line.description && line.description.trim() !== '';
       const hasAmount = line.amount !== null && line.amount !== undefined && line.amount !== 0;
       
@@ -214,11 +215,12 @@ export class BillingComponent implements OnInit, OnDestroy {
          
     // Convert ledger lines from display format to request format
     const ledgerLines: LedgerLineRequest[] = this.ledgerLines.map((line, index) => {
+        const numericCostCodeId = line.costCodeId == null || line.costCodeId === '' ? NaN : Number(line.costCodeId);
         const ledgerLine: LedgerLineRequest = {
           ledgerLineId: line.ledgerLineId || undefined,
           invoiceId: this.isAddMode ? undefined : this.invoiceId,
           lineNumber: line.lineNumber !== undefined ? line.lineNumber : index + 1,
-          costCodeId: line.costCodeId || undefined,
+          costCodeId: Number.isInteger(numericCostCodeId) && numericCostCodeId > 0 ? numericCostCodeId : undefined,
           transactionTypeId: (line as any).transactionTypeId,
           amount: line.amount || 0,
           description: line.description || ''

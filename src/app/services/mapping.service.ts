@@ -328,13 +328,14 @@ export class MappingService {
 
   mapLedgerLines(ledgerLines: LedgerLineResponse[], costCodes?: CostCodesResponse[], transactionTypes?: { value: number, label: string }[]): LedgerLineListDisplay[] {
     return ledgerLines.map<LedgerLineListDisplay>((line: LedgerLineResponse) => {
-      const costCodeId = line.costCodeId || null;
+      const numericCostCodeId = line.costCodeId ?? null;
+      const costCodeId = numericCostCodeId === null ? null : String(numericCostCodeId);
       let matchingCostCode: CostCodesResponse | undefined = undefined;
       let transactionTypeId: number | undefined = line.transactionTypeId;
       
-      if (costCodeId && costCodes && costCodes.length > 0) {
+      if (numericCostCodeId !== null && costCodes && costCodes.length > 0) {
         // Find cost code by costCodeId (costCodes array is already filtered by office if needed)
-        matchingCostCode = costCodes.find(c => c.costCodeId === costCodeId);
+        matchingCostCode = costCodes.find(c => Number(c.costCodeId) === Number(numericCostCodeId));
         
         if (matchingCostCode) {
           transactionTypeId = matchingCostCode.transactionTypeId;

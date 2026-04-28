@@ -40,7 +40,7 @@ interface GeneralLedgerDisplayRow {
 }
 
 interface LedgerLineWithDateFields {
-  costCodeId?: string;
+  costCodeId?: number;
   transactionTypeId?: number;
   amount?: number;
   transactionDate?: string;
@@ -432,11 +432,11 @@ export class GeneralLedgerComponent implements OnInit, OnChanges, OnDestroy {
     }
 
     const costCodeId = line.costCodeId;
-    if (!costCodeId) {
+    if (!Number.isInteger(costCodeId) || (costCodeId as number) <= 0) {
       return null;
     }
 
-    const matchingCostCode = this.costCodes.find(c => c.officeId === officeId && c.costCodeId === costCodeId);
+    const matchingCostCode = this.costCodes.find(c => c.officeId === officeId && Number(c.costCodeId) === costCodeId);
     return matchingCostCode?.transactionTypeId ?? null;
   }
 
