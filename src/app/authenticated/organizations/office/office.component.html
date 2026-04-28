@@ -479,6 +479,50 @@
                   </div>
                 </div>
 
+                <div class="mb-4">
+                  <h3 class="text-lg font-bold mb-3 text-black">Tenant and Owner Charges</h3>
+                  <div class="flex gap-4">
+                    <mat-form-field appearance="outline" class="flex-1">
+                      <mat-label>Tenant Damages Charge</mat-label>
+                      <mat-select formControlName="tenantChargeCcId">
+                        <mat-option [value]="null">None</mat-option>
+                        @for (costCode of chargeCostCodeOptions; track costCode.value) {
+                          <mat-option [value]="costCode.value">{{ costCode.label }}</mat-option>
+                        }
+                      </mat-select>
+                    </mat-form-field>
+
+                    <mat-form-field appearance="outline" class="flex-1">
+                      <mat-label>Tenant Damages Expense</mat-label>
+                      <mat-select formControlName="tenantExpenseCcId">
+                        <mat-option [value]="null">None</mat-option>
+                        @for (costCode of expenseCostCodeOptions; track costCode.value) {
+                          <mat-option [value]="costCode.value">{{ costCode.label }}</mat-option>
+                        }
+                      </mat-select>
+                    </mat-form-field>
+                    <mat-form-field appearance="outline" class="flex-1">
+                      <mat-label>Owner Charge</mat-label>
+                      <mat-select formControlName="ownerChargeCcId">
+                        <mat-option [value]="null">None</mat-option>
+                        @for (costCode of chargeCostCodeOptions; track costCode.value) {
+                          <mat-option [value]="costCode.value">{{ costCode.label }}</mat-option>
+                        }
+                      </mat-select>
+                    </mat-form-field>
+
+                    <mat-form-field appearance="outline" class="flex-1">
+                      <mat-label>Owner Expense</mat-label>
+                      <mat-select formControlName="ownerExpenseCcId">
+                        <mat-option [value]="null">None</mat-option>
+                        @for (costCode of expenseCostCodeOptions; track costCode.value) {
+                          <mat-option [value]="costCode.value">{{ costCode.label }}</mat-option>
+                        }
+                      </mat-select>
+                    </mat-form-field>
+                  </div>
+                </div>
+
               </mat-expansion-panel>
 
             </mat-accordion>

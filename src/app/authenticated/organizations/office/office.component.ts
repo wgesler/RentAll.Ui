@@ -14,6 +14,9 @@ import { NavigationContextService } from '../../../services/navigation-context.s
 import { UtilityService } from '../../../services/utility.service';
 import { FileDetails } from '../../../shared/models/fileDetails';
 import { fileValidator } from '../../../validators/file-validator';
+import { CostCodesResponse } from '../../accounting/models/cost-codes.model';
+import { TransactionType } from '../../accounting/models/accounting-enum';
+import { CostCodesService } from '../../accounting/services/cost-codes.service';
 import { UserRequest, UserResponse } from '../../users/models/user.model';
 import { UserService } from '../../users/services/user.service';
 import { OfficeRequest, OfficeResponse } from '../models/office.model';
@@ -50,6 +53,9 @@ export class OfficeComponent implements OnInit, OnDestroy, OnChanges {
   isAddMode: boolean = false;
   returnToSettings: boolean = false;
   states: string[] = [];
+  allCostCodes: CostCodesResponse[] = [];
+  chargeCostCodeOptions: { value: number, label: string }[] = [];
+  expenseCostCodeOptions: { value: number, label: string }[] = [];
 
   itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['office']));
   isLoading$: Observable<boolean> = this.itemsToLoad$.pipe(map(items => items.size > 0));
@@ -65,6 +71,7 @@ export class OfficeComponent implements OnInit, OnDestroy, OnChanges {
     private formatterService: FormatterService,
     private navigationContext: NavigationContextService,
     private commonService: CommonService,
+    private costCodesService: CostCodesService,
     private userService: UserService,
     private utilityService: UtilityService
   ) {
@@ -73,6 +80,7 @@ export class OfficeComponent implements OnInit, OnDestroy, OnChanges {
   //#region Office
   ngOnInit(): void {
     this.loadStates();
+    this.loadCostCodes();
     // Check for returnTo query parameter
     this.route.queryParams.pipe(takeUntil(this.destroy$)).subscribe(params => {
       this.returnToSettings = params['returnTo'] === 'settings';
@@ -161,6 +169,7 @@ export class OfficeComponent implements OnInit, OnDestroy, OnChanges {
         }
         this.buildForm();
         this.populateForm();
+        this.filterOfficeCostCodeOptions();
       },
       error: (err: HttpErrorResponse) => {
         this.isServiceError = true;
@@ -180,6 +189,10 @@ export class OfficeComponent implements OnInit, OnDestroy, OnChanges {
     const user = this.authService.getUser();
     const phoneDigits = this.formatterService.stripPhoneFormatting(formValue.phone);
     const faxDigits = this.formatterService.stripPhoneFormatting(formValue.fax);
+    const tenantChargeCcId = this.toNullableCostCodeId(formValue.tenantChargeCcId);
+    const tenantExpenseCcId = this.toNullableCostCodeId(formValue.tenantExpenseCcId);
+    const ownerChargeCcId = this.toNullableCostCodeId(formValue.ownerChargeCcId);
+    const ownerExpenseCcId = this.toNullableCostCodeId(formValue.ownerExpenseCcId);
 
     const isInternational = formValue.isInternational || false;
     const officeRequest: OfficeRequest = {
@@ -223,9 +236,12 @@ export class OfficeComponent implements OnInit, OnDestroy, OnChanges {
       maidFourBed: formValue.maidFourBed ? parseFloat(formValue.maidFourBed.toString()) : 0,
       parkingLowEnd: formValue.parkingLowEnd ? parseFloat(formValue.parkingLowEnd.toString()) : 0,
       parkingHighEnd: formValue.parkingHighEnd ? parseFloat(formValue.parkingHighEnd.toString()) : 0,
-      emailListForReservations: (formValue.emailListForReservations || '').trim() || null
+      emailListForReservations: (formValue.emailListForReservations || '').trim() || null,
+      tenantChargeCcId: tenantChargeCcId,
+      tenantExpenseCcId: tenantExpenseCcId,
+      ownerChargeCcId: ownerChargeCcId,
+      ownerExpenseCcId: ownerExpenseCcId
     };
-
     const orgId = (this.organizationId || this.office?.organizationId || user?.organizationId || '').trim();
 
     if (this.isAddMode) {
@@ -318,6 +334,42 @@ export class OfficeComponent implements OnInit, OnDestroy, OnChanges {
       }
     });
   }
+
+  loadCostCodes(): void {
+    this.costCodesService.ensureCostCodesLoaded();
+    this.costCodesService.areCostCodesLoaded().pipe(filter(loaded => loaded === true), take(1)).subscribe(() => {
+      this.costCodesService.getAllCostCodes().pipe(takeUntil(this.destroy$)).subscribe(costCodes => {
+        this.allCostCodes = costCodes || [];
+        this.filterOfficeCostCodeOptions();
+      });
+    });
+  }
+
+  filterOfficeCostCodeOptions(): void {
+    const officeId = this.office?.officeId;
+    if (!officeId) {
+      this.chargeCostCodeOptions = [];
+      this.expenseCostCodeOptions = [];
+      return;
+    }
+
+    const officeActiveCostCodes = this.allCostCodes
+      .filter(c => c.officeId === officeId && c.isActive);
+
+    this.chargeCostCodeOptions = officeActiveCostCodes
+      .filter(c => c.transactionTypeId === TransactionType.Charge)
+      .map(c => ({
+        value: c.costCodeId,
+        label: `${c.costCode}: ${c.description}`
+      }));
+
+    this.expenseCostCodeOptions = officeActiveCostCodes
+      .filter(c => c.transactionTypeId === TransactionType.Expense)
+      .map(c => ({
+        value: c.costCodeId,
+        label: `${c.costCode}: ${c.description}`
+      }));
+  }
   //#endregion
 
   //#region Form Methods
@@ -359,7 +411,11 @@ export class OfficeComponent implements OnInit, OnDestroy, OnChanges {
       maidFourBed: new FormControl<string>('0.00', [Validators.required]),
       parkingLowEnd: new FormControl<string>('0.00', [Validators.required]),
       parkingHighEnd: new FormControl<string>('0.00', [Validators.required]),
-      emailListForReservations: new FormControl<string>('')
+      emailListForReservations: new FormControl<string>(''),
+      tenantChargeCcId: new FormControl<number | null>(null),
+      tenantExpenseCcId: new FormControl<number | null>(null),
+      ownerChargeCcId: new FormControl<number | null>(null),
+      ownerExpenseCcId: new FormControl<number | null>(null)
     });
 
     // Setup conditional validation for international addresses
@@ -408,7 +464,11 @@ export class OfficeComponent implements OnInit, OnDestroy, OnChanges {
           maidFourBed: this.office.maidFourBed !== null && this.office.maidFourBed !== undefined ? this.office.maidFourBed.toFixed(2) : '0.00',
           parkingLowEnd: this.office.parkingLowEnd !== null && this.office.parkingLowEnd !== undefined ? this.office.parkingLowEnd.toFixed(2) : '0.00',
           parkingHighEnd: this.office.parkingHighEnd !== null && this.office.parkingHighEnd !== undefined ? this.office.parkingHighEnd.toFixed(2) : '0.00',
-          emailListForReservations: this.office.emailListForReservations || ''
+          emailListForReservations: this.office.emailListForReservations || '',
+          tenantChargeCcId: this.office.tenantChargeCcId ?? null,
+          tenantExpenseCcId: this.office.tenantExpenseCcId ?? null,
+          ownerChargeCcId: this.office.ownerChargeCcId ?? null,
+          ownerExpenseCcId: this.office.ownerExpenseCcId ?? null
         });
       }, 0);
     }
@@ -454,7 +514,11 @@ export class OfficeComponent implements OnInit, OnDestroy, OnChanges {
       maidFourBed: o.maidFourBed != null ? o.maidFourBed.toFixed(2) : '0.00',
       parkingLowEnd: o.parkingLowEnd != null ? o.parkingLowEnd.toFixed(2) : '0.00',
       parkingHighEnd: o.parkingHighEnd != null ? o.parkingHighEnd.toFixed(2) : '0.00',
-      emailListForReservations: o.emailListForReservations || ''
+      emailListForReservations: o.emailListForReservations || '',
+      tenantChargeCcId: o.tenantChargeCcId ?? null,
+      tenantExpenseCcId: o.tenantExpenseCcId ?? null,
+      ownerChargeCcId: o.ownerChargeCcId ?? null,
+      ownerExpenseCcId: o.ownerExpenseCcId ?? null
     }, { emitEvent: false });
   }
 
@@ -569,6 +633,14 @@ export class OfficeComponent implements OnInit, OnDestroy, OnChanges {
     const value = input.value.replace(/[^0-9]/g, '');
     input.value = value;
     this.form.get(fieldName)?.setValue(value, { emitEvent: false });
+  }
+
+  toNullableCostCodeId(value: unknown): number | null {
+    if (value === null || value === undefined || value === '') {
+      return null;
+    }
+    const numericValue = Number(value);
+    return Number.isFinite(numericValue) && numericValue > 0 ? numericValue : null;
   }
   //#endregion
 

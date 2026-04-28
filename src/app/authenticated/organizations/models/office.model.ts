@@ -41,6 +41,10 @@ export interface OfficeRequest {
   parkingLowEnd: number;
   parkingHighEnd: number;
   emailListForReservations?: string | null;
+  tenantChargeCcId?: number | null;
+  tenantExpenseCcId?: number | null;
+  ownerChargeCcId?: number | null;
+  ownerExpenseCcId?: number | null;
 }
 
 export interface OfficeResponse {
@@ -84,6 +88,10 @@ export interface OfficeResponse {
   parkingLowEnd: number;
   parkingHighEnd: number;
   emailListForReservations?: string | null;
+  tenantChargeCcId?: number | null;
+  tenantExpenseCcId?: number | null;
+  ownerChargeCcId?: number | null;
+  ownerExpenseCcId?: number | null;
 }
 
 export interface OfficeListDisplay {

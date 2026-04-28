@@ -45,6 +45,9 @@ export class GlobalSelectionService {
   }
 
   setSelectedOfficeId(officeId: number | null): void {
+    if (this.selectedOfficeId$.value === officeId) {
+      return;
+    }
     this.selectedOfficeId$.next(officeId);
     this.writeOfficeIdToStorage(officeId);
   }
