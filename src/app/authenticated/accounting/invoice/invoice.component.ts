@@ -846,6 +846,7 @@ export class InvoiceComponent implements OnInit, OnDestroy {
   setupFormHandlers(): void {
     this.setupOfficeIdHandler();
     this.setupReservationIdHandler();
+    this.setupInvoiceDateSyncHandler();
     
     
     setTimeout(() => {
@@ -874,6 +875,26 @@ export class InvoiceComponent implements OnInit, OnDestroy {
         totalDueInput.value = formattedTotalDue;
       }
     }, 100);
+  }
+
+  setupInvoiceDateSyncHandler(): void {
+    this.form.get('invoiceDate')?.valueChanges.subscribe(invoiceDateValue => {
+      if (!this.isAddMode || !this.form) {
+        return;
+      }
+
+      const parsedInvoiceDate = this.utilityService.parseCalendarDateInput(invoiceDateValue);
+      if (!parsedInvoiceDate) {
+        return;
+      }
+
+      parsedInvoiceDate.setHours(0, 0, 0, 0);
+      const syncedDate = new Date(parsedInvoiceDate.getTime());
+
+      // Keep Due Date and Start Date aligned with Invoice Date during add flow.
+      this.form.get('dueDate')?.setValue(new Date(syncedDate.getTime()), { emitEvent: false });
+      this.form.get('startDate')?.setValue(new Date(syncedDate.getTime()), { emitEvent: false });
+    });
   }
 
   setupOfficeIdHandler(): void {

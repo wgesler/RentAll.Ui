@@ -72,6 +72,7 @@
               [hasActionsEdit]="true"
               [hasActionsCopy]="true"
               [hasActionsDelete]="true"
+              [hasActionsInvoice]="true"
               [hasPropertyCodeLink]="true"
               [confirmDeleteBeforeEmit]="false"
               [deleteConfirmTitle]="'Delete Reservation'"
@@ -81,6 +82,7 @@
               (rowClickEvent)="goToReservation($event)"
               (propertyCodeClickEvent)="goToProperty($event)"
               (copyEvent)="copyReservation($event)"
+              (invoiceEvent)="goToInvoice($event)"
               (deleteEvent)="deleteReservation($event)"
               (contactClickEvent)="goToContact($event)"
               (checkboxChangeEvent)="onReservationCheckboxChange($event)">

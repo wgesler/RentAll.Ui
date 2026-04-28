@@ -29,6 +29,7 @@ import { ColumnSet } from '../../shared/data-table/models/column-data';
 import { AddAlertDialogComponent, AddAlertDialogData } from '../../shared/modals/add-alert-dialog/add-alert-dialog.component';
 import { GenericModalComponent } from '../../shared/modals/generic/generic-modal.component';
 import { GenericModalData } from '../../shared/modals/generic/models/generic-modal-data';
+import { ReservationStatus, ReservationType } from '../models/reservation-enum';
 import { ReservationListDisplay, ReservationListResponse, ReservationResponse } from '../models/reservation-model';
 import { ReservationService } from '../services/reservation.service';
 
@@ -346,6 +347,26 @@ export class ReservationListComponent implements OnInit, OnDestroy, OnChanges {
     this.router.navigate([url], { queryParams });
   }
 
+  goToInvoice(event: ReservationListDisplay): void {
+    if (this.isInvoiceActionDisabled(event)) {
+      return;
+    }
+
+    const url = RouterUrl.replaceTokens(RouterUrl.Reservation, [event.reservationId]);
+    const listReturnPath = this.router.url.split('?')[0];
+    const queryParams: Record<string, string | number> = {
+      returnTo: 'reservation-list',
+      listReturnPath,
+      tab: 'invoices'
+    };
+
+    if (this.selectedOffice) {
+      queryParams['officeId'] = this.selectedOffice.officeId;
+    }
+
+    this.router.navigate([url], { queryParams });
+  }
+
   goToPropertySelection(): void {
     const listReturnPath = this.router.url.split('?')[0];
     if (!this.userId) {
@@ -526,7 +547,18 @@ export class ReservationListComponent implements OnInit, OnDestroy, OnChanges {
       });
     }
 
-    this.reservationsDisplay = filtered;
+    this.reservationsDisplay = filtered.map(reservation => ({
+      ...reservation,
+      invoiceDisabled: this.isInvoiceActionDisabled(reservation)
+    }));
+  }
+
+  isInvoiceActionDisabled(reservation: ReservationListDisplay | null | undefined): boolean {
+    if (!reservation) {
+      return true;
+    }
+    return reservation.reservationTypeId === ReservationType.Owner
+      || reservation.reservationStatusId === ReservationStatus.PreBooking;
   }
 
   onOfficeChange(): void {

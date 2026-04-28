@@ -64,6 +64,7 @@ export class DataTableComponent implements OnChanges, OnInit {
   @Input() hasActionsEdit: boolean = false;
   @Input() hasActionsLock: boolean = false;
   @Input() hasActionsPayable: boolean = false;
+  @Input() hasActionsInvoice: boolean = false;
   @Input() hasActionsPrint: boolean = false;
   @Input() hasActionsRestore: boolean = false;
   @Input() hasActionsRowClick: boolean = false;
@@ -133,6 +134,7 @@ export class DataTableComponent implements OnChanges, OnInit {
   @Output() editEvent = new EventEmitter<PurposefulAny>();
   @Output() lockEvent = new EventEmitter<PurposefulAny>();
   @Output() payableEvent = new EventEmitter<PurposefulAny>();
+  @Output() invoiceEvent = new EventEmitter<PurposefulAny>();
   @Output() printEvent = new EventEmitter<PurposefulAny>();
   @Output() restoreEvent = new EventEmitter<PurposefulAny>();
   @Output() rowClickEvent = new EventEmitter<PurposefulAny>();
@@ -308,6 +310,11 @@ export class DataTableComponent implements OnChanges, OnInit {
   emitPayableEvent(event: Event, rowItem: PurposefulAny): void {
     event.stopPropagation();
     this.payableEvent.emit(rowItem);
+  }
+
+  emitInvoiceEvent(event: Event, rowItem: PurposefulAny): void {
+    event.stopPropagation();
+    this.invoiceEvent.emit(rowItem);
   }
 
   emitPrintEvent(event: Event, rowItem: PurposefulAny): void {
@@ -575,7 +582,7 @@ export class DataTableComponent implements OnChanges, OnInit {
 
     columns = {...columns, ...this.columns};
     
-    if (this.hasActionsEdit || this.hasActionsDelete || this.hasActionsSave || this.hasActionsRestore || this.hasActionsDownload || this.hasActionsView || this.hasActionsInspect || this.hasActionsCamera || this.hasActionsPayable || this.hasActionsCopy || this.hasActionsCalendar || this.hasColumnDynamicAction)
+    if (this.hasActionsEdit || this.hasActionsDelete || this.hasActionsSave || this.hasActionsRestore || this.hasActionsDownload || this.hasActionsView || this.hasActionsInspect || this.hasActionsCamera || this.hasActionsPayable || this.hasActionsInvoice || this.hasActionsCopy || this.hasActionsCalendar || this.hasColumnDynamicAction)
       columns['actions'] = { displayAs: 'Actions', sort: false, wrap: false };
     
     this.tableColumns = [];
@@ -609,6 +616,7 @@ export class DataTableComponent implements OnChanges, OnInit {
     if (this.hasActionsCalendar) this.buttons.push({name: 'calendar', callback: (event, rowItem) => this.emitCalendarEvent(event, rowItem), color: '#00897B', tooltip: 'Calendar', tooltipPosition: 'before', icon: 'calendar_month', suspendOnUpdate: false});
     if (this.hasActionsCopy)     this.buttons.push({name: 'copy', callback: (event, rowItem) => this.emitCopyEvent(event, rowItem), color: '#2196F3', tooltip: 'Copy', tooltipPosition: 'before', icon: 'file_copy', suspendOnUpdate: false});
     if (this.hasActionsPayable)  this.buttons.push({name: 'payable', callback: (event, rowItem) => this.emitPayableEvent(event, rowItem), color: '#4CAF50', tooltip: 'Pay', tooltipPosition: 'before', icon: 'attach_money', suspendOnUpdate: false});
+    if (this.hasActionsInvoice)  this.buttons.push({name: 'invoice', callback: (event, rowItem) => this.emitInvoiceEvent(event, rowItem), color: '#2E7D32', tooltip: 'Invoices', tooltipPosition: 'before', icon: 'receipt_long', suspendOnUpdate: false});
     if (this.hasActionsView)     this.buttons.push({name: 'view', callback: (event, rowItem) => this.emitViewEvent(event, rowItem), color: '#FF9800', tooltip: 'View', tooltipPosition: 'before', icon: 'visibility', suspendOnUpdate: false});
     if (this.hasActionsPrint)    this.buttons.push({name: 'print', callback: (event, rowItem) => this.emitPrintEvent(event, rowItem), color: '#2196F3', tooltip: 'Print', tooltipPosition: 'before', icon: 'print', suspendOnUpdate: false});
     if (this.hasActionsRestore)  this.buttons.push({name: 'restore', callback: (event, rowItem) => this.emitRestoreEvent(event, rowItem), color: '#A64D79', tooltip: 'Restore', tooltipPosition: 'before', icon: 'restore', suspendOnUpdate: false});

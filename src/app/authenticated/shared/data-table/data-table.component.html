@@ -138,7 +138,7 @@
                   } @case ('no') {
                   {{dataSource.filteredData.indexOf(item)+1}}
                   } @case ('actions') {
-                  <div class="flex items-center justify-start">
+                  <div class="flex items-center justify-start" (click)="$event.stopPropagation()" (mousedown)="$event.stopPropagation()">
                     @for (button of buttons; track button.name) {
                       @if ((button.name === 'delete' && !item?.deleteDisabled) || button.name !== 'delete') {
                         <span [matTooltip]="button.name === 'view' && item?.canView === false ? 'This document type cannot be previewed' : (button.name === 'camera' && !item?.documentPath ? 'No document available' : (item?.customTooltip || button.tooltip || button.name))"
@@ -148,8 +148,8 @@
                           <button mat-icon-button type="button"
                             id="row-{{button.name}}-btn-{{templateTableId}}-{{i}}"
                             (click)="button.callback($event, item)"
-                            [disabled]="!hasActionsEnabled || (button.name === 'view' && item?.canView === false) || (button.name === 'camera' && !item?.documentPath)"
-                            [style.color]="hasActionsEnabled && !(button.name === 'view' && item?.canView === false) && !(button.name === 'camera' && !item?.documentPath) ? button.color : ''"
+                            [disabled]="!hasActionsEnabled || (button.name === 'view' && item?.canView === false) || (button.name === 'camera' && !item?.documentPath) || (button.name === 'invoice' && item?.invoiceDisabled === true)"
+                            [style.color]="hasActionsEnabled && !(button.name === 'view' && item?.canView === false) && !(button.name === 'camera' && !item?.documentPath) && !(button.name === 'invoice' && item?.invoiceDisabled === true) ? button.color : ''"
                             [color]="button.color">
                             @if (button.suspendOnUpdate && item?.updating) {
                               <div class="datatable-{{button.name}}-loader-wrap">
