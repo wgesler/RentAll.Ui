@@ -70,7 +70,7 @@ export class WorkOrderComponent implements OnInit, OnChanges, OnDestroy {
   nextWorkOrderNo: number | null = null;
   propertyReservations: ReservationListResponse[] = [];
   propertyAgreement: PropertyAgreementResponse | null = null;
-  costCodeId: string | null = null;
+  costCodeId: number | null = null;
   defaultLaborCost: number = 0;
   focusedCurrencyField: { index: number; field: 'laborCost' | 'amount'; editValue: string } | null = null;
   initialWorkOrderItemsSnapshot: WorkOrderItemSnapshot[] = [];
@@ -325,6 +325,11 @@ export class WorkOrderComponent implements OnInit, OnChanges, OnDestroy {
     if (workOrderTypeId !== WorkOrderType.Tenant) {
       return;
     }
+    const numericCostCodeId = this.getNumericCostCodeIdForInvoice();
+    if (numericCostCodeId === null) {
+      this.toastr.warning('Work order saved, but invoice was not created because Cost Code is invalid.', 'Partial Update');
+      return;
+    }
 
     const now = new Date();
     const todayCalendar =
@@ -337,7 +342,7 @@ export class WorkOrderComponent implements OnInit, OnChanges, OnDestroy {
         lineNumber: 1,
         transactionTypeId: TransactionType.Charge,
         reservationId: workOrder.reservationId,
-        costCodeId: this.costCodeId,
+        costCodeId: numericCostCodeId,
         description: workOrderRef,
         amount: roundedTotalAmount
       }
@@ -985,7 +990,8 @@ export class WorkOrderComponent implements OnInit, OnChanges, OnDestroy {
     }
     this.costCodeService.getCostCodeByCode(this.costCode, officeId).pipe(takeUntil(this.destroy$), take(1), finalize(() => { this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'costCode'); })).subscribe({
       next: (costCode) => {
-        this.costCodeId = costCode?.costCodeId ?? null;
+        const numericCostCodeId = Number(costCode?.costCodeId);
+        this.costCodeId = Number.isInteger(numericCostCodeId) && numericCostCodeId > 0 ? numericCostCodeId : null;
       },
       error: () => {
         this.costCodeId = null;
@@ -1343,6 +1349,14 @@ export class WorkOrderComponent implements OnInit, OnChanges, OnDestroy {
   //#endregion
 
   //#region Utility Methods
+  getNumericCostCodeIdForInvoice(): number | null {
+    const numericValue = Number(this.costCodeId);
+    if (!Number.isInteger(numericValue) || numericValue <= 0) {
+      return null;
+    }
+    return numericValue;
+  }
+
   canAddItem(): boolean {
     return this.form.valid;
   }

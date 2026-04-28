@@ -107,7 +107,7 @@ export interface LedgerLineRequest {
   ledgerLineId?: string;
   invoiceId?: string | null;
   lineNumber: number;
-  costCodeId?: string;
+  costCodeId?: number;
   transactionTypeId: number;
   reservationId?: string | null;
   amount: number;
@@ -118,7 +118,7 @@ export interface LedgerLineResponse {
   ledgerLineId: string;
   invoiceId: string;
   lineNumber: number;
-  costCodeId?: string;
+  costCodeId?: number;
   transactionTypeId: number;
   reservationId?: string | null;
   amount: number;
