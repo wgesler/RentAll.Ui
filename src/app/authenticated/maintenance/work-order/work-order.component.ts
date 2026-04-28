@@ -310,8 +310,12 @@ export class WorkOrderComponent implements OnInit, OnChanges, OnDestroy {
 
         this.toastr.warning('Work order saved, but unable to open the preview page.', 'Navigation Warning');
       },
-      error: (_err: HttpErrorResponse) => {
-        this.toastr.error('Unable to save work order.', 'Error');
+      error: (err: HttpErrorResponse) => {
+        const detail = this.utilityService.extractApiErrorMessage(err);
+        this.toastr.error(
+          detail ? `Unable to save work order. ${detail}` : 'Unable to save work order.',
+          'Error'
+        );
       }
     });
   }
@@ -376,8 +380,12 @@ export class WorkOrderComponent implements OnInit, OnChanges, OnDestroy {
           return;
         }
       },
-      error: () => {
-        this.toastr.error('Unable to save invoice from work order.', 'Error');
+      error: (err: HttpErrorResponse) => {
+        const detail = this.utilityService.extractApiErrorMessage(err);
+        this.toastr.error(
+          detail ? `Unable to save invoice from work order. ${detail}` : 'Unable to save invoice from work order.',
+          'Error'
+        );
       }
     });
   }
