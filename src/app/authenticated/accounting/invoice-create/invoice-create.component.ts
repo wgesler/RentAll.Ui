@@ -1,11 +1,11 @@
-import { AsyncPipe, CommonModule } from '@angular/common';
+import { CommonModule } from '@angular/common';
 import { HttpClient, HttpErrorResponse } from '@angular/common/http';
 import { Component, ElementRef, EventEmitter, Input, OnChanges, OnDestroy, OnInit, Output, SimpleChanges, ViewChild } from '@angular/core';
 import { FormBuilder, FormControl, FormGroup, FormsModule, ReactiveFormsModule } from '@angular/forms';
 import { DomSanitizer, SafeHtml } from '@angular/platform-browser';
 import { ActivatedRoute, Router } from '@angular/router';
 import { ToastrService } from 'ngx-toastr';
-import { BehaviorSubject, Observable, Subscription, filter, finalize, firstValueFrom, forkJoin, map, of, skip, take } from 'rxjs';
+import { BehaviorSubject, Observable, Subscription, filter, finalize, firstValueFrom, forkJoin, of, skip, take } from 'rxjs';
 import { RouterUrl } from '../../../app.routes';
 import { CommonMessage } from '../../../enums/common-message.enum';
 import { MaterialModule } from '../../../material.module';
@@ -52,7 +52,7 @@ import { InvoiceService } from '../services/invoice.service';
 @Component({
     standalone: true,
     selector: 'app-invoice-create',
-    imports: [CommonModule, MaterialModule, FormsModule, ReactiveFormsModule, AsyncPipe, TitleBarSelectComponent],
+    imports: [CommonModule, MaterialModule, FormsModule, ReactiveFormsModule, TitleBarSelectComponent],
     templateUrl: './invoice-create.component.html',
     styleUrls: ['./invoice-create.component.scss']
 })
@@ -108,10 +108,11 @@ export class InvoiceCreateComponent extends BaseDocumentComponent implements OnI
   debuggingHtml: boolean = true;
   shouldAutoPrint: boolean = false;
   autoPrintExecuted: boolean = false;
+  isPageReady: boolean = false;
   @ViewChild('previewIframe') previewIframe?: ElementRef<HTMLIFrameElement>;
 
-  itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['offices', 'accountingOffices', 'reservations', 'contacts', 'emailHtml', 'costCodes']));
-  isLoading$: Observable<boolean> = this.itemsToLoad$.pipe(map(items => items.size > 0));
+  itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['offices', 'accountingOffices', 'organization', 'reservations', 'contacts', 'emailHtml', 'costCodes', 'logo', 'previewHtml']));
+  logoSourcesLoaded = { offices: false, accountingOffices: false, organization: false };
 
   constructor(
     private propertyHtmlService: PropertyHtmlService,
@@ -177,6 +178,9 @@ export class InvoiceCreateComponent extends BaseDocumentComponent implements OnI
         this.invoiceId = queryParams['invoiceId'];
       }
       this.shouldAutoPrint = queryParams['autoPrint'] === 'true';
+      if (!this.invoiceId) {
+        this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'previewHtml');
+      }
       
       this.loadOffices();
       this.loadAccountingOffices();
@@ -186,53 +190,57 @@ export class InvoiceCreateComponent extends BaseDocumentComponent implements OnI
       this.loadEmailHtml();
       this.loadCostCodes();
       
-      // Wait for all items to load before proceeding
-      this.isLoading$.pipe(filter(isLoading => !isLoading),take(1)).subscribe(() => {
-      // In debug mode, load HTML from assets immediately ONLY if we don't have all 3 parameters
-      const hasAllParams = this.officeId !== null && this.reservationId !== null && this.invoiceId !== null;
-      if (this.debuggingHtml && !hasAllParams) {
-        this.http.get('assets/invoice.html', { responseType: 'text' }).pipe(take(1)).subscribe({
-          next: (html: string) => {
-            if (html) {
-              this.form.patchValue({ invoice: html });
-            }
-          },
-          error: () => {
-           }
-        });
-      }
-      
-      forkJoin([
-        this.officeService.areOfficesLoaded().pipe(filter(loaded => loaded === true), take(1)),
-        this.accountingOfficeService.areAccountingOfficesLoaded().pipe(filter(loaded => loaded === true), take(1))]).subscribe(() => {
-        if (this.officeId !== null) {
-          this.applyOfficeSelection(this.officeId);
-        } else {
-          const globalOfficeId = this.globalSelectionService.getSelectedOfficeIdValue();
-          if (globalOfficeId != null && this.offices.length > 0) {
-            this.applyOfficeSelection(globalOfficeId);
-          } else {
-            this.applyOfficeSelection(null);
-          }
-        }
-
-        // Then wait for reservations to load
-        if (this.reservationId !== null) {
-          this.reservationService.getReservationList().pipe(take(1)).subscribe(() => {
-            this.applyReservationSelection(this.reservationId);
-            // After reservation is selected, if invoiceId is provided, select it
-            if (this.invoiceId !== null) {
-              setTimeout(() => {
-                this.selectInvoiceAfterDataLoad(this.invoiceId);
-              }, 500);
+      // Wait for core dependencies before proceeding. previewHtml resolves after this point.
+      this.itemsToLoad$.pipe(
+        filter(items => items.size === 0 || (items.size === 1 && items.has('previewHtml'))),
+        take(1)
+      ).subscribe(() => {
+        this.isPageReady = true;
+        // In debug mode, load HTML from assets immediately ONLY if we don't have all 3 parameters
+        const hasAllParams = this.officeId !== null && this.reservationId !== null && this.invoiceId !== null;
+        if (this.debuggingHtml && !hasAllParams) {
+          this.http.get('assets/invoice.html', { responseType: 'text' }).pipe(take(1)).subscribe({
+            next: (html: string) => {
+              if (html) {
+                this.form.patchValue({ invoice: html });
+              }
+            },
+            error: () => {
             }
           });
-        } else if (this.invoiceId !== null) {
-          // InvoiceId provided but no reservationId - need to get invoice first to find reservation
-          this.loadInvoiceByIdFirst(this.invoiceId);
         }
+        
+        forkJoin([
+          this.officeService.areOfficesLoaded().pipe(filter(loaded => loaded === true), take(1)),
+          this.accountingOfficeService.areAccountingOfficesLoaded().pipe(filter(loaded => loaded === true), take(1))]).subscribe(() => {
+          if (this.officeId !== null) {
+            this.applyOfficeSelection(this.officeId);
+          } else {
+            const globalOfficeId = this.globalSelectionService.getSelectedOfficeIdValue();
+            if (globalOfficeId != null && this.offices.length > 0) {
+              this.applyOfficeSelection(globalOfficeId);
+            } else {
+              this.applyOfficeSelection(null);
+            }
+          }
+
+          // Then wait for reservations to load
+          if (this.reservationId !== null) {
+            this.reservationService.getReservationList().pipe(take(1)).subscribe(() => {
+              this.applyReservationSelection(this.reservationId);
+              // After reservation is selected, if invoiceId is provided, select it
+              if (this.invoiceId !== null) {
+                setTimeout(() => {
+                  this.selectInvoiceAfterDataLoad(this.invoiceId);
+                }, 500);
+              }
+            });
+          } else if (this.invoiceId !== null) {
+            // InvoiceId provided but no reservationId - need to get invoice first to find reservation
+            this.loadInvoiceByIdFirst(this.invoiceId);
+          }
+        });
       });
-    });
     });
   }
 
@@ -395,17 +403,24 @@ export class InvoiceCreateComponent extends BaseDocumentComponent implements OnI
     if (!organizationId) {
       this.offices = [];
       this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'offices');
+      this.markLogoSourceLoaded('offices');
       return;
     }
 
-    this.officeService.ensureOfficesLoaded(organizationId).pipe(take(1), finalize(() => { this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'offices'); })).subscribe({
+    this.officeService.ensureOfficesLoaded(organizationId).pipe(take(1), finalize(() => {
+      this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'offices');
+      this.markLogoSourceLoaded('offices');
+    })).subscribe({
       next: () => bindOfficeStream(),
       error: () => { this.offices = []; }
     });
   }
 
   loadAccountingOffices(): void {
-    this.accountingOfficeService.ensureAccountingOfficesLoaded().pipe(take(1), finalize(() => { this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'accountingOffices'); })).subscribe({
+    this.accountingOfficeService.ensureAccountingOfficesLoaded().pipe(take(1), finalize(() => {
+      this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'accountingOffices');
+      this.markLogoSourceLoaded('accountingOffices');
+    })).subscribe({
       next: (list) => {
         this.accountingOffices = list || [];
       },
@@ -581,7 +596,7 @@ export class InvoiceCreateComponent extends BaseDocumentComponent implements OnI
               this.processAndSetHtml(processedHtml);
             }
           } else {
-            this.previewIframeHtml = '';
+            this.clearPreview();
             this.toastr.warning('No invoice HTML template found in assets.', 'No Template');
           }
         },
@@ -594,7 +609,7 @@ export class InvoiceCreateComponent extends BaseDocumentComponent implements OnI
 
     // Production mode: load from API
     if (!this.property?.propertyId) {
-      this.previewIframeHtml = '';
+      this.clearPreview();
       return;
     }
 
@@ -612,18 +627,28 @@ export class InvoiceCreateComponent extends BaseDocumentComponent implements OnI
         }
       },
       error: () => {
-        this.previewIframeHtml = '';
+        this.clearPreview();
       }
     });
   }
 
   loadOrganization(): void {
-    this.commonService.getOrganization().pipe(filter(org => org !== null), take(1)).subscribe({
+    this.commonService.getOrganization().pipe(filter(org => org !== null), take(1), finalize(() => {
+      this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'organization');
+      this.markLogoSourceLoaded('organization');
+    })).subscribe({
       next: (org: OrganizationResponse | null) => {
         this.organization = org;
         this.updateOrgLogo();
       }
     });
+  }
+
+  markLogoSourceLoaded(source: 'offices' | 'accountingOffices' | 'organization'): void {
+    this.logoSourcesLoaded[source] = true;
+    if (this.logoSourcesLoaded.offices && this.logoSourcesLoaded.accountingOffices && this.logoSourcesLoaded.organization) {
+      this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'logo');
+    }
   }
 
   loadContacts(): void {
@@ -1378,6 +1403,7 @@ export class InvoiceCreateComponent extends BaseDocumentComponent implements OnI
     this.previewIframeHtml = result.processedHtml;
     this.previewIframeStyles = result.extractedStyles;
     this.safePreviewIframeHtml = this.sanitizer.bypassSecurityTrustHtml(result.processedHtml);
+    this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'previewHtml');
     this.iframeKey++; // Force iframe refresh
   }
 
@@ -1436,6 +1462,11 @@ export class InvoiceCreateComponent extends BaseDocumentComponent implements OnI
     this.previewIframeHtml = '';
     this.safePreviewIframeHtml = this.sanitizer.bypassSecurityTrustHtml('');
     this.previewIframeStyles = '';
+    this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'previewHtml');
+  }
+
+  isPreviewHtmlPending(): boolean {
+    return this.itemsToLoad$.value.has('previewHtml');
   }
 
   stripAndReplace(html: string): string {

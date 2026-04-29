@@ -27,8 +27,10 @@ import { EmailHtmlService } from '../../email/services/email-html.service';
 import { EmailCreateDraftService } from '../../email/services/email-create-draft.service';
 import { DocumentService } from '../../documents/services/document.service';
 import { BuildingResponse } from '../../organizations/models/building.model';
+import { AccountingOfficeResponse } from '../../organizations/models/accounting-office.model';
 import { OfficeResponse } from '../../organizations/models/office.model';
 import { OrganizationResponse } from '../../organizations/models/organization.model';
+import { AccountingOfficeService } from '../../organizations/services/accounting-office.service';
 import { BuildingService } from '../../organizations/services/building.service';
 import { OfficeService } from '../../organizations/services/office.service';
 import { ReservationListResponse, ReservationResponse } from '../../reservations/models/reservation-model';
@@ -75,6 +77,7 @@ export class PropertyWelcomeLetterComponent extends BaseDocumentComponent implem
   contacts: ContactResponse[] = [];
   buildings: BuildingResponse[] = [];
   offices: OfficeResponse[] = [];
+  accountingOffices: AccountingOfficeResponse[] = [];
   officesSubscription?: Subscription;
   contactsSubscription?: Subscription;
   selectedOffice: OfficeResponse | null = null;
@@ -88,8 +91,8 @@ export class PropertyWelcomeLetterComponent extends BaseDocumentComponent implem
   isPageReady: boolean = false;
   propertyReservationsLoaded: boolean = false;
    
-  itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['property', 'reservations', 'welcomeLetter', 'propertyLetter', 'organization', 'offices', 'contacts', 'buildings', 'emailHtml']));
-  isLoading$: Observable<boolean> = this.itemsToLoad$.pipe(map(items => items.size > 0));
+  itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['property', 'reservations', 'welcomeLetter', 'propertyLetter', 'organization', 'offices', 'accountingOffices', 'contacts', 'buildings', 'emailHtml', 'logo', 'previewHtml']));
+  logoSourcesLoaded = { accountingOffices: false, organization: false };
 
   constructor(
     private propertyHtmlService: PropertyHtmlService,
@@ -107,6 +110,7 @@ export class PropertyWelcomeLetterComponent extends BaseDocumentComponent implem
     private utilityService: UtilityService,
     private buildingService: BuildingService,
     private officeService: OfficeService,
+    private accountingOfficeService: AccountingOfficeService,
     private welcomeLetterReloadService: WelcomeLetterReloadService,
     private documentReloadService: DocumentReloadService,
     private http: HttpClient,
@@ -124,11 +128,16 @@ export class PropertyWelcomeLetterComponent extends BaseDocumentComponent implem
 
   //#region Welcome Letter
   ngOnInit(): void {
+    if (!this.titleBarReservationId && !this.selectedReservation?.reservationId) {
+      this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'previewHtml');
+    }
+
     this.itemsToLoad$.pipe(filter(items => items.size === 0), take(1)).subscribe(() => {
       this.isPageReady = true;
     });
 
     this.loadOffices();
+    this.loadAccountingOffices();
     this.loadEmailHtml();
     this.loadOrganization();
     this.loadContacts();
@@ -357,6 +366,20 @@ export class PropertyWelcomeLetterComponent extends BaseDocumentComponent implem
     });
   }
 
+  loadAccountingOffices(): void {
+    this.accountingOfficeService.ensureAccountingOfficesLoaded().pipe(take(1), finalize(() => {
+      this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'accountingOffices');
+      this.markLogoSourceLoaded('accountingOffices');
+    })).subscribe({
+      next: (offices) => {
+        this.accountingOffices = offices || [];
+      },
+      error: () => {
+        this.accountingOffices = [];
+      }
+    });
+  }
+
   loadReservations(): void {
     if (!this.propertyId) {
       this.reservations = [];
@@ -379,12 +402,22 @@ export class PropertyWelcomeLetterComponent extends BaseDocumentComponent implem
   }
 
   loadOrganization(): void {
-    this.commonService.getOrganization().pipe(filter(org => org !== null), take(1),finalize(() => { this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'organization'); })).subscribe({
+    this.commonService.getOrganization().pipe(filter(org => org !== null), take(1), finalize(() => {
+      this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'organization');
+      this.markLogoSourceLoaded('organization');
+    })).subscribe({
       next: (org: OrganizationResponse) => {
         this.organization = org;
       },
       error: () => {}
     });
+  }
+
+  markLogoSourceLoaded(source: 'accountingOffices' | 'organization'): void {
+    this.logoSourcesLoaded[source] = true;
+    if (this.logoSourcesLoaded.accountingOffices && this.logoSourcesLoaded.organization) {
+      this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'logo');
+    }
   }
 
   loadPropertyLetterInformation(): void {
@@ -571,9 +604,10 @@ export class PropertyWelcomeLetterComponent extends BaseDocumentComponent implem
       result = result.replace(/\{\{maintenanceEmail\}\}/g, maintenanceEmail);
       result = result.replace(/\{\{afterHoursPhone\}\}/g, this.formatterService.phoneNumber(afterHoursPhone) || '');
       
-      let officeLogoDataUrl = this.selectedOffice?.fileDetails?.dataUrl;
-      if (!officeLogoDataUrl && this.selectedOffice?.fileDetails?.file) {
-        const fileDetails = this.selectedOffice.fileDetails;
+      const selectedAccountingOffice = this.accountingOffices.find(ao => ao.officeId === this.selectedOffice?.officeId);
+      let officeLogoDataUrl = selectedAccountingOffice?.fileDetails?.dataUrl;
+      if (!officeLogoDataUrl && selectedAccountingOffice?.fileDetails?.file) {
+        const fileDetails = selectedAccountingOffice.fileDetails;
         const contentType = fileDetails.contentType || 'image/png';
         if (fileDetails.file.startsWith('data:')) {
           officeLogoDataUrl = fileDetails.file;
@@ -601,7 +635,9 @@ export class PropertyWelcomeLetterComponent extends BaseDocumentComponent implem
       }
     }
     
-    if (!this.selectedOffice?.fileDetails?.dataUrl && !this.selectedOffice?.fileDetails?.file && !this.organization?.fileDetails?.dataUrl) {
+    const hasAccountingOfficeLogo = this.accountingOffices
+      .some(ao => ao.officeId === this.selectedOffice?.officeId && !!(ao.fileDetails?.dataUrl || ao.fileDetails?.file));
+    if (!hasAccountingOfficeLogo && !this.organization?.fileDetails?.dataUrl) {
       result = result.replace(/<img[^>]*\{\{officeLogoBase64\}\}[^>]*\s*\/?>/gi, '');
       result = result.replace(/<img[^>]*\{\{orgLogoBase64\}\}[^>]*\s*\/?>/gi, '');
     }
@@ -758,6 +794,7 @@ export class PropertyWelcomeLetterComponent extends BaseDocumentComponent implem
     if (!this.selectedOffice || !this.selectedReservation) {
       this.previewIframeHtml = '';
       this.safeHtml = this.sanitizer.bypassSecurityTrustHtml('');
+      this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'previewHtml');
       return;
     }
 
@@ -772,6 +809,7 @@ export class PropertyWelcomeLetterComponent extends BaseDocumentComponent implem
         if (selectedDocuments.length === 0) {
           this.previewIframeHtml = '';
           this.safeHtml = this.sanitizer.bypassSecurityTrustHtml('');
+          this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'previewHtml');
           return;
         }
 
@@ -836,11 +874,13 @@ export class PropertyWelcomeLetterComponent extends BaseDocumentComponent implem
         } catch {
           this.previewIframeHtml = '';
           this.safeHtml = this.sanitizer.bypassSecurityTrustHtml('');
+          this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'previewHtml');
         }
       },
       error: () => {
         this.previewIframeHtml = '';
         this.safeHtml = this.sanitizer.bypassSecurityTrustHtml('');
+        this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'previewHtml');
       }
     });
   }
@@ -850,6 +890,7 @@ export class PropertyWelcomeLetterComponent extends BaseDocumentComponent implem
     this.previewIframeHtml = result.processedHtml;
     this.safeHtml = this.sanitizer.bypassSecurityTrustHtml(result.processedHtml);
     this.previewIframeStyles = result.extractedStyles;
+    this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'previewHtml');
     this.iframeKey++;
   }
 

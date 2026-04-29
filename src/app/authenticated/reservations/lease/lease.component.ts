@@ -1,4 +1,4 @@
-import { AsyncPipe, CommonModule } from '@angular/common';
+import { CommonModule } from '@angular/common';
 import { HttpClient } from '@angular/common/http';
 import { Component, EventEmitter, Input, OnChanges, OnDestroy, OnInit, Output, SimpleChanges } from '@angular/core';
 import { FormBuilder, FormControl, FormGroup, FormsModule, ReactiveFormsModule } from '@angular/forms';
@@ -49,7 +49,7 @@ import { environment } from '../../../../environments/environment';
 @Component({
     standalone: true,
     selector: 'app-lease',
-    imports: [CommonModule, MaterialModule, FormsModule, ReactiveFormsModule, AsyncPipe],
+    imports: [CommonModule, MaterialModule, FormsModule, ReactiveFormsModule],
     templateUrl: './lease.component.html',
     styleUrl: './lease.component.scss'
 })
@@ -101,9 +101,10 @@ export class LeaseComponent extends BaseDocumentComponent implements OnInit, OnD
   includeRentalCreditApplication: boolean = false;
   isCompanyRental: boolean = true;
   debuggingHtml: boolean = environment.local || environment.dev;
+  isPageReady: boolean = false;
 
-  itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['offices', 'organization', 'property', 'leaseInformation', 'reservation', 'reservations', 'contacts', 'emailHtml', 'accountingOffices'])); 
-  isLoading$: Observable<boolean> = this.itemsToLoad$.pipe(map(items => items.size > 0));
+  itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['offices', 'organization', 'property', 'leaseInformation', 'reservation', 'reservations', 'contacts', 'emailHtml', 'accountingOffices', 'logo', 'previewHtml'])); 
+  logoSourcesLoaded = { offices: false, organization: false };
 
 
   constructor(
@@ -140,6 +141,15 @@ export class LeaseComponent extends BaseDocumentComponent implements OnInit, OnD
 
   //#region Lease
   ngOnInit(): void {
+    if (!this.reservationId) {
+      this.resolvePreviewLoad();
+    }
+
+    this.itemsToLoad$.pipe(filter(items => items.size === 0), take(1)).subscribe(() => {
+      this.isPageReady = true;
+      this.getLease();
+    });
+
     this.organizationId = this.authService.getUser()?.organizationId?.trim() ?? '';
     this.preferredOfficeId = this.authService.getUser()?.defaultOfficeId ?? null;
     this.applyOfficeSelectionLockState();
@@ -153,11 +163,6 @@ export class LeaseComponent extends BaseDocumentComponent implements OnInit, OnD
     this.loadProperty();
     this.loadLeaseInformation();
     
-    // Load the lease after we have all necessary data
-    this.itemsToLoad$.pipe(filter(items => items.size === 0),take(1)).subscribe(() => {
-      this.getLease();
-    });
-
     // Subscribe to lease reload events
     this.leaseReloadSubscription = this.leaseReloadService.reloadLease.subscribe(() => {
       this.reloadLease();
@@ -219,10 +224,12 @@ export class LeaseComponent extends BaseDocumentComponent implements OnInit, OnD
             this.processAndSetHtml(html);
           } else {
             this.previewIframeHtml = '';
+            this.resolvePreviewLoad();
           }
         },
         error: () => {
           this.previewIframeHtml = '';
+          this.resolvePreviewLoad();
         }
       });
       return;
@@ -502,7 +509,10 @@ export class LeaseComponent extends BaseDocumentComponent implements OnInit, OnD
   }
 
   loadOrganization(): void {
-    this.commonService.getOrganization().pipe(filter(org => org !== null), take(1),finalize(() => { this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'organization'); })).subscribe({
+    this.commonService.getOrganization().pipe(filter(org => org !== null), take(1), finalize(() => {
+      this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'organization');
+      this.markLogoSourceLoaded('organization');
+    })).subscribe({
       next: (org: OrganizationResponse) => {
         this.organization = org;
       },
@@ -511,7 +521,10 @@ export class LeaseComponent extends BaseDocumentComponent implements OnInit, OnD
   }
 
   loadOffices(): void {
-    this.globalSelectionService.ensureOfficeScope(this.organizationId, this.preferredOfficeId).pipe(take(1), finalize(() => { this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'offices'); })).subscribe({
+    this.globalSelectionService.ensureOfficeScope(this.organizationId, this.preferredOfficeId).pipe(take(1), finalize(() => {
+      this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'offices');
+      this.markLogoSourceLoaded('offices');
+    })).subscribe({
       next: () => {
         this.offices = this.officeService.getAllOfficesValue() || [];
         this.availableOffices = this.mappingService.mapOfficesToDropdown(this.offices);
@@ -535,6 +548,13 @@ export class LeaseComponent extends BaseDocumentComponent implements OnInit, OnD
         this.availableOffices = [];
       }
     });
+  }
+
+  markLogoSourceLoaded(source: 'offices' | 'organization'): void {
+    this.logoSourcesLoaded[source] = true;
+    if (this.logoSourcesLoaded.offices && this.logoSourcesLoaded.organization) {
+      this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'logo');
+    }
   }
   
   loadAccountingOffices(): void {
@@ -1386,6 +1406,7 @@ export class LeaseComponent extends BaseDocumentComponent implements OnInit, OnD
         hasSelectedReservation: !!this.selectedReservation
       });
       this.previewIframeHtml = '';
+      this.resolvePreviewLoad();
       return;
     }
 
@@ -1418,6 +1439,7 @@ export class LeaseComponent extends BaseDocumentComponent implements OnInit, OnD
         if (selectedDocuments.length === 0) {
           console.warn('[LeasePreview] no selected documents');
           this.previewIframeHtml = '';
+          this.resolvePreviewLoad();
           return;
         }
 
@@ -1495,11 +1517,13 @@ export class LeaseComponent extends BaseDocumentComponent implements OnInit, OnD
         } catch (error) {
           console.error('[LeasePreview] processing error', error);
           this.previewIframeHtml = '';
+          this.resolvePreviewLoad();
         }
       },
       error: (error) => {
         console.error('[LeasePreview] loadHtmlFiles:error', error);
         this.previewIframeHtml = '';
+        this.resolvePreviewLoad();
       }
     });
   }
@@ -1542,7 +1566,12 @@ export class LeaseComponent extends BaseDocumentComponent implements OnInit, OnD
     `;
     this.previewIframeStyles = `${result.extractedStyles}\n${leaseLogoStyles}`;
     this.safeHtml = this.sanitizer.bypassSecurityTrustHtml(result.processedHtml);
+    this.resolvePreviewLoad();
     this.iframeKey++; // Force iframe refresh
+  }
+
+  private resolvePreviewLoad(): void {
+    this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'previewHtml');
   }
 
   loadHtmlFiles(): Observable<{ lease: string; letterOfResponsibility: string; noticeToVacate: string; creditAuthorization: string; creditApplication: string; rentalCreditApplication: string }> {

@@ -1,4 +1,4 @@
-@if (isLoading$ | async) {
+@if (!isPageReady) {
   <div class="flex content-card-wrap justify-center">
     <section class="content-card">
       <div class="flex justify-between items-center gap-3 bg-slate-300 rounded-t-lg py-0 pl-8 pr-4">

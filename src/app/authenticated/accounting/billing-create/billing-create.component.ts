@@ -1,11 +1,11 @@
-import { AsyncPipe, CommonModule } from '@angular/common';
+import { CommonModule } from '@angular/common';
 import { HttpClient } from '@angular/common/http';
 import { Component, ElementRef, Input, OnChanges, OnDestroy, OnInit, SimpleChanges, ViewChild } from '@angular/core';
 import { FormBuilder, FormControl, FormGroup, FormsModule, ReactiveFormsModule } from '@angular/forms';
 import { DomSanitizer, SafeHtml } from '@angular/platform-browser';
 import { ActivatedRoute, Router } from '@angular/router';
 import { ToastrService } from 'ngx-toastr';
-import { BehaviorSubject, Observable, finalize, firstValueFrom, map, take } from 'rxjs';
+import { BehaviorSubject, Observable, filter, finalize, firstValueFrom, map, take } from 'rxjs';
 import { RouterUrl } from '../../../app.routes';
 import { CommonMessage } from '../../../enums/common-message.enum';
 import { MaterialModule } from '../../../material.module';
@@ -36,7 +36,7 @@ import { TitleBarSelectComponent } from '../../shared/titlebar-select/titlebar-s
 @Component({
     standalone: true,
     selector: 'app-billing-create',
-    imports: [CommonModule, MaterialModule, FormsModule, ReactiveFormsModule, AsyncPipe, TitleBarSelectComponent],
+    imports: [CommonModule, MaterialModule, FormsModule, ReactiveFormsModule, TitleBarSelectComponent],
     templateUrl: './billing-create.component.html',
     styleUrls: ['./billing-create.component.scss']
 })
@@ -66,8 +66,9 @@ export class BillingCreateComponent extends BaseDocumentComponent implements OnI
   @ViewChild('previewIframe') previewIframe?: ElementRef<HTMLIFrameElement>;
   isDownloading: boolean = false;
   isSubmitting: boolean = false;
-  itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['organizations', 'emailHtml', 'billingHtml', 'accountingOffice']));
-  isLoading$: Observable<boolean> = this.itemsToLoad$.pipe(map(items => items.size > 0));
+  isPageReady: boolean = false;
+  itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['organizations', 'emailHtml', 'billingHtml', 'accountingOffice', 'logo', 'previewHtml']));
+  logoSourcesLoaded = { organizations: false, accountingOffice: false };
 
   get organizationTitleBarOptions(): { value: string, label: string }[] {
     return (this.organizations || []).map((organization) => ({
@@ -109,6 +110,10 @@ export class BillingCreateComponent extends BaseDocumentComponent implements OnI
 
   //#region Create Invoice Methods
   ngOnInit(): void {
+    this.itemsToLoad$.pipe(filter(items => items.size === 0), take(1)).subscribe(() => {
+      this.isPageReady = true;
+    });
+
     this.route.queryParams.pipe(take(1)).subscribe((queryParams) => {
       const organizationIdParam = queryParams['organizationId'];
       if (organizationIdParam) {
@@ -119,6 +124,9 @@ export class BillingCreateComponent extends BaseDocumentComponent implements OnI
       const invoiceIdParam = queryParams['invoiceId'];
       if (invoiceIdParam && this.invoiceId === null) {
         this.invoiceId = invoiceIdParam;
+      }
+      if (!this.invoiceId) {
+        this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'previewHtml');
       }
       
       this.loadOrganizationsList();
@@ -242,7 +250,10 @@ export class BillingCreateComponent extends BaseDocumentComponent implements OnI
 
   //#region Data Loading Methods
   loadOrganizationsList(): void {
-    this.organizationService.getOrganizations().pipe(take(1), finalize(() => this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'organizations'))).subscribe({
+    this.organizationService.getOrganizations().pipe(take(1), finalize(() => {
+      this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'organizations');
+      this.markLogoSourceLoaded('organizations');
+    })).subscribe({
       next: (organizations) => {
         this.organizations = (organizations || []).filter(o => o.isActive);
         const currentUserOrganizationId = this.authService.getUser()?.organizationId || null;
@@ -270,6 +281,7 @@ export class BillingCreateComponent extends BaseDocumentComponent implements OnI
         this.billingOrganization = null;
         this.recipientOrganization = null;
         this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'accountingOffice');
+        this.markLogoSourceLoaded('accountingOffice');
       }
     });
   }
@@ -368,10 +380,14 @@ export class BillingCreateComponent extends BaseDocumentComponent implements OnI
       this.selectedAccountingOffice = null;
       this.accountingOfficeLogo = '';
       this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'accountingOffice');
+      this.markLogoSourceLoaded('accountingOffice');
       return;
     }
 
-    this.accountingOfficeService.ensureAccountingOfficesLoaded().pipe(take(1), finalize(() => this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'accountingOffice'))).subscribe({
+    this.accountingOfficeService.ensureAccountingOfficesLoaded().pipe(take(1), finalize(() => {
+      this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'accountingOffice');
+      this.markLogoSourceLoaded('accountingOffice');
+    })).subscribe({
       next: (offices: AccountingOfficeResponse[]) => {
         const list = offices || [];
         const preferredOfficeId = this.selectedInvoice?.officeId || 1;
@@ -388,6 +404,13 @@ export class BillingCreateComponent extends BaseDocumentComponent implements OnI
         this.accountingOfficeLogo = '';
       }
     });
+  }
+
+  markLogoSourceLoaded(source: 'organizations' | 'accountingOffice'): void {
+    this.logoSourcesLoaded[source] = true;
+    if (this.logoSourcesLoaded.organizations && this.logoSourcesLoaded.accountingOffice) {
+      this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'logo');
+    }
   }
   //#endregion
 
@@ -678,6 +701,7 @@ export class BillingCreateComponent extends BaseDocumentComponent implements OnI
     this.previewIframeHtml = result.processedHtml;
     this.previewIframeStyles = result.extractedStyles;
     this.safePreviewIframeHtml = this.sanitizer.bypassSecurityTrustHtml(result.processedHtml);
+    this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'previewHtml');
     this.iframeKey++;
   }
 
@@ -685,6 +709,7 @@ export class BillingCreateComponent extends BaseDocumentComponent implements OnI
     this.previewIframeHtml = '';
     this.safePreviewIframeHtml = this.sanitizer.bypassSecurityTrustHtml('');
     this.previewIframeStyles = '';
+    this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'previewHtml');
   }
 
   stripAndReplace(html: string): string {

@@ -4,7 +4,7 @@ import { Component, OnDestroy, OnInit } from '@angular/core';
 import { DomSanitizer, SafeHtml } from '@angular/platform-browser';
 import { ActivatedRoute, Router } from '@angular/router';
 import { ToastrService } from 'ngx-toastr';
-import { BehaviorSubject, catchError, finalize, firstValueFrom, forkJoin, of, Subject, take, takeUntil } from 'rxjs';
+import { BehaviorSubject, catchError, filter, finalize, firstValueFrom, forkJoin, of, take } from 'rxjs';
 import { RouterUrl } from '../../../app.routes';
 import { MaterialModule } from '../../../material.module';
 import { AuthService } from '../../../services/auth.service';
@@ -59,7 +59,7 @@ export class WorkOrderCreateComponent extends BaseDocumentComponent implements O
   iframeKey = 0;
   isDownloading = false;
   isSubmitting = false;
-  isPageLoading = true;
+  isPageReady = false;
   organizationId = '';
 
   workOrder: WorkOrderResponse | null = null;
@@ -77,10 +77,8 @@ export class WorkOrderCreateComponent extends BaseDocumentComponent implements O
   accountingOfficeLogo = '';
   organization: OrganizationResponse | null = null;
 
-
-
-  itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['property', 'workOrder', 'costCode', 'propertyAgreement', 'propertyReceipts', 'propertyReservations', 'workOrderNumber', 'contacts', 'organization']));
-  destroy$ = new Subject<void>();
+  itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['property', 'workOrder', 'costCode', 'propertyAgreement', 'propertyReceipts', 'propertyReservations', 'workOrderNumber', 'contacts', 'organization', 'logo', 'previewHtml']));
+  logoSourcesLoaded = { organization: false, accountingOffice: false };
 
   constructor(
     private route: ActivatedRoute,
@@ -114,13 +112,13 @@ export class WorkOrderCreateComponent extends BaseDocumentComponent implements O
   ngOnInit(): void {
     this.organizationId = this.authService.getUser()?.organizationId?.trim() || '';
 
-    // Wait to load page until all data is available
-    this.itemsToLoad$.pipe(takeUntil(this.destroy$)).subscribe(items => {
-      this.isPageLoading = items.size > 0;
-      if (items.size === 0) {
-        this.loadClientPartyData();
-        this.tryGeneratePreview();
-      }
+    this.itemsToLoad$.pipe(
+      filter(items => items.size === 0 || (items.size === 1 && items.has('previewHtml'))),
+      take(1)
+    ).subscribe(() => {
+      this.isPageReady = true;
+      this.loadClientPartyData();
+      this.tryGeneratePreview();
     });
 
     this.route.queryParams.pipe(take(1)).subscribe(params => {
@@ -173,6 +171,7 @@ export class WorkOrderCreateComponent extends BaseDocumentComponent implements O
       },
       error: () => {
         this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'workOrderNumber');
+        this.markLogoSourceLoaded('accountingOffice');
         this.toastr.error('Unable to load work order.', 'Error');
       }
     });
@@ -199,10 +198,14 @@ export class WorkOrderCreateComponent extends BaseDocumentComponent implements O
     if (!this.organizationId) {
       this.organization = null;
       this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'organization');
+      this.markLogoSourceLoaded('organization');
       return;
     }
 
-    this.organizationService.getOrganizationByGuid(this.organizationId).pipe(take(1),finalize(() => { this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'organization'); })).subscribe({
+    this.organizationService.getOrganizationByGuid(this.organizationId).pipe(take(1), finalize(() => {
+      this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'organization');
+      this.markLogoSourceLoaded('organization');
+    })).subscribe({
       next: organization => {
         this.organization = organization;
       },
@@ -216,9 +219,13 @@ export class WorkOrderCreateComponent extends BaseDocumentComponent implements O
     const officeId = this.workOrder?.officeId ?? this.property?.officeId ?? null;
     if (!officeId) {
       this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'workOrderNumber');
+      this.markLogoSourceLoaded('accountingOffice');
       return;
     }
-    this.accountingOfficeService.getAccountingOfficeById(officeId).pipe(take(1), finalize(() => { this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'workOrderNumber'); })).subscribe({
+    this.accountingOfficeService.getAccountingOfficeById(officeId).pipe(take(1), finalize(() => {
+      this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'workOrderNumber');
+      this.markLogoSourceLoaded('accountingOffice');
+    })).subscribe({
       next: office => {
         this.selectedAccountingOffice = office;
         this.updateAccountingOfficeLogo();
@@ -228,6 +235,13 @@ export class WorkOrderCreateComponent extends BaseDocumentComponent implements O
         this.accountingOfficeLogo = '';
       }
     });
+  }
+
+  markLogoSourceLoaded(source: 'organization' | 'accountingOffice'): void {
+    this.logoSourcesLoaded[source] = true;
+    if (this.logoSourcesLoaded.organization && this.logoSourcesLoaded.accountingOffice) {
+      this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'logo');
+    }
   }
 
   updateAccountingOfficeLogo(): void {
@@ -370,6 +384,7 @@ export class WorkOrderCreateComponent extends BaseDocumentComponent implements O
   //#region Html to Image(s)
   tryGeneratePreview(): void {
     if (!this.templateHtml || !this.workOrder) {
+      this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'previewHtml');
       return;
     }
     const processedHtml = this.replacePlaceholders(this.templateHtml);
@@ -377,7 +392,12 @@ export class WorkOrderCreateComponent extends BaseDocumentComponent implements O
     this.previewIframeHtml = processed.processedHtml;
     this.previewIframeStyles = processed.extractedStyles;
     this.safePreviewIframeHtml = this.sanitizer.bypassSecurityTrustHtml(processed.processedHtml);
+    this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'previewHtml');
     this.iframeKey++;
+  }
+
+  isPreviewHtmlPending(): boolean {
+    return this.itemsToLoad$.value.has('previewHtml');
   }
 
   replacePlaceholders(html: string): string {
@@ -1186,8 +1206,6 @@ export class WorkOrderCreateComponent extends BaseDocumentComponent implements O
   }
 
   ngOnDestroy(): void {
-    this.destroy$.next();
-    this.destroy$.complete();
     this.itemsToLoad$.complete();
   }
   //#endregion

@@ -1,4 +1,4 @@
-@if (isPageLoading) {
+@if (!isPageReady) {
   <div class="flex content-card-wrap justify-center">
     <section class="content-card">
       <div class="flex justify-between items-center gap-3 bg-slate-300 rounded-t-lg py-0 pl-8 pr-4">
@@ -66,6 +66,11 @@
                 (load)="injectStylesIntoIframe()"
                 frameborder="0">
               </iframe>
+            } @else if (isPreviewHtmlPending()) {
+              <div class="loading-container">
+                <mat-spinner [diameter]="40"></mat-spinner>
+                <p>Loading work order preview...</p>
+              </div>
             } @else {
               <div class="empty-preview">No preview is available for this work order.</div>
             }
