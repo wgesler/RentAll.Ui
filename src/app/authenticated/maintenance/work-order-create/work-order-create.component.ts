@@ -73,11 +73,12 @@ export class WorkOrderCreateComponent extends BaseDocumentComponent implements O
 
   propertyReceipts: ReceiptResponse[] = [];
   emailHtml: EmailHtmlResponse | null = null;
+  accountingOffices: AccountingOfficeResponse[] = [];
   selectedAccountingOffice: AccountingOfficeResponse | null = null;
   accountingOfficeLogo = '';
   organization: OrganizationResponse | null = null;
 
-  itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['property', 'workOrder', 'costCode', 'propertyAgreement', 'propertyReceipts', 'propertyReservations', 'workOrderNumber', 'contacts', 'organization', 'logo', 'previewHtml']));
+  itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['property', 'workOrder', 'costCode', 'propertyAgreement', 'propertyReceipts', 'propertyReservations', 'accountingOffices', 'contacts', 'organization', 'logo', 'previewHtml']));
   logoSourcesLoaded = { organization: false, accountingOffice: false };
 
   constructor(
@@ -134,6 +135,7 @@ export class WorkOrderCreateComponent extends BaseDocumentComponent implements O
       this.loadEmailHtml();
       this.loadWorkOrder();
       this.loadContacts();
+      this.loadAccountingOffices();
       this.loadOrganization();
       this.loadProperty();
       this.loadPropertyReservations();
@@ -200,6 +202,7 @@ export class WorkOrderCreateComponent extends BaseDocumentComponent implements O
       this.organization = null;
       this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'organization');
       this.markLogoSourceLoaded('organization');
+      this.tryGeneratePreview();
       return;
     }
 
@@ -209,9 +212,27 @@ export class WorkOrderCreateComponent extends BaseDocumentComponent implements O
     })).subscribe({
       next: organization => {
         this.organization = organization;
+        this.tryGeneratePreview();
       },
       error: () => {
         this.organization = null;
+        this.tryGeneratePreview();
+      }
+    });
+  }
+
+  loadAccountingOffices(): void {
+    this.accountingOfficeService.ensureAccountingOfficesLoaded().pipe(
+      take(1),
+      finalize(() => this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'accountingOffices'))
+    ).subscribe({
+      next: (offices: AccountingOfficeResponse[]) => {
+        this.accountingOffices = offices || [];
+        this.loadAccountingOffice();
+      },
+      error: () => {
+        this.accountingOffices = [];
+        this.loadAccountingOffice();
       }
     });
   }
@@ -219,21 +240,34 @@ export class WorkOrderCreateComponent extends BaseDocumentComponent implements O
   loadAccountingOffice(): void {
     const officeId = this.workOrder?.officeId ?? this.property?.officeId ?? null;
     if (!officeId) {
-      this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'workOrderNumber');
+      this.selectedAccountingOffice = null;
+      this.accountingOfficeLogo = '';
       this.markLogoSourceLoaded('accountingOffice');
+      this.tryGeneratePreview();
       return;
     }
+
+    const officeFromList = this.accountingOffices.find(o => o.officeId === officeId) ?? null;
+    if (officeFromList) {
+      this.selectedAccountingOffice = officeFromList;
+      this.updateAccountingOfficeLogo();
+      this.markLogoSourceLoaded('accountingOffice');
+      this.tryGeneratePreview();
+      return;
+    }
+
     this.accountingOfficeService.getAccountingOfficeById(officeId).pipe(take(1), finalize(() => {
-      this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'workOrderNumber');
       this.markLogoSourceLoaded('accountingOffice');
     })).subscribe({
       next: office => {
         this.selectedAccountingOffice = office;
         this.updateAccountingOfficeLogo();
+        this.tryGeneratePreview();
       },
       error: () => {
         this.selectedAccountingOffice = null;
         this.accountingOfficeLogo = '';
+        this.tryGeneratePreview();
       }
     });
   }
