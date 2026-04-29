@@ -43,7 +43,10 @@ import { ReservationListResponse, ReservationResponse } from '../../reservations
 import { ReservationService } from '../../reservations/services/reservation.service';
 import { BaseDocumentComponent, DocumentConfig, DownloadConfig, EmailConfig } from '../../shared/base-document.component';
 import { TitleBarSelectComponent } from '../../shared/titlebar-select/titlebar-select.component';
+import { TransactionType } from '../models/accounting-enum';
+import { CostCodesResponse } from '../models/cost-codes.model';
 import { InvoiceResponse, LedgerLineResponse } from '../models/invoice.model';
+import { CostCodesService } from '../services/cost-codes.service';
 import { InvoiceService } from '../services/invoice.service';
 
 @Component({
@@ -85,6 +88,10 @@ export class InvoiceCreateComponent extends BaseDocumentComponent implements OnI
   invoices: InvoiceResponse[] = [];
   availableInvoices: { value: InvoiceResponse, label: string }[] = [];
   selectedInvoice: InvoiceResponse | null = null;
+  allCostCodes: CostCodesResponse[] = [];
+  officeCostCodes: CostCodesResponse[] = [];
+  paymentCostCodeIds: Set<number> = new Set<number>();
+  costCodesSubscription?: Subscription;
   
   property: PropertyResponse | null = null;
   propertyHtml: PropertyHtmlResponse | null = null;
@@ -103,7 +110,7 @@ export class InvoiceCreateComponent extends BaseDocumentComponent implements OnI
   autoPrintExecuted: boolean = false;
   @ViewChild('previewIframe') previewIframe?: ElementRef<HTMLIFrameElement>;
 
-  itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['offices', 'accountingOffices', 'reservations', 'contacts', 'emailHtml']));
+  itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['offices', 'accountingOffices', 'reservations', 'contacts', 'emailHtml', 'costCodes']));
   isLoading$: Observable<boolean> = this.itemsToLoad$.pipe(map(items => items.size > 0));
 
   constructor(
@@ -116,6 +123,7 @@ export class InvoiceCreateComponent extends BaseDocumentComponent implements OnI
     private utilityService: UtilityService,
     private formatterService: FormatterService,
     private mappingService: MappingService,
+    private costCodesService: CostCodesService,
     private commonService: CommonService,
     emailService: EmailService,
     private emailHtmlService: EmailHtmlService,
@@ -176,6 +184,7 @@ export class InvoiceCreateComponent extends BaseDocumentComponent implements OnI
       this.loadOrganization();
       this.loadContacts();
       this.loadEmailHtml();
+      this.loadCostCodes();
       
       // Wait for all items to load before proceeding
       this.isLoading$.pipe(filter(isLoading => !isLoading),take(1)).subscribe(() => {
@@ -638,6 +647,42 @@ export class InvoiceCreateComponent extends BaseDocumentComponent implements OnI
     });
   }
 
+  loadCostCodes(): void {
+    this.costCodesService.ensureCostCodesLoaded();
+    this.costCodesService.areCostCodesLoaded().pipe(filter(loaded => loaded === true), take(1)).subscribe(() => {
+      this.costCodesSubscription?.unsubscribe();
+      this.costCodesSubscription = this.costCodesService.getAllCostCodes().subscribe({
+        next: () => {
+          this.allCostCodes = this.costCodesService.getAllCostCodesValue();
+          this.filterCostCodes();
+          this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'costCodes');
+        },
+        error: () => {
+          this.allCostCodes = [];
+          this.officeCostCodes = [];
+          this.paymentCostCodeIds.clear();
+          this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'costCodes');
+        }
+      });
+    });
+  }
+
+  filterCostCodes(): void {
+    if (!this.selectedOffice) {
+      this.officeCostCodes = [];
+      this.paymentCostCodeIds = new Set<number>();
+      return;
+    }
+
+    this.officeCostCodes = this.allCostCodes.filter(c => c.officeId === this.selectedOffice!.officeId);
+    this.paymentCostCodeIds = new Set<number>(
+      this.officeCostCodes
+        .filter(c => c.transactionTypeId === TransactionType.Payment)
+        .map(c => Number(c.costCodeId))
+        .filter(id => Number.isFinite(id))
+    );
+  }
+
   loadContact(): void {
     const reservationContactId = this.getPrimaryReservationContactId(this.selectedReservation);
     if (!reservationContactId) {
@@ -751,6 +796,7 @@ export class InvoiceCreateComponent extends BaseDocumentComponent implements OnI
     this.updateOfficeLogo();
     this.selectedAccountingOffice = this.accountingOffices.find(ao => ao.officeId === officeId) || null;
     this.updateAccountingOfficeLogo();
+    this.filterCostCodes();
     // Update form control to sync dropdown (emitEvent: false to avoid triggering selectionChange event)
     this.form.patchValue({ selectedOfficeId: officeId }, { emitEvent: false });
     this.filterReservations();
@@ -966,10 +1012,10 @@ export class InvoiceCreateComponent extends BaseDocumentComponent implements OnI
       result = result.replace(/\{\{officeName\}\}/g, this.selectedOffice.name || '');
     }
 
-    // Replace office logo placeholder - prefer office logo, then accounting office logo, then org logo
-    const officeLogoDataUrl = this.officeLogo || this.accountingOfficeLogo || this.orgLogo;
-    if (officeLogoDataUrl) {
-      result = result.replace(/\{\{officeLogoBase64\}\}/g, officeLogoDataUrl);
+    // Invoice logo priority: accounting office logo, then organization logo.
+    const preferredLogoDataUrl = this.accountingOfficeLogo || this.orgLogo;
+    if (preferredLogoDataUrl) {
+      result = result.replace(/\{\{officeLogoBase64\}\}/g, preferredLogoDataUrl);
     }
 
     // Replace organization logo placeholder
@@ -978,7 +1024,7 @@ export class InvoiceCreateComponent extends BaseDocumentComponent implements OnI
     }
 
     // Remove img tags that contain logo placeholders if no logo is available
-    if (!officeLogoDataUrl && !this.orgLogo) {
+    if (!preferredLogoDataUrl && !this.orgLogo) {
       result = result.replace(/<img[^>]*\{\{officeLogoBase64\}\}[^>]*\s*\/?>/gi, '');
       result = result.replace(/<img[^>]*\{\{orgLogoBase64\}\}[^>]*\s*\/?>/gi, '');
     }
@@ -1030,22 +1076,21 @@ export class InvoiceCreateComponent extends BaseDocumentComponent implements OnI
       return result;
     }
 
-    const paymentLines = invoice.ledgerLines.filter(l => (l.amount ?? 0) < 0);
-    const chargeLines = invoice.ledgerLines.filter(l => (l.amount ?? 0) >= 0);
+    const paymentLines = invoice.ledgerLines.filter(l => this.isPaymentLedgerLine(l));
+    const chargeLines = invoice.ledgerLines.filter(l => !this.isPaymentLedgerLine(l));
     const hasPayments = paymentLines.length > 0;
 
     const chargeRows = chargeLines.map(l => this.formatInvoiceLedgerRowHtml(l, false)).join('\n');
     const paymentRows = paymentLines.map(l => this.formatInvoiceLedgerRowHtml(l, true)).join('\n');
 
-    const totalChargesAmount = chargeLines.reduce((sum, l) => sum + (l.amount || 0), 0);
-    const totalPaymentsAmount = paymentLines.reduce((sum, l) => sum + (l.amount || 0), 0);
-    const totalPaymentsDisplay = Math.abs(totalPaymentsAmount);
-    const balanceDueFromLedger = totalChargesAmount + totalPaymentsAmount;
+    const totalChargesAmount = chargeLines.reduce((sum, l) => sum + Math.abs(l.amount || 0), 0);
+    const totalPaymentsAmount = paymentLines.reduce((sum, l) => sum + Math.abs(l.amount || 0), 0);
+    const balanceDueFromLedger = totalChargesAmount - totalPaymentsAmount;
 
     result = result.replace(/\{\{chargeLedgerLineRows\}\}/g, chargeRows);
     result = result.replace(/\{\{paymentLedgerLineRows\}\}/g, paymentRows);
     result = result.replace(/\{\{totalCharges\}\}/g, this.formatterService.currency(totalChargesAmount));
-    result = result.replace(/\{\{totalPayments\}\}/g, this.formatterService.currency(totalPaymentsDisplay));
+    result = result.replace(/\{\{totalPayments\}\}/g, this.formatterService.currency(totalPaymentsAmount));
     result = result.replace(/\{\{invoiceLedgerBalanceDue\}\}/g, this.formatterService.currency(balanceDueFromLedger));
 
     if (hasPayments) {
@@ -1065,17 +1110,25 @@ export class InvoiceCreateComponent extends BaseDocumentComponent implements OnI
     return result;
   }
 
-  formatInvoiceLedgerRowHtml(line: LedgerLineResponse, usePositiveAmount: boolean): string {
+  formatInvoiceLedgerRowHtml(line: LedgerLineResponse, isPaymentLine: boolean): string {
     const date = this.formatterService.formatDateString(this.selectedInvoice!.invoiceDate) || '';
     const description = (line.description || '').replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
     const raw = line.amount || 0;
-    const displayNumeric = usePositiveAmount ? Math.abs(raw) : raw;
+    const displayNumeric = isPaymentLine ? -Math.abs(raw) : Math.abs(raw);
     const amount = this.formatterService.currency(displayNumeric);
     return `              <tr class="ledger-line-row">
                 <td>${date}</td>
                 <td>${description}</td>
                 <td class="text-right">${amount}</td>
               </tr>`;
+  }
+
+  isPaymentLedgerLine(line: LedgerLineResponse): boolean {
+    const costCodeId = Number(line.costCodeId);
+    if (Number.isFinite(costCodeId) && this.paymentCostCodeIds.has(costCodeId))
+      return true;
+
+    return line.transactionTypeId === TransactionType.Payment;
   }
   
   getResponsiblePartiesBlock(): string {
@@ -1582,6 +1635,7 @@ export class InvoiceCreateComponent extends BaseDocumentComponent implements OnI
   
   ngOnDestroy(): void {
     this.officesSubscription?.unsubscribe();
+    this.costCodesSubscription?.unsubscribe();
     this.globalOfficeSubscription?.unsubscribe();
     this.itemsToLoad$.complete();
   }

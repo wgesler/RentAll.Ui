@@ -58,16 +58,16 @@
                   <mat-panel-title>Details</mat-panel-title>
                 </mat-expansion-panel-header>
                 
-                <div class="grid grid-cols-4 gap-x-1.5 gap-y-1">
-                  <div class="col-span-4 flex gap-x-1.5">
-                    <mat-form-field appearance="outline" class="flex-[0.5]">
+                <div class="grid grid-cols-4 form-standard-grid">
+                  <div class="col-span-4 grid grid-cols-4 form-standard-grid">
+                    <mat-form-field appearance="outline" class="col-span-1 w-full">
                       <mat-label>Office Code</mat-label>
                       <input matInput #firstInput formControlName="officeCode" required (input)="onCodeInput($event)">
                       @if (form.get('officeCode')?.hasError('required') && form.get('officeCode')?.touched) {
                         <mat-error>Office Code is required</mat-error>
                       }
                     </mat-form-field>
-                    <mat-form-field appearance="outline" class="flex-1">
+                    <mat-form-field appearance="outline" class="col-span-3 w-full">
                       <mat-label>Name</mat-label>
                       <input matInput formControlName="name" required>
                       @if (form.get('name')?.hasError('required') && form.get('name')?.touched) {
@@ -92,8 +92,8 @@
                     </mat-form-field>
                   } @else {
                     <!-- US address layout: Address 1, Address 2, Suite on same line -->
-                    <div class="col-span-4 flex gap-x-1.5">
-                      <mat-form-field appearance="outline" class="flex-1">
+                    <div class="col-span-4 grid grid-cols-4 form-standard-grid">
+                      <mat-form-field appearance="outline" class="col-span-2 w-full">
                         <mat-label>Address 1</mat-label>
                         <input matInput formControlName="address1" required>
                         @if (form.get('address1')?.hasError('required') && form.get('address1')?.touched) {
@@ -101,12 +101,12 @@
                         }
                       </mat-form-field>
 
-                      <mat-form-field appearance="outline" class="flex-1">
+                      <mat-form-field appearance="outline" class="col-span-1 w-full">
                         <mat-label>Address 2</mat-label>
                         <input matInput formControlName="address2">
                       </mat-form-field>
 
-                      <mat-form-field appearance="outline" class="flex-1">
+                      <mat-form-field appearance="outline" class="col-span-1 w-full">
                         <mat-label>Suite</mat-label>
                         <input matInput formControlName="suite">
                       </mat-form-field>
@@ -143,8 +143,8 @@
                     </mat-form-field>
                   }
 
-                  <div class="col-span-4 flex gap-x-1.5">
-                    <mat-form-field appearance="outline" class="flex-1">
+                  <div class="col-span-4 grid grid-cols-3 form-standard-grid">
+                    <mat-form-field appearance="outline" class="col-span-1 w-full">
                       <mat-label>Phone</mat-label>
                       <input matInput formControlName="phone" required maxlength="20" (blur)="formatPhone()" (input)="onPhoneInput($event)" placeholder="(555) 555-5555 or +1 234 567 8900">
                       @if (form.get('phone')?.hasError('required') && form.get('phone')?.touched) {
@@ -155,7 +155,7 @@
                       }
                     </mat-form-field>
 
-                    <mat-form-field appearance="outline" class="flex-1">
+                    <mat-form-field appearance="outline" class="col-span-1 w-full">
                       <mat-label>Fax</mat-label>
                       <input matInput formControlName="fax" maxlength="20" (blur)="formatFax()" (input)="onFaxInput($event)" placeholder="(555) 555-5555 or +1 234 567 8900">
                       @if (form.get('fax')?.hasError('pattern') && form.get('fax')?.touched) {
@@ -163,7 +163,7 @@
                       }
                     </mat-form-field>
 
-                    <mat-form-field appearance="outline" class="flex-1">
+                    <mat-form-field appearance="outline" class="col-span-1 w-full">
                       <mat-label>Website</mat-label>
                       <input matInput formControlName="website" type="url">
                     </mat-form-field>
@@ -230,8 +230,8 @@
                 </mat-expansion-panel-header>
 
                 <!-- First Row: Default Rental Deposit, Security Deposit Waiver, Default Key Fee -->
-                <div class="flex gap-4 mb-4">
-                  <div class="flex-1 flex items-center justify-center">
+                <div class="grid grid-cols-5 form-standard-grid mb-4">
+                  <div class="col-span-1 flex items-center justify-center">
                     <mat-checkbox formControlName="useDailyOnResBoard" color="primary">
                       <span class="inline-block text-left leading-tight">
                         Use Daily Amount<br>
@@ -241,7 +241,7 @@
                   </div>
 
                   <!-- Default Rental Deposit -->
-                  <mat-form-field appearance="outline" class="flex-1">
+                  <mat-form-field appearance="outline" class="col-span-1 w-full">
                     <mat-label>Default Rental Deposit</mat-label>
                     <input matInput type="text" formControlName="defaultDeposit" placeholder="0.00" required
                       (blur)="formatDecimal('defaultDeposit')"
@@ -253,7 +253,7 @@
                   </mat-form-field>
 
                   <!-- Security Deposit Waiver -->
-                  <mat-form-field appearance="outline" class="flex-1">
+                  <mat-form-field appearance="outline" class="col-span-1 w-full">
                     <mat-label>Security Deposit Waiver</mat-label>
                     <input matInput type="text" formControlName="defaultSdw" placeholder="0.00" required
                       (blur)="formatDecimal('defaultSdw')"
@@ -265,7 +265,7 @@
                   </mat-form-field>
 
                   <!-- Days to Refund Deposit -->
-                  <mat-form-field appearance="outline" class="flex-1">
+                  <mat-form-field appearance="outline" class="col-span-1 w-full">
                     <mat-label>Days to Refund Deposit</mat-label>
                     <input matInput type="text" formControlName="daysToRefundDeposit" placeholder="0" required
                       (input)="onIntegerInput($event, 'daysToRefundDeposit')"
@@ -276,7 +276,7 @@
                   </mat-form-field>
 
                   <!-- Default Key Fee -->
-                  <mat-form-field appearance="outline" class="flex-1">
+                  <mat-form-field appearance="outline" class="col-span-1 w-full">
                     <mat-label>Default Key Fee</mat-label>
                     <input matInput type="text" formControlName="defaultKeyFee" placeholder="0.00" required
                       (blur)="formatDecimal('defaultKeyFee')"
@@ -289,9 +289,9 @@
                 </div>
 
                 <!-- Second Row: Undisclosed Pet Fee, Minimum Smoking Fee, Maintenance Email, After Hours Phone -->
-                <div class="flex gap-4 mb-4">
+                <div class="grid grid-cols-4 form-standard-grid mb-4">
                   <!-- Undisclosed Pet Fee -->
-                  <mat-form-field appearance="outline" class="flex-1">
+                  <mat-form-field appearance="outline" class="col-span-1 w-full">
                     <mat-label>Undisclosed Pet Fee</mat-label>
                     <input matInput type="text" formControlName="undisclosedPetFee" placeholder="0.00" required
                       (blur)="formatDecimal('undisclosedPetFee')"
@@ -303,7 +303,7 @@
                   </mat-form-field>
 
                   <!-- Minimum Smoking Fee -->
-                  <mat-form-field appearance="outline" class="flex-1">
+                  <mat-form-field appearance="outline" class="col-span-1 w-full">
                     <mat-label>Minimum Smoking Fee</mat-label>
                     <input matInput type="text" formControlName="minimumSmokingFee" placeholder="0.00" required
                       (blur)="formatDecimal('minimumSmokingFee')"
@@ -315,7 +315,7 @@
                   </mat-form-field>
 
                   <!-- Maintenance Email -->
-                  <mat-form-field appearance="outline" class="flex-1">
+                  <mat-form-field appearance="outline" class="col-span-1 w-full">
                     <mat-label>Maintenance Email</mat-label>
                     <input matInput type="email" formControlName="maintenanceEmail" placeholder="email@example.com" required>
                     @if (form.get('maintenanceEmail')?.hasError('required') && form.get('maintenanceEmail')?.touched) {
@@ -327,7 +327,7 @@
                   </mat-form-field>
 
                   <!-- After Hours Phone -->
-                  <mat-form-field appearance="outline" class="flex-1">
+                  <mat-form-field appearance="outline" class="col-span-1 w-full">
                     <mat-label>After Hours Phone</mat-label>
                     <input matInput type="text" formControlName="afterHoursPhone" placeholder="(555) 555-5555 or +1 234 567 8900" required
                       maxlength="20" (blur)="formatConfigPhone()" (input)="onConfigPhoneInput($event)" (focus)="selectAllOnFocus($event)">
@@ -351,8 +351,8 @@
                 <!-- Utility Charges Subsection -->
                 <div class="mb-4">
                   <h3 class="text-lg font-bold mb-3 text-black">Default Lease Utility Ceilings</h3>
-                  <div class="flex gap-4">
-                    <mat-form-field appearance="outline" class="flex-1">
+                  <div class="grid grid-cols-5 form-standard-grid">
+                    <mat-form-field appearance="outline" class="col-span-1 w-full">
                       <mat-label>1 Bedroom</mat-label>
                       <input matInput type="text" formControlName="utilityOneBed" placeholder="0.00" required
                         (blur)="formatDecimal('utilityOneBed')"
@@ -362,7 +362,7 @@
                         <mat-error>1 Bedroom is required</mat-error>
                       }
                     </mat-form-field>
-                    <mat-form-field appearance="outline" class="flex-1">
+                    <mat-form-field appearance="outline" class="col-span-1 w-full">
                       <mat-label>2 Bedroom</mat-label>
                       <input matInput type="text" formControlName="utilityTwoBed" placeholder="0.00" required
                         (blur)="formatDecimal('utilityTwoBed')"
@@ -372,7 +372,7 @@
                         <mat-error>2 Bedroom is required</mat-error>
                       }
                     </mat-form-field>
-                    <mat-form-field appearance="outline" class="flex-1">
+                    <mat-form-field appearance="outline" class="col-span-1 w-full">
                       <mat-label>3 Bedroom</mat-label>
                       <input matInput type="text" formControlName="utilityThreeBed" placeholder="0.00" required
                         (blur)="formatDecimal('utilityThreeBed')"
@@ -382,7 +382,7 @@
                         <mat-error>3 Bedroom is required</mat-error>
                       }
                     </mat-form-field>
-                    <mat-form-field appearance="outline" class="flex-1">
+                    <mat-form-field appearance="outline" class="col-span-1 w-full">
                       <mat-label>4 Bedroom</mat-label>
                       <input matInput type="text" formControlName="utilityFourBed" placeholder="0.00" required
                         (blur)="formatDecimal('utilityFourBed')"
@@ -392,7 +392,7 @@
                         <mat-error>4 Bedroom is required</mat-error>
                       }
                     </mat-form-field>
-                    <mat-form-field appearance="outline" class="flex-1">
+                    <mat-form-field appearance="outline" class="col-span-1 w-full">
                       <mat-label>House</mat-label>
                       <input matInput type="text" formControlName="utilityHouse" placeholder="0.00" required
                         (blur)="formatDecimal('utilityHouse')"
@@ -408,8 +408,8 @@
                 <!-- Maid Charges Subsection -->
                 <div class="mb-4">
                   <h3 class="text-lg font-bold mb-3 text-black">Default Lease Maid Fees</h3>
-                  <div class="flex gap-4">
-                    <mat-form-field appearance="outline" class="flex-1">
+                  <div class="grid grid-cols-4 form-standard-grid">
+                    <mat-form-field appearance="outline" class="col-span-1 w-full">
                       <mat-label>1 Bedroom</mat-label>
                       <input matInput type="text" formControlName="maidOneBed" placeholder="0.00" required
                         (blur)="formatDecimal('maidOneBed')"
@@ -419,7 +419,7 @@
                         <mat-error>1 Bedroom is required</mat-error>
                       }
                     </mat-form-field>
-                    <mat-form-field appearance="outline" class="flex-1">
+                    <mat-form-field appearance="outline" class="col-span-1 w-full">
                       <mat-label>2 Bedroom</mat-label>
                       <input matInput type="text" formControlName="maidTwoBed" placeholder="0.00" required
                         (blur)="formatDecimal('maidTwoBed')"
@@ -429,7 +429,7 @@
                         <mat-error>2 Bedroom is required</mat-error>
                       }
                     </mat-form-field>
-                    <mat-form-field appearance="outline" class="flex-1">
+                    <mat-form-field appearance="outline" class="col-span-1 w-full">
                       <mat-label>3 Bedroom</mat-label>
                       <input matInput type="text" formControlName="maidThreeBed" placeholder="0.00" required
                         (blur)="formatDecimal('maidThreeBed')"
@@ -439,7 +439,7 @@
                         <mat-error>3 Bedroom is required</mat-error>
                       }
                     </mat-form-field>
-                    <mat-form-field appearance="outline" class="flex-1">
+                    <mat-form-field appearance="outline" class="col-span-1 w-full">
                       <mat-label>4 Bedroom</mat-label>
                       <input matInput type="text" formControlName="maidFourBed" placeholder="0.00" required
                         (blur)="formatDecimal('maidFourBed')"
@@ -455,8 +455,8 @@
                 <!-- Parking Charges Subsection -->
                 <div class="mb-4">
                   <h3 class="text-lg font-bold mb-3 text-black">Default Parking Penalty Range Fees</h3>
-                  <div class="flex gap-4">
-                    <mat-form-field appearance="outline" class="flex-1">
+                  <div class="grid grid-cols-2 form-standard-grid">
+                    <mat-form-field appearance="outline" class="col-span-1 w-full">
                       <mat-label>Low End</mat-label>
                       <input matInput type="text" formControlName="parkingLowEnd" placeholder="0.00" required
                         (blur)="formatDecimal('parkingLowEnd')"
@@ -466,7 +466,7 @@
                         <mat-error>Low End is required</mat-error>
                       }
                     </mat-form-field>
-                    <mat-form-field appearance="outline" class="flex-1">
+                    <mat-form-field appearance="outline" class="col-span-1 w-full">
                       <mat-label>High End</mat-label>
                       <input matInput type="text" formControlName="parkingHighEnd" placeholder="0.00" required
                         (blur)="formatDecimal('parkingHighEnd')"
@@ -481,8 +481,8 @@
 
                 <div class="mb-4">
                   <h3 class="text-lg font-bold mb-3 text-black">Tenant and Owner Charges</h3>
-                  <div class="flex gap-4">
-                    <mat-form-field appearance="outline" class="flex-1">
+                  <div class="grid grid-cols-4 form-standard-grid">
+                    <mat-form-field appearance="outline" class="col-span-1 w-full">
                       <mat-label>Tenant Damages Charge</mat-label>
                       <mat-select formControlName="tenantChargeCcId">
                         <mat-option [value]="null">None</mat-option>
@@ -492,7 +492,7 @@
                       </mat-select>
                     </mat-form-field>
 
-                    <mat-form-field appearance="outline" class="flex-1">
+                    <mat-form-field appearance="outline" class="col-span-1 w-full">
                       <mat-label>Tenant Damages Expense</mat-label>
                       <mat-select formControlName="tenantExpenseCcId">
                         <mat-option [value]="null">None</mat-option>
@@ -501,7 +501,7 @@
                         }
                       </mat-select>
                     </mat-form-field>
-                    <mat-form-field appearance="outline" class="flex-1">
+                    <mat-form-field appearance="outline" class="col-span-1 w-full">
                       <mat-label>Owner Charge</mat-label>
                       <mat-select formControlName="ownerChargeCcId">
                         <mat-option [value]="null">None</mat-option>
@@ -511,7 +511,7 @@
                       </mat-select>
                     </mat-form-field>
 
-                    <mat-form-field appearance="outline" class="flex-1">
+                    <mat-form-field appearance="outline" class="col-span-1 w-full">
                       <mat-label>Owner Expense</mat-label>
                       <mat-select formControlName="ownerExpenseCcId">
                         <mat-option [value]="null">None</mat-option>

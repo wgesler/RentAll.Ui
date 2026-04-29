@@ -37,7 +37,7 @@
                 IsActive
               </mat-checkbox>
             </div>
-            <div class="grid grid-cols-4 gap-x-1.5 gap-y-1">
+            <div class="grid grid-cols-4 form-standard-grid">
               @if (isAddMode) {
                 <mat-form-field appearance="outline" class="col-span-4">
                   <mat-label>Name</mat-label>
@@ -47,7 +47,7 @@
                   }
                 </mat-form-field>
               } @else {
-                <div class="col-span-4 flex gap-x-1.5">
+                <div class="col-span-4 flex form-standard-row">
                   <mat-form-field appearance="outline" class="flex-1">
                     <mat-label>Name</mat-label>
                     <input matInput formControlName="name" required>
@@ -78,7 +78,7 @@
                 </mat-form-field>
               } @else {
                 <!-- US address layout: Address 1, Address 2, Suite on same line -->
-                <div class="col-span-4 flex gap-x-1.5">
+                <div class="col-span-4 flex form-standard-row">
                   <mat-form-field appearance="outline" class="flex-1">
                     <mat-label>Address 1</mat-label>
                     <input matInput formControlName="address1" required>
@@ -129,7 +129,7 @@
                 </mat-form-field>
               }
 
-              <div class="col-span-4 flex gap-x-1.5">
+              <div class="col-span-4 flex form-standard-row">
                 <mat-form-field appearance="outline" class="flex-1">
                   <mat-label>Phone</mat-label>
                   <input matInput formControlName="phone" required maxlength="20" (blur)="formatPhone()" (input)="onPhoneInput($event)" placeholder="(555) 555-5555 or +1 234 567 8900">
@@ -149,7 +149,7 @@
                 </mat-form-field>
               </div>
 
-              <div class="col-span-4 flex gap-x-1.5">
+              <div class="col-span-4 flex form-standard-row">
                 <mat-form-field appearance="outline" class="flex-1">
                   <mat-label>Contact Name</mat-label>
                   <input matInput formControlName="contactName">
@@ -212,7 +212,7 @@
             <p class="mb-4">Allowed File Types (jpg, png, or gif image types)</p>
 
             <h3 class="pt-2">Fees</h3>
-            <div class="grid grid-cols-3 gap-x-1.5 gap-y-1 mb-4">
+            <div class="grid grid-cols-3 form-standard-grid mb-4">
               <mat-form-field appearance="outline">
                 <mat-label>Office Fee</mat-label>
                 <input

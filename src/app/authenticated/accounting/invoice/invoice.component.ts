@@ -462,6 +462,16 @@ export class InvoiceComponent implements OnInit, OnDestroy, OnChanges {
       return;
     }
 
+    const negativeLines = this.ledgerLines
+      .map((line, index) => ({ amount: line.amount, lineNumber: index + 1 }))
+      .filter(x => (x.amount ?? 0) < 0)
+      .map(x => x.lineNumber);
+    if (negativeLines.length > 0) {
+      this.toastr.error(`Ledger lines ${negativeLines.join(', ')} have negative amounts. Negative values are not allowed.`, CommonMessage.Error);
+      this.isSubmitting = false;
+      return;
+    }
+
     const formValue = this.form.getRawValue();
     const user = this.authService.getUser();
          
@@ -719,8 +729,6 @@ export class InvoiceComponent implements OnInit, OnDestroy, OnChanges {
         (line as any).isNew = false;
       }
     });
-    this.normalizePaymentLineSigns();
-    
     this.originalLedgerLines = JSON.parse(JSON.stringify(this.ledgerLines));
     
     if (updateTotalAmount) {
@@ -749,7 +757,6 @@ export class InvoiceComponent implements OnInit, OnDestroy, OnChanges {
       next: (response: InvoiceMonthlyDataResponse) => {
         const rawLedgerLines = response.ledgerLines || [];
         this.ledgerLines = this.mappingService.mapLedgerLines(rawLedgerLines, this.officeCostCodes, this.transactionTypes);
-        this.normalizePaymentLineSigns();
         this.originalLedgerLines = JSON.parse(JSON.stringify(this.ledgerLines));
         this.updateTotalAmount();
         
@@ -1053,8 +1060,6 @@ export class InvoiceComponent implements OnInit, OnDestroy, OnChanges {
       this.updateLedgerLineField(index, 'transactionType', '');
     } else {
       const line = this.ledgerLines[index];
-      const previousTransactionTypeId = (line as any).transactionTypeId;
-      const currentAmount = line.amount || 0;
       
       this.updateLedgerLineField(index, 'costCodeId', normalizedCostCodeId);
       const matchingCostCode = this.officeCostCodes.find(c => c.costCodeId === normalizedCostCodeId)
@@ -1071,34 +1076,6 @@ export class InvoiceComponent implements OnInit, OnDestroy, OnChanges {
           this.updateLedgerLineField(index, 'transactionType', transactionType.label);
         }
         
-        const wasDebit = previousTransactionTypeId !== undefined && previousTransactionTypeId !== null && previousTransactionTypeId !== TransactionType.Payment;
-        const wasCredit = previousTransactionTypeId !== undefined && previousTransactionTypeId !== null && previousTransactionTypeId === TransactionType.Payment;
-        const isDebit = newTransactionTypeId !== TransactionType.Payment;
-        const isCredit = newTransactionTypeId === TransactionType.Payment;
-        
-        if (currentAmount !== 0 && currentAmount !== null && currentAmount !== undefined) {
-          let newAmount = currentAmount;
-          
-          if (wasDebit && isCredit) {
-            newAmount = -Math.abs(currentAmount);
-          } else if (wasCredit && isDebit) {
-            newAmount = Math.abs(currentAmount);
-          } else if (isCredit && currentAmount > 0) {
-            newAmount = -Math.abs(currentAmount);
-          } else if (isDebit && currentAmount < 0) {
-            newAmount = Math.abs(currentAmount);
-          }
-          
-          if (newAmount !== currentAmount) {
-            this.updateLedgerLineField(index, 'amount', newAmount);
-            setTimeout(() => {
-              const amountInput = document.querySelector(`input[data-field="amount"][data-index="${index}"]`) as HTMLInputElement;
-              if (amountInput) {
-                amountInput.value = newAmount.toFixed(2);
-              }
-            }, 0);
-          }
-        }
       } else {
         this.updateLedgerLineField(index, 'costCode', null);
         (this.ledgerLines[index] as any).transactionTypeId = undefined;
@@ -1302,30 +1279,20 @@ export class InvoiceComponent implements OnInit, OnDestroy, OnChanges {
   //#endregion
 
   //#region Ledger Lines
-  onLedgerAmountInput(event: Event, index: number): void {
+  onLedgerAmountInput(event: Event, _index: number): void {
     const input = event.target as HTMLInputElement;
-    const line = this.ledgerLines[index];
     let value = input.value;
-    
-    const isNegative = value.startsWith('-');
-    
-    value = value.replace(/[^0-9.]/g, '');
-    
-    const isCreditType = this.isPaymentLine(line);
-    
-    if (isCreditType && !isNegative && value !== '') {
-      value = '-' + value;
-    } else if (!isCreditType && isNegative) {
-      value = value.replace(/^-/, '');
-    } else if (isNegative) {
-      value = '-' + value;
-    }
-    
-    const parts = value.split('.');
+
+    value = value.replace(/[^0-9.-]/g, '');
+    const hasLeadingMinus = value.startsWith('-');
+    const unsignedValue = value.replace(/-/g, '');
+    const normalizedValue = hasLeadingMinus ? `-${unsignedValue}` : unsignedValue;
+
+    const parts = normalizedValue.split('.');
     if (parts.length > 2) {
       input.value = parts[0] + '.' + parts.slice(1).join('');
     } else {
-      input.value = value;
+      input.value = normalizedValue;
     }
   }
 
@@ -1344,17 +1311,23 @@ export class InvoiceComponent implements OnInit, OnDestroy, OnChanges {
     const input = event.target as HTMLInputElement;
     const line = this.ledgerLines[index];
     if (line) {
-      const isNegative = input.value.startsWith('-');
-      const rawValue = input.value.replace(/[^0-9.]/g, '').trim();
+      const rawValue = input.value.replace(/[^0-9.-]/g, '').trim();
       let numValue: number;
       let formattedValue: string;
-      
-      const isCreditType = this.isPaymentLine(line);
       
       if (rawValue !== '' && rawValue !== null) {
         const parsed = parseFloat(rawValue);
         if (!isNaN(parsed)) {
-          const finalValue = isCreditType ? -Math.abs(parsed) : (isNegative ? -parsed : parsed);
+          if (parsed < 0) {
+            this.toastr.error('Negative ledger amounts are not allowed.', CommonMessage.Error);
+            const fallbackValue = line.amount != null && line.amount >= 0 ? line.amount : 0;
+            input.value = fallbackValue.toFixed(2);
+            line.amount = fallbackValue;
+            this.updateTotalAmount();
+            return;
+          }
+
+          const finalValue = parsed;
           formattedValue = finalValue.toFixed(2);
           numValue = parseFloat(formattedValue);
         } else {
@@ -1370,23 +1343,6 @@ export class InvoiceComponent implements OnInit, OnDestroy, OnChanges {
       line.amount = numValue;
       this.updateTotalAmount();
     }
-  }
-
-  normalizePaymentLineSigns(): void {
-    if (!this.ledgerLines || this.ledgerLines.length === 0) {
-      return;
-    }
-
-    this.ledgerLines.forEach(line => {
-      if (!this.isPaymentLine(line)) {
-        return;
-      }
-
-      const currentAmount = line.amount ?? 0;
-      if (currentAmount > 0) {
-        line.amount = -Math.abs(currentAmount);
-      }
-    });
   }
 
   generateLedgerLines(): void {
@@ -1405,7 +1361,7 @@ export class InvoiceComponent implements OnInit, OnDestroy, OnChanges {
 
     const normalizedAmount = this.isPaymentLine(line)
       ? -Math.abs(line.amount)
-      : line.amount;
+      : Math.abs(line.amount);
 
     return normalizedAmount.toFixed(2);
   }
@@ -1457,7 +1413,7 @@ export class InvoiceComponent implements OnInit, OnDestroy, OnChanges {
       costCode: paymentCostCode.costCode,
       transactionType: 'Payment',
       description: `Credit applied from reservation`,
-      amount: -Math.abs(creditAmount),
+      amount: Math.abs(creditAmount),
       isNew: true
     };
     

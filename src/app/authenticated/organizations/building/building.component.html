@@ -30,7 +30,7 @@
       }
       <mat-card>
         <form id="buildingForm" [formGroup]="form" (ngSubmit)="saveBuilding()" (keydown.enter)="onEnterKey($event)" class="info-form mb-8 form-hide-error-text" [class.pt-5]="!embeddedInSettings" [class.settings-embedded-edit-top-offset]="embeddedInSettings">
-            <div class="grid grid-cols-4 gap-x-1.5 gap-y-1 building-edit-grid">
+            <div class="grid grid-cols-4 form-standard-grid building-edit-grid">
               <div class="col-span-4 flex items-center justify-end" [class.settings-embedded-edit-actions]="embeddedInSettings">
                 <mat-checkbox formControlName="isActive" color="primary">
                   IsActive
@@ -84,7 +84,7 @@
               </mat-form-field>
 
               <!-- HOA Fields on same line -->
-              <div class="col-span-4 flex gap-x-1.5 building-hoa-row">
+              <div class="col-span-4 flex form-standard-row building-hoa-row">
                 <mat-form-field appearance="outline" class="flex-1">
                   <mat-label>HOA Name</mat-label>
                   <input matInput formControlName="hoaName">

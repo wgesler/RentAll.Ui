@@ -402,7 +402,8 @@ export class WorkOrderCreateComponent extends BaseDocumentComponent implements O
     const tenantSpacingClass = isTenantWorkOrder ? (workOrderItemCount >= 6 ? 'tenant-extra-compact' : (workOrderItemCount >= 2 ? 'tenant-compact' : '')) : '';
     const accountingOfficeRemitTo = this.getAccountingOfficeRemitToLine(isTenantWorkOrder && workOrderItemCount >= 6);
     const chargeSections = this.generateWorkOrderChargeSections();
-    const officeLogoDataUrl = this.accountingOfficeLogo;
+    const organizationLogoDataUrl = this.getOrganizationLogoDataUrl();
+    const preferredLogoDataUrl = this.accountingOfficeLogo || organizationLogoDataUrl;
 
     let result = html;
     result = result.replace(/\{\{invoiceName\}\}/g, this.workOrder.workOrderId || '');
@@ -448,8 +449,8 @@ export class WorkOrderCreateComponent extends BaseDocumentComponent implements O
       );
     }
 
-    result = result.replace(/\{\{officeLogoBase64\}\}/g, officeLogoDataUrl || '');
-    result = result.replace(/\{\{orgLogoBase64\}\}/g, officeLogoDataUrl || '');
+    result = result.replace(/\{\{officeLogoBase64\}\}/g, preferredLogoDataUrl || '');
+    result = result.replace(/\{\{orgLogoBase64\}\}/g, preferredLogoDataUrl || '');
     result = result.replace(/\{\{accountingOfficeName\}\}/g, this.selectedAccountingOffice?.name || '');
     result = result.replace(/\{\{accountingOfficeAddress\}\}/g, this.getAccountingOfficeAddress() || '');
     result = result.replace(/\{\{accountingOfficeCityStateZip\}\}/g, `${this.selectedAccountingOffice?.city || ''}, ${this.selectedAccountingOffice?.state || ''} ${this.selectedAccountingOffice?.zip || ''}`.trim());
@@ -464,7 +465,7 @@ export class WorkOrderCreateComponent extends BaseDocumentComponent implements O
     result = result.replace(/\{\{accountingOfficeBankPhone\}\}/g, this.formatter.phoneNumber(this.selectedAccountingOffice?.bankPhone) || '');
     result = result.replace(/\{\{thankYou\}\}/g, this.getThankYou());
 
-    if (!officeLogoDataUrl) {
+    if (!preferredLogoDataUrl) {
       result = result.replace(/<img[^>]*\{\{officeLogoBase64\}\}[^>]*\s*\/?>/gi, '');
       result = result.replace(/<img[^>]*\{\{orgLogoBase64\}\}[^>]*\s*\/?>/gi, '');
     }
@@ -967,6 +968,16 @@ export class WorkOrderCreateComponent extends BaseDocumentComponent implements O
   getAccountingOfficeAddress(): string {
     if (!this.selectedAccountingOffice) return '';
     return `${this.selectedAccountingOffice.address1 || ''} ${this.selectedAccountingOffice.suite || ''}`.trim(); 
+  }
+
+  getOrganizationLogoDataUrl(): string {
+    if (this.organization?.fileDetails?.dataUrl) {
+      return this.organization.fileDetails.dataUrl;
+    }
+    if (this.organization?.fileDetails?.file && this.organization?.fileDetails?.contentType) {
+      return `data:${this.organization.fileDetails.contentType};base64,${this.organization.fileDetails.file}`;
+    }
+    return '';
   }
 
   getOrganizationAddress1(): string {

@@ -30,7 +30,7 @@
       }
       <mat-card>
         <form id="costCodeForm" [formGroup]="form" (ngSubmit)="saveCostCode()" (keydown.enter)="onEnterKey($event)" class="info-form mb-8 form-hide-error-text" [class.pt-5]="source !== 'configuration'" [class.settings-embedded-edit-top-offset]="source === 'configuration'">
-          <div class="grid grid-cols-4 gap-x-1.5 gap-y-1">
+          <div class="grid grid-cols-4 form-standard-grid">
             <div class="col-span-4 flex items-center justify-end" [class.settings-embedded-edit-actions]="source === 'configuration'">
               <mat-checkbox formControlName="isActive" color="primary">
                 IsActive
@@ -49,10 +49,10 @@
               }
             </div>
             <!-- First Row: Office, Cost Code, Transaction Type -->
-            <div class="col-span-4 flex gap-x-1.5">
+            <div class="col-span-4 grid grid-cols-3 form-standard-grid">
               <!-- Office (if in add mode, show dropdown; if edit mode, show readonly) -->
               @if (isAddMode || source === 'configuration') {
-                <mat-form-field appearance="outline" class="flex-1">
+                <mat-form-field appearance="outline" class="col-span-1 w-full">
                   <mat-label>Office</mat-label>
                   <mat-select #firstInput [(ngModel)]="selectedOffice" [ngModelOptions]="{standalone: true}" (selectionChange)="onOfficeChange()" required [canSelectNullableOptions]="true">
                     <mat-option [value]="null">Select Office</mat-option>
@@ -62,14 +62,14 @@
                   </mat-select>
                 </mat-form-field>
               } @else {
-                <mat-form-field appearance="outline" class="flex-1">
+                <mat-form-field appearance="outline" class="col-span-1 w-full">
                   <mat-label>Office</mat-label>
                   <input matInput [value]="getOfficeName()" readonly class="readonly-field">
                 </mat-form-field>
               }
 
               <!-- Cost Code -->
-              <mat-form-field appearance="outline" class="flex-1">
+              <mat-form-field appearance="outline" class="col-span-1 w-full">
                 <mat-label>Cost Code</mat-label>
                 <input matInput formControlName="costCode" type="text" required>
                 @if (form.get('costCode')?.hasError('required') && form.get('costCode')?.touched) {
@@ -78,7 +78,7 @@
               </mat-form-field>
 
               <!-- Transaction Type -->
-              <mat-form-field appearance="outline" class="flex-1">
+              <mat-form-field appearance="outline" class="col-span-1 w-full">
                 <mat-label>Transaction Type</mat-label>
                 <mat-select formControlName="transactionTypeId" required>
                   <mat-option [value]="">Select Transaction Type</mat-option>
