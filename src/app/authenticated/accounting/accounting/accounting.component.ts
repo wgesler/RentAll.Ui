@@ -127,18 +127,6 @@ export class AccountingComponent implements OnInit, OnDestroy {
   }
 
   onInvoiceReservationChange(reservationId: string | null): void {
-    if (reservationId === null) {
-      const routeReservationId = this.route.snapshot.queryParams['reservationId'];
-      const editorReservationId = this.accountingInvoiceEditor?.form?.get('reservationId')?.value;
-      const reservationToKeep = routeReservationId
-        ? String(routeReservationId)
-        : (editorReservationId ? String(editorReservationId) : null);
-      if (reservationToKeep) {
-        this.selectedReservationId = reservationToKeep;
-        return;
-      }
-    }
-
     if (this.selectedReservationId !== reservationId) {
       this.selectedReservationId = reservationId;
     }
@@ -301,18 +289,29 @@ export class AccountingComponent implements OnInit, OnDestroy {
 
   getAccountingCompanyOptions(contacts: ContactResponse[] | null | undefined, selectedOfficeId: number | null | undefined): { value: string, label: string }[] {
     const dedupedByCompanyLabel = new Map<string, { value: string, label: string }>();
+    const normalizeCompanyKey = (label: string): string => label.replace(/[^a-z0-9]/gi, '').toLowerCase();
 
     (contacts || [])
       .filter(contact => !!contact?.isActive)
-      .filter(contact => selectedOfficeId == null || contact.officeId === selectedOfficeId)
+      .filter(contact => selectedOfficeId == null || contact.officeId === selectedOfficeId || (contact.officeAccess || []).some(id => Number(id) === selectedOfficeId))
       .forEach(contact => {
         const label = this.getAccountingCompanyLabel(contact);
         if (!label) {
           return;
         }
-        const dedupeKey = label.toLowerCase();
+        const dedupeKey = normalizeCompanyKey(label);
 
         if (!dedupedByCompanyLabel.has(dedupeKey)) {
+          dedupedByCompanyLabel.set(dedupeKey, {
+            value: contact.contactId,
+            label
+          });
+          return;
+        }
+
+        const existing = dedupedByCompanyLabel.get(dedupeKey)!;
+        // Prefer the more descriptive label when two variants normalize to same company key.
+        if (label.length > existing.label.length) {
           dedupedByCompanyLabel.set(dedupeKey, {
             value: contact.contactId,
             label

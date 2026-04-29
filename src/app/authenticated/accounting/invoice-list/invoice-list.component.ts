@@ -196,7 +196,7 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
         // Handle companyId (contactId) even if officeId is not in params
         if (companyIdParam && this.companyContacts.length > 0 && this.selectedOffice) {
           const matching = this.companyContacts.find(c =>
-            c.contactId === companyIdParam && c.officeId === this.selectedOffice?.officeId
+            c.contactId === companyIdParam && this.contactHasOfficeAccess(c, this.selectedOffice?.officeId ?? null)
           );
           if (matching && matching !== this.selectedCompanyContact) {
             this.selectedCompanyContact = matching;
@@ -261,7 +261,7 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
           } else {
             const matching = this.companyContacts.find(c =>
               c.contactId === newCompanyId &&
-              (!this.selectedOffice || c.officeId === this.selectedOffice.officeId)
+              this.contactHasOfficeAccess(c, this.selectedOffice?.officeId ?? null)
             ) || null;
             if (matching !== this.selectedCompanyContact) {
               this.selectedCompanyContact = matching;
@@ -569,12 +569,13 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
 
     // Filter by company contact if selected (only when source is 'accounting')
     if (this.selectedCompanyContact && this.source === 'accounting') {
-      filtered = filtered.filter(invoice => {
-        if (!invoice.reservationId) return false;
-        const reservation = this.reservations.find(r => r.reservationId === invoice.reservationId);
-        if (!reservation) return false;
-        return reservation.contactName === this.selectedCompanyContact!.fullName;
-      });
+      const selectedCompanyName = this.normalizeCompanyMatchText(this.utilityService.getCompanyDropdownLabel(this.selectedCompanyContact));
+      if (selectedCompanyName) {
+        filtered = filtered.filter(invoice => {
+          const recipientName = this.normalizeCompanyMatchText(this.getRecipientDisplay(invoice));
+          return recipientName === selectedCompanyName;
+        });
+      }
     }
 
     // Filter by reservation if selected
@@ -702,7 +703,7 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
 
   filterCompanyContacts(): void {
     const filtered = this.selectedOffice
-      ? this.companyContacts.filter(c => c.officeId === this.selectedOffice?.officeId && c.isActive)
+      ? this.companyContacts.filter(c => c.isActive && this.contactHasOfficeAccess(c, this.selectedOffice?.officeId ?? null))
       : this.companyContacts.filter(c => c.isActive);
     this.availableCompanyContacts = filtered.map(c => ({
       value: c,
@@ -720,7 +721,7 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
       if (companyIdToApply) {
         const matching = this.companyContacts.find(c =>
           c.contactId === companyIdToApply &&
-          (!this.selectedOffice || c.officeId === this.selectedOffice!.officeId)
+          this.contactHasOfficeAccess(c, this.selectedOffice?.officeId ?? null)
         );
         if (matching && matching !== this.selectedCompanyContact) {
           this.selectedCompanyContact = matching;
@@ -1098,6 +1099,24 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
     }
     return this.organizationOptions.find(organization => organization.value === organizationId)?.label || null;
   }
+
+  normalizeCompanyMatchText(value: string | null | undefined): string {
+    return String(value || '').trim().toLowerCase();
+  }
+
+  contactHasOfficeAccess(contact: ContactResponse, officeId: number | null): boolean {
+    if (officeId == null) {
+      return true;
+    }
+
+    if (contact.officeId === officeId) {
+      return true;
+    }
+
+    const officeAccess = Array.isArray(contact.officeAccess) ? contact.officeAccess : [];
+    return officeAccess.some(id => Number(id) === officeId);
+  }
+
 
   getTransactionTypeLabel(transactionTypeId: number): string {
     const transactionType = this.transactionTypes.find(t => t.value === transactionTypeId);
