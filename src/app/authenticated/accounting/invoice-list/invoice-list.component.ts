@@ -103,6 +103,7 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
   paymentAmountDisplay: string = '$0.00';
   remainingAmount: number = 0;
   remainingAmountDisplay: string = '0.00';
+  isSubmittingPayment: boolean = false;
   paymentTargetInvoiceId: string | null = null;
   restoreTopbarAfterPayment: boolean = false;
   originalPaymentOfficeId: number | null = null;
@@ -1155,6 +1156,12 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
       case 'amount':
         const amountValue = line.amount || 0;
         const formattedAmount = this.formatter.currency(Math.abs(amountValue));
+        const transactionTypeLabel = (line?.transactionType || '').toString().toLowerCase();
+        const transactionTypeId = line?.transactionTypeId ?? null;
+        const isPaymentLine = transactionTypeId === TransactionType.Payment || transactionTypeLabel === 'payment';
+        if (isPaymentLine) {
+          return '-$' + formattedAmount;
+        }
         return amountValue < 0 ? '-$' + formattedAmount : '$' + formattedAmount;
       default:
         return line[columnName] || '-';
@@ -1268,6 +1275,10 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
   }
 
   submitPayment(): void {
+    if (this.isSubmittingPayment) {
+      return;
+    }
+
     // Validate form fields
     if (!this.selectedPaymentCostCodeId || !this.selectedPaymentCostCode) {
       this.toastr.warning('Please select a cost code');
@@ -1301,6 +1312,10 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
   }
 
   submitManualPayments(): void {
+    if (this.isSubmittingPayment) {
+      return;
+    }
+
     // Find all invoices that have an apply amount entered (applyAmountValue is negative)
     const invoicesWithPayments = this.invoicesDisplay.filter(invoice => {
       const applyAmountValue = invoice.applyAmountValue || 0;
@@ -1335,6 +1350,8 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
       };
     });
 
+    this.isSubmittingPayment = true;
+
     // Execute payments sequentially using concatMap
     from(paymentData).pipe(
       concatMap(({ paymentRequest, invoice }) => 
@@ -1344,6 +1361,7 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
         )
       ),
       finalize(() => {
+        this.isSubmittingPayment = false;
         // Clear payment form after all payments are processed
         this.clearPaymentForm();
         this.refreshInvoicesForCurrentScope();
@@ -1377,6 +1395,10 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
   }
 
   applyPayment(invoiceIds: string[]): void {
+    if (this.isSubmittingPayment) {
+      return;
+    }
+
     const paymentRequest: InvoicePaymentRequest = {
       costCodeId: this.selectedPaymentCostCodeId!,
       description: this.getPaymentRequestDescription(),
@@ -1384,7 +1406,13 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
       invoices: invoiceIds
     };
 
-    this.accountingService.applyPayment(paymentRequest).pipe(take(1)).subscribe({
+    this.isSubmittingPayment = true;
+    this.accountingService.applyPayment(paymentRequest).pipe(
+      take(1),
+      finalize(() => {
+        this.isSubmittingPayment = false;
+      })
+    ).subscribe({
       next: (response: InvoicePaymentResponse) => {
         this.handlePaymentResponse(response, paymentRequest);
         // Only clear payment form if there's no credit remaining (credit dialog will handle clearing if needed)

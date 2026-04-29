@@ -126,7 +126,7 @@
                   }
                 </div>
               </div>
-              <button mat-raised-button type="button" color="primary" (click)="submitPayment()" [disabled]="!isPaymentFormValid" class="whitespace-nowrap items-center flex gap-1">
+              <button mat-raised-button type="button" color="primary" (click)="submitPayment()" [disabled]="!isPaymentFormValid || isSubmittingPayment" class="whitespace-nowrap items-center flex gap-1">
                 Submit
               </button>
               <button mat-raised-button type="button" color="accent" (click)="cancelPaymentForm()" class="whitespace-nowrap items-center flex gap-1">
@@ -217,7 +217,7 @@
               </div>
             </div>
             <div class="table-filter-actions-group form-titlebar-actions-wrap uniform-gap">
-              <button mat-raised-button type="button" color="primary" (click)="submitPayment()" [disabled]="!isPaymentFormValid" class="whitespace-nowrap items-center flex gap-1">
+              <button mat-raised-button type="button" color="primary" (click)="submitPayment()" [disabled]="!isPaymentFormValid || isSubmittingPayment" class="whitespace-nowrap items-center flex gap-1">
                 Submit
               </button>
               <button mat-raised-button type="button" color="accent" (click)="cancelPaymentForm()" class="whitespace-nowrap items-center flex gap-1">
