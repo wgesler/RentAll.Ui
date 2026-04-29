@@ -1103,8 +1103,8 @@ export class InvoiceCreateComponent extends BaseDocumentComponent implements OnI
     const chargeLines = invoice.ledgerLines.filter(l => !this.isPaymentLedgerLine(l));
     const hasPayments = paymentLines.length > 0;
 
-    const chargeRows = chargeLines.map(l => this.formatInvoiceLedgerRowHtml(l, false)).join('\n');
-    const paymentRows = paymentLines.map(l => this.formatInvoiceLedgerRowHtml(l, true)).join('\n');
+    const chargeRows = chargeLines.map(l => this.formatInvoiceLedgerRowHtml(l)).join('\n');
+    const paymentRows = paymentLines.map(l => this.formatInvoiceLedgerRowHtml(l)).join('\n');
 
     const totalChargesAmount = chargeLines.reduce((sum, l) => sum + Math.abs(l.amount || 0), 0);
     const totalPaymentsAmount = paymentLines.reduce((sum, l) => sum + Math.abs(l.amount || 0), 0);
@@ -1133,11 +1133,11 @@ export class InvoiceCreateComponent extends BaseDocumentComponent implements OnI
     return result;
   }
 
-  formatInvoiceLedgerRowHtml(line: LedgerLineResponse, isPaymentLine: boolean): string {
+  formatInvoiceLedgerRowHtml(line: LedgerLineResponse): string {
     const date = this.formatterService.formatDateString(this.selectedInvoice!.invoiceDate) || '';
     const description = (line.description || '').replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
     const raw = line.amount || 0;
-    const displayNumeric = isPaymentLine ? -Math.abs(raw) : Math.abs(raw);
+    const displayNumeric = Math.abs(raw);
     const amount = this.formatterService.currency(displayNumeric);
     return `              <tr class="ledger-line-row">
                 <td>${date}</td>
