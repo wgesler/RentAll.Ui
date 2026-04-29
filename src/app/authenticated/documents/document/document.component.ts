@@ -11,6 +11,7 @@ import { MaterialModule } from '../../../material.module';
 import { AuthService } from '../../../services/auth.service';
 import { MappingService } from '../../../services/mapping.service';
 import { UtilityService } from '../../../services/utility.service';
+import { hasInspectorRole } from '../../shared/access/role-access';
 import { FileDetails } from '../../../shared/models/fileDetails';
 import { OfficeResponse } from '../../organizations/models/office.model';
 import { OfficeService } from '../../organizations/services/office.service';
@@ -320,12 +321,93 @@ export class DocumentComponent implements OnInit, OnDestroy {
     return docType ? docType.label : getDocumentType(documentType) || 'Other';
   }
 
+  private getMaintenanceShellDocumentsTabIndex(): number {
+    const isInspector = hasInspectorRole(this.authService.getUser()?.userGroups as Array<string | number> | undefined);
+    const showWorkOrdersTab = !isInspector;
+    return showWorkOrdersTab ? 5 : 4;
+  }
+
   ngOnDestroy(): void {
     this.officesSubscription?.unsubscribe();
     this.itemsToLoad$.complete();
   }
 
   back(): void {
+    const queryParams = this.route.snapshot.queryParams;
+    const returnTo = queryParams['returnTo'];
+
+    if (returnTo === 'reservationTab') {
+      const reservationId = queryParams['reservationId'];
+      if (reservationId) {
+        const params: string[] = ['tab=documents', `reservationId=${reservationId}`];
+        const officeId = queryParams['officeId'];
+        if (officeId !== null && officeId !== undefined && officeId !== '') {
+          params.push(`officeId=${officeId}`);
+        }
+        const reservationUrl = `${RouterUrl.replaceTokens(RouterUrl.Reservation, [reservationId])}?${params.join('&')}`;
+        this.router.navigateByUrl(reservationUrl);
+        return;
+      }
+    }
+
+    if (returnTo === 'accountingTab') {
+      const params: string[] = ['tab=4'];
+      const officeId = queryParams['officeId'];
+      const reservationId = queryParams['reservationId'];
+      const companyId = queryParams['companyId'];
+      if (officeId !== null && officeId !== undefined && officeId !== '') {
+        params.push(`officeId=${officeId}`);
+      }
+      if (reservationId) {
+        params.push(`reservationId=${reservationId}`);
+      }
+      if (companyId) {
+        params.push(`companyId=${companyId}`);
+      }
+      this.router.navigateByUrl(`${RouterUrl.AccountingList}?${params.join('&')}`);
+      return;
+    }
+
+    if (returnTo === 'propertyTab') {
+      const propertyId = queryParams['propertyId'];
+      if (propertyId) {
+        const params: string[] = ['tab=documents'];
+        const reservationId = queryParams['reservationId'];
+        const officeId = queryParams['officeId'];
+        if (reservationId) {
+          params.push(`reservationId=${reservationId}`);
+        }
+        if (officeId !== null && officeId !== undefined && officeId !== '') {
+          params.push(`officeId=${officeId}`);
+        }
+        this.router.navigateByUrl(`${RouterUrl.replaceTokens(RouterUrl.Property, [propertyId])}?${params.join('&')}`);
+        return;
+      }
+    }
+
+    if ((returnTo === 'maintenanceTab' || returnTo === 'maintenance')) {
+      const propertyId = queryParams['propertyId'];
+      if (propertyId) {
+        const params: string[] = [`tab=${this.getMaintenanceShellDocumentsTabIndex()}`];
+        const reservationId = queryParams['reservationId'];
+        const officeId = queryParams['officeId'];
+        if (reservationId) {
+          params.push(`reservationId=${reservationId}`);
+        }
+        if (officeId !== null && officeId !== undefined && officeId !== '') {
+          params.push(`officeId=${officeId}`);
+        }
+        const maintenanceUrl = `${RouterUrl.replaceTokens(RouterUrl.Maintenance, [propertyId])}?${params.join('&')}`;
+        this.router.navigateByUrl(maintenanceUrl);
+        return;
+      }
+    }
+
+    if (returnTo === 'documentList') {
+      this.router.navigateByUrl(RouterUrl.DocumentList);
+      return;
+    }
+
     this.router.navigateByUrl(RouterUrl.DocumentList);
   }
   //#endregion

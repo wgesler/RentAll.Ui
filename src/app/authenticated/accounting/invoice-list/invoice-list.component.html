@@ -120,7 +120,7 @@
                     <mat-form-field appearance="outline" class="payment-remaining-field" style="font-size: 11px !important;">
                       <mat-label style="font-size: 11px !important;">Remaining</mat-label>
                       <input matInput [value]="remainingAmountDisplay" readonly
-                             [style.color]="remainingAmount < 0 ? '#d32f2f' : 'inherit'"
+                             [style.color]="hasNegativeRemainingAmount() ? '#d32f2f' : 'inherit'"
                              style="font-size: 11px !important; text-align: right;">
                     </mat-form-field>
                   }
@@ -210,7 +210,7 @@
                   <mat-form-field appearance="outline" class="payment-remaining-field" style="font-size: 11px !important;">
                     <mat-label style="font-size: 11px !important;">Remaining</mat-label>
                     <input matInput [value]="remainingAmountDisplay" readonly
-                           [style.color]="remainingAmount < 0 ? '#d32f2f' : 'inherit'"
+                           [style.color]="hasNegativeRemainingAmount() ? '#d32f2f' : 'inherit'"
                            style="font-size: 11px !important; text-align: right;">
                   </mat-form-field>
                 }

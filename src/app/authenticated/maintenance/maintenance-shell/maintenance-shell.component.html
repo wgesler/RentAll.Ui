@@ -59,16 +59,27 @@
                 </app-title-bar-select>
               </div>
             }
-            @if (selectedTabIndex === documentsTabIndex && maintenanceDocumentList) {
-              <mat-form-field appearance="outline" class="titlebar-field-document-type">
-                <mat-label>Document Types</mat-label>
-                <mat-select [(ngModel)]="maintenanceDocumentList.selectedDocumentTypeId" (selectionChange)="maintenanceDocumentList.onDocumentTypeChange()" [canSelectNullableOptions]="true">
-                  <mat-option [value]="null">All Document Types</mat-option>
-                  @for (docType of maintenanceDocumentList.documentTypes; track docType.value) {
-                    <mat-option [value]="docType.value">{{ docType.label }}</mat-option>
-                  }
-                </mat-select>
-              </mat-form-field>
+            @if (selectedTabIndex === emailTabIndex) {
+              <app-title-bar-select
+                [label]="'Email Types'"
+                [formFieldClass]="'titlebar-field-document-type'"
+                [value]="selectedEmailTypeId"
+                [options]="emailTypeOptions"
+                [nullOptionLabel]="'All Email Types'"
+                [noResultsText]="'No email types match your search'"
+                (valueChange)="onHeaderEmailTypeDropdownChange($event)">
+              </app-title-bar-select>
+            }
+            @if (selectedTabIndex === documentsTabIndex) {
+              <app-title-bar-select
+                [label]="'Document Types'"
+                [formFieldClass]="'titlebar-field-document-type'"
+                [value]="selectedDocumentTypeId"
+                [options]="documentTypeOptions"
+                [nullOptionLabel]="'All Document Types'"
+                [noResultsText]="'No document types match your search'"
+                (valueChange)="onHeaderDocumentTypeDropdownChange($event)">
+              </app-title-bar-select>
             }
           </div>
         </div>
@@ -183,13 +194,13 @@
             @if (property) {
               <app-email-list
                 #maintenanceEmailList
-                [source]="'property'"
+                [source]="'maintenance'"
                 [propertyId]="property.propertyId"
                 [propertyCode]="property.propertyCode ?? null"
                 [organizationId]="organizationId"
                 [officeId]="property.officeId ?? null"
+                [reservationId]="titleBarReservationId"
                 [reservations]="shellReservations"
-                [filterDocumentTypeId]="inspectionEmailDocumentType"
                 [hideHeader]="true"
                 [hideFilters]="true"
               />

@@ -55,6 +55,7 @@
     width: 120px;
     min-width: 120px;
     max-width: 120px;
+    text-align: right;
   }
 
   .ledger-col-actions {
@@ -106,6 +107,19 @@
     &:hover {
       background-color: var(--invoice-ledger-payment-hover-bg);
     }
+
+    td {
+      color: var(--mat-sys-on-surface, #000);
+      font-weight: 400;
+    }
+
+    td.ledger-col-amount {
+      input[type="text"] {
+        color: var(--mat-sys-on-surface, #000);
+        font-weight: 400;
+        text-align: right;
+      }
+    }
   }
   
   /* Shrink mat-select only inside ledger */
@@ -138,6 +152,10 @@
     &:focus {
       outline: none;
     }
+  }
+
+  .ledger-col-amount input[type="text"] {
+    text-align: right;
   }
   
   /* Editable inputs with borders - override border: none */

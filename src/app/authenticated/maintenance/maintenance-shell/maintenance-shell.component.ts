@@ -21,7 +21,6 @@ import { ReceiptsListComponent } from '../receipts-list/receipts-list.component'
 import { ReceiptComponent } from '../receipt/receipt.component';
 import { WorkOrderComponent } from '../work-order/work-order.component';
 import { DocumentListComponent } from '../../documents/document-list/document-list.component';
-import { DocumentType } from '../../documents/models/document.enum';
 import { EmailListComponent } from '../../email/email-list/email-list.component';
 import { isInspectorOnlyUser } from '../../shared/access/role-access';
 import { MaintenanceComponent } from '../maintenance/maintenance.component';
@@ -91,8 +90,6 @@ export class MaintenanceShellComponent implements OnInit, CanComponentDeactivate
 
   itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['property']));
   isLoading$: Observable<boolean> = this.itemsToLoad$.pipe(map(items => items.size > 0));
-
-  readonly inspectionEmailDocumentType = DocumentType.Inspection;
 
   constructor(
     private route: ActivatedRoute,
@@ -257,6 +254,28 @@ export class MaintenanceShellComponent implements OnInit, CanComponentDeactivate
     return 2;
   }
 
+  get emailTypeOptions(): SearchableSelectOption[] {
+    return (this.maintenanceEmailList?.emailTypeOptions || []).map(option => ({
+      value: option.value,
+      label: option.label
+    }));
+  }
+
+  get selectedEmailTypeId(): number | null {
+    return this.maintenanceEmailList?.selectedEmailTypeId ?? null;
+  }
+
+  get documentTypeOptions(): SearchableSelectOption[] {
+    return (this.maintenanceDocumentList?.documentTypeOptions || []).map(option => ({
+      value: option.value,
+      label: option.label
+    }));
+  }
+
+  get selectedDocumentTypeId(): number | null {
+    return this.maintenanceDocumentList?.selectedDocumentTypeId ?? null;
+  }
+
   get showTitleBarReservationDropdown(): boolean {
     if (!this.property) {
       return false;
@@ -264,7 +283,10 @@ export class MaintenanceShellComponent implements OnInit, CanComponentDeactivate
     if (this.selectedTabIndex === 0) {
       return true;
     }
-    return this.showWorkOrdersTab && this.selectedTabIndex === this.workOrdersTabIndex && !this.showWorkOrderDetail;
+    if (this.showWorkOrdersTab && this.selectedTabIndex === this.workOrdersTabIndex && !this.showWorkOrderDetail) {
+      return true;
+    }
+    return this.selectedTabIndex === this.emailTabIndex || this.selectedTabIndex === this.documentsTabIndex;
   }
 
   get titleBarReservationNullLabel(): string {
@@ -384,6 +406,20 @@ export class MaintenanceShellComponent implements OnInit, CanComponentDeactivate
 
   onReservationDropdownChange(value: string | number | null): void {
     this.titleBarReservationId = value == null || value === '' ? null : String(value);
+  }
+
+  onHeaderEmailTypeDropdownChange(value: string | number | null): void {
+    if (!this.maintenanceEmailList) {
+      return;
+    }
+    this.maintenanceEmailList.onEmailTypeDropdownChange(value);
+  }
+
+  onHeaderDocumentTypeDropdownChange(value: string | number | null): void {
+    if (!this.maintenanceDocumentList) {
+      return;
+    }
+    this.maintenanceDocumentList.onDocumentTypeDropdownChange(value);
   }
   //#endregion
 

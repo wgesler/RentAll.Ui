@@ -6,7 +6,7 @@
           <mat-icon class="flex-shrink-0">account_balance</mat-icon>
           <span class="flex-shrink-0 text-xl font-medium">Accounting</span>
         </span>
-        @if (isSuperAdmin) {
+        @if (isSuperAdmin && !activeInvoiceId) {
           <div class="header-title form-titlebar-fields-wrap">
             <app-title-bar-select
               [label]="'Organization'"
@@ -16,6 +16,30 @@
               [nullOptionLabel]="'Select Organization'"
               [noResultsText]="'No organizations match your search'"
               (valueChange)="onAccountingOrganizationDropdownChange($event)">
+            </app-title-bar-select>
+          </div>
+        } @else if (selectedTabIndex === 0 && activeInvoiceId && accountingInvoiceEditor?.form) {
+          <div class="header-title form-titlebar-fields-wrap">
+            <app-title-bar-select
+              [label]="'Office'"
+              [formFieldClass]="'titlebar-field-office'"
+              [value]="accountingInvoiceEditor.form.get('officeId')?.value ?? null"
+              [options]="accountingInvoiceEditor.officeTitleBarOptions"
+              [disabled]="!accountingInvoiceEditor.isAddMode"
+              [nullOptionLabel]="'Select Office'"
+              [noResultsText]="'No offices match your search'"
+              (valueChange)="onAccountingInvoiceEditorOfficeDropdownChange($event)">
+            </app-title-bar-select>
+
+            <app-title-bar-select
+              [label]="'Reservation'"
+              [formFieldClass]="'titlebar-field-reservation'"
+              [value]="accountingInvoiceEditor.form.get('reservationId')?.value ?? null"
+              [options]="accountingInvoiceEditor.reservationTitleBarOptions"
+              [disabled]="!accountingInvoiceEditor.isAddMode"
+              [nullOptionLabel]="'Select Reservation'"
+              [noResultsText]="'No reservations match your search'"
+              (valueChange)="onAccountingInvoiceEditorReservationDropdownChange($event)">
             </app-title-bar-select>
           </div>
         } @else if (selectedTabIndex === 0 && accountingInvoiceList && !accountingInvoiceList.showPaymentForm) {
@@ -43,7 +67,7 @@
             <app-title-bar-select
               [label]="'Reservations'"
               [formFieldClass]="'titlebar-field-reservation'"
-              [value]="accountingInvoiceList.selectedReservation?.reservationId ?? null"
+              [value]="selectedReservationId"
               [options]="getReservationOptions(accountingInvoiceList.availableReservations)"
               [nullOptionLabel]="'All Reservations'"
               [noResultsText]="'No reservations match your search'"
@@ -125,6 +149,15 @@
               [noResultsText]="'No reservations match your search'"
               (valueChange)="onAccountingEmailReservationDropdownChange($event)">
             </app-title-bar-select>
+            <app-title-bar-select
+              [label]="'Email Types'"
+              [formFieldClass]="'titlebar-field-document-type'"
+              [value]="selectedAccountingEmailTypeId"
+              [options]="accountingEmailTypeOptions"
+              [nullOptionLabel]="'All Email Types'"
+              [noResultsText]="'No email types match your search'"
+              (valueChange)="onAccountingEmailTypeDropdownChange($event)">
+            </app-title-bar-select>
           </div>
         } @else if (selectedTabIndex === 4 && !isSuperAdmin && accountingDocumentList) {
           <div class="header-title form-titlebar-fields-wrap">
@@ -157,28 +190,56 @@
               [noResultsText]="'No reservations match your search'"
               (valueChange)="onAccountingDocumentReservationDropdownChange($event)">
             </app-title-bar-select>
+            <app-title-bar-select
+              [label]="'Document Types'"
+              [formFieldClass]="'titlebar-field-document-type'"
+              [value]="selectedAccountingDocumentTypeId"
+              [options]="accountingDocumentTypeOptions"
+              [nullOptionLabel]="'All Document Types'"
+              [noResultsText]="'No document types match your search'"
+              (valueChange)="onAccountingDocumentTypeDropdownChange($event)">
+            </app-title-bar-select>
           </div>
+        }
+      </div>
+      <div class="form-titlebar-actions-wrap">
+        @if (activeInvoiceId) {
+          <button mat-raised-button type="button" color="accent" (click)="closeEmbeddedInvoiceEditor()">
+            <mat-icon>arrow_back</mat-icon>
+            Back
+          </button>
         }
       </div>
     </div>
     <mat-card>
       <mat-tab-group [selectedIndex]="selectedTabIndex" class="accounting-tabs dbg-band-tabs" (selectedTabChange)="onTabChange($event)">
         <mat-tab label="Invoices">
-          <app-invoice-list 
-            [hideFilters]="true"
-            [officeId]="selectedOfficeId"
-            [reservationId]="selectedReservationId"
-            [companyId]="selectedCompanyId"
-            [organizationId]="selectedOrganizationId"
-            [organizationName]="selectedOrganizationName"
-            [organizationOptions]="organizationTitleBarOptions"
-            [source]="'accounting'"
-            (organizationIdChange)="onInvoiceOrganizationChange($event)"
-            (officeIdChange)="onInvoiceOfficeChange($event)"
-            (reservationIdChange)="onInvoiceReservationChange($event)"
-            (companyIdChange)="onInvoiceCompanyChange($event)"
-            (printInvoiceEvent)="onPrintInvoice($event)">
-          </app-invoice-list>
+          @if (activeInvoiceId) {
+            <app-invoice
+              #accountingInvoiceEditor
+              [shellMode]="true"
+              [invoiceIdInput]="activeInvoiceId"
+              [officeIdInput]="selectedOfficeId"
+              [reservationIdInput]="selectedReservationId"
+              [companyIdInput]="selectedCompanyId">
+            </app-invoice>
+          } @else {
+            <app-invoice-list 
+              [hideFilters]="true"
+              [officeId]="selectedOfficeId"
+              [reservationId]="selectedReservationId"
+              [companyId]="selectedCompanyId"
+              [organizationId]="selectedOrganizationId"
+              [organizationName]="selectedOrganizationName"
+              [organizationOptions]="organizationTitleBarOptions"
+              [source]="'accounting'"
+              (organizationIdChange)="onInvoiceOrganizationChange($event)"
+              (officeIdChange)="onInvoiceOfficeChange($event)"
+              (reservationIdChange)="onInvoiceReservationChange($event)"
+              (companyIdChange)="onInvoiceCompanyChange($event)"
+              (printInvoiceEvent)="onPrintInvoice($event)">
+            </app-invoice-list>
+          }
         </mat-tab>
         <mat-tab label="Cost Codes">
           <app-cost-codes-list 
@@ -211,7 +272,6 @@
             [reservationId]="selectedReservationId"
             [companyId]="selectedCompanyId"
             [organizationId]="selectedOrganizationId"
-            [emailTypeId]="EmailType.Invoice"
             [source]="'invoice'"
             (organizationIdChange)="onEmailsOrganizationChange($event)"
             (officeIdChange)="onEmailsOfficeChange($event)"
@@ -222,7 +282,6 @@
         <mat-tab label="Documents">
           <app-document-list 
             #accountingDocumentList
-            [documentTypeId]="DocumentType.Invoice"
             [hideHeader]="true"
             [hideFilters]="true"
             [officeId]="selectedOfficeId"

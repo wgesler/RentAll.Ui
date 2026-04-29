@@ -8,60 +8,62 @@
   
   <div class="flex content-card-wrap justify-center" fxLayout="row wrap">
     <section class="content-card">
-      <div class="flex justify-between items-center gap-3 bg-slate-200 rounded-t-lg py-0 pl-8 pr-4">
-        <div class="flex items-center flex-wrap py-4">
-          <span class="flex flex-column items-center gap-3 flex-shrink-0">
-            <mat-icon class="flex-shrink-0">account_balance</mat-icon>
-            <span class="flex-shrink-0 text-xl font-medium">
-              {{ isPaymentMode ? 'Apply Payment' : (isAddMode ? 'Add Invoice' : 'Edit Invoice') }}
+      @if (!shellMode) {
+        <div class="flex justify-between items-center gap-3 bg-slate-200 rounded-t-lg py-0 pl-8 pr-4">
+          <div class="flex items-center flex-wrap py-4">
+            <span class="flex flex-column items-center gap-3 flex-shrink-0">
+              <mat-icon class="flex-shrink-0">account_balance</mat-icon>
+              <span class="flex-shrink-0 text-xl font-medium">
+                {{ isPaymentMode ? 'Apply Payment' : (isAddMode ? 'Add Invoice' : 'Edit Invoice') }}
+              </span>
             </span>
-          </span>
-          @if (form) {
-            <div class="header-title form-titlebar-fields-wrap">
-              <app-title-bar-select
-                [label]="'Office'"
-                [formFieldClass]="'titlebar-field-office'"
-                [value]="form.get('officeId')?.value ?? null"
-                [options]="officeTitleBarOptions"
-                [disabled]="!isAddMode"
-                [nullOptionLabel]="'Select Office'"
-                [noResultsText]="'No offices match your search'"
-                (valueChange)="onTitleBarOfficeChange($event)">
-              </app-title-bar-select>
+            @if (form) {
+              <div class="header-title form-titlebar-fields-wrap">
+                <app-title-bar-select
+                  [label]="'Office'"
+                  [formFieldClass]="'titlebar-field-office'"
+                  [value]="form.get('officeId')?.value ?? null"
+                  [options]="officeTitleBarOptions"
+                  [disabled]="!isAddMode"
+                  [nullOptionLabel]="'Select Office'"
+                  [noResultsText]="'No offices match your search'"
+                  (valueChange)="onTitleBarOfficeChange($event)">
+                </app-title-bar-select>
 
-              <app-title-bar-select
-                [label]="'Reservation'"
-                [formFieldClass]="'titlebar-field-reservation'"
-                [value]="form.get('reservationId')?.value ?? null"
-                [options]="reservationTitleBarOptions"
-                [disabled]="!isAddMode"
-                [nullOptionLabel]="'Select Reservation'"
-                [noResultsText]="'No reservations match your search'"
-                (valueChange)="onTitleBarReservationChange($event)">
-              </app-title-bar-select>
+                <app-title-bar-select
+                  [label]="'Reservation'"
+                  [formFieldClass]="'titlebar-field-reservation'"
+                  [value]="form.get('reservationId')?.value ?? null"
+                  [options]="reservationTitleBarOptions"
+                  [disabled]="!isAddMode"
+                  [nullOptionLabel]="'Select Reservation'"
+                  [noResultsText]="'No reservations match your search'"
+                  (valueChange)="onTitleBarReservationChange($event)">
+                </app-title-bar-select>
 
-              <mat-form-field appearance="outline" class="titlebar-field-invoice-no">
-                <mat-label>Invoice No</mat-label>
-                <input matInput [value]="form.get('invoiceCode')?.value ?? ' '" readonly [disabled]="true">
-              </mat-form-field>
-            </div>
-          }
-        </div>
-        <div class="flex gap-2">
-          <button mat-raised-button type="button" color="accent" id="back-button" (click)="back()"
-            class="text-nowrap flex-shrink-0">
-            <mat-icon>arrow_back</mat-icon>
-            Back
-          </button>
-          @if (isPaymentMode) {
-            <button mat-raised-button type="button" color="primary" id="save-button" (click)="onPrimaryAction()"
-              class="text-nowrap flex-shrink-0" [disabled]="isSaveDisabled">
-              <mat-icon>{{ primaryActionLabel === 'View' ? 'visibility' : 'save' }}</mat-icon>
-              {{ primaryActionLabel }}
+                <mat-form-field appearance="outline" class="titlebar-field-invoice-no">
+                  <mat-label>Invoice No</mat-label>
+                  <input matInput [value]="form.get('invoiceCode')?.value ?? ' '" readonly [disabled]="true">
+                </mat-form-field>
+              </div>
+            }
+          </div>
+          <div class="flex gap-2">
+            <button mat-raised-button type="button" color="accent" id="back-button" (click)="back()"
+              class="text-nowrap flex-shrink-0">
+              <mat-icon>arrow_back</mat-icon>
+              Back
             </button>
-          }
+            @if (isPaymentMode) {
+              <button mat-raised-button type="button" color="primary" id="save-button" (click)="onPrimaryAction()"
+                class="text-nowrap flex-shrink-0" [disabled]="isSaveDisabled">
+                <mat-icon>{{ primaryActionLabel === 'View' ? 'visibility' : 'save' }}</mat-icon>
+                {{ primaryActionLabel }}
+              </button>
+            }
+          </div>
         </div>
-      </div>
+      }
         
       <mat-card>
         <form [formGroup]="form" (ngSubmit)="saveInvoice()" class="info-form mb-8 form-standard-top-padding">
@@ -194,13 +196,13 @@
                             <td class="ledger-col-amount" [class.readonly-cell]="isPaymentMode && !line.isNew">
                               @if (isPaymentMode && !line.isNew) {
                                 <input type="text" class="w-full border-0 readonly-input" 
-                                  [value]="line.amount != null && line.amount !== undefined ? line.amount.toFixed(2) : ''" 
+                                  [value]="getLedgerAmountDisplay(line)"
                                   readonly>
                               } @else {
                                 <input type="text" class="w-full editable-input" 
                                   [attr.data-field]="'amount'"
                                   [attr.data-index]="i"
-                                  [value]="line.amount != null && line.amount !== undefined ? line.amount.toFixed(2) : ''"
+                                  [value]="getLedgerAmountDisplay(line)"
                                   (input)="onLedgerAmountInput($event, i)"
                                   (focus)="onLedgerAmountFocus($event, i)"
                                   (blur)="onLedgerAmountBlur($event, i)">

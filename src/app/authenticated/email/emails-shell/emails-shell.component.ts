@@ -180,6 +180,21 @@ export class EmailsShellComponent implements OnInit, OnDestroy {
     return this.availableReservations;
   }
 
+  get emailTypeOptions(): SearchableSelectOption[] {
+    return (this.emailsTabList?.emailTypeOptions || []).map(option => ({
+      value: option.value,
+      label: option.label
+    }));
+  }
+
+  get selectedEmailTypeId(): number | null {
+    return this.emailsTabList?.selectedEmailTypeId ?? null;
+  }
+
+  onEmailTypeDropdownChange(value: string | number | null): void {
+    this.emailsTabList?.onEmailTypeDropdownChange(value);
+  }
+
   get propertyOptions(): SearchableSelectOption[] {
     return this.availableProperties;
   }

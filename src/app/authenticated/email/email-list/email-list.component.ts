@@ -22,6 +22,7 @@ import { UtilityService } from '../../../services/utility.service';
 import { ContactResponse } from '../../contacts/models/contact.model';
 import { ContactService } from '../../contacts/services/contact.service';
 import { TitleBarSelectComponent } from '../../shared/titlebar-select/titlebar-select.component';
+import { EmailType, getEmailType } from '../models/email.enum';
 
 @Component({
   selector: 'app-email-list',
@@ -33,7 +34,7 @@ import { TitleBarSelectComponent } from '../../shared/titlebar-select/titlebar-s
 export class EmailListComponent implements OnInit, OnDestroy, OnChanges {
   @Input() hideHeader: boolean = false;
   @Input() hideFilters: boolean = false;
-  @Input() source: 'property' | 'reservation' | 'invoice' | 'emails' | null = null;
+  @Input() source: 'property' | 'reservation' | 'invoice' | 'emails' | 'maintenance' | null = null;
   @Input() propertyId?: string;
   @Input() propertyCode: string | null = null;
   @Input() organizationId: string | null = null;
@@ -63,6 +64,8 @@ export class EmailListComponent implements OnInit, OnDestroy, OnChanges {
   companyContacts: ContactResponse[] = [];
   availableCompanyContacts: { value: ContactResponse, label: string }[] = [];
   selectedCompanyContact: ContactResponse | null = null;
+  selectedEmailTypeId: number | null = null;
+  emailTypes: { value: number, label: string }[] = [];
   
   showOfficeDropdown = false;
   preferredOfficeId: number | null = null;
@@ -73,6 +76,7 @@ export class EmailListComponent implements OnInit, OnDestroy, OnChanges {
   emailsDisplayedColumns: ColumnSet = {
     propertyCode: { displayAs: 'Property', maxWidth: '15ch', sortType: 'natural' },
     reservationCode: { displayAs: 'Reservation', maxWidth: '15ch', sortType: 'natural' },
+    emailTypeName: { displayAs: 'Email Type', maxWidth: '20ch' },
     subject: { displayAs: 'Subject', maxWidth: '30ch' },
     toEmail: { displayAs: 'To Email', maxWidth: '25ch' },
     fromEmail: { displayAs: 'From Email', maxWidth: '25ch' },
@@ -110,6 +114,7 @@ export class EmailListComponent implements OnInit, OnDestroy, OnChanges {
     }
 
     this.loadOffices();
+    this.initializeEmailTypes();
 
     this.globalOfficeSubscription = this.globalSelectionService.getSelectedOfficeId$().pipe(skip(1)).subscribe(officeId => {
       if (this.offices.length > 0 && (this.officeId === null || this.officeId === undefined)) {
@@ -297,6 +302,10 @@ export class EmailListComponent implements OnInit, OnDestroy, OnChanges {
     this.applyFilters();
   }
 
+  onEmailTypeChange(): void {
+    this.applyFilters();
+  }
+
   get officeOptions(): { value: number, label: string }[] {
     return this.offices.map(office => ({
       value: office.officeId,
@@ -340,15 +349,20 @@ export class EmailListComponent implements OnInit, OnDestroy, OnChanges {
     this.onReservationChange();
   }
 
+  onEmailTypeDropdownChange(value: string | number | null): void {
+    this.selectedEmailTypeId = value == null || value === '' ? null : Number(value);
+    this.onEmailTypeChange();
+  }
+
   filterReservations(): void {
-    if (this.source !== 'emails' && this.source !== 'property' && this.source !== 'reservation' && this.source !== 'invoice') {
+    if (this.source !== 'emails' && this.source !== 'property' && this.source !== 'reservation' && this.source !== 'invoice' && this.source !== 'maintenance') {
       this.availableReservations = [];
       return;
     }
 
     if (!this.selectedOfficeId) {
       let allReservations = [...this.reservations];
-      if ((this.source === 'property' || this.source === 'reservation') && this.propertyId) {
+      if ((this.source === 'property' || this.source === 'reservation' || this.source === 'maintenance') && this.propertyId) {
         allReservations = allReservations.filter(r => r.propertyId === this.propertyId);
       }
       if (this.source === 'invoice' && this.selectedCompanyContact?.contactId) {
@@ -367,7 +381,7 @@ export class EmailListComponent implements OnInit, OnDestroy, OnChanges {
     }
 
     const filteredReservations = this.reservations.filter(r => r.officeId === this.selectedOfficeId);
-    const propertyFilteredReservations = ((this.source === 'property' || this.source === 'reservation') && this.propertyId)
+    const propertyFilteredReservations = ((this.source === 'property' || this.source === 'reservation' || this.source === 'maintenance') && this.propertyId)
       ? filteredReservations.filter(r => r.propertyId === this.propertyId)
       : filteredReservations;
     const companyFilteredReservations = (this.source === 'invoice' && this.selectedCompanyContact?.contactId)
@@ -411,6 +425,16 @@ export class EmailListComponent implements OnInit, OnDestroy, OnChanges {
     }
   }
 
+  initializeEmailTypes(): void {
+    this.emailTypes = Object.values(EmailType)
+      .filter((value): value is number => typeof value === 'number')
+      .map(value => ({
+        value,
+        label: getEmailType(value)
+      }))
+      .filter(type => !!type.label);
+  }
+
   applyReservationCodes(): void {
     if (!this.allEmails || this.allEmails.length === 0) {
       return;
@@ -437,28 +461,38 @@ export class EmailListComponent implements OnInit, OnDestroy, OnChanges {
 
     let filtered = [...this.allEmails];
 
-    if (this.selectedOfficeId !== null && this.selectedOfficeId !== undefined) {
+    // Keep alerts on the sidebar Emails page only; hide them in shell-embedded email tabs.
+    if (this.source !== 'emails') {
+      filtered = filtered.filter(email => email.emailTypeId !== EmailType.Alert);
+    }
+
+    if (this.source !== 'reservation' && this.selectedOfficeId !== null && this.selectedOfficeId !== undefined) {
       filtered = filtered.filter(email => email.officeId === String(this.selectedOfficeId));
     }
 
-    if ((this.source === 'emails' || this.source === 'reservation' || this.source === 'property' || this.source === 'invoice') && this.selectedReservationId !== null && this.selectedReservationId !== undefined && this.selectedReservationId !== '') {
+    const reservationIdToFilter = this.selectedReservationId || this.reservationId || null;
+    const propertyIdToFilter = this.propertyId || null;
+    const useShellScopeFilter = this.source === 'reservation' || this.source === 'property' || this.source === 'maintenance' || this.source === 'invoice';
+    if (useShellScopeFilter) {
+      if (reservationIdToFilter) {
+        filtered = filtered.filter(email => email.reservationId === reservationIdToFilter);
+      } else if (propertyIdToFilter) {
+        filtered = filtered.filter(email => email.propertyId === propertyIdToFilter);
+      }
+    } else if (this.source === 'emails' && this.selectedReservationId !== null && this.selectedReservationId !== undefined && this.selectedReservationId !== '') {
       filtered = filtered.filter(email => email.reservationId === this.selectedReservationId);
     }
 
-    if ((this.source === 'property' || this.source === 'reservation') && this.propertyId) {
-      filtered = filtered.filter(email => email.propertyId === this.propertyId);
-    }
-
-    if (this.emailTypeId !== null && this.emailTypeId !== undefined) {
-      filtered = filtered.filter(email => email.emailTypeId === this.emailTypeId);
+    const emailTypeToFilter = this.selectedEmailTypeId ?? this.emailTypeId;
+    if (emailTypeToFilter !== null && emailTypeToFilter !== undefined) {
+      filtered = filtered.filter(email => email.emailTypeId === emailTypeToFilter);
     }
 
     if (this.filterDocumentTypeId !== null && this.filterDocumentTypeId !== undefined) {
       filtered = filtered.filter(email => this.emailMatchesDocumentTypeFilter(email));
     }
 
-    const activeReservationsOnly =
-      (this.hideHeader && this.hideFilters && this.source === 'property') || this.activeOnly;
+    const activeReservationsOnly = this.activeOnly;
     if (activeReservationsOnly && this.reservations && this.reservations.length > 0) {
       const activeReservationIds = new Set(
         this.reservations
@@ -492,7 +526,58 @@ export class EmailListComponent implements OnInit, OnDestroy, OnChanges {
   }
 
   viewEmail(email: EmailListDisplay): void {
-    this.router.navigateByUrl(RouterUrl.replaceTokens(RouterUrl.Email, [email.emailId]));
+    const queryParams: any = {};
+    const reservationIdToUse = this.selectedReservationId || this.reservationId || null;
+
+    if (this.source === 'reservation' && reservationIdToUse) {
+      queryParams.returnTo = 'reservationTab';
+      queryParams.tab = 'email';
+      queryParams.reservationId = reservationIdToUse;
+      if (this.selectedOfficeId !== null && this.selectedOfficeId !== undefined) {
+        queryParams.officeId = this.selectedOfficeId;
+      }
+      if (this.propertyId) {
+        queryParams.propertyId = this.propertyId;
+      }
+    } else if (this.source === 'property' && this.propertyId) {
+      queryParams.returnTo = 'propertyTab';
+      queryParams.tab = 'email';
+      queryParams.propertyId = this.propertyId;
+      if (reservationIdToUse) {
+        queryParams.reservationId = reservationIdToUse;
+      }
+      if (this.selectedOfficeId !== null && this.selectedOfficeId !== undefined) {
+        queryParams.officeId = this.selectedOfficeId;
+      }
+    } else if (this.source === 'maintenance' && this.propertyId) {
+      queryParams.returnTo = 'maintenanceTab';
+      queryParams.propertyId = this.propertyId;
+      if (reservationIdToUse) {
+        queryParams.reservationId = reservationIdToUse;
+      }
+      if (this.selectedOfficeId !== null && this.selectedOfficeId !== undefined) {
+        queryParams.officeId = this.selectedOfficeId;
+      }
+    } else if (this.source === 'invoice') {
+      queryParams.returnTo = 'accountingTab';
+      queryParams.tab = '3';
+      if (this.selectedOfficeId !== null && this.selectedOfficeId !== undefined) {
+        queryParams.officeId = this.selectedOfficeId;
+      }
+      if (reservationIdToUse) {
+        queryParams.reservationId = reservationIdToUse;
+      }
+      if (this.selectedCompanyContact?.contactId) {
+        queryParams.companyId = this.selectedCompanyContact.contactId;
+      } else if (this.companyId) {
+        queryParams.companyId = this.companyId;
+      }
+    }
+
+    this.router.navigate(
+      [RouterUrl.replaceTokens(RouterUrl.Email, [email.emailId])],
+      { queryParams }
+    );
   }
 
   deleteEmail(email: EmailListDisplay): void {
@@ -539,6 +624,10 @@ export class EmailListComponent implements OnInit, OnDestroy, OnChanges {
     this.filterCompanies();
     this.filterReservations();
     this.applyFilters();
+  }
+
+  get emailTypeOptions(): { value: number, label: string }[] {
+    return this.emailTypes;
   }
   //#endregion
 }

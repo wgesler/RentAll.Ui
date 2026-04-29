@@ -232,9 +232,12 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
       if (previousReservationId === undefined || newReservationId !== previousReservationId) {
         // Always try to set reservation, even if reservations haven't loaded yet
         // filterReservations() will handle it when reservations are loaded
-        if (this.reservations.length > 0 && this.selectedOffice) {
+        if (this.reservations.length > 0) {
           this.selectedReservation = newReservationId 
-            ? this.reservations.find(r => r.reservationId === newReservationId && r.officeId === this.selectedOffice?.officeId) || null
+            ? this.reservations.find(r =>
+                r.reservationId === newReservationId
+                && (!this.selectedOffice || r.officeId === this.selectedOffice.officeId)
+              ) || null
             : null;
           this.applyFilters();
         }
@@ -309,17 +312,32 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
   }
 
   addInvoice(): void {
-    const targetUrl = this.isSuperUser ? RouterUrl.Billing : RouterUrl.Accounting;
-    const url = RouterUrl.replaceTokens(targetUrl, ['new']);
     const params: string[] = [];
-    
+
     // Reservation is source of truth for Add Invoice prefill.
     const reservationToUse = this.selectedReservation
       ?? (this.reservationId ? this.reservations.find(r => r.reservationId === this.reservationId) || null : null);
     const reservationIdToUse = reservationToUse?.reservationId ?? this.reservationId ?? null;
     const officeIdToUse = reservationToUse?.officeId ?? this.selectedOffice?.officeId ?? this.officeId ?? null;
     const companyIdToUse = (this.companyId !== null) ? this.companyId : (this.selectedCompanyContact?.contactId || null);
-    
+
+    if (this.source === 'reservation' && reservationIdToUse) {
+      params.push('tab=invoices');
+      params.push('invoiceId=new');
+      if (officeIdToUse !== null) {
+        params.push(`officeId=${officeIdToUse}`);
+      }
+      params.push(`reservationId=${reservationIdToUse}`);
+      if (companyIdToUse !== null && companyIdToUse !== undefined && companyIdToUse !== '') {
+        params.push(`companyId=${companyIdToUse}`);
+      }
+      const reservationUrl = RouterUrl.replaceTokens(RouterUrl.Reservation, [reservationIdToUse]);
+      this.router.navigateByUrl(`${reservationUrl}?${params.join('&')}`);
+      return;
+    }
+
+    const targetUrl = this.isSuperUser ? RouterUrl.Billing : RouterUrl.Accounting;
+    const url = RouterUrl.replaceTokens(targetUrl, ['new']);
     if (officeIdToUse !== null) {
       params.push(`officeId=${officeIdToUse}`);
     }
@@ -332,23 +350,14 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
     if (this.isSuperUser && this.organizationId) {
       params.push(`organizationId=${this.organizationId}`);
     }
-    // Add returnTo parameter based on source input (explicit tracking)
-    if (this.source === 'reservation') {
-      params.push(`returnTo=reservation`);
-    } else if (this.source === 'accounting') {
+    if (this.source === 'accounting') {
       params.push(`returnTo=accounting`);
     } else if (reservationIdToUse !== null) {
-      // Fallback: if source not set but has reservation, assume reservation
       params.push(`returnTo=reservation`);
     } else {
-      // Default to accounting
       params.push(`returnTo=accounting`);
     }
-    if (params.length > 0) {
-      this.router.navigateByUrl(url + `?${params.join('&')}`);
-    } else {
-      this.router.navigateByUrl(url);
-    }
+    this.router.navigateByUrl(params.length > 0 ? `${url}?${params.join('&')}` : url);
   }
   //#endregion
 
@@ -385,16 +394,31 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
       return;
     }
     
-    const targetUrl = this.isSuperUser ? RouterUrl.Billing : RouterUrl.Accounting;
-    const url = RouterUrl.replaceTokens(targetUrl, [event.invoiceId]);
     const params: string[] = [];
-    
+
     // Prefer @Input() values from parent, otherwise use selectedOffice/selectedReservation
     const officeIdToUse = (this.officeId !== null) ? this.officeId : (this.selectedOffice?.officeId || null);
     const reservationIdToUse = (this.reservationId !== null) ? this.reservationId : (this.selectedReservation?.reservationId || null);
     const companyIdToUse = this.selectedCompanyContact?.contactId || null;
     const reservationId = event?.reservationId || null;
-    
+
+    if (this.source === 'reservation' && reservationIdToUse) {
+      params.push('tab=invoices');
+      params.push(`invoiceId=${event.invoiceId}`);
+      if (officeIdToUse !== null) {
+        params.push(`officeId=${officeIdToUse}`);
+      }
+      params.push(`reservationId=${reservationIdToUse}`);
+      if (companyIdToUse !== null && companyIdToUse !== undefined && companyIdToUse !== '') {
+        params.push(`companyId=${companyIdToUse}`);
+      }
+      const reservationUrl = RouterUrl.replaceTokens(RouterUrl.Reservation, [reservationIdToUse]);
+      this.router.navigateByUrl(`${reservationUrl}?${params.join('&')}`);
+      return;
+    }
+
+    const targetUrl = this.isSuperUser ? RouterUrl.Billing : RouterUrl.Accounting;
+    const url = RouterUrl.replaceTokens(targetUrl, [event.invoiceId]);
     if (officeIdToUse !== null) {
       params.push(`officeId=${officeIdToUse}`);
     }
@@ -407,23 +431,14 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
     if (this.isSuperUser && reservationId) {
       params.push(`organizationId=${reservationId}`);
     }
-    // Add returnTo parameter based on source input (explicit tracking)
-    if (this.source === 'reservation') {
-      params.push(`returnTo=reservation`);
-    } else if (this.source === 'accounting') {
+    if (this.source === 'accounting') {
       params.push(`returnTo=accounting`);
     } else if (reservationIdToUse !== null) {
-      // Fallback: if source not set but has reservation, assume reservation
       params.push(`returnTo=reservation`);
     } else {
-      // Default to accounting
       params.push(`returnTo=accounting`);
     }
-    if (params.length > 0) {
-      this.router.navigateByUrl(url + `?${params.join('&')}`);
-    } else {
-      this.router.navigateByUrl(url);
-    }
+    this.router.navigateByUrl(params.length > 0 ? `${url}?${params.join('&')}` : url);
   }
 
   goToInvoiceCreateView(event: InvoiceResponse): void {
@@ -653,6 +668,20 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
     
     // Clear selected reservation if it no longer exists in the available list.
     if (this.selectedReservation && !filteredReservations.some(r => r.reservationId === this.selectedReservation?.reservationId)) {
+      // When parent passes reservationId as source-of-truth, keep that selection pinned
+      // instead of emitting a null clear that can override parent state.
+      if (this.reservationId) {
+        const pinnedReservation = this.reservations.find(r =>
+          r.reservationId === this.reservationId
+          && (!this.selectedOffice || r.officeId === this.selectedOffice.officeId)
+        ) || null;
+        if (pinnedReservation) {
+          this.selectedReservation = pinnedReservation;
+          this.applyFilters();
+          return;
+        }
+      }
+
       this.selectedReservation = null;
       this.reservationIdChange.emit(null);
       this.applyFilters();
@@ -986,7 +1015,7 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
     
     // In manual apply mode, also require that remaining amount equals 0
     if (this.isManualApplyMode) {
-      return baseValid && this.remainingAmount === 0;
+      return baseValid && this.isRemainingAmountZero();
     }
     
     return baseValid;
@@ -1172,43 +1201,18 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
         this.paymentAmount = finalValue;
         this.paymentAmountDisplay = '$' + this.formatter.currency(finalValue);
         input.value = this.paymentAmountDisplay;
-        
-        // Always recalculate remaining amount (payment amount minus apply amounts)
-        // Only deduct apply amounts from invoices that have editable fields (originalDueAmountValue > 0)
-        // applyAmountValue is stored as negative, so we get absolute value to sum applied amounts
-        const totalApplied = this.invoicesDisplay
-          .filter(inv => (inv.originalDueAmountValue || 0) > 0) // Only include invoices with editable fields
-          .reduce((sum, inv) => sum + Math.abs(inv.applyAmountValue || 0), 0);
-        this.remainingAmount = this.paymentAmount - totalApplied; // Amount - (all applied)
-        this.remainingAmountDisplay = '$' + this.formatter.currency(this.remainingAmount);
+        this.updateRemainingAmount();
       } else {
         this.paymentAmount = 0;
         this.paymentAmountDisplay = '$' + this.formatter.currency(0);
         input.value = this.paymentAmountDisplay;
-        
-        // Recalculate remaining amount
-        // Only deduct apply amounts from invoices that have editable fields (originalDueAmountValue > 0)
-        // applyAmountValue is stored as negative, so we get absolute value to sum applied amounts
-        const totalApplied = this.invoicesDisplay
-          .filter(inv => (inv.originalDueAmountValue || 0) > 0) // Only include invoices with editable fields
-          .reduce((sum, inv) => sum + Math.abs(inv.applyAmountValue || 0), 0);
-        this.remainingAmount = this.paymentAmount - totalApplied; // Amount - (all applied)
-        this.remainingAmountDisplay = '$' + this.formatter.currency(this.remainingAmount);
+        this.updateRemainingAmount();
       }
     } else {
       this.paymentAmount = 0;
       this.paymentAmountDisplay = '$' + this.formatter.currency(0);
       input.value = this.paymentAmountDisplay;
-      
-      // Recalculate remaining amount
-      // Only deduct apply amounts from invoices that have editable fields (originalDueAmountValue > 0)
-      // applyAmountValue is stored as negative, so we get absolute value to sum applied amounts
-      const totalApplied = this.invoicesDisplay
-        .filter(inv => (inv.originalDueAmountValue || 0) > 0) // Only include invoices with editable fields
-        .reduce((sum, inv) => sum + Math.abs(inv.applyAmountValue || 0), 0);
-      this.remainingAmount = this.paymentAmount - totalApplied; // Amount - (all applied)
-      // If negative (overpayment), show as positive number
-      this.remainingAmountDisplay = '$' + this.formatter.currency(Math.abs(this.remainingAmount));
+      this.updateRemainingAmount();
     }
   }
 
@@ -1232,8 +1236,7 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
     this.paymentTargetInvoiceId = targetInvoiceId;
     this.restoreTopbarAfterPayment = !!targetInvoiceId;
     this.isManualApplyMode = !targetInvoiceId;
-    this.remainingAmount = this.isManualApplyMode ? Math.max(0, this.paymentAmount) : 0;
-    this.remainingAmountDisplay = '$' + this.formatter.currency(this.remainingAmount);
+    this.updateRemainingAmount();
     // Show payment form fields
     this.showPaymentForm = true;
     this.applyFilters();
@@ -1291,7 +1294,7 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
     }
 
     // Validate that remaining amount is 0
-    if (this.remainingAmount !== 0) {
+    if (!this.isRemainingAmountZero()) {
       this.toastr.warning(`Remaining amount must be $0.00 before submitting. Current remaining: ${this.remainingAmountDisplay}`);
       return;
     }
@@ -1378,8 +1381,7 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
 
   applyManually(): void {
     this.isManualApplyMode = true;
-    this.remainingAmount = Math.max(0, this.paymentAmount);
-    this.remainingAmountDisplay = '$' + this.formatter.currency(this.remainingAmount);
+    this.updateRemainingAmount();
     this.applyFilters();
   }
   
@@ -1429,14 +1431,6 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
         invoice.applyAmount = invoice.applyAmountDisplay;
         input.value = invoice.applyAmountDisplay;
         
-        // Calculate remaining amount: subtract apply amounts from payment amount
-        // Only deduct apply amounts from invoices that have editable fields (originalDueAmountValue > 0)
-        // applyAmountValue is stored as negative, so we get absolute value to sum applied amounts
-        const totalApplied = this.invoicesDisplay
-          .filter(inv => (inv.originalDueAmountValue || 0) > 0) // Only include invoices with editable fields
-          .reduce((sum, inv) => sum + Math.abs(inv.applyAmountValue || 0), 0);
-        this.remainingAmount = this.paymentAmount - totalApplied; // Amount - (all applied)
-        this.remainingAmountDisplay = '$' + this.formatter.currency(this.remainingAmount);
       } else {
         invoice.applyAmountValue = invoice.applyAmountValue || 0;
         invoice.applyAmountDisplay = '$' + this.formatter.currency(Math.abs(invoice.applyAmountValue || 0)); // Display as positive
@@ -1449,6 +1443,8 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
       invoice.applyAmount = invoice.applyAmountDisplay;
       input.value = invoice.applyAmountDisplay;
     }
+
+    this.updateRemainingAmount();
   }
   
   onApplyAmountFocus(invoice: any, event: Event): void {
@@ -1473,8 +1469,7 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
     this.paymentDescription = '';
     this.paymentAmount = 0;
     this.paymentAmountDisplay = '$' + this.formatter.currency(0);
-    this.remainingAmount = 0;
-    this.remainingAmountDisplay = '$' + this.formatter.currency(0);
+    this.updateRemainingAmount();
     this.paymentTargetInvoiceId = null;
     // Clear apply amounts from all invoices
     this.invoicesDisplay.forEach(invoice => {
@@ -1609,8 +1604,6 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
     } else {
       this.utilityService.addLoadItem(this.itemsToLoad$, 'invoices');
       this.loadAllInvoices();
-      this.selectedReservation = null;
-      this.selectedCompanyContact = null;
       this.applyFilters();
     }
   }
@@ -1702,6 +1695,37 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
       }
       return typeof group === 'number' && group === role;
     });
+  }
+
+  roundCurrencyValue(amount: number): number {
+    if (!isFinite(amount)) {
+      return 0;
+    }
+    return Math.round(amount * 100) / 100;
+  }
+
+  isRemainingAmountZero(): boolean {
+    return Math.abs(this.remainingAmount) < 0.005;
+  }
+
+  hasNegativeRemainingAmount(): boolean {
+    return this.remainingAmount < -0.005;
+  }
+
+  updateRemainingAmount(): void {
+    if (!this.isManualApplyMode) {
+      this.remainingAmount = 0;
+      this.remainingAmountDisplay = '$' + this.formatter.currency(0);
+      return;
+    }
+
+    const totalApplied = this.roundCurrencyValue(this.invoicesDisplay
+      .filter(inv => (inv.originalDueAmountValue || 0) > 0)
+      .reduce((sum, inv) => sum + Math.abs(inv.applyAmountValue || 0), 0));
+
+    const remaining = this.roundCurrencyValue(this.roundCurrencyValue(this.paymentAmount) - totalApplied);
+    this.remainingAmount = Math.abs(remaining) < 0.005 ? 0 : remaining;
+    this.remainingAmountDisplay = '$' + this.formatter.currency(this.remainingAmount);
   }
   //#endregion
 }

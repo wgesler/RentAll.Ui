@@ -1,6 +1,6 @@
 import { CommonModule } from '@angular/common';
 import { HttpErrorResponse } from '@angular/common/http';
-import { Component, OnDestroy, OnInit } from '@angular/core';
+import { Component, Input, OnChanges, OnDestroy, OnInit, SimpleChanges } from '@angular/core';
 import { FormBuilder, FormControl, FormGroup, FormsModule, ReactiveFormsModule, Validators } from '@angular/forms';
 import { MatDialog, MatDialogConfig } from '@angular/material/dialog';
 import { ActivatedRoute, ParamMap, Router } from '@angular/router';
@@ -36,7 +36,13 @@ import { CostCodesService } from '../services/cost-codes.service';
     styleUrl: './invoice.component.scss'
 })
 
-export class InvoiceComponent implements OnInit, OnDestroy {
+export class InvoiceComponent implements OnInit, OnDestroy, OnChanges {
+  @Input() shellMode: boolean = false;
+  @Input() invoiceIdInput: string | null = null;
+  @Input() officeIdInput: number | null = null;
+  @Input() reservationIdInput: string | null = null;
+  @Input() companyIdInput: string | null = null;
+
   isServiceError: boolean = false;
   invoiceId: string;
   invoice: InvoiceResponse;
@@ -82,6 +88,9 @@ export class InvoiceComponent implements OnInit, OnDestroy {
 
   itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['offices', 'reservations', 'costCodes']));
   isLoading$: Observable<boolean> = this.itemsToLoad$.pipe(map(items => items.size > 0));
+  routeInvoiceId: string | null = null;
+  contextReady: boolean = false;
+  lastContextKey: string | null = null;
   
   constructor(
     public accountingService: InvoiceService,
@@ -104,6 +113,7 @@ export class InvoiceComponent implements OnInit, OnDestroy {
   //#region Invoice
   ngOnInit(): void {
     this.isPaymentMode = false;
+    this.routeInvoiceId = this.route.snapshot.paramMap.get('id');
     this.loadOffices();
     this.loadReservations();
     this.loadCostCodes();
@@ -116,24 +126,81 @@ export class InvoiceComponent implements OnInit, OnDestroy {
         this.filterCostCodes();
       }
     });
-    
+
     this.route.paramMap.subscribe((paramMap: ParamMap) => {
-      if (paramMap.has('id')) {
-        this.invoiceId = paramMap.get('id');
-        this.isAddMode = this.invoiceId === 'new';
-          
-        this.itemsToLoad$.pipe(filter(items => items.size === 0),  take(1)).subscribe(() => {
-          this.buildForm();
-          this.setupFormHandlers();
-          
-          if (!this.isAddMode) {
-            this.getInvoice();
-          } else {
-            this.handleAddModeQueryParams();
-          }
-        });
+      this.routeInvoiceId = paramMap.get('id');
+      if (this.contextReady && !this.shellMode) {
+        this.initializeInvoiceContext(true);
       }
     });
+
+    this.itemsToLoad$.pipe(filter(items => items.size === 0),  take(1)).subscribe(() => {
+      this.buildForm();
+      this.setupFormHandlers();
+      this.contextReady = true;
+      this.initializeInvoiceContext();
+    });
+  }
+
+  ngOnChanges(changes: SimpleChanges): void {
+    if (!this.contextReady) {
+      return;
+    }
+
+    if (
+      changes['invoiceIdInput']
+      || changes['officeIdInput']
+      || changes['reservationIdInput']
+      || changes['companyIdInput']
+      || changes['shellMode']
+    ) {
+      this.initializeInvoiceContext(true);
+    }
+  }
+
+  resolveInvoiceContextId(): string | null {
+    if (this.invoiceIdInput !== null && this.invoiceIdInput !== undefined && this.invoiceIdInput !== '') {
+      return this.invoiceIdInput;
+    }
+
+    if (this.shellMode) {
+      return null;
+    }
+
+    return this.routeInvoiceId;
+  }
+
+  initializeInvoiceContext(force: boolean = false): void {
+    const contextInvoiceId = this.resolveInvoiceContextId();
+    if (!contextInvoiceId) {
+      return;
+    }
+
+    const contextKey = [
+      contextInvoiceId,
+      this.officeIdInput ?? '',
+      this.reservationIdInput ?? '',
+      this.companyIdInput ?? '',
+      this.shellMode ? 'shell' : 'route'
+    ].join('|');
+
+    if (!force && this.lastContextKey === contextKey) {
+      return;
+    }
+
+    this.lastContextKey = contextKey;
+    this.invoiceId = contextInvoiceId;
+    this.isAddMode = this.invoiceId === 'new';
+
+    if (!this.isAddMode) {
+      this.getInvoice();
+    } else {
+      this.invoice = null as any;
+      this.ledgerLines = [];
+      this.originalLedgerLines = [];
+      this.originalFormSnapshot = null;
+      this.handleAddModeQueryParams();
+    }
   }
 
   handleAddModeQueryParams(): void {
@@ -146,9 +213,9 @@ export class InvoiceComponent implements OnInit, OnDestroy {
   }
 
   processQueryParams(queryParams: any): void {
-    const officeIdParam = queryParams['officeId'];
-    const reservationIdParam = queryParams['reservationId'];
-    const companyIdParam = queryParams['companyId'];
+    const officeIdParam = this.officeIdInput ?? queryParams['officeId'];
+    const reservationIdParam = this.reservationIdInput ?? queryParams['reservationId'];
+    const companyIdParam = this.companyIdInput ?? queryParams['companyId'];
     const reservationFromParam = reservationIdParam
       ? this.reservations.find(r => r.reservationId === reservationIdParam) || null
       : null;
@@ -186,7 +253,7 @@ export class InvoiceComponent implements OnInit, OnDestroy {
   }
 
   getInvoice(): void {
-    const companyIdParam = this.route.snapshot.queryParams['companyId'];
+    const companyIdParam = this.companyIdInput ?? this.route.snapshot.queryParams['companyId'];
     if (companyIdParam) {
       this.companyId = companyIdParam;
     }
@@ -1329,6 +1396,18 @@ export class InvoiceComponent implements OnInit, OnDestroy {
     } else {
       this.toastr.warning('Please select a reservation before generating ledger lines', 'No Reservation Selected');
     }
+  }
+
+  getLedgerAmountDisplay(line: LedgerLineListDisplay): string {
+    if (line.amount == null || line.amount === undefined) {
+      return '';
+    }
+
+    const normalizedAmount = this.isPaymentLine(line)
+      ? -Math.abs(line.amount)
+      : line.amount;
+
+    return normalizedAmount.toFixed(2);
   }
 
   checkAndOfferCreditApplication(): void {

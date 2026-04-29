@@ -36,6 +36,17 @@
             [noResultsText]="'No reservations match your search'"
             (valueChange)="onReservationDropdownChange($event)">
           </app-title-bar-select>
+          @if (selectedTabIndex === 0) {
+            <app-title-bar-select
+              [label]="'Email Types'"
+              [formFieldClass]="'titlebar-field-document-type'"
+              [value]="selectedEmailTypeId"
+              [options]="emailTypeOptions"
+              [nullOptionLabel]="'All Email Types'"
+              [noResultsText]="'No email types match your search'"
+              (valueChange)="onEmailTypeDropdownChange($event)">
+            </app-title-bar-select>
+          }
         </div>
       </div>
       <div class="flex items-center gap-3 ml-[10px]">

@@ -80,6 +80,17 @@
               [noResultsText]="'No reservations match your search'"
               (valueChange)="onReservationDropdownChange($event)">
             </app-title-bar-select>
+            @if (source === 'reservation') {
+              <app-title-bar-select
+                [label]="'Document Types'"
+                [formFieldClass]="'titlebar-field-document-type'"
+                [value]="selectedDocumentTypeId"
+                [options]="documentTypeOptions"
+                [nullOptionLabel]="'All Document Types'"
+                [noResultsText]="'No document types match your search'"
+                (valueChange)="onDocumentTypeDropdownChange($event)">
+              </app-title-bar-select>
+            }
           } @else if (source === 'property') {
             <mat-form-field appearance="outline" class="titlebar-field-property-code">
               <mat-label>Property Code</mat-label>
@@ -227,6 +238,17 @@
                     [noResultsText]="'No reservations match your search'"
                     (valueChange)="onReservationDropdownChange($event)">
                   </app-title-bar-select>
+                  @if (source === 'reservation') {
+                    <app-title-bar-select
+                      [label]="'Document Types'"
+                      [formFieldClass]="'titlebar-field-document-type'"
+                      [value]="selectedDocumentTypeId"
+                      [options]="documentTypeOptions"
+                      [nullOptionLabel]="'All Document Types'"
+                      [noResultsText]="'No document types match your search'"
+                      (valueChange)="onDocumentTypeDropdownChange($event)">
+                    </app-title-bar-select>
+                  }
                 } @else if (source === 'property') {
                   <mat-form-field appearance="outline" class="titlebar-field-property-code">
                     <mat-label>Property Code</mat-label>

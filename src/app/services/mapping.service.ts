@@ -8,6 +8,7 @@ import { DocumentType, getDocumentTypeLabel } from '../authenticated/documents/m
 import { DocumentListDisplay, DocumentResponse } from '../authenticated/documents/models/document.model';
 import { AlertListDisplay, AlertResponse } from '../authenticated/email/models/alert.model';
 import { EmailListDisplay, EmailResponse } from '../authenticated/email/models/email.model';
+import { getEmailType } from '../authenticated/email/models/email.enum';
 import { EmailHtmlResponse } from '../authenticated/email/models/email-html.model';
 import { MaintenanceListResponse } from '../authenticated/maintenance/models/maintenance.model';
 import { InspectionDisplayList, InspectionResponse } from '../authenticated/maintenance/models/inspection.model';
@@ -422,6 +423,7 @@ export class MappingService {
       reservationId: email?.reservationId ?? undefined,
       reservationCode: email?.reservationCode ?? '',
       officeName: email?.officeName ?? '',
+      emailTypeName: getEmailType(Number(email?.emailTypeId ?? 0)),
       toEmail: this.getPrimaryRecipientEmail(email?.toRecipients, email?.toEmail),
       toName: this.getPrimaryRecipientName(email?.toRecipients, email?.toName),
       fromEmail: email?.fromRecipient?.email ?? email?.fromEmail ?? '',

@@ -4,7 +4,6 @@ import { CostCodesListComponent } from './authenticated/accounting/cost-codes-li
 import { CostCodesComponent } from './authenticated/accounting/cost-codes/cost-codes.component';
 import { BillingCreateComponent } from './authenticated/accounting/billing-create/billing-create.component';
 import { InvoiceCreateComponent } from './authenticated/accounting/invoice-create/invoice-create.component';
-import { InvoiceComponent } from './authenticated/accounting/invoice/invoice.component';
 import { BillingComponent } from './authenticated/accounting/billing/billing.component';
 import { ContactComponent } from './authenticated/contacts/contact/contact.component';
 import { ContactsShellComponent } from './authenticated/contacts/contacts-shell/contacts-shell.component';
@@ -209,7 +208,7 @@ export const authRoutes: Routes = [
   { path: RouterToken.Email, component: EmailComponent, canActivate: [authRouteGuard] },
   { path: RouterToken.Alert, component: AlertComponent, canActivate: [authRouteGuard] },
   { path: RouterToken.AccountingList, component: AccountingComponent, canActivate: [authRouteGuard] },
-  { path: RouterToken.Accounting, component: InvoiceComponent, canActivate: [authRouteGuard] },
+  { path: RouterToken.Accounting, component: AccountingComponent, canActivate: [authRouteGuard] },
   { path: RouterToken.Billing, component: BillingComponent, canActivate: [authRouteGuard] },
   { path: RouterToken.BillingCreate, component: BillingCreateComponent, canActivate: [authRouteGuard] },
   { path: RouterToken.InvoiceCreate, component: InvoiceCreateComponent, canActivate: [authRouteGuard] },

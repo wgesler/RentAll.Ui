@@ -11,7 +11,7 @@
         <span class="flex flex-column items-center gap-3 flex-shrink-0">
           <mat-icon class="flex-shrink-0">calendar_today</mat-icon>
           <span class="flex-shrink-0 text-xl font-medium">
-            {{ reservationSection?.isAddMode ? 'Add Reservation' : 'Edit Reservation' }}
+            Reservations
           </span>
         </span>
         @if (reservationSection?.form) {
@@ -46,11 +46,33 @@
                 </app-title-bar-select>
               </div>
             }
+            @if (selectedTabIndex === 3) {
+              <app-title-bar-select
+                [label]="'Email Types'"
+                [formFieldClass]="'titlebar-field-document-type'"
+                [value]="selectedEmailTypeId"
+                [options]="emailTypeOptions"
+                [nullOptionLabel]="'All Email Types'"
+                [noResultsText]="'No email types match your search'"
+                (valueChange)="onHeaderEmailTypeDropdownChange($event)">
+              </app-title-bar-select>
+            }
+            @if (selectedTabIndex === 4) {
+              <app-title-bar-select
+                [label]="'Document Types'"
+                [formFieldClass]="'titlebar-field-document-type'"
+                [value]="selectedDocumentTypeId"
+                [options]="documentTypeOptions"
+                [nullOptionLabel]="'All Document Types'"
+                [noResultsText]="'No document types match your search'"
+                (valueChange)="onHeaderDocumentTypeDropdownChange($event)">
+              </app-title-bar-select>
+            }
           </div>
         }
       </div>
       <div class="form-titlebar-actions-wrap">
-        <button mat-raised-button type="button" color="accent" id="back-button" (click)="reservationSection?.back()"
+        <button mat-raised-button type="button" color="accent" id="back-button" (click)="onShellBack()"
           class="text-nowrap flex-shrink-0">
           <mat-icon>arrow_back</mat-icon>
           Back
@@ -76,22 +98,28 @@
         </mat-tab>
 
         <mat-tab label="Invoices">
-          <app-invoice-list
-            [officeId]="reservationSection?.sharedOfficeId ?? null"
-            [reservationId]="activeReservationId"
-            [source]="'reservation'">
-          </app-invoice-list>
+          @if (activeInvoiceId) {
+            <app-invoice
+              [shellMode]="true"
+              [invoiceIdInput]="activeInvoiceId"
+              [officeIdInput]="reservationSection?.sharedOfficeId ?? null"
+              [reservationIdInput]="activeReservationId">
+            </app-invoice>
+          } @else {
+            <app-invoice-list
+              [officeId]="reservationSection?.sharedOfficeId ?? null"
+              [reservationId]="activeReservationId"
+              [source]="'reservation'">
+            </app-invoice-list>
+          }
         </mat-tab>
 
         <mat-tab label="Emails">
           <app-email-list
             #reservationEmailList
             [propertyId]="reservationSection?.sharedPropertyId"
-            [propertyCode]="reservationSection?.sharedPropertyCode"
             [hideFilters]="true"
-            [officeId]="reservationSection?.sharedOfficeId ?? null"
             [reservationId]="activeReservationId"
-            [emailTypeId]="EmailType.ReservationLease"
             [source]="'reservation'"
             [hideHeader]="true">
           </app-email-list>
@@ -101,10 +129,7 @@
           <app-document-list
             #reservationDocumentList
             [propertyId]="reservationSection?.sharedPropertyId"
-            [propertyCode]="reservationSection?.sharedPropertyCode"
-            [documentTypeId]="DocumentType.ReservationLease"
             [hideFilters]="true"
-            [officeId]="reservationSection?.sharedOfficeId ?? null"
             [reservationId]="activeReservationId"
             [source]="'reservation'"
             [hideHeader]="true">

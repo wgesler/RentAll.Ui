@@ -13,13 +13,12 @@ import { OfficeResponse } from '../../organizations/models/office.model';
 import { ContactResponse } from '../../contacts/models/contact.model';
 import { UserGroups } from '../../users/models/user-enums';
 import { DocumentListComponent } from '../../documents/document-list/document-list.component';
-import { DocumentType } from '../../documents/models/document.enum';
 import { EmailListComponent } from '../../email/email-list/email-list.component';
-import { EmailType } from '../../email/models/email.enum';
 import { getNumberQueryParam } from '../../shared/query-param.utils';
 import { TitleBarSelectComponent } from '../../shared/titlebar-select/titlebar-select.component';
 import { CostCodesListComponent } from '../cost-codes-list/cost-codes-list.component';
 import { GeneralLedgerComponent } from '../general-ledger/general-ledger.component';
+import { InvoiceComponent } from '../invoice/invoice.component';
 import { InvoiceListComponent } from '../invoice-list/invoice-list.component';
 import { CostCodesService } from '../services/cost-codes.service';
 
@@ -29,6 +28,7 @@ import { CostCodesService } from '../services/cost-codes.service';
     imports: [
     MaterialModule,
     FormsModule,
+    InvoiceComponent,
     InvoiceListComponent,
     CostCodesListComponent,
     GeneralLedgerComponent,
@@ -41,12 +41,11 @@ import { CostCodesService } from '../services/cost-codes.service';
 })
 export class AccountingComponent implements OnInit, OnDestroy {
   @ViewChild(InvoiceListComponent) accountingInvoiceList?: InvoiceListComponent;
+  @ViewChild('accountingInvoiceEditor') accountingInvoiceEditor?: InvoiceComponent;
   @ViewChild('accountingCostCodes') accountingCostCodes?: CostCodesListComponent;
   @ViewChild('accountingGeneralLedger') accountingGeneralLedger?: GeneralLedgerComponent;
   @ViewChild('accountingEmailList') accountingEmailList?: EmailListComponent;
   @ViewChild('accountingDocumentList') accountingDocumentList?: DocumentListComponent;
-  DocumentType = DocumentType;
-  EmailType = EmailType;
   selectedTabIndex: number = 0;
   isSuperAdmin: boolean = false;
   currentUserOrganizationId: string | null = null;
@@ -57,6 +56,7 @@ export class AccountingComponent implements OnInit, OnDestroy {
   selectedOfficeId: number | null = null; 
   selectedCompanyId: string | null = null; 
   selectedReservationId: string | null = null; 
+  activeInvoiceId: string | null = null;
    
   destroy$ = new Subject<void>();
 
@@ -79,6 +79,16 @@ export class AccountingComponent implements OnInit, OnDestroy {
     this.route.queryParams
       .pipe(takeUntil(this.destroy$))
       .subscribe(params => this.applyQueryParamState(params));
+
+    this.route.paramMap
+      .pipe(takeUntil(this.destroy$))
+      .subscribe(paramMap => {
+        const invoiceId = paramMap.get('id');
+        this.activeInvoiceId = invoiceId;
+        if (invoiceId && this.selectedTabIndex !== 0) {
+          this.selectedTabIndex = 0;
+        }
+      });
   }
 
   initializeSuperAdminFilters(): void {
@@ -117,6 +127,18 @@ export class AccountingComponent implements OnInit, OnDestroy {
   }
 
   onInvoiceReservationChange(reservationId: string | null): void {
+    if (reservationId === null) {
+      const routeReservationId = this.route.snapshot.queryParams['reservationId'];
+      const editorReservationId = this.accountingInvoiceEditor?.form?.get('reservationId')?.value;
+      const reservationToKeep = routeReservationId
+        ? String(routeReservationId)
+        : (editorReservationId ? String(editorReservationId) : null);
+      if (reservationToKeep) {
+        this.selectedReservationId = reservationToKeep;
+        return;
+      }
+    }
+
     if (this.selectedReservationId !== reservationId) {
       this.selectedReservationId = reservationId;
     }
@@ -145,6 +167,12 @@ export class AccountingComponent implements OnInit, OnDestroy {
   }
 
   onGeneralLedgerReservationChange(reservationId: string | null): void {
+    // General Ledger child can emit null during initialization while hidden.
+    // Do not let non-active tab emissions clear Invoice tab reservation state.
+    if (this.selectedTabIndex !== 2 && reservationId === null) {
+      return;
+    }
+
     if (this.selectedReservationId !== reservationId) {
       this.selectedReservationId = reservationId;
     }
@@ -178,6 +206,10 @@ export class AccountingComponent implements OnInit, OnDestroy {
   }
 
   onDocumentsReservationChange(reservationId: string | null): void {
+    if (this.selectedTabIndex !== 4 && reservationId === null) {
+      return;
+    }
+
     if (this.selectedReservationId !== reservationId) {
       this.selectedReservationId = reservationId;
     }
@@ -204,6 +236,10 @@ export class AccountingComponent implements OnInit, OnDestroy {
   }
   
   onEmailsReservationChange(reservationId: string | null): void {
+    if (this.selectedTabIndex !== 3 && reservationId === null) {
+      return;
+    }
+
     if (this.selectedReservationId !== reservationId) {
       this.selectedReservationId = reservationId;
     }
@@ -307,6 +343,22 @@ export class AccountingComponent implements OnInit, OnDestroy {
     }));
   }
 
+  get accountingEmailTypeOptions(): { value: number, label: string }[] {
+    return this.accountingEmailList?.emailTypeOptions || [];
+  }
+
+  get selectedAccountingEmailTypeId(): number | null {
+    return this.accountingEmailList?.selectedEmailTypeId ?? null;
+  }
+
+  get accountingDocumentTypeOptions(): { value: number, label: string }[] {
+    return this.accountingDocumentList?.documentTypeOptions || [];
+  }
+
+  get selectedAccountingDocumentTypeId(): number | null {
+    return this.accountingDocumentList?.selectedDocumentTypeId ?? null;
+  }
+
   get selectedOrganizationName(): string | null {
     if (!this.selectedOrganizationId) {
       return null;
@@ -349,11 +401,36 @@ export class AccountingComponent implements OnInit, OnDestroy {
     if (!this.accountingInvoiceList) {
       return;
     }
+
+    // During list initialization, the title-bar select can briefly emit null before
+    // reservation options are hydrated. Ignore that transient clear so route state wins.
+    if (
+      (value == null || value === '')
+      && !!this.selectedReservationId
+      && (this.accountingInvoiceList.availableReservations?.length ?? 0) === 0
+    ) {
+      return;
+    }
+
     const reservationId = value == null || value === '' ? null : String(value);
     this.accountingInvoiceList.selectedReservation = reservationId
       ? this.accountingInvoiceList.availableReservations.find(reservation => reservation.value.reservationId === reservationId)?.value || null
       : null;
     this.accountingInvoiceList.onReservationChange();
+  }
+
+  onAccountingInvoiceEditorOfficeDropdownChange(value: string | number | null): void {
+    if (!this.accountingInvoiceEditor) {
+      return;
+    }
+    this.accountingInvoiceEditor.onTitleBarOfficeChange(value);
+  }
+
+  onAccountingInvoiceEditorReservationDropdownChange(value: string | number | null): void {
+    if (!this.accountingInvoiceEditor) {
+      return;
+    }
+    this.accountingInvoiceEditor.onTitleBarReservationChange(value);
   }
 
   onAccountingCostCodesOfficeDropdownChange(value: string | number | null): void {
@@ -429,6 +506,13 @@ export class AccountingComponent implements OnInit, OnDestroy {
     this.accountingEmailList.onReservationChange();
   }
 
+  onAccountingEmailTypeDropdownChange(value: string | number | null): void {
+    if (!this.accountingEmailList) {
+      return;
+    }
+    this.accountingEmailList.onEmailTypeDropdownChange(value);
+  }
+
   onAccountingDocumentOfficeDropdownChange(value: string | number | null): void {
     if (!this.accountingDocumentList) {
       return;
@@ -460,11 +544,80 @@ export class AccountingComponent implements OnInit, OnDestroy {
     this.accountingDocumentList.onReservationChange();
   }
 
+  onAccountingDocumentTypeDropdownChange(value: string | number | null): void {
+    if (!this.accountingDocumentList) {
+      return;
+    }
+    this.accountingDocumentList.onDocumentTypeDropdownChange(value);
+  }
+
   applyQueryParamState(params: Record<string, string>): void {
     const tabIndex = getNumberQueryParam(params, 'tab', 0, 4);
     if (tabIndex !== null && this.selectedTabIndex !== tabIndex) {
       this.selectedTabIndex = tabIndex;
     }
+
+    if ('officeId' in params) {
+      this.selectedOfficeId = getNumberQueryParam(params, 'officeId');
+    }
+
+    if ('reservationId' in params) {
+      const reservationId = params['reservationId'];
+      this.selectedReservationId = reservationId ? String(reservationId) : null;
+    }
+
+    if ('companyId' in params) {
+      const companyId = params['companyId'];
+      this.selectedCompanyId = companyId ? String(companyId) : null;
+    }
+
+    if ('organizationId' in params) {
+      const organizationId = params['organizationId'];
+      this.selectedOrganizationId = organizationId ? String(organizationId) : null;
+    }
+  }
+
+  closeEmbeddedInvoiceEditor(): void {
+    this.activeInvoiceId = null;
+
+    const currentQueryParams = this.route.snapshot.queryParams || {};
+    const editorFormValue = this.accountingInvoiceEditor?.form?.getRawValue?.() || {};
+    const officeIdFromEditor = editorFormValue?.officeId;
+    const reservationIdFromEditor = editorFormValue?.reservationId;
+    const reservationIdFromEditorSelection = this.accountingInvoiceEditor?.selectedReservation?.reservationId ?? null;
+
+    const officeIdToUse = this.selectedOfficeId
+      ?? getNumberQueryParam(currentQueryParams, 'officeId')
+      ?? (officeIdFromEditor != null && officeIdFromEditor !== '' ? Number(officeIdFromEditor) : null);
+    const reservationIdToUse = (reservationIdFromEditor ? String(reservationIdFromEditor) : null)
+      ?? (reservationIdFromEditorSelection ? String(reservationIdFromEditorSelection) : null)
+      ?? this.selectedReservationId
+      ?? (currentQueryParams['reservationId'] ? String(currentQueryParams['reservationId']) : null);
+    const companyIdToUse = this.selectedCompanyId
+      ?? (currentQueryParams['companyId'] ? String(currentQueryParams['companyId']) : null);
+    const organizationIdToUse = this.selectedOrganizationId
+      ?? (currentQueryParams['organizationId'] ? String(currentQueryParams['organizationId']) : null);
+
+    this.selectedOfficeId = officeIdToUse;
+    this.selectedReservationId = reservationIdToUse;
+    this.selectedCompanyId = companyIdToUse;
+    this.selectedOrganizationId = organizationIdToUse;
+
+    const params: string[] = ['tab=0'];
+    if (officeIdToUse !== null && officeIdToUse !== undefined) {
+      params.push(`officeId=${officeIdToUse}`);
+    }
+    if (reservationIdToUse) {
+      params.push(`reservationId=${reservationIdToUse}`);
+    }
+    if (companyIdToUse) {
+      params.push(`companyId=${companyIdToUse}`);
+    }
+    if (organizationIdToUse) {
+      params.push(`organizationId=${organizationIdToUse}`);
+    }
+
+    this.router.navigateByUrl(`${RouterUrl.AccountingList}?${params.join('&')}`);
   }
   ngOnDestroy(): void {
     this.destroy$.next();

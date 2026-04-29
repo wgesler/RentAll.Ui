@@ -5,24 +5,12 @@
         <span class="flex flex-column items-center gap-3 flex-shrink-0">
           <mat-icon class="flex-shrink-0">home</mat-icon>
           <span class="flex-shrink-0 text-xl font-medium">
-            {{ propertySection?.isAddMode ? 'Add Property' : 'Edit Property' }}
+            Properties
           </span>
         </span>
 
         @if (propertySection?.form) {
           <div class="header-title form-titlebar-fields-wrap">
-            @if (propertySection?.showOfficeDropdown) {
-              <app-title-bar-select
-                [label]="'Office'"
-                [formFieldClass]="'titlebar-field-office'"
-                [value]="titleBarGlobalOfficeId"
-                [options]="officeOptions"
-                [nullOptionLabel]="'All Offices'"
-                [noResultsText]="'No offices match your search'"
-                (valueChange)="onGlobalOfficeDropdownChange($event)">
-              </app-title-bar-select>
-            }
-
             @if (isHeaderPropertyOfficeEditable) {
               <app-title-bar-select
                 [label]="'Property Office'"
@@ -103,6 +91,28 @@
                 </app-title-bar-select>
               </div>
             }
+            @if (selectedTabIndex === 3) {
+              <app-title-bar-select
+                [label]="'Email Types'"
+                [formFieldClass]="'titlebar-field-document-type'"
+                [value]="selectedEmailTypeId"
+                [options]="emailTypeOptions"
+                [nullOptionLabel]="'All Email Types'"
+                [noResultsText]="'No email types match your search'"
+                (valueChange)="onHeaderEmailTypeDropdownChange($event)">
+              </app-title-bar-select>
+            }
+            @if (selectedTabIndex === 4) {
+              <app-title-bar-select
+                [label]="'Document Types'"
+                [formFieldClass]="'titlebar-field-document-type'"
+                [value]="selectedDocumentTypeId"
+                [options]="documentTypeOptions"
+                [nullOptionLabel]="'All Document Types'"
+                [noResultsText]="'No document types match your search'"
+                (valueChange)="onHeaderDocumentTypeDropdownChange($event)">
+              </app-title-bar-select>
+            }
           </div>
         }
       </div>
@@ -156,7 +166,6 @@
             [propertyCode]="sharedPropertyCode"
             [officeId]="titleBarPropertyOfficeId"
             [reservationId]="titleBarReservationId"
-            [emailTypeId]="EmailType.PropertyLetter"
             [source]="'property'"
             [hideHeader]="true"
             [hideFilters]="true"
@@ -171,7 +180,6 @@
             #propertyDocumentList
             [propertyId]="propertySection?.isAddMode ? null : (propertySection?.propertyId ?? null)"
             [propertyCode]="sharedPropertyCode"
-            [documentTypeId]="DocumentType.PropertyLetter"
             [officeId]="titleBarPropertyOfficeId"
             [reservationId]="titleBarReservationId"
             [source]="'property'"

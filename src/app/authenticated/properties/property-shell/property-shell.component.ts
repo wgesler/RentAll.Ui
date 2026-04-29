@@ -8,9 +8,7 @@ import { MaterialModule } from '../../../material.module';
 import { RouterUrl } from '../../../app.routes';
 import { AuthService } from '../../../services/auth.service';
 import { DocumentListComponent } from '../../documents/document-list/document-list.component';
-import { DocumentType } from '../../documents/models/document.enum';
 import { EmailListComponent } from '../../email/email-list/email-list.component';
-import { EmailType } from '../../email/models/email.enum';
 import { PropertyTitleBarContext } from '../models/property-title-bar-context.model';
 import { PropertyInformationComponent } from '../property-information/property-information.component';
 import { PropertyComponent } from '../property/property.component';
@@ -43,9 +41,6 @@ export class PropertyShellComponent implements OnInit, CanComponentDeactivate {
 
   selectedTabIndex = 0;
   isHandlingTabGuard = false;
-
-  readonly DocumentType = DocumentType;
-  readonly EmailType = EmailType;
 
   titleBarGlobalOfficeId: number | null = null;
   titleBarPropertyOfficeId: number | null = null;
@@ -117,6 +112,28 @@ export class PropertyShellComponent implements OnInit, CanComponentDeactivate {
     }
     return this.propertySection?.sharedPropertyCode ?? null;
   }
+
+  get emailTypeOptions(): SearchableSelectOption[] {
+    return (this.propertyEmailList?.emailTypeOptions || []).map(option => ({
+      value: option.value,
+      label: option.label
+    }));
+  }
+
+  get selectedEmailTypeId(): number | null {
+    return this.propertyEmailList?.selectedEmailTypeId ?? null;
+  }
+
+  get documentTypeOptions(): SearchableSelectOption[] {
+    return (this.propertyDocumentList?.documentTypeOptions || []).map(option => ({
+      value: option.value,
+      label: option.label
+    }));
+  }
+
+  get selectedDocumentTypeId(): number | null {
+    return this.propertyDocumentList?.selectedDocumentTypeId ?? null;
+  }
   //#endregion
 
   //#region Top Bar Event Methods
@@ -149,6 +166,20 @@ export class PropertyShellComponent implements OnInit, CanComponentDeactivate {
     if (this.selectedTabIndex === 4) {
       this.propertyDocumentList?.reload();
     }
+  }
+
+  onHeaderEmailTypeDropdownChange(value: string | number | null): void {
+    if (!this.propertyEmailList) {
+      return;
+    }
+    this.propertyEmailList.onEmailTypeDropdownChange(value);
+  }
+
+  onHeaderDocumentTypeDropdownChange(value: string | number | null): void {
+    if (!this.propertyDocumentList) {
+      return;
+    }
+    this.propertyDocumentList.onDocumentTypeDropdownChange(value);
   }
 
   onPropertyCodeInput(event: Event): void {

@@ -2,13 +2,14 @@ import { CommonModule } from '@angular/common';
 import { AfterViewInit, Component, OnDestroy, OnInit, ViewChild } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, Router } from '@angular/router';
-import { BehaviorSubject, Observable, Subject, finalize, map, take } from 'rxjs';
+import { BehaviorSubject, Observable, Subject, finalize, map, take, takeUntil } from 'rxjs';
 import { CanComponentDeactivate } from '../../../guards/can-deactivate-guard';
 import { MaterialModule } from '../../../material.module';
 import { AuthService } from '../../../services/auth.service';
 import { MappingService } from '../../../services/mapping.service';
 import { UtilityService } from '../../../services/utility.service';
 import { InvoiceListComponent } from '../../accounting/invoice-list/invoice-list.component';
+import { InvoiceComponent } from '../../accounting/invoice/invoice.component';
 import { DocumentListComponent } from '../../documents/document-list/document-list.component';
 import { DocumentType } from '../../documents/models/document.enum';
 import { EmailListComponent } from '../../email/email-list/email-list.component';
@@ -33,6 +34,7 @@ import { ReservationService } from '../services/reservation.service';
     ReservationComponent,
     TitleBarSelectComponent,
     LeaseComponent,
+    InvoiceComponent,
     InvoiceListComponent,
     EmailListComponent,
     DocumentListComponent
@@ -61,6 +63,7 @@ export class ReservationShellComponent implements OnInit, AfterViewInit, OnDestr
   preferredOfficeId: number | null = null;
   isAddMode: boolean = false;
   isHandlingTabGuard: boolean = false;
+  activeInvoiceId: string | null = null;
 
   itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['offices']));
   isLoading$: Observable<boolean> = this.itemsToLoad$.pipe(map(items => items.size > 0));
@@ -93,6 +96,17 @@ export class ReservationShellComponent implements OnInit, AfterViewInit, OnDestr
 
     this.route.queryParams.pipe(take(1)).subscribe(queryParams => {
       this.selectedTabIndex = this.getTabIndexFromQueryParam(queryParams['tab']);
+      this.activeInvoiceId = queryParams['invoiceId'] ? String(queryParams['invoiceId']) : null;
+      if (this.activeInvoiceId) {
+        this.selectedTabIndex = 2;
+      }
+    });
+
+    this.route.queryParams.pipe(takeUntil(this.destroy$)).subscribe(queryParams => {
+      this.activeInvoiceId = queryParams['invoiceId'] ? String(queryParams['invoiceId']) : null;
+      if (this.activeInvoiceId && this.selectedTabIndex !== 2) {
+        this.selectedTabIndex = 2;
+      }
     });
 
     this.route.paramMap.pipe(take(1)).subscribe(paramMap => {
@@ -139,9 +153,14 @@ export class ReservationShellComponent implements OnInit, AfterViewInit, OnDestr
       this.onHeaderReservationChange();
 
       const tabParam = this.getTabParamFromIndex(requestedTabIndex);
+      const queryParams: Record<string, string | null> = { tab: tabParam };
+      if (requestedTabIndex !== 2) {
+        queryParams['invoiceId'] = null;
+      }
+
       this.router.navigate([], {
         relativeTo: this.route,
-        queryParams: { tab: tabParam },
+        queryParams,
         queryParamsHandling: 'merge'
       });
 
@@ -308,6 +327,42 @@ export class ReservationShellComponent implements OnInit, AfterViewInit, OnDestr
   get displayOfficeId(): number | null {
     return this.reservationSection?.sharedOfficeId ?? this.selectedOfficeId ?? null;
   }
+
+  get emailTypeOptions(): SearchableSelectOption[] {
+    return (this.reservationEmailList?.emailTypeOptions || []).map(option => ({
+      value: option.value,
+      label: option.label
+    }));
+  }
+
+  get selectedEmailTypeId(): number | null {
+    return this.reservationEmailList?.selectedEmailTypeId ?? null;
+  }
+
+  get documentTypeOptions(): SearchableSelectOption[] {
+    return (this.reservationDocumentList?.documentTypeOptions || []).map(option => ({
+      value: option.value,
+      label: option.label
+    }));
+  }
+
+  get selectedDocumentTypeId(): number | null {
+    return this.reservationDocumentList?.selectedDocumentTypeId ?? null;
+  }
+
+  onHeaderEmailTypeDropdownChange(value: string | number | null): void {
+    if (!this.reservationEmailList) {
+      return;
+    }
+    this.reservationEmailList.onEmailTypeDropdownChange(value);
+  }
+
+  onHeaderDocumentTypeDropdownChange(value: string | number | null): void {
+    if (!this.reservationDocumentList) {
+      return;
+    }
+    this.reservationDocumentList.onDocumentTypeDropdownChange(value);
+  }
   //#endregion
 
   //#region Data Loading Methods
@@ -441,6 +496,24 @@ export class ReservationShellComponent implements OnInit, AfterViewInit, OnDestr
     this.destroy$.next();
     this.destroy$.complete();
     this.itemsToLoad$.complete();
+  }
+
+  closeEmbeddedInvoiceEditor(): void {
+    this.activeInvoiceId = null;
+    this.router.navigate([], {
+      relativeTo: this.route,
+      queryParams: { invoiceId: null, tab: 'invoices' },
+      queryParamsHandling: 'merge'
+    });
+  }
+
+  onShellBack(): void {
+    if (this.activeInvoiceId) {
+      this.closeEmbeddedInvoiceEditor();
+      return;
+    }
+
+    this.reservationSection?.back();
   }
   //#endregion
 }

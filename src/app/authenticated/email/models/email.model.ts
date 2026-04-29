@@ -58,6 +58,7 @@ export interface EmailListDisplay {
   reservationId?: string;
   reservationCode?: string;
   officeName?: string;
+  emailTypeName?: string;
   toEmail: string;
   toName: string;
   fromEmail: string;

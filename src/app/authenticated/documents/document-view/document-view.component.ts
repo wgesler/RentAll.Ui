@@ -459,6 +459,56 @@ export class DocumentViewComponent implements OnInit, OnDestroy, AfterViewInit {
   }
 
   back(): void {
+    if (this.returnTo === 'reservationTab' && this.reservationId) {
+      const reservationUrl = RouterUrl.replaceTokens(RouterUrl.Reservation, [this.reservationId]);
+      const params: string[] = ['tab=documents', `reservationId=${this.reservationId}`];
+      if (this.propertyId) {
+        params.push(`propertyId=${this.propertyId}`);
+      }
+      this.router.navigateByUrl(`${reservationUrl}?${params.join('&')}`);
+      return;
+    }
+
+    if (this.returnTo === 'accountingTab') {
+      const params: string[] = ['tab=4'];
+      const queryParams = this.route.snapshot.queryParams;
+      const officeId = queryParams['officeId'];
+      const reservationId = queryParams['reservationId'];
+      const companyId = queryParams['companyId'];
+      if (officeId !== null && officeId !== undefined && officeId !== '') {
+        params.push(`officeId=${officeId}`);
+      }
+      if (reservationId) {
+        params.push(`reservationId=${reservationId}`);
+      }
+      if (companyId) {
+        params.push(`companyId=${companyId}`);
+      }
+      this.router.navigateByUrl(`${RouterUrl.AccountingList}?${params.join('&')}`);
+      return;
+    }
+
+    if (this.returnTo === 'propertyTab' && this.propertyId) {
+      const queryParams = this.route.snapshot.queryParams;
+      const params: string[] = ['tab=documents'];
+      const reservationId = queryParams['reservationId'];
+      const officeId = queryParams['officeId'];
+      if (reservationId) {
+        params.push(`reservationId=${reservationId}`);
+      }
+      if (officeId !== null && officeId !== undefined && officeId !== '') {
+        params.push(`officeId=${officeId}`);
+      }
+      const propertyUrl = RouterUrl.replaceTokens(RouterUrl.Property, [this.propertyId]);
+      this.router.navigateByUrl(`${propertyUrl}?${params.join('&')}`);
+      return;
+    }
+
+    if (this.returnTo === 'documentList') {
+      this.router.navigateByUrl(RouterUrl.DocumentList);
+      return;
+    }
+
     if (this.returnTo === 'email') {
       this.router.navigateByUrl(RouterUrl.EmailList);
       return;

@@ -55,7 +55,26 @@
                   (valueChange)="onCompanyDropdownChange($event)">
                 </app-title-bar-select>
               }
-              @if (source === 'property' || source === 'reservation') {
+              @if (source === 'reservation') {
+                <app-title-bar-select
+                  [label]="'Reservation'"
+                  [formFieldClass]="'titlebar-field-reservation'"
+                  [value]="selectedReservationId"
+                  [options]="reservationOptions"
+                  [nullOptionLabel]="'Select Reservation'"
+                  [noResultsText]="'No reservations match your search'"
+                  (valueChange)="onReservationDropdownChange($event)">
+                </app-title-bar-select>
+                <app-title-bar-select
+                  [label]="'Email Types'"
+                  [formFieldClass]="'titlebar-field-document-type'"
+                  [value]="selectedEmailTypeId"
+                  [options]="emailTypeOptions"
+                  [nullOptionLabel]="'All Email Types'"
+                  [noResultsText]="'No email types match your search'"
+                  (valueChange)="onEmailTypeDropdownChange($event)">
+                </app-title-bar-select>
+              } @else if (source === 'property') {
                 <mat-form-field appearance="outline" class="titlebar-field-property-code">
                   <mat-label>Property Code</mat-label>
                   <input matInput [value]="propertyCode || ''" readonly [disabled]="true">
@@ -140,7 +159,26 @@
                   (valueChange)="onCompanyDropdownChange($event)">
                 </app-title-bar-select>
               }
-              @if (source === 'property' || source === 'reservation') {
+              @if (source === 'reservation') {
+                <app-title-bar-select
+                  [label]="'Reservation'"
+                  [formFieldClass]="'titlebar-field-reservation'"
+                  [value]="selectedReservationId"
+                  [options]="reservationOptions"
+                  [nullOptionLabel]="'Select Reservation'"
+                  [noResultsText]="'No reservations match your search'"
+                  (valueChange)="onReservationDropdownChange($event)">
+                </app-title-bar-select>
+                <app-title-bar-select
+                  [label]="'Email Types'"
+                  [formFieldClass]="'titlebar-field-document-type'"
+                  [value]="selectedEmailTypeId"
+                  [options]="emailTypeOptions"
+                  [nullOptionLabel]="'All Email Types'"
+                  [noResultsText]="'No email types match your search'"
+                  (valueChange)="onEmailTypeDropdownChange($event)">
+                </app-title-bar-select>
+              } @else if (source === 'property') {
                 <mat-form-field appearance="outline" class="titlebar-field-property-code">
                   <mat-label>Property Code</mat-label>
                   <input matInput [value]="propertyCode || ''" readonly [disabled]="true">
