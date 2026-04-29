@@ -112,13 +112,18 @@ export class WorkOrderCreateComponent extends BaseDocumentComponent implements O
   ngOnInit(): void {
     this.organizationId = this.authService.getUser()?.organizationId?.trim() || '';
 
+    // Phase 1: run initial preview resolution once core deps are loaded.
     this.itemsToLoad$.pipe(
       filter(items => items.size === 0 || (items.size === 1 && items.has('previewHtml'))),
       take(1)
     ).subscribe(() => {
-      this.isPageReady = true;
       this.loadClientPartyData();
       this.tryGeneratePreview();
+    });
+
+    // Phase 2: page is ready only after every load-item is resolved (including previewHtml).
+    this.itemsToLoad$.pipe(filter(items => items.size === 0), take(1)).subscribe(() => {
+      this.isPageReady = true;
     });
 
     this.route.queryParams.pipe(take(1)).subscribe(params => {

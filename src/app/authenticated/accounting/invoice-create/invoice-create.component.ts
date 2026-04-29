@@ -190,12 +190,11 @@ export class InvoiceCreateComponent extends BaseDocumentComponent implements OnI
       this.loadEmailHtml();
       this.loadCostCodes();
       
-      // Wait for core dependencies before proceeding. previewHtml resolves after this point.
+      // Phase 1: run initial view-resolution once core deps are loaded.
       this.itemsToLoad$.pipe(
         filter(items => items.size === 0 || (items.size === 1 && items.has('previewHtml'))),
         take(1)
       ).subscribe(() => {
-        this.isPageReady = true;
         // In debug mode, load HTML from assets immediately ONLY if we don't have all 3 parameters
         const hasAllParams = this.officeId !== null && this.reservationId !== null && this.invoiceId !== null;
         if (this.debuggingHtml && !hasAllParams) {
@@ -240,6 +239,11 @@ export class InvoiceCreateComponent extends BaseDocumentComponent implements OnI
             this.loadInvoiceByIdFirst(this.invoiceId);
           }
         });
+      });
+
+      // Phase 2: page is ready only after every load-item is resolved (including previewHtml).
+      this.itemsToLoad$.pipe(filter(items => items.size === 0), take(1)).subscribe(() => {
+        this.isPageReady = true;
       });
     });
   }
