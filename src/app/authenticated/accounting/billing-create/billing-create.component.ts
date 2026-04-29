@@ -341,6 +341,7 @@ export class BillingCreateComponent extends BaseDocumentComponent implements OnI
         }
       },
       error: () => {
+        this.clearPreview();
       }
     });
   }
@@ -624,9 +625,9 @@ export class BillingCreateComponent extends BaseDocumentComponent implements OnI
         }
 
         if (selectedDocuments.length === 0) {
-      this.previewIframeHtml = '';
-      return;
-    }
+          this.clearPreview();
+          return;
+        }
 
         try {
           if (selectedDocuments.length === 1) {

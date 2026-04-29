@@ -189,61 +189,55 @@ export class InvoiceCreateComponent extends BaseDocumentComponent implements OnI
       this.loadContacts();
       this.loadEmailHtml();
       this.loadCostCodes();
-      
-      // Phase 1: run initial view-resolution once core deps are loaded.
-      this.itemsToLoad$.pipe(
-        filter(items => items.size === 0 || (items.size === 1 && items.has('previewHtml'))),
-        take(1)
-      ).subscribe(() => {
-        // In debug mode, load HTML from assets immediately ONLY if we don't have all 3 parameters
-        const hasAllParams = this.officeId !== null && this.reservationId !== null && this.invoiceId !== null;
-        if (this.debuggingHtml && !hasAllParams) {
-          this.http.get('assets/invoice.html', { responseType: 'text' }).pipe(take(1)).subscribe({
-            next: (html: string) => {
-              if (html) {
-                this.form.patchValue({ invoice: html });
-              }
-            },
-            error: () => {
-            }
-          });
-        }
-        
-        forkJoin([
-          this.officeService.areOfficesLoaded().pipe(filter(loaded => loaded === true), take(1)),
-          this.accountingOfficeService.areAccountingOfficesLoaded().pipe(filter(loaded => loaded === true), take(1))]).subscribe(() => {
-          if (this.officeId !== null) {
-            this.applyOfficeSelection(this.officeId);
-          } else {
-            const globalOfficeId = this.globalSelectionService.getSelectedOfficeIdValue();
-            if (globalOfficeId != null && this.offices.length > 0) {
-              this.applyOfficeSelection(globalOfficeId);
-            } else {
-              this.applyOfficeSelection(null);
-            }
-          }
 
-          // Then wait for reservations to load
-          if (this.reservationId !== null) {
-            this.reservationService.getReservationList().pipe(take(1)).subscribe(() => {
-              this.applyReservationSelection(this.reservationId);
-              // After reservation is selected, if invoiceId is provided, select it
-              if (this.invoiceId !== null) {
-                setTimeout(() => {
-                  this.selectInvoiceAfterDataLoad(this.invoiceId);
-                }, 500);
-              }
-            });
-          } else if (this.invoiceId !== null) {
-            // InvoiceId provided but no reservationId - need to get invoice first to find reservation
-            this.loadInvoiceByIdFirst(this.invoiceId);
-          }
-        });
-      });
-
-      // Phase 2: page is ready only after every load-item is resolved (including previewHtml).
+      // Single gate: page is ready only after every load-item is resolved (including previewHtml).
       this.itemsToLoad$.pipe(filter(items => items.size === 0), take(1)).subscribe(() => {
         this.isPageReady = true;
+      });
+
+      // In debug mode, load HTML from assets immediately ONLY if we don't have all 3 parameters
+      const hasAllParams = this.officeId !== null && this.reservationId !== null && this.invoiceId !== null;
+      if (this.debuggingHtml && !hasAllParams) {
+        this.http.get('assets/invoice.html', { responseType: 'text' }).pipe(take(1)).subscribe({
+          next: (html: string) => {
+            if (html) {
+              this.form.patchValue({ invoice: html });
+            }
+          },
+          error: () => {
+          }
+        });
+      }
+
+      forkJoin([
+        this.officeService.areOfficesLoaded().pipe(filter(loaded => loaded === true), take(1)),
+        this.accountingOfficeService.areAccountingOfficesLoaded().pipe(filter(loaded => loaded === true), take(1))]).subscribe(() => {
+        if (this.officeId !== null) {
+          this.applyOfficeSelection(this.officeId);
+        } else {
+          const globalOfficeId = this.globalSelectionService.getSelectedOfficeIdValue();
+          if (globalOfficeId != null && this.offices.length > 0) {
+            this.applyOfficeSelection(globalOfficeId);
+          } else {
+            this.applyOfficeSelection(null);
+          }
+        }
+
+        // Then wait for reservations to load
+        if (this.reservationId !== null) {
+          this.reservationService.getReservationList().pipe(take(1)).subscribe(() => {
+            this.applyReservationSelection(this.reservationId);
+            // After reservation is selected, if invoiceId is provided, select it
+            if (this.invoiceId !== null) {
+              setTimeout(() => {
+                this.selectInvoiceAfterDataLoad(this.invoiceId);
+              }, 500);
+            }
+          });
+        } else if (this.invoiceId !== null) {
+          // InvoiceId provided but no reservationId - need to get invoice first to find reservation
+          this.loadInvoiceByIdFirst(this.invoiceId);
+        }
       });
     });
   }

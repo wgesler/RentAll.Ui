@@ -112,16 +112,7 @@ export class WorkOrderCreateComponent extends BaseDocumentComponent implements O
   ngOnInit(): void {
     this.organizationId = this.authService.getUser()?.organizationId?.trim() || '';
 
-    // Phase 1: run initial preview resolution once core deps are loaded.
-    this.itemsToLoad$.pipe(
-      filter(items => items.size === 0 || (items.size === 1 && items.has('previewHtml'))),
-      take(1)
-    ).subscribe(() => {
-      this.loadClientPartyData();
-      this.tryGeneratePreview();
-    });
-
-    // Phase 2: page is ready only after every load-item is resolved (including previewHtml).
+    // Single gate: page is ready only after every load-item is resolved (including previewHtml).
     this.itemsToLoad$.pipe(filter(items => items.size === 0), take(1)).subscribe(() => {
       this.isPageReady = true;
     });
@@ -154,6 +145,7 @@ export class WorkOrderCreateComponent extends BaseDocumentComponent implements O
     this.http.get('assets/work-order.html', { responseType: 'text' }).pipe(take(1), finalize(() => { this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'costCode'); })).subscribe({
       next: html => {
         this.templateHtml = html || '';
+        this.tryGeneratePreview();
       },
       error: () => this.toastr.error('Unable to load work order HTML template.', 'Template Error')
     });
@@ -170,6 +162,8 @@ export class WorkOrderCreateComponent extends BaseDocumentComponent implements O
     this.workOrderService.getWorkOrderById(this.workOrderId!).pipe(take(1), finalize(() => { this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'workOrder'); })).subscribe({
       next: wo => {
         this.workOrder = wo;
+        this.loadClientPartyData();
+        this.tryGeneratePreview();
         this.loadPropertyReceipts();
         this.loadAccountingOffice();
         this.loadReservation(wo.reservationId);
@@ -190,6 +184,8 @@ export class WorkOrderCreateComponent extends BaseDocumentComponent implements O
         if (this.additionalContactRows.length > 0) {
           this.buildAdditionalContactRows(this.getSelectedContactIdsFromForm());
         }
+        this.loadClientPartyData();
+        this.tryGeneratePreview();
       },
       error: () => {
         this.contacts = [];
@@ -270,6 +266,8 @@ export class WorkOrderCreateComponent extends BaseDocumentComponent implements O
     this.propertyService.getPropertyByGuid(this.propertyId).pipe(take(1), finalize(() => { this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'property'); })).subscribe({
       next: p => {
         this.property = p;
+        this.loadClientPartyData();
+        this.tryGeneratePreview();
       },
       error: () => {
         this.property = null;
@@ -359,6 +357,7 @@ export class WorkOrderCreateComponent extends BaseDocumentComponent implements O
     this.reservationService.getReservationByGuid(reservationId).pipe(take(1),finalize(() => { this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'reservation'); })).subscribe({
       next: (response: ReservationResponse) => {
         this.selectedReservation = response;
+        this.tryGeneratePreview();
       },
       error: () => {
         this.selectedReservation = null;

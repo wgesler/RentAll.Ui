@@ -198,25 +198,65 @@ export class WorkOrderListComponent implements OnInit, OnChanges {
   }
   
   goToWorkOrder(event: WorkOrderDisplayList): void {
+    const workOrderId = (event?.workOrderId || '').toString().trim();
+    if (!workOrderId) return;
+    const resolvedPropertyId = this.resolvePropertyIdForWorkOrder(event);
+
     if (this.embeddedInMaintenance) {
       this.workOrderSelect.emit({
-        workOrderId: String(event.workOrderId),
-        propertyId: event.propertyId ?? this.property?.propertyId ?? null
+        workOrderId,
+        propertyId: resolvedPropertyId
       });
       return;
     }
-    if (!this.property) return;
-    const url = '/' + RouterUrl.replaceTokens(RouterUrl.MaintenanceWorkOrder, [String(event.workOrderId)]);
-    this.router.navigate([url], { queryParams: { propertyId: this.property.propertyId }, state: { property: this.property } });
+    if (!resolvedPropertyId) {
+      this.toastr.error('Unable to open work order: property was not provided.', 'Missing Property');
+      return;
+    }
+    const url = '/' + RouterUrl.replaceTokens(RouterUrl.MaintenanceWorkOrder, [workOrderId]);
+    this.router.navigate([url], {
+      queryParams: { propertyId: resolvedPropertyId },
+      state: { property: this.property }
+    });
   }
 
   viewWorkOrder(event: WorkOrderDisplayList): void {
-    const workOrderId = String(event.workOrderId);
+    const workOrderId = (event?.workOrderId || '').toString().trim();
     if (!workOrderId) return;
-    const propertyId = this.property?.propertyId ?? this.selectedPropertyId ?? '';
+    const propertyId = this.resolvePropertyIdForWorkOrder(event);
+    if (!propertyId) {
+      this.toastr.error('Unable to view work order: property was not provided.', 'Missing Property');
+      return;
+    }
     this.router.navigateByUrl(
       `${RouterUrl.WorkOrderCreate}?workOrderId=${encodeURIComponent(workOrderId)}&propertyId=${encodeURIComponent(propertyId)}&returnTo=work-order-list`
     );
+  }
+
+  private resolvePropertyIdForWorkOrder(event: WorkOrderDisplayList): string | null {
+    const fromRow = (event?.propertyId || '').toString().trim();
+    if (fromRow) {
+      return fromRow;
+    }
+
+    const workOrderId = (event?.workOrderId || '').toString().trim();
+    if (workOrderId) {
+      const fromLoadedWorkOrder = this.workOrders
+        .find(wo => (wo.workOrderId || '').toString().trim() === workOrderId)
+        ?.propertyId;
+      const normalizedLoadedPropertyId = (fromLoadedWorkOrder || '').toString().trim();
+      if (normalizedLoadedPropertyId) {
+        return normalizedLoadedPropertyId;
+      }
+    }
+
+    const fromSelectedProperty = (this.property?.propertyId || '').trim();
+    if (fromSelectedProperty) {
+      return fromSelectedProperty;
+    }
+
+    const fromSelectedPropertyId = (this.selectedPropertyId || '').trim();
+    return fromSelectedPropertyId || null;
   }
   //#endregion
 
