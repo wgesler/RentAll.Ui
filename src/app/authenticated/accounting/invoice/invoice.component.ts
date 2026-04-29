@@ -736,38 +736,20 @@ export class InvoiceComponent implements OnInit, OnDestroy {
     
 
     this.form.get('startDate')?.valueChanges.subscribe((startDateValue) => {
-      if (startDateValue) {
-        const startDate = this.utilityService.parseCalendarDateInput(startDateValue);
-        if (!startDate) {
-          return;
-        }
-        const endDate = this.form.get('endDate')?.value;
-        
-        if (endDate) {
-          const currentEndDate = this.utilityService.parseCalendarDateInput(endDate);
-          if (!currentEndDate) {
-            return;
-          }
-          const startMonth = startDate.getMonth();
-          const startYear = startDate.getFullYear();
-          const endMonth = currentEndDate.getMonth();
-          const endYear = currentEndDate.getFullYear();
-          
-          if (startMonth !== endMonth || startYear !== endYear) {
-            const lastDayOfStartMonth = new Date(startYear, startMonth + 1, 0);
-            lastDayOfStartMonth.setHours(0, 0, 0, 0);
-            setTimeout(() => {
-              this.form.get('endDate')?.setValue(lastDayOfStartMonth, { emitEvent: false });
-            }, 0);
-          }
-        } else {
-          const lastDayOfStartMonth = new Date(startDate.getFullYear(), startDate.getMonth() + 1, 0);
-          lastDayOfStartMonth.setHours(0, 0, 0, 0);
-          setTimeout(() => {
-            this.form.get('endDate')?.setValue(lastDayOfStartMonth, { emitEvent: false });
-          }, 0);
-        }
+      if (!startDateValue) {
+        return;
       }
+
+      const startDate = this.utilityService.parseCalendarDateInput(startDateValue);
+      if (!startDate) {
+        return;
+      }
+
+      const lastDayOfStartMonth = new Date(startDate.getFullYear(), startDate.getMonth() + 1, 0);
+      lastDayOfStartMonth.setHours(0, 0, 0, 0);
+      setTimeout(() => {
+        this.form.get('endDate')?.setValue(lastDayOfStartMonth, { emitEvent: false });
+      }, 0);
     });
   }
 
@@ -890,10 +872,13 @@ export class InvoiceComponent implements OnInit, OnDestroy {
 
       parsedInvoiceDate.setHours(0, 0, 0, 0);
       const syncedDate = new Date(parsedInvoiceDate.getTime());
+      const syncedEndDate = new Date(parsedInvoiceDate.getFullYear(), parsedInvoiceDate.getMonth() + 1, 0);
+      syncedEndDate.setHours(0, 0, 0, 0);
 
       // Keep Due Date and Start Date aligned with Invoice Date during add flow.
       this.form.get('dueDate')?.setValue(new Date(syncedDate.getTime()), { emitEvent: false });
       this.form.get('startDate')?.setValue(new Date(syncedDate.getTime()), { emitEvent: false });
+      this.form.get('endDate')?.setValue(new Date(syncedEndDate.getTime()), { emitEvent: false });
     });
   }
 
