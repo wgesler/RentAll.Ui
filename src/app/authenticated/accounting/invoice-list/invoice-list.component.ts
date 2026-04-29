@@ -655,12 +655,22 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
 
     // In Accounting mode, when a company contact is selected, only show reservations linked to that contact.
     if (this.source === 'accounting' && this.selectedCompanyContact) {
+      const selectedContactId = (this.selectedCompanyContact.contactId || '').trim();
       const selectedCompanyName = (this.selectedCompanyContact.companyName || this.selectedCompanyContact.fullName || '').trim().toLowerCase();
-      if (selectedCompanyName) {
-        filteredReservations = filteredReservations.filter(r =>
-          (r.companyName || '').trim().toLowerCase() === selectedCompanyName
-        );
-      }
+      filteredReservations = filteredReservations.filter(r => {
+        // Primary match: stable ID linkage.
+        const reservationContactId = (r.contactId || '').trim();
+        if (selectedContactId && reservationContactId === selectedContactId) {
+          return true;
+        }
+
+        // Fallback for legacy rows where contact linkage can be inconsistent.
+        if (selectedCompanyName) {
+          return (r.companyName || '').trim().toLowerCase() === selectedCompanyName;
+        }
+
+        return false;
+      });
     }
 
     this.availableReservations = filteredReservations.map(r => ({
