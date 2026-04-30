@@ -857,6 +857,8 @@ export class MixedMappingService {
     const base: ReservationRequest = {
       ...requestBase,
       organizationId: reservation.organizationId || '',
+      currentInvoiceNo: reservation.currentInvoiceNo ?? 0,
+      creditDue: reservation.creditDue ?? 0,
       agentId: reservation.agentId ?? null,
       reservationCode: reservation.reservationCode ?? null,
       reservationNoticeId: reservation.reservationNoticeId ?? 0,

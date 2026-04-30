@@ -56,6 +56,8 @@ export class OfficeComponent implements OnInit, OnDestroy, OnChanges {
   allCostCodes: CostCodesResponse[] = [];
   chargeCostCodeOptions: { value: number, label: string }[] = [];
   expenseCostCodeOptions: { value: number, label: string }[] = [];
+  depositCostCodeOptions: { value: number, label: string }[] = [];
+  sdwCostCodeOptions: { value: number, label: string }[] = [];
 
   itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['office']));
   isLoading$: Observable<boolean> = this.itemsToLoad$.pipe(map(items => items.size > 0));
@@ -189,11 +191,6 @@ export class OfficeComponent implements OnInit, OnDestroy, OnChanges {
     const user = this.authService.getUser();
     const phoneDigits = this.formatterService.stripPhoneFormatting(formValue.phone);
     const faxDigits = this.formatterService.stripPhoneFormatting(formValue.fax);
-    const tenantChargeCcId = this.toNullableCostCodeId(formValue.tenantChargeCcId);
-    const tenantExpenseCcId = this.toNullableCostCodeId(formValue.tenantExpenseCcId);
-    const ownerChargeCcId = this.toNullableCostCodeId(formValue.ownerChargeCcId);
-    const ownerExpenseCcId = this.toNullableCostCodeId(formValue.ownerExpenseCcId);
-
     const isInternational = formValue.isInternational || false;
     const officeRequest: OfficeRequest = {
       organizationId: this.organizationId || user?.organizationId || '',
@@ -237,10 +234,7 @@ export class OfficeComponent implements OnInit, OnDestroy, OnChanges {
       parkingLowEnd: formValue.parkingLowEnd ? parseFloat(formValue.parkingLowEnd.toString()) : 0,
       parkingHighEnd: formValue.parkingHighEnd ? parseFloat(formValue.parkingHighEnd.toString()) : 0,
       emailListForReservations: (formValue.emailListForReservations || '').trim() || null,
-      tenantChargeCcId: tenantChargeCcId,
-      tenantExpenseCcId: tenantExpenseCcId,
-      ownerChargeCcId: ownerChargeCcId,
-      ownerExpenseCcId: ownerExpenseCcId
+      ...this.buildValidCostCodeRequest(formValue)
     };
     const orgId = (this.organizationId || this.office?.organizationId || user?.organizationId || '').trim();
 
@@ -350,6 +344,8 @@ export class OfficeComponent implements OnInit, OnDestroy, OnChanges {
     if (!officeId) {
       this.chargeCostCodeOptions = [];
       this.expenseCostCodeOptions = [];
+      this.depositCostCodeOptions = [];
+      this.sdwCostCodeOptions = [];
       return;
     }
 
@@ -365,6 +361,20 @@ export class OfficeComponent implements OnInit, OnDestroy, OnChanges {
 
     this.expenseCostCodeOptions = officeActiveCostCodes
       .filter(c => c.transactionTypeId === TransactionType.CostOfGoodsSold)
+      .map(c => ({
+        value: c.costCodeId,
+        label: `${c.costCode}: ${c.description}`
+      }));
+
+    this.depositCostCodeOptions = officeActiveCostCodes
+      .filter(c => c.transactionTypeId === TransactionType.Deposit)
+      .map(c => ({
+        value: c.costCodeId,
+        label: `${c.costCode}: ${c.description}`
+      }));
+
+    this.sdwCostCodeOptions = officeActiveCostCodes
+      .filter(c => c.transactionTypeId === TransactionType.SDW)
       .map(c => ({
         value: c.costCodeId,
         label: `${c.costCode}: ${c.description}`
@@ -415,7 +425,19 @@ export class OfficeComponent implements OnInit, OnDestroy, OnChanges {
       tenantChargeCcId: new FormControl<number | null>(null),
       tenantExpenseCcId: new FormControl<number | null>(null),
       ownerChargeCcId: new FormControl<number | null>(null),
-      ownerExpenseCcId: new FormControl<number | null>(null)
+      ownerExpenseCcId: new FormControl<number | null>(null),
+      furnishedRentChargeCcId: new FormControl<number | null>(null),
+      furnishedRentExpenseCcId: new FormControl<number | null>(null),
+      unfurnishedRentChargeCcId: new FormControl<number | null>(null),
+      unfurnishedRentExpenseCcId: new FormControl<number | null>(null),
+      maidServiceChargeCcId: new FormControl<number | null>(null),
+      maidServiceExpenseCcId: new FormControl<number | null>(null),
+      parkingChargeCcId: new FormControl<number | null>(null),
+      parkingExpenseCcId: new FormControl<number | null>(null),
+      departureFeeCcId: new FormControl<number | null>(null),
+      petFeeCcId: new FormControl<number | null>(null),
+      securityDepositCcId: new FormControl<number | null>(null),
+      securityDepositWaiverCcId: new FormControl<number | null>(null)
     });
 
     // Setup conditional validation for international addresses
@@ -468,7 +490,19 @@ export class OfficeComponent implements OnInit, OnDestroy, OnChanges {
           tenantChargeCcId: this.office.tenantChargeCcId ?? null,
           tenantExpenseCcId: this.office.tenantExpenseCcId ?? null,
           ownerChargeCcId: this.office.ownerChargeCcId ?? null,
-          ownerExpenseCcId: this.office.ownerExpenseCcId ?? null
+          ownerExpenseCcId: this.office.ownerExpenseCcId ?? null,
+          furnishedRentChargeCcId: this.office.furnishedRentChargeCcId ?? null,
+          furnishedRentExpenseCcId: this.office.furnishedRentExpenseCcId ?? null,
+          unfurnishedRentChargeCcId: this.office.unfurnishedRentChargeCcId ?? null,
+          unfurnishedRentExpenseCcId: this.office.unfurnishedRentExpenseCcId ?? null,
+          maidServiceChargeCcId: this.office.maidServiceChargeCcId ?? null,
+          maidServiceExpenseCcId: this.office.maidServiceExpenseCcId ?? null,
+          parkingChargeCcId: this.office.parkingChargeCcId ?? null,
+          parkingExpenseCcId: this.office.parkingExpenseCcId ?? null,
+          departureFeeCcId: this.office.departureFeeCcId ?? null,
+          petFeeCcId: this.office.petFeeCcId ?? null,
+          securityDepositCcId: this.office.securityDepositCcId ?? null,
+          securityDepositWaiverCcId: this.office.securityDepositWaiverCcId ?? null
         });
       }, 0);
     }
@@ -518,7 +552,19 @@ export class OfficeComponent implements OnInit, OnDestroy, OnChanges {
       tenantChargeCcId: o.tenantChargeCcId ?? null,
       tenantExpenseCcId: o.tenantExpenseCcId ?? null,
       ownerChargeCcId: o.ownerChargeCcId ?? null,
-      ownerExpenseCcId: o.ownerExpenseCcId ?? null
+      ownerExpenseCcId: o.ownerExpenseCcId ?? null,
+      furnishedRentChargeCcId: o.furnishedRentChargeCcId ?? null,
+      furnishedRentExpenseCcId: o.furnishedRentExpenseCcId ?? null,
+      unfurnishedRentChargeCcId: o.unfurnishedRentChargeCcId ?? null,
+      unfurnishedRentExpenseCcId: o.unfurnishedRentExpenseCcId ?? null,
+      maidServiceChargeCcId: o.maidServiceChargeCcId ?? null,
+      maidServiceExpenseCcId: o.maidServiceExpenseCcId ?? null,
+      parkingChargeCcId: o.parkingChargeCcId ?? null,
+      parkingExpenseCcId: o.parkingExpenseCcId ?? null,
+      departureFeeCcId: o.departureFeeCcId ?? null,
+      petFeeCcId: o.petFeeCcId ?? null,
+      securityDepositCcId: o.securityDepositCcId ?? null,
+      securityDepositWaiverCcId: o.securityDepositWaiverCcId ?? null
     }, { emitEvent: false });
   }
 
@@ -641,6 +687,55 @@ export class OfficeComponent implements OnInit, OnDestroy, OnChanges {
     }
     const numericValue = Number(value);
     return Number.isFinite(numericValue) && numericValue > 0 ? numericValue : null;
+  }
+
+  buildValidCostCodeRequest(formValue: Record<string, unknown>): Partial<OfficeRequest> {
+    type OfficeCostCodeKey =
+      | 'tenantChargeCcId'
+      | 'tenantExpenseCcId'
+      | 'ownerChargeCcId'
+      | 'ownerExpenseCcId'
+      | 'furnishedRentChargeCcId'
+      | 'furnishedRentExpenseCcId'
+      | 'unfurnishedRentChargeCcId'
+      | 'unfurnishedRentExpenseCcId'
+      | 'maidServiceChargeCcId'
+      | 'maidServiceExpenseCcId'
+      | 'parkingChargeCcId'
+      | 'parkingExpenseCcId'
+      | 'departureFeeCcId'
+      | 'petFeeCcId'
+      | 'securityDepositCcId'
+      | 'securityDepositWaiverCcId';
+
+    const costCodeKeys: OfficeCostCodeKey[] = [
+      'tenantChargeCcId',
+      'tenantExpenseCcId',
+      'ownerChargeCcId',
+      'ownerExpenseCcId',
+      'furnishedRentChargeCcId',
+      'furnishedRentExpenseCcId',
+      'unfurnishedRentChargeCcId',
+      'unfurnishedRentExpenseCcId',
+      'maidServiceChargeCcId',
+      'maidServiceExpenseCcId',
+      'parkingChargeCcId',
+      'parkingExpenseCcId',
+      'departureFeeCcId',
+      'petFeeCcId',
+      'securityDepositCcId',
+      'securityDepositWaiverCcId'
+    ];
+
+    const costCodeValues: Partial<Pick<OfficeRequest, OfficeCostCodeKey>> = {};
+    costCodeKeys.forEach((key: OfficeCostCodeKey) => {
+      const value = this.toNullableCostCodeId(formValue[key]);
+      if (value !== null) {
+        costCodeValues[key] = value;
+      }
+    });
+
+    return costCodeValues;
   }
   //#endregion
 

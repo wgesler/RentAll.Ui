@@ -491,7 +491,6 @@
                         }
                       </mat-select>
                     </mat-form-field>
-
                     <mat-form-field appearance="outline" class="col-span-1 w-full">
                       <mat-label>Tenant Damages Expense</mat-label>
                       <mat-select formControlName="tenantExpenseCcId">
@@ -510,12 +509,127 @@
                         }
                       </mat-select>
                     </mat-form-field>
-
                     <mat-form-field appearance="outline" class="col-span-1 w-full">
                       <mat-label>Owner Expense</mat-label>
                       <mat-select formControlName="ownerExpenseCcId">
                         <mat-option [value]="null">None</mat-option>
                         @for (costCode of expenseCostCodeOptions; track costCode.value) {
+                          <mat-option [value]="costCode.value">{{ costCode.label }}</mat-option>
+                        }
+                      </mat-select>
+                    </mat-form-field>
+                  </div>
+                </div>
+
+                <div class="mb-4">
+                  <h3 class="text-lg font-bold mb-3 text-black">Default Cost Codes</h3>
+                  <div class="grid grid-cols-4 form-standard-grid">
+                    <mat-form-field appearance="outline" class="col-span-1 w-full">
+                      <mat-label>Furnished Rent Charge</mat-label>
+                      <mat-select formControlName="furnishedRentChargeCcId">
+                        <mat-option [value]="null">None</mat-option>
+                        @for (costCode of chargeCostCodeOptions; track costCode.value) {
+                          <mat-option [value]="costCode.value">{{ costCode.label }}</mat-option>
+                        }
+                      </mat-select>
+                    </mat-form-field>
+                    <mat-form-field appearance="outline" class="col-span-1 w-full">
+                      <mat-label>Furnished Rent Expense</mat-label>
+                      <mat-select formControlName="furnishedRentExpenseCcId">
+                        <mat-option [value]="null">None</mat-option>
+                        @for (costCode of expenseCostCodeOptions; track costCode.value) {
+                          <mat-option [value]="costCode.value">{{ costCode.label }}</mat-option>
+                        }
+                      </mat-select>
+                    </mat-form-field>
+                    <mat-form-field appearance="outline" class="col-span-1 w-full">
+                      <mat-label>Unfurnished Rent Charge</mat-label>
+                      <mat-select formControlName="unfurnishedRentChargeCcId">
+                        <mat-option [value]="null">None</mat-option>
+                        @for (costCode of chargeCostCodeOptions; track costCode.value) {
+                          <mat-option [value]="costCode.value">{{ costCode.label }}</mat-option>
+                        }
+                      </mat-select>
+                    </mat-form-field>
+                    <mat-form-field appearance="outline" class="col-span-1 w-full">
+                      <mat-label>Unfurnished Rent Expense</mat-label>
+                      <mat-select formControlName="unfurnishedRentExpenseCcId">
+                        <mat-option [value]="null">None</mat-option>
+                        @for (costCode of expenseCostCodeOptions; track costCode.value) {
+                          <mat-option [value]="costCode.value">{{ costCode.label }}</mat-option>
+                        }
+                      </mat-select>
+                    </mat-form-field>
+
+                    <mat-form-field appearance="outline" class="col-span-1 w-full">
+                      <mat-label>Maid Service Charge</mat-label>
+                      <mat-select formControlName="maidServiceChargeCcId">
+                        <mat-option [value]="null">None</mat-option>
+                        @for (costCode of chargeCostCodeOptions; track costCode.value) {
+                          <mat-option [value]="costCode.value">{{ costCode.label }}</mat-option>
+                        }
+                      </mat-select>
+                    </mat-form-field>
+                    <mat-form-field appearance="outline" class="col-span-1 w-full">
+                      <mat-label>Maid Service Expense</mat-label>
+                      <mat-select formControlName="maidServiceExpenseCcId">
+                        <mat-option [value]="null">None</mat-option>
+                        @for (costCode of expenseCostCodeOptions; track costCode.value) {
+                          <mat-option [value]="costCode.value">{{ costCode.label }}</mat-option>
+                        }
+                      </mat-select>
+                    </mat-form-field>
+                    <mat-form-field appearance="outline" class="col-span-1 w-full">
+                      <mat-label>Parking Charge</mat-label>
+                      <mat-select formControlName="parkingChargeCcId">
+                        <mat-option [value]="null">None</mat-option>
+                        @for (costCode of chargeCostCodeOptions; track costCode.value) {
+                          <mat-option [value]="costCode.value">{{ costCode.label }}</mat-option>
+                        }
+                      </mat-select>
+                    </mat-form-field>
+                    <mat-form-field appearance="outline" class="col-span-1 w-full">
+                      <mat-label>Parking Expense</mat-label>
+                      <mat-select formControlName="parkingExpenseCcId">
+                        <mat-option [value]="null">None</mat-option>
+                        @for (costCode of expenseCostCodeOptions; track costCode.value) {
+                          <mat-option [value]="costCode.value">{{ costCode.label }}</mat-option>
+                        }
+                      </mat-select>
+                    </mat-form-field>
+
+                    <mat-form-field appearance="outline" class="col-span-1 w-full">
+                      <mat-label>Departure Fee</mat-label>
+                      <mat-select formControlName="departureFeeCcId">
+                        <mat-option [value]="null">None</mat-option>
+                        @for (costCode of chargeCostCodeOptions; track costCode.value) {
+                          <mat-option [value]="costCode.value">{{ costCode.label }}</mat-option>
+                        }
+                      </mat-select>
+                    </mat-form-field>
+                    <mat-form-field appearance="outline" class="col-span-1 w-full">
+                      <mat-label>Pet Fee</mat-label>
+                      <mat-select formControlName="petFeeCcId">
+                        <mat-option [value]="null">None</mat-option>
+                        @for (costCode of chargeCostCodeOptions; track costCode.value) {
+                          <mat-option [value]="costCode.value">{{ costCode.label }}</mat-option>
+                        }
+                      </mat-select>
+                    </mat-form-field>
+                    <mat-form-field appearance="outline" class="col-span-1 w-full">
+                      <mat-label>Security Deposit</mat-label>
+                      <mat-select formControlName="securityDepositCcId">
+                        <mat-option [value]="null">None</mat-option>
+                        @for (costCode of depositCostCodeOptions; track costCode.value) {
+                          <mat-option [value]="costCode.value">{{ costCode.label }}</mat-option>
+                        }
+                      </mat-select>
+                    </mat-form-field>
+                    <mat-form-field appearance="outline" class="col-span-1 w-full">
+                      <mat-label>Security Deposit Waiver</mat-label>
+                      <mat-select formControlName="securityDepositWaiverCcId">
+                        <mat-option [value]="null">None</mat-option>
+                        @for (costCode of sdwCostCodeOptions; track costCode.value) {
                           <mat-option [value]="costCode.value">{{ costCode.label }}</mat-option>
                         }
                       </mat-select>

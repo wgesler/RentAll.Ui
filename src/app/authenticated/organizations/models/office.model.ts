@@ -41,10 +41,23 @@ export interface OfficeRequest {
   parkingLowEnd: number;
   parkingHighEnd: number;
   emailListForReservations?: string | null;
+  // Cost Codes
   tenantChargeCcId?: number | null;
   tenantExpenseCcId?: number | null;
   ownerChargeCcId?: number | null;
   ownerExpenseCcId?: number | null;
+  furnishedRentChargeCcId?: number | null;
+  furnishedRentExpenseCcId?: number | null;
+  unfurnishedRentChargeCcId?: number | null;
+  unfurnishedRentExpenseCcId?: number | null;
+  maidServiceChargeCcId?: number | null;
+  maidServiceExpenseCcId?: number | null;
+  parkingChargeCcId?: number | null;
+  parkingExpenseCcId?: number | null;
+  departureFeeCcId?: number | null;
+  petFeeCcId?: number | null;
+  securityDepositCcId?: number | null;
+  securityDepositWaiverCcId?: number | null;
 }
 
 export interface OfficeResponse {
@@ -88,10 +101,24 @@ export interface OfficeResponse {
   parkingLowEnd: number;
   parkingHighEnd: number;
   emailListForReservations?: string | null;
+  // Cost Codes
   tenantChargeCcId?: number | null;
   tenantExpenseCcId?: number | null;
   ownerChargeCcId?: number | null;
   ownerExpenseCcId?: number | null;
+  furnishedRentChargeCcId?: number | null;
+  furnishedRentExpenseCcId?: number | null;
+  unfurnishedRentChargeCcId?: number | null;
+  unfurnishedRentExpenseCcId?: number | null;
+  maidServiceChargeCcId?: number | null;
+  maidServiceExpenseCcId?: number | null;
+  parkingChargeCcId?: number | null;
+  parkingExpenseCcId?: number | null;
+  departureFeeCcId?: number | null;
+  petFeeCcId?: number | null;
+  securityDepositCcId?: number | null;
+  securityDepositWaiverCcId?: number | null;
+
 }
 
 export interface OfficeListDisplay {
