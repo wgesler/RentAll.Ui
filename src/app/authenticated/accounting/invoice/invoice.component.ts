@@ -462,16 +462,6 @@ export class InvoiceComponent implements OnInit, OnDestroy, OnChanges {
       return;
     }
 
-    const negativeLines = this.ledgerLines
-      .map((line, index) => ({ amount: line.amount, lineNumber: index + 1 }))
-      .filter(x => (x.amount ?? 0) < 0)
-      .map(x => x.lineNumber);
-    if (negativeLines.length > 0) {
-      this.toastr.error(`Ledger lines ${negativeLines.join(', ')} have negative amounts. Negative values are not allowed.`, CommonMessage.Error);
-      this.isSubmitting = false;
-      return;
-    }
-
     const formValue = this.form.getRawValue();
     const user = this.authService.getUser();
          
@@ -1114,7 +1104,7 @@ export class InvoiceComponent implements OnInit, OnDestroy, OnChanges {
     }
     return this.ledgerLines.reduce((sum, line) => {
       if (this.isPaymentLine(line)) {
-        const amount = Math.abs(line.amount || 0);
+        const amount = line.amount || 0;
         return sum + amount;
       }
       return sum;
@@ -1127,7 +1117,7 @@ export class InvoiceComponent implements OnInit, OnDestroy, OnChanges {
     }
     return this.ledgerLines.reduce((sum, line) => {
       if (line.isNew === true && this.isPaymentLine(line)) {
-        const amount = Math.abs(line.amount || 0);
+        const amount = line.amount || 0;
         return sum + amount;
       }
       return sum;
@@ -1165,9 +1155,7 @@ export class InvoiceComponent implements OnInit, OnDestroy, OnChanges {
       
       const paidInput = document.querySelector(`[formControlName="paidAmount"]`) as HTMLInputElement;
       if (paidInput && document.activeElement !== paidInput) {
-        const formattedValue = paidAmount < 0 
-          ? '-$' + this.formatter.currency(Math.abs(paidAmount))
-          : '$' + this.formatter.currency(paidAmount);
+        const formattedValue = '$' + this.formatter.currency(Math.abs(paidAmount));
         paidInput.value = formattedValue;
       }
       
@@ -1324,15 +1312,6 @@ export class InvoiceComponent implements OnInit, OnDestroy, OnChanges {
       if (rawValue !== '' && rawValue !== null) {
         const parsed = parseFloat(rawValue);
         if (!isNaN(parsed)) {
-          if (parsed < 0) {
-            this.toastr.error('Negative ledger amounts are not allowed.', CommonMessage.Error);
-            const fallbackValue = line.amount != null && line.amount >= 0 ? line.amount : 0;
-            input.value = fallbackValue.toFixed(2);
-            line.amount = fallbackValue;
-            this.updateTotalAmount();
-            return;
-          }
-
           const finalValue = parsed;
           formattedValue = finalValue.toFixed(2);
           numValue = parseFloat(formattedValue);
@@ -1364,12 +1343,7 @@ export class InvoiceComponent implements OnInit, OnDestroy, OnChanges {
     if (line.amount == null || line.amount === undefined) {
       return '';
     }
-
-    const normalizedAmount = this.isPaymentLine(line)
-      ? -Math.abs(line.amount)
-      : Math.abs(line.amount);
-
-    return normalizedAmount.toFixed(2);
+    return line.amount.toFixed(2);
   }
 
   checkAndOfferCreditApplication(): void {

@@ -24,7 +24,6 @@ import { DataTableComponent } from '../../shared/data-table/data-table.component
 import { DataTableFilterActionsDirective } from '../../shared/data-table/data-table-filter-actions.directive';
 import { ColumnSet } from '../../shared/data-table/models/column-data';
 import { ApplyCreditDialogComponent, ApplyCreditDialogData } from '../../shared/modals/apply-credit/apply-credit-dialog.component';
-import { InvoicePaidFullDialogComponent } from '../../shared/modals/invoice-paid-full/invoice-paid-full-dialog.component';
 import { UserGroups } from '../../users/models/user-enums';
 import { TransactionType, TransactionTypeLabels } from '../models/accounting-enum';
 import { CostCodesResponse } from '../models/cost-codes.model';
@@ -481,63 +480,45 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
   }
 
   onPayable(event: InvoiceResponse | any): void {
-    // Check DueAmount from the row data (dueAmountValue) or calculate it
-    const eventAny = event as any;
-    const dueAmount = eventAny.dueAmountValue !== undefined 
-      ? eventAny.dueAmountValue 
-      : (event.totalAmount || 0) - Math.abs(event.paidAmount || 0);
-    
-    if (dueAmount <= 0) {
-      // Show dialog that invoice is already paid
-      const dialogConfig: MatDialogConfig = {
-        width: '500px',
-        autoFocus: true,
-        restoreFocus: true,
-        disableClose: false,
-        hasBackdrop: true
-      };
-      this.dialog.open(InvoicePaidFullDialogComponent, dialogConfig);
-    } else {
-      // Preserve current top-bar selections so refresh returns to the original user context.
-      this.captureTopbarSelectionsForPayment();
+    // Preserve current top-bar selections so refresh returns to the original user context.
+    this.captureTopbarSelectionsForPayment();
 
-      // Auto-select the invoice's office and reservation
-      const invoiceOfficeId = event.officeId;
-      const invoiceReservationId = event.reservationId;
-      
-      // Set selectedOffice from invoice's officeId
-      if (invoiceOfficeId && this.offices.length > 0) {
-        const matchingOffice = this.offices.find(o => o.officeId === invoiceOfficeId);
-        if (matchingOffice && matchingOffice !== this.selectedOffice) {
-          this.selectedOffice = matchingOffice;
-          // Filter dependent data
-          this.filterCostCodes();
-          this.filterCompanyContacts();
-          this.filterReservations();
-          // Emit office change to parent
-          this.officeIdChange.emit(this.selectedOffice.officeId);
-          // Apply filters
-          this.applyFilters();
-        }
+    // Auto-select the invoice's office and reservation
+    const invoiceOfficeId = event.officeId;
+    const invoiceReservationId = event.reservationId;
+    
+    // Set selectedOffice from invoice's officeId
+    if (invoiceOfficeId && this.offices.length > 0) {
+      const matchingOffice = this.offices.find(o => o.officeId === invoiceOfficeId);
+      if (matchingOffice && matchingOffice !== this.selectedOffice) {
+        this.selectedOffice = matchingOffice;
+        // Filter dependent data
+        this.filterCostCodes();
+        this.filterCompanyContacts();
+        this.filterReservations();
+        // Emit office change to parent
+        this.officeIdChange.emit(this.selectedOffice.officeId);
+        // Apply filters
+        this.applyFilters();
       }
-      
-      // Set selectedReservation from invoice's reservationId (after office is set)
-      if (invoiceReservationId && this.selectedOffice && this.reservations.length > 0) {
-        const matchingReservation = this.reservations.find(r => 
-          r.reservationId === invoiceReservationId && r.officeId === this.selectedOffice?.officeId
-        );
-        if (matchingReservation && matchingReservation !== this.selectedReservation) {
-          this.selectedReservation = matchingReservation;
-          // Emit reservation change to parent
-          this.reservationIdChange.emit(this.selectedReservation.reservationId);
-          // Apply filters
-          this.applyFilters();
-        }
-      }
-      
-      // Open inline Apply Payment row and scope submit to the clicked invoice row.
-      this.openApplyPaymentDialog(event.invoiceId);
     }
+    
+    // Set selectedReservation from invoice's reservationId (after office is set)
+    if (invoiceReservationId && this.selectedOffice && this.reservations.length > 0) {
+      const matchingReservation = this.reservations.find(r => 
+        r.reservationId === invoiceReservationId && r.officeId === this.selectedOffice?.officeId
+      );
+      if (matchingReservation && matchingReservation !== this.selectedReservation) {
+        this.selectedReservation = matchingReservation;
+        // Emit reservation change to parent
+        this.reservationIdChange.emit(this.selectedReservation.reservationId);
+        // Apply filters
+        this.applyFilters();
+      }
+    }
+    
+    // Open inline Apply Payment row and scope submit to the clicked invoice row.
+    this.openApplyPaymentDialog(event.invoiceId);
   }
   //#endregion
 
@@ -1013,7 +994,7 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
 
   get canShowApplyPaymentButton(): boolean {
     const hasReservationOrCompanySelection = !!this.selectedReservation || !!this.selectedCompanyContact;
-    return hasReservationOrCompanySelection && this.dueInvoicesCount > 1;
+    return hasReservationOrCompanySelection && this.invoicesDisplay.length > 0;
   }
 
   get useRouteQueryParams(): boolean {
@@ -1166,12 +1147,6 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
       case 'amount':
         const amountValue = line.amount || 0;
         const formattedAmount = this.formatter.currency(Math.abs(amountValue));
-        const transactionTypeLabel = (line?.transactionType || '').toString().toLowerCase();
-        const transactionTypeId = line?.transactionTypeId ?? null;
-        const isPaymentLine = transactionTypeId === TransactionType.Payment || transactionTypeLabel === 'payment';
-        if (isPaymentLine) {
-          return '-$' + formattedAmount;
-        }
         return amountValue < 0 ? '-$' + formattedAmount : '$' + formattedAmount;
       default:
         return line[columnName] || '-';
@@ -1195,11 +1170,6 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
       if (this.selectedPaymentCostCode) {
         const transactionType = this.transactionTypes.find(t => t.value === this.selectedPaymentCostCode!.transactionTypeId);
         this.paymentTransactionType = transactionType?.label || '';
-        // Ensure payment amount stays positive
-        if (this.paymentAmount < 0) {
-          this.paymentAmount = Math.abs(this.paymentAmount);
-          this.paymentAmountDisplay = '$' + this.formatter.currency(this.paymentAmount);
-        }
       }
     } else {
       this.selectedPaymentCostCode = null;
@@ -1211,15 +1181,17 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
     const input = event.target as HTMLInputElement;
     let value = input.value;
     
-    // Remove negative signs and non-numeric characters (except decimal point)
-    value = value.replace(/[^0-9.]/g, '');
+    value = value.replace(/[^0-9.-]/g, '');
+    const hasLeadingMinus = value.startsWith('-');
+    const unsignedValue = value.replace(/-/g, '');
+    const normalizedValue = hasLeadingMinus ? `-${unsignedValue}` : unsignedValue;
     
     // Limit to one decimal point
-    const parts = value.split('.');
+    const parts = normalizedValue.split('.');
     if (parts.length > 2) {
       input.value = parts[0] + '.' + parts.slice(1).join('');
     } else {
-      input.value = value;
+      input.value = normalizedValue;
     }
     
     this.paymentAmountDisplay = input.value;
@@ -1227,15 +1199,16 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
 
   onPaymentAmountBlur(event: Event): void {
     const input = event.target as HTMLInputElement;
-    const rawValue = input.value.replace(/[^0-9.]/g, '').trim();
+    const rawValue = input.value.replace(/[^0-9.-]/g, '').trim();
     
     if (rawValue !== '' && rawValue !== null) {
       const parsed = parseFloat(rawValue);
       if (!isNaN(parsed)) {
-        // Always store as positive value
-        const finalValue = Math.abs(parsed);
+        const finalValue = parsed;
         this.paymentAmount = finalValue;
-        this.paymentAmountDisplay = '$' + this.formatter.currency(finalValue);
+        this.paymentAmountDisplay = finalValue < 0
+          ? '-$' + this.formatter.currency(Math.abs(finalValue))
+          : '$' + this.formatter.currency(finalValue);
         input.value = this.paymentAmountDisplay;
         this.updateRemainingAmount();
       } else {
@@ -1412,7 +1385,7 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
     const paymentRequest: InvoicePaymentRequest = {
       costCodeId: this.selectedPaymentCostCodeId!,
       description: this.getPaymentRequestDescription(),
-      amount: Math.abs(this.paymentAmount),
+      amount: this.paymentAmount,
       invoices: invoiceIds
     };
 

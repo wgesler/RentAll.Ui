@@ -1106,8 +1106,8 @@ export class InvoiceCreateComponent extends BaseDocumentComponent implements OnI
     const chargeRows = chargeLines.map(l => this.formatInvoiceLedgerRowHtml(l)).join('\n');
     const paymentRows = paymentLines.map(l => this.formatInvoiceLedgerRowHtml(l)).join('\n');
 
-    const totalChargesAmount = chargeLines.reduce((sum, l) => sum + Math.abs(l.amount || 0), 0);
-    const totalPaymentsAmount = paymentLines.reduce((sum, l) => sum + Math.abs(l.amount || 0), 0);
+    const totalChargesAmount = chargeLines.reduce((sum, l) => sum + (l.amount || 0), 0);
+    const totalPaymentsAmount = paymentLines.reduce((sum, l) => sum + (l.amount || 0), 0);
     const balanceDueFromLedger = totalChargesAmount - totalPaymentsAmount;
 
     result = result.replace(/\{\{chargeLedgerLineRows\}\}/g, chargeRows);
@@ -1136,9 +1136,7 @@ export class InvoiceCreateComponent extends BaseDocumentComponent implements OnI
   formatInvoiceLedgerRowHtml(line: LedgerLineResponse): string {
     const date = this.formatterService.formatDateString(this.selectedInvoice!.invoiceDate) || '';
     const description = (line.description || '').replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
-    const raw = line.amount || 0;
-    const displayNumeric = Math.abs(raw);
-    const amount = this.formatterService.currency(displayNumeric);
+    const amount = this.formatterService.currency(line.amount || 0);
     return `              <tr class="ledger-line-row">
                 <td>${date}</td>
                 <td>${description}</td>
