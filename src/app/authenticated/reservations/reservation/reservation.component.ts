@@ -611,7 +611,6 @@ export class ReservationComponent implements OnInit, OnDestroy, CanComponentDeac
       departureLetterChecked: this.reservation?.departureLetterChecked ?? false,
       departureLetterSent: this.reservation?.departureLetterSent ?? false,
       currentInvoiceNo: formValue.currentInvoiceNo ?? 0,
-      creditDue: formValue.creditDue ?? 0,
       isActive: formValue.isActive ?? true
     };
 
@@ -721,8 +720,7 @@ export class ReservationComponent implements OnInit, OnDestroy, CanComponentDeac
       frequencyId: new FormControl(Frequency.NA),
       taxes: new FormControl(null),
       notes: new FormControl(''),
-      currentInvoiceNo: new FormControl(0),
-      creditDue: new FormControl(0)
+      currentInvoiceNo: new FormControl(0)
     });
 
     // Initialize field states

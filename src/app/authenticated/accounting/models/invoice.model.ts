@@ -99,7 +99,6 @@ export interface InvoicePaymentRequest {
 
 export interface InvoicePaymentResponse {
   invoices: InvoiceResponse[];
-  creditRemaining: number;
 }
 
 // LedgerLine models

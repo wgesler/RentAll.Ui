@@ -279,21 +279,17 @@
                       </button>
                     </span>
                   } @else if (column.name === 'applyAmount' && isManualApplyMode) {
-                    @if ((item.originalDueAmountValue || 0) > 0) {
-                      <input type="text"
-                        [value]="item.applyAmountDisplay || item.applyAmount || ''"
-                        (input)="applyAmountInputCallback && applyAmountInputCallback(item, $event); applyAmountChangeCallback && applyAmountChangeCallback(item, ($any($event.target)).value)"
-                        (blur)="applyAmountBlurCallback && applyAmountBlurCallback(item, $event)"
-                        (focus)="applyAmountFocusCallback && applyAmountFocusCallback(item, $event)"
-                        (keydown.enter)="applyAmountEnterCallback && applyAmountEnterCallback(item, $event)"
-                        (click)="$event.stopPropagation()"
-                        (mousedown)="$event.stopPropagation()"
-                        class="editable-apply-amount"
-                        [style.color]="Math.abs(item.applyAmountValue || 0) > (item.originalDueAmountValue || 0) ? '#d32f2f' : 'inherit'"
-                        style="text-align: right; width: 100%; border: 1px solid #ccc; padding: 4px 8px; border-radius: 4px; font-size: 12px;">
-                    } @else {
-                      <span [style.color]="Math.abs(item.applyAmountValue || 0) > (item.originalDueAmountValue || 0) ? '#d32f2f' : 'inherit'">{{ item.applyAmountDisplay || item.applyAmount || '' }}</span>
-                    }
+                    <input type="text"
+                      [value]="item.applyAmountDisplay || item.applyAmount || ''"
+                      (input)="applyAmountInputCallback && applyAmountInputCallback(item, $event); applyAmountChangeCallback && applyAmountChangeCallback(item, ($any($event.target)).value)"
+                      (blur)="applyAmountBlurCallback && applyAmountBlurCallback(item, $event)"
+                      (focus)="applyAmountFocusCallback && applyAmountFocusCallback(item, $event)"
+                      (keydown.enter)="applyAmountEnterCallback && applyAmountEnterCallback(item, $event)"
+                      (click)="$event.stopPropagation()"
+                      (mousedown)="$event.stopPropagation()"
+                      class="editable-apply-amount"
+                      [style.color]="(item.originalDueAmountValue || 0) > 0 && Math.abs(item.applyAmountValue || 0) > (item.originalDueAmountValue || 0) ? '#d32f2f' : 'inherit'"
+                      style="text-align: right; width: 100%; border: 1px solid #ccc; padding: 4px 8px; border-radius: 4px; font-size: 12px;">
                   } @else if (column.isCheckbox) {
                     <div class="datatable-checkbox-cell">
                       <mat-checkbox [checked]="column.name === 'needsMaintenance' ? true : item[column.name]"
@@ -301,7 +297,6 @@
                         (change)="emitCheckboxChangeEvent($event, item, column.name || '')"
                         (click)="$event.stopPropagation()"
                         (mousedown)="$event.stopPropagation()"
-                        [class.has-credit-checked]="column.name === 'hasCredit' && item[column.name]"
                         [class.needs-maintenance-alert]="column.name === 'needsMaintenance' && (item?.needsMaintenanceState === 'red' || (!item?.needsMaintenanceState && item[column.name]))"
                         [class.needs-maintenance-warning]="column.name === 'needsMaintenance' && item?.needsMaintenanceState === 'yellow'"
                         [class.needs-maintenance-missing]="column.name === 'needsMaintenance' && item?.needsMaintenanceState === 'grey'"

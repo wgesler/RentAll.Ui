@@ -512,26 +512,6 @@ td.mat-mdc-cell.no-wrap {
     max-width:none;
 }
 
-// Bright green styling for HasCredit checkbox when checked
-:host ::ng-deep td.mat-cell.mat-column-hasCredit mat-checkbox.has-credit-checked .mdc-checkbox__background,
-:host ::ng-deep td.mat-mdc-cell.mat-column-hasCredit mat-checkbox.has-credit-checked .mdc-checkbox__background,
-:host ::ng-deep td.mat-cell.mat-column-hasCredit mat-checkbox.mdc-checkbox--checked .mdc-checkbox__background,
-:host ::ng-deep td.mat-mdc-cell.mat-column-hasCredit mat-checkbox.mdc-checkbox--checked .mdc-checkbox__background,
-:host ::ng-deep td.mat-cell.mat-column-hasCredit mat-checkbox[checked] .mdc-checkbox__background,
-:host ::ng-deep td.mat-mdc-cell.mat-column-hasCredit mat-checkbox[checked] .mdc-checkbox__background {
-  background-color: #4caf50 !important;
-  border-color: #4caf50 !important;
-}
-
-:host ::ng-deep td.mat-cell.mat-column-hasCredit mat-checkbox.has-credit-checked .mdc-checkbox__checkmark,
-:host ::ng-deep td.mat-mdc-cell.mat-column-hasCredit mat-checkbox.has-credit-checked .mdc-checkbox__checkmark,
-:host ::ng-deep td.mat-cell.mat-column-hasCredit mat-checkbox.mdc-checkbox--checked .mdc-checkbox__checkmark,
-:host ::ng-deep td.mat-mdc-cell.mat-column-hasCredit mat-checkbox.mdc-checkbox--checked .mdc-checkbox__checkmark,
-:host ::ng-deep td.mat-cell.mat-column-hasCredit mat-checkbox[checked] .mdc-checkbox__checkmark,
-:host ::ng-deep td.mat-mdc-cell.mat-column-hasCredit mat-checkbox[checked] .mdc-checkbox__checkmark {
-  color: white !important;
-}
-
 /* Maintenance checkbox states: red, yellow, grey, green. */
 :host ::ng-deep td.mat-cell.mat-column-needsMaintenance mat-checkbox.needs-maintenance-alert .mdc-checkbox__background,
 :host ::ng-deep td.mat-mdc-cell.mat-column-needsMaintenance mat-checkbox.needs-maintenance-alert .mdc-checkbox__background {

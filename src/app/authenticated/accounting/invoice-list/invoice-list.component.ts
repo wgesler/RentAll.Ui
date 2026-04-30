@@ -2,7 +2,6 @@ import { CommonModule } from "@angular/common";
 import { HttpErrorResponse } from '@angular/common/http';
 import { ChangeDetectorRef, Component, EventEmitter, Input, NgZone, OnChanges, OnDestroy, OnInit, Output, SimpleChanges, TemplateRef, ViewChild } from '@angular/core';
 import { FormsModule } from '@angular/forms';
-import { MatDialog, MatDialogConfig } from '@angular/material/dialog';
 import { ActivatedRoute, Router } from '@angular/router';
 import { ToastrService } from 'ngx-toastr';
 import { BehaviorSubject, Observable, Subscription, concatMap, filter, finalize, from, map, skip, take } from 'rxjs';
@@ -23,7 +22,6 @@ import { ReservationService } from '../../reservations/services/reservation.serv
 import { DataTableComponent } from '../../shared/data-table/data-table.component';
 import { DataTableFilterActionsDirective } from '../../shared/data-table/data-table-filter-actions.directive';
 import { ColumnSet } from '../../shared/data-table/models/column-data';
-import { ApplyCreditDialogComponent, ApplyCreditDialogData } from '../../shared/modals/apply-credit/apply-credit-dialog.component';
 import { UserGroups } from '../../users/models/user-enums';
 import { TransactionType, TransactionTypeLabels } from '../models/accounting-enum';
 import { CostCodesResponse } from '../models/cost-codes.model';
@@ -147,7 +145,6 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
     private authService: AuthService,
     private formatter: FormatterService,
     private utilityService: UtilityService,
-    private dialog: MatDialog,
     private cdr: ChangeDetectorRef,
     private zone: NgZone) {
   }
@@ -571,7 +568,9 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
       const costCodesForInvoice = this.allCostCodes.filter(costCode => costCode.officeId === invoice.officeId);
       const mappedLedgerLines = this.mappingService.mapLedgerLines(rawLedgerLines, costCodesForInvoice, this.transactionTypes);
       const totalAmount = invoice.totalAmount || 0;
-      const paidAmount = this.getPaidAmountFromLedgerLines(rawLedgerLines, invoice.officeId);
+      const paidAmount = rawLedgerLines.length > 0
+        ? this.getPaidAmountFromLedgerLines(rawLedgerLines, invoice.officeId)
+        : Number(invoice.paidAmount || 0);
       
       // Calculate due amount: Total - Paid
       const dueAmount = totalAmount - paidAmount;
@@ -1052,7 +1051,7 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
 
       if (isPaymentLine) {
         const amount = Number(line?.amount || 0);
-        return sum + Math.abs(isNaN(amount) ? 0 : amount);
+        return sum + (isNaN(amount) ? 0 : amount);
       }
 
       return sum;
@@ -1367,10 +1366,6 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
           CommonMessage.Success
         );
 
-        // Check if there's a credit amount remaining from the InvoicePaymentResponse
-        if (response.creditRemaining > 0) {
-          this.openCreditDialog(response, paymentRequest);
-        }
       },
       error: () => {
       }
@@ -1398,10 +1393,7 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
     ).subscribe({
       next: (response: InvoicePaymentResponse) => {
         this.handlePaymentResponse(response, paymentRequest);
-        // Only clear payment form if there's no credit remaining (credit dialog will handle clearing if needed)
-        if (response.creditRemaining <= 0) {
-          this.clearPaymentForm();
-        }
+        this.clearPaymentForm();
       },
       error: (err: HttpErrorResponse) => {
         this.toastr.error('Failed to apply payment', CommonMessage.Error);
@@ -1522,62 +1514,11 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
       }
     });
     
-    // Check if there's a credit amount remaining from the InvoicePaymentResponse
-    if (response.creditRemaining > 0) {
-      this.openCreditDialog(response, paymentRequest);
-    }
-    
     // Refresh the display to show updated paid amounts
     this.applyFilters();
     this.refreshInvoicesForCurrentScope();
   }
 
-  openCreditDialog(response: InvoicePaymentResponse, paymentRequest: InvoicePaymentRequest): void {
-    // Get unique reservationIds from the invoices in the response
-    const reservationIds = [...new Set(response.invoices
-      .map(inv => inv.reservationId)
-      .filter((id): id is string => id !== null && id !== undefined && id !== ''))];
-    
-    // Filter reservations to only include those from the response invoices
-    const availableReservationsForCredit = this.reservations
-      .filter(r => reservationIds.includes(r.reservationId))
-      .map(r => ({
-        value: r,
-        label: this.utilityService.getReservationDropdownLabel(r, this.companyContacts.find(c => c.contactId === r.contactId) ?? null)
-      }));
-    
-    // Get the invoice ID from the response (use first invoice that has the credit)
-    const invoiceIdWithCredit = response.invoices.length > 0 ? response.invoices[0].invoiceId : null;
-    
-    if (availableReservationsForCredit.length > 0 && invoiceIdWithCredit) {
-      const creditDialogData: ApplyCreditDialogData = {
-        creditAmount: response.creditRemaining,
-        reservations: availableReservationsForCredit,
-        invoiceId: invoiceIdWithCredit,
-        costCodeId: paymentRequest.costCodeId,
-        description: paymentRequest.description
-      };
-      
-      const creditDialogConfig: MatDialogConfig = {
-        width: '500px',
-        data: creditDialogData,
-        autoFocus: true,
-        restoreFocus: true,
-        disableClose: false
-      };
-      const creditDialogRef = this.dialog.open(ApplyCreditDialogComponent, creditDialogConfig);
-      
-      creditDialogRef.afterClosed().subscribe((creditResult: { success: boolean } | undefined) => {
-        if (creditResult?.success) {
-          // Clear payment form after credit is applied
-          this.clearPaymentForm();
-          // Refresh invoices and reservations to show updated paid amounts and creditDue
-          this.applyFilters();
-          this.loadReservations();
-        }
-      });
-    }
-  }
   //#endregion
 
   //#region Total Row Methods
@@ -1586,7 +1527,7 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
   }
 
   get totalPaidAmountSum(): number {
-    return this.invoicesDisplay.reduce((sum, inv) => sum + Math.abs(inv.paidAmountValue || 0), 0);
+    return this.invoicesDisplay.reduce((sum, inv) => sum + (inv.paidAmountValue || 0), 0);
   }
 
   get totalDueAmountSum(): number {
@@ -1750,7 +1691,6 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
     }
 
     const totalApplied = this.roundCurrencyValue(this.invoicesDisplay
-      .filter(inv => (inv.originalDueAmountValue || 0) > 0)
       .reduce((sum, inv) => sum + Math.abs(inv.applyAmountValue || 0), 0));
 
     const remaining = this.roundCurrencyValue(this.roundCurrencyValue(this.paymentAmount) - totalApplied);

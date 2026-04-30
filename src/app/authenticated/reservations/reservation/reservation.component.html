@@ -103,7 +103,7 @@
                   </div>
                 </div>
 
-                <!-- Edit Mode: Line 1: Property (when editable), Property Address, Credit Due (if > 0) -->
+                <!-- Edit Mode: Line 1: Property (when editable), Property Address -->
                 @if (canEditProperty) {
                   <!-- Reservation has not started: property is editable -->
                   <app-searchable-select
@@ -124,17 +124,10 @@
                   </app-searchable-select>
                 }
 
-                <mat-form-field appearance="outline" [ngClass]="canEditProperty ? ((reservation?.creditDue > 0) ? 'col-span-1' : 'col-span-2') : ((reservation?.creditDue > 0) ? 'col-span-2' : 'col-span-3')">
+                <mat-form-field appearance="outline" [class.col-span-2]="canEditProperty" [class.col-span-3]="!canEditProperty">
                   <mat-label>Property Address</mat-label>
                   <input matInput formControlName="propertyAddress" readonly class="readonly-field">
                 </mat-form-field>
-
-                @if (reservation?.creditDue > 0) {
-                  <mat-form-field appearance="outline" class="col-span-1 credit-due-field-wrapper">
-                    <mat-label>Credit Due</mat-label>
-                    <input matInput [value]="formatterService.currency(reservation.creditDue)" readonly class="credit-due-field">
-                  </mat-form-field>
-                }
                 <div class="col-span-1 flex items-center justify-end gap-4 reservation-first-row-toggles reservation-toggle-cell reservation-desktop-toggle-cell">
                   <mat-checkbox formControlName="isActive" color="primary">
                     IsActive
@@ -146,7 +139,7 @@
               }
 
               @if (isAddMode) {
-                <!-- Add Mode: Line 1: Property (1/4), Property Address (2/4 or 3/4), Credit Due (1/4 if > 0) -->
+                <!-- Add Mode: Line 1: Property (1/4), Property Address (2/4) -->
                 <app-searchable-select
                   class="col-span-1"
                   [renderInFormField]="true"
@@ -164,17 +157,10 @@
                   (valueChange)="onPropertyDropdownChange($event)">
                 </app-searchable-select>
 
-                <mat-form-field appearance="outline" [class.col-span-2]="!(reservation?.creditDue > 0)" [class.col-span-1]="reservation?.creditDue > 0">
+                <mat-form-field appearance="outline" class="col-span-2">
                   <mat-label>Property Address</mat-label>
                   <input matInput formControlName="propertyAddress" readonly class="readonly-field">
                 </mat-form-field>
-
-                @if (reservation?.creditDue > 0) {
-                  <mat-form-field appearance="outline" class="col-span-1 credit-due-field-wrapper">
-                    <mat-label>Credit Due</mat-label>
-                    <input matInput [value]="formatterService.currency(reservation.creditDue)" readonly class="credit-due-field">
-                  </mat-form-field>
-                }
                 <div class="col-span-1 flex items-center justify-end gap-4 reservation-first-row-toggles reservation-toggle-cell">
                   <mat-checkbox formControlName="isActive" color="primary">
                     IsActive

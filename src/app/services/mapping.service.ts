@@ -918,8 +918,6 @@ export class MappingService {
         code: this.toBooleanValue(o.code),
         departureLetterChecked: this.toBooleanValue(o.departureLetterChecked),
         departureLetterSent: this.toBooleanValue(o.departureLetterSent),
-        creditDue: o.creditDue,
-        hasCredit: o.creditDue > 0,
         isActive: o.isActive,
         createdOn: this.formatter.formatDateTimeString(o.createdOn)
       };

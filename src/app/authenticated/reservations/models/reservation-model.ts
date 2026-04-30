@@ -26,7 +26,6 @@ export interface ReservationRequest {
   lockBoxCode?: string | null;
   unitTenantCode?: string | null;
   currentInvoiceNo: number;
-  creditDue: number;
   billingMethodId: number;
   prorateTypeId: number;
   billingTypeId: number;
@@ -95,7 +94,6 @@ export interface ReservationResponse {
   lockBoxCode?: string | null;
   unitTenantCode?: string | null;
   currentInvoiceNo: number;
-  creditDue: number;
   billingMethodId: number;
   prorateTypeId: number;
   billingTypeId: number;
@@ -168,7 +166,6 @@ export interface ReservationListResponse {
   frequencyId: number;
   maidServiceFee: number;
   currentInvoiceNo: number;
-  creditDue: number;
   paymentReceived: boolean;
   welcomeLetterChecked: boolean;
   welcomeLetterSent: boolean;
@@ -220,8 +217,6 @@ export interface ReservationListDisplay {
   frequencyId?: number | null;
   maidService?: boolean | null;
   currentInvoiceNo: number;
-  creditDue: number;
-  hasCredit?: boolean | null;
   paymentReceived: boolean;
   welcomeLetterChecked: boolean;
   welcomeLetterSent: boolean;

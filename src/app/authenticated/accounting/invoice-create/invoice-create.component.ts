@@ -1011,13 +1011,14 @@ export class InvoiceCreateComponent extends BaseDocumentComponent implements OnI
 
     // Replace invoice placeholders
     if (this.selectedInvoice) {
+      const totals = this.getInvoiceDisplayTotals(this.selectedInvoice);
       result = result.replace(/\{\{invoiceName\}\}/g, this.selectedInvoice.invoiceCode || '');
       result = result.replace(/\{\{invoiceDate\}\}/g, this.formatterService.formatDateString(this.selectedInvoice.invoiceDate) || '');
       result = result.replace(/\{\{startDate\}\}/g, this.selectedInvoice.startDate ? this.formatterService.formatDateString(this.selectedInvoice.startDate) : '');
       result = result.replace(/\{\{endDate\}\}/g, this.selectedInvoice.endDate ? this.formatterService.formatDateString(this.selectedInvoice.endDate) : '');
-      result = result.replace(/\{\{totalAmount\}\}/g, this.formatterService.currency(this.selectedInvoice.totalAmount || 0));
-      result = result.replace(/\{\{paidAmount\}\}/g, this.formatterService.currency(this.selectedInvoice.paidAmount || 0));
-      result = result.replace(/\{\{totalDue\}\}/g, this.formatterService.currency((this.selectedInvoice.totalAmount || 0) - (this.selectedInvoice.paidAmount || 0)));
+      result = result.replace(/\{\{totalAmount\}\}/g, this.formatterService.currency(totals.totalCharges));
+      result = result.replace(/\{\{paidAmount\}\}/g, this.formatterService.currency(totals.totalPayments));
+      result = result.replace(/\{\{totalDue\}\}/g, this.formatterService.currency(totals.totalDue));
     }
 
     // Replace reservation placeholders
@@ -1150,6 +1151,28 @@ export class InvoiceCreateComponent extends BaseDocumentComponent implements OnI
       return true;
 
     return line.transactionTypeId === TransactionType.Payment;
+  }
+
+  getInvoiceDisplayTotals(invoice: InvoiceResponse): { totalCharges: number; totalPayments: number; totalDue: number } {
+    if (!invoice?.ledgerLines?.length) {
+      const totalCharges = Number(invoice?.totalAmount || 0);
+      const totalPayments = Number(invoice?.paidAmount || 0);
+      return {
+        totalCharges,
+        totalPayments,
+        totalDue: totalCharges - totalPayments
+      };
+    }
+
+    const paymentLines = invoice.ledgerLines.filter(line => this.isPaymentLedgerLine(line));
+    const chargeLines = invoice.ledgerLines.filter(line => !this.isPaymentLedgerLine(line));
+    const totalCharges = chargeLines.reduce((sum, line) => sum + (line.amount || 0), 0);
+    const totalPayments = paymentLines.reduce((sum, line) => sum + (line.amount || 0), 0);
+    return {
+      totalCharges,
+      totalPayments,
+      totalDue: totalCharges - totalPayments
+    };
   }
   
   getResponsiblePartiesBlock(): string {

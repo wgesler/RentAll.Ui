@@ -2,10 +2,9 @@ import { CommonModule } from '@angular/common';
 import { HttpErrorResponse } from '@angular/common/http';
 import { Component, Input, OnChanges, OnDestroy, OnInit, SimpleChanges } from '@angular/core';
 import { FormBuilder, FormControl, FormGroup, FormsModule, ReactiveFormsModule, Validators } from '@angular/forms';
-import { MatDialog, MatDialogConfig } from '@angular/material/dialog';
 import { ActivatedRoute, ParamMap, Router } from '@angular/router';
 import { ToastrService } from 'ngx-toastr';
-import { BehaviorSubject, Observable, Subscription, filter, finalize, firstValueFrom, map, skip, take, timeout } from 'rxjs';
+import { BehaviorSubject, Observable, Subscription, filter, finalize, map, skip, take, timeout } from 'rxjs';
 import { RouterUrl } from '../../../app.routes';
 import { CommonMessage, CommonTimeouts } from '../../../enums/common-message.enum';
 import { MaterialModule } from '../../../material.module';
@@ -18,8 +17,6 @@ import { GlobalSelectionService } from '../../organizations/services/global-sele
 import { OfficeService } from '../../organizations/services/office.service';
 import { ReservationListResponse } from '../../reservations/models/reservation-model';
 import { ReservationService } from '../../reservations/services/reservation.service';
-import { ApplyCreditToInvoiceDialogComponent, ApplyCreditToInvoiceDialogData } from '../../shared/modals/apply-credit-to-invoice/apply-credit-to-invoice-dialog.component';
-import { ApplyCreditDialogComponent, ApplyCreditDialogData } from '../../shared/modals/apply-credit/apply-credit-dialog.component';
 import { SearchableSelectComponent } from '../../shared/searchable-select/searchable-select.component';
 import { TitleBarSelectComponent } from '../../shared/titlebar-select/titlebar-select.component';
 import { TransactionType, TransactionTypeLabels, getTransactionTypeLabel as getAccountingTransactionTypeLabel } from '../models/accounting-enum';
@@ -105,7 +102,6 @@ export class InvoiceComponent implements OnInit, OnDestroy, OnChanges {
     private costCodesService: CostCodesService,
     public formatter: FormatterService,
     private utilityService: UtilityService,
-    private dialog: MatDialog,
     private globalSelectionService: GlobalSelectionService
   ) {
   }
@@ -333,108 +329,6 @@ export class InvoiceComponent implements OnInit, OnDestroy, OnChanges {
   //#endregion
 
   //#region Ledger Line Methods
-  async checkAndApplyCredit(): Promise<void> {
-    if (!this.selectedReservation || !this.selectedOffice) {
-      this.performSave();
-      return;
-    }
-
-    const creditAmount = this.selectedReservation.creditDue || 0;
-    if (creditAmount <= 0) {
-      this.performSave();
-      return;
-    }
-
-    if (document.activeElement instanceof HTMLElement) {
-      document.activeElement.blur();
-    }
-
-    try {
-      await firstValueFrom(this.costCodesService.areCostCodesLoaded().pipe(filter(loaded => loaded === true),take(1)));
-    } catch (_err: any) {
-      this.performSave();
-      return;
-    }
-
-    const dialogConfig: MatDialogConfig = {
-      width: '500px',
-      autoFocus: true,
-      restoreFocus: true,
-      disableClose: false,
-      hasBackdrop: true
-    };
-
-    const costCodes = this.costCodesService.getCostCodesForOffice(this.selectedOffice.officeId);
-    const debitCostCodes = costCodes.filter(c => c.isActive && c.transactionTypeId !== TransactionType.Payment);
-
-    if (!debitCostCodes || debitCostCodes.length === 0) {
-      this.toastr.warning('No debit cost codes found for this office. Cannot apply credit.', 'Missing Cost Code');
-      this.performSave();
-      return;
-    }
-
-    const debitCostCode = debitCostCodes[0];
-
-    const creditDialogData: ApplyCreditDialogData = {
-      creditAmount: creditAmount,
-      reservations: [{
-        value: this.selectedReservation,
-        label: this.utilityService.getReservationDropdownLabel(this.selectedReservation, null)
-      }],
-      invoiceId: '',
-      costCodeId: debitCostCode.costCodeId,
-      description: 'Credit applied from reservation'
-    };
-
-    const dialogRef = this.dialog.open(ApplyCreditDialogComponent, {
-      ...dialogConfig,
-      data: creditDialogData
-    });
-
-    dialogRef.afterClosed().subscribe(async (result: { success: boolean } | undefined) => {
-      if (result?.success) {
-        this.addCreditDebitLine(creditAmount, debitCostCode);
-        (this as any).appliedCreditAmount = creditAmount;
-      }
-      this.performSave();
-    });
-  }
-
-  addCreditDebitLine(creditAmount: number, debitCostCode: CostCodesResponse): void {
-    const debitLine: LedgerLineListDisplay = {
-      ledgerLineId: null,
-      lineNumber: this.ledgerLines.length + 1,
-      costCodeId: debitCostCode.costCodeId,
-      costCode: debitCostCode.costCode,
-      transactionType: this.transactionTypes.find(t => t.value === debitCostCode.transactionTypeId)?.label || 'Debit',
-      description: 'Credit applied from reservation',
-      amount: Math.abs(creditAmount),
-      isNew: true
-    };
-    
-    (debitLine as any).transactionTypeId = debitCostCode.transactionTypeId;
-    
-    this.ledgerLines.push(debitLine);
-    
-    this.updateTotalAmount();
-    
-    this.originalLedgerLines = JSON.parse(JSON.stringify(this.ledgerLines));
-  }
-
-  async updateReservationCreditAfterSave(creditAmount: number): Promise<void> {
-    if (!this.selectedReservation?.reservationId) {
-      return;
-    }
-
-    try {
-      await this.reservationService.updateModifiedReservation(this.selectedReservation.reservationId, reservation => ({
-        creditDue: Math.max(0, (reservation.creditDue || 0) - creditAmount)
-      }));
-    } catch (err: any) {
-      
-    }
-  }
-
   performSave(): void {
     this.isSubmitting = true;
 
@@ -526,15 +420,10 @@ export class InvoiceComponent implements OnInit, OnDestroy, OnChanges {
     save$.pipe(take(1), finalize(() => {
       this.isSubmitting = false;
     })).subscribe({
-      next: async (savedInvoice: InvoiceResponse) => {
+      next: (savedInvoice: InvoiceResponse) => {
         const message = isCreating ? 'Invoice created successfully' : 'Invoice updated successfully';
         this.toastr.success(message, CommonMessage.Success, { timeOut: CommonTimeouts.Success });
-        
-        if (isCreating && savedInvoice?.invoiceId && (this as any).appliedCreditAmount) {
-          await this.updateReservationCreditAfterSave((this as any).appliedCreditAmount);
-          (this as any).appliedCreditAmount = null;
-        }
-        
+
         if (isCreating) {
           this.toInvoiceCreate(savedInvoice || this.invoice, formValue);
           return;
@@ -755,10 +644,6 @@ export class InvoiceComponent implements OnInit, OnDestroy, OnChanges {
         this.ledgerLines = this.mappingService.mapLedgerLines(rawLedgerLines, this.officeCostCodes, this.transactionTypes);
         this.originalLedgerLines = JSON.parse(JSON.stringify(this.ledgerLines));
         this.updateTotalAmount();
-        
-        if (this.isAddMode && this.selectedReservation && this.selectedReservation.creditDue > 0) {
-          this.checkAndOfferCreditApplication();
-        }
       },
       error: (err: HttpErrorResponse) => {
         this.form.get('invoiceTotal')?.setValue('', { emitEvent: false });
@@ -1344,68 +1229,6 @@ export class InvoiceComponent implements OnInit, OnDestroy, OnChanges {
       return '';
     }
     return line.amount.toFixed(2);
-  }
-
-  checkAndOfferCreditApplication(): void {
-    if (!this.selectedReservation || !this.selectedOffice || this.selectedReservation.creditDue <= 0) {
-      return;
-    }
-
-    const creditAmount = this.selectedReservation.creditDue;
-    const paymentCostCode = this.creditCostCodes.find(c => c.isActive);
-    if (!paymentCostCode) {
-      return;
-    }
-
-    if (document.activeElement instanceof HTMLElement) {
-      document.activeElement.blur();
-    }
-
-    const dialogConfig: MatDialogConfig = {
-      width: '500px',
-      autoFocus: true,
-      restoreFocus: true,
-      disableClose: false,
-      hasBackdrop: true
-    };
-
-    const dialogData: ApplyCreditToInvoiceDialogData = {
-      creditAmount: creditAmount
-    };
-
-    const dialogRef = this.dialog.open(ApplyCreditToInvoiceDialogComponent, {
-      ...dialogConfig,
-      data: dialogData
-    });
-
-    dialogRef.afterClosed().subscribe((result: boolean | undefined) => {
-      if (result === true) {
-        this.addCreditPaymentLine(creditAmount, paymentCostCode);
-      }
-    });
-  }
-
-  addCreditPaymentLine(creditAmount: number, paymentCostCode: CostCodesResponse): void {
-    const paymentLine: LedgerLineListDisplay = {
-      ledgerLineId: null,
-      lineNumber: this.ledgerLines.length + 1,
-      costCodeId: paymentCostCode.costCodeId,
-      costCode: paymentCostCode.costCode,
-      transactionType: 'Payment',
-      description: `Credit applied from reservation`,
-      amount: Math.abs(creditAmount),
-      isNew: true
-    };
-    
-    (paymentLine as any).transactionTypeId = TransactionType.Payment;
-    
-    this.ledgerLines.push(paymentLine);
-    
-    (this as any).appliedCreditAmount = creditAmount;
-    
-    this.updateTotalAmount();
-    
-    this.originalLedgerLines = JSON.parse(JSON.stringify(this.ledgerLines));
   }
 
   addLedgerLine(): void {
