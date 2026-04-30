@@ -2799,6 +2799,30 @@ export class ReservationComponent implements OnInit, OnDestroy, CanComponentDeac
       this.router.navigateByUrl(RouterUrl.ReservationBoard);
       return;
     }
+    if (returnTo === 'invoice-list') {
+      const params: string[] = [];
+      const officeId = qp.get('officeId');
+      const reservationId = qp.get('reservationId');
+      const companyId = qp.get('companyId');
+      const organizationId = qp.get('organizationId');
+
+      if (officeId) {
+        params.push(`officeId=${officeId}`);
+      }
+      if (reservationId) {
+        params.push(`reservationId=${reservationId}`);
+      }
+      if (companyId) {
+        params.push(`companyId=${companyId}`);
+      }
+      if (organizationId) {
+        params.push(`organizationId=${organizationId}`);
+      }
+
+      const accountingUrl = params.length > 0 ? `${RouterUrl.AccountingList}?${params.join('&')}` : RouterUrl.AccountingList;
+      this.router.navigateByUrl(accountingUrl);
+      return;
+    }
     if (returnTo === 'reservation-list') {
       const path = qp.get('listReturnPath')?.trim();
       if (path && this.isAllowedReservationListReturnPath(path)) {

@@ -438,6 +438,37 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
     this.router.navigateByUrl(params.length > 0 ? `${url}?${params.join('&')}` : url);
   }
 
+  goToReservation(event: InvoiceResponse): void {
+    if (this.showPaymentForm) {
+      return;
+    }
+
+    const reservationId = event?.reservationId || null;
+    if (!reservationId) {
+      return;
+    }
+
+    const params: string[] = ['returnTo=invoice-list'];
+    const officeIdToUse = event?.officeId ?? this.selectedOffice?.officeId ?? null;
+    const companyIdToUse = this.selectedCompanyContact?.contactId || null;
+
+    if (officeIdToUse !== null && officeIdToUse !== undefined) {
+      params.push(`officeId=${officeIdToUse}`);
+    }
+    if (reservationId) {
+      params.push(`reservationId=${reservationId}`);
+    }
+    if (companyIdToUse) {
+      params.push(`companyId=${companyIdToUse}`);
+    }
+    if (this.isSuperUser && this.organizationId) {
+      params.push(`organizationId=${this.organizationId}`);
+    }
+
+    const reservationUrl = RouterUrl.replaceTokens(RouterUrl.Reservation, [reservationId]);
+    this.router.navigateByUrl(`${reservationUrl}?${params.join('&')}`);
+  }
+
   goToInvoiceCreateView(event: InvoiceResponse): void {
     if (this.showPaymentForm) {
       return;

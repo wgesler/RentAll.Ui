@@ -118,6 +118,7 @@ export class DataTableComponent implements OnChanges, OnInit {
   @Input() noDataMessage: string = 'No data found...'; // Message when table has no rows
   @Input() suppressRowClickOnDropdownCells: boolean = true;
   @Input() hasPropertyCodeLink: boolean = false;
+  @Input() hasReservationCodeLink: boolean = false;
   @Input() subheaderLabel: string = '';
   /** When true, layout-debug orange band wraps only the table/paginator block (below the purple filter row). */
   @Input() dbgBandMainBelowFilter = false;
@@ -146,6 +147,7 @@ export class DataTableComponent implements OnChanges, OnInit {
   @Output() contactClickEvent = new EventEmitter<PurposefulAny>();
   @Output() receiptClickEvent = new EventEmitter<PurposefulAny>();
   @Output() propertyCodeClickEvent = new EventEmitter<PurposefulAny>();
+  @Output() reservationCodeClickEvent = new EventEmitter<PurposefulAny>();
   @Output() inlineEditChangeEvent = new EventEmitter<PurposefulAny>();
   @Output() topButtonEvent = new EventEmitter<boolean>();
   @Output() topToggleButtonEvent = new EventEmitter<boolean>();
@@ -432,6 +434,11 @@ export class DataTableComponent implements OnChanges, OnInit {
   onPropertyCodeClick(event: Event, rowItem: PurposefulAny): void {
     event.stopPropagation();
     this.propertyCodeClickEvent.emit(rowItem);
+  }
+
+  onReservationCodeClick(event: Event, rowItem: PurposefulAny): void {
+    event.stopPropagation();
+    this.reservationCodeClickEvent.emit(rowItem);
   }
 
   emitSelectEvent(event: MatCheckboxChange, rowItem: PurposefulAny): void {

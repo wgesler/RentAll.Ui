@@ -258,6 +258,16 @@
                     } @else {
                       {{item[column.name]}}
                     }
+                  } @case ('reservationCode') {
+                    @if (hasReservationCodeLink && item?.reservationId) {
+                      <span (click)="onReservationCodeClick($event, item)"
+                        class="text-blue-700 underline cursor-pointer"
+                        id="table-reservation-code-link-{{templateTableId}}-{{i}}">
+                        {{item[column.name]}}
+                      </span>
+                    } @else {
+                      {{item[column.name]}}
+                    }
                   } @default {
                   @if (column.editableType === 'date' && item[(column.name ?? '') + 'ReadOnly'] !== true) {
                     <input type="date"
