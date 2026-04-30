@@ -284,7 +284,7 @@ export class ReservationBoardComponent implements OnInit, OnDestroy {
 
     this.isLoadingReservations = true;
     this.utilityService.addLoadItem(this.itemsToLoad$, 'reservations');
-    this.reservationService.getActiveReservationList().pipe(take(1),finalize(() => {this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'reservations');})).subscribe({
+    this.reservationService.getReservationList().pipe(take(1),finalize(() => {this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'reservations');})).subscribe({
       next: (reservations: ReservationListResponse[]) => {
         const workingOfficeId = this.selectedOfficeId;
         this.reservations = (reservations || []).filter(r => workingOfficeId == null || r.officeId === workingOfficeId);

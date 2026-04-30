@@ -756,6 +756,12 @@ export class InvoiceComponent implements OnInit, OnDestroy, OnChanges {
     this.accountingService.getMonthlyLedgerLines(request).pipe(take(1)).subscribe({
       next: (response: InvoiceMonthlyDataResponse) => {
         const rawLedgerLines = response.ledgerLines || [];
+        console.log('Invoice monthly ledger lines response:', {
+          reservationId: request.reservationId,
+          startDate: request.startDate,
+          endDate: request.endDate,
+          rawLedgerLines
+        });
         this.ledgerLines = this.mappingService.mapLedgerLines(rawLedgerLines, this.officeCostCodes, this.transactionTypes);
         this.originalLedgerLines = JSON.parse(JSON.stringify(this.ledgerLines));
         this.updateTotalAmount();
