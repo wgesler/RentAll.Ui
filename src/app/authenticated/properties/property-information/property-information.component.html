@@ -22,7 +22,7 @@
         </mat-form-field>
       </div>
     }
-    <form [formGroup]="form" class="letter-information-form">
+    <form [formGroup]="form" class="letter-information-form form-hide-error-text">
       <div class="property-tab-actions-band">
         <div class="property-tab-actions-band__row property-information-form-actions">
           <button mat-raised-button type="button" color="primary" id="save-property-information-button" (click)="savePropertyLetter()"
@@ -56,7 +56,7 @@
             <mat-panel-title>Property Information</mat-panel-title>
           </mat-expansion-panel-header>
           <div class="form-fields">
-            <div class="grid grid-cols-2">
+            <div class="grid grid-cols-2 form-standard-grid">
               <mat-form-field appearance="outline">
                 <mat-label>Mailbox Instructions</mat-label>
                 <textarea matInput formControlName="mailboxInstructions" rows="3"></textarea>
@@ -73,15 +73,10 @@
               <textarea matInput formControlName="parkingInformation" rows="3"></textarea>
             </mat-form-field>
 
-            <div class="grid grid-cols-3">
+            <div class="grid grid-cols-2 form-standard-grid">
               <mat-form-field appearance="outline">
                 <mat-label>Laundry</mat-label>
                 <input matInput formControlName="laundry">
-              </mat-form-field>
-
-              <mat-form-field appearance="outline">
-                <mat-label>Furnishings</mat-label>
-                <input matInput formControlName="providedFurnishings">
               </mat-form-field>
 
               <mat-form-field appearance="outline">
@@ -90,7 +85,7 @@
               </mat-form-field>
             </div>
 
-            <div class="grid grid-cols-2">
+            <div class="grid grid-cols-2 form-standard-grid">
               <mat-form-field appearance="outline">
                 <mat-label>Television Source</mat-label>
                 <input matInput formControlName="televisionSource">

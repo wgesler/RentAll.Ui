@@ -588,7 +588,7 @@ export class PropertyWelcomeLetterComponent extends BaseDocumentComponent implem
       result = result.replace(/\{\{access\}\}/g, this.propertyLetter.access || '');
       result = result.replace(/\{\{amenities\}\}/g, this.propertyLetter.amenities || '');
       result = result.replace(/\{\{laundry\}\}/g, this.propertyLetter.laundry || '');
-      result = result.replace(/\{\{providedFurnishings\}\}/g, this.propertyLetter.providedFurnishings || '');
+      result = result.replace(/\{\{providedFurnishings\}\}/g, '');
       result = result.replace(/\{\{housekeeping\}\}/g, this.propertyLetter.housekeeping || '');
       result = result.replace(/\{\{televisionSource\}\}/g, this.propertyLetter.televisionSource || '');
       result = result.replace(/\{\{internetService\}\}/g, this.propertyLetter.internetService || '');

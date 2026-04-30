@@ -100,8 +100,8 @@ export const INSPECTION_SECTIONS: ChecklistSection[] = [
       { text: 'Chair', requiresPhoto: false, requiresCount: false },
       { text: 'End Tables', requiresPhoto: false, requiresCount: false },
       { text: 'Coffee Table', requiresPhoto: false, requiresCount: false },
-      { text: 'Dish Box', requiresPhoto: false, requiresCount: false },
-      { text: 'Dish Remote', requiresPhoto: false, requiresCount: false },      { text: 'Stereo', requiresPhoto: false, requiresCount: false },
+      { text: 'Cable Box', requiresPhoto: false, requiresCount: false },
+      { text: 'Cable Remote', requiresPhoto: false, requiresCount: false },      { text: 'Stereo', requiresPhoto: false, requiresCount: false },
       { text: 'Surge Protector', requiresPhoto: false, requiresCount: false },
       // Inspection items
       { text: 'Furniture setup, clean and dusted.', requiresPhoto: false, requiresCount: false },
@@ -306,9 +306,9 @@ export const INSPECTION_SECTIONS: ChecklistSection[] = [
   },
   {
     key: 'mustHavePhotosVideos',
-    title: 'Must Have Photos / Videos',
+    title: 'Must Have Photos ',
     items: [
-      { text: 'Unit access key/code working (video).', requiresPhoto: true, requiresCount: false },
+      { text: 'Unit access key/code working.', requiresPhoto: true, requiresCount: false },
       { text: 'WiFi connection and speed screenshots.', requiresPhoto: true, requiresCount: false },
       { text: 'Mailbox key and number photo.', requiresPhoto: true, requiresCount: false },
       { text: 'Welcome basket photo.', requiresPhoto: true, requiresCount: false },

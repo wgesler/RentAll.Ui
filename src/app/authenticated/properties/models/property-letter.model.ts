@@ -8,7 +8,6 @@ export interface PropertyLetterRequest {
   access?: string;
   amenities?: string;
   laundry?: string;
-  providedFurnishings?: string;
   housekeeping?: string;
   televisionSource?: string;
   internetService?: string;
@@ -32,7 +31,6 @@ export interface PropertyLetterResponse {
   access?: string;
   amenities?: string;
   laundry?: string;
-  providedFurnishings?: string;
   housekeeping?: string;
   televisionSource?: string;
   internetService?: string;
@@ -69,7 +67,6 @@ export interface PropertyLetterFormData {
   access: string | null;
   amenaties: string | null;
   laundry: string | null;
-  providedFurnishings: string | null;
   housekeeping: string | null;
   televisionSource: string | null;
   internetService: string | null;

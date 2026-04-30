@@ -15,17 +15,18 @@
   .form-fields {
     display: flex;
     flex-direction: column;
-    gap: 16px;
-    padding: 16px 0;
+    gap: var(--global-form-row-gap);
+    padding: 0;
   }
 
   .mt-4 {
-    margin-top: 16px;
+    margin-top: calc(2 * var(--global-form-row-gap));
   }
 
   .grid {
     display: grid;
-    gap: 16px;
+    column-gap: var(--global-form-field-gap-x);
+    row-gap: var(--global-form-row-gap);
   }
 
   .grid-cols-2 {
