@@ -45,7 +45,7 @@ import { GenericModalData } from '../../shared/modals/generic/models/generic-mod
 import { AddAlertDialogComponent, AddAlertDialogData } from '../../shared/modals/add-alert-dialog/add-alert-dialog.component';
 import { UnsavedChangesDialogService } from '../../shared/modals/unsaved-changes/unsaved-changes-dialog.service';
 import { LeaseComponent } from '../lease/lease.component';
-import { BillingMethod, BillingType, DepositType, Frequency, ProrateType, ReservationNotice, ReservationStatus, ReservationType, getBillingMethods, getBillingTypes, getDepositTypes, getFrequencies, getProrateTypes, getReservationNotices, getReservationStatuses, getReservationTypes } from '../models/reservation-enum';
+import { BillingMethod, BillingType, DepositType, Frequency, ProrateType, ReservationNotice, ReservationStatus, ReservationType, getBillingMethods, getBillingTypes, getDepositTypes, getFrequencies, getProrateTypes, getReservationNotices, getReservationStatus, getReservationStatuses, getReservationTypes } from '../models/reservation-enum';
 import { ExtraFeeLineRequest, ReservationListResponse, ReservationRequest, ReservationResponse } from '../models/reservation-model';
 import { LeaseReloadService } from '../services/lease-reload.service';
 import { ReservationService } from '../services/reservation.service';
@@ -2278,16 +2278,17 @@ export class ReservationComponent implements OnInit, OnDestroy, CanComponentDeac
     const propertyCode = this.getReservationNotificationPropertyCode(response);
     const arrivalDate = this.getReservationNotificationDateText(response.arrivalDate);
     const departureDate = this.getReservationNotificationDateText(response.departureDate);
+    const reservationStatus = getReservationStatus(response.reservationStatusId);
     const reservationUrl = this.getReservationNotificationUrl(response.reservationId);
     const reason = this.getReservationNotificationReason(context);
     const subject = `Reservation Update: ${reservationLabel}`;
     const includeLink = !context.isCancellation;
     const plainTextContent = includeLink
-      ? `${reason}\n\nPropertyCode: ${propertyCode}\nReservation: ${reservationLabel}\nArrival Date: ${arrivalDate}\nDeparture Date: ${departureDate}\nLink: ${reservationUrl}`
-      : `${reason}\n\nPropertyCode: ${propertyCode}\nReservation: ${reservationLabel}\nArrival Date: ${arrivalDate}\nDeparture Date: ${departureDate}`;
+      ? `${reason}\n\nPropertyCode: ${propertyCode}\nReservation: ${reservationLabel}\nArrival Date: ${arrivalDate}\nDeparture Date: ${departureDate}\nReservation Status: ${reservationStatus}\nLink: ${reservationUrl}`
+      : `${reason}\n\nPropertyCode: ${propertyCode}\nReservation: ${reservationLabel}\nArrival Date: ${arrivalDate}\nDeparture Date: ${departureDate}\nReservation Status: ${reservationStatus}`;
     const htmlContent = includeLink
-      ? `<p>${reason}</p><p><strong>PropertyCode:</strong> ${propertyCode}<br><strong>Reservation:</strong> ${reservationLabel}<br><strong>Arrival Date:</strong> ${arrivalDate}<br><strong>Departure Date:</strong> ${departureDate}</p><p><a href="${reservationUrl}">${reservationUrl}</a></p>`
-      : `<p>${reason}</p><p><strong>PropertyCode:</strong> ${propertyCode}<br><strong>Reservation:</strong> ${reservationLabel}<br><strong>Arrival Date:</strong> ${arrivalDate}<br><strong>Departure Date:</strong> ${departureDate}</p>`;
+      ? `<p>${reason}</p><p><strong>PropertyCode:</strong> ${propertyCode}<br><strong>Reservation:</strong> ${reservationLabel}<br><strong>Arrival Date:</strong> ${arrivalDate}<br><strong>Departure Date:</strong> ${departureDate}<br><strong>Reservation Status:</strong> ${reservationStatus}</p><p><a href="${reservationUrl}">${reservationUrl}</a></p>`
+      : `<p>${reason}</p><p><strong>PropertyCode:</strong> ${propertyCode}<br><strong>Reservation:</strong> ${reservationLabel}<br><strong>Arrival Date:</strong> ${arrivalDate}<br><strong>Departure Date:</strong> ${departureDate}<br><strong>Reservation Status:</strong> ${reservationStatus}</p>`;
 
     const request: EmailRequest = {
       organizationId: response.organizationId || user?.organizationId || '',
