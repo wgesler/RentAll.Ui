@@ -1612,24 +1612,20 @@ export class InvoiceCreateComponent extends BaseDocumentComponent implements OnI
     const reservationId = this.selectedReservation?.reservationId ?? this.reservationId ?? null;
     const invoiceId = this.selectedInvoice?.invoiceId ?? this.invoiceId ?? null;
 
-    if (returnTo === 'invoice-edit' && invoiceId) {
-      const originReturnTo = queryParams['originReturnTo'] || 'accounting';
-      const editParams: string[] = [`returnTo=${encodeURIComponent(originReturnTo)}`];
+    if (returnTo === 'invoice-edit') {
+      const accountingParams: string[] = ['tab=0'];
       if (officeId !== null && officeId !== undefined) {
-        editParams.push(`officeId=${officeId}`);
-      }
-      if (reservationId) {
-        editParams.push(`reservationId=${reservationId}`);
+        accountingParams.push(`officeId=${officeId}`);
       }
       if (this.companyId) {
-        editParams.push(`companyId=${this.companyId}`);
+        accountingParams.push(`companyId=${this.companyId}`);
       }
       const organizationIdParam = queryParams['organizationId'];
       if (organizationIdParam) {
-        editParams.push(`organizationId=${encodeURIComponent(organizationIdParam)}`);
+        accountingParams.push(`organizationId=${encodeURIComponent(organizationIdParam)}`);
       }
-      const editUrl = `${RouterUrl.replaceTokens(RouterUrl.Accounting, [invoiceId])}?${editParams.join('&')}`;
-      this.router.navigateByUrl(editUrl);
+      const accountingUrl = `${RouterUrl.AccountingList}?${accountingParams.join('&')}`;
+      this.router.navigateByUrl(accountingUrl);
       return;
     }
 
