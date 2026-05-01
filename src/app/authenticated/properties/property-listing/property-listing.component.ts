@@ -46,9 +46,11 @@ export class PropertyListingComponent implements OnChanges {
   photoCount = 0;
   isUploadingPhotos = false;
   listingDescriptionExpanded = false;
+  descriptionHasOverflow = false;
   listingImageTargetMinBytes = 150 * 1024;
   listingImageTargetMaxBytes = 500 * 1024;
   @ViewChild('photoUploadInput') photoUploadInput?: ElementRef<HTMLInputElement>;
+  @ViewChild('descriptionContent') descriptionContent?: ElementRef<HTMLElement>;
 
   constructor(
     private formatter: FormatterService,
@@ -59,6 +61,12 @@ export class PropertyListingComponent implements OnChanges {
   ) {}
 
   ngOnChanges(changes: SimpleChanges): void {
+    if (changes['property']) {
+      this.listingDescriptionExpanded = false;
+      this.descriptionHasOverflow = false;
+      this.queueDescriptionOverflowCheck();
+    }
+
     if (changes['initialPhotos']) {
       this.applyInitialPhotos();
     }
@@ -97,6 +105,23 @@ export class PropertyListingComponent implements OnChanges {
     return `${parts.join(' ')}.`;
   }
 
+  get hasRichDescription(): boolean {
+    const value = this.property?.description?.trim() || '';
+    return /<[^>]+>/.test(value);
+  }
+
+  get listingDescriptionHtml(): string {
+    return this.property?.description?.trim() || '';
+  }
+
+  get listingDescriptionHtmlPreview(): string {
+    return this.listingDescriptionHtml;
+  }
+
+  get listingDescriptionHtmlDisplay(): string {
+    return this.listingDescriptionExpanded ? this.listingDescriptionHtml : this.listingDescriptionHtmlPreview;
+  }
+
   get listingDescriptionShort(): string {
     const full = this.listingDescriptionText;
     if (full.length <= 280) {
@@ -106,11 +131,11 @@ export class PropertyListingComponent implements OnChanges {
   }
 
   get shouldShowDescriptionToggle(): boolean {
-    return this.listingDescriptionText.length > 280;
+    return this.descriptionHasOverflow;
   }
 
   get listingDescriptionDisplay(): string {
-    return this.listingDescriptionExpanded ? this.listingDescriptionText : this.listingDescriptionShort;
+    return this.listingDescriptionText;
   }
 
   get listingPropertyType(): string {
@@ -216,6 +241,26 @@ export class PropertyListingComponent implements OnChanges {
 
   toggleDescriptionExpanded(): void {
     this.listingDescriptionExpanded = !this.listingDescriptionExpanded;
+    this.queueDescriptionOverflowCheck();
+  }
+
+  queueDescriptionOverflowCheck(): void {
+    setTimeout(() => {
+      this.updateDescriptionOverflow();
+    });
+  }
+
+  updateDescriptionOverflow(): void {
+    const content = this.descriptionContent?.nativeElement;
+    if (!content) {
+      return;
+    }
+
+    if (this.listingDescriptionExpanded) {
+      return;
+    }
+
+    this.descriptionHasOverflow = (content.scrollHeight - content.clientHeight) > 1;
   }
 
   splitList(raw: string | null | undefined): string[] {

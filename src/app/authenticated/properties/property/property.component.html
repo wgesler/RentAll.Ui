@@ -686,10 +686,29 @@
                 <mat-panel-title>Property Description</mat-panel-title>
               </mat-expansion-panel-header>
               <div class="grid grid-cols-4 gap-x-1.5 gap-y-4">
-                <mat-form-field appearance="outline" class="col-span-4">
-                  <mat-label>Property Description</mat-label>
-                  <textarea matInput formControlName="description" rows="6"></textarea>
-                </mat-form-field>
+                <div class="col-span-4 description-editor-wrap">
+                  <div class="description-editor-label">Property Description</div>
+                  <div class="description-editor-toolbar">
+                    <button type="button" mat-stroked-button (click)="applyDescriptionFormat('bold')">
+                      <mat-icon>format_bold</mat-icon>
+                    </button>
+                    <button type="button" mat-stroked-button (click)="applyDescriptionFormat('italic')">
+                      <mat-icon>format_italic</mat-icon>
+                    </button>
+                    <button type="button" mat-stroked-button (click)="applyDescriptionFormat('underline')">
+                      <mat-icon>format_underlined</mat-icon>
+                    </button>
+                    <button type="button" mat-stroked-button (click)="applyDescriptionFormat('paragraph')">
+                      <mat-icon>subject</mat-icon>
+                    </button>
+                  </div>
+                  <div
+                    #descriptionEditor
+                    class="description-editor-input"
+                    contenteditable="true"
+                    (input)="onDescriptionInput($event)">
+                  </div>
+                </div>
                 <mat-form-field appearance="outline" class="col-span-4">
                   <mat-label>Notes</mat-label>
                   <textarea matInput formControlName="notes" rows="3"></textarea>

@@ -1,5 +1,5 @@
 import { CommonModule } from '@angular/common';
-import { Component, EventEmitter, HostListener, OnDestroy, OnInit, Output, ViewChild } from '@angular/core';
+import { AfterViewInit, Component, ElementRef, EventEmitter, HostListener, OnDestroy, OnInit, Output, ViewChild } from '@angular/core';
 import { AbstractControl, FormBuilder, FormControl, FormGroup, FormsModule, ReactiveFormsModule, ValidationErrors, Validators } from '@angular/forms';
 import { MatDialog } from '@angular/material/dialog';
 import { ActivatedRoute } from '@angular/router';
@@ -56,7 +56,7 @@ import { UnsavedChangesDialogService } from '../../shared/modals/unsaved-changes
     styleUrls: ['./property.component.scss']
 })
 
-export class PropertyComponent implements OnInit, OnDestroy, CanComponentDeactivate {
+export class PropertyComponent implements OnInit, AfterViewInit, OnDestroy, CanComponentDeactivate {
   readonly newOwnerOptionValue = '__new_owner__';
   readonly newVendorOptionValue = '__new_vendor__';
   readonly propertyCodeDefaultPrompt = 'Enter Code';
@@ -67,6 +67,7 @@ export class PropertyComponent implements OnInit, OnDestroy, CanComponentDeactiv
   isServiceError: boolean = false;
   form: FormGroup;
   @ViewChild(PropertyAgreementComponent) propertyAgreementSection?: PropertyAgreementComponent;
+  @ViewChild('descriptionEditor') descriptionEditor?: ElementRef<HTMLDivElement>;
   isSubmitting: boolean = false;
   isAddMode: boolean = false;
   
@@ -205,6 +206,39 @@ export class PropertyComponent implements OnInit, OnDestroy, CanComponentDeactiv
     this.setupOwnerSelectionHandlers();
     this.setupVendorSelectionHandlers();
     this.setupLeaseTypeOwnerVendorValidators();
+  }
+
+  ngAfterViewInit(): void {
+    this.syncDescriptionEditorFromForm();
+  }
+
+  onDescriptionInput(event: Event): void {
+    const element = event.target as HTMLDivElement;
+    const descriptionControl = this.form.get('description');
+    descriptionControl?.setValue(element.innerHTML, { emitEvent: false });
+    descriptionControl?.markAsDirty();
+    descriptionControl?.markAsTouched();
+  }
+
+  applyDescriptionFormat(format: 'bold' | 'italic' | 'underline' | 'paragraph'): void {
+    const editor = this.descriptionEditor?.nativeElement;
+    if (!editor) {
+      return;
+    }
+
+    editor.focus();
+    if (format === 'paragraph') {
+      // Force a visible new paragraph break at caret.
+      const inserted = document.execCommand('insertParagraph', false);
+      if (!inserted) {
+        document.execCommand('insertHTML', false, '<p><br></p>');
+      }
+      this.form.get('description')?.setValue(editor.innerHTML);
+      return;
+    }
+
+    document.execCommand(format, false);
+    this.form.get('description')?.setValue(editor.innerHTML);
   }
 
   getProperty(): void {
@@ -711,6 +745,7 @@ export class PropertyComponent implements OnInit, OnDestroy, CanComponentDeactiv
       
       // Set all values at once without emitting (avoid validation/toast on load)
       this.form.patchValue(formData, { emitEvent: false });
+      this.syncDescriptionEditorFromForm();
       this.syncConditionalFieldState();
       this.applyOwnerVendorLeaseValidators();
       this.form.markAsUntouched();
@@ -1732,6 +1767,7 @@ export class PropertyComponent implements OnInit, OnDestroy, CanComponentDeactiv
     }
 
     this.form.reset(this.cloneFormState(this.savedFormState), { emitEvent: false });
+    this.syncDescriptionEditorFromForm();
     this.applyOfficeControlState();
     this.applyOwnerVendorLeaseValidators();
     this.syncConditionalFieldState();
@@ -1757,6 +1793,19 @@ export class PropertyComponent implements OnInit, OnDestroy, CanComponentDeactiv
   //#endregion
 
   //#region Utility Methods
+  syncDescriptionEditorFromForm(): void {
+    const editor = this.descriptionEditor?.nativeElement;
+    if (!editor) {
+      return;
+    }
+
+    const description = this.form?.get('description')?.value ?? '';
+    const nextHtml = typeof description === 'string' ? description : String(description);
+    if (editor.innerHTML !== nextHtml) {
+      editor.innerHTML = nextHtml;
+    }
+  }
+
   resolveOfficeScope(officeId: number | null): void {
     this.selectedOffice = this.utilityService.resolveSelectedOfficeById(this.offices, officeId);
   }

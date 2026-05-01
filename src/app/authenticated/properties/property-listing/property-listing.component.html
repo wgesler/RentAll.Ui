@@ -1,39 +1,21 @@
 <div class="listing-container">
   @if (property) {
     <div class="listing-hero">
-      <div class="listing-hero__left">
-        <h2 class="listing-title">{{ listingHeaderTitle }}</h2>
-        <div class="listing-subtitle">{{ listingAddressLine }}</div>
-        @if (listingViews.length > 0) {
-          <div class="listing-inline-views">
-            <span class="listing-inline-views__label">Views:</span>
-            <span class="listing-inline-views__value">{{ listingViews.join(', ') }}</span>
+      <div class="listing-hero__main">
+        <div class="listing-hero__main-header">
+          <div class="listing-hero__left">
+            <h2 class="listing-title">{{ listingHeaderTitle }}</h2>
+            <div class="listing-subtitle">{{ listingAddressLine }}</div>
+            @if (listingViews.length > 0) {
+              <div class="listing-inline-views">
+                <span class="listing-inline-views__label">Views:</span>
+                <span class="listing-inline-views__value">{{ listingViews.join(', ') }}</span>
+              </div>
+            }
           </div>
-        }
-        <div class="listing-description">
-          {{ listingDescriptionDisplay }}
-          @if (shouldShowDescriptionToggle) {
-            <button type="button" class="listing-show-more-btn" (click)="toggleDescriptionExpanded()">
-              {{ listingDescriptionExpanded ? 'Show less' : 'Show more' }} >
-            </button>
-          }
-        </div>
-      </div>
-      <div class="listing-hero__right">
-        <div class="listing-rate-card">
-          <div class="listing-rate-card__label">Monthly</div>
-          <div class="listing-rate-card__value">{{ listingPrimaryRate }}</div>
-          <div class="listing-rate-card__secondary">Daily: {{ listingDailyRate }}</div>
-        </div>
-      </div>
-    </div>
-
-    <div class="listing-content-layout">
-      <div class="listing-content-layout__main">
-        <div class="listing-details-grid">
-          <div class="listing-details-col">
-            <div class="listing-upload-action">
-              @if (!isReadOnly) {
+          @if (!isReadOnly) {
+            <div class="listing-hero__actions">
+              <div class="listing-upload-action">
                 <button
                   type="button"
                   mat-raised-button
@@ -55,18 +37,56 @@
                     <mat-spinner [diameter]="18"></mat-spinner>
                   </div>
                 }
-              }
+              </div>
             </div>
-            @if (!isReadOnly) {
-              <input
-                #photoUploadInput
-                type="file"
-                accept="image/*"
-                multiple
-                style="display: none;"
-                (change)="onPhotosSelected($event)" />
-            }
+          }
+        </div>
+        <div class="listing-hero__description listing-description">
+          @if (hasRichDescription) {
+            <div
+              #descriptionContent
+              class="listing-description__content"
+              [class.listing-description__content--collapsed]="!listingDescriptionExpanded"
+              [innerHTML]="listingDescriptionHtmlDisplay">
+            </div>
+          } @else {
+            <div
+              #descriptionContent
+              class="listing-description__content"
+              [class.listing-description__content--collapsed]="!listingDescriptionExpanded">
+              {{ listingDescriptionDisplay }}
+            </div>
+          }
+          @if (shouldShowDescriptionToggle) {
+            <button type="button" class="listing-show-more-btn" (click)="toggleDescriptionExpanded()">
+              {{ listingDescriptionExpanded ? 'Show less' : 'Show more' }} >
+            </button>
+          }
+        </div>
+      </div>
+      <div class="listing-hero__rate">
+        <div class="listing-rate-card">
+          <div class="listing-rate-card__label">Monthly</div>
+          <div class="listing-rate-card__value">{{ listingPrimaryRate }}</div>
+          <div class="listing-rate-card__secondary">Daily: {{ listingDailyRate }}</div>
+        </div>
+      </div>
+    </div>
 
+    <div class="listing-content-layout">
+      <div class="listing-content-layout__main">
+        @if (!isReadOnly) {
+          <input
+            #photoUploadInput
+            type="file"
+            accept="image/*"
+            multiple
+            style="display: none;"
+            (change)="onPhotosSelected($event)" />
+        }
+
+        <div class="listing-details-grid">
+          <div class="listing-details-col">
             @if (listingPhotos.length > 0) {
               <div class="listing-photo-grid">
                 @for (photo of listingPhotos; track photo.id) {
