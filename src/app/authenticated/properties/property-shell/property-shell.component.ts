@@ -11,6 +11,7 @@ import { DocumentListComponent } from '../../documents/document-list/document-li
 import { EmailListComponent } from '../../email/email-list/email-list.component';
 import { PropertyTitleBarContext } from '../models/property-title-bar-context.model';
 import { PropertyInformationComponent } from '../property-information/property-information.component';
+import { PropertyListingComponent } from '../property-listing/property-listing.component';
 import { PropertyComponent } from '../property/property.component';
 import { PropertyWelcomeLetterComponent } from '../property-welcome/property-welcome-letter.component';
 import { SearchableSelectOption } from '../../shared/searchable-select/searchable-select.component';
@@ -27,6 +28,7 @@ import { AddAlertDialogComponent, AddAlertDialogData } from '../../shared/modals
     TitleBarSelectComponent,
     PropertyComponent,
     PropertyInformationComponent,
+    PropertyListingComponent,
     PropertyWelcomeLetterComponent,
     EmailListComponent,
     DocumentListComponent
@@ -60,8 +62,10 @@ export class PropertyShellComponent implements OnInit, CanComponentDeactivate {
     this.isAdminUser = this.authService.isAdmin();
     this.route.queryParams.subscribe(queryParams => {
       if (queryParams['tab'] === 'documents') {
-        this.selectedTabIndex = 4;
+        this.selectedTabIndex = 5;
       } else if (queryParams['tab'] === 'email') {
+        this.selectedTabIndex = 4;
+      } else if (queryParams['tab'] === 'listing') {
         this.selectedTabIndex = 3;
       }
     });
@@ -160,10 +164,10 @@ export class PropertyShellComponent implements OnInit, CanComponentDeactivate {
 
   onReservationDropdownChange(value: string | number | null): void {
     this.propertySection?.applyTitleBarReservationSelection(value);
-    if (this.selectedTabIndex === 3) {
+    if (this.selectedTabIndex === 4) {
       this.propertyEmailList?.reload();
     }
-    if (this.selectedTabIndex === 4) {
+    if (this.selectedTabIndex === 5) {
       this.propertyDocumentList?.reload();
     }
   }
@@ -255,10 +259,10 @@ export class PropertyShellComponent implements OnInit, CanComponentDeactivate {
       }
 
       this.routeTabQueryParam(nextIndex);
-      if (nextIndex === 3) {
+      if (nextIndex === 4) {
         this.propertyEmailList?.reload();
       }
-      if (nextIndex === 4) {
+      if (nextIndex === 5) {
         this.propertyDocumentList?.reload();
       }
     } finally {
@@ -269,8 +273,10 @@ export class PropertyShellComponent implements OnInit, CanComponentDeactivate {
   routeTabQueryParam(tabIndex: number): void {
     let tab: string | null = null;
     if (tabIndex === 3) {
-      tab = 'email';
+      tab = 'listing';
     } else if (tabIndex === 4) {
+      tab = 'email';
+    } else if (tabIndex === 5) {
       tab = 'documents';
     }
 

@@ -55,6 +55,7 @@ import { authRouteGuard } from './guards/auth-guard';
 import { canDeactivateGuard } from './guards/can-deactivate-guard';
 import { unAuthRouteGuard } from './guards/un-auth-guard';
 import { LoginComponent } from './public/login/login.component';
+import { PropertyListingPublicComponent } from './public/property-listing-public/property-listing-public.component';
 import { PageNotFoundComponent } from './shared/page-not-found/page-not-found.component';
 
 export enum RouterToken {
@@ -242,6 +243,7 @@ export const authRoutes: Routes = [
 export const routes: Routes = [
 	{ path: '', redirectTo: RouterToken.Login, pathMatch: 'full' },
   { path: RouterToken.Login, component: LoginComponent, canActivate: [unAuthRouteGuard] },
+  { path: 'listing/:token', component: PropertyListingPublicComponent },
   { path: RouterToken.Auth, component: LayoutComponent, children: authRoutes, canActivate: [authRouteGuard] },
   { path: '**', component: PageNotFoundComponent },
 ];

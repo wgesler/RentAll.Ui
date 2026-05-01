@@ -1,0 +1,16 @@
+<div class="p-4">
+  @if (isLoading) {
+    <mat-spinner [diameter]="40"></mat-spinner>
+  } @else if (property) {
+    <app-property-listing
+      [property]="property"
+      [propertyId]="property.propertyId"
+      [propertyCode]="property.propertyCode"
+      [isReadOnly]="true"
+      [disablePhotoApiLoad]="true"
+      [initialPhotos]="photos">
+    </app-property-listing>
+  } @else {
+    <div>Listing not found or link has expired.</div>
+  }
+</div>

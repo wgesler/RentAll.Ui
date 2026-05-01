@@ -1,0 +1,135 @@
+<div class="listing-container">
+  @if (property) {
+    <div class="listing-hero">
+      <div class="listing-hero__left">
+        <h2 class="listing-title">{{ listingHeaderTitle }}</h2>
+        <div class="listing-subtitle">{{ listingAddressLine }}</div>
+        @if (listingViews.length > 0) {
+          <div class="listing-inline-views">
+            <span class="listing-inline-views__label">Views:</span>
+            <span class="listing-inline-views__value">{{ listingViews.join(', ') }}</span>
+          </div>
+        }
+        <div class="listing-description">
+          {{ listingDescriptionDisplay }}
+          @if (shouldShowDescriptionToggle) {
+            <button type="button" class="listing-show-more-btn" (click)="toggleDescriptionExpanded()">
+              {{ listingDescriptionExpanded ? 'Show less' : 'Show more' }} >
+            </button>
+          }
+        </div>
+      </div>
+      <div class="listing-hero__right">
+        <div class="listing-rate-card">
+          <div class="listing-rate-card__label">Monthly</div>
+          <div class="listing-rate-card__value">{{ listingPrimaryRate }}</div>
+          <div class="listing-rate-card__secondary">Daily: {{ listingDailyRate }}</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="listing-content-layout">
+      <div class="listing-content-layout__main">
+        <div class="listing-details-grid">
+          <div class="listing-details-col">
+            <div class="listing-upload-action">
+              @if (!isReadOnly) {
+                <button
+                  type="button"
+                  mat-raised-button
+                  color="primary"
+                  (click)="openPhotoPicker()">
+                  <mat-icon>add_a_photo</mat-icon>
+                  Add Photo
+                </button>
+                <button
+                  type="button"
+                  mat-raised-button
+                  color="accent"
+                  (click)="copyListingLink()">
+                  <mat-icon>link</mat-icon>
+                  Copy Link
+                </button>
+                @if (isUploadingPhotos) {
+                  <div class="listing-uploading-inline">
+                    <mat-spinner [diameter]="18"></mat-spinner>
+                  </div>
+                }
+              }
+            </div>
+            @if (!isReadOnly) {
+              <input
+                #photoUploadInput
+                type="file"
+                accept="image/*"
+                multiple
+                style="display: none;"
+                (change)="onPhotosSelected($event)" />
+            }
+
+            @if (listingPhotos.length > 0) {
+              <div class="listing-photo-grid">
+                @for (photo of listingPhotos; track photo.id) {
+                  <div class="listing-photo-card">
+                    @if (!isReadOnly) {
+                      <button
+                        type="button"
+                        class="listing-photo-card__remove-btn"
+                        (click)="removePhoto(photo.id)"
+                        aria-label="Remove photo">
+                        <mat-icon>close</mat-icon>
+                      </button>
+                    }
+                    <img [src]="getPhotoDisplayUrl(photo)" [alt]="photo.fileDetails?.fileName || 'Property photo'" class="listing-photo-card__img" />
+                  </div>
+                }
+              </div>
+            }
+          </div>
+        </div>
+      </div>
+
+      <div class="listing-content-layout__side">
+        <aside class="listing-highlights-side-panel">
+          <h3 class="listing-section-title">Property Highlights</h3>
+          <div class="listing-highlights-side-panel__items">
+            @for (item of highlightColumnOne; track item.label) {
+              <div class="listing-highlight-item">
+                <span class="listing-highlight-item__label">
+                  <mat-icon>{{ item.icon }}</mat-icon>
+                  {{ item.label }}
+                </span>
+                <span class="listing-highlight-item__value">{{ item.value }}</span>
+              </div>
+            }
+            @for (item of highlightColumnTwo; track item.label) {
+              <div class="listing-highlight-item">
+                <span class="listing-highlight-item__label">
+                  <mat-icon>{{ item.icon }}</mat-icon>
+                  {{ item.label }}
+                </span>
+                <span class="listing-highlight-item__value">{{ item.value }}</span>
+              </div>
+            }
+          </div>
+        </aside>
+
+        @if (listingAmenities.length > 0) {
+          <aside class="listing-highlights-side-panel">
+            <h3 class="listing-section-title">Amenities</h3>
+            @for (item of listingAmenities; track item) {
+              <div class="listing-details-item listing-amenity-item">
+                <mat-icon>{{ getAmenityIcon(item) }}</mat-icon>
+                <span>{{ item }}</span>
+              </div>
+            }
+          </aside>
+        }
+      </div>
+    </div>
+  } @else {
+    <div class="listing-empty-state">
+      Save or load a property to generate its listing view.
+    </div>
+  }
+</div>

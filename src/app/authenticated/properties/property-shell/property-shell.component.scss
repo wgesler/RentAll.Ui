@@ -3,6 +3,11 @@
   box-sizing: border-box;
 }
 
+/* Hide Listing-shell Emails tab from view while keeping routing/component wiring intact. */
+:host ::ng-deep .property-tabs .mat-mdc-tab-header .mat-mdc-tab:nth-child(5) {
+  display: none !important;
+}
+
 :host ::ng-deep .property-titlebar .titlebar-label-required-asterisk,
 .property-titlebar-mat-required-asterisk {
   color: rgba(0, 0, 0, 0.54);
