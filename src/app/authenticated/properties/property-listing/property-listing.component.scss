@@ -265,6 +265,48 @@
   border-radius: 8px;
   overflow: hidden;
   background: #fff;
+  cursor: grab;
+}
+
+.listing-photo-card.cdk-drag-disabled {
+  cursor: default;
+}
+
+.listing-photo-card:active {
+  cursor: grabbing;
+}
+
+.listing-photo-card.photo-is-dragging {
+  opacity: 0.6;
+}
+
+.listing-photo-card.cdk-drag-placeholder {
+  opacity: 0;
+}
+
+.listing-photo-card.cdk-drag-preview {
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.25);
+  border: 1px solid rgba(15, 79, 168, 0.55);
+}
+
+.listing-photo-card.drop-indicator-left::before,
+.listing-photo-card.drop-indicator-right::after {
+  content: '';
+  position: absolute;
+  top: 8px;
+  bottom: 8px;
+  width: 3px;
+  border-radius: 2px;
+  background: var(--global-primary, #0f4fa8);
+  z-index: 3;
+}
+
+.listing-photo-card.drop-indicator-left::before {
+  left: 2px;
+}
+
+.listing-photo-card.drop-indicator-right::after {
+  right: 2px;
 }
 
 .listing-photo-card__img {

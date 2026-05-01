@@ -1,5 +1,6 @@
 import { CommonModule } from '@angular/common';
 import { Component, ElementRef, Input, OnChanges, SimpleChanges, ViewChild } from '@angular/core';
+import { CdkDragDrop, CdkDragMove, DragDropModule } from '@angular/cdk/drag-drop';
 import { getCheckInTime, getCheckOutTime, getPropertyStatus, getPropertyStyle, getPropertyType } from '../models/property-enums';
 import { PropertyPhotoRequest, PropertyPhotoResponse } from '../models/property-photo.model';
 import { PropertyResponse } from '../models/property.model';
@@ -16,6 +17,7 @@ import { CommonMessage } from '../../../enums/common-message.enum';
 
 interface ListingPhotoItem {
   id: string;
+  order: number;
   fileDetails: FileDetails | null;
   photoPath?: string;
 }
@@ -29,7 +31,7 @@ interface ListingHighlightItem {
 @Component({
   standalone: true,
   selector: 'app-property-listing',
-  imports: [CommonModule, MaterialModule],
+  imports: [CommonModule, MaterialModule, DragDropModule],
   templateUrl: './property-listing.component.html',
   styleUrl: './property-listing.component.scss'
 })
@@ -41,10 +43,15 @@ export class PropertyListingComponent implements OnChanges {
   @Input() isReadOnly = false;
   @Input() disablePhotoApiLoad = false;
   @Input() initialPhotos: PropertyPhotoResponse[] | null = null;
+  @Input() hideRateCard = false;
 
   listingPhotos: ListingPhotoItem[] = [];
-  photoCount = 0;
   isUploadingPhotos = false;
+  isReorderingPhotos = false;
+  isDraggingPhoto = false;
+  draggingPhotoId: string | null = null;
+  dropIndicatorPhotoId: string | null = null;
+  dropIndicatorSide: 'left' | 'right' | null = null;
   listingDescriptionExpanded = false;
   descriptionHasOverflow = false;
   listingImageTargetMinBytes = 150 * 1024;
@@ -191,7 +198,7 @@ export class PropertyListingComponent implements OnChanges {
     if (!this.property) return [];
 
     return [
-      { icon: 'night_shelter', label: 'Minimum Stay', value: `${this.property.minStay || 0} Night(s)` },
+      { icon: 'night_shelter', label: 'Minimum Stay', value: `${this.property.minStay || 0} Day(s)` },
       { icon: 'stairs', label: 'Entry Floor', value: String(this.property.unitLevel ?? '-') },
       { icon: 'pets', label: 'Pets', value: this.property.petsAllowed ? 'Yes' : 'No' },
       { icon: 'smoke_free', label: 'Smoking', value: this.property.smoking ? 'Yes' : 'No' },
@@ -230,11 +237,26 @@ export class PropertyListingComponent implements OnChanges {
   }
 
   get listingPrimaryRate(): string {
-    return `$${this.formatter.currency(Number(this.property?.monthlyRate || 0))}`;
+    const primaryAmount = this.isMonthlyRateZero
+      ? Number(this.property?.dailyRate || 0)
+      : Number(this.property?.monthlyRate || 0);
+    return `$${this.formatter.currency(primaryAmount)}`;
   }
 
   get listingDailyRate(): string {
     return `$${this.formatter.currency(Number(this.property?.dailyRate || 0))}`;
+  }
+
+  get listingPrimaryRateLabel(): string {
+    return this.isMonthlyRateZero ? 'Daily Rate:' : 'Monthly';
+  }
+
+  get showSecondaryDailyRate(): boolean {
+    return !this.isMonthlyRateZero;
+  }
+
+  get isMonthlyRateZero(): boolean {
+    return Number(this.property?.monthlyRate || 0) === 0;
   }
 
   get listingSizeLine(): string {
@@ -331,15 +353,16 @@ export class PropertyListingComponent implements OnChanges {
         const tempId = `temp-${Date.now()}-${Math.random().toString(36).slice(2)}`;
         this.listingPhotos.push({
           id: tempId,
+          order: this.listingPhotos.length,
           fileDetails
         });
 
         const request: PropertyPhotoRequest = {
-          order: this.photoCount,
+          order: this.listingPhotos.length - 1,
           fileDetails
         };
 
-        let response: { photoId: number } | null = null;
+        let response: PropertyPhotoResponse | null = null;
         try {
           response = await firstValueFrom(this.propertyPhotoService.addPropertyPhoto(activePropertyId, request));
         } catch {
@@ -352,10 +375,10 @@ export class PropertyListingComponent implements OnChanges {
 
         this.listingPhotos = this.listingPhotos.map(photo =>
           photo.id === tempId
-            ? { ...photo, id: String(response.photoId) }
+            ? { ...photo, id: String(response.photoId), order: response.order ?? photo.order }
             : photo
         );
-        this.photoCount++;
+        this.normalizeInMemoryPhotoOrder();
       }
     } finally {
       this.isUploadingPhotos = false;
@@ -368,8 +391,180 @@ export class PropertyListingComponent implements OnChanges {
       return;
     }
 
-    this.listingPhotos = this.listingPhotos.filter(p => p.id !== photoId);
-    this.photoCount = this.listingPhotos.length;
+    const parsedPhotoId = this.parsePersistedPhotoId(photoId);
+    if (parsedPhotoId === null) {
+      this.listingPhotos = this.listingPhotos.filter(p => p.id !== photoId);
+      this.normalizeInMemoryPhotoOrder();
+      return;
+    }
+
+    this.propertyPhotoService.deletePropertyPhotoById(parsedPhotoId).pipe(take(1)).subscribe({
+      next: () => {
+        this.listingPhotos = this.listingPhotos.filter(p => p.id !== photoId);
+        this.normalizeInMemoryPhotoOrder();
+      },
+      error: () => {
+        this.toastr.error('Unable to delete photo.', CommonMessage.Error);
+      }
+    });
+  }
+
+  async onPhotoDrop(event: CdkDragDrop<ListingPhotoItem[]>): Promise<void> {
+    const indicatorPhotoId = this.dropIndicatorPhotoId;
+    const indicatorSide = this.dropIndicatorSide;
+    this.clearDropIndicator();
+    if (this.isReadOnly || this.isReorderingPhotos) {
+      return;
+    }
+    const draggedPhotoId = event.item?.data?.id ? String(event.item.data.id) : null;
+    if (!draggedPhotoId) {
+      return;
+    }
+
+    const sourceIndex = this.listingPhotos.findIndex(photo => photo.id === draggedPhotoId);
+    if (sourceIndex < 0) {
+      return;
+    }
+
+    const previousOrder = this.listingPhotos.map(photo => ({ ...photo }));
+    const nextPhotos = this.listingPhotos.map(photo => ({ ...photo }));
+    const [movedPhotoItem] = nextPhotos.splice(sourceIndex, 1);
+
+    if (!indicatorPhotoId || !indicatorSide) {
+      return;
+    }
+    const hoveredIndexInReduced = nextPhotos.findIndex(photo => photo.id === indicatorPhotoId);
+    if (hoveredIndexInReduced < 0) {
+      return;
+    }
+    let insertionIndex = hoveredIndexInReduced + (indicatorSide === 'right' ? 1 : 0);
+
+    insertionIndex = Math.max(0, Math.min(insertionIndex, nextPhotos.length));
+    nextPhotos.splice(insertionIndex, 0, movedPhotoItem);
+
+    if (nextPhotos.length !== this.listingPhotos.length) {
+      this.toastr.error('Unable to reorder photos.', CommonMessage.Error);
+      return;
+    }
+
+    if (sourceIndex === insertionIndex) {
+      return;
+    }
+
+    this.listingPhotos = nextPhotos;
+    this.normalizeInMemoryPhotoOrder();
+
+    const movedPhoto = this.listingPhotos.find(photo => photo.id === draggedPhotoId);
+    const movedPhotoId = this.parsePersistedPhotoId(movedPhoto?.id);
+    if (movedPhotoId === null) {
+      return;
+    }
+
+    const startIndex = Math.min(sourceIndex, insertionIndex);
+    const endIndex = Math.max(sourceIndex, insertionIndex);
+
+    this.isReorderingPhotos = true;
+    try {
+      const tempOrder = 1000000 + movedPhoto.order;
+      await firstValueFrom(this.propertyPhotoService.updatePropertyPhotoOrder({
+        photoId: movedPhotoId,
+        order: tempOrder
+      }));
+
+      if (sourceIndex < insertionIndex) {
+        for (let index = startIndex; index <= endIndex; index++) {
+          const photo = this.listingPhotos[index];
+          if (!photo || photo.id === movedPhoto.id) {
+            continue;
+          }
+          const photoId = this.parsePersistedPhotoId(photo.id);
+          if (photoId === null) {
+            continue;
+          }
+          await firstValueFrom(this.propertyPhotoService.updatePropertyPhotoOrder({
+            photoId,
+            order: photo.order
+          }));
+        }
+      } else {
+        for (let index = endIndex; index >= startIndex; index--) {
+          const photo = this.listingPhotos[index];
+          if (!photo || photo.id === movedPhoto.id) {
+            continue;
+          }
+          const photoId = this.parsePersistedPhotoId(photo.id);
+          if (photoId === null) {
+            continue;
+          }
+          await firstValueFrom(this.propertyPhotoService.updatePropertyPhotoOrder({
+            photoId,
+            order: photo.order
+          }));
+        }
+      }
+
+      await firstValueFrom(this.propertyPhotoService.updatePropertyPhotoOrder({
+        photoId: movedPhotoId,
+        order: movedPhoto.order
+      }));
+    } catch {
+      this.listingPhotos = previousOrder;
+      this.normalizeInMemoryPhotoOrder();
+      this.toastr.error('Unable to reorder photos.', CommonMessage.Error);
+    } finally {
+      this.isReorderingPhotos = false;
+    }
+  }
+
+  onPhotoDragMoved(event: CdkDragMove<ListingPhotoItem>): void {
+    if (this.isReadOnly || this.isReorderingPhotos) {
+      this.clearDropIndicator();
+      return;
+    }
+
+    const pointer = event.pointerPosition;
+    const target = document.elementFromPoint(pointer.x, pointer.y) as HTMLElement | null;
+    const targetCard = target?.closest('.listing-photo-card') as HTMLElement | null;
+    const targetPhotoId = targetCard?.getAttribute('data-photo-id');
+    if (!targetCard || !targetPhotoId) {
+      this.clearDropIndicator();
+      return;
+    }
+
+    const draggingPhotoId = event.source.data?.id ? String(event.source.data.id) : null;
+    if (draggingPhotoId && targetPhotoId === draggingPhotoId) {
+      this.clearDropIndicator();
+      return;
+    }
+
+    const rect = targetCard.getBoundingClientRect();
+    const midpoint = rect.left + (rect.width / 2);
+    const side: 'left' | 'right' = pointer.x >= midpoint ? 'right' : 'left';
+    this.dropIndicatorPhotoId = targetPhotoId;
+    this.dropIndicatorSide = side;
+  }
+
+  clearDropIndicator(): void {
+    this.dropIndicatorPhotoId = null;
+    this.dropIndicatorSide = null;
+  }
+
+  onPhotoDragStarted(photoId: string): void {
+    this.isDraggingPhoto = true;
+    this.draggingPhotoId = photoId;
+  }
+
+  onPhotoDragEnded(): void {
+    this.isDraggingPhoto = false;
+    this.draggingPhotoId = null;
+  }
+
+  isPhotoBeingDragged(photoId: string): boolean {
+    return this.isDraggingPhoto && this.draggingPhotoId === photoId;
+  }
+
+  hasDropIndicator(photoId: string, side: 'left' | 'right'): boolean {
+    return this.dropIndicatorPhotoId === photoId && this.dropIndicatorSide === side;
   }
 
   async copyListingLink(): Promise<void> {
@@ -408,33 +603,51 @@ export class PropertyListingComponent implements OnChanges {
     const activePropertyId = this.property?.propertyId || this.propertyId;
     if (!activePropertyId) {
       this.listingPhotos = [];
-      this.photoCount = 0;
       return;
     }
 
     this.propertyPhotoService.getPropertyPhotosByPropertyId(activePropertyId).pipe(take(1)).subscribe({
       next: (photos) => {
-        this.listingPhotos = (photos || []).map(photo => ({
+        this.listingPhotos = (photos || [])
+          .slice()
+          .sort((a, b) => Number(a.order ?? 0) - Number(b.order ?? 0))
+          .map(photo => ({
           id: String(photo.photoId),
+          order: Number(photo.order ?? 0),
           fileDetails: photo.fileDetails ?? null,
           photoPath: photo.photoPath
         }));
-        this.photoCount = this.listingPhotos.length;
+        this.normalizeInMemoryPhotoOrder();
       },
       error: () => {
         this.listingPhotos = [];
-        this.photoCount = 0;
       }
     });
   }
 
   applyInitialPhotos(): void {
-    this.listingPhotos = (this.initialPhotos || []).map(photo => ({
+    this.listingPhotos = (this.initialPhotos || [])
+      .slice()
+      .sort((a, b) => Number(a.order ?? 0) - Number(b.order ?? 0))
+      .map(photo => ({
       id: String(photo.photoId),
+      order: Number(photo.order ?? 0),
       fileDetails: photo.fileDetails ?? null,
       photoPath: photo.photoPath
     }));
-    this.photoCount = this.listingPhotos.length;
+    this.normalizeInMemoryPhotoOrder();
+  }
+
+  normalizeInMemoryPhotoOrder(): void {
+    this.listingPhotos = this.listingPhotos.map((photo, index) => ({
+      ...photo,
+      order: index
+    }));
+  }
+
+  parsePersistedPhotoId(photoId: string | number | null | undefined): number | null {
+    const parsed = Number(photoId);
+    return Number.isFinite(parsed) && parsed > 0 ? parsed : null;
   }
 
   async createOptimizedPhotoDetails(file: File): Promise<FileDetails> {

@@ -22,7 +22,7 @@
                   color="primary"
                   (click)="openPhotoPicker()">
                   <mat-icon>add_a_photo</mat-icon>
-                  Add Photo
+                  Add Photo(s)
                 </button>
                 <button
                   type="button"
@@ -64,13 +64,17 @@
           }
         </div>
       </div>
-      <div class="listing-hero__rate">
-        <div class="listing-rate-card">
-          <div class="listing-rate-card__label">Monthly</div>
-          <div class="listing-rate-card__value">{{ listingPrimaryRate }}</div>
-          <div class="listing-rate-card__secondary">Daily: {{ listingDailyRate }}</div>
+      @if (!hideRateCard) {
+        <div class="listing-hero__rate">
+          <div class="listing-rate-card">
+            <div class="listing-rate-card__label">{{ listingPrimaryRateLabel }}</div>
+            <div class="listing-rate-card__value">{{ listingPrimaryRate }}</div>
+            @if (showSecondaryDailyRate) {
+              <div class="listing-rate-card__secondary">Daily: {{ listingDailyRate }}</div>
+            }
+          </div>
         </div>
-      </div>
+      }
     </div>
 
     <div class="listing-content-layout">
@@ -88,9 +92,19 @@
         <div class="listing-details-grid">
           <div class="listing-details-col">
             @if (listingPhotos.length > 0) {
-              <div class="listing-photo-grid">
+              <div class="listing-photo-grid" cdkDropList [cdkDropListData]="listingPhotos" [cdkDropListDisabled]="isReadOnly || isReorderingPhotos" [cdkDropListSortingDisabled]="true" (cdkDropListDropped)="onPhotoDrop($event)">
                 @for (photo of listingPhotos; track photo.id) {
-                  <div class="listing-photo-card">
+                  <div class="listing-photo-card"
+                    cdkDrag
+                    [cdkDragData]="photo"
+                    [cdkDragDisabled]="isReadOnly || isReorderingPhotos"
+                    [class.drop-indicator-left]="hasDropIndicator(photo.id, 'left')"
+                    [class.drop-indicator-right]="hasDropIndicator(photo.id, 'right')"
+                    [class.photo-is-dragging]="isPhotoBeingDragged(photo.id)"
+                    [attr.data-photo-id]="photo.id"
+                    (cdkDragStarted)="onPhotoDragStarted(photo.id)"
+                    (cdkDragMoved)="onPhotoDragMoved($event)"
+                    (cdkDragEnded)="onPhotoDragEnded()">
                     @if (!isReadOnly) {
                       <button
                         type="button"
