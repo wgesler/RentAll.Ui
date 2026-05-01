@@ -152,7 +152,7 @@ export class GlobalSelectionService {
     return source.filter(office => officeAccessSet.has(Number(office.officeId)));
   }
 
-  private readOfficeIdFromStorage(): number | null {
+   readOfficeIdFromStorage(): number | null {
     const rawValue = localStorage.getItem(this.officeStorageKey);
     if (!rawValue) {
       return null;
@@ -165,7 +165,7 @@ export class GlobalSelectionService {
     return parsedValue;
   }
 
-  private writeOfficeIdToStorage(officeId: number | null): void {
+   writeOfficeIdToStorage(officeId: number | null): void {
     if (officeId === null) {
       localStorage.removeItem(this.officeStorageKey);
       return;
@@ -174,7 +174,7 @@ export class GlobalSelectionService {
     localStorage.setItem(this.officeStorageKey, officeId.toString());
   }
 
-  private readFurnishedPropertySelectionFromStorage(): boolean {
+   readFurnishedPropertySelectionFromStorage(): boolean {
     const rawValue = localStorage.getItem(this.furnishedPropertyStorageKey);
     if (rawValue == null || rawValue === '') {
       return false;
@@ -186,7 +186,7 @@ export class GlobalSelectionService {
     return false;
   }
 
-  private writeFurnishedPropertySelectionToStorage(value: boolean): void {
+   writeFurnishedPropertySelectionToStorage(value: boolean): void {
     if (!value) {
       localStorage.removeItem(this.furnishedPropertyStorageKey);
     } else {

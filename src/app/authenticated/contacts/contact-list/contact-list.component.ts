@@ -1,7 +1,7 @@
 import { CommonModule } from "@angular/common";
 import { Component, EventEmitter, Input, OnChanges, OnDestroy, OnInit, Output, SimpleChanges } from '@angular/core';
 import { FormsModule } from '@angular/forms';
-import { ActivatedRoute, NavigationEnd, Router } from '@angular/router';
+import { NavigationEnd, Router } from '@angular/router';
 import { ToastrService } from 'ngx-toastr';
 import { BehaviorSubject, Observable, Subscription, filter, finalize, map, skip, switchMap, take } from 'rxjs';
 import { RouterUrl } from '../../../app.routes';
@@ -92,8 +92,7 @@ export class ContactListComponent implements OnInit, OnDestroy, OnChanges {
     private authService: AuthService,
     private utilityService: UtilityService,
     private officeService: OfficeService,
-    private globalSelectionService: GlobalSelectionService,
-    private route: ActivatedRoute) {
+    private globalSelectionService: GlobalSelectionService,) {
   }
 
   //#region Contact-List

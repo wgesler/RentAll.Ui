@@ -15,7 +15,6 @@ import { DataTableFilterActionsDirective } from '../../shared/data-table/data-ta
 import { ColumnSet } from '../../shared/data-table/models/column-data';
 import { AgentListDisplay, AgentResponse } from '../models/agent.model';
 import { AgentService } from '../services/agent.service';
-import { OfficeService } from '../services/office.service';
 
 @Component({
     standalone: true,
@@ -49,7 +48,6 @@ export class AgentListComponent implements OnInit, OnDestroy {
     public toastr: ToastrService,
     public router: Router,
     public mappingService: MappingService,
-    private officeService: OfficeService,
     private utilityService: UtilityService) {
   }
 

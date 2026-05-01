@@ -12,7 +12,7 @@ import { MappingService } from '../../../services/mapping.service';
 import { ConfigService } from '../../../services/config.service';
 import { PropertyResponse } from '../../properties/models/property.model';
 import { DocumentType } from '../../documents/models/document.enum';
-import { DocumentRequest, DocumentResponse, GenerateDocumentFromHtmlDto } from '../../documents/models/document.model';
+import { DocumentResponse, GenerateDocumentFromHtmlDto } from '../../documents/models/document.model';
 import { DocumentService } from '../../documents/services/document.service';
 import { GenericModalComponent } from '../../shared/modals/generic/generic-modal.component';
 import { GenericModalData } from '../../shared/modals/generic/models/generic-modal-data';
@@ -1454,7 +1454,7 @@ export class InspectionComponent implements OnChanges, OnDestroy, OnInit {
     }
   }
 
-  private reservationDisplayTextForSubmittedPdf(): string {
+   reservationDisplayTextForSubmittedPdf(): string {
     const fromTitleBar = (this.titleBarReservationDisplayText || '').trim();
     if (fromTitleBar.length > 0) {
       return fromTitleBar;

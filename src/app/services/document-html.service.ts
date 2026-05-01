@@ -13,7 +13,7 @@ export class DocumentHtmlService {
 
 
   extractBodyContent(previewIframeHtml: string): string {
-    let bodyContent = previewIframeHtml;
+    const bodyContent = previewIframeHtml;
     
     // Find the opening <body> tag
     const bodyStartMatch = bodyContent.match(/<body[^>]*>/i);
@@ -304,7 +304,7 @@ export class DocumentHtmlService {
         /<img([^>]*class=["'][^"']*logo[^"']*["'][^>]*)>/gi,
         (match, attributes) => {
           // Remove existing width and height attributes if they exist
-          let newAttributes = attributes.replace(/\s+(width|height)=["'][^"']*["']/gi, '');
+          const newAttributes = attributes.replace(/\s+(width|height)=["'][^"']*["']/gi, '');
           // Add width="180" and height="auto"
           return `<img${newAttributes} width="180" height="auto">`;
         }

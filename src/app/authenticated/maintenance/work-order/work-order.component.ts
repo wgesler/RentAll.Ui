@@ -22,7 +22,6 @@ import { ReservationListResponse } from '../../reservations/models/reservation-m
 import { ReservationService } from '../../reservations/services/reservation.service';
 import { TransactionType } from '../../accounting/models/accounting-enum';
 import { InvoiceRequest, LedgerLineRequest } from '../../accounting/models/invoice.model';
-import { CostCodesService } from '../../accounting/services/cost-codes.service';
 import { InvoiceService } from '../../accounting/services/invoice.service';
 import { PropertyAgreementResponse } from '../../properties/models/property-agreement.model';
 import { getWorkOrderTypes, WorkOrderType } from '../models/maintenance-enums';
@@ -92,9 +91,7 @@ export class WorkOrderComponent implements OnInit, OnChanges, OnDestroy {
     private route: ActivatedRoute,
     private router: Router,
     private propertyService: PropertyService,
-    private propertyAgreementService: PropertyAgreementService,
-    private costCodeService: CostCodesService,
-    private invoiceService: InvoiceService,
+    private propertyAgreementService: PropertyAgreementService,    private invoiceService: InvoiceService,
     private accountingOfficeService: AccountingOfficeService,
     private officeService: OfficeService,
     private globalSelectionService: GlobalSelectionService,

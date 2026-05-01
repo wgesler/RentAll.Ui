@@ -1446,7 +1446,7 @@ export class LeaseComponent extends BaseDocumentComponent implements OnInit, OnD
         try {
       // If only one document selected, use it as-is
       if (selectedDocuments.length === 1) {
-        let processedHtml = shouldMerge ? this.replacePlaceholders(selectedDocuments[0]) : selectedDocuments[0];
+        const processedHtml = shouldMerge ? this.replacePlaceholders(selectedDocuments[0]) : selectedDocuments[0];
         this.processAndSetHtml(processedHtml);
         return;
       }
@@ -1570,7 +1570,7 @@ export class LeaseComponent extends BaseDocumentComponent implements OnInit, OnD
     this.iframeKey++; // Force iframe refresh
   }
 
-  private resolvePreviewLoad(): void {
+   resolvePreviewLoad(): void {
     this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'previewHtml');
   }
 

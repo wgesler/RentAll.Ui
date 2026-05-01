@@ -1,6 +1,6 @@
 import { HttpClient } from '@angular/common/http';
 import { Injectable } from '@angular/core';
-import { map, Observable } from 'rxjs';
+import { Observable } from 'rxjs';
 import { ConfigService } from '../../../services/config.service';
 import { BillingMonthlyDataRequest, BillingMonthlyDataResponse, InvoiceMonthlyDataRequest, InvoiceMonthlyDataResponse, InvoicePaymentRequest, InvoicePaymentResponse, InvoiceRequest, InvoiceResponse } from '../models/invoice.model';
 
@@ -17,7 +17,7 @@ export class InvoiceService {
       private configService: ConfigService) {
   }
 
-  private normalizeInvoiceRequest(invoice: InvoiceRequest): InvoiceRequest {
+   normalizeInvoiceRequest(invoice: InvoiceRequest): InvoiceRequest {
     const normalizedLedgerLines = (invoice.ledgerLines ?? []).map(line => {
       const numericCostCodeId = Number(line.costCodeId);
       const numericLineNumber = Number(line.lineNumber);

@@ -7,7 +7,6 @@ import { ActivatedRoute, Router } from '@angular/router';
 import { ToastrService } from 'ngx-toastr';
 import { BehaviorSubject, Observable, Subscription, filter, finalize, firstValueFrom, forkJoin, of, skip, take } from 'rxjs';
 import { RouterUrl } from '../../../app.routes';
-import { CommonMessage } from '../../../enums/common-message.enum';
 import { MaterialModule } from '../../../material.module';
 import { AuthService } from '../../../services/auth.service';
 import { CommonService } from '../../../services/common.service';
@@ -1183,7 +1182,7 @@ export class InvoiceCreateComponent extends BaseDocumentComponent implements OnI
     }
 
     return contacts.map(contact => {
-      var pContact = this.contacts.find(c => c.contactId === this.selectedReservation.companyId) ?? contact;
+      const pContact = this.contacts.find(c => c.contactId === this.selectedReservation.companyId) ?? contact;
       const responsibleParty = this.escapeHtml(this.utilityService.getResponsibleParty(this.selectedReservation, pContact));
       const responsiblePartyAddress1Raw = this.utilityService.getResponsiblePartyAddress1(this.selectedReservation, pContact);
       const responsiblePartyAddress2Raw = this.utilityService.getResponsiblePartyAddress2(this.selectedReservation, pContact);
@@ -1340,7 +1339,7 @@ export class InvoiceCreateComponent extends BaseDocumentComponent implements OnI
         try {
           // If only one document selected, use it as-is
           if (selectedDocuments.length === 1) {
-            let processedHtml = this.replacePlaceholders(selectedDocuments[0]);
+            const processedHtml = this.replacePlaceholders(selectedDocuments[0]);
             this.processAndSetHtml(processedHtml);
             return;
           }

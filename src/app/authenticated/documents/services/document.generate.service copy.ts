@@ -2,7 +2,7 @@ import { HttpClient } from '@angular/common/http';
 import { Injectable } from '@angular/core';
 import { Observable } from 'rxjs';
 import { ConfigService } from '../../../services/config.service';
-import { DocumentRequest, DocumentResponse, GenerateDocumentFromHtmlDto } from '../models/document.model';
+import { DocumentResponse, GenerateDocumentFromHtmlDto } from '../models/document.model';
 
 @Injectable({
   providedIn: 'root'

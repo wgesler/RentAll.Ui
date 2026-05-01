@@ -8,7 +8,7 @@ import { CommonMessage } from '../../../enums/common-message.enum';
 import { MaterialModule } from '../../../material.module';
 import { MappingService } from '../../../services/mapping.service';
 import { AuthService } from '../../../services/auth.service';
-import { Subscription, filter, skip, take } from 'rxjs';
+import { Subscription, skip, take } from 'rxjs';
 import { EmailListDisplay } from '../models/email.model';
 import { EmailService } from '../services/email.service';
 import { DataTableComponent } from '../../shared/data-table/data-table.component';
@@ -595,7 +595,7 @@ export class EmailListComponent implements OnInit, OnDestroy, OnChanges {
   //#endregion
 
   //#region Utility Methods
-  private emailMatchesDocumentTypeFilter(email: EmailListDisplay): boolean {
+   emailMatchesDocumentTypeFilter(email: EmailListDisplay): boolean {
     const want = this.filterDocumentTypeId;
     if (want === null || want === undefined) {
       return true;

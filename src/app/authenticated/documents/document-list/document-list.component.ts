@@ -1,5 +1,4 @@
 import { CommonModule } from "@angular/common";
-import { HttpErrorResponse } from '@angular/common/http';
 import { Component, EventEmitter, Input, OnChanges, OnDestroy, OnInit, Output, SimpleChanges } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, NavigationEnd, Router } from '@angular/router';
@@ -289,7 +288,7 @@ export class DocumentListComponent implements OnInit, OnDestroy, OnChanges {
   }
 
   /** Property shell passes a loaded list when non-empty; maintenance shell always passes the list (may be empty). */
-  private get useParentProvidedReservationList(): boolean {
+   get useParentProvidedReservationList(): boolean {
     const hasPropertyId = !!this.propertyId && this.propertyId !== '';
     if (this.source === 'property' && hasPropertyId) {
       return (this.reservations?.length ?? 0) > 0;

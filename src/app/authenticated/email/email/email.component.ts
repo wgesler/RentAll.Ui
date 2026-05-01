@@ -93,7 +93,7 @@ export class EmailComponent implements OnInit {
     return from.email || from.name || '';
   }
 
-  private getMaintenanceShellEmailTabIndex(): number {
+   getMaintenanceShellEmailTabIndex(): number {
     const isInspector = hasInspectorRole(this.authService.getUser()?.userGroups as Array<string | number> | undefined);
     const showWorkOrdersTab = !isInspector;
     return showWorkOrdersTab ? 4 : 3;

@@ -10,7 +10,6 @@ import { MaterialModule } from '../../../material.module';
 import { AuthService } from '../../../services/auth.service';
 import { FormatterService } from '../../../services/formatter-service';
 import { MappingService } from '../../../services/mapping.service';
-import { NavigationContextService } from '../../../services/navigation-context.service';
 import { UtilityService } from '../../../services/utility.service';
 import { OfficeResponse } from '../models/office.model';
 import { RegionRequest, RegionResponse } from '../models/region.model';
@@ -54,7 +53,6 @@ export class RegionComponent implements OnInit, OnDestroy, OnChanges {
     private route: ActivatedRoute,
     private toastr: ToastrService,
     private authService: AuthService,
-    private navigationContext: NavigationContextService,
     private officeService: OfficeService,
     private formatterService: FormatterService,
     private mappingService: MappingService,

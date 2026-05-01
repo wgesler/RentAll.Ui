@@ -4,7 +4,7 @@ import { FormsModule } from '@angular/forms';
 import { MatSlideToggleChange } from '@angular/material/slide-toggle';
 import { Router, RouterLink } from '@angular/router';
 import { ToastrService } from 'ngx-toastr';
-import { BehaviorSubject, Observable, Subject, distinctUntilChanged, filter, finalize, map, skip, take, takeUntil } from 'rxjs';
+import { BehaviorSubject, Observable, Subject, distinctUntilChanged, finalize, map, skip, take, takeUntil } from 'rxjs';
 import { RouterUrl } from '../../../app.routes';
 import { CommonMessage } from '../../../enums/common-message.enum';
 import { MaterialModule } from '../../../material.module';
@@ -357,7 +357,7 @@ export class ReservationBoardComponent implements OnInit, OnDestroy {
     start.setHours(0, 0, 0, 0);
     end.setHours(0, 0, 0, 0);
 
-    let currentDate = new Date(start);
+    const currentDate = new Date(start);
     let lastMonth = -1;
 
     // Inclusive range

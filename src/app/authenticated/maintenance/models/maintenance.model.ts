@@ -1,4 +1,3 @@
-import type { CalendarDateString } from '../../../services/utility.service';
 
 export interface MaintenanceRequest {
   maintenanceId?: string;

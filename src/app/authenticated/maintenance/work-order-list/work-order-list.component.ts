@@ -233,7 +233,7 @@ export class WorkOrderListComponent implements OnInit, OnChanges {
     );
   }
 
-  private resolvePropertyIdForWorkOrder(event: WorkOrderDisplayList): string | null {
+   resolvePropertyIdForWorkOrder(event: WorkOrderDisplayList): string | null {
     const fromRow = (event?.propertyId || '').toString().trim();
     if (fromRow) {
       return fromRow;

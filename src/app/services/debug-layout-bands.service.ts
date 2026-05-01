@@ -39,7 +39,7 @@ export class DebugLayoutBandsService {
     this.enabledSubject.next(on);
   }
 
-  private readStoredOrDefault(): boolean {
+   readStoredOrDefault(): boolean {
     if (typeof localStorage === 'undefined') {
       return false;
     }

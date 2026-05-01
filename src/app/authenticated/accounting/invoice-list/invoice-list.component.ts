@@ -1,6 +1,6 @@
 import { CommonModule } from "@angular/common";
 import { HttpErrorResponse } from '@angular/common/http';
-import { ChangeDetectorRef, Component, EventEmitter, Input, NgZone, OnChanges, OnDestroy, OnInit, Output, SimpleChanges, TemplateRef, ViewChild } from '@angular/core';
+import { Component, EventEmitter, Input, NgZone, OnChanges, OnDestroy, OnInit, Output, SimpleChanges, TemplateRef, ViewChild } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, Router } from '@angular/router';
 import { ToastrService } from 'ngx-toastr';
@@ -144,9 +144,7 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
     private contactService: ContactService,
     private authService: AuthService,
     private formatter: FormatterService,
-    private utilityService: UtilityService,
-    private cdr: ChangeDetectorRef,
-    private zone: NgZone) {
+    private utilityService: UtilityService,    private zone: NgZone) {
   }
 
   //#region Invoice-List

@@ -9,7 +9,6 @@ import { BehaviorSubject, Observable, Subject, filter, finalize, map, take, take
 import { CommonMessage, CommonTimeouts } from '../../../enums/common-message.enum';
 import { MaterialModule } from '../../../material.module';
 import { AuthService } from '../../../services/auth.service';
-import { NavigationContextService } from '../../../services/navigation-context.service';
 import { UtilityService } from '../../../services/utility.service';
 import { getReservationStatuses } from '../../reservations/models/reservation-enum';
 import { ColorRequest, ColorResponse } from '../models/color.model';
@@ -50,7 +49,6 @@ export class ColorComponent implements OnInit, OnDestroy, OnChanges {
     private route: ActivatedRoute,
     private toastr: ToastrService,
     private authService: AuthService,
-    private navigationContext: NavigationContextService,
     private utilityService: UtilityService
   ) {
   }

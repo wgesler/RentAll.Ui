@@ -649,7 +649,7 @@ export class MixedMappingService {
   //#endregion
 
   //#region Service Provider Helpers
-  private resolvePropertyServiceProviderFields(
+   resolvePropertyServiceProviderFields(
     property: Pick<
       PropertyListResponse,
       | 'onCleanerUserId' | 'onCleaningDate' | 'onCarpetUserId' | 'onCarpetDate' | 'onInspectorUserId'
@@ -699,7 +699,7 @@ export class MixedMappingService {
     };
   }
 
-  private resolveReservationServiceProviderFields(
+   resolveReservationServiceProviderFields(
     reservation: Pick<
       ReservationListDisplay,
       | 'aCleanerUserId' | 'aCleaningDate' | 'aCarpetUserId' | 'aCarpetDate' | 'aInspectorUserId'
@@ -749,7 +749,7 @@ export class MixedMappingService {
     };
   }
 
-  private getProviderAssignmentForTurnoverRow(mixedRow: PropertyMaintenance): {
+   getProviderAssignmentForTurnoverRow(mixedRow: PropertyMaintenance): {
     cleanerUserId: string | null;
     carpetUserId: string | null;
     inspectorUserId: string | null;

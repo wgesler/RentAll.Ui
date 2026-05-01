@@ -165,7 +165,7 @@ export class PropertyMaintenanceBase implements OnInit, OnDestroy {
   //#endregion
 
   //#region Data Loading Methods
-  private loadOffices(): void {
+   loadOffices(): void {
     this.globalSelectionService.ensureOfficeScope(this.organizationId, this.preferredOfficeId).pipe(take(1), switchMap(() => {
       this.offices = this.officeService.getAllOfficesValue() || [];
       return this.globalSelectionService.getOfficeUiState$(this.offices, { explicitOfficeId: null, requireExplicitOfficeUnset: false }).pipe(take(1));
@@ -188,7 +188,7 @@ export class PropertyMaintenanceBase implements OnInit, OnDestroy {
     this.globalSelectionService.setSelectedOfficeId(this.selectedOffice?.officeId ?? null);
   }
 
-  private loadActiveReservations(): void {
+   loadActiveReservations(): void {
     this.reservationService.getReservationList().pipe(take(1), finalize(() => { this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'activeReservations'); })).subscribe({
       next: (response: ReservationListResponse[]) => {
         const mappedRows = this.mappingService.mapReservationList(response);
@@ -203,7 +203,7 @@ export class PropertyMaintenanceBase implements OnInit, OnDestroy {
     });
   }
 
-  private loadPropertyMaintenance(): void {
+   loadPropertyMaintenance(): void {
     this.isServiceError = false;
     this.propertyService.getActivePropertyList().pipe(take(1),
       switchMap(properties => this.maintenanceService.getMaintenanceList().pipe(take(1),
@@ -228,12 +228,12 @@ export class PropertyMaintenanceBase implements OnInit, OnDestroy {
         });
   }
 
-  private loadReservationPropertyMaintenance(): void {
+   loadReservationPropertyMaintenance(): void {
     this.reservationPropertyMaintenanceList = this.mixedMappingService.mapReservationPropertyMaintenance(
       this.activeReservationList, this.propertyList, this.maintenanceList);
   }
 
-  private rebuildMaintenanceByPropertyIdMap(): void {
+   rebuildMaintenanceByPropertyIdMap(): void {
     this.maintenanceByPropertyId = new Map();
     for (const row of this.maintenanceList) {
       if (row?.propertyId) {
@@ -244,7 +244,7 @@ export class PropertyMaintenanceBase implements OnInit, OnDestroy {
   //#endregion
 
   //#region Getting/Filtering Methods
-  private filterPropertyMaintenanceListForSelectedOffice(): PropertyMaintenance[] {
+   filterPropertyMaintenanceListForSelectedOffice(): PropertyMaintenance[] {
     const officeId = this.selectedOffice?.officeId;
     if (officeId == null) {
       return [...this.propertyMaintenanceList];
@@ -252,7 +252,7 @@ export class PropertyMaintenanceBase implements OnInit, OnDestroy {
     return this.propertyMaintenanceList.filter(pm => pm.officeId === officeId);
   }
 
-  private filterReservationPropertyMaintenanceListForSelectedOffice(): ReservationPropertyMaintenance[] {
+   filterReservationPropertyMaintenanceListForSelectedOffice(): ReservationPropertyMaintenance[] {
     const officeId = this.selectedOffice?.officeId;
     if (officeId == null) {
       return [...this.reservationPropertyMaintenanceList];
@@ -260,7 +260,7 @@ export class PropertyMaintenanceBase implements OnInit, OnDestroy {
     return this.reservationPropertyMaintenanceList.filter(rpm => rpm.officeId === officeId);
   }
 
-  private getPropertiesGoingOffline(userId: string | null = null): PropertyMaintenance[] {
+   getPropertiesGoingOffline(userId: string | null = null): PropertyMaintenance[] {
     const bounds = this.getInclusiveNextFifteenDayOrdinalBounds();
     if (!bounds) {
       return [];
@@ -287,7 +287,7 @@ export class PropertyMaintenanceBase implements OnInit, OnDestroy {
     return result;
   }
 
-  private getPropertiesComingOnline(userId: string | null = null): PropertyMaintenance[] {
+   getPropertiesComingOnline(userId: string | null = null): PropertyMaintenance[] {
     const bounds = this.getInclusiveNextFifteenDayOrdinalBounds();
     if (!bounds) {
       return [];
@@ -314,7 +314,7 @@ export class PropertyMaintenanceBase implements OnInit, OnDestroy {
     return result;
   }
 
-  private getReservationsWithArrivals(userId: string | null = null): ReservationPropertyMaintenance[] {
+   getReservationsWithArrivals(userId: string | null = null): ReservationPropertyMaintenance[] {
     const bounds = this.getInclusiveNextFifteenDayOrdinalBounds();
     if (!bounds) {
       return [];
@@ -342,7 +342,7 @@ export class PropertyMaintenanceBase implements OnInit, OnDestroy {
     return result;
   }
 
-  private getReservationsWithDepartures(userId: string | null = null): ReservationPropertyMaintenance[] {
+   getReservationsWithDepartures(userId: string | null = null): ReservationPropertyMaintenance[] {
     const bounds = this.getInclusiveNextFifteenDayOrdinalBounds();
     if (!bounds) {
       return [];
@@ -551,7 +551,7 @@ export class PropertyMaintenanceBase implements OnInit, OnDestroy {
     return this.cleaningReservations;
   }
 
-  private recomputeVacantPropertyStats(): void {
+   recomputeVacantPropertyStats(): void {
     if (this.propertyList.length === 0) {
       this.rentedCount = 0;
       this.vacantCount = 0;
@@ -639,7 +639,7 @@ export class PropertyMaintenanceBase implements OnInit, OnDestroy {
     this.vacantCount = this.propertiesByVacancy.length;
   }
 
-  private getInclusiveNextFifteenDayOrdinalBounds(): { lo: number; hi: number } | null {
+   getInclusiveNextFifteenDayOrdinalBounds(): { lo: number; hi: number } | null {
     const hi = this.utilityService.parseCalendarDateToOrdinal(this.utilityService.formatDateOnlyForApi(this.fifteenDaysAtMidnight));
     if (hi === null) {
       return null;
@@ -647,7 +647,7 @@ export class PropertyMaintenanceBase implements OnInit, OnDestroy {
     return { lo: this.todayDayOrdinal, hi };
   }
 
-  private getInclusiveNextTwoMonthsOrdinalBounds(): { lo: number; hi: number } | null {
+   getInclusiveNextTwoMonthsOrdinalBounds(): { lo: number; hi: number } | null {
     const hi = this.utilityService.parseCalendarDateToOrdinal(this.utilityService.formatDateOnlyForApi(this.nextTwoMonthsAtMidnight));
     if (hi === null) {
       return null;
@@ -657,7 +657,7 @@ export class PropertyMaintenanceBase implements OnInit, OnDestroy {
   //#endregion
 
   //#region Titlebar Methods
-  private initializeDateBoundaries(): void {
+   initializeDateBoundaries(): void {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
     this.todayAtMidnight = today;
@@ -673,12 +673,12 @@ export class PropertyMaintenanceBase implements OnInit, OnDestroy {
     this.nextTwoMonthsAtMidnight = twoMonthsAhead;
   }
 
-  private cacheTodayCalendar(): void {
+   cacheTodayCalendar(): void {
     this.todayCalendarDate = this.utilityService.formatDateOnlyForApi(this.todayAtMidnight);
     this.todayDayOrdinal = this.utilityService.parseCalendarDateToOrdinal(this.todayCalendarDate)!;
   }
 
-  private cacheTomorrowCalendar(): void {
+   cacheTomorrowCalendar(): void {
     this.tomorrowAtMidnight = new Date(this.todayAtMidnight);
     this.tomorrowAtMidnight.setDate(this.tomorrowAtMidnight.getDate() + 1);
     this.tomorrowAtMidnight.setHours(0, 0, 0, 0);

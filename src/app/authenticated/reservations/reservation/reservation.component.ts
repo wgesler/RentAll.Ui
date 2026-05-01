@@ -5,7 +5,7 @@ import { AbstractControl, FormBuilder, FormControl, FormGroup, FormsModule, Reac
 import { MatDialog } from '@angular/material/dialog';
 import { ActivatedRoute, ParamMap, Router } from '@angular/router';
 import { ToastrService } from 'ngx-toastr';
-import { BehaviorSubject, Observable, Subject, Subscription, catchError, filter, finalize, firstValueFrom, map, of, pairwise, skip, startWith, take, takeUntil } from 'rxjs';
+import { BehaviorSubject, Observable, Subject, Subscription, catchError, filter, finalize, map, of, pairwise, skip, startWith, take, takeUntil } from 'rxjs';
 import { RouterUrl } from '../../../app.routes';
 import { CanComponentDeactivate } from '../../../guards/can-deactivate-guard';
 import { CommonMessage, CommonTimeouts } from '../../../enums/common-message.enum';
@@ -1174,7 +1174,7 @@ export class ReservationComponent implements OnInit, OnDestroy, CanComponentDeac
 
   setupPetFeeHandler(): void {
     this.form.get('pets')?.valueChanges.pipe(startWith(this.form.get('pets')?.value ?? false), pairwise(), takeUntil(this.destroy$)).subscribe(([previousPets, currentPets]) => {
-      const applyEnabledDefaults = !Boolean(previousPets) && Boolean(currentPets);
+      const applyEnabledDefaults = !previousPets && Boolean(currentPets);
       this.updatePetFields(applyEnabledDefaults);
     });
   }
@@ -1203,7 +1203,7 @@ export class ReservationComponent implements OnInit, OnDestroy, CanComponentDeac
 
   setupMaidServiceHandler(): void {
     this.form.get('maidService')?.valueChanges.pipe(startWith(this.form.get('maidService')?.value ?? false), pairwise(), takeUntil(this.destroy$)).subscribe(([previousMaidService, currentMaidService]) => {
-      const applyEnabledDefaults = !Boolean(previousMaidService) && Boolean(currentMaidService);
+      const applyEnabledDefaults = !previousMaidService && Boolean(currentMaidService);
       this.updateMaidServiceFields(applyEnabledDefaults);
       
       // When maidService becomes enabled, initialize maidStartDate if arrivalDate exists

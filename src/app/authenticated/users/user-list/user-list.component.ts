@@ -18,7 +18,7 @@ import { DataTableComponent } from '../../shared/data-table/data-table.component
 import { DataTableFilterActionsDirective } from '../../shared/data-table/data-table-filter-actions.directive';
 import { ColumnSet } from '../../shared/data-table/models/column-data';
 import { hasCompanyRole, hasHousekeepingRole, hasInspectorRole, hasOwnerRole, hasVendorRole } from '../../shared/access/role-access';
-import { EMPLOYEE_USER_GROUPS, getStartupPage, SPECIALTY_ONLY_TAB_USER_GROUPS, UserGroups } from '../models/user-enums';
+import { getStartupPage, SPECIALTY_ONLY_TAB_USER_GROUPS, UserGroups } from '../models/user-enums';
 import { UserListDisplay, UserRequest, UserResponse } from '../models/user.model';
 import { UserService } from '../services/user.service';
 

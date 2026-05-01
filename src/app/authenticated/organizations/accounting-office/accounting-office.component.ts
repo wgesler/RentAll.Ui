@@ -12,7 +12,6 @@ import { AuthService } from '../../../services/auth.service';
 import { CommonService } from '../../../services/common.service';
 import { FormatterService } from '../../../services/formatter-service';
 import { MappingService } from '../../../services/mapping.service';
-import { NavigationContextService } from '../../../services/navigation-context.service';
 import { UtilityService } from '../../../services/utility.service';
 import { FileDetails } from '../../../shared/models/fileDetails';
 import { fileValidator } from '../../../validators/file-validator';
@@ -67,9 +66,7 @@ export class AccountingOfficeComponent implements OnInit, OnDestroy, OnChanges {
     private route: ActivatedRoute,
     private toastr: ToastrService,
     private authService: AuthService,
-    private formatterService: FormatterService,
-    private navigationContext: NavigationContextService,
-    private commonService: CommonService,
+    private formatterService: FormatterService,    private commonService: CommonService,
     private officeService: OfficeService,
     private mappingService: MappingService,
     private utilityService: UtilityService

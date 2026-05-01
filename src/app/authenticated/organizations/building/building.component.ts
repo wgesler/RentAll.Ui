@@ -10,7 +10,6 @@ import { MaterialModule } from '../../../material.module';
 import { AuthService } from '../../../services/auth.service';
 import { FormatterService } from '../../../services/formatter-service';
 import { MappingService } from '../../../services/mapping.service';
-import { NavigationContextService } from '../../../services/navigation-context.service';
 import { UtilityService } from '../../../services/utility.service';
 import { TrashDays } from '../../properties/models/property-enums';
 import { BuildingRequest, BuildingResponse } from '../models/building.model';
@@ -56,7 +55,6 @@ export class BuildingComponent implements OnInit, OnDestroy, OnChanges {
     private route: ActivatedRoute,
     private toastr: ToastrService,
     private authService: AuthService,
-    private navigationContext: NavigationContextService,
     private officeService: OfficeService,
     private formatterService: FormatterService,
     private mappingService: MappingService,

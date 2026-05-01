@@ -1,5 +1,4 @@
 import { CommonModule } from '@angular/common';
-import { HttpErrorResponse } from '@angular/common/http';
 import { Component, OnDestroy, OnInit } from '@angular/core';
 import { FormBuilder, FormControl, FormGroup, FormsModule, ReactiveFormsModule, Validators } from '@angular/forms';
 import { ActivatedRoute, Router } from '@angular/router';
@@ -321,7 +320,7 @@ export class DocumentComponent implements OnInit, OnDestroy {
     return docType ? docType.label : getDocumentType(documentType) || 'Other';
   }
 
-  private getMaintenanceShellDocumentsTabIndex(): number {
+   getMaintenanceShellDocumentsTabIndex(): number {
     const isInspector = hasInspectorRole(this.authService.getUser()?.userGroups as Array<string | number> | undefined);
     const showWorkOrdersTab = !isInspector;
     return showWorkOrdersTab ? 5 : 4;

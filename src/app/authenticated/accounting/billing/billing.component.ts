@@ -5,7 +5,7 @@ import { FormBuilder, FormControl, FormGroup, FormsModule, ReactiveFormsModule, 
 import { MatDialog } from '@angular/material/dialog';
 import { ActivatedRoute, ParamMap, Router } from '@angular/router';
 import { ToastrService } from 'ngx-toastr';
-import { BehaviorSubject, Observable, Subscription, filter, finalize, firstValueFrom, map, take } from 'rxjs';
+import { BehaviorSubject, Observable, Subscription, filter, finalize, map, take } from 'rxjs';
 import { RouterUrl } from '../../../app.routes';
 import { CommonMessage, CommonTimeouts } from '../../../enums/common-message.enum';
 import { MaterialModule } from '../../../material.module';
@@ -15,7 +15,7 @@ import { MappingService } from '../../../services/mapping.service';
 import { UtilityService } from '../../../services/utility.service';
 import { getUserGroupNumbers } from '../../shared/access/role-access';
 import { UserGroups } from '../../users/models/user-enums';
-import { OrganizationRequest, OrganizationResponse } from '../../organizations/models/organization.model';
+import { OrganizationResponse } from '../../organizations/models/organization.model';
 import { OrganizationService } from '../../organizations/services/organization.service';
 import { TransactionType, TransactionTypeLabels, getTransactionTypeLabel as getAccountingTransactionTypeLabel } from '../models/accounting-enum';
 import { CostCodesResponse } from '../models/cost-codes.model';

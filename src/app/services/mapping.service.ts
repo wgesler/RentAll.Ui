@@ -28,7 +28,7 @@ import { PropertyBedDropdownCell, PropertyListDisplay, PropertyListResponse, Pro
 import { BoardProperty } from '../authenticated/reservations/models/reservation-board-model';
 import { getFrequency, getReservationStatus } from '../authenticated/reservations/models/reservation-enum';
 import { ExtraFeeLineRequest, ExtraFeeLineResponse, ReservationListDisplay, ReservationListResponse } from '../authenticated/reservations/models/reservation-model';
-import { MaintenanceListDisplay, PropertyMaintenance, ReservationPropertyMaintenance } from '../authenticated/shared/models/mixed-models';
+import { MaintenanceListDisplay, PropertyMaintenance } from '../authenticated/shared/models/mixed-models';
 import { WorkOrderAmountService } from '../authenticated/maintenance/services/work-order-amount.service';
 import { FormatterService } from './formatter-service';
 import { UtilityService } from './utility.service';

@@ -10,7 +10,6 @@ import { MaterialModule } from '../../../material.module';
 import { AuthService } from '../../../services/auth.service';
 import { FormatterService } from '../../../services/formatter-service';
 import { MappingService } from '../../../services/mapping.service';
-import { NavigationContextService } from '../../../services/navigation-context.service';
 import { UtilityService } from '../../../services/utility.service';
 import { AgentRequest, AgentResponse } from '../models/agent.model';
 import { OfficeResponse } from '../models/office.model';
@@ -53,9 +52,7 @@ export class AgentComponent implements OnInit, OnDestroy, OnChanges {
     public fb: FormBuilder,
     private route: ActivatedRoute,
     private toastr: ToastrService,
-    private authService: AuthService,
-    private navigationContext: NavigationContextService,
-    private officeService: OfficeService,
+    private authService: AuthService,    private officeService: OfficeService,
     private formatterService: FormatterService,
     private mappingService: MappingService,
     private utilityService: UtilityService

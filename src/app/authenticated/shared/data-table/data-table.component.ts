@@ -1,6 +1,6 @@
 import { SelectionModel } from '@angular/cdk/collections';
 import { CommonModule } from '@angular/common';
-import { ChangeDetectorRef, Component, contentChild, EventEmitter, Input, NgZone, OnChanges, OnInit, Output, SimpleChanges, TemplateRef, ViewChild } from '@angular/core';
+import { Component, contentChild, EventEmitter, Input, NgZone, OnChanges, OnInit, Output, SimpleChanges, TemplateRef, ViewChild } from '@angular/core';
 import { MatDialog } from '@angular/material/dialog';
 import { FormsModule } from '@angular/forms';
 import { MatCheckboxChange } from '@angular/material/checkbox';
@@ -225,9 +225,7 @@ export class DataTableComponent implements OnChanges, OnInit {
 
   constructor(
     private zone: NgZone,
-    private formatter: FormatterService,
-    private cdr: ChangeDetectorRef,
-    private dialog: MatDialog
+    private formatter: FormatterService,    private dialog: MatDialog
   ) {}
 
   ngOnInit(): void {

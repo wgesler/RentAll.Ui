@@ -2,7 +2,6 @@ import { CommonModule } from '@angular/common';
 import { Component, Inject } from '@angular/core';
 import { MAT_DIALOG_DATA, MatDialogRef } from '@angular/material/dialog';
 import { MaterialModule } from '../../../material.module';
-import { PropertyResponse } from '../../properties/models/property.model';
 import { InspectionComponent } from '../inspection/inspection.component';
 import { InspectionReadonlyDialogData } from './inspection-readonly-dialog-data';
 

@@ -1,12 +1,11 @@
 import { HttpClient } from '@angular/common/http';
 import { Injectable } from '@angular/core';
 import { Observable, firstValueFrom } from 'rxjs';
-import { catchError } from 'rxjs/operators';
 import { map } from 'rxjs/operators';
 import { ConfigService } from '../../../services/config.service';
 import { MappingService } from '../../../services/mapping.service';
 import { MixedMappingService } from '../../../services/mixed-mapping.service';
-import { CalendarUrlRequest, CalendarUrlResponse } from '../models/property-calendar';
+import { CalendarUrlResponse } from '../models/property-calendar';
 import { PropertySelectionRequest, PropertySelectionResponse } from '../models/property-selection.model';
 import { PropertyListResponse, PropertyRequest, PropertyResponse } from '../models/property.model';
 

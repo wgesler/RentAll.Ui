@@ -50,7 +50,7 @@ export class FormatterService {
      * Parses leading `YYYY-MM-DD` (segment before `T`) as a local calendar day for display.
      * Returns `null` if the prefix is not a valid calendar date.
      */
-    private parseCalendarPrefixToLocalDate(value?: string | null): Date | null {
+     parseCalendarPrefixToLocalDate(value?: string | null): Date | null {
         if (value == null || String(value).trim() === '') {
             return null;
         }

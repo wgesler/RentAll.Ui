@@ -10,7 +10,6 @@ import { MaterialModule } from '../../../material.module';
 import { AuthService } from '../../../services/auth.service';
 import { CommonService } from '../../../services/common.service';
 import { FormatterService } from '../../../services/formatter-service';
-import { NavigationContextService } from '../../../services/navigation-context.service';
 import { UtilityService } from '../../../services/utility.service';
 import { FileDetails } from '../../../shared/models/fileDetails';
 import { fileValidator } from '../../../validators/file-validator';
@@ -71,7 +70,6 @@ export class OfficeComponent implements OnInit, OnDestroy, OnChanges {
     private toastr: ToastrService,
     private authService: AuthService,
     private formatterService: FormatterService,
-    private navigationContext: NavigationContextService,
     private commonService: CommonService,
     private costCodesService: CostCodesService,
     private userService: UserService,

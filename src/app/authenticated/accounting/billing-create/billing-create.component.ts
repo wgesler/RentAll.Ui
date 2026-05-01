@@ -603,7 +603,7 @@ export class BillingCreateComponent extends BaseDocumentComponent implements OnI
 
   getOrganizationAddress(): string {
     if (!this.recipientOrganization) return '';
-      let address = this.recipientOrganization.address1 + ' ' + this.recipientOrganization.city + ', ' +  this.recipientOrganization.state + ' ' +   this.recipientOrganization.zip
+      const address = this.recipientOrganization.address1 + ' ' + this.recipientOrganization.city + ', ' +  this.recipientOrganization.state + ' ' +   this.recipientOrganization.zip
       return address
   }
 
@@ -631,7 +631,7 @@ export class BillingCreateComponent extends BaseDocumentComponent implements OnI
 
         try {
           if (selectedDocuments.length === 1) {
-            let processedHtml = this.replacePlaceholders(selectedDocuments[0]);
+            const processedHtml = this.replacePlaceholders(selectedDocuments[0]);
             this.processAndSetHtml(processedHtml);
             return;
           }

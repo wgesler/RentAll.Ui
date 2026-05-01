@@ -1,5 +1,4 @@
 import { CommonModule } from '@angular/common';
-import { HttpErrorResponse } from '@angular/common/http';
 import { AfterViewInit, Component, ElementRef, OnDestroy, OnInit, ViewChild } from '@angular/core';
 import { DomSanitizer, SafeResourceUrl } from '@angular/platform-browser';
 import { ActivatedRoute, Router } from '@angular/router';
@@ -452,7 +451,7 @@ export class DocumentViewComponent implements OnInit, OnDestroy, AfterViewInit {
   //#endregion 
 
   //#region Utility Methods
-  private getMaintenanceShellDocumentsTabIndex(): number {
+   getMaintenanceShellDocumentsTabIndex(): number {
     const isInspector = hasInspectorRole(this.authService.getUser()?.userGroups as Array<string | number> | undefined);
     const showWorkOrdersTab = !isInspector;
     return showWorkOrdersTab ? 5 : 4;

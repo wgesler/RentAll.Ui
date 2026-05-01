@@ -12,7 +12,6 @@ import { AuthService } from './services/auth.service';
 import { CommonService } from './services/common.service';
 import { PropertySelectionFilterService } from './authenticated/properties/services/property-selection-filter.service';
 import { PropertyService } from './authenticated/properties/services/property.service';
-import { environment } from '../environments/environment';
 import { DebugLayoutBandsService } from './services/debug-layout-bands.service';
 import { UtilityService } from './services/utility.service';
 
