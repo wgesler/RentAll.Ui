@@ -627,9 +627,15 @@ export class MappingService {
     delete rest['bldgNo'];
     const bldgNoRaw = raw['bldgNo'];
     const bldgNo = bldgNoRaw != null && String(bldgNoRaw).trim() !== '' ? String(bldgNoRaw).trim() : undefined;
+    const description = raw['description'] ?? raw['Description'];
+    const amenities = raw['amenities'] ?? raw['Amenities'];
+    const notes = raw['notes'] ?? raw['Notes'];
     return {
       ...rest,
       propertyLeaseTypeId: Number(leaseTypeId ?? 0),
+      description: description == null ? null : String(description),
+      amenities: amenities == null ? null : String(amenities),
+      notes: notes == null ? null : String(notes),
       ...(bldgNo !== undefined ? { bldgNo } : {})
     } as unknown as PropertyResponse;
   }

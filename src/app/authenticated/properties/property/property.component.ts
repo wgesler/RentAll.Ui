@@ -67,7 +67,11 @@ export class PropertyComponent implements OnInit, AfterViewInit, OnDestroy, CanC
   isServiceError: boolean = false;
   form: FormGroup;
   @ViewChild(PropertyAgreementComponent) propertyAgreementSection?: PropertyAgreementComponent;
-  @ViewChild('descriptionEditor') descriptionEditor?: ElementRef<HTMLDivElement>;
+  @ViewChild('descriptionEditor') set descriptionEditorRef(value: ElementRef<HTMLDivElement> | undefined) {
+    this.descriptionEditor = value;
+    this.syncDescriptionEditorFromForm();
+  }
+  descriptionEditor?: ElementRef<HTMLDivElement>;
   isSubmitting: boolean = false;
   isAddMode: boolean = false;
   
@@ -639,6 +643,7 @@ export class PropertyComponent implements OnInit, AfterViewInit, OnDestroy, CanC
     if (this.property && this.form) {
       // Start with property object, converting to form-friendly format
       const formData: any = { ...this.property };
+      const propertyRaw = this.property as unknown as Record<string, unknown>;
       
       // Transform fields that need special handling
       const code = this.property.propertyCode?.toUpperCase() || '';
@@ -700,6 +705,14 @@ export class PropertyComponent implements OnInit, AfterViewInit, OnDestroy, CanC
       stringFields.forEach(field => {
         formData[field] = this.property[field] || '';
       });
+      const descriptionCandidates = [
+        propertyRaw['description'],
+        propertyRaw['Description'],
+        propertyRaw['propertyDescription'],
+        propertyRaw['PropertyDescription']
+      ];
+      const resolvedDescription = descriptionCandidates.find(value => value != null && String(value).trim() !== '');
+      formData.description = resolvedDescription == null ? '' : String(resolvedDescription);
       
       // Handle parkingNotes field (map from parkingNotes in response)
       formData.parkingNotes = this.property.parkingNotes || '';
@@ -746,6 +759,7 @@ export class PropertyComponent implements OnInit, AfterViewInit, OnDestroy, CanC
       // Set all values at once without emitting (avoid validation/toast on load)
       this.form.patchValue(formData, { emitEvent: false });
       this.syncDescriptionEditorFromForm();
+      setTimeout(() => this.syncDescriptionEditorFromForm());
       this.syncConditionalFieldState();
       this.applyOwnerVendorLeaseValidators();
       this.form.markAsUntouched();
@@ -1644,6 +1658,9 @@ export class PropertyComponent implements OnInit, AfterViewInit, OnDestroy, CanC
   //#region Form Response Methods
   onPanelOpened(section: keyof typeof this.expandedSections): void {
     this.expandedSections[section] = true;
+    if (section === 'description') {
+      setTimeout(() => this.syncDescriptionEditorFromForm());
+    }
   }
 
   onPanelClosed(section: keyof typeof this.expandedSections): void {
