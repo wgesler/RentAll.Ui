@@ -7,49 +7,62 @@
   <div class="flex content-card-wrap justify-center" fxLayout="row wrap" [class.settings-embedded-edit-wrap]="embeddedInSettings">
     <section class="content-card">
       @if (!embeddedInSettings) {
-      <div class="flex justify-between items-center gap-3 py-2 px-4 border-b">
-        <span class="flex flex-column items-center gap-2">
-          <mat-icon class="flex-shrink-0">confirmation_number</mat-icon>
-          <span class="flex-shrink-0 text-lg font-medium">
-            {{ isAddMode ? 'Add Ticket' : 'Edit Ticket' }}
+      <div class="flex justify-between items-center gap-3 bg-slate-300 rounded-t-lg py-0 pl-8 pr-4 property-titlebar">
+        <div class="flex items-center flex-wrap py-4">
+          <span class="flex flex-column items-center gap-3 flex-shrink-0">
+            <mat-icon class="flex-shrink-0">confirmation_number</mat-icon>
+            <span class="flex-shrink-0 text-xl font-medium">
+              Tickets
+            </span>
           </span>
-        </span>
-        <div class="flex gap-2">
+          <div class="header-title form-titlebar-fields-wrap">
+            <mat-form-field appearance="outline" class="titlebar-field-office">
+              <mat-label>Office</mat-label>
+              <input matInput [value]="ticket?.officeName || ''" readonly class="readonly-field">
+            </mat-form-field>
+            <mat-form-field appearance="outline" class="titlebar-field-property-code">
+              <mat-label>Property Code</mat-label>
+              <input matInput [value]="ticket?.PropertyCode || ''" readonly class="readonly-field">
+            </mat-form-field>
+            <mat-form-field appearance="outline" class="titlebar-field-reservation">
+              <mat-label>Reservation</mat-label>
+              <input matInput [value]="ticket?.ReservationCode || ''" readonly class="readonly-field">
+            </mat-form-field>
+          </div>
+        </div>
+        <div class="form-titlebar-actions-wrap uniform-gap">
           <button mat-raised-button type="button" color="accent" id="back-button" (click)="back()"
             class="text-nowrap flex-shrink-0">
             <mat-icon>arrow_back</mat-icon>
             Back
           </button>
-          <button mat-raised-button type="submit" form="ticketForm" color="primary" id="save-button" (click)="saveTicket()"
-            class="text-nowrap flex-shrink-0" [disabled]="isSubmitting || !form.valid">
-            <mat-icon>save</mat-icon>
-            Save
+          <button mat-icon-button type="button" color="warn" id="ticket-alert-button" (click)="openAddAlertDialog()"
+            class="flex-shrink-0 !w-11 !h-11" aria-label="Add Alert">
+            <mat-icon class="!text-[28px] !w-7 !h-7 titlebar-alert-bell-icon">notifications</mat-icon>
           </button>
         </div>
       </div>
       }
       <mat-card>
         <form id="ticketForm" [formGroup]="form" (ngSubmit)="saveTicket()" class="info-form mb-8 form-hide-error-text" [class.pt-5]="!embeddedInSettings" [class.settings-embedded-edit-top-offset]="embeddedInSettings">
-          <div class="grid grid-cols-4 gap-x-1.5 gap-y-1">
-            @if (embeddedInSettings) {
-              <div class="col-span-4 flex justify-end settings-embedded-edit-actions">
-                <button mat-raised-button type="button" color="accent" id="back-button-embedded" (click)="back()"
-                  class="text-nowrap flex-shrink-0">
-                  <mat-icon>arrow_back</mat-icon>
-                  Back
-                </button>
-                <button mat-raised-button type="submit" form="ticketForm" color="primary" id="save-button-embedded" (click)="saveTicket()"
-                  class="text-nowrap flex-shrink-0" [disabled]="isSubmitting || !form.valid">
-                  <mat-icon>save</mat-icon>
-                  Save
-                </button>
-              </div>
-            }
+          <div class="grid grid-cols-12 form-standard-grid">
+            <div class="col-span-12 flex justify-end items-center gap-3">
+              <mat-checkbox formControlName="isActive" color="primary" class="ticket-is-active-toggle">
+                IsActive
+              </mat-checkbox>
+              <button mat-raised-button type="submit" color="primary" id="save-button"
+                class="text-nowrap flex-shrink-0" [disabled]="isSubmitting">
+                <mat-icon>save</mat-icon>
+                Save
+              </button>
+            </div>
 
-            <mat-form-field appearance="outline" class="col-span-1">
-              <mat-label>Ticket Code</mat-label>
-              <input matInput formControlName="ticketCode" required>
-            </mat-form-field>
+            @if (!isAddMode) {
+              <mat-form-field appearance="outline" class="col-span-12">
+                <mat-label>Ticket Code</mat-label>
+                <input matInput [value]="ticketCodeDisplay" readonly>
+              </mat-form-field>
+            }
 
             <mat-form-field appearance="outline" class="col-span-2">
               <mat-label>State</mat-label>
@@ -60,20 +73,51 @@
               </mat-select>
             </mat-form-field>
 
-            <mat-checkbox formControlName="isActive" color="primary" class="col-span-1 flex items-center">
-              IsActive
-            </mat-checkbox>
+            <mat-form-field appearance="outline" class="col-span-2">
+              <mat-label>Property Code</mat-label>
+              <mat-select formControlName="propertyId" (selectionChange)="onPropertyDropdownChange($event.value)" required [canSelectNullableOptions]="true">
+                <mat-option [value]="null">Select Property</mat-option>
+                @for (property of activePropertyOptions; track property.propertyId) {
+                  <mat-option [value]="property.propertyId">{{ property.propertyCode }}</mat-option>
+                }
+              </mat-select>
+            </mat-form-field>
 
-            <mat-form-field appearance="outline" class="col-span-4">
+            <mat-form-field appearance="outline" class="col-span-2">
+              <mat-label>Assignee</mat-label>
+              <mat-select formControlName="assigneeId" [canSelectNullableOptions]="true">
+                <mat-option [value]="null">Unassigned</mat-option>
+                @for (assignee of assigneeOptions; track assignee.userId) {
+                  <mat-option [value]="assignee.userId">{{ assignee.displayName }}</mat-option>
+                }
+              </mat-select>
+            </mat-form-field>
+
+            <mat-form-field appearance="outline" class="col-span-2">
+              <mat-label>Last Modified</mat-label>
+              <input matInput [value]="lastModifiedDisplay" disabled>
+            </mat-form-field>
+
+            <div class="col-span-12 ticket-communication-status-box">
+              <div class="ticket-communication-status-label">Communication Status:</div>
+              <div class="ticket-checkbox-grid">
+                <mat-checkbox formControlName="permissionToEnter" color="primary">Permission to Enter</mat-checkbox>
+                <mat-checkbox formControlName="ownerContacted" color="primary">Owner Contacted</mat-checkbox>
+                <mat-checkbox formControlName="confirmedWithTenant" color="primary">Confirmed with Tenant</mat-checkbox>
+                <mat-checkbox formControlName="followedUpWithOwner" color="primary">Followed Up with Owner</mat-checkbox>
+                <mat-checkbox formControlName="workOrderCompleted" color="primary">Work Order Completed</mat-checkbox>
+              </div>
+            </div>
+
+            <mat-form-field appearance="outline" class="col-span-12">
+              <mat-label>Title</mat-label>
+              <input matInput formControlName="title" required>
+            </mat-form-field>
+
+            <mat-form-field appearance="outline" class="col-span-12">
               <mat-label>Description</mat-label>
               <textarea matInput rows="3" formControlName="description" required></textarea>
             </mat-form-field>
-
-            <mat-checkbox formControlName="permissionToEnter" color="primary" class="col-span-1">Permission to Enter</mat-checkbox>
-            <mat-checkbox formControlName="ownerContacted" color="primary" class="col-span-1">Owner Contacted</mat-checkbox>
-            <mat-checkbox formControlName="confirmedWithTenant" color="primary" class="col-span-1">Confirmed with Tenant</mat-checkbox>
-            <mat-checkbox formControlName="followedUpWithOwner" color="primary" class="col-span-1">Followed Up with Owner</mat-checkbox>
-            <mat-checkbox formControlName="workOrderCompleted" color="primary" class="col-span-1">Work Order Completed</mat-checkbox>
           </div>
         </form>
       </mat-card>

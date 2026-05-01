@@ -12,11 +12,11 @@ export function getTicketStateType(ticketStateTypeId: number | undefined): strin
   if (ticketStateTypeId === undefined || ticketStateTypeId === null) return '';
 
   const stateTypeMap: { [key: number]: string } = {
-    [TicketStateType.caseCreated]: 'Case Created',
+    [TicketStateType.caseCreated]: 'Created',
     [TicketStateType.assigned]: 'Assigned',
     [TicketStateType.scheduled]: 'Scheduled',
     [TicketStateType.inProgress]: 'In Progress',
-    [TicketStateType.workComplete]: 'Work Complete',
+    [TicketStateType.workComplete]: 'Complete',
     [TicketStateType.closed]: 'Closed'
   };
 

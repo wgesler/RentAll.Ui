@@ -40,8 +40,7 @@ import { MaintenanceShellComponent } from './authenticated/maintenance/maintenan
 import { WorkOrderComponent } from './authenticated/maintenance/work-order/work-order.component';
 import { WorkOrderCreateComponent } from './authenticated/maintenance/work-order-create/work-order-create.component';
 import { ReceiptComponent } from './authenticated/maintenance/receipt/receipt.component';
-import { TicketListComponent } from './authenticated/tickets/ticket-list/ticket-list.component';
-import { TicketComponent } from './authenticated/tickets/ticket/ticket.component';
+import { TicketShellComponent } from './authenticated/tickets/ticket-shell/ticket-shell.component';
 import { PropertyListComponent } from './authenticated/properties/property-list/property-list.component';
 import { PropertyShellComponent } from './authenticated/properties/property-shell/property-shell.component';
 import { PropertySelectionComponent } from './authenticated/properties/property-selection/property-selection.component';
@@ -192,8 +191,8 @@ export const authRoutes: Routes = [
   { path: RouterToken.Contacts, component: ContactsShellComponent, canActivate: [authRouteGuard] },
   { path: RouterToken.Contact, component: ContactComponent, canActivate: [authRouteGuard] },
   { path: RouterToken.MaintenanceList, component: MaintenanceListComponent, canActivate: [authRouteGuard] },
-  { path: RouterToken.TicketList, component: TicketListComponent, canActivate: [authRouteGuard] },
-  { path: RouterToken.Ticket, component: TicketComponent, canActivate: [authRouteGuard], canDeactivate: [canDeactivateGuard] },
+  { path: RouterToken.TicketList, component: TicketShellComponent, canActivate: [authRouteGuard], canDeactivate: [canDeactivateGuard] },
+  { path: RouterToken.Ticket, component: TicketShellComponent, canActivate: [authRouteGuard], canDeactivate: [canDeactivateGuard] },
   { path: RouterToken.MaintenanceWorkOrder, component: WorkOrderComponent, canActivate: [authRouteGuard] },
   { path: RouterToken.WorkOrderCreate, component: WorkOrderCreateComponent, canActivate: [authRouteGuard] },
   { path: RouterToken.MaintenanceReceipt, component: ReceiptComponent, canActivate: [authRouteGuard] },

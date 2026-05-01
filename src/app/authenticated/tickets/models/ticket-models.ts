@@ -5,9 +5,11 @@ export interface TicketRequest {
     officeName: string;
     propertyId: string | null;
     PropertyCode: string | null;
+    assigneeId?: string | null;
     ReservationId : string | null;
     ReservationCode : string | null;
     TicketCode: string;
+    Title: string;
     Description: string;
     ticketStateTypeId: number
     permissionToEnter: boolean;
@@ -26,9 +28,12 @@ export interface TicketResponse {
     officeName: string;
     propertyId: string | null;
     PropertyCode: string | null;
+    assigneeId?: string | null;
+    assignee?: string | null;
     ReservationId : string | null;
     ReservationCode : string | null;
     TicketCode: string;
+    Title: string;
     Description: string;
     ticketStateTypeId: number
     permissionToEnter: boolean;

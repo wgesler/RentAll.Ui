@@ -168,7 +168,7 @@ const routeRulesBySegment: Record<string, AccessRule> = {
   [ROUTER_TOKEN.RentalList]: openToAllExceptSuperAdmin,
   [ROUTER_TOKEN.PropertyList]: openToAllExceptSuperAdmin,
   [ROUTER_TOKEN.MaintenanceList]: openToAllExceptSuperAdmin,
-  [ROUTER_TOKEN.TicketList]: noAccess,
+  [ROUTER_TOKEN.TicketList]: openToAllExceptSuperAdmin,
   'work-order': openToAllExceptSuperAdmin,
   [ROUTER_TOKEN.WorkOrderCreate]: openToAllExceptSuperAdmin,
   receipt: openToAllExceptSuperAdmin,

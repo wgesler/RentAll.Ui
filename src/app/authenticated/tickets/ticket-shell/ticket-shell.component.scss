@@ -1,0 +1,8 @@
+:host {
+  display: block;
+}
+
+.property-titlebar {
+  min-height: var(--property-titlebar-height);
+  box-sizing: border-box;
+}

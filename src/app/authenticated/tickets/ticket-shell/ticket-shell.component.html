@@ -1,0 +1,103 @@
+@if (!isPageReady) {
+  <div class="page-loading-container">
+    <mat-spinner [diameter]="40"></mat-spinner>
+    <p>Loading tickets...</p>
+  </div>
+} @else {
+  <div class="flex content-card-wrap justify-center" fxLayout="row wrap">
+    <section class="content-card">
+      <div class="flex justify-between items-center gap-3 bg-slate-300 rounded-t-lg py-0 pl-8 pr-4 property-titlebar">
+        <div class="flex items-center flex-wrap py-4">
+          <span class="flex flex-column items-center gap-3 flex-shrink-0">
+            <mat-icon class="flex-shrink-0">confirmation_number</mat-icon>
+            <span class="flex-shrink-0 text-xl font-medium">Tickets</span>
+          </span>
+          <div class="header-title form-titlebar-fields-wrap">
+            <mat-form-field appearance="outline" class="titlebar-field-office">
+              <mat-label>Office</mat-label>
+              <mat-select
+                [value]="selectedOfficeId"
+                (selectionChange)="onOfficeFilterChange($event.value)"
+                [canSelectNullableOptions]="true">
+                <mat-option [value]="null">All Offices</mat-option>
+                @for (office of officeFilterOptions; track office.officeId) {
+                  <mat-option [value]="office.officeId">{{ office.officeName }}</mat-option>
+                }
+              </mat-select>
+            </mat-form-field>
+            <mat-form-field appearance="outline" class="titlebar-field-property-code">
+              <mat-label>Property Code</mat-label>
+              <mat-select
+                [value]="selectedPropertyId"
+                (selectionChange)="onPropertyFilterChange($event.value)"
+                [canSelectNullableOptions]="true">
+                <mat-option [value]="null">All Properties</mat-option>
+                @for (property of propertyFilterOptions; track property.propertyId) {
+                  <mat-option [value]="property.propertyId">{{ property.propertyCode }}</mat-option>
+                }
+              </mat-select>
+            </mat-form-field>
+            <mat-form-field appearance="outline" class="titlebar-field-reservation">
+              <mat-label>Reservation</mat-label>
+              <mat-select
+                [value]="selectedReservationId"
+                (selectionChange)="onReservationFilterChange($event.value)"
+                [canSelectNullableOptions]="true">
+                <mat-option [value]="null">All Reservations</mat-option>
+                @for (reservation of reservationFilterOptions; track reservation.reservationId) {
+                  <mat-option [value]="reservation.reservationId">{{ reservation.reservationCode }}</mat-option>
+                }
+              </mat-select>
+            </mat-form-field>
+          </div>
+        </div>
+        <div class="form-titlebar-actions-wrap uniform-gap">
+          @if (showTicketForm) {
+            <button
+              mat-raised-button
+              type="button"
+              color="accent"
+              id="ticket-shell-back-button"
+              class="text-nowrap flex-shrink-0"
+              (click)="onTicketBack()">
+              <mat-icon>arrow_back</mat-icon>
+              Back
+            </button>
+          }
+          <button
+            mat-icon-button
+            type="button"
+            color="warn"
+            id="ticket-shell-alert-button"
+            class="flex-shrink-0 !w-11 !h-11"
+            (click)="openAddAlertDialog()"
+            aria-label="Add Alert">
+            <mat-icon class="!text-[28px] !w-7 !h-7 titlebar-alert-bell-icon">notifications</mat-icon>
+          </button>
+        </div>
+      </div>
+
+      <mat-card>
+        <div [class.hidden]="showTicketForm">
+          <app-ticket-list
+            #ticketListSection
+            [embeddedInSettings]="true"
+            (ticketSelected)="onTicketSelected($event)">
+          </app-ticket-list>
+        </div>
+        @if (showTicketForm) {
+          <app-ticket
+            #ticketSection
+            [id]="currentTicketId"
+            [embeddedInSettings]="true"
+            [selectedPropertyIdFromShell]="selectedPropertyId"
+            [selectedOfficeIdFromShell]="selectedOfficeId"
+            (propertySelectionChange)="onTicketPropertySelectionChange($event)"
+            (savedEvent)="onTicketSaved()"
+            (backEvent)="onTicketBack()">
+          </app-ticket>
+        }
+      </mat-card>
+    </section>
+  </div>
+}

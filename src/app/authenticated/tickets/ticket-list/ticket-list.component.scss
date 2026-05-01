@@ -1,3 +1,8 @@
 :host {
   display: block;
 }
+
+:host ::ng-deep .ticket-list-table .datatable-dropdown-trigger .mat-mdc-select-value-text {
+  color: #1d4ed8;
+  text-decoration: underline;
+}
