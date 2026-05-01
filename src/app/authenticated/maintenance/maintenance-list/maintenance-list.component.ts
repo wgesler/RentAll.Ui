@@ -328,7 +328,8 @@ export class MaintenanceListComponent extends PropertyMaintenanceBase implements
       .filter((row): row is MaintenanceListDisplay => row !== null);
 
     const displayedPropertyIds = new Set<string>();
-    for (const row of [...arrivalRows, ...departureRows, ...maidRows, ...onlineRows, ...offlineRows]) {
+    // Maid service is supplemental and must not claim primary property occurrence.
+    for (const row of [...arrivalRows, ...departureRows, ...onlineRows, ...offlineRows]) {
       if (row.propertyId) {
         displayedPropertyIds.add(row.propertyId);
       }
