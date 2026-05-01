@@ -222,7 +222,8 @@ export const authInterceptor: HttpInterceptorFn = (req, next) => {
       req.url.endsWith('/login') ||
       req.url.endsWith('/logout') ||
       req.url.includes('/common/daily-quote') ||
-      req.url.includes('/common/state')) {
+      req.url.includes('/common/state') ||
+      req.url.includes('/common/property-listing')) {
     return next(req);
   }
 

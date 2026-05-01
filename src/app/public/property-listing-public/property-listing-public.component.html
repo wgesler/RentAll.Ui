@@ -11,6 +11,6 @@
       [initialPhotos]="photos">
     </app-property-listing>
   } @else {
-    <div>Listing not found or link has expired.</div>
+    <div>{{ errorMessage || 'Listing not found or link has expired.' }}</div>
   }
 </div>
