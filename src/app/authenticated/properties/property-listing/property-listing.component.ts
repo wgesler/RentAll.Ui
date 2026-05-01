@@ -60,6 +60,7 @@ export class PropertyListingComponent implements OnChanges {
     private toastr: ToastrService
   ) {}
 
+  //#region Property Listing
   ngOnChanges(changes: SimpleChanges): void {
     if (changes['property']) {
       this.listingDescriptionExpanded = false;
@@ -75,7 +76,9 @@ export class PropertyListingComponent implements OnChanges {
       this.loadPropertyPhotos();
     }
   }
+  //#endregion
 
+  //#region Get Methods
   get listingHeaderTitle(): string {
     return this.propertyCode || this.property?.propertyCode || 'Property Listing';
   }
@@ -238,7 +241,29 @@ export class PropertyListingComponent implements OnChanges {
     if (!this.property) return '';
     return `${this.property.bedrooms}/${this.property.bathrooms} | Sleeps ${this.property.accomodates} | ${this.property.squareFeet} sq ft`;
   }
+   
+  getAmenityIcon(amenity: string): string {
+    const value = (amenity || '').toLowerCase();
+    if (value.includes('washer') || value.includes('dryer') || value.includes('laundry')) return 'local_laundry_service';
+    if (value.includes('gym') || value.includes('fitness')) return 'fitness_center';
+    if (value.includes('sauna')) return 'spa';
+    if (value.includes('jacuzzi') || value.includes('hot tub')) return 'hot_tub';
+    if (value.includes('pool')) return 'pool';
+    if (value.includes('deck')) return 'deck';
+    if (value.includes('patio')) return 'table_restaurant';
+    if (value.includes('yard')) return 'grass';
+    if (value.includes('garden')) return 'local_florist';
+    if (value.includes('parking') || value.includes('garage')) return 'local_parking';
+    if (value.includes('elevator')) return 'elevator';
+    if (value.includes('air conditioning') || value === 'ac') return 'ac_unit';
+    if (value.includes('wifi') || value.includes('internet')) return 'wifi';
+    if (value.includes('kitchen')) return 'kitchen';
+    if (value.includes('security') || value.includes('gated')) return 'security';
+    return 'check_circle';
+  }
+  //#endregion
 
+  //#region Expandable Description
   toggleDescriptionExpanded(): void {
     this.listingDescriptionExpanded = !this.listingDescriptionExpanded;
     this.queueDescriptionOverflowCheck();
@@ -272,27 +297,9 @@ export class PropertyListingComponent implements OnChanges {
       .map(v => v.trim())
       .filter(Boolean);
   }
+  //#endregion
 
-  getAmenityIcon(amenity: string): string {
-    const value = (amenity || '').toLowerCase();
-    if (value.includes('washer') || value.includes('dryer') || value.includes('laundry')) return 'local_laundry_service';
-    if (value.includes('gym') || value.includes('fitness')) return 'fitness_center';
-    if (value.includes('sauna')) return 'spa';
-    if (value.includes('jacuzzi') || value.includes('hot tub')) return 'hot_tub';
-    if (value.includes('pool')) return 'pool';
-    if (value.includes('deck')) return 'deck';
-    if (value.includes('patio')) return 'table_restaurant';
-    if (value.includes('yard')) return 'grass';
-    if (value.includes('garden')) return 'local_florist';
-    if (value.includes('parking') || value.includes('garage')) return 'local_parking';
-    if (value.includes('elevator')) return 'elevator';
-    if (value.includes('air conditioning') || value === 'ac') return 'ac_unit';
-    if (value.includes('wifi') || value.includes('internet')) return 'wifi';
-    if (value.includes('kitchen')) return 'kitchen';
-    if (value.includes('security') || value.includes('gated')) return 'security';
-    return 'check_circle';
-  }
-
+  //#region Photo Support
   openPhotoPicker(): void {
     if (this.isReadOnly) {
       return;
@@ -588,4 +595,5 @@ export class PropertyListingComponent implements OnChanges {
       reader.readAsDataURL(file);
     });
   }
+  //#endregion
 }
