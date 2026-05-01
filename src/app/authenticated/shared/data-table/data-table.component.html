@@ -298,7 +298,7 @@
                       (click)="$event.stopPropagation()"
                       (mousedown)="$event.stopPropagation()"
                       class="editable-apply-amount"
-                      [style.color]="(item.originalDueAmountValue || 0) > 0 && Math.abs(item.applyAmountValue || 0) > (item.originalDueAmountValue || 0) ? '#d32f2f' : 'inherit'"
+                      [style.color]="isApplyAmountOverDue(item) ? '#d32f2f' : 'inherit'"
                       style="text-align: right; width: 100%; border: 1px solid #ccc; padding: 4px 8px; border-radius: 4px; font-size: 12px;">
                   } @else if (column.isCheckbox) {
                     <div class="datatable-checkbox-cell">

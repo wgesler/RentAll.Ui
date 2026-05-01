@@ -519,7 +519,8 @@ export class WorkOrderComponent implements OnInit, OnChanges, OnDestroy {
   ): void {
     const previousFactor = previousFactorOverride ?? this.lastMarkupFactor;
     const nextFactor = nextFactorOverride ?? this.getMarkupFactor();
-    if (!forceReevaluate && Math.abs(previousFactor - nextFactor) < 0.000001) {
+    const factorDelta = previousFactor - nextFactor;
+    if (!forceReevaluate && factorDelta > -0.000001 && factorDelta < 0.000001) {
       this.lastMarkupFactor = nextFactor;
       return;
     }
@@ -770,7 +771,7 @@ export class WorkOrderComponent implements OnInit, OnChanges, OnDestroy {
     if (parsed === null) {
       return '0%';
     }
-    const normalized = Math.abs(parsed) <= 1 ? parsed * 100 : parsed;
+    const normalized = (parsed >= -1 && parsed <= 1) ? parsed * 100 : parsed;
     return `${Math.round(normalized)}%`;
   }
 

@@ -632,9 +632,9 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
       dueAmount: '$' + this.formatter.currency(dueAmount),
       dueAmountValue: dueAmountValue, // Store raw value for validation (current due amount)
       originalDueAmountValue: originalDueAmountValue, // Store original due amount (for editability check)
-      applyAmount: this.isManualApplyMode ? '$' + this.formatter.currency(Math.abs(applyAmountValue)) : '', // Display value for apply column (show as positive)
-      applyAmountValue: applyAmountValue, // Store raw value for calculations (negative in manual mode)
-      applyAmountDisplay: this.isManualApplyMode ? '$' + this.formatter.currency(Math.abs(applyAmountValue)) : '', // Display value (show as positive)
+      applyAmount: this.isManualApplyMode ? (applyAmountValue < 0 ? '-$' + this.formatter.currency(-applyAmountValue) : '$' + this.formatter.currency(applyAmountValue)) : '',
+      applyAmountValue: applyAmountValue, // Store raw value for calculations
+      applyAmountDisplay: this.isManualApplyMode ? (applyAmountValue < 0 ? '-$' + this.formatter.currency(-applyAmountValue) : '$' + this.formatter.currency(applyAmountValue)) : '',
       startDate: this.formatter.formatDateString(invoice.startDate),
       endDate: this.formatter.formatDateString(invoice.endDate),
       invoiceDate: this.formatter.formatDateString(invoice.invoiceDate),
@@ -1176,7 +1176,7 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
         return line.description || '-';
       case 'amount':
         const amountValue = line.amount || 0;
-        const formattedAmount = this.formatter.currency(Math.abs(amountValue));
+        const formattedAmount = this.formatter.currency(amountValue < 0 ? -amountValue : amountValue);
         return amountValue < 0 ? '-$' + formattedAmount : '$' + formattedAmount;
       default:
         return line[columnName] || '-';
@@ -1237,7 +1237,7 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
         const finalValue = parsed;
         this.paymentAmount = finalValue;
         this.paymentAmountDisplay = finalValue < 0
-          ? '-$' + this.formatter.currency(Math.abs(finalValue))
+          ? '-$' + this.formatter.currency(-finalValue)
           : '$' + this.formatter.currency(finalValue);
         input.value = this.paymentAmountDisplay;
         this.updateRemainingAmount();
@@ -1329,10 +1329,10 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
       return;
     }
 
-    // Find all invoices that have an apply amount entered (applyAmountValue is negative)
+    // Find all invoices that have an apply amount entered
     const invoicesWithPayments = this.invoicesDisplay.filter(invoice => {
       const applyAmountValue = invoice.applyAmountValue || 0;
-      return applyAmountValue < 0 && invoice.invoiceId; // Only invoices with negative apply amounts (meaning payment was applied)
+      return applyAmountValue !== 0 && invoice.invoiceId;
     });
 
     if (invoicesWithPayments.length === 0) {
@@ -1350,7 +1350,7 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
     // Create an array of payment data
     const paymentDescription = this.getPaymentRequestDescription();
     const paymentData = invoicesWithPayments.map(invoice => {
-      const paidAmount = Math.abs(invoice.applyAmountValue || 0); // Convert negative to positive
+      const paidAmount = Number(invoice.applyAmountValue || 0);
       return {
         invoice,
         paidAmount,
@@ -1440,59 +1440,61 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
   
   onApplyAmountInput(invoice: any, event: Event): void {
     const input = event.target as HTMLInputElement;
-    let value = input.value;
-    
-    // Remove currency symbols and keep only numbers and decimal point
-    const isNegative = value.startsWith('-');
-    value = value.replace(/[^0-9.]/g, '');
-    
-    // Preserve negative sign if present
-    if (isNegative && value !== '') {
-      value = '-' + value;
-    }
-    
-    // Limit to one decimal point
+    let value = input.value.replace(/[^0-9.\-]/g, '');
+
+    // Keep only a single leading negative sign.
+    value = value.replace(/(?!^)-/g, '');
+
+    // Limit to one decimal point while preserving in-progress values like "-" or "-.".
     const parts = value.split('.');
     if (parts.length > 2) {
-      input.value = parts[0] + '.' + parts.slice(1).join('');
-    } else {
-      input.value = value;
+      value = `${parts[0]}.${parts.slice(1).join('')}`;
     }
+
+    input.value = value;
     
     // Update display value immediately for visual feedback
     invoice.applyAmountDisplay = input.value;
   }
 
   onApplyAmountChange(invoice: any, newValue: string): void {
-    const cleanedValue = newValue.replace(/[^0-9.-]/g, '');
-    const numericValue = parseFloat(cleanedValue) || 0;
-    invoice.applyAmountDisplay = numericValue.toString();
+    // Keep raw user typing (including a standalone leading "-") until blur formatting.
+    invoice.applyAmountDisplay = newValue;
   }
   
   onApplyAmountBlur(invoice: any, event: Event): void {
     const input = event.target as HTMLInputElement;
-    const rawValue = input.value.replace(/[^0-9.]/g, '').trim();
+    const sanitizedValue = input.value.replace(/[^0-9.-]/g, '').trim();
+    const normalizedSign = sanitizedValue.replace(/(?!^)-/g, '');
+    const parts = normalizedSign.split('.');
+    const normalizedValue = parts.length > 2
+      ? `${parts[0]}.${parts.slice(1).join('')}`
+      : normalizedSign;
     
-    if (rawValue !== '' && rawValue !== null) {
-      const parsed = parseFloat(rawValue);
+    if (normalizedValue !== '' && normalizedValue !== null && normalizedValue !== '-') {
+      const parsed = parseFloat(normalizedValue);
       if (!isNaN(parsed)) {
-        // Always store as negative value
-        const negativeValue = parsed < 0 ? parsed : -Math.abs(parsed);
-        
-        invoice.applyAmountValue = negativeValue;
-        invoice.applyAmountDisplay = '$' + this.formatter.currency(Math.abs(negativeValue)); // Display as positive
+        const finalValue = parsed;
+        invoice.applyAmountValue = finalValue;
+        invoice.applyAmountDisplay = finalValue < 0
+          ? '-$' + this.formatter.currency(-finalValue)
+          : '$' + this.formatter.currency(finalValue);
         invoice.applyAmount = invoice.applyAmountDisplay;
         input.value = invoice.applyAmountDisplay;
         
       } else {
         invoice.applyAmountValue = invoice.applyAmountValue || 0;
-        invoice.applyAmountDisplay = '$' + this.formatter.currency(Math.abs(invoice.applyAmountValue || 0)); // Display as positive
+        invoice.applyAmountDisplay = (invoice.applyAmountValue || 0) < 0
+          ? '-$' + this.formatter.currency(-(invoice.applyAmountValue || 0))
+          : '$' + this.formatter.currency(invoice.applyAmountValue || 0);
         invoice.applyAmount = invoice.applyAmountDisplay;
         input.value = invoice.applyAmountDisplay;
       }
     } else {
       invoice.applyAmountValue = invoice.applyAmountValue || 0;
-      invoice.applyAmountDisplay = '$' + this.formatter.currency(Math.abs(invoice.applyAmountValue || 0)); // Display as positive
+      invoice.applyAmountDisplay = (invoice.applyAmountValue || 0) < 0
+        ? '-$' + this.formatter.currency(-(invoice.applyAmountValue || 0))
+        : '$' + this.formatter.currency(invoice.applyAmountValue || 0);
       invoice.applyAmount = invoice.applyAmountDisplay;
       input.value = invoice.applyAmountDisplay;
     }
@@ -1502,9 +1504,8 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
   
   onApplyAmountFocus(invoice: any, event: Event): void {
     const input = event.target as HTMLInputElement;
-    // Show absolute value when focusing (for easier editing)
-    const absValue = Math.abs(invoice.applyAmountValue || 0);
-    input.value = absValue.toString();
+    const currentValue = Number(invoice.applyAmountValue || 0);
+    input.value = currentValue.toString();
     input.select();
   }
 
@@ -1707,7 +1708,7 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
   }
 
   isRemainingAmountZero(): boolean {
-    return Math.abs(this.remainingAmount) < 0.005;
+    return this.remainingAmount > -0.005 && this.remainingAmount < 0.005;
   }
 
   hasNegativeRemainingAmount(): boolean {
@@ -1722,10 +1723,10 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
     }
 
     const totalApplied = this.roundCurrencyValue(this.invoicesDisplay
-      .reduce((sum, inv) => sum + Math.abs(inv.applyAmountValue || 0), 0));
+      .reduce((sum, inv) => sum + Number(inv.applyAmountValue || 0), 0));
 
     const remaining = this.roundCurrencyValue(this.roundCurrencyValue(this.paymentAmount) - totalApplied);
-    this.remainingAmount = Math.abs(remaining) < 0.005 ? 0 : remaining;
+    this.remainingAmount = (remaining > -0.005 && remaining < 0.005) ? 0 : remaining;
     this.remainingAmountDisplay = '$' + this.formatter.currency(this.remainingAmount);
   }
   //#endregion

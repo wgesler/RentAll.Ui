@@ -187,6 +187,19 @@ export class DataTableComponent implements OnChanges, OnInit {
     return this.isDateColumn(column) ? 'center' : 'right';
   }
 
+  isApplyAmountOverDue(item: PurposefulAny): boolean {
+    const dueRaw = Number(item?.originalDueAmountValue ?? 0);
+    const applyRaw = Number(item?.applyAmountValue ?? 0);
+    if (!Number.isFinite(dueRaw) || !Number.isFinite(applyRaw) || dueRaw <= 0) {
+      return false;
+    }
+
+    const due = Math.round(dueRaw * 100) / 100;
+    const appliedMagnitude = applyRaw < 0 ? -applyRaw : applyRaw;
+    const applied = Math.round(appliedMagnitude * 100) / 100;
+    return applied > (due + 0.005);
+  }
+
   getColumnByName(colName: string): ColumnData | undefined {
     return this.tableColumns.find(col => col.name === colName);
   }
