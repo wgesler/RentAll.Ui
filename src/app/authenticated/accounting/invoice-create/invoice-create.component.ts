@@ -182,6 +182,11 @@ export class InvoiceCreateComponent extends BaseDocumentComponent implements OnI
         this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'previewHtml');
       }
       
+      // Single gate: page is ready only after every load-item is resolved (including previewHtml).
+      this.itemsToLoad$.pipe(filter(items => items.size === 0), take(1)).subscribe(() => {
+        this.isPageReady = true;
+      });
+      
       this.loadOffices();
       this.loadAccountingOffices();
       this.loadReservations();
@@ -190,10 +195,6 @@ export class InvoiceCreateComponent extends BaseDocumentComponent implements OnI
       this.loadEmailHtml();
       this.loadCostCodes();
 
-      // Single gate: page is ready only after every load-item is resolved (including previewHtml).
-      this.itemsToLoad$.pipe(filter(items => items.size === 0), take(1)).subscribe(() => {
-        this.isPageReady = true;
-      });
 
       // In debug mode, load HTML from assets immediately ONLY if we don't have all 3 parameters
       const hasAllParams = this.officeId !== null && this.reservationId !== null && this.invoiceId !== null;
@@ -1552,9 +1553,9 @@ export class InvoiceCreateComponent extends BaseDocumentComponent implements OnI
 
   override async onEmail(): Promise<void> {
     const toEmail = (this.contact?.entityTypeId === EntityType.Company) ? this.contact?.companyEmail : this.contact?.email;
+    const toName =  (this.contact?.entityTypeId === EntityType.Company) ? `${this.contact?.companyName || ''}`.trim() : `${this.contact?.fullName || ''}`.trim();
     const ccEmail = (this.contact?.entityTypeId === EntityType.Company) ? (this.contact?.email || '') : null;
     const ccEmails = [ccEmail];
-    const toName = `${this.contact?.fullName || ''}`.trim();
     const salutationName = `${this.contact?.firstName || ''}`.trim();
     const tenantName = `${this.selectedReservation?.tenantName || ''}`.trim();
     const currentUser = this.authService.getUser();
