@@ -48,14 +48,14 @@
 .payment-form-box {
   border: 1px solid #e0e0e0;
   border-radius: 4px;
-  padding: 0 8px;
-  background-color: #fafafa;
+  padding: 4px 10px;
+  background-color: #ffffff;
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
   font-size: 11px !important;
   margin-bottom: 0 !important;
   display: inline-flex;
   align-items: center;
-  min-height: 36px;
+  min-height: 46px;
   
   ::ng-deep {
     * {
@@ -74,6 +74,7 @@
         font-size: 11px !important;
         padding-bottom: 0 !important;
         height: auto !important;
+        background-color: #ffffff !important;
       }
       
       .mat-mdc-form-field-label {
@@ -144,6 +145,7 @@
         font-size: 11px !important;
         height: 28px !important;
         min-height: 28px !important;
+        background-color: #ffffff !important;
         
         input {
           font-size: 11px !important;
@@ -175,7 +177,7 @@
       
       // Ensure label is positioned correctly inside the field
       .mdc-floating-label--float-above {
-        background-color: #fafafa !important;
+        background-color: transparent !important;
         padding: 0 4px !important;
       }
     }
@@ -241,6 +243,53 @@
     
     .mdc-select__selected-text {
       padding-right: 24px !important;
+    }
+  }
+}
+
+.payment-date-field {
+  min-width: 150px;
+  width: 150px;
+  max-width: 150px;
+
+  ::ng-deep {
+    .mat-mdc-text-field-wrapper {
+      padding-bottom: 0 !important;
+      height: auto !important;
+    }
+
+    .mdc-text-field {
+      height: 28px !important;
+      min-height: 28px !important;
+    }
+
+    .mdc-text-field__input {
+      padding: 2px 6px !important;
+      height: 28px !important;
+      line-height: 20px !important;
+    }
+
+    .mat-mdc-form-field-infix {
+      min-width: 100px !important;
+      width: 100px !important;
+      padding-right: 4px !important;
+    }
+
+    .mat-mdc-icon-button.mat-mdc-button-base {
+      width: 24px !important;
+      height: 24px !important;
+      padding: 0 !important;
+      margin-right: 2px !important;
+    }
+
+    .mat-datepicker-toggle-default-icon {
+      width: 18px !important;
+      height: 18px !important;
+      font-size: 18px !important;
+    }
+
+    .mat-mdc-form-field-subscript-wrapper {
+      display: none !important;
     }
   }
 }
@@ -424,6 +473,56 @@
     text-align: right !important;
     vertical-align: middle !important;
   }
+}
+
+.payment-actions-anchor {
+  position: relative;
+}
+
+.payment-dialog-overlay {
+  position: absolute;
+  right: 4px;
+  top: calc(50% + 2px);
+  transform: translateY(-50%);
+  z-index: 20;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: nowrap;
+  background: rgb(182 198 218);
+  border: 1px solid #8ea7c9;
+  border-radius: 8px;
+  padding: 7px 12px;
+  box-shadow:
+    0 12px 22px rgba(56, 91, 132, 0.24),
+    0 4px 9px rgba(0, 0, 0, 0.14),
+    inset 0 1px 0 rgba(255, 255, 255, 0.82);
+
+  > button {
+    min-height: 34px !important;
+    padding: 0 14px !important;
+    border: 1px solid rgba(0, 0, 0, 0.18);
+    border-radius: 6px !important;
+  }
+}
+
+.payment-dialog-actions-row {
+  width: 100%;
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: nowrap;
+
+  .payment-form-box {
+    position: relative;
+    top: -2px;
+    margin-left: auto;
+  }
+}
+
+.payment-dialog-actions-group {
+  justify-content: flex-end !important;
 }
 
 .detail-lines-wrapper {

@@ -587,7 +587,7 @@ export class BillingCreateComponent extends BaseDocumentComponent implements OnI
     }
 
     const rows = this.selectedInvoice.ledgerLines.map((line, index) => {
-      const date = this.formatterService.formatDateString(this.selectedInvoice.invoiceDate) || '';
+      const date = this.formatterService.formatDateString(line.ledgerLineDate || this.selectedInvoice.invoiceDate) || '';
       const description = (line.description || '').replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
       const amount = this.formatterService.currency(line.amount || 0);
       

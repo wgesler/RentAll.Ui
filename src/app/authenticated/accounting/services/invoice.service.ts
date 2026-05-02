@@ -2,6 +2,7 @@ import { HttpClient } from '@angular/common/http';
 import { Injectable } from '@angular/core';
 import { Observable } from 'rxjs';
 import { ConfigService } from '../../../services/config.service';
+import { UtilityService } from '../../../services/utility.service';
 import { BillingMonthlyDataRequest, BillingMonthlyDataResponse, InvoiceMonthlyDataRequest, InvoiceMonthlyDataResponse, InvoicePaymentRequest, InvoicePaymentResponse, InvoiceRequest, InvoiceResponse } from '../models/invoice.model';
 
 @Injectable({
@@ -14,7 +15,8 @@ export class InvoiceService {
 
   constructor(
       private http: HttpClient,
-      private configService: ConfigService) {
+      private configService: ConfigService,
+      private utilityService: UtilityService) {
   }
 
    normalizeInvoiceRequest(invoice: InvoiceRequest): InvoiceRequest {
@@ -23,12 +25,14 @@ export class InvoiceService {
       const numericLineNumber = Number(line.lineNumber);
       const numericTransactionTypeId = Number(line.transactionTypeId);
       const numericAmount = Number(line.amount);
+      const lineDate = line.ledgerLineDate || invoice.invoiceDate || this.utilityService.todayAsCalendarDateString();
 
       return {
         ...line,
         lineNumber: Number.isFinite(numericLineNumber) ? numericLineNumber : 0,
         transactionTypeId: Number.isFinite(numericTransactionTypeId) ? numericTransactionTypeId : 0,
         amount: Number.isFinite(numericAmount) ? numericAmount : 0,
+        ledgerLineDate: lineDate,
         // Force an int payload so model binding never fails on this field.
         // Invalid values become 0 and are handled by API IsValid() as a clear validation message.
         costCodeId: Number.isInteger(numericCostCodeId) ? numericCostCodeId : 0

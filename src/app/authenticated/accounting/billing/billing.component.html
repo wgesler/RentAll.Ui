@@ -135,6 +135,7 @@
                     <thead>
                       <tr class="border-b">
                         <th class="text-left" style="width: 50px;">No</th>
+                        <th class="text-left" style="width: 190px;">Date</th>
                         <th class="text-left" style="width: 350px;">Cost Center</th>
                         <th class="text-left" style="width: 150px;">Type</th>
                         <th class="text-left">Description</th>
@@ -145,45 +146,45 @@
                     <tbody>
                       @for (line of ledgerLines; track line.lineNumber; let i = $index) {
                         <tr class="border-b" [class.payment-line]="isPaymentLine(line)">
-                          <td style="width: 50px;">{{ i + 1 }}</td>
+                          <td style="width: 50px;">
+                            <input type="text" class="w-full readonly-input ledger-input-no-border"
+                              [value]="line.lineNumber !== undefined ? line.lineNumber : (i + 1)"
+                              readonly>
+                          </td>
+                          <td style="width: 190px;">
+                            <input type="date" class="w-full editable-input"
+                              [value]="line.ledgerLineDate || ''"
+                              (input)="updateLedgerLineField(i, 'ledgerLineDate', $any($event.target).value || '')">
+                          </td>
                           <td class="cost-center-cell" style="width: 350px;">
-                            <mat-select [value]="line.costCodeId != null ? line.costCodeId : null"
-                              (selectionChange)="onCostCodeChange(i, $event.value)"
-                              [disabled]="isPaymentMode && !line.isNew"
-                              [class.editable-select]="!isPaymentMode || line.isNew"
-                              class="w-full cost-code-select">
-                              <mat-option [value]="null">Select Cost Code</mat-option>
-                              @for (costCode of getCostCodesForLine(line); track costCode.value) {
-                                <mat-option [value]="costCode.value">{{ costCode.label }}</mat-option>
-                              }
-                            </mat-select>
+                            <div class="ledger-field-box">
+                              <mat-select [value]="line.costCodeId != null ? line.costCodeId : null"
+                                (selectionChange)="onCostCodeChange(i, $event.value)"
+                                [class.editable-select]="true"
+                                class="w-full cost-code-select">
+                                <mat-option [value]="null">Select Cost Code</mat-option>
+                                @for (costCode of getCostCodesForLine(line); track costCode.value) {
+                                  <mat-option [value]="costCode.value">{{ costCode.label }}</mat-option>
+                                }
+                              </mat-select>
+                            </div>
                           </td>
-                          <td class="type-cell" [class.readonly-cell]="isPaymentMode && !line.isNew" style="width: 150px;">
-                            {{ line.transactionType || '' }}
+                          <td class="type-cell" style="width: 150px;">
+                            <input type="text" class="w-full editable-input readonly-input" [value]="line.transactionType || ''" readonly>
                           </td>
-                          <td [class.readonly-cell]="isPaymentMode && !line.isNew">
-                            @if (isPaymentMode && !line.isNew) {
-                              <input type="text" class="w-full border-0 readonly-input" [value]="line.description || ''" readonly>
-                            } @else {
-                              <input type="text" class="w-full editable-input"
-                                [value]="line.description || ''"
-                                (input)="updateLedgerLineField(i, 'description', $any($event.target).value || '')">
-                            }
+                          <td>
+                            <input type="text" class="w-full editable-input"
+                              [value]="line.description || ''"
+                              (input)="updateLedgerLineField(i, 'description', $any($event.target).value || '')">
                           </td>
-                          <td [class.readonly-cell]="isPaymentMode && !line.isNew" style="width: 120px;">
-                            @if (isPaymentMode && !line.isNew) {
-                              <input type="text" class="w-full border-0 readonly-input"
-                                [value]="line.amount != null && line.amount !== undefined ? line.amount.toFixed(2) : ''"
-                                readonly>
-                            } @else {
-                              <input type="text" class="w-full editable-input"
-                                [attr.data-field]="'amount'"
-                                [attr.data-index]="i"
-                                [value]="line.amount != null && line.amount !== undefined ? line.amount.toFixed(2) : ''"
-                                (input)="onLedgerAmountInput($event, i)"
-                                (focus)="onLedgerAmountFocus($event, i)"
-                                (blur)="onLedgerAmountBlur($event, i)">
-                            }
+                          <td style="width: 120px;">
+                            <input type="text" class="w-full editable-input"
+                              [attr.data-field]="'amount'"
+                              [attr.data-index]="i"
+                              [value]="line.amount != null && line.amount !== undefined ? line.amount.toFixed(2) : ''"
+                              (input)="onLedgerAmountInput($event, i)"
+                              (focus)="onLedgerAmountFocus($event, i)"
+                              (blur)="onLedgerAmountBlur($event, i)">
                           </td>
                           <td class="text-right" style="width: 50px;">
                             @if (!isPaymentMode || line.isNew) {

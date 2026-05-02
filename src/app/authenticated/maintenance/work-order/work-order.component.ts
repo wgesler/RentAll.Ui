@@ -356,7 +356,8 @@ export class WorkOrderComponent implements OnInit, OnChanges, OnDestroy {
         reservationId: workOrder.reservationId,
         costCodeId: numericCostCodeId,
         description: workOrderRef,
-        amount: roundedTotalAmount
+        amount: roundedTotalAmount,
+        ledgerLineDate: todayCalendar
       }
     ];
 

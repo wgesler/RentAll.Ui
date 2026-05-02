@@ -359,6 +359,7 @@ export class InvoiceComponent implements OnInit, OnDestroy, OnChanges {
     const formValue = this.form.getRawValue();
     const user = this.authService.getUser();
          
+    const invoiceDateString = this.utilityService.toDateOnlyJsonString(formValue.invoiceDate) ?? this.utilityService.todayAsCalendarDateString();
     const ledgerLines: LedgerLineRequest[] = this.ledgerLines.map((line, index) => {
         const numericCostCodeId = line.costCodeId == null ? NaN : Number(line.costCodeId);
         const ledgerLine: LedgerLineRequest = {
@@ -369,7 +370,8 @@ export class InvoiceComponent implements OnInit, OnDestroy, OnChanges {
           transactionTypeId: (line as any).transactionTypeId,
           reservationId: formValue.reservationId || null,
           amount: line.amount || 0,
-          description: line.description || ''
+          description: line.description || '',
+          ledgerLineDate: line.ledgerLineDate || invoiceDateString
         };
         return ledgerLine;
       });
@@ -393,7 +395,7 @@ export class InvoiceComponent implements OnInit, OnDestroy, OnChanges {
       reservationCode: reservationCode,
       startDate: this.utilityService.toDateOnlyJsonString(formValue.startDate) ?? '',
       endDate: this.utilityService.toDateOnlyJsonString(formValue.endDate) ?? '',
-      invoiceDate: this.utilityService.toDateOnlyJsonString(formValue.invoiceDate) ?? '',
+      invoiceDate: invoiceDateString,
       dueDate: this.utilityService.toDateOnlyJsonString(formValue.dueDate) ?? '',
       invoicePeriod: (() => {
         const sd = this.utilityService.parseCalendarDateInput(formValue.startDate);
@@ -1104,6 +1106,8 @@ export class InvoiceComponent implements OnInit, OnDestroy, OnChanges {
       }
       
       if (current.ledgerLineId !== original.ledgerLineId ||
+          current.lineNumber !== original.lineNumber ||
+          current.ledgerLineDate !== original.ledgerLineDate ||
           current.costCodeId !== original.costCodeId ||
           (current as any).transactionTypeId !== (original as any).transactionTypeId ||
           current.description !== original.description ||
@@ -1232,6 +1236,7 @@ export class InvoiceComponent implements OnInit, OnDestroy, OnChanges {
   }
 
   addLedgerLine(): void {
+    const invoiceDateString = this.utilityService.toDateOnlyJsonString(this.form?.get('invoiceDate')?.value) ?? this.utilityService.todayAsCalendarDateString();
     const newLine: LedgerLineListDisplay = {
       ledgerLineId: null,
       lineNumber: this.ledgerLines.length + 1,
@@ -1240,6 +1245,7 @@ export class InvoiceComponent implements OnInit, OnDestroy, OnChanges {
       transactionType: '',
       description: '',
       amount: undefined as any,
+      ledgerLineDate: invoiceDateString,
       isNew: true
     };
     (newLine as any).transactionTypeId = undefined;

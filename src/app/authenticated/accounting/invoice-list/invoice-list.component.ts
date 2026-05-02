@@ -96,6 +96,7 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
   selectedPaymentCostCode: CostCodesResponse | null = null;
   paymentTransactionType: string = '';
   paymentDescription: string = '';
+  paymentDate: Date | null = new Date();
   paymentAmount: number = 0;
   paymentAmountDisplay: string = '$0.00';
   remainingAmount: number = 0;
@@ -1032,7 +1033,8 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
   }
 
   get isPaymentFormValid(): boolean {
-    const baseValid = !!this.selectedPaymentCostCodeId && this.paymentAmount !== 0;
+    const hasPaymentDate = this.utilityService.toDateOnlyJsonString(this.paymentDate) !== null;
+    const baseValid = hasPaymentDate && !!this.selectedPaymentCostCodeId && this.paymentAmount !== 0;
     
     // In manual apply mode, also require that remaining amount equals 0
     if (this.isManualApplyMode) {
@@ -1273,6 +1275,7 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
     this.paymentTargetInvoiceId = targetInvoiceId;
     this.restoreTopbarAfterPayment = !!targetInvoiceId;
     this.isManualApplyMode = !targetInvoiceId;
+    this.paymentDate = this.paymentDate ?? new Date();
     this.updateRemainingAmount();
     // Show payment form fields
     this.showPaymentForm = true;
@@ -1293,6 +1296,11 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
     // Validate form fields
     if (!this.selectedPaymentCostCodeId || !this.selectedPaymentCostCode) {
       this.toastr.warning('Please select a cost code');
+      return;
+    }
+
+    if (!this.utilityService.toDateOnlyJsonString(this.paymentDate)) {
+      this.toastr.warning('Please select a payment date');
       return;
     }
 
@@ -1353,6 +1361,7 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
         invoice,
         paidAmount,
         paymentRequest: {
+          paymentDate: this.utilityService.toDateOnlyJsonString(this.paymentDate) ?? this.utilityService.todayAsCalendarDateString(),
           costCodeId: this.selectedPaymentCostCodeId!,
           description: paymentDescription,
           amount: paidAmount,
@@ -1407,6 +1416,7 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
     }
 
     const paymentRequest: InvoicePaymentRequest = {
+      paymentDate: this.utilityService.toDateOnlyJsonString(this.paymentDate) ?? this.utilityService.todayAsCalendarDateString(),
       costCodeId: this.selectedPaymentCostCodeId!,
       description: this.getPaymentRequestDescription(),
       amount: this.paymentAmount,
@@ -1519,6 +1529,7 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
     this.selectedPaymentCostCode = null;
     this.paymentTransactionType = '';
     this.paymentDescription = '';
+    this.paymentDate = new Date();
     this.paymentAmount = 0;
     this.paymentAmountDisplay = '$' + this.formatter.currency(0);
     this.updateRemainingAmount();

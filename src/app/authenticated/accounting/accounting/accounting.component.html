@@ -42,7 +42,7 @@
               (valueChange)="onAccountingInvoiceEditorReservationDropdownChange($event)">
             </app-title-bar-select>
           </div>
-        } @else if (selectedTabIndex === 0 && accountingInvoiceList && !accountingInvoiceList.showPaymentForm) {
+        } @else if (selectedTabIndex === 0 && accountingInvoiceList) {
           <div class="header-title form-titlebar-fields-wrap">
             @if (accountingInvoiceList.showOfficeDropdown) {
             <app-title-bar-select

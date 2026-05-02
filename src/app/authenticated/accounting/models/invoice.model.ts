@@ -91,6 +91,7 @@ export interface BillingMonthlyDataResponse {
   ledgerLines: LedgerLineResponse[];
 }
 export interface InvoicePaymentRequest {
+  paymentDate: CalendarDateString;
   costCodeId: number;
   description: string;
   amount: number;
@@ -111,6 +112,7 @@ export interface LedgerLineRequest {
   reservationId?: string | null;
   amount: number;
   description: string;
+  ledgerLineDate: CalendarDateString;
 }
 
 export interface LedgerLineResponse {
@@ -121,7 +123,8 @@ export interface LedgerLineResponse {
   transactionTypeId: number;
   reservationId?: string | null;
   amount: number;
-  description: string; 
+  description: string;
+  ledgerLineDate: CalendarDateString;
 }
 
 export interface LedgerLineListDisplay {
@@ -132,6 +135,7 @@ export interface LedgerLineListDisplay {
   transactionType: string;
   description: string;
   amount: number;
+  ledgerLineDate?: CalendarDateString;
   isNew?: boolean; // Track if this is a newly added line (should remain editable)
   rowColor?: string; // Hidden column for row coloring
 }

@@ -361,6 +361,7 @@ export class MappingService {
         transactionType: transactionTypeLabel, // Translated from CostCode.transactionTypeId
         description: line.description || '',
         amount: line.amount,
+        ledgerLineDate: line.ledgerLineDate,
         isNew: false, // Existing lines are not new
         rowColor: rowColor
       };

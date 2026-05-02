@@ -214,6 +214,7 @@ export class BillingComponent implements OnInit, OnDestroy {
     const user = this.authService.getUser();
          
     // Convert ledger lines from display format to request format
+    const invoiceDateString = this.utilityService.toDateOnlyJsonString(formValue.invoiceDate) ?? this.utilityService.todayAsCalendarDateString();
     const ledgerLines: LedgerLineRequest[] = this.ledgerLines.map((line, index) => {
         const numericCostCodeId = line.costCodeId == null ? NaN : Number(line.costCodeId);
         const ledgerLine: LedgerLineRequest = {
@@ -223,7 +224,8 @@ export class BillingComponent implements OnInit, OnDestroy {
           costCodeId: Number.isInteger(numericCostCodeId) && numericCostCodeId > 0 ? numericCostCodeId : undefined,
           transactionTypeId: (line as any).transactionTypeId,
           amount: line.amount || 0,
-          description: line.description || ''
+          description: line.description || '',
+          ledgerLineDate: line.ledgerLineDate || invoiceDateString
         };
         return ledgerLine;
       });
@@ -252,7 +254,7 @@ export class BillingComponent implements OnInit, OnDestroy {
       reservationCode: recipientOrganization?.organizationCode ?? null,
       startDate: this.utilityService.toDateOnlyJsonString(formValue.startDate) ?? '',
       endDate: this.utilityService.toDateOnlyJsonString(formValue.endDate) ?? '',
-      invoiceDate: this.utilityService.toDateOnlyJsonString(formValue.invoiceDate) ?? '',
+      invoiceDate: invoiceDateString,
       dueDate: this.utilityService.toDateOnlyJsonString(formValue.dueDate) ?? '',
       invoicePeriod: invoicePeriod,
       totalAmount: invoicedAmount,
@@ -906,6 +908,8 @@ export class BillingComponent implements OnInit, OnDestroy {
       
       // Compare key fields
       if (current.ledgerLineId !== original.ledgerLineId ||
+          current.lineNumber !== original.lineNumber ||
+          current.ledgerLineDate !== original.ledgerLineDate ||
           current.costCodeId !== original.costCodeId ||
           (current as any).transactionTypeId !== (original as any).transactionTypeId ||
           current.description !== original.description ||
@@ -1053,6 +1057,7 @@ export class BillingComponent implements OnInit, OnDestroy {
   }
 
   addLedgerLine(): void {
+    const invoiceDateString = this.utilityService.toDateOnlyJsonString(this.form?.get('invoiceDate')?.value) ?? this.utilityService.todayAsCalendarDateString();
     const newLine: LedgerLineListDisplay = {
       ledgerLineId: null, // Temporary ID, will be assigned when saved
       lineNumber: this.ledgerLines.length + 1, // Assign line number based on current array length
@@ -1061,6 +1066,7 @@ export class BillingComponent implements OnInit, OnDestroy {
       transactionType: '', // Empty string for display
       description: '', // Empty string makes it editable per HTML template check
       amount: undefined as any, // undefined makes it editable per HTML template check
+      ledgerLineDate: invoiceDateString,
       isNew: true // Mark as new so it remains editable
     };
     // Set transactionTypeId to undefined so dropdown shows "Select Transaction Type"

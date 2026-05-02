@@ -39,6 +39,12 @@
     max-width: 50px;
   }
 
+  .ledger-col-date {
+    width: 190px;
+    min-width: 190px;
+    max-width: 190px;
+  }
+
   .ledger-col-cost-center {
     width: 350px;
     min-width: 350px;
@@ -78,7 +84,7 @@
   /* Header + cells */
   th,
   td {
-    padding: 5px 7px !important;
+    padding: 5px 6px !important;
     vertical-align: middle;
     line-height: 1.25;
   }
@@ -88,13 +94,8 @@
     font-size: 14px !important;
   }
   
-  /* Add extra spacing between Cost Center and Type columns */
   .cost-center-cell {
-    padding-right: 20px !important;
-  }
-  
-  th:nth-child(2) {
-    padding-right: 20px !important;
+    padding-right: 6px !important;
   }
   
   tr:hover {
@@ -120,6 +121,21 @@
         text-align: right;
       }
     }
+
+    .ledger-field-box {
+      background-color: var(--invoice-ledger-payment-bg);
+    }
+
+    .cost-code-select {
+      background-color: var(--invoice-ledger-payment-bg);
+
+      ::ng-deep {
+        .mat-mdc-text-field-wrapper,
+        .mat-mdc-select-trigger {
+          background-color: var(--invoice-ledger-payment-bg) !important;
+        }
+      }
+    }
   }
   
   /* Shrink mat-select only inside ledger */
@@ -139,7 +155,9 @@
   }
   
   /* Ledger text inputs */
-  input[type="text"] {
+  input[type="text"],
+  input[type="date"],
+  input[type="number"] {
     height: 28px;
     line-height: 28px;
     padding: 0 6px;
@@ -157,9 +175,48 @@
   .ledger-col-amount input[type="text"] {
     text-align: right;
   }
+
+  .ledger-line-date-field {
+    width: 100%;
+
+    ::ng-deep {
+      .mat-mdc-form-field-subscript-wrapper {
+        display: none;
+      }
+
+      .mat-mdc-text-field-wrapper {
+        min-height: 28px !important;
+        height: 28px !important;
+        border: 1px solid var(--invoice-ledger-input-border);
+        border-radius: 4px;
+        background-color: var(--mat-sys-surface, #fff);
+        padding: 0 6px !important;
+      }
+
+      .mat-mdc-form-field-flex,
+      .mat-mdc-form-field-infix {
+        min-height: 28px !important;
+        height: 28px !important;
+        padding: 0 !important;
+        display: flex;
+        align-items: center;
+      }
+
+      .mat-mdc-input-element {
+        font-size: 14px !important;
+        line-height: 28px !important;
+      }
+
+      .mat-mdc-icon-button.mat-mdc-button-base {
+        width: 24px !important;
+        height: 24px !important;
+        padding: 0 !important;
+      }
+    }
+  }
   
   /* Editable inputs with borders - override border: none */
-  input[type="text"].editable-input {
+  .editable-input {
     border: 1px solid var(--invoice-ledger-input-border) !important;
     border-radius: 4px;
     background-color: var(--mat-sys-surface, #fff);
@@ -168,6 +225,16 @@
       border-color: var(--invoice-ledger-input-focus) !important;
       outline: none;
     }
+  }
+
+  input[type="number"] {
+    -moz-appearance: textfield;
+  }
+
+  input[type="number"]::-webkit-outer-spin-button,
+  input[type="number"]::-webkit-inner-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
   }
   
   /* Description and Amount - no borders */
@@ -198,6 +265,11 @@
     width: 100%;
     font-size: 14px !important;
     line-height: 1.25 !important;
+    border: 1px solid var(--invoice-ledger-input-border);
+    border-radius: 4px;
+    background-color: var(--mat-sys-surface, #fff);
+    padding: 2px 6px;
+    box-sizing: border-box;
     
     // Add border for editable dropdowns
     &.editable-select {
@@ -308,6 +380,18 @@
           }
         }
       }
+    }
+  }
+
+  .ledger-field-box {
+    border: 1px solid var(--invoice-ledger-input-border);
+    border-radius: 4px;
+    background-color: var(--mat-sys-surface, #fff);
+    padding: 2px 6px;
+    box-sizing: border-box;
+
+    &:focus-within {
+      border-color: var(--invoice-ledger-input-focus);
     }
   }
   

@@ -1135,7 +1135,7 @@ export class InvoiceCreateComponent extends BaseDocumentComponent implements OnI
   }
 
   formatInvoiceLedgerRowHtml(line: LedgerLineResponse): string {
-    const date = this.formatterService.formatDateString(this.selectedInvoice!.invoiceDate) || '';
+    const date = this.formatterService.formatDateString(line.ledgerLineDate || this.selectedInvoice!.invoiceDate) || '';
     const description = (line.description || '').replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
     const amount = this.formatterService.currency(line.amount || 0);
     return `              <tr class="ledger-line-row">

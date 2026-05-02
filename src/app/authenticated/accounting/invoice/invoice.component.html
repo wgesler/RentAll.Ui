@@ -159,6 +159,7 @@
                       <thead>
                         <tr class="border-b">
                           <th class="text-left ledger-col-no">No</th>
+                          <th class="text-left ledger-col-date">Date</th>
                           <th class="text-left ledger-col-cost-center">Cost Center</th>
                           <th class="text-left ledger-col-type">Type</th>
                           <th class="text-left">Description</th>
@@ -169,44 +170,44 @@
                       <tbody>
                         @for (line of ledgerLines; track (line.ledgerLineId + '-' + $index); let i = $index) {
                           <tr class="border-b" [class.payment-line]="isPaymentLine(line)">
-                            <td class="ledger-col-no">{{ i + 1 }}</td>
+                            <td class="ledger-col-no">
+                              <input type="text" class="w-full readonly-input ledger-input-no-border"
+                                [value]="line.lineNumber !== undefined ? line.lineNumber : (i + 1)"
+                                readonly>
+                            </td>
+                            <td class="ledger-col-date">
+                              <input type="date" class="w-full editable-input"
+                                [value]="line.ledgerLineDate || ''"
+                                (input)="updateLedgerLineField(i, 'ledgerLineDate', $any($event.target).value || '')">
+                            </td>
                             <td class="cost-center-cell ledger-col-cost-center">
-                              <app-searchable-select
-                                [value]="line.costCodeId != null ? line.costCodeId : null"
-                                [options]="getCostCodesForLine(line)"
-                                [disabled]="isPaymentMode && !line.isNew"
-                                [nullOptionLabel]="'Select Cost Code'"
-                                [noResultsText]="'No cost codes match your search'"
-                                [selectClass]="'w-full cost-code-select ' + ((!isPaymentMode || line.isNew) ? 'editable-select' : '')"
-                                (valueChange)="onCostCodeChange(i, $event)">
-                              </app-searchable-select>
+                              <div class="ledger-field-box">
+                                <app-searchable-select
+                                  [value]="line.costCodeId != null ? line.costCodeId : null"
+                                  [options]="getCostCodesForLine(line)"
+                                  [nullOptionLabel]="'Select Cost Code'"
+                                  [noResultsText]="'No cost codes match your search'"
+                                  [selectClass]="'w-full cost-code-select editable-select'"
+                                  (valueChange)="onCostCodeChange(i, $event)">
+                                </app-searchable-select>
+                              </div>
                             </td>
-                            <td class="type-cell ledger-col-type" [class.readonly-cell]="isPaymentMode && !line.isNew">
-                              {{ line.transactionType || '' }}
+                            <td class="type-cell ledger-col-type">
+                              <input type="text" class="w-full editable-input readonly-input" [value]="line.transactionType || ''" readonly>
                             </td>
-                            <td [class.readonly-cell]="isPaymentMode && !line.isNew">
-                              @if (isPaymentMode && !line.isNew) {
-                                <input type="text" class="w-full border-0 readonly-input" [value]="line.description || ''" readonly>
-                              } @else {
-                                <input type="text" class="w-full editable-input" 
-                                  [value]="line.description || ''"
-                                  (input)="updateLedgerLineField(i, 'description', $any($event.target).value || '')">
-                              }
+                            <td>
+                              <input type="text" class="w-full editable-input" 
+                                [value]="line.description || ''"
+                                (input)="updateLedgerLineField(i, 'description', $any($event.target).value || '')">
                             </td>
-                            <td class="ledger-col-amount" [class.readonly-cell]="isPaymentMode && !line.isNew">
-                              @if (isPaymentMode && !line.isNew) {
-                                <input type="text" class="w-full border-0 readonly-input" 
-                                  [value]="getLedgerAmountDisplay(line)"
-                                  readonly>
-                              } @else {
-                                <input type="text" class="w-full editable-input" 
-                                  [attr.data-field]="'amount'"
-                                  [attr.data-index]="i"
-                                  [value]="getLedgerAmountDisplay(line)"
-                                  (input)="onLedgerAmountInput($event, i)"
-                                  (focus)="onLedgerAmountFocus($event, i)"
-                                  (blur)="onLedgerAmountBlur($event, i)">
-                              }
+                            <td class="ledger-col-amount">
+                              <input type="text" class="w-full editable-input" 
+                                [attr.data-field]="'amount'"
+                                [attr.data-index]="i"
+                                [value]="getLedgerAmountDisplay(line)"
+                                (input)="onLedgerAmountInput($event, i)"
+                                (focus)="onLedgerAmountFocus($event, i)"
+                                (blur)="onLedgerAmountBlur($event, i)">
                             </td>
                             <td class="text-right ledger-col-actions">
                               @if (!isPaymentMode || line.isNew) {
