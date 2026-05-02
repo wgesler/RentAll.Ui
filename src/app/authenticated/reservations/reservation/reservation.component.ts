@@ -1727,6 +1727,13 @@ export class ReservationComponent implements OnInit, OnDestroy, CanComponentDeac
       return;
     }
 
+    const tenantNameControl = this.form?.get('tenantName');
+    const currentTenantName = String(tenantNameControl?.value ?? '').trim();
+    const shouldAutoSyncTenantName = this.isAddMode || currentTenantName.length === 0;
+    if (!shouldAutoSyncTenantName) {
+      return;
+    }
+
     const selectedContactIds = this.getSelectedContactIdsFromForm();
     const tenantNames = selectedContactIds
       .map(contactId => this.contacts.find(c => c.contactId === contactId) || null)
