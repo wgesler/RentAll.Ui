@@ -25,7 +25,7 @@ import { MaintenanceRequest, MaintenanceResponse } from '../models/maintenance.m
 import { InspectionService } from '../services/inspection.service';
 import { MaintenanceService } from '../services/maintenance.service';
 import { PhotoRequest, PhotoResponse } from '../../documents/models/photo.model';
-import { PhotoService } from '../../documents/services/photo.service';
+import { InspectionPhotoService } from '../services/inspection-photo.service';
 import { UtilityService } from '../../../services/utility.service';
 import { JwtUser } from '../../../public/login/models/jwt';
 import { DialogMissingCountComponent } from './dialog-missing-count.component';
@@ -101,7 +101,7 @@ export class InspectionComponent implements OnChanges, OnDestroy, OnInit {
     public authService: AuthService,
     public documentService: DocumentService,
     public utilityService: UtilityService,
-    public photoService: PhotoService,
+    public inspectionPhotoService: InspectionPhotoService,
     public toastr: ToastrService,
     public dialog: MatDialog,
     public maintenanceService: MaintenanceService,
@@ -598,7 +598,7 @@ export class InspectionComponent implements OnChanges, OnDestroy, OnInit {
       });
     });
     documentIdsToLoad.forEach(photoId => {
-      this.photoService.getPhotoByGuid(photoId).pipe(take(1)).subscribe({
+      this.inspectionPhotoService.getPhotoByGuid(photoId).pipe(take(1)).subscribe({
         next: (response: PhotoResponse) => {
           let viewUrl: string | null = null;
           if (response.fileDetails?.file) {
@@ -938,7 +938,7 @@ export class InspectionComponent implements OnChanges, OnDestroy, OnInit {
     }
 
     return forkJoin(
-      photoIds.map(photoId => this.photoService.deletePhoto(photoId).pipe(take(1)))
+      photoIds.map(photoId => this.inspectionPhotoService.deletePhoto(photoId).pipe(take(1)))
     ).pipe(map(() => void 0));
   }
 
@@ -1910,7 +1910,7 @@ export class InspectionComponent implements OnChanges, OnDestroy, OnInit {
     item.documentId = null;
     if (photoIdToDelete) {
       this.photoBlobUrlCache.delete(photoIdToDelete);
-      this.photoService.deletePhoto(photoIdToDelete).pipe(take(1)).subscribe({
+      this.inspectionPhotoService.deletePhoto(photoIdToDelete).pipe(take(1)).subscribe({
         error: () => {
           this.toastr.error('Unable to delete issue photo from storage.', CommonMessage.Error);
         }
@@ -2046,7 +2046,7 @@ export class InspectionComponent implements OnChanges, OnDestroy, OnInit {
       }
     };
 
-    const photoResponse = await firstValueFrom(this.photoService.uploadPhoto(photoRequest).pipe(take(1)));
+    const photoResponse = await firstValueFrom(this.inspectionPhotoService.uploadPhoto(photoRequest).pipe(take(1)));
     item.photoPath = photoResponse.photoPath || null;
     item.documentId = photoResponse.photoId || null;
     item.displayDataUrl = optimizedImage.previewDataUrl;
@@ -2124,7 +2124,7 @@ export class InspectionComponent implements OnChanges, OnDestroy, OnInit {
         }
       };
 
-      this.photoService.uploadPhoto(photoRequest).pipe(take(1)).subscribe({
+      this.inspectionPhotoService.uploadPhoto(photoRequest).pipe(take(1)).subscribe({
         next: (photoResponse: PhotoResponse) => {
           item.photoPath = photoResponse.photoPath || null;
           item.documentId = photoResponse.photoId || null;
