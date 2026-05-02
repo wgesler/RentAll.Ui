@@ -1617,6 +1617,9 @@ export class InvoiceCreateComponent extends BaseDocumentComponent implements OnI
       if (officeId !== null && officeId !== undefined) {
         accountingParams.push(`officeId=${officeId}`);
       }
+      if (reservationId) {
+        accountingParams.push(`reservationId=${reservationId}`);
+      }
       if (this.companyId) {
         accountingParams.push(`companyId=${this.companyId}`);
       }
@@ -1638,18 +1641,22 @@ export class InvoiceCreateComponent extends BaseDocumentComponent implements OnI
     }
 
     if (returnTo === 'reservation' && reservationId) {
+      const reservationParams = params.filter(param => !param.startsWith('invoiceId='));
       if (reservationId !== null && reservationId !== undefined && reservationId !== '') {
-        params.push(`reservationId=${reservationId}`);
+        reservationParams.push(`reservationId=${reservationId}`);
       }
-      params.push(`tab=invoices`);
-      const reservationUrl = params.length > 0
-        ? RouterUrl.replaceTokens(RouterUrl.Reservation, [reservationId]) + `?${params.join('&')}`
+      reservationParams.push(`tab=invoices`);
+      const reservationUrl = reservationParams.length > 0
+        ? RouterUrl.replaceTokens(RouterUrl.Reservation, [reservationId]) + `?${reservationParams.join('&')}`
         : RouterUrl.replaceTokens(RouterUrl.Reservation, [reservationId]);
       this.router.navigateByUrl(reservationUrl);
     } else if (returnTo === 'accounting' || !returnTo) {
       const accountingParams: string[] = [];
       if (officeId !== null && officeId !== undefined) {
         accountingParams.push(`officeId=${officeId}`);
+      }
+      if (reservationId) {
+        accountingParams.push(`reservationId=${reservationId}`);
       }
       accountingParams.push('tab=0');
       if (this.companyId) {
@@ -1665,6 +1672,9 @@ export class InvoiceCreateComponent extends BaseDocumentComponent implements OnI
       const accountingParams: string[] = [];
       if (officeId !== null && officeId !== undefined) {
         accountingParams.push(`officeId=${officeId}`);
+      }
+      if (reservationId) {
+        accountingParams.push(`reservationId=${reservationId}`);
       }
       accountingParams.push('tab=0');
       if (this.companyId) {
