@@ -6,3 +6,23 @@
   min-height: var(--property-titlebar-height);
   box-sizing: border-box;
 }
+
+.ticket-shell-tabs {
+  margin-top: var(--global-form-row-gap);
+}
+
+:host ::ng-deep .ticket-shell-five-slot-tabs .mat-mdc-tab-header .mat-mdc-tab {
+  flex: 0 0 calc(100% / 5);
+  max-width: calc(100% / 5);
+}
+
+:host ::ng-deep .ticket-shell-office-invalid .mdc-notched-outline__leading,
+:host ::ng-deep .ticket-shell-office-invalid .mdc-notched-outline__notch,
+:host ::ng-deep .ticket-shell-office-invalid .mdc-notched-outline__trailing {
+  border-color: var(--mat-sys-error, #b3261e) !important;
+}
+
+:host ::ng-deep .ticket-shell-office-invalid .mdc-floating-label,
+:host ::ng-deep .ticket-shell-office-invalid .mat-mdc-select-value-text {
+  color: var(--mat-sys-error, #b3261e) !important;
+}

@@ -13,7 +13,7 @@
             <span class="flex-shrink-0 text-xl font-medium">Tickets</span>
           </span>
           <div class="header-title form-titlebar-fields-wrap">
-            <mat-form-field appearance="outline" class="titlebar-field-office">
+            <mat-form-field appearance="outline" class="titlebar-field-office" [class.ticket-shell-office-invalid]="isOfficeSelectionInvalidOnSave">
               <mat-label>Office</mat-label>
               <mat-select
                 [value]="selectedOfficeId"
@@ -64,26 +64,58 @@
               Back
             </button>
           }
-          <button
-            mat-icon-button
-            type="button"
-            color="warn"
-            id="ticket-shell-alert-button"
-            class="flex-shrink-0 !w-11 !h-11"
-            (click)="openAddAlertDialog()"
-            aria-label="Add Alert">
-            <mat-icon class="!text-[28px] !w-7 !h-7 titlebar-alert-bell-icon">notifications</mat-icon>
-          </button>
+          @if (showTicketForm) {
+            <button
+              mat-icon-button
+              type="button"
+              color="warn"
+              id="ticket-shell-alert-button"
+              class="flex-shrink-0 !w-11 !h-11"
+              (click)="openAddAlertDialog()"
+              aria-label="Add Alert">
+              <mat-icon class="!text-[28px] !w-7 !h-7 titlebar-alert-bell-icon">notifications</mat-icon>
+            </button>
+          }
         </div>
       </div>
 
       <mat-card>
         <div [class.hidden]="showTicketForm">
-          <app-ticket-list
-            #ticketListSection
-            [embeddedInSettings]="true"
-            (ticketSelected)="onTicketSelected($event)">
-          </app-ticket-list>
+          <mat-tab-group class="property-tabs ticket-shell-tabs ticket-shell-five-slot-tabs dbg-band-tabs">
+            <mat-tab label="My Tickets">
+              <app-ticket-list
+                #myTicketListSection
+                [embeddedInSettings]="true"
+                [currentUserId]="currentUserId"
+                [currentUserAgentId]="currentUserAgentId"
+                assigneeFilterMode="assignedToMe"
+                (ticketUpdated)="onTicketListUpdated()"
+                (ticketSelected)="onTicketSelected($event)">
+              </app-ticket-list>
+            </mat-tab>
+            <mat-tab label="Others">
+              <app-ticket-list
+                #otherTicketListSection
+                [embeddedInSettings]="true"
+                [currentUserId]="currentUserId"
+                [currentUserAgentId]="currentUserAgentId"
+                assigneeFilterMode="allOthers"
+                (ticketUpdated)="onTicketListUpdated()"
+                (ticketSelected)="onTicketSelected($event)">
+              </app-ticket-list>
+            </mat-tab>
+            <mat-tab label="Closed">
+              <app-ticket-list
+                #closedTicketListSection
+                [embeddedInSettings]="true"
+                [currentUserId]="currentUserId"
+                [currentUserAgentId]="currentUserAgentId"
+                assigneeFilterMode="closed"
+                (ticketUpdated)="onTicketListUpdated()"
+                (ticketSelected)="onTicketSelected($event)">
+              </app-ticket-list>
+            </mat-tab>
+          </mat-tab-group>
         </div>
         @if (showTicketForm) {
           <app-ticket
@@ -92,7 +124,9 @@
             [embeddedInSettings]="true"
             [selectedPropertyIdFromShell]="selectedPropertyId"
             [selectedOfficeIdFromShell]="selectedOfficeId"
+            [selectedReservationIdFromShell]="selectedReservationId"
             (propertySelectionChange)="onTicketPropertySelectionChange($event)"
+            (officeSelectionInvalidOnSave)="onOfficeSelectionInvalidOnSave()"
             (savedEvent)="onTicketSaved()"
             (backEvent)="onTicketBack()">
           </app-ticket>

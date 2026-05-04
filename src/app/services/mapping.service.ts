@@ -28,6 +28,8 @@ import { PropertyBedDropdownCell, PropertyListDisplay, PropertyListResponse, Pro
 import { BoardProperty } from '../authenticated/reservations/models/reservation-board-model';
 import { getFrequency, getReservationStatus } from '../authenticated/reservations/models/reservation-enum';
 import { ExtraFeeLineRequest, ExtraFeeLineResponse, ReservationListDisplay, ReservationListResponse } from '../authenticated/reservations/models/reservation-model';
+import { getTicketStateType } from '../authenticated/tickets/models/ticket-enum';
+import { TicketListDisplay, TicketRequest, TicketResponse, TicketStateDropdownCell } from '../authenticated/tickets/models/ticket-models';
 import { MaintenanceListDisplay, PropertyMaintenance } from '../authenticated/shared/models/mixed-models';
 import { WorkOrderAmountService } from '../authenticated/maintenance/services/work-order-amount.service';
 import { FormatterService } from './formatter-service';
@@ -522,6 +524,69 @@ export class MappingService {
     }));
   }
 
+  //#endregion
+
+  //#region Ticket Mapping
+  mapTicketToDisplay(ticket: TicketResponse, ticketStateTypeOptions: string[]): TicketListDisplay {
+    return {
+      ...ticket,
+      ticketCode: ticket.ticketCode || '',
+      created: this.formatter.formatDateString(ticket.createdOn) || '',
+      modified: this.formatter.formatDateString(ticket.modifiedOn) || '',
+      propertyCode: ticket.propertyCode || '',
+      reservationCode: ticket.reservationCode || '',
+      assigneeName: ticket.assigneeName || ticket.assignee || '',
+      agentName: ticket.agentName || ticket.agent || '',
+      title: ticket.title || '',
+      propertyId: ticket.propertyId || '',
+      reservationId: ticket.reservationId || '',
+      description: ticket.description || '',
+      isActive: ticket.isActive,
+      ticketStateTypeText: this.mapTicketStateDropdownCell(getTicketStateType(ticket.ticketStateTypeId), ticketStateTypeOptions)
+    } as TicketListDisplay;
+  }
+
+  mapTicketStateDropdownCell(label: string, ticketStateTypeOptions: string[]): TicketStateDropdownCell {
+    const normalizedLabel = label || '';
+    return {
+      value: normalizedLabel,
+      isOverridable: true,
+      options: ticketStateTypeOptions,
+      panelClass: ['datatable-dropdown-panel', 'datatable-dropdown-panel-open-left'],
+      toString: () => normalizedLabel
+    };
+  }
+
+  mapTicketUpdateRequest(ticket: TicketResponse, updates: Partial<TicketRequest>): TicketRequest {
+    return {
+      ticketId: ticket.ticketId,
+      organizationId: ticket.organizationId,
+      officeId: ticket.officeId,
+      propertyId: ticket.propertyId ?? null,
+      assigneeId: ticket.assigneeId ?? null,
+      agentId: ticket.agentId ?? null,
+      reservationId: ticket.reservationId ?? null,
+      ticketCode: ticket.ticketCode ?? null,
+      title: ticket.title,
+      description: ticket.description,
+      ticketStateTypeId: ticket.ticketStateTypeId,
+      needPermissionToEnter: ticket.needPermissionToEnter,
+      permissionGranted: ticket.permissionGranted,
+      ownerContacted: ticket.ownerContacted,
+      confirmedWithTenant: ticket.confirmedWithTenant,
+      followedUpWithOwner: ticket.followedUpWithOwner,
+      workOrderCompleted: ticket.workOrderCompleted,
+      notes: ticket.notes && ticket.notes.length > 0
+        ? ticket.notes.map(note => ({
+            ticketNoteId: note.ticketNoteId,
+            ticketId: note.ticketId,
+            note: note.note
+          }))
+        : null,
+      isActive: ticket.isActive,
+      ...updates
+    };
+  }
   //#endregion
 
   //#region Property Mapping

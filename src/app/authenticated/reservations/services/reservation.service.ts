@@ -1,6 +1,6 @@
 import { HttpClient } from '@angular/common/http';
 import { Injectable } from '@angular/core';
-import { Observable, firstValueFrom } from 'rxjs';
+import { Observable, Subject, firstValueFrom } from 'rxjs';
 import { ConfigService } from '../../../services/config.service';
 import { MixedMappingService } from '../../../services/mixed-mapping.service';
 import { ReservationListResponse, ReservationRequest, ReservationResponse } from '../models/reservation-model';
@@ -11,6 +11,8 @@ import { ReservationListResponse, ReservationRequest, ReservationResponse } from
 export class ReservationService {
   
   private readonly controller = this.configService.config().apiUrl + 'reservation/';
+  private readonly reservationSavedSubject = new Subject<{ reservationId: string }>();
+  reservationSaved$ = this.reservationSavedSubject.asObservable();
 
   constructor(
     private http: HttpClient,
@@ -71,6 +73,14 @@ export class ReservationService {
   // DELETE: Delete reservation
   deleteReservation(reservationId: string): Observable<void> {
     return this.http.delete<void>(this.controller + reservationId);
+  }
+
+  notifyReservationSaved(reservationId: string): void {
+    const normalizedReservationId = String(reservationId || '').trim();
+    if (!normalizedReservationId) {
+      return;
+    }
+    this.reservationSavedSubject.next({ reservationId: normalizedReservationId });
   }
 }
 

@@ -1,4 +1,4 @@
-@if (isLoading$ | async) {
+@if (!isPageReady) {
   <div class="loading-container">
     <mat-spinner [diameter]="40"></mat-spinner>
     <p>Loading ticket...</p>
@@ -7,7 +7,7 @@
   <div class="flex content-card-wrap justify-center" fxLayout="row wrap" [class.settings-embedded-edit-wrap]="embeddedInSettings">
     <section class="content-card">
       @if (!embeddedInSettings) {
-      <div class="flex justify-between items-center gap-3 bg-slate-300 rounded-t-lg py-0 pl-8 pr-4 property-titlebar">
+      <div class="flex justify-between items-center gap-3 bg-slate-300 rounded-t-lg py-0 pl-8 pr-4 property-titlebar dbg-band-actions">
         <div class="flex items-center flex-wrap py-4">
           <span class="flex flex-column items-center gap-3 flex-shrink-0">
             <mat-icon class="flex-shrink-0">confirmation_number</mat-icon>
@@ -22,11 +22,11 @@
             </mat-form-field>
             <mat-form-field appearance="outline" class="titlebar-field-property-code">
               <mat-label>Property Code</mat-label>
-              <input matInput [value]="ticket?.PropertyCode || ''" readonly class="readonly-field">
+              <input matInput [value]="ticket?.propertyCode || ''" readonly class="readonly-field">
             </mat-form-field>
             <mat-form-field appearance="outline" class="titlebar-field-reservation">
               <mat-label>Reservation</mat-label>
-              <input matInput [value]="ticket?.ReservationCode || ''" readonly class="readonly-field">
+              <input matInput [value]="ticket?.reservationCode || ''" readonly class="readonly-field">
             </mat-form-field>
           </div>
         </div>
@@ -46,62 +46,67 @@
       <mat-card>
         <form id="ticketForm" [formGroup]="form" (ngSubmit)="saveTicket()" class="info-form mb-8 form-hide-error-text" [class.pt-5]="!embeddedInSettings" [class.settings-embedded-edit-top-offset]="embeddedInSettings">
           <div class="grid grid-cols-12 form-standard-grid">
-            <div class="col-span-12 flex justify-end items-center gap-3">
-              <mat-checkbox formControlName="isActive" color="primary" class="ticket-is-active-toggle">
-                IsActive
-              </mat-checkbox>
-              <button mat-raised-button type="submit" color="primary" id="save-button"
-                class="text-nowrap flex-shrink-0" [disabled]="isSubmitting">
-                <mat-icon>save</mat-icon>
-                Save
-              </button>
-            </div>
+            <div class="col-span-12 ticket-first-row">
+              @if (!isAddMode) {
+                <mat-form-field appearance="outline" class="ticket-slot-1">
+                  <mat-label>Ticket Code</mat-label>
+                  <input matInput [value]="ticketCodeDisplay" readonly [disabled]="true" class="readonly-field" tabindex="-1" aria-disabled="true">
+                </mat-form-field>
+              }
 
-            @if (!isAddMode) {
-              <mat-form-field appearance="outline" class="col-span-12">
-                <mat-label>Ticket Code</mat-label>
-                <input matInput [value]="ticketCodeDisplay" readonly>
+              <mat-form-field appearance="outline" class="ticket-slot-1">
+                <mat-label>{{ isAddMode ? 'Created' : 'Last Modified' }}</mat-label>
+                <input matInput [value]="lastModifiedDisplay" readonly [disabled]="true" class="readonly-field" tabindex="-1" aria-disabled="true">
               </mat-form-field>
-            }
 
-            <mat-form-field appearance="outline" class="col-span-2">
-              <mat-label>State</mat-label>
-              <mat-select formControlName="ticketStateTypeId" required>
-                @for (state of ticketStateTypes; track state.value) {
-                  <mat-option [value]="state.value">{{ state.label }}</mat-option>
-                }
-              </mat-select>
-            </mat-form-field>
+              <mat-form-field appearance="outline" class="ticket-slot-2">
+                <mat-label>Ticket Status</mat-label>
+                <mat-select formControlName="ticketStateTypeId" required (selectionChange)="onTicketStatusChanged()">
+                  @for (state of ticketStateTypes; track state.value) {
+                    <mat-option [value]="state.value">{{ state.label }}</mat-option>
+                  }
+                </mat-select>
+              </mat-form-field>
 
-            <mat-form-field appearance="outline" class="col-span-2">
-              <mat-label>Property Code</mat-label>
-              <mat-select formControlName="propertyId" (selectionChange)="onPropertyDropdownChange($event.value)" required [canSelectNullableOptions]="true">
-                <mat-option [value]="null">Select Property</mat-option>
-                @for (property of activePropertyOptions; track property.propertyId) {
-                  <mat-option [value]="property.propertyId">{{ property.propertyCode }}</mat-option>
-                }
-              </mat-select>
-            </mat-form-field>
+              <mat-form-field appearance="outline" class="ticket-slot-2">
+                <mat-label>Assignee</mat-label>
+                <mat-select formControlName="assigneeId" [canSelectNullableOptions]="true" (selectionChange)="onAssigneeChanged()">
+                  <mat-option [value]="null">Unassigned</mat-option>
+                  @for (assignee of assigneeOptions; track assignee.userId) {
+                    <mat-option [value]="assignee.userId">{{ assignee.displayName }}</mat-option>
+                  }
+                </mat-select>
+              </mat-form-field>
 
-            <mat-form-field appearance="outline" class="col-span-2">
-              <mat-label>Assignee</mat-label>
-              <mat-select formControlName="assigneeId" [canSelectNullableOptions]="true">
-                <mat-option [value]="null">Unassigned</mat-option>
-                @for (assignee of assigneeOptions; track assignee.userId) {
-                  <mat-option [value]="assignee.userId">{{ assignee.displayName }}</mat-option>
-                }
-              </mat-select>
-            </mat-form-field>
+              <mat-form-field appearance="outline" class="ticket-slot-2">
+                <mat-label>Agent</mat-label>
+                <mat-select formControlName="reservationAgentId" [canSelectNullableOptions]="true">
+                  <mat-option [value]="null">Select Agent</mat-option>
+                  @for (agent of reservationAgentOptions; track agent.agentId) {
+                    <mat-option [value]="agent.agentId">{{ agent.displayName }}</mat-option>
+                  }
+                </mat-select>
+              </mat-form-field>
 
-            <mat-form-field appearance="outline" class="col-span-2">
-              <mat-label>Last Modified</mat-label>
-              <input matInput [value]="lastModifiedDisplay" disabled>
-            </mat-form-field>
+              <div [class.ticket-slot-empty]="!isAddMode" [class.ticket-slot-empty-2]="isAddMode" aria-hidden="true"></div>
+
+              <div class="ticket-top-actions ticket-slot-actions">
+                <mat-checkbox formControlName="isActive" color="primary" class="ticket-is-active-toggle">
+                  IsActive
+                </mat-checkbox>
+                <button mat-raised-button type="submit" color="primary" id="save-button"
+                  class="text-nowrap flex-shrink-0" [disabled]="isSubmitting">
+                  <mat-icon>save</mat-icon>
+                  Save
+                </button>
+              </div>
+            </div>
 
             <div class="col-span-12 ticket-communication-status-box">
               <div class="ticket-communication-status-label">Communication Status:</div>
               <div class="ticket-checkbox-grid">
-                <mat-checkbox formControlName="permissionToEnter" color="primary">Permission to Enter</mat-checkbox>
+                <mat-checkbox formControlName="needPermissionToEnter" color="primary">Need Permission to Enter</mat-checkbox>
+                <mat-checkbox formControlName="permissionGranted" color="primary">Permission Granted</mat-checkbox>
                 <mat-checkbox formControlName="ownerContacted" color="primary">Owner Contacted</mat-checkbox>
                 <mat-checkbox formControlName="confirmedWithTenant" color="primary">Confirmed with Tenant</mat-checkbox>
                 <mat-checkbox formControlName="followedUpWithOwner" color="primary">Followed Up with Owner</mat-checkbox>
@@ -118,6 +123,32 @@
               <mat-label>Description</mat-label>
               <textarea matInput rows="3" formControlName="description" required></textarea>
             </mat-form-field>
+
+            @if (!isAddMode) {
+            <div class="col-span-12 ticket-comments-section">
+              <div class="ticket-comments-header">Comments</div>
+
+              <mat-form-field appearance="outline" class="ticket-comments-editor">
+                <mat-label>Add a Note</mat-label>
+                <textarea matInput rows="2" formControlName="newNote"></textarea>
+              </mat-form-field>
+
+              @if (ticketNotesDisplay.length > 0) {
+                <div class="ticket-comments-history">
+                  @for (noteItem of ticketNotesDisplay; track $index) {
+                    <div class="ticket-comment-entry">
+                      <div class="ticket-comment-meta">
+                        <span class="ticket-comment-author">{{ noteItem.author }}</span>
+                        <span class="ticket-comment-meta-separator">|</span>
+                        <span class="ticket-comment-created-on">{{ noteItem.createdOn }}</span>
+                      </div>
+                      <div class="ticket-comment-note">{{ noteItem.note }}</div>
+                    </div>
+                  }
+                </div>
+              }
+            </div>
+            }
           </div>
         </form>
       </mat-card>

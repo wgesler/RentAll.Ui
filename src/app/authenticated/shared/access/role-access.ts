@@ -84,6 +84,11 @@ const openToAll: AccessRule = {
   excludedRoles: []
 };
 
+const ticketAccess: AccessRule = {
+  requiredRoles: [],
+  excludedRoles: []
+};
+
 const accountingOnly: AccessRule = {
   requiredRoles: [UserGroups.Accounting, UserGroups.Admin, UserGroups.SuperAdmin],
   excludedRoles: []
@@ -132,7 +137,7 @@ export const COMPANY_USERS_NAV_ITEMS: NavItemDefinition[] = [
   { icon: 'handshake', displayName: 'Reservations', url: ROUTER_TOKEN.RentalList, ...openToAllExceptSuperAdmin },
   { icon: 'home', displayName: 'Properties', url: ROUTER_TOKEN.PropertyList, ...openToAllExceptSuperAdmin },
   { icon: 'build', displayName: 'Maintenance', url: ROUTER_TOKEN.MaintenanceList, ...openToAllExceptSuperAdmin },
-  { icon: 'confirmation_number', displayName: 'Tickets', url: ROUTER_TOKEN.TicketList, ...noAccess },
+  { icon: 'confirmation_number', displayName: 'Tickets', url: ROUTER_TOKEN.TicketList, ...ticketAccess },
   { icon: 'account_balance', displayName: 'Accounting', url: ROUTER_TOKEN.AccountingList, ...accountingOnly },
   { icon: 'mail', displayName: 'Emails', url: ROUTER_TOKEN.EmailList, ...openToAll },
   { icon: 'description', displayName: 'Documents', url: ROUTER_TOKEN.DocumentList, ...openToAllExceptSuperAdmin },
@@ -143,6 +148,7 @@ export const COMPANY_USERS_NAV_ITEMS: NavItemDefinition[] = [
 
 export const SUPER_USER_NAV_ITEMS: NavItemDefinition[] = [
   { icon: 'corporate_fare', displayName: 'Organizations', url: ROUTER_TOKEN.OrganizationList, ...superAdminOnly },
+  { icon: 'confirmation_number', displayName: 'Tickets', url: ROUTER_TOKEN.TicketList, ...ticketAccess },
   { icon: 'account_balance', displayName: 'Accounting', url: ROUTER_TOKEN.AccountingList, ...accountingOnly },
   { icon: 'mail', displayName: 'Emails', url: ROUTER_TOKEN.EmailList, ...openToAll },
   { icon: 'people', displayName: 'Users', url: ROUTER_TOKEN.UserList, ...adminOnly },
@@ -168,7 +174,7 @@ const routeRulesBySegment: Record<string, AccessRule> = {
   [ROUTER_TOKEN.RentalList]: openToAllExceptSuperAdmin,
   [ROUTER_TOKEN.PropertyList]: openToAllExceptSuperAdmin,
   [ROUTER_TOKEN.MaintenanceList]: openToAllExceptSuperAdmin,
-  [ROUTER_TOKEN.TicketList]: openToAllExceptSuperAdmin,
+  [ROUTER_TOKEN.TicketList]: ticketAccess,
   'work-order': openToAllExceptSuperAdmin,
   [ROUTER_TOKEN.WorkOrderCreate]: openToAllExceptSuperAdmin,
   receipt: openToAllExceptSuperAdmin,

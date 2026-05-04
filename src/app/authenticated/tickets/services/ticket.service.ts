@@ -1,6 +1,6 @@
 import { HttpClient } from '@angular/common/http';
 import { Injectable } from '@angular/core';
-import { Observable } from 'rxjs';
+import { Observable, Subject } from 'rxjs';
 import { ConfigService } from '../../../services/config.service';
 import { TicketRequest, TicketResponse } from '../models/ticket-models';
 
@@ -9,6 +9,8 @@ import { TicketRequest, TicketResponse } from '../models/ticket-models';
 })
 export class TicketService {
   private readonly controller = this.configService.config().apiUrl + 'ticket/';
+  private readonly ticketStateChangedSubject = new Subject<void>();
+  ticketStateChanged$ = this.ticketStateChangedSubject.asObservable();
 
   constructor(
     private http: HttpClient,
@@ -22,8 +24,13 @@ export class TicketService {
   }
 
   // GET: Get ticket by ID
-  getTicketById(ticketId: number): Observable<TicketResponse> {
+  getTicketById(ticketId: string): Observable<TicketResponse> {
     return this.http.get<TicketResponse>(this.controller + ticketId);
+  }
+
+  // GET: Get tickets by property ID
+  getTicketsByPropertyId(propertyId: string): Observable<TicketResponse[]> {
+    return this.http.get<TicketResponse[]>(this.controller + 'property/' + propertyId);
   }
 
   // POST: Create a new ticket
@@ -37,7 +44,11 @@ export class TicketService {
   }
 
   // DELETE: Delete ticket
-  deleteTicket(ticketId: number): Observable<void> {
+  deleteTicket(ticketId: string): Observable<void> {
     return this.http.delete<void>(this.controller + ticketId);
+  }
+
+  notifyTicketStateChanged(): void {
+    this.ticketStateChangedSubject.next();
   }
 }

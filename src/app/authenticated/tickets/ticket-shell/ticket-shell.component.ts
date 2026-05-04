@@ -19,6 +19,7 @@ import { PropertyService } from '../../properties/services/property.service';
 import { ReservationListResponse } from '../../reservations/models/reservation-model';
 import { ReservationService } from '../../reservations/services/reservation.service';
 import { AddAlertDialogComponent, AddAlertDialogData } from '../../shared/modals/add-alert-dialog/add-alert-dialog.component';
+import { UserService } from '../../users/services/user.service';
 import { TicketComponent } from '../ticket/ticket.component';
 import { TicketListComponent } from '../ticket-list/ticket-list.component';
 
@@ -30,30 +31,48 @@ import { TicketListComponent } from '../ticket-list/ticket-list.component';
   styleUrl: './ticket-shell.component.scss'
 })
 export class TicketShellComponent implements OnInit, OnDestroy, CanComponentDeactivate {
-  @ViewChild('ticketListSection') set ticketListSection(value: TicketListComponent | undefined) {
-    this.ticketListSectionRef = value;
+  @ViewChild('myTicketListSection') set myTicketListSection(value: TicketListComponent | undefined) {
+    this.myTicketListSectionRef = value;
+    if (value) {
+      this.syncFiltersToList();
+    }
+  }
+  @ViewChild('otherTicketListSection') set otherTicketListSection(value: TicketListComponent | undefined) {
+    this.otherTicketListSectionRef = value;
+    if (value) {
+      this.syncFiltersToList();
+    }
+  }
+  @ViewChild('closedTicketListSection') set closedTicketListSection(value: TicketListComponent | undefined) {
+    this.closedTicketListSectionRef = value;
     if (value) {
       this.syncFiltersToList();
     }
   }
   @ViewChild('ticketSection') ticketSection?: TicketComponent;
-  ticketListSectionRef?: TicketListComponent;
+  myTicketListSectionRef?: TicketListComponent;
+  otherTicketListSectionRef?: TicketListComponent;
+  closedTicketListSectionRef?: TicketListComponent;
 
   showTicketForm = false;
   currentTicketId: string | number | null = null;
+  currentUserId: string | null = null;
+  currentUserAgentId: string | null = null;
   selectedOfficeId: number | null = null;
   selectedPropertyId: string | null = null;
   selectedReservationId: string | null = null;
-  selectedOffice: OfficeResponse | null = null;
+  isOfficeSelectionInvalidOnSave = false;
   offices: OfficeResponse[] = [];
   properties: PropertyListResponse[] = [];
   reservations: ReservationListResponse[] = [];
   contacts: ContactResponse[] = [];
-  showOfficeDropdown = false;
   globalOfficeSubscription?: Subscription;
+
+
   itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['offices', 'properties', 'reservations', 'contacts']));
   isLoading$: Observable<boolean> = this.itemsToLoad$.pipe(map(items => items.size > 0));
   isPageReady = false;
+  isApplyingTicketSelectionContext = false;
   destroy$ = new Subject<void>();
 
   constructor(
@@ -66,23 +85,27 @@ export class TicketShellComponent implements OnInit, OnDestroy, CanComponentDeac
     private reservationService: ReservationService,
     private contactService: ContactService,
     private globalSelectionService: GlobalSelectionService,
+    private userService: UserService,
     private utilityService: UtilityService
   ) {}
 
   //#region Ticket-Shell
   ngOnInit(): void {
-    this.loadOffices();
-    this.loadProperties();
-    this.loadContacts();
-    this.loadReservations();
+    this.currentUserId = String(this.authService.getUser()?.userId || '').trim() || null;
 
     this.itemsToLoad$.pipe(takeUntil(this.destroy$)).subscribe(items => {
       this.isPageReady = items.size === 0;
     });
 
+    this.loadCurrentUserAgentId();
+    this.loadOffices();
+    this.loadProperties();
+    this.loadContacts();
+    this.loadReservations();
+
     this.globalOfficeSubscription = this.globalSelectionService.getSelectedOfficeId$().pipe(skip(1), takeUntil(this.destroy$)).subscribe(officeId => {
       if (this.offices.length > 0) {
-        this.resolveOfficeScope(officeId);
+        this.onOfficeFilterChange(officeId);
       }
     });
 
@@ -91,16 +114,33 @@ export class TicketShellComponent implements OnInit, OnDestroy, CanComponentDeac
       this.showTicketForm = !!id;
       this.currentTicketId = id;
     });
+
+    this.reservationService.reservationSaved$.pipe(takeUntil(this.destroy$)).subscribe(event => {
+      this.myTicketListSectionRef?.syncTicketsForReservation(event.reservationId);
+      this.otherTicketListSectionRef?.syncTicketsForReservation(event.reservationId);
+      this.closedTicketListSectionRef?.syncTicketsForReservation(event.reservationId);
+    });
   }
 
-  onTicketSelected(ticketId: string | number | null): void {
-    if (ticketId === null || ticketId === undefined) {
+  onTicketSelected(event: { ticketId: string | number | null; propertyId: string | null; reservationId: string | null; officeId: number | null }): void {
+    if (!event || event.ticketId === null || event.ticketId === undefined) {
       return;
     }
 
+    const nextOfficeId = event.officeId ?? null;
+    const nextPropertyId = this.utilityService.normalizeIdOrNull(event.propertyId);
+    const nextReservationId = this.utilityService.normalizeIdOrNull(event.reservationId);
+
+    this.isApplyingTicketSelectionContext = true;
+    this.selectedOfficeId = nextOfficeId;
+    this.resolveOfficeScope(nextOfficeId);
+    this.selectedPropertyId = nextPropertyId;
+    this.selectedReservationId = nextReservationId;
+    this.loadReservations(nextReservationId, nextPropertyId);
+
     this.showTicketForm = true;
-    this.currentTicketId = ticketId;
-    this.router.navigateByUrl(`/${RouterUrl.replaceTokens(RouterUrl.Ticket, [String(ticketId)])}`);
+    this.currentTicketId = event.ticketId;
+    this.router.navigateByUrl(`/${RouterUrl.replaceTokens(RouterUrl.Ticket, [String(event.ticketId)])}`);
   }
 
   onTicketBack(): void {
@@ -110,20 +150,42 @@ export class TicketShellComponent implements OnInit, OnDestroy, CanComponentDeac
   }
 
   onTicketSaved(): void {
-    this.ticketListSectionRef?.getTickets();
+    this.myTicketListSectionRef?.getTickets();
+    this.otherTicketListSectionRef?.getTickets();
+    this.closedTicketListSectionRef?.getTickets();
+  }
+
+  onTicketListUpdated(): void {
+    this.myTicketListSectionRef?.getTickets();
+    this.otherTicketListSectionRef?.getTickets();
+    this.closedTicketListSectionRef?.getTickets();
   }
 
   onOfficeFilterChange(officeId: number | null): void {
+    if (this.isApplyingTicketSelectionContext) {
+      return;
+    }
     this.selectedOfficeId = officeId;
+    this.isOfficeSelectionInvalidOnSave = false;
     this.resolveOfficeScope(officeId);
+    const isSelectedPropertyInScope = !!this.selectedPropertyId && this.getFilteredPropertiesByOffice().some(property => property.propertyId === this.selectedPropertyId);
+    if (!isSelectedPropertyInScope) {
+      this.selectedPropertyId = null;
+    }
+    this.loadReservations(this.selectedReservationId);
     this.syncFiltersToList();
   }
 
   onPropertyFilterChange(propertyId: string | null): void {
+    if (this.isApplyingTicketSelectionContext) {
+      return;
+    }
     this.selectedPropertyId = propertyId;
-    this.selectedReservationId = null;
+    if (this.selectedPropertyId) {
+      this.isOfficeSelectionInvalidOnSave = false;
+    }
     this.syncFiltersToList();
-    this.loadReservations();
+    this.loadReservations(this.selectedReservationId);
   }
 
   onReservationFilterChange(reservationId: string | null): void {
@@ -131,14 +193,23 @@ export class TicketShellComponent implements OnInit, OnDestroy, CanComponentDeac
     this.syncFiltersToList();
   }
 
-  onTicketPropertySelectionChange(event: { propertyId: string | null; officeId: number | null }): void {
-    this.selectedPropertyId = event.propertyId;
+  onTicketPropertySelectionChange(event: { propertyId: string | null; officeId: number | null; reservationId: string | null }): void {
+    if (this.isApplyingTicketSelectionContext) {
+      return;
+    }
+    this.selectedPropertyId = this.utilityService.normalizeIdOrNull(event.propertyId);
+    if (this.selectedPropertyId) {
+      this.isOfficeSelectionInvalidOnSave = false;
+    }
+    this.selectedReservationId = this.utilityService.normalizeIdOrNull(event.reservationId);
     if (event.officeId != null) {
       this.selectedOfficeId = event.officeId;
       this.resolveOfficeScope(this.selectedOfficeId);
     }
-    this.selectedReservationId = null;
-    this.loadReservations();
+  }
+
+  onOfficeSelectionInvalidOnSave(): void {
+    this.isOfficeSelectionInvalidOnSave = this.selectedOfficeId == null && !this.selectedPropertyId;
   }
 
   openAddAlertDialog(): void {
@@ -159,13 +230,28 @@ export class TicketShellComponent implements OnInit, OnDestroy, CanComponentDeac
   //#endregion
 
   //#region Data Loading Methods
+  loadCurrentUserAgentId(): void {
+    const currentUserId = this.currentUserId;
+    if (!currentUserId) {
+      this.currentUserAgentId = null;
+      return;
+    }
+    this.userService.getAgentId(currentUserId).pipe(take(1)).subscribe({
+      next: agentId => {
+        this.currentUserAgentId = agentId;
+        this.syncFiltersToList();
+      },
+      error: () => {
+        this.currentUserAgentId = null;
+      }
+    });
+  }
+
   loadOffices(): void {
     const orgId = this.authService.getUser()?.organizationId?.trim();
     if (!orgId) {
       this.offices = [];
       this.selectedOfficeId = null;
-      this.selectedOffice = null;
-      this.showOfficeDropdown = false;
       this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'offices');
       return;
     }
@@ -173,16 +259,13 @@ export class TicketShellComponent implements OnInit, OnDestroy, CanComponentDeac
     this.officeService.getOffices(orgId).pipe(take(1), finalize(() => this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'offices'))).subscribe({
       next: offices => {
         this.offices = offices || [];
-        this.showOfficeDropdown = this.offices.length > 1;
         const globalOfficeId = this.globalSelectionService.getSelectedOfficeIdValue();
         this.selectedOfficeId = this.selectedOfficeId ?? globalOfficeId ?? null;
-        this.resolveOfficeScope(this.selectedOfficeId);
+        this.onOfficeFilterChange(this.selectedOfficeId);
       },
       error: () => {
         this.offices = [];
         this.selectedOfficeId = null;
-        this.selectedOffice = null;
-        this.showOfficeDropdown = false;
       }
     });
   }
@@ -200,17 +283,28 @@ export class TicketShellComponent implements OnInit, OnDestroy, CanComponentDeac
     });
   }
 
-  loadReservations(): void {
-    if (this.selectedPropertyId) {
-      this.reservationService.getReservationsByPropertyId(this.selectedPropertyId).pipe(take(1), finalize(() => this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'reservations'))).subscribe({
+  loadReservations(preferredReservationId: string | null = this.selectedReservationId, forcedPropertyId: string | null = null): void {
+    const normalizedPreferredReservationId = preferredReservationId == null || String(preferredReservationId).trim() === '' ? null : String(preferredReservationId).trim();
+    const propertyIdForLoad = this.utilityService.normalizeIdOrNull(forcedPropertyId ?? this.selectedPropertyId);
+    const shouldReleaseSelectionLock = this.isApplyingTicketSelectionContext;
+    if (propertyIdForLoad) {
+      this.reservationService.getReservationsByPropertyId(propertyIdForLoad).pipe(
+        take(1),
+        finalize(() => {
+          this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'reservations');
+          if (shouldReleaseSelectionLock) {
+            this.isApplyingTicketSelectionContext = false;
+          }
+        })
+      ).subscribe({
         next: reservations => {
           this.reservations = (reservations || []).slice().sort((a, b) =>
             String(a.reservationCode || '').localeCompare(String(b.reservationCode || ''), undefined, { sensitivity: 'base' })
           );
-          if (this.selectedReservationId && !this.reservations.some(r => r.reservationId === this.selectedReservationId)) {
-            this.selectedReservationId = null;
-            this.syncFiltersToList();
-          }
+          this.selectedReservationId = normalizedPreferredReservationId && this.reservations.some(r => this.utilityService.normalizeId(r.reservationId) === this.utilityService.normalizeId(normalizedPreferredReservationId))
+            ? this.reservations.find(r => this.utilityService.normalizeId(r.reservationId) === this.utilityService.normalizeId(normalizedPreferredReservationId))?.reservationId ?? normalizedPreferredReservationId
+            : null;
+          this.syncFiltersToList();
         },
         error: () => {
           this.reservations = [];
@@ -221,14 +315,28 @@ export class TicketShellComponent implements OnInit, OnDestroy, CanComponentDeac
       return;
     }
 
-    this.reservationService.getReservationList().pipe(take(1), finalize(() => this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'reservations'))).subscribe({
+    this.reservationService.getReservationList().pipe(
+      take(1),
+      finalize(() => {
+        this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'reservations');
+        if (shouldReleaseSelectionLock) {
+          this.isApplyingTicketSelectionContext = false;
+        }
+      })
+    ).subscribe({
       next: reservations => {
         this.reservations = (reservations || []).slice().sort((a, b) =>
           String(a.reservationCode || '').localeCompare(String(b.reservationCode || ''), undefined, { sensitivity: 'base' })
         );
+        this.selectedReservationId = normalizedPreferredReservationId && this.reservations.some(r => this.utilityService.normalizeId(r.reservationId) === this.utilityService.normalizeId(normalizedPreferredReservationId))
+          ? this.reservations.find(r => this.utilityService.normalizeId(r.reservationId) === this.utilityService.normalizeId(normalizedPreferredReservationId))?.reservationId ?? normalizedPreferredReservationId
+          : null;
+        this.syncFiltersToList();
       },
       error: () => {
         this.reservations = [];
+        this.selectedReservationId = null;
+        this.syncFiltersToList();
       }
     });
   }
@@ -246,12 +354,19 @@ export class TicketShellComponent implements OnInit, OnDestroy, CanComponentDeac
   //#endregion
 
   //#region Utility Methods
+  getFilteredPropertiesByOffice(): PropertyListResponse[] {
+    if (this.selectedOfficeId == null) {
+      return this.properties;
+    }
+    return (this.properties || []).filter(property => property.officeId === this.selectedOfficeId);
+  }
+
   get officeFilterOptions(): { officeId: number; officeName: string }[] {
     return this.offices.map(office => ({ officeId: office.officeId, officeName: office.name }));
   }
 
   get propertyFilterOptions(): { propertyId: string; propertyCode: string }[] {
-    return this.properties.map(property => ({ propertyId: property.propertyId, propertyCode: property.propertyCode || '' }));
+    return this.getFilteredPropertiesByOffice().map(property => ({ propertyId: property.propertyId, propertyCode: property.propertyCode || '' }));
   }
 
   get reservationFilterOptions(): { reservationId: string; reservationCode: string }[] {
@@ -265,17 +380,24 @@ export class TicketShellComponent implements OnInit, OnDestroy, CanComponentDeac
   }
 
   resolveOfficeScope(officeId: number | null): void {
-    this.selectedOffice = this.utilityService.resolveSelectedOfficeById(this.offices, officeId);
-    this.selectedOfficeId = this.selectedOffice?.officeId ?? null;
+    const selectedOffice = this.utilityService.resolveSelectedOfficeById(this.offices, officeId);
+    this.selectedOfficeId = selectedOffice?.officeId ?? null;
   }
 
   syncFiltersToList(): void {
-    if (!this.ticketListSectionRef) {
+    const sections = [
+      this.myTicketListSectionRef,
+      this.otherTicketListSectionRef,
+      this.closedTicketListSectionRef
+    ].filter(Boolean) as TicketListComponent[];
+    if (sections.length === 0) {
       return;
     }
-    this.ticketListSectionRef.onOfficeFilterChange(this.selectedOfficeId);
-    this.ticketListSectionRef.onPropertyFilterChange(this.selectedPropertyId);
-    this.ticketListSectionRef.onReservationFilterChange(this.selectedReservationId);
+    sections.forEach(section => {
+      section.onOfficeFilterChange(this.selectedOfficeId);
+      section.onPropertyFilterChange(this.selectedPropertyId);
+      section.onReservationFilterChange(this.selectedReservationId);
+    });
   }
 
   canDeactivate(): boolean {

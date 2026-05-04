@@ -28,6 +28,7 @@ mat-sidenav {
     justify-content: center;
     flex-direction: column;
     flex-wrap: wrap;
+    position: relative;
     box-sizing: border-box;
     color: #FFFFFF;
     padding: 20px 12px;
@@ -55,6 +56,17 @@ mat-sidenav {
       text-align:center;
       font-size: 13px;
       line-height: 1.1;
+    }
+    & .sidebar-ticket-badge-dot {
+      position: absolute;
+      top: 8px;
+      left: 12px;
+      width: 9px;
+      height: 9px;
+      border-radius: 50%;
+      background-color: var(--mat-sys-error, #dc2626);
+      box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.75);
+      pointer-events: none;
     }
   }
 

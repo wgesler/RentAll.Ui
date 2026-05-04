@@ -3,10 +3,12 @@ import { CommonModule } from '@angular/common';
 import { Component, OnDestroy, OnInit, ViewChild } from '@angular/core';
 import { MatSidenav } from '@angular/material/sidenav';
 import { Router, RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
-import { Observable, Subject, map, shareReplay, takeUntil } from 'rxjs';
+import { Observable, Subject, map, shareReplay, take, takeUntil } from 'rxjs';
 import { MaterialModule } from '../../../../material.module';
 import { AuthService } from '../../../../services/auth.service';
 import { getVisibleNavItems } from '../../access/role-access';
+import { TicketStateType } from '../../../tickets/models/ticket-enum';
+import { TicketService } from '../../../tickets/services/ticket.service';
 import { SidebarStateService } from '../services/sidebar-state.service';
 
 @Component({
@@ -30,17 +32,20 @@ export class SidebarComponent implements OnInit, OnDestroy {
       shareReplay()
     );
   navItems: any[] = [];
+  hasAssignedTicketBadge = false;
   destroy$ = new Subject<void>();
 
   constructor(
     public router: Router,
     private authService: AuthService,
     private breakpointObserver: BreakpointObserver,
-    private sidebarStateService: SidebarStateService
+    private sidebarStateService: SidebarStateService,
+    private ticketService: TicketService
   ) { }
 
   ngOnInit(): void {
     this.filterNavItemsByRole();
+    this.refreshAssignedTicketBadge();
 
     this.sidebarStateService.isExpanded$.pipe(takeUntil(this.destroy$)).subscribe(isExpanded => {
       this.isExpanded = isExpanded;
@@ -61,6 +66,11 @@ export class SidebarComponent implements OnInit, OnDestroy {
     // Re-filter when login status changes
     this.authService.getIsLoggedIn$().pipe(takeUntil(this.destroy$)).subscribe(() => {
       this.filterNavItemsByRole();
+      this.refreshAssignedTicketBadge();
+    });
+
+    this.ticketService.ticketStateChanged$.pipe(takeUntil(this.destroy$)).subscribe(() => {
+      this.refreshAssignedTicketBadge();
     });
   }
 
@@ -69,6 +79,29 @@ export class SidebarComponent implements OnInit, OnDestroy {
   filterNavItemsByRole(): void {
     const user = this.authService.getUser();
     this.navItems = getVisibleNavItems(user?.userGroups as Array<string | number> | undefined);
+  }
+
+  refreshAssignedTicketBadge(): void {
+    const currentUserId = String(this.authService.getUser()?.userId || '').trim();
+    const currentUserAgentId = String(this.authService.getUser()?.agentId || '').trim();
+    if (!currentUserId) {
+      this.hasAssignedTicketBadge = false;
+      return;
+    }
+
+    this.ticketService.getTickets().pipe(take(1)).subscribe({
+      next: tickets => {
+        this.hasAssignedTicketBadge = (tickets || []).some(ticket => {
+          const assigneeId = String(ticket.assigneeId || '').trim();
+          const agentId = String(ticket.agentId || '').trim();
+          const isAssignedToCurrentUser = assigneeId === currentUserId || (currentUserAgentId !== '' && agentId === currentUserAgentId);
+          return isAssignedToCurrentUser && ticket.ticketStateTypeId === TicketStateType.assigned;
+        });
+      },
+      error: () => {
+        this.hasAssignedTicketBadge = false;
+      }
+    });
   }
     
   get desktopSidebarWidth(): number {

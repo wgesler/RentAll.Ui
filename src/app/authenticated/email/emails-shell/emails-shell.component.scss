@@ -6,3 +6,8 @@
 :host ::ng-deep .property-tabs .mat-mdc-tab-body-content {
   overflow-y: hidden !important;
 }
+
+:host ::ng-deep .emails-shell-five-slot-tabs .mat-mdc-tab-header .mat-mdc-tab {
+  flex: 0 0 calc(100% / 5);
+  max-width: calc(100% / 5);
+}

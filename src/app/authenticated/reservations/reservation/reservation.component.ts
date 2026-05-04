@@ -628,6 +628,9 @@ export class ReservationComponent implements OnInit, OnDestroy, CanComponentDeac
 
     save$.pipe(take(1),  finalize(() => this.isSubmitting = false) ).subscribe({
       next: (response: ReservationResponse) => {
+        if (response?.reservationId) {
+          this.reservationService.notifyReservationSaved(response.reservationId);
+        }
         const message = this.isAddMode ? 'Reservation created successfully' : 'Reservation updated successfully';
         this.toastr.success(message, CommonMessage.Success, { timeOut: CommonTimeouts.Success });
         this.sendReservationChangeNotification(response, reservationNotificationContext);

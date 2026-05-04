@@ -7,7 +7,7 @@
           [data]="ticketsDisplay"
           [columns]="ticketsDisplayedColumns"
           [hasColumnIndex]="false"
-          [hasFilter]="true"
+          [hasFilter]="showListFiltersAndActions"
           [hasToggleTop]="false"
           [hasActionsRowClick]="true"
           [hasActionsEdit]="true"
@@ -15,24 +15,26 @@
           [hasPropertyCodeLink]="true"
           [hasReservationCodeLink]="true"
           [itemsPerPage]="100"
-          (dropdownChangeEvent)="onTicketStateDropdownChange($event)"
+          (dropdownChangeEvent)="onTicketDropdownChange($event)"
           (editEvent)="goToTicket($event)"
           (rowClickEvent)="goToTicket($event)"
           (propertyCodeClickEvent)="goToProperty($event)"
           (reservationCodeClickEvent)="goToReservation($event)"
           (deleteEvent)="deleteTicket($event)"
           (checkboxChangeEvent)="onTicketCheckboxChange($event)">
-          <div dataTableFilterActions>
-            <div class="table-filter-actions-group form-titlebar-actions-wrap uniform-gap">
-              <mat-slide-toggle color="primary" [checked]="showInactive" (change)="onInactiveChange($event.checked)">
-                InActive
-              </mat-slide-toggle>
-              <button mat-raised-button type="button" color="primary" id="add-button-embedded" class="text-nowrap flex-shrink-0" (click)="addTicket()">
-                <mat-icon>add</mat-icon>
-                Add
-              </button>
+          @if (showListFiltersAndActions) {
+            <div dataTableFilterActions>
+              <div class="table-filter-actions-group form-titlebar-actions-wrap uniform-gap">
+                <mat-slide-toggle color="primary" [checked]="showInactive" (change)="onInactiveChange($event.checked)">
+                  InActive
+                </mat-slide-toggle>
+                <button mat-raised-button type="button" color="primary" id="add-button-embedded" class="text-nowrap flex-shrink-0" (click)="addTicket()">
+                  <mat-icon>add</mat-icon>
+                  Add
+                </button>
+              </div>
             </div>
-          </div>
+          }
         </app-data-table>
       </div>
     </div>
@@ -84,7 +86,7 @@
                 [data]="ticketsDisplay"
                 [columns]="ticketsDisplayedColumns"
                 [hasColumnIndex]="false"
-                [hasFilter]="true"
+                [hasFilter]="showListFiltersAndActions"
                 [hasToggleTop]="false"
                 [hasActionsRowClick]="true"
                 [hasActionsEdit]="true"
@@ -92,24 +94,26 @@
                 [hasPropertyCodeLink]="true"
                 [hasReservationCodeLink]="true"
                 [itemsPerPage]="100"
-                (dropdownChangeEvent)="onTicketStateDropdownChange($event)"
+                (dropdownChangeEvent)="onTicketDropdownChange($event)"
                 (editEvent)="goToTicket($event)"
                 (rowClickEvent)="goToTicket($event)"
                 (propertyCodeClickEvent)="goToProperty($event)"
                 (reservationCodeClickEvent)="goToReservation($event)"
                 (deleteEvent)="deleteTicket($event)"
                 (checkboxChangeEvent)="onTicketCheckboxChange($event)">
-                <div dataTableFilterActions>
-                  <div class="table-filter-actions-group form-titlebar-actions-wrap uniform-gap">
-                    <mat-slide-toggle color="primary" [checked]="showInactive" (change)="onInactiveChange($event.checked)">
-                      InActive
-                    </mat-slide-toggle>
-                    <button mat-raised-button type="button" color="primary" id="add-button" class="text-nowrap flex-shrink-0" (click)="addTicket()">
-                      <mat-icon>add</mat-icon>
-                      Add
-                    </button>
+                @if (showListFiltersAndActions) {
+                  <div dataTableFilterActions>
+                    <div class="table-filter-actions-group form-titlebar-actions-wrap uniform-gap">
+                      <mat-slide-toggle color="primary" [checked]="showInactive" (change)="onInactiveChange($event.checked)">
+                        InActive
+                      </mat-slide-toggle>
+                      <button mat-raised-button type="button" color="primary" id="add-button" class="text-nowrap flex-shrink-0" (click)="addTicket()">
+                        <mat-icon>add</mat-icon>
+                        Add
+                      </button>
+                    </div>
                   </div>
-                </div>
+                }
               </app-data-table>
             </div>
           </div>

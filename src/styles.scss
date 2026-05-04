@@ -263,6 +263,16 @@ mat-form-field.reservation-dropdown {
   margin-right: var(--global-form-field-gap-x) !important;
   margin-bottom: var(--global-form-field-gap-y) !important;
 
+  /* Keep textarea value text on the same MDC typography as standard inputs. */
+  textarea.mat-mdc-input-element,
+  textarea.mdc-text-field__input {
+    font-family: inherit !important;
+    font-size: var(--mdc-outlined-text-field-input-text-size, 14px) !important;
+    font-weight: var(--mdc-outlined-text-field-input-text-weight, 400) !important;
+    line-height: var(--mdc-outlined-text-field-input-text-line-height, 24px) !important;
+    letter-spacing: var(--mdc-outlined-text-field-input-text-tracking, 0.5px) !important;
+  }
+
   .mat-mdc-text-field-wrapper {
     min-height: 42px !important;
     padding: 4px 18px !important; /* +10px left/right vs original 8px */
@@ -290,8 +300,11 @@ mat-form-field.reservation-dropdown {
       textarea,
       .mat-mdc-select-value,
       .mat-mdc-select-value-text {
+        font-family: Roboto, "Helvetica Neue", sans-serif !important;
         font-size: 13px !important;
+        font-weight: 400 !important;
         line-height: 1.3 !important;
+        letter-spacing: normal !important;
       }
 
       input,

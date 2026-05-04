@@ -1,6 +1,6 @@
 import { HttpClient } from '@angular/common/http';
 import { Injectable } from '@angular/core';
-import { Observable } from 'rxjs';
+import { map, Observable } from 'rxjs';
 import { ConfigService } from '../../../services/config.service';
 import { UserRequest, UserResponse } from '../models/user.model';
 
@@ -26,6 +26,15 @@ export class UserService {
 
   getUserByGuid(userId: string): Observable<UserResponse> {
     return this.http.get<UserResponse>(this.controller + userId);
+  }
+
+  getAgentId(userId: string): Observable<string | null> {
+    return this.getUserByGuid(userId).pipe(
+      map(user => {
+        const normalizedAgentId = String(user?.agentId || '').trim();
+        return normalizedAgentId || null;
+      })
+    );
   }
 
   createUser(user: UserRequest): Observable<UserResponse> {
