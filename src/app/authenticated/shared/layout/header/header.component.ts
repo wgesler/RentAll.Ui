@@ -7,6 +7,7 @@ import { environment } from '../../../../../environments/environment';
 import { MaterialModule } from '../../../../material.module';
 import { JwtUser } from '../../../../public/login/models/jwt';
 import { AuthService } from '../../../../services/auth.service';
+import { BrandingService } from '../../../../services/branding.service';
 import { DebugLayoutBandsService } from '../../../../services/debug-layout-bands.service';
 import { CommonService } from '../../../../services/common.service';
 import { DailyQuote } from '../../../../shared/models/daily-quote';
@@ -28,6 +29,8 @@ import { SidebarStateService } from '../services/sidebar-state.service';
 
 export class HeaderComponent implements OnInit, OnDestroy {
   isLoggedIn: Observable<boolean> = this.authService.getIsLoggedIn$();
+  brandingLogoUrl$: Observable<string> = this.brandingService.getLogoUrl$();
+  brandingCollapsedLogoUrl$: Observable<string> = this.brandingService.getCollapsedLogoUrl$();
   user: JwtUser = this.authService.getUser();
   dailyQuote: Observable<DailyQuote> = this.commonService.getDailyQuote();
   layoutDebugEnabled$: Observable<boolean> = this.debugLayoutBandsService.enabled$;
@@ -48,6 +51,7 @@ export class HeaderComponent implements OnInit, OnDestroy {
 
   constructor(
     private authService: AuthService,
+    private brandingService: BrandingService,
     private commonService: CommonService,
     private breakpointObserver: BreakpointObserver,
     private dialog: MatDialog,

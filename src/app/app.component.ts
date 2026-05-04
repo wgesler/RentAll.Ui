@@ -9,6 +9,7 @@ import { OfficeService } from './authenticated/organizations/services/office.ser
 import { OrganizationListService } from './authenticated/organizations/services/organization-list.service';
 import { OrganizationService } from './authenticated/organizations/services/organization.service';
 import { AuthService } from './services/auth.service';
+import { BrandingService } from './services/branding.service';
 import { CommonService } from './services/common.service';
 import { PropertySelectionFilterService } from './authenticated/properties/services/property-selection-filter.service';
 import { PropertyService } from './authenticated/properties/services/property.service';
@@ -27,12 +28,13 @@ export class AppComponent implements OnInit, OnDestroy {
   organizationId: string = '';
   preferredOfficeId: number | null = null;
   isLoggedIn: Observable<boolean> = this.authService.getIsLoggedIn$();
-  itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['states', 'dailyQuote', 'organizations', 'contacts', 'offices', 'accountingOffices', 'costCodes']));
+  itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['states', 'dailyQuote', 'organizations', 'branding', 'contacts', 'offices', 'accountingOffices', 'costCodes']));
   isLoading$: Observable<boolean> = this.itemsToLoad$.pipe(map(items => items.size > 0));
   destroy$ = new Subject<void>();
 
   constructor(
     private authService: AuthService,
+    private brandingService: BrandingService,
     private commonService: CommonService,
     private contactService: ContactService,
     private organizationListService: OrganizationListService,
@@ -59,6 +61,7 @@ export class AppComponent implements OnInit, OnDestroy {
       if (isLoggedIn) {
         this.organizationId = this.authService.getUser()?.organizationId?.trim() ?? '';
         this.preferredOfficeId = this.authService.getUser()?.defaultOfficeId ?? null;
+        this.loadBranding();
         this.initializeOrganizationList();
         this.loadContacts();
         this.loadOffices();
@@ -66,12 +69,25 @@ export class AppComponent implements OnInit, OnDestroy {
       } else {
         this.organizationId = '';
         this.preferredOfficeId = null;
+        this.brandingService.clearBranding();
+        this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'branding');
         this.organizationListService.clearOrganizations();
         this.contactService.clearContacts();
         this.officeService.clearOffices();
         this.accountingOfficeService.clearAccountingOffices();
         this.costCodesService.clearCostCodes();
         this.propertySelectionFilterService.clear();
+      }
+    });
+  }
+
+  loadBranding(): void {
+    this.brandingService.loadBrandingForCurrentOrganization().pipe(take(1), finalize(() => {
+      this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'branding');
+    })).subscribe({
+      next: () => {},
+      error: () => {
+        this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'branding');
       }
     });
   }

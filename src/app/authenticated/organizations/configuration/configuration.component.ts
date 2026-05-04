@@ -76,7 +76,8 @@ export class ConfigurationComponent implements OnInit, OnDestroy {
     area: false,
     building: false,
     costCodes: false,
-    color: false
+    color: false,
+    branding: false
   };
   isEditingAgent: boolean = false;
   agentId: string | null = null;

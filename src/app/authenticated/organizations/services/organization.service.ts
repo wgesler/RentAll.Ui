@@ -2,6 +2,7 @@ import { HttpClient } from '@angular/common/http';
 import { Injectable } from '@angular/core';
 import { Observable } from 'rxjs';
 import { ConfigService } from '../../../services/config.service';
+import { BrandingRequest, BrandingResponse } from '../models/branding.model';
 import { OrganizationRequest, OrganizationResponse } from '../models/organization.model';
 
 @Injectable({
@@ -40,6 +41,14 @@ export class OrganizationService {
   // DELETE: Delete organization
   deleteOrganization(organizationId: string): Observable<void> {
     return this.http.delete<void>(this.controller + organizationId);
+  }
+
+  getBranding(): Observable<BrandingResponse> {
+    return this.http.get<BrandingResponse>(this.controller + 'branding');
+  }
+
+  updateBranding(branding: BrandingRequest): Observable<BrandingResponse> {
+    return this.http.put<BrandingResponse>(this.controller + 'branding', branding);
   }
 }
 

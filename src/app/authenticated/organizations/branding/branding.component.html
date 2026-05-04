@@ -1,0 +1,149 @@
+@if (isLoading$ | async) {
+  <div class="loading-container">
+    <mat-spinner [diameter]="40"></mat-spinner>
+    <p>Loading branding...</p>
+  </div>
+} @else if (!isServiceError) {
+  <div class="flex content-card-wrap justify-center" [class.settings-embedded-edit-wrap]="embeddedInSettings">
+    <section class="content-card">
+      <mat-card>
+        <form [formGroup]="form" (ngSubmit)="saveBranding()" class="info-form mb-8 form-hide-error-text" [class.settings-embedded-edit-top-offset]="embeddedInSettings">
+          @if (embeddedInSettings) {
+            <div class="col-span-4 flex justify-end settings-embedded-edit-actions">
+              <button mat-raised-button type="submit" color="primary" id="save-branding-button-embedded" [disabled]="isSubmitting || !form.valid">
+                <mat-icon>save</mat-icon>
+                Save
+              </button>
+            </div>
+          }
+
+          <div class="grid grid-cols-4 form-standard-grid">
+            <mat-form-field appearance="outline" class="col-span-2">
+              <mat-label>Primary Color</mat-label>
+              <div class="branding-color-row">
+                <input type="color" class="color-picker-input" [value]="form.get('primaryColor')?.value || '#000000'" (input)="onColorPickerChange($event, 'primaryColor')">
+                <input matInput formControlName="primaryColor" required placeholder="#3f51b5" (blur)="onHexInputBlur('primaryColor')">
+              </div>
+            </mat-form-field>
+
+            <mat-form-field appearance="outline" class="col-span-2">
+              <mat-label>Accent Color</mat-label>
+              <div class="branding-color-row">
+                <input type="color" class="color-picker-input" [value]="form.get('accentColor')?.value || '#000000'" (input)="onColorPickerChange($event, 'accentColor')">
+                <input matInput formControlName="accentColor" required placeholder="#ae1f66" (blur)="onHexInputBlur('accentColor')">
+              </div>
+            </mat-form-field>
+
+            <mat-form-field appearance="outline" class="col-span-2">
+              <mat-label>Header Background Color</mat-label>
+              <div class="branding-color-row">
+                <input type="color" class="color-picker-input" [value]="form.get('headerBackgroundColor')?.value || '#000000'" (input)="onColorPickerChange($event, 'headerBackgroundColor')">
+                <input matInput formControlName="headerBackgroundColor" required placeholder="#3f51b5" (blur)="onHexInputBlur('headerBackgroundColor')">
+              </div>
+            </mat-form-field>
+
+            <mat-form-field appearance="outline" class="col-span-2">
+              <mat-label>Header Text Color</mat-label>
+              <div class="branding-color-row">
+                <input type="color" class="color-picker-input" [value]="form.get('headerTextColor')?.value || '#000000'" (input)="onColorPickerChange($event, 'headerTextColor')">
+                <input matInput formControlName="headerTextColor" required placeholder="#ffffff" (blur)="onHexInputBlur('headerTextColor')">
+              </div>
+            </mat-form-field>
+          </div>
+
+          <mat-divider class="my-5"/>
+          <h3 class="pt-3">Brand Logo (Expanded Menu)</h3>
+          <div class="flex justify-start image-input items-center mb-4">
+            @if (fileDetails && fileDetails.file) {
+              <img class="object-contain max-w-xs max-h-44" alt="Brand Logo" [src]="fileDetails.dataUrl" />
+              <div class="flex flex-col gap-2 ml-4">
+                @if (fileName) {
+                  <span class="text-sm font-semibold">{{ fileName }}</span>
+                }
+                <div class="flex flex-col gap-2">
+                  <button class="myfilebrowser" type="button" color="primary" mat-raised-button (click)="expandedLogoUploadInput.click()">
+                    Choose Image
+                  </button>
+                  <button type="button" color="accent" mat-raised-button (click)="removeLogo()">
+                    Delete Image
+                  </button>
+                </div>
+              </div>
+            } @else if (logoPath && !fileDetails) {
+              <img class="object-contain max-w-xs max-h-44" alt="Brand Logo" [src]="logoPath" />
+              <div class="flex flex-col gap-2 ml-4">
+                <button class="myfilebrowser" type="button" color="primary" mat-raised-button (click)="expandedLogoUploadInput.click()">
+                  Choose Image
+                </button>
+                <button type="button" color="accent" mat-raised-button (click)="removeLogo()">
+                  Delete Image
+                </button>
+              </div>
+            } @else {
+              <button class="myfilebrowser mb-3 mr-2" type="button" color="primary" mat-raised-button (click)="expandedLogoUploadInput.click()">
+                Choose Image
+              </button>
+            }
+            <input type="file" #expandedLogoUploadInput id="brandingFileUpload" name="brandingFileUpload" (change)="upload($event)" style="display: none;" />
+          </div>
+
+          @if (!form.get('fileUpload')?.valid && form.get('fileUpload')?.touched) {
+            <div class="image-file-error mb-4">
+              Only a jpg, gif, or png image type with a file size less than 2MB are valid.
+            </div>
+          }
+          <p class="mb-4">Allowed File Types (jpg, png, or gif image types)</p>
+
+          <h3 class="pt-3">Brand Logo (Collapsed Menu)</h3>
+          <div class="flex justify-start image-input items-center mb-4">
+            @if (collapsedFileDetails && collapsedFileDetails.file) {
+              <img class="object-contain max-w-xs max-h-44" alt="Collapsed Brand Logo" [src]="collapsedFileDetails.dataUrl" />
+              <div class="flex flex-col gap-2 ml-4">
+                @if (collapsedFileName) {
+                  <span class="text-sm font-semibold">{{ collapsedFileName }}</span>
+                }
+                <div class="flex flex-col gap-2">
+                  <button class="myfilebrowser" type="button" color="primary" mat-raised-button (click)="collapsedLogoUploadInput.click()">
+                    Choose Image
+                  </button>
+                  <button type="button" color="accent" mat-raised-button (click)="removeCollapsedLogo()">
+                    Delete Image
+                  </button>
+                </div>
+              </div>
+            } @else if (collapsedLogoPath && !collapsedFileDetails) {
+              <img class="object-contain max-w-xs max-h-44" alt="Collapsed Brand Logo" [src]="collapsedLogoPath" />
+              <div class="flex flex-col gap-2 ml-4">
+                <button class="myfilebrowser" type="button" color="primary" mat-raised-button (click)="collapsedLogoUploadInput.click()">
+                  Choose Image
+                </button>
+                <button type="button" color="accent" mat-raised-button (click)="removeCollapsedLogo()">
+                  Delete Image
+                </button>
+              </div>
+            } @else {
+              <button class="myfilebrowser mb-3 mr-2" type="button" color="primary" mat-raised-button (click)="collapsedLogoUploadInput.click()">
+                Choose Image
+              </button>
+            }
+            <input type="file" #collapsedLogoUploadInput id="collapsedBrandingFileUpload" name="collapsedBrandingFileUpload" (change)="uploadCollapsed($event)" style="display: none;" />
+          </div>
+
+          @if (!form.get('collapsedFileUpload')?.valid && form.get('collapsedFileUpload')?.touched) {
+            <div class="image-file-error mb-4">
+              Only a jpg, gif, or png image type with a file size less than 2MB are valid.
+            </div>
+          }
+          <p class="mb-4">Allowed File Types (jpg, png, or gif image types)</p>
+
+          @if (isSubmitting) {
+            <div class="flex justify-start gap-3 items-center">
+              <mat-spinner [diameter]="20" color="accent" class="inline-block relative right-1 m-1"/>
+              <span>Saving...</span>
+            </div>
+          }
+        </form>
+      </mat-card>
+    </section>
+  </div>
+}

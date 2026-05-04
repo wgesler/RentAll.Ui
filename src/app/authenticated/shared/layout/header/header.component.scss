@@ -46,6 +46,12 @@
   transform: translateY(-3px);
 }
 
+.header-brand-logo-collapsed {
+  height: 52px;
+  max-width: min(200px, 30vw);
+  margin-left: 2px;
+}
+
 // Daily Quote
 .quote {
     display: flex;

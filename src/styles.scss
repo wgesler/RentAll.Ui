@@ -33,6 +33,10 @@
   --global-dropdown-font-size: 14px;
   --global-dropdown-option-min-height: 34px;
   --global-alert-bell-color: #dc2626;
+  --brand-primary-color: #3f51b5;
+  --brand-accent-color: #ae1f66;
+  --brand-header-background-color: #3f51b5;
+  --brand-header-text-color: #ffffff;
   /* Title-bar fields: default max widths when space allows; shrink on narrow viewports. */
   --titlebar-field-min-office: 92px;
   --titlebar-field-min-company: 108px;
@@ -52,6 +56,29 @@
 
 .titlebar-alert-bell-icon {
   color: var(--global-alert-bell-color) !important;
+}
+
+mat-toolbar#header.mat-toolbar.mat-primary {
+  background-color: var(--brand-header-background-color) !important;
+  color: var(--brand-header-text-color) !important;
+}
+
+mat-toolbar#header.mat-toolbar.mat-primary .mat-icon,
+mat-toolbar#header.mat-toolbar.mat-primary .mat-mdc-button,
+mat-toolbar#header.mat-toolbar.mat-primary .mdc-button__label {
+  color: var(--brand-header-text-color) !important;
+}
+
+.mat-mdc-raised-button.mat-primary,
+.mat-mdc-unelevated-button.mat-primary {
+  --mdc-filled-button-container-color: var(--brand-primary-color) !important;
+  --mdc-filled-button-label-text-color: #fff !important;
+}
+
+.mat-mdc-raised-button.mat-accent,
+.mat-mdc-unelevated-button.mat-accent {
+  --mdc-filled-button-container-color: var(--brand-accent-color) !important;
+  --mdc-filled-button-label-text-color: #fff !important;
 }
 
 /* Prevent horizontal layout shift when page scrollbar appears/disappears. */
