@@ -1,6 +1,9 @@
 <div class="p-4">
   @if (isLoading) {
-    <mat-spinner [diameter]="40"></mat-spinner>
+    <div class="page-loading-container">
+      <mat-spinner [diameter]="40"></mat-spinner>
+      <p>Loading listing...</p>
+    </div>
   } @else if (property) {
     <app-property-listing
       [property]="property"

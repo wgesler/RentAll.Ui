@@ -1244,21 +1244,26 @@ mat-form-field.company-dropdown {
   padding-top: var(--settings-embedded-actions-top-offset) !important;
 }
 
-.page-loading-container {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  width: 100%;
-  min-height: 50vh;
-  padding: 3rem;
-  gap: 1rem;
-  box-sizing: border-box;
+.page-loading-container,
+.loading-container {
+  display: flex !important;
+  flex-direction: column !important;
+  align-items: center !important;
+  justify-content: center !important;
+  width: 100% !important;
+  min-height: 50vh !important;
+  padding: 3rem !important;
+  gap: 1rem !important;
+  box-sizing: border-box !important;
 
   p {
-    margin-top: 1rem;
-    color: #666;
+    margin-top: 1rem !important;
+    color: #666 !important;
   }
+}
+
+mat-spinner {
+  --mdc-circular-progress-active-indicator-color: var(--brand-primary-color);
 }
 
 
