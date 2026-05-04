@@ -5,6 +5,7 @@ import { Router } from '@angular/router';
 import { ToastrService } from 'ngx-toastr';
 import { RouterUrl } from '../../../app.routes';
 import { MaterialModule } from '../../../material.module';
+import { AuthService } from '../../../services/auth.service';
 import { DocumentHtmlService } from '../../../services/document-html.service';
 import { DocumentExportService } from '../../../services/document-export.service';
 import { DocumentType } from '../../documents/models/document.enum';
@@ -14,6 +15,9 @@ import { EmailCreateDraftService } from '../../email/services/email-create-draft
 import { EmailService } from '../../email/services/email.service';
 import { inlineIssuePhotoSources } from '../../email/utils/inline-email-issue-photos';
 import { BaseDocumentComponent, DocumentConfig, EmailConfig } from '../../shared/base-document.component';
+import { TicketStateType } from '../../tickets/models/ticket-enum';
+import { TicketRequest } from '../../tickets/models/ticket-models';
+import { TicketService } from '../../tickets/services/ticket.service';
 
 export type ChecklistIssueEntry = {
   sectionTitle: string;
@@ -130,6 +134,16 @@ export type ChecklistIssuesDialogData = {
             <mat-icon>download</mat-icon>
             Download
           </button>
+          <button
+            mat-raised-button
+            color="accent"
+            type="button"
+            class="text-nowrap flex-shrink-0"
+            [disabled]="isCreatingTicket"
+            (click)="onTicketCreate()">
+            <mat-icon>confirmation_number</mat-icon>
+            {{ isCreatingTicket ? 'Creating…' : 'Create Ticket' }}
+          </button>
         </div>
         <button mat-raised-button color="primary" class="text-nowrap flex-shrink-0" mat-dialog-close>
           Close
@@ -238,6 +252,7 @@ export type ChecklistIssuesDialogData = {
 export class DialogChecklistIssuesComponent extends BaseDocumentComponent {
   isDownloading = false;
   isPreparingEmail = false;
+  isCreatingTicket = false;
   displayIssues: ChecklistIssueEntryView[] = [];
   private initialDisplayIssues: ChecklistIssueEntryView[] = [];
   private nextIssueRid = 0;
@@ -253,6 +268,8 @@ export class DialogChecklistIssuesComponent extends BaseDocumentComponent {
     documentExportService: DocumentExportService,
     emailService: EmailService,
     toastr: ToastrService,
+    private authService: AuthService,
+    private ticketService: TicketService,
     private router: Router,
     private emailCreateDraftService: EmailCreateDraftService,
     private dialogRef: MatDialogRef<DialogChecklistIssuesComponent>
@@ -355,6 +372,60 @@ export class DialogChecklistIssuesComponent extends BaseDocumentComponent {
 
   printIssues(): void {
     this.onPrint('No preview available to print.');
+  }
+
+  onTicketCreate(): void {
+    if (this.isCreatingTicket) {
+      return;
+    }
+    const officeId = this.data?.officeId ?? null;
+    if (officeId == null) {
+      this.toastr.error('Office is required to create a ticket.');
+      return;
+    }
+    const organizationId = (this.data?.organizationId || this.authService.getUser()?.organizationId || '').trim();
+    if (!organizationId) {
+      this.toastr.error('Organization is required to create a ticket.');
+      return;
+    }
+
+    const propertyCode = this.data?.propertyCode || 'N/A';
+    const request: TicketRequest = {
+      ticketId: null,
+      organizationId,
+      officeId,
+      propertyId: this.data?.propertyId ?? null,
+      reservationId: this.data?.reservationId ?? null,
+      assigneeId: null,
+      agentId: null,
+      ticketCode: null,
+      title: `Inspection Issues: ${propertyCode}`,
+      description: this.buildIssuesDescriptionText(),
+      ticketStateTypeId: TicketStateType.caseCreated,
+      needPermissionToEnter: false,
+      permissionGranted: false,
+      ownerContacted: false,
+      confirmedWithTenant: false,
+      followedUpWithOwner: false,
+      workOrderCompleted: false,
+      notes: null,
+      isActive: true
+    };
+
+    this.isCreatingTicket = true;
+    this.ticketService.createTicket(request).subscribe({
+      next: () => {
+        this.toastr.success('Ticket created successfully');
+        this.dialogRef.close();
+      },
+      error: () => {
+        this.toastr.error('Unable to create ticket.');
+        this.isCreatingTicket = false;
+      },
+      complete: () => {
+        this.isCreatingTicket = false;
+      }
+    });
   }
 
   getDocumentConfig(): DocumentConfig {
@@ -499,6 +570,18 @@ export class DialogChecklistIssuesComponent extends BaseDocumentComponent {
     });
 
     return orderedGroups;
+  }
+
+  buildIssuesDescriptionText(): string {
+    const groupedIssues = this.getGroupedIssues();
+    if (groupedIssues.length === 0) {
+      return 'No issues found.';
+    }
+    return groupedIssues.map(group => {
+      const setPart = group.setLabel ? ` (${group.setLabel})` : '';
+      const issueLines = group.issues.map((issue, issueIndex) => `${issueIndex + 1}. ${issue.issueText}`);
+      return `${group.sectionTitle}${setPart}\n${issueLines.join('\n')}`;
+    }).join('\n\n');
   }
 
   escapeHtml(value: string): string {
