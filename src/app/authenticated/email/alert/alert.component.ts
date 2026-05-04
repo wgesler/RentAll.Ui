@@ -38,6 +38,7 @@ export class AlertComponent implements OnInit, OnChanges, OnDestroy {
   @Input() officeId: number | null = null;
   @Input() propertyId: string | null = null;
   @Input() reservationId: string | null = null;
+  @Input() ticketId: string | null = null;
   @Output() backEvent = new EventEmitter<void>();
   @Output() savedEvent = new EventEmitter<void>();
 
@@ -143,12 +144,15 @@ export class AlertComponent implements OnInit, OnChanges, OnDestroy {
     const selectedOfficeId = value.officeId != null ? Number(value.officeId) : null;
     const selectedPropertyId = value.propertyId ? String(value.propertyId).trim() : null;
     const selectedReservationId = value.reservationId ? String(value.reservationId).trim() : null;
+    const selectedTicketId = this.ticketId ? String(this.ticketId).trim() : null;
+    const existingTicketId = this.alert?.ticketId ? String(this.alert.ticketId).trim() : null;
     const request: AlertRequest = {
       alertId: this.isAddMode ? undefined : (this.alert?.alertId || this.currentAlertId),
       organizationId: this.alert?.organizationId || this.organizationId || user?.organizationId || '',
       officeId: selectedOfficeId ?? this.alert?.officeId ?? user?.defaultOfficeId ?? 0,
       propertyId: selectedPropertyId || null,
       reservationId: selectedReservationId || null,
+      ticketId: existingTicketId || selectedTicketId || null,
       fromRecipient: {
         email: String(user?.email || '').trim(),
         name: this.getCurrentUserName()

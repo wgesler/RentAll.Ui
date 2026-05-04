@@ -494,6 +494,7 @@ export class MappingService {
       propertyCode: alert?.propertyCode ?? '',
       reservationId: alert?.reservationId ?? undefined,
       reservationCode: alert?.reservationCode ?? '',
+      ticketId: alert?.ticketId ?? undefined,
       officeName: alert?.officeName ?? '',
       toEmail: this.getPrimaryRecipientEmail(alert?.toRecipients, alert?.toEmail),
       toName: this.getPrimaryRecipientName(alert?.toRecipients, alert?.toName),

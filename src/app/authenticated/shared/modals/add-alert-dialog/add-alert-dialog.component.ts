@@ -15,7 +15,7 @@ import { OfficeResponse } from '../../../organizations/models/office.model';
 import { OfficeService } from '../../../organizations/services/office.service';
 import { PropertyListResponse } from '../../../properties/models/property.model';
 import { PropertyService } from '../../../properties/services/property.service';
-import { getFrequencies } from '../../../reservations/models/reservation-enum';
+import { Frequency, getFrequencies } from '../../../reservations/models/reservation-enum';
 import { ReservationListResponse } from '../../../reservations/models/reservation-model';
 import { ReservationService } from '../../../reservations/services/reservation.service';
 
@@ -23,7 +23,9 @@ export interface AddAlertDialogData {
   officeId?: number | null;
   propertyId?: string | null;
   reservationId?: string | null;
-  source?: 'property' | 'reservation' | 'maintenance' | null;
+  ticketId?: string | null;
+  ticketCode?: string | null;
+  source?: 'property' | 'reservation' | 'maintenance' | 'ticket' | null;
 }
 
 type AlertPropertyOption = {
@@ -58,6 +60,14 @@ export class AddAlertDialogComponent implements OnInit, OnDestroy {
   reservationOptions: AlertReservationOption[] = [];
   frequencyOptions = getFrequencies().filter(option => Number(option.value) > 0);
 
+  get showTicketCodeField(): boolean {
+    return this.data?.source === 'ticket';
+  }
+
+  get ticketCodeDisplay(): string {
+    return String(this.data?.ticketCode || '').trim() || 'N/A';
+  }
+
   constructor(
     private fb: FormBuilder,
     private authService: AuthService,
@@ -78,7 +88,8 @@ export class AddAlertDialogComponent implements OnInit, OnDestroy {
   }
 
   save(): void {
-    this.form.markAllAsTouched();
+    this.ensureTicketSubjectDefault();
+    this.markFormInvalidFieldsAsTouchedAndDirty();
     if (!this.form.valid || this.isSubmitting) {
       return;
     }
@@ -93,6 +104,7 @@ export class AddAlertDialogComponent implements OnInit, OnDestroy {
 
     const propertyId = value.propertyId ? String(value.propertyId).trim() : null;
     const reservationId = value.reservationId ? String(value.reservationId).trim() : null;
+    const ticketId = this.data?.ticketId ? String(this.data.ticketId).trim() : null;
     const fromName = `${user?.firstName || ''} ${user?.lastName || ''}`.trim() || 'RentAll User';
     const fromEmail = String(user?.email || '').trim();
     const toEmail = String(value.toEmail || '').trim();
@@ -102,6 +114,7 @@ export class AddAlertDialogComponent implements OnInit, OnDestroy {
       officeId,
       propertyId,
       reservationId,
+      ticketId,
       fromRecipient: {
         email: fromEmail,
         name: fromName
@@ -152,7 +165,7 @@ export class AddAlertDialogComponent implements OnInit, OnDestroy {
       daysBeforeDeparture: new FormControl({ value: '', disabled: true }),
       frequencyId: new FormControl<number | null>(null, [Validators.required]),
       subject: new FormControl('', [Validators.required]),
-      plainTextContent: new FormControl('')
+      plainTextContent: new FormControl('', [Validators.required])
     });
   }
 
@@ -207,9 +220,10 @@ export class AddAlertDialogComponent implements OnInit, OnDestroy {
 
   applyInitialSelections(): void {
     const user = this.authService.getUser();
-    const requestedOfficeId = user?.defaultOfficeId ?? null;
+    const requestedOfficeId = this.data?.officeId ?? user?.defaultOfficeId ?? null;
     const requestedPropertyId = this.data?.propertyId ? String(this.data.propertyId).trim() : null;
     const requestedReservationId = this.data?.reservationId ? String(this.data.reservationId).trim() : null;
+    const requestedTicketCode = this.data?.ticketCode ? String(this.data.ticketCode).trim() : '';
 
     const officeId = requestedOfficeId != null && this.offices.some(office => office.officeId === requestedOfficeId)
       ? requestedOfficeId
@@ -219,6 +233,11 @@ export class AddAlertDialogComponent implements OnInit, OnDestroy {
       officeId,
       propertyId: requestedPropertyId,
       reservationId: requestedReservationId,
+      subject: this.showTicketCodeField
+        ? (requestedTicketCode ? `Ticket Update: ${requestedTicketCode}` : 'Ticket Update')
+        : '',
+      plainTextContent: this.showTicketCodeField ? 'Ticket Update' : '',
+      frequencyId: this.showTicketCodeField ? Frequency.OneTime : null,
       daysBeforeDeparture: ''
     }, { emitEvent: true });
     this.setDaysBeforeDepartureEnabled(requestedReservationId);
@@ -344,6 +363,30 @@ export class AddAlertDialogComponent implements OnInit, OnDestroy {
       .map(email => email.trim())
       .filter(email => email.length > 0)
       .map(email => ({ email, name: '' }));
+  }
+
+  ensureTicketSubjectDefault(): void {
+    if (!this.showTicketCodeField) {
+      return;
+    }
+    const subjectControl = this.form.get('subject');
+    if (!subjectControl) {
+      return;
+    }
+    const currentSubject = String(subjectControl.value || '').trim();
+    if (currentSubject) {
+      return;
+    }
+    const ticketCode = String(this.data?.ticketCode || '').trim();
+    subjectControl.setValue(ticketCode ? `Ticket Update: ${ticketCode}` : 'Ticket Update', { emitEvent: false });
+  }
+
+  markFormInvalidFieldsAsTouchedAndDirty(): void {
+    Object.values(this.form.controls).forEach(control => {
+      control.markAsTouched();
+      control.markAsDirty();
+      control.updateValueAndValidity({ onlySelf: true, emitEvent: false });
+    });
   }
 
   onDaysBeforeDepartureInput(event: Event): void {

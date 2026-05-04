@@ -56,6 +56,7 @@ export class TicketShellComponent implements OnInit, OnDestroy, CanComponentDeac
 
   showTicketForm = false;
   currentTicketId: string | number | null = null;
+  currentTicketCode: string | null = null;
   currentUserId: string | null = null;
   currentUserAgentId: string | null = null;
   selectedOfficeId: number | null = null;
@@ -122,7 +123,7 @@ export class TicketShellComponent implements OnInit, OnDestroy, CanComponentDeac
     });
   }
 
-  onTicketSelected(event: { ticketId: string | number | null; propertyId: string | null; reservationId: string | null; officeId: number | null }): void {
+  onTicketSelected(event: { ticketId: string | number | null; ticketCode: string | null; propertyId: string | null; reservationId: string | null; officeId: number | null }): void {
     if (!event || event.ticketId === null || event.ticketId === undefined) {
       return;
     }
@@ -140,12 +141,14 @@ export class TicketShellComponent implements OnInit, OnDestroy, CanComponentDeac
 
     this.showTicketForm = true;
     this.currentTicketId = event.ticketId;
+    this.currentTicketCode = String(event.ticketCode || '').trim() || null;
     this.router.navigateByUrl(`/${RouterUrl.replaceTokens(RouterUrl.Ticket, [String(event.ticketId)])}`);
   }
 
   onTicketBack(): void {
     this.showTicketForm = false;
     this.currentTicketId = null;
+    this.currentTicketCode = null;
     this.router.navigateByUrl(`/${RouterUrl.TicketList}`);
   }
 
@@ -213,11 +216,20 @@ export class TicketShellComponent implements OnInit, OnDestroy, CanComponentDeac
   }
 
   openAddAlertDialog(): void {
+    const selectedTicketId = this.currentTicketId != null && String(this.currentTicketId).trim().toLowerCase() !== 'new'
+      ? String(this.currentTicketId)
+      : null;
+    const selectedTicketCode = this.currentTicketCode || String(this.ticketSection?.ticketCodeDisplay || '').trim() || null;
+    const ticketOfficeId = this.ticketSection?.ticket?.officeId ?? null;
+    const ticketPropertyId = this.ticketSection?.ticket?.propertyId ?? null;
+    const ticketReservationId = this.ticketSection?.ticket?.reservationId ?? null;
     const dialogData: AddAlertDialogData = {
-      officeId: this.selectedOfficeId,
-      propertyId: this.selectedPropertyId,
-      reservationId: this.selectedReservationId,
-      source: 'reservation'
+      officeId: ticketOfficeId ?? this.selectedOfficeId,
+      propertyId: ticketPropertyId ?? this.selectedPropertyId,
+      reservationId: ticketReservationId ?? this.selectedReservationId,
+      ticketId: selectedTicketId,
+      ticketCode: selectedTicketCode,
+      source: 'ticket'
     };
     this.dialog.open(AddAlertDialogComponent, {
       width: '700px',

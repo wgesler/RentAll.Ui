@@ -628,6 +628,7 @@ export class TicketComponent implements OnInit, OnChanges, OnDestroy {
       officeId: this.ticket?.officeId ?? null,
       propertyId: this.ticket?.propertyId ?? null,
       reservationId: this.ticket?.reservationId ?? null,
+      ticketId: this.ticket?.ticketId ?? null,
       source: 'reservation'
     };
     this.dialog.open(AddAlertDialogComponent, {

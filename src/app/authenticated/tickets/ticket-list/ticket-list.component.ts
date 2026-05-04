@@ -42,7 +42,7 @@ export class TicketListComponent implements OnInit, OnDestroy {
   @Input() currentUserId: string | null = null;
   @Input() currentUserAgentId: string | null = null;
   @Input() showListFiltersAndActions: boolean = true;
-  @Output() ticketSelected = new EventEmitter<{ ticketId: string | number | null; propertyId: string | null; reservationId: string | null; officeId: number | null }>();
+  @Output() ticketSelected = new EventEmitter<{ ticketId: string | number | null; ticketCode: string | null; propertyId: string | null; reservationId: string | null; officeId: number | null }>();
   @Output() ticketUpdated = new EventEmitter<void>();
 
   isServiceError: boolean = false;
@@ -101,7 +101,7 @@ export class TicketListComponent implements OnInit, OnDestroy {
 
   addTicket(): void {
     if (this.embeddedInSettings) {
-      this.ticketSelected.emit({ ticketId: 'new', propertyId: null, reservationId: null, officeId: this.selectedOfficeId });
+      this.ticketSelected.emit({ ticketId: 'new', ticketCode: null, propertyId: null, reservationId: null, officeId: this.selectedOfficeId });
       return;
     }
 
@@ -164,6 +164,7 @@ export class TicketListComponent implements OnInit, OnDestroy {
     if (this.embeddedInSettings) {
       this.ticketSelected.emit({
         ticketId: event.ticketId,
+        ticketCode: event.ticketCode || null,
         propertyId: String(event.propertyId || '').trim() || null,
         reservationId: String(event.reservationId || '').trim() || null,
         officeId: event.officeId ?? null

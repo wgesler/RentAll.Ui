@@ -7,6 +7,7 @@ export interface AlertRequest {
   officeId: number;
   propertyId: string | null;
   reservationId: string | null;
+  ticketId: string | null;
   fromRecipient: EmailAddress;
   toRecipients: EmailAddress[];
   ccRecipients: EmailAddress[];
@@ -28,6 +29,7 @@ export interface AlertResponse {
   propertyCode: string | null;
   reservationId: string | null;
   reservationCode: string | null; 
+  ticketId: string | null;
   toRecipients: EmailAddress[];
   ccRecipients: EmailAddress[];
   bccRecipients: EmailAddress[];
@@ -58,6 +60,7 @@ export interface AlertListDisplay {
   propertyCode?: string;
   reservationId?: string;
   reservationCode?: string;
+  ticketId?: string;
   officeName?: string;
   toEmail: string;
   toName: string;
