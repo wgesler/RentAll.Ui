@@ -63,6 +63,15 @@ export class TicketComponent implements OnInit, OnChanges, OnDestroy {
   assigneeOptions: { userId: string; displayName: string }[] = [];
   reservationAgentOptions: { agentId: string; displayName: string }[] = [];
   selectedPropertyOfficeId: number | null = null;
+  communicationStatusLabels: Record<string, string> = {
+    needPermissionToEnter: 'Need Permission to Enter',
+    permissionGranted: 'Permission Granted',
+    ownerContacted: 'Owner Contacted',
+    confirmedWithTenant: 'Confirmed with Tenant',
+    followedUpWithOwner: 'Followed Up with Owner',
+    workOrderCompleted: 'Work Order Completed'
+  };
+  communicationCheckboxStates: Record<string, boolean> = {};
 
   isApplyingShellPropertySelection = false;
   reservationAgentSyncKey: string | null = null;
@@ -95,6 +104,7 @@ export class TicketComponent implements OnInit, OnChanges, OnDestroy {
     });
 
     this.buildForm();
+    this.setupCommunicationStatusCommentTracking();
     this.loadProperties();
     this.loadUsers();
     this.loadAgents();
@@ -220,13 +230,23 @@ export class TicketComponent implements OnInit, OnChanges, OnDestroy {
       ticketId: note.ticketId,
       note: note.note
     }));
+    const auditChangeNotes = this.buildAuditChangeNotes(existing, {
+      assigneeId: assigneeIdForSave,
+      ticketStateTypeId,
+      propertyId: selectedPropertyId,
+      reservationId: selectedReservationId
+    });
+    const auditNoteRequests: TicketNoteRequest[] = auditChangeNotes.map(note => ({
+      ticketId: existing?.ticketId ?? undefined,
+      note
+    }));
     const canAppendNewNote = !this.isAddMode && !!existing?.ticketId && newNoteText.length > 0;
     const appendedNotes = canAppendNewNote
       ? [...existingNotes, {
           ticketId: existing!.ticketId,
           note: newNoteText
-        }]
-      : existingNotes;
+        }, ...auditNoteRequests]
+      : [...existingNotes, ...auditNoteRequests];
 
     const request: TicketRequest = {
       ticketId: existing?.ticketId ?? null,
@@ -279,7 +299,7 @@ export class TicketComponent implements OnInit, OnChanges, OnDestroy {
     this.form = this.fb.group({
       propertyId: new FormControl<string | null>(null),
       assigneeId: new FormControl<string | null>(null),
-      reservationAgentId: new FormControl<string | null>({ value: null, disabled: true }),
+      reservationAgentId: new FormControl<string | null>(null),
       title: new FormControl('', [Validators.required]),
       description: new FormControl('', [Validators.required]),
       newNote: new FormControl(''),
@@ -442,6 +462,25 @@ export class TicketComponent implements OnInit, OnChanges, OnDestroy {
     this.currentTicketStateTypeId = stateDecision.ticketStateTypeId;
   }
 
+  setupCommunicationStatusCommentTracking(): void {
+    const trackingControls = Object.keys(this.communicationStatusLabels);
+    this.communicationCheckboxStates = trackingControls.reduce((acc, controlName) => {
+      acc[controlName] = !!this.form.get(controlName)?.value;
+      return acc;
+    }, {} as Record<string, boolean>);
+
+    trackingControls.forEach(controlName => {
+      this.form.get(controlName)?.valueChanges.pipe(takeUntil(this.destroy$)).subscribe(value => {
+        const isChecked = !!value;
+        const wasChecked = !!this.communicationCheckboxStates[controlName];
+        this.communicationCheckboxStates[controlName] = isChecked;
+        if (!wasChecked && isChecked) {
+          this.appendAutoCommentForCheckbox(controlName);
+        }
+      });
+    });
+  }
+
   setupPropertySelectionSync(): void {
     this.form.get('propertyId')?.valueChanges.pipe(takeUntil(this.destroy$)).subscribe(value => {
       if (this.isApplyingShellPropertySelection) {
@@ -508,10 +547,92 @@ export class TicketComponent implements OnInit, OnChanges, OnDestroy {
     return normalized.length > 0 ? normalized : null;
   }
 
+  appendAutoCommentForCheckbox(controlName: string): void {
+    const label = this.communicationStatusLabels[controlName];
+    if (!label) {
+      return;
+    }
+
+    const autoComment = `${label}`;
+    const currentComment = String(this.form.get('newNote')?.value || '');
+    const separator = currentComment.trim().length > 0 ? '\n' : '';
+    this.form.get('newNote')?.setValue(`${currentComment}${separator}${autoComment}`);
+  }
+
+  buildAuditChangeNotes(
+    existing: TicketResponse | null,
+    next: { assigneeId: string | null; ticketStateTypeId: number; propertyId: string | null; reservationId: string | null }
+  ): string[] {
+    if (!existing || this.isAddMode) {
+      return [];
+    }
+
+    const notes: string[] = [];
+    const existingAssigneeId = this.normalizeId(existing.assigneeId ?? null);
+    const nextAssigneeId = this.normalizeId(next.assigneeId);
+    if (existingAssigneeId !== nextAssigneeId) {
+      const before = this.resolveAssigneeDisplayName(existingAssigneeId, existing.assigneeName || existing.assignee || null);
+      const after = this.resolveAssigneeDisplayName(nextAssigneeId, null);
+      notes.push(`Assignee changed from ${before} to ${after}`);
+    }
+
+    const existingStatus = Number(existing.ticketStateTypeId ?? 0);
+    const nextStatus = Number(next.ticketStateTypeId ?? 0);
+    if (existingStatus !== nextStatus) {
+      notes.push(`Ticket Status changed from ${this.getTicketStateLabel(existingStatus)} to ${this.getTicketStateLabel(nextStatus)}`);
+    }
+
+    const existingPropertyId = this.normalizeId(existing.propertyId ?? null);
+    const nextPropertyId = this.normalizeId(next.propertyId);
+    if (existingPropertyId !== nextPropertyId) {
+      const before = this.resolvePropertyCode(existingPropertyId, existing.propertyCode || null);
+      const after = this.resolvePropertyCode(nextPropertyId, null);
+      notes.push(`Property Code changed from ${before} to ${after}`);
+    }
+
+    const existingReservationId = this.normalizeId(existing.reservationId ?? null);
+    const nextReservationId = this.normalizeId(next.reservationId);
+    if (existingReservationId !== nextReservationId) {
+      const before = this.resolveReservationDisplay(existingReservationId, existing.reservationCode || null);
+      const after = this.resolveReservationDisplay(nextReservationId, null);
+      notes.push(`Reservation changed from ${before} to ${after}`);
+    }
+
+    return notes;
+  }
+
+  getTicketStateLabel(stateTypeId: number): string {
+    return this.ticketStateTypes.find(state => state.value === stateTypeId)?.label || String(stateTypeId);
+  }
+
+  resolveAssigneeDisplayName(assigneeId: string | null, fallback: string | null): string {
+    if (!assigneeId) {
+      return 'Unassigned';
+    }
+    return this.assigneeOptions.find(option => this.normalizeId(option.userId) === assigneeId)?.displayName
+      || (fallback && String(fallback).trim())
+      || assigneeId;
+  }
+
+  resolvePropertyCode(propertyId: string | null, fallback: string | null): string {
+    if (!propertyId) {
+      return 'None';
+    }
+    return this.properties.find(property => this.normalizeId(property.propertyId) === propertyId)?.propertyCode
+      || (fallback && String(fallback).trim())
+      || propertyId;
+  }
+
+  resolveReservationDisplay(reservationId: string | null, fallback: string | null): string {
+    if (!reservationId) {
+      return 'None';
+    }
+    return (fallback && String(fallback).trim()) || reservationId;
+  }
+
   refreshReservationAgentOptions(): void {
-    const globalOfficeId = this.selectedOfficeIdFromShell === 0 ? null : this.selectedOfficeIdFromShell;
     this.reservationAgentOptions = (this.agents || [])
-      .filter(agent => agent.isActive && (globalOfficeId == null || agent.officeId === globalOfficeId))
+      .filter(agent => agent.isActive)
       .map(agent => ({
         agentId: agent.agentId,
         displayName: String(agent.name || '').trim() || String(agent.agentCode || '').trim()
@@ -519,8 +640,14 @@ export class TicketComponent implements OnInit, OnChanges, OnDestroy {
       .sort((a, b) => a.displayName.localeCompare(b.displayName, undefined, { sensitivity: 'base' }));
 
     const currentReservationAgentId = this.form.get('reservationAgentId')?.value == null ? null : String(this.form.get('reservationAgentId')?.value);
-    const isCurrentReservationAgentValid = !!currentReservationAgentId && this.reservationAgentOptions.some(option => option.agentId === currentReservationAgentId);
-    if (!isCurrentReservationAgentValid) {
+    const normalizedCurrentReservationAgentId = this.normalizeId(currentReservationAgentId);
+    const isCurrentReservationAgentValid = !!normalizedCurrentReservationAgentId
+      && this.reservationAgentOptions.some(option => this.normalizeId(option.agentId) === normalizedCurrentReservationAgentId);
+    console.log('[Ticket] reservationAgent compare', {
+      reservationAgentId: normalizedCurrentReservationAgentId,
+      availableAgentIds: this.reservationAgentOptions.map(option => option.agentId)
+    });
+    if (!isCurrentReservationAgentValid && this.reservationAgentOptions.length > 0) {
       this.form.get('reservationAgentId')?.setValue(null, { emitEvent: false });
     }
   }
@@ -546,10 +673,14 @@ export class TicketComponent implements OnInit, OnChanges, OnDestroy {
     this.reservationService.getReservationByGuid(reservationId).pipe(take(1), takeUntil(this.destroy$), finalize(() => this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'reservationAgent'))).subscribe({
       next: (reservation: ReservationResponse) => {
         const reservationAgentId = this.normalizeId(reservation.agentId);
+        console.log('[Ticket] reservationAgent compare', {
+          reservationAgentId,
+          availableAgentIds: this.reservationAgentOptions.map(option => option.agentId)
+        });
         const matchingAgent = reservationAgentId
-          ? this.reservationAgentOptions.find(option => option.agentId === reservationAgentId) || null
+          ? this.reservationAgentOptions.find(option => this.normalizeId(option.agentId) === reservationAgentId) || null
           : null;
-        reservationAgentControl?.setValue(matchingAgent?.agentId ?? null, { emitEvent: false });
+        reservationAgentControl?.setValue(matchingAgent?.agentId ?? reservationAgentId ?? null, { emitEvent: false });
       },
       error: () => {}
     });

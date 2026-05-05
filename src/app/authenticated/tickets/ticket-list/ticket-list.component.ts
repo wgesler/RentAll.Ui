@@ -59,8 +59,6 @@ export class TicketListComponent implements OnInit, OnDestroy {
   propertyFilterOptions: TicketPropertyFilterOption[] = [];
   reservationFilterOptions: TicketReservationFilterOption[] = [];
   users: UserResponse[] = [];
-  hasLoadedTickets = false;
-  isSyncingLatestAgents = false;
 
   ticketsDisplayedColumns: ColumnSet = {
     'ticketCode': { displayAs: 'Ticket', maxWidth: '15ch', sortType: 'natural' },
@@ -113,11 +111,9 @@ export class TicketListComponent implements OnInit, OnDestroy {
       next: (tickets) => {
         this.isServiceError = false;
         this.allTickets = (tickets || []).map(ticket => this.withAssigneeDropdownCell(this.mappingService.mapTicketToDisplay(ticket, this.ticketStateTypeOptions)));
-        this.hasLoadedTickets = true;
         this.rebuildFilterOptions();
         this.rebuildAssigneeDropdowns();
         this.applyFilters();
-        this.syncLatestAgentsFromReservations();
       },
       error: () => {
         this.isServiceError = true;
@@ -555,68 +551,6 @@ export class TicketListComponent implements OnInit, OnDestroy {
   //#endregion
 
   //#region Agent and Assignee Methods
-  syncLatestAgentsFromReservations(): void {
-    if (!this.hasLoadedTickets || this.isSyncingLatestAgents) {
-      return;
-    }
-    const reservationIds = Array.from(new Set(
-      this.allTickets
-        .map(ticket => this.utilityService.normalizeIdOrNull(ticket.reservationId ?? null))
-        .filter((reservationId): reservationId is string => !!reservationId)
-    ));
-    if (reservationIds.length === 0) {
-      return;
-    }
-
-    this.isSyncingLatestAgents = true;
-    from(reservationIds).pipe(
-      concatMap(reservationId =>
-        this.reservationService.getReservationByGuid(reservationId).pipe(take(1),
-          switchMap(reservation => {
-            const normalizedReservationId = this.utilityService.normalizeId(reservation.reservationId);
-            const latestAgentId = this.utilityService.normalizeIdOrNull(reservation.agentId ?? null);
-            const ticketsForReservation = this.allTickets.filter(ticket =>
-              this.utilityService.normalizeIdOrNull(ticket.reservationId ?? null) === normalizedReservationId
-            );
-            return from(ticketsForReservation).pipe(
-              concatMap(ticket =>
-                this.ticketService.updateTicket(this.mappingService.mapTicketUpdateRequest(ticket, {
-                  agentId: latestAgentId
-                })).pipe(take(1))
-              ),
-              toArray(),
-              map(() => ({ reservationId: normalizedReservationId, latestAgentId }))
-            );
-          })
-        )
-      ),
-      toArray()
-    ).subscribe({
-      next: (results) => {
-        results.forEach(result => {
-          this.allTickets = this.allTickets.map(ticket =>
-            this.utilityService.normalizeIdOrNull(ticket.reservationId ?? null) === result.reservationId
-              ? { ...ticket, agentId: result.latestAgentId }
-              : ticket
-          );
-          this.ticketsDisplay = this.ticketsDisplay.map(ticket =>
-            this.utilityService.normalizeIdOrNull(ticket.reservationId ?? null) === result.reservationId
-              ? { ...ticket, agentId: result.latestAgentId }
-              : ticket
-          );
-        });
-        this.ticketService.notifyTicketStateChanged();
-        this.applyFilters();
-      },
-      error: () => {
-        this.isSyncingLatestAgents = false;
-      },
-      complete: () => {
-        this.isSyncingLatestAgents = false;
-      }
-    });
-  }
-
   syncTicketsForReservation(reservationId: string): void {
     const normalizedReservationId = this.utilityService.normalizeIdOrNull(reservationId);
     if (!normalizedReservationId) {
