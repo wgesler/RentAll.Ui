@@ -18,6 +18,7 @@
   gap: 0.75rem;
   white-space: nowrap;
   justify-self: end;
+  margin-right: 2px;
 }
 
 .ticket-communication-status-box {
@@ -87,7 +88,22 @@
 .ticket-comments-header {
   font-size: 13px;
   font-weight: 600;
+}
+
+.ticket-comments-header-row {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: var(--global-form-field-gap-x);
   margin-bottom: var(--global-form-row-gap);
+}
+
+.ticket-comments-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: var(--global-form-field-gap-x);
+  margin-right: 2px;
 }
 
 .ticket-comments-history {
@@ -129,6 +145,16 @@
   white-space: pre-wrap;
   word-break: break-word;
   line-height: 1.4;
+}
+
+.ticket-comment-link {
+  margin-left: 4px;
+  color: #1d4ed8;
+  font-size: inherit;
+  line-height: inherit;
+  font-weight: inherit;
+  text-decoration: underline;
+  cursor: pointer;
 }
 
 .ticket-comments-editor {

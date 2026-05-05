@@ -126,7 +126,17 @@
 
             @if (!isAddMode) {
             <div class="col-span-12 ticket-comments-section">
-              <div class="ticket-comments-header">Comments</div>
+              <div class="ticket-comments-header-row">
+                <div class="ticket-comments-header">Comments</div>
+                <div class="ticket-comments-actions">
+                  <button mat-raised-button type="button" color="primary" class="text-nowrap" (click)="openAddReceiptDialog()">
+                    Receipt
+                  </button>
+                  <button mat-raised-button type="button" color="accent" class="text-nowrap" (click)="openAddWorkOrderDialog()">
+                    Work Order
+                  </button>
+                </div>
+              </div>
 
               <mat-form-field appearance="outline" class="ticket-comments-editor">
                 <mat-label>Add a Note</mat-label>
@@ -142,7 +152,23 @@
                         <span class="ticket-comment-meta-separator">|</span>
                         <span class="ticket-comment-created-on">{{ noteItem.createdOn }}</span>
                       </div>
-                      <div class="ticket-comment-note">{{ noteItem.note }}</div>
+                      <div class="ticket-comment-note">
+                        @if (noteItem.linkedType && noteItem.linkedCode) {
+                          @if (noteItem.linkedType === 'receipt') {
+                            Receipt Created:
+                            @if (noteItem.linkedPrefix) {
+                              {{ noteItem.linkedPrefix }}
+                            }
+                          } @else {
+                            Work Order Created:
+                          }
+                          <a href="" class="ticket-comment-link" (click)="$event.preventDefault(); onTicketCommentLinkClick(noteItem.linkedType, noteItem.linkedCode)">
+                            {{ noteItem.linkedCode }}
+                          </a>
+                        } @else {
+                          {{ noteItem.note }}
+                        }
+                      </div>
                     </div>
                   }
                 </div>

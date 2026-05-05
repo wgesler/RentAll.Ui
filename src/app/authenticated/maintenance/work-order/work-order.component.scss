@@ -111,6 +111,30 @@
   margin-top: 1.5rem;
 }
 
+.work-order-inline-actions {
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  margin-top: 1rem;
+  padding-bottom: 0;
+}
+
+:host ::ng-deep .work-order-inline-actions > [work-order-dialog-actions] {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: var(--global-form-field-gap-x);
+  width: 100%;
+}
+
+:host ::ng-deep .work-order-inline-actions > [work-order-dialog-actions] > button {
+  margin: 0 !important;
+}
+
+:host ::ng-deep .info-form.work-order-embedded-form {
+  padding-bottom: 0 !important;
+}
+
 .line-items-total-row {
   td {
     border-bottom: none;

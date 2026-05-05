@@ -14,17 +14,23 @@ import { AgentService } from '../../organizations/services/agent.service';
 import { AddAlertDialogComponent, AddAlertDialogData } from '../../shared/modals/add-alert-dialog/add-alert-dialog.component';
 import { GenericModalComponent } from '../../shared/modals/generic/generic-modal.component';
 import { GenericModalData } from '../../shared/modals/generic/models/generic-modal-data';
-import { PropertyListResponse } from '../../properties/models/property.model';
+import { PropertyListResponse, PropertyResponse } from '../../properties/models/property.model';
 import { PropertyService } from '../../properties/services/property.service';
 import { ReservationResponse } from '../../reservations/models/reservation-model';
 import { ReservationService } from '../../reservations/services/reservation.service';
 import { hasCompanyRole } from '../../shared/access/role-access';
+import { ReceiptService } from '../../maintenance/services/receipt.service';
 import { UserResponse } from '../../users/models/user.model';
 import { UserService } from '../../users/services/user.service';
 import { FormatterService } from '../../../services/formatter-service';
+import { ReceiptResponse } from '../../maintenance/models/receipt.model';
+import { WorkOrderResponse } from '../../maintenance/models/work-order.model';
+import { WorkOrderService } from '../../maintenance/services/work-order.service';
 import { TicketStateType, getTicketStateTypes } from '../models/ticket-enum';
 import { TicketNoteRequest, TicketResponse, TicketRequest } from '../models/ticket-models';
 import { TicketService } from '../services/ticket.service';
+import { TicketReceiptDialogComponent, TicketReceiptDialogResult } from './ticket-receipt-dialog.component';
+import { TicketWorkOrderDialogComponent, TicketWorkOrderDialogResult } from './ticket-work-order-dialog.component';
 
 @Component({
   standalone: true,
@@ -75,6 +81,7 @@ export class TicketComponent implements OnInit, OnChanges, OnDestroy {
 
   isApplyingShellPropertySelection = false;
   reservationAgentSyncKey: string | null = null;
+  selectedReservationCodeForAudit: string | null = null;
 
   itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['ticket', 'properties', 'users', 'agents']));
   isLoading$: Observable<boolean> = this.itemsToLoad$.pipe(map(items => items.size > 0));
@@ -91,6 +98,8 @@ export class TicketComponent implements OnInit, OnChanges, OnDestroy {
     private agentService: AgentService,
     private propertyService: PropertyService,
     private reservationService: ReservationService,
+    private receiptService: ReceiptService,
+    private workOrderService: WorkOrderService,
     private userService: UserService,
     private formatterService: FormatterService
   ) {}
@@ -335,6 +344,7 @@ export class TicketComponent implements OnInit, OnChanges, OnDestroy {
       workOrderCompleted: ticket.workOrderCompleted,
       isActive: ticket.isActive
     }, { emitEvent: false });
+    this.selectedReservationCodeForAudit = this.normalizeText(ticket.reservationCode ?? null);
     this.applyPropertySelection(ticket.propertyId ?? null);
     this.emitPropertySelection();
   }
@@ -358,6 +368,7 @@ export class TicketComponent implements OnInit, OnChanges, OnDestroy {
       workOrderCompleted: false,
       isActive: true
     }, { emitEvent: false });
+    this.selectedReservationCodeForAudit = null;
   }
   //#endregion
 
@@ -381,7 +392,7 @@ export class TicketComponent implements OnInit, OnChanges, OnDestroy {
     return '';
   }
 
-  get ticketNotesDisplay(): { author: string; createdOn: string; note: string }[] {
+  get ticketNotesDisplay(): { author: string; createdOn: string; note: string; linkedType: 'receipt' | 'workOrder' | null; linkedCode: string | null; linkedPrefix: string | null }[] {
     return (this.ticket?.notes || [])
       .filter(note => !!String(note.note || '').trim())
       .sort((a, b) => {
@@ -389,11 +400,18 @@ export class TicketComponent implements OnInit, OnChanges, OnDestroy {
         const bTime = Date.parse(String(b.createdOn || '')) || 0;
         return bTime - aTime;
       })
-      .map(note => ({
+      .map(note => {
+        const noteText = String(note.note || '').trim();
+        const linked = this.parseLinkedTicketNote(noteText);
+        return {
         author: String(note.createdByName || note.modifiedByName || note.createdBy || note.modifiedBy || '').trim() || 'Unknown',
         createdOn: this.formatterService.formatDateTimeString(note.createdOn) || '',
-        note: String(note.note || '').trim()
-      }));
+        note: noteText,
+        linkedType: linked?.type ?? null,
+        linkedCode: linked?.code ?? null,
+        linkedPrefix: linked?.prefix ?? null
+      };
+      });
   }
 
   onPropertyDropdownChange(value: string | null): void {
@@ -547,6 +565,11 @@ export class TicketComponent implements OnInit, OnChanges, OnDestroy {
     return normalized.length > 0 ? normalized : null;
   }
 
+  normalizeText(value: string | null | undefined): string | null {
+    const normalized = String(value || '').trim();
+    return normalized.length > 0 ? normalized : null;
+  }
+
   appendAutoCommentForCheckbox(controlName: string): void {
     const label = this.communicationStatusLabels[controlName];
     if (!label) {
@@ -594,7 +617,7 @@ export class TicketComponent implements OnInit, OnChanges, OnDestroy {
     const nextReservationId = this.normalizeId(next.reservationId);
     if (existingReservationId !== nextReservationId) {
       const before = this.resolveReservationDisplay(existingReservationId, existing.reservationCode || null);
-      const after = this.resolveReservationDisplay(nextReservationId, null);
+      const after = this.resolveReservationDisplay(nextReservationId, this.selectedReservationCodeForAudit);
       notes.push(`Reservation changed from ${before} to ${after}`);
     }
 
@@ -627,7 +650,7 @@ export class TicketComponent implements OnInit, OnChanges, OnDestroy {
     if (!reservationId) {
       return 'None';
     }
-    return (fallback && String(fallback).trim()) || reservationId;
+    return this.normalizeText(fallback) || 'Unknown';
   }
 
   refreshReservationAgentOptions(): void {
@@ -643,10 +666,6 @@ export class TicketComponent implements OnInit, OnChanges, OnDestroy {
     const normalizedCurrentReservationAgentId = this.normalizeId(currentReservationAgentId);
     const isCurrentReservationAgentValid = !!normalizedCurrentReservationAgentId
       && this.reservationAgentOptions.some(option => this.normalizeId(option.agentId) === normalizedCurrentReservationAgentId);
-    console.log('[Ticket] reservationAgent compare', {
-      reservationAgentId: normalizedCurrentReservationAgentId,
-      availableAgentIds: this.reservationAgentOptions.map(option => option.agentId)
-    });
     if (!isCurrentReservationAgentValid && this.reservationAgentOptions.length > 0) {
       this.form.get('reservationAgentId')?.setValue(null, { emitEvent: false });
     }
@@ -659,6 +678,7 @@ export class TicketComponent implements OnInit, OnChanges, OnDestroy {
     if (!reservationId) {
       reservationAgentControl?.setValue(null, { emitEvent: false });
       this.reservationAgentSyncKey = null;
+      this.selectedReservationCodeForAudit = null;
       return;
     }
 
@@ -672,17 +692,16 @@ export class TicketComponent implements OnInit, OnChanges, OnDestroy {
     this.utilityService.addLoadItem(this.itemsToLoad$, 'reservationAgent');
     this.reservationService.getReservationByGuid(reservationId).pipe(take(1), takeUntil(this.destroy$), finalize(() => this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'reservationAgent'))).subscribe({
       next: (reservation: ReservationResponse) => {
+        this.selectedReservationCodeForAudit = this.normalizeText((reservation as unknown as { reservationCode?: string | null }).reservationCode ?? null);
         const reservationAgentId = this.normalizeId(reservation.agentId);
-        console.log('[Ticket] reservationAgent compare', {
-          reservationAgentId,
-          availableAgentIds: this.reservationAgentOptions.map(option => option.agentId)
-        });
         const matchingAgent = reservationAgentId
           ? this.reservationAgentOptions.find(option => this.normalizeId(option.agentId) === reservationAgentId) || null
           : null;
         reservationAgentControl?.setValue(matchingAgent?.agentId ?? reservationAgentId ?? null, { emitEvent: false });
       },
-      error: () => {}
+      error: () => {
+        this.selectedReservationCodeForAudit = null;
+      }
     });
   }
 
@@ -749,11 +768,206 @@ export class TicketComponent implements OnInit, OnChanges, OnDestroy {
   }
   //#endregion
 
-  //#region Utility Methods
-  back(): void {
-    this.backEvent.emit();
+  //#region Receipt Dialog
+  openAddReceiptDialog(): void {
+    const selectedPropertyIdControlValue = this.form.get('propertyId')?.value;
+    const selectedPropertyId = selectedPropertyIdControlValue == null || String(selectedPropertyIdControlValue).trim() === ''
+      ? null
+      : String(selectedPropertyIdControlValue).trim();
+
+    if (!selectedPropertyId) {
+      this.toastr.warning('Select a property before adding a receipt.', 'Missing property');
+      return;
+    }
+
+    this.propertyService.getPropertyByGuid(selectedPropertyId).pipe(take(1)).subscribe({
+      next: (property: PropertyResponse) => {
+        const dialogRef = this.dialog.open(TicketReceiptDialogComponent, {
+          width: '95vw',
+          maxWidth: '1300px',
+          maxHeight: '95vh',
+          disableClose: true,
+          panelClass: 'ticket-receipt-dialog-panel',
+          data: {
+            property,
+            maintenanceId: this.ticket?.ticketId ?? null
+          }
+        });
+        dialogRef.afterClosed().pipe(take(1)).subscribe((result?: TicketReceiptDialogResult) => {
+          if (!result?.saved || !result.receipt) {
+            return;
+          }
+          const receiptNote = this.buildReceiptCreatedComment(result.receipt);
+          this.appendTicketComment(receiptNote, 'Receipt saved, but unable to append ticket comment.');
+        });
+      },
+      error: () => {
+        this.toastr.error('Unable to load property for receipt creation.', 'Error');
+      }
+    });
   }
 
+  resolveReceiptCode(receipt: ReceiptResponse): string {
+    const receiptAsAny = receipt as unknown as { receiptCode?: string | null; receipt?: string | null };
+    const explicitCode = String(receiptAsAny.receiptCode || receiptAsAny.receipt || '').trim();
+    if (explicitCode) {
+      return explicitCode;
+    }
+    return `No: ${receipt.receiptId}`;
+  }
+
+  buildReceiptCreatedComment(receipt: ReceiptResponse): string {
+    const description = this.normalizeText(receipt.description) || 'Receipt';
+    return `Receipt Created: ${description} No: ${receipt.receiptId}`;
+  }
+
+  openReceiptFromComment(code: string): void {
+    const selectedPropertyId = this.getSelectedPropertyIdForDialogs();
+    if (!selectedPropertyId) {
+      this.toastr.warning('No property selected for receipt lookup.', 'Missing property');
+      return;
+    }
+
+    const receiptId = this.tryParseReceiptIdFromCode(code);
+    if (receiptId == null) {
+      this.toastr.warning('Unable to open receipt. Receipt id was not found in the comment.', 'Missing receipt id');
+      return;
+    }
+
+    this.propertyService.getPropertyByGuid(selectedPropertyId).pipe(take(1)).subscribe({
+      next: (property: PropertyResponse) => {
+        this.dialog.open(TicketReceiptDialogComponent, {
+          width: '95vw',
+          maxWidth: '1300px',
+          maxHeight: '95vh',
+          disableClose: true,
+          panelClass: 'ticket-receipt-dialog-panel',
+          data: {
+            property,
+            maintenanceId: this.ticket?.ticketId ?? null,
+            receiptId
+          }
+        });
+      },
+      error: () => {
+        this.toastr.error('Unable to load property for receipt dialog.', 'Error');
+      }
+    });
+  }
+
+  tryParseReceiptIdFromCode(code: string): number | null {
+    const normalized = String(code || '').trim();
+    const noMatch = normalized.match(/No:\s*(\d+)/i);
+    if (noMatch?.[1]) {
+      const parsedNoId = Number(noMatch[1]);
+      return Number.isFinite(parsedNoId) && parsedNoId > 0 ? parsedNoId : null;
+    }
+    const hashMatch = normalized.match(/^#(\d+)$/);
+    if (hashMatch?.[1]) {
+      const parsedHashId = Number(hashMatch[1]);
+      return Number.isFinite(parsedHashId) && parsedHashId > 0 ? parsedHashId : null;
+    }
+    const numericMatch = normalized.match(/(\d+)/);
+    if (!numericMatch?.[1]) {
+      return null;
+    }
+    const parsedId = Number(numericMatch[1]);
+    return Number.isFinite(parsedId) && parsedId > 0 ? parsedId : null;
+  }
+  //#endregion
+
+  //#region Work Order Dialog
+  openAddWorkOrderDialog(): void {
+    const selectedPropertyIdControlValue = this.form.get('propertyId')?.value;
+    const selectedPropertyId = selectedPropertyIdControlValue == null || String(selectedPropertyIdControlValue).trim() === ''
+      ? null
+      : String(selectedPropertyIdControlValue).trim();
+
+    if (!selectedPropertyId) {
+      this.toastr.warning('Select a property before adding a work order.', 'Missing property');
+      return;
+    }
+
+    this.propertyService.getPropertyByGuid(selectedPropertyId).pipe(take(1)).subscribe({
+      next: (property: PropertyResponse) => {
+        const dialogRef = this.dialog.open(TicketWorkOrderDialogComponent, {
+          width: '95vw',
+          maxWidth: '1300px',
+          maxHeight: '95vh',
+          disableClose: true,
+          panelClass: 'ticket-work-order-dialog-panel',
+          data: {
+            property,
+            maintenanceId: this.ticket?.ticketId ?? null
+          }
+        });
+        dialogRef.afterClosed().pipe(take(1)).subscribe((result?: TicketWorkOrderDialogResult) => {
+          if (!result?.saved || !result.workOrder) {
+            return;
+          }
+          const workOrderCode = this.resolveWorkOrderCode(result.workOrder);
+          this.appendTicketComment(`Work Order Created: ${workOrderCode}`, 'Work order saved, but unable to append ticket comment.');
+        });
+      },
+      error: () => {
+        this.toastr.error('Unable to load property for work order creation.', 'Error');
+      }
+    });
+  }
+
+  resolveWorkOrderCode(workOrder: WorkOrderResponse): string {
+    const workOrderCode = String(workOrder.workOrderCode || '').trim();
+    if (workOrderCode) {
+      return workOrderCode;
+    }
+    return String(workOrder.workOrderId || '').trim() || 'Unknown';
+  }
+
+  openWorkOrderFromComment(code: string): void {
+    const selectedPropertyId = this.getSelectedPropertyIdForDialogs();
+    if (!selectedPropertyId) {
+      this.toastr.warning('No property selected for work order lookup.', 'Missing property');
+      return;
+    }
+
+    this.propertyService.getPropertyByGuid(selectedPropertyId).pipe(take(1)).subscribe({
+      next: (property: PropertyResponse) => {
+        this.workOrderService.getWorkOrdersByPropertyId(selectedPropertyId).pipe(take(1)).subscribe({
+          next: (workOrders: WorkOrderResponse[]) => {
+            const targetCode = String(code || '').trim();
+            const matched = (workOrders || []).find(workOrder =>
+              String(workOrder.workOrderCode || '').trim().toLowerCase() === targetCode.toLowerCase())
+              || null;
+            if (!matched?.workOrderId) {
+              this.toastr.warning('Unable to find work order by code from comment.', 'Not found');
+              return;
+            }
+            this.dialog.open(TicketWorkOrderDialogComponent, {
+              width: '95vw',
+              maxWidth: '1300px',
+              maxHeight: '95vh',
+              disableClose: true,
+              panelClass: 'ticket-work-order-dialog-panel',
+              data: {
+                property,
+                maintenanceId: this.ticket?.ticketId ?? null,
+                workOrderId: matched.workOrderId
+              }
+            });
+          },
+          error: () => {
+            this.toastr.error('Unable to load work order list.', 'Error');
+          }
+        });
+      },
+      error: () => {
+        this.toastr.error('Unable to load property for work order dialog.', 'Error');
+      }
+    });
+  }
+  //#endregion
+
+  //#region Dialog Support Methods
   openAddAlertDialog(): void {
     const dialogData: AddAlertDialogData = {
       officeId: this.ticket?.officeId ?? null,
@@ -769,6 +983,90 @@ export class TicketComponent implements OnInit, OnChanges, OnDestroy {
       panelClass: 'add-alert-dialog-panel',
       data: dialogData
     });
+  }
+
+  appendTicketComment(noteText: string, errorMessage: string): void {
+    if (!this.ticket?.ticketId) {
+      return;
+    }
+
+    const user = this.authService.getUser();
+    const existing = this.ticket;
+    const existingNotes: TicketNoteRequest[] = (existing.notes || []).map(note => ({
+      ticketNoteId: note.ticketNoteId,
+      ticketId: note.ticketId,
+      note: note.note
+    }));
+
+    const request: TicketRequest = {
+      ticketId: existing.ticketId,
+      organizationId: user?.organizationId || existing.organizationId || '',
+      officeId: existing.officeId,
+      propertyId: existing.propertyId,
+      reservationId: existing.reservationId,
+      assigneeId: existing.assigneeId ?? null,
+      agentId: existing.agentId ?? null,
+      ticketCode: existing.ticketCode,
+      title: existing.title,
+      description: existing.description,
+      ticketStateTypeId: existing.ticketStateTypeId,
+      needPermissionToEnter: !!existing.needPermissionToEnter,
+      permissionGranted: !!existing.permissionGranted,
+      ownerContacted: !!existing.ownerContacted,
+      confirmedWithTenant: !!existing.confirmedWithTenant,
+      followedUpWithOwner: !!existing.followedUpWithOwner,
+      workOrderCompleted: !!existing.workOrderCompleted,
+      notes: [...existingNotes, {
+        ticketId: existing.ticketId,
+        note: noteText
+      }],
+      isActive: !!existing.isActive
+    };
+
+    this.ticketService.updateTicket(request).pipe(take(1)).subscribe({
+      next: (response) => {
+        this.ticket = response;
+      },
+      error: () => {
+        this.toastr.error(errorMessage, 'Warning');
+      }
+    });
+  }
+
+  parseLinkedTicketNote(noteText: string): { type: 'receipt' | 'workOrder'; code: string; prefix?: string | null } | null {
+    const receiptPrefix = 'Receipt Created:';
+    const workOrderPrefix = 'Work Order Created:';
+    if (noteText.startsWith(receiptPrefix)) {
+      const remainder = noteText.substring(receiptPrefix.length).trim();
+      const noMatch = remainder.match(/^(.*?)(No:\s*\d+)\s*$/i);
+      if (noMatch?.[2]) {
+        const prefix = this.normalizeText(noMatch[1] || null);
+        const code = noMatch[2].trim();
+        return { type: 'receipt', code, prefix };
+      }
+      return remainder ? { type: 'receipt', code: remainder, prefix: null } : null;
+    }
+    if (noteText.startsWith(workOrderPrefix)) {
+      const code = noteText.substring(workOrderPrefix.length).trim();
+      return code ? { type: 'workOrder', code } : null;
+    }
+    return null;
+  }
+
+  onTicketCommentLinkClick(type: 'receipt' | 'workOrder', code: string): void {
+    if (type === 'receipt') {
+      this.openReceiptFromComment(code);
+      return;
+    }
+    this.openWorkOrderFromComment(code);
+  }
+
+  getSelectedPropertyIdForDialogs(): string | null {
+    const selectedPropertyIdControlValue = this.form.get('propertyId')?.value;
+    const selectedPropertyId = selectedPropertyIdControlValue == null || String(selectedPropertyIdControlValue).trim() === ''
+      ? null
+      : String(selectedPropertyIdControlValue).trim();
+    return selectedPropertyId ?? this.ticket?.propertyId ?? null;
   }
 
   openCannotCloseDialog(): void {
@@ -829,12 +1127,6 @@ export class TicketComponent implements OnInit, OnChanges, OnDestroy {
     return window.confirm('You have unsaved changes. Are you sure you want to leave this page?');
   }
 
-  ngOnDestroy(): void {
-    this.destroy$.next();
-    this.destroy$.complete();
-    this.itemsToLoad$.complete();
-  }
-
   markFormInvalidFieldsAsTouchedAndDirty(): void {
     this.form.markAllAsTouched();
     Object.keys(this.form.controls).forEach(controlName => {
@@ -842,6 +1134,18 @@ export class TicketComponent implements OnInit, OnChanges, OnDestroy {
       control?.markAsDirty();
       control?.updateValueAndValidity({ emitEvent: false });
     });
+  }
+  //#endregion
+
+  //#region Utility Methods
+  back(): void {
+    this.backEvent.emit();
+  }
+
+  ngOnDestroy(): void {
+    this.destroy$.next();
+    this.destroy$.complete();
+    this.itemsToLoad$.complete();
   }
   //#endregion
 }

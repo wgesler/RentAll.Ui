@@ -32,7 +32,7 @@
       }
 
       <mat-card>
-        <form [formGroup]="form" (ngSubmit)="saveReceipt()" class="info-form mb-8 pt-5">
+        <form [formGroup]="form" (ngSubmit)="saveReceipt()" class="info-form pt-5" [class.mb-8]="!embeddedInMaintenance" [class.receipt-embedded-form]="embeddedInMaintenance">
           <div class="receipt-status-row">
             <span class="text-lg font-medium">Full Receipt</span>
             <mat-checkbox formControlName="isActive" color="primary">
@@ -108,7 +108,7 @@
                       </tr>
                     </thead>
                     <tbody>
-                      @for (splitGroup of splitsFormArray.controls; track splitGroup; let splitIndex = $index) {
+                      @for (splitGroup of splitsFormArray.controls; track splitIndex; let splitIndex = $index) {
                         <tr [formGroupName]="splitIndex">
                           <td class="split-col-no">{{ splitIndex + 1 }}</td>
                           <td class="split-col-amount">
@@ -202,6 +202,10 @@
               <span>Saving...</span>
             </div>
           }
+
+          <div class="receipt-inline-actions">
+            <ng-content select="[receipt-dialog-actions]"></ng-content>
+          </div>
         </form>
       </mat-card>
     </section>

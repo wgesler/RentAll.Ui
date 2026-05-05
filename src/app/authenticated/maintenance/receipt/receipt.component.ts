@@ -31,7 +31,7 @@ export class ReceiptComponent implements OnInit, OnDestroy {
   @Input() showBackButton: boolean = true;
    @Input() embeddedInMaintenance = false;
   @Output() backEvent = new EventEmitter<void>();
-  @Output() savedEvent = new EventEmitter<void>();
+  @Output() savedEvent = new EventEmitter<ReceiptResponse>();
 
   fb: FormBuilder;
   form: FormGroup;
@@ -211,7 +211,7 @@ export class ReceiptComponent implements OnInit, OnDestroy {
         this.hasNewReceiptUpload = false;
         this.originalReceiptPath = saved.receiptPath ?? null;
         this.splitTotalValidationError = false;
-        this.savedEvent.emit();
+        this.savedEvent.emit(saved);
         this.toastr.success('Receipt saved.', 'Success');
         if (this.selectedPropertyId) {
           this.back();

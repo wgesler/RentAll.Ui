@@ -45,8 +45,9 @@ export class WorkOrderComponent implements OnInit, OnChanges, OnDestroy {
   @Input() maintenanceId: string | null = null;
   @Input() showBackButton: boolean = true;
   @Input() embeddedInMaintenance = false;
+  @Input() navigateToPreviewOnSave: boolean = true;
   @Output() backEvent = new EventEmitter<void>();
-  @Output() savedEvent = new EventEmitter<void>();
+  @Output() savedEvent = new EventEmitter<WorkOrderResponse>();
   
   readonly parseInt = parseInt;
   readonly noReceiptOptionValue = 0;
@@ -296,7 +297,7 @@ export class WorkOrderComponent implements OnInit, OnChanges, OnDestroy {
         });
         this.syncReceiptAmounts();
         this.captureInitialWorkOrderItemsSnapshot();
-        this.savedEvent.emit();
+        this.savedEvent.emit(saved);
         if (wasCreate) {
           this.updateAccountingOfficeWorkOrderNoAfterCreate();
         }
@@ -309,6 +310,10 @@ export class WorkOrderComponent implements OnInit, OnChanges, OnDestroy {
 
         // Save this work order as an invoice that can be paid
         this.saveWorkOrderAsInvoice(saved, totalAmount);
+
+        if (!this.navigateToPreviewOnSave) {
+          return;
+        }
 
         if (saved.workOrderId) {
           const propertyId = this.property?.propertyId ?? this.selectedPropertyId ?? '';

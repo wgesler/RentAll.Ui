@@ -32,7 +32,7 @@
       }
 
       <mat-card>
-        <form [formGroup]="form" (ngSubmit)="saveWorkOrder()" class="info-form mb-8 pt-5">
+        <form [formGroup]="form" (ngSubmit)="saveWorkOrder()" class="info-form pt-5" [class.mb-8]="!embeddedInMaintenance" [class.work-order-embedded-form]="embeddedInMaintenance">
           <div class="mb-4 flex justify-end" style="padding-right: 5px;">
             <mat-checkbox formControlName="isActive" color="primary">
               IsActive
@@ -247,6 +247,10 @@
               <span>Saving...</span>
             </div>
           }
+
+          <div class="work-order-inline-actions">
+            <ng-content select="[work-order-dialog-actions]"></ng-content>
+          </div>
         </form>
       </mat-card>
     </section>
