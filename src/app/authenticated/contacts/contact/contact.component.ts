@@ -1,6 +1,6 @@
 import { CommonModule } from '@angular/common';
 import { Component, ElementRef, Inject, OnDestroy, OnInit, Input, Output, EventEmitter, Optional, ViewChild } from '@angular/core';
-import { MAT_DIALOG_DATA, MatDialog } from '@angular/material/dialog';
+import { MAT_DIALOG_DATA } from '@angular/material/dialog';
 import { FormBuilder, FormControl, FormGroup, FormsModule, ReactiveFormsModule, Validators } from '@angular/forms';
 import { ActivatedRoute, Router } from '@angular/router';
 import { ToastrService } from 'ngx-toastr';
@@ -27,8 +27,6 @@ import { PdfThumbnailService } from '../../../services/pdf-thumbnail.service';
 import { UserService } from '../../users/services/user.service';
 import { UserRequest, UserResponse } from '../../users/models/user.model';
 import { UserGroups } from '../../users/models/user-enums';
-import { ImageViewDialogComponent } from '../../shared/modals/image-view-dialog/image-view-dialog.component';
-import { ImageViewDialogData } from '../../shared/modals/image-view-dialog/image-view-dialog-data';
 
 @Component({
     standalone: true,
@@ -113,7 +111,6 @@ export class ContactComponent implements OnInit, OnDestroy {
     private propertyService: PropertyService,
     private pdfThumbnailService: PdfThumbnailService,
     private userService: UserService,
-    private dialog: MatDialog,
     @Optional() @Inject(MAT_DIALOG_DATA) public dialogData?: {
       preloadedContact?: ContactResponse;
       entityTypeId?: number;
@@ -716,19 +713,22 @@ export class ContactComponent implements OnInit, OnDestroy {
     const fd = this.contact.w9FileDetails;
     const path = this.contact.w9Path;
     this.hasNewW9Upload = false;
-    if (fd?.file && fd?.contentType) {
+    const hasW9Details = !!(fd?.dataUrl || fd?.file);
+    if (hasW9Details) {
+      const resolvedDataUrl = this.utilityService.resolveFileDetailsDataUrl(fd, path);
+      const resolvedContentType = (this.utilityService.getContentTypeFromDataUrl(resolvedDataUrl) || fd?.contentType || this.utilityService.getContentTypeFromPath(path) || '').trim() || null;
       this.w9FileDetails = fd;
       this.w9Path = path ?? null;
-      this.w9FileDataUrl = `data:${fd.contentType};base64,${fd.file}`;
-      this.w9FileContentType = fd.contentType;
+      this.w9FileDataUrl = resolvedDataUrl;
+      this.w9FileContentType = resolvedContentType;
       this.w9FileName = fd.fileName ?? path?.replace(/^.*[/\\]/, '') ?? 'W9 Form';
-      this.setPdfThumbnail(this.w9FileDataUrl, fd.contentType, u => this.w9PdfThumbnailUrl = u);
+      this.setPdfThumbnail(this.w9FileDataUrl, this.w9FileContentType, u => this.w9PdfThumbnailUrl = u);
     } else if (path) {
       this.w9Path = path;
       this.w9FileDetails = null;
       this.w9FileName = path.replace(/^.*[/\\]/, '') || 'W9 Form';
       this.w9FileDataUrl = null;
-      this.w9FileContentType = null;
+      this.w9FileContentType = this.utilityService.getContentTypeFromPath(path);
       this.w9PdfThumbnailUrl = null;
     } else {
       this.w9Path = null;
@@ -745,19 +745,22 @@ export class ContactComponent implements OnInit, OnDestroy {
     const fd = this.contact.insuranceFileDetails;
     const path = this.contact.insurancePath;
     this.hasNewInsuranceUpload = false;
-    if (fd?.file && fd?.contentType) {
+    const hasInsuranceDetails = !!(fd?.dataUrl || fd?.file);
+    if (hasInsuranceDetails) {
+      const resolvedDataUrl = this.utilityService.resolveFileDetailsDataUrl(fd, path);
+      const resolvedContentType = (this.utilityService.getContentTypeFromDataUrl(resolvedDataUrl) || fd?.contentType || this.utilityService.getContentTypeFromPath(path) || '').trim() || null;
       this.insuranceFileDetails = fd;
       this.insurancePath = path ?? null;
-      this.insuranceFileDataUrl = `data:${fd.contentType};base64,${fd.file}`;
-      this.insuranceFileContentType = fd.contentType;
+      this.insuranceFileDataUrl = resolvedDataUrl;
+      this.insuranceFileContentType = resolvedContentType;
       this.insuranceFileName = fd.fileName ?? path?.replace(/^.*[/\\]/, '') ?? 'Insurance Form';
-      this.setPdfThumbnail(this.insuranceFileDataUrl, fd.contentType, u => this.insurancePdfThumbnailUrl = u);
+      this.setPdfThumbnail(this.insuranceFileDataUrl, this.insuranceFileContentType, u => this.insurancePdfThumbnailUrl = u);
     } else if (path) {
       this.insurancePath = path;
       this.insuranceFileDetails = null;
       this.insuranceFileName = path.replace(/^.*[/\\]/, '') || 'Insurance Form';
       this.insuranceFileDataUrl = null;
-      this.insuranceFileContentType = null;
+      this.insuranceFileContentType = this.utilityService.getContentTypeFromPath(path);
       this.insurancePdfThumbnailUrl = null;
     } else {
       this.insurancePath = null;
@@ -1130,26 +1133,70 @@ export class ContactComponent implements OnInit, OnDestroy {
   }
 
   openW9Preview(event?: Event): void {
-    const imageSrc = this.w9FileContentType?.startsWith('image/')
-      ? this.w9FileDataUrl
-      : this.w9PdfThumbnailUrl;
+    const imageSrc = this.getW9PreviewSource();
     this.openContactAttachmentPreview(imageSrc, 'W9 Form', event);
   }
 
   openInsurancePreview(event?: Event): void {
-    const imageSrc = this.insuranceFileContentType?.startsWith('image/')
-      ? this.insuranceFileDataUrl
-      : this.insurancePdfThumbnailUrl;
+    const imageSrc = this.getInsurancePreviewSource();
     this.openContactAttachmentPreview(imageSrc, 'Insurance Form', event);
   }
 
   openContactAttachmentPreview(imageSrc: string | null, title: string, event?: Event): void {
     event?.stopPropagation();
-    if (!imageSrc) {
+    if (!imageSrc || !String(imageSrc).startsWith('data:')) {
+      this.toastr.warning('Unable to preview this file because file bytes are unavailable.');
       return;
     }
-    const data: ImageViewDialogData = { imageSrc, title };
-    this.dialog.open(ImageViewDialogComponent, { data, width: '70vw', maxWidth: '520px' });
+    const queryParams: Record<string, string> = { returnTo: 'contacts' };
+    const currentTab = this.route.snapshot.queryParamMap.get('tab');
+    const currentOfficeId = this.route.snapshot.queryParamMap.get('officeId');
+    if (currentTab) {
+      queryParams['tab'] = currentTab;
+    }
+    if (currentOfficeId) {
+      queryParams['officeId'] = currentOfficeId;
+    }
+    this.router.navigate(
+      [RouterUrl.replaceTokens(RouterUrl.DocumentView, ['inline-preview'])],
+      {
+        queryParams,
+        state: {
+          inlineDocument: {
+            dataUrl: imageSrc,
+            contentType: this.getAttachmentContentType(title),
+            fileName: title
+          }
+        }
+      }
+    );
+  }
+
+  getW9PreviewSource(): string | null {
+    if (this.w9FileDataUrl?.startsWith('data:')) return this.w9FileDataUrl;
+    const detailsDataUrl = this.utilityService.resolveFileDetailsDataUrl(this.w9FileDetails, this.w9Path);
+    return detailsDataUrl?.startsWith('data:') ? detailsDataUrl : null;
+  }
+
+  getInsurancePreviewSource(): string | null {
+    if (this.insuranceFileDataUrl?.startsWith('data:')) return this.insuranceFileDataUrl;
+    const detailsDataUrl = this.utilityService.resolveFileDetailsDataUrl(this.insuranceFileDetails, this.insurancePath);
+    return detailsDataUrl?.startsWith('data:') ? detailsDataUrl : null;
+  }
+
+  getAttachmentContentType(title: string): string | null {
+    if (title.toLowerCase().includes('insurance')) {
+      return this.insuranceFileContentType
+        || this.insuranceFileDetails?.contentType
+        || this.utilityService.getContentTypeFromPath(this.insurancePath)
+        || this.utilityService.getContentTypeFromDataUrl(this.getInsurancePreviewSource())
+        || null;
+    }
+    return this.w9FileContentType
+      || this.w9FileDetails?.contentType
+      || this.utilityService.getContentTypeFromPath(this.w9Path)
+      || this.utilityService.getContentTypeFromDataUrl(this.getW9PreviewSource())
+      || null;
   }
   //#endregion
 

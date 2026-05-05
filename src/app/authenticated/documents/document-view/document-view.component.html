@@ -24,7 +24,11 @@
         
       <mat-card>
         <div class="document-view-container">
-          @if (canViewInBrowser && iframeSrc) {
+          @if (canViewInBrowser && imageSrc) {
+            <div class="iframe-container">
+              <img [src]="imageSrc" class="w-full h-full object-contain" alt="Document preview" />
+            </div>
+          } @else if (canViewInBrowser && iframeSrc) {
             <div class="iframe-container">
               <iframe 
                 #documentIframe

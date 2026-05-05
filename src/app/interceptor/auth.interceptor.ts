@@ -249,6 +249,9 @@ export const authInterceptor: HttpInterceptorFn = (req, next) => {
   return next(req).pipe(
     catchError(error => {
       if (error instanceof HttpErrorResponse) {
+        if (req.url.includes('/organization/branding')) {
+          return throwError(() => error);
+        }
         switch ((error as HttpErrorResponse).status) {
           case 400:
             return handle400Error(req, error, toastrService);

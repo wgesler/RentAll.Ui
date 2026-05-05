@@ -28,6 +28,7 @@ export class DocumentViewComponent implements OnInit, OnDestroy, AfterViewInit {
   documentId: string;
   document: DocumentResponse | null = null;
   iframeSrc: SafeResourceUrl | null = null;
+  imageSrc: string | null = null;
   iframeKey: number = 0;
   isServiceError: boolean = false;
   canViewInBrowser: boolean = false;
@@ -37,8 +38,11 @@ export class DocumentViewComponent implements OnInit, OnDestroy, AfterViewInit {
   propertyId?: string;
   reservationId?: string;
   documentTypeId?: number;
+  contactTab?: string;
+  contactOfficeId?: string;
   shouldPrint: boolean = false; // Flag to trigger print after document loads
   private iframeLoadHandler?: () => void;
+  private objectUrl: string | null = null;
 
   itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['document']));
   isLoading$: Observable<boolean> = this.itemsToLoad$.pipe(map(items => items.size > 0));
@@ -63,7 +67,17 @@ export class DocumentViewComponent implements OnInit, OnDestroy, AfterViewInit {
     this.propertyId = queryParams['propertyId'];
     this.reservationId = queryParams['reservationId'];
     this.documentTypeId = queryParams['documentTypeId'] ? Number(queryParams['documentTypeId']) : undefined;
+    this.contactTab = queryParams['tab'];
+    this.contactOfficeId = queryParams['officeId'];
     this.shouldPrint = queryParams['print'] === 'true';
+
+    const inlineDocument = this.getInlineDocumentFromState();
+    if (inlineDocument?.dataUrl) {
+      this.document = this.buildInlineDocumentResponse(inlineDocument);
+      this.loadDocumentContent();
+      this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'document');
+      return;
+    }
 
     this.route.paramMap.pipe(take(1)).subscribe(params => {
       const id = params.get('id');
@@ -154,8 +168,16 @@ export class DocumentViewComponent implements OnInit, OnDestroy, AfterViewInit {
     // Use FileDetails.dataUrl if available, otherwise fall back to download endpoint
     const embeddedSrc = this.getEmbeddedDocumentSrc(this.document);
     if (embeddedSrc) {
+      const renderSrc = this.toRenderableObjectUrl(embeddedSrc);
+      if (this.isImageDocument(this.document.contentType, this.document.fileExtension)) {
+        this.imageSrc = renderSrc;
+        this.iframeSrc = null;
+        return;
+      }
+
+      this.imageSrc = null;
       // Use embedded file details first (same behavior style as inventory/embedded viewers).
-      this.iframeSrc = this.sanitizer.bypassSecurityTrustResourceUrl(embeddedSrc);
+      this.iframeSrc = this.sanitizer.bypassSecurityTrustResourceUrl(renderSrc);
       this.iframeKey++; // Force iframe refresh
       // Set up load listener if printing is needed
       if (this.shouldPrint) {
@@ -194,15 +216,58 @@ export class DocumentViewComponent implements OnInit, OnDestroy, AfterViewInit {
   loadDocumentContentFromDownloadEndpoint(): void {
     this.documentService.downloadDocument(this.documentId).pipe(take(1)).subscribe({
       next: (blob: Blob) => {
+        this.releaseObjectUrl();
         const blobUrl = URL.createObjectURL(blob);
-        this.iframeSrc = this.sanitizer.bypassSecurityTrustResourceUrl(blobUrl);
-        this.iframeKey++;
+        this.objectUrl = blobUrl;
+        if (this.document && this.isImageDocument(this.document.contentType, this.document.fileExtension)) {
+          this.imageSrc = blobUrl;
+          this.iframeSrc = null;
+        } else {
+          this.imageSrc = null;
+          this.iframeSrc = this.sanitizer.bypassSecurityTrustResourceUrl(blobUrl);
+          this.iframeKey++;
+        }
         if (this.shouldPrint) {
           setTimeout(() => this.setupIframeLoadListener(), 200);
         }
       },
       error: () => {}
     });
+  }
+
+  isImageDocument(contentType: string, fileExtension: string): boolean {
+    const ext = fileExtension?.toLowerCase() || '';
+    const mimeType = contentType?.toLowerCase() || '';
+    return mimeType.startsWith('image/') || ['jpg', 'jpeg', 'png', 'gif', 'webp', 'svg'].includes(ext);
+  }
+
+  toRenderableObjectUrl(source: string): string {
+    const value = String(source || '').trim();
+    if (!value.startsWith('data:')) {
+      return value;
+    }
+    this.releaseObjectUrl();
+    const blob = this.dataUrlToBlob(value);
+    this.objectUrl = URL.createObjectURL(blob);
+    return this.objectUrl;
+  }
+
+  dataUrlToBlob(dataUrl: string): Blob {
+    const [header, base64 = ''] = dataUrl.split(',');
+    const mime = header?.match(/data:([^;]+)/)?.[1] ?? 'application/octet-stream';
+    const binary = atob(base64);
+    const bytes = new Uint8Array(binary.length);
+    for (let i = 0; i < binary.length; i++) {
+      bytes[i] = binary.charCodeAt(i);
+    }
+    return new Blob([bytes], { type: mime });
+  }
+
+  releaseObjectUrl(): void {
+    if (this.objectUrl) {
+      URL.revokeObjectURL(this.objectUrl);
+      this.objectUrl = null;
+    }
   }
 
   isViewableInBrowser(contentType: string, fileExtension: string): boolean {
@@ -451,6 +516,65 @@ export class DocumentViewComponent implements OnInit, OnDestroy, AfterViewInit {
   //#endregion 
 
   //#region Utility Methods
+  getInlineDocumentFromState(): { dataUrl: string; contentType?: string; fileName?: string } | null {
+    const state = history.state as { inlineDocument?: { dataUrl?: string; contentType?: string; fileName?: string } };
+    const dataUrl = String(state?.inlineDocument?.dataUrl || '').trim();
+    if (!dataUrl) {
+      return null;
+    }
+    return {
+      dataUrl,
+      contentType: state.inlineDocument?.contentType,
+      fileName: state.inlineDocument?.fileName
+    };
+  }
+
+  buildInlineDocumentResponse(inline: { dataUrl: string; contentType?: string; fileName?: string }): DocumentResponse {
+    const inferredContentType = this.getContentTypeFromDataUrl(inline.dataUrl) || inline.contentType || 'application/octet-stream';
+    const fileNameWithExtension = this.ensureFileNameWithExtension(inline.fileName || 'Document', inferredContentType);
+    const splitAt = fileNameWithExtension.lastIndexOf('.');
+    const fileName = splitAt > 0 ? fileNameWithExtension.substring(0, splitAt) : fileNameWithExtension;
+    const fileExtension = splitAt > 0 ? fileNameWithExtension.substring(splitAt + 1) : this.getFileExtensionFromContentType(inferredContentType);
+    const inlineResponse: Partial<DocumentResponse> = {
+      documentId: 'inline-preview',
+      fileName,
+      fileExtension,
+      contentType: inferredContentType,
+      fileDetails: {
+        fileName: fileNameWithExtension,
+        contentType: inferredContentType,
+        file: '',
+        dataUrl: inline.dataUrl
+      }
+    };
+    return inlineResponse as DocumentResponse;
+  }
+
+  getContentTypeFromDataUrl(dataUrl: string): string | null {
+    const match = String(dataUrl || '').trim().match(/^data:([^;]+);/i);
+    return match?.[1]?.toLowerCase() || null;
+  }
+
+  getFileExtensionFromContentType(contentType: string): string {
+    const normalized = (contentType || '').toLowerCase().trim();
+    if (normalized === 'application/pdf') return 'pdf';
+    if (normalized === 'image/png') return 'png';
+    if (normalized === 'image/gif') return 'gif';
+    if (normalized === 'image/webp') return 'webp';
+    if (normalized === 'image/svg+xml') return 'svg';
+    if (normalized === 'image/jpeg' || normalized === 'image/jpg') return 'jpg';
+    return 'bin';
+  }
+
+  ensureFileNameWithExtension(fileName: string, contentType: string): string {
+    const trimmed = String(fileName || '').trim() || 'Document';
+    if (trimmed.includes('.')) {
+      return trimmed;
+    }
+    const extension = this.getFileExtensionFromContentType(contentType);
+    return `${trimmed}.${extension}`;
+  }
+
    getMaintenanceShellDocumentsTabIndex(): number {
     const isInspector = hasInspectorRole(this.authService.getUser()?.userGroups as Array<string | number> | undefined);
     const showWorkOrdersTab = !isInspector;
@@ -508,6 +632,41 @@ export class DocumentViewComponent implements OnInit, OnDestroy, AfterViewInit {
       return;
     }
 
+    if (this.returnTo === 'propertyAgreement' && this.propertyId) {
+      const params: string[] = [];
+      const tab = this.route.snapshot.queryParams['tab'];
+      const officeId = this.route.snapshot.queryParams['officeId'];
+      if (tab !== null && tab !== undefined && tab !== '') {
+        params.push(`tab=${tab}`);
+      }
+      if (officeId !== null && officeId !== undefined && officeId !== '') {
+        params.push(`officeId=${officeId}`);
+      }
+      const propertyUrl = RouterUrl.replaceTokens(RouterUrl.Property, [this.propertyId]);
+      if (params.length > 0) {
+        this.router.navigateByUrl(`${propertyUrl}?${params.join('&')}`);
+      } else {
+        this.router.navigateByUrl(propertyUrl);
+      }
+      return;
+    }
+
+    if (this.returnTo === 'contacts') {
+      const params: string[] = [];
+      if (this.contactTab !== null && this.contactTab !== undefined && this.contactTab !== '') {
+        params.push(`tab=${this.contactTab}`);
+      }
+      if (this.contactOfficeId !== null && this.contactOfficeId !== undefined && this.contactOfficeId !== '') {
+        params.push(`officeId=${this.contactOfficeId}`);
+      }
+      if (params.length > 0) {
+        this.router.navigateByUrl(`${RouterUrl.ContactList}?${params.join('&')}`);
+      } else {
+        this.router.navigateByUrl(RouterUrl.ContactList);
+      }
+      return;
+    }
+
     if (this.returnTo === 'email') {
       this.router.navigateByUrl(RouterUrl.EmailList);
       return;
@@ -550,13 +709,7 @@ export class DocumentViewComponent implements OnInit, OnDestroy, AfterViewInit {
       }
     }
     
-    // Clean up blob URL if it exists
-    if (this.iframeSrc) {
-      const url = this.iframeSrc.toString();
-      if (url.startsWith('blob:')) {
-        URL.revokeObjectURL(url);
-      }
-    }
+    this.releaseObjectUrl();
     this.itemsToLoad$.complete();
   }
   //#endregion

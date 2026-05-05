@@ -90,7 +90,6 @@ export class BrandingComponent implements OnInit, OnDestroy {
     const userOrganizationId = this.authService.getUser()?.organizationId?.trim() ?? '';
     const requestOrganizationId = (this.organizationId || userOrganizationId || '').trim();
     if (!requestOrganizationId) {
-      this.toastr.error('Organization context is required', CommonMessage.Error);
       return;
     }
 

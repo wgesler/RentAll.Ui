@@ -701,6 +701,90 @@ export class UtilityService {
   }
   //#endregion
 
+  //#region File Preview Helpers
+  resolveFileDetailsDataUrl(fileDetails?: FileDetails | null, fallbackPath?: string | null): string | null {
+    if (!fileDetails) {
+      return null;
+    }
+    const directDataUrl = String(fileDetails.dataUrl || '').trim();
+    if (directDataUrl) {
+      return directDataUrl;
+    }
+    const rawFile = String(fileDetails.file || '').trim();
+    if (!rawFile) {
+      return null;
+    }
+    if (rawFile.startsWith('data:')) {
+      return rawFile;
+    }
+    if (!this.looksLikeBase64(rawFile)) {
+      return null;
+    }
+    const normalizedBase64 = this.normalizeBase64(rawFile);
+    const inferredContentType = this.getContentTypeFromBase64(normalizedBase64);
+    const fallbackContentType = this.getContentTypeFromPath(fallbackPath);
+    const contentType = inferredContentType || String(fileDetails.contentType || '').trim() || fallbackContentType || 'application/octet-stream';
+    return `data:${contentType};base64,${normalizedBase64}`;
+  }
+
+  getContentTypeFromDataUrl(dataUrl: string | null | undefined): string | null {
+    const match = String(dataUrl || '').trim().match(/^data:([^;]+);/i);
+    return match?.[1]?.toLowerCase() || null;
+  }
+
+  normalizeBase64(value: string): string {
+    const cleaned = String(value || '').replace(/\s/g, '').replace(/-/g, '+').replace(/_/g, '/');
+    const paddingNeeded = cleaned.length % 4;
+    if (paddingNeeded === 0) {
+      return cleaned;
+    }
+    return `${cleaned}${'='.repeat(4 - paddingNeeded)}`;
+  }
+
+  looksLikeBase64(value: string): boolean {
+    const normalized = this.normalizeBase64(value);
+    if (!normalized || normalized.length < 16 || /[^A-Za-z0-9+/=]/.test(normalized)) {
+      return false;
+    }
+    try {
+      atob(normalized);
+      return true;
+    } catch {
+      return false;
+    }
+  }
+
+  getContentTypeFromBase64(base64: string): string | null {
+    const normalized = this.normalizeBase64(base64);
+    if (!normalized) {
+      return null;
+    }
+    if (normalized.startsWith('JVBERi0')) return 'application/pdf';
+    if (normalized.startsWith('/9j/')) return 'image/jpeg';
+    if (normalized.startsWith('iVBORw0KGgo')) return 'image/png';
+    if (normalized.startsWith('R0lGOD')) return 'image/gif';
+    if (normalized.startsWith('UklGR')) return 'image/webp';
+    if (normalized.startsWith('PHN2Zy') || normalized.startsWith('PD94bWwg') || normalized.startsWith('PCFET0NUWVBFIGh0bWw')) return 'image/svg+xml';
+    return null;
+  }
+
+  getContentTypeFromPath(path: string | null | undefined): string | null {
+    const raw = String(path || '').trim();
+    if (!raw) {
+      return null;
+    }
+    const withoutQuery = raw.split('?')[0].split('#')[0];
+    const normalized = withoutQuery.toLowerCase();
+    if (normalized.endsWith('.pdf')) return 'application/pdf';
+    if (normalized.endsWith('.png')) return 'image/png';
+    if (normalized.endsWith('.gif')) return 'image/gif';
+    if (normalized.endsWith('.webp')) return 'image/webp';
+    if (normalized.endsWith('.svg')) return 'image/svg+xml';
+    if (normalized.endsWith('.jpg') || normalized.endsWith('.jpeg') || normalized.endsWith('.jfif')) return 'image/jpeg';
+    return null;
+  }
+  //#endregion
+
   //#region Company display
   getCompanyDisplayToken(companyName: string | null | undefined): string {
     const words = (companyName || '')

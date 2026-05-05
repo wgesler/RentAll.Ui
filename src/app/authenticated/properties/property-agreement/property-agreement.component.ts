@@ -2,9 +2,10 @@ import { CommonModule } from '@angular/common';
 import { HttpErrorResponse } from '@angular/common/http';
 import { Component, ElementRef, Input, OnChanges, OnDestroy, OnInit, SimpleChanges, ViewChild } from '@angular/core';
 import { FormBuilder, FormControl, FormGroup, ReactiveFormsModule } from '@angular/forms';
-import { MatDialog } from '@angular/material/dialog';
+import { ActivatedRoute, Router } from '@angular/router';
 import { ToastrService } from 'ngx-toastr';
 import { Observable, Subject, catchError, filter, finalize, map, of, take, takeUntil } from 'rxjs';
+import { RouterUrl } from '../../../app.routes';
 import { CommonMessage, CommonTimeouts } from '../../../enums/common-message.enum';
 import { MaterialModule } from '../../../material.module';
 import { FormatterService } from '../../../services/formatter-service';
@@ -17,8 +18,6 @@ import { CostCodesService } from '../../accounting/services/cost-codes.service';
 import { ManagementFeeType, normalizeManagementFeeTypeId } from '../models/property-enums';
 import { PropertyAgreementRequest, PropertyAgreementResponse } from '../models/property-agreement.model';
 import { PropertyAgreementService } from '../services/property-agreement.service';
-import { ImageViewDialogComponent } from '../../shared/modals/image-view-dialog/image-view-dialog.component';
-import { ImageViewDialogData } from '../../shared/modals/image-view-dialog/image-view-dialog-data';
 
 @Component({
   selector: 'app-property-agreement',
@@ -82,14 +81,15 @@ export class PropertyAgreementComponent implements OnInit, OnChanges, OnDestroy 
 
   constructor(
     private fb: FormBuilder,
+    private route: ActivatedRoute,
+    private router: Router,
     private toastr: ToastrService,
     private formatterService: FormatterService,
     private mappingService: MappingService,
     private utilityService: UtilityService,
     private propertyAgreementService: PropertyAgreementService,
     private costCodesService: CostCodesService,
-    private pdfThumbnailService: PdfThumbnailService,
-    private dialog: MatDialog
+    private pdfThumbnailService: PdfThumbnailService
   ) {}
 
   //#region Property Agreement
@@ -438,19 +438,22 @@ export class PropertyAgreementComponent implements OnInit, OnChanges, OnDestroy 
     const fd = data.w9FileDetails;
     const path = data.w9Path;
     this.agreementHasNewW9Upload = false;
-    if (fd?.file && fd?.contentType) {
+    const hasW9Details = !!(fd?.dataUrl || fd?.file);
+    if (hasW9Details) {
+      const resolvedDataUrl = this.utilityService.resolveFileDetailsDataUrl(fd, path);
+      const resolvedContentType = (this.utilityService.getContentTypeFromDataUrl(resolvedDataUrl) || fd?.contentType || this.utilityService.getContentTypeFromPath(path) || '').trim() || null;
       this.agreementW9FileDetails = fd;
       this.agreementW9Path = path ?? null;
-      this.agreementW9FileDataUrl = `data:${fd.contentType};base64,${fd.file}`;
-      this.agreementW9FileContentType = fd.contentType;
+      this.agreementW9FileDataUrl = resolvedDataUrl;
+      this.agreementW9FileContentType = resolvedContentType;
       this.agreementW9FileName = fd.fileName ?? path?.replace(/^.*[/\\]/, '') ?? 'W9';
-      this.setAgreementPdfThumbnail(this.agreementW9FileDataUrl, fd.contentType, u => { this.agreementW9PdfThumbnailUrl = u; });
+      this.setAgreementPdfThumbnail(this.agreementW9FileDataUrl, this.agreementW9FileContentType, u => { this.agreementW9PdfThumbnailUrl = u; });
     } else if (path) {
       this.agreementW9Path = path;
       this.agreementW9FileDetails = null;
       this.agreementW9FileName = path.replace(/^.*[/\\]/, '') || 'W9';
       this.agreementW9FileDataUrl = null;
-      this.agreementW9FileContentType = null;
+      this.agreementW9FileContentType = this.utilityService.getContentTypeFromPath(path);
       this.agreementW9PdfThumbnailUrl = null;
     } else {
       this.clearAgreementW9Ui();
@@ -507,9 +510,7 @@ export class PropertyAgreementComponent implements OnInit, OnChanges, OnDestroy 
   }
 
   openAgreementW9Preview(event?: Event): void {
-    const imageSrc = this.agreementW9FileContentType?.startsWith('image/')
-      ? this.agreementW9FileDataUrl
-      : this.agreementW9PdfThumbnailUrl;
+    const imageSrc = this.getAgreementW9PreviewSource();
     this.openAgreementPreview(imageSrc, 'W9', event);
   }
   //#endregion
@@ -519,19 +520,22 @@ export class PropertyAgreementComponent implements OnInit, OnChanges, OnDestroy 
     const fd = data.insuranceFileDetails;
     const path = data.insurancePath;
     this.agreementHasNewInsuranceUpload = false;
-    if (fd?.file && fd?.contentType) {
+    const hasInsuranceDetails = !!(fd?.dataUrl || fd?.file);
+    if (hasInsuranceDetails) {
+      const resolvedDataUrl = this.utilityService.resolveFileDetailsDataUrl(fd, path);
+      const resolvedContentType = (this.utilityService.getContentTypeFromDataUrl(resolvedDataUrl) || fd?.contentType || this.utilityService.getContentTypeFromPath(path) || '').trim() || null;
       this.agreementInsuranceFileDetails = fd;
       this.agreementInsurancePath = path ?? null;
-      this.agreementInsuranceFileDataUrl = `data:${fd.contentType};base64,${fd.file}`;
-      this.agreementInsuranceFileContentType = fd.contentType;
+      this.agreementInsuranceFileDataUrl = resolvedDataUrl;
+      this.agreementInsuranceFileContentType = resolvedContentType;
       this.agreementInsuranceFileName = fd.fileName ?? path?.replace(/^.*[/\\]/, '') ?? 'Insurance';
-      this.setAgreementPdfThumbnail(this.agreementInsuranceFileDataUrl, fd.contentType, u => { this.agreementInsurancePdfThumbnailUrl = u; });
+      this.setAgreementPdfThumbnail(this.agreementInsuranceFileDataUrl, this.agreementInsuranceFileContentType, u => { this.agreementInsurancePdfThumbnailUrl = u; });
     } else if (path) {
       this.agreementInsurancePath = path;
       this.agreementInsuranceFileDetails = null;
       this.agreementInsuranceFileName = path.replace(/^.*[/\\]/, '') || 'Insurance';
       this.agreementInsuranceFileDataUrl = null;
-      this.agreementInsuranceFileContentType = null;
+      this.agreementInsuranceFileContentType = this.utilityService.getContentTypeFromPath(path);
       this.agreementInsurancePdfThumbnailUrl = null;
     } else {
       this.clearAgreementInsuranceUi();
@@ -588,9 +592,7 @@ export class PropertyAgreementComponent implements OnInit, OnChanges, OnDestroy 
   }
 
   openAgreementInsurancePreview(event?: Event): void {
-    const imageSrc = this.agreementInsuranceFileContentType?.startsWith('image/')
-      ? this.agreementInsuranceFileDataUrl
-      : this.agreementInsurancePdfThumbnailUrl;
+    const imageSrc = this.getAgreementInsurancePreviewSource();
     this.openAgreementPreview(imageSrc, 'Insurance', event);
   }
   //#endregion
@@ -600,19 +602,22 @@ export class PropertyAgreementComponent implements OnInit, OnChanges, OnDestroy 
     const fd = data.agreementFileDetails;
     const path = data.agreementPath;
     this.agreementHasNewDocUpload = false;
-    if (fd?.file && fd?.contentType) {
+    const hasDocDetails = !!(fd?.dataUrl || fd?.file);
+    if (hasDocDetails) {
+      const resolvedDataUrl = this.utilityService.resolveFileDetailsDataUrl(fd, path);
+      const resolvedContentType = (this.utilityService.getContentTypeFromDataUrl(resolvedDataUrl) || fd?.contentType || this.utilityService.getContentTypeFromPath(path) || '').trim() || null;
       this.agreementDocFileDetails = fd;
       this.agreementDocPath = path ?? null;
-      this.agreementDocFileDataUrl = `data:${fd.contentType};base64,${fd.file}`;
-      this.agreementDocFileContentType = fd.contentType;
+      this.agreementDocFileDataUrl = resolvedDataUrl;
+      this.agreementDocFileContentType = resolvedContentType;
       this.agreementDocFileName = fd.fileName ?? path?.replace(/^.*[/\\]/, '') ?? 'Agreement';
-      this.setAgreementPdfThumbnail(this.agreementDocFileDataUrl, fd.contentType, u => { this.agreementDocPdfThumbnailUrl = u; });
+      this.setAgreementPdfThumbnail(this.agreementDocFileDataUrl, this.agreementDocFileContentType, u => { this.agreementDocPdfThumbnailUrl = u; });
     } else if (path) {
       this.agreementDocPath = path;
       this.agreementDocFileDetails = null;
       this.agreementDocFileName = path.replace(/^.*[/\\]/, '') || 'Agreement';
       this.agreementDocFileDataUrl = null;
-      this.agreementDocFileContentType = null;
+      this.agreementDocFileContentType = this.utilityService.getContentTypeFromPath(path);
       this.agreementDocPdfThumbnailUrl = null;
     } else {
       this.clearAgreementDocUi();
@@ -669,9 +674,7 @@ export class PropertyAgreementComponent implements OnInit, OnChanges, OnDestroy 
   }
 
   openAgreementDocPreview(event?: Event): void {
-    const imageSrc = this.agreementDocFileContentType?.startsWith('image/')
-      ? this.agreementDocFileDataUrl
-      : this.agreementDocPdfThumbnailUrl;
+    const imageSrc = this.getAgreementDocPreviewSource();
     this.openAgreementPreview(imageSrc, 'Agreement', event);
   }
   //#endregion
@@ -814,11 +817,76 @@ export class PropertyAgreementComponent implements OnInit, OnChanges, OnDestroy 
 
   openAgreementPreview(imageSrc: string | null, title: string, event?: Event): void {
     event?.stopPropagation();
-    if (!imageSrc) {
+    if (!imageSrc || !String(imageSrc).startsWith('data:')) {
+      this.toastr.warning('Unable to preview this file because file bytes are unavailable.');
       return;
     }
-    const data: ImageViewDialogData = { imageSrc, title };
-    this.dialog.open(ImageViewDialogComponent, { data, width: '70vw', maxWidth: '520px' });
+    const queryParams: Record<string, string> = {
+      returnTo: 'propertyAgreement',
+      propertyId: this.propertyId
+    };
+    const currentTab = this.route.snapshot.queryParamMap.get('tab');
+    const currentOfficeId = this.route.snapshot.queryParamMap.get('officeId');
+    if (currentTab) {
+      queryParams['tab'] = currentTab;
+    }
+    if (currentOfficeId) {
+      queryParams['officeId'] = currentOfficeId;
+    }
+    this.router.navigate(
+      [RouterUrl.replaceTokens(RouterUrl.DocumentView, ['inline-preview'])],
+      {
+        queryParams,
+        state: {
+          inlineDocument: {
+            dataUrl: imageSrc,
+            contentType: this.getAgreementAttachmentContentType(title),
+            fileName: title
+          }
+        }
+      }
+    );
+  }
+
+  getAgreementW9PreviewSource(): string | null {
+    if (this.agreementW9FileDataUrl?.startsWith('data:')) return this.agreementW9FileDataUrl;
+    const detailsDataUrl = this.utilityService.resolveFileDetailsDataUrl(this.agreementW9FileDetails, this.agreementW9Path);
+    return detailsDataUrl?.startsWith('data:') ? detailsDataUrl : null;
+  }
+
+  getAgreementInsurancePreviewSource(): string | null {
+    if (this.agreementInsuranceFileDataUrl?.startsWith('data:')) return this.agreementInsuranceFileDataUrl;
+    const detailsDataUrl = this.utilityService.resolveFileDetailsDataUrl(this.agreementInsuranceFileDetails, this.agreementInsurancePath);
+    return detailsDataUrl?.startsWith('data:') ? detailsDataUrl : null;
+  }
+
+  getAgreementDocPreviewSource(): string | null {
+    if (this.agreementDocFileDataUrl?.startsWith('data:')) return this.agreementDocFileDataUrl;
+    const detailsDataUrl = this.utilityService.resolveFileDetailsDataUrl(this.agreementDocFileDetails, this.agreementDocPath);
+    return detailsDataUrl?.startsWith('data:') ? detailsDataUrl : null;
+  }
+
+  getAgreementAttachmentContentType(title: string): string | null {
+    const normalized = title.toLowerCase();
+    if (normalized.includes('insurance')) {
+      return this.agreementInsuranceFileContentType
+        || this.agreementInsuranceFileDetails?.contentType
+        || this.utilityService.getContentTypeFromPath(this.agreementInsurancePath)
+        || this.utilityService.getContentTypeFromDataUrl(this.getAgreementInsurancePreviewSource())
+        || null;
+    }
+    if (normalized.includes('agreement')) {
+      return this.agreementDocFileContentType
+        || this.agreementDocFileDetails?.contentType
+        || this.utilityService.getContentTypeFromPath(this.agreementDocPath)
+        || this.utilityService.getContentTypeFromDataUrl(this.getAgreementDocPreviewSource())
+        || null;
+    }
+    return this.agreementW9FileContentType
+      || this.agreementW9FileDetails?.contentType
+      || this.utilityService.getContentTypeFromPath(this.agreementW9Path)
+      || this.utilityService.getContentTypeFromDataUrl(this.getAgreementW9PreviewSource())
+      || null;
   }
 
   hasPersistedAgreement(data: PropertyAgreementResponse | null | undefined): data is PropertyAgreementResponse {
