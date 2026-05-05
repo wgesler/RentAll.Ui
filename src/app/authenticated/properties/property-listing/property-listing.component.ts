@@ -14,6 +14,7 @@ import { firstValueFrom } from 'rxjs';
 import { take } from 'rxjs/operators';
 import { ToastrService } from 'ngx-toastr';
 import { CommonMessage } from '../../../enums/common-message.enum';
+import { UtilityService } from '../../../services/utility.service';
 
 interface ListingPhotoItem {
   id: string;
@@ -54,8 +55,6 @@ export class PropertyListingComponent implements OnChanges {
   dropIndicatorSide: 'left' | 'right' | null = null;
   listingDescriptionExpanded = false;
   descriptionHasOverflow = false;
-  listingImageTargetMinBytes = 150 * 1024;
-  listingImageTargetMaxBytes = 500 * 1024;
   @ViewChild('photoUploadInput') photoUploadInput?: ElementRef<HTMLInputElement>;
   @ViewChild('descriptionContent') descriptionContent?: ElementRef<HTMLElement>;
 
@@ -64,7 +63,8 @@ export class PropertyListingComponent implements OnChanges {
     private propertyPhotoService: PropertyPhotoService,
     private propertyListingShareService: PropertyListingShareService,
     private clipboard: Clipboard,
-    private toastr: ToastrService
+    private toastr: ToastrService,
+    private utilityService: UtilityService
   ) {}
 
   //#region Property Listing
@@ -651,162 +651,8 @@ export class PropertyListingComponent implements OnChanges {
   }
 
   async createOptimizedPhotoDetails(file: File): Promise<FileDetails> {
-    try {
-      const optimizedBlob = await this.optimizeUploadedListingImage(file);
-      const optimizedDataUrl = await this.blobToDataUrl(optimizedBlob);
-      const base64String = optimizedDataUrl.includes(',') ? optimizedDataUrl.split(',')[1] : optimizedDataUrl;
-      const optimizedName = optimizedBlob.type === 'image/jpeg'
-        ? file.name.replace(/\.[^/.]+$/, '.jpg')
-        : file.name;
-
-      return {
-        fileName: optimizedName,
-        contentType: optimizedBlob.type || 'image/jpeg',
-        file: base64String,
-        dataUrl: optimizedDataUrl
-      };
-    } catch {
-      const originalDataUrl = await this.fileToDataUrl(file);
-      const base64String = originalDataUrl.includes(',') ? originalDataUrl.split(',')[1] : originalDataUrl;
-      return {
-        fileName: file.name,
-        contentType: file.type || 'image/jpeg',
-        file: base64String,
-        dataUrl: originalDataUrl
-      };
-    }
-  }
-
-  async optimizeUploadedListingImage(file: File): Promise<Blob> {
-    if (!file.type.startsWith('image/') && !this.isHeicLikeFile(file)) {
-      return file;
-    }
-
-    const normalizedFile = await this.convertHeicToJpegIfNeeded(file);
-    if (normalizedFile.size <= this.listingImageTargetMaxBytes) {
-      return normalizedFile;
-    }
-
-    const image = await this.loadImageFromFile(normalizedFile);
-    const largestSide = Math.max(image.width, image.height);
-    const initialScale = largestSide > 1800 ? 1800 / largestSide : 1;
-
-    let scale = initialScale;
-    let quality = 0.82;
-    let bestBlob: Blob | null = null;
-
-    for (let attempt = 0; attempt < 8; attempt++) {
-      const nextBlob = await this.renderCompressedJpegBlob(image, scale, quality);
-      if (!nextBlob) {
-        break;
-      }
-      bestBlob = nextBlob;
-
-      if (nextBlob.size <= this.listingImageTargetMaxBytes && nextBlob.size >= this.listingImageTargetMinBytes) {
-        break;
-      }
-
-      if (nextBlob.size > this.listingImageTargetMaxBytes) {
-        if (quality > 0.5) {
-          quality = Math.max(0.5, quality - 0.1);
-        } else {
-          scale *= 0.85;
-          quality = 0.78;
-        }
-        continue;
-      }
-
-      break;
-    }
-
-    if (!bestBlob || bestBlob.size >= normalizedFile.size) {
-      return normalizedFile;
-    }
-
-    return bestBlob;
-  }
-
-  isHeicLikeFile(file: File): boolean {
-    const fileType = (file.type || '').toLowerCase();
-    const fileName = (file.name || '').toLowerCase();
-    return fileType.includes('heic') || fileType.includes('heif') || fileName.endsWith('.heic') || fileName.endsWith('.heif');
-  }
-
-  async convertHeicToJpegIfNeeded(file: File): Promise<File> {
-    if (!this.isHeicLikeFile(file)) {
-      return file;
-    }
-
-    const heic2anyModule = await import('heic2any');
-    const heic2any = heic2anyModule.default;
-    const converted = await heic2any({
-      blob: file,
-      toType: 'image/jpeg',
-      quality: 0.9
-    });
-
-    const convertedBlob = Array.isArray(converted) ? converted[0] : converted;
-    if (!(convertedBlob instanceof Blob)) {
-      throw new Error('Unsupported HEIC conversion result.');
-    }
-
-    const convertedName = file.name.replace(/\.(heic|heif)$/i, '.jpg');
-    return new File([convertedBlob], convertedName, { type: 'image/jpeg' });
-  }
-
-  loadImageFromFile(file: File): Promise<HTMLImageElement> {
-    return new Promise((resolve, reject) => {
-      const objectUrl = URL.createObjectURL(file);
-      const image = new Image();
-      image.onload = () => {
-        URL.revokeObjectURL(objectUrl);
-        resolve(image);
-      };
-      image.onerror = () => {
-        URL.revokeObjectURL(objectUrl);
-        reject(new Error('Unable to decode image'));
-      };
-      image.src = objectUrl;
-    });
-  }
-
-  renderCompressedJpegBlob(image: HTMLImageElement, scale: number, quality: number): Promise<Blob | null> {
-    return new Promise(resolve => {
-      const targetWidth = Math.max(1, Math.floor(image.width * scale));
-      const targetHeight = Math.max(1, Math.floor(image.height * scale));
-      const canvas = document.createElement('canvas');
-      canvas.width = targetWidth;
-      canvas.height = targetHeight;
-
-      const context = canvas.getContext('2d');
-      if (!context) {
-        resolve(null);
-        return;
-      }
-
-      context.fillStyle = '#ffffff';
-      context.fillRect(0, 0, targetWidth, targetHeight);
-      context.drawImage(image, 0, 0, targetWidth, targetHeight);
-      canvas.toBlob(blob => resolve(blob), 'image/jpeg', quality);
-    });
-  }
-
-  blobToDataUrl(blob: Blob): Promise<string> {
-    return new Promise((resolve, reject) => {
-      const reader = new FileReader();
-      reader.onload = () => resolve(typeof reader.result === 'string' ? reader.result : '');
-      reader.onerror = () => reject(new Error('Unable to read blob as data URL'));
-      reader.readAsDataURL(blob);
-    });
-  }
-
-  fileToDataUrl(file: File): Promise<string> {
-    return new Promise((resolve, reject) => {
-      const reader = new FileReader();
-      reader.onload = () => resolve(typeof reader.result === 'string' ? reader.result : '');
-      reader.onerror = () => reject(new Error('Unable to read file'));
-      reader.readAsDataURL(file);
-    });
+    const payload = await this.utilityService.buildOptimizedUploadPayload(file);
+    return payload.fileDetails;
   }
   //#endregion
 }

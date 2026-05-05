@@ -422,31 +422,24 @@ export class AccountingOfficeComponent implements OnInit, OnDestroy, OnChanges {
   //#endregion
 
   //#region Logo methods
-  upload(event: Event): void {
+  async upload(event: Event): Promise<void> {
     this.isUploadingLogo = true;
-    const input = event.target as HTMLInputElement;
-    if (input.files?.length) {
-      const file = input.files[0];
+    const file = this.utilityService.getFirstSelectedFile(event);
+    if (!file) {
+      this.isUploadingLogo = false;
+      return;
+    }
 
-      this.fileName = file.name;
-      this.form.patchValue({ fileUpload: file });
-      this.form.get('fileUpload').updateValueAndValidity();
-      this.logoPath = null; // Clear existing logo path when new file is selected
-      this.hasNewFileUpload = true; // Mark that this is a new file upload
-
-      this.fileDetails = <FileDetails>({ contentType: file.type, fileName: file.name, file: '', dataUrl: '' });
-      const fileReader = new FileReader();
-      fileReader.onload = (): void => {
-        // readAsDataURL returns a data URL (e.g., "data:image/png;base64,iVBORw0KG...")
-        const dataUrl = fileReader.result as string;
-        this.fileDetails.dataUrl = dataUrl;
-        // Extract base64 string from data URL for API upload
-        // Format: "data:image/png;base64,iVBORw0KG..." -> extract part after comma
-        const base64String = dataUrl.split(',')[1];
-        this.fileDetails.file = base64String;
-        this.isUploadingLogo = false;
-      };
-      fileReader.readAsDataURL(file);
+    try {
+      const payload = await this.utilityService.buildOptimizedUploadPayload(file);
+      this.fileName = payload.fileDetails.fileName;
+      this.form.patchValue({ fileUpload: payload.uploadFile });
+      this.form.get('fileUpload')?.updateValueAndValidity();
+      this.logoPath = null;
+      this.hasNewFileUpload = true;
+      this.fileDetails = payload.fileDetails;
+    } finally {
+      this.isUploadingLogo = false;
     }
   }
   

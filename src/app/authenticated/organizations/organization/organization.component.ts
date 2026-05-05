@@ -262,29 +262,24 @@ export class OrganizationComponent implements OnInit, OnDestroy {
   //#endregion
 
   //#region Logo Methods
-  upload(event: Event): void {
+  async upload(event: Event): Promise<void> {
     this.isUploadingLogo = true;
-    const input = event.target as HTMLInputElement;
-    if (input.files?.length) {
-      const file = input.files[0];
+    const file = this.utilityService.getFirstSelectedFile(event);
+    if (!file) {
+      this.isUploadingLogo = false;
+      return;
+    }
 
-      this.fileName = file.name;
-      this.form.patchValue({ fileUpload: file });
-      this.form.get('fileUpload').updateValueAndValidity();
-      this.logoPath = null; // Clear existing logo path when new file is selected
-      this.hasNewFileUpload = true; // Mark that this is a new file upload
-
-      this.fileDetails = <FileDetails>({ contentType: file.type, fileName: file.name, file: '', dataUrl: '' });
-      const fileReader = new FileReader();
-      fileReader.onload = (): void => {
-        // Convert file to base64 string for preview and upload
-        const base64String = btoa(fileReader.result as string);
-        this.fileDetails.file = base64String;
-        // Construct dataUrl for display
-        this.fileDetails.dataUrl = `data:${file.type};base64,${base64String}`;
-        this.isUploadingLogo = false;
-      };
-      fileReader.readAsBinaryString(file);
+    try {
+      const payload = await this.utilityService.buildOptimizedUploadPayload(file);
+      this.fileName = payload.fileDetails.fileName;
+      this.form.patchValue({ fileUpload: payload.uploadFile });
+      this.form.get('fileUpload')?.updateValueAndValidity();
+      this.logoPath = null;
+      this.hasNewFileUpload = true;
+      this.fileDetails = payload.fileDetails;
+    } finally {
+      this.isUploadingLogo = false;
     }
   }
 

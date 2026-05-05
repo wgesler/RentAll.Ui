@@ -8,6 +8,7 @@ import { PropertyResponse } from '../../properties/models/property.model';
 import { ImageViewDialogComponent } from '../../shared/modals/image-view-dialog/image-view-dialog.component';
 import { ImageViewDialogData } from '../../shared/modals/image-view-dialog/image-view-dialog-data';
 import { ApplianceRequest, ApplianceResponse } from '../models/appliance.model';
+import { UtilityService } from '../../../services/utility.service';
 
 interface ApplianceEditRow {
   rowId: number;
@@ -42,7 +43,8 @@ export class MaintenanceApplianceListComponent implements OnChanges {
   rowCounter = 0;
 
   constructor(
-    private dialog: MatDialog
+    private dialog: MatDialog,
+    private utilityService: UtilityService
   ) {}
 
   //#region Maintenance Appliance List
@@ -121,26 +123,24 @@ export class MaintenanceApplianceListComponent implements OnChanges {
 
   async onDecalSelected(row: ApplianceEditRow, event: Event): Promise<void> {
     const target = event.target as HTMLInputElement;
-    const file = target.files && target.files.length > 0 ? target.files[0] : null;
+    const file = this.utilityService.getFirstSelectedFile(event);
     if (!file) {
       return;
     }
-    row.fileDetails = {
-      fileName: file.name,
-      contentType: file.type || 'image/jpeg',
-      file: '',
-      dataUrl: ''
-    };
-    row.hasNewFileUpload = true;
-    row.decalPath = null;
-    const dataUrl = await this.readFileAsDataUrl(file);
-    const base64 = dataUrl.includes(',') ? dataUrl.split(',')[1] : dataUrl;
-    if (row.fileDetails) {
-      row.fileDetails.dataUrl = dataUrl;
-      row.fileDetails.file = base64;
+    try {
+      const payload = await this.utilityService.buildOptimizedUploadPayload(file);
+      row.fileDetails = {
+        fileName: payload.fileDetails.fileName,
+        contentType: payload.fileDetails.contentType,
+        file: payload.fileDetails.file,
+        dataUrl: payload.fileDetails.dataUrl
+      };
+      row.hasNewFileUpload = true;
+      row.decalPath = null;
+      row.decalPreviewDataUrl = payload.fileDetails.dataUrl;
+    } finally {
+      target.value = '';
     }
-    row.decalPreviewDataUrl = dataUrl;
-    target.value = '';
   }
 
   removeDecal(row: ApplianceEditRow): void {
@@ -271,15 +271,6 @@ export class MaintenanceApplianceListComponent implements OnChanges {
     const deleteIds: number[] = [];
     const hasChanges = upserts.length > 0 || hasInvalidRows;
     return { upserts, deleteIds, hasChanges, hasInvalidRows };
-  }
-
-  readFileAsDataUrl(file: File): Promise<string> {
-    return new Promise((resolve, reject) => {
-      const reader = new FileReader();
-      reader.onload = () => resolve((reader.result as string) || '');
-      reader.onerror = () => reject(new Error('Unable to read selected image.'));
-      reader.readAsDataURL(file);
-    });
   }
 
   resolveFileDetailsDataUrl(fileDetails?: FileDetails): string | null {

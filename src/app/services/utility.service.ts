@@ -5,15 +5,23 @@ import { ContactResponse } from '../authenticated/contacts/models/contact.model'
 import { EntityType } from '../authenticated/contacts/models/contact-enum';
 import { ReservationListResponse, ReservationResponse } from '../authenticated/reservations/models/reservation-model';
 import { ReservationType } from '../authenticated/reservations/models/reservation-enum';
+import { FileDetails } from '../shared/models/fileDetails';
 import { FormatterService } from './formatter-service';
 /** SQL **DATE** / JSON calendar (`YYYY-MM-DD`); not a zoned instant. */
 export type CalendarDateString = string;
+export interface OptimizedUploadPayload {
+  uploadFile: File;
+  fileDetails: FileDetails;
+  wasOptimized: boolean;
+}
 
 @Injectable({
   providedIn: 'root'
 })
 export class UtilityService {
   private measurementCanvas: HTMLCanvasElement | null = null;
+  readonly defaultImageTargetMinBytes = 150 * 1024;
+  readonly defaultImageTargetMaxBytes = 500 * 1024;
 
   constructor(private formatterService: FormatterService) { }
 
@@ -477,6 +485,219 @@ export class UtilityService {
     const h = String(d.getHours()).padStart(2, '0');
     const min = String(d.getMinutes()).padStart(2, '0');
     return `${y}-${m}-${day}_${h}-${min}`;
+  }
+  //#endregion
+
+  //#region Upload/Image Optimization
+  async optimizeUploadedImage(
+    file: File,
+    options?: {
+      targetMinBytes?: number;
+      targetMaxBytes?: number;
+      maxDimension?: number;
+      maxAttempts?: number;
+      initialQuality?: number;
+      minQuality?: number;
+      qualityStep?: number;
+      scaleStep?: number;
+    }
+  ): Promise<Blob> {
+    const targetMinBytes = options?.targetMinBytes ?? this.defaultImageTargetMinBytes;
+    const targetMaxBytes = options?.targetMaxBytes ?? this.defaultImageTargetMaxBytes;
+    const maxDimension = options?.maxDimension ?? 1800;
+    const maxAttempts = options?.maxAttempts ?? 8;
+    const initialQuality = options?.initialQuality ?? 0.82;
+    const minQuality = options?.minQuality ?? 0.5;
+    const qualityStep = options?.qualityStep ?? 0.1;
+    const scaleStep = options?.scaleStep ?? 0.85;
+
+    if (!file.type.startsWith('image/') && !this.isHeicLikeFile(file)) {
+      return file;
+    }
+
+    const normalizedFile = await this.convertHeicToJpegIfNeeded(file);
+    if (normalizedFile.size <= targetMaxBytes) {
+      return normalizedFile;
+    }
+
+    const image = await this.loadImageFromFile(normalizedFile);
+    const largestSide = Math.max(image.width, image.height);
+    const initialScale = largestSide > maxDimension ? maxDimension / largestSide : 1;
+    let scale = initialScale;
+    let quality = initialQuality;
+    let bestBlob: Blob | null = null;
+
+    for (let attempt = 0; attempt < maxAttempts; attempt++) {
+      const nextBlob = await this.renderCompressedJpegBlob(image, scale, quality);
+      if (!nextBlob) {
+        break;
+      }
+      bestBlob = nextBlob;
+
+      if (nextBlob.size <= targetMaxBytes && nextBlob.size >= targetMinBytes) {
+        break;
+      }
+
+      if (nextBlob.size > targetMaxBytes) {
+        if (quality > minQuality) {
+          quality = Math.max(minQuality, quality - qualityStep);
+        } else {
+          scale *= scaleStep;
+          quality = initialQuality;
+        }
+        continue;
+      }
+
+      break;
+    }
+
+    if (!bestBlob || bestBlob.size >= normalizedFile.size) {
+      return normalizedFile;
+    }
+
+    return bestBlob;
+  }
+
+  isHeicLikeFile(file: File): boolean {
+    const fileType = (file.type || '').toLowerCase();
+    const fileName = (file.name || '').toLowerCase();
+    return fileType.includes('heic') || fileType.includes('heif') || fileName.endsWith('.heic') || fileName.endsWith('.heif');
+  }
+
+  async convertHeicToJpegIfNeeded(file: File): Promise<File> {
+    if (!this.isHeicLikeFile(file)) {
+      return file;
+    }
+
+    try {
+      const heic2anyModule = await import('heic2any');
+      const heic2any = heic2anyModule.default;
+      const converted = await heic2any({
+        blob: file,
+        toType: 'image/jpeg',
+        quality: 0.9
+      });
+
+      const convertedBlob = Array.isArray(converted) ? converted[0] : converted;
+      if (!(convertedBlob instanceof Blob)) {
+        throw new Error('Unsupported HEIC conversion result.');
+      }
+
+      const convertedName = file.name.replace(/\.(heic|heif)$/i, '.jpg');
+      return new File([convertedBlob], convertedName, { type: 'image/jpeg' });
+    } catch {
+      throw new Error('Unable to process HEIC image. Please convert to JPG/PNG and try again.');
+    }
+  }
+
+  loadImageFromFile(file: File): Promise<HTMLImageElement> {
+    return new Promise((resolve, reject) => {
+      const objectUrl = URL.createObjectURL(file);
+      const image = new Image();
+      image.onload = () => {
+        URL.revokeObjectURL(objectUrl);
+        resolve(image);
+      };
+      image.onerror = () => {
+        URL.revokeObjectURL(objectUrl);
+        reject(new Error('Unable to decode image'));
+      };
+      image.src = objectUrl;
+    });
+  }
+
+  renderCompressedJpegBlob(image: HTMLImageElement, scale: number, quality: number): Promise<Blob | null> {
+    return new Promise(resolve => {
+      const targetWidth = Math.max(1, Math.floor(image.width * scale));
+      const targetHeight = Math.max(1, Math.floor(image.height * scale));
+      const canvas = document.createElement('canvas');
+      canvas.width = targetWidth;
+      canvas.height = targetHeight;
+
+      const context = canvas.getContext('2d');
+      if (!context) {
+        resolve(null);
+        return;
+      }
+
+      context.fillStyle = '#ffffff';
+      context.fillRect(0, 0, targetWidth, targetHeight);
+      context.drawImage(image, 0, 0, targetWidth, targetHeight);
+      canvas.toBlob(blob => resolve(blob), 'image/jpeg', quality);
+    });
+  }
+
+  blobToDataUrl(blob: Blob): Promise<string> {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(typeof reader.result === 'string' ? reader.result : '');
+      reader.onerror = () => reject(new Error('Unable to read blob as data URL'));
+      reader.readAsDataURL(blob);
+    });
+  }
+
+  fileToDataUrl(file: File): Promise<string> {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(typeof reader.result === 'string' ? reader.result : '');
+      reader.onerror = () => reject(new Error('Unable to read file'));
+      reader.readAsDataURL(file);
+    });
+  }
+
+  getFirstSelectedFile(event: Event): File | null {
+    const input = event.target as HTMLInputElement;
+    return input.files && input.files.length > 0 ? input.files[0] : null;
+  }
+
+  async buildOptimizedUploadPayload(
+    file: File,
+    options?: {
+      targetMinBytes?: number;
+      targetMaxBytes?: number;
+      fallbackContentType?: string;
+    }
+  ): Promise<OptimizedUploadPayload> {
+    const fallbackContentType = options?.fallbackContentType || 'image/jpeg';
+
+    try {
+      const optimizedBlob = await this.optimizeUploadedImage(file, {
+        targetMinBytes: options?.targetMinBytes,
+        targetMaxBytes: options?.targetMaxBytes
+      });
+      const optimizedDataUrl = await this.blobToDataUrl(optimizedBlob);
+      const optimizedContentType = optimizedBlob.type || file.type || fallbackContentType;
+      const optimizedName = optimizedContentType === 'image/jpeg'
+        ? file.name.replace(/\.[^/.]+$/, '.jpg')
+        : file.name;
+      const base64String = optimizedDataUrl.includes(',') ? optimizedDataUrl.split(',')[1] : optimizedDataUrl;
+      const uploadFile = new File([optimizedBlob], optimizedName, { type: optimizedContentType });
+      return {
+        uploadFile,
+        fileDetails: {
+          contentType: optimizedContentType,
+          fileName: optimizedName,
+          file: base64String,
+          dataUrl: optimizedDataUrl
+        },
+        wasOptimized: uploadFile.name !== file.name
+          || uploadFile.type !== file.type
+          || uploadFile.size !== file.size
+      };
+    } catch {
+      const originalDataUrl = await this.fileToDataUrl(file);
+      const base64String = originalDataUrl.includes(',') ? originalDataUrl.split(',')[1] : originalDataUrl;
+      return {
+        uploadFile: file,
+        fileDetails: {
+          contentType: file.type || fallbackContentType,
+          fileName: file.name,
+          file: base64String,
+          dataUrl: originalDataUrl
+        },
+        wasOptimized: false
+      };
+    }
   }
   //#endregion
 

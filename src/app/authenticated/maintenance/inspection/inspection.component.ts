@@ -2231,15 +2231,15 @@ export class InspectionComponent implements OnChanges, OnDestroy, OnInit {
 
   //#region Photo Optimization
   async optimizePhotoForUpload(file: File, sectionKey: string, repeatIndex: number, itemId: string): Promise<{ dataUrl: string; base64: string; fileName: string; contentType: string; previewDataUrl: string }> {
-    if (!file.type.startsWith('image/') && !this.isHeicLikeFile(file)) {
+    if (!file.type.startsWith('image/') && !this.utilityService.isHeicLikeFile(file)) {
       throw new Error('Only image uploads are supported for checklist photos.');
     }
     if (file.size > this.maxSourceImageBytes) {
       throw new Error('Image is too large. Maximum file size is 20 MB.');
     }
 
-    const normalizedFile = await this.convertHeicToJpegIfNeeded(file);
-    const sourceDataUrl = await this.readFileAsDataUrl(normalizedFile);
+    const normalizedFile = await this.utilityService.convertHeicToJpegIfNeeded(file);
+    const sourceDataUrl = await this.utilityService.fileToDataUrl(normalizedFile);
     const image = await this.loadImageElement(sourceDataUrl);
     const scaled = this.getScaledDimensions(image.naturalWidth || image.width, image.naturalHeight || image.height, this.maxImageDimension);
 
@@ -2269,7 +2269,7 @@ export class InspectionComponent implements OnChanges, OnDestroy, OnInit {
           bestBlob = blob;
         }
         if (blob.size <= this.maxUploadedImageBytes) {
-          const dataUrl = await this.readBlobAsDataUrl(blob);
+          const dataUrl = await this.utilityService.blobToDataUrl(blob);
           const base64 = dataUrl.split(',')[1] || '';
           const fileName = this.buildCompressedPhotoName(file.name, sectionKey, repeatIndex, itemId);
           return {
@@ -2287,7 +2287,7 @@ export class InspectionComponent implements OnChanges, OnDestroy, OnInit {
     }
 
     if (bestBlob) {
-      const dataUrl = await this.readBlobAsDataUrl(bestBlob);
+      const dataUrl = await this.utilityService.blobToDataUrl(bestBlob);
       const base64 = dataUrl.split(',')[1] || '';
       const fileName = this.buildCompressedPhotoName(file.name, sectionKey, repeatIndex, itemId);
       return {
@@ -2300,36 +2300,6 @@ export class InspectionComponent implements OnChanges, OnDestroy, OnInit {
     }
 
     throw new Error('Unable to process the selected image.');
-  }
-
-  isHeicLikeFile(file: File): boolean {
-    const fileType = (file.type || '').toLowerCase();
-    const fileName = (file.name || '').toLowerCase();
-    return fileType.includes('heic') || fileType.includes('heif') || fileName.endsWith('.heic') || fileName.endsWith('.heif');
-  }
-
-  async convertHeicToJpegIfNeeded(file: File): Promise<File> {
-    if (!this.isHeicLikeFile(file)) {
-      return file;
-    }
-
-    try {
-      const heic2anyModule = await import('heic2any');
-      const heic2any = heic2anyModule.default;
-      const converted = await heic2any({
-        blob: file,
-        toType: 'image/jpeg',
-        quality: 0.9
-      }) as Blob | Blob[];
-      const convertedBlob = Array.isArray(converted) ? converted[0] : converted;
-      if (!convertedBlob) {
-        throw new Error('HEIC conversion returned no image data.');
-      }
-      const convertedName = (file.name || 'photo').replace(/\.[^/.]+$/i, '') + '.jpg';
-      return new File([convertedBlob], convertedName, { type: 'image/jpeg' });
-    } catch {
-      throw new Error('This HEIC/HEIF file could not be converted in your browser. Please convert it to JPG/PNG and try again.');
-    }
   }
 
   buildCompressedPhotoName(originalName: string, sectionKey: string, repeatIndex: number, itemId: string): string {
@@ -2353,24 +2323,6 @@ export class InspectionComponent implements OnChanges, OnDestroy, OnInit {
     }
     const scale = maxDimension / height;
     return { width: Math.max(1, Math.round(width * scale)), height: maxDimension };
-  }
-
-  readFileAsDataUrl(file: File): Promise<string> {
-    return new Promise((resolve, reject) => {
-      const reader = new FileReader();
-      reader.onload = () => resolve(reader.result as string);
-      reader.onerror = () => reject(new Error('Unable to read image file.'));
-      reader.readAsDataURL(file);
-    });
-  }
-
-  readBlobAsDataUrl(blob: Blob): Promise<string> {
-    return new Promise((resolve, reject) => {
-      const reader = new FileReader();
-      reader.onload = () => resolve(reader.result as string);
-      reader.onerror = () => reject(new Error('Unable to read optimized image.'));
-      reader.readAsDataURL(blob);
-    });
   }
 
   loadImageElement(dataUrl: string): Promise<HTMLImageElement> {
