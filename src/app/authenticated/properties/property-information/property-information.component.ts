@@ -67,7 +67,7 @@ export class PropertyInformationComponent implements OnInit, OnDestroy, OnChange
     this.loadOffices();
     this.loadOrganization();
     
-    if (!this.propertyId) {
+    if (!this.hasPersistedPropertyId()) {
       if (this.copiedPropertyInformation) 
         this.populateFormFromCopiedData();
       this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'property');
@@ -80,12 +80,12 @@ export class PropertyInformationComponent implements OnInit, OnDestroy, OnChange
   }
 
   ngOnChanges(changes: SimpleChanges): void {
-    if (changes['propertyId'] && this.propertyId && !changes['propertyId'].firstChange) {
+    if (changes['propertyId'] && this.hasPersistedPropertyId() && !changes['propertyId'].firstChange) {
       this.loadPropertyData();
       this.getPropertyLetter();
     }
     
-    if (changes['copiedPropertyInformation'] && this.copiedPropertyInformation && !this.propertyId) {
+    if (changes['copiedPropertyInformation'] && this.copiedPropertyInformation && !this.hasPersistedPropertyId()) {
       this.populateFormFromCopiedData();
       this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'property');
       this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'propertyInformation');
@@ -100,12 +100,12 @@ export class PropertyInformationComponent implements OnInit, OnDestroy, OnChange
   }
   
   getPropertyLetter(): void {
-    if (!this.propertyId) {
+    if (!this.hasPersistedPropertyId()) {
       this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'propertyInformation');
       return;
     }
 
-    this.propertyLetterService.getPropertyInformationByGuid(this.propertyId).pipe(take(1), finalize(() => { this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'propertyInformation'); })).subscribe({
+    this.propertyLetterService.getPropertyInformationByGuid(this.propertyId as string).pipe(take(1), finalize(() => { this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'propertyInformation'); })).subscribe({
       next: (response: PropertyLetterResponse) => {
         if (response) {
           this.form.patchValue({
@@ -139,7 +139,7 @@ export class PropertyInformationComponent implements OnInit, OnDestroy, OnChange
   }
     
   savePropertyLetter(): void {
-    if (!this.propertyId) {
+    if (!this.hasPersistedPropertyId()) {
       this.toastr.error('Property must be saved first before saving property letter information.', CommonMessage.Error);
       return;
     }
@@ -150,7 +150,7 @@ export class PropertyInformationComponent implements OnInit, OnDestroy, OnChange
     const formValue = this.form.getRawValue();
 
     const propertyLetterRequest: PropertyLetterRequest = {
-      propertyId: this.propertyId,
+      propertyId: this.propertyId as string,
       organizationId: user?.organizationId || '',
       arrivalInstructions: formValue.arrivalInstructions || undefined,
       access: formValue.access || undefined,
@@ -169,7 +169,7 @@ export class PropertyInformationComponent implements OnInit, OnDestroy, OnChange
       additionalNotes: formValue.additionalNotes || undefined
     };
 
-    this.propertyLetterService.getPropertyInformationByGuid(this.propertyId).pipe(take(1)).subscribe({
+    this.propertyLetterService.getPropertyInformationByGuid(this.propertyId as string).pipe(take(1)).subscribe({
       next: () => {
         this.propertyLetterService.updatePropertyLetter(propertyLetterRequest).pipe(take(1), finalize(() => this.isSubmitting = false)).subscribe({
           next: () => {
@@ -229,12 +229,12 @@ export class PropertyInformationComponent implements OnInit, OnDestroy, OnChange
   }
 
   loadPropertyData(): void {
-    if (!this.propertyId) {
+    if (!this.hasPersistedPropertyId()) {
       this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'property');
       return;
     }
 
-    this.propertyService.getPropertyByGuid(this.propertyId).pipe(take(1), finalize(() => { this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'property'); })).subscribe({
+    this.propertyService.getPropertyByGuid(this.propertyId as string).pipe(take(1), finalize(() => { this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'property'); })).subscribe({
       next: (response: PropertyResponse) => {
         this.property = response;
         if (response.officeId && this.offices.length > 0) {
@@ -367,6 +367,10 @@ export class PropertyInformationComponent implements OnInit, OnDestroy, OnChange
   //#region Utility Methods
   formatPhone(): void {
     this.formatterService.formatPhoneControl(this.form.get('emergencyContactNumber'));
+  }
+
+  hasPersistedPropertyId(): boolean {
+    return !!this.propertyId && this.propertyId !== 'new';
   }
 
   ngOnDestroy(): void {

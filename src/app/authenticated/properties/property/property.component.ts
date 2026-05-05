@@ -659,8 +659,8 @@ export class PropertyComponent implements OnInit, AfterViewInit, OnDestroy, CanC
       formData.minStay = this.property.minStay ?? 0;
       formData.maxStay = this.property.maxStay ?? 0;
       
-      formData.availableFrom = this.utilityService.parseDateOnlyStringToDate(this.property.availableFrom ?? null);
-      formData.availableUntil = this.utilityService.parseDateOnlyStringToDate(this.property.availableUntil ?? null);
+      formData.availableFrom = this.utilityService.parseCalendarDateInput(this.property.availableFrom ?? null);
+      formData.availableUntil = this.utilityService.parseCalendarDateInput(this.property.availableUntil ?? null);
       // Normalize values
       formData.checkInTimeId = normalizeCheckInTimeId(this.property.checkInTimeId);
       formData.checkOutTimeId = normalizeCheckOutTimeId(this.property.checkOutTimeId);
