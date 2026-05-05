@@ -15,6 +15,13 @@ export interface OptimizedUploadPayload {
   wasOptimized: boolean;
 }
 
+type FileDetailsLike = {
+  fileName?: string;
+  contentType?: string;
+  file?: string;
+  dataUrl?: string;
+};
+
 @Injectable({
   providedIn: 'root'
 })
@@ -702,7 +709,7 @@ export class UtilityService {
   //#endregion
 
   //#region File Preview Helpers
-  resolveFileDetailsDataUrl(fileDetails?: FileDetails | null, fallbackPath?: string | null): string | null {
+  resolveFileDetailsDataUrl(fileDetails?: FileDetailsLike | null, fallbackPath?: string | null): string | null {
     if (!fileDetails) {
       return null;
     }
