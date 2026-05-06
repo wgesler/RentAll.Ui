@@ -78,7 +78,7 @@ export class PropertyComponent implements OnInit, AfterViewInit, OnDestroy, CanC
   propertyId: string;
   property: PropertyResponse;
   selectedReservationId: string | null = null;
-  copiedPropertyInformation: PropertyInformationResponse | null = null; 
+  copiedPropertyInformation: PropertyInformationResponse | null = null;
  
   states: string[] = [];
   contacts: ContactResponse[] = [];
@@ -1824,6 +1824,19 @@ export class PropertyComponent implements OnInit, AfterViewInit, OnDestroy, CanC
 
   resolveOfficeScope(officeId: number | null): void {
     this.selectedOffice = this.utilityService.resolveSelectedOfficeById(this.offices, officeId);
+  }
+
+  quickInsertCodeSymbol(controlName: string, symbol: string): void {
+    const codeControl = this.form.get(controlName);
+    if (!codeControl) {
+      return;
+    }
+
+    const currentValue = String(codeControl.value ?? '');
+    const nextValue = `${currentValue}${symbol}`.slice(0, 20);
+    codeControl.setValue(nextValue);
+    codeControl.markAsDirty();
+    codeControl.markAsTouched();
   }
 
   ngOnDestroy(): void {

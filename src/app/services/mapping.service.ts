@@ -901,6 +901,7 @@ export class MappingService {
         workOrderTypeId: workOrder.workOrderTypeId,
         workOrderType: getWorkOrderType(workOrder.workOrderTypeId),
         applyMarkup: workOrder.applyMarkup === true,
+        enteredInQb: workOrder.enteredInQb === true,
         isActive: workOrder.isActive,
         modifiedOn: this.formatter.formatDateString(workOrder.modifiedOn),
         modifiedBy: workOrder.modifiedBy

@@ -596,41 +596,81 @@
                   <mat-checkbox formControlName="elevator">Elevator</mat-checkbox>
                   <mat-checkbox formControlName="security">Security</mat-checkbox>
                   <mat-checkbox formControlName="gated">Gated</mat-checkbox>
-                  <mat-form-field appearance="outline" class="min-w-0">
+                  <mat-form-field appearance="outline" class="min-w-0 code-symbol-field">
                     <mat-label>Alarm Code</mat-label>
-                    <input matInput formControlName="alarmCode" maxlength="32">
+                    <input matInput formControlName="alarmCode" maxlength="20">
+                    <div matSuffix class="code-symbol-suffix">
+                      <button type="button" class="code-symbol-btn" (click)="quickInsertCodeSymbol('alarmCode', '*')" matTooltip="Insert *">⭐</button>
+                      <button type="button" class="code-symbol-btn" (click)="quickInsertCodeSymbol('alarmCode', '✅')" matTooltip="Insert ✅">✅</button>
+                      <button type="button" class="code-symbol-btn" (click)="quickInsertCodeSymbol('alarmCode', '↩️')" matTooltip="Insert ↩️">↩️</button>
+                    </div>
                   </mat-form-field>
-                  <mat-form-field appearance="outline" class="min-w-0">
+                  <mat-form-field appearance="outline" class="min-w-0 code-symbol-field">
                     <mat-label>Mail Code</mat-label>
-                    <input matInput formControlName="mailRoomCode" maxlength="32">
+                    <input matInput formControlName="mailRoomCode" maxlength="20">
+                    <div matSuffix class="code-symbol-suffix">
+                      <button type="button" class="code-symbol-btn" (click)="quickInsertCodeSymbol('mailRoomCode', '*')" matTooltip="Insert *">⭐</button>
+                      <button type="button" class="code-symbol-btn" (click)="quickInsertCodeSymbol('mailRoomCode', '✅')" matTooltip="Insert ✅">✅</button>
+                      <button type="button" class="code-symbol-btn" (click)="quickInsertCodeSymbol('mailRoomCode', '↩️')" matTooltip="Insert ↩️">↩️</button>
+                    </div>
                   </mat-form-field>
                 </div>
 
                 <!-- Line 2: 7 codes -->
                 <div class="features-code-fields-row features-content">
-                  <mat-form-field appearance="outline">
+                  <mat-form-field appearance="outline" class="code-symbol-field">
                     <mat-label>Bldg Code</mat-label>
-                    <input matInput formControlName="bldgMstrCode" maxlength="32">
+                    <input matInput formControlName="bldgMstrCode" maxlength="20">
+                    <div matSuffix class="code-symbol-suffix">
+                      <button type="button" class="code-symbol-btn" (click)="quickInsertCodeSymbol('bldgMstrCode', '*')" matTooltip="Insert *">⭐</button>
+                      <button type="button" class="code-symbol-btn" (click)="quickInsertCodeSymbol('bldgMstrCode', '✅')" matTooltip="Insert ✅">✅</button>
+                      <button type="button" class="code-symbol-btn" (click)="quickInsertCodeSymbol('bldgMstrCode', '↩️')" matTooltip="Insert ↩️">↩️</button>
+                    </div>
                   </mat-form-field>
-                  <mat-form-field appearance="outline">
+                  <mat-form-field appearance="outline" class="code-symbol-field">
                     <mat-label>Unit Mstr Code</mat-label>
-                    <input matInput formControlName="unitMstrCode" maxlength="32">
+                    <input matInput formControlName="unitMstrCode" maxlength="20">
+                    <div matSuffix class="code-symbol-suffix">
+                      <button type="button" class="code-symbol-btn" (click)="quickInsertCodeSymbol('unitMstrCode', '*')" matTooltip="Insert *">⭐</button>
+                      <button type="button" class="code-symbol-btn" (click)="quickInsertCodeSymbol('unitMstrCode', '✅')" matTooltip="Insert ✅">✅</button>
+                      <button type="button" class="code-symbol-btn" (click)="quickInsertCodeSymbol('unitMstrCode', '↩️')" matTooltip="Insert ↩️">↩️</button>
+                    </div>
                   </mat-form-field>
-                  <mat-form-field appearance="outline">
+                  <mat-form-field appearance="outline" class="code-symbol-field">
                     <mat-label>Garage Code</mat-label>
-                    <input matInput formControlName="garageCode" maxlength="32">
+                    <input matInput formControlName="garageCode" maxlength="20">
+                    <div matSuffix class="code-symbol-suffix">
+                      <button type="button" class="code-symbol-btn" (click)="quickInsertCodeSymbol('garageCode', '*')" matTooltip="Insert *">⭐</button>
+                      <button type="button" class="code-symbol-btn" (click)="quickInsertCodeSymbol('garageCode', '✅')" matTooltip="Insert ✅">✅</button>
+                      <button type="button" class="code-symbol-btn" (click)="quickInsertCodeSymbol('garageCode', '↩️')" matTooltip="Insert ↩️">↩️</button>
+                    </div>
                   </mat-form-field>
-                  <mat-form-field appearance="outline">
+                  <mat-form-field appearance="outline" class="code-symbol-field">
                     <mat-label>Gate Code</mat-label>
-                    <input matInput formControlName="gateCode" maxlength="32">
+                    <input matInput formControlName="gateCode" maxlength="20">
+                    <div matSuffix class="code-symbol-suffix">
+                      <button type="button" class="code-symbol-btn" (click)="quickInsertCodeSymbol('gateCode', '*')" matTooltip="Insert *">⭐</button>
+                      <button type="button" class="code-symbol-btn" (click)="quickInsertCodeSymbol('gateCode', '✅')" matTooltip="Insert ✅">✅</button>
+                      <button type="button" class="code-symbol-btn" (click)="quickInsertCodeSymbol('gateCode', '↩️')" matTooltip="Insert ↩️">↩️</button>
+                    </div>
                   </mat-form-field>
-                  <mat-form-field appearance="outline">
+                  <mat-form-field appearance="outline" class="code-symbol-field">
                     <mat-label>Trash Code</mat-label>
-                    <input matInput formControlName="trashCode" maxlength="32">
+                    <input matInput formControlName="trashCode" maxlength="20">
+                    <div matSuffix class="code-symbol-suffix">
+                      <button type="button" class="code-symbol-btn" (click)="quickInsertCodeSymbol('trashCode', '*')" matTooltip="Insert *">⭐</button>
+                      <button type="button" class="code-symbol-btn" (click)="quickInsertCodeSymbol('trashCode', '✅')" matTooltip="Insert ✅">✅</button>
+                      <button type="button" class="code-symbol-btn" (click)="quickInsertCodeSymbol('trashCode', '↩️')" matTooltip="Insert ↩️">↩️</button>
+                    </div>
                   </mat-form-field>
-                  <mat-form-field appearance="outline">
+                  <mat-form-field appearance="outline" class="code-symbol-field">
                     <mat-label>Storage Code</mat-label>
-                    <input matInput formControlName="storageCode" maxlength="32">
+                    <input matInput formControlName="storageCode" maxlength="20">
+                    <div matSuffix class="code-symbol-suffix">
+                      <button type="button" class="code-symbol-btn" (click)="quickInsertCodeSymbol('storageCode', '*')" matTooltip="Insert *">⭐</button>
+                      <button type="button" class="code-symbol-btn" (click)="quickInsertCodeSymbol('storageCode', '✅')" matTooltip="Insert ✅">✅</button>
+                      <button type="button" class="code-symbol-btn" (click)="quickInsertCodeSymbol('storageCode', '↩️')" matTooltip="Insert ↩️">↩️</button>
+                    </div>
                   </mat-form-field>
                 </div>
                 <!-- Indoor / outdoor (merged from former Indoor/Outdoor panel) -->

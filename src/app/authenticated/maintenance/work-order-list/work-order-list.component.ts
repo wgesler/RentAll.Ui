@@ -5,11 +5,13 @@ import { ToastrService } from 'ngx-toastr';
 import { catchError, concatMap, finalize, forkJoin, from, map, Observable, of, switchMap, take, toArray } from 'rxjs';
 import { RouterUrl } from '../../../app.routes';
 import { MaterialModule } from '../../../material.module';
+import { AuthService } from '../../../services/auth.service';
 import { MappingService } from '../../../services/mapping.service';
 import { PropertyResponse } from '../../properties/models/property.model';
 import { DataTableComponent } from '../../shared/data-table/data-table.component';
 import { DataTableFilterActionsDirective } from '../../shared/data-table/data-table-filter-actions.directive';
 import { ColumnSet } from '../../shared/data-table/models/column-data';
+import { UserGroups } from '../../users/models/user-enums';
 import { ReceiptRequest, ReceiptResponse } from '../models/receipt.model';
 import { WorkOrderDisplayList, WorkOrderResponse } from '../models/work-order.model';
 import { ReceiptService } from '../services/receipt.service';
@@ -39,6 +41,7 @@ export class WorkOrderListComponent implements OnInit, OnChanges {
   isLoading: boolean = false;
   isServiceError: boolean = false;
   showInactive: boolean = false;
+  canViewEnteredInQb: boolean = false;
   workOrders: WorkOrderResponse[] = [];
   workOrdersDisplay: WorkOrderDisplayList[] = [];
   allWorkOrders: WorkOrderDisplayList[] = [];
@@ -55,10 +58,12 @@ export class WorkOrderListComponent implements OnInit, OnChanges {
     amountDisplay: { displayAs: 'Amount', wrap: false, maxWidth: '12ch', alignment: 'center' },
     modifiedOn: { displayAs: 'Modified On', wrap: false, maxWidth: '25ch', alignment: 'center' },
     modifiedBy: { displayAs: 'Modified By', wrap: false, maxWidth: '20ch' },
-    isActive: { displayAs: 'IsActive', isCheckbox: true, sort: false, wrap: false, alignment: 'center', maxWidth: '15ch' }
+    enteredInQb: { displayAs: 'QB', isCheckbox: true, checkboxEditable: true, sort: false, wrap: false, alignment: 'center', maxWidth: '15ch' },
+    isActive: { displayAs: 'IsActive', isCheckbox: true, checkboxEditable: true, sort: false, wrap: false, alignment: 'center', maxWidth: '15ch' }
   };
 
   constructor(
+    private authService: AuthService,
     private workOrderService: WorkOrderService,
     private receiptService: ReceiptService,
     private mappingService: MappingService,
@@ -68,6 +73,7 @@ export class WorkOrderListComponent implements OnInit, OnChanges {
 
   //#region Work-Order List
   ngOnInit(): void {
+    this.setRoleBasedColumns();
     if (!this.isActiveTab) {
       return;
     }
@@ -258,6 +264,45 @@ export class WorkOrderListComponent implements OnInit, OnChanges {
     const fromSelectedPropertyId = (this.selectedPropertyId || '').trim();
     return fromSelectedPropertyId || null;
   }
+
+  onWorkOrderCheckboxChange(event: WorkOrderDisplayList): void {
+    const changedCheckboxColumn = (event as unknown as { __changedCheckboxColumn?: string }).__changedCheckboxColumn;
+    if (changedCheckboxColumn !== 'isActive' && changedCheckboxColumn !== 'enteredInQb') {
+      return;
+    }
+    if (changedCheckboxColumn === 'enteredInQb' && !this.canViewEnteredInQb) {
+      return;
+    }
+
+    const previousValue = (event as unknown as { __previousCheckboxValue?: boolean }).__previousCheckboxValue === true;
+    const nextValue = (event as unknown as { __checkboxValue?: boolean }).__checkboxValue === true;
+    if (previousValue === nextValue) {
+      return;
+    }
+
+    const sourceWorkOrder = this.workOrders.find(workOrder => workOrder.workOrderId === event.workOrderId) || null;
+    if (!sourceWorkOrder) {
+      return;
+    }
+
+    this.applyWorkOrderCheckboxValue(event.workOrderId, changedCheckboxColumn, nextValue);
+
+    const updateRequest = this.mapWorkOrderUpdateRequest(sourceWorkOrder, changedCheckboxColumn, nextValue);
+    this.workOrderService.updateWorkOrder(updateRequest).pipe(take(1)).subscribe({
+      next: (updatedWorkOrder: WorkOrderResponse) => {
+        this.workOrders = this.workOrders.map(workOrder =>
+          workOrder.workOrderId === updatedWorkOrder.workOrderId ? updatedWorkOrder : workOrder
+        );
+        this.allWorkOrders = this.mappingService.mapWorkOrderDisplays(this.workOrders);
+        this.applyFilters();
+        this.toastr.success('Work order updated.', 'Success');
+      },
+      error: () => {
+        this.applyWorkOrderCheckboxValue(event.workOrderId, changedCheckboxColumn, previousValue);
+        this.toastr.error('Unable to update work order.', 'Error');
+      }
+    });
+  }
   //#endregion
 
   //#region Receipt Update Methods
@@ -367,6 +412,46 @@ export class WorkOrderListComponent implements OnInit, OnChanges {
     this.workOrdersDisplay = !selectedReservationId
       ? activeScoped
       : activeScoped.filter(workOrder => (workOrder.reservationId || '').trim() === selectedReservationId);
+  }
+  //#endregion
+
+  //#region Utility Methods
+  setRoleBasedColumns(): void {
+    this.canViewEnteredInQb =
+      this.authService.hasRole(UserGroups.Admin) ||
+      this.authService.hasRole(UserGroups.AccountingAdmin) ||
+      this.authService.hasRole(UserGroups.Accounting);
+
+    if (!this.canViewEnteredInQb) {
+      const columns = { ...this.workOrderDisplayedColumns };
+      delete columns['enteredInQb'];
+      this.workOrderDisplayedColumns = columns;
+    }
+  }
+
+  mapWorkOrderUpdateRequest(
+    sourceWorkOrder: WorkOrderResponse,
+    changedCheckboxColumn: 'isActive' | 'enteredInQb',
+    nextValue: boolean
+  ): WorkOrderResponse {
+    return {
+      ...sourceWorkOrder,
+      isActive: changedCheckboxColumn === 'isActive' ? nextValue : sourceWorkOrder.isActive,
+      enteredInQb: changedCheckboxColumn === 'enteredInQb' ? nextValue : sourceWorkOrder.enteredInQb
+    };
+  }
+
+  applyWorkOrderCheckboxValue(workOrderId: string, changedCheckboxColumn: 'isActive' | 'enteredInQb', nextValue: boolean): void {
+    this.allWorkOrders = this.allWorkOrders.map(workOrder =>
+      workOrder.workOrderId === workOrderId
+        ? { ...workOrder, [changedCheckboxColumn]: nextValue }
+        : workOrder
+    );
+    this.workOrdersDisplay = this.workOrdersDisplay.map(workOrder =>
+      workOrder.workOrderId === workOrderId
+        ? { ...workOrder, [changedCheckboxColumn]: nextValue }
+        : workOrder
+    );
   }
   //#endregion
 }

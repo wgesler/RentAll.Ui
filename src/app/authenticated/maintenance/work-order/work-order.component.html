@@ -34,6 +34,9 @@
       <mat-card>
         <form [formGroup]="form" (ngSubmit)="saveWorkOrder()" class="info-form pt-5" [class.mb-8]="!embeddedInMaintenance" [class.work-order-embedded-form]="embeddedInMaintenance">
           <div class="mb-4 flex justify-end" style="padding-right: 5px;">
+            <mat-checkbox formControlName="enteredInQb" color="primary">
+              Entered in QB
+            </mat-checkbox>
             <mat-checkbox formControlName="isActive" color="primary">
               IsActive
             </mat-checkbox>

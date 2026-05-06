@@ -215,6 +215,7 @@ export class WorkOrderComponent implements OnInit, OnChanges, OnDestroy {
       reservationId: this.isTenantTypeSelected() ? (this.form.get('reservationId')?.value ?? null) : null,
       reservationCode: this.isTenantTypeSelected() ? this.getSelectedReservationCode() : null,
       useDepartureFee: this.isTenantTypeSelected() ? (this.form.get('useDepartureFee')?.value === true) : false,
+      enteredInQb: this.form.get('enteredInQb')?.value === true,
       description: (this.form.get('description')?.value ?? '').trim(),
       workOrderItems: workOrderItemsForSave,
       isActive: this.form.get('isActive')?.value ?? true
@@ -269,6 +270,7 @@ export class WorkOrderComponent implements OnInit, OnChanges, OnDestroy {
           applyMarkup: saved.applyMarkup === true,
           reservationId: saved.reservationId ?? null,
           useDepartureFee: saved.useDepartureFee === true,
+          enteredInQb: saved.enteredInQb === true,
           description: saved.description ?? '',
           isActive: saved.isActive
         }, { emitEvent: false });
@@ -425,6 +427,7 @@ export class WorkOrderComponent implements OnInit, OnChanges, OnDestroy {
       applyMarkup: new FormControl(false),
       reservationId: new FormControl<string | null>(null),
       useDepartureFee: new FormControl(false),
+      enteredInQb: new FormControl(false),
       description: new FormControl('', [Validators.required]),
       isActive: new FormControl(true)
     });
@@ -441,6 +444,7 @@ export class WorkOrderComponent implements OnInit, OnChanges, OnDestroy {
       applyMarkup: workOrder.applyMarkup === true,
       reservationId: workOrder.reservationId ?? null,
       useDepartureFee: workOrder.useDepartureFee === true,
+      enteredInQb: workOrder.enteredInQb === true,
       description: workOrder.description ?? '',
       isActive: workOrder.isActive
     }, { emitEvent: false });
@@ -859,6 +863,7 @@ export class WorkOrderComponent implements OnInit, OnChanges, OnDestroy {
       reservationId: this.isTenantTypeSelected() ? (this.form.get('reservationId')?.value ?? null) : null,
       reservationCode: this.isTenantTypeSelected() ? this.getSelectedReservationCode() : null,
       useDepartureFee: this.isTenantTypeSelected() ? (this.form.get('useDepartureFee')?.value === true) : false,
+      enteredInQb: this.form.get('enteredInQb')?.value === true,
       description: (this.form.get('description')?.value ?? '').trim(),
       workOrderItems: this.mapWorkOrderItemsForSave(false),
       isActive: this.form.get('isActive')?.value ?? true,
@@ -951,6 +956,7 @@ export class WorkOrderComponent implements OnInit, OnChanges, OnDestroy {
       payloadReservationId !== workOrderReservationId ||
       payloadReservationCode !== workOrderReservationCode ||
       payload.useDepartureFee !== (this.workOrder.useDepartureFee === true) ||
+      payload.enteredInQb !== (this.workOrder.enteredInQb === true) ||
       payloadDescription !== workOrderDescription ||
       payload.isActive !== this.workOrder.isActive ||
       this.hasWorkOrderItemsChanged()
