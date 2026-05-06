@@ -30,7 +30,7 @@ import { RegionService } from '../../organizations/services/region.service';
 import { ReservationListResponse } from '../../reservations/models/reservation-model';
 import { ReservationService } from '../../reservations/services/reservation.service';
 import { CheckinTimes, CheckoutTimes, PropertyLeaseType, PropertyStatus, PropertyStyle, PropertyType, TrashDays, getBedSizeTypes, getCheckInTimes, getCheckOutTimes, getPropertyLeaseTypes, getPropertyStatuses, getPropertyStyles, getPropertyTypes, normalizeCheckInTimeId, normalizeCheckOutTimeId, normalizePropertyLeaseTypeId } from '../models/property-enums';
-import { PropertyInformationResponse } from '../models/property-information.model';
+import { PropertyInformationRequest, PropertyInformationResponse } from '../models/property-information.model';
 import { PropertyTitleBarContext } from '../models/property-title-bar-context.model';
 import { PropertyRequest, PropertyResponse } from '../models/property.model';
 import { PropertyCodeDialogComponent, PropertyCodeDialogResult } from '../property-code-dialog/property-code-dialog.component';
@@ -470,6 +470,11 @@ export class PropertyComponent implements OnInit, AfterViewInit, OnDestroy, CanC
           const persist$ = this.propertyAgreementSection?.persistAgreementForNewProperty(response.propertyId) ?? of(true);
           return persist$.pipe(map(() => response));
         }),
+        switchMap((response: PropertyResponse) =>
+          this.persistCopiedPropertyInformationAfterPropertyCreate(response).pipe(
+            map(() => response)
+          )
+        ),
         take(1),
         finalize(() => { this.isSubmitting = false; })
       ).subscribe({
@@ -517,7 +522,7 @@ export class PropertyComponent implements OnInit, AfterViewInit, OnDestroy, CanC
     }
   }
   //#endregion
-  
+
   //#region Form Methods
   buildForm(): void {
     const codeValidators = this.isAddMode ? [Validators.required] : [];
@@ -768,6 +773,50 @@ export class PropertyComponent implements OnInit, AfterViewInit, OnDestroy, CanC
     }
   }
 
+  persistCopiedPropertyInformationAfterPropertyCreate(response: PropertyResponse): Observable<void> {
+    if (!this.copiedPropertyInformation) {
+      return of(void 0);
+    }
+
+    const request = this.buildCopiedPropertyInformationRequest(response.propertyId, response.organizationId);
+    return this.propertyInformationService.createPropertyInformation(request).pipe(
+      take(1),
+      map(() => {
+        this.copiedPropertyInformation = null;
+        return void 0;
+      }),
+      catchError(() => {
+        this.toastr.error('Property created, but failed to copy Property Information.', CommonMessage.Error);
+        return of(void 0);
+      })
+    );
+  }
+
+  buildCopiedPropertyInformationRequest(propertyId: string, organizationId: string): PropertyInformationRequest {
+    const copied = this.copiedPropertyInformation;
+    return {
+      propertyId,
+      organizationId,
+      arrivalInstructions: copied?.arrivalInstructions || undefined,
+      access: copied?.access || undefined,
+      mailboxInstructions: copied?.mailboxInstructions || undefined,
+      packageInstructions: copied?.packageInstructions || undefined,
+      parkingInformation: copied?.parkingInformation || undefined,
+      amenities: copied?.amenities || undefined,
+      laundry: copied?.laundry || undefined,
+      providedFurnishings: copied?.providedFurnishings || undefined,
+      housekeeping: copied?.housekeeping || undefined,
+      televisionSource: copied?.televisionSource || undefined,
+      internetService: copied?.internetService || undefined,
+      keyReturn: copied?.keyReturn || undefined,
+      concierge: copied?.concierge || undefined,
+      maintenanceEmail: copied?.maintenanceEmail || undefined,
+      emergencyPhone: copied?.emergencyPhone || undefined,
+      additionalNotes: copied?.additionalNotes || undefined,
+      welcomeLetter: copied?.welcomeLetter || undefined
+    };
+  }
+  
   applyOfficeControlState(): void {
     const officeControl = this.form?.get('officeId');
     if (!officeControl) {
@@ -1569,33 +1618,6 @@ export class PropertyComponent implements OnInit, AfterViewInit, OnDestroy, CanC
     });
   }
 
-  filterLocationLookupsByOffice(): void {
-    const officeId = this.form?.get('officeId')?.value ?? null;
-    const officeNum = officeId != null ? Number(officeId) : null;
-
-    this.regions = officeNum != null ? this.allRegionsByOrg.filter(r => Number(r.officeId) === officeNum) : [];
-    this.areas = officeNum != null ? this.allAreasByOrg.filter(a => Number(a.officeId) === officeNum) : [];
-    this.buildings = officeNum != null ? this.allBuildingsByOrg.filter(b => Number(b.officeId) === officeNum) : [];
-
-    if (!this.form) return;
-    const regionId = this.form.get('regionId')?.value;
-    const areaId = this.form.get('areaId')?.value;
-    const buildingId = this.form.get('buildingId')?.value;
-    const updates: { regionId?: number | null; areaId?: number | null; buildingId?: number | null } = {};
-    if (regionId != null && !this.regions.some(r => r.regionId === regionId)) {
-      updates.regionId = null;
-    }
-    if (areaId != null && !this.areas.some(a => a.areaId === areaId)) {
-      updates.areaId = null;
-    }
-    if (buildingId != null && !this.buildings.some(b => b.buildingId === buildingId)) {
-      updates.buildingId = null;
-    }
-    if (Object.keys(updates).length > 0) {
-      this.form.patchValue(updates, { emitEvent: false });
-    }
-  }
-
   loadStates(): void {
     const cachedStates = this.commonService.getStatesValue();
     if (cachedStates && cachedStates.length > 0) {
@@ -1711,6 +1733,10 @@ export class PropertyComponent implements OnInit, AfterViewInit, OnDestroy, CanC
     }
   }
 
+  resolveOfficeScope(officeId: number | null): void {
+    this.selectedOffice = this.utilityService.resolveSelectedOfficeById(this.offices, officeId);
+  }
+
   formatCoordinateValue(value: number | string | null | undefined, defaultValue: string): string {
     if (value === null || value === undefined || value === '') {
       return defaultValue;
@@ -1728,6 +1754,33 @@ export class PropertyComponent implements OnInit, AfterViewInit, OnDestroy, CanC
       return defaultValue;
     }
     return parsed;
+  }
+
+  filterLocationLookupsByOffice(): void {
+    const officeId = this.form?.get('officeId')?.value ?? null;
+    const officeNum = officeId != null ? Number(officeId) : null;
+
+    this.regions = officeNum != null ? this.allRegionsByOrg.filter(r => Number(r.officeId) === officeNum) : [];
+    this.areas = officeNum != null ? this.allAreasByOrg.filter(a => Number(a.officeId) === officeNum) : [];
+    this.buildings = officeNum != null ? this.allBuildingsByOrg.filter(b => Number(b.officeId) === officeNum) : [];
+
+    if (!this.form) return;
+    const regionId = this.form.get('regionId')?.value;
+    const areaId = this.form.get('areaId')?.value;
+    const buildingId = this.form.get('buildingId')?.value;
+    const updates: { regionId?: number | null; areaId?: number | null; buildingId?: number | null } = {};
+    if (regionId != null && !this.regions.some(r => r.regionId === regionId)) {
+      updates.regionId = null;
+    }
+    if (areaId != null && !this.areas.some(a => a.areaId === areaId)) {
+      updates.areaId = null;
+    }
+    if (buildingId != null && !this.buildings.some(b => b.buildingId === buildingId)) {
+      updates.buildingId = null;
+    }
+    if (Object.keys(updates).length > 0) {
+      this.form.patchValue(updates, { emitEvent: false });
+    }
   }
   //#endregion
 
@@ -1820,10 +1873,6 @@ export class PropertyComponent implements OnInit, AfterViewInit, OnDestroy, CanC
     if (editor.innerHTML !== nextHtml) {
       editor.innerHTML = nextHtml;
     }
-  }
-
-  resolveOfficeScope(officeId: number | null): void {
-    this.selectedOffice = this.utilityService.resolveSelectedOfficeById(this.offices, officeId);
   }
 
   quickInsertCodeSymbol(controlName: string, symbol: string): void {
