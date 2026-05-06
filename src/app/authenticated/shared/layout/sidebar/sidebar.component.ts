@@ -94,8 +94,16 @@ export class SidebarComponent implements OnInit, OnDestroy {
         this.hasAssignedTicketBadge = (tickets || []).some(ticket => {
           const assigneeId = String(ticket.assigneeId || '').trim();
           const agentId = String(ticket.agentId || '').trim();
+          const createdBy = String(ticket.createdBy || '').trim();
           const isAssignedToCurrentUser = assigneeId === currentUserId || (currentUserAgentId !== '' && agentId === currentUserAgentId);
-          return isAssignedToCurrentUser && ticket.ticketStateTypeId === TicketStateType.assigned;
+          const isCreatedByCurrentUser = createdBy === currentUserId;
+          if (ticket.ticketStateTypeId === TicketStateType.caseCreated) {
+            return isCreatedByCurrentUser;
+          }
+          if (ticket.ticketStateTypeId === TicketStateType.assigned) {
+            return isAssignedToCurrentUser;
+          }
+          return false;
         });
       },
       error: () => {

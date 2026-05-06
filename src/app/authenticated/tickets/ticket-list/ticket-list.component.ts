@@ -61,6 +61,7 @@ export class TicketListComponent implements OnInit, OnDestroy {
   users: UserResponse[] = [];
 
   ticketsDisplayedColumns: ColumnSet = {
+    'ticketAttentionDot': { displayAs: ' ', maxWidth: '4ch', alignment: 'center', sort: false, wrap: false },
     'ticketCode': { displayAs: 'Ticket', maxWidth: '15ch', sortType: 'natural' },
     'propertyCode': { displayAs: 'Property', maxWidth: '15ch', sortType: 'natural' },
     'reservationCode': { displayAs: 'Reservation', maxWidth: '15ch', sortType: 'natural' },
@@ -404,14 +405,7 @@ export class TicketListComponent implements OnInit, OnDestroy {
       ? [...this.allTickets]
       : this.allTickets.filter(ticket => ticket.isActive === true);
 
-    const isMine = (ticket: TicketListDisplay): boolean => {
-      if (!normalizedCurrentUserId) {
-        return false;
-      }
-      const assigneeId = this.utilityService.normalizeIdOrNull(ticket.assigneeId ?? null);
-      const agentId = this.utilityService.normalizeIdOrNull(ticket.agentId ?? null);
-      return assigneeId === normalizedCurrentUserId || (normalizedCurrentUserAgentId != null && agentId === normalizedCurrentUserAgentId);
-    };
+    const isMine = (ticket: TicketListDisplay): boolean => this.isTicketMineForListScope(ticket, normalizedCurrentUserId, normalizedCurrentUserAgentId);
 
     const byTicketBucket =
       this.assigneeFilterMode === 'closed'
@@ -450,7 +444,10 @@ export class TicketListComponent implements OnInit, OnDestroy {
     const filteredTickets = this.selectedReservationId == null
       ? byProperty
       : byProperty.filter(ticket => String(ticket.reservationId || '').trim() === this.selectedReservationId);
-    this.ticketsDisplay = this.sortTickets(filteredTickets);
+    this.ticketsDisplay = this.sortTickets(filteredTickets).map(ticket => ({
+      ...ticket,
+      ticketAttentionDot: this.shouldShowTicketAttentionDot(ticket, normalizedCurrentUserId, normalizedCurrentUserAgentId) ? '●' : ''
+    }));
 
     // Keep dropdown contents scoped by upstream selections.
     this.propertyFilterOptions = Array.from(
@@ -664,6 +661,35 @@ export class TicketListComponent implements OnInit, OnDestroy {
       const bCreated = Date.parse(String(b.createdOn || '')) || 0;
       return bCreated - aCreated;
     });
+  }
+
+  isTicketAssignedToCurrentUser(ticket: TicketListDisplay, normalizedCurrentUserId: string | null, normalizedCurrentUserAgentId: string | null): boolean {
+    if (!normalizedCurrentUserId) {
+      return false;
+    }
+    const assigneeId = this.utilityService.normalizeIdOrNull(ticket.assigneeId ?? null);
+    const agentId = this.utilityService.normalizeIdOrNull(ticket.agentId ?? null);
+    return assigneeId === normalizedCurrentUserId || (normalizedCurrentUserAgentId != null && agentId === normalizedCurrentUserAgentId);
+  }
+
+  isTicketCreatedByCurrentUser(ticket: TicketListDisplay, normalizedCurrentUserId: string | null): boolean {
+    if (!normalizedCurrentUserId) {
+      return false;
+    }
+    const createdBy = this.utilityService.normalizeIdOrNull(ticket.createdBy ?? null);
+    return createdBy === normalizedCurrentUserId;
+  }
+
+  isTicketMineForListScope(ticket: TicketListDisplay, normalizedCurrentUserId: string | null, normalizedCurrentUserAgentId: string | null): boolean {
+    if (ticket.ticketStateTypeId === TicketStateType.caseCreated) {
+      return this.isTicketCreatedByCurrentUser(ticket, normalizedCurrentUserId);
+    }
+    return this.isTicketAssignedToCurrentUser(ticket, normalizedCurrentUserId, normalizedCurrentUserAgentId);
+  }
+
+  shouldShowTicketAttentionDot(ticket: TicketListDisplay, normalizedCurrentUserId: string | null, normalizedCurrentUserAgentId: string | null): boolean {
+    const isCreatedOrAssigned = ticket.ticketStateTypeId === TicketStateType.caseCreated || ticket.ticketStateTypeId === TicketStateType.assigned;
+    return this.isTicketMineForListScope(ticket, normalizedCurrentUserId, normalizedCurrentUserAgentId) && isCreatedOrAssigned;
   }
 
   areAllCommunicationCheckboxesChecked(ticket: TicketListDisplay): boolean {

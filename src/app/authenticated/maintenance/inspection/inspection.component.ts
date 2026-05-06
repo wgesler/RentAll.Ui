@@ -2448,6 +2448,7 @@ export class InspectionComponent implements OnChanges, OnDestroy, OnInit {
           issues.push({
             sectionTitle: section.title,
             setLabel: this.getSetInstruction(section.key, repeatIndex) || undefined,
+            lineText: item.text || 'No line text provided',
             issueText: (item.issue || '').trim() || 'No issue text provided',
             photoSrc: this.getItemPhotoSrc(item)
           });

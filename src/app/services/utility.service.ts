@@ -445,6 +445,17 @@ export class UtilityService {
     }
     return (contact.companyName || '').trim();
   }
+
+  getVendorDropdownLabel(contact: ContactResponse | null | undefined): string {
+    if (!contact) {
+      return '';
+    }
+    const companyName = String(contact.companyName || '').trim();
+    if (companyName) {
+      return companyName;
+    }
+    return `${contact.firstName || ''} ${contact.lastName || ''}`.trim();
+  }
   //#endregion
 
   //#region Document filenames

@@ -1220,7 +1220,7 @@ export class PropertyComponent implements OnInit, AfterViewInit, OnDestroy, CanC
       { value: this.newVendorOptionValue, label: 'New Vendor' },
       ...this.vendorContactsForOffice.map(contact => ({
         value: contact.contactId,
-        label: contact.fullName ?? ''
+        label: this.utilityService.getVendorDropdownLabel(contact)
       }))
     ];
   }

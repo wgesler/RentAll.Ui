@@ -48,6 +48,7 @@ export interface TicketResponse {
   notes?: TicketNoteResponse[] | null;
   isActive: boolean;
   createdOn?: string | null;
+  createdBy?: string | null;
   modifiedOn?: string | null;
 }
 
@@ -86,6 +87,7 @@ export type TicketAssigneeDropdownCell = {
 };
 
 export type TicketListDisplay = TicketResponse & {
+  ticketAttentionDot?: string;
   ticketStateTypeText: TicketStateDropdownCell;
   assigneeDropdown: TicketAssigneeDropdownCell;
   created: string;

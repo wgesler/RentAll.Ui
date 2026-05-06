@@ -22,6 +22,7 @@ import { TicketService } from '../../tickets/services/ticket.service';
 export type ChecklistIssueEntry = {
   sectionTitle: string;
   setLabel?: string;
+  lineText: string;
   issueText: string;
   photoSrc?: string | null;
 };
@@ -99,7 +100,11 @@ export type ChecklistIssuesDialogData = {
                       (click)="removeIssue(issue)">
                       <mat-icon>close</mat-icon>
                     </button>
-                    <div class="issue-text">{{ issueIndex + 1 }}. Issue: {{ issue.issueText }}</div>
+                    <div class="issue-line-head">
+                      <span class="issue-line-index">{{ issueIndex + 1 }}.</span>
+                      <span class="issue-line-text">{{ issue.lineText }}</span>
+                    </div>
+                    <div class="issue-text">{{ issue.issueText }}</div>
                     @if (issue.photoSrc) {
                       <div class="issue-photo-wrap">
                         <img class="issue-photo-thumb" [src]="issue.photoSrc" alt="Issue photo" />
@@ -221,11 +226,28 @@ export type ChecklistIssuesDialogData = {
       color: #475569;
       font-size: 0.82rem;
     }
+    .issue-line-head {
+      display: flex;
+      gap: 0.35rem;
+      align-items: baseline;
+      margin-top: 0.2rem;
+      color: #0f172a;
+      font-size: 0.9rem;
+      font-weight: 600;
+    }
+    .issue-line-index {
+      min-width: 1.2rem;
+      text-align: right;
+    }
+    .issue-line-text {
+      color: #0f172a;
+    }
     .issue-text {
-      color: #b91c1c;
+      color: var(--mat-sys-secondary, #e91e63);
       font-weight: 600;
       font-size: 0.86rem;
-      margin-top: 0.2rem;
+      margin-top: 0.25rem;
+      margin-left: 1.55rem;
     }
     .issue-photo-wrap {
       margin-top: 0.2rem;
@@ -306,9 +328,11 @@ export class DialogChecklistIssuesComponent extends BaseDocumentComponent {
 
     const lines = groupedIssues.map(group => {
       const setPart = group.setLabel ? ` (${group.setLabel})` : '';
-      const issueLines = group.issues.map((issue, issueIndex) =>
-        `${issueIndex + 1}. Issue: ${issue.issueText}`
-      );
+      const issueLines = group.issues.map((issue, issueIndex) => {
+        const lineText = (issue.lineText || '').trim() || 'No line text provided';
+        const issueText = (issue.issueText || '').trim() || 'No issue text provided';
+        return `${issueIndex + 1}. ${lineText}\n   Issue: ${issueText}`;
+      });
       return `${group.sectionTitle}${setPart}\n${issueLines.join('\n')}`;
     });
     return `${header}${lines.join('\n\n')}`;
@@ -463,7 +487,11 @@ export class DialogChecklistIssuesComponent extends BaseDocumentComponent {
           const setPart = group.setLabel ? ` (${this.escapeHtml(group.setLabel)})` : '';
           const issuesHtml = group.issues.map((issue, issueIndex) => `
               <div class="issue-row">
-                <div class="issue-text">${issueIndex + 1}. Issue: ${this.escapeHtml(issue.issueText)}</div>
+                <div class="issue-line-head">
+                  <span class="issue-line-index">${issueIndex + 1}.</span>
+                  <span class="issue-line-text">${this.escapeHtml(issue.lineText)}</span>
+                </div>
+                <div class="issue-text">${this.escapeHtml(issue.issueText)}</div>
                 ${issue.photoSrc ? `<img class="issue-thumb" src="${issue.photoSrc}" alt="Issue photo" />` : ''}
               </div>
             `).join('');
@@ -494,7 +522,10 @@ export class DialogChecklistIssuesComponent extends BaseDocumentComponent {
       .issue-group { border: 1px solid #e2e8f0; border-radius: 8px; padding: 10px; margin-bottom: 10px; background: #f8fafc; }
       .issue-row { border: 1px solid #e2e8f0; border-radius: 6px; padding: 8px; margin-top: 8px; background: #fff; }
       .issue-title { font-weight: 700; margin-bottom: 4px; color: #0f172a; }
-      .issue-text { color: #b91c1c; font-weight: 600; margin-top: 6px; }
+      .issue-line-head { display: flex; gap: 0.35rem; align-items: baseline; margin-top: 4px; color: #0f172a; font-weight: 600; }
+      .issue-line-index { min-width: 1.2rem; text-align: right; }
+      .issue-line-text { color: #0f172a; }
+      .issue-text { color: #e91e63; font-weight: 600; margin-top: 4px; margin-left: 1.55rem; }
       .issue-thumb { max-width: 180px; max-height: 130px; border: 1px solid #cbd5e1; border-radius: 4px; object-fit: cover; margin-top: 4px; }
     `;
   }
@@ -517,7 +548,11 @@ export class DialogChecklistIssuesComponent extends BaseDocumentComponent {
                     ? `<div class="ra-email-photo-wrap" style="margin-top:4px;"><img class="ra-email-photo-thumb" src="${issue.photoSrc}" alt="" style="display:block;max-width:110px;max-height:80px;width:auto;height:auto;object-fit:cover;border:1px solid #cbd5e1;border-radius:4px;background:#fff;" /></div>`
                     : '';
                   return `<div class="ra-email-row" style="border:1px solid #e2e8f0;border-radius:6px;padding:9px 10px;background:#fff;margin-top:6px;box-sizing:border-box;">
-              <div class="ra-email-issue-text" style="color:#b91c1c;font-weight:600;font-size:0.86rem;margin-top:2px;line-height:1.35;">${issueIndex + 1}. Issue: ${this.escapeHtml(issue.issueText)}</div>
+              <div class="ra-email-issue-line-head" style="display:flex;gap:0.35rem;align-items:baseline;color:#0f172a;font-weight:600;font-size:0.9rem;line-height:1.35;">
+                <span class="ra-email-issue-line-index" style="min-width:1.2rem;text-align:right;">${issueIndex + 1}.</span>
+                <span class="ra-email-issue-line-text">${this.escapeHtml(issue.lineText)}</span>
+              </div>
+              <div class="ra-email-issue-text" style="color:#e91e63;font-weight:600;font-size:0.86rem;margin-top:4px;margin-left:1.55rem;line-height:1.35;">${this.escapeHtml(issue.issueText)}</div>
               ${imgHtml}
             </div>`;
                 })
@@ -579,7 +614,11 @@ export class DialogChecklistIssuesComponent extends BaseDocumentComponent {
     }
     return groupedIssues.map(group => {
       const setPart = group.setLabel ? ` (${group.setLabel})` : '';
-      const issueLines = group.issues.map((issue, issueIndex) => `${issueIndex + 1}. ${issue.issueText}`);
+      const issueLines = group.issues.map((issue, issueIndex) => {
+        const lineText = (issue.lineText || '').trim() || 'No line text provided';
+        const issueText = (issue.issueText || '').trim() || 'No issue text provided';
+        return `${issueIndex + 1}. ${lineText}\n   Issue: ${issueText}`;
+      });
       return `${group.sectionTitle}${setPart}\n${issueLines.join('\n')}`;
     }).join('\n\n');
   }

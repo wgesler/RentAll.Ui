@@ -26,3 +26,10 @@
   font-size: inherit !important;
   line-height: inherit !important;
 }
+
+:host ::ng-deep .ticket-list-table td.mat-cell.mat-column-ticketAttentionDot,
+:host ::ng-deep .ticket-list-table td.mat-mdc-cell.mat-column-ticketAttentionDot {
+  color: #dc2626;
+  font-size: 1rem;
+  font-weight: 700;
+}
