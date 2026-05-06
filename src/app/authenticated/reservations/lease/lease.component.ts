@@ -32,7 +32,7 @@ import { AccountingOfficeResponse } from '../../organizations/models/accounting-
 import { AccountingOfficeService } from '../../organizations/services/accounting-office.service';
 import { OfficeService } from '../../organizations/services/office.service';
 import { GlobalSelectionService } from '../../organizations/services/global-selection.service';
-import { getCheckInTime, getCheckOutTime } from '../../properties/models/property-enums';
+import { getCheckInTime, getCheckOutTime, PropertyType } from '../../properties/models/property-enums';
 import { PropertyHtmlResponse } from '../../properties/models/property-html.model';
 import { PropertyResponse } from '../../properties/models/property.model';
 import { PropertyHtmlService } from '../../properties/services/property-html.service';
@@ -1084,6 +1084,10 @@ export class LeaseComponent extends BaseDocumentComponent implements OnInit, OnD
   getDefaultUtilityFeeText(): string {
     if(!this.property || !this.selectedOffice) return '';
 
+    if (this.property.propertyTypeId === PropertyType.House) {
+      return this.selectedOffice.utilityHouse.toFixed(2);
+    }
+
     const bedrooms = this.property.bedrooms;
     let utilityFee: number | undefined;
 
@@ -1101,7 +1105,7 @@ export class LeaseComponent extends BaseDocumentComponent implements OnInit, OnD
         utilityFee = this.selectedOffice.utilityFourBed;
         break;
       default:
-        // For 5+ bedrooms or house, use utilityHouse
+        // For 5+ bedrooms, use utilityHouse
         utilityFee = this.selectedOffice.utilityHouse;
         break;
     }
@@ -1114,6 +1118,10 @@ export class LeaseComponent extends BaseDocumentComponent implements OnInit, OnD
 
   getDefaultMaidServiceFeeText(): string {
     if(!this.property || !this.selectedOffice) return '';
+
+    if (this.property.propertyTypeId === PropertyType.House) {
+      return this.selectedOffice.maidHouse.toFixed(2);
+    }
 
     const bedrooms = this.property.bedrooms;
     let maidFee: number | undefined;
@@ -1132,8 +1140,8 @@ export class LeaseComponent extends BaseDocumentComponent implements OnInit, OnD
         maidFee = this.selectedOffice.maidFourBed;
         break;
       default:
-        // For 5+ bedrooms, use maidFourBed as fallback
-        maidFee = this.selectedOffice.maidFourBed;
+        // For 5+ bedrooms, use maidHouse
+        maidFee = this.selectedOffice.maidHouse;
         break;
     }
 

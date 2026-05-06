@@ -38,6 +38,7 @@ export interface OfficeRequest {
   maidTwoBed: number;
   maidThreeBed: number;
   maidFourBed: number;
+  maidHouse: number;
   parkingLowEnd: number;
   parkingHighEnd: number;
   emailListForReservations?: string | null;
@@ -98,6 +99,7 @@ export interface OfficeResponse {
   maidTwoBed: number;
   maidThreeBed: number;
   maidFourBed: number;
+  maidHouse: number;
   parkingLowEnd: number;
   parkingHighEnd: number;
   emailListForReservations?: string | null;

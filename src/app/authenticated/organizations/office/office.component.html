@@ -408,7 +408,7 @@
                 <!-- Maid Charges Subsection -->
                 <div class="mb-4">
                   <h3 class="text-lg font-bold mb-3 text-black">Default Lease Maid Fees</h3>
-                  <div class="grid grid-cols-4 form-standard-grid">
+                  <div class="grid grid-cols-5 form-standard-grid">
                     <mat-form-field appearance="outline" class="col-span-1 w-full">
                       <mat-label>1 Bedroom</mat-label>
                       <input matInput type="text" formControlName="maidOneBed" placeholder="0.00" required
@@ -447,6 +447,16 @@
                         (focus)="selectAllOnFocus($event)">
                       @if (form.get('maidFourBed')?.hasError('required') && form.get('maidFourBed')?.touched) {
                         <mat-error>4 Bedroom is required</mat-error>
+                      }
+                    </mat-form-field>
+                    <mat-form-field appearance="outline" class="col-span-1 w-full">
+                      <mat-label>House</mat-label>
+                      <input matInput type="text" formControlName="maidHouse" placeholder="0.00" required
+                        (blur)="formatDecimal('maidHouse')"
+                        (input)="onDecimalInput($event, 'maidHouse')"
+                        (focus)="selectAllOnFocus($event)">
+                      @if (form.get('maidHouse')?.hasError('required') && form.get('maidHouse')?.touched) {
+                        <mat-error>House is required</mat-error>
                       }
                     </mat-form-field>
                   </div>
