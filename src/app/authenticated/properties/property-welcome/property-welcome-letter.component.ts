@@ -38,10 +38,10 @@ import { ReservationService } from '../../reservations/services/reservation.serv
 import { BaseDocumentComponent, DocumentConfig, DownloadConfig, EmailConfig } from '../../shared/base-document.component';
 import { getCheckInTime, getCheckOutTime, getTrashPickupDay } from '../models/property-enums';
 import { PropertyHtmlResponse } from '../models/property-html.model';
-import { PropertyLetterResponse } from '../models/property-letter.model';
+import { PropertyInformationResponse } from '../models/property-information.model';
 import { PropertyResponse } from '../models/property.model';
 import { PropertyHtmlService } from '../services/property-html.service';
-import { PropertyLetterService } from '../services/property-letter.service';
+import { PropertyInformationService } from '../services/property-information.service';
 import { PropertyService } from '../services/property.service';
 import { WelcomeLetterReloadService } from '../services/welcome-letter-reload.service';
 import { EntityType } from '../../contacts/models/contact-enum';
@@ -69,7 +69,7 @@ export class PropertyWelcomeLetterComponent extends BaseDocumentComponent implem
   form: FormGroup;
   property: PropertyResponse | null = null;
   propertyHtml: PropertyHtmlResponse | null = null;
-  propertyLetter: PropertyLetterResponse | null = null;
+  propertyInformation: PropertyInformationResponse | null = null;
   emailHtml: EmailHtmlResponse | null = null;
   organization: OrganizationResponse | null = null;
   availableReservations: { value: ReservationListResponse, label: string }[] = [];
@@ -91,12 +91,12 @@ export class PropertyWelcomeLetterComponent extends BaseDocumentComponent implem
   isPageReady: boolean = false;
   propertyReservationsLoaded: boolean = false;
    
-  itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['property', 'reservations', 'welcomeLetter', 'propertyLetter', 'organization', 'offices', 'accountingOffices', 'contacts', 'buildings', 'emailHtml', 'logo', 'previewHtml']));
+  itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['property', 'reservations', 'welcomeLetter', 'propertyInformation', 'organization', 'offices', 'accountingOffices', 'contacts', 'buildings', 'emailHtml', 'logo', 'previewHtml']));
   logoSourcesLoaded = { accountingOffices: false, organization: false };
 
   constructor(
     private propertyHtmlService: PropertyHtmlService,
-    private propertyLetterService: PropertyLetterService,
+    private propertyInformationService: PropertyInformationService,
     private propertyService: PropertyService,
     private commonService: CommonService,
     private emailHtmlService: EmailHtmlService,
@@ -145,7 +145,7 @@ export class PropertyWelcomeLetterComponent extends BaseDocumentComponent implem
 
     if (this.isAddMode || !this.propertyId) {
       this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'property');
-      this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'propertyLetter');
+      this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'propertyInformation');
       this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'welcomeLetter');
       this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'reservations');
       this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'buildings');
@@ -161,7 +161,7 @@ export class PropertyWelcomeLetterComponent extends BaseDocumentComponent implem
     }
 
     this.loadProperty();
-    this.loadPropertyLetterInformation();
+    this.loadPropertyInformation();
     this.getWelcomeLetter();
 
     this.welcomeLetterReloadSubscription = this.welcomeLetterReloadService.reloadWelcomeLetter.subscribe(() => {
@@ -206,7 +206,7 @@ export class PropertyWelcomeLetterComponent extends BaseDocumentComponent implem
   reloadWelcomeLetter(): void {
     if (this.propertyId) {
       this.loadProperty();
-      this.loadPropertyLetterInformation();
+      this.loadPropertyInformation();
       this.getWelcomeLetter();
     }
   }
@@ -420,16 +420,16 @@ export class PropertyWelcomeLetterComponent extends BaseDocumentComponent implem
     }
   }
 
-  loadPropertyLetterInformation(): void {
+  loadPropertyInformation(): void {
     if (!this.propertyId) {
-      this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'propertyLetter');
+      this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'propertyInformation');
       return;
     }
 
-    this.propertyLetterService.getPropertyInformationByGuid(this.propertyId).pipe(take(1), finalize(() => { this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'propertyLetter'); })).subscribe({
-      next: (response: PropertyLetterResponse) => {
+    this.propertyInformationService.getPropertyInformationByGuid(this.propertyId).pipe(take(1), finalize(() => { this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'propertyInformation'); })).subscribe({
+      next: (response: PropertyInformationResponse) => {
         if (response) {
-          this.propertyLetter = response;
+          this.propertyInformation = response;
         }
       },
       error: () => {}
@@ -580,22 +580,22 @@ export class PropertyWelcomeLetterComponent extends BaseDocumentComponent implem
       result = result.replace(/\{\{internetPassword\}\}/g, this.property.internetPassword || 'N/A');
     }
 
-    if (this.propertyLetter) {
-      result = result.replace(/\{\{arrivalInstructions\}\}/g, this.propertyLetter.arrivalInstructions || '');
-      result = result.replace(/\{\{mailboxInstructions\}\}/g, this.propertyLetter.mailboxInstructions || '');
-      result = result.replace(/\{\{packageInstructions\}\}/g, this.propertyLetter.packageInstructions || '');
-      result = result.replace(/\{\{parkingInformation\}\}/g, this.propertyLetter.parkingInformation || '');
-      result = result.replace(/\{\{access\}\}/g, this.propertyLetter.access || '');
-      result = result.replace(/\{\{amenities\}\}/g, this.propertyLetter.amenities || '');
-      result = result.replace(/\{\{laundry\}\}/g, this.propertyLetter.laundry || '');
-      result = result.replace(/\{\{providedFurnishings\}\}/g, '');
-      result = result.replace(/\{\{housekeeping\}\}/g, this.propertyLetter.housekeeping || '');
-      result = result.replace(/\{\{televisionSource\}\}/g, this.propertyLetter.televisionSource || '');
-      result = result.replace(/\{\{internetService\}\}/g, this.propertyLetter.internetService || '');
-      result = result.replace(/\{\{keyReturn\}\}/g, this.propertyLetter.keyReturn || '');
-      result = result.replace(/\{\{concierge\}\}/g, this.propertyLetter.concierge || '');
+    if (this.propertyInformation) {
+      result = result.replace(/\{\{arrivalInstructions\}\}/g, this.propertyInformation.arrivalInstructions || '');
+      result = result.replace(/\{\{mailboxInstructions\}\}/g, this.propertyInformation.mailboxInstructions || '');
+      result = result.replace(/\{\{packageInstructions\}\}/g, this.propertyInformation.packageInstructions || '');
+      result = result.replace(/\{\{parkingInformation\}\}/g, this.propertyInformation.parkingInformation || '');
+      result = result.replace(/\{\{access\}\}/g, this.propertyInformation.access || '');
+      result = result.replace(/\{\{amenities\}\}/g, this.propertyInformation.amenities || '');
+      result = result.replace(/\{\{laundry\}\}/g, this.propertyInformation.laundry || '');
+      result = result.replace(/\{\{providedFurnishings\}\}/g, this.propertyInformation.providedFurnishings || '');
+      result = result.replace(/\{\{housekeeping\}\}/g, this.propertyInformation.housekeeping || '');
+      result = result.replace(/\{\{televisionSource\}\}/g, this.propertyInformation.televisionSource || '');
+      result = result.replace(/\{\{internetService\}\}/g, this.propertyInformation.internetService || '');
+      result = result.replace(/\{\{keyReturn\}\}/g, this.propertyInformation.keyReturn || '');
+      result = result.replace(/\{\{concierge\}\}/g, this.propertyInformation.concierge || '');
       result = result.replace(/\{\{additionalNotesLine\}\}/g, this.getAdditionalNotesLine());
-      result = this.applyOptionalCodePlaceholder(result, 'additionalNotes', this.propertyLetter.additionalNotes);
+      result = this.applyOptionalCodePlaceholder(result, 'additionalNotes', this.propertyInformation.additionalNotes);
     }
 
     if (this.selectedOffice) {
@@ -623,9 +623,9 @@ export class PropertyWelcomeLetterComponent extends BaseDocumentComponent implem
       if (officeLogoDataUrl) {
         result = result.replace(/\{\{officeLogoBase64\}\}/g, officeLogoDataUrl);
       }
-    } else if (this.propertyLetter) {
-      result = result.replace(/\{\{maintenanceEmail\}\}/g, this.propertyLetter.emergencyContact || '');
-      result = result.replace(/\{\{afterHoursPhone\}\}/g, this.formatterService.phoneNumber(this.propertyLetter.emergencyContactNumber) || '');
+    } else if (this.propertyInformation) {
+      result = result.replace(/\{\{maintenanceEmail\}\}/g, this.propertyInformation.maintenanceEmail || '');
+      result = result.replace(/\{\{afterHoursPhone\}\}/g, this.formatterService.phoneNumber(this.propertyInformation.emergencyPhone) || '');
     }
 
     if (this.organization) {
@@ -736,7 +736,7 @@ export class PropertyWelcomeLetterComponent extends BaseDocumentComponent implem
   }
 
   getAdditionalNotesLine(): string {
-    const additionalNotes = (this.propertyLetter?.additionalNotes || '').trim();
+    const additionalNotes = (this.propertyInformation?.additionalNotes || '').trim();
     if (!additionalNotes) {
       return '';
     }

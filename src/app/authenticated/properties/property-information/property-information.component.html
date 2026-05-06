@@ -25,7 +25,7 @@
     <form [formGroup]="form" class="letter-information-form form-hide-error-text">
       <div class="property-tab-actions-band">
         <div class="property-tab-actions-band__row property-information-form-actions">
-          <button mat-raised-button type="button" color="primary" id="save-property-information-button" (click)="savePropertyLetter()"
+          <button mat-raised-button type="button" color="primary" id="save-property-information-button" (click)="savePropertyInformation()"
             class="text-nowrap flex-shrink-0" [disabled]="isSubmitting || !form?.valid">
             <mat-icon>save</mat-icon>
             Save
@@ -85,6 +85,11 @@
               </mat-form-field>
             </div>
 
+            <mat-form-field appearance="outline" class="full-width">
+              <mat-label>Provided Furnishings</mat-label>
+              <input matInput formControlName="providedFurnishings">
+            </mat-form-field>
+
             <div class="grid grid-cols-2 form-standard-grid">
               <mat-form-field appearance="outline">
                 <mat-label>Television Source</mat-label>
@@ -128,12 +133,12 @@
 
             <mat-form-field appearance="outline" class="full-width">
               <mat-label>Maintenance Email</mat-label>
-              <input matInput type="email" formControlName="emergencyContact" readonly class="readonly-field">
+              <input matInput type="email" formControlName="maintenanceEmail" readonly class="readonly-field">
             </mat-form-field>
 
             <mat-form-field appearance="outline" class="full-width">
               <mat-label>After Hours Phone</mat-label>
-              <input matInput formControlName="emergencyContactNumber" maxlength="20"
+              <input matInput formControlName="emergencyPhone" maxlength="20"
                 placeholder="(555) 123-4567 or +1 234 567 8900"
                 readonly class="readonly-field">
             </mat-form-field>

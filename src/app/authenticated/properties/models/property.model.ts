@@ -74,7 +74,7 @@ export interface PropertyRequest {
   poundLimit: string;
   smoking: boolean;
   parking: boolean;
-  parkingnotes?: string | null;
+  parkingNotes?: string | null;
   alarmCode?: string | null;
   unitMstrCode?: string | null;
   bldgMstrCode?: string | null;

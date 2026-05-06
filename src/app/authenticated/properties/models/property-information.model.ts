@@ -1,13 +1,14 @@
-export interface PropertyLetterRequest {
+export interface PropertyInformationRequest {
   propertyId?: string;
   organizationId: string;
   arrivalInstructions?: string;
   mailboxInstructions?: string;
   packageInstructions?: string;
-  parkingInformation?: string;  
+  parkingInformation?: string;
   access?: string;
   amenities?: string;
   laundry?: string;
+  providedFurnishings?: string;
   housekeeping?: string;
   televisionSource?: string;
   internetService?: string;
@@ -15,35 +16,35 @@ export interface PropertyLetterRequest {
   internetPassword?: string;
   keyReturn?: string;
   concierge?: string;
-  emergencyContact?: string;
-  emergencyContactNumber?: string;
+  maintenanceEmail?: string;
+  emergencyPhone?: string;
   additionalNotes?: string;
   welcomeLetter?: string;
 }
 
-export interface PropertyLetterResponse {
+export interface PropertyInformationResponse {
   propertyId?: string;
   organizationId: string;
   arrivalInstructions?: string;
   mailboxInstructions?: string;
   packageInstructions?: string;
-  parkingInformation?: string;  
+  parkingInformation?: string;
   access?: string;
   amenities?: string;
   laundry?: string;
+  providedFurnishings?: string;
   housekeeping?: string;
   televisionSource?: string;
   internetService?: string;
   keyReturn?: string;
   concierge?: string;
-  emergencyContact?: string;
-  emergencyContactNumber?: string;
+  maintenanceEmail?: string;
+  emergencyPhone?: string;
   additionalNotes?: string;
   welcomeLetter?: string;
 }
 
-export interface PropertyLetterFormData {
-  // Display/Selection fields (not sent to API - come from Property/Reservation)
+export interface PropertyInformationFormData {
   propertyCode: string;
   reservationId: string | null;
   tenantName: string;
@@ -58,8 +59,6 @@ export interface PropertyLetterFormData {
   suite: string;
   keypadAccess: string;
   trashLocation: string;
-  
-  // API fields (sent to/from API - these map to PropertyLetterRequest/Response)
   arrivalInstructions: string | null;
   mailbox: string | null;
   package: string | null;
@@ -72,8 +71,7 @@ export interface PropertyLetterFormData {
   internetService: string | null;
   keyReturn: string | null;
   concierge: string | null;
-  emergencyContact: string | null;
-  emergencyContactNumber: string | null;
+  maintenanceEmail: string | null;
+  emergencyPhone: string | null;
   additionalNotes: string | null;
 }
-

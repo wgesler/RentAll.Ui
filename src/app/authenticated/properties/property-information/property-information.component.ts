@@ -13,9 +13,9 @@ import { OfficeResponse } from '../../organizations/models/office.model';
 import { OrganizationResponse } from '../../organizations/models/organization.model';
 import { OfficeService } from '../../organizations/services/office.service';
 import { GlobalSelectionService } from '../../organizations/services/global-selection.service';
-import { PropertyLetterRequest, PropertyLetterResponse } from '../models/property-letter.model';
+import { PropertyInformationRequest, PropertyInformationResponse } from '../models/property-information.model';
 import { PropertyResponse } from '../models/property.model';
-import { PropertyLetterService } from '../services/property-letter.service';
+import { PropertyInformationService } from '../services/property-information.service';
 import { PropertyService } from '../services/property.service';
 import { WelcomeLetterReloadService } from '../services/welcome-letter-reload.service';
 
@@ -29,7 +29,7 @@ import { WelcomeLetterReloadService } from '../services/welcome-letter-reload.se
 })
 export class PropertyInformationComponent implements OnInit, OnDestroy, OnChanges {
   @Input() propertyId: string | null = null;
-  @Input() copiedPropertyInformation: PropertyLetterResponse | null = null;
+  @Input() copiedPropertyInformation: PropertyInformationResponse | null = null;
   @Input() officeId: number | null = null;
   @Input() propertyCode: string | null = null;
   @Input() hideOfficeAndPropertyCode: boolean = false;
@@ -47,7 +47,7 @@ export class PropertyInformationComponent implements OnInit, OnDestroy, OnChange
   isLoading$: Observable<boolean> = this.itemsToLoad$.pipe(map(items => items.size > 0));
 
   constructor(
-    private propertyLetterService: PropertyLetterService,
+    private propertyInformationService: PropertyInformationService,
     private propertyService: PropertyService,
     private commonService: CommonService,
     private authService: AuthService,
@@ -76,13 +76,13 @@ export class PropertyInformationComponent implements OnInit, OnDestroy, OnChange
     }
 
     this.loadPropertyData();
-    this.getPropertyLetter();
+    this.getPropertyInformation();
   }
 
   ngOnChanges(changes: SimpleChanges): void {
     if (changes['propertyId'] && this.hasPersistedPropertyId() && !changes['propertyId'].firstChange) {
       this.loadPropertyData();
-      this.getPropertyLetter();
+      this.getPropertyInformation();
     }
     
     if (changes['copiedPropertyInformation'] && this.copiedPropertyInformation && !this.hasPersistedPropertyId()) {
@@ -99,34 +99,16 @@ export class PropertyInformationComponent implements OnInit, OnDestroy, OnChange
     }
   }
   
-  getPropertyLetter(): void {
+  getPropertyInformation(): void {
     if (!this.hasPersistedPropertyId()) {
       this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'propertyInformation');
       return;
     }
 
-    this.propertyLetterService.getPropertyInformationByGuid(this.propertyId as string).pipe(take(1), finalize(() => { this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'propertyInformation'); })).subscribe({
-      next: (response: PropertyLetterResponse) => {
+    this.propertyInformationService.getPropertyInformationByGuid(this.propertyId as string).pipe(take(1), finalize(() => { this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'propertyInformation'); })).subscribe({
+      next: (response: PropertyInformationResponse) => {
         if (response) {
-          this.form.patchValue({
-            arrivalInstructions: response.arrivalInstructions || '',
-            access: response.access || '',
-            mailboxInstructions: response.mailboxInstructions || '',
-            packageInstructions: response.packageInstructions || '',
-            parkingInformation: response.parkingInformation || '',
-            amenities: response.amenities || '',
-            laundry: response.laundry || '',
-            housekeeping: response.housekeeping || '',
-            televisionSource: response.televisionSource || '',
-            internetService: response.internetService || '',
-            keyReturn: response.keyReturn || '',
-            concierge: response.concierge || '',
-            emergencyContact: response.emergencyContact || '',
-            emergencyContactNumber: response.emergencyContactNumber ? this.formatterService.phoneNumber(response.emergencyContactNumber) : '',
-            additionalNotes: response.additionalNotes || ''
-          });
-          this.formatPhone();
-          this.applyOrganizationDefaults();
+          this.populateForm(response);
         } else {
           this.populateDefaultsFromProperty();
         }
@@ -138,7 +120,7 @@ export class PropertyInformationComponent implements OnInit, OnDestroy, OnChange
     });
   }
     
-  savePropertyLetter(): void {
+  savePropertyInformation(): void {
     if (!this.hasPersistedPropertyId()) {
       this.toastr.error('Property must be saved first before saving property letter information.', CommonMessage.Error);
       return;
@@ -149,7 +131,7 @@ export class PropertyInformationComponent implements OnInit, OnDestroy, OnChange
     const user = this.authService.getUser();
     const formValue = this.form.getRawValue();
 
-    const propertyLetterRequest: PropertyLetterRequest = {
+    const propertyInformationRequest: PropertyInformationRequest = {
       propertyId: this.propertyId as string,
       organizationId: user?.organizationId || '',
       arrivalInstructions: formValue.arrivalInstructions || undefined,
@@ -159,19 +141,20 @@ export class PropertyInformationComponent implements OnInit, OnDestroy, OnChange
       parkingInformation: formValue.parkingInformation || undefined,
       amenities: formValue.amenities || undefined,
       laundry: formValue.laundry || undefined,
+      providedFurnishings: formValue.providedFurnishings || undefined,
       housekeeping: formValue.housekeeping || undefined,
       televisionSource: formValue.televisionSource || undefined,
       internetService: formValue.internetService || undefined,
       keyReturn: formValue.keyReturn || undefined,
       concierge: formValue.concierge || undefined,
-      emergencyContact: formValue.emergencyContact || undefined,
-      emergencyContactNumber: formValue.emergencyContactNumber ? this.formatterService.stripPhoneFormatting(formValue.emergencyContactNumber) : undefined,
+      maintenanceEmail: formValue.maintenanceEmail || undefined,
+      emergencyPhone: formValue.emergencyPhone ? this.formatterService.stripPhoneFormatting(formValue.emergencyPhone) : undefined,
       additionalNotes: formValue.additionalNotes || undefined
     };
 
-    this.propertyLetterService.getPropertyInformationByGuid(this.propertyId as string).pipe(take(1)).subscribe({
+    this.propertyInformationService.getPropertyInformationByGuid(this.propertyId as string).pipe(take(1)).subscribe({
       next: () => {
-        this.propertyLetterService.updatePropertyLetter(propertyLetterRequest).pipe(take(1), finalize(() => this.isSubmitting = false)).subscribe({
+        this.propertyInformationService.updatePropertyInformation(propertyInformationRequest).pipe(take(1), finalize(() => this.isSubmitting = false)).subscribe({
           next: () => {
             this.toastr.success('Property letter updated successfully', CommonMessage.Success);
             this.copiedPropertyInformation = null;
@@ -181,7 +164,7 @@ export class PropertyInformationComponent implements OnInit, OnDestroy, OnChange
         });
       },
       error: () => {
-        this.propertyLetterService.createPropertyLetter(propertyLetterRequest).pipe(take(1), finalize(() => this.isSubmitting = false)).subscribe({
+        this.propertyInformationService.createPropertyInformation(propertyInformationRequest).pipe(take(1), finalize(() => this.isSubmitting = false)).subscribe({
           next: () => {
             this.toastr.success('Property letter created successfully', CommonMessage.Success);
             this.copiedPropertyInformation = null;
@@ -258,15 +241,39 @@ export class PropertyInformationComponent implements OnInit, OnDestroy, OnChange
       parkingInformation: new FormControl(''),
       amenities: new FormControl(''),
       laundry: new FormControl(''),
+      providedFurnishings: new FormControl(''),
       housekeeping: new FormControl(''),
       televisionSource: new FormControl(''),
       internetService: new FormControl(''),
       keyReturn: new FormControl(''),
       concierge: new FormControl(''),
-      emergencyContact: new FormControl({ value: '', disabled: true }),
-      emergencyContactNumber: new FormControl({ value: '', disabled: true }),
+      maintenanceEmail: new FormControl({ value: '', disabled: true }),
+      emergencyPhone: new FormControl({ value: '', disabled: true }),
       additionalNotes: new FormControl('')
     });
+  }
+
+  populateForm(response: PropertyInformationResponse): void {
+    this.form.patchValue({
+      arrivalInstructions: response.arrivalInstructions || '',
+      access: response.access || '',
+      mailboxInstructions: response.mailboxInstructions || '',
+      packageInstructions: response.packageInstructions || '',
+      parkingInformation: response.parkingInformation || '',
+      amenities: response.amenities || '',
+      laundry: response.laundry || '',
+      providedFurnishings: response.providedFurnishings || '',
+      housekeeping: response.housekeeping || '',
+      televisionSource: response.televisionSource || '',
+      internetService: response.internetService || '',
+      keyReturn: response.keyReturn || '',
+      concierge: response.concierge || '',
+      maintenanceEmail: response.maintenanceEmail || '',
+      emergencyPhone: response.emergencyPhone ? this.formatterService.phoneNumber(response.emergencyPhone) : '',
+      additionalNotes: response.additionalNotes || ''
+    });
+    this.formatPhone();
+    this.applyOrganizationDefaults();
   }
  
   populateFormFromCopiedData(): void {
@@ -282,13 +289,14 @@ export class PropertyInformationComponent implements OnInit, OnDestroy, OnChange
       parkingInformation: this.copiedPropertyInformation.parkingInformation || '',
       amenities: this.copiedPropertyInformation.amenities || '',
       laundry: this.copiedPropertyInformation.laundry || '',
+      providedFurnishings: this.copiedPropertyInformation.providedFurnishings || '',
       housekeeping: this.copiedPropertyInformation.housekeeping || '',
       televisionSource: this.copiedPropertyInformation.televisionSource || '',
       internetService: this.copiedPropertyInformation.internetService || '',
       keyReturn: this.copiedPropertyInformation.keyReturn || '',
       concierge: this.copiedPropertyInformation.concierge || '',
-      emergencyContact: this.copiedPropertyInformation.emergencyContact || '',
-      emergencyContactNumber: this.copiedPropertyInformation.emergencyContactNumber ? this.formatterService.phoneNumber(this.copiedPropertyInformation.emergencyContactNumber) : '',
+      maintenanceEmail: this.copiedPropertyInformation.maintenanceEmail || '',
+      emergencyPhone: this.copiedPropertyInformation.emergencyPhone ? this.formatterService.phoneNumber(this.copiedPropertyInformation.emergencyPhone) : '',
       additionalNotes: this.copiedPropertyInformation.additionalNotes || ''
     });
     this.formatPhone();
@@ -340,11 +348,11 @@ export class PropertyInformationComponent implements OnInit, OnDestroy, OnChange
     const maintenanceEmail = (this.organization as any).maintenanceEmail;
     const afterHoursPhone = (this.organization as any).afterHoursPhone;
 
-    if (!this.form.get('emergencyContact')?.value && maintenanceEmail) {
-      patch.emergencyContact = maintenanceEmail;
+    if (!this.form.get('maintenanceEmail')?.value && maintenanceEmail) {
+      patch.maintenanceEmail = maintenanceEmail;
     }
-    if (!this.form.get('emergencyContactNumber')?.value && afterHoursPhone) {
-      patch.emergencyContactNumber = this.formatterService.phoneNumber(afterHoursPhone);
+    if (!this.form.get('emergencyPhone')?.value && afterHoursPhone) {
+      patch.emergencyPhone = this.formatterService.phoneNumber(afterHoursPhone);
     }
 
     if (Object.keys(patch).length) {
@@ -366,7 +374,7 @@ export class PropertyInformationComponent implements OnInit, OnDestroy, OnChange
 
   //#region Utility Methods
   formatPhone(): void {
-    this.formatterService.formatPhoneControl(this.form.get('emergencyContactNumber'));
+    this.formatterService.formatPhoneControl(this.form.get('emergencyPhone'));
   }
 
   hasPersistedPropertyId(): boolean {

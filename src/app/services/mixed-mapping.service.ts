@@ -816,7 +816,7 @@ export class MixedMappingService {
     const { parkingNotes, ...requestBase } = property;
     const base = {
       ...requestBase,
-      parkingnotes: parkingNotes ?? null
+      parkingNotes: parkingNotes ?? null
     } as PropertyRequest;
     return { ...base, ...(overrides ?? {}) };
   }

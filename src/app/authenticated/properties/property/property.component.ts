@@ -30,12 +30,12 @@ import { RegionService } from '../../organizations/services/region.service';
 import { ReservationListResponse } from '../../reservations/models/reservation-model';
 import { ReservationService } from '../../reservations/services/reservation.service';
 import { CheckinTimes, CheckoutTimes, PropertyLeaseType, PropertyStatus, PropertyStyle, PropertyType, TrashDays, getBedSizeTypes, getCheckInTimes, getCheckOutTimes, getPropertyLeaseTypes, getPropertyStatuses, getPropertyStyles, getPropertyTypes, normalizeCheckInTimeId, normalizeCheckOutTimeId, normalizePropertyLeaseTypeId } from '../models/property-enums';
-import { PropertyLetterResponse } from '../models/property-letter.model';
+import { PropertyInformationResponse } from '../models/property-information.model';
 import { PropertyTitleBarContext } from '../models/property-title-bar-context.model';
 import { PropertyRequest, PropertyResponse } from '../models/property.model';
 import { PropertyCodeDialogComponent, PropertyCodeDialogResult } from '../property-code-dialog/property-code-dialog.component';
 import { PropertyAgreementComponent } from '../property-agreement/property-agreement.component';
-import { PropertyLetterService } from '../services/property-letter.service';
+import { PropertyInformationService } from '../services/property-information.service';
 import { PropertyService } from '../services/property.service';
 import { WelcomeLetterReloadService } from '../services/welcome-letter-reload.service';
 import { SearchableSelectComponent, SearchableSelectOption } from '../../shared/searchable-select/searchable-select.component';
@@ -78,7 +78,7 @@ export class PropertyComponent implements OnInit, AfterViewInit, OnDestroy, CanC
   propertyId: string;
   property: PropertyResponse;
   selectedReservationId: string | null = null;
-  copiedPropertyInformation: PropertyLetterResponse | null = null; 
+  copiedPropertyInformation: PropertyInformationResponse | null = null; 
  
   states: string[] = [];
   contacts: ContactResponse[] = [];
@@ -133,7 +133,7 @@ export class PropertyComponent implements OnInit, AfterViewInit, OnDestroy, CanC
     private welcomeLetterReloadService: WelcomeLetterReloadService,
     private documentReloadService: DocumentReloadService,
     private utilityService: UtilityService,
-    private propertyLetterService: PropertyLetterService,
+    private propertyInformationService: PropertyInformationService,
     private reservationService: ReservationService,
     private globalSelectionService: GlobalSelectionService,
     private dialog: MatDialog,
@@ -277,11 +277,11 @@ export class PropertyComponent implements OnInit, AfterViewInit, OnDestroy, CanC
     }).pipe(take(1),
       switchMap(() => forkJoin({
         property: this.propertyService.getPropertyByGuid(sourcePropertyId).pipe(take(1)),
-        propertyInformation: this.propertyLetterService.getPropertyInformationByGuid(sourcePropertyId).pipe(take(1), catchError(() => of(null)))
+        propertyInformation: this.propertyInformationService.getPropertyInformationByGuid(sourcePropertyId).pipe(take(1), catchError(() => of(null)))
       })),
       finalize(() => { this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'property'); })
     ).subscribe({
-      next: (result: { property: PropertyResponse; propertyInformation: PropertyLetterResponse | null }) => {
+      next: (result: { property: PropertyResponse; propertyInformation: PropertyInformationResponse | null }) => {
          this.property = result.property;
          this.copiedPropertyInformation = result.propertyInformation;
         
@@ -446,9 +446,8 @@ export class PropertyComponent implements OnInit, AfterViewInit, OnDestroy, CanC
     // Sofabed is a bed-size dropdown; send selected bed type id.
     propertyRequest.sofabed = formValue.sofabed ? Number(formValue.sofabed) : 0;
     
-    // Map parkingNotes field (note: API expects lowercase 'parkingnotes' in request)
-    propertyRequest.parkingnotes = formValue.parkingNotes || '';
-    delete (propertyRequest as unknown as Record<string, unknown>)['parkingNotes'];
+    // Map parking notes directly to the API/DB-backed field name.
+    propertyRequest.parkingNotes = formValue.parkingNotes || '';
 
     const trimOrNull = (v: unknown): string | null => {
       if (v == null) return null;
