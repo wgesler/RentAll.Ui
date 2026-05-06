@@ -6,11 +6,9 @@ import { BehaviorSubject, Observable, Subscription, filter, finalize, map, take 
 import { CommonMessage } from '../../../enums/common-message.enum';
 import { MaterialModule } from '../../../material.module';
 import { AuthService } from '../../../services/auth.service';
-import { CommonService } from '../../../services/common.service';
 import { FormatterService } from '../../../services/formatter-service';
 import { UtilityService } from '../../../services/utility.service';
 import { OfficeResponse } from '../../organizations/models/office.model';
-import { OrganizationResponse } from '../../organizations/models/organization.model';
 import { OfficeService } from '../../organizations/services/office.service';
 import { GlobalSelectionService } from '../../organizations/services/global-selection.service';
 import { PropertyInformationRequest, PropertyInformationResponse } from '../models/property-information.model';
@@ -37,19 +35,17 @@ export class PropertyInformationComponent implements OnInit, OnDestroy, OnChange
   isSubmitting: boolean = false;
   form: FormGroup;
   property: PropertyResponse | null = null;
-  organization: OrganizationResponse | null = null;
   offices: OfficeResponse[] = [];
   selectedOffice: OfficeResponse | null = null;
   showOfficeDropdown: boolean = false;
   officesSubscription?: Subscription;
 
-  itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['property', 'organization', 'propertyInformation', 'offices']));
+  itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['property', 'propertyInformation', 'offices']));
   isLoading$: Observable<boolean> = this.itemsToLoad$.pipe(map(items => items.size > 0));
 
   constructor(
     private propertyInformationService: PropertyInformationService,
     private propertyService: PropertyService,
-    private commonService: CommonService,
     private authService: AuthService,
     private toastr: ToastrService,
     private fb: FormBuilder,
@@ -65,11 +61,11 @@ export class PropertyInformationComponent implements OnInit, OnDestroy, OnChange
   //#region Property-Information
   ngOnInit(): void {
     this.loadOffices();
-    this.loadOrganization();
     
     if (!this.hasPersistedPropertyId()) {
       if (this.copiedPropertyInformation) 
         this.populateFormFromCopiedData();
+      this.applyAddModeOfficeDefaults();
       this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'property');
       this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'propertyInformation');
       return;
@@ -87,11 +83,9 @@ export class PropertyInformationComponent implements OnInit, OnDestroy, OnChange
     
     if (changes['copiedPropertyInformation'] && this.copiedPropertyInformation && !this.hasPersistedPropertyId()) {
       this.populateFormFromCopiedData();
+      this.applyAddModeOfficeDefaults();
       this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'property');
       this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'propertyInformation');
-      if (!this.organization) {
-        this.loadOrganization();
-      }
     }
     
     if (changes['officeId'] && this.offices.length > 0) {
@@ -122,7 +116,7 @@ export class PropertyInformationComponent implements OnInit, OnDestroy, OnChange
     
   savePropertyInformation(): void {
     if (!this.hasPersistedPropertyId()) {
-      this.toastr.error('Property must be saved first before saving property letter information.', CommonMessage.Error);
+      this.toastr.error('Property must be saved first before saving property information.', CommonMessage.Error);
       return;
     }
 
@@ -156,7 +150,7 @@ export class PropertyInformationComponent implements OnInit, OnDestroy, OnChange
       next: () => {
         this.propertyInformationService.updatePropertyInformation(propertyInformationRequest).pipe(take(1), finalize(() => this.isSubmitting = false)).subscribe({
           next: () => {
-            this.toastr.success('Property letter updated successfully', CommonMessage.Success);
+            this.toastr.success('Property information updated successfully', CommonMessage.Success);
             this.copiedPropertyInformation = null;
             this.welcomeLetterReloadService.triggerReload();
           },
@@ -166,7 +160,7 @@ export class PropertyInformationComponent implements OnInit, OnDestroy, OnChange
       error: () => {
         this.propertyInformationService.createPropertyInformation(propertyInformationRequest).pipe(take(1), finalize(() => this.isSubmitting = false)).subscribe({
           next: () => {
-            this.toastr.success('Property letter created successfully', CommonMessage.Success);
+            this.toastr.success('Property information created successfully', CommonMessage.Success);
             this.copiedPropertyInformation = null;
             this.welcomeLetterReloadService.triggerReload();
           },
@@ -178,18 +172,6 @@ export class PropertyInformationComponent implements OnInit, OnDestroy, OnChange
   //#endregion
 
   //#region Data Loading Methods
-  loadOrganization(): void {
-    this.commonService.getOrganization().pipe(filter(org => org !== null), take(1),finalize(() => { this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'organization'); })).subscribe({
-      next: (org: OrganizationResponse) => {
-        this.organization = org;
-        this.applyOrganizationDefaults();
-      },
-      error: () => {
-        this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'organization');
-      }
-    });
-  }
-
   loadOffices(): void {
     this.officeService.areOfficesLoaded().pipe(filter(loaded => loaded === true), take(1)).subscribe(() => {
       this.officesSubscription = this.officeService.getAllOffices().subscribe(offices => {
@@ -207,6 +189,8 @@ export class PropertyInformationComponent implements OnInit, OnDestroy, OnChange
         } else if (this.property?.officeId) {
           this.selectedOffice = this.offices.find(o => o.officeId === this.property.officeId) || null;
         }
+
+        this.applyAddModeOfficeDefaults();
       });
     });
   }
@@ -247,8 +231,8 @@ export class PropertyInformationComponent implements OnInit, OnDestroy, OnChange
       internetService: new FormControl(''),
       keyReturn: new FormControl(''),
       concierge: new FormControl(''),
-      maintenanceEmail: new FormControl({ value: '', disabled: true }),
-      emergencyPhone: new FormControl({ value: '', disabled: true }),
+      maintenanceEmail: new FormControl(''),
+      emergencyPhone: new FormControl(''),
       additionalNotes: new FormControl('')
     });
   }
@@ -273,7 +257,6 @@ export class PropertyInformationComponent implements OnInit, OnDestroy, OnChange
       additionalNotes: response.additionalNotes || ''
     });
     this.formatPhone();
-    this.applyOrganizationDefaults();
   }
  
   populateFormFromCopiedData(): void {
@@ -300,6 +283,7 @@ export class PropertyInformationComponent implements OnInit, OnDestroy, OnChange
       additionalNotes: this.copiedPropertyInformation.additionalNotes || ''
     });
     this.formatPhone();
+    this.applyAddModeOfficeDefaults();
   }
 
   populateDefaultsFromProperty(): void {
@@ -321,7 +305,7 @@ export class PropertyInformationComponent implements OnInit, OnDestroy, OnChange
     });
 
     this.formatPhone();
-    this.applyOrganizationDefaults();
+    this.applyAddModeOfficeDefaults();
   }
 
   getTelevisionSourceFromProperty(): string {
@@ -342,11 +326,13 @@ export class PropertyInformationComponent implements OnInit, OnDestroy, OnChange
     return this.property?.internetPassword ? 'Internet Provided' : '';
   }
 
-  applyOrganizationDefaults(): void {
-    if (!this.organization) return;
+  applyAddModeOfficeDefaults(): void {
+    if (this.hasPersistedPropertyId()) return;
+    if (!this.selectedOffice) return;
+
     const patch: any = {};
-    const maintenanceEmail = (this.organization as any).maintenanceEmail;
-    const afterHoursPhone = (this.organization as any).afterHoursPhone;
+    const maintenanceEmail = this.selectedOffice.maintenanceEmail;
+    const afterHoursPhone = this.selectedOffice.afterHoursPhone;
 
     if (!this.form.get('maintenanceEmail')?.value && maintenanceEmail) {
       patch.maintenanceEmail = maintenanceEmail;
@@ -369,6 +355,7 @@ export class PropertyInformationComponent implements OnInit, OnDestroy, OnChange
     } else {
       this.selectedOffice = null;
     }
+    this.applyAddModeOfficeDefaults();
   }
   //#endregion
 

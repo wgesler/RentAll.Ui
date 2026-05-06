@@ -588,14 +588,13 @@ export class PropertyWelcomeLetterComponent extends BaseDocumentComponent implem
       result = result.replace(/\{\{access\}\}/g, this.propertyInformation.access || '');
       result = result.replace(/\{\{amenities\}\}/g, this.propertyInformation.amenities || '');
       result = result.replace(/\{\{laundry\}\}/g, this.propertyInformation.laundry || '');
-      result = result.replace(/\{\{providedFurnishings\}\}/g, this.propertyInformation.providedFurnishings || '');
+      result = this.applyOptionalLinePlaceholder(result, 'providedFurnishingsLine', 'Provided Furnishings', this.propertyInformation.providedFurnishings);
       result = result.replace(/\{\{housekeeping\}\}/g, this.propertyInformation.housekeeping || '');
       result = result.replace(/\{\{televisionSource\}\}/g, this.propertyInformation.televisionSource || '');
       result = result.replace(/\{\{internetService\}\}/g, this.propertyInformation.internetService || '');
       result = result.replace(/\{\{keyReturn\}\}/g, this.propertyInformation.keyReturn || '');
       result = result.replace(/\{\{concierge\}\}/g, this.propertyInformation.concierge || '');
-      result = result.replace(/\{\{additionalNotesLine\}\}/g, this.getAdditionalNotesLine());
-      result = this.applyOptionalCodePlaceholder(result, 'additionalNotes', this.propertyInformation.additionalNotes);
+      result = this.applyOptionalLinePlaceholder(result, 'additionalNotesLine', 'Additional Notes', this.propertyInformation.additionalNotes);
     }
 
     if (this.selectedOffice) {
@@ -684,6 +683,27 @@ export class PropertyWelcomeLetterComponent extends BaseDocumentComponent implem
     return result;
   }
 
+  applyOptionalLinePlaceholder(
+    html: string,
+    placeholder: string,
+    label: string,
+    value: string | null | undefined
+  ): string {
+    const normalizedValue = (value || '').trim();
+    const tokenRegex = new RegExp(`\\{\\{${placeholder}\\}\\}`, 'g');
+    const wrappedParagraphRegex = new RegExp(`<p[^>]*>\\s*\\{\\{${placeholder}\\}\\}\\s*<\\/p>`, 'gi');
+
+    if (normalizedValue) {
+      const escapedValue = this.escapeHtml(normalizedValue);
+      const lineHtml = `<p><span class="label">${label}:</span> ${escapedValue}</p>`;
+      const withWrappedReplaced = html.replace(wrappedParagraphRegex, lineHtml);
+      return withWrappedReplaced.replace(tokenRegex, lineHtml);
+    }
+
+    const withoutWrappedLine = html.replace(wrappedParagraphRegex, '');
+    return withoutWrappedLine.replace(tokenRegex, '');
+  }
+
   escapeHtml(value: string): string {
     return value
       .replace(/&/g, '&amp;')
@@ -733,14 +753,6 @@ export class PropertyWelcomeLetterComponent extends BaseDocumentComponent implem
     }
     
     return 'N/A';
-  }
-
-  getAdditionalNotesLine(): string {
-    const additionalNotes = (this.propertyInformation?.additionalNotes || '').trim();
-    if (!additionalNotes) {
-      return '';
-    }
-    return `<p><span class="label">Additional Notes:</span> ${this.escapeHtml(additionalNotes)}</p>`;
   }
 
   getUnitFloorLevel(): string {  
