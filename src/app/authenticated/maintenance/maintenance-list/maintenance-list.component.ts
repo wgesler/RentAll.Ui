@@ -488,7 +488,7 @@ export class MaintenanceListComponent extends PropertyMaintenanceBase implements
     this.userService.getUsersByType(UserGroups[UserGroups.Housekeeping]).pipe(take(1), finalize(() => this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'cleaners'))).subscribe({
       next: (users: UserResponse[]) => {
         this.housekeepingUsers = users || [];
-        this.housekeepingById = new Map(this.housekeepingUsers.map(user => [user.userId, `${user.firstName ?? ''} ${user.lastName ?? ''}`.trim()]));
+        this.housekeepingById = new Map(this.housekeepingUsers.map(user => [this.utilityService.normalizeId(user.userId),`${user.firstName ?? ''} ${user.lastName ?? ''}`.trim()]));
         const names = this.housekeepingUsers.map(user => `${user.firstName ?? ''} ${user.lastName ?? ''}`.trim()).filter(name => name !== '');
         names.unshift('Clear Selection');
         this.housekeepingUserOptions.splice(0, this.housekeepingUserOptions.length, ...names);
@@ -509,7 +509,12 @@ export class MaintenanceListComponent extends PropertyMaintenanceBase implements
     this.userService.getUsersByType(UserGroups[UserGroups.Vendor]).pipe(take(1), finalize(() => this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'carpetUsers'))).subscribe({
       next: (users: UserResponse[]) => {
         this.carpetUsers = users || [];
-        this.carpetById = new Map(this.carpetUsers.map(user => [user.userId, `${user.firstName ?? ''} ${user.lastName ?? ''}`.trim()]));
+        this.carpetById = new Map(
+          this.carpetUsers.map(user => [
+            this.utilityService.normalizeId(user.userId),
+            `${user.firstName ?? ''} ${user.lastName ?? ''}`.trim()
+          ])
+        );
         const names = this.carpetUsers.map(user => `${user.firstName ?? ''} ${user.lastName ?? ''}`.trim()).filter(name => name !== '');
         names.unshift('Clear Selection');
         this.carpetUserOptions.splice(0, this.carpetUserOptions.length, ...names);
@@ -530,7 +535,12 @@ export class MaintenanceListComponent extends PropertyMaintenanceBase implements
     this.userService.getUsersByType(UserGroups[UserGroups.Inspector]).pipe(take(1), finalize(() => this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'inspectors'))).subscribe({
       next: (users: UserResponse[]) => {
         this.inspectorUsers = users || [];
-        this.inspectorById = new Map(this.inspectorUsers.map(user => [user.userId, `${user.firstName ?? ''} ${user.lastName ?? ''}`.trim()]));
+        this.inspectorById = new Map(
+          this.inspectorUsers.map(user => [
+            this.utilityService.normalizeId(user.userId),
+            `${user.firstName ?? ''} ${user.lastName ?? ''}`.trim()
+          ])
+        );
         const names = this.inspectorUsers.map(user => `${user.firstName ?? ''} ${user.lastName ?? ''}`.trim()).filter(name => name !== '');
         names.unshift('Clear Selection');
         this.inspectorUserOptions.splice(0, this.inspectorUserOptions.length, ...names);
@@ -1477,33 +1487,42 @@ export class MaintenanceListComponent extends PropertyMaintenanceBase implements
     if (!cleanerUserIdOrName || cleanerUserIdOrName === 'Clear Selection' || cleanerUserIdOrName === 'Select Cleaner') {
       return '';
     }
-    const matchingUser = this.getHousekeepingUsersForScope(officeId).find(user => user.userId === cleanerUserIdOrName);
+    const normalizedUserId = this.utilityService.normalizeId(cleanerUserIdOrName);
+    const matchingUser = this.getHousekeepingUsersForScope(officeId).find(
+      user => this.utilityService.normalizeId(user.userId) === normalizedUserId
+    );
     if (matchingUser) {
       return `${matchingUser.firstName ?? ''} ${matchingUser.lastName ?? ''}`.trim();
     }
-    return this.housekeepingById.get(cleanerUserIdOrName) ?? cleanerUserIdOrName;
+    return this.housekeepingById.get(normalizedUserId) ?? cleanerUserIdOrName;
   }
 
   resolveInspectorName(inspectorUserIdOrName: string, officeId: number): string {
     if (!inspectorUserIdOrName || inspectorUserIdOrName === 'Select Inspector') {
       return '';
     }
-    const matchingUser = this.getInspectorUsersForScope(officeId).find(user => user.userId === inspectorUserIdOrName);
+    const normalizedUserId = this.utilityService.normalizeId(inspectorUserIdOrName);
+    const matchingUser = this.getInspectorUsersForScope(officeId).find(
+      user => this.utilityService.normalizeId(user.userId) === normalizedUserId
+    );
     if (matchingUser) {
       return `${matchingUser.firstName ?? ''} ${matchingUser.lastName ?? ''}`.trim();
     }
-    return this.inspectorById.get(inspectorUserIdOrName) ?? inspectorUserIdOrName;
+    return this.inspectorById.get(normalizedUserId) ?? inspectorUserIdOrName;
   }
 
   resolveCarpetName(carpetUserIdOrName: string, officeId: number): string {
     if (!carpetUserIdOrName || carpetUserIdOrName === 'Clear Selection' || carpetUserIdOrName === 'Select Carpet Cleaner') {
       return '';
     }
-    const matchingUser = this.getCarpetUsersForScope(officeId).find(user => user.userId === carpetUserIdOrName);
+    const normalizedUserId = this.utilityService.normalizeId(carpetUserIdOrName);
+    const matchingUser = this.getCarpetUsersForScope(officeId).find(
+      user => this.utilityService.normalizeId(user.userId) === normalizedUserId
+    );
     if (matchingUser) {
       return `${matchingUser.firstName ?? ''} ${matchingUser.lastName ?? ''}`.trim();
     }
-    return this.carpetById.get(carpetUserIdOrName) ?? carpetUserIdOrName;
+    return this.carpetById.get(normalizedUserId) ?? carpetUserIdOrName;
   }
  //#endregion
 

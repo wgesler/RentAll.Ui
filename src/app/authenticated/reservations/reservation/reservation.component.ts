@@ -556,13 +556,14 @@ export class ReservationComponent implements OnInit, OnDestroy, CanComponentDeac
     const companyName = companyNameRaw == null || String(companyNameRaw).trim() === '' ? null : String(companyNameRaw).trim();
     const selectedContactIds = this.getSelectedContactIdsFromForm();
 
+    const maidUserIdRaw = formValue.maidUserId == null ? '' : String(formValue.maidUserId).trim();
+    const maidUserId = !maidUserIdRaw || maidUserIdRaw === this.noneAssignedMaidOptionValue ? null : maidUserIdRaw;
+
     const reservationRequest: ReservationRequest = {
       organizationId: user?.organizationId || '',
       officeId: officeId,
       propertyId: formValue.propertyId,
-      agentId: isOwnerReservationType
-        ? null
-        : (agentId == null || String(agentId).trim() === '' ? null : String(agentId)),
+      agentId: isOwnerReservationType ? null : (agentId == null || String(agentId).trim() === '' ? null : String(agentId)),
       contactIds: selectedContactIds,
       companyId: companyId,
       companyName: companyName,
@@ -596,6 +597,7 @@ export class ReservationComponent implements OnInit, OnDestroy, CanComponentDeac
       maidStartDate:
         this.utilityService.formatDateOnlyForApi(formValue.maidStartDate as Date | null | undefined) ??
         this.utilityService.todayAsCalendarDateString(),
+      maidUserId: maidUserId,
       petFee: formValue.petFee ? parseFloat(formValue.petFee.toString()) : 0,
       numberOfPets: formValue.numberOfPets ? Number(formValue.numberOfPets) : 0,
       petDescription: formValue.petDescription || undefined,
