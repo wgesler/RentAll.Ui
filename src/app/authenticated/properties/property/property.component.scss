@@ -174,26 +174,38 @@
     }
   }
 
-  .code-symbol-suffix {
-    display: flex;
-    align-items: center;
-    gap: 4px;
-    margin-right: 2px;
+  .code-symbol-field {
+    ::ng-deep .mat-mdc-text-field-wrapper {
+      position: relative;
+      padding-top: 10px !important;
+    }
+
+    .code-palette-popout {
+      position: absolute;
+      top: -14px;
+      right: 8px;
+      z-index: 4;
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      background: #fff;
+      padding: 0;
+    }
   }
 
-  .code-symbol-btn {
+  .code-palette-trigger {
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    width: 24px;
-    height: 24px;
-    min-width: 24px;
+    width: 20px;
+    height: 20px;
+    min-width: 20px;
     padding: 0;
     border: 1px solid rgba(0, 0, 0, 0.35);
     border-radius: 4px;
     background: #fff;
     color: rgba(0, 0, 0, 0.72);
-    font-size: 16px;
+    font-size: 13px;
     font-weight: 600;
     line-height: 1;
     text-align: center;
@@ -203,7 +215,39 @@
     -webkit-appearance: none;
   }
 
-  .code-symbol-btn:hover {
+  .code-palette-trigger:hover {
+    background: rgba(0, 0, 0, 0.04);
+  }
+
+  .code-inline-palette {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    flex-wrap: nowrap;
+  }
+
+  .code-palette-item {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 20px;
+    height: 20px;
+    min-width: 20px;
+    padding: 0;
+    border: 1px solid rgba(0, 0, 0, 0.35);
+    border-radius: 4px;
+    background: #fff;
+    color: rgba(0, 0, 0, 0.72);
+    font-size: 13px;
+    line-height: 1;
+    text-align: center;
+    font-family: 'Apple Color Emoji', 'Segoe UI Emoji', 'Noto Color Emoji', 'Segoe UI', sans-serif;
+    cursor: pointer;
+    appearance: none;
+    -webkit-appearance: none;
+  }
+
+  .code-palette-item:hover {
     background: rgba(0, 0, 0, 0.04);
   }
 

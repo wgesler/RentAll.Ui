@@ -79,6 +79,7 @@ export class PropertyComponent implements OnInit, AfterViewInit, OnDestroy, CanC
   property: PropertyResponse;
   selectedReservationId: string | null = null;
   copiedPropertyInformation: PropertyInformationResponse | null = null;
+  codePaletteTargetControl: string | null = null;
  
   states: string[] = [];
   contacts: ContactResponse[] = [];
@@ -1885,6 +1886,34 @@ export class PropertyComponent implements OnInit, AfterViewInit, OnDestroy, CanC
     codeControl.setValue(nextValue);
     codeControl.markAsDirty();
     codeControl.markAsTouched();
+  }
+
+  setCodePaletteTarget(controlName: string): void {
+    this.codePaletteTargetControl = controlName;
+  }
+
+  toggleCodePalette(controlName: string, event: Event): void {
+    event.stopPropagation();
+    this.codePaletteTargetControl = this.codePaletteTargetControl === controlName ? null : controlName;
+  }
+
+  insertCodePaletteSymbol(symbol: string, event?: Event): void {
+    event?.stopPropagation();
+    if (!this.codePaletteTargetControl) {
+      return;
+    }
+
+    this.quickInsertCodeSymbol(this.codePaletteTargetControl, symbol);
+    this.clearCodePaletteTarget();
+  }
+
+  clearCodePaletteTarget(): void {
+    this.codePaletteTargetControl = null;
+  }
+
+  @HostListener('document:click')
+  onDocumentClick(): void {
+    this.clearCodePaletteTarget();
   }
 
   ngOnDestroy(): void {
