@@ -571,6 +571,7 @@ export class PropertyWelcomeLetterComponent extends BaseDocumentComponent implem
       result = result.replace(/\{\{trashLocation\}\}/g, this.getTrashLocation());
       result = result.replace(/\{\{internetNetwork\}\}/g, this.property.internetNetwork || 'N/A');
       result = result.replace(/\{\{internetPassword\}\}/g, this.property.internetPassword || 'N/A');
+      result = result.replace(/\{\{amenities\}\}/g, this.property.amenities || '');
       result = this.applyOptionalCodePlaceholder(result, 'alarmCode', this.property.alarmCode);
       result = this.applyOptionalCodePlaceholder(result, 'bldgcode', this.property.bldgMstrCode);
       result = this.applyOptionalCodePlaceholder(result, 'garageCode', this.property.garageCode);
@@ -586,7 +587,6 @@ export class PropertyWelcomeLetterComponent extends BaseDocumentComponent implem
       result = result.replace(/\{\{packageInstructions\}\}/g, this.propertyInformation.packageInstructions || '');
       result = result.replace(/\{\{parkingInformation\}\}/g, this.propertyInformation.parkingInformation || '');
       result = result.replace(/\{\{access\}\}/g, this.propertyInformation.access || '');
-      result = result.replace(/\{\{amenities\}\}/g, this.propertyInformation.amenities || '');
       result = result.replace(/\{\{laundry\}\}/g, this.propertyInformation.laundry || '');
       result = this.applyOptionalLinePlaceholder(result, 'providedFurnishingsLine', 'Provided Furnishings', this.propertyInformation.providedFurnishings);
       result = result.replace(/\{\{housekeeping\}\}/g, this.propertyInformation.housekeeping || '');

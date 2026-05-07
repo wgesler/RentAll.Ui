@@ -6,7 +6,6 @@ export interface PropertyInformationRequest {
   packageInstructions?: string;
   parkingInformation?: string;
   access?: string;
-  amenities?: string;
   laundry?: string;
   providedFurnishings?: string;
   housekeeping?: string;
@@ -30,7 +29,6 @@ export interface PropertyInformationResponse {
   packageInstructions?: string;
   parkingInformation?: string;
   access?: string;
-  amenities?: string;
   laundry?: string;
   providedFurnishings?: string;
   housekeeping?: string;
@@ -64,7 +62,6 @@ export interface PropertyInformationFormData {
   package: string | null;
   parkingInformation: string | null;
   access: string | null;
-  amenaties: string | null;
   laundry: string | null;
   housekeeping: string | null;
   televisionSource: string | null;

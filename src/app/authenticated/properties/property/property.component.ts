@@ -802,7 +802,6 @@ export class PropertyComponent implements OnInit, AfterViewInit, OnDestroy, CanC
       mailboxInstructions: copied?.mailboxInstructions || undefined,
       packageInstructions: copied?.packageInstructions || undefined,
       parkingInformation: copied?.parkingInformation || undefined,
-      amenities: copied?.amenities || undefined,
       laundry: copied?.laundry || undefined,
       providedFurnishings: copied?.providedFurnishings || undefined,
       housekeeping: copied?.housekeeping || undefined,

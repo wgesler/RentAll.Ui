@@ -133,7 +133,6 @@ export class PropertyInformationComponent implements OnInit, OnDestroy, OnChange
       mailboxInstructions: formValue.mailboxInstructions || undefined,
       packageInstructions: formValue.packageInstructions || undefined,
       parkingInformation: formValue.parkingInformation || undefined,
-      amenities: formValue.amenities || undefined,
       laundry: formValue.laundry || undefined,
       providedFurnishings: formValue.providedFurnishings || undefined,
       housekeeping: formValue.housekeeping || undefined,
@@ -223,7 +222,6 @@ export class PropertyInformationComponent implements OnInit, OnDestroy, OnChange
       mailboxInstructions: new FormControl(''),
       packageInstructions: new FormControl(''),
       parkingInformation: new FormControl(''),
-      amenities: new FormControl(''),
       laundry: new FormControl(''),
       providedFurnishings: new FormControl(''),
       housekeeping: new FormControl(''),
@@ -244,7 +242,6 @@ export class PropertyInformationComponent implements OnInit, OnDestroy, OnChange
       mailboxInstructions: response.mailboxInstructions || '',
       packageInstructions: response.packageInstructions || '',
       parkingInformation: response.parkingInformation || '',
-      amenities: response.amenities || '',
       laundry: response.laundry || '',
       providedFurnishings: response.providedFurnishings || '',
       housekeeping: response.housekeeping || '',
@@ -270,7 +267,6 @@ export class PropertyInformationComponent implements OnInit, OnDestroy, OnChange
       mailboxInstructions: this.copiedPropertyInformation.mailboxInstructions || '',
       packageInstructions: this.copiedPropertyInformation.packageInstructions || '',
       parkingInformation: this.copiedPropertyInformation.parkingInformation || '',
-      amenities: this.copiedPropertyInformation.amenities || '',
       laundry: this.copiedPropertyInformation.laundry || '',
       providedFurnishings: this.copiedPropertyInformation.providedFurnishings || '',
       housekeeping: this.copiedPropertyInformation.housekeeping || '',
@@ -300,8 +296,7 @@ export class PropertyInformationComponent implements OnInit, OnDestroy, OnChange
       televisionSource: this.getTelevisionSourceFromProperty(),
       internetService: this.getInternetServiceFromProperty(),
       keyReturn: '',
-      concierge: this.property.phone || '',
-      amenities: this.property.amenities || ''
+      concierge: this.property.phone || ''
     });
 
     this.formatPhone();
