@@ -68,6 +68,7 @@ export class DataTableComponent implements OnChanges, OnInit {
   @Input() hasActionsPrint: boolean = false;
   @Input() hasActionsRestore: boolean = false;
   @Input() hasActionsClearTracking: boolean = false;
+  @Input() hasActionsCheckAll: boolean = false;
   @Input() hasActionsRowClick: boolean = false;
   @Input() hasActionsSave: boolean = false;
   @Input() hasActionsSelect: boolean = false;
@@ -140,6 +141,7 @@ export class DataTableComponent implements OnChanges, OnInit {
   @Output() printEvent = new EventEmitter<PurposefulAny>();
   @Output() restoreEvent = new EventEmitter<PurposefulAny>();
   @Output() clearTrackingEvent = new EventEmitter<PurposefulAny>();
+  @Output() checkAllEvent = new EventEmitter<PurposefulAny>();
   @Output() rowClickEvent = new EventEmitter<PurposefulAny>();
   @Output() saveEvent = new EventEmitter<PurposefulAny>();
   @Output() selectEvent = new EventEmitter<PurposefulAny>();
@@ -385,6 +387,11 @@ export class DataTableComponent implements OnChanges, OnInit {
   emitClearTrackingEvent(event: Event, rowItem: PurposefulAny): void {
     event.stopPropagation();
     this.clearTrackingEvent.emit(rowItem);
+  }
+
+  emitCheckAllEvent(event: Event, rowItem: PurposefulAny): void {
+    event.stopPropagation();
+    this.checkAllEvent.emit(rowItem);
   }
 
   emitSaveEvent(_event: Event, rowItem: PurposefulAny): void {
@@ -722,7 +729,7 @@ export class DataTableComponent implements OnChanges, OnInit {
 
     columns = {...columns, ...this.columns};
     
-    if (this.hasActionsEdit || this.hasActionsDelete || this.hasActionsSave || this.hasActionsRestore || this.hasActionsDownload || this.hasActionsView || this.hasActionsInspect || this.hasActionsCamera || this.hasActionsPayable || this.hasActionsInvoice || this.hasActionsCopy || this.hasActionsCalendar || this.hasActionsClearTracking || this.hasColumnDynamicAction)
+    if (this.hasActionsEdit || this.hasActionsDelete || this.hasActionsSave || this.hasActionsRestore || this.hasActionsDownload || this.hasActionsView || this.hasActionsInspect || this.hasActionsCamera || this.hasActionsPayable || this.hasActionsInvoice || this.hasActionsCopy || this.hasActionsCalendar || this.hasActionsClearTracking || this.hasActionsCheckAll || this.hasColumnDynamicAction)
       columns['actions'] = { displayAs: 'Actions', sort: false, wrap: false };
     
     this.tableColumns = [];
@@ -760,6 +767,7 @@ export class DataTableComponent implements OnChanges, OnInit {
     if (this.hasActionsView)     this.buttons.push({name: 'view', callback: (event, rowItem) => this.emitViewEvent(event, rowItem), color: '#FF9800', tooltip: 'View', tooltipPosition: 'before', icon: 'visibility', suspendOnUpdate: false});
     if (this.hasActionsPrint)    this.buttons.push({name: 'print', callback: (event, rowItem) => this.emitPrintEvent(event, rowItem), color: '#2196F3', tooltip: 'Print', tooltipPosition: 'before', icon: 'print', suspendOnUpdate: false});
     if (this.hasActionsRestore)  this.buttons.push({name: 'restore', callback: (event, rowItem) => this.emitRestoreEvent(event, rowItem), color: '#A64D79', tooltip: 'Restore', tooltipPosition: 'before', icon: 'restore', suspendOnUpdate: false});
+    if (this.hasActionsCheckAll) this.buttons.push({name: 'checkAll', callback: (event, rowItem) => this.emitCheckAllEvent(event, rowItem), color: '#2E7D32', tooltip: 'Check All', tooltipPosition: 'before', icon: 'done', suspendOnUpdate: false});
     if (this.hasActionsClearTracking) this.buttons.push({name: 'clearTracking', callback: (event, rowItem) => this.emitClearTrackingEvent(event, rowItem), color: '#1E88E5', tooltip: 'Clear Tracking', tooltipPosition: 'before', icon: 'restart_alt', suspendOnUpdate: false});
     if (this.hasActionsSave)     this.buttons.push({name: 'save', callback: (event, rowItem) => this.emitSaveEvent(event, rowItem), color: '#93C47D', tooltip: 'Save', tooltipPosition: 'after', icon: 'save', suspendOnUpdate: false});
     if (this.hasActionsDownload) this.buttons.push({name: 'download', callback: (event, rowItem) => this.emitDownloadEvent(event, rowItem), color: '#7E69B4', tooltip: 'View / Download', tooltipPosition: 'after', icon: 'download', suspendOnUpdate: false});

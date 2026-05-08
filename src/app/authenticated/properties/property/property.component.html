@@ -839,6 +839,8 @@
                 [isAddMode]="isAddMode"
                 [canManageAgreement]="isInAccounting"
                 [officeId]="sharedPropertyOfficeId"
+                [propertyLeaseTypeId]="form?.get('propertyLeaseTypeId')?.value ?? null"
+                [vendorContactId]="form?.get('vendorId')?.value ?? null"
               />
             </mat-expansion-panel>
             }

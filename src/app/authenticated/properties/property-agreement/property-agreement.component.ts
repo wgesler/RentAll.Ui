@@ -15,9 +15,21 @@ import { PdfThumbnailService } from '../../../services/pdf-thumbnail.service';
 import { FileDetails } from '../../documents/models/document.model';
 import { CostCodesResponse } from '../../accounting/models/cost-codes.model';
 import { CostCodesService } from '../../accounting/services/cost-codes.service';
-import { ManagementFeeType, normalizeManagementFeeTypeId } from '../models/property-enums';
-import { PropertyAgreementRequest, PropertyAgreementResponse } from '../models/property-agreement.model';
+import { ManagementFeeType, PropertyLeaseType, normalizeManagementFeeTypeId, normalizePropertyLeaseTypeId } from '../models/property-enums';
+import { PropertyAgreementLineRequest, PropertyAgreementRequest, PropertyAgreementResponse } from '../models/property-agreement.model';
 import { PropertyAgreementService } from '../services/property-agreement.service';
+import { ContactService } from '../../contacts/services/contact.service';
+import { ContactResponse } from '../../contacts/models/contact.model';
+
+interface AgreementLineDisplay {
+  agreementLineId: string | null;
+  title: string;
+  startDate: Date | null;
+  endDate: Date | null;
+  deposit: string;
+  oneTime: string;
+  monthly: string;
+}
 
 @Component({
   selector: 'app-property-agreement',
@@ -31,6 +43,8 @@ export class PropertyAgreementComponent implements OnInit, OnChanges, OnDestroy 
   @Input({ required: true }) isAddMode!: boolean;
   @Input({ required: true }) canManageAgreement!: boolean;
   @Input() officeId: number | null = null;
+  @Input() propertyLeaseTypeId: number | null = null;
+  @Input() vendorContactId: string | null = null;
 
   readonly ManagementFeeType = ManagementFeeType;
   agreementForm: FormGroup | null = null;
@@ -63,6 +77,23 @@ export class PropertyAgreementComponent implements OnInit, OnChanges, OnDestroy 
   agreementDocPath: string | null = null;
   agreementHasNewDocUpload = false;
   agreementDocPdfThumbnailUrl: string | null = null;
+
+  vendorContact: ContactResponse | null = null;
+  vendorW9FileName: string | null = null;
+  vendorW9FileDataUrl: string | null = null;
+  vendorW9FileContentType: string | null = null;
+  vendorW9FileDetails: FileDetails | null = null;
+  vendorW9Path: string | null = null;
+  vendorW9PdfThumbnailUrl: string | null = null;
+
+  vendorInsuranceFileName: string | null = null;
+  vendorInsuranceFileDataUrl: string | null = null;
+  vendorInsuranceFileContentType: string | null = null;
+  vendorInsuranceFileDetails: FileDetails | null = null;
+  vendorInsurancePath: string | null = null;
+  vendorInsurancePdfThumbnailUrl: string | null = null;
+
+  agreementLines: AgreementLineDisplay[] = [];
   
   destroy$ = new Subject<void>();
 
@@ -79,6 +110,55 @@ export class PropertyAgreementComponent implements OnInit, OnChanges, OnDestroy 
     return mode === ManagementFeeType.Minimum ? 'Minimum Amount' : 'Flat Rate Amount';
   }
 
+  get isPropertyManagementLease(): boolean {
+    return normalizePropertyLeaseTypeId(this.propertyLeaseTypeId) === PropertyLeaseType.PropertyManagement;
+  }
+
+  get isVendorAttachmentMode(): boolean {
+    return !this.isPropertyManagementLease;
+  }
+
+  get displayW9FileName(): string | null {
+    return this.isVendorAttachmentMode ? this.vendorW9FileName : this.agreementW9FileName;
+  }
+
+  get displayW9FileDataUrl(): string | null {
+    return this.isVendorAttachmentMode ? this.vendorW9FileDataUrl : this.agreementW9FileDataUrl;
+  }
+
+  get displayW9FileContentType(): string | null {
+    return this.isVendorAttachmentMode ? this.vendorW9FileContentType : this.agreementW9FileContentType;
+  }
+
+  get displayW9PdfThumbnailUrl(): string | null {
+    return this.isVendorAttachmentMode ? this.vendorW9PdfThumbnailUrl : this.agreementW9PdfThumbnailUrl;
+  }
+
+  get displayInsuranceFileName(): string | null {
+    return this.isVendorAttachmentMode ? this.vendorInsuranceFileName : this.agreementInsuranceFileName;
+  }
+
+  get displayInsuranceFileDataUrl(): string | null {
+    return this.isVendorAttachmentMode ? this.vendorInsuranceFileDataUrl : this.agreementInsuranceFileDataUrl;
+  }
+
+  get displayInsuranceFileContentType(): string | null {
+    return this.isVendorAttachmentMode ? this.vendorInsuranceFileContentType : this.agreementInsuranceFileContentType;
+  }
+
+  get displayInsurancePdfThumbnailUrl(): string | null {
+    return this.isVendorAttachmentMode ? this.vendorInsurancePdfThumbnailUrl : this.agreementInsurancePdfThumbnailUrl;
+  }
+
+  get vendorInsuranceExpirationDisplay(): string {
+    if (!this.isVendorAttachmentMode) {
+      return '';
+    }
+
+    const parsedDate = this.utilityService.parseDateOnlyStringToDate(this.vendorContact?.insuranceExpiration ?? null);
+    return parsedDate ? this.formatterService.dateOnly(parsedDate) : 'Not provided';
+  }
+
   constructor(
     private fb: FormBuilder,
     private route: ActivatedRoute,
@@ -89,7 +169,8 @@ export class PropertyAgreementComponent implements OnInit, OnChanges, OnDestroy 
     private utilityService: UtilityService,
     private propertyAgreementService: PropertyAgreementService,
     private costCodesService: CostCodesService,
-    private pdfThumbnailService: PdfThumbnailService
+    private pdfThumbnailService: PdfThumbnailService,
+    private contactService: ContactService
   ) {}
 
   //#region Property Agreement
@@ -97,6 +178,7 @@ export class PropertyAgreementComponent implements OnInit, OnChanges, OnDestroy 
     this.buildAgreementForm();
     this.loadCostCodes();
     this.loadPropertyAgreement();
+    this.loadVendorContactAttachments();
   }
 
   ngOnChanges(changes: SimpleChanges): void {
@@ -113,6 +195,11 @@ export class PropertyAgreementComponent implements OnInit, OnChanges, OnDestroy 
     const office = changes['officeId'];
     if (office && !office.firstChange) {
       this.filterCostCodesByOffice();
+    }
+    const leaseTypeChanged = !!(changes['propertyLeaseTypeId'] && !changes['propertyLeaseTypeId'].firstChange);
+    const vendorChanged = !!(changes['vendorContactId'] && !changes['vendorContactId'].firstChange);
+    if (leaseTypeChanged || vendorChanged) {
+      this.loadVendorContactAttachments();
     }
     if (shouldReload) {
       this.loadPropertyAgreement();
@@ -136,6 +223,11 @@ export class PropertyAgreementComponent implements OnInit, OnChanges, OnDestroy 
         'Agreement Not Saved',
         { timeOut: CommonTimeouts.Extended }
       );
+      return of(false);
+    }
+    const lineValidation = this.validateAgreementLinesForSave();
+    if (!lineValidation.isValid) {
+      this.toastr.warning(lineValidation.errorMessage || 'Agreement lines are invalid.');
       return of(false);
     }
     const payload = this.buildPropertyAgreementRequest();
@@ -172,6 +264,11 @@ export class PropertyAgreementComponent implements OnInit, OnChanges, OnDestroy 
     if (!this.agreementForm.valid) {
       this.agreementForm.markAllAsTouched();
       this.toastr.warning('Property agreement has validation errors. Open Property Agreements, fix the fields, then save.', 'Agreement Not Saved', { timeOut: CommonTimeouts.Extended });
+      return of(false);
+    }
+    const lineValidation = this.validateAgreementLinesForSave();
+    if (!lineValidation.isValid) {
+      this.toastr.warning(lineValidation.errorMessage || 'Agreement lines are invalid.');
       return of(false);
     }
     const payload: PropertyAgreementRequest = {
@@ -254,6 +351,7 @@ export class PropertyAgreementComponent implements OnInit, OnChanges, OnDestroy 
     this.populateAgreementW9(data);
     this.populateAgreementInsurance(data);
     this.populateAgreementDoc(data);
+    this.populateAgreementLines(data);
   }
   //#endregion
 
@@ -307,6 +405,7 @@ export class PropertyAgreementComponent implements OnInit, OnChanges, OnDestroy 
     this.clearAgreementW9Ui();
     this.clearAgreementInsuranceUi();
     this.clearAgreementDocUi();
+    this.agreementLines = [];
   } 
   
   discardAndReloadIfDirty(): void {
@@ -380,6 +479,7 @@ export class PropertyAgreementComponent implements OnInit, OnChanges, OnDestroy 
       accountNumber: (v?.accountNumber || '').trim() || null,
       rentalIncomeCcId: v?.rentalIncomeCcId == null ? null : Number(v.rentalIncomeCcId),
       rentalExpenseCcId: v?.rentalExpenseCcId == null ? null : Number(v.rentalExpenseCcId),
+      agreementLines: this.mapAgreementLinesToRequest(),
       notes: (v?.notes || '').trim() || null,
       managementFeeTypeId: normalizeManagementFeeTypeId(v?.managementFeeMode),
       flatRateAmount:
@@ -430,6 +530,210 @@ export class PropertyAgreementComponent implements OnInit, OnChanges, OnDestroy 
         };
       })
       .filter((option): option is { value: number, label: string } => option !== null);
+  }
+  //#endregion
+
+  //#region Agreement Line Methods
+  populateAgreementLines(data: PropertyAgreementResponse): void {
+    const sourceLines = data.agreementLines || [];
+    this.agreementLines = sourceLines.map(line => ({
+      agreementLineId: line.agreementLineId ?? null,
+      title: (line.title || '').trim(),
+      startDate: this.utilityService.parseCalendarDateInput(line.startDate ?? null),
+      endDate: this.utilityService.parseCalendarDateInput(line.endDate ?? null),
+      deposit: this.formatAgreementDecimalForDisplay(line.deposit),
+      oneTime: this.formatAgreementDecimalForDisplay(line.oneTime),
+      monthly: this.formatAgreementDecimalForDisplay(line.monthly)
+    }));
+  }
+
+  addAgreementLine(): void {
+    this.agreementLines.push({
+      agreementLineId: null,
+      title: '',
+      startDate: null,
+      endDate: null,
+      deposit: '$0.00',
+      oneTime: '$0.00',
+      monthly: '$0.00'
+    });
+    this.agreementForm?.markAsDirty();
+  }
+
+  removeAgreementLine(index: number): void {
+    if (index < 0 || index >= this.agreementLines.length) {
+      return;
+    }
+    this.agreementLines.splice(index, 1);
+    this.agreementForm?.markAsDirty();
+  }
+
+  updateAgreementLineTitle(index: number, value: string): void {
+    if (!this.agreementLines[index]) {
+      return;
+    }
+    this.agreementLines[index].title = value || '';
+    this.agreementForm?.markAsDirty();
+  }
+
+  updateAgreementLineDate(index: number, field: 'startDate' | 'endDate', value: Date | null): void {
+    if (!this.agreementLines[index]) {
+      return;
+    }
+    this.agreementLines[index][field] = value ? new Date(value) : null;
+    this.agreementForm?.markAsDirty();
+  }
+
+  onAgreementLineAmountInput(event: Event, index: number, field: 'deposit' | 'oneTime' | 'monthly'): void {
+    if (!this.agreementLines[index]) {
+      return;
+    }
+    const input = event.target as HTMLInputElement;
+    const sanitized = (input.value || '').replace(/[^0-9.]/g, '');
+    const normalized = sanitized.replace(/(\..*)\./g, '$1');
+    input.value = normalized;
+    this.agreementLines[index][field] = normalized;
+    this.agreementForm?.markAsDirty();
+  }
+
+  onAgreementLineAmountFocus(event: Event, index: number, field: 'deposit' | 'oneTime' | 'monthly'): void {
+    if (!this.agreementLines[index]) {
+      return;
+    }
+    const input = event.target as HTMLInputElement;
+    const parsed = this.parseAgreementDecimalFromForm(this.agreementLines[index][field]);
+    const editableValue = parsed == null ? '' : `${parsed}`;
+    this.agreementLines[index][field] = editableValue;
+    input.value = editableValue;
+    input.select();
+  }
+
+  onAgreementLineAmountBlur(event: Event, index: number, field: 'deposit' | 'oneTime' | 'monthly'): void {
+    if (!this.agreementLines[index]) {
+      return;
+    }
+    const input = event.target as HTMLInputElement;
+    const parsed = this.parseAgreementDecimalFromForm(input.value);
+    const formatted = this.formatAgreementCurrency(parsed ?? 0);
+    this.agreementLines[index][field] = formatted;
+    input.value = formatted;
+    this.agreementForm?.markAsDirty();
+  }
+
+  mapAgreementLinesToRequest(): PropertyAgreementLineRequest[] {
+    return (this.agreementLines || [])
+      .filter(line => !this.isAgreementLineBlank(line))
+      .map(line => ({
+        agreementLineId: line.agreementLineId || null,
+        title: (line.title || '').trim() || null,
+        startDate: this.utilityService.toDateOnlyJsonString(line.startDate) ?? null,
+        endDate: this.utilityService.toDateOnlyJsonString(line.endDate) ?? null,
+        deposit: this.parseAgreementDecimalFromForm(line.deposit),
+        oneTime: this.parseAgreementDecimalFromForm(line.oneTime),
+        monthly: this.parseAgreementDecimalFromForm(line.monthly)
+      }));
+  }
+
+  validateAgreementLinesForSave(): { isValid: boolean; errorMessage?: string } {
+    const lines = this.agreementLines || [];
+    for (let i = 0; i < lines.length; i++) {
+      const line = lines[i];
+      if (this.isAgreementLineBlank(line)) {
+        continue;
+      }
+      const lineNumber = i + 1;
+      if (!(line.title || '').trim()) {
+        return { isValid: false, errorMessage: `Agreement Line ${lineNumber}: Title is required.` };
+      }
+      if (!line.startDate) {
+        return { isValid: false, errorMessage: `Agreement Line ${lineNumber}: Start Date is required.` };
+      }
+      if (!line.endDate) {
+        return { isValid: false, errorMessage: `Agreement Line ${lineNumber}: End Date is required.` };
+      }
+      if (line.endDate < line.startDate) {
+        return { isValid: false, errorMessage: `Agreement Line ${lineNumber}: End Date must be on or after Start Date.` };
+      }
+    }
+    return { isValid: true };
+  }
+
+  isAgreementLineBlank(line: AgreementLineDisplay): boolean {
+    const title = (line.title || '').trim();
+    const hasDates = !!line.startDate || !!line.endDate;
+    const deposit = this.parseAgreementDecimalFromForm(line.deposit) ?? 0;
+    const oneTime = this.parseAgreementDecimalFromForm(line.oneTime) ?? 0;
+    const monthly = this.parseAgreementDecimalFromForm(line.monthly) ?? 0;
+    const hasAmounts = deposit !== 0 || oneTime !== 0 || monthly !== 0;
+    return !title && !hasDates && !hasAmounts;
+  }
+  //#endregion
+
+  //#region Vendor Attachment Methods
+  loadVendorContactAttachments(): void {
+    if (this.isPropertyManagementLease) {
+      this.clearVendorAttachmentUi();
+      return;
+    }
+
+    const vendorId = (this.vendorContactId || '').trim();
+    if (!vendorId) {
+      this.clearVendorAttachmentUi();
+      return;
+    }
+
+    const cachedVendor = this.contactService.getAllContactsValue().find(c => c.contactId === vendorId) || null;
+    if (cachedVendor) {
+      this.populateVendorAttachmentUi(cachedVendor);
+      return;
+    }
+
+    this.contactService.getContactByGuid(vendorId).pipe(take(1), takeUntil(this.destroy$)).subscribe({
+      next: contact => {
+        this.populateVendorAttachmentUi(contact || null);
+      },
+      error: () => {
+        this.clearVendorAttachmentUi();
+      }
+    });
+  }
+
+  populateVendorAttachmentUi(contact: ContactResponse | null): void {
+    this.vendorContact = contact;
+
+    const vendorW9Details = contact?.w9FileDetails ?? null;
+    const vendorW9Path = contact?.w9Path ?? null;
+    this.vendorW9FileDetails = vendorW9Details;
+    this.vendorW9Path = vendorW9Path;
+    this.vendorW9FileDataUrl = this.utilityService.resolveFileDetailsDataUrl(vendorW9Details, vendorW9Path);
+    this.vendorW9FileContentType = (this.utilityService.getContentTypeFromDataUrl(this.vendorW9FileDataUrl) || vendorW9Details?.contentType || this.utilityService.getContentTypeFromPath(vendorW9Path) || '').trim() || null;
+    this.vendorW9FileName = vendorW9Details?.fileName ?? vendorW9Path?.replace(/^.*[/\\]/, '') ?? null;
+    this.setAgreementPdfThumbnail(this.vendorW9FileDataUrl, this.vendorW9FileContentType, u => { this.vendorW9PdfThumbnailUrl = u; });
+
+    const vendorInsuranceDetails = contact?.insuranceFileDetails ?? null;
+    const vendorInsurancePath = contact?.insurancePath ?? null;
+    this.vendorInsuranceFileDetails = vendorInsuranceDetails;
+    this.vendorInsurancePath = vendorInsurancePath;
+    this.vendorInsuranceFileDataUrl = this.utilityService.resolveFileDetailsDataUrl(vendorInsuranceDetails, vendorInsurancePath);
+    this.vendorInsuranceFileContentType = (this.utilityService.getContentTypeFromDataUrl(this.vendorInsuranceFileDataUrl) || vendorInsuranceDetails?.contentType || this.utilityService.getContentTypeFromPath(vendorInsurancePath) || '').trim() || null;
+    this.vendorInsuranceFileName = vendorInsuranceDetails?.fileName ?? vendorInsurancePath?.replace(/^.*[/\\]/, '') ?? null;
+    this.setAgreementPdfThumbnail(this.vendorInsuranceFileDataUrl, this.vendorInsuranceFileContentType, u => { this.vendorInsurancePdfThumbnailUrl = u; });
+  }
+
+  clearVendorAttachmentUi(): void {
+    this.vendorContact = null;
+    this.vendorW9FileName = null;
+    this.vendorW9FileDataUrl = null;
+    this.vendorW9FileContentType = null;
+    this.vendorW9FileDetails = null;
+    this.vendorW9Path = null;
+    this.vendorW9PdfThumbnailUrl = null;
+    this.vendorInsuranceFileName = null;
+    this.vendorInsuranceFileDataUrl = null;
+    this.vendorInsuranceFileContentType = null;
+    this.vendorInsuranceFileDetails = null;
+    this.vendorInsurancePath = null;
+    this.vendorInsurancePdfThumbnailUrl = null;
   }
   //#endregion
 
@@ -502,6 +806,10 @@ export class PropertyAgreementComponent implements OnInit, OnChanges, OnDestroy 
     };
     reader.readAsDataURL(file);
     this.agreementForm?.markAsDirty();
+  }
+
+  openAgreementW9FilePicker(): void {
+    this.agreementW9FileInputRef?.nativeElement?.click();
   }
 
   removeAgreementW9(): void {
@@ -584,6 +892,10 @@ export class PropertyAgreementComponent implements OnInit, OnChanges, OnDestroy 
     };
     reader.readAsDataURL(file);
     this.agreementForm?.markAsDirty();
+  }
+
+  openAgreementInsuranceFilePicker(): void {
+    this.agreementInsuranceFileInputRef?.nativeElement?.click();
   }
 
   removeAgreementInsurance(): void {
@@ -849,12 +1161,22 @@ export class PropertyAgreementComponent implements OnInit, OnChanges, OnDestroy 
   }
 
   getAgreementW9PreviewSource(): string | null {
+    if (this.isVendorAttachmentMode) {
+      if (this.vendorW9FileDataUrl?.startsWith('data:')) return this.vendorW9FileDataUrl;
+      const vendorDataUrl = this.utilityService.resolveFileDetailsDataUrl(this.vendorW9FileDetails, this.vendorW9Path);
+      return vendorDataUrl?.startsWith('data:') ? vendorDataUrl : null;
+    }
     if (this.agreementW9FileDataUrl?.startsWith('data:')) return this.agreementW9FileDataUrl;
     const detailsDataUrl = this.utilityService.resolveFileDetailsDataUrl(this.agreementW9FileDetails, this.agreementW9Path);
     return detailsDataUrl?.startsWith('data:') ? detailsDataUrl : null;
   }
 
   getAgreementInsurancePreviewSource(): string | null {
+    if (this.isVendorAttachmentMode) {
+      if (this.vendorInsuranceFileDataUrl?.startsWith('data:')) return this.vendorInsuranceFileDataUrl;
+      const vendorDataUrl = this.utilityService.resolveFileDetailsDataUrl(this.vendorInsuranceFileDetails, this.vendorInsurancePath);
+      return vendorDataUrl?.startsWith('data:') ? vendorDataUrl : null;
+    }
     if (this.agreementInsuranceFileDataUrl?.startsWith('data:')) return this.agreementInsuranceFileDataUrl;
     const detailsDataUrl = this.utilityService.resolveFileDetailsDataUrl(this.agreementInsuranceFileDetails, this.agreementInsurancePath);
     return detailsDataUrl?.startsWith('data:') ? detailsDataUrl : null;
@@ -867,6 +1189,22 @@ export class PropertyAgreementComponent implements OnInit, OnChanges, OnDestroy 
   }
 
   getAgreementAttachmentContentType(title: string): string | null {
+    if (this.isVendorAttachmentMode) {
+      const normalizedVendorTitle = title.toLowerCase();
+      if (normalizedVendorTitle.includes('insurance')) {
+        return this.vendorInsuranceFileContentType
+          || this.vendorInsuranceFileDetails?.contentType
+          || this.utilityService.getContentTypeFromPath(this.vendorInsurancePath)
+          || this.utilityService.getContentTypeFromDataUrl(this.getAgreementInsurancePreviewSource())
+          || null;
+      }
+      return this.vendorW9FileContentType
+        || this.vendorW9FileDetails?.contentType
+        || this.utilityService.getContentTypeFromPath(this.vendorW9Path)
+        || this.utilityService.getContentTypeFromDataUrl(this.getAgreementW9PreviewSource())
+        || null;
+    }
+
     const normalized = title.toLowerCase();
     if (normalized.includes('insurance')) {
       return this.agreementInsuranceFileContentType

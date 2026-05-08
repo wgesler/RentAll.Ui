@@ -16,6 +16,18 @@
   }
 }
 
+.property-agreement-panel-content--vendor {
+  border: 1px solid rgba(15, 79, 168, 0.2);
+  border-radius: 8px;
+  padding: 0.75rem;
+  background: linear-gradient(180deg, rgba(15, 79, 168, 0.04) 0%, rgba(15, 79, 168, 0.01) 100%);
+}
+
+.property-agreement-management-section--vendor {
+  border-left: 3px solid rgba(15, 79, 168, 0.65);
+  padding-left: 0.75rem;
+}
+
 .property-agreement-uploads-layout {
   display: flex;
   flex-direction: column;
@@ -28,6 +40,94 @@
   @media (min-width: 1024px) {
     flex-direction: row;
     gap: 1rem;
+  }
+}
+
+.property-agreement-lines-wrap {
+  width: 100%;
+}
+
+.property-agreement-lines-wrap--vendor {
+  border: 1px solid rgba(15, 79, 168, 0.2);
+  border-radius: 8px;
+  padding: 0.75rem;
+  background: linear-gradient(180deg, rgba(15, 79, 168, 0.04) 0%, rgba(15, 79, 168, 0.01) 100%);
+}
+
+.property-agreement-lines-table {
+  min-width: 1000px;
+  border-collapse: collapse;
+  width: 100%;
+
+  th,
+  td {
+    padding: 6px 8px !important;
+    vertical-align: middle;
+    border-bottom: 1px solid var(--mat-sys-outline-variant, #e0e0e0);
+  }
+
+  .agreement-col-amount {
+    text-align: right;
+  }
+
+  .agreement-col-amount .property-agreement-line-amount-input {
+    text-align: right;
+  }
+
+  .editable-input {
+    height: 34px;
+    line-height: 34px;
+    padding: 0 8px;
+    border: 1px solid var(--mat-sys-outline, #ccc) !important;
+    border-radius: 4px;
+    box-sizing: border-box;
+    background-color: var(--mat-sys-surface, #fff);
+  }
+
+  .editable-input:focus {
+    border-color: var(--mat-sys-primary, #1976d2) !important;
+    outline: none;
+  }
+
+  .property-agreement-line-date-field {
+    width: 100%;
+  }
+
+  .property-agreement-line-date-field ::ng-deep .mat-mdc-form-field-subscript-wrapper {
+    display: none;
+  }
+
+  .property-agreement-line-date-field ::ng-deep .mat-mdc-text-field-wrapper {
+    height: 34px;
+    min-height: 34px;
+    padding-left: 8px;
+    padding-right: 4px;
+    border-radius: 4px;
+    box-sizing: border-box;
+  }
+
+  .property-agreement-line-date-field ::ng-deep .mat-mdc-form-field-flex {
+    height: 34px;
+    align-items: center;
+  }
+
+  .property-agreement-line-date-field ::ng-deep .mat-mdc-form-field-infix {
+    min-height: 34px;
+    padding-top: 0;
+    padding-bottom: 0;
+    display: flex;
+    align-items: center;
+  }
+
+  .property-agreement-line-date-field ::ng-deep input.mat-mdc-input-element {
+    height: 32px;
+    line-height: 32px;
+    margin: 0;
+  }
+
+  .property-agreement-line-date-field ::ng-deep .mat-datepicker-toggle-default-icon {
+    width: 18px;
+    height: 18px;
   }
 }
 
@@ -52,6 +152,23 @@
   > .property-agreement-upload-col {
     min-height: 0;
   }
+}
+
+.property-agreement-upload-section--lease-compact {
+  @media (min-width: 1024px) {
+    flex: 0 0 24rem;
+    max-width: 24rem;
+  }
+}
+
+.property-agreement-notes-section {
+  @media (min-width: 1024px) {
+    flex: 1 1 0;
+  }
+}
+
+.property-agreement-notes-field {
+  margin-bottom: 0;
 }
 
 .property-agreement-upload-col {
@@ -178,5 +295,15 @@
   .mat-mdc-form-field {
     margin-bottom: 0;
   }
+}
+
+.property-agreement-vendor-note {
+  font-size: 0.8rem;
+  color: rgba(0, 0, 0, 0.62);
+}
+
+.property-agreement-vendor-expiration {
+  font-size: 0.8rem;
+  color: rgba(0, 0, 0, 0.72);
 }
 

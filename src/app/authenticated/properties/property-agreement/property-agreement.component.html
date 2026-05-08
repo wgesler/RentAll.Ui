@@ -5,50 +5,122 @@
   </div>
 } @else if (agreementForm) {
   <div [formGroup]="agreementForm" class="property-agreement-panel-content">
-    <div class="property-agreement-management-section mb-6 min-w-0">
-      <h4 class="property-agreement-upload-title text-sm text-slate-600 m-0 mb-3">Management Agreement</h4>
-      <div class="property-agreement-management-actions-row flex flex-row flex-wrap items-start gap-x-3 gap-y-2 w-full min-w-0">
-        <div class="property-agreement-management-mode-column flex flex-row flex-wrap items-center gap-x-2 sm:gap-x-3 gap-y-2 w-full min-w-0">
-          <mat-radio-group formControlName="managementFeeMode" class="property-agreement-management-radios flex flex-row flex-wrap items-center gap-x-2 sm:gap-x-3 gap-y-1 shrink-0">
-            <mat-radio-button [value]="ManagementFeeType.FlatRate" class="property-agreement-management-radio shrink-0">Flat Rate</mat-radio-button>
-            <mat-radio-button [value]="ManagementFeeType.Percentage" class="property-agreement-management-radio shrink-0">Percentage</mat-radio-button>
-            <mat-radio-button [value]="ManagementFeeType.Minimum" class="property-agreement-management-radio shrink-0">Minimum</mat-radio-button>
-          </mat-radio-group>
-          <div class="property-agreement-management-inputs flex flex-row flex-wrap items-center gap-x-2 sm:gap-x-3 gap-y-2 min-w-0">
-            <mat-form-field appearance="outline" class="min-w-0 w-36 sm:w-40 shrink-0">
-              <mat-label>{{ managementFlatRateFieldLabel }}</mat-label>
-              <input matInput type="text" formControlName="managementFlatRateAmount" (focus)="selectAllOnFocus($event)" (keypress)="allowAgreementNumericOnly($event, true)" (blur)="formatAgreementDecimalBlur('managementFlatRateAmount')" />
-            </mat-form-field>
-            <mat-form-field appearance="outline" class="min-w-0 w-[11.5rem] sm:w-44 shrink-0 property-agreement-number-field">
-              <mat-label>Revenue Split (Owner) %</mat-label>
-              <input matInput type="text" formControlName="revenueSplitOwner" (focus)="selectAllOnFocus($event)" (keypress)="allowAgreementNumericOnly($event, true)" (blur)="formatAgreementPercentBlur('revenueSplitOwner')" />
-            </mat-form-field>
-            <mat-form-field appearance="outline" class="min-w-0 w-[11.5rem] sm:w-44 shrink-0 property-agreement-number-field">
-              <mat-label>Revenue Split (Office) %</mat-label>
-              <input matInput type="text" formControlName="revenueSplitOffice" (focus)="selectAllOnFocus($event)" (keypress)="allowAgreementNumericOnly($event, true)" (blur)="formatAgreementPercentBlur('revenueSplitOffice')" />
-            </mat-form-field>
+    @if (!isPropertyManagementLease) {
+    <div class="property-agreement-lines-wrap mb-4" [class.property-agreement-lines-wrap--vendor]="!isPropertyManagementLease">
+      <div class="flex justify-between items-center mb-2">
+        <span class="text-lg font-medium">Agreement Lines</span>
+        <button mat-raised-button type="button" color="accent" (click)="addAgreementLine()" class="scale-90 text-nowrap flex-shrink-0">
+          Add Agreement
+        </button>
+      </div>
+      @if (agreementLines.length > 0) {
+        <div class="overflow-x-auto">
+          <table class="line-items-table property-agreement-lines-table">
+            <thead>
+              <tr class="border-b">
+                <th class="text-left" style="width: 56px;">No</th>
+                <th class="text-left" style="min-width: 220px;">Title</th>
+                <th class="text-left agreement-col-date" style="width: 170px;">Start Date</th>
+                <th class="text-left agreement-col-date" style="width: 170px;">End Date</th>
+                <th class="text-left agreement-col-amount" style="width: 150px;">Deposit</th>
+                <th class="text-left agreement-col-amount" style="width: 150px;">One Time</th>
+                <th class="text-left agreement-col-amount" style="width: 150px;">Monthly</th>
+                <th class="text-right" style="width: 56px;"></th>
+              </tr>
+            </thead>
+            <tbody>
+              @for (line of agreementLines; track (line.agreementLineId || i); let i = $index) {
+                <tr class="border-b">
+                  <td style="width: 56px;">{{ i + 1 }}</td>
+                  <td style="min-width: 220px;">
+                    <input type="text" class="w-full editable-input" [value]="line.title" (input)="updateAgreementLineTitle(i, $any($event.target).value || '')" placeholder="Enter title">
+                  </td>
+                  <td class="agreement-col-date" style="width: 170px;">
+                    <mat-form-field appearance="outline" class="w-full m-0 property-agreement-line-date-field">
+                      <input matInput [matDatepicker]="agreementStartDatePicker" [value]="line.startDate" (dateChange)="updateAgreementLineDate(i, 'startDate', $event.value)" />
+                      <mat-datepicker-toggle matIconSuffix [for]="agreementStartDatePicker"></mat-datepicker-toggle>
+                      <mat-datepicker #agreementStartDatePicker></mat-datepicker>
+                    </mat-form-field>
+                  </td>
+                  <td class="agreement-col-date" style="width: 170px;">
+                    <mat-form-field appearance="outline" class="w-full m-0 property-agreement-line-date-field">
+                      <input matInput [matDatepicker]="agreementEndDatePicker" [value]="line.endDate" (dateChange)="updateAgreementLineDate(i, 'endDate', $event.value)" />
+                      <mat-datepicker-toggle matIconSuffix [for]="agreementEndDatePicker"></mat-datepicker-toggle>
+                      <mat-datepicker #agreementEndDatePicker></mat-datepicker>
+                    </mat-form-field>
+                  </td>
+                  <td class="agreement-col-amount" style="width: 150px;">
+                    <input type="text" class="w-full editable-input property-agreement-line-amount-input" [value]="line.deposit" (input)="onAgreementLineAmountInput($event, i, 'deposit')" (focus)="onAgreementLineAmountFocus($event, i, 'deposit')" (blur)="onAgreementLineAmountBlur($event, i, 'deposit')" placeholder="$0.00">
+                  </td>
+                  <td class="agreement-col-amount" style="width: 150px;">
+                    <input type="text" class="w-full editable-input property-agreement-line-amount-input" [value]="line.oneTime" (input)="onAgreementLineAmountInput($event, i, 'oneTime')" (focus)="onAgreementLineAmountFocus($event, i, 'oneTime')" (blur)="onAgreementLineAmountBlur($event, i, 'oneTime')" placeholder="$0.00">
+                  </td>
+                  <td class="agreement-col-amount" style="width: 150px;">
+                    <input type="text" class="w-full editable-input property-agreement-line-amount-input" [value]="line.monthly" (input)="onAgreementLineAmountInput($event, i, 'monthly')" (focus)="onAgreementLineAmountFocus($event, i, 'monthly')" (blur)="onAgreementLineAmountBlur($event, i, 'monthly')" placeholder="$0.00">
+                  </td>
+                  <td class="text-right" style="width: 56px;">
+                    <button mat-icon-button type="button" (click)="removeAgreementLine(i)" class="delete-ledger-line-btn" style="color: #ae1f66;" tabindex="-1" matTooltip="Remove this agreement line">
+                      <mat-icon style="color: #ae1f66;">close</mat-icon>
+                    </button>
+                  </td>
+                </tr>
+              }
+            </tbody>
+          </table>
+        </div>
+      } @else {
+        <p class="text-gray-500 italic">No agreement lines added. Click "Add Agreement" to add one.</p>
+      }
+    </div>
+    }
+    @if (isPropertyManagementLease) {
+      <div class="property-agreement-management-section mb-6 min-w-0" [class.property-agreement-management-section--vendor]="!isPropertyManagementLease">
+        <h4 class="property-agreement-upload-title text-sm text-slate-600 m-0 mb-3">
+          {{ isPropertyManagementLease ? 'Management Agreement' : 'Direct / Third Party Agreement' }}
+        </h4>
+        <div class="property-agreement-management-actions-row flex flex-row flex-wrap items-start gap-x-3 gap-y-2 w-full min-w-0">
+          <div class="property-agreement-management-mode-column flex flex-row flex-wrap items-center gap-x-2 sm:gap-x-3 gap-y-2 w-full min-w-0">
+            <mat-radio-group formControlName="managementFeeMode" class="property-agreement-management-radios flex flex-row flex-wrap items-center gap-x-2 sm:gap-x-3 gap-y-1 shrink-0">
+              <mat-radio-button [value]="ManagementFeeType.FlatRate" class="property-agreement-management-radio shrink-0">Flat Rate</mat-radio-button>
+              <mat-radio-button [value]="ManagementFeeType.Percentage" class="property-agreement-management-radio shrink-0">Percentage</mat-radio-button>
+              <mat-radio-button [value]="ManagementFeeType.Minimum" class="property-agreement-management-radio shrink-0">Minimum</mat-radio-button>
+            </mat-radio-group>
+            <div class="property-agreement-management-inputs flex flex-row flex-wrap items-center gap-x-2 sm:gap-x-3 gap-y-2 min-w-0">
+              <mat-form-field appearance="outline" class="min-w-0 w-36 sm:w-40 shrink-0">
+                <mat-label>{{ managementFlatRateFieldLabel }}</mat-label>
+                <input matInput type="text" formControlName="managementFlatRateAmount" (focus)="selectAllOnFocus($event)" (keypress)="allowAgreementNumericOnly($event, true)" (blur)="formatAgreementDecimalBlur('managementFlatRateAmount')" />
+              </mat-form-field>
+              <mat-form-field appearance="outline" class="min-w-0 w-[11.5rem] sm:w-44 shrink-0 property-agreement-number-field">
+                <mat-label>Revenue Split (Owner) %</mat-label>
+                <input matInput type="text" formControlName="revenueSplitOwner" (focus)="selectAllOnFocus($event)" (keypress)="allowAgreementNumericOnly($event, true)" (blur)="formatAgreementPercentBlur('revenueSplitOwner')" />
+              </mat-form-field>
+              <mat-form-field appearance="outline" class="min-w-0 w-[11.5rem] sm:w-44 shrink-0 property-agreement-number-field">
+                <mat-label>Revenue Split (Office) %</mat-label>
+                <input matInput type="text" formControlName="revenueSplitOffice" (focus)="selectAllOnFocus($event)" (keypress)="allowAgreementNumericOnly($event, true)" (blur)="formatAgreementPercentBlur('revenueSplitOffice')" />
+              </mat-form-field>
+            </div>
           </div>
         </div>
       </div>
-    </div>
-    <div class="panel-grid panel-grid-min-0 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-x-2 gap-y-2 mb-4">
-      <mat-form-field appearance="outline" class="min-w-0 property-agreement-number-field">
-        <mat-label>Markup</mat-label>
-        <input matInput type="text" formControlName="markup" (focus)="clearAgreementMarkupOnFocus($event)" (input)="onAgreementMarkupInput($event)" (blur)="formatAgreementMarkupOnBlur()" (keydown)="formatAgreementMarkupOnEnter($event)" />
-      </mat-form-field>
-      <mat-form-field appearance="outline" class="min-w-0 property-agreement-number-field">
-        <mat-label>Working Capital Balance</mat-label>
-        <input matInput type="text" formControlName="workingCapitalBalance" (focus)="selectAllOnFocus($event)" (keypress)="allowAgreementNumericOnly($event, true)" (blur)="formatAgreementDecimalBlur('workingCapitalBalance')" />
-      </mat-form-field>
-      <mat-form-field appearance="outline" class="min-w-0 property-agreement-number-field">
-        <mat-label>Linen and Towel Fee</mat-label>
-        <input matInput type="text" formControlName="linenAndTowelFee" (focus)="selectAllOnFocus($event)" (keypress)="allowAgreementNumericOnly($event, true)" (blur)="formatAgreementDecimalBlur('linenAndTowelFee')" />
-      </mat-form-field>
-      <mat-form-field appearance="outline" class="min-w-0 property-agreement-number-field">
-        <mat-label>Hourly Labor Cost</mat-label>
-        <input matInput type="text" formControlName="hourlyLaborCost" (focus)="selectAllOnFocus($event)" (keypress)="allowAgreementNumericOnly($event, true)" (blur)="formatAgreementDecimalBlur('hourlyLaborCost')" />
-      </mat-form-field>
-    </div>
+      <div class="panel-grid panel-grid-min-0 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-x-2 gap-y-2 mb-4">
+        <mat-form-field appearance="outline" class="min-w-0 property-agreement-number-field">
+          <mat-label>Markup</mat-label>
+          <input matInput type="text" formControlName="markup" (focus)="clearAgreementMarkupOnFocus($event)" (input)="onAgreementMarkupInput($event)" (blur)="formatAgreementMarkupOnBlur()" (keydown)="formatAgreementMarkupOnEnter($event)" />
+        </mat-form-field>
+        <mat-form-field appearance="outline" class="min-w-0 property-agreement-number-field">
+          <mat-label>Working Capital Balance</mat-label>
+          <input matInput type="text" formControlName="workingCapitalBalance" (focus)="selectAllOnFocus($event)" (keypress)="allowAgreementNumericOnly($event, true)" (blur)="formatAgreementDecimalBlur('workingCapitalBalance')" />
+        </mat-form-field>
+        <mat-form-field appearance="outline" class="min-w-0 property-agreement-number-field">
+          <mat-label>Linen and Towel Fee</mat-label>
+          <input matInput type="text" formControlName="linenAndTowelFee" (focus)="selectAllOnFocus($event)" (keypress)="allowAgreementNumericOnly($event, true)" (blur)="formatAgreementDecimalBlur('linenAndTowelFee')" />
+        </mat-form-field>
+        <mat-form-field appearance="outline" class="min-w-0 property-agreement-number-field">
+          <mat-label>Hourly Labor Cost</mat-label>
+          <input matInput type="text" formControlName="hourlyLaborCost" (focus)="selectAllOnFocus($event)" (keypress)="allowAgreementNumericOnly($event, true)" (blur)="formatAgreementDecimalBlur('hourlyLaborCost')" />
+        </mat-form-field>
+      </div>
+    }
     <div class="grid grid-cols-1 sm:grid-cols-2 gap-x-2 gap-y-2 mb-4">
       <mat-form-field appearance="outline" class="min-w-0">
         <mat-label>Rental Income Cost Code</mat-label>
@@ -69,22 +141,25 @@
         </mat-select>
       </mat-form-field>
     </div>
-    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-x-2 gap-y-2 mb-4">
-      <mat-form-field appearance="outline" class="min-w-0">
-        <mat-label>Bank Name</mat-label>
-        <input matInput formControlName="bankName" />
-      </mat-form-field>
-      <mat-form-field appearance="outline" class="min-w-0">
-        <mat-label>Routing Number</mat-label>
-        <input matInput formControlName="routingNumber" />
-      </mat-form-field>
-      <mat-form-field appearance="outline" class="min-w-0">
-        <mat-label>Account Number</mat-label>
-        <input matInput formControlName="accountNumber" />
-      </mat-form-field>
-    </div>
+    @if (isPropertyManagementLease) {
+      <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-x-2 gap-y-2 mb-4">
+        <mat-form-field appearance="outline" class="min-w-0">
+          <mat-label>Bank Name</mat-label>
+          <input matInput formControlName="bankName" />
+        </mat-form-field>
+        <mat-form-field appearance="outline" class="min-w-0">
+          <mat-label>Routing Number</mat-label>
+          <input matInput formControlName="routingNumber" />
+        </mat-form-field>
+        <mat-form-field appearance="outline" class="min-w-0">
+          <mat-label>Account Number</mat-label>
+          <input matInput formControlName="accountNumber" />
+        </mat-form-field>
+      </div>
+    }
     <div class="property-agreement-uploads-layout mb-4">
-      <div class="property-agreement-upload-section">
+      @if (isPropertyManagementLease) {
+      <div class="property-agreement-upload-section" [class.property-agreement-upload-section--lease-compact]="!isPropertyManagementLease">
         <div class="property-agreement-header-cell min-w-0 flex flex-wrap items-center">
           <h4 class="property-agreement-upload-title text-sm text-slate-600 m-0">W9 Form</h4>
         </div>
@@ -93,34 +168,40 @@
             <div class="property-agreement-upload-row">
               <div class="property-agreement-col-actions">
                 <div class="property-agreement-actions-box">
-                  @if (agreementW9FileDataUrl && agreementW9FileContentType?.startsWith('image/')) {
-                    <button class="myfilebrowser" type="button" color="primary" mat-raised-button (click)="agreementW9FileInput.click()">Upload</button>
-                    <button type="button" color="accent" mat-raised-button (click)="removeAgreementW9()">Delete</button>
-                  } @else if (agreementW9FileName && agreementW9FileDataUrl) {
-                    <button class="myfilebrowser" type="button" color="primary" mat-raised-button (click)="agreementW9FileInput.click()">Upload</button>
-                    <button type="button" color="accent" mat-raised-button (click)="removeAgreementW9()">Delete</button>
-                  } @else if (agreementW9FileName) {
-                    <button class="myfilebrowser" type="button" color="primary" mat-raised-button (click)="agreementW9FileInput.click()">Upload</button>
-                    <button type="button" color="accent" mat-raised-button (click)="removeAgreementW9()">Delete</button>
+                  @if (isPropertyManagementLease) {
+                    @if (agreementW9FileDataUrl && agreementW9FileContentType?.startsWith('image/')) {
+                      <button class="myfilebrowser" type="button" color="primary" mat-raised-button (click)="openAgreementW9FilePicker()">Upload</button>
+                      <button type="button" color="accent" mat-raised-button (click)="removeAgreementW9()">Delete</button>
+                    } @else if (agreementW9FileName && agreementW9FileDataUrl) {
+                      <button class="myfilebrowser" type="button" color="primary" mat-raised-button (click)="openAgreementW9FilePicker()">Upload</button>
+                      <button type="button" color="accent" mat-raised-button (click)="removeAgreementW9()">Delete</button>
+                    } @else if (agreementW9FileName) {
+                      <button class="myfilebrowser" type="button" color="primary" mat-raised-button (click)="openAgreementW9FilePicker()">Upload</button>
+                      <button type="button" color="accent" mat-raised-button (click)="removeAgreementW9()">Delete</button>
+                    } @else {
+                      <button class="myfilebrowser" type="button" color="primary" mat-raised-button (click)="openAgreementW9FilePicker()">Upload</button>
+                    }
                   } @else {
-                    <button class="myfilebrowser" type="button" color="primary" mat-raised-button (click)="agreementW9FileInput.click()">Upload</button>
+                    <span class="property-agreement-vendor-note">From Vendor Contact</span>
                   }
                 </div>
-                <input #agreementW9FileInput type="file" (change)="onAgreementW9FileSelected($event)" class="file-input-hidden" />
+                @if (isPropertyManagementLease) {
+                  <input #agreementW9FileInput type="file" (change)="onAgreementW9FileSelected($event)" class="file-input-hidden" />
+                }
               </div>
               <div class="property-agreement-col-preview">
                 <div class="property-agreement-preview-box">
-                  @if (agreementW9FileDataUrl && agreementW9FileContentType?.startsWith('image/')) {
-                    <img class="object-contain max-h-28 max-w-[10rem] border border-slate-300 rounded property-agreement-preview-thumb property-agreement-preview-clickable" alt="W9" [src]="agreementW9FileDataUrl" (click)="openAgreementW9Preview($event)" />
-                  } @else if (agreementW9FileName && agreementW9FileDataUrl) {
+                  @if (displayW9FileDataUrl && displayW9FileContentType?.startsWith('image/')) {
+                    <img class="object-contain max-h-28 max-w-[10rem] border border-slate-300 rounded property-agreement-preview-thumb property-agreement-preview-clickable" alt="W9" [src]="displayW9FileDataUrl" (click)="openAgreementW9Preview($event)" />
+                  } @else if (displayW9FileName && displayW9FileDataUrl) {
                     <div class="flex items-center justify-center object-contain max-h-28 w-28 shrink-0 border border-slate-300 rounded bg-slate-100 p-1.5 property-agreement-preview-thumb property-agreement-preview-clickable" (click)="openAgreementW9Preview($event)">
-                      @if (agreementW9PdfThumbnailUrl) {
-                        <img class="object-contain max-h-28 w-full" [src]="agreementW9PdfThumbnailUrl" alt="W9 PDF" />
+                      @if (displayW9PdfThumbnailUrl) {
+                        <img class="object-contain max-h-28 w-full" [src]="displayW9PdfThumbnailUrl" alt="W9 PDF" />
                       } @else {
                         <mat-icon class="text-4xl text-slate-400">picture_as_pdf</mat-icon>
                       }
                     </div>
-                  } @else if (agreementW9FileName) {
+                  } @else if (displayW9FileName) {
                     <div class="flex items-center justify-center object-contain max-h-28 w-28 shrink-0 border border-slate-300 rounded bg-slate-100 p-1.5 property-agreement-preview-thumb">
                       <mat-icon class="text-4xl text-slate-400">description</mat-icon>
                     </div>
@@ -136,46 +217,56 @@
       <div class="property-agreement-upload-section">
         <div class="property-agreement-header-cell min-w-0 flex flex-wrap items-center gap-x-3 gap-y-1">
           <h4 class="property-agreement-upload-title text-sm text-slate-600 m-0 shrink-0">Insurance</h4>
-          <mat-form-field appearance="outline" subscriptSizing="dynamic" class="property-agreement-expiration-field">
-            <mat-label>Expiration</mat-label>
-            <input matInput [matDatepicker]="agreementInsuranceExpirationPicker" formControlName="insuranceExpiration" />
-            <mat-datepicker-toggle matIconSuffix [for]="agreementInsuranceExpirationPicker"></mat-datepicker-toggle>
-            <mat-datepicker #agreementInsuranceExpirationPicker></mat-datepicker>
-          </mat-form-field>
+          @if (isPropertyManagementLease) {
+            <mat-form-field appearance="outline" subscriptSizing="dynamic" class="property-agreement-expiration-field">
+              <mat-label>Expiration</mat-label>
+              <input matInput [matDatepicker]="agreementInsuranceExpirationPicker" formControlName="insuranceExpiration" />
+              <mat-datepicker-toggle matIconSuffix [for]="agreementInsuranceExpirationPicker"></mat-datepicker-toggle>
+              <mat-datepicker #agreementInsuranceExpirationPicker></mat-datepicker>
+            </mat-form-field>
+          } @else {
+            <span class="property-agreement-vendor-expiration">Expiration: {{ vendorInsuranceExpirationDisplay }}</span>
+          }
         </div>
         <div class="property-agreement-upload-col min-w-0">
           <div class="property-agreement-col-body">
             <div class="property-agreement-upload-row">
               <div class="property-agreement-col-actions">
                 <div class="property-agreement-actions-box">
-                  @if (agreementInsuranceFileDataUrl && agreementInsuranceFileContentType?.startsWith('image/')) {
-                    <button class="myfilebrowser" type="button" color="primary" mat-raised-button (click)="agreementInsuranceFileInput.click()">Upload</button>
-                    <button type="button" color="accent" mat-raised-button (click)="removeAgreementInsurance()">Delete</button>
-                  } @else if (agreementInsuranceFileName && agreementInsuranceFileDataUrl) {
-                    <button class="myfilebrowser" type="button" color="primary" mat-raised-button (click)="agreementInsuranceFileInput.click()">Upload</button>
-                    <button type="button" color="accent" mat-raised-button (click)="removeAgreementInsurance()">Delete</button>
-                  } @else if (agreementInsuranceFileName) {
-                    <button class="myfilebrowser" type="button" color="primary" mat-raised-button (click)="agreementInsuranceFileInput.click()">Upload</button>
-                    <button type="button" color="accent" mat-raised-button (click)="removeAgreementInsurance()">Delete</button>
+                  @if (isPropertyManagementLease) {
+                    @if (agreementInsuranceFileDataUrl && agreementInsuranceFileContentType?.startsWith('image/')) {
+                      <button class="myfilebrowser" type="button" color="primary" mat-raised-button (click)="openAgreementInsuranceFilePicker()">Upload</button>
+                      <button type="button" color="accent" mat-raised-button (click)="removeAgreementInsurance()">Delete</button>
+                    } @else if (agreementInsuranceFileName && agreementInsuranceFileDataUrl) {
+                      <button class="myfilebrowser" type="button" color="primary" mat-raised-button (click)="openAgreementInsuranceFilePicker()">Upload</button>
+                      <button type="button" color="accent" mat-raised-button (click)="removeAgreementInsurance()">Delete</button>
+                    } @else if (agreementInsuranceFileName) {
+                      <button class="myfilebrowser" type="button" color="primary" mat-raised-button (click)="openAgreementInsuranceFilePicker()">Upload</button>
+                      <button type="button" color="accent" mat-raised-button (click)="removeAgreementInsurance()">Delete</button>
+                    } @else {
+                      <button class="myfilebrowser" type="button" color="primary" mat-raised-button (click)="openAgreementInsuranceFilePicker()">Upload</button>
+                    }
                   } @else {
-                    <button class="myfilebrowser" type="button" color="primary" mat-raised-button (click)="agreementInsuranceFileInput.click()">Upload</button>
+                    <span class="property-agreement-vendor-note">From Vendor Contact</span>
                   }
                 </div>
-                <input #agreementInsuranceFileInput type="file" (change)="onAgreementInsuranceFileSelected($event)" class="file-input-hidden" />
+                @if (isPropertyManagementLease) {
+                  <input #agreementInsuranceFileInput type="file" (change)="onAgreementInsuranceFileSelected($event)" class="file-input-hidden" />
+                }
               </div>
               <div class="property-agreement-col-preview">
                 <div class="property-agreement-preview-box">
-                  @if (agreementInsuranceFileDataUrl && agreementInsuranceFileContentType?.startsWith('image/')) {
-                    <img class="object-contain max-h-28 max-w-[10rem] border border-slate-300 rounded property-agreement-preview-thumb property-agreement-preview-clickable" alt="Insurance" [src]="agreementInsuranceFileDataUrl" (click)="openAgreementInsurancePreview($event)" />
-                  } @else if (agreementInsuranceFileName && agreementInsuranceFileDataUrl) {
+                  @if (displayInsuranceFileDataUrl && displayInsuranceFileContentType?.startsWith('image/')) {
+                    <img class="object-contain max-h-28 max-w-[10rem] border border-slate-300 rounded property-agreement-preview-thumb property-agreement-preview-clickable" alt="Insurance" [src]="displayInsuranceFileDataUrl" (click)="openAgreementInsurancePreview($event)" />
+                  } @else if (displayInsuranceFileName && displayInsuranceFileDataUrl) {
                     <div class="flex items-center justify-center object-contain max-h-28 w-28 shrink-0 border border-slate-300 rounded bg-slate-100 p-1.5 property-agreement-preview-thumb property-agreement-preview-clickable" (click)="openAgreementInsurancePreview($event)">
-                      @if (agreementInsurancePdfThumbnailUrl) {
-                        <img class="object-contain max-h-28 w-full" [src]="agreementInsurancePdfThumbnailUrl" alt="Insurance PDF" />
+                      @if (displayInsurancePdfThumbnailUrl) {
+                        <img class="object-contain max-h-28 w-full" [src]="displayInsurancePdfThumbnailUrl" alt="Insurance PDF" />
                       } @else {
                         <mat-icon class="text-4xl text-slate-400">picture_as_pdf</mat-icon>
                       }
                     </div>
-                  } @else if (agreementInsuranceFileName) {
+                  } @else if (displayInsuranceFileName) {
                     <div class="flex items-center justify-center object-contain max-h-28 w-28 shrink-0 border border-slate-300 rounded bg-slate-100 p-1.5 property-agreement-preview-thumb">
                       <mat-icon class="text-4xl text-slate-400">description</mat-icon>
                     </div>
@@ -188,9 +279,10 @@
           </div>
         </div>
       </div>
+      }
       <div class="property-agreement-upload-section">
         <div class="property-agreement-header-cell min-w-0 flex flex-wrap items-center">
-          <h4 class="property-agreement-upload-title text-sm text-slate-600 m-0">Agreement</h4>
+          <h4 class="property-agreement-upload-title text-sm text-slate-600 m-0">Lease Agreement</h4>
         </div>
         <div class="property-agreement-upload-col min-w-0">
           <div class="property-agreement-col-body">
@@ -237,10 +329,25 @@
           </div>
         </div>
       </div>
+      @if (!isPropertyManagementLease) {
+      <div class="property-agreement-upload-section property-agreement-notes-section">
+        <div class="property-agreement-header-cell min-w-0 flex flex-wrap items-center">
+          <h4 class="property-agreement-upload-title text-sm text-slate-600 m-0">Notes</h4>
+        </div>
+        <div class="property-agreement-upload-col min-w-0">
+          <mat-form-field appearance="outline" class="w-full min-w-0 property-agreement-notes-field">
+            <mat-label>Notes</mat-label>
+            <textarea matInput formControlName="notes" rows="6"></textarea>
+          </mat-form-field>
+        </div>
+      </div>
+      }
     </div>
+    @if (isPropertyManagementLease) {
     <mat-form-field appearance="outline" class="w-full min-w-0 mb-4">
       <mat-label>Notes</mat-label>
       <textarea matInput formControlName="notes" rows="3"></textarea>
     </mat-form-field>
+    }
   </div>
 }

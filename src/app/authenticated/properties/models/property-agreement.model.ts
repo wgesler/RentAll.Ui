@@ -1,6 +1,26 @@
 import { FileDetails } from '../../documents/models/document.model';
 import type { CalendarDateString } from '../../../services/utility.service';
 
+export interface PropertyAgreementLineRequest {
+  agreementLineId?: string | null;
+  title?: string | null;
+  startDate?: CalendarDateString | null;
+  endDate?: CalendarDateString | null;
+  deposit?: number | null;
+  oneTime?: number | null;
+  monthly?: number | null;
+}
+
+export interface PropertyAgreementLineResponse {
+  agreementLineId?: string | null;
+  title?: string | null;
+  startDate?: CalendarDateString | null;
+  endDate?: CalendarDateString | null;
+  deposit?: number | null;
+  oneTime?: number | null;
+  monthly?: number | null;
+}
+
 export interface PropertyAgreementRequest {
   propertyId: string;
   w9FileDetails?: FileDetails | null;
@@ -23,6 +43,7 @@ export interface PropertyAgreementRequest {
   accountNumber?: string | null;
   rentalIncomeCcId?: number | null;
   rentalExpenseCcId?: number | null;
+  agreementLines?: PropertyAgreementLineRequest[] | null;
   notes?: string | null;
 }
 
@@ -49,5 +70,6 @@ export interface PropertyAgreementResponse {
   accountNumber?: string | null;
   rentalIncomeCcId?: number | null;
   rentalExpenseCcId?: number | null;
+  agreementLines?: PropertyAgreementLineResponse[] | null;
   notes?: string | null;
 }

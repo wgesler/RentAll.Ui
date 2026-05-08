@@ -1045,6 +1045,35 @@ export class DashboardMainComponent extends PropertyMaintenanceBase implements O
     })();
   }
 
+  onReservationTurnoverCheckAllTracking(event: ReservationTurnoverEventDisplay, sourceContext: 'arrival' | 'departure'): void {
+    const reservationId = (event.reservationId || '').trim();
+    if (!reservationId) {
+      return;
+    }
+
+    const definitionMap = sourceContext === 'arrival'
+      ? this.arrivalColumnDefinitionByOffice
+      : this.departureColumnDefinitionByOffice;
+    const definitions = this.getTrackerDefinitionsForOffice(definitionMap, event.officeId)
+      .filter(definition => !this.isTrackerDefinitionMultiSelect(definition));
+    if (definitions.length === 0) {
+      return;
+    }
+
+    void (async () => {
+      try {
+        for (const definition of definitions) {
+          await this.saveReservationTrackerCheckbox(reservationId, definition, true);
+        }
+        this.applyReservationTrackerValues();
+        this.toastr.success('Tracking marked complete.', CommonMessage.Success);
+      } catch {
+        this.applyReservationTrackerValues();
+        this.toastr.error('Unable to update all tracker checks.', CommonMessage.Error);
+      }
+    })();
+  }
+
   onPropertyTurnoverCheckboxChange(event: DashboardPropertyTurnoverRow, contextType: TrackerContextType): void {
     const ext = event as DashboardPropertyTurnoverRow & {
       __changedCheckboxColumn?: string;
@@ -1137,6 +1166,34 @@ export class DashboardMainComponent extends PropertyMaintenanceBase implements O
       } catch {
         this.rebuildPropertyTurnoverIncludingIncompleteTrackers();
         this.toastr.error('Unable to clear tracking.', CommonMessage.Error);
+      }
+    })();
+  }
+
+  onPropertyTurnoverCheckAllTracking(event: DashboardPropertyTurnoverRow, contextType: TrackerContextType): void {
+    const propertyId = (event.propertyId || '').trim();
+    if (!propertyId) {
+      return;
+    }
+
+    const mapByColumn = this.propertyColumnDefinitionByOfficeByContext.get(contextType)
+      || new Map<string, Map<number, TrackerConfigurationDefinitionResponse>>();
+    const definitions = this.getTrackerDefinitionsForOffice(mapByColumn, event.officeId)
+      .filter(definition => !this.isTrackerDefinitionMultiSelect(definition));
+    if (definitions.length === 0) {
+      return;
+    }
+
+    void (async () => {
+      try {
+        for (const definition of definitions) {
+          await this.savePropertyTrackerCheckbox(propertyId, definition, true);
+        }
+        this.applyPropertyTrackerValues();
+        this.toastr.success('Tracking marked complete.', CommonMessage.Success);
+      } catch {
+        this.applyPropertyTrackerValues();
+        this.toastr.error('Unable to update all tracker checks.', CommonMessage.Error);
       }
     })();
   }
