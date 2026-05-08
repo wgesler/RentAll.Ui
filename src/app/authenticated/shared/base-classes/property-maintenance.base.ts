@@ -116,6 +116,12 @@ export class PropertyMaintenanceBase implements OnInit, OnDestroy {
     return this.maintenanceByPropertyId.get(lookupId) ?? null;
   }
 
+  protected getPropertyLeaseTypeIdByPropertyId(propertyId: string): number {
+    const normalizedPropertyId = this.utilityService.normalizeId(propertyId);
+    const property = this.propertyList.find(row => this.utilityService.normalizeId(row.propertyId) === normalizedPropertyId);
+    return Number(property?.propertyLeaseTypeId ?? 0);
+  }
+
   protected recomputeBackendData(userId: string | null = null): void {
     this.loadReservationPropertyMaintenance();
     this.filteredPropertyMaintenanceList = this.filterPropertyMaintenanceListForSelectedOffice();

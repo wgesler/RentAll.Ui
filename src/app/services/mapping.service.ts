@@ -25,7 +25,7 @@ import { OrganizationListDisplay, OrganizationResponse } from '../authenticated/
 import { RegionListDisplay, RegionResponse } from '../authenticated/organizations/models/region.model';
 import { TrackerConfigurationDefinitionResponse, TrackerDefinitionListDisplay, TrackerDefinitionResponse } from '../authenticated/organizations/models/tracker.model';
 import { getTrackerContextCode, getTrackerContextType } from '../authenticated/organizations/models/tracker-enum';
-import { ManagementFeeType, PropertyType, TrashDays, effectiveBedTypeIdForPropertySlot, getBedSizeType, getPropertyStatus, getPropertyStatusLetter, getPropertyType } from '../authenticated/properties/models/property-enums';
+import { ManagementFeeType, PropertyLeaseType, PropertyType, TrashDays, effectiveBedTypeIdForPropertySlot, getBedSizeType, getPropertyStatus, getPropertyStatusLetter, getPropertyType } from '../authenticated/properties/models/property-enums';
 import { PropertyBedDropdownCell, PropertyListDisplay, PropertyListResponse, PropertyResponse } from '../authenticated/properties/models/property.model';
 import { BoardProperty } from '../authenticated/reservations/models/reservation-board-model';
 import { getFrequency, getReservationStatus } from '../authenticated/reservations/models/reservation-enum';
@@ -627,7 +627,7 @@ export class MappingService {
         officeName: o.officeName,
         owner1Id: o.owner1Id,
         vendorId: o.vendorId,
-        contactName: o.contactName,
+        contactName: this.resolvePropertyListContactName(o),
         unitLevel: o.unitLevel,
         bedrooms,
         bathrooms: o.bathrooms,
@@ -703,6 +703,26 @@ export class MappingService {
       bedroomId4: pm.bedroomId4,
       isActive: true
     };
+  }
+
+  resolvePropertyListContactName(property: PropertyListResponse): string {
+    const contactName = String(property.contactName || '').trim();
+    const leaseTypeId = Number(property.propertyLeaseTypeId);
+    const isVendorLeaseType = leaseTypeId === PropertyLeaseType.Direct || leaseTypeId === PropertyLeaseType.ThirdParty;
+    if (!isVendorLeaseType) {
+      return contactName;
+    }
+
+    const raw = property as unknown as Record<string, unknown>;
+    const vendorCompanyName = String(raw['vendorCompanyName'] ?? raw['companyName'] ?? raw['vendorName'] ?? '').trim();
+    const vendorFirstName = String(raw['vendorFirstName'] ?? raw['firstName'] ?? '').trim();
+    const vendorLastName = String(raw['vendorLastName'] ?? raw['lastName'] ?? '').trim();
+
+    return this.utility.getVendorDropdownLabel({
+      companyName: vendorCompanyName || contactName,
+      firstName: vendorFirstName,
+      lastName: vendorLastName
+    });
   }
 
   mapPropertyResponse(raw: Record<string, unknown>): PropertyResponse {

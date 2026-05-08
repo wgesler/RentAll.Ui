@@ -372,9 +372,9 @@ export class PropertyComponent implements OnInit, AfterViewInit, OnDestroy, CanC
     if (propertyRequest.propertyLeaseTypeId === PropertyLeaseType.PropertyManagement) {
       propertyRequest.vendorId = null;
     } else {
-      propertyRequest.owner1Id = undefined;
-      propertyRequest.owner2Id = undefined;
-      propertyRequest.owner3Id = undefined;
+      propertyRequest.owner1Id = null;
+      propertyRequest.owner2Id = null;
+      propertyRequest.owner3Id = null;
       const vid = formValue.vendorId;
       propertyRequest.vendorId =
         vid != null && String(vid).trim() !== '' ? String(vid).trim() : null;

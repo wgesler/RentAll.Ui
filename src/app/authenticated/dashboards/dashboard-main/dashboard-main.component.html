@@ -238,11 +238,11 @@
                 </div>
               } @else {
                 <div class="tableDiv">
-                  @if (comingOnlinePropertyRows.length > 0) {
+                  @if (getPropertyTurnoverRowsByContext(trackerContextType.PropertyOnline).length > 0) {
                     <app-data-table
-                      [data]="comingOnlinePropertyRows"
-                      [columns]="propertyOnlineDisplayedColumns"
-                      [subheaderLabel]="'Coming Online (Next 15 Days)'"
+                      [data]="getPropertyTurnoverRowsByContext(trackerContextType.PropertyOnline)"
+                      [columns]="getPropertyDisplayedColumnsForContext(trackerContextType.PropertyOnline)"
+                      [subheaderLabel]="getPropertySectionLabel(trackerContextType.PropertyOnline)"
                       [hasColumnIndex]="false"
                       [hasFilter]="false"
                       [hasToggleTop]="false"
@@ -256,21 +256,21 @@
                       (editEvent)="goToProperty($event)"
                       (rowClickEvent)="goToProperty($event)"
                       (propertyCodeClickEvent)="goToProperty($event)"
-                      (clearTrackingEvent)="onPropertyTurnoverClearTracking($event, 'online')"
-                      (dropdownChangeEvent)="onPropertyTurnoverDropdownChange($event, 'online')"
-                      (checkboxChangeEvent)="onPropertyTurnoverCheckboxChange($event, 'online')"/>
+                      (clearTrackingEvent)="onPropertyTurnoverClearTracking($event, trackerContextType.PropertyOnline)"
+                      (dropdownChangeEvent)="onPropertyTurnoverDropdownChange($event, trackerContextType.PropertyOnline)"
+                      (checkboxChangeEvent)="onPropertyTurnoverCheckboxChange($event, trackerContextType.PropertyOnline)"/>
                   }
 
-                  @if (goingOfflinePropertyRows.length > 0) {
-                    @if (comingOnlinePropertyRows.length > 0) {
+                  @if (getPropertyTurnoverRowsByContext(trackerContextType.PropertyThirdPartyOnline).length > 0) {
+                    @if (shouldShowPropertySectionDivider(trackerContextType.PropertyThirdPartyOnline)) {
                       <div class="dashboard-group-divider">
-                        <span class="dashboard-group-title">Going Offline</span>
+                        <span class="dashboard-group-title">{{ getPropertySectionLabel(trackerContextType.PropertyThirdPartyOnline) }}</span>
                       </div>
                     }
                     <app-data-table
-                      [data]="goingOfflinePropertyRows"
-                      [columns]="propertyOfflineDisplayedColumns"
-                      [subheaderLabel]="comingOnlinePropertyRows.length > 0 ? '' : 'Going Offline'"
+                      [data]="getPropertyTurnoverRowsByContext(trackerContextType.PropertyThirdPartyOnline)"
+                      [columns]="getPropertyDisplayedColumnsForContext(trackerContextType.PropertyThirdPartyOnline)"
+                      [subheaderLabel]="shouldShowPropertySectionDivider(trackerContextType.PropertyThirdPartyOnline) ? '' : getPropertySectionLabel(trackerContextType.PropertyThirdPartyOnline)"
                       [hasColumnIndex]="false"
                       [hasFilter]="false"
                       [hasToggleTop]="false"
@@ -284,14 +284,123 @@
                       (editEvent)="goToProperty($event)"
                       (rowClickEvent)="goToProperty($event)"
                       (propertyCodeClickEvent)="goToProperty($event)"
-                      (clearTrackingEvent)="onPropertyTurnoverClearTracking($event, 'offline')"
-                      (dropdownChangeEvent)="onPropertyTurnoverDropdownChange($event, 'offline')"
-                      (checkboxChangeEvent)="onPropertyTurnoverCheckboxChange($event, 'offline')"/>
+                      (clearTrackingEvent)="onPropertyTurnoverClearTracking($event, trackerContextType.PropertyThirdPartyOnline)"
+                      (dropdownChangeEvent)="onPropertyTurnoverDropdownChange($event, trackerContextType.PropertyThirdPartyOnline)"
+                      (checkboxChangeEvent)="onPropertyTurnoverCheckboxChange($event, trackerContextType.PropertyThirdPartyOnline)"/>
                   }
 
-                  @if (comingOnlinePropertyRows.length === 0 && goingOfflinePropertyRows.length === 0) {
-                    <p class="dashboard-property-turnover-empty">No properties coming online or going offline in the current window.</p>
+                  @if (getPropertyTurnoverRowsByContext(trackerContextType.PropertyDirectOnline).length > 0) {
+                    @if (shouldShowPropertySectionDivider(trackerContextType.PropertyDirectOnline)) {
+                      <div class="dashboard-group-divider">
+                        <span class="dashboard-group-title">{{ getPropertySectionLabel(trackerContextType.PropertyDirectOnline) }}</span>
+                      </div>
+                    }
+                    <app-data-table
+                      [data]="getPropertyTurnoverRowsByContext(trackerContextType.PropertyDirectOnline)"
+                      [columns]="getPropertyDisplayedColumnsForContext(trackerContextType.PropertyDirectOnline)"
+                      [subheaderLabel]="shouldShowPropertySectionDivider(trackerContextType.PropertyDirectOnline) ? '' : getPropertySectionLabel(trackerContextType.PropertyDirectOnline)"
+                      [hasColumnIndex]="false"
+                      [hasFilter]="false"
+                      [hasToggleTop]="false"
+                      [hasButtonTop]="false"
+                      [hasActionsRowClick]="true"
+                      [hasActionsEdit]="true"
+                      [hasActionsClearTracking]="true"
+                      [hasActionsDelete]="false"
+                      [hasPropertyCodeLink]="true"
+                      [itemsPerPage]="50"
+                      (editEvent)="goToProperty($event)"
+                      (rowClickEvent)="goToProperty($event)"
+                      (propertyCodeClickEvent)="goToProperty($event)"
+                      (clearTrackingEvent)="onPropertyTurnoverClearTracking($event, trackerContextType.PropertyDirectOnline)"
+                      (dropdownChangeEvent)="onPropertyTurnoverDropdownChange($event, trackerContextType.PropertyDirectOnline)"
+                      (checkboxChangeEvent)="onPropertyTurnoverCheckboxChange($event, trackerContextType.PropertyDirectOnline)"/>
                   }
+
+                  @if (getPropertyTurnoverRowsByContext(trackerContextType.PropertyOffline).length > 0) {
+                    @if (shouldShowPropertySectionDivider(trackerContextType.PropertyOffline)) {
+                      <div class="dashboard-group-divider">
+                        <span class="dashboard-group-title">{{ getPropertySectionLabel(trackerContextType.PropertyOffline) }}</span>
+                      </div>
+                    }
+                    <app-data-table
+                      [data]="getPropertyTurnoverRowsByContext(trackerContextType.PropertyOffline)"
+                      [columns]="getPropertyDisplayedColumnsForContext(trackerContextType.PropertyOffline)"
+                      [subheaderLabel]="shouldShowPropertySectionDivider(trackerContextType.PropertyOffline) ? '' : getPropertySectionLabel(trackerContextType.PropertyOffline)"
+                      [hasColumnIndex]="false"
+                      [hasFilter]="false"
+                      [hasToggleTop]="false"
+                      [hasButtonTop]="false"
+                      [hasActionsRowClick]="true"
+                      [hasActionsEdit]="true"
+                      [hasActionsClearTracking]="true"
+                      [hasActionsDelete]="false"
+                      [hasPropertyCodeLink]="true"
+                      [itemsPerPage]="50"
+                      (editEvent)="goToProperty($event)"
+                      (rowClickEvent)="goToProperty($event)"
+                      (propertyCodeClickEvent)="goToProperty($event)"
+                      (clearTrackingEvent)="onPropertyTurnoverClearTracking($event, trackerContextType.PropertyOffline)"
+                      (dropdownChangeEvent)="onPropertyTurnoverDropdownChange($event, trackerContextType.PropertyOffline)"
+                      (checkboxChangeEvent)="onPropertyTurnoverCheckboxChange($event, trackerContextType.PropertyOffline)"/>
+                  }
+
+                  @if (getPropertyTurnoverRowsByContext(trackerContextType.PropertyThirdPartyOffline).length > 0) {
+                    @if (shouldShowPropertySectionDivider(trackerContextType.PropertyThirdPartyOffline)) {
+                      <div class="dashboard-group-divider">
+                        <span class="dashboard-group-title">{{ getPropertySectionLabel(trackerContextType.PropertyThirdPartyOffline) }}</span>
+                      </div>
+                    }
+                    <app-data-table
+                      [data]="getPropertyTurnoverRowsByContext(trackerContextType.PropertyThirdPartyOffline)"
+                      [columns]="getPropertyDisplayedColumnsForContext(trackerContextType.PropertyThirdPartyOffline)"
+                      [subheaderLabel]="shouldShowPropertySectionDivider(trackerContextType.PropertyThirdPartyOffline) ? '' : getPropertySectionLabel(trackerContextType.PropertyThirdPartyOffline)"
+                      [hasColumnIndex]="false"
+                      [hasFilter]="false"
+                      [hasToggleTop]="false"
+                      [hasButtonTop]="false"
+                      [hasActionsRowClick]="true"
+                      [hasActionsEdit]="true"
+                      [hasActionsClearTracking]="true"
+                      [hasActionsDelete]="false"
+                      [hasPropertyCodeLink]="true"
+                      [itemsPerPage]="50"
+                      (editEvent)="goToProperty($event)"
+                      (rowClickEvent)="goToProperty($event)"
+                      (propertyCodeClickEvent)="goToProperty($event)"
+                      (clearTrackingEvent)="onPropertyTurnoverClearTracking($event, trackerContextType.PropertyThirdPartyOffline)"
+                      (dropdownChangeEvent)="onPropertyTurnoverDropdownChange($event, trackerContextType.PropertyThirdPartyOffline)"
+                      (checkboxChangeEvent)="onPropertyTurnoverCheckboxChange($event, trackerContextType.PropertyThirdPartyOffline)"/>
+                  }
+
+                  @if (getPropertyTurnoverRowsByContext(trackerContextType.PropertyDirectOffline).length > 0) {
+                    @if (shouldShowPropertySectionDivider(trackerContextType.PropertyDirectOffline)) {
+                      <div class="dashboard-group-divider">
+                        <span class="dashboard-group-title">{{ getPropertySectionLabel(trackerContextType.PropertyDirectOffline) }}</span>
+                      </div>
+                    }
+                    <app-data-table
+                      [data]="getPropertyTurnoverRowsByContext(trackerContextType.PropertyDirectOffline)"
+                      [columns]="getPropertyDisplayedColumnsForContext(trackerContextType.PropertyDirectOffline)"
+                      [subheaderLabel]="shouldShowPropertySectionDivider(trackerContextType.PropertyDirectOffline) ? '' : getPropertySectionLabel(trackerContextType.PropertyDirectOffline)"
+                      [hasColumnIndex]="false"
+                      [hasFilter]="false"
+                      [hasToggleTop]="false"
+                      [hasButtonTop]="false"
+                      [hasActionsRowClick]="true"
+                      [hasActionsEdit]="true"
+                      [hasActionsClearTracking]="true"
+                      [hasActionsDelete]="false"
+                      [hasPropertyCodeLink]="true"
+                      [itemsPerPage]="50"
+                      (editEvent)="goToProperty($event)"
+                      (rowClickEvent)="goToProperty($event)"
+                      (propertyCodeClickEvent)="goToProperty($event)"
+                      (clearTrackingEvent)="onPropertyTurnoverClearTracking($event, trackerContextType.PropertyDirectOffline)"
+                      (dropdownChangeEvent)="onPropertyTurnoverDropdownChange($event, trackerContextType.PropertyDirectOffline)"
+                      (checkboxChangeEvent)="onPropertyTurnoverCheckboxChange($event, trackerContextType.PropertyDirectOffline)"/>
+                  }
+
                 </div>
               }
             </mat-expansion-panel>

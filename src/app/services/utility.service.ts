@@ -446,7 +446,7 @@ export class UtilityService {
     return (contact.companyName || '').trim();
   }
 
-  getVendorDropdownLabel(contact: ContactResponse | null | undefined): string {
+  getVendorDropdownLabel(contact: Pick<ContactResponse, 'companyName' | 'firstName' | 'lastName'> | null | undefined): string {
     if (!contact) {
       return '';
     }

@@ -301,18 +301,20 @@
                       [style.color]="isApplyAmountOverDue(item) ? '#d32f2f' : 'inherit'"
                       style="text-align: right; width: 100%; border: 1px solid #ccc; padding: 4px 8px; border-radius: 4px; font-size: 12px;">
                   } @else if (column.isCheckbox) {
-                    <div class="datatable-checkbox-cell">
-                      <mat-checkbox [checked]="column.name === 'needsMaintenance' ? true : item[column.name]"
-                        [disabled]="!column.checkboxEditable"
-                        (change)="emitCheckboxChangeEvent($event, item, column.name || '')"
-                        (click)="$event.stopPropagation()"
-                        (mousedown)="$event.stopPropagation()"
-                        [class.needs-maintenance-alert]="column.name === 'needsMaintenance' && (item?.needsMaintenanceState === 'red' || (!item?.needsMaintenanceState && item[column.name]))"
-                        [class.needs-maintenance-warning]="column.name === 'needsMaintenance' && item?.needsMaintenanceState === 'yellow'"
-                        [class.needs-maintenance-missing]="column.name === 'needsMaintenance' && item?.needsMaintenanceState === 'grey'"
-                        [class.needs-maintenance-ok]="column.name === 'needsMaintenance' && (item?.needsMaintenanceState === 'green' || (!item?.needsMaintenanceState && !item[column.name]))"
-                      />
-                    </div>
+                    @if (item[column.name] !== 'NONE') {
+                      <div class="datatable-checkbox-cell">
+                        <mat-checkbox [checked]="column.name === 'needsMaintenance' ? true : item[column.name]"
+                          [disabled]="!column.checkboxEditable"
+                          (change)="emitCheckboxChangeEvent($event, item, column.name || '')"
+                          (click)="$event.stopPropagation()"
+                          (mousedown)="$event.stopPropagation()"
+                          [class.needs-maintenance-alert]="column.name === 'needsMaintenance' && (item?.needsMaintenanceState === 'red' || (!item?.needsMaintenanceState && item[column.name]))"
+                          [class.needs-maintenance-warning]="column.name === 'needsMaintenance' && item?.needsMaintenanceState === 'yellow'"
+                          [class.needs-maintenance-missing]="column.name === 'needsMaintenance' && item?.needsMaintenanceState === 'grey'"
+                          [class.needs-maintenance-ok]="column.name === 'needsMaintenance' && (item?.needsMaintenanceState === 'green' || (!item?.needsMaintenanceState && !item[column.name]))"
+                        />
+                      </div>
+                    }
                   } @else if (item[column.name]?.options?.length || column.options?.length) {
                     @if (item[column.name]?.isOverridable) {
                       <div
@@ -367,7 +369,7 @@
                       </button>
                     } @else {
                       @if (getColumnAlignment(column) === 'center') {
-                        <span class="datatable-cell-center">{{item[column.name] ?? ''}}</span>
+                        <span class="datatable-cell-center">{{item[column.name] === 'NONE' ? '' : (item[column.name] ?? '')}}</span>
                       } @else {
                         @if (item[column.name] !== 'NONE') { {{item[column.name]}} }
                       }

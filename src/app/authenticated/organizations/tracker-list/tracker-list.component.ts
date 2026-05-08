@@ -3,7 +3,7 @@ import { HttpErrorResponse } from '@angular/common/http';
 import { Component, EventEmitter, Input, OnChanges, OnDestroy, OnInit, Output, SimpleChanges } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { ToastrService } from 'ngx-toastr';
-import { BehaviorSubject, Observable, concatMap, finalize, from, map, of, take, toArray } from 'rxjs';
+import { BehaviorSubject, Observable, finalize, map, take } from 'rxjs';
 import { CommonMessage } from '../../../enums/common-message.enum';
 import { MaterialModule } from '../../../material.module';
 import { MappingService } from '../../../services/mapping.service';
@@ -13,8 +13,6 @@ import { TrackerContextType, getTrackerContextTypes, toTrackerContextType } from
 import {
   TrackerConfigurationResponse,
   TrackerDefinitionListDisplay,
-  TrackerDefinitionOptionRequest,
-  TrackerDefinitionRequest,
   TrackerOfficeSection,
   TrackerSelectionEvent
 } from '../models/tracker.model';
@@ -43,7 +41,7 @@ export class TrackerListComponent implements OnInit, OnDestroy, OnChanges {
   editingTrackerOfficeId: number | null = null;
   editingTracker: TrackerDefinitionListDisplay | null = null;
   editingSuggestedSortOrder: number | null = null;
-  copyingOfficeIds = new Set<number>();
+  processingOfficeIds = new Set<number>();
 
   itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['trackers']));
   isLoading$: Observable<boolean> = this.itemsToLoad$.pipe(map(items => items.size > 0));
@@ -127,31 +125,12 @@ export class TrackerListComponent implements OnInit, OnDestroy, OnChanges {
       return;
     }
 
-    const sourceTrackers = this.allTrackers
-      .filter(tracker => tracker.officeId === sourceOfficeId && tracker.isActive)
-      .sort((a, b) => {
-        if (a.trackerContextId !== b.trackerContextId) {
-          return Number(a.trackerContextId) - Number(b.trackerContextId);
-        }
-        if (a.sortOrder !== b.sortOrder) {
-          return a.sortOrder - b.sortOrder;
-        }
-        return a.displayName.localeCompare(b.displayName);
-      });
-
-    if (sourceTrackers.length === 0) {
-      this.toastr.warning('No trackers found in the selected source office', CommonMessage.Error);
-      return;
-    }
-
-    this.copyingOfficeIds.add(targetOfficeId);
+    this.processingOfficeIds.add(targetOfficeId);
     this.clearInlineEditor();
-
-    from(sourceTrackers).pipe(
-      concatMap(sourceTracker => this.copyTrackerToOffice(sourceTracker, targetOfficeId)),
-      toArray(),
+    this.trackerService.copyTrackerDefinitionsByOffice(sourceOfficeId, targetOfficeId).pipe(
+      take(1),
       finalize(() => {
-        this.copyingOfficeIds.delete(targetOfficeId);
+        this.processingOfficeIds.delete(targetOfficeId);
         this.expandedOfficeIds.add(targetOfficeId);
         this.getTrackers();
       })
@@ -159,52 +138,41 @@ export class TrackerListComponent implements OnInit, OnDestroy, OnChanges {
       next: () => {
         this.toastr.success('Trackers copied successfully', CommonMessage.Success);
       },
-      error: (_err: HttpErrorResponse) => {}
+      error: (err: HttpErrorResponse) => {
+        const message = typeof err.error === 'string'
+          ? err.error
+          : err.error?.message || err.message || 'Unable to copy trackers.';
+        this.toastr.error(message, CommonMessage.Error);
+      }
     });
   }
 
-  copyTrackerToOffice(sourceTracker: TrackerDefinitionListDisplay, targetOfficeId: number): Observable<unknown> {
-    const trackerRequest: TrackerDefinitionRequest = {
-      organizationId: sourceTracker.organizationId,
-      officeId: targetOfficeId,
-      trackerContextId: sourceTracker.trackerContextId,
-      displayName: sourceTracker.displayName,
-      description: sourceTracker.description,
-      sortOrder: sourceTracker.sortOrder,
-      isActive: sourceTracker.isActive
-    };
+  clearAllContextsForOffice(officeId: number): void {
+    if (officeId <= 0) {
+      return;
+    }
 
-    return this.trackerService.createTrackerDefinition(trackerRequest).pipe(
-      concatMap(createdTracker => {
-        const options = (sourceTracker.options || [])
-          .filter(option => option.isActive)
-          .sort((a, b) => {
-            if (a.optionSortOrder !== b.optionSortOrder) {
-              return a.optionSortOrder - b.optionSortOrder;
-            }
-            return a.label.localeCompare(b.label);
-          });
+    this.processingOfficeIds.add(officeId);
+    this.clearInlineEditor();
 
-        if (options.length === 0) {
-          return of(createdTracker);
-        }
-
-        return from(options).pipe(
-          concatMap(option => {
-            const optionRequest: TrackerDefinitionOptionRequest = {
-              trackerDefinitionId: createdTracker.trackerDefinitionId,
-              label: option.label,
-              description: option.optionDescription,
-              sortOrder: option.optionSortOrder,
-              isActive: option.isActive
-            };
-            return this.trackerService.createTrackerDefinitionOption(optionRequest);
-          }),
-          toArray(),
-          map(() => createdTracker)
-        );
+    this.trackerService.deleteTrackerDefinitionsByOffice(officeId).pipe(
+      take(1),
+      finalize(() => {
+        this.processingOfficeIds.delete(officeId);
+        this.expandedOfficeIds.add(officeId);
+        this.getTrackers();
       })
-    );
+    ).subscribe({
+      next: () => {
+        this.toastr.success('Trackers reset successfully', CommonMessage.Success);
+      },
+      error: (err: HttpErrorResponse) => {
+        const message = typeof err.error === 'string'
+          ? err.error
+          : err.error?.message || err.message || 'Unable to reset trackers.';
+        this.toastr.error(message, CommonMessage.Error);
+      }
+    });
   }
   //#endregion
 
@@ -269,8 +237,8 @@ export class TrackerListComponent implements OnInit, OnDestroy, OnChanges {
     return this.officeSections.filter(office => office.officeId !== targetOfficeId && this.getOfficeTrackerCount(office) > 0);
   }
 
-  isCopyingOffice(officeId: number): boolean {
-    return this.copyingOfficeIds.has(officeId);
+  isProcessingOffice(officeId: number): boolean {
+    return this.processingOfficeIds.has(officeId);
   }
 
   isOfficeExpanded(officeId: number): boolean {

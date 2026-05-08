@@ -32,6 +32,14 @@ export class TrackerService {
     return this.http.delete<void>(this.controller + 'tracker-definition/' + trackerDefinitionId);
   }
 
+  deleteTrackerDefinitionsByOffice(officeId: number): Observable<void> {
+    return this.http.delete<void>(this.controller + 'tracker-definition/office/' + officeId);
+  }
+
+  copyTrackerDefinitionsByOffice(sourceOfficeId: number, targetOfficeId: number): Observable<void> {
+    return this.http.post<void>(this.controller + 'tracker-definition/office/' + targetOfficeId + '/copy/' + sourceOfficeId, {});
+  }
+
   createTrackerDefinitionOption(option: TrackerDefinitionOptionRequest): Observable<TrackerDefinitionOptionResponse> {
     return this.http.post<TrackerDefinitionOptionResponse>(this.controller + 'tracker-definition-option', option);
   }

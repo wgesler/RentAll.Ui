@@ -13,6 +13,8 @@ import { MaterialModule } from '../../../material.module';
 import { MappingService } from '../../../services/mapping.service';
 import { UtilityService } from '../../../services/utility.service';
 import { AuthService } from '../../../services/auth.service';
+import { EntityType } from '../../contacts/models/contact-enum';
+import { ContactService } from '../../contacts/services/contact.service';
 import { OfficeResponse } from '../../organizations/models/office.model';
 import { GlobalSelectionService } from '../../organizations/services/global-selection.service';
 import { OfficeService } from '../../organizations/services/office.service';
@@ -22,7 +24,7 @@ import { ColumnSet } from '../../shared/data-table/models/column-data';
 import { AddAlertDialogComponent, AddAlertDialogData } from '../../shared/modals/add-alert-dialog/add-alert-dialog.component';
 import { PropertyCalendarTesterDialogComponent } from '../../shared/modals/property-calendar-tester-dialog/property-calendar-tester-dialog.component';
 import { CalendarUrlResponse } from '../models/property-calendar';
-import { getPropertyStatuses } from '../models/property-enums';
+import { PropertyLeaseType, getPropertyStatuses } from '../models/property-enums';
 import { PropertySelectionResponse } from '../models/property-selection.model';
 import { PropertyListDisplay } from '../models/property.model';
 import { PropertyCalendarUrlDialogComponent, PropertyCalendarUrlDialogData } from '../property-calendar-url-dialog/property-calendar-url-dialog.component';
@@ -82,7 +84,7 @@ export class PropertyListComponent implements OnInit, OnDestroy, OnChanges {
   private readonly propertyStatusByLabel = new Map(this.propertyStatuses.map(status => [status.label, status.value]));
   private readonly fullPropertiesDisplayedColumns: ColumnSet = {
     'propertyCode': { displayAs: 'Code', maxWidth: '15ch', sortType: 'natural', wrap: false },
-    'contactName': { displayAs: 'Owner', maxWidth: '20ch', wrap: false },
+    'contactName': { displayAs: 'Owner/Vendor', maxWidth: '20ch', wrap: false },
     'propertyStatusDropdown': { displayAs: 'Status', wrap: false, maxWidth: '15ch', sort: true, options: this.propertyStatusLabels },
     'bedrooms': { displayAs: 'Beds', wrap: false , maxWidth: '10ch', alignment: 'center'},
     'bathrooms': { displayAs: 'Baths', wrap: false , maxWidth: '10ch', alignment: 'center'},
@@ -107,6 +109,7 @@ export class PropertyListComponent implements OnInit, OnDestroy, OnChanges {
     public router: Router,
     public mappingService: MappingService,
     private authService: AuthService,
+    private contactService: ContactService,
     private officeService: OfficeService,
     private globalSelectionService: GlobalSelectionService,
     private route: ActivatedRoute,
@@ -195,7 +198,8 @@ export class PropertyListComponent implements OnInit, OnDestroy, OnChanges {
 
     this.propertyService.getPropertiesBySelectionCriteria(this.userId).pipe(take(1), finalize(() => this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'properties'))).subscribe({
       next: (properties) => {
-        this.allProperties = this.mappingService.mapPropertyListRows(properties || []);
+        const mappedRows = this.mappingService.mapPropertyListRows(properties || []);
+        this.allProperties = this.applyPropertyContactDisplayNames(mappedRows);
         this.applyFilters();
       },
       error: (_err: HttpErrorResponse) => {
@@ -368,6 +372,33 @@ export class PropertyListComponent implements OnInit, OnDestroy, OnChanges {
     filtered = filtered.filter(property => property.unfurnished === this.globalSelectionService.getFurnishedPropertySelection());
 
     this.propertiesDisplay = filtered;
+  }
+  //#endregion
+
+  //#region Contact Display Methods
+  applyPropertyContactDisplayNames(rows: PropertyListDisplayRow[]): PropertyListDisplayRow[] {
+    const vendorContactsById = new Map(
+      this.contactService
+        .getAllContactsValue()
+        .filter(contact => contact.entityTypeId === EntityType.Vendor)
+        .map(contact => [this.utilityService.normalizeId(contact.contactId), contact])
+    );
+
+    return rows.map(row => {
+      const leaseTypeId = Number(row.propertyLeaseTypeId);
+      const isVendorLeaseType = leaseTypeId === PropertyLeaseType.Direct || leaseTypeId === PropertyLeaseType.ThirdParty;
+      if (!isVendorLeaseType) {
+        return row;
+      }
+
+      const vendor = vendorContactsById.get(this.utilityService.normalizeId(row.vendorId));
+      if (!vendor) {
+        return row;
+      }
+
+      const vendorLabel = this.utilityService.getVendorDropdownLabel(vendor);
+      return vendorLabel ? { ...row, contactName: vendorLabel } : row;
+    });
   }
   //#endregion
 

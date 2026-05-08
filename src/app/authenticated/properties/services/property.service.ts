@@ -138,6 +138,10 @@ export class PropertyService {
     return this.http.delete<void>(this.controller + 'tracker-response/' + trackerResponseId);
   }
 
+  deletePropertyTrackerResponsesByPropertyId(propertyId: string): Observable<void> {
+    return this.http.delete<void>(this.controller + 'tracker-response/property/' + propertyId);
+  }
+
   createPropertyTrackerResponseOption(request: PropertyTrackerResponseOptionRequest): Observable<PropertyTrackerResponseOption> {
     return this.http.post<PropertyTrackerResponseOption>(this.controller + 'tracker-response-option', request);
   }

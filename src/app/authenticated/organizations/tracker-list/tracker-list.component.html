@@ -13,33 +13,47 @@
             (closed)="onOfficeClosed(office.officeId)">
             <mat-expansion-panel-header>
               <mat-panel-title>{{ office.officeName }}</mat-panel-title>
-              <mat-panel-description class="tracker-office-header-actions">
-                @if (getOfficeTrackerCount(office) === 0) {
-                  <button
-                    mat-icon-button
-                    type="button"
-                    color="accent"
-                    class="tracker-copy-btn"
-                    [matMenuTriggerFor]="copyMenu"
-                    [disabled]="isCopyingOffice(office.officeId)"
-                    (click)="$event.stopPropagation()"
-                    aria-label="Copy trackers from another office">
-                    <mat-icon>{{ isCopyingOffice(office.officeId) ? 'hourglass_top' : 'content_copy' }}</mat-icon>
-                  </button>
-                  <mat-menu #copyMenu="matMenu">
-                    @for (sourceOffice of getCopySourceOffices(office.officeId); track sourceOffice.officeId) {
-                      <button mat-menu-item type="button" (click)="copyAllContextsFromOffice(sourceOffice.officeId, office.officeId)">
-                        <mat-icon>content_copy</mat-icon>
-                        <span>Copy {{ sourceOffice.officeName }}</span>
-                      </button>
-                    }
-                    @if (getCopySourceOffices(office.officeId).length === 0) {
-                      <button mat-menu-item type="button" disabled>
-                        <span>No source office with trackers</span>
-                      </button>
-                    }
-                  </mat-menu>
-                }
+              <mat-panel-description
+                class="tracker-office-header-actions"
+                (click)="$event.stopPropagation()"
+                (mousedown)="$event.preventDefault(); $event.stopPropagation()">
+                <button
+                  mat-icon-button
+                  type="button"
+                  color="accent"
+                  class="tracker-reset-btn"
+                  [disabled]="isProcessingOffice(office.officeId)"
+                  (mousedown)="$event.preventDefault(); $event.stopPropagation()"
+                  (click)="$event.preventDefault(); $event.stopPropagation(); clearAllContextsForOffice(office.officeId)"
+                  aria-label="Reset trackers for this office">
+                  <mat-icon>{{ isProcessingOffice(office.officeId) ? 'hourglass_top' : 'restart_alt' }}</mat-icon>
+                </button>
+
+                <button
+                  mat-icon-button
+                  type="button"
+                  color="accent"
+                  class="tracker-copy-btn"
+                  [matMenuTriggerFor]="copyMenu"
+                  [disabled]="isProcessingOffice(office.officeId)"
+                  (mousedown)="$event.preventDefault(); $event.stopPropagation()"
+                  (click)="$event.preventDefault(); $event.stopPropagation()"
+                  aria-label="Copy trackers from another office">
+                  <mat-icon>{{ isProcessingOffice(office.officeId) ? 'hourglass_top' : 'content_copy' }}</mat-icon>
+                </button>
+                <mat-menu #copyMenu="matMenu">
+                  @for (sourceOffice of getCopySourceOffices(office.officeId); track sourceOffice.officeId) {
+                    <button mat-menu-item type="button" (click)="copyAllContextsFromOffice(sourceOffice.officeId, office.officeId)">
+                      <mat-icon>content_copy</mat-icon>
+                      <span>Copy {{ sourceOffice.officeName }}</span>
+                    </button>
+                  }
+                  @if (getCopySourceOffices(office.officeId).length === 0) {
+                    <button mat-menu-item type="button" disabled>
+                      <span>No source office with trackers</span>
+                    </button>
+                  }
+                </mat-menu>
               </mat-panel-description>
             </mat-expansion-panel-header>
 
