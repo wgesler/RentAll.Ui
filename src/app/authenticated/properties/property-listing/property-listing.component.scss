@@ -69,20 +69,20 @@
   overflow: hidden;
 }
 
-.listing-description__content :is(p, div) {
+:host ::ng-deep .listing-description__content :is(p, div) {
   margin: 0 0 0.35rem 0;
 }
 
-.listing-description__content :is(p, div):last-child {
+:host ::ng-deep .listing-description__content :is(p, div):last-child {
   margin-bottom: 0;
 }
 
-.listing-description__content .listing-amenities-heading {
+:host ::ng-deep .listing-description__content .listing-amenities-heading {
   font-weight: 700;
   margin: 0 0 0.35rem 0;
 }
 
-.listing-description__content .listing-content-separator {
+:host ::ng-deep .listing-description__content .listing-content-separator {
   height: 0.5rem;
 }
 
@@ -236,9 +236,23 @@
   gap: 6px;
 }
 
-.listing-description__content :is(ul, ol) {
+:host ::ng-deep .listing-description__content :is(ul, ol) {
   margin: 0 0 0.35rem 1.25rem;
   padding: 0;
+}
+
+:host ::ng-deep .listing-description__content ul {
+  list-style-type: disc !important;
+  list-style-position: outside;
+}
+
+:host ::ng-deep .listing-description__content ol {
+  list-style-type: decimal !important;
+  list-style-position: outside;
+}
+
+:host ::ng-deep .listing-description__content li {
+  display: list-item;
 }
 
 .listing-details-empty {

@@ -764,25 +764,25 @@
                 <div class="w-full min-w-0 amenities-editor-wrap">
                   <div class="description-editor-label">Additional Amenities</div>
                   <div class="description-editor-toolbar">
-                    <button type="button" mat-stroked-button (click)="applyAmenitiesFormat('bold')">
+                    <button type="button" mat-stroked-button (mousedown)="preventEditorToolbarMouseDown($event)" (click)="applyAmenitiesFormat('bold')">
                       <mat-icon>format_bold</mat-icon>
                     </button>
-                    <button type="button" mat-stroked-button (click)="applyAmenitiesFormat('italic')">
+                    <button type="button" mat-stroked-button (mousedown)="preventEditorToolbarMouseDown($event)" (click)="applyAmenitiesFormat('italic')">
                       <mat-icon>format_italic</mat-icon>
                     </button>
-                    <button type="button" mat-stroked-button (click)="applyAmenitiesFormat('underline')">
+                    <button type="button" mat-stroked-button (mousedown)="preventEditorToolbarMouseDown($event)" (click)="applyAmenitiesFormat('underline')">
                       <mat-icon>format_underlined</mat-icon>
                     </button>
-                    <button type="button" mat-stroked-button (click)="applyAmenitiesFormat('paragraph')">
+                    <button type="button" mat-stroked-button (mousedown)="preventEditorToolbarMouseDown($event)" (click)="applyAmenitiesFormat('paragraph')">
                       <mat-icon>subject</mat-icon>
                     </button>
-                    <button type="button" mat-stroked-button (click)="applyAmenitiesFormat('unorderedList')">
+                    <button type="button" mat-stroked-button (mousedown)="preventEditorToolbarMouseDown($event)" (click)="applyAmenitiesFormat('unorderedList')">
                       <mat-icon>format_list_bulleted</mat-icon>
                     </button>
                   </div>
                   <div
                     #amenitiesEditor
-                    class="description-editor-input amenities-editor-input"
+                    class="description-editor-input description-editor-input--with-markers amenities-editor-input"
                     contenteditable="true"
                     (input)="onAmenitiesInput($event)">
                   </div>
@@ -799,25 +799,25 @@
                 <div class="col-span-4 description-editor-wrap">
                   <div class="description-editor-label">Property Description</div>
                   <div class="description-editor-toolbar">
-                    <button type="button" mat-stroked-button (click)="applyDescriptionFormat('bold')">
+                    <button type="button" mat-stroked-button (mousedown)="preventEditorToolbarMouseDown($event)" (click)="applyDescriptionFormat('bold')">
                       <mat-icon>format_bold</mat-icon>
                     </button>
-                    <button type="button" mat-stroked-button (click)="applyDescriptionFormat('italic')">
+                    <button type="button" mat-stroked-button (mousedown)="preventEditorToolbarMouseDown($event)" (click)="applyDescriptionFormat('italic')">
                       <mat-icon>format_italic</mat-icon>
                     </button>
-                    <button type="button" mat-stroked-button (click)="applyDescriptionFormat('underline')">
+                    <button type="button" mat-stroked-button (mousedown)="preventEditorToolbarMouseDown($event)" (click)="applyDescriptionFormat('underline')">
                       <mat-icon>format_underlined</mat-icon>
                     </button>
-                    <button type="button" mat-stroked-button (click)="applyDescriptionFormat('paragraph')">
+                    <button type="button" mat-stroked-button (mousedown)="preventEditorToolbarMouseDown($event)" (click)="applyDescriptionFormat('paragraph')">
                       <mat-icon>subject</mat-icon>
                     </button>
-                    <button type="button" mat-stroked-button (click)="applyDescriptionFormat('unorderedList')">
+                    <button type="button" mat-stroked-button (mousedown)="preventEditorToolbarMouseDown($event)" (click)="applyDescriptionFormat('unorderedList')">
                       <mat-icon>format_list_bulleted</mat-icon>
                     </button>
                   </div>
                   <div
                     #descriptionEditor
-                    class="description-editor-input"
+                    class="description-editor-input description-editor-input--with-markers"
                     contenteditable="true"
                     (input)="onDescriptionInput($event)">
                   </div>

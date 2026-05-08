@@ -249,7 +249,7 @@ export class PropertyComponent implements OnInit, AfterViewInit, OnDestroy, CanC
     }
 
     if (format === 'unorderedList') {
-      document.execCommand('insertUnorderedList', false);
+      this.applyUnorderedListCommand(editor);
       this.form.get('description')?.setValue(editor.innerHTML);
       return;
     }
@@ -283,13 +283,53 @@ export class PropertyComponent implements OnInit, AfterViewInit, OnDestroy, CanC
     }
 
     if (format === 'unorderedList') {
-      document.execCommand('insertUnorderedList', false);
+      this.applyUnorderedListCommand(editor);
       this.form.get('amenities')?.setValue(editor.innerHTML);
       return;
     }
 
     document.execCommand(format, false);
     this.form.get('amenities')?.setValue(editor.innerHTML);
+  }
+
+  preventEditorToolbarMouseDown(event: MouseEvent): void {
+    event.preventDefault();
+  }
+
+  applyUnorderedListCommand(editor: HTMLDivElement): void {
+    editor.focus();
+    const selection = window.getSelection();
+    const selectedText = selection?.toString() || '';
+    const listItems = selectedText
+      .split(/\r?\n+/)
+      .map(item => item.trim())
+      .filter(item => !!item);
+    if (listItems.length > 0) {
+      const listHtml = `<ul>${listItems.map(item => `<li>${this.escapeEditorHtml(item)}</li>`).join('')}</ul>`;
+      document.execCommand('insertHTML', false, listHtml);
+      return;
+    }
+
+    if (!selection || selection.rangeCount === 0) {
+      document.execCommand('insertHTML', false, '<ul><li><br></li></ul>');
+      return;
+    }
+
+    const range = selection.getRangeAt(0);
+    if (!editor.contains(range.commonAncestorContainer)) {
+      return;
+    }
+
+    document.execCommand('insertHTML', false, '<ul><li><br></li></ul>');
+  }
+
+  escapeEditorHtml(value: string): string {
+    return value
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#39;');
   }
 
   getProperty(): void {

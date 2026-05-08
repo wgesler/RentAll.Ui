@@ -729,6 +729,36 @@ input.no-spinner[type='number'] {
   border-color: var(--global-primary);
 }
 
+:host ::ng-deep .description-editor-input--with-markers :is(ul, ol) {
+  margin: 0 0 0.5rem 1.25rem;
+  padding-left: 1rem;
+}
+
+:host ::ng-deep .description-editor-input--with-markers ul {
+  list-style-type: disc !important;
+  list-style-position: outside;
+}
+
+:host ::ng-deep .description-editor-input--with-markers ol {
+  list-style-type: decimal !important;
+  list-style-position: outside;
+}
+
+:host ::ng-deep .description-editor-input--with-markers li {
+  display: list-item;
+}
+
+:host ::ng-deep .description-editor-input--with-markers :is(p, div, li) {
+  position: relative;
+}
+
+:host ::ng-deep .description-editor-input--with-markers :is(p, div)::before {
+  content: '¶';
+  color: rgba(0, 0, 0, 0.35);
+  font-size: 0.75rem;
+  margin-right: 0.35rem;
+}
+
 .amenities-editor-input {
   min-height: 110px;
 }

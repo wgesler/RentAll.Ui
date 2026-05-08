@@ -1,5 +1,5 @@
 import { CommonModule } from '@angular/common';
-import { Component, ElementRef, Input, OnChanges, SimpleChanges, ViewChild } from '@angular/core';
+import { AfterViewChecked, Component, ElementRef, Input, OnChanges, SimpleChanges, ViewChild } from '@angular/core';
 import { CdkDragDrop, CdkDragMove, DragDropModule } from '@angular/cdk/drag-drop';
 import { getCheckInTime, getCheckOutTime, getPropertyStatus, getPropertyStyle, getPropertyType } from '../models/property-enums';
 import { PropertyPhotoRequest, PropertyPhotoResponse } from '../models/property-photo.model';
@@ -44,7 +44,7 @@ interface ListingAmenityIconItem {
   templateUrl: './property-listing.component.html',
   styleUrl: './property-listing.component.scss'
 })
-export class PropertyListingComponent implements OnChanges {
+export class PropertyListingComponent implements OnChanges, AfterViewChecked {
   @Input() propertyId: string | null = null;
   @Input() officeId: number | null = null;
   @Input() propertyCode: string | null = null;
@@ -66,6 +66,7 @@ export class PropertyListingComponent implements OnChanges {
   listingDescriptionHtmlValue = '';
   listingContentSafeHtml: SafeHtml = '';
   listingAmenitiesHtmlValue = '';
+  pendingDescriptionOverflowCheck = false;
   @ViewChild('photoUploadInput') photoUploadInput?: ElementRef<HTMLInputElement>;
   @ViewChild('descriptionContent') descriptionContent?: ElementRef<HTMLElement>;
 
@@ -85,6 +86,7 @@ export class PropertyListingComponent implements OnChanges {
     if (changes['property']) {
       this.listingDescriptionExpanded = false;
       this.descriptionHasOverflow = false;
+      this.pendingDescriptionOverflowCheck = true;
       this.refreshListingDescriptionHtml();
       this.refreshListingAmenitiesHtml();
       this.queueDescriptionOverflowCheck();
@@ -96,6 +98,12 @@ export class PropertyListingComponent implements OnChanges {
 
     if ((changes['property'] || changes['propertyId']) && !this.disablePhotoApiLoad) {
       this.loadPropertyPhotos();
+    }
+  }
+
+  ngAfterViewChecked(): void {
+    if (this.pendingDescriptionOverflowCheck && !this.listingDescriptionExpanded) {
+      this.updateDescriptionOverflow();
     }
   }
   //#endregion
@@ -309,6 +317,7 @@ export class PropertyListingComponent implements OnChanges {
   }
 
   queueDescriptionOverflowCheck(): void {
+    this.pendingDescriptionOverflowCheck = true;
     setTimeout(() => {
       this.updateDescriptionOverflow();
     });
@@ -317,14 +326,22 @@ export class PropertyListingComponent implements OnChanges {
   updateDescriptionOverflow(): void {
     const content = this.descriptionContent?.nativeElement;
     if (!content) {
+      this.pendingDescriptionOverflowCheck = true;
       return;
     }
 
     if (this.listingDescriptionExpanded) {
+      this.pendingDescriptionOverflowCheck = false;
+      return;
+    }
+
+    if (content.offsetParent === null || content.clientHeight === 0) {
+      this.pendingDescriptionOverflowCheck = true;
       return;
     }
 
     this.descriptionHasOverflow = (content.scrollHeight - content.clientHeight) > 1;
+    this.pendingDescriptionOverflowCheck = false;
   }
 
   splitList(raw: string | null | undefined): string[] {
