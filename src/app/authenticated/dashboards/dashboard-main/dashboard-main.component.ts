@@ -1054,8 +1054,7 @@ export class DashboardMainComponent extends PropertyMaintenanceBase implements O
     const definitionMap = sourceContext === 'arrival'
       ? this.arrivalColumnDefinitionByOffice
       : this.departureColumnDefinitionByOffice;
-    const definitions = this.getTrackerDefinitionsForOffice(definitionMap, event.officeId)
-      .filter(definition => !this.isTrackerDefinitionMultiSelect(definition));
+    const definitions = this.getTrackerDefinitionsForOffice(definitionMap, event.officeId);
     if (definitions.length === 0) {
       return;
     }
@@ -1063,6 +1062,13 @@ export class DashboardMainComponent extends PropertyMaintenanceBase implements O
     void (async () => {
       try {
         for (const definition of definitions) {
+          if (this.isTrackerDefinitionMultiSelect(definition)) {
+            const selectedLabels = (definition.options || [])
+              .map(option => (option.label || '').trim())
+              .filter(label => !!label);
+            await this.saveReservationTrackerMultiSelect(reservationId, definition, selectedLabels);
+            continue;
+          }
           await this.saveReservationTrackerCheckbox(reservationId, definition, true);
         }
         this.applyReservationTrackerValues();
@@ -1178,8 +1184,7 @@ export class DashboardMainComponent extends PropertyMaintenanceBase implements O
 
     const mapByColumn = this.propertyColumnDefinitionByOfficeByContext.get(contextType)
       || new Map<string, Map<number, TrackerConfigurationDefinitionResponse>>();
-    const definitions = this.getTrackerDefinitionsForOffice(mapByColumn, event.officeId)
-      .filter(definition => !this.isTrackerDefinitionMultiSelect(definition));
+    const definitions = this.getTrackerDefinitionsForOffice(mapByColumn, event.officeId);
     if (definitions.length === 0) {
       return;
     }
@@ -1187,6 +1192,13 @@ export class DashboardMainComponent extends PropertyMaintenanceBase implements O
     void (async () => {
       try {
         for (const definition of definitions) {
+          if (this.isTrackerDefinitionMultiSelect(definition)) {
+            const selectedLabels = (definition.options || [])
+              .map(option => (option.label || '').trim())
+              .filter(label => !!label);
+            await this.savePropertyTrackerMultiSelect(propertyId, definition, selectedLabels);
+            continue;
+          }
           await this.savePropertyTrackerCheckbox(propertyId, definition, true);
         }
         this.applyPropertyTrackerValues();

@@ -648,10 +648,7 @@ export class PropertyAgreementComponent implements OnInit, OnChanges, OnDestroy 
       if (!line.startDate) {
         return { isValid: false, errorMessage: `Agreement Line ${lineNumber}: Start Date is required.` };
       }
-      if (!line.endDate) {
-        return { isValid: false, errorMessage: `Agreement Line ${lineNumber}: End Date is required.` };
-      }
-      if (line.endDate < line.startDate) {
+      if (line.endDate && line.endDate < line.startDate) {
         return { isValid: false, errorMessage: `Agreement Line ${lineNumber}: End Date must be on or after Start Date.` };
       }
     }
