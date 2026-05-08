@@ -67,6 +67,7 @@ export class PropertyListingComponent implements OnChanges, AfterViewChecked {
   listingContentSafeHtml: SafeHtml = '';
   listingAmenitiesHtmlValue = '';
   pendingDescriptionOverflowCheck = false;
+  descriptionOverflowCheckScheduled = false;
   @ViewChild('photoUploadInput') photoUploadInput?: ElementRef<HTMLInputElement>;
   @ViewChild('descriptionContent') descriptionContent?: ElementRef<HTMLElement>;
 
@@ -102,9 +103,15 @@ export class PropertyListingComponent implements OnChanges, AfterViewChecked {
   }
 
   ngAfterViewChecked(): void {
-    if (this.pendingDescriptionOverflowCheck && !this.listingDescriptionExpanded) {
-      this.updateDescriptionOverflow();
+    if (!this.pendingDescriptionOverflowCheck || this.listingDescriptionExpanded || this.descriptionOverflowCheckScheduled) {
+      return;
     }
+
+    this.descriptionOverflowCheckScheduled = true;
+    setTimeout(() => {
+      this.descriptionOverflowCheckScheduled = false;
+      this.updateDescriptionOverflow();
+    });
   }
   //#endregion
 

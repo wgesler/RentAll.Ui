@@ -12,7 +12,7 @@ interface MaintenanceItemEditRow {
   name: string;
   notes: string;
   monthsBetweenService: number | null;
-  lastServicedOn: string | null;
+  lastServicedOn: Date | null;
 }
 
 @Component({
@@ -87,7 +87,11 @@ export class MaintenanceItemListComponent implements OnChanges {
   }
 
   onLastServicedOnBlur(row: MaintenanceItemEditRow): void {
-    row.lastServicedOn = this.toDateDisplayValue(row.lastServicedOn);
+    row.lastServicedOn = this.parseDateValue(row.lastServicedOn);
+  }
+
+  onLastServicedOnDateChange(row: MaintenanceItemEditRow, value: Date | null): void {
+    row.lastServicedOn = this.parseDateValue(value);
   }
   //#endregion
 
@@ -102,7 +106,7 @@ export class MaintenanceItemListComponent implements OnChanges {
         name: item.name ?? '',
         notes: item.notes ?? '',
         monthsBetweenService: item.monthsBetweenService ?? 0,
-        lastServicedOn: this.toDateDisplayValue(item.lastServicedOn)
+        lastServicedOn: this.parseDateValue(item.lastServicedOn)
       };
       this.originalRowsById.set(item.maintenanceItemId, this.normalizeComparable(row));
       return row;
@@ -160,50 +164,20 @@ export class MaintenanceItemListComponent implements OnChanges {
     return value == null || Number.isNaN(Number(value)) ? 0 : Math.max(0, Number(value));
   }
 
-  parseDateValue(value: string | null | undefined): Date | null {
+  parseDateValue(value: Date | string | null | undefined): Date | null {
     if (!value) {
       return null;
     }
-    const trimmed = value.trim();
-    const mmddyyyy = /^(\d{1,2})\/(\d{1,2})\/(\d{4})$/;
-    const match = trimmed.match(mmddyyyy);
-    if (match) {
-      const month = Number(match[1]);
-      const day = Number(match[2]);
-      const year = Number(match[3]);
-      const parsedFromPattern = new Date(year, month - 1, day);
-      if (!Number.isNaN(parsedFromPattern.getTime())
-        && parsedFromPattern.getMonth() === month - 1
-        && parsedFromPattern.getDate() === day
-        && parsedFromPattern.getFullYear() === year) {
-        return parsedFromPattern;
-      }
+    const parsed = this.utilityService.parseCalendarDateInput(value);
+    if (!parsed || Number.isNaN(parsed.getTime())) {
       return null;
     }
-    const parsed = new Date(trimmed);
-    if (Number.isNaN(parsed.getTime())) {
-      return null;
-    }
+    parsed.setHours(0, 0, 0, 0);
     return parsed;
   }
 
-  toDateDisplayValue(value: string | null | undefined): string | null {
-    const parsed = this.parseDateValue(value);
-    if (!parsed) {
-      return null;
-    }
-    const month = `${parsed.getMonth() + 1}`.padStart(2, '0');
-    const day = `${parsed.getDate()}`.padStart(2, '0');
-    const year = `${parsed.getFullYear()}`;
-    return `${month}/${day}/${year}`;
-  }
-
-  toDateRequestValue(value: string | null | undefined): string | null {
-    const parsed = this.parseDateValue(value);
-    if (!parsed) {
-      return null;
-    }
-    return this.utilityService.formatDateOnlyForApi(parsed);
+  toDateRequestValue(value: Date | string | null | undefined): string | null {
+    return this.utilityService.toDateOnlyJsonString(value);
   }
 
   normalizeComparable(row: MaintenanceItemEditRow): { name: string; notes: string; monthsBetweenService: number; lastServicedOn: string | null } {
