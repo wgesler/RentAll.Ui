@@ -605,13 +605,6 @@ export class ReservationComponent implements OnInit, OnDestroy, CanComponentDeac
       extraFeeLines: this.mapExtraFeeLinesToRequest(),
       notes: formValue.notes !== null && formValue.notes !== undefined ? String(formValue.notes) : '',
       allowExtensions: formValue.allowExtensions ?? false,
-      paymentReceived: this.reservation?.paymentReceived ?? false,
-      welcomeLetterChecked: this.reservation?.welcomeLetterChecked ?? false,
-      welcomeLetterSent: this.reservation?.welcomeLetterSent ?? false,
-      readyForArrival: this.reservation?.readyForArrival ?? false,
-      code: this.reservation?.code ?? false,
-      departureLetterChecked: this.reservation?.departureLetterChecked ?? false,
-      departureLetterSent: this.reservation?.departureLetterSent ?? false,
       currentInvoiceNo: formValue.currentInvoiceNo ?? 0,
       isActive: formValue.isActive ?? true
     };

@@ -1004,13 +1004,6 @@ export class MappingService {
         frequencyId: o.frequencyId,
         maidService: undefined,
         currentInvoiceNo: o.currentInvoiceNo,
-        paymentReceived: this.toBooleanValue(o.paymentReceived),
-        welcomeLetterChecked: this.toBooleanValue(o.welcomeLetterChecked),
-        welcomeLetterSent: this.toBooleanValue(o.welcomeLetterSent),
-        readyForArrival: this.toBooleanValue(o.readyForArrival),
-        code: this.toBooleanValue(o.code),
-        departureLetterChecked: this.toBooleanValue(o.departureLetterChecked),
-        departureLetterSent: this.toBooleanValue(o.departureLetterSent),
         isActive: o.isActive,
         createdOn: this.formatter.formatDateTimeString(o.createdOn)
       };

@@ -126,13 +126,6 @@ export class MixedMappingService {
         maidStartDateDisplay: this.formatter.formatDateString(reservation.maidStartDate ?? undefined) || '',
         frequencyId: reservation.frequencyId ?? 0,
         maidServiceFee: (reservation as Partial<{ maidServiceFee: number }>).maidServiceFee ?? 0,
-        paymentReceived: this.mappingService.toBooleanValue(reservation.paymentReceived),
-        welcomeLetterChecked: this.mappingService.toBooleanValue(reservation.welcomeLetterChecked),
-        welcomeLetterSent: this.mappingService.toBooleanValue(reservation.welcomeLetterSent),
-        readyForArrival: this.mappingService.toBooleanValue(reservation.readyForArrival),
-        code: this.mappingService.toBooleanValue(reservation.code),
-        departureLetterChecked: this.mappingService.toBooleanValue(reservation.departureLetterChecked),
-        departureLetterSent: this.mappingService.toBooleanValue(reservation.departureLetterSent),
         ...this.resolveReservationServiceProviderFields(reservation),
         shortAddress: property.shortAddress ?? '',
         bedrooms: property.bedrooms,
@@ -526,13 +519,6 @@ export class MixedMappingService {
       arrivalDateDisplay: String(rpm.arrivalDateDisplay ?? '').trim() || this.formatter.formatDateString(rpm.arrivalDate) || '',
       departureDateDisplay: String(rpm.departureDateDisplay ?? '').trim() || this.formatter.formatDateString(rpm.departureDate) || '',
       reservationStatusDisplay: getReservationStatus(rpm.reservationStatusId),
-      paymentReceived: rpm.paymentReceived,
-      welcomeLetterChecked: rpm.welcomeLetterChecked,
-      welcomeLetterSent: rpm.welcomeLetterSent,
-      readyForArrival: rpm.readyForArrival,
-      code: rpm.code,
-      departureLetterChecked: rpm.departureLetterChecked,
-      departureLetterSent: rpm.departureLetterSent,
       cleanerUserId: providerAssignment.cleanerUserId,
       carpetUserId: providerAssignment.carpetUserId,
       inspectorUserId: providerAssignment.inspectorUserId,
@@ -619,14 +605,7 @@ export class MixedMappingService {
       dInspectingDateOrdinal: null,
       dInspectingDateDisplay: '',
       frequencyId: 0,
-      maidServiceFee: 0,
-      paymentReceived: false,
-      welcomeLetterChecked: false,
-      welcomeLetterSent: false,
-      readyForArrival: false,
-      code: false,
-      departureLetterChecked: false,
-      departureLetterSent: false
+      maidServiceFee: 0
     };
   }
 

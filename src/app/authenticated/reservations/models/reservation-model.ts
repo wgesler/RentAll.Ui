@@ -45,13 +45,6 @@ export interface ReservationRequest {
   extraFeeLines: ExtraFeeLineRequest[];
   notes?: string | null;
   allowExtensions: boolean;
-  paymentReceived: boolean;
-  welcomeLetterChecked: boolean;
-  welcomeLetterSent: boolean;
-  readyForArrival: boolean;
-  code: boolean;
-  departureLetterChecked: boolean;
-  departureLetterSent: boolean;
 
   aCleanerUserId?: string | null;
   aCleaningDate?: CalendarDateString | null;
@@ -113,13 +106,6 @@ export interface ReservationResponse {
   extraFeeLines?: ExtraFeeLineResponse[] | null;
   notes?: string | null;
   allowExtensions: boolean;
-  paymentReceived: boolean;
-  welcomeLetterChecked: boolean;
-  welcomeLetterSent: boolean;
-  readyForArrival: boolean;
-  code: boolean;
-  departureLetterChecked: boolean;
-  departureLetterSent: boolean;
 
   aCleanerUserId?: string | null;
   aCleaningDate?: CalendarDateString | null;
@@ -166,13 +152,6 @@ export interface ReservationListResponse {
   frequencyId: number;
   maidServiceFee: number;
   currentInvoiceNo: number;
-  paymentReceived: boolean;
-  welcomeLetterChecked: boolean;
-  welcomeLetterSent: boolean;
-  readyForArrival: boolean;
-  code: boolean;
-  departureLetterChecked: boolean;
-  departureLetterSent: boolean;
 
   aCleanerUserId?: string | null;
   aCleaningDate?: CalendarDateString | null;
@@ -217,13 +196,6 @@ export interface ReservationListDisplay {
   frequencyId?: number | null;
   maidService?: boolean | null;
   currentInvoiceNo: number;
-  paymentReceived: boolean;
-  welcomeLetterChecked: boolean;
-  welcomeLetterSent: boolean;
-  readyForArrival: boolean;
-  code: boolean;
-  departureLetterChecked: boolean;
-  departureLetterSent: boolean;
   
   aCleanerUserId?: string | null;
   aCleaningDate?: CalendarDateString | null;

@@ -94,13 +94,6 @@ export interface ReservationPropertyMaintenance extends PropertyMaintenance {
   maidStartDateDisplay: string;
   frequencyId: number;
   maidServiceFee: number;
-  paymentReceived: boolean;
-  welcomeLetterChecked: boolean;
-  welcomeLetterSent: boolean;
-  readyForArrival: boolean;
-  code: boolean;
-  departureLetterChecked: boolean;
-  departureLetterSent: boolean;
   
   aCleanerUserId?: string | null;
   aCleaningDate?: CalendarDateString | null;
@@ -227,13 +220,6 @@ export interface ReservationTurnoverEventDisplay {
   arrivalDateDisplay: string;
   departureDateDisplay: string;
   reservationStatusDisplay: string;
-  paymentReceived: boolean;
-  welcomeLetterChecked: boolean;
-  welcomeLetterSent: boolean;
-  readyForArrival: boolean;
-  code: boolean;
-  departureLetterChecked: boolean;
-  departureLetterSent: boolean;
   cleanerUserId?: string | null;
   carpetUserId?: string | null;
   inspectorUserId?: string | null;
