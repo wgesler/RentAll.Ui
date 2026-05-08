@@ -72,7 +72,7 @@
             [style.max-width]="column.maxWidth"
             [style.width]="column.maxWidth"
             [style.min-width]="column.maxWidth"
-            [style.padding-left]="column.name === 'actions' && isLastColumnBeforeActionsRightAligned() ? '50px' : null"
+            [style.padding-left]="column.name === 'actions' ? getActionsColumnPaddingLeft() : null"
             [attr.data-alignment]="getHeaderAlignment(column)">
             @switch (column.name) {
               @case ('select') {
@@ -110,7 +110,7 @@
             [style.max-width]="column.maxWidth"
             [style.width]="column.maxWidth"
             [style.min-width]="column.maxWidth"
-            [style.padding-left]="column.name === 'actions' && isLastColumnBeforeActionsRightAligned() ? '50px' : null"
+            [style.padding-left]="column.name === 'actions' ? getActionsColumnPaddingLeft() : null"
             [style.text-align]="getColumnAlignment(column) === 'center' ? 'center' : (getColumnAlignment(column) === 'right' ? 'right' : 'left')"
             (click)="suppressRowClickOnDropdownCells && (item[column.name]?.options?.length || column.options?.length) ? $event.stopPropagation() : null"
             (mousedown)="suppressRowClickOnDropdownCells && (item[column.name]?.options?.length || column.options?.length) ? $event.stopPropagation() : null"
@@ -316,19 +316,39 @@
                   } @else if (item[column.name]?.options?.length || column.options?.length) {
                     @if (item[column.name]?.isOverridable) {
                       <div
-                        class="datatable-dropdown-trigger"
+                        class="datatable-dropdown-trigger datatable-multiselect-wrapper"
                         [class.datatable-dropdown-trigger--read-only]="item[column.name]?.dropdownReadOnly"
                         (click)="onDatatableDropdownTriggerClick($event, dropdownSelect, item, column.name)"
                         (mousedown)="$event.stopPropagation()">
+
+                        @if (item[column.name]?.isMultiSelect || column.isMultiSelect) {
+                          @let state = getMultiSelectVisualState(item, column.name, column.options);
+
+                          <mat-checkbox
+                            class="datatable-multiselect-visible-checkbox"
+                            [checked]="state === 'all'"
+                            [indeterminate]="state === 'partial'"
+                            [color]="state === 'all' ? 'accent' : undefined"
+                            [disableRipple]="true"
+                            aria-hidden="true">
+                          </mat-checkbox>
+                        }
+
                         <mat-select #dropdownSelect [(ngModel)]="item[column.name].value" name="option" id="select-{{column}}-{{i}}"
+                          [multiple]="item[column.name]?.isMultiSelect || column.isMultiSelect"
+                          [class.datatable-multiselect-select]="item[column.name]?.isMultiSelect || column.isMultiSelect"
                           (click)="$event.stopPropagation()"
                           (mousedown)="$event.stopPropagation()"
+                          (openedChange)="onDatatableSelectOpenedChange($event, item, column.name)"
                           [panelClass]="item[column.name]?.panelClass || 'datatable-dropdown-panel'"
                           [disabled]="item[column.name]?.dropdownReadOnly === true || !item[column.name]?.isOverridable"
-                          (ngModelChange)="emitDropdownChangeEvent(item, column.name)">
-                          @if (item[column.name]?.triggerText) {
-                            <mat-select-trigger>{{ item[column.name]?.triggerText }}</mat-select-trigger>
+                          (ngModelChange)="onDatatableSelectModelChange(item, column.name, $event)">
+                          @if (item[column.name]?.isMultiSelect || column.isMultiSelect) {
+                            <mat-select-trigger>
+                              <span class="datatable-multiselect-empty-trigger" aria-hidden="true"></span>
+                            </mat-select-trigger>
                           }
+
                           @for (option of (item[column.name]?.options || column.options || []); track option) {
                             <mat-option [value]="option" id="option-{{column}}-{{$index}}">
                               {{option}}
@@ -361,7 +381,7 @@
                   [style.max-width]="column.maxWidth"
                   [style.width]="column.maxWidth"
                   [style.min-width]="column.maxWidth"
-                  [style.padding-left]="column.name === 'actions' && isLastColumnBeforeActionsRightAligned() ? '50px' : '10px'"
+                  [style.padding-left]="column.name === 'actions' ? getActionsFooterPaddingLeft() : '10px'"
                   [style.padding-right]="'10px'"
                   [style.padding-top]="'0'"
                   [style.padding-bottom]="'0'"

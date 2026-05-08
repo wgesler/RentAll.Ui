@@ -382,3 +382,67 @@ export interface PropertyBedDropdownCell {
   dropdownReadOnly?: boolean;
   toString: () => string;
 }
+
+export interface PropertyTrackerResponseRequest {
+  trackerResponseId?: string;
+  trackerDefinitionId: string;
+  propertyId: string;
+  isChecked: boolean;
+  checkedOn?: string | null;
+  checkedBy?: string | null;
+}
+
+export interface PropertyTrackerResponse {
+  trackerResponseId: string;
+  trackerDefinitionId: string;
+  propertyId: string;
+  reservationId?: string | null;
+  organizationId: string;
+  officeId: number;
+  officeName: string;
+  trackerContextId: number;
+  trackerContextCode: string;
+  trackerDisplayName: string;
+  trackerDescription?: string | null;
+  trackerSortOrder: number;
+  entityTypeId: number;
+  entityTypeDescription: string;
+  entityId: string;
+  isChecked: boolean;
+  checkedOn?: string | null;
+  checkedBy?: string | null;
+  createdOn: string;
+  createdBy: string;
+  modifiedOn: string;
+  modifiedBy: string;
+}
+
+export interface PropertyTrackerResponseOptionRequest {
+  trackerResponseId: string;
+  trackerDefinitionOptionId: string;
+}
+
+export interface PropertyTrackerResponseOption {
+  trackerResponseId: string;
+  trackerDefinitionOptionId: string;
+  propertyId: string;
+  reservationId?: string | null;
+  trackerDefinitionId: string;
+  organizationId: string;
+  officeId: number;
+  officeName: string;
+  trackerContextId: number;
+  trackerContextCode: string;
+  trackerDisplayName: string;
+  trackerDescription?: string | null;
+  trackerSortOrder: number;
+  label: string;
+  optionDescription?: string | null;
+  optionSortOrder: number;
+  entityTypeId: number;
+  entityTypeDescription: string;
+  entityId: string;
+  isChecked: boolean;
+  createdOn: string;
+  createdBy: string;
+}

@@ -67,6 +67,7 @@ export class DataTableComponent implements OnChanges, OnInit {
   @Input() hasActionsInvoice: boolean = false;
   @Input() hasActionsPrint: boolean = false;
   @Input() hasActionsRestore: boolean = false;
+  @Input() hasActionsClearTracking: boolean = false;
   @Input() hasActionsRowClick: boolean = false;
   @Input() hasActionsSave: boolean = false;
   @Input() hasActionsSelect: boolean = false;
@@ -138,6 +139,7 @@ export class DataTableComponent implements OnChanges, OnInit {
   @Output() invoiceEvent = new EventEmitter<PurposefulAny>();
   @Output() printEvent = new EventEmitter<PurposefulAny>();
   @Output() restoreEvent = new EventEmitter<PurposefulAny>();
+  @Output() clearTrackingEvent = new EventEmitter<PurposefulAny>();
   @Output() rowClickEvent = new EventEmitter<PurposefulAny>();
   @Output() saveEvent = new EventEmitter<PurposefulAny>();
   @Output() selectEvent = new EventEmitter<PurposefulAny>();
@@ -215,6 +217,31 @@ export class DataTableComponent implements OnChanges, OnInit {
     const alignment = lastColumn.headerAlignment || this.getColumnAlignment(lastColumn);
     return alignment === 'right';
   }
+
+  isLastColumnBeforeActionsDropdown(): boolean {
+    const actionsIndex = this.displayedColumns.indexOf('actions');
+    if (actionsIndex <= 0) return false;
+
+    const lastColumnName = this.displayedColumns[actionsIndex - 1];
+    const lastColumn = this.tableColumns.find(col => col.name === lastColumnName);
+    if (!lastColumn) return false;
+
+    return !!(lastColumn.isMultiSelect || (lastColumn.options?.length ?? 0) > 0);
+  }
+
+  getActionsColumnPaddingLeft(): string | null {
+    if (this.isLastColumnBeforeActionsDropdown()) {
+      return '50px';
+    }
+    if (this.isLastColumnBeforeActionsRightAligned()) {
+      return '50px';
+    }
+    return null;
+  }
+
+  getActionsFooterPaddingLeft(): string {
+    return this.getActionsColumnPaddingLeft() || '10px';
+  }
   
   displayedColumns: string[] = [];
 
@@ -222,6 +249,7 @@ export class DataTableComponent implements OnChanges, OnInit {
   isAllSelected: boolean = false;
   isToggle: boolean = false;
   selectAllToolTip: string = 'Select all visible checks';
+  private pendingMultiSelectColumnsByRow = new WeakMap<PurposefulAny, Set<string>>();
 
   constructor(
     private zone: NgZone,
@@ -354,6 +382,11 @@ export class DataTableComponent implements OnChanges, OnInit {
     this.restoreEvent.emit(rowItem);
   }
 
+  emitClearTrackingEvent(event: Event, rowItem: PurposefulAny): void {
+    event.stopPropagation();
+    this.clearTrackingEvent.emit(rowItem);
+  }
+
   emitSaveEvent(_event: Event, rowItem: PurposefulAny): void {
     this.saveEvent.emit(rowItem);
   }
@@ -475,6 +508,95 @@ export class DataTableComponent implements OnChanges, OnInit {
       rowItem.__changedDropdownColumn = columnName;
     }
     this.dropdownChangeEvent.emit(rowItem);
+  }
+
+  onDatatableSelectModelChange(rowItem: PurposefulAny, columnName: string | undefined, value: unknown): void {
+    if (!columnName) {
+      return;
+    }
+    if (this.isMultiSelectColumnForItem(rowItem, columnName)) {
+      const selectedCount = Array.isArray(value)
+        ? value.filter(option => option !== null && option !== undefined && `${option}`.trim() !== '').length
+        : (value === null || value === undefined || `${value}`.trim() === '' ? 0 : 1);
+      if (rowItem?.[columnName] && typeof rowItem[columnName] === 'object') {
+        rowItem[columnName].optionsSelected = selectedCount;
+      }
+      this.markPendingMultiSelectChange(rowItem, columnName);
+      return;
+    }
+    this.emitDropdownChangeEvent(rowItem, columnName);
+  }
+
+  onDatatableSelectOpenedChange(isOpen: boolean, rowItem: PurposefulAny, columnName: string | undefined): void {
+    if (!columnName || !this.isMultiSelectColumnForItem(rowItem, columnName)) {
+      return;
+    }
+    if (isOpen) {
+      this.clearPendingMultiSelectChange(rowItem, columnName);
+      return;
+    }
+    if (this.hasPendingMultiSelectChange(rowItem, columnName)) {
+      this.clearPendingMultiSelectChange(rowItem, columnName);
+      this.emitDropdownChangeEvent(rowItem, columnName);
+    }
+  }
+
+  isMultiSelectColumnForItem(rowItem: PurposefulAny, columnName: string): boolean {
+    return !!(rowItem?.[columnName]?.isMultiSelect || this.getColumnByName(columnName)?.isMultiSelect);
+  }
+
+  markPendingMultiSelectChange(rowItem: PurposefulAny, columnName: string): void {
+    const pending = this.pendingMultiSelectColumnsByRow.get(rowItem) || new Set<string>();
+    pending.add(columnName);
+    this.pendingMultiSelectColumnsByRow.set(rowItem, pending);
+  }
+
+  hasPendingMultiSelectChange(rowItem: PurposefulAny, columnName: string): boolean {
+    const pending = this.pendingMultiSelectColumnsByRow.get(rowItem);
+    return !!pending?.has(columnName);
+  }
+
+  clearPendingMultiSelectChange(rowItem: PurposefulAny, columnName: string): void {
+    const pending = this.pendingMultiSelectColumnsByRow.get(rowItem);
+    if (!pending) {
+      return;
+    }
+    pending.delete(columnName);
+    if (pending.size === 0) {
+      this.pendingMultiSelectColumnsByRow.delete(rowItem);
+    }
+  }
+
+  getMultiSelectSelectedCount(rowItem: PurposefulAny, columnName: string): number {
+    const optionsSelected = Number(rowItem?.[columnName]?.optionsSelected);
+    if (Number.isFinite(optionsSelected)) {
+      return Math.max(0, optionsSelected);
+    }
+    const value = rowItem?.[columnName]?.value;
+    if (Array.isArray(value)) {
+      return value.filter(option => option !== null && option !== undefined && `${option}`.trim() !== '').length;
+    }
+    if (value === null || value === undefined || `${value}`.trim() === '') {
+      return 0;
+    }
+    return 1;
+  }
+
+  getMultiSelectOptionCount(rowItem: PurposefulAny, columnName: string, columnOptions: unknown): number {
+    const options = rowItem?.[columnName]?.options ?? columnOptions;
+    return Array.isArray(options) ? options.length : 0;
+  }
+
+  getMultiSelectVisualState(rowItem: PurposefulAny, columnName: string, columnOptions: unknown): 'none' | 'partial' | 'all' {
+    const selectedCount = this.getMultiSelectSelectedCount(rowItem, columnName);
+    if (selectedCount <= 0) {
+      return 'none';
+    }
+    const optionCount = this.getMultiSelectOptionCount(rowItem, columnName, columnOptions);
+    if (optionCount > 0 && selectedCount >= optionCount) {
+      return 'all';
+    }
+    return 'partial';
   }
 
   emitCheckboxChangeEvent(event: MatCheckboxChange, rowItem: PurposefulAny, columnName: string): void {
@@ -600,7 +722,7 @@ export class DataTableComponent implements OnChanges, OnInit {
 
     columns = {...columns, ...this.columns};
     
-    if (this.hasActionsEdit || this.hasActionsDelete || this.hasActionsSave || this.hasActionsRestore || this.hasActionsDownload || this.hasActionsView || this.hasActionsInspect || this.hasActionsCamera || this.hasActionsPayable || this.hasActionsInvoice || this.hasActionsCopy || this.hasActionsCalendar || this.hasColumnDynamicAction)
+    if (this.hasActionsEdit || this.hasActionsDelete || this.hasActionsSave || this.hasActionsRestore || this.hasActionsDownload || this.hasActionsView || this.hasActionsInspect || this.hasActionsCamera || this.hasActionsPayable || this.hasActionsInvoice || this.hasActionsCopy || this.hasActionsCalendar || this.hasActionsClearTracking || this.hasColumnDynamicAction)
       columns['actions'] = { displayAs: 'Actions', sort: false, wrap: false };
     
     this.tableColumns = [];
@@ -638,6 +760,7 @@ export class DataTableComponent implements OnChanges, OnInit {
     if (this.hasActionsView)     this.buttons.push({name: 'view', callback: (event, rowItem) => this.emitViewEvent(event, rowItem), color: '#FF9800', tooltip: 'View', tooltipPosition: 'before', icon: 'visibility', suspendOnUpdate: false});
     if (this.hasActionsPrint)    this.buttons.push({name: 'print', callback: (event, rowItem) => this.emitPrintEvent(event, rowItem), color: '#2196F3', tooltip: 'Print', tooltipPosition: 'before', icon: 'print', suspendOnUpdate: false});
     if (this.hasActionsRestore)  this.buttons.push({name: 'restore', callback: (event, rowItem) => this.emitRestoreEvent(event, rowItem), color: '#A64D79', tooltip: 'Restore', tooltipPosition: 'before', icon: 'restore', suspendOnUpdate: false});
+    if (this.hasActionsClearTracking) this.buttons.push({name: 'clearTracking', callback: (event, rowItem) => this.emitClearTrackingEvent(event, rowItem), color: '#1E88E5', tooltip: 'Clear Tracking', tooltipPosition: 'before', icon: 'restart_alt', suspendOnUpdate: false});
     if (this.hasActionsSave)     this.buttons.push({name: 'save', callback: (event, rowItem) => this.emitSaveEvent(event, rowItem), color: '#93C47D', tooltip: 'Save', tooltipPosition: 'after', icon: 'save', suspendOnUpdate: false});
     if (this.hasActionsDownload) this.buttons.push({name: 'download', callback: (event, rowItem) => this.emitDownloadEvent(event, rowItem), color: '#7E69B4', tooltip: 'View / Download', tooltipPosition: 'after', icon: 'download', suspendOnUpdate: false});
     if (this.hasActionsDelete)   this.buttons.push({name: 'delete', callback: (event, rowItem) => this.emitDeleteEvent(event, rowItem), color: '#FA6868', tooltip: 'Delete', tooltipPosition: 'after', icon: 'delete', suspendOnUpdate: false});

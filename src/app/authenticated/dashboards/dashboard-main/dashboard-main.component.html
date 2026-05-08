@@ -177,6 +177,7 @@
                       [hasButtonTop]="false"
                       [hasActionsRowClick]="true"
                       [hasActionsEdit]="true"
+                      [hasActionsClearTracking]="true"
                       [hasActionsDelete]="false"
                       [hasPropertyCodeLink]="true"
                       [itemsPerPage]="100"
@@ -184,7 +185,9 @@
                       (rowClickEvent)="onReservationTurnoverRowNavigate($event)"
                       (propertyCodeClickEvent)="goToProperty($event)"
                       (contactClickEvent)="onReservationTurnoverContactNavigate($event)"
-                      (checkboxChangeEvent)="onReservationTurnoverCheckboxChange($event)"/>
+                      (clearTrackingEvent)="onReservationTurnoverClearTracking($event, 'arrival')"
+                      (dropdownChangeEvent)="onReservationTurnoverDropdownChange($event, 'arrival')"
+                      (checkboxChangeEvent)="onReservationTurnoverCheckboxChange($event, 'arrival')"/>
                   }
 
                   @if (reservationTurnoverDepartureRows.length > 0) {
@@ -203,6 +206,7 @@
                       [hasButtonTop]="false"
                       [hasActionsRowClick]="true"
                       [hasActionsEdit]="true"
+                      [hasActionsClearTracking]="true"
                       [hasActionsDelete]="false"
                       [hasPropertyCodeLink]="true"
                       [itemsPerPage]="100"
@@ -210,7 +214,9 @@
                       (rowClickEvent)="onReservationTurnoverRowNavigate($event)"
                       (propertyCodeClickEvent)="goToProperty($event)"
                       (contactClickEvent)="onReservationTurnoverContactNavigate($event)"
-                      (checkboxChangeEvent)="onReservationTurnoverCheckboxChange($event)"/>
+                      (clearTrackingEvent)="onReservationTurnoverClearTracking($event, 'departure')"
+                      (dropdownChangeEvent)="onReservationTurnoverDropdownChange($event, 'departure')"
+                      (checkboxChangeEvent)="onReservationTurnoverCheckboxChange($event, 'departure')"/>
                   }
 
                   @if (reservationTurnoverArrivalRows.length === 0 && reservationTurnoverDepartureRows.length === 0) {
@@ -243,12 +249,16 @@
                       [hasButtonTop]="false"
                       [hasActionsRowClick]="true"
                       [hasActionsEdit]="true"
+                      [hasActionsClearTracking]="true"
                       [hasActionsDelete]="false"
                       [hasPropertyCodeLink]="true"
                       [itemsPerPage]="50"
                       (editEvent)="goToProperty($event)"
                       (rowClickEvent)="goToProperty($event)"
-                      (propertyCodeClickEvent)="goToProperty($event)"/>
+                      (propertyCodeClickEvent)="goToProperty($event)"
+                      (clearTrackingEvent)="onPropertyTurnoverClearTracking($event, 'online')"
+                      (dropdownChangeEvent)="onPropertyTurnoverDropdownChange($event, 'online')"
+                      (checkboxChangeEvent)="onPropertyTurnoverCheckboxChange($event, 'online')"/>
                   }
 
                   @if (goingOfflinePropertyRows.length > 0) {
@@ -267,12 +277,16 @@
                       [hasButtonTop]="false"
                       [hasActionsRowClick]="true"
                       [hasActionsEdit]="true"
+                      [hasActionsClearTracking]="true"
                       [hasActionsDelete]="false"
                       [hasPropertyCodeLink]="true"
                       [itemsPerPage]="50"
                       (editEvent)="goToProperty($event)"
                       (rowClickEvent)="goToProperty($event)"
-                      (propertyCodeClickEvent)="goToProperty($event)"/>
+                      (propertyCodeClickEvent)="goToProperty($event)"
+                      (clearTrackingEvent)="onPropertyTurnoverClearTracking($event, 'offline')"
+                      (dropdownChangeEvent)="onPropertyTurnoverDropdownChange($event, 'offline')"
+                      (checkboxChangeEvent)="onPropertyTurnoverCheckboxChange($event, 'offline')"/>
                   }
 
                   @if (comingOnlinePropertyRows.length === 0 && goingOfflinePropertyRows.length === 0) {

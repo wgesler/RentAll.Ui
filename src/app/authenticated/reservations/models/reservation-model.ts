@@ -241,6 +241,70 @@ export interface ReservationListDisplay {
   createdOn: string;
 }
 
+export interface ReservationTrackerResponseRequest {
+  trackerResponseId?: string;
+  trackerDefinitionId: string;
+  reservationId: string;
+  isChecked: boolean;
+  checkedOn?: string | null;
+  checkedBy?: string | null;
+}
+
+export interface ReservationTrackerResponse {
+  trackerResponseId: string;
+  trackerDefinitionId: string;
+  propertyId: string;
+  reservationId?: string | null;
+  organizationId: string;
+  officeId: number;
+  officeName: string;
+  trackerContextId: number;
+  trackerContextCode: string;
+  trackerDisplayName: string;
+  trackerDescription?: string | null;
+  trackerSortOrder: number;
+  entityTypeId: number;
+  entityTypeDescription: string;
+  entityId: string;
+  isChecked: boolean;
+  checkedOn?: string | null;
+  checkedBy?: string | null;
+  createdOn: string;
+  createdBy: string;
+  modifiedOn: string;
+  modifiedBy: string;
+}
+
+export interface ReservationTrackerResponseOptionRequest {
+  trackerResponseId: string;
+  trackerDefinitionOptionId: string;
+}
+
+export interface ReservationTrackerResponseOption {
+  trackerResponseId: string;
+  trackerDefinitionOptionId: string;
+  propertyId: string;
+  reservationId?: string | null;
+  trackerDefinitionId: string;
+  organizationId: string;
+  officeId: number;
+  officeName: string;
+  trackerContextId: number;
+  trackerContextCode: string;
+  trackerDisplayName: string;
+  trackerDescription?: string | null;
+  trackerSortOrder: number;
+  label: string;
+  optionDescription?: string | null;
+  optionSortOrder: number;
+  entityTypeId: number;
+  entityTypeDescription: string;
+  entityId: string;
+  isChecked: boolean;
+  createdOn: string;
+  createdBy: string;
+}
+
 // ExtraFeeLine models
 export interface ExtraFeeLineRequest {
   extraFeeLineId?: string | null;

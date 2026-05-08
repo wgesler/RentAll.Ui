@@ -31,6 +31,9 @@ import { RegionComponent } from '../region/region.component';
 import { OrganizationService } from '../services/organization.service';
 import { OfficeService } from '../services/office.service';
 import { TitleBarSelectComponent } from '../../shared/titlebar-select/titlebar-select.component';
+import { TrackerListComponent } from '../tracker-list/tracker-list.component';
+import { TrackerContextType } from '../models/tracker-enum';
+import { TrackerDefinitionListDisplay, TrackerSelectionEvent } from '../models/tracker.model';
 
 @Component({
     standalone: true,
@@ -54,7 +57,8 @@ import { TitleBarSelectComponent } from '../../shared/titlebar-select/titlebar-s
     CostCodesListComponent,
     ColorListComponent,
     ColorComponent,
-    TitleBarSelectComponent
+    TitleBarSelectComponent,
+    TrackerListComponent
 ],
     templateUrl: './configuration.component.html',
     styleUrls: ['./configuration.component.scss']
@@ -67,18 +71,9 @@ export class ConfigurationComponent implements OnInit, OnDestroy {
   @ViewChild(BuildingListComponent) buildingListComponent?: BuildingListComponent;
   @ViewChild(AccountingOfficeListComponent) accountingOfficeListComponent?: AccountingOfficeListComponent;
   @ViewChild(ColorListComponent) colorListComponent?: ColorListComponent;
+  @ViewChild(TrackerListComponent) trackerListComponent?: TrackerListComponent;
 
-  expandedSections = {
-    offices: false,
-    accountingOffices: false,
-    agents: false,
-    regions: false,
-    area: false,
-    building: false,
-    costCodes: false,
-    color: false,
-    branding: false
-  };
+  expandedSections = {offices: false, accountingOffices: false,  agents: false, regions: false, area: false, building: false, costCodes: false, color: false,branding: false, trackers: false };
   isEditingAgent: boolean = false;
   agentId: string | null = null;
   shouldRefreshAgents: boolean = false;
@@ -103,6 +98,12 @@ export class ConfigurationComponent implements OnInit, OnDestroy {
   isEditingColor: boolean = false;
   colorId: string | number | null = null;
   shouldRefreshColors: boolean = false;
+  isEditingTracker: boolean = false;
+  trackerDefinitionId: string | null = null;
+  selectedTrackerContextId: TrackerContextType | null = null;
+  selectedTrackerOfficeId: number | null = null;
+  selectedTracker: TrackerDefinitionListDisplay | null = null;
+  shouldRefreshTrackers: boolean = false;
 
   // Organization dropdown (SuperAdmin only)
   isSuperAdmin: boolean = false;
@@ -128,42 +129,22 @@ export class ConfigurationComponent implements OnInit, OnDestroy {
   ngOnInit(): void {
     // Set that we're in settings context
     this.navigationContext.setIsInSettingsContext(true);
-    // Cost Codes in Settings: default to working office so list is filtered by office
-    this.selectedCostCodesOfficeId = this.globalSelectionService.getSelectedOfficeIdValue();
-    // Check if user is SuperAdmin
     const user = this.authService.getUser();
     this.currentUserOrganizationId = user?.organizationId || null;
-    if (user && user.userGroups) {
-      const userGroupNumbers = user.userGroups.map(group => {
-        if (typeof group === 'string') {
-          const enumKey = Object.keys(UserGroups).find(key => key === group);
-          if (enumKey) {
-            return UserGroups[enumKey as keyof typeof UserGroups];
-          }
-          const num = parseInt(group, 10);
-          if (!isNaN(num)) {
-            return num;
-          }
-        }
-        return typeof group === 'number' ? group : null;
-      }).filter(num => num !== null) as number[];
-      
-      this.isSuperAdmin = userGroupNumbers.includes(UserGroups.SuperAdmin);
-      this.isAdminLikeSettingsUser =
-        userGroupNumbers.includes(UserGroups.Admin) ||
-        userGroupNumbers.includes(UserGroups.SuperAdmin);
-      this.isLimitedSettingsUser =
-        !this.isAdminLikeSettingsUser &&
-        (
-          userGroupNumbers.includes(UserGroups.Agent) ||
-          userGroupNumbers.includes(UserGroups.AgentAdmin) ||
-          userGroupNumbers.includes(UserGroups.PropertyManager) ||
-          userGroupNumbers.includes(UserGroups.PropertyManagerAdmin)
-        );
-      
-      if (this.isSuperAdmin) {
-        this.loadOrganizations();
-      }
+    this.selectedCostCodesOfficeId = this.globalSelectionService.getSelectedOfficeIdValue();
+
+    this.isSuperAdmin = this.authService.hasRole(UserGroups.SuperAdmin);
+    this.isAdminLikeSettingsUser = this.authService.isAdmin();
+    this.isLimitedSettingsUser = !this.isAdminLikeSettingsUser &&
+    (
+      this.authService.hasRole(UserGroups.Agent) ||
+      this.authService.hasRole(UserGroups.AgentAdmin) ||
+      this.authService.hasRole(UserGroups.PropertyManager) ||
+      this.authService.hasRole(UserGroups.PropertyManagerAdmin)
+    );
+
+    if (this.isSuperAdmin) {
+      this.loadOrganizations();
     }
     this.loadSettingsOffices();
   }
@@ -183,6 +164,33 @@ export class ConfigurationComponent implements OnInit, OnDestroy {
       },
       error: (err: HttpErrorResponse) => {
         console.error('Error loading organizations:', err);
+      }
+    });
+  }
+
+  loadSettingsOffices(): void {
+    const organizationId = this.effectiveOrganizationId;
+    if (!organizationId) {
+      this.offices = [];
+      this.selectedCostCodesOfficeId = null;
+      return;
+    }
+
+    this.globalSelectionService.ensureOfficeScope(organizationId, null).pipe(take(1)).subscribe({
+      next: (selectedOfficeId) => {
+        this.offices = (this.officeService.getAllOfficesValue() || []).filter(office => office.isActive);
+        if (this.offices.length === 1) {
+          this.selectedCostCodesOfficeId = this.offices[0].officeId;
+          this.globalSelectionService.setSelectedOfficeId(this.selectedCostCodesOfficeId);
+          return;
+        }
+
+        const hasSelectedOffice = this.selectedCostCodesOfficeId != null && this.offices.some(office => office.officeId === this.selectedCostCodesOfficeId);
+        this.selectedCostCodesOfficeId = hasSelectedOffice ? this.selectedCostCodesOfficeId : selectedOfficeId;
+      },
+      error: () => {
+        this.offices = [];
+        this.selectedCostCodesOfficeId = null;
       }
     });
   }
@@ -397,6 +405,33 @@ export class ConfigurationComponent implements OnInit, OnDestroy {
     this.shouldRefreshColors = true;
   }
 
+  onTrackerSelected(event: TrackerSelectionEvent): void {
+    this.trackerDefinitionId = event?.trackerDefinitionId ?? null;
+    this.selectedTrackerContextId = event?.trackerContextId ?? null;
+    this.selectedTrackerOfficeId = event?.officeId ?? this.selectedCostCodesOfficeId;
+    this.selectedTracker = event?.tracker ?? null;
+    this.isEditingTracker = this.trackerDefinitionId !== null;
+    if (this.isEditingTracker) {
+      this.expandedSections.trackers = true;
+    }
+  }
+
+  onTrackerBack(): void {
+    if (this.shouldRefreshTrackers) {
+      this.trackerListComponent?.getTrackers();
+    }
+    this.shouldRefreshTrackers = false;
+    this.trackerDefinitionId = null;
+    this.selectedTrackerContextId = null;
+    this.selectedTrackerOfficeId = null;
+    this.selectedTracker = null;
+    this.isEditingTracker = false;
+  }
+
+  onTrackerSaved(): void {
+    this.shouldRefreshTrackers = true;
+  }
+
   onPanelOpened(section: string): void {
     this.expandedSections[section] = true;
   }
@@ -407,33 +442,6 @@ export class ConfigurationComponent implements OnInit, OnDestroy {
   //#endregion
 
   //#region Utility Methods
-  loadSettingsOffices(): void {
-    const organizationId = this.effectiveOrganizationId;
-    if (!organizationId) {
-      this.offices = [];
-      this.selectedCostCodesOfficeId = null;
-      return;
-    }
-
-    this.globalSelectionService.ensureOfficeScope(organizationId, null).pipe(take(1)).subscribe({
-      next: (selectedOfficeId) => {
-        this.offices = (this.officeService.getAllOfficesValue() || []).filter(office => office.isActive);
-        if (this.offices.length === 1) {
-          this.selectedCostCodesOfficeId = this.offices[0].officeId;
-          this.globalSelectionService.setSelectedOfficeId(this.selectedCostCodesOfficeId);
-          return;
-        }
-
-        const hasSelectedOffice = this.selectedCostCodesOfficeId != null && this.offices.some(office => office.officeId === this.selectedCostCodesOfficeId);
-        this.selectedCostCodesOfficeId = hasSelectedOffice ? this.selectedCostCodesOfficeId : selectedOfficeId;
-      },
-      error: () => {
-        this.offices = [];
-        this.selectedCostCodesOfficeId = null;
-      }
-    });
-  }
-
   back(): void {
     this.router.navigateByUrl(RouterUrl.OrganizationList);
   }

@@ -190,6 +190,71 @@ tr.mat-mdc-row.mat-no-data-row,
     width: 100%;
 }
 
+.datatable-multiselect-wrapper {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 42px;
+    height: 32px;
+}
+
+.datatable-multiselect-visible-checkbox {
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    transform: translate(-50%, -50%);
+    pointer-events: none;
+    z-index: 2;
+}
+
+::host ::ng-deep .datatable-multiselect-visible-checkbox .mdc-checkbox {
+    width: 20px !important;
+    height: 20px !important;
+    padding: 0 !important;
+}
+
+::host ::ng-deep .datatable-multiselect-visible-checkbox .mdc-checkbox__background {
+    width: 18px !important;
+    height: 18px !important;
+    border-width: 2px !important;
+    border-style: solid !important;
+}
+
+::host ::ng-deep .datatable-multiselect-select .mat-mdc-select-trigger {
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: flex-end !important;
+    width: 100% !important;
+}
+
+::host ::ng-deep .datatable-multiselect-wrapper .mat-mdc-select-arrow-wrapper {
+    position: absolute !important;
+    right: 0 !important;
+    top: 50% !important;
+    transform: translateY(-50%) !important;
+    pointer-events: none !important;
+}
+
+.datatable-multiselect-empty-trigger {
+    display: inline-block;
+    width: 0;
+    height: 0;
+}
+
+::host ::ng-deep .datatable-multiselect-select .mat-mdc-select-value {
+    display: none !important;
+}
+
+::host ::ng-deep .datatable-multiselect-select .mat-mdc-select-value-text,
+::host ::ng-deep .datatable-multiselect-select .mat-mdc-select-min-line {
+    display: none !important;
+    visibility: hidden !important;
+    opacity: 0 !important;
+    width: 0 !important;
+    min-width: 0 !important;
+}
+
 .datatable-dropdown-trigger--read-only {
     cursor: default;
     user-select: none;

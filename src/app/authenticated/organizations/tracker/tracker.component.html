@@ -1,0 +1,137 @@
+@if (isLoading$ | async) {
+  <div class="loading-container">
+    <mat-spinner [diameter]="40"></mat-spinner>
+    <p>Loading tracker...</p>
+  </div>
+} @else if (!isServiceError) {
+  <div class="flex content-card-wrap justify-center" fxLayout="row wrap" [class.settings-embedded-edit-wrap]="embeddedInSettings">
+    <section class="content-card">
+      <mat-card>
+        <form id="trackerForm" [formGroup]="form" (ngSubmit)="saveTracker()" (keydown.enter)="onEnterKey($event)" class="info-form mb-8 form-hide-error-text pt-5" [class.settings-embedded-edit-top-offset]="embeddedInSettings">
+          <div class="grid grid-cols-4 form-standard-grid">
+            <div class="col-span-4 flex items-center justify-end" [class.settings-embedded-edit-actions]="embeddedInSettings">
+              <mat-checkbox formControlName="isActive" color="primary">
+                IsActive
+              </mat-checkbox>
+              <button mat-raised-button type="button" color="accent" id="back-button-embedded" (click)="back()" class="text-nowrap flex-shrink-0">
+                <mat-icon>arrow_back</mat-icon>
+                Back
+              </button>
+              <button mat-raised-button type="submit" form="trackerForm" color="primary" id="save-button-embedded" (click)="saveTracker()" class="text-nowrap flex-shrink-0" [disabled]="isSubmitting || !form.valid">
+                <mat-icon>save</mat-icon>
+                Save
+              </button>
+            </div>
+
+            <mat-form-field appearance="outline" class="col-span-2">
+              <mat-label>Office</mat-label>
+              <mat-select #firstInput formControlName="officeId" required>
+                <mat-option [value]="null">Select Office</mat-option>
+                @for (office of availableOffices; track office.value) {
+                  <mat-option [value]="office.value">{{ office.name }}</mat-option>
+                }
+              </mat-select>
+              @if (form.get('officeId')?.hasError('required') && form.get('officeId')?.touched) {
+                <mat-error>Office is required</mat-error>
+              }
+            </mat-form-field>
+
+            <mat-form-field appearance="outline" class="col-span-2">
+              <mat-label>Context</mat-label>
+              <mat-select formControlName="trackerContextId" required>
+                <mat-option [value]="null">Select Context</mat-option>
+                @for (context of trackerContextOptions; track context.value) {
+                  <mat-option [value]="context.value">{{ context.label }}</mat-option>
+                }
+              </mat-select>
+              @if (isAddMode && selectedTrackerContextId != null && selectedTrackerContextId > 0) {
+                <mat-hint>Context is preselected from the board section.</mat-hint>
+              }
+              @if (form.get('trackerContextId')?.hasError('required') && form.get('trackerContextId')?.touched) {
+                <mat-error>Context is required</mat-error>
+              }
+            </mat-form-field>
+
+            <div class="col-span-4 tracker-second-row">
+              <mat-form-field appearance="outline" class="tracker-sort-order-field">
+                <mat-label>Sort</mat-label>
+                <input matInput formControlName="sortOrder" type="number" min="0">
+                @if (form.get('sortOrder')?.hasError('min') && form.get('sortOrder')?.touched) {
+                  <mat-error>Sort Order must be zero or greater</mat-error>
+                }
+              </mat-form-field>
+
+              <mat-form-field appearance="outline" class="tracker-display-name-field">
+                <mat-label>Display Name</mat-label>
+                <input matInput formControlName="displayName" required>
+                @if (form.get('displayName')?.hasError('required') && form.get('displayName')?.touched) {
+                  <mat-error>Display Name is required</mat-error>
+                }
+              </mat-form-field>
+
+              <mat-form-field appearance="outline" class="tracker-description-field">
+                <mat-label>Description</mat-label>
+                <input matInput formControlName="description">
+              </mat-form-field>
+            </div>
+
+            <div class="col-span-4 tracker-option-type-row">
+              <mat-radio-group [value]="trackerOptionType" (change)="onTrackerOptionTypeChange($event.value)">
+                <mat-radio-button value="single">Single checkbox</mat-radio-button>
+                <mat-radio-button value="multi">Multi-select</mat-radio-button>
+              </mat-radio-group>
+            </div>
+
+            @if (trackerOptionType === 'multi') {
+              <div class="col-span-4 tracker-options-editor">
+                <div class="tracker-options-header">
+                  <span>Options</span>
+                  <button mat-stroked-button type="button" color="primary" (click)="addOptionRow()">
+                    <mat-icon>add</mat-icon>
+                    Add Option
+                  </button>
+                </div>
+
+                @if (optionRows.length === 0) {
+                  <div class="tracker-options-empty">No options yet. Add at least one option for multi-select.</div>
+                } @else {
+                  <div class="tracker-options-list">
+                    @for (row of optionRows; track $index; let idx = $index) {
+                      <div class="tracker-option-row">
+                        <mat-form-field appearance="outline" class="tracker-option-label">
+                          <mat-label>Label</mat-label>
+                          <input matInput [(ngModel)]="row.label" [ngModelOptions]="{ standalone: true }">
+                        </mat-form-field>
+
+                        <mat-form-field appearance="outline" class="tracker-option-description">
+                          <mat-label>Description</mat-label>
+                          <input matInput [(ngModel)]="row.description" [ngModelOptions]="{ standalone: true }">
+                        </mat-form-field>
+
+                        <mat-form-field appearance="outline" class="tracker-option-sort">
+                          <mat-label>Sort</mat-label>
+                          <input matInput type="number" [(ngModel)]="row.sortOrder" [ngModelOptions]="{ standalone: true }">
+                        </mat-form-field>
+
+                        <button mat-icon-button type="button" color="warn" (click)="removeOptionRow(idx)" aria-label="Remove option">
+                          <mat-icon>delete</mat-icon>
+                        </button>
+                      </div>
+                    }
+                  </div>
+                }
+              </div>
+            }
+          </div>
+
+          @if (isSubmitting) {
+            <div class="flex justify-start gap-3 items-center">
+              <mat-spinner [diameter]="20" color="accent" class="inline-block relative right-1 m-1"/>
+              <span>Saving...</span>
+            </div>
+          }
+        </form>
+      </mat-card>
+    </section>
+  </div>
+}

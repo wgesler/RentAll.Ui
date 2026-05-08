@@ -1,0 +1,69 @@
+.tracker-second-row {
+  display: grid;
+  grid-template-columns: 90px minmax(160px, 1fr) minmax(320px, 2fr);
+  gap: 12px;
+  align-items: start;
+}
+
+.tracker-sort-order-field,
+.tracker-display-name-field,
+.tracker-description-field {
+  width: 100%;
+}
+
+.tracker-option-type-row {
+  padding-top: 4px;
+}
+
+.tracker-option-type-row mat-radio-group {
+  display: flex;
+  gap: 20px;
+  align-items: center;
+}
+
+.tracker-options-editor {
+  border: 1px solid rgba(0, 0, 0, 0.12);
+  border-radius: 6px;
+  padding: 10px;
+}
+
+.tracker-options-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 10px;
+}
+
+.tracker-options-empty {
+  color: rgba(0, 0, 0, 0.65);
+}
+
+.tracker-options-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.tracker-option-row {
+  display: grid;
+  grid-template-columns: minmax(180px, 1fr) minmax(220px, 2fr) 90px auto;
+  gap: 10px;
+  align-items: start;
+}
+
+.tracker-option-label,
+.tracker-option-description,
+.tracker-option-sort {
+  width: 100%;
+}
+
+@media (max-width: 1200px) {
+  .tracker-second-row {
+    grid-template-columns: 1fr;
+  }
+
+  .tracker-option-row {
+    grid-template-columns: 1fr;
+  }
+}
+

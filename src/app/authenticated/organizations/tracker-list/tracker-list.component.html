@@ -1,0 +1,107 @@
+@if (!(isLoading$ | async)) {
+  <div class="mat list-layout-tabbed tracker-context-layout">
+    @if (!hasAnyOffice) {
+      <div class="tracker-office-empty-state">
+        No offices are available for tracker configuration.
+      </div>
+    } @else {
+      <mat-accordion multi="true" class="tracker-office-accordion">
+        @for (office of officeSections; track office.officeId) {
+          <mat-expansion-panel
+            [expanded]="isOfficeExpanded(office.officeId)"
+            (opened)="onOfficeOpened(office.officeId)"
+            (closed)="onOfficeClosed(office.officeId)">
+            <mat-expansion-panel-header>
+              <mat-panel-title>{{ office.officeName }}</mat-panel-title>
+              <mat-panel-description class="tracker-office-header-actions">
+                @if (getOfficeTrackerCount(office) === 0) {
+                  <button
+                    mat-icon-button
+                    type="button"
+                    color="accent"
+                    class="tracker-copy-btn"
+                    [matMenuTriggerFor]="copyMenu"
+                    [disabled]="isCopyingOffice(office.officeId)"
+                    (click)="$event.stopPropagation()"
+                    aria-label="Copy trackers from another office">
+                    <mat-icon>{{ isCopyingOffice(office.officeId) ? 'hourglass_top' : 'content_copy' }}</mat-icon>
+                  </button>
+                  <mat-menu #copyMenu="matMenu">
+                    @for (sourceOffice of getCopySourceOffices(office.officeId); track sourceOffice.officeId) {
+                      <button mat-menu-item type="button" (click)="copyAllContextsFromOffice(sourceOffice.officeId, office.officeId)">
+                        <mat-icon>content_copy</mat-icon>
+                        <span>Copy {{ sourceOffice.officeName }}</span>
+                      </button>
+                    }
+                    @if (getCopySourceOffices(office.officeId).length === 0) {
+                      <button mat-menu-item type="button" disabled>
+                        <span>No source office with trackers</span>
+                      </button>
+                    }
+                  </mat-menu>
+                }
+              </mat-panel-description>
+            </mat-expansion-panel-header>
+
+            @if (editingTrackerDefinitionId && editingTrackerOfficeId === office.officeId) {
+              <div class="tracker-inline-editor">
+                <app-tracker
+                  [id]="editingTrackerDefinitionId"
+                  [embeddedInSettings]="true"
+                  [selectedOfficeId]="editingTrackerOfficeId"
+                  [selectedTrackerContextId]="editingTrackerContextId"
+                  [suggestedSortOrder]="editingSuggestedSortOrder"
+                  [trackerData]="editingTracker"
+                  (savedEvent)="onInlineTrackerSaved()"
+                  (backEvent)="onInlineTrackerBack()">
+                </app-tracker>
+              </div>
+            } @else {
+              <div class="tracker-context-rows">
+                @for (context of office.contexts; track context.value) {
+                  <div class="tracker-context-row">
+                    <div class="tracker-context-row-title">
+                      <div class="context-label">{{ context.label }}</div>
+                      <div class="context-count">{{ context.trackers.length }} {{ context.trackers.length === 1 ? 'tracker' : 'trackers' }}</div>
+                    </div>
+
+                    <div class="tracker-context-row-checkboxes">
+                      @if (context.trackers.length === 0) {
+                        <span class="context-empty">No trackers yet</span>
+                      } @else {
+                        @for (tracker of context.trackers; track tracker.trackerDefinitionId) {
+                          <button mat-stroked-button type="button" class="tracker-checkbox-pill" (click)="editTracker(tracker)">
+                          <mat-icon
+                            color="accent"
+                            class="tracker-pill-delete-btn"
+                            aria-label="Delete tracker"
+                            (click)="$event.stopPropagation(); deleteTracker(tracker)">
+                            close
+                          </mat-icon>
+                          <mat-icon
+                            class="tracker-pill-check-icon"
+                            [class.tracker-pill-check-icon-multi]="(tracker.options?.length || 0) > 0">
+                            {{ (tracker.options?.length || 0) > 0 ? 'done_all' : 'check_box' }}
+                          </mat-icon>
+                            <span>{{ tracker.displayName }}</span>
+                          </button>
+                        }
+                      }
+                    </div>
+
+                    <div class="tracker-context-row-actions">
+                      <button mat-raised-button type="button" color="primary" (click)="addTrackerForOfficeContext(office.officeId, context.value)">
+                        <mat-icon>add</mat-icon>
+                        Add
+                      </button>
+                    </div>
+                  </div>
+                }
+              </div>
+            }
+          </mat-expansion-panel>
+        }
+      </mat-accordion>
+    }
+  </div>
+}

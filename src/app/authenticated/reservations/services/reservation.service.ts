@@ -3,7 +3,15 @@ import { Injectable } from '@angular/core';
 import { Observable, Subject, firstValueFrom } from 'rxjs';
 import { ConfigService } from '../../../services/config.service';
 import { MixedMappingService } from '../../../services/mixed-mapping.service';
-import { ReservationListResponse, ReservationRequest, ReservationResponse } from '../models/reservation-model';
+import {
+  ReservationListResponse,
+  ReservationRequest,
+  ReservationResponse,
+  ReservationTrackerResponse,
+  ReservationTrackerResponseOption,
+  ReservationTrackerResponseOptionRequest,
+  ReservationTrackerResponseRequest
+} from '../models/reservation-model';
 
 @Injectable({
   providedIn: 'root'
@@ -81,6 +89,34 @@ export class ReservationService {
       return;
     }
     this.reservationSavedSubject.next({ reservationId: normalizedReservationId });
+  }
+
+  getReservationTrackerResponses(reservationId: string): Observable<ReservationTrackerResponse[]> {
+    return this.http.get<ReservationTrackerResponse[]>(this.controller + 'tracker-response/reservation/' + reservationId);
+  }
+
+  getReservationTrackerResponseOptions(reservationId: string): Observable<ReservationTrackerResponseOption[]> {
+    return this.http.get<ReservationTrackerResponseOption[]>(this.controller + 'tracker-response-option/reservation/' + reservationId);
+  }
+
+  createReservationTrackerResponse(request: ReservationTrackerResponseRequest): Observable<ReservationTrackerResponse> {
+    return this.http.post<ReservationTrackerResponse>(this.controller + 'tracker-response', request);
+  }
+
+  updateReservationTrackerResponse(request: ReservationTrackerResponseRequest): Observable<ReservationTrackerResponse> {
+    return this.http.put<ReservationTrackerResponse>(this.controller + 'tracker-response', request);
+  }
+
+  deleteReservationTrackerResponse(trackerResponseId: string): Observable<void> {
+    return this.http.delete<void>(this.controller + 'tracker-response/' + trackerResponseId);
+  }
+
+  createReservationTrackerResponseOption(request: ReservationTrackerResponseOptionRequest): Observable<ReservationTrackerResponseOption> {
+    return this.http.post<ReservationTrackerResponseOption>(this.controller + 'tracker-response-option', request);
+  }
+
+  deleteReservationTrackerResponseOption(trackerResponseId: string, trackerDefinitionOptionId: string): Observable<void> {
+    return this.http.delete<void>(this.controller + 'tracker-response-option/' + trackerResponseId + '/' + trackerDefinitionOptionId);
   }
 }
 

@@ -106,6 +106,26 @@
             </mat-expansion-panel>
           }
 
+          <!-- Trackers Section -->
+          <mat-expansion-panel [expanded]="expandedSections.trackers"
+            (opened)="onPanelOpened('trackers')"
+            (closed)="onPanelClosed('trackers')"
+            class="mb-4">
+            <mat-expansion-panel-header>
+              <mat-panel-title>Trackers</mat-panel-title>
+            </mat-expansion-panel-header>
+            @if (expandedSections.trackers) {
+              <div class="agents-container">
+                <app-tracker-list
+                  [embeddedInSettings]="true"
+                  [selectedOfficeId]="selectedCostCodesOfficeId"
+                  [offices]="offices"
+                  (trackerSelected)="onTrackerSelected($event)">
+                </app-tracker-list>
+              </div>
+            }
+          </mat-expansion-panel>
+
           @if (isAdminLikeSettingsUser || isLimitedSettingsUser) {
             <!-- Regions Section -->
             <mat-expansion-panel [expanded]="expandedSections.regions" 

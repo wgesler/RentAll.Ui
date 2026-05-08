@@ -23,6 +23,8 @@ import { ColorListDisplay, ColorResponse } from '../authenticated/organizations/
 import { OfficeListDisplay, OfficeResponse } from '../authenticated/organizations/models/office.model';
 import { OrganizationListDisplay, OrganizationResponse } from '../authenticated/organizations/models/organization.model';
 import { RegionListDisplay, RegionResponse } from '../authenticated/organizations/models/region.model';
+import { TrackerConfigurationDefinitionResponse, TrackerDefinitionListDisplay, TrackerDefinitionResponse } from '../authenticated/organizations/models/tracker.model';
+import { getTrackerContextCode, getTrackerContextType } from '../authenticated/organizations/models/tracker-enum';
 import { ManagementFeeType, PropertyType, TrashDays, effectiveBedTypeIdForPropertySlot, getBedSizeType, getPropertyStatus, getPropertyStatusLetter, getPropertyType } from '../authenticated/properties/models/property-enums';
 import { PropertyBedDropdownCell, PropertyListDisplay, PropertyListResponse, PropertyResponse } from '../authenticated/properties/models/property.model';
 import { BoardProperty } from '../authenticated/reservations/models/reservation-board-model';
@@ -185,6 +187,23 @@ export class MappingService {
         isActive: o.isActive
       };
     });
+  }
+
+  mapTrackerDefinitions(trackers: (TrackerDefinitionResponse | TrackerConfigurationDefinitionResponse)[]): TrackerDefinitionListDisplay[] {
+    return (trackers || []).map<TrackerDefinitionListDisplay>((t: TrackerDefinitionResponse | TrackerConfigurationDefinitionResponse) => ({
+      trackerDefinitionId: t.trackerDefinitionId,
+      organizationId: t.organizationId,
+      officeId: t.officeId,
+      officeName: t.officeName,
+      trackerContextId: t.trackerContextId,
+      trackerContextCode: t.trackerContextCode || getTrackerContextCode(t.trackerContextId),
+      trackerContextLabel: getTrackerContextType(t.trackerContextId),
+      displayName: t.displayName,
+      description: t.description,
+      sortOrder: t.sortOrder,
+      isActive: t.isActive,
+      options: (t as TrackerConfigurationDefinitionResponse).options || []
+    }));
   }
 
   createColorMap(colors: ColorResponse[]): Map<number, string> {

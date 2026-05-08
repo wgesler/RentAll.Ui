@@ -11,6 +11,7 @@ export interface ColumnData {
 
     obfuscate?: boolean;
     isCheckbox?: boolean;
+    isMultiSelect?: boolean;
     checkboxEditable?: boolean;
     options?: string[];
     buttonText?: string;
@@ -26,6 +27,7 @@ export const defaultColumnData: ColumnData = {
 
     obfuscate: false,
     isCheckbox: false,
+    isMultiSelect: false,
     checkboxEditable: false,
     options: undefined,
     buttonText: undefined,

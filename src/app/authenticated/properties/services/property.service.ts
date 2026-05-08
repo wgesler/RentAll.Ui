@@ -7,7 +7,15 @@ import { MappingService } from '../../../services/mapping.service';
 import { MixedMappingService } from '../../../services/mixed-mapping.service';
 import { CalendarUrlResponse } from '../models/property-calendar';
 import { PropertySelectionRequest, PropertySelectionResponse } from '../models/property-selection.model';
-import { PropertyListResponse, PropertyRequest, PropertyResponse } from '../models/property.model';
+import {
+  PropertyListResponse,
+  PropertyRequest,
+  PropertyResponse,
+  PropertyTrackerResponse,
+  PropertyTrackerResponseOption,
+  PropertyTrackerResponseOptionRequest,
+  PropertyTrackerResponseRequest
+} from '../models/property.model';
 
 @Injectable({
     providedIn: 'root'
@@ -108,6 +116,34 @@ export class PropertyService {
   // GET: Get calendar URL/tokenized calendar response for a property
   getPropertyCalendarUrl(propertyId: string): Observable<CalendarUrlResponse> {
     return this.http.get<CalendarUrlResponse>(this.controller + propertyId + '/calendar/subscription-url');
+  }
+
+  getPropertyTrackerResponses(propertyId: string): Observable<PropertyTrackerResponse[]> {
+    return this.http.get<PropertyTrackerResponse[]>(this.controller + 'tracker-response/property/' + propertyId);
+  }
+
+  getPropertyTrackerResponseOptions(propertyId: string): Observable<PropertyTrackerResponseOption[]> {
+    return this.http.get<PropertyTrackerResponseOption[]>(this.controller + 'tracker-response-option/property/' + propertyId);
+  }
+
+  createPropertyTrackerResponse(request: PropertyTrackerResponseRequest): Observable<PropertyTrackerResponse> {
+    return this.http.post<PropertyTrackerResponse>(this.controller + 'tracker-response', request);
+  }
+
+  updatePropertyTrackerResponse(request: PropertyTrackerResponseRequest): Observable<PropertyTrackerResponse> {
+    return this.http.put<PropertyTrackerResponse>(this.controller + 'tracker-response', request);
+  }
+
+  deletePropertyTrackerResponse(trackerResponseId: string): Observable<void> {
+    return this.http.delete<void>(this.controller + 'tracker-response/' + trackerResponseId);
+  }
+
+  createPropertyTrackerResponseOption(request: PropertyTrackerResponseOptionRequest): Observable<PropertyTrackerResponseOption> {
+    return this.http.post<PropertyTrackerResponseOption>(this.controller + 'tracker-response-option', request);
+  }
+
+  deletePropertyTrackerResponseOption(trackerResponseId: string, trackerDefinitionOptionId: string): Observable<void> {
+    return this.http.delete<void>(this.controller + 'tracker-response-option/' + trackerResponseId + '/' + trackerDefinitionOptionId);
   }
 }
 
