@@ -29,6 +29,7 @@ interface AgreementLineDisplay {
   deposit: string;
   oneTime: string;
   monthly: string;
+  daily: string;
 }
 
 @Component({
@@ -543,7 +544,8 @@ export class PropertyAgreementComponent implements OnInit, OnChanges, OnDestroy 
       endDate: this.utilityService.parseCalendarDateInput(line.endDate ?? null),
       deposit: this.formatAgreementDecimalForDisplay(line.deposit),
       oneTime: this.formatAgreementDecimalForDisplay(line.oneTime),
-      monthly: this.formatAgreementDecimalForDisplay(line.monthly)
+      monthly: this.formatAgreementDecimalForDisplay(line.monthly),
+      daily: this.formatAgreementDecimalForDisplay(line.daily)
     }));
   }
 
@@ -555,7 +557,8 @@ export class PropertyAgreementComponent implements OnInit, OnChanges, OnDestroy 
       endDate: null,
       deposit: '$0.00',
       oneTime: '$0.00',
-      monthly: '$0.00'
+      monthly: '$0.00',
+      daily: '$0.00'
     });
     this.agreementForm?.markAsDirty();
   }
@@ -584,7 +587,7 @@ export class PropertyAgreementComponent implements OnInit, OnChanges, OnDestroy 
     this.agreementForm?.markAsDirty();
   }
 
-  onAgreementLineAmountInput(event: Event, index: number, field: 'deposit' | 'oneTime' | 'monthly'): void {
+  onAgreementLineAmountInput(event: Event, index: number, field: 'deposit' | 'oneTime' | 'monthly' | 'daily'): void {
     if (!this.agreementLines[index]) {
       return;
     }
@@ -596,7 +599,7 @@ export class PropertyAgreementComponent implements OnInit, OnChanges, OnDestroy 
     this.agreementForm?.markAsDirty();
   }
 
-  onAgreementLineAmountFocus(event: Event, index: number, field: 'deposit' | 'oneTime' | 'monthly'): void {
+  onAgreementLineAmountFocus(event: Event, index: number, field: 'deposit' | 'oneTime' | 'monthly' | 'daily'): void {
     if (!this.agreementLines[index]) {
       return;
     }
@@ -608,7 +611,7 @@ export class PropertyAgreementComponent implements OnInit, OnChanges, OnDestroy 
     input.select();
   }
 
-  onAgreementLineAmountBlur(event: Event, index: number, field: 'deposit' | 'oneTime' | 'monthly'): void {
+  onAgreementLineAmountBlur(event: Event, index: number, field: 'deposit' | 'oneTime' | 'monthly' | 'daily'): void {
     if (!this.agreementLines[index]) {
       return;
     }
@@ -630,7 +633,8 @@ export class PropertyAgreementComponent implements OnInit, OnChanges, OnDestroy 
         endDate: this.utilityService.toDateOnlyJsonString(line.endDate) ?? null,
         deposit: this.parseAgreementDecimalFromForm(line.deposit),
         oneTime: this.parseAgreementDecimalFromForm(line.oneTime),
-        monthly: this.parseAgreementDecimalFromForm(line.monthly)
+        monthly: this.parseAgreementDecimalFromForm(line.monthly),
+        daily: this.parseAgreementDecimalFromForm(line.daily)
       }));
   }
 
@@ -661,7 +665,8 @@ export class PropertyAgreementComponent implements OnInit, OnChanges, OnDestroy 
     const deposit = this.parseAgreementDecimalFromForm(line.deposit) ?? 0;
     const oneTime = this.parseAgreementDecimalFromForm(line.oneTime) ?? 0;
     const monthly = this.parseAgreementDecimalFromForm(line.monthly) ?? 0;
-    const hasAmounts = deposit !== 0 || oneTime !== 0 || monthly !== 0;
+    const daily = this.parseAgreementDecimalFromForm(line.daily) ?? 0;
+    const hasAmounts = deposit !== 0 || oneTime !== 0 || monthly !== 0 || daily !== 0;
     return !title && !hasDates && !hasAmounts;
   }
   //#endregion

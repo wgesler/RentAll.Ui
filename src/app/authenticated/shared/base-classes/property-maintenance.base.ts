@@ -567,9 +567,17 @@ export class PropertyMaintenanceBase implements OnInit, OnDestroy {
 
     const today = new Date();
     today.setHours(0, 0, 0, 0);
-    const propertiesForScope = !this.selectedOffice
+    const officeScopedProperties = !this.selectedOffice
       ? this.propertyList
       : this.propertyList.filter(p => p.officeId === this.selectedOffice!.officeId);
+    const propertiesForScope = officeScopedProperties.filter(property => {
+      const availableFromDate = this.utilityService.parseDateOnlyStringToDate(property.availableFrom);
+      const availableUntilDate = this.utilityService.parseDateOnlyStringToDate(property.availableUntil);
+      const isNotYetOnline = availableFromDate !== null && availableFromDate.getTime() > today.getTime();
+      const isAlreadyOffline = availableUntilDate !== null && availableUntilDate.getTime() < today.getTime();
+      return !isNotYetOnline && !isAlreadyOffline;
+    });
+    const scopedPropertyIds = new Set(propertiesForScope.map(property => property.propertyId));
     const reservationsForScope = !this.selectedOffice
       ? this.reservationList
       : this.reservationList.filter(r => r.officeId === this.selectedOffice!.officeId);
@@ -577,6 +585,9 @@ export class PropertyMaintenanceBase implements OnInit, OnDestroy {
     const propertyIdsWithCurrentStay = new Set<string>();
     reservationsForScope.forEach(reservation => {
       if (!reservation.isActive || !reservation.propertyId) {
+        return;
+      }
+      if (!scopedPropertyIds.has(reservation.propertyId)) {
         return;
       }
       const arrivalDate = this.utilityService.parseDateOnlyStringToDate(reservation.arrivalDate);
@@ -592,6 +603,9 @@ export class PropertyMaintenanceBase implements OnInit, OnDestroy {
     const latestPastDepartureByProperty = new Map<string, Date>();
     reservationsForScope.forEach(reservation => {
       if (!reservation.propertyId) {
+        return;
+      }
+      if (!scopedPropertyIds.has(reservation.propertyId)) {
         return;
       }
       const departureDate = this.utilityService.parseDateOnlyStringToDate(reservation.departureDate);

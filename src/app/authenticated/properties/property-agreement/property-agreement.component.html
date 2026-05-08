@@ -25,6 +25,7 @@
                 <th class="text-left agreement-col-amount" style="width: 150px;">Deposit</th>
                 <th class="text-left agreement-col-amount" style="width: 150px;">One Time</th>
                 <th class="text-left agreement-col-amount" style="width: 150px;">Monthly</th>
+                <th class="text-left agreement-col-amount" style="width: 150px;">Daily</th>
                 <th class="text-right" style="width: 56px;"></th>
               </tr>
             </thead>
@@ -57,6 +58,9 @@
                   </td>
                   <td class="agreement-col-amount" style="width: 150px;">
                     <input type="text" class="w-full editable-input property-agreement-line-amount-input" [value]="line.monthly" (input)="onAgreementLineAmountInput($event, i, 'monthly')" (focus)="onAgreementLineAmountFocus($event, i, 'monthly')" (blur)="onAgreementLineAmountBlur($event, i, 'monthly')" placeholder="$0.00">
+                  </td>
+                  <td class="agreement-col-amount" style="width: 150px;">
+                    <input type="text" class="w-full editable-input property-agreement-line-amount-input" [value]="line.daily" (input)="onAgreementLineAmountInput($event, i, 'daily')" (focus)="onAgreementLineAmountFocus($event, i, 'daily')" (blur)="onAgreementLineAmountBlur($event, i, 'daily')" placeholder="$0.00">
                   </td>
                   <td class="text-right" style="width: 56px;">
                     <button mat-icon-button type="button" (click)="removeAgreementLine(i)" class="delete-ledger-line-btn" style="color: #ae1f66;" tabindex="-1" matTooltip="Remove this agreement line">

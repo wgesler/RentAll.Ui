@@ -1121,19 +1121,23 @@ export class DashboardMainComponent extends PropertyMaintenanceBase implements O
       return;
     }
 
-    void this.savePropertyTrackerCheckbox(propertyId, trackerDefinition, nextValue).then(async () => {
-      this.applyPropertyTurnoverCheckboxValue(propertyId, column, nextValue);
-      const completed = await this.tryCompletePropertyTracking(propertyId, event.officeId, contextType);
-      if (completed) {
-        this.toastr.success('Tracking marked complete.', CommonMessage.Success);
-        return;
-      }
-      this.applyPropertyTrackerValues();
-      this.toastr.success('Tracker updated.', CommonMessage.Success);
-    }).catch(() => {
-      this.applyPropertyTurnoverCheckboxValue(propertyId, column, previousValue);
-      this.toastr.error('Unable to update tracker.', CommonMessage.Error);
-    });
+    void this.savePropertyTrackerCheckbox(propertyId, trackerDefinition, nextValue)
+      .then(() => {
+        this.applyPropertyTurnoverCheckboxValue(propertyId, column, nextValue);
+        return this.tryCompletePropertyTracking(propertyId, event.officeId, contextType);
+      })
+      .then(completed => {
+        if (completed) {
+          this.toastr.success('Tracking marked complete.', CommonMessage.Success);
+          return;
+        }
+        this.applyPropertyTrackerValues();
+        this.toastr.success('Tracker updated.', CommonMessage.Success);
+      })
+      .catch(() => {
+        this.applyPropertyTurnoverCheckboxValue(propertyId, column, previousValue);
+        this.toastr.error('Unable to update tracker.', CommonMessage.Error);
+      });
   }
 
   applyPropertyTurnoverCheckboxValue(propertyId: string, column: string, value: boolean): void {
@@ -1163,18 +1167,20 @@ export class DashboardMainComponent extends PropertyMaintenanceBase implements O
       return;
     }
     const selectedLabels = this.readMultiSelectLabels(event, changedColumn);
-    void this.savePropertyTrackerMultiSelect(propertyId, trackerDefinition, selectedLabels).then(async () => {
-      const completed = await this.tryCompletePropertyTracking(propertyId, event.officeId, contextType);
-      if (completed) {
-        this.toastr.success('Tracking marked complete.', CommonMessage.Success);
-        return;
-      }
-      this.applyPropertyTrackerValues();
-      this.toastr.success('Tracker updated.', CommonMessage.Success);
-    }).catch(() => {
-      this.applyPropertyTrackerValues();
-      this.toastr.error('Unable to update tracker.', CommonMessage.Error);
-    });
+    void this.savePropertyTrackerMultiSelect(propertyId, trackerDefinition, selectedLabels)
+      .then(() => this.tryCompletePropertyTracking(propertyId, event.officeId, contextType))
+      .then(completed => {
+        if (completed) {
+          this.toastr.success('Tracking marked complete.', CommonMessage.Success);
+          return;
+        }
+        this.applyPropertyTrackerValues();
+        this.toastr.success('Tracker updated.', CommonMessage.Success);
+      })
+      .catch(() => {
+        this.applyPropertyTrackerValues();
+        this.toastr.error('Unable to update tracker.', CommonMessage.Error);
+      });
   }
 
   onPropertyTurnoverClearTracking(event: DashboardPropertyTurnoverRow, contextType: TrackerContextType): void {

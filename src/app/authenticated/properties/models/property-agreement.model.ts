@@ -9,6 +9,7 @@ export interface PropertyAgreementLineRequest {
   deposit?: number | null;
   oneTime?: number | null;
   monthly?: number | null;
+  daily?: number | null;
 }
 
 export interface PropertyAgreementLineResponse {
@@ -19,6 +20,7 @@ export interface PropertyAgreementLineResponse {
   deposit?: number | null;
   oneTime?: number | null;
   monthly?: number | null;
+  daily?: number | null;
 }
 
 export interface PropertyAgreementRequest {
