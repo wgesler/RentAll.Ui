@@ -7,6 +7,14 @@
   <mat-dialog-content class="image-view-dialog-content">
     @if (isPdf) {
       <div class="image-view-pdf-wrapper">
+        @if (canNavigate) {
+          <button mat-icon-button type="button" class="image-nav-btn image-nav-btn--left" (click)="goPrevious()" aria-label="Previous image">
+            <mat-icon>chevron_left</mat-icon>
+          </button>
+          <button mat-icon-button type="button" class="image-nav-btn image-nav-btn--right" (click)="goNext()" aria-label="Next image">
+            <mat-icon>chevron_right</mat-icon>
+          </button>
+        }
         @if (isLoadingPdfThumbnail) {
           <div class="image-view-pdf-loading">
             <mat-spinner [diameter]="40"></mat-spinner>
@@ -21,7 +29,15 @@
       </div>
     } @else {
       <div class="image-view-zoom-wrapper">
-        <img [src]="data.imageSrc" alt="Image" class="image-view-img" [style.transform]="'scale(' + zoomScale + ')'" />
+        @if (canNavigate) {
+          <button mat-icon-button type="button" class="image-nav-btn image-nav-btn--left" (click)="goPrevious()" aria-label="Previous image">
+            <mat-icon>chevron_left</mat-icon>
+          </button>
+          <button mat-icon-button type="button" class="image-nav-btn image-nav-btn--right" (click)="goNext()" aria-label="Next image">
+            <mat-icon>chevron_right</mat-icon>
+          </button>
+        }
+        <img [src]="currentImageSrc" alt="Image" class="image-view-img" [style.transform]="'scale(' + zoomScale + ')'" />
       </div>
       <div class="image-view-zoom-controls">
         <button mat-icon-button type="button" (click)="zoomOut()" [disabled]="zoomScale <= minZoom" aria-label="Zoom out">

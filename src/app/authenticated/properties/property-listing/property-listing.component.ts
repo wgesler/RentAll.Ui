@@ -15,6 +15,9 @@ import { take } from 'rxjs/operators';
 import { ToastrService } from 'ngx-toastr';
 import { CommonMessage } from '../../../enums/common-message.enum';
 import { UtilityService } from '../../../services/utility.service';
+import { DomSanitizer, SafeHtml } from '@angular/platform-browser';
+import { MatDialog } from '@angular/material/dialog';
+import { ImageViewDialogComponent } from '../../shared/modals/image-view-dialog/image-view-dialog.component';
 
 interface ListingPhotoItem {
   id: string;
@@ -27,6 +30,11 @@ interface ListingHighlightItem {
   icon: string;
   label: string;
   value: string;
+}
+
+interface ListingAmenityIconItem {
+  icon: string;
+  label: string;
 }
 
 @Component({
@@ -55,6 +63,9 @@ export class PropertyListingComponent implements OnChanges {
   dropIndicatorSide: 'left' | 'right' | null = null;
   listingDescriptionExpanded = false;
   descriptionHasOverflow = false;
+  listingDescriptionHtmlValue = '';
+  listingContentSafeHtml: SafeHtml = '';
+  listingAmenitiesHtmlValue = '';
   @ViewChild('photoUploadInput') photoUploadInput?: ElementRef<HTMLInputElement>;
   @ViewChild('descriptionContent') descriptionContent?: ElementRef<HTMLElement>;
 
@@ -64,7 +75,9 @@ export class PropertyListingComponent implements OnChanges {
     private propertyListingShareService: PropertyListingShareService,
     private clipboard: Clipboard,
     private toastr: ToastrService,
-    private utilityService: UtilityService
+    private utilityService: UtilityService,
+    private sanitizer: DomSanitizer,
+    private dialog: MatDialog
   ) {}
 
   //#region Property Listing
@@ -72,6 +85,8 @@ export class PropertyListingComponent implements OnChanges {
     if (changes['property']) {
       this.listingDescriptionExpanded = false;
       this.descriptionHasOverflow = false;
+      this.refreshListingDescriptionHtml();
+      this.refreshListingAmenitiesHtml();
       this.queueDescriptionOverflowCheck();
     }
 
@@ -121,15 +136,15 @@ export class PropertyListingComponent implements OnChanges {
   }
 
   get listingDescriptionHtml(): string {
-    return this.property?.description?.trim() || '';
+    return this.listingDescriptionHtmlValue;
   }
 
   get listingDescriptionHtmlPreview(): string {
     return this.listingDescriptionHtml;
   }
 
-  get listingDescriptionHtmlDisplay(): string {
-    return this.listingDescriptionExpanded ? this.listingDescriptionHtml : this.listingDescriptionHtmlPreview;
+  get listingContentHtmlDisplay(): SafeHtml {
+    return this.listingContentSafeHtml;
   }
 
   get listingDescriptionShort(): string {
@@ -142,10 +157,6 @@ export class PropertyListingComponent implements OnChanges {
 
   get shouldShowDescriptionToggle(): boolean {
     return this.descriptionHasOverflow;
-  }
-
-  get listingDescriptionDisplay(): string {
-    return this.listingDescriptionText;
   }
 
   get listingPropertyType(): string {
@@ -206,29 +217,35 @@ export class PropertyListingComponent implements OnChanges {
     ];
   }
 
-  get listingAmenities(): string[] {
-    if (!this.property) return [];
+  get hasAmenitiesText(): boolean {
+    return !!this.listingAmenitiesHtmlValue.trim();
+  }
 
-    const washerDryerAmenity = this.property.washerDryerInUnit
+  get listingAmenityIconItems(): ListingAmenityIconItem[] {
+    if (!this.property) {
+      return [];
+    }
+
+    const washerDryerLabel = this.property.washerDryerInUnit
       ? 'Washer/Dryer In Unit'
       : (this.property.washerDryerInBldg ? 'Washer/Dryer In Building' : '');
-    const poolAmenity = this.property.privatePool
-      ? 'Private Pool'
-      : (this.property.commonPool ? 'Common Pool' : '');
 
-    const items = [
-      ...this.splitList(this.property.amenities),
-      washerDryerAmenity,
-      this.property.gym ? 'Gym' : '',
-      this.property.sauna ? 'Sauna' : '',
-      this.property.jacuzzi ? 'Jacuzzi' : '',
-      poolAmenity,
-      this.property.deck ? 'Deck' : '',
-      this.property.patio ? 'Patio' : '',
-      this.property.yard ? 'Yard' : '',
-      this.property.garden ? 'Garden' : ''
-    ].filter(Boolean);
-    return Array.from(new Set(items));
+    return [
+      { icon: 'local_laundry_service', label: washerDryerLabel, enabled: !!washerDryerLabel },
+      { icon: 'fitness_center', label: 'Gym', enabled: this.property.gym },
+      { icon: 'spa', label: 'Sauna', enabled: this.property.sauna },
+      { icon: 'hot_tub', label: 'Jacuzzi', enabled: this.property.jacuzzi },
+      { icon: 'pool', label: 'Private Pool', enabled: this.property.privatePool },
+      { icon: 'pool', label: 'Common Pool', enabled: this.property.commonPool },
+      { icon: 'deck', label: 'Deck', enabled: this.property.deck },
+      { icon: 'table_restaurant', label: 'Patio', enabled: this.property.patio },
+      { icon: 'grass', label: 'Yard', enabled: this.property.yard },
+      { icon: 'local_florist', label: 'Garden', enabled: this.property.garden }
+    ].filter(item => item.enabled).map(item => ({ icon: item.icon, label: item.label }));
+  }
+
+  get hasAmenitiesContent(): boolean {
+    return this.listingAmenityIconItems.length > 0;
   }
 
   get listingViews(): string[] {
@@ -318,6 +335,37 @@ export class PropertyListingComponent implements OnChanges {
       .split(/\r?\n|,|;/)
       .map(v => v.trim())
       .filter(Boolean);
+  }
+
+  refreshListingDescriptionHtml(): void {
+    this.listingDescriptionHtmlValue = this.property?.description?.trim() || '';
+    this.rebuildListingContentHtml();
+  }
+
+  refreshListingAmenitiesHtml(): void {
+    this.listingAmenitiesHtmlValue = this.property?.amenities?.trim() || '';
+    this.rebuildListingContentHtml();
+  }
+
+  rebuildListingContentHtml(): void {
+    const hasDescriptionHtml = /<[^>]+>/.test(this.listingDescriptionHtmlValue);
+    const descriptionHtml = hasDescriptionHtml
+      ? this.listingDescriptionHtmlValue
+      : this.escapeHtml(this.listingDescriptionText).replace(/\r?\n/g, '<br>');
+    const amenitiesSection = this.hasAmenitiesText
+      ? `<div class="listing-amenities-heading"><strong>Amenities</strong></div>${this.listingAmenitiesHtmlValue}`
+      : '';
+    const combined = [descriptionHtml, amenitiesSection].filter(Boolean).join('<div class="listing-content-separator"></div>');
+    this.listingContentSafeHtml = this.sanitizer.bypassSecurityTrustHtml(combined);
+  }
+
+  escapeHtml(value: string): string {
+    return (value || '')
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#39;');
   }
   //#endregion
 
@@ -597,6 +645,33 @@ export class PropertyListingComponent implements OnChanges {
     }
 
     return photo.photoPath || '';
+  }
+
+  openPhotoDialog(selectedPhotoId: string): void {
+    const activePhotos = this.listingPhotos
+      .map(photo => ({ id: photo.id, source: this.getPhotoDisplayUrl(photo) }))
+      .filter(photo => !!photo.source);
+    if (activePhotos.length === 0) {
+      return;
+    }
+
+    const selectedPhotoIndex = activePhotos.findIndex(photo => photo.id === selectedPhotoId);
+    const initialIndex = selectedPhotoIndex >= 0 ? selectedPhotoIndex : 0;
+    const imageSources = activePhotos.map(photo => photo.source);
+
+    this.dialog.open(ImageViewDialogComponent, {
+      width: '92vw',
+      maxWidth: '1200px',
+      maxHeight: '92vh',
+      autoFocus: true,
+      restoreFocus: true,
+      data: {
+        imageSrc: imageSources[initialIndex] || imageSources[0],
+        imageSources,
+        initialIndex,
+        title: this.listingHeaderTitle
+      }
+    });
   }
 
   loadPropertyPhotos(): void {

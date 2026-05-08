@@ -19,6 +19,8 @@ export class ImageViewDialogComponent implements OnInit {
   readonly zoomStep = 0.25;
   pdfThumbnailSrc: string | null = null;
   isLoadingPdfThumbnail = false;
+  gallerySources: string[] = [];
+  currentIndex = 0;
 
   constructor(
     @Inject(MAT_DIALOG_DATA) public data: ImageViewDialogData,
@@ -27,12 +29,17 @@ export class ImageViewDialogComponent implements OnInit {
   ) {}
 
   async ngOnInit(): Promise<void> {
-    if (!this.isPdf) {
-      return;
+    this.gallerySources = (this.data?.imageSources || []).filter(source => !!source);
+    if (this.gallerySources.length === 0 && this.data?.imageSrc) {
+      this.gallerySources = [this.data.imageSrc];
     }
-    this.isLoadingPdfThumbnail = true;
-    this.pdfThumbnailSrc = await this.pdfThumbnailService.getFirstPageDataUrl(this.data?.imageSrc || null, 1200);
-    this.isLoadingPdfThumbnail = false;
+
+    const requestedIndex = Number(this.data?.initialIndex ?? 0);
+    this.currentIndex = Number.isFinite(requestedIndex)
+      ? Math.max(0, Math.min(requestedIndex, Math.max(0, this.gallerySources.length - 1)))
+      : 0;
+
+    await this.loadPdfThumbnailIfNeeded();
   }
 
   zoomIn(): void {
@@ -44,8 +51,56 @@ export class ImageViewDialogComponent implements OnInit {
   }
 
   get isPdf(): boolean {
-    const source = (this.data?.imageSrc || '').trim().toLowerCase();
+    const source = (this.currentImageSrc || '').trim().toLowerCase();
     return source.startsWith('data:application/pdf;') || source.endsWith('.pdf');
+  }
+
+  get currentImageSrc(): string {
+    if (this.gallerySources.length === 0) {
+      return this.data?.imageSrc || '';
+    }
+
+    return this.gallerySources[this.currentIndex] || '';
+  }
+
+  get canNavigate(): boolean {
+    return this.gallerySources.length > 1;
+  }
+
+  async goPrevious(): Promise<void> {
+    if (!this.canNavigate) {
+      return;
+    }
+
+    this.currentIndex = this.currentIndex === 0
+      ? this.gallerySources.length - 1
+      : this.currentIndex - 1;
+    this.zoomScale = 1;
+    await this.loadPdfThumbnailIfNeeded();
+  }
+
+  async goNext(): Promise<void> {
+    if (!this.canNavigate) {
+      return;
+    }
+
+    this.currentIndex = this.currentIndex === this.gallerySources.length - 1
+      ? 0
+      : this.currentIndex + 1;
+    this.zoomScale = 1;
+    await this.loadPdfThumbnailIfNeeded();
+  }
+
+  async loadPdfThumbnailIfNeeded(): Promise<void> {
+    if (!this.isPdf) {
+      this.pdfThumbnailSrc = null;
+      this.isLoadingPdfThumbnail = false;
+      return;
+    }
+
+    this.isLoadingPdfThumbnail = true;
+    this.pdfThumbnailSrc = await this.pdfThumbnailService.getFirstPageDataUrl(this.currentImageSrc || null, 1200);
+    this.isLoadingPdfThumbnail = false;
   }
 
   close(): void {

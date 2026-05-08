@@ -72,6 +72,11 @@ export class PropertyComponent implements OnInit, AfterViewInit, OnDestroy, CanC
     this.syncDescriptionEditorFromForm();
   }
   descriptionEditor?: ElementRef<HTMLDivElement>;
+  @ViewChild('amenitiesEditor') set amenitiesEditorRef(value: ElementRef<HTMLDivElement> | undefined) {
+    this.amenitiesEditor = value;
+    this.syncAmenitiesEditorFromForm();
+  }
+  amenitiesEditor?: ElementRef<HTMLDivElement>;
   isSubmitting: boolean = false;
   isAddMode: boolean = false;
   
@@ -215,6 +220,7 @@ export class PropertyComponent implements OnInit, AfterViewInit, OnDestroy, CanC
 
   ngAfterViewInit(): void {
     this.syncDescriptionEditorFromForm();
+    this.syncAmenitiesEditorFromForm();
   }
 
   onDescriptionInput(event: Event): void {
@@ -225,7 +231,7 @@ export class PropertyComponent implements OnInit, AfterViewInit, OnDestroy, CanC
     descriptionControl?.markAsTouched();
   }
 
-  applyDescriptionFormat(format: 'bold' | 'italic' | 'underline' | 'paragraph'): void {
+  applyDescriptionFormat(format: 'bold' | 'italic' | 'underline' | 'paragraph' | 'unorderedList'): void {
     const editor = this.descriptionEditor?.nativeElement;
     if (!editor) {
       return;
@@ -242,8 +248,48 @@ export class PropertyComponent implements OnInit, AfterViewInit, OnDestroy, CanC
       return;
     }
 
+    if (format === 'unorderedList') {
+      document.execCommand('insertUnorderedList', false);
+      this.form.get('description')?.setValue(editor.innerHTML);
+      return;
+    }
+
     document.execCommand(format, false);
     this.form.get('description')?.setValue(editor.innerHTML);
+  }
+
+  onAmenitiesInput(event: Event): void {
+    const element = event.target as HTMLDivElement;
+    const amenitiesControl = this.form.get('amenities');
+    amenitiesControl?.setValue(element.innerHTML, { emitEvent: false });
+    amenitiesControl?.markAsDirty();
+    amenitiesControl?.markAsTouched();
+  }
+
+  applyAmenitiesFormat(format: 'bold' | 'italic' | 'underline' | 'paragraph' | 'unorderedList'): void {
+    const editor = this.amenitiesEditor?.nativeElement;
+    if (!editor) {
+      return;
+    }
+
+    editor.focus();
+    if (format === 'paragraph') {
+      const inserted = document.execCommand('insertParagraph', false);
+      if (!inserted) {
+        document.execCommand('insertHTML', false, '<p><br></p>');
+      }
+      this.form.get('amenities')?.setValue(editor.innerHTML);
+      return;
+    }
+
+    if (format === 'unorderedList') {
+      document.execCommand('insertUnorderedList', false);
+      this.form.get('amenities')?.setValue(editor.innerHTML);
+      return;
+    }
+
+    document.execCommand(format, false);
+    this.form.get('amenities')?.setValue(editor.innerHTML);
   }
 
   getProperty(): void {
@@ -764,7 +810,9 @@ export class PropertyComponent implements OnInit, AfterViewInit, OnDestroy, CanC
       // Set all values at once without emitting (avoid validation/toast on load)
       this.form.patchValue(formData, { emitEvent: false });
       this.syncDescriptionEditorFromForm();
+      this.syncAmenitiesEditorFromForm();
       setTimeout(() => this.syncDescriptionEditorFromForm());
+      setTimeout(() => this.syncAmenitiesEditorFromForm());
       this.syncConditionalFieldState();
       this.applyOwnerVendorLeaseValidators();
       this.form.markAsUntouched();
@@ -1682,6 +1730,9 @@ export class PropertyComponent implements OnInit, AfterViewInit, OnDestroy, CanC
     if (section === 'description') {
       setTimeout(() => this.syncDescriptionEditorFromForm());
     }
+    if (section === 'features') {
+      setTimeout(() => this.syncAmenitiesEditorFromForm());
+    }
   }
 
   onPanelClosed(section: keyof typeof this.expandedSections): void {
@@ -1837,6 +1888,7 @@ export class PropertyComponent implements OnInit, AfterViewInit, OnDestroy, CanC
 
     this.form.reset(this.cloneFormState(this.savedFormState), { emitEvent: false });
     this.syncDescriptionEditorFromForm();
+    this.syncAmenitiesEditorFromForm();
     this.applyOfficeControlState();
     this.applyOwnerVendorLeaseValidators();
     this.syncConditionalFieldState();
@@ -1870,6 +1922,19 @@ export class PropertyComponent implements OnInit, AfterViewInit, OnDestroy, CanC
 
     const description = this.form?.get('description')?.value ?? '';
     const nextHtml = typeof description === 'string' ? description : String(description);
+    if (editor.innerHTML !== nextHtml) {
+      editor.innerHTML = nextHtml;
+    }
+  }
+
+  syncAmenitiesEditorFromForm(): void {
+    const editor = this.amenitiesEditor?.nativeElement;
+    if (!editor) {
+      return;
+    }
+
+    const amenities = this.form?.get('amenities')?.value ?? '';
+    const nextHtml = typeof amenities === 'string' ? amenities : String(amenities);
     if (editor.innerHTML !== nextHtml) {
       editor.innerHTML = nextHtml;
     }

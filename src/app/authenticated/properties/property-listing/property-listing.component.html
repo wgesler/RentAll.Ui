@@ -42,21 +42,12 @@
           }
         </div>
         <div class="listing-hero__description listing-description">
-          @if (hasRichDescription) {
-            <div
-              #descriptionContent
-              class="listing-description__content"
-              [class.listing-description__content--collapsed]="!listingDescriptionExpanded"
-              [innerHTML]="listingDescriptionHtmlDisplay">
-            </div>
-          } @else {
-            <div
-              #descriptionContent
-              class="listing-description__content"
-              [class.listing-description__content--collapsed]="!listingDescriptionExpanded">
-              {{ listingDescriptionDisplay }}
-            </div>
-          }
+          <div
+            #descriptionContent
+            class="listing-description__content"
+            [class.listing-description__content--collapsed]="!listingDescriptionExpanded"
+            [innerHTML]="listingContentHtmlDisplay">
+          </div>
           @if (shouldShowDescriptionToggle) {
             <button type="button" class="listing-show-more-btn" (click)="toggleDescriptionExpanded()">
               {{ listingDescriptionExpanded ? 'Show less' : 'Show more' }} >
@@ -114,7 +105,11 @@
                         <mat-icon>close</mat-icon>
                       </button>
                     }
-                    <img [src]="getPhotoDisplayUrl(photo)" [alt]="photo.fileDetails?.fileName || 'Property photo'" class="listing-photo-card__img" />
+                    <img
+                      [src]="getPhotoDisplayUrl(photo)"
+                      [alt]="photo.fileDetails?.fileName || 'Property photo'"
+                      class="listing-photo-card__img"
+                      (click)="openPhotoDialog(photo.id)" />
                   </div>
                 }
               </div>
@@ -148,13 +143,17 @@
           </div>
         </aside>
 
-        @if (listingAmenities.length > 0) {
+        @if (hasAmenitiesContent) {
           <aside class="listing-highlights-side-panel">
             <h3 class="listing-section-title">Amenities</h3>
-            @for (item of listingAmenities; track item) {
-              <div class="listing-details-item listing-amenity-item">
-                <mat-icon>{{ getAmenityIcon(item) }}</mat-icon>
-                <span>{{ item }}</span>
+            @if (listingAmenityIconItems.length > 0) {
+              <div class="listing-amenity-icons-wrap">
+                @for (item of listingAmenityIconItems; track item.label) {
+                  <div class="listing-details-item listing-amenity-item">
+                    <mat-icon>{{ item.icon }}</mat-icon>
+                    <span>{{ item.label }}</span>
+                  </div>
+                }
               </div>
             }
           </aside>

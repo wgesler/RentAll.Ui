@@ -3,4 +3,8 @@ export interface ImageViewDialogData {
   imageSrc: string;
   /** Optional title shown in the dialog header */
   title?: string;
+  /** Optional image list for gallery navigation */
+  imageSources?: string[];
+  /** Optional initial index when imageSources is provided */
+  initialIndex?: number;
 }

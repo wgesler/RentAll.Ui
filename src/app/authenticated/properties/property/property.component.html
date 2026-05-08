@@ -761,10 +761,32 @@
                     <mat-checkbox formControlName="gym">Gym</mat-checkbox>
                   </div>
                 </div>
-                <mat-form-field appearance="outline" class="w-full min-w-0">
-                  <mat-label>Additional Amenities</mat-label>
-                  <textarea matInput formControlName="amenities" rows="3"></textarea>
-                </mat-form-field>
+                <div class="w-full min-w-0 amenities-editor-wrap">
+                  <div class="description-editor-label">Additional Amenities</div>
+                  <div class="description-editor-toolbar">
+                    <button type="button" mat-stroked-button (click)="applyAmenitiesFormat('bold')">
+                      <mat-icon>format_bold</mat-icon>
+                    </button>
+                    <button type="button" mat-stroked-button (click)="applyAmenitiesFormat('italic')">
+                      <mat-icon>format_italic</mat-icon>
+                    </button>
+                    <button type="button" mat-stroked-button (click)="applyAmenitiesFormat('underline')">
+                      <mat-icon>format_underlined</mat-icon>
+                    </button>
+                    <button type="button" mat-stroked-button (click)="applyAmenitiesFormat('paragraph')">
+                      <mat-icon>subject</mat-icon>
+                    </button>
+                    <button type="button" mat-stroked-button (click)="applyAmenitiesFormat('unorderedList')">
+                      <mat-icon>format_list_bulleted</mat-icon>
+                    </button>
+                  </div>
+                  <div
+                    #amenitiesEditor
+                    class="description-editor-input amenities-editor-input"
+                    contenteditable="true"
+                    (input)="onAmenitiesInput($event)">
+                  </div>
+                </div>
               </div>
             </mat-expansion-panel>
 
@@ -788,6 +810,9 @@
                     </button>
                     <button type="button" mat-stroked-button (click)="applyDescriptionFormat('paragraph')">
                       <mat-icon>subject</mat-icon>
+                    </button>
+                    <button type="button" mat-stroked-button (click)="applyDescriptionFormat('unorderedList')">
+                      <mat-icon>format_list_bulleted</mat-icon>
                     </button>
                   </div>
                   <div
