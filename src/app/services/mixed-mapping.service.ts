@@ -633,7 +633,7 @@ export class MixedMappingService {
       PropertyListResponse,
       | 'onCleanerUserId' | 'onCleaningDate' | 'onCarpetUserId' | 'onCarpetDate' | 'onInspectorUserId'
       | 'onInspectingDate' | 'offCleanerUserId' | 'offCleaningDate' | 'offCarpetUserId' | 'offCarpetDate'
-      | 'offInspectorUserId' | 'offInspectingDate'
+      | 'offInspectorUserId' | 'offInspectingDate' | 'onlineChecked' | 'offlineChecked'
     >
   ): Pick<
     PropertyMaintenance,
@@ -642,6 +642,7 @@ export class MixedMappingService {
     | 'onInspectingDateOrdinal' | 'onInspectingDateDisplay' | 'offCleanerUserId' | 'offCleaningDate' | 'offCleaningDateOrdinal'
     | 'offCleaningDateDisplay' | 'offCarpetUserId' | 'offCarpetDate' | 'offCarpetDateOrdinal' | 'offCarpetDateDisplay'
     | 'offInspectorUserId' | 'offInspectingDate' | 'offInspectingDateOrdinal' | 'offInspectingDateDisplay'
+    | 'onlineChecked' | 'offlineChecked'
   > {
     const onCleaningDate = property.onCleaningDate ?? null;
     const onCarpetDate = property.onCarpetDate ?? null;
@@ -674,7 +675,9 @@ export class MixedMappingService {
       offInspectorUserId: this.utilityService.normalizeIdOrNull(property.offInspectorUserId),
       offInspectingDate,
       offInspectingDateOrdinal: this.utilityService.parseCalendarDateToOrdinal(offInspectingDate),
-      offInspectingDateDisplay: this.formatter.formatDateString(offInspectingDate ?? undefined) || ''
+      offInspectingDateDisplay: this.formatter.formatDateString(offInspectingDate ?? undefined) || '',
+      onlineChecked: property.onlineChecked === true,
+      offlineChecked: property.offlineChecked === true
     };
   }
 

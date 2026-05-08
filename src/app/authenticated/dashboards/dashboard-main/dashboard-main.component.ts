@@ -217,9 +217,11 @@ export class DashboardMainComponent extends PropertyMaintenanceBase implements O
 
   buildPropertyTurnoverFromBaseLists(): void {
     const onlineRows = [...this.onlineProperties]
+      .filter(pm => pm.onlineChecked !== true)
       .sort((a, b) => (Number(a.eventDateSortTime ?? a.availableFromOrdinal) || 0) - (Number(b.eventDateSortTime ?? b.availableFromOrdinal) || 0))
       .map(pm => this.mapPropertyMaintenanceToDashboardTurnoverRow(pm));
     const offlineRows = [...this.offlineProperties]
+      .filter(pm => pm.offlineChecked !== true)
       .sort((a, b) => (Number(a.eventDateSortTime ?? a.availableUntilOrdinal) || 0) - (Number(b.eventDateSortTime ?? b.availableUntilOrdinal) || 0))
       .map(pm => this.mapPropertyMaintenanceToDashboardTurnoverRow(pm));
 
@@ -237,9 +239,11 @@ export class DashboardMainComponent extends PropertyMaintenanceBase implements O
 
   rebuildPropertyTurnoverIncludingIncompleteTrackers(): void {
     const onlineBaseRows = [...this.onlineProperties]
+      .filter(pm => pm.onlineChecked !== true)
       .sort((a, b) => (Number(a.eventDateSortTime ?? a.availableFromOrdinal) || 0) - (Number(b.eventDateSortTime ?? b.availableFromOrdinal) || 0))
       .map(pm => this.mapPropertyMaintenanceToDashboardTurnoverRow(pm));
     const offlineBaseRows = [...this.offlineProperties]
+      .filter(pm => pm.offlineChecked !== true)
       .sort((a, b) => (Number(a.eventDateSortTime ?? a.availableUntilOrdinal) || 0) - (Number(b.eventDateSortTime ?? b.availableUntilOrdinal) || 0))
       .map(pm => this.mapPropertyMaintenanceToDashboardTurnoverRow(pm));
 
@@ -858,9 +862,8 @@ export class DashboardMainComponent extends PropertyMaintenanceBase implements O
   }
 
   loadPropertyTrackerResponses(): void {
-    const propertyIds = Array.from(
-      new Set(this.filteredPropertyMaintenanceList.map(pm => (pm.propertyId || '').trim()).filter(id => !!id))
-    );
+    const candidatePropertyIds = this.getPropertyTrackingCandidateIds();
+    const propertyIds = Array.from(candidatePropertyIds);
 
     if (propertyIds.length === 0) {
       this.propertyTrackerResponsesByProperty.clear();
@@ -869,31 +872,40 @@ export class DashboardMainComponent extends PropertyMaintenanceBase implements O
       return;
     }
 
-    from(propertyIds).pipe(
-      concatMap(propertyId =>
-        this.propertyService.getPropertyTrackerResponses(propertyId).pipe(
-          concatMap(responses =>
-            this.propertyService.getPropertyTrackerResponseOptions(propertyId).pipe(
-              map(options => ({ propertyId, responses: responses || [], options: options || [] })),
-              catchError(() => of({ propertyId, responses: responses || [], options: [] as PropertyTrackerResponseOption[] }))
-            )
-          ),
-          catchError(() => of({ propertyId, responses: [] as PropertyTrackerResponse[], options: [] as PropertyTrackerResponseOption[] }))
+    this.propertyService.getPropertyTrackerResponsesByOffices(false).pipe(
+      concatMap(responses =>
+        this.propertyService.getPropertyTrackerResponseOptionsByOffices(false).pipe(
+          map(options => ({ responses: responses || [], options: options || [] })),
+          catchError(() => of({ responses: responses || [], options: [] as PropertyTrackerResponseOption[] }))
         )
       ),
-      toArray(),
+      catchError(() => of({ responses: [] as PropertyTrackerResponse[], options: [] as PropertyTrackerResponseOption[] })),
       take(1),
       takeUntil(this.destroy$)
     ).subscribe(result => {
       this.propertyTrackerResponsesByProperty.clear();
       this.propertyTrackerResponseOptionsByProperty.clear();
-      result.forEach(item => {
-        const byDefinitionId = new Map<string, PropertyTrackerResponse>();
-        item.responses.forEach(response => {
-          byDefinitionId.set(this.utilityService.normalizeId(response.trackerDefinitionId), response);
-        });
-        this.propertyTrackerResponsesByProperty.set(this.utilityService.normalizeId(item.propertyId), byDefinitionId);
-        this.propertyTrackerResponseOptionsByProperty.set(this.utilityService.normalizeId(item.propertyId), item.options);
+
+      result.responses.forEach(response => {
+        const propertyKey = this.utilityService.normalizeId(response.propertyId);
+        if (!candidatePropertyIds.has(propertyKey)) {
+          return;
+        }
+
+        const byDefinitionId = this.propertyTrackerResponsesByProperty.get(propertyKey) || new Map<string, PropertyTrackerResponse>();
+        byDefinitionId.set(this.utilityService.normalizeId(response.trackerDefinitionId), response);
+        this.propertyTrackerResponsesByProperty.set(propertyKey, byDefinitionId);
+      });
+
+      result.options.forEach(option => {
+        const propertyKey = this.utilityService.normalizeId(option.propertyId);
+        if (!candidatePropertyIds.has(propertyKey)) {
+          return;
+        }
+
+        const existingOptions = this.propertyTrackerResponseOptionsByProperty.get(propertyKey) || [];
+        existingOptions.push(option);
+        this.propertyTrackerResponseOptionsByProperty.set(propertyKey, existingOptions);
       });
       this.rebuildPropertyTurnoverIncludingIncompleteTrackers();
     });
@@ -1109,8 +1121,14 @@ export class DashboardMainComponent extends PropertyMaintenanceBase implements O
       return;
     }
 
-    void this.savePropertyTrackerCheckbox(propertyId, trackerDefinition, nextValue).then(() => {
+    void this.savePropertyTrackerCheckbox(propertyId, trackerDefinition, nextValue).then(async () => {
       this.applyPropertyTurnoverCheckboxValue(propertyId, column, nextValue);
+      const completed = await this.tryCompletePropertyTracking(propertyId, event.officeId, contextType);
+      if (completed) {
+        this.toastr.success('Tracking marked complete.', CommonMessage.Success);
+        return;
+      }
+      this.applyPropertyTrackerValues();
       this.toastr.success('Tracker updated.', CommonMessage.Success);
     }).catch(() => {
       this.applyPropertyTurnoverCheckboxValue(propertyId, column, previousValue);
@@ -1145,7 +1163,12 @@ export class DashboardMainComponent extends PropertyMaintenanceBase implements O
       return;
     }
     const selectedLabels = this.readMultiSelectLabels(event, changedColumn);
-    void this.savePropertyTrackerMultiSelect(propertyId, trackerDefinition, selectedLabels).then(() => {
+    void this.savePropertyTrackerMultiSelect(propertyId, trackerDefinition, selectedLabels).then(async () => {
+      const completed = await this.tryCompletePropertyTracking(propertyId, event.officeId, contextType);
+      if (completed) {
+        this.toastr.success('Tracking marked complete.', CommonMessage.Success);
+        return;
+      }
       this.applyPropertyTrackerValues();
       this.toastr.success('Tracker updated.', CommonMessage.Success);
     }).catch(() => {
@@ -1156,17 +1179,19 @@ export class DashboardMainComponent extends PropertyMaintenanceBase implements O
 
   onPropertyTurnoverClearTracking(event: DashboardPropertyTurnoverRow, contextType: TrackerContextType): void {
     const propertyId = (event.propertyId || '').trim();
-    void contextType;
     if (!propertyId) {
       return;
     }
+    const isOnlineContext = this.isOnlinePropertyContext(contextType);
 
     void (async () => {
       try {
+        await this.propertyService.updateModifiedProperty(propertyId, isOnlineContext ? { onlineChecked: false } : { offlineChecked: false });
         await firstValueFrom(this.propertyService.deletePropertyTrackerResponsesByPropertyId(propertyId));
         const propertyKey = this.utilityService.normalizeId(propertyId);
         this.propertyTrackerResponsesByProperty.delete(propertyKey);
         this.propertyTrackerResponseOptionsByProperty.delete(propertyKey);
+        this.applyPropertyCompletionFlag(propertyId, isOnlineContext, false);
         this.rebuildPropertyTurnoverIncludingIncompleteTrackers();
         this.toastr.success('Tracking cleared.', CommonMessage.Success);
       } catch {
@@ -1200,6 +1225,11 @@ export class DashboardMainComponent extends PropertyMaintenanceBase implements O
             continue;
           }
           await this.savePropertyTrackerCheckbox(propertyId, definition, true);
+        }
+        const completed = await this.tryCompletePropertyTracking(propertyId, event.officeId, contextType);
+        if (completed) {
+          this.toastr.success('Tracking marked complete.', CommonMessage.Success);
+          return;
         }
         this.applyPropertyTrackerValues();
         this.toastr.success('Tracking marked complete.', CommonMessage.Success);
@@ -1655,7 +1685,7 @@ export class DashboardMainComponent extends PropertyMaintenanceBase implements O
       if (!this.isLeaseTypeMatchForContext(Number(mappedRow.propertyLeaseTypeId), contextType)) {
         return;
       }
-      if (!this.isOnlinePropertyContext(contextType) && !this.isOfflineDateExpired(pm)) {
+      if (!this.isPropertyPastDueAndUnchecked(pm, contextType)) {
         return;
       }
       if (!this.hasIncompletePropertyTrackers(pm.propertyId, pm.officeId, contextType)) {
@@ -1668,6 +1698,10 @@ export class DashboardMainComponent extends PropertyMaintenanceBase implements O
   }
 
   hasIncompletePropertyTrackers(propertyId: string, officeId: number, contextType: TrackerContextType): boolean {
+    if (this.isPropertyContextMarkedComplete(propertyId, contextType)) {
+      return false;
+    }
+
     const definitions = this.getTrackerDefinitionsForContext(contextType, true)
       .filter(definition => definition.officeId === officeId);
     if (definitions.length === 0) {
@@ -1709,9 +1743,98 @@ export class DashboardMainComponent extends PropertyMaintenanceBase implements O
     return false;
   }
 
+  isPropertyContextMarkedComplete(propertyId: string, contextType: TrackerContextType): boolean {
+    const propertyKey = this.utilityService.normalizeId(propertyId);
+    const isOnlineContext = this.isOnlinePropertyContext(contextType);
+    const fromTurnoverRows = this.getAllPropertyTurnoverRows().find(row => this.utilityService.normalizeId(row.propertyId) === propertyKey);
+    if (fromTurnoverRows) {
+      return isOnlineContext ? fromTurnoverRows.onlineChecked === true : fromTurnoverRows.offlineChecked === true;
+    }
+    const fromMaintenance = this.filteredPropertyMaintenanceList.find(row => this.utilityService.normalizeId(row.propertyId) === propertyKey);
+    if (!fromMaintenance) {
+      return false;
+    }
+    return isOnlineContext ? fromMaintenance.onlineChecked === true : fromMaintenance.offlineChecked === true;
+  }
+
+  applyPropertyCompletionFlag(propertyId: string, isOnlineContext: boolean, value: boolean): void {
+    const propertyKey = this.utilityService.normalizeId(propertyId);
+    const completionField: 'onlineChecked' | 'offlineChecked' = isOnlineContext ? 'onlineChecked' : 'offlineChecked';
+    const patchRows = (rows: DashboardPropertyTurnoverRow[]): DashboardPropertyTurnoverRow[] =>
+      rows.map(row =>
+        this.utilityService.normalizeId(row.propertyId) === propertyKey
+          ? { ...row, [completionField]: value }
+          : row
+      );
+
+    this.pmOnlinePropertyRows = patchRows(this.pmOnlinePropertyRows);
+    this.thirdPartyOnlinePropertyRows = patchRows(this.thirdPartyOnlinePropertyRows);
+    this.directOnlinePropertyRows = patchRows(this.directOnlinePropertyRows);
+    this.pmOfflinePropertyRows = patchRows(this.pmOfflinePropertyRows);
+    this.thirdPartyOfflinePropertyRows = patchRows(this.thirdPartyOfflinePropertyRows);
+    this.directOfflinePropertyRows = patchRows(this.directOfflinePropertyRows);
+    this.filteredPropertyMaintenanceList = this.filteredPropertyMaintenanceList.map(row =>
+      this.utilityService.normalizeId(row.propertyId) === propertyKey
+        ? { ...row, [completionField]: value }
+        : row
+    );
+  }
+
+  async tryCompletePropertyTracking(propertyId: string, officeId: number, contextType: TrackerContextType): Promise<boolean> {
+    if (this.hasIncompletePropertyTrackers(propertyId, officeId, contextType)) {
+      return false;
+    }
+
+    const isOnlineContext = this.isOnlinePropertyContext(contextType);
+    await this.propertyService.updateModifiedProperty(propertyId, isOnlineContext ? { onlineChecked: true } : { offlineChecked: true });
+    await firstValueFrom(this.propertyService.deletePropertyTrackerResponsesByPropertyId(propertyId));
+
+    const propertyKey = this.utilityService.normalizeId(propertyId);
+    this.propertyTrackerResponsesByProperty.delete(propertyKey);
+    this.propertyTrackerResponseOptionsByProperty.delete(propertyKey);
+    this.applyPropertyCompletionFlag(propertyId, isOnlineContext, true);
+    this.rebuildPropertyTurnoverIncludingIncompleteTrackers();
+    return true;
+  }
+
   isOfflineDateExpired(pm: PropertyMaintenance): boolean {
     const offlineOrdinal = Number(pm.availableUntilOrdinal ?? 0);
     return offlineOrdinal > 0 && offlineOrdinal < this.todayDayOrdinal;
+  }
+
+  isOnlineDateExpired(pm: PropertyMaintenance): boolean {
+    const onlineOrdinal = Number(pm.availableFromOrdinal ?? 0);
+    return onlineOrdinal > 0 && onlineOrdinal < this.todayDayOrdinal;
+  }
+
+  isPropertyPastDueAndUnchecked(pm: PropertyMaintenance, contextType: TrackerContextType): boolean {
+    if (this.isOnlinePropertyContext(contextType)) {
+      return this.isOnlineDateExpired(pm) && pm.onlineChecked !== true;
+    }
+    return this.isOfflineDateExpired(pm) && pm.offlineChecked !== true;
+  }
+
+  getPropertyTrackingCandidateIds(): Set<string> {
+    const ids = new Set<string>([
+      ...this.onlineProperties
+        .filter(pm => pm.onlineChecked !== true)
+        .map(pm => this.utilityService.normalizeId(pm.propertyId)),
+      ...this.offlineProperties
+        .filter(pm => pm.offlineChecked !== true)
+        .map(pm => this.utilityService.normalizeId(pm.propertyId))
+    ].filter(id => !!id));
+
+    this.filteredPropertyMaintenanceList.forEach(pm => {
+      const propertyId = this.utilityService.normalizeId(pm.propertyId);
+      if (!propertyId) {
+        return;
+      }
+      if (this.isPropertyPastDueAndUnchecked(pm, TrackerContextType.PropertyOnline) || this.isPropertyPastDueAndUnchecked(pm, TrackerContextType.PropertyOffline)) {
+        ids.add(propertyId);
+      }
+    });
+
+    return ids;
   }
   //#endregion
 

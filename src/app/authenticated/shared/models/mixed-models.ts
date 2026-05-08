@@ -59,6 +59,8 @@ export interface PropertyMaintenance {
   offInspectingDate?: CalendarDateString | null;
   offInspectingDateOrdinal: number | null;
   offInspectingDateDisplay: string;
+  onlineChecked: boolean;
+  offlineChecked: boolean;
 
   maintenanceNotes: string;
   eventType?: ServiceType | null;
@@ -197,6 +199,8 @@ export type DashboardPropertyTurnoverRow = PropertyListDisplay & {
   cleaningDateDisplay?: string;
   carpetDateDisplay?: string;
   inspectingDateDisplay?: string;
+  onlineChecked: boolean;
+  offlineChecked: boolean;
 };
 
 export type PropertyVacancyDisplay = PropertyListResponse & {

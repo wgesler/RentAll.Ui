@@ -122,8 +122,16 @@ export class PropertyService {
     return this.http.get<PropertyTrackerResponse[]>(this.controller + 'tracker-response/property/' + propertyId);
   }
 
+  getPropertyTrackerResponsesByOffices(includeInactive: boolean = false): Observable<PropertyTrackerResponse[]> {
+    return this.http.get<PropertyTrackerResponse[]>(this.controller + 'tracker-response/offices?includeInactive=' + includeInactive);
+  }
+
   getPropertyTrackerResponseOptions(propertyId: string): Observable<PropertyTrackerResponseOption[]> {
     return this.http.get<PropertyTrackerResponseOption[]>(this.controller + 'tracker-response-option/property/' + propertyId);
+  }
+
+  getPropertyTrackerResponseOptionsByOffices(includeInactive: boolean = false): Observable<PropertyTrackerResponseOption[]> {
+    return this.http.get<PropertyTrackerResponseOption[]>(this.controller + 'tracker-response-option/offices?includeInactive=' + includeInactive);
   }
 
   createPropertyTrackerResponse(request: PropertyTrackerResponseRequest): Observable<PropertyTrackerResponse> {

@@ -141,6 +141,8 @@ export interface PropertyRequest {
   offCarpetDate?: CalendarDateString | null;
   offInspectorUserId?: string | null;
   offInspectingDate?: CalendarDateString | null;
+  onlineChecked: boolean;
+  offlineChecked: boolean;
 }
 export interface PropertyResponse {
   propertyId: string;
@@ -283,6 +285,8 @@ export interface PropertyResponse {
   offCarpetDate?: CalendarDateString | null;
   offInspectorUserId?: string | null;
   offInspectingDate?: CalendarDateString | null;
+  onlineChecked: boolean;
+  offlineChecked: boolean;
 }
 export interface PropertyListResponse{
   propertyId: string;
@@ -325,6 +329,8 @@ export interface PropertyListResponse{
   offCarpetDate?: CalendarDateString | null;
   offInspectorUserId?: string | null;
   offInspectingDate?: CalendarDateString | null;
+  onlineChecked: boolean;
+  offlineChecked: boolean;
   isActive: boolean;
  }
 export interface PropertyListDisplay {
@@ -372,6 +378,8 @@ export interface PropertyListDisplay {
   offCarpetDate?: CalendarDateString | null;
   offInspectorUserId?: string | null;
   offInspectingDate?: CalendarDateString | null;
+  onlineChecked: boolean;
+  offlineChecked: boolean;
   isActive: boolean;
 }
 

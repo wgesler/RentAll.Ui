@@ -665,6 +665,8 @@ export class MappingService {
           true,
           bedPanelClass
         ),
+        onlineChecked: o.onlineChecked === true,
+        offlineChecked: o.offlineChecked === true,
         isActive: o.isActive,
         unfurnished: this.toBooleanValue(o.unfurnished),
       };
@@ -701,6 +703,8 @@ export class MappingService {
       bedroomId2: pm.bedroomId2,
       bedroomId3: pm.bedroomId3,
       bedroomId4: pm.bedroomId4,
+      onlineChecked: pm.onlineChecked === true,
+      offlineChecked: pm.offlineChecked === true,
       isActive: true
     };
   }

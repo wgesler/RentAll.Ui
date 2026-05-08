@@ -1015,6 +1015,8 @@ export class ContactComponent implements OnInit, OnDestroy {
       bedroomId2: 0,
       bedroomId3: 0,
       bedroomId4: 0,
+      onlineChecked: false,
+      offlineChecked: false,
       isActive: true
     };
   }
