@@ -92,6 +92,7 @@ export class LeaseComponent extends BaseDocumentComponent implements OnInit, OnD
   propertyHtml: PropertyHtmlResponse | null = null;
   emailHtml: EmailHtmlResponse | null = null;
   leaseInformation: LeaseInformationResponse | null = null;
+  leaseInformationScopeOverride: { officeId: number | null; propertyId: string | null } | null = null;
   leaseReloadSubscription?: Subscription;
   includeLease: boolean = true;
   includeLetterOfResponsibility: boolean = true;
@@ -164,7 +165,8 @@ export class LeaseComponent extends BaseDocumentComponent implements OnInit, OnD
     this.loadLeaseInformation();
     
     // Subscribe to lease reload events
-    this.leaseReloadSubscription = this.leaseReloadService.reloadLease.subscribe(() => {
+    this.leaseReloadSubscription = this.leaseReloadService.reloadLease.subscribe((scope) => {
+      this.leaseInformationScopeOverride = scope;
       this.reloadLease();
     });
   }
@@ -199,6 +201,10 @@ export class LeaseComponent extends BaseDocumentComponent implements OnInit, OnD
           this.form.patchValue({ selectedOfficeId: null });
           this.filterReservations();
         }
+
+        // Keep merged lease content in sync with scope changes.
+        this.utilityService.addLoadItem(this.itemsToLoad$, 'leaseInformation');
+        this.loadLeaseInformation();
       }
     }
 
@@ -277,8 +283,9 @@ export class LeaseComponent extends BaseDocumentComponent implements OnInit, OnD
     
     // Reload lease information to get latest data
     if (this.propertyId) {
+      const scope = this.getLeaseInformationScope();
       reloadObservables.push(
-        this.leaseInformationService.getLeaseInformationByPropertyId(this.propertyId).pipe(take(1),
+        this.leaseInformationService.getLeaseInformationByScope(scope.officeId, scope.propertyId).pipe(take(1),
           map((response: LeaseInformationResponse) => {
             this.leaseInformation = response;
             return { type: 'leaseInformation', data: response };
@@ -583,12 +590,8 @@ export class LeaseComponent extends BaseDocumentComponent implements OnInit, OnD
   }
 
   loadLeaseInformation(): void {
-    if (!this.propertyId) {
-      this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'leaseInformation');
-      return;
-    }
-    
-    this.leaseInformationService.getLeaseInformationByPropertyId(this.propertyId).pipe(take(1), finalize(() => { this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'leaseInformation'); })).subscribe({
+    const scope = this.getLeaseInformationScope();
+    this.leaseInformationService.getLeaseInformationByScope(scope.officeId, scope.propertyId).pipe(take(1), finalize(() => { this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'leaseInformation'); })).subscribe({
       next: (response: LeaseInformationResponse) => {
         this.leaseInformation = response;
         this.generatePreviewIframe();
@@ -644,12 +647,6 @@ export class LeaseComponent extends BaseDocumentComponent implements OnInit, OnD
     });
   }
 
-  getPrimaryReservationContactId(reservation: ReservationResponse | null): string | null {
-    const contactIds = reservation?.contactIds || [];
-    const firstContactId = contactIds.find(id => String(id || '').trim().length > 0);
-    return firstContactId ? String(firstContactId) : null;
-  }
-
   loadContact(): void {
     const selectedContactId = this.getPrimaryReservationContactId(this.selectedReservation);
     if (!selectedContactId) {
@@ -676,6 +673,12 @@ export class LeaseComponent extends BaseDocumentComponent implements OnInit, OnD
   //#endregion
 
   //#region Field Replacement Helpers
+  getPrimaryReservationContactId(reservation: ReservationResponse | null): string | null {
+    const contactIds = reservation?.contactIds || [];
+    const firstContactId = contactIds.find(id => String(id || '').trim().length > 0);
+    return firstContactId ? String(firstContactId) : null;
+  }
+  
   getAccountingOfficeAddress(): string {
     if (!this.property) {
       return '';
@@ -1269,9 +1272,82 @@ export class LeaseComponent extends BaseDocumentComponent implements OnInit, OnD
       result = result.replace(/\{\{reservedRights\}\}/g, this.leaseInformation.reservedRights || '');
       result = result.replace(/\{\{propertyUse\}\}/g, this.leaseInformation.propertyUse || '');
       result = result.replace(/\{\{miscellaneous\}\}/g, this.leaseInformation.miscellaneous || '');
+
+      result = result.replace(/\{\{rentalPaymentSection\}\}/g, this.buildLeaseInfoSectionHtml('Rental Payments', this.leaseInformation.rentalPayment));
+      result = result.replace(/\{\{securityDepositWaiverSection\}\}/g, this.buildLeaseInfoSectionHtml('Security Deposit Waiver', this.leaseInformation.securityDepositWaiver));
+      result = result.replace(/\{\{securityDepositSection\}\}/g, this.buildLeaseInfoSectionHtml('Security Deposit/Credit Card Authorizations', this.leaseInformation.securityDeposit));
+      result = result.replace(/\{\{cancellationPolicySection\}\}/g, this.buildLeaseInfoSectionHtml('Cancellation Policy', this.leaseInformation.cancellationPolicy));
+      result = result.replace(/\{\{keyPickUpDropOffSection\}\}/g, this.buildLeaseInfoSectionHtml('Key Pick-up and drop-off', this.leaseInformation.keyPickUpDropOff));
+      result = result.replace(/\{\{partialMonthSection\}\}/g, this.buildLeaseInfoSectionHtml('Partial Month Calculation', this.leaseInformation.partialMonth));
+      result = result.replace(/\{\{departureNotificationSection\}\}/g, this.buildLeaseInfoSectionHtml('Departure Notification/Extensions', this.leaseInformation.departureNotification));
+      result = result.replace(/\{\{holdoverSection\}\}/g, this.buildLeaseInfoSectionHtml('Holdover', this.leaseInformation.holdover));
+      result = result.replace(/\{\{departureServiceFeeSection\}\}/g, this.buildLeaseInfoSectionHtml('Departure Service Fee', this.leaseInformation.departureServiceFee));
+      result = result.replace(/\{\{checkoutProcedureSection\}\}/g, this.buildLeaseInfoSectionHtml('Checkout Procedure', this.leaseInformation.checkoutProcedure));
+      result = result.replace(/\{\{parkingSection\}\}/g, this.buildLeaseInfoSectionHtml('Parking', this.leaseInformation.parking));
+      result = result.replace(/\{\{rulesAndRegulationsSection\}\}/g, this.buildLeaseInfoSectionHtml('Rules & Regulations', this.leaseInformation.rulesAndRegulations));
+      result = result.replace(/\{\{occupyingTenantsSection\}\}/g, this.buildLeaseInfoSectionHtml('Occupying Tenants', this.leaseInformation.occupyingTenants));
+      result = result.replace(/\{\{utilityAllowanceSection\}\}/g, this.buildLeaseInfoSectionHtml('Utility Allowance', this.leaseInformation.utilityAllowance));
+      result = result.replace(/\{\{maidServiceSection\}\}/g, this.buildLeaseInfoSectionHtml('Maid Service', this.leaseInformation.maidService));
+      result = result.replace(/\{\{petsSection\}\}/g, this.buildLeaseInfoSectionHtml('Pets', this.leaseInformation.pets));
+      result = result.replace(/\{\{smokingSection\}\}/g, this.buildLeaseInfoSectionHtml('Smoking in unit', this.leaseInformation.smoking));
+      result = result.replace(/\{\{emergenciesSection\}\}/g, this.buildLeaseInfoSectionHtml('Emergencies', this.leaseInformation.emergencies));
+      result = result.replace(/\{\{homeownersAssociationSection\}\}/g, this.buildLeaseInfoSectionHtml('Homeowner\'s Association', this.leaseInformation.homeownersAssociation));
+      result = result.replace(/\{\{indemnificationSection\}\}/g, this.buildLeaseInfoSectionHtml('Indemnification', this.leaseInformation.indemnification));
+      result = result.replace(/\{\{defaultClauseSection\}\}/g, this.buildLeaseInfoSectionHtml('Default', this.leaseInformation.defaultClause));
+      result = result.replace(/\{\{attorneyCollectionFeesSection\}\}/g, this.buildLeaseInfoSectionHtml('Attorneys\'/Collection Fees', this.leaseInformation.attorneyCollectionFees));
+      result = result.replace(/\{\{reservedRightsSection\}\}/g, this.buildLeaseInfoSectionHtml('Reserved Rights', this.leaseInformation.reservedRights));
+      result = result.replace(/\{\{propertyUseSection\}\}/g, this.buildLeaseInfoSectionHtml('Use', this.leaseInformation.propertyUse));
+      result = result.replace(/\{\{miscellaneousSection\}\}/g, this.buildLeaseInfoSectionHtml('Miscellaneous', this.leaseInformation.miscellaneous, false));
+    } else {
+      result = result.replace(/\{\{rentalPaymentSection\}\}/g, '');
+      result = result.replace(/\{\{securityDepositWaiverSection\}\}/g, '');
+      result = result.replace(/\{\{securityDepositSection\}\}/g, '');
+      result = result.replace(/\{\{cancellationPolicySection\}\}/g, '');
+      result = result.replace(/\{\{keyPickUpDropOffSection\}\}/g, '');
+      result = result.replace(/\{\{partialMonthSection\}\}/g, '');
+      result = result.replace(/\{\{departureNotificationSection\}\}/g, '');
+      result = result.replace(/\{\{holdoverSection\}\}/g, '');
+      result = result.replace(/\{\{departureServiceFeeSection\}\}/g, '');
+      result = result.replace(/\{\{checkoutProcedureSection\}\}/g, '');
+      result = result.replace(/\{\{parkingSection\}\}/g, '');
+      result = result.replace(/\{\{rulesAndRegulationsSection\}\}/g, '');
+      result = result.replace(/\{\{occupyingTenantsSection\}\}/g, '');
+      result = result.replace(/\{\{utilityAllowanceSection\}\}/g, '');
+      result = result.replace(/\{\{maidServiceSection\}\}/g, '');
+      result = result.replace(/\{\{petsSection\}\}/g, '');
+      result = result.replace(/\{\{smokingSection\}\}/g, '');
+      result = result.replace(/\{\{emergenciesSection\}\}/g, '');
+      result = result.replace(/\{\{homeownersAssociationSection\}\}/g, '');
+      result = result.replace(/\{\{indemnificationSection\}\}/g, '');
+      result = result.replace(/\{\{defaultClauseSection\}\}/g, '');
+      result = result.replace(/\{\{attorneyCollectionFeesSection\}\}/g, '');
+      result = result.replace(/\{\{reservedRightsSection\}\}/g, '');
+      result = result.replace(/\{\{propertyUseSection\}\}/g, '');
+      result = result.replace(/\{\{miscellaneousSection\}\}/g, '');
     }
 
     return result;
+  }
+
+  buildLeaseInfoSectionHtml(title: string, content: string | null | undefined, wrapInParagraph: boolean = true): string {
+    if (!this.hasMeaningfulLeaseSectionContent(content)) {
+      return '';
+    }
+    return wrapInParagraph
+      ? `<div class="keep-together"><h2>${title}</h2><p>${content}</p></div>`
+      : `<div class="keep-together"><h2>${title}</h2>${content}<br><br></div>`;
+  }
+
+  hasMeaningfulLeaseSectionContent(content: string | null | undefined): boolean {
+    if (!content) {
+      return false;
+    }
+    const withoutHtml = content
+      .replace(/<br\s*\/?>/gi, '')
+      .replace(/&nbsp;/gi, ' ')
+      .replace(/<[^>]+>/g, '')
+      .trim();
+    return withoutHtml.length > 0;
   }
 
   replaceAllOtherPlaceholders(html: string): string {
@@ -1711,6 +1787,17 @@ export class LeaseComponent extends BaseDocumentComponent implements OnInit, OnD
   //#region Utility Methods
   get isOfficeSelectionLocked(): boolean {
     return this.lockOfficeSelection;
+  }
+
+  getLeaseInformationScope(): { officeId: number | null; propertyId: string | null } {
+    if (this.leaseInformationScopeOverride) {
+      return this.leaseInformationScopeOverride;
+    }
+
+    return {
+      officeId: this.officeId,
+      propertyId: this.propertyId || null
+    };
   }
 
   applyOfficeSelectionLockState(): void {

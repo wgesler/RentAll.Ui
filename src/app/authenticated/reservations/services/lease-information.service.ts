@@ -26,9 +26,17 @@ export class LeaseInformationService {
     return this.http.get<LeaseInformationResponse>(this.controller + 'property/' + propertyId);
   }
 
-  // GET: Get lease information by contact ID
-  getLeaseInformationByContactId(contactId: string): Observable<LeaseInformationResponse> {
-    return this.http.get<LeaseInformationResponse>(this.controller + 'contact/' + contactId);
+  // GET: Get lease information by scope with fallback
+  getLeaseInformationByScope(officeId: number | null = null, propertyId: string | null = null): Observable<LeaseInformationResponse> {
+    const query: string[] = [];
+    if (officeId !== null && officeId !== undefined) {
+      query.push(`officeId=${officeId}`);
+    }
+    if (propertyId) {
+      query.push(`propertyId=${encodeURIComponent(propertyId)}`);
+    }
+    const queryString = query.length > 0 ? `?${query.join('&')}` : '';
+    return this.http.get<LeaseInformationResponse>(this.controller + 'scope' + queryString);
   }
 
   // POST: Create a new lease information

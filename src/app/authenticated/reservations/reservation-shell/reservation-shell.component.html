@@ -46,7 +46,7 @@
                 </app-title-bar-select>
               </div>
             }
-            @if (selectedTabIndex === 3) {
+            @if (selectedTabIndex === getEmailTabIndex()) {
               <app-title-bar-select
                 [label]="'Email Types'"
                 [formFieldClass]="'titlebar-field-document-type'"
@@ -57,7 +57,7 @@
                 (valueChange)="onHeaderEmailTypeDropdownChange($event)">
               </app-title-bar-select>
             }
-            @if (selectedTabIndex === 4) {
+            @if (selectedTabIndex === getDocumentsTabIndex()) {
               <app-title-bar-select
                 [label]="'Document Types'"
                 [formFieldClass]="'titlebar-field-document-type'"
@@ -86,11 +86,22 @@
           <app-reservation #reservationSection [shellMode]="true"></app-reservation>
         </mat-tab>
 
+        @if (isAdmin) {
+          <mat-tab label="Information">
+            <app-lease-information
+              [reservationId]="activeReservationId"
+              [officeId]="displayOfficeId"
+              [propertyId]="selectedPropertyId"
+              >
+            </app-lease-information>
+          </mat-tab>
+        }
+
         <mat-tab label="Lease">
           <app-lease
             [reservationId]="activeReservationId ?? ''"
-            [propertyId]="reservationSection?.sharedPropertyId ?? ''"
-            [officeId]="reservationSection?.sharedOfficeId ?? null"
+            [propertyId]="selectedPropertyId ?? ''"
+            [officeId]="displayOfficeId"
             [lockOfficeSelection]="true"
             [shellMode]="true"
             (officeIdChange)="reservationSection?.onLeaseOfficeIdChange($event)">

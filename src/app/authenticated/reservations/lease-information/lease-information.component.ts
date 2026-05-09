@@ -12,6 +12,8 @@ import { LeaseInformationRequest, LeaseInformationResponse } from '../models/lea
 import { LeaseInformationService } from '../services/lease-information.service';
 import { LeaseReloadService } from '../services/lease-reload.service';
 
+type LeaseInfoScopeOption = 'organization' | 'office' | 'property';
+
 @Component({
     standalone: true,
     selector: 'app-lease-information',
@@ -21,8 +23,8 @@ import { LeaseReloadService } from '../services/lease-reload.service';
 })
 export class LeaseInformationComponent implements OnInit, OnDestroy, OnChanges {
   @Input() reservationId: string | null = null;
+  @Input() officeId: number | null = null;
   @Input() propertyId: string | null = null;
-  @Input() contactId: string | null = null;
   form: FormGroup;
   isSubmitting: boolean = false;
   leaseInformation: LeaseInformationResponse | null = null;
@@ -43,42 +45,57 @@ export class LeaseInformationComponent implements OnInit, OnDestroy, OnChanges {
 
   //#region Lease-Information
   ngOnInit(): void {
-    this.getLeaseInformation();
+    this.getLeaseInformation(true);
   }
 
   ngOnChanges(changes: SimpleChanges): void {
-    // Reload lease information when propertyId or contactId changes
+    // Reload lease information when scope changes
     const propertyIdChanged = changes['propertyId'] && 
       (changes['propertyId'].previousValue !== changes['propertyId'].currentValue);
-    const contactIdChanged = changes['contactId'] && 
-      (changes['contactId'].previousValue !== changes['contactId'].currentValue);
+    const officeIdChanged = changes['officeId'] &&
+      (changes['officeId'].previousValue !== changes['officeId'].currentValue);
     
-    // If either changed and both are now available, load the lease information
-    if ((propertyIdChanged || contactIdChanged) && this.propertyId && this.contactId) {
+    // If scope changed, refresh from API
+    if (propertyIdChanged || officeIdChanged) {
       // Reset loading state
       this.utilityService.addLoadItem(this.itemsToLoad$, 'leaseInformation');
-      this.getLeaseInformation();
-    } else if ((propertyIdChanged || contactIdChanged) && (!this.propertyId || !this.contactId)) {
-      // If inputs became null/undefined, clear the form
-      this.leaseInformation = null;
-      this.form.reset();
-      this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'leaseInformation');
+      this.getLeaseInformation(true);
     }
   }
 
-  getLeaseInformation(): void {
-    // This loads on add-reservation, no need to do anything
-    if (!this.propertyId || !this.contactId) {
+  getLeaseInformation(useMostSpecificScope: boolean = false): void {
+    const scope = useMostSpecificScope
+      ? { officeId: this.officeId, propertyId: this.propertyId }
+      : this.resolveScope();
+    if (!scope) {
+      this.leaseInformation = null;
+      this.resetLeaseContentFields();
       this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'leaseInformation');
       return;
     }
 
-    // Try to get by propertyId first
-    this.leaseInformationService.getLeaseInformationByPropertyId(this.propertyId).pipe(take(1), finalize(() => { this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'leaseInformation'); })).subscribe({
+    this.leaseInformationService.getLeaseInformationByScope(scope.officeId, scope.propertyId).pipe(take(1), finalize(() => { this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'leaseInformation'); })).subscribe({
       next: (response: LeaseInformationResponse) => {
         if (response) {
           this.leaseInformation = response;
           this.populateForm(response);
+          if (useMostSpecificScope) {
+            this.form.patchValue(
+              { scopeSelection: this.resolveScopeSelectionFromResponse(response) },
+              { emitEvent: false }
+            );
+          }
+          this.leaseReloadService.triggerReload({
+            officeId: response.officeId ?? null,
+            propertyId: response.propertyId ?? null
+          });
+        } else {
+          this.leaseInformation = null;
+          this.resetLeaseContentFields();
+          if (useMostSpecificScope) {
+            this.form.patchValue({ scopeSelection: this.getDefaultScopeSelection() }, { emitEvent: false });
+          }
+          this.leaseReloadService.triggerReload(scope);
         }
       },
       error: (err: HttpErrorResponse) => {
@@ -92,8 +109,15 @@ export class LeaseInformationComponent implements OnInit, OnDestroy, OnChanges {
   }
 
   saveLeaseInformation(): void {
-    if (!this.propertyId || !this.contactId) {
-      this.toastr.warning('Property and Contact are required to save lease information', 'Warning');
+    const selectedScope = this.form.get('scopeSelection')?.value as LeaseInfoScopeOption | null;
+    if (!selectedScope) {
+      this.toastr.warning('Please select Organization, Office, or Property scope before saving.', 'Warning');
+      return;
+    }
+
+    const scope = this.resolveScope();
+    if (!scope) {
+      this.toastr.warning('The selected scope is missing required values.', 'Warning');
       return;
     }
 
@@ -104,8 +128,8 @@ export class LeaseInformationComponent implements OnInit, OnDestroy, OnChanges {
     const leaseInformationRequest: LeaseInformationRequest = {
       leaseInformationId: this.leaseInformation?.leaseInformationId,
       organizationId: user?.organizationId || '',
-      propertyId: this.propertyId,
-      contactId: this.contactId,
+      officeId: scope.officeId,
+      propertyId: scope.propertyId,
       rentalPayment: formValue.rentalPayment || null,
       securityDeposit: formValue.securityDeposit || null,
       securityDepositWaiver: formValue.securityDepositWaiver || null,
@@ -145,7 +169,7 @@ export class LeaseInformationComponent implements OnInit, OnDestroy, OnChanges {
         this.leaseInformation = response;
         this.toastr.success('Lease information saved successfully', CommonMessage.Success);
         // Trigger lease reload event
-        this.leaseReloadService.triggerReload();
+        this.leaseReloadService.triggerReload(scope);
       },
       error: () => {}
     });
@@ -155,6 +179,7 @@ export class LeaseInformationComponent implements OnInit, OnDestroy, OnChanges {
   //#region Form Methods
   buildForm(): FormGroup {
     return this.fb.group({
+      scopeSelection: new FormControl<LeaseInfoScopeOption | null>(this.getDefaultScopeSelection()),
       rentalPayment: new FormControl<string | null>(null),
       securityDeposit: new FormControl<string | null>(null),
       securityDepositWaiver: new FormControl<string | null>(null),
@@ -185,6 +210,7 @@ export class LeaseInformationComponent implements OnInit, OnDestroy, OnChanges {
 
   populateForm(leaseInformation: LeaseInformationResponse): void {
     this.form.patchValue({
+      scopeSelection: this.form.get('scopeSelection')?.value ?? this.getDefaultScopeSelection(),
       rentalPayment: leaseInformation.rentalPayment || null,
       securityDeposit: leaseInformation.securityDeposit || null,
       securityDepositWaiver: leaseInformation.securityDepositWaiver || null,
@@ -212,9 +238,82 @@ export class LeaseInformationComponent implements OnInit, OnDestroy, OnChanges {
       miscellaneous: leaseInformation.miscellaneous || null
     });
   }
-  //#endregion
+ 
+  resetLeaseContentFields(): void {
+    this.form.patchValue({
+      rentalPayment: null,
+      securityDeposit: null,
+      securityDepositWaiver: null,
+      cancellationPolicy: null,
+      keyPickUpDropOff: null,
+      partialMonth: null,
+      departureNotification: null,
+      holdover: null,
+      departureServiceFee: null,
+      checkoutProcedure: null,
+      parking: null,
+      rulesAndRegulations: null,
+      occupyingTenants: null,
+      utilityAllowance: null,
+      maidService: null,
+      pets: null,
+      smoking: null,
+      emergencies: null,
+      homeownersAssociation: null,
+      indemnification: null,
+      defaultClause: null,
+      attorneyCollectionFees: null,
+      reservedRights: null,
+      propertyUse: null,
+      miscellaneous: null
+    }, { emitEvent: false });
+  } //#endregion
 
   //#region Utility Methods
+  onScopeSelectionChange(): void {
+    this.utilityService.addLoadItem(this.itemsToLoad$, 'leaseInformation');
+    this.getLeaseInformation(false);
+  }
+
+  getDefaultScopeSelection(): LeaseInfoScopeOption | null {
+    return 'organization';
+  }
+
+  resolveScope(): { officeId: number | null; propertyId: string | null } | null {
+    const selectedScope = this.form.get('scopeSelection')?.value as LeaseInfoScopeOption | null;
+    if (!selectedScope) {
+      return null;
+    }
+
+    if (selectedScope === 'property') {
+      if (!this.propertyId || !this.officeId) {
+        return null;
+      }
+      return { officeId: this.officeId, propertyId: this.propertyId };
+    }
+
+    if (selectedScope === 'office') {
+      if (!this.officeId) {
+        return null;
+      }
+      return { officeId: this.officeId, propertyId: null };
+    }
+
+    return { officeId: null, propertyId: null };
+  }
+
+  resolveScopeSelectionFromResponse(response: LeaseInformationResponse): LeaseInfoScopeOption {
+    if (response.propertyId) {
+      return 'property';
+    }
+
+    if (response.officeId) {
+      return 'office';
+    }
+
+    return 'organization';
+  }
+
   ngOnDestroy(): void {
     this.itemsToLoad$.complete();
   }

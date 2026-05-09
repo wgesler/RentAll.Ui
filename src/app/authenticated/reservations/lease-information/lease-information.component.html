@@ -1,5 +1,15 @@
 <div class="lease-information-container">
   <form [formGroup]="form" class="lease-information-form">
+    <div class="mb-3 px-1 lease-specificity-wrap">
+      <div class="lease-specificity-label">Lease Specificity</div>
+      <div class="lease-specificity-options">
+        <mat-radio-group formControlName="scopeSelection" class="flex items-center gap-4" (change)="onScopeSelectionChange()">
+          <mat-radio-button value="organization">Organization</mat-radio-button>
+          <mat-radio-button value="office">Office</mat-radio-button>
+          <mat-radio-button value="property">Property</mat-radio-button>
+        </mat-radio-group>
+      </div>
+    </div>
     <div class="mb-4 flex justify-end items-center gap-3" style="padding-right: 5px;">
       <button mat-raised-button type="button" color="primary" id="save-button" (click)="saveLeaseInformation()"
         class="scale-90 text-nowrap flex-shrink-0" [disabled]="isSubmitting || !form.valid">

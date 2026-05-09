@@ -1,8 +1,8 @@
 export interface LeaseInformationRequest {
   leaseInformationId?: string;
   organizationId: string;
-  propertyId: string;
-  contactId: string;
+  officeId?: number | null;
+  propertyId?: string | null;
   rentalPayment?: string | null;
   securityDeposit?: string | null;
   securityDepositWaiver?: string | null;
@@ -32,9 +32,9 @@ export interface LeaseInformationRequest {
 
 export interface LeaseInformationResponse {
   leaseInformationId: string;
+  officeId?: number | null;
   organizationId: string;
-  propertyId: string;
-  contactId: string;
+  propertyId?: string | null;
   rentalPayment?: string | null;
   securityDeposit?: string | null;
   securityDepositWaiver?: string | null;

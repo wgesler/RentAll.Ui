@@ -17,6 +17,26 @@
   width: 100%;
 }
 
+.lease-specificity-wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.lease-specificity-label {
+  font-size: 13px;
+  font-weight: 600;
+  color: #334155;
+}
+
+.lease-specificity-options {
+  display: inline-block;
+  width: fit-content;
+  border: 1px solid #cbd5e1;
+  border-radius: 6px;
+  padding: 10px 12px;
+}
+
 ::ng-deep {
   .mat-mdc-expansion-panel {
     margin-bottom: 8px;
