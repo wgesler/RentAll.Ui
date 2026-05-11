@@ -9,6 +9,7 @@ import { RouterUrl } from '../../../app.routes';
 import { environment } from '../../../../environments/environment';
 import { MaterialModule } from '../../../material.module';
 import { AuthService } from '../../../services/auth.service';
+import { FormatterService } from '../../../services/formatter-service';
 import { UtilityService } from '../../../services/utility.service';
 import { DocumentExportService } from '../../../services/document-export.service';
 import { DocumentHtmlService } from '../../../services/document-html.service';
@@ -98,6 +99,7 @@ export class QuoteCreateComponent extends BaseDocumentComponent implements OnIni
     private accountingOfficeService: AccountingOfficeService,
     private globalSelectionService: GlobalSelectionService,
     private emailCreateDraftService: EmailCreateDraftService,
+    private formatterService: FormatterService,
     private utilityService: UtilityService,
     private documentReloadService: DocumentReloadService,
     private propertyService: PropertyService,
@@ -753,12 +755,23 @@ export class QuoteCreateComponent extends BaseDocumentComponent implements OnIni
     }
 
     const attachmentFileName = `Quote_${this.utilityService.todayAsCalendarDateString()}.pdf`;
+    const salutationFirstName = this.getQuoteEmailRecipientFirstName(toName);
+    const senderPhoneRaw = String(currentUser?.phone || '').trim();
+    const senderPhone = senderPhoneRaw ? (this.formatterService.phoneNumber(senderPhoneRaw) || '').trim() : '';
     const plainTextContent =
-      `Hello ${toName},\n\n` +
-      `Please find your corporate housing proposal attached.\n`;
+      `Hello ${salutationFirstName},\n\n` +
+      `Please find your corporate housing proposal attached.\n\n` +
+      `Regards,\n${fromName}` +
+      (senderPhone ? `\n${senderPhone}` : '') +
+      `\n`;
+    const signatureHtml =
+      `<p>Regards,<br />${this.escapeHtml(fromName)}` +
+      (senderPhone ? `<br />${this.escapeHtml(senderPhone)}` : '') +
+      `</p>`;
     const emailBodyHtml =
-      `<p>Hello ${this.escapeHtml(toName)},</p>` +
-      `<p>Please find your corporate housing proposal attached.</p>`;
+      `<p>Hello ${this.escapeHtml(salutationFirstName)},</p>` +
+      `<p>Please find your corporate housing proposal attached.</p>` +
+      signatureHtml;
 
     const emailConfig: EmailConfig = {
       subject: 'Corporate Housing Proposal',
@@ -802,6 +815,19 @@ export class QuoteCreateComponent extends BaseDocumentComponent implements OnIni
   //#endregion
 
   //#region Utility Methods
+  getQuoteEmailRecipientFirstName(preparedForDisplayName: string): string {
+    const contact = this.selectedRecipient;
+    const fromContact = String(contact?.firstName ?? '').trim();
+    if (fromContact.length > 0) {
+      return fromContact;
+    }
+    const trimmed = String(preparedForDisplayName || '').trim();
+    if (!trimmed) {
+      return '';
+    }
+    return trimmed.split(/\s+/)[0] || trimmed;
+  }
+
   back(): void {
     if (this.isViewMode) {
       this.router.navigateByUrl(`${RouterUrl.QuoteCreate}${this.buildQuoteCreateQueryString(false)}`);
