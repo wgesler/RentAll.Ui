@@ -25,7 +25,8 @@
         (editEvent)="goToReceipt($event)"
         (rowClickEvent)="goToReceipt($event)"
         (receiptClickEvent)="openReceiptDialog($event)"
-        (deleteEvent)="deleteReceipt($event)">
+        (deleteEvent)="deleteReceipt($event)"
+        (checkboxChangeEvent)="onReceiptCheckboxChange($event)">
         <div dataTableFilterActions>
           <div class="table-filter-actions-group form-titlebar-actions-wrap uniform-gap">
             <mat-slide-toggle [checked]="showInactive" color="primary" (change)="toggleInactive()">

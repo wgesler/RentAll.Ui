@@ -3,7 +3,7 @@ import { Component, EventEmitter, Input, OnChanges, OnInit, Output, SimpleChange
 import { MatDialog } from '@angular/material/dialog';
 import { Router } from '@angular/router';
 import { ToastrService } from 'ngx-toastr';
-import { finalize, take } from 'rxjs';
+import { EMPTY, finalize, switchMap, take } from 'rxjs';
 import { RouterUrl } from '../../../app.routes';
 import { CommonMessage } from '../../../enums/common-message.enum';
 import { MaterialModule } from '../../../material.module';
@@ -16,7 +16,7 @@ import { PropertyService } from '../../properties/services/property.service';
 import { DataTableComponent } from '../../shared/data-table/data-table.component';
 import { DataTableFilterActionsDirective } from '../../shared/data-table/data-table-filter-actions.directive';
 import { ColumnSet } from '../../shared/data-table/models/column-data';
-import { ReceiptDisplayList, ReceiptResponse } from '../models/receipt.model';
+import { ReceiptDisplayList, ReceiptRequest, ReceiptResponse } from '../models/receipt.model';
 import { ReceiptService } from '../services/receipt.service';
 
 @Component({
@@ -42,6 +42,9 @@ export class ReceiptsListComponent implements OnInit, OnChanges {
   allReceipts: ReceiptDisplayList[] = [];
   propertyCodeLookup = new Map<string, string>();
 
+  isAdmin = false;
+  canEditIsActiveCheckbox = false;
+
   selectedProperty: PropertyResponse | null = null;
   selectedPropertyId: string | null = null;
 
@@ -55,7 +58,7 @@ export class ReceiptsListComponent implements OnInit, OnChanges {
     splitTotalDisplay: { displayAs: 'Split Total', wrap: false, maxWidth: '12ch', alignment: 'center' },
     modifiedOn: { displayAs: 'Modified On', wrap: false, maxWidth: '20ch', alignment: 'center' },
     modifiedBy: { displayAs: 'Modified By', wrap: false, maxWidth: '20ch' },
-    isActive: { displayAs: 'IsActive', isCheckbox: true, sort: false, wrap: false, alignment: 'center', maxWidth: '15ch' }
+    isActive: { displayAs: 'IsActive', isCheckbox: true, checkboxEditable: false, sort: false, wrap: false, alignment: 'center', maxWidth: '15ch' }
   };
 
   constructor(
@@ -70,6 +73,8 @@ export class ReceiptsListComponent implements OnInit, OnChanges {
 
   //#region Receipts List
   ngOnInit(): void {
+    this.isAdmin = this.authService.isAdmin();
+    this.setIsActiveCheckboxEditability();
     if (!this.isActiveTab) {
       return;
     }
@@ -79,6 +84,7 @@ export class ReceiptsListComponent implements OnInit, OnChanges {
 
   ngOnChanges(changes: SimpleChanges): void {
     if (changes['isActiveTab']) {
+      this.setIsActiveCheckboxEditability();
       if (!this.isActiveTab) {
         return;
       }
@@ -167,6 +173,48 @@ export class ReceiptsListComponent implements OnInit, OnChanges {
     this.router.navigate([url], { queryParams: { propertyId: this.property.propertyId }, state: { property: this.property } });
   }
 
+  onReceiptCheckboxChange(event: ReceiptDisplayList): void {
+    if (!this.canEditIsActiveCheckbox) {
+      return;
+    }
+    const changedCheckboxColumn = (event as { __changedCheckboxColumn?: string }).__changedCheckboxColumn;
+    if (changedCheckboxColumn !== 'isActive') {
+      return;
+    }
+    const previousValue = (event as { __previousCheckboxValue?: boolean }).__previousCheckboxValue === true;
+    const nextValue = (event as { __checkboxValue?: boolean }).__checkboxValue === true;
+    if (previousValue === nextValue) {
+      return;
+    }
+
+    this.receiptService
+      .getReceiptById(event.receiptId)
+      .pipe(
+        take(1),
+        switchMap(receipt => {
+          if (receipt.isActive === nextValue) {
+            this.syncReceiptRowFromServer(receipt);
+            return EMPTY;
+          }
+          const payload = this.buildReceiptIsActiveUpdateRequest(receipt, nextValue);
+          return this.receiptService.updateReceipt(payload);
+        })
+      )
+      .subscribe({
+        next: saved => {
+          this.receipts = this.receipts.map(r => (r.receiptId === saved.receiptId ? saved : r));
+          this.allReceipts = this.mappingService.mapReceiptDisplays(this.receipts);
+          this.applyPropertyCodesToDisplays();
+          this.applyFilters();
+          this.toastr.success('Receipt updated.', CommonMessage.Success);
+        },
+        error: () => {
+          this.applyReceiptIsActiveValue(event.receiptId, previousValue);
+          this.toastr.error('Unable to update receipt.', CommonMessage.Error);
+        }
+      });
+  }
+
   openReceiptDialog(item: ReceiptDisplayList): void {
     this.receiptService.getReceiptById(item.receiptId).pipe(take(1)).subscribe({
       next: (receipt: ReceiptResponse) => {
@@ -222,6 +270,46 @@ export class ReceiptsListComponent implements OnInit, OnChanges {
         .filter(code => (code || '').trim().length > 0)
         .join(', ')
     }));
+  }
+  //#endregion
+
+  //#region IsActive
+  setIsActiveCheckboxEditability(): void {
+    this.canEditIsActiveCheckbox = this.isAdmin;
+    this.receiptDisplayedColumns['isActive'].checkboxEditable = this.canEditIsActiveCheckbox;
+  }
+
+  buildReceiptIsActiveUpdateRequest(receipt: ReceiptResponse, isActive: boolean): ReceiptRequest {
+    const splits = (receipt.splits || []).map(s => ({
+      amount: Number(s.amount) || 0,
+      description: String(s.description ?? '').trim(),
+      workOrder: s.workOrder != null && String(s.workOrder).trim().length > 0 ? String(s.workOrder).trim() : ''
+    }));
+    return {
+      receiptId: receipt.receiptId,
+      organizationId: receipt.organizationId,
+      officeId: receipt.officeId,
+      propertyIds: [...(receipt.propertyIds || [])],
+      maintenanceId: receipt.maintenanceId,
+      amount: Number(receipt.amount) || 0,
+      description: String(receipt.description ?? '').trim(),
+      splits,
+      receiptPath: receipt.receiptPath ?? null,
+      isActive
+    };
+  }
+
+  syncReceiptRowFromServer(receipt: ReceiptResponse): void {
+    this.receipts = this.receipts.map(r => (r.receiptId === receipt.receiptId ? receipt : r));
+    this.allReceipts = this.mappingService.mapReceiptDisplays(this.receipts);
+    this.applyPropertyCodesToDisplays();
+    this.applyFilters();
+  }
+
+  applyReceiptIsActiveValue(receiptId: number, isActive: boolean): void {
+    this.allReceipts = (this.allReceipts || []).map(r => (r.receiptId === receiptId ? { ...r, isActive } : r));
+    this.receipts = (this.receipts || []).map(r => (r.receiptId === receiptId ? { ...r, isActive } : r));
+    this.applyFilters();
   }
   //#endregion
 }
