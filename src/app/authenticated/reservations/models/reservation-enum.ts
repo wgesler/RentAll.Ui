@@ -205,7 +205,8 @@ export function getFrequencies(): { value: number, label: string }[] {
 export enum ReservationNotice {
   ThirtyDays = 0,
   FifteenDays = 1,
-  FourteenDays = 2
+  FourteenDays = 2,
+  SixtyDays = 3
 }
 
 export function getReservationNotice(reservationNoticeId: number | undefined): string {
@@ -214,7 +215,8 @@ export function getReservationNotice(reservationNoticeId: number | undefined): s
   const noticeMap: { [key: number]: string } = {
     [ReservationNotice.ThirtyDays]: '30 Days',
     [ReservationNotice.FifteenDays]: '15 Days',
-    [ReservationNotice.FourteenDays]: '14 Days'
+    [ReservationNotice.FourteenDays]: '14 Days',
+    [ReservationNotice.SixtyDays]: '60 Days'
   };
   
   return noticeMap[reservationNoticeId] || '';
@@ -223,9 +225,10 @@ export function getReservationNotice(reservationNoticeId: number | undefined): s
 // Gets the array of reservation notice options for dropdowns
 export function getReservationNotices(): { value: number, label: string }[] {
   return [
-    { value: ReservationNotice.ThirtyDays, label: getReservationNotice(ReservationNotice.ThirtyDays) },
+    { value: ReservationNotice.FourteenDays, label: getReservationNotice(ReservationNotice.FourteenDays) },
     { value: ReservationNotice.FifteenDays, label: getReservationNotice(ReservationNotice.FifteenDays) },
-    { value: ReservationNotice.FourteenDays, label: getReservationNotice(ReservationNotice.FourteenDays) }
+    { value: ReservationNotice.ThirtyDays, label: getReservationNotice(ReservationNotice.ThirtyDays) },
+    { value: ReservationNotice.SixtyDays, label: getReservationNotice(ReservationNotice.SixtyDays) }
   ];
 }
 //#endregion

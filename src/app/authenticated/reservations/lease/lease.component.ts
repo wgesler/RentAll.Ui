@@ -822,6 +822,8 @@ export class LeaseComponent extends BaseDocumentComponent implements OnInit, OnD
       return '(15 day written notice is required)';
     } else if (this.selectedReservation.reservationNoticeId === ReservationNotice.FourteenDays) {
       return '(14 day written notice is required)';
+    } else if (this.selectedReservation.reservationNoticeId === ReservationNotice.SixtyDays) {
+      return '(60 day written notice is required)';
     }
     return '';
   }
@@ -834,6 +836,8 @@ export class LeaseComponent extends BaseDocumentComponent implements OnInit, OnD
       return '15';
     } else if (this.selectedReservation.reservationNoticeId === ReservationNotice.FourteenDays) {
       return '14';
+    } else if (this.selectedReservation.reservationNoticeId === ReservationNotice.SixtyDays) {
+      return '60';
     }
     return '';
   }
