@@ -30,6 +30,17 @@ import { PropertyBedDropdownCell, PropertyListDisplay, PropertyListResponse, Pro
 import { BoardProperty } from '../authenticated/reservations/models/reservation-board-model';
 import { getFrequency, getReservationStatus } from '../authenticated/reservations/models/reservation-enum';
 import { ExtraFeeLineRequest, ExtraFeeLineResponse, ReservationListDisplay, ReservationListResponse } from '../authenticated/reservations/models/reservation-model';
+import {
+  LeadOwnerListDisplay,
+  LeadOwnerResponse,
+  LeadOwnerUpdateRequest
+} from '../authenticated/leads/models/lead-owner.model';
+import {
+  LeadRentalListDisplay,
+  LeadRentalResponse,
+  LeadRentalUpdateRequest
+} from '../authenticated/leads/models/lead-rental.model';
+import { formatLeadStateLabel } from '../authenticated/leads/models/lead-enums';
 import { getTicketStateType } from '../authenticated/tickets/models/ticket-enum';
 import { TicketListDisplay, TicketRequest, TicketResponse, TicketStateDropdownCell } from '../authenticated/tickets/models/ticket-models';
 import { MaintenanceListDisplay, PropertyMaintenance } from '../authenticated/shared/models/mixed-models';
@@ -605,6 +616,55 @@ export class MappingService {
         : null,
       isActive: ticket.isActive,
       ...updates
+    };
+  }
+  //#endregion
+
+  //#region Lead mapping
+  mapLeadRentalListRow(lead: LeadRentalResponse): LeadRentalListDisplay {
+    const fullName = [lead.firstName, lead.lastName]
+      .filter(part => !!part && String(part).trim() !== '')
+      .map(part => String(part).trim())
+      .join(' ');
+    return {
+      ...lead,
+      fullName: fullName || '—',
+      leadStateLabel: formatLeadStateLabel(lead.leadStateId),
+      isActive: lead.isActive !== false
+    };
+  }
+
+  mapLeadOwnerListRow(lead: LeadOwnerResponse): LeadOwnerListDisplay {
+    const fullName = [lead.firstName, lead.lastName]
+      .filter(part => !!part && String(part).trim() !== '')
+      .map(part => String(part).trim())
+      .join(' ');
+    return {
+      ...lead,
+      fullName: fullName || '—',
+      leadStateLabel: formatLeadStateLabel(lead.leadStateId),
+      isActive: lead.isActive !== false
+    };
+  }
+
+  mapLeadRentalListRowToUpdateRequest(row: LeadRentalListDisplay, isActive: boolean): LeadRentalUpdateRequest {
+    const { fullName, leadStateLabel, ...rest } = row;
+    return {
+      ...rest,
+      isActive,
+      iNeedAsap: rest.iNeedAsap ?? false,
+      emailPhoneConsent: rest.emailPhoneConsent ?? false,
+      smsConsent: rest.smsConsent ?? false
+    };
+  }
+
+  mapLeadOwnerListRowToUpdateRequest(row: LeadOwnerListDisplay, isActive: boolean): LeadOwnerUpdateRequest {
+    const { fullName, leadStateLabel, ...rest } = row;
+    return {
+      ...rest,
+      isActive,
+      emailPhoneConsent: rest.emailPhoneConsent ?? false,
+      smsConsent: rest.smsConsent ?? false
     };
   }
   //#endregion

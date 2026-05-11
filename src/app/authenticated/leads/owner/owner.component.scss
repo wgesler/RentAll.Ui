@@ -1,0 +1,55 @@
+:host {
+  display: block;
+}
+
+.lead-detail-dl {
+  display: grid;
+  grid-template-columns: minmax(10rem, auto) 1fr;
+  gap: 0.35rem 1.25rem;
+  margin: 0;
+}
+
+.lead-detail-dl dt {
+  font-weight: 600;
+  color: var(--mat-sys-on-surface-variant);
+}
+
+.lead-detail-dl dd {
+  margin: 0;
+}
+
+.lead-create-form-shell {
+  box-sizing: border-box;
+}
+
+.lead-owner-create-main.lead-create-form-after-title {
+  margin-top: 0.75rem;
+}
+
+:host .owner-create-standalone-mat-card {
+  margin-top: 0.75rem;
+}
+
+.owner-create-form-title-row {
+  box-sizing: border-box;
+  padding-inline: var(--global-page-inner-padding);
+}
+
+.lead-create-form-shell--embedded {
+  max-height: min(72vh, calc(100vh - 200px));
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+.lead-owner-create-row-first,
+.lead-owner-create-row-second,
+.lead-owner-create-row-third,
+.lead-owner-create-row-fourth,
+.lead-owner-create-row-fifth,
+.lead-owner-create-row-contact {
+  align-items: start;
+}
+
+.owner-titlebar-lead-checkbox {
+  margin-right: 0.25rem;
+}

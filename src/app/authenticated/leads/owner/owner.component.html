@@ -1,0 +1,301 @@
+<ng-template #ownerCreateForm>
+  <div
+    class="lead-create-form owner-create-form-shell property-tab-main-area dbg-band-main"
+    [class.owner-create-form-shell--embedded]="embeddedInShell()">
+    <div class="owner-create-form-title-row flex flex-wrap items-center justify-between gap-3 border-b border-slate-200 py-1.5">
+      <div class="owner-create-titlebar-left flex min-w-0 flex-wrap items-center gap-3 uniform-gap">
+        @if (!embeddedInShell()) {
+          <button mat-raised-button type="button" color="accent" class="text-nowrap flex-shrink-0" (click)="back()">
+            <mat-icon>arrow_back</mat-icon>
+            Back
+          </button>
+        }
+        <mat-checkbox [formControl]="createForm.controls.emailPhoneConsent" color="accent" class="owner-titlebar-lead-checkbox text-nowrap">
+          Email / Phone Consent
+        </mat-checkbox>
+        <mat-checkbox [formControl]="createForm.controls.smsConsent" color="accent" class="owner-titlebar-lead-checkbox text-nowrap">
+          SMS Consent
+        </mat-checkbox>
+      </div>
+      <div class="owner-create-titlebar-right flex flex-shrink-0 flex-wrap items-center gap-3">
+        <mat-checkbox [formControl]="createForm.controls.isActive" color="primary" class="owner-titlebar-lead-checkbox text-nowrap">
+          IsActive
+        </mat-checkbox>
+        <button mat-raised-button type="button" color="primary" class="text-nowrap flex-shrink-0" [disabled]="isSavingCreate" (click)="saveNewOwner()">
+          <mat-icon>save</mat-icon>
+          Save
+        </button>
+      </div>
+    </div>
+    <form
+      [formGroup]="createForm"
+      class="lead-owner-create-main lead-create-form-after-title info-form form-hide-error-text grid grid-cols-12 form-standard-grid">
+      <div class="lead-owner-create-row-first col-span-12 grid min-w-0 grid-cols-4 form-standard-grid">
+        <mat-form-field appearance="outline" class="min-w-0">
+          <mat-label>State</mat-label>
+          <mat-select formControlName="leadStateId">
+            @for (opt of leadStateOptions; track opt.value) {
+              <mat-option [value]="opt.value">{{ opt.label }}</mat-option>
+            }
+          </mat-select>
+        </mat-form-field>
+        <mat-form-field appearance="outline" class="min-w-0">
+          <mat-label>Agent</mat-label>
+          <mat-select formControlName="agentCode" [canSelectNullableOptions]="true">
+            <mat-option [value]="null">Select Agent</mat-option>
+            @for (ag of agents; track ag.agentId) {
+              <mat-option [value]="ag.agentCode">{{ agentSelectLabel(ag) }}</mat-option>
+            }
+          </mat-select>
+        </mat-form-field>
+        <mat-form-field appearance="outline" class="min-w-0">
+          <mat-label>Time Frame</mat-label>
+          <mat-select formControlName="timeFrame" [canSelectNullableOptions]="true">
+            <mat-option [value]="null">Not Specified</mat-option>
+            <mat-option [value]="true">Yes</mat-option>
+            <mat-option [value]="false">No</mat-option>
+          </mat-select>
+        </mat-form-field>
+        <mat-form-field appearance="outline" class="basic-compact min-w-0 date-field-with-suffix-icon">
+          <mat-label>Target Rent-Ready Date</mat-label>
+          <input matInput [matDatepicker]="targetRentReadyPicker" formControlName="targetRentReadyDate" />
+          <button mat-icon-button matSuffix type="button" (click)="targetRentReadyPicker.open()" aria-label="Open Calendar">
+            <mat-icon>calendar_today</mat-icon>
+          </button>
+          <mat-datepicker #targetRentReadyPicker></mat-datepicker>
+        </mat-form-field>
+      </div>
+      <div class="lead-owner-create-row-second col-span-12 grid min-w-0 grid-cols-4 form-standard-grid">
+        <mat-form-field appearance="outline" class="min-w-0">
+          <mat-label>First Name</mat-label>
+          <input matInput formControlName="firstName" autocomplete="given-name" />
+        </mat-form-field>
+        <mat-form-field appearance="outline" class="min-w-0">
+          <mat-label>Last Name</mat-label>
+          <input matInput formControlName="lastName" autocomplete="family-name" />
+        </mat-form-field>
+        <mat-form-field appearance="outline" class="min-w-0">
+          <mat-label>Email</mat-label>
+          <input matInput type="email" formControlName="email" autocomplete="email" />
+        </mat-form-field>
+        <mat-form-field appearance="outline" class="min-w-0">
+          <mat-label>Phone</mat-label>
+          <input
+            matInput
+            formControlName="phone"
+            autocomplete="tel"
+            maxlength="30"
+            placeholder="(555) 555-5555 or +1 234 567 8900"
+            (blur)="formatPhone()"
+            (input)="onPhoneInput($event)" />
+        </mat-form-field>
+      </div>
+      <div class="lead-owner-create-row-third col-span-12 grid min-w-0 grid-cols-4 form-standard-grid">
+        <mat-form-field appearance="outline" class="min-w-0">
+          <mat-label>Location of Property</mat-label>
+          <input matInput formControlName="locationOfProperty" />
+        </mat-form-field>
+        <mat-form-field appearance="outline" class="min-w-0">
+          <mat-label>Program Interest</mat-label>
+          <input matInput formControlName="programInterest" />
+        </mat-form-field>
+        <mat-form-field appearance="outline" class="min-w-0">
+          <mat-label>What Is Prompting Contact</mat-label>
+          <input matInput formControlName="whatIsPromptingContact" />
+        </mat-form-field>
+        <mat-form-field appearance="outline" class="min-w-0">
+          <mat-label>Years of Experience with Rentals</mat-label>
+          <input
+            matInput
+            type="text"
+            inputmode="numeric"
+            pattern="[0-9]*"
+            autocomplete="off"
+            formControlName="yearsOfExperienceWithRentals"
+            (input)="onDigitsOnlyInput($event, 'yearsOfExperienceWithRentals')" />
+        </mat-form-field>
+      </div>
+      <div class="lead-owner-create-row-fourth col-span-12 grid min-w-0 grid-cols-4 form-standard-grid">
+        <mat-form-field appearance="outline" class="min-w-0">
+          <mat-label>Address</mat-label>
+          <input matInput formControlName="address" autocomplete="street-address" />
+        </mat-form-field>
+        <mat-form-field appearance="outline" class="min-w-0">
+          <mat-label>City</mat-label>
+          <input matInput formControlName="city" autocomplete="address-level2" />
+        </mat-form-field>
+        <mat-form-field appearance="outline" class="min-w-0">
+          <mat-label>Address State</mat-label>
+          <input matInput formControlName="state" autocomplete="address-level1" />
+        </mat-form-field>
+        <mat-form-field appearance="outline" class="min-w-0">
+          <mat-label>ZIP</mat-label>
+          <input matInput formControlName="zip" autocomplete="postal-code" />
+        </mat-form-field>
+      </div>
+      <div class="lead-owner-create-row-fifth col-span-12 grid min-w-0 grid-cols-4 form-standard-grid">
+        <mat-form-field appearance="outline" class="min-w-0">
+          <mat-label>Number of Beds</mat-label>
+          <input matInput formControlName="numberOfBeds" />
+        </mat-form-field>
+        <mat-form-field appearance="outline" class="min-w-0">
+          <mat-label>Number of Baths</mat-label>
+          <input matInput formControlName="numberOfBaths" />
+        </mat-form-field>
+        <mat-form-field appearance="outline" class="min-w-0">
+          <mat-label>Approx. Square Footage</mat-label>
+          <input matInput formControlName="approxSqFootage" />
+        </mat-form-field>
+        <mat-form-field appearance="outline" class="min-w-0">
+          <mat-label>Type of Property</mat-label>
+          <input matInput formControlName="typeOfProperty" />
+        </mat-form-field>
+      </div>
+      <div class="lead-owner-create-row-contact col-span-12 grid min-w-0 grid-cols-6 form-standard-grid">
+        <mat-form-field appearance="outline" class="min-w-0 col-span-3">
+          <mat-label>Preferred Contact Method</mat-label>
+          <input matInput formControlName="preferredContactMethod" />
+        </mat-form-field>
+        <mat-form-field appearance="outline" class="min-w-0 col-span-3">
+          <mat-label>Time / Date for Contact</mat-label>
+          <input matInput formControlName="timeDateForContact" />
+        </mat-form-field>
+      </div>
+      <mat-form-field appearance="outline" class="min-w-0 col-span-12">
+        <mat-label>Property Goals</mat-label>
+        <textarea matInput formControlName="propertyGoals" rows="2"></textarea>
+      </mat-form-field>
+      <mat-form-field appearance="outline" class="min-w-0 col-span-12">
+        <mat-label>Tell Us More About Your Goals</mat-label>
+        <textarea matInput formControlName="tellUsMoreAboutYourGoals" rows="2"></textarea>
+      </mat-form-field>
+      <mat-form-field appearance="outline" class="min-w-0 col-span-12">
+        <mat-label>Tell Us More About Property</mat-label>
+        <textarea matInput formControlName="tellUsMoreAboutProperty" rows="2"></textarea>
+      </mat-form-field>
+      <mat-form-field appearance="outline" class="min-w-0 col-span-12">
+        <mat-label>What You Like Most About Your Property</mat-label>
+        <textarea matInput formControlName="tellUsWhatYouLikeMostAboutYourProperty" rows="2"></textarea>
+      </mat-form-field>
+      <mat-form-field appearance="outline" class="min-w-0 col-span-12">
+        <mat-label>Any Drawbacks</mat-label>
+        <textarea matInput formControlName="tellUsAnyDrawbacks" rows="2"></textarea>
+      </mat-form-field>
+    </form>
+  </div>
+</ng-template>
+
+<ng-template #ownerLeadDetail>
+  <dl class="lead-detail-dl">
+    <dt>ID</dt>
+    <dd>{{ lead!.ownerId }}</dd>
+    <dt>Lead State</dt>
+    <dd>{{ leadStateDisplay(lead!.leadStateId) }}</dd>
+    <dt>Name</dt>
+    <dd>{{ lead!.firstName }} {{ lead!.lastName }}</dd>
+    <dt>Email</dt>
+    <dd>{{ lead!.email }}</dd>
+    <dt>Phone</dt>
+    <dd>{{ lead!.phone }}</dd>
+    <dt>Location of Property</dt>
+    <dd>{{ lead!.locationOfProperty }}</dd>
+    <dt>Program Interest</dt>
+    <dd>{{ lead!.programInterest }}</dd>
+    <dt>Target Rent-Ready</dt>
+    <dd>{{ formatDate(lead!.targetRentReadyDate) }}</dd>
+    <dt>Address</dt>
+    <dd>{{ lead!.address }}, {{ lead!.city }} {{ lead!.state }} {{ lead!.zip }}</dd>
+  </dl>
+</ng-template>
+
+@if (!isPageReady) {
+  <div class="page-loading-container">
+    <mat-spinner [diameter]="40"></mat-spinner>
+    <p>Loading owner lead…</p>
+  </div>
+} @else if (isCreateMode) {
+  @if (embeddedInShell()) {
+    <mat-card class="leads-embedded-lead-card">
+      <mat-card-content>
+        <ng-container *ngTemplateOutlet="ownerCreateForm" />
+      </mat-card-content>
+    </mat-card>
+  } @else {
+    <div class="flex content-card-wrap justify-center" fxLayout="row wrap">
+      <section class="content-card">
+        <div class="property-titlebar flex items-center gap-3 rounded-t-lg bg-slate-300 py-0 pl-8 pr-4 dbg-band-actions">
+          <div class="flex flex-wrap items-center py-4">
+            <span class="flex flex-shrink-0 flex-column items-center gap-3">
+              <mat-icon class="flex-shrink-0">home_work</mat-icon>
+              <span class="flex-shrink-0 text-xl font-medium">New owner lead</span>
+            </span>
+          </div>
+        </div>
+        <mat-card class="owner-create-standalone-mat-card">
+          <mat-card-content>
+            <ng-container *ngTemplateOutlet="ownerCreateForm" />
+          </mat-card-content>
+        </mat-card>
+      </section>
+    </div>
+  }
+} @else if (isServiceError) {
+  @if (embeddedInShell()) {
+    <mat-card class="leads-embedded-lead-card">
+      <mat-card-content>
+        <div class="flex flex-col items-center justify-center p-8">
+          <mat-icon class="mb-4 text-6xl text-red-500">error_outline</mat-icon>
+          <h3 class="mb-2 text-xl font-semibold">Owner lead not found</h3>
+          <p class="text-gray-600">This owner lead could not be loaded.</p>
+        </div>
+      </mat-card-content>
+    </mat-card>
+  } @else {
+    <div class="flex content-card-wrap justify-center" fxLayout="row wrap">
+      <section class="content-card">
+        <mat-card>
+          <div class="flex items-center justify-center p-8">
+            <div class="text-center">
+              <mat-icon class="mb-4 text-6xl text-red-500">error_outline</mat-icon>
+              <h3 class="mb-2 text-xl font-semibold">Owner lead not found</h3>
+              <p class="text-gray-600">This owner lead could not be loaded.</p>
+              <button mat-raised-button type="button" color="primary" class="mt-4" (click)="back()">Back to list</button>
+            </div>
+          </div>
+        </mat-card>
+      </section>
+    </div>
+  }
+} @else if (lead) {
+  @if (embeddedInShell()) {
+    <mat-card class="leads-embedded-lead-card">
+      <mat-card-content>
+        <ng-container *ngTemplateOutlet="ownerLeadDetail" />
+      </mat-card-content>
+    </mat-card>
+  } @else {
+    <div class="flex content-card-wrap justify-center" fxLayout="row wrap">
+      <section class="content-card">
+        <div class="property-titlebar flex items-center justify-between gap-3 rounded-t-lg bg-slate-300 py-0 pl-8 pr-4 dbg-band-actions">
+          <div class="flex flex-wrap items-center py-4">
+            <span class="flex flex-shrink-0 flex-column items-center gap-3">
+              <mat-icon class="flex-shrink-0">home_work</mat-icon>
+              <span class="flex-shrink-0 text-xl font-medium">Owner lead</span>
+            </span>
+          </div>
+          <div class="form-titlebar-actions-wrap uniform-gap">
+            <button mat-raised-button type="button" color="accent" class="text-nowrap flex-shrink-0" (click)="back()">
+              <mat-icon>arrow_back</mat-icon>
+              Back
+            </button>
+          </div>
+        </div>
+        <mat-card>
+          <mat-card-content>
+            <ng-container *ngTemplateOutlet="ownerLeadDetail" />
+          </mat-card-content>
+        </mat-card>
+      </section>
+    </div>
+  }
+}

@@ -6,6 +6,8 @@ import { Router, RouterLink, RouterLinkActive, RouterOutlet } from '@angular/rou
 import { Observable, Subject, map, shareReplay, take, takeUntil } from 'rxjs';
 import { MaterialModule } from '../../../../material.module';
 import { AuthService } from '../../../../services/auth.service';
+import { UserGroups } from '../../../users/models/user-enums';
+import { leadsFeatureEnabled } from '../../../../config/feature-flags';
 import { getVisibleNavItems } from '../../access/role-access';
 import { TicketStateType } from '../../../tickets/models/ticket-enum';
 import { TicketService } from '../../../tickets/services/ticket.service';
@@ -78,7 +80,19 @@ export class SidebarComponent implements OnInit, OnDestroy {
 
   filterNavItemsByRole(): void {
     const user = this.authService.getUser();
-    this.navItems = getVisibleNavItems(user?.userGroups as Array<string | number> | undefined);
+    let items = getVisibleNavItems(user?.userGroups as Array<string | number> | undefined);
+    const showLeadsMenu =
+      leadsFeatureEnabled &&
+      (this.authService.isAdmin() ||
+        this.authService.hasRole(UserGroups.Agent) ||
+        this.authService.hasRole(UserGroups.AgentAdmin));
+    if (!showLeadsMenu) {
+      items = items.filter(item => {
+        const url = String(item.url || '');
+        return url !== 'leads' && !url.startsWith('leads/');
+      });
+    }
+    this.navItems = items;
   }
 
   refreshAssignedTicketBadge(): void {

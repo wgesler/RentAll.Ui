@@ -1,3 +1,4 @@
+import { leadsFeatureEnabled } from '../../../config/feature-flags';
 import { UserGroups } from '../../users/models/user-enums';
 
 export interface AccessRule {
@@ -52,6 +53,7 @@ const ROUTER_TOKEN = {
   DocumentList: 'documents',
   Contacts: 'contacts',
   AccountingList: 'accounting',
+  Leads: 'leads',
   BillingCreate: 'billing-create',
   InvoiceCreate: 'invoice-create',
   CostCodesList: 'cost-codes',
@@ -99,6 +101,11 @@ const adminOnly: AccessRule = {
   excludedRoles: []
 };
 
+const leadsAdminAndAgent: AccessRule = {
+  requiredRoles: [UserGroups.SuperAdmin, UserGroups.Admin, UserGroups.Agent, UserGroups.AgentAdmin],
+  excludedRoles: []
+};
+
 const settingsAccess: AccessRule = {
   requiredRoles: [
     UserGroups.Admin,
@@ -139,6 +146,7 @@ export const COMPANY_USERS_NAV_ITEMS: NavItemDefinition[] = [
   { icon: 'build', displayName: 'Maintenance', url: ROUTER_TOKEN.MaintenanceList, ...openToAllExceptSuperAdmin },
   { icon: 'confirmation_number', displayName: 'Tickets', url: ROUTER_TOKEN.TicketList, ...ticketAccess },
   { icon: 'account_balance', displayName: 'Accounting', url: ROUTER_TOKEN.AccountingList, ...accountingOnly },
+  { icon: 'hub', displayName: 'Leads', url: ROUTER_TOKEN.Leads, ...leadsAdminAndAgent },
   { icon: 'mail', displayName: 'Emails', url: ROUTER_TOKEN.EmailList, ...openToAll },
   { icon: 'description', displayName: 'Documents', url: ROUTER_TOKEN.DocumentList, ...openToAllExceptSuperAdmin },
   { icon: 'contacts', displayName: 'Contacts', url: ROUTER_TOKEN.Contacts, ...openToAllExceptSuperAdmin },
@@ -150,6 +158,7 @@ export const SUPER_USER_NAV_ITEMS: NavItemDefinition[] = [
   { icon: 'corporate_fare', displayName: 'Organizations', url: ROUTER_TOKEN.OrganizationList, ...superAdminOnly },
   { icon: 'confirmation_number', displayName: 'Tickets', url: ROUTER_TOKEN.TicketList, ...ticketAccess },
   { icon: 'account_balance', displayName: 'Accounting', url: ROUTER_TOKEN.AccountingList, ...accountingOnly },
+  { icon: 'hub', displayName: 'Leads', url: ROUTER_TOKEN.Leads, ...leadsAdminAndAgent },
   { icon: 'mail', displayName: 'Emails', url: ROUTER_TOKEN.EmailList, ...openToAll },
   { icon: 'people', displayName: 'Users', url: ROUTER_TOKEN.UserList, ...adminOnly },
   { icon: 'settings', displayName: 'Settings', url: ROUTER_TOKEN.OrganizationConfiguration, ...settingsAccess }
@@ -183,6 +192,7 @@ const routeRulesBySegment: Record<string, AccessRule> = {
   [ROUTER_TOKEN.Contacts]: openToAllExceptSuperAdmin,
 
   [ROUTER_TOKEN.AccountingList]: accountingOnly,
+  leads: leadsAdminAndAgent,
   billing: accountingOnly,
   [ROUTER_TOKEN.BillingCreate]: superAdminOnly,
   [ROUTER_TOKEN.InvoiceCreate]: accountingOnly,
@@ -311,6 +321,9 @@ export function getRouteRuleForUrl(url: string): AccessRule | null {
 //#region Navigation and Routing
 export function canUserAccessUrl(userGroups: UserGroupInput, url: string): boolean {
   const segment = getPrimaryAuthSegment(url);
+  if (!leadsFeatureEnabled && segment === ROUTER_TOKEN.Leads) {
+    return false;
+  }
   if (hasOwnerRole(userGroups)) {
     return segment === ROUTER_TOKEN.DashboardOwner;
   }

@@ -1,0 +1,71 @@
+<ng-template #ownerListBody>
+  @if (!isPageReady) {
+    <div class="loading-container">
+      <mat-spinner [diameter]="40"></mat-spinner>
+      <p>Loading owner leads…</p>
+    </div>
+  } @else if (isServiceError) {
+    <div class="flex items-center justify-center p-8">
+      <div class="text-center">
+        <mat-icon class="mb-4 text-6xl text-red-500">error_outline</mat-icon>
+        <h3 class="mb-2 text-xl font-semibold">Unable to load owner leads</h3>
+        <p class="text-gray-600">There was an error loading owner leads. Please try again.</p>
+      </div>
+    </div>
+  } @else {
+    <div class="mat list-layout-standard dbg-band-main">
+      <div class="tableDiv">
+        <app-data-table
+          [data]="ownersDisplay"
+          [columns]="ownersDisplayedColumns"
+          [hasColumnIndex]="true"
+          [hasFilter]="true"
+          [hasToggleTop]="false"
+          [hasButtonTop]="false"
+          [hasActionsRowClick]="true"
+          [hasActionsEdit]="true"
+          [hasActionsDelete]="true"
+          [deleteConfirmTitle]="'Delete owner lead'"
+          [deleteConfirmMessage]="'Are you sure you want to delete this owner lead?'"
+          [itemsPerPage]="100"
+          (editEvent)="goToOwner($event)"
+          (rowClickEvent)="goToOwner($event)"
+          (deleteEvent)="deleteOwner($event)"
+          (checkboxChangeEvent)="onOwnerCheckboxChange($event)">
+          <div dataTableFilterActions>
+            <div class="table-filter-actions-group form-titlebar-actions-wrap uniform-gap">
+              <mat-slide-toggle id="toggle-owner-leads-inactive" color="primary" [checked]="showInactive" (change)="toggleInactive()" class="whitespace-nowrap">
+                InActive
+              </mat-slide-toggle>
+              <button mat-raised-button type="button" color="primary" id="add-owner-lead-button" class="whitespace-nowrap items-center flex gap-1" (click)="addOwnerLead()">
+                <mat-icon class="text-base">add</mat-icon>
+                <span>Add</span>
+              </button>
+            </div>
+          </div>
+        </app-data-table>
+      </div>
+    </div>
+  }
+</ng-template>
+
+@if (!embeddedInShell()) {
+  <div class="flex content-card-wrap justify-center" fxLayout="row wrap">
+    <section class="content-card">
+      <div class="flex justify-between items-center gap-3 rounded-t-lg bg-slate-300 py-0 pl-8 pr-4 property-titlebar dbg-band-actions">
+        <div class="flex flex-wrap items-center py-4">
+          <span class="flex flex-shrink-0 flex-column items-center gap-3">
+            <mat-icon class="flex-shrink-0">home_work</mat-icon>
+            <span class="flex-shrink-0 text-xl font-medium">Owner leads</span>
+          </span>
+        </div>
+        <div class="form-titlebar-actions-wrap uniform-gap"></div>
+      </div>
+      <mat-card>
+        <ng-container *ngTemplateOutlet="ownerListBody" />
+      </mat-card>
+    </section>
+  </div>
+} @else {
+  <ng-container *ngTemplateOutlet="ownerListBody" />
+}

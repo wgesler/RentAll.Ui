@@ -29,6 +29,9 @@ import { BuildingComponent } from './authenticated/organizations/building/buildi
 import { ColorListComponent } from './authenticated/organizations/color-list/color-list.component';
 import { ColorComponent } from './authenticated/organizations/color/color.component';
 import { ConfigurationComponent } from './authenticated/organizations/configuration/configuration.component';
+import { LeadsShellComponent } from './authenticated/leads/leads-shell/leads-shell.component';
+import { RentalComponent } from './authenticated/leads/rental/rental.component';
+import { OwnerComponent } from './authenticated/leads/owner/owner.component';
 import { OfficeListComponent } from './authenticated/organizations/office-list/office-list.component';
 import { OfficeComponent } from './authenticated/organizations/office/office.component';
 import { OrganizationListComponent } from './authenticated/organizations/organization-list/organization-list.component';
@@ -116,6 +119,9 @@ export enum RouterToken {
   Region = RouterToken.RegionList + '/:id',
   ColorList = 'colors',
   Color = RouterToken.ColorList + '/:id',
+  Leads = 'leads',
+  LeadRental = 'leads/rentals/:id',
+  LeadOwner = 'leads/owners/:id',
   Default = RouterToken.ReservationBoard
 }
 
@@ -175,6 +181,9 @@ export enum RouterUrl {
   Region               = `${RouterToken.Auth}/${RouterToken.Region}`,
   ColorList            = `${RouterToken.Auth}/${RouterToken.ColorList}`,
   Color                = `${RouterToken.Auth}/${RouterToken.Color}`,
+  Leads                = `${RouterToken.Auth}/${RouterToken.Leads}`,
+  LeadRental           = `${RouterToken.Auth}/${RouterToken.LeadRental}`,
+  LeadOwner            = `${RouterToken.Auth}/${RouterToken.LeadOwner}`,
 }
 
 // eslint-disable-next-line @typescript-eslint/no-namespace
@@ -241,6 +250,9 @@ export const authRoutes: Routes = [
   { path: RouterToken.Region, component: RegionComponent, canActivate: [authRouteGuard] },
   { path: RouterToken.ColorList, component: ColorListComponent, canActivate: [authRouteGuard] },
   { path: RouterToken.Color, component: ColorComponent, canActivate: [authRouteGuard] },
+  { path: RouterToken.LeadRental, component: RentalComponent, canActivate: [authRouteGuard] },
+  { path: RouterToken.LeadOwner, component: OwnerComponent, canActivate: [authRouteGuard] },
+  { path: RouterToken.Leads, component: LeadsShellComponent, canActivate: [authRouteGuard] },
 ]
 
 export const routes: Routes = [
