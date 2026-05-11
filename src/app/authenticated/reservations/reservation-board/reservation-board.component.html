@@ -112,12 +112,15 @@
           </thead>
           <tbody>
             @for (property of properties; track property.propertyId) {
-              <tr class="property-row">
+              <tr class="property-row"
+                  [class.row-selected]="isPropertySelected(property.propertyId)"
+                  (click)="onPropertyRowClick(property.propertyId, $event)"
+                  (contextmenu)="onPropertyRowContextMenu($event)">
                 <td class="property-cell code-cell">
                   @if (readOnly) {
                     <span>{{ property.propertyCode }}</span>
                   } @else {
-                    <a [routerLink]="getPropertyRoute(property.propertyId)" [queryParams]="{ returnTo: 'reservation-board' }">{{ property.propertyCode }}</a>
+                    <span class="reservation-link" (click)="onPropertyCodeClick(property.propertyId, $event)">{{ property.propertyCode }}</span>
                   }
                 </td>
                 <td class="property-cell address-cell" [title]="property.address">{{ formatBoardAddressForCell(property.address) }}</td>
@@ -163,13 +166,11 @@
                               [ngClass]="getReservationStatusClass(reservation, day.date)" 
                               [style.backgroundColor]="bgColor"
                               [style.color]="getTextColor(bgColor)"
-                              (click)="onReservationCellClick(reservation.reservationId)">
+                              (click)="onReservationCellClick(reservation.reservationId, property.propertyId, $event)">
                             @if (readOnly) {
                               <span class="reservation-link">{{ getReservationDisplayText(reservation, day.date) }}</span>
                             } @else {
-                              <a [routerLink]="getReservationRoute(reservation.reservationId)" [queryParams]="{ returnTo: 'reservation-board' }" class="reservation-link" (click)="$event.stopPropagation()">
-                                {{ getReservationDisplayText(reservation, day.date) }}
-                              </a>
+                              <span class="reservation-link">{{ getReservationDisplayText(reservation, day.date) }}</span>
                             }
                           </td>
                         } @else {
@@ -177,7 +178,7 @@
                               [ngClass]="getReservationStatusClass(reservation, day.date)" 
                               [style.backgroundColor]="bgColor"
                               [style.color]="getTextColor(bgColor)"
-                              (click)="onReservationCellClick(reservation.reservationId)">
+                              (click)="onReservationCellClick(reservation.reservationId, property.propertyId, $event)">
                             {{ getReservationDisplayText(reservation, day.date) }}
                           </td>
                         }
@@ -186,35 +187,33 @@
                             [ngClass]="getReservationStatusClass(reservation, day.date)" 
                             [style.backgroundColor]="bgColor"
                             [style.color]="getTextColor(bgColor)"
-                            (click)="onReservationCellClick(reservation.reservationId)">
+                            (click)="onReservationCellClick(reservation.reservationId, property.propertyId, $event)">
                           {{ getReservationDisplayText(reservation, day.date) }}
                         </td>
                       }
                     } @else {
                       @if (getReservationDisplayText(reservation, day.date) === 'A' || getReservationDisplayText(reservation, day.date) === 'D') {
                         @if (getReservationStatusClass(reservation, day.date) === 'reservation-arrival' || getReservationStatusClass(reservation, day.date) === 'reservation-departure') {
-                          <td class="calendar-cell" [ngClass]="getReservationStatusClass(reservation, day.date)" (click)="onReservationCellClick(reservation.reservationId)">
+                          <td class="calendar-cell" [ngClass]="getReservationStatusClass(reservation, day.date)" (click)="onReservationCellClick(reservation.reservationId, property.propertyId, $event)">
                             @if (readOnly) {
                               <span class="reservation-link">{{ getReservationDisplayText(reservation, day.date) }}</span>
                             } @else {
-                              <a [routerLink]="getReservationRoute(reservation.reservationId)" [queryParams]="{ returnTo: 'reservation-board' }" class="reservation-link" (click)="$event.stopPropagation()">
-                                {{ getReservationDisplayText(reservation, day.date) }}
-                              </a>
+                              <span class="reservation-link">{{ getReservationDisplayText(reservation, day.date) }}</span>
                             }
                           </td>
                         } @else {
-                          <td class="calendar-cell" [ngClass]="getReservationStatusClass(reservation, day.date)" (click)="onReservationCellClick(reservation.reservationId)">
+                          <td class="calendar-cell" [ngClass]="getReservationStatusClass(reservation, day.date)" (click)="onReservationCellClick(reservation.reservationId, property.propertyId, $event)">
                             {{ getReservationDisplayText(reservation, day.date) }}
                           </td>
                         }
                       } @else {
-                        <td class="calendar-cell" [ngClass]="getReservationStatusClass(reservation, day.date)" (click)="onReservationCellClick(reservation.reservationId)">
+                        <td class="calendar-cell" [ngClass]="getReservationStatusClass(reservation, day.date)" (click)="onReservationCellClick(reservation.reservationId, property.propertyId, $event)">
                           {{ getReservationDisplayText(reservation, day.date) }}
                         </td>
                       }
                     }
                   } @else {
-                    <td class="calendar-cell" (click)="onEmptyCellClick(property.propertyId, day.date)"> </td>
+                    <td class="calendar-cell" (click)="onEmptyCellClick(property.propertyId, day.date, $event)"> </td>
                   }
                 }
               </tr>
@@ -222,6 +221,19 @@
           </tbody>
         </table>
       </div>
+
+      <div
+        class="board-context-menu-anchor"
+        [style.left.px]="contextMenuPosition.x"
+        [style.top.px]="contextMenuPosition.y"
+        [matMenuTriggerFor]="boardContextMenu"
+        #boardContextMenuTrigger="matMenuTrigger">
+      </div>
+      <mat-menu #boardContextMenu="matMenu">
+        <button mat-menu-item type="button" (click)="createQuoteFromSelection()">
+          Create a Quote
+        </button>
+      </mat-menu>
     </mat-card>
   </section>
 </div>

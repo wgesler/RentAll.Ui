@@ -1,8 +1,9 @@
 import { CommonModule } from '@angular/common';
-import { Component, Input, OnDestroy, OnInit } from '@angular/core';
+import { Component, Input, OnDestroy, OnInit, ViewChild } from '@angular/core';
 import { FormsModule } from '@angular/forms';
+import { MatMenuTrigger } from '@angular/material/menu';
 import { MatSlideToggleChange } from '@angular/material/slide-toggle';
-import { Router, RouterLink } from '@angular/router';
+import { Router } from '@angular/router';
 import { ToastrService } from 'ngx-toastr';
 import { BehaviorSubject, Observable, Subject, distinctUntilChanged, finalize, map, skip, take, takeUntil } from 'rxjs';
 import { RouterUrl } from '../../../app.routes';
@@ -31,13 +32,14 @@ import { ReservationService } from '../services/reservation.service';
 @Component({
     standalone: true,
     selector: 'app-reservation-board',
-    imports: [CommonModule, MaterialModule, RouterLink, FormsModule],
+    imports: [CommonModule, MaterialModule, FormsModule],
     templateUrl: './reservation-board.component.html',
     styleUrl: './reservation-board.component.scss'
 })
 export class ReservationBoardComponent implements OnInit, OnDestroy {
   @Input() ownerUserId: string | null = null;
   @Input() readOnly: boolean = false;
+  @ViewChild('boardContextMenuTrigger') boardContextMenuTrigger?: MatMenuTrigger;
   getPropertyStatusLetter = getPropertyStatusLetter;
 
   properties: BoardProperty[] = [];
@@ -70,6 +72,8 @@ export class ReservationBoardComponent implements OnInit, OnDestroy {
     label: status.label,
     letter: getPropertyStatusLetter(status.value)
   }));
+  selectedPropertyIds = new Set<string>();
+  contextMenuPosition = { x: 0, y: 0 };
   updatingPropertyStatusIds = new Set<string>();
   private isLoadingReservations = false;
   private lastLoadedOfficeId: number | null | undefined = undefined;
@@ -888,18 +892,73 @@ export class ReservationBoardComponent implements OnInit, OnDestroy {
     });
   }
 
-  onReservationCellClick(reservationId: string): void {
+  onReservationCellClick(reservationId: string, propertyId: string, event?: MouseEvent): void {
     if (this.readOnly) {
+      return;
+    }
+
+    if (event?.shiftKey) {
+      event.preventDefault();
+      event.stopPropagation();
+      this.togglePropertySelection(propertyId);
       return;
     }
     this.navigateToReservation(reservationId);
   }
 
-  onEmptyCellClick(propertyId: string, date: Date): void {
+  onEmptyCellClick(propertyId: string, date: Date, event?: MouseEvent): void {
     if (this.readOnly) {
       return;
     }
+    if (event?.shiftKey) {
+      event.preventDefault();
+      event.stopPropagation();
+      this.togglePropertySelection(propertyId);
+      return;
+    }
     this.navigateToNewReservation(propertyId, date);
+  }
+
+  onPropertyRowClick(propertyId: string, event: MouseEvent): void {
+    if (this.readOnly || !event.shiftKey) {
+      return;
+    }
+
+    event.preventDefault();
+    this.togglePropertySelection(propertyId);
+  }
+
+  onPropertyCodeClick(propertyId: string, event: MouseEvent): void {
+    if (this.readOnly) {
+      return;
+    }
+
+    if (event.shiftKey) {
+      event.preventDefault();
+      event.stopPropagation();
+      this.togglePropertySelection(propertyId);
+      return;
+    }
+
+    this.router.navigate([this.getPropertyRoute(propertyId)], {
+      queryParams: { returnTo: 'reservation-board' }
+    });
+  }
+
+  onPropertyRowContextMenu(event: MouseEvent): void {
+    if (this.readOnly || this.selectedPropertyIds.size === 0) {
+      return;
+    }
+
+    event.preventDefault();
+    event.stopPropagation();
+    this.contextMenuPosition = { x: event.clientX, y: event.clientY };
+    this.boardContextMenuTrigger?.closeMenu();
+    this.boardContextMenuTrigger?.openMenu();
+  }
+
+  isPropertySelected(propertyId: string): boolean {
+    return this.selectedPropertyIds.has(propertyId);
   }
 
   onBoardPropertyStatusChange(property: BoardProperty, statusId: number): void {
@@ -932,6 +991,28 @@ export class ReservationBoardComponent implements OnInit, OnDestroy {
   openBoardStatusDropdown(event: Event, dropdown: { open: () => void } | undefined): void {
     event.stopPropagation();
     dropdown?.open();
+  }
+
+  togglePropertySelection(propertyId: string): void {
+    if (!propertyId) {
+      return;
+    }
+
+    if (this.selectedPropertyIds.has(propertyId)) {
+      this.selectedPropertyIds.delete(propertyId);
+      return;
+    }
+
+    this.selectedPropertyIds.add(propertyId);
+  }
+
+  createQuoteFromSelection(): void {
+    const selectedPropertyIds = Array.from(this.selectedPropertyIds);
+    if (selectedPropertyIds.length === 0) {
+      return;
+    }
+
+    this.router.navigateByUrl(`${RouterUrl.QuoteCreate}?propertyIds=${selectedPropertyIds.join(',')}&returnTo=reservation-board`);
   }
   //#endregion
 

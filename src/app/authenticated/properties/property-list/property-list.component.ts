@@ -1,8 +1,9 @@
 import { CommonModule } from "@angular/common";
 import { HttpErrorResponse } from '@angular/common/http';
-import { Component, EventEmitter, HostListener, Input, NgZone, OnChanges, OnDestroy, OnInit, Output, SimpleChanges } from '@angular/core';
+import { Component, EventEmitter, HostListener, Input, NgZone, OnChanges, OnDestroy, OnInit, Output, SimpleChanges, ViewChild } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { MatDialog, MatDialogConfig } from '@angular/material/dialog';
+import { MatMenuTrigger } from '@angular/material/menu';
 import { MatSlideToggleChange } from '@angular/material/slide-toggle';
 import { ActivatedRoute, NavigationEnd, Router } from '@angular/router';
 import { ToastrService } from 'ngx-toastr';
@@ -51,6 +52,7 @@ type PropertyListDisplayRow = PropertyListDisplay & {
 export class PropertyListComponent implements OnInit, OnDestroy, OnChanges {
   @Input() officeId: number | null = null;
   @Output() officeIdChange = new EventEmitter<number | null>();
+  @ViewChild('propertyListContextMenuTrigger') propertyListContextMenuTrigger?: MatMenuTrigger;
   
   panelOpenState: boolean = true;
   isServiceError: boolean = false;
@@ -77,6 +79,8 @@ export class PropertyListComponent implements OnInit, OnDestroy, OnChanges {
   propertiesFiltered = false;
   isCompactView = false;
   canEditIsActiveCheckbox = false;
+  selectedPropertyIds = new Set<string>();
+  contextMenuPosition = { x: 0, y: 0 };
 
   private readonly compactViewportWidth = 1024;
   private readonly propertyStatuses = getPropertyStatuses();
@@ -200,6 +204,12 @@ export class PropertyListComponent implements OnInit, OnDestroy, OnChanges {
       next: (properties) => {
         const mappedRows = this.mappingService.mapPropertyListRows(properties || []);
         this.allProperties = this.applyPropertyContactDisplayNames(mappedRows);
+        const validPropertyIds = new Set(this.allProperties.map(property => property.propertyId));
+        this.selectedPropertyIds.forEach(propertyId => {
+          if (!validPropertyIds.has(propertyId)) {
+            this.selectedPropertyIds.delete(propertyId);
+          }
+        });
         this.applyFilters();
       },
       error: (_err: HttpErrorResponse) => {
@@ -278,6 +288,44 @@ export class PropertyListComponent implements OnInit, OnDestroy, OnChanges {
         { queryParams: { section: 'basic', returnTo: 'property-list' } }
       );
     });
+  }
+
+  onPropertyRowClick(payload: { rowItem: PropertyListDisplayRow; mouseEvent: MouseEvent }): void {
+    const rowItem = payload?.rowItem;
+    const mouseEvent = payload?.mouseEvent;
+    if (!rowItem?.propertyId) {
+      return;
+    }
+
+    if (mouseEvent?.shiftKey) {
+      mouseEvent.preventDefault();
+      this.togglePropertySelection(rowItem.propertyId);
+      return;
+    }
+
+    this.goToProperty(rowItem);
+  }
+
+  onPropertyRowContextMenu(payload: { rowItem: PropertyListDisplayRow; mouseEvent: MouseEvent }): void {
+    if (!payload?.rowItem?.propertyId || this.selectedPropertyIds.size === 0) {
+      return;
+    }
+
+    const mouseEvent = payload.mouseEvent;
+    mouseEvent.preventDefault();
+    mouseEvent.stopPropagation();
+    this.contextMenuPosition = { x: mouseEvent.clientX, y: mouseEvent.clientY };
+    this.propertyListContextMenuTrigger?.closeMenu();
+    this.propertyListContextMenuTrigger?.openMenu();
+  }
+
+  createQuoteFromSelection(): void {
+    const selectedIds = Array.from(this.selectedPropertyIds);
+    if (selectedIds.length === 0) {
+      return;
+    }
+
+    this.router.navigateByUrl(`${RouterUrl.QuoteCreate}?propertyIds=${selectedIds.join(',')}&returnTo=property-list`);
   }
 
   goToContact(event: PropertyListDisplay): void {
@@ -371,7 +419,10 @@ export class PropertyListComponent implements OnInit, OnDestroy, OnChanges {
 
     filtered = filtered.filter(property => property.unfurnished === this.globalSelectionService.getFurnishedPropertySelection());
 
-    this.propertiesDisplay = filtered;
+    filtered.forEach(property => {
+      (property as any).rowActive = this.selectedPropertyIds.has(property.propertyId);
+    });
+    this.propertiesDisplay = [...filtered];
   }
   //#endregion
 
@@ -525,6 +576,35 @@ export class PropertyListComponent implements OnInit, OnDestroy, OnChanges {
   @HostListener('window:resize')
   onWindowResize(): void {
     this.updateDisplayedColumns();
+  }
+
+  @HostListener('document:click', ['$event'])
+  onDocumentClick(event: MouseEvent): void {
+    if (event.shiftKey || this.selectedPropertyIds.size === 0) {
+      return;
+    }
+
+    const target = event.target as HTMLElement | null;
+    if (target?.closest('.mat-mdc-menu-panel') || target?.closest('.property-list-context-menu-anchor')) {
+      return;
+    }
+
+    this.selectedPropertyIds.clear();
+    this.applyFilters();
+  }
+
+  togglePropertySelection(propertyId: string): void {
+    if (!propertyId) {
+      return;
+    }
+
+    if (this.selectedPropertyIds.has(propertyId)) {
+      this.selectedPropertyIds.delete(propertyId);
+    } else {
+      this.selectedPropertyIds.add(propertyId);
+    }
+
+    this.applyFilters();
   }
 
   updateDisplayedColumns(): void {

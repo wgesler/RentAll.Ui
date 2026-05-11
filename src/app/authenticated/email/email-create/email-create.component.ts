@@ -1,5 +1,5 @@
 import { CommonModule } from '@angular/common';
-import { Component, OnInit } from '@angular/core';
+import { ChangeDetectorRef, Component, OnInit } from '@angular/core';
 import { FormBuilder, FormControl, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
 import { Router } from '@angular/router';
 import { ToastrService } from 'ngx-toastr';
@@ -34,7 +34,8 @@ export class EmailCreateComponent implements OnInit {
     private draftService: EmailCreateDraftService,
     private documentService: DocumentService,
     private documentHtmlService: DocumentHtmlService,
-    private emailService: EmailService
+    private emailService: EmailService,
+    private cdr: ChangeDetectorRef
   ) {}
 
   ngOnInit(): void {
@@ -96,7 +97,7 @@ export class EmailCreateComponent implements OnInit {
       ccEmails: splitEmailList(formValue.ccEmails || ''),
       bccEmails: splitEmailList(formValue.bccEmails || ''),
       plainTextContent: plainTextBody,
-      htmlContent: isBodyModified ? '' : (this.draft.emailConfig.htmlContent || '')
+      htmlContent: isBodyModified ? '' : (this.draft.emailConfig.htmlContent || '').trim()
     };
 
     if (!this.isValidDraft(this.draft, emailConfig)) {
@@ -104,6 +105,8 @@ export class EmailCreateComponent implements OnInit {
     }
 
     this.isSending = true;
+    this.cdr.detectChanges();
+
     try {
       await sendDocumentEmail(
         {
@@ -161,8 +164,20 @@ export class EmailCreateComponent implements OnInit {
       return '';
     }
 
-    const normalized = html
-      .replace(/<\s*(script|style)[^>]*>[\s\S]*?<\s*\/\s*\1\s*>/gi, '')
+    const strippedScripts = html.replace(/<\s*(script|style)[^>]*>[\s\S]*?<\s*\/\s*\1\s*>/gi, '');
+    const withAnchorsExpanded = strippedScripts.replace(
+      /<\s*a\s+[^>]*\bhref\s*=\s*(["'])([^"']*)\1[^>]*>([\s\S]*?)<\s*\/\s*a\s*>/gi,
+      (_m, _q, href: string, inner: string) => {
+        const innerPlain = inner.replace(/<[^>]+>/g, '').trim();
+        const h = String(href || '').trim();
+        if (!h) {
+          return innerPlain;
+        }
+        return innerPlain ? `${innerPlain}\n${h}\n` : `${h}\n`;
+      }
+    );
+
+    const normalized = withAnchorsExpanded
       .replace(/<\s*br\s*\/?>/gi, '')
       .replace(/<\s*\/p\s*>/gi, '\n\n')
       .replace(/<\s*\/div\s*>/gi, '\n')

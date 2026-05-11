@@ -212,6 +212,11 @@
   position: relative;
 }
 
+.board-context-menu-anchor {
+  position: fixed;
+  visibility: hidden;
+}
+
 .reservation-table {
   border-collapse: separate;
   border-spacing: 0;
@@ -436,6 +441,24 @@
     
     .property-cell {
       background-color: #e3f2fd;
+    }
+  }
+}
+
+.property-row.row-selected {
+  background-color: #cfe8ff !important;
+
+  .property-cell,
+  .calendar-cell {
+    background-color: #cfe8ff !important;
+  }
+
+  &:hover {
+    background-color: #bddfff !important;
+
+    .property-cell,
+    .calendar-cell {
+      background-color: #bddfff !important;
     }
   }
 }

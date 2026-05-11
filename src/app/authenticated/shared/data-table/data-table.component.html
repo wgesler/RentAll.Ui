@@ -428,7 +428,9 @@
             }
 
             <tr mat-header-row *matHeaderRowDef="displayedColumns" ></tr>
-            <tr mat-row *matRowDef="let row; columns: displayedColumns;" (click)="hasActionsRowClick ? emitRowClickEvent(row) : null"
+            <tr mat-row *matRowDef="let row; columns: displayedColumns;" (click)="hasActionsRowClick ? emitRowClickEvent(row, $event) : null"
+              (mousedown)="hasActionsRowClick && $event.shiftKey ? $event.preventDefault() : null"
+              (contextmenu)="hasActionsRowClick ? emitRowContextMenuEvent($event, row) : null"
               [ngClass]="{'cursor-pointer' : hasActionsRowClick, 'datatable-row-active': row?.rowActive, 'edited-table-row': row?.isEdited, 'datatable-row-colored': rowColorColumn && getRowColor(row) !== defaultRowColor}"
               [style.background-color]="rowColorColumn ? getRowColor(row) : null"
             [matTooltip]="showCustomRowTooltip ? row?.customRowTooltip : null" matTooltipPosition="above"></tr>

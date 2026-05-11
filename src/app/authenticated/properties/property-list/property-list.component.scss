@@ -46,6 +46,11 @@ body {
   line-height: 1;
 }
 
+.property-list-context-menu-anchor {
+  position: fixed;
+  visibility: hidden;
+}
+
 /* Status dropdown should read like a link and match row text size. */
 :host ::ng-deep td.mat-cell.mat-column-propertyStatusDropdown,
 :host ::ng-deep td.mat-mdc-cell.mat-column-propertyStatusDropdown {

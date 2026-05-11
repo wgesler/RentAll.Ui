@@ -143,6 +143,8 @@ export class DataTableComponent implements OnChanges, OnInit {
   @Output() clearTrackingEvent = new EventEmitter<PurposefulAny>();
   @Output() checkAllEvent = new EventEmitter<PurposefulAny>();
   @Output() rowClickEvent = new EventEmitter<PurposefulAny>();
+  @Output() rowClickMouseEvent = new EventEmitter<PurposefulAny>();
+  @Output() rowContextMenuEvent = new EventEmitter<PurposefulAny>();
   @Output() saveEvent = new EventEmitter<PurposefulAny>();
   @Output() selectEvent = new EventEmitter<PurposefulAny>();
   @Output() inspectEvent = new EventEmitter<PurposefulAny>();
@@ -448,11 +450,28 @@ export class DataTableComponent implements OnChanges, OnInit {
     this.inspectEvent.emit(rowItem);
   }
 
-  emitRowClickEvent(rowItem: PurposefulAny): void {
+  emitRowClickEvent(rowItem: PurposefulAny, event?: MouseEvent): void {
     // Only emit if row clicks are enabled
-    if (this.hasActionsRowClick) {
-      this.rowClickEvent.emit(rowItem);
+    if (!this.hasActionsRowClick) {
+      return;
     }
+
+    // Shift+click is reserved for multi-select flows; do not trigger standard row-click handlers.
+    if (event?.shiftKey) {
+      this.rowClickMouseEvent.emit({ rowItem, mouseEvent: event });
+      return;
+    }
+
+    this.rowClickEvent.emit(rowItem);
+    this.rowClickMouseEvent.emit({ rowItem, mouseEvent: event || null });
+  }
+
+  emitRowContextMenuEvent(event: MouseEvent, rowItem: PurposefulAny): void {
+    if (!this.hasActionsRowClick) {
+      return;
+    }
+    event.preventDefault();
+    this.rowContextMenuEvent.emit({ rowItem, mouseEvent: event });
   }
 
   onEmailClick(event: Event, rowItem: PurposefulAny): void {

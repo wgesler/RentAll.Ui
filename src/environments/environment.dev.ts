@@ -4,5 +4,8 @@ export const environment = {
     dev: true,
     local: false,
     title: 'RentAll - Dev',
-    apiUrl: 'https://rentall-api-linux-dkfbdaaehthhb0fc.centralus-01.azurewebsites.net/api/'
+    apiUrl: 'https://rentall-api-linux-dkfbdaaehthhb0fc.centralus-01.azurewebsites.net/api/',
+    quoteListingHrefDiagnostic: '',
+    quoteListingHrefLogDebug: false,
+    publicListingUiOrigin: ''
 };

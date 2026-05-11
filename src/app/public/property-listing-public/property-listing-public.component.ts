@@ -37,7 +37,7 @@ export class PropertyListingPublicComponent implements OnInit {
       }
     }, 20000);
 
-    const token = this.route.snapshot.paramMap.get('token') || '';
+    const token = (this.route.snapshot.paramMap.get('token') || '').trim();
     if (!token) {
       if (this.loadingWatchdog) {
         clearTimeout(this.loadingWatchdog);

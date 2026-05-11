@@ -42,6 +42,7 @@ import { WorkOrderCreateComponent } from './authenticated/maintenance/work-order
 import { ReceiptComponent } from './authenticated/maintenance/receipt/receipt.component';
 import { TicketShellComponent } from './authenticated/tickets/ticket-shell/ticket-shell.component';
 import { PropertyListComponent } from './authenticated/properties/property-list/property-list.component';
+import { QuoteCreateComponent } from './authenticated/properties/quote-create/quote-create.component';
 import { PropertyShellComponent } from './authenticated/properties/property-shell/property-shell.component';
 import { PropertySelectionComponent } from './authenticated/properties/property-selection/property-selection.component';
 import { ReservationBoardComponent } from './authenticated/reservations/reservation-board/reservation-board.component';
@@ -95,6 +96,7 @@ export enum RouterToken {
   Reservation = RouterToken.ReservationList + '/:id',
   ReservationBoard = 'boards',
   ReservationBoardSelection = RouterToken.ReservationBoard + '/selection',
+  QuoteCreate = 'quote-create',
   AgentList = 'agents',
   Agent = RouterToken.AgentList + '/:id',
   UserList = 'users',
@@ -153,6 +155,7 @@ export enum RouterUrl {
   Reservation           = `${RouterToken.Auth}/${RouterToken.Reservation}`,
   ReservationBoard      = `${RouterToken.Auth}/${RouterToken.ReservationBoard}`,
   ReservationBoardSelection = `${RouterToken.Auth}/${RouterToken.ReservationBoardSelection}`,
+  QuoteCreate           = `${RouterToken.Auth}/${RouterToken.QuoteCreate}`,
   AgentList             = `${RouterToken.Auth}/${RouterToken.AgentList}`,
   Agent                 = `${RouterToken.Auth}/${RouterToken.Agent}`,
   UserList              = `${RouterToken.Auth}/${RouterToken.UserList}`,
@@ -218,6 +221,7 @@ export const authRoutes: Routes = [
   { path: RouterToken.Reservation, component: ReservationShellComponent, canActivate: [authRouteGuard], canDeactivate: [canDeactivateGuard] },
   { path: RouterToken.ReservationBoard, component: ReservationBoardComponent, canActivate: [authRouteGuard] },
   { path: RouterToken.ReservationBoardSelection, component: PropertySelectionComponent, canActivate: [authRouteGuard] },
+  { path: RouterToken.QuoteCreate, component: QuoteCreateComponent, canActivate: [authRouteGuard] },
   { path: RouterToken.AgentList, component: AgentListComponent, canActivate: [authRouteGuard] },
   { path: RouterToken.Agent, component: AgentComponent, canActivate: [authRouteGuard] },
   { path: RouterToken.UserList, component: UsersShellComponent, canActivate: [authRouteGuard] },

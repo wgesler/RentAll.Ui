@@ -1,0 +1,134 @@
+<div class="flex content-card-wrap justify-center" [formGroup]="form">
+  <section class="content-card">
+    <div class="flex justify-between items-center gap-3 bg-slate-300 rounded-t-lg py-0 pl-8 pr-4 property-titlebar">
+      <div class="flex items-center flex-wrap py-4">
+        <span class="flex flex-column items-center gap-3 flex-shrink-0">
+          <mat-icon class="flex-shrink-0">home</mat-icon>
+          <span class="flex-shrink-0 text-xl font-medium">Properties</span>
+        </span>
+        <div class="header-title form-titlebar-fields-wrap">
+          <app-title-bar-select
+            [label]="'Property Office'"
+            [formFieldClass]="'titlebar-field-office'"
+            [value]="selectedOfficeId"
+            [options]="officeTitleBarOptions"
+            [disabled]="officeTitleBarOptions.length === 0"
+            [nullOptionLabel]="'Offices'"
+            [noResultsText]="'No offices match your search'"
+            (valueChange)="onOfficeSelection($event)">
+          </app-title-bar-select>
+        </div>
+      </div>
+      <div class="form-titlebar-actions-wrap uniform-gap">
+        <button mat-raised-button type="button" color="accent" (click)="backClick.emit()">
+          <mat-icon>arrow_back</mat-icon>
+          Back
+        </button>
+      </div>
+    </div>
+
+    <mat-card>
+      <form class="info-form mb-8 form-standard-top-padding">
+        <div class="grid grid-cols-4 form-standard-grid quote-content-wrap">
+          <div class="col-span-4 quote-top-row">
+            <span class="text-lg font-medium flex-shrink-0">Corporate Housing Proposal</span>
+            <div class="form-titlebar-actions-wrap uniform-gap">
+                <button mat-raised-button type="button" color="primary" (click)="viewClick.emit()" [disabled]="isViewDisabled">
+                  <mat-icon>visibility</mat-icon>
+                  View
+                </button>
+            </div>
+          </div>
+
+          <div class="col-span-4">
+            <div class="quote-proposal-box">
+              <div class="quote-proposal-inner-box">
+                <table class="quote-proposal-detail-table">
+                  <tbody>
+                    <tr>
+                      <td class="quote-detail-label-cell">Prepared For:</td>
+                      <td class="quote-detail-value-cell">
+                        <mat-form-field appearance="outline" class="quote-table-field">
+                          <input matInput formControlName="preparedForName">
+                        </mat-form-field>
+                      </td>
+                    </tr>
+                    <tr>
+                      <td class="quote-detail-label-cell">Email:</td>
+                      <td class="quote-detail-value-cell">
+                        <mat-form-field appearance="outline" class="quote-table-field">
+                          <input matInput formControlName="quoteEmail">
+                        </mat-form-field>
+                      </td>
+                    </tr>
+                    <tr>
+                      <td class="quote-detail-label-cell">Agent:</td>
+                      <td class="quote-detail-value-cell">
+                        <mat-form-field appearance="outline" class="quote-table-field">
+                          <input matInput formControlName="agentName">
+                        </mat-form-field>
+                      </td>
+                    </tr>
+                    <tr>
+                      <td class="quote-detail-label-cell">Quote Valid Thru:</td>
+                      <td class="quote-detail-value-cell">
+                        <mat-form-field appearance="outline" class="quote-table-field">
+                          <input matInput formControlName="quoteValidFor">
+                        </mat-form-field>
+                      </td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+
+          <div class="col-span-4 form-standard-section-gap">
+            <div class="flex items-center gap-3 form-standard-section-heading-gap min-w-0">
+              <span class="text-lg font-medium flex-shrink-0">Property Listings</span>
+            </div>
+
+            @if (isLoadingLinks) {
+              <div class="quote-links-loading">Generating links...</div>
+            } @else if (propertyListingLinks.length > 0) {
+              <div class="overflow-x-auto">
+                <table class="line-items-table">
+                  <thead>
+                    <tr class="border-b">
+                      <th class="text-left">Property</th>
+                      <th class="text-left">Address</th>
+                      <th class="text-center quote-beds-col">Beds/Baths</th>
+                      <th class="text-center quote-rate-col">Rate (Monthly/Daily)</th>
+                      <th class="text-center">Parking</th>
+                      <th class="text-left quote-link-col">Link</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    @for (listingLink of propertyListingLinks; track listingLink.propertyId) {
+                      <tr class="border-b">
+                        <td><div class="quote-field-box quote-field-box-disabled">{{ listingLink.propertyCode }}</div></td>
+                        <td><div class="quote-field-box quote-field-box-disabled">{{ listingLink.address }}</div></td>
+                        <td class="text-center quote-beds-col"><div class="quote-field-box quote-field-box-center quote-field-box-disabled">{{ listingLink.beds }}</div></td>
+                        <td class="text-center quote-rate-col">
+                          <input
+                            class="quote-field-input quote-field-input-rate"
+                            type="text"
+                            [value]="listingLink.price"
+                            (input)="onRateChange(listingLink, $event)">
+                        </td>
+                        <td class="text-center"><div class="quote-field-box quote-field-box-center quote-field-box-disabled">{{ listingLink.parking }}</div></td>
+                        <td class="quote-link-col"><div class="quote-field-box quote-field-box-disabled"><a class="quote-link" [href]="listingLink.url" target="_blank" rel="noopener noreferrer" (click)="openListing(listingLink.url, $event)">View Listing</a></div></td>
+                      </tr>
+                    }
+                  </tbody>
+                </table>
+              </div>
+            } @else {
+              <div class="quote-links-empty">No properties selected.</div>
+            }
+          </div>
+        </div>
+      </form>
+    </mat-card>
+  </section>
+</div>

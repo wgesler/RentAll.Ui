@@ -647,7 +647,7 @@ export class PropertyListingComponent implements OnChanges, AfterViewChecked {
 
     try {
       const response = await firstValueFrom(this.propertyListingShareService.createPropertyShareLink(activePropertyId));
-      const shareUrl = `${window.location.origin}/listing/${response.token}`;
+      const shareUrl = this.propertyListingShareService.getPublicListingUrl(response.token);
       const copied = this.clipboard.copy(shareUrl);
       if (copied) {
         this.toastr.success('Listing link copied to clipboard.', CommonMessage.Success);

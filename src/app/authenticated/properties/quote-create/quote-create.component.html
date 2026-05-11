@@ -1,0 +1,116 @@
+@if (!isPageReady) {
+  <div class="flex content-card-wrap justify-center">
+    <section class="content-card">
+      <div class="flex justify-between items-center gap-3 bg-slate-300 rounded-t-lg py-0 pl-8 pr-4">
+        <div class="flex items-center flex-wrap py-4">
+          <span class="flex flex-column items-center gap-3 flex-shrink-0">
+            <mat-icon class="flex-shrink-0">home</mat-icon>
+            <span class="flex-shrink-0 text-xl font-medium">Properties</span>
+          </span>
+        </div>
+      </div>
+      <mat-card>
+        <div class="loading-container py-12">
+          <mat-spinner [diameter]="40"></mat-spinner>
+          <p>Loading quote...</p>
+        </div>
+      </mat-card>
+    </section>
+  </div>
+} @else if (!isViewMode) {
+  <app-quote
+    [form]="form"
+    [officeTitleBarOptions]="officeTitleBarOptions"
+    [selectedOfficeId]="headerOfficeId"
+    [contacts]="contacts"
+    [isViewDisabled]="propertyListingLinks.length === 0"
+    [propertyListingLinks]="propertyListingLinks"
+    [isLoadingLinks]="isLoadingLinks"
+    (listingRowsChange)="refreshQuoteDocumentPreview()"
+    (officeIdChange)="onOfficeChanged($event)"
+    (recipientChange)="onRecipientChange()"
+    (viewClick)="viewQuote()"
+    (backClick)="back()">
+  </app-quote>
+} @else {
+  <div class="flex content-card-wrap justify-center" [formGroup]="form">
+    <section class="content-card">
+      <div class="flex justify-between items-center gap-3 bg-slate-300 rounded-t-lg py-0 pl-8 pr-4 property-titlebar">
+        <div class="flex items-center flex-wrap py-4">
+          <span class="flex flex-column items-center gap-3 flex-shrink-0">
+            <mat-icon class="flex-shrink-0">home</mat-icon>
+            <span class="flex-shrink-0 text-xl font-medium">Properties</span>
+          </span>
+          <div class="header-title form-titlebar-fields-wrap">
+            <app-title-bar-select
+              [label]="'Property Office'"
+              [formFieldClass]="'titlebar-field-office'"
+              [value]="headerOfficeId"
+              [options]="officeTitleBarOptions"
+              [disabled]="officeTitleBarOptions.length === 0"
+              [nullOptionLabel]="'Offices'"
+              [noResultsText]="'No offices match your search'"
+              (valueChange)="onViewOfficeChange($event)">
+            </app-title-bar-select>
+          </div>
+        </div>
+        <div class="form-titlebar-actions-wrap uniform-gap">
+          <button mat-raised-button type="button" color="accent" (click)="back()">
+            <mat-icon>arrow_back</mat-icon>
+            Back
+          </button>
+        </div>
+      </div>
+
+      <mat-card>
+        <form class="info-form mb-8 form-standard-top-padding">
+          <div class="quote-view-wrap">
+            <div class="form-titlebar-actions-wrap uniform-gap quote-view-actions">
+              <button mat-raised-button type="button" color="accent" (click)="onPrint()"
+                [disabled]="!previewIframeHtml">
+                <mat-icon>print</mat-icon>
+                Print
+              </button>
+              <button mat-raised-button type="button" color="accent" (click)="onEmail()"
+                [disabled]="!previewIframeHtml || !(form.get('quoteEmail')?.value || '').toString().trim() || !(form.get('preparedForName')?.value || '').toString().trim()">
+                <mat-icon>email</mat-icon>
+                Email
+              </button>
+              <button mat-raised-button type="button" color="accent" (click)="onDownload()" [disabled]="isDownloading || !previewIframeHtml">
+                <mat-icon>download</mat-icon>
+                {{ isDownloading ? 'Downloading...' : 'Download' }}
+              </button>
+              <button mat-raised-button type="button" color="primary" (click)="saveQuote()" [disabled]="isSubmitting || !previewIframeHtml">
+                <mat-icon>save</mat-icon>
+                {{ isSubmitting ? 'Saving...' : 'Save' }}
+              </button>
+            </div>
+
+            @if (previewIframeHtml) {
+              <div class="preview-section">
+                <iframe
+                  [srcdoc]="safePreviewIframeHtml"
+                  class="preview-iframe"
+                  #previewIframe
+                  [attr.key]="iframeKey"
+                  (load)="onPreviewIframeLoad()"
+                  title="Quote preview"
+                  frameborder="0">
+                </iframe>
+              </div>
+            } @else if (!(form.get('quoteHtml')?.value || '').toString().trim()) {
+              <div class="quote-preview-empty">
+                Unable to load quote template.
+              </div>
+            } @else {
+              <div class="loading-container">
+                <mat-spinner [diameter]="40"></mat-spinner>
+                <p>Loading quote preview...</p>
+              </div>
+            }
+          </div>
+        </form>
+      </mat-card>
+    </section>
+  </div>
+}

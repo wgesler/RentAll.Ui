@@ -71,7 +71,8 @@
               (editEvent)="goToProperty($event)"
               (calendarEvent)="openPropertyCalendar($event)"
               (copyEvent)="copyProperty($event)"
-              (rowClickEvent)="goToProperty($event)"
+              (rowClickMouseEvent)="onPropertyRowClick($event)"
+              (rowContextMenuEvent)="onPropertyRowContextMenu($event)"
               (deleteEvent)="deleteProperty($event)"
               (contactClickEvent)="goToContact($event)">
               <div dataTableFilterActions>
@@ -86,6 +87,19 @@
                 </div>
               </div>
             </app-data-table>
+
+            <div
+              class="property-list-context-menu-anchor"
+              [style.left.px]="contextMenuPosition.x"
+              [style.top.px]="contextMenuPosition.y"
+              [matMenuTriggerFor]="propertyListContextMenu"
+              #propertyListContextMenuTrigger="matMenuTrigger">
+            </div>
+            <mat-menu #propertyListContextMenu="matMenu">
+              <button mat-menu-item type="button" (click)="createQuoteFromSelection()">
+                Create a Quote
+              </button>
+            </mat-menu>
           </div>
         </div>
       }
