@@ -114,6 +114,7 @@
             @for (property of properties; track property.propertyId) {
               <tr class="property-row"
                   [class.row-selected]="isPropertySelected(property.propertyId)"
+                  (mousedown)="!readOnly && $event.shiftKey ? $event.preventDefault() : null"
                   (click)="onPropertyRowClick(property.propertyId, $event)"
                   (contextmenu)="onPropertyRowContextMenu($event)">
                 <td class="property-cell code-cell">

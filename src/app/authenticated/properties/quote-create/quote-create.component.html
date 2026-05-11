@@ -22,13 +22,11 @@
     [form]="form"
     [officeTitleBarOptions]="officeTitleBarOptions"
     [selectedOfficeId]="headerOfficeId"
-    [contacts]="contacts"
     [isViewDisabled]="propertyListingLinks.length === 0"
     [propertyListingLinks]="propertyListingLinks"
     [isLoadingLinks]="isLoadingLinks"
     (listingRowsChange)="refreshQuoteDocumentPreview()"
     (officeIdChange)="onOfficeChanged($event)"
-    (recipientChange)="onRecipientChange()"
     (viewClick)="viewQuote()"
     (backClick)="back()">
   </app-quote>

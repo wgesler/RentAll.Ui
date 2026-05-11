@@ -13,8 +13,6 @@ import { FormatterService } from '../../../services/formatter-service';
 import { UtilityService } from '../../../services/utility.service';
 import { DocumentExportService } from '../../../services/document-export.service';
 import { DocumentHtmlService } from '../../../services/document-html.service';
-import { ContactResponse } from '../../contacts/models/contact.model';
-import { ContactService } from '../../contacts/services/contact.service';
 import { DocumentType } from '../../documents/models/document.enum';
 import { GenerateDocumentFromHtmlDto } from '../../documents/models/document.model';
 import { DocumentReloadService } from '../../documents/services/document-reload.service';
@@ -70,7 +68,6 @@ export class QuoteCreateComponent extends BaseDocumentComponent implements OnIni
   iframeKey = 0;
   returnTo: string = 'property-list';
   propertyListingLinks: QuotePropertyListingLink[] = [];
-  contacts: ContactResponse[] = [];
   offices: OfficeResponse[] = [];
   accountingOffices: AccountingOfficeResponse[] = [];
   selectedOffice: OfficeResponse | null = null;
@@ -85,7 +82,7 @@ export class QuoteCreateComponent extends BaseDocumentComponent implements OnIni
   isViewMode = false;
 
   isPageReady = false;
-  itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['offices', 'accountingOffices', 'contacts', 'quoteTemplate']));
+  itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['offices', 'accountingOffices', 'quoteTemplate']));
 
   constructor(
     private fb: FormBuilder,
@@ -94,7 +91,6 @@ export class QuoteCreateComponent extends BaseDocumentComponent implements OnIni
     private route: ActivatedRoute,
     private router: Router,
     private authService: AuthService,
-    private contactService: ContactService,
     private officeService: OfficeService,
     private accountingOfficeService: AccountingOfficeService,
     private globalSelectionService: GlobalSelectionService,
@@ -130,7 +126,6 @@ export class QuoteCreateComponent extends BaseDocumentComponent implements OnIni
 
     this.loadOffices();
     this.loadAccountingOffices();
-    this.loadContacts();
     this.loadQuoteTemplate();
     this.queryParamsSubscription?.unsubscribe();
     this.queryParamsSubscription = this.route.queryParams.subscribe(params => {
@@ -177,25 +172,11 @@ export class QuoteCreateComponent extends BaseDocumentComponent implements OnIni
   buildForm(): FormGroup {
     return this.fb.group({
       quoteHtml: new FormControl<string>(''),
-      recipientContactId: new FormControl<string | null>(null),
       preparedForName: new FormControl<string>(''),
       quoteEmail: new FormControl<string>(''),
       agentName: new FormControl<string>(this.currentUserFullName),
       quoteValidFor: new FormControl<string>(this.getDefaultQuoteValidUntilDate())
     });
-  }
-
-  onRecipientChange(): void {
-    const recipient = this.selectedRecipient;
-    if (!recipient) {
-      return;
-    }
-
-    const recipientName = recipient.fullName || `${recipient.firstName || ''} ${recipient.lastName || ''}`.trim();
-    this.form.patchValue({
-      preparedForName: recipientName,
-      quoteEmail: recipient.email || ''
-    }, { emitEvent: false });
   }
 
   patchQuoteSnapshotFromQueryParams(params: Params): void {
@@ -390,28 +371,6 @@ export class QuoteCreateComponent extends BaseDocumentComponent implements OnIni
   //#endregion
 
   //#region Data Loading Methods
-  loadContacts(): void {
-    this.contactService.ensureContactsLoaded().pipe(take(1),finalize(() => {this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'contacts'); })).subscribe({
-      next: (contacts: ContactResponse[]) => {
-        this.contacts = (contacts || []).filter(contact => !!contact?.email);
-        const qp = this.route.snapshot.queryParams;
-        const k = this.quoteSnapshotQueryKeys;
-        const urlHasQuoteSnapshot = [k.preparedForName, k.quoteEmail, k.agentName, k.quoteValidFor].some(key => qp[key] !== undefined && qp[key] !== null);
-        if (!urlHasQuoteSnapshot && !this.form.get('recipientContactId')?.value && this.contacts.length > 0) {
-          const defaultRecipient = this.contacts[0];
-          this.form.patchValue({
-            recipientContactId: defaultRecipient.contactId,
-            preparedForName: defaultRecipient.fullName || `${defaultRecipient.firstName || ''} ${defaultRecipient.lastName || ''}`.trim(),
-            quoteEmail: defaultRecipient.email || ''
-          }, { emitEvent: false });
-        }
-      },
-      error: () => {
-        this.contacts = [];
-      }
-    });
-  }
-
   loadOffices(): void {
     const organizationId = this.authService.getUser()?.organizationId?.trim() || '';
     if (!organizationId) {
@@ -520,22 +479,6 @@ export class QuoteCreateComponent extends BaseDocumentComponent implements OnIni
   //#endregion
 
   //#region Get Methods
-  get selectedRecipient(): ContactResponse | null {
-    const selectedContactId = String(this.form.get('recipientContactId')?.value || '').trim();
-    if (!selectedContactId) {
-      return null;
-    }
-    return this.contacts.find(contact => contact.contactId === selectedContactId) || null;
-  }
-
-  get recipientDisplayName(): string {
-    const recipient = this.selectedRecipient;
-    if (!recipient) {
-      return 'Not selected';
-    }
-    return recipient.fullName || `${recipient.firstName || ''} ${recipient.lastName || ''}`.trim() || 'Not selected';
-  }
-
   get officeTitleBarOptions(): { value: number, label: string }[] {
     return this.offices.map(office => ({
       value: office.officeId,
@@ -720,7 +663,6 @@ export class QuoteCreateComponent extends BaseDocumentComponent implements OnIni
       selectedOfficeName: this.selectedOffice?.name || this.companyNameDisplay || '',
       selectedReservationId: null,
       propertyId: this.propertyListingLinks[0]?.propertyId ?? null,
-      contacts: this.contacts,
       isDownloading: this.isDownloading
     };
   }
@@ -741,10 +683,6 @@ export class QuoteCreateComponent extends BaseDocumentComponent implements OnIni
 
     const toEmail = String(this.form.get('quoteEmail')?.value || '').trim();
     const toName = String(this.form.get('preparedForName')?.value || '').trim();
-    if (!toEmail || !toName) {
-      this.toastr.warning('Prepared-for name and email are required.', 'Missing Recipient');
-      return;
-    }
 
     const currentUser = this.authService.getUser();
     const fromEmail = currentUser?.email || '';
@@ -756,10 +694,14 @@ export class QuoteCreateComponent extends BaseDocumentComponent implements OnIni
 
     const attachmentFileName = `Quote_${this.utilityService.todayAsCalendarDateString()}.pdf`;
     const salutationFirstName = this.getQuoteEmailRecipientFirstName(toName);
+    const helloPlain = salutationFirstName ? `Hello ${salutationFirstName},\n\n` : `Hello,\n\n`;
+    const helloHtml = salutationFirstName
+      ? `<p>Hello ${this.escapeHtml(salutationFirstName)},</p>`
+      : `<p>Hello,</p>`;
     const senderPhoneRaw = String(currentUser?.phone || '').trim();
     const senderPhone = senderPhoneRaw ? (this.formatterService.phoneNumber(senderPhoneRaw) || '').trim() : '';
     const plainTextContent =
-      `Hello ${salutationFirstName},\n\n` +
+      helloPlain +
       `Please find your corporate housing proposal attached.\n\n` +
       `Regards,\n${fromName}` +
       (senderPhone ? `\n${senderPhone}` : '') +
@@ -769,7 +711,7 @@ export class QuoteCreateComponent extends BaseDocumentComponent implements OnIni
       (senderPhone ? `<br />${this.escapeHtml(senderPhone)}` : '') +
       `</p>`;
     const emailBodyHtml =
-      `<p>Hello ${this.escapeHtml(salutationFirstName)},</p>` +
+      helloHtml +
       `<p>Please find your corporate housing proposal attached.</p>` +
       signatureHtml;
 
@@ -816,11 +758,6 @@ export class QuoteCreateComponent extends BaseDocumentComponent implements OnIni
 
   //#region Utility Methods
   getQuoteEmailRecipientFirstName(preparedForDisplayName: string): string {
-    const contact = this.selectedRecipient;
-    const fromContact = String(contact?.firstName ?? '').trim();
-    if (fromContact.length > 0) {
-      return fromContact;
-    }
     const trimmed = String(preparedForDisplayName || '').trim();
     if (!trimmed) {
       return '';

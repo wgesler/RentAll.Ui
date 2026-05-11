@@ -2,7 +2,6 @@ import { CommonModule } from '@angular/common';
 import { Component, EventEmitter, Input, Output } from '@angular/core';
 import { FormGroup, ReactiveFormsModule } from '@angular/forms';
 import { MaterialModule } from '../../../material.module';
-import { ContactResponse } from '../../contacts/models/contact.model';
 import { TitleBarSelectComponent } from '../../shared/titlebar-select/titlebar-select.component';
 import { QuoteListingRow } from '../models/quote.model';
 
@@ -17,7 +16,6 @@ export class QuoteComponent {
   @Input() form!: FormGroup;
   @Input() officeTitleBarOptions: { value: number, label: string }[] = [];
   @Input() selectedOfficeId: number | null = null;
-  @Input() contacts: ContactResponse[] = [];
   @Input() isViewDisabled = false;
   @Input() officeLogoUrl: string | null = null;
   @Input() companyNameDisplay = '';
@@ -28,7 +26,6 @@ export class QuoteComponent {
   @Input() isLoadingLinks = false;
 
   @Output() officeIdChange = new EventEmitter<number | null>();
-  @Output() recipientChange = new EventEmitter<void>();
   @Output() listingRowsChange = new EventEmitter<void>();
   @Output() viewClick = new EventEmitter<void>();
   @Output() backClick = new EventEmitter<void>();
@@ -39,10 +36,6 @@ export class QuoteComponent {
       return;
     }
     this.officeIdChange.emit(Number(value));
-  }
-
-  onRecipientSelectionChange(): void {
-    this.recipientChange.emit();
   }
 
   onRateChange(listing: QuoteListingRow, event: Event): void {
