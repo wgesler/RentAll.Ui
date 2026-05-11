@@ -82,6 +82,8 @@ export interface ReservationPropertyMaintenance extends PropertyMaintenance {
   companyName?: string | null;
   tenantName: string;
   agentCode?: string | null;
+  billingTypeId?: number | null;
+  billingRate?: number;
   reservationStatusId: number;
   arrivalDate: CalendarDateString;
   arrivalDateOrdinal: number | null;

@@ -13,6 +13,7 @@ import { PropertyTrackerResponse, PropertyTrackerResponseOption, PropertyTracker
 import { AgentResponse } from '../../organizations/models/agent.model';
 import { AgentService } from '../../organizations/services/agent.service';
 import { ReservationListDisplay, ReservationTrackerResponse, ReservationTrackerResponseOption, ReservationTrackerResponseOptionRequest, ReservationTrackerResponseRequest} from '../../reservations/models/reservation-model';
+import { BillingType } from '../../reservations/models/reservation-enum';
 import { ReservationService } from '../../reservations/services/reservation.service';
 import { MaintenanceService } from '../../maintenance/services/maintenance.service';
 import { DataTableComponent } from '../../shared/data-table/data-table.component';
@@ -661,11 +662,12 @@ export class DashboardMainComponent extends PropertyMaintenanceBase implements O
 
     const overlapsCurrentMonth = (a: number, d: number) => a <= monthHi && d >= monthLo;
 
-    const getDaysRentedInCurrentMonth = (arrivalOrdinal: number, departureOrdinal: number): number => {
+    const getDaysRentedInCurrentMonth = (arrivalOrdinal: number, departureOrdinal: number, billingTypeId?: number | null): number => {
       const overlapStart = Math.max(arrivalOrdinal, monthLo);
       const overlapEnd = Math.min(departureOrdinal, monthHi);
       if (overlapStart > overlapEnd) return 0;
-      return this.toJulianDay(overlapEnd) - this.toJulianDay(overlapStart) + 1;
+      const span = this.toJulianDay(overlapEnd) - this.toJulianDay(overlapStart);
+      return billingTypeId === BillingType.Nightly ? span : span + 1;
     };
 
     const resolveCommissionRate = (row: { agentCode?: string | null }): number => this.canViewAllCommissions
@@ -688,7 +690,7 @@ export class DashboardMainComponent extends PropertyMaintenanceBase implements O
         (a.reservationCode || '').localeCompare(b.reservationCode || '')
       )
       .map(row => {
-        const daysRented = getDaysRentedInCurrentMonth(row.arrivalDateOrdinal!, row.departureDateOrdinal!);
+        const daysRented = getDaysRentedInCurrentMonth(row.arrivalDateOrdinal!, row.departureDateOrdinal!, row.billingTypeId);
         const commission = getCommission(daysRented, resolveCommissionRate(row));
         return {
           ...(row as unknown as MonthlyCommissionDisplay),

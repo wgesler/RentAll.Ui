@@ -141,6 +141,7 @@ export interface ReservationListResponse {
   tenantName: string;
   agentCode?: string | null;
   billingTypeId?: number | null;
+  billingRate?: number;
   monthlyRate: number;
   arrivalDate: CalendarDateString;
   departureDate: CalendarDateString;
@@ -185,6 +186,8 @@ export interface ReservationListDisplay {
   companyId?: string | null;
   companyName: string;
   agentCode?: string | null;
+  billingTypeId?: number | null;
+  billingRate?: number;
   monthlyRate: number;
   arrivalDate: CalendarDateString;
   departureDate: CalendarDateString;

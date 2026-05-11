@@ -112,6 +112,8 @@ export class MixedMappingService {
         companyName: reservation.companyName ?? null,
         tenantName: reservation.tenantName ?? '',
         agentCode: reservation.agentCode ?? null,
+        billingTypeId: reservation.billingTypeId ?? null,
+        billingRate: reservation.billingRate ?? 0,
         reservationStatusId: reservation.reservationStatusId,
         arrivalDate: reservation.arrivalDate,
         arrivalDateOrdinal: this.utilityService.parseCalendarDateToOrdinal(reservation.arrivalDate),

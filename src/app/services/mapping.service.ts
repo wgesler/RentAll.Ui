@@ -1077,6 +1077,8 @@ export class MappingService {
         companyId: this.utility.normalizeIdOrNull(o.companyId),
         companyName: companyName,
         agentCode: o.agentCode?? null,
+        billingTypeId: o.billingTypeId ?? null,
+        billingRate: o.billingRate ?? 0,
         monthlyRate: o.monthlyRate,
         arrivalDate: this.formatter.formatDateString(o.arrivalDate),
         departureDate: this.formatter.formatDateString(o.departureDate),
