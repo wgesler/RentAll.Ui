@@ -3,7 +3,7 @@ import { Component, EventEmitter, Input, Output } from '@angular/core';
 import { FormGroup, ReactiveFormsModule } from '@angular/forms';
 import { MaterialModule } from '../../../material.module';
 import { TitleBarSelectComponent } from '../../shared/titlebar-select/titlebar-select.component';
-import { QuoteListingRow } from '../models/quote.model';
+import { QuoteListingColumnFlags, QuoteListingRow } from '../models/quote.model';
 
 @Component({
   standalone: true,
@@ -23,6 +23,7 @@ export class QuoteComponent {
   @Input() companyAddressLine2 = '';
   @Input() currentUserEmail = '';
   @Input() propertyListingLinks: QuoteListingRow[] = [];
+  @Input({ required: true }) listingColumnFlags!: QuoteListingColumnFlags;
   @Input() isLoadingLinks = false;
 
   @Output() officeIdChange = new EventEmitter<number | null>();
@@ -53,6 +54,24 @@ export class QuoteComponent {
       return;
     }
     listing.petFee = target.value || '';
+    this.listingRowsChange.emit();
+  }
+
+  onDepartureFeeChange(listing: QuoteListingRow, event: Event): void {
+    const target = event.target as HTMLInputElement | null;
+    if (!target) {
+      return;
+    }
+    listing.departureFee = target.value || '';
+    this.listingRowsChange.emit();
+  }
+
+  onMaidServiceFeeChange(listing: QuoteListingRow, event: Event): void {
+    const target = event.target as HTMLInputElement | null;
+    if (!target) {
+      return;
+    }
+    listing.maidServiceFee = target.value || '';
     this.listingRowsChange.emit();
   }
 

@@ -62,6 +62,10 @@ export interface OfficeRequest {
   quotePreface?: string | null;
   quoteSuffix?: string | null;
   quoteDisclaimer?: string | null;
+  quotePropertyCode: boolean;
+  quotePetFee: boolean;
+  quoteDepartureFee: boolean;
+  quoteMaidFee: boolean;
 }
 
 export interface OfficeResponse {
@@ -126,6 +130,10 @@ export interface OfficeResponse {
   quotePreface?: string | null;
   quoteSuffix?: string | null;
   quoteDisclaimer?: string | null;
+  quotePropertyCode: boolean;
+  quotePetFee: boolean;
+  quoteDepartureFee: boolean;
+  quoteMaidFee: boolean;
 
 }
 

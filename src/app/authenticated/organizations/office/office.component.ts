@@ -255,6 +255,10 @@ export class OfficeComponent implements OnInit, OnDestroy, OnChanges, AfterViewI
       quotePreface: (formValue.quotePreface ?? '').toString().trim(),
       quoteSuffix: (formValue.quoteSuffix ?? '').toString().trim(),
       quoteDisclaimer: (formValue.quoteDisclaimer ?? '').toString().trim(),
+      quotePropertyCode: !!formValue.quotePropertyCode,
+      quotePetFee: !!formValue.quotePetFee,
+      quoteDepartureFee: !!formValue.quoteDepartureFee,
+      quoteMaidFee: !!formValue.quoteMaidFee,
       ...this.buildValidCostCodeRequest(formValue)
     };
     const orgId = (this.organizationId || this.office?.organizationId || user?.organizationId || '').trim();
@@ -462,7 +466,11 @@ export class OfficeComponent implements OnInit, OnDestroy, OnChanges, AfterViewI
       securityDepositWaiverCcId: new FormControl<number | null>(null),
       quotePreface: new FormControl<string>('', [Validators.maxLength(2048)]),
       quoteSuffix: new FormControl<string>('', [Validators.maxLength(2048)]),
-      quoteDisclaimer: new FormControl<string>('', [Validators.maxLength(2048)])
+      quoteDisclaimer: new FormControl<string>('', [Validators.maxLength(2048)]),
+      quotePropertyCode: new FormControl<boolean>(false),
+      quotePetFee: new FormControl<boolean>(false),
+      quoteDepartureFee: new FormControl<boolean>(false),
+      quoteMaidFee: new FormControl<boolean>(false)
     });
 
     // Setup conditional validation for international addresses
@@ -531,7 +539,11 @@ export class OfficeComponent implements OnInit, OnDestroy, OnChanges, AfterViewI
           securityDepositWaiverCcId: this.office.securityDepositWaiverCcId ?? null,
           quotePreface: this.office.quotePreface || '',
           quoteSuffix: this.office.quoteSuffix || '',
-          quoteDisclaimer: this.office.quoteDisclaimer || ''
+          quoteDisclaimer: this.office.quoteDisclaimer || '',
+          quotePropertyCode: this.office.quotePropertyCode ?? false,
+          quotePetFee: this.office.quotePetFee ?? false,
+          quoteDepartureFee: this.office.quoteDepartureFee ?? false,
+          quoteMaidFee: this.office.quoteMaidFee ?? false
         });
         this.syncAllQuoteTextEditorsFromForm();
       }, 0);
@@ -598,7 +610,11 @@ export class OfficeComponent implements OnInit, OnDestroy, OnChanges, AfterViewI
       securityDepositWaiverCcId: o.securityDepositWaiverCcId ?? null,
       quotePreface: o.quotePreface || '',
       quoteSuffix: o.quoteSuffix || '',
-      quoteDisclaimer: o.quoteDisclaimer || ''
+      quoteDisclaimer: o.quoteDisclaimer || '',
+      quotePropertyCode: o.quotePropertyCode ?? false,
+      quotePetFee: o.quotePetFee ?? false,
+      quoteDepartureFee: o.quoteDepartureFee ?? false,
+      quoteMaidFee: o.quoteMaidFee ?? false
     }, { emitEvent: false });
     setTimeout(() => this.syncAllQuoteTextEditorsFromForm(), 0);
   }

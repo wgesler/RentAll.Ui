@@ -28,7 +28,7 @@ import { OfficeService } from '../../organizations/services/office.service';
 import { BaseDocumentComponent, DocumentConfig, DownloadConfig, EmailConfig } from '../../shared/base-document.component';
 import { TitleBarSelectComponent } from '../../shared/titlebar-select/titlebar-select.component';
 import { PropertyResponse } from '../models/property.model';
-import { QuotePropertyListingLink } from '../models/quote.model';
+import { QuoteListingColumnFlags, QuotePropertyListingLink } from '../models/quote.model';
 import { PropertyService } from '../services/property.service';
 import { PropertyListingShareService } from '../services/property-listing-share.service';
 import { ToastrService } from 'ngx-toastr';
@@ -430,13 +430,16 @@ export class QuoteCreateComponent extends BaseDocumentComponent implements OnIni
         return {
           propertyId,
           propertyCode: property.propertyCode || propertyId,
-          address: this.getPropertyAddressText(property),
+          addressLine1: this.getPropertyQuoteAddressLine1(property),
+          addressLine2: this.getPropertyQuoteAddressLine2(property),
           area: this.getAreaText(property),
           beds: `${property.bedrooms ?? 0}/${property.bathrooms ?? 0}`,
           price: this.getPriceText(property),
           parking: property.parking ? 'Yes' : 'No',
           petFriendly: property.petsAllowed ? 'Yes' : 'No',
-          petFee: this.getPetFeeText(property),
+          petFee: this.getFeeDollarsText(property, 'petFee'),
+          departureFee: this.getFeeDollarsText(property, 'departureFee'),
+          maidServiceFee: this.getFeeDollarsText(property, 'maidServiceFee'),
           url: listingUrl,
           officeId: property.officeId ?? null
         } as QuotePropertyListingLink;
@@ -454,6 +457,8 @@ export class QuoteCreateComponent extends BaseDocumentComponent implements OnIni
       }
       const previousPriceByPropertyId = new Map(this.propertyListingLinks.map(link => [link.propertyId, link.price]));
       const previousPetFeeByPropertyId = new Map(this.propertyListingLinks.map(link => [link.propertyId, link.petFee]));
+      const previousDepartureFeeByPropertyId = new Map(this.propertyListingLinks.map(link => [link.propertyId, link.departureFee]));
+      const previousMaidServiceFeeByPropertyId = new Map(this.propertyListingLinks.map(link => [link.propertyId, link.maidServiceFee]));
       this.propertyListingLinks = resolved.map(link => {
         let next = link;
         if (previousPriceByPropertyId.has(link.propertyId)) {
@@ -461,6 +466,12 @@ export class QuoteCreateComponent extends BaseDocumentComponent implements OnIni
         }
         if (previousPetFeeByPropertyId.has(link.propertyId)) {
           next = { ...next, petFee: previousPetFeeByPropertyId.get(link.propertyId)! };
+        }
+        if (previousDepartureFeeByPropertyId.has(link.propertyId)) {
+          next = { ...next, departureFee: previousDepartureFeeByPropertyId.get(link.propertyId)! };
+        }
+        if (previousMaidServiceFeeByPropertyId.has(link.propertyId)) {
+          next = { ...next, maidServiceFee: previousMaidServiceFeeByPropertyId.get(link.propertyId)! };
         }
         return next;
       });
@@ -534,14 +545,22 @@ export class QuoteCreateComponent extends BaseDocumentComponent implements OnIni
   get currentUserEmail(): string {
     return this.selectedAccountingOffice?.email?.trim() || this.authService.getUser()?.email || '';
   }
+
+  get quoteListingColumnFlags(): QuoteListingColumnFlags {
+    const o = this.selectedOffice;
+    return {
+      propertyCode: !!o?.quotePropertyCode,
+      petFee: !!o?.quotePetFee,
+      departureFee: !!o?.quoteDepartureFee,
+      maidFee: !!o?.quoteMaidFee
+    };
+  }
   //#endregion
 
   //#region Formatting Methods
-  getPropertyAddressText(property: PropertyResponse): string {
+  getPropertyQuoteAddressLine1(property: PropertyResponse): string {
     const address1 = String(property.address1 || '').trim();
     const suite = String(property.suite || '').trim().replace(/^#+\s*/, '');
-    const city = String(property.city || '').trim();
-
     const streetParts: string[] = [];
     if (address1) {
       streetParts.push(address1);
@@ -549,12 +568,15 @@ export class QuoteCreateComponent extends BaseDocumentComponent implements OnIni
     if (suite) {
       streetParts.push(`#${suite}`);
     }
-    const street = streetParts.join(' ');
+    return streetParts.join(' ');
+  }
 
-    if (street && city) {
-      return `${street}, ${city}`;
-    }
-    return street || city || '';
+  getPropertyQuoteAddressLine2(property: PropertyResponse): string {
+    const city = String(property.city || '').trim();
+    const state = String(property.state || '').trim();
+    const zip = String(property.zip || '').trim();
+    const stateZip = [state, zip].filter(Boolean).join(' ');
+    return [city, stateZip].filter(Boolean).join(', ');
   }
 
   getAreaText(property: PropertyResponse): string {
@@ -567,9 +589,11 @@ export class QuoteCreateComponent extends BaseDocumentComponent implements OnIni
     return `$${this.formatWholeCurrency(monthly)}/$${this.formatWholeCurrency(daily)}`;
   }
 
-  getPetFeeText(property: PropertyResponse): string {
-    const fee = Number(property.petFee ?? 0);
-    return `$${this.formatWholeCurrency(fee)}/$${this.formatWholeCurrency(0)}`;
+  getFeeDollarsText(property: PropertyResponse, field: 'departureFee' | 'maidServiceFee' | 'petFee'): string {
+    const raw = property[field];
+    const n = Number(raw ?? 0);
+    const safe = Number.isFinite(n) ? n : 0;
+    return `$${safe.toFixed(2)}`;
   }
 
   formatWholeCurrency(value: number): string {
@@ -634,6 +658,8 @@ export class QuoteCreateComponent extends BaseDocumentComponent implements OnIni
     result = result.replace(/\{\{agentName\}\}/g, this.escapeHtml(this.form.get('agentName')?.value ?? ''));
     result = result.replace(/\{\{quoteValidThru\}\}/g, this.escapeHtml(this.form.get('quoteValidFor')?.value ?? ''));
 
+    result = result.replace(/\{\{propertyListingColgroup\}\}/g, this.buildPropertyListingColgroupHtml());
+    result = result.replace(/\{\{propertyListingHeaderRow\}\}/g, this.buildPropertyListingHeaderRowHtml());
     result = result.replace(/\{\{propertyListingRows\}\}/g, this.buildPropertyListingRowsHtml());
 
     result = result.replace(/\{\{quotePrefaceBlock\}\}/g, this.buildQuoteOfficePrefaceBlock());
@@ -683,24 +709,113 @@ export class QuoteCreateComponent extends BaseDocumentComponent implements OnIni
     return `<div class="quote-office-disclaimer">${this.buildQuoteOfficeMultilineHtml(raw)}</div>`;
   }
 
+  buildPropertyListingColgroupHtml(): string {
+    const f = this.quoteListingColumnFlags;
+    const cols: string[] = ['<colgroup>'];
+    if (f.propertyCode) {
+      cols.push('<col style="width:16ch" />');
+    }
+    cols.push('<col style="width:24ch" />');
+    cols.push('<col style="width:3.65rem" />');
+    cols.push('<col />');
+    cols.push('<col />');
+    cols.push('<col />');
+    if (f.petFee) {
+      cols.push('<col />');
+    }
+    if (f.departureFee) {
+      cols.push('<col />');
+    }
+    if (f.maidFee) {
+      cols.push('<col />');
+    }
+    cols.push('<col />');
+    cols.push('</colgroup>');
+    return cols.join('');
+  }
+
+  getPropertyListingColumnCount(): number {
+    const f = this.quoteListingColumnFlags;
+    let n = 0;
+    if (f.propertyCode) {
+      n++;
+    }
+    n += 5;
+    if (f.petFee) {
+      n++;
+    }
+    if (f.departureFee) {
+      n++;
+    }
+    if (f.maidFee) {
+      n++;
+    }
+    n++;
+    return n;
+  }
+
+  buildPropertyListingHeaderRowHtml(): string {
+    const f = this.quoteListingColumnFlags;
+    const cells: string[] = [];
+    if (f.propertyCode) {
+      cells.push('<th class="quote-property-col">Property</th>');
+    }
+    cells.push('<th class="quote-address-col">Address</th>');
+    cells.push('<th class="text-center quote-beds-col">B/B</th>');
+    cells.push('<th class="text-center quote-rate-col">Rate</th>');
+    cells.push('<th class="text-center quote-parking-col">Parking</th>');
+    cells.push('<th class="text-center quote-pet-friendly-col">Pets</th>');
+    if (f.petFee) {
+      cells.push('<th class="text-center quote-pet-fee-col">Pet Fee</th>');
+    }
+    if (f.departureFee) {
+      cells.push('<th class="text-center quote-departure-fee-col">Departure</th>');
+    }
+    if (f.maidFee) {
+      cells.push('<th class="text-center quote-maid-fee-col">Maid</th>');
+    }
+    cells.push('<th class="text-center quote-link-col">Link</th>');
+    return `<tr>${cells.join('')}</tr>`;
+  }
+
   buildPropertyListingRowsHtml(): string {
     if (!this.propertyListingLinks.length) {
-      return '<tr><td colspan="8">No property listings selected.</td></tr>';
+      const colspan = this.getPropertyListingColumnCount();
+      return `<tr><td colspan="${colspan}">No property listings selected.</td></tr>`;
     }
+    const f = this.quoteListingColumnFlags;
     return this.propertyListingLinks.map(link => {
       const rawUrl = this.getResolvedListingUrl(link);
       const href = this.escapeHtmlAttribute(rawUrl);
-      const linkCell = `<td><a href="${href}" class="quote-link" target="_blank" rel="noopener noreferrer">View Listing</a></td>`;
-      return `<tr class="ledger-line-row">
-        <td class="quote-property-col">${this.escapeHtml(link.propertyCode)}</td>
-        <td class="quote-address-col">${this.escapeHtml(link.address)}</td>
-        <td class="text-center quote-beds-col">${this.escapeHtml(link.beds)}</td>
-        <td class="text-center quote-rate-col">${this.escapeHtml(link.price)}</td>
-        <td class="text-center quote-parking-col">${this.escapeHtml(link.parking)}</td>
-        <td class="text-center quote-pet-friendly-col">${this.escapeHtml(link.petFriendly)}</td>
-        <td class="text-center quote-pet-fee-col">${this.escapeHtml(link.petFee)}</td>
-        ${linkCell}
-      </tr>`;
+      const linkCell = `<td class="quote-link-col"><a href="${href}" class="quote-link" target="_blank" rel="noopener noreferrer">View Listing</a></td>`;
+      const cells: string[] = [];
+      if (f.propertyCode) {
+        cells.push(`<td class="quote-property-col">${this.escapeHtml(link.propertyCode)}</td>`);
+      }
+      const addrParts: string[] = [];
+      if (link.addressLine1) {
+        addrParts.push(`<div class="quote-address-line1">${this.escapeHtml(link.addressLine1)}</div>`);
+      }
+      if (link.addressLine2) {
+        addrParts.push(`<div class="quote-address-line2">${this.escapeHtml(link.addressLine2)}</div>`);
+      }
+      const addrInner = addrParts.length > 0 ? addrParts.join('') : '&nbsp;';
+      cells.push(`<td class="quote-address-col">${addrInner}</td>`);
+      cells.push(`<td class="text-center quote-beds-col">${this.escapeHtml(link.beds)}</td>`);
+      cells.push(`<td class="text-center quote-rate-col">${this.escapeHtml(link.price)}</td>`);
+      cells.push(`<td class="text-center quote-parking-col">${this.escapeHtml(link.parking)}</td>`);
+      cells.push(`<td class="text-center quote-pet-friendly-col">${this.escapeHtml(link.petFriendly)}</td>`);
+      if (f.petFee) {
+        cells.push(`<td class="text-center quote-pet-fee-col">${this.escapeHtml(link.petFee)}</td>`);
+      }
+      if (f.departureFee) {
+        cells.push(`<td class="text-center quote-departure-fee-col">${this.escapeHtml(link.departureFee)}</td>`);
+      }
+      if (f.maidFee) {
+        cells.push(`<td class="text-center quote-maid-fee-col">${this.escapeHtml(link.maidServiceFee)}</td>`);
+      }
+      cells.push(linkCell);
+      return `<tr class="ledger-line-row">${cells.join('')}</tr>`;
     }).join('\n');
   }
   //#endregion

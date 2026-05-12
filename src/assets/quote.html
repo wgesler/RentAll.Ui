@@ -173,6 +173,7 @@
 
     .charges-table {
       width: 100%;
+      max-width: 100%;
       table-layout: fixed;
       border-collapse: collapse;
       margin-top: 0;
@@ -187,80 +188,162 @@
       border-left: none;
       border-right: none;
       border-top: none;
-      border-bottom: 1px solid #ddd;
+      border-bottom: 1px solid #bdbdbd;
+      box-sizing: border-box;
+      vertical-align: top;
     }
 
-    .charges-table thead th {
-      border-bottom: 1px solid #ccc;
+    .charges-table th.quote-property-col {
+      vertical-align: top;
+      white-space: normal;
+      overflow-wrap: break-word;
+      word-break: normal;
+      line-height: 1.25;
     }
 
-    .charges-table tbody tr:last-child td {
-      border-bottom: none;
-    }
-
-    .charges-table th.quote-property-col,
     .charges-table td.quote-property-col {
-      width: 15ch;
-      max-width: 15ch;
+      vertical-align: top;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      line-height: 1.25;
     }
 
     .charges-table th.quote-address-col,
     .charges-table td.quote-address-col {
-      width: 30ch;
-      max-width: 30ch;
-      overflow-wrap: anywhere;
-      word-break: break-word;
+      vertical-align: top;
+      white-space: normal;
+      overflow-wrap: break-word;
+      word-break: normal;
     }
 
     .charges-table th.quote-beds-col,
     .charges-table td.quote-beds-col {
-      width: 56px;
-      max-width: 56px;
+      padding-left: 4px;
+      padding-right: 4px;
+      text-align: center;
+      box-sizing: border-box;
+    }
+
+    .charges-table th.quote-beds-col {
+      white-space: normal;
+      line-height: 1.15;
+    }
+
+    .charges-table td.quote-beds-col {
+      white-space: nowrap;
     }
 
     .charges-table th.quote-rate-col,
     .charges-table td.quote-rate-col {
-      width: 108px;
-      max-width: 108px;
+      min-width: 0;
+      padding-left: 8px;
+      padding-right: 8px;
+      white-space: normal;
     }
 
     .charges-table th.quote-parking-col,
     .charges-table td.quote-parking-col {
-      width: 58px;
-      max-width: 58px;
+      min-width: 0;
+      white-space: nowrap;
+      padding-left: 8px;
+      padding-right: 8px;
     }
 
     .charges-table th.quote-pet-friendly-col,
     .charges-table td.quote-pet-friendly-col {
-      width: 50px;
-      max-width: 50px;
+      min-width: 0;
+      padding-left: 8px;
+      padding-right: 8px;
+    }
+
+    .charges-table th.quote-pet-friendly-col {
+      white-space: normal;
+    }
+
+    .charges-table td.quote-pet-friendly-col {
+      white-space: nowrap;
     }
 
     .charges-table th.quote-pet-fee-col,
     .charges-table td.quote-pet-fee-col {
-      width: 94px;
-      max-width: 94px;
+      min-width: 0;
+      padding-left: 8px;
+      padding-right: 8px;
+    }
+
+    .charges-table th.quote-pet-fee-col {
+      white-space: normal;
+    }
+
+    .charges-table td.quote-pet-fee-col {
+      white-space: nowrap;
+    }
+
+    .charges-table th.quote-departure-fee-col,
+    .charges-table td.quote-departure-fee-col,
+    .charges-table th.quote-maid-fee-col,
+    .charges-table td.quote-maid-fee-col {
+      min-width: 0;
+      padding-left: 8px;
+      padding-right: 8px;
+      text-align: center;
+    }
+
+    .charges-table th.quote-departure-fee-col,
+    .charges-table th.quote-maid-fee-col {
+      white-space: normal;
+    }
+
+    .charges-table td.quote-departure-fee-col,
+    .charges-table td.quote-maid-fee-col {
+      white-space: nowrap;
+    }
+
+    .charges-table th.quote-link-col,
+    .charges-table td.quote-link-col {
+      min-width: 0;
+      padding-left: 8px;
+      padding-right: 8px;
+      white-space: normal;
+    }
+
+    .charges-table td.quote-link-col {
+      text-align: center;
     }
 
     .charges-table th {
-      font-size: 10pt;
+      font-size: 8pt;
+      line-height: 1.15;
       font-weight: 600;
       background-color: #f5f5f5;
-      padding: calc(3px + 2pt) 4px;
+      padding: 6px 3px 4px 3px;
+      vertical-align: top;
+    }
+
+    .charges-table th.quote-property-col,
+    .charges-table th.quote-address-col {
       text-align: left;
+    }
+
+    .charges-table th.quote-link-col {
+      text-align: center;
+    }
+
+    .charges-table th.text-center {
+      text-align: center;
+    }
+
+    .charges-table td.text-center {
+      text-align: center;
     }
 
     .charges-table th.text-right {
       text-align: right;
     }
 
-    .charges-table th.text-center,
-    .charges-table td.text-center {
-      text-align: center;
-    }
-
     .charges-table td {
-      padding: calc(3px + 2pt) 4px;
+      padding: 4px 3px 2px 3px;
       text-align: left;
     }
 
@@ -276,7 +359,30 @@
       color: #0d47a1;
       font-weight: 600;
       text-decoration: underline;
-      white-space: nowrap;
+    }
+
+    .charges-table td.quote-link-col .quote-link {
+      white-space: normal;
+      line-height: 1.25;
+    }
+
+    .charges-table .quote-address-line1,
+    .charges-table .quote-address-line2 {
+      display: block;
+      width: 100%;
+      box-sizing: border-box;
+      border: none;
+      border-radius: 0;
+      padding: 1px 0;
+      line-height: 1.25;
+      overflow-wrap: break-word;
+      word-break: normal;
+      background: transparent;
+      color: inherit;
+    }
+
+    .charges-table .quote-address-line2 {
+      margin-top: 3px;
     }
 
     .quote-office-preface {
@@ -356,20 +462,12 @@
 
     <div class="listings-heading-row">
       <p class="listings-title">Property Listings</p>
-      <p class="quote-proposal-legend quote-proposal-legend--listings"><strong>M</strong> (monthly), <strong>D</strong> (daily), <strong>OTF</strong> (one-time fee).</p>
+      <p class="quote-proposal-legend quote-proposal-legend--listings"><strong>M</strong> (Monthly), <strong>D</strong> (Daily), <strong>N</strong> (Nightly).</p>
     </div>
     <table class="charges-table" role="presentation">
+      {{propertyListingColgroup}}
       <thead>
-        <tr>
-          <th class="quote-property-col">Property</th>
-          <th class="quote-address-col">Address</th>
-          <th class="text-center quote-beds-col">B/B</th>
-          <th class="text-center quote-rate-col">Rate</th>
-          <th class="text-center quote-parking-col">Parking</th>
-          <th class="text-center quote-pet-friendly-col">Pets</th>
-          <th class="text-center quote-pet-fee-col">Pet Fee</th>
-          <th>Link</th>
-        </tr>
+        {{propertyListingHeaderRow}}
       </thead>
       <tbody>
         {{propertyListingRows}}

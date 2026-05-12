@@ -24,6 +24,7 @@
     [selectedOfficeId]="headerOfficeId"
     [isViewDisabled]="propertyListingLinks.length === 0"
     [propertyListingLinks]="propertyListingLinks"
+    [listingColumnFlags]="quoteListingColumnFlags"
     [isLoadingLinks]="isLoadingLinks"
     (listingRowsChange)="refreshQuoteDocumentPreview()"
     (officeIdChange)="onOfficeChanged($event)"

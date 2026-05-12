@@ -654,6 +654,13 @@
                   <mat-panel-title>Quote Text</mat-panel-title>
                 </mat-expansion-panel-header>
                 <div class="grid grid-cols-1 form-standard-grid gap-y-4">
+                  <div class="w-full flex flex-wrap items-center gap-x-6 gap-y-2 quote-include-in-quote-row">
+                    <span class="description-editor-label quote-include-in-quote-heading">Include in Quote</span>
+                    <mat-checkbox formControlName="quotePropertyCode" color="primary">Property code</mat-checkbox>
+                    <mat-checkbox formControlName="quotePetFee" color="primary">Pet fee</mat-checkbox>
+                    <mat-checkbox formControlName="quoteDepartureFee" color="primary">Departure fee</mat-checkbox>
+                    <mat-checkbox formControlName="quoteMaidFee" color="primary">Maid fee</mat-checkbox>
+                  </div>
                   <div class="w-full">
                     <div class="description-editor-wrap">
                       <div class="description-editor-label">Quote preface</div>
