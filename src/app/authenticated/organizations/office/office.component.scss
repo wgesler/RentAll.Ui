@@ -122,10 +122,37 @@
   outline: none;
   line-height: 1.45;
   white-space: pre-wrap;
+  font-family: var(--mat-sys-body-large-font, Roboto, 'Helvetica Neue', sans-serif);
+  font-size: var(--mat-sys-body-large-size, 14px);
+  font-weight: var(--mat-sys-body-large-weight, 400);
+  color: var(--mat-sys-on-surface, rgba(0, 0, 0, 0.87));
 }
 
 .description-editor-input:focus {
   border-color: var(--global-primary, #1976d2);
+}
+
+:host ::ng-deep .description-editor-input--with-markers * {
+  font-family: inherit !important;
+  font-size: inherit !important;
+  font-weight: inherit !important;
+  font-style: normal !important;
+  letter-spacing: inherit !important;
+  line-height: inherit !important;
+  color: inherit !important;
+  background-color: transparent !important;
+}
+
+:host ::ng-deep .description-editor-input--with-markers :is(b, strong) {
+  font-weight: 700 !important;
+}
+
+:host ::ng-deep .description-editor-input--with-markers :is(i, em) {
+  font-style: italic !important;
+}
+
+:host ::ng-deep .description-editor-input--with-markers u {
+  text-decoration: underline !important;
 }
 
 :host ::ng-deep .description-editor-input--with-markers :is(ul, ol) {

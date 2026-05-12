@@ -183,6 +183,19 @@
       border: 1px solid #ddd;
     }
 
+    /* Override inline col widths from colgroup: slightly wider address, tighter property (ellipsis). */
+    .charges-table:has(th.quote-property-col) colgroup col:nth-child(1) {
+      width: 11ch !important;
+    }
+
+    .charges-table:has(th.quote-property-col) colgroup col:nth-child(2) {
+      width: 21ch !important;
+    }
+
+    .charges-table:not(:has(th.quote-property-col)) colgroup col:nth-child(1) {
+      width: 22ch !important;
+    }
+
     .charges-table th,
     .charges-table td {
       border-left: none;
@@ -195,8 +208,11 @@
 
     .charges-table th.quote-property-col {
       vertical-align: top;
-      white-space: normal;
-      overflow-wrap: break-word;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      max-width: 0;
+      overflow-wrap: normal;
       word-break: normal;
       line-height: 1.25;
     }
@@ -207,6 +223,7 @@
       text-overflow: ellipsis;
       white-space: nowrap;
       line-height: 1.25;
+      max-width: 0;
     }
 
     .charges-table th.quote-address-col,
@@ -237,8 +254,8 @@
     .charges-table th.quote-rate-col,
     .charges-table td.quote-rate-col {
       min-width: 0;
-      padding-left: 8px;
-      padding-right: 8px;
+      padding-left: 5px;
+      padding-right: 5px;
       white-space: normal;
     }
 
@@ -246,15 +263,15 @@
     .charges-table td.quote-parking-col {
       min-width: 0;
       white-space: nowrap;
-      padding-left: 8px;
-      padding-right: 8px;
+      padding-left: 5px;
+      padding-right: 5px;
     }
 
     .charges-table th.quote-pet-friendly-col,
     .charges-table td.quote-pet-friendly-col {
       min-width: 0;
-      padding-left: 8px;
-      padding-right: 8px;
+      padding-left: 5px;
+      padding-right: 5px;
     }
 
     .charges-table th.quote-pet-friendly-col {
@@ -268,8 +285,8 @@
     .charges-table th.quote-pet-fee-col,
     .charges-table td.quote-pet-fee-col {
       min-width: 0;
-      padding-left: 8px;
-      padding-right: 8px;
+      padding-left: 5px;
+      padding-right: 5px;
     }
 
     .charges-table th.quote-pet-fee-col {
@@ -285,8 +302,8 @@
     .charges-table th.quote-maid-fee-col,
     .charges-table td.quote-maid-fee-col {
       min-width: 0;
-      padding-left: 8px;
-      padding-right: 8px;
+      padding-left: 5px;
+      padding-right: 5px;
       text-align: center;
     }
 
@@ -303,8 +320,8 @@
     .charges-table th.quote-link-col,
     .charges-table td.quote-link-col {
       min-width: 0;
-      padding-left: 8px;
-      padding-right: 8px;
+      padding-left: 5px;
+      padding-right: 5px;
       white-space: normal;
     }
 

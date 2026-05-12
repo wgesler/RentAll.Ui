@@ -464,9 +464,9 @@ export class OfficeComponent implements OnInit, OnDestroy, OnChanges, AfterViewI
       petFeeCcId: new FormControl<number | null>(null),
       securityDepositCcId: new FormControl<number | null>(null),
       securityDepositWaiverCcId: new FormControl<number | null>(null),
-      quotePreface: new FormControl<string>('', [Validators.maxLength(2048)]),
-      quoteSuffix: new FormControl<string>('', [Validators.maxLength(2048)]),
-      quoteDisclaimer: new FormControl<string>('', [Validators.maxLength(2048)]),
+      quotePreface: new FormControl<string>(''),
+      quoteSuffix: new FormControl<string>(''),
+      quoteDisclaimer: new FormControl<string>(''),
       quotePropertyCode: new FormControl<boolean>(false),
       quotePetFee: new FormControl<boolean>(false),
       quoteDepartureFee: new FormControl<boolean>(false),
@@ -667,6 +667,96 @@ export class OfficeComponent implements OnInit, OnDestroy, OnChanges, AfterViewI
     control?.setValue(element.innerHTML, { emitEvent: false });
     control?.markAsDirty();
     control?.markAsTouched();
+  }
+
+  onQuoteTextPaste(controlName: 'quotePreface' | 'quoteSuffix' | 'quoteDisclaimer', event: ClipboardEvent): void {
+    const cd = event.clipboardData;
+    const htmlRaw = (cd?.getData('text/html') ?? '').trim();
+    const plain = cd?.getData('text/plain') ?? '';
+    let insert = '';
+    if (htmlRaw.length > 0) {
+      insert = this.sanitizeQuotePasteHtml(htmlRaw).trim();
+    }
+    if (!insert && plain.length > 0) {
+      insert = this.quotePastePlainToHtml(plain);
+    }
+    if (!insert) {
+      return;
+    }
+    event.preventDefault();
+    document.execCommand('insertHTML', false, insert);
+    const editor = this.getQuoteTextEditorElement(controlName);
+    if (editor) {
+      const control = this.form.get(controlName);
+      control?.setValue(editor.innerHTML, { emitEvent: false });
+      control?.markAsDirty();
+    }
+  }
+
+  private sanitizeQuotePasteHtml(html: string): string {
+    const doc = new DOMParser().parseFromString(html, 'text/html');
+    doc.querySelectorAll('style, script, meta, link, title').forEach(e => e.remove());
+    this.sanitizeQuotePasteContainer(doc.body);
+    return doc.body.innerHTML;
+  }
+
+  private sanitizeQuotePasteContainer(container: HTMLElement): void {
+    const allowed = new Set([
+      'B', 'STRONG', 'I', 'EM', 'U', 'BR', 'P', 'DIV', 'UL', 'OL', 'LI'
+    ]);
+    for (let i = container.childNodes.length - 1; i >= 0; i--) {
+      const node = container.childNodes[i];
+      if (node.nodeType === Node.TEXT_NODE) {
+        continue;
+      }
+      if (node.nodeType !== Node.ELEMENT_NODE) {
+        node.remove();
+        continue;
+      }
+      const el = node as HTMLElement;
+      const tag = el.tagName.toUpperCase();
+      if (tag === 'BODY' || tag === 'HTML') {
+        this.sanitizeQuotePasteContainer(el);
+        while (el.firstChild) {
+          container.insertBefore(el.firstChild, el);
+        }
+        el.remove();
+        continue;
+      }
+      if (!allowed.has(tag)) {
+        this.sanitizeQuotePasteContainer(el);
+        while (el.firstChild) {
+          container.insertBefore(el.firstChild, el);
+        }
+        el.remove();
+        continue;
+      }
+      for (const a of [
+        'style',
+        'class',
+        'id',
+        'face',
+        'size',
+        'color',
+        'bgcolor',
+        'align',
+        'dir',
+        'lang',
+        'width',
+        'height'
+      ]) {
+        el.removeAttribute(a);
+      }
+      this.sanitizeQuotePasteContainer(el);
+    }
+  }
+
+  private quotePastePlainToHtml(plain: string): string {
+    return plain
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/\r\n|\r|\n/g, '<br>');
   }
 
   applyQuoteTextFormat(controlName: 'quotePreface' | 'quoteSuffix' | 'quoteDisclaimer', format: 'bold' | 'italic' | 'underline' | 'paragraph' | 'unorderedList'): void {
@@ -905,11 +995,15 @@ export class OfficeComponent implements OnInit, OnDestroy, OnChanges, AfterViewI
   }
  
   onEnterKey(event: Event): void {
-    const target = (event as KeyboardEvent).target as HTMLElement;
+    const ke = event as KeyboardEvent;
+    const target = ke.target as HTMLElement;
     if (target?.closest?.('.mat-mdc-select-panel') || target?.closest?.('.cdk-overlay-pane')) {
       return;
     }
-    (event as KeyboardEvent).preventDefault();
+    if (target?.closest?.('[contenteditable="true"]') || target instanceof HTMLTextAreaElement) {
+      return;
+    }
+    ke.preventDefault();
     if (this.form?.status === 'VALID' && !this.isSubmitting) {
       this.saveOffice();
     }

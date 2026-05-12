@@ -685,12 +685,10 @@
                         #quotePrefaceEditor
                         class="description-editor-input description-editor-input--with-markers"
                         contenteditable="true"
+                        (paste)="onQuoteTextPaste('quotePreface', $event)"
                         (input)="onQuoteTextInput('quotePreface', $event)">
                       </div>
                     </div>
-                    @if (form.get('quotePreface')?.hasError('maxlength') && form.get('quotePreface')?.touched) {
-                      <mat-error>Preface must be at most 2048 characters</mat-error>
-                    }
                   </div>
                   <div class="w-full">
                     <div class="description-editor-wrap">
@@ -716,12 +714,10 @@
                         #quoteSuffixEditor
                         class="description-editor-input description-editor-input--with-markers"
                         contenteditable="true"
+                        (paste)="onQuoteTextPaste('quoteSuffix', $event)"
                         (input)="onQuoteTextInput('quoteSuffix', $event)">
                       </div>
                     </div>
-                    @if (form.get('quoteSuffix')?.hasError('maxlength') && form.get('quoteSuffix')?.touched) {
-                      <mat-error>Suffix must be at most 2048 characters</mat-error>
-                    }
                   </div>
                   <div class="w-full">
                     <div class="description-editor-wrap">
@@ -747,12 +743,10 @@
                         #quoteDisclaimerEditor
                         class="description-editor-input description-editor-input--with-markers"
                         contenteditable="true"
+                        (paste)="onQuoteTextPaste('quoteDisclaimer', $event)"
                         (input)="onQuoteTextInput('quoteDisclaimer', $event)">
                       </div>
                     </div>
-                    @if (form.get('quoteDisclaimer')?.hasError('maxlength') && form.get('quoteDisclaimer')?.touched) {
-                      <mat-error>Disclaimer must be at most 2048 characters</mat-error>
-                    }
                   </div>
                 </div>
               </mat-expansion-panel>

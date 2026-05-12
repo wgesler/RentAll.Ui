@@ -713,9 +713,9 @@ export class QuoteCreateComponent extends BaseDocumentComponent implements OnIni
     const f = this.quoteListingColumnFlags;
     const cols: string[] = ['<colgroup>'];
     if (f.propertyCode) {
-      cols.push('<col style="width:16ch" />');
+      cols.push('<col style="width:12ch" />');
     }
-    cols.push('<col style="width:24ch" />');
+    cols.push('<col style="width:17ch" />');
     cols.push('<col style="width:3.65rem" />');
     cols.push('<col />');
     cols.push('<col />');
