@@ -1,0 +1,21 @@
+---
+description: Consistency (naming, styling, patterns) is the top priority—especially in the UI.
+alwaysApply: true
+---
+
+# Consistency first
+
+The user’s **#1 priority** is **consistency**. Treat it as non-negotiable over clever one-offs.
+
+## Especially the UI (Angular)
+
+- **Naming:** Match established patterns in the same feature area (e.g. parallel helpers: `hasPropertyTurnoverRows` / `hasReservationTurnoverRows`, not mixed `hasAny*` vs `has*`). New members, methods, files, and route segments should read like the neighbors in the same folder.
+- **Styling:** Use global / shared theme and form systems already in the project; do not introduce ad-hoc colors, spacing, or typography that diverge from nearby screens unless explicitly asked.
+- **Structure:** Follow the same layout and component patterns as analogous pages (shell vs tab, title bar, loaders, tables).
+- **Before finishing:** If you added two similar things, **name and shape them the same way**; if you copied a pattern, **copy it completely** (imports, regions, visibility rules) rather than half-matching.
+
+## API and shared code
+
+- Same rule: **align names and structure** with the existing module (DTOs, repositories, partial classes) instead of introducing a second convention in the same flow.
+
+When in doubt, **find a mature reference implementation** in-repo and match it.

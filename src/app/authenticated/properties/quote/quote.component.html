@@ -62,7 +62,7 @@
                       </td>
                     </tr>
                     <tr>
-                      <td class="quote-detail-label-cell">Agent:</td>
+                      <td class="quote-detail-label-cell">Prepared By:</td>
                       <td class="quote-detail-value-cell">
                         <mat-form-field appearance="outline" class="quote-table-field">
                           <input matInput formControlName="agentName">
@@ -84,8 +84,9 @@
           </div>
 
           <div class="col-span-4 form-standard-section-gap">
-            <div class="flex items-center gap-3 form-standard-section-heading-gap min-w-0">
-              <span class="text-lg font-medium flex-shrink-0">Property Listings</span>
+            <div class="quote-listings-section-heading form-standard-section-heading-gap min-w-0">
+              <span class="quote-listings-section-title text-lg font-medium">Property Listings</span>
+              <p class="quote-proposal-legend quote-proposal-legend--listings"><strong>M</strong> (monthly), <strong>D</strong> (daily), <strong>OTF</strong> (one-time fee).</p>
             </div>
 
             @if (isLoadingLinks) {
@@ -94,20 +95,22 @@
               <div class="overflow-x-auto">
                 <table class="line-items-table">
                   <thead>
-                    <tr class="border-b">
-                      <th class="text-left">Property</th>
-                      <th class="text-left">Address</th>
+                    <tr>
+                      <th class="text-left quote-property-col">Property</th>
+                      <th class="text-left quote-address-col">Address</th>
                       <th class="text-center quote-beds-col">Beds/Baths</th>
                       <th class="text-center quote-rate-col">Rate (Monthly/Daily)</th>
-                      <th class="text-center">Parking</th>
+                      <th class="text-center quote-parking-col">Parking</th>
+                      <th class="text-center quote-pet-friendly-col">Pets</th>
+                      <th class="text-center quote-pet-fee-col">Pet Fee</th>
                       <th class="text-left quote-link-col">Link</th>
                     </tr>
                   </thead>
                   <tbody>
                     @for (listingLink of propertyListingLinks; track listingLink.propertyId) {
-                      <tr class="border-b">
-                        <td><div class="quote-field-box quote-field-box-disabled">{{ listingLink.propertyCode }}</div></td>
-                        <td><div class="quote-field-box quote-field-box-disabled">{{ listingLink.address }}</div></td>
+                      <tr>
+                        <td class="quote-property-col"><div class="quote-field-box quote-field-box-disabled">{{ listingLink.propertyCode }}</div></td>
+                        <td class="quote-address-col"><div class="quote-field-box quote-field-box-disabled">{{ listingLink.address }}</div></td>
                         <td class="text-center quote-beds-col"><div class="quote-field-box quote-field-box-center quote-field-box-disabled">{{ listingLink.beds }}</div></td>
                         <td class="text-center quote-rate-col">
                           <input
@@ -116,7 +119,15 @@
                             [value]="listingLink.price"
                             (input)="onRateChange(listingLink, $event)">
                         </td>
-                        <td class="text-center"><div class="quote-field-box quote-field-box-center quote-field-box-disabled">{{ listingLink.parking }}</div></td>
+                        <td class="text-center quote-parking-col"><div class="quote-field-box quote-field-box-center quote-field-box-disabled">{{ listingLink.parking }}</div></td>
+                        <td class="text-center quote-pet-friendly-col"><div class="quote-field-box quote-field-box-center quote-field-box-disabled">{{ listingLink.petFriendly }}</div></td>
+                        <td class="text-center quote-pet-fee-col">
+                          <input
+                            class="quote-field-input quote-field-input-rate"
+                            type="text"
+                            [value]="listingLink.petFee"
+                            (input)="onPetFeeChange(listingLink, $event)">
+                        </td>
                         <td class="quote-link-col"><div class="quote-field-box quote-field-box-disabled"><a class="quote-link" [href]="listingLink.url" target="_blank" rel="noopener noreferrer" (click)="openListing(listingLink.url, $event)">View Listing</a></div></td>
                       </tr>
                     }

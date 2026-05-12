@@ -649,6 +649,107 @@
 
               </mat-expansion-panel>
 
+              <mat-expansion-panel [expanded]="false" class="mb-4">
+                <mat-expansion-panel-header>
+                  <mat-panel-title>Quote Text</mat-panel-title>
+                </mat-expansion-panel-header>
+                <div class="grid grid-cols-1 form-standard-grid gap-y-4">
+                  <div class="w-full">
+                    <div class="description-editor-wrap">
+                      <div class="description-editor-label">Quote preface</div>
+                      <div class="description-editor-toolbar">
+                        <button type="button" mat-stroked-button (mousedown)="preventEditorToolbarMouseDown($event)" (click)="applyQuoteTextFormat('quotePreface', 'bold')">
+                          <mat-icon>format_bold</mat-icon>
+                        </button>
+                        <button type="button" mat-stroked-button (mousedown)="preventEditorToolbarMouseDown($event)" (click)="applyQuoteTextFormat('quotePreface', 'italic')">
+                          <mat-icon>format_italic</mat-icon>
+                        </button>
+                        <button type="button" mat-stroked-button (mousedown)="preventEditorToolbarMouseDown($event)" (click)="applyQuoteTextFormat('quotePreface', 'underline')">
+                          <mat-icon>format_underlined</mat-icon>
+                        </button>
+                        <button type="button" mat-stroked-button (mousedown)="preventEditorToolbarMouseDown($event)" (click)="applyQuoteTextFormat('quotePreface', 'paragraph')">
+                          <mat-icon>subject</mat-icon>
+                        </button>
+                        <button type="button" mat-stroked-button (mousedown)="preventEditorToolbarMouseDown($event)" (click)="applyQuoteTextFormat('quotePreface', 'unorderedList')">
+                          <mat-icon>format_list_bulleted</mat-icon>
+                        </button>
+                      </div>
+                      <div
+                        #quotePrefaceEditor
+                        class="description-editor-input description-editor-input--with-markers"
+                        contenteditable="true"
+                        (input)="onQuoteTextInput('quotePreface', $event)">
+                      </div>
+                    </div>
+                    @if (form.get('quotePreface')?.hasError('maxlength') && form.get('quotePreface')?.touched) {
+                      <mat-error>Preface must be at most 2048 characters</mat-error>
+                    }
+                  </div>
+                  <div class="w-full">
+                    <div class="description-editor-wrap">
+                      <div class="description-editor-label">Quote suffix</div>
+                      <div class="description-editor-toolbar">
+                        <button type="button" mat-stroked-button (mousedown)="preventEditorToolbarMouseDown($event)" (click)="applyQuoteTextFormat('quoteSuffix', 'bold')">
+                          <mat-icon>format_bold</mat-icon>
+                        </button>
+                        <button type="button" mat-stroked-button (mousedown)="preventEditorToolbarMouseDown($event)" (click)="applyQuoteTextFormat('quoteSuffix', 'italic')">
+                          <mat-icon>format_italic</mat-icon>
+                        </button>
+                        <button type="button" mat-stroked-button (mousedown)="preventEditorToolbarMouseDown($event)" (click)="applyQuoteTextFormat('quoteSuffix', 'underline')">
+                          <mat-icon>format_underlined</mat-icon>
+                        </button>
+                        <button type="button" mat-stroked-button (mousedown)="preventEditorToolbarMouseDown($event)" (click)="applyQuoteTextFormat('quoteSuffix', 'paragraph')">
+                          <mat-icon>subject</mat-icon>
+                        </button>
+                        <button type="button" mat-stroked-button (mousedown)="preventEditorToolbarMouseDown($event)" (click)="applyQuoteTextFormat('quoteSuffix', 'unorderedList')">
+                          <mat-icon>format_list_bulleted</mat-icon>
+                        </button>
+                      </div>
+                      <div
+                        #quoteSuffixEditor
+                        class="description-editor-input description-editor-input--with-markers"
+                        contenteditable="true"
+                        (input)="onQuoteTextInput('quoteSuffix', $event)">
+                      </div>
+                    </div>
+                    @if (form.get('quoteSuffix')?.hasError('maxlength') && form.get('quoteSuffix')?.touched) {
+                      <mat-error>Suffix must be at most 2048 characters</mat-error>
+                    }
+                  </div>
+                  <div class="w-full">
+                    <div class="description-editor-wrap">
+                      <div class="description-editor-label">Quote disclaimer</div>
+                      <div class="description-editor-toolbar">
+                        <button type="button" mat-stroked-button (mousedown)="preventEditorToolbarMouseDown($event)" (click)="applyQuoteTextFormat('quoteDisclaimer', 'bold')">
+                          <mat-icon>format_bold</mat-icon>
+                        </button>
+                        <button type="button" mat-stroked-button (mousedown)="preventEditorToolbarMouseDown($event)" (click)="applyQuoteTextFormat('quoteDisclaimer', 'italic')">
+                          <mat-icon>format_italic</mat-icon>
+                        </button>
+                        <button type="button" mat-stroked-button (mousedown)="preventEditorToolbarMouseDown($event)" (click)="applyQuoteTextFormat('quoteDisclaimer', 'underline')">
+                          <mat-icon>format_underlined</mat-icon>
+                        </button>
+                        <button type="button" mat-stroked-button (mousedown)="preventEditorToolbarMouseDown($event)" (click)="applyQuoteTextFormat('quoteDisclaimer', 'paragraph')">
+                          <mat-icon>subject</mat-icon>
+                        </button>
+                        <button type="button" mat-stroked-button (mousedown)="preventEditorToolbarMouseDown($event)" (click)="applyQuoteTextFormat('quoteDisclaimer', 'unorderedList')">
+                          <mat-icon>format_list_bulleted</mat-icon>
+                        </button>
+                      </div>
+                      <div
+                        #quoteDisclaimerEditor
+                        class="description-editor-input description-editor-input--with-markers"
+                        contenteditable="true"
+                        (input)="onQuoteTextInput('quoteDisclaimer', $event)">
+                      </div>
+                    </div>
+                    @if (form.get('quoteDisclaimer')?.hasError('maxlength') && form.get('quoteDisclaimer')?.touched) {
+                      <mat-error>Disclaimer must be at most 2048 characters</mat-error>
+                    }
+                  </div>
+                </div>
+              </mat-expansion-panel>
+
             </mat-accordion>
 
             @if (isSubmitting) {

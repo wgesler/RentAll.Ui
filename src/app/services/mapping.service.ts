@@ -151,7 +151,10 @@ export class MappingService {
         maintenanceEmail: o.maintenanceEmail,
         afterHoursPhone: this.formatter.phoneNumber(o.afterHoursPhone),
         defaultDeposit: o.defaultDeposit || 0,
-        defaultSdw: o.defaultSdw || 0
+        defaultSdw: o.defaultSdw || 0,
+        quotePreface: o.quotePreface ?? null,
+        quoteSuffix: o.quoteSuffix ?? null,
+        quoteDisclaimer: o.quoteDisclaimer ?? null
       };
     });
   }

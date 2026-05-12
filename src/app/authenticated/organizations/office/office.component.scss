@@ -86,3 +86,67 @@
     }
   }
 }
+
+.description-editor-wrap {
+  border: 1px solid rgba(0, 0, 0, 0.24);
+  border-radius: 4px;
+  padding: 10px 12px 12px;
+  background: #fff;
+}
+
+.description-editor-label {
+  font-size: 12px;
+  color: rgba(0, 0, 0, 0.6);
+  margin-bottom: 8px;
+}
+
+.description-editor-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+
+.description-editor-input {
+  min-height: 120px;
+  border: 1px solid rgba(0, 0, 0, 0.2);
+  border-radius: 4px;
+  padding: 10px;
+  outline: none;
+  line-height: 1.45;
+  white-space: pre-wrap;
+}
+
+.description-editor-input:focus {
+  border-color: var(--global-primary, #1976d2);
+}
+
+:host ::ng-deep .description-editor-input--with-markers :is(ul, ol) {
+  margin: 0 0 0.5rem 1.25rem;
+  padding-left: 1rem;
+}
+
+:host ::ng-deep .description-editor-input--with-markers ul {
+  list-style-type: disc !important;
+  list-style-position: outside;
+}
+
+:host ::ng-deep .description-editor-input--with-markers ol {
+  list-style-type: decimal !important;
+  list-style-position: outside;
+}
+
+:host ::ng-deep .description-editor-input--with-markers li {
+  display: list-item;
+}
+
+:host ::ng-deep .description-editor-input--with-markers :is(p, div, li) {
+  position: relative;
+}
+
+:host ::ng-deep .description-editor-input--with-markers :is(p, div)::before {
+  content: '¶';
+  color: rgba(0, 0, 0, 0.35);
+  font-size: 0.75rem;
+  margin-right: 0.35rem;
+}

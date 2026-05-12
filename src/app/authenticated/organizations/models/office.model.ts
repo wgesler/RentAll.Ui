@@ -59,6 +59,9 @@ export interface OfficeRequest {
   petFeeCcId?: number | null;
   securityDepositCcId?: number | null;
   securityDepositWaiverCcId?: number | null;
+  quotePreface?: string | null;
+  quoteSuffix?: string | null;
+  quoteDisclaimer?: string | null;
 }
 
 export interface OfficeResponse {
@@ -120,6 +123,9 @@ export interface OfficeResponse {
   petFeeCcId?: number | null;
   securityDepositCcId?: number | null;
   securityDepositWaiverCcId?: number | null;
+  quotePreface?: string | null;
+  quoteSuffix?: string | null;
+  quoteDisclaimer?: string | null;
 
 }
 
@@ -137,6 +143,9 @@ export interface OfficeListDisplay {
   defaultSdw: number;
   isInternational: boolean;
   isActive: boolean;
+  quotePreface?: string | null;
+  quoteSuffix?: string | null;
+  quoteDisclaimer?: string | null;
 }
 
 

@@ -19,11 +19,12 @@
       padding: 0;
       color: #000;
       background: #fff;
+      line-height: 1.5;
     }
 
     p {
       font-size: 10pt;
-      line-height: 150%;
+      line-height: 1.5;
     }
 
     .header-row {
@@ -49,7 +50,7 @@
       width: fit-content;
       margin: 0;
       font-size: 9pt;
-      line-height: 1.4;
+      line-height: 1.5;
     }
 
     .accounting-office-container table {
@@ -83,6 +84,10 @@
       padding: 0;
     }
 
+    .quote-office-preface + h3 {
+      margin-top: 16px;
+    }
+
     #container {
       max-width: 100%;
       width: 100%;
@@ -105,11 +110,11 @@
       width: 100%;
       max-width: 36rem;
       font-size: 10pt;
-      line-height: 150%;
+      line-height: 1.5;
     }
 
     .quote-proposal-detail-table td {
-      padding: 4px 12px 4px 0;
+      padding: 1px 10px 1px 0;
       text-align: left;
       vertical-align: top;
     }
@@ -118,6 +123,43 @@
       font-weight: bold;
       white-space: nowrap;
       width: 1%;
+    }
+
+    .quote-proposal-legend {
+      font-size: 9pt;
+      line-height: 1.5;
+      margin: 0;
+      color: #444;
+    }
+
+    .quote-proposal-legend--listings {
+      text-align: right;
+      margin: 0;
+      padding-right: calc(5px + 1px + 10px);
+    }
+
+    .listings-heading-row {
+      position: relative;
+      margin: 8px 0 8px 0;
+      padding-top: 14px;
+    }
+
+    .listings-heading-row .listings-title {
+      margin: 0;
+      text-align: center;
+      width: 100%;
+    }
+
+    .listings-heading-row .quote-proposal-legend--listings {
+      margin: 0.35rem 0 0 0;
+      text-align: right;
+    }
+
+    .listings-title {
+      text-align: center;
+      font-size: 14pt;
+      font-weight: 600;
+      margin: 8px 0 8px 0;
     }
 
     .text-center {
@@ -131,19 +173,81 @@
 
     .charges-table {
       width: 100%;
+      table-layout: fixed;
       border-collapse: collapse;
       margin-top: 0;
       margin-bottom: 0;
       display: table;
       box-sizing: border-box;
+      border: 1px solid #ddd;
+    }
+
+    .charges-table th,
+    .charges-table td {
+      border-left: none;
+      border-right: none;
+      border-top: none;
+      border-bottom: 1px solid #ddd;
+    }
+
+    .charges-table thead th {
+      border-bottom: 1px solid #ccc;
+    }
+
+    .charges-table tbody tr:last-child td {
+      border-bottom: none;
+    }
+
+    .charges-table th.quote-property-col,
+    .charges-table td.quote-property-col {
+      width: 15ch;
+      max-width: 15ch;
+    }
+
+    .charges-table th.quote-address-col,
+    .charges-table td.quote-address-col {
+      width: 30ch;
+      max-width: 30ch;
+      overflow-wrap: anywhere;
+      word-break: break-word;
+    }
+
+    .charges-table th.quote-beds-col,
+    .charges-table td.quote-beds-col {
+      width: 56px;
+      max-width: 56px;
+    }
+
+    .charges-table th.quote-rate-col,
+    .charges-table td.quote-rate-col {
+      width: 108px;
+      max-width: 108px;
+    }
+
+    .charges-table th.quote-parking-col,
+    .charges-table td.quote-parking-col {
+      width: 58px;
+      max-width: 58px;
+    }
+
+    .charges-table th.quote-pet-friendly-col,
+    .charges-table td.quote-pet-friendly-col {
+      width: 50px;
+      max-width: 50px;
+    }
+
+    .charges-table th.quote-pet-fee-col,
+    .charges-table td.quote-pet-fee-col {
+      width: 94px;
+      max-width: 94px;
     }
 
     .charges-table th {
+      font-size: 10pt;
       font-weight: 600;
       background-color: #f5f5f5;
-      padding: 8px;
+      padding: calc(3px + 2pt) 4px;
       text-align: left;
-      border: none;
     }
 
     .charges-table th.text-right {
@@ -156,9 +260,8 @@
     }
 
     .charges-table td {
-      padding: 8px;
+      padding: calc(3px + 2pt) 4px;
       text-align: left;
-      border: none;
     }
 
     .charges-table td.text-right {
@@ -167,14 +270,6 @@
 
     .charges-table .ledger-line-row td {
       font-size: 8pt;
-      border-bottom: 1px solid #ddd;
-    }
-
-    .listings-title {
-      text-align: center;
-      font-size: 14pt;
-      font-weight: 600;
-      margin: 28px 0 8px 0;
     }
 
     .quote-link {
@@ -182,6 +277,31 @@
       font-weight: 600;
       text-decoration: underline;
       white-space: nowrap;
+    }
+
+    .quote-office-preface {
+      font-size: 10pt;
+      line-height: 1.5;
+      margin: 50px 5px 50px 5px;
+      white-space: normal;
+      color: #000;
+    }
+
+    .quote-office-suffix {
+      font-size: 10pt;
+      line-height: 1.5;
+      margin: 14px 5px 0 5px;
+      white-space: normal;
+      color: #000;
+    }
+
+    .quote-office-disclaimer {
+      font-size: 9pt;
+      font-style: italic;
+      line-height: 1.5;
+      margin: 20px 5px 0 5px;
+      white-space: normal;
+      color: #000;
     }
   </style>
 </head>
@@ -206,6 +326,8 @@
     </div>
   </div>
 
+  {{quotePrefaceBlock}}
+
   <h3>Corporate Housing Proposal</h3>
 
   <div id="container">
@@ -221,7 +343,7 @@
             <td>{{quoteEmail}}</td>
           </tr>
           <tr>
-            <td class="label-col">Agent:</td>
+            <td class="label-col">Prepared By:</td>
             <td>{{agentName}}</td>
           </tr>
           <tr>
@@ -232,15 +354,20 @@
       </table>
     </div>
 
-    <p class="listings-title">Property Listings</p>
+    <div class="listings-heading-row">
+      <p class="listings-title">Property Listings</p>
+      <p class="quote-proposal-legend quote-proposal-legend--listings"><strong>M</strong> (monthly), <strong>D</strong> (daily), <strong>OTF</strong> (one-time fee).</p>
+    </div>
     <table class="charges-table" role="presentation">
       <thead>
         <tr>
-          <th>Property</th>
-          <th>Address</th>
-          <th class="text-center">B/B</th>
-          <th class="text-center">Rate</th>
-          <th class="text-center">Parking</th>
+          <th class="quote-property-col">Property</th>
+          <th class="quote-address-col">Address</th>
+          <th class="text-center quote-beds-col">B/B</th>
+          <th class="text-center quote-rate-col">Rate</th>
+          <th class="text-center quote-parking-col">Parking</th>
+          <th class="text-center quote-pet-friendly-col">Pets</th>
+          <th class="text-center quote-pet-fee-col">Pet Fee</th>
           <th>Link</th>
         </tr>
       </thead>
@@ -248,6 +375,10 @@
         {{propertyListingRows}}
       </tbody>
     </table>
+
+    {{quoteDisclaimerBlock}}
   </div>
+
+  {{quoteSuffixBlock}}
 </body>
 </html>

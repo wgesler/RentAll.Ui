@@ -28,22 +28,11 @@ import { OfficeService } from '../../organizations/services/office.service';
 import { BaseDocumentComponent, DocumentConfig, DownloadConfig, EmailConfig } from '../../shared/base-document.component';
 import { TitleBarSelectComponent } from '../../shared/titlebar-select/titlebar-select.component';
 import { PropertyResponse } from '../models/property.model';
+import { QuotePropertyListingLink } from '../models/quote.model';
 import { PropertyService } from '../services/property.service';
 import { PropertyListingShareService } from '../services/property-listing-share.service';
 import { ToastrService } from 'ngx-toastr';
-import { QuoteComponent } from './quote.component';
-
-interface QuotePropertyListingLink {
-  propertyId: string;
-  propertyCode: string;
-  address: string;
-  area: string;
-  beds: string;
-  price: string;
-  parking: string;
-  url: string;
-  officeId: number | null;
-}
+import { QuoteComponent } from '../quote/quote.component';
 
 @Component({
   standalone: true,
@@ -446,6 +435,8 @@ export class QuoteCreateComponent extends BaseDocumentComponent implements OnIni
           beds: `${property.bedrooms ?? 0}/${property.bathrooms ?? 0}`,
           price: this.getPriceText(property),
           parking: property.parking ? 'Yes' : 'No',
+          petFriendly: property.petsAllowed ? 'Yes' : 'No',
+          petFee: this.getPetFeeText(property),
           url: listingUrl,
           officeId: property.officeId ?? null
         } as QuotePropertyListingLink;
@@ -462,11 +453,16 @@ export class QuoteCreateComponent extends BaseDocumentComponent implements OnIni
         console.info('[Quote listing href debug]', resolved.map(l => ({ propertyCode: l.propertyCode, url: l.url })));
       }
       const previousPriceByPropertyId = new Map(this.propertyListingLinks.map(link => [link.propertyId, link.price]));
+      const previousPetFeeByPropertyId = new Map(this.propertyListingLinks.map(link => [link.propertyId, link.petFee]));
       this.propertyListingLinks = resolved.map(link => {
+        let next = link;
         if (previousPriceByPropertyId.has(link.propertyId)) {
-          return { ...link, price: previousPriceByPropertyId.get(link.propertyId)! };
+          next = { ...next, price: previousPriceByPropertyId.get(link.propertyId)! };
         }
-        return link;
+        if (previousPetFeeByPropertyId.has(link.propertyId)) {
+          next = { ...next, petFee: previousPetFeeByPropertyId.get(link.propertyId)! };
+        }
+        return next;
       });
       this.firstPropertyOfficeId = this.propertyListingLinks[0]?.officeId ?? null;
       this.headerOfficeId = this.firstPropertyOfficeId ?? this.globalSelectionService.getSelectedOfficeIdValue();
@@ -489,7 +485,7 @@ export class QuoteCreateComponent extends BaseDocumentComponent implements OnIni
   get currentUserFullName(): string {
     const currentUser = this.authService.getUser();
     const fullName = `${currentUser?.firstName || ''} ${currentUser?.lastName || ''}`.trim();
-    return fullName || 'Agent';
+    return fullName || '';
   }
 
   get officeLogoUrl(): string | null {
@@ -542,16 +538,23 @@ export class QuoteCreateComponent extends BaseDocumentComponent implements OnIni
 
   //#region Formatting Methods
   getPropertyAddressText(property: PropertyResponse): string {
-    const address1 = [property.address1, property.suite]
-      .map(value => String(value || '').trim())
-      .filter(value => value.length > 0)
-      .join(' ');
+    const address1 = String(property.address1 || '').trim();
+    const suite = String(property.suite || '').trim().replace(/^#+\s*/, '');
     const city = String(property.city || '').trim();
-    const state = String(property.state || '').trim();
-    const zip = String(property.zip || '').trim();
-    const stateZip = [state, zip].filter(value => value.length > 0).join(' ');
-    const address2 = [city, stateZip].filter(value => value.length > 0).join(', ');
-    return [address1, address2].filter(value => value.length > 0).join(', ');
+
+    const streetParts: string[] = [];
+    if (address1) {
+      streetParts.push(address1);
+    }
+    if (suite) {
+      streetParts.push(`#${suite}`);
+    }
+    const street = streetParts.join(' ');
+
+    if (street && city) {
+      return `${street}, ${city}`;
+    }
+    return street || city || '';
   }
 
   getAreaText(property: PropertyResponse): string {
@@ -564,6 +567,11 @@ export class QuoteCreateComponent extends BaseDocumentComponent implements OnIni
     return `$${this.formatWholeCurrency(monthly)}/$${this.formatWholeCurrency(daily)}`;
   }
 
+  getPetFeeText(property: PropertyResponse): string {
+    const fee = Number(property.petFee ?? 0);
+    return `$${this.formatWholeCurrency(fee)}/$${this.formatWholeCurrency(0)}`;
+  }
+
   formatWholeCurrency(value: number): string {
     const normalized = Number.isFinite(value) ? value : 0;
     return String(Math.round(normalized));
@@ -571,7 +579,7 @@ export class QuoteCreateComponent extends BaseDocumentComponent implements OnIni
 
   getDefaultQuoteValidUntilDate(): string {
     const date = new Date();
-    date.setDate(date.getDate() + 14);
+    date.setDate(date.getDate() + 7);
     return date.toLocaleDateString('en-US');
   }
   //#endregion
@@ -628,24 +636,69 @@ export class QuoteCreateComponent extends BaseDocumentComponent implements OnIni
 
     result = result.replace(/\{\{propertyListingRows\}\}/g, this.buildPropertyListingRowsHtml());
 
+    result = result.replace(/\{\{quotePrefaceBlock\}\}/g, this.buildQuoteOfficePrefaceBlock());
+    result = result.replace(/\{\{quoteSuffixBlock\}\}/g, this.buildQuoteOfficeSuffixBlock());
+    result = result.replace(/\{\{quoteDisclaimerBlock\}\}/g, this.buildQuoteOfficeDisclaimerBlock());
+
     result = result.replace(/\{\{[^}]+\}\}/g, '');
     return result;
   }
 
+  buildQuoteOfficeMultilineHtml(text: string): string {
+    const trimmed = String(text || '').trim();
+    if (!trimmed) {
+      return '';
+    }
+    if (this.looksLikeOfficeHtmlContent(trimmed)) {
+      return trimmed;
+    }
+    return this.escapeHtml(trimmed).replace(/\r\n|\r|\n/g, '<br>');
+  }
+
+  looksLikeOfficeHtmlContent(value: string): boolean {
+    return /<[a-z/!?]/i.test(value);
+  }
+
+  buildQuoteOfficePrefaceBlock(): string {
+    const raw = this.selectedOffice?.quotePreface?.trim() || '';
+    if (!raw) {
+      return '';
+    }
+    return `<div class="quote-office-preface">${this.buildQuoteOfficeMultilineHtml(raw)}</div>`;
+  }
+
+  buildQuoteOfficeSuffixBlock(): string {
+    const raw = this.selectedOffice?.quoteSuffix?.trim() || '';
+    if (!raw) {
+      return '';
+    }
+    return `<div class="quote-office-suffix">${this.buildQuoteOfficeMultilineHtml(raw)}</div>`;
+  }
+
+  buildQuoteOfficeDisclaimerBlock(): string {
+    const raw = this.selectedOffice?.quoteDisclaimer?.trim() || '';
+    if (!raw) {
+      return '';
+    }
+    return `<div class="quote-office-disclaimer">${this.buildQuoteOfficeMultilineHtml(raw)}</div>`;
+  }
+
   buildPropertyListingRowsHtml(): string {
     if (!this.propertyListingLinks.length) {
-      return '<tr><td colspan="6">No property listings selected.</td></tr>';
+      return '<tr><td colspan="8">No property listings selected.</td></tr>';
     }
     return this.propertyListingLinks.map(link => {
       const rawUrl = this.getResolvedListingUrl(link);
       const href = this.escapeHtmlAttribute(rawUrl);
       const linkCell = `<td><a href="${href}" class="quote-link" target="_blank" rel="noopener noreferrer">View Listing</a></td>`;
       return `<tr class="ledger-line-row">
-        <td>${this.escapeHtml(link.propertyCode)}</td>
-        <td>${this.escapeHtml(link.address)}</td>
-        <td class="text-center">${this.escapeHtml(link.beds)}</td>
-        <td class="text-center">${this.escapeHtml(link.price)}</td>
-        <td class="text-center">${this.escapeHtml(link.parking)}</td>
+        <td class="quote-property-col">${this.escapeHtml(link.propertyCode)}</td>
+        <td class="quote-address-col">${this.escapeHtml(link.address)}</td>
+        <td class="text-center quote-beds-col">${this.escapeHtml(link.beds)}</td>
+        <td class="text-center quote-rate-col">${this.escapeHtml(link.price)}</td>
+        <td class="text-center quote-parking-col">${this.escapeHtml(link.parking)}</td>
+        <td class="text-center quote-pet-friendly-col">${this.escapeHtml(link.petFriendly)}</td>
+        <td class="text-center quote-pet-fee-col">${this.escapeHtml(link.petFee)}</td>
         ${linkCell}
       </tr>`;
     }).join('\n');

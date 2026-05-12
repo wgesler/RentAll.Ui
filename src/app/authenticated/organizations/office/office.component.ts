@@ -1,6 +1,6 @@
 import { CommonModule } from '@angular/common';
 import { HttpErrorResponse } from '@angular/common/http';
-import { Component, ElementRef, EventEmitter, Input, OnChanges, OnDestroy, OnInit, Output, SimpleChanges, ViewChild } from '@angular/core';
+import { AfterViewInit, Component, ElementRef, EventEmitter, Input, OnChanges, OnDestroy, OnInit, Output, SimpleChanges, ViewChild } from '@angular/core';
 import { FormBuilder, FormControl, FormGroup, FormsModule, ReactiveFormsModule, Validators } from '@angular/forms';
 import { ActivatedRoute, Router } from '@angular/router';
 import { ToastrService } from 'ngx-toastr';
@@ -29,7 +29,7 @@ import { OfficeService } from '../services/office.service';
     styleUrl: './office.component.scss'
 })
 
-export class OfficeComponent implements OnInit, OnDestroy, OnChanges {
+export class OfficeComponent implements OnInit, OnDestroy, OnChanges, AfterViewInit {
   @Input() id: string | number | null = null;
   @Input() organizationId: string | null = null; // Organization ID from parent (for SuperAdmin)
   @Input() copyFrom: OfficeResponse | null = null; // When set in add mode, form is pre-filled (name cleared)
@@ -37,7 +37,22 @@ export class OfficeComponent implements OnInit, OnDestroy, OnChanges {
   @Output() backEvent = new EventEmitter<void>();
   @Output() savedEvent = new EventEmitter<void>();
   @ViewChild('firstInput') firstInputRef: ElementRef<HTMLInputElement>;
-  
+  @ViewChild('quotePrefaceEditor') set quotePrefaceEditorRef(value: ElementRef<HTMLDivElement> | undefined) {
+    this.quotePrefaceEditor = value;
+    this.syncQuoteTextEditorFromForm('quotePreface');
+  }
+  quotePrefaceEditor?: ElementRef<HTMLDivElement>;
+  @ViewChild('quoteSuffixEditor') set quoteSuffixEditorRef(value: ElementRef<HTMLDivElement> | undefined) {
+    this.quoteSuffixEditor = value;
+    this.syncQuoteTextEditorFromForm('quoteSuffix');
+  }
+  quoteSuffixEditor?: ElementRef<HTMLDivElement>;
+  @ViewChild('quoteDisclaimerEditor') set quoteDisclaimerEditorRef(value: ElementRef<HTMLDivElement> | undefined) {
+    this.quoteDisclaimerEditor = value;
+    this.syncQuoteTextEditorFromForm('quoteDisclaimer');
+  }
+  quoteDisclaimerEditor?: ElementRef<HTMLDivElement>;
+
   isServiceError: boolean = false;
   routeOfficeId: string | null = null;
   office: OfficeResponse;
@@ -106,6 +121,10 @@ export class OfficeComponent implements OnInit, OnDestroy, OnChanges {
         this.getOffice(this.id.toString());
       }
     }
+  }
+
+  ngAfterViewInit(): void {
+    this.syncAllQuoteTextEditorsFromForm();
   }
 
   ngOnChanges(changes: SimpleChanges): void {
@@ -233,6 +252,9 @@ export class OfficeComponent implements OnInit, OnDestroy, OnChanges {
       parkingLowEnd: formValue.parkingLowEnd ? parseFloat(formValue.parkingLowEnd.toString()) : 0,
       parkingHighEnd: formValue.parkingHighEnd ? parseFloat(formValue.parkingHighEnd.toString()) : 0,
       emailListForReservations: (formValue.emailListForReservations || '').trim() || null,
+      quotePreface: (formValue.quotePreface ?? '').toString().trim(),
+      quoteSuffix: (formValue.quoteSuffix ?? '').toString().trim(),
+      quoteDisclaimer: (formValue.quoteDisclaimer ?? '').toString().trim(),
       ...this.buildValidCostCodeRequest(formValue)
     };
     const orgId = (this.organizationId || this.office?.organizationId || user?.organizationId || '').trim();
@@ -437,7 +459,10 @@ export class OfficeComponent implements OnInit, OnDestroy, OnChanges {
       departureFeeCcId: new FormControl<number | null>(null),
       petFeeCcId: new FormControl<number | null>(null),
       securityDepositCcId: new FormControl<number | null>(null),
-      securityDepositWaiverCcId: new FormControl<number | null>(null)
+      securityDepositWaiverCcId: new FormControl<number | null>(null),
+      quotePreface: new FormControl<string>('', [Validators.maxLength(2048)]),
+      quoteSuffix: new FormControl<string>('', [Validators.maxLength(2048)]),
+      quoteDisclaimer: new FormControl<string>('', [Validators.maxLength(2048)])
     });
 
     // Setup conditional validation for international addresses
@@ -503,8 +528,12 @@ export class OfficeComponent implements OnInit, OnDestroy, OnChanges {
           departureFeeCcId: this.office.departureFeeCcId ?? null,
           petFeeCcId: this.office.petFeeCcId ?? null,
           securityDepositCcId: this.office.securityDepositCcId ?? null,
-          securityDepositWaiverCcId: this.office.securityDepositWaiverCcId ?? null
+          securityDepositWaiverCcId: this.office.securityDepositWaiverCcId ?? null,
+          quotePreface: this.office.quotePreface || '',
+          quoteSuffix: this.office.quoteSuffix || '',
+          quoteDisclaimer: this.office.quoteDisclaimer || ''
         });
+        this.syncAllQuoteTextEditorsFromForm();
       }, 0);
     }
   }
@@ -566,8 +595,12 @@ export class OfficeComponent implements OnInit, OnDestroy, OnChanges {
       departureFeeCcId: o.departureFeeCcId ?? null,
       petFeeCcId: o.petFeeCcId ?? null,
       securityDepositCcId: o.securityDepositCcId ?? null,
-      securityDepositWaiverCcId: o.securityDepositWaiverCcId ?? null
+      securityDepositWaiverCcId: o.securityDepositWaiverCcId ?? null,
+      quotePreface: o.quotePreface || '',
+      quoteSuffix: o.quoteSuffix || '',
+      quoteDisclaimer: o.quoteDisclaimer || ''
     }, { emitEvent: false });
+    setTimeout(() => this.syncAllQuoteTextEditorsFromForm(), 0);
   }
 
   setupConditionalFields(): void {
@@ -590,6 +623,110 @@ export class OfficeComponent implements OnInit, OnDestroy, OnChanges {
       stateControl?.updateValueAndValidity({ emitEvent: false });
       zipControl?.updateValueAndValidity({ emitEvent: false });
     });
+  }
+  //#endregion
+
+  //#region Quote text HTML editors
+  syncAllQuoteTextEditorsFromForm(): void {
+    this.syncQuoteTextEditorFromForm('quotePreface');
+    this.syncQuoteTextEditorFromForm('quoteSuffix');
+    this.syncQuoteTextEditorFromForm('quoteDisclaimer');
+  }
+
+  syncQuoteTextEditorFromForm(controlName: 'quotePreface' | 'quoteSuffix' | 'quoteDisclaimer'): void {
+    const editor = this.getQuoteTextEditorElement(controlName);
+    if (!editor || !this.form) {
+      return;
+    }
+    const raw = this.form.get(controlName)?.value ?? '';
+    const nextHtml = typeof raw === 'string' ? raw : String(raw);
+    if (editor.innerHTML !== nextHtml) {
+      editor.innerHTML = nextHtml;
+    }
+  }
+
+  onQuoteTextInput(controlName: 'quotePreface' | 'quoteSuffix' | 'quoteDisclaimer', event: Event): void {
+    const element = event.target as HTMLDivElement;
+    const control = this.form.get(controlName);
+    control?.setValue(element.innerHTML, { emitEvent: false });
+    control?.markAsDirty();
+    control?.markAsTouched();
+  }
+
+  applyQuoteTextFormat(controlName: 'quotePreface' | 'quoteSuffix' | 'quoteDisclaimer', format: 'bold' | 'italic' | 'underline' | 'paragraph' | 'unorderedList'): void {
+    const editor = this.getQuoteTextEditorElement(controlName);
+    if (!editor) {
+      return;
+    }
+
+    editor.focus();
+    if (format === 'paragraph') {
+      const inserted = document.execCommand('insertParagraph', false);
+      if (!inserted) {
+        document.execCommand('insertHTML', false, '<p><br></p>');
+      }
+      this.form.get(controlName)?.setValue(editor.innerHTML);
+      return;
+    }
+
+    if (format === 'unorderedList') {
+      this.applyQuoteTextUnorderedListCommand(editor);
+      this.form.get(controlName)?.setValue(editor.innerHTML);
+      return;
+    }
+
+    document.execCommand(format, false);
+    this.form.get(controlName)?.setValue(editor.innerHTML);
+  }
+
+  preventEditorToolbarMouseDown(event: MouseEvent): void {
+    event.preventDefault();
+  }
+
+  applyQuoteTextUnorderedListCommand(editor: HTMLDivElement): void {
+    editor.focus();
+    const selection = window.getSelection();
+    const selectedText = selection?.toString() || '';
+    const listItems = selectedText
+      .split(/\r?\n+/)
+      .map(item => item.trim())
+      .filter(item => !!item);
+    if (listItems.length > 0) {
+      const listHtml = `<ul>${listItems.map(item => `<li>${this.escapeQuoteTextEditorHtml(item)}</li>`).join('')}</ul>`;
+      document.execCommand('insertHTML', false, listHtml);
+      return;
+    }
+
+    if (!selection || selection.rangeCount === 0) {
+      document.execCommand('insertHTML', false, '<ul><li><br></li></ul>');
+      return;
+    }
+
+    const range = selection.getRangeAt(0);
+    if (!editor.contains(range.commonAncestorContainer)) {
+      return;
+    }
+
+    document.execCommand('insertHTML', false, '<ul><li><br></li></ul>');
+  }
+
+  escapeQuoteTextEditorHtml(value: string): string {
+    return value
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#39;');
+  }
+
+  getQuoteTextEditorElement(controlName: 'quotePreface' | 'quoteSuffix' | 'quoteDisclaimer'): HTMLDivElement | null {
+    const ref =
+      controlName === 'quotePreface'
+        ? this.quotePrefaceEditor
+        : controlName === 'quoteSuffix'
+          ? this.quoteSuffixEditor
+          : this.quoteDisclaimerEditor;
+    return ref?.nativeElement ?? null;
   }
   //#endregion
 

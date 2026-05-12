@@ -47,6 +47,15 @@ export class QuoteComponent {
     this.listingRowsChange.emit();
   }
 
+  onPetFeeChange(listing: QuoteListingRow, event: Event): void {
+    const target = event.target as HTMLInputElement | null;
+    if (!target) {
+      return;
+    }
+    listing.petFee = target.value || '';
+    this.listingRowsChange.emit();
+  }
+
   openListing(url: string, event: Event): void {
     event.preventDefault();
     event.stopPropagation();
