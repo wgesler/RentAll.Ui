@@ -154,6 +154,7 @@
           <div class="reservation-tables">
             <mat-accordion multi="true">
             <!-- Upcoming Properties Table -->
+            @if ((isLoading$ | async) || hasReservationTurnoverRows()) {
             <mat-expansion-panel
               [(expanded)]="expandedSections.properties">
               <mat-expansion-panel-header>
@@ -223,13 +224,12 @@
                       (checkboxChangeEvent)="onReservationTurnoverCheckboxChange($event, 'departure')"/>
                   }
 
-                  @if (reservationTurnoverArrivalRows.length === 0 && reservationTurnoverDepartureRows.length === 0) {
-                    <p class="dashboard-property-turnover-empty">No reservation turnover events in the current window for the selected scope.</p>
-                  }
                 </div>
               }
             </mat-expansion-panel>
+            }
 
+            @if ((isLoading$ | async) || hasPropertyTurnoverRows()) {
             <mat-expansion-panel
               [(expanded)]="expandedSections.propertyTurnover">
               <mat-expansion-panel-header>
@@ -420,7 +420,9 @@
                 </div>
               }
             </mat-expansion-panel>
+            }
 
+            @if ((isLoading$ | async) || propertiesByVacancy.length > 0) {
             <mat-expansion-panel
               [(expanded)]="expandedSections.vacantProperties">
               <mat-expansion-panel-header>
@@ -451,9 +453,10 @@
                 </div>
               }
             </mat-expansion-panel>
+            }
 
             <!-- Monthly Commissions Table -->
-            @if (showCommissionsUi) {
+            @if (showCommissionsUi && ((isLoading$ | async) || monthlyCommissions.length > 0 || (!isAdmin && !currentUserAgentId))) {
               <mat-expansion-panel 
                 [(expanded)]="expandedSections.monthlyCommissions">
                 <mat-expansion-panel-header>

@@ -1614,8 +1614,12 @@ export class DashboardMainComponent extends PropertyMaintenanceBase implements O
       || this.cloneColumnSet(this.isOnlinePropertyContext(contextType) ? this.propertyOnlineBaseColumns : this.propertyOfflineBaseColumns);
   }
 
-  hasAnyPropertyTurnoverRows(): boolean {
+  hasPropertyTurnoverRows(): boolean {
     return this.getAllPropertyTurnoverRows().length > 0;
+  }
+
+  hasReservationTurnoverRows(): boolean {
+    return this.reservationTurnoverArrivalRows.length > 0 || this.reservationTurnoverDepartureRows.length > 0;
   }
 
   shouldShowPropertySectionDivider(contextType: TrackerContextType): boolean {
