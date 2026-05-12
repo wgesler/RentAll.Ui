@@ -685,12 +685,42 @@ export class QuoteCreateComponent extends BaseDocumentComponent implements OnIni
     return /<[a-z/!?]/i.test(value);
   }
 
+  /** Merge tokens in office quote HTML; includes {{deposit}} / {{sdw}} from office default deposit / SDW. */
+  replaceQuoteTextMergeTokens(text: string): string {
+    if (!text) {
+      return text;
+    }
+    const f = this.form;
+    const esc = (v: unknown) => this.escapeHtml(String(v ?? ''));
+    const office = this.selectedOffice;
+    const replacements: Array<[RegExp, string]> = [
+      [/\{\{preparedForName\}\}/g, esc(f?.get('preparedForName')?.value)],
+      [/\{\{quoteEmail\}\}/g, esc(f?.get('quoteEmail')?.value)],
+      [/\{\{agentName\}\}/g, esc(f?.get('agentName')?.value)],
+      [/\{\{quoteValidThru\}\}/g, esc(f?.get('quoteValidFor')?.value)],
+      [/\{\{companyNameDisplay\}\}/g, esc(this.companyNameDisplay)],
+      [/\{\{companyAddressLine1\}\}/g, esc(this.companyAddressLine1)],
+      [/\{\{companyAddressLine2\}\}/g, esc(this.companyAddressLine2)],
+      [/\{\{quoteContactEmail\}\}/g, esc(this.currentUserEmail)],
+      [/\{\{officeName\}\}/g, esc(office?.name)],
+      [/\{\{officeCode\}\}/g, esc(office?.officeCode)],
+      [/\{\{deposit\}\}/g, esc(this.formatterService.currencyUsd(Number(office?.defaultDeposit ?? 0)))],
+      [/\{\{sdw\}\}/g, esc(this.formatterService.currencyUsd(Number(office?.defaultSdw ?? 0)))]
+    ];
+    let result = text;
+    for (const [pattern, value] of replacements) {
+      result = result.replace(pattern, value);
+    }
+    return result;
+  }
+
   buildQuoteOfficePrefaceBlock(): string {
     const raw = this.selectedOffice?.quotePreface?.trim() || '';
     if (!raw) {
       return '';
     }
-    return `<div class="quote-office-preface">${this.buildQuoteOfficeMultilineHtml(raw)}</div>`;
+    const merged = this.replaceQuoteTextMergeTokens(raw);
+    return `<div class="quote-office-preface">${this.buildQuoteOfficeMultilineHtml(merged)}</div>`;
   }
 
   buildQuoteOfficeSuffixBlock(): string {
@@ -698,7 +728,8 @@ export class QuoteCreateComponent extends BaseDocumentComponent implements OnIni
     if (!raw) {
       return '';
     }
-    return `<div class="quote-office-suffix">${this.buildQuoteOfficeMultilineHtml(raw)}</div>`;
+    const merged = this.replaceQuoteTextMergeTokens(raw);
+    return `<div class="quote-office-suffix">${this.buildQuoteOfficeMultilineHtml(merged)}</div>`;
   }
 
   buildQuoteOfficeDisclaimerBlock(): string {
@@ -706,7 +737,8 @@ export class QuoteCreateComponent extends BaseDocumentComponent implements OnIni
     if (!raw) {
       return '';
     }
-    return `<div class="quote-office-disclaimer">${this.buildQuoteOfficeMultilineHtml(raw)}</div>`;
+    const merged = this.replaceQuoteTextMergeTokens(raw);
+    return `<div class="quote-office-disclaimer">${this.buildQuoteOfficeMultilineHtml(merged)}</div>`;
   }
 
   buildPropertyListingColgroupHtml(): string {
