@@ -1525,7 +1525,6 @@ export class LeaseComponent extends BaseDocumentComponent implements OnInit, OnD
 
         // If no documents selected, show empty
         if (selectedDocuments.length === 0) {
-          console.warn('[LeasePreview] no selected documents');
           this.previewIframeHtml = '';
           this.resolvePreviewLoad();
           return;
