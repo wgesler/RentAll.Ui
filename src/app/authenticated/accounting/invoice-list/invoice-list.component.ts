@@ -4,7 +4,7 @@ import { Component, EventEmitter, Input, NgZone, OnChanges, OnDestroy, OnInit, O
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, Router } from '@angular/router';
 import { ToastrService } from 'ngx-toastr';
-import { BehaviorSubject, Observable, Subscription, concatMap, filter, finalize, from, map, skip, take } from 'rxjs';
+import { BehaviorSubject, Observable, Subscription, concatMap, filter, finalize, from, map, skip, take, toArray } from 'rxjs';
 import { RouterUrl } from '../../../app.routes';
 import { CommonMessage } from '../../../enums/common-message.enum';
 import { MaterialModule } from '../../../material.module';
@@ -19,6 +19,7 @@ import { GlobalSelectionService } from '../../organizations/services/global-sele
 import { OfficeService } from '../../organizations/services/office.service';
 import { ReservationListResponse } from '../../reservations/models/reservation-model';
 import { ReservationService } from '../../reservations/services/reservation.service';
+import { PropertyService } from '../../properties/services/property.service';
 import { DataTableComponent } from '../../shared/data-table/data-table.component';
 import { DataTableFilterActionsDirective } from '../../shared/data-table/data-table-filter-actions.directive';
 import { ColumnSet } from '../../shared/data-table/models/column-data';
@@ -28,6 +29,7 @@ import { CostCodesResponse } from '../models/cost-codes.model';
 import { InvoicePaymentRequest, InvoicePaymentResponse, InvoiceResponse } from '../models/invoice.model';
 import { InvoiceService } from '../services/invoice.service';
 import { CostCodesService } from '../services/cost-codes.service';
+import { InvoiceIifExportService } from '../services/invoice-iif-export.service';
 
 @Component({
     selector: 'app-invoice-list',
@@ -142,10 +144,13 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
     private officeService: OfficeService,
     private globalSelectionService: GlobalSelectionService,
     private reservationService: ReservationService,
+    private propertyService: PropertyService,
     private contactService: ContactService,
     private authService: AuthService,
     private formatter: FormatterService,
-    private utilityService: UtilityService,    private zone: NgZone) {
+    private utilityService: UtilityService,
+    private invoiceIifExportService: InvoiceIifExportService,
+    private zone: NgZone) {
   }
 
   //#region Invoice-List
@@ -355,6 +360,92 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
     }
     this.router.navigateByUrl(params.length > 0 ? `${url}?${params.join('&')}` : url);
   }
+
+  //#region Quickbooks Support
+  exportInvoicesToIif(): void {
+    if (!this.invoicesDisplay || this.invoicesDisplay.length === 0) {
+      this.toastr.warning('No invoices available to export.', 'Export');
+      return;
+    }
+
+    const invoiceIds = this.invoicesDisplay
+      .map(invoice => invoice?.invoiceId)
+      .filter((invoiceId): invoiceId is string => !!invoiceId);
+    if (invoiceIds.length === 0) {
+      this.toastr.warning('No invoice records were found to export.', 'Export');
+      return;
+    }
+
+    this.utilityService.addLoadItem(this.itemsToLoad$, 'invoiceExport');
+    from(invoiceIds).pipe(
+      concatMap(invoiceId => this.accountingService.getInvoiceByGuid(invoiceId).pipe(take(1))),
+      toArray(),
+      finalize(() => this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'invoiceExport'))
+    ).subscribe({
+      next: (invoices) => {
+        const reservationsById = new Map<string, ReservationListResponse>();
+        this.reservations.forEach(reservation => reservationsById.set(reservation.reservationId, reservation));
+
+        const propertyIds = Array.from(new Set(
+          invoices
+            .map(invoice => reservationsById.get(invoice.reservationId || '')?.propertyId)
+            .filter((propertyId): propertyId is string => !!propertyId)
+        ));
+
+        from(propertyIds).pipe(
+          concatMap(propertyId => this.propertyService.getPropertyByGuid(propertyId).pipe(take(1))),
+          toArray()
+        ).subscribe({
+          next: (properties) => {
+            const propertyById = new Map<string, { city: string; propertyCode: string }>();
+            properties.forEach(property => {
+              propertyById.set(property.propertyId, {
+                city: String(property.city || '').trim(),
+                propertyCode: String(property.propertyCode || '').trim()
+              });
+            });
+
+            const classAndMemoByInvoiceId: Record<string, string> = {};
+            const nameByInvoiceId: Record<string, string> = {};
+            invoices.forEach(invoice => {
+              const reservation = reservationsById.get(invoice.reservationId || '');
+              const property = reservation?.propertyId ? propertyById.get(reservation.propertyId) : undefined;
+              const city = String(property?.city || '').trim();
+              const propertyCode = String(property?.propertyCode || reservation?.propertyCode || '').trim();
+              classAndMemoByInvoiceId[invoice.invoiceId] = [city, propertyCode].filter(value => !!value).join(':');
+
+              const recipient = String(this.getRecipientDisplay(invoice) || '').trim();
+              const reservationCode = String(reservation?.reservationCode || invoice.reservationCode || '').trim().replace(/^R-/i, '');
+              const occupantName = String(reservation?.tenantName || '').trim();
+              const job = [reservationCode, occupantName].filter(value => !!value).join(' ');
+              nameByInvoiceId[invoice.invoiceId] = job && recipient ? `${recipient}:${job}` : (recipient || job);
+            });
+
+            const iifContent = this.invoiceIifExportService.generateInvoicesIifContent(invoices, this.allCostCodes, {
+              nameByInvoiceId,
+              classByInvoiceId: classAndMemoByInvoiceId,
+              memoByInvoiceId: classAndMemoByInvoiceId
+            });
+            const fileName = `invoices-${this.utilityService.todayAsCalendarDateString()}.iif`;
+            const blob = new Blob([iifContent], { type: 'text/plain;charset=utf-8;' });
+            const url = URL.createObjectURL(blob);
+            const link = document.createElement('a');
+            link.href = url;
+            link.download = fileName;
+            link.click();
+            URL.revokeObjectURL(url);
+          },
+          error: () => {
+            this.toastr.error('Failed to load property details for invoice export.', CommonMessage.Error);
+          }
+        });
+      },
+      error: () => {
+        this.toastr.error('Failed to export invoices.', CommonMessage.Error);
+      }
+    });
+  }
+  //#endregion
   //#endregion
 
   //#region Action Methods
@@ -1738,5 +1829,6 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
     this.remainingAmount = (remaining > -0.005 && remaining < 0.005) ? 0 : remaining;
     this.remainingAmountDisplay = '$' + this.formatter.currency(this.remainingAmount);
   }
+
   //#endregion
 }
