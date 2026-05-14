@@ -1,0 +1,158 @@
+<ng-template #generalCreateForm>
+  <div
+    class="lead-create-form general-create-form-shell property-tab-main-area dbg-band-main"
+    [class.lead-create-form-shell--embedded]="embeddedInShell()">
+    <div class="general-create-form-title-row flex flex-wrap items-center justify-between gap-3 border-b border-slate-200 py-1.5">
+      <div class="general-create-titlebar-left flex min-w-0 flex-wrap items-center gap-3 uniform-gap">
+        @if (!embeddedInShell()) {
+          <button mat-raised-button type="button" color="accent" class="text-nowrap flex-shrink-0" (click)="back()">
+            <mat-icon>arrow_back</mat-icon>
+            Back
+          </button>
+        }
+      </div>
+      <div class="general-create-titlebar-right flex flex-shrink-0 flex-wrap items-center gap-3">
+        <mat-checkbox [formControl]="$any(form.controls['isActive'])" color="primary" class="text-nowrap">
+          IsActive
+        </mat-checkbox>
+        <button mat-raised-button type="button" color="primary" class="text-nowrap flex-shrink-0" [disabled]="isSavingGeneralLead" (click)="saveGeneralLead()">
+          <mat-icon>save</mat-icon>
+          Save
+        </button>
+      </div>
+    </div>
+    <form [formGroup]="form" class="lead-general-create-main lead-create-form-after-title info-form form-hide-error-text grid grid-cols-12 form-standard-grid">
+      <div class="col-span-12 grid min-w-0 grid-cols-5 form-standard-grid">
+        <mat-form-field appearance="outline" class="min-w-0">
+          <mat-label>State</mat-label>
+          <mat-select formControlName="leadStateId">
+            @for (opt of leadStateOptions; track opt.value) {
+              <mat-option [value]="opt.value">{{ opt.label }}</mat-option>
+            }
+          </mat-select>
+        </mat-form-field>
+        <mat-form-field appearance="outline" class="min-w-0">
+          <mat-label>First Name</mat-label>
+          <input matInput formControlName="firstName" autocomplete="given-name" />
+        </mat-form-field>
+        <mat-form-field appearance="outline" class="min-w-0">
+          <mat-label>Last Name</mat-label>
+          <input matInput formControlName="lastName" autocomplete="family-name" />
+        </mat-form-field>
+        <mat-form-field appearance="outline" class="min-w-0">
+          <mat-label>Email</mat-label>
+          <input matInput type="email" formControlName="email" autocomplete="email" />
+        </mat-form-field>
+        <mat-form-field appearance="outline" class="min-w-0">
+          <mat-label>Phone</mat-label>
+          <input
+            matInput
+            formControlName="phone"
+            autocomplete="tel"
+            maxlength="30"
+            placeholder="(555) 555-5555 or +1 234 567 8900"
+            (blur)="formatPhone()"
+            (input)="onPhoneInput($event)" />
+        </mat-form-field>
+      </div>
+      <div class="col-span-12">
+        <mat-form-field appearance="outline" class="w-full">
+          <mat-label>Message</mat-label>
+          <textarea matInput formControlName="message" rows="4"></textarea>
+        </mat-form-field>
+      </div>
+    </form>
+  </div>
+</ng-template>
+
+@if (!isPageReady) {
+  <div class="page-loading-container">
+    <mat-spinner [diameter]="40"></mat-spinner>
+    <p>Loading general lead…</p>
+  </div>
+} @else if (isAddMode) {
+  @if (embeddedInShell()) {
+    <mat-card class="leads-embedded-lead-card">
+      <mat-card-content>
+        <ng-container *ngTemplateOutlet="generalCreateForm" />
+      </mat-card-content>
+    </mat-card>
+  } @else {
+    <div class="flex content-card-wrap justify-center" fxLayout="row wrap">
+      <section class="content-card">
+        <div class="property-titlebar flex items-center gap-3 rounded-t-lg bg-slate-300 py-0 pl-8 pr-4 dbg-band-actions">
+          <div class="flex flex-wrap items-center py-4">
+            <span class="flex flex-shrink-0 flex-column items-center gap-3">
+              <mat-icon class="flex-shrink-0">contact_mail</mat-icon>
+              <span class="flex-shrink-0 text-xl font-medium">New general lead</span>
+            </span>
+          </div>
+        </div>
+        <mat-card class="general-create-standalone-mat-card">
+          <mat-card-content>
+            <ng-container *ngTemplateOutlet="generalCreateForm" />
+          </mat-card-content>
+        </mat-card>
+      </section>
+    </div>
+  }
+} @else if (isServiceError) {
+  @if (embeddedInShell()) {
+    <mat-card class="leads-embedded-lead-card">
+      <mat-card-content>
+        <div class="flex flex-col items-center justify-center p-8">
+          <mat-icon class="mb-4 text-6xl text-red-500">error_outline</mat-icon>
+          <h3 class="mb-2 text-xl font-semibold">General lead not found</h3>
+          <p class="text-gray-600">This general lead could not be loaded.</p>
+        </div>
+      </mat-card-content>
+    </mat-card>
+  } @else {
+    <div class="flex content-card-wrap justify-center" fxLayout="row wrap">
+      <section class="content-card">
+        <mat-card>
+          <div class="flex items-center justify-center p-8">
+            <div class="text-center">
+              <mat-icon class="mb-4 text-6xl text-red-500">error_outline</mat-icon>
+              <h3 class="mb-2 text-xl font-semibold">General lead not found</h3>
+              <p class="text-gray-600">This general lead could not be loaded.</p>
+              <button mat-raised-button type="button" color="primary" class="mt-4" (click)="back()">Back to list</button>
+            </div>
+          </div>
+        </mat-card>
+      </section>
+    </div>
+  }
+} @else if (lead) {
+  @if (embeddedInShell()) {
+    <mat-card class="leads-embedded-lead-card">
+      <mat-card-content>
+        <ng-container *ngTemplateOutlet="generalCreateForm" />
+      </mat-card-content>
+    </mat-card>
+  } @else {
+    <div class="flex content-card-wrap justify-center" fxLayout="row wrap">
+      <section class="content-card">
+        <div class="property-titlebar flex items-center justify-between gap-3 rounded-t-lg bg-slate-300 py-0 pl-8 pr-4 dbg-band-actions">
+          <div class="flex flex-wrap items-center py-4">
+            <span class="flex flex-shrink-0 flex-column items-center gap-3">
+              <mat-icon class="flex-shrink-0">contact_mail</mat-icon>
+              <span class="flex-shrink-0 text-xl font-medium">General lead</span>
+            </span>
+          </div>
+          <div class="form-titlebar-actions-wrap uniform-gap">
+            <button mat-raised-button type="button" color="accent" class="text-nowrap flex-shrink-0" (click)="back()">
+              <mat-icon>arrow_back</mat-icon>
+              Back
+            </button>
+          </div>
+        </div>
+        <mat-card>
+          <mat-card-content>
+            <ng-container *ngTemplateOutlet="generalCreateForm" />
+          </mat-card-content>
+        </mat-card>
+      </section>
+    </div>
+  }
+}

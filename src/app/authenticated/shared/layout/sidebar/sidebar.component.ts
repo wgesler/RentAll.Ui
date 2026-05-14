@@ -3,14 +3,16 @@ import { CommonModule } from '@angular/common';
 import { Component, OnDestroy, OnInit, ViewChild } from '@angular/core';
 import { MatSidenav } from '@angular/material/sidenav';
 import { Router, RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
-import { Observable, Subject, map, shareReplay, take, takeUntil } from 'rxjs';
+import { Observable, Subject, forkJoin, map, shareReplay, take, takeUntil } from 'rxjs';
 import { MaterialModule } from '../../../../material.module';
 import { AuthService } from '../../../../services/auth.service';
-import { UserGroups } from '../../../users/models/user-enums';
 import { leadsFeatureEnabled } from '../../../../config/feature-flags';
+import { LeadStateType } from '../../../leads/models/lead-enums';
+import { LeadsService } from '../../../leads/services/leads.service';
 import { getVisibleNavItems } from '../../access/role-access';
 import { TicketStateType } from '../../../tickets/models/ticket-enum';
 import { TicketService } from '../../../tickets/services/ticket.service';
+import { UserGroups } from '../../../users/models/user-enums';
 import { SidebarStateService } from '../services/sidebar-state.service';
 
 @Component({
@@ -35,6 +37,7 @@ export class SidebarComponent implements OnInit, OnDestroy {
     );
   navItems: any[] = [];
   hasAssignedTicketBadge = false;
+  hasNewLeadBadge = false;
   destroy$ = new Subject<void>();
 
   constructor(
@@ -42,12 +45,14 @@ export class SidebarComponent implements OnInit, OnDestroy {
     private authService: AuthService,
     private breakpointObserver: BreakpointObserver,
     private sidebarStateService: SidebarStateService,
-    private ticketService: TicketService
+    private ticketService: TicketService,
+    private leadsService: LeadsService
   ) { }
 
   ngOnInit(): void {
     this.filterNavItemsByRole();
     this.refreshAssignedTicketBadge();
+    this.refreshLeadBadge();
 
     this.sidebarStateService.isExpanded$.pipe(takeUntil(this.destroy$)).subscribe(isExpanded => {
       this.isExpanded = isExpanded;
@@ -69,10 +74,15 @@ export class SidebarComponent implements OnInit, OnDestroy {
     this.authService.getIsLoggedIn$().pipe(takeUntil(this.destroy$)).subscribe(() => {
       this.filterNavItemsByRole();
       this.refreshAssignedTicketBadge();
+      this.refreshLeadBadge();
     });
 
     this.ticketService.ticketStateChanged$.pipe(takeUntil(this.destroy$)).subscribe(() => {
       this.refreshAssignedTicketBadge();
+    });
+
+    this.leadsService.leadStateChanged$.pipe(takeUntil(this.destroy$)).subscribe(() => {
+      this.refreshLeadBadge();
     });
   }
 
@@ -124,6 +134,34 @@ export class SidebarComponent implements OnInit, OnDestroy {
         this.hasAssignedTicketBadge = false;
       }
     });
+  }
+
+  refreshLeadBadge(): void {
+    const hasLeadsNavItem = this.navItems.some(navItem => {
+      const url = String(navItem?.url || '');
+      return url === 'leads' || url.startsWith('leads/');
+    });
+    if (!hasLeadsNavItem) {
+      this.hasNewLeadBadge = false;
+      return;
+    }
+
+    forkJoin({
+      rentals: this.leadsService.getRentalLeads(),
+      owners: this.leadsService.getOwnerLeads(),
+      generals: this.leadsService.getGeneralLeads()
+    }).pipe(take(1)).subscribe({
+      next: ({ rentals, owners, generals }) => {
+        this.hasNewLeadBadge = this.hasNewLeadState(rentals) || this.hasNewLeadState(owners) || this.hasNewLeadState(generals);
+      },
+      error: () => {
+        this.hasNewLeadBadge = false;
+      }
+    });
+  }
+
+  hasNewLeadState(rows: Array<{ leadStateId?: number }> | null | undefined): boolean {
+    return (rows || []).some(row => row?.leadStateId === LeadStateType.New);
   }
     
   get desktopSidebarWidth(): number {

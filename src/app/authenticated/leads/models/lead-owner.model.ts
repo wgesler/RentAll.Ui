@@ -1,6 +1,7 @@
-/** API response JSON (camelCase) for `api/leads/owners`. */
-export interface LeadOwnerResponse {
-  ownerId: number;
+import type { LeadStateDropdownCell } from './lead-enums';
+
+export interface LeadOwnerRequest {
+  officeId: number;
   leadStateId: number;
   agentId: string | null;
   firstName: string | null;
@@ -28,20 +29,19 @@ export interface LeadOwnerResponse {
   tellUsAnyDrawbacks: string | null;
   preferredContactMethod: string | null;
   timeDateForContact: string | null;
-  emailPhoneConsent: boolean | null;
-  smsConsent: boolean | null;
-  isActive?: boolean;
-}
-
-/** List row: API fields plus display-only columns for the data table. */
-export interface LeadOwnerListDisplay extends LeadOwnerResponse {
-  fullName: string;
-  leadStateLabel: string;
+  emailPhoneConsent: boolean;
+  smsConsent: boolean;
   isActive: boolean;
 }
 
-/** POST `api/leads/owners` body (CreateLeadOwnerDto). */
-export interface LeadOwnerCreateRequest {
+export interface LeadOwnerUpdateRequest extends LeadOwnerRequest {
+  ownerId: number;
+}
+
+export interface LeadOwnerResponse {
+  ownerId: number;
+  organizationId: string;
+  officeId: number;
   leadStateId: number;
   agentId: string | null;
   firstName: string | null;
@@ -69,12 +69,13 @@ export interface LeadOwnerCreateRequest {
   tellUsAnyDrawbacks: string | null;
   preferredContactMethod: string | null;
   timeDateForContact: string | null;
-  emailPhoneConsent: boolean | null;
-  smsConsent: boolean | null;
-  isActive?: boolean;
+  emailPhoneConsent: boolean;
+  smsConsent: boolean;
+  isActive: boolean;
 }
 
-/** PUT `api/leads/owners` body (UpdateLeadOwnerDto). */
-export interface LeadOwnerUpdateRequest extends LeadOwnerCreateRequest {
-  ownerId: number;
+export interface LeadOwnerListDisplay extends LeadOwnerResponse {
+  fullName: string;
+  leadAttentionDot?: string;
+  leadStateDropdown: LeadStateDropdownCell;
 }

@@ -1,7 +1,9 @@
-/** API response JSON (camelCase) for `api/leads/rentals`. */
-export interface LeadRentalResponse {
-  rentalId: number;
+import type { LeadStateDropdownCell } from './lead-enums';
+
+export interface LeadRentalRequest {
+  rentalId?: number;
   leadStateId: number;
+  officeId: number;
   agentId: string | null;
   firstName: string | null;
   lastName: string | null;
@@ -21,21 +23,17 @@ export interface LeadRentalResponse {
   decisionDate: string | null;
   organizationName: string | null;
   additionalInformation: string | null;
-  iNeedAsap: boolean | null;
-  emailPhoneConsent: boolean | null;
-  smsConsent: boolean | null;
-  isActive?: boolean;
-}
-
-/** List row: API fields plus display-only columns for the data table. */
-export interface LeadRentalListDisplay extends LeadRentalResponse {
-  fullName: string;
-  leadStateLabel: string;
+  quotePath: string | null;
+  iNeedAsap: boolean;
+  emailPhoneConsent: boolean;
+  smsConsent: boolean;
   isActive: boolean;
 }
 
-/** POST `api/leads/rentals` body (CreateLeadRentalDto). */
-export interface LeadRentalCreateRequest {
+export interface LeadRentalResponse {
+  rentalId: number;
+  organizationId: string;
+  officeId: number;
   leadStateId: number;
   agentId: string | null;
   firstName: string | null;
@@ -56,13 +54,15 @@ export interface LeadRentalCreateRequest {
   decisionDate: string | null;
   organizationName: string | null;
   additionalInformation: string | null;
-  iNeedAsap: boolean | null;
-  emailPhoneConsent: boolean | null;
-  smsConsent: boolean | null;
-  isActive?: boolean;
+  quotePath: string | null;
+  iNeedAsap: boolean;
+  emailPhoneConsent: boolean;
+  smsConsent: boolean;
+  isActive: boolean;
 }
 
-/** PUT `api/leads/rentals` body (UpdateLeadRentalDto). */
-export interface LeadRentalUpdateRequest extends LeadRentalCreateRequest {
-  rentalId: number;
+export interface LeadRentalListDisplay extends LeadRentalResponse {
+  fullName: string;
+  leadAttentionDot?: string;
+  leadStateDropdown: LeadStateDropdownCell;
 }

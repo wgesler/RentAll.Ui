@@ -1,0 +1,31 @@
+<div class="flex flex-col rental-quote-dialog-wrap">
+  <div class="flex flex-1 justify-between items-center bg-slate-200 rounded-t-lg p-3">
+    <span class="text-2xl items-center flex gap-2 ml-1">
+      <mat-icon color="primary">request_quote</mat-icon>
+      Select Property Codes
+    </span>
+  </div>
+
+  <mat-dialog-content class="flex-shrink-0 w-full rental-quote-dialog-content p-4">
+    <div class="flex flex-col gap-2 max-h-80 overflow-auto">
+      @for (item of data.options; track item.propertyId) {
+        <mat-checkbox
+          [checked]="isSelected(item.propertyId)"
+          (change)="onToggle(item.propertyId, $event.checked)">
+          {{ item.propertyCode }}
+        </mat-checkbox>
+      }
+    </div>
+  </mat-dialog-content>
+
+  <mat-divider class="flex-shrink-0 w-full"></mat-divider>
+
+  <div class="flex flex-1 justify-end gap-3 p-3">
+    <button mat-raised-button type="button" color="accent" (click)="cancel()">
+      Cancel
+    </button>
+    <button mat-raised-button color="primary" type="button" [disabled]="selectedPropertyIds.size === 0" (click)="confirm()">
+      OK
+    </button>
+  </div>
+</div>

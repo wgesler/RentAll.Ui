@@ -1,5 +1,5 @@
 /**
- * When false, Leads is omitted from the sidebar and all `/auth/leads` routes are denied by the auth guard.
- * Set to true when the feature is ready to expose.
+ * When false, Leads is hidden in the sidebar for non-admins, and `/auth/leads` is denied except for Admin and SuperAdmin.
+ * When true, Leads is available to everyone allowed by `leadsAdminAndAgent` in role-access (admins + agents).
  */
-export const leadsFeatureEnabled = false;
+export const leadsFeatureEnabled = true;

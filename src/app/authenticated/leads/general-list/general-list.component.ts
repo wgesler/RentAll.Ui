@@ -15,43 +15,44 @@ import { OfficeService } from '../../organizations/services/office.service';
 import { DataTableComponent } from '../../shared/data-table/data-table.component';
 import { DataTableFilterActionsDirective } from '../../shared/data-table/data-table-filter-actions.directive';
 import { ColumnSet } from '../../shared/data-table/models/column-data';
-import { LeadOwnerListDisplay } from '../models/lead-owner.model';
+import { LeadGeneralListDisplay } from '../models/lead-general.model';
 import { formatLeadStateLabel, LEAD_STATE_SELECT_OPTIONS, LeadStateDropdownCell, LeadStateType } from '../models/lead-enums';
 import { LeadsService } from '../services/leads.service';
 
 @Component({
   standalone: true,
-  selector: 'app-owner-list',
-  templateUrl: './owner-list.component.html',
-  styleUrls: ['./owner-list.component.scss'],
+  selector: 'app-general-list',
+  templateUrl: './general-list.component.html',
+  styleUrls: ['./general-list.component.scss'],
   imports: [CommonModule, MaterialModule, DataTableComponent, DataTableFilterActionsDirective]
 })
-export class OwnerListComponent implements OnInit, OnDestroy {
+export class GeneralListComponent implements OnInit, OnDestroy {
   embeddedInShell = input(false);
   officeId = input<number | null>(null);
-  requestNewOwner = output<void>();
-  requestEditOwner = output<number>();
+  requestNewGeneral = output<void>();
+  requestEditGeneral = output<number>();
 
   isServiceError = false;
   isPageReady = false;
   showInactive = false;
-  allOwners: LeadOwnerListDisplay[] = [];
-  ownersDisplay: LeadOwnerListDisplay[] = [];
+  allGenerals: LeadGeneralListDisplay[] = [];
+  generalsDisplay: LeadGeneralListDisplay[] = [];
 
   offices: OfficeResponse[] = [];
   globalOfficeSubscription?: Subscription;
   selectedOffice: OfficeResponse | null = null;
 
-  ownersDisplayedColumns: ColumnSet = {
+  generalsDisplayedColumns: ColumnSet = {
     leadAttentionDot: { displayAs: ' ', maxWidth: '4ch', alignment: 'center', sort: false, wrap: false },
     fullName: { displayAs: 'Name', maxWidth: '25ch', wrap: false },
     email: { displayAs: 'Email', maxWidth: '30ch', wrap: false },
     phone: { displayAs: 'Phone', maxWidth: '20ch', wrap: false },
     leadStateDropdown: { displayAs: 'State', wrap: false, maxWidth: '20ch', sort: false, options: LEAD_STATE_SELECT_OPTIONS.map(o => o.label) },
+    messagePreview: { displayAs: 'Message', maxWidth: '25ch', wrap: false },
     isActive: { displayAs: 'IsActive', isCheckbox: true, checkboxEditable: true, sort: false, wrap: false, alignment: 'center', maxWidth: '12ch' }
   };
 
-  itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['owner-leads']));
+  itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['general-leads']));
   destroy$ = new Subject<void>();
 
   constructor(
@@ -75,7 +76,7 @@ export class OwnerListComponent implements OnInit, OnDestroy {
     });
   }
 
-  //#region Owner-List
+  //#region General-List
   ngOnInit(): void {
     this.itemsToLoad$.pipe(takeUntil(this.destroy$)).subscribe(items => {
       this.isPageReady = items.size === 0;
@@ -93,43 +94,43 @@ export class OwnerListComponent implements OnInit, OnDestroy {
     });
 
     this.loadOffices();
-    this.loadOwnerLeads();
+    this.loadGeneralLeads();
   }
 
-  addOwnerLead(): void {
+  addGeneralLead(): void {
     if (this.embeddedInShell()) {
-      this.requestNewOwner.emit();
+      this.requestNewGeneral.emit();
       return;
     }
     this.ngZone.run(() => {
-      this.router.navigateByUrl(RouterUrl.replaceTokens(RouterUrl.LeadOwner, ['new']));
+      void this.router.navigateByUrl(RouterUrl.replaceTokens(RouterUrl.LeadGeneral, ['new']));
     });
   }
 
-  goToOwnerLead(event: LeadOwnerListDisplay): void {
-    if (!event?.ownerId) {
+  goToGeneral(event: LeadGeneralListDisplay): void {
+    if (!event?.generalId) {
       return;
     }
     if (this.embeddedInShell()) {
-      this.requestEditOwner.emit(event.ownerId);
+      this.requestEditGeneral.emit(event.generalId);
       return;
     }
     this.ngZone.run(() => {
-      this.router.navigateByUrl(RouterUrl.replaceTokens(RouterUrl.LeadOwner, [String(event.ownerId)]));
+      void this.router.navigateByUrl(RouterUrl.replaceTokens(RouterUrl.LeadGeneral, [String(event.generalId)]));
     });
   }
 
-  deleteOwner(event: LeadOwnerListDisplay): void {
-    if (!event?.ownerId) {
+  deleteGeneral(event: LeadGeneralListDisplay): void {
+    if (!event?.generalId) {
       return;
     }
-    this.leadsService.deleteOwnerLead(event.ownerId).pipe(take(1)).subscribe({
+    this.leadsService.deleteGeneralLead(event.generalId).pipe(take(1)).subscribe({
       next: () => {
-        this.toastr.success('Owner lead deleted.', CommonMessage.Success);
-        this.loadOwnerLeads();
+        this.toastr.success('General lead deleted.', CommonMessage.Success);
+        this.loadGeneralLeads();
       },
       error: () => {
-        this.toastr.error('Unable to delete owner lead.', CommonMessage.Error);
+        this.toastr.error('Unable to delete general lead.', CommonMessage.Error);
       }
     });
   }
@@ -147,7 +148,7 @@ export class OwnerListComponent implements OnInit, OnDestroy {
   //#endregion
 
   //#region Form Response Methods
-  onOwnerLeadStateDropdownChange(event: LeadOwnerListDisplay & { __changedDropdownColumn?: string }): void {
+  onGeneralLeadStateDropdownChange(event: LeadGeneralListDisplay & { __changedDropdownColumn?: string }): void {
     if ((event as { __changedDropdownColumn?: string }).__changedDropdownColumn !== 'leadStateDropdown') {
       return;
     }
@@ -162,24 +163,26 @@ export class OwnerListComponent implements OnInit, OnDestroy {
       return;
     }
     const previousLeadStateId = event.leadStateId;
-    this.applyOwnerLeadStateId(event.ownerId, nextLeadStateId);
-    const row = this.allOwners.find(r => r.ownerId === event.ownerId);
+    this.applyGeneralLeadStateId(event.generalId, nextLeadStateId);
+    const row = this.allGenerals.find(r => r.generalId === event.generalId);
     if (!row) {
       return;
     }
-    this.leadsService.updateOwnerLead(this.mappingService.mapLeadOwnerListRowToUpdateRequest(row, row.isActive)).pipe(take(1)).subscribe({
+    this.leadsService.updateGeneralLead(this.mappingService.mapLeadGeneralListRowToUpdateRequest(row, row.isActive)).pipe(take(1)).subscribe({
       next: () => {
-        this.toastr.success('Owner lead updated.', CommonMessage.Success);
+        this.toastr.success('General lead updated.', CommonMessage.Success);
         this.leadsService.notifyLeadStateChanged();
       },
       error: () => {
-        this.applyOwnerLeadStateId(event.ownerId, previousLeadStateId);
-        this.toastr.error('Unable to update owner lead.', CommonMessage.Error);
+        this.applyGeneralLeadStateId(event.generalId, previousLeadStateId);
+        this.toastr.error('Unable to update general lead.', CommonMessage.Error);
       }
     });
   }
 
-  onOwnerCheckboxChange(event: LeadOwnerListDisplay & { __changedCheckboxColumn?: string; __previousCheckboxValue?: boolean; __checkboxValue?: boolean }): void {
+  onGeneralCheckboxChange(
+    event: LeadGeneralListDisplay & { __changedCheckboxColumn?: string; __previousCheckboxValue?: boolean; __checkboxValue?: boolean }
+  ): void {
     if ((event as { __changedCheckboxColumn?: string }).__changedCheckboxColumn !== 'isActive') {
       return;
     }
@@ -188,40 +191,40 @@ export class OwnerListComponent implements OnInit, OnDestroy {
     if (previousValue === nextValue) {
       return;
     }
-    this.applyOwnerIsActiveValue(event.ownerId, nextValue);
-    const body = this.mappingService.mapLeadOwnerListRowToUpdateRequest(event, nextValue);
-    this.leadsService.updateOwnerLead(body).pipe(take(1)).subscribe({
+    this.applyGeneralIsActiveValue(event.generalId, nextValue);
+    const body = this.mappingService.mapLeadGeneralListRowToUpdateRequest(event, nextValue);
+    this.leadsService.updateGeneralLead(body).pipe(take(1)).subscribe({
       next: () => {
-        this.toastr.success('Owner lead updated.', CommonMessage.Success);
+        this.toastr.success('General lead updated.', CommonMessage.Success);
       },
       error: () => {
-        this.applyOwnerIsActiveValue(event.ownerId, previousValue);
-        this.toastr.error('Unable to update owner lead.', CommonMessage.Error);
+        this.applyGeneralIsActiveValue(event.generalId, previousValue);
+        this.toastr.error('Unable to update general lead.', CommonMessage.Error);
       }
     });
   }
 
-  applyOwnerLeadStateId(ownerId: number, leadStateId: number): void {
-    const patch = (rows: LeadOwnerListDisplay[]) => {
-      const r = rows.find(x => x.ownerId === ownerId);
+  applyGeneralLeadStateId(generalId: number, leadStateId: number): void {
+    const patch = (rows: LeadGeneralListDisplay[]) => {
+      const r = rows.find(x => x.generalId === generalId);
       if (r) {
         r.leadStateId = leadStateId;
         r.leadStateDropdown = this.buildLeadStateDropdownCell(leadStateId);
       }
     };
-    patch(this.allOwners);
-    patch(this.ownersDisplay);
+    patch(this.allGenerals);
+    patch(this.generalsDisplay);
   }
 
-  applyOwnerIsActiveValue(ownerId: number, isActive: boolean): void {
-    const patch = (rows: LeadOwnerListDisplay[]) => {
-      const row = rows.find(r => r.ownerId === ownerId);
+  applyGeneralIsActiveValue(generalId: number, isActive: boolean): void {
+    const patch = (rows: LeadGeneralListDisplay[]) => {
+      const row = rows.find(r => r.generalId === generalId);
       if (row) {
         row.isActive = isActive;
       }
     };
-    patch(this.allOwners);
-    patch(this.ownersDisplay);
+    patch(this.allGenerals);
+    patch(this.generalsDisplay);
   }
   //#endregion
 
@@ -249,19 +252,18 @@ export class OwnerListComponent implements OnInit, OnDestroy {
       });
   }
 
-  loadOwnerLeads(): void {
-    this.itemsToLoad$.next(new Set([...this.itemsToLoad$.value, 'owner-leads']));
+  loadGeneralLeads(): void {
     this.isServiceError = false;
-    this.leadsService.getOwnerLeads().pipe(take(1), takeUntil(this.destroy$), finalize(() => this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'owner-leads'))).subscribe({
+    this.leadsService.getGeneralLeads().pipe(take(1), takeUntil(this.destroy$), finalize(() => this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'general-leads'))).subscribe({
       next: rows => {
-        this.allOwners = (rows || []).map(row => this.mappingService.mapLeadOwnerListRow(row));
-        this.applyOwnerFilters();
+        this.allGenerals = (rows || []).map(row => this.mappingService.mapLeadGeneralListRow(row));
+        this.applyGeneralFilters();
         this.leadsService.notifyLeadStateChanged();
       },
       error: () => {
         this.isServiceError = true;
-        this.allOwners = [];
-        this.ownersDisplay = [];
+        this.allGenerals = [];
+        this.generalsDisplay = [];
       }
     });
   }
@@ -279,35 +281,33 @@ export class OwnerListComponent implements OnInit, OnDestroy {
 
   toggleInactive(): void {
     this.showInactive = !this.showInactive;
-    this.applyOwnerFilters();
+    this.applyGeneralFilters();
   }
 
-  applyOwnerFilters(): void {
-    let rows = [...this.allOwners];
+  applyGeneralFilters(): void {
+    let rows = [...this.allGenerals];
     const scopeOfficeId = this.scopeOfficeIdForListFilter();
     if (scopeOfficeId != null) {
-      rows = rows.filter(r => this.ownerPassesOfficeFilter(r, scopeOfficeId));
+      rows = rows.filter(r => this.generalPassesOfficeFilter(r, scopeOfficeId));
     }
     if (!this.showInactive) {
       rows = rows.filter(r => r.isActive !== false);
     }
-    this.ownersDisplay = rows.map(row => ({
+    this.generalsDisplay = rows.map(row => ({
       ...row,
       leadAttentionDot: this.getLeadAttentionDotValue(row.leadStateId)
     }));
   }
 
-  ownerPassesOfficeFilter(row: LeadOwnerListDisplay, scopeOfficeId: number): boolean {
+  generalPassesOfficeFilter(row: LeadGeneralListDisplay, scopeOfficeId: number): boolean {
     const rowOffice = Number(row.officeId);
     return !Number.isNaN(rowOffice) && rowOffice === Number(scopeOfficeId);
   }
-  //#endregion
 
-  //#region Office Methods
   resolveOfficeScope(officeId: number | null): void {
     this.selectedOffice = this.utilityService.resolveSelectedOfficeById(this.offices, officeId);
     this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'officeScope');
-    this.applyOwnerFilters();
+    this.applyGeneralFilters();
   }
 
   getLeadAttentionDotValue(leadStateId: number): string {

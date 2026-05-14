@@ -31,14 +31,19 @@ import { BoardProperty } from '../authenticated/reservations/models/reservation-
 import { getFrequency, getReservationStatus } from '../authenticated/reservations/models/reservation-enum';
 import { ExtraFeeLineRequest, ExtraFeeLineResponse, ReservationListDisplay, ReservationListResponse } from '../authenticated/reservations/models/reservation-model';
 import {
+  LeadGeneralListDisplay,
+  LeadGeneralResponse,
+  LeadGeneralUpdateRequest
+} from '../authenticated/leads/models/lead-general.model';
+import {
   LeadOwnerListDisplay,
   LeadOwnerResponse,
   LeadOwnerUpdateRequest
 } from '../authenticated/leads/models/lead-owner.model';
 import {
   LeadRentalListDisplay,
-  LeadRentalResponse,
-  LeadRentalUpdateRequest
+  LeadRentalRequest,
+  LeadRentalResponse
 } from '../authenticated/leads/models/lead-rental.model';
 import { formatLeadStateLabel } from '../authenticated/leads/models/lead-enums';
 import { getTicketStateType } from '../authenticated/tickets/models/ticket-enum';
@@ -625,35 +630,77 @@ export class MappingService {
 
   //#region Lead mapping
   mapLeadRentalListRow(lead: LeadRentalResponse): LeadRentalListDisplay {
-    const fullName = [lead.firstName, lead.lastName]
-      .filter(part => !!part && String(part).trim() !== '')
-      .map(part => String(part).trim())
-      .join(' ');
+    const stateLabel = formatLeadStateLabel(lead.leadStateId);
+    const fullName = [lead.firstName, lead.lastName].map(part => String(part || '').trim()).filter(part => part !== '').join(' ') || '—';
+    const phone = this.formatter.phoneNumber(lead.phone || '') || null;
     return {
       ...lead,
-      fullName: fullName || '—',
-      leadStateLabel: formatLeadStateLabel(lead.leadStateId),
+      phone,
+      quotePath: lead.quotePath ?? null,
+      fullName,
+      leadAttentionDot: '',
+      leadStateDropdown: {
+        value: stateLabel,
+        isOverridable: true,
+        toString: () => stateLabel
+      },
       isActive: lead.isActive !== false
+    };
+  }
+
+  mapLeadGeneralListRow(lead: LeadGeneralResponse): LeadGeneralListDisplay {
+    const trimmedMessage = String(lead.message ?? '').trim();
+    const messagePreview =
+      trimmedMessage.length === 0 ? '—' : trimmedMessage.length <= 30 ? trimmedMessage : `${trimmedMessage.slice(0, 30)}...`;
+    const stateLabel = formatLeadStateLabel(lead.leadStateId);
+    const fullName = [lead.firstName, lead.lastName].map(part => String(part || '').trim()).filter(part => part !== '').join(' ') || '—';
+    const phone = this.formatter.phoneNumber(lead.phone || '') || null;
+    return {
+      ...lead,
+      phone,
+      fullName,
+      leadAttentionDot: '',
+      messagePreview,
+      leadStateDropdown: {
+        value: stateLabel,
+        isOverridable: true,
+        toString: () => stateLabel
+      },
+      isActive: lead.isActive !== false
+    };
+  }
+
+  mapLeadGeneralListRowToUpdateRequest(row: LeadGeneralListDisplay, isActive: boolean): LeadGeneralUpdateRequest {
+    const { fullName, messagePreview, leadAttentionDot, leadStateDropdown, ...rest } = row;
+    return {
+      ...rest,
+      isActive
     };
   }
 
   mapLeadOwnerListRow(lead: LeadOwnerResponse): LeadOwnerListDisplay {
-    const fullName = [lead.firstName, lead.lastName]
-      .filter(part => !!part && String(part).trim() !== '')
-      .map(part => String(part).trim())
-      .join(' ');
+    const stateLabel = formatLeadStateLabel(lead.leadStateId);
+    const fullName = [lead.firstName, lead.lastName].map(part => String(part || '').trim()).filter(part => part !== '').join(' ') || '—';
+    const phone = this.formatter.phoneNumber(lead.phone || '') || null;
     return {
       ...lead,
-      fullName: fullName || '—',
-      leadStateLabel: formatLeadStateLabel(lead.leadStateId),
+      phone,
+      fullName,
+      leadAttentionDot: '',
+      leadStateDropdown: {
+        value: stateLabel,
+        isOverridable: true,
+        toString: () => stateLabel
+      },
       isActive: lead.isActive !== false
     };
   }
 
-  mapLeadRentalListRowToUpdateRequest(row: LeadRentalListDisplay, isActive: boolean): LeadRentalUpdateRequest {
-    const { fullName, leadStateLabel, ...rest } = row;
+  mapLeadRentalListRowToUpdateRequest(row: LeadRentalListDisplay, isActive: boolean): LeadRentalRequest {
+    const { fullName, leadAttentionDot, leadStateDropdown, ...rest } = row;
     return {
       ...rest,
+      quotePath: rest.quotePath ?? null,
       isActive,
       iNeedAsap: rest.iNeedAsap ?? false,
       emailPhoneConsent: rest.emailPhoneConsent ?? false,
@@ -661,8 +708,40 @@ export class MappingService {
     };
   }
 
+  mapLeadRentalResponseToUpdateRequest(lead: LeadRentalResponse, quotePathOverride?: string | null): LeadRentalRequest {
+    return {
+      rentalId: lead.rentalId,
+      leadStateId: lead.leadStateId,
+      officeId: lead.officeId,
+      agentId: lead.agentId,
+      firstName: lead.firstName,
+      lastName: lead.lastName,
+      email: lead.email,
+      phone: lead.phone,
+      desiredLocation: lead.desiredLocation,
+      propertyRefId: lead.propertyRefId,
+      estimatedArrivalDate: lead.estimatedArrivalDate,
+      estimatedDepartureDate: lead.estimatedDepartureDate,
+      maxMonthlyBudget: lead.maxMonthlyBudget,
+      minBedrooms: lead.minBedrooms,
+      numberOfOccupants: lead.numberOfOccupants,
+      whatBringsYouToTown: lead.whatBringsYouToTown,
+      howDidYouFindUs: lead.howDidYouFindUs,
+      tellUsMoreAboutHowYouFoundUs: lead.tellUsMoreAboutHowYouFoundUs,
+      petFriendly: lead.petFriendly,
+      decisionDate: lead.decisionDate,
+      organizationName: lead.organizationName,
+      additionalInformation: lead.additionalInformation,
+      quotePath: quotePathOverride ?? lead.quotePath ?? null,
+      iNeedAsap: lead.iNeedAsap ?? false,
+      emailPhoneConsent: lead.emailPhoneConsent ?? false,
+      smsConsent: lead.smsConsent ?? false,
+      isActive: lead.isActive ?? false
+    };
+  }
+
   mapLeadOwnerListRowToUpdateRequest(row: LeadOwnerListDisplay, isActive: boolean): LeadOwnerUpdateRequest {
-    const { fullName, leadStateLabel, ...rest } = row;
+    const { fullName, leadAttentionDot, leadStateDropdown, ...rest } = row;
     return {
       ...rest,
       isActive,

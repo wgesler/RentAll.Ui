@@ -156,9 +156,15 @@
                                 <mat-spinner diameter="15" [style.color]="button.color" [color]="button.color"/>
                               </div>
                             } @else {
-                              <mat-icon id="row-{{button.name}}-btn-icon-{{templateTableId}}-{{i}}">
-                                {{button.icon}}
-                              </mat-icon>
+                              @if (button.name === 'quote') {
+                                <span class="datatable-quote-letter-icon" id="row-{{button.name}}-btn-icon-{{templateTableId}}-{{i}}">
+                                  Q
+                                </span>
+                              } @else {
+                                <mat-icon id="row-{{button.name}}-btn-icon-{{templateTableId}}-{{i}}">
+                                  {{button.icon}}
+                                </mat-icon>
+                              }
                             }
                           </button>
                         </span>
@@ -213,6 +219,16 @@
                       [matTooltip]="'View Document'"
                       id="table-attachment-link-{{templateTableId}}-{{i}}">
                       <mat-icon>description</mat-icon>
+                    </button>
+                  }
+                  } @case ('quotePath') {
+                  @if (item[column.name]) {
+                    <button mat-icon-button
+                      type="button"
+                      (click)="onQuotePathClick($event, item)"
+                      [matTooltip]="'Open quote'"
+                      id="table-quote-link-{{templateTableId}}-{{i}}">
+                      <mat-icon>request_quote</mat-icon>
                     </button>
                   }
                   } @case ('receipt') {

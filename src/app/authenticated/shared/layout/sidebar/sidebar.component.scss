@@ -14,6 +14,12 @@ mat-sidenav {
     color: white !important;
   }
 
+  /* Default mat-icon clips overflow; dense glyphs (e.g. hub) look cut off in the sidenav. */
+  & mat-icon.mat-icon {
+    overflow: visible;
+    line-height: 1;
+  }
+
   & .mdc-list-item:first-of-type {
     margin-top: 80px;
   }
@@ -40,9 +46,11 @@ mat-sidenav {
     }
     
     & mat-icon {
-      display:block;
+      display: block;
       margin: 0 auto 4px auto;
       color: #fff !important;
+      overflow: visible;
+      line-height: 1;
     }
     & .sidebar-svg-icon {
       display: block;
@@ -59,7 +67,7 @@ mat-sidenav {
     }
     & .sidebar-ticket-badge-dot {
       position: absolute;
-      top: 8px;
+      top: 20px;
       left: 12px;
       width: 9px;
       height: 9px;

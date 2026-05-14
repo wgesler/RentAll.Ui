@@ -1,12 +1,18 @@
 .property-titlebar {
   min-height: var(--property-titlebar-height);
   box-sizing: border-box;
+
+  mat-icon.mat-icon {
+    overflow: visible;
+    line-height: 1;
+  }
 }
 
 :host ::ng-deep .property-tabs .mat-mdc-tab-body-content {
   overflow-y: hidden !important;
 }
 
+/* Three visible tabs sized as five slots (two “slots” reserved / empty). */
 :host ::ng-deep .leads-shell-five-slot-tabs .mat-mdc-tab-header .mat-mdc-tab {
   flex: 0 0 calc(100% / 5);
   max-width: calc(100% / 5);

@@ -218,6 +218,45 @@ export class UtilityService {
     return s === '' ? null : s;
   }
 
+  //#region Form strings → API (optional primitives)
+  /** Empty/whitespace UI value → `null`; non-empty → trimmed string. */
+  trimOrNull(value: unknown): string | null {
+    const s = String(value ?? '').trim();
+    return s.length ? s : null;
+  }
+
+  /**
+   * Digits-only style input (e.g. bedrooms) → int, or `null` if blank / not parseable after stripping non-digits.
+   */
+  parseOptionalIntString(value: unknown): number | null {
+    const s = String(value ?? '')
+      .trim()
+      .replace(/\D/g, '');
+    if (!s) {
+      return null;
+    }
+    const n = parseInt(s, 10);
+    return Number.isNaN(n) ? null : n;
+  }
+
+  /**
+   * Currency-formatted or plain decimal text → number, or `null` if blank / not a finite number.
+   * Strips `$`, commas, and whitespace from the numeric portion.
+   */
+  parseOptionalNumberString(value: unknown): number | null {
+    const s = String(value ?? '').trim();
+    if (!s) {
+      return null;
+    }
+    const normalized = s.replace(/[$,\s]/g, '');
+    if (!normalized || normalized === '.') {
+      return null;
+    }
+    const n = Number(normalized);
+    return Number.isNaN(n) ? null : n;
+  }
+  //#endregion
+
   extractApiErrorMessage(error: unknown): string {
     if (error instanceof HttpErrorResponse) {
       const bodyMessage = this.extractApiErrorMessageFromPayload(error.error);

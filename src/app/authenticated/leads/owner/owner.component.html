@@ -10,25 +10,25 @@
             Back
           </button>
         }
-        <mat-checkbox [formControl]="createForm.controls.emailPhoneConsent" color="accent" class="owner-titlebar-lead-checkbox text-nowrap">
-          Email / Phone Consent
+        <mat-checkbox [formControl]="$any(form.controls['emailPhoneConsent'])" color="accent" class="owner-titlebar-lead-checkbox text-nowrap">
+          Email/Phone Consent
         </mat-checkbox>
-        <mat-checkbox [formControl]="createForm.controls.smsConsent" color="accent" class="owner-titlebar-lead-checkbox text-nowrap">
+        <mat-checkbox [formControl]="$any(form.controls['smsConsent'])" color="accent" class="owner-titlebar-lead-checkbox text-nowrap">
           SMS Consent
         </mat-checkbox>
       </div>
       <div class="owner-create-titlebar-right flex flex-shrink-0 flex-wrap items-center gap-3">
-        <mat-checkbox [formControl]="createForm.controls.isActive" color="primary" class="owner-titlebar-lead-checkbox text-nowrap">
+        <mat-checkbox [formControl]="$any(form.controls['isActive'])" color="primary" class="owner-titlebar-lead-checkbox text-nowrap">
           IsActive
         </mat-checkbox>
-        <button mat-raised-button type="button" color="primary" class="text-nowrap flex-shrink-0" [disabled]="isSavingCreate" (click)="saveNewOwner()">
+        <button mat-raised-button type="button" color="primary" class="text-nowrap flex-shrink-0" [disabled]="isSavingCreate" (click)="saveOwnerLead()">
           <mat-icon>save</mat-icon>
           Save
         </button>
       </div>
     </div>
     <form
-      [formGroup]="createForm"
+      [formGroup]="form"
       class="lead-owner-create-main lead-create-form-after-title info-form form-hide-error-text grid grid-cols-12 form-standard-grid">
       <div class="lead-owner-create-row-first col-span-12 grid min-w-0 grid-cols-4 form-standard-grid">
         <mat-form-field appearance="outline" class="min-w-0">
@@ -185,35 +185,12 @@
   </div>
 </ng-template>
 
-<ng-template #ownerLeadDetail>
-  <dl class="lead-detail-dl">
-    <dt>ID</dt>
-    <dd>{{ lead!.ownerId }}</dd>
-    <dt>Lead State</dt>
-    <dd>{{ leadStateDisplay(lead!.leadStateId) }}</dd>
-    <dt>Name</dt>
-    <dd>{{ lead!.firstName }} {{ lead!.lastName }}</dd>
-    <dt>Email</dt>
-    <dd>{{ lead!.email }}</dd>
-    <dt>Phone</dt>
-    <dd>{{ lead!.phone }}</dd>
-    <dt>Location of Property</dt>
-    <dd>{{ lead!.locationOfProperty }}</dd>
-    <dt>Program Interest</dt>
-    <dd>{{ lead!.programInterest }}</dd>
-    <dt>Target Rent-Ready</dt>
-    <dd>{{ formatDate(lead!.targetRentReadyDate) }}</dd>
-    <dt>Address</dt>
-    <dd>{{ lead!.address }}, {{ lead!.city }} {{ lead!.state }} {{ lead!.zip }}</dd>
-  </dl>
-</ng-template>
-
 @if (!isPageReady) {
   <div class="page-loading-container">
     <mat-spinner [diameter]="40"></mat-spinner>
     <p>Loading owner lead…</p>
   </div>
-} @else if (isCreateMode) {
+} @else if (isAddMode) {
   @if (embeddedInShell()) {
     <mat-card class="leads-embedded-lead-card">
       <mat-card-content>
@@ -270,7 +247,7 @@
   @if (embeddedInShell()) {
     <mat-card class="leads-embedded-lead-card">
       <mat-card-content>
-        <ng-container *ngTemplateOutlet="ownerLeadDetail" />
+        <ng-container *ngTemplateOutlet="ownerCreateForm" />
       </mat-card-content>
     </mat-card>
   } @else {
@@ -292,7 +269,7 @@
         </div>
         <mat-card>
           <mat-card-content>
-            <ng-container *ngTemplateOutlet="ownerLeadDetail" />
+            <ng-container *ngTemplateOutlet="ownerCreateForm" />
           </mat-card-content>
         </mat-card>
       </section>

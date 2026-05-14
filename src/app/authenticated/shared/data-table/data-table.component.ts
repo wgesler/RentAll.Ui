@@ -66,6 +66,7 @@ export class DataTableComponent implements OnChanges, OnInit {
   @Input() hasActionsPayable: boolean = false;
   @Input() hasActionsInvoice: boolean = false;
   @Input() hasActionsPrint: boolean = false;
+  @Input() hasActionsQuote: boolean = false;
   @Input() hasActionsRestore: boolean = false;
   @Input() hasActionsClearTracking: boolean = false;
   @Input() hasActionsCheckAll: boolean = false;
@@ -139,6 +140,7 @@ export class DataTableComponent implements OnChanges, OnInit {
   @Output() payableEvent = new EventEmitter<PurposefulAny>();
   @Output() invoiceEvent = new EventEmitter<PurposefulAny>();
   @Output() printEvent = new EventEmitter<PurposefulAny>();
+  @Output() quoteEvent = new EventEmitter<PurposefulAny>();
   @Output() restoreEvent = new EventEmitter<PurposefulAny>();
   @Output() clearTrackingEvent = new EventEmitter<PurposefulAny>();
   @Output() checkAllEvent = new EventEmitter<PurposefulAny>();
@@ -150,6 +152,7 @@ export class DataTableComponent implements OnChanges, OnInit {
   @Output() inspectEvent = new EventEmitter<PurposefulAny>();
   @Output() viewEvent = new EventEmitter<PurposefulAny>();
   @Output() attachmentClickEvent = new EventEmitter<PurposefulAny>();
+  @Output() quotePathClickEvent = new EventEmitter<PurposefulAny>();
   @Output() contactClickEvent = new EventEmitter<PurposefulAny>();
   @Output() receiptClickEvent = new EventEmitter<PurposefulAny>();
   @Output() propertyCodeClickEvent = new EventEmitter<PurposefulAny>();
@@ -367,6 +370,11 @@ export class DataTableComponent implements OnChanges, OnInit {
     this.printEvent.emit(rowItem);
   }
 
+  emitQuoteEvent(event: Event, rowItem: PurposefulAny): void {
+    event.stopPropagation();
+    this.quoteEvent.emit(rowItem);
+  }
+
   emitCopyEvent(event: Event, rowItem: PurposefulAny): void {
     event.stopPropagation();
     this.copyEvent.emit(rowItem);
@@ -494,6 +502,11 @@ export class DataTableComponent implements OnChanges, OnInit {
   onAttachmentClick(event: Event, rowItem: PurposefulAny): void {
     event.stopPropagation();
     this.attachmentClickEvent.emit(rowItem);
+  }
+
+  onQuotePathClick(event: Event, rowItem: PurposefulAny): void {
+    event.stopPropagation();
+    this.quotePathClickEvent.emit(rowItem);
   }
 
   onReceiptClick(event: Event, rowItem: PurposefulAny): void {
@@ -748,7 +761,7 @@ export class DataTableComponent implements OnChanges, OnInit {
 
     columns = {...columns, ...this.columns};
     
-    if (this.hasActionsEdit || this.hasActionsDelete || this.hasActionsSave || this.hasActionsRestore || this.hasActionsDownload || this.hasActionsView || this.hasActionsInspect || this.hasActionsCamera || this.hasActionsPayable || this.hasActionsInvoice || this.hasActionsCopy || this.hasActionsCalendar || this.hasActionsClearTracking || this.hasActionsCheckAll || this.hasColumnDynamicAction)
+    if (this.hasActionsEdit || this.hasActionsDelete || this.hasActionsSave || this.hasActionsRestore || this.hasActionsDownload || this.hasActionsView || this.hasActionsInspect || this.hasActionsCamera || this.hasActionsPayable || this.hasActionsInvoice || this.hasActionsCopy || this.hasActionsCalendar || this.hasActionsQuote || this.hasActionsClearTracking || this.hasActionsCheckAll || this.hasColumnDynamicAction)
       columns['actions'] = { displayAs: 'Actions', sort: false, wrap: false };
     
     this.tableColumns = [];
@@ -780,6 +793,7 @@ export class DataTableComponent implements OnChanges, OnInit {
     if (this.hasActionsEdit)     this.buttons.push({name: 'edit', callback: (event, rowItem) => this.emitEditEvent(event, rowItem), color: '#7E69B4', tooltip: 'Edit', tooltipPosition: 'before', icon: 'edit', suspendOnUpdate: false});
     if (this.hasActionsInspect)  this.buttons.push({name: 'inspect', callback: (event, rowItem) => this.emitInspectEvent(event, rowItem), color: '#4CAF50', tooltip: 'Open Inspection', tooltipPosition: 'before', icon: 'search', suspendOnUpdate: false});
     if (this.hasActionsCalendar) this.buttons.push({name: 'calendar', callback: (event, rowItem) => this.emitCalendarEvent(event, rowItem), color: '#00897B', tooltip: 'Calendar', tooltipPosition: 'before', icon: 'calendar_month', suspendOnUpdate: false});
+    if (this.hasActionsQuote)    this.buttons.push({name: 'quote', callback: (event, rowItem) => this.emitQuoteEvent(event, rowItem), color: '#2E7D32', tooltip: 'Generate Quote', tooltipPosition: 'before', icon: 'request_quote', suspendOnUpdate: false});
     if (this.hasActionsCopy)     this.buttons.push({name: 'copy', callback: (event, rowItem) => this.emitCopyEvent(event, rowItem), color: '#2196F3', tooltip: 'Copy', tooltipPosition: 'before', icon: 'file_copy', suspendOnUpdate: false});
     if (this.hasActionsPayable)  this.buttons.push({name: 'payable', callback: (event, rowItem) => this.emitPayableEvent(event, rowItem), color: '#4CAF50', tooltip: 'Pay', tooltipPosition: 'before', icon: 'attach_money', suspendOnUpdate: false});
     if (this.hasActionsInvoice)  this.buttons.push({name: 'invoice', callback: (event, rowItem) => this.emitInvoiceEvent(event, rowItem), color: '#2E7D32', tooltip: 'Invoices', tooltipPosition: 'before', icon: 'receipt_long', suspendOnUpdate: false});

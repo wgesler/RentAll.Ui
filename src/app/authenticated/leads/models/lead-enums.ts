@@ -37,4 +37,10 @@ export const LEAD_STATE_SELECT_OPTIONS: { value: LeadStateType; label: string }[
   LeadStateType.ChoseAnotherOption,
   LeadStateType.BookedWithUs
 ].map(value => ({ value, label: formatLeadStateLabel(value) }));
+
+export interface LeadStateDropdownCell {
+  value: string;
+  isOverridable: boolean;
+  toString(): string;
+}
 //#endregion

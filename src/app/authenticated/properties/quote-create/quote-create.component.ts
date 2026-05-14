@@ -33,6 +33,8 @@ import { PropertyService } from '../services/property.service';
 import { PropertyListingShareService } from '../services/property-listing-share.service';
 import { ToastrService } from 'ngx-toastr';
 import { QuoteComponent } from '../quote/quote.component';
+import { LeadsService } from '../../leads/services/leads.service';
+import { MappingService } from '../../../services/mapping.service';
 
 @Component({
   standalone: true,
@@ -69,6 +71,7 @@ export class QuoteCreateComponent extends BaseDocumentComponent implements OnIni
   headerOfficeId: number | null = null;
   firstPropertyOfficeId: number | null = null;
   isViewMode = false;
+  leadRentalIdForAttachment: number | null = null;
 
   isPageReady = false;
   itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['offices', 'accountingOffices', 'quoteTemplate']));
@@ -86,9 +89,11 @@ export class QuoteCreateComponent extends BaseDocumentComponent implements OnIni
     private emailCreateDraftService: EmailCreateDraftService,
     private formatterService: FormatterService,
     private utilityService: UtilityService,
+    private mappingService: MappingService,
     private documentReloadService: DocumentReloadService,
     private propertyService: PropertyService,
     private propertyListingShareService: PropertyListingShareService,
+    private leadsService: LeadsService,
     documentService: DocumentService,
     documentExportService: DocumentExportService,
     documentHtmlService: DocumentHtmlService,
@@ -119,6 +124,8 @@ export class QuoteCreateComponent extends BaseDocumentComponent implements OnIni
     this.queryParamsSubscription?.unsubscribe();
     this.queryParamsSubscription = this.route.queryParams.subscribe(params => {
       this.isViewMode = String(params['view'] || '').toLowerCase() === 'true';
+      const leadRentalIdRaw = parseInt(String(params['lrid'] || '').trim(), 10);
+      this.leadRentalIdForAttachment = Number.isFinite(leadRentalIdRaw) && leadRentalIdRaw > 0 ? leadRentalIdRaw : null;
       const queryPropertyIds = String(params['propertyIds'] || '')
         .split(',')
         .map(propertyId => decodeURIComponent(propertyId || '').trim())
@@ -311,6 +318,9 @@ export class QuoteCreateComponent extends BaseDocumentComponent implements OnIni
     if (this.returnTo) {
       queryParams.push(`returnTo=${encodeURIComponent(this.returnTo)}`);
     }
+    if (this.leadRentalIdForAttachment && this.leadRentalIdForAttachment > 0) {
+      queryParams.push(`lrid=${this.leadRentalIdForAttachment}`);
+    }
     this.appendQuoteSnapshotQueryParts(queryParams);
     return queryParams.length > 0 ? `?${queryParams.join('&')}` : '';
   }
@@ -341,11 +351,12 @@ export class QuoteCreateComponent extends BaseDocumentComponent implements OnIni
         officeName: this.selectedOffice?.name || this.companyNameDisplay || '',
         propertyId: this.propertyListingLinks[0]?.propertyId ?? null,
         reservationId: null,
-        documentTypeId: Number(DocumentType.Other),
+        documentTypeId: Number(DocumentType.Quote),
         fileName
       };
 
-      await firstValueFrom(this.documentService.generate(generateDto));
+      const generatedDocument = await firstValueFrom(this.documentService.generate(generateDto));
+      await this.attachGeneratedQuoteToRentalLeadIfPresent(generatedDocument.documentPath);
       this.toastr.success('Document generated successfully', 'Success');
       this.documentReloadService.triggerReload();
       this.iframeKey++;
@@ -963,6 +974,22 @@ export class QuoteCreateComponent extends BaseDocumentComponent implements OnIni
       return '';
     }
     return trimmed.split(/\s+/)[0] || trimmed;
+  }
+
+  async attachGeneratedQuoteToRentalLeadIfPresent(documentPath: string | null | undefined): Promise<void> {
+    const rentalId = this.leadRentalIdForAttachment;
+    const normalizedPath = String(documentPath || '').trim();
+    if (!rentalId || !normalizedPath) {
+      return;
+    }
+    try {
+      const rentalLead = await firstValueFrom(this.leadsService.getRentalLeadById(rentalId));
+      const updateBody = this.mappingService.mapLeadRentalResponseToUpdateRequest(rentalLead, normalizedPath);
+      await firstValueFrom(this.leadsService.updateRentalLead(updateBody));
+    } catch (error: unknown) {
+      console.error('Quote attachment update failed for rental lead', { rentalId, documentPath: normalizedPath }, error);
+      this.toastr.warning('Quote document was saved but could not be attached to the lead.', 'Attachment warning');
+    }
   }
 
   back(): void {

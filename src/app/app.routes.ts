@@ -32,6 +32,7 @@ import { ConfigurationComponent } from './authenticated/organizations/configurat
 import { LeadsShellComponent } from './authenticated/leads/leads-shell/leads-shell.component';
 import { RentalComponent } from './authenticated/leads/rental/rental.component';
 import { OwnerComponent } from './authenticated/leads/owner/owner.component';
+import { GeneralComponent } from './authenticated/leads/general/general.component';
 import { OfficeListComponent } from './authenticated/organizations/office-list/office-list.component';
 import { OfficeComponent } from './authenticated/organizations/office/office.component';
 import { OrganizationListComponent } from './authenticated/organizations/organization-list/organization-list.component';
@@ -122,6 +123,7 @@ export enum RouterToken {
   Leads = 'leads',
   LeadRental = 'leads/rentals/:id',
   LeadOwner = 'leads/owners/:id',
+  LeadGeneral = 'leads/general/:id',
   Default = RouterToken.ReservationBoard
 }
 
@@ -184,6 +186,7 @@ export enum RouterUrl {
   Leads                = `${RouterToken.Auth}/${RouterToken.Leads}`,
   LeadRental           = `${RouterToken.Auth}/${RouterToken.LeadRental}`,
   LeadOwner            = `${RouterToken.Auth}/${RouterToken.LeadOwner}`,
+  LeadGeneral          = `${RouterToken.Auth}/${RouterToken.LeadGeneral}`,
 }
 
 // eslint-disable-next-line @typescript-eslint/no-namespace
@@ -252,6 +255,7 @@ export const authRoutes: Routes = [
   { path: RouterToken.Color, component: ColorComponent, canActivate: [authRouteGuard] },
   { path: RouterToken.LeadRental, component: RentalComponent, canActivate: [authRouteGuard] },
   { path: RouterToken.LeadOwner, component: OwnerComponent, canActivate: [authRouteGuard] },
+  { path: RouterToken.LeadGeneral, component: GeneralComponent, canActivate: [authRouteGuard] },
   { path: RouterToken.Leads, component: LeadsShellComponent, canActivate: [authRouteGuard] },
 ]
 

@@ -18,20 +18,24 @@
         <app-data-table
           [data]="rentalsDisplay"
           [columns]="rentalsDisplayedColumns"
-          [hasColumnIndex]="true"
+          [hasColumnIndex]="false"
           [hasFilter]="true"
           [hasToggleTop]="false"
           [hasButtonTop]="false"
           [hasActionsRowClick]="true"
           [hasActionsEdit]="true"
           [hasActionsDelete]="true"
+          [hasActionsQuote]="true"
           [deleteConfirmTitle]="'Delete rental lead'"
           [deleteConfirmMessage]="'Are you sure you want to delete this rental lead?'"
           [itemsPerPage]="100"
-          (editEvent)="goToRental($event)"
-          (rowClickEvent)="goToRental($event)"
+          (editEvent)="goToRentalLead($event)"
+          (rowClickEvent)="goToRentalLead($event)"
+          (quoteEvent)="generateQuote($event)"
+          (quotePathClickEvent)="openGeneratedQuote($event)"
           (deleteEvent)="deleteRental($event)"
-          (checkboxChangeEvent)="onRentalCheckboxChange($event)">
+          (checkboxChangeEvent)="onRentalCheckboxChange($event)"
+          (dropdownChangeEvent)="onRentalLeadStateDropdownChange($event)">
           <div dataTableFilterActions>
             <div class="table-filter-actions-group form-titlebar-actions-wrap uniform-gap">
               <mat-slide-toggle id="toggle-rental-leads-inactive" color="primary" [checked]="showInactive" (change)="toggleInactive()" class="whitespace-nowrap">

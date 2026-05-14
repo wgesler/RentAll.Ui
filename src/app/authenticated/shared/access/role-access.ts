@@ -140,13 +140,13 @@ const INSPECTOR_ALLOWED_SEGMENTS = new Set<string>([
 
 export const COMPANY_USERS_NAV_ITEMS: NavItemDefinition[] = [
   { icon: 'dashboard', displayName: 'Dashboard', url: ROUTER_TOKEN.Dashboard, ...openToAllExceptSuperAdmin },
+  { icon: 'hub', displayName: 'Leads', url: ROUTER_TOKEN.Leads, ...leadsAdminAndAgent },
   { icon: 'grid_view', displayName: 'Boards', url: ROUTER_TOKEN.ReservationBoard, ...openToAllExceptSuperAdmin },
   { icon: 'handshake', displayName: 'Reservations', url: ROUTER_TOKEN.RentalList, ...openToAllExceptSuperAdmin },
   { icon: 'home', displayName: 'Properties', url: ROUTER_TOKEN.PropertyList, ...openToAllExceptSuperAdmin },
   { icon: 'build', displayName: 'Maintenance', url: ROUTER_TOKEN.MaintenanceList, ...openToAllExceptSuperAdmin },
   { icon: 'confirmation_number', displayName: 'Tickets', url: ROUTER_TOKEN.TicketList, ...ticketAccess },
   { icon: 'account_balance', displayName: 'Accounting', url: ROUTER_TOKEN.AccountingList, ...accountingOnly },
-  { icon: 'hub', displayName: 'Leads', url: ROUTER_TOKEN.Leads, ...leadsAdminAndAgent },
   { icon: 'mail', displayName: 'Emails', url: ROUTER_TOKEN.EmailList, ...openToAll },
   { icon: 'description', displayName: 'Documents', url: ROUTER_TOKEN.DocumentList, ...openToAllExceptSuperAdmin },
   { icon: 'contacts', displayName: 'Contacts', url: ROUTER_TOKEN.Contacts, ...openToAllExceptSuperAdmin },
@@ -322,7 +322,11 @@ export function getRouteRuleForUrl(url: string): AccessRule | null {
 export function canUserAccessUrl(userGroups: UserGroupInput, url: string): boolean {
   const segment = getPrimaryAuthSegment(url);
   if (!leadsFeatureEnabled && segment === ROUTER_TOKEN.Leads) {
-    return false;
+    const nums = getUserGroupNumbers(userGroups);
+    const isAdminOrSuper = nums.includes(UserGroups.Admin) || nums.includes(UserGroups.SuperAdmin);
+    if (!isAdminOrSuper) {
+      return false;
+    }
   }
   if (hasOwnerRole(userGroups)) {
     return segment === ROUTER_TOKEN.DashboardOwner;

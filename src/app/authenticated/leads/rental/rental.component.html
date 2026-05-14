@@ -10,28 +10,32 @@
             Back
           </button>
         }
-        <mat-checkbox [formControl]="createForm.controls.iNeedAsap" color="accent" class="rental-titlebar-lead-checkbox text-nowrap">
+        <mat-checkbox [formControl]="$any(form.controls['iNeedAsap'])" color="accent" class="rental-titlebar-lead-checkbox text-nowrap">
           I Need a Place ASAP
         </mat-checkbox>
-        <mat-checkbox [formControl]="createForm.controls.emailPhoneConsent" color="accent" class="rental-titlebar-lead-checkbox text-nowrap">
-          Email / Phone Consent
+        <mat-checkbox [formControl]="$any(form.controls['emailPhoneConsent'])" color="accent" class="rental-titlebar-lead-checkbox text-nowrap">
+          Email/Phone Consent
         </mat-checkbox>
-        <mat-checkbox [formControl]="createForm.controls.smsConsent" color="accent" class="rental-titlebar-lead-checkbox text-nowrap">
+        <mat-checkbox [formControl]="$any(form.controls['smsConsent'])" color="accent" class="rental-titlebar-lead-checkbox text-nowrap">
           SMS Consent
         </mat-checkbox>
       </div>
       <div class="rental-create-titlebar-right flex flex-shrink-0 flex-wrap items-center gap-3">
-        <mat-checkbox [formControl]="createForm.controls.isActive" color="primary" class="rental-titlebar-lead-checkbox text-nowrap">
+        <mat-checkbox [formControl]="$any(form.controls['isActive'])" color="primary" class="rental-titlebar-lead-checkbox text-nowrap">
           IsActive
         </mat-checkbox>
-        <button mat-raised-button type="button" color="primary" class="text-nowrap flex-shrink-0" [disabled]="isSavingCreate" (click)="saveNewRental()">
+        <button mat-raised-button type="button" color="accent" class="text-nowrap flex-shrink-0" (click)="generateQuote()">
+          <mat-icon>request_quote</mat-icon>
+          Quote
+        </button>
+        <button mat-raised-button type="button" color="primary" class="text-nowrap flex-shrink-0" [disabled]="isSavingCreate" (click)="saveRentalLead()">
           <mat-icon>save</mat-icon>
           Save
         </button>
       </div>
     </div>
     <form
-      [formGroup]="createForm"
+      [formGroup]="form"
       class="lead-rental-create-main lead-create-form-after-title info-form form-hide-error-text grid grid-cols-12 form-standard-grid">
       <div class="lead-rental-create-row-first col-span-12 grid min-w-0 grid-cols-5 form-standard-grid">
         <mat-form-field appearance="outline" class="min-w-0">
@@ -185,41 +189,12 @@
   </div>
 </ng-template>
 
-<ng-template #rentalLeadDetail>
-  <dl class="lead-detail-dl">
-    <dt>ID</dt>
-    <dd>{{ lead!.rentalId }}</dd>
-    <dt>Lead State</dt>
-    <dd>{{ leadStateDisplay(lead!.leadStateId) }}</dd>
-    <dt>Name</dt>
-    <dd>{{ lead!.firstName }} {{ lead!.lastName }}</dd>
-    <dt>Email</dt>
-    <dd>{{ lead!.email }}</dd>
-    <dt>Phone</dt>
-    <dd>{{ lead!.phone }}</dd>
-    <dt>Desired Location</dt>
-    <dd>{{ lead!.desiredLocation }}</dd>
-    <dt>Property Ref</dt>
-    <dd>{{ lead!.propertyRefId }}</dd>
-    <dt>Arrival / Departure</dt>
-    <dd>{{ lead!.estimatedArrivalDate }} — {{ lead!.estimatedDepartureDate }}</dd>
-    <dt>Budget / Beds</dt>
-    <dd>{{ lead!.maxMonthlyBudget }} / {{ lead!.minBedrooms }}</dd>
-    <dt>Decision Date</dt>
-    <dd>{{ formatDate(lead!.decisionDate) }}</dd>
-    <dt>Organization</dt>
-    <dd>{{ lead!.organizationName }}</dd>
-    <dt>Tell Us More About How You Found Us</dt>
-    <dd>{{ lead!.tellUsMoreAboutHowYouFoundUs }}</dd>
-  </dl>
-</ng-template>
-
 @if (!isPageReady) {
   <div class="page-loading-container">
     <mat-spinner [diameter]="40"></mat-spinner>
     <p>Loading rental lead…</p>
   </div>
-} @else if (isCreateMode) {
+} @else if (isAddMode) {
   @if (embeddedInShell()) {
     <mat-card class="leads-embedded-lead-card">
       <mat-card-content>
@@ -276,7 +251,7 @@
   @if (embeddedInShell()) {
     <mat-card class="leads-embedded-lead-card">
       <mat-card-content>
-        <ng-container *ngTemplateOutlet="rentalLeadDetail" />
+        <ng-container *ngTemplateOutlet="rentalCreateForm" />
       </mat-card-content>
     </mat-card>
   } @else {
@@ -298,7 +273,7 @@
         </div>
         <mat-card>
           <mat-card-content>
-            <ng-container *ngTemplateOutlet="rentalLeadDetail" />
+            <ng-container *ngTemplateOutlet="rentalCreateForm" />
           </mat-card-content>
         </mat-card>
       </section>

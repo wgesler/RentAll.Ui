@@ -7,21 +7,21 @@
           <span class="flex-shrink-0 text-xl font-medium">Leads</span>
         </span>
         <div class="header-title form-titlebar-fields-wrap">
-          @if (showOfficeDropdown) {
-            <app-title-bar-select
-              [label]="'Office'"
-              [formFieldClass]="'titlebar-field-office'"
-              [value]="selectedOfficeId"
-              [options]="officeOptions"
-              [nullOptionLabel]="'All Offices'"
-              [noResultsText]="'No offices match your search'"
-              (valueChange)="onOfficeDropdownChange($event)">
-            </app-title-bar-select>
-          }
+          <app-title-bar-select
+            [label]="'Office'"
+            [formFieldClass]="'titlebar-field-office'"
+            [value]="selectedOfficeId"
+            [options]="officeOptions"
+            [nullOptionLabel]="'All Offices'"
+            [noResultsText]="'No offices match your search'"
+            [showError]="officeTitleBarShowError"
+            [errorText]="'Select a specific office'"
+            (valueChange)="onOfficeDropdownChange($event)">
+          </app-title-bar-select>
         </div>
       </div>
       <div class="form-titlebar-actions-wrap uniform-gap">
-        @if (showRentalLeadForm || showOwnerLeadForm) {
+        @if (showRentalLeadForm || showOwnerLeadForm || showGeneralLeadForm) {
           <button
             mat-raised-button
             type="button"
@@ -45,13 +45,16 @@
             @if (showRentalLeadForm) {
               <app-rental
                 [embeddedInShell]="true"
-                [shellLeadId]="'new'"
-                (closed)="onRentalLeadFormClosed()" />
+                [shellLeadId]="rentalShellLeadId"
+                [officeId]="selectedOfficeId"
+                (closed)="onRentalLeadFormClosed()"
+                (officeSelectionRequired)="onRentalOfficeSelectionRequired()" />
             } @else {
               <app-rental-list
                 [embeddedInShell]="true"
                 [officeId]="selectedOfficeId"
-                (requestNewRental)="onAddRentalLead()" />
+                (requestNewRental)="onAddRentalLead()"
+                (requestEditRental)="onEditRentalLead($event)" />
             }
           </ng-template>
         </mat-tab>
@@ -60,13 +63,34 @@
             @if (showOwnerLeadForm) {
               <app-owner
                 [embeddedInShell]="true"
-                [shellLeadId]="'new'"
-                (closed)="onOwnerLeadFormClosed()" />
+                [shellLeadId]="ownerShellLeadId"
+                [officeId]="selectedOfficeId"
+                (closed)="onOwnerLeadFormClosed()"
+                (officeSelectionRequired)="onOwnerOfficeSelectionRequired()" />
             } @else {
               <app-owner-list
                 [embeddedInShell]="true"
                 [officeId]="selectedOfficeId"
-                (requestNewOwner)="onAddOwnerLead()" />
+                (requestNewOwner)="onAddOwnerLead()"
+                (requestEditOwner)="onEditOwnerLead($event)" />
+            }
+          </ng-template>
+        </mat-tab>
+        <mat-tab label="General">
+          <ng-template matTabContent>
+            @if (showGeneralLeadForm) {
+              <app-general
+                [embeddedInShell]="true"
+                [shellLeadId]="generalShellLeadId"
+                [officeId]="selectedOfficeId"
+                (closed)="onGeneralLeadFormClosed()"
+                (officeSelectionRequired)="onGeneralOfficeSelectionRequired()" />
+            } @else {
+              <app-general-list
+                [embeddedInShell]="true"
+                [officeId]="selectedOfficeId"
+                (requestNewGeneral)="onAddGeneralLead()"
+                (requestEditGeneral)="onEditGeneralLead($event)" />
             }
           </ng-template>
         </mat-tab>
