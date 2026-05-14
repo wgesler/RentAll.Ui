@@ -51,6 +51,13 @@
 
       <div class="property-tab-actions-band top-controls">
         <div class="property-tab-actions-band__row flex gap-2 items-center uniform-gap">
+          <mat-checkbox
+            color="primary"
+            class="welcome-letter-branded-toggle"
+            [checked]="isBranded"
+            (change)="onBrandedChange($event.checked)">
+            Branded
+          </mat-checkbox>
           <button mat-raised-button type="button" color="accent" (click)="onPrint()" 
             [disabled]="!selectedOffice || !selectedReservation || !previewIframeHtml">
             <mat-icon>print</mat-icon>

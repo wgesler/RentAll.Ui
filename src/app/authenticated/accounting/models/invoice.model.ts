@@ -68,6 +68,7 @@ export interface InvoiceListDisplay {
 export interface InvoiceMonthlyDataRequest {
   invoiceCode: string;
   reservationId: string;
+  invoiceDate: string;
   startDate: string;
   endDate: string;
 }
@@ -81,6 +82,7 @@ export interface InvoiceMonthlyDataResponse {
 export interface BillingMonthlyDataRequest {
   invoiceCode: string;
   organizationId: string;
+  invoiceDate: string;
   startDate: string;
   endDate: string;
 }

@@ -1024,6 +1024,7 @@ export class BillingComponent implements OnInit, OnDestroy {
   }
 
   generateLedgerLines(): void {
+    const invoiceDate = this.form.get('invoiceDate')?.value; 
     const startDate = this.form.get('startDate')?.value;
     const endDate = this.form.get('endDate')?.value;
     const organizationId = this.form.get('organizationId')?.value ?? null;
@@ -1034,6 +1035,7 @@ export class BillingComponent implements OnInit, OnDestroy {
     const request: BillingMonthlyDataRequest = {
       invoiceCode: this.form.get('invoiceCode')?.value || '',
       organizationId: organizationId,
+      invoiceDate: this.utilityService.toDateOnlyJsonString(invoiceDate) ?? this.utilityService.todayAsCalendarDateString(),
       startDate: this.utilityService.toDateOnlyJsonString(startDate) ?? '',
       endDate: this.utilityService.toDateOnlyJsonString(endDate) ?? ''
     };

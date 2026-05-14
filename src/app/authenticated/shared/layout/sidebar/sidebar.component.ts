@@ -93,7 +93,7 @@ export class SidebarComponent implements OnInit, OnDestroy {
     let items = getVisibleNavItems(user?.userGroups as Array<string | number> | undefined);
     const showLeadsMenu =
       leadsFeatureEnabled &&
-      (this.authService.isAdmin() ||
+      (this.authService.hasRole(UserGroups.Admin) ||
         this.authService.hasRole(UserGroups.Agent) ||
         this.authService.hasRole(UserGroups.AgentAdmin));
     if (!showLeadsMenu) {

@@ -90,6 +90,7 @@ export class PropertyWelcomeLetterComponent extends BaseDocumentComponent implem
   debuggingHtml: boolean = environment.local || environment.dev;
   isPageReady: boolean = false;
   propertyReservationsLoaded: boolean = false;
+  isBranded: boolean = true;
    
   itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['property', 'reservations', 'welcomeLetter', 'propertyInformation', 'organization', 'offices', 'accountingOffices', 'contacts', 'buildings', 'emailHtml', 'logo', 'previewHtml']));
   logoSourcesLoaded = { accountingOffices: false, organization: false };
@@ -281,7 +282,8 @@ export class PropertyWelcomeLetterComponent extends BaseDocumentComponent implem
   buildForm(): FormGroup {
     const form = this.fb.group({
       welcomeLetter: new FormControl(''),
-      selectedReservationId: new FormControl({ value: null, disabled: !this.selectedOffice })
+      selectedReservationId: new FormControl({ value: null, disabled: !this.selectedOffice }),
+      isBranded: new FormControl(true)
     });
     return form;
   }
@@ -537,11 +539,18 @@ export class PropertyWelcomeLetterComponent extends BaseDocumentComponent implem
   onTitleBarPropertyCodeUpdate(): void {
     this.generatePreviewIframe();
   }
+
+  onBrandedChange(checked: boolean): void {
+    this.isBranded = checked;
+    this.form.get('isBranded')?.setValue(checked, { emitEvent: false });
+    this.generatePreviewIframe();
+  }
   //#endregion
 
   //#region Form Replacement Methods
   replacePlaceholders(html: string): string {
     let result = html;
+    const isBranded = this.form?.get('isBranded')?.value !== false;
 
     if (this.organization) {    
       result = result.replace(/\{\{organizationName\}\}/g, this.getOrganizationName());
@@ -598,10 +607,10 @@ export class PropertyWelcomeLetterComponent extends BaseDocumentComponent implem
     }
 
     if (this.selectedOffice) {
-      const maintenanceEmail = this.selectedOffice.maintenanceEmail || '';
-      const afterHoursPhone = this.selectedOffice.afterHoursPhone || '';
-      result = result.replace(/\{\{maintenanceEmail\}\}/g, maintenanceEmail);
-      result = result.replace(/\{\{afterHoursPhone\}\}/g, this.formatterService.phoneNumber(afterHoursPhone) || '');
+      const maintenanceEmail = isBranded ? (this.selectedOffice.maintenanceEmail || '') : '';
+      const afterHoursPhone = isBranded ? (this.selectedOffice.afterHoursPhone || '') : '';
+      result = this.applyOptionalCodePlaceholder(result, 'maintenanceEmail', maintenanceEmail);
+      result = this.applyOptionalCodePlaceholder(result, 'afterHoursPhone', this.formatterService.phoneNumber(afterHoursPhone) || '');
       
       const selectedAccountingOffice = this.accountingOffices.find(ao => ao.officeId === this.selectedOffice?.officeId);
       let officeLogoDataUrl = selectedAccountingOffice?.fileDetails?.dataUrl;
@@ -619,27 +628,32 @@ export class PropertyWelcomeLetterComponent extends BaseDocumentComponent implem
         officeLogoDataUrl = this.organization.fileDetails.dataUrl;
       }
       
-      if (officeLogoDataUrl) {
+      if (isBranded && officeLogoDataUrl) {
         result = result.replace(/\{\{officeLogoBase64\}\}/g, officeLogoDataUrl);
       }
     } else if (this.propertyInformation) {
-      result = result.replace(/\{\{maintenanceEmail\}\}/g, this.propertyInformation.maintenanceEmail || '');
-      result = result.replace(/\{\{afterHoursPhone\}\}/g, this.formatterService.phoneNumber(this.propertyInformation.emergencyPhone) || '');
+      const maintenanceEmail = isBranded ? (this.propertyInformation.maintenanceEmail || '') : '';
+      const afterHoursPhone = isBranded ? (this.propertyInformation.emergencyPhone || '') : '';
+      result = this.applyOptionalCodePlaceholder(result, 'maintenanceEmail', maintenanceEmail);
+      result = this.applyOptionalCodePlaceholder(result, 'afterHoursPhone', this.formatterService.phoneNumber(afterHoursPhone) || '');
     }
 
     if (this.organization) {
       const orgLogoDataUrl = this.organization?.fileDetails?.dataUrl;
-      if (orgLogoDataUrl) {
+      if (isBranded && orgLogoDataUrl) {
         result = result.replace(/\{\{orgLogoBase64\}\}/g, orgLogoDataUrl);
       }
     }
     
     const hasAccountingOfficeLogo = this.accountingOffices
       .some(ao => ao.officeId === this.selectedOffice?.officeId && !!(ao.fileDetails?.dataUrl || ao.fileDetails?.file));
-    if (!hasAccountingOfficeLogo && !this.organization?.fileDetails?.dataUrl) {
+    if (!isBranded || (!hasAccountingOfficeLogo && !this.organization?.fileDetails?.dataUrl)) {
       result = result.replace(/<img[^>]*\{\{officeLogoBase64\}\}[^>]*\s*\/?>/gi, '');
       result = result.replace(/<img[^>]*\{\{orgLogoBase64\}\}[^>]*\s*\/?>/gi, '');
     }
+
+    const smokingDisclaimerBlock = this.buildSmokingDisclaimerBlock(isBranded);
+    result = result.replace(/\{\{smokingDisclaimerBlock\}\}/g, smokingDisclaimerBlock);
 
     result = result.replace(/\{\{[^}]+\}\}/g, '');
 
@@ -711,6 +725,14 @@ export class PropertyWelcomeLetterComponent extends BaseDocumentComponent implem
       .replace(/>/g, '&gt;')
       .replace(/"/g, '&quot;')
       .replace(/'/g, '&#39;');
+  }
+
+  buildSmokingDisclaimerBlock(isBranded: boolean): string {
+    const companyName = String(this.organization?.name || '').trim();
+    const brandedReference = isBranded && companyName
+      ? `Please check with your ${this.escapeHtml(companyName)} representative to determine where smoking is allowed, as many properties are entirely smoke-free.`
+      : 'Please check with your housing representative to determine where smoking is allowed, as many properties are entirely smoke-free.';
+    return `<p class="smoking-disclaimer">Please note that smoking is not permitted in the apartment, including the balcony or patio areas. ${brandedReference} Smoking in any unauthorized area will result in substantial fines.</p>`;
   }
 
   getOrganizationName(): string {

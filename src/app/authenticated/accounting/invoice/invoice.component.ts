@@ -618,6 +618,7 @@ export class InvoiceComponent implements OnInit, OnDestroy, OnChanges {
   }
 
   loadMonthlyLedgerLines(reservationId: string): void {
+    const invoiceDate = this.form.get('invoiceDate')?.value; 
     const startDate = this.form.get('startDate')?.value;
     const endDate = this.form.get('endDate')?.value;
     const invoiceCode = this.form.get('invoiceCode')?.value || '';
@@ -630,6 +631,7 @@ export class InvoiceComponent implements OnInit, OnDestroy, OnChanges {
     const request: InvoiceMonthlyDataRequest = {
       invoiceCode: invoiceCode,
       reservationId: reservationId,
+      invoiceDate: this.utilityService.toDateOnlyJsonString(invoiceDate) ?? '', 
       startDate: this.utilityService.toDateOnlyJsonString(startDate) ?? '',
       endDate: this.utilityService.toDateOnlyJsonString(endDate) ?? ''
     };
