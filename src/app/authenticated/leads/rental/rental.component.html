@@ -39,7 +39,7 @@
       class="lead-rental-create-main lead-create-form-after-title info-form form-hide-error-text grid grid-cols-12 form-standard-grid">
       <div class="lead-rental-create-row-first col-span-12 grid min-w-0 grid-cols-5 form-standard-grid">
         <mat-form-field appearance="outline" class="min-w-0">
-          <mat-label>State</mat-label>
+          <mat-label>Lead Status</mat-label>
           <mat-select formControlName="leadStateId">
             @for (opt of leadStateOptions; track opt.value) {
               <mat-option [value]="opt.value">{{ opt.label }}</mat-option>

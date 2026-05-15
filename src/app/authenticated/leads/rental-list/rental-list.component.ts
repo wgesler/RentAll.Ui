@@ -55,7 +55,7 @@ export class RentalListComponent implements OnInit, OnDestroy {
     email: { displayAs: 'Email', maxWidth: '30ch', wrap: false },
     phone: { displayAs: 'Phone', maxWidth: '20ch', wrap: false },
     quotePath: { displayAs: 'Quote', maxWidth: '12ch', alignment: 'center', sort: false, wrap: false },
-    leadStateDropdown: { displayAs: 'State', wrap: false, maxWidth: '20ch', sort: false, options: LEAD_STATE_SELECT_OPTIONS.map(o => o.label) },
+    leadStateDropdown: { displayAs: 'Status', wrap: false, maxWidth: '20ch', sort: false, options: LEAD_STATE_SELECT_OPTIONS.map(o => o.label) },
     iNeedAsap: { displayAs: 'ASAP', isCheckbox: true, checkboxEditable: false, sort: false, wrap: false, alignment: 'center', maxWidth: '10ch' },
     isActive: { displayAs: 'IsActive', isCheckbox: true, checkboxEditable: true, sort: false, wrap: false, alignment: 'center', maxWidth: '12ch' }
   };
