@@ -55,6 +55,8 @@ export class TicketShellComponent implements OnInit, OnDestroy, CanComponentDeac
   closedTicketListSectionRef?: TicketListComponent;
 
   showTicketForm = false;
+  selectedTabIndex = 0;
+  lastListTabIndex = 0;
   currentTicketId: string | number | null = null;
   currentTicketCode: string | null = null;
   currentUserId: string | null = null;
@@ -117,6 +119,7 @@ export class TicketShellComponent implements OnInit, OnDestroy, CanComponentDeac
       const id = paramMap.get('id');
       this.showTicketForm = !!id;
       this.currentTicketId = id;
+      this.selectedTabIndex = this.lastListTabIndex;
     });
 
     this.reservationService.reservationSaved$.pipe(takeUntil(this.destroy$)).subscribe(event => {
@@ -134,11 +137,12 @@ export class TicketShellComponent implements OnInit, OnDestroy, CanComponentDeac
     const isAddTicketFlow = String(event.ticketId).trim().toLowerCase() === 'new';
     if (isAddTicketFlow) {
       // Add flow must preserve title-bar filter context exactly as-is.
+      this.lastListTabIndex = this.selectedTabIndex;
       this.showTicketForm = true;
+      this.selectedTabIndex = this.lastListTabIndex;
       this.currentTicketId = event.ticketId;
       this.currentTicketCode = String(event.ticketCode || '').trim() || null;
       this.isApplyingTicketSelectionContext = false;
-      this.router.navigateByUrl(`/${RouterUrl.replaceTokens(RouterUrl.Ticket, [String(event.ticketId)])}`);
       return;
     }
 
@@ -154,18 +158,43 @@ export class TicketShellComponent implements OnInit, OnDestroy, CanComponentDeac
     this.resolveOfficeScope(nextOfficeId);
     this.selectedPropertyId = nextPropertyId;
     this.selectedReservationId = nextReservationId;
+    this.lastListTabIndex = this.selectedTabIndex;
     this.showTicketForm = true;
+    this.selectedTabIndex = this.lastListTabIndex;
     this.currentTicketId = event.ticketId;
     this.currentTicketCode = String(event.ticketCode || '').trim() || null;
     this.loadReservations(nextReservationId, nextPropertyId);
-    this.router.navigateByUrl(`/${RouterUrl.replaceTokens(RouterUrl.Ticket, [String(event.ticketId)])}`);
+  }
+
+  onTicketSelectedFromTab(event: { ticketId: string | number | null; ticketCode: string | null; propertyId: string | null; propertyCode: string | null; reservationId: string | null; reservationCode: string | null; officeId: number | null; officeName: string | null }, tabIndex: number): void {
+    this.selectedTabIndex = tabIndex;
+    this.lastListTabIndex = tabIndex;
+    this.onTicketSelected(event);
   }
 
   onTicketBack(): void {
     this.showTicketForm = false;
+    this.selectedTabIndex = this.lastListTabIndex;
     this.currentTicketId = null;
     this.currentTicketCode = null;
     this.router.navigateByUrl(`/${RouterUrl.TicketList}`);
+  }
+
+  onTabIndexChange(index: number): void {
+    if (this.showTicketForm && index < 3) {
+      this.showTicketForm = false;
+      this.currentTicketId = null;
+      this.currentTicketCode = null;
+      this.lastListTabIndex = index;
+      this.selectedTabIndex = index;
+      this.router.navigateByUrl(`/${RouterUrl.TicketList}`);
+      return;
+    }
+
+    this.selectedTabIndex = index;
+    if (!this.showTicketForm && index < 3) {
+      this.lastListTabIndex = index;
+    }
   }
 
   onTicketSaved(): void {

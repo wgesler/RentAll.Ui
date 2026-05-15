@@ -80,44 +80,7 @@
       </div>
 
       <mat-card>
-        <div [class.hidden]="showTicketForm">
-          <mat-tab-group class="property-tabs ticket-shell-tabs ticket-shell-five-slot-tabs dbg-band-tabs">
-            <mat-tab label="My Tickets">
-              <app-ticket-list
-                #myTicketListSection
-                [embeddedInSettings]="true"
-                [currentUserId]="currentUserId"
-                [currentUserAgentId]="currentUserAgentId"
-                assigneeFilterMode="assignedToMe"
-                (ticketUpdated)="onTicketListUpdated()"
-                (ticketSelected)="onTicketSelected($event)">
-              </app-ticket-list>
-            </mat-tab>
-            <mat-tab label="Others">
-              <app-ticket-list
-                #otherTicketListSection
-                [embeddedInSettings]="true"
-                [currentUserId]="currentUserId"
-                [currentUserAgentId]="currentUserAgentId"
-                assigneeFilterMode="allOthers"
-                (ticketUpdated)="onTicketListUpdated()"
-                (ticketSelected)="onTicketSelected($event)">
-              </app-ticket-list>
-            </mat-tab>
-            <mat-tab label="Closed">
-              <app-ticket-list
-                #closedTicketListSection
-                [embeddedInSettings]="true"
-                [currentUserId]="currentUserId"
-                [currentUserAgentId]="currentUserAgentId"
-                assigneeFilterMode="closed"
-                (ticketUpdated)="onTicketListUpdated()"
-                (ticketSelected)="onTicketSelected($event)">
-              </app-ticket-list>
-            </mat-tab>
-          </mat-tab-group>
-        </div>
-        @if (showTicketForm) {
+        <ng-template #ticketEditor>
           <app-ticket
             #ticketSection
             [id]="currentTicketId"
@@ -130,7 +93,54 @@
             (savedEvent)="onTicketSaved()"
             (backEvent)="onTicketBack()">
           </app-ticket>
-        }
+        </ng-template>
+        <mat-tab-group [selectedIndex]="selectedTabIndex" (selectedIndexChange)="onTabIndexChange($event)" class="property-tabs ticket-shell-tabs ticket-shell-five-slot-tabs dbg-band-tabs">
+          <mat-tab label="My Tickets">
+            @if (!showTicketForm) {
+              <app-ticket-list
+                #myTicketListSection
+                [embeddedInSettings]="true"
+                [currentUserId]="currentUserId"
+                [currentUserAgentId]="currentUserAgentId"
+                assigneeFilterMode="assignedToMe"
+                (ticketUpdated)="onTicketListUpdated()"
+                (ticketSelected)="onTicketSelectedFromTab($event, 0)">
+              </app-ticket-list>
+            } @else {
+              <ng-container *ngTemplateOutlet="ticketEditor"></ng-container>
+            }
+          </mat-tab>
+          <mat-tab label="Others">
+            @if (!showTicketForm) {
+              <app-ticket-list
+                #otherTicketListSection
+                [embeddedInSettings]="true"
+                [currentUserId]="currentUserId"
+                [currentUserAgentId]="currentUserAgentId"
+                assigneeFilterMode="allOthers"
+                (ticketUpdated)="onTicketListUpdated()"
+                (ticketSelected)="onTicketSelectedFromTab($event, 1)">
+              </app-ticket-list>
+            } @else {
+              <ng-container *ngTemplateOutlet="ticketEditor"></ng-container>
+            }
+          </mat-tab>
+          <mat-tab label="Closed">
+            @if (!showTicketForm) {
+              <app-ticket-list
+                #closedTicketListSection
+                [embeddedInSettings]="true"
+                [currentUserId]="currentUserId"
+                [currentUserAgentId]="currentUserAgentId"
+                assigneeFilterMode="closed"
+                (ticketUpdated)="onTicketListUpdated()"
+                (ticketSelected)="onTicketSelectedFromTab($event, 2)">
+              </app-ticket-list>
+            } @else {
+              <ng-container *ngTemplateOutlet="ticketEditor"></ng-container>
+            }
+          </mat-tab>
+        </mat-tab-group>
       </mat-card>
     </section>
   </div>
