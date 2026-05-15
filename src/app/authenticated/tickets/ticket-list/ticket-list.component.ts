@@ -20,13 +20,7 @@ import { ColumnSet } from '../../shared/data-table/models/column-data';
 import { GenericModalComponent } from '../../shared/modals/generic/generic-modal.component';
 import { GenericModalData } from '../../shared/modals/generic/models/generic-modal-data';
 import { getTicketStateType, getTicketStateTypes, TicketStateType } from '../models/ticket-enum';
-import {
-  TicketAssigneeDropdownCell,
-  TicketListDisplay,
-  TicketOfficeFilterOption,
-  TicketPropertyFilterOption,
-  TicketReservationFilterOption
-} from '../models/ticket-models';
+import { TicketAssigneeDropdownCell, TicketListDisplay, TicketOfficeFilterOption, TicketPropertyFilterOption, TicketReservationFilterOption } from '../models/ticket-models';
 import { TicketService } from '../services/ticket.service';
 
 @Component({
@@ -42,7 +36,7 @@ export class TicketListComponent implements OnInit, OnDestroy {
   @Input() currentUserId: string | null = null;
   @Input() currentUserAgentId: string | null = null;
   @Input() showListFiltersAndActions: boolean = true;
-  @Output() ticketSelected = new EventEmitter<{ ticketId: string | number | null; ticketCode: string | null; propertyId: string | null; reservationId: string | null; officeId: number | null }>();
+  @Output() ticketSelected = new EventEmitter<{ ticketId: string | number | null; ticketCode: string | null; propertyId: string | null; propertyCode: string | null; reservationId: string | null; reservationCode: string | null; officeId: number | null; officeName: string | null }>();
   @Output() ticketUpdated = new EventEmitter<void>();
 
   isServiceError: boolean = false;
@@ -100,7 +94,7 @@ export class TicketListComponent implements OnInit, OnDestroy {
 
   addTicket(): void {
     if (this.embeddedInSettings) {
-      this.ticketSelected.emit({ ticketId: 'new', ticketCode: null, propertyId: null, reservationId: null, officeId: this.selectedOfficeId });
+      this.ticketSelected.emit({ ticketId: 'new', ticketCode: null, propertyId: null, propertyCode: null, reservationId: null, reservationCode: null, officeId: this.selectedOfficeId, officeName: this.selectedOffice?.officeName ?? null });
       return;
     }
 
@@ -163,8 +157,11 @@ export class TicketListComponent implements OnInit, OnDestroy {
         ticketId: event.ticketId,
         ticketCode: event.ticketCode || null,
         propertyId: String(event.propertyId || '').trim() || null,
+        propertyCode: String(event.propertyCode || '').trim() || null,
         reservationId: String(event.reservationId || '').trim() || null,
-        officeId: event.officeId ?? null
+        reservationCode: String(event.reservationCode || '').trim() || null,
+        officeId: event.officeId ?? null,
+        officeName: String(event.officeName || '').trim() || null
       });
       return;
     }
@@ -433,9 +430,10 @@ export class TicketListComponent implements OnInit, OnDestroy {
                 : byTicketBucket
               : byTicketBucket;
 
-    const byOffice = this.selectedOfficeId == null
+    const scopedOfficeId = this.selectedOfficeId == null ? null : Number(this.selectedOfficeId);
+    const byOffice = scopedOfficeId == null
       ? byAssigneeScope
-      : byAssigneeScope.filter(ticket => ticket.officeId === this.selectedOffice?.officeId);
+      : byAssigneeScope.filter(ticket => Number(ticket.officeId) === scopedOfficeId);
 
     const byProperty = this.selectedPropertyId == null
       ? byOffice
@@ -475,8 +473,8 @@ export class TicketListComponent implements OnInit, OnDestroy {
   }
 
   onOfficeFilterChange(officeId: number | null): void {
-    this.selectedOffice = this.utilityService.resolveSelectedOfficeById(this.officeFilterOptions, officeId);
-    this.selectedOfficeId = this.selectedOffice?.officeId ?? null;
+    this.selectedOfficeId = officeId == null ? null : Number(officeId);
+    this.selectedOffice = this.utilityService.resolveSelectedOfficeById(this.officeFilterOptions, this.selectedOfficeId);
     this.selectedPropertyId = null;
     this.selectedReservationId = null;
     this.rebuildAssigneeDropdowns();
@@ -519,7 +517,9 @@ export class TicketListComponent implements OnInit, OnDestroy {
       .map(([officeId, officeName]) => ({ officeId, officeName }))
       .sort((a, b) => a.officeName.localeCompare(b.officeName, undefined, { sensitivity: 'base' }));
     this.selectedOffice = this.utilityService.resolveSelectedOfficeById(this.officeFilterOptions, this.selectedOfficeId);
-    this.selectedOfficeId = this.selectedOffice?.officeId ?? null;
+    if (this.selectedOfficeId == null) {
+      this.selectedOfficeId = this.selectedOffice?.officeId ?? null;
+    }
 
     this.propertyFilterOptions = Array.from(propertyMap.entries())
       .map(([propertyId, propertyCode]) => ({ propertyId, propertyCode }))

@@ -8,7 +8,8 @@ export enum LeadStateType {
   Interested = 5,
   Denied = 6,
   ChoseAnotherOption = 7,
-  BookedWithUs = 8
+  BudgetTooLow = 8,
+  BookedWithUs = 9
 }
 
 export function formatLeadStateLabel(leadStateId: number): string {
@@ -21,6 +22,7 @@ export function formatLeadStateLabel(leadStateId: number): string {
     [LeadStateType.Interested]: 'Interested',
     [LeadStateType.Denied]: 'Denied',
     [LeadStateType.ChoseAnotherOption]: 'ChoseAnotherOption',
+    [LeadStateType.BudgetTooLow]: 'BudgetTooLow',
     [LeadStateType.BookedWithUs]: 'BookedWithUs'
   };
   return labels[leadStateId] ?? `State ${leadStateId}`;
@@ -35,6 +37,7 @@ export const LEAD_STATE_SELECT_OPTIONS: { value: LeadStateType; label: string }[
   LeadStateType.Interested,
   LeadStateType.Denied,
   LeadStateType.ChoseAnotherOption,
+  LeadStateType.BudgetTooLow,
   LeadStateType.BookedWithUs
 ].map(value => ({ value, label: formatLeadStateLabel(value) }));
 

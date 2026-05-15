@@ -62,6 +62,9 @@ export class TicketShellComponent implements OnInit, OnDestroy, CanComponentDeac
   selectedOfficeId: number | null = null;
   selectedPropertyId: string | null = null;
   selectedReservationId: string | null = null;
+  selectedOfficeNameFallback: string | null = null;
+  selectedPropertyCodeFallback: string | null = null;
+  selectedReservationCodeFallback: string | null = null;
   isOfficeSelectionInvalidOnSave = false;
   offices: OfficeResponse[] = [];
   properties: PropertyListResponse[] = [];
@@ -123,25 +126,38 @@ export class TicketShellComponent implements OnInit, OnDestroy, CanComponentDeac
     });
   }
 
-  onTicketSelected(event: { ticketId: string | number | null; ticketCode: string | null; propertyId: string | null; reservationId: string | null; officeId: number | null }): void {
+  onTicketSelected(event: { ticketId: string | number | null; ticketCode: string | null; propertyId: string | null; propertyCode: string | null; reservationId: string | null; reservationCode: string | null; officeId: number | null; officeName: string | null }): void {
     if (!event || event.ticketId === null || event.ticketId === undefined) {
       return;
     }
 
-    const nextOfficeId = event.officeId ?? null;
+    const isAddTicketFlow = String(event.ticketId).trim().toLowerCase() === 'new';
+    if (isAddTicketFlow) {
+      // Add flow must preserve title-bar filter context exactly as-is.
+      this.showTicketForm = true;
+      this.currentTicketId = event.ticketId;
+      this.currentTicketCode = String(event.ticketCode || '').trim() || null;
+      this.isApplyingTicketSelectionContext = false;
+      this.router.navigateByUrl(`/${RouterUrl.replaceTokens(RouterUrl.Ticket, [String(event.ticketId)])}`);
+      return;
+    }
+
+    const nextOfficeId = this.normalizeOfficeId(event.officeId);
     const nextPropertyId = this.utilityService.normalizeIdOrNull(event.propertyId);
     const nextReservationId = this.utilityService.normalizeIdOrNull(event.reservationId);
+    this.selectedOfficeNameFallback = this.utilityService.trimOrNull(event.officeName) ?? this.selectedOfficeNameFallback;
+    this.selectedPropertyCodeFallback = this.utilityService.trimOrNull(event.propertyCode) ?? this.selectedPropertyCodeFallback;
+    this.selectedReservationCodeFallback = this.utilityService.trimOrNull(event.reservationCode) ?? this.selectedReservationCodeFallback;
 
     this.isApplyingTicketSelectionContext = true;
     this.selectedOfficeId = nextOfficeId;
     this.resolveOfficeScope(nextOfficeId);
     this.selectedPropertyId = nextPropertyId;
     this.selectedReservationId = nextReservationId;
-    this.loadReservations(nextReservationId, nextPropertyId);
-
     this.showTicketForm = true;
     this.currentTicketId = event.ticketId;
     this.currentTicketCode = String(event.ticketCode || '').trim() || null;
+    this.loadReservations(nextReservationId, nextPropertyId);
     this.router.navigateByUrl(`/${RouterUrl.replaceTokens(RouterUrl.Ticket, [String(event.ticketId)])}`);
   }
 
@@ -168,9 +184,16 @@ export class TicketShellComponent implements OnInit, OnDestroy, CanComponentDeac
     if (this.isApplyingTicketSelectionContext) {
       return;
     }
-    this.selectedOfficeId = officeId;
+    const nextOfficeId = this.normalizeOfficeId(officeId);
+    const currentOfficeId = this.normalizeOfficeId(this.selectedOfficeId);
+    if (nextOfficeId === currentOfficeId) {
+      this.resolveOfficeScope(nextOfficeId);
+      this.syncFiltersToList();
+      return;
+    }
+    this.selectedOfficeId = nextOfficeId;
     this.isOfficeSelectionInvalidOnSave = false;
-    this.resolveOfficeScope(officeId);
+    this.resolveOfficeScope(this.selectedOfficeId);
     const isSelectedPropertyInScope = !!this.selectedPropertyId && this.getFilteredPropertiesByOffice().some(property => property.propertyId === this.selectedPropertyId);
     if (!isSelectedPropertyInScope) {
       this.selectedPropertyId = null;
@@ -200,13 +223,27 @@ export class TicketShellComponent implements OnInit, OnDestroy, CanComponentDeac
     if (this.isApplyingTicketSelectionContext) {
       return;
     }
-    this.selectedPropertyId = this.utilityService.normalizeIdOrNull(event.propertyId);
+    const isAddTicketFlow = String(this.currentTicketId || '').trim().toLowerCase() === 'new';
+    if (isAddTicketFlow) {
+      return;
+    }
+    const nextPropertyId = this.utilityService.normalizeIdOrNull(event.propertyId);
+    const nextReservationId = this.utilityService.normalizeIdOrNull(event.reservationId);
+    const nextOfficeId = this.normalizeOfficeId(event.officeId);
+    const isAddInitializationClearEvent = isAddTicketFlow
+      && !nextPropertyId
+      && !nextReservationId
+      && (nextOfficeId == null || nextOfficeId === this.selectedOfficeId);
+    if (isAddInitializationClearEvent) {
+      return;
+    }
+    this.selectedPropertyId = nextPropertyId;
     if (this.selectedPropertyId) {
       this.isOfficeSelectionInvalidOnSave = false;
     }
-    this.selectedReservationId = this.utilityService.normalizeIdOrNull(event.reservationId);
-    if (event.officeId != null) {
-      this.selectedOfficeId = event.officeId;
+    this.selectedReservationId = nextReservationId;
+    if (nextOfficeId != null) {
+      this.selectedOfficeId = nextOfficeId;
       this.resolveOfficeScope(this.selectedOfficeId);
     }
   }
@@ -268,11 +305,12 @@ export class TicketShellComponent implements OnInit, OnDestroy, CanComponentDeac
       return;
     }
 
-    this.officeService.getOffices(orgId).pipe(take(1), finalize(() => this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'offices'))).subscribe({
-      next: offices => {
-        this.offices = offices || [];
+    this.globalSelectionService.ensureOfficeScope(orgId).pipe(take(1), finalize(() => this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'offices'))).subscribe({
+      next: () => {
+        this.offices = this.officeService.getAllOfficesValue() || [];
         const globalOfficeId = this.globalSelectionService.getSelectedOfficeIdValue();
-        this.selectedOfficeId = this.selectedOfficeId ?? globalOfficeId ?? null;
+        this.selectedOfficeId = this.normalizeOfficeId(this.selectedOfficeId ?? globalOfficeId ?? null);
+        this.resolveOfficeScope(this.selectedOfficeId);
         this.onOfficeFilterChange(this.selectedOfficeId);
       },
       error: () => {
@@ -283,11 +321,22 @@ export class TicketShellComponent implements OnInit, OnDestroy, CanComponentDeac
   }
 
   loadProperties(): void {
-    this.propertyService.getPropertyList().pipe(take(1), finalize(() => this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'properties'))).subscribe({
+    const currentUserId = String(this.currentUserId || '').trim();
+    if (!currentUserId) {
+      this.properties = [];
+      this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'properties');
+      return;
+    }
+
+    this.propertyService.getActivePropertiesBySelectionCriteria(currentUserId).pipe(take(1), finalize(() => this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'properties'))).subscribe({
       next: properties => {
         this.properties = (properties || []).slice().sort((a, b) =>
           String(a.propertyCode || '').localeCompare(String(b.propertyCode || ''), undefined, { sensitivity: 'base' })
         );
+        const isSelectedPropertyInScope = !!this.selectedPropertyId && this.getFilteredPropertiesByOffice().some(property => property.propertyId === this.selectedPropertyId);
+        if (!isSelectedPropertyInScope) {
+          this.selectedPropertyId = null;
+        }
       },
       error: () => {
         this.properties = [];
@@ -300,7 +349,7 @@ export class TicketShellComponent implements OnInit, OnDestroy, CanComponentDeac
     const propertyIdForLoad = this.utilityService.normalizeIdOrNull(forcedPropertyId ?? this.selectedPropertyId);
     const shouldReleaseSelectionLock = this.isApplyingTicketSelectionContext;
     if (propertyIdForLoad) {
-      this.reservationService.getReservationsByPropertyId(propertyIdForLoad).pipe(
+      this.reservationService.getActiveReservationsByPropertyId(propertyIdForLoad).pipe(
         take(1),
         finalize(() => {
           this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'reservations');
@@ -327,7 +376,7 @@ export class TicketShellComponent implements OnInit, OnDestroy, CanComponentDeac
       return;
     }
 
-    this.reservationService.getReservationList().pipe(
+    this.reservationService.getActiveReservationList().pipe(
       take(1),
       finalize(() => {
         this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'reservations');
@@ -367,33 +416,76 @@ export class TicketShellComponent implements OnInit, OnDestroy, CanComponentDeac
 
   //#region Utility Methods
   getFilteredPropertiesByOffice(): PropertyListResponse[] {
-    if (this.selectedOfficeId == null) {
+    const scopedOfficeId = this.selectedOfficeId;
+    if (scopedOfficeId == null) {
       return this.properties;
     }
-    return (this.properties || []).filter(property => property.officeId === this.selectedOfficeId);
+    return (this.properties || []).filter(property => Number(property.officeId) === scopedOfficeId);
   }
 
   get officeFilterOptions(): { officeId: number; officeName: string }[] {
-    return this.offices.map(office => ({ officeId: office.officeId, officeName: office.name }));
+    const baseOptions = this.offices.map(office => ({ officeId: office.officeId, officeName: office.name }));
+    const selectedOfficeId = this.selectedOfficeId;
+    if (selectedOfficeId == null || baseOptions.some(option => option.officeId === selectedOfficeId)) {
+      return baseOptions;
+    }
+    return [
+      ...baseOptions,
+      {
+        officeId: selectedOfficeId,
+        officeName: this.selectedOfficeNameFallback || `Office ${selectedOfficeId}`
+      }
+    ];
   }
 
   get propertyFilterOptions(): { propertyId: string; propertyCode: string }[] {
-    return this.getFilteredPropertiesByOffice().map(property => ({ propertyId: property.propertyId, propertyCode: property.propertyCode || '' }));
+    const baseOptions = this.getFilteredPropertiesByOffice().map(property => ({ propertyId: property.propertyId, propertyCode: property.propertyCode || '' }));
+    const selectedPropertyId = this.selectedPropertyId;
+    if (!selectedPropertyId || baseOptions.some(option => option.propertyId === selectedPropertyId)) {
+      return baseOptions;
+    }
+    return [
+      ...baseOptions,
+      {
+        propertyId: selectedPropertyId,
+        propertyCode: this.selectedPropertyCodeFallback || selectedPropertyId
+      }
+    ];
   }
 
   get reservationFilterOptions(): { reservationId: string; reservationCode: string }[] {
-    return this.reservations.map(reservation => ({
+    const baseOptions = this.reservations.map(reservation => ({
       reservationId: reservation.reservationId,
       reservationCode: this.utilityService.getReservationDropdownLabel(
         reservation,
         this.contacts.find(contact => contact.contactId === reservation.contactId) ?? null
       )
     }));
+    const selectedReservationId = this.selectedReservationId;
+    if (!selectedReservationId || baseOptions.some(option => option.reservationId === selectedReservationId)) {
+      return baseOptions;
+    }
+    return [
+      ...baseOptions,
+      {
+        reservationId: selectedReservationId,
+        reservationCode: this.selectedReservationCodeFallback || selectedReservationId
+      }
+    ];
   }
 
   resolveOfficeScope(officeId: number | null): void {
-    const selectedOffice = this.utilityService.resolveSelectedOfficeById(this.offices, officeId);
+    const normalizedOfficeId = this.normalizeOfficeId(officeId);
+    const selectedOffice = this.utilityService.resolveSelectedOfficeById(this.offices, normalizedOfficeId);
     this.selectedOfficeId = selectedOffice?.officeId ?? null;
+  }
+
+  normalizeOfficeId(value: number | null | undefined): number | null {
+    const numericValue = Number(value);
+    if (!Number.isFinite(numericValue) || numericValue <= 0) {
+      return null;
+    }
+    return numericValue;
   }
 
   syncFiltersToList(): void {

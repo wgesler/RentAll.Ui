@@ -1,0 +1,25 @@
+---
+description: Keep TypeScript imports on one line
+globs: **/*.ts
+alwaysApply: false
+---
+
+# One-Line Import Format
+
+- Keep import statements on a single line.
+- Do not use multiline named import blocks.
+- This applies to all TypeScript files unless syntax makes it impossible.
+
+```typescript
+// ✅ GOOD
+import { TicketAssigneeDropdownCell, TicketListDisplay, TicketOfficeFilterOption, TicketPropertyFilterOption, TicketReservationFilterOption } from '../models/ticket-models';
+
+// ❌ BAD
+import {
+  TicketAssigneeDropdownCell,
+  TicketListDisplay,
+  TicketOfficeFilterOption,
+  TicketPropertyFilterOption,
+  TicketReservationFilterOption
+} from '../models/ticket-models';
+```
