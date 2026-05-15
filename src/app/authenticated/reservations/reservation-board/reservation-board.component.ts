@@ -39,6 +39,7 @@ import { ReservationService } from '../services/reservation.service';
 export class ReservationBoardComponent implements OnInit, OnDestroy {
   @Input() ownerUserId: string | null = null;
   @Input() readOnly: boolean = false;
+  @Input() showReservationNames: boolean = true;
   @ViewChild('boardContextMenuTrigger') boardContextMenuTrigger?: MatMenuTrigger;
   getPropertyStatusLetter = getPropertyStatusLetter;
 
@@ -98,6 +99,7 @@ export class ReservationBoardComponent implements OnInit, OnDestroy {
 
   //#region Reservation-Board
   ngOnInit(): void {
+    this.showReservationNames = this.showReservationNames !== false;
     this.userId = this.authService.getUser()?.userId || '';
     this.isOwner = hasOwnerRole(this.authService.getUser()?.userGroups as Array<string | number> | undefined);
     this.organizationId = this.authService.getUser()?.organizationId?.trim() ?? '';
@@ -789,6 +791,11 @@ export class ReservationBoardComponent implements OnInit, OnDestroy {
         reservation.reservationStatusId === ReservationStatus.CheckedIn ||
         reservation.reservationStatusId === ReservationStatus.GaveNotice ||
         reservation.reservationStatusId === ReservationStatus.FirstRightRefusal) {
+      if (!this.showReservationNames) {
+        result = 'R';
+        this.displayTextCache.set(cacheKey, result);
+        return result;
+      }
       const contact = reservation.contactId ? this.contacts.find(c => c.contactId === reservation.contactId) ?? null : null;
       const fullName = this.utilityService.getReservationBoardLabel(reservation, contact).toUpperCase();
       const reservationDays = Math.floor((departure.getTime() - arrival.getTime()) / (1000 * 60 * 60 * 24)) + 1;
