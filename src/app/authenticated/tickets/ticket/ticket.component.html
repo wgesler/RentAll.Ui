@@ -119,10 +119,10 @@
               <input matInput formControlName="title" required>
             </mat-form-field>
 
-            <mat-form-field appearance="outline" class="col-span-12">
-              <mat-label>Description</mat-label>
-              <textarea matInput rows="3" formControlName="description" required></textarea>
-            </mat-form-field>
+            <div class="col-span-12 ticket-description-box">
+              <div class="ticket-description-label">Description</div>
+              <div class="ticket-description-content" [innerHTML]="descriptionHtml"></div>
+            </div>
 
             @if (!isAddMode) {
             <div class="col-span-12 ticket-comments-section">

@@ -44,6 +44,35 @@ export class FormatterService {
         return newValue;
     }
 
+    htmlToMultilineText(value?: string | null): string {
+        const raw = String(value ?? '');
+        if (!raw) {
+            return '';
+        }
+
+        const normalizedHtml = raw
+            .replace(/<\s*br\s*\/?\s*>/gi, '\n')
+            .replace(/<\s*\/\s*p\s*>/gi, '\n')
+            .replace(/<\s*\/\s*div\s*>/gi, '\n')
+            .replace(/<\s*\/\s*li\s*>/gi, '\n');
+
+        if (typeof document === 'undefined') {
+            return normalizedHtml
+                .replace(/<[^>]*>/g, '')
+                .replace(/\r\n/g, '\n')
+                .replace(/\n{3,}/g, '\n\n')
+                .trim();
+        }
+
+        const parserNode = document.createElement('div');
+        parserNode.innerHTML = normalizedHtml;
+        return (parserNode.textContent || parserNode.innerText || '')
+            .replace(/\u00a0/g, ' ')
+            .replace(/\r\n/g, '\n')
+            .replace(/\n{3,}/g, '\n\n')
+            .trim();
+    }
+
     
     /*******************  Dates *******************/
     /**

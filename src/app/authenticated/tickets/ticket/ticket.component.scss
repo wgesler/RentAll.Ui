@@ -85,6 +85,29 @@
   margin-top: var(--global-form-row-gap);
 }
 
+.ticket-description-box {
+  border: 1px solid var(--mat-sys-outline, #cbd5e1);
+  border-radius: 6px;
+  box-sizing: border-box;
+  padding: 8px 12px 12px;
+}
+
+.ticket-description-label {
+  font-family: inherit;
+  font-size: 13px;
+  font-weight: 400;
+  line-height: 1.2;
+  color: var(--mdc-outlined-text-field-label-text-color, rgba(0, 0, 0, 0.6));
+  letter-spacing: normal;
+  margin: 0 0 var(--global-form-field-gap-y);
+}
+
+.ticket-description-content {
+  white-space: normal;
+  word-break: break-word;
+  line-height: 1.4;
+}
+
 .ticket-comments-header {
   font-size: 13px;
   font-weight: 600;

@@ -392,6 +392,15 @@ export class TicketComponent implements OnInit, OnChanges, OnDestroy {
     return '';
   }
 
+  get descriptionHtml(): string {
+    const descriptionValue = String(this.form?.get('description')?.value || '');
+    const hasHtmlTags = /<\/?[a-z][\s\S]*>/i.test(descriptionValue);
+    if (hasHtmlTags) {
+      return descriptionValue;
+    }
+    return descriptionValue.replace(/\r\n/g, '\n').replace(/\n/g, '<br>');
+  }
+
   get ticketNotesDisplay(): { author: string; createdOn: string; note: string; linkedType: 'receipt' | 'workOrder' | null; linkedCode: string | null; linkedPrefix: string | null }[] {
     return (this.ticket?.notes || [])
       .filter(note => !!String(note.note || '').trim())
