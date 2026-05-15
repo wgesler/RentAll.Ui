@@ -91,6 +91,7 @@ export class PropertyWelcomeLetterComponent extends BaseDocumentComponent implem
   isPageReady: boolean = false;
   propertyReservationsLoaded: boolean = false;
   isBranded: boolean = true;
+  includeDepartureDate: boolean = true;
    
   itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['property', 'reservations', 'welcomeLetter', 'propertyInformation', 'organization', 'offices', 'accountingOffices', 'contacts', 'buildings', 'emailHtml', 'logo', 'previewHtml']));
   logoSourcesLoaded = { accountingOffices: false, organization: false };
@@ -283,7 +284,8 @@ export class PropertyWelcomeLetterComponent extends BaseDocumentComponent implem
     const form = this.fb.group({
       welcomeLetter: new FormControl(''),
       selectedReservationId: new FormControl({ value: null, disabled: !this.selectedOffice }),
-      isBranded: new FormControl(true)
+      isBranded: new FormControl(true),
+      includeDepartureDate: new FormControl(true)
     });
     return form;
   }
@@ -545,12 +547,19 @@ export class PropertyWelcomeLetterComponent extends BaseDocumentComponent implem
     this.form.get('isBranded')?.setValue(checked, { emitEvent: false });
     this.generatePreviewIframe();
   }
+
+  onIncludeDepartureDateChange(checked: boolean): void {
+    this.includeDepartureDate = checked;
+    this.form.get('includeDepartureDate')?.setValue(checked, { emitEvent: false });
+    this.generatePreviewIframe();
+  }
   //#endregion
 
   //#region Form Replacement Methods
   replacePlaceholders(html: string): string {
     let result = html;
     const isBranded = this.form?.get('isBranded')?.value !== false;
+    const includeDepartureDate = this.form?.get('includeDepartureDate')?.value !== false;
 
     if (this.organization) {    
       result = result.replace(/\{\{organizationName\}\}/g, this.getOrganizationName());
@@ -560,7 +569,7 @@ export class PropertyWelcomeLetterComponent extends BaseDocumentComponent implem
     if (this.selectedReservation) {
       result = result.replace(/\{\{tenantName\}\}/g, this.selectedReservation.tenantName || '');
       result = result.replace(/\{\{arrivalDate\}\}/g, this.formatterService.formatDateStringLong(this.selectedReservation.arrivalDate) || '');
-      result = result.replace(/\{\{departureDate\}\}/g, this.formatterService.formatDateStringLong(this.selectedReservation.departureDate) || '');
+      result = result.replace(/\{\{departureDateLine\}\}/g, this.getDepartureDate());
       result = result.replace(/\{\{checkInTime\}\}/g, getCheckInTime(this.selectedReservation.checkInTimeId) || '');
       result = result.replace(/\{\{checkOutTime\}\}/g, getCheckOutTime(this.selectedReservation.checkOutTimeId) || '');
       result = this.applyOptionalCodePlaceholder(result, 'lockBoxCode', this.selectedReservation.lockBoxCode);
@@ -733,6 +742,20 @@ export class PropertyWelcomeLetterComponent extends BaseDocumentComponent implem
       ? `Please check with your ${this.escapeHtml(companyName)} representative to determine where smoking is allowed, as many properties are entirely smoke-free.`
       : 'Please check with your housing representative to determine where smoking is allowed, as many properties are entirely smoke-free.';
     return `<p class="smoking-disclaimer">Please note that smoking is not permitted in the apartment, including the balcony or patio areas. ${brandedReference} Smoking in any unauthorized area will result in substantial fines.</p>`;
+  }
+
+  getDepartureDate(): string {
+    const includeDepartureDate = this.form?.get('includeDepartureDate')?.value !== false;
+    if (!includeDepartureDate || !this.selectedReservation) {
+      return '';
+    }
+
+    const departureDate = this.formatterService.formatDateStringLong(this.selectedReservation.departureDate) || '';
+    if (!departureDate) {
+      return '';
+    }
+
+    return `<p><span class="label">Departure Date:</span> ${this.escapeHtml(departureDate)}</p>`;
   }
 
   getOrganizationName(): string {

@@ -58,6 +58,13 @@
             (change)="onBrandedChange($event.checked)">
             Branded
           </mat-checkbox>
+          <mat-checkbox
+            color="primary"
+            class="welcome-letter-branded-toggle"
+            [checked]="includeDepartureDate"
+            (change)="onIncludeDepartureDateChange($event.checked)">
+            Include Departure Date
+          </mat-checkbox>
           <button mat-raised-button type="button" color="accent" (click)="onPrint()" 
             [disabled]="!selectedOffice || !selectedReservation || !previewIframeHtml">
             <mat-icon>print</mat-icon>
