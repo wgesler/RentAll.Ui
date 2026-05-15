@@ -6,6 +6,7 @@ import { ToastrService } from 'ngx-toastr';
 import { Subject, Subscription, skip, takeUntil } from 'rxjs';
 import { MaterialModule } from '../../../material.module';
 import { AuthService } from '../../../services/auth.service';
+import { UtilityService } from '../../../services/utility.service';
 import { OfficeResponse } from '../../organizations/models/office.model';
 import { GlobalSelectionService } from '../../organizations/services/global-selection.service';
 import { OfficeService } from '../../organizations/services/office.service';
@@ -15,6 +16,7 @@ import { GeneralComponent } from '../general/general.component';
 import { GeneralListComponent } from '../general-list/general-list.component';
 import { OwnerComponent } from '../owner/owner.component';
 import { OwnerListComponent } from '../owner-list/owner-list.component';
+import { LeadsReportsComponent } from '../reports/leads-reports.component';
 import { RentalComponent } from '../rental/rental.component';
 import { RentalListComponent } from '../rental-list/rental-list.component';
 
@@ -33,7 +35,8 @@ import { RentalListComponent } from '../rental-list/rental-list.component';
     OwnerListComponent,
     OwnerComponent,
     GeneralListComponent,
-    GeneralComponent
+    GeneralComponent,
+    LeadsReportsComponent
   ]
 })
 export class LeadsShellComponent implements OnInit, OnDestroy {
@@ -44,6 +47,7 @@ export class LeadsShellComponent implements OnInit, OnDestroy {
   private cdr = inject(ChangeDetectorRef);
   private toastr = inject(ToastrService);
   private authService = inject(AuthService);
+  private utilityService = inject(UtilityService);
 
   selectedTabIndex = 0;
   selectedOfficeId: number | null = null;
@@ -57,21 +61,24 @@ export class LeadsShellComponent implements OnInit, OnDestroy {
   rentalShellLeadId: string | null = null;
   ownerShellLeadId: string | null = null;
   generalShellLeadId: string | null = null;
+  reportsStartDate: Date | null = null;
+  reportsEndDate: Date | null = null;
   /** Tab index to restore when leaving embedded add via title bar Back (0 rental, 1 owner, 2 general). */
   embeddedLeadFormReturnTabIndex = 0;
 
   private destroy$ = new Subject<void>();
   private officesSubscription?: Subscription;
   private globalOfficeSubscription?: Subscription;
+  private isApplyingQueryParamState = false;
+  private isWritingQueryParams = false;
+  private lastKnownQueryStateKey: string | null = null;
 
   //#region Leads-Shell
   ngOnInit(): void {
-    this.applyQueryParamState(this.route.snapshot.queryParams);
-
-    this.route.queryParams.pipe(takeUntil(this.destroy$)).subscribe(params => {
-      this.applyQueryParamState(params);
-    });
-
+    const initialGlobalOfficeId = this.globalSelectionService.getSelectedOfficeIdValue();
+    if (initialGlobalOfficeId != null && initialGlobalOfficeId > 0) {
+      this.selectedOfficeId = initialGlobalOfficeId;
+    }
     this.loadOffices();
     this.globalOfficeSubscription = this.globalSelectionService
       .getSelectedOfficeId$()
@@ -95,12 +102,15 @@ export class LeadsShellComponent implements OnInit, OnDestroy {
   }
 
   onOfficeIdChange(officeId: number | null): void {
-    this.globalSelectionService.setSelectedOfficeId(officeId);
     this.resolveOfficeScope(officeId);
     this.updateUrlWithCurrentState();
   }
 
   onTabIndexChange(nextTabIndex: number): void {
+    if (this.isApplyingQueryParamState || nextTabIndex === this.selectedTabIndex) {
+      this.selectedTabIndex = nextTabIndex;
+      return;
+    }
     this.officeTitleBarShowError = false;
     this.showRentalLeadForm = false;
     this.showOwnerLeadForm = false;
@@ -109,7 +119,40 @@ export class LeadsShellComponent implements OnInit, OnDestroy {
     this.ownerShellLeadId = null;
     this.generalShellLeadId = null;
     this.selectedTabIndex = nextTabIndex;
+    if (this.selectedTabIndex === 3 && !this.reportsStartDate && !this.reportsEndDate) {
+      this.setDefaultReportDateRange();
+    }
     this.updateUrlWithCurrentState();
+  }
+
+  onReportsDateRangeChange(shouldSyncUrl: boolean = true): void {
+    if (!this.reportsStartDate && !this.reportsEndDate) {
+      this.setDefaultReportDateRange();
+    } else if (this.reportsStartDate && !this.reportsEndDate) {
+      const end = new Date(this.reportsStartDate);
+      end.setMonth(end.getMonth() + 6);
+      end.setHours(0, 0, 0, 0);
+      this.reportsEndDate = end;
+    } else if (!this.reportsStartDate && this.reportsEndDate) {
+      const start = new Date(this.reportsEndDate);
+      start.setMonth(start.getMonth() - 6);
+      start.setHours(0, 0, 0, 0);
+      this.reportsStartDate = start;
+    }
+    if (this.reportsStartDate) {
+      this.reportsStartDate.setHours(0, 0, 0, 0);
+    }
+    if (this.reportsEndDate) {
+      this.reportsEndDate.setHours(0, 0, 0, 0);
+    }
+    if (this.reportsStartDate && this.reportsEndDate && this.reportsStartDate.getTime() > this.reportsEndDate.getTime()) {
+      const temp = this.reportsStartDate;
+      this.reportsStartDate = this.reportsEndDate;
+      this.reportsEndDate = temp;
+    }
+    if (shouldSyncUrl && !this.isApplyingQueryParamState) {
+      this.updateUrlWithCurrentState();
+    }
   }
 
   onAddRentalLead(): void {
@@ -243,9 +286,17 @@ export class LeadsShellComponent implements OnInit, OnDestroy {
   //#region Office Methods
   applyQueryParamState(params: Record<string, unknown>): void {
     const tab = String(params['tab'] || '').trim().toLowerCase();
-    const nextIndex = tab === 'general' ? 2 : tab === 'owner' ? 1 : 0;
+    const nextIndex = tab === 'reports' ? 3 : tab === 'general' ? 2 : tab === 'owner' ? 1 : 0;
     if (this.selectedTabIndex !== nextIndex) {
       this.selectedTabIndex = nextIndex;
+    }
+
+    const startDateParam = getStringQueryParam(params, 'startDate');
+    const endDateParam = getStringQueryParam(params, 'endDate');
+    this.reportsStartDate = this.utilityService.parseDateOnlyStringToDate(startDateParam);
+    this.reportsEndDate = this.utilityService.parseDateOnlyStringToDate(endDateParam);
+    if (this.selectedTabIndex === 3) {
+      this.onReportsDateRangeChange(false);
     }
 
     const officeId = getNumberQueryParam(params, 'officeId');
@@ -269,7 +320,6 @@ export class LeadsShellComponent implements OnInit, OnDestroy {
     }
     this.resolveOfficeScope(officeId);
     this.cdr.markForCheck();
-    this.updateUrlWithCurrentState();
   }
 
   resolveOfficeScope(officeId: number | null): void {
@@ -285,37 +335,24 @@ export class LeadsShellComponent implements OnInit, OnDestroy {
   }
 
   updateUrlWithCurrentState(): void {
-    const tabParam =
-      this.selectedTabIndex === 2 ? 'general' : this.selectedTabIndex === 1 ? 'owner' : null;
-    const officeParam = this.selectedOfficeId != null ? String(this.selectedOfficeId) : null;
+    return;
+  }
 
-    const q = this.route.snapshot.queryParams;
-    const curTabRaw = q['tab'];
-    const curTab =
-      curTabRaw === undefined || curTabRaw === null || String(curTabRaw).trim() === ''
-        ? null
-        : String(curTabRaw).trim().toLowerCase();
-    const nextTab = tabParam === null || tabParam === undefined ? null : String(tabParam).toLowerCase();
+  setDefaultReportDateRange(): void {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const start = new Date(today.getFullYear(), today.getMonth() - 1, 1);
+    start.setHours(0, 0, 0, 0);
+    this.reportsStartDate = start;
+    this.reportsEndDate = today;
+  }
 
-    const curOfficeRaw = q['officeId'];
-    const curOffice =
-      curOfficeRaw === undefined || curOfficeRaw === null || String(curOfficeRaw).trim() === ''
-        ? null
-        : String(curOfficeRaw).trim();
-
-    if (curTab === nextTab && curOffice === (officeParam ?? null)) {
-      return;
-    }
-
-    void this.router.navigate([], {
-      relativeTo: this.route,
-      queryParams: {
-        tab: tabParam,
-        officeId: officeParam
-      },
-      queryParamsHandling: 'merge',
-      replaceUrl: true
-    });
+  buildQueryStateKey(params: Record<string, unknown>): string {
+    const tab = params['tab'] == null || String(params['tab']).trim() === '' ? null : String(params['tab']).trim().toLowerCase();
+    const officeId = params['officeId'] == null || String(params['officeId']).trim() === '' ? null : String(params['officeId']).trim();
+    const startDate = params['startDate'] == null || String(params['startDate']).trim() === '' ? null : String(params['startDate']).trim();
+    const endDate = params['endDate'] == null || String(params['endDate']).trim() === '' ? null : String(params['endDate']).trim();
+    return `${tab ?? ''}|${officeId ?? ''}|${startDate ?? ''}|${endDate ?? ''}`;
   }
 
   loadOffices(): void {
@@ -333,18 +370,17 @@ export class LeadsShellComponent implements OnInit, OnDestroy {
       .subscribe({
         next: allOffices => {
           this.offices = allOffices || [];
-          this.applyQueryParamState(this.route.snapshot.queryParams);
 
           let didSetInitialOffice = false;
           if (!this.selectedOffice && this.offices.length === 1) {
             this.resolveOfficeScope(this.offices[0].officeId);
             didSetInitialOffice = true;
           } else if (!this.selectedOffice) {
-            const globalOfficeId = this.globalSelectionService.getSelectedOfficeIdValue();
-            if (globalOfficeId !== null) {
-              const globalOffice = this.offices.find(office => office.officeId === globalOfficeId) || null;
-              if (globalOffice) {
-                this.resolveOfficeScope(globalOffice.officeId);
+            const initialOfficeId = this.selectedOfficeId ?? this.globalSelectionService.getSelectedOfficeIdValue();
+            if (initialOfficeId !== null) {
+              const initialOffice = this.offices.find(office => office.officeId === initialOfficeId) || null;
+              if (initialOffice) {
+                this.resolveOfficeScope(initialOffice.officeId);
                 didSetInitialOffice = true;
               }
             }

@@ -18,6 +18,32 @@
             [errorText]="'Select a specific office'"
             (valueChange)="onOfficeDropdownChange($event)">
           </app-title-bar-select>
+          @if (selectedTabIndex === 3) {
+            <mat-form-field appearance="outline" class="titlebar-field-office">
+              <mat-label>Start Date</mat-label>
+              <input
+                matInput
+                [matDatepicker]="reportStartPicker"
+                [(ngModel)]="reportsStartDate"
+                [ngModelOptions]="{ standalone: true }"
+                (dateChange)="onReportsDateRangeChange()"
+                [max]="reportsEndDate" />
+              <mat-datepicker-toggle matIconSuffix [for]="reportStartPicker"></mat-datepicker-toggle>
+              <mat-datepicker #reportStartPicker></mat-datepicker>
+            </mat-form-field>
+            <mat-form-field appearance="outline" class="titlebar-field-office">
+              <mat-label>End Date</mat-label>
+              <input
+                matInput
+                [matDatepicker]="reportEndPicker"
+                [(ngModel)]="reportsEndDate"
+                [ngModelOptions]="{ standalone: true }"
+                (dateChange)="onReportsDateRangeChange()"
+                [min]="reportsStartDate" />
+              <mat-datepicker-toggle matIconSuffix [for]="reportEndPicker"></mat-datepicker-toggle>
+              <mat-datepicker #reportEndPicker></mat-datepicker>
+            </mat-form-field>
+          }
         </div>
       </div>
       <div class="form-titlebar-actions-wrap uniform-gap">
@@ -27,7 +53,8 @@
             type="button"
             color="accent"
             class="text-nowrap flex-shrink-0"
-            (click)="onEmbeddedLeadFormBack()">
+            (click)="onEmbeddedLeadFormBack()"
+            >
             <mat-icon>arrow_back</mat-icon>
             Back
           </button>
@@ -36,7 +63,6 @@
     </div>
     <mat-card>
       <mat-tab-group
-        [selectedIndex]="selectedTabIndex"
         [animationDuration]="'0ms'"
         class="property-tabs leads-shell-five-slot-tabs dbg-band-tabs"
         (selectedIndexChange)="onTabIndexChange($event)">
@@ -48,13 +74,14 @@
                 [shellLeadId]="rentalShellLeadId"
                 [officeId]="selectedOfficeId"
                 (closed)="onRentalLeadFormClosed()"
-                (officeSelectionRequired)="onRentalOfficeSelectionRequired()" />
+                />
             } @else {
               <app-rental-list
                 [embeddedInShell]="true"
                 [officeId]="selectedOfficeId"
                 (requestNewRental)="onAddRentalLead()"
-                (requestEditRental)="onEditRentalLead($event)" />
+                (requestEditRental)="onEditRentalLead($event)"
+                />
             }
           </ng-template>
         </mat-tab>
@@ -66,13 +93,14 @@
                 [shellLeadId]="ownerShellLeadId"
                 [officeId]="selectedOfficeId"
                 (closed)="onOwnerLeadFormClosed()"
-                (officeSelectionRequired)="onOwnerOfficeSelectionRequired()" />
+                />
             } @else {
               <app-owner-list
                 [embeddedInShell]="true"
                 [officeId]="selectedOfficeId"
                 (requestNewOwner)="onAddOwnerLead()"
-                (requestEditOwner)="onEditOwnerLead($event)" />
+                (requestEditOwner)="onEditOwnerLead($event)"
+                />
             }
           </ng-template>
         </mat-tab>
@@ -84,14 +112,25 @@
                 [shellLeadId]="generalShellLeadId"
                 [officeId]="selectedOfficeId"
                 (closed)="onGeneralLeadFormClosed()"
-                (officeSelectionRequired)="onGeneralOfficeSelectionRequired()" />
+                />
             } @else {
               <app-general-list
                 [embeddedInShell]="true"
                 [officeId]="selectedOfficeId"
                 (requestNewGeneral)="onAddGeneralLead()"
-                (requestEditGeneral)="onEditGeneralLead($event)" />
+                (requestEditGeneral)="onEditGeneralLead($event)"
+                />
             }
+          </ng-template>
+        </mat-tab>
+        <mat-tab label="Reports">
+          <ng-template matTabContent>
+            <app-leads-reports
+              [officeId]="selectedOfficeId"
+              [startDate]="reportsStartDate"
+              [endDate]="reportsEndDate"
+              [offices]="offices">
+            </app-leads-reports>
           </ng-template>
         </mat-tab>
       </mat-tab-group>

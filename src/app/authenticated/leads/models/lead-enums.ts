@@ -41,6 +41,15 @@ export const LEAD_STATE_SELECT_OPTIONS: { value: LeadStateType; label: string }[
   LeadStateType.BookedWithUs
 ].map(value => ({ value, label: formatLeadStateLabel(value) }));
 
+export const LEAD_FINAL_STATE_IDS = new Set<number>([
+  LeadStateType.NeverHeardBack,
+  LeadStateType.NotInterested,
+  LeadStateType.Denied,
+  LeadStateType.ChoseAnotherOption,
+  LeadStateType.BudgetTooLow,
+  LeadStateType.BookedWithUs
+]);
+
 export interface LeadStateDropdownCell {
   value: string;
   isOverridable: boolean;

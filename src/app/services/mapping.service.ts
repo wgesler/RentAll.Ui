@@ -32,6 +32,7 @@ import { getFrequency, getReservationStatus } from '../authenticated/reservation
 import { ExtraFeeLineRequest, ExtraFeeLineResponse, ReservationListDisplay, ReservationListResponse } from '../authenticated/reservations/models/reservation-model';
 import { LeadGeneralListDisplay, LeadGeneralResponse, LeadGeneralUpdateRequest } from '../authenticated/leads/models/lead-general.model';
 import { LeadOwnerRequest, LeadOwnerListDisplay, LeadOwnerResponse, LeadOwnerUpdateRequest } from '../authenticated/leads/models/lead-owner.model';
+import { UnifiedLeadRow } from '../authenticated/leads/models/lead-reports.model';
 import { LeadRentalListDisplay, LeadRentalRequest, LeadRentalResponse } from '../authenticated/leads/models/lead-rental.model';
 import { formatLeadStateLabel } from '../authenticated/leads/models/lead-enums';
 import { getTicketStateType } from '../authenticated/tickets/models/ticket-enum';
@@ -803,6 +804,76 @@ export class MappingService {
       emailPhoneConsent: rest.emailPhoneConsent ?? false,
       smsConsent: rest.smsConsent ?? false
     };
+  }
+
+  mapLeadRentalReportRows(rows: LeadRentalResponse[]): UnifiedLeadRow[] {
+    return (rows || []).map(row => {
+      const source = row as unknown as Record<string, unknown>;
+      return {
+        leadType: 'Rental',
+        officeId: Number(row.officeId || 0),
+        leadStateId: Number(row.leadStateId || 0),
+        agentId: row.agentId,
+        agentLabel: this.resolveLeadReportAgentLabelFromPayload(source, row.agentId),
+        createdOn: this.resolveLeadReportCreatedOn(source)
+      };
+    });
+  }
+
+  mapLeadOwnerReportRows(rows: LeadOwnerResponse[]): UnifiedLeadRow[] {
+    return (rows || []).map(row => {
+      const source = row as unknown as Record<string, unknown>;
+      return {
+        leadType: 'Owner',
+        officeId: Number(row.officeId || 0),
+        leadStateId: Number(row.leadStateId || 0),
+        agentId: row.agentId,
+        agentLabel: this.resolveLeadReportAgentLabelFromPayload(source, row.agentId),
+        createdOn: this.resolveLeadReportCreatedOn(source)
+      };
+    });
+  }
+
+  mapLeadGeneralReportRows(rows: LeadGeneralResponse[]): UnifiedLeadRow[] {
+    return (rows || []).map(row => {
+      const source = row as unknown as Record<string, unknown>;
+      return {
+        leadType: 'General',
+        officeId: Number(row.officeId || 0),
+        leadStateId: Number(row.leadStateId || 0),
+        agentId: null,
+        agentLabel: 'N/A (General)',
+        createdOn: this.resolveLeadReportCreatedOn(source)
+      };
+    });
+  }
+
+  resolveLeadReportAgentLabelFromPayload(source: Record<string, unknown>, fallbackAgentId: string | null): string {
+    const agentName = String(source['agentName'] ?? '').trim();
+    if (agentName) {
+      return agentName;
+    }
+    const agentCode = String(source['agentCode'] ?? '').trim();
+    if (agentCode) {
+      return agentCode;
+    }
+    const agentId = String(fallbackAgentId || '').trim();
+    return agentId || 'Unassigned';
+  }
+
+  resolveLeadReportCreatedOn(source: Record<string, unknown>): Date | null {
+    const rawCreatedOn =
+      source['createdOn']
+      ?? source['CreatedOn']
+      ?? source['createdDate']
+      ?? source['CreatedDate']
+      ?? source['dateCreated']
+      ?? source['DateCreated']
+      ?? null;
+    if (!rawCreatedOn) {
+      return null;
+    }
+    return this.utility.parseCalendarDateInput(String(rawCreatedOn));
   }
   //#endregion
 

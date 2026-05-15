@@ -1,5 +1,5 @@
 import { CommonModule } from '@angular/common';
-import { Component, effect, input, NgZone, OnDestroy, OnInit, output } from '@angular/core';
+import { Component, input, NgZone, OnChanges, OnDestroy, OnInit, output, SimpleChanges } from '@angular/core';
 import { Router } from '@angular/router';
 import { ToastrService } from 'ngx-toastr';
 import { BehaviorSubject, Subject, Subscription, finalize, take, takeUntil } from 'rxjs';
@@ -27,7 +27,7 @@ import { LeadsService } from '../services/leads.service';
   styleUrls: ['./owner-list.component.scss'],
   imports: [CommonModule, MaterialModule, DataTableComponent, DataTableFilterActionsDirective]
 })
-export class OwnerListComponent implements OnInit, OnDestroy {
+export class OwnerListComponent implements OnInit, OnChanges, OnDestroy {
   embeddedInShell = input(false);
   officeId = input<number | null>(null);
   requestNewOwner = output<void>();
@@ -66,16 +66,7 @@ export class OwnerListComponent implements OnInit, OnDestroy {
     private officeService: OfficeService,
     private globalSelectionService: GlobalSelectionService,
     private authService: AuthService
-  ) {
-    effect(() => {
-      const id = this.officeId();
-      void id;
-      if (!this.embeddedInShell() || this.offices.length === 0) {
-        return;
-      }
-      this.resolveOfficeScope(this.officeId());
-    });
-  }
+  ) { }
 
   //#region Owner-List
   ngOnInit(): void {
@@ -83,19 +74,26 @@ export class OwnerListComponent implements OnInit, OnDestroy {
       this.isPageReady = items.size === 0;
     });
 
-    this.globalOfficeSubscription = this.globalSelectionService.getSelectedOfficeId$().pipe(takeUntil(this.destroy$)).subscribe(officeId => {
-      if (this.offices.length === 0) {
-        return;
-      }
-      if (this.embeddedInShell()) {
-        this.resolveOfficeScope(this.officeId());
-        return;
-      }
-      this.resolveOfficeScope(officeId);
-    });
+    if (!this.embeddedInShell()) {
+      this.globalOfficeSubscription = this.globalSelectionService.getSelectedOfficeId$().pipe(takeUntil(this.destroy$)).subscribe(officeId => {
+        if (this.offices.length === 0) {
+          return;
+        }
+        this.resolveOfficeScope(officeId);
+      });
+    }
 
     this.loadOffices();
     this.loadOwnerLeads();
+  }
+
+  ngOnChanges(changes: SimpleChanges): void {
+    if (!this.embeddedInShell()) {
+      return;
+    }
+    if (changes['officeId']) {
+      this.resolveOfficeScope(this.officeId());
+    }
   }
 
   addOwnerLead(): void {

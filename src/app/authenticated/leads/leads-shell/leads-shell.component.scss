@@ -12,8 +12,9 @@
   overflow-y: hidden !important;
 }
 
-/* Three visible tabs sized as five slots (two “slots” reserved / empty). */
+/* Reserve five equal slots even when only four tabs are shown. */
 :host ::ng-deep .leads-shell-five-slot-tabs .mat-mdc-tab-header .mat-mdc-tab {
   flex: 0 0 calc(100% / 5);
   max-width: calc(100% / 5);
+  min-width: 0;
 }

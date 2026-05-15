@@ -1,0 +1,84 @@
+<div class="leads-reports-wrap">
+  @if (isLoading) {
+    <div class="loading-container">
+      <mat-spinner [diameter]="40"></mat-spinner>
+      <p>Loading reports...</p>
+    </div>
+  } @else {
+    <div class="type-counts-grid">
+      <section class="type-count-card">
+        <span class="type-count-label">Rental</span>
+        <span class="type-count-value">{{ leadTypeCounts.rental }}</span>
+      </section>
+      <section class="type-count-card">
+        <span class="type-count-label">Owner</span>
+        <span class="type-count-value">{{ leadTypeCounts.owner }}</span>
+      </section>
+      <section class="type-count-card">
+        <span class="type-count-label">General</span>
+        <span class="type-count-value">{{ leadTypeCounts.general }}</span>
+      </section>
+      <section class="type-count-card">
+        <span class="type-count-label">All Leads</span>
+        <span class="type-count-value">{{ leadTypeCounts.total }}</span>
+      </section>
+    </div>
+    @if (!hasRows) {
+      <div class="empty-state-card">
+        <mat-icon>assessment</mat-icon>
+        <h3>No lead report data found</h3>
+        <p>Try changing office or date range filters.</p>
+      </div>
+    } @else {
+      <div class="report-grid">
+        <mat-accordion multi="true" class="report-accordion">
+          <mat-expansion-panel [expanded]="true">
+            <mat-expansion-panel-header>
+              <mat-panel-title>Open Leads</mat-panel-title>
+            </mat-expansion-panel-header>
+            <app-data-table
+              [data]="openLeadRows"
+              [columns]="openLeadsColumns"
+              [hasColumnIndex]="true"
+              [noDataMessage]="'No open leads found for this filter.'">
+            </app-data-table>
+          </mat-expansion-panel>
+
+          <mat-expansion-panel [expanded]="true">
+            <mat-expansion-panel-header>
+              <mat-panel-title>Closed Leads</mat-panel-title>
+            </mat-expansion-panel-header>
+            <app-data-table
+              [data]="closedLeadRows"
+              [columns]="closedLeadsColumns"
+              [hasColumnIndex]="true"
+              [noDataMessage]="'No closed leads found for this filter.'">
+            </app-data-table>
+          </mat-expansion-panel>
+
+          <mat-expansion-panel [expanded]="true">
+            <mat-expansion-panel-header>
+              <mat-panel-title>Agent Breakdown</mat-panel-title>
+            </mat-expansion-panel-header>
+            <app-data-table
+              [data]="agentBreakdownRows"
+              [columns]="agentBreakdownColumns"
+              [hasColumnIndex]="true"
+              [noDataMessage]="'No agent breakdown rows found for this filter.'"
+              [totalsRow]="{
+                rentalCount: '' + agentBreakdownTotals.rental,
+                ownerCount: '' + agentBreakdownTotals.owner,
+                generalCount: '' + agentBreakdownTotals.general,
+                openCount: '' + agentBreakdownTotals.open,
+                closedCount: '' + agentBreakdownTotals.closed,
+                totalCount: '' + agentBreakdownTotals.total
+              }"
+              [totalsLabel]="'Totals'">
+            </app-data-table>
+          </mat-expansion-panel>
+        </mat-accordion>
+      </div>
+    }
+  }
+</div>
+
