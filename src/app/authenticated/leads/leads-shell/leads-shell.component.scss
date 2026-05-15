@@ -10,6 +10,8 @@
 
 :host ::ng-deep .property-tabs .mat-mdc-tab-body-content {
   overflow-y: hidden !important;
+  padding-top: 12px;
+  box-sizing: border-box;
 }
 
 /* Reserve five equal slots even when only four tabs are shown. */
