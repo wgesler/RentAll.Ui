@@ -9,7 +9,8 @@ export enum LeadStateType {
   Denied = 6,
   ChoseAnotherOption = 7,
   BudgetTooLow = 8,
-  BookedWithUs = 9
+  BookedWithUs = 9,
+  DifferentOffice = 10
 }
 
 export function formatLeadStateLabel(leadStateId: number): string {
@@ -23,7 +24,8 @@ export function formatLeadStateLabel(leadStateId: number): string {
     [LeadStateType.Denied]: 'Denied',
     [LeadStateType.ChoseAnotherOption]: 'ChoseAnotherOption',
     [LeadStateType.BudgetTooLow]: 'BudgetTooLow',
-    [LeadStateType.BookedWithUs]: 'BookedWithUs'
+    [LeadStateType.BookedWithUs]: 'BookedWithUs',
+    [LeadStateType.DifferentOffice]: 'DifferentOffice'
   };
   return labels[leadStateId] ?? `State ${leadStateId}`;
 }
@@ -38,7 +40,8 @@ export const LEAD_STATE_SELECT_OPTIONS: { value: LeadStateType; label: string }[
   LeadStateType.Denied,
   LeadStateType.ChoseAnotherOption,
   LeadStateType.BudgetTooLow,
-  LeadStateType.BookedWithUs
+  LeadStateType.BookedWithUs,
+  LeadStateType.DifferentOffice
 ].map(value => ({ value, label: formatLeadStateLabel(value) }));
 
 export const LEAD_FINAL_STATE_IDS = new Set<number>([
@@ -47,7 +50,8 @@ export const LEAD_FINAL_STATE_IDS = new Set<number>([
   LeadStateType.Denied,
   LeadStateType.ChoseAnotherOption,
   LeadStateType.BudgetTooLow,
-  LeadStateType.BookedWithUs
+  LeadStateType.BookedWithUs,
+  LeadStateType.DifferentOffice
 ]);
 
 export interface LeadStateDropdownCell {
