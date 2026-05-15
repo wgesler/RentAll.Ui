@@ -509,6 +509,7 @@ export class WorkOrderCreateComponent extends BaseDocumentComponent implements O
 
     result = result.replace(/\{\{officeLogoBase64\}\}/g, preferredLogoDataUrl || '');
     result = result.replace(/\{\{orgLogoBase64\}\}/g, preferredLogoDataUrl || '');
+    result = result.replace(/\{\{companyName\}\}/g, this.organization?.name || '');
     result = result.replace(/\{\{accountingOfficeName\}\}/g, this.selectedAccountingOffice?.name || '');
     result = result.replace(/\{\{accountingOfficeAddress\}\}/g, this.getAccountingOfficeAddress() || '');
     result = result.replace(/\{\{accountingOfficeCityStateZip\}\}/g, `${this.selectedAccountingOffice?.city || ''}, ${this.selectedAccountingOffice?.state || ''} ${this.selectedAccountingOffice?.zip || ''}`.trim());
@@ -923,6 +924,7 @@ export class WorkOrderCreateComponent extends BaseDocumentComponent implements O
   
     const propertyAddress1 = this.escapeHtml(this.getPropertyAddress1());
     const propertyAddress2 = this.escapeHtml(this.getPropertyAddress2());
+    const propertyAddressSingleLine = [propertyAddress1, propertyAddress2].filter(part => part).join(', ');
     const propertyCode = this.escapeHtml(this.property.propertyCode || '');
     const billingType = this.escapeHtml(getBillingMethod(this.selectedReservation?.billingMethodId));
     const useSingleAddressLine = this.utilityService.isAddressSingleLine("Address:", propertyAddress1, propertyAddress2);
@@ -930,9 +932,9 @@ export class WorkOrderCreateComponent extends BaseDocumentComponent implements O
     return [
       `<span style="font-weight: bold">Property Code:</span> ${propertyCode}<br>`,
       useSingleAddressLine
-        ? `<span style="font-weight: bold">Address:</span> ${propertyAddress1}, ${propertyAddress2}<br>`
+        ? `<span style="font-weight: bold">Address:</span> ${propertyAddressSingleLine}<br>`
         : `<span style="font-weight: bold">Address:</span> ${propertyAddress1}<br>`,
-      ...(propertyAddress2 ? [`&nbsp;&nbsp;&nbsp;&nbsp;${propertyAddress2}<br>`] : []),
+      ...(!useSingleAddressLine && propertyAddress2 ? [`&nbsp;&nbsp;&nbsp;&nbsp;${propertyAddress2}<br>`] : []),
       ...(billingType ? [`<span style="font-weight: bold">Billing Type:</span> ${billingType}<br>`] : [])
     ].join('');
   }
@@ -982,8 +984,10 @@ export class WorkOrderCreateComponent extends BaseDocumentComponent implements O
     if (!this.workOrder || this.workOrder.workOrderTypeId !== WorkOrderType.Tenant) {
       return '';
     }
-    const officeName = this.selectedAccountingOffice?.name || '';
-    return officeName ? `Thank you for staying with ${officeName}.` : '';
+    const companyName = (this.organization?.name || '').trim();
+    const officeName = (this.selectedAccountingOffice?.name || '').trim();
+    const thankYouName = `${companyName} ${officeName}`.trim();
+    return thankYouName ? `Thank you for staying with ${thankYouName}.` : '';
   }
   
   getPrimaryResponsibleContact(): ContactResponse | null {

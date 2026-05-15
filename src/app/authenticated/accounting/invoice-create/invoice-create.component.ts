@@ -1055,6 +1055,7 @@ export class InvoiceCreateComponent extends BaseDocumentComponent implements OnI
 
     // Replace accounting office placeholders
     if (this.selectedAccountingOffice) {
+      result = result.replace(/\{\{companyName\}\}/g, this.organization?.name || '');
       result = result.replace(/\{\{accountingOfficeName\}\}/g, this.selectedAccountingOffice.name || '');
       result = result.replace(/\{\{accountingOfficeAddress\}\}/g, this.getAccountingOfficeAddress() || '');
       result = result.replace(/\{\{accountingOfficeCityStateZip\}\}/g, this.selectedAccountingOffice.city + ', ' + this.selectedAccountingOffice.state + ' ' + this.selectedAccountingOffice.zip|| '');
