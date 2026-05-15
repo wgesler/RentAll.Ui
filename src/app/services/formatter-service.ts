@@ -324,18 +324,25 @@ export class FormatterService {
     phoneNumber(phone?: string): string {
         if (!phone) return phone || '';
         const trimmed = phone.trim();
-        
-        // If starts with +, return as-is (international numbers stored exactly as typed)
+
+        // Keep non-US international values exactly as stored.
         if (trimmed.startsWith('+')) {
-            return phone;
+            const internationalDigits = trimmed.replace(/\D/g, '');
+            if (!(internationalDigits.length === 11 && internationalDigits.startsWith('1'))) {
+                return phone;
+            }
         }
-        
-        // For US numbers (10 digits), format as (XXX) XXX-XXXX
-        const digits = phone.replace(/\D/g, '');
+
+        // Normalize US country-code input (1XXXXXXXXXX) to local 10-digit formatting.
+        let digits = trimmed.replace(/\D/g, '');
+        if (digits.length === 11 && digits.startsWith('1')) {
+            digits = digits.substring(1);
+        }
+
         if (digits.length === 10) {
             return `(${digits.substring(0, 3)}) ${digits.substring(3, 6)}-${digits.substring(6)}`;
         }
-        
+
         // Return original if it doesn't match standard formats
         return phone;
     }
