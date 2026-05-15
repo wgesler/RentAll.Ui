@@ -30,21 +30,9 @@ import { PropertyBedDropdownCell, PropertyListDisplay, PropertyListResponse, Pro
 import { BoardProperty } from '../authenticated/reservations/models/reservation-board-model';
 import { getFrequency, getReservationStatus } from '../authenticated/reservations/models/reservation-enum';
 import { ExtraFeeLineRequest, ExtraFeeLineResponse, ReservationListDisplay, ReservationListResponse } from '../authenticated/reservations/models/reservation-model';
-import {
-  LeadGeneralListDisplay,
-  LeadGeneralResponse,
-  LeadGeneralUpdateRequest
-} from '../authenticated/leads/models/lead-general.model';
-import {
-  LeadOwnerListDisplay,
-  LeadOwnerResponse,
-  LeadOwnerUpdateRequest
-} from '../authenticated/leads/models/lead-owner.model';
-import {
-  LeadRentalListDisplay,
-  LeadRentalRequest,
-  LeadRentalResponse
-} from '../authenticated/leads/models/lead-rental.model';
+import { LeadGeneralListDisplay, LeadGeneralResponse, LeadGeneralUpdateRequest } from '../authenticated/leads/models/lead-general.model';
+import { LeadOwnerRequest, LeadOwnerListDisplay, LeadOwnerResponse, LeadOwnerUpdateRequest } from '../authenticated/leads/models/lead-owner.model';
+import { LeadRentalListDisplay, LeadRentalRequest, LeadRentalResponse } from '../authenticated/leads/models/lead-rental.model';
 import { formatLeadStateLabel } from '../authenticated/leads/models/lead-enums';
 import { getTicketStateType } from '../authenticated/tickets/models/ticket-enum';
 import { TicketListDisplay, TicketRequest, TicketResponse, TicketStateDropdownCell } from '../authenticated/tickets/models/ticket-models';
@@ -675,6 +663,73 @@ export class MappingService {
     return {
       ...rest,
       isActive
+    };
+  }
+
+  mapLeadGeneralToRentalRequest(lead: LeadGeneralListDisplay): LeadRentalRequest {
+    return {
+      leadStateId: lead.leadStateId,
+      officeId: lead.officeId,
+      agentId: null,
+      firstName: this.utility.trimOrNull(lead.firstName),
+      lastName: this.utility.trimOrNull(lead.lastName),
+      email: this.utility.trimOrNull(lead.email),
+      phone: this.utility.trimOrNull(lead.phone),
+      desiredLocation: null,
+      propertyRefId: null,
+      estimatedArrivalDate: null,
+      estimatedDepartureDate: null,
+      maxMonthlyBudget: null,
+      minBedrooms: null,
+      numberOfOccupants: null,
+      whatBringsYouToTown: null,
+      howDidYouFindUs: null,
+      tellUsMoreAboutHowYouFoundUs: null,
+      petFriendly: null,
+      decisionDate: null,
+      organizationName: null,
+      additionalInformation: this.utility.trimOrNull(lead.message),
+      quotePath: null,
+      iNeedAsap: false,
+      emailPhoneConsent: false,
+      smsConsent: false,
+      isActive: lead.isActive
+    };
+  }
+
+  mapLeadGeneralToOwnerRequest(lead: LeadGeneralListDisplay): LeadOwnerRequest {
+    return {
+      leadStateId: lead.leadStateId,
+      officeId: lead.officeId,
+      agentId: null,
+      firstName: this.utility.trimOrNull(lead.firstName),
+      lastName: this.utility.trimOrNull(lead.lastName),
+      email: this.utility.trimOrNull(lead.email),
+      phone: this.utility.trimOrNull(lead.phone),
+      locationOfProperty: null,
+      programInterest: null,
+      whatIsPromptingContact: null,
+      timeFrame: null,
+      targetRentReadyDate: null,
+      propertyGoals: this.utility.trimOrNull(lead.message),
+      tellUsMoreAboutYourGoals: null,
+      yearsOfExperienceWithRentals: null,
+      tellUsMoreAboutProperty: null,
+      address: null,
+      city: null,
+      state: null,
+      zip: null,
+      numberOfBeds: null,
+      numberOfBaths: null,
+      approxSqFootage: null,
+      typeOfProperty: null,
+      tellUsWhatYouLikeMostAboutYourProperty: null,
+      tellUsAnyDrawbacks: null,
+      preferredContactMethod: null,
+      timeDateForContact: null,
+      emailPhoneConsent: false,
+      smsConsent: false,
+      isActive: lead.isActive
     };
   }
 

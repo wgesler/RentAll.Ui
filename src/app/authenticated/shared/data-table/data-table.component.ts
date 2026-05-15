@@ -56,6 +56,8 @@ export class DataTableComponent implements OnChanges, OnInit {
   @Input() hasActionsCamera: boolean = false;
   @Input() hasActionsCalendar: boolean = false;
   @Input() hasActionsCopy: boolean = false;
+  @Input() hasActionsRental: boolean = false;
+  @Input() hasActionsOwner: boolean = false;
   @Input() hasActionsDelete: boolean = false;
   @Input() confirmDeleteBeforeEmit: boolean = true;
   @Input() deleteConfirmTitle: string = 'Delete?';
@@ -131,6 +133,8 @@ export class DataTableComponent implements OnChanges, OnInit {
   @Output() cancelEvent = new EventEmitter<PurposefulAny>();
   @Output() cameraEvent = new EventEmitter<PurposefulAny>();
   @Output() copyEvent = new EventEmitter<PurposefulAny>();
+  @Output() rentalEvent = new EventEmitter<PurposefulAny>();
+  @Output() ownerEvent = new EventEmitter<PurposefulAny>();
   @Output() deleteEvent = new EventEmitter<PurposefulAny>();
   @Output() downloadEvent = new EventEmitter<PurposefulAny>();
   @Output() dropdownChangeEvent = new EventEmitter<PurposefulAny>();
@@ -378,6 +382,16 @@ export class DataTableComponent implements OnChanges, OnInit {
   emitCopyEvent(event: Event, rowItem: PurposefulAny): void {
     event.stopPropagation();
     this.copyEvent.emit(rowItem);
+  }
+
+  emitRentalEvent(event: Event, rowItem: PurposefulAny): void {
+    event.stopPropagation();
+    this.rentalEvent.emit(rowItem);
+  }
+
+  emitOwnerEvent(event: Event, rowItem: PurposefulAny): void {
+    event.stopPropagation();
+    this.ownerEvent.emit(rowItem);
   }
 
   emitCalendarEvent(event: Event, rowItem: PurposefulAny): void {
@@ -761,7 +775,7 @@ export class DataTableComponent implements OnChanges, OnInit {
 
     columns = {...columns, ...this.columns};
     
-    if (this.hasActionsEdit || this.hasActionsDelete || this.hasActionsSave || this.hasActionsRestore || this.hasActionsDownload || this.hasActionsView || this.hasActionsInspect || this.hasActionsCamera || this.hasActionsPayable || this.hasActionsInvoice || this.hasActionsCopy || this.hasActionsCalendar || this.hasActionsQuote || this.hasActionsClearTracking || this.hasActionsCheckAll || this.hasColumnDynamicAction)
+    if (this.hasActionsEdit || this.hasActionsDelete || this.hasActionsSave || this.hasActionsRestore || this.hasActionsDownload || this.hasActionsView || this.hasActionsInspect || this.hasActionsCamera || this.hasActionsPayable || this.hasActionsInvoice || this.hasActionsCopy || this.hasActionsRental || this.hasActionsOwner || this.hasActionsCalendar || this.hasActionsQuote || this.hasActionsClearTracking || this.hasActionsCheckAll || this.hasColumnDynamicAction)
       columns['actions'] = { displayAs: 'Actions', sort: false, wrap: false };
     
     this.tableColumns = [];
@@ -795,6 +809,8 @@ export class DataTableComponent implements OnChanges, OnInit {
     if (this.hasActionsCalendar) this.buttons.push({name: 'calendar', callback: (event, rowItem) => this.emitCalendarEvent(event, rowItem), color: '#00897B', tooltip: 'Calendar', tooltipPosition: 'before', icon: 'calendar_month', suspendOnUpdate: false});
     if (this.hasActionsQuote)    this.buttons.push({name: 'quote', callback: (event, rowItem) => this.emitQuoteEvent(event, rowItem), color: '#2E7D32', tooltip: 'Generate Quote', tooltipPosition: 'before', icon: 'request_quote', suspendOnUpdate: false});
     if (this.hasActionsCopy)     this.buttons.push({name: 'copy', callback: (event, rowItem) => this.emitCopyEvent(event, rowItem), color: '#2196F3', tooltip: 'Copy', tooltipPosition: 'before', icon: 'file_copy', suspendOnUpdate: false});
+    if (this.hasActionsRental)   this.buttons.push({name: 'rental', callback: (event, rowItem) => this.emitRentalEvent(event, rowItem), color: '#1976D2', tooltip: 'Convert to Rental Lead', tooltipPosition: 'before', icon: 'home_work', suspendOnUpdate: false});
+    if (this.hasActionsOwner)    this.buttons.push({name: 'owner', callback: (event, rowItem) => this.emitOwnerEvent(event, rowItem), color: '#7B1FA2', tooltip: 'Convert to Owner Lead', tooltipPosition: 'before', icon: 'person', suspendOnUpdate: false});
     if (this.hasActionsPayable)  this.buttons.push({name: 'payable', callback: (event, rowItem) => this.emitPayableEvent(event, rowItem), color: '#4CAF50', tooltip: 'Pay', tooltipPosition: 'before', icon: 'attach_money', suspendOnUpdate: false});
     if (this.hasActionsInvoice)  this.buttons.push({name: 'invoice', callback: (event, rowItem) => this.emitInvoiceEvent(event, rowItem), color: '#2E7D32', tooltip: 'Invoices', tooltipPosition: 'before', icon: 'receipt_long', suspendOnUpdate: false});
     if (this.hasActionsView)     this.buttons.push({name: 'view', callback: (event, rowItem) => this.emitViewEvent(event, rowItem), color: '#FF9800', tooltip: 'View', tooltipPosition: 'before', icon: 'visibility', suspendOnUpdate: false});

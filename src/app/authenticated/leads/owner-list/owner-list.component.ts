@@ -7,6 +7,7 @@ import { RouterUrl } from '../../../app.routes';
 import { CommonMessage } from '../../../enums/common-message.enum';
 import { MaterialModule } from '../../../material.module';
 import { AuthService } from '../../../services/auth.service';
+import { FormatterService } from '../../../services/formatter-service';
 import { MappingService } from '../../../services/mapping.service';
 import { UtilityService } from '../../../services/utility.service';
 import { OfficeResponse } from '../../organizations/models/office.model';
@@ -59,6 +60,7 @@ export class OwnerListComponent implements OnInit, OnDestroy {
     private ngZone: NgZone,
     private toastr: ToastrService,
     private mappingService: MappingService,
+    private formatterService: FormatterService,
     private leadsService: LeadsService,
     private utilityService: UtilityService,
     private officeService: OfficeService,
@@ -293,6 +295,7 @@ export class OwnerListComponent implements OnInit, OnDestroy {
     }
     this.ownersDisplay = rows.map(row => ({
       ...row,
+      phone: this.formatterService.phoneNumber(row.phone || '') || '',
       leadAttentionDot: this.getLeadAttentionDotValue(row.leadStateId)
     }));
   }

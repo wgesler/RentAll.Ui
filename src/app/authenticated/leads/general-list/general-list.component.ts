@@ -2,11 +2,12 @@ import { CommonModule } from '@angular/common';
 import { Component, effect, input, NgZone, OnDestroy, OnInit, output } from '@angular/core';
 import { Router } from '@angular/router';
 import { ToastrService } from 'ngx-toastr';
-import { BehaviorSubject, Subject, Subscription, finalize, take, takeUntil } from 'rxjs';
+import { BehaviorSubject, Subject, Subscription, concatMap, finalize, take, takeUntil } from 'rxjs';
 import { RouterUrl } from '../../../app.routes';
 import { CommonMessage } from '../../../enums/common-message.enum';
 import { MaterialModule } from '../../../material.module';
 import { AuthService } from '../../../services/auth.service';
+import { FormatterService } from '../../../services/formatter-service';
 import { MappingService } from '../../../services/mapping.service';
 import { UtilityService } from '../../../services/utility.service';
 import { OfficeResponse } from '../../organizations/models/office.model';
@@ -60,6 +61,7 @@ export class GeneralListComponent implements OnInit, OnDestroy {
     private ngZone: NgZone,
     private toastr: ToastrService,
     private mappingService: MappingService,
+    private formatterService: FormatterService,
     private leadsService: LeadsService,
     private utilityService: UtilityService,
     private officeService: OfficeService,
@@ -134,6 +136,40 @@ export class GeneralListComponent implements OnInit, OnDestroy {
       }
     });
   }
+
+  convertGeneralToRental(event: LeadGeneralListDisplay): void {
+    if (!event?.generalId) {
+      return;
+    }
+
+    const createBody = this.mappingService.mapLeadGeneralToRentalRequest(event);
+    this.leadsService.createRentalLead(createBody).pipe(take(1), concatMap(() => this.leadsService.deleteGeneralLead(event.generalId))).subscribe({
+      next: () => {
+        this.toastr.success('General lead moved to Rental leads.', CommonMessage.Success);
+        this.loadGeneralLeads();
+      },
+      error: () => {
+        this.toastr.error('Unable to move general lead to Rental leads.', CommonMessage.Error);
+      }
+    });
+  }
+
+  convertGeneralToOwner(event: LeadGeneralListDisplay): void {
+    if (!event?.generalId) {
+      return;
+    }
+
+    const createBody = this.mappingService.mapLeadGeneralToOwnerRequest(event);
+    this.leadsService.createOwnerLead(createBody).pipe(take(1),concatMap(() => this.leadsService.deleteGeneralLead(event.generalId))).subscribe({
+      next: () => {
+        this.toastr.success('General lead moved to Owner leads.', CommonMessage.Success);
+        this.loadGeneralLeads();
+      },
+      error: () => {
+        this.toastr.error('Unable to move general lead to Owner leads.', CommonMessage.Error);
+      }
+    });
+  }
   //#endregion
 
   //#region Form Build methods
@@ -145,6 +181,7 @@ export class GeneralListComponent implements OnInit, OnDestroy {
       toString: () => value
     };
   }
+
   //#endregion
 
   //#region Form Response Methods
@@ -295,6 +332,7 @@ export class GeneralListComponent implements OnInit, OnDestroy {
     }
     this.generalsDisplay = rows.map(row => ({
       ...row,
+      phone: this.formatterService.phoneNumber(row.phone || '') || '',
       leadAttentionDot: this.getLeadAttentionDotValue(row.leadStateId)
     }));
   }
