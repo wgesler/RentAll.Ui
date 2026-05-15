@@ -7,6 +7,7 @@ export interface PropertySelectionRequest {
   accomodates: number;
   maxRent: number;
   propertyCode: string | null;
+  propertyLeaseTypeId: number;
   city: string | null;
   state: string | null;
   cable: boolean;
@@ -34,6 +35,7 @@ export interface PropertySelectionResponse {
   accomodates: number;
   maxRent: number;
   propertyCode: string | null;
+  propertyLeaseTypeId: number;
   city: string | null;
   state: string | null;
   cable: boolean;
