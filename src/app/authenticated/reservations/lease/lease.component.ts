@@ -26,10 +26,12 @@ import { EmailType } from '../../email/models/email.enum';
 import { EmailHtmlService } from '../../email/services/email-html.service';
 import { EmailCreateDraftService } from '../../email/services/email-create-draft.service';
 import { DocumentService } from '../../documents/services/document.service';
+import { BuildingResponse } from '../../organizations/models/building.model';
 import { OfficeResponse } from '../../organizations/models/office.model';
 import { OrganizationResponse } from '../../organizations/models/organization.model';
 import { AccountingOfficeResponse } from '../../organizations/models/accounting-office.model';
 import { AccountingOfficeService } from '../../organizations/services/accounting-office.service';
+import { BuildingService } from '../../organizations/services/building.service';
 import { OfficeService } from '../../organizations/services/office.service';
 import { GlobalSelectionService } from '../../organizations/services/global-selection.service';
 import { getCheckInTime, getCheckOutTime, PropertyType } from '../../properties/models/property-enums';
@@ -83,6 +85,7 @@ export class LeaseComponent extends BaseDocumentComponent implements OnInit, OnD
   officesSubscription?: Subscription;
   selectedOffice: OfficeResponse | null = null;
   accountingOffices: AccountingOfficeResponse[] = [];
+  buildings: BuildingResponse[] = [];
 
   previewIframeHtml: string = '';
   previewIframeStyles: string = '';
@@ -104,7 +107,7 @@ export class LeaseComponent extends BaseDocumentComponent implements OnInit, OnD
   debuggingHtml: boolean = environment.local || environment.dev;
   isPageReady: boolean = false;
 
-  itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['offices', 'organization', 'property', 'leaseInformation', 'reservation', 'reservations', 'contacts', 'emailHtml', 'accountingOffices', 'logo', 'previewHtml'])); 
+  itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['offices', 'organization', 'property', 'leaseInformation', 'reservation', 'reservations', 'contacts', 'emailHtml', 'accountingOffices', 'buildings', 'logo', 'previewHtml'])); 
   logoSourcesLoaded = { offices: false, organization: false };
 
 
@@ -120,6 +123,7 @@ export class LeaseComponent extends BaseDocumentComponent implements OnInit, OnD
     private leaseInformationService: LeaseInformationService,
     private officeService: OfficeService,
     private accountingOfficeService: AccountingOfficeService,
+    private buildingService: BuildingService,
     private authService: AuthService,
     private fb: FormBuilder,
     private formatterService: FormatterService,
@@ -159,6 +163,7 @@ export class LeaseComponent extends BaseDocumentComponent implements OnInit, OnD
     this.loadEmailHtml();
     this.loadOffices();
     this.loadAccountingOffices();
+    this.loadBuildings();
     this.loadReservations();
     this.loadReservation();
     this.loadProperty();
@@ -575,6 +580,22 @@ export class LeaseComponent extends BaseDocumentComponent implements OnInit, OnD
     });
   }
 
+  loadBuildings(): void {
+    if (!this.organizationId) {
+      this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'buildings');
+      return;
+    }
+
+    this.buildingService.getBuildings().pipe(take(1), finalize(() => { this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'buildings'); })).subscribe({
+      next: (buildings: BuildingResponse[]) => {
+        this.buildings = (buildings || []).filter(building => building.isActive);
+      },
+      error: () => {
+        this.buildings = [];
+      }
+    });
+  }
+
   loadProperty(): void {
     if (!this.propertyId) {
       this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'property');
@@ -746,6 +767,19 @@ export class LeaseComponent extends BaseDocumentComponent implements OnInit, OnD
       ].filter(p => p);
       return parts.join(', ');
     }
+  }
+
+  getComplex(): string {
+    if (!this.property) return '';
+
+    if (this.property.buildingId != null) {
+      const selectedBuilding = this.buildings.find(building => Number(building.buildingId) === Number(this.property?.buildingId));
+      if (selectedBuilding?.name) {
+        return selectedBuilding.name;
+      }
+    }
+
+    return this.property.propertyCode || '';
   }
 
   getApartmentAddress(): string {
@@ -1406,6 +1440,7 @@ export class LeaseComponent extends BaseDocumentComponent implements OnInit, OnD
 
     // Replace property placeholders
     if (this.property) {
+      result = result.replace(/\{\{complex\}\}/g, this.getComplex());
       result = result.replace(/\{\{propertyCode\}\}/g, this.property.propertyCode || '');
       result = result.replace(/\{\{communityAddress\}\}/g, this.getCommunityAddress() || '');
       result = result.replace(/\{\{apartmentAddress\}\}/g, this.getApartmentAddress() || '');
