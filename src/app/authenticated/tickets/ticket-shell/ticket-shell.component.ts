@@ -173,6 +173,7 @@ export class TicketShellComponent implements OnInit, OnDestroy, CanComponentDeac
   }
 
   onTicketBack(): void {
+    this.resetShellFiltersForListReturn();
     this.showTicketForm = false;
     this.selectedTabIndex = this.lastListTabIndex;
     this.currentTicketId = null;
@@ -515,6 +516,20 @@ export class TicketShellComponent implements OnInit, OnDestroy, CanComponentDeac
       return null;
     }
     return numericValue;
+  }
+
+  resetShellFiltersForListReturn(): void {
+    this.isApplyingTicketSelectionContext = false;
+    this.isOfficeSelectionInvalidOnSave = false;
+    this.selectedPropertyId = null;
+    this.selectedReservationId = null;
+    this.selectedPropertyCodeFallback = null;
+    this.selectedReservationCodeFallback = null;
+    this.selectedOfficeNameFallback = null;
+    this.selectedOfficeId = this.normalizeOfficeId(this.globalSelectionService.getSelectedOfficeIdValue());
+    this.resolveOfficeScope(this.selectedOfficeId);
+    this.syncFiltersToList();
+    this.loadReservations();
   }
 
   syncFiltersToList(): void {
