@@ -3,10 +3,12 @@ import { BehaviorSubject, Observable, Subscription, finalize, map, take } from '
 import { MaterialModule } from '../../../material.module';
 import { JwtUser } from '../../../public/login/models/jwt';
 import { AuthService } from '../../../services/auth.service';
+import { FormatterService } from '../../../services/formatter-service';
 import { MappingService } from '../../../services/mapping.service';
 import { UtilityService } from '../../../services/utility.service';
 import { PropertyListResponse } from '../../properties/models/property.model';
 import { PropertyService } from '../../properties/services/property.service';
+import { getBillingType } from '../../reservations/models/reservation-enum';
 import { ReservationListDisplay, ReservationListResponse } from '../../reservations/models/reservation-model';
 import { ReservationBoardComponent } from '../../reservations/reservation-board/reservation-board.component';
 import { ReservationService } from '../../reservations/services/reservation.service';
@@ -24,12 +26,15 @@ import { UserService } from '../../users/services/user.service';
 })
 export class DashboardOwnerComponent implements OnInit, OnDestroy {
   user: JwtUser | null = null;
+  ownerContactId: string | null = null;
   profilePictureUrl: string | null = null;
   private userSubscription?: Subscription;
 
   allProperties: PropertyListResponse[] = [];
   allReservations: ReservationListDisplay[] = [];
   ownerPropertyReservations: ReservationListDisplay[] = [];
+  ownerPropertiesTableData: Array<Record<string, unknown>> = [];
+  ownerPropertyReservationsTableData: Array<Record<string, unknown>> = [];
   rentedCount: number = 0;
   vacantCount: number = 0;
   currentReservationCount: number = 0;
@@ -47,7 +52,8 @@ export class DashboardOwnerComponent implements OnInit, OnDestroy {
     bedrooms: { displayAs: 'Beds', maxWidth: '10ch', alignment: 'center' },
     bathrooms: { displayAs: 'Baths', maxWidth: '10ch', alignment: 'center' },
     accomodates: { displayAs: 'Accom', maxWidth: '12ch', alignment: 'center' },
-    monthlyRate: { displayAs: 'Monthly', maxWidth: '15ch', alignment: 'center' },
+    monthlyRate: { displayAs: 'Montly Target', maxWidth: '15ch', alignment: 'center' },
+    dailyRate: { displayAs: 'Daily Target', maxWidth: '15ch', alignment: 'center' },
   };
 
   ownerReservationsDisplayedColumns: ColumnSet = {
@@ -56,13 +62,15 @@ export class DashboardOwnerComponent implements OnInit, OnDestroy {
     propertyCode: { displayAs: 'Property', maxWidth: '15ch', sortType: 'natural' },
     arrivalDate: { displayAs: 'Arrival', maxWidth: '15ch', alignment: 'center' },
     departureDate: { displayAs: 'Departure', maxWidth: '20ch', alignment: 'center' },
-    monthlyRate: { displayAs: 'Monthly', maxWidth: '15ch', alignment: 'center' }
+    billingType: { displayAs: 'Billing Type', maxWidth: '15ch', alignment: 'center' },
+    billingRate: { displayAs: 'Billing Rate', maxWidth: '15ch', alignment: 'center' }
   };
 
   constructor(
     private authService: AuthService,
     private userService: UserService,
     private reservationService: ReservationService,
+    private formatterService: FormatterService,
     private mappingService: MappingService,
     private propertyService: PropertyService,
     private utilityService: UtilityService
@@ -77,7 +85,6 @@ export class DashboardOwnerComponent implements OnInit, OnDestroy {
     }
     this.loadCurrentUser(this.user.userId);
     this.loadReservations();
-    this.loadProperties();
   }
 
   getFullName(): string {
@@ -100,9 +107,13 @@ export class DashboardOwnerComponent implements OnInit, OnDestroy {
     this.userSubscription = this.userService.getUserByGuid(userId).pipe(take(1), finalize(() => { this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'currentUser'); })).subscribe({
       next: (userResponse: UserResponse) => {
         this.applyUserProfilePicture(userResponse);
+        this.ownerContactId = userResponse.contactId ? String(userResponse.contactId).trim() : null;
+        this.loadProperties();
       },
       error: () => {
         this.profilePictureUrl = null;
+        this.ownerContactId = null;
+        this.loadProperties();
       }
     });
   }
@@ -117,10 +128,12 @@ export class DashboardOwnerComponent implements OnInit, OnDestroy {
   }
 
   loadProperties(): void {
-    const userId = this.user?.userId;
-    if (!userId) {
+    const ownerContactId = this.ownerContactId;
+    if (!ownerContactId) {
       this.allProperties = [];
+      this.ownerPropertiesTableData = [];
       this.ownerPropertyReservations = [];
+      this.ownerPropertyReservationsTableData = [];
       this.rentedCount = 0;
       this.vacantCount = 0;
       this.currentReservationCount = 0;
@@ -129,15 +142,22 @@ export class DashboardOwnerComponent implements OnInit, OnDestroy {
     }
 
     this.isLoadingProperties = true;
-    this.propertyService.getPropertiesByOwner(userId).pipe(take(1)).subscribe({
+    this.propertyService.getPropertiesByOwner(ownerContactId).pipe(take(1)).subscribe({
       next: (response: PropertyListResponse[]) => {
         this.allProperties = (response || []).filter(p => p.isActive);
+        this.ownerPropertiesTableData = this.allProperties.map(property => ({
+          ...property,
+          monthlyRate: this.formatCurrencyValue(property.monthlyRate),
+          dailyRate: this.formatCurrencyValue(property.dailyRate)
+        }));
         this.refreshOwnerReservationData();
         this.isLoadingProperties = false;
       },
       error: () => {
         this.allProperties = [];
+        this.ownerPropertiesTableData = [];
         this.ownerPropertyReservations = [];
+        this.ownerPropertyReservationsTableData = [];
         this.rentedCount = 0;
         this.vacantCount = 0;
         this.currentReservationCount = 0;
@@ -158,6 +178,7 @@ export class DashboardOwnerComponent implements OnInit, OnDestroy {
       error: () => {
         this.allReservations = [];
         this.ownerPropertyReservations = [];
+        this.ownerPropertyReservationsTableData = [];
         this.rentedCount = 0;
         this.vacantCount = this.allProperties.length;
         this.currentReservationCount = 0;
@@ -170,9 +191,16 @@ export class DashboardOwnerComponent implements OnInit, OnDestroy {
   refreshOwnerReservationData(): void {
     const ownerPropertyIds = new Set(this.allProperties.map(property => property.propertyId));
 
-    this.ownerPropertyReservations = this.allReservations.filter(
-      reservation => reservation.isActive && ownerPropertyIds.has(reservation.propertyId)
-    );
+    this.ownerPropertyReservations = this.allReservations
+      .filter(reservation => reservation.isActive && ownerPropertyIds.has(reservation.propertyId))
+      .map(reservation => ({
+        ...reservation,
+        billingType: getBillingType(reservation.billingTypeId ?? undefined)
+      }));
+    this.ownerPropertyReservationsTableData = this.ownerPropertyReservations.map(reservation => ({
+      ...reservation,
+      billingRate: this.formatCurrencyValue(reservation.billingRate)
+    }));
 
     const today = new Date();
     today.setHours(0, 0, 0, 0);
@@ -211,6 +239,10 @@ export class DashboardOwnerComponent implements OnInit, OnDestroy {
   //#region Utility Methods
   ngOnDestroy(): void {
     this.userSubscription?.unsubscribe();
+  }
+
+  formatCurrencyValue(value: number | null | undefined): string {
+    return this.formatterService.currencyUsd(Number(value) || 0);
   }
   //#endregion
 }

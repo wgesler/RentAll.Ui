@@ -38,6 +38,7 @@ import { ReservationService } from '../services/reservation.service';
 })
 export class ReservationBoardComponent implements OnInit, OnDestroy {
   @Input() ownerUserId: string | null = null;
+  @Input() ownerContactId: string | null = null;
   @Input() readOnly: boolean = false;
   @Input() showReservationNames: boolean = true;
   @ViewChild('boardContextMenuTrigger') boardContextMenuTrigger?: MatMenuTrigger;
@@ -249,7 +250,7 @@ export class ReservationBoardComponent implements OnInit, OnDestroy {
       return;
     }
 
-    const scopedOwnerId = (this.userId || '').trim();
+    const scopedOwnerId = (this.ownerContactId || this.ownerUserId || '').trim();
     if (!scopedOwnerId) {
       this.allPropertyRows = [];
       this.propertyRows = [];
@@ -792,7 +793,7 @@ export class ReservationBoardComponent implements OnInit, OnDestroy {
         reservation.reservationStatusId === ReservationStatus.GaveNotice ||
         reservation.reservationStatusId === ReservationStatus.FirstRightRefusal) {
       if (!this.showReservationNames) {
-        result = 'R';
+        result = '';
         this.displayTextCache.set(cacheKey, result);
         return result;
       }
@@ -832,7 +833,7 @@ export class ReservationBoardComponent implements OnInit, OnDestroy {
       } else if (compareDate.getTime() === departure.getTime()) {
         result = 'D';
       } else {
-        result = 'R';
+        result = '';
       }
     }
 

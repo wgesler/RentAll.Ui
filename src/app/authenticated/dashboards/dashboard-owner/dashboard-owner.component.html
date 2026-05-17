@@ -6,6 +6,19 @@
           <mat-icon class="flex-shrink-0">dashboard</mat-icon>
           <span class="flex-shrink-0 text-xl font-medium dashboard-title">Dashboard</span>
         </span>
+        <div class="dashboard-titlebar-welcome-next-title">
+          <div class="dashboard-titlebar-welcome-row">
+            @if (profilePictureUrl) {
+              <img [src]="profilePictureUrl" alt="" class="dashboard-titlebar-avatar" />
+            } @else {
+              <mat-icon class="dashboard-titlebar-avatar-icon">person</mat-icon>
+            }
+            <div class="dashboard-titlebar-welcome-text">
+              <span class="dashboard-titlebar-welcome-label">Welcome</span>
+              <span class="dashboard-titlebar-user-name">{{ getFullName() }}</span>
+            </div>
+          </div>
+        </div>
         <div class="dashboard-titlebar-stats">
           <div class="dashboard-titlebar-date-cluster">
             <div class="dashboard-titlebar-date-block">
@@ -13,12 +26,60 @@
             </div>
             <div class="dashboard-titlebar-stats-divider" aria-hidden="true"></div>
           </div>
+          <div class="dashboard-titlebar-stat-tiles">
+            <div class="dashboard-titlebar-stat dashboard-titlebar-stat--props">
+              <div class="dashboard-titlebar-stat-body">
+                <h4 class="dashboard-titlebar-stat-heading dashboard-titlebar-stat-heading-single">
+                  <span class="dashboard-titlebar-stat-line">Properties</span>
+                </h4>
+                @if (isLoadingProperties || isLoadingReservations) {
+                  <div class="dashboard-titlebar-spinner">
+                    <mat-spinner [diameter]="16"></mat-spinner>
+                  </div>
+                } @else {
+                  <div class="dashboard-titlebar-prop-stats dashboard-titlebar-prop-stats--stacked">
+                    <div class="dashboard-titlebar-prop-row">
+                      <span class="dashboard-titlebar-prop-label">Rented</span>
+                      <span class="dashboard-titlebar-prop-value">{{ rentedCount }}</span>
+                    </div>
+                    <div class="dashboard-titlebar-prop-row">
+                      <span class="dashboard-titlebar-prop-label">Vacant</span>
+                      <span class="dashboard-titlebar-prop-value">{{ vacantCount }}</span>
+                    </div>
+                  </div>
+                }
+              </div>
+            </div>
+            <div class="dashboard-titlebar-stat dashboard-titlebar-stat--green">
+              <div class="dashboard-titlebar-stat-body">
+                <h4 class="dashboard-titlebar-stat-heading dashboard-titlebar-stat-heading-single">
+                  <span class="dashboard-titlebar-stat-line">Reservations</span>
+                </h4>
+                @if (isLoadingReservations) {
+                  <div class="dashboard-titlebar-spinner">
+                    <mat-spinner [diameter]="16"></mat-spinner>
+                  </div>
+                } @else {
+                  <div class="dashboard-titlebar-prop-stats dashboard-titlebar-prop-stats--stacked">
+                    <div class="dashboard-titlebar-prop-row">
+                      <span class="dashboard-titlebar-prop-label">Current</span>
+                      <span class="dashboard-titlebar-prop-value">{{ currentReservationCount }}</span>
+                    </div>
+                    <div class="dashboard-titlebar-prop-row">
+                      <span class="dashboard-titlebar-prop-label">Upcoming</span>
+                      <span class="dashboard-titlebar-prop-value">{{ upcomingReservationCount }}</span>
+                    </div>
+                  </div>
+                }
+              </div>
+            </div>
+          </div>
         </div>
       </div>
     </div>
     <mat-card>
       <div class="dashboard-content dbg-band-main">
-        <app-reservation-board [ownerUserId]="user?.userId || null" [readOnly]="true" [showReservationNames]="false"></app-reservation-board>
+        <app-reservation-board [ownerContactId]="ownerContactId" [readOnly]="true" [showReservationNames]="false"></app-reservation-board>
 
         <div class="dashboard-main-content">
           <div class="reservation-tables">
@@ -35,7 +96,7 @@
               } @else {
                 <div class="tableDiv">
                   <app-data-table
-                    [data]="allProperties"
+                    [data]="ownerPropertiesTableData"
                     [columns]="ownerPropertiesDisplayedColumns"
                     [hasColumnIndex]="false"
                     [hasFilter]="false"
@@ -61,7 +122,7 @@
               } @else {
                 <div class="tableDiv">
                   <app-data-table
-                    [data]="ownerPropertyReservations"
+                    [data]="ownerPropertyReservationsTableData"
                     [columns]="ownerReservationsDisplayedColumns"
                     [hasColumnIndex]="false"
                     [hasFilter]="false"
@@ -76,58 +137,6 @@
             </mat-expansion-panel>
             </mat-accordion>
           </div>
-
-          <aside class="dashboard-sidebar">
-            <div class="sidebar-content">
-              <div class="day-box day-box-today">
-                <div class="day-box-text">
-                  <h4 class="day-title">
-                    <span>Owner Properties</span>
-                  </h4>
-                  @if (isLoadingProperties || isLoadingReservations) {
-                    <div class="loading-container-small">
-                      <mat-spinner [diameter]="24"></mat-spinner>
-                    </div>
-                  } @else {
-                    <div class="reservations-stats">
-                      <div class="stat-row">
-                        <span class="stat-label">Rented:</span>
-                        <span class="stat-value">{{ rentedCount }}</span>
-                      </div>
-                      <div class="stat-row">
-                        <span class="stat-label">Vacant:</span>
-                        <span class="stat-value">{{ vacantCount }}</span>
-                      </div>
-                    </div>
-                  }
-                </div>
-              </div>
-
-              <div class="day-box day-box-tomorrow">
-                <div class="day-box-text">
-                  <h4 class="day-title">
-                    <span>Reservations</span>
-                  </h4>
-                  @if (isLoadingReservations) {
-                    <div class="loading-container-small">
-                      <mat-spinner [diameter]="24"></mat-spinner>
-                    </div>
-                  } @else {
-                    <div class="reservations-stats">
-                      <div class="stat-row">
-                        <span class="stat-label">Current:</span>
-                        <span class="stat-value">{{ currentReservationCount }}</span>
-                      </div>
-                      <div class="stat-row">
-                        <span class="stat-label">Upcoming:</span>
-                        <span class="stat-value">{{ upcomingReservationCount }}</span>
-                      </div>
-                    </div>
-                  }
-                </div>
-              </div>
-            </div>
-          </aside>
         </div>
       </div>
     </mat-card>
