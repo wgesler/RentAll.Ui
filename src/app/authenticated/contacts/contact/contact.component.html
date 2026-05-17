@@ -6,51 +6,79 @@
 } @else if (!isServiceError) {
   <div class="flex content-card-wrap justify-center" fxLayout="row wrap">
     <section class="content-card">
-      <div class="flex justify-between items-center gap-3 bg-slate-200 rounded-t-lg py-0 pl-8 pr-4">
-        <span class="flex flex-column items-center gap-3 py-4">
-          <mat-icon class="flex-shrink-0">contacts</mat-icon>
-          <span class="flex-shrink-0 text-xl font-medium">
-            {{ isAddMode ? 'Add ' + contactTypeTitleLabel : 'Edit ' + contactTypeTitleLabel }}
+      @if (!compactDialogMode && !isInOwnerMode && !isEmbedded) {
+        <div class="flex justify-between items-center gap-3 bg-slate-200 rounded-t-lg py-0 pl-8 pr-4">
+          <span class="flex flex-column items-center gap-3 py-4">
+            <mat-icon class="flex-shrink-0">contacts</mat-icon>
+            <span class="flex-shrink-0 text-xl font-medium">
+              {{ isAddMode ? 'Add ' + contactTypeTitleLabel : 'Edit ' + contactTypeTitleLabel }}
+            </span>
           </span>
-        </span>
-        <div class="flex gap-2">
-          <button mat-raised-button type="button" color="accent" id="back-button" (click)="back()"
-            class="scale-90 text-nowrap flex-shrink-0">
-            <mat-icon>arrow_back</mat-icon>
-            Back
-          </button>
-          <button mat-raised-button type="button" color="primary" id="save-button" (click)="saveContact()"
-            class="scale-90 text-nowrap flex-shrink-0">
-            <mat-icon>save</mat-icon>
-            Save
-          </button>
+          <div class="flex gap-2">
+            <button mat-raised-button type="button" color="accent" id="back-button" (click)="back()"
+              class="scale-90 text-nowrap flex-shrink-0">
+              <mat-icon>arrow_back</mat-icon>
+              Back
+            </button>
+            <button mat-raised-button type="button" color="primary" id="save-button" (click)="saveContact()"
+              class="scale-90 text-nowrap flex-shrink-0">
+              <mat-icon>save</mat-icon>
+              Save
+            </button>
+          </div>
         </div>
-      </div>
+      }
         
       <mat-card>
         <form [formGroup]="form" (ngSubmit)="saveContact()" class="info-form mb-8 pt-5">
             <div class="mb-4 flex justify-end items-center gap-4 rating-controls-row">
-              <div class="rating-select-wrap">
-                <span class="rating-label">Rating</span>
-                <div class="rating-stars">
-                  @for (star of ratingStars; track star) {
-                    <button
-                      mat-icon-button
-                      type="button"
-                      class="rating-star-btn"
-                      [attr.aria-label]="'Set rating to ' + star + ' stars'"
-                      (click)="setRating(star)">
-                      <mat-icon>{{ star <= ratingValue ? 'star' : 'star_border' }}</mat-icon>
-                    </button>
-                  }
+              @if (!isInOwnerMode) {
+                <div class="rating-select-wrap">
+                  <span class="rating-label">Rating</span>
+                  <div class="rating-stars">
+                    @for (star of ratingStars; track star) {
+                      <button
+                        mat-icon-button
+                        type="button"
+                        class="rating-star-btn"
+                        [attr.aria-label]="'Set rating to ' + star + ' stars'"
+                        (click)="setRating(star)">
+                        <mat-icon>{{ star <= ratingValue ? 'star' : 'star_border' }}</mat-icon>
+                      </button>
+                    }
+                  </div>
                 </div>
-              </div>
+              }
               <mat-checkbox formControlName="isInternational" color="primary">
                 Is International
               </mat-checkbox>
-              <mat-checkbox formControlName="isActive" color="primary">
-                IsActive
-              </mat-checkbox>
+              @if (isInOwnerMode) {
+                @if (showAddAdditionalOwnerButton) {
+                  <button mat-raised-button type="button" color="accent" (click)="requestAddAdditionalOwner()">
+                    Add Additional Owner
+                  </button>
+                }
+                @if (showCancelAdditionalOwnerButton) {
+                  <button mat-raised-button type="button" color="accent" (click)="requestCancelAdditionalOwner()">
+                    Remove
+                  </button>
+                }
+                <button mat-raised-button type="button" color="primary" (click)="saveContact()">
+                  <mat-icon>save</mat-icon>
+                  Save
+                </button>
+              }
+              @if (!isInOwnerMode) {
+                <mat-checkbox formControlName="isActive" color="primary">
+                  IsActive
+                </mat-checkbox>
+              }
+              @if (isEmbedded && !isInOwnerMode) {
+                <button mat-raised-button type="button" color="primary" (click)="saveContact()">
+                  <mat-icon>save</mat-icon>
+                  Save
+                </button>
+              }
               @if (isAddMode && form.get('entityTypeId')?.value === EntityType.Vendor) {
                 <mat-checkbox formControlName="addAsUser" color="primary">
                   AddAsUser
@@ -62,17 +90,37 @@
 
               @if (form.get('entityTypeId')?.value === EntityType.Owner) {
                 @if (!isAddMode) {
-                  <div class="col-span-4 grid gap-x-1.5 gap-y-1 form-grid-sixths">
+                  <div class="col-span-4 grid gap-x-1.5 gap-y-1 form-grid-sevenths">
                     <mat-form-field appearance="outline" class="field-min-0 col-span-1">
                       <mat-label>Code</mat-label>
                       <input matInput [value]="contact?.contactCode || ''" readonly disabled>
                     </mat-form-field>
+                    @if (isInOwnerMode) {
+                      <mat-form-field appearance="outline" class="field-min-0 col-span-1">
+                        <mat-label>Default Office</mat-label>
+                        <mat-select formControlName="officeId" required>
+                          @for (office of availableDefaultOffices; track office.value) {
+                            <mat-option [value]="office.value">{{ office.name }}</mat-option>
+                          }
+                        </mat-select>
+                      </mat-form-field>
+                    } @else {
+                      <mat-form-field appearance="outline" class="field-min-0 col-span-1">
+                        <mat-label>Contact Type</mat-label>
+                        <mat-select formControlName="entityTypeId" required>
+                          <mat-option value="">Select Contact Type</mat-option>
+                          @for (contactType of availableContactTypes; track contactType.value) {
+                            <mat-option [value]="contactType.value">{{ contactType.label }}</mat-option>
+                          }
+                        </mat-select>
+                      </mat-form-field>
+                    }
                     <mat-form-field appearance="outline" class="field-min-0 col-span-1">
-                      <mat-label>Contact Type</mat-label>
-                      <mat-select formControlName="entityTypeId" required>
-                        <mat-option value="">Select Contact Type</mat-option>
-                        @for (contactType of availableContactTypes; track contactType.value) {
-                          <mat-option [value]="contactType.value">{{ contactType.label }}</mat-option>
+                      <mat-label>Owner Type</mat-label>
+                      <mat-select formControlName="ownerTypeId">
+                        <mat-option [value]="null">Select Owner Type</mat-option>
+                        @for (ownerType of availableOwnerTypes; track ownerType.value) {
+                          <mat-option [value]="ownerType.value">{{ ownerType.label }}</mat-option>
                         }
                       </mat-select>
                     </mat-form-field>
@@ -86,62 +134,75 @@
                     </mat-form-field>
                   </div>
                 } @else {
-                  <div class="col-span-4 grid gap-x-1.5 gap-y-1 form-grid-sevenths">
+                  <div class="col-span-4 grid gap-x-1.5 gap-y-1 form-grid-sixths">
+                    @if (isInOwnerMode) {
+                      <mat-form-field appearance="outline" class="field-min-0 col-span-1">
+                        <mat-label>Default Office</mat-label>
+                        <mat-select formControlName="officeId" required>
+                          @for (office of availableDefaultOffices; track office.value) {
+                            <mat-option [value]="office.value">{{ office.name }}</mat-option>
+                          }
+                        </mat-select>
+                      </mat-form-field>
+                    } @else {
+                      <mat-form-field appearance="outline" class="field-min-0 col-span-1">
+                        <mat-label>Contact Type</mat-label>
+                        <mat-select formControlName="entityTypeId" required>
+                          <mat-option value="">Select Contact Type</mat-option>
+                          @for (contactType of availableContactTypes; track contactType.value) {
+                            <mat-option [value]="contactType.value">{{ contactType.label }}</mat-option>
+                          }
+                        </mat-select>
+                      </mat-form-field>
+                    }
                     <mat-form-field appearance="outline" class="field-min-0 col-span-1">
-                      <mat-label>Contact Type</mat-label>
-                      <mat-select formControlName="entityTypeId" required>
-                        <mat-option value="">Select Contact Type</mat-option>
-                        @for (contactType of availableContactTypes; track contactType.value) {
-                          <mat-option [value]="contactType.value">{{ contactType.label }}</mat-option>
+                      <mat-label>Owner Type</mat-label>
+                      <mat-select formControlName="ownerTypeId">
+                        <mat-option [value]="null">Select Owner Type</mat-option>
+                        @for (ownerType of availableOwnerTypes; track ownerType.value) {
+                          <mat-option [value]="ownerType.value">{{ ownerType.label }}</mat-option>
                         }
                       </mat-select>
                     </mat-form-field>
-                    <mat-form-field appearance="outline" class="field-min-0 col-span-3">
+                    <mat-form-field appearance="outline" class="field-min-0 col-span-2">
                       <mat-label>First Name</mat-label>
                       <input matInput formControlName="firstName" required>
                     </mat-form-field>
-                    <mat-form-field appearance="outline" class="field-min-0 col-span-3">
+                    <mat-form-field appearance="outline" class="field-min-0 col-span-2">
                       <mat-label>Last Name</mat-label>
                       <input matInput formControlName="lastName" required>
                     </mat-form-field>
                   </div>
                 }
 
-                <div class="col-span-4 grid gap-x-1.5 gap-y-1 form-grid-sixths">
-                  <mat-form-field appearance="outline" class="field-min-0 col-span-1">
-                    <mat-label>Owner Type</mat-label>
-                    <mat-select formControlName="ownerTypeId">
-                      <mat-option [value]="null">Select Owner Type</mat-option>
-                      @for (ownerType of availableOwnerTypes; track ownerType.value) {
-                        <mat-option [value]="ownerType.value">{{ ownerType.label }}</mat-option>
-                      }
-                    </mat-select>
-                  </mat-form-field>
-                  <mat-form-field appearance="outline" class="field-min-0 col-span-1">
-                    <mat-label>Default Office</mat-label>
-                    <mat-select formControlName="officeId" required>
-                      @for (office of availableDefaultOffices; track office.value) {
-                        <mat-option [value]="office.value">{{ office.name }}</mat-option>
-                      }
-                    </mat-select>
-                  </mat-form-field>
-                  <mat-form-field appearance="outline" class="field-min-0 col-span-2">
-                    <mat-label>Office Access</mat-label>
-                    <mat-select formControlName="officeAccess" multiple required>
-                      @for (office of availableOffices; track office.value) {
-                        <mat-option [value]="office.value">{{ office.name }}</mat-option>
-                      }
-                    </mat-select>
-                  </mat-form-field>
-                  <mat-form-field appearance="outline" class="field-min-0 col-span-2">
-                    <mat-label>Properties</mat-label>
-                    <mat-select formControlName="propertyCodes" multiple>
-                      @for (prop of availablePropertyCodes; track prop.value) {
-                        <mat-option [value]="prop.value">{{ prop.label }}</mat-option>
-                      }
-                    </mat-select>
-                  </mat-form-field>
-                </div>
+                @if (!isInOwnerMode) {
+                  <div class="col-span-4 grid gap-x-1.5 gap-y-1 form-grid-fifths">
+                    <mat-form-field appearance="outline" class="field-min-0 col-span-1">
+                      <mat-label>Default Office</mat-label>
+                      <mat-select formControlName="officeId" required>
+                        @for (office of availableDefaultOffices; track office.value) {
+                          <mat-option [value]="office.value">{{ office.name }}</mat-option>
+                        }
+                      </mat-select>
+                    </mat-form-field>
+                    <mat-form-field appearance="outline" class="field-min-0 col-span-2">
+                      <mat-label>Office Access</mat-label>
+                      <mat-select formControlName="officeAccess" multiple required>
+                        @for (office of availableOffices; track office.value) {
+                          <mat-option [value]="office.value">{{ office.name }}</mat-option>
+                        }
+                      </mat-select>
+                    </mat-form-field>
+                    <mat-form-field appearance="outline" class="field-min-0 col-span-2">
+                      <mat-label>Properties</mat-label>
+                      <mat-select formControlName="propertyCodes" multiple>
+                        @for (prop of availablePropertyCodes; track prop.value) {
+                          <mat-option [value]="prop.value">{{ prop.label }}</mat-option>
+                        }
+                      </mat-select>
+                    </mat-form-field>
+                  </div>
+                }
               } @else {
                 @if (form.get('entityTypeId')?.value === EntityType.Tenant) {
                   @if (!isAddMode) {
@@ -204,22 +265,24 @@
                     </mat-form-field>
                   </div>
                   <div class="col-span-4 grid gap-x-1.5 gap-y-1 form-grid-sevenths">
-                    <mat-form-field appearance="outline" class="field-min-0 col-span-2">
-                      <mat-label>Office Access</mat-label>
-                      <mat-select formControlName="officeAccess" multiple required>
-                        @for (office of availableOffices; track office.value) {
-                          <mat-option [value]="office.value">{{ office.name }}</mat-option>
-                        }
-                      </mat-select>
-                    </mat-form-field>
-                    <mat-form-field appearance="outline" class="field-min-0 col-span-1">
-                      <mat-label>Default Office</mat-label>
-                      <mat-select formControlName="officeId" required>
-                        @for (office of availableDefaultOffices; track office.value) {
-                          <mat-option [value]="office.value">{{ office.name }}</mat-option>
-                        }
-                      </mat-select>
-                    </mat-form-field>
+                    @if (!isInOwnerMode) {
+                      <mat-form-field appearance="outline" class="field-min-0 col-span-2">
+                        <mat-label>Office Access</mat-label>
+                        <mat-select formControlName="officeAccess" multiple required>
+                          @for (office of availableOffices; track office.value) {
+                            <mat-option [value]="office.value">{{ office.name }}</mat-option>
+                          }
+                        </mat-select>
+                      </mat-form-field>
+                      <mat-form-field appearance="outline" class="field-min-0 col-span-1">
+                        <mat-label>Default Office</mat-label>
+                        <mat-select formControlName="officeId" required>
+                          @for (office of availableDefaultOffices; track office.value) {
+                            <mat-option [value]="office.value">{{ office.name }}</mat-option>
+                          }
+                        </mat-select>
+                      </mat-form-field>
+                    }
                     <mat-form-field appearance="outline" class="field-min-0 col-span-2">
                       <mat-label>First Name</mat-label>
                       <input matInput formControlName="firstName">
@@ -254,22 +317,24 @@
                           }
                         </mat-select>
                       </mat-form-field>
-                      <mat-form-field appearance="outline" class="field-min-0 col-span-2">
-                        <mat-label>Office Access</mat-label>
-                        <mat-select formControlName="officeAccess" multiple required>
-                          @for (office of availableOffices; track office.value) {
-                            <mat-option [value]="office.value">{{ office.name }}</mat-option>
-                          }
-                        </mat-select>
-                      </mat-form-field>
-                      <mat-form-field appearance="outline" class="field-min-0 col-span-1">
-                        <mat-label>Default Office</mat-label>
-                        <mat-select formControlName="officeId" required>
-                          @for (office of availableDefaultOffices; track office.value) {
-                            <mat-option [value]="office.value">{{ office.name }}</mat-option>
-                          }
-                        </mat-select>
-                      </mat-form-field>
+                      @if (!isInOwnerMode) {
+                        <mat-form-field appearance="outline" class="field-min-0 col-span-2">
+                          <mat-label>Office Access</mat-label>
+                          <mat-select formControlName="officeAccess" multiple required>
+                            @for (office of availableOffices; track office.value) {
+                              <mat-option [value]="office.value">{{ office.name }}</mat-option>
+                            }
+                          </mat-select>
+                        </mat-form-field>
+                        <mat-form-field appearance="outline" class="field-min-0 col-span-1">
+                          <mat-label>Default Office</mat-label>
+                          <mat-select formControlName="officeId" required>
+                            @for (office of availableDefaultOffices; track office.value) {
+                              <mat-option [value]="office.value">{{ office.name }}</mat-option>
+                            }
+                          </mat-select>
+                        </mat-form-field>
+                      }
                     </div>
                   } @else {
                     <div class="col-span-4 grid gap-x-1.5 gap-y-1 form-grid-fifths">
@@ -291,22 +356,24 @@
                           }
                         </mat-select>
                       </mat-form-field>
-                      <mat-form-field appearance="outline" class="field-min-0 col-span-2">
-                        <mat-label>Office Access</mat-label>
-                        <mat-select formControlName="officeAccess" multiple required>
-                          @for (office of availableOffices; track office.value) {
-                            <mat-option [value]="office.value">{{ office.name }}</mat-option>
-                          }
-                        </mat-select>
-                      </mat-form-field>
-                      <mat-form-field appearance="outline" class="field-min-0 col-span-1">
-                        <mat-label>Default Office</mat-label>
-                        <mat-select formControlName="officeId" required>
-                          @for (office of availableDefaultOffices; track office.value) {
-                            <mat-option [value]="office.value">{{ office.name }}</mat-option>
-                          }
-                        </mat-select>
-                      </mat-form-field>
+                      @if (!isInOwnerMode) {
+                        <mat-form-field appearance="outline" class="field-min-0 col-span-2">
+                          <mat-label>Office Access</mat-label>
+                          <mat-select formControlName="officeAccess" multiple required>
+                            @for (office of availableOffices; track office.value) {
+                              <mat-option [value]="office.value">{{ office.name }}</mat-option>
+                            }
+                          </mat-select>
+                        </mat-form-field>
+                        <mat-form-field appearance="outline" class="field-min-0 col-span-1">
+                          <mat-label>Default Office</mat-label>
+                          <mat-select formControlName="officeId" required>
+                            @for (office of availableDefaultOffices; track office.value) {
+                              <mat-option [value]="office.value">{{ office.name }}</mat-option>
+                            }
+                          </mat-select>
+                        </mat-form-field>
+                      }
                     </div>
                   }
                   <div class="col-span-4 grid gap-x-1.5 gap-y-1 form-grid-sixths">
@@ -383,7 +450,7 @@
                   }
                 }
 
-                @if (form.get('entityTypeId')?.value !== EntityType.Company && form.get('entityTypeId')?.value !== EntityType.Vendor) {
+                @if (!isInOwnerMode && form.get('entityTypeId')?.value !== EntityType.Company && form.get('entityTypeId')?.value !== EntityType.Vendor) {
                   <div class="col-span-4 grid gap-x-1.5 form-grid-four-equal">
                     <mat-form-field appearance="outline" class="field-min-0 col-span-2">
                       <mat-label>Office Access</mat-label>
@@ -600,6 +667,7 @@
 
                 </mat-accordion>
               </div>
+
             </div>
           </form>
       </mat-card>

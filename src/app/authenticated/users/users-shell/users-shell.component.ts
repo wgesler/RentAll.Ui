@@ -72,6 +72,10 @@ export class UsersShellComponent implements OnInit, AfterViewInit, OnDestroy {
     }
   }
 
+  onUserFormBack(): void {
+    this.onUserClosed({});
+  }
+
   onOrganizationDropdownChange(value: string | number | null): void {
     this.getActiveSection()?.onOrganizationDropdownChange(value);
   }
@@ -100,6 +104,10 @@ export class UsersShellComponent implements OnInit, AfterViewInit, OnDestroy {
       queryParams: { tab: this.selectedTabIndex.toString() },
       queryParamsHandling: 'merge'
     });
+  }
+
+  isActiveUserFormVisible(): boolean {
+    return this.showUserForm && this.formTabIndex === this.selectedTabIndex;
   }
 
   ngOnDestroy(): void {

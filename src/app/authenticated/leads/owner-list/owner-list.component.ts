@@ -1,22 +1,29 @@
 import { CommonModule } from '@angular/common';
+import { Clipboard } from '@angular/cdk/clipboard';
+import { HttpErrorResponse } from '@angular/common/http';
 import { Component, input, NgZone, OnChanges, OnDestroy, OnInit, output, SimpleChanges } from '@angular/core';
 import { Router } from '@angular/router';
 import { ToastrService } from 'ngx-toastr';
-import { BehaviorSubject, Subject, Subscription, finalize, take, takeUntil } from 'rxjs';
+import { BehaviorSubject, Subject, Subscription, finalize, switchMap, take, takeUntil } from 'rxjs';
 import { RouterUrl } from '../../../app.routes';
+import { ownersFeatureEnabled } from '../../../config/feature-flags';
 import { CommonMessage } from '../../../enums/common-message.enum';
 import { MaterialModule } from '../../../material.module';
 import { AuthService } from '../../../services/auth.service';
 import { FormatterService } from '../../../services/formatter-service';
 import { MappingService } from '../../../services/mapping.service';
+import { NavigationContextService } from '../../../services/navigation-context.service';
 import { UtilityService } from '../../../services/utility.service';
+import { EntityType, OwnerType } from '../../contacts/models/contact-enum';
+import { ContactRequest } from '../../contacts/models/contact.model';
+import { ContactService } from '../../contacts/services/contact.service';
 import { OfficeResponse } from '../../organizations/models/office.model';
 import { GlobalSelectionService } from '../../organizations/services/global-selection.service';
 import { OfficeService } from '../../organizations/services/office.service';
 import { DataTableComponent } from '../../shared/data-table/data-table.component';
 import { DataTableFilterActionsDirective } from '../../shared/data-table/data-table-filter-actions.directive';
 import { ColumnSet } from '../../shared/data-table/models/column-data';
-import { LeadOwnerListDisplay } from '../models/lead-owner.model';
+import { LeadOwnerListDisplay, LeadOwnerUpdateRequest } from '../models/lead-owner.model';
 import { formatLeadStateLabel, LEAD_STATE_SELECT_OPTIONS, LeadStateDropdownCell, LeadStateType } from '../models/lead-enums';
 import { LeadsService } from '../services/leads.service';
 
@@ -42,6 +49,8 @@ export class OwnerListComponent implements OnInit, OnChanges, OnDestroy {
   offices: OfficeResponse[] = [];
   globalOfficeSubscription?: Subscription;
   selectedOffice: OfficeResponse | null = null;
+  ownersFeatureEnabled = ownersFeatureEnabled;
+  isInOwnerMode = false;
 
   ownersDisplayedColumns: ColumnSet = {
     leadAttentionDot: { displayAs: ' ', maxWidth: '4ch', alignment: 'center', sort: false, wrap: false },
@@ -56,16 +65,19 @@ export class OwnerListComponent implements OnInit, OnChanges, OnDestroy {
   destroy$ = new Subject<void>();
 
   constructor(
+    private clipboard: Clipboard,
     private router: Router,
     private ngZone: NgZone,
     private toastr: ToastrService,
     private mappingService: MappingService,
     private formatterService: FormatterService,
     private leadsService: LeadsService,
+    private contactService: ContactService,
     private utilityService: UtilityService,
     private officeService: OfficeService,
     private globalSelectionService: GlobalSelectionService,
-    private authService: AuthService
+    private authService: AuthService,
+    private navigationContextService: NavigationContextService
   ) { }
 
   //#region Owner-List
@@ -85,6 +97,9 @@ export class OwnerListComponent implements OnInit, OnChanges, OnDestroy {
 
     this.loadOffices();
     this.loadOwnerLeads();
+    this.navigationContextService.getIsInOwnerMode().pipe(takeUntil(this.destroy$)).subscribe(value => {
+      this.isInOwnerMode = value;
+    });
   }
 
   ngOnChanges(changes: SimpleChanges): void {
@@ -114,6 +129,12 @@ export class OwnerListComponent implements OnInit, OnChanges, OnDestroy {
       this.requestEditOwner.emit(event.ownerId);
       return;
     }
+    if (this.isInOwnerMode) {
+      this.ngZone.run(() => {
+        void this.router.navigateByUrl(`${RouterUrl.OwnerShell}?leadOwnerId=${event.ownerId}`);
+      });
+      return;
+    }
     this.ngZone.run(() => {
       this.router.navigateByUrl(RouterUrl.replaceTokens(RouterUrl.LeadOwner, [String(event.ownerId)]));
     });
@@ -133,6 +154,128 @@ export class OwnerListComponent implements OnInit, OnChanges, OnDestroy {
       }
     });
   }
+
+  copyOwnerFormLink(event: LeadOwnerListDisplay): void {
+    const ownerId = Number(event?.ownerId);
+    if (!ownerId) {
+      return;
+    }
+    this.leadsService.createOwnerFormShareLink(ownerId).pipe(take(1)).subscribe({
+      next: (response) => {
+        const shareUrl = this.leadsService.getPublicOwnerFormUrl(response.token);
+        const copied = this.clipboard.copy(shareUrl);
+        if (copied) {
+          this.toastr.success('Owner form link copied to clipboard.', CommonMessage.Success);
+          return;
+        }
+        this.toastr.error('Unable to copy owner form link.', CommonMessage.Error);
+      },
+      error: () => {
+        this.toastr.error('Unable to generate owner form share link.', CommonMessage.Error);
+      }
+    });
+  }
+
+  openOwnerFromLead(event: LeadOwnerListDisplay): void {
+    const ownerId = Number(event?.ownerId);
+    if (!ownerId || Number.isNaN(ownerId)) {
+      return;
+    }
+    const openOwnerShell = () => {
+      this.ngZone.run(() => {
+        void this.router.navigateByUrl(`${RouterUrl.OwnerShell}?leadOwnerId=${ownerId}`);
+      });
+    };
+    const openOwnerShellWithInactiveLead = () => {
+      this.ensureOwnerLeadInactive(ownerId, openOwnerShell);
+    };
+
+    this.leadsService.getOwnerLeadById(ownerId).pipe(take(1)).subscribe({
+      next: ownerLead => {
+        const leadOwnerRequest = this.mappingService.mapLeadOwnerResponseToUpdateRequest(ownerLead);
+        this.contactService.matchContactToLead(leadOwnerRequest).pipe(take(1)).subscribe({
+          next: () => {
+            this.contactService.refreshContacts().pipe(take(1)).subscribe({ next: () => {}, error: () => {} });
+            openOwnerShellWithInactiveLead();
+          },
+          error: (error: HttpErrorResponse) => {
+            if (error.status !== 404) {
+              openOwnerShellWithInactiveLead();
+              return;
+            }
+
+            const organizationId = String(this.authService.getUser()?.organizationId ?? '').trim();
+            const officeId = Number(ownerLead.officeId);
+            if (!organizationId || !Number.isFinite(officeId) || officeId <= 0) {
+              this.toastr.error('Unable to create owner contact for this lead.', CommonMessage.Error);
+              return;
+            }
+
+            const createContactRequest: ContactRequest = {
+              ownerLeadId: ownerId,
+              organizationId,
+              officeId,
+              officeAccess: [officeId],
+              entityTypeId: EntityType.Owner,
+              ownerTypeId: OwnerType.Individual,
+              properties: [],
+              firstName: ownerLead.firstName ?? null,
+              lastName: ownerLead.lastName ?? null,
+              address1: ownerLead.address ?? '',
+              city: ownerLead.city ?? '',
+              state: ownerLead.state ?? '',
+              zip: ownerLead.zip ?? '',
+              phone: ownerLead.phone ?? null,
+              email: ownerLead.email ?? '',
+              rating: 0,
+              isInternational: false,
+              isActive: true
+            };
+
+            this.contactService.createContact(createContactRequest).pipe(take(1)).subscribe({
+              next: () => {
+                this.contactService.refreshContacts().pipe(take(1)).subscribe({ next: () => {}, error: () => {} });
+                openOwnerShellWithInactiveLead();
+              },
+              error: () => {
+                openOwnerShellWithInactiveLead();
+              }
+            });
+          }
+        });
+      },
+      error: () => {
+        openOwnerShellWithInactiveLead();
+      }
+    });
+  }
+
+  ensureOwnerLeadInactive(ownerId: number, onComplete: () => void): void {
+    const row = this.allOwners.find(owner => owner.ownerId === ownerId);
+    if (!row) {
+      onComplete();
+      return;
+    }
+    if (row.isActive === false) {
+      onComplete();
+      return;
+    }
+
+    this.applyOwnerIsActiveValue(ownerId, false);
+    this.updateOwnerLeadFromServer(ownerId, body => {
+      body.isActive = false;
+    }).pipe(take(1)).subscribe({
+      next: () => {
+        onComplete();
+      },
+      error: () => {
+        this.applyOwnerIsActiveValue(ownerId, true);
+        this.toastr.error('Unable to set owner lead inactive.', CommonMessage.Error);
+        onComplete();
+      }
+    });
+  }
+
   //#endregion
 
   //#region Form Build methods
@@ -163,11 +306,9 @@ export class OwnerListComponent implements OnInit, OnChanges, OnDestroy {
     }
     const previousLeadStateId = event.leadStateId;
     this.applyOwnerLeadStateId(event.ownerId, nextLeadStateId);
-    const row = this.allOwners.find(r => r.ownerId === event.ownerId);
-    if (!row) {
-      return;
-    }
-    this.leadsService.updateOwnerLead(this.mappingService.mapLeadOwnerListRowToUpdateRequest(row, row.isActive)).pipe(take(1)).subscribe({
+    this.updateOwnerLeadFromServer(event.ownerId, body => {
+      body.leadStateId = nextLeadStateId;
+    }).pipe(take(1)).subscribe({
       next: () => {
         this.toastr.success('Owner lead updated.', CommonMessage.Success);
         this.leadsService.notifyLeadStateChanged();
@@ -189,8 +330,9 @@ export class OwnerListComponent implements OnInit, OnChanges, OnDestroy {
       return;
     }
     this.applyOwnerIsActiveValue(event.ownerId, nextValue);
-    const body = this.mappingService.mapLeadOwnerListRowToUpdateRequest(event, nextValue);
-    this.leadsService.updateOwnerLead(body).pipe(take(1)).subscribe({
+    this.updateOwnerLeadFromServer(event.ownerId, body => {
+      body.isActive = nextValue;
+    }).pipe(take(1)).subscribe({
       next: () => {
         this.toastr.success('Owner lead updated.', CommonMessage.Success);
       },
@@ -222,6 +364,14 @@ export class OwnerListComponent implements OnInit, OnChanges, OnDestroy {
     };
     patch(this.allOwners);
     patch(this.ownersDisplay);
+  }
+
+  updateOwnerLeadFromServer(ownerId: number, applyPatch: (body: LeadOwnerUpdateRequest) => void) {
+    return this.leadsService.getOwnerLeadById(ownerId).pipe(take(1), switchMap(owner => {
+      const body = this.mappingService.mapLeadOwnerResponseToUpdateRequest(owner);
+      applyPatch(body);
+      return this.leadsService.updateOwnerLead(body).pipe(take(1));
+    }));
   }
   //#endregion
 

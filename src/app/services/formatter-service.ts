@@ -226,6 +226,70 @@ export class FormatterService {
         this.formatDecimalControl(control);
     }
 
+    // Formats a currency control value as USD (e.g., "$150.00") on blur.
+    formatCurrencyControl(control: AbstractControl | null, defaultWhenEmpty: string | null = '$0.00'): void {
+        const raw = (control?.value ?? '').toString().trim();
+        if (!raw) {
+            if (defaultWhenEmpty === null) {
+                control?.setValue('', { emitEvent: false });
+                return;
+            }
+            control?.setValue(defaultWhenEmpty, { emitEvent: false });
+            return;
+        }
+        const normalized = raw.replace(/[$,\s]/g, '');
+        const parsed = parseFloat(normalized);
+        if (!Number.isFinite(parsed)) {
+            if (defaultWhenEmpty === null) {
+                control?.setValue('', { emitEvent: false });
+                return;
+            }
+            control?.setValue(defaultWhenEmpty, { emitEvent: false });
+            return;
+        }
+        control?.setValue(this.currencyUsd(parsed), { emitEvent: false });
+    }
+
+    // Keeps only numeric currency input (digits + single decimal point).
+    formatCurrencyInput(event: Event, control: AbstractControl | null): void {
+        const input = event.target as HTMLInputElement;
+        const value = (input.value || '').replace(/[^0-9.]/g, '');
+        const parts = value.split('.');
+        let sanitized = value;
+        if (parts.length > 2) {
+            sanitized = parts[0] + '.' + parts.slice(1).join('');
+        }
+        input.value = sanitized;
+        control?.setValue(sanitized, { emitEvent: false });
+    }
+
+    // Removes "$" and thousands separators while editing currency values.
+    clearCurrencyOnFocus(event: FocusEvent, control: AbstractControl | null): void {
+        const input = event.target as HTMLInputElement;
+        const current = (input?.value ?? '').trim();
+        if (!current) {
+            return;
+        }
+        const raw = current.replace(/[$,\s]/g, '');
+        input.value = raw;
+        control?.setValue(raw, { emitEvent: false });
+    }
+
+    // Formats currency on Enter and exits the field.
+    formatCurrencyOnEnter(event: KeyboardEvent, control: AbstractControl | null, defaultWhenEmpty: string | null = '$0.00'): void {
+        if (event.key !== 'Enter') {
+            return;
+        }
+        event.preventDefault();
+        this.formatCurrencyControl(control, defaultWhenEmpty);
+        (event.target as HTMLInputElement)?.blur();
+    }
+
+    // Formats currency value on blur.
+    formatCurrencyOnBlur(control: AbstractControl | null, defaultWhenEmpty: string | null = '$0.00'): void {
+        this.formatCurrencyControl(control, defaultWhenEmpty);
+    }
+
     // Keeps only numeric percentage input (digits + single decimal point).
     formatPercentageInput(event: Event, control: AbstractControl | null): void {
         const input = event.target as HTMLInputElement;

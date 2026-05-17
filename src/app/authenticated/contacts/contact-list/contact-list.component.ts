@@ -5,10 +5,12 @@ import { NavigationEnd, Router } from '@angular/router';
 import { ToastrService } from 'ngx-toastr';
 import { BehaviorSubject, Observable, Subscription, filter, finalize, map, skip, switchMap, take } from 'rxjs';
 import { RouterUrl } from '../../../app.routes';
+import { ownersFeatureEnabled } from '../../../config/feature-flags';
 import { CommonMessage } from '../../../enums/common-message.enum';
 import { MaterialModule } from '../../../material.module';
 import { AuthService } from '../../../services/auth.service';
 import { MappingService } from '../../../services/mapping.service';
+import { NavigationContextService } from '../../../services/navigation-context.service';
 import { UtilityService } from '../../../services/utility.service';
 import { OfficeResponse } from '../../organizations/models/office.model';
 import { GlobalSelectionService } from '../../organizations/services/global-selection.service';
@@ -36,7 +38,7 @@ export class ContactListComponent implements OnInit, OnDestroy, OnChanges {
   @Input() tabIndex?: number;
   @Output() officeIdChange = new EventEmitter<number | null>();
   @Output() showInactiveChange = new EventEmitter<boolean>();
-  @Output() openContact = new EventEmitter<{ contactId: string; copyFrom?: string; entityTypeId?: number; tabIndex?: number }>();
+  @Output() openContact = new EventEmitter<{ contactId: string; copyFrom?: string; entityTypeId?: number; tabIndex?: number; ownerLeadId?: number | null }>();
 
   panelOpenState: boolean = true;
   isServiceError: boolean = false;
@@ -56,8 +58,11 @@ export class ContactListComponent implements OnInit, OnDestroy, OnChanges {
 
   routerSubscription?: Subscription;
   globalOfficeSubscription?: Subscription;
+  ownerModeSubscription?: Subscription;
   hasInitialLoad: boolean = false;
   canEditIsActiveCheckbox = false;
+  isInOwnerMode = false;
+  ownersFeatureEnabled = ownersFeatureEnabled;
 
   private readonly baseColumns: ColumnSet = {
     'contactCode': { displayAs: 'Code', maxWidth: '15ch', sortType: 'natural' },
@@ -90,6 +95,7 @@ export class ContactListComponent implements OnInit, OnDestroy, OnChanges {
     public router: Router,
     public mappingService: MappingService,
     private authService: AuthService,
+    private navigationContextService: NavigationContextService,
     private utilityService: UtilityService,
     private officeService: OfficeService,
     private globalSelectionService: GlobalSelectionService,) {
@@ -104,6 +110,9 @@ export class ContactListComponent implements OnInit, OnDestroy, OnChanges {
     this.preferredOfficeId = this.user?.defaultOfficeId ?? null;
     this.loadOffices();
     this.loadContacts();
+    this.ownerModeSubscription = this.navigationContextService.getIsInOwnerMode().subscribe(value => {
+      this.isInOwnerMode = value;
+    });
 
     this.globalOfficeSubscription = this.globalSelectionService.getSelectedOfficeId$().pipe(skip(1)).subscribe(officeId => {
       if (this.offices.length > 0) {
@@ -150,10 +159,51 @@ export class ContactListComponent implements OnInit, OnDestroy, OnChanges {
   }
 
   goToContact(event: ContactListDisplay): void {
+    const contactId = String(event?.contactId || '').trim();
+    if (!contactId) {
+      return;
+    }
+    const eventOwnerLeadId = Number(event?.ownerLeadId);
+    const rowOwnerLeadId = Number(this.allContacts.find(contact => contact.contactId === event?.contactId)?.ownerLeadId);
+    const resolvedOwnerLeadId = Number.isFinite(eventOwnerLeadId) && eventOwnerLeadId > 0
+      ? eventOwnerLeadId
+      : rowOwnerLeadId;
+    if (this.isInOwnerMode) {
+      if (Number.isFinite(resolvedOwnerLeadId) && resolvedOwnerLeadId > 0) {
+        this.openContact.emit({
+          contactId,
+          entityTypeId: this.entityTypeId ?? undefined,
+          tabIndex: this.tabIndex,
+          ownerLeadId: resolvedOwnerLeadId
+        });
+        return;
+      }
+      this.contactService.getContactByGuid(contactId).pipe(take(1)).subscribe({
+        next: contact => {
+          const ownerLeadId = Number(contact.ownerLeadId);
+          this.openContact.emit({
+            contactId,
+            entityTypeId: this.entityTypeId ?? undefined,
+            tabIndex: this.tabIndex,
+            ownerLeadId: Number.isFinite(ownerLeadId) && ownerLeadId > 0 ? ownerLeadId : null
+          });
+        },
+        error: () => {
+          this.openContact.emit({
+            contactId,
+            entityTypeId: this.entityTypeId ?? undefined,
+            tabIndex: this.tabIndex,
+            ownerLeadId: null
+          });
+        }
+      });
+      return;
+    }
     this.openContact.emit({
-      contactId: event.contactId,
+      contactId,
       entityTypeId: this.entityTypeId ?? undefined,
-      tabIndex: this.tabIndex
+      tabIndex: this.tabIndex,
+      ownerLeadId: resolvedOwnerLeadId ?? null
     });
   }
 
@@ -366,6 +416,7 @@ export class ContactListComponent implements OnInit, OnDestroy, OnChanges {
     this.officesSubscription?.unsubscribe();
     this.globalOfficeSubscription?.unsubscribe();
     this.routerSubscription?.unsubscribe();
+    this.ownerModeSubscription?.unsubscribe();
     this.itemsToLoad$.complete();
   }
   //#endregion

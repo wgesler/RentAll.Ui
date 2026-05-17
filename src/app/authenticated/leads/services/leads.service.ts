@@ -1,4 +1,4 @@
-import { HttpClient } from '@angular/common/http';
+import { HttpBackend, HttpClient } from '@angular/common/http';
 import { Injectable } from '@angular/core';
 import { Observable, Subject, map } from 'rxjs';
 import { ConfigService } from '../../../services/config.service';
@@ -16,20 +16,35 @@ import {
   LeadGeneralResponse,
   LeadGeneralUpdateRequest
 } from '../models/lead-general.model';
+import {
+  OwnerFormShareResponse,
+  PublicOwnerFormResponse,
+  PublicOwnerFormSubmitRequest
+} from '../models/owner-form-share.model';
+import {
+  OwnerInventoryInformationRequest,
+  OwnerInventoryInformationResponse
+} from '../models/owner-inventory-information.model';
 
 @Injectable({
   providedIn: 'root'
 })
 export class LeadsService {
   readonly controller: string;
+  readonly commonController: string;
+  private readonly rawHttp: HttpClient;
   private readonly leadStateChangedSubject = new Subject<void>();
   leadStateChanged$ = this.leadStateChangedSubject.asObservable();
 
   constructor(
     private http: HttpClient,
+    httpBackend: HttpBackend,
     private configService: ConfigService
   ) {
     this.controller = this.configService.config().apiUrl + 'leads/';
+    this.commonController = this.configService.config().apiUrl + 'common/';
+    // Bypass interceptors for anonymous public owner-form calls.
+    this.rawHttp = new HttpClient(httpBackend);
   }
 
   getRentalLeads(): Observable<LeadRentalResponse[]> {
@@ -78,6 +93,43 @@ export class LeadsService {
 
   deleteOwnerLead(ownerId: number): Observable<void> {
     return this.http.delete<void>(`${this.controller}owners/${ownerId}`);
+  }
+
+  createOwnerFormShareLink(ownerId: number): Observable<OwnerFormShareResponse> {
+    return this.http.post<OwnerFormShareResponse>(`${this.controller}owners/${ownerId}/share-link`, {});
+  }
+
+  getPublicOwnerFormByToken(token: string): Observable<PublicOwnerFormResponse> {
+    const normalized = this.normalizeOwnerFormShareToken(token);
+    return this.rawHttp.get<PublicOwnerFormResponse>(`${this.commonController}owner-form/${normalized}`);
+  }
+
+  submitPublicOwnerFormByToken(token: string, body: PublicOwnerFormSubmitRequest): Observable<PublicOwnerFormResponse> {
+    const normalized = this.normalizeOwnerFormShareToken(token);
+    return this.rawHttp.put<PublicOwnerFormResponse>(`${this.commonController}owner-form/${normalized}`, body);
+  }
+
+  getOwnerInventoryInformationByOwnerId(ownerId: number): Observable<OwnerInventoryInformationResponse> {
+    return this.http.get<OwnerInventoryInformationResponse>(`${this.controller}owners/inventory-information/${ownerId}`);
+  }
+
+  updateOwnerInventoryInformation(body: OwnerInventoryInformationRequest): Observable<OwnerInventoryInformationResponse> {
+    return this.http.put<OwnerInventoryInformationResponse>(`${this.controller}owners/inventory-information`, body);
+  }
+
+  getPublicOwnerFormUrl(token: string): string {
+    const normalized = this.normalizeOwnerFormShareToken(String(token ?? ''));
+    if (!normalized) {
+      return '';
+    }
+    const configured = String(this.configService.config().publicListingUiOrigin ?? '').trim().replace(/\/$/, '');
+    const windowOrigin =
+      typeof window !== 'undefined' && window.location?.origin ? window.location.origin.replace(/\/$/, '') : '';
+    const origin = configured.length > 0 ? configured : windowOrigin;
+    if (!origin) {
+      return '';
+    }
+    return `${origin}/owners/${normalized}`;
   }
 
   getGeneralLeads(): Observable<LeadGeneralResponse[]> {
@@ -137,5 +189,13 @@ export class LeadsService {
       ...row,
       phone: this.sanitizePhoneToDigits(row?.phone)
     };
+  }
+
+  normalizeOwnerFormShareToken(raw: string): string {
+    return String(raw ?? '')
+      .trim()
+      .replace(/\u00AD/g, '')
+      .replace(/[\u200B-\u200D\uFEFF]/g, '')
+      .replace(/[\u2010\u2011\u2012\u2013\u2014\u2015\u2212\uFE58\uFE63\uFF0D]/g, '-');
   }
 }

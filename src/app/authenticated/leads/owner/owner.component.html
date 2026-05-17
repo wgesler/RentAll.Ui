@@ -21,6 +21,10 @@
         <mat-checkbox [formControl]="$any(form.controls['isActive'])" color="primary" class="owner-titlebar-lead-checkbox text-nowrap">
           IsActive
         </mat-checkbox>
+        <button mat-raised-button type="button" color="accent" matTooltip="Convert Lead to Owner" aria-label="Convert Lead to Owner" (click)="convertLeadToOwner()">
+          <mat-icon>person</mat-icon>
+          Convert
+        </button>
         <button mat-raised-button type="button" color="primary" class="text-nowrap flex-shrink-0" [disabled]="isSavingCreate" (click)="saveOwnerLead()">
           <mat-icon>save</mat-icon>
           Save

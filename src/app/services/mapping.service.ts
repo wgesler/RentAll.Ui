@@ -261,6 +261,7 @@ export class MappingService {
       const propertyCodesDisplay = codesArray.length ? codesArray.join(', ') : undefined;
       return {
         contactId: o.contactId,
+        ownerLeadId: o.ownerLeadId ?? null,
         contactCode: o.contactCode,
         officeId: Number.isFinite(Number(o.officeId)) ? Number(o.officeId) : 0,
         officeName,
@@ -803,6 +804,56 @@ export class MappingService {
       isActive,
       emailPhoneConsent: rest.emailPhoneConsent ?? false,
       smsConsent: rest.smsConsent ?? false
+    };
+  }
+
+  mapLeadOwnerResponseToUpdateRequest(lead: LeadOwnerResponse): LeadOwnerUpdateRequest {
+    return {
+      ownerId: lead.ownerId,
+      officeId: lead.officeId,
+      leadStateId: lead.leadStateId,
+      agentId: lead.agentId,
+      firstName: lead.firstName,
+      lastName: lead.lastName,
+      email: lead.email,
+      phone: lead.phone,
+      locationOfProperty: lead.locationOfProperty,
+      programInterest: lead.programInterest,
+      whatIsPromptingContact: lead.whatIsPromptingContact,
+      timeFrame: lead.timeFrame,
+      targetRentReadyDate: lead.targetRentReadyDate,
+      propertyGoals: lead.propertyGoals,
+      tellUsMoreAboutYourGoals: lead.tellUsMoreAboutYourGoals,
+      yearsOfExperienceWithRentals: lead.yearsOfExperienceWithRentals,
+      tellUsMoreAboutProperty: lead.tellUsMoreAboutProperty,
+      address: lead.address,
+      city: lead.city,
+      state: lead.state,
+      zip: lead.zip,
+      adjustedGrossRentTarget: lead.adjustedGrossRentTarget ?? null,
+      onlineFee: lead.onlineFee ?? null,
+      onlineClean: lead.onlineClean ?? null,
+      workingBalance: lead.workingBalance ?? null,
+      annualLinenAmount: lead.annualLinenAmount ?? null,
+      offlineFee: lead.offlineFee ?? null,
+      purchaseKitchenItems: lead.purchaseKitchenItems ?? false,
+      kitchenBudget: lead.kitchenBudget ?? null,
+      furnishUnit: lead.furnishUnit ?? false,
+      furnishBudget: lead.furnishBudget ?? null,
+      oneBedroom: lead.oneBedroom ?? false,
+      twoBedroom: lead.twoBedroom ?? false,
+      threeBedroom: lead.threeBedroom ?? false,
+      numberOfBeds: lead.numberOfBeds,
+      numberOfBaths: lead.numberOfBaths,
+      approxSqFootage: lead.approxSqFootage,
+      typeOfProperty: lead.typeOfProperty,
+      tellUsWhatYouLikeMostAboutYourProperty: lead.tellUsWhatYouLikeMostAboutYourProperty,
+      tellUsAnyDrawbacks: lead.tellUsAnyDrawbacks,
+      preferredContactMethod: lead.preferredContactMethod,
+      timeDateForContact: lead.timeDateForContact,
+      emailPhoneConsent: lead.emailPhoneConsent ?? false,
+      smsConsent: lead.smsConsent ?? false,
+      isActive: lead.isActive ?? false
     };
   }
 

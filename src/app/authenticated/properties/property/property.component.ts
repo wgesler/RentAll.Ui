@@ -1,5 +1,5 @@
 import { CommonModule } from '@angular/common';
-import { AfterViewInit, Component, ElementRef, EventEmitter, HostListener, OnDestroy, OnInit, Output, ViewChild } from '@angular/core';
+import { AfterViewInit, Component, ElementRef, EventEmitter, HostListener, Input, OnChanges, OnDestroy, OnInit, Output, SimpleChanges, ViewChild } from '@angular/core';
 import { AbstractControl, FormBuilder, FormControl, FormGroup, FormsModule, ReactiveFormsModule, ValidationErrors, Validators } from '@angular/forms';
 import { MatDialog } from '@angular/material/dialog';
 import { ActivatedRoute } from '@angular/router';
@@ -12,6 +12,7 @@ import { AuthService } from '../../../services/auth.service';
 import { CommonService } from '../../../services/common.service';
 import { FormatterService } from '../../../services/formatter-service';
 import { MappingService } from '../../../services/mapping.service';
+import { NavigationContextService } from '../../../services/navigation-context.service';
 import { UtilityService } from '../../../services/utility.service';
 import { ContactComponent } from '../../contacts/contact/contact.component';
 import { EntityType } from '../../contacts/models/contact-enum';
@@ -56,7 +57,7 @@ import { UnsavedChangesDialogService } from '../../shared/modals/unsaved-changes
     styleUrls: ['./property.component.scss']
 })
 
-export class PropertyComponent implements OnInit, AfterViewInit, OnDestroy, CanComponentDeactivate {
+export class PropertyComponent implements OnInit, OnChanges, AfterViewInit, OnDestroy, CanComponentDeactivate {
   readonly newOwnerOptionValue = '__new_owner__';
   readonly newVendorOptionValue = '__new_vendor__';
   readonly propertyCodeDefaultPrompt = 'Enter Code';
@@ -79,6 +80,9 @@ export class PropertyComponent implements OnInit, AfterViewInit, OnDestroy, CanC
   amenitiesEditor?: ElementRef<HTMLDivElement>;
   isSubmitting: boolean = false;
   isAddMode: boolean = false;
+  isInOwnerMode: boolean = false;
+  @Input() disableOwnerModeLayout = false;
+  @Input() shellPropertyId: string | null = null;
   
   propertyId: string;
   property: PropertyResponse;
@@ -130,6 +134,7 @@ export class PropertyComponent implements OnInit, AfterViewInit, OnDestroy, CanC
     private commonService: CommonService,
     private formatterService: FormatterService,
     private mappingService: MappingService,
+    private navigationContextService: NavigationContextService,
     private contactService: ContactService,
     private authService: AuthService,
     private officeService: OfficeService,
@@ -147,13 +152,27 @@ export class PropertyComponent implements OnInit, AfterViewInit, OnDestroy, CanC
   ) {
   }
 
+  get isOwnerModeLayout(): boolean {
+    return this.isInOwnerMode && !this.disableOwnerModeLayout;
+  }
+
   //#region Property
   ngOnInit(): void {
+    this.navigationContextService.getIsInOwnerMode().pipe(takeUntil(this.destroy$)).subscribe(value => {
+      this.isInOwnerMode = value;
+      if (this.isOwnerModeLayout) {
+        this.expandedSections.basic = false;
+        this.expandedSections.features = false;
+        this.expandedSections.description = false;
+        this.expandedSections.agreement = false;
+      }
+      this.applyOwnerModeDefaults();
+    });
     this.isAdmin = this.authService.isAdmin();
     this.isInAccounting = this.authService.isInAccounting();
     const initialRouteId = this.route.snapshot.paramMap.get('id');
     if (initialRouteId) {
-      this.expandedSections.agreement = this.isInAccounting;
+      this.expandedSections.agreement = this.isOwnerModeLayout ? false : this.isInAccounting;
     }
 
     this.loadStates();
@@ -179,36 +198,17 @@ export class PropertyComponent implements OnInit, AfterViewInit, OnDestroy, CanC
     this.initializeTimeTypes();
     
     this.buildForm();
+    this.applyOwnerModeDefaults();
     this.applyOfficeControlState();
 
-    this.route.paramMap.pipe(takeUntil(this.destroy$), map(pm => pm.get('id')), filter((id): id is string => id != null && id !== ''), distinctUntilChanged()).subscribe(id => {
-      this.propertyId = id;
-      this.isAddMode = id === 'new';
-      this.expandedSections.agreement = this.isInAccounting;
-
-      const codeControl = this.form.get('propertyCode');
-      if (this.isAddMode) {
-        codeControl?.setValidators([Validators.required, this.propertyCodeEntryValidator]);
-      } else {
-        codeControl?.clearValidators();
-      }
-      codeControl?.updateValueAndValidity();
-      this.applyOwnerVendorLeaseValidators();
-      this.applyOfficeControlState();
-
-      if (!this.isAddMode) {      
-        this.getProperty();
-      } else {
-        this.setAddModeDefaults();
-        this.route.queryParams.pipe(take(1)).subscribe(queryParams => {
-          if (queryParams['copyFrom']) {
-            this.copyFromProperty(queryParams['copyFrom']);
-          }
-        });
-      }
-      this.loadReservations();
-      this.captureSavedStateSignature();
-    });
+    const inputId = String(this.shellPropertyId ?? '').trim();
+    if (inputId) {
+      this.applyPropertyIdContext(inputId);
+    } else {
+      this.route.paramMap.pipe(takeUntil(this.destroy$), map(pm => pm.get('id')), filter((id): id is string => id != null && id !== ''), distinctUntilChanged()).subscribe(id => {
+        this.applyPropertyIdContext(id);
+      });
+    }
     
     // Check query params for tab selection
     this.setupConditionalFields();
@@ -221,6 +221,17 @@ export class PropertyComponent implements OnInit, AfterViewInit, OnDestroy, CanC
   ngAfterViewInit(): void {
     this.syncDescriptionEditorFromForm();
     this.syncAmenitiesEditorFromForm();
+  }
+
+  ngOnChanges(changes: SimpleChanges): void {
+    if (!changes['shellPropertyId'] || changes['shellPropertyId'].firstChange) {
+      return;
+    }
+    const nextId = String(this.shellPropertyId ?? '').trim();
+    if (!nextId) {
+      return;
+    }
+    this.applyPropertyIdContext(nextId);
   }
 
   onDescriptionInput(event: Event): void {
@@ -344,6 +355,30 @@ export class PropertyComponent implements OnInit, AfterViewInit, OnDestroy, CanC
         this.isServiceError = true;
       }
     });
+  }
+
+  applyPropertyIdContext(id: string): void {
+    this.propertyId = id;
+    this.isAddMode = id === 'new';
+    this.expandedSections.agreement = this.isOwnerModeLayout ? false : this.isInAccounting;
+
+    const codeControl = this.form.get('propertyCode');
+    if (this.isAddMode) {
+      codeControl?.setValidators([Validators.required, this.propertyCodeEntryValidator]);
+    } else {
+      codeControl?.clearValidators();
+    }
+    codeControl?.updateValueAndValidity();
+    this.applyOwnerVendorLeaseValidators();
+    this.applyOfficeControlState();
+
+    if (!this.isAddMode) {
+      this.getProperty();
+    } else {
+      this.setAddModeDefaults();
+    }
+    this.loadReservations();
+    this.captureSavedStateSignature();
   }
 
   copyFromProperty(sourcePropertyId: string): void {
@@ -969,6 +1004,15 @@ export class PropertyComponent implements OnInit, AfterViewInit, OnDestroy, CanC
     }
     owner1.updateValueAndValidity({ emitEvent: false });
     vendor.updateValueAndValidity({ emitEvent: false });
+  }
+
+  applyOwnerModeDefaults(): void {
+    if (!this.isOwnerModeLayout || !this.form) {
+      return;
+    }
+
+    this.form.patchValue({ propertyLeaseTypeId: PropertyLeaseType.PropertyManagement }, { emitEvent: false });
+    this.applyOwnerVendorLeaseValidators();
   }
 
   bedSelectionValidator(control: AbstractControl): ValidationErrors | null {

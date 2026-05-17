@@ -6,7 +6,8 @@
 } @else if (!isServiceError) {
   <div class="flex content-card-wrap justify-center" [class.dialog-mode]="isDialog" fxLayout="row wrap">
     <section class="content-card">
-      <div class="flex justify-between items-center gap-3 bg-slate-200 rounded-t-lg py-0 pl-8 pr-4">
+      @if (!isEmbedded || isDialog) {
+        <div class="flex justify-between items-center gap-3 bg-slate-200 rounded-t-lg py-0 pl-8 pr-4">
         <span class="flex flex-column items-center gap-3 py-4">
           <mat-icon class="flex-shrink-0">people</mat-icon>
           <span class="flex-shrink-0 text-xl font-medium">
@@ -29,20 +30,34 @@
             </button>
           }
           <button mat-raised-button type="button" color="primary" id="save-button" (click)="saveUser()"
-            class="scale-90 text-nowrap flex-shrink-0" [disabled]="isSubmitting || !form.valid">
+            class="scale-90 text-nowrap flex-shrink-0" [disabled]="isSubmitting">
             <mat-icon>save</mat-icon>
             Save
           </button>
         </div>
-      </div>
+        </div>
+      }
         
       <mat-card>
         <form [formGroup]="form" (ngSubmit)="saveUser()" class="info-form mb-8 pt-5">
             @if (isPrivilegedOfficeEditor || isAddMode) {
-              <div class="mb-4 flex justify-end active-checkbox-row">
+              <div class="mb-4 flex justify-end items-center gap-3 active-checkbox-row">
                 <mat-checkbox formControlName="isActive" color="primary">
                   IsActive
                 </mat-checkbox>
+                @if (isEmbedded && !isDialog) {
+                  <button
+                    mat-raised-button
+                    type="button"
+                    color="primary"
+                    id="embedded-save-button"
+                    class="text-nowrap flex-shrink-0"
+                    (click)="saveUser()"
+                  [disabled]="isSubmitting">
+                    <mat-icon>save</mat-icon>
+                    Save
+                  </button>
+                }
               </div>
             }
             <div class="grid grid-cols-4 gap-x-1.5 gap-y-1">
@@ -55,9 +70,6 @@
                       <mat-option [value]="org.organizationId">{{ org.name }}</mat-option>
                     }
                   </mat-select>
-                  @if (form.get('organizationId')?.hasError('required') && form.get('organizationId')?.touched) {
-                    <mat-error>Organization is required</mat-error>
-                  }
                 </mat-form-field>
 
                 <mat-form-field appearance="outline" class="col-span-3">
@@ -67,9 +79,6 @@
                       <mat-option [value]="office.value">{{ office.name }}</mat-option>
                     }
                   </mat-select>
-                  @if (form.get('officeAccess')?.hasError('required') && form.get('officeAccess')?.touched) {
-                    <mat-error>Office Access is required</mat-error>
-                  }
                 </mat-form-field>
 
                 <mat-form-field appearance="outline" class="col-span-1">
@@ -86,36 +95,21 @@
               <mat-form-field appearance="outline" class="col-span-2">
                 <mat-label>First Name</mat-label>
                 <input matInput formControlName="firstName" required>
-                @if (form.get('firstName')?.hasError('required') && form.get('firstName')?.touched) {
-                  <mat-error>First Name is required</mat-error>
-                }
               </mat-form-field>
 
               <mat-form-field appearance="outline" class="col-span-2">
                 <mat-label>Last Name</mat-label>
                 <input matInput formControlName="lastName" required>
-                @if (form.get('lastName')?.hasError('required') && form.get('lastName')?.touched) {
-                  <mat-error>Last Name is required</mat-error>
-                }
               </mat-form-field>
 
               <mat-form-field appearance="outline" class="col-span-2">
                 <mat-label>Email</mat-label>
                 <input matInput type="email" formControlName="email" required>
-                @if (form.get('email')?.hasError('required') && form.get('email')?.touched) {
-                  <mat-error>Email is required</mat-error>
-                }
-                @if (form.get('email')?.hasError('email') && form.get('email')?.touched) {
-                  <mat-error>Invalid email format</mat-error>
-                }
               </mat-form-field>
 
               <mat-form-field appearance="outline" class="col-span-2">
                 <mat-label>Phone</mat-label>
                 <input matInput formControlName="phone" required maxlength="20" (blur)="formatPhone()" (input)="onPhoneInput($event)" placeholder="(555) 555-5555 or +1 234 567 8900">
-                @if (form.get('phone')?.hasError('required') && form.get('phone')?.touched) {
-                  <mat-error>Phone is required</mat-error>
-                }
               </mat-form-field>
 
               @if (isPrivilegedOfficeEditor || isAddMode) {
@@ -126,9 +120,6 @@
                       <mat-option [value]="group.value">{{ group.label }}</mat-option>
                     }
                   </mat-select>
-                  @if (form.get('userGroups')?.hasError('required') || form.get('userGroups')?.hasError('userGroupsRequired')) {
-                    <mat-error>User Groups is required</mat-error>
-                  }
                 </mat-form-field>
 
                 @if (showInspectorPropertiesField) {
@@ -174,9 +165,6 @@
                     <mat-option [value]="page.value">{{ page.label }}</mat-option>
                   }
                 </mat-select>
-                @if (form.get('startupPageId')?.hasError('required') && form.get('startupPageId')?.touched) {
-                  <mat-error>Startup Page is required</mat-error>
-                }
               </mat-form-field>
 
               <!-- Profile Picture Section -->
@@ -216,11 +204,6 @@
                   }
                   <input type="file" #UploadFileInput id="fileUpload" name="fileUpload" (change)="uploadProfilePicture($event)" class="file-input-hidden" />
                 </div>
-                @if (!form.get('fileUpload')?.valid && form.get('fileUpload')?.touched) {
-                  <div class="image-file-error mb-4">
-                    Only a jpg, gif, or png image type with a file size less than 2MB are valid.
-                  </div>
-                }
                 <p class="mb-4">Allowed File Types (jpg, png, or gif image types)</p>
               </div>
 
@@ -245,9 +228,6 @@
                     <button mat-icon-button matSuffix type="button" tabindex="-1" (click)="toggleCurrentPasswordVisibility()" [attr.aria-label]="'Hide current password'" [attr.aria-pressed]="hideCurrentPassword">
                       <mat-icon>{{hideCurrentPassword ? 'visibility_off' : 'visibility'}}</mat-icon>
                     </button>
-                    @if (form.get('currentPassword')?.hasError('required') && form.get('currentPassword')?.touched) {
-                      <mat-error>Current Password is required</mat-error>
-                    }
                   </mat-form-field>
 
                   <mat-form-field appearance="outline" class="col-span-2">
@@ -256,21 +236,6 @@
                     <button mat-icon-button matSuffix type="button" tabindex="-1" (click)="togglePasswordVisibility()" [attr.aria-label]="'Hide password'" [attr.aria-pressed]="hidePassword">
                       <mat-icon>{{hidePassword ? 'visibility_off' : 'visibility'}}</mat-icon>
                     </button>
-                    @if (form.get('password')?.hasError('required') && form.get('password')?.touched) {
-                      <mat-error>Password is required</mat-error>
-                    }
-                    @if (form.get('password')?.hasError('passwordMinLength') && form.get('password')?.touched) {
-                      <mat-error>Password must be at least 8 characters long</mat-error>
-                    }
-                    @if (form.get('password')?.hasError('passwordRequiresNumber') && form.get('password')?.touched) {
-                      <mat-error>Password must contain at least one number</mat-error>
-                    }
-                    @if (form.get('password')?.hasError('passwordRequiresSpecial') && form.get('password')?.touched) {
-                      <mat-error>Password must contain at least one special character</mat-error>
-                    }
-                    @if (shouldShowPasswordHint) {
-                      <mat-hint>Must be at least 8 characters with one number and one special character</mat-hint>
-                    }
                   </mat-form-field>
 
                   <mat-form-field appearance="outline" class="col-span-2">
@@ -279,21 +244,6 @@
                     <button mat-icon-button matSuffix type="button" tabindex="-1" (click)="toggleConfirmPasswordVisibility()" [attr.aria-label]="'Hide confirm password'" [attr.aria-pressed]="hideConfirmPassword">
                       <mat-icon>{{hideConfirmPassword ? 'visibility_off' : 'visibility'}}</mat-icon>
                     </button>
-                    @if (form.get('confirmPassword')?.hasError('required') && form.get('confirmPassword')?.touched) {
-                      <mat-error>Confirm Password is required</mat-error>
-                    }
-                    @if (form.get('confirmPassword')?.hasError('passwordMinLength') && form.get('confirmPassword')?.touched) {
-                      <mat-error>Password must be at least 8 characters long</mat-error>
-                    }
-                    @if (form.get('confirmPassword')?.hasError('passwordRequiresNumber') && form.get('confirmPassword')?.touched) {
-                      <mat-error>Password must contain at least one number</mat-error>
-                    }
-                    @if (form.get('confirmPassword')?.hasError('passwordRequiresSpecial') && form.get('confirmPassword')?.touched) {
-                      <mat-error>Password must contain at least one special character</mat-error>
-                    }
-                    @if ((form.get('confirmPassword')?.hasError('passwordMismatch') || form.hasError('passwordMismatch')) && (form.get('confirmPassword')?.touched || form.get('confirmPassword')?.value)) {
-                      <mat-error>Passwords must match</mat-error>
-                    }
                   </mat-form-field>
                 } @else {
                   <mat-form-field appearance="outline" class="col-span-2">
@@ -302,21 +252,6 @@
                     <button mat-icon-button matSuffix type="button" tabindex="-1" (click)="togglePasswordVisibility()" [attr.aria-label]="'Hide password'" [attr.aria-pressed]="hidePassword">
                       <mat-icon>{{hidePassword ? 'visibility_off' : 'visibility'}}</mat-icon>
                     </button>
-                    @if (form.get('password')?.hasError('required') && form.get('password')?.touched) {
-                      <mat-error>Password is required</mat-error>
-                    }
-                    @if (form.get('password')?.hasError('passwordMinLength') && form.get('password')?.touched) {
-                      <mat-error>Password must be at least 8 characters long</mat-error>
-                    }
-                    @if (form.get('password')?.hasError('passwordRequiresNumber') && form.get('password')?.touched) {
-                      <mat-error>Password must contain at least one number</mat-error>
-                    }
-                    @if (form.get('password')?.hasError('passwordRequiresSpecial') && form.get('password')?.touched) {
-                      <mat-error>Password must contain at least one special character</mat-error>
-                    }
-                    @if (shouldShowPasswordHint) {
-                      <mat-hint>Must be at least 8 characters with one number and one special character</mat-hint>
-                    }
                   </mat-form-field>
 
                   <mat-form-field appearance="outline" class="col-span-2">
@@ -325,21 +260,6 @@
                     <button mat-icon-button matSuffix type="button" tabindex="-1" (click)="toggleConfirmPasswordVisibility()" [attr.aria-label]="'Hide confirm password'" [attr.aria-pressed]="hideConfirmPassword">
                       <mat-icon>{{hideConfirmPassword ? 'visibility_off' : 'visibility'}}</mat-icon>
                     </button>
-                    @if (form.get('confirmPassword')?.hasError('required') && form.get('confirmPassword')?.touched) {
-                      <mat-error>Confirm Password is required</mat-error>
-                    }
-                    @if (form.get('confirmPassword')?.hasError('passwordMinLength') && form.get('confirmPassword')?.touched) {
-                      <mat-error>Password must be at least 8 characters long</mat-error>
-                    }
-                    @if (form.get('confirmPassword')?.hasError('passwordRequiresNumber') && form.get('confirmPassword')?.touched) {
-                      <mat-error>Password must contain at least one number</mat-error>
-                    }
-                    @if (form.get('confirmPassword')?.hasError('passwordRequiresSpecial') && form.get('confirmPassword')?.touched) {
-                      <mat-error>Password must contain at least one special character</mat-error>
-                    }
-                    @if ((form.get('confirmPassword')?.hasError('passwordMismatch') || form.hasError('passwordMismatch')) && (form.get('confirmPassword')?.touched || form.get('confirmPassword')?.value)) {
-                      <mat-error>Passwords must match</mat-error>
-                    }
                   </mat-form-field>
                 }
               }

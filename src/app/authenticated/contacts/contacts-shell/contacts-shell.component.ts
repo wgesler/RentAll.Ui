@@ -1,4 +1,4 @@
-import { ChangeDetectorRef, Component, OnDestroy, OnInit } from '@angular/core';
+import { ChangeDetectorRef, Component, OnDestroy, OnInit, ViewChild } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, Router } from '@angular/router';
 import { Subject, Subscription, filter, skip, take, takeUntil } from 'rxjs';
@@ -27,6 +27,7 @@ import { TitleBarSelectComponent } from '../../shared/titlebar-select/titlebar-s
     styleUrls: ['./contacts-shell.component.scss']
 })
 export class ContactsShellComponent implements OnInit, OnDestroy {
+  @ViewChild(ContactComponent) activeContactForm?: ContactComponent;
   EntityType = EntityType;
   selectedTabIndex: number = 0;
   selectedOfficeId: number | null = null;
@@ -151,6 +152,18 @@ export class ContactsShellComponent implements OnInit, OnDestroy {
     if (_event.saved) {
       this.contactService.refreshContacts().pipe(take(1)).subscribe();
     }
+  }
+
+  onContactFormBack(): void {
+    this.onContactClosed({});
+  }
+
+  onContactFormSave(): void {
+    this.activeContactForm?.saveContact();
+  }
+
+  isActiveContactFormVisible(): boolean {
+    return this.showContactForm && this.formTabIndex === this.selectedTabIndex;
   }
   //#endregion
 

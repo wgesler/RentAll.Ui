@@ -1,0 +1,185 @@
+:host {
+  display: block;
+}
+
+/* Keep owner-shell accordion containers full width and consistent. */
+.owner-shell-accordion,
+.owner-shell-accordion .mat-expansion-panel {
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.property-titlebar {
+  min-height: var(--property-titlebar-height);
+  box-sizing: border-box;
+}
+
+/* Keep a consistent visual gap below the tab labels for all owner-shell tabs. */
+:host ::ng-deep .owner-shell-tabs .mat-mdc-tab-body-content {
+  padding-top: 30px;
+}
+
+/* Keep owner-shell accordion body padding aligned with global panel body spacing. */
+:host ::ng-deep .owner-shell-accordion .mat-expansion-panel-body {
+  padding: 16px;
+}
+
+/* Flatten nested cards only for owner-shell accordions (not embedded app-property). */
+:host ::ng-deep .owner-shell-accordion .mat-expansion-panel-body section.content-card,
+:host ::ng-deep .owner-shell-accordion .mat-expansion-panel-body mat-card {
+  border: 0 !important;
+  box-shadow: none !important;
+  border-radius: 0 !important;
+  margin: 0 !important;
+}
+
+.owner-shell-form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--global-form-row-gap);
+  padding-top: 0.75rem;
+}
+
+.owner-goals-save-row {
+  display: flex;
+  justify-content: flex-end;
+  padding-right: 5px;
+  margin-bottom: 0.75rem;
+}
+
+/* Keep Owner 1 and Goals save buttons aligned to the same right edge. */
+:host ::ng-deep .owner-contact-section app-contact .rating-controls-row {
+  padding-right: 5px !important;
+}
+
+.owner-shell-property-info-form {
+  padding-top: 0 !important;
+}
+
+.owner-shell-property-info-form .owner-shell-accordion {
+  margin-top: 0 !important;
+}
+
+.owner-shell-form h3,
+.property-form-section-rows h3 {
+  margin: 0;
+  font-size: 1rem;
+  font-weight: 600;
+}
+
+/* Match global form section row rhythm. */
+.property-form-section-rows {
+  > *:not(:last-child) {
+    margin-bottom: 16px;
+  }
+}
+
+/* Remove nested "card" border so accordion is the single visual container. */
+.features-container {
+  border: 0;
+  border-radius: 0;
+  padding: 0;
+  margin-top: 0;
+}
+
+.owner-form-checkbox-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+  gap: var(--global-form-row-gap) var(--global-form-field-gap-x);
+}
+
+.owner-shell-consent-row {
+  display: flex;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+
+/* Inventory row spacing: lock at section level to avoid global form-field spacing conflicts. */
+/* Inventory row spacing is controlled globally in styles.scss. */
+
+/* Tighten row spacing in Owner Goals/Contact Preferences section. */
+.owner-goals-section {
+  display: flex;
+  flex-direction: column;
+  gap: var(--global-form-row-gap);
+}
+
+.owner-goals-fields-stack {
+  display: grid;
+  grid-template-columns: 1fr;
+  row-gap: var(--global-form-row-gap);
+  column-gap: var(--global-form-field-gap-x);
+}
+
+:host ::ng-deep .owner-goals-section .mat-mdc-form-field {
+  margin-bottom: 0 !important;
+}
+
+:host ::ng-deep .owner-goals-section .mat-mdc-form-field-subscript-wrapper {
+  min-height: 0 !important;
+  margin-top: 0 !important;
+  padding: 0 !important;
+}
+
+.owner-shell-placeholder {
+  padding: 1.25rem 0.25rem;
+}
+
+.owner-shell-error {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+/* Pull embedded contact form content closer to owner heading in Basic Information. */
+:host ::ng-deep .owner-contact-section app-contact .info-form {
+  padding-top: 0 !important;
+  padding-left: 0 !important;
+  padding-right: 0 !important;
+  margin-bottom: 0 !important;
+}
+
+/* In owner tab, make embedded owner contact forms fill accordion width. */
+:host ::ng-deep .owner-contact-section app-contact .content-card-wrap {
+  justify-content: flex-start !important;
+}
+
+:host ::ng-deep .owner-contact-section app-contact .content-card {
+  width: 100% !important;
+  max-width: 100% !important;
+}
+
+/* Keep embedded contact action buttons aligned to global button sizing tokens. */
+:host ::ng-deep app-contact button[mat-raised-button] {
+  min-height: var(--global-action-button-height);
+  height: var(--global-action-button-height);
+  border-radius: var(--global-action-button-radius);
+  padding: 0 var(--global-action-button-padding-x);
+}
+
+/* Match mature property row behavior: no per-field host margins inside row grids. */
+:host ::ng-deep .owner-inventory-section > .grid > mat-form-field,
+:host ::ng-deep .owner-inventory-section > .grid > .mat-mdc-form-field {
+  margin-right: 0 !important;
+  margin-bottom: 0 !important;
+}
+
+.owner-inventory-first-row {
+  grid-template-columns: 1fr 0.5fr 1fr 2.5fr;
+}
+
+.owner-inventory-save-row {
+  display: flex;
+  justify-content: flex-end;
+  padding-right: 5px;
+  margin-bottom: 0.75rem;
+}
+
+/* Remove hidden form-field bottom slot that creates vertical gap under blue wrapper. */
+:host ::ng-deep .owner-inventory-section .mat-mdc-form-field-subscript-wrapper,
+:host ::ng-deep .owner-inventory-section .mat-mdc-form-field-bottom-align::before {
+  min-height: 0 !important;
+  height: 0 !important;
+  margin: 0 !important;
+  padding: 0 !important;
+}

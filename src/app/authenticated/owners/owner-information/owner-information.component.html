@@ -1,0 +1,158 @@
+@if (!isPageReady) {
+  <div class="page-loading-container">
+    <mat-spinner [diameter]="40"></mat-spinner>
+    <p>Loading owner information...</p>
+  </div>
+} @else {
+<mat-accordion multi="true" class="owner-shell-accordion">
+  <mat-expansion-panel [expanded]="true" class="mb-4">
+    <mat-expansion-panel-header>
+      <mat-panel-title>Basic Information</mat-panel-title>
+    </mat-expansion-panel-header>
+    <div class="features-container property-form-section-rows dbg-band-main">
+      <section class="owner-contact-section">
+        <h3>Owner 1 Information</h3>
+        <app-contact
+          [id]="primaryOwnerContactId || 'new'"
+          [presetEntityTypeId]="ownerEntityTypeId"
+          [ownerLeadId]="resolvedOwnerLeadId"
+          [prefillContact]="primaryOwnerPrefill"
+          [compactDialogMode]="true"
+          [showAddAdditionalOwnerButton]="true"
+          (addAdditionalOwnerRequested)="onAddAdditionalOwnerRequested()"
+          (closed)="onPrimaryOwnerSaved($event)">
+        </app-contact>
+      </section>
+
+      @for (additionalOwnerFormId of additionalOwnerFormIds; track additionalOwnerFormId) {
+        <section class="owner-contact-section">
+          <h3>Owner {{ additionalOwnerFormId + 1 }} Information</h3>
+          <app-contact
+            [id]="'new'"
+            [presetEntityTypeId]="ownerEntityTypeId"
+            [prefillContact]="defaultOwnerOfficePrefill"
+            [compactDialogMode]="true"
+            [showCancelAdditionalOwnerButton]="true"
+            (closed)="onAdditionalOwnerSaved(additionalOwnerFormId, $event)"
+            (cancelAdditionalOwnerRequested)="onRemoveAdditionalOwnerRequested(additionalOwnerFormId)">
+          </app-contact>
+        </section>
+      }
+    </div>
+  </mat-expansion-panel>
+
+  <mat-expansion-panel [expanded]="true" class="mb-4">
+    <mat-expansion-panel-header>
+      <mat-panel-title>Goals and Contact Preferences</mat-panel-title>
+    </mat-expansion-panel-header>
+    <form [formGroup]="ownerForm" class="owner-shell-form form-standard-grid info-form form-hide-error-text dbg-band-main">
+      <div class="owner-goals-save-row">
+        <button mat-raised-button type="button" color="primary" [disabled]="isSaving || !isPageReady" (click)="onSaveRequested()">
+          <mat-icon>save</mat-icon>
+          Save
+        </button>
+      </div>
+      <div class="features-container property-form-section-rows">
+      <section>
+        <h3>Fees and Furnishing Preferences</h3>
+        <div class="grid grid-cols-4 gap-3">
+          <mat-form-field appearance="outline">
+            <mat-label>Adjusted Gross Rent Target (monthly)</mat-label>
+            <input matInput formControlName="adjustedGrossRentTarget" (input)="onCurrencyInput($event, 'adjustedGrossRentTarget')" (focus)="onCurrencyFocus($event, 'adjustedGrossRentTarget')" (keydown)="onCurrencyKeydown($event)" (keydown.enter)="onCurrencyEnter($event, 'adjustedGrossRentTarget')" (blur)="onCurrencyBlur('adjustedGrossRentTarget')" />
+          </mat-form-field>
+          <mat-form-field appearance="outline">
+            <mat-label>Online Fee - Rent Ready</mat-label>
+            <input matInput formControlName="onlineFeeRentReady" (input)="onCurrencyInput($event, 'onlineFeeRentReady')" (focus)="onCurrencyFocus($event, 'onlineFeeRentReady')" (keydown)="onCurrencyKeydown($event)" (keydown.enter)="onCurrencyEnter($event, 'onlineFeeRentReady')" (blur)="onCurrencyBlur('onlineFeeRentReady')" />
+          </mat-form-field>
+          <mat-form-field appearance="outline">
+            <mat-label>Online Clean (hourly)</mat-label>
+            <input matInput formControlName="onlineCleanHourlyFee" (input)="onCurrencyInput($event, 'onlineCleanHourlyFee')" (focus)="onCurrencyFocus($event, 'onlineCleanHourlyFee')" (keydown)="onCurrencyKeydown($event)" (keydown.enter)="onCurrencyEnter($event, 'onlineCleanHourlyFee')" (blur)="onCurrencyBlur('onlineCleanHourlyFee')" />
+          </mat-form-field>
+          <mat-form-field appearance="outline">
+            <mat-label>Working Balance / Utility Allowance</mat-label>
+            <input matInput formControlName="workingBalanceEscrow" (input)="onCurrencyInput($event, 'workingBalanceEscrow')" (focus)="onCurrencyFocus($event, 'workingBalanceEscrow')" (keydown)="onCurrencyKeydown($event)" (keydown.enter)="onCurrencyEnter($event, 'workingBalanceEscrow')" (blur)="onCurrencyBlur('workingBalanceEscrow')" />
+          </mat-form-field>
+        </div>
+        <div class="owner-form-checkbox-grid">
+          <mat-checkbox color="primary" [formControl]="$any(ownerForm.controls['annualLinenTierStudio1Bedroom'])">1 bedroom / studio ($299)</mat-checkbox>
+          <mat-checkbox color="primary" [formControl]="$any(ownerForm.controls['annualLinenTier2Bedroom'])">2 bedrooms ($399)</mat-checkbox>
+          <mat-checkbox color="primary" [formControl]="$any(ownerForm.controls['annualLinenTier3Bedroom'])">3 bedrooms ($499)</mat-checkbox>
+        </div>
+        <div class="grid grid-cols-3 gap-3">
+          <mat-form-field appearance="outline">
+            <mat-label>Annual Linen Custom Amount</mat-label>
+            <input matInput formControlName="annualLinenCustomAmount" (input)="onCurrencyInput($event, 'annualLinenCustomAmount')" (focus)="onCurrencyFocus($event, 'annualLinenCustomAmount')" (keydown)="onCurrencyKeydown($event)" (keydown.enter)="onCurrencyEnter($event, 'annualLinenCustomAmount')" (blur)="onCurrencyBlur('annualLinenCustomAmount')" />
+          </mat-form-field>
+          <mat-form-field appearance="outline">
+            <mat-label>Furnishing Fee Amount</mat-label>
+            <input matInput formControlName="furnishingFeeAmount" (input)="onCurrencyInput($event, 'furnishingFeeAmount')" (focus)="onCurrencyFocus($event, 'furnishingFeeAmount')" (keydown)="onCurrencyKeydown($event)" (keydown.enter)="onCurrencyEnter($event, 'furnishingFeeAmount')" (blur)="onCurrencyBlur('furnishingFeeAmount')" />
+          </mat-form-field>
+          <mat-form-field appearance="outline">
+            <mat-label>Off-line Fee</mat-label>
+            <input matInput formControlName="offlineFee" (input)="onCurrencyInput($event, 'offlineFee')" (focus)="onCurrencyFocus($event, 'offlineFee')" (keydown)="onCurrencyKeydown($event)" (keydown.enter)="onCurrencyEnter($event, 'offlineFee')" (blur)="onCurrencyBlur('offlineFee')" />
+          </mat-form-field>
+        </div>
+        <div class="owner-form-checkbox-grid">
+          <mat-checkbox color="primary" [formControl]="$any(ownerForm.controls['furnishingKitchenItemsRequested'])">
+            Purchase kitchen items on owner behalf
+          </mat-checkbox>
+          <mat-checkbox color="primary" [formControl]="$any(ownerForm.controls['furnishingFullUnitRequested'])">
+            Furnish full unit based on estimate
+          </mat-checkbox>
+        </div>
+        <div class="grid grid-cols-2 gap-3">
+          <mat-form-field appearance="outline">
+            <mat-label>Kitchen Items Budget Amount</mat-label>
+            <input matInput formControlName="furnishingKitchenItemsAmount" (input)="onCurrencyInput($event, 'furnishingKitchenItemsAmount')" (focus)="onCurrencyFocus($event, 'furnishingKitchenItemsAmount')" (keydown)="onCurrencyKeydown($event)" (keydown.enter)="onCurrencyEnter($event, 'furnishingKitchenItemsAmount')" (blur)="onCurrencyBlur('furnishingKitchenItemsAmount')" />
+          </mat-form-field>
+          <mat-form-field appearance="outline">
+            <mat-label>Full Unit Furnishing Estimate Amount</mat-label>
+            <input matInput formControlName="furnishingFullUnitEstimateAmount" (input)="onCurrencyInput($event, 'furnishingFullUnitEstimateAmount')" (focus)="onCurrencyFocus($event, 'furnishingFullUnitEstimateAmount')" (keydown)="onCurrencyKeydown($event)" (keydown.enter)="onCurrencyEnter($event, 'furnishingFullUnitEstimateAmount')" (blur)="onCurrencyBlur('furnishingFullUnitEstimateAmount')" />
+          </mat-form-field>
+        </div>
+      </section>
+
+      <section class="owner-goals-section">
+        <h3>Owner Goals and Contact Preferences</h3>
+        <div class="owner-goals-fields-stack form-standard-grid">
+          <mat-form-field appearance="outline">
+            <mat-label>Property Goals</mat-label>
+            <textarea matInput rows="2" formControlName="propertyGoals"></textarea>
+          </mat-form-field>
+          <mat-form-field appearance="outline">
+            <mat-label>Tell Us More About Your Goals</mat-label>
+            <textarea matInput rows="2" formControlName="tellUsMoreAboutYourGoals"></textarea>
+          </mat-form-field>
+          <mat-form-field appearance="outline">
+            <mat-label>Tell Us More About Property</mat-label>
+            <textarea matInput rows="2" formControlName="tellUsMoreAboutProperty"></textarea>
+          </mat-form-field>
+          <mat-form-field appearance="outline">
+            <mat-label>What You Like Most About Your Property</mat-label>
+            <textarea matInput rows="2" formControlName="tellUsWhatYouLikeMostAboutYourProperty"></textarea>
+          </mat-form-field>
+          <mat-form-field appearance="outline">
+            <mat-label>Any Drawbacks</mat-label>
+            <textarea matInput rows="2" formControlName="tellUsAnyDrawbacks"></textarea>
+          </mat-form-field>
+        </div>
+        <div class="grid grid-cols-2 gap-3">
+          <mat-form-field appearance="outline">
+            <mat-label>Preferred Contact Method</mat-label>
+            <input matInput formControlName="preferredContactMethod" />
+          </mat-form-field>
+          <mat-form-field appearance="outline">
+            <mat-label>Time / Date for Contact</mat-label>
+            <input matInput formControlName="timeDateForContact" />
+          </mat-form-field>
+        </div>
+        <div class="owner-shell-consent-row">
+          <mat-checkbox color="primary" [formControl]="$any(ownerForm.controls['emailPhoneConsent'])">Email/Phone Consent</mat-checkbox>
+          <mat-checkbox color="primary" [formControl]="$any(ownerForm.controls['smsConsent'])">SMS Consent</mat-checkbox>
+        </div>
+      </section>
+      </div>
+    </form>
+  </mat-expansion-panel>
+</mat-accordion>
+}

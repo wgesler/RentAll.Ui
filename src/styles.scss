@@ -171,6 +171,58 @@ html {
   margin-bottom: 0 !important;
 }
 
+/* Owner shell > Property Information tab:
+   force embedded Property area and sibling accordion form to the same horizontal rhythm. */
+.owner-shell-tabs .owner-property-embedded app-property {
+  display: block;
+  width: 100%;
+}
+
+.owner-shell-tabs .owner-property-embedded app-property .property-shell-embedded-wrap {
+  width: 100% !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  align-items: stretch !important;
+}
+
+.owner-shell-tabs .owner-property-embedded app-property .property-shell-embedded-wrap .content-card.property-shell-embedded {
+  width: 100% !important;
+  max-width: 100% !important;
+  margin-top: 0 !important;
+  margin-bottom: 0 !important;
+}
+
+.owner-shell-tabs .owner-property-embedded app-property .property-shell-embedded-wrap .content-card.property-shell-embedded > mat-card {
+  border: 0 !important;
+  box-shadow: none !important;
+  border-radius: 0 !important;
+  padding: 0 !important;
+}
+
+/* Tighten seam between embedded Property accordions and Owner-shell inventory accordion. */
+.owner-shell-tabs app-property .info-form.mb-8 {
+  margin-bottom: var(--global-accordion-gap) !important;
+}
+
+/* Remove inherited bottom padding from embedded property form shell so seam matches true accordion spacing. */
+.owner-shell-tabs app-property .info-form {
+  padding-bottom: 0 !important;
+}
+
+.owner-shell-tabs .owner-shell-property-info-form {
+  margin-top: 0 !important;
+  padding-top: 0 !important;
+  padding-left: 0 !important;
+  padding-right: 0 !important;
+  box-sizing: border-box;
+}
+
+/* Boundary between embedded Property block and following Owner-shell accordion:
+   use one explicit global accordion gap only. */
+.owner-shell-tabs .owner-shell-property-info-form .owner-shell-accordion {
+  margin-top: 0 !important;
+}
+
 /* Cancel .content-card-wrap .info-form horizontal padding for the band only (full width matches other tabs). */
 .property-tabs app-property .property-page-form > .property-tab-actions-band:first-child {
   margin-inline: calc(-1 * var(--global-page-inner-padding));

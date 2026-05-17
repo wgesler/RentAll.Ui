@@ -1,15 +1,20 @@
 import { CommonModule } from '@angular/common';
+import { HttpErrorResponse } from '@angular/common/http';
 import { Component, effect, input, NgZone, OnDestroy, OnInit, output } from '@angular/core';
 import { FormBuilder, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
 import { ActivatedRoute, Router } from '@angular/router';
 import { ToastrService } from 'ngx-toastr';
-import { BehaviorSubject, Subject, Subscription, filter, finalize, map, take, takeUntil } from 'rxjs';
+import { BehaviorSubject, Subject, Subscription, filter, finalize, map, switchMap, take, takeUntil } from 'rxjs';
 import { RouterUrl } from '../../../app.routes';
 import { CommonMessage } from '../../../enums/common-message.enum';
 import { MaterialModule } from '../../../material.module';
 import { FormatterService } from '../../../services/formatter-service';
+import { MappingService } from '../../../services/mapping.service';
 import { UtilityService } from '../../../services/utility.service';
 import { AuthService } from '../../../services/auth.service';
+import { EntityType, OwnerType } from '../../contacts/models/contact-enum';
+import { ContactRequest } from '../../contacts/models/contact.model';
+import { ContactService } from '../../contacts/services/contact.service';
 import { AgentResponse } from '../../organizations/models/agent.model';
 import { AgentService } from '../../organizations/services/agent.service';
 import { GlobalSelectionService } from '../../organizations/services/global-selection.service';
@@ -62,9 +67,11 @@ export class OwnerComponent implements OnInit, OnDestroy {
     private toastr: ToastrService,
     private authService: AuthService,
     private leadsService: LeadsService,
+    private contactService: ContactService,
     private agentService: AgentService,
     private utilityService: UtilityService,
     private formatterService: FormatterService,
+    private mappingService: MappingService,
     private globalSelectionService: GlobalSelectionService,
     private officeService: OfficeService
   ) {
@@ -239,6 +246,68 @@ export class OwnerComponent implements OnInit, OnDestroy {
       error: () => {
         this.toastr.error('Unable to update owner lead.', CommonMessage.Error);
         this.isSavingCreate = false;
+      }
+    });
+  }
+
+  convertLeadToOwner(): void {
+    const ownerId = Number(this.lead?.ownerId);
+    if (!ownerId || Number.isNaN(ownerId)) {
+      return;
+    }
+    this.leadsService.getOwnerLeadById(ownerId).pipe(take(1), takeUntil(this.destroy$)).subscribe({
+      next: ownerLead => {
+        const leadOwnerRequest = this.mappingService.mapLeadOwnerResponseToUpdateRequest(ownerLead);
+        this.contactService.matchContactToLead(leadOwnerRequest).pipe(take(1)).subscribe({
+          next: () => {
+            this.contactService.refreshContacts().pipe(take(1)).subscribe({ next: () => {}, error: () => {} });
+            this.ensureOwnerLeadInactiveAndOpen(ownerId);
+          },
+          error: (error: HttpErrorResponse) => {
+            if (error.status !== 404) {
+              this.ensureOwnerLeadInactiveAndOpen(ownerId);
+              return;
+            }
+            const organizationId = String(this.authService.getUser()?.organizationId ?? '').trim();
+            const officeId = Number(ownerLead.officeId);
+            if (!organizationId || !Number.isFinite(officeId) || officeId <= 0) {
+              this.toastr.error('Unable to create owner contact for this lead.', CommonMessage.Error);
+              return;
+            }
+            const createContactRequest: ContactRequest = {
+              ownerLeadId: ownerId,
+              organizationId,
+              officeId,
+              officeAccess: [officeId],
+              entityTypeId: EntityType.Owner,
+              ownerTypeId: OwnerType.Individual,
+              properties: [],
+              firstName: ownerLead.firstName ?? null,
+              lastName: ownerLead.lastName ?? null,
+              address1: ownerLead.address ?? '',
+              city: ownerLead.city ?? '',
+              state: ownerLead.state ?? '',
+              zip: ownerLead.zip ?? '',
+              phone: ownerLead.phone ?? null,
+              email: ownerLead.email ?? '',
+              rating: 0,
+              isInternational: false,
+              isActive: true
+            };
+            this.contactService.createContact(createContactRequest).pipe(take(1), takeUntil(this.destroy$)).subscribe({
+              next: () => {
+                this.contactService.refreshContacts().pipe(take(1)).subscribe({ next: () => {}, error: () => {} });
+                this.ensureOwnerLeadInactiveAndOpen(ownerId);
+              },
+              error: () => {
+                this.ensureOwnerLeadInactiveAndOpen(ownerId);
+              }
+            });
+          }
+        });
+      },
+      error: () => {
+        this.toastr.error('Unable to load owner lead for conversion.', CommonMessage.Error);
       }
     });
   }
@@ -431,6 +500,38 @@ export class OwnerComponent implements OnInit, OnDestroy {
   //#endregion
 
   //#region Utility Methods
+  ensureOwnerLeadInactiveAndOpen(ownerId: number): void {
+    const complete = () => {
+      this.ngZone.run(() => {
+        void this.router.navigateByUrl(`${RouterUrl.OwnerShell}?leadOwnerId=${ownerId}`);
+      });
+    };
+    if (this.lead?.isActive === false) {
+      complete();
+      return;
+    }
+    this.leadsService.getOwnerLeadById(ownerId).pipe(
+      take(1),
+      takeUntil(this.destroy$),
+      map(owner => {
+        const body = this.mappingService.mapLeadOwnerResponseToUpdateRequest(owner);
+        body.isActive = false;
+        return body;
+      }),
+      switchMap(body => this.leadsService.updateOwnerLead(body).pipe(take(1)))
+    ).subscribe({
+      next: updated => {
+        this.lead = updated;
+        this.populateForm(updated);
+        complete();
+      },
+      error: () => {
+        this.toastr.error('Unable to set owner lead inactive.', CommonMessage.Error);
+        complete();
+      }
+    });
+  }
+
   back(): void {
     if (this.embeddedInShell()) {
       this.closed.emit({ saved: false });

@@ -30,6 +30,14 @@
           }
         </div>
       </div>
+      @if (isActiveUserFormVisible()) {
+        <div class="form-titlebar-actions-wrap uniform-gap">
+          <button mat-raised-button type="button" color="accent" class="text-nowrap flex-shrink-0" (click)="onUserFormBack()">
+            <mat-icon>arrow_back</mat-icon>
+            Back
+          </button>
+        </div>
+      }
     </div>
 
     <mat-card>

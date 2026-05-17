@@ -1,5 +1,5 @@
 /**
- * When false, Leads is hidden in the sidebar for non-admins, and `/auth/leads` is denied except for Admin and SuperAdmin.
- * When true, Leads is available to everyone allowed by `leadsAdminAndAgent` in role-access (admins + agents).
+ * When false, Owners is hidden in the sidebar.
+ * When true, Owners is visible based on role-access rules.
  */
-export const leadsFeatureEnabled = true;
+export const ownersFeatureEnabled = false;

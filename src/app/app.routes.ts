@@ -59,6 +59,7 @@ import { authRouteGuard } from './guards/auth-guard';
 import { canDeactivateGuard } from './guards/can-deactivate-guard';
 import { unAuthRouteGuard } from './guards/un-auth-guard';
 import { LoginComponent } from './public/login/login.component';
+import { OwnerShellComponent } from './authenticated/owners/owner-shell/owner-shell.component';
 import { PropertyListingPublicComponent } from './public/property-listing-public/property-listing-public.component';
 import { PageNotFoundComponent } from './shared/page-not-found/page-not-found.component';
 
@@ -124,6 +125,7 @@ export enum RouterToken {
   LeadRental = 'leads/rentals/:id',
   LeadOwner = 'leads/owners/:id',
   LeadGeneral = 'leads/general/:id',
+  OwnerShell = 'owner',
   Default = RouterToken.ReservationBoard
 }
 
@@ -187,6 +189,7 @@ export enum RouterUrl {
   LeadRental           = `${RouterToken.Auth}/${RouterToken.LeadRental}`,
   LeadOwner            = `${RouterToken.Auth}/${RouterToken.LeadOwner}`,
   LeadGeneral          = `${RouterToken.Auth}/${RouterToken.LeadGeneral}`,
+  OwnerShell           = `${RouterToken.Auth}/${RouterToken.OwnerShell}`,
 }
 
 // eslint-disable-next-line @typescript-eslint/no-namespace
@@ -257,12 +260,15 @@ export const authRoutes: Routes = [
   { path: RouterToken.LeadOwner, component: OwnerComponent, canActivate: [authRouteGuard] },
   { path: RouterToken.LeadGeneral, component: GeneralComponent, canActivate: [authRouteGuard] },
   { path: RouterToken.Leads, component: LeadsShellComponent, canActivate: [authRouteGuard] },
+  { path: RouterToken.OwnerShell, component: OwnerShellComponent, canActivate: [authRouteGuard] },
+  { path: `${RouterToken.OwnerShell}/:token`, component: OwnerShellComponent, canActivate: [authRouteGuard] },
 ]
 
 export const routes: Routes = [
 	{ path: '', redirectTo: RouterToken.Login, pathMatch: 'full' },
   { path: RouterToken.Login, component: LoginComponent, canActivate: [unAuthRouteGuard] },
   { path: 'listing/:token', component: PropertyListingPublicComponent },
+  { path: 'owners/:token', component: OwnerShellComponent },
   { path: RouterToken.Auth, component: LayoutComponent, children: authRoutes, canActivate: [authRouteGuard] },
   { path: '**', component: PageNotFoundComponent },
 ];

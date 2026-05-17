@@ -1,0 +1,106 @@
+@if (!isPageReady) {
+  <div class="page-loading-container">
+    <mat-spinner [diameter]="40"></mat-spinner>
+    <p>Loading property information...</p>
+  </div>
+} @else {
+<div class="dbg-band-main">
+  <app-property [shellPropertyId]="shellPropertyId" [disableOwnerModeLayout]="true"></app-property>
+</div>
+
+<form [formGroup]="ownerForm" class="owner-shell-property-info-form form-standard-grid info-form form-hide-error-text">
+  <mat-accordion multi="true" class="owner-shell-accordion">
+    <mat-expansion-panel [expanded]="false" class="mb-4">
+      <mat-expansion-panel-header>
+        <mat-panel-title>Inventory / Utilities / Access</mat-panel-title>
+      </mat-expansion-panel-header>
+      <div class="features-container property-form-section-rows owner-inventory-section">
+        <div class="owner-inventory-save-row">
+          <button mat-raised-button type="button" color="primary" [disabled]="isSaving || !isPageReady" (click)="onSaveRequested()">
+            <mat-icon>save</mat-icon>
+            Save
+          </button>
+        </div>
+        <div class="grid owner-inventory-first-row gap-x-1.5 gap-y-1">
+          <mat-form-field appearance="outline">
+            <mat-label>On-site Complex Management Phone</mat-label>
+            <input matInput formControlName="onSiteComplexManagementPhone" maxlength="20" (input)="onInventoryPhoneInput('onSiteComplexManagementPhone', $event)" (blur)="formatInventoryPhoneField('onSiteComplexManagementPhone')" placeholder="(555) 555-5555 or +1 234 567 8900" />
+          </mat-form-field>
+          <mat-form-field appearance="outline" class="owner-inventory-number-of-keys">
+            <mat-label>No of Keys</mat-label>
+            <input matInput formControlName="keyCount" />
+          </mat-form-field>
+          <mat-form-field appearance="outline">
+            <mat-label>Garage Remote Model & Code</mat-label>
+            <input matInput formControlName="garageRemoteModelCode" />
+          </mat-form-field>
+          <mat-form-field appearance="outline" class="owner-inventory-storage-unit">
+            <mat-label>Storage Unit / Location / Access Details</mat-label>
+            <input matInput formControlName="storageAccessDetails" />
+          </mat-form-field>
+        </div>
+        <div class="grid grid-cols-3 gap-x-1.5 gap-y-1">
+          <mat-form-field appearance="outline">
+            <mat-label>Cable Supplier</mat-label>
+            <input matInput formControlName="cableSupplier" />
+          </mat-form-field>
+          <mat-form-field appearance="outline">
+            <mat-label>Cable Phone</mat-label>
+            <input matInput formControlName="cablePhone" maxlength="20" (input)="onInventoryPhoneInput('cablePhone', $event)" (blur)="formatInventoryPhoneField('cablePhone')" placeholder="(555) 555-5555 or +1 234 567 8900" />
+          </mat-form-field>
+          <mat-form-field appearance="outline">
+            <mat-label>Cable Account #</mat-label>
+            <input matInput formControlName="cableAccountNumber" />
+          </mat-form-field>
+        </div>
+        <div class="grid grid-cols-3 gap-x-1.5 gap-y-1">
+          <mat-form-field appearance="outline">
+            <mat-label>Electrical Supplier</mat-label>
+            <input matInput formControlName="electricSupplier" />
+          </mat-form-field>
+          <mat-form-field appearance="outline">
+            <mat-label>Electrical Phone</mat-label>
+            <input matInput formControlName="electricPhone" maxlength="20" (input)="onInventoryPhoneInput('electricPhone', $event)" (blur)="formatInventoryPhoneField('electricPhone')" placeholder="(555) 555-5555 or +1 234 567 8900" />
+          </mat-form-field>
+          <mat-form-field appearance="outline">
+            <mat-label>Electrical Account #</mat-label>
+            <input matInput formControlName="electricAccountNumber" />
+          </mat-form-field>
+        </div>
+        <div class="grid grid-cols-3 gap-x-1.5 gap-y-1">
+          <mat-form-field appearance="outline">
+            <mat-label>Internet Supplier</mat-label>
+            <input matInput formControlName="internetSupplier" />
+          </mat-form-field>
+          <mat-form-field appearance="outline">
+            <mat-label>Internet Phone</mat-label>
+            <input matInput formControlName="internetPhone" maxlength="20" (input)="onInventoryPhoneInput('internetPhone', $event)" (blur)="formatInventoryPhoneField('internetPhone')" placeholder="(555) 555-5555 or +1 234 567 8900" />
+          </mat-form-field>
+          <mat-form-field appearance="outline">
+            <mat-label>Internet Account #</mat-label>
+            <input matInput formControlName="internetAccountNumber" />
+          </mat-form-field>
+        </div>
+        <div class="grid grid-cols-3 gap-x-1.5 gap-y-1">
+          <mat-form-field appearance="outline">
+            <mat-label>Fuse Box Location</mat-label>
+            <input matInput formControlName="fuseBoxLocation" />
+          </mat-form-field>
+          <mat-form-field appearance="outline">
+            <mat-label>School District</mat-label>
+            <input matInput formControlName="schoolDistrict" />
+          </mat-form-field>
+          <mat-form-field appearance="outline">
+            <mat-label>Local Emergency Contact</mat-label>
+            <input matInput formControlName="localEmergencyContact" />
+          </mat-form-field>
+        </div>
+        <mat-form-field appearance="outline">
+          <mat-label>Access Information</mat-label>
+          <textarea matInput rows="2" formControlName="accessInformation"></textarea>
+        </mat-form-field>
+      </div>
+    </mat-expansion-panel>
+  </mat-accordion>
+</form>
+}

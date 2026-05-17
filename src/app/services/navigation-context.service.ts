@@ -6,6 +6,8 @@ import { BehaviorSubject } from 'rxjs';
 })
 export class NavigationContextService {
   private isInSettingsContext$ = new BehaviorSubject<boolean>(false);
+  private isInOwnerMode$ = new BehaviorSubject<boolean>(false);
+  private isInUnauthorizedViewMode$ = new BehaviorSubject<boolean>(false);
   private currentAgentId$ = new BehaviorSubject<string | null>(null);
 
   setIsInSettingsContext(value: boolean): void {
@@ -14,6 +16,22 @@ export class NavigationContextService {
 
   getIsInSettingsContext(): BehaviorSubject<boolean> {
     return this.isInSettingsContext$;
+  }
+
+  setIsInOwnerMode(value: boolean): void {
+    this.isInOwnerMode$.next(value);
+  }
+
+  getIsInOwnerMode(): BehaviorSubject<boolean> {
+    return this.isInOwnerMode$;
+  }
+
+  setIsInUnauthorizedViewMode(value: boolean): void {
+    this.isInUnauthorizedViewMode$.next(value);
+  }
+
+  getIsInUnauthorizedViewMode(): BehaviorSubject<boolean> {
+    return this.isInUnauthorizedViewMode$;
   }
 
   setCurrentAgentId(agentId: string | null): void {
@@ -26,6 +44,8 @@ export class NavigationContextService {
 
   clearContext(): void {
     this.isInSettingsContext$.next(false);
+    this.isInOwnerMode$.next(false);
+    this.isInUnauthorizedViewMode$.next(false);
     this.currentAgentId$.next(null);
   }
 }

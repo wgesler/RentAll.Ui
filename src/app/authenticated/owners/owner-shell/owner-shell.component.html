@@ -1,0 +1,82 @@
+@if (!isPageReady) {
+  <div class="page-loading-container">
+    <mat-spinner [diameter]="40"></mat-spinner>
+    <p>Loading owners...</p>
+  </div>
+} @else {
+  <div class="flex content-card-wrap justify-center items-start">
+    <section class="content-card">
+      <div class="flex justify-between items-center gap-3 rounded-t-lg bg-slate-300 py-0 pl-8 pr-4 property-titlebar dbg-band-actions">
+        <div class="flex items-center flex-wrap py-4">
+          <span class="flex flex-shrink-0 items-center gap-2">
+            <mat-icon class="flex-shrink-0">person</mat-icon>
+            <span class="flex-shrink-0 text-xl font-medium">{{ isOwnerListMode ? 'Owners' : 'Owner' }}</span>
+          </span>
+          <div class="header-title form-titlebar-fields-wrap">
+            <app-title-bar-select
+              [label]="'Office'"
+              [formFieldClass]="'titlebar-field-office'"
+              [value]="selectedOfficeId"
+              [options]="officeOptions"
+              [disabled]="officeOptions.length === 0"
+              [nullOptionLabel]="'All Offices'"
+              [noResultsText]="'No offices match your search'"
+              (valueChange)="onOfficeDropdownChange($event)">
+            </app-title-bar-select>
+            @if (!isOwnerListMode && selectedTabIndex === 1) {
+              <app-title-bar-select
+                [label]="'Property Code'"
+                [formFieldClass]="'titlebar-field-property-code'"
+                [value]="selectedPropertyId"
+                [options]="propertyCodeOptions"
+                [showInstructionOption]="false"
+                [nullOptionLabel]="'Select Property'"
+                [noResultsText]="'No properties match your search'"
+                (valueChange)="onPropertyCodeDropdownChange($event)">
+              </app-title-bar-select>
+            }
+          </div>
+        </div>
+        @if (!isOwnerListMode) {
+          <div class="form-titlebar-actions-wrap uniform-gap">
+            <button mat-raised-button type="button" color="accent" class="text-nowrap flex-shrink-0" (click)="onBackToOwnerList()">
+              <mat-icon>arrow_back</mat-icon>
+              Back
+            </button>
+          </div>
+        }
+      </div>
+
+      <mat-card>
+        @if (isOwnerListMode) {
+          <app-owners-list [officeId]="selectedOfficeId"></app-owners-list>
+        } @else {
+          <mat-tab-group class="property-tabs owner-shell-tabs dbg-band-tabs" [selectedIndex]="selectedTabIndex" (selectedIndexChange)="onTabIndexChange($event)">
+            <mat-tab label="Owner Information">
+              <app-owner-information
+                [token]="token"
+                [ownerEntityTypeId]="ownerEntityTypeId"
+                [ownerLeadId]="leadOwnerId"
+                [selectedOfficeId]="selectedOfficeId">
+              </app-owner-information>
+            </mat-tab>
+
+            <mat-tab label="Property Information">
+              <app-property-information
+                [token]="token"
+                [ownerLeadId]="leadOwnerId"
+                [selectedOfficeId]="selectedOfficeId"
+                [shellPropertyId]="selectedPropertyId">
+              </app-property-information>
+            </mat-tab>
+
+            <mat-tab label="Agreement Form"><app-agreement-form></app-agreement-form></mat-tab>
+            <mat-tab label="Financial Preferences"><app-financial-preferences></app-financial-preferences></mat-tab>
+            <mat-tab label="Insurance"><app-insurance></app-insurance></mat-tab>
+            <mat-tab label="Compliance"><app-compliance></app-compliance></mat-tab>
+          </mat-tab-group>
+        }
+      </mat-card>
+    </section>
+  </div>
+}

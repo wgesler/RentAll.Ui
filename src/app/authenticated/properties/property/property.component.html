@@ -7,39 +7,44 @@
   <div class="flex content-card-wrap justify-center property-shell-embedded-wrap">
     <section class="content-card property-shell-embedded">
       @if (form) {
-      <div class="info-form mb-8">
+      <div class="info-form" [class.mb-8]="!isOwnerModeLayout">
       <form [formGroup]="form" (ngSubmit)="saveProperty()" class="property-page-form form-hide-error-text">
-            <div class="property-tab-actions-band">
+            <div class="property-tab-actions-band" [class.owner-mode-actions-band]="isOwnerModeLayout">
               <div class="property-tab-actions-band__row">
                 <div class="table-filter-actions-group form-titlebar-actions-wrap uniform-gap">
-                  <div class="header-title flex-shrink-0">
-                    <mat-form-field appearance="outline" class="titlebar-field-company">
-                      <mat-label>Property Lease Type</mat-label>
-                      <mat-select formControlName="propertyLeaseTypeId">
-                        @for (opt of propertyLeaseTypeOptions; track opt.value) {
-                          <mat-option [value]="opt.value">{{ opt.label }}</mat-option>
-                        }
-                      </mat-select>
-                    </mat-form-field>
-                  </div>
-                  <mat-checkbox
-                    color="primary"
-                    class="flex-shrink-0"
-                    formControlName="isActive">
-                    IsActive
-                  </mat-checkbox>
+                  @if (!isOwnerModeLayout) {
+                    <div class="header-title flex-shrink-0">
+                      <mat-form-field appearance="outline" class="titlebar-field-company">
+                        <mat-label>Property Lease Type</mat-label>
+                        <mat-select formControlName="propertyLeaseTypeId">
+                          @for (opt of propertyLeaseTypeOptions; track opt.value) {
+                            <mat-option [value]="opt.value">{{ opt.label }}</mat-option>
+                          }
+                        </mat-select>
+                      </mat-form-field>
+                    </div>
+                    <mat-checkbox
+                      color="primary"
+                      class="flex-shrink-0"
+                      formControlName="isActive">
+                      IsActive
+                    </mat-checkbox>
+                  }
                   <button mat-raised-button type="button" color="primary" id="save-button" (click)="saveProperty()"
-                    class="text-nowrap flex-shrink-0" [disabled]="isSubmitting || !form">
+                    class="text-nowrap flex-shrink-0" [class.owner-mode-save-button]="isOwnerModeLayout" [disabled]="isSubmitting || !form">
                     <mat-icon>save</mat-icon>
                     Save
                   </button>
                 </div>
               </div>
+              @if (isOwnerModeLayout) {
+                <div class="owner-mode-save-spacer"></div>
+              }
             </div>
             <div class="property-tab-main-area">
             <mat-accordion multi="true">
             <!-- Basic Rental Information (combined: basic + address + location + rates) -->
-            <mat-expansion-panel [expanded]="expandedSections.basic" (opened)="onPanelOpened('basic')" (closed)="onPanelClosed('basic')" class="mb-4">
+            <mat-expansion-panel [expanded]="false" (opened)="onPanelOpened('basic')" (closed)="onPanelClosed('basic')" class="mb-4">
               <mat-expansion-panel-header>
                 <mat-panel-title>Basic Rental Information</mat-panel-title>
               </mat-expansion-panel-header>
@@ -253,68 +258,70 @@
                     <input matInput formControlName="view">
                   </mat-form-field>
                 </div>
-                <!-- Under phone: Region/Area/Build -->
-                <div class="basic-row office-line-grid gap-x-1.5 gap-y-1">
-                  <app-searchable-select
-                    class="basic-compact min-w-0"
-                    [renderInFormField]="true"
-                    [formFieldClass]="'basic-compact min-w-0'"
-                    [formFieldLabel]="'Region'"
-                    [value]="form.get('regionId')?.value ?? null"
-                    [options]="regionOptions"
-                    [showSearchInput]="true"
-                    [hideSearchHint]="true"
-                    [hideSearchText]="true"
-                    [searchPlaceholder]="'Type to filter regions...'"
-                    [nullOptionLabel]="'Select Region'"
-                    [noResultsText]="'No regions match your search'"
-                    (valueChange)="onNumericDropdownChange('regionId', $event)">
-                  </app-searchable-select>
-                  <app-searchable-select
-                    class="basic-compact min-w-0"
-                    [renderInFormField]="true"
-                    [formFieldClass]="'basic-compact min-w-0'"
-                    [formFieldLabel]="'Area'"
-                    [value]="form.get('areaId')?.value ?? null"
-                    [options]="areaOptions"
-                    [showSearchInput]="true"
-                    [hideSearchHint]="true"
-                    [hideSearchText]="true"
-                    [searchPlaceholder]="'Type to filter areas...'"
-                    [nullOptionLabel]="'Select Area'"
-                    [noResultsText]="'No areas match your search'"
-                    (valueChange)="onNumericDropdownChange('areaId', $event)">
-                  </app-searchable-select>
-                  <app-searchable-select
-                    class="basic-compact min-w-0"
-                    [renderInFormField]="true"
-                    [formFieldClass]="'basic-compact min-w-0'"
-                    [formFieldLabel]="'Building'"
-                    [value]="form.get('buildingId')?.value ?? null"
-                    [options]="buildingOptions"
-                    [showSearchInput]="true"
-                    [hideSearchHint]="true"
-                    [hideSearchText]="true"
-                    [searchPlaceholder]="'Type to filter buildings...'"
-                    [nullOptionLabel]="'Select Building'"
-                    [noResultsText]="'No buildings match your search'"
-                    (valueChange)="onNumericDropdownChange('buildingId', $event)">
-                  </app-searchable-select>
-                  <mat-form-field appearance="outline" class="basic-compact min-w-0">
-                    <mat-label>Latitude</mat-label>
-                    <input matInput type="text" inputmode="decimal" formControlName="latitude" maxlength="32" placeholder="0.00000000" (focus)="selectAllOnFocus($event)">
-                    @if (form.get('latitude')?.hasError('pattern') && form.get('latitude')?.touched) {
-                      <mat-error>Invalid</mat-error>
-                    }
-                  </mat-form-field>
-                  <mat-form-field appearance="outline" class="basic-compact min-w-0">
-                    <mat-label>Longitude</mat-label>
-                    <input matInput type="text" inputmode="decimal" formControlName="longitude" maxlength="32" placeholder="-0.00000000" (focus)="selectAllOnFocus($event)">
-                    @if (form.get('longitude')?.hasError('pattern') && form.get('longitude')?.touched) {
-                      <mat-error>Invalid</mat-error>
-                    }
-                  </mat-form-field>
-                </div>
+                @if (!isOwnerModeLayout) {
+                  <!-- Under phone: Region/Area/Build -->
+                  <div class="basic-row office-line-grid gap-x-1.5 gap-y-1">
+                    <app-searchable-select
+                      class="basic-compact min-w-0"
+                      [renderInFormField]="true"
+                      [formFieldClass]="'basic-compact min-w-0'"
+                      [formFieldLabel]="'Region'"
+                      [value]="form.get('regionId')?.value ?? null"
+                      [options]="regionOptions"
+                      [showSearchInput]="true"
+                      [hideSearchHint]="true"
+                      [hideSearchText]="true"
+                      [searchPlaceholder]="'Type to filter regions...'"
+                      [nullOptionLabel]="'Select Region'"
+                      [noResultsText]="'No regions match your search'"
+                      (valueChange)="onNumericDropdownChange('regionId', $event)">
+                    </app-searchable-select>
+                    <app-searchable-select
+                      class="basic-compact min-w-0"
+                      [renderInFormField]="true"
+                      [formFieldClass]="'basic-compact min-w-0'"
+                      [formFieldLabel]="'Area'"
+                      [value]="form.get('areaId')?.value ?? null"
+                      [options]="areaOptions"
+                      [showSearchInput]="true"
+                      [hideSearchHint]="true"
+                      [hideSearchText]="true"
+                      [searchPlaceholder]="'Type to filter areas...'"
+                      [nullOptionLabel]="'Select Area'"
+                      [noResultsText]="'No areas match your search'"
+                      (valueChange)="onNumericDropdownChange('areaId', $event)">
+                    </app-searchable-select>
+                    <app-searchable-select
+                      class="basic-compact min-w-0"
+                      [renderInFormField]="true"
+                      [formFieldClass]="'basic-compact min-w-0'"
+                      [formFieldLabel]="'Building'"
+                      [value]="form.get('buildingId')?.value ?? null"
+                      [options]="buildingOptions"
+                      [showSearchInput]="true"
+                      [hideSearchHint]="true"
+                      [hideSearchText]="true"
+                      [searchPlaceholder]="'Type to filter buildings...'"
+                      [nullOptionLabel]="'Select Building'"
+                      [noResultsText]="'No buildings match your search'"
+                      (valueChange)="onNumericDropdownChange('buildingId', $event)">
+                    </app-searchable-select>
+                    <mat-form-field appearance="outline" class="basic-compact min-w-0">
+                      <mat-label>Latitude</mat-label>
+                      <input matInput type="text" inputmode="decimal" formControlName="latitude" maxlength="32" placeholder="0.00000000" (focus)="selectAllOnFocus($event)">
+                      @if (form.get('latitude')?.hasError('pattern') && form.get('latitude')?.touched) {
+                        <mat-error>Invalid</mat-error>
+                      }
+                    </mat-form-field>
+                    <mat-form-field appearance="outline" class="basic-compact min-w-0">
+                      <mat-label>Longitude</mat-label>
+                      <input matInput type="text" inputmode="decimal" formControlName="longitude" maxlength="32" placeholder="-0.00000000" (focus)="selectAllOnFocus($event)">
+                      @if (form.get('longitude')?.hasError('pattern') && form.get('longitude')?.touched) {
+                        <mat-error>Invalid</mat-error>
+                      }
+                    </mat-form-field>
+                  </div>
+                }
                 <!-- Beds line: 18 slices — 1+1+1+1 + 2+2+2+2+2 (Beds/Bath/Accom/SqFt narrow; beds wider) -->
                 <div class="basic-row beds-line-grid gap-x-1.5 gap-y-1">
                   <mat-form-field
@@ -506,84 +513,86 @@
                     }
                   </mat-form-field>
                 </div>
-                <!-- Owners (property management lease) or Vendor (other lease types) -->
-                @if (isPropertyManagementLease) {
-                <div class="mb-4 flex items-center gap-3 mt-4">
-                  <app-searchable-select
-                    class="owner-select-field owner-select-field-primary"
-                    [renderInFormField]="true"
-                    [formFieldLabel]="'Owner'"
-                    [required]="true"
-                    [value]="form.get('owner1Id')?.value || ''"
-                    [options]="ownerOptions"
-                    [triggerValueClickable]="hasOwnerSelected('owner1Id')"
-                    [showSearchInput]="true"
-                    [hideSearchHint]="true"
-                    [hideSearchText]="true"
-                    [nullOptionLabel]="''"
-                    [noResultsText]="'No owners match your search'"
-                    [showError]="!!(form.get('owner1Id')?.hasError('required') && form.get('owner1Id')?.touched)"
-                    [errorText]="'Owner is required'"
-                    (valueChange)="onOwnerDropdownChange('owner1Id', $event)"
-                    (triggerValueClick)="onOwnerNameClick($event, 'owner1Id')">
-                  </app-searchable-select>
-                  <app-searchable-select
-                    class="owner-select-field owner-select-field-secondary"
-                    [renderInFormField]="true"
-                    [formFieldLabel]="'Owner 2 (Optional)'"
-                    [value]="form.get('owner2Id')?.value ?? null"
-                    [options]="ownerOptions"
-                    [triggerValueClickable]="hasOwnerSelected('owner2Id')"
-                    [showSearchInput]="true"
-                    [hideSearchHint]="true"
-                    [hideSearchText]="true"
-                    [nullOptionLabel]="''"
-                    [noResultsText]="'No owners match your search'"
-                    (valueChange)="onOwnerDropdownChange('owner2Id', $event)"
-                    (triggerValueClick)="onOwnerNameClick($event, 'owner2Id')">
-                  </app-searchable-select>
-                  <app-searchable-select
-                    class="owner-select-field owner-select-field-secondary"
-                    [renderInFormField]="true"
-                    [formFieldLabel]="'Owner 3 (Optional)'"
-                    [value]="form.get('owner3Id')?.value ?? null"
-                    [options]="ownerOptions"
-                    [triggerValueClickable]="hasOwnerSelected('owner3Id')"
-                    [showSearchInput]="true"
-                    [hideSearchHint]="true"
-                    [hideSearchText]="true"
-                    [nullOptionLabel]="''"
-                    [noResultsText]="'No owners match your search'"
-                    (valueChange)="onOwnerDropdownChange('owner3Id', $event)"
-                    (triggerValueClick)="onOwnerNameClick($event, 'owner3Id')">
-                  </app-searchable-select>
-                </div>
-                } @else {
-                <div class="mb-4 flex items-center gap-3 mt-4">
-                  <app-searchable-select
-                    class="vendor-select-field"
-                    [renderInFormField]="true"
-                    [formFieldLabel]="'Vendor'"
-                    [required]="true"
-                    [value]="form.get('vendorId')?.value ?? null"
-                    [options]="vendorOptions"
-                    [showSearchInput]="true"
-                    [hideSearchHint]="true"
-                    [hideSearchText]="true"
-                    [searchPlaceholder]="'Type to filter vendors...'"
-                    [nullOptionLabel]="''"
-                    [noResultsText]="'No vendors match your search'"
-                    [showError]="!!(form.get('vendorId')?.hasError('required') && form.get('vendorId')?.touched)"
-                    [errorText]="'Vendor is required'"
-                    (valueChange)="onVendorDropdownChange($event)">
-                  </app-searchable-select>
-                </div>
+                @if (!isOwnerModeLayout) {
+                  <!-- Owners (property management lease) or Vendor (other lease types) -->
+                  @if (isPropertyManagementLease) {
+                  <div class="mb-4 flex items-center gap-3 mt-4">
+                    <app-searchable-select
+                      class="owner-select-field owner-select-field-primary"
+                      [renderInFormField]="true"
+                      [formFieldLabel]="'Owner'"
+                      [required]="true"
+                      [value]="form.get('owner1Id')?.value || ''"
+                      [options]="ownerOptions"
+                      [triggerValueClickable]="hasOwnerSelected('owner1Id')"
+                      [showSearchInput]="true"
+                      [hideSearchHint]="true"
+                      [hideSearchText]="true"
+                      [nullOptionLabel]="''"
+                      [noResultsText]="'No owners match your search'"
+                      [showError]="!!(form.get('owner1Id')?.hasError('required') && form.get('owner1Id')?.touched)"
+                      [errorText]="'Owner is required'"
+                      (valueChange)="onOwnerDropdownChange('owner1Id', $event)"
+                      (triggerValueClick)="onOwnerNameClick($event, 'owner1Id')">
+                    </app-searchable-select>
+                    <app-searchable-select
+                      class="owner-select-field owner-select-field-secondary"
+                      [renderInFormField]="true"
+                      [formFieldLabel]="'Owner 2 (Optional)'"
+                      [value]="form.get('owner2Id')?.value ?? null"
+                      [options]="ownerOptions"
+                      [triggerValueClickable]="hasOwnerSelected('owner2Id')"
+                      [showSearchInput]="true"
+                      [hideSearchHint]="true"
+                      [hideSearchText]="true"
+                      [nullOptionLabel]="''"
+                      [noResultsText]="'No owners match your search'"
+                      (valueChange)="onOwnerDropdownChange('owner2Id', $event)"
+                      (triggerValueClick)="onOwnerNameClick($event, 'owner2Id')">
+                    </app-searchable-select>
+                    <app-searchable-select
+                      class="owner-select-field owner-select-field-secondary"
+                      [renderInFormField]="true"
+                      [formFieldLabel]="'Owner 3 (Optional)'"
+                      [value]="form.get('owner3Id')?.value ?? null"
+                      [options]="ownerOptions"
+                      [triggerValueClickable]="hasOwnerSelected('owner3Id')"
+                      [showSearchInput]="true"
+                      [hideSearchHint]="true"
+                      [hideSearchText]="true"
+                      [nullOptionLabel]="''"
+                      [noResultsText]="'No owners match your search'"
+                      (valueChange)="onOwnerDropdownChange('owner3Id', $event)"
+                      (triggerValueClick)="onOwnerNameClick($event, 'owner3Id')">
+                    </app-searchable-select>
+                  </div>
+                  } @else {
+                  <div class="mb-4 flex items-center gap-3 mt-4">
+                    <app-searchable-select
+                      class="vendor-select-field"
+                      [renderInFormField]="true"
+                      [formFieldLabel]="'Vendor'"
+                      [required]="true"
+                      [value]="form.get('vendorId')?.value ?? null"
+                      [options]="vendorOptions"
+                      [showSearchInput]="true"
+                      [hideSearchHint]="true"
+                      [hideSearchText]="true"
+                      [searchPlaceholder]="'Type to filter vendors...'"
+                      [nullOptionLabel]="''"
+                      [noResultsText]="'No vendors match your search'"
+                      [showError]="!!(form.get('vendorId')?.hasError('required') && form.get('vendorId')?.touched)"
+                      [errorText]="'Vendor is required'"
+                      (valueChange)="onVendorDropdownChange($event)">
+                    </app-searchable-select>
+                  </div>
+                  }
                 }
               </div>
             </mat-expansion-panel>
 
             <!-- Features & Security (includes indoor/outdoor amenities) -->
-            <mat-expansion-panel [expanded]="expandedSections.features" (opened)="onPanelOpened('features')" (closed)="onPanelClosed('features')" class="mb-4 features-panel-compact">
+            <mat-expansion-panel [expanded]="false" (opened)="onPanelOpened('features')" (closed)="onPanelClosed('features')" class="mb-4 features-panel-compact">
               <mat-expansion-panel-header>
                 <mat-panel-title>Features & Security</mat-panel-title>
               </mat-expansion-panel-header>
@@ -791,7 +800,7 @@
             </mat-expansion-panel>
 
             <!-- Property Description Section -->
-            <mat-expansion-panel [expanded]="expandedSections.description" (opened)="onPanelOpened('description')" (closed)="onPanelClosed('description')" class="mb-4">
+            <mat-expansion-panel [expanded]="false" (opened)="onPanelOpened('description')" (closed)="onPanelClosed('description')" [class.mb-4]="!isOwnerModeLayout">
               <mat-expansion-panel-header>
                 <mat-panel-title>Property Description</mat-panel-title>
               </mat-expansion-panel-header>
@@ -830,7 +839,7 @@
             </mat-expansion-panel>
 
             @if (isInAccounting && propertyId) {
-            <mat-expansion-panel [expanded]="expandedSections.agreement" (opened)="onPanelOpened('agreement')" (closed)="onPanelClosed('agreement')" class="mb-4">
+            <mat-expansion-panel [expanded]="false" (opened)="onPanelOpened('agreement')" (closed)="onPanelClosed('agreement')" class="mb-4">
               <mat-expansion-panel-header>
                 <mat-panel-title>Property Agreements</mat-panel-title>
               </mat-expansion-panel-header>

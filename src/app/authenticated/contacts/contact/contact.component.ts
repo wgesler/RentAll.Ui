@@ -12,6 +12,7 @@ import { AuthService } from '../../../services/auth.service';
 import { CommonService } from '../../../services/common.service';
 import { FormatterService } from '../../../services/formatter-service';
 import { MappingService } from '../../../services/mapping.service';
+import { NavigationContextService } from '../../../services/navigation-context.service';
 import { UtilityService } from '../../../services/utility.service';
 import { getNumberQueryParam, getStringQueryParam } from '../../shared/query-param.utils';
 import { OfficeResponse } from '../../organizations/models/office.model';
@@ -42,8 +43,14 @@ export class ContactComponent implements OnInit, OnDestroy {
   @Input() copyFrom: string | null = null;
   /** Preset for the Contact Type field (`entityTypeId`) when opening Add from a list tab or dialog. */
   @Input() presetEntityTypeId: number | null = null;
+  @Input() ownerLeadId: number | null = null;
   @Input() compactDialogMode: boolean = false;
+  @Input() showAddAdditionalOwnerButton: boolean = false;
+  @Input() showCancelAdditionalOwnerButton: boolean = false;
+  @Input() prefillContact: Record<string, unknown> | null = null;
   @Output() closed = new EventEmitter<{ saved?: boolean; contactId?: string; entityTypeId?: number }>();
+  @Output() addAdditionalOwnerRequested = new EventEmitter<void>();
+  @Output() cancelAdditionalOwnerRequested = new EventEmitter<void>();
 
   readonly ratingStars: number[] = [1, 2, 3, 4, 5];
   EntityType = EntityType;
@@ -54,6 +61,7 @@ export class ContactComponent implements OnInit, OnDestroy {
   form: FormGroup;
   isAddMode: boolean = false;
   isEmbedded: boolean = true;
+  isInOwnerMode: boolean = false;
   returnUrl: string | null = null;
   states: string[] = [];
   
@@ -107,6 +115,7 @@ export class ContactComponent implements OnInit, OnDestroy {
     private officeService: OfficeService,
     private globalSelectionService: GlobalSelectionService,
     private mappingService: MappingService,
+    private navigationContextService: NavigationContextService,
     private utilityService: UtilityService,
     private propertyService: PropertyService,
     private pdfThumbnailService: PdfThumbnailService,
@@ -124,6 +133,10 @@ export class ContactComponent implements OnInit, OnDestroy {
 
   //#region Contacts
   ngOnInit(): void {
+    this.navigationContextService.getIsInOwnerMode().pipe(takeUntil(this.destroy$)).subscribe(value => {
+      this.isInOwnerMode = value;
+      this.syncDefaultOfficeOptions();
+    });
     this.initializeContactTypes();
     this.availableOwnerTypes = getOwnerTypes();
     this.availableVendorTypes = getVendorTypes();
@@ -193,6 +206,7 @@ export class ContactComponent implements OnInit, OnDestroy {
           }
           this.form?.patchValue(patch, { emitEvent: false });
         }
+        this.applyPrefillContact();
       }
     } else {
       this.getContact();
@@ -332,6 +346,7 @@ export class ContactComponent implements OnInit, OnDestroy {
       ? (formValue.displayName || '').trim() : `${(formValue.firstName || '').trim()} ${(formValue.lastName || '').trim()}`.trim() || null;
     const contactRequest: ContactRequest = {
       ...formValue,
+      ownerLeadId: this.ownerLeadId ?? this.contact?.ownerLeadId ?? null,
       organizationId: user?.organizationId || '',
       entityTypeId: entityTypeId,
       officeAccess,
@@ -525,6 +540,7 @@ export class ContactComponent implements OnInit, OnDestroy {
     // When not in compact dialog mode, syncing contact's default office to global selection is desired (e.g. add contact).
     // In compact dialog mode (e.g. owner edit from property page) do not overwrite global office so property list stays filtered by user's office.
     this.form.get('officeId')?.valueChanges.pipe(takeUntil(this.destroy$)).subscribe(selectedOfficeId => {
+      this.syncOfficeAccessFromDefaultOffice(selectedOfficeId);
       if (!this.compactDialogMode) {
         this.globalSelectionService.setSelectedOfficeId(selectedOfficeId ?? null);
       }
@@ -708,6 +724,33 @@ export class ContactComponent implements OnInit, OnDestroy {
     }
   }
 
+  applyPrefillContact(): void {
+    if (!this.form || !this.isAddMode || !this.prefillContact) {
+      return;
+    }
+    const officeId = Number(this.prefillContact['officeId'] ?? 0);
+    const patchedOfficeId = Number.isFinite(officeId) && officeId > 0 ? officeId : null;
+    const phone = this.formatterService.phoneNumber(String(this.prefillContact['phone'] ?? '').trim()) || '';
+    const patch: Record<string, unknown> = {
+      entityTypeId: this.presetEntityTypeId ?? EntityType.Owner,
+      ownerTypeId: OwnerType.Individual,
+      firstName: String(this.prefillContact['firstName'] ?? '').trim(),
+      lastName: String(this.prefillContact['lastName'] ?? '').trim(),
+      email: String(this.prefillContact['email'] ?? '').trim(),
+      phone,
+      address1: String(this.prefillContact['address'] ?? '').trim(),
+      city: String(this.prefillContact['city'] ?? '').trim(),
+      state: String(this.prefillContact['state'] ?? '').trim(),
+      zip: String(this.prefillContact['zip'] ?? '').trim()
+    };
+    if (patchedOfficeId != null) {
+      patch['officeId'] = patchedOfficeId;
+      patch['officeAccess'] = [patchedOfficeId];
+    }
+    this.form.patchValue(patch, { emitEvent: false });
+    this.syncDefaultOfficeOptions();
+  }
+
   populateW9FromContact(): void {
     if (!this.contact) return;
     const fd = this.contact.w9FileDetails;
@@ -863,6 +906,18 @@ export class ContactComponent implements OnInit, OnDestroy {
       return;
     }
 
+    if (this.isInOwnerMode) {
+      this.availableDefaultOffices = [...this.availableOffices];
+      const currentDefaultOffice = this.form.get('officeId')?.value;
+      const hasCurrentDefaultOffice = this.availableDefaultOffices.some(office => office.value === currentDefaultOffice);
+      if (!hasCurrentDefaultOffice) {
+        const globalOfficeId = this.globalSelectionService.getSelectedOfficeIdValue();
+        const fallbackOfficeId = globalOfficeId ?? this.availableDefaultOffices[0]?.value ?? null;
+        this.form.get('officeId')?.setValue(fallbackOfficeId, { emitEvent: false });
+      }
+      return;
+    }
+
     const officeAccess = this.mappingService.normalizeOfficeAccessNumbers(this.form.get('officeAccess')?.value || []);
     const selectedSet = new Set<number>(officeAccess);
     this.availableDefaultOffices = this.availableOffices.filter(office => selectedSet.has(office.value));
@@ -872,6 +927,25 @@ export class ContactComponent implements OnInit, OnDestroy {
     if (!hasCurrentDefaultOffice) {
       this.form.get('officeId')?.setValue(officeAccess[0] ?? null, { emitEvent: false });
     }
+  }
+
+  syncOfficeAccessFromDefaultOffice(selectedOfficeId: number | null | undefined): void {
+    if (!this.form) {
+      return;
+    }
+
+    const normalizedOfficeId = Number(selectedOfficeId);
+    if (!Number.isFinite(normalizedOfficeId) || normalizedOfficeId <= 0) {
+      return;
+    }
+
+    const currentOfficeAccess = this.mappingService.normalizeOfficeAccessNumbers(this.form.get('officeAccess')?.value || []);
+    if (currentOfficeAccess.includes(normalizedOfficeId)) {
+      return;
+    }
+
+    this.form.get('officeAccess')?.setValue([...currentOfficeAccess, normalizedOfficeId], { emitEvent: false });
+    this.syncDefaultOfficeOptions();
   }
 
   needsStrictPhoneValidation(entityTypeId: number | null | undefined): boolean {
@@ -945,17 +1019,30 @@ export class ContactComponent implements OnInit, OnDestroy {
   }
 
   loadOffices(): void {
-     this.officeService.areOfficesLoaded().pipe(filter(loaded => loaded === true), take(1)).subscribe(() => {
-      this.officesSubscription = this.officeService.getAllOffices().subscribe(offices => {
+    const organizationId = this.authService.getUser()?.organizationId?.trim() ?? '';
+    if (!organizationId) {
+      this.offices = [];
+      this.availableOffices = [];
+      this.availableDefaultOffices = [];
+      return;
+    }
+
+    this.officeService.ensureOfficesLoaded(organizationId).pipe(take(1), takeUntil(this.destroy$)).subscribe({
+      next: offices => {
         this.offices = offices || [];
         this.availableOffices = this.mappingService.mapOfficesToDropdown(this.offices);
         this.syncDefaultOfficeOptions();
-        
+
         // If in add mode and form is built, set values from query params
         if (this.isAddMode && this.form) {
           this.applyFormValuesFromQueryParams();
         }
-      });
+      },
+      error: () => {
+        this.offices = [];
+        this.availableOffices = [];
+        this.availableDefaultOffices = [];
+      }
     });
   }
 
@@ -1299,6 +1386,14 @@ export class ContactComponent implements OnInit, OnDestroy {
   onPhoneInput(event: Event): void {
     this.formatterService.formatPhoneInput(event, this.form.get('phone'));
   }
+
+  requestAddAdditionalOwner(): void {
+    this.addAdditionalOwnerRequested.emit();
+  }
+
+  requestCancelAdditionalOwner(): void {
+    this.cancelAdditionalOwnerRequested.emit();
+  }
   //#endregion
 
   //#region User Create Methods
@@ -1406,6 +1501,7 @@ export class ContactComponent implements OnInit, OnDestroy {
     return {
       ...originalRequest,
       contactId: savedContact.contactId,
+      ownerLeadId: savedContact.ownerLeadId ?? originalRequest.ownerLeadId ?? null,
       contactCode: savedContact.contactCode,
       organizationId: savedContact.organizationId,
       officeId: savedContact.officeId,

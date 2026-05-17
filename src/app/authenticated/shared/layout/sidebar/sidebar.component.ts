@@ -6,7 +6,7 @@ import { Router, RouterLink, RouterLinkActive, RouterOutlet } from '@angular/rou
 import { Observable, Subject, forkJoin, map, shareReplay, take, takeUntil } from 'rxjs';
 import { MaterialModule } from '../../../../material.module';
 import { AuthService } from '../../../../services/auth.service';
-import { leadsFeatureEnabled } from '../../../../config/feature-flags';
+import { ownersFeatureEnabled } from '../../../../config/feature-flags';
 import { LeadStateType } from '../../../leads/models/lead-enums';
 import { LeadsService } from '../../../leads/services/leads.service';
 import { getVisibleNavItems } from '../../access/role-access';
@@ -92,14 +92,19 @@ export class SidebarComponent implements OnInit, OnDestroy {
     const user = this.authService.getUser();
     let items = getVisibleNavItems(user?.userGroups as Array<string | number> | undefined);
     const showLeadsMenu =
-      leadsFeatureEnabled &&
-      (this.authService.hasRole(UserGroups.Admin) ||
-        this.authService.hasRole(UserGroups.Agent) ||
-        this.authService.hasRole(UserGroups.AgentAdmin));
+      this.authService.hasRole(UserGroups.Admin) ||
+      this.authService.hasRole(UserGroups.Agent) ||
+      this.authService.hasRole(UserGroups.AgentAdmin);
     if (!showLeadsMenu) {
       items = items.filter(item => {
         const url = String(item.url || '');
         return url !== 'leads' && !url.startsWith('leads/');
+      });
+    }
+    if (!ownersFeatureEnabled) {
+      items = items.filter(item => {
+        const url = String(item.url || '');
+        return url !== 'owner' && !url.startsWith('owner/');
       });
     }
     this.navItems = items;

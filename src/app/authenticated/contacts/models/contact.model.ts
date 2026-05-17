@@ -3,6 +3,7 @@ import type { CalendarDateString } from '../../../services/utility.service';
 
 export interface ContactRequest {
   contactId?: string;
+  ownerLeadId?: number | null;
   organizationId: string;
   officeId: number;
   officeAccess: number[];
@@ -46,6 +47,7 @@ export interface ContactRequest {
 
 export interface ContactResponse {
   contactId: string;
+  ownerLeadId?: number | null;
   organizationId: string;
   officeId: number;
   officeName: string;
@@ -91,6 +93,7 @@ export interface ContactResponse {
 
 export interface ContactListDisplay {
   contactId: string;
+  ownerLeadId?: number | null;
   contactCode: string;
   officeId: number;
   officeName: string;

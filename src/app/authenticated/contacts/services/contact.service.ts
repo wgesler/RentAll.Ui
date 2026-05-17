@@ -3,6 +3,7 @@ import { Injectable } from '@angular/core';
 import { BehaviorSubject, Observable, catchError, map, of, switchMap, take, tap } from 'rxjs';
 import { ConfigService } from '../../../services/config.service';
 import { MappingService } from '../../../services/mapping.service';
+import { LeadOwnerUpdateRequest } from '../../leads/models/lead-owner.model';
 import { EntityType } from '../models/contact-enum';
 import { ContactRequest, ContactResponse } from '../models/contact.model';
 
@@ -112,6 +113,12 @@ export class ContactService {
 
   updateContact(contact: ContactRequest): Observable<ContactResponse> {
     return this.http.put<ContactResponse>(this.controller, contact).pipe(
+      map(dto => this.mappingService.mapContactResponse(dto as unknown as Record<string, unknown>))
+    );
+  }
+
+  matchContactToLead(ownerLead: LeadOwnerUpdateRequest): Observable<ContactResponse> {
+    return this.http.put<ContactResponse>(this.controller + 'by-lead', ownerLead).pipe(
       map(dto => this.mappingService.mapContactResponse(dto as unknown as Record<string, unknown>))
     );
   }
