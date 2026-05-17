@@ -71,6 +71,19 @@
           </button>
         </div>
       }
+      @if (readOnly) {
+        <div class="reservation-board-titlebar-legend" aria-label="Reservation board color legend">
+          @for (statusId of reservationBoardLegendStatusIds; track statusId) {
+            <span class="reservation-board-titlebar-legend-item">
+              <span
+                class="reservation-board-titlebar-dot"
+                [style.backgroundColor]="getReservationLegendColor(statusId)"
+                aria-hidden="true"></span>
+              <span>{{ getReservationLegendLabel(statusId) }}</span>
+            </span>
+          }
+        </div>
+      }
     </div>
     <mat-card>
       <div class="board-wrapper">

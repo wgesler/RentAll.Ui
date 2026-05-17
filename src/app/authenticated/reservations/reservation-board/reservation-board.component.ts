@@ -26,7 +26,7 @@ import { PropertySelectionFilterService } from '../../properties/services/proper
 import { PropertyService } from '../../properties/services/property.service';
 import { hasOwnerRole } from '../../shared/access/role-access';
 import { BoardProperty, CalendarDay } from '../models/reservation-board-model';
-import { ReservationStatus } from '../models/reservation-enum';
+import { getReservationStatus, ReservationStatus } from '../models/reservation-enum';
 import { ReservationListResponse } from '../models/reservation-model';
 import { ReservationService } from '../services/reservation.service';
 @Component({
@@ -54,6 +54,17 @@ export class ReservationBoardComponent implements OnInit, OnDestroy {
   colors: ColorResponse[] = [];
   colorMap: Map<number, string> = new Map(); // Maps reservationStatusId to color hex
   displayTextCache = new Map<string, string>();
+  reservationBoardLegendStatusIds: number[] = [
+    ReservationStatus.PreBooking,
+    ReservationStatus.Confirmed,
+    ReservationStatus.CheckedIn,
+    ReservationStatus.GaveNotice,
+    ReservationStatus.FirstRightRefusal,
+    ReservationStatus.Maintenance,
+    ReservationStatus.OwnerBlocked,
+    ReservationStatus.ArrivalDeparture,
+    ReservationStatus.Offline
+  ];
 
   startDate: Date = null;
   endDate: Date = null;
@@ -1021,6 +1032,16 @@ export class ReservationBoardComponent implements OnInit, OnDestroy {
     }
 
     this.router.navigateByUrl(`${RouterUrl.QuoteCreate}?propertyIds=${selectedPropertyIds.join(',')}&returnTo=reservation-board`);
+  }
+  //#endregion
+
+  //#region Legend Methods
+  getReservationLegendLabel(statusId: number): string {
+    return getReservationStatus(statusId);
+  }
+
+  getReservationLegendColor(statusId: number): string {
+    return this.colorMap.get(statusId) || '#94a3b8';
   }
   //#endregion
 

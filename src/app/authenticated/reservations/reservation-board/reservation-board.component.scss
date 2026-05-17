@@ -90,6 +90,31 @@
   box-sizing: border-box;
 }
 
+.reservation-board-titlebar-legend {
+  display: inline-flex;
+  align-items: center;
+  gap: 12px;
+  font-size: 12px;
+  font-weight: 500;
+  color: rgba(0, 0, 0, 0.78);
+  flex-wrap: nowrap;
+}
+
+.reservation-board-titlebar-legend-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  white-space: nowrap;
+}
+
+.reservation-board-titlebar-dot {
+  flex-shrink: 0;
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  border: 1px solid rgba(15, 23, 42, 0.28);
+}
+
 .board-header {
   display: flex;
   flex-direction: column;
