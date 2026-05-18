@@ -33,3 +33,8 @@
 .file-input-hidden {
   display: none;
 }
+
+.info-form .grid {
+  column-gap: var(--global-form-field-gap-x) !important;
+  row-gap: calc(var(--global-form-row-gap) * 2) !important;
+}

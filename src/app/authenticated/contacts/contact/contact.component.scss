@@ -180,4 +180,8 @@
   font-weight: 700;
 }
 
+.info-form .grid {
+  gap: calc(var(--global-form-row-gap) * 2) var(--global-form-field-gap-x) !important;
+}
+
 
