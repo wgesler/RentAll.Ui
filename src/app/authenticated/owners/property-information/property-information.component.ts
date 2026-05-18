@@ -121,23 +121,23 @@ export class PropertyInformationComponent implements OnChanges, OnDestroy {
     })).subscribe({
       next: response => {
         this.ownerForm.patchValue({
-          onSiteComplexManagementPhone: response.onSiteComplexManagementPhone ?? '',
-          keyCount: response.keyCount ?? '',
-          garageRemoteModelCode: response.garageRemoteModelCode ?? '',
-          storageAccessDetails: response.storageAccessDetails ?? '',
-          cableSupplier: response.cableSupplier ?? '',
-          cablePhone: response.cablePhone ?? '',
-          cableAccountNumber: response.cableAccountNumber ?? '',
-          electricSupplier: response.electricSupplier ?? '',
-          electricPhone: response.electricPhone ?? '',
-          electricAccountNumber: response.electricAccountNumber ?? '',
-          internetSupplier: response.internetSupplier ?? '',
-          internetPhone: response.internetPhone ?? '',
-          internetAccountNumber: response.internetAccountNumber ?? '',
-          fuseBoxLocation: response.fuseBoxLocation ?? '',
-          schoolDistrict: response.schoolDistrict ?? '',
-          localEmergencyContact: response.localEmergencyContact ?? '',
-          accessInformation: response.accessInformation ?? ''
+          onSiteComplexManagementPhone: response?.onSiteComplexManagementPhone ?? '',
+          keyCount: response?.keyCount ?? '',
+          garageRemoteModelCode: response?.garageRemoteModelCode ?? '',
+          storageAccessDetails: response?.storageAccessDetails ?? '',
+          cableSupplier: response?.cableSupplier ?? '',
+          cablePhone: response?.cablePhone ?? '',
+          cableAccountNumber: response?.cableAccountNumber ?? '',
+          electricSupplier: response?.electricSupplier ?? '',
+          electricPhone: response?.electricPhone ?? '',
+          electricAccountNumber: response?.electricAccountNumber ?? '',
+          internetSupplier: response?.internetSupplier ?? '',
+          internetPhone: response?.internetPhone ?? '',
+          internetAccountNumber: response?.internetAccountNumber ?? '',
+          fuseBoxLocation: response?.fuseBoxLocation ?? '',
+          schoolDistrict: response?.schoolDistrict ?? '',
+          localEmergencyContact: response?.localEmergencyContact ?? '',
+          accessInformation: response?.accessInformation ?? ''
         });
         this.formatInventoryPhoneFields();
       },
@@ -239,23 +239,23 @@ export class PropertyInformationComponent implements OnChanges, OnDestroy {
     })).subscribe({
       next: (response) => {
         this.ownerForm.patchValue({
-          onSiteComplexManagementPhone: response.onSiteComplexManagementPhone ?? '',
-          keyCount: response.keyCount ?? '',
-          garageRemoteModelCode: response.garageRemoteModelCode ?? '',
-          storageAccessDetails: response.storageAccessDetails ?? '',
-          cableSupplier: response.cableSupplier ?? '',
-          cablePhone: response.cablePhone ?? '',
-          cableAccountNumber: response.cableAccountNumber ?? '',
-          electricSupplier: response.electricSupplier ?? '',
-          electricPhone: response.electricPhone ?? '',
-          electricAccountNumber: response.electricAccountNumber ?? '',
-          internetSupplier: response.internetSupplier ?? '',
-          internetPhone: response.internetPhone ?? '',
-          internetAccountNumber: response.internetAccountNumber ?? '',
-          fuseBoxLocation: response.fuseBoxLocation ?? '',
-          schoolDistrict: response.schoolDistrict ?? '',
-          localEmergencyContact: response.localEmergencyContact ?? '',
-          accessInformation: response.accessInformation ?? ''
+          onSiteComplexManagementPhone: response?.onSiteComplexManagementPhone ?? '',
+          keyCount: response?.keyCount ?? '',
+          garageRemoteModelCode: response?.garageRemoteModelCode ?? '',
+          storageAccessDetails: response?.storageAccessDetails ?? '',
+          cableSupplier: response?.cableSupplier ?? '',
+          cablePhone: response?.cablePhone ?? '',
+          cableAccountNumber: response?.cableAccountNumber ?? '',
+          electricSupplier: response?.electricSupplier ?? '',
+          electricPhone: response?.electricPhone ?? '',
+          electricAccountNumber: response?.electricAccountNumber ?? '',
+          internetSupplier: response?.internetSupplier ?? '',
+          internetPhone: response?.internetPhone ?? '',
+          internetAccountNumber: response?.internetAccountNumber ?? '',
+          fuseBoxLocation: response?.fuseBoxLocation ?? '',
+          schoolDistrict: response?.schoolDistrict ?? '',
+          localEmergencyContact: response?.localEmergencyContact ?? '',
+          accessInformation: response?.accessInformation ?? ''
         });
         this.formatInventoryPhoneFields();
         this.toastr.success('Property information saved.', CommonMessage.Success);

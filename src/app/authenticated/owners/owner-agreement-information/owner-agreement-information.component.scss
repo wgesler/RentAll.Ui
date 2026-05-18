@@ -1,0 +1,42 @@
+.owner-agreement-information-container {
+  padding: 20px;
+}
+
+.owner-agreement-information-form {
+  width: 100%;
+}
+
+.form-fields {
+  padding: 16px 0;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.full-width {
+  width: 100%;
+}
+
+.agreement-specificity-wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.agreement-specificity-label {
+  font-size: 13px;
+  font-weight: 600;
+  color: #334155;
+}
+
+.agreement-specificity-options {
+  display: inline-block;
+  width: fit-content;
+  border: 1px solid #cbd5e1;
+  border-radius: 6px;
+  padding: 10px 12px;
+}
+
+.owner-agreement-save-row {
+  padding-right: 5px;
+}

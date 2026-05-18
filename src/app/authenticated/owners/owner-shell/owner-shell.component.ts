@@ -12,8 +12,6 @@ import { SearchableSelectOption } from '../../shared/searchable-select/searchabl
 import { TitleBarSelectComponent } from '../../shared/titlebar-select/titlebar-select.component';
 import { OwnerInformationComponent } from '../owner-information/owner-information.component';
 import { PropertyInformationComponent } from '../property-information/property-information.component';
-import { AgreementFormComponent } from '../agreement-form/agreement-form.component';
-import { FinancialPreferencesComponent } from '../financial-preferences/financial-preferences.component';
 import { InsuranceComponent } from '../insurance/insurance.component';
 import { ComplianceComponent } from '../compliance/compliance.component';
 import { OwnersListComponent } from '../owners-list/owners-list.component';
@@ -22,6 +20,8 @@ import { UtilityService } from '../../../services/utility.service';
 import { AuthService } from '../../../services/auth.service';
 import { ContactService } from '../../contacts/services/contact.service';
 import { PropertyService } from '../../properties/services/property.service';
+import { OwnerAgreementInformationComponent } from '../owner-agreement-information/owner-agreement-information.component';
+import { OwnerAgreementFormComponent } from '../owner-agreement-form/owner-agreement-form.component';
 
 @Component({
   standalone: true,
@@ -32,8 +32,8 @@ import { PropertyService } from '../../properties/services/property.service';
     TitleBarSelectComponent,
     OwnerInformationComponent,
     PropertyInformationComponent,
-    AgreementFormComponent,
-    FinancialPreferencesComponent,
+    OwnerAgreementInformationComponent,
+    OwnerAgreementFormComponent,
     InsuranceComponent,
     ComplianceComponent,
     OwnersListComponent
@@ -103,7 +103,7 @@ export class OwnerShellComponent implements OnInit, OnDestroy {
     if (Number.isFinite(leadOwnerId) && leadOwnerId > 0) {
       this.isOwnerListMode = false;
       this.leadOwnerId = leadOwnerId;
-      if (this.selectedTabIndex === 1) {
+      if (this.tabUsesPropertySelection(this.selectedTabIndex)) {
         this.loadPropertyCodeOptions();
       }
       return;
@@ -122,13 +122,13 @@ export class OwnerShellComponent implements OnInit, OnDestroy {
   onOfficeDropdownChange(value: string | number | null): void {
     if (value == null || value === '') {
       this.selectedOfficeId = null;
-      if (this.selectedTabIndex === 1 && !this.isOwnerListMode) {
+      if (this.tabUsesPropertySelection(this.selectedTabIndex) && !this.isOwnerListMode) {
         this.loadPropertyCodeOptions();
       }
       return;
     }
     this.selectedOfficeId = Number(value);
-    if (this.selectedTabIndex === 1 && !this.isOwnerListMode) {
+    if (this.tabUsesPropertySelection(this.selectedTabIndex) && !this.isOwnerListMode) {
       this.loadPropertyCodeOptions();
     }
   }
@@ -140,7 +140,7 @@ export class OwnerShellComponent implements OnInit, OnDestroy {
 
   onTabIndexChange(nextIndex: number): void {
     this.selectedTabIndex = nextIndex;
-    if (nextIndex === 1 && !this.isOwnerListMode) {
+    if (this.tabUsesPropertySelection(nextIndex) && !this.isOwnerListMode) {
       this.loadPropertyCodeOptions();
     }
   }
@@ -232,6 +232,10 @@ export class OwnerShellComponent implements OnInit, OnDestroy {
   //#endregion
 
   //#region Utility Methods
+  tabUsesPropertySelection(tabIndex: number): boolean {
+    return tabIndex === 1 || tabIndex === 2 || tabIndex === 3;
+  }
+
   isPublicOwnerTokenContext(token: string): boolean {
     const hasToken = String(token || '').trim().length > 0;
     return hasToken && !this.authService.getIsLoggedIn();

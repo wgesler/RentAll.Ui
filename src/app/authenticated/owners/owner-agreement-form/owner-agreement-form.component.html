@@ -1,0 +1,53 @@
+@if (!isPageReady) {
+  <div class="loading-container">
+    <mat-spinner [diameter]="40"></mat-spinner>
+    <p>Loading agreement form...</p>
+  </div>
+} @else {
+  <div class="owner-agreement-form-container">
+    <form [formGroup]="form" class="owner-agreement-form">
+      <div class="property-tab-actions-band">
+        <div class="property-tab-actions-band__row flex justify-end gap-2 uniform-gap">
+          <div class="table-filter-actions-group form-titlebar-actions-wrap uniform-gap">
+            <button mat-raised-button type="button" color="accent" (click)="onPrint()">
+              <mat-icon>print</mat-icon>
+              Print
+            </button>
+            <button mat-raised-button type="button" color="accent" (click)="onDownload()">
+              <mat-icon>download</mat-icon>
+              Download
+            </button>
+            <button mat-raised-button type="button" color="primary" (click)="onSave()" [disabled]="isSaving || !previewIframeHtml">
+              <mat-icon>save</mat-icon>
+              Save
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <div class="property-tab-main-area">
+        <div class="include-controls">
+          <span class="include-label">Include:</span>
+          <mat-checkbox formControlName="includeOwnerAgreement" class="include-checkbox" (change)="onIncludeChange()">
+            Owner Agreement
+          </mat-checkbox>
+          <mat-checkbox formControlName="includePropertyManagementAgreement" class="include-checkbox" (change)="onIncludeChange()">
+            Property Management Agreement
+          </mat-checkbox>
+        </div>
+
+        <div class="editor-section">
+          @if (previewIframeHtml) {
+            <div class="preview-section">
+              <iframe [srcdoc]="safeHtml" class="preview-iframe" [attr.key]="iframeKey" frameborder="0"></iframe>
+            </div>
+          } @else {
+            <div class="owner-shell-placeholder">
+              <p>Select an agreement document to preview.</p>
+            </div>
+          }
+        </div>
+      </div>
+    </form>
+  </div>
+}

@@ -25,6 +25,10 @@ import {
   OwnerInventoryInformationRequest,
   OwnerInventoryInformationResponse
 } from '../models/owner-inventory-information.model';
+import {
+  OwnerAgreementInformationRequest,
+  OwnerAgreementInformationResponse
+} from '../../owners/models/owner-agreement-information.model';
 
 @Injectable({
   providedIn: 'root'
@@ -115,6 +119,30 @@ export class LeadsService {
 
   updateOwnerInventoryInformation(body: OwnerInventoryInformationRequest): Observable<OwnerInventoryInformationResponse> {
     return this.http.put<OwnerInventoryInformationResponse>(`${this.controller}owners/inventory-information`, body);
+  }
+
+  getAgreementInformation(officeId: number | null = null, propertyId: string | null = null): Observable<OwnerAgreementInformationResponse> {
+    return this.getOwnerAgreementInformationByScope(officeId, propertyId);
+  }
+
+  getOwnerAgreementInformationByScope(officeId: number | null = null, propertyId: string | null = null): Observable<OwnerAgreementInformationResponse> {
+    const queryParams: string[] = [];
+    if (officeId != null) {
+      queryParams.push(`officeId=${officeId}`);
+    }
+    if (propertyId) {
+      queryParams.push(`propertyId=${propertyId}`);
+    }
+    const queryString = queryParams.length ? `?${queryParams.join('&')}` : '';
+    return this.http.get<OwnerAgreementInformationResponse>(`${this.configService.config().apiUrl}leads/owners/agreement-information/scope${queryString}`);
+  }
+
+  createOwnerAgreementInformation(body: OwnerAgreementInformationRequest): Observable<OwnerAgreementInformationResponse> {
+    return this.http.post<OwnerAgreementInformationResponse>(`${this.configService.config().apiUrl}leads/owners/agreement-information`, body);
+  }
+
+  updateOwnerAgreementInformation(body: OwnerAgreementInformationRequest): Observable<OwnerAgreementInformationResponse> {
+    return this.http.put<OwnerAgreementInformationResponse>(`${this.configService.config().apiUrl}leads/owners/agreement-information`, body);
   }
 
   getPublicOwnerFormUrl(token: string): string {

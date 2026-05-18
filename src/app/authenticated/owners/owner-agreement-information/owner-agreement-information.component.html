@@ -1,0 +1,85 @@
+<div class="owner-agreement-information-container">
+  <form [formGroup]="form" class="owner-agreement-information-form">
+    <div class="mb-3 px-1 agreement-specificity-wrap">
+      <div class="agreement-specificity-label">Agreement Specificity</div>
+      <div class="agreement-specificity-options">
+        <mat-radio-group formControlName="scopeSelection" class="flex items-center gap-4" (change)="onScopeSelectionChange()">
+          <mat-radio-button value="organization">Organization</mat-radio-button>
+          <mat-radio-button value="office">Office</mat-radio-button>
+          <mat-radio-button value="property">Property</mat-radio-button>
+        </mat-radio-group>
+      </div>
+    </div>
+    <div class="mb-4 flex justify-end items-center gap-3 owner-agreement-save-row">
+      <button mat-raised-button type="button" color="primary" (click)="saveOwnerAgreementInformation()" [disabled]="isSubmitting || !form.valid">
+        <mat-icon>save</mat-icon>
+        Save
+      </button>
+    </div>
+
+    <mat-accordion multi="true">
+      <mat-expansion-panel>
+        <mat-expansion-panel-header>
+          <mat-panel-title>Agreement Overview</mat-panel-title>
+        </mat-expansion-panel-header>
+        <div class="form-fields">
+          <mat-form-field appearance="outline" class="full-width">
+            <mat-label>Agreement Introduction</mat-label>
+            <textarea matInput formControlName="agreementIntroduction" rows="5"></textarea>
+          </mat-form-field>
+          <mat-form-field appearance="outline" class="full-width">
+            <mat-label>Recitals</mat-label>
+            <textarea matInput formControlName="recitals" rows="5"></textarea>
+          </mat-form-field>
+          <mat-form-field appearance="outline" class="full-width">
+            <mat-label>In Witness Whereof</mat-label>
+            <textarea matInput formControlName="inWitnessWhereof" rows="5"></textarea>
+          </mat-form-field>
+        </div>
+      </mat-expansion-panel>
+
+      <mat-expansion-panel>
+        <mat-expansion-panel-header>
+          <mat-panel-title>Sections 1 - 6</mat-panel-title>
+        </mat-expansion-panel-header>
+        <div class="form-fields">
+          <mat-form-field appearance="outline" class="full-width"><mat-label>Section 1 - Employment</mat-label><textarea matInput formControlName="sectionOneEmployment" rows="5"></textarea></mat-form-field>
+          <mat-form-field appearance="outline" class="full-width"><mat-label>Section 2 - Agent Duties</mat-label><textarea matInput formControlName="sectionTwoAgentDuties" rows="5"></textarea></mat-form-field>
+          <mat-form-field appearance="outline" class="full-width"><mat-label>Section 3 - Owners Duties</mat-label><textarea matInput formControlName="sectionThreeOwnersDuties" rows="5"></textarea></mat-form-field>
+          <mat-form-field appearance="outline" class="full-width"><mat-label>Section 4 - Advertising and Promotion</mat-label><textarea matInput formControlName="sectionFourAdvertisingAndPromotion" rows="5"></textarea></mat-form-field>
+          <mat-form-field appearance="outline" class="full-width"><mat-label>Section 5 - Maintenance, Repairs and Operations</mat-label><textarea matInput formControlName="sectionFiveMaintenanceRepairsAndOperations" rows="5"></textarea></mat-form-field>
+          <mat-form-field appearance="outline" class="full-width"><mat-label>Section 6 - Reimbursements</mat-label><textarea matInput formControlName="sectionSixReimbursements" rows="5"></textarea></mat-form-field>
+        </div>
+      </mat-expansion-panel>
+
+      <mat-expansion-panel>
+        <mat-expansion-panel-header>
+          <mat-panel-title>Sections 7 - 12</mat-panel-title>
+        </mat-expansion-panel-header>
+        <div class="form-fields">
+          <mat-form-field appearance="outline" class="full-width"><mat-label>Section 7 - Government Regulations</mat-label><textarea matInput formControlName="sectionSevenGovernmentRegulations" rows="5"></textarea></mat-form-field>
+          <mat-form-field appearance="outline" class="full-width"><mat-label>Section 8 - Insurance</mat-label><textarea matInput formControlName="sectionEightInsurance" rows="5"></textarea></mat-form-field>
+          <mat-form-field appearance="outline" class="full-width"><mat-label>Section 9 - Collection of Income and Institution of Legal Action</mat-label><textarea matInput formControlName="sectionNineCollectionOfIncomeAndInstitutionOfLegalAction" rows="5"></textarea></mat-form-field>
+          <mat-form-field appearance="outline" class="full-width"><mat-label>Section 10 - Bank Accounts</mat-label><textarea matInput formControlName="sectionTenBankAccounts" rows="5"></textarea></mat-form-field>
+          <mat-form-field appearance="outline" class="full-width"><mat-label>Section 11 - Records and Reports</mat-label><textarea matInput formControlName="sectionElevenRecordsAndReports" rows="5"></textarea></mat-form-field>
+          <mat-form-field appearance="outline" class="full-width"><mat-label>Section 12 - Additional Duties and Rights</mat-label><textarea matInput formControlName="sectionTwelveAdditionalDutiesAndRights" rows="5"></textarea></mat-form-field>
+        </div>
+      </mat-expansion-panel>
+
+      <mat-expansion-panel>
+        <mat-expansion-panel-header>
+          <mat-panel-title>Sections 13 - 19</mat-panel-title>
+        </mat-expansion-panel-header>
+        <div class="form-fields">
+          <mat-form-field appearance="outline" class="full-width"><mat-label>Section 13 - Termination and Renewal</mat-label><textarea matInput formControlName="sectionThirteenTerminationAndRenewal" rows="5"></textarea></mat-form-field>
+          <mat-form-field appearance="outline" class="full-width"><mat-label>Section 14 - Sale of Property Access</mat-label><textarea matInput formControlName="sectionFourteenSaleOfPropertyAccess" rows="5"></textarea></mat-form-field>
+          <mat-form-field appearance="outline" class="full-width"><mat-label>Section 15 - Summary of Fees</mat-label><textarea matInput formControlName="sectionFifteenSummaryOfFees" rows="5"></textarea></mat-form-field>
+          <mat-form-field appearance="outline" class="full-width"><mat-label>Section 16 - Foreign Ownership</mat-label><textarea matInput formControlName="sectionSixteenForeignOwnership" rows="5"></textarea></mat-form-field>
+          <mat-form-field appearance="outline" class="full-width"><mat-label>Section 17 - Indemnity</mat-label><textarea matInput formControlName="sectionSeventeenIndemnity" rows="5"></textarea></mat-form-field>
+          <mat-form-field appearance="outline" class="full-width"><mat-label>Section 18 - Miscellaneous</mat-label><textarea matInput formControlName="sectionEighteenMiscellaneous" rows="5"></textarea></mat-form-field>
+          <mat-form-field appearance="outline" class="full-width"><mat-label>Section 19 - Additional Forms</mat-label><textarea matInput formControlName="sectionNineteenAdditionalForms" rows="5"></textarea></mat-form-field>
+        </div>
+      </mat-expansion-panel>
+    </mat-accordion>
+  </form>
+</div>

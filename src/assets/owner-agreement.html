@@ -1,8 +1,47 @@
-<!DOCTYPE html>
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.0 Transitional//EN">
 <html>
 <head>
   <title>{{ownerAgreementTitle}} {{organization-office}} {{propertyCode}}</title>
   <meta name="viewport" content="width=device-width, initial-scale=1">
+
+  <style type="text/css">
+    P.breakhere {
+      page-break-before: always;
+    }
+
+    @media print {
+      @page {
+        margin: 0.75in;
+        size: letter;
+      }
+
+      body {
+        margin: 0;
+        padding: 0;
+        -webkit-print-color-adjust: exact;
+        print-color-adjust: exact;
+        color-adjust: exact;
+      }
+
+      #header, #footer {
+        -webkit-print-color-adjust: exact;
+        print-color-adjust: exact;
+        color-adjust: exact;
+        background-color: #222 !important;
+        color: #fff !important;
+      }
+
+      #header h1, #footer {
+        color: #fff !important;
+      }
+
+      .keep-together {
+        page-break-inside: avoid;
+        break-inside: avoid;
+      }
+    }
+  </style>
+
   <style>
     *,
     *::before,
@@ -11,306 +50,364 @@
     }
 
     body {
-      font-family: Arial, sans-serif;
+      font-family: arial, sans-serif;
       max-width: 8.5in;
       width: 8.5in;
       margin: 0 auto;
       padding: 0;
-      color: #000;
-      background: #fff;
     }
 
-    p, li {
+    p {
       font-size: 10pt;
-      line-height: 1.45;
-      margin: 0 0 8px 0;
+      line-height: 150%;
     }
 
-    h1 {
+    #terms p, #terms li {
+      font-size: 10pt;
+      margin-top: 0;
+      max-width: 100% !important;
+      word-wrap: break-word;
+      overflow-wrap: break-word;
+    }
+
+    #terms .keep-together {
+      margin-bottom: 14px;
+    }
+
+    #terms .section-text {
       margin: 0;
-      padding: 12px 8px 18px 8px;
-      text-align: center;
-      font-size: 18pt;
-      font-weight: 600;
-      color: #fff;
-      background: #222;
+      font-size: 10pt !important;
+      line-height: 1.35;
+      white-space: normal;
     }
 
-    h2 {
-      margin: 12px 0 4px 0;
-      font-size: 13pt;
-      font-weight: 600;
+    #terms .section-text p {
+      margin: 0 0 6px 0 !important;
+      font-size: 10pt !important;
+      line-height: 1.35;
     }
 
-    .section-title {
-      margin-top: 14px;
-      font-size: 12pt;
-      font-weight: 700;
+    #terms .section-text ol {
+      margin: 0 0 0 24px;
+      padding: 0;
+      font-size: 10pt !important;
+      line-height: 1.35;
     }
 
-    #header {
-      width: 100%;
-      background: #fff;
+    #terms .section-text ol > li {
+      margin: 0 0 4px 0;
+      font-size: 10pt !important;
+      line-height: 1.35;
     }
 
-    #header img {
-      width: 26%;
-      max-width: 26%;
-      height: auto;
+    #terms .section-text > p:first-child > strong,
+    #terms .section-text p:first-child strong {
       display: block;
-      margin: 0;
+      font-size: 16pt !important;
+      font-weight: 600 !important;
+      color: #000 !important;
+      margin-top: 6px !important;
+      margin-bottom: 2px !important;
+      line-height: 1.2;
+    }
+
+    #terms .agreement-section ol {
+      list-style: none;
+      margin: 0 0 0 24px;
+      padding: 0;
+      counter-reset: section-item;
+    }
+
+    #terms .agreement-section ol > li {
+      display: list-item;
+      margin: 0 0 4px 0;
+      counter-increment: section-item;
+    }
+
+    #terms .agreement-section ol > li::marker {
+      content: var(--section-prefix) "." counter(section-item) ". ";
+      font-weight: 600;
+    }
+
+    #terms .agreement-section.sec-1 { --section-prefix: "1"; }
+    #terms .agreement-section.sec-2 { --section-prefix: "2"; }
+    #terms .agreement-section.sec-3 { --section-prefix: "3"; }
+    #terms .agreement-section.sec-4 { --section-prefix: "4"; }
+    #terms .agreement-section.sec-5 { --section-prefix: "5"; }
+    #terms .agreement-section.sec-6 { --section-prefix: "6"; }
+    #terms .agreement-section.sec-7 { --section-prefix: "7"; }
+    #terms .agreement-section.sec-8 { --section-prefix: "8"; }
+    #terms .agreement-section.sec-9 { --section-prefix: "9"; }
+    #terms .agreement-section.sec-10 { --section-prefix: "10"; }
+    #terms .agreement-section.sec-11 { --section-prefix: "11"; }
+    #terms .agreement-section.sec-12 { --section-prefix: "12"; }
+    #terms .agreement-section.sec-13 { --section-prefix: "13"; }
+    #terms .agreement-section.sec-14 { --section-prefix: "14"; }
+    #terms .agreement-section.sec-15 { --section-prefix: "15"; }
+    #terms .agreement-section.sec-16 { --section-prefix: "16"; }
+    #terms .agreement-section.sec-17 { --section-prefix: "17"; }
+    #terms .agreement-section.sec-18 { --section-prefix: "18"; }
+    #terms .agreement-section.sec-19 { --section-prefix: "19"; }
+
+    #terms {
+      max-width: 100% !important;
+      width: 100% !important;
     }
 
     #container {
-      width: 100%;
+      max-width: 100% !important;
+      width: 100% !important;
+      table-layout: fixed;
+      border: 1px solid #ddd !important;
+      padding: 3px !important;
+      background-color: #fff !important;
+    }
+
+    #header {
+      max-width: 100% !important;
+      width: 100% !important;
+      background-color: #222;
+    }
+
+    #header img {
+      width: 25% !important;
+      max-width: 25% !important;
+      display: block;
+      height: auto;
+      margin: 0;
+    }
+
+    #header .logo-row td {
+      padding-bottom: 6px;
+    }
+
+    h1 {
+      font-size: 18pt;
+      font-weight: 600;
+      text-align: center;
+      color: #fff;
+      margin: 0;
+      padding: 10px 5px 20px 5px;
+      background-color: #222;
+      letter-spacing: -0.5px;
+    }
+
+    h2 {
+      font-size: 16pt !important;
+      font-weight: 600 !important;
+      color: #000 !important;
+      margin-top: 15px !important;
+      margin-bottom: 2px !important;
+      padding: 0 !important;
+    }
+
+    .border {
       border: 1px solid #ddd;
-      padding: 10px 12px;
+      padding: 10px;
+      margin-top: 10px !important;
+      margin-bottom: 10px !important;
+      margin-right: 5px !important;
+      margin-left: 5px !important;
     }
 
-    .muted {
-      color: #444;
+    .border p {
+      margin: 0;
     }
 
-    .line {
-      border-bottom: 1px solid #ccc;
-      min-height: 18px;
-      display: inline-block;
-      padding: 0 4px;
+    .top-info-lines {
+      font-size: 10pt;
+      margin: 0;
+      padding: 0;
     }
 
-    .line-sm {
-      min-width: 120px;
+    .top-info-line {
+      font-size: 10pt;
+      line-height: 1.2;
+      margin: 0;
+      padding: 0;
     }
 
-    .line-md {
-      min-width: 220px;
+    .top-info-line:not(:last-child) {
+      margin-bottom: 2px;
     }
 
-    .line-lg {
-      min-width: 340px;
+    /* Keep first two info panels equal height like lease */
+    table#container tbody tr:first-child td {
+      height: 1px;
+      width: 50% !important;
     }
 
-    .indent {
-      padding-left: 16px;
-    }
-
-    .signature-grid {
-      width: 100%;
-      margin-top: 18px;
-      border-collapse: collapse;
-    }
-
-    .signature-grid td {
-      width: 50%;
-      vertical-align: top;
-      padding-right: 14px;
-    }
-
-    .sig-line {
-      margin-top: 26px;
-      border-top: 1px solid #aaa;
-      padding-top: 4px;
-      font-size: 9pt;
-      color: #555;
+    table#container tbody tr:first-child td .border {
+      height: 100%;
     }
 
     #footer {
-      width: 100%;
-      background: #222;
-      color: #fff;
-      padding: 10px 8px;
-      text-align: center;
+      max-width: 100% !important;
+      width: 100% !important;
+      background-color: #222;
       font-size: 10pt;
-      margin-top: 10px;
-    }
-
-    #footer a {
       color: #fff;
+      padding: 10px 5px 10px 5px !important;
     }
   </style>
 </head>
+
 <body>
-  <table id="header" cellspacing="0" cellpadding="0">
+<div class="page">
+  <table id="header" cellspacing="0" cellpadding="0" width="100%" align="center">
     <tbody>
-      <tr>
-        <td>
-          <img src="{{officeLogoBase64}}" alt="Company Logo" align="left">
+      <tr class="logo-row">
+        <td colspan="1">
+          <img src="{{officeLogoBase64}}" alt="Company Logo" class="logo" align="left">
         </td>
       </tr>
-      <tr>
+      <tr valign="top">
         <td>
-          <h1>Property Management Agreement</h1>
+          <h1>Owner Property Management Agreement</h1>
         </td>
       </tr>
     </tbody>
   </table>
 
-  <div id="container">
-    <h2>Agreement Overview</h2>
-    <p>
-      THIS AGREEMENT is made and entered into by and between
-      <strong>{{organization-office}}</strong> ("AvenueWest" / "Agent"),
-      a corporation organized under the laws of the State of {{organizationState}},
-      having its principal office at {{accountingOfficeAddress}},
-      and <strong>{{ownerFullName}}</strong> ("Owner"),
-      of {{ownerAddress}}.
-    </p>
-
-    <p class="muted">
-      Property: <strong>{{propertyAddress}}</strong> ({{propertyCode}})
-    </p>
-
-    <p class="section-title">RECITALS</p>
-    <p>a) Owner holds title and is the owner of the above-described real property.</p>
-    <p>b) Agent is in the business of operating and managing real estate similar to the above-described property.</p>
-    <p>c) Owner desires to engage Agent for professional rental management services and Agent desires to provide such services under this agreement.</p>
-
-    <p class="section-title">SECTION ONE - EMPLOYMENT OF AGENT</p>
-    <p>1.1 Agent shall act as the exclusive agent of Owner to manage, lease, operate and maintain the property.</p>
-    <p>1.2 This agreement shall be for a term of 12 months commencing on <span class="line line-md">{{agreementStartDate}}</span>.</p>
-    <p>1.3 This agreement will continue until terminated in accordance with Section 13.</p>
-    <p>1.4 Owner return: <strong>{{ownerRevenueSplitPercent}}%</strong> of adjusted gross rents; Agent share: <strong>{{officeRevenueSplitPercent}}%</strong>. Adjusted gross rents are gross rents less applicable taxes, referral fees, maid service fees and other direct booking costs.</p>
-    <p>Agent will target an adjusted gross rent of <strong>${{adjustedGrossRentTarget}}</strong> monthly.</p>
-
-    <p class="section-title">SECTION TWO - AGENT DUTIES</p>
-    <p>2.1 Agent shall inspect the property, recommend changes, and undertake approved improvements. Missing inventory may be supplied and charged to Owner.</p>
-    <p>2.2 Agent shall make reasonable efforts to lease the property and may negotiate, execute, renew, and extend lease/rental tenancies on behalf of Owner.</p>
-    <p>2.3 Agent shall use good faith and due diligence to achieve the highest rental income while preserving the property long-term, including authority to set rates, deposits, discounts, and rental business terms.</p>
-    <p>2.4 Agent shall deposit rental receipts in a trust account in compliance with Colorado Real Estate Commission rules until monthly disbursements are made.</p>
-    <p>2.5 Agent shall provide managerial and housekeeping services for the property.</p>
-
-    <p class="section-title">SECTION THREE - OWNER DUTIES</p>
-    <p>3.1 Owner shall keep the property in first-class structural condition and furnished in a manner acceptable to Agent.</p>
-    <p>3.2 Owner shall provide required inventory and fund periodic replacement/refresh as needed.</p>
-    <p>3.3 Owner shall provide, at Owner expense, high-speed internet, cable/streaming, electric/gas, water, sewer, and trash services.</p>
-    <p>3.4 Owner shall timely pay all ownership costs, including debt service, HOA assessments, and amenity fees.</p>
-    <p>3.5 Owner shall pay for seasonal cleanings (including carpet cleaning and touch-up painting) and approved subcontractor work charged to Owner account.</p>
-    <p>3.6 Owner agrees not to enter, or permit others to enter, the property without prior Agent approval while this agreement is active.</p>
-
-    <p class="section-title">SECTION FOUR - ADVERTISING AND PROMOTION</p>
-    <p>4.1 Agent shall advertise vacancies through reasonable channels, including web exposure.</p>
-    <p>4.2 Agent shall design and distribute promotional materials at Agent expense.</p>
-    <p>4.3 Primary marketing is through relationships with corporations, relocation companies, and corporate housing agencies.</p>
-
-    <p class="section-title">SECTION FIVE - MAINTENANCE, REPAIRS AND OPERATIONS</p>
-    <p>5.1 Agent shall use best efforts to maintain the property and coordinate utilities/services required for operation.</p>
-    <p>5.2 For non-emergency items over $200.00, Agent will make reasonable effort to contact Owner. Emergency/protective expenditures may proceed without prior notice.</p>
-    <p>5.3 If critical appliances/fixtures fail, Agent may repair/replace on Owner behalf where delay could materially impact occupancy/revenue.</p>
-    <p>5.4 In-house maintenance labor fee: <strong>${{inHouseMaintenanceHourlyFee}}</strong> per hour.</p>
-    <p>5.5 Subcontracted maintenance is passed through to Owner with <strong>{{subcontractedMaintenanceMarkupPercent}}%</strong> markup.</p>
-
-    <p class="section-title">SECTION SIX - REIMBURSEMENTS</p>
-    <p>6.1 Costs resulting from this agreement (except costs expressly assumed by Agent) are Owner responsibility. If rents are insufficient, Owner shall reimburse Agent within 15 days of demand.</p>
-
-    <p class="section-title">SECTION SEVEN - GOVERNMENT REGULATIONS</p>
-    <p>7.1 Agent shall manage property in compliance with applicable federal, state, county and municipal laws.</p>
-
-    <p class="section-title">SECTION EIGHT - INSURANCE</p>
-    <p>8.1 Owner shall maintain comprehensive general liability insurance with limits not less than <strong>${{ownerLiabilityInsuranceMinimum}}</strong> per occurrence.</p>
-    <p>8.2 Owner is recommended to maintain fire/casualty, loss of rents, and personal property coverage (individually or through HOA as applicable).</p>
-    <p>8.3 Owner shall name Agent as additional insured and provide insurance certificates as requested.</p>
-
-    <p class="section-title">SECTION NINE - COLLECTION OF INCOME; LEGAL ACTION</p>
-    <p>9.1 Agent shall use best efforts to collect rents and other income; collection is not guaranteed.</p>
-    <p>9.2 Agent shall use good faith efforts to collect unpaid rent/damages via deposits, cards, demand letters, or negotiations.</p>
-    <p>9.3 Agent may execute notices/demands and pursue lawful collections/remedies in Owner name as needed.</p>
-
-    <p class="section-title">SECTION TEN - BANK ACCOUNTS</p>
-    <p>10.1 Agent shall deposit property revenues into Agent trust account, without commingling, and disburse net balances to Owner after authorized deductions.</p>
-
-    <p class="section-title">SECTION ELEVEN - RECORDS AND REPORTS</p>
-    <p>11.1 Agent shall maintain books and records for property operations, available for Owner review by appointment with at least three days notice.</p>
-    <p>11.2 Agent shall provide monthly statement of revenues/expenditures and concession summary.</p>
-    <p>11.3 Agent shall provide annual summary within 30 days after calendar year end.</p>
-
-    <p class="section-title">SECTION TWELVE - ADDITIONAL DUTIES AND RIGHTS OF AGENT</p>
-    <p>12.1 Agent shall perform services necessary for proper operation and management, and report material conditions to Owner.</p>
-    <p>12.2 Agent uses reasonable diligence to correct issues but does not guarantee repairs in all circumstances nor guarantee against all income loss/damage events.</p>
-    <p>12.3 Agent is not obligated to advance funds. If advanced, Owner shall repay on demand; unpaid balances may accrue interest up to 24% annual plus collection costs as permitted by law.</p>
-    <p>12.4 Agent may terminate if Owner fails to cure reasonable property conditions required for proper management after 30 days.</p>
-
-    <p class="section-title">SECTION THIRTEEN - TERMINATION AND RENEWAL</p>
-    <p>13.1 Agreement renews annually unless terminated per these terms. After initial one-year term, either party may terminate with 90 days written notice; shorter notice may be accepted if unit is vacant with no pending leases.</p>
-    <p>13.2 Where tenant occupancy extends beyond notice period, termination occurs at lease end under agreement terms.</p>
-
-    <p class="section-title">SECTION FOURTEEN - SALE OF PROPERTY / ACCESS</p>
-    <p>14.1 Owner remains obligated to honor binding reservations made by Agent.</p>
-    <p>14.2 Owner shall promptly notify Agent of any potential sale/listing of the property.</p>
-    <p>14.3 Voluntary sale terminates agreement upon departure of current tenant or lease end. Contract termination fee due to sale: <strong>${{saleTerminationFee}}</strong>.</p>
-
-    <p class="section-title">SECTION FIFTEEN - SUMMARY OF FEES</p>
-    <p>15.1 Maintenance fees apply to normal wear-and-tear work at <strong>${{inHouseMaintenanceHourlyFee}}</strong>/hour plus item costs.</p>
-    <p>15.2 Annual maintenance includes preventative services (filters, batteries, carpet cleaning, etc.).</p>
-    <p>15.3 Property repairs are charged to tenant where negligent; otherwise to Owner.</p>
-    <p>15.4 Online fee (Rent Ready processing): <strong>${{onlineRentReadyFee}}</strong>.</p>
-    <p>15.5 Online clean (if needed): <strong>${{onlineCleanHourlyFee}}</strong>/hour.</p>
-    <p>15.6 Annual linen & towel service: {{annualLinenServiceSelection}}</p>
-    <p>15.7 Working balance / utility allowance maintained in escrow: <strong>${{workingBalanceEscrowAmount}}</strong>.</p>
-    <p>15.8 Unit furnishing responsibility and furnishing selections: {{furnishingSelectionSummary}}</p>
-    <p>15.9 Off-line fee (unit breakdown): <strong>${{offlineFee}}</strong>.</p>
-    <p>15.10 Monthly rent disbursement and deduction logic applies as detailed in this agreement.</p>
-    <p>15.11 Owner payments are processed by direct deposit (next business day target).</p>
-    <p>15.12 Certain tenant fees may be collected by broker (e.g., pet cleaning, departure, late fees).</p>
-
-    <p class="section-title">SECTION SIXTEEN - FOREIGN OWNERSHIP</p>
-    <p>16.1 Owner acknowledges U.S. tax withholding rules may apply to foreign ownership and agrees to provide required documentation. Without qualifying documentation, Agent may withhold 30% of applicable gross unit revenue per U.S. tax law.</p>
-
-    <p class="section-title">SECTION SEVENTEEN - INDEMNITY</p>
-    <p>17.1 Owner indemnifies Agent and affiliates against liabilities/claims arising from Owner-side obligations, including reasonable attorney fees/costs, as permitted by law.</p>
-    <p>17.2 Agent indemnifies Owner for losses resulting from Agent negligent acts/omissions while performing under this agreement.</p>
-
-    <p class="section-title">SECTION EIGHTEEN - MISCELLANEOUS</p>
-    <p>18.1 Agent is an independent contractor.</p>
-    <p>18.2 Completed W-9 required before owner payment.</p>
-    <p>18.3 Notice requirements, address updates, and delivery standards apply as detailed in this agreement.</p>
-    <p>18.4 Agreement binds successors/assigns subject to assignment restrictions.</p>
-    <p>18.5 If any provision is invalid, remaining provisions remain in effect.</p>
-    <p>18.6 Colorado law governs validity and interpretation.</p>
-    <p>18.7 This agreement is the complete understanding unless modified in writing and signed.</p>
-    <p>18.8 Disputes are subject to binding arbitration in Denver, Colorado under AAA rules.</p>
-    <p>18.9 Prevailing party in enforcement action may recover costs and reasonable attorney fees.</p>
-    <p>18.10 Modifications require signed written amendment.</p>
-
-    <p class="section-title">SECTION NINETEEN - ADDITIONAL FORMS</p>
-    <p>Owner acknowledges completion and return of required forms prior to rent disbursement, including:</p>
-    <div class="indent">
-      <p>19.1 W-9 Tax Form</p>
-      <p>19.2 Direct Deposit Form</p>
-      <p>19.3 Lead-Based Paint Disclosure (if applicable)</p>
-      <p>19.4 Broker Duties Addendum to Property Management Agreement</p>
-      <p>19.5 Property Disclosure (if applicable)</p>
-    </div>
-
-    <p class="section-title">IN WITNESS WHEREOF</p>
-    <p>The parties have executed this agreement as of the dates below.</p>
-
-    <table class="signature-grid">
-      <tr>
-        <td>
-          <div class="sig-line">Owner Signature</div>
-          <div class="sig-line">Print Name: {{ownerFullName}}</div>
-          <div class="sig-line">Date: {{ownerSignatureDate}}</div>
-        </td>
-        <td>
-          <div class="sig-line">Agent Signature ({{organization-office}})</div>
-          <div class="sig-line">Print Name: {{agentSignerName}}</div>
-          <div class="sig-line">Date: {{agentSignatureDate}}</div>
-        </td>
-      </tr>
-    </table>
-  </div>
-
-  <table id="footer" cellspacing="0" cellpadding="0">
+  <table id="container" cellspacing="0" cellpadding="0" width="100%" align="center">
     <tbody>
-      <tr>
-        <td>
-          <strong>{{organization-office}}</strong><br>
-          {{accountingOfficeAddress}}<br>
-          P: {{officePhone}} &nbsp;&nbsp;&nbsp; F: {{officeFax}} &nbsp;&nbsp;&nbsp;
-          <a href="http://{{organizationWebsite}}">{{organizationWebsite}}</a>
+      <tr valign="top">
+        <td width="50%" style="vertical-align: top; padding: 5px 5px 15px 5px; width: 50% !important;">
+          <div class="border">
+            <h2 style="color: #000 !important;">Owner Information</h2>
+            <div class="top-info-lines">
+              <div class="top-info-line"><span style="font-weight: bold">Owner:</span> {{ownerFullName}}</div>
+              <div class="top-info-line"><span style="font-weight: bold">Owner Address:</span> {{ownerAddress}}</div>
+              <div class="top-info-line"><span style="font-weight: bold">Property Code:</span> {{propertyCode}}</div>
+              <div class="top-info-line"><span style="font-weight: bold">Property Address:</span> {{propertyAddress}}</div>
+            </div>
+          </div>
+        </td>
+
+        <td width="50%" style="vertical-align: top; padding: 5px 5px 15px 5px; width: 50% !important;">
+          <div class="border">
+            <h2 style="color: #000 !important;">Agent Information</h2>
+            <div class="top-info-lines">
+              <div class="top-info-line"><span style="font-weight: bold">Organization:</span> {{organization-office}}</div>
+              <div class="top-info-line"><span style="font-weight: bold">Agreement Date:</span> {{agreementStartDate}}</div>
+              <div class="top-info-line"><span style="font-weight: bold">Prepared By:</span> {{agentSignerName}}</div>
+              <div class="top-info-line"><span style="font-weight: bold">Office:</span> {{accountingOfficeAddress}}</div>
+            </div>
+          </div>
         </td>
       </tr>
     </tbody>
   </table>
+
+  <br>
+
+  <table cellspacing="0" cellpadding="0" width="100%" align="center">
+    <tbody>
+      <tr valign="top">
+        <td id="terms" colspan="2">
+          <div class="keep-together">
+            <h2>Agreement Introduction</h2>
+            <div class="section-text">{{agreementIntroductionSection}}</div>
+          </div>
+          <div class="keep-together">
+            <div class="section-text">{{recitalsSection}}</div>
+          </div>
+
+          <div class="keep-together agreement-section sec-1">
+            <div class="section-text">{{sectionOneEmploymentSection}}</div>
+          </div>
+          <div class="keep-together agreement-section sec-2">
+            <div class="section-text">{{sectionTwoAgentDutiesSection}}</div>
+          </div>
+          <div class="keep-together agreement-section sec-3">
+            <div class="section-text">{{sectionThreeOwnersDutiesSection}}</div>
+          </div>
+          <div class="keep-together agreement-section sec-4">
+            <div class="section-text">{{sectionFourAdvertisingAndPromotionSection}}</div>
+          </div>
+          <div class="keep-together agreement-section sec-5">
+            <div class="section-text">{{sectionFiveMaintenanceRepairsAndOperationsSection}}</div>
+          </div>
+          <div class="keep-together agreement-section sec-6">
+            <div class="section-text">{{sectionSixReimbursementsSection}}</div>
+          </div>
+          <div class="keep-together agreement-section sec-7">
+            <div class="section-text">{{sectionSevenGovernmentRegulationsSection}}</div>
+          </div>
+          <div class="keep-together agreement-section sec-8">
+            <div class="section-text">{{sectionEightInsuranceSection}}</div>
+          </div>
+          <div class="keep-together agreement-section sec-9">
+            <div class="section-text">{{sectionNineCollectionOfIncomeAndInstitutionOfLegalActionSection}}</div>
+          </div>
+          <div class="keep-together agreement-section sec-10">
+            <div class="section-text">{{sectionTenBankAccountsSection}}</div>
+          </div>
+          <div class="keep-together agreement-section sec-11">
+            <div class="section-text">{{sectionElevenRecordsAndReportsSection}}</div>
+          </div>
+          <div class="keep-together agreement-section sec-12">
+            <div class="section-text">{{sectionTwelveAdditionalDutiesAndRightsSection}}</div>
+          </div>
+          <div class="keep-together agreement-section sec-13">
+            <div class="section-text">{{sectionThirteenTerminationAndRenewalSection}}</div>
+          </div>
+          <div class="keep-together agreement-section sec-14">
+            <div class="section-text">{{sectionFourteenSaleOfPropertyAccessSection}}</div>
+          </div>
+          <div class="keep-together agreement-section sec-15">
+            <div class="section-text">{{sectionFifteenSummaryOfFeesSection}}</div>
+          </div>
+          <div class="keep-together agreement-section sec-16">
+            <div class="section-text">{{sectionSixteenForeignOwnershipSection}}</div>
+          </div>
+          <div class="keep-together agreement-section sec-17">
+            <div class="section-text">{{sectionSeventeenIndemnitySection}}</div>
+          </div>
+          <div class="keep-together agreement-section sec-18">
+            <div class="section-text">{{sectionEighteenMiscellaneousSection}}</div>
+          </div>
+          <div class="keep-together agreement-section sec-19">
+            <div class="section-text">{{sectionNineteenAdditionalFormsSection}}</div>
+          </div>
+          <div class="keep-together">
+            <div class="section-text">{{inWitnessWhereofSection}}</div>
+          </div>
+
+          {{#if depositTypeSDW}}
+            <div class="keep-together">{{securityDepositWaiverSection}}</div>
+          {{#else}}
+            <div class="keep-together">{{securityDepositSection}}</div>
+          {{/if}}
+
+          <div class="keep-together">{{cancellationPolicySection}}</div>
+          <div class="keep-together">{{keyPickUpDropOffSection}}</div>
+
+          {{#if billingTypeMonthly}}
+            <div class="keep-together">{{partialMonthSection}}</div>
+          {{/if}}
+
+          <div class="keep-together">{{departureNotificationSection}}</div>
+          <div class="keep-together">{{holdoverSection}}</div>
+          <div class="keep-together">{{departureServiceFeeSection}}</div>
+          <div class="keep-together">{{checkoutProcedureSection}}</div>
+
+          <table id="footer" cellspacing="0" cellpadding="0" width="100%" align="center">
+            <tbody>
+              <tr valign="top">
+                <td align="center">
+                  <span style="font-weight: bold">{{organization-office}}</span><br>
+                  {{accountingOfficeAddress}}<br>
+                  <span>P:</span> {{officePhone}} &nbsp;&nbsp;&nbsp; <span>F:</span> {{officeFax}} &nbsp;&nbsp;&nbsp;
+                  <a style="color: rgb(255,255,255)" href="http://{{organizationWebsite}}">{{organizationWebsite}}</a>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </td>
+      </tr>
+    </tbody>
+  </table>
+</div>
 </body>
 </html>

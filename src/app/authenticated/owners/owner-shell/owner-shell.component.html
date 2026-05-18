@@ -10,7 +10,7 @@
         <div class="flex items-center flex-wrap py-4">
           <span class="flex flex-shrink-0 items-center gap-2">
             <mat-icon class="flex-shrink-0">person</mat-icon>
-            <span class="flex-shrink-0 text-xl font-medium">{{ isOwnerListMode ? 'Owners' : 'Owner' }}</span>
+            <span class="flex-shrink-0 text-xl font-medium">Owners</span>
           </span>
           <div class="header-title form-titlebar-fields-wrap">
             <app-title-bar-select
@@ -23,7 +23,7 @@
               [noResultsText]="'No offices match your search'"
               (valueChange)="onOfficeDropdownChange($event)">
             </app-title-bar-select>
-            @if (!isOwnerListMode && selectedTabIndex === 1) {
+            @if (!isOwnerListMode && (selectedTabIndex === 1 || selectedTabIndex === 2 || selectedTabIndex === 3)) {
               <app-title-bar-select
                 [label]="'Property Code'"
                 [formFieldClass]="'titlebar-field-property-code'"
@@ -52,7 +52,7 @@
           <app-owners-list [officeId]="selectedOfficeId"></app-owners-list>
         } @else {
           <mat-tab-group class="property-tabs owner-shell-tabs dbg-band-tabs" [selectedIndex]="selectedTabIndex" (selectedIndexChange)="onTabIndexChange($event)">
-            <mat-tab label="Owner Information">
+            <mat-tab label="Owners">
               <app-owner-information
                 [token]="token"
                 [ownerEntityTypeId]="ownerEntityTypeId"
@@ -61,7 +61,7 @@
               </app-owner-information>
             </mat-tab>
 
-            <mat-tab label="Property Information">
+            <mat-tab label="Properties">
               <app-property-information
                 [token]="token"
                 [ownerLeadId]="leadOwnerId"
@@ -70,8 +70,19 @@
               </app-property-information>
             </mat-tab>
 
-            <mat-tab label="Agreement Form"><app-agreement-form></app-agreement-form></mat-tab>
-            <mat-tab label="Financial Preferences"><app-financial-preferences></app-financial-preferences></mat-tab>
+            <mat-tab label="Information">
+              <app-owner-agreement-information
+                [officeId]="selectedOfficeId"
+                [propertyId]="selectedPropertyId === newPropertyOptionValue ? null : selectedPropertyId">
+              </app-owner-agreement-information>
+            </mat-tab>
+            <mat-tab label="Agreement Form">
+              <app-owner-agreement-form
+                [ownerLeadId]="leadOwnerId"
+                [officeId]="selectedOfficeId"
+                [propertyId]="selectedPropertyId === newPropertyOptionValue ? null : selectedPropertyId">
+              </app-owner-agreement-form>
+            </mat-tab>
             <mat-tab label="Insurance"><app-insurance></app-insurance></mat-tab>
             <mat-tab label="Compliance"><app-compliance></app-compliance></mat-tab>
           </mat-tab-group>
