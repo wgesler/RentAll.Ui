@@ -90,6 +90,13 @@
   box-sizing: border-box;
 }
 
+.reservation-board-legend-above {
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  padding: 0 16px 6px 16px;
+}
+
 .reservation-board-titlebar-legend {
   display: inline-flex;
   align-items: center;
