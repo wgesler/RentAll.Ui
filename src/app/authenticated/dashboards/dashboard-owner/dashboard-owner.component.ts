@@ -34,7 +34,8 @@ export class DashboardOwnerComponent implements OnInit, OnDestroy {
   allReservations: ReservationListDisplay[] = [];
   ownerPropertyReservations: ReservationListDisplay[] = [];
   ownerPropertiesTableData: Array<Record<string, unknown>> = [];
-  ownerPropertyReservationsTableData: Array<Record<string, unknown>> = [];
+  ownerCurrentReservationsTableData: Array<Record<string, unknown>> = [];
+  ownerHistoricalReservationsTableData: Array<Record<string, unknown>> = [];
   rentedCount: number = 0;
   vacantCount: number = 0;
   currentReservationCount: number = 0;
@@ -133,7 +134,8 @@ export class DashboardOwnerComponent implements OnInit, OnDestroy {
       this.allProperties = [];
       this.ownerPropertiesTableData = [];
       this.ownerPropertyReservations = [];
-      this.ownerPropertyReservationsTableData = [];
+      this.ownerCurrentReservationsTableData = [];
+      this.ownerHistoricalReservationsTableData = [];
       this.rentedCount = 0;
       this.vacantCount = 0;
       this.currentReservationCount = 0;
@@ -157,7 +159,8 @@ export class DashboardOwnerComponent implements OnInit, OnDestroy {
         this.allProperties = [];
         this.ownerPropertiesTableData = [];
         this.ownerPropertyReservations = [];
-        this.ownerPropertyReservationsTableData = [];
+        this.ownerCurrentReservationsTableData = [];
+        this.ownerHistoricalReservationsTableData = [];
         this.rentedCount = 0;
         this.vacantCount = 0;
         this.currentReservationCount = 0;
@@ -178,7 +181,8 @@ export class DashboardOwnerComponent implements OnInit, OnDestroy {
       error: () => {
         this.allReservations = [];
         this.ownerPropertyReservations = [];
-        this.ownerPropertyReservationsTableData = [];
+        this.ownerCurrentReservationsTableData = [];
+        this.ownerHistoricalReservationsTableData = [];
         this.rentedCount = 0;
         this.vacantCount = this.allProperties.length;
         this.currentReservationCount = 0;
@@ -197,11 +201,13 @@ export class DashboardOwnerComponent implements OnInit, OnDestroy {
         ...reservation,
         billingType: getBillingType(reservation.billingTypeId ?? undefined)
       }));
-    this.ownerPropertyReservationsTableData = this.ownerPropertyReservations.map(reservation => ({
+    const reservationsForDisplay = this.ownerPropertyReservations.map(reservation => ({
       ...reservation,
       billingType: this.shouldMaskBillingFields(reservation.reservationStatusId) ? '--' : getBillingType(reservation.billingTypeId ?? undefined),
       billingRate: this.shouldMaskBillingFields(reservation.reservationStatusId) ? '--' : this.formatCurrencyValue(reservation.billingRate)
     }));
+    this.ownerCurrentReservationsTableData = reservationsForDisplay.filter(reservation => !this.isHistoricalReservation(reservation.departureDate));
+    this.ownerHistoricalReservationsTableData = reservationsForDisplay.filter(reservation => this.isHistoricalReservation(reservation.departureDate));
 
     const today = new Date();
     today.setHours(0, 0, 0, 0);
@@ -248,6 +254,20 @@ export class DashboardOwnerComponent implements OnInit, OnDestroy {
 
   shouldMaskBillingFields(reservationStatusId: number | null | undefined): boolean {
     return Number(reservationStatusId) > ReservationStatus.FirstRightRefusal;
+  }
+
+  isHistoricalReservation(departureDateValue: unknown): boolean {
+    if (!departureDateValue) {
+      return false;
+    }
+    const departureDate = this.utilityService.parseCalendarDateInput(departureDateValue as string);
+    if (!departureDate) {
+      return false;
+    }
+    departureDate.setHours(0, 0, 0, 0);
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    return departureDate.getTime() < today.getTime();
   }
   //#endregion
 }

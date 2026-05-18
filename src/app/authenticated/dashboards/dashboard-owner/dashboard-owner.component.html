@@ -112,7 +112,7 @@
 
             <mat-expansion-panel [expanded]="true">
               <mat-expansion-panel-header>
-                <mat-panel-title>Reservations</mat-panel-title>
+                <mat-panel-title>Current Reservations</mat-panel-title>
               </mat-expansion-panel-header>
               @if (isLoadingReservations) {
                 <div class="loading-container">
@@ -122,7 +122,32 @@
               } @else {
                 <div class="tableDiv">
                   <app-data-table
-                    [data]="ownerPropertyReservationsTableData"
+                    [data]="ownerCurrentReservationsTableData"
+                    [columns]="ownerReservationsDisplayedColumns"
+                    [hasColumnIndex]="false"
+                    [hasFilter]="false"
+                    [hasToggleTop]="false"
+                    [hasButtonTop]="false"
+                    [hasActionsRowClick]="false"
+                    [hasActionsEdit]="false"
+                    [hasActionsDelete]="false"
+                    [itemsPerPage]="50" />
+                </div>
+              }
+            </mat-expansion-panel>
+            <mat-expansion-panel [expanded]="true">
+              <mat-expansion-panel-header>
+                <mat-panel-title>Historical Reservations</mat-panel-title>
+              </mat-expansion-panel-header>
+              @if (isLoadingReservations) {
+                <div class="loading-container">
+                  <mat-spinner [diameter]="40"></mat-spinner>
+                  <p>Loading reservations...</p>
+                </div>
+              } @else {
+                <div class="tableDiv">
+                  <app-data-table
+                    [data]="ownerHistoricalReservationsTableData"
                     [columns]="ownerReservationsDisplayedColumns"
                     [hasColumnIndex]="false"
                     [hasFilter]="false"
