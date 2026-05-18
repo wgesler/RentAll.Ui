@@ -8,7 +8,7 @@ import { MappingService } from '../../../services/mapping.service';
 import { UtilityService } from '../../../services/utility.service';
 import { PropertyListResponse } from '../../properties/models/property.model';
 import { PropertyService } from '../../properties/services/property.service';
-import { getBillingType } from '../../reservations/models/reservation-enum';
+import { getBillingType, ReservationStatus } from '../../reservations/models/reservation-enum';
 import { ReservationListDisplay, ReservationListResponse } from '../../reservations/models/reservation-model';
 import { ReservationBoardComponent } from '../../reservations/reservation-board/reservation-board.component';
 import { ReservationService } from '../../reservations/services/reservation.service';
@@ -199,7 +199,8 @@ export class DashboardOwnerComponent implements OnInit, OnDestroy {
       }));
     this.ownerPropertyReservationsTableData = this.ownerPropertyReservations.map(reservation => ({
       ...reservation,
-      billingRate: this.formatCurrencyValue(reservation.billingRate)
+      billingType: this.shouldMaskBillingFields(reservation.reservationStatusId) ? '--' : getBillingType(reservation.billingTypeId ?? undefined),
+      billingRate: this.shouldMaskBillingFields(reservation.reservationStatusId) ? '--' : this.formatCurrencyValue(reservation.billingRate)
     }));
 
     const today = new Date();
@@ -243,6 +244,10 @@ export class DashboardOwnerComponent implements OnInit, OnDestroy {
 
   formatCurrencyValue(value: number | null | undefined): string {
     return this.formatterService.currencyUsd(Number(value) || 0);
+  }
+
+  shouldMaskBillingFields(reservationStatusId: number | null | undefined): boolean {
+    return Number(reservationStatusId) > ReservationStatus.FirstRightRefusal;
   }
   //#endregion
 }
