@@ -61,9 +61,7 @@ export class ReservationBoardComponent implements OnInit, OnDestroy {
     ReservationStatus.GaveNotice,
     ReservationStatus.FirstRightRefusal,
     ReservationStatus.Maintenance,
-    ReservationStatus.OwnerBlocked,
-    ReservationStatus.ArrivalDeparture,
-    ReservationStatus.Offline
+    ReservationStatus.OwnerBlocked
   ];
 
   startDate: Date = null;
