@@ -601,7 +601,7 @@ export class PropertyWelcomeLetterComponent extends BaseDocumentComponent implem
 
     if (this.propertyInformation) {
       result = result.replace(/\{\{arrivalInstructions\}\}/g, this.propertyInformation.arrivalInstructions || '');
-      result = result.replace(/\{\{mailboxInstructions\}\}/g, this.propertyInformation.mailboxInstructions || '');
+      result = result.replace(/\{\{mailboxInstructions\}\}/g, this.getMailInstructionLine() || '');
       result = result.replace(/\{\{packageInstructions\}\}/g, this.propertyInformation.packageInstructions || '');
       result = result.replace(/\{\{parkingInformation\}\}/g, this.propertyInformation.parkingInformation || '');
       result = result.replace(/\{\{access\}\}/g, this.propertyInformation.access || '');
@@ -781,6 +781,12 @@ export class PropertyWelcomeLetterComponent extends BaseDocumentComponent implem
       this.property.zip
     ].filter(p => p);
     return parts.join(', ');
+  }
+
+  getMailInstructionLine(): string {
+    if(this.property?.mailbox)
+      return '#' + this.property.mailbox + ' ' + this.propertyInformation.mailboxInstructions;
+    return this.propertyInformation.mailboxInstructions
   }
 
   getTrashLocation(): string {
