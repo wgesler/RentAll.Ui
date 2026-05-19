@@ -119,9 +119,31 @@
               <input matInput formControlName="title" required>
             </mat-form-field>
 
-            <div class="col-span-12 ticket-description-box">
-              <div class="ticket-description-label">Description</div>
-              <div class="ticket-description-content" [innerHTML]="descriptionHtml"></div>
+            <div class="col-span-12 description-editor-wrap">
+              <div class="description-editor-label">Description</div>
+              <div class="description-editor-toolbar">
+                <button type="button" mat-stroked-button (mousedown)="preventEditorToolbarMouseDown($event)" (click)="applyDescriptionFormat('bold')">
+                  <mat-icon>format_bold</mat-icon>
+                </button>
+                <button type="button" mat-stroked-button (mousedown)="preventEditorToolbarMouseDown($event)" (click)="applyDescriptionFormat('italic')">
+                  <mat-icon>format_italic</mat-icon>
+                </button>
+                <button type="button" mat-stroked-button (mousedown)="preventEditorToolbarMouseDown($event)" (click)="applyDescriptionFormat('underline')">
+                  <mat-icon>format_underlined</mat-icon>
+                </button>
+                <button type="button" mat-stroked-button (mousedown)="preventEditorToolbarMouseDown($event)" (click)="applyDescriptionFormat('paragraph')">
+                  <mat-icon>subject</mat-icon>
+                </button>
+                <button type="button" mat-stroked-button (mousedown)="preventEditorToolbarMouseDown($event)" (click)="applyDescriptionFormat('unorderedList')">
+                  <mat-icon>format_list_bulleted</mat-icon>
+                </button>
+              </div>
+              <div
+                #descriptionEditor
+                class="description-editor-input description-editor-input--with-markers"
+                contenteditable="true"
+                (input)="onDescriptionInput($event)">
+              </div>
             </div>
 
             @if (!isAddMode) {

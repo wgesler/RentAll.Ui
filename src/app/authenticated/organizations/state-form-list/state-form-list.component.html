@@ -9,9 +9,10 @@
         [hasToggleTop]="false"
         [hasActionsRowClick]="true"
         [hasActionsEdit]="true"
-        [hasActionsDelete]="false"
+        [hasActionsDelete]="true"
         [itemsPerPage]="100"
         (editEvent)="goToStateForm($event)"
+        (deleteEvent)="deleteStateForm($event)"
         (rowClickEvent)="goToStateForm($event)">
         <div dataTableFilterActions>
           <div class="table-filter-actions-group form-titlebar-actions-wrap uniform-gap">

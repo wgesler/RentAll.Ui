@@ -2,7 +2,9 @@ import { CommonModule } from '@angular/common';
 import { HttpErrorResponse } from '@angular/common/http';
 import { Component, EventEmitter, Input, OnDestroy, OnInit, Output } from '@angular/core';
 import { FormsModule } from '@angular/forms';
+import { ToastrService } from 'ngx-toastr';
 import { BehaviorSubject, Observable, Subject, catchError, concatMap, filter, finalize, from, map, of, take, takeUntil, toArray } from 'rxjs';
+import { CommonMessage } from '../../../enums/common-message.enum';
 import { MaterialModule } from '../../../material.module';
 import { MappingService } from '../../../services/mapping.service';
 import { UtilityService } from '../../../services/utility.service';
@@ -44,7 +46,8 @@ export class StateFormListComponent implements OnInit, OnDestroy {
     private stateFormService: StateFormService,
     private commonService: CommonService,
     private mappingService: MappingService,
-    private utilityService: UtilityService
+    private utilityService: UtilityService,
+    private toastr: ToastrService
   ) {
   }
 
@@ -66,6 +69,20 @@ export class StateFormListComponent implements OnInit, OnDestroy {
       return;
     }
     this.stateFormSelected.emit(stateForm.stateFormId);
+  }
+
+  deleteStateForm(stateForm: StateFormListDisplay): void {
+    if (!stateForm?.stateFormId) {
+      return;
+    }
+
+    this.stateFormService.deleteStateForm(stateForm.stateFormId).pipe(take(1)).subscribe({
+      next: () => {
+        this.toastr.success('State form deleted successfully', CommonMessage.Success);
+        this.getStateForms();
+      },
+      error: (_err: HttpErrorResponse) => {}
+    });
   }
 
   loadStateForms(): void {

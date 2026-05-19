@@ -1,5 +1,5 @@
 import { CommonModule } from '@angular/common';
-import { Component, EventEmitter, Input, OnChanges, OnDestroy, OnInit, Output, SimpleChanges } from '@angular/core';
+import { AfterViewInit, Component, ElementRef, EventEmitter, Input, OnChanges, OnDestroy, OnInit, Output, SimpleChanges, ViewChild } from '@angular/core';
 import { FormBuilder, FormControl, FormGroup, FormsModule, ReactiveFormsModule, Validators } from '@angular/forms';
 import { MatDialog } from '@angular/material/dialog';
 import { ActivatedRoute } from '@angular/router';
@@ -39,7 +39,7 @@ import { TicketWorkOrderDialogComponent, TicketWorkOrderDialogResult } from './t
   templateUrl: './ticket.component.html',
   styleUrl: './ticket.component.scss'
 })
-export class TicketComponent implements OnInit, OnChanges, OnDestroy {
+export class TicketComponent implements OnInit, OnChanges, AfterViewInit, OnDestroy {
   @Input() id: string | number | null = null;
   @Input() embeddedInSettings: boolean = false;
   @Input() selectedPropertyIdFromShell: string | null = null;
@@ -55,6 +55,11 @@ export class TicketComponent implements OnInit, OnChanges, OnDestroy {
   isAddMode: boolean = false;
   isPageReady: boolean = false;
   form: FormGroup;
+  @ViewChild('descriptionEditor') set descriptionEditorRef(value: ElementRef<HTMLDivElement> | undefined) {
+    this.descriptionEditor = value;
+    this.syncDescriptionEditorFromForm();
+  }
+  descriptionEditor?: ElementRef<HTMLDivElement>;
 
   organizationId = '';
   ticket: TicketResponse | null = null;
@@ -141,6 +146,10 @@ export class TicketComponent implements OnInit, OnChanges, OnDestroy {
     if (changes['selectedReservationIdFromShell'] && !changes['selectedReservationIdFromShell'].firstChange) {
       this.syncReservationAgentFromSelectedReservation();
     }
+  }
+
+  ngAfterViewInit(): void {
+    this.syncDescriptionEditorFromForm();
   }
 
   getTicket(id: string | number | null): void {
@@ -347,6 +356,8 @@ export class TicketComponent implements OnInit, OnChanges, OnDestroy {
     this.selectedReservationCodeForAudit = this.normalizeText(ticket.reservationCode ?? null);
     this.applyPropertySelection(ticket.propertyId ?? null);
     this.emitPropertySelection();
+    this.syncDescriptionEditorFromForm();
+    setTimeout(() => this.syncDescriptionEditorFromForm());
   }
 
   resetForm(): void {
@@ -369,6 +380,7 @@ export class TicketComponent implements OnInit, OnChanges, OnDestroy {
       isActive: true
     }, { emitEvent: false });
     this.selectedReservationCodeForAudit = null;
+    this.syncDescriptionEditorFromForm();
   }
   //#endregion
 
@@ -392,13 +404,78 @@ export class TicketComponent implements OnInit, OnChanges, OnDestroy {
     return '';
   }
 
-  get descriptionHtml(): string {
-    const descriptionValue = String(this.form?.get('description')?.value || '');
-    const hasHtmlTags = /<\/?[a-z][\s\S]*>/i.test(descriptionValue);
-    if (hasHtmlTags) {
-      return descriptionValue;
+  onDescriptionInput(event: Event): void {
+    const element = event.target as HTMLDivElement;
+    const descriptionControl = this.form.get('description');
+    descriptionControl?.setValue(element.innerHTML, { emitEvent: false });
+    descriptionControl?.markAsDirty();
+    descriptionControl?.markAsTouched();
+  }
+
+  applyDescriptionFormat(format: 'bold' | 'italic' | 'underline' | 'paragraph' | 'unorderedList'): void {
+    const editor = this.descriptionEditor?.nativeElement;
+    if (!editor) {
+      return;
     }
-    return descriptionValue.replace(/\r\n/g, '\n').replace(/\n/g, '<br>');
+
+    editor.focus();
+    if (format === 'paragraph') {
+      const inserted = document.execCommand('insertParagraph', false);
+      if (!inserted) {
+        document.execCommand('insertHTML', false, '<p><br></p>');
+      }
+      this.form.get('description')?.setValue(editor.innerHTML);
+      return;
+    }
+
+    if (format === 'unorderedList') {
+      this.applyUnorderedListCommand(editor);
+      this.form.get('description')?.setValue(editor.innerHTML);
+      return;
+    }
+
+    document.execCommand(format, false);
+    this.form.get('description')?.setValue(editor.innerHTML);
+  }
+
+  preventEditorToolbarMouseDown(event: MouseEvent): void {
+    event.preventDefault();
+  }
+
+  applyUnorderedListCommand(editor: HTMLDivElement): void {
+    editor.focus();
+    const selection = window.getSelection();
+    const selectedText = selection?.toString() || '';
+    const listItems = selectedText
+      .split(/\r?\n+/)
+      .map(item => item.trim())
+      .filter(item => !!item);
+    if (listItems.length > 0) {
+      const listHtml = `<ul>${listItems.map(item => `<li>${this.escapeEditorHtml(item)}</li>`).join('')}</ul>`;
+      document.execCommand('insertHTML', false, listHtml);
+      return;
+    }
+
+    if (!selection || selection.rangeCount === 0) {
+      document.execCommand('insertHTML', false, '<ul><li><br></li></ul>');
+      return;
+    }
+
+    const range = selection.getRangeAt(0);
+    if (!editor.contains(range.commonAncestorContainer)) {
+      return;
+    }
+
+    document.execCommand('insertHTML', false, '<ul><li><br></li></ul>');
+  }
+
+  escapeEditorHtml(value: string): string {
+    return value
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#39;');
   }
 
   get ticketNotesDisplay(): { author: string; createdOn: string; note: string; linkedType: 'receipt' | 'workOrder' | null; linkedCode: string | null; linkedPrefix: string | null }[] {
@@ -1149,6 +1226,19 @@ export class TicketComponent implements OnInit, OnChanges, OnDestroy {
   //#region Utility Methods
   back(): void {
     this.backEvent.emit();
+  }
+
+  syncDescriptionEditorFromForm(): void {
+    const editor = this.descriptionEditor?.nativeElement;
+    if (!editor) {
+      return;
+    }
+
+    const description = this.form?.get('description')?.value ?? '';
+    const nextHtml = typeof description === 'string' ? description : String(description);
+    if (editor.innerHTML !== nextHtml) {
+      editor.innerHTML = nextHtml;
+    }
   }
 
   ngOnDestroy(): void {

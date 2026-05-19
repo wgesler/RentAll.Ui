@@ -85,14 +85,15 @@
   margin-top: var(--global-form-row-gap);
 }
 
-.ticket-description-box {
+.description-editor-wrap {
   border: 1px solid var(--mat-sys-outline, #cbd5e1);
   border-radius: 6px;
   box-sizing: border-box;
   padding: 8px 12px 12px;
+  background: #fff;
 }
 
-.ticket-description-label {
+.description-editor-label {
   font-family: inherit;
   font-size: 13px;
   font-weight: 400;
@@ -102,10 +103,83 @@
   margin: 0 0 var(--global-form-field-gap-y);
 }
 
-.ticket-description-content {
-  white-space: normal;
+.description-editor-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+
+.description-editor-input {
+  min-height: 140px;
+  border: 1px solid var(--mat-sys-outline, #cbd5e1);
+  border-radius: 4px;
+  padding: 10px;
+  outline: none;
+  line-height: 1.45;
+  white-space: pre-wrap;
   word-break: break-word;
-  line-height: 1.4;
+  font-family: var(--mat-sys-body-large-font, Roboto, 'Helvetica Neue', sans-serif);
+  font-size: var(--mat-sys-body-large-size, 14px);
+  font-weight: var(--mat-sys-body-large-weight, 400);
+  color: var(--mat-sys-on-surface, rgba(0, 0, 0, 0.87));
+}
+
+.description-editor-input:focus {
+  border-color: var(--global-primary, #1976d2);
+}
+
+:host ::ng-deep .description-editor-input--with-markers * {
+  font-family: inherit !important;
+  font-size: inherit !important;
+  font-weight: inherit !important;
+  font-style: normal !important;
+  letter-spacing: inherit !important;
+  line-height: inherit !important;
+  color: inherit !important;
+  background-color: transparent !important;
+}
+
+:host ::ng-deep .description-editor-input--with-markers :is(b, strong) {
+  font-weight: 700 !important;
+}
+
+:host ::ng-deep .description-editor-input--with-markers :is(i, em) {
+  font-style: italic !important;
+}
+
+:host ::ng-deep .description-editor-input--with-markers u {
+  text-decoration: underline !important;
+}
+
+:host ::ng-deep .description-editor-input--with-markers :is(ul, ol) {
+  margin: 0 0 0.5rem 1.25rem;
+  padding-left: 1rem;
+}
+
+:host ::ng-deep .description-editor-input--with-markers ul {
+  list-style-type: disc !important;
+  list-style-position: outside;
+}
+
+:host ::ng-deep .description-editor-input--with-markers ol {
+  list-style-type: decimal !important;
+  list-style-position: outside;
+}
+
+:host ::ng-deep .description-editor-input--with-markers li {
+  display: list-item;
+}
+
+:host ::ng-deep .description-editor-input--with-markers :is(p, div, li) {
+  position: relative;
+}
+
+:host ::ng-deep .description-editor-input--with-markers :is(p, div)::before {
+  content: '¶';
+  color: rgba(0, 0, 0, 0.35);
+  font-size: 0.75rem;
+  margin-right: 0.35rem;
 }
 
 .ticket-comments-header {
