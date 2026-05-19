@@ -137,7 +137,7 @@
           <input matInput formControlName="zip" autocomplete="postal-code" />
         </mat-form-field>
       </div>
-      <div class="lead-owner-create-row-fifth col-span-12 grid min-w-0 grid-cols-4 form-standard-grid">
+      <div class="lead-owner-create-row-fifth col-span-12 grid min-w-0 grid-cols-6 form-standard-grid">
         <mat-form-field appearance="outline" class="min-w-0">
           <mat-label>Number of Beds</mat-label>
           <input matInput formControlName="numberOfBeds" />
@@ -152,7 +152,25 @@
         </mat-form-field>
         <mat-form-field appearance="outline" class="min-w-0">
           <mat-label>Type of Property</mat-label>
-          <input matInput formControlName="typeOfProperty" />
+          <mat-select formControlName="propertyTypeId" [canSelectNullableOptions]="true">
+            <mat-option [value]="null">Select Property Type</mat-option>
+            @for (propertyType of propertyTypeOptions; track propertyType.value) {
+              <mat-option [value]="propertyType.value">{{ propertyType.label }}</mat-option>
+            }
+          </mat-select>
+        </mat-form-field>
+        <mat-form-field appearance="outline" class="min-w-0">
+          <mat-label>Property Code</mat-label>
+          <input matInput formControlName="propertyCode" />
+        </mat-form-field>
+        <mat-form-field appearance="outline" class="min-w-0">
+          <mat-label>Property Office</mat-label>
+          <mat-select formControlName="propertyOffice" [canSelectNullableOptions]="true">
+            <mat-option [value]="null">Select Office</mat-option>
+            @for (office of offices; track office.officeId) {
+              <mat-option [value]="office.name">{{ office.name }}</mat-option>
+            }
+          </mat-select>
         </mat-form-field>
       </div>
       <div class="lead-owner-create-row-contact col-span-12 grid min-w-0 grid-cols-6 form-standard-grid">

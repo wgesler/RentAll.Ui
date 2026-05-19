@@ -20,6 +20,7 @@ import { AgentService } from '../../organizations/services/agent.service';
 import { GlobalSelectionService } from '../../organizations/services/global-selection.service';
 import { OfficeResponse } from '../../organizations/models/office.model';
 import { OfficeService } from '../../organizations/services/office.service';
+import { getPropertyTypes } from '../../properties/models/property-enums';
 import { LeadOwnerRequest, LeadOwnerResponse, LeadOwnerUpdateRequest } from '../models/lead-owner.model';
 import { LEAD_STATE_SELECT_OPTIONS, LeadStateType } from '../models/lead-enums';
 import { LeadsService } from '../services/leads.service';
@@ -49,6 +50,7 @@ export class OwnerComponent implements OnInit, OnDestroy {
   leadStateOptions = LEAD_STATE_SELECT_OPTIONS;
   organizationId = '';
   offices: OfficeResponse[] = [];
+  propertyTypeOptions = getPropertyTypes();
   globalOfficeSubscription?: Subscription;
   officeScopeResolved = false;
   preferredOfficeId: number | null = null;
@@ -199,7 +201,9 @@ export class OwnerComponent implements OnInit, OnDestroy {
       numberOfBeds: this.utilityService.trimOrNull(v.numberOfBeds),
       numberOfBaths: this.utilityService.trimOrNull(v.numberOfBaths),
       approxSqFootage: this.utilityService.trimOrNull(v.approxSqFootage),
-      typeOfProperty: this.utilityService.trimOrNull(v.typeOfProperty),
+      propertyTypeId: v.propertyTypeId != null && v.propertyTypeId !== '' ? Number(v.propertyTypeId) : null,
+      propertyCode: this.utilityService.trimOrNull(v.propertyCode),
+      propertyOffice: this.utilityService.trimOrNull(v.propertyOffice),
       tellUsWhatYouLikeMostAboutYourProperty: this.utilityService.trimOrNull(v.tellUsWhatYouLikeMostAboutYourProperty),
       tellUsAnyDrawbacks: this.utilityService.trimOrNull(v.tellUsAnyDrawbacks),
       preferredContactMethod: this.utilityService.trimOrNull(v.preferredContactMethod),
@@ -338,7 +342,9 @@ export class OwnerComponent implements OnInit, OnDestroy {
       numberOfBeds: [''],
       numberOfBaths: [''],
       approxSqFootage: [''],
-      typeOfProperty: [''],
+      propertyTypeId: this.fb.control<number | null>(null),
+      propertyCode: [''],
+      propertyOffice: [''],
       tellUsWhatYouLikeMostAboutYourProperty: [''],
       tellUsAnyDrawbacks: [''],
       preferredContactMethod: [''],
@@ -373,7 +379,9 @@ export class OwnerComponent implements OnInit, OnDestroy {
       numberOfBeds: '',
       numberOfBaths: '',
       approxSqFootage: '',
-      typeOfProperty: '',
+      propertyTypeId: null,
+      propertyCode: '',
+      propertyOffice: '',
       tellUsWhatYouLikeMostAboutYourProperty: '',
       tellUsAnyDrawbacks: '',
       preferredContactMethod: '',
@@ -411,7 +419,9 @@ export class OwnerComponent implements OnInit, OnDestroy {
       numberOfBeds: lead.numberOfBeds ?? '',
       numberOfBaths: lead.numberOfBaths ?? '',
       approxSqFootage: lead.approxSqFootage ?? '',
-      typeOfProperty: lead.typeOfProperty ?? '',
+      propertyTypeId: lead.propertyTypeId ?? null,
+      propertyCode: lead.propertyCode ?? '',
+      propertyOffice: lead.propertyOffice ?? '',
       tellUsWhatYouLikeMostAboutYourProperty: lead.tellUsWhatYouLikeMostAboutYourProperty ?? '',
       tellUsAnyDrawbacks: lead.tellUsAnyDrawbacks ?? '',
       preferredContactMethod: lead.preferredContactMethod ?? '',

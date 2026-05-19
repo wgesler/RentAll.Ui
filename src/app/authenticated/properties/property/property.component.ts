@@ -29,6 +29,7 @@ import { GlobalSelectionService } from '../../organizations/services/global-sele
 import { OfficeService } from '../../organizations/services/office.service';
 import { RegionService } from '../../organizations/services/region.service';
 import { ReservationListResponse } from '../../reservations/models/reservation-model';
+import { ReservationNotice, getReservationNotices } from '../../reservations/models/reservation-enum';
 import { ReservationService } from '../../reservations/services/reservation.service';
 import { CheckinTimes, CheckoutTimes, PropertyLeaseType, PropertyStatus, PropertyStyle, PropertyType, TrashDays, getBedSizeTypes, getCheckInTimes, getCheckOutTimes, getPropertyLeaseTypes, getPropertyStatuses, getPropertyStyles, getPropertyTypes, normalizeCheckInTimeId, normalizeCheckOutTimeId, normalizePropertyLeaseTypeId } from '../models/property-enums';
 import { PropertyInformationRequest, PropertyInformationResponse } from '../models/property-information.model';
@@ -102,6 +103,7 @@ export class PropertyComponent implements OnInit, OnChanges, AfterViewInit, OnDe
   bedSizeTypes: { value: number, label: string }[] = [];
   checkInTimes: { value: number, label: string }[] = [];
   checkOutTimes: { value: number, label: string }[] = [];
+  reservationNoticeOptions: { value: number, label: string }[] = [];
 
   offices: OfficeResponse[] = [];
   // Global office selection used by the title bar "Office" filter.
@@ -198,6 +200,7 @@ export class PropertyComponent implements OnInit, OnChanges, AfterViewInit, OnDe
     this.initializePropertyTypes();
     this.initializeBedSizeTypes();
     this.initializeTimeTypes();
+    this.initializeReservationNotices();
     
     this.buildForm();
     this.applyOwnerModeDefaults();
@@ -549,6 +552,7 @@ export class PropertyComponent implements OnInit, OnChanges, AfterViewInit, OnDe
     propertyRequest.propertyStyleId = formValue.propertyStyle ?? PropertyStyle.Standard;
     propertyRequest.propertyTypeId = formValue.propertyType ?? PropertyType.Unspecified;
     propertyRequest.propertyStatusId = formValue.propertyStatus ?? PropertyStatus.Vacant;
+    propertyRequest.noticeToVacateId = Number(formValue.noticeToVacateId ?? ReservationNotice.ThirtyDays);
 
     // Handle owner2Id - set to undefined if empty string or null
     if (!propertyRequest.owner2Id || propertyRequest.owner2Id === '' || propertyRequest.owner2Id === null) {
@@ -686,6 +690,7 @@ export class PropertyComponent implements OnInit, OnChanges, AfterViewInit, OnDe
       propertyStyle: new FormControl<number>(PropertyStyle.Standard, [Validators.required]),
       propertyStatus: new FormControl<number>(PropertyStatus.Vacant, [Validators.required]),
       propertyType: new FormControl<number>(PropertyType.Unspecified, [Validators.required]),
+      noticeToVacateId: new FormControl<number>(ReservationNotice.ThirtyDays),
       unitLevel: new FormControl<number>(1, [Validators.required, Validators.min(0)]),
       bldgNo: new FormControl(''),
       accomodates: new FormControl(0, [Validators.required, Validators.min(1)]),
@@ -827,6 +832,9 @@ export class PropertyComponent implements OnInit, OnChanges, AfterViewInit, OnDe
       formData.propertyStyle = propertyStyleValue;
       formData.propertyStatus = propertyStatusValue;
       formData.propertyType = propertyTypeValue;
+      formData.noticeToVacateId = this.property.noticeToVacateId != null
+        ? Number(this.property.noticeToVacateId)
+        : ReservationNotice.ThirtyDays;
       formData.propertyLeaseTypeId = this.property.propertyLeaseTypeId != null && this.property.propertyLeaseTypeId !== undefined
         ? Number(this.property.propertyLeaseTypeId)
         : PropertyLeaseType.PropertyManagement;
@@ -1190,7 +1198,10 @@ export class PropertyComponent implements OnInit, OnChanges, AfterViewInit, OnDe
       width: '1200px',
       maxWidth: '95vw',
       disableClose: true,
-      data: this.buildNewContactDialogData(EntityType.Owner)
+      data: {
+        ...this.buildNewContactDialogData(EntityType.Owner),
+        showDialogCancelButton: true
+      }
     });
 
     dialogRef.componentInstance.id = 'new';
@@ -1234,7 +1245,10 @@ export class PropertyComponent implements OnInit, OnChanges, AfterViewInit, OnDe
       width: '1200px',
       maxWidth: '95vw',
       disableClose: true,
-      data: this.buildNewContactDialogData(EntityType.Vendor)
+      data: {
+        ...this.buildNewContactDialogData(EntityType.Vendor),
+        showDialogCancelButton: true
+      }
     });
 
     dialogRef.componentInstance.id = 'new';
@@ -1270,7 +1284,8 @@ export class PropertyComponent implements OnInit, OnChanges, AfterViewInit, OnDe
           data: {
             preloadedContact: contact,
             entityTypeId: EntityType.Owner,
-            compactDialogMode: true
+            compactDialogMode: true,
+            showDialogCancelButton: true
           }
         });
 
@@ -1401,6 +1416,14 @@ export class PropertyComponent implements OnInit, OnChanges, AfterViewInit, OnDe
       return true;
     }
     return normalizePropertyLeaseTypeId(this.form.get('propertyLeaseTypeId')?.value) === PropertyLeaseType.PropertyManagement;
+  }
+
+  get showNoticeToVacateField(): boolean {
+    if (!this.form) {
+      return false;
+    }
+    const leaseTypeId = normalizePropertyLeaseTypeId(this.form.get('propertyLeaseTypeId')?.value);
+    return leaseTypeId === PropertyLeaseType.Direct || leaseTypeId === PropertyLeaseType.ThirdParty;
   }
 
   get ownerContacts(): ContactResponse[] {
@@ -1657,6 +1680,10 @@ export class PropertyComponent implements OnInit, OnChanges, AfterViewInit, OnDe
   initializeTimeTypes(): void {
     this.checkInTimes = getCheckInTimes();
     this.checkOutTimes = getCheckOutTimes();
+  }
+
+  initializeReservationNotices(): void {
+    this.reservationNoticeOptions = getReservationNotices();
   }
   //#endregion
 

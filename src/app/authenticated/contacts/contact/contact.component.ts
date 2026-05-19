@@ -45,6 +45,7 @@ export class ContactComponent implements OnInit, OnDestroy {
   @Input() presetEntityTypeId: number | null = null;
   @Input() ownerLeadId: number | null = null;
   @Input() compactDialogMode: boolean = false;
+  @Input() showDialogCancelButton: boolean = false;
   @Input() showAddAdditionalOwnerButton: boolean = false;
   @Input() showCancelAdditionalOwnerButton: boolean = false;
   @Input() prefillContact: Record<string, unknown> | null = null;
@@ -124,6 +125,7 @@ export class ContactComponent implements OnInit, OnDestroy {
       preloadedContact?: ContactResponse;
       entityTypeId?: number;
       compactDialogMode?: boolean;
+      showDialogCancelButton?: boolean;
       /** Codes not yet on the server (e.g. new property) — merged into Properties list and pre-selected for owners. */
       preselectPropertyCodes?: string[];
       preselectPropertyOfficeId?: number;
@@ -171,6 +173,9 @@ export class ContactComponent implements OnInit, OnDestroy {
         }
         if (this.dialogData.compactDialogMode != null) {
           this.compactDialogMode = this.dialogData.compactDialogMode;
+        }
+        if (this.dialogData.showDialogCancelButton != null) {
+          this.showDialogCancelButton = this.dialogData.showDialogCancelButton;
         }
       }
       // Only use route param when we're on the contact detail URL (/auth/.../contacts/:id). When embedded

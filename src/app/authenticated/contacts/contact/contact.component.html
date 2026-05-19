@@ -4,9 +4,33 @@
     <p>Loading contact...</p>
   </div>
 } @else if (!isServiceError) {
-  <div class="flex content-card-wrap justify-center" fxLayout="row wrap">
-    <section class="content-card">
-      @if (!compactDialogMode && !isInOwnerMode && !isEmbedded) {
+  <div
+    class="flex content-card-wrap justify-center"
+    fxLayout="row wrap"
+    [class.contact-dialog-wrap-compact]="compactDialogMode && showDialogCancelButton">
+    <div class="contact-dialog-shell" [class.contact-dialog-shell--with-titlebar]="compactDialogMode && showDialogCancelButton">
+      @if (compactDialogMode && showDialogCancelButton) {
+        <div class="contact-dialog-header">
+          <span class="contact-dialog-title">
+            <mat-icon class="flex-shrink-0">contacts</mat-icon>
+            <span class="flex-shrink-0 text-xl font-medium">
+              {{ isAddMode ? 'Add ' + contactTypeTitleLabel : 'Edit ' + contactTypeTitleLabel }}
+            </span>
+          </span>
+          <div class="form-titlebar-actions-wrap uniform-gap">
+            <button mat-raised-button type="button" color="accent" (click)="back()" class="text-nowrap flex-shrink-0">
+              Cancel
+            </button>
+            <button mat-raised-button type="button" color="primary" (click)="saveContact()" class="text-nowrap flex-shrink-0">
+              <mat-icon>save</mat-icon>
+              Save
+            </button>
+          </div>
+        </div>
+      }
+
+      <section class="content-card">
+        @if (!compactDialogMode && !isInOwnerMode && !isEmbedded) {
         <div class="flex justify-between items-center gap-3 bg-slate-200 rounded-t-lg py-0 pl-8 pr-4">
           <span class="flex flex-column items-center gap-3 py-4">
             <mat-icon class="flex-shrink-0">contacts</mat-icon>
@@ -30,7 +54,11 @@
       }
         
       <mat-card>
-        <form [formGroup]="form" (ngSubmit)="saveContact()" class="info-form mb-8 pt-5">
+        <form
+          [formGroup]="form"
+          (ngSubmit)="saveContact()"
+          class="info-form pt-5"
+          [class.mb-8]="!(compactDialogMode && showDialogCancelButton)">
             <div class="mb-4 flex justify-end items-center gap-4 rating-controls-row">
               @if (!isInOwnerMode) {
                 <div class="rating-select-wrap">
@@ -73,7 +101,7 @@
                   IsActive
                 </mat-checkbox>
               }
-              @if (isEmbedded && !isInOwnerMode) {
+              @if (isEmbedded && !isInOwnerMode && !showDialogCancelButton) {
                 <button mat-raised-button type="button" color="primary" (click)="saveContact()">
                   <mat-icon>save</mat-icon>
                   Save
@@ -671,7 +699,8 @@
             </div>
           </form>
       </mat-card>
-    </section>
+      </section>
+    </div>
   </div>
 }
 

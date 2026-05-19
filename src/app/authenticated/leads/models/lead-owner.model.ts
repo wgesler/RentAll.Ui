@@ -37,7 +37,9 @@ export interface LeadOwnerRequest {
   numberOfBeds: string | null;
   numberOfBaths: string | null;
   approxSqFootage: string | null;
-  typeOfProperty: string | null;
+  propertyTypeId: number | null;
+  propertyCode: string | null;
+  propertyOffice: string | null;
   tellUsWhatYouLikeMostAboutYourProperty: string | null;
   tellUsAnyDrawbacks: string | null;
   preferredContactMethod: string | null;
@@ -90,7 +92,9 @@ export interface LeadOwnerResponse {
   numberOfBeds: string | null;
   numberOfBaths: string | null;
   approxSqFootage: string | null;
-  typeOfProperty: string | null;
+  propertyTypeId: number | null;
+  propertyCode: string | null;
+  propertyOffice: string | null;
   tellUsWhatYouLikeMostAboutYourProperty: string | null;
   tellUsAnyDrawbacks: string | null;
   preferredContactMethod: string | null;

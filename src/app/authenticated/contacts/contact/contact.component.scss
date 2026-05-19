@@ -180,6 +180,59 @@
   font-weight: 700;
 }
 
+.contact-dialog-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  background: #e2e8f0;
+  border-radius: 0.5rem 0.5rem 0 0;
+  padding: 0.5rem 1rem 0.5rem 1.5rem;
+}
+
+.contact-dialog-title {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.contact-dialog-shell {
+  width: 100%;
+}
+
+.contact-dialog-shell--with-titlebar {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.contact-dialog-shell--with-titlebar > .contact-dialog-header,
+.contact-dialog-shell--with-titlebar > section.content-card {
+  width: 100%;
+  max-width: 100%;
+  margin-left: auto;
+  margin-right: auto;
+}
+
+.contact-dialog-shell--with-titlebar > section.content-card mat-card {
+  margin-left: auto;
+  margin-right: auto;
+}
+
+.contact-dialog-wrap-compact {
+  margin-bottom: 0 !important;
+}
+
+.contact-dialog-wrap-compact .content-card {
+  margin-top: 0 !important;
+  margin-bottom: 0 !important;
+}
+
+.contact-dialog-wrap-compact .info-form {
+  padding-bottom: 0 !important;
+}
+
 .info-form .grid {
   gap: calc(var(--global-form-row-gap) * 2) var(--global-form-field-gap-x) !important;
 }

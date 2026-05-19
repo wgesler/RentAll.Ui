@@ -32,7 +32,9 @@ export interface PublicOwnerFormSubmitRequest {
   numberOfBeds: string | null;
   numberOfBaths: string | null;
   approxSqFootage: string | null;
-  typeOfProperty: string | null;
+  propertyTypeId: number | null;
+  propertyCode: string | null;
+  propertyOffice: string | null;
   propertyGoals: string | null;
   tellUsMoreAboutYourGoals: string | null;
   tellUsMoreAboutProperty: string | null;

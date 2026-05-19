@@ -22,6 +22,7 @@ export interface PropertyRequest {
   propertyStyleId: number;
   propertyTypeId: number;
   propertyStatusId: number;
+  noticeToVacateId: number;
   monthlyRate: number;
   dailyRate: number;
   departureFee: number;
@@ -165,6 +166,7 @@ export interface PropertyResponse {
   propertyStyleId: number;
   propertyTypeId: number;
   propertyStatusId: number;
+  noticeToVacateId: number;
   monthlyRate: number;
   dailyRate: number;
   departureFee: number;

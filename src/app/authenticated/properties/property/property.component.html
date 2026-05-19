@@ -243,8 +243,8 @@
                     <input matInput formControlName="mailbox">
                   </mat-form-field>
                 </div>
-                <!-- 12-col: Neighborhood, Cross Street, View (4 each) -->
-                <div class="basic-row address-secondary-line-grid gap-x-1.5 gap-y-1 w-full">
+                <!-- 12-col default: Neighborhood, Cross Street, View; expands to include Notice To Vacate -->
+                <div class="basic-row address-secondary-line-grid gap-x-1.5 gap-y-1 w-full" [class.address-secondary-line-grid-with-notice]="showNoticeToVacateField">
                   <mat-form-field appearance="outline" class="basic-compact min-w-0 address-secondary-span-4">
                     <mat-label>Neighborhood</mat-label>
                     <input matInput formControlName="neighborhood">
@@ -257,6 +257,23 @@
                     <mat-label>View</mat-label>
                     <input matInput formControlName="view">
                   </mat-form-field>
+                  @if (showNoticeToVacateField) {
+                    <app-searchable-select
+                      class="basic-compact min-w-0 address-secondary-span-4"
+                      [renderInFormField]="true"
+                      [formFieldClass]="'basic-compact min-w-0'"
+                      [formFieldLabel]="'Notice To Vacate'"
+                      [value]="form.get('noticeToVacateId')?.value ?? null"
+                      [options]="reservationNoticeOptions"
+                      [showSearchInput]="true"
+                      [hideSearchHint]="true"
+                      [hideSearchText]="true"
+                      [searchPlaceholder]="'Type to filter notice options...'"
+                      [nullOptionLabel]="''"
+                      [noResultsText]="'No notice options match your search'"
+                      (valueChange)="onNumericDropdownChange('noticeToVacateId', $event)">
+                    </app-searchable-select>
+                  }
                 </div>
                 @if (!isOwnerModeLayout) {
                   <!-- Under phone: Region/Area/Build -->

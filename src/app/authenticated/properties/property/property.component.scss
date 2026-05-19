@@ -355,6 +355,10 @@
     }
   }
 
+  .address-secondary-line-grid.address-secondary-line-grid-with-notice {
+    grid-template-columns: repeat(16, minmax(0, 1fr));
+  }
+
   /* Fees — 5 equal columns */
   .rates-line-grid {
     display: grid;
