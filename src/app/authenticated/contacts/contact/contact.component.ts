@@ -303,6 +303,7 @@ export class ContactComponent implements OnInit, OnDestroy {
         if (this.contact && this.form) {
           this.populateForm();
           this.form.get('contactCode')?.setValue('');
+          this.form.get('email')?.setValue('');
         }
         // Clear the contact ID reference after populating
         this.contact = null;

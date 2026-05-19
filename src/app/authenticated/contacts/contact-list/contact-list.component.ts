@@ -5,7 +5,6 @@ import { NavigationEnd, Router } from '@angular/router';
 import { ToastrService } from 'ngx-toastr';
 import { BehaviorSubject, Observable, Subscription, filter, finalize, map, skip, switchMap, take } from 'rxjs';
 import { RouterUrl } from '../../../app.routes';
-import { ownersFeatureEnabled } from '../../../config/feature-flags';
 import { CommonMessage } from '../../../enums/common-message.enum';
 import { MaterialModule } from '../../../material.module';
 import { AuthService } from '../../../services/auth.service';
@@ -62,8 +61,6 @@ export class ContactListComponent implements OnInit, OnDestroy, OnChanges {
   hasInitialLoad: boolean = false;
   canEditIsActiveCheckbox = false;
   isInOwnerMode = false;
-  ownersFeatureEnabled = ownersFeatureEnabled;
-
   private readonly baseColumns: ColumnSet = {
     'contactCode': { displayAs: 'Code', maxWidth: '15ch', sortType: 'natural' },
     'companyName': { displayAs: 'Company', maxWidth: '30ch' },
