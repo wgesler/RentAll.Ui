@@ -49,42 +49,45 @@
       </div>
       }
 
-      <div class="property-tab-actions-band top-controls">
-        <div class="property-tab-actions-band__row flex gap-2 items-center uniform-gap">
-          <mat-checkbox
-            color="primary"
-            class="welcome-letter-branded-toggle"
-            [checked]="isBranded"
-            (change)="onBrandedChange($event.checked)">
-            Branded
-          </mat-checkbox>
-          <mat-checkbox
-            color="primary"
-            class="welcome-letter-branded-toggle"
-            [checked]="includeDepartureDate"
-            (change)="onIncludeDepartureDateChange($event.checked)">
-            Include Departure Date
-          </mat-checkbox>
-          <button mat-raised-button type="button" color="accent" (click)="onPrint()" 
-            [disabled]="!selectedOffice || !selectedReservation || !previewIframeHtml">
-            <mat-icon>print</mat-icon>
-            Print
-          </button>
-          <button mat-raised-button type="button" color="accent" (click)="onEmail()" 
-            [disabled]="!selectedOffice || !selectedReservation || !previewIframeHtml || !getPrimaryReservationContactId(selectedReservation)">
-            <mat-icon>email</mat-icon>
-            Email
-          </button>
-          <button mat-raised-button type="button" color="accent" (click)="onDownload()" 
-            [disabled]="!selectedOffice || !selectedReservation || !previewIframeHtml || isDownloading">
-            <mat-icon>download</mat-icon>
-            {{ isDownloading ? 'Downloading...' : 'Download' }}
-          </button>
-          <button mat-raised-button type="button" color="primary" id="save-welcome-letter-button" (click)="saveWelcomeLetter()"
-            [disabled]="!selectedOffice || !selectedReservation || isSubmitting">
-            <mat-icon>save</mat-icon>
-            Save
-          </button>
+      <div class="property-tab-actions-band property-tab-actions-band--centered top-controls">
+        <div class="property-tab-actions-band__row">
+          <div class="table-filter-actions-group form-titlebar-actions-wrap uniform-gap property-welcome-actions-group">
+            <mat-checkbox
+              color="primary"
+              class="welcome-letter-branded-toggle"
+              [checked]="isBranded"
+              (change)="onBrandedChange($event.checked)">
+              Branded
+            </mat-checkbox>
+            <mat-checkbox
+              color="primary"
+              class="welcome-letter-branded-toggle"
+              [checked]="includeDepartureDate"
+              (change)="onIncludeDepartureDateChange($event.checked)">
+              Include Departure Date
+            </mat-checkbox>
+            <button mat-raised-button type="button" color="accent" (click)="onPrint()" 
+              [disabled]="!selectedOffice || !selectedReservation || !previewIframeHtml">
+              <mat-icon>print</mat-icon>
+              Print
+            </button>
+            <button mat-raised-button type="button" color="accent" (click)="onEmail()" 
+              [disabled]="!selectedOffice || !selectedReservation || !previewIframeHtml || !getPrimaryReservationContactId(selectedReservation)">
+              <mat-icon>email</mat-icon>
+              Email
+            </button>
+            <button mat-raised-button type="button" color="accent" (click)="onDownload()" 
+              [disabled]="!selectedOffice || !selectedReservation || !previewIframeHtml || isDownloading">
+              <mat-icon>download</mat-icon>
+              {{ isDownloading ? 'Downloading...' : 'Download' }}
+            </button>
+            <button mat-raised-button type="button" color="primary" id="save-welcome-letter-button" (click)="saveWelcomeLetter()"
+              class="text-nowrap flex-shrink-0"
+              [disabled]="!selectedOffice || !selectedReservation || isSubmitting">
+              <mat-icon>save</mat-icon>
+              Save
+            </button>
+          </div>
         </div>
       </div>
 

@@ -7,11 +7,16 @@
   padding-top: 0;
 }
 
-.letter-information-form {
-  .property-information-form-actions {
-    margin-bottom: 0;
-  }
+:host-context(.property-tabs) .property-information-actions-group {
+  align-items: center !important;
+}
 
+:host-context(.property-tabs) .property-information-actions-placeholder {
+  visibility: hidden;
+  pointer-events: none;
+}
+
+.letter-information-form {
   .form-fields {
     display: flex;
     flex-direction: column;

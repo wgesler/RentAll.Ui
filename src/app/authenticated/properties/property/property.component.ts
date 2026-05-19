@@ -88,6 +88,8 @@ export class PropertyComponent implements OnInit, OnChanges, AfterViewInit, OnDe
   property: PropertyResponse;
   selectedReservationId: string | null = null;
   copiedPropertyInformation: PropertyInformationResponse | null = null;
+  pendingCopyFromPropertyId: string | null = null;
+  appliedCopyFromPropertyId: string | null = null;
   codePaletteTargetControl: string | null = null;
  
   states: string[] = [];
@@ -209,6 +211,16 @@ export class PropertyComponent implements OnInit, OnChanges, AfterViewInit, OnDe
         this.applyPropertyIdContext(id);
       });
     }
+
+    this.route.queryParamMap.pipe(
+      takeUntil(this.destroy$),
+      map(queryParams => String(queryParams.get('copyFrom') || '').trim()),
+      map(copyFrom => copyFrom.length > 0 ? copyFrom : null),
+      distinctUntilChanged()
+    ).subscribe(copyFromPropertyId => {
+      this.pendingCopyFromPropertyId = copyFromPropertyId;
+      this.tryApplyCopyFromProperty();
+    });
     
     // Check query params for tab selection
     this.setupConditionalFields();
@@ -373,9 +385,11 @@ export class PropertyComponent implements OnInit, OnChanges, AfterViewInit, OnDe
     this.applyOfficeControlState();
 
     if (!this.isAddMode) {
+      this.appliedCopyFromPropertyId = null;
       this.getProperty();
     } else {
       this.setAddModeDefaults();
+      this.tryApplyCopyFromProperty();
     }
     this.loadReservations();
     this.captureSavedStateSignature();
@@ -449,6 +463,20 @@ export class PropertyComponent implements OnInit, OnChanges, AfterViewInit, OnDe
         this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'property');
       }
     });
+  }
+
+  tryApplyCopyFromProperty(): void {
+    if (!this.isAddMode) {
+      return;
+    }
+
+    const copyFromPropertyId = this.pendingCopyFromPropertyId;
+    if (!copyFromPropertyId || copyFromPropertyId === this.appliedCopyFromPropertyId) {
+      return;
+    }
+
+    this.appliedCopyFromPropertyId = copyFromPropertyId;
+    this.copyFromProperty(copyFromPropertyId);
   }
   
   saveProperty(onComplete?: (saved: boolean) => void): void {

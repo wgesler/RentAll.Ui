@@ -24,12 +24,30 @@
     }
     <form [formGroup]="form" class="letter-information-form form-hide-error-text">
       <div class="property-tab-actions-band">
-        <div class="property-tab-actions-band__row property-information-form-actions">
-          <button mat-raised-button type="button" color="primary" id="save-property-information-button" (click)="savePropertyInformation()"
-            class="text-nowrap flex-shrink-0" [disabled]="isSubmitting || !form?.valid">
-            <mat-icon>save</mat-icon>
-            Save
-          </button>
+        <div class="property-tab-actions-band__row">
+          <div class="table-filter-actions-group form-titlebar-actions-wrap uniform-gap property-information-actions-group">
+            <div class="header-title flex-shrink-0 property-information-actions-placeholder" aria-hidden="true">
+              <mat-form-field appearance="outline" class="titlebar-field-company">
+                <mat-label>Property Lease Type</mat-label>
+                <mat-select [value]="null" disabled>
+                  <mat-option [value]="null"></mat-option>
+                </mat-select>
+              </mat-form-field>
+            </div>
+            <mat-checkbox
+              color="primary"
+              class="flex-shrink-0 property-information-actions-placeholder"
+              [checked]="false"
+              [disabled]="true"
+              aria-hidden="true">
+              IsActive
+            </mat-checkbox>
+            <button mat-raised-button type="button" color="primary" id="save-property-information-button" (click)="savePropertyInformation()"
+              class="text-nowrap flex-shrink-0" [disabled]="isSubmitting || !form?.valid">
+              <mat-icon>save</mat-icon>
+              Save
+            </button>
+          </div>
         </div>
       </div>
       <div class="property-tab-main-area">
