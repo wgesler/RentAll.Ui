@@ -1,11 +1,13 @@
 import { CommonModule } from '@angular/common';
 import { HttpClient } from '@angular/common/http';
-import { Component, Input, OnChanges, OnDestroy, OnInit, SimpleChanges } from '@angular/core';
+import { Component, ElementRef, Input, OnChanges, OnDestroy, OnInit, SimpleChanges, ViewChild } from '@angular/core';
 import { FormBuilder, FormControl, FormGroup, ReactiveFormsModule } from '@angular/forms';
 import { DomSanitizer, SafeHtml } from '@angular/platform-browser';
+import { Router } from '@angular/router';
 import { ToastrService } from 'ngx-toastr';
-import { BehaviorSubject, filter, Observable, Subject, of, take, takeUntil } from 'rxjs';
+import { BehaviorSubject, filter, finalize, Observable, Subject, of, take, takeUntil } from 'rxjs';
 import { CommonMessage } from '../../../enums/common-message.enum';
+import { RouterUrl } from '../../../app.routes';
 import { MaterialModule } from '../../../material.module';
 import { AuthService } from '../../../services/auth.service';
 import { DocumentExportService } from '../../../services/document-export.service';
@@ -19,12 +21,22 @@ import { DocumentType } from '../../documents/models/document.enum';
 import { GenerateDocumentFromHtmlDto } from '../../documents/models/document.model';
 import { DocumentService } from '../../documents/services/document.service';
 import { LeadsService } from '../../leads/services/leads.service';
+import { EmailType } from '../../email/models/email.enum';
+import { EmailService } from '../../email/services/email.service';
+import { EmailCreateDraftService } from '../../email/services/email-create-draft.service';
 import { OfficeResponse } from '../../organizations/models/office.model';
+import { AccountingOfficeResponse } from '../../organizations/models/accounting-office.model';
+import { AccountingOfficeService } from '../../organizations/services/accounting-office.service';
 import { OfficeService } from '../../organizations/services/office.service';
 import { PropertyResponse } from '../../properties/models/property.model';
 import { PropertyService } from '../../properties/services/property.service';
+import { PropertyAgreementResponse } from '../../properties/models/property-agreement.model';
+import { PropertyAgreementService } from '../../properties/services/property-agreement.service';
+import { BaseDocumentComponent, DocumentConfig, DownloadConfig, EmailConfig } from '../../shared/base-document.component';
 import { CommonService } from '../../../services/common.service';
 import { OwnerAgreementInformationResponse, replaceOwnerAgreementInformationSections } from '../models/owner-agreement-information.model';
+import { OrganizationResponse } from '../../organizations/models/organization.model';
+import { LeadOwnerResponse } from '../../leads/models/lead-owner.model';
 
 @Component({
   standalone: true,
@@ -33,24 +45,37 @@ import { OwnerAgreementInformationResponse, replaceOwnerAgreementInformationSect
   templateUrl: './owner-agreement-form.component.html',
   styleUrl: './owner-agreement-form.component.scss'
 })
-export class OwnerAgreementFormComponent implements OnInit, OnChanges, OnDestroy {
+export class OwnerAgreementFormComponent extends BaseDocumentComponent implements OnInit, OnChanges, OnDestroy {
   @Input() ownerLeadId: number | null = null;
   @Input() officeId: number | null = null;
   @Input() propertyId: string | null = null;
+  @Input() includeLabel = 'Owner Agreement';
+  @Input() templateAssetPath = 'assets/owner-agreement.html';
+  @Input() documentDisplayName = 'Owner Agreement';
+  @Input() documentFileSuffix = 'OwnerAgreement';
 
   form: FormGroup = this.buildForm();
   isPageReady = false;
   isSaving = false;
+  isDownloading = false;
   iframeKey = 0;
   previewIframeHtml = '';
   previewIframeStyles = '';
   safeHtml: SafeHtml | null = null;
+  liveExportHtml = '';
+  liveExportStyles = '';
+  @ViewChild('previewIframe') previewIframe?: ElementRef<HTMLIFrameElement>;
   organizationId = '';
+  organization: OrganizationResponse | null;
   selectedOffice: OfficeResponse | null = null;
+  accountingOffices: AccountingOfficeResponse[] = [];
   selectedProperty: PropertyResponse | null = null;
+  propertyAgreement: PropertyAgreementResponse| null;
   ownerContact: ContactResponse | null = null;
+  leadOwner: LeadOwnerResponse | null = null;
   agreementInformation: OwnerAgreementInformationResponse | null = null;
-  itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['organization', 'offices', 'contacts', 'property', 'agreementInfo', 'preview']));
+
+  itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['organization', 'offices', 'contacts', 'leadOwner', 'property', 'propertyAgreement', 'agreementInfo', 'accountingOffices', 'preview']));
   destroy$ = new Subject<void>();
 
   constructor(
@@ -59,32 +84,51 @@ export class OwnerAgreementFormComponent implements OnInit, OnChanges, OnDestroy
     private authService: AuthService,
     private commonService: CommonService,
     private officeService: OfficeService,
+    private accountingOfficeService: AccountingOfficeService,
     private contactService: ContactService,
     private propertyService: PropertyService,
+    private propertyAgreementService: PropertyAgreementService,
     private leadsService: LeadsService,
     private formatterService: FormatterService,
     private utilityService: UtilityService,
-    private documentHtmlService: DocumentHtmlService,
+    documentHtmlService: DocumentHtmlService,
     private sanitizer: DomSanitizer,
-    private documentService: DocumentService,
-    private documentExportService: DocumentExportService,
-    private toastr: ToastrService
-  ) {}
+    documentService: DocumentService,
+    documentExportService: DocumentExportService,
+    public override toastr: ToastrService,
+    emailService: EmailService,
+    private router: Router,
+    private emailCreateDraftService: EmailCreateDraftService
+  ) {
+    super(documentService, documentExportService, documentHtmlService, toastr, emailService);
+  }
 
   //#region Owner-Agreement-Form
   ngOnInit(): void {
     this.organizationId = String(this.authService.getUser()?.organizationId || '').trim();
-    this.commonService.loadStates();
+ 
     this.itemsToLoad$.pipe(takeUntil(this.destroy$)).subscribe(items => {
       this.isPageReady = items.size === 0;
     });
-    this.loadContext();
+
+    this.commonService.loadStates();
+    this.loadOrganization();
+    this.loadOffices();
+    this.loadAccountingOffices();
+    this.loadContacts();
+    this.loadLeadOwner(this.ownerLeadId);
+    this.loadPropertyContext();
   }
 
   ngOnChanges(changes: SimpleChanges): void {
-    if (changes['ownerLeadId'] || changes['officeId'] || changes['propertyId']) {
-      this.itemsToLoad$.next(new Set(['organization', 'offices', 'contacts', 'property', 'agreementInfo', 'preview']));
-      this.loadContext();
+    const propertyIdChanged = changes['propertyId'] && (changes['propertyId'].previousValue !== changes['propertyId'].currentValue);
+    const officeIdChanged = changes['officeId'] && (changes['officeId'].previousValue !== changes['officeId'].currentValue);
+    if (officeIdChanged) {
+      this.syncSelectedOfficeFromLoadedOffices();
+    }
+    if (propertyIdChanged || officeIdChanged) {
+      this.itemsToLoad$.next(new Set(['property', 'propertyAgreement', 'agreementInfo', 'preview']));
+      this.loadPropertyContext();
     }
   }
 
@@ -92,35 +136,37 @@ export class OwnerAgreementFormComponent implements OnInit, OnChanges, OnDestroy
     this.generatePreview();
   }
 
-  onPrint(): void {
-    if (!this.previewIframeHtml) {
-      this.toastr.warning('Nothing to print yet.');
+  override onPrint(): void {
+    this.captureLiveSnapshotForExport();
+    const htmlForPrint = this.liveExportHtml || this.previewIframeHtml;
+    const stylesForPrint = this.liveExportStyles || this.previewIframeStyles;
+    if (!htmlForPrint) {
+      this.toastr.warning(`${this.documentDisplayName} preview is not ready to print.`);
       return;
     }
-    this.documentExportService.printHTML(this.previewIframeHtml);
+    const htmlWithStyles = this.documentHtmlService.getPreviewHtmlWithStyles(
+      htmlForPrint,
+      stylesForPrint,
+      { fontSize: '10pt', includeLeaseStyles: true }
+    );
+    this.documentExportService.printHTML(htmlWithStyles);
   }
 
-  onDownload(): void {
-    if (!this.previewIframeHtml || !this.selectedOffice) {
-      this.toastr.warning('Agreement preview is not ready to download.');
-      return;
-    }
-
-    const dto = this.buildGenerateDto();
-    this.documentService.generateDownload(dto).pipe(take(1)).subscribe({
-      next: blob => {
-        const fileName = this.utilityService.generateDocumentFileName('lease', this.selectedProperty?.propertyCode || undefined, 'OwnerAgreement');
-        this.downloadBlob(blob, fileName);
-      },
-      error: () => {
-        this.toastr.error('Unable to download owner agreement.', CommonMessage.Error);
-      }
-    });
+  override async onDownload(): Promise<void> {
+    this.captureLiveSnapshotForExport();
+    const downloadConfig: DownloadConfig = {
+      fileName: this.getDocumentFileName(this.documentFileSuffix),
+      documentType: DocumentType.OwnerAgreement,
+      noPreviewMessage: `${this.documentDisplayName} preview is not ready to download.`,
+      noSelectionMessage: 'Organization or Office not available.'
+    };
+    await super.onDownload(downloadConfig);
   }
 
   onSave(): void {
+    this.captureLiveSnapshotForExport();
     if (!this.previewIframeHtml || !this.selectedOffice) {
-      this.toastr.warning('Agreement preview is not ready to save.');
+      this.toastr.warning(`${this.documentDisplayName} preview is not ready to save.`);
       return;
     }
     this.isSaving = true;
@@ -128,38 +174,93 @@ export class OwnerAgreementFormComponent implements OnInit, OnChanges, OnDestroy
     this.documentService.generate(dto).pipe(take(1)).subscribe({
       next: () => {
         this.isSaving = false;
-        this.toastr.success('Owner agreement saved successfully', CommonMessage.Success);
+        this.toastr.success(`${this.documentDisplayName} saved successfully`, CommonMessage.Success);
       },
       error: () => {
         this.isSaving = false;
-        this.toastr.error('Unable to save owner agreement.', CommonMessage.Error);
+        this.toastr.error(`Unable to save ${this.documentDisplayName.toLowerCase()}.`, CommonMessage.Error);
       }
     });
+  }
+
+  override async onEmail(): Promise<void> {
+    this.captureLiveSnapshotForExport();
+    const currentUser = this.authService.getUser();
+    const fromEmail = currentUser?.email || '';
+    const fromName = `${currentUser?.firstName || ''} ${currentUser?.lastName || ''}`.trim();
+    const toEmail = this.ownerContact?.email || '';
+    const toName = this.ownerContact?.fullName || `${this.ownerContact?.firstName || ''} ${this.ownerContact?.lastName || ''}`.trim();
+    const propertyCode = this.selectedProperty?.propertyCode || '';
+    const subject = propertyCode
+      ? `${this.documentDisplayName} - ${propertyCode}`
+      : this.documentDisplayName;
+
+    const emailConfig: EmailConfig = {
+      subject,
+      toEmail,
+      toName,
+      fromEmail,
+      fromName,
+      documentType: DocumentType.OwnerAgreement,
+      emailType: EmailType.Other,
+      plainTextContent: 'Please find the attached owner agreement.',
+      htmlContent: '<p>Please find the attached owner agreement.</p>',
+      fileDetails: {
+        fileName: this.getDocumentFileName(this.documentFileSuffix),
+        contentType: 'application/pdf',
+        file: ''
+      }
+    };
+
+    this.emailCreateDraftService.setDraft({
+      emailConfig,
+      documentConfig: this.getDocumentConfig(),
+      returnUrl: this.router.url
+    });
+    await this.router.navigateByUrl(RouterUrl.EmailCreate);
   }
   //#endregion
 
   //#region Form Methods
   buildForm(): FormGroup {
     return this.fb.group({
-      includeOwnerAgreement: new FormControl(true),
-      includePropertyManagementAgreement: new FormControl(true)
+      includeDocument: new FormControl(true)
     });
   }
   //#endregion
 
   //#region Data Loading Methods
-  loadContext(): void {
-    this.loadOrganization();
-    this.loadOffices();
-    this.loadContacts();
+  loadPropertyContext(): void {
     this.loadProperty();
+    this.loadPropertyAgreement();
     this.loadAgreementInformation();
+  }
+
+  loadLeadOwner(leadOwnerId: number | null): void {
+    const parsedLeadOwnerId = Number(leadOwnerId);
+    if (!Number.isFinite(parsedLeadOwnerId) || parsedLeadOwnerId <= 0) {
+      this.leadOwner = null;
+      this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'leadOwner');
+      return;
+    }
+
+    this.leadsService.getOwnerLeadById(parsedLeadOwnerId).pipe(take(1), takeUntil(this.destroy$), finalize(() => {
+      this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'leadOwner');
+    })).subscribe({
+      next: response => {
+        this.leadOwner = response;
+      },
+      error: () => {
+        this.leadOwner = null;
+      }
+    });
   }
 
   loadOrganization(): void {
     this.commonService.loadOrganization();
     this.commonService.getOrganization().pipe(filter(org => org !== null), take(1), takeUntil(this.destroy$)).subscribe({
-      next: () => {
+      next: (response: OrganizationResponse) => {
+        this.organization = response;
         this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'organization');
         this.generatePreviewIfReady();
       },
@@ -177,8 +278,7 @@ export class OwnerAgreementFormComponent implements OnInit, OnChanges, OnDestroy
     }
     this.officeService.ensureOfficesLoaded(this.organizationId).pipe(take(1), takeUntil(this.destroy$)).subscribe({
       next: offices => {
-        const officeList = offices || [];
-        this.selectedOffice = officeList.find(office => office.officeId === this.officeId) || null;
+        this.syncSelectedOfficeFromLoadedOffices(offices || []);
         this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'offices');
         this.generatePreviewIfReady();
       },
@@ -187,6 +287,27 @@ export class OwnerAgreementFormComponent implements OnInit, OnChanges, OnDestroy
         this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'offices');
       }
     });
+  }
+
+  syncSelectedOfficeFromLoadedOffices(offices?: OfficeResponse[]): void {
+    const officeList = offices || this.officeService.getAllOfficesValue() || [];
+    const requestedOfficeId = Number(this.officeId);
+    if (Number.isFinite(requestedOfficeId) && requestedOfficeId > 0) {
+      this.selectedOffice = officeList.find(office => office.officeId === requestedOfficeId) || null;
+      if (this.selectedOffice) {
+        return;
+      }
+    }
+
+    const defaultOfficeId = Number(this.authService.getUser()?.defaultOfficeId);
+    if (Number.isFinite(defaultOfficeId) && defaultOfficeId > 0) {
+      this.selectedOffice = officeList.find(office => office.officeId === defaultOfficeId) || null;
+      if (this.selectedOffice) {
+        return;
+      }
+    }
+
+    this.selectedOffice = officeList.length === 1 ? officeList[0] : null;
   }
 
   loadContacts(): void {
@@ -226,6 +347,23 @@ export class OwnerAgreementFormComponent implements OnInit, OnChanges, OnDestroy
     });
   }
 
+  loadPropertyAgreement(): void {
+    if (!this.selectedProperty) {
+      this.propertyAgreement = null;
+      this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'propertyAgreement');
+      return;
+    }
+
+    this.propertyAgreementService.getPropertyAgreement(this.selectedProperty.propertyId).pipe(takeUntil(this.destroy$), take(1), finalize(() => { this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'propertyAgreement'); })).subscribe({
+      next: agreement => {
+        this.propertyAgreement = agreement;
+      },
+      error: () => {
+        this.propertyAgreement = null;
+      }
+    });
+  }
+
   loadAgreementInformation(): void {
     const scopedPropertyId = this.propertyId && this.propertyId !== 'new' ? this.propertyId : null;
     this.leadsService.getOwnerAgreementInformationByScope(this.officeId, scopedPropertyId).pipe(take(1), takeUntil(this.destroy$)).subscribe({
@@ -238,6 +376,20 @@ export class OwnerAgreementFormComponent implements OnInit, OnChanges, OnDestroy
         this.agreementInformation = null;
         this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'agreementInfo');
         this.generatePreviewIfReady();
+      }
+    });
+  }
+
+  loadAccountingOffices(): void {
+    this.accountingOfficeService.ensureAccountingOfficesLoaded().pipe(take(1), takeUntil(this.destroy$), finalize(() => {
+      this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'accountingOffices');
+      this.generatePreviewIfReady();
+    })).subscribe({
+      next: accountingOffices => {
+        this.accountingOffices = accountingOffices || [];
+      },
+      error: () => {
+        this.accountingOffices = [];
       }
     });
   }
@@ -255,25 +407,12 @@ export class OwnerAgreementFormComponent implements OnInit, OnChanges, OnDestroy
 
   generatePreview(): void {
     this.utilityService.addLoadItem(this.itemsToLoad$, 'preview');
-    const includeOwnerAgreement = !!this.form.get('includeOwnerAgreement')?.value;
-    const includePropertyManagementAgreement = !!this.form.get('includePropertyManagementAgreement')?.value;
-    this.loadAgreementTemplate(includeOwnerAgreement, 'assets/owner-agreement.html').pipe(takeUntil(this.destroy$)).subscribe({
+    const includeDocument = !!this.form.get('includeDocument')?.value;
+    this.loadAgreementTemplate(includeDocument, this.templateAssetPath).pipe(takeUntil(this.destroy$)).subscribe({
       next: ownerAgreementHtml => {
-        this.loadAgreementTemplate(includePropertyManagementAgreement, 'assets/property-management-agreement.html').pipe(takeUntil(this.destroy$)).subscribe({
-          next: propertyManagementAgreementHtml => {
-            const htmlParts = [ownerAgreementHtml, propertyManagementAgreementHtml]
-              .filter(part => String(part).trim().length > 0)
-              .map(part => this.replaceAgreementPlaceholders(part));
-            const combinedHtml = htmlParts.join('\n\n');
-            this.processAndSetHtml(combinedHtml);
-            this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'preview');
-          },
-          error: () => {
-            this.previewIframeHtml = '';
-            this.safeHtml = null;
-            this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'preview');
-          }
-        });
+        const combinedHtml = this.replaceAgreementPlaceholders(ownerAgreementHtml);
+        this.processAndSetHtml(combinedHtml);
+        this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'preview');
       },
       error: () => {
         this.previewIframeHtml = '';
@@ -283,51 +422,43 @@ export class OwnerAgreementFormComponent implements OnInit, OnChanges, OnDestroy
     });
   }
 
-  replaceAgreementPlaceholders(html: string): string {
-    let content = replaceOwnerAgreementInformationSections(html, this.agreementInformation);
-    const organization = this.commonService.getOrganizationValue();
-    const companyName = this.getCompanyName();
-    const officeName = this.getOfficeName();
-    const companyState = this.getCompanyState();
-    const companyCity = this.getCompanyCity();
-    const companyAddress = this.getCompanyAddress();
-    const companyAddress1 = this.getCompanyAddress1();
-    const companyAddress2 = this.getCompanyAddress2();
-    const companyNameInCaps = companyName.toUpperCase();
-    const organizationOffice = `${companyName} ${officeName}`.trim();
-    const ownerName = this.ownerContact?.fullName || `${this.ownerContact?.firstName || ''} ${this.ownerContact?.lastName || ''}`.trim();
-    const ownerAddress = this.composeAddress(this.ownerContact);
-    const propertyAddress = this.composeAddress(this.selectedProperty);
+  replaceAgreementPlaceholders(html: string): string { 
     const today = this.formatterService.formatDateStringLong(this.utilityService.todayAsCalendarDateString()) || '';
     const signerName = `${this.authService.getUser()?.firstName || ''} ${this.authService.getUser()?.lastName || ''}`.trim();
-    const website = this.selectedOffice?.website || organization?.website || '';
-    const officeLogo = this.selectedOffice?.fileDetails?.dataUrl || organization?.fileDetails?.dataUrl || '';
-    const accountingOfficeAddress = this.composeAddress(this.selectedOffice);
+    const officeLogo = this.selectedOffice?.fileDetails?.dataUrl || this.organization?.fileDetails?.dataUrl || '';
 
-    content = content
-      .replace(/\{\{ownerAgreementTitle\}\}/g, 'Owner Agreement')
-      .replace(/\{\{companyName\}\}/g, companyName)
-      .replace(/\{\{companyNameInCaps\}\}/g, companyNameInCaps)
-      .replace(/\{\{officeName\}\}/g, officeName)
-      .replace(/\{\{companyState\}\}/g, companyState)
-      .replace(/\{\{companyCity\}\}/g, companyCity)
-      .replace(/\{\{companyAddress\}\}/g, companyAddress)
-      .replace(/\{\{companyAddress1\}\}/g, companyAddress1)
-      .replace(/\{\{companyAddress2\}\}/g, companyAddress2)
-      .replace(/\{\{organization-office\}\}/g, organizationOffice)
+    let content = replaceOwnerAgreementInformationSections(html, this.agreementInformation)
+      .replace(/\{\{ownerAgreementTitle\}\}/g, this.documentDisplayName)
+      .replace(/\{\{companyName\}\}/g, this.getCompanyName())
+      .replace(/\{\{companyNameInCaps\}\}/g, this.getCompanyName().toUpperCase())
+      .replace(/\{\{companyCityInCaps\}\}/g,  this.getCompanyCity().toUpperCase())
+      .replace(/\{\{officeName\}\}/g, this.getOfficeName())
+      .replace(/\{\{companyState\}\}/g, this.getCompanyState())
+      .replace(/\{\{companyCity\}\}/g, this.getCompanyCity())
+      .replace(/\{\{companyAddress\}\}/g, this.getCompanyAddress())
+      .replace(/\{\{companyAddress1\}\}/g, this.getCompanyAddress1())
+      .replace(/\{\{companyAddress2\}\}/g, this.getCompanyAddress2())
+      .replace(/\{\{organization-office\}\}/g, this.getOrganizationOfficeDisplay())
       .replace(/\{\{propertyCode\}\}/g, this.selectedProperty?.propertyCode || '')
-      .replace(/\{\{organizationState\}\}/g, organization?.state || '')
-      .replace(/\{\{accountingOfficeAddress\}\}/g, accountingOfficeAddress)
-      .replace(/\{\{ownerFullName\}\}/g, ownerName)
-      .replace(/\{\{ownerAddress\}\}/g, ownerAddress)
-      .replace(/\{\{propertyAddress\}\}/g, propertyAddress)
+      .replace(/\{\{organizationState\}\}/g, this.organization?.state || '')
+      .replace(/\{\{accountingOfficeAddress\}\}/g, this.getAccountingOfficeAddress())
+      .replace(/\{\{ownerFullName\}\}/g, this.ownerContact?.fullName || `${this.ownerContact?.firstName || ''} ${this.ownerContact?.lastName || ''}`.trim())
+      .replace(/\{\{ownerAddress\}\}/g, this.composeAddress(this.ownerContact))
+      .replace(/\{\{propertyAddress\}\}/g, this.composeAddress(this.selectedProperty))
       .replace(/\{\{agreementStartDate\}\}/g, today)
       .replace(/\{\{ownerSignatureDate\}\}/g, today)
       .replace(/\{\{agentSignatureDate\}\}/g, today)
       .replace(/\{\{agentSignerName\}\}/g, signerName)
-      .replace(/\{\{officePhone\}\}/g, this.formatterService.phoneNumber(this.selectedOffice?.phone) || '')
-      .replace(/\{\{officeFax\}\}/g, this.formatterService.phoneNumber(this.selectedOffice?.fax) || '')
-      .replace(/\{\{organizationWebsite\}\}/g, website)
+      .replace(/\{\{officePhone\}\}/g, this.getOfficePhoneText())
+      .replace(/\{\{officeFax\}\}/g, this.getOfficeFaxText())
+      .replace(/\{\{organizationWebsite\}\}/g, this.getOrganizationWebsite())
+      .replace(/\{\{ownerSplit\}\}/g, this.getOwnerSplit() || '')
+      .replace(/\{\{companySplit\}\}/g, this.getCompanySplit() || '')
+      .replace(/\{\{workingBalance\}\}/g, this.getWorkingBalance() || '')
+      .replace(/\{\{markup\}\}/g, this.getCompanyMarkup() || '')
+      .replace(/\{\{onlineClean\}\}/g, this.getOnlineCleanFee() || '')
+      .replace(/\{\{onlineFee\}\}/g, this.getOnlineFee() || '')
+      .replace(/\{\{offlineFee\}\}/g, this.getOfflineFee() || '')
       .replace(/\{\{officeLogoBase64\}\}/g, officeLogo);
 
     return content.replace(/\{\{[^}]+\}\}/g, '');
@@ -337,13 +468,178 @@ export class OwnerAgreementFormComponent implements OnInit, OnChanges, OnDestroy
     const result = this.documentHtmlService.processHtml(html, true);
     this.previewIframeHtml = result.processedHtml;
     this.previewIframeStyles = result.extractedStyles;
-    const previewHtmlWithStyles = this.documentHtmlService.getPreviewHtmlWithStyles(this.previewIframeHtml, this.previewIframeStyles);
-    this.safeHtml = this.sanitizer.bypassSecurityTrustHtml(previewHtmlWithStyles);
+    this.refreshPreviewSafeHtml();
     this.iframeKey++;
   }
   //#endregion
 
-  //#region Utility Methods
+  //#region Form Response Methods
+  captureLiveSnapshotForExport(): void {
+    const doc = this.getPreviewDocument();
+    if (!doc) {
+      this.liveExportHtml = '';
+      this.liveExportStyles = '';
+      return;
+    }
+
+    const liveHtml = this.buildLiveHtmlSnapshot(doc);
+    if (!liveHtml.trim()) {
+      this.liveExportHtml = '';
+      this.liveExportStyles = '';
+      return;
+    }
+
+    this.liveExportHtml = liveHtml;
+    this.liveExportStyles = this.collectDocumentStyles(doc) || this.previewIframeStyles;
+    this.previewIframeHtml = this.liveExportHtml;
+    this.previewIframeStyles = this.liveExportStyles;
+  }
+
+  getPreviewDocument(): Document | null {
+    const viewChildDoc = this.previewIframe?.nativeElement?.contentDocument || this.previewIframe?.nativeElement?.contentWindow?.document || null;
+    if (viewChildDoc) {
+      return viewChildDoc;
+    }
+
+    const fallbackIframe = document.querySelector('iframe.preview-iframe') as HTMLIFrameElement | null;
+    return fallbackIframe?.contentDocument || null;
+  }
+
+  buildLiveHtmlSnapshot(doc: Document): string {
+    const sourceControls = Array.from(doc.querySelectorAll('input, textarea, select')) as Array<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>;
+    sourceControls.forEach((control, index) => {
+      control.setAttribute('data-export-control-id', String(index));
+    });
+
+    const clonedRoot = doc.documentElement.cloneNode(true) as HTMLElement;
+
+    sourceControls.forEach((sourceControl) => {
+      const controlId = sourceControl.getAttribute('data-export-control-id');
+      if (!controlId) {
+        return;
+      }
+
+      const clonedControl = clonedRoot.querySelector(`[data-export-control-id="${controlId}"]`) as
+        | HTMLInputElement
+        | HTMLTextAreaElement
+        | HTMLSelectElement
+        | null;
+      if (!clonedControl) {
+        return;
+      }
+
+      const sourceTag = sourceControl.tagName.toLowerCase();
+      const clonedTag = clonedControl.tagName.toLowerCase();
+
+      if (sourceTag === 'input' && clonedTag === 'input') {
+        const sourceInput = sourceControl as HTMLInputElement;
+        const clonedInput = clonedControl as HTMLInputElement;
+        const inputType = (sourceInput.type || '').toLowerCase();
+        if (inputType === 'checkbox' || inputType === 'radio') {
+          clonedInput.checked = sourceInput.checked;
+          clonedInput.defaultChecked = sourceInput.checked;
+          if (sourceInput.checked) {
+            clonedInput.setAttribute('checked', 'checked');
+          } else {
+            clonedInput.removeAttribute('checked');
+          }
+          this.replaceChoiceControlWithMarker(clonedInput, sourceInput.checked, sourceInput.offsetWidth, sourceInput.offsetHeight);
+        } else {
+          clonedInput.value = sourceInput.value || '';
+          clonedInput.defaultValue = sourceInput.value || '';
+          clonedInput.setAttribute('value', sourceInput.value || '');
+          this.replaceTextControlWithValue(clonedInput, sourceInput.value || '', sourceInput.offsetHeight, sourceInput.offsetWidth);
+        }
+        return;
+      }
+
+      if (sourceTag === 'textarea' && clonedTag === 'textarea') {
+        const sourceTextarea = sourceControl as HTMLTextAreaElement;
+        const clonedTextarea = clonedControl as HTMLTextAreaElement;
+        clonedTextarea.value = sourceTextarea.value || '';
+        clonedTextarea.defaultValue = sourceTextarea.value || '';
+        clonedTextarea.textContent = sourceTextarea.value || '';
+        this.replaceTextControlWithValue(clonedTextarea, sourceTextarea.value || '', sourceTextarea.offsetHeight, sourceTextarea.offsetWidth, true);
+        return;
+      }
+
+      if (sourceTag === 'select' && clonedTag === 'select') {
+        const sourceSelect = sourceControl as HTMLSelectElement;
+        const clonedSelect = clonedControl as HTMLSelectElement;
+        clonedSelect.selectedIndex = sourceSelect.selectedIndex;
+        Array.from(sourceSelect.options).forEach((sourceOption, optionIndex) => {
+          const clonedOption = clonedSelect.options[optionIndex];
+          if (!clonedOption) {
+            return;
+          }
+          clonedOption.selected = sourceOption.selected;
+          clonedOption.defaultSelected = sourceOption.selected;
+          if (sourceOption.selected) {
+            clonedOption.setAttribute('selected', 'selected');
+          } else {
+            clonedOption.removeAttribute('selected');
+          }
+        });
+        const selectedOptionText = sourceSelect.options[sourceSelect.selectedIndex]?.text || '';
+        this.replaceTextControlWithValue(clonedSelect, selectedOptionText, sourceSelect.offsetHeight, sourceSelect.offsetWidth);
+      }
+    });
+
+    sourceControls.forEach(control => {
+      control.removeAttribute('data-export-control-id');
+    });
+    Array.from(clonedRoot.querySelectorAll('[data-export-control-id]')).forEach(control => {
+      control.removeAttribute('data-export-control-id');
+    });
+
+    return clonedRoot.outerHTML;
+  }
+
+  replaceChoiceControlWithMarker(control: HTMLElement, isChecked: boolean, sourceWidth: number, sourceHeight: number): void {
+    const marker = control.ownerDocument.createElement('span');
+    marker.className = control.className || '';
+    marker.textContent = isChecked ? '☑' : '☐';
+    marker.style.display = 'inline-flex';
+    marker.style.alignItems = 'center';
+    marker.style.justifyContent = 'center';
+    marker.style.minWidth = `${Math.max(sourceWidth || 0, 12)}px`;
+    marker.style.minHeight = `${Math.max(sourceHeight || 0, 12)}px`;
+    marker.style.lineHeight = '1';
+    marker.style.verticalAlign = 'middle';
+    marker.style.fontSize = '12px';
+    control.replaceWith(marker);
+  }
+
+  replaceTextControlWithValue(
+    control: HTMLElement,
+    value: string,
+    sourceHeight: number,
+    sourceWidth: number,
+    preserveWhitespace: boolean = false
+  ): void {
+    const textNode = control.ownerDocument.createElement('span');
+    textNode.className = control.className || '';
+    textNode.textContent = value;
+    textNode.style.display = 'inline-block';
+    textNode.style.minHeight = `${Math.max(sourceHeight || 0, 14)}px`;
+    textNode.style.minWidth = `${Math.max(sourceWidth || 0, 24)}px`;
+    textNode.style.width = sourceWidth > 0 ? `${sourceWidth}px` : '100%';
+    textNode.style.lineHeight = '1.2';
+    textNode.style.whiteSpace = preserveWhitespace ? 'pre-wrap' : 'normal';
+    textNode.style.verticalAlign = 'middle';
+    control.replaceWith(textNode);
+  }
+
+  collectDocumentStyles(doc: Document): string {
+    const styleTags = Array.from(doc.querySelectorAll('style'));
+    return styleTags.map(styleTag => styleTag.textContent || '').filter(styleText => styleText.trim().length > 0).join('\n\n');
+  }
+
+  refreshPreviewSafeHtml(): void {
+    const previewHtmlWithStyles = this.documentHtmlService.getPreviewHtmlWithStyles(this.previewIframeHtml, this.previewIframeStyles);
+    this.safeHtml = this.sanitizer.bypassSecurityTrustHtml(previewHtmlWithStyles);
+  }
+
   loadAgreementTemplate(includeTemplate: boolean, assetPath: string): Observable<string> {
     if (!includeTemplate) {
       return of('');
@@ -360,17 +656,33 @@ export class OwnerAgreementFormComponent implements OnInit, OnChanges, OnDestroy
       propertyId: this.selectedProperty?.propertyId || null,
       reservationId: null,
       documentTypeId: DocumentType.OwnerAgreement,
-      fileName: this.utilityService.generateDocumentFileName('lease', this.selectedProperty?.propertyCode || undefined, 'OwnerAgreement')
+      fileName: this.getDocumentFileName(this.documentFileSuffix)
     };
   }
 
-  downloadBlob(blob: Blob, fileName: string): void {
-    const url = URL.createObjectURL(blob);
-    const anchor = document.createElement('a');
-    anchor.href = url;
-    anchor.download = fileName;
-    anchor.click();
-    URL.revokeObjectURL(url);
+  //#region Abstract BaseDocumentComponent
+  protected override getDocumentConfig(): DocumentConfig {
+    return {
+      previewIframeHtml: this.previewIframeHtml,
+      previewIframeStyles: this.previewIframeStyles,
+      organizationId: this.organizationId || null,
+      selectedOfficeId: this.selectedOffice?.officeId || null,
+      selectedOfficeName: this.selectedOffice?.name || '',
+      selectedReservationId: null,
+      propertyId: this.selectedProperty?.propertyId || null,
+      contacts: this.ownerContact ? [this.ownerContact] : [],
+      isDownloading: this.isDownloading,
+      printStyleOptions: { fontSize: '10pt', includeLeaseStyles: true }
+    };
+  }
+
+  protected override setDownloading(value: boolean): void {
+    this.isDownloading = value;
+  }
+  //#endregion
+
+  getDocumentFileName(label: string): string {
+    return this.utilityService.generateDocumentFileName('lease', this.selectedProperty?.propertyCode || undefined, label);
   }
 
   composeAddress(source: { address1?: string | null; address2?: string | null; city?: string | null; state?: string | null; zip?: string | null } | null | undefined): string {
@@ -391,11 +703,11 @@ export class OwnerAgreementFormComponent implements OnInit, OnChanges, OnDestroy
   }
 
   getOfficeName(): string {
-    return String(this.selectedOffice?.name || '').trim();
+    return String(this.getEffectiveOffice()?.name || '').trim();
   }
 
   getCompanyState(): string {
-    const stateCode = String(this.selectedOffice?.state || this.commonService.getOrganizationValue()?.state || '').trim();
+    const stateCode = String(this.getEffectiveOffice()?.state || this.commonService.getOrganizationValue()?.state || '').trim();
     if (!stateCode) {
       return '';
     }
@@ -408,7 +720,7 @@ export class OwnerAgreementFormComponent implements OnInit, OnChanges, OnDestroy
   }
 
   getCompanyCity(): string {
-    return String(this.selectedOffice?.city || this.commonService.getOrganizationValue()?.city || '').trim();
+    return String(this.getEffectiveOffice()?.city || this.commonService.getOrganizationValue()?.city || '').trim();
   }
 
   getCompanyAddress(): string {
@@ -416,8 +728,8 @@ export class OwnerAgreementFormComponent implements OnInit, OnChanges, OnDestroy
   }
 
   getCompanyAddress1(): string {
-    const address1 = String(this.selectedOffice?.address1 || this.commonService.getOrganizationValue()?.address1 || '').trim();
-    const suiteRaw = String(this.selectedOffice?.suite || this.commonService.getOrganizationValue()?.suite || '').trim();
+    const address1 = String(this.getEffectiveOffice()?.address1 || this.commonService.getOrganizationValue()?.address1 || '').trim();
+    const suiteRaw = String(this.getEffectiveOffice()?.suite || this.commonService.getOrganizationValue()?.suite || '').trim();
     if (!address1) {
       return '';
     }
@@ -431,9 +743,113 @@ export class OwnerAgreementFormComponent implements OnInit, OnChanges, OnDestroy
   getCompanyAddress2(): string {
     const city = this.getCompanyCity();
     const state = this.getCompanyState();
-    const zip = String(this.selectedOffice?.zip || this.commonService.getOrganizationValue()?.zip || '').trim();
+    const zip = String(this.getEffectiveOffice()?.zip || this.commonService.getOrganizationValue()?.zip || '').trim();
     const cityState = [city, state].filter(part => part.length > 0).join(', ');
     return [cityState, zip].filter(part => part.length > 0).join(' ');
+  }
+
+  getEffectiveOffice(): OfficeResponse | null {
+    if (this.selectedOffice) {
+      return this.selectedOffice;
+    }
+    const propertyOfficeId = this.selectedProperty?.officeId;
+    if (!propertyOfficeId) {
+      return null;
+    }
+    const offices = this.officeService.getAllOfficesValue() || [];
+    return offices.find(office => office.officeId === propertyOfficeId) || null;
+  }
+
+  getAccountingOfficeAddress(): string {
+    const accountingOffice = this.accountingOffices.find(accounting => accounting.officeId === this.selectedProperty?.officeId);
+    const officeAddressSource = accountingOffice || this.getEffectiveOffice();
+    if (!officeAddressSource) {
+      return '';
+    }
+    const address1 = String(officeAddressSource.address1 || '').trim();
+    const suite = String((officeAddressSource as any).suite || '').trim();
+    const address1WithSuite = suite ? `${address1}, ${suite}` : address1;
+    const parts = [address1WithSuite, officeAddressSource.city, officeAddressSource.state, officeAddressSource.zip]
+      .map(part => String(part || '').trim())
+      .filter(part => part.length > 0);
+    return parts.join(', ');
+  }
+
+  getOrganizationOfficeDisplay(): string {
+    const organizationName = String(this.commonService.getOrganizationValue()?.name || '').trim();
+    const officeName = String(this.getEffectiveOffice()?.name || '').trim();
+    return `${organizationName} ${officeName}`.trim();
+  }
+
+  getOrganizationWebsite(): string {
+    return String(this.getEffectiveOffice()?.website || this.commonService.getOrganizationValue()?.website || '').trim();
+  }
+
+  getOwnerSplit(): string {
+    return this.formatAgreementPercentForDisplay(this.propertyAgreement?.revenueSplitOwner);
+  }
+
+  getCompanySplit(): string {
+    return this.formatAgreementPercentForDisplay(this.propertyAgreement?.revenueSplitOwner);
+  }
+
+  getCompanyMarkup(): string {
+    return this.formatAgreementPercentForDisplay(this.propertyAgreement?.markup);
+  }
+
+  getOfficePhoneText(): string {
+    const phone = this.getEffectiveOffice()?.phone;
+    return this.formatterService.phoneNumber(phone) || 'N/A';
+  }
+
+  getOfficeFaxText(): string {
+    const fax = this.getEffectiveOffice()?.fax;
+    return this.formatterService.phoneNumber(fax) || 'N/A';
+  }
+
+  getWorkingBalance(): string { 
+    return this.formatAgreementCurrency(this.leadOwner?.workingBalance);
+  }
+  
+  getOnlineFee(): string { 
+    return this.formatAgreementCurrency(this.leadOwner?.onlineFee);
+  }
+
+  getOfflineFee(): string { 
+    return this.formatAgreementCurrency(this.leadOwner?.offlineFee);
+  }
+
+  getOnlineCleanFee(): string { 
+    return this.formatAgreementCurrency(this.leadOwner?.onlineClean);
+  }
+  //#region
+
+  //#region Utility Methods
+  formatAgreementPercentForDisplay(value: number | string | null | undefined): string {
+    if (value == null || value === '') {
+      return '0%';
+    }
+    const n = Number(String(value).replace(/%\s*$/, ''));
+    return isNaN(n) ? '0%' : `${n}%`;
+  }
+
+  formatAgreementDecimalForDisplay(value: number | string | null | undefined): string {
+    if (value == null || value === '') {
+      return '$0.00';
+    }
+    const n = Number(String(value).replace(/[$,]/g, ''));
+    return isNaN(n) ? '$0.00' : this.formatAgreementCurrency(n);
+  }
+
+  formatAgreementCurrency(value: number | string | null | undefined): string {
+    if (value == null || value === '') {
+      return '$0.00';
+    }
+    const parsed = Number(String(value).replace(/[$,]/g, ''));
+    if (!Number.isFinite(parsed)) {
+      return '$0.00';
+    }
+    return '$' + parsed.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
   }
 
   ngOnDestroy(): void {

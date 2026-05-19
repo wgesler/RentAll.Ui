@@ -23,7 +23,7 @@
               [noResultsText]="'No offices match your search'"
               (valueChange)="onOfficeDropdownChange($event)">
             </app-title-bar-select>
-            @if (!isOwnerListMode && (selectedTabIndex === 1 || selectedTabIndex === 2 || selectedTabIndex === 3)) {
+            @if (!isOwnerListMode && (selectedTabIndex === 1 || selectedTabIndex === 2 || selectedTabIndex === 3 || selectedTabIndex === 4 || selectedTabIndex === 5 || selectedTabIndex === 6)) {
               <app-title-bar-select
                 [label]="'Property Code'"
                 [formFieldClass]="'titlebar-field-property-code'"
@@ -83,8 +83,35 @@
                 [propertyId]="selectedPropertyId === newPropertyOptionValue ? null : selectedPropertyId">
               </app-owner-agreement-form>
             </mat-tab>
-            <mat-tab label="Insurance"><app-insurance></app-insurance></mat-tab>
-            <mat-tab label="Compliance"><app-compliance></app-compliance></mat-tab>
+            <mat-tab label="Lead Based Paint">
+              <app-lead-based-paint-form
+                [ownerLeadId]="leadOwnerId"
+                [officeId]="selectedOfficeId"
+                [propertyId]="selectedPropertyId === newPropertyOptionValue ? null : selectedPropertyId">
+              </app-lead-based-paint-form>
+            </mat-tab>
+            <mat-tab label="Radon Disclosure">
+              <app-radon-disclosure-form
+                [ownerLeadId]="leadOwnerId"
+                [officeId]="selectedOfficeId"
+                [propertyId]="selectedPropertyId === newPropertyOptionValue ? null : selectedPropertyId">
+              </app-radon-disclosure-form>
+            </mat-tab>
+            <mat-tab label="W-9 Form">
+              @if (isW9CreateMode) {
+                <app-w9-create
+                  [ownerLeadId]="leadOwnerId"
+                  [officeId]="selectedOfficeId"
+                  [propertyId]="null">
+                </app-w9-create>
+              } @else {
+                <app-w9
+                  [ownerLeadId]="leadOwnerId"
+                  [officeId]="selectedOfficeId"
+                  [propertyId]="selectedPropertyId === newPropertyOptionValue ? null : selectedPropertyId">
+                </app-w9>
+              }
+            </mat-tab>
           </mat-tab-group>
         }
       </mat-card>

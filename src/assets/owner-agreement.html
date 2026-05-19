@@ -23,7 +23,7 @@
         color-adjust: exact;
       }
 
-      #header, #footer {
+      #footer {
         -webkit-print-color-adjust: exact;
         print-color-adjust: exact;
         color-adjust: exact;
@@ -33,6 +33,15 @@
 
       #header h1, #footer {
         color: #fff !important;
+      }
+
+      #header .logo-row,
+      #header .logo-row td {
+        background-color: #fff !important;
+      }
+
+      #header .title-row td {
+        background-color: #222 !important;
       }
 
       .keep-together {
@@ -111,43 +120,50 @@
       line-height: 1.2;
     }
 
-    #terms .agreement-section ol {
+    #terms ol.section-numbered {
       list-style: none;
-      margin: 0 0 0 24px;
+      margin: 0;
       padding: 0;
       counter-reset: section-item;
     }
 
-    #terms .agreement-section ol > li {
-      display: list-item;
+    #terms ol.section-numbered > li {
+      display: grid;
+      grid-template-columns: 7ch 1fr;
+      column-gap: 0.75ch;
       margin: 0 0 4px 0;
+      padding: 0;
       counter-increment: section-item;
+      text-indent: 0;
+      line-height: 1.35;
     }
 
-    #terms .agreement-section ol > li::marker {
-      content: var(--section-prefix) "." counter(section-item) ". ";
+    #terms ol.section-numbered > li::before {
+      content: var(--section-prefix) "." counter(section-item) ".";
+      text-align: right;
       font-weight: 600;
+      font-variant-numeric: tabular-nums;
     }
 
-    #terms .agreement-section.sec-1 { --section-prefix: "1"; }
-    #terms .agreement-section.sec-2 { --section-prefix: "2"; }
-    #terms .agreement-section.sec-3 { --section-prefix: "3"; }
-    #terms .agreement-section.sec-4 { --section-prefix: "4"; }
-    #terms .agreement-section.sec-5 { --section-prefix: "5"; }
-    #terms .agreement-section.sec-6 { --section-prefix: "6"; }
-    #terms .agreement-section.sec-7 { --section-prefix: "7"; }
-    #terms .agreement-section.sec-8 { --section-prefix: "8"; }
-    #terms .agreement-section.sec-9 { --section-prefix: "9"; }
-    #terms .agreement-section.sec-10 { --section-prefix: "10"; }
-    #terms .agreement-section.sec-11 { --section-prefix: "11"; }
-    #terms .agreement-section.sec-12 { --section-prefix: "12"; }
-    #terms .agreement-section.sec-13 { --section-prefix: "13"; }
-    #terms .agreement-section.sec-14 { --section-prefix: "14"; }
-    #terms .agreement-section.sec-15 { --section-prefix: "15"; }
-    #terms .agreement-section.sec-16 { --section-prefix: "16"; }
-    #terms .agreement-section.sec-17 { --section-prefix: "17"; }
-    #terms .agreement-section.sec-18 { --section-prefix: "18"; }
-    #terms .agreement-section.sec-19 { --section-prefix: "19"; }
+    #terms ol.section-numbered.sec-1 { --section-prefix: "1"; }
+    #terms ol.section-numbered.sec-2 { --section-prefix: "2"; }
+    #terms ol.section-numbered.sec-3 { --section-prefix: "3"; }
+    #terms ol.section-numbered.sec-4 { --section-prefix: "4"; }
+    #terms ol.section-numbered.sec-5 { --section-prefix: "5"; }
+    #terms ol.section-numbered.sec-6 { --section-prefix: "6"; }
+    #terms ol.section-numbered.sec-7 { --section-prefix: "7"; }
+    #terms ol.section-numbered.sec-8 { --section-prefix: "8"; }
+    #terms ol.section-numbered.sec-9 { --section-prefix: "9"; }
+    #terms ol.section-numbered.sec-10 { --section-prefix: "10"; }
+    #terms ol.section-numbered.sec-11 { --section-prefix: "11"; }
+    #terms ol.section-numbered.sec-12 { --section-prefix: "12"; }
+    #terms ol.section-numbered.sec-13 { --section-prefix: "13"; }
+    #terms ol.section-numbered.sec-14 { --section-prefix: "14"; }
+    #terms ol.section-numbered.sec-15 { --section-prefix: "15"; }
+    #terms ol.section-numbered.sec-16 { --section-prefix: "16"; }
+    #terms ol.section-numbered.sec-17 { --section-prefix: "17"; }
+    #terms ol.section-numbered.sec-18 { --section-prefix: "18"; }
+    #terms ol.section-numbered.sec-19 { --section-prefix: "19"; }
 
     #terms {
       max-width: 100% !important;
@@ -166,7 +182,7 @@
     #header {
       max-width: 100% !important;
       width: 100% !important;
-      background-color: #222;
+      background-color: #fff;
     }
 
     #header img {
@@ -175,10 +191,17 @@
       display: block;
       height: auto;
       margin: 0;
+      float: none !important;
     }
 
     #header .logo-row td {
       padding-bottom: 6px;
+      text-align: left;
+      background-color: #fff !important;
+    }
+
+    #header .title-row td {
+      background-color: #222 !important;
     }
 
     h1 {
@@ -190,6 +213,9 @@
       padding: 10px 5px 20px 5px;
       background-color: #222;
       letter-spacing: -0.5px;
+      clear: both;
+      display: block;
+      width: 100%;
     }
 
     h2 {
@@ -212,6 +238,30 @@
 
     .border p {
       margin: 0;
+    }
+
+    .signature-table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 14px;
+    }
+
+    .signature-cell {
+      width: 50%;
+      padding: 0 18px 14px 18px;
+      vertical-align: top;
+    }
+
+    .signature-line {
+      border-bottom: 1px solid #000;
+      height: 24px;
+      margin-bottom: 4px;
+    }
+
+    .signature-label {
+      font-size: 10pt;
+      line-height: 1.2;
+      margin: 0 0 18px 0;
     }
 
     .top-info-lines {
@@ -249,6 +299,40 @@
       color: #fff;
       padding: 10px 5px 10px 5px !important;
     }
+
+    #terms .section-text ol.section-numbered {
+      list-style-type: none !important;
+      list-style-position: outside !important;
+      margin-left: 0 !important;
+      padding-left: 0 !important;
+      counter-reset: section-item !important;
+    }
+
+    #terms .section-text ol.section-numbered > li {
+      display: block !important;
+      list-style-type: none !important;
+      position: relative !important;
+      counter-increment: section-item !important;
+
+      margin: 0 0 4px 0 !important;
+      padding-left: 7.5ch !important;
+      text-indent: 0 !important;
+      line-height: 1.35 !important;
+    }
+
+    #terms .section-text ol.section-numbered > li::before {
+      content: var(--section-prefix) "." counter(section-item) "." !important;
+      position: absolute !important;
+      left: 0 !important;
+      top: 0 !important;
+      width: 6.5ch !important;
+      text-align: right !important;
+      font-weight: 600 !important;
+    }
+
+    #terms ol.section-numbered.sec-15 {
+      --section-prefix: "15";
+    }
   </style>
 </head>
 
@@ -258,10 +342,10 @@
     <tbody>
       <tr class="logo-row">
         <td colspan="1">
-          <img src="{{officeLogoBase64}}" alt="Company Logo" class="logo" align="left">
+          <img src="{{officeLogoBase64}}" alt="Company Logo" class="logo">
         </td>
       </tr>
-      <tr valign="top">
+      <tr class="title-row" valign="top">
         <td>
           <h1>Owner Property Management Agreement</h1>
         </td>
@@ -372,6 +456,39 @@
           </div>
           <div class="keep-together">
             <div class="section-text">{{inWitnessWhereofSection}}</div>
+          </div>
+          <div class="keep-together">
+            <table class="signature-table" cellspacing="0" cellpadding="0" align="center">
+              <tbody>
+                <tr>
+                  <td class="signature-cell">
+                    <div class="signature-line"></div>
+                    <p class="signature-label">Owner Signature</p>
+                  </td>
+                  <td class="signature-cell">
+                    <div class="signature-line"></div>
+                    <p class="signature-label">Agent</p>
+                  </td>
+                </tr>
+                <tr>
+                  <td class="signature-cell">
+                    <div class="signature-line"></div>
+                    <p class="signature-label">Print Name</p>
+                  </td>
+                  <td class="signature-cell">
+                    <div class="signature-line"></div>
+                    <p class="signature-label">Date</p>
+                  </td>
+                </tr>
+                <tr>
+                  <td class="signature-cell">
+                    <div class="signature-line"></div>
+                    <p class="signature-label">Date</p>
+                  </td>
+                  <td class="signature-cell"></td>
+                </tr>
+              </tbody>
+            </table>
           </div>
 
           {{#if depositTypeSDW}}

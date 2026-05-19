@@ -34,6 +34,8 @@ import { TitleBarSelectComponent } from '../../shared/titlebar-select/titlebar-s
 import { TrackerListComponent } from '../tracker-list/tracker-list.component';
 import { TrackerContextType } from '../models/tracker-enum';
 import { TrackerDefinitionListDisplay, TrackerSelectionEvent } from '../models/tracker.model';
+import { StateFormListComponent } from '../state-form-list/state-form-list.component';
+import { StateFormComponent } from '../state-form/state-form.component';
 
 @Component({
     standalone: true,
@@ -58,7 +60,9 @@ import { TrackerDefinitionListDisplay, TrackerSelectionEvent } from '../models/t
     ColorListComponent,
     ColorComponent,
     TitleBarSelectComponent,
-    TrackerListComponent
+    TrackerListComponent,
+    StateFormListComponent,
+    StateFormComponent
 ],
     templateUrl: './configuration.component.html',
     styleUrls: ['./configuration.component.scss']
@@ -72,8 +76,9 @@ export class ConfigurationComponent implements OnInit, OnDestroy {
   @ViewChild(AccountingOfficeListComponent) accountingOfficeListComponent?: AccountingOfficeListComponent;
   @ViewChild(ColorListComponent) colorListComponent?: ColorListComponent;
   @ViewChild(TrackerListComponent) trackerListComponent?: TrackerListComponent;
+  @ViewChild(StateFormListComponent) stateFormListComponent?: StateFormListComponent;
 
-  expandedSections = {offices: false, accountingOffices: false,  agents: false, regions: false, area: false, building: false, costCodes: false, color: false,branding: false, trackers: false };
+  expandedSections = {offices: false, accountingOffices: false,  agents: false, regions: false, area: false, building: false, costCodes: false, color: false,branding: false, trackers: false, stateForms: false };
   isEditingAgent: boolean = false;
   agentId: string | null = null;
   shouldRefreshAgents: boolean = false;
@@ -104,6 +109,9 @@ export class ConfigurationComponent implements OnInit, OnDestroy {
   selectedTrackerOfficeId: number | null = null;
   selectedTracker: TrackerDefinitionListDisplay | null = null;
   shouldRefreshTrackers: boolean = false;
+  isEditingStateForm: boolean = false;
+  stateFormId: string | number | null = null;
+  shouldRefreshStateForms: boolean = false;
 
   // Organization dropdown (SuperAdmin only)
   isSuperAdmin: boolean = false;
@@ -430,6 +438,27 @@ export class ConfigurationComponent implements OnInit, OnDestroy {
 
   onTrackerSaved(): void {
     this.shouldRefreshTrackers = true;
+  }
+
+  onStateFormSelected(stateFormId: string | number | null): void {
+    this.stateFormId = stateFormId;
+    this.isEditingStateForm = stateFormId !== null;
+    if (this.isEditingStateForm) {
+      this.expandedSections.stateForms = true;
+    }
+  }
+
+  onStateFormBack(): void {
+    if (this.shouldRefreshStateForms) {
+      this.stateFormListComponent?.getStateForms();
+    }
+    this.shouldRefreshStateForms = false;
+    this.stateFormId = null;
+    this.isEditingStateForm = false;
+  }
+
+  onStateFormSaved(): void {
+    this.shouldRefreshStateForms = true;
   }
 
   onPanelOpened(section: string): void {

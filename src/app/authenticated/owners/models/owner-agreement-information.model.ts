@@ -65,35 +65,69 @@ export function replaceOwnerAgreementInformationSections(
   content: Partial<OwnerAgreementInformationRequest> | null | undefined
 ): string {
   const agreementInformation = content ?? {};
-  const sectionOneEmployment = agreementInformation.sectionOneEmployment || agreementInformation.sectionOneEmploymentOfAvenueWest || '';
+  const sectionOneEmployment = normalizeSectionListItemNumbers(agreementInformation.sectionOneEmployment || agreementInformation.sectionOneEmploymentOfAvenueWest || '');
   const normalizedSectionOneEmployment = sectionOneEmployment.replace(
     /commencing on\s*\./gi,
     'commencing on ______________________.'
   );
-  const sectionTwelveAdditionalDutiesAndRights = agreementInformation.sectionTwelveAdditionalDutiesAndRights || agreementInformation.sectionTwelveAdditionalDutiesAndRightsOfAvenueWest || '';
+  const sectionTwoAgentDuties = normalizeSectionListItemNumbers(agreementInformation.sectionTwoAgentDuties || '');
+  const sectionThreeOwnersDuties = normalizeSectionListItemNumbers(agreementInformation.sectionThreeOwnersDuties || '');
+  const sectionFourAdvertisingAndPromotion = normalizeSectionListItemNumbers(agreementInformation.sectionFourAdvertisingAndPromotion || '');
+  const sectionFiveMaintenanceRepairsAndOperations = normalizeSectionListItemNumbers(agreementInformation.sectionFiveMaintenanceRepairsAndOperations || '');
+  const sectionSixReimbursements = normalizeSectionListItemNumbers(agreementInformation.sectionSixReimbursements || '');
+  const sectionSevenGovernmentRegulations = normalizeSectionListItemNumbers(agreementInformation.sectionSevenGovernmentRegulations || '');
+  const sectionEightInsurance = normalizeSectionListItemNumbers(agreementInformation.sectionEightInsurance || '');
+  const sectionNineCollectionOfIncomeAndInstitutionOfLegalAction = normalizeSectionListItemNumbers(agreementInformation.sectionNineCollectionOfIncomeAndInstitutionOfLegalAction || '');
+  const sectionTenBankAccounts = normalizeSectionListItemNumbers(agreementInformation.sectionTenBankAccounts || '');
+  const sectionElevenRecordsAndReports = normalizeSectionListItemNumbers(agreementInformation.sectionElevenRecordsAndReports || '');
+  const sectionTwelveAdditionalDutiesAndRights = normalizeSectionListItemNumbers(
+    agreementInformation.sectionTwelveAdditionalDutiesAndRights || agreementInformation.sectionTwelveAdditionalDutiesAndRightsOfAvenueWest || ''
+  );
+  const sectionThirteenTerminationAndRenewal = normalizeSectionListItemNumbers(agreementInformation.sectionThirteenTerminationAndRenewal || '');
+  const sectionFourteenSaleOfPropertyAccess = normalizeSectionListItemNumbers(agreementInformation.sectionFourteenSaleOfPropertyAccess || '');
+  const sectionFifteenSummaryOfFees = normalizeSectionListItemNumbers(agreementInformation.sectionFifteenSummaryOfFees || '');
+  const sectionSixteenForeignOwnership = normalizeSectionListItemNumbers(agreementInformation.sectionSixteenForeignOwnership || '');
+  const sectionSeventeenIndemnity = normalizeSectionListItemNumbers(agreementInformation.sectionSeventeenIndemnity || '');
+  const sectionEighteenMiscellaneous = normalizeSectionListItemNumbers(agreementInformation.sectionEighteenMiscellaneous || '');
+  const sectionNineteenAdditionalForms = normalizeSectionListItemNumbers(agreementInformation.sectionNineteenAdditionalForms || '');
+  const normalizedInWitnessWhereof = (agreementInformation.inWitnessWhereof || '')
+    .replace(/Owner Signature Agent/gi, '')
+    .replace(/Print Name Date/gi, '')
+    .replace(/_{5,}/g, '')
+    .replace(/^\s*Date\s*$/gim, '')
+    .replace(/\n{3,}/g, '\n\n')
+    .trim();
   return html
     .replace(/\{\{agreementIntroductionSection\}\}/g, agreementInformation.agreementIntroduction || '')
     .replace(/\{\{recitalsSection\}\}/g, agreementInformation.recitals || '')
     .replace(/\{\{sectionOneEmploymentSection\}\}/g, normalizedSectionOneEmployment)
     .replace(/\{\{sectionOneEmploymentOfAvenueWestSection\}\}/g, normalizedSectionOneEmployment)
-    .replace(/\{\{sectionTwoAgentDutiesSection\}\}/g, agreementInformation.sectionTwoAgentDuties || '')
-    .replace(/\{\{sectionThreeOwnersDutiesSection\}\}/g, agreementInformation.sectionThreeOwnersDuties || '')
-    .replace(/\{\{sectionFourAdvertisingAndPromotionSection\}\}/g, agreementInformation.sectionFourAdvertisingAndPromotion || '')
-    .replace(/\{\{sectionFiveMaintenanceRepairsAndOperationsSection\}\}/g, agreementInformation.sectionFiveMaintenanceRepairsAndOperations || '')
-    .replace(/\{\{sectionSixReimbursementsSection\}\}/g, agreementInformation.sectionSixReimbursements || '')
-    .replace(/\{\{sectionSevenGovernmentRegulationsSection\}\}/g, agreementInformation.sectionSevenGovernmentRegulations || '')
-    .replace(/\{\{sectionEightInsuranceSection\}\}/g, agreementInformation.sectionEightInsurance || '')
-    .replace(/\{\{sectionNineCollectionOfIncomeAndInstitutionOfLegalActionSection\}\}/g, agreementInformation.sectionNineCollectionOfIncomeAndInstitutionOfLegalAction || '')
-    .replace(/\{\{sectionTenBankAccountsSection\}\}/g, agreementInformation.sectionTenBankAccounts || '')
-    .replace(/\{\{sectionElevenRecordsAndReportsSection\}\}/g, agreementInformation.sectionElevenRecordsAndReports || '')
+    .replace(/\{\{sectionTwoAgentDutiesSection\}\}/g, sectionTwoAgentDuties)
+    .replace(/\{\{sectionThreeOwnersDutiesSection\}\}/g, sectionThreeOwnersDuties)
+    .replace(/\{\{sectionFourAdvertisingAndPromotionSection\}\}/g, sectionFourAdvertisingAndPromotion)
+    .replace(/\{\{sectionFiveMaintenanceRepairsAndOperationsSection\}\}/g, sectionFiveMaintenanceRepairsAndOperations)
+    .replace(/\{\{sectionSixReimbursementsSection\}\}/g, sectionSixReimbursements)
+    .replace(/\{\{sectionSevenGovernmentRegulationsSection\}\}/g, sectionSevenGovernmentRegulations)
+    .replace(/\{\{sectionEightInsuranceSection\}\}/g, sectionEightInsurance)
+    .replace(/\{\{sectionNineCollectionOfIncomeAndInstitutionOfLegalActionSection\}\}/g, sectionNineCollectionOfIncomeAndInstitutionOfLegalAction)
+    .replace(/\{\{sectionTenBankAccountsSection\}\}/g, sectionTenBankAccounts)
+    .replace(/\{\{sectionElevenRecordsAndReportsSection\}\}/g, sectionElevenRecordsAndReports)
     .replace(/\{\{sectionTwelveAdditionalDutiesAndRightsSection\}\}/g, sectionTwelveAdditionalDutiesAndRights)
     .replace(/\{\{sectionTwelveAdditionalDutiesAndRightsOfAvenueWestSection\}\}/g, sectionTwelveAdditionalDutiesAndRights)
-    .replace(/\{\{sectionThirteenTerminationAndRenewalSection\}\}/g, agreementInformation.sectionThirteenTerminationAndRenewal || '')
-    .replace(/\{\{sectionFourteenSaleOfPropertyAccessSection\}\}/g, agreementInformation.sectionFourteenSaleOfPropertyAccess || '')
-    .replace(/\{\{sectionFifteenSummaryOfFeesSection\}\}/g, agreementInformation.sectionFifteenSummaryOfFees || '')
-    .replace(/\{\{sectionSixteenForeignOwnershipSection\}\}/g, agreementInformation.sectionSixteenForeignOwnership || '')
-    .replace(/\{\{sectionSeventeenIndemnitySection\}\}/g, agreementInformation.sectionSeventeenIndemnity || '')
-    .replace(/\{\{sectionEighteenMiscellaneousSection\}\}/g, agreementInformation.sectionEighteenMiscellaneous || '')
-    .replace(/\{\{sectionNineteenAdditionalFormsSection\}\}/g, agreementInformation.sectionNineteenAdditionalForms || '')
-    .replace(/\{\{inWitnessWhereofSection\}\}/g, agreementInformation.inWitnessWhereof || '');
+    .replace(/\{\{sectionThirteenTerminationAndRenewalSection\}\}/g, sectionThirteenTerminationAndRenewal)
+    .replace(/\{\{sectionFourteenSaleOfPropertyAccessSection\}\}/g, sectionFourteenSaleOfPropertyAccess)
+    .replace(/\{\{sectionFifteenSummaryOfFeesSection\}\}/g, sectionFifteenSummaryOfFees)
+    .replace(/\{\{sectionSixteenForeignOwnershipSection\}\}/g, sectionSixteenForeignOwnership)
+    .replace(/\{\{sectionSeventeenIndemnitySection\}\}/g, sectionSeventeenIndemnity)
+    .replace(/\{\{sectionEighteenMiscellaneousSection\}\}/g, sectionEighteenMiscellaneous)
+    .replace(/\{\{sectionNineteenAdditionalFormsSection\}\}/g, sectionNineteenAdditionalForms)
+    .replace(/\{\{inWitnessWhereofSection\}\}/g, normalizedInWitnessWhereof);
+}
+
+function normalizeSectionListItemNumbers(sectionHtml: string): string {
+  if (!sectionHtml) {
+    return '';
+  }
+
+  return sectionHtml.replace(/(<li[^>]*>\s*)(\d+\.\d+\.\s*)/gi, '$1');
 }

@@ -23,6 +23,7 @@ import { ColorListDisplay, ColorResponse } from '../authenticated/organizations/
 import { OfficeListDisplay, OfficeResponse } from '../authenticated/organizations/models/office.model';
 import { OrganizationListDisplay, OrganizationResponse } from '../authenticated/organizations/models/organization.model';
 import { RegionListDisplay, RegionResponse } from '../authenticated/organizations/models/region.model';
+import { StateFormListDisplay, StateFormResponse } from '../authenticated/organizations/models/state-form.model';
 import { TrackerConfigurationDefinitionResponse, TrackerDefinitionListDisplay, TrackerDefinitionResponse } from '../authenticated/organizations/models/tracker.model';
 import { getTrackerContextCode, getTrackerContextType } from '../authenticated/organizations/models/tracker-enum';
 import { ManagementFeeType, PropertyLeaseType, PropertyType, TrashDays, effectiveBedTypeIdForPropertySlot, getBedSizeType, getPropertyStatus, getPropertyStatusLetter, getPropertyType } from '../authenticated/properties/models/property-enums';
@@ -117,6 +118,17 @@ export class MappingService {
       reservationStatusId: o.reservationStatusId,
       reservationStatus: getReservationStatus(o.reservationStatusId),
       color: o.color
+    }));
+  }
+
+  mapStateForms(stateForms: StateFormResponse[]): StateFormListDisplay[] {
+    return (stateForms || []).map<StateFormListDisplay>((o: StateFormResponse) => ({
+      stateFormId: o.stateFormId,
+      stateCode: o.stateCode,
+      formName: o.formName,
+      path: o.path,
+      hasDocument: o.path ? 'Yes' : 'No',
+      hasHtml: o.formAsHtml ? 'Yes' : 'No'
     }));
   }
     

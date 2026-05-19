@@ -1,0 +1,137 @@
+@if (isLoading$ | async) {
+  <div class="loading-container">
+    <mat-spinner [diameter]="40"></mat-spinner>
+    <p>Loading state form...</p>
+  </div>
+} @else if (!isServiceError) {
+  <div class="flex content-card-wrap justify-center" [class.settings-embedded-edit-wrap]="embeddedInSettings">
+    <section class="content-card">
+      <mat-card>
+        <form id="stateFormForm" [formGroup]="form" (ngSubmit)="saveStateForm()" class="info-form mb-8 form-hide-error-text" [class.settings-embedded-edit-top-offset]="embeddedInSettings">
+          <div class="mb-4 flex justify-end" [class.settings-embedded-edit-actions]="embeddedInSettings">
+            @if (embeddedInSettings) {
+              <button mat-raised-button type="button" color="accent" id="back-state-form-button-embedded" (click)="back()" class="text-nowrap flex-shrink-0">
+                <mat-icon>arrow_back</mat-icon>
+                Back
+              </button>
+              <button mat-raised-button type="submit" form="stateFormForm" color="primary" id="save-state-form-button-embedded" (click)="saveStateForm()" class="text-nowrap flex-shrink-0" [disabled]="isSubmitting">
+                <mat-icon>save</mat-icon>
+                Save
+              </button>
+            }
+          </div>
+
+          <mat-accordion multi="true">
+            <mat-expansion-panel [expanded]="true" class="mb-4">
+              <mat-expansion-panel-header>
+                <mat-panel-title>State Form</mat-panel-title>
+              </mat-expansion-panel-header>
+
+              <div class="grid grid-cols-4 form-standard-grid">
+                <mat-form-field appearance="outline" class="col-span-1">
+                  <mat-label>State</mat-label>
+                  <mat-select formControlName="stateCode" required>
+                    <mat-option value="">Select State</mat-option>
+                    @for (stateCode of stateCodes; track stateCode) {
+                      <mat-option [value]="stateCode">{{ stateCode }}</mat-option>
+                    }
+                  </mat-select>
+                @if (form.get('stateCode')?.value === 'XX') {
+                  <mat-hint>Applies to all states</mat-hint>
+                }
+                  @if (form.get('stateCode')?.hasError('required') && form.get('stateCode')?.touched) {
+                    <mat-error>State is required</mat-error>
+                  }
+                </mat-form-field>
+
+                <mat-form-field appearance="outline" class="col-span-3">
+                  <mat-label>Form Name</mat-label>
+                  <input matInput formControlName="formName" required>
+                  @if (form.get('formName')?.hasError('required') && form.get('formName')?.touched) {
+                    <mat-error>Form Name is required</mat-error>
+                  }
+                </mat-form-field>
+              </div>
+
+              <mat-divider class="my-5"/>
+              <h3 class="pt-2">Document</h3>
+              <div class="flex items-center gap-3 flex-wrap mb-3">
+                <button class="myfilebrowser" type="button" color="primary" mat-raised-button (click)="stateFormFileInput.click()" [disabled]="isUploadingDocument">
+                  Upload
+                </button>
+                @if (fileName) {
+                  <button type="button" color="accent" mat-raised-button (click)="removeDocument()">Delete</button>
+                  <span class="text-sm">{{ fileName }}</span>
+                }
+                <input #stateFormFileInput type="file" id="stateFormFileUpload" name="stateFormFileUpload" (change)="uploadDocument($event)" style="display: none;" />
+              </div>
+
+              @if (!form.get('fileUpload')?.valid && form.get('fileUpload')?.touched) {
+                <div class="image-file-error mb-4">
+                  Only image, PDF, or HTML files under 10MB are valid.
+                </div>
+              }
+
+              @if (previewDataUrl && previewContentType?.startsWith('image/')) {
+                <div class="state-form-thumbnail-wrap">
+                  <img class="state-form-image-preview state-form-preview-clickable" [src]="previewDataUrl" alt="State Form Thumbnail" (click)="openStateFormPreview($event)" />
+                </div>
+              } @else if (previewDataUrl && previewContentType?.includes('pdf')) {
+                <div class="state-form-thumbnail-wrap">
+                  @if (stateFormPdfThumbnailUrl) {
+                    <img class="state-form-image-preview state-form-preview-clickable" [src]="stateFormPdfThumbnailUrl" alt="State Form PDF Thumbnail" (click)="openStateFormPreview($event)" />
+                  } @else {
+                    <div class="state-form-file-thumbnail">
+                      <mat-icon class="state-form-file-thumbnail-icon">picture_as_pdf</mat-icon>
+                      <span class="state-form-file-thumbnail-name">{{ fileName || 'PDF Document' }}</span>
+                    </div>
+                  }
+                </div>
+              } @else if (fileName) {
+                <div class="state-form-thumbnail-wrap">
+                  <div class="state-form-file-thumbnail">
+                    <mat-icon class="state-form-file-thumbnail-icon">
+                      @if (isHtmlDocument(previewContentType, fileName)) { code } @else { description }
+                    </mat-icon>
+                    <span class="state-form-file-thumbnail-name">{{ fileName }}</span>
+                  </div>
+                </div>
+              }
+
+              <mat-divider class="my-5"/>
+              <h3 class="pt-2">HTML</h3>
+              <div class="flex items-center gap-3 flex-wrap mb-3">
+                <button class="myfilebrowser" type="button" color="primary" mat-raised-button (click)="stateFormHtmlInput.click()">
+                  Load HTML File
+                </button>
+                <button type="button" color="accent" mat-raised-button (click)="viewRawHtml()" [disabled]="!form.get('formAsHtml')?.value">
+                  View Raw HTML
+                </button>
+                <input #stateFormHtmlInput type="file" accept=".html,.htm,text/html" (change)="loadHtmlFile($event)" style="display: none;" />
+              </div>
+              <mat-form-field appearance="outline" class="w-full">
+                <mat-label>Form As Html</mat-label>
+                <textarea matInput formControlName="formAsHtml" rows="10" placeholder="Paste HTML content here"></textarea>
+              </mat-form-field>
+              @if (form.get('formAsHtml')?.value) {
+                <div class="state-form-thumbnail-wrap">
+                  <div class="state-form-file-thumbnail">
+                    <mat-icon class="state-form-file-thumbnail-icon">code</mat-icon>
+                    <span class="state-form-file-thumbnail-name">{{ htmlThumbnailText }}</span>
+                  </div>
+                </div>
+              }
+            </mat-expansion-panel>
+          </mat-accordion>
+
+          @if (isSubmitting) {
+            <div class="flex justify-start gap-3 items-center mt-4">
+              <mat-spinner [diameter]="20" color="accent" class="inline-block relative right-1 m-1"/>
+              <span>Saving...</span>
+            </div>
+          }
+        </form>
+      </mat-card>
+    </section>
+  </div>
+}

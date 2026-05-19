@@ -3,7 +3,7 @@ import { CommonModule } from '@angular/common';
 import { Component, Input, OnChanges, OnDestroy, OnInit, SimpleChanges } from '@angular/core';
 import { FormBuilder, FormControl, FormGroup, FormsModule, ReactiveFormsModule } from '@angular/forms';
 import { ToastrService } from 'ngx-toastr';
-import { BehaviorSubject, Observable, Subject, finalize, map, take, takeUntil } from 'rxjs';
+import { BehaviorSubject, Subject, finalize, take, takeUntil } from 'rxjs';
 import { CommonMessage } from '../../../enums/common-message.enum';
 import { MaterialModule } from '../../../material.module';
 import { AuthService } from '../../../services/auth.service';
@@ -26,9 +26,10 @@ export class OwnerAgreementInformationComponent implements OnInit, OnChanges, On
 
   form: FormGroup = this.buildForm();
   isSubmitting = false;
+  isPageReady = false;
   agreementInformation: OwnerAgreementInformationResponse | null = null;
+
   itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['ownerAgreementInformation']));
-  isLoading$: Observable<boolean> = this.itemsToLoad$.pipe(map(items => items.size > 0));
   destroy$ = new Subject<void>();
 
   constructor(
@@ -41,6 +42,10 @@ export class OwnerAgreementInformationComponent implements OnInit, OnChanges, On
 
   //#region Owner-Agreement-Information
   ngOnInit(): void {
+    this.itemsToLoad$.pipe(takeUntil(this.destroy$)).subscribe(items => {
+      this.isPageReady = items.size === 0;
+    });
+
     this.getAgreementInformation(true);
   }
 
@@ -238,7 +243,7 @@ export class OwnerAgreementInformationComponent implements OnInit, OnChanges, On
   }
   //#endregion
 
-  //#region Utility Methods
+  //#region Form Response Methods
   onScopeSelectionChange(): void {
     this.utilityService.addLoadItem(this.itemsToLoad$, 'ownerAgreementInformation');
     this.getAgreementInformation(false);
@@ -277,7 +282,9 @@ export class OwnerAgreementInformationComponent implements OnInit, OnChanges, On
     }
     return 'organization';
   }
+  //#endregion
 
+  //#region Utility Methods
   ngOnDestroy(): void {
     this.destroy$.next();
     this.destroy$.complete();

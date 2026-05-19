@@ -12,8 +12,6 @@ import { SearchableSelectOption } from '../../shared/searchable-select/searchabl
 import { TitleBarSelectComponent } from '../../shared/titlebar-select/titlebar-select.component';
 import { OwnerInformationComponent } from '../owner-information/owner-information.component';
 import { PropertyInformationComponent } from '../property-information/property-information.component';
-import { InsuranceComponent } from '../insurance/insurance.component';
-import { ComplianceComponent } from '../compliance/compliance.component';
 import { OwnersListComponent } from '../owners-list/owners-list.component';
 import { NavigationContextService } from '../../../services/navigation-context.service';
 import { UtilityService } from '../../../services/utility.service';
@@ -22,6 +20,10 @@ import { ContactService } from '../../contacts/services/contact.service';
 import { PropertyService } from '../../properties/services/property.service';
 import { OwnerAgreementInformationComponent } from '../owner-agreement-information/owner-agreement-information.component';
 import { OwnerAgreementFormComponent } from '../owner-agreement-form/owner-agreement-form.component';
+import { LeadBasedPaintFormComponent } from '../lead-based-paint-form/lead-based-paint-form.component';
+import { RadonDisclosureFormComponent } from '../radon-disclosure-form/radon-disclosure-form.component';
+import { W9Component } from '../w9/w9.component';
+import { W9CreateComponent } from '../w9-create/w9-create.component';
 
 @Component({
   standalone: true,
@@ -34,8 +36,10 @@ import { OwnerAgreementFormComponent } from '../owner-agreement-form/owner-agree
     PropertyInformationComponent,
     OwnerAgreementInformationComponent,
     OwnerAgreementFormComponent,
-    InsuranceComponent,
-    ComplianceComponent,
+    LeadBasedPaintFormComponent,
+    RadonDisclosureFormComponent,
+    W9Component,
+    W9CreateComponent,
     OwnersListComponent
   ],
   templateUrl: './owner-shell.component.html',
@@ -46,6 +50,7 @@ export class OwnerShellComponent implements OnInit, OnDestroy {
   isOwnerListMode = false;
   isPageReady = false;
   selectedTabIndex = 0;
+  isW9CreateMode = false;
   selectedOfficeId: number | null = null;
   selectedPropertyId = this.newPropertyOptionValue;
   propertyCodeOptions: SearchableSelectOption[] = [{ value: this.newPropertyOptionValue, label: 'New Property' }];
@@ -92,6 +97,7 @@ export class OwnerShellComponent implements OnInit, OnDestroy {
     this.navigationContextService.setIsInUnauthorizedViewMode(isUnauthorizedViewMode);
     this.navigationContextService.setIsInOwnerMode(!isUnauthorizedViewMode);
     this.leadOwnerId = null;
+    this.isW9CreateMode = false;
     this.selectedPropertyId = this.newPropertyOptionValue;
     this.propertyCodeOptions = [{ value: this.newPropertyOptionValue, label: 'New Property' }];
 
@@ -136,10 +142,18 @@ export class OwnerShellComponent implements OnInit, OnDestroy {
   onPropertyCodeDropdownChange(value: string | number | null): void {
     const selected = String(value ?? '').trim();
     this.selectedPropertyId = selected || this.newPropertyOptionValue;
+    if (this.selectedTabIndex === 6) {
+      this.isW9CreateMode = this.selectedPropertyId === this.newPropertyOptionValue;
+    }
   }
 
   onTabIndexChange(nextIndex: number): void {
     this.selectedTabIndex = nextIndex;
+    if (nextIndex === 6) {
+      this.isW9CreateMode = this.selectedPropertyId === this.newPropertyOptionValue;
+    } else {
+      this.isW9CreateMode = false;
+    }
     if (this.tabUsesPropertySelection(nextIndex) && !this.isOwnerListMode) {
       this.loadPropertyCodeOptions();
     }
@@ -233,7 +247,7 @@ export class OwnerShellComponent implements OnInit, OnDestroy {
 
   //#region Utility Methods
   tabUsesPropertySelection(tabIndex: number): boolean {
-    return tabIndex === 1 || tabIndex === 2 || tabIndex === 3;
+    return tabIndex === 1 || tabIndex === 2 || tabIndex === 3 || tabIndex === 4 || tabIndex === 5 || tabIndex === 6;
   }
 
   isPublicOwnerTokenContext(token: string): boolean {
@@ -242,6 +256,10 @@ export class OwnerShellComponent implements OnInit, OnDestroy {
   }
 
   onBackToOwnerList(): void {
+    if (this.selectedTabIndex === 6 && this.isW9CreateMode) {
+      this.isW9CreateMode = false;
+      return;
+    }
     this.selectedOfficeId = this.globalSelectionService.getSelectedOfficeIdValue();
     void this.router.navigateByUrl(RouterUrl.OwnerShell);
   }

@@ -1,0 +1,27 @@
+@if (!(isLoading$ | async)) {
+  <div class="mat list-layout-tabbed">
+    <div class="tableDiv">
+      <app-data-table
+        [data]="stateFormsDisplay"
+        [columns]="stateFormsDisplayedColumns"
+        [hasColumnIndex]="false"
+        [hasFilter]="true"
+        [hasToggleTop]="false"
+        [hasActionsRowClick]="true"
+        [hasActionsEdit]="true"
+        [hasActionsDelete]="false"
+        [itemsPerPage]="100"
+        (editEvent)="goToStateForm($event)"
+        (rowClickEvent)="goToStateForm($event)">
+        <div dataTableFilterActions>
+          <div class="table-filter-actions-group form-titlebar-actions-wrap uniform-gap">
+            <button mat-raised-button type="button" color="primary" id="add-state-form-button" (click)="addStateForm()" class="whitespace-nowrap items-center flex gap-1">
+              <mat-icon class="text-base">add</mat-icon>
+              <span>Add</span>
+            </button>
+          </div>
+        </div>
+      </app-data-table>
+    </div>
+  </div>
+}

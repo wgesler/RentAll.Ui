@@ -1,5 +1,5 @@
 import { CommonModule } from '@angular/common';
-import { Component, Input, OnChanges, OnDestroy, SimpleChanges } from '@angular/core';
+import { Component, Input, OnChanges, OnDestroy, OnInit, SimpleChanges } from '@angular/core';
 import { FormBuilder, FormGroup, ReactiveFormsModule } from '@angular/forms';
 import { BehaviorSubject, Subject, finalize, take, takeUntil } from 'rxjs';
 import { ToastrService } from 'ngx-toastr';
@@ -22,7 +22,7 @@ import { UtilityService } from '../../../services/utility.service';
   templateUrl: './owner-information.component.html',
   styleUrl: '../owner-shell/owner-shell.component.scss'
 })
-export class OwnerInformationComponent implements OnChanges, OnDestroy {
+export class OwnerInformationComponent implements OnInit, OnChanges, OnDestroy {
   @Input() token = '';
   @Input() ownerEntityTypeId!: number;
   @Input() ownerLeadId: number | null = null;
@@ -38,8 +38,8 @@ export class OwnerInformationComponent implements OnChanges, OnDestroy {
   additionalOwnerContactIdsByFormId: Record<number, string> = {};
   publicOwnerFormSnapshot: PublicOwnerFormResponse | null = null;
   leadOwnerSnapshot: LeadOwnerResponse | null = null;
+  
   itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['owner-context']));
-  hasLoadStateSubscription = false;
   destroy$ = new Subject<void>();
 
   constructor(
@@ -52,9 +52,14 @@ export class OwnerInformationComponent implements OnChanges, OnDestroy {
   ) {}
 
   //#region Owner-Information
+  ngOnInit(): void {
+    this.itemsToLoad$.pipe(takeUntil(this.destroy$)).subscribe(items => {
+      this.isPageReady = items.size === 0;
+    });
+  }
+
   ngOnChanges(changes: SimpleChanges): void {
     if (changes['token'] || changes['ownerLeadId']) {
-      this.ensureLoadStateSubscription();
       this.itemsToLoad$.next(new Set(['owner-context']));
       this.loadOwnerContext();
     }
@@ -110,31 +115,9 @@ export class OwnerInformationComponent implements OnChanges, OnDestroy {
     }
     this.saveLeadOwnerForm();
   }
-
-  get resolvedOwnerLeadId(): number | null {
-    return this.ownerLeadId ?? this.publicOwnerFormSnapshot?.ownerId ?? null;
-  }
-
-  get defaultOwnerOfficePrefill(): Record<string, unknown> | null {
-    const officeId = Number(this.selectedOfficeId);
-    if (!Number.isFinite(officeId) || officeId <= 0) {
-      return null;
-    }
-    return { officeId };
-  }
   //#endregion
 
   //#region Load Data Methods
-  ensureLoadStateSubscription(): void {
-    if (this.hasLoadStateSubscription) {
-      return;
-    }
-    this.hasLoadStateSubscription = true;
-    this.itemsToLoad$.pipe(takeUntil(this.destroy$)).subscribe(items => {
-      this.isPageReady = items.size === 0;
-    });
-  }
-
   loadOwnerContext(): void {
     this.primaryOwnerContactId = null;
     this.primaryOwnerPrefill = null;
@@ -414,7 +397,21 @@ export class OwnerInformationComponent implements OnChanges, OnDestroy {
       }
     });
   }
+  //#endregion
 
+  //#region Form Response Methods
+  get resolvedOwnerLeadId(): number | null {
+    return this.ownerLeadId ?? this.publicOwnerFormSnapshot?.ownerId ?? null;
+  }
+
+  get defaultOwnerOfficePrefill(): Record<string, unknown> | null {
+    const officeId = Number(this.selectedOfficeId);
+    if (!Number.isFinite(officeId) || officeId <= 0) {
+      return null;
+    }
+    return { officeId };
+  }
+  
   onCurrencyInput(event: Event, controlName: string): void {
     this.formatterService.formatCurrencyInput(event, this.ownerForm.get(controlName));
   }
@@ -475,9 +472,7 @@ export class OwnerInformationComponent implements OnChanges, OnDestroy {
     }
     return normalized;
   }
-  //#endregion
 
-  //#region Utility Methods
   parseNullableDecimal(value: unknown): number | null {
     const raw = String(value ?? '').trim();
     if (!raw) {
@@ -487,7 +482,9 @@ export class OwnerInformationComponent implements OnChanges, OnDestroy {
     const parsed = Number(normalized);
     return Number.isFinite(parsed) ? parsed : null;
   }
+  //#endregion
 
+  //#region Utility Methods
   ngOnDestroy(): void {
     this.destroy$.next();
     this.destroy$.complete();

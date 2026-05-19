@@ -1,11 +1,11 @@
 @if (!isPageReady) {
   <div class="loading-container">
     <mat-spinner [diameter]="40"></mat-spinner>
-    <p>Loading agreement form...</p>
+    <p>Loading W-9 form...</p>
   </div>
 } @else {
-  <div class="owner-agreement-form-container">
-    <form [formGroup]="form" class="owner-agreement-form">
+  <div class="w9-create-container">
+    <form [formGroup]="form" class="w9-create-form">
       <div class="property-tab-actions-band">
         <div class="property-tab-actions-band__row flex justify-end gap-2 uniform-gap">
           <div class="table-filter-actions-group form-titlebar-actions-wrap uniform-gap">
@@ -33,18 +33,16 @@
         <div class="include-controls">
           <span class="include-label">Include:</span>
           <mat-checkbox formControlName="includeDocument" class="include-checkbox" (change)="onIncludeChange()">
-            {{ includeLabel }}
+            W-9 Form
           </mat-checkbox>
         </div>
 
         <div class="editor-section">
           @if (previewIframeHtml) {
-            <div class="preview-section">
-              <iframe [srcdoc]="safeHtml" class="preview-iframe" [attr.key]="iframeKey" #previewIframe frameborder="0"></iframe>
-            </div>
+            <app-w9 [safeHtml]="safeHtml" [iframeKey]="iframeKey"></app-w9>
           } @else {
             <div class="owner-shell-placeholder">
-              <p>Select an agreement document to preview.</p>
+              <p>Select the W-9 form to preview.</p>
             </div>
           }
         </div>

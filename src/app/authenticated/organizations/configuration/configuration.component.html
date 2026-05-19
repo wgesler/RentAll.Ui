@@ -126,6 +126,28 @@
             }
           </mat-expansion-panel>
 
+          @if (isAdminLikeSettingsUser) {
+            <!-- State Forms Section -->
+            <mat-expansion-panel [expanded]="expandedSections.stateForms"
+              (opened)="onPanelOpened('stateForms')"
+              (closed)="onPanelClosed('stateForms')"
+              class="mb-4">
+              <mat-expansion-panel-header>
+                <mat-panel-title>State Forms</mat-panel-title>
+              </mat-expansion-panel-header>
+              <div class="agents-container">
+                <div class="settings-section-stack">
+                  <div [class.settings-section-hidden]="isEditingStateForm && stateFormId">
+                    <app-state-form-list [embeddedInSettings]="true" (stateFormSelected)="onStateFormSelected($event)"></app-state-form-list>
+                  </div>
+                  @if (isEditingStateForm && stateFormId) {
+                    <app-state-form [id]="stateFormId" [embeddedInSettings]="true" (savedEvent)="onStateFormSaved()" (backEvent)="onStateFormBack()"></app-state-form>
+                  }
+                </div>
+              </div>
+            </mat-expansion-panel>
+          }
+
           @if (isAdminLikeSettingsUser || isLimitedSettingsUser) {
             <!-- Regions Section -->
             <mat-expansion-panel [expanded]="expandedSections.regions" 
