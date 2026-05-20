@@ -134,7 +134,7 @@
                   @if (readOnly) {
                     <span>{{ property.propertyCode }}</span>
                   } @else {
-                    <span class="reservation-link" (click)="onPropertyCodeClick(property.propertyId, $event)">{{ property.propertyCode }}</span>
+                    <span class="reservation-link reservation-property-code-link" (click)="onPropertyCodeClick(property.propertyId, $event)">{{ property.propertyCode }}</span>
                   }
                 </td>
                 <td class="property-cell address-cell" [title]="property.address">{{ formatBoardAddressForCell(property.address) }}</td>
