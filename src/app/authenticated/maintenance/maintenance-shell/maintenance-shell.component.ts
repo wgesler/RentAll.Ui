@@ -572,6 +572,11 @@ export class MaintenanceShellComponent implements OnInit, CanComponentDeactivate
   onWorkOrderBack(): void {
     this.showWorkOrderDetail = false;
     this.selectedWorkOrderId = null;
+    this.titleBarReservationId = null;
+    this.selectedPropertyId = null;
+    this.property = null;
+    this.shellReservations = [];
+    this.isServiceError = false;
   }
 
   onWorkOrderSaved(): void {
