@@ -42,6 +42,18 @@
             [noResultsText]="'No properties match your search'"
             (valueChange)="onPropertyCodeFilterChange($event)">
           </app-title-bar-select>
+          <button
+            mat-mini-fab
+            type="button"
+            color="primary"
+            class="maintenance-shell-launch-wo-button"
+            (click)="openMaintenanceShellAllSelections()"
+            aria-label="Open Work Orders in maintenance shell">
+            <span class="maintenance-shell-launch-wo-content">
+              <span class="maintenance-shell-launch-wo-label">WO</span>
+              <mat-icon class="maintenance-shell-launch-wo-arrow">arrow_forward</mat-icon>
+            </span>
+          </button>
         </div>
       </div>
       <div class="form-titlebar-actions-wrap uniform-gap">

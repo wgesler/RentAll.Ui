@@ -87,6 +87,7 @@ export class MaintenanceShellComponent implements OnInit, CanComponentDeactivate
   allProperties: PropertyListResponse[] = [];
   inspectorPropertyIds = new Set<string>();
   skipNextPropertyCodeChange = false;
+  openWithAllSelections = false;
 
   itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['property']));
   isLoading$: Observable<boolean> = this.itemsToLoad$.pipe(map(items => items.size > 0));
@@ -105,6 +106,7 @@ export class MaintenanceShellComponent implements OnInit, CanComponentDeactivate
 
   //#region Maintenance-Shell
   ngOnInit(): void {
+    this.openWithAllSelections = ((this.route.snapshot.queryParamMap.get('scope') || '').trim().toLowerCase() === 'all');
     this.userId = this.authService.getUser()?.userId?.trim() ?? '';
     this.organizationId = this.authService.getUser()?.organizationId?.trim() ?? '';
     this.preferredOfficeId = this.normalizeOfficeId(this.authService.getUser()?.defaultOfficeId ?? null);
@@ -134,6 +136,14 @@ export class MaintenanceShellComponent implements OnInit, CanComponentDeactivate
     });
 
     this.route.paramMap.pipe(filter(params => params.has('id')), take(1)).subscribe(params => {
+      if (this.openWithAllSelections) {
+        this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'property');
+        this.property = null;
+        this.shellReservations = [];
+        this.titleBarReservationId = null;
+        this.selectedPropertyId = null;
+        return;
+      }
       const id = params.get('id')!;
       this.loadProperty(id);
     });
@@ -182,7 +192,12 @@ export class MaintenanceShellComponent implements OnInit, CanComponentDeactivate
           next: uiState => {
             setTimeout(() => {
               this.showOfficeDropdown = uiState.showOfficeDropdown;
-              this.selectedOfficeId = this.normalizeOfficeId(uiState.selectedOfficeId);
+              this.selectedOfficeId = this.openWithAllSelections
+                ? null
+                : this.normalizeOfficeId(uiState.selectedOfficeId);
+              if (this.openWithAllSelections) {
+                this.globalSelectionService.setSelectedOfficeId(null);
+              }
               this.loadTitleBarProperties();
             }, 0);
           }

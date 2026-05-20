@@ -22,6 +22,38 @@ body {
   max-width: 260px !important;
 }
 
+.maintenance-shell-launch-wo-button {
+  margin-top: 2px;
+  flex-shrink: 0;
+  width: 40px;
+  height: 40px;
+  line-height: 40px;
+}
+
+.maintenance-shell-launch-wo-content {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  line-height: 1;
+  transform: translateY(-4px);
+}
+
+.maintenance-shell-launch-wo-label {
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  transform: translateY(-1px);
+}
+
+.maintenance-shell-launch-wo-arrow {
+  width: 0.95rem;
+  height: 0.95rem;
+  font-size: 0.95rem;
+  font-weight: 700;
+  margin-top: -1px;
+}
+
 /* Status dropdown should read like a link and match row text size. */
 :host ::ng-deep td.mat-cell.mat-column-propertyStatusDropdown,
 :host ::ng-deep td.mat-mdc-cell.mat-column-propertyStatusDropdown {

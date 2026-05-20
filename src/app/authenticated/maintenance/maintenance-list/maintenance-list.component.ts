@@ -601,6 +601,12 @@ export class MaintenanceListComponent extends PropertyMaintenanceBase implements
       data: dialogData
     });
   }
+
+  openMaintenanceShellAllSelections(): void {
+    this.ngZone.run(() => {
+      this.router.navigateByUrl(`${RouterUrl.replaceTokens(RouterUrl.Maintenance, ['all'])}?scope=all&tab=3`);
+    });
+  }
   //#endregion
 
   //#region Filter Methods
