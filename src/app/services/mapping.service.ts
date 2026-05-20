@@ -14,7 +14,7 @@ import { MaintenanceListResponse } from '../authenticated/maintenance/models/mai
 import { InspectionDisplayList, InspectionResponse } from '../authenticated/maintenance/models/inspection.model';
 import { ReceiptDisplayList, ReceiptResponse, Split } from '../authenticated/maintenance/models/receipt.model';
 import { getInspectionType, getWorkOrderType } from '../authenticated/maintenance/models/maintenance-enums';
-import { WorkOrderDisplayList, WorkOrderResponse } from '../authenticated/maintenance/models/work-order.model';
+import { WorkOrderDisplayList, WorkOrderRequest, WorkOrderResponse } from '../authenticated/maintenance/models/work-order.model';
 import { AccountingOfficeListDisplay, AccountingOfficeResponse } from '../authenticated/organizations/models/accounting-office.model';
 import { AgentListDisplay, AgentResponse } from '../authenticated/organizations/models/agent.model';
 import { AreaListDisplay, AreaResponse } from '../authenticated/organizations/models/area.model';
@@ -1259,6 +1259,38 @@ export class MappingService {
         modifiedBy: inspection.modifiedBy
       };
     });
+  }
+
+  mapWorkOrderUpdateRequest(
+    sourceWorkOrder: WorkOrderResponse,
+    changedCheckboxColumn: 'isActive' | 'enteredInQb',
+    nextValue: boolean
+  ): WorkOrderRequest {
+    return {
+      workOrderId: sourceWorkOrder.workOrderId,
+      workOrderCode: sourceWorkOrder.workOrderCode,
+      organizationId: sourceWorkOrder.organizationId,
+      officeId: sourceWorkOrder.officeId,
+      propertyId: sourceWorkOrder.propertyId,
+      reservationId: sourceWorkOrder.reservationId ?? null,
+      reservationCode: sourceWorkOrder.reservationCode ?? null,
+      description: sourceWorkOrder.description ?? '',
+      workOrderTypeId: sourceWorkOrder.workOrderTypeId,
+      applyMarkup: sourceWorkOrder.applyMarkup === true,
+      workOrderDate: sourceWorkOrder.workOrderDate,
+      useDepartureFee: sourceWorkOrder.useDepartureFee === true,
+      workOrderItems: (sourceWorkOrder.workOrderItems || []).map(item => ({
+        workOrderItemId: item.workOrderItemId,
+        workOrderId: item.workOrderId,
+        description: item.description ?? '',
+        receiptId: item.receiptId,
+        laborHours: item.laborHours ?? 0,
+        laborCost: item.laborCost ?? 0,
+        itemAmount: item.itemAmount ?? 0
+      })),
+      isActive: changedCheckboxColumn === 'isActive' ? nextValue : sourceWorkOrder.isActive,
+      enteredInQb: changedCheckboxColumn === 'enteredInQb' ? nextValue : sourceWorkOrder.enteredInQb
+    };
   }
 
   mapWorkOrderDisplays(workOrders: WorkOrderResponse[]): WorkOrderDisplayList[] {

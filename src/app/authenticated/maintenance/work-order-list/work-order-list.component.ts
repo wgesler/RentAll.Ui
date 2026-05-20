@@ -280,15 +280,17 @@ export class WorkOrderListComponent implements OnInit, OnChanges {
       return;
     }
 
-    const sourceWorkOrder = this.workOrders.find(workOrder => workOrder.workOrderId === event.workOrderId) || null;
-    if (!sourceWorkOrder) {
+    const workOrderId = String(event.workOrderId || '').trim();
+    if (!workOrderId) {
       return;
     }
 
-    this.applyWorkOrderCheckboxValue(event.workOrderId, changedCheckboxColumn, nextValue);
+    this.applyWorkOrderCheckboxValue(workOrderId, changedCheckboxColumn, nextValue);
 
-    const updateRequest = this.mapWorkOrderUpdateRequest(sourceWorkOrder, changedCheckboxColumn, nextValue);
-    this.workOrderService.updateWorkOrder(updateRequest).pipe(take(1)).subscribe({
+    this.workOrderService.getWorkOrderById(workOrderId).pipe(take(1),
+      map((sourceWorkOrder: WorkOrderResponse) => this.mappingService.mapWorkOrderUpdateRequest(sourceWorkOrder, changedCheckboxColumn, nextValue)),
+      switchMap(updateRequest => this.workOrderService.updateWorkOrder(updateRequest))
+    ).subscribe({
       next: (updatedWorkOrder: WorkOrderResponse) => {
         this.workOrders = this.workOrders.map(workOrder =>
           workOrder.workOrderId === updatedWorkOrder.workOrderId ? updatedWorkOrder : workOrder
@@ -298,7 +300,7 @@ export class WorkOrderListComponent implements OnInit, OnChanges {
         this.toastr.success('Work order updated.', 'Success');
       },
       error: () => {
-        this.applyWorkOrderCheckboxValue(event.workOrderId, changedCheckboxColumn, previousValue);
+        this.applyWorkOrderCheckboxValue(workOrderId, changedCheckboxColumn, previousValue);
         this.toastr.error('Unable to update work order.', 'Error');
       }
     });
@@ -427,18 +429,6 @@ export class WorkOrderListComponent implements OnInit, OnChanges {
       delete columns['enteredInQb'];
       this.workOrderDisplayedColumns = columns;
     }
-  }
-
-  mapWorkOrderUpdateRequest(
-    sourceWorkOrder: WorkOrderResponse,
-    changedCheckboxColumn: 'isActive' | 'enteredInQb',
-    nextValue: boolean
-  ): WorkOrderResponse {
-    return {
-      ...sourceWorkOrder,
-      isActive: changedCheckboxColumn === 'isActive' ? nextValue : sourceWorkOrder.isActive,
-      enteredInQb: changedCheckboxColumn === 'enteredInQb' ? nextValue : sourceWorkOrder.enteredInQb
-    };
   }
 
   applyWorkOrderCheckboxValue(workOrderId: string, changedCheckboxColumn: 'isActive' | 'enteredInQb', nextValue: boolean): void {
