@@ -4,7 +4,7 @@ import { Component, EventEmitter, Input, OnChanges, OnDestroy, OnInit, Output, S
 import { FormBuilder, FormControl, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
 import { ActivatedRoute, Router } from '@angular/router';
 import { ToastrService } from 'ngx-toastr';
-import { BehaviorSubject, forkJoin, finalize, of, skip, Subject, Subscription, switchMap, take, takeUntil } from 'rxjs';
+import { BehaviorSubject, catchError, forkJoin, finalize, of, skip, Subject, Subscription, switchMap, take, takeUntil } from 'rxjs';
 import { RouterUrl } from '../../../app.routes';
 import { FormatterService } from '../../../services/formatter-service';
 import { MaterialModule } from '../../../material.module';
@@ -68,6 +68,7 @@ export class WorkOrderComponent implements OnInit, OnChanges, OnDestroy {
   workOrderItems: WorkOrderItemEditable[] = [];
   offices: OfficeResponse[] = [];
   propertyReceipts: ReceiptResponse[] = [];
+  associatedWorkOrderReceiptIds = new Set<number>();
   accountingOffice: AccountingOfficeResponse | null = null;
   generatedWorkOrderCode: string | null = null;
   nextWorkOrderNo: number | null = null;
@@ -1044,6 +1045,7 @@ export class WorkOrderComponent implements OnInit, OnChanges, OnDestroy {
 
   loadWorkOrder(): void {
     if (this.isAddMode || this.workOrderId == null) {
+      this.associatedWorkOrderReceiptIds.clear();
       this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'workOrder');
       return;
     }
@@ -1051,7 +1053,13 @@ export class WorkOrderComponent implements OnInit, OnChanges, OnDestroy {
     this.workOrderService.getWorkOrderById(this.workOrderId).pipe(takeUntil(this.destroy$), take(1), finalize(() => { this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'workOrder'); })).subscribe({
       next: (workOrder: WorkOrderResponse) => {
         this.workOrder = workOrder;
+        this.associatedWorkOrderReceiptIds = new Set(
+          (workOrder.workOrderItems || [])
+            .map(item => Number(item.receiptId))
+            .filter(receiptId => Number.isFinite(receiptId) && receiptId > 0)
+        );
         this.populateForm(workOrder);
+        this.loadAssociatedReceiptsForCurrentWorkOrder();
       },
       error: (_err: HttpErrorResponse) => {
         this.toastr.error('Unable to load work order.', 'Error');
@@ -1108,16 +1116,65 @@ export class WorkOrderComponent implements OnInit, OnChanges, OnDestroy {
     }
     this.receiptService.getReceiptsByPropertyId(this.selectedPropertyId).pipe(takeUntil(this.destroy$), take(1), finalize(() => { this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'propertyReceipts'); })).subscribe({
       next: (receipts) => {
-        this.propertyReceipts = (receipts ?? []).filter(r => r.isActive !== false);
+        const activePropertyReceipts = (receipts ?? []).filter(r => r.isActive !== false);
+        this.propertyReceipts = this.mergeAssociatedReceipts(activePropertyReceipts);
         this.syncReceiptAmounts();
         this.refreshBaselineAfterDataLoad();
       },
       error: () => {
-        this.propertyReceipts = [];
+        this.propertyReceipts = this.mergeAssociatedReceipts([]);
         this.syncReceiptAmounts();
         this.refreshBaselineAfterDataLoad();
       }
     });
+  }
+
+  loadAssociatedReceiptsForCurrentWorkOrder(): void {
+    const associatedIds = Array.from(this.associatedWorkOrderReceiptIds)
+      .filter(receiptId => Number.isFinite(receiptId) && receiptId > 0);
+    if (!associatedIds.length) {
+      return;
+    }
+
+    const existingIds = new Set((this.propertyReceipts || []).map(receipt => receipt.receiptId));
+    const missingIds = associatedIds.filter(receiptId => !existingIds.has(receiptId));
+    if (!missingIds.length) {
+      this.syncReceiptAmounts();
+      this.refreshBaselineAfterDataLoad();
+      return;
+    }
+
+    const fetches = missingIds.map(receiptId =>
+      this.receiptService.getReceiptById(receiptId).pipe(
+        take(1),
+        catchError(() => of(null))
+      )
+    );
+
+    forkJoin(fetches).pipe(takeUntil(this.destroy$), take(1)).subscribe({
+      next: (receipts) => {
+        const fetchedReceipts = (receipts || []).filter((receipt): receipt is ReceiptResponse => receipt != null);
+        this.propertyReceipts = this.mergeAssociatedReceipts(this.propertyReceipts, fetchedReceipts);
+        this.syncReceiptAmounts();
+        this.refreshBaselineAfterDataLoad();
+      }
+    });
+  }
+
+  mergeAssociatedReceipts(baseReceipts: ReceiptResponse[], additionalReceipts: ReceiptResponse[] = []): ReceiptResponse[] {
+    const mergedById = new Map<number, ReceiptResponse>();
+    (baseReceipts || []).forEach(receipt => mergedById.set(receipt.receiptId, receipt));
+    (additionalReceipts || []).forEach(receipt => mergedById.set(receipt.receiptId, receipt));
+
+    const currentAssociated = (this.propertyReceipts || [])
+      .filter(receipt => this.associatedWorkOrderReceiptIds.has(receipt.receiptId));
+    currentAssociated.forEach(receipt => {
+      if (!mergedById.has(receipt.receiptId)) {
+        mergedById.set(receipt.receiptId, receipt);
+      }
+    });
+
+    return Array.from(mergedById.values());
   }
 
   loadPropertyReservations(): void {
