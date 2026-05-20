@@ -37,17 +37,17 @@ export class WorkOrderAmountService {
       'workOrderLines', 'WorkOrderLines'
     ];
 
-    for (const collectionKey of collectionKeys) {
-      const totalFromCollection = this.sumWorkOrderCollection(row[collectionKey], context);
-      if (totalFromCollection !== null) {
-        return totalFromCollection;
-      }
-    }
-
     for (const scalarKey of scalarKeys) {
       const parsedScalar = this.parseLooseNumber(row[scalarKey]);
       if (parsedScalar !== null) {
         return parsedScalar;
+      }
+    }
+
+    for (const collectionKey of collectionKeys) {
+      const totalFromCollection = this.sumWorkOrderCollection(row[collectionKey], context);
+      if (totalFromCollection !== null) {
+        return totalFromCollection;
       }
     }
 
@@ -56,17 +56,28 @@ export class WorkOrderAmountService {
 
   sumWorkOrderCollection(collectionValue: unknown, context?: WorkOrderAmountContext): number | null {
     const entries = this.extractCollectionEntries(collectionValue);
-    if (!entries) {
+    if (!entries || entries.length === 0) {
       return null;
     }
 
-    return Math.round(entries.reduce<number>((sum, entry) => {
+    let hasResolvedLineTotal = false;
+    const total = entries.reduce<number>((sum, entry) => {
       if (!entry || typeof entry !== 'object') {
         return sum;
       }
       const lineTotal = this.resolveWorkOrderItemTotal(entry as Record<string, unknown>, context);
-      return lineTotal !== null ? sum + lineTotal : sum;
-    }, 0) * 100) / 100;
+      if (lineTotal === null) {
+        return sum;
+      }
+      hasResolvedLineTotal = true;
+      return sum + lineTotal;
+    }, 0);
+
+    if (!hasResolvedLineTotal) {
+      return null;
+    }
+
+    return Math.round(total * 100) / 100;
   }
 
   resolveWorkOrderItemTotal(item: Record<string, unknown>, context?: WorkOrderAmountContext): number | null {
