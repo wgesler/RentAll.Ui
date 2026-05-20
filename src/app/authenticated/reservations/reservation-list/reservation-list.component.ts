@@ -147,7 +147,7 @@ export class ReservationListComponent implements OnInit, OnDestroy, OnChanges {
 
     this.navigationSubscription = this.router.events.pipe(filter((e): e is NavigationEnd => e instanceof NavigationEnd),takeUntil(this.destroy$)).subscribe(e => {
       const url = e.urlAfterRedirects.split('?')[0];
-      const isReservationList = url.endsWith('/reservations') || url.endsWith('/rentals');
+      const isReservationList = url.endsWith('/reservations');
       const fromPropertySelection = this.lastNavigationUrl.includes('/selection');
       if (isReservationList && fromPropertySelection) {
         this.reloadAllowedPropertyIds();

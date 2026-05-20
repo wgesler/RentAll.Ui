@@ -94,6 +94,10 @@ export class PropertyService {
     return this.http.put<PropertySelectionResponse>(this.controller + 'selection/', selection);
   }
 
+  resetPropertySelection(userId: string): Observable<PropertySelectionResponse> {
+    return this.putPropertySelection(this.buildDefaultPropertySelectionRequest(userId));
+  }
+
   // POST: Get properties by selection criteria
   getPropertiesBySelectionCriteria(userId: string): Observable<PropertyListResponse[]> {
     return this.http.get<PropertyListResponse[]>(this.controller + 'user/' + userId);
@@ -156,6 +160,38 @@ export class PropertyService {
 
   deletePropertyTrackerResponseOption(trackerResponseId: string, trackerDefinitionOptionId: string): Observable<void> {
     return this.http.delete<void>(this.controller + 'tracker-response-option/' + trackerResponseId + '/' + trackerDefinitionOptionId);
+  }
+
+  buildDefaultPropertySelectionRequest(userId: string): PropertySelectionRequest {
+    return {
+      userId,
+      fromUnitLevel: 0,
+      toUnitLevel: 0,
+      fromBeds: 0,
+      toBeds: 0,
+      accomodates: 0,
+      maxRent: 0,
+      propertyCode: null,
+      propertyLeaseTypeId: 0,
+      city: null,
+      state: null,
+      cable: false,
+      streaming: false,
+      pool: false,
+      jacuzzi: false,
+      security: false,
+      parking: false,
+      pets: false,
+      dogsOkay: false,
+      catsOkay: false,
+      smoking: false,
+      highSpeedInternet: false,
+      propertyStatusId: 0,
+      officeCode: null,
+      buildingCodes: [],
+      regionCodes: [],
+      areaCodes: []
+    };
   }
 }
 

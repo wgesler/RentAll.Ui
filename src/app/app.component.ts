@@ -1,5 +1,5 @@
 import { Component, OnDestroy, OnInit } from '@angular/core';
-import { RouterOutlet } from '@angular/router';
+import { NavigationStart, Router, RouterOutlet } from '@angular/router';
 import { BehaviorSubject, Observable, Subject, catchError, filter, finalize, map, of, take, takeUntil } from 'rxjs';
 import { CostCodesService } from './authenticated/accounting/services/cost-codes.service';
 import { ContactService } from './authenticated/contacts/services/contact.service';
@@ -31,6 +31,11 @@ export class AppComponent implements OnInit, OnDestroy {
   itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['states', 'dailyQuote', 'organizations', 'branding', 'contacts', 'offices', 'accountingOffices', 'costCodes']));
   isLoading$: Observable<boolean> = this.itemsToLoad$.pipe(map(items => items.size > 0));
   destroy$ = new Subject<void>();
+  private readonly propertySelectionDomains: Array<{ name: string; prefixes: string[] }> = [
+    { name: 'reservation', prefixes: ['/auth/reservations'] },
+    { name: 'board', prefixes: ['/auth/boards'] },
+    { name: 'property', prefixes: ['/auth/properties'] }
+  ];
 
   constructor(
     private authService: AuthService,
@@ -46,7 +51,8 @@ export class AppComponent implements OnInit, OnDestroy {
     private utilityService: UtilityService,
     private propertyService: PropertyService,
     private propertySelectionFilterService: PropertySelectionFilterService,
-    private debugLayoutBandsService: DebugLayoutBandsService
+    private debugLayoutBandsService: DebugLayoutBandsService,
+    private router: Router
   ) { }
 
   ngOnInit(): void {
@@ -78,6 +84,14 @@ export class AppComponent implements OnInit, OnDestroy {
         this.costCodesService.clearCostCodes();
         this.propertySelectionFilterService.clear();
       }
+    });
+
+    this.router.events.pipe(filter(event => event instanceof NavigationStart), takeUntil(this.destroy$)).subscribe(event => {
+      const navigationStart = event as NavigationStart;
+      if (!this.shouldAutoResetPropertySelectionOnDomainExit(this.router.url, navigationStart.url)) {
+        return;
+      }
+      this.autoResetPropertySelection();
     });
   }
 
@@ -167,6 +181,56 @@ export class AppComponent implements OnInit, OnDestroy {
         })
       )
       .subscribe((selection) => this.propertySelectionFilterService.setFromResponse(selection));
+  }
+
+  shouldAutoResetPropertySelectionOnDomainExit(fromUrl: string, toUrl: string): boolean {
+    const fromPath = this.normalizePath(fromUrl);
+    const toPath = this.normalizePath(toUrl);
+    const fromDomain = this.getPropertySelectionDomain(fromPath);
+    const toDomain = this.getPropertySelectionDomain(toPath);
+    if (!this.authService.getIsLoggedIn()) {
+      return false;
+    }
+    if (this.isPropertySelectionPage(fromPath) || this.isPropertySelectionPage(toPath)) {
+      return false;
+    }
+    return fromDomain !== toDomain;
+  }
+
+  isPropertySelectionPage(path: string): boolean {
+    return path === '/auth/selection';
+  }
+
+  getPropertySelectionDomain(path: string): string | null {
+    for (const domain of this.propertySelectionDomains) {
+      if (domain.prefixes.some(prefix => path === prefix || path.startsWith(prefix + '/'))) {
+        return domain.name;
+      }
+    }
+    return null;
+  }
+
+  normalizePath(url: string): string {
+    const raw = (url || '').trim();
+    if (!raw) {
+      return '';
+    }
+    const withoutQuery = raw.split('?')[0];
+    const withoutHash = withoutQuery.split('#')[0];
+    return withoutHash.toLowerCase();
+  }
+
+  autoResetPropertySelection(): void {
+    const userId = this.authService.getUser()?.userId?.trim() ?? '';
+    if (!userId) {
+      this.propertySelectionFilterService.clear();
+      return;
+    }
+
+    this.propertyService.resetPropertySelection(userId).pipe(take(1), catchError(() => of(null))).subscribe(selection => {
+      this.propertySelectionFilterService.setFromResponse(selection);
+      this.propertySelectionFilterService.setDateRange(null, null);
+    });
   }
 
   initializeOrganizationList(): void {

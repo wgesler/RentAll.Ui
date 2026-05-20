@@ -2842,7 +2842,7 @@ export class ReservationComponent implements OnInit, OnDestroy, CanComponentDeac
 
   isAllowedReservationListReturnPath(path: string): boolean {
     const normalized = path.split('?')[0].replace(/^\/+/, '');
-    return normalized === RouterUrl.RentalList || normalized === RouterUrl.ReservationList;
+    return normalized === RouterUrl.ReservationList;
   }
 
   back(): void {

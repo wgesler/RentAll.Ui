@@ -61,10 +61,7 @@ export class PropertySelectionComponent implements OnInit, OnDestroy {
   propertyStatuses: { value: number; label: string }[] = [];
   propertyLeaseTypes: { value: number; label: string }[] = getPropertyLeaseTypes();
   preloadedSelection: PropertySelectionResponse | null = null;
-  globalOfficeSubscription?: Subscription;
-  /** Where the user came from. Used for Back navigation. */
-  returnSource: 'reservation-board' | 'property-list' | 'reservation-list' | 'maintenance-list' = 'reservation-board';
-  /** Path to return to for reservation-list (e.g. /auth/rentals vs /auth/reservations). */
+  globalOfficeSubscription?: Subscription;  returnSource: 'reservation-board' | 'property-list' | 'reservation-list' | 'maintenance-list' = 'reservation-board';
   reservationListReturnPath: string | null = null;
 
   itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['selection', 'lookups']));
