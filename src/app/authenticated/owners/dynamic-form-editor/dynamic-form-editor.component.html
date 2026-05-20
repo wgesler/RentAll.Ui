@@ -1,0 +1,39 @@
+@if (isLoading) {
+  <div class="loading-container">
+    <mat-spinner [diameter]="40"></mat-spinner>
+    <p>Loading {{ formName || 'form' }}...</p>
+  </div>
+} @else {
+  <div class="dynamic-form-editor-container">
+    <div class="property-tab-actions-band">
+      <div class="property-tab-actions-band__row flex justify-end gap-2 uniform-gap">
+        <div class="table-filter-actions-group form-titlebar-actions-wrap uniform-gap">
+          <button mat-raised-button type="button" color="accent" (click)="saveDraft()">
+            <mat-icon>save</mat-icon>
+            Save Draft
+          </button>
+          <button mat-raised-button type="button" color="accent" (click)="resetForm()">
+            <mat-icon>restart_alt</mat-icon>
+            Reset
+          </button>
+          <button mat-raised-button type="button" color="primary" (click)="viewForm()">
+            <mat-icon>visibility</mat-icon>
+            View
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <div class="property-tab-main-area">
+      @if (editableHtml) {
+        <div class="preview-section">
+          <div class="dynamic-form-edit-surface" #editSurface [innerHTML]="editableHtml"></div>
+        </div>
+      } @else {
+        <div class="owner-shell-placeholder">
+          <p>No form template found.</p>
+        </div>
+      }
+    </div>
+  </div>
+}

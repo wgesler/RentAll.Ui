@@ -56,8 +56,8 @@ export class WorkOrderListComponent implements OnInit, OnChanges {
     reservationCode: { displayAs: 'Reservation', wrap: false, maxWidth: '20ch' },
     description: { displayAs: 'Description', wrap: false, maxWidth: '25ch' },
     amountDisplay: { displayAs: 'Amount', wrap: false, maxWidth: '12ch', alignment: 'center' },
-    modifiedOn: { displayAs: 'Modified On', wrap: false, maxWidth: '25ch', alignment: 'center' },
-    modifiedBy: { displayAs: 'Modified By', wrap: false, maxWidth: '20ch' },
+    workOrderDate: { displayAs: 'Work Order Date', wrap: false, maxWidth: '25ch', alignment: 'center' },
+    createdBy: { displayAs: 'Created By', wrap: false, maxWidth: '20ch' },
     enteredInQb: { displayAs: 'QB', isCheckbox: true, checkboxEditable: true, sort: false, wrap: false, alignment: 'center', maxWidth: '15ch' },
     isActive: { displayAs: 'IsActive', isCheckbox: true, checkboxEditable: true, sort: false, wrap: false, alignment: 'center', maxWidth: '15ch' }
   };

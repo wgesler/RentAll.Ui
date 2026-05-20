@@ -1,13 +1,17 @@
 import { CommonModule } from '@angular/common';
 import { Component, OnDestroy, OnInit } from '@angular/core';
 import { ActivatedRoute, Router } from '@angular/router';
-import { BehaviorSubject, Subject, combineLatest, finalize, take, takeUntil } from 'rxjs';
+import { BehaviorSubject, Subject, catchError, combineLatest, concatMap, finalize, from, of, take, takeUntil, toArray } from 'rxjs';
 import { MaterialModule } from '../../../material.module';
 import { RouterUrl } from '../../../app.routes';
+import { ownersFeatureEnabled } from '../../../config/feature-flags';
 import { EntityType } from '../../contacts/models/contact-enum';
+import { ContactResponse } from '../../contacts/models/contact.model';
 import { OfficeResponse } from '../../organizations/models/office.model';
+import { StateFormResponse } from '../../organizations/models/state-form.model';
 import { GlobalSelectionService } from '../../organizations/services/global-selection.service';
 import { OfficeService } from '../../organizations/services/office.service';
+import { StateFormService } from '../../organizations/services/state-form.service';
 import { SearchableSelectOption } from '../../shared/searchable-select/searchable-select.component';
 import { TitleBarSelectComponent } from '../../shared/titlebar-select/titlebar-select.component';
 import { OwnerInformationComponent } from '../owner-information/owner-information.component';
@@ -20,10 +24,8 @@ import { ContactService } from '../../contacts/services/contact.service';
 import { PropertyService } from '../../properties/services/property.service';
 import { OwnerAgreementInformationComponent } from '../owner-agreement-information/owner-agreement-information.component';
 import { OwnerAgreementFormComponent } from '../owner-agreement-form/owner-agreement-form.component';
-import { LeadBasedPaintFormComponent } from '../lead-based-paint-form/lead-based-paint-form.component';
-import { RadonDisclosureFormComponent } from '../radon-disclosure-form/radon-disclosure-form.component';
-import { W9Component } from '../w9/w9.component';
-import { W9CreateComponent } from '../w9-create/w9-create.component';
+import { DynamicFormEditorComponent } from '../dynamic-form-editor/dynamic-form-editor.component';
+import { DynamicFormCreateComponent } from '../dynamic-form-create/dynamic-form-create.component';
 
 @Component({
   standalone: true,
@@ -36,10 +38,8 @@ import { W9CreateComponent } from '../w9-create/w9-create.component';
     PropertyInformationComponent,
     OwnerAgreementInformationComponent,
     OwnerAgreementFormComponent,
-    LeadBasedPaintFormComponent,
-    RadonDisclosureFormComponent,
-    W9Component,
-    W9CreateComponent,
+    DynamicFormEditorComponent,
+    DynamicFormCreateComponent,
     OwnersListComponent
   ],
   templateUrl: './owner-shell.component.html',
@@ -47,19 +47,25 @@ import { W9CreateComponent } from '../w9-create/w9-create.component';
 })
 export class OwnerShellComponent implements OnInit, OnDestroy {
   readonly newPropertyOptionValue = 'new';
+  readonly allStatesCode = 'XX';
+  ownersFeatureEnabled = ownersFeatureEnabled;
   isOwnerListMode = false;
   isPageReady = false;
   selectedTabIndex = 0;
-  isW9CreateMode = false;
   selectedOfficeId: number | null = null;
   selectedPropertyId = this.newPropertyOptionValue;
   propertyCodeOptions: SearchableSelectOption[] = [{ value: this.newPropertyOptionValue, label: 'New Property' }];
   token = '';
   leadOwnerId: number | null = null;
-  itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['offices']));
-  destroy$ = new Subject<void>();
+  currentOwnerStateCode = '';
+  stateForms: StateFormResponse[] = [];
+  dynamicFormViewState: Record<string, { isView: boolean; editedHtml: string | null }> = {};
   ownerEntityTypeId = EntityType.Owner;
   offices: OfficeResponse[] = [];
+
+  itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['offices', 'stateForms']));
+  destroy$ = new Subject<void>();
+
 
   constructor(
     private route: ActivatedRoute,
@@ -70,7 +76,8 @@ export class OwnerShellComponent implements OnInit, OnDestroy {
     private navigationContextService: NavigationContextService,
     private utilityService: UtilityService,
     private contactService: ContactService,
-    private propertyService: PropertyService
+    private propertyService: PropertyService,
+    private stateFormService: StateFormService
   ) {}
 
   //#region Owner-Shell
@@ -97,7 +104,10 @@ export class OwnerShellComponent implements OnInit, OnDestroy {
     this.navigationContextService.setIsInUnauthorizedViewMode(isUnauthorizedViewMode);
     this.navigationContextService.setIsInOwnerMode(!isUnauthorizedViewMode);
     this.leadOwnerId = null;
-    this.isW9CreateMode = false;
+    this.currentOwnerStateCode = '';
+    this.stateForms = [];
+    this.dynamicFormViewState = {};
+    this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'stateForms');
     this.selectedPropertyId = this.newPropertyOptionValue;
     this.propertyCodeOptions = [{ value: this.newPropertyOptionValue, label: 'New Property' }];
 
@@ -112,6 +122,7 @@ export class OwnerShellComponent implements OnInit, OnDestroy {
       if (this.tabUsesPropertySelection(this.selectedTabIndex)) {
         this.loadPropertyCodeOptions();
       }
+      this.loadStateFormsForOwner();
       return;
     }
 
@@ -142,23 +153,14 @@ export class OwnerShellComponent implements OnInit, OnDestroy {
   onPropertyCodeDropdownChange(value: string | number | null): void {
     const selected = String(value ?? '').trim();
     this.selectedPropertyId = selected || this.newPropertyOptionValue;
-    if (this.selectedTabIndex === 6) {
-      this.isW9CreateMode = this.selectedPropertyId === this.newPropertyOptionValue;
-    }
   }
 
   onTabIndexChange(nextIndex: number): void {
     this.selectedTabIndex = nextIndex;
-    if (nextIndex === 6) {
-      this.isW9CreateMode = this.selectedPropertyId === this.newPropertyOptionValue;
-    } else {
-      this.isW9CreateMode = false;
-    }
     if (this.tabUsesPropertySelection(nextIndex) && !this.isOwnerListMode) {
       this.loadPropertyCodeOptions();
     }
   }
-
   //#endregion
 
   //#region Load Data Methods
@@ -174,7 +176,7 @@ export class OwnerShellComponent implements OnInit, OnDestroy {
     this.officeService.ensureOfficesLoaded(organizationId).pipe(take(1), takeUntil(this.destroy$), finalize(() => {
       this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'offices');
     })).subscribe({
-      next: (allOffices) => {
+      next: allOffices => {
         this.offices = allOffices || [];
         const defaultOfficeId = this.authService.getUser()?.defaultOfficeId ?? null;
         if (defaultOfficeId != null && this.offices.some(office => office.officeId === defaultOfficeId)) {
@@ -217,12 +219,10 @@ export class OwnerShellComponent implements OnInit, OnDestroy {
               String(property.propertyId || '').trim() !== '' &&
               (!Number.isFinite(scopedOfficeId) || scopedOfficeId <= 0 || Number(property.officeId) === scopedOfficeId)
             );
-            const rows = filtered
-              .sort((a, b) => String(a.propertyCode || '').localeCompare(String(b.propertyCode || '')))
-              .map(property => ({
-                value: String(property.propertyId),
-                label: String(property.propertyCode || '').trim() || 'Unnamed Property'
-              }));
+            const rows = filtered.sort((a, b) => String(a.propertyCode || '').localeCompare(String(b.propertyCode || ''))).map(property => ({
+              value: String(property.propertyId),
+              label: String(property.propertyCode || '').trim() || 'Unnamed Property'
+            }));
             if (rows.length === 0) {
               this.propertyCodeOptions = [{ value: this.newPropertyOptionValue, label: 'New Property' }];
               this.selectedPropertyId = this.newPropertyOptionValue;
@@ -243,11 +243,56 @@ export class OwnerShellComponent implements OnInit, OnDestroy {
       }
     });
   }
+
+  loadStateFormsForOwner(): void {
+    this.utilityService.addLoadItem(this.itemsToLoad$, 'stateForms');
+    const ownerLeadId = Number(this.leadOwnerId);
+    if (!Number.isFinite(ownerLeadId) || ownerLeadId <= 0) {
+      this.currentOwnerStateCode = '';
+      this.stateForms = [];
+      this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'stateForms');
+      return;
+    }
+
+    this.contactService.ensureContactsLoaded().pipe(take(1), takeUntil(this.destroy$)).subscribe({
+      next: contacts => {
+        const ownerStateCode = this.resolveOwnerStateCode(contacts || [], ownerLeadId);
+        this.currentOwnerStateCode = ownerStateCode;
+        const requestedStates = [this.allStatesCode, ownerStateCode]
+          .map(state => String(state || '').trim().toUpperCase())
+          .filter((state, index, array) => state.length === 2 && array.indexOf(state) === index);
+        if (requestedStates.length === 0) {
+          this.stateForms = [];
+          this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'stateForms');
+          return;
+        }
+
+        from(requestedStates).pipe(
+          concatMap(stateCode => this.stateFormService.getStateForms(stateCode).pipe(take(1), catchError(() => of([] as StateFormResponse[])))),
+          toArray(),
+          finalize(() => this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'stateForms')),
+          takeUntil(this.destroy$)
+        ).subscribe({
+          next: responsesByState => {
+            this.stateForms = this.mapOwnerStateForms(responsesByState.flat(), ownerStateCode);
+          },
+          error: () => {
+            this.stateForms = [];
+          }
+        });
+      },
+      error: () => {
+        this.currentOwnerStateCode = '';
+        this.stateForms = [];
+        this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'stateForms');
+      }
+    });
+  }
   //#endregion
 
   //#region Utility Methods
   tabUsesPropertySelection(tabIndex: number): boolean {
-    return tabIndex === 1 || tabIndex === 2 || tabIndex === 3 || tabIndex === 4 || tabIndex === 5 || tabIndex === 6;
+    return tabIndex >= 1;
   }
 
   isPublicOwnerTokenContext(token: string): boolean {
@@ -256,12 +301,82 @@ export class OwnerShellComponent implements OnInit, OnDestroy {
   }
 
   onBackToOwnerList(): void {
-    if (this.selectedTabIndex === 6 && this.isW9CreateMode) {
-      this.isW9CreateMode = false;
-      return;
-    }
     this.selectedOfficeId = this.globalSelectionService.getSelectedOfficeIdValue();
     void this.router.navigateByUrl(RouterUrl.OwnerShell);
+  }
+
+  resolveOwnerStateCode(contacts: ContactResponse[], ownerLeadId: number): string {
+    const ownerContact = (contacts || []).find(contact =>
+      Number(contact.entityTypeId) === Number(EntityType.Owner) &&
+      Number(contact.ownerLeadId) === ownerLeadId
+    );
+    return String(ownerContact?.state || '').trim().toUpperCase();
+  }
+
+  mapOwnerStateForms(forms: StateFormResponse[], ownerStateCode: string): StateFormResponse[] {
+    const normalizedOwnerState = String(ownerStateCode || '').trim().toUpperCase();
+    const uniqueByFormName = new Map<string, StateFormResponse>();
+
+    for (const form of forms || []) {
+      const formNameKey = String(form?.formName || '').trim().toLowerCase();
+      const formHtml = String(form?.formAsHtml || '').trim();
+      if (!formNameKey || !formHtml) {
+        continue;
+      }
+
+      const existing = uniqueByFormName.get(formNameKey);
+      if (!existing) {
+        uniqueByFormName.set(formNameKey, form);
+        continue;
+      }
+
+      const existingState = String(existing.stateCode || '').trim().toUpperCase();
+      const incomingState = String(form.stateCode || '').trim().toUpperCase();
+      const incomingIsOwnerState = normalizedOwnerState && incomingState === normalizedOwnerState;
+      const existingIsOwnerState = normalizedOwnerState && existingState === normalizedOwnerState;
+      if (incomingIsOwnerState && !existingIsOwnerState) {
+        uniqueByFormName.set(formNameKey, form);
+      }
+    }
+
+    return Array.from(uniqueByFormName.values()).sort((a, b) => String(a.formName || '').localeCompare(String(b.formName || '')));
+  }
+
+  getDynamicFormKey(stateForm: StateFormResponse): string {
+    const stateFormId = Number(stateForm?.stateFormId);
+    if (Number.isFinite(stateFormId) && stateFormId > 0) {
+      return `state-form-${stateFormId}`;
+    }
+    const fallbackName = String(stateForm?.formName || '').trim().toLowerCase();
+    return `state-form-name-${fallbackName}`;
+  }
+
+  isDynamicFormInViewMode(formKey: string): boolean {
+    return !!this.dynamicFormViewState[formKey]?.isView;
+  }
+
+  getDynamicFormEditedHtml(stateForm: StateFormResponse): string {
+    const formKey = this.getDynamicFormKey(stateForm);
+    const edited = this.dynamicFormViewState[formKey]?.editedHtml || '';
+    if (edited.trim()) {
+      return edited;
+    }
+    return String(stateForm?.formAsHtml || '');
+  }
+
+  onDynamicFormViewRequested(formKey: string, editedHtml: string): void {
+    this.dynamicFormViewState[formKey] = {
+      isView: true,
+      editedHtml: editedHtml || ''
+    };
+  }
+
+  onDynamicFormEditRequested(formKey: string): void {
+    const current = this.dynamicFormViewState[formKey];
+    this.dynamicFormViewState[formKey] = {
+      isView: false,
+      editedHtml: current?.editedHtml || null
+    };
   }
 
   ngOnDestroy(): void {

@@ -2,8 +2,10 @@ import { Injectable } from '@angular/core';
 
 export interface PrintStyleOptions {
   fontSize?: string; // e.g., '10pt' or '11pt'
-  marginBottom?: string; // e.g., '1in' or '0.75in'
+  marginBottom?: string; // e.g., '0.5in'
   includeLeaseStyles?: boolean; // For lease-specific print styles
+  preserveTemplateTypography?: boolean; // Keep template font size/line-height/margins
+  preserveTemplatePageSetup?: boolean; // Keep template @page size/margins
 }
 
 @Injectable({
@@ -37,16 +39,37 @@ export class DocumentHtmlService {
 
   getPrintStyles(wrapInMediaQuery: boolean, options?: PrintStyleOptions): string {
     const fontSize = options?.fontSize || '11pt';
-    const marginBottom = options?.marginBottom || '1in';
+    const marginBottom = options?.marginBottom || '0.5in';
     const includeLeaseStyles = options?.includeLeaseStyles || false;
+    const preserveTemplateTypography = options?.preserveTemplateTypography || false;
+    const preserveTemplatePageSetup = options?.preserveTemplatePageSetup || false;
 
     let styles = `
+      /* Ensure page breaks work for all sections */
+      P.breakhere,
+      p.breakhere {
+        page-break-before: always !important;
+        break-before: page !important;
+        display: block !important;
+        height: 0 !important;
+        margin: 0 !important;
+        padding: 0 !important;
+      }
+    `;
+
+    if (!preserveTemplatePageSetup) {
+      styles = `
       @page {
         size: letter;
-        margin: 0.75in;
-        margin-top: 0.5in;
+        margin: 0.5in;
         margin-bottom: ${marginBottom};
       }
+      ${styles}
+      `;
+    }
+
+    if (!preserveTemplateTypography) {
+      styles += `
       
       body {
         font-size: ${fontSize} !important;
@@ -99,18 +122,8 @@ export class DocumentHtmlService {
         orphans: 2;
         widows: 2;
       }
-      
-      /* Ensure page breaks work for all sections */
-      P.breakhere,
-      p.breakhere {
-        page-break-before: always !important;
-        break-before: page !important;
-        display: block !important;
-        height: 0 !important;
-        margin: 0 !important;
-        padding: 0 !important;
-      }
-    `;
+      `;
+    }
 
     // Add lease-specific styles if requested
     if (includeLeaseStyles) {

@@ -32,16 +32,9 @@ export class DocumentExportService {
             <title>Document</title>
             <style>
               @media print {
-                @page {
-                  margin-top: 70px;
-                  margin-bottom: 70px;
-                  margin-left: 70px;
-                  margin-right: 70px;
-                }
                 body { 
                   margin: 0; 
                   padding: 0;
-                  padding-top: 40px;
                   font-family: Arial, Helvetica, sans-serif;
                 }
               }

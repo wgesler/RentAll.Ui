@@ -35,6 +35,7 @@ export interface WorkOrderResponse {
   useDepartureFee: boolean;
   enteredInQb: boolean;
   isActive: boolean;
+  createdBy: string;
   modifiedOn: string;
   modifiedBy: string;
 }
@@ -54,10 +55,10 @@ export interface WorkOrderDisplayList {
   workOrderTypeId: number;
   workOrderType?: string; 
   applyMarkup: boolean;
+  workOrderDate: string;
   enteredInQb: boolean;
   isActive: boolean;
-  modifiedOn: string;
-  modifiedBy: string;
+  createdBy: string;
 }
 
 /** Request shape for a work order item. Omit workOrderId and workOrderItemId on create (GUIDs returned in response). */

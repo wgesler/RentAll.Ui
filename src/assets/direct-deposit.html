@@ -1,0 +1,376 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Direct Deposit Authorization Agreement</title>
+  <style>
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      padding: 32px;
+      background: #f3f3f3;
+      font-family: Arial, Helvetica, sans-serif;
+      font-size: 13px;
+      line-height: 1.35;
+      color: #000;
+    }
+
+    .page {
+      width: 8.5in;
+      min-height: 11in;
+      margin: 0 auto;
+      padding: 0.75in;
+      background: #fff;
+      box-shadow: 0 0 8px rgba(0, 0, 0, 0.18);
+      position: relative;
+    }
+
+    h1 {
+      margin: 28px 0 52px 0;
+      text-align: center;
+      font-size: 18px;
+      font-weight: 700;
+      letter-spacing: 0.3px;
+      text-transform: uppercase;
+    }
+
+    .document-header {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 20px;
+      margin-bottom: 8px;
+    }
+
+    .accounting-logo {
+      max-height: 90px;
+      max-width: 220px;
+      width: auto;
+      height: auto;
+      object-fit: contain;
+      display: block;
+    }
+
+    .accounting-address {
+      margin: 0;
+      max-width: 320px;
+      text-align: right;
+      font-size: 12px;
+      line-height: 1.35;
+      white-space: pre-line;
+    }
+
+    .field-row {
+      display: flex;
+      align-items: flex-end;
+      gap: 8px;
+      margin-bottom: 26px;
+    }
+
+    .label {
+      white-space: nowrap;
+      font-weight: 400;
+    }
+
+    .line {
+      flex: 1;
+      border-bottom: 1px solid #000;
+      min-height: 18px;
+    }
+
+    .authorization-text {
+      margin: 0 0 30px 0;
+      text-align: left;
+    }
+
+    .checkbox {
+      display: inline-block;
+      width: 12px;
+      height: 12px;
+      border: 1px solid #000;
+      margin: 0 4px -1px 8px;
+    }
+
+    .account-section {
+      margin: 34px 0 34px 0;
+      width: 75%;
+    }
+
+    .account-section .field-row {
+      margin-bottom: 18px;
+    }
+
+    .account-section .label {
+      width: 110px;
+    }
+
+    .terms {
+      margin: 0 0 40px 0;
+      text-align: left;
+    }
+
+    .signature-section {
+      width: 88%;
+      margin-top: 20px;
+    }
+
+    .signature-row {
+      display: grid;
+      grid-template-columns: 1fr 1.1in;
+      gap: 28px;
+      align-items: end;
+      margin-bottom: 18px;
+    }
+
+    .signature-line,
+    .date-line {
+      display: flex;
+      align-items: flex-end;
+      gap: 8px;
+    }
+
+    .signature-line .label,
+    .date-line .label {
+      width: auto;
+    }
+
+    .attach {
+      margin-top: 70px;
+      font-weight: 700;
+    }
+
+    .voided-check {
+      margin-top: 16px;
+      font-size: 14px;
+    }
+
+    .upload-check-section {
+      margin-top: 70px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    .upload-check-header {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .upload-check-label {
+      font-weight: 700;
+    }
+
+    .upload-check-button {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 6px 12px;
+      border-radius: 4px;
+      border: 1px solid #2563eb;
+      background: #2563eb;
+      color: #fff;
+      font-size: 12px;
+      font-weight: 600;
+      cursor: pointer;
+      user-select: none;
+    }
+
+    .upload-check-button:hover {
+      background: #1d4ed8;
+      border-color: #1d4ed8;
+    }
+
+    .upload-check-button svg {
+      width: 16px;
+      height: 16px;
+      fill: currentColor;
+    }
+
+    .upload-check-input {
+      display: none;
+    }
+
+    .uploaded-check-preview {
+      min-height: 46px;
+      border: 1px dashed #777;
+      border-radius: 4px;
+      padding: 10px;
+      background: #fff;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .uploaded-check-placeholder {
+      font-size: 12px;
+      color: #444;
+      margin: 0;
+    }
+
+    .uploaded-check-image {
+      max-width: 100%;
+      max-height: 180px;
+      object-fit: contain;
+      display: none;
+    }
+
+    .footer {
+      position: absolute;
+      left: 0.75in;
+      right: 0.75in;
+      bottom: 0.6in;
+      text-align: center;
+      font-size: 12px;
+      line-height: 1.45;
+    }
+
+    @media print {
+      body {
+        padding: 0;
+        background: #fff;
+      }
+
+      .page {
+        width: auto;
+        min-height: 10.5in;
+        margin: 0;
+        box-shadow: none;
+        page-break-after: avoid;
+      }
+
+      .upload-check-button {
+        display: none;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="page">
+    <div class="document-header">
+      <img src="{{officeLogoBase64}}" alt="Accounting Logo" class="accounting-logo" />
+      <p class="accounting-address">{{accountingOfficeAddress}}</p>
+    </div>
+    <h1>Direct Deposit Authorization/Agreement</h1>
+
+    <div class="field-row">
+      <div class="label">Name(s):</div>
+      <div class="line"></div>
+    </div>
+
+    <p class="authorization-text">
+      I/We hereby authorize AvenueWest Denver Inc., herein called CORPORATION, to initiate credit entries to my/our
+      (select one) <span class="checkbox"></span> Checking account <span class="checkbox"></span> Savings account indicated below and the
+      depository named below, hereinafter called DEPOSITORY, to credit the same to such account.
+    </p>
+
+    <div class="account-section">
+      <div class="field-row">
+        <div class="label">Depository Name:</div>
+        <div class="line"></div>
+      </div>
+
+      <div class="field-row">
+        <div class="label">Transit/ABA #:</div>
+        <div class="line"></div>
+      </div>
+
+      <div class="field-row">
+        <div class="label">Account #:</div>
+        <div class="line"></div>
+      </div>
+    </div>
+
+    <p class="terms">
+      This authority is to remain in full force and effect until CORPORATION has received written notification from
+      me/(or either of us) of its termination in such time and in such manner as to afford CORPORATION and DEPOSITORY
+      a reasonable opportunity to act on it.
+    </p>
+
+    <div class="signature-section">
+      <div class="signature-row">
+        <div class="signature-line">
+          <div class="label">Signed:</div>
+          <div class="line"></div>
+        </div>
+        <div class="date-line">
+          <div class="label">Date:</div>
+          <div class="line"></div>
+        </div>
+      </div>
+
+      <div class="signature-row">
+        <div class="signature-line">
+          <div class="label">Signed:</div>
+          <div class="line"></div>
+        </div>
+        <div class="date-line">
+          <div class="label">Date:</div>
+          <div class="line"></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="upload-check-section">
+      <div class="upload-check-header">
+        <span class="upload-check-label">Upload:</span>
+        <label class="upload-check-button" for="voidedCheckUpload">
+          <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+            <path d="M9 3L7.17 5H4C2.9 5 2 5.9 2 7V19C2 20.1 2.9 21 4 21H20C21.1 21 22 20.1 22 19V7C22 5.9 21.1 5 20 5H16.83L15 3H9ZM12 8C9.24 8 7 10.24 7 13C7 15.76 9.24 18 12 18C14.76 18 17 15.76 17 13C17 10.24 14.76 8 12 8ZM12 9.8C13.77 9.8 15.2 11.23 15.2 13C15.2 14.77 13.77 16.2 12 16.2C10.23 16.2 8.8 14.77 8.8 13C8.8 11.23 10.23 9.8 12 9.8Z"/>
+          </svg>
+          Check Photo
+        </label>
+        <input
+          id="voidedCheckUpload"
+          class="upload-check-input"
+          type="file"
+          accept="image/*"
+          capture="environment"
+          onchange="handleVoidedCheckUpload(this)" />
+      </div>
+      <div class="uploaded-check-preview" id="uploadedCheckPreview">
+        <p class="uploaded-check-placeholder" id="uploadedCheckPlaceholder">No check image uploaded</p>
+        <img class="uploaded-check-image" id="uploadedCheckImage" alt="Uploaded check image preview" />
+      </div>
+    </div>
+
+    <div class="footer">
+      <div>AvenueWest Denver, Inc</div>
+      <div>1045 Santa Fe Dr, Denver, CO 80204</div>
+      <div>303-825-0000    F-303-825-7624    www.AvenueWest.com</div>
+    </div>
+  </div>
+  <script>
+    function handleVoidedCheckUpload(input) {
+      var file = input && input.files && input.files.length > 0 ? input.files[0] : null;
+      var previewImage = document.getElementById('uploadedCheckImage');
+      var placeholder = document.getElementById('uploadedCheckPlaceholder');
+      if (!previewImage || !placeholder) {
+        return;
+      }
+      if (!file) {
+        previewImage.style.display = 'none';
+        previewImage.removeAttribute('src');
+        placeholder.style.display = 'block';
+        return;
+      }
+
+      var reader = new FileReader();
+      reader.onload = function (event) {
+        var dataUrl = event && event.target ? event.target.result : null;
+        if (!dataUrl) {
+          return;
+        }
+        previewImage.setAttribute('src', String(dataUrl));
+        previewImage.style.display = 'block';
+        placeholder.style.display = 'none';
+      };
+      reader.readAsDataURL(file);
+    }
+  </script>
+</body>
+</html>

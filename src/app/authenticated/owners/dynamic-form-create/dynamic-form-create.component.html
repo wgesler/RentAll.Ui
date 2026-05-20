@@ -1,0 +1,47 @@
+@if (!isPageReady) {
+  <div class="loading-container">
+    <mat-spinner [diameter]="40"></mat-spinner>
+    <p>Loading {{ formName || 'form' }}...</p>
+  </div>
+} @else {
+  <div class="dynamic-form-create-container">
+    <div class="property-tab-actions-band">
+      <div class="property-tab-actions-band__row flex justify-end gap-2 uniform-gap">
+        <div class="table-filter-actions-group form-titlebar-actions-wrap uniform-gap">
+          <button mat-raised-button type="button" color="accent" (click)="onEdit()">
+            <mat-icon>edit</mat-icon>
+            Edit
+          </button>
+          <button mat-raised-button type="button" color="accent" (click)="onPrint()">
+            <mat-icon>print</mat-icon>
+            Print
+          </button>
+          <button mat-raised-button type="button" color="accent" (click)="onEmail()" [disabled]="!ownerContact?.email || !previewIframeHtml">
+            <mat-icon>email</mat-icon>
+            Email
+          </button>
+          <button mat-raised-button type="button" color="accent" (click)="onDownload()">
+            <mat-icon>download</mat-icon>
+            Download
+          </button>
+          <button mat-raised-button type="button" color="primary" (click)="onSave()" [disabled]="isSaving || !previewIframeHtml">
+            <mat-icon>save</mat-icon>
+            Save
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <div class="property-tab-main-area">
+      @if (previewIframeHtml) {
+        <div class="preview-section">
+          <iframe [srcdoc]="safeHtml" class="dynamic-form-create-iframe" [attr.key]="iframeKey" #previewIframe frameborder="0"></iframe>
+        </div>
+      } @else {
+        <div class="owner-shell-placeholder">
+          <p>No form content to view.</p>
+        </div>
+      }
+    </div>
+  </div>
+}

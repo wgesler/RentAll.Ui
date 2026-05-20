@@ -51,6 +51,7 @@ export class OwnerAgreementFormComponent extends BaseDocumentComponent implement
   @Input() propertyId: string | null = null;
   @Input() includeLabel = 'Owner Agreement';
   @Input() templateAssetPath = 'assets/owner-agreement.html';
+  @Input() templateHtml: string | null = null;
   @Input() documentDisplayName = 'Owner Agreement';
   @Input() documentFileSuffix = 'OwnerAgreement';
 
@@ -123,12 +124,17 @@ export class OwnerAgreementFormComponent extends BaseDocumentComponent implement
   ngOnChanges(changes: SimpleChanges): void {
     const propertyIdChanged = changes['propertyId'] && (changes['propertyId'].previousValue !== changes['propertyId'].currentValue);
     const officeIdChanged = changes['officeId'] && (changes['officeId'].previousValue !== changes['officeId'].currentValue);
+    const templateHtmlChanged = changes['templateHtml'] && (changes['templateHtml'].previousValue !== changes['templateHtml'].currentValue);
     if (officeIdChanged) {
       this.syncSelectedOfficeFromLoadedOffices();
     }
     if (propertyIdChanged || officeIdChanged) {
       this.itemsToLoad$.next(new Set(['property', 'propertyAgreement', 'agreementInfo', 'preview']));
       this.loadPropertyContext();
+      return;
+    }
+    if (templateHtmlChanged) {
+      this.generatePreview();
     }
   }
 
@@ -147,7 +153,7 @@ export class OwnerAgreementFormComponent extends BaseDocumentComponent implement
     const htmlWithStyles = this.documentHtmlService.getPreviewHtmlWithStyles(
       htmlForPrint,
       stylesForPrint,
-      { fontSize: '10pt', includeLeaseStyles: true }
+      { fontSize: '9pt', includeLeaseStyles: true }
     );
     this.documentExportService.printHTML(htmlWithStyles);
   }
@@ -408,7 +414,7 @@ export class OwnerAgreementFormComponent extends BaseDocumentComponent implement
   generatePreview(): void {
     this.utilityService.addLoadItem(this.itemsToLoad$, 'preview');
     const includeDocument = !!this.form.get('includeDocument')?.value;
-    this.loadAgreementTemplate(includeDocument, this.templateAssetPath).pipe(takeUntil(this.destroy$)).subscribe({
+    this.loadAgreementTemplate(includeDocument, this.templateAssetPath, this.templateHtml).pipe(takeUntil(this.destroy$)).subscribe({
       next: ownerAgreementHtml => {
         const combinedHtml = this.replaceAgreementPlaceholders(ownerAgreementHtml);
         this.processAndSetHtml(combinedHtml);
@@ -535,6 +541,14 @@ export class OwnerAgreementFormComponent extends BaseDocumentComponent implement
         const sourceInput = sourceControl as HTMLInputElement;
         const clonedInput = clonedControl as HTMLInputElement;
         const inputType = (sourceInput.type || '').toLowerCase();
+        const sourceComputedStyle = window.getComputedStyle(sourceInput);
+        const sourceFontStyle = {
+          fontSize: sourceComputedStyle.fontSize,
+          fontFamily: sourceComputedStyle.fontFamily,
+          fontWeight: sourceComputedStyle.fontWeight,
+          lineHeight: sourceComputedStyle.lineHeight,
+          letterSpacing: sourceComputedStyle.letterSpacing
+        };
         if (inputType === 'checkbox' || inputType === 'radio') {
           clonedInput.checked = sourceInput.checked;
           clonedInput.defaultChecked = sourceInput.checked;
@@ -548,7 +562,7 @@ export class OwnerAgreementFormComponent extends BaseDocumentComponent implement
           clonedInput.value = sourceInput.value || '';
           clonedInput.defaultValue = sourceInput.value || '';
           clonedInput.setAttribute('value', sourceInput.value || '');
-          this.replaceTextControlWithValue(clonedInput, sourceInput.value || '', sourceInput.offsetHeight, sourceInput.offsetWidth);
+          this.replaceTextControlWithValue(clonedInput, sourceInput.value || '', sourceInput.offsetHeight, sourceInput.offsetWidth, false, sourceFontStyle);
         }
         return;
       }
@@ -556,16 +570,32 @@ export class OwnerAgreementFormComponent extends BaseDocumentComponent implement
       if (sourceTag === 'textarea' && clonedTag === 'textarea') {
         const sourceTextarea = sourceControl as HTMLTextAreaElement;
         const clonedTextarea = clonedControl as HTMLTextAreaElement;
+        const sourceComputedStyle = window.getComputedStyle(sourceTextarea);
+        const sourceFontStyle = {
+          fontSize: sourceComputedStyle.fontSize,
+          fontFamily: sourceComputedStyle.fontFamily,
+          fontWeight: sourceComputedStyle.fontWeight,
+          lineHeight: sourceComputedStyle.lineHeight,
+          letterSpacing: sourceComputedStyle.letterSpacing
+        };
         clonedTextarea.value = sourceTextarea.value || '';
         clonedTextarea.defaultValue = sourceTextarea.value || '';
         clonedTextarea.textContent = sourceTextarea.value || '';
-        this.replaceTextControlWithValue(clonedTextarea, sourceTextarea.value || '', sourceTextarea.offsetHeight, sourceTextarea.offsetWidth, true);
+        this.replaceTextControlWithValue(clonedTextarea, sourceTextarea.value || '', sourceTextarea.offsetHeight, sourceTextarea.offsetWidth, true, sourceFontStyle);
         return;
       }
 
       if (sourceTag === 'select' && clonedTag === 'select') {
         const sourceSelect = sourceControl as HTMLSelectElement;
         const clonedSelect = clonedControl as HTMLSelectElement;
+        const sourceComputedStyle = window.getComputedStyle(sourceSelect);
+        const sourceFontStyle = {
+          fontSize: sourceComputedStyle.fontSize,
+          fontFamily: sourceComputedStyle.fontFamily,
+          fontWeight: sourceComputedStyle.fontWeight,
+          lineHeight: sourceComputedStyle.lineHeight,
+          letterSpacing: sourceComputedStyle.letterSpacing
+        };
         clonedSelect.selectedIndex = sourceSelect.selectedIndex;
         Array.from(sourceSelect.options).forEach((sourceOption, optionIndex) => {
           const clonedOption = clonedSelect.options[optionIndex];
@@ -581,7 +611,7 @@ export class OwnerAgreementFormComponent extends BaseDocumentComponent implement
           }
         });
         const selectedOptionText = sourceSelect.options[sourceSelect.selectedIndex]?.text || '';
-        this.replaceTextControlWithValue(clonedSelect, selectedOptionText, sourceSelect.offsetHeight, sourceSelect.offsetWidth);
+        this.replaceTextControlWithValue(clonedSelect, selectedOptionText, sourceSelect.offsetHeight, sourceSelect.offsetWidth, false, sourceFontStyle);
       }
     });
 
@@ -615,7 +645,14 @@ export class OwnerAgreementFormComponent extends BaseDocumentComponent implement
     value: string,
     sourceHeight: number,
     sourceWidth: number,
-    preserveWhitespace: boolean = false
+    preserveWhitespace: boolean = false,
+    sourceFontStyle?: {
+      fontSize?: string;
+      fontFamily?: string;
+      fontWeight?: string;
+      lineHeight?: string;
+      letterSpacing?: string;
+    }
   ): void {
     const textNode = control.ownerDocument.createElement('span');
     textNode.className = control.className || '';
@@ -627,6 +664,21 @@ export class OwnerAgreementFormComponent extends BaseDocumentComponent implement
     textNode.style.lineHeight = '1.2';
     textNode.style.whiteSpace = preserveWhitespace ? 'pre-wrap' : 'normal';
     textNode.style.verticalAlign = 'middle';
+    if (sourceFontStyle?.fontSize) {
+      textNode.style.fontSize = sourceFontStyle.fontSize;
+    }
+    if (sourceFontStyle?.fontFamily) {
+      textNode.style.fontFamily = sourceFontStyle.fontFamily;
+    }
+    if (sourceFontStyle?.fontWeight) {
+      textNode.style.fontWeight = sourceFontStyle.fontWeight;
+    }
+    if (sourceFontStyle?.lineHeight) {
+      textNode.style.lineHeight = sourceFontStyle.lineHeight;
+    }
+    if (sourceFontStyle?.letterSpacing) {
+      textNode.style.letterSpacing = sourceFontStyle.letterSpacing;
+    }
     control.replaceWith(textNode);
   }
 
@@ -640,16 +692,19 @@ export class OwnerAgreementFormComponent extends BaseDocumentComponent implement
     this.safeHtml = this.sanitizer.bypassSecurityTrustHtml(previewHtmlWithStyles);
   }
 
-  loadAgreementTemplate(includeTemplate: boolean, assetPath: string): Observable<string> {
+  loadAgreementTemplate(includeTemplate: boolean, assetPath: string, templateHtml?: string | null): Observable<string> {
     if (!includeTemplate) {
       return of('');
+    }
+    if (String(templateHtml || '').trim()) {
+      return of(String(templateHtml));
     }
     return this.http.get(assetPath, { responseType: 'text' }).pipe(take(1));
   }
 
   buildGenerateDto(): GenerateDocumentFromHtmlDto {
     return {
-      htmlContent: this.documentHtmlService.getPdfHtmlWithStyles(this.previewIframeHtml, this.previewIframeStyles, { fontSize: '10pt', includeLeaseStyles: true }),
+      htmlContent: this.documentHtmlService.getPdfHtmlWithStyles(this.previewIframeHtml, this.previewIframeStyles, { fontSize: '9pt', includeLeaseStyles: true }),
       organizationId: this.organizationId,
       officeId: this.selectedOffice?.officeId || 0,
       officeName: this.selectedOffice?.name || '',
@@ -672,7 +727,7 @@ export class OwnerAgreementFormComponent extends BaseDocumentComponent implement
       propertyId: this.selectedProperty?.propertyId || null,
       contacts: this.ownerContact ? [this.ownerContact] : [],
       isDownloading: this.isDownloading,
-      printStyleOptions: { fontSize: '10pt', includeLeaseStyles: true }
+      printStyleOptions: { fontSize: '9pt', includeLeaseStyles: true }
     };
   }
 

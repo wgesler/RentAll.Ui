@@ -23,7 +23,7 @@
               [noResultsText]="'No offices match your search'"
               (valueChange)="onOfficeDropdownChange($event)">
             </app-title-bar-select>
-            @if (!isOwnerListMode && (selectedTabIndex === 1 || selectedTabIndex === 2 || selectedTabIndex === 3 || selectedTabIndex === 4 || selectedTabIndex === 5 || selectedTabIndex === 6)) {
+            @if (!isOwnerListMode && selectedTabIndex >= 1) {
               <app-title-bar-select
                 [label]="'Property Code'"
                 [formFieldClass]="'titlebar-field-property-code'"
@@ -76,42 +76,60 @@
                 [propertyId]="selectedPropertyId === newPropertyOptionValue ? null : selectedPropertyId">
               </app-owner-agreement-information>
             </mat-tab>
-            <mat-tab label="Agreement Form">
+            <mat-tab label="Agreement">
               <app-owner-agreement-form
                 [ownerLeadId]="leadOwnerId"
                 [officeId]="selectedOfficeId"
                 [propertyId]="selectedPropertyId === newPropertyOptionValue ? null : selectedPropertyId">
               </app-owner-agreement-form>
             </mat-tab>
-            <mat-tab label="Lead Based Paint">
-              <app-lead-based-paint-form
+            <mat-tab label="Deposit">
+              <app-owner-agreement-form
                 [ownerLeadId]="leadOwnerId"
                 [officeId]="selectedOfficeId"
-                [propertyId]="selectedPropertyId === newPropertyOptionValue ? null : selectedPropertyId">
-              </app-lead-based-paint-form>
+                [propertyId]="selectedPropertyId === newPropertyOptionValue ? null : selectedPropertyId"
+                [includeLabel]="'Deposit'"
+                [templateAssetPath]="'assets/direct-deposit.html'"
+                [documentDisplayName]="'Deposit'"
+                [documentFileSuffix]="'Deposit'">
+              </app-owner-agreement-form>
             </mat-tab>
-            <mat-tab label="Radon Disclosure">
-              <app-radon-disclosure-form
-                [ownerLeadId]="leadOwnerId"
-                [officeId]="selectedOfficeId"
-                [propertyId]="selectedPropertyId === newPropertyOptionValue ? null : selectedPropertyId">
-              </app-radon-disclosure-form>
-            </mat-tab>
-            <mat-tab label="W-9 Form">
-              @if (isW9CreateMode) {
-                <app-w9-create
-                  [ownerLeadId]="leadOwnerId"
-                  [officeId]="selectedOfficeId"
-                  [propertyId]="null">
-                </app-w9-create>
-              } @else {
-                <app-w9
-                  [ownerLeadId]="leadOwnerId"
-                  [officeId]="selectedOfficeId"
-                  [propertyId]="selectedPropertyId === newPropertyOptionValue ? null : selectedPropertyId">
-                </app-w9>
-              }
-            </mat-tab>
+            @for (stateForm of stateForms; track stateForm.stateFormId) {
+              <mat-tab [label]="stateForm.formName">
+                @if (ownersFeatureEnabled) {
+                  @if (isDynamicFormInViewMode(getDynamicFormKey(stateForm))) {
+                    <app-dynamic-form-create
+                      [formName]="stateForm.formName"
+                      [ownerLeadId]="leadOwnerId"
+                      [officeId]="selectedOfficeId"
+                      [propertyId]="selectedPropertyId === newPropertyOptionValue ? null : selectedPropertyId"
+                      [editedHtml]="getDynamicFormEditedHtml(stateForm)"
+                      (editRequested)="onDynamicFormEditRequested(getDynamicFormKey(stateForm))">
+                    </app-dynamic-form-create>
+                  } @else {
+                    <app-dynamic-form-editor
+                      [formName]="stateForm.formName"
+                      [formKey]="getDynamicFormKey(stateForm)"
+                      [ownerLeadId]="leadOwnerId"
+                      [officeId]="selectedOfficeId"
+                      [propertyId]="selectedPropertyId === newPropertyOptionValue ? null : selectedPropertyId"
+                      [templateHtml]="getDynamicFormEditedHtml(stateForm)"
+                      (viewRequested)="onDynamicFormViewRequested(getDynamicFormKey(stateForm), $event)">
+                    </app-dynamic-form-editor>
+                  }
+                } @else {
+                  <app-owner-agreement-form
+                    [ownerLeadId]="leadOwnerId"
+                    [officeId]="selectedOfficeId"
+                    [propertyId]="selectedPropertyId === newPropertyOptionValue ? null : selectedPropertyId"
+                    [includeLabel]="stateForm.formName"
+                    [templateHtml]="stateForm.formAsHtml ?? ''"
+                    [documentDisplayName]="stateForm.formName"
+                    [documentFileSuffix]="stateForm.formName">
+                  </app-owner-agreement-form>
+                }
+              </mat-tab>
+            }
           </mat-tab-group>
         }
       </mat-card>
