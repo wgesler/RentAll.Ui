@@ -2,7 +2,7 @@ import { CommonModule } from '@angular/common';
 import { Component, EventEmitter, Input, OnChanges, OnInit, Output, SimpleChanges } from '@angular/core';
 import { Router } from '@angular/router';
 import { ToastrService } from 'ngx-toastr';
-import { catchError, concatMap, finalize, forkJoin, from, map, Observable, of, switchMap, take, toArray } from 'rxjs';
+import { catchError, concatMap, forkJoin, from, map, Observable, of, switchMap, take, toArray } from 'rxjs';
 import { RouterUrl } from '../../../app.routes';
 import { MaterialModule } from '../../../material.module';
 import { AuthService } from '../../../services/auth.service';
@@ -121,7 +121,10 @@ export class WorkOrderListComponent implements OnInit, OnChanges {
     const officeId = this.officeId ?? null;
     this.workOrderService.getWorkOrders(propertyId, officeId).pipe(take(1)).subscribe({
       next: (workOrders: WorkOrderResponse[]) => {
-        this.loadWorkOrderDetailsForDisplay(workOrders || []);
+        this.workOrders = workOrders || [];
+        this.allWorkOrders = this.mappingService.mapWorkOrderDisplays(this.workOrders);
+        this.applyFilters();
+        this.isLoading = false;
       },
       error: () => {
         this.isServiceError = true;
@@ -129,31 +132,6 @@ export class WorkOrderListComponent implements OnInit, OnChanges {
         this.allWorkOrders = [];
         this.workOrdersDisplay = [];
         this.isLoading = false;
-      }
-    });
-  }
-
-  loadWorkOrderDetailsForDisplay(workOrders: WorkOrderResponse[]): void {
-    if (!workOrders.length) {
-      this.workOrders = [];
-      this.allWorkOrders = [];
-      this.workOrdersDisplay = [];
-      this.isLoading = false;
-      return;
-    }
-
-    from(workOrders).pipe(
-      concatMap(workOrder => this.workOrderService.getWorkOrderById(String(workOrder.workOrderId)).pipe(take(1),catchError(() => of(workOrder)))),
-      toArray(),finalize(() => (this.isLoading = false))).subscribe({
-      next: (detailedWorkOrders: WorkOrderResponse[]) => {
-        this.workOrders = detailedWorkOrders;
-        this.allWorkOrders = this.mappingService.mapWorkOrderDisplays(this.workOrders);
-        this.applyFilters();
-      },
-      error: () => {
-        this.workOrders = workOrders;
-        this.allWorkOrders = this.mappingService.mapWorkOrderDisplays(this.workOrders);
-        this.applyFilters();
       }
     });
   }

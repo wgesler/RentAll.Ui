@@ -27,6 +27,7 @@ export interface WorkOrderResponse {
   reservationId?: string | null;
   reservationCode?: string | null;
   description: string;
+  amount?: number;
   workOrderTypeId: number;
   workOrderItems: WorkOrderItemResponse[];
   applyMarkup: boolean;
