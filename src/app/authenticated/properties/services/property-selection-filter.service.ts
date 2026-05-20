@@ -31,6 +31,8 @@ export function isPropertySelectionFiltered(s: PropertySelectionResponse | null 
     s.security ||
     s.parking ||
     s.pets ||
+    s.dogsOkay ||
+    s.catsOkay ||
     s.smoking ||
     s.highSpeedInternet
   ) {

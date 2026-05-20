@@ -17,6 +17,8 @@ export interface PropertySelectionRequest {
   security: boolean;
   parking: boolean;
   pets: boolean;
+  dogsOkay: boolean;
+  catsOkay: boolean;
   smoking: boolean;
   highSpeedInternet: boolean;
   propertyStatusId: number;
@@ -45,6 +47,8 @@ export interface PropertySelectionResponse {
   security: boolean;
   parking: boolean;
   pets: boolean;
+  dogsOkay: boolean;
+  catsOkay: boolean;
   smoking: boolean;
   highSpeedInternet: boolean;
   propertyStatusId: number;
