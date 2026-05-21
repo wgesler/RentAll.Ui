@@ -6,15 +6,18 @@ import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { ToastrService } from 'ngx-toastr';
-import { Subject, take, takeUntil } from 'rxjs';
+import { Subject, catchError, of, switchMap, take, takeUntil } from 'rxjs';
 import { AuthService } from '../../../services/auth.service';
 import { DocumentHtmlService } from '../../../services/document-html.service';
 import { DynamicFormDraftService } from '../services/dynamic-form-draft.service';
+import { FormTokenProviderRegistryService } from '../../shared/forms/services/form-token-provider-registry.service';
+import { OWNER_FORM_TOKEN_PROVIDER } from '../services/owner-form-token-provider.service';
 
 @Component({
   standalone: true,
   selector: 'app-dynamic-form-editor',
   imports: [CommonModule, MatButtonModule, MatIconModule, MatProgressSpinnerModule],
+  providers: [OWNER_FORM_TOKEN_PROVIDER, FormTokenProviderRegistryService],
   templateUrl: './dynamic-form-editor.component.html',
   styleUrl: './dynamic-form-editor.component.scss'
 })
@@ -26,6 +29,7 @@ export class DynamicFormEditorComponent implements OnInit, OnChanges, OnDestroy 
   @Input() propertyId: string | null = null;
   @Input() templateHtml: string | null = null;
   @Input() templateAssetPath: string | null = null;
+  @Input() tokenContextType = 'owner';
   @Output() viewRequested = new EventEmitter<string>();
   @ViewChild('editSurface') editSurface?: ElementRef<HTMLElement>;
 
@@ -43,7 +47,8 @@ export class DynamicFormEditorComponent implements OnInit, OnChanges, OnDestroy 
     private authService: AuthService,
     private toastr: ToastrService,
     private documentHtmlService: DocumentHtmlService,
-    private dynamicFormDraftService: DynamicFormDraftService
+    private dynamicFormDraftService: DynamicFormDraftService,
+    private formTokenProviderRegistryService: FormTokenProviderRegistryService
   ) {}
 
   //#region Dynamic-Form-Editor
@@ -58,7 +63,8 @@ export class DynamicFormEditorComponent implements OnInit, OnChanges, OnDestroy 
       changes['formKey'] ||
       changes['ownerLeadId'] ||
       changes['officeId'] ||
-      changes['propertyId']
+      changes['propertyId'] ||
+      changes['tokenContextType']
     ) {
       this.loadEditorHtml();
     }
@@ -98,25 +104,20 @@ export class DynamicFormEditorComponent implements OnInit, OnChanges, OnDestroy 
   //#region Template Loading
   loadEditorHtml(): void {
     this.isLoading = true;
-    const inlineTemplate = String(this.templateHtml || '').trim();
-    if (inlineTemplate) {
-      this.baseTemplateHtml = inlineTemplate;
-      this.applyInitialEditorHtml();
-      this.isLoading = false;
-      return;
-    }
-
-    const assetPath = String(this.templateAssetPath || '').trim();
-    if (!assetPath) {
-      this.baseTemplateHtml = '';
-      this.applyInitialEditorHtml();
-      this.isLoading = false;
-      return;
-    }
-
-    this.http.get(assetPath, { responseType: 'text' }).pipe(take(1), takeUntil(this.destroy$)).subscribe({
-      next: html => {
-        this.baseTemplateHtml = html || '';
+    this.loadTemplateHtml().pipe(
+      switchMap(templateHtml => this.formTokenProviderRegistryService.applyTokens(this.tokenContextType, templateHtml, {
+        formName: this.formName,
+        formKey: this.formKey,
+        ownerLeadId: this.ownerLeadId,
+        officeId: this.officeId,
+        propertyId: this.propertyId,
+        templateAssetPath: this.templateAssetPath
+      })),
+      take(1),
+      takeUntil(this.destroy$)
+    ).subscribe({
+      next: replacedHtml => {
+        this.baseTemplateHtml = replacedHtml || '';
         this.applyInitialEditorHtml();
         this.isLoading = false;
       },
@@ -126,6 +127,21 @@ export class DynamicFormEditorComponent implements OnInit, OnChanges, OnDestroy 
         this.isLoading = false;
       }
     });
+  }
+
+  loadTemplateHtml() {
+    const inlineTemplate = String(this.templateHtml || '').trim();
+    if (inlineTemplate) {
+      return of(inlineTemplate);
+    }
+    const assetPath = String(this.templateAssetPath || '').trim();
+    if (!assetPath) {
+      return of('');
+    }
+    return this.http.get(assetPath, { responseType: 'text' }).pipe(
+      take(1),
+      catchError(() => of(''))
+    );
   }
 
   applyInitialEditorHtml(): void {

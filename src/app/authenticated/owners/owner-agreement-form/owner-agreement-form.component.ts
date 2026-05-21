@@ -38,6 +38,7 @@ import { OwnerAgreementInformationResponse, replaceOwnerAgreementInformationSect
 import { OrganizationResponse } from '../../organizations/models/organization.model';
 import { LeadOwnerResponse } from '../../leads/models/lead-owner.model';
 import { DynamicFormDraftService } from '../services/dynamic-form-draft.service';
+import { OwnerFormPlaceholderService } from '../services/owner-form-placeholder.service';
 
 @Component({
   standalone: true,
@@ -106,7 +107,8 @@ export class OwnerAgreementFormComponent extends BaseDocumentComponent implement
     emailService: EmailService,
     private router: Router,
     private emailCreateDraftService: EmailCreateDraftService,
-    private dynamicFormDraftService: DynamicFormDraftService
+    private dynamicFormDraftService: DynamicFormDraftService,
+    private ownerFormPlaceholderService: OwnerFormPlaceholderService
   ) {
     super(documentService, documentExportService, documentHtmlService, toastr, emailService);
   }
@@ -505,49 +507,58 @@ export class OwnerAgreementFormComponent extends BaseDocumentComponent implement
     const propertyAddressLines = this.getPropertyAddressLines();
     const accountingOfficeAddressLines = this.getAccountingOfficeAddressLines();
 
-    let content = replaceOwnerAgreementInformationSections(html, this.agreementInformation)
-      .replace(/\{\{ownerAgreementTitle\}\}/g, this.documentDisplayName)
-      .replace(/\{\{companyName\}\}/g, companyName)
-      .replace(/\{\{companyNameInCaps\}\}/g, companyName.toUpperCase())
-      .replace(/\{\{companyCityInCaps\}\}/g,  this.getCompanyCity().toUpperCase())
-      .replace(/\{\{officeName\}\}/g, this.getOfficeName())
-      .replace(/\{\{companyState\}\}/g, this.getCompanyState())
-      .replace(/\{\{companyCity\}\}/g, this.getCompanyCity())
-      .replace(/\{\{companyAddress\}\}/g, this.getCompanyAddress())
-      .replace(/\{\{companyAddressSingleLine\}\}/g, companyAddressSingleLine)
-      .replace(/\{\{companyAddress1\}\}/g, this.getCompanyAddress1())
-      .replace(/\{\{companyAddress2\}\}/g, this.getCompanyAddress2())
-      .replace(/\{\{organization-office\}\}/g, this.getOrganizationOfficeDisplay())
-      .replace(/\{\{propertyCode\}\}/g, this.selectedProperty?.propertyCode || '')
-      .replace(/\{\{organizationState\}\}/g, this.organization?.state || '')
-      .replace(/\{\{accountingOfficeAddress\}\}/g, this.getAccountingOfficeAddress())
-      .replace(/\{\{accountingOfficeAddressSingleLine\}\}/g, accountingOfficeAddressSingleLine)
-      .replace(/\{\{accountingOfficeAddressTop\}\}/g, this.getTopAddressDisplay('Office:', accountingOfficeAddressLines.address1, accountingOfficeAddressLines.address2))
-      .replace(/\{\{ownerFullName\}\}/g, this.ownerContact?.fullName || `${this.ownerContact?.firstName || ''} ${this.ownerContact?.lastName || ''}`.trim())
-      .replace(/\{\{ownerFullNameUnderlined\}\}/g, this.getUnderlinedFillValue(this.ownerContact?.fullName || `${this.ownerContact?.firstName || ''} ${this.ownerContact?.lastName || ''}`.trim()))
-      .replace(/\{\{ownerState\}\}/g, ownerState)
-      .replace(/\{\{ownerAddressSingleLine\}\}/g, ownerAddressSingleLine)
-      .replace(/\{\{ownerAddressSingleLineUnderlined\}\}/g, this.getUnderlinedFillValue(ownerAddressSingleLine))
-      .replace(/\{\{ownerAddress\}\}/g, this.getTopAddressDisplay('Owner Address:', ownerAddressLines.address1, ownerAddressLines.address2))
-      .replace(/\{\{propertyAddressSingleLine\}\}/g, propertyAddressSingleLine)
-      .replace(/\{\{propertyAddress\}\}/g, this.getTopAddressDisplay('Property Address:', propertyAddressLines.address1, propertyAddressLines.address2))
-      .replace(/\{\{agreementStartDate\}\}/g, today)
-      .replace(/\{\{agreementStartDateUnderlined\}\}/g, this.getUnderlinedFillValue(today))
-      .replace(/\{\{ownerSignatureDate\}\}/g, today)
-      .replace(/\{\{agentSignatureDate\}\}/g, today)
-      .replace(/\{\{agentSignerName\}\}/g, signerName)
-      .replace(/\{\{officePhone\}\}/g, this.getOfficePhoneText())
-      .replace(/\{\{officeFax\}\}/g, this.getOfficeFaxText())
-      .replace(/\{\{organizationWebsite\}\}/g, this.getOrganizationWebsite())
-      .replace(/\{\{ownerSplit\}\}/g, this.getOwnerSplit() || '')
-      .replace(/\{\{companySplit\}\}/g, this.getCompanySplit() || '')
-      .replace(/\{\{workingBalance\}\}/g, this.getWorkingBalance() || '')
-      .replace(/\{\{markup\}\}/g, this.getCompanyMarkup() || '')
-      .replace(/\{\{onlineClean\}\}/g, this.getOnlineCleanFee() || '')
-      .replace(/\{\{onlineFee\}\}/g, this.getOnlineFee() || '')
-      .replace(/\{\{offlineFee\}\}/g, this.getOfflineFee() || '')
-      .replace(/\{\{monthlyRent\}\}/g, this.getUnderlinedFillValue(monthlyRent))
-      .replace(/\{\{officeLogoBase64\}\}/g, officeLogo);
+    const ownerFullName = this.ownerContact?.fullName || `${this.ownerContact?.firstName || ''} ${this.ownerContact?.lastName || ''}`.trim();
+    const tokenValues: Record<string, string> = {
+      ownerAgreementTitle: this.documentDisplayName,
+      companyName,
+      companyNameInCaps: companyName.toUpperCase(),
+      companyCityInCaps: this.getCompanyCity().toUpperCase(),
+      officeName: this.getOfficeName(),
+      companyState: this.getCompanyState(),
+      companyCity: this.getCompanyCity(),
+      companyAddress: this.getCompanyAddress(),
+      companyAddressSingleLine,
+      companyAddress1: this.getCompanyAddress1(),
+      companyAddress2: this.getCompanyAddress2(),
+      'organization-office': this.getOrganizationOfficeDisplay(),
+      propertyCode: this.selectedProperty?.propertyCode || '',
+      organizationState: this.organization?.state || '',
+      accountingOfficeAddress: this.getAccountingOfficeAddress(),
+      accountingOfficeAddressSingleLine,
+      accountingOfficeAddressTop: this.getTopAddressDisplay('Office:', accountingOfficeAddressLines.address1, accountingOfficeAddressLines.address2),
+      ownerFullName,
+      ownerName: ownerFullName,
+      ownerFullNameUnderlined: this.getUnderlinedFillValue(ownerFullName),
+      ownerState,
+      ownerAddressSingleLine,
+      ownerAddressSingleLineUnderlined: this.getUnderlinedFillValue(ownerAddressSingleLine),
+      ownerAddress: this.getTopAddressDisplay('Owner Address:', ownerAddressLines.address1, ownerAddressLines.address2),
+      propertyAddressSingleLine,
+      propertyAddress: this.getTopAddressDisplay('Property Address:', propertyAddressLines.address1, propertyAddressLines.address2),
+      agreementStartDate: today,
+      agreementStartDateUnderlined: this.getUnderlinedFillValue(today),
+      ownerSignatureDate: today,
+      agentSignatureDate: today,
+      agentSignerName: signerName,
+      officePhone: this.getOfficePhoneText(),
+      officeFax: this.getOfficeFaxText(),
+      organizationWebsite: this.getOrganizationWebsite(),
+      ownerSplit: this.getOwnerSplit() || '',
+      companySplit: this.getCompanySplit() || '',
+      workingBalance: this.getWorkingBalance() || '',
+      markup: this.getCompanyMarkup() || '',
+      onlineClean: this.getOnlineCleanFee() || '',
+      onlineFee: this.getOnlineFee() || '',
+      offlineFee: this.getOfflineFee() || '',
+      monthlyRent: this.getUnderlinedFillValue(monthlyRent),
+      officeLogoBase64: officeLogo
+    };
+
+    let content = this.ownerFormPlaceholderService.replaceTokens(
+      replaceOwnerAgreementInformationSections(html, this.agreementInformation),
+      tokenValues,
+      { clearUnresolved: false }
+    );
 
     if (companyName) {
       content = content.replace(/\bAvenue\s*West\b/gi, matched =>
@@ -555,7 +566,7 @@ export class OwnerAgreementFormComponent extends BaseDocumentComponent implement
       );
     }
 
-    return content.replace(/\{\{[^}]+\}\}/g, '');
+    return this.ownerFormPlaceholderService.replaceTokens(content, {}, { clearUnresolved: true });
   }
 
   processAndSetHtml(html: string): void {
@@ -1118,11 +1129,7 @@ export class OwnerAgreementFormComponent extends BaseDocumentComponent implement
   }
 
   getUnderlinedFillValue(value: string | null | undefined): string {
-    const trimmed = String(value || '').trim();
-    if (!trimmed) {
-      return '';
-    }
-    return `&nbsp;&nbsp;${trimmed}&nbsp;&nbsp;`;
+    return this.ownerFormPlaceholderService.getUnderlinedFillValue(value);
   }
 
   normalizeSuiteForDisplay(suiteRaw: string | null | undefined): string {

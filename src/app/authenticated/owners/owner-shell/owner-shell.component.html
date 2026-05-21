@@ -113,16 +113,16 @@
               <mat-tab [label]="stateForm.formName">
                 @if (ownersFeatureEnabled) {
                   @if (isDynamicFormInViewMode(getDynamicFormKey(stateForm))) {
-                    <app-dynamic-form-create
+                    <app-shared-form-create
                       [formName]="stateForm.formName"
                       [ownerLeadId]="leadOwnerId"
                       [officeId]="selectedOfficeId"
                       [propertyId]="selectedPropertyId === newPropertyOptionValue ? null : selectedPropertyId"
                       [editedHtml]="getDynamicFormEditedHtml(stateForm)"
                       (editRequested)="onDynamicFormEditRequested(getDynamicFormKey(stateForm))">
-                    </app-dynamic-form-create>
+                    </app-shared-form-create>
                   } @else {
-                    <app-dynamic-form-editor
+                    <app-shared-form-editor
                       [formName]="stateForm.formName"
                       [formKey]="getDynamicFormKey(stateForm)"
                       [ownerLeadId]="leadOwnerId"
@@ -130,7 +130,7 @@
                       [propertyId]="selectedPropertyId === newPropertyOptionValue ? null : selectedPropertyId"
                       [templateHtml]="getDynamicFormEditedHtml(stateForm)"
                       (viewRequested)="onDynamicFormViewRequested(getDynamicFormKey(stateForm), $event)">
-                    </app-dynamic-form-editor>
+                    </app-shared-form-editor>
                   }
                 } @else {
                   <app-owner-agreement-form

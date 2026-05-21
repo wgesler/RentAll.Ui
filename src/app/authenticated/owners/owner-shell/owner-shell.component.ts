@@ -24,8 +24,8 @@ import { ContactService } from '../../contacts/services/contact.service';
 import { PropertyService } from '../../properties/services/property.service';
 import { OwnerAgreementInformationComponent } from '../owner-agreement-information/owner-agreement-information.component';
 import { OwnerAgreementFormComponent } from '../owner-agreement-form/owner-agreement-form.component';
-import { DynamicFormEditorComponent } from '../dynamic-form-editor/dynamic-form-editor.component';
-import { DynamicFormCreateComponent } from '../dynamic-form-create/dynamic-form-create.component';
+import { SharedFormEditorComponent } from '../../shared/forms/form-editor/form-editor.component';
+import { SharedFormCreateComponent } from '../../shared/forms/form-create/form-create.component';
 import { LeadsService } from '../../leads/services/leads.service';
 
 @Component({
@@ -39,8 +39,8 @@ import { LeadsService } from '../../leads/services/leads.service';
     PropertyInformationComponent,
     OwnerAgreementInformationComponent,
     OwnerAgreementFormComponent,
-    DynamicFormEditorComponent,
-    DynamicFormCreateComponent,
+    SharedFormEditorComponent,
+    SharedFormCreateComponent,
     OwnersListComponent
   ],
   templateUrl: './owner-shell.component.html',
