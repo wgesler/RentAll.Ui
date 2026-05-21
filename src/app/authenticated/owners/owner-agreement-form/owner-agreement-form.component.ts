@@ -37,6 +37,7 @@ import { CommonService } from '../../../services/common.service';
 import { OwnerAgreementInformationResponse, replaceOwnerAgreementInformationSections } from '../models/owner-agreement-information.model';
 import { OrganizationResponse } from '../../organizations/models/organization.model';
 import { LeadOwnerResponse } from '../../leads/models/lead-owner.model';
+import { DynamicFormDraftService } from '../services/dynamic-form-draft.service';
 
 @Component({
   standalone: true,
@@ -62,10 +63,15 @@ export class OwnerAgreementFormComponent extends BaseDocumentComponent implement
   iframeKey = 0;
   previewIframeHtml = '';
   previewIframeStyles = '';
+  editableHtml: SafeHtml | null = null;
+  editorStyles = '';
+  baseTemplateHtml = '';
+  isEditMode = true;
   safeHtml: SafeHtml | null = null;
   liveExportHtml = '';
   liveExportStyles = '';
   @ViewChild('previewIframe') previewIframe?: ElementRef<HTMLIFrameElement>;
+  @ViewChild('editIframe') editIframe?: ElementRef<HTMLIFrameElement>;
   organizationId = '';
   organization: OrganizationResponse | null;
   selectedOffice: OfficeResponse | null = null;
@@ -99,7 +105,8 @@ export class OwnerAgreementFormComponent extends BaseDocumentComponent implement
     public override toastr: ToastrService,
     emailService: EmailService,
     private router: Router,
-    private emailCreateDraftService: EmailCreateDraftService
+    private emailCreateDraftService: EmailCreateDraftService,
+    private dynamicFormDraftService: DynamicFormDraftService
   ) {
     super(documentService, documentExportService, documentHtmlService, toastr, emailService);
   }
@@ -140,6 +147,46 @@ export class OwnerAgreementFormComponent extends BaseDocumentComponent implement
 
   onIncludeChange(): void {
     this.generatePreview();
+  }
+
+  saveDraft(): void {
+    const htmlSnapshot = this.captureLiveHtmlSnapshot();
+    if (!htmlSnapshot) {
+      this.toastr.warning('There is no form content to save.');
+      return;
+    }
+    this.dynamicFormDraftService.saveDraft(this.getDraftStorageKey(), htmlSnapshot);
+    this.toastr.success('Draft saved.');
+  }
+
+  resetForm(): void {
+    this.dynamicFormDraftService.resetDraft(this.getDraftStorageKey());
+    this.setEditorHtml(this.baseTemplateHtml || '');
+    this.toastr.success('Form reset.');
+  }
+
+  viewForm(): void {
+    const htmlSnapshot = this.captureLiveHtmlSnapshot();
+    if (!htmlSnapshot) {
+      this.toastr.warning('There is no form content to view.');
+      return;
+    }
+    this.dynamicFormDraftService.saveDraft(this.getDraftStorageKey(), htmlSnapshot);
+    this.isEditMode = false;
+    this.processAndSetHtml(htmlSnapshot);
+  }
+
+  editForm(): void {
+    if (!this.isEditMode) {
+      this.captureLiveSnapshotForExport();
+      const htmlForEdit = this.liveExportHtml || this.previewIframeHtml || this.baseTemplateHtml;
+      this.setEditorHtml(htmlForEdit);
+      this.isEditMode = true;
+    }
+  }
+
+  onEditIframeLoad(): void {
+    this.ensureEditorControlsInteractive();
   }
 
   override onPrint(): void {
@@ -424,10 +471,18 @@ export class OwnerAgreementFormComponent extends BaseDocumentComponent implement
     this.loadAgreementTemplate(includeDocument, this.templateAssetPath, this.templateHtml).pipe(takeUntil(this.destroy$)).subscribe({
       next: ownerAgreementHtml => {
         const combinedHtml = this.replaceAgreementPlaceholders(ownerAgreementHtml);
-        this.processAndSetHtml(combinedHtml);
+        this.baseTemplateHtml = combinedHtml;
+        const draftHtml = this.dynamicFormDraftService.loadDraft(this.getDraftStorageKey());
+        const htmlToRender = draftHtml || this.baseTemplateHtml;
+        this.setEditorHtml(htmlToRender);
+        if (!this.isEditMode) {
+          this.processAndSetHtml(htmlToRender);
+        }
         this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'preview');
       },
       error: () => {
+        this.baseTemplateHtml = '';
+        this.editableHtml = null;
         this.previewIframeHtml = '';
         this.safeHtml = null;
         this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'preview');
@@ -510,6 +565,43 @@ export class OwnerAgreementFormComponent extends BaseDocumentComponent implement
     this.refreshPreviewSafeHtml();
     this.iframeKey++;
   }
+
+  setEditorHtml(html: string): void {
+    const result = this.documentHtmlService.processHtml(html || '', true);
+    this.editorStyles = result.extractedStyles || '';
+    const editableHtmlDocument = this.documentHtmlService.buildHtmlDocument(
+      this.documentHtmlService.extractBodyContent(result.processedHtml || ''),
+      '',
+      this.editorStyles || ''
+    );
+    this.editableHtml = this.sanitizer.bypassSecurityTrustHtml(editableHtmlDocument);
+    setTimeout(() => this.ensureEditorControlsInteractive());
+  }
+
+  ensureEditorControlsInteractive(): void {
+    const editDoc = this.editIframe?.nativeElement?.contentDocument || this.editIframe?.nativeElement?.contentWindow?.document;
+    const editHost = editDoc?.body;
+    if (!editDoc || !editHost) {
+      return;
+    }
+    editHost.setAttribute('contenteditable', 'true');
+    const controls = Array.from(editHost.querySelectorAll('input, textarea, select, option, button, label'));
+    controls.forEach(control => {
+      control.setAttribute('contenteditable', 'false');
+    });
+    const formControls = Array.from(editHost.querySelectorAll('input, textarea, select')) as Array<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>;
+    formControls.forEach(control => {
+      if (control.hasAttribute('disabled')) {
+        control.removeAttribute('disabled');
+      }
+      if (control instanceof HTMLInputElement || control instanceof HTMLTextAreaElement) {
+        control.readOnly = false;
+        if (control.hasAttribute('readonly')) {
+          control.removeAttribute('readonly');
+        }
+      }
+    });
+  }
   //#endregion
 
   //#region Form Response Methods
@@ -532,6 +624,79 @@ export class OwnerAgreementFormComponent extends BaseDocumentComponent implement
     this.liveExportStyles = this.collectDocumentStyles(doc) || this.previewIframeStyles;
     this.previewIframeHtml = this.liveExportHtml;
     this.previewIframeStyles = this.liveExportStyles;
+  }
+
+  captureLiveHtmlSnapshot(): string {
+    const editDoc = this.editIframe?.nativeElement?.contentDocument || this.editIframe?.nativeElement?.contentWindow?.document;
+    const editHost = editDoc?.body;
+    if (!editDoc || !editHost) {
+      return '';
+    }
+    const controls = Array.from(editHost.querySelectorAll('input, textarea, select')) as Array<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>;
+    controls.forEach((control, index) => {
+      control.setAttribute('data-agreement-control-id', String(index));
+    });
+
+    const clonedRoot = editHost.cloneNode(true) as HTMLElement;
+    controls.forEach(sourceControl => {
+      const controlId = sourceControl.getAttribute('data-agreement-control-id');
+      if (!controlId) {
+        return;
+      }
+      const clonedControl = clonedRoot.querySelector(`[data-agreement-control-id="${controlId}"]`) as HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement | null;
+      if (!clonedControl) {
+        return;
+      }
+
+      const sourceTag = sourceControl.tagName.toLowerCase();
+      const clonedTag = clonedControl.tagName.toLowerCase();
+      if (sourceTag === 'input' && clonedTag === 'input') {
+        const sourceInput = sourceControl as HTMLInputElement;
+        const cloneInput = clonedControl as HTMLInputElement;
+        const inputType = String(sourceInput.type || '').toLowerCase();
+        if (inputType === 'checkbox' || inputType === 'radio') {
+          cloneInput.checked = sourceInput.checked;
+          cloneInput.defaultChecked = sourceInput.checked;
+          if (sourceInput.checked) {
+            cloneInput.setAttribute('checked', 'checked');
+          } else {
+            cloneInput.removeAttribute('checked');
+          }
+        } else {
+          cloneInput.value = sourceInput.value || '';
+          cloneInput.defaultValue = sourceInput.value || '';
+          cloneInput.setAttribute('value', sourceInput.value || '');
+        }
+      } else if (sourceTag === 'textarea' && clonedTag === 'textarea') {
+        const sourceTextarea = sourceControl as HTMLTextAreaElement;
+        const clonedTextarea = clonedControl as HTMLTextAreaElement;
+        clonedTextarea.value = sourceTextarea.value || '';
+        clonedTextarea.defaultValue = sourceTextarea.value || '';
+        clonedTextarea.textContent = sourceTextarea.value || '';
+      } else if (sourceTag === 'select' && clonedTag === 'select') {
+        const sourceSelect = sourceControl as HTMLSelectElement;
+        const clonedSelect = clonedControl as HTMLSelectElement;
+        clonedSelect.selectedIndex = sourceSelect.selectedIndex;
+        Array.from(sourceSelect.options).forEach((sourceOption, optionIndex) => {
+          const clonedOption = clonedSelect.options[optionIndex];
+          if (!clonedOption) {
+            return;
+          }
+          clonedOption.selected = sourceOption.selected;
+          clonedOption.defaultSelected = sourceOption.selected;
+          if (sourceOption.selected) {
+            clonedOption.setAttribute('selected', 'selected');
+          } else {
+            clonedOption.removeAttribute('selected');
+          }
+        });
+      }
+    });
+
+    controls.forEach(control => control.removeAttribute('data-agreement-control-id'));
+    Array.from(clonedRoot.querySelectorAll('[data-agreement-control-id]')).forEach(control => control.removeAttribute('data-agreement-control-id'));
+    const bodyContent = clonedRoot.innerHTML;
+    return this.documentHtmlService.buildHtmlDocument(bodyContent, '', this.editorStyles || '');
   }
 
   getPreviewDocument(): Document | null {
@@ -771,6 +936,18 @@ export class OwnerAgreementFormComponent extends BaseDocumentComponent implement
 
   getDocumentFileName(label: string): string {
     return this.utilityService.generateDocumentFileName('lease', this.selectedProperty?.propertyCode || undefined, label);
+  }
+
+  getDraftStorageKey(): string {
+    const organizationId = String(this.authService.getUser()?.organizationId || '').trim();
+    const formKey = `${this.documentFileSuffix}-${this.templateAssetPath}`;
+    return this.dynamicFormDraftService.buildDraftKey(
+      organizationId,
+      this.ownerLeadId,
+      this.officeId,
+      this.propertyId,
+      formKey
+    );
   }
 
   composeAddress(source: { address1?: string | null; address2?: string | null; city?: string | null; state?: string | null; zip?: string | null } | null | undefined): string {
