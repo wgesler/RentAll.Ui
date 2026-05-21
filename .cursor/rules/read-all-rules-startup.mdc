@@ -1,0 +1,14 @@
+---
+description: Require reading and listing all RentAll repo rules at session start
+alwaysApply: true
+---
+
+# Cross-Repo Rule Read Requirement
+
+- At the start of each new session, read all `.mdc` rule files in:
+  - `C:/Source/RentAll/RentAll.Api/.cursor/rules`
+  - `C:/Source/RentAll/RentAll.Ui/.cursor/rules`
+  - `C:/Source/RentAll/RentAll.Db/.cursor/rules`
+- If a repo or rules folder is missing, explicitly state that it was checked and no rules were found there.
+- After reading, verbally list every rule file path read.
+- End that startup acknowledgment with: `Ready to go.`
