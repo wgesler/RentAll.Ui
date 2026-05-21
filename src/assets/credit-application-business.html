@@ -88,7 +88,18 @@
     #header {
       max-width: 100% !important;
       width: 100% !important;
-      background-color: #222;
+      background-color: #fff;
+    }
+
+    #header .logo-row,
+    #header .logo-row td {
+      background-color: #fff !important;
+      padding-bottom: 1px !important;
+    }
+
+    #header .title-row,
+    #header .title-row td {
+      background-color: #222 !important;
     }
 
     #header img {
@@ -115,7 +126,7 @@
       color: #fff;
       margin: 0;
       padding: 10px 5px 20px 5px;
-      background-color: #222;
+      background-color: transparent;
       letter-spacing: -0.5px;
     }
 
@@ -222,12 +233,12 @@
   <!-- ===================== BUSINESS CREDIT APPLICATION ===================== -->
   <table id="header" cellspacing="0" cellpadding="0" width="100%" align="center">
     <tbody>
-      <tr>
+      <tr class="logo-row">
         <td colspan="1">
           <img src="{{officeLogoBase64}}" alt="Company Logo" class="logo" align="left">
         </td>
       </tr>
-      <tr valign="top">
+      <tr class="title-row" valign="top">
         <td>
           <h1>Business Credit Application</h1>
         </td>

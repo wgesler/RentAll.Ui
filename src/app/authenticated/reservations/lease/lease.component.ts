@@ -1,6 +1,6 @@
 import { CommonModule } from '@angular/common';
 import { HttpClient } from '@angular/common/http';
-import { Component, EventEmitter, Input, OnChanges, OnDestroy, OnInit, Output, SimpleChanges } from '@angular/core';
+import { Component, ElementRef, EventEmitter, Input, OnChanges, OnDestroy, OnInit, Output, SimpleChanges, ViewChild } from '@angular/core';
 import { FormBuilder, FormControl, FormGroup, FormsModule, ReactiveFormsModule } from '@angular/forms';
 import { DomSanitizer, SafeHtml } from '@angular/platform-browser';
 import { Router } from '@angular/router';
@@ -47,6 +47,7 @@ import { LeaseInformationService } from '../services/lease-information.service';
 import { LeaseReloadService } from '../services/lease-reload.service';
 import { ReservationService } from '../services/reservation.service';
 import { environment } from '../../../../environments/environment';
+import { DynamicFormDraftService } from '../../owners/services/dynamic-form-draft.service';
 
 @Component({
     standalone: true,
@@ -56,6 +57,8 @@ import { environment } from '../../../../environments/environment';
     styleUrl: './lease.component.scss'
 })
 export class LeaseComponent extends BaseDocumentComponent implements OnInit, OnDestroy, OnChanges {
+  @ViewChild('previewIframe') previewIframe?: ElementRef<HTMLIFrameElement>;
+  @ViewChild('editIframe') editIframe?: ElementRef<HTMLIFrameElement>;
   @Input() reservationId: string = '';
   @Input() propertyId: string = '';
   @Input() officeId: number | null = null;
@@ -90,6 +93,11 @@ export class LeaseComponent extends BaseDocumentComponent implements OnInit, OnD
   previewIframeHtml: string = '';
   previewIframeStyles: string = '';
   safeHtml: SafeHtml | null = null;
+  editableHtml: SafeHtml | null = null;
+  editorStyles: string = '';
+  baseTemplateHtml: string = '';
+  isEditMode: boolean = true;
+  lastDocumentSelectionKey: string = '';
   iframeKey: number = 0;
   isDownloading: boolean = false;
   propertyHtml: PropertyHtmlResponse | null = null;
@@ -133,6 +141,7 @@ export class LeaseComponent extends BaseDocumentComponent implements OnInit, OnD
     private mappingService: MappingService,
     private globalSelectionService: GlobalSelectionService,
     private http: HttpClient,
+    private dynamicFormDraftService: DynamicFormDraftService,
     public override toastr: ToastrService,
     documentExportService: DocumentExportService,
     documentService: DocumentService,
@@ -366,6 +375,52 @@ export class LeaseComponent extends BaseDocumentComponent implements OnInit, OnD
         this.generatePreviewIframe();
       }
     });
+  }
+
+  saveDraft(): void {
+    const htmlSnapshot = this.captureLiveHtmlSnapshot();
+    if (!htmlSnapshot) {
+      this.toastr.warning('There is no lease content to save.');
+      return;
+    }
+    this.dynamicFormDraftService.saveDraft(this.getDraftStorageKey(), htmlSnapshot);
+    this.toastr.success('Draft saved.');
+  }
+
+  resetForm(): void {
+    this.dynamicFormDraftService.resetDraft(this.getDraftStorageKey());
+    this.setEditorHtml(this.baseTemplateHtml || '');
+    this.toastr.success('Form reset.');
+  }
+
+  viewForm(): void {
+    const htmlSnapshot = this.captureLiveHtmlSnapshot();
+    const htmlForView = htmlSnapshot || this.baseTemplateHtml || this.previewIframeHtml || '';
+    if (!htmlForView) {
+      this.toastr.warning('There is no lease content to view.');
+      return;
+    }
+    this.dynamicFormDraftService.saveDraft(this.getDraftStorageKey(), htmlSnapshot || htmlForView);
+    this.isEditMode = false;
+    this.processAndSetHtml(htmlForView);
+  }
+
+  editForm(): void {
+    if (!this.isEditMode) {
+      const htmlForEdit = this.previewIframeHtml
+        ? this.documentHtmlService.buildHtmlDocument(
+            this.documentHtmlService.extractBodyContent(this.previewIframeHtml),
+            '',
+            this.previewIframeStyles || ''
+          )
+        : this.baseTemplateHtml || '';
+      this.setEditorHtml(htmlForEdit);
+      this.isEditMode = true;
+    }
+  }
+
+  onEditIframeLoad(): void {
+    this.ensureEditorControlsInteractive();
   }
   //#endregion
 
@@ -807,6 +862,41 @@ export class LeaseComponent extends BaseDocumentComponent implements OnInit, OnD
     }
   }
 
+  getPropertyAddressForDisplay(label: string): string {
+    if (!this.property) {
+      return '';
+    }
+    const line1 = [
+      this.property.address1,
+      this.property.suite ? `#${this.property.suite}` : '',
+      this.property.address2
+    ].filter(part => String(part || '').trim().length > 0).join(', ');
+    const line2 = [
+      this.property.city,
+      this.property.state,
+      this.property.zip
+    ].filter(part => String(part || '').trim().length > 0).join(', ');
+
+    if (!line1 && !line2) {
+      return '';
+    }
+    if (!line2) {
+      return this.escapeHtml(line1);
+    }
+    if (this.utilityService.isAddressSingleLine(label, line1, line2)) {
+      return this.escapeHtml(`${line1}, ${line2}`);
+    }
+    return `${this.escapeHtml(line1)}<br>&nbsp;&nbsp;&nbsp;&nbsp;${this.escapeHtml(line2)}`;
+  }
+
+  getNoticeToVacatePropertyAddress(): string {
+    return this.getPropertyAddressForDisplay('Property Address:');
+  }
+
+  getCreditAuthorizationPropertyAddress(): string {
+    return this.getPropertyAddressForDisplay('Property Address:');
+  }
+
   getOrganizationAddress(): string {
     if (!this.organization) return '';
     const isInternational = this.organization.isInternational || false;
@@ -966,6 +1056,21 @@ export class LeaseComponent extends BaseDocumentComponent implements OnInit, OnD
 
   getResponsibleParty(): string {
     return this.utilityService.getResponsibleParty(this.selectedReservation, this.getPrimaryResponsibleContact());
+  }
+
+  private lookupStateName(code: string | null | undefined): string {
+    const normalized = String(code || '').trim();
+    if (!normalized) {
+      return '';
+    }
+    const match = (this.commonService.getStatesFullValue() || []).find(state =>
+      String(state.code || '').trim().toLowerCase() === normalized.toLowerCase()
+    );
+    return String(match?.name || normalized).trim();
+  }
+
+  getTenantStateFullName(): string {
+    return this.lookupStateName(this.getPrimaryResponsibleContact()?.state);
   }
 
   getResponsiblePartyAddress1() {
@@ -1388,8 +1493,46 @@ export class LeaseComponent extends BaseDocumentComponent implements OnInit, OnD
     return withoutHtml.length > 0;
   }
 
+  getUnderlinedFillValue(value: string | number | null | undefined): string {
+    const trimmed = String(value ?? '').trim();
+    if (!trimmed || this.isZeroLikeValue(trimmed)) {
+      return '<span class="inline-underline-fill"></span>';
+    }
+    return this.escapeHtml(trimmed);
+  }
+
+  isZeroLikeValue(value: string): boolean {
+    const trimmed = String(value || '').trim();
+    if (!trimmed) {
+      return true;
+    }
+
+    const numericCandidate = trimmed.replace(/[$,%\s,]/g, '');
+    if (!numericCandidate) {
+      return false;
+    }
+
+    if (!/^[+-]?\d*(\.\d+)?$/.test(numericCandidate)) {
+      return false;
+    }
+
+    const numericValue = Number(numericCandidate);
+    return Number.isFinite(numericValue) && numericValue === 0;
+  }
+
   replaceAllOtherPlaceholders(html: string): string {
     let result = html;
+    // Some lease-information templates wrap after-hours phone in underline spans.
+    // Keep this value plain text (no underline) per business request.
+    result = result.replace(
+      /<span[^>]*class=["'][^"']*inline-underline-fill[^"']*["'][^>]*>\s*\{\{afterHoursPhone\}\}\s*<\/span>/gi,
+      '{{afterHoursPhone}}'
+    );
+    result = result.replace(/<u>\s*\{\{afterHoursPhone\}\}\s*<\/u>/gi, '{{afterHoursPhone}}');
+    result = result.replace(
+      /<span[^>]*style=["'][^"']*text-decoration\s*:\s*underline[^"']*["'][^>]*>\s*\{\{afterHoursPhone\}\}\s*<\/span>/gi,
+      '{{afterHoursPhone}}'
+    );
 
     // Replace reservation placeholders
     if (this.selectedReservation) {
@@ -1398,78 +1541,84 @@ export class LeaseComponent extends BaseDocumentComponent implements OnInit, OnD
         referenceNo = this.selectedReservation.referenceNo;
       }
 
-      result = result.replace(/\{\{accountingOfficeAddress\}\}/g, this.getAccountingOfficeAddress());
-      result = result.replace(/\{\{reservationCode\}\}/g, this.selectedReservation.reservationCode || '');
-      result = result.replace(/\{\{responsibleParty\}\}/g, this.getResponsibleParty());
-      result = result.replace(/\{\{responsiblePartyNoun\}\}/g, this.getResponsibleNoun());
-      result = result.replace(/\{\{responsiblePartyAddress1\}\}/g, this.getResponsiblePartyAddress1());
-      result = result.replace(/\{\{responsiblePartyAddress1\}\}/g, this.getResponsiblePartyAddress2());
-      result = result.replace(/\{\{responsiblePartyPhone\}\}/g, this.getResponsiblePartyPhone());
-      result = result.replace(/\{\{responsiblePartyEmail\}\}/g, this.getResponsiblePartyEmail());
+      result = result.replace(/\{\{accountingOfficeAddress\}\}/g, this.getUnderlinedFillValue(this.getAccountingOfficeAddress()));
+      result = result.replace(/\{\{reservationCode\}\}/g, this.getUnderlinedFillValue(this.selectedReservation.reservationCode || ''));
+      result = result.replace(/\{\{responsibleParty\}\}/g, this.getUnderlinedFillValue(this.getResponsibleParty()));
+      result = result.replace(/\{\{responsiblePartyNoun\}\}/g, this.getUnderlinedFillValue(this.getResponsibleNoun()));
+      result = result.replace(/\{\{responsiblePartyAddress1\}\}/g, this.getUnderlinedFillValue(this.getResponsiblePartyAddress1()));
+      result = result.replace(/\{\{responsiblePartyAddress1\}\}/g, this.getUnderlinedFillValue(this.getResponsiblePartyAddress2()));
+      result = result.replace(/\{\{responsiblePartyPhone\}\}/g, this.getUnderlinedFillValue(this.getResponsiblePartyPhone()));
+      result = result.replace(/\{\{responsiblePartyEmail\}\}/g, this.getUnderlinedFillValue(this.getResponsiblePartyEmail()));
       result = result.replace(/\{\{responsiblePartiesBlock\}\}/g, this.getResponsiblePartiesBlock());
 
-      result = result.replace(/\{\{tenantName\}\}/g, this.selectedReservation.tenantName || '');
-      result = result.replace(/\{\{referenceNo\}\}/g, referenceNo || '');
-      result = result.replace(/\{\{arrivalDate\}\}/g, this.formatterService.formatDateStringLong(this.selectedReservation.arrivalDate) || '');
-      result = result.replace(/\{\{departureDate\}\}/g, this.formatterService.formatDateStringLong(this.selectedReservation.departureDate) || '');
-      result = result.replace(/\{\{numberOfPeople\}\}/g, (this.selectedReservation.numberOfPeople || 0).toString());
-      result = result.replace(/\{\{billingType\}\}/g, this.getBillingTypeText());
-      result = result.replace(/\{\{billingTypeDay\}\}/g, this.getBillingDayText());
-      result = result.replace(/\{\{billingTypeLower\}\}/g, this.getBillingTypeLowerText());
-      result = result.replace(/\{\{billingRate\}\}/g, (this.selectedReservation.billingRate || 0).toFixed(2));
-      result = result.replace(/\{\{deposit\}\}/g, (this.selectedReservation.deposit || 0).toFixed(2));
-      result = result.replace(/\{\{securityText\}\}/g, this.getSecurityDepositText());      
-      result = result.replace(/\{\{securityProrateText\}\}/g, this.getSecurityProrateText());
-      result = result.replace(/\{\{letterOfResponsibilityText\}\}/g, this.getLetterOfResponsibilityText());
-      result = result.replace(/\{\{partialMonthText\}\}/g, this.getPartialMonthText());
-      result = result.replace(/\{\{depositLabel\}\}/g, this.getDepositLabel());      
-      result = result.replace(/\{\{depositText\}\}/g, this.getDepositRequirementText());
-      result = result.replace(/\{\{depositText2\}\}/g, this.getDepositRequirementText2());
+      result = result.replace(/\{\{tenantName\}\}/g, this.getUnderlinedFillValue(this.selectedReservation.tenantName || ''));
+      result = result.replace(/\{\{tenantNamePlain\}\}/g, this.escapeHtml(this.selectedReservation.tenantName || ''));
+      result = result.replace(/\{\{tenantState\}\}/g, this.escapeHtml(this.getTenantStateFullName() || ''));
+      result = result.replace(/\{\{referenceNo\}\}/g, this.getUnderlinedFillValue(referenceNo || ''));
+      result = result.replace(/\{\{arrivalDate\}\}/g, this.getUnderlinedFillValue(this.formatterService.formatDateStringLong(this.selectedReservation.arrivalDate) || ''));
+      result = result.replace(/\{\{departureDate\}\}/g, this.getUnderlinedFillValue(this.formatterService.formatDateStringLong(this.selectedReservation.departureDate) || ''));
+      result = result.replace(/\{\{numberOfPeople\}\}/g, this.getUnderlinedFillValue((this.selectedReservation.numberOfPeople || 0).toString()));
+      result = result.replace(/\{\{billingType\}\}/g, this.getUnderlinedFillValue(this.getBillingTypeText()));
+      result = result.replace(/\{\{billingTypeDay\}\}/g, this.getUnderlinedFillValue(this.getBillingDayText()));
+      result = result.replace(/\{\{billingTypeLower\}\}/g, this.getUnderlinedFillValue(this.getBillingTypeLowerText()));
+      result = result.replace(/\{\{billingRate\}\}/g, this.getUnderlinedFillValue((this.selectedReservation.billingRate || 0).toFixed(2)));
+      result = result.replace(/\{\{deposit\}\}/g, this.getUnderlinedFillValue((this.selectedReservation.deposit || 0).toFixed(2)));
+      result = result.replace(/\{\{securityText\}\}/g, this.getUnderlinedFillValue(this.getSecurityDepositText()));      
+      result = result.replace(/\{\{securityProrateText\}\}/g, this.getUnderlinedFillValue(this.getSecurityProrateText()));
+      result = result.replace(/\{\{letterOfResponsibilityText\}\}/g, this.getUnderlinedFillValue(this.getLetterOfResponsibilityText()));
+      result = result.replace(/\{\{partialMonthText\}\}/g, this.getUnderlinedFillValue(this.getPartialMonthText()));
+      result = result.replace(/\{\{depositLabel\}\}/g, this.getUnderlinedFillValue(this.getDepositLabel()));      
+      result = result.replace(/\{\{depositText\}\}/g, this.getUnderlinedFillValue(this.getDepositRequirementText()));
+      result = result.replace(/\{\{depositText2\}\}/g, this.getUnderlinedFillValue(this.getDepositRequirementText2()));
       result = result.replace(
         /\{\{reservationDate\}\}/g,
-        this.formatterService.formatDateStringLong(this.utilityService.todayAsCalendarDateString()) || ''
+        this.getUnderlinedFillValue(this.formatterService.formatDateStringLong(this.utilityService.todayAsCalendarDateString()) || '')
       );
-      result = result.replace(/\{\{checkInTime\}\}/g, getCheckInTime(this.selectedReservation.checkInTimeId) || '');
-      result = result.replace(/\{\{checkOutTime\}\}/g, getCheckOutTime(this.selectedReservation.checkOutTimeId) || '');
-      result = result.replace(/\{\{reservationNotice\}\}/g, this.getReservationNoticeText());
-      result = result.replace(/\{\{reservationNoticeDay\}\}/g, this.getReservationDayNotice());
-      result = result.replace(/\{\{departureFee\}\}/g, (this.selectedReservation.departureFee || 0).toFixed(2));
-      result = result.replace(/\{\{tenantPets\}\}/g, this.getPetText());
-      result = result.replace(/\{\{extensionsPossible\}\}/g, this.getExtensionsPossible());
+      result = result.replace(/\{\{checkInTime\}\}/g, this.getUnderlinedFillValue(getCheckInTime(this.selectedReservation.checkInTimeId) || ''));
+      result = result.replace(/\{\{checkOutTime\}\}/g, this.getUnderlinedFillValue(getCheckOutTime(this.selectedReservation.checkOutTimeId) || ''));
+      result = result.replace(/\{\{reservationNotice\}\}/g, this.getUnderlinedFillValue(this.getReservationNoticeText()));
+      result = result.replace(/\{\{reservationNoticeDay\}\}/g, this.getUnderlinedFillValue(this.getReservationDayNotice()));
+      result = result.replace(/\{\{departureFee\}\}/g, this.getUnderlinedFillValue((this.selectedReservation.departureFee || 0).toFixed(2)));
+      result = result.replace(/\{\{tenantPets\}\}/g, this.getUnderlinedFillValue(this.getPetText()));
+      result = result.replace(/\{\{extensionsPossible\}\}/g, this.getUnderlinedFillValue(this.getExtensionsPossible()));
     }
 
     // Replace property placeholders
     if (this.property) {
-      result = result.replace(/\{\{complex\}\}/g, this.getComplex());
-      result = result.replace(/\{\{propertyCode\}\}/g, this.property.propertyCode || '');
-      result = result.replace(/\{\{communityAddress\}\}/g, this.getCommunityAddress() || '');
-      result = result.replace(/\{\{apartmentAddress\}\}/g, this.getApartmentAddress() || '');
-      result = result.replace(/\{\{propertyPhone\}\}/g, this.formatterService.phoneNumber(this.property.phone) || 'N/A');
-      result = result.replace(/\{\{propertyAddress1\}\}/g, this.property.address1 || '');
-      result = result.replace(/\{\{propertyCity\}\}/g, this.property.city || '');
-      result = result.replace(/\{\{propertyState\}\}/g, this.property.state || '');
-      result = result.replace(/\{\{propertyZip\}\}/g, this.property.zip || '');
-      result = result.replace(/\{\{propertyBedrooms\}\}/g, (this.property.bedrooms || 0).toString());
-      result = result.replace(/\{\{propertyBathrooms\}\}/g, (this.property.bathrooms || 0).toString());
-      result = result.replace(/\{\{propertyFixedExp\}\}/g, (this.selectedReservation?.departureFee || 0).toFixed(2));
-      result = result.replace(/\{\{propertyParking\}\}/g, this.property.parkingNotes || '');
+      result = result.replace(/\{\{complex\}\}/g, this.getUnderlinedFillValue(this.getComplex()));
+      result = result.replace(/\{\{propertyCode\}\}/g, this.getUnderlinedFillValue(this.property.propertyCode || ''));
+      result = result.replace(/\{\{communityAddress\}\}/g, this.getUnderlinedFillValue(this.getCommunityAddress() || ''));
+      result = result.replace(/\{\{apartmentAddress\}\}/g, this.getUnderlinedFillValue(this.getApartmentAddress() || ''));
+      result = result.replace(/\{\{noticeToVacatePropertyAddress\}\}/g, this.getNoticeToVacatePropertyAddress());
+      result = result.replace(/\{\{creditAuthorizationPropertyAddress\}\}/g, this.getCreditAuthorizationPropertyAddress());
+      result = result.replace(/\{\{propertyPhone\}\}/g, this.getUnderlinedFillValue(this.formatterService.phoneNumber(this.property.phone) || 'N/A'));
+      result = result.replace(/\{\{propertyAddress1\}\}/g, this.getUnderlinedFillValue(this.property.address1 || ''));
+      result = result.replace(/\{\{propertyCity\}\}/g, this.getUnderlinedFillValue(this.property.city || ''));
+      result = result.replace(/\{\{propertyState\}\}/g, this.getUnderlinedFillValue(this.property.state || ''));
+      result = result.replace(/\{\{propertyZip\}\}/g, this.getUnderlinedFillValue(this.property.zip || ''));
+      result = result.replace(/\{\{propertyBedrooms\}\}/g, this.getUnderlinedFillValue((this.property.bedrooms || 0).toString()));
+      result = result.replace(/\{\{propertyBathrooms\}\}/g, this.getUnderlinedFillValue((this.property.bathrooms || 0).toString()));
+      result = result.replace(/\{\{propertyFixedExp\}\}/g, this.getUnderlinedFillValue((this.selectedReservation?.departureFee || 0).toFixed(2)));
+      result = result.replace(/\{\{propertyParking\}\}/g, this.getUnderlinedFillValue(this.property.parkingNotes || ''));
     }
 
     if (this.selectedOffice) {
-      result = result.replace(/\{\{officeDescription\}\}/g, this.selectedOffice.name || '');
-      result = result.replace(/\{\{officePhone\}\}/g, this.formatterService.phoneNumber(this.selectedOffice.phone) || 'N/A');
-      result = result.replace(/\{\{officeFax\}\}/g, this.formatterService.phoneNumber(this.selectedOffice.fax) || 'N/A');
-      result = result.replace(/\{\{utilityPenaltyFee\}\}/g, this.getDefaultUtilityFeeText());
-      result = result.replace(/\{\{maidServicePenaltyFee\}\}/g, this.getDefaultMaidServiceFeeText());
-      result = result.replace(/\{\{defaultKeyFee\}\}/g, '$' + this.selectedOffice.defaultKeyFee.toFixed(2));
-      result = result.replace(/\{\{undisclosedPetFee\}\}/g, '$' + this.selectedOffice.undisclosedPetFee.toFixed(2));
-      result = result.replace(/\{\{minimumSmokingFee\}\}/g, '$' + this.selectedOffice.minimumSmokingFee.toFixed(2));
-      result = result.replace(/\{\{parkingPenaltyLow\}\}/g, '$' + this.selectedOffice.parkingLowEnd.toFixed(2));
-      result = result.replace(/\{\{parkingPenaltyHigh\}\}/g, '$' + this.selectedOffice.parkingHighEnd.toFixed(2));
-      result = result.replace(/\{\{maintenanceEmail\}\}/g, this.selectedOffice.maintenanceEmail || '');
-      result = result.replace(/\{\{afterHoursPhone\}\}/g, this.formatterService.phoneNumber(this.selectedOffice.afterHoursPhone) || '');
-      result = result.replace(/\{\{afterHoursInstructions\}\}/g, this.selectedOffice.afterHoursInstructions || '');
-      result = result.replace(/\{\{daysToRefundDeposit\}\}/g, this.selectedOffice.daysToRefundDeposit.toString() || '0');
+      result = result.replace(/\{\{officeDescription\}\}/g, this.getUnderlinedFillValue(this.selectedOffice.name || ''));
+      result = result.replace(/\{\{officePhone\}\}/g, this.getUnderlinedFillValue(this.formatterService.phoneNumber(this.selectedOffice.phone) || 'N/A'));
+      result = result.replace(/\{\{officeFax\}\}/g, this.getUnderlinedFillValue(this.formatterService.phoneNumber(this.selectedOffice.fax) || 'N/A'));
+      result = result.replace(/\{\{utilityPenaltyFee\}\}/g, this.getUnderlinedFillValue(this.getDefaultUtilityFeeText()));
+      result = result.replace(/\{\{maidServicePenaltyFee\}\}/g, this.getUnderlinedFillValue(this.getDefaultMaidServiceFeeText()));
+      result = result.replace(/\{\{defaultKeyFee\}\}/g, this.getUnderlinedFillValue('$' + this.selectedOffice.defaultKeyFee.toFixed(2)));
+      result = result.replace(/\{\{undisclosedPetFee\}\}/g, this.getUnderlinedFillValue('$' + this.selectedOffice.undisclosedPetFee.toFixed(2)));
+      result = result.replace(/\{\{minimumSmokingFee\}\}/g, this.getUnderlinedFillValue('$' + this.selectedOffice.minimumSmokingFee.toFixed(2)));
+      result = result.replace(/\{\{parkingPenaltyLow\}\}/g, this.getUnderlinedFillValue('$' + this.selectedOffice.parkingLowEnd.toFixed(2)));
+      result = result.replace(/\{\{parkingPenaltyHigh\}\}/g, this.getUnderlinedFillValue('$' + this.selectedOffice.parkingHighEnd.toFixed(2)));
+      result = result.replace(/\{\{maintenanceEmail\}\}/g, this.getUnderlinedFillValue(this.selectedOffice.maintenanceEmail || ''));
+      const afterHoursPhonePlain = this.escapeHtml(this.formatterService.phoneNumber(this.selectedOffice.afterHoursPhone) || '');
+      result = result.replace(/\{\{afterHoursPhone\}\}/g, afterHoursPhonePlain);
+      const afterHoursInstructionsPlain = this.escapeHtml(this.selectedOffice.afterHoursInstructions || '');
+      result = result.replace(/\{\{afterHoursInstructions\}\}/g, afterHoursInstructionsPlain);
+      result = result.replace(/\{\{daysToRefundDeposit\}\}/g, this.getUnderlinedFillValue(this.selectedOffice.daysToRefundDeposit.toString() || '0'));
    
       // Get office logo - construct dataUrl if needed
       let officeLogoDataUrl = this.selectedOffice?.fileDetails?.dataUrl;
@@ -1497,10 +1646,11 @@ export class LeaseComponent extends BaseDocumentComponent implements OnInit, OnD
 
     // Replace organization placeholders
     if (this.organization) {
-      result = result.replace(/\{\{organization-office\}\}/g, this.getOrganizationName());
-      result = result.replace(/\{\{organization-office-caps\}\}/g, this.getOrganizationNameUpper());
-      result = result.replace(/\{\{organizationPhone\}\}/g, this.formatterService.phoneNumber(this.organization.phone) || '');
-      result = result.replace(/\{\{organizationAddress\}\}/g, this.getOrganizationAddress());
+      result = result.replace(/\{\{organization-office\}\}/g, this.getUnderlinedFillValue(this.getOrganizationName()));
+      result = result.replace(/\{\{organization-office-caps\}\}/g, this.getUnderlinedFillValue(this.getOrganizationNameUpper()));
+      result = result.replace(/\{\{organizationPhone\}\}/g, this.getUnderlinedFillValue(this.formatterService.phoneNumber(this.organization.phone) || ''));
+      result = result.replace(/\{\{organizationAddress\}\}/g, this.getUnderlinedFillValue(this.getOrganizationAddress()));
+      result = result.replace(/\{\{organizationWebsiteDisplay\}\}/g, this.getUnderlinedFillValue(this.getOrganizationWebsite()));
       result = result.replace(/\{\{organizationWebsite\}\}/g, this.getOrganizationWebsite());
       result = result.replace(/\{\{organizationHref\}\}/g, this.getWebsiteWithProtocol());
 
@@ -1557,9 +1707,13 @@ export class LeaseComponent extends BaseDocumentComponent implements OnInit, OnD
         if (this.includeRentalCreditApplication && htmlFiles.rentalCreditApplication) {
           selectedDocuments.push(htmlFiles.rentalCreditApplication);
         }
+        const selectionKey = this.getDocumentSelectionKey();
 
         // If no documents selected, show empty
         if (selectedDocuments.length === 0) {
+          this.lastDocumentSelectionKey = selectionKey;
+          this.baseTemplateHtml = '';
+          this.editableHtml = null;
           this.previewIframeHtml = '';
           this.resolvePreviewLoad();
           return;
@@ -1569,7 +1723,18 @@ export class LeaseComponent extends BaseDocumentComponent implements OnInit, OnD
       // If only one document selected, use it as-is
       if (selectedDocuments.length === 1) {
         const processedHtml = shouldMerge ? this.replacePlaceholders(selectedDocuments[0]) : selectedDocuments[0];
-        this.processAndSetHtml(processedHtml);
+        this.baseTemplateHtml = processedHtml;
+        const canUseDraft = this.lastDocumentSelectionKey === selectionKey;
+        const draftHtml = canUseDraft ? this.dynamicFormDraftService.loadDraft(this.getDraftStorageKey()) : null;
+        this.lastDocumentSelectionKey = selectionKey;
+        const htmlToRender = draftHtml || this.baseTemplateHtml;
+        this.setEditorHtml(htmlToRender);
+        if (!this.isEditMode) {
+          this.processAndSetHtml(htmlToRender);
+        } else {
+          this.resolvePreviewLoad();
+          this.iframeKey++;
+        }
         return;
       }
 
@@ -1635,15 +1800,30 @@ export class LeaseComponent extends BaseDocumentComponent implements OnInit, OnD
         }
       }
 
-        this.processAndSetHtml(combinedHtml);
+        this.baseTemplateHtml = combinedHtml;
+        const canUseDraft = this.lastDocumentSelectionKey === selectionKey;
+        const draftHtml = canUseDraft ? this.dynamicFormDraftService.loadDraft(this.getDraftStorageKey()) : null;
+        this.lastDocumentSelectionKey = selectionKey;
+        const htmlToRender = draftHtml || this.baseTemplateHtml;
+        this.setEditorHtml(htmlToRender);
+        if (!this.isEditMode) {
+          this.processAndSetHtml(htmlToRender);
+        } else {
+          this.resolvePreviewLoad();
+          this.iframeKey++;
+        }
         } catch (error) {
           console.error('[LeasePreview] processing error', error);
+          this.baseTemplateHtml = '';
+          this.editableHtml = null;
           this.previewIframeHtml = '';
           this.resolvePreviewLoad();
         }
       },
       error: (error) => {
         console.error('[LeasePreview] loadHtmlFiles:error', error);
+        this.baseTemplateHtml = '';
+        this.editableHtml = null;
         this.previewIframeHtml = '';
         this.resolvePreviewLoad();
       }
@@ -1661,13 +1841,13 @@ export class LeaseComponent extends BaseDocumentComponent implements OnInit, OnD
       #header {
         background-color: #ffffff !important;
       }
-      #header tr:first-child,
-      #header tr:first-child td {
+      #header .logo-row,
+      #header .logo-row td {
         background-color: #ffffff !important;
-        padding-bottom: 3px !important;
+        padding-bottom: 1px !important;
       }
-      #header tr:last-child,
-      #header tr:last-child td,
+      #header .title-row,
+      #header .title-row td,
       #header h1 {
         background-color: #222222 !important;
         color: #ffffff !important;
@@ -1687,9 +1867,255 @@ export class LeaseComponent extends BaseDocumentComponent implements OnInit, OnD
       }
     `;
     this.previewIframeStyles = `${result.extractedStyles}\n${leaseLogoStyles}`;
-    this.safeHtml = this.sanitizer.bypassSecurityTrustHtml(result.processedHtml);
+    const previewHtmlWithStyles = this.documentHtmlService.getPreviewHtmlWithStyles(this.previewIframeHtml, this.previewIframeStyles);
+    this.safeHtml = this.sanitizer.bypassSecurityTrustHtml(previewHtmlWithStyles);
     this.resolvePreviewLoad();
     this.iframeKey++; // Force iframe refresh
+  }
+
+  setEditorHtml(html: string): void {
+    const result = this.documentHtmlService.processHtml(html || '', true);
+    this.editorStyles = result.extractedStyles || '';
+    const editableHtmlDocument = this.documentHtmlService.buildHtmlDocument(
+      this.documentHtmlService.extractBodyContent(result.processedHtml || ''),
+      '',
+      this.editorStyles || ''
+    );
+    this.editableHtml = this.sanitizer.bypassSecurityTrustHtml(editableHtmlDocument);
+    setTimeout(() => this.ensureEditorControlsInteractive());
+  }
+
+  ensureEditorControlsInteractive(): void {
+    const editDoc = this.editIframe?.nativeElement?.contentDocument || this.editIframe?.nativeElement?.contentWindow?.document;
+    const editHost = editDoc?.body;
+    if (!editDoc || !editHost) {
+      return;
+    }
+    editHost.setAttribute('contenteditable', 'true');
+    const controls = Array.from(editHost.querySelectorAll('input, textarea, select, option, button, label'));
+    controls.forEach(control => {
+      control.setAttribute('contenteditable', 'false');
+    });
+    const formControls = Array.from(editHost.querySelectorAll('input, textarea, select')) as Array<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>;
+    formControls.forEach(control => {
+      if (control.hasAttribute('disabled')) {
+        control.removeAttribute('disabled');
+      }
+      if (control instanceof HTMLInputElement || control instanceof HTMLTextAreaElement) {
+        control.readOnly = false;
+        if (control.hasAttribute('readonly')) {
+          control.removeAttribute('readonly');
+        }
+      }
+      if (control instanceof HTMLInputElement && (control.type === 'checkbox' || control.type === 'radio')) {
+        control.style.appearance = 'none';
+        (control.style as any).webkitAppearance = 'none';
+        control.style.display = 'none';
+        control.style.position = 'absolute';
+        control.style.opacity = '0';
+        control.style.pointerEvents = 'none';
+        control.style.width = '0';
+        control.style.height = '0';
+        control.style.margin = '0';
+        control.style.padding = '0';
+        control.style.border = '0';
+        control.style.background = 'transparent';
+        control.style.verticalAlign = 'middle';
+      }
+    });
+
+    this.ensureChoiceMarkers(editHost);
+  }
+
+  ensureChoiceMarkers(editHost: HTMLElement): void {
+    const choiceInputs = Array.from(editHost.querySelectorAll('input[type="checkbox"], input[type="radio"]')) as HTMLInputElement[];
+    choiceInputs.forEach((input, index) => {
+      const existingInputId = String(input.getAttribute('data-choice-input-id') || '').trim();
+      const inputId = existingInputId || `lease-choice-${index}`;
+      input.setAttribute('data-choice-input-id', inputId);
+      input.setAttribute('contenteditable', 'false');
+      input.setAttribute('hidden', 'hidden');
+      input.setAttribute('aria-hidden', 'true');
+
+      let marker = editHost.querySelector(`span[data-choice-for="${inputId}"]`) as HTMLElement | null;
+      if (!marker) {
+        marker = editHost.ownerDocument.createElement('span');
+        marker.setAttribute('data-choice-marker', 'true');
+        marker.setAttribute('data-choice-for', inputId);
+        marker.setAttribute('contenteditable', 'false');
+        marker.className = 'dynamic-form-choice-marker';
+        input.insertAdjacentElement('afterend', marker);
+      }
+
+      this.syncChoiceMarker(input, marker);
+      if (input.getAttribute('data-choice-wired') === 'true') {
+        return;
+      }
+      input.setAttribute('data-choice-wired', 'true');
+      const toggleChoice = (event: Event) => {
+        event.preventDefault();
+        event.stopPropagation();
+        const inputType = String(input.type || '').toLowerCase();
+        if (inputType === 'checkbox') {
+          input.checked = !input.checked;
+          if (input.checked) {
+            input.setAttribute('checked', 'checked');
+          } else {
+            input.removeAttribute('checked');
+          }
+          this.syncChoiceMarker(input, marker as HTMLElement);
+          return;
+        }
+
+        const groupName = String(input.name || '').trim();
+        if (!groupName) {
+          input.checked = true;
+          input.setAttribute('checked', 'checked');
+          this.syncChoiceMarker(input, marker as HTMLElement);
+          return;
+        }
+        const radios = Array.from(editHost.querySelectorAll('input[type="radio"]')) as HTMLInputElement[];
+        radios.filter(radio => String(radio.name || '') === groupName).forEach(radio => {
+          radio.checked = radio === input;
+          if (radio.checked) {
+            radio.setAttribute('checked', 'checked');
+          } else {
+            radio.removeAttribute('checked');
+          }
+          const radioId = String(radio.getAttribute('data-choice-input-id') || '').trim();
+          if (!radioId) {
+            return;
+          }
+          const radioMarker = editHost.querySelector(`span[data-choice-for="${radioId}"]`) as HTMLElement | null;
+          if (radioMarker) {
+            this.syncChoiceMarker(radio, radioMarker);
+          }
+        });
+      };
+      input.addEventListener('click', toggleChoice);
+      input.addEventListener('change', () => this.syncChoiceMarker(input, marker as HTMLElement));
+      marker.setAttribute('data-choice-wired', 'true');
+      marker.addEventListener('click', toggleChoice);
+    });
+  }
+
+  syncChoiceMarker(input: HTMLInputElement, marker: HTMLElement): void {
+    const inputType = String(input.type || '').toLowerCase();
+    if (inputType === 'radio') {
+      marker.textContent = input.checked ? '◉' : '○';
+    } else {
+      marker.textContent = input.checked ? '☒' : '☐';
+    }
+    marker.style.cursor = 'pointer';
+    marker.style.userSelect = 'none';
+    marker.style.display = 'inline-block';
+    marker.style.width = '18px';
+    marker.style.height = '18px';
+    marker.style.position = 'relative';
+    marker.style.left = '0';
+    marker.style.margin = '0 6px 0 0';
+    marker.style.top = '0';
+    marker.style.pointerEvents = 'auto';
+    marker.style.fontSize = '16px';
+    marker.style.textAlign = 'center';
+    marker.style.color = '#000';
+    marker.style.fontWeight = '700';
+    marker.style.lineHeight = '18px';
+    marker.style.verticalAlign = 'middle';
+  }
+
+  captureLiveHtmlSnapshot(): string {
+    const editDoc = this.editIframe?.nativeElement?.contentDocument || this.editIframe?.nativeElement?.contentWindow?.document;
+    const editHost = editDoc?.body;
+    if (!editDoc || !editHost) {
+      return '';
+    }
+    const controls = Array.from(editHost.querySelectorAll('input, textarea, select')) as Array<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>;
+    controls.forEach((control, index) => {
+      control.setAttribute('data-lease-control-id', String(index));
+    });
+
+    const clonedRoot = editHost.cloneNode(true) as HTMLElement;
+    controls.forEach(sourceControl => {
+      const controlId = sourceControl.getAttribute('data-lease-control-id');
+      if (!controlId) {
+        return;
+      }
+      const clonedControl = clonedRoot.querySelector(`[data-lease-control-id="${controlId}"]`) as HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement | null;
+      if (!clonedControl) {
+        return;
+      }
+      const sourceTag = sourceControl.tagName.toLowerCase();
+      const clonedTag = clonedControl.tagName.toLowerCase();
+
+      if (sourceTag === 'input' && clonedTag === 'input') {
+        const sourceInput = sourceControl as HTMLInputElement;
+        const cloneInput = clonedControl as HTMLInputElement;
+        const inputType = String(sourceInput.type || '').toLowerCase();
+        if (inputType === 'checkbox' || inputType === 'radio') {
+          cloneInput.checked = sourceInput.checked;
+          cloneInput.defaultChecked = sourceInput.checked;
+          if (sourceInput.checked) {
+            cloneInput.setAttribute('checked', 'checked');
+          } else {
+            cloneInput.removeAttribute('checked');
+          }
+        } else {
+          cloneInput.value = sourceInput.value || '';
+          cloneInput.defaultValue = sourceInput.value || '';
+          cloneInput.setAttribute('value', sourceInput.value || '');
+        }
+      } else if (sourceTag === 'textarea' && clonedTag === 'textarea') {
+        const sourceTextarea = sourceControl as HTMLTextAreaElement;
+        const clonedTextarea = clonedControl as HTMLTextAreaElement;
+        clonedTextarea.value = sourceTextarea.value || '';
+        clonedTextarea.defaultValue = sourceTextarea.value || '';
+        clonedTextarea.textContent = sourceTextarea.value || '';
+      } else if (sourceTag === 'select' && clonedTag === 'select') {
+        const sourceSelect = sourceControl as HTMLSelectElement;
+        const clonedSelect = clonedControl as HTMLSelectElement;
+        clonedSelect.selectedIndex = sourceSelect.selectedIndex;
+        Array.from(sourceSelect.options).forEach((sourceOption, optionIndex) => {
+          const clonedOption = clonedSelect.options[optionIndex];
+          if (!clonedOption) {
+            return;
+          }
+          clonedOption.selected = sourceOption.selected;
+          clonedOption.defaultSelected = sourceOption.selected;
+          if (sourceOption.selected) {
+            clonedOption.setAttribute('selected', 'selected');
+          } else {
+            clonedOption.removeAttribute('selected');
+          }
+        });
+      }
+    });
+
+    controls.forEach(control => control.removeAttribute('data-lease-control-id'));
+    Array.from(clonedRoot.querySelectorAll('[data-lease-control-id]')).forEach(control => control.removeAttribute('data-lease-control-id'));
+    Array.from(clonedRoot.querySelectorAll('[data-choice-marker="true"]')).forEach(marker => marker.remove());
+    const clonedChoiceInputs = Array.from(clonedRoot.querySelectorAll('input[data-choice-input-id]')) as HTMLInputElement[];
+    clonedChoiceInputs.forEach(input => {
+      input.removeAttribute('data-choice-input-id');
+      input.removeAttribute('data-choice-wired');
+      input.removeAttribute('hidden');
+      input.removeAttribute('aria-hidden');
+      input.style.removeProperty('display');
+      input.style.removeProperty('position');
+      input.style.removeProperty('opacity');
+      input.style.removeProperty('pointer-events');
+      input.style.removeProperty('width');
+      input.style.removeProperty('height');
+      input.style.removeProperty('margin');
+      input.style.removeProperty('padding');
+      input.style.removeProperty('border');
+      input.style.removeProperty('background');
+      input.style.removeProperty('vertical-align');
+      input.style.removeProperty('appearance');
+      (input.style as any).webkitAppearance = '';
+    });
+    const bodyContent = clonedRoot.innerHTML;
+    return this.documentHtmlService.buildHtmlDocument(bodyContent, '', this.editorStyles || '');
   }
 
    resolvePreviewLoad(): void {
@@ -1825,6 +2251,28 @@ export class LeaseComponent extends BaseDocumentComponent implements OnInit, OnD
   //#region Utility Methods
   get isOfficeSelectionLocked(): boolean {
     return this.lockOfficeSelection;
+  }
+
+  getDocumentSelectionKey(): string {
+    return [
+      this.includeLease ? 'lease' : '',
+      this.includeLetterOfResponsibility ? 'lor' : '',
+      this.includeNoticeToVacate ? 'ntv' : '',
+      this.includeCreditCardAuthorization ? 'cca' : '',
+      this.includeBusinessCreditApplication ? 'bca' : '',
+      this.includeRentalCreditApplication ? 'rca' : ''
+    ].filter(part => part.length > 0).join('|');
+  }
+
+  getDraftStorageKey(): string {
+    const organizationId = String(this.authService.getUser()?.organizationId || '').trim();
+    return this.dynamicFormDraftService.buildDraftKey(
+      organizationId,
+      null,
+      this.selectedOffice?.officeId ?? this.officeId ?? null,
+      this.propertyId || null,
+      `reservation-lease-${this.reservationId || 'new'}`
+    );
   }
 
   getLeaseInformationScope(): { officeId: number | null; propertyId: string | null } {

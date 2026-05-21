@@ -88,7 +88,18 @@
     #header {
       max-width: 100% !important;
       width: 100% !important;
-      background-color: #222;
+      background-color: #fff;
+    }
+
+    #header .logo-row,
+    #header .logo-row td {
+      background-color: #fff !important;
+      padding-bottom: 1px !important;
+    }
+
+    #header .title-row,
+    #header .title-row td {
+      background-color: #222 !important;
     }
 
     #header img {
@@ -115,7 +126,7 @@
       color: #fff;
       margin: 0;
       padding: 10px 5px 20px 5px;
-      background-color: #222;
+      background-color: transparent;
       letter-spacing: -0.5px;
     }
 
@@ -185,6 +196,24 @@
       padding-top: 10px;
     }
 
+    .signature-entry {
+      width: 100%;
+      border: 0;
+      border-bottom: 1px solid #ccc;
+      background: transparent;
+      font: inherit;
+      color: inherit;
+      height: 18px;
+      line-height: 18px;
+      padding: 0 2px;
+      margin: 0;
+      text-align: center;
+    }
+
+    .signature-entry:focus {
+      outline: none;
+    }
+
     .smgraytext {
       font-size: 9pt;
       color: #777;
@@ -222,12 +251,12 @@
   <!-- ===================== CORPORATE LETTER OF RESPONSIBILITY ===================== -->
   <table id="header" cellspacing="0" cellpadding="0" width="100%" align="center">
     <tbody>
-      <tr>
+      <tr class="logo-row">
         <td colspan="1">
           <img src="{{officeLogoBase64}}" alt="Company Logo" class="logo" align="left">
         </td>
       </tr>
-      <tr valign="top">
+      <tr class="title-row" valign="top">
         <td>
           <h1>{{letterOfResponsibilityText}}</h1>
         </td>
@@ -321,11 +350,11 @@
                   <table width="100%" cellpadding="0" cellspacing="0" align="center">
                     <tr valign="top">
                       <td width="60%" align="center">
-                        <hr noshade class="grayline">
+                        <input type="text" class="signature-entry">
                         <i class="smgraytext">Title</i>
                       </td>
                       <td style="padding-left: 10px" align="center">
-                        <hr noshade class="grayline">
+                        <input type="text" class="signature-entry">
                         <i class="smgraytext">Date</i>
                       </td>
                     </tr>
@@ -341,11 +370,11 @@
                   <table width="100%" cellpadding="0" cellspacing="0" align="center">
                     <tr valign="top">
                       <td width="60%" align="center">
-                        <hr noshade class="grayline">
+                        <input type="text" class="signature-entry">
                         <i class="smgraytext">Title</i>
                       </td>
                       <td style="padding-left: 10px" align="center">
-                        <hr noshade class="grayline">
+                        <input type="text" class="signature-entry">
                         <i class="smgraytext">Date</i>
                       </td>
                     </tr>

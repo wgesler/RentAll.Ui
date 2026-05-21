@@ -88,7 +88,18 @@
     #header {
       max-width: 100% !important;
       width: 100% !important;
-      background-color: #222;
+      background-color: #fff;
+    }
+
+    #header .logo-row,
+    #header .logo-row td {
+      background-color: #fff !important;
+      padding-bottom: 1px !important;
+    }
+
+    #header .title-row,
+    #header .title-row td {
+      background-color: #222 !important;
     }
 
     #header img {
@@ -115,7 +126,7 @@
       color: #fff;
       margin: 0;
       padding: 10px 5px 20px 5px;
-      background-color: #222;
+      background-color: transparent;
       letter-spacing: -0.5px;
     }
 
@@ -246,6 +257,87 @@
       color: #777;
     }
 
+    .form-inline-input {
+      border: 0;
+      border-bottom: 1px solid #ccc;
+      background: transparent;
+      font: inherit;
+      color: inherit;
+      height: 18px;
+      line-height: 18px;
+      padding: 0 2px;
+      vertical-align: baseline;
+    }
+
+    .form-inline-input:focus {
+      outline: none;
+    }
+
+    .form-inline-input--name {
+      width: 210px;
+    }
+
+    .form-inline-input--company {
+      width: 200px;
+    }
+
+    .form-line-row {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      column-gap: 24px;
+      row-gap: 10px;
+      margin-top: 12px;
+    }
+
+    .form-line-cell .field-label {
+      display: inline-block;
+      font-size: 9pt;
+      color: #777;
+      margin: 0;
+    }
+
+    .form-line-cell .form-inline-input {
+      width: auto;
+      flex: 1 1 auto;
+      min-width: 0;
+      height: 20px;
+      line-height: 20px;
+      padding: 0 2px 1px 2px;
+      vertical-align: middle;
+    }
+
+    .form-inline-row {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      width: 100%;
+      min-height: 22px;
+    }
+
+    .form-inline-row .field-label {
+      flex: 0 0 auto;
+      white-space: nowrap;
+    }
+
+    .signature-input {
+      width: 100%;
+      border: 0;
+      border-bottom: 1px solid #ccc;
+      background: transparent;
+      height: 20px;
+      font: inherit;
+      color: inherit;
+      padding: 0 2px;
+    }
+
+    .signature-input:focus {
+      outline: none;
+    }
+
+    .signature-input--center {
+      text-align: center;
+    }
+
     #footer {
       max-width: 100% !important;
       width: 100% !important;
@@ -278,12 +370,12 @@
   <!-- ===================== CREDIT CARD AUTHORIZATION ===================== -->
   <table id="header" cellspacing="0" cellpadding="0" width="100%" align="center">
     <tbody>
-      <tr>
+      <tr class="logo-row">
         <td colspan="1">
           <img src="{{officeLogoBase64}}" alt="Company Logo" class="logo" align="left">
         </td>
       </tr>
-      <tr valign="top">
+      <tr class="title-row" valign="top">
         <td>
           <h1>Credit Card Authorization</h1>
         </td>
@@ -297,7 +389,7 @@
         <td width="50%" style="width: 50% !important;">
           <div class="border">
             <p>
-              <span style="font-weight: bold">Name: </span>{{contactName}}<br>
+              <span style="font-weight: bold">Name: </span>{{tenantNamePlain}}<br>
               <span style="font-weight: bold">Date: </span>{{reservationDate}}
             </p>
           </div>
@@ -306,7 +398,7 @@
           <div class="border">
             <p>
               <span style="font-weight: bold">Reservation #: </span>{{reservationCode}}<br>
-              <span style="font-weight: bold">Rental Property Address: </span>{{apartmentAddress}}
+              <span style="font-weight: bold">Property Address: </span>{{creditAuthorizationPropertyAddress}}
             </p>
           </div>
         </td>
@@ -316,49 +408,46 @@
         <td colspan="2">
           <div class="border">
           <p>Thank you for reserving your furnished residence with {{organization-office}} ("{{organization-office}}"). All reservations require either a Company or Personal credit card, and will be confirmed upon receipt of this Authorization form.</p>
-          <p>
-            <table cellspacing="0" cellpadding="0" width="100%">
-              <tbody>
-                <tr valign="top">
-                  <td>I,</td>
-                  <td align="center">
-                      <div class="grayline2withtext">(Name exactly as it appears on Card)</div>
-                  </td>
-                  <td>of</td>
-                  <td align="center">
-                      <div class="grayline2withtext">(Company if corporate credit card)</div>
-                  </td>
-                  <td>hereby grant</td>
-                </tr>
-              </tbody>
-            </table>
+          <div style="margin-top: 8px;">
+            I,
+            <input type="text" class="form-inline-input form-inline-input--name" value="{{tenantNamePlain}}">
+            of
+            <input type="text" class="form-inline-input form-inline-input--company" value="{{tenantState}}">
+            hereby grant
+          </div>
             {{organization-office}} authorization to charge my: <input type="checkbox"> Visa or <input type="checkbox"> MasterCard for charges incurred under the terms of this Agreement between the undersigned and {{organization-office}}.
-          </p>
-            <table cellspacing="0" cellpadding="0" width="100%">
-              <tbody>
-                <tr style="margin-top: 25px;">
-                  <td width="50%" class="grayline3table">
-                    <span class="smgraytext">Credit Card Number:</span>
-                  </td>
-                  <td width="50%" class="grayline3table" style="padding-left: 100px !important; padding-right: 20px !important;">
-                    <span class="smgraytext">Expiration Date:</span>
-                  </td>
-                </tr>
-                <tr style="margin-top: 25px;">
-                  <td width="50%" class="grayline3table">
-                    <span class="smgraytext">Security Code:</span>
-                  </td>
-                  <td width="50%" class="grayline3table" style="padding-left: 100px !important; padding-right: 20px !important;">
-                    <span class="smgraytext">Zip Code:</span>
-                  </td>
-                </tr>
-                <tr style="margin-top: 25px;">
-                  <td colspan="2" class="grayline3table">
-                    <span class="smgraytext">Billing Address:</span>
-                  </td>
-                </tr>
-              </tbody>
-            </table>          
+            <div class="form-line-row">
+              <div class="form-line-cell">
+                <div class="form-inline-row">
+                  <span class="field-label">Credit Card Number:</span>
+                  <input type="text" class="form-inline-input">
+                </div>
+              </div>
+              <div class="form-line-cell">
+                <div class="form-inline-row">
+                  <span class="field-label">Expiration Date:</span>
+                  <input type="text" class="form-inline-input">
+                </div>
+              </div>
+              <div class="form-line-cell">
+                <div class="form-inline-row">
+                  <span class="field-label">Security Code:</span>
+                  <input type="text" class="form-inline-input">
+                </div>
+              </div>
+              <div class="form-line-cell">
+                <div class="form-inline-row">
+                  <span class="field-label">Zip Code:</span>
+                  <input type="text" class="form-inline-input">
+                </div>
+              </div>
+              <div class="form-line-cell" style="grid-column: 1 / span 2;">
+                <div class="form-inline-row">
+                  <span class="field-label">Billing Address:</span>
+                  <input type="text" class="form-inline-input">
+                </div>
+              </div>
+            </div>
           </div>
 
           <div class="border">
@@ -384,7 +473,8 @@
                 <tr style="margin-top: 0; padding-top: 0;">
                   <td colspan="2" style="margin-top: 0; padding-top: 0;">
                     <p style="margin-top: 0; padding-top: 0;">
-                    <input type="checkbox"> Other: <span class="grayline">___________________________________________________________________</span>
+                    <input type="checkbox"> Other:
+                    <input type="text" class="form-inline-input" style="width: 75%;">
                   </p>
                 </td>
               </tr>
@@ -399,12 +489,12 @@
             <tbody>
               <tr valign="top">
                 <td style="padding-right: 10px" width="60%" align="center">
-                  <hr class="grayline" noshade>
-                    <i class="smgraytext">Cardholder's Signature</i>
+                  <input type="text" class="signature-input">
+                  <i class="smgraytext">Cardholder's Signature</i>
                 </td>
                 <td style="padding-left: 10px" width="40%" align="center">
-                  <hr class="grayline" noshade>
-                    <i class="smgraytext">Date</i>
+                  <input type="text" class="signature-input signature-input--center" value="{{reservationDate}}">
+                  <i class="smgraytext">Date</i>
                 </td>
               </tr>
             </tbody>

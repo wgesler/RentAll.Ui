@@ -88,7 +88,18 @@
     #header {
       max-width: 100% !important;
       width: 100% !important;
-      background-color: #222;
+      background-color: #fff;
+    }
+
+    #header .logo-row,
+    #header .logo-row td {
+      background-color: #fff !important;
+      padding-bottom: 1px !important;
+    }
+
+    #header .title-row,
+    #header .title-row td {
+      background-color: #222 !important;
     }
 
     #header img {
@@ -115,7 +126,7 @@
       color: #fff;
       margin: 0;
       padding: 10px 5px 20px 5px;
-      background-color: #222;
+      background-color: transparent;
       letter-spacing: -0.5px;
     }
 
@@ -190,6 +201,40 @@
       color: #777;
     }
 
+    .inline-underline-fill {
+      display: inline-block;
+      border-bottom: 1px solid #000;
+      line-height: 1.1;
+      vertical-align: baseline;
+      padding: 0 2px 1px 2px;
+      text-decoration: none !important;
+    }
+
+    .inline-underline-fill:empty {
+      min-width: 10ch;
+    }
+
+    /* Do not underline token values inside bordered summary boxes
+       (top border sections and Property Information section). */
+    .border .inline-underline-fill {
+      border-bottom: none !important;
+      padding: 0 !important;
+    }
+
+    .border .inline-underline-fill:empty {
+      min-width: 0 !important;
+    }
+
+    .property-label {
+      font-weight: bold !important;
+    }
+
+    .property-value {
+      font-weight: normal !important;
+      display: inline-block;
+      min-width: 1ch;
+    }
+
     #footer {
       max-width: 100% !important;
       width: 100% !important;
@@ -222,12 +267,12 @@
   <!-- ===================== HEADER ===================== -->
   <table id="header" cellspacing="0" cellpadding="0" width="100%" align="center">
     <tbody>
-      <tr>
+      <tr class="logo-row">
         <td colspan="1">
           <img src="{{officeLogoBase64}}" alt="Company Logo" class="logo" align="left">
         </td>
       </tr>
-      <tr valign="top">
+      <tr class="title-row" valign="top">
         <td>
           <h1>Month to Month Rental Agreement</h1>
         </td>
@@ -273,13 +318,13 @@
         <td colspan="2" style="padding: 5px;">
           <h2 style="margin-top: 10px; margin-bottom: 10px; color: #000 !important;">Property Information</h2>
           <div class="border">
-            <span style="font-weight: bold">Property Address:</span> {{apartmentAddress}}
+            <span class="property-label" contenteditable="false">Property Address:</span> <span class="property-value">{{apartmentAddress}}</span>
           </div>
           <div class="border">
-            <span style="font-weight: bold">Parking:</span> {{propertyParking}}
+            <span class="property-label" contenteditable="false">Parking:</span> <span class="property-value">{{propertyParking}}</span>
           </div>
           <div class="border">
-            <span style="font-weight: bold">Unit Size:</span> {{propertyBedrooms}} Bedroom(s)/{{propertyBathrooms}} Bathroom(s)
+            <span class="property-label" contenteditable="false">Unit Size:</span> <span class="property-value">{{propertyBedrooms}} Bedroom(s)/{{propertyBathrooms}} Bathroom(s)</span>
           </div>
         </td>
       </tr>
@@ -379,7 +424,7 @@
                 <span style="font-weight: bold">{{organization-office}}</span><br>
                 {{accountingOfficeAddress}}<br>
                 <span>P:</span> {{officePhone}} &nbsp;&nbsp;&nbsp; <span>F:</span> {{officeFax}} &nbsp;&nbsp;&nbsp;
-                <a style="color: rgb(255,255,255)" href="http://{{organizationWebsite}}">{{organizationWebsite}}</a>
+                <a style="color: rgb(255,255,255)" href="{{organizationHref}}">{{organizationWebsiteDisplay}}</a>
               </td>
             </tr>
           </tbody>
