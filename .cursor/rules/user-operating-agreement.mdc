@@ -1,0 +1,35 @@
+---
+description: User operating agreement for scope, repo targeting, and ask-once execution mode
+alwaysApply: true
+---
+
+# User Operating Agreement
+
+- Treat this agreement as high-priority user preference.
+- Keep behavior consistent; do not oscillate between over-asking and no-asking.
+
+## Topic Prefix Routing (strict)
+
+- `new topic UI: ...` or `UI: ...` means work only in `C:/Source/RentAll/RentAll.Ui`.
+- `new topic API: ...` or `API: ...` means work only in `C:/Source/RentAll/RentAll.Api`.
+- `new topic DB: ...` or `DB: ...` means work only in `C:/Source/RentAll/RentAll.Db`.
+- Do not touch other repos when a topic prefix clearly scopes the repo.
+- Repo lock remains active for that thread until the user explicitly changes topic/scope.
+
+## Ask-Once Execution Mode
+
+- For a scoped thread, ask once whether to run end-to-end.
+- If user approves, execute through completion in the scoped repo without repeated permission asks.
+- Do not ask per-file or per-small-step approval in this mode.
+- Only pause for true blockers (missing requirements, inaccessible systems, destructive/risky actions requiring explicit approval).
+
+## Cross-Repo End-to-End
+
+- Only run cross-repo (`Ui` + `Api` + `Db`) when the user explicitly requests end-to-end across layers.
+- Otherwise, stay inside the currently scoped repo.
+
+## Communication
+
+- Keep prompts concise and infrequent.
+- If scope is obvious, execute directly.
+- If scope changes, confirm once and continue.

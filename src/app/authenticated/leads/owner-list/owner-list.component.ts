@@ -127,10 +127,16 @@ export class OwnerListComponent implements OnInit, OnChanges, OnDestroy {
     if (!event?.ownerId) {
       return;
     }
+    const source = event as unknown as Record<string, unknown>;
+    const rawOfficeId = source['officeId'] ?? source['defaultOfficeId'];
+    const parsedOfficeId = Number(rawOfficeId);
+    const ownerOfficeId = Number.isFinite(parsedOfficeId) && parsedOfficeId > 0
+      ? parsedOfficeId
+      : null;
     if (this.embeddedInShell()) {
       this.requestEditOwner.emit({
         ownerId: event.ownerId,
-        officeId: event.officeId ?? null
+        officeId: ownerOfficeId
       });
       return;
     }

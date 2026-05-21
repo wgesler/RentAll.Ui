@@ -281,6 +281,17 @@
       margin-bottom: 2px;
     }
 
+    .inline-underline-fill {
+      display: inline-block;
+      border-bottom: 1px solid #000;
+      line-height: 1.1;
+      vertical-align: baseline;
+    }
+
+    .inline-underline-fill:empty {
+      min-width: 22ch;
+    }
+
     /* Keep first two info panels equal height like lease */
     table#container tbody tr:first-child td {
       height: 1px;
@@ -375,7 +386,7 @@
               <div class="top-info-line"><span style="font-weight: bold">Organization:</span> {{organization-office}}</div>
               <div class="top-info-line"><span style="font-weight: bold">Agreement Date:</span> {{agreementStartDate}}</div>
               <div class="top-info-line"><span style="font-weight: bold">Prepared By:</span> {{agentSignerName}}</div>
-              <div class="top-info-line"><span style="font-weight: bold">Office:</span> {{accountingOfficeAddress}}</div>
+              <div class="top-info-line"><span style="font-weight: bold">Office:</span> {{accountingOfficeAddressTop}}</div>
             </div>
           </div>
         </td>

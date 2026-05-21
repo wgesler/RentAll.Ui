@@ -252,6 +252,7 @@ export class OwnerAgreementFormComponent extends BaseDocumentComponent implement
 
     this.leadsService.getOwnerLeadById(parsedLeadOwnerId).pipe(take(1), takeUntil(this.destroy$), finalize(() => {
       this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'leadOwner');
+      this.generatePreviewIfReady();
     })).subscribe({
       next: response => {
         this.leadOwner = response;
@@ -343,6 +344,9 @@ export class OwnerAgreementFormComponent extends BaseDocumentComponent implement
     this.propertyService.getPropertyByGuid(this.propertyId).pipe(take(1), takeUntil(this.destroy$)).subscribe({
       next: property => {
         this.selectedProperty = property;
+        // Property agreement depends on selectedProperty; reload once property resolves.
+        this.utilityService.addLoadItem(this.itemsToLoad$, 'propertyAgreement');
+        this.loadPropertyAgreement();
         this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'property');
         this.generatePreviewIfReady();
       },
@@ -360,7 +364,10 @@ export class OwnerAgreementFormComponent extends BaseDocumentComponent implement
       return;
     }
 
-    this.propertyAgreementService.getPropertyAgreement(this.selectedProperty.propertyId).pipe(takeUntil(this.destroy$), take(1), finalize(() => { this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'propertyAgreement'); })).subscribe({
+    this.propertyAgreementService.getPropertyAgreement(this.selectedProperty.propertyId).pipe(takeUntil(this.destroy$), take(1), finalize(() => {
+      this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'propertyAgreement');
+      this.generatePreviewIfReady();
+    })).subscribe({
       next: agreement => {
         this.propertyAgreement = agreement;
       },
@@ -432,26 +439,45 @@ export class OwnerAgreementFormComponent extends BaseDocumentComponent implement
     const today = this.formatterService.formatDateStringLong(this.utilityService.todayAsCalendarDateString()) || '';
     const signerName = `${this.authService.getUser()?.firstName || ''} ${this.authService.getUser()?.lastName || ''}`.trim();
     const officeLogo = this.selectedOffice?.fileDetails?.dataUrl || this.organization?.fileDetails?.dataUrl || '';
+    const companyName = this.getCompanyName();
+    const ownerState = this.getOwnerState();
+    const monthlyRent = this.getMonthlyRent();
+    const ownerAddressSingleLine = this.composeAddress(this.ownerContact);
+    const propertyAddressSingleLine = this.composeAddress(this.selectedProperty);
+    const companyAddressSingleLine = this.getCompanyAddress();
+    const accountingOfficeAddressSingleLine = this.getAccountingOfficeAddress();
+    const ownerAddressLines = this.getOwnerAddressLines();
+    const propertyAddressLines = this.getPropertyAddressLines();
+    const accountingOfficeAddressLines = this.getAccountingOfficeAddressLines();
 
     let content = replaceOwnerAgreementInformationSections(html, this.agreementInformation)
       .replace(/\{\{ownerAgreementTitle\}\}/g, this.documentDisplayName)
-      .replace(/\{\{companyName\}\}/g, this.getCompanyName())
-      .replace(/\{\{companyNameInCaps\}\}/g, this.getCompanyName().toUpperCase())
+      .replace(/\{\{companyName\}\}/g, companyName)
+      .replace(/\{\{companyNameInCaps\}\}/g, companyName.toUpperCase())
       .replace(/\{\{companyCityInCaps\}\}/g,  this.getCompanyCity().toUpperCase())
       .replace(/\{\{officeName\}\}/g, this.getOfficeName())
       .replace(/\{\{companyState\}\}/g, this.getCompanyState())
       .replace(/\{\{companyCity\}\}/g, this.getCompanyCity())
       .replace(/\{\{companyAddress\}\}/g, this.getCompanyAddress())
+      .replace(/\{\{companyAddressSingleLine\}\}/g, companyAddressSingleLine)
       .replace(/\{\{companyAddress1\}\}/g, this.getCompanyAddress1())
       .replace(/\{\{companyAddress2\}\}/g, this.getCompanyAddress2())
       .replace(/\{\{organization-office\}\}/g, this.getOrganizationOfficeDisplay())
       .replace(/\{\{propertyCode\}\}/g, this.selectedProperty?.propertyCode || '')
       .replace(/\{\{organizationState\}\}/g, this.organization?.state || '')
       .replace(/\{\{accountingOfficeAddress\}\}/g, this.getAccountingOfficeAddress())
+      .replace(/\{\{accountingOfficeAddressSingleLine\}\}/g, accountingOfficeAddressSingleLine)
+      .replace(/\{\{accountingOfficeAddressTop\}\}/g, this.getTopAddressDisplay('Office:', accountingOfficeAddressLines.address1, accountingOfficeAddressLines.address2))
       .replace(/\{\{ownerFullName\}\}/g, this.ownerContact?.fullName || `${this.ownerContact?.firstName || ''} ${this.ownerContact?.lastName || ''}`.trim())
-      .replace(/\{\{ownerAddress\}\}/g, this.composeAddress(this.ownerContact))
-      .replace(/\{\{propertyAddress\}\}/g, this.composeAddress(this.selectedProperty))
+      .replace(/\{\{ownerFullNameUnderlined\}\}/g, this.getUnderlinedFillValue(this.ownerContact?.fullName || `${this.ownerContact?.firstName || ''} ${this.ownerContact?.lastName || ''}`.trim()))
+      .replace(/\{\{ownerState\}\}/g, ownerState)
+      .replace(/\{\{ownerAddressSingleLine\}\}/g, ownerAddressSingleLine)
+      .replace(/\{\{ownerAddressSingleLineUnderlined\}\}/g, this.getUnderlinedFillValue(ownerAddressSingleLine))
+      .replace(/\{\{ownerAddress\}\}/g, this.getTopAddressDisplay('Owner Address:', ownerAddressLines.address1, ownerAddressLines.address2))
+      .replace(/\{\{propertyAddressSingleLine\}\}/g, propertyAddressSingleLine)
+      .replace(/\{\{propertyAddress\}\}/g, this.getTopAddressDisplay('Property Address:', propertyAddressLines.address1, propertyAddressLines.address2))
       .replace(/\{\{agreementStartDate\}\}/g, today)
+      .replace(/\{\{agreementStartDateUnderlined\}\}/g, this.getUnderlinedFillValue(today))
       .replace(/\{\{ownerSignatureDate\}\}/g, today)
       .replace(/\{\{agentSignatureDate\}\}/g, today)
       .replace(/\{\{agentSignerName\}\}/g, signerName)
@@ -465,7 +491,14 @@ export class OwnerAgreementFormComponent extends BaseDocumentComponent implement
       .replace(/\{\{onlineClean\}\}/g, this.getOnlineCleanFee() || '')
       .replace(/\{\{onlineFee\}\}/g, this.getOnlineFee() || '')
       .replace(/\{\{offlineFee\}\}/g, this.getOfflineFee() || '')
+      .replace(/\{\{monthlyRent\}\}/g, this.getUnderlinedFillValue(monthlyRent))
       .replace(/\{\{officeLogoBase64\}\}/g, officeLogo);
+
+    if (companyName) {
+      content = content.replace(/\bAvenue\s*West\b/gi, matched =>
+        matched === matched.toUpperCase() ? companyName.toUpperCase() : companyName
+      );
+    }
 
     return content.replace(/\{\{[^}]+\}\}/g, '');
   }
@@ -774,6 +807,17 @@ export class OwnerAgreementFormComponent extends BaseDocumentComponent implement
     return String(stateMatch?.name || stateCode).trim();
   }
 
+  getOwnerState(): string {
+    const ownerStateCode = String(this.ownerContact?.state || '').trim();
+    if (!ownerStateCode) {
+      return '';
+    }
+    const stateMatch = (this.commonService.getStatesFullValue() || []).find(state =>
+      String(state.code || '').trim().toLowerCase() === ownerStateCode.toLowerCase()
+    );
+    return String(stateMatch?.name || ownerStateCode).trim();
+  }
+
   getCompanyCity(): string {
     return String(this.getEffectiveOffice()?.city || this.commonService.getOrganizationValue()?.city || '').trim();
   }
@@ -791,7 +835,7 @@ export class OwnerAgreementFormComponent extends BaseDocumentComponent implement
     if (!suiteRaw) {
       return address1;
     }
-    const suite = suiteRaw.startsWith('#') ? suiteRaw : `#${suiteRaw}`;
+    const suite = this.normalizeSuiteForDisplay(suiteRaw);
     return `${address1}, ${suite}`;
   }
 
@@ -830,6 +874,94 @@ export class OwnerAgreementFormComponent extends BaseDocumentComponent implement
     return parts.join(', ');
   }
 
+  getAccountingOfficeAddressLines(): { address1: string; address2: string } {
+    const accountingOffice = this.accountingOffices.find(accounting => accounting.officeId === this.selectedProperty?.officeId);
+    const officeAddressSource = accountingOffice || this.getEffectiveOffice();
+    if (!officeAddressSource) {
+      return { address1: '', address2: '' };
+    }
+    const address1 = String(officeAddressSource.address1 || '').trim();
+    const suiteRaw = String((officeAddressSource as any).suite || '').trim();
+    const suite = this.normalizeSuiteForDisplay(suiteRaw);
+    const line1 = [address1, suite].filter(part => part.length > 0).join(', ');
+    const city = String(officeAddressSource.city || '').trim();
+    const state = String(officeAddressSource.state || '').trim();
+    const zip = String(officeAddressSource.zip || '').trim();
+    const cityState = [city, state].filter(part => part.length > 0).join(', ');
+    const line2 = [cityState, zip].filter(part => part.length > 0).join(' ');
+    return { address1: line1, address2: line2 };
+  }
+
+  getOwnerAddressLines(): { address1: string; address2: string } {
+    if (!this.ownerContact) {
+      return { address1: '', address2: '' };
+    }
+    return this.buildAddressLines(
+      this.ownerContact.address1,
+      this.ownerContact.address2,
+      this.ownerContact.city,
+      this.ownerContact.state,
+      this.ownerContact.zip
+    );
+  }
+
+  getPropertyAddressLines(): { address1: string; address2: string } {
+    if (!this.selectedProperty) {
+      return { address1: '', address2: '' };
+    }
+    return this.buildAddressLines(
+      this.selectedProperty.address1,
+      this.selectedProperty.address2,
+      this.selectedProperty.city,
+      this.selectedProperty.state,
+      this.selectedProperty.zip
+    );
+  }
+
+  buildAddressLines(address1: string | null | undefined, address2: string | null | undefined, city: string | null | undefined, state: string | null | undefined, zip: string | null | undefined): { address1: string; address2: string } {
+    const line1 = [String(address1 || '').trim(), String(address2 || '').trim()].filter(part => part.length > 0).join(', ');
+    const cityState = [String(city || '').trim(), String(state || '').trim()].filter(part => part.length > 0).join(', ');
+    const line2 = [cityState, String(zip || '').trim()].filter(part => part.length > 0).join(' ');
+    return { address1: line1, address2: line2 };
+  }
+
+  getTopAddressDisplay(label: string, address1: string | null | undefined, address2: string | null | undefined): string {
+    const line1 = String(address1 || '').trim();
+    const line2 = String(address2 || '').trim();
+    if (!line1 && !line2) {
+      return '';
+    }
+    if (!line2) {
+      return line1;
+    }
+    if (this.utilityService.isAddressSingleLine(label, line1, line2)) {
+      return `${line1}, ${line2}`;
+    }
+    return `${line1}<br>&nbsp;&nbsp;&nbsp;&nbsp;${line2}`;
+  }
+
+  getUnderlinedFillValue(value: string | null | undefined): string {
+    const trimmed = String(value || '').trim();
+    if (!trimmed) {
+      return '';
+    }
+    return `&nbsp;&nbsp;${trimmed}&nbsp;&nbsp;`;
+  }
+
+  normalizeSuiteForDisplay(suiteRaw: string | null | undefined): string {
+    const value = String(suiteRaw || '').trim();
+    if (!value) {
+      return '';
+    }
+    if (/^(suite|ste|unit|apt|apartment)\b/i.test(value)) {
+      return value;
+    }
+    if (value.startsWith('#')) {
+      return value;
+    }
+    return `#${value}`;
+  }
+
   getOrganizationOfficeDisplay(): string {
     const organizationName = String(this.commonService.getOrganizationValue()?.name || '').trim();
     const officeName = String(this.getEffectiveOffice()?.name || '').trim();
@@ -845,7 +977,7 @@ export class OwnerAgreementFormComponent extends BaseDocumentComponent implement
   }
 
   getCompanySplit(): string {
-    return this.formatAgreementPercentForDisplay(this.propertyAgreement?.revenueSplitOwner);
+    return this.formatAgreementPercentForDisplay(this.propertyAgreement?.revenueSplitOffice);
   }
 
   getCompanyMarkup(): string {
@@ -877,34 +1009,75 @@ export class OwnerAgreementFormComponent extends BaseDocumentComponent implement
   getOnlineCleanFee(): string { 
     return this.formatAgreementCurrency(this.leadOwner?.onlineClean);
   }
+
+  getMonthlyRent(): string {
+    const leadOwnerTargetMonthly = Number(this.leadOwner?.adjustedGrossRentTarget);
+    if (Number.isFinite(leadOwnerTargetMonthly) && leadOwnerTargetMonthly > 0) {
+      return this.formatAgreementCurrencyRaw(leadOwnerTargetMonthly);
+    }
+    const propertyBillingRate = Number((this.selectedProperty as any)?.billingRate);
+    if (Number.isFinite(propertyBillingRate) && propertyBillingRate > 0) {
+      return this.formatAgreementCurrencyRaw(propertyBillingRate);
+    }
+    return '';
+  }
   //#region
 
   //#region Utility Methods
   formatAgreementPercentForDisplay(value: number | string | null | undefined): string {
     if (value == null || value === '') {
-      return '0%';
+      return this.getEmptyUnderlineSpan();
     }
     const n = Number(String(value).replace(/%\s*$/, ''));
-    return isNaN(n) ? '0%' : `${n}%`;
+    if (!Number.isFinite(n) || n === 0) {
+      return this.getEmptyUnderlineSpan();
+    }
+    return this.getPopulatedUnderlineSpan(`${n}%`);
   }
 
   formatAgreementDecimalForDisplay(value: number | string | null | undefined): string {
     if (value == null || value === '') {
-      return '$0.00';
+      return this.getEmptyUnderlineSpan();
     }
     const n = Number(String(value).replace(/[$,]/g, ''));
-    return isNaN(n) ? '$0.00' : this.formatAgreementCurrency(n);
+    if (!Number.isFinite(n) || n === 0) {
+      return this.getEmptyUnderlineSpan();
+    }
+    return this.getPopulatedUnderlineSpan(this.formatAgreementCurrencyRaw(n));
   }
 
   formatAgreementCurrency(value: number | string | null | undefined): string {
     if (value == null || value === '') {
-      return '$0.00';
+      return this.getEmptyUnderlineSpan();
+    }
+    const parsed = Number(String(value).replace(/[$,]/g, ''));
+    if (!Number.isFinite(parsed) || parsed === 0) {
+      return this.getEmptyUnderlineSpan();
+    }
+    return this.getPopulatedUnderlineSpan(this.formatAgreementCurrencyRaw(parsed));
+  }
+
+  formatAgreementCurrencyRaw(value: number | string | null | undefined): string {
+    if (value == null || value === '') {
+      return '';
     }
     const parsed = Number(String(value).replace(/[$,]/g, ''));
     if (!Number.isFinite(parsed)) {
-      return '$0.00';
+      return '';
     }
     return '$' + parsed.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  }
+
+  getEmptyUnderlineSpan(): string {
+    return '<span class="inline-underline-fill"></span>';
+  }
+
+  getPopulatedUnderlineSpan(value: string): string {
+    const trimmed = String(value || '').trim();
+    if (!trimmed) {
+      return this.getEmptyUnderlineSpan();
+    }
+    return `<span class="inline-underline-fill">&nbsp;&nbsp;${trimmed}&nbsp;&nbsp;</span>`;
   }
 
   ngOnDestroy(): void {

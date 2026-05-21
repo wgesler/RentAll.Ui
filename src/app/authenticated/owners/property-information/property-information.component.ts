@@ -47,6 +47,7 @@ export class PropertyInformationComponent implements OnChanges, OnDestroy {
   @Input() ownerLeadId: number | null = null;
   @Input() selectedOfficeId: number | null = null;
   @Input() shellPropertyId = 'new';
+  @Input() shellPropertyCode: string | null = null;
 
   ownerForm: FormGroup = this.buildForm();
   isPageReady = false;

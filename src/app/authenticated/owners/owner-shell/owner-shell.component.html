@@ -24,16 +24,28 @@
               (valueChange)="onOfficeDropdownChange($event)">
             </app-title-bar-select>
             @if (!isOwnerListMode && selectedTabIndex >= 1) {
-              <app-title-bar-select
-                [label]="'Property Code'"
-                [formFieldClass]="'titlebar-field-property-code'"
-                [value]="selectedPropertyId"
-                [options]="propertyCodeOptions"
-                [showInstructionOption]="false"
-                [nullOptionLabel]="'Select Property'"
-                [noResultsText]="'No properties match your search'"
-                (valueChange)="onPropertyCodeDropdownChange($event)">
-              </app-title-bar-select>
+              @if (selectedPropertyId === newPropertyOptionValue) {
+                <mat-form-field appearance="outline" class="titlebar-field-property-code">
+                  <mat-label>Property Code</mat-label>
+                  <input
+                    matInput
+                    [value]="newPropertyCode"
+                    (input)="onNewPropertyCodeChange($any($event.target).value)"
+                    placeholder="Enter Code"
+                    maxlength="20" />
+                </mat-form-field>
+              } @else {
+                <app-title-bar-select
+                  [label]="'Property Code'"
+                  [formFieldClass]="'titlebar-field-property-code'"
+                  [value]="selectedPropertyId"
+                  [options]="propertyCodeOptions"
+                  [showInstructionOption]="false"
+                  [nullOptionLabel]="'Select Property'"
+                  [noResultsText]="'No properties match your search'"
+                  (valueChange)="onPropertyCodeDropdownChange($event)">
+                </app-title-bar-select>
+              }
             }
           </div>
         </div>
@@ -66,16 +78,19 @@
                 [token]="token"
                 [ownerLeadId]="leadOwnerId"
                 [selectedOfficeId]="selectedOfficeId"
-                [shellPropertyId]="selectedPropertyId">
+                [shellPropertyId]="selectedPropertyId"
+                [shellPropertyCode]="selectedPropertyId === newPropertyOptionValue ? newPropertyCode : null">
               </app-property-information>
             </mat-tab>
 
-            <mat-tab label="Information">
-              <app-owner-agreement-information
-                [officeId]="selectedOfficeId"
-                [propertyId]="selectedPropertyId === newPropertyOptionValue ? null : selectedPropertyId">
-              </app-owner-agreement-information>
-            </mat-tab>
+            @if (canAccessInformationTab) {
+              <mat-tab label="Information">
+                <app-owner-agreement-information
+                  [officeId]="selectedOfficeId"
+                  [propertyId]="selectedPropertyId === newPropertyOptionValue ? null : selectedPropertyId">
+                </app-owner-agreement-information>
+              </mat-tab>
+            }
             <mat-tab label="Agreement">
               <app-owner-agreement-form
                 [ownerLeadId]="leadOwnerId"

@@ -206,8 +206,15 @@ export class LeadsService {
   }
 
   sanitizeOwnerLeadResponse(row: LeadOwnerResponse): LeadOwnerResponse {
+    const source = row as unknown as Record<string, unknown>;
+    const rawOfficeId = source['officeId'] ?? source['defaultOfficeId'];
+    const parsedOfficeId = Number(rawOfficeId);
+    const normalizedOfficeId = Number.isFinite(parsedOfficeId) && parsedOfficeId > 0
+      ? parsedOfficeId
+      : row.officeId;
     return {
       ...row,
+      officeId: normalizedOfficeId,
       phone: this.sanitizePhoneToDigits(row?.phone)
     };
   }

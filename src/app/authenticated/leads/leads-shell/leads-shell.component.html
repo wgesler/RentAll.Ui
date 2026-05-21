@@ -63,6 +63,7 @@
     </div>
     <mat-card>
       <mat-tab-group
+        [selectedIndex]="selectedTabIndex"
         [animationDuration]="'0ms'"
         class="property-tabs leads-shell-five-slot-tabs dbg-band-tabs"
         (selectedIndexChange)="onTabIndexChange($event)">

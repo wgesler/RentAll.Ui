@@ -37,7 +37,7 @@ export class ContactListComponent implements OnInit, OnDestroy, OnChanges {
   @Input() tabIndex?: number;
   @Output() officeIdChange = new EventEmitter<number | null>();
   @Output() showInactiveChange = new EventEmitter<boolean>();
-  @Output() openContact = new EventEmitter<{ contactId: string; copyFrom?: string; entityTypeId?: number; tabIndex?: number; ownerLeadId?: number | null }>();
+  @Output() openContact = new EventEmitter<{ contactId: string; copyFrom?: string; entityTypeId?: number; tabIndex?: number; ownerLeadId?: number | null; officeId?: number | null }>();
 
   panelOpenState: boolean = true;
   isServiceError: boolean = false;
@@ -160,6 +160,11 @@ export class ContactListComponent implements OnInit, OnDestroy, OnChanges {
     if (!contactId) {
       return;
     }
+    const eventOfficeId = Number(event?.officeId);
+    const rowOfficeId = Number(this.allContacts.find(contact => contact.contactId === event?.contactId)?.officeId);
+    const resolvedOfficeId = Number.isFinite(eventOfficeId) && eventOfficeId > 0
+      ? eventOfficeId
+      : rowOfficeId;
     const eventOwnerLeadId = Number(event?.ownerLeadId);
     const rowOwnerLeadId = Number(this.allContacts.find(contact => contact.contactId === event?.contactId)?.ownerLeadId);
     const resolvedOwnerLeadId = Number.isFinite(eventOwnerLeadId) && eventOwnerLeadId > 0
@@ -171,7 +176,8 @@ export class ContactListComponent implements OnInit, OnDestroy, OnChanges {
           contactId,
           entityTypeId: this.entityTypeId ?? undefined,
           tabIndex: this.tabIndex,
-          ownerLeadId: resolvedOwnerLeadId
+          ownerLeadId: resolvedOwnerLeadId,
+          officeId: Number.isFinite(resolvedOfficeId) && resolvedOfficeId > 0 ? resolvedOfficeId : null
         });
         return;
       }
@@ -182,7 +188,8 @@ export class ContactListComponent implements OnInit, OnDestroy, OnChanges {
             contactId,
             entityTypeId: this.entityTypeId ?? undefined,
             tabIndex: this.tabIndex,
-            ownerLeadId: Number.isFinite(ownerLeadId) && ownerLeadId > 0 ? ownerLeadId : null
+            ownerLeadId: Number.isFinite(ownerLeadId) && ownerLeadId > 0 ? ownerLeadId : null,
+            officeId: Number.isFinite(Number(contact.officeId)) && Number(contact.officeId) > 0 ? Number(contact.officeId) : null
           });
         },
         error: () => {
@@ -190,7 +197,8 @@ export class ContactListComponent implements OnInit, OnDestroy, OnChanges {
             contactId,
             entityTypeId: this.entityTypeId ?? undefined,
             tabIndex: this.tabIndex,
-            ownerLeadId: null
+            ownerLeadId: null,
+            officeId: Number.isFinite(resolvedOfficeId) && resolvedOfficeId > 0 ? resolvedOfficeId : null
           });
         }
       });
@@ -200,7 +208,8 @@ export class ContactListComponent implements OnInit, OnDestroy, OnChanges {
       contactId,
       entityTypeId: this.entityTypeId ?? undefined,
       tabIndex: this.tabIndex,
-      ownerLeadId: resolvedOwnerLeadId ?? null
+      ownerLeadId: resolvedOwnerLeadId ?? null,
+      officeId: Number.isFinite(resolvedOfficeId) && resolvedOfficeId > 0 ? resolvedOfficeId : null
     });
   }
 

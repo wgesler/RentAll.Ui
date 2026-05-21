@@ -86,6 +86,13 @@ export class LeadsShellComponent implements OnInit, OnDestroy {
       .subscribe(officeId => {
         this.syncOfficeFromGlobal(officeId);
       });
+    this.route.queryParamMap.pipe(takeUntil(this.destroy$)).subscribe(queryParamMap => {
+      const params: Record<string, unknown> = {};
+      queryParamMap.keys.forEach(key => {
+        params[key] = queryParamMap.get(key) ?? '';
+      });
+      this.applyRouteQueryState(params);
+    });
   }
 
   get officeOptions(): { value: number; label: string }[] {
@@ -300,6 +307,31 @@ export class LeadsShellComponent implements OnInit, OnDestroy {
   //#endregion
 
   //#region Office Methods
+  applyRouteQueryState(params: Record<string, unknown>): void {
+    const nextQueryStateKey = this.buildQueryStateKey(params);
+    if (this.lastKnownQueryStateKey === nextQueryStateKey) {
+      return;
+    }
+    this.lastKnownQueryStateKey = nextQueryStateKey;
+    this.isApplyingQueryParamState = true;
+    this.applyQueryParamState(params);
+    this.applyLeadSelectionFromQueryParams(params);
+    this.isApplyingQueryParamState = false;
+  }
+
+  applyLeadSelectionFromQueryParams(params: Record<string, unknown>): void {
+    const tab = String(params['tab'] || '').trim().toLowerCase();
+    if (tab !== 'owner') {
+      return;
+    }
+    const ownerId = getNumberQueryParam(params, 'leadOwnerId', 1);
+    if (!ownerId) {
+      return;
+    }
+    const officeId = getNumberQueryParam(params, 'officeId', 1);
+    this.onEditOwnerLead({ ownerId, officeId });
+  }
+
   applyQueryParamState(params: Record<string, unknown>): void {
     const tab = String(params['tab'] || '').trim().toLowerCase();
     const nextIndex = tab === 'reports' ? 3 : tab === 'general' ? 2 : tab === 'owner' ? 1 : 0;
@@ -316,10 +348,15 @@ export class LeadsShellComponent implements OnInit, OnDestroy {
     }
 
     const officeId = getNumberQueryParam(params, 'officeId');
-    if (officeId !== null && this.offices.length > 0) {
-      const matchedOffice = this.offices.find(o => o.officeId === officeId) || null;
-      this.selectedOffice = matchedOffice;
-      this.selectedOfficeId = matchedOffice?.officeId ?? null;
+    if (officeId !== null) {
+      if (this.offices.length > 0) {
+        const matchedOffice = this.offices.find(o => o.officeId === officeId) || null;
+        this.selectedOffice = matchedOffice;
+        this.selectedOfficeId = matchedOffice?.officeId ?? null;
+      } else {
+        this.selectedOffice = null;
+        this.selectedOfficeId = officeId;
+      }
       this.clearOfficeTitleBarErrorIfValid();
       return;
     }
@@ -371,9 +408,10 @@ export class LeadsShellComponent implements OnInit, OnDestroy {
   buildQueryStateKey(params: Record<string, unknown>): string {
     const tab = params['tab'] == null || String(params['tab']).trim() === '' ? null : String(params['tab']).trim().toLowerCase();
     const officeId = params['officeId'] == null || String(params['officeId']).trim() === '' ? null : String(params['officeId']).trim();
+    const leadOwnerId = params['leadOwnerId'] == null || String(params['leadOwnerId']).trim() === '' ? null : String(params['leadOwnerId']).trim();
     const startDate = params['startDate'] == null || String(params['startDate']).trim() === '' ? null : String(params['startDate']).trim();
     const endDate = params['endDate'] == null || String(params['endDate']).trim() === '' ? null : String(params['endDate']).trim();
-    return `${tab ?? ''}|${officeId ?? ''}|${startDate ?? ''}|${endDate ?? ''}`;
+    return `${tab ?? ''}|${officeId ?? ''}|${leadOwnerId ?? ''}|${startDate ?? ''}|${endDate ?? ''}`;
   }
 
   loadOffices(): void {

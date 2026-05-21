@@ -84,6 +84,7 @@ export class PropertyComponent implements OnInit, OnChanges, AfterViewInit, OnDe
   isInOwnerMode: boolean = false;
   @Input() disableOwnerModeLayout = false;
   @Input() shellPropertyId: string | null = null;
+  @Input() shellPropertyCode: string | null = null;
   
   propertyId: string;
   property: PropertyResponse;
@@ -209,6 +210,7 @@ export class PropertyComponent implements OnInit, OnChanges, AfterViewInit, OnDe
     const inputId = String(this.shellPropertyId ?? '').trim();
     if (inputId) {
       this.applyPropertyIdContext(inputId);
+      this.applyShellPropertyCodeContext();
     } else {
       this.route.paramMap.pipe(takeUntil(this.destroy$), map(pm => pm.get('id')), filter((id): id is string => id != null && id !== ''), distinctUntilChanged()).subscribe(id => {
         this.applyPropertyIdContext(id);
@@ -239,14 +241,15 @@ export class PropertyComponent implements OnInit, OnChanges, AfterViewInit, OnDe
   }
 
   ngOnChanges(changes: SimpleChanges): void {
-    if (!changes['shellPropertyId'] || changes['shellPropertyId'].firstChange) {
-      return;
+    if (changes['shellPropertyId'] && !changes['shellPropertyId'].firstChange) {
+      const nextId = String(this.shellPropertyId ?? '').trim();
+      if (nextId) {
+        this.applyPropertyIdContext(nextId);
+      }
     }
-    const nextId = String(this.shellPropertyId ?? '').trim();
-    if (!nextId) {
-      return;
+    if (changes['shellPropertyCode'] && !changes['shellPropertyCode'].firstChange) {
+      this.applyShellPropertyCodeContext();
     }
-    this.applyPropertyIdContext(nextId);
   }
 
   onDescriptionInput(event: Event): void {
@@ -1407,6 +1410,17 @@ export class PropertyComponent implements OnInit, OnChanges, AfterViewInit, OnDe
     this.form.get('propertyCode')?.markAsDirty();
     this.form.get('propertyCode')?.markAsTouched();
     this.emitTitleBarContextToShell();
+  }
+
+  applyShellPropertyCodeContext(): void {
+    if (!this.isAddMode || !this.form) {
+      return;
+    }
+    const rawCode = String(this.shellPropertyCode ?? '').trim();
+    if (!rawCode) {
+      return;
+    }
+    this.applyTitleBarPropertyCode(rawCode.toUpperCase());
   }
   //#endregion
 

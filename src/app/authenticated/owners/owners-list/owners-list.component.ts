@@ -55,6 +55,7 @@ export class OwnersListComponent {
 
   onEditOwnerLead(ownerSelection: number | OwnerEditSelection): void {
     const ownerLeadId = typeof ownerSelection === 'number' ? ownerSelection : ownerSelection?.ownerId;
+    const officeId = typeof ownerSelection === 'number' ? null : ownerSelection?.officeId ?? null;
     if (!ownerLeadId) {
       return;
     }
@@ -63,15 +64,21 @@ export class OwnersListComponent {
     this.ownerContactCopyFrom = null;
     this.showOwnerLeadForm = false;
     this.ownerLeadFormId = null;
-    void this.router.navigateByUrl(`${RouterUrl.OwnerShell}?leadOwnerId=${ownerLeadId}`);
+    const officeQuery = Number(officeId);
+    if (Number.isFinite(officeQuery) && officeQuery > 0) {
+      void this.router.navigateByUrl(`${RouterUrl.Leads}?tab=owner&leadOwnerId=${ownerLeadId}&officeId=${officeQuery}`);
+      return;
+    }
+    void this.router.navigateByUrl(`${RouterUrl.Leads}?tab=owner&leadOwnerId=${ownerLeadId}`);
   }
 
   onOwnerContactsShowInactiveChange(showInactive: boolean): void {
     this.showInactiveOwnerContacts = showInactive;
   }
 
-  onOpenOwnerContact(event: { contactId: string; copyFrom?: string; entityTypeId?: number; ownerLeadId?: number | null }): void {
+  onOpenOwnerContact(event: { contactId: string; copyFrom?: string; entityTypeId?: number; ownerLeadId?: number | null; officeId?: number | null }): void {
     const ownerLeadId = Number(event?.ownerLeadId);
+    const officeId = Number(event?.officeId);
     const contactId = String(event?.contactId || '').trim();
     this.showOwnerLeadForm = false;
     this.ownerLeadFormId = null;
@@ -80,6 +87,10 @@ export class OwnersListComponent {
     this.ownerContactCopyFrom = null;
 
     if (Number.isFinite(ownerLeadId) && ownerLeadId > 0) {
+      if (Number.isFinite(officeId) && officeId > 0) {
+        void this.router.navigateByUrl(`${RouterUrl.OwnerShell}?leadOwnerId=${ownerLeadId}&officeId=${officeId}`);
+        return;
+      }
       void this.router.navigateByUrl(`${RouterUrl.OwnerShell}?leadOwnerId=${ownerLeadId}`);
       return;
     }
@@ -96,7 +107,13 @@ export class OwnersListComponent {
         switchMap(createdLead => this.contactService.updateContact(this.buildContactUpdateRequestWithOwnerLeadId(contact, createdLead.ownerId)).pipe(
           take(1),
           switchMap(() => this.contactService.refreshContacts().pipe(take(1))),
-          switchMap(() => this.router.navigateByUrl(`${RouterUrl.OwnerShell}?leadOwnerId=${createdLead.ownerId}`))
+          switchMap(() => {
+            const contactOfficeId = Number(contact.officeId);
+            if (Number.isFinite(contactOfficeId) && contactOfficeId > 0) {
+              return this.router.navigateByUrl(`${RouterUrl.OwnerShell}?leadOwnerId=${createdLead.ownerId}&officeId=${contactOfficeId}`);
+            }
+            return this.router.navigateByUrl(`${RouterUrl.OwnerShell}?leadOwnerId=${createdLead.ownerId}`);
+          })
         ))
       ))
     ).subscribe({

@@ -26,6 +26,7 @@ import { OwnerAgreementInformationComponent } from '../owner-agreement-informati
 import { OwnerAgreementFormComponent } from '../owner-agreement-form/owner-agreement-form.component';
 import { DynamicFormEditorComponent } from '../dynamic-form-editor/dynamic-form-editor.component';
 import { DynamicFormCreateComponent } from '../dynamic-form-create/dynamic-form-create.component';
+import { LeadsService } from '../../leads/services/leads.service';
 
 @Component({
   standalone: true,
@@ -54,6 +55,8 @@ export class OwnerShellComponent implements OnInit, OnDestroy {
   selectedTabIndex = 0;
   selectedOfficeId: number | null = null;
   selectedPropertyId = this.newPropertyOptionValue;
+  newPropertyCode = '';
+  ownerLeadPropertyCode = '';
   propertyCodeOptions: SearchableSelectOption[] = [{ value: this.newPropertyOptionValue, label: 'New Property' }];
   token = '';
   leadOwnerId: number | null = null;
@@ -62,6 +65,7 @@ export class OwnerShellComponent implements OnInit, OnDestroy {
   dynamicFormViewState: Record<string, { isView: boolean; editedHtml: string | null }> = {};
   ownerEntityTypeId = EntityType.Owner;
   offices: OfficeResponse[] = [];
+  canAccessInformationTab = false;
 
   itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['offices', 'stateForms']));
   destroy$ = new Subject<void>();
@@ -77,13 +81,15 @@ export class OwnerShellComponent implements OnInit, OnDestroy {
     private utilityService: UtilityService,
     private contactService: ContactService,
     private propertyService: PropertyService,
-    private stateFormService: StateFormService
+    private stateFormService: StateFormService,
+    private leadsService: LeadsService
   ) {}
 
   //#region Owner-Shell
   ngOnInit(): void {
     this.navigationContextService.setIsInOwnerMode(true);
     this.navigationContextService.setIsInUnauthorizedViewMode(false);
+    this.canAccessInformationTab = this.authService.isAdmin();
     this.selectedTabIndex = 0;
     this.loadOffices();
 
@@ -94,11 +100,12 @@ export class OwnerShellComponent implements OnInit, OnDestroy {
     combineLatest([this.route.paramMap, this.route.queryParamMap]).pipe(takeUntil(this.destroy$)).subscribe(([paramMap, queryParamMap]) => {
       const token = String(paramMap.get('token') || '').trim();
       const leadOwnerId = Number(String(queryParamMap.get('leadOwnerId') || '').trim());
-      this.syncOwnerShellFromRoute(token, leadOwnerId);
+      const officeId = Number(String(queryParamMap.get('officeId') || '').trim());
+      this.syncOwnerShellFromRoute(token, leadOwnerId, officeId);
     });
   }
 
-  syncOwnerShellFromRoute(token: string, leadOwnerId: number): void {
+  syncOwnerShellFromRoute(token: string, leadOwnerId: number, officeId: number): void {
     this.token = token;
     const isUnauthorizedViewMode = this.isPublicOwnerTokenContext(token);
     this.navigationContextService.setIsInUnauthorizedViewMode(isUnauthorizedViewMode);
@@ -109,6 +116,8 @@ export class OwnerShellComponent implements OnInit, OnDestroy {
     this.dynamicFormViewState = {};
     this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'stateForms');
     this.selectedPropertyId = this.newPropertyOptionValue;
+    this.newPropertyCode = '';
+    this.ownerLeadPropertyCode = '';
     this.propertyCodeOptions = [{ value: this.newPropertyOptionValue, label: 'New Property' }];
 
     if (token) {
@@ -119,6 +128,9 @@ export class OwnerShellComponent implements OnInit, OnDestroy {
     if (Number.isFinite(leadOwnerId) && leadOwnerId > 0) {
       this.isOwnerListMode = false;
       this.leadOwnerId = leadOwnerId;
+      if (Number.isFinite(officeId) && officeId > 0) {
+        this.selectedOfficeId = officeId;
+      }
       if (this.tabUsesPropertySelection(this.selectedTabIndex)) {
         this.loadPropertyCodeOptions();
       }
@@ -153,6 +165,17 @@ export class OwnerShellComponent implements OnInit, OnDestroy {
   onPropertyCodeDropdownChange(value: string | number | null): void {
     const selected = String(value ?? '').trim();
     this.selectedPropertyId = selected || this.newPropertyOptionValue;
+    if (this.selectedPropertyId !== this.newPropertyOptionValue) {
+      this.newPropertyCode = '';
+      return;
+    }
+    if (!this.newPropertyCode.trim() && this.ownerLeadPropertyCode.trim()) {
+      this.newPropertyCode = this.ownerLeadPropertyCode;
+    }
+  }
+
+  onNewPropertyCodeChange(value: string): void {
+    this.newPropertyCode = String(value ?? '').toUpperCase();
   }
 
   onTabIndexChange(nextIndex: number): void {
@@ -178,6 +201,9 @@ export class OwnerShellComponent implements OnInit, OnDestroy {
     })).subscribe({
       next: allOffices => {
         this.offices = allOffices || [];
+        if (this.selectedOfficeId != null && this.offices.some(office => office.officeId === this.selectedOfficeId)) {
+          return;
+        }
         const defaultOfficeId = this.authService.getUser()?.defaultOfficeId ?? null;
         if (defaultOfficeId != null && this.offices.some(office => office.officeId === defaultOfficeId)) {
           this.selectedOfficeId = defaultOfficeId;
@@ -194,52 +220,21 @@ export class OwnerShellComponent implements OnInit, OnDestroy {
 
   loadPropertyCodeOptions(): void {
     this.selectedPropertyId = this.newPropertyOptionValue;
+    this.newPropertyCode = '';
+    this.ownerLeadPropertyCode = '';
     this.propertyCodeOptions = [{ value: this.newPropertyOptionValue, label: 'New Property' }];
     const ownerLeadId = Number(this.leadOwnerId);
     if (!Number.isFinite(ownerLeadId) || ownerLeadId <= 0) {
       return;
     }
-
-    this.contactService.getContacts().pipe(take(1), takeUntil(this.destroy$)).subscribe({
-      next: contacts => {
-        const ownerContact = (contacts || []).find(contact =>
-          Number(contact.entityTypeId) === Number(EntityType.Owner) &&
-          Number(contact.ownerLeadId) === ownerLeadId
-        );
-        const ownerContactId = String(ownerContact?.contactId || '').trim();
-        if (!ownerContactId) {
-          return;
-        }
-
-        this.propertyService.getPropertiesByOwner(ownerContactId).pipe(take(1), takeUntil(this.destroy$)).subscribe({
-          next: properties => {
-            const scopedOfficeId = Number(this.selectedOfficeId);
-            const filtered = (properties || []).filter(property =>
-              property.isActive &&
-              String(property.propertyId || '').trim() !== '' &&
-              (!Number.isFinite(scopedOfficeId) || scopedOfficeId <= 0 || Number(property.officeId) === scopedOfficeId)
-            );
-            const rows = filtered.sort((a, b) => String(a.propertyCode || '').localeCompare(String(b.propertyCode || ''))).map(property => ({
-              value: String(property.propertyId),
-              label: String(property.propertyCode || '').trim() || 'Unnamed Property'
-            }));
-            if (rows.length === 0) {
-              this.propertyCodeOptions = [{ value: this.newPropertyOptionValue, label: 'New Property' }];
-              this.selectedPropertyId = this.newPropertyOptionValue;
-              return;
-            }
-            this.propertyCodeOptions = [{ value: this.newPropertyOptionValue, label: 'New Property' }, ...rows];
-            this.selectedPropertyId = this.propertyCodeOptions[0]?.value as string;
-          },
-          error: () => {
-            this.propertyCodeOptions = [{ value: this.newPropertyOptionValue, label: 'New Property' }];
-            this.selectedPropertyId = this.newPropertyOptionValue;
-          }
-        });
+    this.leadsService.getOwnerLeadById(ownerLeadId).pipe(take(1), takeUntil(this.destroy$)).subscribe({
+      next: ownerLead => {
+        this.ownerLeadPropertyCode = String(ownerLead.propertyCode || '').trim().toUpperCase();
+        this.loadOwnerPropertyOptions(ownerLeadId);
       },
       error: () => {
-        this.propertyCodeOptions = [{ value: this.newPropertyOptionValue, label: 'New Property' }];
-        this.selectedPropertyId = this.newPropertyOptionValue;
+        this.ownerLeadPropertyCode = '';
+        this.loadOwnerPropertyOptions(ownerLeadId);
       }
     });
   }
@@ -289,6 +284,62 @@ export class OwnerShellComponent implements OnInit, OnDestroy {
     });
   }
   //#endregion
+
+  loadOwnerPropertyOptions(ownerLeadId: number): void {
+    this.contactService.getContacts().pipe(take(1), takeUntil(this.destroy$)).subscribe({
+      next: contacts => {
+        const ownerContact = (contacts || []).find(contact =>
+          Number(contact.entityTypeId) === Number(EntityType.Owner) &&
+          Number(contact.ownerLeadId) === ownerLeadId
+        );
+        const ownerContactId = String(ownerContact?.contactId || '').trim();
+        if (!ownerContactId) {
+          this.selectedPropertyId = this.newPropertyOptionValue;
+          this.newPropertyCode = this.ownerLeadPropertyCode;
+          return;
+        }
+
+        this.propertyService.getPropertiesByOwner(ownerContactId).pipe(take(1), takeUntil(this.destroy$)).subscribe({
+          next: properties => {
+            const scopedOfficeId = Number(this.selectedOfficeId);
+            const filtered = (properties || []).filter(property =>
+              property.isActive &&
+              String(property.propertyId || '').trim() !== '' &&
+              (!Number.isFinite(scopedOfficeId) || scopedOfficeId <= 0 || Number(property.officeId) === scopedOfficeId)
+            );
+            const rows = filtered.sort((a, b) => String(a.propertyCode || '').localeCompare(String(b.propertyCode || ''))).map(property => ({
+              value: String(property.propertyId),
+              label: String(property.propertyCode || '').trim() || 'Unnamed Property'
+            }));
+
+            this.propertyCodeOptions = [{ value: this.newPropertyOptionValue, label: 'New Property' }, ...rows];
+            if (this.ownerLeadPropertyCode) {
+              this.selectedPropertyId = this.newPropertyOptionValue;
+              this.newPropertyCode = this.ownerLeadPropertyCode;
+              return;
+            }
+            if (rows.length > 0) {
+              this.selectedPropertyId = String(rows[0].value);
+              this.newPropertyCode = '';
+              return;
+            }
+            this.selectedPropertyId = this.newPropertyOptionValue;
+            this.newPropertyCode = '';
+          },
+          error: () => {
+            this.propertyCodeOptions = [{ value: this.newPropertyOptionValue, label: 'New Property' }];
+            this.selectedPropertyId = this.newPropertyOptionValue;
+            this.newPropertyCode = this.ownerLeadPropertyCode;
+          }
+        });
+      },
+      error: () => {
+        this.propertyCodeOptions = [{ value: this.newPropertyOptionValue, label: 'New Property' }];
+        this.selectedPropertyId = this.newPropertyOptionValue;
+        this.newPropertyCode = this.ownerLeadPropertyCode;
+      }
+    });
+  }
 
   //#region Utility Methods
   tabUsesPropertySelection(tabIndex: number): boolean {
