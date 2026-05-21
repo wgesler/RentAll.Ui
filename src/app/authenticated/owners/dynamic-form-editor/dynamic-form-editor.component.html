@@ -27,7 +27,12 @@
     <div class="property-tab-main-area">
       @if (editableHtml) {
         <div class="preview-section">
-          <div class="dynamic-form-edit-surface" #editSurface [innerHTML]="editableHtml"></div>
+          <div
+            class="dynamic-form-edit-surface"
+            #editSurface
+            spellcheck="false"
+            (click)="onEditSurfaceClick($event)"
+            [innerHTML]="editableHtml"></div>
         </div>
       } @else {
         <div class="owner-shell-placeholder">

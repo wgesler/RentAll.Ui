@@ -15,10 +15,10 @@ import { TitleBarSelectComponent } from '../../shared/titlebar-select/titlebar-s
 import { GeneralComponent } from '../general/general.component';
 import { GeneralListComponent } from '../general-list/general-list.component';
 import { OwnerComponent } from '../owner/owner.component';
-import { OwnerListComponent } from '../owner-list/owner-list.component';
+import { OwnerEditSelection, OwnerListComponent } from '../owner-list/owner-list.component';
 import { LeadsReportsComponent } from '../reports/leads-reports.component';
 import { RentalComponent } from '../rental/rental.component';
-import { RentalListComponent } from '../rental-list/rental-list.component';
+import { RentalEditSelection, RentalListComponent } from '../rental-list/rental-list.component';
 
 @Component({
   standalone: true,
@@ -111,6 +111,7 @@ export class LeadsShellComponent implements OnInit, OnDestroy {
       this.selectedTabIndex = nextTabIndex;
       return;
     }
+    const wasEmbeddedLeadFormOpen = this.showRentalLeadForm || this.showOwnerLeadForm || this.showGeneralLeadForm;
     this.officeTitleBarShowError = false;
     this.showRentalLeadForm = false;
     this.showOwnerLeadForm = false;
@@ -121,6 +122,9 @@ export class LeadsShellComponent implements OnInit, OnDestroy {
     this.selectedTabIndex = nextTabIndex;
     if (this.selectedTabIndex === 3 && !this.reportsStartDate && !this.reportsEndDate) {
       this.setDefaultReportDateRange();
+    }
+    if (wasEmbeddedLeadFormOpen) {
+      this.restoreTitleBarOfficeFromGlobalSelection();
     }
     this.updateUrlWithCurrentState();
   }
@@ -168,14 +172,18 @@ export class LeadsShellComponent implements OnInit, OnDestroy {
     this.updateUrlWithCurrentState();
   }
 
-  onEditRentalLead(rentalId: number): void {
+  onEditRentalLead(selection: RentalEditSelection): void {
+    if (!selection?.rentalId) {
+      return;
+    }
+    this.resolveOfficeScope(selection.officeId ?? null);
     this.officeTitleBarShowError = false;
     this.showOwnerLeadForm = false;
     this.showGeneralLeadForm = false;
     this.ownerShellLeadId = null;
     this.generalShellLeadId = null;
     this.embeddedLeadFormReturnTabIndex = 0;
-    this.rentalShellLeadId = String(rentalId);
+    this.rentalShellLeadId = String(selection.rentalId);
     this.showRentalLeadForm = true;
     this.selectedTabIndex = 0;
     this.updateUrlWithCurrentState();
@@ -186,6 +194,7 @@ export class LeadsShellComponent implements OnInit, OnDestroy {
     this.showRentalLeadForm = false;
     this.rentalShellLeadId = null;
     this.selectedTabIndex = this.embeddedLeadFormReturnTabIndex;
+    this.restoreTitleBarOfficeFromGlobalSelection();
     this.updateUrlWithCurrentState();
   }
 
@@ -218,14 +227,18 @@ export class LeadsShellComponent implements OnInit, OnDestroy {
     this.updateUrlWithCurrentState();
   }
 
-  onEditOwnerLead(ownerId: number): void {
+  onEditOwnerLead(selection: OwnerEditSelection): void {
+    if (!selection?.ownerId) {
+      return;
+    }
+    this.resolveOfficeScope(selection.officeId ?? null);
     this.officeTitleBarShowError = false;
     this.showRentalLeadForm = false;
     this.showGeneralLeadForm = false;
     this.rentalShellLeadId = null;
     this.generalShellLeadId = null;
     this.embeddedLeadFormReturnTabIndex = 1;
-    this.ownerShellLeadId = String(ownerId);
+    this.ownerShellLeadId = String(selection.ownerId);
     this.showOwnerLeadForm = true;
     this.selectedTabIndex = 1;
     this.updateUrlWithCurrentState();
@@ -235,6 +248,7 @@ export class LeadsShellComponent implements OnInit, OnDestroy {
     this.showOwnerLeadForm = false;
     this.ownerShellLeadId = null;
     this.selectedTabIndex = this.embeddedLeadFormReturnTabIndex;
+    this.restoreTitleBarOfficeFromGlobalSelection();
     this.updateUrlWithCurrentState();
   }
 
@@ -267,6 +281,7 @@ export class LeadsShellComponent implements OnInit, OnDestroy {
     this.showGeneralLeadForm = false;
     this.generalShellLeadId = null;
     this.selectedTabIndex = this.embeddedLeadFormReturnTabIndex;
+    this.restoreTitleBarOfficeFromGlobalSelection();
     this.updateUrlWithCurrentState();
   }
 
@@ -279,6 +294,7 @@ export class LeadsShellComponent implements OnInit, OnDestroy {
     this.ownerShellLeadId = null;
     this.generalShellLeadId = null;
     this.selectedTabIndex = this.embeddedLeadFormReturnTabIndex;
+    this.restoreTitleBarOfficeFromGlobalSelection();
     this.updateUrlWithCurrentState();
   }
   //#endregion
@@ -326,6 +342,11 @@ export class LeadsShellComponent implements OnInit, OnDestroy {
     this.selectedOffice = this.offices.find(o => o.officeId === officeId) || null;
     this.selectedOfficeId = this.selectedOffice?.officeId ?? null;
     this.clearOfficeTitleBarErrorIfValid();
+  }
+
+  restoreTitleBarOfficeFromGlobalSelection(): void {
+    const globalOfficeId = this.globalSelectionService.getSelectedOfficeIdValue();
+    this.resolveOfficeScope(globalOfficeId);
   }
 
   private clearOfficeTitleBarErrorIfValid(): void {

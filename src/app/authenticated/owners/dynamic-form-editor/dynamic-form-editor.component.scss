@@ -25,6 +25,13 @@
   overflow: auto;
 }
 
+.dynamic-form-edit-surface .dynamic-form-choice-marker {
+  cursor: pointer;
+  user-select: none;
+  display: inline-block;
+  min-width: 12px;
+}
+
 .loading-container {
   display: flex;
   flex-direction: column;

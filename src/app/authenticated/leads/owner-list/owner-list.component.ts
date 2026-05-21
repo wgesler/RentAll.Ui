@@ -27,6 +27,8 @@ import { LeadOwnerListDisplay, LeadOwnerUpdateRequest } from '../models/lead-own
 import { formatLeadStateLabel, LEAD_STATE_SELECT_OPTIONS, LeadStateDropdownCell, LeadStateType } from '../models/lead-enums';
 import { LeadsService } from '../services/leads.service';
 
+export type OwnerEditSelection = { ownerId: number; officeId: number | null };
+
 @Component({
   standalone: true,
   selector: 'app-owner-list',
@@ -38,7 +40,7 @@ export class OwnerListComponent implements OnInit, OnChanges, OnDestroy {
   embeddedInShell = input(false);
   officeId = input<number | null>(null);
   requestNewOwner = output<void>();
-  requestEditOwner = output<number>();
+  requestEditOwner = output<OwnerEditSelection>();
 
   isServiceError = false;
   isPageReady = false;
@@ -126,7 +128,10 @@ export class OwnerListComponent implements OnInit, OnChanges, OnDestroy {
       return;
     }
     if (this.embeddedInShell()) {
-      this.requestEditOwner.emit(event.ownerId);
+      this.requestEditOwner.emit({
+        ownerId: event.ownerId,
+        officeId: event.officeId ?? null
+      });
       return;
     }
     if (this.isInOwnerMode) {

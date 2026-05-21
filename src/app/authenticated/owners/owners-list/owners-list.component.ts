@@ -15,6 +15,7 @@ import { ContactService } from '../../contacts/services/contact.service';
 import { LeadStateType } from '../../leads/models/lead-enums';
 import { LeadOwnerRequest } from '../../leads/models/lead-owner.model';
 import { OwnerComponent } from '../../leads/owner/owner.component';
+import { OwnerEditSelection } from '../../leads/owner-list/owner-list.component';
 import { OwnerListComponent } from '../../leads/owner-list/owner-list.component';
 import { LeadsService } from '../../leads/services/leads.service';
 
@@ -52,7 +53,8 @@ export class OwnersListComponent {
     this.showOwnerLeadForm = true;
   }
 
-  onEditOwnerLead(ownerLeadId: number): void {
+  onEditOwnerLead(ownerSelection: number | OwnerEditSelection): void {
+    const ownerLeadId = typeof ownerSelection === 'number' ? ownerSelection : ownerSelection?.ownerId;
     if (!ownerLeadId) {
       return;
     }

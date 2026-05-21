@@ -140,6 +140,99 @@ export class DynamicFormEditorComponent implements OnInit, OnChanges, OnDestroy 
     this.editorStyles = result.extractedStyles || '';
     const bodyContent = this.documentHtmlService.extractBodyContent(result.processedHtml || '');
     this.editableHtml = this.sanitizer.bypassSecurityTrustHtml(`<style>${this.editorStyles}</style>${bodyContent}`);
+    setTimeout(() => this.ensureEditorControlsInteractive());
+  }
+  //#endregion
+
+  //#region Editor Interaction Methods
+  ensureEditorControlsInteractive(): void {
+    const editHost = this.editSurface?.nativeElement;
+    if (!editHost) {
+      return;
+    }
+    const controls = Array.from(editHost.querySelectorAll('input, textarea, select, option, button, label'));
+    controls.forEach(control => {
+      control.setAttribute('contenteditable', 'false');
+    });
+    const formControls = Array.from(editHost.querySelectorAll('input, textarea, select')) as Array<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>;
+    formControls.forEach(control => {
+      if (control.hasAttribute('disabled')) {
+        control.removeAttribute('disabled');
+      }
+      if (control instanceof HTMLInputElement || control instanceof HTMLTextAreaElement) {
+        control.readOnly = false;
+        if (control.hasAttribute('readonly')) {
+          control.removeAttribute('readonly');
+        }
+      }
+    });
+    this.wrapStaticChoiceMarkers(editHost);
+  }
+
+  onEditSurfaceClick(event: MouseEvent): void {
+    const target = event.target as HTMLElement | null;
+    if (!target) {
+      return;
+    }
+    const marker = target.closest('[data-choice-marker="true"]') as HTMLElement | null;
+    if (!marker) {
+      return;
+    }
+    marker.textContent = marker.textContent === '☑' ? '☐' : '☑';
+    event.preventDefault();
+    event.stopPropagation();
+  }
+  //#endregion
+
+  //#region Marker Methods
+  wrapStaticChoiceMarkers(editHost: HTMLElement): void {
+    const doc = editHost.ownerDocument;
+    const walker = doc.createTreeWalker(editHost, NodeFilter.SHOW_TEXT);
+    const textNodes: Text[] = [];
+    let currentNode = walker.nextNode();
+    while (currentNode) {
+      const textNode = currentNode as Text;
+      const parentElement = textNode.parentElement;
+      if (
+        parentElement &&
+        parentElement.tagName.toLowerCase() !== 'script' &&
+        parentElement.tagName.toLowerCase() !== 'style' &&
+        !parentElement.closest('[data-choice-marker="true"]') &&
+        /[☐☑]/.test(textNode.textContent || '')
+      ) {
+        textNodes.push(textNode);
+      }
+      currentNode = walker.nextNode();
+    }
+
+    textNodes.forEach(textNode => {
+      const value = textNode.textContent || '';
+      if (!value) {
+        return;
+      }
+      const fragment = doc.createDocumentFragment();
+      let buffer = '';
+      for (const char of value) {
+        if (char === '☐' || char === '☑') {
+          if (buffer) {
+            fragment.appendChild(doc.createTextNode(buffer));
+            buffer = '';
+          }
+          const marker = doc.createElement('span');
+          marker.setAttribute('data-choice-marker', 'true');
+          marker.setAttribute('contenteditable', 'false');
+          marker.className = 'dynamic-form-choice-marker';
+          marker.textContent = char;
+          fragment.appendChild(marker);
+          continue;
+        }
+        buffer += char;
+      }
+      if (buffer) {
+        fragment.appendChild(doc.createTextNode(buffer));
+      }
+      textNode.replaceWith(fragment);
+    });
   }
   //#endregion
 

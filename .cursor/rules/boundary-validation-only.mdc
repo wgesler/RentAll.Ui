@@ -1,0 +1,16 @@
+---
+description: Validate hard at boundaries; keep typed internal flows simple
+alwaysApply: true
+---
+
+# Boundary-first validation
+
+- Validate strictly at untrusted boundaries:
+  - API responses
+  - route/query params
+  - local/session storage
+  - free-form user input
+- In trusted internal typed app flow, do not add redundant safety checks for IDs.
+- Do not coerce typed IDs with `Number()` or guard with `Number.isFinite()` unless crossing an untrusted boundary.
+- Prefer simple flow code for internal IDs (for example: `if (!ownerId) return;`).
+- Avoid defensive checks that repeat invariants already guaranteed by the model/contracts.

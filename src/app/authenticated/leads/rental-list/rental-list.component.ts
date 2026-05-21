@@ -26,6 +26,8 @@ import {
 } from './rental-quote-property-select-dialog.component';
 import { LeadsService } from '../services/leads.service';
 
+export type RentalEditSelection = { rentalId: number; officeId: number | null };
+
 @Component({
   standalone: true,
   selector: 'app-rental-list',
@@ -37,7 +39,7 @@ export class RentalListComponent implements OnInit, OnChanges, OnDestroy {
   embeddedInShell = input(false);
   officeId = input<number | null>(null);
   requestNewRental = output<void>();
-  requestEditRental = output<number>();
+  requestEditRental = output<RentalEditSelection>();
 
   isServiceError = false;
   isPageReady = false;
@@ -121,7 +123,10 @@ export class RentalListComponent implements OnInit, OnChanges, OnDestroy {
       return;
     }
     if (this.embeddedInShell()) {
-      this.requestEditRental.emit(event.rentalId);
+      this.requestEditRental.emit({
+        rentalId: event.rentalId,
+        officeId: event.officeId ?? null
+      });
       return;
     }
     this.ngZone.run(() => {
