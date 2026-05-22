@@ -596,6 +596,37 @@ export class WorkOrderComponent implements OnInit, OnChanges, OnDestroy {
     });
   }
 
+  hydrateReceiptSplitKeysFromLoadedReceipts(): void {
+    if (!this.workOrderItems?.length || !this.propertyReceipts?.length) {
+      return;
+    }
+
+    const currentWorkOrderCode = this.workOrder?.workOrderCode ?? this.generatedWorkOrderCode ?? '';
+    const usedSplitKeys = new Set<string>();
+
+    this.workOrderItems.forEach(item => {
+      if (item.itemSource === 'receipt' && item.receiptSplitKey) {
+        usedSplitKeys.add(item.receiptSplitKey);
+      }
+    });
+
+    this.workOrderItems.forEach(item => {
+      const numericReceiptId = Number(item.receiptId);
+      if (!Number.isFinite(numericReceiptId) || numericReceiptId <= 0) {
+        return;
+      }
+      item.itemSource = 'receipt';
+      if (item.receiptSplitKey) {
+        return;
+      }
+      const splitKey = this.resolveInitialSplitKeyForItem(numericReceiptId, currentWorkOrderCode, usedSplitKeys);
+      if (splitKey) {
+        item.receiptSplitKey = splitKey;
+        usedSplitKeys.add(splitKey);
+      }
+    });
+  }
+
   onPrimaryAction(): void {
     if (this.isViewModeBeforeChanges()) {
       this.openWorkOrderView();
@@ -733,6 +764,13 @@ export class WorkOrderComponent implements OnInit, OnChanges, OnDestroy {
     }
     if (item.itemSource === 'receipt' && item.receiptSplitKey) {
       return item.receiptSplitKey;
+    }
+    if (item.itemSource === 'receipt' && item.receiptId != null && Number(item.receiptId) > 0) {
+      const currentWorkOrderCode = this.workOrder?.workOrderCode ?? this.generatedWorkOrderCode ?? '';
+      const resolvedSplitKey = this.resolveInitialSplitKeyForItem(Number(item.receiptId), currentWorkOrderCode, new Set<string>());
+      if (resolvedSplitKey) {
+        return resolvedSplitKey;
+      }
     }
     return this.noReceiptOptionValue;
   }
@@ -1183,6 +1221,7 @@ export class WorkOrderComponent implements OnInit, OnChanges, OnDestroy {
       next: (receipts) => {
         const activePropertyReceipts = (receipts ?? []).filter(r => r.isActive !== false);
         this.propertyReceipts = this.mergeAssociatedReceipts(activePropertyReceipts);
+        this.hydrateReceiptSplitKeysFromLoadedReceipts();
         if (this.isAddMode) {
           this.syncReceiptAmounts();
         }
@@ -1190,6 +1229,7 @@ export class WorkOrderComponent implements OnInit, OnChanges, OnDestroy {
       },
       error: () => {
         this.propertyReceipts = this.mergeAssociatedReceipts([]);
+        this.hydrateReceiptSplitKeysFromLoadedReceipts();
         if (this.isAddMode) {
           this.syncReceiptAmounts();
         }
@@ -1208,6 +1248,7 @@ export class WorkOrderComponent implements OnInit, OnChanges, OnDestroy {
     const existingIds = new Set((this.propertyReceipts || []).map(receipt => receipt.receiptId));
     const missingIds = associatedIds.filter(receiptId => !existingIds.has(receiptId));
     if (!missingIds.length) {
+      this.hydrateReceiptSplitKeysFromLoadedReceipts();
       if (this.isAddMode) {
         this.syncReceiptAmounts();
       }
@@ -1226,6 +1267,7 @@ export class WorkOrderComponent implements OnInit, OnChanges, OnDestroy {
       next: (receipts) => {
         const fetchedReceipts = (receipts || []).filter((receipt): receipt is ReceiptResponse => receipt != null);
         this.propertyReceipts = this.mergeAssociatedReceipts(this.propertyReceipts, fetchedReceipts);
+        this.hydrateReceiptSplitKeysFromLoadedReceipts();
         if (this.isAddMode) {
           this.syncReceiptAmounts();
         }
