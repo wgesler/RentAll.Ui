@@ -18,7 +18,7 @@
             [errorText]="'Select a specific office'"
             (valueChange)="onOfficeDropdownChange($event)">
           </app-title-bar-select>
-          @if (selectedTabIndex === 3) {
+          @if (selectedTabIndex === getReportsTabIndex()) {
             <mat-form-field appearance="outline" class="titlebar-field-office">
               <mat-label>Start Date</mat-label>
               <input
@@ -86,25 +86,27 @@
             }
           </ng-template>
         </mat-tab>
-        <mat-tab label="Owner">
-          <ng-template matTabContent>
-            @if (showOwnerLeadForm) {
-              <app-owner
-                [embeddedInShell]="true"
-                [shellLeadId]="ownerShellLeadId"
-                [officeId]="selectedOfficeId"
-                (closed)="onOwnerLeadFormClosed()"
-                />
-            } @else {
-              <app-owner-list
-                [embeddedInShell]="true"
-                [officeId]="selectedOfficeId"
-                (requestNewOwner)="onAddOwnerLead()"
-                (requestEditOwner)="onEditOwnerLead($event)"
-                />
-            }
-          </ng-template>
-        </mat-tab>
+        @if (isAdmin) {
+          <mat-tab label="Owner">
+            <ng-template matTabContent>
+              @if (showOwnerLeadForm) {
+                <app-owner
+                  [embeddedInShell]="true"
+                  [shellLeadId]="ownerShellLeadId"
+                  [officeId]="selectedOfficeId"
+                  (closed)="onOwnerLeadFormClosed()"
+                  />
+              } @else {
+                <app-owner-list
+                  [embeddedInShell]="true"
+                  [officeId]="selectedOfficeId"
+                  (requestNewOwner)="onAddOwnerLead()"
+                  (requestEditOwner)="onEditOwnerLead($event)"
+                  />
+              }
+            </ng-template>
+          </mat-tab>
+        }
         <mat-tab label="General">
           <ng-template matTabContent>
             @if (showGeneralLeadForm) {

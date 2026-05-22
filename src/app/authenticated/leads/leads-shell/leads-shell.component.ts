@@ -54,6 +54,7 @@ export class LeadsShellComponent implements OnInit, OnDestroy {
   selectedOffice: OfficeResponse | null = null;
   offices: OfficeResponse[] = [];
   officeTitleBarShowError = false;
+  isAdmin = false;
 
   showRentalLeadForm = false;
   showOwnerLeadForm = false;
@@ -75,6 +76,7 @@ export class LeadsShellComponent implements OnInit, OnDestroy {
 
   //#region Leads-Shell
   ngOnInit(): void {
+    this.isAdmin = this.authService.isAdmin();
     const initialGlobalOfficeId = this.globalSelectionService.getSelectedOfficeIdValue();
     if (initialGlobalOfficeId != null && initialGlobalOfficeId > 0) {
       this.selectedOfficeId = initialGlobalOfficeId;
@@ -114,6 +116,7 @@ export class LeadsShellComponent implements OnInit, OnDestroy {
   }
 
   onTabIndexChange(nextTabIndex: number): void {
+    nextTabIndex = this.normalizeTabIndex(nextTabIndex);
     if (this.isApplyingQueryParamState || nextTabIndex === this.selectedTabIndex) {
       this.selectedTabIndex = nextTabIndex;
       return;
@@ -127,7 +130,7 @@ export class LeadsShellComponent implements OnInit, OnDestroy {
     this.ownerShellLeadId = null;
     this.generalShellLeadId = null;
     this.selectedTabIndex = nextTabIndex;
-    if (this.selectedTabIndex === 3 && !this.reportsStartDate && !this.reportsEndDate) {
+    if (this.selectedTabIndex === this.getReportsTabIndex() && !this.reportsStartDate && !this.reportsEndDate) {
       this.setDefaultReportDateRange();
     }
     if (wasEmbeddedLeadFormOpen) {
@@ -223,18 +226,24 @@ export class LeadsShellComponent implements OnInit, OnDestroy {
   }
 
   onAddOwnerLead(): void {
+    if (!this.isAdmin) {
+      return;
+    }
     this.showRentalLeadForm = false;
     this.showGeneralLeadForm = false;
     this.rentalShellLeadId = null;
     this.generalShellLeadId = null;
-    this.embeddedLeadFormReturnTabIndex = 1;
+    this.embeddedLeadFormReturnTabIndex = this.getOwnerTabIndex();
     this.ownerShellLeadId = 'new';
     this.showOwnerLeadForm = true;
-    this.selectedTabIndex = 1;
+    this.selectedTabIndex = this.getOwnerTabIndex();
     this.updateUrlWithCurrentState();
   }
 
   onEditOwnerLead(selection: OwnerEditSelection): void {
+    if (!this.isAdmin) {
+      return;
+    }
     if (!selection?.ownerId) {
       return;
     }
@@ -244,10 +253,10 @@ export class LeadsShellComponent implements OnInit, OnDestroy {
     this.showGeneralLeadForm = false;
     this.rentalShellLeadId = null;
     this.generalShellLeadId = null;
-    this.embeddedLeadFormReturnTabIndex = 1;
+    this.embeddedLeadFormReturnTabIndex = this.getOwnerTabIndex();
     this.ownerShellLeadId = String(selection.ownerId);
     this.showOwnerLeadForm = true;
-    this.selectedTabIndex = 1;
+    this.selectedTabIndex = this.getOwnerTabIndex();
     this.updateUrlWithCurrentState();
   }
 
@@ -264,10 +273,10 @@ export class LeadsShellComponent implements OnInit, OnDestroy {
     this.showOwnerLeadForm = false;
     this.rentalShellLeadId = null;
     this.ownerShellLeadId = null;
-    this.embeddedLeadFormReturnTabIndex = 2;
+    this.embeddedLeadFormReturnTabIndex = this.getGeneralTabIndex();
     this.generalShellLeadId = 'new';
     this.showGeneralLeadForm = true;
-    this.selectedTabIndex = 2;
+    this.selectedTabIndex = this.getGeneralTabIndex();
     this.updateUrlWithCurrentState();
   }
 
@@ -277,10 +286,10 @@ export class LeadsShellComponent implements OnInit, OnDestroy {
     this.showOwnerLeadForm = false;
     this.rentalShellLeadId = null;
     this.ownerShellLeadId = null;
-    this.embeddedLeadFormReturnTabIndex = 2;
+    this.embeddedLeadFormReturnTabIndex = this.getGeneralTabIndex();
     this.generalShellLeadId = String(generalId);
     this.showGeneralLeadForm = true;
-    this.selectedTabIndex = 2;
+    this.selectedTabIndex = this.getGeneralTabIndex();
     this.updateUrlWithCurrentState();
   }
 
@@ -320,6 +329,9 @@ export class LeadsShellComponent implements OnInit, OnDestroy {
   }
 
   applyLeadSelectionFromQueryParams(params: Record<string, unknown>): void {
+    if (!this.isAdmin) {
+      return;
+    }
     const tab = String(params['tab'] || '').trim().toLowerCase();
     if (tab !== 'owner') {
       return;
@@ -334,7 +346,14 @@ export class LeadsShellComponent implements OnInit, OnDestroy {
 
   applyQueryParamState(params: Record<string, unknown>): void {
     const tab = String(params['tab'] || '').trim().toLowerCase();
-    const nextIndex = tab === 'reports' ? 3 : tab === 'general' ? 2 : tab === 'owner' ? 1 : 0;
+    const nextIndex =
+      tab === 'reports'
+        ? this.getReportsTabIndex()
+        : tab === 'general'
+          ? this.getGeneralTabIndex()
+          : tab === 'owner'
+            ? this.getOwnerTabIndex()
+            : 0;
     if (this.selectedTabIndex !== nextIndex) {
       this.selectedTabIndex = nextIndex;
     }
@@ -343,7 +362,7 @@ export class LeadsShellComponent implements OnInit, OnDestroy {
     const endDateParam = getStringQueryParam(params, 'endDate');
     this.reportsStartDate = this.utilityService.parseDateOnlyStringToDate(startDateParam);
     this.reportsEndDate = this.utilityService.parseDateOnlyStringToDate(endDateParam);
-    if (this.selectedTabIndex === 3) {
+    if (this.selectedTabIndex === this.getReportsTabIndex()) {
       this.onReportsDateRangeChange(false);
     }
 
@@ -412,6 +431,23 @@ export class LeadsShellComponent implements OnInit, OnDestroy {
     const startDate = params['startDate'] == null || String(params['startDate']).trim() === '' ? null : String(params['startDate']).trim();
     const endDate = params['endDate'] == null || String(params['endDate']).trim() === '' ? null : String(params['endDate']).trim();
     return `${tab ?? ''}|${officeId ?? ''}|${leadOwnerId ?? ''}|${startDate ?? ''}|${endDate ?? ''}`;
+  }
+
+  getOwnerTabIndex(): number {
+    return this.isAdmin ? 1 : 0;
+  }
+
+  getGeneralTabIndex(): number {
+    return this.isAdmin ? 2 : 1;
+  }
+
+  getReportsTabIndex(): number {
+    return this.isAdmin ? 3 : 2;
+  }
+
+  normalizeTabIndex(index: number): number {
+    const max = this.getReportsTabIndex();
+    return Math.min(Math.max(index, 0), max);
   }
 
   loadOffices(): void {
