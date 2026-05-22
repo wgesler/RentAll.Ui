@@ -69,9 +69,6 @@
                     </mat-option>
                   }
                 </mat-select>
-                @if (form.get('propertyIds')?.invalid && form.get('propertyIds')?.touched) {
-                  <mat-error>At least one property is required</mat-error>
-                }
               </mat-form-field>
               <mat-form-field appearance="outline" class="receipt-overall-compact-field">
                 <mat-label>Amount</mat-label>
@@ -80,16 +77,10 @@
                   (blur)="onAmountBlur($event)"
                   (input)="onAmountInput($event)"
                   (keydown.enter)="onAmountKeydown($event)">
-                @if (form.get('amount')?.hasError('required') && form.get('amount')?.touched) {
-                  <mat-error>Amount is required</mat-error>
-                }
               </mat-form-field>
               <mat-form-field appearance="outline" class="receipt-overall-description-field">
                 <mat-label>Description</mat-label>
                 <input matInput formControlName="description" required (blur)="onOverallDescriptionBlur()">
-                @if (form.get('description')?.hasError('required') && form.get('description')?.touched) {
-                  <mat-error>Description is required</mat-error>
-                }
               </mat-form-field>
             </div>
             <div class="col-span-4 receipt-overall-summary-row">

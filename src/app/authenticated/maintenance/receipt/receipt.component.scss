@@ -236,8 +236,9 @@
   text-overflow: ellipsis;
 }
 
-.split-input-invalid {
-  border-color: #b91c1c;
+.split-input-invalid,
+.split-input-invalid:focus {
+  border-color: #dc2626 !important;
 }
 
 .split-col-actions .mat-mdc-icon-button {

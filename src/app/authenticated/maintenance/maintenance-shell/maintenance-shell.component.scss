@@ -46,3 +46,11 @@
   border-color: #dc2626 !important;
 }
 
+::ng-deep .work-order-required-field .mdc-floating-label,
+::ng-deep .work-order-required-field .mat-mdc-select-value-text,
+::ng-deep .work-order-required-field .mat-mdc-select-placeholder,
+::ng-deep .work-order-required-field .mat-mdc-form-field-required-marker,
+::ng-deep .work-order-required-field .mat-mdc-select-arrow {
+  color: #dc2626 !important;
+}
+
