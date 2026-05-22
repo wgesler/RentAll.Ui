@@ -162,7 +162,14 @@ export class MaintenanceApplianceListComponent implements OnChanges {
       return;
     }
     const data: ImageViewDialogData = { imageSrc, title: 'Appliance Decal' };
-    this.dialog.open(ImageViewDialogComponent, { data, width: '70vw', maxWidth: '520px' });
+    this.dialog.open(ImageViewDialogComponent, {
+      data,
+      width: '60vw',
+      height: '88vh',
+      maxWidth: '60vw',
+      maxHeight: '88vh',
+      panelClass: 'image-view-dialog-panel'
+    });
   }
 
   decalInputId(rowId: number): string {

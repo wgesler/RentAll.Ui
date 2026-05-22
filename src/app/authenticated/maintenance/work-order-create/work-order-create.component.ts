@@ -1236,24 +1236,9 @@ export class WorkOrderCreateComponent extends BaseDocumentComponent implements O
   goBack(): void {
     const workOrderId = this.workOrder?.workOrderId ?? this.workOrderId;
     const propertyId = this.property?.propertyId || this.workOrder?.propertyId || this.propertyId;
-    if (this.returnTo === 'work-order' && workOrderId) {
-      if (propertyId) {
-        const path = '/' + RouterUrl.replaceTokens(RouterUrl.Maintenance, [propertyId]);
-        this.router.navigate([path], {
-          queryParams: {
-            tab: 3,
-            workOrderId
-          }
-        });
-        return;
-      }
-      const fallbackPath = '/' + RouterUrl.replaceTokens(RouterUrl.MaintenanceWorkOrder, [workOrderId]);
-      this.router.navigate([fallbackPath]);
-      return;
-    }
-    if (this.returnTo === 'work-order-list' && propertyId) {
+    if ((this.returnTo === 'work-order' || this.returnTo === 'work-order-list') && propertyId) {
       const path = '/' + RouterUrl.replaceTokens(RouterUrl.Maintenance, [propertyId]);
-      this.router.navigate([path], { queryParams: { tab: 3 } });
+      this.router.navigate([path], { queryParams: { tab: 3, clearProperty: 1 } });
       return;
     }
     if (workOrderId && propertyId) {

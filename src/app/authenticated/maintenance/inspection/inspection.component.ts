@@ -2020,12 +2020,12 @@ export class InspectionComponent implements OnChanges, OnDestroy, OnInit {
 
     this.dialog.open(ImageViewDialogComponent, {
       data: dialogData,
-      width: '90vmin',
-      height: '90vmin',
+      width: '60vw',
+      height: '88vh',
       minWidth: '320px',
       minHeight: '320px',
-      maxWidth: '95vw',
-      maxHeight: '95vh',
+      maxWidth: '60vw',
+      maxHeight: '88vh',
       panelClass: 'image-view-dialog-panel'
     });
   }

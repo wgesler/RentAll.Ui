@@ -3,6 +3,13 @@
     @if (data.title) {
       <span class="text-xl">{{ data.title }}</span>
     }
+    <button
+      mat-raised-button
+      color="primary"
+      type="button"
+      (click)="close()">
+      Close
+    </button>
   </div>
   <mat-dialog-content class="image-view-dialog-content">
     @if (isPdf) {
@@ -50,7 +57,4 @@
       </div>
     }
   </mat-dialog-content>
-  <mat-dialog-actions class="image-view-dialog-actions">
-    <button mat-raised-button color="primary" (click)="close()">Close</button>
-  </mat-dialog-actions>
 </div>

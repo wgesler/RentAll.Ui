@@ -91,6 +91,8 @@ export class MaintenanceShellComponent implements OnInit, CanComponentDeactivate
   inspectorPropertyIds = new Set<string>();
   skipNextPropertyCodeChange = false;
   openWithAllSelections = false;
+  clearPropertyOnOpen = false;
+  propertyLoadVersion = 0;
 
   itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['property']));
   isLoading$: Observable<boolean> = this.itemsToLoad$.pipe(map(items => items.size > 0));
@@ -110,6 +112,7 @@ export class MaintenanceShellComponent implements OnInit, CanComponentDeactivate
   //#region Maintenance-Shell
   ngOnInit(): void {
     this.openWithAllSelections = ((this.route.snapshot.queryParamMap.get('scope') || '').trim().toLowerCase() === 'all');
+    this.clearPropertyOnOpen = ((this.route.snapshot.queryParamMap.get('clearProperty') || '').trim() === '1');
     this.userId = this.authService.getUser()?.userId?.trim() ?? '';
     this.organizationId = this.authService.getUser()?.organizationId?.trim() ?? '';
     this.preferredOfficeId = this.normalizeOfficeId(this.authService.getUser()?.defaultOfficeId ?? null);
@@ -146,7 +149,7 @@ export class MaintenanceShellComponent implements OnInit, CanComponentDeactivate
     });
 
     this.route.paramMap.pipe(filter(params => params.has('id')), take(1)).subscribe(params => {
-      if (this.openWithAllSelections) {
+      if (this.openWithAllSelections || this.clearPropertyOnOpen) {
         this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'property');
         this.property = null;
         this.shellReservations = [];
@@ -162,6 +165,7 @@ export class MaintenanceShellComponent implements OnInit, CanComponentDeactivate
 
   //#region Data Load Methods
   loadProperty(propertyId: string, onLoaded?: () => void, preferredReservationId?: string | null): void {
+    const loadVersion = ++this.propertyLoadVersion;
     this.propertyService.getPropertyByGuid(propertyId).pipe(take(1),
       switchMap(property =>
         this.reservationService.getReservationsByPropertyId(property.propertyId).pipe(take(1),
@@ -171,6 +175,9 @@ export class MaintenanceShellComponent implements OnInit, CanComponentDeactivate
       finalize(() => this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'property'))
     ).subscribe({
       next: ({ property, reservations }) => {
+        if (loadVersion !== this.propertyLoadVersion) {
+          return;
+        }
         this.property = property;
         this.shellReservations = reservations;
         this.syncTitleBarSelections();
@@ -178,6 +185,9 @@ export class MaintenanceShellComponent implements OnInit, CanComponentDeactivate
         onLoaded?.();
       },
       error: () => {
+        if (loadVersion !== this.propertyLoadVersion) {
+          return;
+        }
         this.property = null;
         this.shellReservations = [];
         this.titleBarReservationId = null;
@@ -700,6 +710,7 @@ export class MaintenanceShellComponent implements OnInit, CanComponentDeactivate
   }
 
   onWorkOrderBack(): void {
+    this.propertyLoadVersion++;
     this.showWorkOrderDetail = false;
     this.selectedWorkOrderId = null;
     this.workOrderSaveValidationAttempted = false;
@@ -784,6 +795,7 @@ export class MaintenanceShellComponent implements OnInit, CanComponentDeactivate
 
     return tabParam;
   }
+
   //#endregion
 
   //#region Navigation Methods

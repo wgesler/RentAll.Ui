@@ -241,7 +241,14 @@ export class ReceiptsListComponent implements OnInit, OnChanges {
           return;
         }
         const data: ImageViewDialogData = { imageSrc, title: 'Receipt' };
-        this.dialog.open(ImageViewDialogComponent, { data, width: '90vw', maxWidth: '600px' });
+        this.dialog.open(ImageViewDialogComponent, {
+          data,
+          width: '60vw',
+          height: '88vh',
+          maxWidth: '60vw',
+          maxHeight: '88vh',
+          panelClass: 'image-view-dialog-panel'
+        });
       },
       error: () => this.toastr.error('Unable to load receipt.', 'Receipt')
     });
