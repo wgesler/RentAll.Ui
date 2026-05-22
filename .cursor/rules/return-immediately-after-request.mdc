@@ -1,0 +1,11 @@
+---
+description: Return immediately after completing the request
+alwaysApply: true
+---
+
+# Return Immediately
+
+- After completing the user's requested work, return immediately with concise results.
+- Do not run extra replanning loops or repetitive reprocessing of the same request.
+- Do not run additional repo status checks unless the user explicitly asks for them.
+- Keep post-task verification minimal and directly tied to the request.

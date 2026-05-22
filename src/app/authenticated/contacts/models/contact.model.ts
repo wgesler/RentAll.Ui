@@ -113,6 +113,7 @@ export interface ContactListDisplay {
   email: string;
   rating: number;
   ratingStars?: string;
+  isOwnerReady?: boolean;
   isActive: boolean;
 }
 

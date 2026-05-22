@@ -55,43 +55,6 @@
       <div class="features-container property-form-section-rows">
       <section>
         <h3>Fees and Furnishing Preferences</h3>
-        <div class="grid grid-cols-4 gap-3">
-          <mat-form-field appearance="outline">
-            <mat-label>Adjusted Gross Rent Target (monthly)</mat-label>
-            <input matInput formControlName="adjustedGrossRentTarget" (input)="onCurrencyInput($event, 'adjustedGrossRentTarget')" (focus)="onCurrencyFocus($event, 'adjustedGrossRentTarget')" (keydown)="onCurrencyKeydown($event)" (keydown.enter)="onCurrencyEnter($event, 'adjustedGrossRentTarget')" (blur)="onCurrencyBlur('adjustedGrossRentTarget')" />
-          </mat-form-field>
-          <mat-form-field appearance="outline">
-            <mat-label>Online Fee - Rent Ready</mat-label>
-            <input matInput formControlName="onlineFeeRentReady" (input)="onCurrencyInput($event, 'onlineFeeRentReady')" (focus)="onCurrencyFocus($event, 'onlineFeeRentReady')" (keydown)="onCurrencyKeydown($event)" (keydown.enter)="onCurrencyEnter($event, 'onlineFeeRentReady')" (blur)="onCurrencyBlur('onlineFeeRentReady')" />
-          </mat-form-field>
-          <mat-form-field appearance="outline">
-            <mat-label>Online Clean (hourly)</mat-label>
-            <input matInput formControlName="onlineCleanHourlyFee" (input)="onCurrencyInput($event, 'onlineCleanHourlyFee')" (focus)="onCurrencyFocus($event, 'onlineCleanHourlyFee')" (keydown)="onCurrencyKeydown($event)" (keydown.enter)="onCurrencyEnter($event, 'onlineCleanHourlyFee')" (blur)="onCurrencyBlur('onlineCleanHourlyFee')" />
-          </mat-form-field>
-          <mat-form-field appearance="outline">
-            <mat-label>Working Balance / Utility Allowance</mat-label>
-            <input matInput formControlName="workingBalanceEscrow" (input)="onCurrencyInput($event, 'workingBalanceEscrow')" (focus)="onCurrencyFocus($event, 'workingBalanceEscrow')" (keydown)="onCurrencyKeydown($event)" (keydown.enter)="onCurrencyEnter($event, 'workingBalanceEscrow')" (blur)="onCurrencyBlur('workingBalanceEscrow')" />
-          </mat-form-field>
-        </div>
-        <div class="owner-form-checkbox-grid">
-          <mat-checkbox color="primary" [formControl]="$any(ownerForm.controls['annualLinenTierStudio1Bedroom'])">1 bedroom / studio ($299)</mat-checkbox>
-          <mat-checkbox color="primary" [formControl]="$any(ownerForm.controls['annualLinenTier2Bedroom'])">2 bedrooms ($399)</mat-checkbox>
-          <mat-checkbox color="primary" [formControl]="$any(ownerForm.controls['annualLinenTier3Bedroom'])">3 bedrooms ($499)</mat-checkbox>
-        </div>
-        <div class="grid grid-cols-3 gap-3">
-          <mat-form-field appearance="outline">
-            <mat-label>Annual Linen Custom Amount</mat-label>
-            <input matInput formControlName="annualLinenCustomAmount" (input)="onCurrencyInput($event, 'annualLinenCustomAmount')" (focus)="onCurrencyFocus($event, 'annualLinenCustomAmount')" (keydown)="onCurrencyKeydown($event)" (keydown.enter)="onCurrencyEnter($event, 'annualLinenCustomAmount')" (blur)="onCurrencyBlur('annualLinenCustomAmount')" />
-          </mat-form-field>
-          <mat-form-field appearance="outline">
-            <mat-label>Furnishing Fee Amount</mat-label>
-            <input matInput formControlName="furnishingFeeAmount" (input)="onCurrencyInput($event, 'furnishingFeeAmount')" (focus)="onCurrencyFocus($event, 'furnishingFeeAmount')" (keydown)="onCurrencyKeydown($event)" (keydown.enter)="onCurrencyEnter($event, 'furnishingFeeAmount')" (blur)="onCurrencyBlur('furnishingFeeAmount')" />
-          </mat-form-field>
-          <mat-form-field appearance="outline">
-            <mat-label>Off-line Fee</mat-label>
-            <input matInput formControlName="offlineFee" (input)="onCurrencyInput($event, 'offlineFee')" (focus)="onCurrencyFocus($event, 'offlineFee')" (keydown)="onCurrencyKeydown($event)" (keydown.enter)="onCurrencyEnter($event, 'offlineFee')" (blur)="onCurrencyBlur('offlineFee')" />
-          </mat-form-field>
-        </div>
         <div class="owner-form-checkbox-grid">
           <mat-checkbox color="primary" [formControl]="$any(ownerForm.controls['furnishingKitchenItemsRequested'])">
             Purchase kitchen items on owner behalf

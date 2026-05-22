@@ -19,6 +19,7 @@
       <app-contact-list
         [entityTypeId]="ownerEntityTypeId"
         [officeId]="officeId()"
+        [onlyOwnerNotReady]="true"
         [showInactive]="showInactiveOwnerContacts"
         (showInactiveChange)="onOwnerContactsShowInactiveChange($event)"
         (openContact)="onOpenOwnerContact($event)">

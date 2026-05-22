@@ -37,6 +37,7 @@ export class ContactListComponent implements OnInit, OnDestroy, OnChanges {
   @Input() entityTypeId?: number;
   @Input() officeId: number | null = null;
   @Input() showInactive: boolean = false;
+  @Input() onlyOwnerNotReady: boolean = false;
   @Input() tabIndex?: number;
   @Output() officeIdChange = new EventEmitter<number | null>();
   @Output() showInactiveChange = new EventEmitter<boolean>();
@@ -309,6 +310,10 @@ export class ContactListComponent implements OnInit, OnDestroy, OnChanges {
 
     if (this.entityTypeId !== undefined && this.entityTypeId !== null) {
       filtered = filtered.filter(contact => contact.entityTypeId === this.entityTypeId);
+    }
+
+    if (this.onlyOwnerNotReady && this.entityTypeId === EntityType.Owner) {
+      filtered = filtered.filter(contact => contact.isOwnerReady !== true);
     }
 
     if (this.selectedOffice) {

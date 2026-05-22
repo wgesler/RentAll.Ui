@@ -288,6 +288,7 @@ export class MappingService {
         email: o.email,
         rating: o.rating ?? 0,
         ratingStars: (() => { const r = Math.min(5, Math.max(0, Math.round(o.rating ?? 0))); return '★'.repeat(r) + '☆'.repeat(5 - r); })(),
+        isOwnerReady: typeof o.isOwnerReady === 'number' ? o.isOwnerReady === 1 : o.isOwnerReady === true,
         isInternational: o.isInternational || false,
         isActive: typeof o.isActive === 'number' ? o.isActive === 1 : Boolean(o.isActive),
         propertyCodesDisplay
