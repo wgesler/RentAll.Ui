@@ -15,15 +15,15 @@
             <mat-icon>chevron_right</mat-icon>
           </button>
         }
-        @if (isLoadingPdfThumbnail) {
-          <div class="image-view-pdf-loading">
-            <mat-spinner [diameter]="40"></mat-spinner>
-          </div>
-        } @else if (pdfThumbnailSrc) {
-          <img [src]="pdfThumbnailSrc" alt="PDF first page preview" class="image-view-pdf-thumbnail-img" />
+        @if (pdfViewerSrc) {
+          <iframe
+            [src]="pdfViewerSrc"
+            title="PDF preview"
+            class="image-view-pdf-frame">
+          </iframe>
         } @else {
           <div class="image-view-pdf-loading">
-            <span class="text-sm">Unable to render PDF preview.</span>
+            <span class="text-sm">Unable to render PDF.</span>
           </div>
         }
       </div>

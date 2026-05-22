@@ -54,6 +54,14 @@
   object-fit: contain;
 }
 
+.image-view-pdf-frame {
+  width: 100%;
+  height: calc(min(88vh, calc(100dvh - 16px)) - 220px);
+  min-height: 420px;
+  border: 0;
+  background: #fff;
+}
+
 .image-view-pdf-loading {
   display: flex;
   align-items: center;

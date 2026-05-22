@@ -1,9 +1,9 @@
 import { CommonModule } from '@angular/common';
 import { Component, Inject, OnInit } from '@angular/core';
 import { MAT_DIALOG_DATA, MatDialogRef } from '@angular/material/dialog';
+import { DomSanitizer, SafeResourceUrl } from '@angular/platform-browser';
 import { MaterialModule } from '../../../../material.module';
 import { ImageViewDialogData } from './image-view-dialog-data';
-import { PdfThumbnailService } from '../../../../services/pdf-thumbnail.service';
 
 @Component({
   standalone: true,
@@ -17,18 +17,17 @@ export class ImageViewDialogComponent implements OnInit {
   readonly minZoom = 0.5;
   readonly maxZoom = 4;
   readonly zoomStep = 0.25;
-  pdfThumbnailSrc: string | null = null;
-  isLoadingPdfThumbnail = false;
+  pdfViewerSrc: SafeResourceUrl | null = null;
   gallerySources: string[] = [];
   currentIndex = 0;
 
   constructor(
     @Inject(MAT_DIALOG_DATA) public data: ImageViewDialogData,
-    private pdfThumbnailService: PdfThumbnailService,
+    private sanitizer: DomSanitizer,
     private dialogRef: MatDialogRef<ImageViewDialogComponent>
   ) {}
 
-  async ngOnInit(): Promise<void> {
+  ngOnInit(): void {
     this.gallerySources = (this.data?.imageSources || []).filter(source => !!source);
     if (this.gallerySources.length === 0 && this.data?.imageSrc) {
       this.gallerySources = [this.data.imageSrc];
@@ -39,7 +38,7 @@ export class ImageViewDialogComponent implements OnInit {
       ? Math.max(0, Math.min(requestedIndex, Math.max(0, this.gallerySources.length - 1)))
       : 0;
 
-    await this.loadPdfThumbnailIfNeeded();
+    this.updatePdfViewerSource();
   }
 
   zoomIn(): void {
@@ -67,7 +66,7 @@ export class ImageViewDialogComponent implements OnInit {
     return this.gallerySources.length > 1;
   }
 
-  async goPrevious(): Promise<void> {
+  goPrevious(): void {
     if (!this.canNavigate) {
       return;
     }
@@ -76,10 +75,10 @@ export class ImageViewDialogComponent implements OnInit {
       ? this.gallerySources.length - 1
       : this.currentIndex - 1;
     this.zoomScale = 1;
-    await this.loadPdfThumbnailIfNeeded();
+    this.updatePdfViewerSource();
   }
 
-  async goNext(): Promise<void> {
+  goNext(): void {
     if (!this.canNavigate) {
       return;
     }
@@ -88,19 +87,19 @@ export class ImageViewDialogComponent implements OnInit {
       ? 0
       : this.currentIndex + 1;
     this.zoomScale = 1;
-    await this.loadPdfThumbnailIfNeeded();
+    this.updatePdfViewerSource();
   }
 
-  async loadPdfThumbnailIfNeeded(): Promise<void> {
+  updatePdfViewerSource(): void {
     if (!this.isPdf) {
-      this.pdfThumbnailSrc = null;
-      this.isLoadingPdfThumbnail = false;
+      this.pdfViewerSrc = null;
       return;
     }
 
-    this.isLoadingPdfThumbnail = true;
-    this.pdfThumbnailSrc = await this.pdfThumbnailService.getFirstPageDataUrl(this.currentImageSrc || null, 1200);
-    this.isLoadingPdfThumbnail = false;
+    const src = this.currentImageSrc || '';
+    this.pdfViewerSrc = src
+      ? this.sanitizer.bypassSecurityTrustResourceUrl(src)
+      : null;
   }
 
   close(): void {
