@@ -166,9 +166,7 @@ export class OwnerComponent implements OnInit, OnDestroy {
     }
     this.formatterService.formatPhoneControl(this.form.get('phone'));
     this.form.markAllAsTouched();
-    const resolvedOfficeId = this.isAddMode
-      ? this.resolveCreateOfficeId()
-      : (this.lead?.officeId ?? this.resolveCreateOfficeId());
+    const resolvedOfficeId = this.resolveSaveOfficeId();
     const hasValidOfficeSelection = resolvedOfficeId != null && resolvedOfficeId > 0;
     if (!hasValidOfficeSelection && this.embeddedInShell()) {
       this.officeSelectionRequired.emit();
@@ -472,6 +470,21 @@ export class OwnerComponent implements OnInit, OnDestroy {
       return fromResolved;
     }
     return this.globalSelectionService.getSelectedOfficeIdValue();
+  }
+
+  resolveSaveOfficeId(): number | null {
+    const fromShell = this.officeId();
+    if (this.embeddedInShell() && fromShell != null && fromShell > 0) {
+      return fromShell;
+    }
+    if (this.isAddMode) {
+      return this.resolveCreateOfficeId();
+    }
+    const fromLead = this.lead?.officeId ?? null;
+    if (fromLead != null && fromLead > 0) {
+      return fromLead;
+    }
+    return this.resolveCreateOfficeId();
   }
 
   resolveAgentIdFromAgentCode(agentCode: string | null | undefined): string | null {

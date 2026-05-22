@@ -74,7 +74,7 @@
                 [embeddedInShell]="true"
                 [shellLeadId]="rentalShellLeadId"
                 [officeId]="selectedOfficeId"
-                (closed)="onRentalLeadFormClosed()"
+                (closed)="onRentalLeadFormClosed($event)"
                 (officeSelectionRequired)="onRentalOfficeSelectionRequired()"
                 />
             } @else {
@@ -95,7 +95,7 @@
                   [embeddedInShell]="true"
                   [shellLeadId]="ownerShellLeadId"
                   [officeId]="selectedOfficeId"
-                  (closed)="onOwnerLeadFormClosed()"
+                  (closed)="onOwnerLeadFormClosed($event)"
                   (officeSelectionRequired)="onOwnerOfficeSelectionRequired()"
                   />
               } @else {
@@ -116,7 +116,7 @@
                 [embeddedInShell]="true"
                 [shellLeadId]="generalShellLeadId"
                 [officeId]="selectedOfficeId"
-                (closed)="onGeneralLeadFormClosed()"
+                (closed)="onGeneralLeadFormClosed($event)"
                 (officeSelectionRequired)="onGeneralOfficeSelectionRequired()"
                 />
             } @else {
