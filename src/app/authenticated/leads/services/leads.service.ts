@@ -21,6 +21,12 @@ import {
   PublicOwnerFormResponse,
   PublicOwnerFormSubmitRequest
 } from '../models/owner-form-share.model';
+import { StateFormResponse } from '../../organizations/models/state-form.model';
+import { OrganizationResponse } from '../../organizations/models/organization.model';
+import { OfficeResponse } from '../../organizations/models/office.model';
+import { AccountingOfficeResponse } from '../../organizations/models/accounting-office.model';
+import { PropertyResponse } from '../../properties/models/property.model';
+import { PropertyAgreementResponse } from '../../properties/models/property-agreement.model';
 import {
   OwnerInventoryInformationRequest,
   OwnerInventoryInformationResponse
@@ -113,6 +119,48 @@ export class LeadsService {
     return this.rawHttp.put<PublicOwnerFormResponse>(`${this.commonController}owner-form/${normalized}`, body);
   }
 
+  getPublicOwnerFormStateFormsByToken(token: string): Observable<StateFormResponse[]> {
+    const normalized = this.normalizeOwnerFormShareToken(token);
+    return this.rawHttp.get<StateFormResponse[]>(`${this.commonController}owner-form/${normalized}/stateforms`);
+  }
+
+  getPublicOwnerLeadByToken(token: string): Observable<LeadOwnerResponse> {
+    const normalized = this.normalizeOwnerFormShareToken(token);
+    return this.rawHttp.get<LeadOwnerResponse>(`${this.commonController}owner-form/${normalized}/lead-owner`).pipe(
+      map(row => this.sanitizeOwnerLeadResponse(row))
+    );
+  }
+
+  getPublicOwnerOrganizationByToken(token: string): Observable<OrganizationResponse> {
+    const normalized = this.normalizeOwnerFormShareToken(token);
+    return this.rawHttp.get<OrganizationResponse>(`${this.commonController}owner-form/${normalized}/organization`);
+  }
+
+  getPublicOwnerOfficeByToken(token: string): Observable<OfficeResponse> {
+    const normalized = this.normalizeOwnerFormShareToken(token);
+    return this.rawHttp.get<OfficeResponse>(`${this.commonController}owner-form/${normalized}/office`);
+  }
+
+  getPublicOwnerAccountingOfficeByToken(token: string): Observable<AccountingOfficeResponse> {
+    const normalized = this.normalizeOwnerFormShareToken(token);
+    return this.rawHttp.get<AccountingOfficeResponse>(`${this.commonController}owner-form/${normalized}/accounting-office`);
+  }
+
+  getPublicOwnerPropertyByToken(token: string): Observable<PropertyResponse> {
+    const normalized = this.normalizeOwnerFormShareToken(token);
+    return this.rawHttp.get<PropertyResponse>(`${this.commonController}owner-form/${normalized}/property`);
+  }
+
+  getPublicOwnerPropertyAgreementByToken(token: string): Observable<PropertyAgreementResponse> {
+    const normalized = this.normalizeOwnerFormShareToken(token);
+    return this.rawHttp.get<PropertyAgreementResponse>(`${this.commonController}owner-form/${normalized}/property-agreement`);
+  }
+
+  getPublicOwnerAgreementInformationByToken(token: string): Observable<OwnerAgreementInformationResponse> {
+    const normalized = this.normalizeOwnerFormShareToken(token);
+    return this.rawHttp.get<OwnerAgreementInformationResponse>(`${this.commonController}owner-form/${normalized}/agreement-information`);
+  }
+
   getOwnerInventoryInformationByOwnerId(ownerId: number): Observable<OwnerInventoryInformationResponse> {
     return this.http.get<OwnerInventoryInformationResponse>(`${this.controller}owners/inventory-information/${ownerId}`);
   }
@@ -145,7 +193,10 @@ export class LeadsService {
     return this.http.put<OwnerAgreementInformationResponse>(`${this.configService.config().apiUrl}leads/owners/agreement-information`, body);
   }
 
-  getPublicOwnerFormUrl(token: string): string {
+  getPublicOwnerFormUrl(
+    token: string,
+    context?: { officeId?: number | null; propertyCode?: string | null; propertyOffice?: string | null }
+  ): string {
     const normalized = this.normalizeOwnerFormShareToken(String(token ?? ''));
     if (!normalized) {
       return '';
@@ -157,7 +208,21 @@ export class LeadsService {
     if (!origin) {
       return '';
     }
-    return `${origin}/owners/${normalized}`;
+    const queryParts: string[] = [];
+    const officeId = Number(context?.officeId);
+    if (Number.isFinite(officeId) && officeId > 0) {
+      queryParts.push(`officeId=${officeId}`);
+    }
+    const propertyCode = String(context?.propertyCode || '').trim();
+    if (propertyCode) {
+      queryParts.push(`propertyCode=${encodeURIComponent(propertyCode)}`);
+    }
+    const propertyOffice = String(context?.propertyOffice || '').trim();
+    if (propertyOffice) {
+      queryParts.push(`propertyOffice=${encodeURIComponent(propertyOffice)}`);
+    }
+    const query = queryParts.length > 0 ? `?${queryParts.join('&')}` : '';
+    return `${origin}/owners/${normalized}${query}`;
   }
 
   getGeneralLeads(): Observable<LeadGeneralResponse[]> {

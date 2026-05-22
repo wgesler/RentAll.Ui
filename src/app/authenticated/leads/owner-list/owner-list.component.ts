@@ -171,9 +171,19 @@ export class OwnerListComponent implements OnInit, OnChanges, OnDestroy {
     if (!ownerId) {
       return;
     }
+    const source = event as unknown as Record<string, unknown>;
+    const propertyCode = String(source['propertyCode'] || '').trim().toUpperCase();
+    const propertyOffice = String(source['propertyOffice'] || '').trim();
+    if (!propertyCode || !propertyOffice) {
+      this.toastr.error('Property Code and Property Office are required before sending an owner link.', CommonMessage.Error);
+      return;
+    }
+    const rawOfficeId = source['officeId'] ?? source['defaultOfficeId'];
+    const parsedOfficeId = Number(rawOfficeId);
+    const officeId = Number.isFinite(parsedOfficeId) && parsedOfficeId > 0 ? parsedOfficeId : null;
     this.leadsService.createOwnerFormShareLink(ownerId).pipe(take(1)).subscribe({
       next: (response) => {
-        const shareUrl = this.leadsService.getPublicOwnerFormUrl(response.token);
+        const shareUrl = this.leadsService.getPublicOwnerFormUrl(response.token, { officeId, propertyCode, propertyOffice });
         const copied = this.clipboard.copy(shareUrl);
         if (copied) {
           this.toastr.success('Owner form link copied to clipboard.', CommonMessage.Success);

@@ -104,6 +104,8 @@
             [officeId]="displayOfficeId"
             [lockOfficeSelection]="true"
             [shellMode]="true"
+            [openInViewOnTabSelect]="selectedTabIndex === getLeaseTabIndex()"
+            [hideEditButtonInViewMode]="selectedTabIndex === getLeaseTabIndex()"
             (officeIdChange)="reservationSection?.onLeaseOfficeIdChange($event)">
           </app-lease>
         </mat-tab>

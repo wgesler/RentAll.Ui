@@ -24,6 +24,7 @@ export interface ContactRequest {
   state?: string;
   zip?: string;
   phone?: string | null;
+  extension?: string | null;
   email: string;
   rating: number;
   notes?: string;
@@ -42,6 +43,7 @@ export interface ContactRequest {
   routingNumber?: string | null;
   accountNumber?: string | null;
   addAsUser?: number | null;
+  isOwnerReady?: boolean;
   isActive: boolean;
  }
 
@@ -70,6 +72,7 @@ export interface ContactResponse {
   state?: string;
   zip?: string;
   phone?: string | null;
+  extension?: string | null;
   email: string;
   rating: number;
   notes?: string;
@@ -88,6 +91,7 @@ export interface ContactResponse {
   routingNumber?: string | null;
   accountNumber?: string | null;
   addAsUser?: number | null;
+  isOwnerReady?: boolean;
   isActive: boolean;
 }
 

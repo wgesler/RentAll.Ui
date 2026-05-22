@@ -1,4 +1,5 @@
 import { CommonModule } from "@angular/common";
+import { Clipboard } from "@angular/cdk/clipboard";
 import { Component, EventEmitter, Input, OnChanges, OnDestroy, OnInit, Output, SimpleChanges } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { NavigationEnd, Router } from '@angular/router';
@@ -21,6 +22,7 @@ import { TitleBarSelectComponent } from '../../shared/titlebar-select/titlebar-s
 import { EntityType } from '../models/contact-enum';
 import { ContactListDisplay, ContactRequest, ContactResponse } from '../models/contact.model';
 import { ContactService } from '../services/contact.service';
+import { LeadsService } from '../../leads/services/leads.service';
 
 @Component({
     standalone: true,
@@ -31,6 +33,7 @@ import { ContactService } from '../services/contact.service';
 })
 
 export class ContactListComponent implements OnInit, OnDestroy, OnChanges {
+  readonly EntityType = EntityType;
   @Input() entityTypeId?: number;
   @Input() officeId: number | null = null;
   @Input() showInactive: boolean = false;
@@ -87,10 +90,12 @@ export class ContactListComponent implements OnInit, OnDestroy, OnChanges {
   isLoading$: Observable<boolean> = this.itemsToLoad$.pipe(map(items => items.size > 0));
 
   constructor(
+    private clipboard: Clipboard,
     public contactService: ContactService,
     public toastr: ToastrService,
     public router: Router,
     public mappingService: MappingService,
+    private leadsService: LeadsService,
     private authService: AuthService,
     private navigationContextService: NavigationContextService,
     private utilityService: UtilityService,
@@ -219,6 +224,34 @@ export class ContactListComponent implements OnInit, OnDestroy, OnChanges {
       copyFrom: event.contactId,
       entityTypeId: this.entityTypeId ?? undefined,
       tabIndex: this.tabIndex
+    });
+  }
+
+  copyOwnerFormLink(event: ContactListDisplay): void {
+    const immediateOwnerLeadId = Number(event?.ownerLeadId);
+    if (Number.isFinite(immediateOwnerLeadId) && immediateOwnerLeadId > 0) {
+      this.copyOwnerFormShareUrl(immediateOwnerLeadId, Number(event?.officeId));
+      return;
+    }
+
+    const contactId = String(event?.contactId || '').trim();
+    if (!contactId) {
+      this.toastr.error('Unable to determine owner link for this contact.', CommonMessage.Error);
+      return;
+    }
+
+    this.contactService.getContactByGuid(contactId).pipe(take(1)).subscribe({
+      next: contact => {
+        const resolvedOwnerLeadId = Number(contact?.ownerLeadId);
+        if (!Number.isFinite(resolvedOwnerLeadId) || resolvedOwnerLeadId <= 0) {
+          this.toastr.error('This owner contact is not linked to an owner lead.', CommonMessage.Error);
+          return;
+        }
+        this.copyOwnerFormShareUrl(resolvedOwnerLeadId, Number(contact?.officeId));
+      },
+      error: () => {
+        this.toastr.error('Unable to determine owner link for this contact.', CommonMessage.Error);
+      }
     });
   }
 
@@ -416,6 +449,39 @@ export class ContactListComponent implements OnInit, OnDestroy, OnChanges {
       }
     }
     this.applyFilters();
+  }
+
+  copyOwnerFormShareUrl(ownerLeadId: number, fallbackOfficeId?: number | null): void {
+    this.leadsService.getOwnerLeadById(ownerLeadId).pipe(take(1)).subscribe({
+      next: ownerLead => {
+        const officeId = Number(ownerLead?.officeId);
+        const resolvedOfficeId = Number.isFinite(officeId) && officeId > 0
+          ? officeId
+          : (Number.isFinite(Number(fallbackOfficeId)) && Number(fallbackOfficeId) > 0 ? Number(fallbackOfficeId) : null);
+        const propertyCode = String(ownerLead?.propertyCode || '').trim().toUpperCase();
+        this.leadsService.createOwnerFormShareLink(ownerLeadId).pipe(take(1)).subscribe({
+          next: (response) => {
+            const shareUrl = this.leadsService.getPublicOwnerFormUrl(response.token, {
+              officeId: resolvedOfficeId,
+              propertyCode,
+              propertyOffice: String(ownerLead?.propertyOffice || '').trim()
+            });
+            const copied = this.clipboard.copy(shareUrl);
+            if (copied) {
+              this.toastr.success('Owner form link copied to clipboard.', CommonMessage.Success);
+              return;
+            }
+            this.toastr.error('Unable to copy owner form link.', CommonMessage.Error);
+          },
+          error: () => {
+            this.toastr.error('Unable to generate owner form share link.', CommonMessage.Error);
+          }
+        });
+      },
+      error: () => {
+        this.toastr.error('Unable to generate owner form share link.', CommonMessage.Error);
+      }
+    });
   }
 
   ngOnDestroy(): void {

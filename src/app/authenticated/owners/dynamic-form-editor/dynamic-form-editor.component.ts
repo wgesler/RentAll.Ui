@@ -166,6 +166,14 @@ export class DynamicFormEditorComponent implements OnInit, OnChanges, OnDestroy 
     if (!editHost) {
       return;
     }
+    editHost.setAttribute('contenteditable', 'false');
+    const staticEditableNodes = Array.from(editHost.querySelectorAll('[contenteditable]')) as HTMLElement[];
+    staticEditableNodes.forEach(node => {
+      const tagName = node.tagName.toLowerCase();
+      if (tagName !== 'input' && tagName !== 'textarea' && tagName !== 'select' && tagName !== 'option') {
+        node.setAttribute('contenteditable', 'false');
+      }
+    });
     const controls = Array.from(editHost.querySelectorAll('input, textarea, select, option, button, label'));
     controls.forEach(control => {
       control.setAttribute('contenteditable', 'false');

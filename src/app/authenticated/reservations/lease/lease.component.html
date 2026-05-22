@@ -23,10 +23,12 @@
                 View
               </button>
             } @else {
-              <button mat-raised-button type="button" color="accent" (click)="editForm()">
-                <mat-icon>edit</mat-icon>
-                Edit
-              </button>
+              @if (!hideEditButtonInViewMode) {
+                <button mat-raised-button type="button" color="accent" (click)="editForm()">
+                  <mat-icon>edit</mat-icon>
+                  Edit
+                </button>
+              }
               <button mat-raised-button type="button" color="accent" id="print-lease-button" (click)="onPrint()">
                 <mat-icon>print</mat-icon>
                 Print

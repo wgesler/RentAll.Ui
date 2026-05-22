@@ -80,6 +80,11 @@
               <mat-checkbox formControlName="isInternational" color="primary">
                 Is International
               </mat-checkbox>
+              @if (form.get('entityTypeId')?.value === EntityType.Owner) {
+                <mat-checkbox formControlName="isOwnerReady" color="primary">
+                  Owner fully setup
+                </mat-checkbox>
+              }
               @if (isInOwnerMode) {
                 @if (showAddAdditionalOwnerButton) {
                   <button mat-raised-button type="button" color="accent" (click)="requestAddAdditionalOwner()">
@@ -418,14 +423,18 @@
                       <input matInput formControlName="lastName" [required]="vendorFirstLastRequired()">
                     </mat-form-field>
                   </div>
-                  <div class="col-span-4 grid gap-x-1.5 gap-y-1 form-grid-four-equal">
-                    <mat-form-field appearance="outline" class="field-min-0 col-span-2">
+                  <div class="col-span-4 grid gap-x-1.5 gap-y-1 form-grid-sevenths">
+                    <mat-form-field appearance="outline" class="field-min-0 col-span-3">
                       <mat-label>Phone</mat-label>
                       <input matInput formControlName="phone" maxlength="20" (blur)="formatPhone()" (input)="onPhoneInput($event)"
                         [required]="needsStrictPhoneValidation(form.get('entityTypeId')?.value)"
                         placeholder="(555) 555-5555 or +1 234 567 8900">
                     </mat-form-field>
-                    <mat-form-field appearance="outline" class="field-min-0 col-span-2">
+                    <mat-form-field appearance="outline" class="field-min-0 col-span-1">
+                      <mat-label>Extension</mat-label>
+                      <input matInput formControlName="extension" maxlength="20">
+                    </mat-form-field>
+                    <mat-form-field appearance="outline" class="field-min-0 col-span-3">
                       <mat-label>Email</mat-label>
                       <input matInput type="email" formControlName="email" required>
                     </mat-form-field>
@@ -502,17 +511,22 @@
               }
 
               @if (form.get('entityTypeId')?.value !== EntityType.Vendor) {
-                <mat-form-field appearance="outline" class="col-span-2">
-                  <mat-label>Phone</mat-label>
-                  <input matInput formControlName="phone" maxlength="20" (blur)="formatPhone()" (input)="onPhoneInput($event)"
-                    [required]="needsStrictPhoneValidation(form.get('entityTypeId')?.value)"
-                    placeholder="(555) 555-5555 or +1 234 567 8900">
-                </mat-form-field>
-
-                <mat-form-field appearance="outline" class="col-span-2">
-                  <mat-label>Email</mat-label>
-                  <input matInput type="email" formControlName="email" required>
-                </mat-form-field>
+                <div class="col-span-4 grid gap-x-1.5 gap-y-1 form-grid-sevenths">
+                  <mat-form-field appearance="outline" class="field-min-0 col-span-3">
+                    <mat-label>Phone</mat-label>
+                    <input matInput formControlName="phone" maxlength="20" (blur)="formatPhone()" (input)="onPhoneInput($event)"
+                      [required]="needsStrictPhoneValidation(form.get('entityTypeId')?.value)"
+                      placeholder="(555) 555-5555 or +1 234 567 8900">
+                  </mat-form-field>
+                  <mat-form-field appearance="outline" class="field-min-0 col-span-1">
+                    <mat-label>Extension</mat-label>
+                    <input matInput formControlName="extension" maxlength="20">
+                  </mat-form-field>
+                  <mat-form-field appearance="outline" class="field-min-0 col-span-3">
+                    <mat-label>Email</mat-label>
+                    <input matInput type="email" formControlName="email" required>
+                  </mat-form-field>
+                </div>
               }
 
               @if (form.get('isInternational')?.value) {

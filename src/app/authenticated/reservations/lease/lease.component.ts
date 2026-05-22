@@ -65,6 +65,10 @@ export class LeaseComponent extends BaseDocumentComponent implements OnInit, OnD
   @Input() lockOfficeSelection: boolean = false;
   /** When true (reservation shell), use property-tab-actions-band + property-tab-main-area like property shell. */
   @Input() shellMode: boolean = false;
+  /** When toggled true, switch directly into view/create mode. */
+  @Input() openInViewOnTabSelect: boolean = false;
+  /** When true, hide Edit button while in view mode. */
+  @Input() hideEditButtonInViewMode: boolean = false;
   @Output() officeIdChange = new EventEmitter<number | null>();
   
   isSubmitting: boolean = false;
@@ -97,6 +101,7 @@ export class LeaseComponent extends BaseDocumentComponent implements OnInit, OnD
   editorStyles: string = '';
   baseTemplateHtml: string = '';
   isEditMode: boolean = true;
+  pendingOpenInViewMode: boolean = false;
   lastDocumentSelectionKey: string = '';
   iframeKey: number = 0;
   isDownloading: boolean = false;
@@ -229,6 +234,35 @@ export class LeaseComponent extends BaseDocumentComponent implements OnInit, OnD
         this.applyReservationSelectionFromInput(newReservationId);
       }
     }
+
+    if (changes['openInViewOnTabSelect']) {
+      const shouldOpenInView = !!changes['openInViewOnTabSelect'].currentValue;
+      const wasOpenInView = !!changes['openInViewOnTabSelect'].previousValue;
+      if (shouldOpenInView && !wasOpenInView) {
+        this.switchToViewModeFromTabSelection();
+      }
+    }
+  }
+
+  switchToViewModeFromTabSelection(): void {
+    if (!this.isEditMode) {
+      this.pendingOpenInViewMode = false;
+      return;
+    }
+
+    // For tab-entry auto-view, prefer stable sources (draft/base/form value).
+    // Avoid promoting from a potentially not-yet-initialized edit iframe snapshot.
+    const draftHtml = this.dynamicFormDraftService.loadDraft(this.getDraftStorageKey());
+    const htmlForView = String(draftHtml || this.baseTemplateHtml || this.form.get('lease')?.value || '').trim();
+    if (htmlForView) {
+      this.isEditMode = false;
+      this.processAndSetHtml(htmlForView);
+      this.pendingOpenInViewMode = false;
+      return;
+    }
+
+    // Content not ready yet; defer until setEditorHtml/onEditIframeLoad runs.
+    this.pendingOpenInViewMode = true;
   }
 
   getLease(): void {
@@ -421,6 +455,9 @@ export class LeaseComponent extends BaseDocumentComponent implements OnInit, OnD
 
   onEditIframeLoad(): void {
     this.ensureEditorControlsInteractive();
+    if (this.pendingOpenInViewMode && this.openInViewOnTabSelect) {
+      this.switchToViewModeFromTabSelection();
+    }
   }
   //#endregion
 
@@ -1883,6 +1920,9 @@ export class LeaseComponent extends BaseDocumentComponent implements OnInit, OnD
     );
     this.editableHtml = this.sanitizer.bypassSecurityTrustHtml(editableHtmlDocument);
     setTimeout(() => this.ensureEditorControlsInteractive());
+    if (this.pendingOpenInViewMode && this.openInViewOnTabSelect) {
+      setTimeout(() => this.switchToViewModeFromTabSelection());
+    }
   }
 
   ensureEditorControlsInteractive(): void {
@@ -1891,7 +1931,14 @@ export class LeaseComponent extends BaseDocumentComponent implements OnInit, OnD
     if (!editDoc || !editHost) {
       return;
     }
-    editHost.setAttribute('contenteditable', 'true');
+    editHost.setAttribute('contenteditable', 'false');
+    const staticEditableNodes = Array.from(editHost.querySelectorAll('[contenteditable]')) as HTMLElement[];
+    staticEditableNodes.forEach(node => {
+      const tagName = node.tagName.toLowerCase();
+      if (tagName !== 'input' && tagName !== 'textarea' && tagName !== 'select' && tagName !== 'option') {
+        node.setAttribute('contenteditable', 'false');
+      }
+    });
     const controls = Array.from(editHost.querySelectorAll('input, textarea, select, option, button, label'));
     controls.forEach(control => {
       control.setAttribute('contenteditable', 'false');

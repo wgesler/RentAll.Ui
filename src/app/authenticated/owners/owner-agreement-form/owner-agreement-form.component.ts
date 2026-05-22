@@ -5,7 +5,7 @@ import { FormBuilder, FormControl, FormGroup, ReactiveFormsModule } from '@angul
 import { DomSanitizer, SafeHtml } from '@angular/platform-browser';
 import { Router } from '@angular/router';
 import { ToastrService } from 'ngx-toastr';
-import { BehaviorSubject, filter, finalize, Observable, Subject, of, take, takeUntil } from 'rxjs';
+import { BehaviorSubject, catchError, filter, finalize, forkJoin, Observable, Subject, of, take, takeUntil } from 'rxjs';
 import { CommonMessage } from '../../../enums/common-message.enum';
 import { RouterUrl } from '../../../app.routes';
 import { MaterialModule } from '../../../material.module';
@@ -48,6 +48,7 @@ import { OwnerFormPlaceholderService } from '../services/owner-form-placeholder.
   styleUrl: './owner-agreement-form.component.scss'
 })
 export class OwnerAgreementFormComponent extends BaseDocumentComponent implements OnInit, OnChanges, OnDestroy {
+  @Input() token: string | null = null;
   @Input() ownerLeadId: number | null = null;
   @Input() officeId: number | null = null;
   @Input() propertyId: string | null = null;
@@ -122,18 +123,18 @@ export class OwnerAgreementFormComponent extends BaseDocumentComponent implement
     });
 
     this.commonService.loadStates();
-    this.loadOrganization();
-    this.loadOffices();
-    this.loadAccountingOffices();
-    this.loadContacts();
-    this.loadLeadOwner(this.ownerLeadId);
-    this.loadPropertyContext();
+    this.initializeDataContext();
   }
 
   ngOnChanges(changes: SimpleChanges): void {
+    const tokenChanged = changes['token'] && (changes['token'].previousValue !== changes['token'].currentValue);
     const propertyIdChanged = changes['propertyId'] && (changes['propertyId'].previousValue !== changes['propertyId'].currentValue);
     const officeIdChanged = changes['officeId'] && (changes['officeId'].previousValue !== changes['officeId'].currentValue);
     const templateHtmlChanged = changes['templateHtml'] && (changes['templateHtml'].previousValue !== changes['templateHtml'].currentValue);
+    if (tokenChanged) {
+      this.initializeDataContext();
+      return;
+    }
     if (officeIdChanged) {
       this.syncSelectedOfficeFromLoadedOffices();
     }
@@ -145,6 +146,23 @@ export class OwnerAgreementFormComponent extends BaseDocumentComponent implement
     if (templateHtmlChanged) {
       this.generatePreview();
     }
+  }
+
+  isPublicTokenMode(): boolean {
+    return String(this.token || '').trim().length > 0;
+  }
+
+  initializeDataContext(): void {
+    if (this.isPublicTokenMode()) {
+      this.loadPublicContext();
+      return;
+    }
+    this.loadOrganization();
+    this.loadOffices();
+    this.loadAccountingOffices();
+    this.loadContacts();
+    this.loadLeadOwner(this.ownerLeadId);
+    this.loadPropertyContext();
   }
 
   onIncludeChange(): void {
@@ -285,6 +303,83 @@ export class OwnerAgreementFormComponent extends BaseDocumentComponent implement
   //#endregion
 
   //#region Data Loading Methods
+  loadPublicContext(): void {
+    const token = String(this.token || '').trim();
+    if (!token) {
+      this.organization = null;
+      this.selectedOffice = null;
+      this.accountingOffices = [];
+      this.selectedProperty = null;
+      this.propertyAgreement = null;
+      this.ownerContact = null;
+      this.leadOwner = null;
+      this.agreementInformation = null;
+      ['organization', 'offices', 'contacts', 'leadOwner', 'property', 'propertyAgreement', 'agreementInfo', 'accountingOffices']
+        .forEach(item => this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, item));
+      this.generatePreviewIfReady();
+      return;
+    }
+
+    forkJoin({
+      publicForm: this.leadsService.getPublicOwnerFormByToken(token).pipe(catchError(() => of(null))),
+      owner: this.leadsService.getPublicOwnerLeadByToken(token).pipe(catchError(() => of(null))),
+      organization: this.leadsService.getPublicOwnerOrganizationByToken(token).pipe(catchError(() => of(null))),
+      office: this.leadsService.getPublicOwnerOfficeByToken(token).pipe(catchError(() => of(null))),
+      accountingOffice: this.leadsService.getPublicOwnerAccountingOfficeByToken(token).pipe(catchError(() => of(null))),
+      property: this.leadsService.getPublicOwnerPropertyByToken(token).pipe(catchError(() => of(null))),
+      propertyAgreement: this.leadsService.getPublicOwnerPropertyAgreementByToken(token).pipe(catchError(() => of(null))),
+      agreementInfo: this.leadsService.getPublicOwnerAgreementInformationByToken(token).pipe(catchError(() => of(null)))
+    }).pipe(take(1), takeUntil(this.destroy$)).subscribe({
+      next: response => {
+        this.leadOwner = response.owner;
+        this.organization = response.organization;
+        this.organizationId = String(response.organization?.organizationId || '').trim();
+        this.selectedOffice = response.office;
+        this.accountingOffices = response.accountingOffice ? [response.accountingOffice] : [];
+        this.selectedProperty = response.property;
+        this.propertyAgreement = response.propertyAgreement;
+        this.agreementInformation = response.agreementInfo;
+        this.ownerContact = this.mapPublicOwnerContact(response.publicForm?.form);
+        ['organization', 'offices', 'contacts', 'leadOwner', 'property', 'propertyAgreement', 'agreementInfo', 'accountingOffices']
+          .forEach(item => this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, item));
+        this.generatePreviewIfReady();
+      },
+      error: () => {
+        this.organization = null;
+        this.selectedOffice = null;
+        this.accountingOffices = [];
+        this.selectedProperty = null;
+        this.propertyAgreement = null;
+        this.ownerContact = null;
+        this.leadOwner = null;
+        this.agreementInformation = null;
+        ['organization', 'offices', 'contacts', 'leadOwner', 'property', 'propertyAgreement', 'agreementInfo', 'accountingOffices']
+          .forEach(item => this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, item));
+        this.generatePreviewIfReady();
+      }
+    });
+  }
+
+  mapPublicOwnerContact(form: any): ContactResponse | null {
+    if (!form) {
+      return null;
+    }
+    const firstName = String(form.firstName || '').trim();
+    const lastName = String(form.lastName || '').trim();
+    const fullName = `${firstName} ${lastName}`.trim();
+    return {
+      firstName,
+      lastName,
+      fullName,
+      email: String(form.email || '').trim(),
+      address1: String(form.address || '').trim(),
+      address2: '',
+      city: String(form.city || '').trim(),
+      state: String(form.state || '').trim(),
+      zip: String(form.zip || '').trim()
+    } as ContactResponse;
+  }
+
   loadPropertyContext(): void {
     this.loadProperty();
     this.loadPropertyAgreement();
@@ -313,6 +408,12 @@ export class OwnerAgreementFormComponent extends BaseDocumentComponent implement
   }
 
   loadOrganization(): void {
+    if (!this.organizationId) {
+      this.organization = null;
+      this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'organization');
+      this.generatePreviewIfReady();
+      return;
+    }
     this.commonService.loadOrganization();
     this.commonService.getOrganization().pipe(filter(org => org !== null), take(1), takeUntil(this.destroy$)).subscribe({
       next: (response: OrganizationResponse) => {
@@ -595,7 +696,14 @@ export class OwnerAgreementFormComponent extends BaseDocumentComponent implement
     if (!editDoc || !editHost) {
       return;
     }
-    editHost.setAttribute('contenteditable', 'true');
+    editHost.setAttribute('contenteditable', 'false');
+    const staticEditableNodes = Array.from(editHost.querySelectorAll('[contenteditable]')) as HTMLElement[];
+    staticEditableNodes.forEach(node => {
+      const tagName = node.tagName.toLowerCase();
+      if (tagName !== 'input' && tagName !== 'textarea' && tagName !== 'select' && tagName !== 'option') {
+        node.setAttribute('contenteditable', 'false');
+      }
+    });
     const controls = Array.from(editHost.querySelectorAll('input, textarea, select, option, button, label'));
     controls.forEach(control => {
       control.setAttribute('contenteditable', 'false');
@@ -950,7 +1058,7 @@ export class OwnerAgreementFormComponent extends BaseDocumentComponent implement
   }
 
   getDraftStorageKey(): string {
-    const organizationId = String(this.authService.getUser()?.organizationId || '').trim();
+    const organizationId = String(this.organizationId || this.authService.getUser()?.organizationId || '').trim();
     const formKey = `${this.documentFileSuffix}-${this.templateAssetPath}`;
     return this.dynamicFormDraftService.buildDraftKey(
       organizationId,
@@ -975,7 +1083,7 @@ export class OwnerAgreementFormComponent extends BaseDocumentComponent implement
   }
 
   getCompanyName(): string {
-    return String(this.commonService.getOrganizationValue()?.name || '').trim();
+    return String(this.organization?.name || this.commonService.getOrganizationValue()?.name || '').trim();
   }
 
   getOfficeName(): string {
@@ -983,7 +1091,7 @@ export class OwnerAgreementFormComponent extends BaseDocumentComponent implement
   }
 
   getCompanyState(): string {
-    const stateCode = String(this.getEffectiveOffice()?.state || this.commonService.getOrganizationValue()?.state || '').trim();
+    const stateCode = String(this.getEffectiveOffice()?.state || this.organization?.state || this.commonService.getOrganizationValue()?.state || '').trim();
     if (!stateCode) {
       return '';
     }
@@ -1007,7 +1115,7 @@ export class OwnerAgreementFormComponent extends BaseDocumentComponent implement
   }
 
   getCompanyCity(): string {
-    return String(this.getEffectiveOffice()?.city || this.commonService.getOrganizationValue()?.city || '').trim();
+    return String(this.getEffectiveOffice()?.city || this.organization?.city || this.commonService.getOrganizationValue()?.city || '').trim();
   }
 
   getCompanyAddress(): string {
@@ -1015,8 +1123,8 @@ export class OwnerAgreementFormComponent extends BaseDocumentComponent implement
   }
 
   getCompanyAddress1(): string {
-    const address1 = String(this.getEffectiveOffice()?.address1 || this.commonService.getOrganizationValue()?.address1 || '').trim();
-    const suiteRaw = String(this.getEffectiveOffice()?.suite || this.commonService.getOrganizationValue()?.suite || '').trim();
+    const address1 = String(this.getEffectiveOffice()?.address1 || this.organization?.address1 || this.commonService.getOrganizationValue()?.address1 || '').trim();
+    const suiteRaw = String(this.getEffectiveOffice()?.suite || this.organization?.suite || this.commonService.getOrganizationValue()?.suite || '').trim();
     if (!address1) {
       return '';
     }
@@ -1030,7 +1138,7 @@ export class OwnerAgreementFormComponent extends BaseDocumentComponent implement
   getCompanyAddress2(): string {
     const city = this.getCompanyCity();
     const state = this.getCompanyState();
-    const zip = String(this.getEffectiveOffice()?.zip || this.commonService.getOrganizationValue()?.zip || '').trim();
+    const zip = String(this.getEffectiveOffice()?.zip || this.organization?.zip || this.commonService.getOrganizationValue()?.zip || '').trim();
     const cityState = [city, state].filter(part => part.length > 0).join(', ');
     return [cityState, zip].filter(part => part.length > 0).join(' ');
   }
@@ -1147,13 +1255,13 @@ export class OwnerAgreementFormComponent extends BaseDocumentComponent implement
   }
 
   getOrganizationOfficeDisplay(): string {
-    const organizationName = String(this.commonService.getOrganizationValue()?.name || '').trim();
+    const organizationName = String(this.organization?.name || this.commonService.getOrganizationValue()?.name || '').trim();
     const officeName = String(this.getEffectiveOffice()?.name || '').trim();
     return `${organizationName} ${officeName}`.trim();
   }
 
   getOrganizationWebsite(): string {
-    return String(this.getEffectiveOffice()?.website || this.commonService.getOrganizationValue()?.website || '').trim();
+    return String(this.getEffectiveOffice()?.website || this.organization?.website || this.commonService.getOrganizationValue()?.website || '').trim();
   }
 
   getOwnerSplit(): string {

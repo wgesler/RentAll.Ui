@@ -1,4 +1,5 @@
 import { CommonModule } from "@angular/common";
+import { Clipboard } from '@angular/cdk/clipboard';
 import { HttpErrorResponse } from '@angular/common/http';
 import { Component, EventEmitter, HostListener, Input, NgZone, OnChanges, OnDestroy, OnInit, Output, SimpleChanges, ViewChild } from '@angular/core';
 import { FormsModule } from '@angular/forms';
@@ -30,6 +31,7 @@ import { PropertySelectionResponse } from '../models/property-selection.model';
 import { PropertyListDisplay } from '../models/property.model';
 import { PropertyCalendarUrlDialogComponent, PropertyCalendarUrlDialogData } from '../property-calendar-url-dialog/property-calendar-url-dialog.component';
 import { PropertySelectionFilterService } from '../services/property-selection-filter.service';
+import { PropertyListingShareService } from '../services/property-listing-share.service';
 import { PropertyService } from '../services/property.service';
 
 type PropertyListDisplayRow = PropertyListDisplay & {
@@ -108,6 +110,7 @@ export class PropertyListComponent implements OnInit, OnDestroy, OnChanges {
   isLoading$: Observable<boolean> = this.itemsToLoad$.pipe(map(items => items.size > 0));
 
   constructor(
+    private clipboard: Clipboard,
     public propertyService: PropertyService,
     public toastr: ToastrService,
     public router: Router,
@@ -120,7 +123,8 @@ export class PropertyListComponent implements OnInit, OnDestroy, OnChanges {
     private utilityService: UtilityService,
     private dialog: MatDialog,
     private ngZone: NgZone,
-    private propertySelectionFilterService: PropertySelectionFilterService) {
+    private propertySelectionFilterService: PropertySelectionFilterService,
+    private propertyListingShareService: PropertyListingShareService) {
   }
 
   //#region Property-List
@@ -241,6 +245,29 @@ export class PropertyListComponent implements OnInit, OnDestroy, OnChanges {
   copyProperty(event: PropertyListDisplay): void {
     const url = RouterUrl.replaceTokens(RouterUrl.Property, ['new']);
     this.router.navigate([url], { queryParams: { copyFrom: event.propertyId } });
+  }
+
+  copyPropertyListingLink(event: PropertyListDisplay): void {
+    const propertyId = String(event?.propertyId || '').trim();
+    if (!propertyId) {
+      this.toastr.error('Unable to generate listing share link.', CommonMessage.Error);
+      return;
+    }
+
+    this.propertyListingShareService.createPropertyShareLink(propertyId).pipe(take(1)).subscribe({
+      next: (response) => {
+        const shareUrl = this.propertyListingShareService.getPublicListingUrl(response.token);
+        const copied = this.clipboard.copy(shareUrl);
+        if (copied) {
+          this.toastr.success('Listing link copied to clipboard.', CommonMessage.Success);
+          return;
+        }
+        this.toastr.error('Unable to copy listing link.', CommonMessage.Error);
+      },
+      error: () => {
+        this.toastr.error('Unable to generate listing share link.', CommonMessage.Error);
+      }
+    });
   }
 
   deleteProperty(property: PropertyListDisplay): void {

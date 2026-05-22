@@ -363,6 +363,7 @@ export class ContactComponent implements OnInit, OnDestroy {
       state: isInternational ? undefined : (formValue.state || '').trim() || undefined,
       zip: isInternational ? undefined : (formValue.zip || '').trim() || undefined,
       phone: strippedPhone ? strippedPhone : null,
+      extension: ((formValue.extension || '').trim() || null),
       notes: this.compactDialogMode && this.contact ? (this.contact.notes ?? undefined) : (formValue.notes || undefined),
       markup: this.compactDialogMode && this.contact != null ? (this.contact.markup ?? this.formatterService.parsePercentageValue(formValue.markup, 25)) : this.formatterService.parsePercentageValue(formValue.markup, 25),
       rating: Number(formValue.rating ?? 0),
@@ -380,7 +381,8 @@ export class ContactComponent implements OnInit, OnDestroy {
       linenAndTowelFee: this.parseAgreementDecimalFromForm(formValue.linenAndTowelFee),
       bankName: (formValue.bankName || '').trim() || null,
       routingNumber: (formValue.routingNumber || '').trim() || null,
-      accountNumber: (formValue.accountNumber || '').trim() || null
+      accountNumber: (formValue.accountNumber || '').trim() || null,
+      isOwnerReady: !!formValue.isOwnerReady
     };
     delete (contactRequest as any).propertyCodes;
     delete (contactRequest as any).vendorId;
@@ -485,6 +487,7 @@ export class ContactComponent implements OnInit, OnDestroy {
       companyEmail: new FormControl('', [Validators.email]),
       displayName: new FormControl(''),
       phone: new FormControl('', [Validators.pattern(/^(\([0-9]{3}\) [0-9]{3}-[0-9]{4}|\+[0-9\s]+|^$)$/)]),
+      extension: new FormControl('', [Validators.maxLength(20)]),
       email: new FormControl('', [Validators.required, Validators.email]),
       address1: new FormControl(''),
       address2: new FormControl(''),
@@ -502,6 +505,7 @@ export class ContactComponent implements OnInit, OnDestroy {
       accountNumber: new FormControl(''),
       rating: new FormControl(0, [Validators.min(0), Validators.max(5)]),
       isInternational: new FormControl(false),
+      isOwnerReady: new FormControl(false),
       isActive: new FormControl(true),
       insuranceExpiration: new FormControl<Date | null>(null),
       addAsUser: new FormControl(false)
@@ -700,6 +704,7 @@ export class ContactComponent implements OnInit, OnDestroy {
         state: this.contact.state || '',
         zip: this.contact.zip || '',
         phone: this.formatterService.phoneNumber(this.contact.phone),
+        extension: this.contact.extension || '',
         email: this.contact.email,
         notes: this.contact.notes || '',
         markup: this.formatterService.formatPercentageValue(this.contact.markup, 25),
@@ -712,6 +717,7 @@ export class ContactComponent implements OnInit, OnDestroy {
         accountNumber: this.contact.accountNumber ?? '',
         rating: this.contact.rating ?? 0,
         isInternational: this.contact.isInternational || false,
+        isOwnerReady: this.contact.isOwnerReady || false,
         isActive: isActiveValue,
         insuranceExpiration: insuranceExpirationDate,
         addAsUser: (this.contact.addAsUser ?? 0) === 1
@@ -972,10 +978,12 @@ export class ContactComponent implements OnInit, OnDestroy {
       contactRequest.properties = formValue.propertyCodes || [];
       contactRequest.addAsUser = 0;
       contactRequest.vendorTypeId = null;
+      contactRequest.isOwnerReady = !!(contactRequest.isOwnerReady ?? false);
       return;
     }
     contactRequest.ownerTypeId = undefined;
     contactRequest.properties = [];
+    contactRequest.isOwnerReady = false;
     if (entityTypeId === EntityType.Vendor) {
       contactRequest.vendorTypeId = formValue.vendorTypeId ?? this.contact?.vendorTypeId ?? null;
     } else {
@@ -1529,6 +1537,7 @@ export class ContactComponent implements OnInit, OnDestroy {
       state: savedContact.state ?? originalRequest.state,
       zip: savedContact.zip ?? originalRequest.zip,
       phone: savedContact.phone ?? originalRequest.phone,
+      extension: savedContact.extension ?? originalRequest.extension,
       email: savedContact.email,
       rating: savedContact.rating ?? originalRequest.rating,
       notes: savedContact.notes ?? originalRequest.notes,
@@ -1546,6 +1555,7 @@ export class ContactComponent implements OnInit, OnDestroy {
       bankName: savedContact.bankName ?? originalRequest.bankName,
       routingNumber: savedContact.routingNumber ?? originalRequest.routingNumber,
       accountNumber: savedContact.accountNumber ?? originalRequest.accountNumber,
+      isOwnerReady: savedContact.isOwnerReady ?? originalRequest.isOwnerReady ?? false,
       addAsUser: savedContact.addAsUser ?? originalRequest.addAsUser ?? 0,
       isActive
     };
