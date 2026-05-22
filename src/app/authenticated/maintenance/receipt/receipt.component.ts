@@ -32,6 +32,7 @@ export class ReceiptComponent implements OnInit, OnDestroy {
    @Input() embeddedInMaintenance = false;
   @Output() backEvent = new EventEmitter<void>();
   @Output() savedEvent = new EventEmitter<ReceiptResponse>();
+  @Output() saveValidationAttempted = new EventEmitter<void>();
 
   fb: FormBuilder;
   form: FormGroup;
@@ -104,8 +105,10 @@ export class ReceiptComponent implements OnInit, OnDestroy {
   }
 
   saveReceipt(): void {
+    this.saveValidationAttempted.emit();
+    this.form.markAllAsTouched();
+
     if (!this.organizationId || this.form.invalid) {
-      this.form.markAllAsTouched();
       return;
     }
     if (this.isAddMode && !this.property) {

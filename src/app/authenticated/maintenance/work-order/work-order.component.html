@@ -33,13 +33,25 @@
 
       <mat-card>
         <form [formGroup]="form" (ngSubmit)="saveWorkOrder()" class="info-form pt-5" [class.mb-8]="!embeddedInMaintenance" [class.work-order-embedded-form]="embeddedInMaintenance">
-          <div class="mb-4 flex justify-end" style="padding-right: 5px;">
+          <div class="mb-4 flex justify-end items-center gap-2" style="padding-right: 5px;">
             <mat-checkbox formControlName="enteredInQb" color="primary">
               Entered in QB
             </mat-checkbox>
             <mat-checkbox formControlName="isActive" color="primary">
               IsActive
             </mat-checkbox>
+            @if (embeddedInMaintenance) {
+              <button
+                mat-raised-button
+                type="button"
+                color="primary"
+                (click)="onInlineSaveClick()"
+                [disabled]="isSubmitting"
+                class="text-nowrap flex-shrink-0">
+                <mat-icon>{{ isViewModeBeforeChanges() ? 'visibility' : 'save' }}</mat-icon>
+                {{ isViewModeBeforeChanges() ? 'View' : 'Save' }}
+              </button>
+            }
           </div>
 
           <div class="grid grid-cols-4 gap-x-1.5 gap-y-1">

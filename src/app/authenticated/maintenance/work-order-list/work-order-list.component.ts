@@ -137,16 +137,19 @@ export class WorkOrderListComponent implements OnInit, OnChanges {
   }
 
   addWorkOrder(): void {
-    if (!this.property) return;
     if (this.embeddedInMaintenance) {
       this.workOrderSelect.emit({
         workOrderId: null,
-        propertyId: this.property?.propertyId ?? null
+        propertyId: (this.property?.propertyId || '').trim() || null
       });
       return;
     }
+    if (!this.property) return;
     const url = '/' + RouterUrl.replaceTokens(RouterUrl.MaintenanceWorkOrder, ['new']);
-    this.router.navigate([url], { queryParams: { propertyId: this.property.propertyId }, state: { property: this.property } });
+    this.router.navigate([url], {
+      queryParams: { propertyId: this.property.propertyId },
+      state: { property: this.property }
+    });
   }
 
   deleteWorkOrder(event: WorkOrderDisplayList): void {

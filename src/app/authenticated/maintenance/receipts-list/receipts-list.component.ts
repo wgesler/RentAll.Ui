@@ -16,7 +16,7 @@ import { PropertyService } from '../../properties/services/property.service';
 import { DataTableComponent } from '../../shared/data-table/data-table.component';
 import { DataTableFilterActionsDirective } from '../../shared/data-table/data-table-filter-actions.directive';
 import { ColumnSet } from '../../shared/data-table/models/column-data';
-import { ReceiptDisplayList, ReceiptRequest, ReceiptResponse } from '../models/receipt.model';
+import { ReceiptDisplayList, ReceiptRequest, ReceiptResponse, ReceiptSelection } from '../models/receipt.model';
 import { ReceiptService } from '../services/receipt.service';
 
 @Component({
@@ -32,7 +32,7 @@ export class ReceiptsListComponent implements OnInit, OnChanges {
   @Input() isActiveTab = false;
   @Input() embeddedInMaintenance = false;
   @Input() refreshTrigger: number = 0;
-  @Output() receiptSelect = new EventEmitter<number | null>();
+  @Output() receiptSelect = new EventEmitter<ReceiptSelection>();
 
   isLoading: boolean = false;
   isServiceError: boolean = false;
@@ -140,13 +140,20 @@ export class ReceiptsListComponent implements OnInit, OnChanges {
   }
 
   addReceipt(): void {
-    if (!this.property) return;
     if (this.embeddedInMaintenance) {
-      this.receiptSelect.emit(null);
+      this.receiptSelect.emit({
+        receiptId: null,
+        officeId: this.property?.officeId ?? this.officeId ?? null,
+        propertyId: (this.property?.propertyId || '').trim() || null
+      });
       return;
     }
     const url = '/' + RouterUrl.replaceTokens(RouterUrl.MaintenanceReceipt, ['new']);
-    this.router.navigate([url], { queryParams: { propertyId: this.property.propertyId }, state: { property: this.property } });
+    const propertyId = (this.property?.propertyId || '').trim();
+    this.router.navigate([url], {
+      queryParams: propertyId ? { propertyId } : {},
+      state: this.property ? { property: this.property } : undefined
+    });
   }
 
   deleteReceipt(event: ReceiptDisplayList): void {
@@ -165,7 +172,14 @@ export class ReceiptsListComponent implements OnInit, OnChanges {
 
   goToReceipt(event: ReceiptDisplayList): void {
     if (this.embeddedInMaintenance) {
-      this.receiptSelect.emit(event.receiptId);
+      const selectedPropertyId = (event.propertyIds || [])
+        .map(propertyId => (propertyId || '').trim())
+        .find(propertyId => propertyId.length > 0) || null;
+      this.receiptSelect.emit({
+        receiptId: event.receiptId,
+        officeId: Number.isFinite(Number(event.officeId)) ? Number(event.officeId) : null,
+        propertyId: selectedPropertyId
+      });
       return;
     }
     if (!this.property) return;

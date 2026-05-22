@@ -18,6 +18,7 @@ import { ReservationService } from '../../reservations/services/reservation.serv
 import { InspectionComponent } from '../inspection/inspection.component';
 import { WorkOrderListComponent, WorkOrderSelection } from '../work-order-list/work-order-list.component';
 import { ReceiptsListComponent } from '../receipts-list/receipts-list.component';
+import { ReceiptSelection } from '../models/receipt.model';
 import { ReceiptComponent } from '../receipt/receipt.component';
 import { WorkOrderComponent } from '../work-order/work-order.component';
 import { DocumentListComponent } from '../../documents/document-list/document-list.component';
@@ -75,10 +76,12 @@ export class MaintenanceShellComponent implements OnInit, CanComponentDeactivate
   showReceiptDetail = false;
   selectedReceiptId: number | null = null;
   refreshReceiptsTrigger = 0;
+  receiptSaveValidationAttempted = false;
 
   showWorkOrderDetail = false;
   selectedWorkOrderId: string | null = null;
   showWorkOrdersTab = true;
+  workOrderSaveValidationAttempted = false;
 
   isInspectorView = false;
   selectedPropertyId: string | null = null;
@@ -125,6 +128,13 @@ export class MaintenanceShellComponent implements OnInit, CanComponentDeactivate
       const normalizedTab = this.normalizeRequestedTab(tabParam);
       if (normalizedTab !== null) {
         this.selectedTabIndex = normalizedTab;
+      }
+
+      const receiptIdParam = (params.get('receiptId') || '').trim();
+      if (receiptIdParam !== '') {
+        this.selectedTabIndex = this.receiptsTabIndex;
+        this.selectedReceiptId = receiptIdParam.toLowerCase() === 'new' ? null : (parseInt(receiptIdParam, 10) || null);
+        this.showReceiptDetail = true;
       }
 
       const workOrderIdParam = (params.get('workOrderId') || '').trim();
@@ -363,10 +373,44 @@ export class MaintenanceShellComponent implements OnInit, CanComponentDeactivate
     }
     return this.maintenanceReceiptDetail.isSubmitting || !this.maintenanceReceiptDetail.form?.valid;
   }
+
+  get shouldShowWorkOrderLocationRequiredState(): boolean {
+    return this.isWorkOrderDetailActive
+      && this.maintenanceWorkOrderDetail?.isAddMode === true
+      && this.workOrderSaveValidationAttempted;
+  }
+
+  get showOfficeRequiredErrorForWorkOrder(): boolean {
+    return this.shouldShowWorkOrderLocationRequiredState && this.showOfficeDropdown && this.selectedOfficeId == null;
+  }
+
+  get showPropertyRequiredErrorForWorkOrder(): boolean {
+    return this.shouldShowWorkOrderLocationRequiredState && !this.selectedPropertyId;
+  }
+
+  get shouldShowReceiptLocationRequiredState(): boolean {
+    return this.isReceiptDetailActive
+      && this.maintenanceReceiptDetail?.isAddMode === true
+      && this.receiptSaveValidationAttempted;
+  }
+
+  get showOfficeRequiredErrorForReceipt(): boolean {
+    return this.shouldShowReceiptLocationRequiredState && this.showOfficeDropdown && this.selectedOfficeId == null;
+  }
+
+  get showPropertyRequiredErrorForReceipt(): boolean {
+    return this.shouldShowReceiptLocationRequiredState && !this.selectedPropertyId;
+  }
   //#endregion
 
   //#region Top Bar Event Methods
   onOfficeChange(): void {
+    this.workOrderSaveValidationAttempted = false;
+    this.receiptSaveValidationAttempted = false;
+    const keepWorkOrderAddDetailOpen = this.isWorkOrderDetailActive
+      && (this.selectedWorkOrderId == null || this.maintenanceWorkOrderDetail?.isAddMode === true);
+    const keepReceiptAddDetailOpen = this.isReceiptDetailActive
+      && (this.selectedReceiptId == null || this.maintenanceReceiptDetail?.isAddMode === true);
     this.globalSelectionService.setSelectedOfficeId(this.selectedOfficeId);
     this.updateAvailableProperties();
     if (this.property && this.selectedOfficeId !== this.property.officeId) {
@@ -374,10 +418,20 @@ export class MaintenanceShellComponent implements OnInit, CanComponentDeactivate
       this.property = null;
       this.titleBarReservationId = null;
       this.shellReservations = [];
-      this.showReceiptDetail = false;
-      this.selectedReceiptId = null;
-      this.showWorkOrderDetail = false;
-      this.selectedWorkOrderId = null;
+      if (!keepReceiptAddDetailOpen) {
+        this.showReceiptDetail = false;
+        this.selectedReceiptId = null;
+      } else {
+        this.showReceiptDetail = true;
+        this.selectedReceiptId = null;
+      }
+      if (!keepWorkOrderAddDetailOpen) {
+        this.showWorkOrderDetail = false;
+        this.selectedWorkOrderId = null;
+      } else {
+        this.showWorkOrderDetail = true;
+        this.selectedWorkOrderId = null;
+      }
       if (this.selectedTabIndex === this.receiptsTabIndex) {
         this.refreshReceiptsTrigger++;
       }
@@ -385,6 +439,12 @@ export class MaintenanceShellComponent implements OnInit, CanComponentDeactivate
   }
 
   async onPropertyCodeChange(): Promise<void> {
+    this.workOrderSaveValidationAttempted = false;
+    this.receiptSaveValidationAttempted = false;
+    const keepWorkOrderAddDetailOpen = this.isWorkOrderDetailActive
+      && (this.selectedWorkOrderId == null || this.maintenanceWorkOrderDetail?.isAddMode === true);
+    const keepReceiptAddDetailOpen = this.isReceiptDetailActive
+      && (this.selectedReceiptId == null || this.maintenanceReceiptDetail?.isAddMode === true);
     if (this.skipNextPropertyCodeChange) {
       this.skipNextPropertyCodeChange = false;
       return;
@@ -396,6 +456,27 @@ export class MaintenanceShellComponent implements OnInit, CanComponentDeactivate
     const canLeave = await this.confirmChecklistNavigation();
     if (!canLeave) {
       this.selectedPropertyId = this.property?.propertyId ?? null;
+      return;
+    }
+
+    if (keepWorkOrderAddDetailOpen) {
+      this.showWorkOrderDetail = true;
+      this.selectedWorkOrderId = null;
+      this.isServiceError = false;
+      if (!this.selectedPropertyId) {
+        return;
+      }
+      this.loadProperty(this.selectedPropertyId);
+      return;
+    }
+    if (keepReceiptAddDetailOpen) {
+      this.showReceiptDetail = true;
+      this.selectedReceiptId = null;
+      this.isServiceError = false;
+      if (!this.selectedPropertyId) {
+        return;
+      }
+      this.loadProperty(this.selectedPropertyId);
       return;
     }
 
@@ -530,19 +611,68 @@ export class MaintenanceShellComponent implements OnInit, CanComponentDeactivate
     this.navigateToMaintenanceTabs(0);
   }
 
-  onReceiptSelect(receiptId: number | null): void {
-    this.showReceiptDetail = true;
-    this.selectedReceiptId = receiptId;
+  onReceiptSelect(selection: ReceiptSelection): void {
+    const receiptId = selection?.receiptId ?? null;
+    const selectedOfficeId = this.normalizeOfficeId(selection?.officeId ?? null);
+    const selectedPropertyId = (selection?.propertyId || '').trim() || null;
+
+    this.receiptSaveValidationAttempted = false;
+    if (selectedOfficeId !== this.selectedOfficeId) {
+      this.selectedOfficeId = selectedOfficeId;
+      this.globalSelectionService.setSelectedOfficeId(this.selectedOfficeId);
+    }
+
+    const openReceiptDetail = () => {
+      this.showReceiptDetail = true;
+      this.selectedReceiptId = receiptId;
+    };
+
+    if (selectedPropertyId && selectedPropertyId !== this.selectedPropertyId) {
+      this.skipNextPropertyCodeChange = true;
+      this.selectedPropertyId = selectedPropertyId;
+      this.loadProperty(selectedPropertyId, () => openReceiptDetail(), null);
+      return;
+    }
+
+    if (!selectedPropertyId && !this.selectedPropertyId) {
+      this.property = null;
+      this.shellReservations = [];
+      this.titleBarReservationId = null;
+    }
+
+    this.selectedPropertyId = selectedPropertyId ?? this.selectedPropertyId;
+    this.updateAvailableProperties();
+    openReceiptDetail();
   }
 
   onReceiptBack(): void {
+    this.receiptSaveValidationAttempted = false;
     this.showReceiptDetail = false;
     this.selectedReceiptId = null;
+    this.selectedOfficeId = null;
+    this.globalSelectionService.setSelectedOfficeId(null);
+    this.selectedPropertyId = null;
+    this.property = null;
+    this.titleBarReservationId = null;
+    this.shellReservations = [];
+    this.updateAvailableProperties();
   }
 
   onReceiptSaved(): void {
+    this.receiptSaveValidationAttempted = false;
     this.showReceiptDetail = false;
     this.selectedReceiptId = null;
+    this.selectedOfficeId = null;
+    this.globalSelectionService.setSelectedOfficeId(null);
+    this.selectedPropertyId = null;
+    this.property = null;
+    this.titleBarReservationId = null;
+    this.shellReservations = [];
+    this.updateAvailableProperties();
+  }
+
+  onReceiptSaveValidationAttempted(): void {
+    this.receiptSaveValidationAttempted = true;
   }
 
   onMaintenanceReceiptsInactiveChange(showInactive: boolean): void {
@@ -572,17 +702,31 @@ export class MaintenanceShellComponent implements OnInit, CanComponentDeactivate
   onWorkOrderBack(): void {
     this.showWorkOrderDetail = false;
     this.selectedWorkOrderId = null;
+    this.workOrderSaveValidationAttempted = false;
+    this.selectedOfficeId = this.normalizeOfficeId(this.globalSelectionService.getSelectedOfficeIdValue());
     this.titleBarReservationId = null;
     this.selectedPropertyId = null;
     this.property = null;
     this.shellReservations = [];
+    this.updateAvailableProperties();
     this.isServiceError = false;
   }
 
   onWorkOrderSaved(): void {
     this.showWorkOrderDetail = false;
     this.selectedWorkOrderId = null;
+    this.workOrderSaveValidationAttempted = false;
+    this.selectedOfficeId = this.normalizeOfficeId(this.globalSelectionService.getSelectedOfficeIdValue());
+    this.selectedPropertyId = null;
+    this.property = null;
+    this.titleBarReservationId = null;
+    this.shellReservations = [];
+    this.updateAvailableProperties();
     this.refreshReceiptsTrigger++;
+  }
+
+  onWorkOrderSaveValidationAttempted(): void {
+    this.workOrderSaveValidationAttempted = true;
   }
 
   onTopBarBackClick(): void {

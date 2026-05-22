@@ -35,9 +35,23 @@
         <form [formGroup]="form" (ngSubmit)="saveReceipt()" class="info-form pt-5" [class.mb-8]="!embeddedInMaintenance" [class.receipt-embedded-form]="embeddedInMaintenance">
           <div class="receipt-status-row">
             <span class="text-lg font-medium">Full Receipt</span>
-            <mat-checkbox formControlName="isActive" color="primary">
-              IsActive
-            </mat-checkbox>
+            <div class="flex items-center gap-2">
+              <mat-checkbox formControlName="isActive" color="primary">
+                IsActive
+              </mat-checkbox>
+              @if (embeddedInMaintenance) {
+                <button
+                  mat-raised-button
+                  type="button"
+                  color="primary"
+                  (click)="saveReceipt()"
+                  [disabled]="isSubmitting"
+                  class="text-nowrap flex-shrink-0">
+                  <mat-icon>save</mat-icon>
+                  Save
+                </button>
+              }
+            </div>
           </div>
 
           <div class="grid grid-cols-4 gap-x-1.5 gap-y-1 receipt-form-grid">

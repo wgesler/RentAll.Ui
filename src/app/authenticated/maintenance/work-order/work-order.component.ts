@@ -48,6 +48,7 @@ export class WorkOrderComponent implements OnInit, OnChanges, OnDestroy {
   @Input() navigateToPreviewOnSave: boolean = true;
   @Output() backEvent = new EventEmitter<void>();
   @Output() savedEvent = new EventEmitter<WorkOrderResponse>();
+  @Output() saveValidationAttempted = new EventEmitter<void>();
   
   readonly parseInt = parseInt;
   readonly noReceiptOptionValue = 0;
@@ -79,6 +80,7 @@ export class WorkOrderComponent implements OnInit, OnChanges, OnDestroy {
   focusedCurrencyField: { index: number; field: 'laborCost' | 'amount'; editValue: string } | null = null;
   initialWorkOrderItemsSnapshot: WorkOrderItemSnapshot[] = [];
   lastMarkupFactor: number = 1;
+  hasUserEditedWorkOrder = false;
 
   itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['property', 'workOrder', 'propertyAgreement', 'propertyReceipts', 'propertyReservations', 'workOrderNumber']));
   destroy$ = new Subject<void>();
@@ -113,11 +115,22 @@ export class WorkOrderComponent implements OnInit, OnChanges, OnDestroy {
   ngOnInit(): void {
     this.organizationId = this.authService.getUser()?.organizationId ?? '';
     this.buildForm();
+    this.selectedPropertyId = this.property?.propertyId ?? null;
+    this.isAddMode = this.workOrderId == null;
+
+    if (!this.embeddedInMaintenance) {
+      const workOrderIdParam = this.route.snapshot.paramMap.get('id');
+      if (workOrderIdParam !== null) {
+        this.workOrderId = workOrderIdParam === 'new' ? null : workOrderIdParam;
+      }
+      this.selectedPropertyId = this.property?.propertyId ?? this.route.snapshot.queryParamMap.get('propertyId') ?? null;
+      this.isAddMode = this.workOrderId == null;
+    }
+
     this.selectedGlobalOfficeId = this.globalSelectionService.getSelectedOfficeIdValue();
     this.globalOfficeSubscription = this.globalSelectionService.getSelectedOfficeId$().pipe(skip(1)).subscribe(officeId => {
       this.selectedGlobalOfficeId = officeId;
     });
-    this.loadOffices();
 
     // Wait to load page until all data is available
     this.itemsToLoad$.pipe(takeUntil(this.destroy$)).subscribe(items => {
@@ -133,15 +146,16 @@ export class WorkOrderComponent implements OnInit, OnChanges, OnDestroy {
     });
     this.onWorkOrderTypeChanged(this.form.get('workOrderTypeId')?.value);
 
-    this.selectedPropertyId = this.property?.propertyId ?? null;
-    this.isAddMode = this.workOrderId == null;
-    if (!this.embeddedInMaintenance) {
-      const workOrderIdParam = this.route.snapshot.paramMap.get('id');
-      if (workOrderIdParam !== null)
-        this.workOrderId = workOrderIdParam === 'new' ? null : workOrderIdParam;
-      this.selectedPropertyId = this.property?.propertyId ?? this.route.snapshot.queryParamMap.get('propertyId') ?? null;
+    if (this.isAddMode) {
+      this.form.patchValue({
+        officeName: this.property?.officeName || '',
+        propertyCode: this.property?.propertyCode || ''
+      }, { emitEvent: false });
+      this.itemsToLoad$.next(new Set());
+      return;
     }
 
+    this.loadOffices();
     this.loadProperty();
     this.loadWorkOrder();
     this.loadAccountingOfficeForWorkOrderCode();
@@ -169,6 +183,7 @@ export class WorkOrderComponent implements OnInit, OnChanges, OnDestroy {
 
     if (changes['workOrderId'] && !changes['workOrderId'].firstChange) {
       this.isAddMode = this.workOrderId == null;
+      this.hasUserEditedWorkOrder = false;
       this.loadWorkOrder();
       if (this.isAddMode && this.property?.officeId) {
         this.loadAccountingOfficeForWorkOrderCode();
@@ -177,13 +192,13 @@ export class WorkOrderComponent implements OnInit, OnChanges, OnDestroy {
   }
 
   saveWorkOrder(): void {
+    this.saveValidationAttempted.emit();
+    this.form.markAllAsTouched();
+
     if (!this.property?.propertyId || !this.property?.organizationId) {
-      this.toastr.warning('Property (with organization) is required to save.', 'Cannot Save');
       return;
     }
     if (this.form.invalid) {
-      this.form.markAllAsTouched();
-      this.toastr.warning('Please complete the required fields (e.g. Work Order Type).', 'Form Incomplete');
       return;
     }
     if (this.workOrderItems.length === 0) {
@@ -275,15 +290,13 @@ export class WorkOrderComponent implements OnInit, OnChanges, OnDestroy {
           description: saved.description ?? '',
           isActive: saved.isActive
         }, { emitEvent: false });
-        setTimeout(() => this.onWorkOrderTypeChanged(saved.workOrderTypeId), 0);
+        setTimeout(() => this.onWorkOrderTypeChanged(saved.workOrderTypeId, true), 0);
         this.workOrderItems = (saved.workOrderItems ?? []).map(item => {
           const itemSource = this.resolveItemSourceFromReceiptId(item.receiptId);
           const laborHours = Math.floor(Number(item.laborHours)) || 0;
           const laborCost = Number(item.laborCost) || 0;
-          const derivedInventoryAmount = Math.round(((Number(item.itemAmount) || 0) - (laborHours * laborCost)) * 100) / 100;
-          const receiptAmount = itemSource === 'receipt'
-            ? (this.propertyReceipts.find(r => r.receiptId === item.receiptId)?.amount ?? 0)
-            : (itemSource === 'inventory' ? derivedInventoryAmount : 0);
+          const derivedAmount = Math.round(((Number(item.itemAmount) || 0) - (laborHours * laborCost)) * 100) / 100;
+          const receiptAmount = derivedAmount;
           totalAmount += item.itemAmount;
           return {
             workOrderItemId: item.workOrderItemId,
@@ -298,7 +311,10 @@ export class WorkOrderComponent implements OnInit, OnChanges, OnDestroy {
             itemAmount: item.itemAmount ?? 0
           };
         });
-        this.syncReceiptAmounts();
+        if (this.isAddMode) {
+          this.syncReceiptAmounts();
+        }
+        this.hasUserEditedWorkOrder = false;
         this.captureInitialWorkOrderItemsSnapshot();
         this.savedEvent.emit(saved);
         if (wasCreate) {
@@ -449,17 +465,15 @@ export class WorkOrderComponent implements OnInit, OnChanges, OnDestroy {
       description: workOrder.description ?? '',
       isActive: workOrder.isActive
     }, { emitEvent: false });
-    setTimeout(() => this.onWorkOrderTypeChanged(workOrder.workOrderTypeId ?? 0), 0);
+    setTimeout(() => this.onWorkOrderTypeChanged(workOrder.workOrderTypeId ?? 0, true), 0);
 
     this.workOrderItems = (workOrder.workOrderItems ?? []).map(item => ({
       ...(() => {
         const itemSource = this.resolveItemSourceFromReceiptId(item.receiptId);
         const laborHours = Math.floor(Number(item.laborHours)) || 0;
         const laborCost = Number(item.laborCost) || 0;
-        const derivedInventoryAmount = Math.round(((Number(item.itemAmount) || 0) - (laborHours * laborCost)) * 100) / 100;
-        const receiptAmount = itemSource === 'receipt'
-          ? (this.propertyReceipts.find(r => r.receiptId === item.receiptId)?.amount ?? 0)
-          : (itemSource === 'inventory' ? derivedInventoryAmount : 0);
+        const derivedAmount = Math.round(((Number(item.itemAmount) || 0) - (laborHours * laborCost)) * 100) / 100;
+        const receiptAmount = derivedAmount;
         return {
           workOrderItemId: item.workOrderItemId,
           workOrderId: item.workOrderId,
@@ -474,8 +488,11 @@ export class WorkOrderComponent implements OnInit, OnChanges, OnDestroy {
         };
       })()
     }));
-    this.syncReceiptAmounts();
+    if (this.isAddMode) {
+      this.syncReceiptAmounts();
+    }
     this.lastMarkupFactor = this.getMarkupFactor();
+    this.hasUserEditedWorkOrder = false;
     this.captureInitialWorkOrderItemsSnapshot();
   }
 
@@ -491,7 +508,7 @@ export class WorkOrderComponent implements OnInit, OnChanges, OnDestroy {
     return Number(this.form.get('workOrderTypeId')?.value ?? -1) === WorkOrderType.Owner;
   }
 
-  onWorkOrderTypeChanged(typeId: number | null | undefined): void {
+  onWorkOrderTypeChanged(typeId: number | null | undefined, skipItemRecalculation: boolean = false): void {
     this.updateReservationRequirementByType(typeId);
     const isTenant = Number(typeId) === WorkOrderType.Tenant;
     const isOwner = Number(typeId) === WorkOrderType.Owner;
@@ -505,7 +522,9 @@ export class WorkOrderComponent implements OnInit, OnChanges, OnDestroy {
     if (!isTenant) {
       useDepartureFeeControl?.setValue(false, { emitEvent: false });
     }
-    this.reapplyMarkupToCurrentItems(true);
+    if (!skipItemRecalculation) {
+      this.reapplyMarkupToCurrentItems(true);
+    }
   }
 
   onApplyMarkupToggle(): void {
@@ -585,20 +604,52 @@ export class WorkOrderComponent implements OnInit, OnChanges, OnDestroy {
     this.saveWorkOrder();
   }
 
+  onInlineSaveClick(): void {
+    this.onPrimaryAction();
+  }
+
   openWorkOrderView(): void {
     const id = this.workOrder?.workOrderId ?? this.workOrderId;
     if (!id) {
       this.toastr.warning('Save the work order before viewing.', 'No Work Order');
       return;
     }
-    this.router.navigateByUrl(
-      `${RouterUrl.WorkOrderCreate}?workOrderId=${encodeURIComponent(id)}&propertyId=${encodeURIComponent(this.property?.propertyId ?? this.selectedPropertyId ?? '')}&returnTo=work-order`
+
+    const associatedReceiptIds = this.getCurrentAssociatedReceiptIds();
+    const existingReceiptIds = new Set((this.propertyReceipts || []).map(receipt => Number(receipt.receiptId)));
+    const missingReceiptIds = associatedReceiptIds.filter(receiptId => !existingReceiptIds.has(receiptId));
+    if (!missingReceiptIds.length) {
+      this.navigateToWorkOrderView(id);
+      return;
+    }
+
+    this.isSubmitting = true;
+    const fetches = missingReceiptIds.map(receiptId =>
+      this.receiptService.getReceiptById(receiptId).pipe(
+        take(1),
+        catchError(() => of(null))
+      )
     );
+    forkJoin(fetches).pipe(take(1), finalize(() => { this.isSubmitting = false; })).subscribe({
+      next: receipts => {
+        const fetchedReceipts = (receipts || []).filter((receipt): receipt is ReceiptResponse => receipt != null);
+        if (fetchedReceipts.length) {
+          this.associatedWorkOrderReceiptIds = new Set([...this.associatedWorkOrderReceiptIds, ...associatedReceiptIds]);
+          this.propertyReceipts = this.mergeAssociatedReceipts(this.propertyReceipts, fetchedReceipts);
+          this.syncReceiptAmounts();
+        }
+        this.navigateToWorkOrderView(id);
+      },
+      error: () => {
+        this.navigateToWorkOrderView(id);
+      }
+    });
   }
   //#endregion
 
   //#region Work Order Items
   addWorkOrderItem(): void {
+    this.setUserEdited('addWorkOrderItem');
     if (!this.canAddItem()) {
       this.form.markAllAsTouched();
       return;
@@ -618,12 +669,14 @@ export class WorkOrderComponent implements OnInit, OnChanges, OnDestroy {
   }
 
   removeWorkOrderItem(index: number): void {
+    this.setUserEdited('removeWorkOrderItem');
     if (index >= 0 && index < this.workOrderItems.length) {
       this.workOrderItems.splice(index, 1);
     }
   }
 
   updateWorkOrderItemField(index: number, field: keyof WorkOrderItemEditable, value: number | string | null): void {
+    this.setUserEdited(`updateWorkOrderItemField.${String(field)}`);
     if (this.workOrderItems[index]) {
       (this.workOrderItems[index] as Record<string, number | string | null>)[field] = value;
     }
@@ -645,6 +698,7 @@ export class WorkOrderComponent implements OnInit, OnChanges, OnDestroy {
   }
 
   onReceiptSelectionChange(itemIndex: number, receiptSelectionValue: number | string | null): void {
+    this.setUserEdited('onReceiptSelectionChange');
     const item = this.workOrderItems[itemIndex] as WorkOrderItemEditable;
     if (!item) {
       return;
@@ -694,6 +748,7 @@ export class WorkOrderComponent implements OnInit, OnChanges, OnDestroy {
   }
 
   onAmountInput(itemIndex: number, event: Event): void {
+    this.setUserEdited('onAmountInput');
     const item = this.workOrderItems[itemIndex] as WorkOrderItemEditable;
     if (!item || item.itemSource !== 'inventory') {
       return;
@@ -733,6 +788,7 @@ export class WorkOrderComponent implements OnInit, OnChanges, OnDestroy {
   }
 
   onAmountBlur(index: number, event: Event): void {
+    this.setUserEdited('onAmountBlur');
     const item = this.workOrderItems[index] as WorkOrderItemEditable;
     if (!item || item.itemSource !== 'inventory') {
       this.focusedCurrencyField = null;
@@ -818,6 +874,7 @@ export class WorkOrderComponent implements OnInit, OnChanges, OnDestroy {
   }
 
   onLaborCostBlur(index: number, event: Event): void {
+    this.setUserEdited('onLaborCostBlur');
     const input = event.target as HTMLInputElement;
     const parsed = parseFloat(input.value) || 0;
     this.updateWorkOrderItemField(index, 'laborCost', parsed);
@@ -825,6 +882,7 @@ export class WorkOrderComponent implements OnInit, OnChanges, OnDestroy {
   }
 
   onLaborCostInput(index: number, event: Event): void {
+    this.setUserEdited('onLaborCostInput');
     const input = event.target as HTMLInputElement;
     if (this.focusedCurrencyField?.index === index && this.focusedCurrencyField?.field === 'laborCost') {
       this.focusedCurrencyField = { ...this.focusedCurrencyField, editValue: input.value };
@@ -949,6 +1007,9 @@ export class WorkOrderComponent implements OnInit, OnChanges, OnDestroy {
     const workOrderDescription = this.normalizeComparableString(this.workOrder.description) ?? '';
     const payloadWorkOrderDate = this.normalizeComparableString(payload.workOrderDate) ?? '';
     const workOrderWorkOrderDate = this.normalizeComparableString(this.normalizeWorkOrderDate(this.workOrder.workOrderDate)) ?? '';
+    const useDepartureFeeMismatch = this.isTenantTypeSelected()
+      ? (payload.useDepartureFee !== (this.workOrder.useDepartureFee === true))
+      : false;
 
     return (
       payloadWorkOrderDate !== workOrderWorkOrderDate ||
@@ -956,7 +1017,7 @@ export class WorkOrderComponent implements OnInit, OnChanges, OnDestroy {
       payload.applyMarkup !== (this.workOrder.applyMarkup === true) ||
       payloadReservationId !== workOrderReservationId ||
       payloadReservationCode !== workOrderReservationCode ||
-      payload.useDepartureFee !== (this.workOrder.useDepartureFee === true) ||
+      useDepartureFeeMismatch ||
       payload.enteredInQb !== (this.workOrder.enteredInQb === true) ||
       payloadDescription !== workOrderDescription ||
       payload.isActive !== this.workOrder.isActive ||
@@ -987,7 +1048,7 @@ export class WorkOrderComponent implements OnInit, OnChanges, OnDestroy {
   }
 
   refreshBaselineAfterDataLoad(): void {
-    if (this.isAddMode || !this.workOrder?.workOrderId || this.isSubmitting) {
+    if (this.isAddMode || !this.workOrder?.workOrderId || this.isSubmitting || this.hasUserEditedWorkOrder) {
       return;
     }
     this.captureInitialWorkOrderItemsSnapshot();
@@ -1098,12 +1159,16 @@ export class WorkOrderComponent implements OnInit, OnChanges, OnDestroy {
         this.propertyAgreement = agreement;
         this.defaultLaborCost = Number(agreement?.hourlyLaborCost) || 0;
         this.applyDefaultLaborCostToUnsavedItems();
-        this.reapplyMarkupToCurrentItems(true);
+        if (this.isAddMode) {
+          this.reapplyMarkupToCurrentItems(true);
+        }
       },
       error: () => {
         this.propertyAgreement = null;
         this.defaultLaborCost = 0;
-        this.reapplyMarkupToCurrentItems(true);
+        if (this.isAddMode) {
+          this.reapplyMarkupToCurrentItems(true);
+        }
       }
     });
   }
@@ -1118,12 +1183,16 @@ export class WorkOrderComponent implements OnInit, OnChanges, OnDestroy {
       next: (receipts) => {
         const activePropertyReceipts = (receipts ?? []).filter(r => r.isActive !== false);
         this.propertyReceipts = this.mergeAssociatedReceipts(activePropertyReceipts);
-        this.syncReceiptAmounts();
+        if (this.isAddMode) {
+          this.syncReceiptAmounts();
+        }
         this.refreshBaselineAfterDataLoad();
       },
       error: () => {
         this.propertyReceipts = this.mergeAssociatedReceipts([]);
-        this.syncReceiptAmounts();
+        if (this.isAddMode) {
+          this.syncReceiptAmounts();
+        }
         this.refreshBaselineAfterDataLoad();
       }
     });
@@ -1139,7 +1208,9 @@ export class WorkOrderComponent implements OnInit, OnChanges, OnDestroy {
     const existingIds = new Set((this.propertyReceipts || []).map(receipt => receipt.receiptId));
     const missingIds = associatedIds.filter(receiptId => !existingIds.has(receiptId));
     if (!missingIds.length) {
-      this.syncReceiptAmounts();
+      if (this.isAddMode) {
+        this.syncReceiptAmounts();
+      }
       this.refreshBaselineAfterDataLoad();
       return;
     }
@@ -1155,7 +1226,9 @@ export class WorkOrderComponent implements OnInit, OnChanges, OnDestroy {
       next: (receipts) => {
         const fetchedReceipts = (receipts || []).filter((receipt): receipt is ReceiptResponse => receipt != null);
         this.propertyReceipts = this.mergeAssociatedReceipts(this.propertyReceipts, fetchedReceipts);
-        this.syncReceiptAmounts();
+        if (this.isAddMode) {
+          this.syncReceiptAmounts();
+        }
         this.refreshBaselineAfterDataLoad();
       }
     });
@@ -1461,6 +1534,28 @@ export class WorkOrderComponent implements OnInit, OnChanges, OnDestroy {
 
   canAddItem(): boolean {
     return this.form.valid;
+  }
+
+  getCurrentAssociatedReceiptIds(): number[] {
+    return Array.from(new Set(
+      (this.workOrderItems || [])
+        .map(item => Number(item.receiptId))
+        .filter(receiptId => Number.isFinite(receiptId) && receiptId > 0)
+    ));
+  }
+
+  navigateToWorkOrderView(workOrderId: string): void {
+    this.router.navigateByUrl(
+      `${RouterUrl.WorkOrderCreate}?workOrderId=${encodeURIComponent(workOrderId)}&propertyId=${encodeURIComponent(this.property?.propertyId ?? this.selectedPropertyId ?? '')}&returnTo=work-order`
+    );
+  }
+
+  setUserEdited(_source: string): void {
+    const wasUserEdited = this.hasUserEditedWorkOrder;
+    this.hasUserEditedWorkOrder = true;
+    if (wasUserEdited || !this.workOrder?.workOrderId || this.isAddMode) {
+      return;
+    }
   }
 
   back(): void {

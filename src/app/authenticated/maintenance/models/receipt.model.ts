@@ -59,3 +59,9 @@ export interface ReceiptDisplayList {
   modifiedOn: string;
   modifiedBy: string;
 }
+
+export interface ReceiptSelection {
+  receiptId: number | null;
+  officeId: number | null;
+  propertyId: string | null;
+}

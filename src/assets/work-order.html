@@ -421,6 +421,14 @@
       text-align: left;
     }
 
+    /* Variant spacing for header office address block only. */
+    .accounting-office-container-tight p {
+      margin: 0;
+      font-size: 9pt;
+      line-height: 1.2;
+      text-align: left;
+    }
+
     .accounting-office-invoice-number {
       margin-top: 10px;
       text-align: left;
@@ -475,7 +483,7 @@
   <!-- Header Row: Accounting Office Information and Invoice Information -->
   <div class="header-row">
     <div class="logo-container">
-      <div class="accounting-office-container">
+      <div class="accounting-office-container accounting-office-container-tight">
         <table>
           <tr>
             <td class="accounting-office-logo-cell">
@@ -514,7 +522,7 @@
         <td width="50%" style="vertical-align: top; padding: 5px; width: 50% !important;">
           <div class="border">
             <p>
-              {{propertySideBlock}}<br>
+              {{propertySideBlock}}
             </p>
           </div>
         </td>

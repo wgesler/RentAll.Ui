@@ -40,3 +40,9 @@
   box-sizing: border-box;
 }
 
+::ng-deep .work-order-required-field .mdc-notched-outline__leading,
+::ng-deep .work-order-required-field .mdc-notched-outline__notch,
+::ng-deep .work-order-required-field .mdc-notched-outline__trailing {
+  border-color: #dc2626 !important;
+}
+

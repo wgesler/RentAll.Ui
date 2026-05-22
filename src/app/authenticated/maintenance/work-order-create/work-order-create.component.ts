@@ -325,6 +325,7 @@ export class WorkOrderCreateComponent extends BaseDocumentComponent implements O
         if (!includedReceiptIds.length) {
           this.propertyReceipts = baseReceipts.map(receipt => this.withReceiptDataUrl(receipt));
           this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'propertyReceipts');
+          this.tryGeneratePreview();
           return;
         }
 
@@ -350,16 +351,19 @@ export class WorkOrderCreateComponent extends BaseDocumentComponent implements O
 
             this.propertyReceipts = mergedReceipts.map(receipt => this.withReceiptDataUrl(receipt));
             this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'propertyReceipts');
+            this.tryGeneratePreview();
           },
           error: () => {
             this.propertyReceipts = baseReceipts.map(receipt => this.withReceiptDataUrl(receipt));
             this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'propertyReceipts');
+            this.tryGeneratePreview();
           }
         });
       },
       error: () => {
         this.propertyReceipts = [];
         this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'propertyReceipts');
+        this.tryGeneratePreview();
       }
     });
   }
@@ -391,10 +395,12 @@ export class WorkOrderCreateComponent extends BaseDocumentComponent implements O
     this.reservationService.getReservationByGuid(reservationId).pipe(take(1),finalize(() => { this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'reservation'); })).subscribe({
       next: (response: ReservationResponse) => {
         this.selectedReservation = response;
+        this.loadClientPartyData();
         this.tryGeneratePreview();
       },
       error: () => {
         this.selectedReservation = null;
+        this.loadClientPartyData();
       }
     });
   }
@@ -402,6 +408,7 @@ export class WorkOrderCreateComponent extends BaseDocumentComponent implements O
   loadClientPartyData(): void {
     if (!this.workOrder) return;
 
+    this.selectedContact = null;
     switch(this.workOrder.workOrderTypeId)
     {
       case WorkOrderType.Tenant:
@@ -411,7 +418,7 @@ export class WorkOrderCreateComponent extends BaseDocumentComponent implements O
         this.selectedContact = this.contacts.find(c => c.contactId === this.property?.owner1Id) ?? null;
         break;
      default:
-        return null;
+        return;
     }
   }
 
@@ -457,7 +464,7 @@ export class WorkOrderCreateComponent extends BaseDocumentComponent implements O
     const workOrderDateDisplay = this.formatter.formatDateString(this.workOrder.workOrderDate) || '';
     const workOrderItemCount = this.workOrder.workOrderItems?.length ?? 0;
     const isTenantWorkOrder = this.workOrder.workOrderTypeId === WorkOrderType.Tenant;
-    const tenantSpacingClass = isTenantWorkOrder ? (workOrderItemCount >= 6 ? 'tenant-extra-compact' : (workOrderItemCount >= 2 ? 'tenant-compact' : '')) : '';
+    const tenantSpacingClass = isTenantWorkOrder ? 'tenant-compact' : '';
     const accountingOfficeRemitTo = this.getAccountingOfficeRemitToLine(isTenantWorkOrder && workOrderItemCount >= 6);
     const chargeSections = this.generateWorkOrderChargeSections();
     const organizationLogoDataUrl = this.getOrganizationLogoDataUrl();
@@ -891,7 +898,7 @@ export class WorkOrderCreateComponent extends BaseDocumentComponent implements O
 
   getResponsiblePartiesBlock(): string {
     const isOrganizationWorkOrder = this.workOrder?.workOrderTypeId === WorkOrderType.Organization;
-    if (isOrganizationWorkOrder || !this.selectedContact) {
+    if (isOrganizationWorkOrder) {
       const responsibleParty = this.escapeHtml(this.organization?.name || '');
       return [
         `<span style="font-weight: bold">Client:</span> ${responsibleParty}<br>`,
@@ -928,8 +935,9 @@ export class WorkOrderCreateComponent extends BaseDocumentComponent implements O
     const propertyCode = this.escapeHtml(this.property.propertyCode || '');
     const billingType = this.escapeHtml(getBillingMethod(this.selectedReservation?.billingMethodId));
     const useSingleAddressLine = this.utilityService.isAddressSingleLine("Address:", propertyAddress1, propertyAddress2);
+    const isTenantWorkOrder = this.workOrder?.workOrderTypeId === WorkOrderType.Tenant;
 
-    return [
+    const propertyLines = [
       `<span style="font-weight: bold">Property Code:</span> ${propertyCode}<br>`,
       useSingleAddressLine
         ? `<span style="font-weight: bold">Address:</span> ${propertyAddressSingleLine}<br>`
@@ -937,6 +945,20 @@ export class WorkOrderCreateComponent extends BaseDocumentComponent implements O
       ...(!useSingleAddressLine && propertyAddress2 ? [`&nbsp;&nbsp;&nbsp;&nbsp;${propertyAddress2}<br>`] : []),
       ...(billingType ? [`<span style="font-weight: bold">Billing Type:</span> ${billingType}<br>`] : [])
     ].join('');
+
+    if (!isTenantWorkOrder) {
+      return propertyLines;
+    }
+
+    const tenantLines = [
+      `<span style="font-weight: bold">Property Code:</span> ${propertyCode}`,
+      useSingleAddressLine
+        ? `<span style="font-weight: bold">Address:</span> ${propertyAddressSingleLine}`
+        : `<span style="font-weight: bold">Address:</span> ${propertyAddress1}`,
+      ...(!useSingleAddressLine && propertyAddress2 ? [`&nbsp;&nbsp;&nbsp;&nbsp;${propertyAddress2}`] : []),
+      ...(billingType ? [`<span style="font-weight: bold">Billing Type:</span> ${billingType}`] : [])
+    ];
+    return tenantLines.join('<br>');
   }
 
   getResponsibleParty(): string {
