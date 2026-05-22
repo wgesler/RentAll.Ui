@@ -41,6 +41,7 @@ export class CostCodesComponent implements OnInit, OnDestroy, OnChanges {
   fromOffice: boolean = false; // Track if navigated from Office component (embedded)
   isSubmitting: boolean = false;
   isAddMode: boolean = false;
+  saveAttempted: boolean = false;
   transactionTypes: { value: number, label: string }[] = TransactionTypeLabels;
  
   offices: OfficeResponse[] = [];
@@ -170,14 +171,13 @@ export class CostCodesComponent implements OnInit, OnDestroy, OnChanges {
   }
 
   saveCostCode(): void {
-    if (!this.form.valid) {
-      this.form.markAllAsTouched();
-      return;
-    }
+    this.saveAttempted = true;
+    this.form.markAllAsTouched();
+    this.form.updateValueAndValidity({ emitEvent: false });
 
-    // Ensure we have a valid officeId
-    if (!this.selectedOffice || !this.selectedOffice.officeId) {
-      this.toastr.error('Office is required', CommonMessage.Error);
+    const hasRequiredOfficeSelection = !this.shouldValidateOfficeSelection || !!this.selectedOffice?.officeId;
+    if (!this.form.valid || !hasRequiredOfficeSelection) {
+      this.toastr.error('Please correct the highlighted fields before saving.', CommonMessage.Error);
       return;
     }
 
@@ -315,6 +315,10 @@ export class CostCodesComponent implements OnInit, OnDestroy, OnChanges {
 
   //#region Form Response Methods
   onOfficeChange(): void {
+    if (this.selectedOffice?.officeId) {
+      this.saveAttempted = false;
+    }
+
     // In settings/configuration, changing office while editing should reload
     // the selected cost code in the newly selected office scope.
     if (!this.isAddMode && this.source === 'configuration' && this.selectedOffice && this.costCodeId) {
@@ -362,9 +366,17 @@ export class CostCodesComponent implements OnInit, OnDestroy, OnChanges {
       return;
     }
     (event as KeyboardEvent).preventDefault();
-    if (this.form?.valid && !this.isSubmitting) {
+    if (!this.isSubmitting) {
       this.saveCostCode();
     }
+  }
+
+  get shouldValidateOfficeSelection(): boolean {
+    return this.isAddMode || this.source === 'configuration';
+  }
+
+  get showOfficeValidationError(): boolean {
+    return this.saveAttempted && this.shouldValidateOfficeSelection && !this.selectedOffice?.officeId;
   }
   //#endregion
 }

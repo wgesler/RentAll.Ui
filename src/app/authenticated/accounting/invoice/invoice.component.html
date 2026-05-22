@@ -21,7 +21,7 @@
               <div class="header-title form-titlebar-fields-wrap">
                 <app-title-bar-select
                   [label]="'Office'"
-                  [formFieldClass]="'titlebar-field-office'"
+                  [formFieldClass]="getInvoiceOfficeFieldClass()"
                   [value]="form.get('officeId')?.value ?? null"
                   [options]="officeTitleBarOptions"
                   [disabled]="!isAddMode"
@@ -70,7 +70,7 @@
             <div class="grid grid-cols-4 form-standard-grid">
               <!-- Second Row: compact grouped date fields -->
               <div class="col-span-4 grid grid-cols-8 form-standard-grid">
-                <mat-form-field appearance="outline" class="col-span-1">
+                <mat-form-field appearance="outline" class="col-span-1" [class.invoice-required-field]="showInvoiceDateValidationError">
                   <mat-label>Invoice Date</mat-label>
                   <input matInput [matDatepicker]="invoiceDatePicker" formControlName="invoiceDate" required>
                   <mat-datepicker-toggle matIconSuffix [for]="invoiceDatePicker"></mat-datepicker-toggle>
@@ -80,7 +80,7 @@
                   }
                 </mat-form-field>
 
-                <mat-form-field appearance="outline" class="col-span-1">
+                <mat-form-field appearance="outline" class="col-span-1" [class.invoice-required-field]="showDueDateValidationError">
                   <mat-label>Due Date</mat-label>
                   <input matInput [matDatepicker]="dueDatePicker" formControlName="dueDate" required>
                   <mat-datepicker-toggle matIconSuffix [for]="dueDatePicker"></mat-datepicker-toggle>
@@ -140,7 +140,7 @@
                           View
                         </button>
                       }
-                      @if (!isPaymentMode && (isAddMode || hasChanges())) {
+                      @if (!isPaymentMode) {
                         <button mat-raised-button type="button" color="primary" (click)="saveInvoice()"
                           class="text-nowrap flex-shrink-0"
                           [disabled]="isSaveDisabled">
@@ -177,31 +177,37 @@
                             </td>
                             <td class="ledger-col-date">
                               <input type="date" class="w-full editable-input"
+                                [class.invoice-line-invalid]="isLedgerLineFieldInvalid(line, 'ledgerLineDate')"
                                 [value]="line.ledgerLineDate || ''"
                                 (input)="updateLedgerLineField(i, 'ledgerLineDate', $any($event.target).value || '')">
                             </td>
                             <td class="cost-center-cell ledger-col-cost-center">
-                              <div class="ledger-field-box">
+                              <div class="ledger-field-box" [class.invoice-line-invalid]="isLedgerLineFieldInvalid(line, 'costCodeId')">
                                 <app-searchable-select
                                   [value]="line.costCodeId != null ? line.costCodeId : null"
                                   [options]="getCostCodesForLine(line)"
                                   [nullOptionLabel]="'Select Cost Code'"
                                   [noResultsText]="'No cost codes match your search'"
-                                  [selectClass]="'w-full cost-code-select editable-select'"
+                                  [selectClass]="getLedgerCostCodeSelectClass(line)"
+                                  [showError]="isLedgerLineFieldInvalid(line, 'costCodeId')"
                                   (valueChange)="onCostCodeChange(i, $event)">
                                 </app-searchable-select>
                               </div>
                             </td>
                             <td class="type-cell ledger-col-type">
-                              <input type="text" class="w-full editable-input readonly-input" [value]="line.transactionType || ''" readonly>
+                              <input type="text" class="w-full editable-input readonly-input"
+                                [class.invoice-line-invalid]="isLedgerLineFieldInvalid(line, 'transactionType')"
+                                [value]="line.transactionType || ''" readonly>
                             </td>
                             <td>
                               <input type="text" class="w-full editable-input" 
+                                [class.invoice-line-invalid]="isLedgerLineFieldInvalid(line, 'description')"
                                 [value]="line.description || ''"
                                 (input)="updateLedgerLineField(i, 'description', $any($event.target).value || '')">
                             </td>
                             <td class="ledger-col-amount">
                               <input type="text" class="w-full editable-input" 
+                                [class.invoice-line-invalid]="isLedgerLineFieldInvalid(line, 'amount')"
                                 [attr.data-field]="'amount'"
                                 [attr.data-index]="i"
                                 [value]="getLedgerAmountDisplay(line)"

@@ -22,21 +22,21 @@
       </div>
         
       <mat-card>
-        <form [formGroup]="form" (ngSubmit)="saveDocument()" class="info-form mb-8 pt-5">
+        <form [formGroup]="form" (ngSubmit)="saveDocument()" class="info-form mb-8 pt-5 form-hide-error-text">
           <!-- First line: IsDeleted and save button right justified -->
-          <div class="mb-4 flex justify-end items-center gap-3">
+          <div class="form-standard-row flex justify-end items-center">
             <mat-checkbox formControlName="isDeleted" color="primary">
               Is Deleted
             </mat-checkbox>
             <button mat-raised-button type="button" color="primary" id="save-button" (click)="saveDocument()"
-              class="scale-90 text-nowrap flex-shrink-0" [disabled]="isSubmitting || !form || !form.valid">
+              class="scale-90 text-nowrap flex-shrink-0" [disabled]="isSubmitting || !form">
               <mat-icon>save</mat-icon>
               Save
             </button>
           </div>
 
           <!-- Document Type and Office -->
-          <div class="mb-4 flex items-center gap-3">
+          <div class="form-standard-row flex items-center">
             <mat-form-field appearance="outline" style="flex: 1; min-width: 200px;">
               <mat-label>Document Type</mat-label>
               <mat-select formControlName="documentType" required>
@@ -45,9 +45,6 @@
                   <mat-option [value]="docType.value">{{ docType.label }}</mat-option>
                 }
               </mat-select>
-              @if (form.get('documentType')?.hasError('required') && form.get('documentType')?.touched) {
-                <mat-error>Document Type is required</mat-error>
-              }
             </mat-form-field>
 
             <mat-form-field appearance="outline" style="flex: 1; min-width: 200px;">
@@ -62,29 +59,20 @@
           </div>
 
           <!-- File Information -->
-          <div class="mb-4 flex items-center gap-3">
+          <div class="form-standard-row flex items-center">
             <mat-form-field appearance="outline" style="flex: 1; min-width: 200px;">
               <mat-label>File Name</mat-label>
               <input matInput formControlName="fileName" required>
-              @if (form.get('fileName')?.hasError('required') && form.get('fileName')?.touched) {
-                <mat-error>File Name is required</mat-error>
-              }
             </mat-form-field>
 
             <mat-form-field appearance="outline" style="flex: 0.5; min-width: 120px;">
               <mat-label>File Extension</mat-label>
               <input matInput formControlName="fileExtension" required>
-              @if (form.get('fileExtension')?.hasError('required') && form.get('fileExtension')?.touched) {
-                <mat-error>File Extension is required</mat-error>
-              }
             </mat-form-field>
 
             <mat-form-field appearance="outline" style="flex: 1; min-width: 200px;">
               <mat-label>Content Type</mat-label>
               <input matInput formControlName="contentType" required>
-              @if (form.get('contentType')?.hasError('required') && form.get('contentType')?.touched) {
-                <mat-error>Content Type is required</mat-error>
-              }
             </mat-form-field>
           </div>
 

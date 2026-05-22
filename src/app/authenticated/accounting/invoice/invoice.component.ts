@@ -46,6 +46,7 @@ export class InvoiceComponent implements OnInit, OnDestroy, OnChanges {
   form: FormGroup;
   isSubmitting: boolean = false;
   isAddMode: boolean = false;
+  saveAttempted: boolean = false;
   
   offices: OfficeResponse[] = [];
   availableOffices: { value: number, name: string }[] = [];
@@ -277,10 +278,13 @@ export class InvoiceComponent implements OnInit, OnDestroy, OnChanges {
   }
 
   saveInvoice(): void {
+    this.saveAttempted = true;
     this.isSubmitting = true;
-    
-    if (!this.form.valid) {
-      this.form.markAllAsTouched();
+
+    if (!this.form || !this.form.valid) {
+      this.form?.markAllAsTouched();
+      this.form?.updateValueAndValidity({ emitEvent: false });
+      this.toastr.error('Please correct the highlighted fields before saving.', CommonMessage.Error);
       this.isSubmitting = false;
       return;
     }
@@ -333,25 +337,13 @@ export class InvoiceComponent implements OnInit, OnDestroy, OnChanges {
     this.isSubmitting = true;
 
     if (this.ledgerLines.length === 0) {
-      this.toastr.error('At least one ledger line is required', CommonMessage.Error);
+      this.toastr.error('Please correct the highlighted fields before saving.', CommonMessage.Error);
+      this.isSubmitting = false;
       return;
     }
 
-    const incompleteLines: number[] = [];
-    this.ledgerLines.forEach((line, index) => {
-      const hasTransactionTypeId = (line as any).transactionTypeId !== undefined && (line as any).transactionTypeId !== null;
-      const parsedCostCodeId = line.costCodeId == null ? NaN : Number(line.costCodeId);
-      const hasCostCodeId = Number.isInteger(parsedCostCodeId) && parsedCostCodeId > 0;
-      const hasDescription = line.description && line.description.trim() !== '';
-      const hasAmount = line.amount !== null && line.amount !== undefined && line.amount !== 0;
-      
-      if (!hasTransactionTypeId || !hasCostCodeId || !hasDescription || !hasAmount) {
-        incompleteLines.push(index + 1);
-      }
-    });
-
-    if (incompleteLines.length > 0) {
-      this.toastr.error(`Ledger lines ${incompleteLines.join(', ')} are incomplete. All fields (Cost Code, Transaction Type, Description, and Amount) are required.`, CommonMessage.Error);
+    if (this.hasLedgerLineValidationErrors()) {
+      this.toastr.error('Please correct the highlighted fields before saving.', CommonMessage.Error);
       this.isSubmitting = false;
       return;
     }
@@ -1053,7 +1045,7 @@ export class InvoiceComponent implements OnInit, OnDestroy, OnChanges {
   }
 
   get isSaveDisabled(): boolean {
-    if (this.isSubmitting || this.ledgerLines.length === 0) {
+    if (this.isSubmitting) {
       return true;
     }
     
@@ -1062,6 +1054,69 @@ export class InvoiceComponent implements OnInit, OnDestroy, OnChanges {
     }
 
     return false;
+  }
+
+  get showOfficeValidationError(): boolean {
+    return !!this.form && this.saveAttempted && !!this.form.get('officeId')?.invalid;
+  }
+
+  get showInvoiceDateValidationError(): boolean {
+    return !!this.form && this.saveAttempted && !!this.form.get('invoiceDate')?.invalid;
+  }
+
+  get showDueDateValidationError(): boolean {
+    return !!this.form && this.saveAttempted && !!this.form.get('dueDate')?.invalid;
+  }
+
+  getInvoiceOfficeFieldClass(baseClass: string = 'titlebar-field-office'): string {
+    return this.showOfficeValidationError
+      ? `${baseClass} invoice-required-field`
+      : baseClass;
+  }
+
+  isLedgerLineFieldInvalid(line: LedgerLineListDisplay, field: 'costCodeId' | 'transactionType' | 'description' | 'amount' | 'ledgerLineDate'): boolean {
+    if (!this.saveAttempted) {
+      return false;
+    }
+
+    const hasTransactionTypeId = (line as any).transactionTypeId !== undefined && (line as any).transactionTypeId !== null;
+    const parsedCostCodeId = line.costCodeId == null ? NaN : Number(line.costCodeId);
+    const hasCostCodeId = Number.isInteger(parsedCostCodeId) && parsedCostCodeId > 0;
+    const hasDescription = !!line.description && line.description.trim() !== '';
+    const hasAmount = line.amount !== null && line.amount !== undefined && line.amount !== 0;
+    const hasLedgerLineDate = !!line.ledgerLineDate;
+
+    switch (field) {
+      case 'costCodeId':
+        return !hasCostCodeId;
+      case 'transactionType':
+        return !hasTransactionTypeId;
+      case 'description':
+        return !hasDescription;
+      case 'amount':
+        return !hasAmount;
+      case 'ledgerLineDate':
+        return !hasLedgerLineDate;
+      default:
+        return false;
+    }
+  }
+
+  getLedgerCostCodeSelectClass(line: LedgerLineListDisplay): string {
+    const baseClass = 'w-full cost-code-select editable-select';
+    return this.isLedgerLineFieldInvalid(line, 'costCodeId')
+      ? `${baseClass} invoice-line-invalid`
+      : baseClass;
+  }
+
+  private hasLedgerLineValidationErrors(): boolean {
+    return this.ledgerLines.some((line) =>
+      this.isLedgerLineFieldInvalid(line, 'costCodeId')
+      || this.isLedgerLineFieldInvalid(line, 'transactionType')
+      || this.isLedgerLineFieldInvalid(line, 'description')
+      || this.isLedgerLineFieldInvalid(line, 'amount')
+      || this.isLedgerLineFieldInvalid(line, 'ledgerLineDate')
+    );
   }
 
   get primaryActionLabel(): string {

@@ -354,6 +354,10 @@
     &:focus-within {
       border-color: var(--invoice-ledger-input-focus);
     }
+
+    &.invoice-line-invalid {
+      border-color: #dc2626 !important;
+    }
   }
   
   // Ensure dropdown text in td cells matches other td cell text
@@ -367,6 +371,41 @@
           font-size: 14px !important;
         }
       }
+    }
+  }
+}
+
+::ng-deep .invoice-required-field .mdc-notched-outline__leading,
+::ng-deep .invoice-required-field .mdc-notched-outline__trailing {
+  border-color: #dc2626 !important;
+}
+
+::ng-deep .invoice-required-field .mdc-notched-outline__notch {
+  border-left-color: transparent !important;
+  border-right-color: #dc2626 !important;
+  border-top-color: #dc2626 !important;
+  border-bottom-color: #dc2626 !important;
+}
+
+::ng-deep .invoice-required-field .mdc-floating-label,
+::ng-deep .invoice-required-field .mat-mdc-select-value-text,
+::ng-deep .invoice-required-field .mat-mdc-select-placeholder,
+::ng-deep .invoice-required-field .mat-mdc-form-field-required-marker,
+::ng-deep .invoice-required-field .mat-mdc-select-arrow,
+::ng-deep .invoice-required-field .searchable-trigger-value {
+  color: #dc2626 !important;
+}
+
+.line-items-table {
+  .editable-input.invoice-line-invalid {
+    border-color: #dc2626 !important;
+  }
+
+  .cost-code-select.invoice-line-invalid {
+    border-color: #dc2626 !important;
+
+    ::ng-deep .mat-mdc-text-field-wrapper {
+      border-color: #dc2626 !important;
     }
   }
 }

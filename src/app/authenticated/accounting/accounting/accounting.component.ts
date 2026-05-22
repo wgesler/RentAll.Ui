@@ -365,6 +365,18 @@ export class AccountingComponent implements OnInit, OnDestroy {
     return this.organizations.find(organization => organization.organizationId === this.selectedOrganizationId)?.name || null;
   }
 
+  getInvoiceEditorOfficeFieldClass(): string {
+    const baseClass = 'titlebar-field-office';
+    if (!this.accountingInvoiceEditor?.showOfficeValidationError) {
+      return baseClass;
+    }
+    return `${baseClass} invoice-required-field`;
+  }
+
+  getInvoiceEditorReservationFieldClass(): string {
+    return 'titlebar-field-reservation';
+  }
+
   onAccountingOrganizationDropdownChange(value: string | number | null): void {
     const organizationId = value == null || value === '' ? null : String(value);
     this.selectedOrganizationId = organizationId;

@@ -22,7 +22,7 @@
           <div class="header-title form-titlebar-fields-wrap">
             <app-title-bar-select
               [label]="'Office'"
-              [formFieldClass]="'titlebar-field-office'"
+              [formFieldClass]="getInvoiceEditorOfficeFieldClass()"
               [value]="accountingInvoiceEditor.form.get('officeId')?.value ?? null"
               [options]="accountingInvoiceEditor.officeTitleBarOptions"
               [disabled]="!accountingInvoiceEditor.isAddMode"
@@ -33,7 +33,7 @@
 
             <app-title-bar-select
               [label]="'Reservation'"
-              [formFieldClass]="'titlebar-field-reservation'"
+              [formFieldClass]="getInvoiceEditorReservationFieldClass()"
               [value]="accountingInvoiceEditor.form.get('reservationId')?.value ?? null"
               [options]="accountingInvoiceEditor.reservationTitleBarOptions"
               [disabled]="!accountingInvoiceEditor.isAddMode"

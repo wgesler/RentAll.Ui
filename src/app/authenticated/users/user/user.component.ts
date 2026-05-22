@@ -220,6 +220,7 @@ export class UserComponent implements OnInit, OnDestroy {
     // Check form validity
     if (!this.form.valid) {
       this.form.markAllAsTouched();
+      this.toastr.error('Please correct the highlighted fields before saving.', CommonMessage.Error);
       return;
     }
 

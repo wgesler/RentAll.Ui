@@ -328,7 +328,6 @@ export class ContactComponent implements OnInit, OnDestroy {
     this.form.markAllAsTouched();
 
     if (!this.form.valid) {
-      this.toastr.error('Please correct the highlighted fields before saving.', CommonMessage.Error);
       return;
     }
 
@@ -340,7 +339,6 @@ export class ContactComponent implements OnInit, OnDestroy {
     const resolvedOfficeId = Number.isFinite(pickedDefault) && pickedDefault > 0 ? pickedDefault : 0;
     if (resolvedOfficeId <= 0) {
       this.form.get('officeId')?.markAsTouched();
-      this.toastr.error('Default office is required.', CommonMessage.Error);
       return;
     }
 

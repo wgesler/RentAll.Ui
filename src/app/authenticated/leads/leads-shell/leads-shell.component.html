@@ -75,6 +75,7 @@
                 [shellLeadId]="rentalShellLeadId"
                 [officeId]="selectedOfficeId"
                 (closed)="onRentalLeadFormClosed()"
+                (officeSelectionRequired)="onRentalOfficeSelectionRequired()"
                 />
             } @else {
               <app-rental-list
@@ -95,6 +96,7 @@
                   [shellLeadId]="ownerShellLeadId"
                   [officeId]="selectedOfficeId"
                   (closed)="onOwnerLeadFormClosed()"
+                  (officeSelectionRequired)="onOwnerOfficeSelectionRequired()"
                   />
               } @else {
                 <app-owner-list
@@ -115,6 +117,7 @@
                 [shellLeadId]="generalShellLeadId"
                 [officeId]="selectedOfficeId"
                 (closed)="onGeneralLeadFormClosed()"
+                (officeSelectionRequired)="onGeneralOfficeSelectionRequired()"
                 />
             } @else {
               <app-general-list

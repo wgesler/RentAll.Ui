@@ -42,6 +42,26 @@
   }
 }
 
+.cost-code-required-field .mdc-notched-outline__leading,
+.cost-code-required-field .mdc-notched-outline__trailing {
+  border-color: #dc2626 !important;
+}
+
+.cost-code-required-field .mdc-notched-outline__notch {
+  border-left-color: transparent !important;
+  border-right-color: #dc2626 !important;
+  border-top-color: #dc2626 !important;
+  border-bottom-color: #dc2626 !important;
+}
+
+.cost-code-required-field .mdc-floating-label,
+.cost-code-required-field .mat-mdc-select-value-text,
+.cost-code-required-field .mat-mdc-select-placeholder,
+.cost-code-required-field .mat-mdc-form-field-required-marker,
+.cost-code-required-field .mat-mdc-select-arrow {
+  color: #dc2626 !important;
+}
+
 // Remove Material's disabled form field wrapper background
 ::ng-deep mat-form-field {
   &.mat-form-field-disabled,

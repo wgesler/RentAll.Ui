@@ -196,9 +196,11 @@ export class WorkOrderComponent implements OnInit, OnChanges, OnDestroy {
     this.form.markAllAsTouched();
 
     if (!this.property?.propertyId || !this.property?.organizationId) {
+      this.toastr.error('Please correct the highlighted fields before saving.', 'Error');
       return;
     }
     if (this.form.invalid) {
+      this.toastr.error('Please correct the highlighted fields before saving.', 'Error');
       return;
     }
     if (this.workOrderItems.length === 0) {

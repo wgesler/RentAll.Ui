@@ -109,6 +109,7 @@ export class ReceiptComponent implements OnInit, OnDestroy {
     this.form.markAllAsTouched();
 
     if (!this.organizationId || this.form.invalid) {
+      this.toastr.error('Please correct the highlighted fields before saving.', 'Error');
       return;
     }
     if (this.isAddMode && !this.property) {

@@ -430,7 +430,7 @@ export class ReservationComponent implements OnInit, OnDestroy, CanComponentDeac
     this.form.updateValueAndValidity({ emitEvent: false });
     
     if (!this.form.valid) {
-      this.toastr.error('Please fill in all required fields', CommonMessage.Error);
+      this.toastr.error('Please correct the highlighted fields before saving.', CommonMessage.Error);
       return;
     }
 
@@ -532,7 +532,7 @@ export class ReservationComponent implements OnInit, OnDestroy, CanComponentDeac
     const user = this.authService.getUser();
     const officeId = this.selectedOffice?.officeId || this.selectedProperty?.officeId;
     if (!officeId) {
-      this.toastr.error('Office ID is required', CommonMessage.Error);
+      this.toastr.error('Please correct the highlighted fields before saving.', CommonMessage.Error);
       this.isSubmitting = false;
       return;
     }
@@ -545,7 +545,7 @@ export class ReservationComponent implements OnInit, OnDestroy, CanComponentDeac
     const agentIdRaw = formValue.agentId;
     const agentId = agentIdRaw === this.noneAgentOptionValue ? null : agentIdRaw;
     if (!isOwnerReservationType && (agentIdRaw == null || String(agentIdRaw).trim() === '')) {
-      this.toastr.error('Agent is required', CommonMessage.Error);
+      this.toastr.error('Please correct the highlighted fields before saving.', CommonMessage.Error);
       this.isSubmitting = false;
       return;
     }

@@ -20,8 +20,8 @@
             <mat-icon>arrow_back</mat-icon>
             Back
           </button>
-          <button mat-raised-button type="submit" form="costCodeForm" color="primary" id="save-button" (click)="saveCostCode()"
-            class="scale-90 text-nowrap flex-shrink-0" [disabled]="isSubmitting || !form.valid">
+          <button mat-raised-button type="submit" form="costCodeForm" color="primary" id="save-button"
+            class="scale-90 text-nowrap flex-shrink-0" [disabled]="isSubmitting">
             <mat-icon>save</mat-icon>
             Save
           </button>
@@ -41,8 +41,8 @@
                   <mat-icon>arrow_back</mat-icon>
                   Back
                 </button>
-                <button mat-raised-button type="submit" form="costCodeForm" color="primary" id="save-button-embedded" (click)="saveCostCode()"
-                  class="text-nowrap flex-shrink-0" [disabled]="isSubmitting || !form.valid">
+                <button mat-raised-button type="submit" form="costCodeForm" color="primary" id="save-button-embedded"
+                  class="text-nowrap flex-shrink-0" [disabled]="isSubmitting">
                   <mat-icon>save</mat-icon>
                   Save
                 </button>
@@ -52,7 +52,7 @@
             <div class="col-span-4 grid grid-cols-3 form-standard-grid">
               <!-- Office (if in add mode, show dropdown; if edit mode, show readonly) -->
               @if (isAddMode || source === 'configuration') {
-                <mat-form-field appearance="outline" class="col-span-1 w-full">
+                <mat-form-field appearance="outline" class="col-span-1 w-full" [class.cost-code-required-field]="showOfficeValidationError">
                   <mat-label>Office</mat-label>
                   <mat-select #firstInput [(ngModel)]="selectedOffice" [ngModelOptions]="{standalone: true}" (selectionChange)="onOfficeChange()" required [canSelectNullableOptions]="true">
                     <mat-option [value]="null">Select Office</mat-option>

@@ -205,10 +205,12 @@ export class TicketComponent implements OnInit, OnChanges, AfterViewInit, OnDest
     const hasRequiredOfficeContext = !!selectedPropertyId || selectedOfficeIdFromShell != null;
     if (!hasRequiredOfficeContext) {
       this.officeSelectionInvalidOnSave.emit();
+      this.toastr.error('Please correct the highlighted fields before saving.', CommonMessage.Error);
       return;
     }
     this.form.updateValueAndValidity({ emitEvent: false });
     if (!this.form.valid) {
+      this.toastr.error('Please correct the highlighted fields before saving.', CommonMessage.Error);
       return;
     }
 

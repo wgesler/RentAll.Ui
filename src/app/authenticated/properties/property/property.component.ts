@@ -498,7 +498,7 @@ export class PropertyComponent implements OnInit, OnChanges, AfterViewInit, OnDe
     });
     
     if (!this.form.valid) {
-      this.toastr.error('Please fill in all required fields', CommonMessage.Error);
+      this.toastr.error('Please correct the highlighted fields before saving.', CommonMessage.Error);
       onComplete?.(false);
       return;
     }
@@ -588,7 +588,7 @@ export class PropertyComponent implements OnInit, OnChanges, AfterViewInit, OnDe
     const officeId = formValue.officeId ?? this.property?.officeId ?? null;
     if (!officeId) {
       this.form.get('officeId')?.markAsTouched();
-      this.toastr.error('Office is required', CommonMessage.Error);
+      this.toastr.error('Please correct the highlighted fields before saving.', CommonMessage.Error);
       this.isSubmitting = false;
       onComplete?.(false);
       return;

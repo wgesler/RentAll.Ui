@@ -188,6 +188,7 @@ export class RentalComponent implements OnInit, OnDestroy {
       this.officeSelectionRequired.emit();
     }
     if (this.form.invalid || !hasValidOfficeSelection) {
+      this.toastr.error('Please correct the highlighted fields before saving.', CommonMessage.Error);
       return;
     }
     const v = this.form.getRawValue();
