@@ -57,17 +57,13 @@
         </div>
 
         <div class="editor-section">
-          @if (isEditMode && editableHtml) {
+          @if (isEditMode) {
             <div class="preview-section">
-              <iframe [srcdoc]="editableHtml" class="preview-iframe" [attr.key]="iframeKey" #editIframe (load)="onEditIframeLoad()" frameborder="0"></iframe>
-            </div>
-          } @else if (!isEditMode && previewIframeHtml) {
-            <div class="preview-section">
-              <iframe [srcdoc]="safeHtml" class="preview-iframe" [attr.key]="iframeKey" #previewIframe frameborder="0"></iframe>
+              <iframe [srcdoc]="editableHtml || fallbackIframeHtml" class="preview-iframe" [attr.key]="iframeKey" #editIframe (load)="onEditIframeLoad()" frameborder="0"></iframe>
             </div>
           } @else {
-            <div class="owner-shell-placeholder">
-              <p>Select an agreement document to preview.</p>
+            <div class="preview-section">
+              <iframe [srcdoc]="safeHtml || fallbackIframeHtml" class="preview-iframe" [attr.key]="iframeKey" #previewIframe (load)="onPreviewIframeLoad()" frameborder="0"></iframe>
             </div>
           }
         </div>

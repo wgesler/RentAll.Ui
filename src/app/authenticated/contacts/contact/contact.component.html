@@ -80,7 +80,7 @@
               <mat-checkbox formControlName="isInternational" color="primary">
                 Is International
               </mat-checkbox>
-              @if (form.get('entityTypeId')?.value === EntityType.Owner) {
+              @if (form.get('entityTypeId')?.value === EntityType.Owner && !isInOwnerMode) {
                 <mat-checkbox formControlName="isOwnerReady" color="primary">
                   Owner Fully Setup
                 </mat-checkbox>
@@ -167,6 +167,14 @@
                     </mat-form-field>
                   </div>
                 } @else {
+                  @if (publicReadOnlyContactCode) {
+                    <div class="col-span-4 grid grid-cols-4 gap-x-1.5 gap-y-1">
+                      <mat-form-field appearance="outline" class="field-min-0 col-span-1">
+                        <mat-label>Code</mat-label>
+                        <input matInput [value]="publicReadOnlyContactCode" readonly disabled>
+                      </mat-form-field>
+                    </div>
+                  }
                   <div class="col-span-4 grid gap-x-1.5 gap-y-1 form-grid-sixths">
                     @if (isInOwnerMode) {
                       <mat-form-field appearance="outline" class="field-min-0 col-span-1">

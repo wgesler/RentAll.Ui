@@ -371,6 +371,19 @@
     }
   }
 
+  .owner-pets-parking-row {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) minmax(0, 1fr) minmax(0, 2fr) minmax(0, 0.5fr) minmax(0, 1fr) minmax(0, 3.5fr);
+    gap: 4px 6px;
+    align-items: center;
+    width: 100%;
+
+    > mat-form-field {
+      min-width: 0;
+      margin: 0 !important;
+    }
+  }
+
   /* Office row: 10 “slices” — Office, Region, Area, Building = 2; Lat, Long = 1 */
   .office-line-grid {
     display: grid;
@@ -757,4 +770,10 @@ input.no-spinner[type='number'] {
 
 .owner-mode-save-spacer {
   height: 0.5rem;
+}
+
+/* Owner-mode tweak: keep Bldg No + Mailbox wide enough for 5 chars. */
+.property-page-form--owner-mode .bldg-no-field,
+.property-page-form--owner-mode .mailbox-field {
+  min-width: 9ch !important;
 }

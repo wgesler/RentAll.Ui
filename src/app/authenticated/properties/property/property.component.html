@@ -7,12 +7,19 @@
   <div class="flex content-card-wrap justify-center property-shell-embedded-wrap">
     <section class="content-card property-shell-embedded">
       @if (form) {
-      <div class="info-form" [class.mb-8]="!isOwnerModeLayout">
-      <form [formGroup]="form" (ngSubmit)="saveProperty()" class="property-page-form form-hide-error-text">
-            <div class="property-tab-actions-band" [class.owner-mode-actions-band]="isOwnerModeLayout">
+      @if (isOwnerMode) {
+        <ng-container [ngTemplateOutlet]="propertyFormView" [ngTemplateOutletContext]="{ isOwnerView: true }"></ng-container>
+      } @else {
+        <ng-container [ngTemplateOutlet]="propertyFormView" [ngTemplateOutletContext]="{ isOwnerView: false }"></ng-container>
+      }
+
+      <ng-template #propertyFormView let-isOwnerView="isOwnerView">
+      <div class="info-form" [class.mb-8]="!isOwnerView">
+      <form [formGroup]="form" (ngSubmit)="saveProperty()" class="property-page-form form-hide-error-text" [class.property-page-form--owner-mode]="isOwnerView">
+            <div class="property-tab-actions-band" [class.owner-mode-actions-band]="isOwnerView">
               <div class="property-tab-actions-band__row">
                 <div class="table-filter-actions-group form-titlebar-actions-wrap uniform-gap">
-                  @if (!isOwnerModeLayout) {
+                  @if (!isOwnerView) {
                     <div class="header-title flex-shrink-0">
                       <mat-form-field appearance="outline" class="titlebar-field-company">
                         <mat-label>Property Lease Type</mat-label>
@@ -31,13 +38,13 @@
                     </mat-checkbox>
                   }
                   <button mat-raised-button type="button" color="primary" id="save-button" (click)="saveProperty()"
-                    class="text-nowrap flex-shrink-0" [class.owner-mode-save-button]="isOwnerModeLayout" [disabled]="isSubmitting || !form">
+                    class="text-nowrap flex-shrink-0" [class.owner-mode-save-button]="isOwnerView" [disabled]="isSubmitting || !form">
                     <mat-icon>save</mat-icon>
                     Save
                   </button>
                 </div>
               </div>
-              @if (isOwnerModeLayout) {
+              @if (isOwnerView) {
                 <div class="owner-mode-save-spacer"></div>
               }
             </div>
@@ -50,6 +57,7 @@
               </mat-expansion-panel-header>
               <div class="features-container basic-combined">
                 <!-- Row 1: 30-col grid — Avail×2 & Style/Type/Inspect = 4, Check-In/Out = 3, Min/Max = 2 -->
+                @if (!isOwnerView) {
                 <div class="basic-row basic-row-first w-full">
                   <mat-form-field appearance="outline" class="basic-compact min-w-0 col-span-4 date-field-with-suffix-icon">
                     <mat-label>Avail-From</mat-label>
@@ -59,76 +67,80 @@
                     </button>
                     <mat-datepicker #availableFromPicker></mat-datepicker>
                   </mat-form-field>
-                  <mat-form-field appearance="outline" class="basic-compact min-w-0 col-span-4 date-field-with-suffix-icon">
-                    <mat-label>Avail-Until</mat-label>
-                    <input matInput [matDatepicker]="availableUntilPicker" formControlName="availableUntil">
-                    <button mat-icon-button matSuffix type="button" (click)="availableUntilPicker.open()" aria-label="Open calendar">
-                      <mat-icon>calendar_today</mat-icon>
-                    </button>
-                    <mat-datepicker #availableUntilPicker></mat-datepicker>
-                  </mat-form-field>
-                  <app-searchable-select
-                    class="basic-compact min-w-0 col-span-3"
-                    [renderInFormField]="true"
-                    [formFieldClass]="'basic-compact min-w-0'"
-                    [formFieldLabel]="'Check-In'"
-                    [required]="true"
-                    [value]="form.get('checkInTimeId')?.value ?? null"
-                    [options]="checkInTimes"
-                    [showSearchInput]="true"
-                    [hideSearchHint]="true"
-                    [hideSearchText]="true"
-                    [searchPlaceholder]="'Type to filter check-in times...'"
-                    [nullOptionLabel]="''"
-                    [noResultsText]="'No check-in times match your search'"
-                    [showError]="!!(form.get('checkInTimeId')?.hasError('required') && form.get('checkInTimeId')?.touched)"
-                    [errorText]="'Required'"
-                    (valueChange)="onNumericDropdownChange('checkInTimeId', $event)">
-                  </app-searchable-select>
-                  <app-searchable-select
-                    class="basic-compact min-w-0 col-span-3"
-                    [renderInFormField]="true"
-                    [formFieldClass]="'basic-compact min-w-0'"
-                    [formFieldLabel]="'Check-Out'"
-                    [required]="true"
-                    [value]="form.get('checkOutTimeId')?.value ?? null"
-                    [options]="checkOutTimes"
-                    [showSearchInput]="true"
-                    [hideSearchHint]="true"
-                    [hideSearchText]="true"
-                    [searchPlaceholder]="'Type to filter check-out times...'"
-                    [nullOptionLabel]="''"
-                    [noResultsText]="'No check-out times match your search'"
-                    [showError]="!!(form.get('checkOutTimeId')?.hasError('required') && form.get('checkOutTimeId')?.touched)"
-                    [errorText]="'Required'"
-                    (valueChange)="onNumericDropdownChange('checkOutTimeId', $event)">
-                  </app-searchable-select>
+                  @if (!isOwnerView) {
+                    <mat-form-field appearance="outline" class="basic-compact min-w-0 col-span-4 date-field-with-suffix-icon">
+                      <mat-label>Avail-Until</mat-label>
+                      <input matInput [matDatepicker]="availableUntilPicker" formControlName="availableUntil">
+                      <button mat-icon-button matSuffix type="button" (click)="availableUntilPicker.open()" aria-label="Open calendar">
+                        <mat-icon>calendar_today</mat-icon>
+                      </button>
+                      <mat-datepicker #availableUntilPicker></mat-datepicker>
+                    </mat-form-field>
+                    <app-searchable-select
+                      class="basic-compact min-w-0 col-span-3"
+                      [renderInFormField]="true"
+                      [formFieldClass]="'basic-compact min-w-0'"
+                      [formFieldLabel]="'Check-In'"
+                      [required]="true"
+                      [value]="form.get('checkInTimeId')?.value ?? null"
+                      [options]="checkInTimes"
+                      [showSearchInput]="true"
+                      [hideSearchHint]="true"
+                      [hideSearchText]="true"
+                      [searchPlaceholder]="'Type to filter check-in times...'"
+                      [nullOptionLabel]="''"
+                      [noResultsText]="'No check-in times match your search'"
+                      [showError]="!!(form.get('checkInTimeId')?.hasError('required') && form.get('checkInTimeId')?.touched)"
+                      [errorText]="'Required'"
+                      (valueChange)="onNumericDropdownChange('checkInTimeId', $event)">
+                    </app-searchable-select>
+                    <app-searchable-select
+                      class="basic-compact min-w-0 col-span-3"
+                      [renderInFormField]="true"
+                      [formFieldClass]="'basic-compact min-w-0'"
+                      [formFieldLabel]="'Check-Out'"
+                      [required]="true"
+                      [value]="form.get('checkOutTimeId')?.value ?? null"
+                      [options]="checkOutTimes"
+                      [showSearchInput]="true"
+                      [hideSearchHint]="true"
+                      [hideSearchText]="true"
+                      [searchPlaceholder]="'Type to filter check-out times...'"
+                      [nullOptionLabel]="''"
+                      [noResultsText]="'No check-out times match your search'"
+                      [showError]="!!(form.get('checkOutTimeId')?.hasError('required') && form.get('checkOutTimeId')?.touched)"
+                      [errorText]="'Required'"
+                      (valueChange)="onNumericDropdownChange('checkOutTimeId', $event)">
+                    </app-searchable-select>
+                  }
                   <mat-form-field appearance="outline" class="basic-compact min-w-0 col-span-2">
                     <mat-label>Min-Stay</mat-label>
                     <input matInput type="text" inputmode="numeric" pattern="[0-9]*" maxlength="4" formControlName="minStay">
                   </mat-form-field>
-                  <mat-form-field appearance="outline" class="basic-compact min-w-0 col-span-2">
-                    <mat-label>Max-Stay</mat-label>
-                    <input matInput type="text" inputmode="numeric" pattern="[0-9]*" maxlength="4" formControlName="maxStay">
-                  </mat-form-field>
-                  <app-searchable-select
-                    class="basic-compact min-w-0 col-span-4"
-                    [renderInFormField]="true"
-                    [formFieldClass]="'basic-compact min-w-0'"
-                    [formFieldLabel]="'Style'"
-                    [required]="true"
-                    [value]="form.get('propertyStyle')?.value ?? null"
-                    [options]="propertyStyles"
-                    [showSearchInput]="true"
-                    [hideSearchHint]="true"
-                    [hideSearchText]="true"
-                    [searchPlaceholder]="'Type to filter styles...'"
-                    [nullOptionLabel]="''"
-                    [noResultsText]="'No styles match your search'"
-                    [showError]="!!(form.get('propertyStyle')?.hasError('required') && form.get('propertyStyle')?.touched)"
-                    [errorText]="'Required'"
-                    (valueChange)="onNumericDropdownChange('propertyStyle', $event)">
-                  </app-searchable-select>
+                  @if (!isOwnerView) {
+                    <mat-form-field appearance="outline" class="basic-compact min-w-0 col-span-2">
+                      <mat-label>Max-Stay</mat-label>
+                      <input matInput type="text" inputmode="numeric" pattern="[0-9]*" maxlength="4" formControlName="maxStay">
+                    </mat-form-field>
+                    <app-searchable-select
+                      class="basic-compact min-w-0 col-span-4"
+                      [renderInFormField]="true"
+                      [formFieldClass]="'basic-compact min-w-0'"
+                      [formFieldLabel]="'Style'"
+                      [required]="true"
+                      [value]="form.get('propertyStyle')?.value ?? null"
+                      [options]="propertyStyles"
+                      [showSearchInput]="true"
+                      [hideSearchHint]="true"
+                      [hideSearchText]="true"
+                      [searchPlaceholder]="'Type to filter styles...'"
+                      [nullOptionLabel]="''"
+                      [noResultsText]="'No styles match your search'"
+                      [showError]="!!(form.get('propertyStyle')?.hasError('required') && form.get('propertyStyle')?.touched)"
+                      [errorText]="'Required'"
+                      (valueChange)="onNumericDropdownChange('propertyStyle', $event)">
+                    </app-searchable-select>
+                  }
                   <app-searchable-select
                     class="basic-compact min-w-0 col-span-4"
                     [renderInFormField]="true"
@@ -147,25 +159,104 @@
                     [errorText]="'Required'"
                     (valueChange)="onPropertyTypeDropdownChange($event)">
                   </app-searchable-select>
-                  <app-searchable-select
-                    class="basic-compact min-w-0 col-span-4"
-                    [renderInFormField]="true"
-                    [formFieldClass]="'basic-compact min-w-0'"
-                    [formFieldLabel]="'Inspected'"
-                    [required]="true"
-                    [value]="form.get('propertyStatus')?.value ?? null"
-                    [options]="propertyStatuses"
-                    [showSearchInput]="true"
-                    [hideSearchHint]="true"
-                    [hideSearchText]="true"
-                    [searchPlaceholder]="'Type to filter statuses...'"
-                    [nullOptionLabel]="''"
-                    [noResultsText]="'No statuses match your search'"
-                    [showError]="!!(form.get('propertyStatus')?.hasError('required') && form.get('propertyStatus')?.touched)"
-                    [errorText]="'Required'"
-                    (valueChange)="onNumericDropdownChange('propertyStatus', $event)">
-                  </app-searchable-select>
+                  @if (!isOwnerView) {
+                    <app-searchable-select
+                      class="basic-compact min-w-0 col-span-4"
+                      [renderInFormField]="true"
+                      [formFieldClass]="'basic-compact min-w-0'"
+                      [formFieldLabel]="'Inspected'"
+                      [required]="true"
+                      [value]="form.get('propertyStatus')?.value ?? null"
+                      [options]="propertyStatuses"
+                      [showSearchInput]="true"
+                      [hideSearchHint]="true"
+                      [hideSearchText]="true"
+                      [searchPlaceholder]="'Type to filter statuses...'"
+                      [nullOptionLabel]="''"
+                      [noResultsText]="'No statuses match your search'"
+                      [showError]="!!(form.get('propertyStatus')?.hasError('required') && form.get('propertyStatus')?.touched)"
+                      [errorText]="'Required'"
+                      (valueChange)="onNumericDropdownChange('propertyStatus', $event)">
+                    </app-searchable-select>
+                  }
                 </div>
+                }
+                @if (isOwnerView) {
+                  <div class="basic-row basic-row-first w-full">
+                    <mat-form-field appearance="outline" class="basic-compact min-w-0 col-span-4 date-field-with-suffix-icon">
+                      <mat-label>Avail-From</mat-label>
+                      <input matInput [matDatepicker]="availableFromPicker" formControlName="availableFrom">
+                      <button mat-icon-button matSuffix type="button" (click)="availableFromPicker.open()" aria-label="Open calendar">
+                        <mat-icon>calendar_today</mat-icon>
+                      </button>
+                      <mat-datepicker #availableFromPicker></mat-datepicker>
+                    </mat-form-field>
+                    <mat-form-field appearance="outline" class="basic-compact min-w-0 col-span-2">
+                      <mat-label>Min-Stay</mat-label>
+                      <input matInput type="text" inputmode="numeric" pattern="[0-9]*" maxlength="4" formControlName="minStay">
+                    </mat-form-field>
+                    <app-searchable-select
+                      class="basic-compact min-w-0 col-span-4"
+                      [renderInFormField]="true"
+                      [formFieldClass]="'basic-compact min-w-0'"
+                      [formFieldLabel]="'Type'"
+                      [required]="true"
+                      [value]="form.get('propertyType')?.value ?? null"
+                      [options]="propertyTypes"
+                      [showSearchInput]="true"
+                      [hideSearchHint]="true"
+                      [hideSearchText]="true"
+                      [searchPlaceholder]="'Type to filter property types...'"
+                      [nullOptionLabel]="''"
+                      [noResultsText]="'No property types match your search'"
+                      [showError]="!!(form.get('propertyType')?.hasError('required') && form.get('propertyType')?.touched)"
+                      [errorText]="'Required'"
+                      (valueChange)="onPropertyTypeDropdownChange($event)">
+                    </app-searchable-select>
+                    <mat-form-field appearance="outline" class="basic-compact min-w-0 col-span-2">
+                      <mat-label>Unit Level</mat-label>
+                      <input
+                        matInput
+                        type="number"
+                        class="no-spinner"
+                        inputmode="numeric"
+                        min="0"
+                        step="1"
+                        formControlName="unitLevel"
+                        required>
+                      @if (form.get('unitLevel')?.hasError('required') && form.get('unitLevel')?.touched) {
+                        <mat-error>Required</mat-error>
+                      }
+                      @if (form.get('unitLevel')?.hasError('min') && form.get('unitLevel')?.touched) {
+                        <mat-error>Must be 0 or greater</mat-error>
+                      }
+                    </mat-form-field>
+                    <mat-form-field appearance="outline" class="basic-compact min-w-0 col-span-2 bldg-no-field">
+                      <mat-label>Bldg No</mat-label>
+                      <input matInput formControlName="bldgNo" maxlength="32">
+                    </mat-form-field>
+                    <mat-form-field appearance="outline" class="basic-compact min-w-0 col-span-2 mailbox-field">
+                      <mat-label>Mailbox</mat-label>
+                      <input matInput formControlName="mailbox">
+                    </mat-form-field>
+                    <mat-form-field appearance="outline" class="basic-compact min-w-0 col-span-4">
+                      <mat-label>Trash Pickup</mat-label>
+                      <mat-select formControlName="trashPickupId">
+                        <mat-option value="">Select Day</mat-option>
+                        @for (day of trashDays; track day.value) {
+                          <mat-option [value]="day.value">{{ day.label }}</mat-option>
+                        }
+                      </mat-select>
+                      @if (form.get('trashPickupId')?.hasError('required') && form.get('trashPickupId')?.touched) {
+                        <mat-error>Trash pickup is required</mat-error>
+                      }
+                    </mat-form-field>
+                    <mat-form-field appearance="outline" class="basic-compact min-w-0 col-span-10">
+                      <mat-label>Trash Removal</mat-label>
+                      <input matInput formControlName="trashRemoval">
+                    </mat-form-field>
+                  </div>
+                }
                 <!-- Row 2: Address A1/A2 = 6, City = 5, Suite/State = 2, Zip = 3 -->
                 <div class="basic-row address-line-grid gap-x-1.5 gap-y-1 w-full">
                   <mat-form-field appearance="outline" class="basic-compact min-w-0 col-span-6">
@@ -211,11 +302,14 @@
                   </mat-form-field>
                 </div>
                 <!-- 12-col: Community Address (9) + Unit Level + Bldg No + Mailbox (1 each) -->
+                @if (!isOwnerView) {
                 <div class="basic-row community-address-line-grid gap-x-1.5 gap-y-1 w-full">
-                  <mat-form-field appearance="outline" class="basic-compact min-w-0 community-address-span-9">
-                    <mat-label>Community Address</mat-label>
-                    <input matInput formControlName="communityAddress">
-                  </mat-form-field>
+                  @if (!isOwnerView) {
+                    <mat-form-field appearance="outline" class="basic-compact min-w-0 community-address-span-9">
+                      <mat-label>Community Address</mat-label>
+                      <input matInput formControlName="communityAddress">
+                    </mat-form-field>
+                  }
                   <mat-form-field appearance="outline" class="basic-compact min-w-0 community-address-span-1">
                     <mat-label>Unit Level</mat-label>
                     <input
@@ -234,15 +328,16 @@
                       <mat-error>Must be 0 or greater</mat-error>
                     }
                   </mat-form-field>
-                  <mat-form-field appearance="outline" class="basic-compact min-w-0 community-address-span-1">
+                  <mat-form-field appearance="outline" class="basic-compact min-w-0 community-address-span-1 bldg-no-field">
                     <mat-label>Bldg No</mat-label>
                     <input matInput formControlName="bldgNo" maxlength="32">
                   </mat-form-field>
-                  <mat-form-field appearance="outline" class="basic-compact min-w-0 community-address-span-1">
+                  <mat-form-field appearance="outline" class="basic-compact min-w-0 community-address-span-1 mailbox-field">
                     <mat-label>Mailbox</mat-label>
                     <input matInput formControlName="mailbox">
                   </mat-form-field>
                 </div>
+                }
                 <!-- 12-col default: Neighborhood, Cross Street, View; expands to include Notice To Vacate -->
                 <div class="basic-row address-secondary-line-grid gap-x-1.5 gap-y-1 w-full" [class.address-secondary-line-grid-with-notice]="showNoticeToVacateField">
                   <mat-form-field appearance="outline" class="basic-compact min-w-0 address-secondary-span-4">
@@ -275,7 +370,7 @@
                     </app-searchable-select>
                   }
                 </div>
-                @if (!isOwnerModeLayout) {
+                @if (!isOwnerView) {
                   <!-- Under phone: Region/Area/Build -->
                   <div class="basic-row office-line-grid gap-x-1.5 gap-y-1">
                     <app-searchable-select
@@ -459,78 +554,83 @@
                   </app-searchable-select>
                 </div>
                 <!-- Pets & parking -->
-                <div class="basic-row flex items-center gap-4 flex-wrap">
+                <div class="basic-row owner-pets-parking-row w-full">
                   <mat-checkbox formControlName="petsAllowed">Pets Allowed</mat-checkbox>
                   <mat-checkbox formControlName="dogsOkay">DogsOkay</mat-checkbox>
                   <mat-checkbox formControlName="catsOkay">CatsOkay</mat-checkbox>
-                  <mat-form-field appearance="outline" class="flex-1 min-w-0 field-min-15ch">
+                  <mat-form-field appearance="outline" class="basic-compact min-w-0">
                     <mat-label>Pound Limit / Notes</mat-label>
                     <input matInput formControlName="poundLimit">
                   </mat-form-field>
+                  <div></div>
                   <mat-checkbox formControlName="parking">Parking</mat-checkbox>
-                  <mat-form-field appearance="outline" class="flex-1 min-w-0">
+                  <mat-form-field appearance="outline" class="basic-compact min-w-0">
                     <mat-label>Parking Notes</mat-label>
                     <input matInput formControlName="parkingNotes">
                   </mat-form-field>
                 </div>
-                <!-- Trash pickup & removal -->
-                <div class="basic-row flex items-center gap-4 flex-wrap">
-                  <mat-form-field appearance="outline" class="basic-compact field-width-220">
-                    <mat-label>Trash Pickup</mat-label>
-                    <mat-select formControlName="trashPickupId">
-                      <mat-option value="">Select Day</mat-option>
-                      @for (day of trashDays; track day.value) {
-                        <mat-option [value]="day.value">{{ day.label }}</mat-option>
+                @if (!isOwnerView) {
+                  <!-- Trash pickup & removal -->
+                  <div class="basic-row flex items-center gap-4 flex-wrap">
+                    <mat-form-field appearance="outline" class="basic-compact field-width-220">
+                      <mat-label>Trash Pickup</mat-label>
+                      <mat-select formControlName="trashPickupId">
+                        <mat-option value="">Select Day</mat-option>
+                        @for (day of trashDays; track day.value) {
+                          <mat-option [value]="day.value">{{ day.label }}</mat-option>
+                        }
+                      </mat-select>
+                      @if (form.get('trashPickupId')?.hasError('required') && form.get('trashPickupId')?.touched) {
+                        <mat-error>Trash pickup is required</mat-error>
                       }
-                    </mat-select>
-                    @if (form.get('trashPickupId')?.hasError('required') && form.get('trashPickupId')?.touched) {
-                      <mat-error>Trash pickup is required</mat-error>
-                    }
-                  </mat-form-field>
-                  <mat-form-field appearance="outline" class="flex-1 min-w-0">
-                    <mat-label>Trash Removal</mat-label>
-                    <input matInput formControlName="trashRemoval">
-                  </mat-form-field>
-                </div>
-                <!-- Rates (5) -->
-                <div class="basic-row rates-line-grid gap-x-1.5 gap-y-1">
-                  <mat-form-field appearance="outline" class="basic-compact">
-                    <mat-label>Monthly Rate</mat-label>
-                    <input matInput type="text" formControlName="monthlyRate" (blur)="formatDecimal('monthlyRate')" (input)="onDecimalInput($event, 'monthlyRate')" (focus)="selectAllOnFocus($event)" required>
-                    @if (form.get('monthlyRate')?.hasError('required') && form.get('monthlyRate')?.touched) {
-                      <mat-error>Required</mat-error>
-                    }
-                  </mat-form-field>
-                  <mat-form-field appearance="outline" class="basic-compact">
-                    <mat-label>Daily Rate</mat-label>
-                    <input matInput type="text" formControlName="dailyRate" (blur)="formatDecimal('dailyRate')" (input)="onDecimalInput($event, 'dailyRate')" (focus)="selectAllOnFocus($event)" required>
-                    @if (form.get('dailyRate')?.hasError('required') && form.get('dailyRate')?.touched) {
-                      <mat-error>Required</mat-error>
-                    }
-                  </mat-form-field>
-                  <mat-form-field appearance="outline" class="basic-compact">
-                    <mat-label>Departure Fee</mat-label>
-                    <input matInput type="text" formControlName="departureFee" (blur)="formatDecimal('departureFee')" (input)="onDecimalInput($event, 'departureFee')" (focus)="selectAllOnFocus($event)" required>
-                    @if (form.get('departureFee')?.hasError('required') && form.get('departureFee')?.touched) {
-                      <mat-error>Required</mat-error>
-                    }
-                  </mat-form-field>
-                  <mat-form-field appearance="outline" class="basic-compact">
-                    <mat-label>Maid Fee</mat-label>
-                    <input matInput type="text" formControlName="maidServiceFee" (blur)="formatDecimal('maidServiceFee')" (input)="onDecimalInput($event, 'maidServiceFee')" (focus)="selectAllOnFocus($event)" required>
-                    @if (form.get('maidServiceFee')?.hasError('required') && form.get('maidServiceFee')?.touched) {
-                      <mat-error>Required</mat-error>
-                    }
-                  </mat-form-field>
-                  <mat-form-field appearance="outline" class="basic-compact">
-                    <mat-label>Pet Fee</mat-label>
-                    <input matInput type="text" formControlName="petFee" (blur)="formatDecimal('petFee')" (input)="onDecimalInput($event, 'petFee')" (focus)="selectAllOnFocus($event)" required>
-                    @if (form.get('petFee')?.hasError('required') && form.get('petFee')?.touched) {
-                      <mat-error>Required</mat-error>
-                    }
-                  </mat-form-field>
-                </div>
-                @if (!isOwnerModeLayout) {
+                    </mat-form-field>
+                    <mat-form-field appearance="outline" class="flex-1 min-w-0">
+                      <mat-label>Trash Removal</mat-label>
+                      <input matInput formControlName="trashRemoval">
+                    </mat-form-field>
+                  </div>
+                }
+                @if (!isOwnerView) {
+                  <!-- Rates (5) -->
+                  <div class="basic-row rates-line-grid gap-x-1.5 gap-y-1">
+                    <mat-form-field appearance="outline" class="basic-compact">
+                      <mat-label>Monthly Rate</mat-label>
+                      <input matInput type="text" formControlName="monthlyRate" (blur)="formatDecimal('monthlyRate')" (input)="onDecimalInput($event, 'monthlyRate')" (focus)="selectAllOnFocus($event)" required>
+                      @if (form.get('monthlyRate')?.hasError('required') && form.get('monthlyRate')?.touched) {
+                        <mat-error>Required</mat-error>
+                      }
+                    </mat-form-field>
+                    <mat-form-field appearance="outline" class="basic-compact">
+                      <mat-label>Daily Rate</mat-label>
+                      <input matInput type="text" formControlName="dailyRate" (blur)="formatDecimal('dailyRate')" (input)="onDecimalInput($event, 'dailyRate')" (focus)="selectAllOnFocus($event)" required>
+                      @if (form.get('dailyRate')?.hasError('required') && form.get('dailyRate')?.touched) {
+                        <mat-error>Required</mat-error>
+                      }
+                    </mat-form-field>
+                    <mat-form-field appearance="outline" class="basic-compact">
+                      <mat-label>Departure Fee</mat-label>
+                      <input matInput type="text" formControlName="departureFee" (blur)="formatDecimal('departureFee')" (input)="onDecimalInput($event, 'departureFee')" (focus)="selectAllOnFocus($event)" required>
+                      @if (form.get('departureFee')?.hasError('required') && form.get('departureFee')?.touched) {
+                        <mat-error>Required</mat-error>
+                      }
+                    </mat-form-field>
+                    <mat-form-field appearance="outline" class="basic-compact">
+                      <mat-label>Maid Fee</mat-label>
+                      <input matInput type="text" formControlName="maidServiceFee" (blur)="formatDecimal('maidServiceFee')" (input)="onDecimalInput($event, 'maidServiceFee')" (focus)="selectAllOnFocus($event)" required>
+                      @if (form.get('maidServiceFee')?.hasError('required') && form.get('maidServiceFee')?.touched) {
+                        <mat-error>Required</mat-error>
+                      }
+                    </mat-form-field>
+                    <mat-form-field appearance="outline" class="basic-compact">
+                      <mat-label>Pet Fee</mat-label>
+                      <input matInput type="text" formControlName="petFee" (blur)="formatDecimal('petFee')" (input)="onDecimalInput($event, 'petFee')" (focus)="selectAllOnFocus($event)" required>
+                      @if (form.get('petFee')?.hasError('required') && form.get('petFee')?.touched) {
+                        <mat-error>Required</mat-error>
+                      }
+                    </mat-form-field>
+                  </div>
+                }
+                @if (!isOwnerView) {
                   <!-- Owners (property management lease) or Vendor (other lease types) -->
                   @if (isPropertyManagementLease) {
                   <div class="mb-4 flex items-center gap-3 mt-4">
@@ -817,43 +917,45 @@
             </mat-expansion-panel>
 
             <!-- Property Description Section -->
-            <mat-expansion-panel [expanded]="false" (opened)="onPanelOpened('description')" (closed)="onPanelClosed('description')" [class.mb-4]="!isOwnerModeLayout">
-              <mat-expansion-panel-header>
-                <mat-panel-title>Property Description</mat-panel-title>
-              </mat-expansion-panel-header>
-              <div class="grid grid-cols-4 gap-x-1.5 gap-y-4">
-                <div class="col-span-4 description-editor-wrap">
-                  <div class="description-editor-label">Property Description</div>
-                  <div class="description-editor-toolbar">
-                    <button type="button" mat-stroked-button (mousedown)="preventEditorToolbarMouseDown($event)" (click)="applyDescriptionFormat('bold')">
-                      <mat-icon>format_bold</mat-icon>
-                    </button>
-                    <button type="button" mat-stroked-button (mousedown)="preventEditorToolbarMouseDown($event)" (click)="applyDescriptionFormat('italic')">
-                      <mat-icon>format_italic</mat-icon>
-                    </button>
-                    <button type="button" mat-stroked-button (mousedown)="preventEditorToolbarMouseDown($event)" (click)="applyDescriptionFormat('underline')">
-                      <mat-icon>format_underlined</mat-icon>
-                    </button>
-                    <button type="button" mat-stroked-button (mousedown)="preventEditorToolbarMouseDown($event)" (click)="applyDescriptionFormat('paragraph')">
-                      <mat-icon>subject</mat-icon>
-                    </button>
-                    <button type="button" mat-stroked-button (mousedown)="preventEditorToolbarMouseDown($event)" (click)="applyDescriptionFormat('unorderedList')">
-                      <mat-icon>format_list_bulleted</mat-icon>
-                    </button>
+            @if (!isInOwnerMode) {
+              <mat-expansion-panel [expanded]="false" (opened)="onPanelOpened('description')" (closed)="onPanelClosed('description')" [class.mb-4]="!isOwnerView">
+                <mat-expansion-panel-header>
+                  <mat-panel-title>Property Description</mat-panel-title>
+                </mat-expansion-panel-header>
+                <div class="grid grid-cols-4 gap-x-1.5 gap-y-4">
+                  <div class="col-span-4 description-editor-wrap">
+                    <div class="description-editor-label">Property Description</div>
+                    <div class="description-editor-toolbar">
+                      <button type="button" mat-stroked-button (mousedown)="preventEditorToolbarMouseDown($event)" (click)="applyDescriptionFormat('bold')">
+                        <mat-icon>format_bold</mat-icon>
+                      </button>
+                      <button type="button" mat-stroked-button (mousedown)="preventEditorToolbarMouseDown($event)" (click)="applyDescriptionFormat('italic')">
+                        <mat-icon>format_italic</mat-icon>
+                      </button>
+                      <button type="button" mat-stroked-button (mousedown)="preventEditorToolbarMouseDown($event)" (click)="applyDescriptionFormat('underline')">
+                        <mat-icon>format_underlined</mat-icon>
+                      </button>
+                      <button type="button" mat-stroked-button (mousedown)="preventEditorToolbarMouseDown($event)" (click)="applyDescriptionFormat('paragraph')">
+                        <mat-icon>subject</mat-icon>
+                      </button>
+                      <button type="button" mat-stroked-button (mousedown)="preventEditorToolbarMouseDown($event)" (click)="applyDescriptionFormat('unorderedList')">
+                        <mat-icon>format_list_bulleted</mat-icon>
+                      </button>
+                    </div>
+                    <div
+                      #descriptionEditor
+                      class="description-editor-input description-editor-input--with-markers"
+                      contenteditable="true"
+                      (input)="onDescriptionInput($event)">
+                    </div>
                   </div>
-                  <div
-                    #descriptionEditor
-                    class="description-editor-input description-editor-input--with-markers"
-                    contenteditable="true"
-                    (input)="onDescriptionInput($event)">
-                  </div>
+                  <mat-form-field appearance="outline" class="col-span-4">
+                    <mat-label>Notes</mat-label>
+                    <textarea matInput formControlName="notes" rows="3"></textarea>
+                  </mat-form-field>
                 </div>
-                <mat-form-field appearance="outline" class="col-span-4">
-                  <mat-label>Notes</mat-label>
-                  <textarea matInput formControlName="notes" rows="3"></textarea>
-                </mat-form-field>
-              </div>
-            </mat-expansion-panel>
+              </mat-expansion-panel>
+            }
 
             @if (isInAccounting && propertyId) {
             <mat-expansion-panel [expanded]="false" (opened)="onPanelOpened('agreement')" (closed)="onPanelClosed('agreement')" class="mb-4">
@@ -882,6 +984,7 @@
       </form>
 
       </div>
+      </ng-template>
       }
     </section>
   </div>

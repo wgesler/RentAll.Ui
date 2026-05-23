@@ -6,7 +6,7 @@ import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { ToastrService } from 'ngx-toastr';
-import { Subject, catchError, of, switchMap, take, takeUntil } from 'rxjs';
+import { Subject, catchError, of, switchMap, take } from 'rxjs';
 import { AuthService } from '../../../services/auth.service';
 import { DocumentHtmlService } from '../../../services/document-html.service';
 import { DynamicFormDraftService } from '../services/dynamic-form-draft.service';
@@ -113,8 +113,7 @@ export class DynamicFormEditorComponent implements OnInit, OnChanges, OnDestroy 
         propertyId: this.propertyId,
         templateAssetPath: this.templateAssetPath
       })),
-      take(1),
-      takeUntil(this.destroy$)
+      take(1)
     ).subscribe({
       next: replacedHtml => {
         this.baseTemplateHtml = replacedHtml || '';
@@ -168,12 +167,20 @@ export class DynamicFormEditorComponent implements OnInit, OnChanges, OnDestroy 
     }
     editHost.setAttribute('contenteditable', 'false');
     const staticEditableNodes = Array.from(editHost.querySelectorAll('[contenteditable]')) as HTMLElement[];
-    staticEditableNodes.forEach(node => {
-      const tagName = node.tagName.toLowerCase();
-      if (tagName !== 'input' && tagName !== 'textarea' && tagName !== 'select' && tagName !== 'option') {
-        node.setAttribute('contenteditable', 'false');
+    staticEditableNodes.forEach(node => node.setAttribute('contenteditable', 'false'));
+
+    // Keep static form text read-only; only unlock fillable fields/underlines.
+    const fillableRegions = Array.from(
+      editHost.querySelectorAll('.line, .inline-underline-fill, [data-fillable="true"]')
+    ) as HTMLElement[];
+    fillableRegions.forEach(region => {
+      if (region.querySelector('input, textarea, select, button')) {
+        return;
       }
+      region.setAttribute('contenteditable', 'true');
+      region.setAttribute('spellcheck', 'false');
     });
+
     const controls = Array.from(editHost.querySelectorAll('input, textarea, select, option, button, label'));
     controls.forEach(control => {
       control.setAttribute('contenteditable', 'false');

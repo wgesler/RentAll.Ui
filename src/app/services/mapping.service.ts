@@ -262,6 +262,27 @@ export class MappingService {
     };
   }
 
+  mapPublicOwnerContact(form: unknown): ContactResponse | null {
+    if (!form || typeof form !== 'object') {
+      return null;
+    }
+    const source = form as Record<string, unknown>;
+    const firstName = String(source['firstName'] || '').trim();
+    const lastName = String(source['lastName'] || '').trim();
+    const fullName = `${firstName} ${lastName}`.trim();
+    return {
+      firstName,
+      lastName,
+      fullName,
+      email: String(source['email'] || '').trim(),
+      address1: String(source['address'] || '').trim(),
+      address2: '',
+      city: String(source['city'] || '').trim(),
+      state: String(source['state'] || '').trim(),
+      zip: String(source['zip'] || '').trim()
+    } as ContactResponse;
+  }
+
   mapContacts(contacts: ContactResponse[]): ContactListDisplay[] {
     return contacts.map<ContactListDisplay>((o: ContactResponse) => {
       const combinedName = `${o.firstName ?? ''} ${o.lastName ?? ''}`.trim();

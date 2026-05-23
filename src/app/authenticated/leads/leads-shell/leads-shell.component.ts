@@ -55,6 +55,7 @@ export class LeadsShellComponent implements OnInit, OnDestroy {
   offices: OfficeResponse[] = [];
   officeTitleBarShowError = false;
   isAdmin = false;
+  isOwnerAdmin = false;
 
   showRentalLeadForm = false;
   showOwnerLeadForm = false;
@@ -77,6 +78,7 @@ export class LeadsShellComponent implements OnInit, OnDestroy {
   //#region Leads-Shell
   ngOnInit(): void {
     this.isAdmin = this.authService.isAdmin();
+    this.isOwnerAdmin = this.authService.isOwnerAdmin();
     const initialGlobalOfficeId = this.globalSelectionService.getSelectedOfficeIdValue();
     if (initialGlobalOfficeId != null && initialGlobalOfficeId > 0) {
       this.selectedOfficeId = initialGlobalOfficeId;

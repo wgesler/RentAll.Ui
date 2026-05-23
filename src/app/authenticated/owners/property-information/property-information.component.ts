@@ -7,11 +7,11 @@ import { MaterialModule } from '../../../material.module';
 import { PropertyComponent } from '../../properties/property/property.component';
 import { PublicOwnerFormResponse, PublicOwnerFormSubmitRequest } from '../../leads/models/owner-form-share.model';
 import { OwnerInventoryInformationRequest } from '../../leads/models/owner-inventory-information.model';
-import { LeadsService } from '../../leads/services/leads.service';
 import { CommonMessage } from '../../../enums/common-message.enum';
 import { UtilityService } from '../../../services/utility.service';
 import { FormatterService } from '../../../services/formatter-service';
 import { AuthService } from '../../../services/auth.service';
+import { OwnersService } from '../services/owners.service';
 
 export function buildPropertyInformationPatchFromResponse(response: PublicOwnerFormResponse): Partial<PublicOwnerFormSubmitRequest> {
   return {
@@ -45,6 +45,8 @@ export function buildPropertyInformationPatchFromResponse(response: PublicOwnerF
 export class PropertyInformationComponent implements OnChanges, OnDestroy {
   @Input() token = '';
   @Input() ownerLeadId: number | null = null;
+  @Input() ownerContactId: string | null = null;
+  @Input() organizationId: string | null = null;
   @Input() selectedOfficeId: number | null = null;
   @Input() shellPropertyId = 'new';
   @Input() shellPropertyCode: string | null = null;
@@ -59,7 +61,7 @@ export class PropertyInformationComponent implements OnChanges, OnDestroy {
 
   constructor(
     private fb: FormBuilder,
-    private leadsService: LeadsService,
+    private ownersService: OwnersService,
     private toastr: ToastrService,
     private utilityService: UtilityService,
     private formatterService: FormatterService,
@@ -99,10 +101,14 @@ export class PropertyInformationComponent implements OnChanges, OnDestroy {
     this.ownerForm.reset(this.getDefaultPropertyFormValue());
     const ownerLeadId = Number(this.ownerLeadId);
     if (this.token) {
-      this.leadsService.getPublicOwnerFormByToken(this.token).pipe(take(1), takeUntil(this.destroy$), finalize(() => {
+      this.ownersService.getPublicOwnerFormByToken(this.token).pipe(take(1),finalize(() => {
         this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'property-information');
       })).subscribe({
         next: (response) => {
+          if (!response) {
+            this.toastr.error('Unable to load property information.', CommonMessage.Error);
+            return;
+          }
           this.publicOwnerFormSnapshot = response;
           this.ownerForm.patchValue(buildPropertyInformationPatchFromResponse(response));
           this.formatInventoryPhoneFields();
@@ -117,10 +123,13 @@ export class PropertyInformationComponent implements OnChanges, OnDestroy {
       this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'property-information');
       return;
     }
-    this.leadsService.getOwnerInventoryInformationByOwnerId(ownerLeadId).pipe(take(1), takeUntil(this.destroy$), finalize(() => {
+    this.ownersService.getOwnerInventoryInformationByOwnerId(ownerLeadId).pipe(take(1),finalize(() => {
       this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'property-information');
     })).subscribe({
       next: response => {
+        if (!response) {
+          return;
+        }
         this.ownerForm.patchValue({
           onSiteComplexManagementPhone: response?.onSiteComplexManagementPhone ?? '',
           keyCount: response?.keyCount ?? '',
@@ -179,19 +188,29 @@ export class PropertyInformationComponent implements OnChanges, OnDestroy {
 
   savePropertyInformation(): void {
     if (!this.token && (!Number.isFinite(Number(this.ownerLeadId)) || Number(this.ownerLeadId) <= 0)) {
+      this.toastr.error('Unable to save property information. Owner context is missing.', CommonMessage.Error);
       return;
     }
     this.isSaving = true;
+    if (this.token && !this.publicOwnerFormSnapshot) {
+      this.isSaving = false;
+      this.toastr.error('Unable to save property information. Link context is not loaded yet; refresh and try again.', CommonMessage.Error);
+      return;
+    }
     if (this.token && this.publicOwnerFormSnapshot) {
       const raw = this.ownerForm.getRawValue() as Partial<PublicOwnerFormSubmitRequest>;
       const body: PublicOwnerFormSubmitRequest = {
         ...this.publicOwnerFormSnapshot.form,
         ...raw
       } as PublicOwnerFormSubmitRequest;
-      this.leadsService.submitPublicOwnerFormByToken(this.token, body).pipe(take(1), takeUntil(this.destroy$), finalize(() => {
+      this.ownersService.submitOwnerFormByContext(this.token, body).pipe(take(1),finalize(() => {
         this.isSaving = false;
       })).subscribe({
         next: (response) => {
+          if (!response) {
+            this.toastr.error('Unable to save property information.', CommonMessage.Error);
+            return;
+          }
           this.publicOwnerFormSnapshot = response;
           this.ownerForm.patchValue(buildPropertyInformationPatchFromResponse(response));
           this.formatInventoryPhoneFields();
@@ -208,6 +227,7 @@ export class PropertyInformationComponent implements OnChanges, OnDestroy {
     const organizationId = String(this.authService.getUser()?.organizationId ?? '').trim();
     if (!Number.isFinite(ownerId) || ownerId <= 0 || !organizationId) {
       this.isSaving = false;
+      this.toastr.error('Unable to save property information. Authentication context is missing.', CommonMessage.Error);
       return;
     }
 
@@ -235,10 +255,14 @@ export class PropertyInformationComponent implements OnChanges, OnDestroy {
       isActive: true
     };
 
-    this.leadsService.updateOwnerInventoryInformation(body).pipe(take(1), takeUntil(this.destroy$), finalize(() => {
+    this.ownersService.updateOwnerInventoryInformation(body).pipe(take(1),finalize(() => {
       this.isSaving = false;
     })).subscribe({
       next: (response) => {
+        if (!response) {
+          this.toastr.error('Unable to save property information.', CommonMessage.Error);
+          return;
+        }
         this.ownerForm.patchValue({
           onSiteComplexManagementPhone: response?.onSiteComplexManagementPhone ?? '',
           keyCount: response?.keyCount ?? '',

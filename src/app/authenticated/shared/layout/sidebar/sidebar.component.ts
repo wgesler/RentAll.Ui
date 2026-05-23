@@ -6,7 +6,6 @@ import { Router, RouterLink, RouterLinkActive, RouterOutlet } from '@angular/rou
 import { Observable, Subject, forkJoin, map, shareReplay, take, takeUntil } from 'rxjs';
 import { MaterialModule } from '../../../../material.module';
 import { AuthService } from '../../../../services/auth.service';
-import { ownersFeatureEnabled } from '../../../../config/feature-flags';
 import { LeadStateType } from '../../../leads/models/lead-enums';
 import { LeadsService } from '../../../leads/services/leads.service';
 import { getVisibleNavItems } from '../../access/role-access';
@@ -101,7 +100,7 @@ export class SidebarComponent implements OnInit, OnDestroy {
         return url !== 'leads' && !url.startsWith('leads/');
       });
     }
-    if (!ownersFeatureEnabled) {
+    if (!this.authService.isOwnerAdmin()) {
       items = items.filter(item => {
         const url = String(item.url || '');
         return url !== 'owner' && !url.startsWith('owner/');

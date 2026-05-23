@@ -6,7 +6,6 @@ import { Router } from '@angular/router';
 import { ToastrService } from 'ngx-toastr';
 import { BehaviorSubject, Subject, Subscription, finalize, switchMap, take, takeUntil } from 'rxjs';
 import { RouterUrl } from '../../../app.routes';
-import { ownersFeatureEnabled } from '../../../config/feature-flags';
 import { CommonMessage } from '../../../enums/common-message.enum';
 import { MaterialModule } from '../../../material.module';
 import { AuthService } from '../../../services/auth.service';
@@ -51,7 +50,7 @@ export class OwnerListComponent implements OnInit, OnChanges, OnDestroy {
   offices: OfficeResponse[] = [];
   globalOfficeSubscription?: Subscription;
   selectedOffice: OfficeResponse | null = null;
-  ownersFeatureEnabled = ownersFeatureEnabled;
+  isOwnerAdmin = false;
   isInOwnerMode = false;
 
   ownersDisplayedColumns: ColumnSet = {
@@ -87,6 +86,7 @@ export class OwnerListComponent implements OnInit, OnChanges, OnDestroy {
     this.itemsToLoad$.pipe(takeUntil(this.destroy$)).subscribe(items => {
       this.isPageReady = items.size === 0;
     });
+    this.isOwnerAdmin = this.authService.isOwnerAdmin();
 
     if (!this.embeddedInShell()) {
       this.globalOfficeSubscription = this.globalSelectionService.getSelectedOfficeId$().pipe(takeUntil(this.destroy$)).subscribe(officeId => {

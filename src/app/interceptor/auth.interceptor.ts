@@ -221,6 +221,8 @@ export const authInterceptor: HttpInterceptorFn = (req, next) => {
   if (req.url.endsWith('/refresh-token') || 
       req.url.endsWith('/login') ||
       req.url.endsWith('/logout') ||
+      req.url.startsWith('assets/') ||
+      req.url.includes('/assets/') ||
       req.url.includes('/common/daily-quote') ||
       req.url.includes('/common/state') ||
       req.url.includes('/common/property-listing') ||

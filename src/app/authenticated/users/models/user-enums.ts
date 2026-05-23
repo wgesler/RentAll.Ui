@@ -14,12 +14,14 @@ export enum UserGroups {
   Vendor = 12,
   Tenant = 13,
   Owner = 14,
-  Inspector = 15
+  Inspector = 15,
+  OwnerAdmin = 16
 }
 
 /** Owner / Housekeeping / Inspector / Vendor tabs. If a user's roles are only from this set, they do not appear on the Employees tab. */
 export const SPECIALTY_ONLY_TAB_USER_GROUPS: UserGroups[] = [
   UserGroups.Owner,
+  UserGroups.OwnerAdmin,
   UserGroups.Housekeeping,
   UserGroups.Inspector,
   UserGroups.Vendor
@@ -36,6 +38,7 @@ export const EMPLOYEE_USER_GROUPS: UserGroups[] = [
   UserGroups.PropertyManager,
   UserGroups.PropertyManagerAdmin,
   UserGroups.Facilities,
+  UserGroups.OwnerAdmin
 ];
 
 export function getUserGroup(userGroupId: number | undefined): string {
@@ -57,7 +60,8 @@ export function getUserGroup(userGroupId: number | undefined): string {
     [UserGroups.Vendor]: 'Vendor',
     [UserGroups.Tenant]: 'Tenant',
     [UserGroups.Owner]: 'Owner',
-    [UserGroups.Inspector]: 'Inspector'
+    [UserGroups.Inspector]: 'Inspector',
+    [UserGroups.OwnerAdmin]: 'OwnerAdmin'
   };
   
   return groupMap[userGroupId] || '';

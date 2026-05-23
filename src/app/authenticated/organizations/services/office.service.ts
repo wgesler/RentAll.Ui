@@ -83,6 +83,12 @@ export class OfficeService {
     return this.allOffices$.value;
   }
 
+  setOfficesForContext(organizationId: string | null, offices: OfficeResponse[]): void {
+    this.allOffices$.next(offices || []);
+    this.officesLoaded$.next(true);
+    this.loadedOrganizationId = organizationId?.trim() || null;
+  }
+
   /** GET offices for an organization. organizationId is required; empty string will throw to avoid silent 400s. */
   getOffices(organizationId: string): Observable<OfficeResponse[]> {
     const id = organizationId?.trim();

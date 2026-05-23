@@ -121,6 +121,10 @@ export class AuthService {
         return this.hasRole(UserGroups.Admin) || this.hasRole(UserGroups.SuperAdmin);
     }
 
+    isOwnerAdmin(): boolean {
+        return this.hasRole(UserGroups.Admin) || this.hasRole(UserGroups.OwnerAdmin);
+    }
+
     isInAccounting(): boolean {
         return this.hasRole(UserGroups.SuperAdmin)
             || this.hasRole(UserGroups.Admin)

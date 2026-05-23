@@ -51,7 +51,7 @@
         [hasActionsRowClick]="true"
         [hasActionsEdit]="true"
         [hasActionsCopy]="true"
-        [hasActionsLink]="entityTypeId === EntityType.Owner"
+        [hasActionsLink]="isOwnerAdmin"
         [hasActionsDelete]="true"
         [deleteConfirmTitle]="'Delete Contact'"
         [deleteConfirmMessage]="'Are you sure you want to delete this contact?'"

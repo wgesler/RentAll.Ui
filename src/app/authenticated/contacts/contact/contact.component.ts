@@ -1,5 +1,5 @@
 import { CommonModule } from '@angular/common';
-import { Component, ElementRef, Inject, OnDestroy, OnInit, Input, Output, EventEmitter, Optional, ViewChild } from '@angular/core';
+import { Component, ElementRef, Inject, OnChanges, OnDestroy, OnInit, Input, Output, EventEmitter, Optional, SimpleChanges, ViewChild } from '@angular/core';
 import { MAT_DIALOG_DATA } from '@angular/material/dialog';
 import { FormBuilder, FormControl, FormGroup, FormsModule, ReactiveFormsModule, Validators } from '@angular/forms';
 import { ActivatedRoute, Router } from '@angular/router';
@@ -28,6 +28,8 @@ import { PdfThumbnailService } from '../../../services/pdf-thumbnail.service';
 import { UserService } from '../../users/services/user.service';
 import { UserRequest, UserResponse } from '../../users/models/user.model';
 import { UserGroups } from '../../users/models/user-enums';
+import { LeadsService } from '../../leads/services/leads.service';
+import { PublicOwnerContactUpsertRequest } from '../../leads/models/owner-form-share.model';
 
 @Component({
     standalone: true,
@@ -37,7 +39,7 @@ import { UserGroups } from '../../users/models/user-enums';
     styleUrl: './contact.component.scss'
 })
 
-export class ContactComponent implements OnInit, OnDestroy {
+export class ContactComponent implements OnInit, OnChanges, OnDestroy {
   /** Contact id to edit, or 'new' for add. Component is always embedded (contacts or maintenance tabs). */
   @Input() id: string = 'new';
   @Input() copyFrom: string | null = null;
@@ -49,6 +51,8 @@ export class ContactComponent implements OnInit, OnDestroy {
   @Input() showAddAdditionalOwnerButton: boolean = false;
   @Input() showCancelAdditionalOwnerButton: boolean = false;
   @Input() prefillContact: Record<string, unknown> | null = null;
+  @Input() publicOwnerToken: string | null = null;
+  @Input() publicReadOnlyContactCode: string | null = null;
   @Output() closed = new EventEmitter<{ saved?: boolean; contactId?: string; entityTypeId?: number }>();
   @Output() addAdditionalOwnerRequested = new EventEmitter<void>();
   @Output() cancelAdditionalOwnerRequested = new EventEmitter<void>();
@@ -113,6 +117,7 @@ export class ContactComponent implements OnInit, OnDestroy {
     private commonService: CommonService,
     private formatterService: FormatterService,
     private authService: AuthService,
+    private leadsService: LeadsService,
     private officeService: OfficeService,
     private globalSelectionService: GlobalSelectionService,
     private mappingService: MappingService,
@@ -221,6 +226,15 @@ export class ContactComponent implements OnInit, OnDestroy {
       this.applyEntityTypeContactValidators(this.form?.getRawValue()?.entityTypeId);
     }
   }
+
+  ngOnChanges(changes: SimpleChanges): void {
+    if (!this.form || !this.isAddMode) {
+      return;
+    }
+    if (changes['prefillContact'] || changes['presetEntityTypeId']) {
+      this.applyPrefillContact();
+    }
+  }
   
   setFormValuesFromQueryParams(): void {
     if (!this.form) {
@@ -322,6 +336,10 @@ export class ContactComponent implements OnInit, OnDestroy {
   }
 
   saveContact(): void {
+    if (this.isPublicOwnerTokenMode()) {
+      this.savePublicOwnerContact();
+      return;
+    }
     if (!this.form) {
       return;
     }
@@ -761,6 +779,10 @@ export class ContactComponent implements OnInit, OnDestroy {
       patch['officeAccess'] = [patchedOfficeId];
     }
     this.form.patchValue(patch, { emitEvent: false });
+    const prefillContactCode = String(this.prefillContact['contactCode'] ?? '').trim();
+    if (prefillContactCode) {
+      this.publicReadOnlyContactCode = prefillContactCode;
+    }
     this.syncDefaultOfficeOptions();
   }
 
@@ -1036,6 +1058,22 @@ export class ContactComponent implements OnInit, OnDestroy {
   loadOffices(): void {
     const organizationId = this.authService.getUser()?.organizationId?.trim() ?? '';
     if (!organizationId) {
+      const cachedOffices = this.officeService.getAllOfficesValue() || [];
+      if (cachedOffices.length > 0) {
+        this.offices = cachedOffices;
+        this.availableOffices = this.mappingService.mapOfficesToDropdown(this.offices);
+        this.syncDefaultOfficeOptions();
+        return;
+      }
+      this.officeService.getAllOffices().pipe(
+        filter(offices => Array.isArray(offices) && offices.length > 0),
+        take(1),
+        takeUntil(this.destroy$)
+      ).subscribe(offices => {
+        this.offices = offices || [];
+        this.availableOffices = this.mappingService.mapOfficesToDropdown(this.offices);
+        this.syncDefaultOfficeOptions();
+      });
       this.offices = [];
       this.availableOffices = [];
       this.availableDefaultOffices = [];
@@ -1408,6 +1446,75 @@ export class ContactComponent implements OnInit, OnDestroy {
 
   requestCancelAdditionalOwner(): void {
     this.cancelAdditionalOwnerRequested.emit();
+  }
+
+  isPublicOwnerTokenMode(): boolean {
+    return String(this.publicOwnerToken || '').trim().length > 0;
+  }
+
+  savePublicOwnerContact(): void {
+    if (!this.form) {
+      return;
+    }
+    const token = String(this.publicOwnerToken || '').trim();
+    if (!token) {
+      return;
+    }
+
+    this.form.markAllAsTouched();
+    this.form.updateValueAndValidity({ emitEvent: false });
+    if (!this.form.valid) {
+      this.toastr.error('Please correct the highlighted fields before saving.', CommonMessage.Error);
+      return;
+    }
+
+    const formValue = this.form.getRawValue();
+    const officeId = Number(formValue.officeId);
+    if (!Number.isFinite(officeId) || officeId <= 0) {
+      this.toastr.error('Please select a default office before saving.', CommonMessage.Error);
+      return;
+    }
+
+    const body: PublicOwnerContactUpsertRequest = {
+      officeId,
+      firstName: String(formValue.firstName || '').trim() || null,
+      lastName: String(formValue.lastName || '').trim() || null,
+      email: String(formValue.email || '').trim() || null,
+      phone: this.formatterService.stripPhoneFormatting(String(formValue.phone || '').trim()) || null,
+      address1: String(formValue.address1 || '').trim() || null,
+      address2: String(formValue.address2 || '').trim() || null,
+      city: String(formValue.city || '').trim() || null,
+      state: String(formValue.state || '').trim() || null,
+      zip: String(formValue.zip || '').trim() || null
+    };
+
+    this.leadsService.upsertPublicOwnerContactByToken(token, body).pipe(take(1)).subscribe({
+      next: response => {
+        this.publicReadOnlyContactCode = String(response?.contactCode || '').trim() || this.publicReadOnlyContactCode;
+        this.contact = response;
+        this.isAddMode = false;
+        this.form.patchValue({
+          ownerTypeId: response.ownerTypeId ?? this.form.get('ownerTypeId')?.value ?? OwnerType.Individual,
+          officeId: response.officeId ?? officeId,
+          officeAccess: response.officeAccess ?? [response.officeId ?? officeId],
+          firstName: response.firstName ?? body.firstName ?? '',
+          lastName: response.lastName ?? body.lastName ?? '',
+          phone: this.formatterService.phoneNumber(response.phone) || '',
+          email: response.email ?? body.email ?? '',
+          address1: response.address1 ?? body.address1 ?? '',
+          address2: response.address2 ?? body.address2 ?? '',
+          city: response.city ?? body.city ?? '',
+          state: response.state ?? body.state ?? '',
+          zip: response.zip ?? body.zip ?? ''
+        }, { emitEvent: false });
+        this.syncDefaultOfficeOptions();
+        this.toastr.success('Owner contact saved.', CommonMessage.Success);
+        this.closed.emit({ saved: true, contactId: response.contactId, entityTypeId: response.entityTypeId });
+      },
+      error: () => {
+        this.toastr.error('Unable to save owner contact.', CommonMessage.Error);
+      }
+    });
   }
   //#endregion
 

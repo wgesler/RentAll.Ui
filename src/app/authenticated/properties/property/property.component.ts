@@ -3,6 +3,7 @@ import { AfterViewInit, Component, ElementRef, EventEmitter, HostListener, Input
 import { AbstractControl, FormBuilder, FormControl, FormGroup, FormsModule, ReactiveFormsModule, ValidationErrors, Validators } from '@angular/forms';
 import { MatDialog } from '@angular/material/dialog';
 import { ActivatedRoute } from '@angular/router';
+import { HttpErrorResponse } from '@angular/common/http';
 import { ToastrService } from 'ngx-toastr';
 import { BehaviorSubject, Observable, Subject, Subscription, catchError, distinctUntilChanged, filter, finalize, forkJoin, map, of, skip, switchMap, take, takeUntil } from 'rxjs';
 import { CanComponentDeactivate } from '../../../guards/can-deactivate-guard';
@@ -18,6 +19,7 @@ import { ContactComponent } from '../../contacts/contact/contact.component';
 import { EntityType } from '../../contacts/models/contact-enum';
 import { ContactResponse } from '../../contacts/models/contact.model';
 import { ContactService } from '../../contacts/services/contact.service';
+import { LeadsService } from '../../leads/services/leads.service';
 import { DocumentReloadService } from '../../documents/services/document-reload.service';
 import { AreaResponse } from '../../organizations/models/area.model';
 import { BuildingResponse } from '../../organizations/models/building.model';
@@ -29,9 +31,9 @@ import { GlobalSelectionService } from '../../organizations/services/global-sele
 import { OfficeService } from '../../organizations/services/office.service';
 import { RegionService } from '../../organizations/services/region.service';
 import { ReservationListResponse } from '../../reservations/models/reservation-model';
-import { ReservationNotice, getReservationNotices } from '../../reservations/models/reservation-enum';
+import { getReservationNotices } from '../../reservations/models/reservation-enum';
 import { ReservationService } from '../../reservations/services/reservation.service';
-import { CheckinTimes, CheckoutTimes, PropertyLeaseType, PropertyStatus, PropertyStyle, PropertyType, TrashDays, getBedSizeTypes, getCheckInTimes, getCheckOutTimes, getPropertyLeaseTypes, getPropertyStatuses, getPropertyStyles, getPropertyTypes, normalizeCheckInTimeId, normalizeCheckOutTimeId, normalizePropertyLeaseTypeId } from '../models/property-enums';
+import { CheckinTimes, CheckoutTimes, PropertyLeaseType, PropertyStatus, PropertyStyle, PropertyType, TrashDays, getBedSizeTypes, getCheckInTimes, getCheckOutTimes, getPropertyLeaseTypes, getPropertyStatuses, getPropertyStyles, getPropertyTypes } from '../models/property-enums';
 import { PropertyInformationRequest, PropertyInformationResponse } from '../models/property-information.model';
 import { PropertyTitleBarContext } from '../models/property-title-bar-context.model';
 import { PropertyRequest, PropertyResponse } from '../models/property.model';
@@ -42,6 +44,7 @@ import { PropertyService } from '../services/property.service';
 import { WelcomeLetterReloadService } from '../services/welcome-letter-reload.service';
 import { SearchableSelectComponent, SearchableSelectOption } from '../../shared/searchable-select/searchable-select.component';
 import { UnsavedChangesDialogService } from '../../shared/modals/unsaved-changes/unsaved-changes-dialog.service';
+import { OwnersService } from '../../owners/services/owners.service';
 
 @Component({
     selector: 'app-property',
@@ -85,6 +88,10 @@ export class PropertyComponent implements OnInit, OnChanges, AfterViewInit, OnDe
   @Input() disableOwnerModeLayout = false;
   @Input() shellPropertyId: string | null = null;
   @Input() shellPropertyCode: string | null = null;
+  @Input() ownerPrimaryContactId: string | null = null;
+  @Input() shellOfficeId: number | null = null;
+  @Input() shellOrganizationId: string | null = null;
+  @Input() publicOwnerToken: string | null = null;
   
   propertyId: string;
   property: PropertyResponse;
@@ -141,6 +148,7 @@ export class PropertyComponent implements OnInit, OnChanges, AfterViewInit, OnDe
     private mappingService: MappingService,
     private navigationContextService: NavigationContextService,
     private contactService: ContactService,
+    private leadsService: LeadsService,
     private authService: AuthService,
     private officeService: OfficeService,
     private regionService: RegionService,
@@ -153,11 +161,12 @@ export class PropertyComponent implements OnInit, OnChanges, AfterViewInit, OnDe
     private reservationService: ReservationService,
     private globalSelectionService: GlobalSelectionService,
     private dialog: MatDialog,
-    private unsavedChangesDialogService: UnsavedChangesDialogService
+    private unsavedChangesDialogService: UnsavedChangesDialogService,
+    private ownersService: OwnersService
   ) {
   }
 
-  get isOwnerModeLayout(): boolean {
+  get isOwnerMode(): boolean {
     return this.isInOwnerMode && !this.disableOwnerModeLayout;
   }
 
@@ -165,7 +174,7 @@ export class PropertyComponent implements OnInit, OnChanges, AfterViewInit, OnDe
   ngOnInit(): void {
     this.navigationContextService.getIsInOwnerMode().pipe(takeUntil(this.destroy$)).subscribe(value => {
       this.isInOwnerMode = value;
-      if (this.isOwnerModeLayout) {
+      if (this.isOwnerMode) {
         this.expandedSections.basic = false;
         this.expandedSections.features = false;
         this.expandedSections.description = false;
@@ -177,7 +186,7 @@ export class PropertyComponent implements OnInit, OnChanges, AfterViewInit, OnDe
     this.isInAccounting = this.authService.isInAccounting();
     const initialRouteId = this.route.snapshot.paramMap.get('id');
     if (initialRouteId) {
-      this.expandedSections.agreement = this.isOwnerModeLayout ? false : this.isInAccounting;
+      this.expandedSections.agreement = this.isOwnerMode ? false : this.isInAccounting;
     }
 
     this.loadStates();
@@ -211,9 +220,11 @@ export class PropertyComponent implements OnInit, OnChanges, AfterViewInit, OnDe
     if (inputId) {
       this.applyPropertyIdContext(inputId);
       this.applyShellPropertyCodeContext();
+      this.applyShellOfficeContext();
     } else {
       this.route.paramMap.pipe(takeUntil(this.destroy$), map(pm => pm.get('id')), filter((id): id is string => id != null && id !== ''), distinctUntilChanged()).subscribe(id => {
         this.applyPropertyIdContext(id);
+        this.applyShellOfficeContext();
       });
     }
 
@@ -249,6 +260,12 @@ export class PropertyComponent implements OnInit, OnChanges, AfterViewInit, OnDe
     }
     if (changes['shellPropertyCode'] && !changes['shellPropertyCode'].firstChange) {
       this.applyShellPropertyCodeContext();
+    }
+    if (changes['ownerPrimaryContactId']) {
+      this.syncOwnerPrimaryContactSelection();
+    }
+    if (changes['shellOfficeId']) {
+      this.applyShellOfficeContext();
     }
   }
 
@@ -352,6 +369,11 @@ export class PropertyComponent implements OnInit, OnChanges, AfterViewInit, OnDe
     document.execCommand('insertHTML', false, '<ul><li><br></li></ul>');
   }
 
+  parseIdValue(value: unknown, fallback: number = 0): number {
+    const parsed = Number(value);
+    return Number.isFinite(parsed) ? parsed : fallback;
+  }
+
   escapeEditorHtml(value: string): string {
     return value
       .replace(/&/g, '&amp;')
@@ -363,8 +385,12 @@ export class PropertyComponent implements OnInit, OnChanges, AfterViewInit, OnDe
 
   getProperty(): void {
     this.utilityService.addLoadItem(this.itemsToLoad$, 'property');
-    this.propertyService.getPropertyByGuid(this.propertyId).pipe(take(1), finalize(() => { this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'property'); })).subscribe({
-      next: (response: PropertyResponse) => {
+    this.ownersService.getPropertyByContext(this.publicOwnerToken, this.propertyId).pipe(take(1), finalize(() => { this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'property'); })).subscribe({
+      next: (response) => {
+        if (!response) {
+          this.isServiceError = true;
+          return;
+        }
         this.property = response;
         this.populateForm();
         this.filterLocationLookupsByOffice();
@@ -378,7 +404,7 @@ export class PropertyComponent implements OnInit, OnChanges, AfterViewInit, OnDe
   applyPropertyIdContext(id: string): void {
     this.propertyId = id;
     this.isAddMode = id === 'new';
-    this.expandedSections.agreement = this.isOwnerModeLayout ? false : this.isInAccounting;
+    this.expandedSections.agreement = this.isOwnerMode ? false : this.isInAccounting;
 
     const codeControl = this.form.get('propertyCode');
     if (this.isAddMode) {
@@ -503,6 +529,15 @@ export class PropertyComponent implements OnInit, OnChanges, AfterViewInit, OnDe
       return;
     }
 
+    const publicOwnerToken = String(this.publicOwnerToken || '').trim();
+    const isPublicOwnerUpsertMode = publicOwnerToken.length > 0;
+    const hasAccessToken = !!String(this.authService.getAuthData()?.accessToken || '').trim();
+    if (!isPublicOwnerUpsertMode && !hasAccessToken) {
+      this.toastr.error('Unable to save property. This endpoint requires an authenticated session.', CommonMessage.Error);
+      onComplete?.(false);
+      return;
+    }
+
     this.isSubmitting = true;
     // Use getRawValue() to include disabled form controls
     const formValue = this.form.getRawValue();
@@ -511,6 +546,12 @@ export class PropertyComponent implements OnInit, OnChanges, AfterViewInit, OnDe
     // Exclude enum/display-only controls from request
     const { ...restFormValue } = formValue;
     const propertyRequest: PropertyRequest = { ...restFormValue, organizationId: user?.organizationId || '' } as PropertyRequest;
+    if (isPublicOwnerUpsertMode) {
+      const tokenOrganizationId = String(this.shellOrganizationId || '').trim();
+      if (tokenOrganizationId) {
+        propertyRequest.organizationId = tokenOrganizationId;
+      }
+    }
     
     // Transform fields that need special handling
     propertyRequest.dailyRate = formValue.dailyRate ? parseFloat(formValue.dailyRate.toString()) : 0;
@@ -520,12 +561,18 @@ export class PropertyComponent implements OnInit, OnChanges, AfterViewInit, OnDe
     propertyRequest.petFee = formValue.petFee ? parseFloat(formValue.petFee.toString()) : 0;
     
     // Ensure time fields are integers
-    propertyRequest.checkInTimeId = normalizeCheckInTimeId(formValue.checkInTimeId);
-    propertyRequest.checkOutTimeId = normalizeCheckOutTimeId(formValue.checkOutTimeId);
-    propertyRequest.propertyLeaseTypeId = normalizePropertyLeaseTypeId(formValue.propertyLeaseTypeId);
+    propertyRequest.checkInTimeId = this.parseIdValue(formValue.checkInTimeId, 0);
+    propertyRequest.checkOutTimeId = this.parseIdValue(formValue.checkOutTimeId, 0);
+    propertyRequest.propertyLeaseTypeId = this.parseIdValue(formValue.propertyLeaseTypeId, 0);
 
     if (propertyRequest.propertyLeaseTypeId === PropertyLeaseType.PropertyManagement) {
       propertyRequest.vendorId = null;
+      const owner1Raw = String(formValue.owner1Id ?? '').trim();
+      propertyRequest.owner1Id = owner1Raw.length > 0 ? owner1Raw : null;
+      const owner2Raw = String(formValue.owner2Id ?? '').trim();
+      propertyRequest.owner2Id = owner2Raw.length > 0 ? owner2Raw : null;
+      const owner3Raw = String(formValue.owner3Id ?? '').trim();
+      propertyRequest.owner3Id = owner3Raw.length > 0 ? owner3Raw : null;
     } else {
       propertyRequest.owner1Id = null;
       propertyRequest.owner2Id = null;
@@ -534,7 +581,16 @@ export class PropertyComponent implements OnInit, OnChanges, AfterViewInit, OnDe
       propertyRequest.vendorId =
         vid != null && String(vid).trim() !== '' ? String(vid).trim() : null;
     }
-
+    if (this.isOwnerMode) {
+      const ownerContactId = String(this.ownerPrimaryContactId || '').trim();
+      if (ownerContactId) {
+        propertyRequest.owner1Id = ownerContactId;
+      } else {
+        propertyRequest.owner1Id = null;
+      }
+      propertyRequest.owner2Id = null;
+      propertyRequest.owner3Id = null;
+    }
     // Ensure numeric fields are numbers
     propertyRequest.accomodates = formValue.accomodates ? Number(formValue.accomodates) : 0;
     propertyRequest.bedrooms = formValue.bedrooms ? Number(formValue.bedrooms) : 0;
@@ -555,7 +611,7 @@ export class PropertyComponent implements OnInit, OnChanges, AfterViewInit, OnDe
     propertyRequest.propertyStyleId = formValue.propertyStyle ?? PropertyStyle.Standard;
     propertyRequest.propertyTypeId = formValue.propertyType ?? PropertyType.Unspecified;
     propertyRequest.propertyStatusId = formValue.propertyStatus ?? PropertyStatus.Vacant;
-    propertyRequest.noticeToVacateId = Number(formValue.noticeToVacateId ?? ReservationNotice.ThirtyDays);
+    propertyRequest.noticeToVacateId = this.parseIdValue(formValue.noticeToVacateId, 0);
 
     // Handle owner2Id - set to undefined if empty string or null
     if (!propertyRequest.owner2Id || propertyRequest.owner2Id === '' || propertyRequest.owner2Id === null) {
@@ -620,6 +676,32 @@ export class PropertyComponent implements OnInit, OnChanges, AfterViewInit, OnDe
 
     // Explicitly set notes field from form
     propertyRequest.notes = formValue.notes || '';
+
+    if (isPublicOwnerUpsertMode) {
+      this.leadsService.upsertPublicOwnerPropertyByToken(publicOwnerToken, propertyRequest).pipe(
+        take(1),
+        finalize(() => { this.isSubmitting = false; })
+      ).subscribe({
+        next: (response: PropertyResponse) => {
+          this.toastr.success('Property saved successfully', CommonMessage.Success, { timeOut: CommonTimeouts.Success });
+          this.property = response;
+          this.propertyId = response.propertyId;
+          this.isAddMode = false;
+          this.populateForm();
+          this.captureSavedStateSignature();
+          this.welcomeLetterReloadService.triggerReload();
+          this.documentReloadService.triggerReload();
+          this.loadReservations();
+          onComplete?.(true);
+        },
+        error: (error: unknown) => {
+          const apiMessage = this.getApiErrorMessage(error);
+          this.toastr.error((apiMessage || 'Unable to save property.').toString(), CommonMessage.Error);
+          onComplete?.(false);
+        }
+      });
+      return;
+    }
 
     if (this.isAddMode) {
       this.propertyService.createProperty(propertyRequest).pipe(
@@ -693,7 +775,7 @@ export class PropertyComponent implements OnInit, OnChanges, AfterViewInit, OnDe
       propertyStyle: new FormControl<number>(PropertyStyle.Standard, [Validators.required]),
       propertyStatus: new FormControl<number>(PropertyStatus.Vacant, [Validators.required]),
       propertyType: new FormControl<number>(PropertyType.Unspecified, [Validators.required]),
-      noticeToVacateId: new FormControl<number>(ReservationNotice.ThirtyDays),
+      noticeToVacateId: new FormControl<number>(0),
       unitLevel: new FormControl<number>(1, [Validators.required, Validators.min(0)]),
       bldgNo: new FormControl(''),
       accomodates: new FormControl(0, [Validators.required, Validators.min(1)]),
@@ -824,25 +906,21 @@ export class PropertyComponent implements OnInit, OnChanges, AfterViewInit, OnDe
       formData.availableFrom = this.utilityService.parseCalendarDateInput(this.property.availableFrom ?? null);
       formData.availableUntil = this.utilityService.parseCalendarDateInput(this.property.availableUntil ?? null);
       // Normalize values
-      formData.checkInTimeId = normalizeCheckInTimeId(this.property.checkInTimeId);
-      formData.checkOutTimeId = normalizeCheckOutTimeId(this.property.checkOutTimeId);
+      formData.checkInTimeId = this.parseIdValue(this.property.checkInTimeId, 0);
+      formData.checkOutTimeId = this.parseIdValue(this.property.checkOutTimeId, 0);
       
       // Handle enum Id fields as numbers (map from Id fields)
-      const propertyStyleValue = this.property.propertyStyleId != null ? Number(this.property.propertyStyleId) : PropertyStyle.Standard;
-      const propertyStatusValue = this.property.propertyStatusId != null ? Number(this.property.propertyStatusId) : PropertyStatus.Vacant;
-      const propertyTypeValue = this.property.propertyTypeId != null ? Number(this.property.propertyTypeId) : PropertyType.Unspecified;
+      const propertyStyleValue = this.parseIdValue(this.property.propertyStyleId, 0);
+      const propertyStatusValue = this.parseIdValue(this.property.propertyStatusId, 0);
+      const propertyTypeValue = this.parseIdValue(this.property.propertyTypeId, 0);
       
       formData.propertyStyle = propertyStyleValue;
       formData.propertyStatus = propertyStatusValue;
       formData.propertyType = propertyTypeValue;
-      formData.noticeToVacateId = this.property.noticeToVacateId != null
-        ? Number(this.property.noticeToVacateId)
-        : ReservationNotice.ThirtyDays;
-      formData.propertyLeaseTypeId = this.property.propertyLeaseTypeId != null && this.property.propertyLeaseTypeId !== undefined
-        ? Number(this.property.propertyLeaseTypeId)
-        : PropertyLeaseType.PropertyManagement;
+      formData.noticeToVacateId = this.parseIdValue(this.property.noticeToVacateId, 0);
+      formData.propertyLeaseTypeId = this.parseIdValue(this.property.propertyLeaseTypeId, 0);
 
-      const leaseNorm = normalizePropertyLeaseTypeId(formData.propertyLeaseTypeId);
+      const leaseNorm = this.parseIdValue(formData.propertyLeaseTypeId, 0);
       if (leaseNorm === PropertyLeaseType.PropertyManagement) {
         formData.vendorId = null;
       } else {
@@ -1033,7 +1111,14 @@ export class PropertyComponent implements OnInit, OnChanges, AfterViewInit, OnDe
     if (!this.form || !owner1 || !vendor || !leaseCtl) {
       return;
     }
-    const pm = normalizePropertyLeaseTypeId(leaseCtl.value) === PropertyLeaseType.PropertyManagement;
+    if (this.isOwnerMode) {
+      owner1.clearValidators();
+      vendor.clearValidators();
+      owner1.updateValueAndValidity({ emitEvent: false });
+      vendor.updateValueAndValidity({ emitEvent: false });
+      return;
+    }
+    const pm = this.parseIdValue(leaseCtl.value, 0) === PropertyLeaseType.PropertyManagement;
     if (pm) {
       owner1.setValidators([Validators.required]);
       vendor.clearValidators();
@@ -1046,12 +1131,31 @@ export class PropertyComponent implements OnInit, OnChanges, AfterViewInit, OnDe
   }
 
   applyOwnerModeDefaults(): void {
-    if (!this.isOwnerModeLayout || !this.form) {
+    if (!this.isOwnerMode || !this.form) {
       return;
     }
 
     this.form.patchValue({ propertyLeaseTypeId: PropertyLeaseType.PropertyManagement }, { emitEvent: false });
+    this.syncOwnerPrimaryContactSelection();
     this.applyOwnerVendorLeaseValidators();
+  }
+
+  syncOwnerPrimaryContactSelection(): void {
+    if (!this.form || !this.isOwnerMode) {
+      return;
+    }
+    const ownerContactId = String(this.ownerPrimaryContactId || '').trim();
+    const owner1Control = this.form.get('owner1Id');
+    if (!owner1Control) {
+      return;
+    }
+    if (ownerContactId) {
+      owner1Control.setValue(ownerContactId, { emitEvent: false });
+      return;
+    }
+    if (this.isAddMode) {
+      owner1Control.setValue('', { emitEvent: false });
+    }
   }
 
   bedSelectionValidator(control: AbstractControl): ValidationErrors | null {
@@ -1422,6 +1526,20 @@ export class PropertyComponent implements OnInit, OnChanges, AfterViewInit, OnDe
     }
     this.applyTitleBarPropertyCode(rawCode.toUpperCase());
   }
+
+  applyShellOfficeContext(): void {
+    if (!this.form || !this.isAddMode) {
+      return;
+    }
+    const officeId = Number(this.shellOfficeId);
+    if (!Number.isFinite(officeId) || officeId <= 0) {
+      return;
+    }
+    this.form.patchValue({ officeId }, { emitEvent: false });
+    this.form.get('officeId')?.markAsTouched();
+    this.resolveOfficeScope(officeId);
+    this.filterLocationLookupsByOffice();
+  }
   //#endregion
 
   //#region Getter Methods
@@ -1429,14 +1547,14 @@ export class PropertyComponent implements OnInit, OnChanges, AfterViewInit, OnDe
     if (!this.form) {
       return true;
     }
-    return normalizePropertyLeaseTypeId(this.form.get('propertyLeaseTypeId')?.value) === PropertyLeaseType.PropertyManagement;
+    return this.parseIdValue(this.form.get('propertyLeaseTypeId')?.value, 0) === PropertyLeaseType.PropertyManagement;
   }
 
   get showNoticeToVacateField(): boolean {
     if (!this.form) {
       return false;
     }
-    const leaseTypeId = normalizePropertyLeaseTypeId(this.form.get('propertyLeaseTypeId')?.value);
+    const leaseTypeId = this.parseIdValue(this.form.get('propertyLeaseTypeId')?.value, 0);
     return leaseTypeId === PropertyLeaseType.Direct || leaseTypeId === PropertyLeaseType.ThirdParty;
   }
 
@@ -1719,7 +1837,13 @@ export class PropertyComponent implements OnInit, OnChanges, AfterViewInit, OnDe
       this.offices = [];
       this.selectedOffice = null;
       this.showOfficeDropdown = false;
-      this.form?.patchValue({ officeId: null }, { emitEvent: false });
+      const shellOfficeId = Number(this.shellOfficeId);
+      if (this.isOwnerMode && Number.isFinite(shellOfficeId) && shellOfficeId > 0) {
+        this.form?.patchValue({ officeId: shellOfficeId }, { emitEvent: false });
+        this.resolveOfficeScope(shellOfficeId);
+      } else {
+        this.form?.patchValue({ officeId: null }, { emitEvent: false });
+      }
       this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'offices');
       this.emitTitleBarContextToShell();
       return;
@@ -1916,7 +2040,7 @@ export class PropertyComponent implements OnInit, OnChanges, AfterViewInit, OnDe
 
     // In Add mode, enforce owner-office consistency by clearing owner selections
     // whenever office changes.
-    if (this.isAddMode) {
+    if (this.isAddMode && !this.isOwnerMode) {
       this.form.patchValue({
         owner1Id: '',
         owner2Id: null,
@@ -2063,6 +2187,56 @@ export class PropertyComponent implements OnInit, OnChanges, AfterViewInit, OnDe
 
   cloneFormState<T>(state: T): T {
     return structuredClone(state);
+  }
+
+  getInvalidControlNames(): string[] {
+    if (!this.form) {
+      return [];
+    }
+    return Object.keys(this.form.controls).filter(name => this.form.get(name)?.invalid === true);
+  }
+
+  getApiErrorMessage(error: unknown): string | null {
+    if (!(error instanceof HttpErrorResponse)) {
+      return null;
+    }
+    const payload = error.error;
+    if (typeof payload === 'string') {
+      const text = payload.trim();
+      return text.length > 0 ? text : null;
+    }
+    if (!payload || typeof payload !== 'object') {
+      return null;
+    }
+    const record = payload as Record<string, unknown>;
+    const errors = record['errors'];
+    if (errors && typeof errors === 'object') {
+      const flattened: string[] = [];
+      const errorMap = errors as Record<string, unknown>;
+      for (const key of Object.keys(errorMap)) {
+        const value = errorMap[key];
+        if (Array.isArray(value)) {
+          const first = value.find(item => typeof item === 'string' && item.trim().length > 0);
+          if (typeof first === 'string') {
+            flattened.push(`${key}: ${first}`);
+          }
+        } else if (typeof value === 'string' && value.trim().length > 0) {
+          flattened.push(`${key}: ${value.trim()}`);
+        }
+      }
+      if (flattened.length > 0) {
+        return flattened.join(' | ');
+      }
+    }
+    const message = typeof record['message'] === 'string' ? record['message'].trim() : '';
+    if (message) {
+      return message;
+    }
+    const title = typeof record['title'] === 'string' ? record['title'].trim() : '';
+    if (title) {
+      return title;
+    }
+    return null;
   }
   //#endregion
 

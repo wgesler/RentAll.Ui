@@ -5,16 +5,13 @@ import { FormatterService } from '../../../services/formatter-service';
 import { UtilityService } from '../../../services/utility.service';
 import { EntityType } from '../../contacts/models/contact-enum';
 import { ContactResponse } from '../../contacts/models/contact.model';
-import { ContactService } from '../../contacts/services/contact.service';
-import { LeadsService } from '../../leads/services/leads.service';
 import { LeadOwnerResponse } from '../../leads/models/lead-owner.model';
 import { OfficeResponse } from '../../organizations/models/office.model';
 import { OrganizationResponse } from '../../organizations/models/organization.model';
-import { OfficeService } from '../../organizations/services/office.service';
 import { PropertyResponse } from '../../properties/models/property.model';
-import { PropertyService } from '../../properties/services/property.service';
 import { FORM_TOKEN_PROVIDERS, FormTokenProvider, FormTokenProviderInputs } from '../../shared/forms/services/form-token-provider';
 import { OwnerFormPlaceholderService } from './owner-form-placeholder.service';
+import { OwnersService } from './owners.service';
 
 @Injectable({
   providedIn: 'root'
@@ -24,10 +21,7 @@ export class OwnerFormTokenProviderService implements FormTokenProvider {
 
   constructor(
     private commonService: CommonService,
-    private officeService: OfficeService,
-    private contactService: ContactService,
-    private propertyService: PropertyService,
-    private leadsService: LeadsService,
+    private ownersService: OwnersService,
     private formatterService: FormatterService,
     private utilityService: UtilityService,
     private ownerFormPlaceholderService: OwnerFormPlaceholderService
@@ -50,14 +44,14 @@ export class OwnerFormTokenProviderService implements FormTokenProvider {
           catchError(() => of(null))
         );
     const offices$ = organizationId
-      ? this.officeService.ensureOfficesLoaded(organizationId).pipe(take(1), catchError(() => of([])))
+      ? this.ownersService.ensureOfficesLoaded(organizationId).pipe(take(1), catchError(() => of([])))
       : of([]);
-    const contacts$ = this.contactService.ensureContactsLoaded().pipe(take(1), catchError(() => of([])));
+    const contacts$ = this.ownersService.ensureContactsLoaded().pipe(take(1), catchError(() => of([])));
     const property$ = scopedPropertyId
-      ? this.propertyService.getPropertyByGuid(scopedPropertyId).pipe(take(1), catchError(() => of(null)))
+      ? this.ownersService.getPropertyByContext(null, scopedPropertyId).pipe(take(1), catchError(() => of(null)))
       : of(null);
     const leadOwner$ = Number.isFinite(ownerLeadId) && ownerLeadId > 0
-      ? this.leadsService.getOwnerLeadById(ownerLeadId).pipe(take(1), catchError(() => of(null)))
+      ? this.ownersService.getOwnerByContext(null, ownerLeadId).pipe(take(1), catchError(() => of(null)))
       : of(null);
 
     return forkJoin({

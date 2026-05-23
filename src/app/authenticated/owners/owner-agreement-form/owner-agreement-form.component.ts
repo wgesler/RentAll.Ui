@@ -1,11 +1,10 @@
 import { CommonModule } from '@angular/common';
-import { HttpClient } from '@angular/common/http';
 import { Component, ElementRef, Input, OnChanges, OnDestroy, OnInit, SimpleChanges, ViewChild } from '@angular/core';
 import { FormBuilder, FormControl, FormGroup, ReactiveFormsModule } from '@angular/forms';
 import { DomSanitizer, SafeHtml } from '@angular/platform-browser';
 import { Router } from '@angular/router';
 import { ToastrService } from 'ngx-toastr';
-import { BehaviorSubject, catchError, filter, finalize, forkJoin, Observable, Subject, of, take, takeUntil } from 'rxjs';
+import { BehaviorSubject, finalize, Observable, Subject, of, take, takeUntil } from 'rxjs';
 import { CommonMessage } from '../../../enums/common-message.enum';
 import { RouterUrl } from '../../../app.routes';
 import { MaterialModule } from '../../../material.module';
@@ -13,25 +12,20 @@ import { AuthService } from '../../../services/auth.service';
 import { DocumentExportService } from '../../../services/document-export.service';
 import { DocumentHtmlService } from '../../../services/document-html.service';
 import { FormatterService } from '../../../services/formatter-service';
+import { MappingService } from '../../../services/mapping.service';
 import { UtilityService } from '../../../services/utility.service';
 import { ContactResponse } from '../../contacts/models/contact.model';
 import { EntityType } from '../../contacts/models/contact-enum';
-import { ContactService } from '../../contacts/services/contact.service';
 import { DocumentType } from '../../documents/models/document.enum';
 import { GenerateDocumentFromHtmlDto } from '../../documents/models/document.model';
 import { DocumentService } from '../../documents/services/document.service';
-import { LeadsService } from '../../leads/services/leads.service';
 import { EmailType } from '../../email/models/email.enum';
 import { EmailService } from '../../email/services/email.service';
 import { EmailCreateDraftService } from '../../email/services/email-create-draft.service';
 import { OfficeResponse } from '../../organizations/models/office.model';
 import { AccountingOfficeResponse } from '../../organizations/models/accounting-office.model';
-import { AccountingOfficeService } from '../../organizations/services/accounting-office.service';
-import { OfficeService } from '../../organizations/services/office.service';
 import { PropertyResponse } from '../../properties/models/property.model';
-import { PropertyService } from '../../properties/services/property.service';
 import { PropertyAgreementResponse } from '../../properties/models/property-agreement.model';
-import { PropertyAgreementService } from '../../properties/services/property-agreement.service';
 import { BaseDocumentComponent, DocumentConfig, DownloadConfig, EmailConfig } from '../../shared/base-document.component';
 import { CommonService } from '../../../services/common.service';
 import { OwnerAgreementInformationResponse, replaceOwnerAgreementInformationSections } from '../models/owner-agreement-information.model';
@@ -39,6 +33,7 @@ import { OrganizationResponse } from '../../organizations/models/organization.mo
 import { LeadOwnerResponse } from '../../leads/models/lead-owner.model';
 import { DynamicFormDraftService } from '../services/dynamic-form-draft.service';
 import { OwnerFormPlaceholderService } from '../services/owner-form-placeholder.service';
+import { OwnersService } from '../services/owners.service';
 
 @Component({
   standalone: true,
@@ -70,6 +65,8 @@ export class OwnerAgreementFormComponent extends BaseDocumentComponent implement
   baseTemplateHtml = '';
   isEditMode = true;
   safeHtml: SafeHtml | null = null;
+  fallbackIframeHtml: SafeHtml | null = null;
+  hasAttemptedPreviewRender = false;
   liveExportHtml = '';
   liveExportStyles = '';
   @ViewChild('previewIframe') previewIframe?: ElementRef<HTMLIFrameElement>;
@@ -84,20 +81,28 @@ export class OwnerAgreementFormComponent extends BaseDocumentComponent implement
   leadOwner: LeadOwnerResponse | null = null;
   agreementInformation: OwnerAgreementInformationResponse | null = null;
 
-  itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['organization', 'offices', 'contacts', 'leadOwner', 'property', 'propertyAgreement', 'agreementInfo', 'accountingOffices', 'preview']));
+  itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['organization', 'offices', 'contacts', 'leadOwner', 'property', 'propertyAgreement', 'agreementInfo', 'accountingOffices']));
   destroy$ = new Subject<void>();
+  private readonly onEditHostClick = (event: MouseEvent): void => {
+    const target = event.target as HTMLElement | null;
+    if (!target) {
+      return;
+    }
+    const marker = target.closest('span.checkbox') as HTMLSpanElement | null;
+    if (!marker) {
+      return;
+    }
+    const isChecked = marker.getAttribute('data-checked') === 'true';
+    marker.setAttribute('data-checked', isChecked ? 'false' : 'true');
+    marker.textContent = isChecked ? '' : 'X';
+    event.preventDefault();
+    event.stopPropagation();
+  };
 
   constructor(
     private fb: FormBuilder,
-    private http: HttpClient,
     private authService: AuthService,
     private commonService: CommonService,
-    private officeService: OfficeService,
-    private accountingOfficeService: AccountingOfficeService,
-    private contactService: ContactService,
-    private propertyService: PropertyService,
-    private propertyAgreementService: PropertyAgreementService,
-    private leadsService: LeadsService,
     private formatterService: FormatterService,
     private utilityService: UtilityService,
     documentHtmlService: DocumentHtmlService,
@@ -109,7 +114,9 @@ export class OwnerAgreementFormComponent extends BaseDocumentComponent implement
     private router: Router,
     private emailCreateDraftService: EmailCreateDraftService,
     private dynamicFormDraftService: DynamicFormDraftService,
-    private ownerFormPlaceholderService: OwnerFormPlaceholderService
+    private ownerFormPlaceholderService: OwnerFormPlaceholderService,
+    private mappingService: MappingService,
+    private ownersService: OwnersService
   ) {
     super(documentService, documentExportService, documentHtmlService, toastr, emailService);
   }
@@ -117,9 +124,19 @@ export class OwnerAgreementFormComponent extends BaseDocumentComponent implement
   //#region Owner-Agreement-Form
   ngOnInit(): void {
     this.organizationId = String(this.authService.getUser()?.organizationId || '').trim();
+    const fallbackDocument = this.documentHtmlService.buildHtmlDocument(
+      '<div style="padding:24px;font-family:Arial,sans-serif;font-size:14px;color:#444;">Agreement preview is loading...</div>',
+      '',
+      ''
+    );
+    this.fallbackIframeHtml = this.sanitizer.bypassSecurityTrustHtml(fallbackDocument);
  
     this.itemsToLoad$.pipe(takeUntil(this.destroy$)).subscribe(items => {
       this.isPageReady = items.size === 0;
+      if (this.isPageReady && !this.hasAttemptedPreviewRender) {
+        this.hasAttemptedPreviewRender = true;
+        this.generatePreview();
+      }
     });
 
     this.commonService.loadStates();
@@ -132,6 +149,8 @@ export class OwnerAgreementFormComponent extends BaseDocumentComponent implement
     const officeIdChanged = changes['officeId'] && (changes['officeId'].previousValue !== changes['officeId'].currentValue);
     const templateHtmlChanged = changes['templateHtml'] && (changes['templateHtml'].previousValue !== changes['templateHtml'].currentValue);
     if (tokenChanged) {
+      this.hasAttemptedPreviewRender = false;
+      this.itemsToLoad$.next(new Set(['organization', 'offices', 'contacts', 'leadOwner', 'property', 'propertyAgreement', 'agreementInfo', 'accountingOffices']));
       this.initializeDataContext();
       return;
     }
@@ -139,11 +158,14 @@ export class OwnerAgreementFormComponent extends BaseDocumentComponent implement
       this.syncSelectedOfficeFromLoadedOffices();
     }
     if (propertyIdChanged || officeIdChanged) {
-      this.itemsToLoad$.next(new Set(['property', 'propertyAgreement', 'agreementInfo', 'preview']));
-      this.loadPropertyContext();
+      // Incremental restore: add property next.
+      this.hasAttemptedPreviewRender = false;
+      this.itemsToLoad$.next(new Set(['organization', 'offices', 'contacts', 'leadOwner', 'property', 'propertyAgreement', 'agreementInfo', 'accountingOffices']));
+      this.initializeDataContext();
       return;
     }
     if (templateHtmlChanged) {
+      this.hasAttemptedPreviewRender = false;
       this.generatePreview();
     }
   }
@@ -159,10 +181,11 @@ export class OwnerAgreementFormComponent extends BaseDocumentComponent implement
     }
     this.loadOrganization();
     this.loadOffices();
-    this.loadAccountingOffices();
     this.loadContacts();
     this.loadLeadOwner(this.ownerLeadId);
-    this.loadPropertyContext();
+    this.loadProperty();
+    this.loadAgreementInformation();
+    this.loadAccountingOffices();
   }
 
   onIncludeChange(): void {
@@ -206,35 +229,14 @@ export class OwnerAgreementFormComponent extends BaseDocumentComponent implement
   }
 
   onEditIframeLoad(): void {
+    this.clearIframeBeforeUnloadHandlers(this.editIframe);
     this.ensureEditorControlsInteractive();
   }
 
-  override onPrint(): void {
-    this.captureLiveSnapshotForExport();
-    const htmlForPrint = this.liveExportHtml || this.previewIframeHtml;
-    const stylesForPrint = this.liveExportStyles || this.previewIframeStyles;
-    if (!htmlForPrint) {
-      this.toastr.warning(`${this.documentDisplayName} preview is not ready to print.`);
-      return;
-    }
-    const htmlWithStyles = this.documentHtmlService.getPreviewHtmlWithStyles(
-      htmlForPrint,
-      stylesForPrint,
-      { fontSize: '9pt', includeLeaseStyles: true }
-    );
-    this.documentExportService.printHTML(htmlWithStyles);
+  onPreviewIframeLoad(): void {
+    this.clearIframeBeforeUnloadHandlers(this.previewIframe);
   }
 
-  override async onDownload(): Promise<void> {
-    this.captureLiveSnapshotForExport();
-    const downloadConfig: DownloadConfig = {
-      fileName: this.getDocumentFileName(this.documentFileSuffix),
-      documentType: DocumentType.OwnerAgreement,
-      noPreviewMessage: `${this.documentDisplayName} preview is not ready to download.`,
-      noSelectionMessage: 'Organization or Office not available.'
-    };
-    await super.onDownload(downloadConfig);
-  }
 
   onSave(): void {
     this.captureLiveSnapshotForExport();
@@ -254,43 +256,6 @@ export class OwnerAgreementFormComponent extends BaseDocumentComponent implement
         this.toastr.error(`Unable to save ${this.documentDisplayName.toLowerCase()}.`, CommonMessage.Error);
       }
     });
-  }
-
-  override async onEmail(): Promise<void> {
-    this.captureLiveSnapshotForExport();
-    const currentUser = this.authService.getUser();
-    const fromEmail = currentUser?.email || '';
-    const fromName = `${currentUser?.firstName || ''} ${currentUser?.lastName || ''}`.trim();
-    const toEmail = this.ownerContact?.email || '';
-    const toName = this.ownerContact?.fullName || `${this.ownerContact?.firstName || ''} ${this.ownerContact?.lastName || ''}`.trim();
-    const propertyCode = this.selectedProperty?.propertyCode || '';
-    const subject = propertyCode
-      ? `${this.documentDisplayName} - ${propertyCode}`
-      : this.documentDisplayName;
-
-    const emailConfig: EmailConfig = {
-      subject,
-      toEmail,
-      toName,
-      fromEmail,
-      fromName,
-      documentType: DocumentType.OwnerAgreement,
-      emailType: EmailType.Other,
-      plainTextContent: 'Please find the attached owner agreement.',
-      htmlContent: '<p>Please find the attached owner agreement.</p>',
-      fileDetails: {
-        fileName: this.getDocumentFileName(this.documentFileSuffix),
-        contentType: 'application/pdf',
-        file: ''
-      }
-    };
-
-    this.emailCreateDraftService.setDraft({
-      emailConfig,
-      documentConfig: this.getDocumentConfig(),
-      returnUrl: this.router.url
-    });
-    await this.router.navigateByUrl(RouterUrl.EmailCreate);
   }
   //#endregion
 
@@ -314,70 +279,55 @@ export class OwnerAgreementFormComponent extends BaseDocumentComponent implement
       this.ownerContact = null;
       this.leadOwner = null;
       this.agreementInformation = null;
-      ['organization', 'offices', 'contacts', 'leadOwner', 'property', 'propertyAgreement', 'agreementInfo', 'accountingOffices']
-        .forEach(item => this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, item));
+      this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'organization');
+      this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'offices');
+      this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'contacts');
+      this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'leadOwner');
+      this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'property');
+      this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'propertyAgreement');
+      this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'agreementInfo');
+      this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'accountingOffices');
       this.generatePreviewIfReady();
       return;
     }
 
-    forkJoin({
-      publicForm: this.leadsService.getPublicOwnerFormByToken(token).pipe(catchError(() => of(null))),
-      owner: this.leadsService.getPublicOwnerLeadByToken(token).pipe(catchError(() => of(null))),
-      organization: this.leadsService.getPublicOwnerOrganizationByToken(token).pipe(catchError(() => of(null))),
-      office: this.leadsService.getPublicOwnerOfficeByToken(token).pipe(catchError(() => of(null))),
-      accountingOffice: this.leadsService.getPublicOwnerAccountingOfficeByToken(token).pipe(catchError(() => of(null))),
-      property: this.leadsService.getPublicOwnerPropertyByToken(token).pipe(catchError(() => of(null))),
-      propertyAgreement: this.leadsService.getPublicOwnerPropertyAgreementByToken(token).pipe(catchError(() => of(null))),
-      agreementInfo: this.leadsService.getPublicOwnerAgreementInformationByToken(token).pipe(catchError(() => of(null)))
-    }).pipe(take(1), takeUntil(this.destroy$)).subscribe({
-      next: response => {
-        this.leadOwner = response.owner;
-        this.organization = response.organization;
-        this.organizationId = String(response.organization?.organizationId || '').trim();
-        this.selectedOffice = response.office;
-        this.accountingOffices = response.accountingOffice ? [response.accountingOffice] : [];
-        this.selectedProperty = response.property;
-        this.propertyAgreement = response.propertyAgreement;
-        this.agreementInformation = response.agreementInfo;
-        this.ownerContact = this.mapPublicOwnerContact(response.publicForm?.form);
-        ['organization', 'offices', 'contacts', 'leadOwner', 'property', 'propertyAgreement', 'agreementInfo', 'accountingOffices']
-          .forEach(item => this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, item));
+    this.ownersService.getPublicOwnerAgreementContext(token).pipe(take(1),finalize(() => {
+        this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'organization');
+        this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'offices');
+        this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'contacts');
+        this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'leadOwner');
+        this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'property');
+        this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'propertyAgreement');
+        this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'agreementInfo');
+        this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'accountingOffices');
         this.generatePreviewIfReady();
+      })).subscribe({
+      next: response => {
+        this.organization = response.organization || null;
+        this.organizationId = String(response.organization?.organizationId || '').trim();
+        this.selectedOffice = response.office || null;
+        this.leadOwner = response.owner || null;
+        this.selectedProperty = response.property || null;
+        this.propertyAgreement = response.propertyAgreement || null;
+        this.agreementInformation = response.agreementInfo || null;
+        this.accountingOffices = response.accountingOffice ? [response.accountingOffice] : [];
+        const ownerContacts = response.contact ? [response.contact] : [];
+        this.ownerContact = ownerContacts.length > 0
+          ? ownerContacts[0]
+          : this.mappingService.mapPublicOwnerContact(response.publicForm?.form);
       },
       error: () => {
         this.organization = null;
+        this.organizationId = '';
         this.selectedOffice = null;
-        this.accountingOffices = [];
-        this.selectedProperty = null;
-        this.propertyAgreement = null;
         this.ownerContact = null;
         this.leadOwner = null;
+        this.selectedProperty = null;
+        this.propertyAgreement = null;
         this.agreementInformation = null;
-        ['organization', 'offices', 'contacts', 'leadOwner', 'property', 'propertyAgreement', 'agreementInfo', 'accountingOffices']
-          .forEach(item => this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, item));
-        this.generatePreviewIfReady();
+        this.accountingOffices = [];
       }
     });
-  }
-
-  mapPublicOwnerContact(form: any): ContactResponse | null {
-    if (!form) {
-      return null;
-    }
-    const firstName = String(form.firstName || '').trim();
-    const lastName = String(form.lastName || '').trim();
-    const fullName = `${firstName} ${lastName}`.trim();
-    return {
-      firstName,
-      lastName,
-      fullName,
-      email: String(form.email || '').trim(),
-      address1: String(form.address || '').trim(),
-      address2: '',
-      city: String(form.city || '').trim(),
-      state: String(form.state || '').trim(),
-      zip: String(form.zip || '').trim()
-    } as ContactResponse;
   }
 
   loadPropertyContext(): void {
@@ -394,11 +344,15 @@ export class OwnerAgreementFormComponent extends BaseDocumentComponent implement
       return;
     }
 
-    this.leadsService.getOwnerLeadById(parsedLeadOwnerId).pipe(take(1), takeUntil(this.destroy$), finalize(() => {
+    this.ownersService.getOwnerByContext(null, parsedLeadOwnerId).pipe(take(1),finalize(() => {
       this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'leadOwner');
       this.generatePreviewIfReady();
     })).subscribe({
       next: response => {
+        if (!response) {
+          this.leadOwner = null;
+          return;
+        }
         this.leadOwner = response;
       },
       error: () => {
@@ -408,21 +362,26 @@ export class OwnerAgreementFormComponent extends BaseDocumentComponent implement
   }
 
   loadOrganization(): void {
-    if (!this.organizationId) {
+    if (!this.organizationId && !this.isPublicTokenMode()) {
       this.organization = null;
       this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'organization');
       this.generatePreviewIfReady();
       return;
     }
-    this.commonService.loadOrganization();
-    this.commonService.getOrganization().pipe(filter(org => org !== null), take(1), takeUntil(this.destroy$)).subscribe({
-      next: (response: OrganizationResponse) => {
-        this.organization = response;
+    this.ownersService.getOrganizationByContext(this.token).pipe(take(1),finalize(() => {
         this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'organization');
         this.generatePreviewIfReady();
+      })).subscribe({
+      next: (response: OrganizationResponse | null) => {
+        if (!response) {
+          this.organization = null;
+          return;
+        }
+        this.organization = response;
+        this.organizationId = String(response.organizationId || this.organizationId || '').trim();
       },
       error: () => {
-        this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'organization');
+        this.organization = null;
       }
     });
   }
@@ -433,21 +392,21 @@ export class OwnerAgreementFormComponent extends BaseDocumentComponent implement
       this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'offices');
       return;
     }
-    this.officeService.ensureOfficesLoaded(this.organizationId).pipe(take(1), takeUntil(this.destroy$)).subscribe({
-      next: offices => {
-        this.syncSelectedOfficeFromLoadedOffices(offices || []);
+    this.ownersService.ensureOfficesLoaded(this.organizationId).pipe(take(1),finalize(() => {
         this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'offices');
         this.generatePreviewIfReady();
+      })).subscribe({
+      next: offices => {
+        this.syncSelectedOfficeFromLoadedOffices(offices || []);
       },
       error: () => {
         this.selectedOffice = null;
-        this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'offices');
       }
     });
   }
 
   syncSelectedOfficeFromLoadedOffices(offices?: OfficeResponse[]): void {
-    const officeList = offices || this.officeService.getAllOfficesValue() || [];
+    const officeList = offices || this.ownersService.getAllOfficesValue() || [];
     const requestedOfficeId = Number(this.officeId);
     if (Number.isFinite(requestedOfficeId) && requestedOfficeId > 0) {
       this.selectedOffice = officeList.find(office => office.officeId === requestedOfficeId) || null;
@@ -468,19 +427,19 @@ export class OwnerAgreementFormComponent extends BaseDocumentComponent implement
   }
 
   loadContacts(): void {
-    this.contactService.ensureContactsLoaded().pipe(take(1), takeUntil(this.destroy$)).subscribe({
+    this.ownersService.ensureContactsLoaded().pipe(take(1),finalize(() => {
+        this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'contacts');
+        this.generatePreviewIfReady();
+      })).subscribe({
       next: contacts => {
         const ownerLeadId = Number(this.ownerLeadId);
         this.ownerContact = (contacts || []).find(contact =>
           Number(contact.entityTypeId) === Number(EntityType.Owner) &&
           Number(contact.ownerLeadId) === ownerLeadId
         ) || null;
-        this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'contacts');
-        this.generatePreviewIfReady();
       },
       error: () => {
         this.ownerContact = null;
-        this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'contacts');
       }
     });
   }
@@ -488,21 +447,31 @@ export class OwnerAgreementFormComponent extends BaseDocumentComponent implement
   loadProperty(): void {
     if (!this.propertyId || this.propertyId === 'new') {
       this.selectedProperty = null;
+      this.propertyAgreement = null;
       this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'property');
+      this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'propertyAgreement');
       return;
     }
-    this.propertyService.getPropertyByGuid(this.propertyId).pipe(take(1), takeUntil(this.destroy$)).subscribe({
+    this.ownersService.getPropertyByContext(this.token, this.propertyId).pipe(take(1),finalize(() => {
+        this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'property');
+        this.generatePreviewIfReady();
+      })).subscribe({
       next: property => {
+        if (!property) {
+          this.selectedProperty = null;
+          this.propertyAgreement = null;
+          this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'propertyAgreement');
+          return;
+        }
         this.selectedProperty = property;
         // Property agreement depends on selectedProperty; reload once property resolves.
         this.utilityService.addLoadItem(this.itemsToLoad$, 'propertyAgreement');
         this.loadPropertyAgreement();
-        this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'property');
-        this.generatePreviewIfReady();
       },
       error: () => {
         this.selectedProperty = null;
-        this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'property');
+        this.propertyAgreement = null;
+        this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'propertyAgreement');
       }
     });
   }
@@ -514,7 +483,7 @@ export class OwnerAgreementFormComponent extends BaseDocumentComponent implement
       return;
     }
 
-    this.propertyAgreementService.getPropertyAgreement(this.selectedProperty.propertyId).pipe(takeUntil(this.destroy$), take(1), finalize(() => {
+    this.ownersService.getPropertyAgreementByContext(this.token, this.selectedProperty.propertyId).pipe(take(1),finalize(() => {
       this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'propertyAgreement');
       this.generatePreviewIfReady();
     })).subscribe({
@@ -528,23 +497,45 @@ export class OwnerAgreementFormComponent extends BaseDocumentComponent implement
   }
 
   loadAgreementInformation(): void {
-    const scopedPropertyId = this.propertyId && this.propertyId !== 'new' ? this.propertyId : null;
-    this.leadsService.getOwnerAgreementInformationByScope(this.officeId, scopedPropertyId).pipe(take(1), takeUntil(this.destroy$)).subscribe({
-      next: response => {
-        this.agreementInformation = response || null;
-        this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'agreementInfo');
-        this.generatePreviewIfReady();
-      },
-      error: () => {
+    if (this.isPublicTokenMode()) {
+      const token = String(this.token || '').trim();
+      if (!token) {
         this.agreementInformation = null;
         this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'agreementInfo');
         this.generatePreviewIfReady();
+        return;
+      }
+      this.ownersService.getAgreementInformationByContext(token, this.officeId, this.propertyId).pipe(take(1),finalize(() => {
+          this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'agreementInfo');
+          this.generatePreviewIfReady();
+        })
+      ).subscribe({
+        next: response => {
+          this.agreementInformation = response || null;
+        },
+        error: () => {
+          this.agreementInformation = null;
+        }
+      });
+      return;
+    }
+
+    this.ownersService.getAgreementInformationByContext(null, this.officeId, this.propertyId).pipe(take(1),finalize(() => {
+        this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'agreementInfo');
+        this.generatePreviewIfReady();
+      })
+    ).subscribe({
+      next: response => {
+        this.agreementInformation = response || null;
+      },
+      error: () => {
+        this.agreementInformation = null;
       }
     });
   }
 
   loadAccountingOffices(): void {
-    this.accountingOfficeService.ensureAccountingOfficesLoaded().pipe(take(1), takeUntil(this.destroy$), finalize(() => {
+    this.ownersService.ensureAccountingOfficesLoaded().pipe(take(1),finalize(() => {
       this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'accountingOffices');
       this.generatePreviewIfReady();
     })).subscribe({
@@ -569,26 +560,43 @@ export class OwnerAgreementFormComponent extends BaseDocumentComponent implement
   }
 
   generatePreview(): void {
+    this.hasAttemptedPreviewRender = true;
     this.utilityService.addLoadItem(this.itemsToLoad$, 'preview');
     const includeDocument = !!this.form.get('includeDocument')?.value;
-    this.loadAgreementTemplate(includeDocument, this.templateAssetPath, this.templateHtml).pipe(takeUntil(this.destroy$)).subscribe({
+    this.loadAgreementTemplate(includeDocument, this.templateAssetPath, this.templateHtml).pipe(finalize(() => {this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'preview'); })).subscribe({
       next: ownerAgreementHtml => {
-        const combinedHtml = this.replaceAgreementPlaceholders(ownerAgreementHtml);
-        this.baseTemplateHtml = combinedHtml;
-        const draftHtml = this.dynamicFormDraftService.loadDraft(this.getDraftStorageKey());
-        const htmlToRender = draftHtml || this.baseTemplateHtml;
-        this.setEditorHtml(htmlToRender);
-        if (!this.isEditMode) {
-          this.processAndSetHtml(htmlToRender);
+        try {
+          const combinedHtml = this.replaceAgreementPlaceholders(ownerAgreementHtml);
+          this.baseTemplateHtml = combinedHtml;
+          const draftHtml = this.dynamicFormDraftService.loadDraft(this.getDraftStorageKey());
+          let htmlToRender = draftHtml || this.baseTemplateHtml;
+          if (!String(htmlToRender || '').trim()) {
+            htmlToRender = String(ownerAgreementHtml || '').trim();
+          }
+          if (!String(htmlToRender || '').trim()) {
+            htmlToRender = '<div style="padding:24px;font-family:Arial,sans-serif;font-size:14px;color:#444;">Agreement template is empty.</div>';
+          }
+          this.setEditorHtml(htmlToRender);
+          if (!this.isEditMode) {
+            this.processAndSetHtml(htmlToRender);
+          }
+        } catch {
+          // Fallback: render raw template so preview remains usable even if token replacement fails.
+          this.baseTemplateHtml = ownerAgreementHtml || '';
+          const fallbackHtml = this.baseTemplateHtml;
+          this.setEditorHtml(fallbackHtml);
+          if (!this.isEditMode) {
+            this.processAndSetHtml(fallbackHtml);
+          }
+          this.toastr.error(`${this.documentDisplayName} preview failed to render placeholders; showing template.`, CommonMessage.Error);
         }
-        this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'preview');
       },
       error: () => {
         this.baseTemplateHtml = '';
         this.editableHtml = null;
         this.previewIframeHtml = '';
         this.safeHtml = null;
-        this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'preview');
+        this.toastr.error(`${this.documentDisplayName} template failed to load.`, CommonMessage.Error);
       }
     });
   }
@@ -596,7 +604,17 @@ export class OwnerAgreementFormComponent extends BaseDocumentComponent implement
   replaceAgreementPlaceholders(html: string): string { 
     const today = this.formatterService.formatDateStringLong(this.utilityService.todayAsCalendarDateString()) || '';
     const signerName = `${this.authService.getUser()?.firstName || ''} ${this.authService.getUser()?.lastName || ''}`.trim();
-    const officeLogo = this.selectedOffice?.fileDetails?.dataUrl || this.organization?.fileDetails?.dataUrl || '';
+    const logoOfficeId = Number(this.selectedProperty?.officeId || this.selectedOffice?.officeId || this.officeId || 0);
+    const selectedAccountingOffice = Number.isFinite(logoOfficeId) && logoOfficeId > 0
+      ? this.accountingOffices.find(accounting => accounting.officeId === logoOfficeId) || null
+      : null;
+    const accountingOfficeLogo = this.getFileDetailsDataUrl(selectedAccountingOffice?.fileDetails);
+    const selectedOfficeLogo = this.getFileDetailsDataUrl(this.selectedOffice?.fileDetails);
+    const organizationLogo = this.getFileDetailsDataUrl(this.organization?.fileDetails);
+    const officeLogo = this.getAccountingOfficeLogoDataUrl()
+      || selectedOfficeLogo
+      || organizationLogo
+      || '';
     const companyName = this.getCompanyName();
     const ownerState = this.getOwnerState();
     const monthlyRent = this.getMonthlyRent();
@@ -679,7 +697,10 @@ export class OwnerAgreementFormComponent extends BaseDocumentComponent implement
   }
 
   setEditorHtml(html: string): void {
-    const result = this.documentHtmlService.processHtml(html || '', true);
+    const fallbackHtml = String(html || '').trim().length > 0
+      ? html
+      : '<div style="padding:24px;font-family:Arial,sans-serif;font-size:14px;color:#444;">Agreement preview is unavailable.</div>';
+    const result = this.documentHtmlService.processHtml(fallbackHtml, true);
     this.editorStyles = result.extractedStyles || '';
     const editableHtmlDocument = this.documentHtmlService.buildHtmlDocument(
       this.documentHtmlService.extractBodyContent(result.processedHtml || ''),
@@ -698,12 +719,20 @@ export class OwnerAgreementFormComponent extends BaseDocumentComponent implement
     }
     editHost.setAttribute('contenteditable', 'false');
     const staticEditableNodes = Array.from(editHost.querySelectorAll('[contenteditable]')) as HTMLElement[];
-    staticEditableNodes.forEach(node => {
-      const tagName = node.tagName.toLowerCase();
-      if (tagName !== 'input' && tagName !== 'textarea' && tagName !== 'select' && tagName !== 'option') {
-        node.setAttribute('contenteditable', 'false');
+    staticEditableNodes.forEach(node => node.setAttribute('contenteditable', 'false'));
+
+    // Keep static form text read-only; only unlock fillable fields/underlines.
+    const fillableRegions = Array.from(
+      editHost.querySelectorAll('.line, .inline-underline-fill, [data-fillable="true"]')
+    ) as HTMLElement[];
+    fillableRegions.forEach(region => {
+      if (region.querySelector('input, textarea, select, button')) {
+        return;
       }
+      region.setAttribute('contenteditable', 'true');
+      region.setAttribute('spellcheck', 'false');
     });
+
     const controls = Array.from(editHost.querySelectorAll('input, textarea, select, option, button, label'));
     controls.forEach(control => {
       control.setAttribute('contenteditable', 'false');
@@ -720,6 +749,34 @@ export class OwnerAgreementFormComponent extends BaseDocumentComponent implement
         }
       }
     });
+
+    const checkboxMarkers = Array.from(editHost.querySelectorAll('span.checkbox')) as HTMLSpanElement[];
+    checkboxMarkers.forEach(marker => {
+      marker.setAttribute('contenteditable', 'false');
+      marker.style.cursor = 'pointer';
+      marker.style.userSelect = 'none';
+      const hasValue = String(marker.textContent || '').trim().length > 0;
+      marker.setAttribute('data-checked', hasValue ? 'true' : 'false');
+    });
+    if (!editHost.dataset['checkboxToggleBound']) {
+      editHost.addEventListener('click', this.onEditHostClick);
+      editHost.dataset['checkboxToggleBound'] = 'true';
+    }
+  }
+
+  clearIframeBeforeUnloadHandlers(iframeRef?: ElementRef<HTMLIFrameElement>): void {
+    const iframeWindow = iframeRef?.nativeElement?.contentWindow ?? null;
+    const iframeDocument = iframeRef?.nativeElement?.contentDocument ?? null;
+    iframeDocument?.body?.removeEventListener('click', this.onEditHostClick);
+    if (iframeWindow) {
+      iframeWindow.onbeforeunload = null;
+      iframeWindow.onunload = null;
+    }
+    const iframeDocWindow = iframeDocument?.defaultView ?? null;
+    if (iframeDocWindow) {
+      iframeDocWindow.onbeforeunload = null;
+      iframeDocWindow.onunload = null;
+    }
   }
   //#endregion
 
@@ -1016,7 +1073,17 @@ export class OwnerAgreementFormComponent extends BaseDocumentComponent implement
     if (String(templateHtml || '').trim()) {
       return of(String(templateHtml));
     }
-    return this.http.get(assetPath, { responseType: 'text' }).pipe(take(1));
+    const primaryPath = String(assetPath || '').trim() || 'assets/owner-agreement.html';
+    const templateType = this.resolveTemplateTypeForLookup(primaryPath);
+    return this.ownersService.getTemplateHtmlByContext(this.token, this.propertyId, templateType).pipe(take(1));
+  }
+
+  resolveTemplateTypeForLookup(assetPath: string): string {
+    const normalizedPath = String(assetPath || '').trim().toLowerCase();
+    if (normalizedPath.includes('direct-deposit')) {
+      return 'directDeposit';
+    }
+    return 'ownerAgreement';
   }
 
   buildGenerateDto(): GenerateDocumentFromHtmlDto {
@@ -1031,6 +1098,7 @@ export class OwnerAgreementFormComponent extends BaseDocumentComponent implement
       fileName: this.getDocumentFileName(this.documentFileSuffix)
     };
   }
+  //#endregion
 
   //#region Abstract BaseDocumentComponent
   protected override getDocumentConfig(): DocumentConfig {
@@ -1051,8 +1119,73 @@ export class OwnerAgreementFormComponent extends BaseDocumentComponent implement
   protected override setDownloading(value: boolean): void {
     this.isDownloading = value;
   }
+    
+  override async onEmail(): Promise<void> {
+    this.captureLiveSnapshotForExport();
+    const currentUser = this.authService.getUser();
+    const fromEmail = currentUser?.email || '';
+    const fromName = `${currentUser?.firstName || ''} ${currentUser?.lastName || ''}`.trim();
+    const toEmail = this.ownerContact?.email || '';
+    const toName = this.ownerContact?.fullName || `${this.ownerContact?.firstName || ''} ${this.ownerContact?.lastName || ''}`.trim();
+    const propertyCode = this.selectedProperty?.propertyCode || '';
+    const subject = propertyCode
+      ? `${this.documentDisplayName} - ${propertyCode}`
+      : this.documentDisplayName;
+
+    const emailConfig: EmailConfig = {
+      subject,
+      toEmail,
+      toName,
+      fromEmail,
+      fromName,
+      documentType: DocumentType.OwnerAgreement,
+      emailType: EmailType.Other,
+      plainTextContent: 'Please find the attached owner agreement.',
+      htmlContent: '<p>Please find the attached owner agreement.</p>',
+      fileDetails: {
+        fileName: this.getDocumentFileName(this.documentFileSuffix),
+        contentType: 'application/pdf',
+        file: ''
+      }
+    };
+
+    this.emailCreateDraftService.setDraft({
+      emailConfig,
+      documentConfig: this.getDocumentConfig(),
+      returnUrl: this.router.url
+    });
+    await this.router.navigateByUrl(RouterUrl.EmailCreate);
+  }
+  
+  override onPrint(): void {
+    this.captureLiveSnapshotForExport();
+    const htmlForPrint = this.liveExportHtml || this.previewIframeHtml;
+    const stylesForPrint = this.liveExportStyles || this.previewIframeStyles;
+    if (!htmlForPrint) {
+      this.toastr.warning(`${this.documentDisplayName} preview is not ready to print.`);
+      return;
+    }
+    const htmlWithStyles = this.documentHtmlService.getPreviewHtmlWithStyles(
+      htmlForPrint,
+      stylesForPrint,
+      { fontSize: '9pt', includeLeaseStyles: true }
+    );
+    this.documentExportService.printHTML(htmlWithStyles);
+  }
+
+  override async onDownload(): Promise<void> {
+    this.captureLiveSnapshotForExport();
+    const downloadConfig: DownloadConfig = {
+      fileName: this.getDocumentFileName(this.documentFileSuffix),
+      documentType: DocumentType.OwnerAgreement,
+      noPreviewMessage: `${this.documentDisplayName} preview is not ready to download.`,
+      noSelectionMessage: 'Organization or Office not available.'
+    };
+    await super.onDownload(downloadConfig);
+  }
   //#endregion
 
+  //#region Get Methods
   getDocumentFileName(label: string): string {
     return this.utilityService.generateDocumentFileName('lease', this.selectedProperty?.propertyCode || undefined, label);
   }
@@ -1151,7 +1284,7 @@ export class OwnerAgreementFormComponent extends BaseDocumentComponent implement
     if (!propertyOfficeId) {
       return null;
     }
-    const offices = this.officeService.getAllOfficesValue() || [];
+    const offices = this.ownersService.getAllOfficesValue() || [];
     return offices.find(office => office.officeId === propertyOfficeId) || null;
   }
 
@@ -1186,6 +1319,34 @@ export class OwnerAgreementFormComponent extends BaseDocumentComponent implement
     const cityState = [city, state].filter(part => part.length > 0).join(', ');
     const line2 = [cityState, zip].filter(part => part.length > 0).join(' ');
     return { address1: line1, address2: line2 };
+  }
+
+  getAccountingOfficeLogoDataUrl(): string {
+    const officeId = Number(this.selectedProperty?.officeId || this.selectedOffice?.officeId || this.officeId || 0);
+    if (!Number.isFinite(officeId) || officeId <= 0) {
+      return '';
+    }
+    const accountingOffice = this.accountingOffices.find(accounting => accounting.officeId === officeId);
+    return this.getFileDetailsDataUrl(accountingOffice?.fileDetails);
+  }
+
+  getFileDetailsDataUrl(fileDetails: { dataUrl?: string | null; file?: string | null; contentType?: string | null } | null | undefined): string {
+    const dataUrl = String(fileDetails?.dataUrl || '').trim();
+    if (dataUrl) {
+      return dataUrl;
+    }
+
+    const file = String(fileDetails?.file || '').trim();
+    if (!file) {
+      return '';
+    }
+
+    if (file.startsWith('data:')) {
+      return file;
+    }
+
+    const contentType = String(fileDetails?.contentType || 'image/png').trim() || 'image/png';
+    return `data:${contentType};base64,${file}`;
   }
 
   getOwnerAddressLines(): { address1: string; address2: string } {
@@ -1313,7 +1474,19 @@ export class OwnerAgreementFormComponent extends BaseDocumentComponent implement
     }
     return '';
   }
-  //#region
+
+  getEmptyUnderlineSpan(): string {
+    return '<span class="inline-underline-fill"></span>';
+  }
+
+  getPopulatedUnderlineSpan(value: string): string {
+    const trimmed = String(value || '').trim();
+    if (!trimmed) {
+      return this.getEmptyUnderlineSpan();
+    }
+    return `<span class="inline-underline-fill">&nbsp;&nbsp;${trimmed}&nbsp;&nbsp;</span>`;
+  }
+  //#endregion
 
   //#region Utility Methods
   formatAgreementPercentForDisplay(value: number | string | null | undefined): string {
@@ -1358,18 +1531,6 @@ export class OwnerAgreementFormComponent extends BaseDocumentComponent implement
       return '';
     }
     return '$' + parsed.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-  }
-
-  getEmptyUnderlineSpan(): string {
-    return '<span class="inline-underline-fill"></span>';
-  }
-
-  getPopulatedUnderlineSpan(value: string): string {
-    const trimmed = String(value || '').trim();
-    if (!trimmed) {
-      return this.getEmptyUnderlineSpan();
-    }
-    return `<span class="inline-underline-fill">&nbsp;&nbsp;${trimmed}&nbsp;&nbsp;</span>`;
   }
 
   ngOnDestroy(): void {

@@ -52,7 +52,7 @@
             }
           </div>
         </div>
-        @if (!isOwnerListMode) {
+        @if (!isOwnerListMode && !isPublicOwnerTokenContext(token)) {
           <div class="form-titlebar-actions-wrap uniform-gap">
             <button mat-raised-button type="button" color="accent" class="text-nowrap flex-shrink-0" (click)="onBackToOwnerList()">
               <mat-icon>arrow_back</mat-icon>
@@ -80,6 +80,8 @@
               <app-property-information
                 [token]="token"
                 [ownerLeadId]="leadOwnerId"
+                [ownerContactId]="selectedOwnerContactId"
+                [organizationId]="selectedOrganizationId"
                 [selectedOfficeId]="selectedOfficeId"
                 [shellPropertyId]="selectedPropertyId"
                 [shellPropertyCode]="selectedPropertyId === newPropertyOptionValue ? newPropertyCode : null">
@@ -116,7 +118,7 @@
             </mat-tab>
             @for (stateForm of stateForms; track stateForm.stateFormId) {
               <mat-tab [label]="stateForm.formName">
-                @if (ownersFeatureEnabled) {
+                @if (isOwnerAdmin) {
                   @if (isDynamicFormInViewMode(getDynamicFormKey(stateForm))) {
                     <app-shared-form-create
                       [formName]="stateForm.formName"

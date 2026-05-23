@@ -3,7 +3,7 @@ import { Component, ElementRef, EventEmitter, Input, OnChanges, OnDestroy, OnIni
 import { DomSanitizer, SafeHtml } from '@angular/platform-browser';
 import { Router } from '@angular/router';
 import { ToastrService } from 'ngx-toastr';
-import { BehaviorSubject, Subject, filter, finalize, take, takeUntil } from 'rxjs';
+import { BehaviorSubject, Subject, finalize, take, takeUntil } from 'rxjs';
 import { RouterUrl } from '../../../app.routes';
 import { CommonMessage } from '../../../enums/common-message.enum';
 import { MaterialModule } from '../../../material.module';
@@ -13,7 +13,6 @@ import { DocumentHtmlService } from '../../../services/document-html.service';
 import { UtilityService } from '../../../services/utility.service';
 import { EntityType } from '../../contacts/models/contact-enum';
 import { ContactResponse } from '../../contacts/models/contact.model';
-import { ContactService } from '../../contacts/services/contact.service';
 import { DocumentType } from '../../documents/models/document.enum';
 import { GenerateDocumentFromHtmlDto } from '../../documents/models/document.model';
 import { DocumentService } from '../../documents/services/document.service';
@@ -22,11 +21,9 @@ import { EmailCreateDraftService } from '../../email/services/email-create-draft
 import { EmailService } from '../../email/services/email.service';
 import { OfficeResponse } from '../../organizations/models/office.model';
 import { OrganizationResponse } from '../../organizations/models/organization.model';
-import { OfficeService } from '../../organizations/services/office.service';
 import { PropertyResponse } from '../../properties/models/property.model';
-import { PropertyService } from '../../properties/services/property.service';
 import { BaseDocumentComponent, DocumentConfig, DownloadConfig, EmailConfig } from '../../shared/base-document.component';
-import { CommonService } from '../../../services/common.service';
+import { OwnersService } from '../services/owners.service';
 
 @Component({
   standalone: true,
@@ -64,10 +61,7 @@ export class DynamicFormCreateComponent extends BaseDocumentComponent implements
 
   constructor(
     private authService: AuthService,
-    private commonService: CommonService,
-    private officeService: OfficeService,
-    private contactService: ContactService,
-    private propertyService: PropertyService,
+    private ownersService: OwnersService,
     private utilityService: UtilityService,
     documentHtmlService: DocumentHtmlService,
     private sanitizer: DomSanitizer,
@@ -199,14 +193,18 @@ export class DynamicFormCreateComponent extends BaseDocumentComponent implements
 
   //#region Data Loading Methods
   loadOrganization(): void {
-    this.commonService.loadOrganization();
-    this.commonService.getOrganization().pipe(filter(org => org !== null), take(1), takeUntil(this.destroy$)).subscribe({
-      next: response => {
-        this.organization = response;
+    this.ownersService.getOrganizationByContext(null).pipe(take(1),finalize(() => {
         this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'organization');
+      })).subscribe({
+      next: response => {
+        if (!response) {
+          this.organization = null;
+          return;
+        }
+        this.organization = response;
       },
       error: () => {
-        this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'organization');
+        this.organization = null;
       }
     });
   }
@@ -217,20 +215,18 @@ export class DynamicFormCreateComponent extends BaseDocumentComponent implements
       this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'offices');
       return;
     }
-    this.officeService.ensureOfficesLoaded(this.organizationId).pipe(take(1), takeUntil(this.destroy$)).subscribe({
+    this.ownersService.ensureOfficesLoaded(this.organizationId).pipe(take(1),finalize(() => { this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'offices'); })).subscribe({
       next: offices => {
         this.syncSelectedOfficeFromLoadedOffices(offices || []);
-        this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'offices');
       },
       error: () => {
         this.selectedOffice = null;
-        this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'offices');
       }
     });
   }
 
   syncSelectedOfficeFromLoadedOffices(offices?: OfficeResponse[]): void {
-    const officeList = offices || this.officeService.getAllOfficesValue() || [];
+    const officeList = offices || this.ownersService.getAllOfficesValue() || [];
     const requestedOfficeId = Number(this.officeId);
     if (Number.isFinite(requestedOfficeId) && requestedOfficeId > 0) {
       this.selectedOffice = officeList.find(office => office.officeId === requestedOfficeId) || null;
@@ -249,18 +245,16 @@ export class DynamicFormCreateComponent extends BaseDocumentComponent implements
   }
 
   loadContacts(): void {
-    this.contactService.ensureContactsLoaded().pipe(take(1), takeUntil(this.destroy$)).subscribe({
+    this.ownersService.ensureContactsLoaded().pipe(take(1),finalize(() => { this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'contacts'); })).subscribe({
       next: contacts => {
         const ownerLeadId = Number(this.ownerLeadId);
         this.ownerContact = (contacts || []).find(contact =>
           Number(contact.entityTypeId) === Number(EntityType.Owner) &&
           Number(contact.ownerLeadId) === ownerLeadId
         ) || null;
-        this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'contacts');
       },
       error: () => {
         this.ownerContact = null;
-        this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'contacts');
       }
     });
   }
@@ -271,14 +265,16 @@ export class DynamicFormCreateComponent extends BaseDocumentComponent implements
       this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'property');
       return;
     }
-    this.propertyService.getPropertyByGuid(this.propertyId).pipe(take(1), takeUntil(this.destroy$)).subscribe({
+    this.ownersService.getPropertyByContext(null, this.propertyId).pipe(take(1),finalize(() => { this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'property'); })).subscribe({
       next: property => {
+        if (!property) {
+          this.selectedProperty = null;
+          return;
+        }
         this.selectedProperty = property;
-        this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'property');
       },
       error: () => {
         this.selectedProperty = null;
-        this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'property');
       }
     });
   }

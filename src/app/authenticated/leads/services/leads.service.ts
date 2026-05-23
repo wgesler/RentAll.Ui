@@ -18,14 +18,16 @@ import {
 } from '../models/lead-general.model';
 import {
   OwnerFormShareResponse,
+  PublicOwnerContactUpsertRequest,
   PublicOwnerFormResponse,
   PublicOwnerFormSubmitRequest
 } from '../models/owner-form-share.model';
+import { ContactResponse } from '../../contacts/models/contact.model';
 import { StateFormResponse } from '../../organizations/models/state-form.model';
 import { OrganizationResponse } from '../../organizations/models/organization.model';
 import { OfficeResponse } from '../../organizations/models/office.model';
 import { AccountingOfficeResponse } from '../../organizations/models/accounting-office.model';
-import { PropertyResponse } from '../../properties/models/property.model';
+import { PropertyRequest, PropertyResponse } from '../../properties/models/property.model';
 import { PropertyAgreementResponse } from '../../properties/models/property-agreement.model';
 import {
   OwnerInventoryInformationRequest,
@@ -35,6 +37,7 @@ import {
   OwnerAgreementInformationRequest,
   OwnerAgreementInformationResponse
 } from '../../owners/models/owner-agreement-information.model';
+import { OwnerHtmlResponse } from '../../owners/models/owner-html.model';
 
 @Injectable({
   providedIn: 'root'
@@ -141,6 +144,11 @@ export class LeadsService {
     return this.rawHttp.get<OfficeResponse>(`${this.commonController}owner-form/${normalized}/office`);
   }
 
+  getPublicOwnerOfficesByToken(token: string): Observable<OfficeResponse[]> {
+    const normalized = this.normalizeOwnerFormShareToken(token);
+    return this.rawHttp.get<OfficeResponse[]>(`${this.commonController}owner-form/${normalized}/offices`);
+  }
+
   getPublicOwnerAccountingOfficeByToken(token: string): Observable<AccountingOfficeResponse> {
     const normalized = this.normalizeOwnerFormShareToken(token);
     return this.rawHttp.get<AccountingOfficeResponse>(`${this.commonController}owner-form/${normalized}/accounting-office`);
@@ -159,6 +167,17 @@ export class LeadsService {
   getPublicOwnerAgreementInformationByToken(token: string): Observable<OwnerAgreementInformationResponse> {
     const normalized = this.normalizeOwnerFormShareToken(token);
     return this.rawHttp.get<OwnerAgreementInformationResponse>(`${this.commonController}owner-form/${normalized}/agreement-information`);
+  }
+
+  getPublicOwnerTemplatesByToken(token: string): Observable<OwnerHtmlResponse> {
+    const normalized = this.normalizeOwnerFormShareToken(token);
+    const requestUrl = `${this.commonController}owner-form/${normalized}/templates`;
+    return this.rawHttp.get<OwnerHtmlResponse>(requestUrl);
+  }
+
+  getOwnerHtmlByPropertyId(propertyId: string): Observable<OwnerHtmlResponse> {
+    const requestUrl = `${this.controller}owners/html/${propertyId}`;
+    return this.http.get<OwnerHtmlResponse>(requestUrl);
   }
 
   getOwnerInventoryInformationByOwnerId(ownerId: number): Observable<OwnerInventoryInformationResponse> {
@@ -191,6 +210,26 @@ export class LeadsService {
 
   updateOwnerAgreementInformation(body: OwnerAgreementInformationRequest): Observable<OwnerAgreementInformationResponse> {
     return this.http.put<OwnerAgreementInformationResponse>(`${this.configService.config().apiUrl}leads/owners/agreement-information`, body);
+  }
+
+  getPublicOwnerContactByToken(token: string): Observable<ContactResponse | null> {
+    const normalized = this.normalizeOwnerFormShareToken(token);
+    return this.rawHttp.get<ContactResponse>(`${this.commonController}owner-form/${normalized}/contact`);
+  }
+
+  getPublicOwnerContactsByToken(token: string): Observable<ContactResponse[]> {
+    const normalized = this.normalizeOwnerFormShareToken(token);
+    return this.rawHttp.get<ContactResponse[]>(`${this.commonController}owner-form/${normalized}/contacts`);
+  }
+
+  upsertPublicOwnerContactByToken(token: string, body: PublicOwnerContactUpsertRequest): Observable<ContactResponse> {
+    const normalized = this.normalizeOwnerFormShareToken(token);
+    return this.rawHttp.put<ContactResponse>(`${this.commonController}owner-form/${normalized}/contact`, body || {});
+  }
+
+  upsertPublicOwnerPropertyByToken(token: string, body: PropertyRequest): Observable<PropertyResponse> {
+    const normalized = this.normalizeOwnerFormShareToken(token);
+    return this.rawHttp.put<PropertyResponse>(`${this.commonController}owner-form/${normalized}/property`, body || ({} as PropertyRequest));
   }
 
   getPublicOwnerFormUrl(
@@ -271,15 +310,9 @@ export class LeadsService {
   }
 
   sanitizeOwnerLeadResponse(row: LeadOwnerResponse): LeadOwnerResponse {
-    const source = row as unknown as Record<string, unknown>;
-    const rawOfficeId = source['officeId'] ?? source['defaultOfficeId'];
-    const parsedOfficeId = Number(rawOfficeId);
-    const normalizedOfficeId = Number.isFinite(parsedOfficeId) && parsedOfficeId > 0
-      ? parsedOfficeId
-      : row.officeId;
     return {
       ...row,
-      officeId: normalizedOfficeId,
+      officeId: Number(row.officeId),
       phone: this.sanitizePhoneToDigits(row?.phone)
     };
   }

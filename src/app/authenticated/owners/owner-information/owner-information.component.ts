@@ -6,14 +6,14 @@ import { ToastrService } from 'ngx-toastr';
 import { MaterialModule } from '../../../material.module';
 import { ContactComponent } from '../../contacts/contact/contact.component';
 import { FormatterService } from '../../../services/formatter-service';
-import { ContactService } from '../../contacts/services/contact.service';
 import { EntityType } from '../../contacts/models/contact-enum';
+import { ContactResponse } from '../../contacts/models/contact.model';
 import { LeadOwnerResponse, LeadOwnerUpdateRequest } from '../../leads/models/lead-owner.model';
 import { PublicOwnerFormResponse, PublicOwnerFormSubmitRequest } from '../../leads/models/owner-form-share.model';
-import { LeadsService } from '../../leads/services/leads.service';
 import { CommonMessage } from '../../../enums/common-message.enum';
 import { OWNER_INFORMATION_CURRENCY_CONTROL_NAMES } from '../models/owner-information.model';
 import { UtilityService } from '../../../services/utility.service';
+import { OwnersService } from '../services/owners.service';
 
 @Component({
   standalone: true,
@@ -38,6 +38,7 @@ export class OwnerInformationComponent implements OnInit, OnChanges, OnDestroy {
   additionalOwnerContactIdsByFormId: Record<number, string> = {};
   publicOwnerFormSnapshot: PublicOwnerFormResponse | null = null;
   leadOwnerSnapshot: LeadOwnerResponse | null = null;
+  publicOwnerContactCode: string | null = null;
   
   itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['owner-context']));
   destroy$ = new Subject<void>();
@@ -45,8 +46,7 @@ export class OwnerInformationComponent implements OnInit, OnChanges, OnDestroy {
   constructor(
     private fb: FormBuilder,
     private formatterService: FormatterService,
-    private leadsService: LeadsService,
-    private contactService: ContactService,
+    private ownersService: OwnersService,
     private toastr: ToastrService,
     private utilityService: UtilityService
   ) {}
@@ -62,6 +62,19 @@ export class OwnerInformationComponent implements OnInit, OnChanges, OnDestroy {
     if (changes['token'] || changes['ownerLeadId']) {
       this.itemsToLoad$.next(new Set(['owner-context']));
       this.loadOwnerContext();
+      return;
+    }
+    if (changes['selectedOfficeId'] && !changes['selectedOfficeId'].firstChange) {
+      const officeId = Number(this.selectedOfficeId);
+      const resolvedOfficeId = Number.isFinite(officeId) && officeId > 0 ? officeId : null;
+      if (this.primaryOwnerPrefill) {
+        this.primaryOwnerPrefill = {
+          ...this.primaryOwnerPrefill,
+          officeId: resolvedOfficeId
+        };
+      } else if (resolvedOfficeId != null) {
+        this.primaryOwnerPrefill = { officeId: resolvedOfficeId };
+      }
     }
   }
 
@@ -98,7 +111,7 @@ export class OwnerInformationComponent implements OnInit, OnChanges, OnDestroy {
     if (!contactId) {
       return;
     }
-    this.contactService.deleteContact(contactId).pipe(take(1), takeUntil(this.destroy$)).subscribe({
+    this.ownersService.deleteContact(contactId).pipe(take(1)).subscribe({
       next: () => {},
       error: () => {}
     });
@@ -126,6 +139,7 @@ export class OwnerInformationComponent implements OnInit, OnChanges, OnDestroy {
     this.nextAdditionalOwnerFormId = 1;
     this.publicOwnerFormSnapshot = null;
     this.leadOwnerSnapshot = null;
+    this.publicOwnerContactCode = null;
     this.ownerForm.reset(this.getDefaultOwnerFormValue());
     this.primaryOwnerPrefill = this.defaultOwnerOfficePrefill;
 
@@ -145,17 +159,12 @@ export class OwnerInformationComponent implements OnInit, OnChanges, OnDestroy {
       this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'owner-context');
       return;
     }
-    this.leadsService.getPublicOwnerFormByToken(this.token).pipe(take(1), takeUntil(this.destroy$), finalize(() => {
-      this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'owner-context');
-    })).subscribe({
+
+    this.ownersService.getPublicOwnerFormByToken(this.token).pipe(take(1),finalize(() => {this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'owner-context');})).subscribe({
       next: (response) => {
         this.publicOwnerFormSnapshot = response;
         this.applyOwnerFormResponse(response);
-        const ownerId = Number(response.ownerId);
-        if (Number.isFinite(ownerId) && ownerId > 0) {
-          this.utilityService.addLoadItem(this.itemsToLoad$, 'owner-contact');
-          this.loadPrimaryOwnerContactForLead(ownerId);
-        }
+        this.loadPublicOwnerContactByToken();
       },
       error: () => {
         this.toastr.error('Owner form was not found, expired, or unavailable.', CommonMessage.Error);
@@ -164,10 +173,12 @@ export class OwnerInformationComponent implements OnInit, OnChanges, OnDestroy {
   }
 
   loadOwnerLeadPrefill(ownerId: number): void {
-    this.leadsService.getOwnerLeadById(ownerId).pipe(take(1), takeUntil(this.destroy$), finalize(() => {
-      this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'owner-context');
-    })).subscribe({
+    this.ownersService.getOwnerByContext(null, ownerId).pipe(take(1),finalize(() => {this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'owner-context');})).subscribe({
       next: (ownerLead) => {
+        if (!ownerLead) {
+          this.toastr.error('Owner lead could not be loaded for prefill.', CommonMessage.Error);
+          return;
+        }
         this.leadOwnerSnapshot = ownerLead;
         this.applyLeadOwnerPrefill(ownerLead);
         this.utilityService.addLoadItem(this.itemsToLoad$, 'owner-contact');
@@ -180,9 +191,7 @@ export class OwnerInformationComponent implements OnInit, OnChanges, OnDestroy {
   }
 
   loadPrimaryOwnerContactForLead(ownerLeadId: number): void {
-    this.contactService.getContacts().pipe(take(1), takeUntil(this.destroy$), finalize(() => {
-      this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'owner-contact');
-    })).subscribe({
+    this.ownersService.getContacts().pipe(take(1),finalize(() => {this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'owner-contact');})).subscribe({
       next: (contacts) => {
         const ownerContacts = (contacts || []).filter(contact => Number(contact.entityTypeId) === Number(EntityType.Owner));
         const matchedContact = ownerContacts.find(contact => Number(contact.ownerLeadId) === Number(ownerLeadId));
@@ -190,6 +199,25 @@ export class OwnerInformationComponent implements OnInit, OnChanges, OnDestroy {
       },
       error: () => {
         this.primaryOwnerContactId = null;
+      }
+    });
+  }
+
+  loadPublicOwnerContactByToken(): void {
+    const token = String(this.token || '').trim();
+    if (!token) {
+      return;
+    }
+    this.utilityService.addLoadItem(this.itemsToLoad$, 'owner-contact');
+    this.ownersService.getOwnerContactByContext(token, null).pipe(take(1),finalize(() => {this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'owner-contact');})).subscribe({
+      next: contact => {
+        if (!contact) {
+          return;
+        }
+        this.applyPublicOwnerContactPrefill(contact);
+      },
+      error: () => {
+        // Keep lead-backed prefill if no owner contact exists yet.
       }
     });
   }
@@ -307,6 +335,24 @@ export class OwnerInformationComponent implements OnInit, OnChanges, OnDestroy {
     this.formatOwnerCurrencyFieldsForDisplay();
   }
 
+  applyPublicOwnerContactPrefill(contact: ContactResponse): void {
+    this.publicOwnerContactCode = String(contact.contactCode || '').trim() || null;
+    // Keep contact component in add/prefill mode for anonymous flow; it cannot load by id via auth endpoint.
+    this.primaryOwnerContactId = null;
+    this.primaryOwnerPrefill = {
+      firstName: contact.firstName ?? '',
+      lastName: contact.lastName ?? '',
+      email: contact.email ?? '',
+      phone: contact.phone ?? '',
+      address: contact.address1 ?? '',
+      city: contact.city ?? '',
+      state: contact.state ?? '',
+      zip: contact.zip ?? '',
+      officeId: Number(contact.officeId) > 0 ? Number(contact.officeId) : (this.selectedOfficeId ?? null),
+      contactCode: this.publicOwnerContactCode
+    };
+  }
+
   saveOwnerFormByToken(): void {
     if (!this.token || !this.publicOwnerFormSnapshot) {
       return;
@@ -317,10 +363,14 @@ export class OwnerInformationComponent implements OnInit, OnChanges, OnDestroy {
       ...raw
     } as PublicOwnerFormSubmitRequest);
     this.isSaving = true;
-    this.leadsService.submitPublicOwnerFormByToken(this.token, body).pipe(take(1), takeUntil(this.destroy$), finalize(() => {
+    this.ownersService.submitOwnerFormByContext(this.token, body).pipe(take(1),finalize(() => {
       this.isSaving = false;
     })).subscribe({
       next: (response) => {
+        if (!response) {
+          this.toastr.error('Unable to save owner information.', CommonMessage.Error);
+          return;
+        }
         this.publicOwnerFormSnapshot = response;
         this.applyOwnerFormResponse(response);
         this.toastr.success('Owner information saved.', CommonMessage.Success);
@@ -386,10 +436,14 @@ export class OwnerInformationComponent implements OnInit, OnChanges, OnDestroy {
       isActive: this.leadOwnerSnapshot.isActive
     };
     this.isSaving = true;
-    this.leadsService.updateOwnerLead(body).pipe(take(1), takeUntil(this.destroy$), finalize(() => {
+    this.ownersService.updateOwnerLead(body).pipe(take(1),finalize(() => {
       this.isSaving = false;
     })).subscribe({
       next: (updated) => {
+        if (!updated) {
+          this.toastr.error('Unable to save owner information.', CommonMessage.Error);
+          return;
+        }
         this.leadOwnerSnapshot = updated;
         this.applyLeadOwnerPrefill(updated);
         this.toastr.success('Owner information saved.', CommonMessage.Success);

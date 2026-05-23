@@ -14,6 +14,8 @@
         <h3>Owner 1 Information</h3>
         <app-contact
           [id]="primaryOwnerContactId || 'new'"
+          [publicOwnerToken]="token || null"
+          [publicReadOnlyContactCode]="publicOwnerContactCode"
           [presetEntityTypeId]="ownerEntityTypeId"
           [ownerLeadId]="resolvedOwnerLeadId"
           [prefillContact]="primaryOwnerPrefill"

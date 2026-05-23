@@ -65,6 +65,7 @@ export class ContactListComponent implements OnInit, OnDestroy, OnChanges {
   hasInitialLoad: boolean = false;
   canEditIsActiveCheckbox = false;
   isInOwnerMode = false;
+  isOwnerAdmin = false;
   private readonly baseColumns: ColumnSet = {
     'contactCode': { displayAs: 'Code', maxWidth: '15ch', sortType: 'natural' },
     'companyName': { displayAs: 'Company', maxWidth: '30ch' },
@@ -108,6 +109,7 @@ export class ContactListComponent implements OnInit, OnDestroy, OnChanges {
   ngOnInit(): void {
     this.user = this.authService.getUser();
     this.isAdmin = this.authService.isAdmin();
+    this.isOwnerAdmin = this.authService.isOwnerAdmin();
     this.setIsActiveCheckboxEditability();
     this.organizationId = this.user?.organizationId?.trim() ?? '';
     this.preferredOfficeId = this.user?.defaultOfficeId ?? null;

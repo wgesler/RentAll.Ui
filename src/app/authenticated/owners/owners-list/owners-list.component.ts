@@ -2,7 +2,7 @@ import { CommonModule } from '@angular/common';
 import { Component, input } from '@angular/core';
 import { Router } from '@angular/router';
 import { ToastrService } from 'ngx-toastr';
-import { switchMap, take } from 'rxjs';
+import { map, of, switchMap, take } from 'rxjs';
 import { MaterialModule } from '../../../material.module';
 import { RouterUrl } from '../../../app.routes';
 import { CommonMessage } from '../../../enums/common-message.enum';
@@ -11,18 +11,16 @@ import { ContactComponent } from '../../contacts/contact/contact.component';
 import { ContactListComponent } from '../../contacts/contact-list/contact-list.component';
 import { EntityType } from '../../contacts/models/contact-enum';
 import { ContactRequest, ContactResponse } from '../../contacts/models/contact.model';
-import { ContactService } from '../../contacts/services/contact.service';
 import { LeadStateType } from '../../leads/models/lead-enums';
 import { LeadOwnerRequest } from '../../leads/models/lead-owner.model';
 import { OwnerComponent } from '../../leads/owner/owner.component';
 import { OwnerEditSelection } from '../../leads/owner-list/owner-list.component';
-import { OwnerListComponent } from '../../leads/owner-list/owner-list.component';
-import { LeadsService } from '../../leads/services/leads.service';
+import { OwnersService } from '../services/owners.service';
 
 @Component({
   standalone: true,
   selector: 'app-owners-list',
-  imports: [CommonModule, MaterialModule, OwnerListComponent, ContactListComponent, OwnerComponent, ContactComponent],
+  imports: [CommonModule, MaterialModule, ContactListComponent, OwnerComponent, ContactComponent],
   templateUrl: './owners-list.component.html',
   styleUrl: './owners-list.component.scss'
 })
@@ -38,8 +36,7 @@ export class OwnersListComponent {
 
   constructor(
     private router: Router,
-    private contactService: ContactService,
-    private leadsService: LeadsService,
+    private ownersService: OwnersService,
     private mappingService: MappingService,
     private toastr: ToastrService
   ) {}
@@ -100,24 +97,39 @@ export class OwnersListComponent {
       return;
     }
 
-    this.contactService.getContactByGuid(contactId).pipe(
+    this.ownersService.getContactByGuid(contactId).pipe(
       take(1),
-      switchMap(contact => this.leadsService.createOwnerLead(this.buildOwnerLeadCreateRequestFromContact(contact)).pipe(
-        take(1),
-        switchMap(createdLead => this.contactService.updateContact(this.buildContactUpdateRequestWithOwnerLeadId(contact, createdLead.ownerId)).pipe(
+      switchMap(contact => {
+        if (!contact) {
+          return of(null);
+        }
+        return this.ownersService.createOwnerLead(this.buildOwnerLeadCreateRequestFromContact(contact)).pipe(
           take(1),
-          switchMap(() => this.contactService.refreshContacts().pipe(take(1))),
-          switchMap(() => {
-            const contactOfficeId = Number(contact.officeId);
-            if (Number.isFinite(contactOfficeId) && contactOfficeId > 0) {
-              return this.router.navigateByUrl(`${RouterUrl.OwnerShell}?leadOwnerId=${createdLead.ownerId}&officeId=${contactOfficeId}`);
+          switchMap(createdLead => {
+            if (!createdLead) {
+              return of(null);
             }
-            return this.router.navigateByUrl(`${RouterUrl.OwnerShell}?leadOwnerId=${createdLead.ownerId}`);
+            return this.ownersService.updateContact(this.buildContactUpdateRequestWithOwnerLeadId(contact, createdLead.ownerId)).pipe(
+              take(1),
+              switchMap(() => this.ownersService.refreshContacts().pipe(take(1))),
+              map(() => ({ contact, createdLead }))
+            );
           })
-        ))
-      ))
+        );
+      })
     ).subscribe({
-      next: () => {},
+      next: result => {
+        if (!result) {
+          void this.router.navigateByUrl(RouterUrl.OwnerShell);
+          return;
+        }
+        const contactOfficeId = Number(result.contact.officeId);
+        if (Number.isFinite(contactOfficeId) && contactOfficeId > 0) {
+          void this.router.navigateByUrl(`${RouterUrl.OwnerShell}?leadOwnerId=${result.createdLead.ownerId}&officeId=${contactOfficeId}`);
+          return;
+        }
+        void this.router.navigateByUrl(`${RouterUrl.OwnerShell}?leadOwnerId=${result.createdLead.ownerId}`);
+      },
       error: () => {
         this.toastr.error('Unable to create owner lead from contact.', CommonMessage.Error);
         void this.router.navigateByUrl(RouterUrl.OwnerShell);

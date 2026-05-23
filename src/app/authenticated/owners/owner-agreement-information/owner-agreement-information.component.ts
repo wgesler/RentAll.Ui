@@ -8,8 +8,8 @@ import { CommonMessage } from '../../../enums/common-message.enum';
 import { MaterialModule } from '../../../material.module';
 import { AuthService } from '../../../services/auth.service';
 import { UtilityService } from '../../../services/utility.service';
-import { LeadsService } from '../../leads/services/leads.service';
 import { OwnerAgreementInformationRequest, OwnerAgreementInformationResponse } from '../models/owner-agreement-information.model';
+import { OwnersService } from '../services/owners.service';
 
 type AgreementInfoScopeOption = 'organization' | 'office' | 'property';
 
@@ -34,7 +34,7 @@ export class OwnerAgreementInformationComponent implements OnInit, OnChanges, On
 
   constructor(
     private fb: FormBuilder,
-    private leadsService: LeadsService,
+    private ownersService: OwnersService,
     private authService: AuthService,
     private toastr: ToastrService,
     private utilityService: UtilityService
@@ -69,10 +69,10 @@ export class OwnerAgreementInformationComponent implements OnInit, OnChanges, On
       return;
     }
 
-    this.leadsService.getAgreementInformation(scope.officeId, scope.propertyId).pipe(take(1), takeUntil(this.destroy$), finalize(() => {
+    this.ownersService.getAgreementInformationByContext(null, scope.officeId, scope.propertyId).pipe(take(1),finalize(() => {
       this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'ownerAgreementInformation');
     })).subscribe({
-      next: (response: OwnerAgreementInformationResponse) => {
+      next: (response: OwnerAgreementInformationResponse | null) => {
         if (response) {
           this.agreementInformation = response;
           this.populateForm(response);
@@ -144,13 +144,16 @@ export class OwnerAgreementInformationComponent implements OnInit, OnChanges, On
     };
 
     const saveOperation = this.agreementInformation?.ownerAgreementInformationId
-      ? this.leadsService.updateOwnerAgreementInformation(request)
-      : this.leadsService.createOwnerAgreementInformation(request);
+      ? this.ownersService.updateOwnerAgreementInformation(request)
+      : this.ownersService.createOwnerAgreementInformation(request);
 
-    saveOperation.pipe(take(1), takeUntil(this.destroy$), finalize(() => {
+    saveOperation.pipe(take(1),finalize(() => {
       this.isSubmitting = false;
     })).subscribe({
-      next: (response: OwnerAgreementInformationResponse) => {
+      next: (response: OwnerAgreementInformationResponse | null) => {
+        if (!response) {
+          return;
+        }
         this.agreementInformation = response;
         this.toastr.success('Agreement information saved successfully', CommonMessage.Success);
       },
