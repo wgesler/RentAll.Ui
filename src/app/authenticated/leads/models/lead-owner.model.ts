@@ -44,6 +44,7 @@ export interface LeadOwnerRequest {
   tellUsAnyDrawbacks: string | null;
   preferredContactMethod: string | null;
   timeDateForContact: string | null;
+  notes: string | null;
   emailPhoneConsent: boolean;
   smsConsent: boolean;
   isActive: boolean;
@@ -99,6 +100,12 @@ export interface LeadOwnerResponse {
   tellUsAnyDrawbacks: string | null;
   preferredContactMethod: string | null;
   timeDateForContact: string | null;
+  notes: string | null;
+  createdOn: string | null;
+  createdBy: string | null;
+  modifiedOn: string | null;
+  modifiedBy: string | null;
+  modifiedByName: string | null;
   emailPhoneConsent: boolean;
   smsConsent: boolean;
   isActive: boolean;

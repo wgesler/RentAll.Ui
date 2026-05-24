@@ -8,6 +8,7 @@ export interface LeadGeneralRequest {
   email: string | null;
   phone: string | null;
   message: string | null;
+  notes: string | null;
   isActive: boolean;
 }
 
@@ -25,6 +26,12 @@ export interface LeadGeneralResponse {
   email: string | null;
   phone: string | null;
   message: string | null;
+  notes: string | null;
+  createdOn: string | null;
+  createdBy: string | null;
+  modifiedOn: string | null;
+  modifiedBy: string | null;
+  modifiedByName: string | null;
   isActive: boolean;
 }
 

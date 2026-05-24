@@ -23,6 +23,7 @@ export interface LeadRentalRequest {
   decisionDate: string | null;
   organizationName: string | null;
   additionalInformation: string | null;
+  notes: string | null;
   quotePath: string | null;
   iNeedAsap: boolean;
   emailPhoneConsent: boolean;
@@ -54,6 +55,12 @@ export interface LeadRentalResponse {
   decisionDate: string | null;
   organizationName: string | null;
   additionalInformation: string | null;
+  notes: string | null;
+  createdOn: string | null;
+  createdBy: string | null;
+  modifiedOn: string | null;
+  modifiedBy: string | null;
+  modifiedByName: string | null;
   quotePath: string | null;
   iNeedAsap: boolean;
   emailPhoneConsent: boolean;

@@ -207,6 +207,7 @@ export class OwnerComponent implements OnInit, OnDestroy {
       tellUsAnyDrawbacks: this.utilityService.trimOrNull(v.tellUsAnyDrawbacks),
       preferredContactMethod: this.utilityService.trimOrNull(v.preferredContactMethod),
       timeDateForContact: this.utilityService.trimOrNull(v.timeDateForContact),
+      notes: this.utilityService.trimOrNull(v.notes),
       emailPhoneConsent: !!v.emailPhoneConsent,
       smsConsent: !!v.smsConsent,
       isActive: !!v.isActive
@@ -348,6 +349,7 @@ export class OwnerComponent implements OnInit, OnDestroy {
       tellUsAnyDrawbacks: [''],
       preferredContactMethod: [''],
       timeDateForContact: [''],
+      notes: [''],
       emailPhoneConsent: [false],
       smsConsent: [false],
       isActive: [true]
@@ -385,6 +387,7 @@ export class OwnerComponent implements OnInit, OnDestroy {
       tellUsAnyDrawbacks: '',
       preferredContactMethod: '',
       timeDateForContact: '',
+      notes: '',
       emailPhoneConsent: false,
       smsConsent: false,
       isActive: true
@@ -425,6 +428,7 @@ export class OwnerComponent implements OnInit, OnDestroy {
       tellUsAnyDrawbacks: lead.tellUsAnyDrawbacks ?? '',
       preferredContactMethod: lead.preferredContactMethod ?? '',
       timeDateForContact: lead.timeDateForContact ?? '',
+      notes: lead.notes ?? '',
       emailPhoneConsent: !!lead.emailPhoneConsent,
       smsConsent: !!lead.smsConsent,
       isActive: !!lead.isActive

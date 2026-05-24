@@ -135,6 +135,7 @@ export class GeneralComponent implements OnInit, OnDestroy {
       email: this.utilityService.trimOrNull(v.email),
       phone: this.utilityService.trimOrNull(v.phone),
       message: this.utilityService.trimOrNull(v.message),
+      notes: this.utilityService.trimOrNull(v.notes),
       isActive: !!v.isActive
     };
     this.isSavingGeneralLead = true;
@@ -189,6 +190,7 @@ export class GeneralComponent implements OnInit, OnDestroy {
       email: ['', [Validators.required, Validators.email]],
       phone: ['', Validators.required],
       message: ['', Validators.required],
+      notes: [''],
       isActive: [true]
     });
   }
@@ -201,6 +203,7 @@ export class GeneralComponent implements OnInit, OnDestroy {
       email: '',
       phone: '',
       message: '',
+      notes: '',
       isActive: true
     });
   }
@@ -213,6 +216,7 @@ export class GeneralComponent implements OnInit, OnDestroy {
       email: lead.email ?? '',
       phone: this.formatterService.phoneNumber(lead.phone || '') || '',
       message: lead.message ?? '',
+      notes: lead.notes ?? '',
       isActive: !!lead.isActive
     });
   }

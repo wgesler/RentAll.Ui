@@ -58,6 +58,7 @@ export class OwnerListComponent implements OnInit, OnChanges, OnDestroy {
     fullName: { displayAs: 'Name', maxWidth: '25ch', wrap: false },
     email: { displayAs: 'Email', maxWidth: '30ch', wrap: false },
     phone: { displayAs: 'Phone', maxWidth: '20ch', wrap: false },
+    modifiedOn: { displayAs: 'Modified On', maxWidth: '22ch', wrap: false, alignment: 'center' },
     leadStateDropdown: { displayAs: 'Status', wrap: false, maxWidth: '20ch', sort: false, options: LEAD_STATE_SELECT_OPTIONS.map(o => o.label) },
     isActive: { displayAs: 'IsActive', isCheckbox: true, checkboxEditable: true, sort: false, wrap: false, alignment: 'center', maxWidth: '12ch' }
   };

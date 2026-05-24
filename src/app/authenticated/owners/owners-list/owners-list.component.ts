@@ -180,6 +180,7 @@ export class OwnersListComponent {
       tellUsAnyDrawbacks: null,
       preferredContactMethod: null,
       timeDateForContact: null,
+      notes: null,
       emailPhoneConsent: false,
       smsConsent: false,
       isActive: false

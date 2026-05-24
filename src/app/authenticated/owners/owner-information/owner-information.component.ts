@@ -431,6 +431,7 @@ export class OwnerInformationComponent implements OnInit, OnChanges, OnDestroy {
       tellUsAnyDrawbacks: v.tellUsAnyDrawbacks ?? null,
       preferredContactMethod: v.preferredContactMethod ?? null,
       timeDateForContact: v.timeDateForContact ?? null,
+      notes: this.leadOwnerSnapshot.notes ?? null,
       emailPhoneConsent: !!v.emailPhoneConsent,
       smsConsent: !!v.smsConsent,
       isActive: this.leadOwnerSnapshot.isActive

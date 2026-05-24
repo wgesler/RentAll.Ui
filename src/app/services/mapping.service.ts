@@ -657,9 +657,15 @@ export class MappingService {
     const stateLabel = formatLeadStateLabel(lead.leadStateId);
     const fullName = [lead.firstName, lead.lastName].map(part => String(part || '').trim()).filter(part => part !== '').join(' ') || '—';
     const phone = this.formatter.phoneNumber(lead.phone || '') || null;
+    const createdOn = this.formatter.formatDateTimeString(lead.createdOn) || (lead.createdOn ?? '');
+    const modifiedOn = this.formatter.formatDateTimeString(lead.modifiedOn) || (lead.modifiedOn ?? '');
+    const modifiedByName = String(lead.modifiedByName ?? '').trim() || (lead.modifiedBy ?? '');
     return {
       ...lead,
       phone,
+      createdOn,
+      modifiedOn,
+      modifiedByName,
       quotePath: lead.quotePath ?? null,
       fullName,
       leadAttentionDot: '',
@@ -679,9 +685,15 @@ export class MappingService {
     const stateLabel = formatLeadStateLabel(lead.leadStateId);
     const fullName = [lead.firstName, lead.lastName].map(part => String(part || '').trim()).filter(part => part !== '').join(' ') || '—';
     const phone = this.formatter.phoneNumber(lead.phone || '') || null;
+    const createdOn = this.formatter.formatDateTimeString(lead.createdOn) || (lead.createdOn ?? '');
+    const modifiedOn = this.formatter.formatDateTimeString(lead.modifiedOn) || (lead.modifiedOn ?? '');
+    const modifiedByName = String(lead.modifiedByName ?? '').trim() || (lead.modifiedBy ?? '');
     return {
       ...lead,
       phone,
+      createdOn,
+      modifiedOn,
+      modifiedByName,
       fullName,
       leadAttentionDot: '',
       messagePreview,
@@ -725,6 +737,7 @@ export class MappingService {
       decisionDate: null,
       organizationName: null,
       additionalInformation: this.utility.trimOrNull(lead.message),
+      notes: null,
       quotePath: null,
       iNeedAsap: false,
       emailPhoneConsent: false,
@@ -765,6 +778,7 @@ export class MappingService {
       tellUsAnyDrawbacks: null,
       preferredContactMethod: null,
       timeDateForContact: null,
+      notes: null,
       emailPhoneConsent: false,
       smsConsent: false,
       isActive: lead.isActive
@@ -775,9 +789,15 @@ export class MappingService {
     const stateLabel = formatLeadStateLabel(lead.leadStateId);
     const fullName = [lead.firstName, lead.lastName].map(part => String(part || '').trim()).filter(part => part !== '').join(' ') || '—';
     const phone = this.formatter.phoneNumber(lead.phone || '') || null;
+    const createdOn = this.formatter.formatDateTimeString(lead.createdOn) || (lead.createdOn ?? '');
+    const modifiedOn = this.formatter.formatDateTimeString(lead.modifiedOn) || (lead.modifiedOn ?? '');
+    const modifiedByName = String(lead.modifiedByName ?? '').trim() || (lead.modifiedBy ?? '');
     return {
       ...lead,
       phone,
+      createdOn,
+      modifiedOn,
+      modifiedByName,
       fullName,
       leadAttentionDot: '',
       leadStateDropdown: {
@@ -825,6 +845,7 @@ export class MappingService {
       decisionDate: lead.decisionDate,
       organizationName: lead.organizationName,
       additionalInformation: lead.additionalInformation,
+      notes: lead.notes,
       quotePath: quotePathOverride ?? lead.quotePath ?? null,
       iNeedAsap: lead.iNeedAsap ?? false,
       emailPhoneConsent: lead.emailPhoneConsent ?? false,
@@ -889,6 +910,7 @@ export class MappingService {
       tellUsAnyDrawbacks: lead.tellUsAnyDrawbacks,
       preferredContactMethod: lead.preferredContactMethod,
       timeDateForContact: lead.timeDateForContact,
+      notes: lead.notes,
       emailPhoneConsent: lead.emailPhoneConsent ?? false,
       smsConsent: lead.smsConsent ?? false,
       isActive: lead.isActive ?? false
