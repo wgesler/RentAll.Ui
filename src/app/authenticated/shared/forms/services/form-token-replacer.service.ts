@@ -16,7 +16,7 @@ export class FormTokenReplacerService {
 
     let content = String(html || '');
     Object.entries(expanded).forEach(([token, value]) => {
-      const pattern = new RegExp(`\\{\\{\\s*${this.escapeRegExp(token)}\\s*\\}\\}`, 'g');
+      const pattern = new RegExp(`\\{\\{\\s*${this.escapeRegExp(token)}\\s*\\}\\}`, 'gi');
       content = content.replace(pattern, value);
     });
 

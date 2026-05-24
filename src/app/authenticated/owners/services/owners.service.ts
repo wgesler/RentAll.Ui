@@ -288,16 +288,26 @@ export class OwnersService {
     return this.leadsService.getPublicOwnerOfficesByToken(normalizedToken).pipe(catchError(() => of([])));
   }
 
-  getPublicOwnerStateFormsByToken(token: string): Observable<StateFormResponse[]> {
-    const normalizedToken = this.normalizeToken(token);
-    if (!normalizedToken) {
-      return of([]);
-    }
-    return this.leadsService.getPublicOwnerFormStateFormsByToken(normalizedToken).pipe(catchError(() => of([])));
+  getPublicOwnerStateFormsByToken(token: string, organizationId?: string | null): Observable<StateFormResponse[]> {
+    return this.getStateFormsByContext(token, null, organizationId);
   }
 
   getStateForms(stateCode: string): Observable<StateFormResponse[]> {
-    return this.stateFormService.getStateForms(stateCode).pipe(catchError(() => of([])));
+    return this.getStateFormsByContext(null, stateCode, null);
+  }
+
+  getStateFormsByContext(token: string | null | undefined, stateCode: string | null | undefined, organizationId?: string | null): Observable<StateFormResponse[]> {
+    const normalizedToken = this.normalizeToken(token);
+    if (normalizedToken) {
+      const normalizedOrganizationId = String(organizationId || '').trim();
+      return this.leadsService.getPublicOwnerFormStateFormsByToken(normalizedToken, stateCode, normalizedOrganizationId).pipe(catchError(() => of([])));
+    }
+
+    const normalizedStateCode = String(stateCode || '').trim().toUpperCase();
+    if (normalizedStateCode.length !== 2) {
+      return of([]);
+    }
+    return this.stateFormService.getStateForms(normalizedStateCode).pipe(catchError(() => of([])));
   }
 
   ensureOfficesLoaded(organizationId: string): Observable<OfficeResponse[]> {

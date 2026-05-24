@@ -122,9 +122,19 @@ export class LeadsService {
     return this.rawHttp.put<PublicOwnerFormResponse>(`${this.commonController}owner-form/${normalized}`, body);
   }
 
-  getPublicOwnerFormStateFormsByToken(token: string): Observable<StateFormResponse[]> {
+  getPublicOwnerFormStateFormsByToken(token: string, stateCode?: string | null, organizationId?: string | null): Observable<StateFormResponse[]> {
     const normalized = this.normalizeOwnerFormShareToken(token);
-    return this.rawHttp.get<StateFormResponse[]>(`${this.commonController}owner-form/${normalized}/stateforms`);
+    const normalizedStateCode = String(stateCode || '').trim().toUpperCase();
+    const normalizedOrganizationId = String(organizationId || '').trim();
+    const queryParams: string[] = [];
+    if (normalizedOrganizationId) {
+      queryParams.push(`organizationId=${encodeURIComponent(normalizedOrganizationId)}`);
+    }
+    const query = queryParams.length > 0 ? `?${queryParams.join('&')}` : '';
+    const endpoint = normalizedStateCode.length === 2
+      ? `${this.commonController}owner-form/${normalized}/stateforms/${encodeURIComponent(normalizedStateCode)}${query}`
+      : `${this.commonController}owner-form/${normalized}/stateforms${query}`;
+    return this.rawHttp.get<StateFormResponse[]>(endpoint);
   }
 
   getPublicOwnerLeadByToken(token: string): Observable<LeadOwnerResponse> {

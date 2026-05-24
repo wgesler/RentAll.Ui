@@ -77,9 +77,22 @@
     }
 
     .line {
+      position: relative;
       flex: 1;
-      border-bottom: 1px solid #000;
       min-height: 18px;
+      margin-bottom: 1pt;
+      padding: 0 4px 1pt 4px;
+      border-radius: 5px;
+      background: rgba(37, 99, 235, 0.14);
+    }
+
+    .line::after {
+      content: "";
+      position: absolute;
+      left: 0;
+      right: 0;
+      bottom: -1pt;
+      border-bottom: 1pt solid #000;
     }
 
     .authorization-text {

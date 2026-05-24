@@ -94,7 +94,7 @@ export class OwnerAgreementFormComponent extends BaseDocumentComponent implement
     }
     const isChecked = marker.getAttribute('data-checked') === 'true';
     marker.setAttribute('data-checked', isChecked ? 'false' : 'true');
-    marker.textContent = isChecked ? '' : 'X';
+    marker.textContent = '';
     event.preventDefault();
     event.stopPropagation();
   };
@@ -354,6 +354,7 @@ export class OwnerAgreementFormComponent extends BaseDocumentComponent implement
           return;
         }
         this.leadOwner = response;
+        this.tryLoadPropertyByLeadOwnerCode();
       },
       error: () => {
         this.leadOwner = null;
@@ -450,6 +451,7 @@ export class OwnerAgreementFormComponent extends BaseDocumentComponent implement
       this.propertyAgreement = null;
       this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'property');
       this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'propertyAgreement');
+      this.tryLoadPropertyByLeadOwnerCode();
       return;
     }
     this.ownersService.getPropertyByContext(this.token, this.propertyId).pipe(take(1),finalize(() => {
@@ -473,6 +475,60 @@ export class OwnerAgreementFormComponent extends BaseDocumentComponent implement
         this.propertyAgreement = null;
         this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'propertyAgreement');
       }
+    });
+  }
+
+  private tryLoadPropertyByLeadOwnerCode(): void {
+    if (this.isPublicTokenMode()) {
+      return;
+    }
+    if (this.selectedProperty) {
+      return;
+    }
+    const leadOwnerId = Number(this.ownerLeadId);
+    if (!Number.isFinite(leadOwnerId) || leadOwnerId <= 0) {
+      return;
+    }
+    const targetPropertyCode = String(this.leadOwner?.propertyCode || '').trim().toUpperCase();
+    if (!targetPropertyCode) {
+      return;
+    }
+
+    this.ownersService.ensureContactsLoaded().pipe(take(1)).subscribe({
+      next: contacts => {
+        const ownerContact = (contacts || []).find(contact =>
+          Number(contact.entityTypeId) === Number(EntityType.Owner) &&
+          Number(contact.ownerLeadId) === leadOwnerId
+        );
+        const ownerContactId = String(ownerContact?.contactId || '').trim();
+        if (!ownerContactId) {
+          return;
+        }
+        this.ownersService.getPropertiesByOwner(ownerContactId).pipe(take(1)).subscribe({
+          next: properties => {
+            const matching = (properties || []).find(property =>
+              String(property.propertyCode || '').trim().toUpperCase() === targetPropertyCode
+            );
+            const matchedPropertyId = String(matching?.propertyId || '').trim();
+            if (!matchedPropertyId || matchedPropertyId === 'new') {
+              return;
+            }
+            this.ownersService.getPropertyByContext(null, matchedPropertyId).pipe(take(1)).subscribe({
+              next: property => {
+                if (!property) {
+                  return;
+                }
+                this.selectedProperty = property;
+                this.utilityService.addLoadItem(this.itemsToLoad$, 'propertyAgreement');
+                this.loadPropertyAgreement();
+              },
+              error: () => {}
+            });
+          },
+          error: () => {}
+        });
+      },
+      error: () => {}
     });
   }
 
@@ -619,7 +675,17 @@ export class OwnerAgreementFormComponent extends BaseDocumentComponent implement
     const ownerState = this.getOwnerState();
     const monthlyRent = this.getMonthlyRent();
     const ownerAddressSingleLine = this.composeAddress(this.ownerContact);
-    const propertyAddressSingleLine = this.composeAddress(this.selectedProperty);
+    const leadOwnerPropertyAddressSingleLine = this.composeAddress({
+      address1: this.leadOwner?.address || '',
+      address2: '',
+      city: this.leadOwner?.city || '',
+      state: this.leadOwner?.state || '',
+      zip: this.leadOwner?.zip || ''
+    });
+    const propertyAddressSingleLine =
+      this.composeAddress(this.selectedProperty)
+      || leadOwnerPropertyAddressSingleLine
+      || String(this.leadOwner?.locationOfProperty || '').trim();
     const companyAddressSingleLine = this.getCompanyAddress();
     const accountingOfficeAddressSingleLine = this.getAccountingOfficeAddress();
     const ownerAddressLines = this.getOwnerAddressLines();
@@ -640,7 +706,7 @@ export class OwnerAgreementFormComponent extends BaseDocumentComponent implement
       companyAddress1: this.getCompanyAddress1(),
       companyAddress2: this.getCompanyAddress2(),
       'organization-office': this.getOrganizationOfficeDisplay(),
-      propertyCode: this.selectedProperty?.propertyCode || '',
+      propertyCode: String(this.selectedProperty?.propertyCode || this.leadOwner?.propertyCode || '').trim(),
       organizationState: this.organization?.state || '',
       accountingOfficeAddress: this.getAccountingOfficeAddress(),
       accountingOfficeAddressSingleLine,
@@ -717,20 +783,72 @@ export class OwnerAgreementFormComponent extends BaseDocumentComponent implement
     if (!editDoc || !editHost) {
       return;
     }
+    const isDirectDepositEditor = this.resolveTemplateTypeForLookup(this.templateAssetPath) === 'directDeposit';
+    this.ensureEditableFieldStyles(editDoc);
     editHost.setAttribute('contenteditable', 'false');
     const staticEditableNodes = Array.from(editHost.querySelectorAll('[contenteditable]')) as HTMLElement[];
     staticEditableNodes.forEach(node => node.setAttribute('contenteditable', 'false'));
 
     // Keep static form text read-only; only unlock fillable fields/underlines.
     const fillableRegions = Array.from(
-      editHost.querySelectorAll('.line, .inline-underline-fill, [data-fillable="true"]')
+      editHost.querySelectorAll(
+        [
+          '.line',
+          '.inline-underline-fill',
+          '.signature-line',
+          '.signature-entry',
+          '.form-line',
+          '.field-line',
+          '.fill-line',
+          '.fill-field',
+          '[data-fillable="true"]',
+          '[class*="underline"]'
+        ].join(', ')
+      )
     ) as HTMLElement[];
+
+    const borderBottomCandidates = Array.from(editHost.querySelectorAll('span, div')) as HTMLElement[];
+    borderBottomCandidates.forEach(candidate => {
+      if (candidate.querySelector('input, textarea, select, button')) {
+        return;
+      }
+      const computed = editDoc.defaultView?.getComputedStyle(candidate);
+      if (!computed) {
+        return;
+      }
+      const borderBottomWidth = Number.parseFloat(computed.borderBottomWidth || '0');
+      const hasBorderBottom = computed.borderBottomStyle !== 'none' && Number.isFinite(borderBottomWidth) && borderBottomWidth > 0;
+      if (!hasBorderBottom) {
+        return;
+      }
+      if (!fillableRegions.includes(candidate)) {
+        fillableRegions.push(candidate);
+      }
+    });
+
     fillableRegions.forEach(region => {
       if (region.querySelector('input, textarea, select, button')) {
         return;
       }
+      // Keep top agreement info boxes read-only.
+      if (region.closest('#container .border, .top-info-lines, .top-info-line')) {
+        return;
+      }
+      if (isDirectDepositEditor) {
+        // Direct-deposit has wrapper signature blocks; keep only actual lines editable.
+        const nestedFillTarget = region.querySelector(
+          '.line, .inline-underline-fill, .signature-line, .signature-entry, .form-line, .field-line, .fill-line, .fill-field, [data-fillable="true"]'
+        );
+        if (nestedFillTarget && nestedFillTarget !== region) {
+          return;
+        }
+      }
       region.setAttribute('contenteditable', 'true');
       region.setAttribute('spellcheck', 'false');
+      region.classList.add('owner-editable-field');
+      if (!region.hasAttribute('tabindex')) {
+        region.setAttribute('tabindex', '0');
+      }
     });
 
     const controls = Array.from(editHost.querySelectorAll('input, textarea, select, option, button, label'));
@@ -742,6 +860,7 @@ export class OwnerAgreementFormComponent extends BaseDocumentComponent implement
       if (control.hasAttribute('disabled')) {
         control.removeAttribute('disabled');
       }
+      control.classList.add('owner-editable-control');
       if (control instanceof HTMLInputElement || control instanceof HTMLTextAreaElement) {
         control.readOnly = false;
         if (control.hasAttribute('readonly')) {
@@ -757,6 +876,7 @@ export class OwnerAgreementFormComponent extends BaseDocumentComponent implement
       marker.style.userSelect = 'none';
       const hasValue = String(marker.textContent || '').trim().length > 0;
       marker.setAttribute('data-checked', hasValue ? 'true' : 'false');
+      marker.textContent = '';
     });
     if (!editHost.dataset['checkboxToggleBound']) {
       editHost.addEventListener('click', this.onEditHostClick);
@@ -777,6 +897,138 @@ export class OwnerAgreementFormComponent extends BaseDocumentComponent implement
       iframeDocWindow.onbeforeunload = null;
       iframeDocWindow.onunload = null;
     }
+  }
+
+  private ensureEditableFieldStyles(editDoc: Document): void {
+    const styleId = 'owner-editable-field-style';
+    if (editDoc.getElementById(styleId)) {
+      return;
+    }
+    const style = editDoc.createElement('style');
+    style.id = styleId;
+    style.textContent = `
+      .owner-editable-field {
+        position: relative;
+        border-radius: 4px !important;
+        background-clip: padding-box;
+        padding: 0 4px 1pt 4px;
+        margin-bottom: 1pt;
+        background-color: rgba(37, 99, 235, 0.14);
+        transition: outline-color 120ms ease, background-color 120ms ease, box-shadow 120ms ease;
+        cursor: text;
+      }
+      .owner-editable-field::after {
+        content: "";
+        position: absolute;
+        left: 0;
+        right: 0;
+        bottom: -1pt;
+        border-bottom: 1pt solid #000;
+        pointer-events: none;
+      }
+      .owner-editable-field:hover {
+        outline: 1px solid #90caf9;
+        outline-offset: 1px;
+        background-color: rgba(33, 150, 243, 0.06);
+      }
+      .owner-editable-field:focus {
+        outline: 1px solid #1976d2 !important;
+        outline-offset: 1px;
+        background-color: rgba(25, 118, 210, 0.10);
+        box-shadow: 0 0 0 1px rgba(25, 118, 210, 0.25);
+      }
+      .owner-editable-control {
+        border-radius: 4px !important;
+        background-clip: padding-box;
+        background:
+          linear-gradient(#000, #000) left calc(100% - 0pt) / 100% 1pt no-repeat,
+          rgba(37, 99, 235, 0.14);
+        padding: 0 4px 1pt 4px;
+        margin-bottom: 1pt;
+        transition: outline-color 120ms ease, background-color 120ms ease, box-shadow 120ms ease;
+      }
+      .owner-editable-control:hover {
+        outline: 1px solid #90caf9;
+        outline-offset: 1px;
+        background-color: rgba(33, 150, 243, 0.06);
+      }
+      .owner-editable-control:focus {
+        outline: 1px solid #1976d2 !important;
+        outline-offset: 1px;
+        background-color: rgba(25, 118, 210, 0.10);
+        box-shadow: 0 0 0 1px rgba(25, 118, 210, 0.25);
+      }
+      .owner-editable-control[type="radio"],
+      .owner-editable-control[type="checkbox"] {
+        appearance: none !important;
+        -webkit-appearance: none !important;
+        width: 14px;
+        height: 14px;
+        min-width: 14px;
+        min-height: 14px;
+        border: 1px solid #000;
+        border-radius: 0 !important;
+        background: #fff !important;
+        background-image: none !important;
+        padding: 0 !important;
+        margin: 0 2px 0 0 !important;
+        box-shadow: none !important;
+        position: relative;
+        transform: translateY(1px);
+      }
+      .owner-editable-control[type="radio"]::after,
+      .owner-editable-control[type="checkbox"]::after {
+        content: "";
+      }
+      .owner-editable-control[type="radio"]:checked::after,
+      .owner-editable-control[type="checkbox"]:checked::after {
+        content: "X";
+        position: absolute;
+        left: 0;
+        top: 0;
+        width: 100%;
+        height: 100%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        transform: none;
+        font-size: 10px;
+        line-height: 1;
+        font-weight: 700;
+        color: #000;
+      }
+      span.checkbox {
+        position: relative;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 12px;
+        height: 12px;
+        border: 1px solid #000;
+        border-radius: 0;
+        background: #fff;
+        vertical-align: middle;
+        margin-right: 4px;
+      }
+      span.checkbox[data-checked="true"]::after {
+        content: "X";
+        position: absolute;
+        left: 0;
+        top: 0;
+        width: 100%;
+        height: 100%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        transform: none;
+        font-size: 10px;
+        line-height: 1;
+        font-weight: 700;
+        color: #000;
+        pointer-events: none;
+      }
+    `;
+    editDoc.head?.appendChild(style);
   }
   //#endregion
 
@@ -1002,7 +1254,7 @@ export class OwnerAgreementFormComponent extends BaseDocumentComponent implement
   replaceChoiceControlWithMarker(control: HTMLElement, isChecked: boolean, sourceWidth: number, sourceHeight: number): void {
     const marker = control.ownerDocument.createElement('span');
     marker.className = control.className || '';
-    marker.textContent = isChecked ? '☑' : '☐';
+    marker.textContent = isChecked ? '☒' : '☐';
     marker.style.display = 'inline-flex';
     marker.style.alignItems = 'center';
     marker.style.justifyContent = 'center';
@@ -1364,6 +1616,20 @@ export class OwnerAgreementFormComponent extends BaseDocumentComponent implement
 
   getPropertyAddressLines(): { address1: string; address2: string } {
     if (!this.selectedProperty) {
+      const leadOwnerAddress = this.buildAddressLines(
+        this.leadOwner?.address || '',
+        '',
+        this.leadOwner?.city || '',
+        this.leadOwner?.state || '',
+        this.leadOwner?.zip || ''
+      );
+      if (String(leadOwnerAddress.address1 || '').trim() || String(leadOwnerAddress.address2 || '').trim()) {
+        return leadOwnerAddress;
+      }
+      const fallbackLocation = String(this.leadOwner?.locationOfProperty || '').trim();
+      if (fallbackLocation) {
+        return { address1: fallbackLocation, address2: '' };
+      }
       return { address1: '', address2: '' };
     }
     return this.buildAddressLines(

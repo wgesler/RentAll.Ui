@@ -118,7 +118,7 @@
             </mat-tab>
             @for (stateForm of stateForms; track stateForm.stateFormId) {
               <mat-tab [label]="stateForm.formName">
-                @if (isOwnerAdmin) {
+                @if (isOwnerAdmin && !isPublicOwnerTokenContext(token)) {
                   @if (isDynamicFormInViewMode(getDynamicFormKey(stateForm))) {
                     <app-shared-form-create
                       [formName]="stateForm.formName"

@@ -436,7 +436,7 @@ export class OwnerShellComponent implements OnInit, OnDestroy {
         }
 
         from(requestedStates).pipe(
-          concatMap(stateCode => this.ownersService.getStateForms(stateCode).pipe(take(1), catchError(() => of([] as StateFormResponse[])))),
+          concatMap(stateCode => this.ownersService.getStateFormsByContext(null, stateCode).pipe(take(1), catchError(() => of([] as StateFormResponse[])))),
           toArray(),
           finalize(() => this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'stateForms'))
         ).subscribe({
@@ -466,9 +466,14 @@ export class OwnerShellComponent implements OnInit, OnDestroy {
     }
 
     this.utilityService.addLoadItem(this.itemsToLoad$, 'stateForms');
-    this.ownersService.getPublicOwnerFormByToken(token).pipe(take(1)).subscribe({
-      next: response => {
-        const ownerStateCode = String(response?.form?.state || '').trim().toUpperCase();
+    combineLatest([
+      this.ownersService.getPublicOwnerFormByToken(token).pipe(take(1), catchError(() => of(null))),
+      this.ownersService.getOwnerContactByContext(token, null).pipe(take(1), catchError(() => of(null))),
+      this.ownersService.getPublicOwnerOrganizationByToken(token).pipe(take(1), catchError(() => of(null)))
+    ]).pipe(take(1)).subscribe({
+      next: ([response, ownerContact, organization]) => {
+        const ownerStateCode = String(ownerContact?.state || response?.form?.state || '').trim().toUpperCase();
+        const organizationId = String(organization?.organizationId || '').trim();
         this.currentOwnerStateCode = ownerStateCode;
         if (!String(this.tokenPropertyOffice || '').trim()) {
           this.tokenPropertyOffice = String(response?.form?.propertyOffice || '').trim();
@@ -482,29 +487,20 @@ export class OwnerShellComponent implements OnInit, OnDestroy {
           this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'stateForms');
           return;
         }
-        this.ownersService.getPublicOwnerStateFormsByToken(token).pipe(take(1),finalize(() => this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'stateForms'))).subscribe({
-           next: stateForms => {
-            this.stateForms = this.mapOwnerStateForms(stateForms || [], ownerStateCode);
+        from(requestedStates).pipe(
+          concatMap(state => this.ownersService.getStateFormsByContext(token, state, organizationId).pipe(take(1), catchError(() => of([] as StateFormResponse[])))),
+          toArray(),
+          finalize(() => this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'stateForms'))
+        ).subscribe({
+          next: responsesByState => {
+            const mappedStateForms = this.mapOwnerStateForms(responsesByState.flat(), ownerStateCode);
+            if ((mappedStateForms || []).length > 0) {
+              this.stateForms = mappedStateForms;
+              return;
+            }
+            this.loadStateFormsFallbackForToken(token, organizationId, requestedStates, ownerStateCode);
           },
-          error: () => {
-            // Fallback: if public endpoint is unavailable, try existing organization endpoint
-            // (works when requester is authenticated in the current app session).
-            from(requestedStates).pipe(
-              concatMap(stateCode => this.ownersService.getStateForms(stateCode).pipe(take(1), catchError(() => of([] as StateFormResponse[])))),
-              toArray()
-            ).subscribe({
-              next: responsesByState => {
-                this.stateForms = this.mapOwnerStateForms(responsesByState.flat(), ownerStateCode);
-                if ((this.stateForms || []).length === 0) {
-                  this.toastr.error('Unable to load owner state forms for this link.', CommonMessage.Error);
-                }
-              },
-              error: () => {
-                this.stateForms = [];
-                this.toastr.error('Unable to load owner state forms for this link.', CommonMessage.Error);
-              }
-            });
-          }
+          error: () => this.loadStateFormsFallbackForToken(token, organizationId, requestedStates, ownerStateCode)
         });
       },
       error: () => {
@@ -516,6 +512,25 @@ export class OwnerShellComponent implements OnInit, OnDestroy {
     });
   }
   //#endregion
+
+  private loadStateFormsFallbackForToken(token: string, organizationId: string, requestedStates: string[], ownerStateCode: string): void {
+    // Fallback: retry public token endpoint with explicit organization context.
+    from(requestedStates).pipe(
+      concatMap(stateCode => this.ownersService.getStateFormsByContext(token, stateCode, organizationId).pipe(take(1), catchError(() => of([] as StateFormResponse[])))),
+      toArray()
+    ).subscribe({
+      next: responsesByState => {
+        this.stateForms = this.mapOwnerStateForms(responsesByState.flat(), ownerStateCode);
+        if ((this.stateForms || []).length === 0) {
+          this.toastr.error('Unable to load owner state forms for this link.', CommonMessage.Error);
+        }
+      },
+      error: () => {
+        this.stateForms = [];
+        this.toastr.error('Unable to load owner state forms for this link.', CommonMessage.Error);
+      }
+    });
+  }
 
   loadOwnerPropertyOptions(ownerLeadId: number): void {
     this.ownersService.getContacts().pipe(take(1)).subscribe({
@@ -547,8 +562,17 @@ export class OwnerShellComponent implements OnInit, OnDestroy {
 
             this.propertyCodeOptions = [{ value: this.newPropertyOptionValue, label: 'New Property' }, ...rows];
             if (this.ownerLeadPropertyCode) {
+              const normalizedLeadPropertyCode = String(this.ownerLeadPropertyCode || '').trim().toUpperCase();
+              const matchingProperty = filtered.find(property =>
+                String(property.propertyCode || '').trim().toUpperCase() === normalizedLeadPropertyCode
+              );
+              if (matchingProperty && String(matchingProperty.propertyId || '').trim()) {
+                this.selectedPropertyId = String(matchingProperty.propertyId);
+                this.newPropertyCode = '';
+                return;
+              }
               this.selectedPropertyId = this.newPropertyOptionValue;
-              this.newPropertyCode = this.ownerLeadPropertyCode;
+              this.newPropertyCode = normalizedLeadPropertyCode;
               return;
             }
             if (rows.length > 0) {

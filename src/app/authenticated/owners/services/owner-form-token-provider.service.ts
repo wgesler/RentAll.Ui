@@ -116,7 +116,7 @@ export class OwnerFormTokenProviderService implements FormTokenProvider {
     const companyAddress2 = this.getCompanyAddress2(selectedOffice, data.organization, companyState);
     const companyAddress = [companyAddress1, companyAddress2].filter(part => part.length > 0).join(', ');
     const ownerAddress = this.composeAddress(ownerContact);
-    const propertyAddress = this.composeAddress(data.property);
+    const propertyAddress = this.composeAddress(data.property) || String(data.leadOwner?.locationOfProperty || '').trim();
     const propertyAddress1 = String(data.property?.address1 || '').trim();
     const propertyCity = String(data.property?.city || '').trim();
     const propertyState = this.lookupStateName(data.property?.state);
