@@ -1,4 +1,5 @@
 import { FileDetails } from "../../../shared/models/fileDetails";
+import { BankCardRequest, BankCardResponse } from "./bank.model";
 
 export interface AccountingOfficeRequest {
   organizationId: string;
@@ -20,6 +21,7 @@ export interface AccountingOfficeRequest {
   bankSwiftCode: string;
   bankAddress: string;
   bankPhone: string;
+  bankCards?: BankCardRequest[];
   workOrderNo: number;
   logoPath?: string; 
   fileDetails?: FileDetails;
@@ -46,6 +48,7 @@ export interface AccountingOfficeResponse {
   bankSwiftCode: string;
   bankAddress: string;
   bankPhone: string;
+  bankCards?: BankCardResponse[];
   workOrderNo: number;
   logoPath?: string; 
   fileDetails?: FileDetails;

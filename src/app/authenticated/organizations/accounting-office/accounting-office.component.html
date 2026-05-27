@@ -275,6 +275,72 @@
                       <mat-error>Bank Address is required</mat-error>
                     }
                   </mat-form-field>
+
+                  <div class="col-span-4 bank-card-section">
+                    <div class="bank-card-header mb-2">
+                      <h4 class="m-0">Bank Cards</h4>
+                      <button mat-raised-button type="button" color="primary" (click)="onAddCardClick()">
+                        <mat-icon>add</mat-icon>
+                        Add Card
+                      </button>
+                    </div>
+
+                    @if (showBankCardRows) {
+                      <div class="overflow-x-auto">
+                        <table class="bank-card-table">
+                          <thead>
+                            <tr class="border-b">
+                              <th class="text-left bank-card-col-no">No</th>
+                              <th class="text-left bank-card-col-type">Type</th>
+                              <th class="text-left bank-card-col-name">Name On Card</th>
+                              <th class="text-left bank-card-col-number">Card Number</th>
+                              <th class="text-left bank-card-col-cost-code">Cost Code</th>
+                              <th class="text-right bank-card-col-actions"></th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            @for (card of bankCards; track $index) {
+                              <tr class="border-b">
+                                <td class="bank-card-col-no">{{ $index + 1 }}</td>
+                                <td class="bank-card-col-type">
+                                  <select class="bank-card-entry-input" [(ngModel)]="card.cardTypeId" [ngModelOptions]="{standalone: true}" aria-label="Card Type">
+                                    <option [ngValue]="-1">Select Card Type</option>
+                                    @for (cardType of cardTypeOptions; track cardType.value) {
+                                      <option [ngValue]="cardType.value">{{ cardType.label }}</option>
+                                    }
+                                  </select>
+                                </td>
+                                <td class="bank-card-col-name">
+                                  <input class="bank-card-entry-input" type="text" [(ngModel)]="card.cardName" [ngModelOptions]="{standalone: true}" placeholder="Name On Card" />
+                                </td>
+                                <td class="bank-card-col-number">
+                                  <input class="bank-card-entry-input" type="text" [value]="getBankCardNumberDisplay(card, $index)" inputmode="numeric" (focus)="onBankCardNumberFocus($index)" (blur)="onBankCardNumberBlur($index)" (input)="onBankCardNumberInput($event, $index)" placeholder="Card Number" />
+                                </td>
+                                <td class="bank-card-col-cost-code">
+                                  <select class="bank-card-entry-input" [(ngModel)]="card.costCodeId" [ngModelOptions]="{standalone: true}" aria-label="Cost Codes">
+                                    <option [ngValue]="0">Select Cost Code</option>
+                                    @for (option of costCodeOptions; track option.value) {
+                                      <option [ngValue]="option.value">{{ option.label }}</option>
+                                    }
+                                  </select>
+                                </td>
+                                <td class="text-right bank-card-col-actions">
+                                  <button mat-icon-button type="button" color="accent" (click)="removeBankCard($index)" matTooltip="Remove this card"
+                                    class="delete-bank-card-btn">
+                                    <mat-icon>close</mat-icon>
+                                  </button>
+                                </td>
+                              </tr>
+                            }
+                          </tbody>
+                        </table>
+                      </div>
+
+                      @if (bankCards.length === 0) {
+                        <p class="bank-card-empty mt-2">No bank cards added.</p>
+                      }
+                    }
+                  </div>
                 </div>
               </mat-expansion-panel>
 

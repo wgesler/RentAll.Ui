@@ -16,9 +16,13 @@ import { UtilityService } from '../../../services/utility.service';
 import { FileDetails } from '../../../shared/models/fileDetails';
 import { fileValidator } from '../../../validators/file-validator';
 import { AccountingOfficeRequest, AccountingOfficeResponse } from '../models/accounting-office.model';
+import { BankCardRequest, BankCardResponse } from '../models/bank.model';
+import { getCardTypes } from '../models/card-type-enum';
+import { CostCodesResponse } from '../../accounting/models/cost-codes.model';
 import { OfficeResponse } from '../models/office.model';
 import { AccountingOfficeService } from '../services/accounting-office.service';
 import { OfficeService } from '../services/office.service';
+import { CostCodesService } from '../../accounting/services/cost-codes.service';
 
 @Component({
     standalone: true,
@@ -50,6 +54,11 @@ export class AccountingOfficeComponent implements OnInit, OnDestroy, OnChanges {
   returnToSettings: boolean = false;
   states: string[] = [];
   accountingOffice: AccountingOfficeResponse;
+  bankCards: BankCardResponse[] = [];
+  showBankCardRows: boolean = false;
+  editingBankCardNumberIndexes: Set<number> = new Set<number>();
+  cardTypeOptions: { value: number; label: string }[] = getCardTypes();
+  costCodeOptions: { value: number; label: string }[] = [];
 
   offices: OfficeResponse[] = [];
   availableOffices: { value: number, name: string }[] = [];
@@ -68,6 +77,7 @@ export class AccountingOfficeComponent implements OnInit, OnDestroy, OnChanges {
     private authService: AuthService,
     private formatterService: FormatterService,    private commonService: CommonService,
     private officeService: OfficeService,
+    private costCodesService: CostCodesService,
     private mappingService: MappingService,
     private utilityService: UtilityService
   ) {
@@ -149,6 +159,9 @@ export class AccountingOfficeComponent implements OnInit, OnDestroy, OnChanges {
     this.accountingOfficeService.getAccountingOfficeById(officeIdNum).pipe(take(1), finalize(() => { this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'office'); })).subscribe({
       next: (response: AccountingOfficeResponse) => {
         this.accountingOffice = response;
+        this.bankCards = this.mappingService.mapBankCardsFromResponse(response?.bankCards);
+        this.showBankCardRows = this.bankCards.length > 0;
+        this.loadCostCodesForOffice(response?.officeId);
         // Load logo from fileDetails if present (contains base64 image data)
         if (response.fileDetails && response.fileDetails.file) {
           this.fileDetails = response.fileDetails;
@@ -203,6 +216,11 @@ export class AccountingOfficeComponent implements OnInit, OnDestroy, OnChanges {
     }
 
     this.isSubmitting = true;
+    const bankCardRequests = this.buildBankCardRequests();
+    if (bankCardRequests == null) {
+      this.isSubmitting = false;
+      return;
+    }
     const phoneDigits = this.formatterService.stripPhoneFormatting(formValue.phone);
     const faxDigits = formValue.fax ? this.formatterService.stripPhoneFormatting(formValue.fax) : '';
     const bankPhoneDigits = formValue.bankPhone ? this.formatterService.stripPhoneFormatting(formValue.bankPhone) : '';
@@ -236,9 +254,10 @@ export class AccountingOfficeComponent implements OnInit, OnDestroy, OnChanges {
       workOrderNo: Number(formValue.workOrderNo) || 0,
       email: formValue.email || '',
       website: formValue.website || '',
-      fileDetails: (this.hasNewFileUpload || (this.fileDetails && this.fileDetails.file)) ? this.fileDetails : undefined,
-      logoPath: (this.hasNewFileUpload || (this.fileDetails && this.fileDetails.file)) ? undefined : this.logoPath,
-      isActive: formValue.isActive
+      fileDetails: this.hasNewFileUpload ? this.fileDetails : undefined,
+      logoPath: this.hasNewFileUpload ? undefined : this.logoPath,
+      isActive: formValue.isActive,
+      bankCards: bankCardRequests
     };
 
     if (this.isAddMode) {
@@ -393,6 +412,7 @@ export class AccountingOfficeComponent implements OnInit, OnDestroy, OnChanges {
       workOrderNo: o.workOrderNo ?? 0,
       isActive: o.isActive
     }, { emitEvent: false });
+    this.bankCards = [];
   }
 
   setupOfficeSelectionHandler(): void {
@@ -414,6 +434,7 @@ export class AccountingOfficeComponent implements OnInit, OnDestroy, OnChanges {
               phone: selectedOffice.phone ? this.formatterService.phoneNumber(selectedOffice.phone) : '',
               fax: selectedOffice.fax ? this.formatterService.phoneNumber(selectedOffice.fax) : ''
             }, { emitEvent: false });
+            this.loadCostCodesForOffice(officeId);
           }
         }
       });
@@ -498,6 +519,125 @@ export class AccountingOfficeComponent implements OnInit, OnDestroy, OnChanges {
     const value = input.value.replace(/[^0-9]/g, '');
     input.value = value;
     this.form.get(fieldName)?.setValue(value, { emitEvent: false });
+  }
+
+  onBankCardNumberInput(event: Event, index: number): void {
+    this.formatterService.formatCreditCardInput(event, null);
+    const input = event.target as HTMLInputElement;
+    const cardNumber = input.value || '';
+    this.bankCards[index].cardNumber = cardNumber;
+    this.bankCards[index].rawCardNumber = this.formatterService.stripCreditCardFormatting(cardNumber);
+    this.bankCards[index].lastFour = this.mappingService.normalizeBankCardLastFour(
+      null,
+      this.bankCards[index].rawCardNumber
+    );
+  }
+
+  onBankCardNumberFocus(index: number): void {
+    this.editingBankCardNumberIndexes.add(index);
+    const card = this.bankCards[index];
+    if (!card) return;
+    const sourceDigits = card.rawCardNumber || this.formatterService.stripCreditCardFormatting(card.cardNumber || '');
+    card.cardNumber = sourceDigits.replace(/(\d{4})(?=\d)/g, '$1 ').trim();
+  }
+
+  onBankCardNumberBlur(index: number): void {
+    this.editingBankCardNumberIndexes.delete(index);
+  }
+
+  getBankCardNumberDisplay(card: BankCardResponse, index: number): string {
+    const isPersisted = (card?.bankCardId || 0) > 0;
+    const isEditing = this.editingBankCardNumberIndexes.has(index);
+    if (isPersisted && !isEditing) {
+      return card.displayName || '';
+    }
+
+    return card.cardNumber || '';
+  }
+  //#endregion
+
+  //#region Bank Cards
+  addBankCard(): void {
+    const officeIdNum = Number(this.form?.get('officeId')?.value || this.accountingOffice?.officeId || 0);
+    const organizationId = this.accountingOffice?.organizationId || this.authService.getUser()?.organizationId || '';
+    this.bankCards.push({
+      bankCardId: 0,
+      organizationId,
+      officeId: officeIdNum,
+      cardTypeId: -1,
+      cardName: '',
+      displayName: '',
+      cardNumber: '',
+      rawCardNumber: '',
+      lastFour: '',
+      costCodeId: 0
+    });
+  }
+
+  removeBankCard(index: number): void {
+    if (index < 0 || index >= this.bankCards.length) return;
+    this.bankCards.splice(index, 1);
+  }
+
+  showBankCards(): void {
+    this.showBankCardRows = true;
+  }
+
+  onAddCardClick(): void {
+    this.showBankCardRows = true;
+    this.addBankCard();
+  }
+
+  private buildBankCardRequests(): BankCardRequest[] | null {
+    const requests: BankCardRequest[] = [];
+
+    for (let i = 0; i < this.bankCards.length; i++) {
+      const card = this.bankCards[i];
+      const cardTypeId = Number(card.cardTypeId);
+      const cardName = (card.cardName || '').trim();
+      const cardNumber = this.formatterService.stripCreditCardFormatting(card.rawCardNumber || card.cardNumber || '');
+      const costCodeId = Number(card.costCodeId) || 0;
+
+      const hasAnyValue = cardTypeId >= 0 || cardName.length > 0 || cardNumber.length > 0 || costCodeId > 0;
+      if (!hasAnyValue) {
+        continue;
+      }
+
+      if (cardTypeId < 0 || !cardName || !cardNumber || costCodeId <= 0) {
+        this.toastr.error(`Bank card row ${i + 1} is incomplete. Please complete or remove it.`, CommonMessage.Error);
+        return null;
+      }
+
+      requests.push({
+        cardTypeId,
+        cardName,
+        cardNumber,
+        costCodeId
+      });
+    }
+
+    return requests;
+  }
+
+  private loadCostCodesForOffice(officeId?: number | null): void {
+    const parsedOfficeId = Number(officeId);
+    if (!parsedOfficeId || parsedOfficeId <= 0) {
+      this.costCodeOptions = [];
+      return;
+    }
+
+    this.costCodesService.getCostCodesByOfficeId(parsedOfficeId).pipe(take(1)).subscribe({
+      next: (codes: CostCodesResponse[]) => {
+        const activeCodes = (codes || []).filter(c => c.isActive);
+        this.costCodeOptions = activeCodes.map(code => ({
+          value: code.costCodeId,
+          label: `${code.costCode}: ${code.description}`
+        }));
+      },
+      error: (_err) => {
+        this.costCodeOptions = [];
+      }
+    });
   }
   //#endregion
 

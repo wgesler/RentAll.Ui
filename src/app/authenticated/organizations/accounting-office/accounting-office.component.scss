@@ -86,3 +86,116 @@
     }
   }
 }
+
+.bank-card-section {
+  --bank-card-border: var(--mat-sys-outline-variant, #e0e0e0);
+  --bank-card-header-bg: var(--mat-sys-surface-container-low, #f5f5f5);
+  --bank-card-row-hover-bg: var(--mat-sys-surface-container, #fafafa);
+
+  border-top: 1px solid rgba(0, 0, 0, 0.12);
+  margin-top: 22px;
+  padding-top: 22px;
+}
+
+.bank-card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.bank-card-table {
+  font-size: 14px;
+  line-height: 1.25;
+  border-collapse: collapse;
+  width: 100%;
+  table-layout: fixed;
+
+  .bank-card-col-no {
+    width: 50px;
+    min-width: 50px;
+    max-width: 50px;
+  }
+
+  .bank-card-col-type {
+    width: calc((100% - 100px) / 4);
+    min-width: calc((100% - 100px) / 4);
+  }
+
+  .bank-card-col-name {
+    width: calc((100% - 100px) / 4);
+    min-width: calc((100% - 100px) / 4);
+  }
+
+  .bank-card-col-number {
+    width: calc((100% - 100px) / 4);
+    min-width: calc((100% - 100px) / 4);
+  }
+
+  .bank-card-col-cost-code {
+    width: calc((100% - 100px) / 4);
+    min-width: calc((100% - 100px) / 4);
+  }
+
+  .bank-card-col-actions {
+    width: 50px;
+    min-width: 50px;
+    max-width: 50px;
+  }
+
+  th,
+  td {
+    text-align: left;
+    border-bottom: 1px solid var(--bank-card-border);
+    padding: 5px 6px !important;
+    vertical-align: middle;
+    line-height: 1.25;
+    font-size: 14px !important;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  th {
+    background-color: var(--bank-card-header-bg);
+    font-weight: 500;
+  }
+
+  tr:hover {
+    background-color: var(--bank-card-row-hover-bg);
+  }
+
+  .mat-mdc-icon-button {
+    width: 32px;
+    height: 32px;
+    padding: 4px;
+  }
+}
+
+.bank-card-entry-input {
+  width: 100%;
+  height: 28px;
+  line-height: 28px;
+  padding: 0 8px;
+  box-sizing: border-box;
+  border: 1px solid var(--mat-sys-outline, #ccc);
+  border-radius: 4px;
+  background-color: var(--mat-sys-surface, #fff);
+  font-size: 14px;
+
+  &:focus {
+    outline: none;
+    border-color: var(--mat-sys-primary, #1976d2);
+  }
+}
+
+.delete-bank-card-btn {
+  &:hover {
+    background-color: rgba(126, 105, 180, 0.1);
+  }
+}
+
+.bank-card-empty {
+  color: #666;
+  margin: 0;
+}

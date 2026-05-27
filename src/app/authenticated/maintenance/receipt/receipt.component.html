@@ -1,4 +1,4 @@
-@if (isLoading$ | async) {
+@if (!isPageReady) {
   <div class="loading-container">
     <mat-spinner [diameter]="40"></mat-spinner>
     <p>Loading receipt...</p>
@@ -107,7 +107,9 @@
                       <tr>
                         <th class="split-col-no">No</th>
                         <th class="split-col-amount">Amount</th>
-                        <th>Description</th>
+                        <th class="split-col-description">Description</th>
+                        <th class="split-col-type">Type</th>
+                        <th class="split-col-bank-card">Bank Card</th>
                         <th class="split-col-work-order">Work Order</th>
                         <th class="split-col-actions"></th>
                       </tr>
@@ -124,12 +126,36 @@
                               (keydown.enter)="onSplitAmountKeydown($event, splitIndex)"
                               [class.split-input-invalid]="splitGroup.get('amount')?.hasError('required') && splitGroup.get('amount')?.touched">
                           </td>
-                          <td>
+                          <td class="split-col-description">
                             <input type="text" formControlName="description" required class="split-editable-input"
                               [class.split-input-invalid]="splitGroup.get('description')?.hasError('required') && splitGroup.get('description')?.touched">
                           </td>
+                          <td class="split-col-type">
+                            <select formControlName="receiptTypeId" required class="split-editable-input"
+                              [class.split-input-invalid]="splitGroup.get('receiptTypeId')?.hasError('required') && splitGroup.get('receiptTypeId')?.touched">
+                              @for (option of receiptTypeOptions; track option.value) {
+                                <option [ngValue]="option.value">{{ option.label }}</option>
+                              }
+                            </select>
+                          </td>
+                          <td class="split-col-bank-card">
+                            <select formControlName="bankCardId" class="split-editable-input"
+                              [class.split-input-invalid]="splitGroup.get('bankCardId')?.hasError('required') && splitGroup.get('bankCardId')?.touched">
+                              <option [ngValue]="0">Bill</option>
+                              @for (option of bankCardOptions; track option.value) {
+                                <option [ngValue]="option.value">{{ option.label }}</option>
+                              }
+                            </select>
+                          </td>
                           <td class="split-col-work-order">
-                            <input type="text" formControlName="workOrder" readonly class="split-readonly-input">
+                            <input
+                              type="text"
+                              formControlName="workOrder"
+                              readonly
+                              class="split-readonly-input"
+                              [class.split-work-order-link]="hasSplitWorkOrder(splitIndex)"
+                              [attr.title]="hasSplitWorkOrder(splitIndex) ? 'Open work order' : null"
+                              (click)="openWorkOrderFromSplit(splitIndex)">
                           </td>
                           <td class="split-col-actions">
                             <button
@@ -160,7 +186,9 @@
               <div class="flex items-center gap-3">
                 @if (receiptPreviewDataUrl) {
                   @if (isReceiptPreviewPdf()) {
-                    <div class="flex items-center justify-center object-contain max-w-xs h-32 border rounded bg-slate-100 p-2">
+                    <div class="flex items-center justify-center object-contain max-w-xs h-32 border rounded bg-slate-100 p-2 cursor-pointer"
+                      (click)="openReceiptDialog()"
+                      matTooltip="Open receipt">
                       @if (receiptPdfThumbnailUrl) {
                         <img [src]="receiptPdfThumbnailUrl" alt="Receipt PDF preview" class="object-contain max-w-xs h-full" />
                       } @else {
@@ -168,7 +196,9 @@
                       }
                     </div>
                   } @else {
-                    <img [src]="receiptPreviewDataUrl" alt="Receipt preview" class="object-contain max-w-xs max-h-28 border rounded p-1" />
+                    <img [src]="receiptPreviewDataUrl" alt="Receipt preview" class="object-contain max-w-xs max-h-28 border rounded p-1 cursor-pointer"
+                      (click)="openReceiptDialog()"
+                      matTooltip="Open receipt" />
                   }
                 } @else if (form.get('receiptPath')?.value) {
                   <mat-icon>description</mat-icon>

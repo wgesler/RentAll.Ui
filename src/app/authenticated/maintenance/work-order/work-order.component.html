@@ -137,6 +137,7 @@
                     <colgroup>
                       <col class="wo-col-no">
                       <col class="wo-col-description">
+                      <col class="wo-col-receipt-link">
                       <col class="wo-col-receipt">
                       <col class="wo-col-amount">
                       <col class="wo-col-hours">
@@ -148,6 +149,7 @@
                       <tr class="border-b">
                         <th class="wo-col-no">No</th>
                         <th class="wo-col-description line-items-desc-header">Description</th>
+                        <th class="wo-col-receipt-link text-center"></th>
                         <th class="wo-col-receipt">Receipt</th>
                         <th class="wo-col-amount text-right">Amount</th>
                         <th class="wo-col-hours line-items-two-line-header">Hours</th>
@@ -167,6 +169,18 @@
                               [value]="item.description ?? ''"
                               (input)="updateWorkOrderItemField(i, 'description', $any($event.target).value)"
                               maxlength="250">
+                          </td>
+                          <td class="wo-col-receipt-link text-center">
+                            @if (hasSelectedReceipt(item)) {
+                              <button
+                                mat-icon-button
+                                type="button"
+                                class="receipt-jump-btn"
+                                (click)="openReceiptFromItem(item)"
+                                matTooltip="Open receipt">
+                                <mat-icon>receipt</mat-icon>
+                              </button>
+                            }
                           </td>
                           <td class="wo-col-receipt receipt-cell">
                             <mat-select
@@ -237,7 +251,7 @@
                     </tbody>
                     <tfoot>
                       <tr class="line-items-total-row">
-                        <td colspan="6"></td>
+                        <td colspan="7"></td>
                         <td class="wo-col-total text-right">
                           <input type="text" class="w-full border-0 readonly-input total-amount-input line-item-field-box line-item-field-box--readonly" [value]="getTotalAmountDisplay()" readonly>
                         </td>

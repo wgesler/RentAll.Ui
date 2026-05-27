@@ -27,6 +27,35 @@ export function getWorkOrderTypes(): { value: number; label: string }[] {
 }
 //#endregion
 
+//#region Receipt Type
+export enum ReceiptType {
+  Tenant = 0,
+  Owner = 1,
+  Organization = 2
+}
+
+export function getReceiptType(receiptTypeId: number | undefined | null): string {
+  if (receiptTypeId === undefined || receiptTypeId === null) return '';
+
+  const typeMap: { [key: number]: string } = {
+    [ReceiptType.Tenant]: 'Tenant',
+    [ReceiptType.Owner]: 'Owner',
+    [ReceiptType.Organization]: 'Organization'
+  };
+
+  return typeMap[receiptTypeId] || '';
+}
+
+export function getReceiptTypes(): { value: number; label: string }[] {
+  return Object.keys(ReceiptType)
+    .filter(key => isNaN(Number(key)))
+    .map(key => ({
+      value: ReceiptType[key as keyof typeof ReceiptType],
+      label: getReceiptType(ReceiptType[key as keyof typeof ReceiptType])
+    }));
+}
+//#endregion
+
 //#region InspectionType
 export enum InspectionType {
   Online = 0,

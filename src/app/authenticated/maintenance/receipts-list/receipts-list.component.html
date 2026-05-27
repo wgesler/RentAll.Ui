@@ -11,6 +11,7 @@
       <app-data-table
         [data]="receiptsDisplay"
         [columns]="receiptDisplayedColumns"
+        [initialFilterVal]="persistedFilterVal"
         noDataMessage="No unaccounted receipts"
         [hasColumnIndex]="false"
         [hasFilter]="true"
@@ -19,12 +20,15 @@
         [hasActionsRowClick]="true"
         [hasActionsEdit]="true"
         [hasActionsDelete]="true"
+        [hasWorkOrderCodeLink]="true"
         [deleteConfirmTitle]="'Delete Receipt'"
         [deleteConfirmMessage]="'Are you sure you want to delete this receipt?'"
         [itemsPerPage]="100"
         (editEvent)="goToReceipt($event)"
         (rowClickEvent)="goToReceipt($event)"
         (receiptClickEvent)="openReceiptDialog($event)"
+        (workOrderCodeClickEvent)="goToWorkOrderFromCode($event)"
+        (filterValChangeEvent)="onTableFilterValueChanged($event)"
         (deleteEvent)="deleteReceipt($event)"
         (checkboxChangeEvent)="onReceiptCheckboxChange($event)">
         <div dataTableFilterActions>

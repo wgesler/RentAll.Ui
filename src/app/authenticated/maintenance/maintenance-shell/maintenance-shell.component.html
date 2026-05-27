@@ -142,6 +142,7 @@
                 [receiptId]="selectedReceiptId"
                 [embeddedInMaintenance]="true"
                 (saveValidationAttempted)="onReceiptSaveValidationAttempted()"
+                (workOrderSelect)="onWorkOrderSelect($event)"
                 (backEvent)="onReceiptBack()"
                 (savedEvent)="onReceiptSaved()" />
             } @else {
@@ -152,7 +153,8 @@
                 [isActiveTab]="selectedTabIndex === receiptsTabIndex"
                 [embeddedInMaintenance]="true"
                 [refreshTrigger]="refreshReceiptsTrigger"
-                (receiptSelect)="onReceiptSelect($event)" />
+                (receiptSelect)="onReceiptSelect($event)"
+                (workOrderSelect)="onWorkOrderSelect($event)" />
             }
           </mat-tab>
           @if (showWorkOrdersTab) {
@@ -164,6 +166,7 @@
                   [workOrderId]="selectedWorkOrderId"
                   [embeddedInMaintenance]="true"
                   (saveValidationAttempted)="onWorkOrderSaveValidationAttempted()"
+                (receiptSelect)="onReceiptSelect($event)"
                   (backEvent)="onWorkOrderBack()"
                   (savedEvent)="onWorkOrderSaved()" />
               } @else {

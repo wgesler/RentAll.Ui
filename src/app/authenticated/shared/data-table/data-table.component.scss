@@ -571,6 +571,14 @@ td.mat-mdc-cell .mat-mdc-icon-button {
   padding: 4px !important;
 }
 
+.datatable-receipt-icon-btn {
+  color: #2563eb !important;
+
+  &:hover {
+    background-color: rgba(37, 99, 235, 0.12);
+  }
+}
+
 .datatable-quote-letter-icon {
   display: inline-flex;
   width: 20px;

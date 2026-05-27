@@ -492,6 +492,23 @@ export class FormatterService {
         }
     }
 
+    /*******************  Credit Card *******************/
+    // Removes all non-digit characters from a credit card number.
+    stripCreditCardFormatting(cardNumber?: string | null): string {
+        if (!cardNumber) return '';
+        return cardNumber.replace(/\D/g, '');
+    }
+
+    // Formats credit card input in real-time with a space every 4 digits.
+    formatCreditCardInput(event: Event, control: AbstractControl | null, maxDigits: number = 19): void {
+        const input = event.target as HTMLInputElement;
+        const digits = this.stripCreditCardFormatting(input.value).slice(0, maxDigits);
+        const formatted = digits.replace(/(\d{4})(?=\d)/g, '$1 ').trim();
+
+        input.value = formatted;
+        control?.setValue(formatted, { emitEvent: false });
+    }
+
     /*******************  Code Input Formatting *******************/
     // Handles uppercase code input formatting (for officeCode, agentCode, regionCode, areaCode, buildingCode, etc.)
     // Converts input to uppercase while preserving cursor position

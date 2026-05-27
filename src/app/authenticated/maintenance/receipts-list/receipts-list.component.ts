@@ -18,6 +18,7 @@ import { DataTableFilterActionsDirective } from '../../shared/data-table/data-ta
 import { ColumnSet } from '../../shared/data-table/models/column-data';
 import { ReceiptDisplayList, ReceiptRequest, ReceiptResponse, ReceiptSelection } from '../models/receipt.model';
 import { ReceiptService } from '../services/receipt.service';
+import { WorkOrderService } from '../services/work-order.service';
 
 @Component({
   standalone: true,
@@ -33,6 +34,7 @@ export class ReceiptsListComponent implements OnInit, OnChanges {
   @Input() embeddedInMaintenance = false;
   @Input() refreshTrigger: number = 0;
   @Output() receiptSelect = new EventEmitter<ReceiptSelection>();
+  @Output() workOrderSelect = new EventEmitter<{ workOrderId: string | null; propertyId: string | null }>();
 
   isLoading: boolean = false;
   isServiceError: boolean = false;
@@ -47,14 +49,17 @@ export class ReceiptsListComponent implements OnInit, OnChanges {
 
   selectedProperty: PropertyResponse | null = null;
   selectedPropertyId: string | null = null;
+  persistedFilterVal = '';
+  private readonly receiptListFilterStorageKey = 'maintenance.receiptsList.filter';
 
   receiptDisplayedColumns: ColumnSet = {
     propertyCode: { displayAs: 'Property', wrap: false, maxWidth: '15ch' },
     workOrderDisplay: { displayAs: 'WO Code(s)', wrap: true, maxWidth: '25ch' },
+    receiptTypeDisplay: { displayAs: 'Type(s)', wrap: true, maxWidth: '15ch' },
     receipt: { displayAs: 'Receipt', wrap: false, sort: false, maxWidth: '12ch', alignment: 'center'  },
     amountDisplay: { displayAs: 'Amount', wrap: false, maxWidth: '12ch', alignment: 'center'  },
     descriptionDisplay: { displayAs: 'Description', wrap: true, maxWidth: '25ch' },
-    splitSummaryDisplay: { displayAs: 'Splits', wrap: false, maxWidth: '10ch', alignment: 'center' },
+    bankCardDisplayName: { displayAs: 'Bank Card(s)', wrap: true, maxWidth: '22ch' },
     splitTotalDisplay: { displayAs: 'Split Total', wrap: false, maxWidth: '12ch', alignment: 'center' },
     modifiedOn: { displayAs: 'Modified On', wrap: false, maxWidth: '20ch', alignment: 'center' },
     modifiedBy: { displayAs: 'Modified By', wrap: false, maxWidth: '20ch' },
@@ -65,6 +70,7 @@ export class ReceiptsListComponent implements OnInit, OnChanges {
     private receiptService: ReceiptService,
     private mappingService: MappingService,
     private propertyService: PropertyService,
+    private workOrderService: WorkOrderService,
     private authService: AuthService,
     private router: Router,
     private dialog: MatDialog,
@@ -73,6 +79,7 @@ export class ReceiptsListComponent implements OnInit, OnChanges {
 
   //#region Receipts List
   ngOnInit(): void {
+    this.persistedFilterVal = this.readPersistedFilterValue();
     this.isAdmin = this.authService.isAdmin();
     this.setIsActiveCheckboxEditability();
     if (!this.isActiveTab) {
@@ -253,6 +260,59 @@ export class ReceiptsListComponent implements OnInit, OnChanges {
       error: () => this.toastr.error('Unable to load receipt.', 'Receipt')
     });
   }
+
+  goToWorkOrderFromCode(event: { rowItem?: ReceiptDisplayList; workOrderCode?: string }): void {
+    const rowItem = event?.rowItem;
+    const targetWorkOrderCode = (event?.workOrderCode || '').trim();
+    if (!rowItem || !targetWorkOrderCode) {
+      return;
+    }
+
+    const propertyId =
+      (rowItem.propertyIds || []).map(id => (id || '').trim()).find(id => id.length > 0)
+      || (this.property?.propertyId || '').trim()
+      || (this.selectedPropertyId || '').trim()
+      || null;
+    const officeId = Number(rowItem.officeId || this.officeId || 0) || null;
+
+    this.workOrderService.getWorkOrders(propertyId, officeId).pipe(take(1)).subscribe({
+      next: workOrders => {
+        const matchingWorkOrder = (workOrders || []).find(
+          workOrder => (workOrder.workOrderCode || '').trim().toLowerCase() === targetWorkOrderCode.toLowerCase()
+        );
+        if (!matchingWorkOrder) {
+          this.toastr.warning(`Unable to locate ${targetWorkOrderCode}.`, 'Work Order');
+          return;
+        }
+
+        const workOrderId = String(matchingWorkOrder.workOrderId || '').trim();
+        const resolvedPropertyId = (matchingWorkOrder.propertyId || propertyId || '').trim();
+        if (!workOrderId || !resolvedPropertyId) {
+          this.toastr.error('Unable to open work order: missing work order context.', 'Work Order');
+          return;
+        }
+
+        if (this.embeddedInMaintenance) {
+          this.workOrderSelect.emit({
+            workOrderId,
+            propertyId: resolvedPropertyId
+          });
+          return;
+        }
+
+        const maintenanceUrl = '/' + RouterUrl.replaceTokens(RouterUrl.Maintenance, [resolvedPropertyId]);
+        this.router.navigate([maintenanceUrl], {
+          queryParams: {
+            tab: 3,
+            workOrderId
+          }
+        });
+      },
+      error: () => {
+        this.toastr.error('Unable to load work order.', 'Work Order');
+      }
+    });
+  }
   //#endregion
 
   //#region Filter Methods
@@ -265,6 +325,23 @@ export class ReceiptsListComponent implements OnInit, OnChanges {
     this.receiptsDisplay = this.showInactive
       ? [...this.allReceipts]
       : this.allReceipts.filter(receipt => receipt.isActive !== false);
+  }
+
+  onTableFilterValueChanged(filterValue: string): void {
+    this.persistedFilterVal = filterValue || '';
+    try {
+      sessionStorage.setItem(this.receiptListFilterStorageKey, this.persistedFilterVal);
+    } catch {
+      // no-op: ignore storage exceptions and keep in-memory value
+    }
+  }
+
+  private readPersistedFilterValue(): string {
+    try {
+      return sessionStorage.getItem(this.receiptListFilterStorageKey) || '';
+    } catch {
+      return '';
+    }
   }
 
   loadPropertyLookup(): void {
@@ -304,7 +381,9 @@ export class ReceiptsListComponent implements OnInit, OnChanges {
     const splits = (receipt.splits || []).map(s => ({
       amount: Number(s.amount) || 0,
       description: String(s.description ?? '').trim(),
-      workOrder: s.workOrder != null && String(s.workOrder).trim().length > 0 ? String(s.workOrder).trim() : ''
+      workOrder: s.workOrder != null && String(s.workOrder).trim().length > 0 ? String(s.workOrder).trim() : '',
+      receiptTypeId: s.receiptTypeId ?? 0,
+      bankCardId: s.bankCardId ?? 0
     }));
     return {
       receiptId: receipt.receiptId,

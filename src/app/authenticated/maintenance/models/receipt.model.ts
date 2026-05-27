@@ -3,6 +3,8 @@ import { FileDetails } from "../../documents/models/document.model";
 export interface Split {
   amount: number;
   description: string;
+  receiptTypeId: number;
+  bankCardId: number;
   workOrder?: string;
 }
 
@@ -32,6 +34,7 @@ export interface ReceiptResponse {
   splits: Split[];
   receiptPath?: string | null;
   fileDetails?: FileDetails | null;
+  bankCardDisplayName?: string;
   isActive: boolean;
   modifiedOn: string;
   modifiedBy: string;
@@ -50,8 +53,10 @@ export interface ReceiptDisplayList {
   splitTotalAmount?: number;
   splitTotalDisplay?: string;
   splitSummaryDisplay?: string;
+  bankCardDisplayName?: string;
   isSplitAmountValid?: boolean;
   workOrderDisplay?: string;
+  receiptTypeDisplay?: string;
   descriptionDisplay?: string;
   isActive: boolean;
   receiptPath?: string | null;

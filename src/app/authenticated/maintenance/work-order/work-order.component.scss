@@ -189,6 +189,7 @@
   /* Single source of truth for all column widths */
   col.wo-col-no { width: 32px; }
   col.wo-col-description { width: 212px; }
+  col.wo-col-receipt-link { width: 44px; }
   col.wo-col-receipt { width: 220px; }
   col.wo-col-amount { width: 110px; }
   col.wo-col-hours { width: 90px; }
@@ -257,6 +258,12 @@
   }
 
   .wo-col-no {
+    padding-right: 2px !important;
+  }
+
+  .wo-col-receipt-link {
+    text-align: center !important;
+    padding-left: 2px !important;
     padding-right: 2px !important;
   }
 
@@ -365,6 +372,14 @@
 
     &:hover {
       background-color: rgba(174, 31, 102, 0.1);
+    }
+  }
+
+  .receipt-jump-btn {
+    color: #2563eb !important;
+
+    &:hover {
+      background-color: rgba(37, 99, 235, 0.12);
     }
   }
 

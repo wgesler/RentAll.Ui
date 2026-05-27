@@ -13,7 +13,7 @@ import { EmailHtmlResponse } from '../authenticated/email/models/email-html.mode
 import { MaintenanceListResponse } from '../authenticated/maintenance/models/maintenance.model';
 import { InspectionDisplayList, InspectionResponse } from '../authenticated/maintenance/models/inspection.model';
 import { ReceiptDisplayList, ReceiptResponse, Split } from '../authenticated/maintenance/models/receipt.model';
-import { getInspectionType, getWorkOrderType } from '../authenticated/maintenance/models/maintenance-enums';
+import { getInspectionType, getReceiptType, getWorkOrderType } from '../authenticated/maintenance/models/maintenance-enums';
 import { WorkOrderDisplayList, WorkOrderRequest, WorkOrderResponse } from '../authenticated/maintenance/models/work-order.model';
 import { AccountingOfficeListDisplay, AccountingOfficeResponse } from '../authenticated/organizations/models/accounting-office.model';
 import { AgentListDisplay, AgentResponse } from '../authenticated/organizations/models/agent.model';
@@ -22,6 +22,7 @@ import { BuildingListDisplay, BuildingResponse } from '../authenticated/organiza
 import { ColorListDisplay, ColorResponse } from '../authenticated/organizations/models/color.model';
 import { OfficeListDisplay, OfficeResponse } from '../authenticated/organizations/models/office.model';
 import { OrganizationListDisplay, OrganizationResponse } from '../authenticated/organizations/models/organization.model';
+import { BankCardResponse } from '../authenticated/organizations/models/bank.model';
 import { RegionListDisplay, RegionResponse } from '../authenticated/organizations/models/region.model';
 import { StateFormListDisplay, StateFormResponse } from '../authenticated/organizations/models/state-form.model';
 import { TrackerConfigurationDefinitionResponse, TrackerDefinitionListDisplay, TrackerDefinitionResponse } from '../authenticated/organizations/models/tracker.model';
@@ -368,6 +369,81 @@ export class MappingService {
         isActive: o.isActive
       };
     });
+  }
+
+  mapBankCardsFromResponse(cards?: BankCardResponse[] | null): BankCardResponse[] {
+    if (!cards || cards.length === 0) return [];
+    return cards.map(card => {
+      const normalizedLastFour = this.normalizeBankCardLastFour(card.lastFour, card.cardNumber);
+      const rawCardNumber = this.formatter.stripCreditCardFormatting(card.cardNumber || '');
+      return {
+        bankCardId: card.bankCardId,
+        organizationId: card.organizationId,
+        officeId: card.officeId,
+        cardTypeId: Number(card.cardTypeId) || 0,
+        cardName: card.cardName || '',
+        displayName: card.displayName || '',
+        cardNumber: this.formatBankCardNumberForDisplay(card.cardNumber, normalizedLastFour, (card.bankCardId || 0) > 0),
+        rawCardNumber,
+        lastFour: normalizedLastFour,
+        costCodeId: Number(card.costCodeId) || 0
+      };
+    });
+  }
+
+  normalizeBankCardLastFour(lastFour?: string | null, cardNumber?: string | null): string {
+    const raw = (lastFour || '').replace(/\D/g, '');
+    if (raw.length >= 4) {
+      return raw.slice(-4);
+    }
+    const source = (cardNumber || '').replace(/\D/g, '');
+    return source.length >= 4 ? source.slice(-4) : '';
+  }
+
+  mapBankCardDisplay(card: BankCardResponse): string {
+    if ((card?.bankCardId || 0) === 0) {
+      return card?.cardNumber || '';
+    }
+    const digits = (card?.cardNumber || '').replace(/\D/g, '');
+    const finalLastFour = this.normalizeBankCardLastFour(card?.lastFour, card?.cardNumber);
+    if (!digits || !finalLastFour) return '';
+    const starCount = Math.max(0, digits.length - finalLastFour.length);
+    return `${'*'.repeat(starCount)}${finalLastFour}`;
+  }
+
+  private formatBankCardNumberForDisplay(cardNumber?: string | null, lastFour?: string | null, isPersisted: boolean = true): string {
+    const raw = (cardNumber || '').replace(/\s+/g, '');
+    if (!raw) {
+      return '';
+    }
+
+    if (!isPersisted) {
+      const editableDigits = raw.replace(/\D/g, '');
+      return this.groupCardNumber(editableDigits);
+    }
+
+    const normalizedLastFour = this.normalizeBankCardLastFour(lastFour, cardNumber);
+    let masked: string;
+    if (raw.includes('*')) {
+      masked = raw.replace(/[^*\d]/g, '');
+    } else {
+      const digits = raw.replace(/\D/g, '');
+      if (!digits) {
+        return '';
+      }
+      const suffix = normalizedLastFour || digits.slice(-4);
+      const defaultTotalLength = 16;
+      const starCount = digits.length > suffix.length
+        ? digits.length - suffix.length
+        : Math.max(0, defaultTotalLength - suffix.length);
+      masked = `${'*'.repeat(starCount)}${suffix}`;
+    }
+
+    return this.groupCardNumber(masked);
+  }
+
+  private groupCardNumber(value: string): string {
+    return (value.match(/.{1,4}/g) || []).join(' ');
   }
   
   mapCostCodes(costCodes: CostCodesResponse[], offices?: any[], transactionTypes?: { value: number, label: string }[]): CostCodesListDisplay[] {
@@ -1368,7 +1444,9 @@ export class MappingService {
       const splits = (receipt.splits || []).map((split: Split) => ({
         amount: Number(split.amount) || 0,
         description: split.description || '',
-        workOrder: split.workOrder || ''
+        workOrder: split.workOrder || '',
+        receiptTypeId: split.receiptTypeId ?? 0,
+        bankCardId: split.bankCardId ?? 0
       }));
       const splitTotalAmount = splits.reduce((sum, split) => sum + (Number(split.amount) || 0), 0);
       const receiptAmount = Number(receipt.amount) || 0;
@@ -1379,7 +1457,15 @@ export class MappingService {
             .filter(code => code.length > 0)
         )
       );
+      const distinctReceiptTypes = Array.from(
+        new Set(
+          splits
+            .map(split => getReceiptType(split.receiptTypeId))
+            .filter(typeLabel => typeLabel.length > 0)
+        )
+      );
       const workOrderDisplay = distinctWorkOrders.join(', ');
+      const receiptTypeDisplay = distinctReceiptTypes.join(', ');
       const isSplitAmountValid = splitTotalAmount <= receiptAmount;
 
       return {
@@ -1397,8 +1483,10 @@ export class MappingService {
         splitTotalAmount,
         splitTotalDisplay: this.formatter.currencyUsd(splitTotalAmount),
         splitSummaryDisplay: `${splits.length} split${splits.length === 1 ? '' : 's'}`,
+        bankCardDisplayName: (receipt.bankCardDisplayName || '').trim(),
         isSplitAmountValid,
         workOrderDisplay,
+        receiptTypeDisplay,
         receiptPath: receipt.receiptPath ?? null,
         isActive: receipt.isActive,
         modifiedOn: this.formatter.formatDateString(receipt.modifiedOn),

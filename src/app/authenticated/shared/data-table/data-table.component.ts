@@ -122,9 +122,11 @@ export class DataTableComponent implements OnChanges, OnInit {
   @Input() totalsRow?: { [columnName: string]: string }; // Totals data for each column
   @Input() totalsLabel?: string = 'Total'; // Label for the totals row
   @Input() noDataMessage: string = 'No data found...'; // Message when table has no rows
+  @Input() initialFilterVal: string = '';
   @Input() suppressRowClickOnDropdownCells: boolean = true;
   @Input() hasPropertyCodeLink: boolean = false;
   @Input() hasReservationCodeLink: boolean = false;
+  @Input() hasWorkOrderCodeLink: boolean = false;
   @Input() subheaderLabel: string = '';
   /** When true, layout-debug orange band wraps only the table/paginator block (below the purple filter row). */
   @Input() dbgBandMainBelowFilter = false;
@@ -163,10 +165,12 @@ export class DataTableComponent implements OnChanges, OnInit {
   @Output() receiptClickEvent = new EventEmitter<PurposefulAny>();
   @Output() propertyCodeClickEvent = new EventEmitter<PurposefulAny>();
   @Output() reservationCodeClickEvent = new EventEmitter<PurposefulAny>();
+  @Output() workOrderCodeClickEvent = new EventEmitter<PurposefulAny>();
   @Output() inlineEditChangeEvent = new EventEmitter<PurposefulAny>();
   @Output() topButtonEvent = new EventEmitter<boolean>();
   @Output() topToggleButtonEvent = new EventEmitter<boolean>();
   @Output() topToggle2ButtonEvent = new EventEmitter<boolean>();
+  @Output() filterValChangeEvent = new EventEmitter<string>();
 
   @Output() selectionSet = new EventEmitter<PurposefulAny>();
 
@@ -272,8 +276,9 @@ export class DataTableComponent implements OnChanges, OnInit {
   ngOnInit(): void {
     // Use a filterPredicate to make sure the table only filters on visible columns
     this.dataSource.filterPredicate = (item: TableItem, filter: string): boolean =>
-      this.displayedColumns.map(column => 
-        item[column]?.toString().toLocaleLowerCase() ?? '').some(value => value.includes(filter));   
+      this.displayedColumns
+        .map(column => this.getFilterableColumnValue(item, column))
+        .some(value => value.includes(filter));
 
     // Return sortable data from each column
     this.dataSource.sortingDataAccessor = (item: TableItem, column: string): string | number => {
@@ -308,6 +313,12 @@ export class DataTableComponent implements OnChanges, OnInit {
           return value;
       }
     };
+
+    const initialFilter = this.normalizeFilterValue(this.initialFilterVal);
+    if (initialFilter) {
+      this.filterVal = initialFilter;
+      this.applyFilter(false);
+    }
   }
 
   ngOnChanges(changes: SimpleChanges): void {
@@ -333,7 +344,9 @@ export class DataTableComponent implements OnChanges, OnInit {
   }
 
   applyFilter(resetPage: boolean = true): void {
-    this.dataSource.filter = this.filterVal.trim().toLocaleLowerCase();
+    this.filterVal = this.normalizeFilterValue(this.filterVal);
+    this.dataSource.filter = this.filterVal;
+    this.filterValChangeEvent.emit(this.filterVal);
     if (resetPage) this.dataSource?.paginator.firstPage();
   }
 
@@ -341,8 +354,14 @@ export class DataTableComponent implements OnChanges, OnInit {
     input.value = '';
     this.dataSource.filter = '';
     this.filterVal = '';
+    this.filterValChangeEvent.emit('');
 
     this.dataSource?.paginator.firstPage();
+  }
+
+  onFilterModelChange(value: string): void {
+    this.filterVal = value ?? '';
+    this.filterValChangeEvent.emit(this.normalizeFilterValue(this.filterVal));
   }
 
   emitAddEvent(): void {
@@ -543,6 +562,18 @@ export class DataTableComponent implements OnChanges, OnInit {
   onReservationCodeClick(event: Event, rowItem: PurposefulAny): void {
     event.stopPropagation();
     this.reservationCodeClickEvent.emit(rowItem);
+  }
+
+  onWorkOrderCodeClick(event: Event, rowItem: PurposefulAny, workOrderCode: string): void {
+    event.stopPropagation();
+    this.workOrderCodeClickEvent.emit({ rowItem, workOrderCode });
+  }
+
+  getDelimitedValues(value: unknown): string[] {
+    return String(value ?? '')
+      .split(',')
+      .map(token => token.trim())
+      .filter(token => token.length > 0);
   }
 
   emitSelectEvent(event: MatCheckboxChange, rowItem: PurposefulAny): void {
@@ -770,6 +801,43 @@ export class DataTableComponent implements OnChanges, OnInit {
       // If it's text, convert to lowercase for case-insensitive sorting
       return part.toLowerCase();
     }).join('');
+  }
+
+  private getFilterableColumnValue(item: TableItem, column: string): string {
+    return this.normalizeFilterValue(this.flattenFilterSourceValue(item?.[column]));
+  }
+
+  private flattenFilterSourceValue(value: unknown): string {
+    if (value == null) {
+      return '';
+    }
+
+    if (Array.isArray(value)) {
+      return value.map(v => this.flattenFilterSourceValue(v)).join(' ');
+    }
+
+    if (typeof value === 'object') {
+      const record = value as Record<string, unknown>;
+      if (typeof record['value'] === 'string' || typeof record['value'] === 'number') {
+        return String(record['value']);
+      }
+
+      return Object.values(record)
+        .map(v => this.flattenFilterSourceValue(v))
+        .join(' ');
+    }
+
+    return String(value);
+  }
+
+  private normalizeFilterValue(value: unknown): string {
+    return String(value ?? '')
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '')
+      .replace(/[^\p{L}\p{N}]+/gu, ' ')
+      .replace(/\s+/g, ' ')
+      .trim()
+      .toLocaleLowerCase();
   }
 
   setTableColumns(): void {

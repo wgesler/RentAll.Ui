@@ -166,7 +166,19 @@
   }
 
   .split-col-work-order {
-    width: 150px;
+    width: 120px;
+  }
+
+  .split-col-type {
+    width: 18ch;
+  }
+
+  .split-col-bank-card {
+    width: 24ch;
+  }
+
+  .split-col-description {
+    width: auto;
   }
 
   .split-col-actions {
@@ -217,6 +229,10 @@
   border-radius: 4px;
 }
 
+.split-col-description .split-editable-input {
+  width: calc(100% - 12px);
+}
+
 .split-editable-input {
   border: 1px solid var(--mat-sys-outline, #ccc);
   background-color: var(--mat-sys-surface, #fff);
@@ -227,6 +243,11 @@
   border-color: var(--mat-sys-primary, #1976d2);
 }
 
+select.split-editable-input {
+  appearance: auto;
+  cursor: pointer;
+}
+
 .split-readonly-input {
   border: 1px solid var(--mat-sys-outline-variant, #d1d5db);
   background: var(--mat-sys-surface-container-low, #f3f4f6);
@@ -234,6 +255,12 @@
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+}
+
+.split-readonly-input.split-work-order-link {
+  color: #1d4ed8;
+  text-decoration: underline;
+  cursor: pointer;
 }
 
 .split-input-invalid,

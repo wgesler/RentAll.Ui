@@ -10,6 +10,7 @@
         <mat-icon matPrefix class="datatable-filter-prefix-icon">filter_list</mat-icon>
         <input matInput (input)="applyFilter()" placeholder="Filter table by word or value..." #dataTableSearch autocomplete="off" id="datatable-search-input-{{templateTableId}}"
           class="datatable-search-input"
+          (ngModelChange)="onFilterModelChange($event)"
           [(ngModel)]="filterVal" />
         @if (dataTableSearch.value) {
           <span matSuffix>
@@ -235,6 +236,7 @@
                   @if (item.receiptPath) {
                     <button mat-icon-button
                       type="button"
+                      class="datatable-receipt-icon-btn"
                       (click)="onReceiptClick($event, item)"
                       [matTooltip]="'View receipt'"
                       id="table-receipt-link-{{templateTableId}}-{{i}}">
@@ -281,6 +283,20 @@
                         id="table-reservation-code-link-{{templateTableId}}-{{i}}">
                         {{item[column.name]}}
                       </span>
+                    } @else {
+                      {{item[column.name]}}
+                    }
+                  } @case ('workOrderDisplay') {
+                    @if (hasWorkOrderCodeLink) {
+                      @let workOrderCodes = getDelimitedValues(item[column.name]);
+                      @for (workOrderCode of workOrderCodes; track workOrderCode; let codeIndex = $index) {
+                        <span
+                          class="text-blue-700 underline cursor-pointer"
+                          id="table-work-order-code-link-{{templateTableId}}-{{i}}-{{codeIndex}}"
+                          (click)="onWorkOrderCodeClick($event, item, workOrderCode)">
+                          {{workOrderCode}}
+                        </span>@if (codeIndex < workOrderCodes.length - 1) {<span>, </span>}
+                      }
                     } @else {
                       {{item[column.name]}}
                     }

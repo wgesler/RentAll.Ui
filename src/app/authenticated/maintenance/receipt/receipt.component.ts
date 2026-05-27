@@ -2,9 +2,10 @@ import { CommonModule } from '@angular/common';
 import { HttpErrorResponse } from '@angular/common/http';
 import { Component, EventEmitter, Input, OnDestroy, OnInit, Output } from '@angular/core';
 import { FormArray, FormBuilder, FormControl, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
+import { MatDialog } from '@angular/material/dialog';
 import { ActivatedRoute, Router } from '@angular/router';
 import { ToastrService } from 'ngx-toastr';
-import { BehaviorSubject, Observable, finalize, map, take } from 'rxjs';
+import { BehaviorSubject, Observable, Subject, finalize, map, take, takeUntil } from 'rxjs';
 import { RouterUrl } from '../../../app.routes';
 import { FileDetails } from '../../documents/models/document.model';
 import { FormatterService } from '../../../services/formatter-service';
@@ -12,10 +13,16 @@ import { MaterialModule } from '../../../material.module';
 import { AuthService } from '../../../services/auth.service';
 import { PdfThumbnailService } from '../../../services/pdf-thumbnail.service';
 import { UtilityService } from '../../../services/utility.service';
+import { getReceiptTypes } from '../models/maintenance-enums';
+import { ImageViewDialogData } from '../../shared/modals/image-view-dialog/image-view-dialog-data';
+import { ImageViewDialogComponent } from '../../shared/modals/image-view-dialog/image-view-dialog.component';
 import { PropertyListResponse, PropertyResponse } from '../../properties/models/property.model';
 import { PropertyService } from '../../properties/services/property.service';
 import { ReceiptRequest, ReceiptResponse, Split } from '../models/receipt.model';
 import { ReceiptService } from '../services/receipt.service';
+import { AccountingOfficeService } from '../../organizations/services/accounting-office.service';
+import { BankCardResponse } from '../../organizations/models/bank.model';
+import { WorkOrderService } from '../services/work-order.service';
 
 @Component({
   standalone: true,
@@ -33,6 +40,7 @@ export class ReceiptComponent implements OnInit, OnDestroy {
   @Output() backEvent = new EventEmitter<void>();
   @Output() savedEvent = new EventEmitter<ReceiptResponse>();
   @Output() saveValidationAttempted = new EventEmitter<void>();
+  @Output() workOrderSelect = new EventEmitter<{ workOrderId: string | null; propertyId: string | null }>();
 
   fb: FormBuilder;
   form: FormGroup;
@@ -40,6 +48,7 @@ export class ReceiptComponent implements OnInit, OnDestroy {
   receiptService: ReceiptService;
   isAddMode: boolean = true;
   isSubmitting: boolean = false;
+  isPageReady = false;
 
   organizationId: string = '';
   selectedPropertyId: string | null = null;
@@ -58,9 +67,12 @@ export class ReceiptComponent implements OnInit, OnDestroy {
   splitTotalValidationError = false;
   isSyncingInitialSplit = false;
   propertyOptions: PropertyListResponse[] = [];
+  receiptTypeOptions = getReceiptTypes();
+  bankCardOptions: { value: number; label: string }[] = [];
 
-  itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['receipt', 'property', 'properties']));
+  itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['receipt', 'property', 'properties', 'accountingOffices', 'bankCards']));
   isLoading$: Observable<boolean> = this.itemsToLoad$.pipe(map(items => items.size > 0));
+  private destroy$ = new Subject<void>();
 
   constructor(
     fb: FormBuilder,
@@ -68,7 +80,10 @@ export class ReceiptComponent implements OnInit, OnDestroy {
     receiptService: ReceiptService,
     private route: ActivatedRoute,
     private router: Router,
+    private dialog: MatDialog,
     private propertyService: PropertyService,
+    private accountingOfficeService: AccountingOfficeService,
+    private workOrderService: WorkOrderService,
     private utilityService: UtilityService,
     private pdfThumbnailService: PdfThumbnailService,
     public formatter: FormatterService,
@@ -83,6 +98,13 @@ export class ReceiptComponent implements OnInit, OnDestroy {
   ngOnInit(): void {
     this.organizationId = this.authService.getUser()?.organizationId || '';
     this.buildForm();
+
+    this.itemsToLoad$.pipe(takeUntil(this.destroy$)).subscribe(items => {
+      this.isPageReady = items.size === 0;
+    });
+    
+    this.loadAccountingOffices();
+
     if (this.embeddedInMaintenance) {
       this.isAddMode = this.receiptId == null;
       this.selectedPropertyId = this.property?.propertyId ?? null;
@@ -136,6 +158,11 @@ export class ReceiptComponent implements OnInit, OnDestroy {
     const payloadSplits = this.getPayloadSplitsFromForm();
     if (payloadSplits.length === 0) {
       this.toastr.warning('At least one split line is required.', 'Missing split');
+      return;
+    }
+    const missingRequiredSplitField = this.validateRequiredSplitFields();
+    if (missingRequiredSplitField) {
+      this.toastr.warning(missingRequiredSplitField, 'Missing required split field');
       return;
     }
     const splitTotalAmount = this.getSplitTotalAmount(payloadSplits);
@@ -278,6 +305,7 @@ export class ReceiptComponent implements OnInit, OnDestroy {
     this.receiptService.getReceipt(this.organizationId, this.receiptId!).pipe(take(1), finalize(() => { this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'receipt'); })).subscribe({
       next: (receipt: ReceiptResponse) => {
         this.receipt = receipt;
+        this.loadBankCardsForOffice(receipt.officeId || this.property?.officeId || null);
         this.populateForm(receipt);
       },
       error: (_err: HttpErrorResponse) => {
@@ -288,6 +316,12 @@ export class ReceiptComponent implements OnInit, OnDestroy {
 
   loadProperty(): void {
     if (this.property || !this.selectedPropertyId) {
+      if (this.property?.officeId) {
+        this.loadBankCardsForOffice(this.property.officeId);
+      } else {
+        this.bankCardOptions = [];
+        this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'bankCards');
+      }
       if (this.isAddMode) {
         const defaultPropertyId = this.selectedPropertyId || this.property?.propertyId || null;
         if (defaultPropertyId) {
@@ -300,6 +334,7 @@ export class ReceiptComponent implements OnInit, OnDestroy {
     this.propertyService.getPropertyByGuid(this.selectedPropertyId).pipe(take(1), finalize(() => { this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'property'); })).subscribe({
       next: (p) => {
         this.property = p;
+        this.loadBankCardsForOffice(this.property?.officeId ?? null);
         this.form.patchValue({
           officeName: this.property?.officeName || '',
           propertyCode: this.property?.propertyCode || '',
@@ -330,6 +365,42 @@ export class ReceiptComponent implements OnInit, OnDestroy {
       error: () => {
         this.propertyOptions = [];
         this.toastr.error('Unable to load properties.', 'Error');
+      }
+    });
+  }
+
+  loadAccountingOffices(): void {
+    this.accountingOfficeService.ensureAccountingOfficesLoaded().pipe(
+      take(1),
+      finalize(() => { this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'accountingOffices'); })
+    ).subscribe({
+      error: () => {}
+    });
+  }
+
+  loadBankCardsForOffice(officeId: number | null | undefined): void {
+    this.utilityService.addLoadItem(this.itemsToLoad$, 'bankCards');
+    const parsedOfficeId = Number(officeId);
+    if (!parsedOfficeId || parsedOfficeId <= 0) {
+      this.bankCardOptions = [];
+      this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'bankCards');
+      return;
+    }
+
+    this.accountingOfficeService.getAccountingOfficeById(parsedOfficeId).pipe(
+      take(1),
+      finalize(() => { this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'bankCards'); })
+    ).subscribe({
+      next: (accountingOffice) => {
+        this.bankCardOptions = (accountingOffice?.bankCards || [])
+          .filter(card => Number(card.bankCardId) > 0)
+          .map(card => ({
+            value: Number(card.bankCardId),
+            label: this.toBankCardOptionLabel(card)
+          }));
+      },
+      error: () => {
+        this.bankCardOptions = [];
       }
     });
   }
@@ -408,6 +479,23 @@ export class ReceiptComponent implements OnInit, OnDestroy {
     this.receiptPdfThumbnailUrl = null;
     this.pdfThumbnailService.getFirstPageDataUrl(dataUrl).then(url => {
       this.receiptPdfThumbnailUrl = url;
+    });
+  }
+
+  openReceiptDialog(): void {
+    const imageSrc = this.receiptPreviewDataUrl;
+    if (!imageSrc) {
+      this.toastr.warning('Receipt file is not available.', 'Receipt');
+      return;
+    }
+    const data: ImageViewDialogData = { imageSrc, title: 'Receipt' };
+    this.dialog.open(ImageViewDialogComponent, {
+      data,
+      width: '60vw',
+      height: '88vh',
+      maxWidth: '60vw',
+      maxHeight: '88vh',
+      panelClass: 'image-view-dialog-panel'
     });
   }
 
@@ -538,11 +626,33 @@ export class ReceiptComponent implements OnInit, OnDestroy {
 
   createSplitFormGroup(split?: Partial<Split>): FormGroup {
     const amount = Number(split?.amount);
+    const normalizedReceiptTypeId = split?.receiptTypeId ?? 0;
     return this.fb.group({
       amount: new FormControl(Number.isFinite(amount) ? amount.toFixed(2) : '', [Validators.required]),
       description: new FormControl((split?.description || '').trim(), [Validators.required]),
-      workOrder: new FormControl((split?.workOrder || '').trim())
+      workOrder: new FormControl((split?.workOrder || '').trim()),
+      receiptTypeId: new FormControl(normalizedReceiptTypeId, [Validators.required]),
+      bankCardId: new FormControl(split?.bankCardId ?? 0, [Validators.required])
     });
+  }
+
+  private validateRequiredSplitFields(): string | null {
+    for (let i = 0; i < this.splitsFormArray.length; i++) {
+      const row = this.splitsFormArray.at(i) as FormGroup;
+      row.markAllAsTouched();
+
+      const amountRaw = this.sanitizeSignedDecimalInput(row.get('amount')?.value?.toString() ?? '').trim();
+      const description = (row.get('description')?.value || '').trim();
+      const receiptTypeId = row.get('receiptTypeId')?.value;
+      const bankCardId = row.get('bankCardId')?.value;
+
+      if (!amountRaw) return `Split line ${i + 1}: Amount is required.`;
+      if (!description) return `Split line ${i + 1}: Description is required.`;
+      if (receiptTypeId === null || receiptTypeId === undefined || receiptTypeId === '') return `Split line ${i + 1}: Type is required.`;
+      if (bankCardId === null || bankCardId === undefined || bankCardId === '') return `Split line ${i + 1}: Card is required.`;
+    }
+
+    return null;
   }
 
   ensureAtLeastOneSplit(): void {
@@ -564,7 +674,9 @@ export class ReceiptComponent implements OnInit, OnDestroy {
       return {
         amount: parseFloat(amountRaw) || 0,
         description: (control.get('description')?.value || '').trim(),
-        workOrder: (control.get('workOrder')?.value || '').trim()
+        workOrder: (control.get('workOrder')?.value || '').trim(),
+        receiptTypeId: control.get('receiptTypeId')?.value ?? 0,
+        bankCardId: control.get('bankCardId')?.value ?? 0
       };
     });
   }
@@ -617,7 +729,9 @@ export class ReceiptComponent implements OnInit, OnDestroy {
     return (splits || []).map(split => ({
       amount: Number(split.amount) || 0,
       description: (split.description || '').trim(),
-      workOrder: (split.workOrder || '').trim()
+      workOrder: (split.workOrder || '').trim(),
+      receiptTypeId: split.receiptTypeId ?? 0,
+      bankCardId: split.bankCardId ?? 0
     }));
   }
 
@@ -667,6 +781,78 @@ export class ReceiptComponent implements OnInit, OnDestroy {
     const numericPortion = parts.length > 1 ? `${parts[0]}.${parts.slice(1).join('')}` : parts[0];
     return `${isNegative ? '-' : ''}${numericPortion}`;
   }
+
+  toBankCardOptionLabel(card: BankCardResponse): string {
+    return card.displayName;
+  }
+
+  hasSplitWorkOrder(splitIndex: number): boolean {
+    const workOrderValue = this.getSplitWorkOrderCode(splitIndex);
+    return workOrderValue.length > 0;
+  }
+
+  openWorkOrderFromSplit(splitIndex: number): void {
+    const targetWorkOrderCode = this.getSplitWorkOrderCode(splitIndex);
+    if (!targetWorkOrderCode) {
+      return;
+    }
+
+    const propertyId =
+      this.getSelectedPropertyIds().find(id => (id || '').trim().length > 0)
+      || (this.selectedPropertyId || '').trim()
+      || (this.property?.propertyId || '').trim()
+      || null;
+    const officeId = Number(this.receipt?.officeId || this.property?.officeId || 0) || null;
+
+    this.workOrderService.getWorkOrders(propertyId, officeId).pipe(take(1)).subscribe({
+      next: workOrders => {
+        const matchingWorkOrder = (workOrders || []).find(
+          workOrder => (workOrder.workOrderCode || '').trim().toLowerCase() === targetWorkOrderCode.toLowerCase()
+        );
+        if (!matchingWorkOrder) {
+          this.toastr.warning(`Unable to locate ${targetWorkOrderCode}.`, 'Work Order');
+          return;
+        }
+
+        const workOrderId = String(matchingWorkOrder.workOrderId || '').trim();
+        const resolvedPropertyId = (matchingWorkOrder.propertyId || propertyId || '').trim();
+        if (!workOrderId || !resolvedPropertyId) {
+          this.toastr.error('Unable to open work order: missing work order context.', 'Work Order');
+          return;
+        }
+
+        if (this.embeddedInMaintenance) {
+          this.workOrderSelect.emit({
+            workOrderId,
+            propertyId: resolvedPropertyId
+          });
+          return;
+        }
+
+        const maintenanceUrl = '/' + RouterUrl.replaceTokens(RouterUrl.Maintenance, [resolvedPropertyId]);
+        this.router.navigate([maintenanceUrl], {
+          queryParams: {
+            tab: 3,
+            workOrderId
+          }
+        });
+      },
+      error: () => {
+        this.toastr.error('Unable to load work order.', 'Work Order');
+      }
+    });
+  }
+
+  getSplitWorkOrderCode(splitIndex: number): string {
+    const rawWorkOrder = (this.splitsFormArray.at(splitIndex)?.get('workOrder')?.value || '').toString().trim();
+    if (!rawWorkOrder) {
+      return '';
+    }
+    return rawWorkOrder
+      .split(',')
+      .map(code => code.trim())
+      .find(code => code.length > 0) || '';
+  }
   //#endregion
 
   //#region Utility Methods
@@ -684,6 +870,8 @@ export class ReceiptComponent implements OnInit, OnDestroy {
   }
 
   ngOnDestroy(): void {
+    this.destroy$.next();
+    this.destroy$.complete();
     this.itemsToLoad$.complete();
   }
   //#endregion

@@ -633,6 +633,9 @@ export class MaintenanceShellComponent implements OnInit, CanComponentDeactivate
     }
 
     const openReceiptDetail = () => {
+      this.selectedTabIndex = this.receiptsTabIndex;
+      this.showWorkOrderDetail = false;
+      this.selectedWorkOrderId = null;
       this.showReceiptDetail = true;
       this.selectedReceiptId = receiptId;
     };
@@ -695,6 +698,9 @@ export class MaintenanceShellComponent implements OnInit, CanComponentDeactivate
     const workOrderId = selection?.workOrderId ?? null;
     const targetPropertyId = (selection?.propertyId || '').trim() || null;
     const openWorkOrderDetail = () => {
+      this.selectedTabIndex = this.workOrdersTabIndex;
+      this.showReceiptDetail = false;
+      this.selectedReceiptId = null;
       this.showWorkOrderDetail = true;
       this.selectedWorkOrderId = workOrderId;
     };

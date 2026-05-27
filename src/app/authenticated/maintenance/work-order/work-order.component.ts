@@ -25,7 +25,7 @@ import { InvoiceRequest, LedgerLineRequest } from '../../accounting/models/invoi
 import { InvoiceService } from '../../accounting/services/invoice.service';
 import { PropertyAgreementResponse } from '../../properties/models/property-agreement.model';
 import { getWorkOrderTypes, WorkOrderType } from '../models/maintenance-enums';
-import { ReceiptRequest, ReceiptResponse } from '../models/receipt.model';
+import { ReceiptRequest, ReceiptResponse, ReceiptSelection } from '../models/receipt.model';
 import { ReceiptSplitOption, WorkOrderItemEditable, WorkOrderItemRequest, WorkOrderItemResponse, WorkOrderItemSnapshot, WorkOrderRequest, WorkOrderResponse } from '../models/work-order.model';
 import { WorkOrderAmountService } from '../services/work-order-amount.service';
 import { ReceiptService } from '../services/receipt.service';
@@ -49,6 +49,7 @@ export class WorkOrderComponent implements OnInit, OnChanges, OnDestroy {
   @Output() backEvent = new EventEmitter<void>();
   @Output() savedEvent = new EventEmitter<WorkOrderResponse>();
   @Output() saveValidationAttempted = new EventEmitter<void>();
+  @Output() receiptSelect = new EventEmitter<ReceiptSelection>();
   
   readonly parseInt = parseInt;
   readonly noReceiptOptionValue = 0;
@@ -1586,6 +1587,42 @@ export class WorkOrderComponent implements OnInit, OnChanges, OnDestroy {
         .map(item => Number(item.receiptId))
         .filter(receiptId => Number.isFinite(receiptId) && receiptId > 0)
     ));
+  }
+
+  hasSelectedReceipt(item: WorkOrderItemEditable): boolean {
+    return Number.isFinite(Number(item?.receiptId)) && Number(item?.receiptId) > 0;
+  }
+
+  openReceiptFromItem(item: WorkOrderItemEditable): void {
+    const receiptId = Number(item?.receiptId);
+    if (!Number.isFinite(receiptId) || receiptId <= 0) {
+      return;
+    }
+
+    const propertyId = (this.property?.propertyId || this.selectedPropertyId || '').trim();
+    const officeId = Number(this.property?.officeId || 0);
+
+    if (this.embeddedInMaintenance) {
+      this.receiptSelect.emit({
+        receiptId,
+        officeId: Number.isFinite(officeId) && officeId > 0 ? officeId : null,
+        propertyId: propertyId || null
+      });
+      return;
+    }
+
+    if (!propertyId) {
+      this.toastr.error('Unable to open receipt: property context is missing.', 'Receipt');
+      return;
+    }
+
+    const maintenanceUrl = '/' + RouterUrl.replaceTokens(RouterUrl.Maintenance, [propertyId]);
+    this.router.navigate([maintenanceUrl], {
+      queryParams: {
+        tab: 2,
+        receiptId
+      }
+    });
   }
 
   navigateToWorkOrderView(workOrderId: string): void {
