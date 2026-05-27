@@ -21,7 +21,7 @@ import { DataTableComponent } from '../../shared/data-table/data-table.component
 import { DataTableFilterActionsDirective } from '../../shared/data-table/data-table-filter-actions.directive';
 import { ColumnSet } from '../../shared/data-table/models/column-data';
 import { TitleBarSelectComponent } from '../../shared/titlebar-select/titlebar-select.component';
-import { AlertListDisplay, AlertResponse } from '../models/alert.model';
+import { AlertListDisplay, AlertRequest, AlertResponse } from '../models/alert.model';
 import { AlertService } from '../services/alert.service';
 
 @Component({
@@ -338,6 +338,79 @@ export class AlertListComponent implements OnInit, OnChanges, OnDestroy {
         this.isServiceError = true;
       }
     });
+  }
+
+  onAlertCheckboxChange(event: AlertListDisplay): void {
+    const changedCheckboxColumn = (event as unknown as { __changedCheckboxColumn?: string }).__changedCheckboxColumn;
+    if (changedCheckboxColumn !== 'isActive') {
+      return;
+    }
+    const previousValue = (event as unknown as { __previousCheckboxValue?: boolean }).__previousCheckboxValue === true;
+    const nextValue = (event as unknown as { __checkboxValue?: boolean }).__checkboxValue === true;
+    if (previousValue === nextValue) {
+      return;
+    }
+
+    this.applyAlertIsActiveValue(event.alertId, nextValue);
+    this.alertService.getAlertByGuid(event.alertId).pipe(take(1)).subscribe({
+      next: alert => {
+        const request: AlertRequest = {
+          alertId: alert.alertId,
+          organizationId: alert.organizationId,
+          officeId: alert.officeId,
+          propertyId: alert.propertyId ?? null,
+          reservationId: alert.reservationId ?? null,
+          ticketId: alert.ticketId ?? null,
+          fromRecipient: alert.fromRecipient,
+          toRecipients: alert.toRecipients || [],
+          ccRecipients: alert.ccRecipients || [],
+          bccRecipients: alert.bccRecipients || [],
+          subject: alert.subject,
+          plainTextContent: alert.plainTextContent,
+          emailTypeId: alert.emailTypeId,
+          startDate: alert.startDate,
+          daysBeforeDeparture: alert.daysBeforeDeparture ?? null,
+          frequencyId: alert.frequencyId,
+          isActive: nextValue
+        };
+        this.alertService.updateAlert(request).pipe(take(1)).subscribe({
+          next: updatedAlert => {
+            this.alertsById.set(updatedAlert.alertId, updatedAlert);
+            this.applyAlertIsActiveValue(updatedAlert.alertId, updatedAlert.isActive === true);
+            this.applyFilters();
+            this.toastr.success('Alert updated successfully', CommonMessage.Success);
+          },
+          error: () => {
+            this.applyAlertIsActiveValue(event.alertId, previousValue);
+            this.applyFilters();
+            this.toastr.error('Failed to update alert', CommonMessage.Error);
+          }
+        });
+      },
+      error: () => {
+        this.applyAlertIsActiveValue(event.alertId, previousValue);
+        this.applyFilters();
+        this.toastr.error('Failed to load alert for update', CommonMessage.Error);
+      }
+    });
+  }
+
+  applyAlertIsActiveValue(alertId: string, isActive: boolean): void {
+    const nextValue = !!isActive;
+    this.allAlerts = this.allAlerts.map(alert =>
+      alert.alertId === alertId
+        ? { ...alert, isActive: nextValue }
+        : alert
+    );
+    this.alerts = this.alerts.map(alert =>
+      alert.alertId === alertId
+        ? { ...alert, isActive: nextValue }
+        : alert
+    );
+    const alertResponse = this.alertsById.get(alertId);
+    if (alertResponse) {
+      this.alertsById.set(alertId, { ...alertResponse, isActive: nextValue });
+    }
   }
 
   resolveOfficeScope(officeId: number | null, emitChange: boolean): void {
