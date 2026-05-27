@@ -14,9 +14,9 @@ import { ContactService } from '../../contacts/services/contact.service';
 import { OfficeResponse } from '../../organizations/models/office.model';
 import { GlobalSelectionService } from '../../organizations/services/global-selection.service';
 import { OfficeService } from '../../organizations/services/office.service';
-import { PropertyListResponse } from '../../properties/models/property.model';
+import { PropertyCodeResponse } from '../../properties/models/property.model';
 import { PropertyService } from '../../properties/services/property.service';
-import { ReservationListResponse } from '../../reservations/models/reservation-model';
+import { ReservationCodeResponse } from '../../reservations/models/reservation-model';
 import { ReservationService } from '../../reservations/services/reservation.service';
 import { AddAlertDialogComponent, AddAlertDialogData } from '../../shared/modals/add-alert-dialog/add-alert-dialog.component';
 import { UserService } from '../../users/services/user.service';
@@ -69,8 +69,8 @@ export class TicketShellComponent implements OnInit, OnDestroy, CanComponentDeac
   selectedReservationCodeFallback: string | null = null;
   isOfficeSelectionInvalidOnSave = false;
   offices: OfficeResponse[] = [];
-  properties: PropertyListResponse[] = [];
-  reservations: ReservationListResponse[] = [];
+  properties: PropertyCodeResponse[] = [];
+  reservations: ReservationCodeResponse[] = [];
   contacts: ContactResponse[] = [];
   globalOfficeSubscription?: Subscription;
 
@@ -351,16 +351,12 @@ export class TicketShellComponent implements OnInit, OnDestroy, CanComponentDeac
   }
 
   loadProperties(): void {
-    const currentUserId = String(this.currentUserId || '').trim();
-    if (!currentUserId) {
-      this.properties = [];
-      this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'properties');
-      return;
-    }
-
-    this.propertyService.getActivePropertiesBySelectionCriteria(currentUserId).pipe(take(1), finalize(() => this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'properties'))).subscribe({
+    this.propertyService.getPropertyCodes().pipe(take(1), finalize(() => this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'properties'))).subscribe({
       next: properties => {
-        this.properties = (properties || []).slice().sort((a, b) =>
+        const scopedByOffice = this.selectedOfficeId == null
+          ? (properties || [])
+          : (properties || []).filter(p => Number(p.officeId) === Number(this.selectedOfficeId));
+        this.properties = scopedByOffice.slice().sort((a, b) =>
           String(a.propertyCode || '').localeCompare(String(b.propertyCode || ''), undefined, { sensitivity: 'base' })
         );
         const isSelectedPropertyInScope = !!this.selectedPropertyId && this.getFilteredPropertiesByOffice().some(property => property.propertyId === this.selectedPropertyId);
@@ -378,35 +374,7 @@ export class TicketShellComponent implements OnInit, OnDestroy, CanComponentDeac
     const normalizedPreferredReservationId = preferredReservationId == null || String(preferredReservationId).trim() === '' ? null : String(preferredReservationId).trim();
     const propertyIdForLoad = this.utilityService.normalizeIdOrNull(forcedPropertyId ?? this.selectedPropertyId);
     const shouldReleaseSelectionLock = this.isApplyingTicketSelectionContext;
-    if (propertyIdForLoad) {
-      this.reservationService.getActiveReservationsByPropertyId(propertyIdForLoad).pipe(
-        take(1),
-        finalize(() => {
-          this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'reservations');
-          if (shouldReleaseSelectionLock) {
-            this.isApplyingTicketSelectionContext = false;
-          }
-        })
-      ).subscribe({
-        next: reservations => {
-          this.reservations = (reservations || []).slice().sort((a, b) =>
-            String(a.reservationCode || '').localeCompare(String(b.reservationCode || ''), undefined, { sensitivity: 'base' })
-          );
-          this.selectedReservationId = normalizedPreferredReservationId && this.reservations.some(r => this.utilityService.normalizeId(r.reservationId) === this.utilityService.normalizeId(normalizedPreferredReservationId))
-            ? this.reservations.find(r => this.utilityService.normalizeId(r.reservationId) === this.utilityService.normalizeId(normalizedPreferredReservationId))?.reservationId ?? normalizedPreferredReservationId
-            : null;
-          this.syncFiltersToList();
-        },
-        error: () => {
-          this.reservations = [];
-          this.selectedReservationId = null;
-          this.syncFiltersToList();
-        }
-      });
-      return;
-    }
-
-    this.reservationService.getActiveReservationList().pipe(
+    this.reservationService.getReservationCodes().pipe(
       take(1),
       finalize(() => {
         this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'reservations');
@@ -416,7 +384,13 @@ export class TicketShellComponent implements OnInit, OnDestroy, CanComponentDeac
       })
     ).subscribe({
       next: reservations => {
-        this.reservations = (reservations || []).slice().sort((a, b) =>
+        const scopedByOffice = this.selectedOfficeId == null
+          ? (reservations || [])
+          : (reservations || []).filter(r => Number(r.officeId) === Number(this.selectedOfficeId));
+        const scopedByProperty = propertyIdForLoad
+          ? scopedByOffice.filter(r => this.utilityService.normalizeIdOrNull(r.propertyId) === this.utilityService.normalizeIdOrNull(propertyIdForLoad))
+          : scopedByOffice;
+        this.reservations = scopedByProperty.slice().sort((a, b) =>
           String(a.reservationCode || '').localeCompare(String(b.reservationCode || ''), undefined, { sensitivity: 'base' })
         );
         this.selectedReservationId = normalizedPreferredReservationId && this.reservations.some(r => this.utilityService.normalizeId(r.reservationId) === this.utilityService.normalizeId(normalizedPreferredReservationId))
@@ -445,7 +419,7 @@ export class TicketShellComponent implements OnInit, OnDestroy, CanComponentDeac
   //#endregion
 
   //#region Utility Methods
-  getFilteredPropertiesByOffice(): PropertyListResponse[] {
+  getFilteredPropertiesByOffice(): PropertyCodeResponse[] {
     const scopedOfficeId = this.selectedOfficeId;
     if (scopedOfficeId == null) {
       return this.properties;

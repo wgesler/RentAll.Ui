@@ -4,6 +4,7 @@ import { ActivatedRoute, Router } from '@angular/router';
 import { skip, Subscription, take } from 'rxjs';
 import { MaterialModule } from '../../../material.module';
 import { AuthService } from '../../../services/auth.service';
+import { UtilityService } from '../../../services/utility.service';
 import { OfficeResponse } from '../../organizations/models/office.model';
 import { GlobalSelectionService } from '../../organizations/services/global-selection.service';
 import { OfficeService } from '../../organizations/services/office.service';
@@ -60,6 +61,7 @@ export class EmailsShellComponent implements OnInit, OnDestroy {
     private route: ActivatedRoute,
     private router: Router,
     private authService: AuthService,
+    private utilityService: UtilityService,
     private officeService: OfficeService,
     private globalSelectionService: GlobalSelectionService,
     private propertyService: PropertyService,
@@ -291,7 +293,7 @@ export class EmailsShellComponent implements OnInit, OnDestroy {
       : officeFilteredReservations.filter(reservation => reservation.propertyId === this.selectedPropertyId);
     this.availableReservations = filteredReservations.map(reservation => ({
       value: reservation.reservationId,
-      label: `${reservation.reservationCode}: ${reservation.propertyCode || ''}`.trim()
+      label: this.utilityService.getReservationDropdownLabel(reservation, null)
     }));
 
     if (this.selectedReservationId && !filteredReservations.some(reservation => reservation.reservationId === this.selectedReservationId)) {

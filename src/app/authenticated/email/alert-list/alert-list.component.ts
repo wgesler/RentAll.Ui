@@ -15,7 +15,7 @@ import { ContactService } from '../../contacts/services/contact.service';
 import { OfficeResponse } from '../../organizations/models/office.model';
 import { GlobalSelectionService } from '../../organizations/services/global-selection.service';
 import { OfficeService } from '../../organizations/services/office.service';
-import { ReservationListResponse } from '../../reservations/models/reservation-model';
+import { ReservationCodeResponse } from '../../reservations/models/reservation-model';
 import { ReservationService } from '../../reservations/services/reservation.service';
 import { DataTableComponent } from '../../shared/data-table/data-table.component';
 import { DataTableFilterActionsDirective } from '../../shared/data-table/data-table-filter-actions.directive';
@@ -40,7 +40,7 @@ export class AlertListComponent implements OnInit, OnChanges, OnDestroy {
   @Input() organizationId: string | null = null;
   @Input() officeId: number | null = null;
   @Input() reservationId: string | null = null;
-  @Input() reservations: ReservationListResponse[] = [];
+  @Input() reservations: ReservationCodeResponse[] = [];
   @Output() officeIdChange = new EventEmitter<number | null>();
   @Output() reservationIdChange = new EventEmitter<string | null>();
   @Output() alertEdit = new EventEmitter<string>();
@@ -55,7 +55,7 @@ export class AlertListComponent implements OnInit, OnChanges, OnDestroy {
 
   offices: OfficeResponse[] = [];
   selectedOfficeId: number | null = null;
-  availableReservations: { value: ReservationListResponse; label: string }[] = [];
+  availableReservations: { value: ReservationCodeResponse; label: string }[] = [];
   selectedReservationId: string | null = null;
   showOfficeDropdown = false;
   preferredOfficeId: number | null = null;
@@ -175,7 +175,7 @@ export class AlertListComponent implements OnInit, OnChanges, OnDestroy {
   }
 
   loadReservations(): void {
-    this.reservationService.getReservationList().pipe(take(1)).subscribe({
+    this.reservationService.getReservationCodes().pipe(take(1)).subscribe({
       next: reservations => {
         this.reservations = reservations || [];
         this.applyReservationCodes();
