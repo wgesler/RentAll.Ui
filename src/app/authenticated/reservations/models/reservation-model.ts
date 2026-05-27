@@ -177,6 +177,13 @@ export interface ReservationCodeResponse {
   propertyCode: string;
   officeId: number;
   officeName: string;
+  contactId: string;
+  contactName: string;
+  companyId?: string | null;
+  companyName?: string | null;
+  tenantName: string;
+  reservationTypeId: number;
+  isActive: boolean;
 }
 
 export interface ReservationListDisplay {

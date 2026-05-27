@@ -3,7 +3,7 @@ import { HttpErrorResponse } from '@angular/common/http';
 import { BehaviorSubject } from 'rxjs';
 import { ContactResponse } from '../authenticated/contacts/models/contact.model';
 import { EntityType } from '../authenticated/contacts/models/contact-enum';
-import { ReservationListResponse, ReservationResponse } from '../authenticated/reservations/models/reservation-model';
+import { ReservationCodeResponse, ReservationListResponse, ReservationResponse } from '../authenticated/reservations/models/reservation-model';
 import { ReservationType } from '../authenticated/reservations/models/reservation-enum';
 import { FileDetails } from '../shared/models/fileDetails';
 import { FormatterService } from './formatter-service';
@@ -386,7 +386,7 @@ export class UtilityService {
   //#endregion
 
   //#region Reservations
-  getReservationDropdownLabel(reservation: ReservationListResponse | ReservationResponse | null | undefined, contact: ContactResponse | null): string {
+  getReservationDropdownLabel(reservation: ReservationCodeResponse | ReservationListResponse | ReservationResponse | null | undefined, contact: ContactResponse | null): string {
     if (!reservation) {
       return '';
     }
@@ -409,7 +409,7 @@ export class UtilityService {
     return `${code}: ${contactName}`;
   }
 
-  getReservationBoardLabel(reservation: ReservationListResponse | ReservationResponse | null | undefined, contact: ContactResponse | null) {
+  getReservationBoardLabel(reservation: ReservationCodeResponse | ReservationListResponse | ReservationResponse | null | undefined, contact: ContactResponse | null) {
     if (!reservation) 
       return '';
     
@@ -425,7 +425,7 @@ export class UtilityService {
     }
   }
 
-  getResponsibleParty(reservation: ReservationListResponse | ReservationResponse | null | undefined, contact: ContactResponse | null): string {
+  getResponsibleParty(reservation: ReservationCodeResponse | ReservationListResponse | ReservationResponse | null | undefined, contact: ContactResponse | null): string {
     if (!contact) 
       return '';
     
@@ -442,7 +442,7 @@ export class UtilityService {
     }
   }
 
-  getResponsiblePartyAddress1(reservation: ReservationListResponse | ReservationResponse | null | undefined, contact: ContactResponse | null): string {
+  getResponsiblePartyAddress1(reservation: ReservationCodeResponse | ReservationListResponse | ReservationResponse | null | undefined, contact: ContactResponse | null): string {
     if (!contact) 
       return '';
   
@@ -454,7 +454,7 @@ export class UtilityService {
     return (`${contact.address1 || ''} ${contact.address2 || ''}`).trim();
   }
 
-  getResponsiblePartyAddress2(reservation: ReservationListResponse | ReservationResponse | null | undefined, contact: ContactResponse | null): string {
+  getResponsiblePartyAddress2(reservation: ReservationCodeResponse | ReservationListResponse | ReservationResponse | null | undefined, contact: ContactResponse | null): string {
     if (!contact) 
       return '';
   
@@ -474,7 +474,7 @@ export class UtilityService {
     return contact?.email || '';
   }
 
-  getResponsiblePartyOccupant(reservation: ReservationListResponse | ReservationResponse | null, contact: ContactResponse | null): string {
+  getResponsiblePartyOccupant(reservation: ReservationCodeResponse | ReservationListResponse | ReservationResponse | null, contact: ContactResponse | null): string {
     return (reservation.tenantName || '').trim();
   }
 

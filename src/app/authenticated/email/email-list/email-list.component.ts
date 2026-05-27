@@ -16,7 +16,7 @@ import { ColumnSet } from '../../shared/data-table/models/column-data';
 import { OfficeResponse } from '../../organizations/models/office.model';
 import { GlobalSelectionService } from '../../organizations/services/global-selection.service';
 import { OfficeService } from '../../organizations/services/office.service';
-import { ReservationListResponse } from '../../reservations/models/reservation-model';
+import { ReservationCodeResponse } from '../../reservations/models/reservation-model';
 import { ReservationService } from '../../reservations/services/reservation.service';
 import { UtilityService } from '../../../services/utility.service';
 import { ContactResponse } from '../../contacts/models/contact.model';
@@ -45,7 +45,7 @@ export class EmailListComponent implements OnInit, OnDestroy, OnChanges {
   /** When set, keep only rows with this document type (e.g. Inspection). Rows without `documentTypeId` match if subject starts with "Inspection Issues". */
   @Input() filterDocumentTypeId?: number;
   @Input() activeOnly: boolean = false;
-  @Input() reservations: ReservationListResponse[] = []; // Shared reservations list from parent (or loaded internally)
+  @Input() reservations: ReservationCodeResponse[] = []; // Shared reservations list from parent (or loaded internally)
   @Output() organizationIdChange = new EventEmitter<string | null>();
   @Output() companyIdChange = new EventEmitter<string | null>();
   @Output() officeIdChange = new EventEmitter<number | null>();
@@ -58,7 +58,7 @@ export class EmailListComponent implements OnInit, OnDestroy, OnChanges {
 
   offices: OfficeResponse[] = [];
   selectedOfficeId: number | null = null;
-  availableReservations: { value: ReservationListResponse, label: string }[] = [];
+  availableReservations: { value: ReservationCodeResponse, label: string }[] = [];
   selectedReservationId: string | null = null;
 
   companyContacts: ContactResponse[] = [];
@@ -234,7 +234,7 @@ export class EmailListComponent implements OnInit, OnDestroy, OnChanges {
   }
 
   loadReservations(): void {
-    this.reservationService.getReservationList().pipe(take(1)).subscribe({
+    this.reservationService.getReservationCodes().pipe(take(1)).subscribe({
       next: (reservations) => {
         this.reservations = reservations || [];
         this.filterReservations();
@@ -364,7 +364,7 @@ export class EmailListComponent implements OnInit, OnDestroy, OnChanges {
       if (this.source === 'invoice' && this.selectedCompanyContact?.contactId) {
         const selectedContactId = this.selectedCompanyContact.contactId;
         allReservations = allReservations.filter(r => {
-          const reservationAny = r as ReservationListResponse & { entityId?: string | null; EntityId?: string | null; contactId?: string };
+          const reservationAny = r as ReservationCodeResponse & { entityId?: string | null; EntityId?: string | null; contactId?: string };
           const reservationEntityId = reservationAny.entityId ?? reservationAny.EntityId ?? reservationAny.contactId ?? null;
           return reservationEntityId === selectedContactId;
         });
@@ -382,7 +382,7 @@ export class EmailListComponent implements OnInit, OnDestroy, OnChanges {
       : filteredReservations;
     const companyFilteredReservations = (this.source === 'invoice' && this.selectedCompanyContact?.contactId)
       ? propertyFilteredReservations.filter(r => {
-          const reservationAny = r as ReservationListResponse & { entityId?: string | null; EntityId?: string | null; contactId?: string };
+          const reservationAny = r as ReservationCodeResponse & { entityId?: string | null; EntityId?: string | null; contactId?: string };
           const reservationEntityId = reservationAny.entityId ?? reservationAny.EntityId ?? reservationAny.contactId ?? null;
           return reservationEntityId === this.selectedCompanyContact!.contactId;
         })

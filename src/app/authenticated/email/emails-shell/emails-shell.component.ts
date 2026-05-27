@@ -9,7 +9,7 @@ import { GlobalSelectionService } from '../../organizations/services/global-sele
 import { OfficeService } from '../../organizations/services/office.service';
 import { PropertyCodeResponse } from '../../properties/models/property.model';
 import { PropertyService } from '../../properties/services/property.service';
-import { ReservationCodeResponse, ReservationListResponse } from '../../reservations/models/reservation-model';
+import { ReservationCodeResponse } from '../../reservations/models/reservation-model';
 import { ReservationService } from '../../reservations/services/reservation.service';
 import { SearchableSelectOption } from '../../shared/searchable-select/searchable-select.component';
 import { TitleBarSelectComponent } from '../../shared/titlebar-select/titlebar-select.component';
@@ -42,13 +42,13 @@ export class EmailsShellComponent implements OnInit, OnDestroy {
   selectedOfficeId: number | null = null;
   selectedPropertyId: string | null = null;
   selectedReservationId: string | null = null;
-  selectedReservationSummary: ReservationListResponse | null = null;
+  selectedReservationSummary: ReservationCodeResponse | null = null;
 
   offices: OfficeResponse[] = [];
   showOfficeDropdown = false;
   properties: PropertyCodeResponse[] = [];
   availableProperties: SearchableSelectOption[] = [];
-  reservations: ReservationListResponse[] = [];
+  reservations: ReservationCodeResponse[] = [];
   availableReservations: SearchableSelectOption[] = [];
 
   organizationId = '';
@@ -268,7 +268,7 @@ export class EmailsShellComponent implements OnInit, OnDestroy {
   loadReservationCodes(): void {
     this.reservationService.getReservationCodes().pipe(take(1)).subscribe({
       next: reservations => {
-        this.reservations = (reservations || []) as unknown as ReservationListResponse[];
+        this.reservations = reservations || [];
         this.refreshReservationOptions();
       },
       error: () => {
