@@ -4,6 +4,7 @@ import { Observable, Subject, firstValueFrom } from 'rxjs';
 import { ConfigService } from '../../../services/config.service';
 import { MixedMappingService } from '../../../services/mixed-mapping.service';
 import {
+  ReservationCodeResponse,
   ReservationListResponse,
   ReservationRequest,
   ReservationResponse,
@@ -36,6 +37,10 @@ export class ReservationService {
 
   getActiveReservationList(): Observable<ReservationListResponse[]> {
     return this.http.get<ReservationListResponse[]>(this.controller + 'active-list');
+  }
+
+  getReservationCodes(): Observable<ReservationCodeResponse[]> {
+    return this.http.get<ReservationCodeResponse[]>(this.controller + 'codes');
   }
 
 

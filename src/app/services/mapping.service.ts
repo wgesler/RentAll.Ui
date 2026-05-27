@@ -561,6 +561,7 @@ export class MappingService {
       emailId: email?.emailId ?? '',
       officeId: String(email?.officeId ?? ''),
       propertyId: email?.propertyId ?? undefined,
+      propertyCode: email?.propertyCode ?? '',
       reservationId: email?.reservationId ?? undefined,
       reservationCode: email?.reservationCode ?? '',
       officeName: email?.officeName ?? '',

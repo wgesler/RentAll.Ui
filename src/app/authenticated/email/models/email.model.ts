@@ -26,7 +26,9 @@ export interface EmailResponse {
   organizationId: string;
   officeId: number;
   propertyId: string | null;
+  propertyCode?: string | null;
   reservationId: string | null;
+  reservationCode?: string | null;
   toRecipients: EmailAddress[];
   ccRecipients: EmailAddress[];
   bccRecipients: EmailAddress[];
@@ -55,6 +57,7 @@ export interface EmailListDisplay {
   emailId: string;
   officeId: string;
   propertyId?: string;
+  propertyCode?: string;
   reservationId?: string;
   reservationCode?: string;
   officeName?: string;

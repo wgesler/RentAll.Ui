@@ -4,13 +4,12 @@ import { ActivatedRoute, Router } from '@angular/router';
 import { skip, Subscription, take } from 'rxjs';
 import { MaterialModule } from '../../../material.module';
 import { AuthService } from '../../../services/auth.service';
-import { UtilityService } from '../../../services/utility.service';
 import { OfficeResponse } from '../../organizations/models/office.model';
 import { GlobalSelectionService } from '../../organizations/services/global-selection.service';
 import { OfficeService } from '../../organizations/services/office.service';
-import { PropertyListResponse } from '../../properties/models/property.model';
+import { PropertyCodeResponse } from '../../properties/models/property.model';
 import { PropertyService } from '../../properties/services/property.service';
-import { ReservationListResponse } from '../../reservations/models/reservation-model';
+import { ReservationCodeResponse, ReservationListResponse } from '../../reservations/models/reservation-model';
 import { ReservationService } from '../../reservations/services/reservation.service';
 import { SearchableSelectOption } from '../../shared/searchable-select/searchable-select.component';
 import { TitleBarSelectComponent } from '../../shared/titlebar-select/titlebar-select.component';
@@ -47,7 +46,7 @@ export class EmailsShellComponent implements OnInit, OnDestroy {
 
   offices: OfficeResponse[] = [];
   showOfficeDropdown = false;
-  properties: PropertyListResponse[] = [];
+  properties: PropertyCodeResponse[] = [];
   availableProperties: SearchableSelectOption[] = [];
   reservations: ReservationListResponse[] = [];
   availableReservations: SearchableSelectOption[] = [];
@@ -64,8 +63,7 @@ export class EmailsShellComponent implements OnInit, OnDestroy {
     private officeService: OfficeService,
     private globalSelectionService: GlobalSelectionService,
     private propertyService: PropertyService,
-    private reservationService: ReservationService,
-    private utilityService: UtilityService
+    private reservationService: ReservationService
   ) {}
 
   //#region Emails-Shell
@@ -87,8 +85,8 @@ export class EmailsShellComponent implements OnInit, OnDestroy {
     });
 
     this.loadOffices();
-    this.loadProperties();
-    this.loadReservations();
+    this.loadPropertyCodes();
+    this.loadReservationCodes();
 
     this.globalOfficeSubscription = this.globalSelectionService.getSelectedOfficeId$().pipe(skip(1)).subscribe(officeId => {
       if (this.showOfficeDropdown) {
@@ -233,7 +231,7 @@ export class EmailsShellComponent implements OnInit, OnDestroy {
     this.globalSelectionService.ensureOfficeScope(this.organizationId, this.preferredOfficeId).pipe(take(1)).subscribe({
       next: () => {
         this.offices = this.officeService.getAllOfficesValue() || [];
-        this.loadProperties();
+        this.loadPropertyCodes();
         this.globalSelectionService.getOfficeUiState$(this.offices, { explicitOfficeId: null, useGlobalSelection: true }).pipe(take(1)).subscribe({
           next: uiState => {
             this.showOfficeDropdown = uiState.showOfficeDropdown;
@@ -253,9 +251,8 @@ export class EmailsShellComponent implements OnInit, OnDestroy {
     });
   }
 
-  loadProperties(): void {
-    const officeIds = this.officeService.getAllOfficesValue().map(office => office.officeId);
-    this.propertyService.getActivePropertyList().pipe(take(1)).subscribe({
+  loadPropertyCodes(): void {
+    this.propertyService.getPropertyCodes().pipe(take(1)).subscribe({
       next: properties => {
         this.properties = properties || [];
         this.refreshPropertyOptions();
@@ -268,10 +265,10 @@ export class EmailsShellComponent implements OnInit, OnDestroy {
     });
   }
 
-  loadReservations(): void {
-    this.reservationService.getReservationList().pipe(take(1)).subscribe({
+  loadReservationCodes(): void {
+    this.reservationService.getReservationCodes().pipe(take(1)).subscribe({
       next: reservations => {
-        this.reservations = reservations || [];
+        this.reservations = (reservations || []) as unknown as ReservationListResponse[];
         this.refreshReservationOptions();
       },
       error: () => {
@@ -294,7 +291,7 @@ export class EmailsShellComponent implements OnInit, OnDestroy {
       : officeFilteredReservations.filter(reservation => reservation.propertyId === this.selectedPropertyId);
     this.availableReservations = filteredReservations.map(reservation => ({
       value: reservation.reservationId,
-      label: this.utilityService.getReservationDropdownLabel(reservation, null)
+      label: `${reservation.reservationCode}: ${reservation.propertyCode || ''}`.trim()
     }));
 
     if (this.selectedReservationId && !filteredReservations.some(reservation => reservation.reservationId === this.selectedReservationId)) {

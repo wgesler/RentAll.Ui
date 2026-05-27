@@ -8,6 +8,7 @@ import { MixedMappingService } from '../../../services/mixed-mapping.service';
 import { CalendarUrlResponse } from '../models/property-calendar';
 import { PropertySelectionRequest, PropertySelectionResponse } from '../models/property-selection.model';
 import {
+  PropertyCodeResponse,
   PropertyListResponse,
   PropertyRequest,
   PropertyResponse,
@@ -39,6 +40,10 @@ export class PropertyService {
 
   getActivePropertyList(): Observable<PropertyListResponse[]> {
     return this.http.get<PropertyListResponse[]>(this.controller + 'active-list');
+  }
+
+  getPropertyCodes(): Observable<PropertyCodeResponse[]> {
+    return this.http.get<PropertyCodeResponse[]>(this.controller + 'codes');
   }
 
   // GET: Get property by ID

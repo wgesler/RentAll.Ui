@@ -125,10 +125,9 @@ export class EmailListComponent implements OnInit, OnDestroy, OnChanges {
     // Use reservations passed from parent if available, otherwise load them
     if (this.reservations && this.reservations.length > 0) {
       // Use passed reservations - already set via @Input
-      this.applyReservationCodes();
       this.filterReservations();
     } else {
-      // Always load reservations so reservationId can be translated to reservationCode in table rows.
+      // Load reservations for dropdown options and active-reservation filtering.
       this.loadReservations();
     }
     this.loadEmails();
@@ -138,7 +137,6 @@ export class EmailListComponent implements OnInit, OnDestroy, OnChanges {
     // Handle reservations input changes from parent
     if (changes['reservations'] && !changes['reservations'].firstChange) {
       if (this.reservations && this.reservations.length > 0) {
-        this.applyReservationCodes();
         this.filterReservations();
         this.applyFilters();
       }
@@ -222,7 +220,6 @@ export class EmailListComponent implements OnInit, OnDestroy, OnChanges {
       next: (emails) => {
         this.allEmails = this.mappingService.mapEmailListDisplays(emails || []);
         this.allEmails = this.mappingService.mapEmailOfficeNames(this.allEmails, this.offices);
-        this.applyReservationCodes();
         this.applyFilters();
         this.isServiceError = false;
         this.isLoading = false;
@@ -240,7 +237,6 @@ export class EmailListComponent implements OnInit, OnDestroy, OnChanges {
     this.reservationService.getReservationList().pipe(take(1)).subscribe({
       next: (reservations) => {
         this.reservations = reservations || [];
-        this.applyReservationCodes();
         this.filterReservations();
         this.applyFilters();
       },
@@ -433,25 +429,6 @@ export class EmailListComponent implements OnInit, OnDestroy, OnChanges {
         label: getEmailType(value)
       }))
       .filter(type => !!type.label);
-  }
-
-  applyReservationCodes(): void {
-    if (!this.allEmails || this.allEmails.length === 0) {
-      return;
-    }
-
-    if (!this.reservations || this.reservations.length === 0) {
-      return;
-    }
-
-    const reservationCodeById = new Map<string, string>(
-      this.reservations.map(r => [r.reservationId, r.reservationCode || ''])
-    );
-
-    this.allEmails = this.allEmails.map(email => ({
-      ...email,
-      reservationCode: email.reservationCode || (email.reservationId ? (reservationCodeById.get(email.reservationId) || '') : '')
-    }));
   }
 
   applyFilters(): void {

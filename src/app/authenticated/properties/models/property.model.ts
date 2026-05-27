@@ -335,6 +335,16 @@ export interface PropertyListResponse{
   offlineChecked: boolean;
   isActive: boolean;
  }
+
+export interface PropertyCodeResponse {
+  propertyId: string;
+  propertyCode: string;
+  propertyLeaseTypeId: number;
+  shortAddress: string;
+  officeId: number;
+  officeName: string;
+}
+
 export interface PropertyListDisplay {
   propertyId: string;
   propertyCode: string;

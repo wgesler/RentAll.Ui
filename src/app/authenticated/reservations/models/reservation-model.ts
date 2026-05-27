@@ -170,6 +170,15 @@ export interface ReservationListResponse {
   createdOn: string;
 }
 
+export interface ReservationCodeResponse {
+  reservationId: string;
+  reservationCode: string;
+  propertyId: string;
+  propertyCode: string;
+  officeId: number;
+  officeName: string;
+}
+
 export interface ReservationListDisplay {
   reservationId: string;
   reservationCode: string;
