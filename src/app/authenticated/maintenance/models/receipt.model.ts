@@ -9,6 +9,8 @@ export interface Split {
   receiptTypeId: number;
   bankCardId?: number | null;
   bankCardDisplayName?: string | null;
+  vendorId?: string | null;
+  vendorName?: string | null;
   workOrder?: string;
 }
 
@@ -21,6 +23,9 @@ export interface ReceiptRequest {
   maintenanceId: string;
   amount: number;
   description: string;
+  bankCardId?: number | null;
+  vendorId?: string | null;
+  vendorName?: string | null;
   splits: Split[];
   receiptPath?: string | null;
   fileDetails?: FileDetails | null;
@@ -37,6 +42,9 @@ export interface ReceiptResponse {
   maintenanceId: string;
   description: string;
   amount: number;
+  bankCardId?: number | null;
+  vendorId?: string | null;
+  vendorName?: string | null;
   splits: Split[];
   receiptPath?: string | null;
   fileDetails?: FileDetails | null;
@@ -62,7 +70,20 @@ export interface ReceiptDisplayList {
   splitTotalAmount?: number;
   splitTotalDisplay?: string;
   splitSummaryDisplay?: string;
+  bankCardId?: number | null;
+  vendorId?: string | null;
+  vendorName?: string | null;
   bankCardDisplayName?: string;
+  bankCardDropdown?: {
+    value: string;
+    isOverridable: boolean;
+    options: string[];
+    toString: () => string;
+  };
+  vendorDisplay?: string | { value: string; isOverridable: boolean; options: string[]; toString: () => string; };
+  vendorDisplayReadOnly?: boolean;
+  vendorDisplayClickToEdit?: boolean;
+  vendorDisplayEditing?: boolean;
   isSplitAmountValid?: boolean;
   workOrderDisplay?: string;
   receiptTypeDisplay?: string;

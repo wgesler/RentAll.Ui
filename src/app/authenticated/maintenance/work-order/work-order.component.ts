@@ -196,7 +196,13 @@ export class WorkOrderComponent implements OnInit, OnChanges, OnDestroy {
     this.saveValidationAttempted.emit();
     this.form.markAllAsTouched();
 
-    if (!this.property?.propertyId || !this.property?.organizationId) {
+    const requiresPropertySelection = this.isPropertySelectionRequired();
+    const resolvedOrganizationId = (this.property?.organizationId || this.organizationId || '').trim();
+    const resolvedOfficeId = Number(this.property?.officeId ?? this.selectedGlobalOfficeId ?? 0);
+    const hasValidOfficeId = Number.isFinite(resolvedOfficeId) && resolvedOfficeId > 0;
+    const resolvedPropertyId = (this.property?.propertyId || this.selectedPropertyId || '').trim();
+
+    if (!resolvedOrganizationId || !hasValidOfficeId || (requiresPropertySelection && !resolvedPropertyId)) {
       this.toastr.error('Please correct the highlighted fields before saving.', 'Error');
       return;
     }
@@ -224,9 +230,9 @@ export class WorkOrderComponent implements OnInit, OnChanges, OnDestroy {
     }
 
     const payload: WorkOrderRequest = {
-      organizationId: this.property.organizationId,
-      officeId: this.property.officeId,
-      propertyId: this.property.propertyId,
+      organizationId: resolvedOrganizationId,
+      officeId: resolvedOfficeId,
+      propertyId: resolvedPropertyId,
       workOrderCode: isCreate ? (this.generatedWorkOrderCode ?? undefined) : (this.workOrder?.workOrderCode ?? undefined),
       workOrderDate: this.getWorkOrderDateForApi(),
       workOrderTypeId: this.form.get('workOrderTypeId')?.value ?? 0,
@@ -509,6 +515,10 @@ export class WorkOrderComponent implements OnInit, OnChanges, OnDestroy {
 
   isOwnerTypeSelected(): boolean {
     return Number(this.form.get('workOrderTypeId')?.value ?? -1) === WorkOrderType.Owner;
+  }
+
+  isPropertySelectionRequired(): boolean {
+    return Number(this.form.get('workOrderTypeId')?.value ?? -1) !== WorkOrderType.Organization;
   }
 
   onWorkOrderTypeChanged(typeId: number | null | undefined, skipItemRecalculation: boolean = false): void {
@@ -1312,13 +1322,14 @@ export class WorkOrderComponent implements OnInit, OnChanges, OnDestroy {
   }
 
   loadAccountingOfficeForWorkOrderCode(): void {
-    if (!this.isAddMode || !this.property?.officeId) {
+    const officeId = Number(this.property?.officeId ?? this.selectedGlobalOfficeId ?? 0);
+    if (!this.isAddMode || !Number.isFinite(officeId) || officeId <= 0) {
       this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'workOrderNumber');
       return;
     }
 
     this.accountingOfficeService.ensureAccountingOfficesLoaded().pipe(takeUntil(this.destroy$), take(1), finalize(() => { this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'workOrderNumber'); })).subscribe(list => {
-      const office = (list || []).find(o => Number(o.officeId) === this.property?.officeId) ?? null;
+      const office = (list || []).find(o => Number(o.officeId) === officeId) ?? null;
       this.applyAccountingOfficeSequenceFromOffice(office);
     });
   }
@@ -1475,6 +1486,9 @@ export class WorkOrderComponent implements OnInit, OnChanges, OnDestroy {
         maintenanceId: receipt.maintenanceId,
         description: receipt.description ?? '',
         amount: receipt.amount ?? 0,
+        bankCardId: receipt.bankCardId ?? null,
+        vendorId: receipt.vendorId ?? null,
+        vendorName: receipt.vendorName ?? null,
         splits: nextSplits,
         receiptPath: receipt.receiptPath ?? undefined,
         fileDetails: receipt.fileDetails ?? undefined,

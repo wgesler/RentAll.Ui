@@ -66,7 +66,7 @@ export class MaintenanceShellComponent implements OnInit, CanComponentDeactivate
 
   userId = '';
   organizationId = '';
-  showOfficeDropdown = false;
+  showOfficeDropdown = true;
   offices: OfficeResponse[] = [];
   selectedOfficeId: number | null = null;
 
@@ -199,7 +199,7 @@ export class MaintenanceShellComponent implements OnInit, CanComponentDeactivate
 
   loadTitleBarOfficeScope(): void {
     if (!this.organizationId) {
-      this.showOfficeDropdown = false;
+      this.showOfficeDropdown = true;
       this.selectedOfficeId = null;
       this.loadTitleBarProperties();
       return;
@@ -211,7 +211,7 @@ export class MaintenanceShellComponent implements OnInit, CanComponentDeactivate
         this.globalSelectionService.getOfficeUiState$(this.offices, { requireExplicitOfficeUnset: true }).pipe(take(1)).subscribe({
           next: uiState => {
             setTimeout(() => {
-              this.showOfficeDropdown = uiState.showOfficeDropdown;
+              this.showOfficeDropdown = true;
               this.selectedOfficeId = this.openWithAllSelections
                 ? null
                 : this.normalizeOfficeId(uiState.selectedOfficeId);
@@ -226,7 +226,7 @@ export class MaintenanceShellComponent implements OnInit, CanComponentDeactivate
       error: () => {
         setTimeout(() => {
           this.offices = [];
-          this.showOfficeDropdown = false;
+          this.showOfficeDropdown = true;
           this.selectedOfficeId = null;
           this.loadTitleBarProperties();
         }, 0);
@@ -238,7 +238,7 @@ export class MaintenanceShellComponent implements OnInit, CanComponentDeactivate
     if (!this.userId) {
       this.allProperties = [];
       this.availableProperties = [];
-      this.showOfficeDropdown = false;
+      this.showOfficeDropdown = true;
       return;
     }
 
@@ -253,7 +253,7 @@ export class MaintenanceShellComponent implements OnInit, CanComponentDeactivate
       error: () => {
         this.allProperties = [];
         this.availableProperties = [];
-        this.showOfficeDropdown = false;
+        this.showOfficeDropdown = true;
       }
     });
   }
@@ -395,7 +395,8 @@ export class MaintenanceShellComponent implements OnInit, CanComponentDeactivate
   }
 
   get showPropertyRequiredErrorForWorkOrder(): boolean {
-    return this.shouldShowWorkOrderLocationRequiredState && !this.selectedPropertyId;
+    const requiresPropertySelection = this.maintenanceWorkOrderDetail?.isPropertySelectionRequired() ?? true;
+    return this.shouldShowWorkOrderLocationRequiredState && requiresPropertySelection && !this.selectedPropertyId;
   }
 
   get shouldShowReceiptLocationRequiredState(): boolean {
@@ -409,7 +410,8 @@ export class MaintenanceShellComponent implements OnInit, CanComponentDeactivate
   }
 
   get showPropertyRequiredErrorForReceipt(): boolean {
-    return this.shouldShowReceiptLocationRequiredState && !this.selectedPropertyId;
+    const requiresPropertySelection = this.maintenanceReceiptDetail?.isPropertySelectionRequired() ?? true;
+    return this.shouldShowReceiptLocationRequiredState && requiresPropertySelection && !this.selectedPropertyId;
   }
   //#endregion
 

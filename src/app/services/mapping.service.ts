@@ -1449,9 +1449,7 @@ export class MappingService {
         workOrderId: split.workOrderId ?? null,
         workOrderCode: split.workOrderCode || split.workOrder || '',
         workOrder: split.workOrderCode || split.workOrder || '',
-        receiptTypeId: split.receiptTypeId ?? 0,
-        bankCardId: split.bankCardId ?? 0,
-        bankCardDisplayName: split.bankCardDisplayName ?? null
+        receiptTypeId: split.receiptTypeId ?? 0
       }));
       const splitTotalAmount = splits.reduce((sum, split) => sum + (Number(split.amount) || 0), 0);
       const receiptAmount = Number(receipt.amount) || 0;
@@ -1471,6 +1469,8 @@ export class MappingService {
       );
       const workOrderDisplay = distinctWorkOrders.join(', ');
       const receiptTypeDisplay = distinctReceiptTypes.join(', ');
+      const isFirstSplitBill = Number(receipt.bankCardId ?? 0) === 0;
+      const vendorDisplay = (receipt.vendorName || '').trim();
       const isSplitAmountValid = splitTotalAmount <= receiptAmount;
 
       return {
@@ -1489,7 +1489,12 @@ export class MappingService {
         splitTotalAmount,
         splitTotalDisplay: this.formatter.currencyUsd(splitTotalAmount),
         splitSummaryDisplay: `${splits.length} split${splits.length === 1 ? '' : 's'}`,
+        bankCardId: receipt.bankCardId ?? null,
+        vendorId: receipt.vendorId ?? null,
+        vendorName: receipt.vendorName ?? null,
         bankCardDisplayName: (receipt.bankCardDisplayName || '').trim(),
+        vendorDisplay,
+        vendorDisplayReadOnly: !isFirstSplitBill,
         isSplitAmountValid,
         workOrderDisplay,
         receiptTypeDisplay,

@@ -54,26 +54,50 @@
             </div>
           </div>
           <div class="grid grid-cols-4 gap-x-1.5 gap-y-1 receipt-form-grid">
-            <div class="col-span-4 receipt-overall-row">
+            <div class="col-span-4 receipt-overall-row receipt-overall-primary-row">
               <mat-form-field appearance="outline" class="receipt-overall-no-field">
                 <mat-label>No</mat-label>
                 <input matInput [value]="isAddMode ? '' : (receipt?.receiptId || '')" readonly disabled>
               </mat-form-field>
-              <mat-form-field appearance="outline" class="receipt-overall-date-field">
-                <mat-label>Receipt Date</mat-label>
-                <input matInput [matDatepicker]="receiptDatePicker" formControlName="receiptDate" required>
-                <mat-datepicker-toggle matIconSuffix [for]="receiptDatePicker"></mat-datepicker-toggle>
-                <mat-datepicker #receiptDatePicker></mat-datepicker>
-              </mat-form-field>
               <mat-form-field appearance="outline" class="receipt-overall-property-field">
                 <mat-label>Properties</mat-label>
-                <mat-select formControlName="propertyIds" multiple required>
+                <mat-select formControlName="propertyIds" multiple [required]="isPropertySelectionRequired()">
                   @for (option of propertyOptions; track option.propertyId) {
                     <mat-option [value]="option.propertyId">
                       {{ option.propertyCode }}
                     </mat-option>
                   }
                 </mat-select>
+              </mat-form-field>
+              <mat-form-field appearance="outline" class="receipt-overall-bank-card-field">
+                <mat-label>Bank Card</mat-label>
+                <mat-select formControlName="bankCardId" (selectionChange)="onOverallBankCardChange()">
+                  <mat-option [value]="0">Bill</mat-option>
+                  @for (option of bankCardOptions; track option.value) {
+                    <mat-option [value]="option.value">{{ option.label }}</mat-option>
+                  }
+                </mat-select>
+              </mat-form-field>
+              <mat-form-field appearance="outline" class="receipt-overall-vendor-field">
+                <mat-label>Vendor</mat-label>
+                @if (isOverallBillBankCard()) {
+                  <mat-select formControlName="vendorId" (selectionChange)="onOverallVendorSelectionChange($any($event.value))">
+                    <mat-option [value]="''"></mat-option>
+                    @for (option of vendorOptions; track option.value) {
+                      <mat-option [value]="option.value">{{ option.label }}</mat-option>
+                    }
+                  </mat-select>
+                } @else {
+                  <input matInput formControlName="vendorName">
+                }
+              </mat-form-field>
+            </div>
+            <div class="col-span-4 receipt-overall-row receipt-overall-secondary-row">
+              <mat-form-field appearance="outline" class="receipt-overall-date-field">
+                <mat-label>Receipt Date</mat-label>
+                <input matInput [matDatepicker]="receiptDatePicker" formControlName="receiptDate" required>
+                <mat-datepicker-toggle matIconSuffix [for]="receiptDatePicker"></mat-datepicker-toggle>
+                <mat-datepicker #receiptDatePicker></mat-datepicker>
               </mat-form-field>
               <mat-form-field appearance="outline" class="receipt-overall-compact-field">
                 <mat-label>Amount</mat-label>
@@ -114,7 +138,6 @@
                         <th class="split-col-amount">Amount</th>
                         <th class="split-col-description">Description</th>
                         <th class="split-col-type">Type</th>
-                        <th class="split-col-bank-card">Bank Card</th>
                         <th class="split-col-work-order">Work Order</th>
                         <th class="split-col-actions"></th>
                       </tr>
@@ -139,15 +162,6 @@
                             <select formControlName="receiptTypeId" required class="split-editable-input"
                               [class.split-input-invalid]="splitGroup.get('receiptTypeId')?.hasError('required') && splitGroup.get('receiptTypeId')?.touched">
                               @for (option of receiptTypeOptions; track option.value) {
-                                <option [ngValue]="option.value">{{ option.label }}</option>
-                              }
-                            </select>
-                          </td>
-                          <td class="split-col-bank-card">
-                            <select formControlName="bankCardId" class="split-editable-input"
-                              [class.split-input-invalid]="splitGroup.get('bankCardId')?.hasError('required') && splitGroup.get('bankCardId')?.touched">
-                              <option [ngValue]="0">Bill</option>
-                              @for (option of bankCardOptions; track option.value) {
                                 <option [ngValue]="option.value">{{ option.label }}</option>
                               }
                             </select>

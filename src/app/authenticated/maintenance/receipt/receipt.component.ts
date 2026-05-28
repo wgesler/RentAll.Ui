@@ -13,7 +13,11 @@ import { MaterialModule } from '../../../material.module';
 import { AuthService } from '../../../services/auth.service';
 import { PdfThumbnailService } from '../../../services/pdf-thumbnail.service';
 import { UtilityService } from '../../../services/utility.service';
-import { getReceiptTypes } from '../models/maintenance-enums';
+import { getReceiptTypes, ReceiptType } from '../models/maintenance-enums';
+import { EntityType } from '../../contacts/models/contact-enum';
+import { ContactResponse } from '../../contacts/models/contact.model';
+import { ContactService } from '../../contacts/services/contact.service';
+import { ContactComponent } from '../../contacts/contact/contact.component';
 import { ImageViewDialogData } from '../../shared/modals/image-view-dialog/image-view-dialog-data';
 import { ImageViewDialogComponent } from '../../shared/modals/image-view-dialog/image-view-dialog.component';
 import { PropertyListResponse, PropertyResponse } from '../../properties/models/property.model';
@@ -33,6 +37,7 @@ import { MappingService } from '../../../services/mapping.service';
   styleUrl: './receipt.component.scss'
 })
 export class ReceiptComponent implements OnInit, OnChanges, OnDestroy {
+  readonly newVendorOptionValue = '__new_vendor__';
   @Input() property: PropertyResponse | null = null;
   @Input() receiptId: number | null = null;
   @Input() maintenanceId: string | null = null;
@@ -71,8 +76,9 @@ export class ReceiptComponent implements OnInit, OnChanges, OnDestroy {
   propertyOptions: PropertyListResponse[] = [];
   receiptTypeOptions = getReceiptTypes();
   bankCardOptions: { value: number; label: string }[] = [];
+  vendorOptions: { value: string; label: string }[] = [];
 
-  itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['receipt', 'property', 'properties', 'accountingOffices', 'bankCards']));
+  itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['receipt', 'property', 'properties', 'accountingOffices', 'bankCards', 'vendors']));
   isLoading$: Observable<boolean> = this.itemsToLoad$.pipe(map(items => items.size > 0));
   private destroy$ = new Subject<void>();
 
@@ -85,6 +91,7 @@ export class ReceiptComponent implements OnInit, OnChanges, OnDestroy {
     private dialog: MatDialog,
     private propertyService: PropertyService,
     private accountingOfficeService: AccountingOfficeService,
+    private contactService: ContactService,
     private workOrderService: WorkOrderService,
     private utilityService: UtilityService,
     private pdfThumbnailService: PdfThumbnailService,
@@ -105,8 +112,13 @@ export class ReceiptComponent implements OnInit, OnChanges, OnDestroy {
     this.itemsToLoad$.pipe(takeUntil(this.destroy$)).subscribe(items => {
       this.isPageReady = items.size === 0;
     });
+    this.splitsFormArray.valueChanges.pipe(takeUntil(this.destroy$)).subscribe(() => {
+      this.updatePropertyRequirementByReceiptType();
+    });
+    this.updatePropertyRequirementByReceiptType();
     
     this.loadAccountingOffices();
+    this.loadVendors();
 
     if (this.embeddedInMaintenance) {
       this.isAddMode = this.receiptId == null;
@@ -137,37 +149,39 @@ export class ReceiptComponent implements OnInit, OnChanges, OnDestroy {
     if (changes['maintenanceOfficeId'] && !changes['maintenanceOfficeId'].firstChange) {
       const selectedOfficeId = Number(this.maintenanceOfficeId);
       this.loadBankCardsForOffice(selectedOfficeId || null);
+      this.loadVendorsForOffice(selectedOfficeId || null);
     }
   }
 
   saveReceipt(): void {
+    this.updatePropertyRequirementByReceiptType();
     this.saveValidationAttempted.emit();
     this.form.markAllAsTouched();
 
     if (!this.organizationId || this.form.invalid) {
-      this.toastr.error('Please correct the highlighted fields before saving.', 'Error');
+      this.showValidationErrorToast();
       return;
     }
     const receiptDateValue = this.getReceiptDateForApi();
     if (!receiptDateValue) {
       this.form.get('receiptDate')?.markAsTouched();
-      this.toastr.warning('Receipt date is required before saving.', 'Missing receipt date');
+      this.showValidationErrorToast();
       return;
     }
-    if (this.isAddMode && !this.property) {
-      this.toastr.warning('Select a property before saving a new receipt.', 'Missing property');
+    if (this.isAddMode && !this.property && this.isPropertySelectionRequired()) {
+      this.showValidationErrorToast();
       return;
     }
     const selectedPropertyIds = this.getSelectedPropertyIds();
-    if (selectedPropertyIds.length === 0) {
+    if (this.isPropertySelectionRequired() && selectedPropertyIds.length === 0) {
       this.form.get('propertyIds')?.markAsTouched();
-      this.toastr.warning('At least one property must be selected.', 'Missing property');
+      this.showValidationErrorToast();
       return;
     }
 
     const hasReceiptFile = !!(this.receiptFileDetails?.file) || !!(this.form.get('receiptPath')?.value) || !!(this.receipt?.receiptPath);
     if (!hasReceiptFile) {
-      this.toastr.warning('A receipt file is required before saving.', 'Receipt required');
+      this.showValidationErrorToast();
       return;
     }
 
@@ -177,12 +191,12 @@ export class ReceiptComponent implements OnInit, OnChanges, OnDestroy {
     const amountValue = parseFloat(amountStr) || 0;
     const payloadSplits = this.getPayloadSplitsFromForm();
     if (payloadSplits.length === 0) {
-      this.toastr.warning('At least one split line is required.', 'Missing split');
+      this.showValidationErrorToast();
       return;
     }
     const missingRequiredSplitField = this.validateRequiredSplitFields();
     if (missingRequiredSplitField) {
-      this.toastr.warning(missingRequiredSplitField, 'Missing required split field');
+      this.showValidationErrorToast();
       return;
     }
     const splitTotalAmount = this.getSplitTotalAmount(payloadSplits);
@@ -192,6 +206,25 @@ export class ReceiptComponent implements OnInit, OnChanges, OnDestroy {
       return;
     }
     this.splitTotalValidationError = false;
+    const bankCardId = Number(this.form.get('bankCardId')?.value ?? 0);
+    const isBill = bankCardId === 0;
+    const vendorId = (this.form.get('vendorId')?.value || '').toString().trim() || null;
+    const vendorName = (this.form.get('vendorName')?.value || '').toString().trim() || null;
+    if (!Number.isFinite(bankCardId) || bankCardId < 0) {
+      this.form.get('bankCardId')?.markAsTouched();
+      this.showValidationErrorToast();
+      return;
+    }
+    if (isBill && !vendorId) {
+      this.form.get('vendorId')?.markAsTouched();
+      this.showValidationErrorToast();
+      return;
+    }
+    if (!isBill && !vendorName) {
+      this.form.get('vendorName')?.markAsTouched();
+      this.showValidationErrorToast();
+      return;
+    }
     const payload: ReceiptRequest = {
       receiptId: this.receipt?.receiptId,
       organizationId: this.organizationId,
@@ -201,6 +234,9 @@ export class ReceiptComponent implements OnInit, OnChanges, OnDestroy {
       maintenanceId: this.receipt?.maintenanceId || this.maintenanceId || '',
       description: (this.form.get('description')?.value || '').trim(),
       amount: amountValue,
+      bankCardId: isBill ? null : bankCardId,
+      vendorId: isBill ? vendorId : null,
+      vendorName: isBill ? null : vendorName,
       splits: payloadSplits,
       receiptPath: sendNewReceipt ? undefined : receiptPathValue,
       fileDetails: sendNewReceipt ? this.receiptFileDetails : undefined,
@@ -215,6 +251,9 @@ export class ReceiptComponent implements OnInit, OnChanges, OnDestroy {
         ? (payload.description !== (this.receipt.description ?? '').trim()) ||
           (this.normalizeReceiptDate(payload.receiptDate) !== this.normalizeReceiptDate(this.receipt.receiptDate)) ||
           payload.amount !== (this.receipt.amount ?? 0) ||
+          (payload.bankCardId ?? null) !== (this.receipt.bankCardId ?? null) ||
+          ((payload.vendorId || '').toString().trim() || null) !== ((this.receipt.vendorId || '').toString().trim() || null) ||
+          ((payload.vendorName || '').toString().trim() || null) !== ((this.receipt.vendorName || '').toString().trim() || null) ||
           this.havePropertyIdsChanged(payload.propertyIds, this.receipt.propertyIds || []) ||
           this.haveSplitsChanged(payload.splits, this.receipt.splits || []) ||
           payload.isActive !== this.receipt.isActive ||
@@ -245,6 +284,9 @@ export class ReceiptComponent implements OnInit, OnChanges, OnDestroy {
           propertyIds: saved.propertyIds || [],
           description: saved.description || '',
           amount: saved.amount != null ? this.formatter.currency(saved.amount) : '0.00',
+          bankCardId: saved.bankCardId ?? 0,
+          vendorId: (saved.vendorId || '').trim() || null,
+          vendorName: (saved.vendorName || '').trim() || null,
           receiptPath: saved.receiptPath || '',
           isActive: saved.isActive
         });
@@ -274,6 +316,10 @@ export class ReceiptComponent implements OnInit, OnChanges, OnDestroy {
       }
     });
   }
+
+  showValidationErrorToast(): void {
+    this.toastr.error('Please correct the highlighted fields before saving.', 'Error');
+  }
   //#endregion
 
   //#region Form Methods
@@ -285,6 +331,9 @@ export class ReceiptComponent implements OnInit, OnChanges, OnDestroy {
       propertyIds: new FormControl<string[]>([], [Validators.required]),
       amount: new FormControl('0.00', [Validators.required]),
       description: new FormControl('', [Validators.required]),
+      bankCardId: new FormControl<number>(0, [Validators.required]),
+      vendorId: new FormControl<string | null>(null),
+      vendorName: new FormControl<string | null>(null),
       splits: this.fb.array([]),
       receiptPath: new FormControl(''),
       isActive: new FormControl(true)
@@ -300,6 +349,9 @@ export class ReceiptComponent implements OnInit, OnChanges, OnDestroy {
       propertyIds: receipt.propertyIds || [],
       description: receipt.description || '',
       amount: receipt.amount != null ? this.formatter.currency(receipt.amount) : '0.00',
+      bankCardId: receipt.bankCardId ?? 0,
+      vendorId: (receipt.vendorId || '').trim() || null,
+      vendorName: (receipt.vendorName || '').trim() || null,
       receiptPath: receipt.receiptPath || '',
       isActive: receipt.isActive
     });
@@ -331,6 +383,7 @@ export class ReceiptComponent implements OnInit, OnChanges, OnDestroy {
       next: (receipt: ReceiptResponse) => {
         this.receipt = receipt;
         this.loadBankCardsForOffice(receipt.officeId || this.property?.officeId || this.maintenanceOfficeId || null);
+        this.loadVendorsForOffice(receipt.officeId || this.property?.officeId || this.maintenanceOfficeId || null);
         this.populateForm(receipt);
       },
       error: (_err: HttpErrorResponse) => {
@@ -344,8 +397,10 @@ export class ReceiptComponent implements OnInit, OnChanges, OnDestroy {
       const fallbackOfficeId = this.property?.officeId || this.maintenanceOfficeId;
       if (fallbackOfficeId) {
         this.loadBankCardsForOffice(fallbackOfficeId);
+        this.loadVendorsForOffice(fallbackOfficeId);
       } else {
         this.bankCardOptions = [];
+        this.vendorOptions = [{ value: this.newVendorOptionValue, label: 'New Vendor' }];
         this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'bankCards');
       }
       if (this.isAddMode) {
@@ -361,6 +416,7 @@ export class ReceiptComponent implements OnInit, OnChanges, OnDestroy {
       next: (p) => {
         this.property = p;
         this.loadBankCardsForOffice(this.property?.officeId || this.maintenanceOfficeId || null);
+        this.loadVendorsForOffice(this.property?.officeId || this.maintenanceOfficeId || null);
         this.form.patchValue({
           officeName: this.property?.officeName || '',
           propertyCode: this.property?.propertyCode || '',
@@ -434,6 +490,33 @@ export class ReceiptComponent implements OnInit, OnChanges, OnDestroy {
         this.bankCardOptions = [];
       }
     });
+  }
+
+  loadVendors(): void {
+    this.utilityService.addLoadItem(this.itemsToLoad$, 'vendors');
+    this.contactService.ensureContactsLoaded().pipe(take(1), finalize(() => { this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'vendors'); })).subscribe({
+      next: () => {
+        const officeId = Number(this.receipt?.officeId || this.property?.officeId || this.maintenanceOfficeId || 0) || null;
+        this.loadVendorsForOffice(officeId);
+      },
+      error: () => {
+        this.vendorOptions = [{ value: this.newVendorOptionValue, label: 'New Vendor' }];
+      }
+    });
+  }
+
+  loadVendorsForOffice(officeId: number | null | undefined): void {
+    const parsedOfficeId = Number(officeId);
+    const vendorContacts = Number.isFinite(parsedOfficeId) && parsedOfficeId > 0
+      ? this.contactService.getAllContactsValue().filter(contact => contact.entityTypeId === EntityType.Vendor && Number(contact.officeId) === parsedOfficeId)
+      : [];
+    this.vendorOptions = [
+      { value: this.newVendorOptionValue, label: 'New Vendor' },
+      ...vendorContacts.map(contact => ({
+        value: String(contact.contactId || ''),
+        label: this.utilityService.getVendorDropdownLabel(contact)
+      })).filter(option => option.value.trim().length > 0)
+    ];
   }
   //#endregion
 
@@ -666,9 +749,7 @@ export class ReceiptComponent implements OnInit, OnChanges, OnDestroy {
       workOrderId: new FormControl(split?.workOrderId ?? null),
       workOrderCode: new FormControl(normalizedWorkOrderCode),
       workOrder: new FormControl(normalizedWorkOrderCode),
-      receiptTypeId: new FormControl(normalizedReceiptTypeId, [Validators.required]),
-      bankCardId: new FormControl(split?.bankCardId ?? 0, [Validators.required]),
-      bankCardDisplayName: new FormControl(split?.bankCardDisplayName ?? null)
+      receiptTypeId: new FormControl(normalizedReceiptTypeId, [Validators.required])
     });
   }
 
@@ -680,12 +761,10 @@ export class ReceiptComponent implements OnInit, OnChanges, OnDestroy {
       const amountRaw = this.sanitizeSignedDecimalInput(row.get('amount')?.value?.toString() ?? '').trim();
       const description = (row.get('description')?.value || '').trim();
       const receiptTypeId = row.get('receiptTypeId')?.value;
-      const bankCardId = row.get('bankCardId')?.value;
 
       if (!amountRaw) return `Split line ${i + 1}: Amount is required.`;
       if (!description) return `Split line ${i + 1}: Description is required.`;
       if (receiptTypeId === null || receiptTypeId === undefined || receiptTypeId === '') return `Split line ${i + 1}: Type is required.`;
-      if (bankCardId === null || bankCardId === undefined || bankCardId === '') return `Split line ${i + 1}: Card is required.`;
     }
 
     return null;
@@ -702,6 +781,7 @@ export class ReceiptComponent implements OnInit, OnChanges, OnDestroy {
     this.splitsFormArray.clear();
     (splits || []).forEach(split => this.splitsFormArray.push(this.createSplitFormGroup(split)));
     this.ensureAtLeastOneSplit();
+    this.updatePropertyRequirementByReceiptType();
   }
 
   getPayloadSplitsFromForm(): Split[] {
@@ -714,10 +794,79 @@ export class ReceiptComponent implements OnInit, OnChanges, OnDestroy {
         workOrderId: (control.get('workOrderId')?.value || '').toString().trim() || null,
         workOrderCode: (control.get('workOrderCode')?.value || control.get('workOrder')?.value || '').trim(),
         workOrder: (control.get('workOrderCode')?.value || control.get('workOrder')?.value || '').trim(),
-        receiptTypeId: control.get('receiptTypeId')?.value ?? 0,
-        bankCardId: control.get('bankCardId')?.value ?? 0,
-        bankCardDisplayName: control.get('bankCardDisplayName')?.value ?? null
+        receiptTypeId: control.get('receiptTypeId')?.value ?? 0
       };
+    });
+  }
+
+  isOverallBillBankCard(): boolean {
+    const rawValue = this.form.get('bankCardId')?.value;
+    return Number(rawValue ?? 0) === 0;
+  }
+
+  onOverallBankCardChange(): void {
+    if (this.isOverallBillBankCard()) {
+      this.form.patchValue({ vendorName: null }, { emitEvent: false });
+      return;
+    }
+    this.form.patchValue({ vendorId: null }, { emitEvent: false });
+  }
+
+  onOverallVendorSelectionChange(value: string | null | undefined): void {
+    const selectedValue = String(value || '').trim();
+    if (!selectedValue) {
+      this.form.patchValue({ vendorId: null, vendorName: null }, { emitEvent: false });
+      return;
+    }
+    if (selectedValue === this.newVendorOptionValue) {
+      this.form.patchValue({ vendorId: null, vendorName: null }, { emitEvent: false });
+      this.openNewVendorContactDialog();
+      return;
+    }
+    this.form.patchValue({
+      vendorId: selectedValue,
+      vendorName: null
+    }, { emitEvent: false });
+  }
+
+  openNewVendorContactDialog(): void {
+    const selectedOfficeId = Number(this.receipt?.officeId || this.property?.officeId || this.maintenanceOfficeId || 0) || null;
+    const dialogRef = this.dialog.open(ContactComponent, {
+      width: '1200px',
+      maxWidth: '95vw',
+      disableClose: true,
+      data: {
+        compactDialogMode: true,
+        entityTypeId: EntityType.Vendor,
+        showDialogCancelButton: true,
+        ...(selectedOfficeId ? { preselectPropertyOfficeId: selectedOfficeId } : {})
+      }
+    });
+
+    dialogRef.componentInstance.id = 'new';
+    dialogRef.componentInstance.copyFrom = null;
+    dialogRef.componentInstance.closed
+      .pipe(take(1))
+      .subscribe((result: { saved?: boolean; contactId?: string; entityTypeId?: number }) => dialogRef.close(result));
+
+    dialogRef.afterClosed().pipe(take(1)).subscribe((result?: { saved?: boolean; contactId?: string; entityTypeId?: number }) => {
+      if (!result?.saved || !result.contactId) {
+        return;
+      }
+      this.contactService.refreshContacts().pipe(take(1)).subscribe({
+        next: (contacts: ContactResponse[]) => {
+          this.loadVendorsForOffice(selectedOfficeId);
+          const vendor = (contacts || []).find(contact => String(contact.contactId || '').trim() === String(result.contactId || '').trim());
+          if (!vendor) {
+            return;
+          }
+          this.form.patchValue({
+            vendorId: result.contactId,
+            vendorName: null
+          }, { emitEvent: false });
+        },
+        error: () => {}
+      });
     });
   }
 
@@ -777,10 +926,30 @@ export class ReceiptComponent implements OnInit, OnChanges, OnDestroy {
       workOrderId: (split.workOrderId || '').toString().trim() || null,
       workOrderCode: (split.workOrderCode || split.workOrder || '').trim(),
       workOrder: (split.workOrderCode || split.workOrder || '').trim(),
-      receiptTypeId: split.receiptTypeId ?? 0,
-      bankCardId: split.bankCardId ?? 0,
-      bankCardDisplayName: split.bankCardDisplayName ?? null
+      receiptTypeId: split.receiptTypeId ?? 0
     }));
+  }
+
+  isPropertySelectionRequired(): boolean {
+    const splits = this.getPayloadSplitsFromForm();
+    if (!splits || splits.length === 0) {
+      return true;
+    }
+    return splits.some(split => Number(split.receiptTypeId) !== ReceiptType.Organization);
+  }
+
+  updatePropertyRequirementByReceiptType(): void {
+    const propertyIdsControl = this.form.get('propertyIds');
+    if (!propertyIdsControl) {
+      return;
+    }
+    if (this.isPropertySelectionRequired()) {
+      propertyIdsControl.setValidators([Validators.required]);
+    } else {
+      propertyIdsControl.clearValidators();
+      propertyIdsControl.setErrors(null);
+    }
+    propertyIdsControl.updateValueAndValidity({ emitEvent: false });
   }
 
   getSelectedPropertyIds(): string[] {

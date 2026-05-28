@@ -80,10 +80,21 @@
 
 .receipt-overall-row {
   display: grid;
-  grid-template-columns: 9% 11.5rem 18% 8.5rem minmax(0, 1fr);
   align-items: center;
   gap: 0.375rem;
   min-width: 0;
+  width: 100%;
+}
+
+.receipt-overall-primary-row {
+  grid-template-columns: 9% minmax(0, 18rem) minmax(0, 18rem) minmax(0, 18rem);
+  justify-content: start;
+  width: fit-content;
+  max-width: 100%;
+}
+
+.receipt-overall-secondary-row {
+  grid-template-columns: 11.5rem 8.5rem minmax(0, 1fr);
   width: 100%;
 }
 
@@ -114,6 +125,12 @@
 .receipt-overall-description-field {
   width: 100%;
   max-width: none;
+  min-width: 0;
+}
+
+.receipt-overall-bank-card-field,
+.receipt-overall-vendor-field {
+  width: 100%;
   min-width: 0;
 }
 
@@ -172,15 +189,11 @@
   }
 
   .split-col-work-order {
-    width: 120px;
+    width: 126px;
   }
 
   .split-col-type {
-    width: 18ch;
-  }
-
-  .split-col-bank-card {
-    width: 24ch;
+    width: 19.5ch;
   }
 
   .split-col-description {

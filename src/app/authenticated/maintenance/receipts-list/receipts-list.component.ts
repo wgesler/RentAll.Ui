@@ -8,11 +8,16 @@ import { RouterUrl } from '../../../app.routes';
 import { CommonMessage } from '../../../enums/common-message.enum';
 import { MaterialModule } from '../../../material.module';
 import { AuthService } from '../../../services/auth.service';
+import { UtilityService } from '../../../services/utility.service';
 import { ImageViewDialogComponent } from '../../shared/modals/image-view-dialog/image-view-dialog.component';
 import { ImageViewDialogData } from '../../shared/modals/image-view-dialog/image-view-dialog-data';
 import { MappingService } from '../../../services/mapping.service';
 import { PropertyResponse } from '../../properties/models/property.model';
 import { PropertyService } from '../../properties/services/property.service';
+import { AccountingOfficeService } from '../../organizations/services/accounting-office.service';
+import { BankCardResponse } from '../../organizations/models/bank.model';
+import { EntityType } from '../../contacts/models/contact-enum';
+import { ContactService } from '../../contacts/services/contact.service';
 import { DataTableComponent } from '../../shared/data-table/data-table.component';
 import { DataTableFilterActionsDirective } from '../../shared/data-table/data-table-filter-actions.directive';
 import { ColumnSet } from '../../shared/data-table/models/column-data';
@@ -43,6 +48,8 @@ export class ReceiptsListComponent implements OnInit, OnChanges {
   receiptsDisplay: ReceiptDisplayList[] = [];
   allReceipts: ReceiptDisplayList[] = [];
   propertyCodeLookup = new Map<string, string>();
+  bankCardOptionsByOfficeId = new Map<number, Array<{ bankCardId: number; label: string }>>();
+  vendorOptionsByOfficeId = new Map<number, Array<{ contactId: string; label: string }>>();
 
   isAdmin = false;
   canEditIsActiveCheckbox = false;
@@ -54,14 +61,14 @@ export class ReceiptsListComponent implements OnInit, OnChanges {
 
   receiptDisplayedColumns: ColumnSet = {
     propertyCode: { displayAs: 'Property', wrap: false, maxWidth: '15ch' },
-    workOrderDisplay: { displayAs: 'WO Code(s)', wrap: true, maxWidth: '25ch' },
+    workOrderDisplay: { displayAs: 'WO Code(s)', wrap: true, maxWidth: '18ch' },
     receiptTypeDisplay: { displayAs: 'Type(s)', wrap: true, maxWidth: '15ch' },
     receipt: { displayAs: 'Receipt', wrap: false, sort: false, maxWidth: '12ch', alignment: 'center'  },
+    receiptDate: { displayAs: 'Receipt Date', wrap: false, maxWidth: '18ch', alignment: 'center' },
+    vendorDisplay: { displayAs: 'Vendor', wrap: true, maxWidth: '25ch', editableType: 'text' },
+    bankCardDropdown: { displayAs: 'Bank Card', wrap: true, maxWidth: '25ch' },
     amountDisplay: { displayAs: 'Amount', wrap: false, maxWidth: '12ch', alignment: 'center'  },
     descriptionDisplay: { displayAs: 'Description', wrap: true, maxWidth: '25ch' },
-    bankCardDisplayName: { displayAs: 'Bank Card(s)', wrap: true, maxWidth: '22ch' },
-    splitTotalDisplay: { displayAs: 'Split Total', wrap: false, maxWidth: '12ch', alignment: 'center' },
-    receiptDate: { displayAs: 'Receipt Date', wrap: false, maxWidth: '18ch', alignment: 'center' },
     createdBy: { displayAs: 'Created By', wrap: false, maxWidth: '20ch' },
     isActive: { displayAs: 'IsActive', isCheckbox: true, checkboxEditable: false, sort: false, wrap: false, alignment: 'center', maxWidth: '15ch' }
   };
@@ -70,8 +77,11 @@ export class ReceiptsListComponent implements OnInit, OnChanges {
     private receiptService: ReceiptService,
     private mappingService: MappingService,
     private propertyService: PropertyService,
+    private accountingOfficeService: AccountingOfficeService,
+    private contactService: ContactService,
     private workOrderService: WorkOrderService,
     private authService: AuthService,
+    private utilityService: UtilityService,
     private router: Router,
     private dialog: MatDialog,
     private toastr: ToastrService
@@ -82,6 +92,8 @@ export class ReceiptsListComponent implements OnInit, OnChanges {
     this.persistedFilterVal = this.readPersistedFilterValue();
     this.isAdmin = this.authService.isAdmin();
     this.setIsActiveCheckboxEditability();
+    this.loadBankCardOptions();
+    this.loadVendorOptions();
     if (!this.isActiveTab) {
       return;
     }
@@ -134,6 +146,8 @@ export class ReceiptsListComponent implements OnInit, OnChanges {
       next: (receipts: ReceiptResponse[]) => {
         this.receipts = receipts || [];
         this.allReceipts = this.mappingService.mapReceiptDisplays(this.receipts);
+        this.applyBankCardDropdownsToDisplays();
+        this.applyVendorCellsToDisplays();
         this.applyPropertyCodesToDisplays();
         this.applyFilters();
       },
@@ -169,6 +183,9 @@ export class ReceiptsListComponent implements OnInit, OnChanges {
         this.toastr.success('Receipt deleted successfully', CommonMessage.Success);
         this.receipts = this.receipts.filter(receipt => receipt.receiptId !== event.receiptId);
         this.allReceipts = this.mappingService.mapReceiptDisplays(this.receipts);
+        this.applyBankCardDropdownsToDisplays();
+        this.applyVendorCellsToDisplays();
+        this.applyPropertyCodesToDisplays();
         this.applyFilters();
       },
       error: () => {
@@ -225,12 +242,165 @@ export class ReceiptsListComponent implements OnInit, OnChanges {
         next: saved => {
           this.receipts = this.receipts.map(r => (r.receiptId === saved.receiptId ? saved : r));
           this.allReceipts = this.mappingService.mapReceiptDisplays(this.receipts);
+          this.applyBankCardDropdownsToDisplays();
+          this.applyVendorCellsToDisplays();
           this.applyPropertyCodesToDisplays();
           this.applyFilters();
           this.toastr.success('Receipt updated.', CommonMessage.Success);
         },
         error: () => {
           this.applyReceiptIsActiveValue(event.receiptId, previousValue);
+          this.toastr.error('Unable to update receipt.', CommonMessage.Error);
+        }
+      });
+  }
+
+  onReceiptDropdownChange(event: ReceiptDisplayList & { __changedDropdownColumn?: string }): void {
+    if (!this.isAdmin) {
+      return;
+    }
+    const changedColumn = event.__changedDropdownColumn || '';
+    if (changedColumn !== 'bankCardDropdown' && changedColumn !== 'vendorDisplay') {
+      return;
+    }
+    if (changedColumn === 'bankCardDropdown') {
+      const selectedLabel = String(event.bankCardDropdown?.value || '').trim();
+      if (!selectedLabel) {
+        return;
+      }
+      const selectedBankCardId = this.resolveBankCardIdFromLabel(event.officeId, selectedLabel);
+      if (selectedBankCardId === null) {
+        return;
+      }
+
+      this.receiptService
+        .getReceiptById(event.receiptId)
+        .pipe(
+          take(1),
+          switchMap(receipt => {
+          const currentBankCardId = Number(receipt.bankCardId ?? 0);
+            if (currentBankCardId === selectedBankCardId) {
+              this.syncReceiptRowFromServer(receipt);
+              return EMPTY;
+            }
+            const payload = this.buildReceiptBankCardInlineUpdateRequest(receipt, selectedBankCardId);
+            return this.receiptService.updateReceipt(payload);
+          })
+        )
+        .subscribe({
+          next: saved => {
+            this.receipts = this.receipts.map(r => (r.receiptId === saved.receiptId ? saved : r));
+            this.allReceipts = this.mappingService.mapReceiptDisplays(this.receipts);
+            this.applyBankCardDropdownsToDisplays();
+            this.applyVendorCellsToDisplays();
+            this.applyPropertyCodesToDisplays();
+            this.applyFilters();
+            this.toastr.success('Receipt updated.', CommonMessage.Success);
+          },
+          error: () => {
+            this.allReceipts = this.mappingService.mapReceiptDisplays(this.receipts);
+            this.applyBankCardDropdownsToDisplays();
+            this.applyVendorCellsToDisplays();
+            this.applyPropertyCodesToDisplays();
+            this.applyFilters();
+            this.toastr.error('Unable to update receipt.', CommonMessage.Error);
+          }
+        });
+      return;
+    }
+
+    const selectedVendorLabel = String((event.vendorDisplay as { value?: string } | undefined)?.value || '').trim();
+    if (!selectedVendorLabel) {
+      return;
+    }
+    const selectedVendorId = this.resolveVendorIdFromLabel(event.officeId, selectedVendorLabel);
+    if (!selectedVendorId) {
+      return;
+    }
+
+    this.receiptService
+      .getReceiptById(event.receiptId)
+      .pipe(
+        take(1),
+        switchMap(receipt => {
+          const isBill = Number(receipt.bankCardId ?? 0) === 0;
+          if (!isBill) {
+            this.syncReceiptRowFromServer(receipt);
+            return EMPTY;
+          }
+          const currentVendorId = String(receipt.vendorId || '').trim();
+          if (currentVendorId === selectedVendorId) {
+            this.syncReceiptRowFromServer(receipt);
+            return EMPTY;
+          }
+          const payload = this.buildReceiptVendorDropdownUpdateRequest(receipt, selectedVendorId);
+          return this.receiptService.updateReceipt(payload);
+        })
+      )
+      .subscribe({
+        next: saved => {
+          this.receipts = this.receipts.map(r => (r.receiptId === saved.receiptId ? saved : r));
+          this.allReceipts = this.mappingService.mapReceiptDisplays(this.receipts);
+          this.applyBankCardDropdownsToDisplays();
+          this.applyVendorCellsToDisplays();
+          this.applyPropertyCodesToDisplays();
+          this.applyFilters();
+          this.toastr.success('Receipt updated.', CommonMessage.Success);
+        },
+        error: () => {
+          this.allReceipts = this.mappingService.mapReceiptDisplays(this.receipts);
+          this.applyBankCardDropdownsToDisplays();
+          this.applyVendorCellsToDisplays();
+          this.applyPropertyCodesToDisplays();
+          this.applyFilters();
+          this.toastr.error('Unable to update receipt.', CommonMessage.Error);
+        }
+      });
+  }
+
+  onReceiptInlineEditChange(event: ReceiptDisplayList & { __changedInlineColumn?: string; __inlineValue?: string }): void {
+    if (!this.isAdmin) {
+      return;
+    }
+    if ((event.__changedInlineColumn || '') !== 'vendorDisplay') {
+      return;
+    }
+    if (event.vendorDisplayReadOnly) {
+      return;
+    }
+    const nextVendorName = String(event.__inlineValue ?? '').trim();
+    let previousVendorName = '';
+
+    this.receiptService
+      .getReceiptById(event.receiptId)
+      .pipe(
+        take(1),
+        switchMap(receipt => {
+          const isBill = Number(receipt.bankCardId ?? 0) === 0;
+          if (isBill) {
+            this.syncReceiptRowFromServer(receipt);
+            return EMPTY;
+          }
+          previousVendorName = String(receipt.vendorName ?? '').trim();
+          if (nextVendorName === previousVendorName) {
+            return EMPTY;
+          }
+          const payload = this.buildReceiptVendorInlineUpdateRequest(receipt, nextVendorName);
+          return this.receiptService.updateReceipt(payload);
+        })
+      )
+      .subscribe({
+        next: saved => {
+          this.receipts = this.receipts.map(r => (r.receiptId === saved.receiptId ? saved : r));
+          this.allReceipts = this.mappingService.mapReceiptDisplays(this.receipts);
+          this.applyBankCardDropdownsToDisplays();
+          this.applyVendorCellsToDisplays();
+          this.applyPropertyCodesToDisplays();
+          this.applyFilters();
+          this.toastr.success('Receipt updated.', CommonMessage.Success);
+        },
+        error: () => {
+          this.applyReceiptVendorDisplayValue(event.receiptId, previousVendorName);
           this.toastr.error('Unable to update receipt.', CommonMessage.Error);
         }
       });
@@ -369,6 +539,116 @@ export class ReceiptsListComponent implements OnInit, OnChanges {
         .join(', ')
     }));
   }
+
+  loadBankCardOptions(): void {
+    this.accountingOfficeService.ensureAccountingOfficesLoaded().pipe(take(1)).subscribe({
+      next: accountingOffices => {
+        const officeMap = new Map<number, Array<{ bankCardId: number; label: string }>>();
+        (accountingOffices || []).forEach(office => {
+          const officeId = Number(office.officeId);
+          if (!Number.isFinite(officeId) || officeId <= 0) {
+            return;
+          }
+          const mappedCards = this.mappingService.mapBankCardsFromResponse(office.bankCards as BankCardResponse[]);
+          const cardOptions = [
+            { bankCardId: 0, label: 'Bill' },
+            ...mappedCards
+              .filter(card => Number(card.bankCardId) > 0)
+              .map(card => ({
+                bankCardId: Number(card.bankCardId),
+                label: this.toBankCardOptionLabel(card)
+              }))
+          ];
+          officeMap.set(officeId, cardOptions);
+        });
+        this.bankCardOptionsByOfficeId = officeMap;
+        this.applyBankCardDropdownsToDisplays();
+        this.applyVendorCellsToDisplays();
+        this.applyFilters();
+      }
+    });
+  }
+
+  loadVendorOptions(): void {
+    this.contactService.ensureContactsLoaded().pipe(take(1)).subscribe({
+      next: contacts => {
+        const officeMap = new Map<number, Array<{ contactId: string; label: string }>>();
+        (contacts || [])
+          .filter(contact => contact.entityTypeId === EntityType.Vendor)
+          .forEach(contact => {
+            const officeId = Number(contact.officeId);
+            const contactId = String(contact.contactId || '').trim();
+            if (!Number.isFinite(officeId) || officeId <= 0 || contactId.length === 0) {
+              return;
+            }
+            const rows = officeMap.get(officeId) || [];
+            rows.push({
+              contactId,
+              label: this.utilityService.getVendorDropdownLabel(contact)
+            });
+            officeMap.set(officeId, rows);
+          });
+        this.vendorOptionsByOfficeId = officeMap;
+        this.applyVendorCellsToDisplays();
+        this.applyFilters();
+      }
+    });
+  }
+
+  applyBankCardDropdownsToDisplays(): void {
+    this.allReceipts = (this.allReceipts || []).map(receipt => {
+      const officeId = Number(receipt.officeId ?? 0);
+      const bankCardId = Number(receipt.bankCardId ?? 0);
+      const optionsForOffice = this.bankCardOptionsByOfficeId.get(officeId) || [{ bankCardId: 0, label: 'Bill' }];
+      const optionLabels = optionsForOffice.map(option => option.label);
+      const selectedLabel =
+        optionsForOffice.find(option => option.bankCardId === bankCardId)?.label
+        || (receipt.bankCardDisplayName || '').trim()
+        || 'Bill';
+      return {
+        ...receipt,
+        bankCardDropdown: {
+          value: selectedLabel,
+          isOverridable: this.isAdmin,
+          options: optionLabels,
+          toString: () => selectedLabel
+        }
+      };
+    });
+  }
+
+  applyVendorCellsToDisplays(): void {
+    this.allReceipts = (this.allReceipts || []).map(receipt => {
+      const officeId = Number(receipt.officeId ?? 0);
+      const isBill = Number(receipt.bankCardId ?? 0) === 0;
+      const vendorName = String(receipt.vendorName || '').trim();
+      if (!isBill) {
+        return {
+          ...receipt,
+          vendorDisplay: vendorName,
+          vendorDisplayReadOnly: !this.isAdmin,
+          vendorDisplayClickToEdit: this.isAdmin,
+          vendorDisplayEditing: false
+        };
+      }
+
+      const vendorOptionsForOffice = this.vendorOptionsByOfficeId.get(officeId) || [];
+      const vendorLabels = vendorOptionsForOffice.map(option => option.label);
+      const selectedVendorLabel =
+        vendorOptionsForOffice.find(option => option.contactId === String(receipt.vendorId || '').trim())?.label
+        || vendorName;
+      return {
+        ...receipt,
+        vendorDisplay: {
+          value: selectedVendorLabel,
+          isOverridable: this.isAdmin,
+          options: vendorLabels,
+          toString: () => selectedVendorLabel
+        },
+        vendorDisplayReadOnly: true
+      };
+    });
+  }
   //#endregion
 
   //#region IsActive
@@ -385,9 +665,7 @@ export class ReceiptsListComponent implements OnInit, OnChanges {
       workOrderId: s.workOrderId ?? null,
       workOrderCode: s.workOrderCode != null && String(s.workOrderCode).trim().length > 0 ? String(s.workOrderCode).trim() : '',
       workOrder: s.workOrder != null && String(s.workOrder).trim().length > 0 ? String(s.workOrder).trim() : '',
-      receiptTypeId: s.receiptTypeId ?? 0,
-      bankCardId: s.bankCardId ?? 0,
-      bankCardDisplayName: s.bankCardDisplayName ?? null
+      receiptTypeId: s.receiptTypeId ?? 0
     }));
     return {
       receiptId: receipt.receiptId,
@@ -398,15 +676,66 @@ export class ReceiptsListComponent implements OnInit, OnChanges {
       maintenanceId: receipt.maintenanceId,
       amount: Number(receipt.amount) || 0,
       description: String(receipt.description ?? '').trim(),
+      bankCardId: receipt.bankCardId ?? null,
+      vendorId: receipt.vendorId ?? null,
+      vendorName: receipt.vendorName ?? null,
       splits,
       receiptPath: receipt.receiptPath ?? null,
       isActive
     };
   }
 
+  buildReceiptBankCardInlineUpdateRequest(receipt: ReceiptResponse, bankCardId: number): ReceiptRequest {
+    return this.buildReceiptFieldUpdateRequest(receipt, { bankCardId });
+  }
+
+  buildReceiptVendorInlineUpdateRequest(receipt: ReceiptResponse, vendorName: string): ReceiptRequest {
+    const normalizedVendorName = String(vendorName || '').trim();
+    return this.buildReceiptFieldUpdateRequest(receipt, { vendorName: normalizedVendorName || null });
+  }
+
+  buildReceiptVendorDropdownUpdateRequest(receipt: ReceiptResponse, vendorId: string): ReceiptRequest {
+    const normalizedVendorId = String(vendorId || '').trim() || null;
+    return this.buildReceiptFieldUpdateRequest(receipt, { vendorId: normalizedVendorId });
+  }
+
+  private buildReceiptFieldUpdateRequest(receipt: ReceiptResponse, fields: Partial<Pick<ReceiptRequest, 'bankCardId' | 'vendorId' | 'vendorName' | 'isActive'>>): ReceiptRequest {
+    const hasBankCardId = Object.prototype.hasOwnProperty.call(fields, 'bankCardId');
+    const hasVendorId = Object.prototype.hasOwnProperty.call(fields, 'vendorId');
+    const hasVendorName = Object.prototype.hasOwnProperty.call(fields, 'vendorName');
+    const hasIsActive = Object.prototype.hasOwnProperty.call(fields, 'isActive');
+    const splits = (receipt.splits || []).map(s => ({
+      receiptSplitId: s.receiptSplitId ?? null,
+      amount: Number(s.amount) || 0,
+      description: String(s.description ?? '').trim(),
+      workOrderId: s.workOrderId ?? null,
+      workOrderCode: s.workOrderCode != null && String(s.workOrderCode).trim().length > 0 ? String(s.workOrderCode).trim() : '',
+      workOrder: s.workOrder != null && String(s.workOrder).trim().length > 0 ? String(s.workOrder).trim() : '',
+      receiptTypeId: s.receiptTypeId ?? 0
+    }));
+    return {
+      receiptId: receipt.receiptId,
+      organizationId: receipt.organizationId,
+      officeId: receipt.officeId,
+      propertyIds: [...(receipt.propertyIds || [])],
+      receiptDate: receipt.receiptDate || '',
+      maintenanceId: receipt.maintenanceId,
+      amount: Number(receipt.amount) || 0,
+      description: String(receipt.description ?? '').trim(),
+      bankCardId: hasBankCardId ? (fields.bankCardId ?? null) : (receipt.bankCardId ?? null),
+      vendorId: hasVendorId ? (fields.vendorId ?? null) : (receipt.vendorId ?? null),
+      vendorName: hasVendorName ? (fields.vendorName ?? null) : (receipt.vendorName ?? null),
+      splits,
+      receiptPath: receipt.receiptPath ?? null,
+      isActive: hasIsActive ? (fields.isActive ?? receipt.isActive) : receipt.isActive
+    };
+  }
+
   syncReceiptRowFromServer(receipt: ReceiptResponse): void {
     this.receipts = this.receipts.map(r => (r.receiptId === receipt.receiptId ? receipt : r));
     this.allReceipts = this.mappingService.mapReceiptDisplays(this.receipts);
+    this.applyBankCardDropdownsToDisplays();
+    this.applyVendorCellsToDisplays();
     this.applyPropertyCodesToDisplays();
     this.applyFilters();
   }
@@ -415,6 +744,31 @@ export class ReceiptsListComponent implements OnInit, OnChanges {
     this.allReceipts = (this.allReceipts || []).map(r => (r.receiptId === receiptId ? { ...r, isActive } : r));
     this.receipts = (this.receipts || []).map(r => (r.receiptId === receiptId ? { ...r, isActive } : r));
     this.applyFilters();
+  }
+
+  applyReceiptVendorDisplayValue(receiptId: number, vendorDisplay: string): void {
+    this.allReceipts = (this.allReceipts || []).map(r => (r.receiptId === receiptId ? { ...r, vendorDisplay } : r));
+    this.applyFilters();
+  }
+
+  resolveBankCardIdFromLabel(officeId: number | null | undefined, label: string): number | null {
+    const parsedOfficeId = Number(officeId ?? 0);
+    const normalizedLabel = String(label || '').trim().toLowerCase();
+    const options = this.bankCardOptionsByOfficeId.get(parsedOfficeId) || [];
+    const matchingOption = options.find(option => option.label.trim().toLowerCase() === normalizedLabel);
+    return matchingOption ? matchingOption.bankCardId : null;
+  }
+
+  resolveVendorIdFromLabel(officeId: number | null | undefined, label: string): string | null {
+    const parsedOfficeId = Number(officeId ?? 0);
+    const normalizedLabel = String(label || '').trim().toLowerCase();
+    const options = this.vendorOptionsByOfficeId.get(parsedOfficeId) || [];
+    const matchingOption = options.find(option => option.label.trim().toLowerCase() === normalizedLabel);
+    return matchingOption ? matchingOption.contactId : null;
+  }
+
+  toBankCardOptionLabel(card: BankCardResponse): string {
+    return (card?.displayName || '').trim() || this.mappingService.mapBankCardDisplay(card);
   }
   //#endregion
 }

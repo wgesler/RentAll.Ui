@@ -28,3 +28,29 @@
   color: #64748b;
   margin-bottom: 0.75rem;
 }
+
+/* Match dropdown selected text to WO link styling in receipts list. */
+:host ::ng-deep td.mat-cell.mat-column-bankCardDropdown .mat-mdc-select-min-line,
+:host ::ng-deep td.mat-mdc-cell.mat-column-bankCardDropdown .mat-mdc-select-min-line,
+:host ::ng-deep td.mat-cell.mat-column-vendorDisplay .mat-mdc-select-min-line,
+:host ::ng-deep td.mat-mdc-cell.mat-column-vendorDisplay .mat-mdc-select-min-line {
+  color: #1d4ed8 !important;
+  font-size: 12px !important;
+  line-height: 1.25 !important;
+  text-decoration: underline !important;
+}
+
+/* Vendor text-input mode: blue text, no underline. */
+:host ::ng-deep td.mat-cell.mat-column-vendorDisplay input.editable-apply-amount,
+:host ::ng-deep td.mat-mdc-cell.mat-column-vendorDisplay input.editable-apply-amount {
+  color: #1d4ed8 !important;
+  text-decoration: none !important;
+  font-size: 12px !important;
+}
+
+:host ::ng-deep td.mat-cell.mat-column-vendorDisplay .datatable-inline-edit-trigger,
+:host ::ng-deep td.mat-mdc-cell.mat-column-vendorDisplay .datatable-inline-edit-trigger {
+  color: #1d4ed8 !important;
+  text-decoration: none !important;
+  font-size: 12px !important;
+}

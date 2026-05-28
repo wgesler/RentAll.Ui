@@ -652,6 +652,14 @@ td.mat-mdc-cell.align-center {
   width: 100% !important;
 }
 
+.datatable-inline-edit-trigger {
+  display: block;
+  width: 100%;
+  min-height: 24px;
+  line-height: 24px;
+  cursor: text;
+}
+
 .datatable-editable-date-input {
   width: 100%;
   min-width: 0;
