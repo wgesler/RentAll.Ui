@@ -1471,6 +1471,7 @@ export class WorkOrderComponent implements OnInit, OnChanges, OnDestroy {
         organizationId: receipt.organizationId,
         officeId: receipt.officeId,
         propertyIds: (receipt.propertyIds || []).map(propertyId => (propertyId || '').trim()).filter(propertyId => propertyId.length > 0),
+        receiptDate: receipt.receiptDate || '',
         maintenanceId: receipt.maintenanceId,
         description: receipt.description ?? '',
         amount: receipt.amount ?? 0,

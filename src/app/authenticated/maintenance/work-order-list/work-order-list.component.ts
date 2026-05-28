@@ -323,6 +323,7 @@ export class WorkOrderListComponent implements OnInit, OnChanges {
               organizationId: receipt.organizationId,
               officeId: receipt.officeId,
               propertyIds: receipt.propertyIds || [],
+              receiptDate: receipt.receiptDate || '',
               maintenanceId: receipt.maintenanceId,
               amount: receipt.amount,
               description: receipt.description,

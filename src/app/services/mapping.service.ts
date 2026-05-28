@@ -1478,6 +1478,7 @@ export class MappingService {
         officeId: receipt.officeId,
         officeName: receipt.officeName,
         propertyIds: receipt.propertyIds || [],
+        receiptDate: this.formatter.formatDateString(receipt.receiptDate),
         propertyCode: (receipt.propertyIds || []).join(', '),
         maintenanceId: receipt.maintenanceId,
         description: receipt.description || '',
@@ -1494,6 +1495,8 @@ export class MappingService {
         receiptTypeDisplay,
         receiptPath: receipt.receiptPath ?? null,
         isActive: receipt.isActive,
+        createdBy: receipt.createdBy ?? receipt.createdByName ?? '',
+        createdByName: receipt.createdByName ?? receipt.createdBy ?? '',
         modifiedOn: this.formatter.formatDateString(receipt.modifiedOn),
         modifiedBy: receipt.modifiedBy
       };

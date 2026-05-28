@@ -17,6 +17,7 @@ export interface ReceiptRequest {
   organizationId: string;
   officeId: number;
   propertyIds: string[];
+  receiptDate: string;
   maintenanceId: string;
   amount: number;
   description: string;
@@ -32,6 +33,7 @@ export interface ReceiptResponse {
   officeId: number;
   officeName: string;
   propertyIds: string[];
+  receiptDate: string;
   maintenanceId: string;
   description: string;
   amount: number;
@@ -40,6 +42,8 @@ export interface ReceiptResponse {
   fileDetails?: FileDetails | null;
   bankCardDisplayName?: string;
   isActive: boolean;
+  createdBy?: string;
+  createdByName?: string;
   modifiedOn: string;
   modifiedBy: string;
 }
@@ -49,6 +53,7 @@ export interface ReceiptDisplayList {
   officeId: number;
   officeName: string;
   propertyIds: string[];
+  receiptDate: string;
   propertyCode?: string;
   maintenanceId: string;
   amount: number;
@@ -65,6 +70,8 @@ export interface ReceiptDisplayList {
   isActive: boolean;
   receiptPath?: string | null;
   description: string;
+  createdBy?: string;
+  createdByName?: string;
   modifiedOn: string;
   modifiedBy: string;
 }

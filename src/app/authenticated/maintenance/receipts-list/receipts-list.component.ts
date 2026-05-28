@@ -61,8 +61,8 @@ export class ReceiptsListComponent implements OnInit, OnChanges {
     descriptionDisplay: { displayAs: 'Description', wrap: true, maxWidth: '25ch' },
     bankCardDisplayName: { displayAs: 'Bank Card(s)', wrap: true, maxWidth: '22ch' },
     splitTotalDisplay: { displayAs: 'Split Total', wrap: false, maxWidth: '12ch', alignment: 'center' },
-    modifiedOn: { displayAs: 'Modified On', wrap: false, maxWidth: '20ch', alignment: 'center' },
-    modifiedBy: { displayAs: 'Modified By', wrap: false, maxWidth: '20ch' },
+    receiptDate: { displayAs: 'Receipt Date', wrap: false, maxWidth: '18ch', alignment: 'center' },
+    createdBy: { displayAs: 'Created By', wrap: false, maxWidth: '20ch' },
     isActive: { displayAs: 'IsActive', isCheckbox: true, checkboxEditable: false, sort: false, wrap: false, alignment: 'center', maxWidth: '15ch' }
   };
 
@@ -394,6 +394,7 @@ export class ReceiptsListComponent implements OnInit, OnChanges {
       organizationId: receipt.organizationId,
       officeId: receipt.officeId,
       propertyIds: [...(receipt.propertyIds || [])],
+      receiptDate: receipt.receiptDate || '',
       maintenanceId: receipt.maintenanceId,
       amount: Number(receipt.amount) || 0,
       description: String(receipt.description ?? '').trim(),

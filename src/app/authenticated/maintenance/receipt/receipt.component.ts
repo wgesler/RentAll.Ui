@@ -71,7 +71,6 @@ export class ReceiptComponent implements OnInit, OnChanges, OnDestroy {
   propertyOptions: PropertyListResponse[] = [];
   receiptTypeOptions = getReceiptTypes();
   bankCardOptions: { value: number; label: string }[] = [];
-  bankCardDebugTrace: string[] = [];
 
   itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['receipt', 'property', 'properties', 'accountingOffices', 'bankCards']));
   isLoading$: Observable<boolean> = this.itemsToLoad$.pipe(map(items => items.size > 0));
@@ -102,8 +101,6 @@ export class ReceiptComponent implements OnInit, OnChanges, OnDestroy {
   ngOnInit(): void {
     this.organizationId = this.authService.getUser()?.organizationId || '';
     this.buildForm();
-    this.toastr.info('Receipt component initialized', 'Debug', { timeOut: 2000 });
-    this.pushBankCardDebugTrace('Receipt init');
 
     this.itemsToLoad$.pipe(takeUntil(this.destroy$)).subscribe(items => {
       this.isPageReady = items.size === 0;
@@ -139,7 +136,6 @@ export class ReceiptComponent implements OnInit, OnChanges, OnDestroy {
 
     if (changes['maintenanceOfficeId'] && !changes['maintenanceOfficeId'].firstChange) {
       const selectedOfficeId = Number(this.maintenanceOfficeId);
-      this.pushBankCardDebugTrace(`maintenanceOfficeId changed: ${selectedOfficeId || 0}`);
       this.loadBankCardsForOffice(selectedOfficeId || null);
     }
   }
@@ -150,6 +146,12 @@ export class ReceiptComponent implements OnInit, OnChanges, OnDestroy {
 
     if (!this.organizationId || this.form.invalid) {
       this.toastr.error('Please correct the highlighted fields before saving.', 'Error');
+      return;
+    }
+    const receiptDateValue = this.getReceiptDateForApi();
+    if (!receiptDateValue) {
+      this.form.get('receiptDate')?.markAsTouched();
+      this.toastr.warning('Receipt date is required before saving.', 'Missing receipt date');
       return;
     }
     if (this.isAddMode && !this.property) {
@@ -195,6 +197,7 @@ export class ReceiptComponent implements OnInit, OnChanges, OnDestroy {
       organizationId: this.organizationId,
       officeId: this.receipt?.officeId || this.property?.officeId || 0,
       propertyIds: selectedPropertyIds,
+      receiptDate: receiptDateValue,
       maintenanceId: this.receipt?.maintenanceId || this.maintenanceId || '',
       description: (this.form.get('description')?.value || '').trim(),
       amount: amountValue,
@@ -210,6 +213,7 @@ export class ReceiptComponent implements OnInit, OnChanges, OnDestroy {
         (!!payload.fileDetails !== !!(this.receipt.fileDetails?.file));
       const hasReceiptUpdates = this.receipt
         ? (payload.description !== (this.receipt.description ?? '').trim()) ||
+          (this.normalizeReceiptDate(payload.receiptDate) !== this.normalizeReceiptDate(this.receipt.receiptDate)) ||
           payload.amount !== (this.receipt.amount ?? 0) ||
           this.havePropertyIdsChanged(payload.propertyIds, this.receipt.propertyIds || []) ||
           this.haveSplitsChanged(payload.splits, this.receipt.splits || []) ||
@@ -236,6 +240,7 @@ export class ReceiptComponent implements OnInit, OnChanges, OnDestroy {
         this.isAddMode = false;
         this.form.patchValue({
           officeName: saved.officeName || this.property?.officeName || '',
+          receiptDate: this.getReceiptDateControlValue(saved.receiptDate),
           propertyCode: this.getPropertyCodesDisplay(saved.propertyIds || []) || this.property?.propertyCode || '',
           propertyIds: saved.propertyIds || [],
           description: saved.description || '',
@@ -275,6 +280,7 @@ export class ReceiptComponent implements OnInit, OnChanges, OnDestroy {
   buildForm(): void {
     this.form = this.fb.group({
       officeName: new FormControl(''),
+      receiptDate: new FormControl<Date | null>(null, [Validators.required]),
       propertyCode: new FormControl(''),
       propertyIds: new FormControl<string[]>([], [Validators.required]),
       amount: new FormControl('0.00', [Validators.required]),
@@ -289,6 +295,7 @@ export class ReceiptComponent implements OnInit, OnChanges, OnDestroy {
   populateForm(receipt: ReceiptResponse): void {
     this.form.patchValue({
       officeName: this.property?.officeName || '',
+      receiptDate: this.getReceiptDateControlValue(receipt.receiptDate),
       propertyCode: this.getPropertyCodesDisplay(receipt.propertyIds || []) || this.property?.propertyCode || '',
       propertyIds: receipt.propertyIds || [],
       description: receipt.description || '',
@@ -400,11 +407,8 @@ export class ReceiptComponent implements OnInit, OnChanges, OnDestroy {
   loadBankCardsForOffice(officeId: number | null | undefined): void {
     this.utilityService.addLoadItem(this.itemsToLoad$, 'bankCards');
     const parsedOfficeId = Number(officeId);
-    this.pushBankCardDebugTrace(`loadBankCardsForOffice called: raw=${officeId ?? 'null'}, parsed=${parsedOfficeId || 0}`);
-    this.toastr.info(`Loading bank cards for office ${parsedOfficeId || 'none'}`, 'Debug', { timeOut: 2500 });
     if (!parsedOfficeId || parsedOfficeId <= 0) {
       this.bankCardOptions = [];
-      this.pushBankCardDebugTrace('Skipped bank-card API call: invalid office id');
       this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'bankCards');
       return;
     }
@@ -414,8 +418,6 @@ export class ReceiptComponent implements OnInit, OnChanges, OnDestroy {
       finalize(() => { this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'bankCards'); })
     ).subscribe({
       next: (accountingOffice) => {
-        this.toastr.info(`Bank cards API returned ${(accountingOffice?.bankCards || []).length} rows`, 'Debug', { timeOut: 3000 });
-        this.pushBankCardDebugTrace(`Bank-card API rows: ${(accountingOffice?.bankCards || []).length}`);
         const bankCards = this.mappingService.mapBankCardsFromResponse(accountingOffice?.bankCards);
         this.bankCardOptions = bankCards
           .filter(card => Number(card.bankCardId) > 0)
@@ -423,11 +425,8 @@ export class ReceiptComponent implements OnInit, OnChanges, OnDestroy {
             value: Number(card.bankCardId),
             label: this.toBankCardOptionLabel(card)
           }));
-        this.pushBankCardDebugTrace(`Dropdown options prepared: ${this.bankCardOptions.length}`);
       },
       error: (err) => {
-        this.toastr.error('Bank cards API failed (see console)', 'Debug');
-        this.pushBankCardDebugTrace('Bank-card API call failed');
         console.error('[Receipt] Bank cards API call failed', {
           officeId: parsedOfficeId,
           error: err
@@ -831,6 +830,19 @@ export class ReceiptComponent implements OnInit, OnChanges, OnDestroy {
     return `${isNegative ? '-' : ''}${numericPortion}`;
   }
 
+  getReceiptDateForApi(): string | null {
+    const dateValue = this.form.get('receiptDate')?.value;
+    return this.utilityService.toDateOnlyJsonString(dateValue);
+  }
+
+  normalizeReceiptDate(value: string | null | undefined): string | null {
+    return this.utilityService.toDateOnlyJsonString(value);
+  }
+
+  getReceiptDateControlValue(value: string | null | undefined): Date {
+    return this.utilityService.parseCalendarDateInput(value) ?? new Date();
+  }
+
   toBankCardOptionLabel(card: BankCardResponse): string {
     return (card?.displayName || '').trim() || this.mappingService.mapBankCardDisplay(card);
   }
@@ -936,10 +948,6 @@ export class ReceiptComponent implements OnInit, OnChanges, OnDestroy {
   //#endregion
 
   //#region Utility Methods
-  pushBankCardDebugTrace(message: string): void {
-    this.bankCardDebugTrace = [...this.bankCardDebugTrace, message];
-  }
-
   back(): void {
     if (this.embeddedInMaintenance) {
       this.backEvent.emit();
