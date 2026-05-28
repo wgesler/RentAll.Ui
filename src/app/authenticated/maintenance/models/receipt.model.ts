@@ -62,6 +62,7 @@ export interface ReceiptDisplayList {
   officeName: string;
   propertyIds: string[];
   receiptDate: string;
+  receiptDateReadOnly?: boolean;
   propertyCode?: string;
   maintenanceId: string;
   amount: number;

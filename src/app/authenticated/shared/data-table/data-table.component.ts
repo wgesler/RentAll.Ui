@@ -267,6 +267,7 @@ export class DataTableComponent implements OnChanges, OnInit {
   isToggle: boolean = false;
   selectAllToolTip: string = 'Select all visible checks';
   private pendingMultiSelectColumnsByRow = new WeakMap<PurposefulAny, Set<string>>();
+  private dateCellModelsByRow = new WeakMap<PurposefulAny, Map<string, Date | null>>();
 
   constructor(
     private zone: NgZone,
@@ -709,18 +710,133 @@ export class DataTableComponent implements OnChanges, OnInit {
     this.inlineEditChangeEvent.emit(rowItem);
   }
 
-  getDateInputValue(value: unknown): string {
-    if (!value) {
-      return '';
+  shouldSuppressRowClickForCell(item: PurposefulAny, column: ColumnData): boolean {
+    const columnName = column?.name || '';
+    if (!columnName) {
+      return false;
     }
-    const parsed = new Date(String(value));
-    if (Number.isNaN(parsed.getTime())) {
+    if (column.suppressRowClick === true) {
+      return true;
+    }
+    return !!(this.suppressRowClickOnDropdownCells && (item[columnName]?.options?.length || column.options?.length));
+  }
+
+  onTableCellClick(event: MouseEvent, item: PurposefulAny, column: ColumnData): void {
+    if (!this.shouldSuppressRowClickForCell(item, column)) {
+      return;
+    }
+    event.stopPropagation();
+    if (column.editableType !== 'date' || item[(column.name ?? '') + 'ReadOnly'] === true) {
+      return;
+    }
+    const currentTarget = event.currentTarget as HTMLElement | null;
+    const dateInput = currentTarget?.querySelector('input.datatable-editable-date-input') as HTMLInputElement | null;
+    if (!dateInput) {
+      return;
+    }
+    dateInput.focus();
+    dateInput.select();
+  }
+
+  onTableCellMouseDown(event: MouseEvent, item: PurposefulAny, column: ColumnData): void {
+    if (!this.shouldSuppressRowClickForCell(item, column)) {
+      return;
+    }
+    event.stopPropagation();
+  }
+
+  getDateInputValue(value: unknown): string {
+    const parsed = this.parseDateValue(value);
+    if (!parsed) {
       return '';
     }
     const year = parsed.getFullYear();
     const month = `${parsed.getMonth() + 1}`.padStart(2, '0');
     const day = `${parsed.getDate()}`.padStart(2, '0');
     return `${year}-${month}-${day}`;
+  }
+
+  getDateCellModel(rowItem: PurposefulAny, columnName: string): Date | null {
+    const rowMap = this.dateCellModelsByRow.get(rowItem) || new Map<string, Date | null>();
+    if (!this.dateCellModelsByRow.has(rowItem)) {
+      this.dateCellModelsByRow.set(rowItem, rowMap);
+    }
+    if (rowMap.has(columnName)) {
+      return rowMap.get(columnName) ?? null;
+    }
+    const parsed = this.parseDateValue(rowItem?.[columnName]);
+    rowMap.set(columnName, parsed);
+    return parsed;
+  }
+
+  onInlineDateModelChange(rowItem: PurposefulAny, columnName: string, value: unknown): void {
+    const rowMap = this.dateCellModelsByRow.get(rowItem) || new Map<string, Date | null>();
+    this.dateCellModelsByRow.set(rowItem, rowMap);
+    const parsedDate = this.parseDateValue(value);
+    rowMap.set(columnName, parsedDate);
+  }
+
+  commitInlineDateModelChange(rowItem: PurposefulAny, columnName: string, value: unknown): void {
+    const parsedDate = this.parseDateValue(value);
+    if (!parsedDate) {
+      return;
+    }
+    const nextDate = this.getDateInputValue(parsedDate);
+    const currentDate = this.getDateInputValue(rowItem?.[columnName]);
+    if (!nextDate || nextDate === currentDate) {
+      return;
+    }
+    this.emitInlineEditChangeEvent(rowItem, columnName, nextDate);
+  }
+
+  selectDateInputText(event: Event): void {
+    const input = event.target as HTMLInputElement | null;
+    if (!input) {
+      return;
+    }
+    input.select();
+  }
+
+  private parseDateValue(value: unknown): Date | null {
+    if (!value) {
+      return null;
+    }
+    if (value instanceof Date) {
+      return Number.isNaN(value.getTime()) ? null : value;
+    }
+    const raw = String(value).trim();
+    if (!raw) {
+      return null;
+    }
+    const datePart = raw.split('T')[0]?.split(' ')[0] ?? '';
+    const isoMatch = /^(\d{4})-(\d{1,2})-(\d{1,2})$/.exec(datePart);
+    if (isoMatch) {
+      const year = Number(isoMatch[1]);
+      const month = Number(isoMatch[2]);
+      const day = Number(isoMatch[3]);
+      if (!Number.isFinite(year) || !Number.isFinite(month) || !Number.isFinite(day) || month < 1 || month > 12 || day < 1 || day > 31) {
+        return null;
+      }
+      return new Date(year, month - 1, day);
+    }
+
+    const usMatch = /^(\d{1,2})\/(\d{1,2})\/(\d{2}|\d{4})$/.exec(datePart);
+    if (usMatch) {
+      const month = Number(usMatch[1]);
+      const day = Number(usMatch[2]);
+      const yearToken = usMatch[3];
+      const year = yearToken.length === 2 ? 2000 + Number(yearToken) : Number(yearToken);
+      if (!Number.isFinite(year) || !Number.isFinite(month) || !Number.isFinite(day) || month < 1 || month > 12 || day < 1 || day > 31) {
+        return null;
+      }
+      return new Date(year, month - 1, day);
+    }
+
+    const parsed = new Date(raw);
+    if (Number.isNaN(parsed.getTime())) {
+      return null;
+    }
+    return new Date(parsed.getFullYear(), parsed.getMonth(), parsed.getDate());
   }
 
   openDropdown(event: Event, dropdown: { open: () => void } | undefined): void {

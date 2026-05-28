@@ -43,10 +43,16 @@ export class ImageViewDialogComponent implements OnInit {
 
   zoomIn(): void {
     this.zoomScale = Math.min(this.maxZoom, this.zoomScale + this.zoomStep);
+    if (this.isPdf) {
+      this.updatePdfViewerSource();
+    }
   }
 
   zoomOut(): void {
     this.zoomScale = Math.max(this.minZoom, this.zoomScale - this.zoomStep);
+    if (this.isPdf) {
+      this.updatePdfViewerSource();
+    }
   }
 
   get isPdf(): boolean {
@@ -97,9 +103,21 @@ export class ImageViewDialogComponent implements OnInit {
     }
 
     const src = this.currentImageSrc || '';
-    this.pdfViewerSrc = src
-      ? this.sanitizer.bypassSecurityTrustResourceUrl(src)
+    const zoomedPdfSrc = this.withPdfZoom(src, Math.round(this.zoomScale * 100));
+    this.pdfViewerSrc = zoomedPdfSrc
+      ? this.sanitizer.bypassSecurityTrustResourceUrl(zoomedPdfSrc)
       : null;
+  }
+
+  private withPdfZoom(src: string, zoomPercent: number): string {
+    const base = String(src || '').trim();
+    if (!base) {
+      return '';
+    }
+    const sanitizedZoom = Math.max(50, Math.min(400, Number(zoomPercent) || 100));
+    const hashIndex = base.indexOf('#');
+    const sourceWithoutHash = hashIndex >= 0 ? base.slice(0, hashIndex) : base;
+    return `${sourceWithoutHash}#zoom=${sanitizedZoom}`;
   }
 
   close(): void {

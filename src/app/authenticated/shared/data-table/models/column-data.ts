@@ -17,6 +17,7 @@ export interface ColumnData {
     buttonText?: string;
     sortType?: 'default' | 'natural'; // 'natural' for codes with numbers (e.g., "CODE1", "CODE2", "CODE10")
     editableType?: 'text' | 'date';
+    suppressRowClick?: boolean;
 }
 
 export const defaultColumnData: ColumnData = {
@@ -32,4 +33,5 @@ export const defaultColumnData: ColumnData = {
     options: undefined,
     buttonText: undefined,
     editableType: undefined,
+    suppressRowClick: false,
 };

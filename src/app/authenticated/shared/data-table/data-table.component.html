@@ -113,8 +113,8 @@
             [style.min-width]="column.maxWidth"
             [style.padding-left]="column.name === 'actions' ? getActionsColumnPaddingLeft() : null"
             [style.text-align]="getColumnAlignment(column) === 'center' ? 'center' : (getColumnAlignment(column) === 'right' ? 'right' : 'left')"
-            (click)="suppressRowClickOnDropdownCells && (item[column.name]?.options?.length || column.options?.length) ? $event.stopPropagation() : null"
-            (mousedown)="suppressRowClickOnDropdownCells && (item[column.name]?.options?.length || column.options?.length) ? $event.stopPropagation() : null"
+            (click)="onTableCellClick($event, item, column)"
+            (mousedown)="onTableCellMouseDown($event, item, column)"
                 [ngClass]="{
                 'no-wrap': !column.wrap, 'datatable-truncated': !!column.maxWidth && column.editableType !== 'date',
                 'align-center': getColumnAlignment(column) === 'center', 'align-right': getColumnAlignment(column) === 'right',
@@ -302,13 +302,23 @@
                     }
                   } @default {
                   @if (column.editableType === 'date' && item[(column.name ?? '') + 'ReadOnly'] !== true) {
-                    <input type="date"
-                      [ngModel]="getDateInputValue(item[column.name])"
-                      [class.datatable-editable-date-input-empty]="getDateInputValue(item[column.name]) === ''"
-                      (ngModelChange)="emitInlineEditChangeEvent(item, column.name ?? '', $event)"
-                      (click)="$event.stopPropagation()"
-                      (mousedown)="$event.stopPropagation()"
-                      class="datatable-editable-date-input" />
+                    <mat-form-field appearance="outline" subscriptSizing="dynamic" class="datatable-editable-date-field">
+                      <input
+                        #dateInput
+                        matInput
+                        [matDatepicker]="editableDatePicker"
+                        [ngModel]="getDateCellModel(item, column.name ?? '')"
+                        [class.datatable-editable-date-input-empty]="!getDateCellModel(item, column.name ?? '')"
+                        (ngModelChange)="onInlineDateModelChange(item, column.name ?? '', $event)"
+                        (dateChange)="commitInlineDateModelChange(item, column.name ?? '', $event.value)"
+                        (blur)="commitInlineDateModelChange(item, column.name ?? '', getDateCellModel(item, column.name ?? ''))"
+                        (focus)="selectDateInputText($event)"
+                        (click)="selectDateInputText($event); $event.stopPropagation()"
+                        (mousedown)="$event.stopPropagation()"
+                        class="datatable-editable-date-input" />
+                      <mat-datepicker-toggle matIconSuffix [for]="editableDatePicker" (click)="$event.stopPropagation()"></mat-datepicker-toggle>
+                      <mat-datepicker #editableDatePicker></mat-datepicker>
+                    </mat-form-field>
                   } @else if (column.editableType === 'date') {
                     @if (item[column.name] !== 'NONE') { {{item[column.name]}} }
                   } @else if (column.editableType === 'text' && item[(column.name ?? '') + 'ReadOnly'] !== true && !(item[column.name]?.options?.length || column.options?.length)) {

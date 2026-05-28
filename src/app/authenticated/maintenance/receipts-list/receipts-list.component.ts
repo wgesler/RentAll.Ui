@@ -64,9 +64,9 @@ export class ReceiptsListComponent implements OnInit, OnChanges {
     workOrderDisplay: { displayAs: 'WO Code(s)', wrap: true, maxWidth: '18ch' },
     receiptTypeDisplay: { displayAs: 'Type(s)', wrap: true, maxWidth: '15ch' },
     receipt: { displayAs: 'Receipt', wrap: false, sort: false, maxWidth: '12ch', alignment: 'center'  },
-    receiptDate: { displayAs: 'Receipt Date', wrap: false, maxWidth: '18ch', alignment: 'center' },
-    vendorDisplay: { displayAs: 'Vendor', wrap: true, maxWidth: '25ch', editableType: 'text' },
-    bankCardDropdown: { displayAs: 'Bank Card', wrap: true, maxWidth: '25ch' },
+    receiptDate: { displayAs: 'Receipt Date', wrap: false, maxWidth: '22ch', alignment: 'center', editableType: 'date', suppressRowClick: true },
+    vendorDisplay: { displayAs: 'Vendor', wrap: true, maxWidth: '25ch', editableType: 'text', suppressRowClick: true },
+    bankCardDropdown: { displayAs: 'Bank Card', wrap: true, maxWidth: '25ch', suppressRowClick: true },
     amountDisplay: { displayAs: 'Amount', wrap: false, maxWidth: '12ch', alignment: 'center'  },
     descriptionDisplay: { displayAs: 'Description', wrap: true, maxWidth: '25ch' },
     createdBy: { displayAs: 'Created By', wrap: false, maxWidth: '20ch' },
@@ -309,7 +309,7 @@ export class ReceiptsListComponent implements OnInit, OnChanges {
       return;
     }
 
-    const selectedVendorLabel = String((event.vendorDisplay as { value?: string } | undefined)?.value || '').trim();
+    const selectedVendorLabel = this.normalizeVendorDisplayText((event.vendorDisplay as { value?: string } | undefined)?.value || '');
     if (!selectedVendorLabel) {
       return;
     }
@@ -362,13 +362,53 @@ export class ReceiptsListComponent implements OnInit, OnChanges {
     if (!this.isAdmin) {
       return;
     }
-    if ((event.__changedInlineColumn || '') !== 'vendorDisplay') {
+    const changedInlineColumn = event.__changedInlineColumn || '';
+    if (changedInlineColumn !== 'vendorDisplay' && changedInlineColumn !== 'receiptDate') {
       return;
     }
+    if (changedInlineColumn === 'receiptDate') {
+      const nextReceiptDate = this.normalizeDateInputValue(event.__inlineValue);
+
+      this.receiptService
+        .getReceiptById(event.receiptId)
+        .pipe(
+          take(1),
+          switchMap(receipt => {
+            const currentReceiptDate = this.normalizeDateInputValue(receipt.receiptDate);
+            if (!nextReceiptDate || nextReceiptDate === currentReceiptDate) {
+              this.syncReceiptRowFromServer(receipt);
+              return EMPTY;
+            }
+            const payload = this.buildReceiptDateInlineUpdateRequest(receipt, nextReceiptDate);
+            return this.receiptService.updateReceipt(payload);
+          })
+        )
+        .subscribe({
+          next: saved => {
+            this.receipts = this.receipts.map(r => (r.receiptId === saved.receiptId ? saved : r));
+            this.allReceipts = this.mappingService.mapReceiptDisplays(this.receipts);
+            this.applyBankCardDropdownsToDisplays();
+            this.applyVendorCellsToDisplays();
+            this.applyPropertyCodesToDisplays();
+            this.applyFilters();
+            this.toastr.success('Receipt updated.', CommonMessage.Success);
+          },
+          error: () => {
+            this.allReceipts = this.mappingService.mapReceiptDisplays(this.receipts);
+            this.applyBankCardDropdownsToDisplays();
+            this.applyVendorCellsToDisplays();
+            this.applyPropertyCodesToDisplays();
+            this.applyFilters();
+            this.toastr.error('Unable to update receipt.', CommonMessage.Error);
+          }
+        });
+      return;
+    }
+
     if (event.vendorDisplayReadOnly) {
       return;
     }
-    const nextVendorName = String(event.__inlineValue ?? '').trim();
+    const nextVendorName = this.normalizeVendorDisplayText(event.__inlineValue);
     let previousVendorName = '';
 
     this.receiptService
@@ -584,7 +624,7 @@ export class ReceiptsListComponent implements OnInit, OnChanges {
             const rows = officeMap.get(officeId) || [];
             rows.push({
               contactId,
-              label: this.utilityService.getVendorDropdownLabel(contact)
+              label: this.normalizeVendorDisplayText(this.utilityService.getVendorDropdownLabel(contact))
             });
             officeMap.set(officeId, rows);
           });
@@ -607,6 +647,7 @@ export class ReceiptsListComponent implements OnInit, OnChanges {
         || 'Bill';
       return {
         ...receipt,
+        receiptDateReadOnly: !this.isAdmin,
         bankCardDropdown: {
           value: selectedLabel,
           isOverridable: this.isAdmin,
@@ -621,7 +662,7 @@ export class ReceiptsListComponent implements OnInit, OnChanges {
     this.allReceipts = (this.allReceipts || []).map(receipt => {
       const officeId = Number(receipt.officeId ?? 0);
       const isBill = Number(receipt.bankCardId ?? 0) === 0;
-      const vendorName = String(receipt.vendorName || '').trim();
+      const vendorName = this.normalizeVendorDisplayText(receipt.vendorName);
       if (!isBill) {
         return {
           ...receipt,
@@ -634,9 +675,10 @@ export class ReceiptsListComponent implements OnInit, OnChanges {
 
       const vendorOptionsForOffice = this.vendorOptionsByOfficeId.get(officeId) || [];
       const vendorLabels = vendorOptionsForOffice.map(option => option.label);
-      const selectedVendorLabel =
+      const selectedVendorLabel = this.normalizeVendorDisplayText(
         vendorOptionsForOffice.find(option => option.contactId === String(receipt.vendorId || '').trim())?.label
-        || vendorName;
+        || vendorName
+      );
       return {
         ...receipt,
         vendorDisplay: {
@@ -699,10 +741,15 @@ export class ReceiptsListComponent implements OnInit, OnChanges {
     return this.buildReceiptFieldUpdateRequest(receipt, { vendorId: normalizedVendorId });
   }
 
-  private buildReceiptFieldUpdateRequest(receipt: ReceiptResponse, fields: Partial<Pick<ReceiptRequest, 'bankCardId' | 'vendorId' | 'vendorName' | 'isActive'>>): ReceiptRequest {
+  buildReceiptDateInlineUpdateRequest(receipt: ReceiptResponse, receiptDate: string): ReceiptRequest {
+    return this.buildReceiptFieldUpdateRequest(receipt, { receiptDate });
+  }
+
+  private buildReceiptFieldUpdateRequest(receipt: ReceiptResponse, fields: Partial<Pick<ReceiptRequest, 'bankCardId' | 'vendorId' | 'vendorName' | 'receiptDate' | 'isActive'>>): ReceiptRequest {
     const hasBankCardId = Object.prototype.hasOwnProperty.call(fields, 'bankCardId');
     const hasVendorId = Object.prototype.hasOwnProperty.call(fields, 'vendorId');
     const hasVendorName = Object.prototype.hasOwnProperty.call(fields, 'vendorName');
+    const hasReceiptDate = Object.prototype.hasOwnProperty.call(fields, 'receiptDate');
     const hasIsActive = Object.prototype.hasOwnProperty.call(fields, 'isActive');
     const splits = (receipt.splits || []).map(s => ({
       receiptSplitId: s.receiptSplitId ?? null,
@@ -718,7 +765,7 @@ export class ReceiptsListComponent implements OnInit, OnChanges {
       organizationId: receipt.organizationId,
       officeId: receipt.officeId,
       propertyIds: [...(receipt.propertyIds || [])],
-      receiptDate: receipt.receiptDate || '',
+      receiptDate: hasReceiptDate ? (fields.receiptDate || '') : (receipt.receiptDate || ''),
       maintenanceId: receipt.maintenanceId,
       amount: Number(receipt.amount) || 0,
       description: String(receipt.description ?? '').trim(),
@@ -747,7 +794,9 @@ export class ReceiptsListComponent implements OnInit, OnChanges {
   }
 
   applyReceiptVendorDisplayValue(receiptId: number, vendorDisplay: string): void {
-    this.allReceipts = (this.allReceipts || []).map(r => (r.receiptId === receiptId ? { ...r, vendorDisplay } : r));
+    this.allReceipts = (this.allReceipts || []).map(r => (
+      r.receiptId === receiptId ? { ...r, vendorDisplay: this.normalizeVendorDisplayText(vendorDisplay) } : r
+    ));
     this.applyFilters();
   }
 
@@ -761,14 +810,27 @@ export class ReceiptsListComponent implements OnInit, OnChanges {
 
   resolveVendorIdFromLabel(officeId: number | null | undefined, label: string): string | null {
     const parsedOfficeId = Number(officeId ?? 0);
-    const normalizedLabel = String(label || '').trim().toLowerCase();
+    const normalizedLabel = this.normalizeVendorDisplayText(label).toLowerCase();
     const options = this.vendorOptionsByOfficeId.get(parsedOfficeId) || [];
-    const matchingOption = options.find(option => option.label.trim().toLowerCase() === normalizedLabel);
+    const matchingOption = options.find(option => this.normalizeVendorDisplayText(option.label).toLowerCase() === normalizedLabel);
     return matchingOption ? matchingOption.contactId : null;
   }
 
   toBankCardOptionLabel(card: BankCardResponse): string {
     return (card?.displayName || '').trim() || this.mappingService.mapBankCardDisplay(card);
+  }
+
+  normalizeVendorDisplayText(value: unknown): string {
+    const raw = String(value || '').trim();
+    if (!raw) {
+      return '';
+    }
+    const withoutQuotes = raw.replace(/['"]/g, '').replace(/\s{2,}/g, ' ').trim();
+    return withoutQuotes || '';
+  }
+
+  normalizeDateInputValue(value: unknown): string {
+    return this.utilityService.toDateOnlyJsonString(value) || '';
   }
   //#endregion
 }
