@@ -198,7 +198,7 @@ export class ReceiptComponent implements OnInit, OnChanges, OnDestroy {
       return;
     }
     const splitTotalAmount = this.getSplitTotalAmount(payloadSplits);
-    if (splitTotalAmount > amountValue) {
+    if (this.isSplitTotalGreaterThanReceipt(splitTotalAmount, amountValue)) {
       this.splitTotalValidationError = true;
       this.toastr.warning('Split total cannot be greater than the receipt amount.', 'Invalid split total');
       return;
@@ -809,7 +809,7 @@ export class ReceiptComponent implements OnInit, OnChanges, OnDestroy {
   }
 
   isDisplayedSplitTotalInvalid(): boolean {
-    return this.getDisplayedSplitTotal() > this.getReceiptAmountValue();
+    return this.isSplitTotalGreaterThanReceipt(this.getDisplayedSplitTotal(), this.getReceiptAmountValue());
   }
 
   createSplitFormGroup(split?: Partial<Split>): FormGroup {
@@ -988,6 +988,18 @@ export class ReceiptComponent implements OnInit, OnChanges, OnDestroy {
 
   getSplitTotalAmount(splits: Split[]): number {
     return (splits || []).reduce((sum, split) => sum + (Number(split.amount) || 0), 0);
+  }
+
+  private isSplitTotalGreaterThanReceipt(splitTotal: number, receiptAmount: number): boolean {
+    return this.toCurrencyCents(splitTotal) > this.toCurrencyCents(receiptAmount);
+  }
+
+  private toCurrencyCents(value: unknown): number {
+    const numeric = Number(value);
+    if (!Number.isFinite(numeric)) {
+      return 0;
+    }
+    return Math.round((numeric + Number.EPSILON) * 100);
   }
 
   haveSplitsChanged(nextSplits: Split[], currentSplits: Split[]): boolean {
