@@ -602,6 +602,28 @@ export class ReceiptComponent implements OnInit, OnChanges, OnDestroy {
       this.toastr.warning('Receipt file is not available.', 'Receipt');
       return;
     }
+    if (this.isReceiptPreviewPdf()) {
+      const propertyId =
+        this.getSelectedPropertyIds().find(id => (id || '').trim().length > 0)
+        || (this.selectedPropertyId || '').trim()
+        || (this.property?.propertyId || '').trim()
+        || null;
+      const documentViewUrl = '/' + RouterUrl.replaceTokens(RouterUrl.DocumentView, ['inline-receipt']);
+      this.router.navigate([documentViewUrl], {
+        queryParams: {
+          returnTo: propertyId ? 'maintenance' : 'documentList',
+          ...(propertyId ? { propertyId } : {})
+        },
+        state: {
+          inlineDocument: {
+            dataUrl: imageSrc,
+            contentType: 'application/pdf',
+            fileName: this.receiptFileName || 'Receipt.pdf'
+          }
+        }
+      });
+      return;
+    }
     const data: ImageViewDialogData = { imageSrc, title: 'Receipt' };
     this.dialog.open(ImageViewDialogComponent, {
       data,

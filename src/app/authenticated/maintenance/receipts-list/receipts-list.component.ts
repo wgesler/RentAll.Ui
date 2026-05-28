@@ -457,6 +457,10 @@ export class ReceiptsListComponent implements OnInit, OnChanges {
           this.toastr.warning('Receipt file is not available.', 'Receipt');
           return;
         }
+        if (this.isPdfSource(imageSrc, fd?.contentType)) {
+          this.openReceiptPdfViewer(imageSrc, item);
+          return;
+        }
         const data: ImageViewDialogData = { imageSrc, title: 'Receipt' };
         this.dialog.open(ImageViewDialogComponent, {
           data,
@@ -468,6 +472,28 @@ export class ReceiptsListComponent implements OnInit, OnChanges {
         });
       },
       error: () => this.toastr.error('Unable to load receipt.', 'Receipt')
+    });
+  }
+
+  openReceiptPdfViewer(imageSrc: string, item: ReceiptDisplayList): void {
+    const propertyId =
+      (item.propertyIds || []).map(id => (id || '').trim()).find(id => id.length > 0)
+      || (this.property?.propertyId || '').trim()
+      || (this.selectedPropertyId || '').trim()
+      || null;
+    const documentViewUrl = '/' + RouterUrl.replaceTokens(RouterUrl.DocumentView, ['inline-receipt']);
+    this.router.navigate([documentViewUrl], {
+      queryParams: {
+        returnTo: propertyId ? 'maintenance' : 'documentList',
+        ...(propertyId ? { propertyId } : {})
+      },
+      state: {
+        inlineDocument: {
+          dataUrl: imageSrc,
+          contentType: 'application/pdf',
+          fileName: 'Receipt.pdf'
+        }
+      }
     });
   }
 
@@ -831,6 +857,12 @@ export class ReceiptsListComponent implements OnInit, OnChanges {
 
   normalizeDateInputValue(value: unknown): string {
     return this.utilityService.toDateOnlyJsonString(value) || '';
+  }
+
+  isPdfSource(imageSrc: string, contentType?: string | null): boolean {
+    const normalizedSource = String(imageSrc || '').trim().toLowerCase();
+    const normalizedContentType = String(contentType || '').trim().toLowerCase();
+    return normalizedContentType.includes('application/pdf') || normalizedSource.startsWith('data:application/pdf;') || normalizedSource.endsWith('.pdf');
   }
   //#endregion
 }
