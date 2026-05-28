@@ -402,6 +402,7 @@
                           [class.datatable-multiselect-select]="item[column.name]?.isMultiSelect || column.isMultiSelect"
                           (click)="$event.stopPropagation()"
                           (mousedown)="$event.stopPropagation()"
+                          (keydown)="onDatatableSelectKeydown($event, item, column, dropdownSelect)"
                           (openedChange)="onDatatableSelectOpenedChange($event, item, column.name)"
                           [panelClass]="item[column.name]?.panelClass || 'datatable-dropdown-panel'"
                           [disabled]="item[column.name]?.dropdownReadOnly === true || !item[column.name]?.isOverridable"
@@ -412,7 +413,7 @@
                             </mat-select-trigger>
                           }
 
-                          @for (option of (item[column.name]?.options || column.options || []); track option) {
+                          @for (option of getFilteredDropdownOptions(item, column); track option) {
                             <mat-option [value]="option" id="option-{{column}}-{{$index}}">
                               {{option}}
                             </mat-option>

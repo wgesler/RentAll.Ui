@@ -69,24 +69,36 @@
                   }
                 </mat-select>
               </mat-form-field>
-              <mat-form-field appearance="outline" class="receipt-overall-bank-card-field">
-                <mat-label>Bank Card</mat-label>
-                <mat-select formControlName="bankCardId" (selectionChange)="onOverallBankCardChange()">
-                  <mat-option [value]="0">Bill</mat-option>
-                  @for (option of bankCardOptions; track option.value) {
-                    <mat-option [value]="option.value">{{ option.label }}</mat-option>
-                  }
-                </mat-select>
-              </mat-form-field>
+              <app-searchable-select
+                class="receipt-overall-bank-card-field"
+                [renderInFormField]="true"
+                [formFieldClass]="'receipt-overall-bank-card-field'"
+                [formFieldLabel]="'Bank Card'"
+                [value]="form.get('bankCardId')?.value ?? 0"
+                [options]="overallBankCardOptions"
+                [showSearchInput]="true"
+                [hideSearchHint]="true"
+                [hideSearchText]="true"
+                [searchPlaceholder]="'Type to filter bank cards...'"
+                [showInstructionOption]="false"
+                [noResultsText]="'No bank cards match your search'"
+                (valueChange)="onOverallBankCardSelectionChange($event)">
+              </app-searchable-select>
               <mat-form-field appearance="outline" class="receipt-overall-vendor-field">
                 <mat-label>Vendor</mat-label>
                 @if (isOverallBillBankCard()) {
-                  <mat-select formControlName="vendorId" (selectionChange)="onOverallVendorSelectionChange($any($event.value))">
-                    <mat-option [value]="''"></mat-option>
-                    @for (option of vendorOptions; track option.value) {
-                      <mat-option [value]="option.value">{{ option.label }}</mat-option>
-                    }
-                  </mat-select>
+                  <app-searchable-select
+                    [renderInFormField]="false"
+                    [value]="form.get('vendorId')?.value ?? ''"
+                    [options]="overallVendorOptions"
+                    [showSearchInput]="true"
+                    [hideSearchHint]="true"
+                    [hideSearchText]="true"
+                    [searchPlaceholder]="'Type to filter vendors...'"
+                    [showInstructionOption]="false"
+                    [noResultsText]="'No vendors match your search'"
+                    (valueChange)="onOverallVendorSelectionChange($any($event))">
+                  </app-searchable-select>
                 } @else {
                   <input matInput formControlName="vendorName">
                 }

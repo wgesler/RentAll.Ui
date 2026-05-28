@@ -18,6 +18,8 @@ export interface ColumnData {
     sortType?: 'default' | 'natural'; // 'natural' for codes with numbers (e.g., "CODE1", "CODE2", "CODE10")
     editableType?: 'text' | 'date';
     suppressRowClick?: boolean;
+    searchableDropdown?: boolean;
+    dropdownSearchPlaceholder?: string;
 }
 
 export const defaultColumnData: ColumnData = {
@@ -34,4 +36,6 @@ export const defaultColumnData: ColumnData = {
     buttonText: undefined,
     editableType: undefined,
     suppressRowClick: false,
+    searchableDropdown: false,
+    dropdownSearchPlaceholder: 'Type to filter...',
 };

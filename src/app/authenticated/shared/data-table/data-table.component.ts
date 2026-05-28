@@ -268,6 +268,7 @@ export class DataTableComponent implements OnChanges, OnInit {
   selectAllToolTip: string = 'Select all visible checks';
   private pendingMultiSelectColumnsByRow = new WeakMap<PurposefulAny, Set<string>>();
   private dateCellModelsByRow = new WeakMap<PurposefulAny, Map<string, Date | null>>();
+  private dropdownSearchTextByRow = new WeakMap<PurposefulAny, Map<string, string>>();
 
   constructor(
     private zone: NgZone,
@@ -620,7 +621,13 @@ export class DataTableComponent implements OnChanges, OnInit {
   }
 
   onDatatableSelectOpenedChange(isOpen: boolean, rowItem: PurposefulAny, columnName: string | undefined): void {
-    if (!columnName || !this.isMultiSelectColumnForItem(rowItem, columnName)) {
+    if (!columnName) {
+      return;
+    }
+    if (isOpen) {
+      this.clearDropdownSearchText(rowItem, columnName);
+    }
+    if (!this.isMultiSelectColumnForItem(rowItem, columnName)) {
       return;
     }
     if (isOpen) {
@@ -635,6 +642,88 @@ export class DataTableComponent implements OnChanges, OnInit {
 
   isMultiSelectColumnForItem(rowItem: PurposefulAny, columnName: string): boolean {
     return !!(rowItem?.[columnName]?.isMultiSelect || this.getColumnByName(columnName)?.isMultiSelect);
+  }
+
+  isDropdownSearchEnabled(rowItem: PurposefulAny, column: ColumnData): boolean {
+    const columnName = column?.name || '';
+    if (!columnName || this.isMultiSelectColumnForItem(rowItem, columnName)) {
+      return false;
+    }
+    return rowItem?.[columnName]?.searchableDropdown === true || column.searchableDropdown === true;
+  }
+
+  getDropdownSearchPlaceholder(rowItem: PurposefulAny, column: ColumnData): string {
+    const columnName = column?.name || '';
+    return rowItem?.[columnName]?.dropdownSearchPlaceholder
+      || column.dropdownSearchPlaceholder
+      || 'Type to filter...';
+  }
+
+  getDropdownSearchText(rowItem: PurposefulAny, columnName: string): string {
+    const searchMap = this.dropdownSearchTextByRow.get(rowItem);
+    return searchMap?.get(columnName) || '';
+  }
+
+  setDropdownSearchText(rowItem: PurposefulAny, columnName: string, value: string): void {
+    const searchMap = this.dropdownSearchTextByRow.get(rowItem) || new Map<string, string>();
+    searchMap.set(columnName, (value || '').toString());
+    this.dropdownSearchTextByRow.set(rowItem, searchMap);
+  }
+
+  clearDropdownSearchText(rowItem: PurposefulAny, columnName: string): void {
+    const searchMap = this.dropdownSearchTextByRow.get(rowItem);
+    if (!searchMap) {
+      return;
+    }
+    searchMap.delete(columnName);
+    if (searchMap.size === 0) {
+      this.dropdownSearchTextByRow.delete(rowItem);
+    }
+  }
+
+  getFilteredDropdownOptions(rowItem: PurposefulAny, column: ColumnData): string[] {
+    const columnName = column?.name || '';
+    const options = rowItem?.[columnName]?.options ?? column.options ?? [];
+    if (!Array.isArray(options)) {
+      return [];
+    }
+    if (!this.isDropdownSearchEnabled(rowItem, column)) {
+      return options;
+    }
+    const query = this.getDropdownSearchText(rowItem, columnName).trim().toLowerCase();
+    if (!query) {
+      return options;
+    }
+    return options.filter(option => String(option ?? '').toLowerCase().includes(query));
+  }
+
+  onDatatableSelectKeydown(
+    event: KeyboardEvent,
+    rowItem: PurposefulAny,
+    column: ColumnData,
+    dropdown: { panelOpen?: boolean } | undefined
+  ): void {
+    if (!this.isDropdownSearchEnabled(rowItem, column) || !dropdown?.panelOpen) {
+      return;
+    }
+    if (event.ctrlKey || event.metaKey || event.altKey) {
+      return;
+    }
+    const columnName = column?.name || '';
+    if (!columnName) {
+      return;
+    }
+    if (event.key === 'Backspace') {
+      const current = this.getDropdownSearchText(rowItem, columnName);
+      this.setDropdownSearchText(rowItem, columnName, current.slice(0, -1));
+      event.preventDefault();
+      return;
+    }
+    if (event.key.length === 1) {
+      const current = this.getDropdownSearchText(rowItem, columnName);
+      this.setDropdownSearchText(rowItem, columnName, `${current}${event.key}`);
+      event.preventDefault();
+    }
   }
 
   markPendingMultiSelectChange(rowItem: PurposefulAny, columnName: string): void {

@@ -26,11 +26,12 @@ import { AccountingOfficeService } from '../../organizations/services/accounting
 import { BankCardResponse } from '../../organizations/models/bank.model';
 import { WorkOrderService } from '../services/work-order.service';
 import { MappingService } from '../../../services/mapping.service';
+import { SearchableSelectComponent, SearchableSelectOption } from '../../shared/searchable-select/searchable-select.component';
 
 @Component({
   standalone: true,
   selector: 'app-receipt',
-  imports: [CommonModule, MaterialModule, ReactiveFormsModule],
+  imports: [CommonModule, MaterialModule, ReactiveFormsModule, SearchableSelectComponent],
   templateUrl: './receipt.component.html',
   styleUrl: './receipt.component.scss'
 })
@@ -73,7 +74,7 @@ export class ReceiptComponent implements OnInit, OnChanges, OnDestroy {
   isSyncingInitialSplit = false;
   propertyOptions: PropertyListResponse[] = [];
   receiptTypeOptions = getReceiptTypes();
-  bankCardOptions: { value: number; label: string }[] = [];
+  bankCardOptions: SearchableSelectOption<number>[] = [];
   vendorOptions: { value: string; label: string }[] = [];
 
   itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['receipt', 'property', 'properties', 'accountingOffices', 'bankCards', 'vendors']));
@@ -884,6 +885,22 @@ export class ReceiptComponent implements OnInit, OnChanges, OnDestroy {
       return;
     }
     this.form.patchValue({ vendorId: null }, { emitEvent: false });
+  }
+
+  onOverallBankCardSelectionChange(value: string | number | null | undefined): void {
+    const normalized = Number(value ?? 0);
+    this.form.patchValue({
+      bankCardId: Number.isFinite(normalized) ? normalized : 0
+    }, { emitEvent: false });
+    this.onOverallBankCardChange();
+  }
+
+  get overallBankCardOptions(): SearchableSelectOption<number>[] {
+    return [{ value: 0, label: 'Bill' }, ...(this.bankCardOptions || [])];
+  }
+
+  get overallVendorOptions(): SearchableSelectOption<string>[] {
+    return [{ value: '', label: '' }, ...(this.vendorOptions || [])];
   }
 
   onOverallVendorSelectionChange(value: string | null | undefined): void {

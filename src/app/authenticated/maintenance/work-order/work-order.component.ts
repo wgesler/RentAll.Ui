@@ -152,8 +152,6 @@ export class WorkOrderComponent implements OnInit, OnChanges, OnDestroy {
         officeName: this.property?.officeName || '',
         propertyCode: this.property?.propertyCode || ''
       }, { emitEvent: false });
-      this.itemsToLoad$.next(new Set());
-      return;
     }
 
     this.loadOffices();
