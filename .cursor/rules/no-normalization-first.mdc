@@ -1,0 +1,12 @@
+---
+description: Do not default to normalization as first diagnosis or fix
+alwaysApply: true
+---
+
+# No Normalization-First Debugging
+
+- Do not assume UI/API issues are normalization or coercion problems by default.
+- Do not start with `Number()`, `parseInt`, enum coercion, string cleanup, or "normalization helper" changes.
+- First prove the value at each boundary with direct evidence (runtime object, API response payload, and binding path).
+- Treat contracts and known field shapes as authoritative; compare and use values directly unless a proven mismatch exists.
+- Only introduce normalization when there is explicit proof of a contract mismatch at one specific boundary.

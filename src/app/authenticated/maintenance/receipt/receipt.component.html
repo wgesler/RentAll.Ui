@@ -53,6 +53,11 @@
               }
             </div>
           </div>
+          @if (embeddedInMaintenance) {
+            <div class="mb-2 text-xs text-slate-700">
+              Bank-card debug: {{ bankCardDebugTrace.join(' | ') || 'none' }}
+            </div>
+          }
 
           <div class="grid grid-cols-4 gap-x-1.5 gap-y-1 receipt-form-grid">
             <div class="col-span-4 receipt-overall-row">
