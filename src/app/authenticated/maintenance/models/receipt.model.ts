@@ -1,10 +1,14 @@
 import { FileDetails } from "../../documents/models/document.model";
 
 export interface Split {
+  receiptSplitId?: number | null;
   amount: number;
   description: string;
+  workOrderId?: string | null;
+  workOrderCode?: string | null;
   receiptTypeId: number;
-  bankCardId: number;
+  bankCardId?: number | null;
+  bankCardDisplayName?: string | null;
   workOrder?: string;
 }
 

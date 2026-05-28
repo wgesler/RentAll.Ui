@@ -301,11 +301,17 @@ export class WorkOrderListComponent implements OnInit, OnChanges {
         const updateRequests = receipts.filter((receipt): receipt is ReceiptResponse => receipt != null).map(receipt => {
             const currentSplits = receipt.splits || [];
             const nextSplits = currentSplits.map(split => {
-              const nextWorkOrder = this.removeWorkOrderCodeFromList(split.workOrder, workOrderCode);
-              if (nextWorkOrder === (split.workOrder || '')) {
+              const existingWorkOrderCode = split.workOrderCode || split.workOrder || '';
+              const nextWorkOrder = this.removeWorkOrderCodeFromList(existingWorkOrderCode, workOrderCode);
+              if (nextWorkOrder === existingWorkOrderCode) {
                 return split;
               }
-              return { ...split, workOrder: nextWorkOrder };
+              return {
+                ...split,
+                workOrderId: null,
+                workOrderCode: nextWorkOrder,
+                workOrder: nextWorkOrder
+              };
             });
 
             if (JSON.stringify(nextSplits) === JSON.stringify(currentSplits)) {
@@ -364,7 +370,7 @@ export class WorkOrderListComponent implements OnInit, OnChanges {
       map((receipts: ReceiptResponse[]) => {
         (receipts || []).forEach(receipt => {
           const hasCode = (receipt.splits || []).some(split => {
-            const tokens = (split.workOrder || '')
+            const tokens = (split.workOrderCode || split.workOrder || '')
               .split(',')
               .map(token => token.trim().toLowerCase())
               .filter(token => token.length > 0);

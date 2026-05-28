@@ -625,8 +625,6 @@ export class MaintenanceShellComponent implements OnInit, CanComponentDeactivate
     const receiptId = selection?.receiptId ?? null;
     const selectedOfficeId = this.normalizeOfficeId(selection?.officeId ?? null);
     const selectedPropertyId = (selection?.propertyId || '').trim() || null;
-    console.log('[MaintenanceShell] onReceiptSelect', { receiptId, selectedOfficeId, selectedPropertyId });
-
     this.receiptSaveValidationAttempted = false;
     if (selectedOfficeId !== this.selectedOfficeId) {
       this.selectedOfficeId = selectedOfficeId;

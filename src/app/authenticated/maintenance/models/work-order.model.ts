@@ -97,9 +97,11 @@ export type WorkOrderItemEditable =
 export interface ReceiptSplitOption {
   key: string;
   receiptId: number;
+  receiptSplitId: number | null;
   splitIndex: number;
   amount: number;
   description: string;
+  workOrderId?: string | null;
   workOrder: string;
   label: string;
 }

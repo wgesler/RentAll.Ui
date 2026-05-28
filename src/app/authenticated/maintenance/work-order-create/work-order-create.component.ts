@@ -696,7 +696,7 @@ export class WorkOrderCreateComponent extends BaseDocumentComponent implements O
     return normalizedSplits
       .map((split, index) => ({ split, index }))
       .filter(({ split }) => {
-        const assignedCode = (split.workOrder || '').trim();
+        const assignedCode = (split.workOrderCode || split.workOrder || '').trim();
         return !assignedCode || (!!workOrderCode && assignedCode === workOrderCode);
       });
   }

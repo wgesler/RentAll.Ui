@@ -1,4 +1,5 @@
 export interface BankCardRequest {
+  bankCardId?: number;
   cardTypeId: number;
   cardName: string;
   cardNumber: string;

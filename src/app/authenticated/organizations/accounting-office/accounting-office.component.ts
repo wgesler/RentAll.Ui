@@ -609,6 +609,7 @@ export class AccountingOfficeComponent implements OnInit, OnDestroy, OnChanges {
       }
 
       requests.push({
+        bankCardId: (card.bankCardId || 0) > 0 ? card.bankCardId : undefined,
         cardTypeId,
         cardName,
         cardNumber,

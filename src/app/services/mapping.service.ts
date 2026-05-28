@@ -1443,11 +1443,15 @@ export class MappingService {
   mapReceiptDisplays(receipts: ReceiptResponse[]): ReceiptDisplayList[] {
     return (receipts || []).map((receipt: ReceiptResponse): ReceiptDisplayList => {
       const splits = (receipt.splits || []).map((split: Split) => ({
+        receiptSplitId: split.receiptSplitId ?? null,
         amount: Number(split.amount) || 0,
         description: split.description || '',
-        workOrder: split.workOrder || '',
+        workOrderId: split.workOrderId ?? null,
+        workOrderCode: split.workOrderCode || split.workOrder || '',
+        workOrder: split.workOrderCode || split.workOrder || '',
         receiptTypeId: split.receiptTypeId ?? 0,
-        bankCardId: split.bankCardId ?? 0
+        bankCardId: split.bankCardId ?? 0,
+        bankCardDisplayName: split.bankCardDisplayName ?? null
       }));
       const splitTotalAmount = splits.reduce((sum, split) => sum + (Number(split.amount) || 0), 0);
       const receiptAmount = Number(receipt.amount) || 0;

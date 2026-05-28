@@ -379,11 +379,15 @@ export class ReceiptsListComponent implements OnInit, OnChanges {
 
   buildReceiptIsActiveUpdateRequest(receipt: ReceiptResponse, isActive: boolean): ReceiptRequest {
     const splits = (receipt.splits || []).map(s => ({
+      receiptSplitId: s.receiptSplitId ?? null,
       amount: Number(s.amount) || 0,
       description: String(s.description ?? '').trim(),
+      workOrderId: s.workOrderId ?? null,
+      workOrderCode: s.workOrderCode != null && String(s.workOrderCode).trim().length > 0 ? String(s.workOrderCode).trim() : '',
       workOrder: s.workOrder != null && String(s.workOrder).trim().length > 0 ? String(s.workOrder).trim() : '',
       receiptTypeId: s.receiptTypeId ?? 0,
-      bankCardId: s.bankCardId ?? 0
+      bankCardId: s.bankCardId ?? 0,
+      bankCardDisplayName: s.bankCardDisplayName ?? null
     }));
     return {
       receiptId: receipt.receiptId,

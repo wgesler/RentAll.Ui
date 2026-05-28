@@ -402,17 +402,9 @@ export class ReceiptComponent implements OnInit, OnChanges, OnDestroy {
     const parsedOfficeId = Number(officeId);
     this.pushBankCardDebugTrace(`loadBankCardsForOffice called: raw=${officeId ?? 'null'}, parsed=${parsedOfficeId || 0}`);
     this.toastr.info(`Loading bank cards for office ${parsedOfficeId || 'none'}`, 'Debug', { timeOut: 2500 });
-    console.log('[Receipt] loadBankCardsForOffice called', {
-      officeId,
-      parsedOfficeId,
-      embeddedInMaintenance: this.embeddedInMaintenance,
-      receiptId: this.receiptId,
-      propertyOfficeId: this.property?.officeId ?? null
-    });
     if (!parsedOfficeId || parsedOfficeId <= 0) {
       this.bankCardOptions = [];
       this.pushBankCardDebugTrace('Skipped bank-card API call: invalid office id');
-      console.log('[Receipt] Skipping bank card load because office id is invalid', { officeId, parsedOfficeId });
       this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'bankCards');
       return;
     }
@@ -424,10 +416,6 @@ export class ReceiptComponent implements OnInit, OnChanges, OnDestroy {
       next: (accountingOffice) => {
         this.toastr.info(`Bank cards API returned ${(accountingOffice?.bankCards || []).length} rows`, 'Debug', { timeOut: 3000 });
         this.pushBankCardDebugTrace(`Bank-card API rows: ${(accountingOffice?.bankCards || []).length}`);
-        console.log('[Receipt] Bank cards API response', {
-          officeId: parsedOfficeId,
-          bankCards: accountingOffice?.bankCards || []
-        });
         const bankCards = this.mappingService.mapBankCardsFromResponse(accountingOffice?.bankCards);
         this.bankCardOptions = bankCards
           .filter(card => Number(card.bankCardId) > 0)
@@ -436,11 +424,6 @@ export class ReceiptComponent implements OnInit, OnChanges, OnDestroy {
             label: this.toBankCardOptionLabel(card)
           }));
         this.pushBankCardDebugTrace(`Dropdown options prepared: ${this.bankCardOptions.length}`);
-        console.log('[Receipt] Bank card dropdown options prepared', {
-          officeId: parsedOfficeId,
-          optionCount: this.bankCardOptions.length,
-          options: this.bankCardOptions
-        });
       },
       error: (err) => {
         this.toastr.error('Bank cards API failed (see console)', 'Debug');
@@ -676,12 +659,17 @@ export class ReceiptComponent implements OnInit, OnChanges, OnDestroy {
   createSplitFormGroup(split?: Partial<Split>): FormGroup {
     const amount = Number(split?.amount);
     const normalizedReceiptTypeId = split?.receiptTypeId ?? 0;
+    const normalizedWorkOrderCode = (split?.workOrderCode || split?.workOrder || '').trim();
     return this.fb.group({
+      receiptSplitId: new FormControl(split?.receiptSplitId ?? null),
       amount: new FormControl(Number.isFinite(amount) ? amount.toFixed(2) : '', [Validators.required]),
       description: new FormControl((split?.description || '').trim(), [Validators.required]),
-      workOrder: new FormControl((split?.workOrder || '').trim()),
+      workOrderId: new FormControl(split?.workOrderId ?? null),
+      workOrderCode: new FormControl(normalizedWorkOrderCode),
+      workOrder: new FormControl(normalizedWorkOrderCode),
       receiptTypeId: new FormControl(normalizedReceiptTypeId, [Validators.required]),
-      bankCardId: new FormControl(split?.bankCardId ?? 0, [Validators.required])
+      bankCardId: new FormControl(split?.bankCardId ?? 0, [Validators.required]),
+      bankCardDisplayName: new FormControl(split?.bankCardDisplayName ?? null)
     });
   }
 
@@ -721,11 +709,15 @@ export class ReceiptComponent implements OnInit, OnChanges, OnDestroy {
     return this.splitsFormArray.controls.map(control => {
       const amountRaw = this.sanitizeSignedDecimalInput(control.get('amount')?.value?.toString() ?? '');
       return {
+        receiptSplitId: control.get('receiptSplitId')?.value ?? null,
         amount: parseFloat(amountRaw) || 0,
         description: (control.get('description')?.value || '').trim(),
-        workOrder: (control.get('workOrder')?.value || '').trim(),
+        workOrderId: (control.get('workOrderId')?.value || '').toString().trim() || null,
+        workOrderCode: (control.get('workOrderCode')?.value || control.get('workOrder')?.value || '').trim(),
+        workOrder: (control.get('workOrderCode')?.value || control.get('workOrder')?.value || '').trim(),
         receiptTypeId: control.get('receiptTypeId')?.value ?? 0,
-        bankCardId: control.get('bankCardId')?.value ?? 0
+        bankCardId: control.get('bankCardId')?.value ?? 0,
+        bankCardDisplayName: control.get('bankCardDisplayName')?.value ?? null
       };
     });
   }
@@ -741,7 +733,11 @@ export class ReceiptComponent implements OnInit, OnChanges, OnDestroy {
     const splitAmountRaw = this.sanitizeSignedDecimalInput(splitAmountControl?.value?.toString() ?? '').trim();
     const splitAmountValue = parseFloat(splitAmountRaw);
     const splitDescription = (splitDescriptionControl?.value || '').trim();
-    const splitWorkOrder = (splitGroup.get('workOrder')?.value || '').trim();
+    const splitWorkOrder = (
+      splitGroup.get('workOrderCode')?.value
+      || splitGroup.get('workOrder')?.value
+      || ''
+    ).trim();
     if (splitWorkOrder) {
       return;
     }
@@ -776,11 +772,15 @@ export class ReceiptComponent implements OnInit, OnChanges, OnDestroy {
 
   normalizeSplits(splits: Split[]): Split[] {
     return (splits || []).map(split => ({
+      receiptSplitId: split.receiptSplitId ?? null,
       amount: Number(split.amount) || 0,
       description: (split.description || '').trim(),
-      workOrder: (split.workOrder || '').trim(),
+      workOrderId: (split.workOrderId || '').toString().trim() || null,
+      workOrderCode: (split.workOrderCode || split.workOrder || '').trim(),
+      workOrder: (split.workOrderCode || split.workOrder || '').trim(),
       receiptTypeId: split.receiptTypeId ?? 0,
-      bankCardId: split.bankCardId ?? 0
+      bankCardId: split.bankCardId ?? 0,
+      bankCardDisplayName: split.bankCardDisplayName ?? null
     }));
   }
 
@@ -823,7 +823,7 @@ export class ReceiptComponent implements OnInit, OnChanges, OnDestroy {
     if (!value) {
       return '';
     }
-    const cleaned = value.replace(/[^0-9.\-]/g, '');
+    const cleaned = value.replace(/[^0-9.-]/g, '');
     const isNegative = cleaned.startsWith('-');
     const unsigned = cleaned.replace(/-/g, '');
     const parts = unsigned.split('.');
@@ -836,13 +836,15 @@ export class ReceiptComponent implements OnInit, OnChanges, OnDestroy {
   }
 
   hasSplitWorkOrder(splitIndex: number): boolean {
-    const workOrderValue = this.getSplitWorkOrderCode(splitIndex);
-    return workOrderValue.length > 0;
+    const workOrderId = (this.splitsFormArray.at(splitIndex)?.get('workOrderId')?.value || '').toString().trim();
+    const workOrderCode = this.getSplitWorkOrderCode(splitIndex);
+    return workOrderId.length > 0 || workOrderCode.length > 0;
   }
 
   openWorkOrderFromSplit(splitIndex: number): void {
+    const targetWorkOrderId = (this.splitsFormArray.at(splitIndex)?.get('workOrderId')?.value || '').toString().trim();
     const targetWorkOrderCode = this.getSplitWorkOrderCode(splitIndex);
-    if (!targetWorkOrderCode) {
+    if (!targetWorkOrderId && !targetWorkOrderCode) {
       return;
     }
 
@@ -852,6 +854,30 @@ export class ReceiptComponent implements OnInit, OnChanges, OnDestroy {
       || (this.property?.propertyId || '').trim()
       || null;
     const officeId = Number(this.receipt?.officeId || this.property?.officeId || 0) || null;
+
+    if (targetWorkOrderId) {
+      if (this.embeddedInMaintenance) {
+        this.workOrderSelect.emit({
+          workOrderId: targetWorkOrderId,
+          propertyId
+        });
+        return;
+      }
+
+      if (!propertyId) {
+        this.toastr.error('Unable to open work order: property context is missing.', 'Work Order');
+        return;
+      }
+
+      const maintenanceUrl = '/' + RouterUrl.replaceTokens(RouterUrl.Maintenance, [propertyId]);
+      this.router.navigate([maintenanceUrl], {
+        queryParams: {
+          tab: 3,
+          workOrderId: targetWorkOrderId
+        }
+      });
+      return;
+    }
 
     this.workOrderService.getWorkOrders(propertyId, officeId).pipe(take(1)).subscribe({
       next: workOrders => {
@@ -893,7 +919,12 @@ export class ReceiptComponent implements OnInit, OnChanges, OnDestroy {
   }
 
   getSplitWorkOrderCode(splitIndex: number): string {
-    const rawWorkOrder = (this.splitsFormArray.at(splitIndex)?.get('workOrder')?.value || '').toString().trim();
+    const row = this.splitsFormArray.at(splitIndex);
+    const rawWorkOrder = (
+      row?.get('workOrderCode')?.value
+      || row?.get('workOrder')?.value
+      || ''
+    ).toString().trim();
     if (!rawWorkOrder) {
       return '';
     }

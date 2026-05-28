@@ -326,7 +326,7 @@ export class WorkOrderComponent implements OnInit, OnChanges, OnDestroy {
         const hasReceiptItems = this.workOrderItems.some(item => item.itemSource === 'receipt');
         if (hasReceiptItems) {
           const effectiveWorkOrderCode = saved.workOrderCode ?? this.form.get('workOrderCode')?.value ?? this.generatedWorkOrderCode ?? '';
-          this.updateReceiptsWorkOrderCode(effectiveWorkOrderCode, selectedSplitKeysForSave, previousAssignedSplitKeys);
+          this.updateReceiptsWorkOrderCode(effectiveWorkOrderCode, saved.workOrderId ?? null, selectedSplitKeysForSave, previousAssignedSplitKeys);
         }
         this.toastr.success('Work order saved.', 'Success');
 
@@ -1396,7 +1396,12 @@ export class WorkOrderComponent implements OnInit, OnChanges, OnDestroy {
     });
   }
 
-  updateReceiptsWorkOrderCode(workOrderCode: string, selectedSplitKeys: string[] = [], previousSplitKeys: string[] = []): void {
+  updateReceiptsWorkOrderCode(
+    workOrderCode: string,
+    workOrderId: string | null = null,
+    selectedSplitKeys: string[] = [],
+    previousSplitKeys: string[] = []
+  ): void {
     const activeWorkOrderCode = (workOrderCode || '').trim();
     if (!activeWorkOrderCode) {
       return;
@@ -1422,21 +1427,37 @@ export class WorkOrderComponent implements OnInit, OnChanges, OnDestroy {
       const normalizedSplits = (receipt.splits && receipt.splits.length > 0)
         ? receipt.splits.map(split => ({ ...split }))
         : [{
+            receiptSplitId: null,
             amount: Number(receipt.amount) || 0,
             description: receipt.description || '',
-            workOrder: ''
+            workOrderId: null,
+            workOrderCode: '',
+            workOrder: '',
+            receiptTypeId: 0,
+            bankCardId: 0,
+            bankCardDisplayName: null
           }];
 
       const nextSplits = normalizedSplits.map((split, index) => {
-        const splitKey = this.buildSplitKey(receipt.receiptId, index);
+        const splitKey = this.buildSplitKey(receipt.receiptId, index, split.receiptSplitId ?? null);
         const currentlySelected = currentSplitKeys.has(splitKey);
         const previouslySelected = previousSplitKeySet.has(splitKey);
         const existingCode = this.getSplitWorkOrder(split);
         if (currentlySelected) {
-          return { ...split, workOrder: activeWorkOrderCode };
+          return {
+            ...split,
+            workOrderId,
+            workOrderCode: activeWorkOrderCode,
+            workOrder: activeWorkOrderCode
+          };
         }
         if (previouslySelected && existingCode === activeWorkOrderCode) {
-          return { ...split, workOrder: '' };
+          return {
+            ...split,
+            workOrderId: null,
+            workOrderCode: '',
+            workOrder: ''
+          };
         }
         return split;
       });
@@ -1481,7 +1502,7 @@ export class WorkOrderComponent implements OnInit, OnChanges, OnDestroy {
       (receipt.splits || [])
         .map((split, index) => ({ split, index }))
         .filter(({ split }) => this.getSplitWorkOrder(split) === currentCode)
-        .map(({ index }) => this.buildSplitKey(receipt.receiptId, index))
+        .map(({ split, index }) => this.buildSplitKey(receipt.receiptId, index, split.receiptSplitId ?? null))
     );
   }
 
@@ -1505,11 +1526,13 @@ export class WorkOrderComponent implements OnInit, OnChanges, OnDestroy {
         const description = (split.description || '').trim();
         const displayDescription = description || `Split ${index + 1}`;
         return {
-          key: this.buildSplitKey(receipt.receiptId, index),
+          key: this.buildSplitKey(receipt.receiptId, index, split.receiptSplitId ?? null),
           receiptId: receipt.receiptId,
+          receiptSplitId: Number(split.receiptSplitId) > 0 ? Number(split.receiptSplitId) : null,
           splitIndex: index,
           amount,
           description,
+          workOrderId: (split.workOrderId || '').toString().trim() || null,
           workOrder: this.getSplitWorkOrder(split),
           label: `R${receipt.receiptId}: ${displayDescription} - $${this.formatter.currency(amount)}`
         };
@@ -1532,25 +1555,44 @@ export class WorkOrderComponent implements OnInit, OnChanges, OnDestroy {
     return this.getReceiptSplitOptions(receipt, currentWorkOrderCode).find(option => option.key === splitKey) ?? null;
   }
 
-  buildSplitKey(receiptId: number, splitIndex: number): string {
-    return `${receiptId}::${splitIndex}`;
+  buildSplitKey(receiptId: number, splitIndex: number, receiptSplitId?: number | null): string {
+    const numericSplitId = Number(receiptSplitId);
+    const identity = Number.isFinite(numericSplitId) && numericSplitId > 0
+      ? `sid-${numericSplitId}`
+      : `idx-${splitIndex}`;
+    return `${receiptId}::${identity}`;
   }
 
-  parseSplitKey(splitKey: string): { receiptId: number; splitIndex: number } | null {
+  parseSplitKey(splitKey: string): { receiptId: number; splitIndex: number | null; receiptSplitId: number | null } | null {
     const parts = (splitKey || '').split('::');
     if (parts.length !== 2) {
       return null;
     }
     const receiptId = Number(parts[0]);
-    const splitIndex = Number(parts[1]);
-    if (!Number.isFinite(receiptId) || !Number.isFinite(splitIndex)) {
+    if (!Number.isFinite(receiptId)) {
       return null;
     }
-    return { receiptId, splitIndex };
+
+    const identity = parts[1] || '';
+    if (identity.startsWith('sid-')) {
+      const receiptSplitId = Number(identity.slice(4));
+      if (!Number.isFinite(receiptSplitId) || receiptSplitId <= 0) {
+        return null;
+      }
+      return { receiptId, splitIndex: null, receiptSplitId };
+    }
+    if (identity.startsWith('idx-')) {
+      const splitIndex = Number(identity.slice(4));
+      if (!Number.isFinite(splitIndex) || splitIndex < 0) {
+        return null;
+      }
+      return { receiptId, splitIndex, receiptSplitId: null };
+    }
+    return null;
   }
 
-  getSplitWorkOrder(split: { workOrder?: string } | null | undefined): string {
-    return (split?.workOrder || '').trim();
+  getSplitWorkOrder(split: { workOrder?: string; workOrderCode?: string } | null | undefined): string {
+    return (split?.workOrderCode || split?.workOrder || '').trim();
   }
 
   resolveInitialSplitKeyForItem(receiptId: number, currentWorkOrderCode: string, usedKeys: Set<string>): string | null {
