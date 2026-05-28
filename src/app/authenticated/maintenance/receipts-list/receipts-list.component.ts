@@ -207,6 +207,61 @@ export class ReceiptsListComponent implements OnInit, OnChanges {
     this.router.navigate([url], { queryParams: { propertyId: this.property.propertyId }, state: { property: this.property } });
   }
 
+  goToWorkOrderFromCode(event: { rowItem?: ReceiptDisplayList; workOrderCode?: string }): void {
+    const rowItem = event?.rowItem;
+    const targetWorkOrderCode = (event?.workOrderCode || '').trim();
+    if (!rowItem || !targetWorkOrderCode) {
+      return;
+    }
+
+    const propertyId =
+      (rowItem.propertyIds || []).map(id => (id || '').trim()).find(id => id.length > 0)
+      || (this.property?.propertyId || '').trim()
+      || (this.selectedPropertyId || '').trim()
+      || null;
+    const officeId = Number(rowItem.officeId || this.officeId || 0) || null;
+
+    this.workOrderService.getWorkOrders(propertyId, officeId).pipe(take(1)).subscribe({
+      next: workOrders => {
+        const matchingWorkOrder = (workOrders || []).find(
+          workOrder => (workOrder.workOrderCode || '').trim().toLowerCase() === targetWorkOrderCode.toLowerCase()
+        );
+        if (!matchingWorkOrder) {
+          this.toastr.warning(`Unable to locate ${targetWorkOrderCode}.`, 'Work Order');
+          return;
+        }
+
+        const workOrderId = String(matchingWorkOrder.workOrderId || '').trim();
+        const resolvedPropertyId = (matchingWorkOrder.propertyId || propertyId || '').trim();
+        if (!workOrderId || !resolvedPropertyId) {
+          this.toastr.error('Unable to open work order: missing work order context.', 'Work Order');
+          return;
+        }
+
+        if (this.embeddedInMaintenance) {
+          this.workOrderSelect.emit({
+            workOrderId,
+            propertyId: resolvedPropertyId
+          });
+          return;
+        }
+
+        const maintenanceUrl = '/' + RouterUrl.replaceTokens(RouterUrl.Maintenance, [resolvedPropertyId]);
+        this.router.navigate([maintenanceUrl], {
+          queryParams: {
+            tab: 3,
+            workOrderId
+          }
+        });
+      },
+      error: () => {
+        this.toastr.error('Unable to load work order.', 'Work Order');
+      }
+    });
+  }
+  //#endregion
+
+  //#region Inline Receipt Edits
   onReceiptCheckboxChange(event: ReceiptDisplayList): void {
     if (!this.canEditIsActiveCheckbox) {
       return;
@@ -472,7 +527,7 @@ export class ReceiptsListComponent implements OnInit, OnChanges {
     });
   }
 
-  private renderReceiptInWindow(receiptWindow: Window, imageSrc: string): void {
+  renderReceiptInWindow(receiptWindow: Window, imageSrc: string): void {
     const isPdf = /^data:application\/pdf/i.test(imageSrc);
     const renderSrc = this.toBlobObjectUrl(imageSrc) ?? imageSrc;
     const receiptDocument = receiptWindow.document;
@@ -522,7 +577,7 @@ export class ReceiptsListComponent implements OnInit, OnChanges {
     }
   }
 
-  private toBlobObjectUrl(src: string): string | null {
+  toBlobObjectUrl(src: string): string | null {
     if (!src || !src.startsWith('data:')) {
       return null;
     }
@@ -547,59 +602,6 @@ export class ReceiptsListComponent implements OnInit, OnChanges {
       return null;
     }
   }
-
-  goToWorkOrderFromCode(event: { rowItem?: ReceiptDisplayList; workOrderCode?: string }): void {
-    const rowItem = event?.rowItem;
-    const targetWorkOrderCode = (event?.workOrderCode || '').trim();
-    if (!rowItem || !targetWorkOrderCode) {
-      return;
-    }
-
-    const propertyId =
-      (rowItem.propertyIds || []).map(id => (id || '').trim()).find(id => id.length > 0)
-      || (this.property?.propertyId || '').trim()
-      || (this.selectedPropertyId || '').trim()
-      || null;
-    const officeId = Number(rowItem.officeId || this.officeId || 0) || null;
-
-    this.workOrderService.getWorkOrders(propertyId, officeId).pipe(take(1)).subscribe({
-      next: workOrders => {
-        const matchingWorkOrder = (workOrders || []).find(
-          workOrder => (workOrder.workOrderCode || '').trim().toLowerCase() === targetWorkOrderCode.toLowerCase()
-        );
-        if (!matchingWorkOrder) {
-          this.toastr.warning(`Unable to locate ${targetWorkOrderCode}.`, 'Work Order');
-          return;
-        }
-
-        const workOrderId = String(matchingWorkOrder.workOrderId || '').trim();
-        const resolvedPropertyId = (matchingWorkOrder.propertyId || propertyId || '').trim();
-        if (!workOrderId || !resolvedPropertyId) {
-          this.toastr.error('Unable to open work order: missing work order context.', 'Work Order');
-          return;
-        }
-
-        if (this.embeddedInMaintenance) {
-          this.workOrderSelect.emit({
-            workOrderId,
-            propertyId: resolvedPropertyId
-          });
-          return;
-        }
-
-        const maintenanceUrl = '/' + RouterUrl.replaceTokens(RouterUrl.Maintenance, [resolvedPropertyId]);
-        this.router.navigate([maintenanceUrl], {
-          queryParams: {
-            tab: 3,
-            workOrderId
-          }
-        });
-      },
-      error: () => {
-        this.toastr.error('Unable to load work order.', 'Work Order');
-      }
-    });
-  }
   //#endregion
 
   //#region Filter Methods
@@ -623,7 +625,7 @@ export class ReceiptsListComponent implements OnInit, OnChanges {
     }
   }
 
-  private readPersistedFilterValue(): string {
+  readPersistedFilterValue(): string {
     try {
       return sessionStorage.getItem(this.receiptListFilterStorageKey) || '';
     } catch {

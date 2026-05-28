@@ -79,7 +79,7 @@ export class ReceiptComponent implements OnInit, OnChanges, OnDestroy {
 
   itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['receipt', 'property', 'properties', 'accountingOffices', 'bankCards', 'vendors']));
   isLoading$: Observable<boolean> = this.itemsToLoad$.pipe(map(items => items.size > 0));
-  private destroy$ = new Subject<void>();
+  destroy$ = new Subject<void>();
 
   constructor(
     fb: FormBuilder,
@@ -612,7 +612,7 @@ export class ReceiptComponent implements OnInit, OnChanges, OnDestroy {
     this.renderReceiptInWindow(receiptWindow, imageSrc);
   }
 
-  private renderReceiptInWindow(receiptWindow: Window, imageSrc: string): void {
+  renderReceiptInWindow(receiptWindow: Window, imageSrc: string): void {
     const isPdf = /^data:application\/pdf/i.test(imageSrc);
     const renderSrc = this.toBlobObjectUrl(imageSrc) ?? imageSrc;
     const receiptDocument = receiptWindow.document;
@@ -662,7 +662,7 @@ export class ReceiptComponent implements OnInit, OnChanges, OnDestroy {
     }
   }
 
-  private toBlobObjectUrl(src: string): string | null {
+  toBlobObjectUrl(src: string): string | null {
     if (!src || !src.startsWith('data:')) {
       return null;
     }
@@ -828,7 +828,7 @@ export class ReceiptComponent implements OnInit, OnChanges, OnDestroy {
     });
   }
 
-  private validateRequiredSplitFields(): string | null {
+  validateRequiredSplitFields(): string | null {
     for (let i = 0; i < this.splitsFormArray.length; i++) {
       const row = this.splitsFormArray.at(i) as FormGroup;
       row.markAllAsTouched();
@@ -1007,11 +1007,11 @@ export class ReceiptComponent implements OnInit, OnChanges, OnDestroy {
     return (splits || []).reduce((sum, split) => sum + (Number(split.amount) || 0), 0);
   }
 
-  private isSplitTotalGreaterThanReceipt(splitTotal: number, receiptAmount: number): boolean {
+  isSplitTotalGreaterThanReceipt(splitTotal: number, receiptAmount: number): boolean {
     return this.toCurrencyCents(splitTotal) > this.toCurrencyCents(receiptAmount);
   }
 
-  private toCurrencyCents(value: unknown): number {
+  toCurrencyCents(value: unknown): number {
     const numeric = Number(value);
     if (!Number.isFinite(numeric)) {
       return 0;
