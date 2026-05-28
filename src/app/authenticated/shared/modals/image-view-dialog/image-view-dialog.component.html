@@ -1,5 +1,5 @@
-<div class="image-view-dialog">
-  <div class="image-view-dialog-header flex justify-between items-center bg-slate-200 rounded-t-lg p-3">
+<div class="image-view-dialog" cdkDrag cdkDragRootElement=".cdk-overlay-pane">
+  <div class="image-view-dialog-header flex justify-between items-center bg-slate-200 rounded-t-lg p-3" cdkDragHandle>
     @if (data.title) {
       <span class="text-xl">{{ data.title }}</span>
     }

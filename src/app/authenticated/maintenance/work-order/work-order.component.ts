@@ -559,6 +559,9 @@ export class WorkOrderComponent implements OnInit, OnChanges, OnDestroy {
   ): void {
     const previousFactor = previousFactorOverride ?? this.lastMarkupFactor;
     const nextFactor = nextFactorOverride ?? this.getMarkupFactor();
+    const shouldRoundUpForMarkup = this.form.get('applyMarkup')?.value === true
+      && this.isOwnerTypeSelected()
+      && nextFactor > 1;
     const factorDelta = previousFactor - nextFactor;
     if (!forceReevaluate && factorDelta > -0.000001 && factorDelta < 0.000001) {
       this.lastMarkupFactor = nextFactor;
@@ -577,11 +580,11 @@ export class WorkOrderComponent implements OnInit, OnChanges, OnDestroy {
         }
         const splitOption = item.receiptSplitKey ? this.getSplitOptionByKey(item.receiptSplitKey) : null;
         const baseAmount = splitOption?.amount ?? this.propertyReceipts.find(r => r.receiptId === item.receiptId)?.amount ?? 0;
-        item.receiptAmount = Math.round((baseAmount * nextFactor) * 100) / 100;
+        item.receiptAmount = this.workOrderAmountService.roundCurrency(baseAmount * nextFactor, shouldRoundUpForMarkup);
       } else if (item.itemSource === 'inventory') {
         const currentAmount = previousReceiptAmounts?.[index] ?? (Number(item.receiptAmount) || 0);
         const baseAmount = previousFactor !== 0 ? (currentAmount / previousFactor) : currentAmount;
-        item.receiptAmount = Math.round((baseAmount * nextFactor) * 100) / 100;
+        item.receiptAmount = this.workOrderAmountService.roundCurrency(baseAmount * nextFactor, shouldRoundUpForMarkup);
       }
 
       // Persist recalculated amount onto the line item model immediately.

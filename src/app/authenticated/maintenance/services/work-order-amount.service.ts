@@ -11,11 +11,26 @@ export interface WorkOrderAmountContext {
   providedIn: 'root'
 })
 export class WorkOrderAmountService {
+  roundCurrency(value: unknown, roundUp: boolean = false): number {
+    const numeric = Number(value);
+    if (!Number.isFinite(numeric)) {
+      return 0;
+    }
+
+    const scaled = numeric * 100;
+    const rounded = roundUp
+      ? (numeric >= 0
+        ? Math.ceil(scaled - Number.EPSILON)
+        : Math.floor(scaled + Number.EPSILON))
+      : Math.round(scaled);
+    return rounded / 100;
+  }
+
   calculateLineTotal(receiptAmount: unknown, laborHours: unknown, laborCost: unknown): number {
     const receipt = Number(receiptAmount) || 0;
     const hours = Math.floor(Number(laborHours)) || 0;
     const cost = Number(laborCost) || 0;
-    return Math.round((receipt + hours * cost) * 100) / 100;
+    return this.roundCurrency(receipt + hours * cost);
   }
 
   resolveWorkOrderDisplayAmount(workOrder: WorkOrderResponse, context?: WorkOrderAmountContext): number {
@@ -77,7 +92,7 @@ export class WorkOrderAmountService {
       return null;
     }
 
-    return Math.round(total * 100) / 100;
+    return this.roundCurrency(total);
   }
 
   resolveWorkOrderItemTotal(item: Record<string, unknown>, context?: WorkOrderAmountContext): number | null {
@@ -92,7 +107,7 @@ export class WorkOrderAmountService {
       ?? this.parseLooseNumber(item['lineAmount'])
       ?? this.parseLooseNumber(item['LineAmount']);
     if (itemAmount !== null) {
-      return Math.round(itemAmount * 100) / 100;
+      return this.roundCurrency(itemAmount);
     }
 
     const receiptAmount = this.parseLooseNumber(item['receiptAmount']) ?? this.parseLooseNumber(item['ReceiptAmount']);
@@ -162,16 +177,17 @@ export class WorkOrderAmountService {
   applyMarkupToReceiptAmount(baseAmount: unknown, context?: WorkOrderAmountContext): number {
     const amount = Number(baseAmount) || 0;
     const factor = this.getMarkupFactor(context);
-    return Math.round(amount * factor * 100) / 100;
+    const shouldRoundUp = factor > 1 && context?.applyMarkup === true && context?.isOwnerType === true;
+    return this.roundCurrency(amount * factor, shouldRoundUp);
   }
 
   removeMarkupFromReceiptAmount(markedAmount: unknown, context?: WorkOrderAmountContext): number {
     const amount = Number(markedAmount) || 0;
     const factor = this.getMarkupFactor(context);
     if (!Number.isFinite(factor) || factor === 0) {
-      return Math.round(amount * 100) / 100;
+      return this.roundCurrency(amount);
     }
-    return Math.round((amount / factor) * 100) / 100;
+    return this.roundCurrency(amount / factor);
   }
 
   extractCollectionEntries(collectionValue: unknown): unknown[] | null {

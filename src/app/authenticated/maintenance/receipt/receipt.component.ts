@@ -18,8 +18,6 @@ import { EntityType } from '../../contacts/models/contact-enum';
 import { ContactResponse } from '../../contacts/models/contact.model';
 import { ContactService } from '../../contacts/services/contact.service';
 import { ContactComponent } from '../../contacts/contact/contact.component';
-import { ImageViewDialogData } from '../../shared/modals/image-view-dialog/image-view-dialog-data';
-import { ImageViewDialogComponent } from '../../shared/modals/image-view-dialog/image-view-dialog.component';
 import { PropertyListResponse, PropertyResponse } from '../../properties/models/property.model';
 import { PropertyService } from '../../properties/services/property.service';
 import { ReceiptRequest, ReceiptResponse, Split } from '../models/receipt.model';
@@ -602,37 +600,91 @@ export class ReceiptComponent implements OnInit, OnChanges, OnDestroy {
       this.toastr.warning('Receipt file is not available.', 'Receipt');
       return;
     }
-    if (this.isReceiptPreviewPdf()) {
-      const propertyId =
-        this.getSelectedPropertyIds().find(id => (id || '').trim().length > 0)
-        || (this.selectedPropertyId || '').trim()
-        || (this.property?.propertyId || '').trim()
-        || null;
-      const documentViewUrl = '/' + RouterUrl.replaceTokens(RouterUrl.DocumentView, ['inline-receipt']);
-      this.router.navigate([documentViewUrl], {
-        queryParams: {
-          returnTo: propertyId ? 'maintenance' : 'documentList',
-          ...(propertyId ? { propertyId } : {})
-        },
-        state: {
-          inlineDocument: {
-            dataUrl: imageSrc,
-            contentType: 'application/pdf',
-            fileName: this.receiptFileName || 'Receipt.pdf'
-          }
-        }
-      });
+
+    const receiptWindow = window.open('', '_blank');
+    if (!receiptWindow) {
+      this.toastr.warning('Please allow pop-ups to open receipts in a new tab.', 'Receipt');
       return;
     }
-    const data: ImageViewDialogData = { imageSrc, title: 'Receipt' };
-    this.dialog.open(ImageViewDialogComponent, {
-      data,
-      width: '60vw',
-      height: '88vh',
-      maxWidth: '60vw',
-      maxHeight: '88vh',
-      panelClass: 'image-view-dialog-panel'
-    });
+
+    receiptWindow.document.title = 'Receipt';
+    this.renderReceiptInWindow(receiptWindow, imageSrc);
+  }
+
+  private renderReceiptInWindow(receiptWindow: Window, imageSrc: string): void {
+    const isPdf = /^data:application\/pdf/i.test(imageSrc);
+    const renderSrc = this.toBlobObjectUrl(imageSrc) ?? imageSrc;
+    const receiptDocument = receiptWindow.document;
+    receiptDocument.open();
+    receiptDocument.write(`
+      <!doctype html>
+      <html>
+        <head>
+          <meta charset="utf-8" />
+          <title>Receipt</title>
+          <style>
+            html, body { height: 100%; margin: 0; background: #f5f6f8; }
+            .receipt-frame { width: 100%; height: 100%; border: 0; background: #fff; }
+            .receipt-image-wrap { width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; }
+            .receipt-image { max-width: 100%; max-height: 100%; object-fit: contain; }
+          </style>
+        </head>
+        <body>
+          ${isPdf
+            ? '<iframe id="receipt-frame" class="receipt-frame" title="Receipt PDF"></iframe>'
+            : '<div class="receipt-image-wrap"><img id="receipt-image" class="receipt-image" alt="Receipt image" /></div>'}
+        </body>
+      </html>
+    `);
+    receiptDocument.close();
+
+    const releaseUrl = () => {
+      if (renderSrc.startsWith('blob:')) {
+        URL.revokeObjectURL(renderSrc);
+      }
+    };
+    receiptWindow.addEventListener('beforeunload', releaseUrl);
+
+    if (isPdf) {
+      const frame = receiptDocument.getElementById('receipt-frame') as HTMLIFrameElement | null;
+      if (frame) {
+        frame.src = renderSrc;
+      }
+      return;
+    }
+
+    const image = receiptDocument.getElementById('receipt-image') as HTMLImageElement | null;
+    if (image) {
+      image.src = renderSrc;
+      image.addEventListener('load', releaseUrl, { once: true });
+      image.addEventListener('error', releaseUrl, { once: true });
+    }
+  }
+
+  private toBlobObjectUrl(src: string): string | null {
+    if (!src || !src.startsWith('data:')) {
+      return null;
+    }
+    try {
+      const dataUrlParts = src.split(',');
+      if (dataUrlParts.length < 2) {
+        return null;
+      }
+      const header = dataUrlParts[0];
+      const data = dataUrlParts.slice(1).join(',');
+      const mimeMatch = header.match(/^data:([^;]+)/i);
+      const mimeType = mimeMatch?.[1] || 'application/octet-stream';
+      const isBase64 = /;base64/i.test(header);
+      const binaryString = isBase64 ? atob(data) : decodeURIComponent(data);
+      const bytes = new Uint8Array(binaryString.length);
+      for (let index = 0; index < binaryString.length; index++) {
+        bytes[index] = binaryString.charCodeAt(index);
+      }
+      const blob = new Blob([bytes], { type: mimeType });
+      return URL.createObjectURL(blob);
+    } catch {
+      return null;
+    }
   }
 
   onAmountKeydown(event: Event): void {
@@ -917,7 +969,9 @@ export class ReceiptComponent implements OnInit, OnChanges, OnDestroy {
     const patch: { amount?: string; description?: string } = {};
 
     const isSplitAmountEmptyOrZero = !splitAmountRaw || !Number.isFinite(splitAmountValue) || Math.abs(splitAmountValue) < 0.000001;
-    if (isSplitAmountEmptyOrZero && overallAmount) {
+    const hasUserEditedSplitAmount = splitAmountControl?.dirty === true;
+    const shouldSyncSplitAmountToOverall = isSplitAmountEmptyOrZero || !hasUserEditedSplitAmount;
+    if (shouldSyncSplitAmountToOverall && overallAmount) {
       patch.amount = overallAmount;
     }
     if (!splitDescription && overallDescription) {
