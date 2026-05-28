@@ -29,42 +29,74 @@
   margin-bottom: 0.75rem;
 }
 
-/* Match dropdown selected text to WO link styling in receipts list. */
+/* Keep dropdown selected text on standard table grey styling in receipts list. */
 :host ::ng-deep td.mat-cell.mat-column-bankCardDropdown .mat-mdc-select-min-line,
 :host ::ng-deep td.mat-mdc-cell.mat-column-bankCardDropdown .mat-mdc-select-min-line,
 :host ::ng-deep td.mat-cell.mat-column-vendorDisplay .mat-mdc-select-min-line,
 :host ::ng-deep td.mat-mdc-cell.mat-column-vendorDisplay .mat-mdc-select-min-line {
-  color: #1d4ed8 !important;
+  color: #707070 !important;
   font-size: 12px !important;
   line-height: 1.25 !important;
   text-decoration: none !important;
 }
 
-/* Vendor text-input mode: blue text, no underline. */
+/* Vendor dropdown selected value should truncate with ellipsis in list view. */
+:host ::ng-deep td.mat-cell.mat-column-vendorDisplay .mat-mdc-select-trigger,
+:host ::ng-deep td.mat-mdc-cell.mat-column-vendorDisplay .mat-mdc-select-trigger {
+  width: 100%;
+  min-width: 0;
+}
+
+:host ::ng-deep td.mat-cell.mat-column-vendorDisplay .mat-mdc-select-min-line,
+:host ::ng-deep td.mat-mdc-cell.mat-column-vendorDisplay .mat-mdc-select-min-line {
+  display: block;
+  width: 100%;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Vendor text-input mode: standard grey text, no underline. */
 :host ::ng-deep td.mat-cell.mat-column-vendorDisplay input.editable-apply-amount,
 :host ::ng-deep td.mat-mdc-cell.mat-column-vendorDisplay input.editable-apply-amount {
-  color: #1d4ed8 !important;
+  color: #707070 !important;
   text-decoration: none !important;
   font-size: 12px !important;
 }
 
 :host ::ng-deep td.mat-cell.mat-column-vendorDisplay .datatable-inline-edit-trigger,
 :host ::ng-deep td.mat-mdc-cell.mat-column-vendorDisplay .datatable-inline-edit-trigger {
-  color: #1d4ed8 !important;
+  color: #707070 !important;
   text-decoration: none !important;
   font-size: 12px !important;
+  display: block;
+  width: 100%;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
-/* Receipt date inline field should match small blue list-edit text styling. */
+:host ::ng-deep td.mat-cell.mat-column-vendorDisplay input.editable-apply-amount,
+:host ::ng-deep td.mat-mdc-cell.mat-column-vendorDisplay input.editable-apply-amount {
+  width: 100% !important;
+  min-width: 0 !important;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Receipt date inline field should use standard table grey text styling. */
 :host ::ng-deep td.mat-cell.mat-column-receiptDate .datatable-editable-date-field input.mat-mdc-input-element,
 :host ::ng-deep td.mat-mdc-cell.mat-column-receiptDate .datatable-editable-date-field input.mat-mdc-input-element {
-  color: #1d4ed8 !important;
+  color: #707070 !important;
   font-size: 12px !important;
 }
 
 :host ::ng-deep td.mat-cell.mat-column-receiptDate .datatable-editable-date-field .mat-datepicker-toggle button,
 :host ::ng-deep td.mat-mdc-cell.mat-column-receiptDate .datatable-editable-date-field .mat-datepicker-toggle button {
-  color: #1d4ed8 !important;
+  color: #707070 !important;
 }
 
 /* Remove Material outline chrome for receipt-date inline editor only. */

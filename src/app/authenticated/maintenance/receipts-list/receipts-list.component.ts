@@ -62,7 +62,7 @@ export class ReceiptsListComponent implements OnInit, OnChanges {
     receiptTypeDisplay: { displayAs: 'Type(s)', wrap: true, maxWidth: '15ch' },
     receipt: { displayAs: 'Receipt', wrap: false, sort: false, maxWidth: '12ch', alignment: 'center'  },
     receiptDate: { displayAs: 'Receipt Date', wrap: false, maxWidth: '22ch', alignment: 'center', editableType: 'date', suppressRowClick: true },
-    vendorDisplay: { displayAs: 'Vendor', wrap: true, maxWidth: '25ch', editableType: 'text', suppressRowClick: true },
+    vendorDisplay: { displayAs: 'Vendor', wrap: false, maxWidth: '25ch', editableType: 'text', suppressRowClick: true },
     bankCardDropdown: { displayAs: 'Bank Card', wrap: true, maxWidth: '25ch', suppressRowClick: true },
     amountDisplay: { displayAs: 'Amount', wrap: false, maxWidth: '12ch', alignment: 'center'  },
     descriptionDisplay: { displayAs: 'Description', wrap: true, maxWidth: '25ch' },
