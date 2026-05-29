@@ -84,25 +84,28 @@
                 [noResultsText]="'No bank cards match your search'"
                 (valueChange)="onOverallBankCardSelectionChange($event)">
               </app-searchable-select>
-              <mat-form-field appearance="outline" class="receipt-overall-vendor-field">
-                <mat-label>Vendor</mat-label>
-                @if (isOverallBillBankCard()) {
-                  <app-searchable-select
-                    [renderInFormField]="false"
-                    [value]="form.get('vendorId')?.value ?? ''"
-                    [options]="overallVendorOptions"
-                    [showSearchInput]="true"
-                    [hideSearchHint]="true"
-                    [hideSearchText]="true"
-                    [searchPlaceholder]="'Type to filter vendors...'"
-                    [showInstructionOption]="false"
-                    [noResultsText]="'No vendors match your search'"
-                    (valueChange)="onOverallVendorSelectionChange($any($event))">
-                  </app-searchable-select>
-                } @else {
+              @if (isOverallBillBankCard()) {
+                <app-searchable-select
+                  class="receipt-overall-vendor-field"
+                  [renderInFormField]="true"
+                  [formFieldClass]="'receipt-overall-vendor-field'"
+                  [formFieldLabel]="'Vendor'"
+                  [value]="form.get('vendorId')?.value ?? ''"
+                  [options]="overallVendorOptions"
+                  [showSearchInput]="true"
+                  [hideSearchHint]="true"
+                  [hideSearchText]="true"
+                  [searchPlaceholder]="'Type to filter vendors...'"
+                  [showInstructionOption]="false"
+                  [noResultsText]="'No vendors match your search'"
+                  (valueChange)="onOverallVendorSelectionChange($any($event))">
+                </app-searchable-select>
+              } @else {
+                <mat-form-field appearance="outline" class="receipt-overall-vendor-field">
+                  <mat-label>Vendor</mat-label>
                   <input matInput formControlName="vendorName">
-                }
-              </mat-form-field>
+                </mat-form-field>
+              }
             </div>
             <div class="col-span-4 receipt-overall-row receipt-overall-secondary-row">
               <mat-form-field appearance="outline" class="receipt-overall-date-field">
