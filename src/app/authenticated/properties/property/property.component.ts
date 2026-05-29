@@ -19,7 +19,6 @@ import { ContactComponent } from '../../contacts/contact/contact.component';
 import { EntityType } from '../../contacts/models/contact-enum';
 import { ContactResponse } from '../../contacts/models/contact.model';
 import { ContactService } from '../../contacts/services/contact.service';
-import { LeadsService } from '../../leads/services/leads.service';
 import { DocumentReloadService } from '../../documents/services/document-reload.service';
 import { AreaResponse } from '../../organizations/models/area.model';
 import { BuildingResponse } from '../../organizations/models/building.model';
@@ -88,6 +87,10 @@ export class PropertyComponent implements OnInit, OnChanges, AfterViewInit, OnDe
   @Input() disableOwnerModeLayout = false;
   @Input() shellPropertyId: string | null = null;
   @Input() shellPropertyCode: string | null = null;
+  @Input() shellPropertyAddress1: string | null = null;
+  @Input() shellPropertyCity: string | null = null;
+  @Input() shellPropertyState: string | null = null;
+  @Input() shellPropertyZip: string | null = null;
   @Input() ownerPrimaryContactId: string | null = null;
   @Input() shellOfficeId: number | null = null;
   @Input() shellOrganizationId: string | null = null;
@@ -137,6 +140,8 @@ export class PropertyComponent implements OnInit, OnChanges, AfterViewInit, OnDe
   savedFormState: Record<string, unknown> | null = null;
 
   @Output() titleBarContextChange = new EventEmitter<PropertyTitleBarContext>();
+  /** Raised on save when the (required) property code is missing, so a host shell can flag its title-bar code field. */
+  @Output() titleBarPropertyCodeInvalid = new EventEmitter<void>();
 
   constructor(
     public propertyService: PropertyService,
@@ -148,7 +153,6 @@ export class PropertyComponent implements OnInit, OnChanges, AfterViewInit, OnDe
     private mappingService: MappingService,
     private navigationContextService: NavigationContextService,
     private contactService: ContactService,
-    private leadsService: LeadsService,
     private authService: AuthService,
     private officeService: OfficeService,
     private regionService: RegionService,
@@ -174,19 +178,13 @@ export class PropertyComponent implements OnInit, OnChanges, AfterViewInit, OnDe
   ngOnInit(): void {
     this.navigationContextService.getIsInOwnerMode().pipe(takeUntil(this.destroy$)).subscribe(value => {
       this.isInOwnerMode = value;
-      if (this.isOwnerMode) {
-        this.expandedSections.basic = false;
-        this.expandedSections.features = false;
-        this.expandedSections.description = false;
-        this.expandedSections.agreement = false;
-      }
       this.applyOwnerModeDefaults();
     });
     this.isAdmin = this.authService.isAdmin();
     this.isInAccounting = this.authService.isInAccounting();
     const initialRouteId = this.route.snapshot.paramMap.get('id');
     if (initialRouteId) {
-      this.expandedSections.agreement = this.isOwnerMode ? false : this.isInAccounting;
+      this.expandedSections.agreement = this.isInAccounting;
     }
 
     this.loadStates();
@@ -221,6 +219,7 @@ export class PropertyComponent implements OnInit, OnChanges, AfterViewInit, OnDe
       this.applyPropertyIdContext(inputId);
       this.applyShellPropertyCodeContext();
       this.applyShellOfficeContext();
+      this.applyShellPropertyAddressContext();
     } else {
       this.route.paramMap.pipe(takeUntil(this.destroy$), map(pm => pm.get('id')), filter((id): id is string => id != null && id !== ''), distinctUntilChanged()).subscribe(id => {
         this.applyPropertyIdContext(id);
@@ -260,6 +259,9 @@ export class PropertyComponent implements OnInit, OnChanges, AfterViewInit, OnDe
     }
     if (changes['shellPropertyCode'] && !changes['shellPropertyCode'].firstChange) {
       this.applyShellPropertyCodeContext();
+    }
+    if ((changes['shellPropertyAddress1'] || changes['shellPropertyCity'] || changes['shellPropertyState'] || changes['shellPropertyZip']) && !changes['shellPropertyId']?.firstChange) {
+      this.applyShellPropertyAddressContext();
     }
     if (changes['ownerPrimaryContactId']) {
       this.syncOwnerPrimaryContactSelection();
@@ -404,7 +406,7 @@ export class PropertyComponent implements OnInit, OnChanges, AfterViewInit, OnDe
   applyPropertyIdContext(id: string): void {
     this.propertyId = id;
     this.isAddMode = id === 'new';
-    this.expandedSections.agreement = this.isOwnerMode ? false : this.isInAccounting;
+    this.expandedSections.agreement = this.isInAccounting;
 
     const codeControl = this.form.get('propertyCode');
     if (this.isAddMode) {
@@ -524,6 +526,9 @@ export class PropertyComponent implements OnInit, OnChanges, AfterViewInit, OnDe
     });
     
     if (!this.form.valid) {
+      if (this.form.get('propertyCode')?.invalid) {
+        this.titleBarPropertyCodeInvalid.emit();
+      }
       this.toastr.error('Please correct the highlighted fields before saving.', CommonMessage.Error);
       onComplete?.(false);
       return;
@@ -678,11 +683,16 @@ export class PropertyComponent implements OnInit, OnChanges, AfterViewInit, OnDe
     propertyRequest.notes = formValue.notes || '';
 
     if (isPublicOwnerUpsertMode) {
-      this.leadsService.upsertPublicOwnerPropertyByToken(publicOwnerToken, propertyRequest).pipe(
+      this.ownersService.upsertPropertyByContext(publicOwnerToken, propertyRequest).pipe(
         take(1),
         finalize(() => { this.isSubmitting = false; })
       ).subscribe({
-        next: (response: PropertyResponse) => {
+        next: (response) => {
+          if (!response) {
+            this.toastr.error('Unable to save property.', CommonMessage.Error);
+            onComplete?.(false);
+            return;
+          }
           this.toastr.success('Property saved successfully', CommonMessage.Success, { timeOut: CommonTimeouts.Success });
           this.property = response;
           this.propertyId = response.propertyId;
@@ -1539,6 +1549,41 @@ export class PropertyComponent implements OnInit, OnChanges, AfterViewInit, OnDe
     this.form.get('officeId')?.markAsTouched();
     this.resolveOfficeScope(officeId);
     this.filterLocationLookupsByOffice();
+  }
+
+  applyShellPropertyAddressContext(): void {
+    if (!this.form || !this.isAddMode) {
+      return;
+    }
+    const address1 = String(this.shellPropertyAddress1 ?? '').trim();
+    const city = String(this.shellPropertyCity ?? '').trim();
+    const state = String(this.shellPropertyState ?? '').trim().toUpperCase();
+    const zip = String(this.shellPropertyZip ?? '').trim();
+    const patch: Record<string, string> = {};
+    const currentAddress1 = String(this.form.get('address1')?.value ?? '').trim();
+    const currentCity = String(this.form.get('city')?.value ?? '').trim();
+    const currentState = String(this.form.get('state')?.value ?? '').trim();
+    const currentZip = String(this.form.get('zip')?.value ?? '').trim();
+    if (address1 && !currentAddress1) {
+      patch['address1'] = address1;
+    }
+    if (city && !currentCity) {
+      patch['city'] = city;
+    }
+    if (state && !currentState) {
+      patch['state'] = state;
+    }
+    if (zip && !currentZip) {
+      patch['zip'] = zip;
+    }
+    if (Object.keys(patch).length === 0) {
+      return;
+    }
+    this.form.patchValue(patch, { emitEvent: false });
+    this.form.get('address1')?.markAsTouched();
+    this.form.get('city')?.markAsTouched();
+    this.form.get('state')?.markAsTouched();
+    this.form.get('zip')?.markAsTouched();
   }
   //#endregion
 

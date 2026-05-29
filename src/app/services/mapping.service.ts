@@ -3,7 +3,7 @@ import { TransactionType, getTransactionTypeLabel } from '../authenticated/accou
 import { CostCodesListDisplay, CostCodesResponse } from '../authenticated/accounting/models/cost-codes.model';
 import { LedgerLineListDisplay, LedgerLineResponse } from '../authenticated/accounting/models/invoice.model';
 import { EntityType, getEntityType } from '../authenticated/contacts/models/contact-enum';
-import { ContactListDisplay, ContactResponse } from '../authenticated/contacts/models/contact.model';
+import { ContactListDisplay, ContactRequest, ContactResponse } from '../authenticated/contacts/models/contact.model';
 import { DocumentType, getDocumentTypeLabel } from '../authenticated/documents/models/document.enum';
 import { DocumentListDisplay, DocumentResponse } from '../authenticated/documents/models/document.model';
 import { AlertListDisplay, AlertResponse } from '../authenticated/email/models/alert.model';
@@ -859,6 +859,60 @@ export class MappingService {
       emailPhoneConsent: false,
       smsConsent: false,
       isActive: lead.isActive
+    };
+  }
+
+  mapContactToOwnerLeadRequest(contact: ContactResponse): LeadOwnerRequest {
+    return {
+      officeId: Number(contact.officeId),
+      leadStateId: 1,
+      agentId: null,
+      firstName: contact.firstName ?? null,
+      lastName: contact.lastName ?? null,
+      email: String(contact.email ?? '').trim() || null,
+      phone: contact.phone ?? null,
+      locationOfProperty: null,
+      programInterest: null,
+      whatIsPromptingContact: null,
+      timeFrame: null,
+      targetRentReadyDate: null,
+      propertyGoals: null,
+      tellUsMoreAboutYourGoals: null,
+      yearsOfExperienceWithRentals: null,
+      tellUsMoreAboutProperty: null,
+      address: contact.address1 ?? null,
+      city: contact.city ?? null,
+      state: contact.state ?? null,
+      zip: contact.zip ?? null,
+      numberOfBeds: null,
+      numberOfBaths: null,
+      approxSqFootage: null,
+      propertyTypeId: null,
+      propertyCode: null,
+      propertyOffice: null,
+      tellUsWhatYouLikeMostAboutYourProperty: null,
+      tellUsAnyDrawbacks: null,
+      preferredContactMethod: null,
+      timeDateForContact: null,
+      notes: null,
+      emailPhoneConsent: false,
+      smsConsent: false,
+      isActive: false
+    };
+  }
+
+  mapContactToOwnerLeadLinkRequest(contact: ContactResponse, ownerLeadId: number): ContactRequest {
+    const { fullName: _fullName, officeName: _officeName, ...requestBase } = contact;
+    const officeAccess = Array.from(new Set((contact.officeAccess || [])
+      .map(value => Number(value))
+      .filter(value => Number.isFinite(value) && value > 0)));
+    const resolvedOfficeAccess = officeAccess.length > 0
+      ? officeAccess
+      : (Number.isFinite(Number(contact.officeId)) && Number(contact.officeId) > 0 ? [Number(contact.officeId)] : []);
+    return {
+      ...requestBase,
+      officeAccess: resolvedOfficeAccess,
+      ownerLeadId
     };
   }
 

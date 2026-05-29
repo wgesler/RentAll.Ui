@@ -1,5 +1,7 @@
 import { CommonModule } from '@angular/common';
+import { HttpClient } from '@angular/common/http';
 import { Component, ElementRef, Input, OnChanges, OnDestroy, OnInit, SimpleChanges, ViewChild } from '@angular/core';
+import { environment } from '../../../../environments/environment';
 import { FormBuilder, FormControl, FormGroup, ReactiveFormsModule } from '@angular/forms';
 import { DomSanitizer, SafeHtml } from '@angular/platform-browser';
 import { Router } from '@angular/router';
@@ -26,14 +28,14 @@ import { OfficeResponse } from '../../organizations/models/office.model';
 import { AccountingOfficeResponse } from '../../organizations/models/accounting-office.model';
 import { PropertyResponse } from '../../properties/models/property.model';
 import { PropertyAgreementResponse } from '../../properties/models/property-agreement.model';
-import { BaseDocumentComponent, DocumentConfig, DownloadConfig, EmailConfig } from '../../shared/base-document.component';
+import { BaseDocumentComponent, DocumentConfig, EmailConfig } from '../../shared/base-document.component';
 import { CommonService } from '../../../services/common.service';
 import { OwnerAgreementInformationResponse, replaceOwnerAgreementInformationSections } from '../models/owner-agreement-information.model';
 import { OrganizationResponse } from '../../organizations/models/organization.model';
 import { LeadOwnerResponse } from '../../leads/models/lead-owner.model';
 import { DynamicFormDraftService } from '../services/dynamic-form-draft.service';
 import { OwnerFormPlaceholderService } from '../services/owner-form-placeholder.service';
-import { OwnersService } from '../services/owners.service';
+import { OwnerAgreementContext, OwnersService } from '../services/owners.service';
 
 @Component({
   standalone: true,
@@ -52,8 +54,13 @@ export class OwnerAgreementFormComponent extends BaseDocumentComponent implement
   @Input() templateHtml: string | null = null;
   @Input() documentDisplayName = 'Owner Agreement';
   @Input() documentFileSuffix = 'OwnerAgreement';
+  // When provided (by the owner-shell), the heavy owner/property/office context is resolved once and
+  // shared across all form tabs instead of each tab re-fetching it. Null = standalone self-loading.
+  @Input() sharedContext$: Observable<OwnerAgreementContext | null> | null = null;
 
   form: FormGroup = this.buildForm();
+  // Local/dev: load templates straight from local assets for fast iteration (mirrors lease.component).
+  debuggingHtml = environment.local || environment.dev;
   isPageReady = false;
   isSaving = false;
   isDownloading = false;
@@ -67,6 +74,7 @@ export class OwnerAgreementFormComponent extends BaseDocumentComponent implement
   safeHtml: SafeHtml | null = null;
   fallbackIframeHtml: SafeHtml | null = null;
   hasAttemptedPreviewRender = false;
+  contextInitialized = false;
   liveExportHtml = '';
   liveExportStyles = '';
   @ViewChild('previewIframe') previewIframe?: ElementRef<HTMLIFrameElement>;
@@ -116,7 +124,8 @@ export class OwnerAgreementFormComponent extends BaseDocumentComponent implement
     private dynamicFormDraftService: DynamicFormDraftService,
     private ownerFormPlaceholderService: OwnerFormPlaceholderService,
     private mappingService: MappingService,
-    private ownersService: OwnersService
+    private ownersService: OwnersService,
+    private http: HttpClient
   ) {
     super(documentService, documentExportService, documentHtmlService, toastr, emailService);
   }
@@ -140,10 +149,24 @@ export class OwnerAgreementFormComponent extends BaseDocumentComponent implement
     });
 
     this.commonService.loadStates();
+    this.contextInitialized = true;
     this.initializeDataContext();
   }
 
   ngOnChanges(changes: SimpleChanges): void {
+    // Angular fires the first ngOnChanges before ngOnInit. Let ngOnInit own the initial load
+    // so we don't initialize (and render) the preview twice. Only react to genuine input
+    // changes that occur after the component has initialized.
+    if (!this.contextInitialized) {
+      return;
+    }
+    // Shared-context mode: the shell hands down a fresh context observable whenever the owner/
+    // property/office selection changes. That supersedes the individual input-change handling below.
+    if (changes['sharedContext$'] && this.sharedContext$) {
+      this.hasAttemptedPreviewRender = false;
+      this.loadFromSharedContext(this.sharedContext$);
+      return;
+    }
     const tokenChanged = changes['token'] && (changes['token'].previousValue !== changes['token'].currentValue);
     const propertyIdChanged = changes['propertyId'] && (changes['propertyId'].previousValue !== changes['propertyId'].currentValue);
     const officeIdChanged = changes['officeId'] && (changes['officeId'].previousValue !== changes['officeId'].currentValue);
@@ -175,6 +198,10 @@ export class OwnerAgreementFormComponent extends BaseDocumentComponent implement
   }
 
   initializeDataContext(): void {
+    if (this.sharedContext$) {
+      this.loadFromSharedContext(this.sharedContext$);
+      return;
+    }
     if (this.isPublicTokenMode()) {
       this.loadPublicContext();
       return;
@@ -186,6 +213,30 @@ export class OwnerAgreementFormComponent extends BaseDocumentComponent implement
     this.loadProperty();
     this.loadAgreementInformation();
     this.loadAccountingOffices();
+  }
+
+  // Shell-driven: consume the shared context observable instead of self-fetching every entity.
+  loadFromSharedContext(context$: Observable<OwnerAgreementContext | null>): void {
+    this.itemsToLoad$.next(new Set(['context']));
+    context$.pipe(take(1), takeUntil(this.destroy$), finalize(() => {
+      this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'context');
+      this.generatePreviewIfReady();
+    })).subscribe({
+      next: context => this.applySharedContext(context),
+      error: () => this.applySharedContext(null)
+    });
+  }
+
+  applySharedContext(context: OwnerAgreementContext | null): void {
+    this.organization = context?.organization || null;
+    this.organizationId = String(context?.organization?.organizationId || this.organizationId || '').trim();
+    this.accountingOffices = context?.accountingOffices || [];
+    this.ownerContact = context?.ownerContact || null;
+    this.leadOwner = context?.leadOwner || null;
+    this.selectedProperty = context?.property || null;
+    this.propertyAgreement = context?.propertyAgreement || null;
+    this.agreementInformation = context?.agreementInformation || null;
+    this.syncSelectedOfficeFromLoadedOffices(context?.offices || []);
   }
 
   onIncludeChange(): void {
@@ -246,7 +297,7 @@ export class OwnerAgreementFormComponent extends BaseDocumentComponent implement
     }
     this.isSaving = true;
     const dto = this.buildGenerateDto();
-    this.documentService.generate(dto).pipe(take(1)).subscribe({
+    this.ownersService.saveGeneratedDocumentByContext(this.token, dto).pipe(take(1)).subscribe({
       next: () => {
         this.isSaving = false;
         this.toastr.success(`${this.documentDisplayName} saved successfully`, CommonMessage.Success);
@@ -291,7 +342,7 @@ export class OwnerAgreementFormComponent extends BaseDocumentComponent implement
       return;
     }
 
-    this.ownersService.getPublicOwnerAgreementContext(token).pipe(take(1),finalize(() => {
+    this.ownersService.getPublicAgreementContext(token).pipe(take(1),finalize(() => {
         this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'organization');
         this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'offices');
         this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'contacts');
@@ -393,7 +444,7 @@ export class OwnerAgreementFormComponent extends BaseDocumentComponent implement
       this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'offices');
       return;
     }
-    this.ownersService.ensureOfficesLoaded(this.organizationId).pipe(take(1),finalize(() => {
+    this.ownersService.getOfficeListByContext(null, this.organizationId).pipe(take(1),finalize(() => {
         this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'offices');
         this.generatePreviewIfReady();
       })).subscribe({
@@ -407,7 +458,7 @@ export class OwnerAgreementFormComponent extends BaseDocumentComponent implement
   }
 
   syncSelectedOfficeFromLoadedOffices(offices?: OfficeResponse[]): void {
-    const officeList = offices || this.ownersService.getAllOfficesValue() || [];
+    const officeList = offices || this.ownersService.getOfficeListSnapshotByContext() || [];
     const requestedOfficeId = Number(this.officeId);
     if (Number.isFinite(requestedOfficeId) && requestedOfficeId > 0) {
       this.selectedOffice = officeList.find(office => office.officeId === requestedOfficeId) || null;
@@ -428,7 +479,7 @@ export class OwnerAgreementFormComponent extends BaseDocumentComponent implement
   }
 
   loadContacts(): void {
-    this.ownersService.ensureContactsLoaded().pipe(take(1),finalize(() => {
+    this.ownersService.getOwnerContactsByContext().pipe(take(1),finalize(() => {
         this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'contacts');
         this.generatePreviewIfReady();
       })).subscribe({
@@ -494,7 +545,7 @@ export class OwnerAgreementFormComponent extends BaseDocumentComponent implement
       return;
     }
 
-    this.ownersService.ensureContactsLoaded().pipe(take(1)).subscribe({
+    this.ownersService.getOwnerContactsByContext().pipe(take(1)).subscribe({
       next: contacts => {
         const ownerContact = (contacts || []).find(contact =>
           Number(contact.entityTypeId) === Number(EntityType.Owner) &&
@@ -504,7 +555,7 @@ export class OwnerAgreementFormComponent extends BaseDocumentComponent implement
         if (!ownerContactId) {
           return;
         }
-        this.ownersService.getPropertiesByOwner(ownerContactId).pipe(take(1)).subscribe({
+        this.ownersService.getOwnerPropertiesByContext(ownerContactId).pipe(take(1)).subscribe({
           next: properties => {
             const matching = (properties || []).find(property =>
               String(property.propertyCode || '').trim().toUpperCase() === targetPropertyCode
@@ -591,7 +642,7 @@ export class OwnerAgreementFormComponent extends BaseDocumentComponent implement
   }
 
   loadAccountingOffices(): void {
-    this.ownersService.ensureAccountingOfficesLoaded().pipe(take(1),finalize(() => {
+    this.ownersService.getAccountingOfficesByContext().pipe(take(1),finalize(() => {
       this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'accountingOffices');
       this.generatePreviewIfReady();
     })).subscribe({
@@ -616,6 +667,12 @@ export class OwnerAgreementFormComponent extends BaseDocumentComponent implement
   }
 
   generatePreview(): void {
+    // A render is already in flight. As each parallel data load resolves it fires a "ready"
+    // check, so multiple triggers can land in the same tick; skip the duplicate to avoid a
+    // second iframe reload (the flash).
+    if (this.itemsToLoad$.value.has('preview')) {
+      return;
+    }
     this.hasAttemptedPreviewRender = true;
     this.utilityService.addLoadItem(this.itemsToLoad$, 'preview');
     const includeDocument = !!this.form.get('includeDocument')?.value;
@@ -624,7 +681,10 @@ export class OwnerAgreementFormComponent extends BaseDocumentComponent implement
         try {
           const combinedHtml = this.replaceAgreementPlaceholders(ownerAgreementHtml);
           this.baseTemplateHtml = combinedHtml;
-          const draftHtml = this.dynamicFormDraftService.loadDraft(this.getDraftStorageKey());
+          // Local/dev: never let a saved draft mask template iteration. A draft captured before the
+          // template gained its <style> block (style-less editorStyles) would otherwise clobber the
+          // freshly loaded, styled asset on every reload.
+          const draftHtml = this.debuggingHtml ? null : this.dynamicFormDraftService.loadDraft(this.getDraftStorageKey());
           let htmlToRender = draftHtml || this.baseTemplateHtml;
           if (!String(htmlToRender || '').trim()) {
             htmlToRender = String(ownerAgreementHtml || '').trim();
@@ -742,7 +802,7 @@ export class OwnerAgreementFormComponent extends BaseDocumentComponent implement
     let content = this.ownerFormPlaceholderService.replaceTokens(
       replaceOwnerAgreementInformationSections(html, this.agreementInformation),
       tokenValues,
-      { clearUnresolved: false }
+      { highlightUnresolved: false }
     );
 
     if (companyName) {
@@ -751,7 +811,7 @@ export class OwnerAgreementFormComponent extends BaseDocumentComponent implement
       );
     }
 
-    return this.ownerFormPlaceholderService.replaceTokens(content, {}, { clearUnresolved: true });
+    return this.ownerFormPlaceholderService.replaceTokens(content, {}, { highlightUnresolved: true });
   }
 
   processAndSetHtml(html: string): void {
@@ -1322,10 +1382,16 @@ export class OwnerAgreementFormComponent extends BaseDocumentComponent implement
     if (!includeTemplate) {
       return of('');
     }
+    // Explicit template (e.g. dynamic state forms) always wins.
     if (String(templateHtml || '').trim()) {
       return of(String(templateHtml));
     }
     const primaryPath = String(assetPath || '').trim() || 'assets/owner-agreement.html';
+    // Local/dev: pull the template straight from the local asset for fast iteration; the DB
+    // template (seeded copy + per-property overrides) is used in staging/production.
+    if (this.debuggingHtml) {
+      return this.http.get(primaryPath, { responseType: 'text' }).pipe(take(1));
+    }
     const templateType = this.resolveTemplateTypeForLookup(primaryPath);
     return this.ownersService.getTemplateHtmlByContext(this.token, this.propertyId, templateType).pipe(take(1));
   }
@@ -1427,13 +1493,22 @@ export class OwnerAgreementFormComponent extends BaseDocumentComponent implement
 
   override async onDownload(): Promise<void> {
     this.captureLiveSnapshotForExport();
-    const downloadConfig: DownloadConfig = {
-      fileName: this.getDocumentFileName(this.documentFileSuffix),
-      documentType: DocumentType.OwnerAgreement,
-      noPreviewMessage: `${this.documentDisplayName} preview is not ready to download.`,
-      noSelectionMessage: 'Organization or Office not available.'
-    };
-    await super.onDownload(downloadConfig);
+    if (!this.previewIframeHtml || !this.selectedOffice) {
+      this.toastr.warning(`${this.documentDisplayName} preview is not ready to download.`);
+      return;
+    }
+    this.isDownloading = true;
+    const dto = this.buildGenerateDto();
+    this.ownersService.generateDocumentDownloadByContext(this.token, dto).pipe(take(1)).subscribe({
+      next: blob => {
+        this.documentExportService.downloadBlob(blob, dto.fileName);
+        this.isDownloading = false;
+      },
+      error: () => {
+        this.isDownloading = false;
+        this.toastr.error(`Unable to download ${this.documentDisplayName.toLowerCase()}.`, CommonMessage.Error);
+      }
+    });
   }
   //#endregion
 
@@ -1536,7 +1611,7 @@ export class OwnerAgreementFormComponent extends BaseDocumentComponent implement
     if (!propertyOfficeId) {
       return null;
     }
-    const offices = this.ownersService.getAllOfficesValue() || [];
+    const offices = this.ownersService.getOfficeListSnapshotByContext() || [];
     return offices.find(office => office.officeId === propertyOfficeId) || null;
   }
 

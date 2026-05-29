@@ -2,17 +2,13 @@ import { CommonModule } from '@angular/common';
 import { Component, input } from '@angular/core';
 import { Router } from '@angular/router';
 import { ToastrService } from 'ngx-toastr';
-import { map, of, switchMap, take } from 'rxjs';
+import { take } from 'rxjs';
 import { MaterialModule } from '../../../material.module';
 import { RouterUrl } from '../../../app.routes';
 import { CommonMessage } from '../../../enums/common-message.enum';
-import { MappingService } from '../../../services/mapping.service';
 import { ContactComponent } from '../../contacts/contact/contact.component';
 import { ContactListComponent } from '../../contacts/contact-list/contact-list.component';
 import { EntityType } from '../../contacts/models/contact-enum';
-import { ContactRequest, ContactResponse } from '../../contacts/models/contact.model';
-import { LeadStateType } from '../../leads/models/lead-enums';
-import { LeadOwnerRequest } from '../../leads/models/lead-owner.model';
 import { OwnerComponent } from '../../leads/owner/owner.component';
 import { OwnerEditSelection } from '../../leads/owner-list/owner-list.component';
 import { OwnersService } from '../services/owners.service';
@@ -37,7 +33,6 @@ export class OwnersListComponent {
   constructor(
     private router: Router,
     private ownersService: OwnersService,
-    private mappingService: MappingService,
     private toastr: ToastrService
   ) {}
 
@@ -97,27 +92,7 @@ export class OwnersListComponent {
       return;
     }
 
-    this.ownersService.getContactByGuid(contactId).pipe(
-      take(1),
-      switchMap(contact => {
-        if (!contact) {
-          return of(null);
-        }
-        return this.ownersService.createOwnerLead(this.buildOwnerLeadCreateRequestFromContact(contact)).pipe(
-          take(1),
-          switchMap(createdLead => {
-            if (!createdLead) {
-              return of(null);
-            }
-            return this.ownersService.updateContact(this.buildContactUpdateRequestWithOwnerLeadId(contact, createdLead.ownerId)).pipe(
-              take(1),
-              switchMap(() => this.ownersService.refreshContacts().pipe(take(1))),
-              map(() => ({ contact, createdLead }))
-            );
-          })
-        );
-      })
-    ).subscribe({
+    this.ownersService.createOwnerLeadFromContactByContext(contactId).pipe(take(1)).subscribe({
       next: result => {
         if (!result) {
           void this.router.navigateByUrl(RouterUrl.OwnerShell);
@@ -148,52 +123,5 @@ export class OwnersListComponent {
     this.ownerContactCopyFrom = null;
   }
 
-  buildOwnerLeadCreateRequestFromContact(contact: ContactResponse): LeadOwnerRequest {
-    return {
-      officeId: Number(contact.officeId),
-      leadStateId: LeadStateType.New,
-      agentId: null,
-      firstName: contact.firstName ?? null,
-      lastName: contact.lastName ?? null,
-      email: String(contact.email ?? '').trim() || null,
-      phone: contact.phone ?? null,
-      locationOfProperty: null,
-      programInterest: null,
-      whatIsPromptingContact: null,
-      timeFrame: null,
-      targetRentReadyDate: null,
-      propertyGoals: null,
-      tellUsMoreAboutYourGoals: null,
-      yearsOfExperienceWithRentals: null,
-      tellUsMoreAboutProperty: null,
-      address: contact.address1 ?? null,
-      city: contact.city ?? null,
-      state: contact.state ?? null,
-      zip: contact.zip ?? null,
-      numberOfBeds: null,
-      numberOfBaths: null,
-      approxSqFootage: null,
-      propertyTypeId: null,
-      propertyCode: null,
-      propertyOffice: null,
-      tellUsWhatYouLikeMostAboutYourProperty: null,
-      tellUsAnyDrawbacks: null,
-      preferredContactMethod: null,
-      timeDateForContact: null,
-      notes: null,
-      emailPhoneConsent: false,
-      smsConsent: false,
-      isActive: false
-    };
-  }
-
-  buildContactUpdateRequestWithOwnerLeadId(contact: ContactResponse, ownerLeadId: number): ContactRequest {
-    const { fullName: _fullName, officeName: _officeName, ...requestBase } = contact;
-    return {
-      ...requestBase,
-      officeAccess: this.mappingService.normalizeOfficeAccessNumbers(contact.officeAccess),
-      ownerLeadId
-    };
-  }
   //#endregion
 }

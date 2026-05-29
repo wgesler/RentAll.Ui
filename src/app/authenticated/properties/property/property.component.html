@@ -51,7 +51,7 @@
             <div class="property-tab-main-area">
             <mat-accordion multi="true">
             <!-- Basic Rental Information (combined: basic + address + location + rates) -->
-            <mat-expansion-panel [expanded]="false" (opened)="onPanelOpened('basic')" (closed)="onPanelClosed('basic')" class="mb-4">
+            <mat-expansion-panel [expanded]="expandedSections.basic" (opened)="onPanelOpened('basic')" (closed)="onPanelClosed('basic')" class="mb-4">
               <mat-expansion-panel-header>
                 <mat-panel-title>Basic Rental Information</mat-panel-title>
               </mat-expansion-panel-header>
@@ -709,7 +709,7 @@
             </mat-expansion-panel>
 
             <!-- Features & Security (includes indoor/outdoor amenities) -->
-            <mat-expansion-panel [expanded]="false" (opened)="onPanelOpened('features')" (closed)="onPanelClosed('features')" class="mb-4 features-panel-compact">
+            <mat-expansion-panel [expanded]="expandedSections.features" (opened)="onPanelOpened('features')" (closed)="onPanelClosed('features')" class="mb-4 features-panel-compact">
               <mat-expansion-panel-header>
                 <mat-panel-title>Features & Security</mat-panel-title>
               </mat-expansion-panel-header>
@@ -918,7 +918,7 @@
 
             <!-- Property Description Section -->
             @if (!isInOwnerMode) {
-              <mat-expansion-panel [expanded]="false" (opened)="onPanelOpened('description')" (closed)="onPanelClosed('description')" [class.mb-4]="!isOwnerView">
+              <mat-expansion-panel [expanded]="expandedSections.description" (opened)="onPanelOpened('description')" (closed)="onPanelClosed('description')" [class.mb-4]="!isOwnerView">
                 <mat-expansion-panel-header>
                   <mat-panel-title>Property Description</mat-panel-title>
                 </mat-expansion-panel-header>
@@ -958,7 +958,7 @@
             }
 
             @if (isInAccounting && propertyId) {
-            <mat-expansion-panel [expanded]="false" (opened)="onPanelOpened('agreement')" (closed)="onPanelClosed('agreement')" class="mb-4">
+            <mat-expansion-panel [expanded]="expandedSections.agreement" (opened)="onPanelOpened('agreement')" (closed)="onPanelClosed('agreement')" class="mb-4">
               <mat-expansion-panel-header>
                 <mat-panel-title>Property Agreements</mat-panel-title>
               </mat-expansion-panel-header>

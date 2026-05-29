@@ -6,6 +6,22 @@ import { Injectable } from '@angular/core';
 export class DocumentExportService {
 
 
+   /**
+   * Triggers a browser download for a binary blob (e.g. a generated PDF).
+   * @param blob The file content to download
+   * @param fileName The name to save the file as
+   */
+  downloadBlob(blob: Blob, fileName: string): void {
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = fileName;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    setTimeout(() => URL.revokeObjectURL(url), 100);
+  }
+
   /**
    * Prints HTML content
    * @param htmlContent The HTML content to print

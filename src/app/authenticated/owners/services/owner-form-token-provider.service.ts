@@ -44,9 +44,9 @@ export class OwnerFormTokenProviderService implements FormTokenProvider {
           catchError(() => of(null))
         );
     const offices$ = organizationId
-      ? this.ownersService.ensureOfficesLoaded(organizationId).pipe(take(1), catchError(() => of([])))
+      ? this.ownersService.getOfficeListByContext(null, organizationId).pipe(take(1), catchError(() => of([])))
       : of([]);
-    const contacts$ = this.ownersService.ensureContactsLoaded().pipe(take(1), catchError(() => of([])));
+    const contacts$ = this.ownersService.getOwnerContactsByContext().pipe(take(1), catchError(() => of([])));
     const property$ = scopedPropertyId
       ? this.ownersService.getPropertyByContext(null, scopedPropertyId).pipe(take(1), catchError(() => of(null)))
       : of(null);
@@ -159,7 +159,7 @@ export class OwnerFormTokenProviderService implements FormTokenProvider {
     };
 
     return this.ownerFormPlaceholderService.replaceTokens(html, tokenValues, {
-      clearUnresolved: true,
+      highlightUnresolved: true,
       includeUnderlinedVariants: true
     });
   }

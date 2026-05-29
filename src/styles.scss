@@ -87,6 +87,37 @@ html {
   overflow-y: auto;
 }
 
+/* Owner-shell tab standard.
+   The owner-shell mirrors the property-shell tab layout, but its tabs are declared HERE (always
+   present) instead of relying on app-property's styles. app-property is embedded only in the
+   Properties tab via lazy `matTabContent`, so it is created/destroyed as that tab is entered/left;
+   on Angular's default `removeStylesOnCompDestroy`, its global-leaking `::ng-deep .property-tabs`
+   rules toggle on and off with it. Declaring the standard on `.owner-shell-tabs` keeps the layout
+   stable regardless of that lifecycle.
+
+   The equal-width tab strip below is the one that actually fixed the "Properties tab jumps" bug:
+   without it the strip resized whenever app-property's styles came and went. */
+.owner-shell-tabs .mat-mdc-tab-header .mdc-tab {
+  flex: 1;
+  min-width: 0;
+}
+
+/* Defer vertical scrolling to the gutter-reserved page scroller (mat-sidenav-content) so a tall tab
+   never grows its own inner scrollbar, and lock widths so tab content can't resize the strip/card. */
+.owner-shell-tabs .mat-mdc-tab-body-content {
+  overflow: visible !important;
+  overflow-x: hidden !important;
+}
+
+.owner-shell-tabs .mat-mdc-tab-body-wrapper,
+.owner-shell-tabs .mat-mdc-tab-body,
+.owner-shell-tabs .mat-mdc-tab-body-content {
+  width: 100% !important;
+  max-width: 100% !important;
+  min-width: 0 !important;
+  box-sizing: border-box !important;
+}
+
 /* Band between mat-tabs and main content under .property-tabs (property + maintenance shells). */
 .property-tab-actions-band {
   display: flex;

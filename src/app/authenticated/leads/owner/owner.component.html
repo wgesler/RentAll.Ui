@@ -129,8 +129,13 @@
           <input matInput formControlName="city" autocomplete="address-level2" />
         </mat-form-field>
         <mat-form-field appearance="outline" class="min-w-0">
-          <mat-label>Address State</mat-label>
-          <input matInput formControlName="state" autocomplete="address-level1" />
+          <mat-label>State</mat-label>
+          <mat-select formControlName="state">
+            <mat-option value="">Select State</mat-option>
+            @for (state of states; track state) {
+              <mat-option [value]="state">{{ state }}</mat-option>
+            }
+          </mat-select>
         </mat-form-field>
         <mat-form-field appearance="outline" class="min-w-0">
           <mat-label>ZIP</mat-label>

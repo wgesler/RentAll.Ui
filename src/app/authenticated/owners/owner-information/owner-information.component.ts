@@ -111,7 +111,7 @@ export class OwnerInformationComponent implements OnInit, OnChanges, OnDestroy {
     if (!contactId) {
       return;
     }
-    this.ownersService.deleteContact(contactId).pipe(take(1)).subscribe({
+    this.ownersService.deleteOwnerContactByContext(contactId).pipe(take(1)).subscribe({
       next: () => {},
       error: () => {}
     });
@@ -160,7 +160,7 @@ export class OwnerInformationComponent implements OnInit, OnChanges, OnDestroy {
       return;
     }
 
-    this.ownersService.getPublicOwnerFormByToken(this.token).pipe(take(1),finalize(() => {this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'owner-context');})).subscribe({
+    this.ownersService.getOwnerFormByContext(this.token).pipe(take(1),finalize(() => {this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'owner-context');})).subscribe({
       next: (response) => {
         this.publicOwnerFormSnapshot = response;
         this.applyOwnerFormResponse(response);
@@ -191,7 +191,7 @@ export class OwnerInformationComponent implements OnInit, OnChanges, OnDestroy {
   }
 
   loadPrimaryOwnerContactForLead(ownerLeadId: number): void {
-    this.ownersService.getContacts().pipe(take(1),finalize(() => {this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'owner-contact');})).subscribe({
+    this.ownersService.getOwnerContactsByContext().pipe(take(1),finalize(() => {this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'owner-contact');})).subscribe({
       next: (contacts) => {
         const ownerContacts = (contacts || []).filter(contact => Number(contact.entityTypeId) === Number(EntityType.Owner));
         const matchedContact = ownerContacts.find(contact => Number(contact.ownerLeadId) === Number(ownerLeadId));
@@ -262,10 +262,10 @@ export class OwnerInformationComponent implements OnInit, OnChanges, OnDestroy {
       lastName: response.form?.lastName ?? '',
       email: response.form?.email ?? '',
       phone: response.form?.phone ?? '',
-      address: response.form?.address ?? '',
-      city: response.form?.city ?? '',
-      state: response.form?.state ?? '',
-      zip: response.form?.zip ?? '',
+      address: '',
+      city: '',
+      state: '',
+      zip: '',
       officeId: this.selectedOfficeId ?? null
     };
     this.ownerForm.patchValue({
@@ -302,10 +302,10 @@ export class OwnerInformationComponent implements OnInit, OnChanges, OnDestroy {
       lastName: lead.lastName ?? '',
       email: lead.email ?? '',
       phone: lead.phone ?? '',
-      address: lead.address ?? '',
-      city: lead.city ?? '',
-      state: lead.state ?? '',
-      zip: lead.zip ?? '',
+      address: '',
+      city: '',
+      state: '',
+      zip: '',
       officeId: lead.officeId ?? null
     };
     this.ownerForm.patchValue({
@@ -437,7 +437,7 @@ export class OwnerInformationComponent implements OnInit, OnChanges, OnDestroy {
       isActive: this.leadOwnerSnapshot.isActive
     };
     this.isSaving = true;
-    this.ownersService.updateOwnerLead(body).pipe(take(1),finalize(() => {
+    this.ownersService.updateOwnerByContext(body).pipe(take(1),finalize(() => {
       this.isSaving = false;
     })).subscribe({
       next: (updated) => {

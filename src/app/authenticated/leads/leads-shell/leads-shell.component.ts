@@ -14,7 +14,7 @@ import { getNumberQueryParam, getStringQueryParam } from '../../shared/query-par
 import { TitleBarSelectComponent } from '../../shared/titlebar-select/titlebar-select.component';
 import { GeneralComponent, GeneralLeadFormClosed } from '../general/general.component';
 import { GeneralListComponent } from '../general-list/general-list.component';
-import { OwnerComponent, OwnerLeadFormClosed } from '../owner/owner.component';
+import { OwnerComponent } from '../owner/owner.component';
 import { OwnerEditSelection, OwnerListComponent } from '../owner-list/owner-list.component';
 import { LeadsReportsComponent } from '../reports/leads-reports.component';
 import { RentalComponent, RentalLeadFormClosed } from '../rental/rental.component';
@@ -265,13 +265,11 @@ export class LeadsShellComponent implements OnInit, OnDestroy {
     this.updateUrlWithCurrentState();
   }
 
-  onOwnerLeadFormClosed(result?: OwnerLeadFormClosed): void {
+  onOwnerLeadFormClosed(): void {
     this.showOwnerLeadForm = false;
     this.ownerShellLeadId = null;
     this.selectedTabIndex = this.embeddedLeadFormReturnTabIndex;
-    if (result?.saved) {
-      this.restoreTitleBarOfficeFromGlobalSelection();
-    }
+    this.restoreTitleBarOfficeFromGlobalSelection();
     this.updateUrlWithCurrentState();
   }
 
@@ -319,6 +317,7 @@ export class LeadsShellComponent implements OnInit, OnDestroy {
     this.ownerShellLeadId = null;
     this.generalShellLeadId = null;
     this.selectedTabIndex = this.embeddedLeadFormReturnTabIndex;
+    this.restoreTitleBarOfficeFromGlobalSelection();
     this.updateUrlWithCurrentState();
   }
   //#endregion

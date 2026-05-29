@@ -144,8 +144,8 @@ export class OwnerAgreementInformationComponent implements OnInit, OnChanges, On
     };
 
     const saveOperation = this.agreementInformation?.ownerAgreementInformationId
-      ? this.ownersService.updateOwnerAgreementInformation(request)
-      : this.ownersService.createOwnerAgreementInformation(request);
+      ? this.ownersService.updateAgreementInformationByContext(request)
+      : this.ownersService.createAgreementInformationByContext(request);
 
     saveOperation.pipe(take(1),finalize(() => {
       this.isSubmitting = false;

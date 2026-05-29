@@ -7,6 +7,7 @@ import { ReservationCodeResponse, ReservationListResponse, ReservationResponse }
 import { ReservationType } from '../authenticated/reservations/models/reservation-enum';
 import { FileDetails } from '../shared/models/fileDetails';
 import { FormatterService } from './formatter-service';
+import { CommonService } from './common.service';
 /** SQL **DATE** / JSON calendar (`YYYY-MM-DD`); not a zoned instant. */
 export type CalendarDateString = string;
 export interface OptimizedUploadPayload {
@@ -30,7 +31,46 @@ export class UtilityService {
   readonly defaultImageTargetMinBytes = 150 * 1024;
   readonly defaultImageTargetMaxBytes = 500 * 1024;
 
-  constructor(private formatterService: FormatterService) { }
+  constructor(
+    private formatterService: FormatterService,
+    private commonService: CommonService
+  ) { }
+
+  /**
+   * Best-effort map of free-text state input ('ca', 'CA', 'California', 'Calif.') to a
+   * canonical 2-letter state code from the app's state list. Returns '' when no confident match.
+   */
+  getStateCodeValue(input: string | null | undefined): string {
+    const normalized = String(input ?? '').trim().toLowerCase();
+    if (!normalized) {
+      return '';
+    }
+    const states = this.commonService.getStatesFullValue() || [];
+
+    const byCode = states.find(state => String(state.code || '').trim().toLowerCase() === normalized);
+    if (byCode) {
+      return byCode.code;
+    }
+
+    const byName = states.find(state => String(state.name || '').trim().toLowerCase() === normalized);
+    if (byName) {
+      return byName.code;
+    }
+
+    const cleaned = normalized.replace(/[^a-z]/g, '');
+    if (!cleaned) {
+      return '';
+    }
+    const byCleanedName = states.find(state => String(state.name || '').trim().toLowerCase().replace(/[^a-z]/g, '') === cleaned);
+    if (byCleanedName) {
+      return byCleanedName.code;
+    }
+    const byPrefix = states.find(state => {
+      const cleanedName = String(state.name || '').trim().toLowerCase().replace(/[^a-z]/g, '');
+      return cleanedName.length > 0 && (cleanedName.startsWith(cleaned) || cleaned.startsWith(cleanedName));
+    });
+    return byPrefix ? byPrefix.code : '';
+  }
 
   //#region To/From the API (calendar / DateOnly)
   /**

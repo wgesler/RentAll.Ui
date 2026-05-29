@@ -96,17 +96,7 @@ export abstract class BaseDocumentComponent {
     // Use server-side PDF generation
     this.documentService.generateDownload(generateDto).pipe(take(1)).subscribe({
       next: (pdfBlob: Blob) => {
-        // Create download link and trigger download
-        const pdfUrl = URL.createObjectURL(pdfBlob);
-        const link = document.createElement('a');
-        link.href = pdfUrl;
-        link.download = downloadConfig.fileName;
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
-        
-        // Clean up
-        setTimeout(() => URL.revokeObjectURL(pdfUrl), 100);
+        this.documentExportService.downloadBlob(pdfBlob, downloadConfig.fileName);
         this.setDownloading(false);
       },
       error: (error: HttpErrorResponse) => {

@@ -4,7 +4,7 @@ import { Component, effect, input, NgZone, OnDestroy, OnInit, output } from '@an
 import { FormBuilder, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
 import { ActivatedRoute, Router } from '@angular/router';
 import { ToastrService } from 'ngx-toastr';
-import { BehaviorSubject, Subject, Subscription, filter, finalize, map, switchMap, take, takeUntil } from 'rxjs';
+import { BehaviorSubject, Subject, Subscription, filter, finalize, map, take, takeUntil } from 'rxjs';
 import { RouterUrl } from '../../../app.routes';
 import { CommonMessage } from '../../../enums/common-message.enum';
 import { MaterialModule } from '../../../material.module';
@@ -12,6 +12,7 @@ import { FormatterService } from '../../../services/formatter-service';
 import { MappingService } from '../../../services/mapping.service';
 import { UtilityService } from '../../../services/utility.service';
 import { AuthService } from '../../../services/auth.service';
+import { CommonService } from '../../../services/common.service';
 import { EntityType, OwnerType } from '../../contacts/models/contact-enum';
 import { ContactRequest } from '../../contacts/models/contact.model';
 import { ContactService } from '../../contacts/services/contact.service';
@@ -57,6 +58,7 @@ export class OwnerComponent implements OnInit, OnDestroy {
   selectedOffice: OfficeResponse | null = null;
 
   agents: AgentResponse[] = [];
+  states: string[] = [];
 
   itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['owner-lead', 'agents']));
   destroy$ = new Subject<void>();
@@ -75,7 +77,8 @@ export class OwnerComponent implements OnInit, OnDestroy {
     private formatterService: FormatterService,
     private mappingService: MappingService,
     private globalSelectionService: GlobalSelectionService,
-    private officeService: OfficeService
+    private officeService: OfficeService,
+    private commonService: CommonService
   ) {
     this.form = this.buildForm();
     effect(() => {
@@ -122,6 +125,7 @@ export class OwnerComponent implements OnInit, OnDestroy {
 
     this.loadOffices();
     this.loadAgents();
+    this.loadStates();
 
     this.route.paramMap .pipe(takeUntil(this.destroy$), map(pm => pm.get('id')), filter(() => !this.embeddedInShell())) .subscribe(id => this.loadOwnerLead(id));
   }
@@ -288,10 +292,10 @@ export class OwnerComponent implements OnInit, OnDestroy {
               properties: [],
               firstName: ownerLead.firstName ?? null,
               lastName: ownerLead.lastName ?? null,
-              address1: ownerLead.address ?? '',
-              city: ownerLead.city ?? '',
-              state: ownerLead.state ?? '',
-              zip: ownerLead.zip ?? '',
+              address1: '',
+              city: '',
+              state: '',
+              zip: '',
               phone: ownerLead.phone ?? null,
               email: ownerLead.email ?? '',
               rating: 0,
@@ -319,79 +323,18 @@ export class OwnerComponent implements OnInit, OnDestroy {
 
   //#region Form Methods
   buildForm(): FormGroup {
+    const defaults = this.defaultFormValues();
     return this.fb.group({
-      leadStateId: [LeadStateType.New],
-      agentCode: this.fb.control<string | null>(null),
-      firstName: ['', Validators.required],
-      lastName: ['', Validators.required],
-      email: ['', [Validators.required, Validators.email]],
-      phone: ['', Validators.required],
-      locationOfProperty: [''],
-      programInterest: [''],
-      whatIsPromptingContact: [''],
-      timeFrame: this.fb.control<boolean | null>(null),
-      targetRentReadyDate: this.fb.control<Date | null>(null),
-      propertyGoals: [''],
-      tellUsMoreAboutYourGoals: [''],
-      yearsOfExperienceWithRentals: [''],
-      tellUsMoreAboutProperty: [''],
-      address: [''],
-      city: [''],
-      state: [''],
-      zip: [''],
-      numberOfBeds: [''],
-      numberOfBaths: [''],
-      approxSqFootage: [''],
-      propertyTypeId: this.fb.control<number | null>(null),
-      propertyCode: [''],
-      propertyOffice: [''],
-      tellUsWhatYouLikeMostAboutYourProperty: [''],
-      tellUsAnyDrawbacks: [''],
-      preferredContactMethod: [''],
-      timeDateForContact: [''],
-      notes: [''],
-      emailPhoneConsent: [false],
-      smsConsent: [false],
-      isActive: [true]
+      ...defaults,
+      firstName: [defaults.firstName, Validators.required],
+      lastName: [defaults.lastName, Validators.required],
+      email: [defaults.email, [Validators.required, Validators.email]],
+      phone: [defaults.phone, Validators.required]
     });
   }
 
   formReset(): void {
-    this.form.reset({
-      leadStateId: LeadStateType.New,
-      agentCode: null,
-      firstName: '',
-      lastName: '',
-      email: '',
-      phone: '',
-      locationOfProperty: '',
-      programInterest: '',
-      whatIsPromptingContact: '',
-      timeFrame: null,
-      targetRentReadyDate: null,
-      propertyGoals: '',
-      tellUsMoreAboutYourGoals: '',
-      yearsOfExperienceWithRentals: '',
-      tellUsMoreAboutProperty: '',
-      address: '',
-      city: '',
-      state: '',
-      zip: '',
-      numberOfBeds: '',
-      numberOfBaths: '',
-      approxSqFootage: '',
-      propertyTypeId: null,
-      propertyCode: '',
-      propertyOffice: '',
-      tellUsWhatYouLikeMostAboutYourProperty: '',
-      tellUsAnyDrawbacks: '',
-      preferredContactMethod: '',
-      timeDateForContact: '',
-      notes: '',
-      emailPhoneConsent: false,
-      smsConsent: false,
-      isActive: true
-    });
+    this.form.reset(this.defaultFormValues());
   }
 
   populateForm(lead: LeadOwnerResponse): void {
@@ -416,7 +359,7 @@ export class OwnerComponent implements OnInit, OnDestroy {
       tellUsMoreAboutProperty: lead.tellUsMoreAboutProperty ?? '',
       address: lead.address ?? '',
       city: lead.city ?? '',
-      state: lead.state ?? '',
+      state: this.utilityService.getStateCodeValue(lead.state),
       zip: lead.zip ?? '',
       numberOfBeds: lead.numberOfBeds ?? '',
       numberOfBaths: lead.numberOfBaths ?? '',
@@ -433,6 +376,44 @@ export class OwnerComponent implements OnInit, OnDestroy {
       smsConsent: !!lead.smsConsent,
       isActive: !!lead.isActive
     });
+  }
+
+  defaultFormValues() {
+    return {
+      leadStateId: LeadStateType.New,
+      agentCode: null as string | null,
+      firstName: '',
+      lastName: '',
+      email: '',
+      phone: '',
+      locationOfProperty: '',
+      programInterest: '',
+      whatIsPromptingContact: '',
+      timeFrame: null as boolean | null,
+      targetRentReadyDate: null as Date | null,
+      propertyGoals: '',
+      tellUsMoreAboutYourGoals: '',
+      yearsOfExperienceWithRentals: '',
+      tellUsMoreAboutProperty: '',
+      address: '',
+      city: '',
+      state: '',
+      zip: '',
+      numberOfBeds: '',
+      numberOfBaths: '',
+      approxSqFootage: '',
+      propertyTypeId: null as number | null,
+      propertyCode: '',
+      propertyOffice: '',
+      tellUsWhatYouLikeMostAboutYourProperty: '',
+      tellUsAnyDrawbacks: '',
+      preferredContactMethod: '',
+      timeDateForContact: '',
+      notes: '',
+      emailPhoneConsent: false,
+      smsConsent: false,
+      isActive: true
+    };
   }
   //#endregion
 
@@ -525,6 +506,22 @@ export class OwnerComponent implements OnInit, OnDestroy {
       error: () => (this.agents = [])
     });
   }
+
+  loadStates(): void {
+    const cachedStates = this.commonService.getStatesValue();
+    if (cachedStates && cachedStates.length) {
+      this.states = [...cachedStates];
+    }
+    this.commonService.getStates().pipe(filter(states => states && states.length > 0), take(1), takeUntil(this.destroy$)).subscribe({
+      next: states => {
+        this.states = [...states];
+        if (this.lead) {
+          this.populateForm(this.lead);
+        }
+      },
+      error: () => {}
+    });
+  }
   //#endregion
 
   //#region Utility Methods
@@ -538,16 +535,9 @@ export class OwnerComponent implements OnInit, OnDestroy {
       complete();
       return;
     }
-    this.leadsService.getOwnerLeadById(ownerId).pipe(
-      take(1),
-      takeUntil(this.destroy$),
-      map(owner => {
-        const body = this.mappingService.mapLeadOwnerResponseToUpdateRequest(owner);
-        body.isActive = false;
-        return body;
-      }),
-      switchMap(body => this.leadsService.updateOwnerLead(body).pipe(take(1)))
-    ).subscribe({
+    this.leadsService.patchOwnerLead(ownerId, body => {
+      body.isActive = false;
+    }).pipe(take(1), takeUntil(this.destroy$)).subscribe({
       next: updated => {
         this.lead = updated;
         this.populateForm(updated);
@@ -560,6 +550,10 @@ export class OwnerComponent implements OnInit, OnDestroy {
     });
   }
 
+  formatPhone(): void {
+    this.formatterService.formatPhoneControl(this.form.get('phone'));
+  }
+  
   back(): void {
     if (this.embeddedInShell()) {
       this.closed.emit({ saved: false });
@@ -570,10 +564,6 @@ export class OwnerComponent implements OnInit, OnDestroy {
     });
   }
 
-  formatPhone(): void {
-    this.formatterService.formatPhoneControl(this.form.get('phone'));
-  }
-  
   ngOnDestroy(): void {
     this.globalOfficeSubscription?.unsubscribe();
     this.destroy$.next();

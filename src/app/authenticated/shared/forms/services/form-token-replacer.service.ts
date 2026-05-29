@@ -7,9 +7,9 @@ export class FormTokenReplacerService {
   replaceTokens(
     html: string,
     tokenValues: Record<string, string | null | undefined>,
-    options?: { clearUnresolved?: boolean; includeUnderlinedVariants?: boolean }
+    options?: { highlightUnresolved?: boolean; includeUnderlinedVariants?: boolean }
   ): string {
-    const clearUnresolved = options?.clearUnresolved ?? true;
+    const highlightUnresolved = options?.highlightUnresolved ?? true;
     const includeUnderlinedVariants = options?.includeUnderlinedVariants ?? false;
     const normalized = this.normalizeTokenValues(tokenValues);
     const expanded = includeUnderlinedVariants ? this.withAutoUnderlinedVariants(normalized) : normalized;
@@ -20,8 +20,13 @@ export class FormTokenReplacerService {
       content = content.replace(pattern, value);
     });
 
-    if (clearUnresolved) {
-      content = content.replace(/\{\{\s*[^}]+\s*\}\}/g, '');
+    // Never silently strip unresolved tokens. Leave them in place and flag them (purple)
+    // so they are obvious and can be fixed. A token mapped to an empty value renders blank
+    // (handled above) and is intentionally not flagged.
+    if (highlightUnresolved) {
+      content = content.replace(/\{\{\s*[^}]+\s*\}\}/g, match =>
+        `<span class="unresolved-token" style="color:#9c27b0;font-weight:600;">${match}</span>`
+      );
     }
     return content;
   }

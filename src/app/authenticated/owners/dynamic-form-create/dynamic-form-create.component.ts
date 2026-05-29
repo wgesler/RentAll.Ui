@@ -22,7 +22,7 @@ import { EmailService } from '../../email/services/email.service';
 import { OfficeResponse } from '../../organizations/models/office.model';
 import { OrganizationResponse } from '../../organizations/models/organization.model';
 import { PropertyResponse } from '../../properties/models/property.model';
-import { BaseDocumentComponent, DocumentConfig, DownloadConfig, EmailConfig } from '../../shared/base-document.component';
+import { BaseDocumentComponent, DocumentConfig, EmailConfig } from '../../shared/base-document.component';
 import { OwnersService } from '../services/owners.service';
 
 @Component({
@@ -126,13 +126,22 @@ export class DynamicFormCreateComponent extends BaseDocumentComponent implements
 
   override async onDownload(): Promise<void> {
     this.captureLiveSnapshotForExport();
-    const downloadConfig: DownloadConfig = {
-      fileName: this.getDocumentFileName(),
-      documentType: DocumentType.OwnerAgreement,
-      noPreviewMessage: 'Form preview is not ready to download.',
-      noSelectionMessage: 'Organization or Office not available.'
-    };
-    await super.onDownload(downloadConfig);
+    if (!this.previewIframeHtml || !this.selectedOffice) {
+      this.toastr.warning('Form preview is not ready to download.');
+      return;
+    }
+    this.isDownloading = true;
+    const dto = this.buildGenerateDto();
+    this.ownersService.generateDocumentDownloadByContext(null, dto).pipe(take(1)).subscribe({
+      next: blob => {
+        this.documentExportService.downloadBlob(blob, dto.fileName);
+        this.isDownloading = false;
+      },
+      error: () => {
+        this.isDownloading = false;
+        this.toastr.error(`Unable to download ${String(this.formName || 'form').toLowerCase()}.`, CommonMessage.Error);
+      }
+    });
   }
 
   onSave(): void {
@@ -143,7 +152,7 @@ export class DynamicFormCreateComponent extends BaseDocumentComponent implements
     }
     this.isSaving = true;
     const dto = this.buildGenerateDto();
-    this.documentService.generate(dto).pipe(take(1)).subscribe({
+    this.ownersService.saveGeneratedDocumentByContext(null, dto).pipe(take(1)).subscribe({
       next: () => {
         this.isSaving = false;
         this.toastr.success(`${this.formName || 'Form'} saved successfully`, CommonMessage.Success);
@@ -197,10 +206,6 @@ export class DynamicFormCreateComponent extends BaseDocumentComponent implements
         this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'organization');
       })).subscribe({
       next: response => {
-        if (!response) {
-          this.organization = null;
-          return;
-        }
         this.organization = response;
       },
       error: () => {
@@ -215,7 +220,7 @@ export class DynamicFormCreateComponent extends BaseDocumentComponent implements
       this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'offices');
       return;
     }
-    this.ownersService.ensureOfficesLoaded(this.organizationId).pipe(take(1),finalize(() => { this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'offices'); })).subscribe({
+    this.ownersService.getOfficeListByContext(null, this.organizationId).pipe(take(1),finalize(() => { this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'offices'); })).subscribe({
       next: offices => {
         this.syncSelectedOfficeFromLoadedOffices(offices || []);
       },
@@ -226,7 +231,7 @@ export class DynamicFormCreateComponent extends BaseDocumentComponent implements
   }
 
   syncSelectedOfficeFromLoadedOffices(offices?: OfficeResponse[]): void {
-    const officeList = offices || this.ownersService.getAllOfficesValue() || [];
+    const officeList = offices || this.ownersService.getOfficeListSnapshotByContext() || [];
     const requestedOfficeId = Number(this.officeId);
     if (Number.isFinite(requestedOfficeId) && requestedOfficeId > 0) {
       this.selectedOffice = officeList.find(office => office.officeId === requestedOfficeId) || null;
@@ -245,7 +250,7 @@ export class DynamicFormCreateComponent extends BaseDocumentComponent implements
   }
 
   loadContacts(): void {
-    this.ownersService.ensureContactsLoaded().pipe(take(1),finalize(() => { this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'contacts'); })).subscribe({
+    this.ownersService.getOwnerContactsByContext().pipe(take(1),finalize(() => { this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'contacts'); })).subscribe({
       next: contacts => {
         const ownerLeadId = Number(this.ownerLeadId);
         this.ownerContact = (contacts || []).find(contact =>
@@ -267,10 +272,6 @@ export class DynamicFormCreateComponent extends BaseDocumentComponent implements
     }
     this.ownersService.getPropertyByContext(null, this.propertyId).pipe(take(1),finalize(() => { this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'property'); })).subscribe({
       next: property => {
-        if (!property) {
-          this.selectedProperty = null;
-          return;
-        }
         this.selectedProperty = property;
       },
       error: () => {

@@ -1,10 +1,11 @@
 import { CommonModule } from '@angular/common';
-import { Component, Input, OnChanges, OnDestroy, SimpleChanges } from '@angular/core';
+import { Component, EventEmitter, Input, OnChanges, OnDestroy, Output, SimpleChanges } from '@angular/core';
 import { FormBuilder, FormGroup, ReactiveFormsModule } from '@angular/forms';
 import { BehaviorSubject, Subject, finalize, take, takeUntil } from 'rxjs';
 import { ToastrService } from 'ngx-toastr';
 import { MaterialModule } from '../../../material.module';
 import { PropertyComponent } from '../../properties/property/property.component';
+import { PropertyInformationResponse } from '../../properties/models/property-information.model';
 import { PublicOwnerFormResponse, PublicOwnerFormSubmitRequest } from '../../leads/models/owner-form-share.model';
 import { OwnerInventoryInformationRequest } from '../../leads/models/owner-inventory-information.model';
 import { CommonMessage } from '../../../enums/common-message.enum';
@@ -35,6 +36,28 @@ export function buildPropertyInformationPatchFromResponse(response: PublicOwnerF
   };
 }
 
+export function buildPropertyInformationPatchFromPropertyInfo(response: PropertyInformationResponse): Partial<PublicOwnerFormSubmitRequest> {
+  return {
+    onSiteComplexManagementPhone: '',
+    keyCount: '',
+    garageRemoteModelCode: '',
+    storageAccessDetails: '',
+    cableSupplier: '',
+    cablePhone: '',
+    cableAccountNumber: '',
+    electricSupplier: '',
+    electricPhone: '',
+    electricAccountNumber: '',
+    internetSupplier: response.internetService ?? '',
+    internetPhone: '',
+    internetAccountNumber: '',
+    fuseBoxLocation: '',
+    schoolDistrict: '',
+    localEmergencyContact: response.emergencyPhone ?? '',
+    accessInformation: response.access ?? ''
+  };
+}
+
 @Component({
   standalone: true,
   selector: 'app-property-information',
@@ -50,6 +73,11 @@ export class PropertyInformationComponent implements OnChanges, OnDestroy {
   @Input() selectedOfficeId: number | null = null;
   @Input() shellPropertyId = 'new';
   @Input() shellPropertyCode: string | null = null;
+  @Input() shellPropertyAddress1: string | null = null;
+  @Input() shellPropertyCity: string | null = null;
+  @Input() shellPropertyState: string | null = null;
+  @Input() shellPropertyZip: string | null = null;
+  @Output() titleBarPropertyCodeInvalid = new EventEmitter<void>();
 
   ownerForm: FormGroup = this.buildForm();
   isPageReady = false;
@@ -99,62 +127,31 @@ export class PropertyInformationComponent implements OnChanges, OnDestroy {
   loadPropertyInformation(): void {
     this.publicOwnerFormSnapshot = null;
     this.ownerForm.reset(this.getDefaultPropertyFormValue());
-    const ownerLeadId = Number(this.ownerLeadId);
-    if (this.token) {
-      this.ownersService.getPublicOwnerFormByToken(this.token).pipe(take(1),finalize(() => {
-        this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'property-information');
-      })).subscribe({
-        next: (response) => {
-          if (!response) {
-            this.toastr.error('Unable to load property information.', CommonMessage.Error);
-            return;
-          }
-          this.publicOwnerFormSnapshot = response;
-          this.ownerForm.patchValue(buildPropertyInformationPatchFromResponse(response));
-          this.formatInventoryPhoneFields();
-        },
-        error: () => {
-          this.toastr.error('Unable to load property information.', CommonMessage.Error);
-        }
-      });
-      return;
-    }
-    if (!Number.isFinite(ownerLeadId) || ownerLeadId <= 0) {
-      this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'property-information');
-      return;
-    }
-    this.ownersService.getOwnerInventoryInformationByOwnerId(ownerLeadId).pipe(take(1),finalize(() => {
+    this.ownersService.getPropertyInformationByContext(this.token || null, this.shellPropertyId).pipe(take(1),finalize(() => {
       this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'property-information');
     })).subscribe({
       next: response => {
         if (!response) {
           return;
         }
-        this.ownerForm.patchValue({
-          onSiteComplexManagementPhone: response?.onSiteComplexManagementPhone ?? '',
-          keyCount: response?.keyCount ?? '',
-          garageRemoteModelCode: response?.garageRemoteModelCode ?? '',
-          storageAccessDetails: response?.storageAccessDetails ?? '',
-          cableSupplier: response?.cableSupplier ?? '',
-          cablePhone: response?.cablePhone ?? '',
-          cableAccountNumber: response?.cableAccountNumber ?? '',
-          electricSupplier: response?.electricSupplier ?? '',
-          electricPhone: response?.electricPhone ?? '',
-          electricAccountNumber: response?.electricAccountNumber ?? '',
-          internetSupplier: response?.internetSupplier ?? '',
-          internetPhone: response?.internetPhone ?? '',
-          internetAccountNumber: response?.internetAccountNumber ?? '',
-          fuseBoxLocation: response?.fuseBoxLocation ?? '',
-          schoolDistrict: response?.schoolDistrict ?? '',
-          localEmergencyContact: response?.localEmergencyContact ?? '',
-          accessInformation: response?.accessInformation ?? ''
-        });
+        this.ownerForm.patchValue(buildPropertyInformationPatchFromPropertyInfo(response));
         this.formatInventoryPhoneFields();
       },
       error: () => {
         // Keep defaults when no existing inventory record is found.
       }
     });
+
+    if (this.token) {
+      this.ownersService.getOwnerFormByContext(this.token).pipe(take(1)).subscribe({
+        next: response => {
+          this.publicOwnerFormSnapshot = response;
+        },
+        error: () => {
+          this.publicOwnerFormSnapshot = null;
+        }
+      });
+    }
   }
 
   //#endregion
@@ -255,7 +252,7 @@ export class PropertyInformationComponent implements OnChanges, OnDestroy {
       isActive: true
     };
 
-    this.ownersService.updateOwnerInventoryInformation(body).pipe(take(1),finalize(() => {
+    this.ownersService.updatePropertyInformationByContext(body).pipe(take(1),finalize(() => {
       this.isSaving = false;
     })).subscribe({
       next: (response) => {

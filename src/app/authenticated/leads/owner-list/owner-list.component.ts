@@ -4,7 +4,7 @@ import { HttpErrorResponse } from '@angular/common/http';
 import { Component, input, NgZone, OnChanges, OnDestroy, OnInit, output, SimpleChanges } from '@angular/core';
 import { Router } from '@angular/router';
 import { ToastrService } from 'ngx-toastr';
-import { BehaviorSubject, Subject, Subscription, finalize, switchMap, take, takeUntil } from 'rxjs';
+import { BehaviorSubject, Subject, Subscription, finalize, take, takeUntil } from 'rxjs';
 import { RouterUrl } from '../../../app.routes';
 import { CommonMessage } from '../../../enums/common-message.enum';
 import { MaterialModule } from '../../../material.module';
@@ -22,7 +22,7 @@ import { OfficeService } from '../../organizations/services/office.service';
 import { DataTableComponent } from '../../shared/data-table/data-table.component';
 import { DataTableFilterActionsDirective } from '../../shared/data-table/data-table-filter-actions.directive';
 import { ColumnSet } from '../../shared/data-table/models/column-data';
-import { LeadOwnerListDisplay, LeadOwnerUpdateRequest } from '../models/lead-owner.model';
+import { LeadOwnerListDisplay } from '../models/lead-owner.model';
 import { formatLeadStateLabel, LEAD_STATE_SELECT_OPTIONS, LeadStateDropdownCell, LeadStateType } from '../models/lead-enums';
 import { LeadsService } from '../services/leads.service';
 
@@ -243,10 +243,10 @@ export class OwnerListComponent implements OnInit, OnChanges, OnDestroy {
               properties: [],
               firstName: ownerLead.firstName ?? null,
               lastName: ownerLead.lastName ?? null,
-              address1: ownerLead.address ?? '',
-              city: ownerLead.city ?? '',
-              state: ownerLead.state ?? '',
-              zip: ownerLead.zip ?? '',
+              address1: '',
+              city: '',
+              state: '',
+              zip: '',
               phone: ownerLead.phone ?? null,
               email: ownerLead.email ?? '',
               rating: 0,
@@ -284,7 +284,7 @@ export class OwnerListComponent implements OnInit, OnChanges, OnDestroy {
     }
 
     this.applyOwnerIsActiveValue(ownerId, false);
-    this.updateOwnerLeadFromServer(ownerId, body => {
+    this.leadsService.patchOwnerLead(ownerId, body => {
       body.isActive = false;
     }).pipe(take(1)).subscribe({
       next: () => {
@@ -328,7 +328,7 @@ export class OwnerListComponent implements OnInit, OnChanges, OnDestroy {
     }
     const previousLeadStateId = event.leadStateId;
     this.applyOwnerLeadStateId(event.ownerId, nextLeadStateId);
-    this.updateOwnerLeadFromServer(event.ownerId, body => {
+    this.leadsService.patchOwnerLead(event.ownerId, body => {
       body.leadStateId = nextLeadStateId;
     }).pipe(take(1)).subscribe({
       next: () => {
@@ -352,7 +352,7 @@ export class OwnerListComponent implements OnInit, OnChanges, OnDestroy {
       return;
     }
     this.applyOwnerIsActiveValue(event.ownerId, nextValue);
-    this.updateOwnerLeadFromServer(event.ownerId, body => {
+    this.leadsService.patchOwnerLead(event.ownerId, body => {
       body.isActive = nextValue;
     }).pipe(take(1)).subscribe({
       next: () => {
@@ -388,13 +388,6 @@ export class OwnerListComponent implements OnInit, OnChanges, OnDestroy {
     patch(this.ownersDisplay);
   }
 
-  updateOwnerLeadFromServer(ownerId: number, applyPatch: (body: LeadOwnerUpdateRequest) => void) {
-    return this.leadsService.getOwnerLeadById(ownerId).pipe(take(1), switchMap(owner => {
-      const body = this.mappingService.mapLeadOwnerResponseToUpdateRequest(owner);
-      applyPatch(body);
-      return this.leadsService.updateOwnerLead(body).pipe(take(1));
-    }));
-  }
   //#endregion
 
   //#region Data Loading Methods
@@ -404,21 +397,16 @@ export class OwnerListComponent implements OnInit, OnChanges, OnDestroy {
       this.offices = [];
       return;
     }
-    this.officeService
-      .ensureOfficesLoaded(organizationId)
-      .pipe(take(1), takeUntil(this.destroy$))
-      .subscribe({
-        next: allOffices => {
-          this.offices = allOffices || [];
-          const initialOfficeId = this.embeddedInShell()
-            ? this.officeId()
-            : this.globalSelectionService.getSelectedOfficeIdValue();
-          this.resolveOfficeScope(initialOfficeId ?? null);
-        },
-        error: () => {
-          this.offices = [];
-        }
-      });
+    this.officeService.ensureOfficesLoaded(organizationId).pipe(take(1), takeUntil(this.destroy$)).subscribe({
+      next: allOffices => {
+        this.offices = allOffices || [];
+        const initialOfficeId = this.embeddedInShell() ? this.officeId() : this.globalSelectionService.getSelectedOfficeIdValue();
+        this.resolveOfficeScope(initialOfficeId ?? null);
+      },
+      error: () => {
+        this.offices = [];
+      }
+    });
   }
 
   loadOwnerLeads(): void {
@@ -474,22 +462,18 @@ export class OwnerListComponent implements OnInit, OnChanges, OnDestroy {
     const rowOffice = Number(row.officeId);
     return !Number.isNaN(rowOffice) && rowOffice === Number(scopeOfficeId);
   }
-  //#endregion
 
-  //#region Office Methods
   resolveOfficeScope(officeId: number | null): void {
     this.selectedOffice = this.utilityService.resolveSelectedOfficeById(this.offices, officeId);
-    this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'officeScope');
     this.applyOwnerFilters();
-  }
-
-  getLeadAttentionDotValue(leadStateId: number): string {
-    return leadStateId === LeadStateType.New ? '●' : '';
   }
   //#endregion
 
   //#region Utility Methods
-  ngOnDestroy(): void {
+  getLeadAttentionDotValue(leadStateId: number): string {
+    return leadStateId === LeadStateType.New ? '●' : '';
+  }
+    ngOnDestroy(): void {
     this.globalOfficeSubscription?.unsubscribe();
     this.destroy$.next();
     this.destroy$.complete();

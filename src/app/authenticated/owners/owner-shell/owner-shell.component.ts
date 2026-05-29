@@ -1,14 +1,14 @@
 import { CommonModule } from '@angular/common';
 import { Component, OnDestroy, OnInit } from '@angular/core';
 import { ActivatedRoute, Router } from '@angular/router';
-import { BehaviorSubject, Subject, catchError, combineLatest, concatMap, finalize, from, of, switchMap, take, takeUntil, toArray } from 'rxjs';
+import { BehaviorSubject, Observable, Subject, Subscription, catchError, combineLatest, concatMap, defer, finalize, from, map, of, shareReplay, switchMap, take, takeUntil, toArray } from 'rxjs';
 import { ToastrService } from 'ngx-toastr';
 import { MaterialModule } from '../../../material.module';
 import { RouterUrl } from '../../../app.routes';
 import { CommonMessage } from '../../../enums/common-message.enum';
 import { EntityType } from '../../contacts/models/contact-enum';
-import { ContactResponse } from '../../contacts/models/contact.model';
 import { OfficeResponse } from '../../organizations/models/office.model';
+import { PropertyListResponse } from '../../properties/models/property.model';
 import { StateFormResponse } from '../../organizations/models/state-form.model';
 import { GlobalSelectionService } from '../../organizations/services/global-selection.service';
 import { SearchableSelectOption } from '../../shared/searchable-select/searchable-select.component';
@@ -23,7 +23,7 @@ import { OwnerAgreementInformationComponent } from '../owner-agreement-informati
 import { OwnerAgreementFormComponent } from '../owner-agreement-form/owner-agreement-form.component';
 import { SharedFormEditorComponent } from '../../shared/forms/form-editor/form-editor.component';
 import { SharedFormCreateComponent } from '../../shared/forms/form-create/form-create.component';
-import { OwnersService } from '../services/owners.service';
+import { OwnerAgreementContext, OwnersService } from '../services/owners.service';
 
 @Component({
   standalone: true,
@@ -50,21 +50,35 @@ export class OwnerShellComponent implements OnInit, OnDestroy {
   isOwnerListMode = false;
   isPageReady = false;
   selectedTabIndex = 0;
+  // Guards the property-code/contact load so it runs once per owner context instead of on every tab
+  // switch. Reset when the owner or office changes (those legitimately require a refresh).
+  propertyContextLoaded = false;
   selectedOfficeId: number | null = null;
   selectedOrganizationId: string | null = null;
   selectedPropertyId = this.newPropertyOptionValue;
   newPropertyCode = '';
+  propertyCodeTitleBarShowError = false;
   ownerLeadPropertyCode = '';
+  ownerLeadPropertyAddress1 = '';
+  ownerLeadPropertyCity = '';
+  ownerLeadPropertyState = '';
+  ownerLeadPropertyZip = '';
   selectedOwnerContactId: string | null = null;
   propertyCodeOptions: SearchableSelectOption[] = [{ value: this.newPropertyOptionValue, label: 'New Property' }];
   token = '';
   tokenPropertyOffice = '';
   leadOwnerId: number | null = null;
-  currentOwnerStateCode = '';
+  currentPropertyStateCode = '';
+  stateFormOrganizationId = '';
+  stateFormsRequestId = 0;
+  // Shared owner-agreement context: resolved once (lazily, on the first form tab that subscribes)
+  // and replayed to every form tab so they stop re-fetching the same owner/property/office data.
+  ownerAgreementContext$: Observable<OwnerAgreementContext> | null = null;
   stateForms: StateFormResponse[] = [];
   dynamicFormViewState: Record<string, { isView: boolean; editedHtml: string | null }> = {};
   ownerEntityTypeId = EntityType.Owner;
   offices: OfficeResponse[] = [];
+  officesSubscription?: Subscription;
   canAccessInformationTab = false;
 
   itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['offices', 'stateForms']));
@@ -91,8 +105,13 @@ export class OwnerShellComponent implements OnInit, OnDestroy {
     this.selectedTabIndex = 0;
     this.loadOffices();
 
+    // One-way latch: the full-page spinner only covers the initial load. Once the shell is ready it
+    // stays visible, so background reloads (state forms, property options on a tab switch or office
+    // change) refresh in place instead of blanking and re-mounting the whole shell.
     this.itemsToLoad$.pipe(takeUntil(this.destroy$)).subscribe(items => {
-      this.isPageReady = items.size === 0;
+      if (items.size === 0) {
+        this.isPageReady = true;
+      }
     });
 
     combineLatest([this.route.paramMap, this.route.queryParamMap]).pipe(takeUntil(this.destroy$)).subscribe(([paramMap, queryParamMap]) => {
@@ -105,6 +124,21 @@ export class OwnerShellComponent implements OnInit, OnDestroy {
     });
   }
 
+  tabUsesPropertySelection(tabIndex: number): boolean {
+    return tabIndex >= 1;
+  }
+
+  isPublicOwnerTokenContext(token: string): boolean {
+    const hasToken = String(token || '').trim().length > 0;
+    return hasToken && !this.authService.getIsLoggedIn();
+  }
+
+  isOwnerLinkMode(): boolean {
+    return String(this.token || '').trim().length > 0;
+  }
+  //#endregion
+
+  //#region Form Response Methods
   syncOwnerShellFromRoute(token: string, leadOwnerId: number, officeId: number, propertyCode: string, propertyOffice: string): void {
     this.token = token;
     this.tokenPropertyOffice = String(propertyOffice || '').trim();
@@ -114,14 +148,20 @@ export class OwnerShellComponent implements OnInit, OnDestroy {
     this.navigationContextService.setIsInUnauthorizedViewMode(isUnauthorizedViewMode);
     this.navigationContextService.setIsInOwnerMode(isUnauthorizedViewMode);
     this.leadOwnerId = null;
+    this.propertyContextLoaded = false;
     this.selectedOrganizationId = null;
-    this.currentOwnerStateCode = '';
+    this.currentPropertyStateCode = '';
+    this.stateFormOrganizationId = '';
     this.stateForms = [];
     this.dynamicFormViewState = {};
     this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'stateForms');
     this.selectedPropertyId = this.newPropertyOptionValue;
     this.newPropertyCode = '';
     this.ownerLeadPropertyCode = '';
+    this.ownerLeadPropertyAddress1 = '';
+    this.ownerLeadPropertyCity = '';
+    this.ownerLeadPropertyState = '';
+    this.ownerLeadPropertyZip = '';
     this.selectedOwnerContactId = null;
     this.propertyCodeOptions = [{ value: this.newPropertyOptionValue, label: 'New Property' }];
 
@@ -134,7 +174,8 @@ export class OwnerShellComponent implements OnInit, OnDestroy {
       this.selectedPropertyId = this.newPropertyOptionValue;
       this.newPropertyCode = String(propertyCode || '').trim().toUpperCase();
       this.refreshOwnerContactIdForContext();
-      this.loadStateFormsForToken();
+      this.loadStateFormsForContext();
+      this.rebuildOwnerAgreementContext();
       return;
     }
 
@@ -143,13 +184,13 @@ export class OwnerShellComponent implements OnInit, OnDestroy {
       this.leadOwnerId = leadOwnerId;
       if (Number.isFinite(officeId) && officeId > 0) {
         this.selectedOfficeId = officeId;
-        this.globalSelectionService.setSelectedOfficeId(officeId);
       }
       if (this.tabUsesPropertySelection(this.selectedTabIndex)) {
         this.loadPropertyCodeOptions();
       }
       this.refreshOwnerContactIdForContext();
-      this.loadStateFormsForOwner();
+      this.loadStateFormsForContext();
+      this.rebuildOwnerAgreementContext();
       return;
     }
 
@@ -180,18 +221,34 @@ export class OwnerShellComponent implements OnInit, OnDestroy {
     return [{ value: selectedOfficeId, label: fallbackLabel }, ...base];
   }
 
+  get selectedOfficeLabel(): string {
+    const selected = this.offices.find(office => office.officeId === this.selectedOfficeId);
+    if (selected) {
+      return String(selected.name || '').trim();
+    }
+    if (this.isPublicOwnerTokenContext(this.token)) {
+      return this.tokenPropertyOffice || '';
+    }
+    return '';
+  }
+
   onOfficeDropdownChange(value: string | number | null): void {
+    // Office change invalidates the owner's property options; force a reload on the next property
+    // tab visit (or immediately if already on one).
+    this.propertyContextLoaded = false;
     if (value == null || value === '') {
       this.selectedOfficeId = null;
       if (this.tabUsesPropertySelection(this.selectedTabIndex) && !this.isOwnerListMode) {
         this.loadPropertyCodeOptions();
       }
+      this.rebuildOwnerAgreementContext();
       return;
     }
     this.selectedOfficeId = Number(value);
     if (this.tabUsesPropertySelection(this.selectedTabIndex) && !this.isOwnerListMode) {
       this.loadPropertyCodeOptions();
     }
+    this.rebuildOwnerAgreementContext();
   }
 
   onPropertyCodeDropdownChange(value: string | number | null): void {
@@ -199,144 +256,86 @@ export class OwnerShellComponent implements OnInit, OnDestroy {
     this.selectedPropertyId = selected || this.newPropertyOptionValue;
     if (this.selectedPropertyId !== this.newPropertyOptionValue) {
       this.newPropertyCode = '';
+      this.propertyCodeTitleBarShowError = false;
+      // Selecting a property reloads its state-specific dynamic forms.
+      this.reloadStateFormsForSelectedProperty();
       return;
     }
     if (!this.newPropertyCode.trim() && this.ownerLeadPropertyCode.trim()) {
       this.newPropertyCode = this.ownerLeadPropertyCode;
     }
+    if (this.newPropertyCode.trim()) {
+      this.propertyCodeTitleBarShowError = false;
+    }
+    // Back to "New Property": fall back to the lead-seeded state (or generic only if unknown).
+    this.reloadStateFormsForSelectedProperty();
   }
 
   onNewPropertyCodeChange(value: string): void {
     this.newPropertyCode = String(value ?? '').toUpperCase();
+    if (this.newPropertyCode.trim()) {
+      this.propertyCodeTitleBarShowError = false;
+    }
+  }
+
+  onTitleBarPropertyCodeInvalid(): void {
+    this.propertyCodeTitleBarShowError = true;
   }
 
   onTabIndexChange(nextIndex: number): void {
     this.selectedTabIndex = nextIndex;
-    if (this.tabUsesPropertySelection(nextIndex) && !this.isOwnerListMode) {
+    // Property options/contact are loaded once per owner context (here on the first visit to a
+    // property tab, or on office/owner change). Re-loading on every switch reset the selected
+    // property and re-triggered the load overlay, which made the whole shell flash.
+    if (this.tabUsesPropertySelection(nextIndex) && !this.isOwnerListMode && !this.propertyContextLoaded) {
       this.loadPropertyCodeOptions();
       this.refreshOwnerContactIdForContext();
     }
+  }
+
+  refreshOwnerContactIdForContext(): void {
+    const token = String(this.token || '').trim() || null;
+    const ownerLeadId = Number(this.leadOwnerId);
+    const resolvedLeadOwnerId = !token && Number.isFinite(ownerLeadId) && ownerLeadId > 0 ? ownerLeadId : null;
+    if (!token && resolvedLeadOwnerId == null) {
+      this.selectedOwnerContactId = null;
+      return;
+    }
+    this.ownersService.getOwnerContactByContext(token, resolvedLeadOwnerId).pipe(take(1), catchError(() => of(null))).subscribe(ownerContact => {
+      const ownerContactId = String(ownerContact?.contactId || '').trim();
+      this.selectedOwnerContactId = ownerContactId || null;
+    });
   }
   //#endregion
 
   //#region Load Data Methods
   loadOffices(): void {
-    const organizationId = this.authService.getUser()?.organizationId?.trim() ?? '';
-    if (!organizationId && this.isPublicOwnerTokenContext(this.token)) {
-      this.loadPublicOwnerOffices();
-      return;
-    }
-    if (!organizationId) {
-      this.offices = [];
-      this.selectedOfficeId = null;
-      this.selectedOrganizationId = null;
-      this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'offices');
-      return;
-    }
-    this.selectedOrganizationId = organizationId;
+    const token = String(this.token || '').trim();
+    this.utilityService.addLoadItem(this.itemsToLoad$, 'offices');
 
-    this.ownersService.ensureOfficesLoaded(organizationId).pipe(take(1),finalize(() => {
-      this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'offices');
-    })).subscribe({
-      next: allOffices => {
-        this.offices = allOffices || [];
-        if (this.selectedOfficeId != null && this.offices.some(office => office.officeId === this.selectedOfficeId)) {
-          return;
-        }
-        const defaultOfficeId = this.authService.getUser()?.defaultOfficeId ?? null;
-        if (defaultOfficeId != null && this.offices.some(office => office.officeId === defaultOfficeId)) {
-          this.selectedOfficeId = defaultOfficeId;
-          return;
-        }
-        this.selectedOfficeId = this.offices.length === 1 ? this.offices[0].officeId : null;
-        this.applyPublicOwnerOfficeSelection();
-      },
-      error: () => {
-        this.offices = [];
-        this.selectedOfficeId = null;
-      }
-    });
+    if (token) {
+      this.loadOfficeByOwnerContext(token);
+      return;
+    }
+
+    this.loadOfficesForInternalUser();
   }
 
-  loadPublicOwnerOffices(): void {
-    const token = String(this.token || '').trim();
-    if (!token) {
-      this.offices = [];
-      this.selectedOfficeId = null;
-      this.selectedOrganizationId = null;
+  loadOfficeByOwnerContext(token: string): void {
+    combineLatest([
+      this.ownersService.getOfficeListByContext(token, null).pipe(take(1), catchError(() => of([] as OfficeResponse[]))),
+      this.ownersService.getOrganizationByContext(token).pipe(take(1), catchError(() => of(null)))
+    ]).pipe(take(1), finalize(() => {
       this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'offices');
-      return;
-    }
-
-    this.utilityService.addLoadItem(this.itemsToLoad$, 'offices');
-    // Seed office context from token-specific endpoint so child forms can bind a real officeId
-    // even when route carries only propertyOffice text (for example "Denver").
-    this.ownersService.getPublicOwnerOfficeByToken(token).pipe(take(1), catchError(() => of(null))).subscribe({
-      next: office => {
-        if (!office) {
-          return;
-        }
-        const officeId = Number(office.officeId);
-        const officeName = String(office.name || '').trim();
+    })).subscribe({
+      next: ([offices, organization]) => {
+        const office = (offices || [])[0] || null;
+        this.offices = office ? [office] : [];
+        this.selectedOrganizationId = String(organization?.organizationId || office?.organizationId || '').trim() || null;
+        const officeId = Number(office?.officeId);
         if (Number.isFinite(officeId) && officeId > 0) {
           this.selectedOfficeId = officeId;
           this.globalSelectionService.setSelectedOfficeId(officeId);
-        }
-        if (officeName) {
-          this.tokenPropertyOffice = officeName;
-        }
-        if (this.offices.length === 0) {
-          this.offices = [office];
-          const organizationId = String(office.organizationId || '').trim();
-          this.selectedOrganizationId = organizationId || null;
-          this.ownersService.setOfficesForContext(organizationId || null, this.offices);
-        }
-      },
-      error: () => {}
-    });
-
-    this.ownersService.getPublicOwnerOrganizationByToken(token).pipe(take(1),
-      switchMap(organization => {
-        const organizationId = String(organization?.organizationId || '').trim();
-        if (!organizationId) {
-          return of({ organizationId: '', offices: [] as OfficeResponse[] });
-        }
-        return this.ownersService.loadAllOffices(organizationId).pipe(
-          take(1),
-          catchError(() => of([] as OfficeResponse[])),
-          switchMap(offices => of({ organizationId, offices }))
-        );
-      }),
-      finalize(() => this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'offices'))
-    ).subscribe({
-      next: result => {
-        const organizationId = String(result?.organizationId || '').trim();
-        this.selectedOrganizationId = organizationId || null;
-        const offices = result?.offices || [];
-        this.offices = offices || [];
-        this.ownersService.setOfficesForContext(organizationId || null, this.offices);
-        if (this.offices.length > 0) {
-          this.applyPublicOwnerOfficeSelection();
-          return;
-        }
-        this.loadPublicOwnerOfficeFallback(token);
-      },
-      error: () => {
-        this.loadPublicOwnerOfficeFallback(token);
-      }
-    });
-  }
-
-  loadPublicOwnerOfficeFallback(token: string): void {
-    this.ownersService.getPublicOwnerOfficeByToken(token).pipe(take(1)).subscribe({
-      next: office => {
-        this.offices = office ? [office] : [];
-        const inferredOrganizationId = String(this.authService.getUser()?.organizationId || '').trim() || String(office?.organizationId || '').trim();
-        this.selectedOrganizationId = inferredOrganizationId || null;
-        this.ownersService.setOfficesForContext(inferredOrganizationId || null, this.offices);
-        if (office?.officeId && Number(office.officeId) > 0) {
-          this.selectedOfficeId = Number(office.officeId);
-          this.globalSelectionService.setSelectedOfficeId(Number(office.officeId));
         }
         const officeName = String(office?.name || '').trim();
         if (officeName) {
@@ -345,12 +344,45 @@ export class OwnerShellComponent implements OnInit, OnDestroy {
       },
       error: () => {
         this.offices = [];
+        this.selectedOrganizationId = null;
         this.selectedOfficeId = null;
       }
     });
   }
 
+  loadOfficesForInternalUser(): void {
+    const organizationId = this.authService.getUser()?.organizationId?.trim() ?? '';
+    if (!organizationId) {
+      this.offices = [];
+      this.selectedOfficeId = null;
+      this.selectedOrganizationId = null;
+      this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'offices');
+      return;
+    }
+    this.selectedOrganizationId = organizationId;
+    this.officesSubscription?.unsubscribe();
+    this.officesSubscription = this.ownersService.getOfficeListStreamByContext(null, organizationId).pipe(takeUntil(this.destroy$)).subscribe({
+      next: offices => {
+        this.offices = offices || [];
+        this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'offices');
+        if (this.selectedOfficeId != null && this.offices.some(office => office.officeId === this.selectedOfficeId)) {
+          return;
+        }
+        const globalOfficeId = this.globalSelectionService.getSelectedOfficeIdValue();
+        this.selectedOfficeId = globalOfficeId != null && this.offices.some(office => office.officeId === globalOfficeId)
+          ? globalOfficeId
+          : null;
+      },
+      error: () => {
+        this.offices = [];
+        this.selectedOfficeId = null;
+        this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'offices');
+      }
+    });
+  }
+
   loadPropertyCodeOptions(): void {
+    this.propertyContextLoaded = true;
     // In owner-link mode the property code comes from the token/route context and can represent
     // a brand-new property that does not exist in org property lists yet.
     // Try token-resolved property first; fall back to New Property context.
@@ -363,10 +395,7 @@ export class OwnerShellComponent implements OnInit, OnDestroy {
         return;
       }
 
-      this.ownersService.getPropertyByContext(token, null).pipe(
-        take(1),
-        catchError(() => of(null))
-      ).subscribe(property => {
+      this.ownersService.getPropertyByContext(token, null).pipe(take(1),catchError(() => of(null))).subscribe(property => {
         const propertyId = String(property?.propertyId || '').trim();
         const propertyCode = String(property?.propertyCode || '').trim().toUpperCase();
         if (propertyId) {
@@ -376,6 +405,7 @@ export class OwnerShellComponent implements OnInit, OnDestroy {
           ];
           this.selectedPropertyId = propertyId;
           this.newPropertyCode = '';
+          this.reloadStateFormsForSelectedProperty();
           return;
         }
 
@@ -395,313 +425,164 @@ export class OwnerShellComponent implements OnInit, OnDestroy {
       return;
     }
 
-    this.ownersService.getOwnerByContext(null, ownerLeadId).pipe(take(1)).subscribe({
-      next: ownerLead => {
-        if (!ownerLead) {
-          this.ownerLeadPropertyCode = '';
-          this.loadOwnerPropertyOptions(ownerLeadId);
-          return;
-        }
-        this.ownerLeadPropertyCode = String(ownerLead.propertyCode || '').trim().toUpperCase();
-        this.loadOwnerPropertyOptions(ownerLeadId);
-      },
-      error: () => {
-        this.ownerLeadPropertyCode = '';
-        this.loadOwnerPropertyOptions(ownerLeadId);
-      }
-    });
-  }
-
-  loadStateFormsForOwner(): void {
-    this.utilityService.addLoadItem(this.itemsToLoad$, 'stateForms');
-    const ownerLeadId = Number(this.leadOwnerId);
-    if (!Number.isFinite(ownerLeadId) || ownerLeadId <= 0) {
-      this.currentOwnerStateCode = '';
-      this.stateForms = [];
-      this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'stateForms');
-      return;
-    }
-
-    this.ownersService.ensureContactsLoaded().pipe(take(1)).subscribe({
-      next: contacts => {
-        const ownerStateCode = this.resolveOwnerStateCode(contacts || [], ownerLeadId);
-        this.currentOwnerStateCode = ownerStateCode;
-        const requestedStates = [this.allStatesCode, ownerStateCode]
-          .map(state => String(state || '').trim().toUpperCase())
-          .filter((state, index, array) => state.length === 2 && array.indexOf(state) === index);
-        if (requestedStates.length === 0) {
-          this.stateForms = [];
-          this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'stateForms');
-          return;
-        }
-
-        from(requestedStates).pipe(
-          concatMap(stateCode => this.ownersService.getStateFormsByContext(null, stateCode).pipe(take(1), catchError(() => of([] as StateFormResponse[])))),
-          toArray(),
-          finalize(() => this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'stateForms'))
-        ).subscribe({
-          next: responsesByState => {
-            this.stateForms = this.mapOwnerStateForms(responsesByState.flat(), ownerStateCode);
-          },
-          error: () => {
-            this.stateForms = [];
-          }
-        });
-      },
-      error: () => {
-        this.currentOwnerStateCode = '';
-        this.stateForms = [];
-        this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'stateForms');
-      }
-    });
-  }
-
-  loadStateFormsForToken(): void {
-    const token = String(this.token || '').trim();
-    if (!token) {
-      this.currentOwnerStateCode = '';
-      this.stateForms = [];
-      this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'stateForms');
-      return;
-    }
-
-    this.utilityService.addLoadItem(this.itemsToLoad$, 'stateForms');
+    // Load the owner lead (for the New Property address seed) and the owner's existing properties.
     combineLatest([
-      this.ownersService.getPublicOwnerFormByToken(token).pipe(take(1), catchError(() => of(null))),
-      this.ownersService.getOwnerContactByContext(token, null).pipe(take(1), catchError(() => of(null))),
-      this.ownersService.getPublicOwnerOrganizationByToken(token).pipe(take(1), catchError(() => of(null)))
+      this.ownersService.getOwnerByContext(null, ownerLeadId).pipe(take(1), catchError(() => of(null))),
+      this.ownersService.getOwnerContactByContext(null, ownerLeadId).pipe(take(1), catchError(() => of(null)))
+    ]).pipe(
+      take(1),
+      switchMap(([ownerLead, ownerContact]) => {
+        this.ownerLeadPropertyCode = String(ownerLead?.propertyCode || '').trim().toUpperCase();
+        this.ownerLeadPropertyAddress1 = String(ownerLead?.address || '').trim();
+        this.ownerLeadPropertyCity = String(ownerLead?.city || '').trim();
+        this.ownerLeadPropertyState = String(ownerLead?.state || '').trim().toUpperCase();
+        this.ownerLeadPropertyZip = String(ownerLead?.zip || '').trim();
+        const ownerContactId = String(ownerContact?.contactId || '').trim();
+        return this.ownersService.getOwnerPropertiesByContext(ownerContactId).pipe(take(1), catchError(() => of([] as PropertyListResponse[])));
+      })
+    ).subscribe({
+      next: properties => this.applyOwnerPropertyOptions(properties || []),
+      error: () => this.applyOwnerPropertyOptions([])
+    });
+  }
+
+  applyOwnerPropertyOptions(properties: PropertyListResponse[]): void {
+    const existingProperties = (properties || []).filter(property => String(property?.propertyId || '').trim());
+
+    const propertyOptions: SearchableSelectOption[] = existingProperties.map(property => ({
+      value: String(property.propertyId).trim(),
+      label: String(property.propertyCode || '').trim().toUpperCase() || 'Property'
+    }));
+
+    this.propertyCodeOptions = [{ value: this.newPropertyOptionValue, label: 'New Property' }, ...propertyOptions];
+
+    if (propertyOptions.length > 0) {
+      // Owner has existing properties: present them as a dropdown, preload the first, and load that
+      // property's state-specific forms on top of the generic (XX) set.
+      this.selectedPropertyId = String(propertyOptions[0].value);
+      this.newPropertyCode = '';
+      this.reloadStateFormsForSelectedProperty();
+      return;
+    }
+
+    // No existing properties: fall back to a single new-property code field seeded from the owner
+    // lead. Only the generic (XX) forms apply until a property is created.
+    this.selectedPropertyId = this.newPropertyOptionValue;
+    this.newPropertyCode = this.ownerLeadPropertyCode;
+  }
+
+  loadStateFormsForContext(): void {
+    this.utilityService.addLoadItem(this.itemsToLoad$, 'stateForms');
+    const token = String(this.token || '').trim();
+    const ownerLeadId = Number(this.leadOwnerId);
+    const contactContextToken = token || null;
+    if (!token && (!Number.isFinite(ownerLeadId) || ownerLeadId <= 0)) {
+      this.currentPropertyStateCode = '';
+      this.stateForms = [];
+      this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'stateForms');
+      return;
+    }
+    combineLatest([
+      this.ownersService.getOwnerFormByContext(contactContextToken).pipe(take(1), catchError(() => of(null))),
+      this.ownersService.getOrganizationByContext(contactContextToken).pipe(take(1), catchError(() => of(null))),
+      // In owner-link (token) mode the property is fixed by the token, so its state is known up
+      // front and loaded alongside the generic set. Internal mode resolves the property via the
+      // dropdown selection flow instead.
+      token ? this.ownersService.getPropertyByContext(token, null).pipe(take(1), catchError(() => of(null))) : of(null)
     ]).pipe(take(1)).subscribe({
-      next: ([response, ownerContact, organization]) => {
-        const ownerStateCode = String(ownerContact?.state || response?.form?.state || '').trim().toUpperCase();
-        const organizationId = String(organization?.organizationId || '').trim();
-        this.currentOwnerStateCode = ownerStateCode;
-        if (!String(this.tokenPropertyOffice || '').trim()) {
-          this.tokenPropertyOffice = String(response?.form?.propertyOffice || '').trim();
+      next: ([form, organization, tokenProperty]) => {
+        this.stateFormOrganizationId = String(organization?.organizationId || '').trim();
+        if (token && !String(this.tokenPropertyOffice || '').trim()) {
+          this.tokenPropertyOffice = String(form?.form?.propertyOffice || '').trim();
         }
-        this.applyPublicOwnerOfficeSelection();
-        const requestedStates = [this.allStatesCode, ownerStateCode]
+        // Always include the state-independent (XX) generic forms (owner agreement, direct
+        // deposit, etc.). For token mode also include the token property's state-specific forms;
+        // for internal mode property-state forms arrive later via the dropdown selection flow.
+        const tokenPropertyStateCode = String(tokenProperty?.state || '').trim().toUpperCase();
+        this.currentPropertyStateCode = tokenPropertyStateCode;
+        const requestedStates = [this.allStatesCode, tokenPropertyStateCode]
           .map(state => String(state || '').trim().toUpperCase())
           .filter((state, index, array) => state.length === 2 && array.indexOf(state) === index);
-        if (requestedStates.length === 0) {
-          this.stateForms = [];
-          this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'stateForms');
-          return;
-        }
-        from(requestedStates).pipe(
-          concatMap(state => this.ownersService.getStateFormsByContext(token, state, organizationId).pipe(take(1), catchError(() => of([] as StateFormResponse[])))),
-          toArray(),
-          finalize(() => this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'stateForms'))
-        ).subscribe({
-          next: responsesByState => {
-            const mappedStateForms = this.mapOwnerStateForms(responsesByState.flat(), ownerStateCode);
-            if ((mappedStateForms || []).length > 0) {
-              this.stateForms = mappedStateForms;
-              return;
-            }
-            this.loadStateFormsFallbackForToken(token, organizationId, requestedStates, ownerStateCode);
-          },
-          error: () => this.loadStateFormsFallbackForToken(token, organizationId, requestedStates, ownerStateCode)
-        });
+        this.loadStateFormsByRequestedStates(token || null, requestedStates, this.stateFormOrganizationId, tokenPropertyStateCode);
       },
       error: () => {
-        this.currentOwnerStateCode = '';
+        this.stateFormOrganizationId = '';
         this.stateForms = [];
-        this.toastr.error('Unable to load owner state forms for this link.', CommonMessage.Error);
+        this.toastr.error('Unable to load owner state forms.', CommonMessage.Error);
         this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'stateForms');
+      }
+    });
+  }
+
+  // Rebuilds the shared owner-agreement context observable. `defer` makes the fetch fire on the
+  // first subscription (the first form tab the user opens) reading the current selection, and
+  // `shareReplay(1)` hands the same result to every other form tab. Reassigning on selection
+  // changes forces the mounted tabs to re-subscribe and refetch with the new property/office.
+  rebuildOwnerAgreementContext(): void {
+    this.ownerAgreementContext$ = defer(() => {
+      const token = String(this.token || '').trim() || null;
+      const propertyId = this.selectedPropertyId === this.newPropertyOptionValue ? null : this.selectedPropertyId;
+      return this.ownersService.getOwnerAgreementContextByContext(token, this.leadOwnerId, propertyId, this.selectedOfficeId);
+    }).pipe(shareReplay(1));
+  }
+
+  // Triggered when a property is selected (dropdown change or single-property preload). Resolves
+  // the selected property's state, then reloads the generic (XX) forms plus that state's forms.
+  // PropertyListResponse has no state, so an existing property is fetched to read its address;
+  // a not-yet-saved "new" property falls back to the lead-seeded state.
+  reloadStateFormsForSelectedProperty(): void {
+    // The shared agreement context also depends on the selected property; refresh it so the form
+    // tabs pick up the new property/agreement data.
+    this.rebuildOwnerAgreementContext();
+    const token = String(this.token || '').trim();
+    const seededState = String(this.ownerLeadPropertyState || '').trim().toUpperCase();
+    this.utilityService.addLoadItem(this.itemsToLoad$, 'stateForms');
+
+    const propertyState$ = this.selectedPropertyId === this.newPropertyOptionValue
+      ? of(seededState)
+      : this.ownersService.getPropertyByContext(token || null, this.selectedPropertyId).pipe(
+          take(1),
+          map(property => String(property?.state || seededState).trim().toUpperCase()),
+          catchError(() => of(seededState))
+        );
+
+    propertyState$.pipe(take(1)).subscribe(propertyStateCode => {
+      this.currentPropertyStateCode = propertyStateCode;
+      const requestedStates = [this.allStatesCode, propertyStateCode]
+        .map(state => String(state || '').trim().toUpperCase())
+        .filter((state, index, array) => state.length === 2 && array.indexOf(state) === index);
+      this.loadStateFormsByRequestedStates(token || null, requestedStates, this.stateFormOrganizationId, propertyStateCode);
+    });
+  }
+
+  loadStateFormsByRequestedStates(token: string | null, requestedStates: string[], organizationId: string, preferredStateCode: string): void {
+    // Guard against out-of-order completion: the generic (XX) load and a property-state reload
+    // can be in flight together, so only the most recently requested load applies its result.
+    const requestId = ++this.stateFormsRequestId;
+    from(requestedStates).pipe(
+      concatMap(stateCode => this.ownersService.getStateFormsByContext(token, stateCode, organizationId).pipe(take(1), catchError(() => of([] as StateFormResponse[])))),
+      toArray(),finalize(() => this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'stateForms'))).subscribe({
+      next: responsesByState => {
+        if (requestId !== this.stateFormsRequestId) {
+          return;
+        }
+        this.stateForms = this.mapOwnerStateForms(responsesByState.flat(), preferredStateCode);
+        if ((this.stateForms || []).length === 0) {
+          this.toastr.error('Unable to load owner state forms.', CommonMessage.Error);
+        }
+      },
+      error: () => {
+        if (requestId !== this.stateFormsRequestId) {
+          return;
+        }
+        this.stateForms = [];
+        this.toastr.error('Unable to load owner state forms.', CommonMessage.Error);
       }
     });
   }
   //#endregion
 
-  private loadStateFormsFallbackForToken(token: string, organizationId: string, requestedStates: string[], ownerStateCode: string): void {
-    // Fallback: retry public token endpoint with explicit organization context.
-    from(requestedStates).pipe(
-      concatMap(stateCode => this.ownersService.getStateFormsByContext(token, stateCode, organizationId).pipe(take(1), catchError(() => of([] as StateFormResponse[])))),
-      toArray()
-    ).subscribe({
-      next: responsesByState => {
-        this.stateForms = this.mapOwnerStateForms(responsesByState.flat(), ownerStateCode);
-        if ((this.stateForms || []).length === 0) {
-          this.toastr.error('Unable to load owner state forms for this link.', CommonMessage.Error);
-        }
-      },
-      error: () => {
-        this.stateForms = [];
-        this.toastr.error('Unable to load owner state forms for this link.', CommonMessage.Error);
-      }
-    });
-  }
-
-  loadOwnerPropertyOptions(ownerLeadId: number): void {
-    this.ownersService.getContacts().pipe(take(1)).subscribe({
-      next: contacts => {
-        const ownerContact = (contacts || []).find(contact =>
-          Number(contact.entityTypeId) === Number(EntityType.Owner) &&
-          Number(contact.ownerLeadId) === ownerLeadId
-        );
-        const ownerContactId = String(ownerContact?.contactId || '').trim();
-        this.selectedOwnerContactId = ownerContactId || null;
-        if (!ownerContactId) {
-          this.selectedPropertyId = this.newPropertyOptionValue;
-          this.newPropertyCode = this.ownerLeadPropertyCode;
-          return;
-        }
-
-        this.ownersService.getPropertiesByOwner(ownerContactId).pipe(take(1)).subscribe({
-          next: properties => {
-            const scopedOfficeId = Number(this.selectedOfficeId);
-            const filtered = (properties || []).filter(property =>
-              property.isActive &&
-              String(property.propertyId || '').trim() !== '' &&
-              (!Number.isFinite(scopedOfficeId) || scopedOfficeId <= 0 || Number(property.officeId) === scopedOfficeId)
-            );
-            const rows = filtered.sort((a, b) => String(a.propertyCode || '').localeCompare(String(b.propertyCode || ''))).map(property => ({
-              value: String(property.propertyId),
-              label: String(property.propertyCode || '').trim() || 'Unnamed Property'
-            }));
-
-            this.propertyCodeOptions = [{ value: this.newPropertyOptionValue, label: 'New Property' }, ...rows];
-            if (this.ownerLeadPropertyCode) {
-              const normalizedLeadPropertyCode = String(this.ownerLeadPropertyCode || '').trim().toUpperCase();
-              const matchingProperty = filtered.find(property =>
-                String(property.propertyCode || '').trim().toUpperCase() === normalizedLeadPropertyCode
-              );
-              if (matchingProperty && String(matchingProperty.propertyId || '').trim()) {
-                this.selectedPropertyId = String(matchingProperty.propertyId);
-                this.newPropertyCode = '';
-                return;
-              }
-              this.selectedPropertyId = this.newPropertyOptionValue;
-              this.newPropertyCode = normalizedLeadPropertyCode;
-              return;
-            }
-            if (rows.length > 0) {
-              this.selectedPropertyId = String(rows[0].value);
-              this.newPropertyCode = '';
-              return;
-            }
-            this.selectedPropertyId = this.newPropertyOptionValue;
-            this.newPropertyCode = '';
-          },
-          error: () => {
-            this.propertyCodeOptions = [{ value: this.newPropertyOptionValue, label: 'New Property' }];
-            this.selectedPropertyId = this.newPropertyOptionValue;
-            this.newPropertyCode = this.ownerLeadPropertyCode;
-          }
-        });
-      },
-      error: () => {
-        this.selectedOwnerContactId = null;
-        this.propertyCodeOptions = [{ value: this.newPropertyOptionValue, label: 'New Property' }];
-        this.selectedPropertyId = this.newPropertyOptionValue;
-        this.newPropertyCode = this.ownerLeadPropertyCode;
-      }
-    });
-  }
-
-  refreshOwnerContactIdForContext(): void {
-    const token = String(this.token || '').trim();
-    if (token) {
-      this.ownersService.getOwnerContactByContext(token, null).pipe(
-        take(1),
-        catchError(() => of(null))
-      ).subscribe(contact => {
-        const contactId = String(contact?.contactId || '').trim();
-        this.selectedOwnerContactId = contactId || null;
-      });
-      return;
-    }
-
-    const ownerLeadId = Number(this.leadOwnerId);
-    if (!Number.isFinite(ownerLeadId) || ownerLeadId <= 0) {
-      this.selectedOwnerContactId = null;
-      return;
-    }
-
-    this.ownersService.getContacts().pipe(take(1), catchError(() => of([] as ContactResponse[]))).subscribe(contacts => {
-      const ownerContact = (contacts || []).find(contact =>
-        Number(contact.entityTypeId) === Number(EntityType.Owner) &&
-        Number(contact.ownerLeadId) === ownerLeadId
-      );
-      const ownerContactId = String(ownerContact?.contactId || '').trim();
-      this.selectedOwnerContactId = ownerContactId || null;
-    });
-  }
-
-  //#region Utility Methods
-  tabUsesPropertySelection(tabIndex: number): boolean {
-    return tabIndex >= 1;
-  }
-
-  isPublicOwnerTokenContext(token: string): boolean {
-    const hasToken = String(token || '').trim().length > 0;
-    return hasToken && !this.authService.getIsLoggedIn();
-  }
-
-  isOwnerLinkMode(): boolean {
-    return String(this.token || '').trim().length > 0;
-  }
-
-  applyPublicOwnerOfficeSelection(): void {
-    if (!this.isPublicOwnerTokenContext(this.token)) {
-      return;
-    }
-
-    const selectedOfficeId = Number(this.selectedOfficeId);
-    if (Number.isFinite(selectedOfficeId) && selectedOfficeId > 0 && this.offices.some(office => office.officeId === selectedOfficeId)) {
-      this.globalSelectionService.setSelectedOfficeId(selectedOfficeId);
-      return;
-    }
-
-    const officeName = String(this.tokenPropertyOffice || '').trim().toLowerCase();
-    if (officeName) {
-      const exactMatch = this.offices.find(office => String(office.name || '').trim().toLowerCase() === officeName);
-      if (exactMatch) {
-        this.selectedOfficeId = exactMatch.officeId;
-        this.tokenPropertyOffice = String(exactMatch.name || '').trim();
-        this.globalSelectionService.setSelectedOfficeId(exactMatch.officeId);
-        return;
-      }
-      const partialMatch = this.offices.find(office => String(office.name || '').trim().toLowerCase().includes(officeName));
-      if (partialMatch) {
-        this.selectedOfficeId = partialMatch.officeId;
-        this.tokenPropertyOffice = String(partialMatch.name || '').trim();
-        this.globalSelectionService.setSelectedOfficeId(partialMatch.officeId);
-        return;
-      }
-    }
-
-    if (this.offices.length === 1) {
-      this.selectedOfficeId = this.offices[0].officeId;
-      this.tokenPropertyOffice = String(this.offices[0].name || '').trim();
-      this.globalSelectionService.setSelectedOfficeId(this.offices[0].officeId);
-    }
-  }
-
-  get selectedOfficeLabel(): string {
-    const selected = this.offices.find(office => office.officeId === this.selectedOfficeId);
-    if (selected) {
-      return String(selected.name || '').trim();
-    }
-    if (this.isPublicOwnerTokenContext(this.token)) {
-      return this.tokenPropertyOffice || '';
-    }
-    return '';
-  }
-
-  onBackToOwnerList(): void {
-    this.selectedOfficeId = this.globalSelectionService.getSelectedOfficeIdValue();
-    void this.router.navigateByUrl(RouterUrl.OwnerShell);
-  }
-
-  resolveOwnerStateCode(contacts: ContactResponse[], ownerLeadId: number): string {
-    const ownerContact = (contacts || []).find(contact =>
-      Number(contact.entityTypeId) === Number(EntityType.Owner) &&
-      Number(contact.ownerLeadId) === ownerLeadId
-    );
-    return String(ownerContact?.state || '').trim().toUpperCase();
-  }
-
+  //#region State Form Methods
   mapOwnerStateForms(forms: StateFormResponse[], ownerStateCode: string): StateFormResponse[] {
     const normalizedOwnerState = String(ownerStateCode || '').trim().toUpperCase();
     const uniqueByFormName = new Map<string, StateFormResponse>();
@@ -767,10 +648,18 @@ export class OwnerShellComponent implements OnInit, OnDestroy {
       editedHtml: current?.editedHtml || null
     };
   }
+  //#endregion
 
+  //#region Utility Methods
+  onBackToOwnerList(): void {
+    this.selectedOfficeId = this.globalSelectionService.getSelectedOfficeIdValue();
+    void this.router.navigateByUrl(RouterUrl.OwnerShell);
+  }
+  
   ngOnDestroy(): void {
     this.navigationContextService.setIsInOwnerMode(false);
     this.navigationContextService.setIsInUnauthorizedViewMode(false);
+    this.officesSubscription?.unsubscribe();
     this.destroy$.next();
     this.destroy$.complete();
     this.itemsToLoad$.complete();

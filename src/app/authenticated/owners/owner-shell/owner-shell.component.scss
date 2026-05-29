@@ -14,9 +14,29 @@
   box-sizing: border-box;
 }
 
-/* Keep a consistent visual gap below the tab labels for all owner-shell tabs. */
+/* Consistent visual gap below the tab labels for all owner-shell tabs.
+   (The owner-shell tab layout standard lives globally in styles.scss under `.owner-shell-tabs`.) */
 :host ::ng-deep .owner-shell-tabs .mat-mdc-tab-body-content {
   padding-top: 30px;
+}
+
+/* Keep the card and tab group at full width so tab content can't resize them (mirrors property shell). */
+:host ::ng-deep section.content-card {
+  min-width: 0;
+  box-sizing: border-box;
+
+  > mat-card {
+    width: 100% !important;
+    max-width: 100%;
+    min-width: 0;
+    box-sizing: border-box;
+  }
+
+  .owner-shell-tabs {
+    width: 100% !important;
+    min-width: 0;
+    max-width: 100%;
+  }
 }
 
 /* Keep owner-shell accordion body padding aligned with global panel body spacing. */
@@ -134,6 +154,22 @@
   display: flex;
   align-items: center;
   gap: 0.5rem;
+}
+
+/* Required property-code title-bar field flagged red on save validation. */
+:host ::ng-deep .titlebar-field--error .mdc-notched-outline__leading,
+:host ::ng-deep .titlebar-field--error .mdc-notched-outline__notch,
+:host ::ng-deep .titlebar-field--error .mdc-notched-outline__trailing {
+  border-color: var(--mat-sys-error, #ba1a1a) !important;
+}
+
+:host ::ng-deep .titlebar-field--error .mat-mdc-form-field-label,
+:host ::ng-deep .titlebar-field--error .mdc-floating-label {
+  color: var(--mat-sys-error, #ba1a1a) !important;
+}
+
+.titlebar-field-error-text {
+  color: var(--mat-sys-error, #ba1a1a) !important;
 }
 
 /* Pull embedded contact form content closer to owner heading in Basic Information. */
