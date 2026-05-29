@@ -2,7 +2,7 @@ import { BreakpointObserver, Breakpoints } from '@angular/cdk/layout';
 import { CommonModule } from '@angular/common';
 import { Component, OnDestroy, OnInit } from '@angular/core';
 import { MatDialog } from '@angular/material/dialog';
-import { Observable, Subject, Subscription, filter, map, shareReplay, take, takeUntil } from 'rxjs';
+import { Observable, Subject, Subscription, map, shareReplay, take, takeUntil } from 'rxjs';
 import { environment } from '../../../../../environments/environment';
 import { MaterialModule } from '../../../../material.module';
 import { JwtUser } from '../../../../public/login/models/jwt';
@@ -40,13 +40,13 @@ export class HeaderComponent implements OnInit, OnDestroy {
   isSidebarExpanded = true;
   offices: OfficeResponse[] = [];
   selectedGlobalOfficeId: number | null = null;
+  organizationId = '';
   private userDefaultOfficeId: number | null = null;
 
   // Profile picture properties
   profilePictureUrl: string | null = null;
   destroy$ = new Subject<void>();
   private userSubscription?: Subscription;
-  private officesSubscription?: Subscription;
 
   constructor(
     private authService: AuthService,
@@ -62,6 +62,7 @@ export class HeaderComponent implements OnInit, OnDestroy {
   ) { }
   
   ngOnInit(): void {
+    this.organizationId = this.authService.getUser()?.organizationId?.trim() ?? '';
     // Stay in sync with global office selection (e.g. when app initializes from user default)
     this.globalSelectionService.getSelectedOfficeId$().pipe(takeUntil(this.destroy$)).subscribe(id => {
       this.selectedGlobalOfficeId = id;
@@ -78,7 +79,6 @@ export class HeaderComponent implements OnInit, OnDestroy {
     this.destroy$.next();
     this.destroy$.complete();
     this.userSubscription?.unsubscribe();
-    this.officesSubscription?.unsubscribe();
   }
   
   loadUserProfilePicture(): void {
@@ -167,9 +167,8 @@ export class HeaderComponent implements OnInit, OnDestroy {
   }
 
   loadGlobalOfficeOptions(): void {
-    this.officeService.areOfficesLoaded().pipe(filter(loaded => loaded === true), take(1)).subscribe(() => {
-      this.officesSubscription?.unsubscribe();
-      this.officesSubscription = this.officeService.getAllOffices().subscribe(allOffices => {
+    this.officeService.ensureOfficesLoaded(this.organizationId).pipe(take(1)).subscribe(() => {
+      this.officeService.getAllOffices().pipe(takeUntil(this.destroy$)).subscribe(allOffices => {
         if (this.authService.isLoggingOut() || !this.authService.getIsLoggedIn()) {
           this.offices = [];
           this.selectedGlobalOfficeId = null;

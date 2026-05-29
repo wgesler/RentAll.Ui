@@ -402,21 +402,23 @@ export class ReservationShellComponent implements OnInit, AfterViewInit, OnDestr
   loadOffices(): void {
     this.globalSelectionService.ensureOfficeScope(this.organizationId, this.preferredOfficeId).pipe(take(1), finalize(() => { this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'offices'); })).subscribe({
       next: () => {
-        this.offices = this.officeService.getAllOfficesValue() || [];
-        this.availableOffices = this.mappingService.mapOfficesToDropdown(this.offices);
-        if (this.selectedOfficeId != null) {
-          this.resolveOfficeScope(this.selectedOfficeId);
-          this.showOfficeDropdown = this.offices.length > 1;
-          this.refreshHeaderReservationOptions();
-          return;
-        }
-        this.globalSelectionService.getOfficeUiState$(this.offices, { explicitOfficeId: this.selectedOfficeId, useGlobalSelection: false, requireExplicitOfficeUnset: true }).pipe(take(1)).subscribe({
-          next: uiState => {
-            this.showOfficeDropdown = uiState.showOfficeDropdown;
-            this.selectedOfficeId = uiState.selectedOfficeId;
+        this.officeService.getAllOffices().pipe(takeUntil(this.destroy$)).subscribe(offices => {
+          this.offices = offices || [];
+          this.availableOffices = this.mappingService.mapOfficesToDropdown(this.offices);
+          if (this.selectedOfficeId != null) {
             this.resolveOfficeScope(this.selectedOfficeId);
+            this.showOfficeDropdown = this.offices.length > 1;
             this.refreshHeaderReservationOptions();
+            return;
           }
+          this.globalSelectionService.getOfficeUiState$(this.offices, { explicitOfficeId: this.selectedOfficeId, useGlobalSelection: false, requireExplicitOfficeUnset: true }).pipe(take(1)).subscribe({
+            next: uiState => {
+              this.showOfficeDropdown = uiState.showOfficeDropdown;
+              this.selectedOfficeId = uiState.selectedOfficeId;
+              this.resolveOfficeScope(this.selectedOfficeId);
+              this.refreshHeaderReservationOptions();
+            }
+          });
         });
       },
       error: () => {

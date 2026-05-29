@@ -1,5 +1,5 @@
 import { Directive, OnDestroy, OnInit } from '@angular/core';
-import { BehaviorSubject, Subscription, finalize, map, skip, switchMap, take } from 'rxjs';
+import { BehaviorSubject, Subject, Subscription, finalize, map, skip, switchMap, take, takeUntil } from 'rxjs';
 import { JwtUser } from '../../../public/login/models/jwt';
 import { AuthService } from '../../../services/auth.service';
 import { MixedMappingService } from '../../../services/mixed-mapping.service';
@@ -24,6 +24,7 @@ export class PropertyMaintenanceBase implements OnInit, OnDestroy {
 
   user: JwtUser | null = null;
   globalOfficeSubscription?: Subscription;
+  protected destroy$ = new Subject<void>();
 
   // Should not be used by derived classes. 
   private reservationList: ReservationListDisplay[] = [];
@@ -103,6 +104,8 @@ export class PropertyMaintenanceBase implements OnInit, OnDestroy {
   }
 
   ngOnDestroy(): void {
+    this.destroy$.next();
+    this.destroy$.complete();
     this.globalOfficeSubscription?.unsubscribe();
   }
   //#endregion
@@ -172,12 +175,14 @@ export class PropertyMaintenanceBase implements OnInit, OnDestroy {
 
   //#region Data Loading Methods
    loadOffices(): void {
-    this.globalSelectionService.ensureOfficeScope(this.organizationId, this.preferredOfficeId).pipe(take(1), switchMap(() => {
-      this.offices = this.officeService.getAllOfficesValue() || [];
-      return this.globalSelectionService.getOfficeUiState$(this.offices, { explicitOfficeId: null, requireExplicitOfficeUnset: false }).pipe(take(1));
-    }), finalize(() => { this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'offices'); })).subscribe({
-      next: uiState => {
-        this.resolveOfficeScope(uiState.selectedOfficeId);
+    this.globalSelectionService.ensureOfficeScope(this.organizationId, this.preferredOfficeId).pipe(take(1), finalize(() => { this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'offices'); })).subscribe({
+      next: () => {
+        this.officeService.getAllOffices().pipe(takeUntil(this.destroy$)).subscribe(offices => {
+          this.offices = offices || [];
+          this.globalSelectionService.getOfficeUiState$(this.offices, { explicitOfficeId: null, requireExplicitOfficeUnset: false }).pipe(take(1)).subscribe(uiState => {
+            this.resolveOfficeScope(uiState.selectedOfficeId);
+          });
+        });
       },
       error: () => {
         this.offices = [];

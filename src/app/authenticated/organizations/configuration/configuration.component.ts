@@ -3,7 +3,7 @@ import { HttpErrorResponse } from '@angular/common/http';
 import { Component, OnDestroy, OnInit, ViewChild } from '@angular/core';
 import { FormsModule, ReactiveFormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
-import { take } from 'rxjs';
+import { Subject, take, takeUntil } from 'rxjs';
 import { RouterUrl } from '../../../app.routes';
 import { MaterialModule } from '../../../material.module';
 import { AuthService } from '../../../services/auth.service';
@@ -123,6 +123,9 @@ export class ConfigurationComponent implements OnInit, OnDestroy {
 
   currentUserOrganizationId: string | null = null;
 
+  private settingsOfficesInitialized = false;
+  destroy$ = new Subject<void>();
+
   constructor(
     private router: Router,
     private navigationContext: NavigationContextService,
@@ -184,17 +187,23 @@ export class ConfigurationComponent implements OnInit, OnDestroy {
       return;
     }
 
+    this.settingsOfficesInitialized = false;
     this.globalSelectionService.ensureOfficeScope(organizationId, null).pipe(take(1)).subscribe({
       next: (selectedOfficeId) => {
-        this.offices = (this.officeService.getAllOfficesValue() || []).filter(office => office.isActive);
-        if (this.offices.length === 1) {
-          this.selectedCostCodesOfficeId = this.offices[0].officeId;
-          this.globalSelectionService.setSelectedOfficeId(this.selectedCostCodesOfficeId);
-          return;
-        }
-
-        const hasSelectedOffice = this.selectedCostCodesOfficeId != null && this.offices.some(office => office.officeId === this.selectedCostCodesOfficeId);
-        this.selectedCostCodesOfficeId = hasSelectedOffice ? this.selectedCostCodesOfficeId : selectedOfficeId;
+        this.officeService.getAllOffices().pipe(takeUntil(this.destroy$)).subscribe(offices => {
+          this.offices = (offices || []).filter(office => office.isActive);
+          if (this.settingsOfficesInitialized) {
+            return;
+          }
+          this.settingsOfficesInitialized = true;
+          if (this.offices.length === 1) {
+            this.selectedCostCodesOfficeId = this.offices[0].officeId;
+            this.globalSelectionService.setSelectedOfficeId(this.selectedCostCodesOfficeId);
+            return;
+          }
+          const hasSelectedOffice = this.selectedCostCodesOfficeId != null && this.offices.some(office => office.officeId === this.selectedCostCodesOfficeId);
+          this.selectedCostCodesOfficeId = hasSelectedOffice ? this.selectedCostCodesOfficeId : selectedOfficeId;
+        });
       },
       error: () => {
         this.offices = [];
@@ -476,6 +485,8 @@ export class ConfigurationComponent implements OnInit, OnDestroy {
   }
   
   ngOnDestroy(): void {
+    this.destroy$.next();
+    this.destroy$.complete();
     this.navigationContext.clearContext();
   }
   //#endregion

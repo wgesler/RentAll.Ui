@@ -50,6 +50,7 @@ export class TrackerComponent implements OnInit, OnDestroy, OnChanges {
   originalOptions: TrackerDefinitionOptionResponse[] = [];
   form: FormGroup;
 
+  organizationId = '';
   offices: OfficeResponse[] = [];
   availableOffices: { value: number, name: string }[] = [];
   trackerContextOptions: { value: TrackerContextType, label: string }[] = [];
@@ -71,6 +72,7 @@ export class TrackerComponent implements OnInit, OnDestroy, OnChanges {
 
   //#region Tracker
   ngOnInit(): void {
+    this.organizationId = this.authService.getUser()?.organizationId?.trim() ?? '';
     this.loadOffices();
     this.loadTrackerContextOptions();
 
@@ -178,12 +180,11 @@ export class TrackerComponent implements OnInit, OnDestroy, OnChanges {
 
   //#region Data Loading Methods
   loadOffices(): void {
-    this.officeService.areOfficesLoaded().pipe(filter(loaded => loaded === true), take(1)).subscribe(() => {
+    this.officeService.ensureOfficesLoaded(this.organizationId).pipe(take(1), finalize(() => this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'offices'))).subscribe(() => {
       this.officeService.getAllOffices().pipe(takeUntil(this.destroy$)).subscribe(offices => {
         this.offices = offices || [];
         this.availableOffices = this.mappingService.mapOfficesToDropdown(this.offices);
       });
-      this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'offices');
     });
   }
 

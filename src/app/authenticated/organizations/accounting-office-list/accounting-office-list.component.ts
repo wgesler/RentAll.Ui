@@ -4,10 +4,11 @@ import { Component, EventEmitter, Input, OnDestroy, OnInit, Output } from '@angu
 import { FormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
 import { ToastrService } from 'ngx-toastr';
-import { BehaviorSubject, Observable, Subject, filter, finalize, map, take, takeUntil } from 'rxjs';
+import { BehaviorSubject, Observable, Subject, finalize, map, take, takeUntil } from 'rxjs';
 import { RouterUrl } from '../../../app.routes';
 import { CommonMessage } from '../../../enums/common-message.enum';
 import { MaterialModule } from '../../../material.module';
+import { AuthService } from '../../../services/auth.service';
 import { FormatterService } from '../../../services/formatter-service';
 import { MappingService } from '../../../services/mapping.service';
 import { UtilityService } from '../../../services/utility.service';
@@ -35,6 +36,7 @@ export class AccountingOfficeListComponent implements OnInit, OnDestroy {
   isServiceError: boolean = false;
   showInactive: boolean = false;
 
+  organizationId = '';
   offices: OfficeResponse[] = [];
   availableOffices: { value: number, name: string }[] = [];
   selectedOffice: OfficeResponse | null = null;
@@ -61,6 +63,7 @@ export class AccountingOfficeListComponent implements OnInit, OnDestroy {
     public toastr: ToastrService,
     public router: Router,
     public formatterService: FormatterService,
+    private authService: AuthService,
     private officeService: OfficeService,
     private mappingService: MappingService,
     private utilityService: UtilityService) {
@@ -68,6 +71,7 @@ export class AccountingOfficeListComponent implements OnInit, OnDestroy {
 
   //#region Office-List
   ngOnInit(): void {
+    this.organizationId = this.authService.getUser()?.organizationId?.trim() ?? '';
     // Wait for offices to load before loading accounting offices
     this.loadOffices();
   }
@@ -139,10 +143,9 @@ export class AccountingOfficeListComponent implements OnInit, OnDestroy {
 
   //#region Data Load Methods
   loadOffices(): void {
-    this.officeService.areOfficesLoaded().pipe(filter(loaded => loaded === true), take(1)).subscribe(() => {
+    this.officeService.ensureOfficesLoaded(this.organizationId).pipe(take(1), finalize(() => this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'offices'))).subscribe(() => {
       this.officeService.getAllOffices().pipe(takeUntil(this.destroy$)).subscribe(offices => {
         this.offices = offices || [];
-        this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'offices');
         if (!this.offices.length) {
           this.allAccountingOffices = [];
           this.accountingOfficesDisplay = [];

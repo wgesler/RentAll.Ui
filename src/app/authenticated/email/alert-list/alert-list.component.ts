@@ -156,13 +156,15 @@ export class AlertListComponent implements OnInit, OnChanges, OnDestroy {
   loadOffices(): void {
     this.globalSelectionService.ensureOfficeScope(this.organizationId || '', this.preferredOfficeId).pipe(take(1)).subscribe({
       next: () => {
-        this.offices = this.officeService.getAllOfficesValue() || [];
-        this.allAlerts = this.mappingService.mapAlertOfficeNames(this.allAlerts, this.offices);
-        this.globalSelectionService.getOfficeUiState$(this.offices, { explicitOfficeId: this.officeId, useGlobalSelection: true }).pipe(take(1)).subscribe({
-          next: uiState => {
-            this.showOfficeDropdown = uiState.showOfficeDropdown;
-            this.resolveOfficeScope(uiState.selectedOfficeId, this.officeId === null || this.officeId === undefined);
-          }
+        this.officeService.getAllOffices().pipe(takeUntil(this.destroy$)).subscribe(offices => {
+          this.offices = offices || [];
+          this.allAlerts = this.mappingService.mapAlertOfficeNames(this.allAlerts, this.offices);
+          this.globalSelectionService.getOfficeUiState$(this.offices, { explicitOfficeId: this.officeId, useGlobalSelection: true }).pipe(take(1)).subscribe({
+            next: uiState => {
+              this.showOfficeDropdown = uiState.showOfficeDropdown;
+              this.resolveOfficeScope(uiState.selectedOfficeId, this.officeId === null || this.officeId === undefined);
+            }
+          });
         });
       },
       error: () => {

@@ -647,15 +647,17 @@ export class DocumentListComponent implements OnInit, OnDestroy, OnChanges {
   loadOffices(): void {
     this.globalSelectionService.ensureOfficeScope(this.organizationId || '', this.preferredOfficeId).pipe(take(1)).subscribe({
       next: () => {
-        this.offices = this.officeService.getAllOfficesValue() || [];
-        this.globalSelectionService.getOfficeUiState$(this.offices, { explicitOfficeId: this.officeId, disableSingleOfficeRule: this.source === 'invoice', requireExplicitOfficeUnset: true }).pipe(take(1)).subscribe({
-          next: uiState => {
-            this.resolveOfficeScope(uiState.selectedOfficeId, this.officeId === null || this.officeId === undefined);
-            if (this.selectedOfficeId !== null && !this.offices.some(o => o.officeId === this.selectedOfficeId)) {
-              this.resolveOfficeScope(null, true);
+        this.officeService.getAllOffices().pipe(takeUntil(this.destroy$)).subscribe(offices => {
+          this.offices = offices || [];
+          this.globalSelectionService.getOfficeUiState$(this.offices, { explicitOfficeId: this.officeId, disableSingleOfficeRule: this.source === 'invoice', requireExplicitOfficeUnset: true }).pipe(take(1)).subscribe({
+            next: uiState => {
+              this.resolveOfficeScope(uiState.selectedOfficeId, this.officeId === null || this.officeId === undefined);
+              if (this.selectedOfficeId !== null && !this.offices.some(o => o.officeId === this.selectedOfficeId)) {
+                this.resolveOfficeScope(null, true);
+              }
+              this.showOfficeDropdown = uiState.showOfficeDropdown;
             }
-            this.showOfficeDropdown = uiState.showOfficeDropdown;
-          }
+          });
         });
       },
       error: () => {

@@ -4,7 +4,7 @@ import { AbstractControl, FormBuilder, FormControl, FormGroup, FormsModule, Reac
 import { MAT_DIALOG_DATA, MatDialogRef } from '@angular/material/dialog';
 import { ActivatedRoute, Router } from '@angular/router';
 import { ToastrService } from 'ngx-toastr';
-import { BehaviorSubject, Observable, Subject, filter, finalize, forkJoin, map, take, takeUntil } from 'rxjs';
+import { BehaviorSubject, Observable, Subject, finalize, forkJoin, map, take, takeUntil } from 'rxjs';
 import { RouterUrl } from '../../../app.routes';
 import { CommonMessage, CommonTimeouts } from '../../../enums/common-message.enum';
 import { MaterialModule } from '../../../material.module';
@@ -68,6 +68,7 @@ export class UserComponent implements OnInit, OnDestroy {
   availableAgents: { value: string, label: string }[] = [];
   isPopulatingUserForm: boolean = false;
   isPrivilegedOfficeEditor: boolean = false;
+  organizationId = '';
   
   // Profile picture properties
   isUploadingProfilePicture: boolean = false;
@@ -109,6 +110,7 @@ export class UserComponent implements OnInit, OnDestroy {
 
   //#region User
   ngOnInit(): void {
+    this.organizationId = this.authService.getUser()?.organizationId?.trim() ?? '';
     this.isPrivilegedOfficeEditor = this.hasRole(UserGroups.Admin) || this.hasRole(UserGroups.SuperAdmin);
     this.initializeUserGroups();
     this.initializeStartupPages();
@@ -394,7 +396,7 @@ export class UserComponent implements OnInit, OnDestroy {
   }
 
   loadOffices(): void {
-    this.officeService.areOfficesLoaded().pipe(filter(loaded => loaded === true), take(1)).subscribe(() => {
+    this.officeService.ensureOfficesLoaded(this.organizationId).pipe(take(1)).subscribe(() => {
       this.officeService.getAllOffices().pipe(takeUntil(this.destroy$)).subscribe(offices => {
         this.offices = offices || [];
         this.availableOffices = this.mappingService.mapOfficesToDropdown(this.offices);

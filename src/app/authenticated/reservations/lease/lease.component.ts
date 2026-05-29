@@ -90,6 +90,7 @@ export class LeaseComponent extends BaseDocumentComponent implements OnInit, OnD
   offices: OfficeResponse[] = [];
   availableOffices: { value: number, name: string }[] = [];
   selectedOffice: OfficeResponse | null = null;
+  private officesInitialized = false;
   accountingOffices: AccountingOfficeResponse[] = [];
   buildings: BuildingResponse[] = [];
 
@@ -624,27 +625,29 @@ export class LeaseComponent extends BaseDocumentComponent implements OnInit, OnD
   }
 
   loadOffices(): void {
-    this.globalSelectionService.ensureOfficeScope(this.organizationId, this.preferredOfficeId).pipe(take(1), finalize(() => {
-      this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'offices');
-      this.markLogoSourceLoaded('offices');
-    })).subscribe({
+    this.globalSelectionService.ensureOfficeScope(this.organizationId, this.preferredOfficeId).pipe(take(1), finalize(() => { this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'offices'); this.markLogoSourceLoaded('offices'); })).subscribe({
       next: () => {
-        this.offices = this.officeService.getAllOfficesValue() || [];
-        this.availableOffices = this.mappingService.mapOfficesToDropdown(this.offices);
-        if (this.officeId !== null && this.officeId !== undefined) {
-          this.selectedOffice = this.offices.find(o => o.officeId === this.officeId) || null;
-          if (this.selectedOffice) {
-            this.form.patchValue({ selectedOfficeId: this.selectedOffice.officeId });
-            this.filterReservations();
+        this.officeService.getAllOffices().pipe(takeUntil(this.destroy$)).subscribe(offices => {
+          this.offices = offices || [];
+          this.availableOffices = this.mappingService.mapOfficesToDropdown(this.offices);
+          if (!this.officesInitialized) {
+            this.officesInitialized = true;
+            if (this.officeId !== null && this.officeId !== undefined) {
+              this.selectedOffice = this.offices.find(o => o.officeId === this.officeId) || null;
+              if (this.selectedOffice) {
+                this.form.patchValue({ selectedOfficeId: this.selectedOffice.officeId });
+                this.filterReservations();
+              }
+            } else if (this.selectedReservation?.officeId) {
+              this.selectedOffice = this.offices.find(o => o.officeId === this.selectedReservation.officeId) || null;
+              this.form.patchValue({ selectedOfficeId: this.selectedOffice?.officeId });
+              this.filterReservations();
+            } else if (this.reservationId && this.offices.length > 0) {
+              // If coming from reservation but no reservation loaded yet, try to find office from reservationId
+              // This will be handled when reservation loads
+            }
           }
-        } else if (this.selectedReservation?.officeId) {
-          this.selectedOffice = this.offices.find(o => o.officeId === this.selectedReservation.officeId) || null;
-          this.form.patchValue({ selectedOfficeId: this.selectedOffice?.officeId });
-          this.filterReservations();
-        } else if (this.reservationId && this.offices.length > 0) {
-          // If coming from reservation but no reservation loaded yet, try to find office from reservationId
-          // This will be handled when reservation loads
-        }
+        });
       },
       error: () => {
         this.offices = [];

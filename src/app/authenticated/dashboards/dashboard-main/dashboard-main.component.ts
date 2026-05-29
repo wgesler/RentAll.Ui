@@ -40,7 +40,6 @@ import { PropertyLeaseType } from '../../properties/models/property-enums';
     styleUrl: './dashboard-main.component.scss'
 })
 export class DashboardMainComponent extends PropertyMaintenanceBase implements OnInit, OnDestroy {
-  destroy$ = new Subject<void>();
   profilePictureUrl: string | null = null;
   todayDate = '';
   isAdmin: boolean = false;

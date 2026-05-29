@@ -60,6 +60,7 @@ export class AccountingOfficeComponent implements OnInit, OnDestroy, OnChanges {
   cardTypeOptions: { value: number; label: string }[] = getCardTypes();
   costCodeOptions: { value: number; label: string }[] = [];
 
+  organizationId = '';
   offices: OfficeResponse[] = [];
   availableOffices: { value: number, name: string }[] = [];
 
@@ -84,6 +85,7 @@ export class AccountingOfficeComponent implements OnInit, OnDestroy, OnChanges {
 
   //#region Office
   ngOnInit(): void {
+    this.organizationId = this.authService.getUser()?.organizationId?.trim() ?? '';
     this.loadStates();
     this.loadOffices();
 
@@ -304,13 +306,11 @@ export class AccountingOfficeComponent implements OnInit, OnDestroy, OnChanges {
 
   //#region Data Loading Methods
   loadOffices(): void {
-    // Wait for offices to be loaded initially, then subscribe to changes then subscribe for updates
-    this.officeService.areOfficesLoaded().pipe(filter(loaded => loaded === true), take(1)).subscribe(() => {
+    this.officeService.ensureOfficesLoaded(this.organizationId).pipe(take(1), finalize(() => this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'offices'))).subscribe(() => {
       this.officeService.getAllOffices().pipe(takeUntil(this.destroy$)).subscribe(offices => {
         this.offices = offices || [];
         this.availableOffices = this.mappingService.mapOfficesToDropdown(this.offices);
       });
-      this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'offices');
     });
   }
 

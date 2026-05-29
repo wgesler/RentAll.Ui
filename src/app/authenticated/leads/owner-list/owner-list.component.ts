@@ -47,6 +47,7 @@ export class OwnerListComponent implements OnInit, OnChanges, OnDestroy {
   allOwners: LeadOwnerListDisplay[] = [];
   ownersDisplay: LeadOwnerListDisplay[] = [];
 
+  organizationId = '';
   offices: OfficeResponse[] = [];
   selectedOffice: OfficeResponse | null = null;
   isOwnerAdmin = false;
@@ -87,6 +88,7 @@ export class OwnerListComponent implements OnInit, OnChanges, OnDestroy {
       this.isPageReady = items.size === 0;
     });
     this.isOwnerAdmin = this.authService.isOwnerAdmin();
+    this.organizationId = this.authService.getUser()?.organizationId?.trim() ?? '';
 
     if (!this.embeddedInShell()) {
       this.globalSelectionService.getSelectedOfficeId$().pipe(takeUntil(this.destroy$)).subscribe(officeId => {
@@ -391,16 +393,13 @@ export class OwnerListComponent implements OnInit, OnChanges, OnDestroy {
 
   //#region Data Loading Methods
   loadOffices(): void {
-    const organizationId = this.authService.getUser()?.organizationId?.trim() ?? '';
-    if (!organizationId) {
-      this.offices = [];
-      return;
-    }
-    this.officeService.ensureOfficesLoaded(organizationId).pipe(take(1), takeUntil(this.destroy$)).subscribe({
-      next: allOffices => {
-        this.offices = allOffices || [];
-        const initialOfficeId = this.embeddedInShell() ? this.officeId() : this.globalSelectionService.getSelectedOfficeIdValue();
-        this.resolveOfficeScope(initialOfficeId ?? null);
+    this.officeService.ensureOfficesLoaded(this.organizationId).pipe(take(1)).subscribe({
+      next: () => {
+        this.officeService.getAllOffices().pipe(takeUntil(this.destroy$)).subscribe(offices => {
+          this.offices = offices || [];
+          const initialOfficeId = this.embeddedInShell() ? this.officeId() : this.globalSelectionService.getSelectedOfficeIdValue();
+          this.resolveOfficeScope(initialOfficeId ?? null);
+        });
       },
       error: () => {
         this.offices = [];

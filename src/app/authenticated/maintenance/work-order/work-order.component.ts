@@ -4,7 +4,7 @@ import { Component, EventEmitter, Input, OnChanges, OnDestroy, OnInit, Output, S
 import { FormBuilder, FormControl, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
 import { ActivatedRoute, Router } from '@angular/router';
 import { ToastrService } from 'ngx-toastr';
-import { BehaviorSubject, catchError, forkJoin, finalize, of, skip, Subject, Subscription, switchMap, take, takeUntil } from 'rxjs';
+import { BehaviorSubject, catchError, forkJoin, finalize, of, skip, Subject, switchMap, take, takeUntil } from 'rxjs';
 import { RouterUrl } from '../../../app.routes';
 import { FormatterService } from '../../../services/formatter-service';
 import { MaterialModule } from '../../../material.module';
@@ -86,7 +86,6 @@ export class WorkOrderComponent implements OnInit, OnChanges, OnDestroy {
   itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['property', 'workOrder', 'propertyAgreement', 'propertyReceipts', 'propertyReservations', 'workOrderNumber']));
   destroy$ = new Subject<void>();
   selectedGlobalOfficeId: number | null = null;
-  officesSubscription?: Subscription;
   
   constructor(
     fb: FormBuilder,
@@ -113,7 +112,7 @@ export class WorkOrderComponent implements OnInit, OnChanges, OnDestroy {
 
   //#region Work Order
   ngOnInit(): void {
-    this.organizationId = this.authService.getUser()?.organizationId ?? '';
+    this.organizationId = this.authService.getUser()?.organizationId?.trim() ?? '';
     this.buildForm();
     this.selectedPropertyId = this.property?.propertyId ?? null;
     this.isAddMode = this.workOrderId == null;
@@ -1129,21 +1128,12 @@ export class WorkOrderComponent implements OnInit, OnChanges, OnDestroy {
 
   //#region Data Load Methods
   loadOffices(): void {
-    const bindOfficeStream = (): void => {
-      this.officesSubscription?.unsubscribe();
-      this.officesSubscription = this.officeService.getAllOffices().subscribe(offices => {
-        this.offices = offices || [];
-      });
-    };
-
-    const organizationId = this.authService.getUser()?.organizationId?.trim() ?? '';
-    if (!organizationId) {
-      this.offices = [];
-      return;
-    }
-
-    this.officeService.ensureOfficesLoaded(organizationId).pipe(takeUntil(this.destroy$), take(1)).subscribe({
-      next: () => bindOfficeStream(),
+    this.officeService.ensureOfficesLoaded(this.organizationId).pipe(take(1)).subscribe({
+      next: () => {
+        this.officeService.getAllOffices().pipe(takeUntil(this.destroy$)).subscribe(offices => {
+          this.offices = offices || [];
+        });
+      },
       error: () => {
         this.offices = [];
       }
@@ -1710,7 +1700,6 @@ export class WorkOrderComponent implements OnInit, OnChanges, OnDestroy {
   }
 
   ngOnDestroy(): void {
-    this.officesSubscription?.unsubscribe();
     this.destroy$.next();
     this.destroy$.complete();
     this.itemsToLoad$.complete();

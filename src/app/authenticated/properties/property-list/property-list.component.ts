@@ -481,36 +481,38 @@ export class PropertyListComponent implements OnInit, OnDestroy, OnChanges {
   loadOffices(): void {
     this.globalSelectionService.ensureOfficeScope(this.organizationId, this.preferredOfficeId).pipe(take(1), finalize(() => { this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'offices'); })).subscribe({
       next: () => {
-        this.offices = this.officeService.getAllOfficesValue() || [];
-        this.availableOffices = this.mappingService.mapOfficesToDropdown(this.offices);
-        this.globalSelectionService.getOfficeUiState$(this.offices, { explicitOfficeId: this.officeId, requireExplicitOfficeUnset: true }).pipe(take(1)).subscribe({
-          next: uiState => {
-            this.showOfficeDropdown = uiState.showOfficeDropdown;
-            if (this.officeId !== null && this.officeId !== undefined) {
-              const matchingOffice = this.offices.find(o => o.officeId === this.officeId) || null;
-              if (matchingOffice !== this.selectedOffice) {
-                this.selectedOffice = matchingOffice;
+        this.officeService.getAllOffices().pipe(takeUntil(this.destroy$)).subscribe(offices => {
+          this.offices = offices || [];
+          this.availableOffices = this.mappingService.mapOfficesToDropdown(this.offices);
+          this.globalSelectionService.getOfficeUiState$(this.offices, { explicitOfficeId: this.officeId, requireExplicitOfficeUnset: true }).pipe(take(1)).subscribe({
+            next: uiState => {
+              this.showOfficeDropdown = uiState.showOfficeDropdown;
+              if (this.officeId !== null && this.officeId !== undefined) {
+                const matchingOffice = this.offices.find(o => o.officeId === this.officeId) || null;
+                if (matchingOffice !== this.selectedOffice) {
+                  this.selectedOffice = matchingOffice;
+                  this.applyFilters();
+                }
+                return;
+              }
+
+              if (uiState.selectedOffice) {
+                if (uiState.selectedOffice !== this.selectedOffice) {
+                  this.selectedOffice = uiState.selectedOffice;
+                  this.officeIdChange.emit(uiState.selectedOffice.officeId);
+                  this.applyFilters();
+                }
+                return;
+              }
+
+              if (this.selectedOffice && this.offices.length === 1) {
                 this.applyFilters();
               }
-              return;
             }
+          });
 
-            if (uiState.selectedOffice) {
-              if (uiState.selectedOffice !== this.selectedOffice) {
-                this.selectedOffice = uiState.selectedOffice;
-                this.officeIdChange.emit(uiState.selectedOffice.officeId);
-                this.applyFilters();
-              }
-              return;
-            }
-
-            if (this.selectedOffice && this.offices.length === 1) {
-              this.applyFilters();
-            }
-          }
+          this.getProperties();
         });
-
-        this.getProperties();
       },
       error: () => {
         this.offices = [];

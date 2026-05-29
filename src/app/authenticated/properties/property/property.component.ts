@@ -69,6 +69,7 @@ export class PropertyComponent implements OnInit, OnChanges, AfterViewInit, OnDe
   isAdmin = false;
   isInAccounting = false;
   isServiceError: boolean = false;
+  organizationId = '';
   form: FormGroup;
   @ViewChild(PropertyAgreementComponent) propertyAgreementSection?: PropertyAgreementComponent;
   @ViewChild('descriptionEditor') set descriptionEditorRef(value: ElementRef<HTMLDivElement> | undefined) {
@@ -119,6 +120,7 @@ export class PropertyComponent implements OnInit, OnChanges, AfterViewInit, OnDe
   // Global office selection used by the title bar "Office" filter.
   selectedOffice: OfficeResponse | null = null;
   showOfficeDropdown: boolean = false;
+  private officesInitialized = false;
  
   reservations: ReservationListResponse[] = [];
   availableReservations: { value: ReservationListResponse, label: string }[] = [];
@@ -180,6 +182,7 @@ export class PropertyComponent implements OnInit, OnChanges, AfterViewInit, OnDe
     });
     this.isAdmin = this.authService.isAdmin();
     this.isInAccounting = this.authService.isInAccounting();
+    this.organizationId = this.authService.getUser()?.organizationId?.trim() ?? '';
     const initialRouteId = this.route.snapshot.paramMap.get('id');
     if (initialRouteId) {
       this.expandedSections.agreement = this.isInAccounting;
@@ -1875,43 +1878,29 @@ export class PropertyComponent implements OnInit, OnChanges, AfterViewInit, OnDe
   }
 
   loadOffices(): void {
-    const orgId = (this.authService.getUser()?.organizationId || '').trim();
-    if (!orgId) {
-      this.offices = [];
-      this.selectedOffice = null;
-      this.showOfficeDropdown = false;
-      const shellOfficeId = Number(this.shellOfficeId);
-      if (this.isOwnerMode && Number.isFinite(shellOfficeId) && shellOfficeId > 0) {
-        this.form?.patchValue({ officeId: shellOfficeId }, { emitEvent: false });
-        this.resolveOfficeScope(shellOfficeId);
-      } else {
-        this.form?.patchValue({ officeId: null }, { emitEvent: false });
-      }
-      this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'offices');
-      this.emitTitleBarContextToShell();
-      return;
-    }
+    this.officeService.ensureOfficesLoaded(this.organizationId).pipe(take(1), finalize(() => this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'offices'))).subscribe({
+      next: () => {
+        this.officeService.getAllOffices().pipe(takeUntil(this.destroy$)).subscribe(offices => {
+          this.offices = (offices || []).filter(f => f.organizationId === this.organizationId && f.isActive);
+          this.showOfficeDropdown = this.offices.length > 1;
+          this.resolveOfficeScope(this.globalSelectionService.getSelectedOfficeIdValue());
 
-    this.officeService.ensureOfficesLoaded(orgId).pipe(take(1), finalize(() => { this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'offices'); })).subscribe({
-      next: (offices) => {
-        this.offices = (offices || []).filter(f => f.organizationId === orgId && f.isActive);
-        this.showOfficeDropdown = this.offices.length > 1;
-        const globalOfficeId = this.globalSelectionService.getSelectedOfficeIdValue();
-        this.resolveOfficeScope(globalOfficeId);
+          if (!this.officesInitialized) {
+            this.officesInitialized = true;
+            if (this.property && this.form) {
+              this.form.patchValue({
+                officeId: this.property.officeId || null,
+                regionId: this.property.regionId || null,
+                areaId: this.property.areaId || null,
+                buildingId: this.property.buildingId || null,
+              }, { emitEvent: false });
+              this.filterReservations();
+            }
+          }
 
-        if (this.property && this.form) {
-          const propertyOfficeId = this.property.officeId;
-          this.form.patchValue({
-            officeId: propertyOfficeId || null,
-            regionId: this.property.regionId || null,
-            areaId: this.property.areaId || null,
-            buildingId: this.property.buildingId || null,
-          }, { emitEvent: false });
-          this.filterReservations();
-        }
-
-        this.filterLocationLookupsByOffice();
-        this.emitTitleBarContextToShell();
+          this.filterLocationLookupsByOffice();
+          this.emitTitleBarContextToShell();
+        });
       },
       error: () => {
         this.offices = [];

@@ -86,6 +86,7 @@ export class GeneralLedgerComponent implements OnInit, OnChanges, OnDestroy {
   showOfficeDropdown: boolean = false;
   officeScopeResolved: boolean = false;
   preferredOfficeId: number | null = null;
+  private officesInitialized = false;
   generalLedgerColumns: ColumnSet = {
     officeName: { displayAs: 'Office', maxWidth: '16ch' },
     reservationCode: { displayAs: 'ReservationCode', maxWidth: '18ch', sortType: 'natural' },
@@ -201,10 +202,15 @@ export class GeneralLedgerComponent implements OnInit, OnChanges, OnDestroy {
   loadOffices(): void {
     this.globalSelectionService.ensureOfficeScope(this.organizationId || '', this.preferredOfficeId).pipe(take(1)).subscribe({
       next: () => {
-        this.offices = this.officeService.getAllOfficesValue() || [];
-        this.availableOffices = this.mappingService.mapOfficesToDropdown(this.offices);
-        this.showOfficeDropdown = this.offices.length > 1;
-        this.resolveOfficeScope(this.officeId ?? this.globalSelectionService.getSelectedOfficeIdValue(), this.officeId === null || this.officeId === undefined);
+        this.officeService.getAllOffices().pipe(takeUntil(this.destroy$)).subscribe(offices => {
+          this.offices = offices || [];
+          this.availableOffices = this.mappingService.mapOfficesToDropdown(this.offices);
+          this.showOfficeDropdown = this.offices.length > 1;
+          if (!this.officesInitialized) {
+            this.officesInitialized = true;
+            this.resolveOfficeScope(this.officeId ?? this.globalSelectionService.getSelectedOfficeIdValue(), this.officeId === null || this.officeId === undefined);
+          }
+        });
       },
       error: () => {
         this.offices = [];

@@ -59,11 +59,11 @@ export class QuoteCreateComponent extends BaseDocumentComponent implements OnIni
   iframeKey = 0;
   returnTo: string = 'property-list';
   propertyListingLinks: QuotePropertyListingLink[] = [];
+  organizationId = '';
   offices: OfficeResponse[] = [];
   accountingOffices: AccountingOfficeResponse[] = [];
   selectedOffice: OfficeResponse | null = null;
   selectedAccountingOffice: AccountingOfficeResponse | null = null;
-  officesSubscription?: Subscription;
   accountingOfficesSubscription?: Subscription;
   queryParamsSubscription?: Subscription;
   formSubscription?: Subscription;
@@ -106,6 +106,7 @@ export class QuoteCreateComponent extends BaseDocumentComponent implements OnIni
 
   //#region Quote-Create
   ngOnInit(): void {
+    this.organizationId = this.authService.getUser()?.organizationId?.trim() ?? '';
     this.itemsToLoad$.pipe(filter(items => items.size === 0), take(1)).subscribe(() => {
       this.isPageReady = true;
     });
@@ -372,18 +373,9 @@ export class QuoteCreateComponent extends BaseDocumentComponent implements OnIni
 
   //#region Data Loading Methods
   loadOffices(): void {
-    const organizationId = this.authService.getUser()?.organizationId?.trim() || '';
-    if (!organizationId) {
-      this.offices = [];
-      this.selectedOffice = null;
-      this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'offices');
-      return;
-    }
-
-    this.officeService.ensureOfficesLoaded(organizationId).pipe(take(1),finalize(() => {this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'offices');})).subscribe({
+    this.officeService.ensureOfficesLoaded(this.organizationId).pipe(take(1), finalize(() => { this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'offices'); })).subscribe({
       next: () => {
-        this.officesSubscription?.unsubscribe();
-        this.officesSubscription = this.officeService.getAllOffices().subscribe(offices => {
+        this.officeService.getAllOffices().pipe(takeUntil(this.destroy$)).subscribe(offices => {
           this.offices = offices || [];
           this.applyHeaderOfficeSelection();
         });
@@ -1009,7 +1001,6 @@ export class QuoteCreateComponent extends BaseDocumentComponent implements OnIni
   ngOnDestroy(): void {
     this.destroy$.next();
     this.destroy$.complete();
-    this.officesSubscription?.unsubscribe();
     this.accountingOfficesSubscription?.unsubscribe();
     this.queryParamsSubscription?.unsubscribe();
     this.formSubscription?.unsubscribe();

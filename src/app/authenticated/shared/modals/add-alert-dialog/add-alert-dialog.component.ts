@@ -200,7 +200,7 @@ export class AddAlertDialogComponent implements OnInit, OnDestroy {
     }
 
     forkJoin({
-      offices: this.officeService.ensureOfficesLoaded(organizationId).pipe(catchError(() => of([]))),
+      offices: this.officeService.ensureOfficesLoaded(organizationId).pipe(take(1), catchError(() => of([]))),
       properties: this.propertyService.getPropertiesBySelectionCriteria(userId).pipe(catchError(() => of([]))),
       reservations: this.reservationService.getReservationList().pipe(catchError(() => of([])))
     }).pipe(take(1), finalize(() => { this.isLoading = false; })).subscribe({

@@ -79,6 +79,7 @@ export class PropertyWelcomeLetterComponent extends BaseDocumentComponent implem
   offices: OfficeResponse[] = [];
   accountingOffices: AccountingOfficeResponse[] = [];
   selectedOffice: OfficeResponse | null = null;
+  organizationId = '';
   previewIframeHtml: string = '';
   safeHtml: SafeHtml = '';
   previewIframeStyles: string = '';
@@ -128,6 +129,7 @@ export class PropertyWelcomeLetterComponent extends BaseDocumentComponent implem
 
   //#region Welcome Letter
   ngOnInit(): void {
+    this.organizationId = this.authService.getUser()?.organizationId?.trim() ?? '';
     if (!this.titleBarReservationId && !this.selectedReservation?.reservationId) {
       this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'previewHtml');
     }
@@ -345,7 +347,7 @@ export class PropertyWelcomeLetterComponent extends BaseDocumentComponent implem
   }
 
   loadOffices(): void {
-    this.officeService.areOfficesLoaded().pipe(filter(loaded => loaded === true), take(1)).subscribe(() => {
+    this.officeService.ensureOfficesLoaded(this.organizationId).pipe(take(1), finalize(() => { this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'offices'); })).subscribe(() => {
       this.officeService.getAllOffices().pipe(takeUntil(this.destroy$)).subscribe(offices => {
         this.offices = offices || [];
         if (this.officeId !== null && this.officeId !== undefined) {
@@ -364,7 +366,6 @@ export class PropertyWelcomeLetterComponent extends BaseDocumentComponent implem
           this.generatePreviewIframe();
         }
       });
-      this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'offices');
     });
   }
 

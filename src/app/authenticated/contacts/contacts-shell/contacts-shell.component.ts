@@ -1,8 +1,9 @@
 import { ChangeDetectorRef, Component, OnDestroy, OnInit, ViewChild } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, Router } from '@angular/router';
-import { Subject, filter, skip, take, takeUntil } from 'rxjs';
+import { Subject, skip, take, takeUntil } from 'rxjs';
 import { MaterialModule } from '../../../material.module';
+import { AuthService } from '../../../services/auth.service';
 import { ContactService } from '../services/contact.service';
 import { OfficeResponse } from '../../organizations/models/office.model';
 import { GlobalSelectionService } from '../../organizations/services/global-selection.service';
@@ -35,6 +36,7 @@ export class ContactsShellComponent implements OnInit, OnDestroy {
   offices: OfficeResponse[] = [];
   selectedOffice: OfficeResponse | null = null;
   showOfficeDropdown: boolean = false;
+  organizationId = '';
   destroy$ = new Subject<void>();
 
   /** Embedded contact form: when set, show form in the tab with this index instead of list. */
@@ -50,11 +52,13 @@ export class ContactsShellComponent implements OnInit, OnDestroy {
     private officeService: OfficeService,
     private globalSelectionService: GlobalSelectionService,
     private contactService: ContactService,
+    private authService: AuthService,
     private cdr: ChangeDetectorRef
   ) { }
 
   //#region Contacts
   ngOnInit(): void {
+    this.organizationId = this.authService.getUser()?.organizationId?.trim() ?? '';
     this.applyQueryParamState(this.route.snapshot.queryParams);
 
     this.route.queryParams
@@ -167,7 +171,7 @@ export class ContactsShellComponent implements OnInit, OnDestroy {
 
   //#region Data Loading Methods
   loadOffices(): void {
-    this.officeService.areOfficesLoaded().pipe(filter(loaded => loaded === true), take(1)).subscribe(() => {
+    this.officeService.ensureOfficesLoaded(this.organizationId).pipe(take(1)).subscribe(() => {
       this.officeService.getAllOffices().pipe(takeUntil(this.destroy$)).subscribe(allOffices => {
         this.offices = allOffices || [];
         this.showOfficeDropdown = this.offices.length > 1;

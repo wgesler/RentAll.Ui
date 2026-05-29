@@ -264,8 +264,9 @@ export class GeneralComponent implements OnInit, OnDestroy {
   loadOffices(): void {
     this.globalSelectionService.ensureOfficeScope(this.organizationId, this.preferredOfficeId).pipe(take(1)).subscribe({
       next: () => {
-        this.offices = this.officeService.getAllOfficesValue() || [];
-
+        this.officeService.getAllOffices().pipe(takeUntil(this.destroy$)).subscribe(offices => {
+          this.offices = offices || [];
+        });
       },
       error: () => {
         this.offices = [];

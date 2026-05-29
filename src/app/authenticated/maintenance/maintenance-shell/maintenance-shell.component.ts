@@ -1,8 +1,8 @@
 import { CommonModule } from '@angular/common';
-import { Component, OnInit, ViewChild } from '@angular/core';
+import { Component, OnDestroy, OnInit, ViewChild } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, Router } from '@angular/router';
-import { BehaviorSubject, Observable, filter, finalize, map, switchMap, take } from 'rxjs';
+import { BehaviorSubject, Observable, Subject, filter, finalize, map, switchMap, take, takeUntil } from 'rxjs';
 import { RouterUrl } from '../../../app.routes';
 import { CanComponentDeactivate } from '../../../guards/can-deactivate-guard';
 import { MaterialModule } from '../../../material.module';
@@ -49,7 +49,7 @@ import { TitleBarSelectComponent } from '../../shared/titlebar-select/titlebar-s
   templateUrl: './maintenance-shell.component.html',
   styleUrl: './maintenance-shell.component.scss'
 })
-export class MaintenanceShellComponent implements OnInit, CanComponentDeactivate {
+export class MaintenanceShellComponent implements OnInit, OnDestroy, CanComponentDeactivate {
   @ViewChild('inspectionChecklist') inspectionChecklist?: InspectionComponent;
   @ViewChild('maintenanceSection') maintenanceSection?: MaintenanceComponent;
   @ViewChild('maintenanceDocumentList') maintenanceDocumentList?: DocumentListComponent;
@@ -96,6 +96,7 @@ export class MaintenanceShellComponent implements OnInit, CanComponentDeactivate
 
   itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['property']));
   isLoading$: Observable<boolean> = this.itemsToLoad$.pipe(map(items => items.size > 0));
+  destroy$ = new Subject<void>();
 
   constructor(
     private route: ActivatedRoute,
@@ -207,20 +208,22 @@ export class MaintenanceShellComponent implements OnInit, CanComponentDeactivate
 
     this.globalSelectionService.ensureOfficeScope(this.organizationId, this.preferredOfficeId).pipe(take(1)).subscribe({
       next: () => {
-        this.offices = this.officeService.getAllOfficesValue() || [];
-        this.globalSelectionService.getOfficeUiState$(this.offices, { requireExplicitOfficeUnset: true }).pipe(take(1)).subscribe({
-          next: uiState => {
-            setTimeout(() => {
-              this.showOfficeDropdown = true;
-              this.selectedOfficeId = this.openWithAllSelections
-                ? null
-                : this.normalizeOfficeId(uiState.selectedOfficeId);
-              if (this.openWithAllSelections) {
-                this.globalSelectionService.setSelectedOfficeId(null);
-              }
-              this.loadTitleBarProperties();
-            }, 0);
-          }
+        this.officeService.getAllOffices().pipe(takeUntil(this.destroy$)).subscribe(offices => {
+          this.offices = offices || [];
+          this.globalSelectionService.getOfficeUiState$(this.offices, { requireExplicitOfficeUnset: true }).pipe(take(1)).subscribe({
+            next: uiState => {
+              setTimeout(() => {
+                this.showOfficeDropdown = true;
+                this.selectedOfficeId = this.openWithAllSelections
+                  ? null
+                  : this.normalizeOfficeId(uiState.selectedOfficeId);
+                if (this.openWithAllSelections) {
+                  this.globalSelectionService.setSelectedOfficeId(null);
+                }
+                this.loadTitleBarProperties();
+              }, 0);
+            }
+          });
         });
       },
       error: () => {
@@ -872,6 +875,14 @@ export class MaintenanceShellComponent implements OnInit, CanComponentDeactivate
       this.maintenanceSection?.discardUnsavedChanges();
     }
     return true;
+  }
+  //#endregion
+
+  //#region Lifecycle
+  ngOnDestroy(): void {
+    this.destroy$.next();
+    this.destroy$.complete();
+    this.itemsToLoad$.complete();
   }
   //#endregion
 }

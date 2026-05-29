@@ -2,7 +2,7 @@ import { CommonModule } from "@angular/common";
 import { Component, EventEmitter, Input, OnChanges, OnDestroy, OnInit, Output, SimpleChanges } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { ToastrService } from 'ngx-toastr';
-import { BehaviorSubject, Observable, Subject, filter, finalize, map, skip, take, takeUntil } from 'rxjs';
+import { BehaviorSubject, Observable, Subject, finalize, map, skip, take, takeUntil } from 'rxjs';
 import { CommonMessage } from '../../../enums/common-message.enum';
 import { MaterialModule } from '../../../material.module';
 import { AuthService } from '../../../services/auth.service';
@@ -51,6 +51,7 @@ export class UserListComponent implements OnInit, OnDestroy, OnChanges {
   selectedOrganization: OrganizationResponse | null = null;
   users: UserResponse[] = [];
   officeScopeResolved: boolean = false;
+  organizationId = '';
   usersDisplayedColumns: ColumnSet = {
     'organizationName': { displayAs: 'Organization', maxWidth: '20ch' },
     'fullName': { displayAs: 'Full Name', maxWidth: '25ch' },
@@ -88,6 +89,7 @@ export class UserListComponent implements OnInit, OnDestroy, OnChanges {
     this.isAdmin = this.authService.isAdmin();
     this.setIsActiveCheckboxEditability();
     this.isSuperAdminUser = this.hasRole(UserGroups.SuperAdmin);
+    this.organizationId = this.authService.getUser()?.organizationId?.trim() ?? '';
     this.loadOffices();
     this.loadUsers();
     this.loadOrganizations();
@@ -329,24 +331,21 @@ export class UserListComponent implements OnInit, OnDestroy, OnChanges {
   }
 
   loadOffices(): void {
-    this.officeService.areOfficesLoaded().pipe(filter(loaded => loaded === true), take(1)).subscribe(() => {
-      this.officeService.getAllOffices().pipe(takeUntil(this.destroy$)).subscribe({
-        next: allOffices => {
+    this.officeService.ensureOfficesLoaded(this.organizationId).pipe(take(1), finalize(() => this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'offices'))).subscribe({
+      next: () => {
+        this.officeService.getAllOffices().pipe(takeUntil(this.destroy$)).subscribe(allOffices => {
           this.offices = (allOffices || []).filter(office => office.isActive);
           this.availableOffices = this.mappingService.mapOfficesToDropdown(this.offices);
-          this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'offices');
-
           this.showOfficeDropdown = this.offices.length > 1;
           this.resolveOfficeScope(this.globalSelectionService.getSelectedOfficeIdValue());
-        },
-        error: () => {
-          this.offices = [];
-          this.availableOffices = [];
-          this.showOfficeDropdown = false;
-          this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'offices');
-          this.resolveOfficeScope(null);
-        }
-      });
+        });
+      },
+      error: () => {
+        this.offices = [];
+        this.availableOffices = [];
+        this.showOfficeDropdown = false;
+        this.resolveOfficeScope(null);
+      }
     });
   }
   //#endregion

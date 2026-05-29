@@ -231,15 +231,17 @@ export class EmailsShellComponent implements OnInit, OnDestroy {
   loadOffices(): void {
     this.globalSelectionService.ensureOfficeScope(this.organizationId, this.preferredOfficeId).pipe(take(1)).subscribe({
       next: () => {
-        this.offices = this.officeService.getAllOfficesValue() || [];
-        this.loadPropertyCodes();
-        this.globalSelectionService.getOfficeUiState$(this.offices, { explicitOfficeId: null, useGlobalSelection: true }).pipe(take(1)).subscribe({
-          next: uiState => {
-            this.showOfficeDropdown = uiState.showOfficeDropdown;
-            this.selectedOfficeId = uiState.selectedOfficeId;
-            this.refreshPropertyOptions();
-            this.refreshReservationOptions();
-          }
+        this.officeService.getAllOffices().pipe(takeUntil(this.destroy$)).subscribe(offices => {
+          this.offices = offices || [];
+          this.loadPropertyCodes();
+          this.globalSelectionService.getOfficeUiState$(this.offices, { explicitOfficeId: null, useGlobalSelection: true }).pipe(take(1)).subscribe({
+            next: uiState => {
+              this.showOfficeDropdown = uiState.showOfficeDropdown;
+              this.selectedOfficeId = uiState.selectedOfficeId;
+              this.refreshPropertyOptions();
+              this.refreshReservationOptions();
+            }
+          });
         });
       },
       error: () => {

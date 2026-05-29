@@ -68,6 +68,7 @@ export class ContactComponent implements OnInit, OnChanges, OnDestroy {
   isEmbedded: boolean = true;
   isInOwnerMode: boolean = false;
   returnUrl: string | null = null;
+  organizationId = '';
   states: string[] = [];
   
   contactId: string;
@@ -142,6 +143,7 @@ export class ContactComponent implements OnInit, OnChanges, OnDestroy {
       this.isInOwnerMode = value;
       this.syncDefaultOfficeOptions();
     });
+    this.organizationId = this.authService.getUser()?.organizationId?.trim() ?? '';
     this.initializeContactTypes();
     this.availableOwnerTypes = getOwnerTypes();
     this.availableVendorTypes = getVendorTypes();
@@ -1054,40 +1056,17 @@ export class ContactComponent implements OnInit, OnChanges, OnDestroy {
   }
 
   loadOffices(): void {
-    const organizationId = this.authService.getUser()?.organizationId?.trim() ?? '';
-    if (!organizationId) {
-      const cachedOffices = this.officeService.getAllOfficesValue() || [];
-      if (cachedOffices.length > 0) {
-        this.offices = cachedOffices;
-        this.availableOffices = this.mappingService.mapOfficesToDropdown(this.offices);
-        this.syncDefaultOfficeOptions();
-        return;
-      }
-      this.officeService.getAllOffices().pipe(
-        filter(offices => Array.isArray(offices) && offices.length > 0),
-        take(1),
-        takeUntil(this.destroy$)
-      ).subscribe(offices => {
-        this.offices = offices || [];
-        this.availableOffices = this.mappingService.mapOfficesToDropdown(this.offices);
-        this.syncDefaultOfficeOptions();
-      });
-      this.offices = [];
-      this.availableOffices = [];
-      this.availableDefaultOffices = [];
-      return;
-    }
-
-    this.officeService.ensureOfficesLoaded(organizationId).pipe(take(1), takeUntil(this.destroy$)).subscribe({
-      next: offices => {
-        this.offices = offices || [];
-        this.availableOffices = this.mappingService.mapOfficesToDropdown(this.offices);
-        this.syncDefaultOfficeOptions();
-
-        // If in add mode and form is built, set values from query params
-        if (this.isAddMode && this.form) {
-          this.applyFormValuesFromQueryParams();
-        }
+    this.officeService.ensureOfficesLoaded(this.organizationId).pipe(take(1)).subscribe({
+      next: () => {
+        this.officeService.getAllOffices().pipe(takeUntil(this.destroy$)).subscribe(offices => {
+          this.offices = offices || [];
+          this.availableOffices = this.mappingService.mapOfficesToDropdown(this.offices);
+          this.syncDefaultOfficeOptions();
+          // If in add mode and form is built, set values from query params
+          if (this.isAddMode && this.form) {
+            this.applyFormValuesFromQueryParams();
+          }
+        });
       },
       error: () => {
         this.offices = [];

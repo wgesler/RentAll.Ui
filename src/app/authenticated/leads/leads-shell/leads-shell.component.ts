@@ -3,7 +3,7 @@ import { ChangeDetectorRef, Component, OnDestroy, OnInit, inject } from '@angula
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, Router } from '@angular/router';
 import { ToastrService } from 'ngx-toastr';
-import { Subject, Subscription, skip, takeUntil } from 'rxjs';
+import { Subject, skip, take, takeUntil } from 'rxjs';
 import { MaterialModule } from '../../../material.module';
 import { AuthService } from '../../../services/auth.service';
 import { UtilityService } from '../../../services/utility.service';
@@ -50,6 +50,7 @@ export class LeadsShellComponent implements OnInit, OnDestroy {
   private utilityService = inject(UtilityService);
 
   selectedTabIndex = 0;
+  organizationId = '';
   selectedOfficeId: number | null = null;
   selectedOffice: OfficeResponse | null = null;
   offices: OfficeResponse[] = [];
@@ -69,7 +70,6 @@ export class LeadsShellComponent implements OnInit, OnDestroy {
   embeddedLeadFormReturnTabIndex = 0;
 
   private destroy$ = new Subject<void>();
-  private officesSubscription?: Subscription;
   private isApplyingQueryParamState = false;
   private isWritingQueryParams = false;
   private lastKnownQueryStateKey: string | null = null;
@@ -78,6 +78,7 @@ export class LeadsShellComponent implements OnInit, OnDestroy {
   ngOnInit(): void {
     this.isAdmin = this.authService.isAdmin();
     this.isOwnerAdmin = this.authService.isOwnerAdmin();
+    this.organizationId = this.authService.getUser()?.organizationId?.trim() ?? '';
     const initialGlobalOfficeId = this.globalSelectionService.getSelectedOfficeIdValue();
     if (initialGlobalOfficeId != null && initialGlobalOfficeId > 0) {
       this.selectedOfficeId = initialGlobalOfficeId;
@@ -457,20 +458,10 @@ export class LeadsShellComponent implements OnInit, OnDestroy {
   }
 
   loadOffices(): void {
-    this.officesSubscription?.unsubscribe();
-    const organizationId = this.authService.getUser()?.organizationId?.trim() ?? '';
-    if (!organizationId) {
-      this.offices = [];
-      this.cdr.markForCheck();
-      return;
-    }
-
-    this.officesSubscription = this.officeService
-      .ensureOfficesLoaded(organizationId)
-      .pipe(takeUntil(this.destroy$))
-      .subscribe({
-        next: allOffices => {
-          this.offices = allOffices || [];
+    this.officeService.ensureOfficesLoaded(this.organizationId).pipe(take(1)).subscribe({
+      next: () => {
+        this.officeService.getAllOffices().pipe(takeUntil(this.destroy$)).subscribe(offices => {
+          this.offices = offices || [];
 
           let didSetInitialOffice = false;
           if (!this.selectedOffice && this.offices.length === 1) {
@@ -490,12 +481,13 @@ export class LeadsShellComponent implements OnInit, OnDestroy {
           if (didSetInitialOffice) {
             this.updateUrlWithCurrentState();
           }
-        },
-        error: () => {
-          this.offices = [];
-          this.cdr.markForCheck();
-        }
-      });
+        });
+      },
+      error: () => {
+        this.offices = [];
+        this.cdr.markForCheck();
+      }
+    });
   }
   //#endregion
 
@@ -503,7 +495,6 @@ export class LeadsShellComponent implements OnInit, OnDestroy {
   ngOnDestroy(): void {
     this.destroy$.next();
     this.destroy$.complete();
-    this.officesSubscription?.unsubscribe();
   }
   //#endregion
 }

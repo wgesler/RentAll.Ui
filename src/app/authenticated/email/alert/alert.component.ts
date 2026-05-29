@@ -398,8 +398,8 @@ export class AlertComponent implements OnInit, OnChanges, OnDestroy {
       properties: this.propertyService.getPropertiesBySelectionCriteria(userId),
       reservations: this.reservationService.getReservationList()
     }).pipe(take(1)).subscribe({
-      next: ({ offices, properties, reservations }) => {
-        this.offices = offices || [];
+      next: ({ properties, reservations }) => {
+        this.officeService.getAllOffices().pipe(takeUntil(this.destroy$)).subscribe(offices => { this.offices = offices || []; });
         this.propertyOptions = (properties || []).map((property: PropertyListResponse) => ({
           value: property.propertyId,
           officeId: Number(property.officeId || 0),

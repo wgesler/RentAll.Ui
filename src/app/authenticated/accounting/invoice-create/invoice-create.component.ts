@@ -68,9 +68,9 @@ export class InvoiceCreateComponent extends BaseDocumentComponent implements OnI
   contact: ContactResponse | null = null;
   isCompanyRental: boolean = false;
 
+  organizationId = '';
   offices: OfficeResponse[] = [];
   selectedOffice: OfficeResponse | null = null;
-  officesSubscription?: Subscription;
 
   accountingOffices: AccountingOfficeResponse[] = [];
   selectedAccountingOffice: AccountingOfficeResponse | null = null;
@@ -149,6 +149,7 @@ export class InvoiceCreateComponent extends BaseDocumentComponent implements OnI
 
   //#region Create Invoice Methods
   ngOnInit(): void {
+    this.organizationId = this.authService.getUser()?.organizationId?.trim() ?? '';
     this.globalSelectionService.getSelectedOfficeId$().pipe(skip(1), takeUntil(this.destroy$)).subscribe(officeId => {
       if (this.offices.length > 0) {
         this.applyOfficeSelection(officeId);
@@ -390,27 +391,15 @@ export class InvoiceCreateComponent extends BaseDocumentComponent implements OnI
 
   //#region Data Load Methods
   loadOffices(): void {
-    const bindOfficeStream = (): void => {
-      this.officesSubscription?.unsubscribe();
-      this.officesSubscription = this.officeService.getAllOffices().subscribe(offices => {
-        this.offices = offices || [];
-      });
-    };
-
-    const organizationId = this.authService.getUser()?.organizationId?.trim() ?? '';
-    if (!organizationId) {
-      this.offices = [];
-      this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'offices');
-      this.markLogoSourceLoaded('offices');
-      return;
-    }
-
-    this.officeService.ensureOfficesLoaded(organizationId).pipe(take(1), finalize(() => {
-      this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'offices');
-      this.markLogoSourceLoaded('offices');
-    })).subscribe({
-      next: () => bindOfficeStream(),
-      error: () => { this.offices = []; }
+    this.officeService.ensureOfficesLoaded(this.organizationId).pipe(take(1), finalize(() => { this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'offices'); this.markLogoSourceLoaded('offices'); })).subscribe({
+      next: () => {
+        this.officeService.getAllOffices().pipe(takeUntil(this.destroy$)).subscribe(offices => {
+          this.offices = offices || [];
+        });
+      },
+      error: () => {
+        this.offices = [];
+      }
     });
   }
 
@@ -1691,7 +1680,6 @@ export class InvoiceCreateComponent extends BaseDocumentComponent implements OnI
   }
   
   ngOnDestroy(): void {
-    this.officesSubscription?.unsubscribe();
     this.costCodesSubscription?.unsubscribe();
     this.destroy$.next();
     this.destroy$.complete();

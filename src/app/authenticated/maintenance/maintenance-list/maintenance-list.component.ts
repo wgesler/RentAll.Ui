@@ -47,7 +47,6 @@ export class MaintenanceListComponent extends PropertyMaintenanceBase implements
   @Input() officeId: number | null = null;
   @Output() officeIdChange = new EventEmitter<number | null>();
   
-  destroy$ = new Subject<void>();
   panelOpenState: boolean = true;
   allDisplayedProperties: MaintenanceListDisplay[] = [];
   arrivalMaintenanceDisplay: MaintenanceListDisplay[] = [];

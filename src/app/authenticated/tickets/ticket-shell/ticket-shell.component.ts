@@ -68,6 +68,7 @@ export class TicketShellComponent implements OnInit, OnDestroy, CanComponentDeac
   selectedPropertyCodeFallback: string | null = null;
   selectedReservationCodeFallback: string | null = null;
   isOfficeSelectionInvalidOnSave = false;
+  organizationId = '';
   offices: OfficeResponse[] = [];
   properties: PropertyCodeResponse[] = [];
   reservations: ReservationCodeResponse[] = [];
@@ -96,6 +97,7 @@ export class TicketShellComponent implements OnInit, OnDestroy, CanComponentDeac
 
   //#region Ticket-Shell
   ngOnInit(): void {
+    this.organizationId = this.authService.getUser()?.organizationId?.trim() ?? '';
     this.currentUserId = String(this.authService.getUser()?.userId || '').trim() || null;
 
     this.itemsToLoad$.pipe(takeUntil(this.destroy$)).subscribe(items => {
@@ -326,21 +328,15 @@ export class TicketShellComponent implements OnInit, OnDestroy, CanComponentDeac
   }
 
   loadOffices(): void {
-    const orgId = this.authService.getUser()?.organizationId?.trim();
-    if (!orgId) {
-      this.offices = [];
-      this.selectedOfficeId = null;
-      this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'offices');
-      return;
-    }
-
-    this.globalSelectionService.ensureOfficeScope(orgId).pipe(take(1), finalize(() => this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'offices'))).subscribe({
+    this.globalSelectionService.ensureOfficeScope(this.organizationId).pipe(take(1), finalize(() => this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'offices'))).subscribe({
       next: () => {
-        this.offices = this.officeService.getAllOfficesValue() || [];
-        const globalOfficeId = this.globalSelectionService.getSelectedOfficeIdValue();
-        this.selectedOfficeId = this.normalizeOfficeId(this.selectedOfficeId ?? globalOfficeId ?? null);
-        this.resolveOfficeScope(this.selectedOfficeId);
-        this.onOfficeFilterChange(this.selectedOfficeId);
+        this.officeService.getAllOffices().pipe(takeUntil(this.destroy$)).subscribe(offices => {
+          this.offices = offices || [];
+          const globalOfficeId = this.globalSelectionService.getSelectedOfficeIdValue();
+          this.selectedOfficeId = this.normalizeOfficeId(this.selectedOfficeId ?? globalOfficeId ?? null);
+          this.resolveOfficeScope(this.selectedOfficeId);
+          this.onOfficeFilterChange(this.selectedOfficeId);
+        });
       },
       error: () => {
         this.offices = [];

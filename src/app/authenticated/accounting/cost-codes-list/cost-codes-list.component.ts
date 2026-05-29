@@ -4,10 +4,11 @@ import { Component, EventEmitter, Input, OnChanges, OnDestroy, OnInit, Output, S
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, Router } from '@angular/router';
 import { ToastrService } from 'ngx-toastr';
-import { BehaviorSubject, Observable, Subject, filter, map, skip, take, takeUntil } from 'rxjs';
+import { BehaviorSubject, Observable, Subject, filter, finalize, map, skip, take, takeUntil } from 'rxjs';
 import { RouterUrl } from '../../../app.routes';
 import { CommonMessage } from '../../../enums/common-message.enum';
 import { MaterialModule } from '../../../material.module';
+import { AuthService } from '../../../services/auth.service';
 import { MappingService } from '../../../services/mapping.service';
 import { UtilityService } from '../../../services/utility.service';
 import { OfficeResponse } from '../../organizations/models/office.model';
@@ -43,6 +44,7 @@ export class CostCodesListComponent implements OnInit, OnDestroy, OnChanges {
   allCostCodes: CostCodesResponse[] = [];
   costCodesDisplay: any[] = [];
 
+  organizationId = '';
   offices: OfficeResponse[] = [];
   availableOffices: { value: number, name: string }[] = [];
   selectedOffice: OfficeResponse | null = null;
@@ -78,11 +80,13 @@ export class CostCodesListComponent implements OnInit, OnDestroy, OnChanges {
     public mappingService: MappingService,
     private officeService: OfficeService,
     private utilityService: UtilityService,
+    private authService: AuthService,
     private globalSelectionService: GlobalSelectionService) {
   }
 
   //#region CostCodes-List
   ngOnInit(): void {
+    this.organizationId = this.authService.getUser()?.organizationId?.trim() ?? '';
     this.loadOffices();
     this.loadCostCodes();
 
@@ -208,13 +212,12 @@ export class CostCodesListComponent implements OnInit, OnDestroy, OnChanges {
 
   //#region Data Load Methods
   loadOffices(): void {
-    this.officeService.areOfficesLoaded().pipe(filter(loaded => loaded === true), take(1)).subscribe(() => {
+    this.officeService.ensureOfficesLoaded(this.organizationId).pipe(take(1), finalize(() => { this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'offices'); })).subscribe(() => {
       this.officeService.getAllOffices().pipe(takeUntil(this.destroy$)).subscribe(allOffices => {
         // API already filters offices by user access
         this.offices = allOffices || [];
         
         this.availableOffices = this.mappingService.mapOfficesToDropdown(this.offices);
-        this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'offices');
         this.globalSelectionService.getOfficeUiState$(this.offices, { explicitOfficeId: this.officeId, useGlobalSelection: this.embeddedInSettings }).pipe(take(1)).subscribe({
           next: uiState => {
             this.showOfficeDropdown = uiState.showOfficeDropdown;

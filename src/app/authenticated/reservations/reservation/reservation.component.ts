@@ -1007,13 +1007,15 @@ export class ReservationComponent implements OnInit, OnDestroy, CanComponentDeac
   loadOffices(): void {
     this.globalSelectionService.ensureOfficeScope(this.organizationId, this.preferredOfficeId).pipe(take(1)).subscribe({
       next: () => {
-        this.offices = this.officeService.getAllOfficesValue() || [];
-        this.availableOffices = this.mappingService.mapOfficesToDropdown(this.offices);
-        this.selectedOffice = this.offices.find(o => o.officeId === this.selectedProperty?.officeId) || null;
-        if (this.selectedOffice) {
-          this.loadCostCodes();
-        }
-        this.filterPropertiesByOffice();
+        this.officeService.getAllOffices().pipe(takeUntil(this.destroy$)).subscribe(offices => {
+          this.offices = offices || [];
+          this.availableOffices = this.mappingService.mapOfficesToDropdown(this.offices);
+          this.selectedOffice = this.offices.find(o => o.officeId === this.selectedProperty?.officeId) || null;
+          if (this.selectedOffice) {
+            this.loadCostCodes();
+          }
+          this.filterPropertiesByOffice();
+        });
       },
       error: () => {
         this.offices = [];

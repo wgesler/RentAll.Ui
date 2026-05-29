@@ -2,7 +2,7 @@ import { CommonModule } from '@angular/common';
 import { Component, Input, OnChanges, OnDestroy, OnInit, SimpleChanges } from '@angular/core';
 import { FormBuilder, FormControl, FormGroup, FormsModule, ReactiveFormsModule } from '@angular/forms';
 import { ToastrService } from 'ngx-toastr';
-import { BehaviorSubject, Observable, Subject, filter, finalize, map, take, takeUntil } from 'rxjs';
+import { BehaviorSubject, Observable, Subject, finalize, map, take, takeUntil } from 'rxjs';
 import { CommonMessage } from '../../../enums/common-message.enum';
 import { MaterialModule } from '../../../material.module';
 import { AuthService } from '../../../services/auth.service';
@@ -38,6 +38,7 @@ export class PropertyInformationComponent implements OnInit, OnDestroy, OnChange
   offices: OfficeResponse[] = [];
   selectedOffice: OfficeResponse | null = null;
   showOfficeDropdown: boolean = false;
+  organizationId = '';
 
   itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['property', 'propertyInformation', 'offices']));
   isLoading$: Observable<boolean> = this.itemsToLoad$.pipe(map(items => items.size > 0));
@@ -60,6 +61,7 @@ export class PropertyInformationComponent implements OnInit, OnDestroy, OnChange
 
   //#region Property-Information
   ngOnInit(): void {
+    this.organizationId = this.authService.getUser()?.organizationId?.trim() ?? '';
     this.loadOffices();
     
     if (!this.hasPersistedPropertyId()) {
@@ -172,10 +174,9 @@ export class PropertyInformationComponent implements OnInit, OnDestroy, OnChange
 
   //#region Data Loading Methods
   loadOffices(): void {
-    this.officeService.areOfficesLoaded().pipe(filter(loaded => loaded === true), take(1)).subscribe(() => {
+    this.officeService.ensureOfficesLoaded(this.organizationId).pipe(take(1), finalize(() => { this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'offices'); })).subscribe(() => {
       this.officeService.getAllOffices().pipe(takeUntil(this.destroy$)).subscribe(offices => {
         this.offices = offices || [];
-        this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'offices');
         this.globalSelectionService.getOfficeUiState$(this.offices).pipe(take(1)).subscribe({
           next: uiState => {
             this.selectedOffice = uiState.selectedOffice;

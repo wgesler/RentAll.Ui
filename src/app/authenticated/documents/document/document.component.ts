@@ -3,7 +3,7 @@ import { Component, OnDestroy, OnInit } from '@angular/core';
 import { FormBuilder, FormControl, FormGroup, FormsModule, ReactiveFormsModule, Validators } from '@angular/forms';
 import { ActivatedRoute, Router } from '@angular/router';
 import { ToastrService } from 'ngx-toastr';
-import { BehaviorSubject, Observable, Subject, filter, finalize, map, take, takeUntil } from 'rxjs';
+import { BehaviorSubject, Observable, Subject, finalize, map, take, takeUntil } from 'rxjs';
 import { RouterUrl } from '../../../app.routes';
 import { CommonMessage } from '../../../enums/common-message.enum';
 import { MaterialModule } from '../../../material.module';
@@ -66,9 +66,7 @@ export class DocumentComponent implements OnInit, OnDestroy {
 
   //#region Documents
   ngOnInit(): void {
-    // Get organization ID from auth service
-    const user = this.authService.getUser();
-    this.organizationId = user?.organizationId || '';
+    this.organizationId = this.authService.getUser()?.organizationId?.trim() ?? '';
 
     this.loadOffices();
 
@@ -213,13 +211,11 @@ export class DocumentComponent implements OnInit, OnDestroy {
 
   //#region Data Loading Methods
   loadOffices(): void {
-    // Wait for offices to be loaded initially, then subscribe to changes then subscribe for updates
-    this.officeService.areOfficesLoaded().pipe(filter(loaded => loaded === true), take(1)).subscribe(() => {
+    this.officeService.ensureOfficesLoaded(this.organizationId).pipe(take(1), finalize(() => this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'offices'))).subscribe(() => {
       this.officeService.getAllOffices().pipe(takeUntil(this.destroy$)).subscribe(offices => {
         this.offices = offices || [];
         this.availableOffices = this.mappingService.mapOfficesToDropdown(this.offices);
       });
-      this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'offices');
     });
   }
   //#endregion

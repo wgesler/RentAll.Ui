@@ -200,11 +200,13 @@ export class ReservationBoardComponent implements OnInit, OnDestroy {
 
   loadOfficeSettings(): void {
     this.officeService.ensureOfficesLoaded(this.organizationId).pipe(take(1)).subscribe({
-      next: (offices: OfficeResponse[]) => {
-        this.offices = offices || [];
-        this.officeUseDailyOnBoardById = new Map(
-          this.offices.map(office => [office.officeId, office.useDailyOnResBoard === true])
-        );
+      next: () => {
+        this.officeService.getAllOffices().pipe(takeUntil(this.destroy$)).subscribe(offices => {
+          this.offices = offices || [];
+          this.officeUseDailyOnBoardById = new Map(
+            this.offices.map(office => [office.officeId, office.useDailyOnResBoard === true])
+          );
+        });
       },
       error: () => {
         this.offices = [];
