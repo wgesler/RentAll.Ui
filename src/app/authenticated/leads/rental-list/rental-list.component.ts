@@ -3,7 +3,7 @@ import { Component, input, NgZone, OnChanges, OnDestroy, OnInit, output, SimpleC
 import { MatDialog } from '@angular/material/dialog';
 import { Router } from '@angular/router';
 import { ToastrService } from 'ngx-toastr';
-import { BehaviorSubject, Subject, Subscription, finalize, take, takeUntil } from 'rxjs';
+import { BehaviorSubject, Subject, finalize, take, takeUntil } from 'rxjs';
 import { RouterUrl } from '../../../app.routes';
 import { CommonMessage } from '../../../enums/common-message.enum';
 import { MaterialModule } from '../../../material.module';
@@ -48,7 +48,6 @@ export class RentalListComponent implements OnInit, OnChanges, OnDestroy {
   rentalsDisplay: LeadRentalListDisplay[] = [];
 
   offices: OfficeResponse[] = [];
-  globalOfficeSubscription?: Subscription;
   selectedOffice: OfficeResponse | null = null;
 
   rentalsDisplayedColumns: ColumnSet = {
@@ -88,7 +87,7 @@ export class RentalListComponent implements OnInit, OnChanges, OnDestroy {
     });
 
     if (!this.embeddedInShell()) {
-      this.globalOfficeSubscription = this.globalSelectionService.getSelectedOfficeId$().pipe(takeUntil(this.destroy$)).subscribe(officeId => {
+      this.globalSelectionService.getSelectedOfficeId$().pipe(takeUntil(this.destroy$)).subscribe(officeId => {
         if (this.offices.length === 0) {
           return;
         }
@@ -490,7 +489,6 @@ export class RentalListComponent implements OnInit, OnChanges, OnDestroy {
 
   //#region Utility Methods
   ngOnDestroy(): void {
-    this.globalOfficeSubscription?.unsubscribe();
     this.destroy$.next();
     this.destroy$.complete();
     this.itemsToLoad$.complete();

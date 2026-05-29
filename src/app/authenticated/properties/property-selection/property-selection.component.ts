@@ -4,21 +4,7 @@ import { Component, OnDestroy, OnInit } from '@angular/core';
 import { FormBuilder, FormControl, FormGroup, ReactiveFormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
 import { ToastrService } from 'ngx-toastr';
-import {
-  BehaviorSubject,
-  Observable,
-  Subject,
-  Subscription,
-  catchError,
-  debounceTime,
-  filter,
-  finalize,
-  forkJoin,
-  map,
-  of,
-  take,
-  takeUntil
-} from 'rxjs';
+import { BehaviorSubject, Observable, Subject, catchError, debounceTime, filter, finalize, forkJoin, map, of, take, takeUntil } from 'rxjs';
 import { RouterUrl } from '../../../app.routes';
 import { CommonMessage, CommonTimeouts } from '../../../enums/common-message.enum';
 import { MaterialModule } from '../../../material.module';
@@ -61,7 +47,7 @@ export class PropertySelectionComponent implements OnInit, OnDestroy {
   propertyStatuses: { value: number; label: string }[] = [];
   propertyLeaseTypes: { value: number; label: string }[] = getPropertyLeaseTypes();
   preloadedSelection: PropertySelectionResponse | null = null;
-  globalOfficeSubscription?: Subscription;  returnSource: 'reservation-board' | 'property-list' | 'reservation-list' | 'maintenance-list' = 'reservation-board';
+  returnSource: 'reservation-board' | 'property-list' | 'reservation-list' | 'maintenance-list' = 'reservation-board';
   reservationListReturnPath: string | null = null;
 
   itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['selection', 'lookups']));
@@ -94,7 +80,7 @@ export class PropertySelectionComponent implements OnInit, OnDestroy {
     this.loadStates();
     this.loadDropDownLookups();
 
-    this.globalOfficeSubscription = this.globalSelectionService.getSelectedOfficeId$().subscribe(() => {
+    this.globalSelectionService.getSelectedOfficeId$().pipe(takeUntil(this.destroy$)).subscribe(() => {
       this.applyOfficeFilterToLookups();
     });
 
@@ -212,7 +198,7 @@ export class PropertySelectionComponent implements OnInit, OnDestroy {
     }
 
     forkJoin({
-      offices: this.officeService.getOffices(orgId).pipe(take(1)),
+      offices: this.officeService.ensureOfficesLoaded(orgId).pipe(take(1)),
       regions: this.regionService.getRegions().pipe(take(1)),
       areas: this.areaService.getAreas().pipe(take(1)),
       buildings: this.buildingService.getBuildings().pipe(take(1)),
@@ -604,7 +590,6 @@ export class PropertySelectionComponent implements OnInit, OnDestroy {
   ngOnDestroy(): void {
     this.destroy$.next();
     this.destroy$.complete();
-    this.globalOfficeSubscription?.unsubscribe();
     this.itemsToLoad$.complete();
   }
 

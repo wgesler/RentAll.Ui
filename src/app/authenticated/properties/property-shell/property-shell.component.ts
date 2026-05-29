@@ -1,8 +1,9 @@
 import { CommonModule } from '@angular/common';
-import { Component, OnInit, ViewChild } from '@angular/core';
+import { Component, OnDestroy, OnInit, ViewChild } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { MatDialog } from '@angular/material/dialog';
 import { ActivatedRoute, Router } from '@angular/router';
+import { Subject, takeUntil } from 'rxjs';
 import { CanComponentDeactivate } from '../../../guards/can-deactivate-guard';
 import { MaterialModule } from '../../../material.module';
 import { RouterUrl } from '../../../app.routes';
@@ -36,7 +37,7 @@ import { AddAlertDialogComponent, AddAlertDialogData } from '../../shared/modals
   templateUrl: './property-shell.component.html',
   styleUrl: './property-shell.component.scss'
 })
-export class PropertyShellComponent implements OnInit, CanComponentDeactivate {
+export class PropertyShellComponent implements OnInit, OnDestroy, CanComponentDeactivate {
   @ViewChild('propertySection') propertySection?: PropertyComponent;
   @ViewChild('propertyEmailList') propertyEmailList?: EmailListComponent;
   @ViewChild('propertyDocumentList') propertyDocumentList?: DocumentListComponent;
@@ -49,6 +50,7 @@ export class PropertyShellComponent implements OnInit, CanComponentDeactivate {
   titleBarReservationId: string | null = null;
   titleBarPropertyCode = '';
   isAdminUser = false;
+  destroy$ = new Subject<void>();
 
   constructor(
     private route: ActivatedRoute,
@@ -60,7 +62,7 @@ export class PropertyShellComponent implements OnInit, CanComponentDeactivate {
   //#region Property-Shell
   ngOnInit(): void {
     this.isAdminUser = this.authService.isAdmin();
-    this.route.queryParams.subscribe(queryParams => {
+    this.route.queryParams.pipe(takeUntil(this.destroy$)).subscribe(queryParams => {
       if (queryParams['tab'] === 'documents') {
         this.selectedTabIndex = 5;
       } else if (queryParams['tab'] === 'email') {
@@ -69,6 +71,11 @@ export class PropertyShellComponent implements OnInit, CanComponentDeactivate {
         this.selectedTabIndex = 3;
       }
     });
+  }
+
+  ngOnDestroy(): void {
+    this.destroy$.next();
+    this.destroy$.complete();
   }
   //#endregion
 

@@ -2,7 +2,7 @@ import { CommonModule } from '@angular/common';
 import { AfterViewInit, Component, OnDestroy, OnInit, QueryList, ViewChildren } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, Router } from '@angular/router';
-import { Subscription, startWith } from 'rxjs';
+import { Subject, startWith, takeUntil } from 'rxjs';
 import { MaterialModule } from '../../../material.module';
 import { getNumberQueryParam } from '../../shared/query-param.utils';
 import { TitleBarSelectComponent } from '../../shared/titlebar-select/titlebar-select.component';
@@ -24,7 +24,7 @@ export class UsersShellComponent implements OnInit, AfterViewInit, OnDestroy {
   formUserId: string | null = null;
   formTabIndex: number | null = null;
   activeUsersSectionRef?: UserListComponent;
-  sectionsSubscription?: Subscription;
+  destroy$ = new Subject<void>();
 
   constructor(
     private router: Router,
@@ -39,7 +39,7 @@ export class UsersShellComponent implements OnInit, AfterViewInit, OnDestroy {
   }
 
   ngAfterViewInit(): void {
-    this.sectionsSubscription = this.userSections?.changes.pipe(startWith(this.userSections)).subscribe(() => {
+    this.userSections?.changes.pipe(startWith(this.userSections), takeUntil(this.destroy$)).subscribe(() => {
       queueMicrotask(() => {
         this.syncActiveSection();
       });
@@ -111,6 +111,7 @@ export class UsersShellComponent implements OnInit, AfterViewInit, OnDestroy {
   }
 
   ngOnDestroy(): void {
-    this.sectionsSubscription?.unsubscribe();
+    this.destroy$.next();
+    this.destroy$.complete();
   }
 }

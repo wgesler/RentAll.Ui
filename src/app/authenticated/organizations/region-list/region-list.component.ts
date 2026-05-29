@@ -4,7 +4,7 @@ import { Component, EventEmitter, Input, OnDestroy, OnInit, Output } from '@angu
 import { FormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
 import { ToastrService } from 'ngx-toastr';
-import { BehaviorSubject, Observable, Subscription, filter, finalize, map, skip, take } from 'rxjs';
+import { BehaviorSubject, Observable, Subject, filter, finalize, map, skip, take, takeUntil } from 'rxjs';
 import { RouterUrl } from '../../../app.routes';
 import { CommonMessage } from '../../../enums/common-message.enum';
 import { MaterialModule } from '../../../material.module';
@@ -37,7 +37,6 @@ export class RegionListComponent implements OnInit, OnDestroy {
   regionsDisplay: RegionListDisplay[] = [];
 
   offices: OfficeResponse[] = [];
-  officesSubscription?: Subscription;
   selectedOffice: OfficeResponse | null = null;
   showOfficeDropdown: boolean = false;
   officeScopeResolved: boolean = false;
@@ -52,7 +51,7 @@ export class RegionListComponent implements OnInit, OnDestroy {
 
   itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['offices', 'regions', 'officeScope']));
   isLoading$: Observable<boolean> = this.itemsToLoad$.pipe(map(items => items.size > 0));
-  globalOfficeSubscription?: Subscription;
+  destroy$ = new Subject<void>();
 
   constructor(
     public regionService: RegionService,
@@ -69,7 +68,7 @@ export class RegionListComponent implements OnInit, OnDestroy {
     this.loadOffices();
     this.getRegions();
 
-    this.globalOfficeSubscription = this.globalSelectionService.getSelectedOfficeId$().pipe(skip(1)).subscribe(officeId => {
+    this.globalSelectionService.getSelectedOfficeId$().pipe(skip(1), takeUntil(this.destroy$)).subscribe(officeId => {
       if (this.offices.length > 0) {
         this.resolveOfficeScope(officeId);
       }
@@ -118,7 +117,7 @@ export class RegionListComponent implements OnInit, OnDestroy {
   //#region Data Load Methods
   loadOffices(): void {
     this.officeService.areOfficesLoaded().pipe(filter(loaded => loaded === true), take(1)).subscribe(() => {
-      this.officesSubscription = this.officeService.getAllOffices().subscribe(allOffices => {
+      this.officeService.getAllOffices().pipe(takeUntil(this.destroy$)).subscribe(allOffices => {
         this.offices = allOffices || [];
         this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'offices');
         this.globalSelectionService.getOfficeUiState$(this.offices, { requireResolvedSelectionEmpty: true }).pipe(take(1)).subscribe({
@@ -179,8 +178,8 @@ export class RegionListComponent implements OnInit, OnDestroy {
 
   //#region Utility Methods
   ngOnDestroy(): void {
-    this.officesSubscription?.unsubscribe();
-    this.globalOfficeSubscription?.unsubscribe();
+    this.destroy$.next();
+    this.destroy$.complete();
     this.itemsToLoad$.complete();
   }
   //#endregion

@@ -4,7 +4,7 @@ import { Component, Input, OnChanges, OnDestroy, OnInit, SimpleChanges } from '@
 import { FormBuilder, FormControl, FormGroup, FormsModule, ReactiveFormsModule, Validators } from '@angular/forms';
 import { ActivatedRoute, ParamMap, Router } from '@angular/router';
 import { ToastrService } from 'ngx-toastr';
-import { BehaviorSubject, Observable, Subscription, filter, finalize, map, skip, take } from 'rxjs';
+import { BehaviorSubject, Observable, Subject, filter, finalize, map, skip, take, takeUntil } from 'rxjs';
 import { RouterUrl } from '../../../app.routes';
 import { CommonMessage, CommonTimeouts } from '../../../enums/common-message.enum';
 import { MaterialModule } from '../../../material.module';
@@ -50,13 +50,10 @@ export class InvoiceComponent implements OnInit, OnDestroy, OnChanges {
   
   offices: OfficeResponse[] = [];
   availableOffices: { value: number, name: string }[] = [];
-  officesSubscription?: Subscription;
-  globalOfficeSubscription?: Subscription;
   selectedOffice: OfficeResponse | null = null;
 
   reservations: ReservationListResponse[] = [];
   availableReservations: { value: string, label: string }[] = [];
-  reservationIdSubscription?: Subscription;
   selectedReservation: ReservationListResponse | null = null;
   
   companyId: string | null = null;
@@ -67,7 +64,6 @@ export class InvoiceComponent implements OnInit, OnDestroy, OnChanges {
   creditCostCodes: CostCodesResponse[] = [];
   availableCostCodes: { value: number, label: string }[] = [];
   officeAvailableCostCodes: { value: number, label: string }[] = [];
-  costCodesSubscription?: Subscription;
   isPaymentMode: boolean = false;
   
   transactionTypes: { value: number, label: string }[] = TransactionTypeLabels;
@@ -86,6 +82,7 @@ export class InvoiceComponent implements OnInit, OnDestroy, OnChanges {
 
   itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['offices', 'reservations', 'costCodes']));
   isLoading$: Observable<boolean> = this.itemsToLoad$.pipe(map(items => items.size > 0));
+  destroy$ = new Subject<void>();
   routeInvoiceId: string | null = null;
   contextReady: boolean = false;
   lastContextKey: string | null = null;
@@ -115,7 +112,7 @@ export class InvoiceComponent implements OnInit, OnDestroy, OnChanges {
     this.loadReservations();
     this.loadCostCodes();
 
-    this.globalOfficeSubscription = this.globalSelectionService.getSelectedOfficeId$().pipe(skip(1)).subscribe(officeId => {
+    this.globalSelectionService.getSelectedOfficeId$().pipe(skip(1), takeUntil(this.destroy$)).subscribe(officeId => {
       if (this.offices.length > 0 && this.isAddMode && this.form) {
         this.resolveOfficeScope(officeId);
         this.form.get('officeId')?.setValue(this.selectedOffice?.officeId ?? null, { emitEvent: false });
@@ -124,7 +121,7 @@ export class InvoiceComponent implements OnInit, OnDestroy, OnChanges {
       }
     });
 
-    this.route.paramMap.subscribe((paramMap: ParamMap) => {
+    this.route.paramMap.pipe(takeUntil(this.destroy$)).subscribe((paramMap: ParamMap) => {
       this.routeInvoiceId = paramMap.get('id');
       if (this.contextReady && !this.shellMode) {
         this.initializeInvoiceContext(true);
@@ -204,7 +201,7 @@ export class InvoiceComponent implements OnInit, OnDestroy, OnChanges {
     const snapshotParams = this.route.snapshot.queryParams;
     this.processQueryParams(snapshotParams);
     
-    this.route.queryParams.subscribe(queryParams => {
+    this.route.queryParams.pipe(takeUntil(this.destroy$)).subscribe(queryParams => {
       this.processQueryParams(queryParams);
     });
   }
@@ -505,42 +502,30 @@ export class InvoiceComponent implements OnInit, OnDestroy, OnChanges {
 
   //#region Data Loading Methods
   loadOffices(): void {
-    const bindOfficeStream = (): void => {
-      this.officesSubscription?.unsubscribe();
-      this.officesSubscription = this.officeService.getAllOffices().subscribe({
-        next: (offices) => {
-          this.offices = offices || [];
-          this.availableOffices = this.mappingService.mapOfficesToDropdown(this.offices);
-          this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'offices');
-        },
-        error: () => {
-          this.offices = [];
-          this.availableOffices = [];
-          this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'offices');
-        }
-      });
-    };
+    const organizationId = this.authService.getUser()?.organizationId?.trim() ?? '';
+    if (!organizationId) {
+      this.offices = [];
+      this.availableOffices = [];
+      this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'offices');
+      return;
+    }
 
-    this.officeService.areOfficesLoaded().pipe(take(1)).subscribe((loaded) => {
-      if (loaded) {
-        bindOfficeStream();
-        return;
-      }
-
-      const organizationId = this.authService.getUser()?.organizationId?.trim() ?? '';
-      if (organizationId) {
-        // Self-heal if root preload did not run yet.
-        this.officeService.loadAllOffices(organizationId);
-        this.officeService.areOfficesLoaded().pipe(filter(isLoaded => isLoaded === true), take(1)).subscribe({
-          next: () => bindOfficeStream(),
+    this.officeService.ensureOfficesLoaded(organizationId).pipe(take(1)).subscribe({
+      next: () => {
+        this.officeService.getAllOffices().pipe(takeUntil(this.destroy$)).subscribe({
+          next: (offices) => {
+            this.offices = offices || [];
+            this.availableOffices = this.mappingService.mapOfficesToDropdown(this.offices);
+            this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'offices');
+          },
           error: () => {
             this.offices = [];
             this.availableOffices = [];
             this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'offices');
           }
         });
-      } else {
-        // No org scope available; do not block the page spinner forever.
+      },
+      error: () => {
         this.offices = [];
         this.availableOffices = [];
         this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'offices');
@@ -571,7 +556,7 @@ export class InvoiceComponent implements OnInit, OnDestroy, OnChanges {
   loadCostCodes(): void {
     this.costCodesService.ensureCostCodesLoaded();
     this.costCodesService.areCostCodesLoaded().pipe(filter(loaded => loaded === true), take(1)).subscribe(() => {
-      this.costCodesSubscription = this.costCodesService.getAllCostCodes().subscribe(accounts => {
+      this.costCodesService.getAllCostCodes().pipe(takeUntil(this.destroy$)).subscribe(accounts => {
         this.allCostCodes = this.costCodesService.getAllCostCodesValue();
         this.filterCostCodes();
         this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'costCodes');
@@ -680,7 +665,7 @@ export class InvoiceComponent implements OnInit, OnDestroy, OnChanges {
     });
     
 
-    this.form.get('startDate')?.valueChanges.subscribe((startDateValue) => {
+    this.form.get('startDate')?.valueChanges.pipe(takeUntil(this.destroy$)).subscribe((startDateValue) => {
       if (!startDateValue) {
         return;
       }
@@ -805,7 +790,7 @@ export class InvoiceComponent implements OnInit, OnDestroy, OnChanges {
   }
 
   setupInvoiceDateSyncHandler(): void {
-    this.form.get('invoiceDate')?.valueChanges.subscribe(invoiceDateValue => {
+    this.form.get('invoiceDate')?.valueChanges.pipe(takeUntil(this.destroy$)).subscribe(invoiceDateValue => {
       if (!this.isAddMode || !this.form) {
         return;
       }
@@ -828,7 +813,7 @@ export class InvoiceComponent implements OnInit, OnDestroy, OnChanges {
   }
 
   setupOfficeIdHandler(): void {
-    this.form.get('officeId')?.valueChanges.subscribe(officeId => {
+    this.form.get('officeId')?.valueChanges.pipe(takeUntil(this.destroy$)).subscribe(officeId => {
       this.globalSelectionService.setSelectedOfficeId(officeId ?? null);
       this.resolveOfficeScope(officeId);
       this.updateAvailableReservations();
@@ -851,7 +836,7 @@ export class InvoiceComponent implements OnInit, OnDestroy, OnChanges {
   }
 
   setupReservationIdHandler(): void {
-    this.reservationIdSubscription = this.form.get('reservationId')?.valueChanges.subscribe(reservationId => {
+    this.form.get('reservationId')?.valueChanges.pipe(takeUntil(this.destroy$)).subscribe(reservationId => {
       this.selectedReservation = reservationId ? this.reservations.find(r => r.reservationId === reservationId) || null : null;
       if (this.selectedReservation) {
         const selectedOfficeId = this.form.get('officeId')?.value;
@@ -1460,10 +1445,8 @@ export class InvoiceComponent implements OnInit, OnDestroy, OnChanges {
   }
 
   ngOnDestroy(): void {
-    this.officesSubscription?.unsubscribe();
-    this.globalOfficeSubscription?.unsubscribe();
-    this.reservationIdSubscription?.unsubscribe();
-    this.costCodesSubscription?.unsubscribe();
+    this.destroy$.next();
+    this.destroy$.complete();
     this.itemsToLoad$.complete();
   } 
   //#endregion

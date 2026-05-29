@@ -3,7 +3,7 @@ import { Component, EventEmitter, Input, OnChanges, OnDestroy, OnInit, Output, S
 import { FormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
 import { ToastrService } from 'ngx-toastr';
-import { skip, Subscription, take } from 'rxjs';
+import { skip, Subject, take, takeUntil } from 'rxjs';
 import { RouterUrl } from '../../../app.routes';
 import { CommonMessage } from '../../../enums/common-message.enum';
 import { MaterialModule } from '../../../material.module';
@@ -59,9 +59,8 @@ export class AlertListComponent implements OnInit, OnChanges, OnDestroy {
   selectedReservationId: string | null = null;
   showOfficeDropdown = false;
   preferredOfficeId: number | null = null;
-  officesSubscription?: Subscription;
-  globalOfficeSubscription?: Subscription;
   officeScopeResolved = false;
+  destroy$ = new Subject<void>();
   contacts: ContactResponse[] = [];
 
   alertsDisplayedColumns: ColumnSet = {
@@ -106,7 +105,7 @@ export class AlertListComponent implements OnInit, OnChanges, OnDestroy {
 
     this.loadContacts();
     this.loadOffices();
-    this.globalOfficeSubscription = this.globalSelectionService.getSelectedOfficeId$().pipe(skip(1)).subscribe(officeId => {
+    this.globalSelectionService.getSelectedOfficeId$().pipe(skip(1), takeUntil(this.destroy$)).subscribe(officeId => {
       if (this.offices.length > 0 && (this.officeId === null || this.officeId === undefined)) {
         this.resolveOfficeScope(officeId, true);
       }
@@ -424,8 +423,8 @@ export class AlertListComponent implements OnInit, OnChanges, OnDestroy {
   }
 
   ngOnDestroy(): void {
-    this.officesSubscription?.unsubscribe();
-    this.globalOfficeSubscription?.unsubscribe();
+    this.destroy$.next();
+    this.destroy$.complete();
   }
   //#endregion
 }

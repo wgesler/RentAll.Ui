@@ -70,7 +70,6 @@ export class LeadsShellComponent implements OnInit, OnDestroy {
 
   private destroy$ = new Subject<void>();
   private officesSubscription?: Subscription;
-  private globalOfficeSubscription?: Subscription;
   private isApplyingQueryParamState = false;
   private isWritingQueryParams = false;
   private lastKnownQueryStateKey: string | null = null;
@@ -84,7 +83,7 @@ export class LeadsShellComponent implements OnInit, OnDestroy {
       this.selectedOfficeId = initialGlobalOfficeId;
     }
     this.loadOffices();
-    this.globalOfficeSubscription = this.globalSelectionService
+    this.globalSelectionService
       .getSelectedOfficeId$()
       .pipe(skip(1), takeUntil(this.destroy$))
       .subscribe(officeId => {
@@ -504,7 +503,6 @@ export class LeadsShellComponent implements OnInit, OnDestroy {
   ngOnDestroy(): void {
     this.destroy$.next();
     this.destroy$.complete();
-    this.globalOfficeSubscription?.unsubscribe();
     this.officesSubscription?.unsubscribe();
   }
   //#endregion

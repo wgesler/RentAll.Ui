@@ -2,7 +2,7 @@
 import { CommonModule } from '@angular/common';
 import { Component, EventEmitter, Input, OnChanges, OnDestroy, OnInit, Output, SimpleChanges } from '@angular/core';
 import { FormsModule } from '@angular/forms';
-import { Subscription, filter, skip, take } from 'rxjs';
+import { Subject, Subscription, filter, skip, take, takeUntil } from 'rxjs';
 import { AuthService } from '../../../services/auth.service';
 import { MaterialModule } from '../../../material.module';
 import { GlobalSelectionService } from '../../organizations/services/global-selection.service';
@@ -75,12 +75,9 @@ export class GeneralLedgerComponent implements OnInit, OnChanges, OnDestroy {
   availableReservations: { value: ReservationListResponse, label: string }[] = [];
   companyContacts: ContactResponse[] = [];
   availableCompanyContacts: { value: ContactResponse, label: string }[] = [];
-  officesSubscription?: Subscription;
-  globalOfficeSubscription?: Subscription;
-  reservationsSubscription?: Subscription;
-  companyContactsSubscription?: Subscription;
   invoicesSubscription?: Subscription;
   costCodesSubscription?: Subscription;
+  destroy$ = new Subject<void>();
   allInvoices: InvoiceResponse[] = [];
   costCodes: CostCodesResponse[] = [];
   ledgerRows: GeneralLedgerDisplayRow[] = [];
@@ -123,7 +120,7 @@ export class GeneralLedgerComponent implements OnInit, OnChanges, OnDestroy {
     this.loadCostCodes();
     this.loadInvoices();
 
-    this.globalOfficeSubscription = this.globalSelectionService.getSelectedOfficeId$().pipe(skip(1)).subscribe(officeId => {
+    this.globalSelectionService.getSelectedOfficeId$().pipe(skip(1), takeUntil(this.destroy$)).subscribe(officeId => {
       if (this.offices.length > 0) {
         this.resolveOfficeScope(officeId, true);
       }
@@ -486,12 +483,10 @@ export class GeneralLedgerComponent implements OnInit, OnChanges, OnDestroy {
 
   //#region Utility Methods
   ngOnDestroy(): void {
-    this.officesSubscription?.unsubscribe();
-    this.globalOfficeSubscription?.unsubscribe();
-    this.reservationsSubscription?.unsubscribe();
-    this.companyContactsSubscription?.unsubscribe();
     this.invoicesSubscription?.unsubscribe();
     this.costCodesSubscription?.unsubscribe();
+    this.destroy$.next();
+    this.destroy$.complete();
   }
 
   resolveOfficeScope(officeId: number | null, emitChange: boolean): void {

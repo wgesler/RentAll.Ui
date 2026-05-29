@@ -8,7 +8,7 @@ import { CommonMessage } from '../../../enums/common-message.enum';
 import { MaterialModule } from '../../../material.module';
 import { MappingService } from '../../../services/mapping.service';
 import { AuthService } from '../../../services/auth.service';
-import { Subscription, skip, take } from 'rxjs';
+import { skip, Subject, take, takeUntil } from 'rxjs';
 import { EmailListDisplay } from '../models/email.model';
 import { EmailService } from '../services/email.service';
 import { DataTableComponent } from '../../shared/data-table/data-table.component';
@@ -69,9 +69,8 @@ export class EmailListComponent implements OnInit, OnDestroy, OnChanges {
   
   showOfficeDropdown = false;
   preferredOfficeId: number | null = null;
-  officesSubscription?: Subscription;
-  globalOfficeSubscription?: Subscription;
   officeScopeResolved: boolean = false;
+  destroy$ = new Subject<void>();
 
   emailsDisplayedColumns: ColumnSet = {
     propertyCode: { displayAs: 'Property', maxWidth: '15ch', sortType: 'natural' },
@@ -116,7 +115,7 @@ export class EmailListComponent implements OnInit, OnDestroy, OnChanges {
     this.loadOffices();
     this.initializeEmailTypes();
 
-    this.globalOfficeSubscription = this.globalSelectionService.getSelectedOfficeId$().pipe(skip(1)).subscribe(officeId => {
+    this.globalSelectionService.getSelectedOfficeId$().pipe(skip(1), takeUntil(this.destroy$)).subscribe(officeId => {
       if (this.offices.length > 0 && (this.officeId === null || this.officeId === undefined)) {
         this.resolveOfficeScope(officeId, true);
       }
@@ -588,8 +587,8 @@ export class EmailListComponent implements OnInit, OnDestroy, OnChanges {
   }
 
   ngOnDestroy(): void {
-    this.officesSubscription?.unsubscribe();
-    this.globalOfficeSubscription?.unsubscribe();
+    this.destroy$.next();
+    this.destroy$.complete();
   }
 
   resolveOfficeScope(officeId: number | null, emitChange: boolean): void {

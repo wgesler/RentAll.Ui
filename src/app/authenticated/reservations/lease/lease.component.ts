@@ -5,7 +5,7 @@ import { FormBuilder, FormControl, FormGroup, FormsModule, ReactiveFormsModule }
 import { DomSanitizer, SafeHtml } from '@angular/platform-browser';
 import { Router } from '@angular/router';
 import { ToastrService } from 'ngx-toastr';
-import { BehaviorSubject, Observable, Subscription, catchError, filter, finalize, forkJoin, map, of, take } from 'rxjs';
+import { BehaviorSubject, Observable, Subject, catchError, filter, finalize, forkJoin, map, of, take, takeUntil } from 'rxjs';
 import { MaterialModule } from '../../../material.module';
 import { RouterUrl } from '../../../app.routes';
 import { AuthService } from '../../../services/auth.service';
@@ -89,7 +89,6 @@ export class LeaseComponent extends BaseDocumentComponent implements OnInit, OnD
 
   offices: OfficeResponse[] = [];
   availableOffices: { value: number, name: string }[] = [];
-  officesSubscription?: Subscription;
   selectedOffice: OfficeResponse | null = null;
   accountingOffices: AccountingOfficeResponse[] = [];
   buildings: BuildingResponse[] = [];
@@ -109,7 +108,6 @@ export class LeaseComponent extends BaseDocumentComponent implements OnInit, OnD
   emailHtml: EmailHtmlResponse | null = null;
   leaseInformation: LeaseInformationResponse | null = null;
   leaseInformationScopeOverride: { officeId: number | null; propertyId: string | null } | null = null;
-  leaseReloadSubscription?: Subscription;
   includeLease: boolean = true;
   includeLetterOfResponsibility: boolean = true;
   includeNoticeToVacate: boolean = true;
@@ -121,6 +119,7 @@ export class LeaseComponent extends BaseDocumentComponent implements OnInit, OnD
   isPageReady: boolean = false;
 
   itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['offices', 'organization', 'property', 'leaseInformation', 'reservation', 'reservations', 'contacts', 'emailHtml', 'accountingOffices', 'buildings', 'logo', 'previewHtml'])); 
+  destroy$ = new Subject<void>();
   logoSourcesLoaded = { offices: false, organization: false };
 
 
@@ -184,7 +183,7 @@ export class LeaseComponent extends BaseDocumentComponent implements OnInit, OnD
     this.loadLeaseInformation();
     
     // Subscribe to lease reload events
-    this.leaseReloadSubscription = this.leaseReloadService.reloadLease.subscribe((scope) => {
+    this.leaseReloadService.reloadLease.pipe(takeUntil(this.destroy$)).subscribe((scope) => {
       this.leaseInformationScopeOverride = scope;
       this.reloadLease();
     });
@@ -2347,8 +2346,8 @@ export class LeaseComponent extends BaseDocumentComponent implements OnInit, OnD
   }
 
   ngOnDestroy(): void {
-    this.officesSubscription?.unsubscribe();
-    this.leaseReloadSubscription?.unsubscribe();
+    this.destroy$.next();
+    this.destroy$.complete();
     this.itemsToLoad$.complete();
   }
   //#endregion

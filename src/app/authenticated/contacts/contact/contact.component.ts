@@ -4,7 +4,7 @@ import { MAT_DIALOG_DATA } from '@angular/material/dialog';
 import { FormBuilder, FormControl, FormGroup, FormsModule, ReactiveFormsModule, Validators } from '@angular/forms';
 import { ActivatedRoute, Router } from '@angular/router';
 import { ToastrService } from 'ngx-toastr';
-import { BehaviorSubject, Observable, Subject, Subscription, filter, finalize, forkJoin, map, of, skip, switchMap, take, takeUntil } from 'rxjs';
+import { BehaviorSubject, Observable, Subject, filter, finalize, forkJoin, map, of, skip, switchMap, take, takeUntil } from 'rxjs';
 import { RouterUrl } from '../../../app.routes';
 import { CommonMessage, CommonTimeouts } from '../../../enums/common-message.enum';
 import { MaterialModule } from '../../../material.module';
@@ -79,8 +79,6 @@ export class ContactComponent implements OnInit, OnChanges, OnDestroy {
   offices: OfficeResponse[] = [];
   availableOffices: { value: number, name: string }[] = [];
   availableDefaultOffices: { value: number, name: string }[] = [];
-  officesSubscription?: Subscription;
-  globalOfficeSubscription?: Subscription;
 
   allProperties: PropertyListResponse[] = [];
   availablePropertyCodes: { value: string; label: string }[] = [];
@@ -151,7 +149,7 @@ export class ContactComponent implements OnInit, OnChanges, OnDestroy {
     this.loadOffices();
     this.loadAllProperties();
 
-    this.globalOfficeSubscription = this.globalSelectionService.getSelectedOfficeId$().pipe(skip(1), takeUntil(this.destroy$)).subscribe(officeId => {
+    this.globalSelectionService.getSelectedOfficeId$().pipe(skip(1), takeUntil(this.destroy$)).subscribe(officeId => {
       if (this.isAddMode && this.form && this.offices.length > 0) {
         const currentOfficeId = this.form.get('officeId')?.value ?? null;
         const nextOfficeId = officeId ?? null;
@@ -1705,8 +1703,6 @@ export class ContactComponent implements OnInit, OnChanges, OnDestroy {
   ngOnDestroy(): void {
     this.destroy$.next();
     this.destroy$.complete();
-    this.globalOfficeSubscription?.unsubscribe();
-    this.officesSubscription?.unsubscribe();
     this.itemsToLoad$.complete();
   }
 

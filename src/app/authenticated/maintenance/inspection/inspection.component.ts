@@ -3,7 +3,7 @@ import { HttpErrorResponse } from '@angular/common/http';
 import { ChangeDetectorRef, Component, EventEmitter, HostListener, Input, OnChanges, OnDestroy, OnInit, Output, SimpleChanges } from '@angular/core';
 import { MatDialog } from '@angular/material/dialog';
 import { FormBuilder, FormControl, FormGroup, ReactiveFormsModule } from '@angular/forms';
-import { Subscription, finalize, firstValueFrom, forkJoin, map, of, switchMap, take } from 'rxjs';
+import { Subject, finalize, firstValueFrom, forkJoin, map, of, switchMap, take, takeUntil } from 'rxjs';
 import { ToastrService } from 'ngx-toastr';
 import { CommonMessage } from '../../../enums/common-message.enum';
 import { MaterialModule } from '../../../material.module';
@@ -62,7 +62,7 @@ export class InspectionComponent implements OnChanges, OnDestroy, OnInit {
   readonly inspectionTypeOptions = getInspectionTypes();
   inspectionTypeIdControl = new FormControl<number>(InspectionType.Online, { nonNullable: true });
   shellReservationFieldTouched = false;
-  inspectionTypeSubscription?: Subscription;
+  destroy$ = new Subject<void>();
 
   /** Cache of documentId -> blob URL for photos loaded via download API (private blob storage). */
   readonly maxSourceImageBytes = 20 * 1024 * 1024; // 20 MB
@@ -127,7 +127,7 @@ export class InspectionComponent implements OnChanges, OnDestroy, OnInit {
     this.loadChecklistContext();
     this.hasInitialized = true;
 
-    this.inspectionTypeSubscription = this.inspectionTypeIdControl.valueChanges.subscribe(type => {
+    this.inspectionTypeIdControl.valueChanges.pipe(takeUntil(this.destroy$)).subscribe(type => {
       if (this.isReadonlyMode || this.isTemplateMode) {
         return;
       }
@@ -2586,7 +2586,8 @@ export class InspectionComponent implements OnChanges, OnDestroy, OnInit {
 
   //#region Utility Methods
   ngOnDestroy(): void {
-    this.inspectionTypeSubscription?.unsubscribe();
+    this.destroy$.next();
+    this.destroy$.complete();
     this.photoBlobUrlCache.forEach(url => {
       if (url.startsWith('blob:')) {
         URL.revokeObjectURL(url);

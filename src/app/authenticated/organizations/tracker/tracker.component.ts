@@ -3,7 +3,7 @@ import { HttpErrorResponse } from '@angular/common/http';
 import { Component, ElementRef, EventEmitter, Input, OnChanges, OnDestroy, OnInit, Output, SimpleChanges, ViewChild } from '@angular/core';
 import { FormBuilder, FormControl, FormGroup, FormsModule, ReactiveFormsModule, Validators } from '@angular/forms';
 import { ToastrService } from 'ngx-toastr';
-import { BehaviorSubject, Observable, Subject, Subscription, concatMap, filter, finalize, from, map, of, take, toArray } from 'rxjs';
+import { BehaviorSubject, Observable, Subject, concatMap, filter, finalize, from, map, of, take, takeUntil, toArray } from 'rxjs';
 import { CommonMessage, CommonTimeouts } from '../../../enums/common-message.enum';
 import { MaterialModule } from '../../../material.module';
 import { AuthService } from '../../../services/auth.service';
@@ -52,7 +52,6 @@ export class TrackerComponent implements OnInit, OnDestroy, OnChanges {
 
   offices: OfficeResponse[] = [];
   availableOffices: { value: number, name: string }[] = [];
-  officesSubscription?: Subscription;
   trackerContextOptions: { value: TrackerContextType, label: string }[] = [];
 
   itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['offices']));
@@ -180,7 +179,7 @@ export class TrackerComponent implements OnInit, OnDestroy, OnChanges {
   //#region Data Loading Methods
   loadOffices(): void {
     this.officeService.areOfficesLoaded().pipe(filter(loaded => loaded === true), take(1)).subscribe(() => {
-      this.officesSubscription = this.officeService.getAllOffices().subscribe(offices => {
+      this.officeService.getAllOffices().pipe(takeUntil(this.destroy$)).subscribe(offices => {
         this.offices = offices || [];
         this.availableOffices = this.mappingService.mapOfficesToDropdown(this.offices);
       });
@@ -386,7 +385,6 @@ export class TrackerComponent implements OnInit, OnDestroy, OnChanges {
   ngOnDestroy(): void {
     this.destroy$.next();
     this.destroy$.complete();
-    this.officesSubscription?.unsubscribe();
     this.itemsToLoad$.complete();
   }
 

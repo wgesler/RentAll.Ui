@@ -87,7 +87,6 @@ export class WorkOrderComponent implements OnInit, OnChanges, OnDestroy {
   destroy$ = new Subject<void>();
   selectedGlobalOfficeId: number | null = null;
   officesSubscription?: Subscription;
-  globalOfficeSubscription?: Subscription;
   
   constructor(
     fb: FormBuilder,
@@ -129,7 +128,7 @@ export class WorkOrderComponent implements OnInit, OnChanges, OnDestroy {
     }
 
     this.selectedGlobalOfficeId = this.globalSelectionService.getSelectedOfficeIdValue();
-    this.globalOfficeSubscription = this.globalSelectionService.getSelectedOfficeId$().pipe(skip(1)).subscribe(officeId => {
+    this.globalSelectionService.getSelectedOfficeId$().pipe(skip(1), takeUntil(this.destroy$)).subscribe(officeId => {
       this.selectedGlobalOfficeId = officeId;
     });
 
@@ -1712,7 +1711,6 @@ export class WorkOrderComponent implements OnInit, OnChanges, OnDestroy {
 
   ngOnDestroy(): void {
     this.officesSubscription?.unsubscribe();
-    this.globalOfficeSubscription?.unsubscribe();
     this.destroy$.next();
     this.destroy$.complete();
     this.itemsToLoad$.complete();

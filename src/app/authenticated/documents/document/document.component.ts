@@ -3,7 +3,7 @@ import { Component, OnDestroy, OnInit } from '@angular/core';
 import { FormBuilder, FormControl, FormGroup, FormsModule, ReactiveFormsModule, Validators } from '@angular/forms';
 import { ActivatedRoute, Router } from '@angular/router';
 import { ToastrService } from 'ngx-toastr';
-import { BehaviorSubject, Observable, Subscription, filter, finalize, map, take } from 'rxjs';
+import { BehaviorSubject, Observable, Subject, filter, finalize, map, take, takeUntil } from 'rxjs';
 import { RouterUrl } from '../../../app.routes';
 import { CommonMessage } from '../../../enums/common-message.enum';
 import { MaterialModule } from '../../../material.module';
@@ -41,7 +41,6 @@ export class DocumentComponent implements OnInit, OnDestroy {
   filePreview: string | null = null;
   fileDetails: FileDetails = null;
   hasNewFileUpload: boolean = false; // Track if fileDetails is from a new upload vs API response
-  officesSubscription?: Subscription;
   offices: OfficeResponse[] = [];
   availableOffices: { value: number, name: string }[] = [];
  organizationId: string = '';
@@ -50,6 +49,7 @@ export class DocumentComponent implements OnInit, OnDestroy {
 
   itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['offices']));
   isLoading$: Observable<boolean> = this.itemsToLoad$.pipe(map(items => items.size > 0));
+  destroy$ = new Subject<void>();
 
   constructor(
     public documentService: DocumentService,
@@ -215,7 +215,7 @@ export class DocumentComponent implements OnInit, OnDestroy {
   loadOffices(): void {
     // Wait for offices to be loaded initially, then subscribe to changes then subscribe for updates
     this.officeService.areOfficesLoaded().pipe(filter(loaded => loaded === true), take(1)).subscribe(() => {
-      this.officesSubscription = this.officeService.getAllOffices().subscribe(offices => {
+      this.officeService.getAllOffices().pipe(takeUntil(this.destroy$)).subscribe(offices => {
         this.offices = offices || [];
         this.availableOffices = this.mappingService.mapOfficesToDropdown(this.offices);
       });
@@ -334,7 +334,8 @@ export class DocumentComponent implements OnInit, OnDestroy {
   }
 
   ngOnDestroy(): void {
-    this.officesSubscription?.unsubscribe();
+    this.destroy$.next();
+    this.destroy$.complete();
     this.itemsToLoad$.complete();
   }
 

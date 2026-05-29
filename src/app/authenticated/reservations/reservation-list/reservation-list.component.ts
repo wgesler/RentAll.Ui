@@ -5,7 +5,7 @@ import { MatDialog } from '@angular/material/dialog';
 import { MatSlideToggleChange } from '@angular/material/slide-toggle';
 import { ActivatedRoute, NavigationEnd, Router } from '@angular/router';
 import { ToastrService } from 'ngx-toastr';
-import { BehaviorSubject, Observable, Subject, Subscription, filter, finalize, map, skip, take, takeUntil } from 'rxjs';
+import { BehaviorSubject, Observable, Subject, filter, finalize, map, skip, take, takeUntil } from 'rxjs';
 import { RouterUrl } from '../../../app.routes';
 import { CommonMessage } from '../../../enums/common-message.enum';
 import { MaterialModule } from '../../../material.module';
@@ -58,9 +58,6 @@ export class ReservationListComponent implements OnInit, OnDestroy, OnChanges {
 
   offices: OfficeResponse[] = [];
   availableOffices: { value: number, name: string }[] = [];
-  officesSubscription?: Subscription;
-  globalOfficeSubscription?: Subscription;
-  navigationSubscription?: Subscription;
   lastNavigationUrl = '';
 
   selectedOffice: OfficeResponse | null = null;
@@ -139,13 +136,13 @@ export class ReservationListComponent implements OnInit, OnDestroy, OnChanges {
       this.applyFilters();
     });
 
-    this.globalOfficeSubscription = this.globalSelectionService.getSelectedOfficeId$().pipe(skip(1)).subscribe(officeId => {
+    this.globalSelectionService.getSelectedOfficeId$().pipe(skip(1), takeUntil(this.destroy$)).subscribe(officeId => {
       if (this.offices.length > 0) {
         this.resolveOfficeScope(officeId, true);
       }
     });
 
-    this.navigationSubscription = this.router.events.pipe(filter((e): e is NavigationEnd => e instanceof NavigationEnd),takeUntil(this.destroy$)).subscribe(e => {
+    this.router.events.pipe(filter((e): e is NavigationEnd => e instanceof NavigationEnd),takeUntil(this.destroy$)).subscribe(e => {
       const url = e.urlAfterRedirects.split('?')[0];
       const isReservationList = url.endsWith('/reservations');
       const fromPropertySelection = this.lastNavigationUrl.includes('/selection');
@@ -163,7 +160,7 @@ export class ReservationListComponent implements OnInit, OnDestroy, OnChanges {
         }
       }
       
-      this.route.queryParams.subscribe(params => {
+      this.route.queryParams.pipe(takeUntil(this.destroy$)).subscribe(params => {
         const officeIdParam = params['officeId'];
         
         if (officeIdParam) {
@@ -724,9 +721,6 @@ export class ReservationListComponent implements OnInit, OnDestroy, OnChanges {
   ngOnDestroy(): void {
     this.destroy$.next();
     this.destroy$.complete();
-    this.navigationSubscription?.unsubscribe();
-    this.officesSubscription?.unsubscribe();
-    this.globalOfficeSubscription?.unsubscribe();
     this.itemsToLoad$.complete();
   }
   //#endregion

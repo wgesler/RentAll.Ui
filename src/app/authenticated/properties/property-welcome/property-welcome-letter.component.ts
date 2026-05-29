@@ -5,7 +5,7 @@ import { FormBuilder, FormControl, FormGroup, FormsModule, ReactiveFormsModule }
 import { DomSanitizer, SafeHtml } from '@angular/platform-browser';
 import { Router } from '@angular/router';
 import { ToastrService } from 'ngx-toastr';
-import { BehaviorSubject, Observable, Subscription, filter, finalize, map, of, take } from 'rxjs';
+import { BehaviorSubject, Observable, Subject, filter, finalize, map, of, take, takeUntil } from 'rxjs';
 import { MaterialModule } from '../../../material.module';
 import { RouterUrl } from '../../../app.routes';
 import { AuthService } from '../../../services/auth.service';
@@ -78,15 +78,12 @@ export class PropertyWelcomeLetterComponent extends BaseDocumentComponent implem
   buildings: BuildingResponse[] = [];
   offices: OfficeResponse[] = [];
   accountingOffices: AccountingOfficeResponse[] = [];
-  officesSubscription?: Subscription;
-  contactsSubscription?: Subscription;
   selectedOffice: OfficeResponse | null = null;
   previewIframeHtml: string = '';
   safeHtml: SafeHtml = '';
   previewIframeStyles: string = '';
   iframeKey: number = 0;
   isDownloading: boolean = false;
-  welcomeLetterReloadSubscription?: Subscription;
   debuggingHtml: boolean = environment.local || environment.dev;
   isPageReady: boolean = false;
   propertyReservationsLoaded: boolean = false;
@@ -95,6 +92,7 @@ export class PropertyWelcomeLetterComponent extends BaseDocumentComponent implem
    
   itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['property', 'reservations', 'welcomeLetter', 'propertyInformation', 'organization', 'offices', 'accountingOffices', 'contacts', 'buildings', 'emailHtml', 'logo', 'previewHtml']));
   logoSourcesLoaded = { accountingOffices: false, organization: false };
+  destroy$ = new Subject<void>();
 
   constructor(
     private propertyHtmlService: PropertyHtmlService,
@@ -166,7 +164,7 @@ export class PropertyWelcomeLetterComponent extends BaseDocumentComponent implem
     this.loadPropertyInformation();
     this.getWelcomeLetter();
 
-    this.welcomeLetterReloadSubscription = this.welcomeLetterReloadService.reloadWelcomeLetter.subscribe(() => {
+    this.welcomeLetterReloadService.reloadWelcomeLetter.pipe(takeUntil(this.destroy$)).subscribe(() => {
       this.reloadWelcomeLetter();
     });
   }
@@ -348,7 +346,7 @@ export class PropertyWelcomeLetterComponent extends BaseDocumentComponent implem
 
   loadOffices(): void {
     this.officeService.areOfficesLoaded().pipe(filter(loaded => loaded === true), take(1)).subscribe(() => {
-      this.officesSubscription = this.officeService.getAllOffices().subscribe(offices => {
+      this.officeService.getAllOffices().pipe(takeUntil(this.destroy$)).subscribe(offices => {
         this.offices = offices || [];
         if (this.officeId !== null && this.officeId !== undefined) {
           this.selectedOffice = this.offices.find(o => o.officeId === this.officeId) || null;
@@ -1094,9 +1092,8 @@ export class PropertyWelcomeLetterComponent extends BaseDocumentComponent implem
   }
 
   ngOnDestroy(): void {
-    this.officesSubscription?.unsubscribe();
-    this.contactsSubscription?.unsubscribe();
-    this.welcomeLetterReloadSubscription?.unsubscribe();
+    this.destroy$.next();
+    this.destroy$.complete();
     this.itemsToLoad$.complete();
   }
   //#endregion

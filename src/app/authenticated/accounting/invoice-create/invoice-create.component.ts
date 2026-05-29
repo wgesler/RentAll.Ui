@@ -5,7 +5,7 @@ import { FormBuilder, FormControl, FormGroup, FormsModule, ReactiveFormsModule }
 import { DomSanitizer, SafeHtml } from '@angular/platform-browser';
 import { ActivatedRoute, Router } from '@angular/router';
 import { ToastrService } from 'ngx-toastr';
-import { BehaviorSubject, Observable, Subscription, filter, finalize, firstValueFrom, forkJoin, of, skip, take } from 'rxjs';
+import { BehaviorSubject, Observable, Subject, Subscription, filter, finalize, firstValueFrom, forkJoin, of, skip, take, takeUntil } from 'rxjs';
 import { RouterUrl } from '../../../app.routes';
 import { MaterialModule } from '../../../material.module';
 import { AuthService } from '../../../services/auth.service';
@@ -71,7 +71,6 @@ export class InvoiceCreateComponent extends BaseDocumentComponent implements OnI
   offices: OfficeResponse[] = [];
   selectedOffice: OfficeResponse | null = null;
   officesSubscription?: Subscription;
-  globalOfficeSubscription?: Subscription;
 
   accountingOffices: AccountingOfficeResponse[] = [];
   selectedAccountingOffice: AccountingOfficeResponse | null = null;
@@ -112,6 +111,7 @@ export class InvoiceCreateComponent extends BaseDocumentComponent implements OnI
 
   itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['offices', 'accountingOffices', 'organization', 'reservations', 'contacts', 'emailHtml', 'costCodes', 'logo', 'previewHtml']));
   logoSourcesLoaded = { offices: false, accountingOffices: false, organization: false };
+  destroy$ = new Subject<void>();
 
   constructor(
     private propertyHtmlService: PropertyHtmlService,
@@ -149,7 +149,7 @@ export class InvoiceCreateComponent extends BaseDocumentComponent implements OnI
 
   //#region Create Invoice Methods
   ngOnInit(): void {
-    this.globalOfficeSubscription = this.globalSelectionService.getSelectedOfficeId$().pipe(skip(1)).subscribe(officeId => {
+    this.globalSelectionService.getSelectedOfficeId$().pipe(skip(1), takeUntil(this.destroy$)).subscribe(officeId => {
       if (this.offices.length > 0) {
         this.applyOfficeSelection(officeId);
       }
@@ -1693,7 +1693,8 @@ export class InvoiceCreateComponent extends BaseDocumentComponent implements OnI
   ngOnDestroy(): void {
     this.officesSubscription?.unsubscribe();
     this.costCodesSubscription?.unsubscribe();
-    this.globalOfficeSubscription?.unsubscribe();
+    this.destroy$.next();
+    this.destroy$.complete();
     this.itemsToLoad$.complete();
   }
   //#endregion

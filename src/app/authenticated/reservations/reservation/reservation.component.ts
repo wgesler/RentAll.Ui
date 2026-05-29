@@ -5,7 +5,7 @@ import { AbstractControl, FormBuilder, FormControl, FormGroup, FormsModule, Reac
 import { MatDialog } from '@angular/material/dialog';
 import { ActivatedRoute, ParamMap, Router } from '@angular/router';
 import { ToastrService } from 'ngx-toastr';
-import { BehaviorSubject, Observable, Subject, Subscription, catchError, filter, finalize, map, of, pairwise, skip, startWith, take, takeUntil } from 'rxjs';
+import { BehaviorSubject, Observable, Subject, catchError, filter, finalize, map, of, pairwise, skip, startWith, take, takeUntil } from 'rxjs';
 import { RouterUrl } from '../../../app.routes';
 import { CanComponentDeactivate } from '../../../guards/can-deactivate-guard';
 import { CommonMessage, CommonTimeouts } from '../../../enums/common-message.enum';
@@ -135,9 +135,6 @@ export class ReservationComponent implements OnInit, OnDestroy, CanComponentDeac
   preferredOfficeId: number | null = null;
   offices: OfficeResponse[] = [];
   availableOffices: { value: number, name: string }[] = [];
-  officesSubscription?: Subscription;
-  globalOfficeSubscription?: Subscription;
-  contactsSubscription?: Subscription;
   selectedOffice: OfficeResponse | null = null;
   handlersSetup: boolean = false;
   
@@ -145,7 +142,6 @@ export class ReservationComponent implements OnInit, OnDestroy, CanComponentDeac
   
   chargeCostCodes: CostCodesResponse[] = [];
   availableChargeCostCodes: { value: number, label: string }[] = [];
-  costCodesSubscription?: Subscription;
 
   itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['agents', 'properties', 'contacts', 'cleaners']));
   isLoading$: Observable<boolean> = this.itemsToLoad$.pipe(map(items => items.size > 0));
@@ -199,7 +195,7 @@ export class ReservationComponent implements OnInit, OnDestroy, CanComponentDeac
     this.loadHousekeepingUsers();
     this.loadOffices();
 
-    this.globalOfficeSubscription = this.globalSelectionService.getSelectedOfficeId$().pipe(skip(1), takeUntil(this.destroy$)).subscribe(officeId => {
+    this.globalSelectionService.getSelectedOfficeId$().pipe(skip(1), takeUntil(this.destroy$)).subscribe(officeId => {
       if (this.offices.length > 0 && this.isAddMode) {
         this.resolveOfficeScope(officeId);
         if (this.selectedOffice) {
@@ -1036,7 +1032,7 @@ export class ReservationComponent implements OnInit, OnDestroy, CanComponentDeac
     // Wait for cost codes to be loaded, then filter for charge types
     this.costCodesService.areCostCodesLoaded().pipe(filter(loaded => loaded === true), take(1)).subscribe({
       next: () => {
-        this.costCodesSubscription = this.costCodesService.getAllCostCodes().subscribe(() => {
+        this.costCodesService.getAllCostCodes().pipe(takeUntil(this.destroy$)).subscribe(() => {
           // Get cost codes for the selected office and filter for charge types (non-payment)
           const costCodes = this.costCodesService.getCostCodesForOffice(this.selectedOffice!.officeId);
           this.chargeCostCodes = costCodes.filter(c => c.isActive && c.transactionTypeId !== TransactionType.Payment);
@@ -2877,10 +2873,6 @@ export class ReservationComponent implements OnInit, OnDestroy, CanComponentDeac
   ngOnDestroy(): void {
     this.destroy$.next();
     this.destroy$.complete();
-    this.globalOfficeSubscription?.unsubscribe();
-    this.officesSubscription?.unsubscribe();
-    this.contactsSubscription?.unsubscribe();
-    this.costCodesSubscription?.unsubscribe();
     this.itemsToLoad$.complete();
   }
   //#endregion

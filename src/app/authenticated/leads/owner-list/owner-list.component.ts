@@ -4,7 +4,7 @@ import { HttpErrorResponse } from '@angular/common/http';
 import { Component, input, NgZone, OnChanges, OnDestroy, OnInit, output, SimpleChanges } from '@angular/core';
 import { Router } from '@angular/router';
 import { ToastrService } from 'ngx-toastr';
-import { BehaviorSubject, Subject, Subscription, finalize, take, takeUntil } from 'rxjs';
+import { BehaviorSubject, Subject, finalize, take, takeUntil } from 'rxjs';
 import { RouterUrl } from '../../../app.routes';
 import { CommonMessage } from '../../../enums/common-message.enum';
 import { MaterialModule } from '../../../material.module';
@@ -48,7 +48,6 @@ export class OwnerListComponent implements OnInit, OnChanges, OnDestroy {
   ownersDisplay: LeadOwnerListDisplay[] = [];
 
   offices: OfficeResponse[] = [];
-  globalOfficeSubscription?: Subscription;
   selectedOffice: OfficeResponse | null = null;
   isOwnerAdmin = false;
   isInOwnerMode = false;
@@ -90,7 +89,7 @@ export class OwnerListComponent implements OnInit, OnChanges, OnDestroy {
     this.isOwnerAdmin = this.authService.isOwnerAdmin();
 
     if (!this.embeddedInShell()) {
-      this.globalOfficeSubscription = this.globalSelectionService.getSelectedOfficeId$().pipe(takeUntil(this.destroy$)).subscribe(officeId => {
+      this.globalSelectionService.getSelectedOfficeId$().pipe(takeUntil(this.destroy$)).subscribe(officeId => {
         if (this.offices.length === 0) {
           return;
         }
@@ -474,7 +473,6 @@ export class OwnerListComponent implements OnInit, OnChanges, OnDestroy {
     return leadStateId === LeadStateType.New ? '●' : '';
   }
     ngOnDestroy(): void {
-    this.globalOfficeSubscription?.unsubscribe();
     this.destroy$.next();
     this.destroy$.complete();
     this.itemsToLoad$.complete();

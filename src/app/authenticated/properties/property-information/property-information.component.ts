@@ -2,7 +2,7 @@ import { CommonModule } from '@angular/common';
 import { Component, Input, OnChanges, OnDestroy, OnInit, SimpleChanges } from '@angular/core';
 import { FormBuilder, FormControl, FormGroup, FormsModule, ReactiveFormsModule } from '@angular/forms';
 import { ToastrService } from 'ngx-toastr';
-import { BehaviorSubject, Observable, Subscription, filter, finalize, map, take } from 'rxjs';
+import { BehaviorSubject, Observable, Subject, filter, finalize, map, take, takeUntil } from 'rxjs';
 import { CommonMessage } from '../../../enums/common-message.enum';
 import { MaterialModule } from '../../../material.module';
 import { AuthService } from '../../../services/auth.service';
@@ -38,10 +38,10 @@ export class PropertyInformationComponent implements OnInit, OnDestroy, OnChange
   offices: OfficeResponse[] = [];
   selectedOffice: OfficeResponse | null = null;
   showOfficeDropdown: boolean = false;
-  officesSubscription?: Subscription;
 
   itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['property', 'propertyInformation', 'offices']));
   isLoading$: Observable<boolean> = this.itemsToLoad$.pipe(map(items => items.size > 0));
+  destroy$ = new Subject<void>();
 
   constructor(
     private propertyInformationService: PropertyInformationService,
@@ -173,7 +173,7 @@ export class PropertyInformationComponent implements OnInit, OnDestroy, OnChange
   //#region Data Loading Methods
   loadOffices(): void {
     this.officeService.areOfficesLoaded().pipe(filter(loaded => loaded === true), take(1)).subscribe(() => {
-      this.officesSubscription = this.officeService.getAllOffices().subscribe(offices => {
+      this.officeService.getAllOffices().pipe(takeUntil(this.destroy$)).subscribe(offices => {
         this.offices = offices || [];
         this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'offices');
         this.globalSelectionService.getOfficeUiState$(this.offices).pipe(take(1)).subscribe({
@@ -364,7 +364,8 @@ export class PropertyInformationComponent implements OnInit, OnDestroy, OnChange
   }
 
   ngOnDestroy(): void {
-    this.officesSubscription?.unsubscribe();
+    this.destroy$.next();
+    this.destroy$.complete();
     this.itemsToLoad$.complete();
   }
   //#endregion

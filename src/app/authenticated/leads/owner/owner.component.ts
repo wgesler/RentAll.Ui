@@ -4,7 +4,7 @@ import { Component, effect, input, NgZone, OnDestroy, OnInit, output } from '@an
 import { FormBuilder, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
 import { ActivatedRoute, Router } from '@angular/router';
 import { ToastrService } from 'ngx-toastr';
-import { BehaviorSubject, Subject, Subscription, filter, finalize, map, take, takeUntil } from 'rxjs';
+import { BehaviorSubject, Subject, filter, finalize, map, take, takeUntil } from 'rxjs';
 import { RouterUrl } from '../../../app.routes';
 import { CommonMessage } from '../../../enums/common-message.enum';
 import { MaterialModule } from '../../../material.module';
@@ -52,7 +52,6 @@ export class OwnerComponent implements OnInit, OnDestroy {
   organizationId = '';
   offices: OfficeResponse[] = [];
   propertyTypeOptions = getPropertyTypes();
-  globalOfficeSubscription?: Subscription;
   officeScopeResolved = false;
   preferredOfficeId: number | null = null;
   selectedOffice: OfficeResponse | null = null;
@@ -111,7 +110,7 @@ export class OwnerComponent implements OnInit, OnDestroy {
     this.organizationId = user?.organizationId?.trim() ?? '';
     this.preferredOfficeId = user?.defaultOfficeId ?? null;
 
-    this.globalOfficeSubscription = this.globalSelectionService.getSelectedOfficeId$().pipe(takeUntil(this.destroy$)).subscribe(officeId => {
+    this.globalSelectionService.getSelectedOfficeId$().pipe(takeUntil(this.destroy$)).subscribe(officeId => {
       if (this.offices.length === 0) {
         return;
       }
@@ -565,7 +564,6 @@ export class OwnerComponent implements OnInit, OnDestroy {
   }
 
   ngOnDestroy(): void {
-    this.globalOfficeSubscription?.unsubscribe();
     this.destroy$.next();
     this.destroy$.complete();
     this.itemsToLoad$.complete();

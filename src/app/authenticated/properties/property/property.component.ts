@@ -5,7 +5,7 @@ import { MatDialog } from '@angular/material/dialog';
 import { ActivatedRoute } from '@angular/router';
 import { HttpErrorResponse } from '@angular/common/http';
 import { ToastrService } from 'ngx-toastr';
-import { BehaviorSubject, Observable, Subject, Subscription, catchError, distinctUntilChanged, filter, finalize, forkJoin, map, of, skip, switchMap, take, takeUntil } from 'rxjs';
+import { BehaviorSubject, Observable, Subject, catchError, distinctUntilChanged, filter, finalize, forkJoin, map, of, skip, switchMap, take, takeUntil } from 'rxjs';
 import { CanComponentDeactivate } from '../../../guards/can-deactivate-guard';
 import { CommonMessage, CommonTimeouts } from '../../../enums/common-message.enum';
 import { MaterialModule } from '../../../material.module';
@@ -106,7 +106,6 @@ export class PropertyComponent implements OnInit, OnChanges, AfterViewInit, OnDe
  
   states: string[] = [];
   contacts: ContactResponse[] = [];
-  contactsSubscription?: Subscription;
   trashDays: { value: number, label: string }[] = [];
   propertyStyles: { value: number, label: string }[] = [];
   propertyStatuses: { value: number, label: string }[] = [];
@@ -131,7 +130,6 @@ export class PropertyComponent implements OnInit, OnChanges, AfterViewInit, OnDe
   allAreasByOrg: AreaResponse[] = [];
   allBuildingsByOrg: BuildingResponse[] = [];
 
-  globalOfficeSubscription?: Subscription;
   itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['offices', 'regions', 'areas', 'buildings', 'contacts']));
   isLoading$: Observable<boolean> = this.itemsToLoad$.pipe(map(items => items.size > 0));
   destroy$ = new Subject<void>();
@@ -194,7 +192,7 @@ export class PropertyComponent implements OnInit, OnChanges, AfterViewInit, OnDe
     this.loadAreas();
     this.loadBuildings();
 
-    this.globalOfficeSubscription = this.globalSelectionService.getSelectedOfficeId$().pipe(skip(1), takeUntil(this.destroy$)).subscribe(officeId => {
+    this.globalSelectionService.getSelectedOfficeId$().pipe(skip(1), takeUntil(this.destroy$)).subscribe(officeId => {
       if (this.offices.length > 0) {
         this.resolveOfficeScope(officeId);
         this.emitTitleBarContextToShell();
@@ -1894,7 +1892,7 @@ export class PropertyComponent implements OnInit, OnChanges, AfterViewInit, OnDe
       return;
     }
 
-    this.officeService.getOffices(orgId).pipe(take(1), finalize(() => { this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'offices'); })).subscribe({
+    this.officeService.ensureOfficesLoaded(orgId).pipe(take(1), finalize(() => { this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'offices'); })).subscribe({
       next: (offices) => {
         this.offices = (offices || []).filter(f => f.organizationId === orgId && f.isActive);
         this.showOfficeDropdown = this.offices.length > 1;
@@ -2356,8 +2354,6 @@ export class PropertyComponent implements OnInit, OnChanges, AfterViewInit, OnDe
   ngOnDestroy(): void {
     this.destroy$.next();
     this.destroy$.complete();
-    this.globalOfficeSubscription?.unsubscribe();
-    this.contactsSubscription?.unsubscribe();
     this.itemsToLoad$.complete();
   }
   //#endregion

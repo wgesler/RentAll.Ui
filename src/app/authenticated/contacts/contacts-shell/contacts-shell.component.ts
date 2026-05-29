@@ -1,7 +1,7 @@
 import { ChangeDetectorRef, Component, OnDestroy, OnInit, ViewChild } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, Router } from '@angular/router';
-import { Subject, Subscription, filter, skip, take, takeUntil } from 'rxjs';
+import { Subject, filter, skip, take, takeUntil } from 'rxjs';
 import { MaterialModule } from '../../../material.module';
 import { ContactService } from '../services/contact.service';
 import { OfficeResponse } from '../../organizations/models/office.model';
@@ -33,8 +33,6 @@ export class ContactsShellComponent implements OnInit, OnDestroy {
   selectedOfficeId: number | null = null;
   showInactive: boolean = false;
   offices: OfficeResponse[] = [];
-  officesSubscription?: Subscription;
-  globalOfficeSubscription?: Subscription;
   selectedOffice: OfficeResponse | null = null;
   showOfficeDropdown: boolean = false;
   destroy$ = new Subject<void>();
@@ -64,7 +62,7 @@ export class ContactsShellComponent implements OnInit, OnDestroy {
       .subscribe(params => this.applyQueryParamState(params));
 
     this.loadOffices();
-    this.globalOfficeSubscription = this.globalSelectionService.getSelectedOfficeId$().pipe(skip(1), takeUntil(this.destroy$)).subscribe(officeId => {
+    this.globalSelectionService.getSelectedOfficeId$().pipe(skip(1), takeUntil(this.destroy$)).subscribe(officeId => {
       this.syncOfficeFromGlobal(officeId);
     });
   }
@@ -170,7 +168,7 @@ export class ContactsShellComponent implements OnInit, OnDestroy {
   //#region Data Loading Methods
   loadOffices(): void {
     this.officeService.areOfficesLoaded().pipe(filter(loaded => loaded === true), take(1)).subscribe(() => {
-      this.officesSubscription = this.officeService.getAllOffices().subscribe(allOffices => {
+      this.officeService.getAllOffices().pipe(takeUntil(this.destroy$)).subscribe(allOffices => {
         this.offices = allOffices || [];
         this.showOfficeDropdown = this.offices.length > 1;
         this.applyQueryParamState(this.route.snapshot.queryParams);
@@ -207,8 +205,6 @@ export class ContactsShellComponent implements OnInit, OnDestroy {
   ngOnDestroy(): void {
     this.destroy$.next();
     this.destroy$.complete();
-    this.globalOfficeSubscription?.unsubscribe();
-    this.officesSubscription?.unsubscribe();
   }
   //#endregion
 }

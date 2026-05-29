@@ -8,7 +8,7 @@ import { MatMenuTrigger } from '@angular/material/menu';
 import { MatSlideToggleChange } from '@angular/material/slide-toggle';
 import { ActivatedRoute, NavigationEnd, Router } from '@angular/router';
 import { ToastrService } from 'ngx-toastr';
-import { BehaviorSubject, Observable, Subject, Subscription, filter, finalize, map, take, takeUntil } from 'rxjs';
+import { BehaviorSubject, Observable, Subject, filter, finalize, map, take, takeUntil } from 'rxjs';
 import { RouterUrl } from '../../../app.routes';
 import { CommonMessage } from '../../../enums/common-message.enum';
 import { MaterialModule } from '../../../material.module';
@@ -65,9 +65,6 @@ export class PropertyListComponent implements OnInit, OnDestroy, OnChanges {
 
   offices: OfficeResponse[] = [];
   availableOffices: { value: number, name: string }[] = [];
-  officesSubscription?: Subscription;
-  globalOfficeSubscription?: Subscription;
-  navigationSubscription?: Subscription;
   lastNavigationUrl = '';
   destroy$ = new Subject<void>();
   officeScopeResolved = false;
@@ -147,13 +144,13 @@ export class PropertyListComponent implements OnInit, OnDestroy, OnChanges {
       }
     });
 
-    this.globalOfficeSubscription = this.globalSelectionService.getSelectedOfficeId$().pipe(takeUntil(this.destroy$)).subscribe(officeId => {
+    this.globalSelectionService.getSelectedOfficeId$().pipe(takeUntil(this.destroy$)).subscribe(officeId => {
       if (this.offices.length > 0) {
         this.resolveOfficeScope(officeId, true);
       }
     });
 
-    this.navigationSubscription = this.router.events.pipe(filter((e): e is NavigationEnd => e instanceof NavigationEnd),takeUntil(this.destroy$)).subscribe(e => {
+    this.router.events.pipe(filter((e): e is NavigationEnd => e instanceof NavigationEnd),takeUntil(this.destroy$)).subscribe(e => {
       const path = e.urlAfterRedirects.split('?')[0];
       if (/\/properties$/.test(path) && this.lastNavigationUrl.includes('/selection')) {
         this.getProperties();
@@ -166,7 +163,7 @@ export class PropertyListComponent implements OnInit, OnDestroy, OnChanges {
         this.resolveOfficeScope(this.officeId, false);
       }
       
-      this.route.queryParams.subscribe(params => {
+      this.route.queryParams.pipe(takeUntil(this.destroy$)).subscribe(params => {
         if (params['officeId']) {
           const parsedOfficeId = parseInt(params['officeId'], 10);
           if (parsedOfficeId) {
@@ -647,9 +644,6 @@ export class PropertyListComponent implements OnInit, OnDestroy, OnChanges {
   ngOnDestroy(): void {
     this.destroy$.next();
     this.destroy$.complete();
-    this.navigationSubscription?.unsubscribe();
-    this.officesSubscription?.unsubscribe();
-    this.globalOfficeSubscription?.unsubscribe();
     this.itemsToLoad$.complete();
   }
   //#endregion

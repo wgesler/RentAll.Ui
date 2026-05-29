@@ -4,7 +4,7 @@ import { Component, ElementRef, Input, OnChanges, OnDestroy, OnInit, SimpleChang
 import { FormBuilder, FormControl, FormGroup, FormsModule, ReactiveFormsModule } from '@angular/forms';
 import { DomSanitizer, SafeHtml } from '@angular/platform-browser';
 import { ActivatedRoute, Params, Router } from '@angular/router';
-import { BehaviorSubject, Subscription, filter, finalize, firstValueFrom, skip, take } from 'rxjs';
+import { BehaviorSubject, Subject, Subscription, filter, finalize, firstValueFrom, skip, take, takeUntil } from 'rxjs';
 import { RouterUrl } from '../../../app.routes';
 import { environment } from '../../../../environments/environment';
 import { MaterialModule } from '../../../material.module';
@@ -65,7 +65,6 @@ export class QuoteCreateComponent extends BaseDocumentComponent implements OnIni
   selectedAccountingOffice: AccountingOfficeResponse | null = null;
   officesSubscription?: Subscription;
   accountingOfficesSubscription?: Subscription;
-  globalOfficeSubscription?: Subscription;
   queryParamsSubscription?: Subscription;
   formSubscription?: Subscription;
   headerOfficeId: number | null = null;
@@ -75,6 +74,7 @@ export class QuoteCreateComponent extends BaseDocumentComponent implements OnIni
 
   isPageReady = false;
   itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['offices', 'accountingOffices', 'quoteTemplate']));
+  destroy$ = new Subject<void>();
 
   constructor(
     private fb: FormBuilder,
@@ -111,7 +111,7 @@ export class QuoteCreateComponent extends BaseDocumentComponent implements OnIni
     });
 
     this.headerOfficeId = this.globalSelectionService.getSelectedOfficeIdValue();
-    this.globalOfficeSubscription = this.globalSelectionService.getSelectedOfficeId$().pipe(skip(1)).subscribe(officeId => {
+    this.globalSelectionService.getSelectedOfficeId$().pipe(skip(1), takeUntil(this.destroy$)).subscribe(officeId => {
       if (this.firstPropertyOfficeId === null) {
         this.headerOfficeId = officeId;
         this.applyHeaderOfficeSelection();
@@ -1007,9 +1007,10 @@ export class QuoteCreateComponent extends BaseDocumentComponent implements OnIni
   }
 
   ngOnDestroy(): void {
+    this.destroy$.next();
+    this.destroy$.complete();
     this.officesSubscription?.unsubscribe();
     this.accountingOfficesSubscription?.unsubscribe();
-    this.globalOfficeSubscription?.unsubscribe();
     this.queryParamsSubscription?.unsubscribe();
     this.formSubscription?.unsubscribe();
     this.itemsToLoad$.complete();

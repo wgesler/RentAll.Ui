@@ -1,7 +1,7 @@
 import { CommonModule } from '@angular/common';
 import { Component, OnDestroy, OnInit, ViewChild } from '@angular/core';
 import { ActivatedRoute, Router } from '@angular/router';
-import { skip, Subscription, take } from 'rxjs';
+import { skip, Subject, take, takeUntil } from 'rxjs';
 import { MaterialModule } from '../../../material.module';
 import { AuthService } from '../../../services/auth.service';
 import { UtilityService } from '../../../services/utility.service';
@@ -54,8 +54,7 @@ export class EmailsShellComponent implements OnInit, OnDestroy {
 
   organizationId = '';
   preferredOfficeId: number | null = null;
-  globalOfficeSubscription?: Subscription;
-  queryParamsSubscription?: Subscription;
+  destroy$ = new Subject<void>();
 
   constructor(
     private route: ActivatedRoute,
@@ -73,7 +72,7 @@ export class EmailsShellComponent implements OnInit, OnDestroy {
     this.organizationId = this.authService.getUser()?.organizationId?.trim() ?? '';
     this.preferredOfficeId = this.authService.getUser()?.defaultOfficeId ?? null;
 
-    this.queryParamsSubscription = this.route.queryParams.subscribe(queryParams => {
+    this.route.queryParams.pipe(takeUntil(this.destroy$)).subscribe(queryParams => {
       const tab = String(queryParams['tab'] || '').trim().toLowerCase();
       const nextIndex = tab === 'alerts' ? 1 : 0;
       if (this.selectedTabIndex !== nextIndex) {
@@ -90,7 +89,7 @@ export class EmailsShellComponent implements OnInit, OnDestroy {
     this.loadPropertyCodes();
     this.loadReservationCodes();
 
-    this.globalOfficeSubscription = this.globalSelectionService.getSelectedOfficeId$().pipe(skip(1)).subscribe(officeId => {
+    this.globalSelectionService.getSelectedOfficeId$().pipe(skip(1), takeUntil(this.destroy$)).subscribe(officeId => {
       if (this.showOfficeDropdown) {
         this.selectedOfficeId = officeId;
         this.refreshPropertyOptions();
@@ -326,8 +325,8 @@ export class EmailsShellComponent implements OnInit, OnDestroy {
   }
 
   ngOnDestroy(): void {
-    this.globalOfficeSubscription?.unsubscribe();
-    this.queryParamsSubscription?.unsubscribe();
+    this.destroy$.next();
+    this.destroy$.complete();
   }
   //#endregion
 }

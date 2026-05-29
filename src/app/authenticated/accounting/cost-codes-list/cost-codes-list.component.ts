@@ -4,7 +4,7 @@ import { Component, EventEmitter, Input, OnChanges, OnDestroy, OnInit, Output, S
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, Router } from '@angular/router';
 import { ToastrService } from 'ngx-toastr';
-import { BehaviorSubject, Observable, Subscription, filter, map, skip, take } from 'rxjs';
+import { BehaviorSubject, Observable, Subject, filter, map, skip, take, takeUntil } from 'rxjs';
 import { RouterUrl } from '../../../app.routes';
 import { CommonMessage } from '../../../enums/common-message.enum';
 import { MaterialModule } from '../../../material.module';
@@ -45,8 +45,6 @@ export class CostCodesListComponent implements OnInit, OnDestroy, OnChanges {
 
   offices: OfficeResponse[] = [];
   availableOffices: { value: number, name: string }[] = [];
-  officesSubscription?: Subscription;
-  globalOfficeSubscription?: Subscription;
   selectedOffice: OfficeResponse | null = null;
   showOfficeDropdown: boolean = false;
   officeScopeResolved: boolean = false;
@@ -56,7 +54,6 @@ export class CostCodesListComponent implements OnInit, OnDestroy, OnChanges {
 
   costCodes: CostCodesResponse[] = [];
   availableCostCodes: { value: number, label: string }[] = [];
-  costCodesSubscription?: Subscription;
   
   transactionTypes: { value: number, label: string }[] = TransactionTypeLabels;
  
@@ -71,6 +68,7 @@ export class CostCodesListComponent implements OnInit, OnDestroy, OnChanges {
 
   itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['offices', 'costCodes', 'officeScope']));
   isLoading$: Observable<boolean> = this.itemsToLoad$.pipe(map(items => items.size > 0));
+  destroy$ = new Subject<void>();
 
   constructor(
     public costCodesService: CostCodesService,
@@ -88,7 +86,7 @@ export class CostCodesListComponent implements OnInit, OnDestroy, OnChanges {
     this.loadOffices();
     this.loadCostCodes();
 
-    this.globalOfficeSubscription = this.globalSelectionService.getSelectedOfficeId$().pipe(skip(1)).subscribe(officeId => {
+    this.globalSelectionService.getSelectedOfficeId$().pipe(skip(1), takeUntil(this.destroy$)).subscribe(officeId => {
       if (this.offices.length > 0) {
         this.resolveOfficeScope(officeId, true);
       }
@@ -211,7 +209,7 @@ export class CostCodesListComponent implements OnInit, OnDestroy, OnChanges {
   //#region Data Load Methods
   loadOffices(): void {
     this.officeService.areOfficesLoaded().pipe(filter(loaded => loaded === true), take(1)).subscribe(() => {
-      this.officesSubscription = this.officeService.getAllOffices().subscribe(allOffices => {
+      this.officeService.getAllOffices().pipe(takeUntil(this.destroy$)).subscribe(allOffices => {
         // API already filters offices by user access
         this.offices = allOffices || [];
         
@@ -231,7 +229,7 @@ export class CostCodesListComponent implements OnInit, OnDestroy, OnChanges {
     this.costCodesService.ensureCostCodesLoaded();
     this.costCodesService.areCostCodesLoaded().pipe(filter(loaded => loaded === true), take(1)).subscribe(() => {
       this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'costCodes');
-      this.costCodesSubscription = this.costCodesService.getAllCostCodes().subscribe(codes => {
+      this.costCodesService.getAllCostCodes().pipe(takeUntil(this.destroy$)).subscribe(codes => {
         this.filterCostCodes();
       });
     });
@@ -306,9 +304,8 @@ export class CostCodesListComponent implements OnInit, OnDestroy, OnChanges {
 
   //#region Utility Methods
   ngOnDestroy(): void {
-    this.officesSubscription?.unsubscribe();
-    this.globalOfficeSubscription?.unsubscribe();
-    this.costCodesSubscription?.unsubscribe();
+    this.destroy$.next();
+    this.destroy$.complete();
     this.itemsToLoad$.complete();
   }
 

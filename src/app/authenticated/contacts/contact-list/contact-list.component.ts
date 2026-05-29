@@ -4,7 +4,7 @@ import { Component, EventEmitter, Input, OnChanges, OnDestroy, OnInit, Output, S
 import { FormsModule } from '@angular/forms';
 import { NavigationEnd, Router } from '@angular/router';
 import { ToastrService } from 'ngx-toastr';
-import { BehaviorSubject, Observable, Subscription, filter, finalize, map, skip, switchMap, take } from 'rxjs';
+import { BehaviorSubject, Observable, Subject, filter, finalize, map, skip, switchMap, take, takeUntil } from 'rxjs';
 import { RouterUrl } from '../../../app.routes';
 import { CommonMessage } from '../../../enums/common-message.enum';
 import { MaterialModule } from '../../../material.module';
@@ -50,7 +50,6 @@ export class ContactListComponent implements OnInit, OnDestroy, OnChanges {
 
   offices: OfficeResponse[] = [];
   availableOffices: { value: number, name: string }[] = [];
-  officesSubscription?: Subscription;
   selectedOffice: OfficeResponse | null = null;
   showOfficeDropdown: boolean = false;
   user: any;
@@ -59,9 +58,6 @@ export class ContactListComponent implements OnInit, OnDestroy, OnChanges {
   organizationId: string = '';
   preferredOfficeId: number | null = null;
 
-  routerSubscription?: Subscription;
-  globalOfficeSubscription?: Subscription;
-  ownerModeSubscription?: Subscription;
   hasInitialLoad: boolean = false;
   canEditIsActiveCheckbox = false;
   isInOwnerMode = false;
@@ -90,6 +86,7 @@ export class ContactListComponent implements OnInit, OnDestroy, OnChanges {
 
   itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['contacts', 'offices', 'officeScope']));
   isLoading$: Observable<boolean> = this.itemsToLoad$.pipe(map(items => items.size > 0));
+  destroy$ = new Subject<void>();
 
   constructor(
     private clipboard: Clipboard,
@@ -115,19 +112,20 @@ export class ContactListComponent implements OnInit, OnDestroy, OnChanges {
     this.preferredOfficeId = this.user?.defaultOfficeId ?? null;
     this.loadOffices();
     this.loadContacts();
-    this.ownerModeSubscription = this.navigationContextService.getIsInOwnerMode().subscribe(value => {
+    this.navigationContextService.getIsInOwnerMode().pipe(takeUntil(this.destroy$)).subscribe(value => {
       this.isInOwnerMode = value;
     });
 
-    this.globalOfficeSubscription = this.globalSelectionService.getSelectedOfficeId$().pipe(skip(1)).subscribe(officeId => {
+    this.globalSelectionService.getSelectedOfficeId$().pipe(skip(1), takeUntil(this.destroy$)).subscribe(officeId => {
       if (this.offices.length > 0) {
         this.resolveOfficeScope(officeId);
       }
     });
     
-    this.routerSubscription = this.router.events.pipe(
+    this.router.events.pipe(
         filter(event => event instanceof NavigationEnd),
-        filter(() => (this.router.url.includes(RouterUrl.Contacts) || this.router.url.includes(RouterUrl.ContactList)) && !this.router.url.includes('/contact/'))
+        filter(() => (this.router.url.includes(RouterUrl.Contacts) || this.router.url.includes(RouterUrl.ContactList)) && !this.router.url.includes('/contact/')),
+        takeUntil(this.destroy$)
       )
       .subscribe(() => {
         if (this.hasInitialLoad) {
@@ -492,10 +490,8 @@ export class ContactListComponent implements OnInit, OnDestroy, OnChanges {
   }
 
   ngOnDestroy(): void {
-    this.officesSubscription?.unsubscribe();
-    this.globalOfficeSubscription?.unsubscribe();
-    this.routerSubscription?.unsubscribe();
-    this.ownerModeSubscription?.unsubscribe();
+    this.destroy$.next();
+    this.destroy$.complete();
     this.itemsToLoad$.complete();
   }
   //#endregion

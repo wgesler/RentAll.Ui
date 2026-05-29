@@ -3,7 +3,7 @@ import { Component, OnDestroy, OnInit, ViewChild } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { MatDialog } from '@angular/material/dialog';
 import { ActivatedRoute, Router } from '@angular/router';
-import { BehaviorSubject, Observable, Subject, Subscription, finalize, map, skip, take, takeUntil } from 'rxjs';
+import { BehaviorSubject, Observable, Subject, finalize, map, skip, take, takeUntil } from 'rxjs';
 import { RouterUrl } from '../../../app.routes';
 import { CanComponentDeactivate } from '../../../guards/can-deactivate-guard';
 import { MaterialModule } from '../../../material.module';
@@ -72,7 +72,6 @@ export class TicketShellComponent implements OnInit, OnDestroy, CanComponentDeac
   properties: PropertyCodeResponse[] = [];
   reservations: ReservationCodeResponse[] = [];
   contacts: ContactResponse[] = [];
-  globalOfficeSubscription?: Subscription;
 
 
   itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['offices', 'properties', 'reservations', 'contacts']));
@@ -109,7 +108,7 @@ export class TicketShellComponent implements OnInit, OnDestroy, CanComponentDeac
     this.loadContacts();
     this.loadReservations();
 
-    this.globalOfficeSubscription = this.globalSelectionService.getSelectedOfficeId$().pipe(skip(1), takeUntil(this.destroy$)).subscribe(officeId => {
+    this.globalSelectionService.getSelectedOfficeId$().pipe(skip(1), takeUntil(this.destroy$)).subscribe(officeId => {
       if (this.offices.length > 0) {
         this.onOfficeFilterChange(officeId);
       }
@@ -529,7 +528,6 @@ export class TicketShellComponent implements OnInit, OnDestroy, CanComponentDeac
   ngOnDestroy(): void {
     this.destroy$.next();
     this.destroy$.complete();
-    this.globalOfficeSubscription?.unsubscribe();
     this.itemsToLoad$.complete();
   }
   //#endregion

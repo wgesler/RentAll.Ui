@@ -1,0 +1,111 @@
+---
+description: How feature components must read global cached data (offices, accounting offices, cost codes, contacts, office selection)
+globs: **/*.component.ts
+alwaysApply: false
+---
+
+# Global Cache Access
+
+Shared datasets live in `providedIn: 'root'` services that hold a private
+`BehaviorSubject` + a `...Loaded$` flag. The real HTTP call fires ONCE at
+bootstrap/on-login (orchestrated in `app.component.ts`). Feature components
+**read the cache** — they do not re-fetch it.
+
+## Group A — leave alone (already correct)
+
+States, Daily quote, Organization, Organization list, Branding.
+Do not change how these are consumed.
+
+## Group B — one sanctioned pattern, no exceptions
+
+Offices, Accounting offices, Cost codes, Contacts, and the office-selection stream.
+
+### The pattern: `ensure...Loaded()` → live `getAll...()`
+
+Check that the cache has a value, then subscribe and **stay subscribed until the
+component dies**. This is the ONLY accepted way to load Group-B data:
+
+```typescript
+this.officeService.ensureOfficesLoaded(organizationId).pipe(take(1)).subscribe({
+  next: () => {
+    this.officeService.getAllOffices().pipe(takeUntil(this.destroy$)).subscribe(offices => {
+      this.offices = offices;
+      // ...map dropdown, clear load flag...
+    });
+  },
+  error: () => { /* clear load flag */ }
+});
+```
+
+Reference implementation: `accounting/invoice/invoice.component.ts`.
+
+### Formatting (non-negotiable)
+
+The call chain — `service.method(...).pipe(...).subscribe(` — stays on **one
+line regardless of length**. Only the callback bodies wrap.
+
+```typescript
+// ✅ GOOD
+this.officeService.getAllOffices().pipe(takeUntil(this.destroy$)).subscribe(offices => {
+  this.offices = offices;
+});
+
+// ❌ BAD — chain broken across lines
+this.officeService
+  .getAllOffices()
+  .pipe(takeUntil(this.destroy$))
+  .subscribe(offices => {
+    this.offices = offices;
+  });
+```
+
+## Banned for Group B
+
+- **One-shot only** — `ensureOfficesLoaded().pipe(take(1))` with no follow-on
+  live `getAll...()` subscription. You must subscribe and stay subscribed.
+- **Sync snapshot as a load** — `getAllOfficesValue()`, `getAllAccountingOfficesValue()`,
+  `getAllCostCodesValue()`, `getAllContactsValue()`, `getSelectedOfficeIdValue()`
+  used to populate component data.
+- **Raw HTTP** — `getOffices()`, `getOfficesByOrganization()`, `loadAllOffices()`,
+  `getAccountingOffices()`, `loadAllAccountingOffices()`, `loadAllCostCodes()`,
+  `loadAllContacts()` from a feature component.
+
+### Inline sync reads inside event handlers
+
+You cannot subscribe inside a click/save handler. Do **not** call a `...Value()`
+accessor there. Instead keep the data live-subscribed into a field (per the
+pattern above) and read the **field** in the handler:
+
+```typescript
+// ✅ GOOD — read the live-maintained field
+onSave(): void {
+  const office = this.offices.find(o => o.id === this.selectedOfficeId);
+}
+
+// ❌ BAD — snapshot accessor in a handler
+onSave(): void {
+  const office = this.officeService.getAllOfficesValue().find(o => o.id === ...);
+}
+```
+
+## Office-selection stream
+
+`getSelectedOfficeId$()` is a single-id stream (not a list, so there is no
+`getAll`). Subscribe live and stay subscribed; this already matches the rule:
+
+```typescript
+this.globalSelectionService.getSelectedOfficeId$().pipe(skip(1), takeUntil(this.destroy$)).subscribe(officeId => {
+  // re-scope screen to new office
+});
+```
+
+Keep the selected office in a field via this subscription; read the field in
+handlers instead of `getSelectedOfficeIdValue()`.
+
+## Allowed raw-HTTP exceptions (only these three)
+
+1. `office-list.component` — owning admin screen, refresh after edits.
+2. `cost-codes.component` — owning admin screen, refresh after edits.
+3. `user.component` `loadOfficesForUserOrganization()` — cross-org SuperAdmin path.
+
+Any other raw fetch of Group-B data from a feature component is a violation.

@@ -5,7 +5,7 @@ import { FormBuilder, FormControl, FormGroup, FormsModule, ReactiveFormsModule, 
 import { MatDialog } from '@angular/material/dialog';
 import { ActivatedRoute, ParamMap, Router } from '@angular/router';
 import { ToastrService } from 'ngx-toastr';
-import { BehaviorSubject, Observable, Subscription, filter, finalize, map, take } from 'rxjs';
+import { BehaviorSubject, Observable, Subject, filter, finalize, map, take, takeUntil } from 'rxjs';
 import { RouterUrl } from '../../../app.routes';
 import { CommonMessage, CommonTimeouts } from '../../../enums/common-message.enum';
 import { MaterialModule } from '../../../material.module';
@@ -50,7 +50,6 @@ export class BillingComponent implements OnInit, OnDestroy {
   debitCostCodes: CostCodesResponse[] = [];
   creditCostCodes: CostCodesResponse[] = [];
   availableCostCodes: { value: number, label: string }[] = [];
-  costCodesSubscription?: Subscription;
   isPaymentMode: boolean = false; // Track if we're adding a payment (from payable action)
   
   transactionTypes: { value: number, label: string }[] = TransactionTypeLabels;
@@ -60,6 +59,7 @@ export class BillingComponent implements OnInit, OnDestroy {
 
   itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['organizations']));
   isLoading$: Observable<boolean> = this.itemsToLoad$.pipe(map(items => items.size > 0));
+  destroy$ = new Subject<void>();
   
 
 
@@ -85,7 +85,7 @@ export class BillingComponent implements OnInit, OnDestroy {
     this.loadCostCodes();
     this.loadOrganizations();
         
-    this.route.paramMap.subscribe((paramMap: ParamMap) => {
+    this.route.paramMap.pipe(takeUntil(this.destroy$)).subscribe((paramMap: ParamMap) => {
       if (paramMap.has('id')) {
         this.invoiceId = paramMap.get('id');
         this.isAddMode = this.invoiceId === 'new';
@@ -112,7 +112,7 @@ export class BillingComponent implements OnInit, OnDestroy {
     this.processQueryParams(snapshotParams);
     
     // Subscribe to future query param changes
-    this.route.queryParams.subscribe(queryParams => {
+    this.route.queryParams.pipe(takeUntil(this.destroy$)).subscribe(queryParams => {
       this.processQueryParams(queryParams);
     });
   }
@@ -346,7 +346,7 @@ export class BillingComponent implements OnInit, OnDestroy {
     
 
     // Set up startDate change handler to validate endDate and auto-update endDate if month changes
-    this.form.get('startDate')?.valueChanges.subscribe((startDateValue) => {
+    this.form.get('startDate')?.valueChanges.pipe(takeUntil(this.destroy$)).subscribe((startDateValue) => {
       if (startDateValue) {
         const startDate = this.utilityService.parseCalendarDateInput(startDateValue);
         if (!startDate) {
@@ -573,7 +573,7 @@ export class BillingComponent implements OnInit, OnDestroy {
 
   loadCostCodes(): void {
     this.costCodesService.areCostCodesLoaded().pipe(filter(loaded => loaded === true), take(1)).subscribe(() => {
-      this.costCodesSubscription = this.costCodesService.getAllCostCodes().subscribe(accounts => {
+      this.costCodesService.getAllCostCodes().pipe(takeUntil(this.destroy$)).subscribe(accounts => {
         this.billingCostCodes = this.costCodesService.getAllCostCodesValue();
         this.filterCostCodes();
       });
@@ -1192,10 +1192,6 @@ export class BillingComponent implements OnInit, OnDestroy {
   //#endregion
 
    //#region Utility Methods
-  ngOnDestroy(): void {
-    this.costCodesSubscription?.unsubscribe();
-    this.itemsToLoad$.complete();
-  }
 
   back(): void {
     const queryParams = this.route.snapshot.queryParams;
@@ -1216,6 +1212,12 @@ export class BillingComponent implements OnInit, OnDestroy {
         this.router.navigateByUrl(RouterUrl.AccountingList);
       }
     }
+  }
+
+  ngOnDestroy(): void {
+    this.destroy$.next();
+    this.destroy$.complete();
+    this.itemsToLoad$.complete();
   }
   //#endregion
 }

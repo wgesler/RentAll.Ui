@@ -1,6 +1,7 @@
 import { CommonModule } from '@angular/common';
-import { Component, OnInit } from '@angular/core';
+import { Component, OnDestroy, OnInit } from '@angular/core';
 import { ActivatedRoute, ParamMap, Router } from '@angular/router';
+import { Subject, takeUntil } from 'rxjs';
 import { RouterUrl } from '../../../app.routes';
 import { FormatterService } from '../../../services/formatter-service';
 import { AuthService } from '../../../services/auth.service';
@@ -16,11 +17,12 @@ import { hasInspectorRole } from '../../shared/access/role-access';
   templateUrl: './email.component.html',
   styleUrl: './email.component.scss'
 })
-export class EmailComponent implements OnInit {
+export class EmailComponent implements OnInit, OnDestroy {
   emailId = '';
   email: EmailResponse | null = null;
   isLoading = false;
   isServiceError = false;
+  destroy$ = new Subject<void>();
 
   constructor(
     private route: ActivatedRoute,
@@ -33,7 +35,7 @@ export class EmailComponent implements OnInit {
 
   //#region Email
   ngOnInit(): void {
-    this.route.paramMap.subscribe((paramMap: ParamMap) => {
+    this.route.paramMap.pipe(takeUntil(this.destroy$)).subscribe((paramMap: ParamMap) => {
       const id = paramMap.get('id');
       if (!id) {
         this.isServiceError = true;
@@ -43,6 +45,11 @@ export class EmailComponent implements OnInit {
       this.emailId = id;
       this.loadEmail();
     });
+  }
+
+  ngOnDestroy(): void {
+    this.destroy$.next();
+    this.destroy$.complete();
   }
 
   loadEmail(): void {

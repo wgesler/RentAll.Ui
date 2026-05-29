@@ -2,7 +2,7 @@ import { CommonModule } from "@angular/common";
 import { Component, EventEmitter, Input, OnChanges, OnDestroy, OnInit, Output, SimpleChanges } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { ToastrService } from 'ngx-toastr';
-import { BehaviorSubject, Observable, Subscription, filter, finalize, map, skip, take } from 'rxjs';
+import { BehaviorSubject, Observable, Subject, filter, finalize, map, skip, take, takeUntil } from 'rxjs';
 import { CommonMessage } from '../../../enums/common-message.enum';
 import { MaterialModule } from '../../../material.module';
 import { AuthService } from '../../../services/auth.service';
@@ -46,8 +46,6 @@ export class UserListComponent implements OnInit, OnDestroy, OnChanges {
   availableOffices: { value: number, name: string }[] = [];
   selectedOffice: OfficeResponse | null = null;
   showOfficeDropdown: boolean = false;
-  officesSubscription?: Subscription;
-  globalOfficeSubscription?: Subscription;
   isSuperAdminUser: boolean = false;
   organizations: OrganizationResponse[] = [];
   selectedOrganization: OrganizationResponse | null = null;
@@ -66,6 +64,7 @@ export class UserListComponent implements OnInit, OnDestroy, OnChanges {
 
   itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['users', 'organizations', 'offices', 'officeScope']));
   isLoading$: Observable<boolean> = this.itemsToLoad$.pipe(map(items => items.size > 0));
+  destroy$ = new Subject<void>();
 
   constructor(
     public userService: UserService,
@@ -93,7 +92,7 @@ export class UserListComponent implements OnInit, OnDestroy, OnChanges {
     this.loadUsers();
     this.loadOrganizations();
 
-    this.globalOfficeSubscription = this.globalSelectionService.getSelectedOfficeId$().pipe(skip(1)).subscribe(officeId => {
+    this.globalSelectionService.getSelectedOfficeId$().pipe(skip(1), takeUntil(this.destroy$)).subscribe(officeId => {
       if (this.offices.length > 0) {
         this.resolveOfficeScope(officeId);
       }
@@ -331,7 +330,7 @@ export class UserListComponent implements OnInit, OnDestroy, OnChanges {
 
   loadOffices(): void {
     this.officeService.areOfficesLoaded().pipe(filter(loaded => loaded === true), take(1)).subscribe(() => {
-      this.officesSubscription = this.officeService.getAllOffices().subscribe({
+      this.officeService.getAllOffices().pipe(takeUntil(this.destroy$)).subscribe({
         next: allOffices => {
           this.offices = (allOffices || []).filter(office => office.isActive);
           this.availableOffices = this.mappingService.mapOfficesToDropdown(this.offices);
@@ -477,8 +476,8 @@ export class UserListComponent implements OnInit, OnDestroy, OnChanges {
   
   //#region Utility Methods
   ngOnDestroy(): void {
-    this.officesSubscription?.unsubscribe();
-    this.globalOfficeSubscription?.unsubscribe();
+    this.destroy$.next();
+    this.destroy$.complete();
     this.itemsToLoad$.complete();
   }
   //#endregion

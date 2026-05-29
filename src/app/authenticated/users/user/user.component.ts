@@ -4,7 +4,7 @@ import { AbstractControl, FormBuilder, FormControl, FormGroup, FormsModule, Reac
 import { MAT_DIALOG_DATA, MatDialogRef } from '@angular/material/dialog';
 import { ActivatedRoute, Router } from '@angular/router';
 import { ToastrService } from 'ngx-toastr';
-import { BehaviorSubject, Observable, Subject, Subscription, filter, finalize, forkJoin, map, take, takeUntil } from 'rxjs';
+import { BehaviorSubject, Observable, Subject, filter, finalize, forkJoin, map, take, takeUntil } from 'rxjs';
 import { RouterUrl } from '../../../app.routes';
 import { CommonMessage, CommonTimeouts } from '../../../enums/common-message.enum';
 import { MaterialModule } from '../../../material.module';
@@ -59,11 +59,9 @@ export class UserComponent implements OnInit, OnDestroy {
   availableUserGroups: { value: string, label: string }[] = [];
   availableStartupPages: { value: number, label: string }[] = [];
   organizations: OrganizationResponse[] = [];
-  organizationsSubscription: Subscription;
   offices: OfficeResponse[] = [];
   availableOffices: { value: number, name: string }[] = [];
   availableDefaultOffices: { value: number, name: string }[] = [];
-  officesSubscription?: Subscription;
   properties: PropertyListResponse[] = [];
   availableProperties: { value: string, label: string }[] = [];
   agents: AgentResponse[] = [];
@@ -387,7 +385,7 @@ export class UserComponent implements OnInit, OnDestroy {
 
   //#region Data Loading Methods
   loadOrganizations(): void {
-    this.organizationsSubscription = this.organizationListService.getOrganizations().subscribe({
+    this.organizationListService.getOrganizations().pipe(takeUntil(this.destroy$)).subscribe({
       next: (organizations) => {
         this.organizations = organizations || [];
       },
@@ -397,7 +395,7 @@ export class UserComponent implements OnInit, OnDestroy {
 
   loadOffices(): void {
     this.officeService.areOfficesLoaded().pipe(filter(loaded => loaded === true), take(1)).subscribe(() => {
-      this.officesSubscription = this.officeService.getAllOffices().subscribe(offices => {
+      this.officeService.getAllOffices().pipe(takeUntil(this.destroy$)).subscribe(offices => {
         this.offices = offices || [];
         this.availableOffices = this.mappingService.mapOfficesToDropdown(this.offices);
         this.filterOfficesByOrganization();
@@ -1136,10 +1134,6 @@ export class UserComponent implements OnInit, OnDestroy {
   ngOnDestroy(): void {
     this.destroy$.next();
     this.destroy$.complete();
-    this.officesSubscription?.unsubscribe();
-    if (this.organizationsSubscription) {
-      this.organizationsSubscription.unsubscribe();
-    }
     this.itemsToLoad$.complete();
   }
 

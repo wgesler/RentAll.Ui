@@ -2,7 +2,7 @@ import { BreakpointObserver, Breakpoints } from '@angular/cdk/layout';
 import { CommonModule } from '@angular/common';
 import { Component, OnDestroy, OnInit } from '@angular/core';
 import { MatDialog } from '@angular/material/dialog';
-import { Observable, Subscription, filter, map, shareReplay, take } from 'rxjs';
+import { Observable, Subject, Subscription, filter, map, shareReplay, take, takeUntil } from 'rxjs';
 import { environment } from '../../../../../environments/environment';
 import { MaterialModule } from '../../../../material.module';
 import { JwtUser } from '../../../../public/login/models/jwt';
@@ -44,10 +44,9 @@ export class HeaderComponent implements OnInit, OnDestroy {
 
   // Profile picture properties
   profilePictureUrl: string | null = null;
+  destroy$ = new Subject<void>();
   private userSubscription?: Subscription;
-  private sidebarSubscription?: Subscription;
   private officesSubscription?: Subscription;
-  private selectedOfficeSubscription?: Subscription;
 
   constructor(
     private authService: AuthService,
@@ -64,22 +63,22 @@ export class HeaderComponent implements OnInit, OnDestroy {
   
   ngOnInit(): void {
     // Stay in sync with global office selection (e.g. when app initializes from user default)
-    this.selectedOfficeSubscription = this.globalSelectionService.getSelectedOfficeId$().subscribe(id => {
+    this.globalSelectionService.getSelectedOfficeId$().pipe(takeUntil(this.destroy$)).subscribe(id => {
       this.selectedGlobalOfficeId = id;
     });
     // Load user profile picture when component initializes
     this.loadUserProfilePicture();
-    this.sidebarSubscription = this.sidebarStateService.isExpanded$.subscribe(isExpanded => {
+    this.sidebarStateService.isExpanded$.pipe(takeUntil(this.destroy$)).subscribe(isExpanded => {
       this.isSidebarExpanded = isExpanded;
     });
     this.loadGlobalOfficeOptions();
   }
   
   ngOnDestroy(): void {
+    this.destroy$.next();
+    this.destroy$.complete();
     this.userSubscription?.unsubscribe();
-    this.sidebarSubscription?.unsubscribe();
     this.officesSubscription?.unsubscribe();
-    this.selectedOfficeSubscription?.unsubscribe();
   }
   
   loadUserProfilePicture(): void {

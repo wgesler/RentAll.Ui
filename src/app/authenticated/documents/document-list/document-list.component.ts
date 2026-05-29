@@ -3,7 +3,7 @@ import { Component, EventEmitter, Input, OnChanges, OnDestroy, OnInit, Output, S
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, NavigationEnd, Router } from '@angular/router';
 import { ToastrService } from 'ngx-toastr';
-import { BehaviorSubject, Observable, Subscription, filter, finalize, map, skip, take } from 'rxjs';
+import { BehaviorSubject, Observable, Subject, Subscription, filter, finalize, map, skip, take, takeUntil } from 'rxjs';
 import { RouterUrl } from '../../../app.routes';
 import { CommonMessage } from '../../../enums/common-message.enum';
 import { MaterialModule } from '../../../material.module';
@@ -63,10 +63,7 @@ export class DocumentListComponent implements OnInit, OnDestroy, OnChanges {
   preferredOfficeId: number | null = null;
   offices: OfficeResponse[] = [];
   selectedOfficeId: number | null = null;
-  officesSubscription?: Subscription;
-  globalOfficeSubscription?: Subscription;
   queryParamsSubscription?: Subscription;
-  navigationSubscription?: Subscription;
   officeScopeResolved: boolean = false;
 
   selectedReservationId: string | null = null;
@@ -101,6 +98,7 @@ export class DocumentListComponent implements OnInit, OnDestroy, OnChanges {
   
   itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set());
   isLoading$: Observable<boolean> = this.itemsToLoad$.pipe(map(items => items.size > 0));
+  destroy$ = new Subject<void>();
 
   constructor(
     public documentService: DocumentService,
@@ -144,7 +142,7 @@ export class DocumentListComponent implements OnInit, OnDestroy, OnChanges {
       // Sidebar documents view always starts unfiltered by reservation/type.
       this.selectedReservationId = null;
       this.selectedDocumentTypeId = null;
-      this.navigationSubscription = this.router.events.pipe(filter((event): event is NavigationEnd => event instanceof NavigationEnd)).subscribe(event => {
+      this.router.events.pipe(filter((event): event is NavigationEnd => event instanceof NavigationEnd), takeUntil(this.destroy$)).subscribe(event => {
         const currentPath = event.urlAfterRedirects.split('?')[0];
         if (currentPath.endsWith('/documents')) {
           this.selectedReservationId = null;
@@ -158,7 +156,7 @@ export class DocumentListComponent implements OnInit, OnDestroy, OnChanges {
     this.utilityService.addLoadItem(this.itemsToLoad$, 'officeScope');
     this.loadOffices();
 
-    this.globalOfficeSubscription = this.globalSelectionService.getSelectedOfficeId$().pipe(skip(1)).subscribe(officeId => {
+    this.globalSelectionService.getSelectedOfficeId$().pipe(skip(1), takeUntil(this.destroy$)).subscribe(officeId => {
       if (this.offices.length > 0) {
         this.resolveOfficeScope(officeId, true);
       }
@@ -1012,10 +1010,9 @@ export class DocumentListComponent implements OnInit, OnDestroy, OnChanges {
   }
 
   ngOnDestroy(): void {
-    this.officesSubscription?.unsubscribe();
-    this.globalOfficeSubscription?.unsubscribe();
+    this.destroy$.next();
+    this.destroy$.complete();
     this.queryParamsSubscription?.unsubscribe();
-    this.navigationSubscription?.unsubscribe();
     this.itemsToLoad$.complete();
   }
 

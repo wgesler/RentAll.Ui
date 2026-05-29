@@ -4,7 +4,7 @@ import { Component, EventEmitter, Input, NgZone, OnChanges, OnDestroy, OnInit, O
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, Router } from '@angular/router';
 import { ToastrService } from 'ngx-toastr';
-import { BehaviorSubject, Observable, Subscription, concatMap, filter, finalize, from, map, skip, take, toArray } from 'rxjs';
+import { BehaviorSubject, Observable, Subject, concatMap, filter, finalize, from, map, skip, take, takeUntil, toArray } from 'rxjs';
 import { RouterUrl } from '../../../app.routes';
 import { CommonMessage } from '../../../enums/common-message.enum';
 import { MaterialModule } from '../../../material.module';
@@ -67,9 +67,6 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
 
   offices: OfficeResponse[] = [];
   availableOffices: { value: number, name: string }[] = [];
-  officesSubscription?: Subscription;
-  globalOfficeSubscription?: Subscription;
-  queryParamsSubscription?: Subscription;
   selectedOffice: OfficeResponse | null = null;
   showOfficeDropdown: boolean = false;
   isSuperUser: boolean = false;
@@ -77,7 +74,6 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
 
   reservations: ReservationListResponse[] = [];
   availableReservations: { value: ReservationListResponse, label: string }[] = [];
-  reservationsSubscription?: Subscription;
   selectedReservation: ReservationListResponse | null = null;
 
   companyContacts: ContactResponse[] = [];
@@ -87,7 +83,6 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
   costCodes: CostCodesResponse[] = [];
   allCostCodes: CostCodesResponse[] = [];
   availableCostCodes: { value: number, label: string }[] = [];
-  costCodesSubscription?: Subscription;
   
   transactionTypes: { value: number, label: string }[] = TransactionTypeLabels;
 
@@ -133,6 +128,7 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
 
   itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['offices', 'reservations', 'invoices', 'officeScope']));
   isLoading$: Observable<boolean> = this.itemsToLoad$.pipe(map(items => items.size > 0));
+  destroy$ = new Subject<void>();
 
   constructor(
     public accountingService: InvoiceService,
@@ -159,7 +155,7 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
     this.loadOffices();
     this.loadReservations();
 
-    this.globalOfficeSubscription = this.globalSelectionService.getSelectedOfficeId$().pipe(skip(1)).subscribe(officeId => {
+    this.globalSelectionService.getSelectedOfficeId$().pipe(skip(1), takeUntil(this.destroy$)).subscribe(officeId => {
       if (this.offices.length > 0) {
         this.resolveOfficeScope(officeId, true);
       }
@@ -177,8 +173,7 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
         return;
       }
 
-      this.queryParamsSubscription?.unsubscribe();
-      this.queryParamsSubscription = this.route.queryParams.subscribe(params => {
+      this.route.queryParams.pipe(takeUntil(this.destroy$)).subscribe(params => {
         const officeIdParam = params['officeId'];
         const companyIdParam = params['companyId'];
         
@@ -934,7 +929,7 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
   //#region Data Load Items
   loadOffices(): void {
     this.officeService.areOfficesLoaded().pipe(filter(loaded => loaded === true), take(1)).subscribe(() => {
-      this.officesSubscription = this.officeService.getAllOffices().subscribe(allOffices => {
+      this.officeService.getAllOffices().pipe(takeUntil(this.destroy$)).subscribe(allOffices => {
         this.offices = allOffices || [];
         this.availableOffices = this.mappingService.mapOfficesToDropdown(this.offices);
         this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'offices');
@@ -1013,7 +1008,7 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
   loadCostCodes(): void {
     this.costCodesService.ensureCostCodesLoaded();
     this.costCodesService.areCostCodesLoaded().pipe(filter(loaded => loaded === true), take(1)).subscribe(() => {
-      this.costCodesSubscription = this.costCodesService.getAllCostCodes().subscribe(accounts => {
+      this.costCodesService.getAllCostCodes().pipe(takeUntil(this.destroy$)).subscribe(accounts => {
         this.allCostCodes = accounts || [];
         this.filterCostCodes();
         this.applyFilters();
@@ -1775,11 +1770,8 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
 
   ngOnDestroy(): void {
     this.itemsToLoad$.complete();
-    this.costCodesSubscription?.unsubscribe();
-    this.officesSubscription?.unsubscribe();
-    this.globalOfficeSubscription?.unsubscribe();
-    this.reservationsSubscription?.unsubscribe();
-    this.queryParamsSubscription?.unsubscribe();
+    this.destroy$.next();
+    this.destroy$.complete();
   }
 
   hasRole(role: UserGroups): boolean {
