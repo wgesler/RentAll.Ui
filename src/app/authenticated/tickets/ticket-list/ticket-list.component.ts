@@ -1,5 +1,5 @@
 import { CommonModule } from "@angular/common";
-import { Component, EventEmitter, Input, OnDestroy, OnInit, Output } from '@angular/core';
+import { ChangeDetectionStrategy, ChangeDetectorRef, Component, EventEmitter, Input, OnDestroy, OnInit, Output } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { MatDialog } from '@angular/material/dialog';
 import { Router } from '@angular/router';
@@ -28,7 +28,8 @@ import { TicketService } from '../services/ticket.service';
   selector: 'app-ticket-list',
   templateUrl: './ticket-list.component.html',
   styleUrls: ['./ticket-list.component.scss'],
-  imports: [CommonModule, MaterialModule, FormsModule, DataTableComponent, DataTableFilterActionsDirective]
+  imports: [CommonModule, MaterialModule, FormsModule, DataTableComponent, DataTableFilterActionsDirective],
+  changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class TicketListComponent implements OnInit, OnDestroy {
   @Input() embeddedInSettings: boolean = false;
@@ -79,13 +80,19 @@ export class TicketListComponent implements OnInit, OnDestroy {
     private ticketService: TicketService,
     private reservationService: ReservationService,
     private userService: UserService,
-    private utilityService: UtilityService
+    private utilityService: UtilityService,
+    private cdr: ChangeDetectorRef
   ) {}
+
+  private markViewForCheck(): void {
+    this.cdr.markForCheck();
+  }
 
   //#region Ticket-List
   ngOnInit(): void {
     this.itemsToLoad$.pipe(filter(items => items.size === 0), take(1)).subscribe(() => {
       this.isPageReady = true;
+      this.markViewForCheck();
     });
 
     this.loadUsers();
@@ -109,11 +116,13 @@ export class TicketListComponent implements OnInit, OnDestroy {
         this.rebuildFilterOptions();
         this.rebuildAssigneeDropdowns();
         this.applyFilters();
+        this.markViewForCheck();
       },
       error: () => {
         this.isServiceError = true;
         this.allTickets = [];
         this.ticketsDisplay = [];
+        this.markViewForCheck();
       }
     });
   }
@@ -129,9 +138,11 @@ export class TicketListComponent implements OnInit, OnDestroy {
         this.rebuildFilterOptions();
         this.applyFilters();
         this.toastr.success('Ticket deleted successfully', CommonMessage.Success);
+        this.markViewForCheck();
       },
       error: () => {
         this.toastr.error('Unable to delete ticket.', CommonMessage.Error);
+        this.markViewForCheck();
       }
     });
   }
@@ -244,6 +255,7 @@ export class TicketListComponent implements OnInit, OnDestroy {
         this.getTickets();
         this.ticketUpdated.emit();
         this.toastr.success('Ticket state updated.', CommonMessage.Success);
+        this.markViewForCheck();
       },
       error: () => {
         if (nextAssigneeId !== previousAssigneeId) {
@@ -251,6 +263,7 @@ export class TicketListComponent implements OnInit, OnDestroy {
         }
         this.applyTicketStateValue(event.ticketId, previousStateId);
         this.toastr.error('Unable to update ticket state.', CommonMessage.Error);
+        this.markViewForCheck();
       }
     });
   }
@@ -301,11 +314,13 @@ export class TicketListComponent implements OnInit, OnDestroy {
         this.getTickets();
         this.ticketUpdated.emit();
         this.toastr.success('Ticket assignee updated.', CommonMessage.Success);
+        this.markViewForCheck();
       },
       error: () => {
         this.applyTicketAssigneeValue(event.ticketId, previousAssigneeId, previousAssigneeLabel);
         this.applyTicketStateValue(event.ticketId, previousStateId);
         this.toastr.error('Unable to update ticket assignee.', CommonMessage.Error);
+        this.markViewForCheck();
       }
     });
   }
@@ -332,10 +347,12 @@ export class TicketListComponent implements OnInit, OnDestroy {
         this.getTickets();
         this.ticketUpdated.emit();
         this.toastr.success('Ticket updated.', CommonMessage.Success);
+        this.markViewForCheck();
       },
       error: () => {
         this.applyTicketIsActiveValue(event.ticketId, previousValue);
         this.toastr.error('Unable to update ticket.', CommonMessage.Error);
+        this.markViewForCheck();
       }
     });
   }
@@ -538,10 +555,12 @@ export class TicketListComponent implements OnInit, OnDestroy {
         this.users = users || [];
         this.rebuildAssigneeDropdowns();
         this.applyFilters();
+        this.markViewForCheck();
       },
       error: () => {
         this.users = [];
         this.rebuildAssigneeDropdowns();
+        this.markViewForCheck();
       }
     });
   }
@@ -584,8 +603,11 @@ export class TicketListComponent implements OnInit, OnDestroy {
       );
       this.ticketService.notifyTicketStateChanged();
       this.applyFilters();
+      this.markViewForCheck();
       },
-      error: () => {}
+      error: () => {
+        this.markViewForCheck();
+      }
     });
   }
 

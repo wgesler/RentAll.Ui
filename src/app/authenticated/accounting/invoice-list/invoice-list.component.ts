@@ -1,6 +1,6 @@
 import { CommonModule } from "@angular/common";
 import { HttpErrorResponse } from '@angular/common/http';
-import { Component, EventEmitter, Input, NgZone, OnChanges, OnDestroy, OnInit, Output, SimpleChanges, TemplateRef, ViewChild } from '@angular/core';
+import { ChangeDetectionStrategy, ChangeDetectorRef, Component, EventEmitter, Input, NgZone, OnChanges, OnDestroy, OnInit, Output, SimpleChanges, TemplateRef, ViewChild } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, Router } from '@angular/router';
 import { ToastrService } from 'ngx-toastr';
@@ -36,7 +36,8 @@ import { InvoiceIifExportService } from '../services/invoice-iif-export.service'
     standalone: true,
     templateUrl: './invoice-list.component.html',
     styleUrls: ['./invoice-list.component.scss'],
-    imports: [CommonModule, MaterialModule, FormsModule, DataTableComponent, DataTableFilterActionsDirective]
+    imports: [CommonModule, MaterialModule, FormsModule, DataTableComponent, DataTableFilterActionsDirective],
+    changeDetection: ChangeDetectionStrategy.OnPush
 })
 
 export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
@@ -146,7 +147,12 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
     private formatter: FormatterService,
     private utilityService: UtilityService,
     private invoiceIifExportService: InvoiceIifExportService,
-    private zone: NgZone) {
+    private zone: NgZone,
+    private cdr: ChangeDetectorRef) {
+  }
+
+  private markViewForCheck(): void {
+    this.cdr.markForCheck();
   }
 
   //#region Invoice-List
@@ -159,6 +165,7 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
       if (this.offices.length > 0) {
         this.resolveOfficeScope(officeId, true);
       }
+      this.markViewForCheck();
     });
     this.loadCompanyContacts();
     this.loadCostCodes();
@@ -170,6 +177,7 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
       }
       
       if (!this.useRouteQueryParams) {
+        this.markViewForCheck();
         return;
       }
 
@@ -199,6 +207,7 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
             this.applyFilters();
           }
         }
+        this.markViewForCheck();
       });
     });
   }
@@ -298,11 +307,13 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
       next: (invoices) => {
         this.allInvoices = invoices || [];
          this.applyFilters();
+         this.markViewForCheck();
       },
       error: (err: HttpErrorResponse) => {
         this.isServiceError = true;
         if (err.status === 404) {
          }
+        this.markViewForCheck();
       }
     });
   }
@@ -432,11 +443,13 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
           },
           error: () => {
             this.toastr.error('Failed to load property details for invoice export.', CommonMessage.Error);
+            this.markViewForCheck();
           }
         });
       },
       error: () => {
         this.toastr.error('Failed to export invoices.', CommonMessage.Error);
+        this.markViewForCheck();
       }
     });
   }
@@ -454,6 +467,7 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
         if (err.status === 404) {
           // Handle not found error if business logic requires
         }
+        this.markViewForCheck();
       }
     });
   }
@@ -890,8 +904,11 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
         };
 
         this.applyFilters();
+        this.markViewForCheck();
       },
-      error: () => {}
+      error: () => {
+        this.markViewForCheck();
+      }
     });
   }  
   //#endregion
@@ -946,6 +963,7 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
           this.availableCompanyContacts = [];
           this.allInvoices = [];
           this.invoicesDisplay = [];
+          this.markViewForCheck();
           return;
         }
         
@@ -955,6 +973,7 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
             ? null
             : (this.offices.length === 1 ? this.offices[0].officeId : this.globalSelectionService.getSelectedOfficeIdValue()));
         this.resolveOfficeScope(defaultOfficeId, this.officeId === null || this.officeId === undefined);
+        this.markViewForCheck();
       });
     });
   }
@@ -982,10 +1001,12 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
         if (this.selectedCompanyContact && this.source === 'accounting') {
           this.applyFilters();
         }
+        this.markViewForCheck();
       },
       error: (err: HttpErrorResponse) => {
         this.reservations = [];
         this.availableReservations = [];
+        this.markViewForCheck();
       }
     });
   }
@@ -996,11 +1017,13 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
       next: (invoices) => {
         this.allInvoices = invoices || [];
         this.applyFilters();
+        this.markViewForCheck();
       },
       error: (err: HttpErrorResponse) => {
         this.isServiceError = true;
         if (err.status === 404) {
          }
+        this.markViewForCheck();
       }
     });
   }
@@ -1012,6 +1035,7 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
         this.allCostCodes = accounts || [];
         this.filterCostCodes();
         this.applyFilters();
+        this.markViewForCheck();
       });
     });
   }
@@ -1027,10 +1051,12 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
           next: (contacts) => {
             this.companyContacts = contacts || [];
             this.filterCompanyContacts();
+            this.markViewForCheck();
           },
           error: () => {
             this.companyContacts = [];
             this.availableCompanyContacts = [];
+            this.markViewForCheck();
           }
         });
       },
@@ -1038,6 +1064,7 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
         this.companyContacts = [];
         this.availableCompanyContacts = [];
         this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'companies');
+        this.markViewForCheck();
       }
     });
   }
@@ -1473,6 +1500,7 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
         this.refreshInvoicesForCurrentScope();
         // Refresh the display to show updated paid amounts
         this.applyFilters();
+        this.markViewForCheck();
       })
     ).subscribe({
       next: ({ response, paymentRequest, invoice }) => {
@@ -1489,9 +1517,11 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
           `Payment of $${this.formatter.currency(paymentRequest.amount)} applied to invoice ${invoice.invoiceNumber || invoice.invoiceId}`,
           CommonMessage.Success
         );
+        this.markViewForCheck();
 
       },
       error: () => {
+        this.markViewForCheck();
       }
     });
   }
@@ -1514,14 +1544,17 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
       take(1),
       finalize(() => {
         this.isSubmittingPayment = false;
+        this.markViewForCheck();
       })
     ).subscribe({
       next: (response: InvoicePaymentResponse) => {
         this.handlePaymentResponse(response, paymentRequest);
         this.clearPaymentForm();
+        this.markViewForCheck();
       },
       error: (err: HttpErrorResponse) => {
         this.toastr.error('Failed to apply payment', CommonMessage.Error);
+        this.markViewForCheck();
       }
     });
   }

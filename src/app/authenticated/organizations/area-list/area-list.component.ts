@@ -1,6 +1,6 @@
 import { CommonModule } from "@angular/common";
 import { HttpErrorResponse } from '@angular/common/http';
-import { Component, EventEmitter, Input, OnDestroy, OnInit, Output } from '@angular/core';
+import { ChangeDetectionStrategy, ChangeDetectorRef, Component, EventEmitter, Input, OnDestroy, OnInit, Output } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
 import { ToastrService } from 'ngx-toastr';
@@ -25,7 +25,8 @@ import { OfficeService } from '../services/office.service';
     selector: 'app-area-list',
     templateUrl: './area-list.component.html',
     styleUrls: ['./area-list.component.scss'],
-    imports: [CommonModule, MaterialModule, FormsModule, DataTableComponent, DataTableFilterActionsDirective]
+    imports: [CommonModule, MaterialModule, FormsModule, DataTableComponent, DataTableFilterActionsDirective],
+    changeDetection: ChangeDetectionStrategy.OnPush
 })
 
 export class AreaListComponent implements OnInit, OnDestroy {
@@ -63,7 +64,12 @@ export class AreaListComponent implements OnInit, OnDestroy {
     private authService: AuthService,
     private officeService: OfficeService,
     private globalSelectionService: GlobalSelectionService,
-    private utilityService: UtilityService) {
+    private utilityService: UtilityService,
+    private cdr: ChangeDetectorRef) {
+  }
+
+  private markViewForCheck(): void {
+    this.cdr.markForCheck();
   }
 
   //#region Area-List
@@ -76,6 +82,7 @@ export class AreaListComponent implements OnInit, OnDestroy {
       if (this.offices.length > 0) {
         this.resolveOfficeScope(officeId);
       }
+      this.markViewForCheck();
     });
   }
 
@@ -93,10 +100,12 @@ export class AreaListComponent implements OnInit, OnDestroy {
       next: (response: AreaResponse[]) => {
         this.allAreas = this.mappingService.mapAreas(response);
         this.applyFilters();
+        this.markViewForCheck();
       },
       error: (err: HttpErrorResponse) => {
         this.isServiceError = true;
         this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'areas');
+        this.markViewForCheck();
       }
     });
   }
@@ -131,8 +140,10 @@ export class AreaListComponent implements OnInit, OnDestroy {
             this.selectedOffice = uiState.selectedOffice;
             this.showOfficeDropdown = this.embeddedInSettings ? false : uiState.showOfficeDropdown;
             this.resolveOfficeScope(uiState.selectedOfficeId);
+            this.markViewForCheck();
           }
         });
+        this.markViewForCheck();
       });
     });
   }

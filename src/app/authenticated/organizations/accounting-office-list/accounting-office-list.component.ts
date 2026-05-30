@@ -1,6 +1,6 @@
 import { CommonModule } from "@angular/common";
 import { HttpErrorResponse } from '@angular/common/http';
-import { Component, EventEmitter, Input, OnDestroy, OnInit, Output } from '@angular/core';
+import { ChangeDetectionStrategy, ChangeDetectorRef, Component, EventEmitter, Input, OnDestroy, OnInit, Output } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
 import { ToastrService } from 'ngx-toastr';
@@ -25,7 +25,8 @@ import { OfficeService } from '../services/office.service';
     selector: 'app-accounting-office-list',
     templateUrl: './accounting-office-list.component.html',
     styleUrls: ['./accounting-office-list.component.scss'],
-    imports: [CommonModule, MaterialModule, FormsModule, DataTableComponent, DataTableFilterActionsDirective]
+    imports: [CommonModule, MaterialModule, FormsModule, DataTableComponent, DataTableFilterActionsDirective],
+    changeDetection: ChangeDetectionStrategy.OnPush
 })
 
 export class AccountingOfficeListComponent implements OnInit, OnDestroy {
@@ -66,7 +67,12 @@ export class AccountingOfficeListComponent implements OnInit, OnDestroy {
     private authService: AuthService,
     private officeService: OfficeService,
     private mappingService: MappingService,
-    private utilityService: UtilityService) {
+    private utilityService: UtilityService,
+    private cdr: ChangeDetectorRef) {
+  }
+
+  private markViewForCheck(): void {
+    this.cdr.markForCheck();
   }
 
   //#region Office-List
@@ -90,9 +96,11 @@ export class AccountingOfficeListComponent implements OnInit, OnDestroy {
       next: (response: AccountingOfficeResponse[]) => {
         this.allAccountingOffices = this.mappingService.mapAccountingOffices(response, this.offices);
         this.applyFilters();
+        this.markViewForCheck();
       },
       error: (_err: HttpErrorResponse) => {
         this.isServiceError = true;
+        this.markViewForCheck();
       }
     });
   }
@@ -106,9 +114,11 @@ export class AccountingOfficeListComponent implements OnInit, OnDestroy {
           next: (list) => {
             this.allAccountingOffices = this.mappingService.mapAccountingOffices(list, this.offices);
             this.applyFilters();
+            this.markViewForCheck();
           },
           error: () => {
             this.getAccountingOffices();
+            this.markViewForCheck();
           }
         });
       },
@@ -150,9 +160,11 @@ export class AccountingOfficeListComponent implements OnInit, OnDestroy {
           this.allAccountingOffices = [];
           this.accountingOfficesDisplay = [];
           this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'accountingOffices');
+          this.markViewForCheck();
           return;
         }
         this.getAccountingOffices();
+        this.markViewForCheck();
       });
     });
   }

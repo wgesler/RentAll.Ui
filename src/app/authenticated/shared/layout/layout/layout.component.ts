@@ -1,5 +1,5 @@
 
-import { ChangeDetectorRef, Component, OnDestroy, OnInit } from '@angular/core';
+import { ChangeDetectionStrategy, ChangeDetectorRef, Component, OnDestroy, OnInit } from '@angular/core';
 import { MatButtonModule } from '@angular/material/button';
 import { MatDialog, MatDialogRef } from '@angular/material/dialog';
 import { MatIconModule } from '@angular/material/icon';
@@ -17,7 +17,8 @@ import { SidebarComponent } from '../sidebar/sidebar.component';
     selector: 'app-layout',
     imports: [RouterModule, HeaderComponent, SidebarComponent, MatButtonModule, MatIconModule, NgIdleKeepaliveModule],
     templateUrl: './layout.component.html',
-    styleUrl: './layout.component.scss'
+    styleUrl: './layout.component.scss',
+    changeDetection: ChangeDetectionStrategy.OnPush
 })
 
 export class LayoutComponent implements OnInit, OnDestroy {
@@ -47,7 +48,7 @@ export class LayoutComponent implements OnInit, OnDestroy {
 
     idle.onIdleEnd.pipe(takeUntil(this.destroy$)).subscribe(() => {
       this.userIsActive();
-      this.cd.detectChanges();
+      this.cd.markForCheck();
     })
 
     idle.onTimeout.pipe(takeUntil(this.destroy$)).subscribe(() => {

@@ -1,7 +1,7 @@
 import { CommonModule } from '@angular/common';
 import { Clipboard } from '@angular/cdk/clipboard';
 import { HttpErrorResponse } from '@angular/common/http';
-import { Component, input, NgZone, OnChanges, OnDestroy, OnInit, output, SimpleChanges } from '@angular/core';
+import { ChangeDetectionStrategy, ChangeDetectorRef, Component, input, NgZone, OnChanges, OnDestroy, OnInit, output, SimpleChanges } from '@angular/core';
 import { Router } from '@angular/router';
 import { ToastrService } from 'ngx-toastr';
 import { BehaviorSubject, Subject, finalize, take, takeUntil } from 'rxjs';
@@ -33,7 +33,8 @@ export type OwnerEditSelection = { ownerId: number; officeId: number | null };
   selector: 'app-owner-list',
   templateUrl: './owner-list.component.html',
   styleUrls: ['./owner-list.component.scss'],
-  imports: [CommonModule, MaterialModule, DataTableComponent, DataTableFilterActionsDirective]
+  imports: [CommonModule, MaterialModule, DataTableComponent, DataTableFilterActionsDirective],
+  changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class OwnerListComponent implements OnInit, OnChanges, OnDestroy {
   embeddedInShell = input(false);
@@ -79,13 +80,19 @@ export class OwnerListComponent implements OnInit, OnChanges, OnDestroy {
     private officeService: OfficeService,
     private globalSelectionService: GlobalSelectionService,
     private authService: AuthService,
-    private navigationContextService: NavigationContextService
+    private navigationContextService: NavigationContextService,
+    private cdr: ChangeDetectorRef
   ) { }
+
+  private markViewForCheck(): void {
+    this.cdr.markForCheck();
+  }
 
   //#region Owner-List
   ngOnInit(): void {
     this.itemsToLoad$.pipe(takeUntil(this.destroy$)).subscribe(items => {
       this.isPageReady = items.size === 0;
+      this.markViewForCheck();
     });
     this.isOwnerAdmin = this.authService.isOwnerAdmin();
     this.organizationId = this.authService.getUser()?.organizationId?.trim() ?? '';
@@ -96,6 +103,7 @@ export class OwnerListComponent implements OnInit, OnChanges, OnDestroy {
           return;
         }
         this.resolveOfficeScope(officeId);
+        this.markViewForCheck();
       });
     }
 
@@ -103,6 +111,7 @@ export class OwnerListComponent implements OnInit, OnChanges, OnDestroy {
     this.loadOwnerLeads();
     this.navigationContextService.getIsInOwnerMode().pipe(takeUntil(this.destroy$)).subscribe(value => {
       this.isInOwnerMode = value;
+      this.markViewForCheck();
     });
   }
 
@@ -161,9 +170,11 @@ export class OwnerListComponent implements OnInit, OnChanges, OnDestroy {
       next: () => {
         this.toastr.success('Owner lead deleted.', CommonMessage.Success);
         this.loadOwnerLeads();
+        this.markViewForCheck();
       },
       error: () => {
         this.toastr.error('Unable to delete owner lead.', CommonMessage.Error);
+        this.markViewForCheck();
       }
     });
   }
@@ -189,12 +200,15 @@ export class OwnerListComponent implements OnInit, OnChanges, OnDestroy {
         const copied = this.clipboard.copy(shareUrl);
         if (copied) {
           this.toastr.success('Owner form link copied to clipboard.', CommonMessage.Success);
+          this.markViewForCheck();
           return;
         }
         this.toastr.error('Unable to copy owner form link.', CommonMessage.Error);
+        this.markViewForCheck();
       },
       error: () => {
         this.toastr.error('Unable to generate owner form share link.', CommonMessage.Error);
+        this.markViewForCheck();
       }
     });
   }
@@ -231,6 +245,7 @@ export class OwnerListComponent implements OnInit, OnChanges, OnDestroy {
             const officeId = Number(ownerLead.officeId);
             if (!organizationId || !Number.isFinite(officeId) || officeId <= 0) {
               this.toastr.error('Unable to create owner contact for this lead.', CommonMessage.Error);
+              this.markViewForCheck();
               return;
             }
 
@@ -269,6 +284,7 @@ export class OwnerListComponent implements OnInit, OnChanges, OnDestroy {
       },
       error: () => {
         openOwnerShellWithInactiveLead();
+        this.markViewForCheck();
       }
     });
   }
@@ -290,11 +306,13 @@ export class OwnerListComponent implements OnInit, OnChanges, OnDestroy {
     }).pipe(take(1)).subscribe({
       next: () => {
         onComplete();
+        this.markViewForCheck();
       },
       error: () => {
         this.applyOwnerIsActiveValue(ownerId, true);
         this.toastr.error('Unable to set owner lead inactive.', CommonMessage.Error);
         onComplete();
+        this.markViewForCheck();
       }
     });
   }
@@ -335,10 +353,12 @@ export class OwnerListComponent implements OnInit, OnChanges, OnDestroy {
       next: () => {
         this.toastr.success('Owner lead updated.', CommonMessage.Success);
         this.leadsService.notifyLeadStateChanged();
+        this.markViewForCheck();
       },
       error: () => {
         this.applyOwnerLeadStateId(event.ownerId, previousLeadStateId);
         this.toastr.error('Unable to update owner lead.', CommonMessage.Error);
+        this.markViewForCheck();
       }
     });
   }
@@ -358,10 +378,12 @@ export class OwnerListComponent implements OnInit, OnChanges, OnDestroy {
     }).pipe(take(1)).subscribe({
       next: () => {
         this.toastr.success('Owner lead updated.', CommonMessage.Success);
+        this.markViewForCheck();
       },
       error: () => {
         this.applyOwnerIsActiveValue(event.ownerId, previousValue);
         this.toastr.error('Unable to update owner lead.', CommonMessage.Error);
+        this.markViewForCheck();
       }
     });
   }
@@ -399,10 +421,12 @@ export class OwnerListComponent implements OnInit, OnChanges, OnDestroy {
           this.offices = offices || [];
           const initialOfficeId = this.embeddedInShell() ? this.officeId() : this.globalSelectionService.getSelectedOfficeIdValue();
           this.resolveOfficeScope(initialOfficeId ?? null);
+          this.markViewForCheck();
         });
       },
       error: () => {
         this.offices = [];
+        this.markViewForCheck();
       }
     });
   }
@@ -415,11 +439,13 @@ export class OwnerListComponent implements OnInit, OnChanges, OnDestroy {
         this.allOwners = (rows || []).map(row => this.mappingService.mapLeadOwnerListRow(row));
         this.applyOwnerFilters();
         this.leadsService.notifyLeadStateChanged();
+        this.markViewForCheck();
       },
       error: () => {
         this.isServiceError = true;
         this.allOwners = [];
         this.ownersDisplay = [];
+        this.markViewForCheck();
       }
     });
   }

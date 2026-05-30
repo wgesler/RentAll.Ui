@@ -1,6 +1,6 @@
 import { CommonModule } from '@angular/common';
 import { HttpErrorResponse } from '@angular/common/http';
-import { Component, EventEmitter, Input, OnDestroy, OnInit, Output } from '@angular/core';
+import { ChangeDetectionStrategy, ChangeDetectorRef, Component, EventEmitter, Input, OnDestroy, OnInit, Output } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { ToastrService } from 'ngx-toastr';
 import { BehaviorSubject, Observable, Subject, catchError, concatMap, filter, finalize, from, map, of, take, takeUntil, toArray } from 'rxjs';
@@ -20,7 +20,8 @@ import { StateFormService } from '../services/state-form.service';
     selector: 'app-state-form-list',
     templateUrl: './state-form-list.component.html',
     styleUrls: ['./state-form-list.component.scss'],
-    imports: [CommonModule, MaterialModule, FormsModule, DataTableComponent, DataTableFilterActionsDirective]
+    imports: [CommonModule, MaterialModule, FormsModule, DataTableComponent, DataTableFilterActionsDirective],
+    changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class StateFormListComponent implements OnInit, OnDestroy {
   private readonly allStatesCode = 'XX';
@@ -47,8 +48,13 @@ export class StateFormListComponent implements OnInit, OnDestroy {
     private commonService: CommonService,
     private mappingService: MappingService,
     private utilityService: UtilityService,
-    private toastr: ToastrService
+    private toastr: ToastrService,
+    private cdr: ChangeDetectorRef
   ) {
+  }
+
+  private markViewForCheck(): void {
+    this.cdr.markForCheck();
   }
 
   //#region StateForm-List
@@ -104,6 +110,7 @@ export class StateFormListComponent implements OnInit, OnDestroy {
       error: () => {
         this.isServiceError = true;
         this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'stateForms');
+        this.markViewForCheck();
       }
     });
   }
@@ -117,6 +124,7 @@ export class StateFormListComponent implements OnInit, OnDestroy {
       this.allStateForms = [];
       this.applyFilters();
       this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'stateForms');
+      this.markViewForCheck();
       return;
     }
 
@@ -145,9 +153,11 @@ export class StateFormListComponent implements OnInit, OnDestroy {
           return stateSort !== 0 ? stateSort : a.formName.localeCompare(b.formName);
         });
         this.applyFilters();
+        this.markViewForCheck();
       },
       error: (_err: HttpErrorResponse) => {
         this.isServiceError = true;
+        this.markViewForCheck();
       }
     });
   }

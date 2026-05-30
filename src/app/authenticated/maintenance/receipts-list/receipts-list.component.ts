@@ -1,5 +1,5 @@
 import { CommonModule } from '@angular/common';
-import { Component, EventEmitter, Input, OnChanges, OnInit, Output, SimpleChanges } from '@angular/core';
+import { ChangeDetectionStrategy, ChangeDetectorRef, Component, EventEmitter, Input, OnChanges, OnInit, Output, SimpleChanges } from '@angular/core';
 import { Router } from '@angular/router';
 import { ToastrService } from 'ngx-toastr';
 import { EMPTY, finalize, switchMap, take } from 'rxjs';
@@ -27,7 +27,8 @@ import { WorkOrderService } from '../services/work-order.service';
   selector: 'app-receipts-list',
   imports: [CommonModule, MaterialModule, DataTableComponent, DataTableFilterActionsDirective],
   templateUrl: './receipts-list.component.html',
-  styleUrl: './receipts-list.component.scss'
+  styleUrl: './receipts-list.component.scss',
+  changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class ReceiptsListComponent implements OnInit, OnChanges {
   @Input() property: PropertyResponse | null = null;
@@ -80,8 +81,13 @@ export class ReceiptsListComponent implements OnInit, OnChanges {
     private authService: AuthService,
     private utilityService: UtilityService,
     private router: Router,
-    private toastr: ToastrService
+    private toastr: ToastrService,
+    private cdr: ChangeDetectorRef
   ) {}
+
+  private markViewForCheck(): void {
+    this.cdr.markForCheck();
+  }
 
   //#region Receipts List
   ngOnInit(): void {
@@ -138,7 +144,10 @@ export class ReceiptsListComponent implements OnInit, OnChanges {
     this.isLoading = true;
     const propertyId = this.property?.propertyId ?? null;
     const officeId = this.officeId ?? null;
-    this.receiptService.getReceipts(propertyId, officeId).pipe(take(1), finalize(() => (this.isLoading = false))).subscribe({
+    this.receiptService.getReceipts(propertyId, officeId).pipe(take(1), finalize(() => {
+      this.isLoading = false;
+      this.markViewForCheck();
+    })).subscribe({
       next: (receipts: ReceiptResponse[]) => {
         this.receipts = receipts || [];
         this.allReceipts = this.mappingService.mapReceiptDisplays(this.receipts);
@@ -146,12 +155,14 @@ export class ReceiptsListComponent implements OnInit, OnChanges {
         this.applyVendorCellsToDisplays();
         this.applyPropertyCodesToDisplays();
         this.applyFilters();
+        this.markViewForCheck();
       },
       error: () => {
         this.isServiceError = true;
         this.receipts = [];
         this.allReceipts = [];
         this.receiptsDisplay = [];
+        this.markViewForCheck();
       }
     });
   }
@@ -183,9 +194,11 @@ export class ReceiptsListComponent implements OnInit, OnChanges {
         this.applyVendorCellsToDisplays();
         this.applyPropertyCodesToDisplays();
         this.applyFilters();
+        this.markViewForCheck();
       },
       error: () => {
         this.isServiceError = true;
+        this.markViewForCheck();
       }
     });
   }
@@ -228,6 +241,7 @@ export class ReceiptsListComponent implements OnInit, OnChanges {
         );
         if (!matchingWorkOrder) {
           this.toastr.warning(`Unable to locate ${targetWorkOrderCode}.`, 'Work Order');
+          this.markViewForCheck();
           return;
         }
 
@@ -253,9 +267,11 @@ export class ReceiptsListComponent implements OnInit, OnChanges {
             workOrderId
           }
         });
+        this.markViewForCheck();
       },
       error: () => {
         this.toastr.error('Unable to load work order.', 'Work Order');
+        this.markViewForCheck();
       }
     });
   }
@@ -298,10 +314,12 @@ export class ReceiptsListComponent implements OnInit, OnChanges {
           this.applyPropertyCodesToDisplays();
           this.applyFilters();
           this.toastr.success('Receipt updated.', CommonMessage.Success);
+          this.markViewForCheck();
         },
         error: () => {
           this.applyReceiptIsActiveValue(event.receiptId, previousValue);
           this.toastr.error('Unable to update receipt.', CommonMessage.Error);
+          this.markViewForCheck();
         }
       });
   }
@@ -347,6 +365,7 @@ export class ReceiptsListComponent implements OnInit, OnChanges {
             this.applyPropertyCodesToDisplays();
             this.applyFilters();
             this.toastr.success('Receipt updated.', CommonMessage.Success);
+            this.markViewForCheck();
           },
           error: () => {
             this.allReceipts = this.mappingService.mapReceiptDisplays(this.receipts);
@@ -355,6 +374,7 @@ export class ReceiptsListComponent implements OnInit, OnChanges {
             this.applyPropertyCodesToDisplays();
             this.applyFilters();
             this.toastr.error('Unable to update receipt.', CommonMessage.Error);
+            this.markViewForCheck();
           }
         });
       return;
@@ -397,6 +417,7 @@ export class ReceiptsListComponent implements OnInit, OnChanges {
           this.applyPropertyCodesToDisplays();
           this.applyFilters();
           this.toastr.success('Receipt updated.', CommonMessage.Success);
+          this.markViewForCheck();
         },
         error: () => {
           this.allReceipts = this.mappingService.mapReceiptDisplays(this.receipts);
@@ -405,6 +426,7 @@ export class ReceiptsListComponent implements OnInit, OnChanges {
           this.applyPropertyCodesToDisplays();
           this.applyFilters();
           this.toastr.error('Unable to update receipt.', CommonMessage.Error);
+          this.markViewForCheck();
         }
       });
   }
@@ -443,6 +465,7 @@ export class ReceiptsListComponent implements OnInit, OnChanges {
             this.applyPropertyCodesToDisplays();
             this.applyFilters();
             this.toastr.success('Receipt updated.', CommonMessage.Success);
+            this.markViewForCheck();
           },
           error: () => {
             this.allReceipts = this.mappingService.mapReceiptDisplays(this.receipts);
@@ -451,6 +474,7 @@ export class ReceiptsListComponent implements OnInit, OnChanges {
             this.applyPropertyCodesToDisplays();
             this.applyFilters();
             this.toastr.error('Unable to update receipt.', CommonMessage.Error);
+            this.markViewForCheck();
           }
         });
       return;
@@ -489,10 +513,12 @@ export class ReceiptsListComponent implements OnInit, OnChanges {
           this.applyPropertyCodesToDisplays();
           this.applyFilters();
           this.toastr.success('Receipt updated.', CommonMessage.Success);
+          this.markViewForCheck();
         },
         error: () => {
           this.applyReceiptVendorDisplayValue(event.receiptId, previousVendorName);
           this.toastr.error('Unable to update receipt.', CommonMessage.Error);
+          this.markViewForCheck();
         }
       });
   }
@@ -516,13 +542,16 @@ export class ReceiptsListComponent implements OnInit, OnChanges {
         if (!imageSrc) {
           receiptWindow.close();
           this.toastr.warning('Receipt file is not available.', 'Receipt');
+          this.markViewForCheck();
           return;
         }
         this.renderReceiptInWindow(receiptWindow, imageSrc);
+        this.markViewForCheck();
       },
       error: () => {
         receiptWindow.close();
         this.toastr.error('Unable to load receipt.', 'Receipt');
+        this.markViewForCheck();
       }
     });
   }
@@ -645,6 +674,7 @@ export class ReceiptsListComponent implements OnInit, OnChanges {
         );
         this.applyPropertyCodesToDisplays();
         this.applyFilters();
+        this.markViewForCheck();
       }
     });
   }
@@ -684,6 +714,7 @@ export class ReceiptsListComponent implements OnInit, OnChanges {
         this.applyBankCardDropdownsToDisplays();
         this.applyVendorCellsToDisplays();
         this.applyFilters();
+        this.markViewForCheck();
       }
     });
   }
@@ -710,6 +741,7 @@ export class ReceiptsListComponent implements OnInit, OnChanges {
         this.vendorOptionsByOfficeId = officeMap;
         this.applyVendorCellsToDisplays();
         this.applyFilters();
+        this.markViewForCheck();
       }
     });
   }

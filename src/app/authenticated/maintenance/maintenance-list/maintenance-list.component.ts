@@ -1,5 +1,5 @@
 import { CommonModule } from "@angular/common";
-import { Component, EventEmitter, HostListener, Input, NgZone, OnChanges, OnDestroy, OnInit, Output, SimpleChanges } from '@angular/core';
+import { ChangeDetectionStrategy, ChangeDetectorRef, Component, EventEmitter, HostListener, Input, NgZone, OnChanges, OnDestroy, OnInit, Output, SimpleChanges } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { MatDialog } from '@angular/material/dialog';
 import { ActivatedRoute, Router } from '@angular/router';
@@ -41,7 +41,8 @@ import { ServiceType } from '../../shared/models/mixed-enums';
   selector: 'app-maintenance-list',
   templateUrl: './maintenance-list.component.html',
   styleUrls: ['./maintenance-list.component.scss'],
-  imports: [CommonModule, MaterialModule, FormsModule, DataTableComponent, TitleBarSelectComponent]
+  imports: [CommonModule, MaterialModule, FormsModule, DataTableComponent, TitleBarSelectComponent],
+  changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class MaintenanceListComponent extends PropertyMaintenanceBase implements OnInit, OnDestroy, OnChanges {
   @Input() officeId: number | null = null;
@@ -143,9 +144,14 @@ export class MaintenanceListComponent extends PropertyMaintenanceBase implements
     public ngZone: NgZone,
     public maintenanceItemsService: MaintenanceItemsService,
     public userService: UserService,
-    private dialog: MatDialog
+    private dialog: MatDialog,
+    private cdr: ChangeDetectorRef
   ) {
     super(authService, reservationService, mixedMappingService, mappingService, propertyService, maintenanceService, utilityService, officeService, globalSelectionService);
+  }
+
+  private markViewForCheck(): void {
+    this.cdr.markForCheck();
   }
 
   //#region Maintenance-List
@@ -159,6 +165,7 @@ export class MaintenanceListComponent extends PropertyMaintenanceBase implements
 
     this.itemsToLoad$.pipe(filter(s => s.size === 0), take(1), takeUntil(this.destroy$)).subscribe(() => {
       this.recomputeBackendData();
+      this.markViewForCheck();
     });
 
     super.ngOnInit();
@@ -183,6 +190,7 @@ export class MaintenanceListComponent extends PropertyMaintenanceBase implements
 
   protected override onAfterRecomputeBackendData(userAssignedId: string | null): void {
     this.rebuildMaintenanceListFromBase(userAssignedId);
+    this.markViewForCheck();
   }
 
   override recomputeBackendData(userId: string | null = this.selectedServiceProviderUserId): void {
@@ -199,6 +207,7 @@ export class MaintenanceListComponent extends PropertyMaintenanceBase implements
       this.recomputeBackendData(null);
       this.refreshScheduleCalendars();
     }
+    this.markViewForCheck();
   }
 
   refreshMaidServiceRowsFromBase(userId: string | null = this.selectedServiceProviderUserId): void {
@@ -493,6 +502,7 @@ export class MaintenanceListComponent extends PropertyMaintenanceBase implements
         this.housekeepingUserOptions.splice(0, this.housekeepingUserOptions.length, ...names);
         this.rebuildServiceProviderFilterOptions();
         this.remapCleanerInspectorDropdowns();
+        this.markViewForCheck();
       },
       error: () => {
         this.housekeepingUsers = [];
@@ -500,6 +510,7 @@ export class MaintenanceListComponent extends PropertyMaintenanceBase implements
         this.housekeepingUserOptions.splice(0, this.housekeepingUserOptions.length, 'Clear Selection');
         this.rebuildServiceProviderFilterOptions();
         this.remapCleanerInspectorDropdowns();
+        this.markViewForCheck();
       }
     });
   }
@@ -519,6 +530,7 @@ export class MaintenanceListComponent extends PropertyMaintenanceBase implements
         this.carpetUserOptions.splice(0, this.carpetUserOptions.length, ...names);
         this.rebuildServiceProviderFilterOptions();
         this.remapCleanerInspectorDropdowns();
+        this.markViewForCheck();
       },
       error: () => {
         this.carpetUsers = [];
@@ -526,6 +538,7 @@ export class MaintenanceListComponent extends PropertyMaintenanceBase implements
         this.carpetUserOptions.splice(0, this.carpetUserOptions.length, 'Clear Selection');
         this.rebuildServiceProviderFilterOptions();
         this.remapCleanerInspectorDropdowns();
+        this.markViewForCheck();
       }
     });
   }
@@ -545,6 +558,7 @@ export class MaintenanceListComponent extends PropertyMaintenanceBase implements
         this.inspectorUserOptions.splice(0, this.inspectorUserOptions.length, ...names);
         this.rebuildServiceProviderFilterOptions();
         this.remapCleanerInspectorDropdowns();
+        this.markViewForCheck();
       },
       error: () => {
         this.inspectorUsers = [];
@@ -552,6 +566,7 @@ export class MaintenanceListComponent extends PropertyMaintenanceBase implements
         this.inspectorUserOptions.splice(0, this.inspectorUserOptions.length, 'Clear Selection');
         this.rebuildServiceProviderFilterOptions();
         this.remapCleanerInspectorDropdowns();
+        this.markViewForCheck();
       }
     });
   }
@@ -1110,6 +1125,7 @@ export class MaintenanceListComponent extends PropertyMaintenanceBase implements
         this.formatterService.formatDateString(inspectingDate ?? undefined) || ''
       );
       this.toastr.success('Provider assignments updated.', CommonMessage.Success);
+      this.markViewForCheck();
     };
     const onSaveErr = (error?: unknown) => {
       event.cleaner = this.buildUserDropdownCell(
@@ -1126,6 +1142,7 @@ export class MaintenanceListComponent extends PropertyMaintenanceBase implements
       );
       const detail = this.utilityService.extractApiErrorMessage(error);
       this.toastr.error(detail ? `Unable to update provider assignments. ${detail}` : 'Unable to update provider assignments.', CommonMessage.Error);
+      this.markViewForCheck();
     };
 
     if (target === ServiceType.Online || target === ServiceType.Offline) {
@@ -1186,6 +1203,7 @@ export class MaintenanceListComponent extends PropertyMaintenanceBase implements
         this.upsertReservationInCachedLists(updatedReservation);
         onSaveOk();
         this.refreshMaidServiceRowsFromBase(this.selectedServiceProviderUserId);
+        this.markViewForCheck();
       }).catch(error => onSaveErr(error));
       return;
     }
@@ -1223,10 +1241,12 @@ export class MaintenanceListComponent extends PropertyMaintenanceBase implements
         this.formatterService.formatDateString(nextInspectingDate ?? undefined) || ''
       );
       this.toastr.success('Provider date updated.', CommonMessage.Success);
+      this.markViewForCheck();
     };
     const onSaveErr = (error?: unknown) => {
       const detail = this.utilityService.extractApiErrorMessage(error);
       this.toastr.error(detail ? `Unable to update provider date. ${detail}` : 'Unable to update provider date.', CommonMessage.Error);
+      this.markViewForCheck();
     };
 
     if (target === ServiceType.Online || target === ServiceType.Offline) {
@@ -1276,6 +1296,7 @@ export class MaintenanceListComponent extends PropertyMaintenanceBase implements
         this.upsertReservationInCachedLists(updatedReservation);
         onSaveOk();
         this.refreshMaidServiceRowsFromBase(this.selectedServiceProviderUserId);
+        this.markViewForCheck();
       }).catch(error => onSaveErr(error));
       return;
     }
@@ -1313,9 +1334,11 @@ export class MaintenanceListComponent extends PropertyMaintenanceBase implements
       event.bedroomId4 = bed4Id;
       Object.assign(event, this.mappingService.buildPropertyRowBedDropdownCells(event, undefined));
       this.toastr.success('Property updated.', CommonMessage.Success);
+      this.markViewForCheck();
     }).catch(() => {
       Object.assign(event, this.mappingService.buildPropertyRowBedDropdownCells(event, undefined));
       this.toastr.error('Unable to update property.', CommonMessage.Error);
+      this.markViewForCheck();
     });
   }
 
@@ -1357,12 +1380,15 @@ export class MaintenanceListComponent extends PropertyMaintenanceBase implements
     void this.propertyService.updateModifiedProperty(event.propertyId, { propertyStatusId: selectedStatusId }).then(() => {
       this.updatePropertyStatusDisplay(event.propertyId, selectedStatusId, selectedLabel);
       this.toastr.success('Property status updated.', CommonMessage.Success);
+      this.markViewForCheck();
     }).catch((err: unknown) => {
       console.error('Error updating property status:', err);
       this.updatePropertyStatusDisplay(event.propertyId, previousStatusId, previousLabel);
       this.toastr.error('Unable to update property status.', CommonMessage.Error);
+      this.markViewForCheck();
     }).finally(() => {
       event.propertyStatusDropdown = this.buildPropertyStatusDropdownCell(event.propertyStatusText);
+      this.markViewForCheck();
     });
   }
   

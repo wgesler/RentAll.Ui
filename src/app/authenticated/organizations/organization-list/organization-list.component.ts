@@ -1,6 +1,6 @@
 import { CommonModule } from "@angular/common";
 import { HttpErrorResponse } from '@angular/common/http';
-import { Component, OnDestroy, OnInit } from '@angular/core';
+import { ChangeDetectionStrategy, ChangeDetectorRef, Component, OnDestroy, OnInit } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
 import { ToastrService } from 'ngx-toastr';
@@ -20,7 +20,8 @@ import { OrganizationService } from '../services/organization.service';
     selector: 'app-organization-list',
     templateUrl: './organization-list.component.html',
     styleUrls: ['./organization-list.component.scss'],
-    imports: [CommonModule, MaterialModule, FormsModule, DataTableComponent]
+    imports: [CommonModule, MaterialModule, FormsModule, DataTableComponent],
+    changeDetection: ChangeDetectionStrategy.OnPush
 })
 
 export class OrganizationListComponent implements OnInit, OnDestroy {
@@ -49,7 +50,12 @@ export class OrganizationListComponent implements OnInit, OnDestroy {
     public toastr: ToastrService,
     public router: Router,
     private mappingService: MappingService,
-    private utilityService: UtilityService) {
+    private utilityService: UtilityService,
+    private cdr: ChangeDetectorRef) {
+  }
+
+  private markViewForCheck(): void {
+    this.cdr.markForCheck();
   }
 
   //#region Organization-List
@@ -62,12 +68,14 @@ export class OrganizationListComponent implements OnInit, OnDestroy {
       next: (organizations) => {
         this.allOrganizations = this.mappingService.mapOrganizations(organizations);
         this.applyFilters();
+        this.markViewForCheck();
       },
       error: (err: HttpErrorResponse) => {
         this.isServiceError = true;
         if (err.status === 404) {
           // Handle not found error if business logic requires
         }
+        this.markViewForCheck();
       }
     });
   }

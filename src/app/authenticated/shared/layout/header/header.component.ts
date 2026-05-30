@@ -1,6 +1,6 @@
 import { BreakpointObserver, Breakpoints } from '@angular/cdk/layout';
 import { CommonModule } from '@angular/common';
-import { Component, OnDestroy, OnInit } from '@angular/core';
+import { ChangeDetectionStrategy, ChangeDetectorRef, Component, OnDestroy, OnInit } from '@angular/core';
 import { MatDialog } from '@angular/material/dialog';
 import { Observable, Subject, Subscription, map, shareReplay, take, takeUntil } from 'rxjs';
 import { environment } from '../../../../../environments/environment';
@@ -24,7 +24,8 @@ import { SidebarStateService } from '../services/sidebar-state.service';
     selector: 'app-header',
     imports: [CommonModule, MaterialModule],
     templateUrl: './header.component.html',
-    styleUrl: './header.component.scss'
+    styleUrl: './header.component.scss',
+    changeDetection: ChangeDetectionStrategy.OnPush
 })
 
 export class HeaderComponent implements OnInit, OnDestroy {
@@ -58,19 +59,26 @@ export class HeaderComponent implements OnInit, OnDestroy {
     private officeService: OfficeService,
     private globalSelectionService: GlobalSelectionService,
     private sidebarStateService: SidebarStateService,
-    private debugLayoutBandsService: DebugLayoutBandsService
-  ) { }
+    private debugLayoutBandsService: DebugLayoutBandsService,
+    private cdr: ChangeDetectorRef
+  ) {}
+
+  private markViewForCheck(): void {
+    this.cdr.markForCheck();
+  }
   
   ngOnInit(): void {
     this.organizationId = this.authService.getUser()?.organizationId?.trim() ?? '';
     // Stay in sync with global office selection (e.g. when app initializes from user default)
     this.globalSelectionService.getSelectedOfficeId$().pipe(takeUntil(this.destroy$)).subscribe(id => {
       this.selectedGlobalOfficeId = id;
+      this.markViewForCheck();
     });
     // Load user profile picture when component initializes
     this.loadUserProfilePicture();
     this.sidebarStateService.isExpanded$.pipe(takeUntil(this.destroy$)).subscribe(isExpanded => {
       this.isSidebarExpanded = isExpanded;
+      this.markViewForCheck();
     });
     this.loadGlobalOfficeOptions();
   }
@@ -104,10 +112,12 @@ export class HeaderComponent implements OnInit, OnDestroy {
         } else {
           this.profilePictureUrl = null;
         }
+        this.markViewForCheck();
       },
       error: () => {
         // Silently fail - just don't show profile picture
         this.profilePictureUrl = null;
+        this.markViewForCheck();
       }
     });
   }
@@ -133,7 +143,7 @@ export class HeaderComponent implements OnInit, OnDestroy {
     });
     
     // Reload profile picture when dialog closes (in case user updated it)
-    dialogRef.afterClosed().subscribe((result) => {
+    dialogRef.afterClosed().pipe(take(1), takeUntil(this.destroy$)).subscribe((result) => {
       if (result) {
         // User saved changes, reload profile picture
         this.loadUserProfilePicture();
@@ -172,12 +182,14 @@ export class HeaderComponent implements OnInit, OnDestroy {
         if (this.authService.isLoggingOut() || !this.authService.getIsLoggedIn()) {
           this.offices = [];
           this.selectedGlobalOfficeId = null;
+          this.markViewForCheck();
           return;
         }
         const activeOffices = (allOffices || []).filter(office => office.isActive);
         this.offices = this.globalSelectionService.filterOfficeListForUser(activeOffices);
         const preferredId = this.userDefaultOfficeId ?? this.authService.getUser()?.defaultOfficeId ?? null;
         this.selectedGlobalOfficeId = this.globalSelectionService.syncWithAvailableOffices(this.offices, preferredId);
+        this.markViewForCheck();
       });
     });
   }

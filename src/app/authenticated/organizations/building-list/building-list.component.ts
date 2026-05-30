@@ -1,6 +1,6 @@
 import { CommonModule } from "@angular/common";
 import { HttpErrorResponse } from '@angular/common/http';
-import { Component, EventEmitter, Input, OnDestroy, OnInit, Output } from '@angular/core';
+import { ChangeDetectionStrategy, ChangeDetectorRef, Component, EventEmitter, Input, OnDestroy, OnInit, Output } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
 import { ToastrService } from 'ngx-toastr';
@@ -25,7 +25,8 @@ import { OfficeService } from '../services/office.service';
     selector: 'app-building-list',
     templateUrl: './building-list.component.html',
     styleUrls: ['./building-list.component.scss'],
-    imports: [CommonModule, MaterialModule, FormsModule, DataTableComponent, DataTableFilterActionsDirective]
+    imports: [CommonModule, MaterialModule, FormsModule, DataTableComponent, DataTableFilterActionsDirective],
+    changeDetection: ChangeDetectionStrategy.OnPush
 })
 
 export class BuildingListComponent implements OnInit, OnDestroy {
@@ -63,7 +64,12 @@ export class BuildingListComponent implements OnInit, OnDestroy {
     private authService: AuthService,
     private officeService: OfficeService,
     private globalSelectionService: GlobalSelectionService,
-    private utilityService: UtilityService) {
+    private utilityService: UtilityService,
+    private cdr: ChangeDetectorRef) {
+  }
+
+  private markViewForCheck(): void {
+    this.cdr.markForCheck();
   }
 
   //#region Building-List
@@ -76,6 +82,7 @@ export class BuildingListComponent implements OnInit, OnDestroy {
       if (this.offices.length > 0) {
         this.resolveOfficeScope(officeId);
       }
+      this.markViewForCheck();
     });
   }
 
@@ -93,10 +100,12 @@ export class BuildingListComponent implements OnInit, OnDestroy {
       next: (response: BuildingResponse[]) => {
         this.allBuildings = this.mappingService.mapBuildings(response);
         this.applyFilters();
+        this.markViewForCheck();
       },
       error: (err: HttpErrorResponse) => {
         this.isServiceError = true;
         this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'buildings');
+        this.markViewForCheck();
       }
     });
   }
@@ -131,8 +140,10 @@ export class BuildingListComponent implements OnInit, OnDestroy {
             this.selectedOffice = uiState.selectedOffice;
             this.showOfficeDropdown = this.embeddedInSettings ? false : uiState.showOfficeDropdown;
             this.resolveOfficeScope(uiState.selectedOfficeId);
+            this.markViewForCheck();
           }
         });
+        this.markViewForCheck();
       });
     });
   }

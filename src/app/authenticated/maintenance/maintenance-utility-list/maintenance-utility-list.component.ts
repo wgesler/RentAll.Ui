@@ -1,5 +1,5 @@
 import { CommonModule } from '@angular/common';
-import { Component, EventEmitter, Input, OnChanges, Output, SimpleChanges } from '@angular/core';
+import { ChangeDetectionStrategy, ChangeDetectorRef, Component, EventEmitter, Input, OnChanges, Output, SimpleChanges } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { MaterialModule } from '../../../material.module';
 import { FormatterService } from '../../../services/formatter-service';
@@ -21,7 +21,8 @@ interface UtilityEditRow {
   selector: 'app-maintenance-utility-list',
   imports: [CommonModule, FormsModule, MaterialModule],
   templateUrl: './maintenance-utility-list.component.html',
-  styleUrl: './maintenance-utility-list.component.scss'
+  styleUrl: './maintenance-utility-list.component.scss',
+  changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class MaintenanceUtilityListComponent implements OnChanges {
   @Input() utilities: UtilityResponse[] = [];
@@ -36,8 +37,13 @@ export class MaintenanceUtilityListComponent implements OnChanges {
   rowCounter = 0;
 
   constructor(
-    private formatterService: FormatterService
+    private formatterService: FormatterService,
+    private cdr: ChangeDetectorRef
   ) {}
+
+  private markViewForCheck(): void {
+    this.cdr.markForCheck();
+  }
 
   //#region Maintenance Utility List
   ngOnChanges(changes: SimpleChanges): void {

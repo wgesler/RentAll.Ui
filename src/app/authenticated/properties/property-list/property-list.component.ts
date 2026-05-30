@@ -1,7 +1,7 @@
 import { CommonModule } from "@angular/common";
 import { Clipboard } from '@angular/cdk/clipboard';
 import { HttpErrorResponse } from '@angular/common/http';
-import { Component, EventEmitter, HostListener, Input, NgZone, OnChanges, OnDestroy, OnInit, Output, SimpleChanges, ViewChild } from '@angular/core';
+import { ChangeDetectionStrategy, ChangeDetectorRef, Component, EventEmitter, HostListener, Input, NgZone, OnChanges, OnDestroy, OnInit, Output, SimpleChanges, ViewChild } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { MatDialog, MatDialogConfig } from '@angular/material/dialog';
 import { MatMenuTrigger } from '@angular/material/menu';
@@ -48,7 +48,8 @@ type PropertyListDisplayRow = PropertyListDisplay & {
     selector: 'app-property-list',
     templateUrl: './property-list.component.html',
     styleUrls: ['./property-list.component.scss'],
-    imports: [CommonModule, MaterialModule, FormsModule, DataTableComponent, DataTableFilterActionsDirective]
+    imports: [CommonModule, MaterialModule, FormsModule, DataTableComponent, DataTableFilterActionsDirective],
+    changeDetection: ChangeDetectionStrategy.OnPush
 })
 
 export class PropertyListComponent implements OnInit, OnDestroy, OnChanges {
@@ -121,7 +122,12 @@ export class PropertyListComponent implements OnInit, OnDestroy, OnChanges {
     private dialog: MatDialog,
     private ngZone: NgZone,
     private propertySelectionFilterService: PropertySelectionFilterService,
-    private propertyListingShareService: PropertyListingShareService) {
+    private propertyListingShareService: PropertyListingShareService,
+    private cdr: ChangeDetectorRef) {
+  }
+
+  private markViewForCheck(): void {
+    this.cdr.markForCheck();
   }
 
   //#region Property-List
@@ -135,19 +141,24 @@ export class PropertyListComponent implements OnInit, OnDestroy, OnChanges {
     this.preferredOfficeId = this.user?.defaultOfficeId ?? null;
     this.loadOffices();
 
-    this.propertySelectionFilterService.propertiesFiltered$.pipe(takeUntil(this.destroy$)).subscribe((v) => (this.propertiesFiltered = v));
+    this.propertySelectionFilterService.propertiesFiltered$.pipe(takeUntil(this.destroy$)).subscribe((v) => {
+      this.propertiesFiltered = v;
+      this.markViewForCheck();
+    });
 
     this.globalSelectionService.getFurnishedPropertySelection$().pipe(takeUntil(this.destroy$)).subscribe(v => {
       this.furnishedPropertyToggleChecked = v === true;
       if (this.officeScopeResolved) {
         this.applyFilters();
       }
+      this.markViewForCheck();
     });
 
     this.globalSelectionService.getSelectedOfficeId$().pipe(takeUntil(this.destroy$)).subscribe(officeId => {
       if (this.offices.length > 0) {
         this.resolveOfficeScope(officeId, true);
       }
+      this.markViewForCheck();
     });
 
     this.router.events.pipe(filter((e): e is NavigationEnd => e instanceof NavigationEnd),takeUntil(this.destroy$)).subscribe(e => {
@@ -156,6 +167,7 @@ export class PropertyListComponent implements OnInit, OnDestroy, OnChanges {
         this.getProperties();
       }
       this.lastNavigationUrl = path;
+      this.markViewForCheck();
     });
 
     this.globalSelectionService.ensureOfficeScope(this.organizationId, this.preferredOfficeId).pipe(take(1)).subscribe(() => {
@@ -174,6 +186,7 @@ export class PropertyListComponent implements OnInit, OnDestroy, OnChanges {
             this.resolveOfficeScope(this.globalSelectionService.getSelectedOfficeIdValue(), true);
           }
         }
+        this.markViewForCheck();
       });
     });
   }
@@ -212,11 +225,13 @@ export class PropertyListComponent implements OnInit, OnDestroy, OnChanges {
           }
         });
         this.applyFilters();
+        this.markViewForCheck();
       },
       error: (_err: HttpErrorResponse) => {
         this.isServiceError = true;
         this.allProperties = [];
         this.propertiesDisplay = [];
+        this.markViewForCheck();
       }
     });
   }
@@ -300,7 +315,11 @@ export class PropertyListComponent implements OnInit, OnDestroy, OnChanges {
     }).catch(() => {
       this.applyPropertyIsActiveValue(event.propertyId, previousValue);
       this.toastr.error('Unable to update property.', CommonMessage.Error);
-    }).finally(() => this.applyFilters());
+      this.markViewForCheck();
+    }).finally(() => {
+      this.applyFilters();
+      this.markViewForCheck();
+    });
   }
   //#endregion
   
@@ -493,6 +512,7 @@ export class PropertyListComponent implements OnInit, OnDestroy, OnChanges {
                   this.selectedOffice = matchingOffice;
                   this.applyFilters();
                 }
+                this.markViewForCheck();
                 return;
               }
 
@@ -502,22 +522,26 @@ export class PropertyListComponent implements OnInit, OnDestroy, OnChanges {
                   this.officeIdChange.emit(uiState.selectedOffice.officeId);
                   this.applyFilters();
                 }
+                this.markViewForCheck();
                 return;
               }
 
               if (this.selectedOffice && this.offices.length === 1) {
                 this.applyFilters();
               }
+              this.markViewForCheck();
             }
           });
 
           this.getProperties();
+          this.markViewForCheck();
         });
       },
       error: () => {
         this.offices = [];
         this.availableOffices = [];
         this.getProperties();
+        this.markViewForCheck();
       }
     });
   }
@@ -559,11 +583,14 @@ export class PropertyListComponent implements OnInit, OnDestroy, OnChanges {
     void this.propertyService.updateModifiedProperty(event.propertyId, { propertyStatusId: selectedStatusId }).then(() => {
       this.updatePropertyStatusDisplay(event.propertyId, selectedStatusId, selectedLabel);
       this.toastr.success('Property status updated.', CommonMessage.Success);
+      this.markViewForCheck();
     }).catch(() => {
       this.updatePropertyStatusDisplay(event.propertyId, previousStatusId, previousLabel);
       this.toastr.error('Unable to update property status.', CommonMessage.Error);
+      this.markViewForCheck();
     }).finally(() => {
       event.propertyStatusDropdown = this.buildStatusDropdownCell(event.propertyStatusText);
+      this.markViewForCheck();
     });
   }
 

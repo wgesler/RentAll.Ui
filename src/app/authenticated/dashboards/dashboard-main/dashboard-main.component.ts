@@ -1,4 +1,4 @@
-import { Component, HostListener, OnDestroy, OnInit } from '@angular/core';
+import { ChangeDetectionStrategy, ChangeDetectorRef, Component, HostListener, OnDestroy, OnInit } from '@angular/core';
 import { Router } from '@angular/router';
 import { BehaviorSubject, Observable, Subject, catchError, concatMap, filter, finalize, firstValueFrom, from, map, of, take, takeUntil, toArray } from 'rxjs';
 import { RouterUrl } from '../../../app.routes';
@@ -37,7 +37,8 @@ import { PropertyLeaseType } from '../../properties/models/property-enums';
     selector: 'app-dashboard-main',
     imports: [MaterialModule, DataTableComponent],
     templateUrl: './dashboard-main.component.html',
-    styleUrl: './dashboard-main.component.scss'
+    styleUrl: './dashboard-main.component.scss',
+    changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class DashboardMainComponent extends PropertyMaintenanceBase implements OnInit, OnDestroy {
   profilePictureUrl: string | null = null;
@@ -161,9 +162,14 @@ export class DashboardMainComponent extends PropertyMaintenanceBase implements O
     globalSelectionService: GlobalSelectionService,
     private formatterService: FormatterService,
     private toastr: ToastrService,
-    private trackerService: TrackerService
+    private trackerService: TrackerService,
+    private cdr: ChangeDetectorRef
   ) {
     super(authService, reservationService, mixedMappingService, mappingService, propertyService, maintenanceService, utilityService, officeService, globalSelectionService);
+  }
+
+  private markViewForCheck(): void {
+    this.cdr.markForCheck();
   }
 
   //#region Dashboard-Main
@@ -183,6 +189,7 @@ export class DashboardMainComponent extends PropertyMaintenanceBase implements O
 
     this.itemsToLoad$.pipe(filter(s => s.size === 0), take(1), takeUntil(this.destroy$)).subscribe(() => {
       this.recomputeBackendData();
+      this.markViewForCheck();
     });
 
     super.ngOnInit();
@@ -195,6 +202,7 @@ export class DashboardMainComponent extends PropertyMaintenanceBase implements O
     this.buildPropertyTurnoverFromBaseLists();
     this.buildReservationTurnoverFromBaseLists();
     this.buildCommissionsList();
+    this.markViewForCheck();
   }
 
   buildReservationTurnoverFromBaseLists(): void {
@@ -584,34 +592,44 @@ export class DashboardMainComponent extends PropertyMaintenanceBase implements O
       this.currentUserCommissionRate = 0;
       this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'currentUser');
       this.resolveCurrentAgentAndFilter();
+      this.markViewForCheck();
       return;
     }
 
     this.userService.getUserByGuid(userId).pipe(takeUntil(this.destroy$), take(1), finalize(() => {
       this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'currentUser');
       this.resolveCurrentAgentAndFilter();
+      this.markViewForCheck();
     })).subscribe({
       next: (userResponse: UserResponse) => {
         this.applyUserProfilePicture(userResponse);
         this.currentUserAgentId = this.utilityService.normalizeIdOrNull(userResponse.agentId);
         this.currentUserCommissionRate = Number(userResponse.commissionRate ?? 0);
+        this.markViewForCheck();
       },
       error: () => {
         this.profilePictureUrl = null;
         this.currentUserAgentId = null;
         this.currentUserCommissionRate = 0;
+        this.markViewForCheck();
       }
     });
   }
 
   @HostListener('document:mouseup')
   onDocumentMouseup(): void {
-    setTimeout(() => this.endCommissionPreview());
+    setTimeout(() => {
+      this.endCommissionPreview();
+      this.markViewForCheck();
+    });
   }
 
   @HostListener('document:touchend')
   onDocumentTouchend(): void {
-    setTimeout(() => this.endCommissionPreview());
+    setTimeout(() => {
+      this.endCommissionPreview();
+      this.markViewForCheck();
+    });
   }
   //#endregion
 
@@ -771,12 +789,15 @@ export class DashboardMainComponent extends PropertyMaintenanceBase implements O
     this.userService.getUsers().pipe(takeUntil(this.destroy$), take(1), finalize(() => {
       this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'users');
       this.buildCommissionsList();
+      this.markViewForCheck();
     })).subscribe({
       next: (users: UserResponse[]) => {
         this.adminUsers = users || [];
+        this.markViewForCheck();
       },
       error: () => {
         this.adminUsers = [];
+        this.markViewForCheck();
       }
     });
   }
@@ -786,12 +807,15 @@ export class DashboardMainComponent extends PropertyMaintenanceBase implements O
     this.agentService.getAgents().pipe(takeUntil(this.destroy$), take(1), finalize(() => {
       this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'agents');
       this.buildCommissionsList();
+      this.markViewForCheck();
     })).subscribe({
       next: (agents: AgentResponse[]) => {
         this.adminAgents = agents || [];
+        this.markViewForCheck();
       },
       error: () => {
         this.adminAgents = [];
+        this.markViewForCheck();
       }
     });
   }
@@ -810,11 +834,13 @@ export class DashboardMainComponent extends PropertyMaintenanceBase implements O
         this.applyPropertyTrackerValues();
         this.loadReservationTrackerResponses();
         this.loadPropertyTrackerResponses();
+        this.markViewForCheck();
       },
       error: () => {
         this.trackerConfiguration = null;
         this.applyReservationTrackerColumns();
         this.applyPropertyTrackerColumns();
+        this.markViewForCheck();
       }
     });
   }
@@ -859,6 +885,7 @@ export class DashboardMainComponent extends PropertyMaintenanceBase implements O
         this.reservationTrackerResponseOptionsByReservation.set(this.utilityService.normalizeId(item.reservationId), item.options);
       });
       this.applyReservationTrackerValues();
+      this.markViewForCheck();
     });
   }
 
@@ -909,6 +936,7 @@ export class DashboardMainComponent extends PropertyMaintenanceBase implements O
         this.propertyTrackerResponseOptionsByProperty.set(propertyKey, existingOptions);
       });
       this.rebuildPropertyTurnoverIncludingIncompleteTrackers();
+      this.markViewForCheck();
     });
   }
   //#endregion
@@ -988,9 +1016,11 @@ export class DashboardMainComponent extends PropertyMaintenanceBase implements O
     void this.saveReservationTrackerCheckbox(reservationId, trackerDefinition, nextValue).then(() => {
       this.applyReservationTurnoverCheckboxValue(reservationId, column, nextValue);
       this.toastr.success('Tracker updated.', CommonMessage.Success);
+      this.markViewForCheck();
     }).catch(() => {
       this.applyReservationTurnoverCheckboxValue(reservationId, column, previousValue);
       this.toastr.error('Unable to update tracker.', CommonMessage.Error);
+      this.markViewForCheck();
     });
   }
 
@@ -1020,9 +1050,11 @@ export class DashboardMainComponent extends PropertyMaintenanceBase implements O
     void this.saveReservationTrackerMultiSelect(reservationId, trackerDefinition, selectedLabels).then(() => {
       this.applyReservationTrackerValues();
       this.toastr.success('Tracker updated.', CommonMessage.Success);
+      this.markViewForCheck();
     }).catch(() => {
       this.applyReservationTrackerValues();
       this.toastr.error('Unable to update tracker.', CommonMessage.Error);
+      this.markViewForCheck();
     });
   }
 
@@ -1051,9 +1083,11 @@ export class DashboardMainComponent extends PropertyMaintenanceBase implements O
         }
         this.applyReservationTrackerValues();
         this.toastr.success('Tracking cleared.', CommonMessage.Success);
+        this.markViewForCheck();
       } catch {
         this.applyReservationTrackerValues();
         this.toastr.error('Unable to clear tracking.', CommonMessage.Error);
+        this.markViewForCheck();
       }
     })();
   }
@@ -1086,9 +1120,11 @@ export class DashboardMainComponent extends PropertyMaintenanceBase implements O
         }
         this.applyReservationTrackerValues();
         this.toastr.success('Tracking marked complete.', CommonMessage.Success);
+        this.markViewForCheck();
       } catch {
         this.applyReservationTrackerValues();
         this.toastr.error('Unable to update all tracker checks.', CommonMessage.Error);
+        this.markViewForCheck();
       }
     })();
   }
@@ -1130,14 +1166,17 @@ export class DashboardMainComponent extends PropertyMaintenanceBase implements O
       .then(completed => {
         if (completed) {
           this.toastr.success('Tracking marked complete.', CommonMessage.Success);
+          this.markViewForCheck();
           return;
         }
         this.applyPropertyTrackerValues();
         this.toastr.success('Tracker updated.', CommonMessage.Success);
+        this.markViewForCheck();
       })
       .catch(() => {
         this.applyPropertyTurnoverCheckboxValue(propertyId, column, previousValue);
         this.toastr.error('Unable to update tracker.', CommonMessage.Error);
+        this.markViewForCheck();
       });
   }
 
@@ -1173,14 +1212,17 @@ export class DashboardMainComponent extends PropertyMaintenanceBase implements O
       .then(completed => {
         if (completed) {
           this.toastr.success('Tracking marked complete.', CommonMessage.Success);
+          this.markViewForCheck();
           return;
         }
         this.applyPropertyTrackerValues();
         this.toastr.success('Tracker updated.', CommonMessage.Success);
+        this.markViewForCheck();
       })
       .catch(() => {
         this.applyPropertyTrackerValues();
         this.toastr.error('Unable to update tracker.', CommonMessage.Error);
+        this.markViewForCheck();
       });
   }
 
@@ -1201,9 +1243,11 @@ export class DashboardMainComponent extends PropertyMaintenanceBase implements O
         this.applyPropertyCompletionFlag(propertyId, isOnlineContext, false);
         this.rebuildPropertyTurnoverIncludingIncompleteTrackers();
         this.toastr.success('Tracking cleared.', CommonMessage.Success);
+        this.markViewForCheck();
       } catch {
         this.rebuildPropertyTurnoverIncludingIncompleteTrackers();
         this.toastr.error('Unable to clear tracking.', CommonMessage.Error);
+        this.markViewForCheck();
       }
     })();
   }
@@ -1236,13 +1280,16 @@ export class DashboardMainComponent extends PropertyMaintenanceBase implements O
         const completed = await this.tryCompletePropertyTracking(propertyId, event.officeId, contextType);
         if (completed) {
           this.toastr.success('Tracking marked complete.', CommonMessage.Success);
+          this.markViewForCheck();
           return;
         }
         this.applyPropertyTrackerValues();
         this.toastr.success('Tracking marked complete.', CommonMessage.Success);
+        this.markViewForCheck();
       } catch {
         this.applyPropertyTrackerValues();
         this.toastr.error('Unable to update all tracker checks.', CommonMessage.Error);
+        this.markViewForCheck();
       }
     })();
   }

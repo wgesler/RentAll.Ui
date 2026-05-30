@@ -96,7 +96,9 @@ export class PropertyComponent implements OnInit, OnChanges, AfterViewInit, OnDe
   @Input() shellOfficeId: number | null = null;
   @Input() shellOrganizationId: string | null = null;
   @Input() publicOwnerToken: string | null = null;
-  
+  @Output() titleBarContextChange = new EventEmitter<PropertyTitleBarContext>();
+  @Output() titleBarPropertyCodeInvalid = new EventEmitter<void>();
+
   propertyId: string;
   property: PropertyResponse;
   selectedReservationId: string | null = null;
@@ -104,6 +106,9 @@ export class PropertyComponent implements OnInit, OnChanges, AfterViewInit, OnDe
   pendingCopyFromPropertyId: string | null = null;
   appliedCopyFromPropertyId: string | null = null;
   codePaletteTargetControl: string | null = null;
+ 
+  expandedSections = { basic: true, features: true, description: true, agreement: false };
+  savedFormState: Record<string, unknown> | null = null;
  
   states: string[] = [];
   contacts: ContactResponse[] = [];
@@ -116,12 +121,11 @@ export class PropertyComponent implements OnInit, OnChanges, AfterViewInit, OnDe
   checkOutTimes: { value: number, label: string }[] = [];
   reservationNoticeOptions: { value: number, label: string }[] = [];
 
+  officesInitialized = false;
   offices: OfficeResponse[] = [];
-  // Global office selection used by the title bar "Office" filter.
   selectedOffice: OfficeResponse | null = null;
   showOfficeDropdown: boolean = false;
-  private officesInitialized = false;
- 
+
   reservations: ReservationListResponse[] = [];
   availableReservations: { value: ReservationListResponse, label: string }[] = [];
  
@@ -136,13 +140,6 @@ export class PropertyComponent implements OnInit, OnChanges, AfterViewInit, OnDe
   isLoading$: Observable<boolean> = this.itemsToLoad$.pipe(map(items => items.size > 0));
   destroy$ = new Subject<void>();
   
-  expandedSections = { basic: true, features: true, description: true, agreement: false };
-  savedFormState: Record<string, unknown> | null = null;
-
-  @Output() titleBarContextChange = new EventEmitter<PropertyTitleBarContext>();
-  /** Raised on save when the (required) property code is missing, so a host shell can flag its title-bar code field. */
-  @Output() titleBarPropertyCodeInvalid = new EventEmitter<void>();
-
   constructor(
     public propertyService: PropertyService,
     public fb: FormBuilder,

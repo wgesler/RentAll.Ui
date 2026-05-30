@@ -1,5 +1,5 @@
 import { CommonModule } from '@angular/common';
-import { Component, input } from '@angular/core';
+import { ChangeDetectionStrategy, ChangeDetectorRef, Component, input } from '@angular/core';
 import { Router } from '@angular/router';
 import { ToastrService } from 'ngx-toastr';
 import { take } from 'rxjs';
@@ -18,7 +18,8 @@ import { OwnersService } from '../services/owners.service';
   selector: 'app-owners-list',
   imports: [CommonModule, MaterialModule, ContactListComponent, OwnerComponent, ContactComponent],
   templateUrl: './owners-list.component.html',
-  styleUrl: './owners-list.component.scss'
+  styleUrl: './owners-list.component.scss',
+  changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class OwnersListComponent {
   officeId = input<number | null>(null);
@@ -33,8 +34,13 @@ export class OwnersListComponent {
   constructor(
     private router: Router,
     private ownersService: OwnersService,
-    private toastr: ToastrService
+    private toastr: ToastrService,
+    private cdr: ChangeDetectorRef
   ) {}
+
+  private markViewForCheck(): void {
+    this.cdr.markForCheck();
+  }
 
   //#region Owners-List
   onAddOwnerLead(): void {
@@ -104,10 +110,12 @@ export class OwnersListComponent {
           return;
         }
         void this.router.navigateByUrl(`${RouterUrl.OwnerShell}?leadOwnerId=${result.createdLead.ownerId}`);
+        this.markViewForCheck();
       },
       error: () => {
         this.toastr.error('Unable to create owner lead from contact.', CommonMessage.Error);
         void this.router.navigateByUrl(RouterUrl.OwnerShell);
+        this.markViewForCheck();
       }
     });
   }

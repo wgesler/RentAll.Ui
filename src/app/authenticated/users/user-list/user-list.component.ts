@@ -1,5 +1,5 @@
 import { CommonModule } from "@angular/common";
-import { Component, EventEmitter, Input, OnChanges, OnDestroy, OnInit, Output, SimpleChanges } from '@angular/core';
+import { ChangeDetectionStrategy, ChangeDetectorRef, Component, EventEmitter, Input, OnChanges, OnDestroy, OnInit, Output, SimpleChanges } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { ToastrService } from 'ngx-toastr';
 import { BehaviorSubject, Observable, Subject, finalize, map, skip, take, takeUntil } from 'rxjs';
@@ -27,7 +27,8 @@ import { UserService } from '../services/user.service';
     selector: 'app-user-list',
     templateUrl: './user-list.component.html',
     styleUrls: ['./user-list.component.scss'],
-    imports: [CommonModule, MaterialModule, FormsModule, DataTableComponent, DataTableFilterActionsDirective]
+    imports: [CommonModule, MaterialModule, FormsModule, DataTableComponent, DataTableFilterActionsDirective],
+    changeDetection: ChangeDetectionStrategy.OnPush
 })
 
 export class UserListComponent implements OnInit, OnDestroy, OnChanges {
@@ -76,7 +77,12 @@ export class UserListComponent implements OnInit, OnDestroy, OnChanges {
     public toastr: ToastrService,
     private formatterService: FormatterService,
     public mappingService: MappingService,
-    private utilityService: UtilityService) {
+    private utilityService: UtilityService,
+    private cdr: ChangeDetectorRef) {
+  }
+
+  private markViewForCheck(): void {
+    this.cdr.markForCheck();
   }
 
   //#region User-List
@@ -98,6 +104,7 @@ export class UserListComponent implements OnInit, OnDestroy, OnChanges {
       if (this.offices.length > 0) {
         this.resolveOfficeScope(officeId);
       }
+      this.markViewForCheck();
     });
   }
 
@@ -158,7 +165,10 @@ export class UserListComponent implements OnInit, OnDestroy, OnChanges {
 
     this.applyUserIsActiveValue(event.userId, nextValue);
 
-    this.userService.getUserByGuid(event.userId).pipe(take(1),finalize(() => this.applyFilters())).subscribe({
+    this.userService.getUserByGuid(event.userId).pipe(take(1), finalize(() => {
+      this.applyFilters();
+      this.markViewForCheck();
+    })).subscribe({
       next: (user: UserResponse) => {
         const request = this.buildUserIsActiveUpdateRequest(user, nextValue);
         this.userService.updateUser(request).pipe(take(1)).subscribe({
@@ -168,12 +178,14 @@ export class UserListComponent implements OnInit, OnDestroy, OnChanges {
           error: () => {
             this.applyUserIsActiveValue(event.userId, previousValue);
             this.toastr.error('Unable to update user.', CommonMessage.Error);
+            this.markViewForCheck();
           }
         });
       },
       error: () => {
         this.applyUserIsActiveValue(event.userId, previousValue);
         this.toastr.error('Unable to update user.', CommonMessage.Error);
+        this.markViewForCheck();
       }
     });
   }
@@ -306,12 +318,14 @@ export class UserListComponent implements OnInit, OnDestroy, OnChanges {
       next: (users: UserResponse[]) => {
         this.users = users || [];
         this.rebuildUsersDisplay();
+        this.markViewForCheck();
       },
       error: () => {
         this.isServiceError = true;
         this.users = [];
         this.allUsers = [];
         this.usersDisplay = [];
+        this.markViewForCheck();
       }
     });
   }
@@ -321,11 +335,13 @@ export class UserListComponent implements OnInit, OnDestroy, OnChanges {
       next: (organizations: OrganizationResponse[]) => {
         this.organizations = organizations || [];
         this.rebuildUsersDisplay();
+        this.markViewForCheck();
       },
       error: () => {
         this.isServiceError = true;
         this.organizations = [];
         this.rebuildUsersDisplay();
+        this.markViewForCheck();
       }
     });
   }
@@ -338,6 +354,7 @@ export class UserListComponent implements OnInit, OnDestroy, OnChanges {
           this.availableOffices = this.mappingService.mapOfficesToDropdown(this.offices);
           this.showOfficeDropdown = this.offices.length > 1;
           this.resolveOfficeScope(this.globalSelectionService.getSelectedOfficeIdValue());
+          this.markViewForCheck();
         });
       },
       error: () => {
@@ -345,6 +362,7 @@ export class UserListComponent implements OnInit, OnDestroy, OnChanges {
         this.availableOffices = [];
         this.showOfficeDropdown = false;
         this.resolveOfficeScope(null);
+        this.markViewForCheck();
       }
     });
   }

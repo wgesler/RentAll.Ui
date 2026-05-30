@@ -1,4 +1,4 @@
-import { Component, OnDestroy, OnInit } from '@angular/core';
+import { ChangeDetectionStrategy, ChangeDetectorRef, Component, OnDestroy, OnInit } from '@angular/core';
 import { Router } from '@angular/router';
 import { BehaviorSubject, Observable, Subscription, filter, finalize, map, take } from 'rxjs';
 import { MaterialModule } from '../../../material.module';
@@ -27,7 +27,8 @@ import { RouterUrl } from '../../../app.routes';
   selector: 'app-dashboard-service',
   imports: [MaterialModule, DataTableComponent],
   templateUrl: './dashboard-service.component.html',
-  styleUrl: './dashboard-service.component.scss'
+  styleUrl: './dashboard-service.component.scss',
+  changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class DashboardServiceComponent extends PropertyMaintenanceBase implements OnInit, OnDestroy {
   todayDate = '';
@@ -119,9 +120,14 @@ export class DashboardServiceComponent extends PropertyMaintenanceBase implement
     officeService: OfficeService,
     globalSelectionService: GlobalSelectionService,
     private formatterService: FormatterService,
-    private router: Router
+    private router: Router,
+    private cdr: ChangeDetectorRef
   ) {
     super(authService, reservationService, mixedMappingService, mappingService, propertyService, maintenanceService, utilityService, officeService, globalSelectionService);
+  }
+
+  private markViewForCheck(): void {
+    this.cdr.markForCheck();
   }
 
   //#region Dashboard-Service
@@ -132,6 +138,7 @@ export class DashboardServiceComponent extends PropertyMaintenanceBase implement
 
     this.initLoadCompleteSubscription = this.itemsToLoad$.pipe(filter(s => s.size === 0), take(1)).subscribe(() => {
       this.recomputeBackendData(this.userId);
+      this.markViewForCheck();
     });
 
     super.ngOnInit();
@@ -241,6 +248,7 @@ export class DashboardServiceComponent extends PropertyMaintenanceBase implement
   
     this.selectedScheduleCalendarDayKey = null;
     this.refreshScheduleCalendars();
+    this.markViewForCheck();
   }
   //#endregion
 
@@ -492,9 +500,11 @@ export class DashboardServiceComponent extends PropertyMaintenanceBase implement
     })).subscribe({
       next: (userResponse: UserResponse) => {
         this.applyUserProfilePicture(userResponse);
+        this.markViewForCheck();
       },
       error: () => {
         this.profilePictureUrl = null;
+        this.markViewForCheck();
       }
     });
   }

@@ -1,11 +1,11 @@
 import { CommonModule } from '@angular/common';
-import { Component, Input, OnDestroy, OnInit, ViewChild } from '@angular/core';
+import { ChangeDetectionStrategy, ChangeDetectorRef, Component, Input, OnDestroy, OnInit, ViewChild } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { MatMenuTrigger } from '@angular/material/menu';
 import { MatSlideToggleChange } from '@angular/material/slide-toggle';
 import { Router } from '@angular/router';
 import { ToastrService } from 'ngx-toastr';
-import { BehaviorSubject, Observable, Subject, distinctUntilChanged, finalize, map, skip, take, takeUntil } from 'rxjs';
+import { BehaviorSubject, Observable, Subject, distinctUntilChanged, filter, finalize, interval, map, skip, take, takeUntil } from 'rxjs';
 import { RouterUrl } from '../../../app.routes';
 import { CommonMessage } from '../../../enums/common-message.enum';
 import { MaterialModule } from '../../../material.module';
@@ -34,7 +34,8 @@ import { ReservationService } from '../services/reservation.service';
     selector: 'app-reservation-board',
     imports: [CommonModule, MaterialModule, FormsModule],
     templateUrl: './reservation-board.component.html',
-    styleUrl: './reservation-board.component.scss'
+    styleUrl: './reservation-board.component.scss',
+    changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class ReservationBoardComponent implements OnInit, OnDestroy {
   @Input() ownerUserId: string | null = null;
@@ -91,6 +92,7 @@ export class ReservationBoardComponent implements OnInit, OnDestroy {
   private officeUseDailyOnBoardById = new Map<number, boolean>();
 
   private readonly boardAddressMaxChars = 23;
+  private readonly reservationPollIntervalMs = 60_000;
 
   constructor(
     private propertyService: PropertyService,
@@ -104,8 +106,13 @@ export class ReservationBoardComponent implements OnInit, OnDestroy {
     private globalSelectionService: GlobalSelectionService,
     private officeService: OfficeService,
     private propertySelectionFilterService: PropertySelectionFilterService,
-    private toastr: ToastrService
+    private toastr: ToastrService,
+    private cdr: ChangeDetectorRef
   ) { }
+
+  private markViewForCheck(): void {
+    this.cdr.markForCheck();
+  }
 
   //#region Reservation-Board
   ngOnInit(): void {
@@ -134,7 +141,10 @@ export class ReservationBoardComponent implements OnInit, OnDestroy {
     });
 
     this.propertySelectionFilterService.propertiesFiltered$.pipe(takeUntil(this.destroy$)).subscribe({
-      next: value => {this.propertiesFiltered = value;}
+      next: value => {
+        this.propertiesFiltered = value;
+        this.markViewForCheck();
+      }
     });
     this.globalSelectionService.getFurnishedPropertySelection$().pipe(takeUntil(this.destroy$)).subscribe({
       next: value => {
@@ -142,6 +152,11 @@ export class ReservationBoardComponent implements OnInit, OnDestroy {
         this.applyBoardPropertyFilter();
       }
     });
+    this.startReservationPolling();
+  }
+
+  private startReservationPolling(): void {
+    interval(this.reservationPollIntervalMs).pipe(filter(() => !document.hidden && this.officeScopeResolved && !this.authService.isLoggingOut() && this.authService.getIsLoggedIn()), takeUntil(this.destroy$)).subscribe(() => this.loadReservations(true, true));
   }
 
   setDefaultDateRange(): void {
@@ -191,9 +206,11 @@ export class ReservationBoardComponent implements OnInit, OnDestroy {
     this.contactService.ensureContactsLoaded().pipe(take(1), finalize(() => { this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'contacts'); })).subscribe({
       next: (contacts: ContactResponse[]) => {
         this.contacts = contacts || [];
+        this.markViewForCheck();
       },
       error: () => {
         this.contacts = [];
+        this.markViewForCheck();
       }
     });
   }
@@ -206,11 +223,13 @@ export class ReservationBoardComponent implements OnInit, OnDestroy {
           this.officeUseDailyOnBoardById = new Map(
             this.offices.map(office => [office.officeId, office.useDailyOnResBoard === true])
           );
+          this.markViewForCheck();
         });
       },
       error: () => {
         this.offices = [];
         this.officeUseDailyOnBoardById = new Map();
+        this.markViewForCheck();
       }
     });
   }
@@ -220,10 +239,12 @@ export class ReservationBoardComponent implements OnInit, OnDestroy {
       next: (colors: ColorResponse[]) => {
         this.colors = colors;
         this.colorMap = this.mappingService.createColorMap(colors);
+        this.markViewForCheck();
       },
       error: () => {
         this.colors = [];
         this.colorMap = new Map();
+        this.markViewForCheck();
       }
     });
   }
@@ -235,6 +256,7 @@ export class ReservationBoardComponent implements OnInit, OnDestroy {
       this.propertyRows = [];
       this.properties = [];
       this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'properties');
+      this.markViewForCheck();
       return;
     }
 
@@ -247,6 +269,7 @@ export class ReservationBoardComponent implements OnInit, OnDestroy {
         this.allPropertyRows = [];
         this.propertyRows = [];
         this.properties = [];
+        this.markViewForCheck();
       }
     });
   }
@@ -258,6 +281,7 @@ export class ReservationBoardComponent implements OnInit, OnDestroy {
       this.propertyRows = [];
       this.properties = [];
       this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'properties');
+      this.markViewForCheck();
       return;
     }
 
@@ -267,6 +291,7 @@ export class ReservationBoardComponent implements OnInit, OnDestroy {
       this.propertyRows = [];
       this.properties = [];
       this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'properties');
+      this.markViewForCheck();
       return;
     }
 
@@ -283,6 +308,7 @@ export class ReservationBoardComponent implements OnInit, OnDestroy {
         this.allPropertyRows = [];
         this.propertyRows = [];
         this.properties = [];
+        this.markViewForCheck();
       }
     });
   }
@@ -295,14 +321,16 @@ export class ReservationBoardComponent implements OnInit, OnDestroy {
     this.loadProperties();
   }
 
-  loadReservations(force: boolean = false): void {
+  loadReservations(force: boolean = false, silent: boolean = false): void {
     if (!this.officeScopeResolved || this.authService.isLoggingOut() || !this.authService.getIsLoggedIn()) return;
     const currentOfficeId = this.selectedOfficeId ?? null;
     if (!force && (this.isLoadingReservations || this.lastLoadedOfficeId === currentOfficeId)) return;
 
     this.isLoadingReservations = true;
-    this.utilityService.addLoadItem(this.itemsToLoad$, 'reservations');
-    this.reservationService.getReservationList().pipe(take(1),finalize(() => {this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'reservations');})).subscribe({
+    if (!silent) {
+      this.utilityService.addLoadItem(this.itemsToLoad$, 'reservations');
+    }
+    this.reservationService.getReservationList().pipe(take(1), finalize(() => { if (!silent) { this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'reservations'); } })).subscribe({
       next: (reservations: ReservationListResponse[]) => {
         const workingOfficeId = this.selectedOfficeId;
         this.reservations = (reservations || []).filter(r => workingOfficeId == null || r.officeId === workingOfficeId);
@@ -310,12 +338,14 @@ export class ReservationBoardComponent implements OnInit, OnDestroy {
         this.lastLoadedOfficeId = workingOfficeId ?? null;
         this.displayTextCache.clear();
         this.isLoadingReservations = false;
+        this.markViewForCheck();
       },
       error: () => {
         this.reservations = [];
         this.properties = this.mappingService.mapPropertiesToBoardProperties(this.propertyRows, this.reservations);
         this.lastLoadedOfficeId = currentOfficeId;
         this.isLoadingReservations = false;
+        this.markViewForCheck();
       }
     });
   }
@@ -339,6 +369,7 @@ export class ReservationBoardComponent implements OnInit, OnDestroy {
     this.selectedOfficeId = officeId;
     this.officeScopeResolved = true;
     this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'officeScope');
+    this.markViewForCheck();
   }
   //#endregion
 
@@ -363,6 +394,7 @@ export class ReservationBoardComponent implements OnInit, OnDestroy {
     const showUnfurnished = this.globalSelectionService.getFurnishedPropertySelection() === true;
     this.propertyRows = (this.allPropertyRows || []).filter(p => this.mappingService.toBooleanValue(p.unfurnished) === showUnfurnished);
     this.properties = this.mappingService.mapPropertiesToBoardProperties(this.propertyRows, this.reservations);
+    this.markViewForCheck();
   }
 
   generateCalendarDays(): void {
@@ -974,6 +1006,7 @@ export class ReservationBoardComponent implements OnInit, OnDestroy {
     this.contextMenuPosition = { x: event.clientX, y: event.clientY };
     this.boardContextMenuTrigger?.closeMenu();
     this.boardContextMenuTrigger?.openMenu();
+    this.markViewForCheck();
   }
 
   isPropertySelected(propertyId: string): boolean {
@@ -998,12 +1031,15 @@ export class ReservationBoardComponent implements OnInit, OnDestroy {
       property.propertyStatusId = statusId;
       property.statusLetter = getPropertyStatusLetter(statusId);
       this.toastr.success('Property status updated.', CommonMessage.Success);
+      this.markViewForCheck();
     }).catch(() => {
       property.propertyStatusId = previousStatusId;
       property.statusLetter = getPropertyStatusLetter(previousStatusId);
       this.toastr.error('Unable to update property status.', CommonMessage.Error);
+      this.markViewForCheck();
     }).finally(() => {
       this.updatingPropertyStatusIds.delete(property.propertyId);
+      this.markViewForCheck();
     });
   }
 

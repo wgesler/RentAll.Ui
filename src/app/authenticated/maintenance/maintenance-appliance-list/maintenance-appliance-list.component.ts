@@ -1,5 +1,5 @@
 import { CommonModule } from '@angular/common';
-import { Component, EventEmitter, Input, OnChanges, Output, SimpleChanges } from '@angular/core';
+import { ChangeDetectionStrategy, ChangeDetectorRef, Component, EventEmitter, Input, OnChanges, Output, SimpleChanges } from '@angular/core';
 import { MatDialog } from '@angular/material/dialog';
 import { FormsModule } from '@angular/forms';
 import { MaterialModule } from '../../../material.module';
@@ -28,7 +28,8 @@ interface ApplianceEditRow {
   selector: 'app-maintenance-appliance-list',
   imports: [CommonModule, FormsModule, MaterialModule],
   templateUrl: './maintenance-appliance-list.component.html',
-  styleUrl: './maintenance-appliance-list.component.scss'
+  styleUrl: './maintenance-appliance-list.component.scss',
+  changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class MaintenanceApplianceListComponent implements OnChanges {
   @Input() appliances: ApplianceResponse[] = [];
@@ -44,8 +45,13 @@ export class MaintenanceApplianceListComponent implements OnChanges {
 
   constructor(
     private dialog: MatDialog,
-    private utilityService: UtilityService
+    private utilityService: UtilityService,
+    private cdr: ChangeDetectorRef
   ) {}
+
+  private markViewForCheck(): void {
+    this.cdr.markForCheck();
+  }
 
   //#region Maintenance Appliance List
   ngOnChanges(changes: SimpleChanges): void {
@@ -140,6 +146,7 @@ export class MaintenanceApplianceListComponent implements OnChanges {
       row.decalPreviewDataUrl = payload.fileDetails.dataUrl;
     } finally {
       target.value = '';
+      this.markViewForCheck();
     }
   }
 

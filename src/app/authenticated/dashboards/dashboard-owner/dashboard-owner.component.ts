@@ -1,4 +1,4 @@
-import { Component, OnDestroy, OnInit } from '@angular/core';
+import { ChangeDetectionStrategy, ChangeDetectorRef, Component, OnDestroy, OnInit } from '@angular/core';
 import { BehaviorSubject, Observable, Subscription, finalize, map, take } from 'rxjs';
 import { MaterialModule } from '../../../material.module';
 import { JwtUser } from '../../../public/login/models/jwt';
@@ -22,7 +22,8 @@ import { UserService } from '../../users/services/user.service';
   selector: 'app-dashboard-owner',
   imports: [MaterialModule, DataTableComponent, ReservationBoardComponent],
   templateUrl: './dashboard-owner.component.html',
-  styleUrl: './dashboard-owner.component.scss'
+  styleUrl: './dashboard-owner.component.scss',
+  changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class DashboardOwnerComponent implements OnInit, OnDestroy {
   user: JwtUser | null = null;
@@ -74,8 +75,13 @@ export class DashboardOwnerComponent implements OnInit, OnDestroy {
     private formatterService: FormatterService,
     private mappingService: MappingService,
     private propertyService: PropertyService,
-    private utilityService: UtilityService
+    private utilityService: UtilityService,
+    private cdr: ChangeDetectorRef
   ) {}
+
+  private markViewForCheck(): void {
+    this.cdr.markForCheck();
+  }
 
   //#region Owner Dashboard
   ngOnInit(): void {
@@ -110,11 +116,13 @@ export class DashboardOwnerComponent implements OnInit, OnDestroy {
         this.applyUserProfilePicture(userResponse);
         this.ownerContactId = userResponse.contactId ? String(userResponse.contactId).trim() : null;
         this.loadProperties();
+        this.markViewForCheck();
       },
       error: () => {
         this.profilePictureUrl = null;
         this.ownerContactId = null;
         this.loadProperties();
+        this.markViewForCheck();
       }
     });
   }
@@ -154,6 +162,7 @@ export class DashboardOwnerComponent implements OnInit, OnDestroy {
         }));
         this.refreshOwnerReservationData();
         this.isLoadingProperties = false;
+        this.markViewForCheck();
       },
       error: () => {
         this.allProperties = [];
@@ -166,6 +175,7 @@ export class DashboardOwnerComponent implements OnInit, OnDestroy {
         this.currentReservationCount = 0;
         this.upcomingReservationCount = 0;
         this.isLoadingProperties = false;
+        this.markViewForCheck();
       }
     });
   }
@@ -177,6 +187,7 @@ export class DashboardOwnerComponent implements OnInit, OnDestroy {
         this.allReservations = this.mappingService.mapReservationList(response || []);
         this.refreshOwnerReservationData();
         this.isLoadingReservations = false;
+        this.markViewForCheck();
       },
       error: () => {
         this.allReservations = [];
@@ -188,6 +199,7 @@ export class DashboardOwnerComponent implements OnInit, OnDestroy {
         this.currentReservationCount = 0;
         this.upcomingReservationCount = 0;
         this.isLoadingReservations = false;
+        this.markViewForCheck();
       }
     });
   }

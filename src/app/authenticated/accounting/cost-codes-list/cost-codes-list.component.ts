@@ -1,6 +1,6 @@
 import { CommonModule } from "@angular/common";
 import { HttpErrorResponse } from '@angular/common/http';
-import { Component, EventEmitter, Input, OnChanges, OnDestroy, OnInit, Output, SimpleChanges } from '@angular/core';
+import { ChangeDetectionStrategy, ChangeDetectorRef, Component, EventEmitter, Input, OnChanges, OnDestroy, OnInit, Output, SimpleChanges } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, Router } from '@angular/router';
 import { ToastrService } from 'ngx-toastr';
@@ -27,7 +27,8 @@ import { CostCodesService } from '../services/cost-codes.service';
     selector: 'app-cost-codes-list',
     templateUrl: './cost-codes-list.component.html',
     styleUrls: ['./cost-codes-list.component.scss'],
-    imports: [CommonModule, MaterialModule, FormsModule, DataTableComponent, DataTableFilterActionsDirective, CostCodesComponent]
+    imports: [CommonModule, MaterialModule, FormsModule, DataTableComponent, DataTableFilterActionsDirective, CostCodesComponent],
+    changeDetection: ChangeDetectionStrategy.OnPush
 })
 
 export class CostCodesListComponent implements OnInit, OnDestroy, OnChanges {
@@ -81,7 +82,12 @@ export class CostCodesListComponent implements OnInit, OnDestroy, OnChanges {
     private officeService: OfficeService,
     private utilityService: UtilityService,
     private authService: AuthService,
-    private globalSelectionService: GlobalSelectionService) {
+    private globalSelectionService: GlobalSelectionService,
+    private cdr: ChangeDetectorRef) {
+  }
+
+  private markViewForCheck(): void {
+    this.cdr.markForCheck();
   }
 
   //#region CostCodes-List
@@ -94,6 +100,7 @@ export class CostCodesListComponent implements OnInit, OnDestroy, OnChanges {
       if (this.offices.length > 0) {
         this.resolveOfficeScope(officeId, true);
       }
+      this.markViewForCheck();
     });
   }
 
@@ -153,6 +160,7 @@ export class CostCodesListComponent implements OnInit, OnDestroy, OnChanges {
         this.toastr.success('Cost Code deleted successfully', CommonMessage.Success);
         this.costCodesService.refreshCostCodesForOffice(officeIdToUse);
         this.filterCostCodes();
+        this.markViewForCheck();
       },
       error: (err: HttpErrorResponse) => {
         if (err.status === 404) {
@@ -222,8 +230,10 @@ export class CostCodesListComponent implements OnInit, OnDestroy, OnChanges {
           next: uiState => {
             this.showOfficeDropdown = uiState.showOfficeDropdown;
             this.resolveOfficeScope(uiState.selectedOfficeId, this.officeId === null || this.officeId === undefined);
+            this.markViewForCheck();
           }
         });
+        this.markViewForCheck();
       });
     });
   }
@@ -234,7 +244,9 @@ export class CostCodesListComponent implements OnInit, OnDestroy, OnChanges {
       this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'costCodes');
       this.costCodesService.getAllCostCodes().pipe(takeUntil(this.destroy$)).subscribe(codes => {
         this.filterCostCodes();
+        this.markViewForCheck();
       });
+      this.markViewForCheck();
     });
   }
   //#endregion
@@ -280,6 +292,7 @@ export class CostCodesListComponent implements OnInit, OnDestroy, OnChanges {
         }));
         this.allCostCodes = this.costCodes;
         this.applyFilters();
+        this.markViewForCheck();
       });
       return;
     }

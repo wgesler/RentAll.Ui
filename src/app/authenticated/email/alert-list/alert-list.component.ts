@@ -1,5 +1,5 @@
 import { CommonModule } from '@angular/common';
-import { Component, EventEmitter, Input, OnChanges, OnDestroy, OnInit, Output, SimpleChanges } from '@angular/core';
+import { ChangeDetectionStrategy, ChangeDetectorRef, Component, EventEmitter, Input, OnChanges, OnDestroy, OnInit, Output, SimpleChanges } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
 import { ToastrService } from 'ngx-toastr';
@@ -29,7 +29,8 @@ import { AlertService } from '../services/alert.service';
   standalone: true,
   imports: [CommonModule, FormsModule, MaterialModule, TitleBarSelectComponent, DataTableComponent, DataTableFilterActionsDirective],
   templateUrl: './alert-list.component.html',
-  styleUrl: './alert-list.component.scss'
+  styleUrl: './alert-list.component.scss',
+  changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class AlertListComponent implements OnInit, OnChanges, OnDestroy {
   @Input() hideHeader = false;
@@ -86,8 +87,13 @@ export class AlertListComponent implements OnInit, OnChanges, OnDestroy {
     private authService: AuthService,
     private contactService: ContactService,
     private toastr: ToastrService,
-    private globalSelectionService: GlobalSelectionService
+    private globalSelectionService: GlobalSelectionService,
+    private cdr: ChangeDetectorRef
   ) {}
+
+  private markViewForCheck(): void {
+    this.cdr.markForCheck();
+  }
 
   //#region Alert-List
   ngOnInit(): void {
@@ -109,6 +115,7 @@ export class AlertListComponent implements OnInit, OnChanges, OnDestroy {
       if (this.offices.length > 0 && (this.officeId === null || this.officeId === undefined)) {
         this.resolveOfficeScope(officeId, true);
       }
+      this.markViewForCheck();
     });
     if (this.reservations && this.reservations.length > 0) {
       this.applyReservationCodes();
@@ -146,9 +153,11 @@ export class AlertListComponent implements OnInit, OnChanges, OnDestroy {
       next: () => {
         this.contacts = this.contactService.getAllContactsValue() || [];
         this.filterReservations();
+        this.markViewForCheck();
       },
       error: () => {
         this.contacts = [];
+        this.markViewForCheck();
       }
     });
   }
@@ -163,14 +172,17 @@ export class AlertListComponent implements OnInit, OnChanges, OnDestroy {
             next: uiState => {
               this.showOfficeDropdown = uiState.showOfficeDropdown;
               this.resolveOfficeScope(uiState.selectedOfficeId, this.officeId === null || this.officeId === undefined);
+              this.markViewForCheck();
             }
           });
+          this.markViewForCheck();
         });
       },
       error: () => {
         this.offices = [];
         this.showOfficeDropdown = false;
         this.resolveOfficeScope(null, false);
+        this.markViewForCheck();
       }
     });
   }
@@ -182,10 +194,12 @@ export class AlertListComponent implements OnInit, OnChanges, OnDestroy {
         this.applyReservationCodes();
         this.filterReservations();
         this.applyFilters();
+        this.markViewForCheck();
       },
       error: () => {
         this.reservations = [];
         this.availableReservations = [];
+        this.markViewForCheck();
       }
     });
   }
@@ -202,12 +216,14 @@ export class AlertListComponent implements OnInit, OnChanges, OnDestroy {
         this.applyFilters();
         this.isServiceError = false;
         this.isLoading = false;
+        this.markViewForCheck();
       },
       error: () => {
         this.allAlerts = [];
         this.alerts = [];
         this.isServiceError = true;
         this.isLoading = false;
+        this.markViewForCheck();
       }
     });
   }
@@ -334,9 +350,11 @@ export class AlertListComponent implements OnInit, OnChanges, OnDestroy {
         this.allAlerts = this.allAlerts.filter(item => item.alertId !== alert.alertId);
         this.alertsById.delete(alert.alertId);
         this.applyFilters();
+        this.markViewForCheck();
       },
       error: () => {
         this.isServiceError = true;
+        this.markViewForCheck();
       }
     });
   }
@@ -380,11 +398,13 @@ export class AlertListComponent implements OnInit, OnChanges, OnDestroy {
             this.applyAlertIsActiveValue(updatedAlert.alertId, updatedAlert.isActive === true);
             this.applyFilters();
             this.toastr.success('Alert updated successfully', CommonMessage.Success);
+            this.markViewForCheck();
           },
           error: () => {
             this.applyAlertIsActiveValue(event.alertId, previousValue);
             this.applyFilters();
             this.toastr.error('Failed to update alert', CommonMessage.Error);
+            this.markViewForCheck();
           }
         });
       },
@@ -392,6 +412,7 @@ export class AlertListComponent implements OnInit, OnChanges, OnDestroy {
         this.applyAlertIsActiveValue(event.alertId, previousValue);
         this.applyFilters();
         this.toastr.error('Failed to load alert for update', CommonMessage.Error);
+        this.markViewForCheck();
       }
     });
   }

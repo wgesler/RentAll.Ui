@@ -1,6 +1,6 @@
 import { CommonModule } from "@angular/common";
 import { HttpErrorResponse } from '@angular/common/http';
-import { Component, EventEmitter, Input, OnChanges, OnDestroy, OnInit, Output, SimpleChanges } from '@angular/core';
+import { ChangeDetectionStrategy, ChangeDetectorRef, Component, EventEmitter, Input, OnChanges, OnDestroy, OnInit, Output, SimpleChanges } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
 import { ToastrService } from 'ngx-toastr';
@@ -27,7 +27,8 @@ export interface OfficeCopyPayload {
     selector: 'app-office-list',
     templateUrl: './office-list.component.html',
     styleUrls: ['./office-list.component.scss'],
-    imports: [CommonModule, MaterialModule, FormsModule, DataTableComponent, DataTableFilterActionsDirective]
+    imports: [CommonModule, MaterialModule, FormsModule, DataTableComponent, DataTableFilterActionsDirective],
+    changeDetection: ChangeDetectionStrategy.OnPush
 })
 
 export class OfficeListComponent implements OnInit, OnChanges, OnDestroy {
@@ -60,8 +61,13 @@ export class OfficeListComponent implements OnInit, OnChanges, OnDestroy {
     public router: Router,
     public mappingService: MappingService,
     private authService: AuthService,
-    private utilityService: UtilityService
+    private utilityService: UtilityService,
+    private cdr: ChangeDetectorRef
   ) {
+  }
+
+  private markViewForCheck(): void {
+    this.cdr.markForCheck();
   }
 
   //#region Office-List
@@ -95,10 +101,12 @@ export class OfficeListComponent implements OnInit, OnChanges, OnDestroy {
       next: (response: OfficeResponse[]) => {
         this.allOffices = this.mappingService.mapOffices(response);
         this.applyFilters();
+        this.markViewForCheck();
       },
       error: (_err: HttpErrorResponse) => {
         this.isServiceError = true;
         this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'offices');
+        this.markViewForCheck();
       }
     });
   }

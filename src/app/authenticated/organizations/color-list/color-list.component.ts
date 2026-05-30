@@ -1,6 +1,6 @@
 import { CommonModule } from "@angular/common";
 import { HttpErrorResponse } from '@angular/common/http';
-import { Component, EventEmitter, Input, OnDestroy, OnInit, Output } from '@angular/core';
+import { ChangeDetectionStrategy, ChangeDetectorRef, Component, EventEmitter, Input, OnDestroy, OnInit, Output } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
 import { ToastrService } from 'ngx-toastr';
@@ -19,7 +19,8 @@ import { ColorService } from '../services/color.service';
     selector: 'app-color-list',
     templateUrl: './color-list.component.html',
     styleUrls: ['./color-list.component.scss'],
-    imports: [CommonModule, MaterialModule, FormsModule, DataTableComponent]
+    imports: [CommonModule, MaterialModule, FormsModule, DataTableComponent],
+    changeDetection: ChangeDetectionStrategy.OnPush
 })
 
 export class ColorListComponent implements OnInit, OnDestroy {
@@ -43,7 +44,12 @@ export class ColorListComponent implements OnInit, OnDestroy {
     public toastr: ToastrService,
     public router: Router,
     public mappingService: MappingService,
-    private utilityService: UtilityService) {
+    private utilityService: UtilityService,
+    private cdr: ChangeDetectorRef) {
+  }
+
+  private markViewForCheck(): void {
+    this.cdr.markForCheck();
   }
 
   //#region Color-List
@@ -65,10 +71,12 @@ export class ColorListComponent implements OnInit, OnDestroy {
       next: (response: ColorResponse[]) => {
         this.allColors = this.mappingService.mapColors(response);
         this.applyFilters();
+        this.markViewForCheck();
       },
       error: (err: HttpErrorResponse) => {
         this.isServiceError = true;
         this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'colors');
+        this.markViewForCheck();
       }
     });
   }

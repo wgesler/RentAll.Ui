@@ -1,6 +1,6 @@
 import { CommonModule } from "@angular/common";
 import { HttpErrorResponse } from '@angular/common/http';
-import { Component, EventEmitter, Input, OnChanges, OnDestroy, OnInit, Output, SimpleChanges } from '@angular/core';
+import { ChangeDetectionStrategy, ChangeDetectorRef, Component, EventEmitter, Input, OnChanges, OnDestroy, OnInit, Output, SimpleChanges } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { ToastrService } from 'ngx-toastr';
 import { BehaviorSubject, Observable, finalize, map, take } from 'rxjs';
@@ -24,7 +24,8 @@ import { TrackerComponent } from '../tracker/tracker.component';
     selector: 'app-tracker-list',
     templateUrl: './tracker-list.component.html',
     styleUrls: ['./tracker-list.component.scss'],
-    imports: [CommonModule, MaterialModule, FormsModule, TrackerComponent]
+    imports: [CommonModule, MaterialModule, FormsModule, TrackerComponent],
+    changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class TrackerListComponent implements OnInit, OnDestroy, OnChanges {
   @Input() embeddedInSettings: boolean = false;
@@ -50,7 +51,12 @@ export class TrackerListComponent implements OnInit, OnDestroy, OnChanges {
     public trackerService: TrackerService,
     public toastr: ToastrService,
     public mappingService: MappingService,
-    private utilityService: UtilityService) {
+    private utilityService: UtilityService,
+    private cdr: ChangeDetectorRef) {
+  }
+
+  private markViewForCheck(): void {
+    this.cdr.markForCheck();
   }
 
   //#region Tracker-List
@@ -73,11 +79,13 @@ export class TrackerListComponent implements OnInit, OnDestroy, OnChanges {
         this.allTrackers = this.mappingService.mapTrackerDefinitions(definitions);
         this.isServiceError = false;
         this.applyFilters();
+        this.markViewForCheck();
       },
       error: (_err: HttpErrorResponse) => {
         this.allTrackers = [];
         this.isServiceError = false;
         this.applyFilters();
+        this.markViewForCheck();
       }
     });
   }
@@ -133,16 +141,19 @@ export class TrackerListComponent implements OnInit, OnDestroy, OnChanges {
         this.processingOfficeIds.delete(targetOfficeId);
         this.expandedOfficeIds.add(targetOfficeId);
         this.getTrackers();
+        this.markViewForCheck();
       })
     ).subscribe({
       next: () => {
         this.toastr.success('Trackers copied successfully', CommonMessage.Success);
+        this.markViewForCheck();
       },
       error: (err: HttpErrorResponse) => {
         const message = typeof err.error === 'string'
           ? err.error
           : err.error?.message || err.message || 'Unable to copy trackers.';
         this.toastr.error(message, CommonMessage.Error);
+        this.markViewForCheck();
       }
     });
   }
@@ -161,16 +172,19 @@ export class TrackerListComponent implements OnInit, OnDestroy, OnChanges {
         this.processingOfficeIds.delete(officeId);
         this.expandedOfficeIds.add(officeId);
         this.getTrackers();
+        this.markViewForCheck();
       })
     ).subscribe({
       next: () => {
         this.toastr.success('Trackers reset successfully', CommonMessage.Success);
+        this.markViewForCheck();
       },
       error: (err: HttpErrorResponse) => {
         const message = typeof err.error === 'string'
           ? err.error
           : err.error?.message || err.message || 'Unable to reset trackers.';
         this.toastr.error(message, CommonMessage.Error);
+        this.markViewForCheck();
       }
     });
   }

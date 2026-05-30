@@ -1,5 +1,5 @@
 import { CommonModule } from '@angular/common';
-import { Component, input, NgZone, OnChanges, OnDestroy, OnInit, output, SimpleChanges } from '@angular/core';
+import { ChangeDetectionStrategy, ChangeDetectorRef, Component, input, NgZone, OnChanges, OnDestroy, OnInit, output, SimpleChanges } from '@angular/core';
 import { MatDialog } from '@angular/material/dialog';
 import { Router } from '@angular/router';
 import { ToastrService } from 'ngx-toastr';
@@ -33,7 +33,8 @@ export type RentalEditSelection = { rentalId: number; officeId: number | null };
   selector: 'app-rental-list',
   templateUrl: './rental-list.component.html',
   styleUrls: ['./rental-list.component.scss'],
-  imports: [CommonModule, MaterialModule, DataTableComponent, DataTableFilterActionsDirective]
+  imports: [CommonModule, MaterialModule, DataTableComponent, DataTableFilterActionsDirective],
+  changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class RentalListComponent implements OnInit, OnChanges, OnDestroy {
   embeddedInShell = input(false);
@@ -78,13 +79,19 @@ export class RentalListComponent implements OnInit, OnChanges, OnDestroy {
     private globalSelectionService: GlobalSelectionService,
     private authService: AuthService,
     private documentService: DocumentService,
-    private propertyService: PropertyService
+    private propertyService: PropertyService,
+    private cdr: ChangeDetectorRef
   ) { }
+
+  private markViewForCheck(): void {
+    this.cdr.markForCheck();
+  }
 
   //#region Rental-List
   ngOnInit(): void {
     this.itemsToLoad$.pipe(takeUntil(this.destroy$)).subscribe(items => {
       this.isPageReady = items.size === 0;
+      this.markViewForCheck();
     });
     this.organizationId = this.authService.getUser()?.organizationId?.trim() ?? '';
 
@@ -94,6 +101,7 @@ export class RentalListComponent implements OnInit, OnChanges, OnDestroy {
           return;
         }
         this.resolveOfficeScope(officeId);
+        this.markViewForCheck();
       });
     }
 
@@ -144,9 +152,11 @@ export class RentalListComponent implements OnInit, OnChanges, OnDestroy {
       next: () => {
         this.toastr.success('Rental lead deleted.', CommonMessage.Success);
         this.loadRentalLeads();
+        this.markViewForCheck();
       },
       error: () => {
         this.toastr.error('Unable to delete rental lead.', CommonMessage.Error);
+        this.markViewForCheck();
       }
     });
   }
@@ -174,6 +184,7 @@ export class RentalListComponent implements OnInit, OnChanges, OnDestroy {
           .sort((a, b) => a.propertyCode.localeCompare(b.propertyCode, undefined, { sensitivity: 'base' }));
         if (options.length === 0) {
           this.toastr.warning('No active properties are available to generate a quote.', 'Warning');
+          this.markViewForCheck();
           return;
         }
 
@@ -213,6 +224,7 @@ export class RentalListComponent implements OnInit, OnChanges, OnDestroy {
       },
       error: () => {
         this.toastr.error('Unable to load properties for quote generation.', CommonMessage.Error);
+        this.markViewForCheck();
       }
     });
   }
@@ -301,10 +313,12 @@ export class RentalListComponent implements OnInit, OnChanges, OnDestroy {
       next: () => {
         this.toastr.success('Rental lead updated.', CommonMessage.Success);
         this.leadsService.notifyLeadStateChanged();
+        this.markViewForCheck();
       },
       error: () => {
         this.applyRentalLeadStateId(event.rentalId, previousLeadStateId);
         this.toastr.error('Unable to update rental lead.', CommonMessage.Error);
+        this.markViewForCheck();
       }
     });
   }
@@ -323,10 +337,12 @@ export class RentalListComponent implements OnInit, OnChanges, OnDestroy {
     this.leadsService.updateRentalLead(body).pipe(take(1)).subscribe({
       next: () => {
         this.toastr.success('Rental lead updated.', CommonMessage.Success);
+        this.markViewForCheck();
       },
       error: () => {
         this.applyRentalIsActiveValue(event.rentalId, previousValue);
         this.toastr.error('Unable to update rental lead.', CommonMessage.Error);
+        this.markViewForCheck();
       }
     });
   }
@@ -369,12 +385,14 @@ export class RentalListComponent implements OnInit, OnChanges, OnDestroy {
             const matchedDocument = (documents || []).find(document => String(document.documentPath || '').trim() === quotePath);
             if (!matchedDocument?.documentId) {
               this.toastr.warning('Quote document could not be found.', 'Warning');
+              this.markViewForCheck();
               return;
             }
             this.navigateToQuoteDocument(matchedDocument.documentId);
           },
           error: () => {
             this.toastr.error('Unable to open quote document.', CommonMessage.Error);
+            this.markViewForCheck();
           }
         });
       }
@@ -409,10 +427,12 @@ export class RentalListComponent implements OnInit, OnChanges, OnDestroy {
           this.offices = offices || [];
           const initialOfficeId = this.embeddedInShell() ? this.officeId() : this.globalSelectionService.getSelectedOfficeIdValue();
           this.resolveOfficeScope(initialOfficeId ?? null);
+          this.markViewForCheck();
         });
       },
       error: () => {
         this.offices = [];
+        this.markViewForCheck();
       }
     });
   }
@@ -425,11 +445,13 @@ export class RentalListComponent implements OnInit, OnChanges, OnDestroy {
         this.allRentals = (rows || []).map(row => this.mappingService.mapLeadRentalListRow(row));
         this.applyRentalFilters();
         this.leadsService.notifyLeadStateChanged();
+        this.markViewForCheck();
       },
       error: () => {
         this.isServiceError = true;
         this.allRentals = [];
         this.rentalsDisplay = [];
+        this.markViewForCheck();
       }
     });
   }

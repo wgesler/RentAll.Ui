@@ -1,5 +1,5 @@
 import { CommonModule } from '@angular/common';
-import { Component, EventEmitter, Input, OnChanges, OnDestroy, OnInit, Output, SimpleChanges } from '@angular/core';
+import { ChangeDetectionStrategy, ChangeDetectorRef, Component, EventEmitter, Input, OnChanges, OnDestroy, OnInit, Output, SimpleChanges } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
 import { ToastrService } from 'ngx-toastr';
@@ -29,7 +29,8 @@ import { EmailType, getEmailType } from '../models/email.enum';
   standalone: true,
   imports: [CommonModule, FormsModule, MaterialModule, TitleBarSelectComponent, DataTableComponent],
   templateUrl: './email-list.component.html',
-  styleUrl: './email-list.component.scss'
+  styleUrl: './email-list.component.scss',
+  changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class EmailListComponent implements OnInit, OnDestroy, OnChanges {
   @Input() hideHeader: boolean = false;
@@ -93,8 +94,13 @@ export class EmailListComponent implements OnInit, OnDestroy, OnChanges {
     private authService: AuthService,
     private contactService: ContactService,
     private toastr: ToastrService,
-    private globalSelectionService: GlobalSelectionService
+    private globalSelectionService: GlobalSelectionService,
+    private cdr: ChangeDetectorRef
   ) {}
+
+  private markViewForCheck(): void {
+    this.cdr.markForCheck();
+  }
 
   //#region Email-List
   ngOnInit(): void {
@@ -119,6 +125,7 @@ export class EmailListComponent implements OnInit, OnDestroy, OnChanges {
       if (this.offices.length > 0 && (this.officeId === null || this.officeId === undefined)) {
         this.resolveOfficeScope(officeId, true);
       }
+      this.markViewForCheck();
     });
     this.loadCompanies();
     // Use reservations passed from parent if available, otherwise load them
@@ -203,14 +210,17 @@ export class EmailListComponent implements OnInit, OnDestroy, OnChanges {
             next: uiState => {
               this.showOfficeDropdown = uiState.showOfficeDropdown;
               this.resolveOfficeScope(uiState.selectedOfficeId, this.officeId === null || this.officeId === undefined);
+              this.markViewForCheck();
             }
           });
+          this.markViewForCheck();
         });
       },
       error: () => {
         this.offices = [];
         this.showOfficeDropdown = false;
         this.resolveOfficeScope(null, false);
+        this.markViewForCheck();
       }
     });
   }
@@ -224,12 +234,14 @@ export class EmailListComponent implements OnInit, OnDestroy, OnChanges {
         this.applyFilters();
         this.isServiceError = false;
         this.isLoading = false;
+        this.markViewForCheck();
       },
       error: () => {
         this.allEmails = [];
         this.emails = [];
         this.isServiceError = true;
         this.isLoading = false;
+        this.markViewForCheck();
       }
     });
   }
@@ -240,10 +252,12 @@ export class EmailListComponent implements OnInit, OnDestroy, OnChanges {
         this.reservations = reservations || [];
         this.filterReservations();
         this.applyFilters();
+        this.markViewForCheck();
       },
       error: () => {
         this.reservations = [];
         this.availableReservations = [];
+        this.markViewForCheck();
       }
     });
   }
@@ -255,16 +269,19 @@ export class EmailListComponent implements OnInit, OnDestroy, OnChanges {
           next: (contacts) => {
             this.companyContacts = contacts || [];
             this.filterCompanies();
+            this.markViewForCheck();
           },
           error: () => {
             this.companyContacts = [];
             this.availableCompanyContacts = [];
+            this.markViewForCheck();
           }
         });
       },
       error: () => {
         this.companyContacts = [];
         this.availableCompanyContacts = [];
+        this.markViewForCheck();
       }
     });
   }
@@ -564,9 +581,11 @@ export class EmailListComponent implements OnInit, OnDestroy, OnChanges {
         this.toastr.success('Email deleted successfully', CommonMessage.Success);
         this.allEmails = this.allEmails.filter(e => e.emailId !== email.emailId);
         this.applyFilters();
+        this.markViewForCheck();
       },
       error: () => {
         this.isServiceError = true;
+        this.markViewForCheck();
       }
     });
   }

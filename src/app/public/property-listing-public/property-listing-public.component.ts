@@ -1,5 +1,5 @@
 import { CommonModule } from '@angular/common';
-import { Component, OnInit } from '@angular/core';
+import { ChangeDetectionStrategy, ChangeDetectorRef, Component, OnInit } from '@angular/core';
 import { ActivatedRoute } from '@angular/router';
 import { finalize, timeout } from 'rxjs';
 import { take } from 'rxjs/operators';
@@ -13,7 +13,8 @@ import { MaterialModule } from '../../material.module';
   standalone: true,
   selector: 'app-property-listing-public',
   imports: [CommonModule, MaterialModule, PropertyListingComponent],
-  templateUrl: './property-listing-public.component.html'
+  templateUrl: './property-listing-public.component.html',
+  changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class PropertyListingPublicComponent implements OnInit {
   isLoading = true;
@@ -24,8 +25,13 @@ export class PropertyListingPublicComponent implements OnInit {
 
   constructor(
     private route: ActivatedRoute,
-    private propertyListingShareService: PropertyListingShareService
+    private propertyListingShareService: PropertyListingShareService,
+    private cdr: ChangeDetectorRef
   ) {}
+
+  private markViewForCheck(): void {
+    this.cdr.markForCheck();
+  }
 
   ngOnInit(): void {
     this.loadingWatchdog = setTimeout(() => {
@@ -34,6 +40,7 @@ export class PropertyListingPublicComponent implements OnInit {
         this.photos = [];
         this.errorMessage = 'Listing request timed out. Please try again.';
         this.isLoading = false;
+        this.markViewForCheck();
       }
     }, 20000);
 
@@ -54,17 +61,20 @@ export class PropertyListingPublicComponent implements OnInit {
           clearTimeout(this.loadingWatchdog);
         }
         this.isLoading = false;
+        this.markViewForCheck();
       })
     ).subscribe({
       next: (response) => {
         this.property = response.property;
         this.photos = response.photos || [];
         this.errorMessage = '';
+        this.markViewForCheck();
       },
       error: () => {
         this.property = null;
         this.photos = [];
         this.errorMessage = 'Listing not found, expired, or temporarily unavailable.';
+        this.markViewForCheck();
       }
     });
   }

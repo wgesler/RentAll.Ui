@@ -1,5 +1,5 @@
 import { CommonModule } from '@angular/common';
-import { Component, EventEmitter, Input, OnChanges, Output, SimpleChanges } from '@angular/core';
+import { ChangeDetectionStrategy, ChangeDetectorRef, Component, EventEmitter, Input, OnChanges, Output, SimpleChanges } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { MaterialModule } from '../../../material.module';
 import { UtilityService } from '../../../services/utility.service';
@@ -20,10 +20,18 @@ interface MaintenanceItemEditRow {
   selector: 'app-maintenance-item-list',
   imports: [CommonModule, FormsModule, MaterialModule],
   templateUrl: './maintenance-item-list.component.html',
-  styleUrl: './maintenance-item-list.component.scss'
+  styleUrl: './maintenance-item-list.component.scss',
+  changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class MaintenanceItemListComponent implements OnChanges {
-  constructor(private utilityService: UtilityService) {}
+  constructor(
+    private utilityService: UtilityService,
+    private cdr: ChangeDetectorRef
+  ) {}
+
+  private markViewForCheck(): void {
+    this.cdr.markForCheck();
+  }
 
   @Input() maintenanceItems: MaintenanceItemResponse[] = [];
   @Input() isLoading = false;

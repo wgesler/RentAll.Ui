@@ -1,5 +1,5 @@
 import { CommonModule } from "@angular/common";
-import { Component, EventEmitter, HostListener, Input, OnChanges, OnDestroy, OnInit, Output, SimpleChanges } from '@angular/core';
+import { ChangeDetectionStrategy, ChangeDetectorRef, Component, EventEmitter, HostListener, Input, OnChanges, OnDestroy, OnInit, Output, SimpleChanges } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { MatDialog } from '@angular/material/dialog';
 import { MatSlideToggleChange } from '@angular/material/slide-toggle';
@@ -38,7 +38,8 @@ import { ReservationService } from '../services/reservation.service';
     selector: 'app-reservation-list',
     templateUrl: './reservation-list.component.html',
     styleUrls: ['./reservation-list.component.scss'],
-    imports: [CommonModule, MaterialModule, FormsModule, DataTableComponent, DataTableFilterActionsDirective]
+    imports: [CommonModule, MaterialModule, FormsModule, DataTableComponent, DataTableFilterActionsDirective],
+    changeDetection: ChangeDetectionStrategy.OnPush
 })
 
 export class ReservationListComponent implements OnInit, OnDestroy, OnChanges {
@@ -108,7 +109,12 @@ export class ReservationListComponent implements OnInit, OnDestroy, OnChanges {
     private globalSelectionService: GlobalSelectionService,
     private authService: AuthService,
     private dialog: MatDialog,
-    private propertySelectionFilterService: PropertySelectionFilterService) {
+    private propertySelectionFilterService: PropertySelectionFilterService,
+    private cdr: ChangeDetectorRef) {
+  }
+
+  private markViewForCheck(): void {
+    this.cdr.markForCheck();
   }
 
   //#region Reservation List
@@ -125,21 +131,25 @@ export class ReservationListComponent implements OnInit, OnDestroy, OnChanges {
     this.propertySelectionFilterService.propertiesFiltered$.pipe(takeUntil(this.destroy$)).subscribe(v => {
       this.propertiesFiltered = v;
       this.reloadAllowedPropertyIds();
+      this.markViewForCheck();
     });
     this.propertySelectionFilterService.dateRange$.pipe(takeUntil(this.destroy$)).subscribe((range) => {
         this.startDate = range.startDate;
         this.endDate = range.endDate;
         this.applyFilters();
+        this.markViewForCheck();
       });
     this.globalSelectionService.getFurnishedPropertySelection$().pipe(takeUntil(this.destroy$)).subscribe(v => {
       this.furnishedPropertyToggleChecked = v === true;
       this.applyFilters();
+      this.markViewForCheck();
     });
 
     this.globalSelectionService.getSelectedOfficeId$().pipe(skip(1), takeUntil(this.destroy$)).subscribe(officeId => {
       if (this.offices.length > 0) {
         this.resolveOfficeScope(officeId, true);
       }
+      this.markViewForCheck();
     });
 
     this.router.events.pipe(filter((e): e is NavigationEnd => e instanceof NavigationEnd),takeUntil(this.destroy$)).subscribe(e => {
@@ -150,6 +160,7 @@ export class ReservationListComponent implements OnInit, OnDestroy, OnChanges {
         this.reloadAllowedPropertyIds();
       }
       this.lastNavigationUrl = url;
+      this.markViewForCheck();
     });
 
     this.globalSelectionService.ensureOfficeScope(this.organizationId, this.preferredOfficeId).pipe(take(1)).subscribe(() => {
@@ -171,7 +182,9 @@ export class ReservationListComponent implements OnInit, OnDestroy, OnChanges {
         } else {
           this.resolveOfficeScope(this.officeId ?? this.globalSelectionService.getSelectedOfficeIdValue(), this.officeId === null || this.officeId === undefined);
         }
+        this.markViewForCheck();
       });
+      this.markViewForCheck();
     });
 
     this.getReservations();
@@ -233,11 +246,13 @@ export class ReservationListComponent implements OnInit, OnDestroy, OnChanges {
         this.isServiceError = false;
         this.allReservations = this.mappingService.mapReservationList(reservations || []);
         this.applyFilters();
+        this.markViewForCheck();
       },
       error: () => {
         this.isServiceError = true;
         this.allReservations = [];
         this.reservationsDisplay = [];
+        this.markViewForCheck();
       }
     });
   }
@@ -320,6 +335,7 @@ export class ReservationListComponent implements OnInit, OnDestroy, OnChanges {
           this.toastr.success('Reservation deleted successfully', CommonMessage.Success);
           this.allReservations = this.allReservations.filter(r => r.reservationId !== reservation.reservationId);
           this.applyFilters();
+          this.markViewForCheck();
         },
         error: () => {}
       });
@@ -418,12 +434,14 @@ export class ReservationListComponent implements OnInit, OnDestroy, OnChanges {
         this.allowedPropertyIds = this.propertiesFiltered ? new Set(properties.map(p => p.propertyId)) : null;
         this.unfurnishedPropertyIds = new Set(properties.filter(p => this.mappingService.toBooleanValue(p.unfurnished)).map(p => p.propertyId));
         this.applyFilters();
+        this.markViewForCheck();
       },
       error: () => {
         this.toastr.warning('Could not load property selection; showing all reservations.', CommonMessage.ServiceError);
         this.allowedPropertyIds = null;
         this.unfurnishedPropertyIds = null;
         this.applyFilters();
+        this.markViewForCheck();
       }
     });
   }
@@ -438,14 +456,17 @@ export class ReservationListComponent implements OnInit, OnDestroy, OnChanges {
             next: uiState => {
               this.showOfficeDropdown = uiState.showOfficeDropdown;
               this.resolveOfficeScope(uiState.selectedOfficeId, this.officeId === null || this.officeId === undefined);
+              this.markViewForCheck();
             }
           });
+          this.markViewForCheck();
         });
       },
       error: () => {
         this.offices = [];
         this.availableOffices = [];
         this.resolveOfficeScope(this.officeId ?? this.globalSelectionService.getSelectedOfficeIdValue(), this.officeId === null || this.officeId === undefined);
+        this.markViewForCheck();
       }
     });
   }
@@ -695,7 +716,11 @@ export class ReservationListComponent implements OnInit, OnDestroy, OnChanges {
     }).catch(() => {
       this.applyReservationIsActiveValue(event.reservationId, previousValue);
       this.toastr.error('Unable to update reservation.', CommonMessage.Error);
-    }).finally(() => this.applyFilters());
+      this.markViewForCheck();
+    }).finally(() => {
+      this.applyFilters();
+      this.markViewForCheck();
+    });
   }
 
   applyReservationIsActiveValue(reservationId: string, isActive: boolean): void {

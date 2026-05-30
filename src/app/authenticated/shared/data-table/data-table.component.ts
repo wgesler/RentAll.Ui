@@ -1,6 +1,6 @@
 import { SelectionModel } from '@angular/cdk/collections';
 import { CommonModule } from '@angular/common';
-import { Component, contentChild, EventEmitter, Input, NgZone, OnChanges, OnInit, Output, SimpleChanges, TemplateRef, ViewChild } from '@angular/core';
+import { ChangeDetectionStrategy, ChangeDetectorRef, Component, contentChild, EventEmitter, Input, NgZone, OnChanges, OnInit, Output, SimpleChanges, TemplateRef, ViewChild } from '@angular/core';
 import { MatDialog } from '@angular/material/dialog';
 import { FormsModule } from '@angular/forms';
 import { MatCheckboxChange } from '@angular/material/checkbox';
@@ -25,7 +25,8 @@ import { DataTableFilterActionsDirective } from './data-table-filter-actions.dir
     selector: 'app-data-table',
     imports: [CommonModule, MaterialModule, FormsModule],
     templateUrl: './data-table.component.html',
-    styleUrls: ['./data-table.component.scss']
+    styleUrls: ['./data-table.component.scss'],
+    changeDetection: ChangeDetectionStrategy.OnPush
 })
 
 export class DataTableComponent implements OnChanges, OnInit {
@@ -272,8 +273,14 @@ export class DataTableComponent implements OnChanges, OnInit {
 
   constructor(
     private zone: NgZone,
-    private formatter: FormatterService,    private dialog: MatDialog
+    private formatter: FormatterService,
+    private dialog: MatDialog,
+    private cdr: ChangeDetectorRef
   ) {}
+
+  private markViewForCheck(): void {
+    this.cdr.markForCheck();
+  }
 
   ngOnInit(): void {
     // Use a filterPredicate to make sure the table only filters on visible columns
@@ -1113,6 +1120,7 @@ export class DataTableComponent implements OnChanges, OnInit {
       this.dataSource.paginator = this.paginator;
       this.dataSource.sort = this.sort;
       this.isDataLoaded = true;
+      this.markViewForCheck();
     });
   }
 

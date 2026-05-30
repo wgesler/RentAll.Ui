@@ -1,5 +1,5 @@
 import { CommonModule } from '@angular/common';
-import { Component, EventEmitter, Input, OnChanges, OnInit, Output, SimpleChanges } from '@angular/core';
+import { ChangeDetectionStrategy, ChangeDetectorRef, Component, EventEmitter, Input, OnChanges, OnInit, Output, SimpleChanges } from '@angular/core';
 import { Router } from '@angular/router';
 import { ToastrService } from 'ngx-toastr';
 import { catchError, concatMap, forkJoin, from, map, Observable, of, switchMap, take, toArray } from 'rxjs';
@@ -27,7 +27,8 @@ export interface WorkOrderSelection {
   selector: 'app-work-order-list',
   imports: [CommonModule, MaterialModule, DataTableComponent, DataTableFilterActionsDirective],
   templateUrl: './work-order-list.component.html',
-  styleUrl: './work-order-list.component.scss'
+  styleUrl: './work-order-list.component.scss',
+  changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class WorkOrderListComponent implements OnInit, OnChanges {
   @Input() property: PropertyResponse | null = null;
@@ -68,8 +69,13 @@ export class WorkOrderListComponent implements OnInit, OnChanges {
     private receiptService: ReceiptService,
     private mappingService: MappingService,
     private router: Router,
-    private toastr: ToastrService
+    private toastr: ToastrService,
+    private cdr: ChangeDetectorRef
   ) {}
+
+  private markViewForCheck(): void {
+    this.cdr.markForCheck();
+  }
 
   //#region Work-Order List
   ngOnInit(): void {
@@ -125,6 +131,7 @@ export class WorkOrderListComponent implements OnInit, OnChanges {
         this.allWorkOrders = this.mappingService.mapWorkOrderDisplays(this.workOrders);
         this.applyFilters();
         this.isLoading = false;
+        this.markViewForCheck();
       },
       error: () => {
         this.isServiceError = true;
@@ -132,6 +139,7 @@ export class WorkOrderListComponent implements OnInit, OnChanges {
         this.allWorkOrders = [];
         this.workOrdersDisplay = [];
         this.isLoading = false;
+        this.markViewForCheck();
       }
     });
   }
@@ -176,10 +184,12 @@ export class WorkOrderListComponent implements OnInit, OnChanges {
         this.workOrders = this.workOrders.filter(workOrder => String(workOrder.workOrderId) !== String(event.workOrderId));
         this.allWorkOrders = this.mappingService.mapWorkOrderDisplays(this.workOrders);
         this.applyFilters();
+        this.markViewForCheck();
       },
       error: () => {
         this.isServiceError = true;
         this.toastr.error('Unable to delete work order and clear receipt associations.', 'Error');
+        this.markViewForCheck();
       }
     });
   }
@@ -279,10 +289,12 @@ export class WorkOrderListComponent implements OnInit, OnChanges {
         this.allWorkOrders = this.mappingService.mapWorkOrderDisplays(this.workOrders);
         this.applyFilters();
         this.toastr.success('Work order updated.', 'Success');
+        this.markViewForCheck();
       },
       error: () => {
         this.applyWorkOrderCheckboxValue(workOrderId, changedCheckboxColumn, previousValue);
         this.toastr.error('Unable to update work order.', 'Error');
+        this.markViewForCheck();
       }
     });
   }

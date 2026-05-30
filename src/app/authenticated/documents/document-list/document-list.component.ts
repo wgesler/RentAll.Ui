@@ -1,5 +1,5 @@
 import { CommonModule } from "@angular/common";
-import { Component, EventEmitter, Input, OnChanges, OnDestroy, OnInit, Output, SimpleChanges } from '@angular/core';
+import { ChangeDetectionStrategy, ChangeDetectorRef, Component, EventEmitter, Input, OnChanges, OnDestroy, OnInit, Output, SimpleChanges } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, NavigationEnd, Router } from '@angular/router';
 import { ToastrService } from 'ngx-toastr';
@@ -32,7 +32,8 @@ import { ContactService } from "../../contacts/services/contact.service";
     standalone: true,
     templateUrl: './document-list.component.html',
     styleUrls: ['./document-list.component.scss'],
-    imports: [CommonModule, MaterialModule, FormsModule, TitleBarSelectComponent, DataTableComponent, DataTableFilterActionsDirective]
+    imports: [CommonModule, MaterialModule, FormsModule, TitleBarSelectComponent, DataTableComponent, DataTableFilterActionsDirective],
+    changeDetection: ChangeDetectionStrategy.OnPush
 })
 
 export class DocumentListComponent implements OnInit, OnDestroy, OnChanges {
@@ -112,7 +113,12 @@ export class DocumentListComponent implements OnInit, OnDestroy, OnChanges {
     private authService: AuthService,
     private route: ActivatedRoute,
     private propertyService: PropertyService,
-    private contactService: ContactService) {
+    private contactService: ContactService,
+    private cdr: ChangeDetectorRef) {
+  }
+
+  private markViewForCheck(): void {
+    this.cdr.markForCheck();
   }
 
   //#region Document-List
@@ -148,6 +154,7 @@ export class DocumentListComponent implements OnInit, OnDestroy, OnChanges {
           this.selectedReservationId = null;
           this.selectedDocumentTypeId = null;
           this.applyFilters();
+          this.markViewForCheck();
         }
       });
     }
@@ -160,6 +167,7 @@ export class DocumentListComponent implements OnInit, OnDestroy, OnChanges {
       if (this.offices.length > 0) {
         this.resolveOfficeScope(officeId, true);
       }
+      this.markViewForCheck();
     });
 
     if (this.source === 'reservation' || this.source === 'invoice' || this.source === 'documents' || this.source === 'property' || this.source === 'maintenance') {
@@ -418,9 +426,11 @@ export class DocumentListComponent implements OnInit, OnDestroy, OnChanges {
             const filteredDocuments = documents.filter(doc => doc.documentTypeId === this.documentTypeId);
             this.allDocuments = this.enrichReservationCodes(this.mappingService.mapDocuments(filteredDocuments));
             this.applyFilters();
+            this.markViewForCheck();
           },
           error: () => {
             this.isServiceError = true;
+            this.markViewForCheck();
           }
         });
     } else if (isTypeOnlyFiltered) {
@@ -429,9 +439,11 @@ export class DocumentListComponent implements OnInit, OnDestroy, OnChanges {
           const filteredDocuments = documents.filter(doc => doc.documentTypeId === this.documentTypeId);
           this.allDocuments = this.enrichReservationCodes(this.mappingService.mapDocuments(filteredDocuments));
           this.applyFilters();
+          this.markViewForCheck();
         },
         error: () => {
           this.isServiceError = true;
+          this.markViewForCheck();
         }
       });
     } else if (isUnfiltered || isReservationSource || isPropertyDocuments || isMaintenanceDocuments) {
@@ -439,9 +451,11 @@ export class DocumentListComponent implements OnInit, OnDestroy, OnChanges {
         next: (documents) => {
           this.allDocuments = this.enrichReservationCodes(this.mappingService.mapDocuments(documents));
           this.applyFilters();
+          this.markViewForCheck();
         },
         error: () => {
           this.isServiceError = true;
+          this.markViewForCheck();
         }
       });
     }
@@ -656,13 +670,16 @@ export class DocumentListComponent implements OnInit, OnDestroy, OnChanges {
                 this.resolveOfficeScope(null, true);
               }
               this.showOfficeDropdown = uiState.showOfficeDropdown;
+              this.markViewForCheck();
             }
           });
+          this.markViewForCheck();
         });
       },
       error: () => {
         this.offices = [];
         this.resolveOfficeScope(null, false);
+        this.markViewForCheck();
       }
     });
 
@@ -687,6 +704,7 @@ export class DocumentListComponent implements OnInit, OnDestroy, OnChanges {
           this.resolveOfficeScope(this.globalSelectionService.getSelectedOfficeIdValue(), true);
         }
       }
+      this.markViewForCheck();
     });
   }
   
@@ -700,10 +718,12 @@ export class DocumentListComponent implements OnInit, OnDestroy, OnChanges {
         }
         this.allDocuments = this.enrichReservationCodes(this.allDocuments);
         this.applyFilters();
+        this.markViewForCheck();
       },
       error: () => {
         this.reservations = [];
         this.availableReservations = [];
+        this.markViewForCheck();
       }
     });
   }
@@ -715,16 +735,19 @@ export class DocumentListComponent implements OnInit, OnDestroy, OnChanges {
           next: (contacts) => {
             this.companies = contacts || [];
             this.filterCompanies();
+            this.markViewForCheck();
           },
           error: () => {
             this.companies = [];
             this.availableCompanies = [];
+            this.markViewForCheck();
           }
         });
       },
       error: () => {
         this.companies = [];
         this.availableCompanies = [];
+        this.markViewForCheck();
       }
     });
   }
@@ -740,10 +763,12 @@ export class DocumentListComponent implements OnInit, OnDestroy, OnChanges {
             this.selectedPropertyId = this.propertyId;
           }
         }
+        this.markViewForCheck();
       },
       error: () => {
         this.properties = [];
         this.availableProperties = [];
+        this.markViewForCheck();
       }
     });
   }

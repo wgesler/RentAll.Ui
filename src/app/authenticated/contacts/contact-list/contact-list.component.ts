@@ -1,6 +1,6 @@
 import { CommonModule } from "@angular/common";
 import { Clipboard } from "@angular/cdk/clipboard";
-import { Component, EventEmitter, Input, OnChanges, OnDestroy, OnInit, Output, SimpleChanges } from '@angular/core';
+import { ChangeDetectionStrategy, ChangeDetectorRef, Component, EventEmitter, Input, OnChanges, OnDestroy, OnInit, Output, SimpleChanges } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { NavigationEnd, Router } from '@angular/router';
 import { ToastrService } from 'ngx-toastr';
@@ -29,7 +29,8 @@ import { LeadsService } from '../../leads/services/leads.service';
     selector: 'app-contact-list',
     templateUrl: './contact-list.component.html',
     styleUrls: ['./contact-list.component.scss'],
-    imports: [CommonModule, MaterialModule, FormsModule, TitleBarSelectComponent, DataTableComponent, DataTableFilterActionsDirective]
+    imports: [CommonModule, MaterialModule, FormsModule, TitleBarSelectComponent, DataTableComponent, DataTableFilterActionsDirective],
+    changeDetection: ChangeDetectionStrategy.OnPush
 })
 
 export class ContactListComponent implements OnInit, OnDestroy, OnChanges {
@@ -99,7 +100,12 @@ export class ContactListComponent implements OnInit, OnDestroy, OnChanges {
     private navigationContextService: NavigationContextService,
     private utilityService: UtilityService,
     private officeService: OfficeService,
-    private globalSelectionService: GlobalSelectionService,) {
+    private globalSelectionService: GlobalSelectionService,
+    private cdr: ChangeDetectorRef) {
+  }
+
+  private markViewForCheck(): void {
+    this.cdr.markForCheck();
   }
 
   //#region Contact-List
@@ -114,12 +120,14 @@ export class ContactListComponent implements OnInit, OnDestroy, OnChanges {
     this.loadContacts();
     this.navigationContextService.getIsInOwnerMode().pipe(takeUntil(this.destroy$)).subscribe(value => {
       this.isInOwnerMode = value;
+      this.markViewForCheck();
     });
 
     this.globalSelectionService.getSelectedOfficeId$().pipe(skip(1), takeUntil(this.destroy$)).subscribe(officeId => {
       if (this.offices.length > 0) {
         this.resolveOfficeScope(officeId);
       }
+      this.markViewForCheck();
     });
     
     this.router.events.pipe(
@@ -132,6 +140,7 @@ export class ContactListComponent implements OnInit, OnDestroy, OnChanges {
           this.contactService.refreshContacts().pipe(take(1)).subscribe(contacts => {
             this.allContacts = this.mappingService.mapContacts(contacts || []);
             this.applyFilters();
+            this.markViewForCheck();
           });
         }
       });
@@ -153,8 +162,11 @@ export class ContactListComponent implements OnInit, OnDestroy, OnChanges {
           next: contacts => {
             this.allContacts = this.mappingService.mapContacts(contacts || []);
             this.applyFilters();
+            this.markViewForCheck();
           },
-          error: () => {}
+          error: () => {
+            this.markViewForCheck();
+          }
         });
       },
       error: () => {}
@@ -277,7 +289,10 @@ export class ContactListComponent implements OnInit, OnDestroy, OnChanges {
     this.contactService.getContactByGuid(event.contactId).pipe(
       take(1),
       switchMap((contact: ContactResponse) => this.contactService.updateContact(this.buildContactIsActiveUpdateRequest(contact, nextValue)).pipe(take(1))),
-      finalize(() => this.applyFilters())
+      finalize(() => {
+        this.applyFilters();
+        this.markViewForCheck();
+      })
     ).subscribe({
       next: () => {
         this.toastr.success('Contact updated.', CommonMessage.Success);
@@ -285,6 +300,7 @@ export class ContactListComponent implements OnInit, OnDestroy, OnChanges {
       error: () => {
         this.applyContactIsActiveValue(event.contactId, previousValue);
         this.toastr.error('Unable to update contact.', CommonMessage.Error);
+        this.markViewForCheck();
       }
     });
   }
@@ -393,10 +409,12 @@ export class ContactListComponent implements OnInit, OnDestroy, OnChanges {
         this.allContacts = this.mappingService.mapContacts(contacts || []);
         this.applyFilters();
         this.hasInitialLoad = true;
+        this.markViewForCheck();
       },
       error: () => {
         this.allContacts = [];
         this.contactsDisplay = [];
+        this.markViewForCheck();
       }
     });
   }
@@ -411,14 +429,17 @@ export class ContactListComponent implements OnInit, OnDestroy, OnChanges {
             next: uiState => {
               this.showOfficeDropdown = uiState.showOfficeDropdown;
               this.resolveOfficeScope(uiState.selectedOfficeId);
+              this.markViewForCheck();
             }
           });
+          this.markViewForCheck();
         });
       },
       error: () => {
         this.offices = [];
         this.availableOffices = [];
         this.resolveOfficeScope(null);
+        this.markViewForCheck();
       }
     });
   }

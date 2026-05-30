@@ -1,5 +1,5 @@
 import { CommonModule } from '@angular/common';
-import { Component, input, NgZone, OnChanges, OnDestroy, OnInit, output, SimpleChanges } from '@angular/core';
+import { ChangeDetectionStrategy, ChangeDetectorRef, Component, input, NgZone, OnChanges, OnDestroy, OnInit, output, SimpleChanges } from '@angular/core';
 import { Router } from '@angular/router';
 import { ToastrService } from 'ngx-toastr';
 import { BehaviorSubject, Subject, concatMap, finalize, take, takeUntil } from 'rxjs';
@@ -25,7 +25,8 @@ import { LeadsService } from '../services/leads.service';
   selector: 'app-general-list',
   templateUrl: './general-list.component.html',
   styleUrls: ['./general-list.component.scss'],
-  imports: [CommonModule, MaterialModule, DataTableComponent, DataTableFilterActionsDirective]
+  imports: [CommonModule, MaterialModule, DataTableComponent, DataTableFilterActionsDirective],
+  changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class GeneralListComponent implements OnInit, OnChanges, OnDestroy {
   embeddedInShell = input(false);
@@ -67,13 +68,19 @@ export class GeneralListComponent implements OnInit, OnChanges, OnDestroy {
     private utilityService: UtilityService,
     private officeService: OfficeService,
     private globalSelectionService: GlobalSelectionService,
-    private authService: AuthService
+    private authService: AuthService,
+    private cdr: ChangeDetectorRef
   ) { }
+
+  private markViewForCheck(): void {
+    this.cdr.markForCheck();
+  }
 
   //#region General-List
   ngOnInit(): void {
     this.itemsToLoad$.pipe(takeUntil(this.destroy$)).subscribe(items => {
       this.isPageReady = items.size === 0;
+      this.markViewForCheck();
     });
     this.organizationId = this.authService.getUser()?.organizationId?.trim() ?? '';
 
@@ -83,6 +90,7 @@ export class GeneralListComponent implements OnInit, OnChanges, OnDestroy {
           return;
         }
         this.resolveOfficeScope(officeId);
+        this.markViewForCheck();
       });
     }
 
@@ -130,9 +138,11 @@ export class GeneralListComponent implements OnInit, OnChanges, OnDestroy {
       next: () => {
         this.toastr.success('General lead deleted.', CommonMessage.Success);
         this.loadGeneralLeads();
+        this.markViewForCheck();
       },
       error: () => {
         this.toastr.error('Unable to delete general lead.', CommonMessage.Error);
+        this.markViewForCheck();
       }
     });
   }
@@ -147,9 +157,11 @@ export class GeneralListComponent implements OnInit, OnChanges, OnDestroy {
       next: () => {
         this.toastr.success('General lead moved to Rental leads.', CommonMessage.Success);
         this.loadGeneralLeads();
+        this.markViewForCheck();
       },
       error: () => {
         this.toastr.error('Unable to move general lead to Rental leads.', CommonMessage.Error);
+        this.markViewForCheck();
       }
     });
   }
@@ -164,9 +176,11 @@ export class GeneralListComponent implements OnInit, OnChanges, OnDestroy {
       next: () => {
         this.toastr.success('General lead moved to Owner leads.', CommonMessage.Success);
         this.loadGeneralLeads();
+        this.markViewForCheck();
       },
       error: () => {
         this.toastr.error('Unable to move general lead to Owner leads.', CommonMessage.Error);
+        this.markViewForCheck();
       }
     });
   }
@@ -209,10 +223,12 @@ export class GeneralListComponent implements OnInit, OnChanges, OnDestroy {
       next: () => {
         this.toastr.success('General lead updated.', CommonMessage.Success);
         this.leadsService.notifyLeadStateChanged();
+        this.markViewForCheck();
       },
       error: () => {
         this.applyGeneralLeadStateId(event.generalId, previousLeadStateId);
         this.toastr.error('Unable to update general lead.', CommonMessage.Error);
+        this.markViewForCheck();
       }
     });
   }
@@ -233,10 +249,12 @@ export class GeneralListComponent implements OnInit, OnChanges, OnDestroy {
     this.leadsService.updateGeneralLead(body).pipe(take(1)).subscribe({
       next: () => {
         this.toastr.success('General lead updated.', CommonMessage.Success);
+        this.markViewForCheck();
       },
       error: () => {
         this.applyGeneralIsActiveValue(event.generalId, previousValue);
         this.toastr.error('Unable to update general lead.', CommonMessage.Error);
+        this.markViewForCheck();
       }
     });
   }
@@ -273,10 +291,12 @@ export class GeneralListComponent implements OnInit, OnChanges, OnDestroy {
           this.offices = offices || [];
           const initialOfficeId = this.embeddedInShell() ? this.officeId() : this.globalSelectionService.getSelectedOfficeIdValue();
           this.resolveOfficeScope(initialOfficeId ?? null);
+          this.markViewForCheck();
         });
       },
       error: () => {
         this.offices = [];
+        this.markViewForCheck();
       }
     });
   }
@@ -288,11 +308,13 @@ export class GeneralListComponent implements OnInit, OnChanges, OnDestroy {
         this.allGenerals = (rows || []).map(row => this.mappingService.mapLeadGeneralListRow(row));
         this.applyGeneralFilters();
         this.leadsService.notifyLeadStateChanged();
+        this.markViewForCheck();
       },
       error: () => {
         this.isServiceError = true;
         this.allGenerals = [];
         this.generalsDisplay = [];
+        this.markViewForCheck();
       }
     });
   }
