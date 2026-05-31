@@ -102,6 +102,9 @@
               <app-ticket-list
                 #myTicketListSection
                 [embeddedInSettings]="true"
+                [shellOfficeId]="selectedOfficeId"
+                [shellPropertyId]="selectedPropertyId"
+                [shellReservationId]="selectedReservationId"
                 [currentUserId]="currentUserId"
                 [currentUserAgentId]="currentUserAgentId"
                 assigneeFilterMode="assignedToMe"
@@ -117,6 +120,9 @@
               <app-ticket-list
                 #otherTicketListSection
                 [embeddedInSettings]="true"
+                [shellOfficeId]="selectedOfficeId"
+                [shellPropertyId]="selectedPropertyId"
+                [shellReservationId]="selectedReservationId"
                 [currentUserId]="currentUserId"
                 [currentUserAgentId]="currentUserAgentId"
                 assigneeFilterMode="allOthers"
@@ -132,6 +138,9 @@
               <app-ticket-list
                 #closedTicketListSection
                 [embeddedInSettings]="true"
+                [shellOfficeId]="selectedOfficeId"
+                [shellPropertyId]="selectedPropertyId"
+                [shellReservationId]="selectedReservationId"
                 [currentUserId]="currentUserId"
                 [currentUserAgentId]="currentUserAgentId"
                 assigneeFilterMode="closed"

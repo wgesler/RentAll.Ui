@@ -28,11 +28,6 @@ export class TicketService {
     return this.http.get<TicketResponse>(this.controller + ticketId);
   }
 
-  // GET: Get tickets by property ID
-  getTicketsByPropertyId(propertyId: string): Observable<TicketResponse[]> {
-    return this.http.get<TicketResponse[]>(this.controller + 'property/' + propertyId);
-  }
-
   // POST: Create a new ticket
   createTicket(ticket: TicketRequest): Observable<TicketResponse> {
     return this.http.post<TicketResponse>(this.controller, ticket);

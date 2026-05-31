@@ -279,8 +279,7 @@ export class EmailsShellComponent implements OnInit, OnDestroy {
   //#endregion
 
   //#region Utility Methods
-  /** Page-level office filter: seeded from global; does not write global. */
-  private applyShellOfficeScope(): void {
+  applyShellOfficeScope(): void {
     this.showOfficeDropdown = this.offices.length > 1;
     let officeIdToUse = this.selectedOfficeId;
     if (officeIdToUse != null && !this.offices.some(o => o.officeId === officeIdToUse)) {
@@ -292,7 +291,7 @@ export class EmailsShellComponent implements OnInit, OnDestroy {
     this.selectedOfficeId = officeIdToUse;
   }
 
-  private applyOfficeFromGlobal(officeId: number | null): void {
+  applyOfficeFromGlobal(officeId: number | null): void {
     if (this.offices.length === 0) {
       this.selectedOfficeId = officeId;
       return;

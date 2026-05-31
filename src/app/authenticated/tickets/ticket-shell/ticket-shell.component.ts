@@ -76,6 +76,8 @@ export class TicketShellComponent implements OnInit, OnDestroy, CanComponentDeac
   private initialOfficeScopeApplied = false;
   properties: PropertyCodeResponse[] = [];
   reservations: ReservationCodeResponse[] = [];
+  private allProperties: PropertyCodeResponse[] = [];
+  private allReservations: ReservationCodeResponse[] = [];
   contacts: ContactResponse[] = [];
 
 
@@ -105,19 +107,20 @@ export class TicketShellComponent implements OnInit, OnDestroy, CanComponentDeac
     this.currentUserId = String(this.authService.getUser()?.userId || '').trim() || null;
     this.selectedOfficeId = this.globalSelectionService.getSelectedOfficeIdValue();
 
-    this.itemsToLoad$.pipe(takeUntil(this.destroy$)).subscribe(() => this.syncPageReadyFromLoadItems());
+    this.itemsToLoad$.pipe(takeUntil(this.destroy$)).subscribe(items => {
+      this.isPageReady = items.size === 0;
+      this.markViewForCheck();
+    });
 
+    this.globalSelectionService.getSelectedOfficeId$().pipe(skip(1), takeUntil(this.destroy$)).subscribe(officeId => {
+      this.applyOfficeFromGlobal(officeId);
+    });
+    
     this.loadCurrentUserAgentId();
     this.loadOffices();
-    this.globalSelectionService
-      .getSelectedOfficeId$()
-      .pipe(skip(1), takeUntil(this.destroy$))
-      .subscribe(officeId => {
-        this.applyOfficeFromGlobal(officeId);
-      });
     this.loadProperties();
     this.loadContacts();
-    this.loadReservations();
+    this.loadReservationCodes();
 
     this.route.paramMap.pipe(takeUntil(this.destroy$)).subscribe(paramMap => {
       const id = paramMap.get('id');
@@ -132,7 +135,9 @@ export class TicketShellComponent implements OnInit, OnDestroy, CanComponentDeac
       this.closedTicketListSectionRef?.syncTicketsForReservation(event.reservationId);
     });
   }
+  //#endregion
 
+  //#region Form Response Methods
   onTicketSelected(event: { ticketId: string | number | null; ticketCode: string | null; propertyId: string | null; propertyCode: string | null; reservationId: string | null; reservationCode: string | null; officeId: number | null; officeName: string | null }): void {
     if (!event || event.ticketId === null || event.ticketId === undefined) {
       return;
@@ -167,7 +172,9 @@ export class TicketShellComponent implements OnInit, OnDestroy, CanComponentDeac
     this.selectedTabIndex = this.lastListTabIndex;
     this.currentTicketId = event.ticketId;
     this.currentTicketCode = String(event.ticketCode || '').trim() || null;
-    this.loadReservations(nextReservationId, nextPropertyId);
+    this.refreshReservationScope(nextReservationId, nextPropertyId);
+    this.syncFiltersToList();
+    this.markViewForCheck();
   }
 
   onTicketSelectedFromTab(event: { ticketId: string | number | null; ticketCode: string | null; propertyId: string | null; propertyCode: string | null; reservationId: string | null; reservationCode: string | null; officeId: number | null; officeName: string | null }, tabIndex: number): void {
@@ -220,27 +227,20 @@ export class TicketShellComponent implements OnInit, OnDestroy, CanComponentDeac
     this.applyPageOfficeChangeEffects();
   }
 
-  onOfficeFilterChange(officeId: number | null): void {
-    this.applyPageOfficeScope(officeId);
-    this.applyPageOfficeChangeEffects();
-  }
-
-  private applyPageOfficeChangeEffects(): void {
+  applyPageOfficeChangeEffects(): void {
     if (this.isApplyingTicketSelectionContext) {
       return;
     }
     const nextOfficeId = this.normalizeOfficeId(this.selectedOfficeId);
     this.isOfficeSelectionInvalidOnSave = false;
     this.resolveOfficeScope(nextOfficeId);
-    const isSelectedPropertyInScope = !!this.selectedPropertyId && this.getFilteredPropertiesByOffice().some(property => property.propertyId === this.selectedPropertyId);
-    if (!isSelectedPropertyInScope) {
-      this.selectedPropertyId = null;
-    }
-    this.loadReservations(this.selectedReservationId);
+    this.refreshPropertyScope();
+    this.refreshReservationScope(this.selectedReservationId);
     this.syncFiltersToList();
+    this.markViewForCheck();
   }
 
-  private applyOfficeFromGlobal(officeId: number | null): void {
+  applyOfficeFromGlobal(officeId: number | null): void {
     if (this.isApplyingTicketSelectionContext) {
       return;
     }
@@ -255,8 +255,7 @@ export class TicketShellComponent implements OnInit, OnDestroy, CanComponentDeac
     this.applyPageOfficeChangeEffects();
   }
 
-  /** Title-bar office change on this page only (never updates global selection). */
-  private applyPageOfficeScope(officeId: number | null): void {
+  applyPageOfficeScope(officeId: number | null): void {
     this.selectedOfficeId = this.normalizeOfficeId(officeId);
   }
 
@@ -268,13 +267,15 @@ export class TicketShellComponent implements OnInit, OnDestroy, CanComponentDeac
     if (this.selectedPropertyId) {
       this.isOfficeSelectionInvalidOnSave = false;
     }
+    this.refreshReservationScope(this.selectedReservationId);
     this.syncFiltersToList();
-    this.loadReservations(this.selectedReservationId);
+    this.markViewForCheck();
   }
 
   onReservationFilterChange(reservationId: string | null): void {
     this.selectedReservationId = reservationId;
     this.syncFiltersToList();
+    this.markViewForCheck();
   }
 
   onTicketPropertySelectionChange(event: { propertyId: string | null; officeId: number | null; reservationId: string | null }): void {
@@ -393,56 +394,73 @@ export class TicketShellComponent implements OnInit, OnDestroy, CanComponentDeac
   loadProperties(): void {
     this.propertyService.getPropertyCodes().pipe(take(1)).subscribe({
       next: properties => {
-        const scopedByOffice = this.selectedOfficeId == null
-          ? (properties || [])
-          : (properties || []).filter(p => Number(p.officeId) === Number(this.selectedOfficeId));
-        this.properties = scopedByOffice.slice().sort((a, b) =>
-          String(a.propertyCode || '').localeCompare(String(b.propertyCode || ''), undefined, { sensitivity: 'base' })
-        );
-        const isSelectedPropertyInScope = !!this.selectedPropertyId && this.getFilteredPropertiesByOffice().some(property => property.propertyId === this.selectedPropertyId);
-        if (!isSelectedPropertyInScope) {
-          this.selectedPropertyId = null;
-        }
+        this.allProperties = properties || [];
+        this.refreshPropertyScope();
+        this.markViewForCheck();
       },
       error: () => {
+        this.allProperties = [];
         this.properties = [];
+        this.markViewForCheck();
       }
     });
   }
 
-  loadReservations(preferredReservationId: string | null = this.selectedReservationId, forcedPropertyId: string | null = null): void {
-    const normalizedPreferredReservationId = preferredReservationId == null || String(preferredReservationId).trim() === '' ? null : String(preferredReservationId).trim();
-    const propertyIdForLoad = this.utilityService.normalizeIdOrNull(forcedPropertyId ?? this.selectedPropertyId);
-    const shouldReleaseSelectionLock = this.isApplyingTicketSelectionContext;
-    this.reservationService.getReservationCodes().pipe(
-      take(1),
-      finalize(() => {
-        if (shouldReleaseSelectionLock) {
-          this.isApplyingTicketSelectionContext = false;
-        }
-      })
-    ).subscribe({
+  loadReservationCodes(): void {
+    this.reservationService.getReservationCodes().pipe(take(1)).subscribe({
       next: reservations => {
-        const scopedByOffice = this.selectedOfficeId == null
-          ? (reservations || [])
-          : (reservations || []).filter(r => Number(r.officeId) === Number(this.selectedOfficeId));
-        const scopedByProperty = propertyIdForLoad
-          ? scopedByOffice.filter(r => this.utilityService.normalizeIdOrNull(r.propertyId) === this.utilityService.normalizeIdOrNull(propertyIdForLoad))
-          : scopedByOffice;
-        this.reservations = scopedByProperty.slice().sort((a, b) =>
-          String(a.reservationCode || '').localeCompare(String(b.reservationCode || ''), undefined, { sensitivity: 'base' })
-        );
-        this.selectedReservationId = normalizedPreferredReservationId && this.reservations.some(r => this.utilityService.normalizeId(r.reservationId) === this.utilityService.normalizeId(normalizedPreferredReservationId))
-          ? this.reservations.find(r => this.utilityService.normalizeId(r.reservationId) === this.utilityService.normalizeId(normalizedPreferredReservationId))?.reservationId ?? normalizedPreferredReservationId
-          : null;
-        this.syncFiltersToList();
+        this.allReservations = reservations || [];
+        this.refreshReservationScope(this.selectedReservationId);
+        this.markViewForCheck();
       },
       error: () => {
+        this.allReservations = [];
         this.reservations = [];
         this.selectedReservationId = null;
-        this.syncFiltersToList();
+        this.markViewForCheck();
       }
     });
+  }
+
+  refreshPropertyScope(): void {
+    const scopedByOffice = this.selectedOfficeId == null
+      ? this.allProperties
+      : this.allProperties.filter(property => Number(property.officeId) === Number(this.selectedOfficeId));
+    this.properties = scopedByOffice.slice().sort((a, b) =>
+      String(a.propertyCode || '').localeCompare(String(b.propertyCode || ''), undefined, { sensitivity: 'base' })
+    );
+    const isSelectedPropertyInScope = !!this.selectedPropertyId
+      && this.properties.some(property => property.propertyId === this.selectedPropertyId);
+    if (!isSelectedPropertyInScope) {
+      this.selectedPropertyId = null;
+    }
+  }
+
+  refreshReservationScope(
+    preferredReservationId: string | null = this.selectedReservationId,
+    forcedPropertyId: string | null = null
+  ): void {
+    const normalizedPreferredReservationId = preferredReservationId == null || String(preferredReservationId).trim() === ''
+      ? null
+      : String(preferredReservationId).trim();
+    const propertyIdForScope = this.utilityService.normalizeIdOrNull(forcedPropertyId ?? this.selectedPropertyId);
+    const scopedByOffice = this.selectedOfficeId == null
+      ? this.allReservations
+      : this.allReservations.filter(reservation => Number(reservation.officeId) === Number(this.selectedOfficeId));
+    const scopedByProperty = propertyIdForScope
+      ? scopedByOffice.filter(reservation => this.utilityService.normalizeIdOrNull(reservation.propertyId) === propertyIdForScope)
+      : scopedByOffice;
+    this.reservations = scopedByProperty.slice().sort((a, b) =>
+      String(a.reservationCode || '').localeCompare(String(b.reservationCode || ''), undefined, { sensitivity: 'base' })
+    );
+    this.selectedReservationId = normalizedPreferredReservationId
+      && this.reservations.some(reservation => this.utilityService.normalizeId(reservation.reservationId) === this.utilityService.normalizeId(normalizedPreferredReservationId))
+      ? this.reservations.find(reservation => this.utilityService.normalizeId(reservation.reservationId) === this.utilityService.normalizeId(normalizedPreferredReservationId))?.reservationId ?? normalizedPreferredReservationId
+      : null;
+
+    if (this.isApplyingTicketSelectionContext) {
+      this.isApplyingTicketSelectionContext = false;
+    }
   }
 
   loadContacts(): void {
@@ -557,8 +575,10 @@ export class TicketShellComponent implements OnInit, OnDestroy, CanComponentDeac
     this.selectedOfficeNameFallback = null;
     this.applyPageOfficeScope(this.globalSelectionService.getSelectedOfficeIdValue());
     this.resolveOfficeScope(this.selectedOfficeId);
+    this.refreshPropertyScope();
+    this.refreshReservationScope();
     this.syncFiltersToList();
-    this.loadReservations();
+    this.markViewForCheck();
   }
 
   syncFiltersToList(): void {
@@ -579,6 +599,10 @@ export class TicketShellComponent implements OnInit, OnDestroy, CanComponentDeac
 
   canDeactivate(): boolean {
     return this.ticketSection?.canDeactivate() ?? true;
+  }
+
+  markViewForCheck(): void {
+    this.cdr.markForCheck();
   }
 
   ngOnDestroy(): void {

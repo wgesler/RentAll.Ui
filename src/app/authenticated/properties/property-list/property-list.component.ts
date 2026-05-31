@@ -127,10 +127,6 @@ export class PropertyListComponent implements OnInit, OnDestroy, OnChanges {
     private cdr: ChangeDetectorRef) {
   }
 
-  private markViewForCheck(): void {
-    this.cdr.markForCheck();
-  }
-
   //#region Property-List
   ngOnInit(): void {
     this.itemsToLoad$.pipe(takeUntil(this.destroy$)).subscribe(items => {
@@ -649,6 +645,10 @@ export class PropertyListComponent implements OnInit, OnDestroy, OnChanges {
   //#endregion
 
   //#region Utility Methods
+  markViewForCheck(): void {
+    this.cdr.markForCheck();
+  }
+
   @HostListener('window:resize')
   onWindowResize(): void {
     this.updateDisplayedColumns();

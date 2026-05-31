@@ -4,7 +4,7 @@ import { FormBuilder, FormControl, FormGroup, FormsModule, ReactiveFormsModule, 
 import { MatDialog } from '@angular/material/dialog';
 import { ActivatedRoute } from '@angular/router';
 import { ToastrService } from 'ngx-toastr';
-import { BehaviorSubject, Observable, Subject, finalize, map, take, takeUntil } from 'rxjs';
+import { BehaviorSubject, Subject, finalize, take, takeUntil } from 'rxjs';
 import { CommonMessage, CommonTimeouts } from '../../../enums/common-message.enum';
 import { MaterialModule } from '../../../material.module';
 import { AuthService } from '../../../services/auth.service';
@@ -89,7 +89,6 @@ export class TicketComponent implements OnInit, OnChanges, AfterViewInit, OnDest
   selectedReservationCodeForAudit: string | null = null;
 
   itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['ticket']));
-  isLoading$: Observable<boolean> = this.itemsToLoad$.pipe(map(items => items.size > 0));
   destroy$ = new Subject<void>();
 
   constructor(
@@ -113,8 +112,10 @@ export class TicketComponent implements OnInit, OnChanges, AfterViewInit, OnDest
   //#region Ticket
   ngOnInit(): void {
     this.organizationId = this.authService.getUser()?.organizationId?.trim() || '';
-
-    this.itemsToLoad$.pipe(takeUntil(this.destroy$)).subscribe(() => this.syncPageReadyFromLoadItems());
+    this.itemsToLoad$.pipe(takeUntil(this.destroy$)).subscribe(items => {
+      this.isPageReady = items.size === 0;
+      this.markViewForCheck();
+    });
 
     this.buildForm();
     this.setupCommunicationStatusCommentTracking();
@@ -386,13 +387,6 @@ export class TicketComponent implements OnInit, OnChanges, AfterViewInit, OnDest
   //#endregion
 
   //#region Form Response Methods
-  get activePropertyOptions(): { propertyId: string; propertyCode: string }[] {
-    return this.properties.map(property => ({
-      propertyId: property.propertyId,
-      propertyCode: property.propertyCode || ''
-    }));
-  }
-
   get lastModifiedDisplay(): string {
     const modifiedOn = (this.ticket as unknown as { ModifiedOn?: string | null; modifiedOn?: string | null } | null);
     const modifiedOnValue = modifiedOn?.ModifiedOn ?? modifiedOn?.modifiedOn ?? null;
@@ -499,11 +493,6 @@ export class TicketComponent implements OnInit, OnChanges, AfterViewInit, OnDest
         linkedPrefix: linked?.prefix ?? null
       };
       });
-  }
-
-  onPropertyDropdownChange(value: string | null): void {
-    this.applyPropertySelection(value);
-    this.emitPropertySelection();
   }
 
   onAssigneeChanged(): void {
@@ -1251,6 +1240,10 @@ export class TicketComponent implements OnInit, OnChanges, AfterViewInit, OnDest
     this.cdr.markForCheck();
   }
 
+  markViewForCheck(): void {
+    this.cdr.markForCheck();
+  }
+  
   ngOnDestroy(): void {
     this.destroy$.next();
     this.destroy$.complete();

@@ -1,10 +1,10 @@
 import { CommonModule } from "@angular/common";
-import { ChangeDetectionStrategy, ChangeDetectorRef, Component, EventEmitter, Input, OnDestroy, OnInit, Output } from '@angular/core';
+import { ChangeDetectionStrategy, ChangeDetectorRef, Component, EventEmitter, Input, OnChanges, OnDestroy, OnInit, Output, SimpleChanges } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { MatDialog } from '@angular/material/dialog';
 import { Router } from '@angular/router';
 import { ToastrService } from 'ngx-toastr';
-import {BehaviorSubject, concatMap, filter, finalize, from, map, switchMap, take, toArray, Subject, takeUntil} from 'rxjs';
+import {BehaviorSubject, concatMap, finalize, from, map, switchMap, take, toArray, Subject, takeUntil} from 'rxjs';
 import { RouterUrl } from '../../../app.routes';
 import { CommonMessage } from '../../../enums/common-message.enum';
 import { MaterialModule } from '../../../material.module';
@@ -31,16 +31,18 @@ import { TicketService } from '../services/ticket.service';
   imports: [CommonModule, MaterialModule, FormsModule, DataTableComponent, DataTableFilterActionsDirective],
   changeDetection: ChangeDetectionStrategy.OnPush
 })
-export class TicketListComponent implements OnInit, OnDestroy {
+export class TicketListComponent implements OnInit, OnChanges, OnDestroy {
   @Input() embeddedInSettings: boolean = false;
-  @Input() assigneeFilterMode: 'all' | 'assignedToMe' | 'assignedToMeInAssignedState' | 'assignedToMeNotInAssignedState' | 'allOthers' | 'closed' = 'all';
+  @Input() assigneeFilterMode: 'assignedToMe' | 'allOthers' | 'closed' = 'assignedToMe';
   @Input() currentUserId: string | null = null;
   @Input() currentUserAgentId: string | null = null;
   @Input() showListFiltersAndActions: boolean = true;
+  @Input() shellOfficeId: number | null = null;
+  @Input() shellPropertyId: string | null = null;
+  @Input() shellReservationId: string | null = null;
   @Output() ticketSelected = new EventEmitter<{ ticketId: string | number | null; ticketCode: string | null; propertyId: string | null; propertyCode: string | null; reservationId: string | null; reservationCode: string | null; officeId: number | null; officeName: string | null }>();
   @Output() ticketUpdated = new EventEmitter<void>();
 
-  isServiceError: boolean = false;
   showInactive = false;
   isPageReady: boolean = false;
   selectedOfficeId: number | null = null;
@@ -84,11 +86,17 @@ export class TicketListComponent implements OnInit, OnDestroy {
     private cdr: ChangeDetectorRef
   ) {}
 
-  private markViewForCheck(): void {
-    this.cdr.markForCheck();
+  //#region Ticket-List
+  ngOnChanges(changes: SimpleChanges): void {
+    if (!this.embeddedInSettings) {
+      return;
+    }
+
+    if (changes['shellOfficeId'] || changes['shellPropertyId'] || changes['shellReservationId']) {
+      this.applyShellFiltersFromInputs();
+    }
   }
 
-  //#region Ticket-List
   ngOnInit(): void {
     this.itemsToLoad$.pipe(takeUntil(this.destroy$)).subscribe(items => {
       this.isPageReady = items.size === 0;
@@ -111,15 +119,17 @@ export class TicketListComponent implements OnInit, OnDestroy {
   getTickets(): void {
     this.ticketService.getTickets().pipe(take(1),finalize(() => this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'tickets'))).subscribe({
       next: (tickets) => {
-        this.isServiceError = false;
         this.allTickets = (tickets || []).map(ticket => this.withAssigneeDropdownCell(this.mappingService.mapTicketToDisplay(ticket, this.ticketStateTypeOptions)));
         this.rebuildFilterOptions();
         this.rebuildAssigneeDropdowns();
-        this.applyFilters();
+        if (this.embeddedInSettings) {
+          this.applyShellFiltersFromInputs();
+        } else {
+          this.applyFilters();
+        }
         this.markViewForCheck();
       },
       error: () => {
-        this.isServiceError = true;
         this.allTickets = [];
         this.ticketsDisplay = [];
         this.markViewForCheck();
@@ -412,6 +422,14 @@ export class TicketListComponent implements OnInit, OnDestroy {
   //#endregion
 
   //#region Filter Methods
+  applyShellFiltersFromInputs(): void {
+    this.selectedOfficeId = this.shellOfficeId == null ? null : Number(this.shellOfficeId);
+    this.selectedOffice = this.utilityService.resolveSelectedOfficeById(this.officeFilterOptions, this.selectedOfficeId);
+    this.selectedPropertyId = this.shellPropertyId;
+    this.selectedReservationId = this.shellReservationId;
+    this.applyFilters();
+  }
+
   applyFilters(): void {
     const normalizedCurrentUserId = this.utilityService.normalizeIdOrNull(this.currentUserId);
     const normalizedCurrentUserAgentId = this.utilityService.normalizeIdOrNull(this.currentUserAgentId);
@@ -433,19 +451,11 @@ export class TicketListComponent implements OnInit, OnDestroy {
         ? normalizedCurrentUserId
           ? byTicketBucket.filter(ticket => isMine(ticket))
           : []
-        : this.assigneeFilterMode === 'assignedToMeInAssignedState'
+        : this.assigneeFilterMode === 'allOthers'
           ? normalizedCurrentUserId
-            ? byTicketBucket.filter(ticket => isMine(ticket) && ticket.ticketStateTypeId === TicketStateType.assigned)
-            : []
-          : this.assigneeFilterMode === 'assignedToMeNotInAssignedState'
-            ? normalizedCurrentUserId
-              ? byTicketBucket.filter(ticket => isMine(ticket) && ticket.ticketStateTypeId !== TicketStateType.assigned)
-              : []
-            : this.assigneeFilterMode === 'allOthers'
-              ? normalizedCurrentUserId
-                ? byTicketBucket.filter(ticket => !isMine(ticket))
-                : byTicketBucket
-              : byTicketBucket;
+            ? byTicketBucket.filter(ticket => !isMine(ticket))
+            : byTicketBucket
+          : byTicketBucket;
 
     const scopedOfficeId = this.selectedOfficeId == null ? null : Number(this.selectedOfficeId);
     const byOffice = scopedOfficeId == null
@@ -482,6 +492,7 @@ export class TicketListComponent implements OnInit, OnDestroy {
       ).entries()
     ).map(([reservationId, reservationCode]) => ({ reservationId, reservationCode }))
       .sort((a, b) => a.reservationCode.localeCompare(b.reservationCode, undefined, { sensitivity: 'base' }));
+    this.markViewForCheck();
   }
 
   onInactiveChange(checked: boolean): void {
@@ -494,7 +505,6 @@ export class TicketListComponent implements OnInit, OnDestroy {
     this.selectedOffice = this.utilityService.resolveSelectedOfficeById(this.officeFilterOptions, this.selectedOfficeId);
     this.selectedPropertyId = null;
     this.selectedReservationId = null;
-    this.rebuildAssigneeDropdowns();
     this.applyFilters();
   }
 
@@ -782,6 +792,10 @@ export class TicketListComponent implements OnInit, OnDestroy {
   // #endregion
 
   //#region Utility Methods
+  markViewForCheck(): void {
+    this.cdr.markForCheck();
+  }
+  
   ngOnDestroy(): void {
     this.destroy$.next();
     this.destroy$.complete();
