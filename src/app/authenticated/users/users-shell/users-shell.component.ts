@@ -2,7 +2,7 @@ import { CommonModule } from '@angular/common';
 import { AfterViewInit, Component, OnDestroy, OnInit, QueryList, ViewChildren } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, Router } from '@angular/router';
-import { Subject, startWith, takeUntil } from 'rxjs';
+import { Subject, skip, startWith, takeUntil } from 'rxjs';
 import { MaterialModule } from '../../../material.module';
 import { GlobalSelectionService } from '../../organizations/services/global-selection.service';
 import { getNumberQueryParam } from '../../shared/query-param.utils';
@@ -42,6 +42,10 @@ export class UsersShellComponent implements OnInit, AfterViewInit, OnDestroy {
       this.selectedTabIndex = tabIndex;
     }
     this.selectedOfficeId = this.globalSelectionService.getSelectedOfficeIdValue();
+
+    this.globalSelectionService.getSelectedOfficeId$().pipe(skip(1), takeUntil(this.destroy$)).subscribe(officeId => {
+      this.applyOfficeFromGlobal(officeId);
+    });
   }
 
   ngAfterViewInit(): void {
@@ -88,6 +92,19 @@ export class UsersShellComponent implements OnInit, AfterViewInit, OnDestroy {
 
   onOfficeDropdownChange(value: string | number | null): void {
     this.selectedOfficeId = value == null || value === '' ? null : Number(value);
+  }
+
+  /** Page-level office follows global header; does not write global. */
+  private applyOfficeFromGlobal(officeId: number | null): void {
+    this.selectedOfficeId = officeId;
+    queueMicrotask(() => {
+      this.userSections?.forEach(section => {
+        if (section.offices.length > 0) {
+          section.resolveOfficeScope(officeId);
+          section.markViewForCheck();
+        }
+      });
+    });
   }
 
   getActiveSection(): UserListComponent | undefined {

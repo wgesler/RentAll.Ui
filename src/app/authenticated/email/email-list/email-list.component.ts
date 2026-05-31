@@ -47,7 +47,6 @@ export class EmailListComponent implements OnInit, OnDestroy, OnChanges {
   @Input() filterDocumentTypeId?: number;
   @Input() activeOnly: boolean = false;
   @Input() reservations: ReservationCodeResponse[] = []; // Shared reservations list from parent (or loaded internally)
-  @Output() organizationIdChange = new EventEmitter<string | null>();
   @Output() companyIdChange = new EventEmitter<string | null>();
   @Output() officeIdChange = new EventEmitter<number | null>();
   @Output() reservationIdChange = new EventEmitter<string | null>();
@@ -70,7 +69,6 @@ export class EmailListComponent implements OnInit, OnDestroy, OnChanges {
   emailTypes: { value: number, label: string }[] = [];
   
   showOfficeDropdown = false;
-  preferredOfficeId: number | null = null;
   officeScopeResolved: boolean = false;
   destroy$ = new Subject<void>();
 
@@ -110,13 +108,14 @@ export class EmailListComponent implements OnInit, OnDestroy, OnChanges {
       this.markViewForCheck();
     });
     this.organizationId = this.organizationId || this.authService.getUser()?.organizationId?.trim() || null;
-    this.preferredOfficeId = this.authService.getUser()?.defaultOfficeId ?? null;
     if (!this.source) {
       this.source = 'emails';
     }
 
     if (this.officeId !== null && this.officeId !== undefined) {
       this.selectedOfficeId = this.officeId;
+    } else if (this.source === 'emails') {
+      this.selectedOfficeId = this.globalSelectionService.getSelectedOfficeIdValue();
     }
 
     if (this.reservationId !== null && this.reservationId !== undefined && this.reservationId !== '') {
@@ -126,12 +125,14 @@ export class EmailListComponent implements OnInit, OnDestroy, OnChanges {
     this.loadOffices();
     this.initializeEmailTypes();
 
-    this.globalSelectionService.getSelectedOfficeId$().pipe(skip(1), takeUntil(this.destroy$)).subscribe(officeId => {
-      if (this.offices.length > 0 && (this.officeId === null || this.officeId === undefined)) {
-        this.resolveOfficeScope(officeId, true);
-      }
-      this.markViewForCheck();
-    });
+    if (this.source !== 'emails') {
+      this.globalSelectionService.getSelectedOfficeId$().pipe(skip(1), takeUntil(this.destroy$)).subscribe(officeId => {
+        if (this.offices.length > 0 && (this.officeId === null || this.officeId === undefined)) {
+          this.resolveOfficeScope(officeId, true);
+        }
+        this.markViewForCheck();
+      });
+    }
     this.loadCompanies();
     if (this.reservations && this.reservations.length > 0) {
       this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'reservations');
@@ -200,11 +201,31 @@ export class EmailListComponent implements OnInit, OnDestroy, OnChanges {
   }
   //#endregion
 
-  //#endregion
-
   //#region Data Loading Methods
   loadOffices(): void {
-    this.globalSelectionService.ensureOfficeScope(this.organizationId || '', this.preferredOfficeId).pipe(take(1), finalize(() => {
+    if (this.source === 'emails') {
+      this.officeService.ensureOfficesLoaded(this.organizationId || '').pipe(take(1), finalize(() => {
+        this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'offices');
+      })).subscribe({
+        next: () => {
+          this.officeService.getAllOffices().pipe(takeUntil(this.destroy$)).subscribe(offices => {
+            this.offices = offices || [];
+            this.allEmails = this.mappingService.mapEmailOfficeNames(this.allEmails, this.offices);
+            this.applyEmailsRouteOfficeScope();
+            this.markViewForCheck();
+          });
+        },
+        error: () => {
+          this.offices = [];
+          this.showOfficeDropdown = false;
+          this.resolveOfficeScope(null, false);
+          this.markViewForCheck();
+        }
+      });
+      return;
+    }
+
+    this.globalSelectionService.ensureOfficeScope(this.organizationId || '').pipe(take(1), finalize(() => {
       this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'offices');
     })).subscribe({
       next: () => {
@@ -293,7 +314,9 @@ export class EmailListComponent implements OnInit, OnDestroy, OnChanges {
 
   //#region Form Response Methods
   onOfficeChange(): void {
-    this.globalSelectionService.setSelectedOfficeId(this.selectedOfficeId);
+    if (this.source !== 'emails') {
+      this.globalSelectionService.setSelectedOfficeId(this.selectedOfficeId);
+    }
     this.officeIdChange.emit(this.selectedOfficeId);
     this.filterCompanies();
     this.filterReservations();
@@ -310,16 +333,8 @@ export class EmailListComponent implements OnInit, OnDestroy, OnChanges {
     this.applyFilters();
   }
 
-  compareReservationId(a: string | null, b: string | null): boolean {
-    return String(a ?? '') === String(b ?? '');
-  }
-
   onReservationChange(): void {
     this.reservationIdChange.emit(this.selectedReservationId);
-    this.applyFilters();
-  }
-
-  onEmailTypeChange(): void {
     this.applyFilters();
   }
 
@@ -368,7 +383,7 @@ export class EmailListComponent implements OnInit, OnDestroy, OnChanges {
 
   onEmailTypeDropdownChange(value: string | number | null): void {
     this.selectedEmailTypeId = value == null || value === '' ? null : Number(value);
-    this.onEmailTypeChange();
+    this.applyFilters();
   }
 
   filterReservations(): void {
@@ -614,6 +629,19 @@ export class EmailListComponent implements OnInit, OnDestroy, OnChanges {
     this.destroy$.next();
     this.destroy$.complete();
     this.itemsToLoad$.complete();
+  }
+
+  /** Emails route with shell parent office: page filter only; does not write global. */
+  private applyEmailsRouteOfficeScope(): void {
+    this.showOfficeDropdown = this.offices.length > 1;
+    let officeIdToUse = this.selectedOfficeId;
+    if (officeIdToUse != null && !this.offices.some(o => o.officeId === officeIdToUse)) {
+      officeIdToUse = null;
+    }
+    if (this.offices.length === 1) {
+      officeIdToUse = this.offices[0].officeId;
+    }
+    this.resolveOfficeScope(officeIdToUse, false);
   }
 
   resolveOfficeScope(officeId: number | null, emitChange: boolean): void {

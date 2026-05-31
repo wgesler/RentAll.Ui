@@ -85,7 +85,6 @@ export class MaintenanceShellComponent implements OnInit, OnDestroy, CanComponen
 
   isInspectorView = false;
   selectedPropertyId: string | null = null;
-  preferredOfficeId: number | null = null;
   availableProperties: { propertyId: string; propertyCode: string }[] = [];
   allProperties: PropertyCodeResponse[] = [];
   inspectorPropertyIds = new Set<string>();
@@ -117,7 +116,6 @@ export class MaintenanceShellComponent implements OnInit, OnDestroy, CanComponen
     this.clearPropertyOnOpen = ((this.route.snapshot.queryParamMap.get('clearProperty') || '').trim() === '1');
     this.userId = this.authService.getUser()?.userId?.trim() ?? '';
     this.organizationId = this.authService.getUser()?.organizationId?.trim() ?? '';
-    this.preferredOfficeId = this.normalizeOfficeId(this.authService.getUser()?.defaultOfficeId ?? null);
     this.loadTitleBarOfficeScope();
 
     this.isInspectorView = isInspectorOnlyUser(this.authService.getUser()?.userGroups as Array<string | number> | undefined);
@@ -207,7 +205,7 @@ export class MaintenanceShellComponent implements OnInit, OnDestroy, CanComponen
       return;
     }
 
-    this.globalSelectionService.ensureOfficeScope(this.organizationId, this.preferredOfficeId).pipe(take(1)).subscribe({
+    this.globalSelectionService.ensureOfficeScope(this.organizationId).pipe(take(1)).subscribe({
       next: () => {
         this.officeService.getAllOffices().pipe(takeUntil(this.destroy$)).subscribe(offices => {
           this.offices = offices || [];

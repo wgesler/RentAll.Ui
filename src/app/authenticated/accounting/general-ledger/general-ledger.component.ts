@@ -86,7 +86,6 @@ export class GeneralLedgerComponent implements OnInit, OnChanges, OnDestroy {
   showInactive: boolean = false;
   showOfficeDropdown: boolean = false;
   officeScopeResolved: boolean = false;
-  preferredOfficeId: number | null = null;
   private officesInitialized = false;
   generalLedgerColumns: ColumnSet = {
     officeName: { displayAs: 'Office', maxWidth: '16ch' },
@@ -118,7 +117,6 @@ export class GeneralLedgerComponent implements OnInit, OnChanges, OnDestroy {
       this.isPageReady = items.size === 0;
     });
     this.organizationId = this.organizationId || this.authService.getUser()?.organizationId?.trim() || null;
-    this.preferredOfficeId = this.authService.getUser()?.defaultOfficeId ?? null;
     this.loadOffices();
     this.loadReservations();
     this.loadCompanyContacts();
@@ -204,7 +202,7 @@ export class GeneralLedgerComponent implements OnInit, OnChanges, OnDestroy {
 
   //#region Data Loading Methods
   loadOffices(): void {
-    this.globalSelectionService.ensureOfficeScope(this.organizationId || '', this.preferredOfficeId).pipe(take(1), finalize(() => {
+    this.globalSelectionService.ensureOfficeScope(this.organizationId || '').pipe(take(1), finalize(() => {
       this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'offices');
     })).subscribe({
       next: () => {

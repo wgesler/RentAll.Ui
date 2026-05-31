@@ -48,7 +48,7 @@ async function blobToEmailDataUrl(blob: Blob, hintUrl: string): Promise<string> 
  * Resolves checklist issue photo URLs to data URLs suitable for HTML email and server PDF generation.
  * Blob URLs only work in the current tab; remote URLs may be auth-protected for recipients.
  */
-export async function inlineIssuePhotoSrcForEmail(src: string): Promise<string> {
+async function inlineIssuePhotoSrcForEmail(src: string): Promise<string> {
   const trimmed = (src || '').trim();
   if (!trimmed) {
     return '';

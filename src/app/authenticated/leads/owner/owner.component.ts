@@ -52,7 +52,6 @@ export class OwnerComponent implements OnInit, OnChanges, OnDestroy {
   offices: OfficeResponse[] = [];
   propertyTypeOptions = getPropertyTypes();
   officeScopeResolved = false;
-  preferredOfficeId: number | null = null;
   selectedOffice: OfficeResponse | null = null;
 
   agents: AgentResponse[] = [];
@@ -87,7 +86,6 @@ export class OwnerComponent implements OnInit, OnChanges, OnDestroy {
 
     const user = this.authService.getUser();
     this.organizationId = user?.organizationId?.trim() ?? '';
-    this.preferredOfficeId = user?.defaultOfficeId ?? null;
 
     this.loadOffices();
     this.loadAgents();
@@ -478,7 +476,7 @@ export class OwnerComponent implements OnInit, OnChanges, OnDestroy {
 
   //#region Data Loading Methods
   loadOffices(): void {
-    this.globalSelectionService.ensureOfficeScope(this.organizationId, this.preferredOfficeId).pipe(take(1)).subscribe({
+    this.globalSelectionService.ensureOfficeScope(this.organizationId).pipe(take(1)).subscribe({
       next: () => {
         this.officeService.getAllOffices().pipe(take(1)).subscribe({
           next: offices => {

@@ -77,7 +77,6 @@ export class LeaseComponent extends BaseDocumentComponent implements OnInit, OnD
   property: PropertyResponse | null = null;
   organization: OrganizationResponse | null = null;
   organizationId: string = '';
-  preferredOfficeId: number | null = null;
 
   reservations: ReservationListResponse[] = [];
   availableReservations: { value: ReservationListResponse, label: string }[] = [];
@@ -170,7 +169,6 @@ export class LeaseComponent extends BaseDocumentComponent implements OnInit, OnD
     });
 
     this.organizationId = this.authService.getUser()?.organizationId?.trim() ?? '';
-    this.preferredOfficeId = this.authService.getUser()?.defaultOfficeId ?? null;
     this.applyOfficeSelectionLockState();
     this.loadOrganization();
     this.loadContacts();
@@ -625,7 +623,7 @@ export class LeaseComponent extends BaseDocumentComponent implements OnInit, OnD
   }
 
   loadOffices(): void {
-    this.globalSelectionService.ensureOfficeScope(this.organizationId, this.preferredOfficeId).pipe(take(1), finalize(() => { this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'offices'); this.markLogoSourceLoaded('offices'); })).subscribe({
+    this.globalSelectionService.ensureOfficeScope(this.organizationId).pipe(take(1), finalize(() => { this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'offices'); this.markLogoSourceLoaded('offices'); })).subscribe({
       next: () => {
         this.officeService.getAllOffices().pipe(takeUntil(this.destroy$)).subscribe(offices => {
           this.offices = offices || [];

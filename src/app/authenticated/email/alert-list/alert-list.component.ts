@@ -60,7 +60,6 @@ export class AlertListComponent implements OnInit, OnChanges, OnDestroy {
   availableReservations: { value: ReservationCodeResponse; label: string }[] = [];
   selectedReservationId: string | null = null;
   showOfficeDropdown = false;
-  preferredOfficeId: number | null = null;
   officeScopeResolved = false;
   destroy$ = new Subject<void>();
   contacts: ContactResponse[] = [];
@@ -103,12 +102,13 @@ export class AlertListComponent implements OnInit, OnChanges, OnDestroy {
       this.markViewForCheck();
     });
     this.organizationId = this.organizationId || this.authService.getUser()?.organizationId?.trim() || null;
-    this.preferredOfficeId = this.authService.getUser()?.defaultOfficeId ?? null;
     if (!this.source) {
       this.source = 'alerts';
     }
     if (this.officeId !== null && this.officeId !== undefined) {
       this.selectedOfficeId = this.officeId;
+    } else if (this.source === 'alerts') {
+      this.selectedOfficeId = this.globalSelectionService.getSelectedOfficeIdValue();
     }
     if (this.reservationId !== null && this.reservationId !== undefined && this.reservationId !== '') {
       this.selectedReservationId = this.reservationId;
@@ -116,12 +116,14 @@ export class AlertListComponent implements OnInit, OnChanges, OnDestroy {
 
     this.loadContacts();
     this.loadOffices();
-    this.globalSelectionService.getSelectedOfficeId$().pipe(skip(1), takeUntil(this.destroy$)).subscribe(officeId => {
-      if (this.offices.length > 0 && (this.officeId === null || this.officeId === undefined)) {
-        this.resolveOfficeScope(officeId, true);
-      }
-      this.markViewForCheck();
-    });
+    if (this.source !== 'alerts') {
+      this.globalSelectionService.getSelectedOfficeId$().pipe(skip(1), takeUntil(this.destroy$)).subscribe(officeId => {
+        if (this.offices.length > 0 && (this.officeId === null || this.officeId === undefined)) {
+          this.resolveOfficeScope(officeId, true);
+        }
+        this.markViewForCheck();
+      });
+    }
     if (this.reservations && this.reservations.length > 0) {
       this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'reservations');
       this.applyReservationCodes();
@@ -139,9 +141,7 @@ export class AlertListComponent implements OnInit, OnChanges, OnDestroy {
       this.applyFilters();
     }
     if (changes['officeId']) {
-      this.selectedOfficeId = changes['officeId'].currentValue;
-      this.filterReservations();
-      this.applyFilters();
+      this.onTitleBarOfficeIdUpdate(changes['officeId'].currentValue);
     }
     if (changes['reservationId']) {
       this.selectedReservationId = changes['reservationId'].currentValue;
@@ -150,6 +150,12 @@ export class AlertListComponent implements OnInit, OnChanges, OnDestroy {
     if (changes['propertyId'] && !changes['propertyId'].firstChange) {
       this.applyFilters();
     }
+  }
+
+  onTitleBarOfficeIdUpdate(officeId: number | null): void {
+    this.selectedOfficeId = officeId;
+    this.filterReservations();
+    this.applyFilters();
   }
   //#endregion
 
@@ -172,7 +178,29 @@ export class AlertListComponent implements OnInit, OnChanges, OnDestroy {
   }
 
   loadOffices(): void {
-    this.globalSelectionService.ensureOfficeScope(this.organizationId || '', this.preferredOfficeId).pipe(take(1), finalize(() => {
+    if (this.source === 'alerts') {
+      this.officeService.ensureOfficesLoaded(this.organizationId || '').pipe(take(1), finalize(() => {
+        this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'offices');
+      })).subscribe({
+        next: () => {
+          this.officeService.getAllOffices().pipe(takeUntil(this.destroy$)).subscribe(offices => {
+            this.offices = offices || [];
+            this.allAlerts = this.mappingService.mapAlertOfficeNames(this.allAlerts, this.offices);
+            this.applyAlertsRouteOfficeScope();
+            this.markViewForCheck();
+          });
+        },
+        error: () => {
+          this.offices = [];
+          this.showOfficeDropdown = false;
+          this.resolveOfficeScope(null, false);
+          this.markViewForCheck();
+        }
+      });
+      return;
+    }
+
+    this.globalSelectionService.ensureOfficeScope(this.organizationId || '').pipe(take(1), finalize(() => {
       this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'offices');
     })).subscribe({
       next: () => {
@@ -247,7 +275,9 @@ export class AlertListComponent implements OnInit, OnChanges, OnDestroy {
   //#region Form Response Methods
   onOfficeDropdownChange(value: string | number | null): void {
     this.selectedOfficeId = value == null || value === '' ? null : Number(value);
-    this.globalSelectionService.setSelectedOfficeId(this.selectedOfficeId);
+    if (this.source !== 'alerts') {
+      this.globalSelectionService.setSelectedOfficeId(this.selectedOfficeId);
+    }
     this.officeIdChange.emit(this.selectedOfficeId);
     this.filterReservations();
     this.selectedReservationId = null;
@@ -448,6 +478,18 @@ export class AlertListComponent implements OnInit, OnChanges, OnDestroy {
     if (alertResponse) {
       this.alertsById.set(alertId, { ...alertResponse, isActive: nextValue });
     }
+  }
+
+  private applyAlertsRouteOfficeScope(): void {
+    this.showOfficeDropdown = this.offices.length > 1;
+    let officeIdToUse = this.selectedOfficeId;
+    if (officeIdToUse != null && !this.offices.some(o => o.officeId === officeIdToUse)) {
+      officeIdToUse = null;
+    }
+    if (this.offices.length === 1) {
+      officeIdToUse = this.offices[0].officeId;
+    }
+    this.resolveOfficeScope(officeIdToUse, false);
   }
 
   resolveOfficeScope(officeId: number | null, emitChange: boolean): void {

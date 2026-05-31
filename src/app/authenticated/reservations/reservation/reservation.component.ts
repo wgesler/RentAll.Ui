@@ -132,7 +132,6 @@ export class ReservationComponent implements OnInit, OnDestroy, CanComponentDeac
   selectedProperty: PropertyListResponse | null = null;
   selectedHeaderReservationId: string | null | undefined = undefined;
   organizationId: string = '';
-  preferredOfficeId: number | null = null;
   offices: OfficeResponse[] = [];
   availableOffices: { value: number, name: string }[] = [];
   selectedOffice: OfficeResponse | null = null;
@@ -187,7 +186,6 @@ export class ReservationComponent implements OnInit, OnDestroy, CanComponentDeac
   //#region Reservation Page
   ngOnInit(): void {
     this.organizationId = this.authService.getUser()?.organizationId?.trim() ?? '';
-    this.preferredOfficeId = this.authService.getUser()?.defaultOfficeId ?? null;
     this.loadContacts();  
     this.loadOrganization();
     this.loadProperties();
@@ -1005,7 +1003,7 @@ export class ReservationComponent implements OnInit, OnDestroy, CanComponentDeac
   }
 
   loadOffices(): void {
-    this.globalSelectionService.ensureOfficeScope(this.organizationId, this.preferredOfficeId).pipe(take(1)).subscribe({
+    this.globalSelectionService.ensureOfficeScope(this.organizationId).pipe(take(1)).subscribe({
       next: () => {
         this.officeService.getAllOffices().pipe(takeUntil(this.destroy$)).subscribe(offices => {
           this.offices = offices || [];

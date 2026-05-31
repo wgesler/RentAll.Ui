@@ -53,7 +53,6 @@ export class PropertyMaintenanceBase implements OnInit, OnDestroy {
   carpetUsers: UserResponse[] = [];
   inspectorUsers: UserResponse[] = [];
   organizationId = '';
-  preferredOfficeId: number | null = null;
   todayAtMidnight: Date = new Date();
   fifteenDaysAtMidnight: Date = new Date();
   nextTwoMonthsAtMidnight: Date = new Date();
@@ -88,7 +87,6 @@ export class PropertyMaintenanceBase implements OnInit, OnDestroy {
 
     this.user = this.authService.getUser();
     this.organizationId = this.user?.organizationId?.trim() ?? '';
-    this.preferredOfficeId = this.user?.defaultOfficeId ?? null;
 
     this.loadOffices();
     this.loadActiveReservations();
@@ -175,7 +173,7 @@ export class PropertyMaintenanceBase implements OnInit, OnDestroy {
 
   //#region Data Loading Methods
    loadOffices(): void {
-    this.globalSelectionService.ensureOfficeScope(this.organizationId, this.preferredOfficeId).pipe(take(1), finalize(() => { this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'offices'); })).subscribe({
+    this.globalSelectionService.ensureOfficeScope(this.organizationId).pipe(take(1), finalize(() => { this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'offices'); })).subscribe({
       next: () => {
         this.officeService.getAllOffices().pipe(takeUntil(this.destroy$)).subscribe(offices => {
           this.offices = offices || [];

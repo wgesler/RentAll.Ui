@@ -3,7 +3,7 @@ import { HttpErrorResponse } from '@angular/common/http';
 import { Component, OnDestroy, OnInit, ViewChild } from '@angular/core';
 import { FormsModule, ReactiveFormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
-import { Subject, take, takeUntil } from 'rxjs';
+import { skip, Subject, take, takeUntil } from 'rxjs';
 import { RouterUrl } from '../../../app.routes';
 import { MaterialModule } from '../../../material.module';
 import { AuthService } from '../../../services/auth.service';
@@ -71,6 +71,7 @@ export class ConfigurationComponent implements OnInit, OnDestroy {
   @ViewChild(RegionListComponent) regionListComponent?: RegionListComponent;
   @ViewChild(AreaListComponent) areaListComponent?: AreaListComponent;
   @ViewChild(BuildingListComponent) buildingListComponent?: BuildingListComponent;
+  @ViewChild(CostCodesListComponent) costCodesListComponent?: CostCodesListComponent;
   @ViewChild(AccountingOfficeListComponent) accountingOfficeListComponent?: AccountingOfficeListComponent;
   @ViewChild(ColorListComponent) colorListComponent?: ColorListComponent;
   @ViewChild(StateFormListComponent) stateFormListComponent?: StateFormListComponent;
@@ -149,6 +150,10 @@ export class ConfigurationComponent implements OnInit, OnDestroy {
     if (this.isSuperAdmin) {
       this.loadOrganizations();
     }
+    this.globalSelectionService.getSelectedOfficeId$().pipe(skip(1), takeUntil(this.destroy$)).subscribe(officeId => {
+      this.applySettingsOfficeFromGlobal(officeId);
+    });
+
     this.loadSettingsOffices();
   }
   //#endregion
@@ -200,8 +205,23 @@ export class ConfigurationComponent implements OnInit, OnDestroy {
 
   /** Resolve title-bar office from global seed and loaded offices without mutating global selection. */
   private initializeSettingsOfficeScope(): void {
+    this.normalizeSettingsOfficeScope();
+  }
+
+  /** Settings title-bar office follows global header; does not write global. */
+  private applySettingsOfficeFromGlobal(officeId: number | null): void {
+    this.selectedCostCodesOfficeId = officeId;
+    this.normalizeSettingsOfficeScope();
+    queueMicrotask(() => this.refreshSettingsOfficeScopedLists());
+  }
+
+  private normalizeSettingsOfficeScope(): void {
     if (this.offices.length === 1) {
       this.selectedCostCodesOfficeId = this.offices[0].officeId;
+      return;
+    }
+
+    if (this.offices.length === 0) {
       return;
     }
 
@@ -211,6 +231,25 @@ export class ConfigurationComponent implements OnInit, OnDestroy {
     }
 
     this.selectedCostCodesOfficeId = null;
+  }
+
+  private refreshSettingsOfficeScopedLists(): void {
+    const officeId = this.selectedCostCodesOfficeId;
+    if (this.regionListComponent?.offices?.length) {
+      this.regionListComponent.resolveOfficeScope(officeId);
+      this.regionListComponent.markViewForCheck();
+    }
+    if (this.areaListComponent?.offices?.length) {
+      this.areaListComponent.resolveOfficeScope(officeId);
+      this.areaListComponent.markViewForCheck();
+    }
+    if (this.buildingListComponent?.offices?.length) {
+      this.buildingListComponent.resolveOfficeScope(officeId);
+      this.buildingListComponent.markViewForCheck();
+    }
+    if (this.costCodesListComponent?.offices?.length) {
+      this.costCodesListComponent.resolveOfficeScope(officeId, false);
+    }
   }
   //#endregion
 

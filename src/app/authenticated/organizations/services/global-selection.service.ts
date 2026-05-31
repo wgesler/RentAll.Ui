@@ -71,21 +71,22 @@ export class GlobalSelectionService {
     localStorage.removeItem(this.furnishedPropertyStorageKey);
   }
 
-  syncWithAvailableOffices(offices: OfficeResponse[], preferredOfficeId: number | null = null): number | null {
+  syncWithAvailableOffices(offices: OfficeResponse[]): number | null {
     const accessibleOffices = this.filterOfficeListForUser(offices || []);
     if (!accessibleOffices.length) {
       this.setSelectedOfficeId(null);
       return null;
     }
 
-    if (preferredOfficeId !== null && accessibleOffices.some(office => office.officeId === preferredOfficeId)) {
-      this.setSelectedOfficeId(preferredOfficeId);
-      return preferredOfficeId;
-    }
-
     const currentSelection = this.getSelectedOfficeIdValue();
     if (currentSelection !== null && accessibleOffices.some(office => office.officeId === currentSelection)) {
       return currentSelection;
+    }
+
+    const userDefaultOfficeId = this.resolveUserDefaultOfficeId(accessibleOffices);
+    if (userDefaultOfficeId !== null) {
+      this.setSelectedOfficeId(userDefaultOfficeId);
+      return userDefaultOfficeId;
     }
 
     if (accessibleOffices.length === 1) {
@@ -98,8 +99,28 @@ export class GlobalSelectionService {
     return null;
   }
 
-  ensureOfficeScope(organizationId: string, preferredOfficeId: number | null = null): Observable<number | null> {
-    return this.officeService.ensureOfficesLoaded(organizationId).pipe(take(1), switchMap(offices => this.accountingOfficeService.ensureAccountingOfficesLoaded().pipe(take(1), map(() => this.syncWithAvailableOffices((offices || []).filter(office => office.isActive), preferredOfficeId)))));
+  ensureOfficeScope(organizationId: string): Observable<number | null> {
+    return this.officeService.ensureOfficesLoaded(organizationId).pipe(
+      take(1),
+      switchMap(offices =>
+        this.accountingOfficeService.ensureAccountingOfficesLoaded().pipe(
+          take(1),
+          map(() => this.syncWithAvailableOffices((offices || []).filter(office => office.isActive)))
+        )
+      )
+    );
+  }
+
+  private resolveUserDefaultOfficeId(accessibleOffices: OfficeResponse[]): number | null {
+    const rawDefaultOfficeId = this.authService.getUser()?.defaultOfficeId;
+    if (rawDefaultOfficeId === null || rawDefaultOfficeId === undefined) {
+      return null;
+    }
+    const defaultOfficeId = Number(rawDefaultOfficeId);
+    if (!Number.isFinite(defaultOfficeId) || defaultOfficeId <= 0) {
+      return null;
+    }
+    return accessibleOffices.some(office => office.officeId === defaultOfficeId) ? defaultOfficeId : null;
   }
 
   getOfficeUiState$(offices: OfficeResponse[], options: OfficeUiStateOptions = {}): Observable<OfficeUiState> {

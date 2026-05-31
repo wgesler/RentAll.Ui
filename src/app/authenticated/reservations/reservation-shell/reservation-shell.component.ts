@@ -62,7 +62,6 @@ export class ReservationShellComponent implements OnInit, AfterViewInit, OnDestr
   availableHeaderReservations: SearchableSelectOption[] = [];
   reservationList: ReservationListResponse[] = [];
   organizationId: string = '';
-  preferredOfficeId: number | null = null;
   isAddMode: boolean = false;
   isAdmin: boolean = false;
   isHandlingTabGuard: boolean = false;
@@ -88,7 +87,6 @@ export class ReservationShellComponent implements OnInit, AfterViewInit, OnDestr
   //#region Reservation-Shell
   ngOnInit(): void {
     this.organizationId = this.authService.getUser()?.organizationId?.trim() ?? '';
-    this.preferredOfficeId = this.authService.getUser()?.defaultOfficeId ?? null;
     this.isAdmin = this.authService.isAdmin();
 
     this.route.queryParams.pipe(take(1)).subscribe(queryParams => {
@@ -400,7 +398,7 @@ export class ReservationShellComponent implements OnInit, AfterViewInit, OnDestr
 
   //#region Data Loading Methods
   loadOffices(): void {
-    this.globalSelectionService.ensureOfficeScope(this.organizationId, this.preferredOfficeId).pipe(take(1), finalize(() => { this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'offices'); })).subscribe({
+    this.globalSelectionService.ensureOfficeScope(this.organizationId).pipe(take(1), finalize(() => { this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'offices'); })).subscribe({
       next: () => {
         this.officeService.getAllOffices().pipe(takeUntil(this.destroy$)).subscribe(offices => {
           this.offices = offices || [];

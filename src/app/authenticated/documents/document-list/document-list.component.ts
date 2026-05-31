@@ -1,9 +1,9 @@
 import { CommonModule } from "@angular/common";
 import { ChangeDetectionStrategy, ChangeDetectorRef, Component, EventEmitter, Input, OnChanges, OnDestroy, OnInit, Output, SimpleChanges } from '@angular/core';
 import { FormsModule } from '@angular/forms';
-import { ActivatedRoute, NavigationEnd, Router } from '@angular/router';
+import { ActivatedRoute, Router } from '@angular/router';
 import { ToastrService } from 'ngx-toastr';
-import {BehaviorSubject, Subject, Subscription, filter, finalize, skip, take, takeUntil} from 'rxjs';
+import {BehaviorSubject, Subject, finalize, skip, take, takeUntil} from 'rxjs';
 import { RouterUrl } from '../../../app.routes';
 import { CommonMessage } from '../../../enums/common-message.enum';
 import { MaterialModule } from '../../../material.module';
@@ -13,7 +13,9 @@ import { UtilityService } from '../../../services/utility.service';
 import { OfficeResponse } from '../../organizations/models/office.model';
 import { GlobalSelectionService } from '../../organizations/services/global-selection.service';
 import { OfficeService } from '../../organizations/services/office.service';
-import { ReservationListResponse } from '../../reservations/models/reservation-model';
+import { PropertyListDisplay } from '../../properties/models/property.model';
+import { PropertyService } from '../../properties/services/property.service';
+import { ReservationCodeResponse, ReservationListResponse } from '../../reservations/models/reservation-model';
 import { ReservationService } from '../../reservations/services/reservation.service';
 import { DataTableComponent } from '../../shared/data-table/data-table.component';
 import { DataTableFilterActionsDirective } from '../../shared/data-table/data-table-filter-actions.directive';
@@ -47,7 +49,7 @@ export class DocumentListComponent implements OnInit, OnDestroy, OnChanges {
   @Input() reservationId: string | null = null;
   @Input() activeOnly: boolean = false;
   @Input() showReservationFilterOnly: boolean = false;
-  @Input() reservations: ReservationListResponse[] = [];
+  @Input() reservations: (ReservationListResponse | ReservationCodeResponse)[] = [];
   @Output() officeIdChange = new EventEmitter<number | null>();
   @Output() companyIdChange = new EventEmitter<string | null>();
   @Output() reservationIdChange = new EventEmitter<string | null>();
@@ -57,18 +59,20 @@ export class DocumentListComponent implements OnInit, OnDestroy, OnChanges {
   documentsDisplay: DocumentListDisplay[] = [];
   
   showOfficeDropdown: boolean = false;
-  preferredOfficeId: number | null = null;
   offices: OfficeResponse[] = [];
   selectedOfficeId: number | null = null;
-  queryParamsSubscription?: Subscription;
   officeScopeResolved: boolean = false;
 
   selectedReservationId: string | null = null;
-  availableReservations: { value: ReservationListResponse, label: string }[] = [];
+  availableReservations: { value: ReservationListResponse | ReservationCodeResponse, label: string }[] = [];
 
   selectedCompany: ContactResponse | null = null;
   companies: ContactResponse[] = [];
   availableCompanies: { value: ContactResponse, label: string }[] = [];
+
+  selectedPropertyId: string | null = null;
+  properties: PropertyListDisplay[] = [];
+  availableProperties: { value: PropertyListDisplay, label: string }[] = [];
   
   selectedDocumentTypeId: number | null = null;
   documentTypes: { value: number, label: string }[] = [];
@@ -104,6 +108,7 @@ export class DocumentListComponent implements OnInit, OnDestroy, OnChanges {
     private utilityService: UtilityService,
     private authService: AuthService,
     private route: ActivatedRoute,
+    private propertyService: PropertyService,
     private contactService: ContactService,
     private cdr: ChangeDetectorRef) {
   }
@@ -120,8 +125,7 @@ export class DocumentListComponent implements OnInit, OnDestroy, OnChanges {
     });
 
      this.organizationId = this.organizationId || this.authService.getUser()?.organizationId?.trim() || null;
-     this.preferredOfficeId = this.authService.getUser()?.defaultOfficeId ?? null;
-     if(this.isInAddReservationMode())
+      if(this.isInAddReservationMode())
       return;
     
     if (!this.source) {
@@ -130,27 +134,10 @@ export class DocumentListComponent implements OnInit, OnDestroy, OnChanges {
     
     if (this.officeId !== null && this.officeId !== undefined) {
       this.selectedOfficeId = this.officeId;
-    } else if (this.source === 'documents') {
-      this.selectedOfficeId = this.globalSelectionService.getSelectedOfficeIdValue();
     }
     
     if (this.reservationId !== null && this.reservationId !== undefined && this.reservationId !== '') {
       this.selectedReservationId = this.reservationId;
-    }
-    
-    if (this.source === 'documents') {
-      // Sidebar documents view always starts unfiltered by reservation/type.
-      this.selectedReservationId = null;
-      this.selectedDocumentTypeId = null;
-      this.router.events.pipe(filter((event): event is NavigationEnd => event instanceof NavigationEnd), takeUntil(this.destroy$)).subscribe(event => {
-        const currentPath = event.urlAfterRedirects.split('?')[0];
-        if (currentPath.endsWith('/documents')) {
-          this.selectedReservationId = null;
-          this.selectedDocumentTypeId = null;
-          this.applyFilters();
-          this.markViewForCheck();
-        }
-      });
     }
     
     this.utilityService.addLoadItem(this.itemsToLoad$, 'documents');
@@ -159,14 +146,14 @@ export class DocumentListComponent implements OnInit, OnDestroy, OnChanges {
 
     if (this.source !== 'documents') {
       this.globalSelectionService.getSelectedOfficeId$().pipe(skip(1), takeUntil(this.destroy$)).subscribe(officeId => {
-        if (this.offices.length > 0) {
+        if (this.offices.length > 0 && (this.officeId === null || this.officeId === undefined)) {
           this.resolveOfficeScope(officeId, true);
         }
         this.markViewForCheck();
       });
     }
 
-    if (this.source === 'reservation' || this.source === 'invoice' || this.source === 'documents' || this.source === 'property' || this.source === 'maintenance') {
+    if (this.source === 'reservation' || this.source === 'invoice' || this.source === 'property' || this.source === 'maintenance') {
       if (this.useParentProvidedReservationList) {
         this.filterReservations();
       } else {
@@ -186,7 +173,7 @@ export class DocumentListComponent implements OnInit, OnDestroy, OnChanges {
   }
   
   isInAddReservationMode(): boolean {
-    if (this.source === 'reservation') {
+    if (this.source === 'reservation' || this.source === 'documents') {
       return false;
     }
 
@@ -252,8 +239,13 @@ export class DocumentListComponent implements OnInit, OnDestroy, OnChanges {
     if (changes['propertyId']) {
       const newPropertyId = changes['propertyId'].currentValue;
       const previousPropertyId = changes['propertyId'].previousValue;
-      
-      if (newPropertyId && (!previousPropertyId || newPropertyId !== previousPropertyId)) {
+
+      if (this.source === 'documents') {
+        if (!changes['propertyId'].firstChange) {
+          this.allDocuments = this.enrichReservationCodes(this.allDocuments);
+          this.applyFilters();
+        }
+      } else if (newPropertyId && (!previousPropertyId || newPropertyId !== previousPropertyId)) {
         if (this.useParentProvidedReservationList) {
           this.filterReservations();
         } else {
@@ -262,7 +254,7 @@ export class DocumentListComponent implements OnInit, OnDestroy, OnChanges {
       }
     }
     
-    const currentHasPropertyId = this.propertyId && this.propertyId !== '';
+    const currentHasPropertyId = this.source !== 'documents' && this.propertyId && this.propertyId !== '';
     const previousHasPropertyId = changes['propertyId']?.previousValue && changes['propertyId'].previousValue !== '';
     const wasFiltered = previousHasPropertyId && changes['documentTypeId']?.previousValue !== undefined;
     const isFiltered = currentHasPropertyId && this.documentTypeId !== undefined;
@@ -280,7 +272,7 @@ export class DocumentListComponent implements OnInit, OnDestroy, OnChanges {
     
     const modeChanged = (wasFiltered !== isFiltered) || (wasUnfiltered !== isUnfiltered) || (wasTypeOnlyFiltered !== isTypeOnlyFiltered);
     
-    if (propertyIdChanged || documentTypeIdChanged || modeChanged) {
+    if (this.source !== 'documents' && (propertyIdChanged || documentTypeIdChanged || modeChanged)) {
       this.allDocuments = [];
       this.documentsDisplay = [];
       
@@ -354,6 +346,10 @@ export class DocumentListComponent implements OnInit, OnDestroy, OnChanges {
       if (this.selectedOfficeId !== null && this.selectedOfficeId !== undefined) {
         queryParams.officeId = this.selectedOfficeId;
       }
+      const propertyFilterId = this.propertyId || this.selectedPropertyId;
+      if (propertyFilterId) {
+        queryParams.propertyId = propertyFilterId;
+      }
       if (reservationIdToUse) {
         queryParams.reservationId = reservationIdToUse;
       }
@@ -413,7 +409,7 @@ export class DocumentListComponent implements OnInit, OnDestroy, OnChanges {
           this.markViewForCheck();
         }
       });
-    } else if (isUnfiltered || isReservationSource || isPropertyDocuments || isMaintenanceDocuments) {
+    } else if (isUnfiltered || isReservationSource || isPropertyDocuments || isMaintenanceDocuments || this.source === 'documents') {
       this.documentService.getDocuments().pipe(take(1), finalize(() => { this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'documents'); })).subscribe({
         next: (documents) => {
           this.allDocuments = this.enrichReservationCodes(this.mappingService.mapDocuments(documents));
@@ -446,6 +442,8 @@ export class DocumentListComponent implements OnInit, OnDestroy, OnChanges {
 
     if (this.source === 'invoice' || this.source === 'reservation') {
       this.loadReservations();
+    } else if (this.source === 'property') {
+      this.loadProperties();
     } else if (this.source === 'maintenance' && this.useParentProvidedReservationList) {
       this.filterReservations();
     }
@@ -454,6 +452,11 @@ export class DocumentListComponent implements OnInit, OnDestroy, OnChanges {
   }
 
   onTitleBarReservationsUpdate(): void {
+    if (this.source === 'documents') {
+      this.allDocuments = this.enrichReservationCodes(this.allDocuments);
+      this.applyFilters();
+      return;
+    }
     if (this.reservations && this.reservations.length > 0) {
       this.filterReservations();
     }
@@ -522,6 +525,10 @@ export class DocumentListComponent implements OnInit, OnDestroy, OnChanges {
       queryParams.returnTo = 'documentList';
       if (this.selectedOfficeId !== null && this.selectedOfficeId !== undefined) {
         queryParams.officeId = this.selectedOfficeId;
+      }
+      const propertyFilterId = this.propertyId || this.selectedPropertyId;
+      if (propertyFilterId) {
+        queryParams.propertyId = propertyFilterId;
       }
       if (reservationIdToUse) {
         queryParams.reservationId = reservationIdToUse;
@@ -592,12 +599,12 @@ export class DocumentListComponent implements OnInit, OnDestroy, OnChanges {
 
   //#region Data Loading Methods
   loadOffices(): void {
-    if (this.useRouteQueryParams) {
+    if (this.source === 'documents') {
       this.officeService.ensureOfficesLoaded(this.organizationId || '').pipe(take(1)).subscribe({
         next: () => {
           this.officeService.getAllOffices().pipe(takeUntil(this.destroy$)).subscribe(offices => {
             this.offices = offices || [];
-            this.applyDocumentsRouteOfficeScope();
+            this.applyDocumentsListOfficeScope();
             this.markViewForCheck();
           });
         },
@@ -607,28 +614,10 @@ export class DocumentListComponent implements OnInit, OnDestroy, OnChanges {
           this.markViewForCheck();
         }
       });
-
-      this.queryParamsSubscription?.unsubscribe();
-      this.queryParamsSubscription = this.route.queryParams.subscribe(params => {
-        const officeIdParam = params['officeId'];
-
-        if (officeIdParam) {
-          const parsedOfficeId = parseInt(officeIdParam, 10);
-          if (parsedOfficeId) {
-            const matchingOffice = this.offices.find(o => o.officeId === parsedOfficeId);
-            if (matchingOffice) {
-              this.resolveOfficeScope(matchingOffice.officeId, false);
-            }
-          }
-        } else if (this.offices.length > 0) {
-          this.applyDocumentsRouteOfficeScope();
-        }
-        this.markViewForCheck();
-      });
       return;
     }
 
-    this.globalSelectionService.ensureOfficeScope(this.organizationId || '', this.preferredOfficeId).pipe(take(1)).subscribe({
+    this.globalSelectionService.ensureOfficeScope(this.organizationId || '').pipe(take(1)).subscribe({
       next: () => {
         this.officeService.getAllOffices().pipe(takeUntil(this.destroy$)).subscribe(offices => {
           this.offices = offices || [];
@@ -673,6 +662,27 @@ export class DocumentListComponent implements OnInit, OnDestroy, OnChanges {
     });
   }
 
+  loadProperties(): void {
+    this.propertyService.getPropertyList().pipe(take(1)).subscribe({
+      next: (properties) => {
+        this.properties = this.mappingService.mapProperties(properties) || [];
+        this.filterProperties();
+        if (this.propertyId && this.selectedOfficeId) {
+          const matchingProperty = this.availableProperties.find(p => p.value.propertyId === this.propertyId);
+          if (matchingProperty) {
+            this.selectedPropertyId = this.propertyId;
+          }
+        }
+        this.markViewForCheck();
+      },
+      error: () => {
+        this.properties = [];
+        this.availableProperties = [];
+        this.markViewForCheck();
+      }
+    });
+  }
+
   loadCompanies(): void {
     this.contactService.ensureContactsLoaded().pipe(take(1)).subscribe({
       next: () => {
@@ -701,7 +711,7 @@ export class DocumentListComponent implements OnInit, OnDestroy, OnChanges {
 
   //#region Filter Helpers
   get isOfficeDisabled(): boolean {
-    if (this.source === 'invoice' || this.source === 'documents' || this.source === 'maintenance') {
+    if (this.source === 'invoice' || this.source === 'maintenance') {
       return false;
     }
     return (this.reservationId !== null && this.reservationId !== undefined && this.reservationId !== '') ||
@@ -714,13 +724,6 @@ export class DocumentListComponent implements OnInit, OnDestroy, OnChanges {
 
   filterReservations(): void {
     if (!this.selectedOfficeId) {
-      if (this.source === 'documents') {
-        this.availableReservations = this.reservations.map(r => ({
-          value: r,
-          label: this.utilityService.getReservationDropdownLabel(r, this.companies.find(c => c.contactId === r.contactId) ?? null)
-        }));
-        return;
-      }
       if ((this.source === 'property' || this.source === 'maintenance') && this.propertyId) {
         const propertyReservations = this.reservations.filter(r => r.propertyId === this.propertyId);
         this.availableReservations = propertyReservations.map(r => ({
@@ -748,9 +751,10 @@ export class DocumentListComponent implements OnInit, OnDestroy, OnChanges {
     }
     
     const filteredReservations = this.reservations.filter(r => r.officeId === this.selectedOfficeId);
-    const sourceFilteredReservations = ((this.source === 'property' || this.source === 'maintenance') && this.propertyId)
-      ? filteredReservations.filter(r => r.propertyId === this.propertyId)
-      : filteredReservations;
+    let sourceFilteredReservations = filteredReservations;
+    if ((this.source === 'property' || this.source === 'maintenance') && this.propertyId) {
+      sourceFilteredReservations = filteredReservations.filter(r => r.propertyId === this.propertyId);
+    }
     const companyFilteredReservations = (this.source === 'invoice' && this.selectedCompany?.contactId)
       ? sourceFilteredReservations.filter(r => {
           const reservationAny = r as ReservationListResponse & { entityId?: string | null; EntityId?: string | null; contactId?: string };
@@ -766,6 +770,26 @@ export class DocumentListComponent implements OnInit, OnDestroy, OnChanges {
     if (this.selectedReservationId && !companyFilteredReservations.some(r => r.reservationId === this.selectedReservationId)) {
       this.selectedReservationId = null;
       this.reservationIdChange.emit(null);
+    }
+  }
+
+  filterProperties(): void {
+    if (!this.selectedOfficeId) {
+      this.availableProperties = this.properties.map(p => ({
+        value: p,
+        label: p.propertyCode || ''
+      }));
+      return;
+    }
+
+    const filteredProperties = this.properties.filter(p => p.officeId === this.selectedOfficeId);
+    this.availableProperties = filteredProperties.map(p => ({
+      value: p,
+      label: p.propertyCode || ''
+    }));
+
+    if (this.selectedPropertyId && !filteredProperties.some(p => p.propertyId === this.selectedPropertyId)) {
+      this.selectedPropertyId = null;
     }
   }
 
@@ -819,6 +843,23 @@ export class DocumentListComponent implements OnInit, OnDestroy, OnChanges {
     this.applyFilters();
   }
 
+  onPropertyDropdownChange(value: string | number | null): void {
+    this.selectedPropertyId = value == null || value === '' ? null : String(value);
+    this.onPropertyChange();
+  }
+
+  onPropertyChange(): void {
+    this.filterReservations();
+    this.applyFilters();
+  }
+
+  get propertyOptions(): { value: string, label: string }[] {
+    return this.availableProperties.map(property => ({
+      value: property.value.propertyId,
+      label: property.label
+    }));
+  }
+
   onOfficeDropdownChange(value: string | number | null): void {
     this.selectedOfficeId = value == null || value === '' ? null : Number(value);
     this.onOfficeChange();
@@ -851,9 +892,6 @@ export class DocumentListComponent implements OnInit, OnDestroy, OnChanges {
       if (!this.reservationId) {
         this.filterReservations();
       }
-    } else if (this.source === 'documents') {
-      this.filterReservations();
-      this.selectedReservationId = null;
     } else if (this.source === 'property' || this.source === 'maintenance') {
       this.filterReservations();
       this.selectedReservationId = null;
@@ -883,8 +921,13 @@ export class DocumentListComponent implements OnInit, OnDestroy, OnChanges {
         filtered = filtered.filter(doc => doc.propertyId === propertyIdToFilter);
       }
     } else if (this.source === 'documents') {
-      if (this.selectedReservationId !== null && this.selectedReservationId !== undefined && this.selectedReservationId !== '') {
-        filtered = filtered.filter(doc => doc.reservationId === this.selectedReservationId);
+      const documentsPropertyFilter = this.propertyId || this.selectedPropertyId || null;
+      const documentsReservationFilter = this.reservationId || this.selectedReservationId || null;
+      if (documentsPropertyFilter) {
+        filtered = filtered.filter(doc => doc.propertyId === documentsPropertyFilter);
+      }
+      if (documentsReservationFilter) {
+        filtered = filtered.filter(doc => doc.reservationId === documentsReservationFilter);
       }
     }
 
@@ -894,9 +937,10 @@ export class DocumentListComponent implements OnInit, OnDestroy, OnChanges {
     }
 
     const activeReservationsOnly = this.activeOnly;
-    if (activeReservationsOnly && this.reservations && this.reservations.length > 0) {
+    const reservationScopeList = this.reservations;
+    if (activeReservationsOnly && reservationScopeList && reservationScopeList.length > 0) {
       const activeReservationIds = new Set(
-        this.reservations
+        reservationScopeList
           .filter(r => r.isActive)
           .map(r => r.reservationId)
       );
@@ -910,8 +954,9 @@ export class DocumentListComponent implements OnInit, OnDestroy, OnChanges {
     if (!documents?.length) {
       return documents ?? [];
     }
+    const reservationCodeSource = this.reservations;
     const reservationCodeById = new Map<string, string>(
-      (this.reservations ?? [])
+      (reservationCodeSource ?? [])
         .filter(r => !!r.reservationId)
         .map(r => [r.reservationId, r.reservationCode || ''])
     );
@@ -924,9 +969,10 @@ export class DocumentListComponent implements OnInit, OnDestroy, OnChanges {
     });
   }
 
-  applyDocumentsRouteOfficeScope(): void {
-    this.showOfficeDropdown = this.offices.length > 1;
-    let officeIdToUse = this.selectedOfficeId;
+  /** Documents shell parent office: page filter only; does not write global. */
+  private applyDocumentsListOfficeScope(): void {
+    this.showOfficeDropdown = false;
+    let officeIdToUse = this.officeId ?? this.selectedOfficeId;
     if (officeIdToUse != null && !this.offices.some(o => o.officeId === officeIdToUse)) {
       officeIdToUse = null;
     }
@@ -936,12 +982,8 @@ export class DocumentListComponent implements OnInit, OnDestroy, OnChanges {
     this.resolveOfficeScope(officeIdToUse, false);
   }
 
-  get useRouteQueryParams(): boolean {   
-    return this.source === 'documents';
-  }
-
   get documentsDisplayedColumns(): ColumnSet {
-    const useTabColumns = (this.propertyId && this.documentTypeId !== undefined) || this.source === 'maintenance';
+    const useTabColumns = (this.source !== 'documents' && this.propertyId && this.documentTypeId !== undefined) || this.source === 'maintenance';
     return useTabColumns ? this.tabColumns : this.sidebarColumns;
   }
 
@@ -957,9 +999,6 @@ export class DocumentListComponent implements OnInit, OnDestroy, OnChanges {
     }
     if (this.source === 'reservation' || this.source === 'invoice') {
       this.filterReservations();
-    } else if (this.source === 'documents') {
-      this.filterReservations();
-      this.selectedReservationId = null;
     } else if (this.source === 'property' || this.source === 'maintenance') {
       this.filterReservations();
       this.selectedReservationId = null;
@@ -973,7 +1012,6 @@ export class DocumentListComponent implements OnInit, OnDestroy, OnChanges {
   ngOnDestroy(): void {
     this.destroy$.next();
     this.destroy$.complete();
-    this.queryParamsSubscription?.unsubscribe();
     this.itemsToLoad$.complete();
   }
   //#endregion

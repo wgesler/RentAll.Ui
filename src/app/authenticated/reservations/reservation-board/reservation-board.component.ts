@@ -72,7 +72,6 @@ export class ReservationBoardComponent implements OnInit, OnDestroy {
   userId: string = '';
   isOwner: boolean = false;
   organizationId: string = '';
-  preferredOfficeId: number | null = null;
 
   itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['colors', 'reservations', 'properties', 'contacts', 'officeScope']));
   isLoading$: Observable<boolean> = this.itemsToLoad$.pipe(map(items => items.size > 0));
@@ -120,7 +119,6 @@ export class ReservationBoardComponent implements OnInit, OnDestroy {
     this.userId = this.authService.getUser()?.userId || '';
     this.isOwner = hasOwnerRole(this.authService.getUser()?.userGroups as Array<string | number> | undefined);
     this.organizationId = this.authService.getUser()?.organizationId?.trim() ?? '';
-    this.preferredOfficeId = this.authService.getUser()?.defaultOfficeId ?? null;
     this.setDefaultDateRange();
     this.generateCalendarDays();
     this.loadContacts();
@@ -351,7 +349,7 @@ export class ReservationBoardComponent implements OnInit, OnDestroy {
   }
 
   initializeOfficeScope(): void {
-    this.globalSelectionService.ensureOfficeScope(this.organizationId, this.preferredOfficeId).pipe(take(1)).subscribe({
+    this.globalSelectionService.ensureOfficeScope(this.organizationId).pipe(take(1)).subscribe({
       next: () => {
         this.resolveOfficeScope(this.globalSelectionService.getSelectedOfficeIdValue());
         this.loadReservations(true);

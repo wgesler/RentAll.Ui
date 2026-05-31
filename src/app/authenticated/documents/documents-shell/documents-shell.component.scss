@@ -1,0 +1,12 @@
+.property-titlebar {
+  min-height: var(--property-titlebar-height);
+  box-sizing: border-box;
+}
+
+:host ::ng-deep .property-tabs .mat-mdc-tab-body-content {
+  overflow-y: hidden !important;
+}
+
+:host ::ng-deep .documents-shell-single-tab .mat-mdc-tab-header {
+  display: none;
+}

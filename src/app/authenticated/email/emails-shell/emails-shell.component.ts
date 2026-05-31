@@ -53,7 +53,6 @@ export class EmailsShellComponent implements OnInit, OnDestroy {
   availableReservations: SearchableSelectOption[] = [];
 
   organizationId = '';
-  preferredOfficeId: number | null = null;
   destroy$ = new Subject<void>();
 
   constructor(
@@ -70,7 +69,7 @@ export class EmailsShellComponent implements OnInit, OnDestroy {
   //#region Emails-Shell
   ngOnInit(): void {
     this.organizationId = this.authService.getUser()?.organizationId?.trim() ?? '';
-    this.preferredOfficeId = this.authService.getUser()?.defaultOfficeId ?? null;
+    this.selectedOfficeId = this.globalSelectionService.getSelectedOfficeIdValue();
 
     this.route.queryParams.pipe(takeUntil(this.destroy$)).subscribe(queryParams => {
       const tab = String(queryParams['tab'] || '').trim().toLowerCase();
@@ -90,12 +89,14 @@ export class EmailsShellComponent implements OnInit, OnDestroy {
     this.loadReservationCodes();
 
     this.globalSelectionService.getSelectedOfficeId$().pipe(skip(1), takeUntil(this.destroy$)).subscribe(officeId => {
-      if (this.showOfficeDropdown) {
-        this.selectedOfficeId = officeId;
-        this.refreshPropertyOptions();
-        this.refreshReservationOptions();
-        this.reloadActiveTabList();
-      }
+      this.applyOfficeFromGlobal(officeId);
+      this.refreshPropertyOptions();
+      this.refreshReservationOptions();
+      queueMicrotask(() => {
+        this.emailsTabList?.onTitleBarOfficeIdUpdate(this.selectedOfficeId);
+        this.alertsTabList?.onTitleBarOfficeIdUpdate(this.selectedOfficeId);
+      });
+      this.reloadActiveTabList();
     });
   }
   //#endregion
@@ -103,7 +104,6 @@ export class EmailsShellComponent implements OnInit, OnDestroy {
   //#region Form Response Methods
   onOfficeDropdownChange(value: string | number | null): void {
     this.selectedOfficeId = value == null || value === '' ? null : Number(value);
-    this.globalSelectionService.setSelectedOfficeId(this.selectedOfficeId);
     this.refreshPropertyOptions();
     this.refreshReservationOptions();
     this.reloadActiveTabList();
@@ -229,19 +229,13 @@ export class EmailsShellComponent implements OnInit, OnDestroy {
 
   //#region Data Loading Methods
   loadOffices(): void {
-    this.globalSelectionService.ensureOfficeScope(this.organizationId, this.preferredOfficeId).pipe(take(1)).subscribe({
+    this.officeService.ensureOfficesLoaded(this.organizationId).pipe(take(1)).subscribe({
       next: () => {
         this.officeService.getAllOffices().pipe(takeUntil(this.destroy$)).subscribe(offices => {
           this.offices = offices || [];
-          this.loadPropertyCodes();
-          this.globalSelectionService.getOfficeUiState$(this.offices, { explicitOfficeId: null, useGlobalSelection: true }).pipe(take(1)).subscribe({
-            next: uiState => {
-              this.showOfficeDropdown = uiState.showOfficeDropdown;
-              this.selectedOfficeId = uiState.selectedOfficeId;
-              this.refreshPropertyOptions();
-              this.refreshReservationOptions();
-            }
-          });
+          this.applyShellOfficeScope();
+          this.refreshPropertyOptions();
+          this.refreshReservationOptions();
         });
       },
       error: () => {
@@ -285,6 +279,33 @@ export class EmailsShellComponent implements OnInit, OnDestroy {
   //#endregion
 
   //#region Utility Methods
+  /** Page-level office filter: seeded from global; does not write global. */
+  private applyShellOfficeScope(): void {
+    this.showOfficeDropdown = this.offices.length > 1;
+    let officeIdToUse = this.selectedOfficeId;
+    if (officeIdToUse != null && !this.offices.some(o => o.officeId === officeIdToUse)) {
+      officeIdToUse = null;
+    }
+    if (this.offices.length === 1) {
+      officeIdToUse = this.offices[0].officeId;
+    }
+    this.selectedOfficeId = officeIdToUse;
+  }
+
+  private applyOfficeFromGlobal(officeId: number | null): void {
+    if (this.offices.length === 0) {
+      this.selectedOfficeId = officeId;
+      return;
+    }
+    this.showOfficeDropdown = this.offices.length > 1;
+    if (this.offices.length === 1) {
+      this.selectedOfficeId = this.offices[0].officeId;
+      return;
+    }
+    const resolved = this.utilityService.resolveSelectedOfficeById(this.offices, officeId)?.officeId ?? officeId ?? null;
+    this.selectedOfficeId = resolved != null && this.offices.some(o => o.officeId === resolved) ? resolved : null;
+  }
+
   refreshReservationOptions(): void {
     const officeFilteredReservations = this.selectedOfficeId == null
       ? this.reservations

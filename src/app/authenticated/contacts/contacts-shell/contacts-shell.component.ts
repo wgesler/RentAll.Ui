@@ -1,7 +1,7 @@
-import { ChangeDetectorRef, Component, OnDestroy, OnInit } from '@angular/core';
+import { ChangeDetectorRef, Component, OnDestroy, OnInit, QueryList, ViewChildren } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, Router } from '@angular/router';
-import { Subject, take, takeUntil } from 'rxjs';
+import { skip, Subject, take, takeUntil } from 'rxjs';
 import { MaterialModule } from '../../../material.module';
 import { AuthService } from '../../../services/auth.service';
 import { ContactService } from '../services/contact.service';
@@ -28,6 +28,8 @@ import { TitleBarSelectComponent } from '../../shared/titlebar-select/titlebar-s
     styleUrls: ['./contacts-shell.component.scss']
 })
 export class ContactsShellComponent implements OnInit, OnDestroy {
+  @ViewChildren(ContactListComponent) contactSections?: QueryList<ContactListComponent>;
+
   EntityType = EntityType;
   selectedTabIndex: number = 0;
   selectedOfficeId: number | null = null;
@@ -36,6 +38,7 @@ export class ContactsShellComponent implements OnInit, OnDestroy {
   selectedOffice: OfficeResponse | null = null;
   showOfficeDropdown: boolean = false;
   organizationId = '';
+  private initialOfficeScopeApplied = false;
   destroy$ = new Subject<void>();
 
   /** Embedded contact form: when set, show form in the tab with this index instead of list. */
@@ -65,6 +68,10 @@ export class ContactsShellComponent implements OnInit, OnDestroy {
       .pipe(takeUntil(this.destroy$))
       .subscribe(params => this.applyQueryParamState(params));
 
+    this.globalSelectionService.getSelectedOfficeId$().pipe(skip(1), takeUntil(this.destroy$)).subscribe(officeId => {
+      this.applyOfficeFromGlobal(officeId);
+    });
+
     this.loadOffices();
   }
 
@@ -74,17 +81,18 @@ export class ContactsShellComponent implements OnInit, OnDestroy {
       this.selectedTabIndex = tabIndex;
     }
 
+    if (params['officeId'] === undefined) {
+      return;
+    }
+
     const officeId = getNumberQueryParam(params, 'officeId');
     if (officeId !== null && this.offices.length > 0) {
-      const matchedOffice = this.offices.find(o => o.officeId === officeId) || null;
-      this.selectedOffice = matchedOffice;
-      this.selectedOfficeId = matchedOffice?.officeId ?? null;
+      this.resolveOfficeScope(officeId);
       return;
     }
 
     if (getStringQueryParam(params, 'officeId') === null) {
-      this.selectedOffice = null;
-      this.selectedOfficeId = null;
+      this.resolveOfficeScope(null);
     }
   }
   //#endregion
@@ -157,23 +165,30 @@ export class ContactsShellComponent implements OnInit, OnDestroy {
       this.officeService.getAllOffices().pipe(takeUntil(this.destroy$)).subscribe(allOffices => {
         this.offices = allOffices || [];
         this.showOfficeDropdown = this.offices.length > 1;
-        this.applyQueryParamState(this.route.snapshot.queryParams);
 
         let didSetInitialOffice = false;
-        if (!this.selectedOffice && this.offices.length === 1) {
-          this.resolveOfficeScope(this.offices[0].officeId);
-          didSetInitialOffice = true;
-        } else if (!this.selectedOffice) {
-          const globalOfficeId = this.globalSelectionService.getSelectedOfficeIdValue();
-          if (globalOfficeId !== null) {
-            const globalOffice = this.offices.find(office => office.officeId === globalOfficeId) || null;
-            if (globalOffice) {
-              this.resolveOfficeScope(globalOffice.officeId);
+        if (!this.initialOfficeScopeApplied) {
+          this.initialOfficeScopeApplied = true;
+          this.applyQueryParamState(this.route.snapshot.queryParams);
+
+          if (this.selectedOfficeId == null && this.offices.length === 1) {
+            this.resolveOfficeScope(this.offices[0].officeId);
+            didSetInitialOffice = true;
+          } else if (this.selectedOfficeId == null) {
+            const globalOfficeId = this.globalSelectionService.getSelectedOfficeIdValue();
+            if (globalOfficeId !== null && this.offices.some(office => office.officeId === globalOfficeId)) {
+              this.resolveOfficeScope(globalOfficeId);
               didSetInitialOffice = true;
             }
+          } else {
+            this.resolveOfficeScope(this.selectedOfficeId);
           }
+        } else if (this.selectedOfficeId != null) {
+          this.resolveOfficeScope(this.selectedOfficeId);
         }
+
         this.cdr.markForCheck();
+        this.propagateOfficeToContactLists();
         if (didSetInitialOffice) {
           this.updateUrlWithCurrentState();
         }
@@ -184,8 +199,40 @@ export class ContactsShellComponent implements OnInit, OnDestroy {
 
   //#region Utility Methods
   resolveOfficeScope(officeId: number | null): void {
-    this.selectedOffice = this.offices.find(o => o.officeId === officeId) || null;
-    this.selectedOfficeId = this.selectedOffice?.officeId ?? null;
+    if (this.offices.length > 0) {
+      this.selectedOffice = this.offices.find(o => o.officeId === officeId) || null;
+      this.selectedOfficeId = this.selectedOffice?.officeId ?? null;
+      return;
+    }
+    this.selectedOffice = null;
+    this.selectedOfficeId = officeId;
+  }
+
+  /** Page-level office follows global header; does not write global. */
+  private applyOfficeFromGlobal(officeId: number | null): void {
+    if (this.offices.length === 1) {
+      this.resolveOfficeScope(this.offices[0].officeId);
+    } else if (this.offices.length > 1) {
+      const resolved = officeId != null && this.offices.some(o => o.officeId === officeId) ? officeId : null;
+      this.resolveOfficeScope(resolved);
+    } else {
+      this.resolveOfficeScope(officeId);
+    }
+    this.updateUrlWithCurrentState();
+    this.cdr.markForCheck();
+    this.propagateOfficeToContactLists();
+  }
+
+  private propagateOfficeToContactLists(): void {
+    queueMicrotask(() => {
+      const scopeOfficeId = this.selectedOfficeId;
+      this.contactSections?.forEach(section => {
+        if (section.offices.length > 0) {
+          section.resolveOfficeScope(scopeOfficeId);
+          section.markViewForCheck();
+        }
+      });
+    });
   }
 
   ngOnDestroy(): void {

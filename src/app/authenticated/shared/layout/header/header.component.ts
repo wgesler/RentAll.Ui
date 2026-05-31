@@ -42,7 +42,6 @@ export class HeaderComponent implements OnInit, OnDestroy {
   offices: OfficeResponse[] = [];
   selectedGlobalOfficeId: number | null = null;
   organizationId = '';
-  private userDefaultOfficeId: number | null = null;
 
   // Profile picture properties
   profilePictureUrl: string | null = null;
@@ -97,11 +96,6 @@ export class HeaderComponent implements OnInit, OnDestroy {
     
     this.userSubscription = this.userService.getUserByGuid(currentUser.userId).pipe(take(1)).subscribe({
       next: (userResponse: UserResponse) => {
-        this.userDefaultOfficeId = userResponse.defaultOfficeId ?? null;
-        // Initialize working office from user's default if we have offices
-        if (this.offices.length > 0 && this.userDefaultOfficeId !== null) {
-          this.globalSelectionService.syncWithAvailableOffices(this.offices, this.userDefaultOfficeId);
-        }
         // Set profile picture URL from fileDetails or profilePath
         if (userResponse.fileDetails && userResponse.fileDetails.file) {
           // Construct data URL from fileDetails
@@ -187,8 +181,7 @@ export class HeaderComponent implements OnInit, OnDestroy {
         }
         const activeOffices = (allOffices || []).filter(office => office.isActive);
         this.offices = this.globalSelectionService.filterOfficeListForUser(activeOffices);
-        const preferredId = this.userDefaultOfficeId ?? this.authService.getUser()?.defaultOfficeId ?? null;
-        this.selectedGlobalOfficeId = this.globalSelectionService.syncWithAvailableOffices(this.offices, preferredId);
+        this.selectedGlobalOfficeId = this.globalSelectionService.syncWithAvailableOffices(this.offices);
         this.markViewForCheck();
       });
     });

@@ -26,7 +26,6 @@ import { UtilityService } from './services/utility.service';
 export class AppComponent implements OnInit, OnDestroy {
   title = 'RentAll.Ui';
   organizationId: string = '';
-  preferredOfficeId: number | null = null;
   isLoggedIn: Observable<boolean> = this.authService.getIsLoggedIn$();
   itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['states', 'dailyQuote', 'organizations', 'branding', 'contacts', 'offices', 'accountingOffices', 'costCodes']));
   isLoading$: Observable<boolean> = this.itemsToLoad$.pipe(map(items => items.size > 0));
@@ -66,7 +65,6 @@ export class AppComponent implements OnInit, OnDestroy {
     this.authService.getIsLoggedIn$().pipe(takeUntil(this.destroy$)).subscribe(isLoggedIn => {
       if (isLoggedIn) {
         this.organizationId = this.authService.getUser()?.organizationId?.trim() ?? '';
-        this.preferredOfficeId = this.authService.getUser()?.defaultOfficeId ?? null;
         this.loadBranding();
         this.initializeOrganizationList();
         this.loadContacts();
@@ -74,7 +72,6 @@ export class AppComponent implements OnInit, OnDestroy {
         this.loadPropertySelectionFilterState();
       } else {
         this.organizationId = '';
-        this.preferredOfficeId = null;
         this.brandingService.clearBranding();
         this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'branding');
         this.organizationListService.clearOrganizations();
@@ -142,7 +139,7 @@ export class AppComponent implements OnInit, OnDestroy {
       this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'accountingOffices');
       return;
     }
-    this.globalSelectionService.ensureOfficeScope(this.organizationId, this.preferredOfficeId).pipe(take(1), finalize(() => {
+    this.globalSelectionService.ensureOfficeScope(this.organizationId).pipe(take(1), finalize(() => {
       this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'offices');
       this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'accountingOffices');
     })).subscribe({

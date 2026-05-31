@@ -68,7 +68,6 @@ export class ReservationListComponent implements OnInit, OnDestroy, OnChanges {
   
   userId: string = '';
   organizationId: string = '';
-  preferredOfficeId: number | null = null;
   propertiesFiltered = false;
   officeScopeResolved = false;
   isCompactView = false;
@@ -128,7 +127,6 @@ export class ReservationListComponent implements OnInit, OnDestroy, OnChanges {
     this.isAdmin = this.authService.isAdmin();
     this.userId = this.user?.userId || '';
     this.organizationId = this.user?.organizationId?.trim() ?? '';
-    this.preferredOfficeId = this.user?.defaultOfficeId ?? null;
     this.setIsActiveCheckboxEditability();
     this.updateDisplayedColumns();
     this.loadOffices();
@@ -168,7 +166,7 @@ export class ReservationListComponent implements OnInit, OnDestroy, OnChanges {
       this.markViewForCheck();
     });
 
-    this.globalSelectionService.ensureOfficeScope(this.organizationId, this.preferredOfficeId).pipe(take(1)).subscribe(() => {
+    this.globalSelectionService.ensureOfficeScope(this.organizationId).pipe(take(1)).subscribe(() => {
       if (this.officeId !== null && this.offices.length > 0) {
         this.selectedOffice = this.offices.find(o => o.officeId === this.officeId) || null;
         if (this.selectedOffice) {
@@ -452,7 +450,7 @@ export class ReservationListComponent implements OnInit, OnDestroy, OnChanges {
   }
 
   loadOffices(): void {
-    this.globalSelectionService.ensureOfficeScope(this.organizationId, this.preferredOfficeId).pipe(take(1), finalize(() => { this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'offices'); })).subscribe({
+    this.globalSelectionService.ensureOfficeScope(this.organizationId).pipe(take(1), finalize(() => { this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'offices'); })).subscribe({
       next: () => {
         this.officeService.getAllOffices().pipe(takeUntil(this.destroy$)).subscribe(offices => {
           this.offices = offices || [];

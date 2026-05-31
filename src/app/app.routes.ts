@@ -10,7 +10,7 @@ import { ContactsShellComponent } from './authenticated/contacts/contacts-shell/
 import { DashboardMainComponent } from './authenticated/dashboards/dashboard-main/dashboard-main.component';
 import { DashboardOwnerComponent } from './authenticated/dashboards/dashboard-owner/dashboard-owner.component';
 import { DashboardServiceComponent } from './authenticated/dashboards/dashboard-service/dashboard-service.component';
-import { DocumentListComponent } from './authenticated/documents/document-list/document-list.component';
+import { DocumentsShellComponent } from './authenticated/documents/documents-shell/documents-shell.component';
 import { DocumentViewComponent } from './authenticated/documents/document-view/document-view.component';
 import { DocumentComponent } from './authenticated/documents/document/document.component';
 import { EmailCreateComponent } from './authenticated/email/email-create/email-create.component';
@@ -204,7 +204,7 @@ export const authRoutes: Routes = [
   { path: RouterToken.Maintenance, component: MaintenanceShellComponent, canActivate: [authRouteGuard], canDeactivate: [canDeactivateGuard] },
   { path: RouterToken.PropertyList, component: PropertyListComponent, canActivate: [authRouteGuard] },
   { path: RouterToken.Property, component: PropertyShellComponent, canActivate: [authRouteGuard], canDeactivate: [canDeactivateGuard] },
-  { path: RouterToken.DocumentList, component: DocumentListComponent, canActivate: [authRouteGuard] },
+  { path: RouterToken.DocumentList, component: DocumentsShellComponent, canActivate: [authRouteGuard] },
   { path: RouterToken.DocumentView, component: DocumentViewComponent, canActivate: [authRouteGuard] },
   { path: RouterToken.Document, component: DocumentComponent, canActivate: [authRouteGuard] },
   { path: RouterToken.EmailList, component: EmailsShellComponent, canActivate: [authRouteGuard] },
