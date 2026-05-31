@@ -47,11 +47,6 @@ export class EmailComponent implements OnInit, OnDestroy {
     });
   }
 
-  ngOnDestroy(): void {
-    this.destroy$.next();
-    this.destroy$.complete();
-  }
-
   loadEmail(): void {
     this.isLoading = true;
     this.isServiceError = false;
@@ -68,9 +63,28 @@ export class EmailComponent implements OnInit, OnDestroy {
       }
     });
   }
+    
+  formatRecipients(recipients: EmailAddress[] | undefined): string {
+    if (!recipients || recipients.length === 0) {
+      return '';
+    }
+
+    return recipients
+      .map(recipient => {
+        const email = recipient?.email || '';
+        const name = recipient?.name || '';
+        if (name && email) {
+          return `${name}<${email}>`;
+        }
+
+        return email || name;
+      })
+      .filter(Boolean)
+      .join('; ');
+  }
   //#endregion
 
-  //#region Utility Methods
+  //#region Get Methods
   get formattedCreatedOn(): string {
     return this.formatter.formatDateTimeString(this.email?.createdOn) || (this.email?.createdOn || '');
   }
@@ -105,7 +119,9 @@ export class EmailComponent implements OnInit, OnDestroy {
     const showWorkOrdersTab = !isInspector;
     return showWorkOrdersTab ? 4 : 3;
   }
+  //#endregion
 
+  //#region Utility Methods
   back(): void {
     const queryParams = this.route.snapshot.queryParams;
     const returnTo = queryParams['returnTo'];
@@ -180,24 +196,10 @@ export class EmailComponent implements OnInit, OnDestroy {
 
     this.router.navigateByUrl(RouterUrl.EmailList);
   }
-  //#endregion
-
-  formatRecipients(recipients: EmailAddress[] | undefined): string {
-    if (!recipients || recipients.length === 0) {
-      return '';
-    }
-
-    return recipients
-      .map(recipient => {
-        const email = recipient?.email || '';
-        const name = recipient?.name || '';
-        if (name && email) {
-          return `${name}<${email}>`;
-        }
-
-        return email || name;
-      })
-      .filter(Boolean)
-      .join('; ');
+  
+  ngOnDestroy(): void {
+    this.destroy$.next();
+    this.destroy$.complete();
   }
+  //#endregion
 }

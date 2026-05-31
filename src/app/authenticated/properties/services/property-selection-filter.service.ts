@@ -75,10 +75,6 @@ export class PropertySelectionFilterService {
     this._propertiesFiltered.next(this.selectionFiltersApplied || this.dateRangeApplied);
   }
 
-  getDateRangeValue(): { startDate: Date | null; endDate: Date | null } {
-    return this._dateRange.value;
-  }
-
   setDateRange(startDate: Date | null, endDate: Date | null): void {
     this.dateRangeApplied = !!startDate || !!endDate;
     this._dateRange.next({ startDate, endDate });

@@ -1,5 +1,10 @@
 <div class="listing-container">
-  @if (property) {
+  @if (!isPageReady) {
+    <div class="loading-container">
+      <mat-spinner [diameter]="40"></mat-spinner>
+      <p>Loading property listing...</p>
+    </div>
+  } @else if (property) {
     <div class="listing-hero">
       <div class="listing-hero__main">
         <div class="listing-hero__main-header">
@@ -32,11 +37,6 @@
                   <mat-icon>link</mat-icon>
                   Copy Link
                 </button>
-                @if (isUploadingPhotos) {
-                  <div class="listing-uploading-inline">
-                    <mat-spinner [diameter]="18"></mat-spinner>
-                  </div>
-                }
               </div>
             </div>
           }
@@ -86,6 +86,7 @@
               <div class="listing-photo-grid" cdkDropList [cdkDropListData]="listingPhotos" [cdkDropListDisabled]="isReadOnly || isReorderingPhotos" [cdkDropListSortingDisabled]="true" (cdkDropListDropped)="onPhotoDrop($event)">
                 @for (photo of listingPhotos; track photo.id) {
                   <div class="listing-photo-card"
+                    [class.listing-photo-card--pending]="photo.isPending"
                     cdkDrag
                     [cdkDragData]="photo"
                     [cdkDragDisabled]="isReadOnly || isReorderingPhotos"
@@ -110,6 +111,11 @@
                       [alt]="photo.fileDetails?.fileName || 'Property photo'"
                       class="listing-photo-card__img"
                       (click)="openPhotoDialog(photo.id)" />
+                    @if (photo.isPending) {
+                      <div class="listing-photo-card__pending-overlay">
+                        <mat-spinner [diameter]="22"></mat-spinner>
+                      </div>
+                    }
                   </div>
                 }
               </div>

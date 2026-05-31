@@ -15,10 +15,6 @@ export class PropertyPhotoService {
     private configService: ConfigService
   ) {}
 
-  getPropertyPhotoById(photoId: number): Observable<PropertyPhotoResponse> {
-    return this.http.get<PropertyPhotoResponse>(this.controller + 'photo/' + photoId);
-  }
-
   getPropertyPhotosByPropertyId(propertyId: string): Observable<PropertyPhotoResponse[]> {
     return this.http.get<PropertyPhotoResponse[]>(this.controller + propertyId + '/photos');
   }

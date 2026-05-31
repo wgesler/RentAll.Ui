@@ -1,7 +1,12 @@
 import { CommonModule } from '@angular/common';
-import { AfterViewChecked, Component, ElementRef, Input, OnChanges, SimpleChanges, ViewChild } from '@angular/core';
+import { AfterViewChecked, ChangeDetectorRef, Component, ElementRef, Input, OnChanges, OnDestroy, OnInit, SimpleChanges, ViewChild } from '@angular/core';
 import { CdkDragDrop, CdkDragMove, DragDropModule } from '@angular/cdk/drag-drop';
-import { getCheckInTime, getCheckOutTime, getPropertyStatus, getPropertyStyle, getPropertyType } from '../models/property-enums';
+import { getPropertyType } from '../models/property-enums';
+import {
+  ListingAmenityIconItem,
+  ListingHighlightItem,
+  ListingPhotoItem
+} from '../models/property-listing.model';
 import { PropertyPhotoRequest, PropertyPhotoResponse } from '../models/property-photo.model';
 import { PropertyResponse } from '../models/property.model';
 import { PropertyListingShareService } from '../services/property-listing-share.service';
@@ -10,32 +15,14 @@ import { MaterialModule } from '../../../material.module';
 import { FormatterService } from '../../../services/formatter-service';
 import { FileDetails } from '../../../shared/models/fileDetails';
 import { Clipboard } from '@angular/cdk/clipboard';
-import { firstValueFrom } from 'rxjs';
-import { take } from 'rxjs/operators';
+import { BehaviorSubject, Observable, Subject, firstValueFrom } from 'rxjs';
+import { finalize, map, take, takeUntil } from 'rxjs/operators';
 import { ToastrService } from 'ngx-toastr';
 import { CommonMessage } from '../../../enums/common-message.enum';
 import { UtilityService } from '../../../services/utility.service';
 import { DomSanitizer, SafeHtml } from '@angular/platform-browser';
 import { MatDialog } from '@angular/material/dialog';
 import { ImageViewDialogComponent } from '../../shared/modals/image-view-dialog/image-view-dialog.component';
-
-interface ListingPhotoItem {
-  id: string;
-  order: number;
-  fileDetails: FileDetails | null;
-  photoPath?: string;
-}
-
-interface ListingHighlightItem {
-  icon: string;
-  label: string;
-  value: string;
-}
-
-interface ListingAmenityIconItem {
-  icon: string;
-  label: string;
-}
 
 @Component({
   standalone: true,
@@ -44,7 +31,7 @@ interface ListingAmenityIconItem {
   templateUrl: './property-listing.component.html',
   styleUrl: './property-listing.component.scss'
 })
-export class PropertyListingComponent implements OnChanges, AfterViewChecked {
+export class PropertyListingComponent implements OnInit, OnChanges, OnDestroy, AfterViewChecked {
   @Input() propertyId: string | null = null;
   @Input() officeId: number | null = null;
   @Input() propertyCode: string | null = null;
@@ -55,7 +42,6 @@ export class PropertyListingComponent implements OnChanges, AfterViewChecked {
   @Input() hideRateCard = false;
 
   listingPhotos: ListingPhotoItem[] = [];
-  isUploadingPhotos = false;
   isReorderingPhotos = false;
   isDraggingPhoto = false;
   draggingPhotoId: string | null = null;
@@ -68,38 +54,134 @@ export class PropertyListingComponent implements OnChanges, AfterViewChecked {
   listingAmenitiesHtmlValue = '';
   pendingDescriptionOverflowCheck = false;
   descriptionOverflowCheckScheduled = false;
+  isPageReady = false;
+  itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['property']));
+  isLoading$: Observable<boolean> = this.itemsToLoad$.pipe(map(items => items.size > 0));
+  destroy$ = new Subject<void>();
+  photosLoadedForPropertyId: string | null = null;
+  readonly photoUploadConcurrency = 3;
   @ViewChild('photoUploadInput') photoUploadInput?: ElementRef<HTMLInputElement>;
   @ViewChild('descriptionContent') descriptionContent?: ElementRef<HTMLElement>;
 
   constructor(
-    private formatter: FormatterService,
-    private propertyPhotoService: PropertyPhotoService,
-    private propertyListingShareService: PropertyListingShareService,
-    private clipboard: Clipboard,
-    private toastr: ToastrService,
-    private utilityService: UtilityService,
-    private sanitizer: DomSanitizer,
-    private dialog: MatDialog
+    public formatter: FormatterService,
+    public propertyPhotoService: PropertyPhotoService,
+    public propertyListingShareService: PropertyListingShareService,
+    public clipboard: Clipboard,
+    public toastr: ToastrService,
+    public utilityService: UtilityService,
+    public sanitizer: DomSanitizer,
+    public dialog: MatDialog,
+    public cdr: ChangeDetectorRef
   ) {}
 
   //#region Property Listing
+  ngOnInit(): void {
+    this.itemsToLoad$.pipe(takeUntil(this.destroy$)).subscribe(items => {
+      this.isPageReady = items.size === 0;
+      this.markViewForCheck();
+    });
+    
+    this.syncListingFromInputs();
+  }
+
   ngOnChanges(changes: SimpleChanges): void {
-    if (changes['property']) {
-      this.listingDescriptionExpanded = false;
-      this.descriptionHasOverflow = false;
-      this.pendingDescriptionOverflowCheck = true;
-      this.refreshListingDescriptionHtml();
-      this.refreshListingAmenitiesHtml();
-      this.queueDescriptionOverflowCheck();
+    if (changes['property'] && !changes['property'].firstChange) {
+      this.syncListingFromInputs();
     }
 
-    if (changes['initialPhotos']) {
+    if (changes['propertyId'] && !changes['propertyId'].firstChange) {
+      this.photosLoadedForPropertyId = null;
+      this.syncListingFromInputs();
+    }
+
+    if (changes['initialPhotos'] && !changes['initialPhotos'].firstChange) {
+      this.loadListingPhotos();
+    }
+  }
+
+  getActivePropertyId(): string | null {
+    const id = this.property?.propertyId || this.propertyId;
+    return id ? String(id).trim() : null;
+  }
+
+  syncListingFromInputs(): void {
+    this.resolvePropertyLoad();
+    const activePropertyId = this.getActivePropertyId();
+    if (!activePropertyId) {
+      this.loadListingPhotos();
+      return;
+    }
+
+    if (this.hasPendingPhotoUploads()) {
+      return;
+    }
+
+    if (this.photosLoadedForPropertyId !== activePropertyId || this.listingPhotos.length === 0) {
+      this.loadListingPhotos();
+    }
+  }
+
+  hasPendingPhotoUploads(): boolean {
+    return this.listingPhotos.some(photo => photo.isPending || photo.id.startsWith('temp-'));
+  }
+
+  resolvePropertyLoad(): void {
+    const activePropertyId = this.getActivePropertyId();
+    if (!activePropertyId) {
+      this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'property');
+      return;
+    }
+
+    if (!this.property) {
+      this.utilityService.addLoadItem(this.itemsToLoad$, 'property');
+      return;
+    }
+
+    this.listingDescriptionExpanded = false;
+    this.descriptionHasOverflow = false;
+    this.pendingDescriptionOverflowCheck = true;
+    this.refreshListingDescriptionHtml();
+    this.refreshListingAmenitiesHtml();
+    this.queueDescriptionOverflowCheck();
+    this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'property');
+  }
+
+  loadListingPhotos(): void {
+    const activePropertyId = this.getActivePropertyId();
+    if (!activePropertyId) {
+      this.listingPhotos = [];
+      this.photosLoadedForPropertyId = null;
+      return;
+    }
+
+    if (this.disablePhotoApiLoad) {
       this.applyInitialPhotos();
+      this.photosLoadedForPropertyId = activePropertyId;
+      return;
     }
 
-    if ((changes['property'] || changes['propertyId']) && !this.disablePhotoApiLoad) {
-      this.loadPropertyPhotos();
-    }
+    this.propertyPhotoService.getPropertyPhotosByPropertyId(activePropertyId).pipe(take(1),finalize(() => this.cdr.markForCheck())).subscribe({
+      next: (photos) => {
+        this.photosLoadedForPropertyId = activePropertyId;
+        this.listingPhotos = (photos || [])
+          .slice()
+          .sort((a, b) => Number(a.order ?? 0) - Number(b.order ?? 0))
+          .map(photo => ({
+            id: String(photo.photoId),
+            order: Number(photo.order ?? 0),
+            fileDetails: photo.fileDetails ?? null,
+            photoPath: photo.photoPath
+          }));
+        this.normalizeInMemoryPhotoOrder();
+        this.cdr.markForCheck();
+      },
+      error: () => {
+        this.listingPhotos = [];
+        this.photosLoadedForPropertyId = activePropertyId;
+        this.cdr.markForCheck();
+      }
+    });
   }
 
   ngAfterViewChecked(): void {
@@ -145,19 +227,6 @@ export class PropertyListingComponent implements OnChanges, AfterViewChecked {
     return `${parts.join(' ')}.`;
   }
 
-  get hasRichDescription(): boolean {
-    const value = this.property?.description?.trim() || '';
-    return /<[^>]+>/.test(value);
-  }
-
-  get listingDescriptionHtml(): string {
-    return this.listingDescriptionHtmlValue;
-  }
-
-  get listingDescriptionHtmlPreview(): string {
-    return this.listingDescriptionHtml;
-  }
-
   get listingContentHtmlDisplay(): SafeHtml {
     return this.listingContentSafeHtml;
   }
@@ -176,37 +245,6 @@ export class PropertyListingComponent implements OnChanges, AfterViewChecked {
 
   get listingPropertyType(): string {
     return getPropertyType(this.property?.propertyTypeId);
-  }
-
-  get listingPropertyStyle(): string {
-    return getPropertyStyle(this.property?.propertyStyleId);
-  }
-
-  get listingPropertyStatus(): string {
-    return getPropertyStatus(this.property?.propertyStatusId);
-  }
-
-  get listingCheckInTime(): string {
-    return getCheckInTime(this.property?.checkInTimeId);
-  }
-
-  get listingCheckOutTime(): string {
-    return getCheckOutTime(this.property?.checkOutTimeId);
-  }
-
-  get listingFeatureBadges(): string[] {
-    if (!this.property) return [];
-    const features: string[] = [];
-    if (this.property.fastInternet) features.push('Fast Internet');
-    if (this.property.parking) features.push('Parking');
-    if (this.property.washerDryerInUnit) features.push('Washer/Dryer In Unit');
-    if (this.property.washerDryerInBldg) features.push('Washer/Dryer In Building');
-    if (this.property.commonPool) features.push('Common Pool');
-    if (this.property.privatePool) features.push('Private Pool');
-    if (this.property.gym) features.push('Gym');
-    if (this.property.security) features.push('Security');
-    if (this.property.gated) features.push('Gated');
-    return features;
   }
 
   get highlightColumnOne(): ListingHighlightItem[] {
@@ -289,31 +327,6 @@ export class PropertyListingComponent implements OnChanges, AfterViewChecked {
 
   get isMonthlyRateZero(): boolean {
     return Number(this.property?.monthlyRate || 0) === 0;
-  }
-
-  get listingSizeLine(): string {
-    if (!this.property) return '';
-    return `${this.property.bedrooms}/${this.property.bathrooms} | Sleeps ${this.property.accomodates} | ${this.property.squareFeet} sq ft`;
-  }
-   
-  getAmenityIcon(amenity: string): string {
-    const value = (amenity || '').toLowerCase();
-    if (value.includes('washer') || value.includes('dryer') || value.includes('laundry')) return 'local_laundry_service';
-    if (value.includes('gym') || value.includes('fitness')) return 'fitness_center';
-    if (value.includes('sauna')) return 'spa';
-    if (value.includes('jacuzzi') || value.includes('hot tub')) return 'hot_tub';
-    if (value.includes('pool')) return 'pool';
-    if (value.includes('deck')) return 'deck';
-    if (value.includes('patio')) return 'table_restaurant';
-    if (value.includes('yard')) return 'grass';
-    if (value.includes('garden')) return 'local_florist';
-    if (value.includes('parking') || value.includes('garage')) return 'local_parking';
-    if (value.includes('elevator')) return 'elevator';
-    if (value.includes('air conditioning') || value === 'ac') return 'ac_unit';
-    if (value.includes('wifi') || value.includes('internet')) return 'wifi';
-    if (value.includes('kitchen')) return 'kitchen';
-    if (value.includes('security') || value.includes('gated')) return 'security';
-    return 'check_circle';
   }
   //#endregion
 
@@ -413,48 +426,102 @@ export class PropertyListingComponent implements OnChanges, AfterViewChecked {
       return;
     }
 
-    this.isUploadingPhotos = true;
+    const activePropertyId = this.property?.propertyId || this.propertyId;
+    if (!activePropertyId) {
+      input.value = '';
+      return;
+    }
+
     try {
-      const activePropertyId = this.property?.propertyId || this.propertyId;
-      if (!activePropertyId) {
+      await this.uploadPhotosInParallel(files, activePropertyId);
+    } finally {
+      input.value = '';
+      this.cdr.markForCheck();
+    }
+  }
+
+  async uploadPhotosInParallel(files: File[], propertyId: string): Promise<void> {
+    const queue = [...files];
+    const workerCount = Math.min(this.photoUploadConcurrency, queue.length);
+
+    const runWorker = async (): Promise<void> => {
+      const file = queue.shift();
+      if (!file) {
         return;
       }
 
-      for (const file of files) {
-        const fileDetails = await this.createOptimizedPhotoDetails(file);
-        const tempId = `temp-${Date.now()}-${Math.random().toString(36).slice(2)}`;
-        this.listingPhotos.push({
-          id: tempId,
-          order: this.listingPhotos.length,
-          fileDetails
-        });
+      await this.uploadSinglePhoto(file, propertyId);
+      await runWorker();
+    };
 
-        const request: PropertyPhotoRequest = {
-          order: this.listingPhotos.length - 1,
-          fileDetails
-        };
+    await Promise.all(Array.from({ length: workerCount }, () => runWorker()));
+    this.normalizeInMemoryPhotoOrder();
+    this.photosLoadedForPropertyId = propertyId;
+  }
 
-        let response: PropertyPhotoResponse | null = null;
-        try {
-          response = await firstValueFrom(this.propertyPhotoService.addPropertyPhoto(activePropertyId, request));
-        } catch {
-          response = null;
-        }
+  async uploadSinglePhoto(file: File, propertyId: string): Promise<void> {
+    const tempId = `temp-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+    const previewUrl = URL.createObjectURL(file);
 
-        if (!response?.photoId) {
-          continue;
-        }
-
-        this.listingPhotos = this.listingPhotos.map(photo =>
-          photo.id === tempId
-            ? { ...photo, id: String(response.photoId), order: response.order ?? photo.order }
-            : photo
-        );
-        this.normalizeInMemoryPhotoOrder();
+    this.listingPhotos = [
+      ...this.listingPhotos,
+      {
+        id: tempId,
+        order: this.listingPhotos.length,
+        fileDetails: {
+          contentType: file.type || 'image/jpeg',
+          fileName: file.name,
+          file: '',
+          dataUrl: previewUrl
+        },
+        isPending: true
       }
+    ];
+    this.cdr.markForCheck();
+
+    try {
+      const fileDetails = await this.createOptimizedPhotoDetails(file);
+      this.listingPhotos = this.listingPhotos.map(photo =>
+        photo.id === tempId ? { ...photo, fileDetails, isPending: true } : photo
+      );
+      this.cdr.markForCheck();
+
+      const request: PropertyPhotoRequest = {
+        order: this.listingPhotos.findIndex(photo => photo.id === tempId),
+        fileDetails
+      };
+
+      let response: PropertyPhotoResponse | null = null;
+      try {
+        response = await firstValueFrom(this.propertyPhotoService.addPropertyPhoto(propertyId, request));
+      } catch {
+        response = null;
+      }
+
+      if (!response?.photoId) {
+        this.listingPhotos = this.listingPhotos.filter(photo => photo.id !== tempId);
+        this.toastr.error(`Unable to upload ${file.name}.`, CommonMessage.Error);
+        return;
+      }
+
+      this.listingPhotos = this.listingPhotos.map(photo =>
+        photo.id === tempId
+          ? {
+            ...photo,
+            id: String(response.photoId),
+            order: response.order ?? photo.order,
+            fileDetails: response.fileDetails ?? fileDetails,
+            photoPath: response.photoPath,
+            isPending: false
+          }
+          : photo
+      );
+    } catch {
+      this.listingPhotos = this.listingPhotos.filter(photo => photo.id !== tempId);
+      this.toastr.error(`Unable to upload ${file.name}.`, CommonMessage.Error);
     } finally {
-      this.isUploadingPhotos = false;
-      input.value = '';
+      URL.revokeObjectURL(previewUrl);
+      this.cdr.markForCheck();
     }
   }
 
@@ -698,32 +765,6 @@ export class PropertyListingComponent implements OnChanges, AfterViewChecked {
     });
   }
 
-  loadPropertyPhotos(): void {
-    const activePropertyId = this.property?.propertyId || this.propertyId;
-    if (!activePropertyId) {
-      this.listingPhotos = [];
-      return;
-    }
-
-    this.propertyPhotoService.getPropertyPhotosByPropertyId(activePropertyId).pipe(take(1)).subscribe({
-      next: (photos) => {
-        this.listingPhotos = (photos || [])
-          .slice()
-          .sort((a, b) => Number(a.order ?? 0) - Number(b.order ?? 0))
-          .map(photo => ({
-          id: String(photo.photoId),
-          order: Number(photo.order ?? 0),
-          fileDetails: photo.fileDetails ?? null,
-          photoPath: photo.photoPath
-        }));
-        this.normalizeInMemoryPhotoOrder();
-      },
-      error: () => {
-        this.listingPhotos = [];
-      }
-    });
-  }
-
   applyInitialPhotos(): void {
     this.listingPhotos = (this.initialPhotos || [])
       .slice()
@@ -752,6 +793,18 @@ export class PropertyListingComponent implements OnChanges, AfterViewChecked {
   async createOptimizedPhotoDetails(file: File): Promise<FileDetails> {
     const payload = await this.utilityService.buildOptimizedUploadPayload(file);
     return payload.fileDetails;
+  }
+  //#endregion
+
+  //#region Utility Methods
+  markViewForCheck(): void {
+    this.cdr.markForCheck();
+  }
+
+  ngOnDestroy(): void {
+    this.destroy$.next();
+    this.destroy$.complete();
+    this.itemsToLoad$.complete();
   }
   //#endregion
 }

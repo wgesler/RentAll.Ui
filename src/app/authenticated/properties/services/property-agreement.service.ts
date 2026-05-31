@@ -26,8 +26,4 @@ export class PropertyAgreementService {
   updatePropertyAgreement(agreement: PropertyAgreementRequest): Observable<PropertyAgreementResponse> {
     return this.http.put<PropertyAgreementResponse>(this.agreementUrl, agreement);
   }
-
-  deletePropertyAgreement(propertyId: string): Observable<void> {
-    return this.http.delete<void>(`${this.agreementUrl}/${propertyId}`);
-  }
 }

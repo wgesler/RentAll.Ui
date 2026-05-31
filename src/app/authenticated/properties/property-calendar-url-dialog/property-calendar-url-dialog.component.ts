@@ -78,9 +78,5 @@ export class PropertyCalendarUrlDialogComponent {
       return String(value);
     }
   }
-
-  closeDialog(): void {
-    this.dialogRef.close();
-  }
 }
 

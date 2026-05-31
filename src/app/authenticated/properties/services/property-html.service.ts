@@ -2,7 +2,7 @@ import { HttpClient } from '@angular/common/http';
 import { Injectable } from '@angular/core';
 import { Observable } from 'rxjs';
 import { ConfigService } from '../../../services/config.service';
-import { PropertyHtmlRequest, PropertyHtmlResponse } from '../models/property-html.model';
+import { PropertyHtmlResponse } from '../models/property-html.model';
 
 
 
@@ -21,16 +21,6 @@ export class PropertyHtmlService {
   // GET: Get Html letter by property ID
   getPropertyHtmlByPropertyId(propertyId: string): Observable<PropertyHtmlResponse> {
     return this.http.get<PropertyHtmlResponse>(this.controller + propertyId);
-  }
-
-  // PUT: Update property html by property ID
-  upsertPropertyHtml(request: PropertyHtmlRequest): Observable<PropertyHtmlResponse> {
-    return this.http.put<PropertyHtmlResponse>(this.controller , request);
-  }
-
-  // DELETE: Delete property html by property ID
-  deletePropertyHtml(propertyId: string): Observable<void> {
-    return this.http.delete<void>(this.controller + propertyId);
   }
 }
 

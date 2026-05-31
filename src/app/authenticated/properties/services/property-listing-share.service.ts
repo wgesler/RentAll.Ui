@@ -45,10 +45,6 @@ export class PropertyListingShareService {
     return `${origin}/listing/${normalized}`;
   }
 
-  revokePropertyShareLink(propertyId: string): Observable<void> {
-    return this.http.delete<void>(this.propertyController + propertyId + '/share-link');
-  }
-
   getPublicPropertyListingByToken(token: string): Observable<PublicPropertyListingResponse> {
     const normalized = this.normalizeListingShareToken(token);
     return this.rawHttp.get<PublicPropertyListingResponse>(this.commonController + 'property-listing/' + normalized);

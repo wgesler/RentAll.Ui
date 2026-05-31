@@ -779,6 +779,17 @@ export class PropertyAgreementComponent implements OnInit, OnChanges, OnDestroy 
     }
   }
 
+  getAgreementW9PreviewSource(): string | null {
+    if (this.isVendorAttachmentMode) {
+      if (this.vendorW9FileDataUrl?.startsWith('data:')) return this.vendorW9FileDataUrl;
+      const vendorDataUrl = this.utilityService.resolveFileDetailsDataUrl(this.vendorW9FileDetails, this.vendorW9Path);
+      return vendorDataUrl?.startsWith('data:') ? vendorDataUrl : null;
+    }
+    if (this.agreementW9FileDataUrl?.startsWith('data:')) return this.agreementW9FileDataUrl;
+    const detailsDataUrl = this.utilityService.resolveFileDetailsDataUrl(this.agreementW9FileDetails, this.agreementW9Path);
+    return detailsDataUrl?.startsWith('data:') ? detailsDataUrl : null;
+  }
+
   onAgreementW9FileSelected(event: Event): void {
     const input = event.target as HTMLInputElement;
     if (!input.files?.length) {
@@ -863,6 +874,17 @@ export class PropertyAgreementComponent implements OnInit, OnChanges, OnDestroy 
     if (this.agreementInsuranceFileInputRef?.nativeElement) {
       this.agreementInsuranceFileInputRef.nativeElement.value = '';
     }
+  }
+
+  getAgreementInsurancePreviewSource(): string | null {
+    if (this.isVendorAttachmentMode) {
+      if (this.vendorInsuranceFileDataUrl?.startsWith('data:')) return this.vendorInsuranceFileDataUrl;
+      const vendorDataUrl = this.utilityService.resolveFileDetailsDataUrl(this.vendorInsuranceFileDetails, this.vendorInsurancePath);
+      return vendorDataUrl?.startsWith('data:') ? vendorDataUrl : null;
+    }
+    if (this.agreementInsuranceFileDataUrl?.startsWith('data:')) return this.agreementInsuranceFileDataUrl;
+    const detailsDataUrl = this.utilityService.resolveFileDetailsDataUrl(this.agreementInsuranceFileDetails, this.agreementInsurancePath);
+    return detailsDataUrl?.startsWith('data:') ? detailsDataUrl : null;
   }
 
   onAgreementInsuranceFileSelected(event: Event): void {
@@ -951,6 +973,11 @@ export class PropertyAgreementComponent implements OnInit, OnChanges, OnDestroy 
     }
   }
 
+  getAgreementDocPreviewSource(): string | null {
+    if (this.agreementDocFileDataUrl?.startsWith('data:')) return this.agreementDocFileDataUrl;
+    const detailsDataUrl = this.utilityService.resolveFileDetailsDataUrl(this.agreementDocFileDetails, this.agreementDocPath);
+    return detailsDataUrl?.startsWith('data:') ? detailsDataUrl : null;
+  }
   onAgreementDocFileSelected(event: Event): void {
     const input = event.target as HTMLInputElement;
     if (!input.files?.length) {
@@ -1160,34 +1187,6 @@ export class PropertyAgreementComponent implements OnInit, OnChanges, OnDestroy 
         }
       }
     );
-  }
-
-  getAgreementW9PreviewSource(): string | null {
-    if (this.isVendorAttachmentMode) {
-      if (this.vendorW9FileDataUrl?.startsWith('data:')) return this.vendorW9FileDataUrl;
-      const vendorDataUrl = this.utilityService.resolveFileDetailsDataUrl(this.vendorW9FileDetails, this.vendorW9Path);
-      return vendorDataUrl?.startsWith('data:') ? vendorDataUrl : null;
-    }
-    if (this.agreementW9FileDataUrl?.startsWith('data:')) return this.agreementW9FileDataUrl;
-    const detailsDataUrl = this.utilityService.resolveFileDetailsDataUrl(this.agreementW9FileDetails, this.agreementW9Path);
-    return detailsDataUrl?.startsWith('data:') ? detailsDataUrl : null;
-  }
-
-  getAgreementInsurancePreviewSource(): string | null {
-    if (this.isVendorAttachmentMode) {
-      if (this.vendorInsuranceFileDataUrl?.startsWith('data:')) return this.vendorInsuranceFileDataUrl;
-      const vendorDataUrl = this.utilityService.resolveFileDetailsDataUrl(this.vendorInsuranceFileDetails, this.vendorInsurancePath);
-      return vendorDataUrl?.startsWith('data:') ? vendorDataUrl : null;
-    }
-    if (this.agreementInsuranceFileDataUrl?.startsWith('data:')) return this.agreementInsuranceFileDataUrl;
-    const detailsDataUrl = this.utilityService.resolveFileDetailsDataUrl(this.agreementInsuranceFileDetails, this.agreementInsurancePath);
-    return detailsDataUrl?.startsWith('data:') ? detailsDataUrl : null;
-  }
-
-  getAgreementDocPreviewSource(): string | null {
-    if (this.agreementDocFileDataUrl?.startsWith('data:')) return this.agreementDocFileDataUrl;
-    const detailsDataUrl = this.utilityService.resolveFileDetailsDataUrl(this.agreementDocFileDetails, this.agreementDocPath);
-    return detailsDataUrl?.startsWith('data:') ? detailsDataUrl : null;
   }
 
   getAgreementAttachmentContentType(title: string): string | null {

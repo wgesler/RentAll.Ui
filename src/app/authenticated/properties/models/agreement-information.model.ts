@@ -55,33 +55,3 @@ export interface AgreementInformationResponse {
   sectionNineteenAdditionalForms?: string | null;
   inWitnessWhereof?: string | null;
 }
-
-export function replaceAgreementInformationSections(
-  html: string,
-  agreementInformation: Partial<AgreementInformationRequest> | null | undefined
-): string {
-  const content = agreementInformation ?? {};
-  return html
-    .replace(/\{\{agreementIntroductionSection\}\}/g, content.agreementIntroduction || '')
-    .replace(/\{\{recitalsSection\}\}/g, content.recitals || '')
-    .replace(/\{\{sectionOneEmploymentOfAvenueWestSection\}\}/g, content.sectionOneEmploymentOfAvenueWest || '')
-    .replace(/\{\{sectionTwoAgentDutiesSection\}\}/g, content.sectionTwoAgentDuties || '')
-    .replace(/\{\{sectionThreeOwnersDutiesSection\}\}/g, content.sectionThreeOwnersDuties || '')
-    .replace(/\{\{sectionFourAdvertisingAndPromotionSection\}\}/g, content.sectionFourAdvertisingAndPromotion || '')
-    .replace(/\{\{sectionFiveMaintenanceRepairsAndOperationsSection\}\}/g, content.sectionFiveMaintenanceRepairsAndOperations || '')
-    .replace(/\{\{sectionSixReimbursementsSection\}\}/g, content.sectionSixReimbursements || '')
-    .replace(/\{\{sectionSevenGovernmentRegulationsSection\}\}/g, content.sectionSevenGovernmentRegulations || '')
-    .replace(/\{\{sectionEightInsuranceSection\}\}/g, content.sectionEightInsurance || '')
-    .replace(/\{\{sectionNineCollectionOfIncomeAndInstitutionOfLegalActionSection\}\}/g, content.sectionNineCollectionOfIncomeAndInstitutionOfLegalAction || '')
-    .replace(/\{\{sectionTenBankAccountsSection\}\}/g, content.sectionTenBankAccounts || '')
-    .replace(/\{\{sectionElevenRecordsAndReportsSection\}\}/g, content.sectionElevenRecordsAndReports || '')
-    .replace(/\{\{sectionTwelveAdditionalDutiesAndRightsOfAvenueWestSection\}\}/g, content.sectionTwelveAdditionalDutiesAndRightsOfAvenueWest || '')
-    .replace(/\{\{sectionThirteenTerminationAndRenewalSection\}\}/g, content.sectionThirteenTerminationAndRenewal || '')
-    .replace(/\{\{sectionFourteenSaleOfPropertyAccessSection\}\}/g, content.sectionFourteenSaleOfPropertyAccess || '')
-    .replace(/\{\{sectionFifteenSummaryOfFeesSection\}\}/g, content.sectionFifteenSummaryOfFees || '')
-    .replace(/\{\{sectionSixteenForeignOwnershipSection\}\}/g, content.sectionSixteenForeignOwnership || '')
-    .replace(/\{\{sectionSeventeenIndemnitySection\}\}/g, content.sectionSeventeenIndemnity || '')
-    .replace(/\{\{sectionEighteenMiscellaneousSection\}\}/g, content.sectionEighteenMiscellaneous || '')
-    .replace(/\{\{sectionNineteenAdditionalFormsSection\}\}/g, content.sectionNineteenAdditionalForms || '')
-    .replace(/\{\{inWitnessWhereofSection\}\}/g, content.inWitnessWhereof || '');
-}

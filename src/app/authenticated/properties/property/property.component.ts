@@ -93,6 +93,7 @@ export class PropertyComponent implements OnInit, OnChanges, AfterViewInit, OnDe
   @Input() shellPropertyState: string | null = null;
   @Input() shellPropertyZip: string | null = null;
   @Input() ownerPrimaryContactId: string | null = null;
+  @Input() shellMode = false;
   @Input() shellOfficeId: number | null = null;
   @Input() shellOrganizationId: string | null = null;
   @Input() publicOwnerToken: string | null = null;
@@ -194,7 +195,7 @@ export class PropertyComponent implements OnInit, OnChanges, AfterViewInit, OnDe
     this.loadBuildings();
 
     this.globalSelectionService.getSelectedOfficeId$().pipe(skip(1), takeUntil(this.destroy$)).subscribe(officeId => {
-      if (!this.isAddMode || this.offices.length === 0) {
+      if (this.shellMode || !this.isAddMode || this.offices.length === 0) {
         return;
       }
       this.resolveOfficeScope(officeId);
@@ -218,12 +219,13 @@ export class PropertyComponent implements OnInit, OnChanges, AfterViewInit, OnDe
     if (inputId) {
       this.applyPropertyIdContext(inputId);
       this.applyShellPropertyCodeContext();
-      this.applyShellOfficeContext();
+      if (!this.shellMode) {
+        this.applyShellOfficeContext();
+      }
       this.applyShellPropertyAddressContext();
     } else {
       this.route.paramMap.pipe(takeUntil(this.destroy$), map(pm => pm.get('id')), filter((id): id is string => id != null && id !== ''), distinctUntilChanged()).subscribe(id => {
         this.applyPropertyIdContext(id);
-        this.applyShellOfficeContext();
       });
     }
 
@@ -266,123 +268,9 @@ export class PropertyComponent implements OnInit, OnChanges, AfterViewInit, OnDe
     if (changes['ownerPrimaryContactId']) {
       this.syncOwnerPrimaryContactSelection();
     }
-    if (changes['shellOfficeId']) {
+    if (changes['shellOfficeId'] && !this.shellMode) {
       this.applyShellOfficeContext();
     }
-  }
-
-  onDescriptionInput(event: Event): void {
-    const element = event.target as HTMLDivElement;
-    const descriptionControl = this.form.get('description');
-    descriptionControl?.setValue(element.innerHTML, { emitEvent: false });
-    descriptionControl?.markAsDirty();
-    descriptionControl?.markAsTouched();
-  }
-
-  applyDescriptionFormat(format: 'bold' | 'italic' | 'underline' | 'paragraph' | 'unorderedList'): void {
-    const editor = this.descriptionEditor?.nativeElement;
-    if (!editor) {
-      return;
-    }
-
-    editor.focus();
-    if (format === 'paragraph') {
-      // Force a visible new paragraph break at caret.
-      const inserted = document.execCommand('insertParagraph', false);
-      if (!inserted) {
-        document.execCommand('insertHTML', false, '<p><br></p>');
-      }
-      this.form.get('description')?.setValue(editor.innerHTML);
-      return;
-    }
-
-    if (format === 'unorderedList') {
-      this.applyUnorderedListCommand(editor);
-      this.form.get('description')?.setValue(editor.innerHTML);
-      return;
-    }
-
-    document.execCommand(format, false);
-    this.form.get('description')?.setValue(editor.innerHTML);
-  }
-
-  onAmenitiesInput(event: Event): void {
-    const element = event.target as HTMLDivElement;
-    const amenitiesControl = this.form.get('amenities');
-    amenitiesControl?.setValue(element.innerHTML, { emitEvent: false });
-    amenitiesControl?.markAsDirty();
-    amenitiesControl?.markAsTouched();
-  }
-
-  applyAmenitiesFormat(format: 'bold' | 'italic' | 'underline' | 'paragraph' | 'unorderedList'): void {
-    const editor = this.amenitiesEditor?.nativeElement;
-    if (!editor) {
-      return;
-    }
-
-    editor.focus();
-    if (format === 'paragraph') {
-      const inserted = document.execCommand('insertParagraph', false);
-      if (!inserted) {
-        document.execCommand('insertHTML', false, '<p><br></p>');
-      }
-      this.form.get('amenities')?.setValue(editor.innerHTML);
-      return;
-    }
-
-    if (format === 'unorderedList') {
-      this.applyUnorderedListCommand(editor);
-      this.form.get('amenities')?.setValue(editor.innerHTML);
-      return;
-    }
-
-    document.execCommand(format, false);
-    this.form.get('amenities')?.setValue(editor.innerHTML);
-  }
-
-  preventEditorToolbarMouseDown(event: MouseEvent): void {
-    event.preventDefault();
-  }
-
-  applyUnorderedListCommand(editor: HTMLDivElement): void {
-    editor.focus();
-    const selection = window.getSelection();
-    const selectedText = selection?.toString() || '';
-    const listItems = selectedText
-      .split(/\r?\n+/)
-      .map(item => item.trim())
-      .filter(item => !!item);
-    if (listItems.length > 0) {
-      const listHtml = `<ul>${listItems.map(item => `<li>${this.escapeEditorHtml(item)}</li>`).join('')}</ul>`;
-      document.execCommand('insertHTML', false, listHtml);
-      return;
-    }
-
-    if (!selection || selection.rangeCount === 0) {
-      document.execCommand('insertHTML', false, '<ul><li><br></li></ul>');
-      return;
-    }
-
-    const range = selection.getRangeAt(0);
-    if (!editor.contains(range.commonAncestorContainer)) {
-      return;
-    }
-
-    document.execCommand('insertHTML', false, '<ul><li><br></li></ul>');
-  }
-
-  parseIdValue(value: unknown, fallback: number = 0): number {
-    const parsed = Number(value);
-    return Number.isFinite(parsed) ? parsed : fallback;
-  }
-
-  escapeEditorHtml(value: string): string {
-    return value
-      .replace(/&/g, '&amp;')
-      .replace(/</g, '&lt;')
-      .replace(/>/g, '&gt;')
-      .replace(/"/g, '&quot;')
-      .replace(/'/g, '&#39;');
   }
 
   getProperty(): void {
@@ -401,32 +289,6 @@ export class PropertyComponent implements OnInit, OnChanges, AfterViewInit, OnDe
         this.isServiceError = true;
       }
     });
-  }
-
-  applyPropertyIdContext(id: string): void {
-    this.propertyId = id;
-    this.isAddMode = id === 'new';
-    this.expandedSections.agreement = this.isInAccounting;
-
-    const codeControl = this.form.get('propertyCode');
-    if (this.isAddMode) {
-      codeControl?.setValidators([Validators.required, this.propertyCodeEntryValidator]);
-    } else {
-      codeControl?.clearValidators();
-    }
-    codeControl?.updateValueAndValidity();
-    this.applyOwnerVendorLeaseValidators();
-    this.applyOfficeControlState();
-
-    if (!this.isAddMode) {
-      this.appliedCopyFromPropertyId = null;
-      this.getProperty();
-    } else {
-      this.setAddModeDefaults();
-      this.tryApplyCopyFromProperty();
-    }
-    this.loadReservations();
-    this.captureSavedStateSignature();
   }
 
   copyFromProperty(sourcePropertyId: string): void {
@@ -499,32 +361,11 @@ export class PropertyComponent implements OnInit, OnChanges, AfterViewInit, OnDe
     });
   }
 
-  tryApplyCopyFromProperty(): void {
-    if (!this.isAddMode) {
-      return;
-    }
-
-    const copyFromPropertyId = this.pendingCopyFromPropertyId;
-    if (!copyFromPropertyId || copyFromPropertyId === this.appliedCopyFromPropertyId) {
-      return;
-    }
-
-    this.appliedCopyFromPropertyId = copyFromPropertyId;
-    this.copyFromProperty(copyFromPropertyId);
-  }
-  
   saveProperty(onComplete?: (saved: boolean) => void): void {
-    this.form.markAllAsTouched();
-    
-    // Also mark individual controls as touched to ensure error messages appear
-    Object.keys(this.form.controls).forEach(key => {
-      const control = this.form.get(key);
-      if (control) {
-        control.markAsTouched();
-        control.updateValueAndValidity({ emitEvent: false });
-      }
-    });
-    
+    this.touchAllFormControls(this.form);
+    this.form.markAsTouched();
+    this.form.updateValueAndValidity({ emitEvent: false });
+
     if (!this.form.valid) {
       if (this.form.get('propertyCode')?.invalid) {
         this.titleBarPropertyCodeInvalid.emit();
@@ -647,13 +488,6 @@ export class PropertyComponent implements OnInit, OnChanges, AfterViewInit, OnDe
 
     // Assign location IDs directly
     const officeId = formValue.officeId ?? this.property?.officeId ?? null;
-    if (!officeId) {
-      this.form.get('officeId')?.markAsTouched();
-      this.toastr.error('Please correct the highlighted fields before saving.', CommonMessage.Error);
-      this.isSubmitting = false;
-      onComplete?.(false);
-      return;
-    }
     propertyRequest.officeId = Number(officeId);
     propertyRequest.regionId = formValue.regionId || null;
     propertyRequest.areaId = formValue.areaId || null;
@@ -683,10 +517,7 @@ export class PropertyComponent implements OnInit, OnChanges, AfterViewInit, OnDe
     propertyRequest.notes = formValue.notes || '';
 
     if (isPublicOwnerUpsertMode) {
-      this.ownersService.upsertPropertyByContext(publicOwnerToken, propertyRequest).pipe(
-        take(1),
-        finalize(() => { this.isSubmitting = false; })
-      ).subscribe({
+      this.ownersService.upsertPropertyByContext(publicOwnerToken, propertyRequest).pipe(take(1),finalize(() => { this.isSubmitting = false; })).subscribe({
         next: (response) => {
           if (!response) {
             this.toastr.error('Unable to save property.', CommonMessage.Error);
@@ -1079,6 +910,19 @@ export class PropertyComponent implements OnInit, OnChanges, AfterViewInit, OnDe
     } else {
       officeControl.disable({ emitEvent: false });
     }
+  }
+
+  applyAddModeOfficeValidators(): void {
+    const officeControl = this.form?.get('officeId');
+    if (!officeControl) {
+      return;
+    }
+    if (this.isAddMode) {
+      officeControl.setValidators([Validators.required]);
+    } else {
+      officeControl.clearValidators();
+    }
+    officeControl.updateValueAndValidity({ emitEvent: false });
   }
 
   setAddModeDefaults(): void {
@@ -1486,15 +1330,11 @@ export class PropertyComponent implements OnInit, OnChanges, AfterViewInit, OnDe
     });
   }
 
-  /** Page-level office scope from shell title bar; does not write global selection. */
-  applyTitleBarPageOfficeSelection(value: string | number | null): void {
-    const nextId = value == null || value === '' ? null : Number(value);
-    const current = this.selectedOffice?.officeId ?? null;
-    if (nextId === current) {
+  initializeOfficeFromShell(officeId: number | null): void {
+    if (!this.isAddMode) {
       return;
     }
-    this.resolveOfficeScope(nextId);
-    this.emitTitleBarContextToShell();
+    this.applyTitleBarPropertyOfficeSelection(officeId);
   }
 
   applyTitleBarPropertyOfficeSelection(value: string | number | null): void {
@@ -1505,11 +1345,21 @@ export class PropertyComponent implements OnInit, OnChanges, AfterViewInit, OnDe
       return;
     }
     const control = this.form.get('officeId');
-    control?.setValue(nextId);
-    control?.markAsTouched();
-    control?.markAsDirty();
+    control?.setValue(nextId, { emitEvent: false });
+    control?.updateValueAndValidity({ emitEvent: false });
+    this.resolveOfficeScope(nextId);
     this.onOfficeChange();
     this.emitTitleBarContextToShell();
+  }
+
+  touchAllFormControls(control: AbstractControl): void {
+    if (control instanceof FormGroup) {
+      Object.keys(control.controls).forEach(key => this.touchAllFormControls(control.controls[key]));
+      return;
+    }
+
+    control.markAsTouched();
+    control.markAsDirty();
   }
 
   applyTitleBarReservationSelection(value: string | number | null): void {
@@ -1538,17 +1388,14 @@ export class PropertyComponent implements OnInit, OnChanges, AfterViewInit, OnDe
   }
 
   applyShellOfficeContext(): void {
-    if (!this.form || !this.isAddMode) {
+    if (this.shellMode || !this.form || !this.isAddMode) {
       return;
     }
     const officeId = Number(this.shellOfficeId);
     if (!Number.isFinite(officeId) || officeId <= 0) {
       return;
     }
-    this.form.patchValue({ officeId }, { emitEvent: false });
-    this.form.get('officeId')?.markAsTouched();
-    this.resolveOfficeScope(officeId);
-    this.filterLocationLookupsByOffice();
+    this.applyTitleBarPropertyOfficeSelection(officeId);
   }
 
   applyShellPropertyAddressContext(): void {
@@ -1667,44 +1514,9 @@ export class PropertyComponent implements OnInit, OnChanges, AfterViewInit, OnDe
     return this.property?.propertyCode ?? null;
   }
 
-  get sharedGlobalOfficeName(): string {
-    if (this.selectedOffice?.name) {
-      return this.selectedOffice.name;
-    }
-    const officeId = this.globalSelectionService.getSelectedOfficeIdValue();
-    if (officeId != null) {
-      const office = this.offices.find(o => o.officeId === officeId);
-      if (office?.name) {
-        return office.name;
-      }
-    }
-    return '';
-  }
-
-  get sharedPropertyOfficeName(): string {
-    const officeId = this.sharedPropertyOfficeId;
-    if (officeId != null) {
-      const office = this.offices.find(o => o.officeId === officeId);
-      if (office?.name) {
-        return office.name;
-      }
-    }
-    if (this.property?.officeName) {
-      return this.property.officeName;
-    }
-    return '';
-  }
-
   get showTitleBarOfficeError(): boolean {
-    if (!this.isAddMode || !this.form) {
-      return false;
-    }
-    const c = this.form.get('officeId');
-    if (!c?.touched) {
-      return false;
-    }
-    const effectiveId = this.form.getRawValue().officeId ?? null;
-    return effectiveId == null || effectiveId === '';
+    const control = this.form?.get('officeId');
+    return this.isAddMode && !!(control?.invalid && control?.touched);
   }
 
   get showTitleBarPropertyCodeError(): boolean {
@@ -1882,9 +1694,13 @@ export class PropertyComponent implements OnInit, OnChanges, AfterViewInit, OnDe
         this.officeService.getAllOffices().pipe(takeUntil(this.destroy$)).subscribe(offices => {
           this.offices = (offices || []).filter(f => f.organizationId === this.organizationId && f.isActive);
           this.showOfficeDropdown = this.offices.length > 1;
-          this.resolveOfficeScope(
-            this.isAddMode ? this.globalSelectionService.getSelectedOfficeIdValue() : null
-          );
+          if (!this.shellMode) {
+            this.resolveOfficeScope(
+              this.isAddMode ? this.globalSelectionService.getSelectedOfficeIdValue() : null
+            );
+          } else if (!this.isAddMode && this.property?.officeId) {
+            this.resolveOfficeScope(this.property.officeId);
+          }
 
           if (!this.officesInitialized) {
             this.officesInitialized = true;
@@ -2006,10 +1822,12 @@ export class PropertyComponent implements OnInit, OnChanges, AfterViewInit, OnDe
       next: (reservations) => {
         this.reservations = reservations || [];
         this.filterReservations();
+        this.emitTitleBarContextToShell();
       },
       error: () => {
         this.reservations = [];
         this.availableReservations = [];
+        this.emitTitleBarContextToShell();
       }
     });
   }
@@ -2050,13 +1868,14 @@ export class PropertyComponent implements OnInit, OnChanges, AfterViewInit, OnDe
   }
 
   filterReservations(): void {
-    const officeId = this.form?.get('officeId')?.value;
-    if (!officeId) {
+    const rawOfficeId = this.form?.getRawValue()?.officeId ?? this.form?.get('officeId')?.value ?? this.property?.officeId ?? null;
+    const officeId = rawOfficeId == null || rawOfficeId === '' ? null : Number(rawOfficeId);
+    if (officeId == null || Number.isNaN(officeId)) {
       this.availableReservations = [];
       return;
     }
-    
-    const filteredReservations = this.reservations.filter(r => r.officeId === officeId);
+
+    const filteredReservations = this.reservations.filter(r => Number(r.officeId) === officeId);
     this.availableReservations = filteredReservations.map(r => ({
       value: r,
       label: this.utilityService.getReservationDropdownLabel(r, this.contacts.find(c => c.contactId === r.contactId) ?? null)
@@ -2065,7 +1884,6 @@ export class PropertyComponent implements OnInit, OnChanges, AfterViewInit, OnDe
 
   onOfficeChange(): void {
     this.form.get('officeId')?.markAsDirty();
-    this.form.get('officeId')?.markAsTouched();
     this.filterLocationLookupsByOffice();
     this.filterReservations();
     this.form.get('reservationId')?.setValue(null, { emitEvent: false });
@@ -2142,6 +1960,161 @@ export class PropertyComponent implements OnInit, OnChanges, AfterViewInit, OnDe
     if (Object.keys(updates).length > 0) {
       this.form.patchValue(updates, { emitEvent: false });
     }
+  }
+
+    onDescriptionInput(event: Event): void {
+    const element = event.target as HTMLDivElement;
+    const descriptionControl = this.form.get('description');
+    descriptionControl?.setValue(element.innerHTML, { emitEvent: false });
+    descriptionControl?.markAsDirty();
+    descriptionControl?.markAsTouched();
+  }
+
+  applyDescriptionFormat(format: 'bold' | 'italic' | 'underline' | 'paragraph' | 'unorderedList'): void {
+    const editor = this.descriptionEditor?.nativeElement;
+    if (!editor) {
+      return;
+    }
+
+    editor.focus();
+    if (format === 'paragraph') {
+      // Force a visible new paragraph break at caret.
+      const inserted = document.execCommand('insertParagraph', false);
+      if (!inserted) {
+        document.execCommand('insertHTML', false, '<p><br></p>');
+      }
+      this.form.get('description')?.setValue(editor.innerHTML);
+      return;
+    }
+
+    if (format === 'unorderedList') {
+      this.applyUnorderedListCommand(editor);
+      this.form.get('description')?.setValue(editor.innerHTML);
+      return;
+    }
+
+    document.execCommand(format, false);
+    this.form.get('description')?.setValue(editor.innerHTML);
+  }
+
+  onAmenitiesInput(event: Event): void {
+    const element = event.target as HTMLDivElement;
+    const amenitiesControl = this.form.get('amenities');
+    amenitiesControl?.setValue(element.innerHTML, { emitEvent: false });
+    amenitiesControl?.markAsDirty();
+    amenitiesControl?.markAsTouched();
+  }
+
+  applyAmenitiesFormat(format: 'bold' | 'italic' | 'underline' | 'paragraph' | 'unorderedList'): void {
+    const editor = this.amenitiesEditor?.nativeElement;
+    if (!editor) {
+      return;
+    }
+
+    editor.focus();
+    if (format === 'paragraph') {
+      const inserted = document.execCommand('insertParagraph', false);
+      if (!inserted) {
+        document.execCommand('insertHTML', false, '<p><br></p>');
+      }
+      this.form.get('amenities')?.setValue(editor.innerHTML);
+      return;
+    }
+
+    if (format === 'unorderedList') {
+      this.applyUnorderedListCommand(editor);
+      this.form.get('amenities')?.setValue(editor.innerHTML);
+      return;
+    }
+
+    document.execCommand(format, false);
+    this.form.get('amenities')?.setValue(editor.innerHTML);
+  }
+
+  preventEditorToolbarMouseDown(event: MouseEvent): void {
+    event.preventDefault();
+  }
+
+  applyUnorderedListCommand(editor: HTMLDivElement): void {
+    editor.focus();
+    const selection = window.getSelection();
+    const selectedText = selection?.toString() || '';
+    const listItems = selectedText
+      .split(/\r?\n+/)
+      .map(item => item.trim())
+      .filter(item => !!item);
+    if (listItems.length > 0) {
+      const listHtml = `<ul>${listItems.map(item => `<li>${this.escapeEditorHtml(item)}</li>`).join('')}</ul>`;
+      document.execCommand('insertHTML', false, listHtml);
+      return;
+    }
+
+    if (!selection || selection.rangeCount === 0) {
+      document.execCommand('insertHTML', false, '<ul><li><br></li></ul>');
+      return;
+    }
+
+    const range = selection.getRangeAt(0);
+    if (!editor.contains(range.commonAncestorContainer)) {
+      return;
+    }
+
+    document.execCommand('insertHTML', false, '<ul><li><br></li></ul>');
+  }
+
+  parseIdValue(value: unknown, fallback: number = 0): number {
+    const parsed = Number(value);
+    return Number.isFinite(parsed) ? parsed : fallback;
+  }
+
+  escapeEditorHtml(value: string): string {
+    return value
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#39;');
+  }
+
+  applyPropertyIdContext(id: string): void {
+    this.propertyId = id;
+    this.isAddMode = id === 'new';
+    this.expandedSections.agreement = this.isInAccounting;
+
+    const codeControl = this.form.get('propertyCode');
+    if (this.isAddMode) {
+      codeControl?.setValidators([Validators.required, this.propertyCodeEntryValidator]);
+    } else {
+      codeControl?.clearValidators();
+    }
+    codeControl?.updateValueAndValidity();
+    this.applyOwnerVendorLeaseValidators();
+    this.applyOfficeControlState();
+    this.applyAddModeOfficeValidators();
+
+    if (!this.isAddMode) {
+      this.appliedCopyFromPropertyId = null;
+      this.getProperty();
+    } else {
+      this.setAddModeDefaults();
+      this.tryApplyCopyFromProperty();
+    }
+    this.loadReservations();
+    this.captureSavedStateSignature();
+  }
+
+  tryApplyCopyFromProperty(): void {
+    if (!this.isAddMode) {
+      return;
+    }
+
+    const copyFromPropertyId = this.pendingCopyFromPropertyId;
+    if (!copyFromPropertyId || copyFromPropertyId === this.appliedCopyFromPropertyId) {
+      return;
+    }
+
+    this.appliedCopyFromPropertyId = copyFromPropertyId;
+    this.copyFromProperty(copyFromPropertyId);
   }
   //#endregion
 
@@ -2220,13 +2193,6 @@ export class PropertyComponent implements OnInit, OnChanges, AfterViewInit, OnDe
 
   cloneFormState<T>(state: T): T {
     return structuredClone(state);
-  }
-
-  getInvalidControlNames(): string[] {
-    if (!this.form) {
-      return [];
-    }
-    return Object.keys(this.form.controls).filter(name => this.form.get(name)?.invalid === true);
   }
 
   getApiErrorMessage(error: unknown): string | null {
@@ -2311,10 +2277,6 @@ export class PropertyComponent implements OnInit, OnChanges, AfterViewInit, OnDe
     codeControl.setValue(nextValue);
     codeControl.markAsDirty();
     codeControl.markAsTouched();
-  }
-
-  setCodePaletteTarget(controlName: string): void {
-    this.codePaletteTargetControl = controlName;
   }
 
   toggleCodePalette(controlName: string, event: Event): void {

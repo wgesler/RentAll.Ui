@@ -90,10 +90,6 @@ export class PropertyService {
     return this.http.get<PropertySelectionResponse>(this.controller + 'selection/' + userId);
   }
 
-  getActivePropertySelection(userId: string): Observable<PropertySelectionResponse> {
-    return this.http.get<PropertySelectionResponse>(this.controller + 'selection/' + userId + '/active');
-  }
-
   // PUT: Save property selection criteria for a user
   putPropertySelection(selection: PropertySelectionRequest): Observable<PropertySelectionResponse> {
     return this.http.put<PropertySelectionResponse>(this.controller + 'selection/', selection);
@@ -117,26 +113,13 @@ export class PropertyService {
     return this.http.get<PropertyListResponse[]>(this.controller + 'owner/' + ownerId);
   }
 
-  // GET: Get properties associated with office
-  getPropertiesByOfficeId(officeId: number): Observable<PropertyListResponse[]> {
-    return this.http.get<PropertyListResponse[]>(this.controller + 'office/' + officeId);
-  }
-
   // GET: Get calendar URL/tokenized calendar response for a property
   getPropertyCalendarUrl(propertyId: string): Observable<CalendarUrlResponse> {
     return this.http.get<CalendarUrlResponse>(this.controller + propertyId + '/calendar/subscription-url');
   }
 
-  getPropertyTrackerResponses(propertyId: string): Observable<PropertyTrackerResponse[]> {
-    return this.http.get<PropertyTrackerResponse[]>(this.controller + 'tracker-response/property/' + propertyId);
-  }
-
   getPropertyTrackerResponsesByOffices(includeInactive: boolean = false): Observable<PropertyTrackerResponse[]> {
     return this.http.get<PropertyTrackerResponse[]>(this.controller + 'tracker-response/offices?includeInactive=' + includeInactive);
-  }
-
-  getPropertyTrackerResponseOptions(propertyId: string): Observable<PropertyTrackerResponseOption[]> {
-    return this.http.get<PropertyTrackerResponseOption[]>(this.controller + 'tracker-response-option/property/' + propertyId);
   }
 
   getPropertyTrackerResponseOptionsByOffices(includeInactive: boolean = false): Observable<PropertyTrackerResponseOption[]> {

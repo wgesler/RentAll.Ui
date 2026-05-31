@@ -8,7 +8,7 @@ import { MatMenuTrigger } from '@angular/material/menu';
 import { MatSlideToggleChange } from '@angular/material/slide-toggle';
 import { ActivatedRoute, NavigationEnd, Router } from '@angular/router';
 import { ToastrService } from 'ngx-toastr';
-import {BehaviorSubject, Subject, filter, finalize, map, take, takeUntil} from 'rxjs';
+import {BehaviorSubject, Subject, filter, finalize, map, skip, take, takeUntil} from 'rxjs';
 import { RouterUrl } from '../../../app.routes';
 import { CommonMessage } from '../../../enums/common-message.enum';
 import { MaterialModule } from '../../../material.module';
@@ -71,6 +71,8 @@ export class PropertyListComponent implements OnInit, OnDestroy, OnChanges {
   officeScopeResolved = false;
   selectedOffice: OfficeResponse | null = null;
   showOfficeDropdown: boolean = false;
+  private pageOfficeId: number | null = null;
+  private initialOfficeScopeApplied = false;
   user: any;
   isAdmin = false;
   userId: string = '';
@@ -142,6 +144,21 @@ export class PropertyListComponent implements OnInit, OnDestroy, OnChanges {
     this.setIsActiveCheckboxEditability();
     this.userId = this.user?.userId || '';
     this.organizationId = this.user?.organizationId?.trim() ?? '';
+    this.pageOfficeId = this.globalSelectionService.getSelectedOfficeIdValue();
+
+    const officeIdParam = this.route.snapshot.queryParams['officeId'];
+    if (officeIdParam != null && String(officeIdParam).trim() !== '') {
+      const parsedOfficeId = parseInt(String(officeIdParam), 10);
+      if (!Number.isNaN(parsedOfficeId)) {
+        this.pageOfficeId = parsedOfficeId;
+      }
+    }
+
+    this.globalSelectionService.getSelectedOfficeId$().pipe(skip(1), takeUntil(this.destroy$)).subscribe(officeId => {
+      this.applyOfficeFromGlobal(officeId);
+      this.markViewForCheck();
+    });
+
     this.loadOffices();
 
     this.propertySelectionFilterService.propertiesFiltered$.pipe(takeUntil(this.destroy$)).subscribe((v) => {
@@ -157,13 +174,6 @@ export class PropertyListComponent implements OnInit, OnDestroy, OnChanges {
       this.markViewForCheck();
     });
 
-    this.globalSelectionService.getSelectedOfficeId$().pipe(takeUntil(this.destroy$)).subscribe(officeId => {
-      if (this.offices.length > 0) {
-        this.resolveOfficeScope(officeId, true);
-      }
-      this.markViewForCheck();
-    });
-
     this.router.events.pipe(filter((e): e is NavigationEnd => e instanceof NavigationEnd),takeUntil(this.destroy$)).subscribe(e => {
       const path = e.urlAfterRedirects.split('?')[0];
       if (/\/properties$/.test(path) && this.lastNavigationUrl.includes('/selection')) {
@@ -173,25 +183,6 @@ export class PropertyListComponent implements OnInit, OnDestroy, OnChanges {
       this.markViewForCheck();
     });
 
-    this.globalSelectionService.ensureOfficeScope(this.organizationId).pipe(take(1)).subscribe(() => {
-      if (this.officeId !== null && this.offices.length > 0) {
-        this.resolveOfficeScope(this.officeId, false);
-      }
-      
-      this.route.queryParams.pipe(takeUntil(this.destroy$)).subscribe(params => {
-        if (params['officeId']) {
-          const parsedOfficeId = parseInt(params['officeId'], 10);
-          if (parsedOfficeId) {
-            this.resolveOfficeScope(parsedOfficeId, true);
-          }
-        } else {
-          if (this.officeId === null || this.officeId === undefined) {
-            this.resolveOfficeScope(this.globalSelectionService.getSelectedOfficeIdValue(), true);
-          }
-        }
-        this.markViewForCheck();
-      });
-    });
   }
 
   ngOnChanges(changes: SimpleChanges): void {
@@ -200,8 +191,10 @@ export class PropertyListComponent implements OnInit, OnDestroy, OnChanges {
       const previousOfficeId = changes['officeId'].previousValue;
 
       if (previousOfficeId === undefined || newOfficeId !== previousOfficeId) {
+        this.pageOfficeId = newOfficeId;
         if (this.offices.length > 0) {
-          this.resolveOfficeScope(newOfficeId, false);
+          this.applyPageOfficeScope(newOfficeId);
+          this.markViewForCheck();
         }
       }
     }
@@ -240,7 +233,12 @@ export class PropertyListComponent implements OnInit, OnDestroy, OnChanges {
   }
 
   addProperty(): void {
-    this.router.navigateByUrl(RouterUrl.replaceTokens(RouterUrl.Property, ['new']));
+    const url = RouterUrl.replaceTokens(RouterUrl.Property, ['new']);
+    const queryParams: Record<string, string | number> = {};
+    if (this.selectedOffice) {
+      queryParams['officeId'] = this.selectedOffice.officeId;
+    }
+    this.router.navigate([url], { queryParams });
   }
 
   openAddAlertDialog(): void {
@@ -294,39 +292,9 @@ export class PropertyListComponent implements OnInit, OnDestroy, OnChanges {
       error: () => {}
     });
   }
-
-  onPropertyCheckboxChange(event: PropertyListDisplayRow): void {
-    if (!this.canEditIsActiveCheckbox) {
-      return;
-    }
-
-    const changedCheckboxColumn = (event as any)?.__changedCheckboxColumn;
-    if (changedCheckboxColumn !== 'isActive') {
-      return;
-    }
-
-    const previousValue = (event as any)?.__previousCheckboxValue === true;
-    const nextValue = (event as any)?.__checkboxValue === true;
-    if (previousValue === nextValue) {
-      return;
-    }
-
-    this.applyPropertyIsActiveValue(event.propertyId, nextValue);
-
-    void this.propertyService.updateModifiedProperty(event.propertyId, { isActive: nextValue }).then(() => {
-      this.toastr.success('Property updated.', CommonMessage.Success);
-    }).catch(() => {
-      this.applyPropertyIsActiveValue(event.propertyId, previousValue);
-      this.toastr.error('Unable to update property.', CommonMessage.Error);
-      this.markViewForCheck();
-    }).finally(() => {
-      this.applyFilters();
-      this.markViewForCheck();
-    });
-  }
   //#endregion
   
-  //#region Routing Methods
+  //#region Form Response Methods
   goToProperty(event: PropertyListDisplay): void {
     this.ngZone.run(() => {
       this.router.navigate(
@@ -436,6 +404,36 @@ export class PropertyListComponent implements OnInit, OnDestroy, OnChanges {
       error: () => {}
     });
   }
+    
+  onPropertyCheckboxChange(event: PropertyListDisplayRow): void {
+    if (!this.canEditIsActiveCheckbox) {
+      return;
+    }
+
+    const changedCheckboxColumn = (event as any)?.__changedCheckboxColumn;
+    if (changedCheckboxColumn !== 'isActive') {
+      return;
+    }
+
+    const previousValue = (event as any)?.__previousCheckboxValue === true;
+    const nextValue = (event as any)?.__checkboxValue === true;
+    if (previousValue === nextValue) {
+      return;
+    }
+
+    this.applyPropertyIsActiveValue(event.propertyId, nextValue);
+
+    void this.propertyService.updateModifiedProperty(event.propertyId, { isActive: nextValue }).then(() => {
+      this.toastr.success('Property updated.', CommonMessage.Success);
+    }).catch(() => {
+      this.applyPropertyIsActiveValue(event.propertyId, previousValue);
+      this.toastr.error('Unable to update property.', CommonMessage.Error);
+      this.markViewForCheck();
+    }).finally(() => {
+      this.applyFilters();
+      this.markViewForCheck();
+    });
+  }
   //#endregion
 
   //#region Filter Methods
@@ -501,41 +499,20 @@ export class PropertyListComponent implements OnInit, OnDestroy, OnChanges {
 
   //#region Office Methods
   loadOffices(): void {
-    this.globalSelectionService.ensureOfficeScope(this.organizationId).pipe(take(1), finalize(() => { this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'offices'); })).subscribe({
+    this.officeService.ensureOfficesLoaded(this.organizationId).pipe(take(1), finalize(() => {
+      this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'offices');
+    })).subscribe({
       next: () => {
         this.officeService.getAllOffices().pipe(takeUntil(this.destroy$)).subscribe(offices => {
           this.offices = offices || [];
           this.availableOffices = this.mappingService.mapOfficesToDropdown(this.offices);
-          this.globalSelectionService.getOfficeUiState$(this.offices, { explicitOfficeId: this.officeId, requireExplicitOfficeUnset: true }).pipe(take(1)).subscribe({
-            next: uiState => {
-              this.showOfficeDropdown = uiState.showOfficeDropdown;
-              if (this.officeId !== null && this.officeId !== undefined) {
-                const matchingOffice = this.offices.find(o => o.officeId === this.officeId) || null;
-                if (matchingOffice !== this.selectedOffice) {
-                  this.selectedOffice = matchingOffice;
-                  this.applyFilters();
-                }
-                this.markViewForCheck();
-                return;
-              }
-
-              if (uiState.selectedOffice) {
-                if (uiState.selectedOffice !== this.selectedOffice) {
-                  this.selectedOffice = uiState.selectedOffice;
-                  this.officeIdChange.emit(uiState.selectedOffice.officeId);
-                  this.applyFilters();
-                }
-                this.markViewForCheck();
-                return;
-              }
-
-              if (this.selectedOffice && this.offices.length === 1) {
-                this.applyFilters();
-              }
-              this.markViewForCheck();
-            }
-          });
-
+          this.showOfficeDropdown = this.offices.length > 1;
+          if (!this.initialOfficeScopeApplied) {
+            this.initialOfficeScopeApplied = true;
+            this.applyOfficeFromGlobal(this.pageOfficeId);
+          } else if (this.pageOfficeId != null || this.selectedOffice) {
+            this.applyPageOfficeScope(this.selectedOffice?.officeId ?? this.pageOfficeId);
+          }
           this.getProperties();
           this.markViewForCheck();
         });
@@ -543,6 +520,7 @@ export class PropertyListComponent implements OnInit, OnDestroy, OnChanges {
       error: () => {
         this.offices = [];
         this.availableOffices = [];
+        this.applyPageOfficeScope(this.pageOfficeId);
         this.getProperties();
         this.markViewForCheck();
       }
@@ -550,8 +528,27 @@ export class PropertyListComponent implements OnInit, OnDestroy, OnChanges {
   }
 
   onOfficeChange(): void {
-    this.globalSelectionService.setSelectedOfficeId(this.selectedOffice?.officeId ?? null);
-    this.resolveOfficeScope(this.selectedOffice?.officeId ?? null, true);
+    this.pageOfficeId = this.selectedOffice?.officeId ?? null;
+    if (this.selectedOffice) {
+      this.officeIdChange.emit(this.selectedOffice.officeId);
+    } else {
+      this.officeIdChange.emit(null);
+    }
+
+    const queryParams: Record<string, string | null> = {};
+    if (this.selectedOffice) {
+      queryParams['officeId'] = this.selectedOffice.officeId.toString();
+    } else {
+      queryParams['officeId'] = null;
+    }
+
+    this.router.navigate([], {
+      relativeTo: this.route,
+      queryParams,
+      queryParamsHandling: 'merge'
+    });
+
+    this.applyFilters();
   }
 
   resolveOfficeScope(officeId: number | null, emitChange: boolean): void {
@@ -562,6 +559,29 @@ export class PropertyListComponent implements OnInit, OnDestroy, OnChanges {
       this.officeIdChange.emit(this.selectedOffice?.officeId ?? null);
     }
     this.applyFilters();
+  }
+
+  applyOfficeFromGlobal(officeId: number | null): void {
+    this.pageOfficeId = officeId;
+    if (this.offices.length === 0) {
+      return;
+    }
+    if (this.offices.length === 1) {
+      this.applyPageOfficeScope(this.offices[0].officeId);
+      return;
+    }
+    const resolved = officeId != null && this.offices.some(o => o.officeId === officeId) ? officeId : null;
+    this.applyPageOfficeScope(resolved);
+  }
+
+  /** Page-level office filter; does not update global selection. */
+  applyPageOfficeScope(officeId: number | null): void {
+    this.pageOfficeId = officeId;
+    const explicitFromParent = this.officeId;
+    const officeIdToUse = explicitFromParent != null && explicitFromParent !== undefined
+      ? explicitFromParent
+      : officeId;
+    this.resolveOfficeScope(officeIdToUse, false);
   }
   //#endregion
 

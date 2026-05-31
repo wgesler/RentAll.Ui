@@ -339,11 +339,6 @@ export function getBedSizeTypes(): { value: number, label: string }[] {
     }));
 }
 
-/** Label strings for bed-size dropdowns (e.g. data-table column `options`). */
-export function getBedTypeOptionLabels(): string[] {
-  return getBedSizeTypes().map(bed => bed.label);
-}
-
 /** Slots above the property bedroom count use None (lists: maintenance, dashboard turnover). */
 export function effectiveBedTypeIdForPropertySlot(
   slot: 1 | 2 | 3 | 4,
@@ -363,27 +358,6 @@ export enum ManagementFeeType {
   FlatRate = 0,
   Percentage = 1,
   Minimum = 2
-}
-
-export function getManagementFeeType(managementFeeTypeId: number | undefined | null): string {
-  if (managementFeeTypeId === undefined || managementFeeTypeId === null) {
-    return '';
-  }
-  const typeMap: { [key: number]: string } = {
-    [ManagementFeeType.FlatRate]: 'Flat Rate',
-    [ManagementFeeType.Percentage]: 'Percentage',
-    [ManagementFeeType.Minimum]: 'Minimum'
-  };
-  return typeMap[managementFeeTypeId] || '';
-}
-
-export function getManagementFeeTypes(): { value: number; label: string }[] {
-  return Object.keys(ManagementFeeType)
-    .filter(key => isNaN(Number(key)))
-    .map(key => ({
-      value: ManagementFeeType[key as keyof typeof ManagementFeeType],
-      label: getManagementFeeType(ManagementFeeType[key as keyof typeof ManagementFeeType])
-    }));
 }
 
 export function normalizeManagementFeeTypeId(value: number | null | undefined): ManagementFeeType {

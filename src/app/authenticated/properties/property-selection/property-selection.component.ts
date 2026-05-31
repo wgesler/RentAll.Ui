@@ -49,11 +49,11 @@ export class PropertySelectionComponent implements OnInit, OnDestroy {
   preloadedSelection: PropertySelectionResponse | null = null;
   returnSource: 'reservation-board' | 'property-list' | 'reservation-list' | 'maintenance-list' = 'reservation-board';
   reservationListReturnPath: string | null = null;
+  formFilterTrackingSetup = false;
 
   itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['selection', 'lookups']));
   isLoading$: Observable<boolean> = this.itemsToLoad$.pipe(map(items => items.size > 0));
-  private readonly destroy$ = new Subject<void>();
-  private formFilterTrackingSetup = false;
+  destroy$ = new Subject<void>();
 
   constructor(
     private router: Router,
@@ -84,17 +84,10 @@ export class PropertySelectionComponent implements OnInit, OnDestroy {
       this.applyOfficeFilterToLookups();
     });
 
-    this.itemsToLoad$
-      .pipe(
-        map((s) => s.size),
-        filter((n) => n === 0),
-        take(1),
-        takeUntil(this.destroy$)
-      )
-      .subscribe(() => {
-        this.setupFormFilterTrackingOnce();
-        this.propertySelectionFilterService.setFromResponse(this.buildSyntheticResponseFromForm());
-      });
+    this.itemsToLoad$.pipe(map((s) => s.size),filter((n) => n === 0),take(1),takeUntil(this.destroy$) ).subscribe(() => {
+      this.setupFormFilterTrackingOnce();
+      this.propertySelectionFilterService.setFromResponse(this.buildSyntheticResponseFromForm());
+    });
 
     // If we navigated here from the board or property list, it may have preloaded the selection.
     const state = history.state || {};
@@ -378,7 +371,6 @@ export class PropertySelectionComponent implements OnInit, OnDestroy {
     return { ...req } as PropertySelectionResponse;
   }
 
-  /** Clears all filters, persists defaults to the server, and updates global filter state. */
   resetForm(): void {
     if (!this.form) return;
 
@@ -472,52 +464,6 @@ export class PropertySelectionComponent implements OnInit, OnDestroy {
   }
   //#endregion
 
-  //#region Get Code Methods
-  getOfficeCode(officeId?: number): string | undefined {
-    if (!officeId) return undefined;
-    return this.offices.find(f => f.officeId === officeId)?.officeCode;
-  }
-
-  getRegionCode(regionId?: number): string | undefined {
-    if (!regionId) return undefined;
-    return this.regions.find(r => r.regionId === regionId)?.regionCode;
-  }
-
-  getAreaCode(areaId?: number): string | undefined {
-    if (!areaId) return undefined;
-    return this.areas.find(a => a.areaId === areaId)?.areaCode;
-  }
-
-  getBuildingCode(buildingId?: number): string | undefined {
-    if (!buildingId) return undefined;
-    return this.buildings.find(b => b.buildingId === buildingId)?.buildingCode;
-  }
-
-  findOfficeIdFromCode(code?: string): number | undefined {
-    const c = (code || '').trim();
-    if (!c) return undefined;
-    return this.offices.find(f => f.officeCode === c)?.officeId;
-  }
-
-  findRegionIdFromCode(code?: string): number | undefined {
-    const c = (code || '').trim();
-    if (!c) return undefined;
-    return this.regions.find(r => r.regionCode === c)?.regionId;
-  }
-
-  findAreaIdFromCode(code?: string): number | undefined {
-    const c = (code || '').trim();
-    if (!c) return undefined;
-    return this.areas.find(a => a.areaCode === c)?.areaId;
-  }
-
-  findBuildingIdFromCode(code?: string): number | undefined {
-    const c = (code || '').trim();
-    if (!c) return undefined;
-    return this.buildings.find(b => b.buildingCode === c)?.buildingId;
-  }
-  //#endregion
-
   //#region Conversion Methods
   toStringOrNull(value: unknown): string | null {
     if (value === null || value === undefined || value === '') return null;
@@ -526,12 +472,6 @@ export class PropertySelectionComponent implements OnInit, OnDestroy {
   }
 
   toNumber(value: unknown, defaultValue: number = 0): number {
-    if (value === null || value === undefined || value === '') return defaultValue;
-    const n = typeof value === 'number' ? value : Number(value);
-    return Number.isFinite(n) ? n : defaultValue;
-  }
-
-  toNumberFromDropdown(value: unknown, defaultValue: number = 0): number {
     if (value === null || value === undefined || value === '') return defaultValue;
     const n = typeof value === 'number' ? value : Number(value);
     return Number.isFinite(n) ? n : defaultValue;
@@ -587,12 +527,6 @@ export class PropertySelectionComponent implements OnInit, OnDestroy {
     }
   }
   
-  ngOnDestroy(): void {
-    this.destroy$.next();
-    this.destroy$.complete();
-    this.itemsToLoad$.complete();
-  }
-
   navigateBackFromSelection(): void {
     if (this.returnSource === 'property-list') {
       this.router.navigateByUrl(RouterUrl.PropertyList);
@@ -628,6 +562,12 @@ export class PropertySelectionComponent implements OnInit, OnDestroy {
         this.propertySelectionFilterService.setFromResponse(s);
         this.navigateBackFromSelection();
       });
+  }
+
+  ngOnDestroy(): void {
+    this.destroy$.next();
+    this.destroy$.complete();
+    this.itemsToLoad$.complete();
   }
   //#endregion
 }

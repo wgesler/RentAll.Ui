@@ -1,5 +1,5 @@
 import { CommonModule } from '@angular/common';
-import { Component, OnDestroy, OnInit, ViewChild } from '@angular/core';
+import { AfterViewInit, Component, OnDestroy, OnInit, ViewChild } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { MatDialog } from '@angular/material/dialog';
 import { ActivatedRoute, Router } from '@angular/router';
@@ -8,7 +8,6 @@ import { CanComponentDeactivate } from '../../../guards/can-deactivate-guard';
 import { MaterialModule } from '../../../material.module';
 import { RouterUrl } from '../../../app.routes';
 import { AuthService } from '../../../services/auth.service';
-import { UtilityService } from '../../../services/utility.service';
 import { OfficeResponse } from '../../organizations/models/office.model';
 import { GlobalSelectionService } from '../../organizations/services/global-selection.service';
 import { OfficeService } from '../../organizations/services/office.service';
@@ -42,7 +41,7 @@ import { AddAlertDialogComponent, AddAlertDialogData } from '../../shared/modals
   templateUrl: './property-shell.component.html',
   styleUrl: './property-shell.component.scss'
 })
-export class PropertyShellComponent implements OnInit, OnDestroy, CanComponentDeactivate {
+export class PropertyShellComponent implements OnInit, AfterViewInit, OnDestroy, CanComponentDeactivate {
   readonly DocumentType = DocumentType;
   @ViewChild('propertySection') propertySection?: PropertyComponent;
   @ViewChild('propertyEmailList') propertyEmailList?: EmailListComponent;
@@ -52,10 +51,8 @@ export class PropertyShellComponent implements OnInit, OnDestroy, CanComponentDe
   isHandlingTabGuard = false;
   isAddMode = false;
   organizationId = '';
-  /** Page-level office filter: seeded from global; does not write global. */
-  selectedOfficeId: number | null = null;
-  selectedOffice: OfficeResponse | null = null;
   offices: OfficeResponse[] = [];
+  showOfficeDropdown = false;
   private initialOfficeScopeApplied = false;
 
   titleBarPropertyOfficeId: number | null = null;
@@ -70,15 +67,13 @@ export class PropertyShellComponent implements OnInit, OnDestroy, CanComponentDe
     private dialog: MatDialog,
     private authService: AuthService,
     private officeService: OfficeService,
-    private globalSelectionService: GlobalSelectionService,
-    private utilityService: UtilityService
+    private globalSelectionService: GlobalSelectionService
   ) {}
 
   //#region Property-Shell
   ngOnInit(): void {
     this.isAdminUser = this.authService.isAdmin();
     this.organizationId = this.authService.getUser()?.organizationId?.trim() ?? '';
-    this.selectedOfficeId = this.globalSelectionService.getSelectedOfficeIdValue();
     this.loadOffices();
     this.globalSelectionService
       .getSelectedOfficeId$()
@@ -89,7 +84,11 @@ export class PropertyShellComponent implements OnInit, OnDestroy, CanComponentDe
 
     this.route.paramMap.pipe(takeUntil(this.destroy$)).subscribe(paramMap => {
       const id = paramMap.get('id');
+      const wasAddMode = this.isAddMode;
       this.isAddMode = !id || id === 'new';
+      if (this.isAddMode && !wasAddMode && this.offices.length > 0) {
+        queueMicrotask(() => this.initializeAddModeOfficeFromShell());
+      }
     });
 
     this.route.queryParams.pipe(takeUntil(this.destroy$)).subscribe(queryParams => {
@@ -103,6 +102,12 @@ export class PropertyShellComponent implements OnInit, OnDestroy, CanComponentDe
     });
   }
 
+  ngAfterViewInit(): void {
+    if (this.isAddMode) {
+      queueMicrotask(() => this.initializeAddModeOfficeFromShell());
+    }
+  }
+
   ngOnDestroy(): void {
     this.destroy$.next();
     this.destroy$.complete();
@@ -110,8 +115,13 @@ export class PropertyShellComponent implements OnInit, OnDestroy, CanComponentDe
   //#endregion
 
   //#region Getter Methods
-  get isHeaderPropertyOfficeEditable(): boolean {
-    return this.selectedTabIndex === 0;
+  /** Add-mode shell office; null means All Offices until the user picks one. */
+  get addModeOfficeId(): number | null {
+    return this.titleBarPropertyOfficeId;
+  }
+
+  get displayOfficeId(): number | null {
+    return this.titleBarPropertyOfficeId ?? this.propertySection?.sharedPropertyOfficeId ?? null;
   }
 
   get isHeaderPropertyCodeEditable(): boolean {
@@ -120,10 +130,6 @@ export class PropertyShellComponent implements OnInit, OnDestroy, CanComponentDe
 
   get officeOptions(): SearchableSelectOption[] {
     return this.offices.map(office => ({ value: office.officeId, label: office.name }));
-  }
-
-  get propertyOfficeOptions(): SearchableSelectOption[] {
-    return this.propertySection?.officeOptions ?? [];
   }
 
   get reservationOptions(): SearchableSelectOption[] {
@@ -136,18 +142,6 @@ export class PropertyShellComponent implements OnInit, OnDestroy, CanComponentDe
 
   get selectedReservationId(): string | null {
     return this.titleBarReservationId;
-  }
-
-  get sharedPropertyOfficeName(): string {
-    const id = this.titleBarPropertyOfficeId;
-    const offices = this.propertySection?.offices ?? [];
-    if (id != null) {
-      const o = offices.find(x => x.officeId === id);
-      if (o?.name) {
-        return o.name;
-      }
-    }
-    return this.propertySection?.sharedPropertyOfficeName ?? '';
   }
 
   get sharedPropertyCode(): string | null {
@@ -178,18 +172,7 @@ export class PropertyShellComponent implements OnInit, OnDestroy, CanComponentDe
     this.titleBarPropertyCode = ctx.propertyCode ?? '';
   }
 
-  async onOfficeDropdownChange(value: string | number | null): Promise<void> {
-    const officeId = value == null || value === '' ? null : Number(value);
-    this.applyPageOfficeScope(officeId);
-    if (this.shouldRouteToPropertyListForPageOfficeMismatch(officeId)) {
-      const canLeave = await (this.propertySection?.confirmNavigationWithUnsavedChanges() ?? Promise.resolve(true));
-      if (canLeave) {
-        this.router.navigateByUrl(RouterUrl.PropertyList);
-      }
-    }
-  }
-
-  onPropertyOfficeDropdownChange(value: string | number | null): void {
+  onOfficeDropdownChange(value: string | number | null): void {
     this.propertySection?.applyTitleBarPropertyOfficeSelection(value);
   }
 
@@ -257,59 +240,63 @@ export class PropertyShellComponent implements OnInit, OnDestroy, CanComponentDe
           this.offices = (offices || []).filter(
             o => o.organizationId === this.organizationId && o.isActive
           );
+          this.showOfficeDropdown = this.offices.length > 1;
 
           if (!this.initialOfficeScopeApplied) {
             this.initialOfficeScopeApplied = true;
-            if (this.offices.length === 1) {
-              this.applyPageOfficeScope(this.offices[0].officeId);
-            } else {
-              this.applyOfficeFromGlobal(
-                this.selectedOfficeId ?? this.globalSelectionService.getSelectedOfficeIdValue()
-              );
+            if (this.isAddMode) {
+              this.initializeAddModeOfficeFromShell();
             }
-          } else if (this.selectedOfficeId != null) {
-            this.applyPageOfficeScope(this.selectedOfficeId);
           }
         });
       },
       error: () => {
         this.offices = [];
+        this.showOfficeDropdown = false;
       }
     });
   }
 
-  private applyOfficeFromGlobal(officeId: number | null): void {
+  /** Add-mode shell office from query param or global; does not write global. */
+  initializeAddModeOfficeFromShell(): void {
+    if (!this.isAddMode || this.offices.length === 0) {
+      return;
+    }
+
+    let initialOfficeId: number | null = null;
+    const queryOfficeId = this.route.snapshot.queryParamMap.get('officeId');
+    if (queryOfficeId) {
+      const parsed = Number(queryOfficeId);
+      if (!Number.isNaN(parsed) && this.offices.some(office => office.officeId === parsed)) {
+        initialOfficeId = parsed;
+      }
+    } else {
+      const globalOfficeId = this.globalSelectionService.getSelectedOfficeIdValue();
+      if (globalOfficeId != null && this.offices.some(office => office.officeId === globalOfficeId)) {
+        initialOfficeId = globalOfficeId;
+      }
+    }
+
     if (this.offices.length === 1) {
-      this.applyPageOfficeScope(this.offices[0].officeId);
-    } else if (this.offices.length > 1) {
-      const resolved = officeId != null && this.offices.some(o => o.officeId === officeId) ? officeId : null;
-      this.applyPageOfficeScope(resolved);
-    } else {
-      this.selectedOfficeId = officeId;
-      this.selectedOffice = null;
+      initialOfficeId = this.offices[0].officeId;
     }
+
+    this.titleBarPropertyOfficeId = initialOfficeId;
+    this.propertySection?.initializeOfficeFromShell(initialOfficeId);
   }
 
-  /** Title-bar office change on this page only (never updates global selection). */
-  private applyPageOfficeScope(officeId: number | null): void {
-    if (this.offices.length > 0) {
-      this.selectedOffice = this.utilityService.resolveSelectedOfficeById(this.offices, officeId);
-      this.selectedOfficeId = this.selectedOffice?.officeId ?? null;
-    } else {
-      this.selectedOffice = null;
-      this.selectedOfficeId = officeId;
+  private applyOfficeFromGlobal(officeId: number | null): void {
+    if (!this.isAddMode || this.offices.length === 0) {
+      return;
     }
-  }
-
-  shouldRouteToPropertyListForPageOfficeMismatch(officeId: number | null): boolean {
-    if (this.isAddMode) {
-      return false;
+    if (this.offices.length === 1) {
+      this.titleBarPropertyOfficeId = this.offices[0].officeId;
+      this.propertySection?.applyTitleBarPropertyOfficeSelection(this.offices[0].officeId);
+      return;
     }
-    const propertyOfficeId = this.propertySection?.sharedPropertyOfficeId ?? null;
-    if (officeId == null || propertyOfficeId == null) {
-      return false;
-    }
-    return officeId !== propertyOfficeId;
+    const resolved = officeId != null && this.offices.some(o => o.officeId === officeId) ? officeId : null;
+    this.titleBarPropertyOfficeId = resolved;
+    this.propertySection?.applyTitleBarPropertyOfficeSelection(resolved);
   }
   //#endregion
 
@@ -333,6 +320,9 @@ export class PropertyShellComponent implements OnInit, OnDestroy, CanComponentDe
       }
 
       this.routeTabQueryParam(nextIndex);
+      if (nextIndex === 2 && this.propertySection && !this.propertySection.isAddMode && this.propertySection.propertyId) {
+        this.propertySection.loadReservations();
+      }
       if (nextIndex === 4) {
         this.propertyEmailList?.reload();
       }

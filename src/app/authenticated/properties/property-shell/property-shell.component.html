@@ -10,52 +10,22 @@
         </span>
 
         <div class="header-title form-titlebar-fields-wrap">
-          @if (offices.length > 0) {
-            <app-title-bar-select
-              [label]="'Office'"
-              [formFieldClass]="'titlebar-field-office'"
-              [value]="selectedOfficeId"
-              [options]="officeOptions"
-              [nullOptionLabel]="'All Offices'"
-              [noResultsText]="'No offices match your search'"
-              (valueChange)="onOfficeDropdownChange($event)">
-            </app-title-bar-select>
-          }
-
         @if (propertySection?.form) {
-            @if (isHeaderPropertyOfficeEditable) {
+            @if (showOfficeDropdown || (propertySection?.isAddMode && officeOptions.length > 0)) {
               <app-title-bar-select
-                [label]="'Property Office'"
-                [formFieldClass]="'titlebar-field-property-office'"
-                [value]="titleBarPropertyOfficeId"
-                [options]="propertyOfficeOptions"
-                [nullOptionLabel]="'Select Office'"
+                [label]="'Office'"
+                [formFieldClass]="'titlebar-field-office'"
+                [required]="propertySection?.isAddMode ?? false"
+                [value]="propertySection?.isAddMode ? addModeOfficeId : displayOfficeId"
+                [options]="officeOptions"
+                [disabled]="!(propertySection?.isAddMode ?? false)"
+                [showInstructionOption]="true"
+                [nullOptionLabel]="'All Offices'"
                 [noResultsText]="'No offices match your search'"
-                [labelRequiredAsterisk]="!!propertySection?.isAddMode"
-                [showError]="!!propertySection?.showTitleBarOfficeError"
-                [errorText]="'Required'"
-                (valueChange)="onPropertyOfficeDropdownChange($event)">
+                [showError]="propertySection?.showTitleBarOfficeError ?? false"
+                [errorText]="'Office is required'"
+                (valueChange)="onOfficeDropdownChange($event)">
               </app-title-bar-select>
-            } @else {
-              <mat-form-field
-                appearance="outline"
-                class="titlebar-field-office"
-                [class.mat-form-field-invalid]="propertySection?.showTitleBarOfficeError"
-                [class.mat-mdc-form-field-invalid]="propertySection?.showTitleBarOfficeError">
-                <mat-label>
-                  Property Office
-                  @if (propertySection?.isAddMode) {
-                    <span
-                      class="property-titlebar-mat-required-asterisk"
-                      [class.property-titlebar-mat-required-asterisk--error]="propertySection?.showTitleBarOfficeError"
-                      aria-hidden="true">*</span>
-                  }
-                </mat-label>
-                <input matInput [value]="sharedPropertyOfficeName" readonly [disabled]="true" class="readonly-field">
-                @if (propertySection?.showTitleBarOfficeError) {
-                  <mat-error>Required</mat-error>
-                }
-              </mat-form-field>
             }
 
             <mat-form-field
@@ -84,7 +54,7 @@
                 (focus)="onPropertyCodeFocus($event)"
                 (input)="onPropertyCodeInput($event)">
               @if (propertySection?.showTitleBarPropertyCodeError) {
-                <mat-error>Required</mat-error>
+                <mat-error>Property code is required</mat-error>
               }
             </mat-form-field>
 
@@ -136,7 +106,7 @@
         <mat-tab label="Property">
           <app-property
             #propertySection
-            [shellOfficeId]="isAddMode ? selectedOfficeId : null"
+            [shellMode]="true"
             (titleBarContextChange)="onTitleBarContextFromProperty($event)">
           </app-property>
         </mat-tab>
