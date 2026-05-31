@@ -1,11 +1,9 @@
 import { CommonModule } from "@angular/common";
 import { HttpErrorResponse } from '@angular/common/http';
-import { ChangeDetectionStrategy, ChangeDetectorRef, Component, EventEmitter, Input, OnDestroy, OnInit, Output } from '@angular/core';
+import { ChangeDetectionStrategy, ChangeDetectorRef, Component, EventEmitter, Input, OnChanges, OnDestroy, OnInit, Output, SimpleChanges } from '@angular/core';
 import { FormsModule } from '@angular/forms';
-import { Router } from '@angular/router';
 import { ToastrService } from 'ngx-toastr';
-import {BehaviorSubject, Subject, finalize, skip, take, takeUntil} from 'rxjs';
-import { RouterUrl } from '../../../app.routes';
+import {BehaviorSubject, Subject, finalize, take, takeUntil} from 'rxjs';
 import { CommonMessage } from '../../../enums/common-message.enum';
 import { MaterialModule } from '../../../material.module';
 import { AuthService } from '../../../services/auth.service';
@@ -16,7 +14,6 @@ import { DataTableFilterActionsDirective } from '../../shared/data-table/data-ta
 import { ColumnSet } from '../../shared/data-table/models/column-data';
 import { BuildingListDisplay, BuildingResponse } from '../models/building.model';
 import { OfficeResponse } from '../models/office.model';
-import { GlobalSelectionService } from '../services/global-selection.service';
 import { BuildingService } from '../services/building.service';
 import { OfficeService } from '../services/office.service';
 
@@ -29,10 +26,9 @@ import { OfficeService } from '../services/office.service';
     changeDetection: ChangeDetectionStrategy.OnPush
 })
 
-export class BuildingListComponent implements OnInit, OnDestroy {
-  @Input() embeddedInSettings: boolean = false;
+export class BuildingListComponent implements OnInit, OnChanges, OnDestroy {
+  @Input() officeId: number | null = null;
   @Output() buildingSelected = new EventEmitter<string | number | null>();
-  panelOpenState: boolean = true;
   isServiceError: boolean = false;
   showInactive: boolean = false;
   allBuildings: BuildingListDisplay[] = [];
@@ -41,7 +37,6 @@ export class BuildingListComponent implements OnInit, OnDestroy {
   organizationId = '';
   offices: OfficeResponse[] = [];
   selectedOffice: OfficeResponse | null = null;
-  showOfficeDropdown: boolean = false;
   officeScopeResolved: boolean = false;
 
   buildingsDisplayedColumns: ColumnSet = {
@@ -59,17 +54,11 @@ export class BuildingListComponent implements OnInit, OnDestroy {
   constructor(
     public buildingService: BuildingService,
     public toastr: ToastrService,
-    public router: Router,
     public mappingService: MappingService,
     private authService: AuthService,
     private officeService: OfficeService,
-    private globalSelectionService: GlobalSelectionService,
     private utilityService: UtilityService,
     private cdr: ChangeDetectorRef) {
-  }
-
-  private markViewForCheck(): void {
-    this.cdr.markForCheck();
   }
 
   //#region Building-List
@@ -82,22 +71,17 @@ export class BuildingListComponent implements OnInit, OnDestroy {
     this.organizationId = this.authService.getUser()?.organizationId?.trim() ?? '';
     this.loadOffices();
     this.getBuildings();
+  }
 
-    this.globalSelectionService.getSelectedOfficeId$().pipe(skip(1), takeUntil(this.destroy$)).subscribe(officeId => {
-      if (this.offices.length > 0) {
-        this.resolveOfficeScope(officeId);
-      }
+  ngOnChanges(changes: SimpleChanges): void {
+    if (changes['officeId'] && this.offices.length > 0) {
+      this.resolveOfficeScope(changes['officeId'].currentValue);
       this.markViewForCheck();
-    });
+    }
   }
 
   addBuilding(): void {
-    if (this.embeddedInSettings) {
-      this.buildingSelected.emit('new');
-    } else {
-      const url = RouterUrl.replaceTokens(RouterUrl.Building, ['new']);
-      this.router.navigateByUrl(url);
-    }
+    this.buildingSelected.emit('new');
   }
 
   getBuildings(): void {
@@ -126,12 +110,7 @@ export class BuildingListComponent implements OnInit, OnDestroy {
   }
 
   goToBuilding(event: BuildingListDisplay): void {
-    if (this.embeddedInSettings) {
-      this.buildingSelected.emit(event.buildingId);
-    } else {
-      const url = RouterUrl.replaceTokens(RouterUrl.Building, [event.buildingId.toString()]);
-      this.router.navigateByUrl(url);
-    }
+    this.buildingSelected.emit(event.buildingId);
   }
   //#endregion
 
@@ -140,14 +119,7 @@ export class BuildingListComponent implements OnInit, OnDestroy {
     this.officeService.ensureOfficesLoaded(this.organizationId).pipe(take(1), finalize(() => this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'offices'))).subscribe(() => {
       this.officeService.getAllOffices().pipe(takeUntil(this.destroy$)).subscribe(allOffices => {
         this.offices = allOffices || [];
-        this.globalSelectionService.getOfficeUiState$(this.offices, { requireResolvedSelectionEmpty: true }).pipe(take(1)).subscribe({
-          next: uiState => {
-            this.selectedOffice = uiState.selectedOffice;
-            this.showOfficeDropdown = this.embeddedInSettings ? false : uiState.showOfficeDropdown;
-            this.resolveOfficeScope(uiState.selectedOfficeId);
-            this.markViewForCheck();
-          }
-        });
+        this.resolveOfficeScope(this.officeId);
         this.markViewForCheck();
       });
     });
@@ -155,11 +127,6 @@ export class BuildingListComponent implements OnInit, OnDestroy {
   //#endregion
 
   //#region Form Response Methods
-  onOfficeChange(): void {
-    this.globalSelectionService.setSelectedOfficeId(this.selectedOffice?.officeId ?? null);
-    this.applyFilters();
-  }
-  
   resolveOfficeScope(officeId: number | null): void {
     this.selectedOffice = this.utilityService.resolveSelectedOfficeById(this.offices, officeId);
     this.officeScopeResolved = true;
@@ -190,6 +157,10 @@ export class BuildingListComponent implements OnInit, OnDestroy {
   //#endregion
 
   //#region Utility Methods
+  markViewForCheck(): void {
+    this.cdr.markForCheck();
+  }
+  
   ngOnDestroy(): void {
     this.destroy$.next();
     this.destroy$.complete();
@@ -197,4 +168,3 @@ export class BuildingListComponent implements OnInit, OnDestroy {
   }
   //#endregion
 }
-

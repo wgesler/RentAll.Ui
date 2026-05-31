@@ -52,10 +52,10 @@
               <div class="agents-container">
                 <div class="settings-section-stack">
                   <div [class.settings-section-hidden]="isEditingOffice && officeId">
-                  <app-office-list [embeddedInSettings]="true" [organizationId]="effectiveOrganizationId" (officeSelected)="onOfficeSelected($event)" (copyOfficeEvent)="onCopyOffice($event)"></app-office-list>
+                  <app-office-list [organizationId]="effectiveOrganizationId" (officeSelected)="onOfficeSelected($event)" (copyOfficeEvent)="onCopyOffice($event)"></app-office-list>
                   </div>
                   @if (isEditingOffice && officeId) {
-                    <app-office [id]="officeId" [organizationId]="effectiveOrganizationId" [copyFrom]="copyOfficeData" [embeddedInSettings]="true" (savedEvent)="onOfficeSaved()" (backEvent)="onOfficeBack()"></app-office>
+                    <app-office [id]="officeId" [organizationId]="effectiveOrganizationId" [copyFrom]="copyOfficeData" (savedEvent)="onOfficeSaved()" (backEvent)="onOfficeBack()"></app-office>
                   }
                 </div>
               </div>
@@ -74,10 +74,10 @@
               <div class="agents-container">
                 <div class="settings-section-stack">
                   <div [class.settings-section-hidden]="isEditingAccountingOffice && accountingOfficeId">
-                  <app-accounting-office-list [embeddedInSettings]="true" (officeSelected)="onAccountingOfficeSelected($event)" (copyAccountingOfficeEvent)="onCopyAccountingOffice($event)"></app-accounting-office-list>
+                  <app-accounting-office-list (officeSelected)="onAccountingOfficeSelected($event)" (copyAccountingOfficeEvent)="onCopyAccountingOffice($event)"></app-accounting-office-list>
                   </div>
                   @if (isEditingAccountingOffice && accountingOfficeId) {
-                    <app-accounting-office [id]="accountingOfficeId" [copyFrom]="copyAccountingOfficeData" [embeddedInSettings]="true" (savedEvent)="onAccountingOfficeSaved()" (backEvent)="onAccountingOfficeBack()"></app-accounting-office>
+                    <app-accounting-office [id]="accountingOfficeId" [copyFrom]="copyAccountingOfficeData" (savedEvent)="onAccountingOfficeSaved()" (backEvent)="onAccountingOfficeBack()"></app-accounting-office>
                   }
                 </div>
               </div>
@@ -96,10 +96,10 @@
               <div class="agents-container">
                 <div class="settings-section-stack">
                   <div [class.settings-section-hidden]="isEditingAgent && agentId">
-                  <app-agent-list [embeddedInSettings]="true" (agentSelected)="onAgentSelected($event)"></app-agent-list>
+                  <app-agent-list (agentSelected)="onAgentSelected($event)"></app-agent-list>
                   </div>
                   @if (isEditingAgent && agentId) {
-                    <app-agent [agentId]="agentId" [embeddedInSettings]="true" (savedEvent)="onAgentSaved()" (backEvent)="onAgentBack()"></app-agent>
+                    <app-agent [agentId]="agentId" (savedEvent)="onAgentSaved()" (backEvent)="onAgentBack()"></app-agent>
                   }
                 </div>
               </div>
@@ -117,10 +117,8 @@
             @if (expandedSections.trackers) {
               <div class="agents-container">
                 <app-tracker-list
-                  [embeddedInSettings]="true"
                   [selectedOfficeId]="selectedCostCodesOfficeId"
-                  [offices]="offices"
-                  (trackerSelected)="onTrackerSelected($event)">
+                  [offices]="offices">
                 </app-tracker-list>
               </div>
             }
@@ -138,10 +136,10 @@
               <div class="agents-container">
                 <div class="settings-section-stack">
                   <div [class.settings-section-hidden]="isEditingStateForm && stateFormId">
-                    <app-state-form-list [embeddedInSettings]="true" (stateFormSelected)="onStateFormSelected($event)"></app-state-form-list>
+                    <app-state-form-list (stateFormSelected)="onStateFormSelected($event)"></app-state-form-list>
                   </div>
                   @if (isEditingStateForm && stateFormId) {
-                    <app-state-form [id]="stateFormId" [embeddedInSettings]="true" (savedEvent)="onStateFormSaved()" (backEvent)="onStateFormBack()"></app-state-form>
+                    <app-state-form [id]="stateFormId" (savedEvent)="onStateFormSaved()" (backEvent)="onStateFormBack()"></app-state-form>
                   }
                 </div>
               </div>
@@ -160,10 +158,10 @@
               <div class="agents-container">
                 <div class="settings-section-stack">
                   <div [class.settings-section-hidden]="isEditingRegion && regionId">
-                  <app-region-list [embeddedInSettings]="true" (regionSelected)="onRegionSelected($event)"></app-region-list>
+                  <app-region-list [officeId]="selectedCostCodesOfficeId" (regionSelected)="onRegionSelected($event)"></app-region-list>
                   </div>
                   @if (isEditingRegion && regionId) {
-                    <app-region [id]="regionId" [embeddedInSettings]="true" (savedEvent)="onRegionSaved()" (backEvent)="onRegionBack()"></app-region>
+                    <app-region [id]="regionId" (savedEvent)="onRegionSaved()" (backEvent)="onRegionBack()"></app-region>
                   }
                 </div>
               </div>
@@ -182,10 +180,10 @@
               <div class="agents-container">
                 <div class="settings-section-stack">
                   <div [class.settings-section-hidden]="isEditingArea && areaId">
-                  <app-area-list [embeddedInSettings]="true" (areaSelected)="onAreaSelected($event)"></app-area-list>
+                  <app-area-list [officeId]="selectedCostCodesOfficeId" (areaSelected)="onAreaSelected($event)"></app-area-list>
                   </div>
                   @if (isEditingArea && areaId) {
-                    <app-area [id]="areaId" [embeddedInSettings]="true" (savedEvent)="onAreaSaved()" (backEvent)="onAreaBack()"></app-area>
+                    <app-area [id]="areaId" (savedEvent)="onAreaSaved()" (backEvent)="onAreaBack()"></app-area>
                   }
                 </div>
               </div>
@@ -204,10 +202,10 @@
               <div class="agents-container">
                 <div class="settings-section-stack">
                   <div [class.settings-section-hidden]="isEditingBuilding && buildingId">
-                  <app-building-list [embeddedInSettings]="true" (buildingSelected)="onBuildingSelected($event)"></app-building-list>
+                  <app-building-list [officeId]="selectedCostCodesOfficeId" (buildingSelected)="onBuildingSelected($event)"></app-building-list>
                   </div>
                   @if (isEditingBuilding && buildingId) {
-                    <app-building [id]="buildingId" [embeddedInSettings]="true" (savedEvent)="onBuildingSaved()" (backEvent)="onBuildingBack()"></app-building>
+                    <app-building [id]="buildingId" (savedEvent)="onBuildingSaved()" (backEvent)="onBuildingBack()"></app-building>
                   }
                 </div>
               </div>
@@ -224,11 +222,9 @@
                 <mat-panel-title>Cost Codes</mat-panel-title>
               </mat-expansion-panel-header>
               <div class="agents-container">
-                <app-cost-codes-list 
-                  [officeId]="selectedCostCodesOfficeId"
+                <app-cost-codes-list
                   [embeddedInSettings]="true"
-                  [showOfficeDropdownInEmbedded]="false"
-                  (officeIdChange)="onCostCodesOfficeChangeFromList($event)">
+                  [officeId]="selectedCostCodesOfficeId">
                 </app-cost-codes-list>
               </div>
             </mat-expansion-panel>
@@ -246,10 +242,10 @@
               <div class="agents-container">
                 <div class="settings-section-stack">
                   <div [class.settings-section-hidden]="isEditingColor && colorId">
-                  <app-color-list [embeddedInSettings]="true" (colorSelected)="onColorSelected($event)"></app-color-list>
+                  <app-color-list (colorSelected)="onColorSelected($event)"></app-color-list>
                   </div>
                   @if (isEditingColor && colorId) {
-                    <app-color [id]="colorId" [embeddedInSettings]="true" (savedEvent)="onColorSaved()" (backEvent)="onColorBack()"></app-color>
+                    <app-color [id]="colorId" (savedEvent)="onColorSaved()" (backEvent)="onColorBack()"></app-color>
                   }
                 </div>
               </div>

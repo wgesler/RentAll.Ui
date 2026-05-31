@@ -26,7 +26,6 @@ import { RegionService } from '../services/region.service';
 
 export class RegionComponent implements OnInit, OnDestroy, OnChanges {
   @Input() id: string | number | null = null;
-  @Input() embeddedInSettings: boolean = false;
   @Output() backEvent = new EventEmitter<void>();
   @Output() savedEvent = new EventEmitter<void>();
   @ViewChild('firstInput') firstInputRef: ElementRef<HTMLInputElement>;
@@ -37,7 +36,6 @@ export class RegionComponent implements OnInit, OnDestroy, OnChanges {
   form: FormGroup;
   isSubmitting: boolean = false;
   isAddMode: boolean = false;
-  returnToSettings: boolean = false;
   organizationId = '';
   offices: OfficeResponse[] = [];
   availableOffices: { value: number, name: string }[] = [];
@@ -65,10 +63,6 @@ export class RegionComponent implements OnInit, OnDestroy, OnChanges {
     this.organizationId = this.authService.getUser()?.organizationId?.trim() ?? '';
     this.loadOffices();
     // Check for returnTo query parameter
-    this.route.queryParams.pipe(takeUntil(this.destroy$)).subscribe(params => {
-      this.returnToSettings = params['returnTo'] === 'settings';
-    });
-
     // Use the input id
     if (this.id) {
       this.isAddMode = this.id === 'new' || this.id === 'new';
@@ -108,6 +102,7 @@ export class RegionComponent implements OnInit, OnDestroy, OnChanges {
       this.toastr.error('Invalid region ID', CommonMessage.Error);
       return;
     }
+
     this.regionService.getRegionById(regionIdNum).pipe(take(1), finalize(() => { this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'region'); })).subscribe({
       next: (response: RegionResponse) => {
         this.region = response;
@@ -246,14 +241,14 @@ export class RegionComponent implements OnInit, OnDestroy, OnChanges {
   //#endregion
 
   //#region Utility Methods
+  back(): void {
+    this.backEvent.emit();
+  }
+  
   ngOnDestroy(): void {
     this.destroy$.next();
     this.destroy$.complete();
     this.itemsToLoad$.complete();
-  }
-
-  back(): void {
-    this.backEvent.emit();
   }
   //#endregion
 }

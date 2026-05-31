@@ -4,49 +4,25 @@
     <p>Loading region...</p>
   </div>
 } @else if (!isServiceError) {
-  <div class="flex content-card-wrap justify-center" fxLayout="row wrap" [class.settings-embedded-edit-wrap]="embeddedInSettings">
+  <div class="flex content-card-wrap justify-center settings-embedded-edit-wrap" fxLayout="row wrap">
     <section class="content-card">
-      @if (!embeddedInSettings) {
-      <div class="flex justify-between items-center gap-3 py-2 px-4 border-b">
-        <span class="flex flex-column items-center gap-2">
-          <mat-icon class="flex-shrink-0">map</mat-icon>
-          <span class="flex-shrink-0 text-lg font-medium">
-            {{ isAddMode ? 'Add Region' : 'Edit Region' }}
-          </span>
-        </span>
-        <div class="flex gap-2">
-          <button mat-raised-button type="button" color="accent" id="back-button" (click)="back()"
-            class="scale-90 text-nowrap flex-shrink-0">
-            <mat-icon>arrow_back</mat-icon>
-            Back
-          </button>
-          <button mat-raised-button type="submit" form="regionForm" color="primary" id="save-button" (click)="saveRegion()"
-            class="scale-90 text-nowrap flex-shrink-0" [disabled]="isSubmitting || !form.valid">
-            <mat-icon>save</mat-icon>
-            Save
-          </button>
-        </div>
-      </div>
-      }
       <mat-card>
-        <form id="regionForm" [formGroup]="form" (ngSubmit)="saveRegion()" (keydown.enter)="onEnterKey($event)" class="info-form mb-8 form-hide-error-text" [class.pt-5]="!embeddedInSettings" [class.settings-embedded-edit-top-offset]="embeddedInSettings">
+        <form id="regionForm" [formGroup]="form" (ngSubmit)="saveRegion()" (keydown.enter)="onEnterKey($event)" class="info-form mb-8 form-hide-error-text settings-embedded-edit-top-offset">
             <div class="grid grid-cols-4 form-standard-grid">
-              <div class="col-span-4 flex items-center justify-end" [class.settings-embedded-edit-actions]="embeddedInSettings">
+              <div class="col-span-4 flex items-center justify-end settings-embedded-edit-actions">
                 <mat-checkbox formControlName="isActive" color="primary">
                   IsActive
                 </mat-checkbox>
-                @if (embeddedInSettings) {
-                  <button mat-raised-button type="button" color="accent" id="back-button-embedded" (click)="back()"
-                    class="text-nowrap flex-shrink-0">
-                    <mat-icon>arrow_back</mat-icon>
-                    Back
-                  </button>
-                  <button mat-raised-button type="submit" form="regionForm" color="primary" id="save-button-embedded" (click)="saveRegion()"
-                    class="text-nowrap flex-shrink-0" [disabled]="isSubmitting || !form.valid">
-                    <mat-icon>save</mat-icon>
-                    Save
-                  </button>
-                }
+                <button mat-raised-button type="button" color="accent" id="back-button-embedded" (click)="back()"
+                  class="text-nowrap flex-shrink-0">
+                  <mat-icon>arrow_back</mat-icon>
+                  Back
+                </button>
+                <button mat-raised-button type="submit" form="regionForm" color="primary" id="save-button-embedded" (click)="saveRegion()"
+                  class="text-nowrap flex-shrink-0" [disabled]="isSubmitting || !form.valid">
+                  <mat-icon>save</mat-icon>
+                  Save
+                </button>
               </div>
 
               <mat-form-field appearance="outline" class="col-span-2">

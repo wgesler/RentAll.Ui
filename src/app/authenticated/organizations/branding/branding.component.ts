@@ -22,7 +22,6 @@ import { OrganizationService } from '../services/organization.service';
   styleUrl: './branding.component.scss'
 })
 export class BrandingComponent implements OnInit, OnDestroy {
-  @Input() embeddedInSettings: boolean = false;
   @Input() organizationId: string | null = null;
 
   form: FormGroup;
@@ -160,7 +159,7 @@ export class BrandingComponent implements OnInit, OnDestroy {
     await this.uploadLogoFile(event, true);
   }
 
-  private async uploadLogoFile(event: Event, isCollapsed: boolean): Promise<void> {
+  async uploadLogoFile(event: Event, isCollapsed: boolean): Promise<void> {
     const uploadControlName = isCollapsed ? 'collapsedFileUpload' : 'fileUpload';
     const file = this.utilityService.getFirstSelectedFile(event);
     if (!file) {

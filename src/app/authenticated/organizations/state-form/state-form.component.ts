@@ -26,7 +26,6 @@ import { StateFormService } from '../services/state-form.service';
 export class StateFormComponent implements OnInit, OnDestroy, OnChanges {
   private readonly allStatesCode = 'XX';
   @Input() id: string | number | null = null;
-  @Input() embeddedInSettings: boolean = false;
   @Output() backEvent = new EventEmitter<void>();
   @Output() savedEvent = new EventEmitter<void>();
 
@@ -232,12 +231,6 @@ export class StateFormComponent implements OnInit, OnDestroy, OnChanges {
   }
   //#endregion
 
-  normalizeStateCodes(stateCodes: string[]): string[] {
-    return [this.allStatesCode, ...(stateCodes || [])]
-      .map(stateCode => String(stateCode || '').trim().toUpperCase())
-      .filter((stateCode, index, array) => stateCode.length === 2 && array.indexOf(stateCode) === index);
-  }
-
   //#region Form Response Methods
   async uploadDocument(event: Event): Promise<void> {
     this.isUploadingDocument = true;
@@ -387,6 +380,12 @@ export class StateFormComponent implements OnInit, OnDestroy, OnChanges {
   //#endregion
 
   //#region Utility Methods
+  normalizeStateCodes(stateCodes: string[]): string[] {
+    return [this.allStatesCode, ...(stateCodes || [])]
+      .map(stateCode => String(stateCode || '').trim().toUpperCase())
+      .filter((stateCode, index, array) => stateCode.length === 2 && array.indexOf(stateCode) === index);
+  }
+
   back(): void {
     this.backEvent.emit();
   }

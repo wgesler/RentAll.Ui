@@ -34,8 +34,7 @@ import { CostCodesService } from '../services/cost-codes.service';
 export class CostCodesListComponent implements OnInit, OnDestroy, OnChanges {
   @Input() officeId: number | null = null; // Input to accept officeId from parent
   @Input() showInactiveInput?: boolean; // Input to control inactive filter from parent. If provided, parent manages controls.
-  @Input() embeddedInSettings: boolean = false; // Input to indicate component is embedded in configuration settings
-  @Input() showOfficeDropdownInEmbedded: boolean = false; // Show office dropdown when embedded (settings use-case)
+  @Input() embeddedInSettings: boolean = false; // Embedded in settings or accounting shell (office from title bar)
   @Output() officeIdChange = new EventEmitter<number | null>(); // Emit office changes to parent
   @Output() addCostCodeEvent = new EventEmitter<void>();
   @Output() editCostCodeEvent = new EventEmitter<{ costCodeId: number, officeId: number | null }>();
@@ -110,14 +109,14 @@ export class CostCodesListComponent implements OnInit, OnDestroy, OnChanges {
   }
 
   ngOnChanges(changes: SimpleChanges): void {
-    // Watch for changes to officeId input from parent
+    // Watch for changes to officeId input from parent (settings/accounting title bar)
     if (changes['officeId']) {
       const newOfficeId = changes['officeId'].currentValue;
+      if (this.isEditingCostCodes) {
+        this.costCodesOfficeId = newOfficeId ?? null;
+      }
       if (this.offices.length > 0) {
         this.resolveOfficeScope(newOfficeId, false);
-      } else {
-        // Offices not loaded yet, wait for them to load in loadOffices()
-        // The loadOffices() method will handle setting selectedOffice from officeId input
       }
     }
     
@@ -233,8 +232,9 @@ export class CostCodesListComponent implements OnInit, OnDestroy, OnChanges {
         this.availableOffices = this.mappingService.mapOfficesToDropdown(this.offices);
         this.globalSelectionService.getOfficeUiState$(this.offices, { explicitOfficeId: this.officeId, useGlobalSelection: this.embeddedInSettings }).pipe(take(1)).subscribe({
           next: uiState => {
-            this.showOfficeDropdown = uiState.showOfficeDropdown;
-            this.resolveOfficeScope(uiState.selectedOfficeId, this.officeId === null || this.officeId === undefined);
+            this.showOfficeDropdown = this.embeddedInSettings ? false : uiState.showOfficeDropdown;
+            const officeIdToUse = this.embeddedInSettings ? this.officeId : uiState.selectedOfficeId;
+            this.resolveOfficeScope(officeIdToUse ?? null, this.officeId === null || this.officeId === undefined);
             this.markViewForCheck();
           }
         });

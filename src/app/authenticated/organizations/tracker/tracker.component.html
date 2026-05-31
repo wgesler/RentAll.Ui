@@ -4,12 +4,12 @@
     <p>Loading tracker...</p>
   </div>
 } @else if (!isServiceError) {
-  <div class="flex content-card-wrap justify-center" fxLayout="row wrap" [class.settings-embedded-edit-wrap]="embeddedInSettings">
+  <div class="flex content-card-wrap justify-center settings-embedded-edit-wrap" fxLayout="row wrap">
     <section class="content-card">
       <mat-card>
-        <form id="trackerForm" [formGroup]="form" (ngSubmit)="saveTracker()" (keydown.enter)="onEnterKey($event)" class="info-form mb-8 form-hide-error-text pt-5" [class.settings-embedded-edit-top-offset]="embeddedInSettings">
+        <form id="trackerForm" [formGroup]="form" (ngSubmit)="saveTracker()" (keydown.enter)="onEnterKey($event)" class="info-form mb-8 form-hide-error-text settings-embedded-edit-top-offset">
           <div class="grid grid-cols-4 form-standard-grid">
-            <div class="col-span-4 flex items-center justify-end" [class.settings-embedded-edit-actions]="embeddedInSettings">
+            <div class="col-span-4 flex items-center justify-end settings-embedded-edit-actions">
               <mat-checkbox formControlName="isActive" color="primary">
                 IsActive
               </mat-checkbox>

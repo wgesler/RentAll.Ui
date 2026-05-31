@@ -26,7 +26,6 @@ import { OfficeService } from '../services/office.service';
 
 export class AreaComponent implements OnInit, OnDestroy, OnChanges {
   @Input() id: string | number | null = null;
-  @Input() embeddedInSettings: boolean = false;
   @Output() backEvent = new EventEmitter<void>();
   @Output() savedEvent = new EventEmitter<void>();
   @ViewChild('firstInput') firstInputRef: ElementRef<HTMLInputElement>;
@@ -37,7 +36,6 @@ export class AreaComponent implements OnInit, OnDestroy, OnChanges {
   form: FormGroup;
   isSubmitting: boolean = false;
   isAddMode: boolean = false;
-  returnToSettings: boolean = false;
   organizationId = '';
   offices: OfficeResponse[] = [];
   availableOffices: { value: number, name: string }[] = [];
@@ -64,12 +62,7 @@ export class AreaComponent implements OnInit, OnDestroy, OnChanges {
   ngOnInit(): void {
     this.organizationId = this.authService.getUser()?.organizationId?.trim() ?? '';
     this.loadOffices();
-    // Check for returnTo query parameter
-    this.route.queryParams.pipe(takeUntil(this.destroy$)).subscribe(params => {
-      this.returnToSettings = params['returnTo'] === 'settings';
-    });
-
-    // Use the input id
+    // Check for returnTo query parameter use the input id
     if (this.id) {
       this.isAddMode = this.id === 'new' || this.id === 'new';
       if (this.isAddMode) {
@@ -204,7 +197,7 @@ export class AreaComponent implements OnInit, OnDestroy, OnChanges {
   }
   //#endregion
 
-  //#region Utility Methods
+  //#region Form Response Methods
   onCodeInput(event: Event): void {
     this.formatterService.formatCodeInput(event, this.form.get('areaCode'));
   }
@@ -233,15 +226,17 @@ export class AreaComponent implements OnInit, OnDestroy, OnChanges {
       this.saveArea();
     }
   }
+  //#endregion
 
+  //#region Utility Methods
+  back(): void {
+    this.backEvent.emit();
+  }
+  
   ngOnDestroy(): void {
     this.destroy$.next();
     this.destroy$.complete();
     this.itemsToLoad$.complete();
-  }
-
-  back(): void {
-    this.backEvent.emit();
   }
   //#endregion
 }

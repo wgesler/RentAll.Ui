@@ -27,7 +27,6 @@ import { OfficeService } from '../services/office.service';
 
 export class BuildingComponent implements OnInit, OnDestroy, OnChanges {
   @Input() id: string | number | null = null;
-  @Input() embeddedInSettings: boolean = false;
   @Output() backEvent = new EventEmitter<void>();
   @Output() savedEvent = new EventEmitter<void>();
   @ViewChild('firstInput') firstInputRef: ElementRef<HTMLInputElement>;
@@ -38,7 +37,6 @@ export class BuildingComponent implements OnInit, OnDestroy, OnChanges {
   form: FormGroup;
   isSubmitting: boolean = false;
   isAddMode: boolean = false;
-  returnToSettings: boolean = false;
   organizationId = '';
   offices: OfficeResponse[] = [];
   availableOffices: { value: number, name: string }[] = [];
@@ -68,10 +66,6 @@ export class BuildingComponent implements OnInit, OnDestroy, OnChanges {
     this.initializeTrashDays();
     this.loadOffices();
     // Check for returnTo query parameter
-    this.route.queryParams.pipe(takeUntil(this.destroy$)).subscribe(params => {
-      this.returnToSettings = params['returnTo'] === 'settings';
-    });
-
     // Use the input id
     if (this.id) {
       this.isAddMode = this.id === 'new' || this.id === 'new';
@@ -340,14 +334,14 @@ export class BuildingComponent implements OnInit, OnDestroy, OnChanges {
   //#endregion
 
   //#region Utility Methods
+  back(): void {
+    this.backEvent.emit();
+  }
+  
   ngOnDestroy(): void {
     this.destroy$.next();
     this.destroy$.complete();
     this.itemsToLoad$.complete();
-  }
-
-  back(): void {
-    this.backEvent.emit();
   }
   //#endregion
 }

@@ -36,11 +36,6 @@ export class ColorService {
   updateColor(color: ColorRequest): Observable<ColorResponse> {
     return this.http.put<ColorResponse>(this.controller, color);
   }
-
-  // DELETE: Delete color
-  deleteColor(colorId: number): Observable<void> {
-    return this.http.delete<void>(this.controller + colorId);
-  }
 }
 
 

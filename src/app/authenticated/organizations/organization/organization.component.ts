@@ -33,7 +33,6 @@ export class OrganizationComponent implements OnInit, OnDestroy {
   fileDetails: FileDetails = null;
   hasNewFileUpload: boolean = false; // Track if fileDetails is from a new upload vs API response
   logoPath: string = null;
-  originalLogoPath: string = null; // Track original logo to detect removal
   isSubmitting: boolean = false;
   isUploadingLogo: boolean = false;
   isAddMode: boolean = false;
@@ -90,7 +89,6 @@ export class OrganizationComponent implements OnInit, OnDestroy {
         // Always preserve logoPath from response if it exists (even if fileDetails also exists)
         if (response.logoPath) {
           this.logoPath = response.logoPath;
-          this.originalLogoPath = response.logoPath; // Track original for removal detection
         }
         this.populateForm();
         this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'organization');
@@ -261,6 +259,25 @@ export class OrganizationComponent implements OnInit, OnDestroy {
   }
   //#endregion
 
+  //#region Data Loading Methods
+  loadStates(): void {
+    const cachedStates = this.commonService.getStatesValue();
+    if (cachedStates && cachedStates.length > 0) {
+      this.states = [...cachedStates];
+      return;
+    }
+    
+    this.commonService.getStates().pipe(filter(states => states && states.length > 0), take(1)).subscribe({
+      next: (states) => {
+        this.states = [...states];
+      },
+      error: (err) => {
+        console.error('Organization Component - Error loading states:', err);
+      }
+    });
+  }
+  //#endregion
+
   //#region Logo Methods
   async upload(event: Event): Promise<void> {
     this.isUploadingLogo = true;
@@ -290,7 +307,6 @@ export class OrganizationComponent implements OnInit, OnDestroy {
     this.hasNewFileUpload = false; // Reset flag when logo is removed
     this.form.patchValue({ fileUpload: null });
     this.form.get('fileUpload').updateValueAndValidity();
-    // Note: originalLogoPath is kept to detect if logo was removed vs never existed
   }
   //#endregion
 
@@ -347,6 +363,7 @@ export class OrganizationComponent implements OnInit, OnDestroy {
   }
   //#endregion
 
+  //#region Form Response Methods
   focusFirstField(): void {
     const el = this.firstInputRef?.nativeElement;
     if (el?.focus) {
@@ -361,22 +378,15 @@ export class OrganizationComponent implements OnInit, OnDestroy {
     });
   }
 
-  //#region Data Loading Methods
-  loadStates(): void {
-    const cachedStates = this.commonService.getStatesValue();
-    if (cachedStates && cachedStates.length > 0) {
-      this.states = [...cachedStates];
+  onEnterKey(event: Event): void {
+    const target = (event as KeyboardEvent).target as HTMLElement;
+    if (target?.closest?.('.mat-mdc-select-panel') || target?.closest?.('.cdk-overlay-pane')) {
       return;
     }
-    
-    this.commonService.getStates().pipe(filter(states => states && states.length > 0), take(1)).subscribe({
-      next: (states) => {
-        this.states = [...states];
-      },
-      error: (err) => {
-        console.error('Organization Component - Error loading states:', err);
-      }
-    });
+    (event as KeyboardEvent).preventDefault();
+    if (this.form?.valid && !this.isSubmitting) {
+      this.saveOrganization();
+    }
   }
   //#endregion
 
@@ -389,17 +399,6 @@ export class OrganizationComponent implements OnInit, OnDestroy {
 
   back(): void {
     this.router.navigateByUrl(RouterUrl.OrganizationList);
-  }
-
-  onEnterKey(event: Event): void {
-    const target = (event as KeyboardEvent).target as HTMLElement;
-    if (target?.closest?.('.mat-mdc-select-panel') || target?.closest?.('.cdk-overlay-pane')) {
-      return;
-    }
-    (event as KeyboardEvent).preventDefault();
-    if (this.form?.valid && !this.isSubmitting) {
-      this.saveOrganization();
-    }
   }
   //#endregion
 }

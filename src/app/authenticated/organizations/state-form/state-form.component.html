@@ -4,21 +4,19 @@
     <p>Loading state form...</p>
   </div>
 } @else if (!isServiceError) {
-  <div class="flex content-card-wrap justify-center" [class.settings-embedded-edit-wrap]="embeddedInSettings">
+  <div class="flex content-card-wrap justify-center settings-embedded-edit-wrap">
     <section class="content-card">
       <mat-card>
-        <form id="stateFormForm" [formGroup]="form" (ngSubmit)="saveStateForm()" class="info-form mb-8 form-hide-error-text" [class.settings-embedded-edit-top-offset]="embeddedInSettings">
-          <div class="mb-4 flex justify-end" [class.settings-embedded-edit-actions]="embeddedInSettings">
-            @if (embeddedInSettings) {
-              <button mat-raised-button type="button" color="accent" id="back-state-form-button-embedded" (click)="back()" class="text-nowrap flex-shrink-0">
-                <mat-icon>arrow_back</mat-icon>
-                Back
-              </button>
-              <button mat-raised-button type="submit" form="stateFormForm" color="primary" id="save-state-form-button-embedded" (click)="saveStateForm()" class="text-nowrap flex-shrink-0" [disabled]="isSubmitting">
-                <mat-icon>save</mat-icon>
-                Save
-              </button>
-            }
+        <form id="stateFormForm" [formGroup]="form" (ngSubmit)="saveStateForm()" class="info-form mb-8 form-hide-error-text settings-embedded-edit-top-offset">
+          <div class="mb-4 flex justify-end settings-embedded-edit-actions">
+            <button mat-raised-button type="button" color="accent" id="back-state-form-button-embedded" (click)="back()" class="text-nowrap flex-shrink-0">
+              <mat-icon>arrow_back</mat-icon>
+              Back
+            </button>
+            <button mat-raised-button type="submit" form="stateFormForm" color="primary" id="save-state-form-button-embedded" (click)="saveStateForm()" class="text-nowrap flex-shrink-0" [disabled]="isSubmitting">
+              <mat-icon>save</mat-icon>
+              Save
+            </button>
           </div>
 
           <mat-accordion multi="true">

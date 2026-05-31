@@ -1,6 +1,6 @@
 import { CommonModule } from '@angular/common';
 import { HttpErrorResponse } from '@angular/common/http';
-import { Component, EventEmitter, Input, OnChanges, OnDestroy, OnInit, Output, SimpleChanges, ViewChild } from '@angular/core';
+import { Component, ElementRef, EventEmitter, Input, OnChanges, OnDestroy, OnInit, Output, SimpleChanges, ViewChild } from '@angular/core';
 import { MatSelect } from '@angular/material/select';
 import { FormBuilder, FormControl, FormGroup, FormsModule, ReactiveFormsModule, Validators } from '@angular/forms';
 import { Router } from '@angular/router';
@@ -32,6 +32,7 @@ export class CostCodesComponent implements OnInit, OnDestroy, OnChanges {
   @Output() backEvent = new EventEmitter<void>(); // Emit when back button is clicked
   @Output() savedEvent = new EventEmitter<void>(); // Emit when save is successful
   @ViewChild('firstInput') firstInputRef: MatSelect;
+  @ViewChild('costCodeInput') costCodeInputRef: ElementRef<HTMLInputElement>;
   
   isServiceError: boolean = false;
   costCodeId: number | null = null;
@@ -136,14 +137,11 @@ export class CostCodesComponent implements OnInit, OnDestroy, OnChanges {
       }
     }
     
-    // Handle officeId changes
+    // Handle officeId changes (from title bar via parent)
     if (changes['officeId'] && this.offices.length > 0) {
-      if (this.officeId) {
-        this.selectedOffice = this.offices.find(o => o.officeId === this.officeId) || null;
-        // If we have a costCodeId and are in edit mode, reload
-        if (!this.isAddMode && this.costCodeId && this.selectedOffice) {
-          this.getCostCode();
-        }
+      this.syncSelectedOfficeFromInput();
+      if (!this.isAddMode && this.costCodeId && this.selectedOffice) {
+        this.getCostCode();
       }
     }
   }
@@ -303,6 +301,10 @@ export class CostCodesComponent implements OnInit, OnDestroy, OnChanges {
   }
 
   focusFirstField(): void {
+    if (this.source === 'configuration' || !this.isAddMode) {
+      this.costCodeInputRef?.nativeElement?.focus();
+      return;
+    }
     this.firstInputRef?.focus();
   }
 
@@ -319,19 +321,21 @@ export class CostCodesComponent implements OnInit, OnDestroy, OnChanges {
     if (this.selectedOffice?.officeId) {
       this.saveAttempted = false;
     }
+  }
 
-    // In settings/configuration, changing office while editing should reload
-    // the selected cost code in the newly selected office scope.
-    if (!this.isAddMode && this.source === 'configuration' && this.selectedOffice && this.costCodeId) {
-      this.getCostCode();
+  syncSelectedOfficeFromInput(): void {
+    if (this.officeId != null) {
+      this.selectedOffice = this.offices.find(o => o.officeId === this.officeId) || null;
+      return;
     }
+    this.selectedOffice = null;
   }
 
   getOfficeName(): string {
-    if (!this.selectedOffice) {
-      return '';
+    if (this.selectedOffice) {
+      return this.selectedOffice.name || '';
     }
-    return this.selectedOffice.name || '';
+    return this.source === 'configuration' ? 'All Offices' : '';
   }
 
   updateCostCodeValidators(): void {
@@ -374,7 +378,7 @@ export class CostCodesComponent implements OnInit, OnDestroy, OnChanges {
   }
 
   get shouldValidateOfficeSelection(): boolean {
-    return this.isAddMode || this.source === 'configuration';
+    return this.isAddMode;
   }
 
   get showOfficeValidationError(): boolean {

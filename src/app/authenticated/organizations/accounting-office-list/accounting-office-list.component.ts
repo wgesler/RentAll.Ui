@@ -1,11 +1,9 @@
 import { CommonModule } from "@angular/common";
 import { HttpErrorResponse } from '@angular/common/http';
-import { ChangeDetectionStrategy, ChangeDetectorRef, Component, EventEmitter, Input, OnDestroy, OnInit, Output } from '@angular/core';
+import { ChangeDetectionStrategy, ChangeDetectorRef, Component, EventEmitter, OnDestroy, OnInit, Output } from '@angular/core';
 import { FormsModule } from '@angular/forms';
-import { Router } from '@angular/router';
 import { ToastrService } from 'ngx-toastr';
 import {BehaviorSubject, Subject, finalize, take, takeUntil} from 'rxjs';
-import { RouterUrl } from '../../../app.routes';
 import { CommonMessage } from '../../../enums/common-message.enum';
 import { MaterialModule } from '../../../material.module';
 import { AuthService } from '../../../services/auth.service';
@@ -30,18 +28,14 @@ import { OfficeService } from '../services/office.service';
 })
 
 export class AccountingOfficeListComponent implements OnInit, OnDestroy {
-  @Input() embeddedInSettings: boolean = false;
   @Output() officeSelected = new EventEmitter<string | number | null>();
   @Output() copyAccountingOfficeEvent = new EventEmitter<AccountingOfficeResponse>();
-  panelOpenState: boolean = true;
   isServiceError: boolean = false;
   showInactive: boolean = false;
 
   organizationId = '';
   offices: OfficeResponse[] = [];
-  availableOffices: { value: number, name: string }[] = [];
-  selectedOffice: OfficeResponse | null = null;
-  
+
   allAccountingOffices: AccountingOfficeListDisplay[] = [];
   accountingOfficesDisplay: AccountingOfficeListDisplay[] = [];
 
@@ -62,17 +56,12 @@ export class AccountingOfficeListComponent implements OnInit, OnDestroy {
   constructor(
     public accountingOfficeService: AccountingOfficeService,
     public toastr: ToastrService,
-    public router: Router,
     public formatterService: FormatterService,
     private authService: AuthService,
     private officeService: OfficeService,
     private mappingService: MappingService,
     private utilityService: UtilityService,
     private cdr: ChangeDetectorRef) {
-  }
-
-  private markViewForCheck(): void {
-    this.cdr.markForCheck();
   }
 
   //#region Office-List
@@ -83,17 +72,11 @@ export class AccountingOfficeListComponent implements OnInit, OnDestroy {
     });
 
     this.organizationId = this.authService.getUser()?.organizationId?.trim() ?? '';
-    // Wait for offices to load before loading accounting offices
     this.loadOffices();
   }
 
   addAccountingOffice(): void {
-    if (this.embeddedInSettings) {
-      this.officeSelected.emit('new');
-    } else {
-      const url = RouterUrl.replaceTokens(RouterUrl.AccountingOffice, ['new']);
-      this.router.navigateByUrl(url);
-    }
+    this.officeSelected.emit('new');
   }
 
   getAccountingOffices(): void {
@@ -132,24 +115,14 @@ export class AccountingOfficeListComponent implements OnInit, OnDestroy {
   }
 
   goToAccountingOffice(event: AccountingOfficeListDisplay): void {
-    if (this.embeddedInSettings) {
-      this.officeSelected.emit(event.officeId);
-    } else {
-      const url = RouterUrl.replaceTokens(RouterUrl.AccountingOffice, [event.officeId.toString()]);
-      this.router.navigateByUrl(url);
-    }
+    this.officeSelected.emit(event.officeId);
   }
 
   copyAccountingOffice(row: AccountingOfficeListDisplay): void {
     this.accountingOfficeService.getAccountingOfficeById(row.officeId).pipe(take(1)).subscribe({
       next: (response: AccountingOfficeResponse) => {
         const copyData: AccountingOfficeResponse = { ...response, name: '' };
-        if (this.embeddedInSettings) {
-          this.copyAccountingOfficeEvent.emit(copyData);
-        } else {
-          const url = '/' + RouterUrl.replaceTokens(RouterUrl.AccountingOffice, ['new']);
-          this.router.navigateByUrl(url, { state: { copyFrom: copyData } });
-        }
+        this.copyAccountingOfficeEvent.emit(copyData);
       },
       error: () => {}
     });
@@ -189,6 +162,10 @@ export class AccountingOfficeListComponent implements OnInit, OnDestroy {
   //#endregion
 
   //#region Utility Methods
+  markViewForCheck(): void {
+    this.cdr.markForCheck();
+  }
+
   ngOnDestroy(): void {
     this.destroy$.next();
     this.destroy$.complete();

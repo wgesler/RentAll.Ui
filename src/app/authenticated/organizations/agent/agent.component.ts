@@ -26,7 +26,6 @@ import { OfficeService } from '../services/office.service';
 
 export class AgentComponent implements OnInit, OnDestroy, OnChanges {
   @Input() agentId: string | number | null = null;
-  @Input() embeddedInSettings: boolean = false;
   @Output() backEvent = new EventEmitter<void>();
   @Output() savedEvent = new EventEmitter<void>();
   @ViewChild('firstInput') firstInputRef: ElementRef<HTMLInputElement>;
@@ -37,7 +36,6 @@ export class AgentComponent implements OnInit, OnDestroy, OnChanges {
   form: FormGroup;
   isSubmitting: boolean = false;
   isAddMode: boolean = false;
-  returnToSettings: boolean = false;
   organizationId = '';
   offices: OfficeResponse[] = [];
   availableOffices: { value: number, name: string }[] = [];
@@ -63,11 +61,6 @@ export class AgentComponent implements OnInit, OnDestroy, OnChanges {
   ngOnInit(): void {
     this.organizationId = this.authService.getUser()?.organizationId?.trim() ?? '';
     this.loadOffices();
-    // Check for returnTo query parameter
-    this.route.queryParams.pipe(takeUntil(this.destroy$)).subscribe(params => {
-      this.returnToSettings = params['returnTo'] === 'settings';
-    });
-
     // Use the input agentId
     if (this.agentId) {
       this.isAddMode = this.agentId === 'new' || this.agentId === 'new';
@@ -191,7 +184,7 @@ export class AgentComponent implements OnInit, OnDestroy, OnChanges {
   }
   //#endregion
 
-  //#region Utility Methods
+  //#region Form Response Methods
   focusFirstField(): void {
     const el = this.firstInputRef?.nativeElement;
     if (el?.focus) {
@@ -220,15 +213,17 @@ export class AgentComponent implements OnInit, OnDestroy, OnChanges {
       this.saveAgent();
     }
   }
+  //#endregion
+
+  //#region Utility Methods
+  back(): void {
+    this.backEvent.emit();
+  }
   
   ngOnDestroy(): void {
     this.destroy$.next();
     this.destroy$.complete();
     this.itemsToLoad$.complete();
-  }
-
-  back(): void {
-    this.backEvent.emit();
   }
   //#endregion
 }

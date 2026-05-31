@@ -24,18 +24,15 @@ import { ColorService } from '../services/color.service';
 
 export class ColorComponent implements OnInit, OnDestroy, OnChanges {
   @Input() id: string | number | null = null;
-  @Input() embeddedInSettings: boolean = false;
   @Output() backEvent = new EventEmitter<void>();
   @Output() savedEvent = new EventEmitter<void>();
   @ViewChild('firstInput') firstInputRef: MatSelect;
   
   isServiceError: boolean = false;
-  routeColorId: string | null = null;
   color: ColorResponse;
   form: FormGroup;
   isSubmitting: boolean = false;
   isAddMode: boolean = false;
-  returnToSettings: boolean = false;
   reservationStatuses = getReservationStatuses();
 
   itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['color']));
@@ -55,11 +52,6 @@ export class ColorComponent implements OnInit, OnDestroy, OnChanges {
 
   //#region Color
   ngOnInit(): void {
-    // Check for returnTo query parameter
-    this.route.queryParams.pipe(takeUntil(this.destroy$)).subscribe(params => {
-      this.returnToSettings = params['returnTo'] === 'settings';
-    });
-
     // Use the input id
     if (this.id) {
       this.isAddMode = this.id === 'new';
@@ -98,7 +90,7 @@ export class ColorComponent implements OnInit, OnDestroy, OnChanges {
   }
 
   getColor(id?: string | number): void {
-    const idToUse = id || this.id || this.routeColorId;
+    const idToUse = id || this.id;
     if (!idToUse || idToUse === 'new') {
       return;
     }
@@ -146,7 +138,7 @@ export class ColorComponent implements OnInit, OnDestroy, OnChanges {
         error: (_err: HttpErrorResponse) => {}
       });
     } else {
-      const idToUse = this.id || this.routeColorId;
+      const idToUse = this.id;
       const colorIdNum = typeof idToUse === 'number' ? idToUse : parseInt(idToUse?.toString() || '', 10);
       if (isNaN(colorIdNum)) {
         this.toastr.error('Invalid color ID', CommonMessage.Error);
@@ -216,14 +208,14 @@ export class ColorComponent implements OnInit, OnDestroy, OnChanges {
   //#endregion
 
   //#region Utility Methods
+  back(): void {
+    this.backEvent.emit();
+  }
+  
   ngOnDestroy(): void {
     this.destroy$.next();
     this.destroy$.complete();
     this.itemsToLoad$.complete();
-  }
-
-  back(): void {
-    this.backEvent.emit();
   }
   //#endregion
 }

@@ -1,11 +1,9 @@
 import { CommonModule } from "@angular/common";
 import { HttpErrorResponse } from '@angular/common/http';
-import { ChangeDetectionStrategy, ChangeDetectorRef, Component, EventEmitter, Input, OnDestroy, OnInit, Output } from '@angular/core';
+import { ChangeDetectionStrategy, ChangeDetectorRef, Component, EventEmitter, OnDestroy, OnInit, Output } from '@angular/core';
 import { FormsModule } from '@angular/forms';
-import { Router } from '@angular/router';
 import { ToastrService } from 'ngx-toastr';
 import {BehaviorSubject, finalize, take, Subject, takeUntil} from 'rxjs';
-import { RouterUrl } from '../../../app.routes';
 import { CommonMessage } from '../../../enums/common-message.enum';
 import { MaterialModule } from '../../../material.module';
 import { MappingService } from '../../../services/mapping.service';
@@ -26,9 +24,7 @@ import { AgentService } from '../services/agent.service';
 })
 
 export class AgentListComponent implements OnInit, OnDestroy {
-  @Input() embeddedInSettings: boolean = false;
   @Output() agentSelected = new EventEmitter<string | number | null>();
-  panelOpenState: boolean = true;
   isServiceError: boolean = false;
   showInactive: boolean = false;
   allAgents: AgentListDisplay[] = [];
@@ -48,14 +44,9 @@ export class AgentListComponent implements OnInit, OnDestroy {
   constructor(
     public agentService: AgentService,
     public toastr: ToastrService,
-    public router: Router,
     public mappingService: MappingService,
     private utilityService: UtilityService,
     private cdr: ChangeDetectorRef) {
-  }
-
-  private markViewForCheck(): void {
-    this.cdr.markForCheck();
   }
 
   //#region Agent-List
@@ -69,12 +60,7 @@ export class AgentListComponent implements OnInit, OnDestroy {
   }
 
   addAgent(): void {
-    if (this.embeddedInSettings) {
-      this.agentSelected.emit('new');
-    } else {
-      const url = RouterUrl.replaceTokens(RouterUrl.Agent, ['new']);
-      this.router.navigateByUrl(url);
-    }
+    this.agentSelected.emit('new');
   }
 
   getAgents(): void {
@@ -103,12 +89,7 @@ export class AgentListComponent implements OnInit, OnDestroy {
   }
 
   goToAgent(event: AgentListDisplay): void {
-    if (this.embeddedInSettings) {
-      this.agentSelected.emit(event.agentId);
-    } else {
-      const url = RouterUrl.replaceTokens(RouterUrl.Agent, [event.agentId.toString()]);
-      this.router.navigateByUrl(url);
-    }
+    this.agentSelected.emit(event.agentId);
   }
   //#endregion
 
@@ -126,6 +107,10 @@ export class AgentListComponent implements OnInit, OnDestroy {
   //#endregion
 
   //#region Utility Methods
+  markViewForCheck(): void {
+    this.cdr.markForCheck();
+  }
+
   ngOnDestroy(): void {
     this.destroy$.next();
     this.destroy$.complete();

@@ -3,7 +3,6 @@ import { HttpErrorResponse } from '@angular/common/http';
 import { Component, EventEmitter, Input, OnChanges, OnDestroy, OnInit, Output, SimpleChanges, ViewChild } from '@angular/core';
 import { MatSelect } from '@angular/material/select';
 import { FormBuilder, FormControl, FormGroup, FormsModule, ReactiveFormsModule, Validators } from '@angular/forms';
-import { ActivatedRoute, Router } from '@angular/router';
 import { ToastrService } from 'ngx-toastr';
 import { BehaviorSubject, Observable, Subject, filter, finalize, map, take, takeUntil } from 'rxjs';
 import { CommonMessage, CommonTimeouts } from '../../../enums/common-message.enum';
@@ -35,23 +34,19 @@ import { CostCodesService } from '../../accounting/services/cost-codes.service';
 export class AccountingOfficeComponent implements OnInit, OnDestroy, OnChanges {
   @Input() id: string | number | null = null;
   @Input() copyFrom: AccountingOfficeResponse | null = null; // When set in add mode, form is pre-filled (name cleared)
-  @Input() embeddedInSettings: boolean = false;
   @Output() backEvent = new EventEmitter<void>();
   @Output() savedEvent = new EventEmitter<void>();
   @ViewChild('firstInput') firstInputRef: MatSelect;
   
   isServiceError: boolean = false;
-  routeOfficeId: string | null = null;
   form: FormGroup;
   fileName: string = null;
   fileDetails: FileDetails = null;
   hasNewFileUpload: boolean = false; // Track if fileDetails is from a new upload vs API response
   logoPath: string = null;
-  originalLogoPath: string = null; // Track original logo to detect removal
   isSubmitting: boolean = false;
   isUploadingLogo: boolean = false;
   isAddMode: boolean = false;
-  returnToSettings: boolean = false;
   states: string[] = [];
   accountingOffice: AccountingOfficeResponse;
   bankCards: BankCardResponse[] = [];
@@ -70,9 +65,7 @@ export class AccountingOfficeComponent implements OnInit, OnDestroy, OnChanges {
 
   constructor(
     public accountingOfficeService: AccountingOfficeService,
-    public router: Router,
     public fb: FormBuilder,
-    private route: ActivatedRoute,
     private toastr: ToastrService,
     private authService: AuthService,
     private formatterService: FormatterService,    private commonService: CommonService,
@@ -88,16 +81,6 @@ export class AccountingOfficeComponent implements OnInit, OnDestroy, OnChanges {
     this.organizationId = this.authService.getUser()?.organizationId?.trim() ?? '';
     this.loadStates();
     this.loadOffices();
-
-    this.route.queryParams.pipe(takeUntil(this.destroy$)).subscribe(params => {
-      this.returnToSettings = params['returnTo'] === 'settings';
-    });
-
-    // Copy-from state when navigating from list (non-embedded)
-    const nav = this.router.getCurrentNavigation();
-    if (nav?.extras?.state?.['copyFrom'] && !this.copyFrom) {
-      this.copyFrom = nav.extras.state['copyFrom'] as AccountingOfficeResponse;
-    }
 
     // Wait for offices to be loaded before loading accounting office data
     this.officeService.areOfficesLoaded().pipe(filter(loaded => loaded === true), take(1)).subscribe(() => {
@@ -145,7 +128,7 @@ export class AccountingOfficeComponent implements OnInit, OnDestroy, OnChanges {
   }
 
   getAccountingOffice(id?: string | number): void {
-    const idToUse = id || this.id || this.routeOfficeId;
+    const idToUse = id || this.id;
     if (!idToUse || idToUse === 'new') {
       return;
     }
@@ -182,7 +165,6 @@ export class AccountingOfficeComponent implements OnInit, OnDestroy, OnChanges {
         // Always preserve logoPath from response if it exists (even if fileDetails also exists)
         if (response.logoPath) {
           this.logoPath = response.logoPath;
-          this.originalLogoPath = response.logoPath; // Track original for removal detection
         }
         this.buildForm();
         this.populateForm();
@@ -271,7 +253,7 @@ export class AccountingOfficeComponent implements OnInit, OnDestroy, OnChanges {
         error: (_err: HttpErrorResponse) => {}
       });
     } else {
-      const idToUse = this.id || this.routeOfficeId;
+      const idToUse = this.id;
       const officeIdNum = typeof idToUse === 'number' ? idToUse : parseInt(idToUse?.toString() || '', 10);
       if (isNaN(officeIdNum)) {
         this.toastr.error('Invalid office ID', CommonMessage.Error);
@@ -292,17 +274,6 @@ export class AccountingOfficeComponent implements OnInit, OnDestroy, OnChanges {
     }
   }
   //#endregion
-
-  focusFirstField(): void {
-    this.firstInputRef?.focus();
-  }
-
-  scheduleFocusFirstField(): void {
-    if (!this.isAddMode) return;
-    this.isLoading$.pipe(filter(loaded => !loaded), take(1)).subscribe(() => {
-      setTimeout(() => this.focusFirstField(), 100);
-    });
-  }
 
   //#region Data Loading Methods
   loadOffices(): void {
@@ -441,6 +412,29 @@ export class AccountingOfficeComponent implements OnInit, OnDestroy, OnChanges {
   }
   //#endregion
 
+  //#region Data Load Methods
+  loadCostCodesForOffice(officeId?: number | null): void {
+    const parsedOfficeId = Number(officeId);
+    if (!parsedOfficeId || parsedOfficeId <= 0) {
+      this.costCodeOptions = [];
+      return;
+    }
+
+    this.costCodesService.getCostCodesByOfficeId(parsedOfficeId).pipe(take(1)).subscribe({
+      next: (codes: CostCodesResponse[]) => {
+        const activeCodes = (codes || []).filter(c => c.isActive);
+        this.costCodeOptions = activeCodes.map(code => ({
+          value: code.costCodeId,
+          label: `${code.costCode}: ${code.description}`
+        }));
+      },
+      error: (_err) => {
+        this.costCodeOptions = [];
+      }
+    });
+  }
+  //#endregion
+
   //#region Logo methods
   async upload(event: Event): Promise<void> {
     this.isUploadingLogo = true;
@@ -470,11 +464,26 @@ export class AccountingOfficeComponent implements OnInit, OnDestroy, OnChanges {
     this.hasNewFileUpload = false; // Reset flag when logo is removed
     this.form.patchValue({ fileUpload: null });
     this.form.get('fileUpload').updateValueAndValidity();
-    // Note: originalLogoPath is kept to detect if logo was removed vs never existed
   }
-  
-  selectAllOnFocus(event: Event): void {
-    (event.target as HTMLInputElement).select();
+  //#endregion
+
+  //#region Form Response Methods
+  focusFirstField(): void {
+    this.firstInputRef?.focus();
+  }
+
+  scheduleFocusFirstField(): void {
+    if (!this.isAddMode) return;
+    this.isLoading$.pipe(filter(loaded => !loaded), take(1)).subscribe(() => {
+      setTimeout(() => this.focusFirstField(), 100);
+    });
+  }
+    
+  onIntegerInput(event: Event, fieldName: string): void {
+    const input = event.target as HTMLInputElement;
+    const value = input.value.replace(/[^0-9]/g, '');
+    input.value = value;
+    this.form.get(fieldName)?.setValue(value, { emitEvent: false });
   }
   //#endregion
 
@@ -504,22 +513,11 @@ export class AccountingOfficeComponent implements OnInit, OnDestroy, OnChanges {
   }
   //#endregion
 
-  // #region Decimal formatting
-  formatDecimal(fieldName: string): void {
-    this.formatterService.formatDecimalControl(this.form.get(fieldName));
+  //#region Bank Cards
+  selectAllOnFocus(event: Event): void {
+    (event.target as HTMLInputElement).select();
   }
-
-  onDecimalInput(event: Event, fieldName: string): void {
-    this.formatterService.formatDecimalInput(event, this.form.get(fieldName));
-  }
-
-  onIntegerInput(event: Event, fieldName: string): void {
-    const input = event.target as HTMLInputElement;
-    const value = input.value.replace(/[^0-9]/g, '');
-    input.value = value;
-    this.form.get(fieldName)?.setValue(value, { emitEvent: false });
-  }
-
+  
   onBankCardNumberInput(event: Event, index: number): void {
     this.formatterService.formatCreditCardInput(event, null);
     const input = event.target as HTMLInputElement;
@@ -553,9 +551,7 @@ export class AccountingOfficeComponent implements OnInit, OnDestroy, OnChanges {
 
     return card.cardNumber || '';
   }
-  //#endregion
-
-  //#region Bank Cards
+  
   addBankCard(): void {
     const officeIdNum = Number(this.form?.get('officeId')?.value || this.accountingOffice?.officeId || 0);
     const organizationId = this.accountingOffice?.organizationId || this.authService.getUser()?.organizationId || '';
@@ -578,16 +574,12 @@ export class AccountingOfficeComponent implements OnInit, OnDestroy, OnChanges {
     this.bankCards.splice(index, 1);
   }
 
-  showBankCards(): void {
-    this.showBankCardRows = true;
-  }
-
   onAddCardClick(): void {
     this.showBankCardRows = true;
     this.addBankCard();
   }
 
-  private buildBankCardRequests(): BankCardRequest[] | null {
+  buildBankCardRequests(): BankCardRequest[] | null {
     const requests: BankCardRequest[] = [];
 
     for (let i = 0; i < this.bankCards.length; i++) {
@@ -619,35 +611,10 @@ export class AccountingOfficeComponent implements OnInit, OnDestroy, OnChanges {
     return requests;
   }
 
-  private loadCostCodesForOffice(officeId?: number | null): void {
-    const parsedOfficeId = Number(officeId);
-    if (!parsedOfficeId || parsedOfficeId <= 0) {
-      this.costCodeOptions = [];
-      return;
-    }
 
-    this.costCodesService.getCostCodesByOfficeId(parsedOfficeId).pipe(take(1)).subscribe({
-      next: (codes: CostCodesResponse[]) => {
-        const activeCodes = (codes || []).filter(c => c.isActive);
-        this.costCodeOptions = activeCodes.map(code => ({
-          value: code.costCodeId,
-          label: `${code.costCode}: ${code.description}`
-        }));
-      },
-      error: (_err) => {
-        this.costCodeOptions = [];
-      }
-    });
-  }
   //#endregion
 
   //#region Utility Methods
-  ngOnDestroy(): void {
-    this.destroy$.next();
-    this.destroy$.complete();
-    this.itemsToLoad$.complete();
-  }
-
   back(): void {
     this.backEvent.emit();
   }
@@ -663,5 +630,10 @@ export class AccountingOfficeComponent implements OnInit, OnDestroy, OnChanges {
     }
   }
 
+  ngOnDestroy(): void {
+    this.destroy$.next();
+    this.destroy$.complete();
+    this.itemsToLoad$.complete();
+  }
 //#endregion
 }

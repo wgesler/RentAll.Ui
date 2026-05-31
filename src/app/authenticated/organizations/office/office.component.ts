@@ -2,7 +2,6 @@ import { CommonModule } from '@angular/common';
 import { HttpErrorResponse } from '@angular/common/http';
 import { AfterViewInit, Component, ElementRef, EventEmitter, Input, OnChanges, OnDestroy, OnInit, Output, SimpleChanges, ViewChild } from '@angular/core';
 import { FormBuilder, FormControl, FormGroup, FormsModule, ReactiveFormsModule, Validators } from '@angular/forms';
-import { ActivatedRoute, Router } from '@angular/router';
 import { ToastrService } from 'ngx-toastr';
 import { BehaviorSubject, Observable, Subject, catchError, filter, finalize, map, of, switchMap, take, takeUntil } from 'rxjs';
 import { CommonMessage, CommonTimeouts } from '../../../enums/common-message.enum';
@@ -33,7 +32,6 @@ export class OfficeComponent implements OnInit, OnDestroy, OnChanges, AfterViewI
   @Input() id: string | number | null = null;
   @Input() organizationId: string | null = null; // Organization ID from parent (for SuperAdmin)
   @Input() copyFrom: OfficeResponse | null = null; // When set in add mode, form is pre-filled (name cleared)
-  @Input() embeddedInSettings: boolean = false;
   @Output() backEvent = new EventEmitter<void>();
   @Output() savedEvent = new EventEmitter<void>();
   @ViewChild('firstInput') firstInputRef: ElementRef<HTMLInputElement>;
@@ -54,18 +52,15 @@ export class OfficeComponent implements OnInit, OnDestroy, OnChanges, AfterViewI
   quoteDisclaimerEditor?: ElementRef<HTMLDivElement>;
 
   isServiceError: boolean = false;
-  routeOfficeId: string | null = null;
   office: OfficeResponse;
   form: FormGroup;
   fileName: string = null;
   fileDetails: FileDetails = null;
   hasNewFileUpload: boolean = false; // Track if fileDetails is from a new upload vs API response
   logoPath: string = null;
-  originalLogoPath: string = null; // Track original logo to detect removal
   isSubmitting: boolean = false;
   isUploadingLogo: boolean = false;
   isAddMode: boolean = false;
-  returnToSettings: boolean = false;
   states: string[] = [];
   allCostCodes: CostCodesResponse[] = [];
   chargeCostCodeOptions: { value: number, label: string }[] = [];
@@ -79,9 +74,7 @@ export class OfficeComponent implements OnInit, OnDestroy, OnChanges, AfterViewI
 
   constructor(
     public officeService: OfficeService,
-    public router: Router,
     public fb: FormBuilder,
-    private route: ActivatedRoute,
     private toastr: ToastrService,
     private authService: AuthService,
     private formatterService: FormatterService,
@@ -96,16 +89,6 @@ export class OfficeComponent implements OnInit, OnDestroy, OnChanges, AfterViewI
   ngOnInit(): void {
     this.loadStates();
     this.loadCostCodes();
-    // Check for returnTo query parameter
-    this.route.queryParams.pipe(takeUntil(this.destroy$)).subscribe(params => {
-      this.returnToSettings = params['returnTo'] === 'settings';
-    });
-
-    // Copy-from state when navigating from list (non-embedded)
-    const nav = this.router.getCurrentNavigation();
-    if (nav?.extras?.state?.['copyFrom'] && !this.copyFrom) {
-      this.copyFrom = nav.extras.state['copyFrom'] as OfficeResponse;
-    }
 
     // Use the input id
     if (this.id) {
@@ -149,7 +132,7 @@ export class OfficeComponent implements OnInit, OnDestroy, OnChanges, AfterViewI
   }
 
   getOffice(id?: string | number): void {
-    const idToUse = id || this.id || this.routeOfficeId;
+    const idToUse = id || this.id;
     if (!idToUse || idToUse === 'new') {
       return;
     }
@@ -184,7 +167,6 @@ export class OfficeComponent implements OnInit, OnDestroy, OnChanges, AfterViewI
         // Always preserve logoPath from response if it exists (even if fileDetails also exists)
         if (response.logoPath) {
           this.logoPath = response.logoPath;
-          this.originalLogoPath = response.logoPath; // Track original for removal detection
         }
         this.buildForm();
         this.populateForm();
@@ -289,7 +271,7 @@ export class OfficeComponent implements OnInit, OnDestroy, OnChanges, AfterViewI
         error: (_err: HttpErrorResponse) => {}
       });
     } else {
-      const idToUse = this.id || this.routeOfficeId;
+      const idToUse = this.id;
       const officeIdNum = typeof idToUse === 'number' ? idToUse : parseInt(idToUse?.toString() || '', 10);
       if (isNaN(officeIdNum)) {
         this.toastr.error('Invalid office ID', CommonMessage.Error);
@@ -867,7 +849,6 @@ export class OfficeComponent implements OnInit, OnDestroy, OnChanges, AfterViewI
     this.hasNewFileUpload = false; // Reset flag when logo is removed
     this.form.patchValue({ fileUpload: null });
     this.form.get('fileUpload')?.updateValueAndValidity();
-    // Note: originalLogoPath is kept to detect if logo was removed vs never existed
   }
   
   selectAllOnFocus(event: Event): void {
@@ -1074,14 +1055,14 @@ export class OfficeComponent implements OnInit, OnDestroy, OnChanges, AfterViewI
   //#endregion
 
   //#region Utility Methods
+  back(): void {
+    this.backEvent.emit();
+  }
+  
   ngOnDestroy(): void {
     this.destroy$.next();
     this.destroy$.complete();
     this.itemsToLoad$.complete();
-  }
-
-  back(): void {
-    this.backEvent.emit();
   }
 //#endregion
 }

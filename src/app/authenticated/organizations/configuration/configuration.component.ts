@@ -32,8 +32,6 @@ import { OrganizationService } from '../services/organization.service';
 import { OfficeService } from '../services/office.service';
 import { TitleBarSelectComponent } from '../../shared/titlebar-select/titlebar-select.component';
 import { TrackerListComponent } from '../tracker-list/tracker-list.component';
-import { TrackerContextType } from '../models/tracker-enum';
-import { TrackerDefinitionListDisplay, TrackerSelectionEvent } from '../models/tracker.model';
 import { StateFormListComponent } from '../state-form-list/state-form-list.component';
 import { StateFormComponent } from '../state-form/state-form.component';
 
@@ -75,10 +73,9 @@ export class ConfigurationComponent implements OnInit, OnDestroy {
   @ViewChild(BuildingListComponent) buildingListComponent?: BuildingListComponent;
   @ViewChild(AccountingOfficeListComponent) accountingOfficeListComponent?: AccountingOfficeListComponent;
   @ViewChild(ColorListComponent) colorListComponent?: ColorListComponent;
-  @ViewChild(TrackerListComponent) trackerListComponent?: TrackerListComponent;
   @ViewChild(StateFormListComponent) stateFormListComponent?: StateFormListComponent;
 
-  expandedSections = {offices: false, accountingOffices: false,  agents: false, regions: false, area: false, building: false, costCodes: false, color: false,branding: false, trackers: false, stateForms: false };
+  expandedSections = {offices: false, accountingOffices: false,  agents: false, regions: false, area: false, building: false, costCodes: false, color: false, trackers: false, stateForms: false };
   isEditingAgent: boolean = false;
   agentId: string | null = null;
   shouldRefreshAgents: boolean = false;
@@ -99,16 +96,11 @@ export class ConfigurationComponent implements OnInit, OnDestroy {
   isEditingBuilding: boolean = false;
   buildingId: string | number | null = null;
   shouldRefreshBuildings: boolean = false;
+  /** Settings title-bar office filter (seeded from global once; does not write global). */
   selectedCostCodesOfficeId: number | null = null;
   isEditingColor: boolean = false;
   colorId: string | number | null = null;
   shouldRefreshColors: boolean = false;
-  isEditingTracker: boolean = false;
-  trackerDefinitionId: string | null = null;
-  selectedTrackerContextId: TrackerContextType | null = null;
-  selectedTrackerOfficeId: number | null = null;
-  selectedTracker: TrackerDefinitionListDisplay | null = null;
-  shouldRefreshTrackers: boolean = false;
   isEditingStateForm: boolean = false;
   stateFormId: string | number | null = null;
   shouldRefreshStateForms: boolean = false;
@@ -188,21 +180,15 @@ export class ConfigurationComponent implements OnInit, OnDestroy {
     }
 
     this.settingsOfficesInitialized = false;
-    this.globalSelectionService.ensureOfficeScope(organizationId, null).pipe(take(1)).subscribe({
-      next: (selectedOfficeId) => {
+    this.officeService.ensureOfficesLoaded(organizationId).pipe(take(1)).subscribe({
+      next: () => {
         this.officeService.getAllOffices().pipe(takeUntil(this.destroy$)).subscribe(offices => {
           this.offices = (offices || []).filter(office => office.isActive);
           if (this.settingsOfficesInitialized) {
             return;
           }
           this.settingsOfficesInitialized = true;
-          if (this.offices.length === 1) {
-            this.selectedCostCodesOfficeId = this.offices[0].officeId;
-            this.globalSelectionService.setSelectedOfficeId(this.selectedCostCodesOfficeId);
-            return;
-          }
-          const hasSelectedOffice = this.selectedCostCodesOfficeId != null && this.offices.some(office => office.officeId === this.selectedCostCodesOfficeId);
-          this.selectedCostCodesOfficeId = hasSelectedOffice ? this.selectedCostCodesOfficeId : selectedOfficeId;
+          this.initializeSettingsOfficeScope();
         });
       },
       error: () => {
@@ -210,6 +196,21 @@ export class ConfigurationComponent implements OnInit, OnDestroy {
         this.selectedCostCodesOfficeId = null;
       }
     });
+  }
+
+  /** Resolve title-bar office from global seed and loaded offices without mutating global selection. */
+  private initializeSettingsOfficeScope(): void {
+    if (this.offices.length === 1) {
+      this.selectedCostCodesOfficeId = this.offices[0].officeId;
+      return;
+    }
+
+    const seededOfficeId = this.selectedCostCodesOfficeId;
+    if (seededOfficeId != null && this.offices.some(office => office.officeId === seededOfficeId)) {
+      return;
+    }
+
+    this.selectedCostCodesOfficeId = null;
   }
   //#endregion
 
@@ -227,6 +228,8 @@ export class ConfigurationComponent implements OnInit, OnDestroy {
   }
 
   onOrganizationChange(): void {
+    this.settingsOfficesInitialized = false;
+    this.selectedCostCodesOfficeId = this.globalSelectionService.getSelectedOfficeIdValue();
     this.loadSettingsOffices();
   }
 
@@ -248,13 +251,6 @@ export class ConfigurationComponent implements OnInit, OnDestroy {
   onSettingsOfficeDropdownChange(value: string | number | null): void {
     const officeId = value == null || value === '' ? null : Number(value);
     this.selectedCostCodesOfficeId = Number.isFinite(officeId as number) ? officeId : null;
-    this.globalSelectionService.setSelectedOfficeId(this.selectedCostCodesOfficeId);
-  }
-
-  onCostCodesOfficeChangeFromList(officeId: number | null): void {
-    // Handle office change from cost-codes-list component
-    this.selectedCostCodesOfficeId = officeId;
-    this.globalSelectionService.setSelectedOfficeId(officeId);
   }
 
   onOfficeSelected(officeId: string | number | null): void {
@@ -420,33 +416,6 @@ export class ConfigurationComponent implements OnInit, OnDestroy {
 
   onColorSaved(): void {
     this.shouldRefreshColors = true;
-  }
-
-  onTrackerSelected(event: TrackerSelectionEvent): void {
-    this.trackerDefinitionId = event?.trackerDefinitionId ?? null;
-    this.selectedTrackerContextId = event?.trackerContextId ?? null;
-    this.selectedTrackerOfficeId = event?.officeId ?? this.selectedCostCodesOfficeId;
-    this.selectedTracker = event?.tracker ?? null;
-    this.isEditingTracker = this.trackerDefinitionId !== null;
-    if (this.isEditingTracker) {
-      this.expandedSections.trackers = true;
-    }
-  }
-
-  onTrackerBack(): void {
-    if (this.shouldRefreshTrackers) {
-      this.trackerListComponent?.getTrackers();
-    }
-    this.shouldRefreshTrackers = false;
-    this.trackerDefinitionId = null;
-    this.selectedTrackerContextId = null;
-    this.selectedTrackerOfficeId = null;
-    this.selectedTracker = null;
-    this.isEditingTracker = false;
-  }
-
-  onTrackerSaved(): void {
-    this.shouldRefreshTrackers = true;
   }
 
   onStateFormSelected(stateFormId: string | number | null): void {

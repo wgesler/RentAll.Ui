@@ -4,7 +4,7 @@
   <div class="mat list-layout-standard">
     @if (showInactiveInput === undefined) {
       <!-- Office dropdown row -->
-      @if (showOfficeDropdown && (!embeddedInSettings || showOfficeDropdownInEmbedded)) {
+      @if (showOfficeDropdown && !embeddedInSettings) {
         <div class="list-top-controls list-top-controls--standard flex gap-4 items-center mt-4">
           <mat-form-field appearance="outline" style="width: 300px;">
             <mat-label>{{ selectedOffice ? 'Office' : 'All Offices' }}</mat-label>

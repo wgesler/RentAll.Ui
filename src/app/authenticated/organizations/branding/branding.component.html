@@ -4,18 +4,16 @@
     <p>Loading branding...</p>
   </div>
 } @else if (!isServiceError) {
-  <div class="flex content-card-wrap justify-center" [class.settings-embedded-edit-wrap]="embeddedInSettings">
+  <div class="flex content-card-wrap justify-center settings-embedded-edit-wrap">
     <section class="content-card">
       <mat-card>
-        <form [formGroup]="form" (ngSubmit)="saveBranding()" class="info-form mb-8 form-hide-error-text" [class.settings-embedded-edit-top-offset]="embeddedInSettings">
-          @if (embeddedInSettings) {
-            <div class="col-span-4 flex justify-end settings-embedded-edit-actions">
-              <button mat-raised-button type="submit" color="primary" id="save-branding-button-embedded" [disabled]="isSubmitting || !form.valid">
-                <mat-icon>save</mat-icon>
-                Save
-              </button>
-            </div>
-          }
+        <form [formGroup]="form" (ngSubmit)="saveBranding()" class="info-form mb-8 form-hide-error-text settings-embedded-edit-top-offset">
+          <div class="col-span-4 flex justify-end settings-embedded-edit-actions">
+            <button mat-raised-button type="submit" color="primary" id="save-branding-button-embedded" [disabled]="isSubmitting || !form.valid">
+              <mat-icon>save</mat-icon>
+              Save
+            </button>
+          </div>
 
           <div class="grid grid-cols-4 form-standard-grid">
             <mat-form-field appearance="outline" class="col-span-2">

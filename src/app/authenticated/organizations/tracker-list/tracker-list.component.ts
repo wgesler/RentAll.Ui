@@ -13,8 +13,7 @@ import { TrackerContextType, getTrackerContextTypes, toTrackerContextType } from
 import {
   TrackerConfigurationResponse,
   TrackerDefinitionListDisplay,
-  TrackerOfficeSection,
-  TrackerSelectionEvent
+  TrackerOfficeSection
 } from '../models/tracker.model';
 import { TrackerService } from '../services/tracker.service';
 import { TrackerComponent } from '../tracker/tracker.component';
@@ -28,10 +27,8 @@ import { TrackerComponent } from '../tracker/tracker.component';
     changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class TrackerListComponent implements OnInit, OnDestroy, OnChanges {
-  @Input() embeddedInSettings: boolean = false;
   @Input() selectedOfficeId: number | null = null; // kept for backwards compatibility
   @Input() offices: OfficeResponse[] = [];
-  @Output() trackerSelected = new EventEmitter<TrackerSelectionEvent>();
 
   isServiceError: boolean = false;
   allTrackers: TrackerDefinitionListDisplay[] = [];
@@ -54,10 +51,6 @@ export class TrackerListComponent implements OnInit, OnDestroy, OnChanges {
     public mappingService: MappingService,
     private utilityService: UtilityService,
     private cdr: ChangeDetectorRef) {
-  }
-
-  private markViewForCheck(): void {
-    this.cdr.markForCheck();
   }
 
   //#region Tracker-List
@@ -93,15 +86,6 @@ export class TrackerListComponent implements OnInit, OnDestroy, OnChanges {
         this.applyFilters();
         this.markViewForCheck();
       }
-    });
-  }
-
-  addTrackerForContext(trackerContextId: TrackerContextType): void {
-    this.trackerSelected.emit({
-      trackerDefinitionId: 'new',
-      trackerContextId,
-      officeId: null,
-      tracker: null
     });
   }
 
@@ -244,7 +228,7 @@ export class TrackerListComponent implements OnInit, OnDestroy, OnChanges {
   }
   //#endregion
 
-  //#region Utility Methods
+  //#region Form Response Methods
   get hasAnyOffice(): boolean {
     return this.officeSections.length > 0;
   }
@@ -307,6 +291,12 @@ export class TrackerListComponent implements OnInit, OnDestroy, OnChanges {
     }
 
     return Math.max(...current) + 1;
+  }
+  //#endregion
+
+   //#region Utility Methods
+  markViewForCheck(): void {
+    this.cdr.markForCheck();
   }
 
   ngOnDestroy(): void {

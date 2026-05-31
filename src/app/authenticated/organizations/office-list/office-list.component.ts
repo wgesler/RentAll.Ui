@@ -2,10 +2,8 @@ import { CommonModule } from "@angular/common";
 import { HttpErrorResponse } from '@angular/common/http';
 import { ChangeDetectionStrategy, ChangeDetectorRef, Component, EventEmitter, Input, OnChanges, OnDestroy, OnInit, Output, SimpleChanges } from '@angular/core';
 import { FormsModule } from '@angular/forms';
-import { Router } from '@angular/router';
 import { ToastrService } from 'ngx-toastr';
 import {BehaviorSubject, finalize, take, Subject, takeUntil} from 'rxjs';
-import { RouterUrl } from '../../../app.routes';
 import { CommonMessage } from '../../../enums/common-message.enum';
 import { MaterialModule } from '../../../material.module';
 import { AuthService } from '../../../services/auth.service';
@@ -32,11 +30,9 @@ export interface OfficeCopyPayload {
 })
 
 export class OfficeListComponent implements OnInit, OnChanges, OnDestroy {
-  @Input() embeddedInSettings: boolean = false;
   @Input() organizationId: string | null = null;
   @Output() officeSelected = new EventEmitter<string | number | null>();
   @Output() copyOfficeEvent = new EventEmitter<OfficeCopyPayload>();
-  panelOpenState: boolean = true;
   isServiceError: boolean = false;
   showInactive: boolean = false;
   allOffices: OfficeListDisplay[] = [];
@@ -59,16 +55,11 @@ export class OfficeListComponent implements OnInit, OnChanges, OnDestroy {
   constructor(
     public officeService: OfficeService,
     public toastr: ToastrService,
-    public router: Router,
     public mappingService: MappingService,
     private authService: AuthService,
     private utilityService: UtilityService,
     private cdr: ChangeDetectorRef
   ) {
-  }
-
-  private markViewForCheck(): void {
-    this.cdr.markForCheck();
   }
 
   //#region Office-List
@@ -88,12 +79,7 @@ export class OfficeListComponent implements OnInit, OnChanges, OnDestroy {
   }
 
   addOffice(): void {
-    if (this.embeddedInSettings) {
-      this.officeSelected.emit('new');
-    } else {
-      const url = RouterUrl.replaceTokens(RouterUrl.Office, ['new']);
-      this.router.navigateByUrl(url);
-    }
+    this.officeSelected.emit('new');
   }
 
   getOffices(): void {
@@ -128,27 +114,17 @@ export class OfficeListComponent implements OnInit, OnChanges, OnDestroy {
   }
 
   goToOffice(event: OfficeListDisplay): void {
-    if (this.embeddedInSettings) {
-      this.officeSelected.emit(event.officeId);
-    } else {
-      const url = RouterUrl.replaceTokens(RouterUrl.Office, [event.officeId.toString()]);
-      this.router.navigateByUrl(url);
-    }
+    this.officeSelected.emit(event.officeId);
   }
 
   copyOffice(row: OfficeListDisplay): void {
     this.officeService.getOfficeById(row.officeId).pipe(take(1)).subscribe({
       next: (response: OfficeResponse) => {
         const copyData: OfficeResponse = { ...response, name: '' };
-        if (this.embeddedInSettings) {
-          this.copyOfficeEvent.emit({
-            office: copyData,
-            organizationId: this.organizationId ?? null
-          });
-        } else {
-          const url = '/' + RouterUrl.replaceTokens(RouterUrl.Office, ['new']);
-          this.router.navigateByUrl(url, { state: { copyFrom: copyData } });
-        }
+        this.copyOfficeEvent.emit({
+          office: copyData,
+          organizationId: this.organizationId ?? null
+        });
       },
       error: () => {}
     });
@@ -169,6 +145,10 @@ export class OfficeListComponent implements OnInit, OnChanges, OnDestroy {
   //#endregion
 
   //#region Utility Methods
+  markViewForCheck(): void {
+    this.cdr.markForCheck();
+  }
+
   ngOnDestroy(): void {
     this.destroy$.next();
     this.destroy$.complete();

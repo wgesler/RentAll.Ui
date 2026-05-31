@@ -1,6 +1,6 @@
 import { CommonModule } from '@angular/common';
 import { HttpErrorResponse } from '@angular/common/http';
-import { ChangeDetectionStrategy, ChangeDetectorRef, Component, EventEmitter, Input, OnDestroy, OnInit, Output } from '@angular/core';
+import { ChangeDetectionStrategy, ChangeDetectorRef, Component, EventEmitter, OnDestroy, OnInit, Output } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { ToastrService } from 'ngx-toastr';
 import {BehaviorSubject, Subject, catchError, concatMap, filter, finalize, from, map, of, take, takeUntil, toArray} from 'rxjs';
@@ -25,7 +25,6 @@ import { StateFormService } from '../services/state-form.service';
 })
 export class StateFormListComponent implements OnInit, OnDestroy {
   private readonly allStatesCode = 'XX';
-  @Input() embeddedInSettings: boolean = false;
   @Output() stateFormSelected = new EventEmitter<string | number | null>();
 
   isServiceError: boolean = false;
@@ -51,10 +50,6 @@ export class StateFormListComponent implements OnInit, OnDestroy {
     private toastr: ToastrService,
     private cdr: ChangeDetectorRef
   ) {
-  }
-
-  private markViewForCheck(): void {
-    this.cdr.markForCheck();
   }
 
   //#region StateForm-List
@@ -169,6 +164,10 @@ export class StateFormListComponent implements OnInit, OnDestroy {
   //#region Utility Methods
   applyFilters(): void {
     this.stateFormsDisplay = this.allStateForms;
+  }
+
+  markViewForCheck(): void {
+    this.cdr.markForCheck();
   }
 
   ngOnDestroy(): void {

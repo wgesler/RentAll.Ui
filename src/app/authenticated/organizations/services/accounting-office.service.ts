@@ -64,11 +64,6 @@ export class AccountingOfficeService {
     return this.allAccountingOffices$.value;
   }
 
-  /** GET accounting offices (one-shot HTTP; API filters by logged-in organization). */
-  getAccountingOffices(): Observable<AccountingOfficeResponse[]> {
-    return this.http.get<AccountingOfficeResponse[]>(this.controller);
-  }
-
   getAccountingOfficeById(officeId: number): Observable<AccountingOfficeResponse> {
     return this.http.get<AccountingOfficeResponse>(this.controller + officeId);
   }

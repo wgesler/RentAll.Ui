@@ -1,11 +1,9 @@
 import { CommonModule } from "@angular/common";
 import { HttpErrorResponse } from '@angular/common/http';
-import { ChangeDetectionStrategy, ChangeDetectorRef, Component, EventEmitter, Input, OnDestroy, OnInit, Output } from '@angular/core';
+import { ChangeDetectionStrategy, ChangeDetectorRef, Component, EventEmitter, OnDestroy, OnInit, Output } from '@angular/core';
 import { FormsModule } from '@angular/forms';
-import { Router } from '@angular/router';
 import { ToastrService } from 'ngx-toastr';
 import {BehaviorSubject, finalize, take, Subject, takeUntil} from 'rxjs';
-import { RouterUrl } from '../../../app.routes';
 import { MaterialModule } from '../../../material.module';
 import { MappingService } from '../../../services/mapping.service';
 import { UtilityService } from '../../../services/utility.service';
@@ -24,9 +22,7 @@ import { ColorService } from '../services/color.service';
 })
 
 export class ColorListComponent implements OnInit, OnDestroy {
-  @Input() embeddedInSettings: boolean = false;
   @Output() colorSelected = new EventEmitter<string | number | null>();
-  panelOpenState: boolean = true;
   isServiceError: boolean = false;
   allColors: ColorListDisplay[] = [];
   colorsDisplay: ColorListDisplay[] = [];
@@ -43,14 +39,9 @@ export class ColorListComponent implements OnInit, OnDestroy {
   constructor(
     public colorService: ColorService,
     public toastr: ToastrService,
-    public router: Router,
     public mappingService: MappingService,
     private utilityService: UtilityService,
     private cdr: ChangeDetectorRef) {
-  }
-
-  private markViewForCheck(): void {
-    this.cdr.markForCheck();
   }
 
   //#region Color-List
@@ -61,15 +52,6 @@ export class ColorListComponent implements OnInit, OnDestroy {
     });
 
     this.getColors();
-  }
-
-  addColor(): void {
-    if (this.embeddedInSettings) {
-      this.colorSelected.emit('new');
-    } else {
-      const url = RouterUrl.replaceTokens(RouterUrl.Color, ['new']);
-      this.router.navigateByUrl(url);
-    }
   }
 
   getColors(): void {
@@ -89,12 +71,7 @@ export class ColorListComponent implements OnInit, OnDestroy {
 
   goToColor(event: ColorListDisplay): void {
     if (!event || event.colorId === null || event.colorId === undefined) return;
-    if (this.embeddedInSettings) {
-      this.colorSelected.emit(event.colorId);
-    } else {
-      const url = RouterUrl.replaceTokens(RouterUrl.Color, [event.colorId.toString()]);
-      this.router.navigateByUrl(url);
-    }
+    this.colorSelected.emit(event.colorId);
   }
   //#endregion
 
@@ -103,6 +80,9 @@ export class ColorListComponent implements OnInit, OnDestroy {
     this.colorsDisplay = this.allColors;
   }
   
+  markViewForCheck(): void {
+    this.cdr.markForCheck();
+  }
   ngOnDestroy(): void {
     this.destroy$.next();
     this.destroy$.complete();

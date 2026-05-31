@@ -102,10 +102,6 @@ export class GlobalSelectionService {
     return this.officeService.ensureOfficesLoaded(organizationId).pipe(take(1), switchMap(offices => this.accountingOfficeService.ensureAccountingOfficesLoaded().pipe(take(1), map(() => this.syncWithAvailableOffices((offices || []).filter(office => office.isActive), preferredOfficeId)))));
   }
 
-  refreshOfficeScope(organizationId: string, preferredOfficeId: number | null = null): Observable<number | null> {
-    return this.officeService.refreshOffices(organizationId).pipe(take(1), switchMap(offices => this.accountingOfficeService.refreshAccountingOffices().pipe(take(1), map(() => this.syncWithAvailableOffices((offices || []).filter(office => office.isActive), preferredOfficeId)))));
-  }
-
   getOfficeUiState$(offices: OfficeResponse[], options: OfficeUiStateOptions = {}): Observable<OfficeUiState> {
     return this.getSelectedOfficeId$().pipe(
       take(1),

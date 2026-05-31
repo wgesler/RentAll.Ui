@@ -18,13 +18,6 @@ export class OrganizationListService {
   }
 
   /**
-   * Get the current value of organizations list
-   */
-  getOrganizationsValue(): OrganizationResponse[] {
-    return this.organizations$.value;
-  }
-
-  /**
    * Set the organizations list
    */
   setOrganizations(organizations: OrganizationResponse[]): void {

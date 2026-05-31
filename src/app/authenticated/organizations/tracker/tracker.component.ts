@@ -32,7 +32,6 @@ interface TrackerOptionEditorRow {
 })
 export class TrackerComponent implements OnInit, OnDestroy, OnChanges {
   @Input() id: string | null = null;
-  @Input() embeddedInSettings: boolean = false;
   @Input() selectedOfficeId: number | null = null;
   @Input() selectedTrackerContextId: TrackerContextType | null = null;
   @Input() suggestedSortOrder: number | null = null;
@@ -383,14 +382,14 @@ export class TrackerComponent implements OnInit, OnDestroy, OnChanges {
   //#endregion
 
   //#region Utility Methods
+  back(): void {
+    this.backEvent.emit();
+  }
+  
   ngOnDestroy(): void {
     this.destroy$.next();
     this.destroy$.complete();
     this.itemsToLoad$.complete();
-  }
-
-  back(): void {
-    this.backEvent.emit();
   }
   //#endregion
 }

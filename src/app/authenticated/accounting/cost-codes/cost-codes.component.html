@@ -50,8 +50,8 @@
             </div>
             <!-- First Row: Office, Cost Code, Transaction Type -->
             <div class="col-span-4 grid grid-cols-3 form-standard-grid">
-              <!-- Office (if in add mode, show dropdown; if edit mode, show readonly) -->
-              @if (isAddMode || source === 'configuration') {
+              <!-- Office: dropdown only on standalone add; settings/accounting use title-bar office -->
+              @if (isAddMode && source !== 'configuration') {
                 <mat-form-field appearance="outline" class="col-span-1 w-full" [class.cost-code-required-field]="showOfficeValidationError">
                   <mat-label>Office</mat-label>
                   <mat-select #firstInput [(ngModel)]="selectedOffice" [ngModelOptions]="{standalone: true}" (selectionChange)="onOfficeChange()" required [canSelectNullableOptions]="true">
@@ -62,16 +62,19 @@
                   </mat-select>
                 </mat-form-field>
               } @else {
-                <mat-form-field appearance="outline" class="col-span-1 w-full">
+                <mat-form-field appearance="outline" class="col-span-1 w-full" [class.cost-code-required-field]="showOfficeValidationError">
                   <mat-label>Office</mat-label>
                   <input matInput [value]="getOfficeName()" readonly class="readonly-field">
+                  @if (showOfficeValidationError) {
+                    <mat-error>Select an office in the title bar</mat-error>
+                  }
                 </mat-form-field>
               }
 
               <!-- Cost Code -->
               <mat-form-field appearance="outline" class="col-span-1 w-full">
                 <mat-label>Cost Code</mat-label>
-                <input matInput formControlName="costCode" type="text" required>
+                <input matInput #costCodeInput formControlName="costCode" type="text" required>
                 @if (form.get('costCode')?.hasError('required') && form.get('costCode')?.touched) {
                   <mat-error>Cost Code is required</mat-error>
                 }

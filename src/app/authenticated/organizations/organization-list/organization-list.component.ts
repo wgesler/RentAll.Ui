@@ -25,7 +25,6 @@ import { OrganizationService } from '../services/organization.service';
 })
 
 export class OrganizationListComponent implements OnInit, OnDestroy {
-  panelOpenState: boolean = true;
   isServiceError: boolean = false;
   showInactive: boolean = false;
   allOrganizations: OrganizationListDisplay[] = [];
@@ -53,10 +52,6 @@ export class OrganizationListComponent implements OnInit, OnDestroy {
     private mappingService: MappingService,
     private utilityService: UtilityService,
     private cdr: ChangeDetectorRef) {
-  }
-
-  private markViewForCheck(): void {
-    this.cdr.markForCheck();
   }
 
   //#region Organization-List
@@ -123,6 +118,10 @@ export class OrganizationListComponent implements OnInit, OnDestroy {
   //#endregion
 
   //#region Utility Methods
+  markViewForCheck(): void {
+    this.cdr.markForCheck();
+  }
+
   ngOnDestroy(): void {
     this.destroy$.next();
     this.destroy$.complete();
