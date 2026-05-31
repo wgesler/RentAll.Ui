@@ -50,10 +50,6 @@ export class ContactService {
     return this.loadAllContacts().pipe(take(1), switchMap(() => this.getAllContacts().pipe(take(1))));
   }
 
-  areContactsLoaded(): Observable<boolean> {
-    return this.contactsLoaded$.asObservable();
-  }
-
   clearContacts(): void {
     this.allContacts$.next([]);
     this.contactsLoaded$.next(false);
@@ -71,28 +67,8 @@ export class ContactService {
     return this.allContacts$.pipe(map(contacts => contacts.filter(c => c.entityTypeId === EntityType.Company)));
   }
 
-  getAllOwnerContacts(): Observable<ContactResponse[]> {
-    return this.allContacts$.pipe(map(contacts => contacts.filter(c => c.entityTypeId === EntityType.Owner)));
-  }
-
-  getAllTenantContacts(): Observable<ContactResponse[]> {
-    return this.allContacts$.pipe(map(contacts => contacts.filter(c => c.entityTypeId === EntityType.Tenant)));
-  }
-
-  getAllVendorContacts(): Observable<ContactResponse[]> {
-    return this.allContacts$.pipe(map(contacts => contacts.filter(c => c.entityTypeId === EntityType.Vendor)));
-  }
-
   getContacts(): Observable<ContactResponse[]> {
     return this.http.get<ContactResponse[]>(this.controller).pipe(
-      map(contacts =>
-        (contacts || []).map(c => this.mappingService.mapContactResponse(c as unknown as Record<string, unknown>))
-      )
-    );
-  }
-
-  getContactsByType(contactTypeId: number): Observable<ContactResponse[]> {
-    return this.http.get<ContactResponse[]>(this.controller + 'type/' + contactTypeId).pipe(
       map(contacts =>
         (contacts || []).map(c => this.mappingService.mapContactResponse(c as unknown as Record<string, unknown>))
       )

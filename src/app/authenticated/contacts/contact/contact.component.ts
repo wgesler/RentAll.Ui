@@ -897,15 +897,6 @@ export class ContactComponent implements OnInit, OnChanges, OnDestroy {
     this.pdfThumbnailService.getFirstPageDataUrl(dataUrl).then(url => setter(url));
   }
 
-  dataUrlToBlob(dataUrl: string): Blob {
-    const [header, base64] = dataUrl.split(',');
-    const mime = header?.match(/data:([^;]+)/)?.[1] ?? 'application/pdf';
-    const binary = atob(base64 ?? '');
-    const bytes = new Uint8Array(binary.length);
-    for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
-    return new Blob([bytes], { type: mime });
-  }
-
   filterPropertiesByGlobalOffice(): void {
     const officeId = this.globalSelectionService.getSelectedOfficeIdValue();
     const list = (this.allProperties || []);
@@ -1354,18 +1345,6 @@ export class ContactComponent implements OnInit, OnChanges, OnDestroy {
   //#endregion
 
   //#region Contract Negotiation Helpers
-  onContractMarkupInput(event: Event): void {
-    this.formatterService.formatPercentageInput(event, this.form.get('markup'));
-  }
-
-  clearContractMarkupOnFocus(event: FocusEvent): void {
-    this.formatterService.clearPercentageOnFocus(event, this.form.get('markup'));
-  }
-
-  formatContractMarkupOnEnter(event: KeyboardEvent): void {
-    this.formatterService.formatPercentageOnEnter(event, this.form.get('markup'), 25);
-  }
-
   formatContractMarkup(): void {
     this.formatterService.formatPercentageOnBlur(this.form.get('markup'), 25);
   }
@@ -1398,47 +1377,6 @@ export class ContactComponent implements OnInit, OnChanges, OnDestroy {
     const s = String(value).replace(/[$,\s]/g, '');
     const n = parseFloat(s);
     return isNaN(n) ? 0 : n;
-  }
-
-  formatAgreementPercentBlur(controlName: 'revenueSplitOwner' | 'revenueSplitOffice'): void {
-    const c = this.form.get(controlName);
-    const v = c?.value;
-    if (v == null || v === '') {
-      c?.setValue('0%', { emitEvent: false });
-      return;
-    }
-    const s = String(v).replace(/%\s*$/, '').trim();
-    const n = Number(s);
-    c?.setValue(isNaN(n) ? '0%' : `${n}%`, { emitEvent: false });
-  }
-
-  formatAgreementDecimalBlur(controlName: 'workingCapitalBalance' | 'linenAndTowelFee'): void {
-    const c = this.form.get(controlName);
-    const v = c?.value;
-    if (v == null || v === '') {
-      c?.setValue('$0.00', { emitEvent: false });
-      return;
-    }
-    const n = this.parseAgreementDecimalFromForm(v);
-    c?.setValue(n == null ? '$0.00' : this.formatAgreementCurrency(n), { emitEvent: false });
-  }
-
-  selectAllOnFocus(event: FocusEvent): void {
-    (event.target as HTMLInputElement)?.select();
-  }
-
-  allowNumericOnly(event: KeyboardEvent, allowDecimal: boolean): void {
-    const key = event.key;
-    if (['Backspace', 'Tab', 'End', 'Home', 'ArrowLeft', 'ArrowRight', 'Delete'].includes(key)) return;
-    if (event.ctrlKey || event.metaKey) {
-      if (['a', 'c', 'v', 'x'].includes(key.toLowerCase())) return;
-    }
-    if (key === '.' && allowDecimal) {
-      const el = event.target as HTMLInputElement;
-      if (el?.value?.includes('.')) event.preventDefault();
-      return;
-    }
-    if (!/^\d$/.test(key)) event.preventDefault();
   }
   //#endregion
 

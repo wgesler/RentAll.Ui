@@ -1,7 +1,7 @@
-import { ChangeDetectorRef, Component, OnDestroy, OnInit, ViewChild } from '@angular/core';
+import { ChangeDetectorRef, Component, OnDestroy, OnInit } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, Router } from '@angular/router';
-import { Subject, skip, take, takeUntil } from 'rxjs';
+import { Subject, take, takeUntil } from 'rxjs';
 import { MaterialModule } from '../../../material.module';
 import { AuthService } from '../../../services/auth.service';
 import { ContactService } from '../services/contact.service';
@@ -28,7 +28,6 @@ import { TitleBarSelectComponent } from '../../shared/titlebar-select/titlebar-s
     styleUrls: ['./contacts-shell.component.scss']
 })
 export class ContactsShellComponent implements OnInit, OnDestroy {
-  @ViewChild(ContactComponent) activeContactForm?: ContactComponent;
   EntityType = EntityType;
   selectedTabIndex: number = 0;
   selectedOfficeId: number | null = null;
@@ -59,6 +58,7 @@ export class ContactsShellComponent implements OnInit, OnDestroy {
   //#region Contacts
   ngOnInit(): void {
     this.organizationId = this.authService.getUser()?.organizationId?.trim() ?? '';
+    this.selectedOfficeId = this.globalSelectionService.getSelectedOfficeIdValue();
     this.applyQueryParamState(this.route.snapshot.queryParams);
 
     this.route.queryParams
@@ -66,9 +66,6 @@ export class ContactsShellComponent implements OnInit, OnDestroy {
       .subscribe(params => this.applyQueryParamState(params));
 
     this.loadOffices();
-    this.globalSelectionService.getSelectedOfficeId$().pipe(skip(1), takeUntil(this.destroy$)).subscribe(officeId => {
-      this.syncOfficeFromGlobal(officeId);
-    });
   }
 
   applyQueryParamState(params: Record<string, unknown>): void {
@@ -93,19 +90,6 @@ export class ContactsShellComponent implements OnInit, OnDestroy {
   //#endregion
 
   //#region Form Response Methods
-  syncOfficeFromGlobal(officeId: number | null): void {
-    if (this.offices.length === 0) return;
-    this.resolveOfficeScope(officeId);
-    this.cdr.markForCheck();
-    this.updateUrlWithCurrentState();
-  }
-  
-  onOfficeIdChange(officeId: number | null): void {
-    this.globalSelectionService.setSelectedOfficeId(officeId);
-    this.resolveOfficeScope(officeId);
-    this.updateUrlWithCurrentState();
-  }
-
   get officeOptions(): { value: number, label: string }[] {
     return this.offices.map(office => ({
       value: office.officeId,
@@ -114,7 +98,10 @@ export class ContactsShellComponent implements OnInit, OnDestroy {
   }
 
   onOfficeDropdownChange(value: string | number | null): void {
-    this.onOfficeIdChange(value == null || value === '' ? null : Number(value));
+    const officeId = value == null || value === '' ? null : Number(value);
+    this.resolveOfficeScope(officeId);
+    this.updateUrlWithCurrentState();
+    this.cdr.markForCheck();
   }
 
   onTabChange(event: any): void {
@@ -126,7 +113,6 @@ export class ContactsShellComponent implements OnInit, OnDestroy {
     this.showInactive = showInactive;
   }
 
-  /** Update URL query params to match current tab and office so tab switches and reloads preserve state. */
   updateUrlWithCurrentState(): void {
     const queryParams: Record<string, string> = { tab: this.selectedTabIndex.toString() };
     if (this.selectedOfficeId != null) {
@@ -158,10 +144,6 @@ export class ContactsShellComponent implements OnInit, OnDestroy {
 
   onContactFormBack(): void {
     this.onContactClosed({});
-  }
-
-  onContactFormSave(): void {
-    this.activeContactForm?.saveContact();
   }
 
   isActiveContactFormVisible(): boolean {

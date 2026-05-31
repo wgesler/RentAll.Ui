@@ -4,7 +4,7 @@ import { ChangeDetectionStrategy, ChangeDetectorRef, Component, EventEmitter, In
 import { FormsModule } from '@angular/forms';
 import { NavigationEnd, Router } from '@angular/router';
 import { ToastrService } from 'ngx-toastr';
-import {BehaviorSubject, Subject, filter, finalize, map, skip, switchMap, take, takeUntil} from 'rxjs';
+import {BehaviorSubject, Subject, filter, finalize, switchMap, take, takeUntil} from 'rxjs';
 import { RouterUrl } from '../../../app.routes';
 import { CommonMessage } from '../../../enums/common-message.enum';
 import { MaterialModule } from '../../../material.module';
@@ -13,7 +13,6 @@ import { MappingService } from '../../../services/mapping.service';
 import { NavigationContextService } from '../../../services/navigation-context.service';
 import { UtilityService } from '../../../services/utility.service';
 import { OfficeResponse } from '../../organizations/models/office.model';
-import { GlobalSelectionService } from '../../organizations/services/global-selection.service';
 import { OfficeService } from '../../organizations/services/office.service';
 import { DataTableComponent } from '../../shared/data-table/data-table.component';
 import { DataTableFilterActionsDirective } from '../../shared/data-table/data-table-filter-actions.directive';
@@ -44,20 +43,16 @@ export class ContactListComponent implements OnInit, OnDestroy, OnChanges {
   @Output() showInactiveChange = new EventEmitter<boolean>();
   @Output() openContact = new EventEmitter<{ contactId: string; copyFrom?: string; entityTypeId?: number; tabIndex?: number; ownerLeadId?: number | null; officeId?: number | null }>();
 
-  panelOpenState: boolean = true;
-  isServiceError: boolean = false;
   allContacts: ContactListDisplay[] = [];
   contactsDisplay: ContactListDisplay[] = [];
 
   offices: OfficeResponse[] = [];
-  availableOffices: { value: number, name: string }[] = [];
   selectedOffice: OfficeResponse | null = null;
   showOfficeDropdown: boolean = false;
   user: any;
   isAdmin = false;
   officeScopeResolved: boolean = false;
   organizationId: string = '';
-  preferredOfficeId: number | null = null;
 
   hasInitialLoad: boolean = false;
   canEditIsActiveCheckbox = false;
@@ -81,10 +76,6 @@ export class ContactListComponent implements OnInit, OnDestroy, OnChanges {
     'isActive': { displayAs: 'IsActive', isCheckbox: true, checkboxEditable: true, sort: false, wrap: false, alignment: 'center', maxWidth: '20ch' }
   };
 
-  get contactsDisplayedColumns(): ColumnSet {
-    return this.entityTypeId === EntityType.Owner ? this.ownerColumns : this.baseColumns;
-  }
-
   isPageReady = false;
   itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['contacts', 'offices', 'officeScope']));
   destroy$ = new Subject<void>();
@@ -100,12 +91,7 @@ export class ContactListComponent implements OnInit, OnDestroy, OnChanges {
     private navigationContextService: NavigationContextService,
     private utilityService: UtilityService,
     private officeService: OfficeService,
-    private globalSelectionService: GlobalSelectionService,
     private cdr: ChangeDetectorRef) {
-  }
-
-  private markViewForCheck(): void {
-    this.cdr.markForCheck();
   }
 
   //#region Contact-List
@@ -120,7 +106,6 @@ export class ContactListComponent implements OnInit, OnDestroy, OnChanges {
     this.isOwnerAdmin = this.authService.isOwnerAdmin();
     this.setIsActiveCheckboxEditability();
     this.organizationId = this.user?.organizationId?.trim() ?? '';
-    this.preferredOfficeId = this.user?.defaultOfficeId ?? null;
     this.loadOffices();
     this.loadContacts();
     this.navigationContextService.getIsInOwnerMode().pipe(takeUntil(this.destroy$)).subscribe(value => {
@@ -128,13 +113,6 @@ export class ContactListComponent implements OnInit, OnDestroy, OnChanges {
       this.markViewForCheck();
     });
 
-    this.globalSelectionService.getSelectedOfficeId$().pipe(skip(1), takeUntil(this.destroy$)).subscribe(officeId => {
-      if (this.offices.length > 0) {
-        this.resolveOfficeScope(officeId);
-      }
-      this.markViewForCheck();
-    });
-    
     this.router.events.pipe(
         filter(event => event instanceof NavigationEnd),
         filter(() => (this.router.url.includes(RouterUrl.Contacts) || this.router.url.includes(RouterUrl.ContactList)) && !this.router.url.includes('/contact/')),
@@ -149,6 +127,34 @@ export class ContactListComponent implements OnInit, OnDestroy, OnChanges {
           });
         }
       });
+  }
+  
+  ngOnChanges(changes: SimpleChanges): void {
+    if (changes['entityTypeId']) {
+      const newEntityTypeId = changes['entityTypeId'].currentValue;
+      const previousEntityTypeId = changes['entityTypeId'].previousValue;
+      
+      if (previousEntityTypeId === undefined || newEntityTypeId !== previousEntityTypeId) {
+        this.applyFilters();
+      }
+    }
+    
+    if (changes['officeId']) {
+      const newOfficeId = changes['officeId'].currentValue;
+      const previousOfficeId = changes['officeId'].previousValue;
+
+      if (previousOfficeId === undefined || newOfficeId !== previousOfficeId) {
+        if (this.offices.length > 0) {
+          this.resolveOfficeScope(newOfficeId);
+        }
+        this.markViewForCheck();
+      }
+    }
+
+    if (changes['showInactive'] && !changes['showInactive'].firstChange) {
+      this.applyFilters();
+    }
+
   }
 
   addContact(): void {
@@ -349,42 +355,15 @@ export class ContactListComponent implements OnInit, OnDestroy, OnChanges {
 
     this.contactsDisplay = filtered;
   }
-  
-  ngOnChanges(changes: SimpleChanges): void {
-    if (changes['entityTypeId']) {
-      const newEntityTypeId = changes['entityTypeId'].currentValue;
-      const previousEntityTypeId = changes['entityTypeId'].previousValue;
-      
-      if (previousEntityTypeId === undefined || newEntityTypeId !== previousEntityTypeId) {
-        this.applyFilters();
-      }
-    }
-    
-    if (changes['officeId']) {
-      const newOfficeId = changes['officeId'].currentValue;
-      const previousOfficeId = changes['officeId'].previousValue;
 
-      if (previousOfficeId === undefined || newOfficeId !== previousOfficeId) {
-        if (this.offices.length > 0) {
-          this.resolveOfficeScope(newOfficeId);
-        }
-      }
-    }
-
-    if (changes['showInactive'] && !changes['showInactive'].firstChange) {
-      this.applyFilters();
-    }
-
-  }
- 
   onOfficeChange(): void {
-    this.globalSelectionService.setSelectedOfficeId(this.selectedOffice?.officeId ?? null);
     if (this.selectedOffice) {
       this.officeIdChange.emit(this.selectedOffice.officeId);
     } else {
       this.officeIdChange.emit(null);
     }
     this.applyFilters();
+    this.markViewForCheck();
   }
 
   get officeOptions(): { value: number, label: string }[] {
@@ -398,12 +377,23 @@ export class ContactListComponent implements OnInit, OnDestroy, OnChanges {
     return this.selectedOffice?.officeId ?? null;
   }
 
+  get contactsDisplayedColumns(): ColumnSet {
+    return this.entityTypeId === EntityType.Owner ? this.ownerColumns : this.baseColumns;
+  }
+
   onOfficeDropdownChange(value: string | number | null): void {
     const officeId = value == null || value === '' ? null : Number(value);
     this.selectedOffice = officeId == null
       ? null
       : this.offices.find(office => office.officeId === officeId) || null;
     this.onOfficeChange();
+  }
+
+  resolveOfficeScope(officeId: number | null): void {
+    this.selectedOffice = this.utilityService.resolveSelectedOfficeById(this.offices, officeId);
+    this.officeScopeResolved = true;
+    this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'officeScope');
+    this.applyFilters();
   }
   //#endregion
 
@@ -425,40 +415,25 @@ export class ContactListComponent implements OnInit, OnDestroy, OnChanges {
   }
 
   loadOffices(): void {
-    this.globalSelectionService.ensureOfficeScope(this.organizationId, this.preferredOfficeId).pipe(take(1), finalize(() => { this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'offices'); })).subscribe({
+    this.officeService.ensureOfficesLoaded(this.organizationId).pipe(take(1), finalize(() => { this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'offices'); })).subscribe({
       next: () => {
         this.officeService.getAllOffices().pipe(takeUntil(this.destroy$)).subscribe(offices => {
-          this.offices = offices || [];
-          this.availableOffices = this.mappingService.mapOfficesToDropdown(this.offices);
-          this.globalSelectionService.getOfficeUiState$(this.offices, { explicitOfficeId: this.officeId, requireExplicitOfficeUnset: true }).pipe(take(1)).subscribe({
-            next: uiState => {
-              this.showOfficeDropdown = uiState.showOfficeDropdown;
-              this.resolveOfficeScope(uiState.selectedOfficeId);
-              this.markViewForCheck();
-            }
-          });
+          this.offices = (offices || []).filter(office => office.isActive);
+          this.showOfficeDropdown = this.offices.length > 1;
+          this.resolveOfficeScope(this.officeId);
           this.markViewForCheck();
         });
       },
       error: () => {
         this.offices = [];
-        this.availableOffices = [];
         this.resolveOfficeScope(null);
         this.markViewForCheck();
       }
     });
   }
-
   //#endregion
 
-  //#region Utility Methods
-  resolveOfficeScope(officeId: number | null): void {
-    this.selectedOffice = this.utilityService.resolveSelectedOfficeById(this.offices, officeId);
-    this.officeScopeResolved = true;
-    this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'officeScope');
-    this.applyFilters();
-  }
-
+  //#region Dynamic List Methods
   setIsActiveCheckboxEditability(): void {
     this.canEditIsActiveCheckbox = this.isAdmin;
     this.baseColumns['isActive'].checkboxEditable = this.canEditIsActiveCheckbox;
@@ -515,6 +490,12 @@ export class ContactListComponent implements OnInit, OnDestroy, OnChanges {
         this.toastr.error('Unable to generate owner form share link.', CommonMessage.Error);
       }
     });
+  }
+  //#endregion
+
+  //#region Utility Methods
+  markViewForCheck(): void {
+    this.cdr.markForCheck();
   }
 
   ngOnDestroy(): void {
