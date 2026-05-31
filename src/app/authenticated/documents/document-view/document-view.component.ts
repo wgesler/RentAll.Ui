@@ -1,5 +1,5 @@
 import { CommonModule } from '@angular/common';
-import { AfterViewInit, Component, ElementRef, OnDestroy, OnInit, ViewChild } from '@angular/core';
+import { Component, ElementRef, OnDestroy, OnInit, ViewChild } from '@angular/core';
 import { DomSanitizer, SafeResourceUrl } from '@angular/platform-browser';
 import { ActivatedRoute, Router } from '@angular/router';
 import { ToastrService } from 'ngx-toastr';
@@ -7,8 +7,6 @@ import { BehaviorSubject, Observable, finalize, map, take } from 'rxjs';
 import { RouterUrl } from '../../../app.routes';
 import { CommonMessage } from '../../../enums/common-message.enum';
 import { MaterialModule } from '../../../material.module';
-import { DocumentExportService } from '../../../services/document-export.service';
-import { DocumentHtmlService } from '../../../services/document-html.service';
 import { AuthService } from '../../../services/auth.service';
 import { UtilityService } from '../../../services/utility.service';
 import { hasInspectorRole } from '../../shared/access/role-access';
@@ -22,7 +20,7 @@ import { DocumentService } from '../services/document.service';
     templateUrl: './document-view.component.html',
     styleUrls: ['./document-view.component.scss']
 })
-export class DocumentViewComponent implements OnInit, OnDestroy, AfterViewInit {
+export class DocumentViewComponent implements OnInit, OnDestroy {
   @ViewChild('documentIframe', { static: false }) iframeRef!: ElementRef<HTMLIFrameElement>;
   
   documentId: string;
@@ -53,8 +51,6 @@ export class DocumentViewComponent implements OnInit, OnDestroy, AfterViewInit {
     private documentService: DocumentService,
     private toastr: ToastrService,
     private sanitizer: DomSanitizer,
-    private documentExportService: DocumentExportService,
-    private documentHtmlService: DocumentHtmlService,
     private utilityService: UtilityService,
     private authService: AuthService
   ) {
@@ -107,11 +103,6 @@ export class DocumentViewComponent implements OnInit, OnDestroy, AfterViewInit {
         this.isServiceError = true;
       }
     });
-  }
-
-  ngAfterViewInit(): void {
-    // This will be called after view init, but iframe might not exist yet
-    // The listener will be set up when iframe src is set
   }
 
   setupIframeLoadListener(): void {
@@ -428,92 +419,6 @@ export class DocumentViewComponent implements OnInit, OnDestroy, AfterViewInit {
       }
     }
   }
-
-  triggerPrint(): void {
-    if (!this.document) return;
-
-    // Check if document has HTML content that can be printed
-    if (this.document.fileDetails?.file && 
-        (this.document.contentType?.includes('text/html') || 
-         this.document.fileExtension?.toLowerCase() === 'html' ||
-         this.document.fileExtension?.toLowerCase() === 'htm')) {
-      try {
-        // Decode base64 HTML content
-        const htmlContent = atob(this.document.fileDetails.file);
-        
-        // Process HTML to extract styles (same as BaseDocumentComponent approach)
-        const processed = this.documentHtmlService.processHtml(htmlContent, true);
-        
-        // Get HTML with print styles (same as BaseDocumentComponent.onPrint())
-        const htmlWithStyles = this.documentHtmlService.getPreviewHtmlWithStyles(
-          processed.processedHtml,
-          processed.extractedStyles
-        );
-        
-        // Print using DocumentExportService (same as BaseDocumentComponent)
-        this.documentExportService.printHTML(htmlWithStyles);
-      } catch (error) {
-        this.toastr.error('Could not process document for printing', CommonMessage.ServiceError);
-      }
-    } else if (this.canViewInBrowser && this.iframeSrc) {
-      // For PDFs and other viewable documents, try to click the embedded viewer's print button
-      const iframe = document.querySelector('iframe.document-iframe') as HTMLIFrameElement;
-      if (iframe && iframe.contentWindow) {
-        // Try to find and click the print button
-        this.attemptClickPrintButton(iframe);
-      } else {
-        // Fallback: use window.print()
-        window.print();
-      }
-    } else {
-      // For non-viewable documents, show message
-      this.toastr.warning('This document type cannot be printed directly', 'Print Not Available');
-    }
-  }
-
-  onDownload(): void {
-    if (!this.document) return;
-
-    // Use FileDetails.dataUrl if available for download
-    if (this.document.fileDetails?.dataUrl) {
-      const link = document.createElement('a');
-      link.href = this.document.fileDetails.dataUrl;
-      link.download = this.document.fileName + '.' + this.document.fileExtension || 'document';
-      link.click();
-      this.toastr.success('Document downloaded successfully', CommonMessage.Success);
-    } else if (this.document.fileDetails?.file && this.document.fileDetails?.contentType) {
-      // Convert base64 to blob and download
-      const byteCharacters = atob(this.document.fileDetails.file);
-      const byteNumbers = new Array(byteCharacters.length);
-      for (let i = 0; i < byteCharacters.length; i++) {
-        byteNumbers[i] = byteCharacters.charCodeAt(i);
-      }
-      const byteArray = new Uint8Array(byteNumbers);
-      const blob = new Blob([byteArray], { type: this.document.fileDetails.contentType });
-      const url = window.URL.createObjectURL(blob);
-      const link = document.createElement('a');
-      link.href = url;
-      link.download = this.document.fileName + '.' + this.document.fileExtension || 'document';
-      link.click();
-      window.URL.revokeObjectURL(url);
-      this.toastr.success('Document downloaded successfully', CommonMessage.Success);
-    } else {
-      // Fallback to download endpoint
-      this.documentService.downloadDocument(this.documentId).pipe(take(1)).subscribe({
-        next: (blob: Blob) => {
-          const url = window.URL.createObjectURL(blob);
-          const link = document.createElement('a');
-          link.href = url;
-          link.download = this.document?.fileName + '.' + this.document?.fileExtension || 'document';
-          link.click();
-          window.URL.revokeObjectURL(url);
-          this.toastr.success('Document downloaded successfully', CommonMessage.Success);
-        },
-        error: () => {}
-      });
-    }
-  }
-  //#endregion 
 
   //#region Utility Methods
   getInlineDocumentFromState(): { dataUrl: string; contentType?: string; fileName?: string } | null {

@@ -174,12 +174,6 @@ export class AccountingComponent implements OnInit, OnDestroy {
   //#endregion
 
   //#region Document Drop Downs
-  onDocumentsOrganizationChange(organizationId: string | null): void {
-    if (this.selectedOrganizationId !== organizationId) {
-      this.selectedOrganizationId = organizationId;
-    }
-  }
-
   onDocumentsOfficeChange(officeId: number | null): void {
      if (this.selectedOfficeId !== officeId) {
       this.selectedOfficeId = officeId;

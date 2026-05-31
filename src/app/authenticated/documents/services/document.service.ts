@@ -47,11 +47,6 @@ export class DocumentService {
     return this.http.delete<void>(this.controller + documentId);
   }
 
-  // POST: Upload document file
-  uploadDocument(formData: FormData): Observable<DocumentResponse> {
-    return this.http.post<DocumentResponse>(this.controller + 'upload', formData);
-  }
-
   // GET: Download document file
   downloadDocument(documentId: string): Observable<Blob> {
     return this.http.get(this.controller + documentId + '/download', { responseType: 'blob' });

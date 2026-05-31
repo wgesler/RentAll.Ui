@@ -14,7 +14,7 @@ import { hasInspectorRole } from '../../shared/access/role-access';
 import { FileDetails } from '../../../shared/models/fileDetails';
 import { OfficeResponse } from '../../organizations/models/office.model';
 import { OfficeService } from '../../organizations/services/office.service';
-import { DocumentType, getDocumentType, getDocumentTypes } from '../models/document.enum';
+import { DocumentType, getDocumentTypes } from '../models/document.enum';
 import { DocumentRequest, DocumentResponse } from '../models/document.model';
 import { DocumentService } from '../services/document.service';
 
@@ -277,52 +277,7 @@ export class DocumentComponent implements OnInit, OnDestroy {
   }
   //#endregion
 
-  //#region File Request Methods
-  uploadFile(documentId: string): void {
-    if (!this.selectedFile) {
-      this.back();
-      return;
-    }
-
-    const formData = new FormData();
-    formData.append('file', this.selectedFile);
-    formData.append('documentId', documentId);
-
-    this.documentService.uploadDocument(formData).pipe(take(1)).subscribe({
-      next: () => {
-        this.toastr.success('File uploaded successfully', CommonMessage.Success);
-        this.back();
-      },
-      error: () => {
-        this.back();
-      }
-    });
-  }
-
-  downloadDocument(): void {
-    if (!this.documentId) return;
-
-    this.documentService.downloadDocument(this.documentId).pipe(take(1)).subscribe({
-      next: (blob: Blob) => {
-        const url = window.URL.createObjectURL(blob);
-        const link = document.createElement('a');
-        link.href = url;
-        link.download = this.document?.fileName + '.' + this.document?.fileExtension || 'document';
-        link.click();
-        window.URL.revokeObjectURL(url);
-        this.toastr.success('Document downloaded successfully', CommonMessage.Success);
-      },
-      error: () => {}
-    });
-  }
-  //#endregion
-
   //#region Utility Methods
-  getDocumentTypeName(documentType: DocumentType): string {
-    const docType = this.documentTypes.find(dt => dt.value === documentType);
-    return docType ? docType.label : getDocumentType(documentType) || 'Other';
-  }
-
    getMaintenanceShellDocumentsTabIndex(): number {
     const isInspector = hasInspectorRole(this.authService.getUser()?.userGroups as Array<string | number> | undefined);
     const showWorkOrdersTab = !isInspector;
