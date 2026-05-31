@@ -129,7 +129,6 @@ export class ContactComponent implements OnInit, OnChanges, OnDestroy {
       entityTypeId?: number;
       compactDialogMode?: boolean;
       showDialogCancelButton?: boolean;
-      /** Codes not yet on the server (e.g. new property) — merged into Properties list and pre-selected for owners. */
       preselectPropertyCodes?: string[];
       preselectPropertyOfficeId?: number;
     }

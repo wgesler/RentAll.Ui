@@ -1,10 +1,10 @@
 import { CommonModule } from '@angular/common';
 import { HttpClient } from '@angular/common/http';
-import { Component, ElementRef, Input, OnChanges, OnDestroy, OnInit, SimpleChanges, ViewChild } from '@angular/core';
+import { ChangeDetectorRef, Component, ElementRef, Input, OnChanges, OnDestroy, OnInit, SimpleChanges, ViewChild } from '@angular/core';
 import { FormBuilder, FormControl, FormGroup, FormsModule, ReactiveFormsModule } from '@angular/forms';
 import { DomSanitizer, SafeHtml } from '@angular/platform-browser';
 import { ActivatedRoute, Params, Router } from '@angular/router';
-import { BehaviorSubject, Subject, Subscription, filter, finalize, firstValueFrom, skip, take, takeUntil } from 'rxjs';
+import { BehaviorSubject, Subject, Subscription, finalize, firstValueFrom, skip, take, takeUntil } from 'rxjs';
 import { RouterUrl } from '../../../app.routes';
 import { environment } from '../../../../environments/environment';
 import { MaterialModule } from '../../../material.module';
@@ -98,7 +98,8 @@ export class QuoteCreateComponent extends BaseDocumentComponent implements OnIni
     documentExportService: DocumentExportService,
     documentHtmlService: DocumentHtmlService,
     toastr: ToastrService,
-    emailService: EmailService
+    emailService: EmailService,
+    private cdr: ChangeDetectorRef
   ) {
     super(documentService, documentExportService, documentHtmlService, toastr, emailService);
     this.form = this.buildForm();
@@ -107,9 +108,7 @@ export class QuoteCreateComponent extends BaseDocumentComponent implements OnIni
   //#region Quote-Create
   ngOnInit(): void {
     this.organizationId = this.authService.getUser()?.organizationId?.trim() ?? '';
-    this.itemsToLoad$.pipe(filter(items => items.size === 0), take(1)).subscribe(() => {
-      this.isPageReady = true;
-    });
+    this.itemsToLoad$.pipe(takeUntil(this.destroy$)).subscribe(() => this.syncPageReadyFromLoadItems());
 
     this.headerOfficeId = this.globalSelectionService.getSelectedOfficeIdValue();
     this.globalSelectionService.getSelectedOfficeId$().pipe(skip(1), takeUntil(this.destroy$)).subscribe(officeId => {
@@ -404,7 +403,6 @@ export class QuoteCreateComponent extends BaseDocumentComponent implements OnIni
   }
 
   loadPropertyListingLinks(): void {
-    this.utilityService.addLoadItem(this.itemsToLoad$, 'listingLinks');
     const uniquePropertyIds = Array.from(new Set((this.propertyIds || [])
       .map(propertyId => String(propertyId || '').trim())
       .filter(propertyId => propertyId.length > 0)));
@@ -412,7 +410,7 @@ export class QuoteCreateComponent extends BaseDocumentComponent implements OnIni
       this.propertyListingLinks = [];
       this.isLoadingLinks = false;
       this.refreshQuoteDocumentPreview();
-      this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'listingLinks');
+      this.cdr.markForCheck();
       return;
     }
 
@@ -483,8 +481,14 @@ export class QuoteCreateComponent extends BaseDocumentComponent implements OnIni
       this.applyHeaderOfficeSelection();
     }).finally(() => {
       this.isLoadingLinks = false;
-      this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'listingLinks');
+      this.refreshQuoteDocumentPreview();
+      this.cdr.markForCheck();
     });
+  }
+
+  syncPageReadyFromLoadItems(): void {
+    this.isPageReady = this.itemsToLoad$.value.size === 0;
+    this.cdr.markForCheck();
   }
   //#endregion
 
