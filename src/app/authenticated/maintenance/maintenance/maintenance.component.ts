@@ -220,7 +220,7 @@ export class MaintenanceComponent implements OnInit, OnDestroy, OnChanges {
     }
 
     this.utilityService.addLoadItem(this.itemsToLoad$, 'maintenance');
-    this.maintenanceService.getByPropertyId(propertyId).pipe(takeUntil(this.destroy$), finalize(() => this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'maintenance'))).subscribe({
+    this.maintenanceService.getByPropertyId(propertyId).pipe(take(1), finalize(() => this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'maintenance'))).subscribe({
       next: (maintenance: MaintenanceResponse | null) => {
         this.maintenanceRecord = maintenance ?? null;
         this.populateForm();
@@ -242,7 +242,6 @@ export class MaintenanceComponent implements OnInit, OnDestroy, OnChanges {
 
     this.utilityService.addLoadItem(this.itemsToLoad$, 'appliances');
     this.applianceService.getAppliancesByPropertyId(propertyId).pipe(
-      takeUntil(this.destroy$),
       switchMap((appliances: ApplianceResponse[]) => {
         const source = appliances || [];
         return from(source).pipe(
@@ -282,7 +281,7 @@ export class MaintenanceComponent implements OnInit, OnDestroy, OnChanges {
     }
 
     this.utilityService.addLoadItem(this.itemsToLoad$, 'utilities');
-    this.maintenanceUtilityService.getUtilitiesByPropertyId(propertyId).pipe(takeUntil(this.destroy$), finalize(() => this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'utilities'))).subscribe({
+    this.maintenanceUtilityService.getUtilitiesByPropertyId(propertyId).pipe(take(1), finalize(() => this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'utilities'))).subscribe({
       next: (utilities: UtilityResponse[]) => {
         this.utilities = utilities || [];
       },
@@ -301,7 +300,7 @@ export class MaintenanceComponent implements OnInit, OnDestroy, OnChanges {
     }
 
     this.utilityService.addLoadItem(this.itemsToLoad$, 'maintenanceItems');
-    this.maintenanceItemsService.getMaintenanceItemsByPropertyId(propertyId).pipe(takeUntil(this.destroy$), finalize(() => this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'maintenanceItems'))).subscribe({
+    this.maintenanceItemsService.getMaintenanceItemsByPropertyId(propertyId).pipe(take(1), finalize(() => this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'maintenanceItems'))).subscribe({
       next: (items: MaintenanceItemResponse[]) => {
         this.maintenanceItems = items || [];
       },

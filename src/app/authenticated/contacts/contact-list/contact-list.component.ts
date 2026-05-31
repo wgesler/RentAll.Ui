@@ -4,7 +4,7 @@ import { ChangeDetectionStrategy, ChangeDetectorRef, Component, EventEmitter, In
 import { FormsModule } from '@angular/forms';
 import { NavigationEnd, Router } from '@angular/router';
 import { ToastrService } from 'ngx-toastr';
-import { BehaviorSubject, Observable, Subject, filter, finalize, map, skip, switchMap, take, takeUntil } from 'rxjs';
+import {BehaviorSubject, Subject, filter, finalize, map, skip, switchMap, take, takeUntil} from 'rxjs';
 import { RouterUrl } from '../../../app.routes';
 import { CommonMessage } from '../../../enums/common-message.enum';
 import { MaterialModule } from '../../../material.module';
@@ -85,8 +85,8 @@ export class ContactListComponent implements OnInit, OnDestroy, OnChanges {
     return this.entityTypeId === EntityType.Owner ? this.ownerColumns : this.baseColumns;
   }
 
+  isPageReady = false;
   itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['contacts', 'offices', 'officeScope']));
-  isLoading$: Observable<boolean> = this.itemsToLoad$.pipe(map(items => items.size > 0));
   destroy$ = new Subject<void>();
 
   constructor(
@@ -110,6 +110,11 @@ export class ContactListComponent implements OnInit, OnDestroy, OnChanges {
 
   //#region Contact-List
   ngOnInit(): void {
+    this.itemsToLoad$.pipe(takeUntil(this.destroy$)).subscribe(items => {
+      this.isPageReady = items.size === 0;
+      this.markViewForCheck();
+    });
+
     this.user = this.authService.getUser();
     this.isAdmin = this.authService.isAdmin();
     this.isOwnerAdmin = this.authService.isOwnerAdmin();

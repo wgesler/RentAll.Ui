@@ -3,7 +3,7 @@ import { ChangeDetectionStrategy, ChangeDetectorRef, Component, EventEmitter, In
 import { FormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
 import { ToastrService } from 'ngx-toastr';
-import { skip, Subject, take, takeUntil } from 'rxjs';
+import { skip, BehaviorSubject, Subject, finalize, take, takeUntil } from 'rxjs';
 import { RouterUrl } from '../../../app.routes';
 import { CommonMessage } from '../../../enums/common-message.enum';
 import { MaterialModule } from '../../../material.module';
@@ -50,8 +50,9 @@ export class AlertListComponent implements OnInit, OnChanges, OnDestroy {
   alerts: AlertListDisplay[] = [];
   allAlerts: AlertListDisplay[] = [];
   alertsById = new Map<string, AlertResponse>();
-  isLoading = false;
+  isPageReady = false;
   isServiceError = false;
+  itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['alerts', 'offices', 'contacts', 'officeScope', 'reservations']));
   showInactive = false;
 
   offices: OfficeResponse[] = [];
@@ -97,6 +98,10 @@ export class AlertListComponent implements OnInit, OnChanges, OnDestroy {
 
   //#region Alert-List
   ngOnInit(): void {
+    this.itemsToLoad$.pipe(takeUntil(this.destroy$)).subscribe(items => {
+      this.isPageReady = items.size === 0;
+      this.markViewForCheck();
+    });
     this.organizationId = this.organizationId || this.authService.getUser()?.organizationId?.trim() || null;
     this.preferredOfficeId = this.authService.getUser()?.defaultOfficeId ?? null;
     if (!this.source) {
@@ -118,6 +123,7 @@ export class AlertListComponent implements OnInit, OnChanges, OnDestroy {
       this.markViewForCheck();
     });
     if (this.reservations && this.reservations.length > 0) {
+      this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'reservations');
       this.applyReservationCodes();
       this.filterReservations();
     } else {
@@ -149,7 +155,10 @@ export class AlertListComponent implements OnInit, OnChanges, OnDestroy {
 
   //#region Data Loading Methods
   loadContacts(): void {
-    this.contactService.ensureContactsLoaded().pipe(take(1)).subscribe({
+    this.contactService.ensureContactsLoaded().pipe(take(1), finalize(() => {
+      this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'contacts');
+      this.markViewForCheck();
+    })).subscribe({
       next: () => {
         this.contacts = this.contactService.getAllContactsValue() || [];
         this.filterReservations();
@@ -163,7 +172,9 @@ export class AlertListComponent implements OnInit, OnChanges, OnDestroy {
   }
 
   loadOffices(): void {
-    this.globalSelectionService.ensureOfficeScope(this.organizationId || '', this.preferredOfficeId).pipe(take(1)).subscribe({
+    this.globalSelectionService.ensureOfficeScope(this.organizationId || '', this.preferredOfficeId).pipe(take(1), finalize(() => {
+      this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'offices');
+    })).subscribe({
       next: () => {
         this.officeService.getAllOffices().pipe(takeUntil(this.destroy$)).subscribe(offices => {
           this.offices = offices || [];
@@ -188,7 +199,10 @@ export class AlertListComponent implements OnInit, OnChanges, OnDestroy {
   }
 
   loadReservations(): void {
-    this.reservationService.getReservationCodes().pipe(take(1)).subscribe({
+    this.reservationService.getReservationCodes().pipe(take(1), finalize(() => {
+      this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'reservations');
+      this.markViewForCheck();
+    })).subscribe({
       next: reservations => {
         this.reservations = reservations || [];
         this.applyReservationCodes();
@@ -205,8 +219,11 @@ export class AlertListComponent implements OnInit, OnChanges, OnDestroy {
   }
 
   loadAlerts(): void {
-    this.isLoading = true;
-    this.alertService.getAlerts().pipe(take(1)).subscribe({
+    this.utilityService.addLoadItem(this.itemsToLoad$, 'alerts');
+    this.alertService.getAlerts().pipe(take(1), finalize(() => {
+      this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'alerts');
+      this.markViewForCheck();
+    })).subscribe({
       next: alerts => {
         const alertResponses = alerts || [];
         this.alertsById = new Map(alertResponses.map(alert => [alert.alertId, alert]));
@@ -215,14 +232,12 @@ export class AlertListComponent implements OnInit, OnChanges, OnDestroy {
         this.applyReservationCodes();
         this.applyFilters();
         this.isServiceError = false;
-        this.isLoading = false;
         this.markViewForCheck();
       },
       error: () => {
         this.allAlerts = [];
         this.alerts = [];
         this.isServiceError = true;
-        this.isLoading = false;
         this.markViewForCheck();
       }
     });
@@ -438,6 +453,7 @@ export class AlertListComponent implements OnInit, OnChanges, OnDestroy {
   resolveOfficeScope(officeId: number | null, emitChange: boolean): void {
     this.selectedOfficeId = this.utilityService.resolveSelectedOfficeById(this.offices, officeId)?.officeId ?? officeId ?? null;
     this.officeScopeResolved = true;
+    this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'officeScope');
     if (emitChange) {
       this.officeIdChange.emit(this.selectedOfficeId);
     }
@@ -448,6 +464,7 @@ export class AlertListComponent implements OnInit, OnChanges, OnDestroy {
   ngOnDestroy(): void {
     this.destroy$.next();
     this.destroy$.complete();
+    this.itemsToLoad$.complete();
   }
   //#endregion
 }

@@ -1,8 +1,8 @@
 import { CommonModule } from '@angular/common';
-import { ChangeDetectionStrategy, ChangeDetectorRef, Component, EventEmitter, Input, OnChanges, OnInit, Output, SimpleChanges } from '@angular/core';
+import { ChangeDetectionStrategy, ChangeDetectorRef, Component, EventEmitter, Input, OnChanges, OnDestroy, OnInit, Output, SimpleChanges } from '@angular/core';
 import { Router } from '@angular/router';
 import { ToastrService } from 'ngx-toastr';
-import { EMPTY, finalize, switchMap, take } from 'rxjs';
+import { BehaviorSubject, EMPTY, Subject, finalize, switchMap, take, takeUntil } from 'rxjs';
 import { RouterUrl } from '../../../app.routes';
 import { CommonMessage } from '../../../enums/common-message.enum';
 import { MaterialModule } from '../../../material.module';
@@ -30,7 +30,7 @@ import { WorkOrderService } from '../services/work-order.service';
   styleUrl: './receipts-list.component.scss',
   changeDetection: ChangeDetectionStrategy.OnPush
 })
-export class ReceiptsListComponent implements OnInit, OnChanges {
+export class ReceiptsListComponent implements OnInit, OnChanges, OnDestroy {
   @Input() property: PropertyResponse | null = null;
   @Input() officeId: number | null = null;
   @Input() isActiveTab = false;
@@ -39,8 +39,10 @@ export class ReceiptsListComponent implements OnInit, OnChanges {
   @Output() receiptSelect = new EventEmitter<ReceiptSelection>();
   @Output() workOrderSelect = new EventEmitter<{ workOrderId: string | null; propertyId: string | null }>();
 
-  isLoading: boolean = false;
+  isPageReady = false;
   isServiceError: boolean = false;
+  itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set());
+  destroy$ = new Subject<void>();
   showInactive: boolean = false;
   receipts: ReceiptResponse[] = [];
   receiptsDisplay: ReceiptDisplayList[] = [];
@@ -91,26 +93,23 @@ export class ReceiptsListComponent implements OnInit, OnChanges {
 
   //#region Receipts List
   ngOnInit(): void {
+    this.itemsToLoad$.pipe(takeUntil(this.destroy$)).subscribe(items => {
+      this.isPageReady = items.size === 0;
+      this.markViewForCheck();
+    });
     this.persistedFilterVal = this.readPersistedFilterValue();
     this.isAdmin = this.authService.isAdmin();
     this.setIsActiveCheckboxEditability();
     this.loadBankCardOptions();
     this.loadVendorOptions();
-    if (!this.isActiveTab) {
-      return;
-    }
-    this.loadPropertyLookup();
-    this.getReceipts();
   }
 
   ngOnChanges(changes: SimpleChanges): void {
     if (changes['isActiveTab']) {
       this.setIsActiveCheckboxEditability();
-      if (!this.isActiveTab) {
-        return;
+      if (this.isActiveTab) {
+        this.beginTabLoads();
       }
-      this.loadPropertyLookup();
-      this.getReceipts();
       return;
     }
 
@@ -139,13 +138,20 @@ export class ReceiptsListComponent implements OnInit, OnChanges {
     }
   }
 
+  beginTabLoads(): void {
+    this.utilityService.addLoadItem(this.itemsToLoad$, 'receipts');
+    this.utilityService.addLoadItem(this.itemsToLoad$, 'propertyLookup');
+    this.loadPropertyLookup();
+    this.getReceipts();
+  }
+
   getReceipts(): void {
     this.isServiceError = false;
-    this.isLoading = true;
+    this.utilityService.addLoadItem(this.itemsToLoad$, 'receipts');
     const propertyId = this.property?.propertyId ?? null;
     const officeId = this.officeId ?? null;
     this.receiptService.getReceipts(propertyId, officeId).pipe(take(1), finalize(() => {
-      this.isLoading = false;
+      this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'receipts');
       this.markViewForCheck();
     })).subscribe({
       next: (receipts: ReceiptResponse[]) => {
@@ -665,9 +671,13 @@ export class ReceiptsListComponent implements OnInit, OnChanges {
   loadPropertyLookup(): void {
     const userId = this.authService.getUser()?.userId?.trim() ?? '';
     if (!userId) {
+      this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'propertyLookup');
       return;
     }
-    this.propertyService.getPropertiesBySelectionCriteria(userId).pipe(take(1)).subscribe({
+    this.propertyService.getPropertiesBySelectionCriteria(userId).pipe(take(1), finalize(() => {
+      this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'propertyLookup');
+      this.markViewForCheck();
+    })).subscribe({
       next: properties => {
         this.propertyCodeLookup = new Map(
           (properties || []).map(property => [property.propertyId, property.propertyCode || ''])
@@ -826,7 +836,7 @@ export class ReceiptsListComponent implements OnInit, OnChanges {
       officeId: receipt.officeId,
       propertyIds: [...(receipt.propertyIds || [])],
       receiptDate: receipt.receiptDate || '',
-      maintenanceId: receipt.maintenanceId,
+      ticketId: receipt.ticketId,
       amount: Number(receipt.amount) || 0,
       description: String(receipt.description ?? '').trim(),
       bankCardId: receipt.bankCardId ?? null,
@@ -856,7 +866,7 @@ export class ReceiptsListComponent implements OnInit, OnChanges {
     return this.buildReceiptFieldUpdateRequest(receipt, { receiptDate });
   }
 
-  private buildReceiptFieldUpdateRequest(receipt: ReceiptResponse, fields: Partial<Pick<ReceiptRequest, 'bankCardId' | 'vendorId' | 'vendorName' | 'receiptDate' | 'isActive'>>): ReceiptRequest {
+  buildReceiptFieldUpdateRequest(receipt: ReceiptResponse, fields: Partial<Pick<ReceiptRequest, 'bankCardId' | 'vendorId' | 'vendorName' | 'receiptDate' | 'isActive'>>): ReceiptRequest {
     const hasBankCardId = Object.prototype.hasOwnProperty.call(fields, 'bankCardId');
     const hasVendorId = Object.prototype.hasOwnProperty.call(fields, 'vendorId');
     const hasVendorName = Object.prototype.hasOwnProperty.call(fields, 'vendorName');
@@ -877,7 +887,7 @@ export class ReceiptsListComponent implements OnInit, OnChanges {
       officeId: receipt.officeId,
       propertyIds: [...(receipt.propertyIds || [])],
       receiptDate: hasReceiptDate ? (fields.receiptDate || '') : (receipt.receiptDate || ''),
-      maintenanceId: receipt.maintenanceId,
+      ticketId: receipt.ticketId,
       amount: Number(receipt.amount) || 0,
       description: String(receipt.description ?? '').trim(),
       bankCardId: hasBankCardId ? (fields.bankCardId ?? null) : (receipt.bankCardId ?? null),
@@ -942,6 +952,12 @@ export class ReceiptsListComponent implements OnInit, OnChanges {
 
   normalizeDateInputValue(value: unknown): string {
     return this.utilityService.toDateOnlyJsonString(value) || '';
+  }
+
+  ngOnDestroy(): void {
+    this.destroy$.next();
+    this.destroy$.complete();
+    this.itemsToLoad$.complete();
   }
 
   //#endregion

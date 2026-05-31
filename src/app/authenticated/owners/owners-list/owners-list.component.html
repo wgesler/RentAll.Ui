@@ -1,7 +1,6 @@
 <div class="owners-list-shell dbg-band-main">
   @if (showOwnerLeadForm) {
     <app-owner
-      [embeddedInShell]="true"
       [shellLeadId]="ownerLeadFormId"
       [officeId]="officeId()"
       (closed)="onOwnerLeadFormClosed()">

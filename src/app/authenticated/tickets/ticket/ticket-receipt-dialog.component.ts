@@ -8,7 +8,7 @@ import { PropertyResponse } from '../../properties/models/property.model';
 
 export interface TicketReceiptDialogData {
   property: PropertyResponse;
-  maintenanceId: string | null;
+  ticketId: string | null;
   receiptId?: number | null;
 }
 

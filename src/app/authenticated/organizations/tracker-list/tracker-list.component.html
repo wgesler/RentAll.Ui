@@ -1,4 +1,4 @@
-@if (!(isLoading$ | async)) {
+@if (isPageReady) {
   <div class="mat list-layout-tabbed tracker-context-layout">
     @if (!hasAnyOffice) {
       <div class="tracker-office-empty-state">

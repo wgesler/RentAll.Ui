@@ -1,10 +1,10 @@
 import { CommonModule } from '@angular/common';
-import { Component, effect, input, NgZone, OnDestroy, OnInit, output } from '@angular/core';
+import { ChangeDetectorRef, Component, EventEmitter, Input, NgZone, OnChanges, OnDestroy, OnInit, Output, SimpleChanges } from '@angular/core';
 import { FormBuilder, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
 import { MatDialog } from '@angular/material/dialog';
 import { ActivatedRoute, Router } from '@angular/router';
 import { ToastrService } from 'ngx-toastr';
-import { BehaviorSubject, Subject, filter, finalize, map, take, takeUntil } from 'rxjs';
+import { BehaviorSubject, Subject, finalize, take, takeUntil } from 'rxjs';
 import { RouterUrl } from '../../../app.routes';
 import { CommonMessage } from '../../../enums/common-message.enum';
 import { MaterialModule } from '../../../material.module';
@@ -21,10 +21,7 @@ import { PropertyService } from '../../properties/services/property.service';
 import { getStringQueryParam } from '../../shared/query-param.utils';
 import { LeadRentalRequest, LeadRentalResponse } from '../models/lead-rental.model';
 import { LEAD_STATE_SELECT_OPTIONS, LeadStateType } from '../models/lead-enums';
-import {
-  RentalQuotePropertyOption,
-  RentalQuotePropertySelectDialogComponent
-} from '../rental-list/rental-quote-property-select-dialog.component';
+import { RentalQuotePropertyOption, RentalQuotePropertySelectDialogComponent } from '../rental-list/rental-quote-property-select-dialog.component';
 import { LeadsService } from '../services/leads.service';
 
 export type RentalLeadFormClosed = { saved: boolean; rentalId?: number };
@@ -36,12 +33,11 @@ export type RentalLeadFormClosed = { saved: boolean; rentalId?: number };
   styleUrls: ['./rental.component.scss'],
   imports: [CommonModule, MaterialModule, ReactiveFormsModule]
 })
-export class RentalComponent implements OnInit, OnDestroy {
-  embeddedInShell = input(false);
-  shellLeadId = input<string | null>(null);
-  officeId = input<number | null>(null);
-  closed = output<RentalLeadFormClosed>();
-  officeSelectionRequired = output<void>();
+export class RentalComponent implements OnInit, OnChanges, OnDestroy {
+  @Input() shellLeadId: string | null = null;
+  @Input() officeId: number | null = null;
+  @Output() closed = new EventEmitter<RentalLeadFormClosed>();
+  @Output() officeSelectionRequired = new EventEmitter<void>();
 
   form: FormGroup;
   isServiceError = false;
@@ -60,7 +56,7 @@ export class RentalComponent implements OnInit, OnDestroy {
   agents: AgentResponse[] = [];
   routePropertyRefPrefillApplied = false;
 
-  itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['rental-lead', 'activeProperties', 'agents']));
+  itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['rental-lead']));
   destroy$ = new Subject<void>();
 
   constructor(
@@ -77,53 +73,24 @@ export class RentalComponent implements OnInit, OnDestroy {
     private utilityService: UtilityService,
     private formatterService: FormatterService,
     private globalSelectionService: GlobalSelectionService,
-    private officeService: OfficeService
+    private officeService: OfficeService,
+    private cdr: ChangeDetectorRef
   ) {
     this.form = this.buildForm();
-    effect(() => {
-      const id = this.officeId();
-      void id;
-      if (!this.embeddedInShell() || this.offices.length === 0 || !this.officeScopeResolved) {
-        return;
-      }
-      this.resolveOfficeScope(this.officeId());
-    });
-    effect(() => {
-      if (!this.embeddedInShell()) {
-        return;
-      }
-      const id = this.shellLeadId();
-      if (id == null || id === '') {
-        return;
-      }
-      this.loadRentalLead(id);
-    });
   }
 
   //#region Rental
   ngOnInit(): void {
-    this.itemsToLoad$.pipe(takeUntil(this.destroy$)).subscribe(items => {
-      this.isPageReady = items.size === 0;
-    });
+    this.itemsToLoad$.pipe(takeUntil(this.destroy$)).subscribe(() => this.syncPageReadyFromLoadItems());
 
     const user = this.authService.getUser();
     this.organizationId = user?.organizationId?.trim() ?? '';
     this.preferredOfficeId = user?.defaultOfficeId ?? null;
 
-    this.globalSelectionService.getSelectedOfficeId$().pipe(takeUntil(this.destroy$)).subscribe(officeId => {
-      if (this.offices.length === 0) {
-        return;
-      }
-      if (this.embeddedInShell()) {
-        this.resolveOfficeScope(this.officeId());
-        return;
-      }
-      this.resolveOfficeScope(officeId);
-    });
-
     this.loadOffices();
     this.loadActiveProperties();
     this.loadAgents();
+    this.loadRentalLead(this.shellLeadId);
 
     this.route.queryParamMap.pipe(takeUntil(this.destroy$)).subscribe(() => {
       if (!this.isNewRentalLeadFlow()) {
@@ -132,8 +99,16 @@ export class RentalComponent implements OnInit, OnDestroy {
       this.applyPropertyRefFromRouteIfNeeded();
       this.normalizePropertyRefToKnownPropertyCode();
     });
+  }
 
-    this.route.paramMap.pipe(takeUntil(this.destroy$), map(pm => pm.get('id')), filter(() => !this.embeddedInShell())).subscribe(id => this.loadRentalLead(id));
+  ngOnChanges(changes: SimpleChanges): void {
+    if (changes['officeId']) {
+      this.resolveOfficeScope(this.officeId);
+    }
+
+    if (changes['shellLeadId'] && !changes['shellLeadId'].firstChange) {
+      this.loadRentalLead(this.shellLeadId);
+    }
   }
 
   loadRentalLead(idParam: string | null): void {
@@ -151,7 +126,7 @@ export class RentalComponent implements OnInit, OnDestroy {
     }
 
     this.isAddMode = false;
-    this.itemsToLoad$.next(new Set([...this.itemsToLoad$.value, 'rental-lead']));
+    this.utilityService.addLoadItem(this.itemsToLoad$, 'rental-lead');
     this.isServiceError = false;
     const rentalId = parseInt(String(idParam || '').trim(), 10);
     if (!rentalId || Number.isNaN(rentalId)) {
@@ -161,7 +136,7 @@ export class RentalComponent implements OnInit, OnDestroy {
       return;
     }
 
-    this.leadsService.getRentalLeadById(rentalId).pipe(take(1), takeUntil(this.destroy$), finalize(() => this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'rental-lead'))).subscribe({
+    this.leadsService.getRentalLeadById(rentalId).pipe(take(1), finalize(() => this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'rental-lead'))).subscribe({
         next: row => {
           this.lead = row;
           this.populateForm(row);
@@ -181,7 +156,7 @@ export class RentalComponent implements OnInit, OnDestroy {
     this.form.markAllAsTouched();
     const resolvedOfficeId = this.resolveSaveOfficeId();
     const hasValidOfficeSelection = resolvedOfficeId != null && resolvedOfficeId > 0;
-    if (!hasValidOfficeSelection && this.embeddedInShell()) {
+    if (!hasValidOfficeSelection) {
       this.officeSelectionRequired.emit();
     }
     if (this.form.invalid || !hasValidOfficeSelection) {
@@ -221,15 +196,11 @@ export class RentalComponent implements OnInit, OnDestroy {
     };
     this.isSavingCreate = true;
     if (this.isAddMode) {
-      this.leadsService.createRentalLead(body).pipe(take(1), takeUntil(this.destroy$)).subscribe({
+      this.leadsService.createRentalLead(body).pipe(take(1)).subscribe({
         next: created => {
           this.toastr.success('Rental lead created.', CommonMessage.Success);
-          if (this.embeddedInShell()) {
-            this.isSavingCreate = false;
-            this.closed.emit({ saved: true, rentalId: created.rentalId });
-            return;
-          }
-          void this.router.navigateByUrl(RouterUrl.replaceTokens(RouterUrl.LeadRental, [String(created.rentalId)]));
+          this.isSavingCreate = false;
+          this.closed.emit({ saved: true, rentalId: created.rentalId });
         },
         error: () => {
           this.toastr.error('Unable to create rental lead.', CommonMessage.Error);
@@ -244,15 +215,13 @@ export class RentalComponent implements OnInit, OnDestroy {
       return;
     }
     const updateBody: LeadRentalRequest = { ...body, rentalId };
-    this.leadsService.updateRentalLead(updateBody).pipe(take(1), takeUntil(this.destroy$)).subscribe({
+    this.leadsService.updateRentalLead(updateBody).pipe(take(1)).subscribe({
       next: row => {
         this.toastr.success('Rental lead updated.', CommonMessage.Success);
         this.lead = row;
         this.populateForm(row);
         this.isSavingCreate = false;
-        if (this.embeddedInShell()) {
-          this.closed.emit({ saved: true, rentalId: row.rentalId });
-        }
+        this.closed.emit({ saved: true, rentalId: row.rentalId });
       },
       error: () => {
         this.toastr.error('Unable to update rental lead.', CommonMessage.Error);
@@ -290,7 +259,7 @@ export class RentalComponent implements OnInit, OnDestroy {
         options,
         selectedPropertyIds: preselectedPropertyIds
       }
-    }).afterClosed().pipe(take(1), takeUntil(this.destroy$)).subscribe(selectedPropertyIds => {
+    }).afterClosed().pipe(take(1)).subscribe(selectedPropertyIds => {
       const selectedPropertyIdValues = Array.isArray(selectedPropertyIds) ? selectedPropertyIds : [];
       const normalizedPropertyIds: string[] = Array.from(
         new Set(
@@ -485,38 +454,25 @@ export class RentalComponent implements OnInit, OnDestroy {
     return known ? null : raw;
   }
 
-  resolveCreateOfficeId(): number | null {
-    const fromShell = this.officeId();
-    if (fromShell != null && fromShell > 0) {
-      return fromShell;
-    }
-    const fromResolved = this.selectedOffice?.officeId ?? null;
-    if (fromResolved != null && fromResolved > 0) {
-      return fromResolved;
-    }
-    return this.globalSelectionService.getSelectedOfficeIdValue();
-  }
-
   resolveSaveOfficeId(): number | null {
-    const fromShell = this.officeId();
-    if (this.embeddedInShell() && fromShell != null && fromShell > 0) {
+    const fromShell = this.normalizeShellOfficeId();
+    if (this.isAddMode) {
       return fromShell;
     }
-    if (this.isAddMode) {
-      return this.resolveCreateOfficeId();
-    }
-    const fromLead = this.lead?.officeId ?? null;
-    if (fromLead != null && fromLead > 0) {
+    const fromLead = Number(this.lead?.officeId ?? 0);
+    if (Number.isFinite(fromLead) && fromLead > 0) {
       return fromLead;
     }
-    return this.resolveCreateOfficeId();
+    return fromShell;
+  }
+
+  normalizeShellOfficeId(): number | null {
+    const officeId = Number(this.officeId ?? 0);
+    return Number.isFinite(officeId) && officeId > 0 ? officeId : null;
   }
 
   isNewRentalLeadFlow(): boolean {
-    if (this.embeddedInShell()) {
-      return String(this.shellLeadId() ?? '').trim().toLowerCase() === 'new';
-    }
-    return String(this.route.snapshot.paramMap.get('id') ?? '').trim().toLowerCase() === 'new';
+    return String(this.shellLeadId ?? '').trim().toLowerCase() === 'new';
   }
 
   applyPropertyRefFromRouteIfNeeded(): void {
@@ -569,7 +525,6 @@ export class RentalComponent implements OnInit, OnDestroy {
   resolveOfficeScope(officeId: number | null): void {
     this.selectedOffice = this.utilityService.resolveSelectedOfficeById(this.offices, officeId);
     this.officeScopeResolved = true;
-    this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'officeScope');
   }
 
   buildQuoteCreatePath(
@@ -624,12 +579,21 @@ export class RentalComponent implements OnInit, OnDestroy {
   loadOffices(): void {
     this.globalSelectionService.ensureOfficeScope(this.organizationId, this.preferredOfficeId).pipe(take(1)).subscribe({
       next: () => {
-        this.officeService.getAllOffices().pipe(takeUntil(this.destroy$)).subscribe(offices => {
-          this.offices = offices || [];
+        this.officeService.getAllOffices().pipe(take(1)).subscribe({
+          next: offices => {
+            this.offices = offices || [];
+            this.resolveOfficeScope(this.officeId);
+            this.cdr.markForCheck();
+          },
+          error: () => {
+            this.offices = [];
+            this.cdr.markForCheck();
+          }
         });
       },
       error: () => {
         this.offices = [];
+        this.cdr.markForCheck();
       }
     });
   }
@@ -638,10 +602,9 @@ export class RentalComponent implements OnInit, OnDestroy {
     const userId = this.authService.getUser()?.userId?.trim() ?? '';
     if (!userId) {
       this.activeProperties = [];
-      this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'activeProperties');
       return;
     }
-    this.propertyService.getActivePropertiesBySelectionCriteria(userId).pipe(take(1), takeUntil(this.destroy$), finalize(() => this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'activeProperties'))).subscribe({
+    this.propertyService.getActivePropertiesBySelectionCriteria(userId).pipe(take(1)).subscribe({
       next: p => {
         this.activeProperties = p || [];
         if (this.lead) {
@@ -654,7 +617,7 @@ export class RentalComponent implements OnInit, OnDestroy {
   }
 
   loadAgents(): void {
-    this.agentService.getAgents().pipe(take(1), takeUntil(this.destroy$), finalize(() => this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'agents'))).subscribe({
+    this.agentService.getAgents().pipe(take(1)).subscribe({
       next: a => {
         this.agents = (a || []).filter(x => x.isActive);
         if (this.lead) {
@@ -667,18 +630,13 @@ export class RentalComponent implements OnInit, OnDestroy {
   //#endregion
 
   //#region Utility Methods
-  formatPhone(): void {
-    this.formatterService.formatPhoneControl(this.form.get('phone'));
+  syncPageReadyFromLoadItems(): void {
+    this.isPageReady = this.itemsToLoad$.value.size === 0;
+    this.cdr.markForCheck();
   }
 
-  back(): void {
-    if (this.embeddedInShell()) {
-      this.closed.emit({ saved: false });
-      return;
-    }
-    this.ngZone.run(() => {
-      this.router.navigateByUrl(RouterUrl.Leads);
-    });
+  formatPhone(): void {
+    this.formatterService.formatPhoneControl(this.form.get('phone'));
   }
 
   ngOnDestroy(): void {

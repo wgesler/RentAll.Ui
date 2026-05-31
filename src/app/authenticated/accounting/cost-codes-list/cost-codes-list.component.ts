@@ -4,7 +4,7 @@ import { ChangeDetectionStrategy, ChangeDetectorRef, Component, EventEmitter, In
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, Router } from '@angular/router';
 import { ToastrService } from 'ngx-toastr';
-import { BehaviorSubject, Observable, Subject, filter, finalize, map, skip, take, takeUntil } from 'rxjs';
+import {BehaviorSubject, Subject, filter, finalize, map, skip, take, takeUntil} from 'rxjs';
 import { RouterUrl } from '../../../app.routes';
 import { CommonMessage } from '../../../enums/common-message.enum';
 import { MaterialModule } from '../../../material.module';
@@ -69,8 +69,8 @@ export class CostCodesListComponent implements OnInit, OnDestroy, OnChanges {
     rowColor: { displayAs: '', sort: false, wrap: false } // Hidden column for row coloring
   };
 
+  isPageReady = false;
   itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['offices', 'costCodes', 'officeScope']));
-  isLoading$: Observable<boolean> = this.itemsToLoad$.pipe(map(items => items.size > 0));
   destroy$ = new Subject<void>();
 
   constructor(
@@ -92,6 +92,11 @@ export class CostCodesListComponent implements OnInit, OnDestroy, OnChanges {
 
   //#region CostCodes-List
   ngOnInit(): void {
+    this.itemsToLoad$.pipe(takeUntil(this.destroy$)).subscribe(items => {
+      this.isPageReady = items.size === 0;
+      this.markViewForCheck();
+    });
+
     this.organizationId = this.authService.getUser()?.organizationId?.trim() ?? '';
     this.loadOffices();
     this.loadCostCodes();

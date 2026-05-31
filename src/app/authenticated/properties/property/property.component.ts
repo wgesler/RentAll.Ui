@@ -177,6 +177,7 @@ export class PropertyComponent implements OnInit, OnChanges, AfterViewInit, OnDe
       this.isInOwnerMode = value;
       this.applyOwnerModeDefaults();
     });
+    
     this.isAdmin = this.authService.isAdmin();
     this.isInAccounting = this.authService.isInAccounting();
     this.organizationId = this.authService.getUser()?.organizationId?.trim() ?? '';

@@ -26,7 +26,7 @@ export class LeadsReportsComponent implements OnInit, OnChanges, OnDestroy {
   @Input() endDate: Date | null = null;
   @Input() offices: OfficeResponse[] = [];
 
-  isLoading = false;
+  isPageReady = false;
   closedLeadsColumns: ColumnSet = {
     officeName: { displayAs: 'Office', wrap: false, maxWidth: '24ch' },
     statuses: { displayAs: 'Statuses', wrap: false, maxWidth: '44ch' },
@@ -76,7 +76,7 @@ export class LeadsReportsComponent implements OnInit, OnChanges, OnDestroy {
   //#region Leads-Reports
   ngOnInit(): void {
     this.itemsToLoad$.pipe(takeUntil(this.destroy$)).subscribe(items => {
-      this.isLoading = items.size > 0;
+      this.isPageReady = items.size === 0;
     });
     
     this.loadRentalLeads();
@@ -134,7 +134,7 @@ export class LeadsReportsComponent implements OnInit, OnChanges, OnDestroy {
 
   //#region Data Loading Methods
   loadRentalLeads(): void {
-    this.leadsService.getRentalLeads().pipe(take(1), takeUntil(this.destroy$), finalize(() => this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'rental-leads'))).subscribe({
+    this.leadsService.getRentalLeads().pipe(take(1), finalize(() => this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'rental-leads'))).subscribe({
       next: rows => {
         this.rentalRows = this.mappingService.mapLeadRentalReportRows(rows || []);
         this.refreshAllLeadRows();
@@ -147,7 +147,7 @@ export class LeadsReportsComponent implements OnInit, OnChanges, OnDestroy {
   }
 
   loadOwnerLeads(): void {
-    this.leadsService.getOwnerLeads().pipe(take(1), takeUntil(this.destroy$), finalize(() => this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'owner-leads'))).subscribe({
+    this.leadsService.getOwnerLeads().pipe(take(1), finalize(() => this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'owner-leads'))).subscribe({
       next: rows => {
         this.ownerRows = this.mappingService.mapLeadOwnerReportRows(rows || []);
         this.refreshAllLeadRows();
@@ -160,7 +160,7 @@ export class LeadsReportsComponent implements OnInit, OnChanges, OnDestroy {
   }
 
   loadGeneralLeads(): void {
-    this.leadsService.getGeneralLeads().pipe(take(1), takeUntil(this.destroy$), finalize(() => this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'general-leads'))).subscribe({
+    this.leadsService.getGeneralLeads().pipe(take(1), finalize(() => this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'general-leads'))).subscribe({
       next: rows => {
         this.generalRows = this.mappingService.mapLeadGeneralReportRows(rows || []);
         this.refreshAllLeadRows();
@@ -173,7 +173,7 @@ export class LeadsReportsComponent implements OnInit, OnChanges, OnDestroy {
   }
 
   loadAgents(): void {
-    this.agentService.getAgents().pipe(take(1), takeUntil(this.destroy$), finalize(() => this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'agents'))).subscribe({
+    this.agentService.getAgents().pipe(take(1), finalize(() => this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'agents'))).subscribe({
       next: agents => {
         this.agentsById.clear();
         for (const agent of (agents || [])) {

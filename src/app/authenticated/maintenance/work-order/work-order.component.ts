@@ -1152,7 +1152,7 @@ export class WorkOrderComponent implements OnInit, OnChanges, OnDestroy {
       return;
     }
 
-    this.workOrderService.getWorkOrderById(this.workOrderId).pipe(takeUntil(this.destroy$), take(1), finalize(() => { this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'workOrder'); })).subscribe({
+    this.workOrderService.getWorkOrderById(this.workOrderId).pipe(take(1), finalize(() => { this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'workOrder'); })).subscribe({
       next: (workOrder: WorkOrderResponse) => {
         this.workOrder = workOrder;
         this.associatedWorkOrderReceiptIds = new Set(
@@ -1176,7 +1176,12 @@ export class WorkOrderComponent implements OnInit, OnChanges, OnDestroy {
       return;
     }
 
-    this.propertyService.getPropertyByGuid(this.selectedPropertyId).pipe(takeUntil(this.destroy$), take(1), finalize(() => { this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'property'); })).subscribe({
+    if (!this.selectedPropertyId) {
+      this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'property');
+      return;
+    }
+
+    this.propertyService.getPropertyByGuid(this.selectedPropertyId).pipe(take(1), finalize(() => { this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'property'); })).subscribe({
       next: (property) => {
         this.property = property;
         this.getOfficeCostCodes(property.officeId);
@@ -1195,7 +1200,7 @@ export class WorkOrderComponent implements OnInit, OnChanges, OnDestroy {
       return;
     }
 
-    this.propertyAgreementService.getPropertyAgreement(this.selectedPropertyId).pipe(takeUntil(this.destroy$), take(1), finalize(() => { this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'propertyAgreement'); })).subscribe({
+    this.propertyAgreementService.getPropertyAgreement(this.selectedPropertyId).pipe(take(1), finalize(() => { this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'propertyAgreement'); })).subscribe({
       next: agreement => {
         this.propertyAgreement = agreement;
         this.defaultLaborCost = Number(agreement?.hourlyLaborCost) || 0;
@@ -1220,7 +1225,7 @@ export class WorkOrderComponent implements OnInit, OnChanges, OnDestroy {
       this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'propertyReceipts');
       return;
     }
-    this.receiptService.getReceiptsByPropertyId(this.selectedPropertyId).pipe(takeUntil(this.destroy$), take(1), finalize(() => { this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'propertyReceipts'); })).subscribe({
+    this.receiptService.getReceiptsByPropertyId(this.selectedPropertyId).pipe(take(1), finalize(() => { this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'propertyReceipts'); })).subscribe({
       next: (receipts) => {
         const activePropertyReceipts = (receipts ?? []).filter(r => r.isActive !== false);
         this.propertyReceipts = this.mergeAssociatedReceipts(activePropertyReceipts);
@@ -1266,7 +1271,7 @@ export class WorkOrderComponent implements OnInit, OnChanges, OnDestroy {
       )
     );
 
-    forkJoin(fetches).pipe(takeUntil(this.destroy$), take(1)).subscribe({
+    forkJoin(fetches).pipe(take(1)).subscribe({
       next: (receipts) => {
         const fetchedReceipts = (receipts || []).filter((receipt): receipt is ReceiptResponse => receipt != null);
         this.propertyReceipts = this.mergeAssociatedReceipts(this.propertyReceipts, fetchedReceipts);
@@ -1301,7 +1306,7 @@ export class WorkOrderComponent implements OnInit, OnChanges, OnDestroy {
       this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'propertyReservations');
       return;
     }
-    this.reservationService.getReservationsByPropertyId(this.selectedPropertyId).pipe(takeUntil(this.destroy$), take(1), finalize(() => { this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'propertyReservations'); })).subscribe({
+    this.reservationService.getReservationsByPropertyId(this.selectedPropertyId).pipe(take(1), finalize(() => { this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'propertyReservations'); })).subscribe({
       next: reservations => {
         this.propertyReservations = (reservations ?? []).filter(r => r.isActive !== false);
       },
@@ -1318,7 +1323,7 @@ export class WorkOrderComponent implements OnInit, OnChanges, OnDestroy {
       return;
     }
 
-    this.accountingOfficeService.ensureAccountingOfficesLoaded().pipe(takeUntil(this.destroy$), take(1), finalize(() => { this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'workOrderNumber'); })).subscribe(list => {
+    this.accountingOfficeService.ensureAccountingOfficesLoaded().pipe(take(1), finalize(() => { this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'workOrderNumber'); })).subscribe(list => {
       const office = (list || []).find(o => Number(o.officeId) === officeId) ?? null;
       this.applyAccountingOfficeSequenceFromOffice(office);
     });
@@ -1473,7 +1478,7 @@ export class WorkOrderComponent implements OnInit, OnChanges, OnDestroy {
         officeId: receipt.officeId,
         propertyIds: (receipt.propertyIds || []).map(propertyId => (propertyId || '').trim()).filter(propertyId => propertyId.length > 0),
         receiptDate: receipt.receiptDate || '',
-        maintenanceId: receipt.maintenanceId,
+        ticketId: receipt.ticketId,
         description: receipt.description ?? '',
         amount: receipt.amount ?? 0,
         bankCardId: receipt.bankCardId ?? null,

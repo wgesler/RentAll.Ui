@@ -143,7 +143,7 @@ export class HeaderComponent implements OnInit, OnDestroy {
     });
     
     // Reload profile picture when dialog closes (in case user updated it)
-    dialogRef.afterClosed().pipe(take(1), takeUntil(this.destroy$)).subscribe((result) => {
+    dialogRef.afterClosed().pipe(take(1)).subscribe((result) => {
       if (result) {
         // User saved changes, reload profile picture
         this.loadUserProfilePicture();

@@ -8,7 +8,7 @@ import { CommonMessage } from '../../../enums/common-message.enum';
 import { MaterialModule } from '../../../material.module';
 import { MappingService } from '../../../services/mapping.service';
 import { AuthService } from '../../../services/auth.service';
-import { skip, Subject, take, takeUntil } from 'rxjs';
+import { skip, BehaviorSubject, Subject, finalize, switchMap, take, takeUntil } from 'rxjs';
 import { EmailListDisplay } from '../models/email.model';
 import { EmailService } from '../services/email.service';
 import { DataTableComponent } from '../../shared/data-table/data-table.component';
@@ -54,8 +54,9 @@ export class EmailListComponent implements OnInit, OnDestroy, OnChanges {
  
   emails: EmailListDisplay[] = [];
   allEmails: EmailListDisplay[] = [];
-  isLoading = false;
+  isPageReady = false;
   isServiceError = false;
+  itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['emails', 'offices', 'companies', 'officeScope', 'reservations']));
 
   offices: OfficeResponse[] = [];
   selectedOfficeId: number | null = null;
@@ -104,6 +105,10 @@ export class EmailListComponent implements OnInit, OnDestroy, OnChanges {
 
   //#region Email-List
   ngOnInit(): void {
+    this.itemsToLoad$.pipe(takeUntil(this.destroy$)).subscribe(items => {
+      this.isPageReady = items.size === 0;
+      this.markViewForCheck();
+    });
     this.organizationId = this.organizationId || this.authService.getUser()?.organizationId?.trim() || null;
     this.preferredOfficeId = this.authService.getUser()?.defaultOfficeId ?? null;
     if (!this.source) {
@@ -128,12 +133,10 @@ export class EmailListComponent implements OnInit, OnDestroy, OnChanges {
       this.markViewForCheck();
     });
     this.loadCompanies();
-    // Use reservations passed from parent if available, otherwise load them
     if (this.reservations && this.reservations.length > 0) {
-      // Use passed reservations - already set via @Input
+      this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'reservations');
       this.filterReservations();
     } else {
-      // Load reservations for dropdown options and active-reservation filtering.
       this.loadReservations();
     }
     this.loadEmails();
@@ -201,7 +204,9 @@ export class EmailListComponent implements OnInit, OnDestroy, OnChanges {
 
   //#region Data Loading Methods
   loadOffices(): void {
-    this.globalSelectionService.ensureOfficeScope(this.organizationId || '', this.preferredOfficeId).pipe(take(1)).subscribe({
+    this.globalSelectionService.ensureOfficeScope(this.organizationId || '', this.preferredOfficeId).pipe(take(1), finalize(() => {
+      this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'offices');
+    })).subscribe({
       next: () => {
         this.officeService.getAllOffices().pipe(takeUntil(this.destroy$)).subscribe(offices => {
           this.offices = offices || [];
@@ -226,28 +231,32 @@ export class EmailListComponent implements OnInit, OnDestroy, OnChanges {
   }
 
   loadEmails(): void {
-    this.isLoading = true;
-    this.emailService.getEmails().subscribe({
+    this.utilityService.addLoadItem(this.itemsToLoad$, 'emails');
+    this.emailService.getEmails().pipe(take(1), finalize(() => {
+      this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'emails');
+      this.markViewForCheck();
+    })).subscribe({
       next: (emails) => {
         this.allEmails = this.mappingService.mapEmailListDisplays(emails || []);
         this.allEmails = this.mappingService.mapEmailOfficeNames(this.allEmails, this.offices);
         this.applyFilters();
         this.isServiceError = false;
-        this.isLoading = false;
         this.markViewForCheck();
       },
       error: () => {
         this.allEmails = [];
         this.emails = [];
         this.isServiceError = true;
-        this.isLoading = false;
         this.markViewForCheck();
       }
     });
   }
 
   loadReservations(): void {
-    this.reservationService.getReservationCodes().pipe(take(1)).subscribe({
+    this.reservationService.getReservationCodes().pipe(take(1), finalize(() => {
+      this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'reservations');
+      this.markViewForCheck();
+    })).subscribe({
       next: (reservations) => {
         this.reservations = reservations || [];
         this.filterReservations();
@@ -263,20 +272,14 @@ export class EmailListComponent implements OnInit, OnDestroy, OnChanges {
   }
 
   loadCompanies(): void {
-    this.contactService.ensureContactsLoaded().pipe(take(1)).subscribe({
-      next: () => {
-        this.contactService.getAllCompanyContacts().pipe(take(1)).subscribe({
-          next: (contacts) => {
-            this.companyContacts = contacts || [];
-            this.filterCompanies();
-            this.markViewForCheck();
-          },
-          error: () => {
-            this.companyContacts = [];
-            this.availableCompanyContacts = [];
-            this.markViewForCheck();
-          }
-        });
+    this.contactService.ensureContactsLoaded().pipe(take(1), switchMap(() => this.contactService.getAllCompanyContacts().pipe(take(1))), finalize(() => {
+      this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'companies');
+      this.markViewForCheck();
+    })).subscribe({
+      next: contacts => {
+        this.companyContacts = contacts || [];
+        this.filterCompanies();
+        this.markViewForCheck();
       },
       error: () => {
         this.companyContacts = [];
@@ -610,11 +613,13 @@ export class EmailListComponent implements OnInit, OnDestroy, OnChanges {
   ngOnDestroy(): void {
     this.destroy$.next();
     this.destroy$.complete();
+    this.itemsToLoad$.complete();
   }
 
   resolveOfficeScope(officeId: number | null, emitChange: boolean): void {
     this.selectedOfficeId = this.utilityService.resolveSelectedOfficeById(this.offices, officeId)?.officeId ?? officeId ?? null;
     this.officeScopeResolved = true;
+    this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'officeScope');
     if (emitChange) {
       this.officeIdChange.emit(this.selectedOfficeId);
     }

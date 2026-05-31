@@ -42,7 +42,7 @@
   </div>
 </ng-template>
 
-@if (!(isLoading$ | async)) {
+@if (isPageReady) {
   <div class="mat list-layout-standard">
       @if (source === null) {
         <div class="list-top-controls list-top-controls--standard flex justify-between items-center gap-3 mt-4 px-4">

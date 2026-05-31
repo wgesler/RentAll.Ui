@@ -37,7 +37,6 @@ export type RentalEditSelection = { rentalId: number; officeId: number | null };
   changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class RentalListComponent implements OnInit, OnChanges, OnDestroy {
-  embeddedInShell = input(false);
   officeId = input<number | null>(null);
   requestNewRental = output<void>();
   requestEditRental = output<RentalEditSelection>();
@@ -95,52 +94,27 @@ export class RentalListComponent implements OnInit, OnChanges, OnDestroy {
     });
     this.organizationId = this.authService.getUser()?.organizationId?.trim() ?? '';
 
-    if (!this.embeddedInShell()) {
-      this.globalSelectionService.getSelectedOfficeId$().pipe(takeUntil(this.destroy$)).subscribe(officeId => {
-        if (this.offices.length === 0) {
-          return;
-        }
-        this.resolveOfficeScope(officeId);
-        this.markViewForCheck();
-      });
-    }
-
     this.loadOffices();
     this.loadRentalLeads();
   }
 
   ngOnChanges(changes: SimpleChanges): void {
-    if (!this.embeddedInShell()) {
-      return;
-    }
     if (changes['officeId']) {
       this.resolveOfficeScope(this.officeId());
     }
   }
 
   addRentalLead(): void {
-    if (this.embeddedInShell()) {
-      this.requestNewRental.emit();
-      return;
-    }
-    this.ngZone.run(() => {
-      this.router.navigateByUrl(RouterUrl.replaceTokens(RouterUrl.LeadRental, ['new']));
-    });
+    this.requestNewRental.emit();
   }
 
   goToRentalLead(event: LeadRentalListDisplay): void {
     if (!event?.rentalId) {
       return;
     }
-    if (this.embeddedInShell()) {
-      this.requestEditRental.emit({
-        rentalId: event.rentalId,
-        officeId: event.officeId ?? null
-      });
-      return;
-    }
-    this.ngZone.run(() => {
-      this.router.navigateByUrl(RouterUrl.replaceTokens(RouterUrl.LeadRental, [String(event.rentalId)]));
+    this.requestEditRental.emit({
+      rentalId: event.rentalId,
+      officeId: event.officeId ?? null
     });
   }
 
@@ -425,7 +399,7 @@ export class RentalListComponent implements OnInit, OnChanges, OnDestroy {
       next: () => {
         this.officeService.getAllOffices().pipe(takeUntil(this.destroy$)).subscribe(offices => {
           this.offices = offices || [];
-          const initialOfficeId = this.embeddedInShell() ? this.officeId() : this.globalSelectionService.getSelectedOfficeIdValue();
+          const initialOfficeId = this.officeId();
           this.resolveOfficeScope(initialOfficeId ?? null);
           this.markViewForCheck();
         });
@@ -440,7 +414,7 @@ export class RentalListComponent implements OnInit, OnChanges, OnDestroy {
   loadRentalLeads(): void {
     this.itemsToLoad$.next(new Set([...this.itemsToLoad$.value, 'rental-leads']));
     this.isServiceError = false;
-    this.leadsService.getRentalLeads().pipe(take(1), takeUntil(this.destroy$), finalize(() => this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'rental-leads'))).subscribe({
+    this.leadsService.getRentalLeads().pipe(take(1), finalize(() => this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'rental-leads'))).subscribe({
       next: rows => {
         this.allRentals = (rows || []).map(row => this.mappingService.mapLeadRentalListRow(row));
         this.applyRentalFilters();
@@ -459,12 +433,8 @@ export class RentalListComponent implements OnInit, OnChanges, OnDestroy {
 
   //#region Filter Methods
   scopeOfficeIdForListFilter(): number | null {
-    if (this.embeddedInShell()) {
-      const id = this.officeId();
-      return id != null && id > 0 ? id : null;
-    }
-    const globalId = this.globalSelectionService.getSelectedOfficeIdValue();
-    return globalId != null && globalId > 0 ? globalId : null;
+    const id = this.officeId();
+    return id != null && id > 0 ? id : null;
   }
 
   toggleInactive(): void {

@@ -29,7 +29,6 @@ import { LeadsService } from '../services/leads.service';
   changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class GeneralListComponent implements OnInit, OnChanges, OnDestroy {
-  embeddedInShell = input(false);
   officeId = input<number | null>(null);
   requestNewGeneral = output<void>();
   requestEditGeneral = output<number>();
@@ -84,50 +83,25 @@ export class GeneralListComponent implements OnInit, OnChanges, OnDestroy {
     });
     this.organizationId = this.authService.getUser()?.organizationId?.trim() ?? '';
 
-    if (!this.embeddedInShell()) {
-      this.globalSelectionService.getSelectedOfficeId$().pipe(takeUntil(this.destroy$)).subscribe(officeId => {
-        if (this.offices.length === 0) {
-          return;
-        }
-        this.resolveOfficeScope(officeId);
-        this.markViewForCheck();
-      });
-    }
-
     this.loadOffices();
     this.loadGeneralLeads();
   }
 
   ngOnChanges(changes: SimpleChanges): void {
-    if (!this.embeddedInShell()) {
-      return;
-    }
     if (changes['officeId']) {
       this.resolveOfficeScope(this.officeId());
     }
   }
 
   addGeneralLead(): void {
-    if (this.embeddedInShell()) {
-      this.requestNewGeneral.emit();
-      return;
-    }
-    this.ngZone.run(() => {
-      void this.router.navigateByUrl(RouterUrl.replaceTokens(RouterUrl.LeadGeneral, ['new']));
-    });
+    this.requestNewGeneral.emit();
   }
 
   goToGeneral(event: LeadGeneralListDisplay): void {
     if (!event?.generalId) {
       return;
     }
-    if (this.embeddedInShell()) {
-      this.requestEditGeneral.emit(event.generalId);
-      return;
-    }
-    this.ngZone.run(() => {
-      void this.router.navigateByUrl(RouterUrl.replaceTokens(RouterUrl.LeadGeneral, [String(event.generalId)]));
-    });
+    this.requestEditGeneral.emit(event.generalId);
   }
 
   deleteGeneral(event: LeadGeneralListDisplay): void {
@@ -289,7 +263,7 @@ export class GeneralListComponent implements OnInit, OnChanges, OnDestroy {
       next: () => {
         this.officeService.getAllOffices().pipe(takeUntil(this.destroy$)).subscribe(offices => {
           this.offices = offices || [];
-          const initialOfficeId = this.embeddedInShell() ? this.officeId() : this.globalSelectionService.getSelectedOfficeIdValue();
+          const initialOfficeId = this.officeId();
           this.resolveOfficeScope(initialOfficeId ?? null);
           this.markViewForCheck();
         });
@@ -303,7 +277,7 @@ export class GeneralListComponent implements OnInit, OnChanges, OnDestroy {
 
   loadGeneralLeads(): void {
     this.isServiceError = false;
-    this.leadsService.getGeneralLeads().pipe(take(1), takeUntil(this.destroy$), finalize(() => this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'general-leads'))).subscribe({
+    this.leadsService.getGeneralLeads().pipe(take(1), finalize(() => this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'general-leads'))).subscribe({
       next: rows => {
         this.allGenerals = (rows || []).map(row => this.mappingService.mapLeadGeneralListRow(row));
         this.applyGeneralFilters();
@@ -322,12 +296,8 @@ export class GeneralListComponent implements OnInit, OnChanges, OnDestroy {
 
   //#region Filter Methods
   scopeOfficeIdForListFilter(): number | null {
-    if (this.embeddedInShell()) {
-      const id = this.officeId();
-      return id != null && id > 0 ? id : null;
-    }
-    const globalId = this.globalSelectionService.getSelectedOfficeIdValue();
-    return globalId != null && globalId > 0 ? globalId : null;
+    const id = this.officeId();
+    return id != null && id > 0 ? id : null;
   }
 
   toggleInactive(): void {

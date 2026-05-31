@@ -4,7 +4,7 @@ import { FormsModule } from '@angular/forms';
 import { MatDialog } from '@angular/material/dialog';
 import { Router } from '@angular/router';
 import { ToastrService } from 'ngx-toastr';
-import { BehaviorSubject, Observable, concatMap, filter, finalize, from, map, switchMap, take, toArray } from 'rxjs';
+import {BehaviorSubject, concatMap, filter, finalize, from, map, switchMap, take, toArray, Subject, takeUntil} from 'rxjs';
 import { RouterUrl } from '../../../app.routes';
 import { CommonMessage } from '../../../enums/common-message.enum';
 import { MaterialModule } from '../../../material.module';
@@ -69,8 +69,8 @@ export class TicketListComponent implements OnInit, OnDestroy {
     'isActive': { displayAs: 'IsActive', isCheckbox: true, checkboxEditable: true, sort: false, wrap: false, alignment: 'center', maxWidth: '15ch' }
  };
 
-  itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['tickets', 'users']));
-  isLoading$: Observable<boolean> = this.itemsToLoad$.pipe(map(items => items.size > 0));
+  destroy$ = new Subject<void>();
+  itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['tickets']));
 
   constructor(
     private router: Router,
@@ -90,8 +90,8 @@ export class TicketListComponent implements OnInit, OnDestroy {
 
   //#region Ticket-List
   ngOnInit(): void {
-    this.itemsToLoad$.pipe(filter(items => items.size === 0), take(1)).subscribe(() => {
-      this.isPageReady = true;
+    this.itemsToLoad$.pipe(takeUntil(this.destroy$)).subscribe(items => {
+      this.isPageReady = items.size === 0;
       this.markViewForCheck();
     });
 
@@ -550,7 +550,7 @@ export class TicketListComponent implements OnInit, OnDestroy {
 
   //#region Data Loading Methods
   loadUsers(): void {
-    this.userService.getUsers().pipe(take(1), finalize(() => this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'users'))).subscribe({
+    this.userService.getUsers().pipe(take(1)).subscribe({
       next: users => {
         this.users = users || [];
         this.rebuildAssigneeDropdowns();
@@ -783,6 +783,8 @@ export class TicketListComponent implements OnInit, OnDestroy {
 
   //#region Utility Methods
   ngOnDestroy(): void {
+    this.destroy$.next();
+    this.destroy$.complete();
     this.itemsToLoad$.complete();
   }
   //#endregion

@@ -1,5 +1,5 @@
 import { CommonModule } from '@angular/common';
-import { AfterViewInit, Component, ElementRef, EventEmitter, Input, OnChanges, OnDestroy, OnInit, Output, SimpleChanges, ViewChild } from '@angular/core';
+import { AfterViewInit, ChangeDetectorRef, Component, ElementRef, EventEmitter, Input, OnChanges, OnDestroy, OnInit, Output, SimpleChanges, ViewChild } from '@angular/core';
 import { FormBuilder, FormControl, FormGroup, FormsModule, ReactiveFormsModule, Validators } from '@angular/forms';
 import { MatDialog } from '@angular/material/dialog';
 import { ActivatedRoute } from '@angular/router';
@@ -88,7 +88,7 @@ export class TicketComponent implements OnInit, OnChanges, AfterViewInit, OnDest
   reservationAgentSyncKey: string | null = null;
   selectedReservationCodeForAudit: string | null = null;
 
-  itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['ticket', 'properties', 'users', 'agents']));
+  itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['ticket']));
   isLoading$: Observable<boolean> = this.itemsToLoad$.pipe(map(items => items.size > 0));
   destroy$ = new Subject<void>();
 
@@ -106,16 +106,15 @@ export class TicketComponent implements OnInit, OnChanges, AfterViewInit, OnDest
     private receiptService: ReceiptService,
     private workOrderService: WorkOrderService,
     private userService: UserService,
-    private formatterService: FormatterService
+    private formatterService: FormatterService,
+    private cdr: ChangeDetectorRef
   ) {}
 
   //#region Ticket
   ngOnInit(): void {
     this.organizationId = this.authService.getUser()?.organizationId?.trim() || '';
 
-    this.itemsToLoad$.pipe(takeUntil(this.destroy$)).subscribe(items => {
-      this.isPageReady = items.size === 0;
-    });
+    this.itemsToLoad$.pipe(takeUntil(this.destroy$)).subscribe(() => this.syncPageReadyFromLoadItems());
 
     this.buildForm();
     this.setupCommunicationStatusCommentTracking();
@@ -165,18 +164,18 @@ export class TicketComponent implements OnInit, OnChanges, AfterViewInit, OnDest
       this.resetForm();
       this.applyPropertySelection(this.selectedPropertyIdFromShell ?? null, true);
       this.emitPropertySelection();
-      this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'ticket');
+      this.clearTicketLoading();
       return;
     }
 
     const ticketId = String(id || '').trim();
     if (!ticketId) {
       this.isServiceError = true;
-      this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'ticket');
+      this.clearTicketLoading();
       return;
     }
 
-    this.ticketService.getTicketById(ticketId).pipe(takeUntil(this.destroy$), finalize(() => this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'ticket'))).subscribe({
+    this.ticketService.getTicketById(ticketId).pipe(take(1), finalize(() => this.clearTicketLoading())).subscribe({
       next: (response) => {
         this.ticket = response;
         this.populateForm(response);
@@ -293,7 +292,7 @@ export class TicketComponent implements OnInit, OnChanges, AfterViewInit, OnDest
     this.isSubmitting = true;
     this.utilityService.addLoadItem(this.itemsToLoad$, 'ticketSave');
     const shouldCreateTicket = this.isAddMode || !this.ticket?.ticketId || String(this.ticket.ticketId).trim() === '';
-    (shouldCreateTicket ? this.ticketService.createTicket(request) : this.ticketService.updateTicket(request)).pipe(takeUntil(this.destroy$), finalize(() => { this.isSubmitting = false; this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'ticketSave'); })).subscribe({
+    (shouldCreateTicket ? this.ticketService.createTicket(request) : this.ticketService.updateTicket(request)).pipe(take(1), finalize(() => { this.isSubmitting = false; this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'ticketSave'); })).subscribe({
       next: (response) => {
         this.ticket = response;
         this.currentAssignee = this.normalizeId(response.assigneeId ?? null);
@@ -777,8 +776,7 @@ export class TicketComponent implements OnInit, OnChanges, AfterViewInit, OnDest
     }
     this.reservationAgentSyncKey = syncKey;
 
-    this.utilityService.addLoadItem(this.itemsToLoad$, 'reservationAgent');
-    this.reservationService.getReservationByGuid(reservationId).pipe(take(1), takeUntil(this.destroy$), finalize(() => this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'reservationAgent'))).subscribe({
+    this.reservationService.getReservationByGuid(reservationId).pipe(take(1)).subscribe({
       next: (reservation: ReservationResponse) => {
         this.selectedReservationCodeForAudit = this.normalizeText((reservation as unknown as { reservationCode?: string | null }).reservationCode ?? null);
         const reservationAgentId = this.normalizeId(reservation.agentId);
@@ -808,7 +806,7 @@ export class TicketComponent implements OnInit, OnChanges, AfterViewInit, OnDest
 
   //#region Data Loading Methods
   loadProperties(): void {
-    this.propertyService.getPropertyList().pipe(take(1), finalize(() => this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'properties'))).subscribe({
+    this.propertyService.getPropertyList().pipe(take(1)).subscribe({
       next: properties => {
         this.properties = (properties || []).slice().sort((a, b) =>
           String(a.propertyCode || '').localeCompare(String(b.propertyCode || ''), undefined, { sensitivity: 'base' })
@@ -823,7 +821,7 @@ export class TicketComponent implements OnInit, OnChanges, AfterViewInit, OnDest
   }
 
   loadUsers(): void {
-    this.userService.getUsers().pipe(take(1), finalize(() => this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'users'))).subscribe({
+    this.userService.getUsers().pipe(take(1)).subscribe({
       next: users => {
         this.users = users || [];
         const selectedPropertyId = this.form?.get('propertyId')?.value == null ? this.selectedPropertyIdFromShell : String(this.form.get('propertyId')?.value);
@@ -841,7 +839,7 @@ export class TicketComponent implements OnInit, OnChanges, AfterViewInit, OnDest
   }
 
   loadAgents(): void {
-    this.agentService.getAgents().pipe(take(1), finalize(() => this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'agents'))).subscribe({
+    this.agentService.getAgents().pipe(take(1)).subscribe({
       next: agents => {
         this.agents = agents || [];
         this.reservationAgentSyncKey = null;
@@ -878,7 +876,7 @@ export class TicketComponent implements OnInit, OnChanges, AfterViewInit, OnDest
           panelClass: 'ticket-receipt-dialog-panel',
           data: {
             property,
-            maintenanceId: this.ticket?.ticketId ?? null
+            ticketId: this.ticket?.ticketId ?? null
           }
         });
         dialogRef.afterClosed().pipe(take(1)).subscribe((result?: TicketReceiptDialogResult) => {
@@ -932,7 +930,7 @@ export class TicketComponent implements OnInit, OnChanges, AfterViewInit, OnDest
           panelClass: 'ticket-receipt-dialog-panel',
           data: {
             property,
-            maintenanceId: this.ticket?.ticketId ?? null,
+            ticketId: this.ticket?.ticketId ?? null,
             receiptId
           }
         });
@@ -1241,6 +1239,16 @@ export class TicketComponent implements OnInit, OnChanges, AfterViewInit, OnDest
     if (editor.innerHTML !== nextHtml) {
       editor.innerHTML = nextHtml;
     }
+  }
+
+  clearTicketLoading(): void {
+    this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'ticket');
+    this.syncPageReadyFromLoadItems();
+  }
+
+  syncPageReadyFromLoadItems(): void {
+    this.isPageReady = this.itemsToLoad$.value.size === 0;
+    this.cdr.markForCheck();
   }
 
   ngOnDestroy(): void {

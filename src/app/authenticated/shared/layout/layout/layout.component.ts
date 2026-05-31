@@ -82,7 +82,7 @@ export class LayoutComponent implements OnInit, OnDestroy {
 
     LayoutComponent.isIdleModalOn = true;
     this.dialogRef = this.dialog.open(GenericModalComponent, this.timeoutData);
-    this.dialogRef.afterClosed().pipe(take(1), takeUntil(this.destroy$)).subscribe({
+    this.dialogRef.afterClosed().pipe(take(1)).subscribe({
       next: result => {
         if (result)
           LayoutComponent.isIdleModalOn = false;

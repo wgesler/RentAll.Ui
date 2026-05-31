@@ -1534,7 +1534,7 @@ export class MappingService {
         propertyIds: receipt.propertyIds || [],
         receiptDate: this.formatter.formatDateString(receipt.receiptDate),
         propertyCode: (receipt.propertyIds || []).join(', '),
-        maintenanceId: receipt.maintenanceId,
+        ticketId: receipt.ticketId,
         description: receipt.description || '',
         descriptionDisplay: receipt.description || '',
         amount: receiptAmount,

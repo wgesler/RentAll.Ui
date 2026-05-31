@@ -3,7 +3,7 @@ import { HttpErrorResponse } from '@angular/common/http';
 import { ChangeDetectionStrategy, ChangeDetectorRef, Component, EventEmitter, Input, OnDestroy, OnInit, Output } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { ToastrService } from 'ngx-toastr';
-import { BehaviorSubject, Observable, Subject, catchError, concatMap, filter, finalize, from, map, of, take, takeUntil, toArray } from 'rxjs';
+import {BehaviorSubject, Subject, catchError, concatMap, filter, finalize, from, map, of, take, takeUntil, toArray} from 'rxjs';
 import { CommonMessage } from '../../../enums/common-message.enum';
 import { MaterialModule } from '../../../material.module';
 import { MappingService } from '../../../services/mapping.service';
@@ -40,8 +40,8 @@ export class StateFormListComponent implements OnInit, OnDestroy {
     hasHtml: { displayAs: 'HTML', maxWidth: '12ch' }
   };
 
+  isPageReady = false;
   itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['stateForms']));
-  isLoading$: Observable<boolean> = this.itemsToLoad$.pipe(map(items => items.size > 0));
 
   constructor(
     private stateFormService: StateFormService,
@@ -59,6 +59,11 @@ export class StateFormListComponent implements OnInit, OnDestroy {
 
   //#region StateForm-List
   ngOnInit(): void {
+    this.itemsToLoad$.pipe(takeUntil(this.destroy$)).subscribe(items => {
+      this.isPageReady = items.size === 0;
+      this.markViewForCheck();
+    });
+
     this.loadStateForms();
   }
 
@@ -101,7 +106,6 @@ export class StateFormListComponent implements OnInit, OnDestroy {
 
     this.commonService.loadStates();
     this.commonService.getStates().pipe(
-      takeUntil(this.destroy$),
       map(states => (states || []).filter(state => !!state)),
       filter(states => states.length > 0),
       take(1)
@@ -136,8 +140,7 @@ export class StateFormListComponent implements OnInit, OnDestroy {
       toArray(),
       finalize(() => {
         this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'stateForms');
-      }),
-      takeUntil(this.destroy$)
+      })
     ).subscribe({
       next: (responsesByState: StateFormResponse[][]) => {
         const allResponses = responsesByState.flat();

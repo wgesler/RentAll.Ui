@@ -105,8 +105,7 @@ export class StateFormComponent implements OnInit, OnDestroy, OnChanges {
     this.utilityService.addLoadItem(this.itemsToLoad$, 'stateForm');
     this.stateFormService.getStateFormById(stateFormId).pipe(
       take(1),
-      finalize(() => this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'stateForm')),
-      takeUntil(this.destroy$)
+      finalize(() => this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'stateForm'))
     ).subscribe({
       next: (response: StateFormResponse) => {
         this.stateForm = response;
@@ -132,8 +131,7 @@ export class StateFormComponent implements OnInit, OnDestroy, OnChanges {
 
     saveRequest$.pipe(
       take(1),
-      finalize(() => this.isSubmitting = false),
-      takeUntil(this.destroy$)
+      finalize(() => this.isSubmitting = false)
     ).subscribe({
       next: () => {
         this.toastr.success(
@@ -161,8 +159,7 @@ export class StateFormComponent implements OnInit, OnDestroy, OnChanges {
     this.commonService.loadStates();
     this.commonService.getStates().pipe(
       filter(states => !!states && states.length > 0),
-      take(1),
-      takeUntil(this.destroy$)
+      take(1)
     ).subscribe({
       next: states => {
         this.stateCodes = this.normalizeStateCodes(states || []);

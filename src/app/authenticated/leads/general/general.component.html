@@ -1,15 +1,8 @@
 <ng-template #generalCreateForm>
   <div
-    class="lead-create-form general-create-form-shell property-tab-main-area dbg-band-main"
-    [class.lead-create-form-shell--embedded]="embeddedInShell()">
+    class="lead-create-form general-create-form-shell lead-create-form-shell--embedded property-tab-main-area dbg-band-main">
     <div class="general-create-form-title-row flex flex-wrap items-center justify-between gap-3 border-b border-slate-200 py-1.5">
       <div class="general-create-titlebar-left flex min-w-0 flex-wrap items-center gap-3 uniform-gap">
-        @if (!embeddedInShell()) {
-          <button mat-raised-button type="button" color="accent" class="text-nowrap flex-shrink-0" (click)="back()">
-            <mat-icon>arrow_back</mat-icon>
-            Back
-          </button>
-        }
       </div>
       <div class="general-create-titlebar-right flex flex-shrink-0 flex-wrap items-center gap-3">
         <mat-checkbox [formControl]="$any(form.controls['isActive'])" color="primary" class="text-nowrap">
@@ -77,88 +70,25 @@
     <p>Loading general lead…</p>
   </div>
 } @else if (isAddMode) {
-  @if (embeddedInShell()) {
-    <mat-card class="leads-embedded-lead-card">
-      <mat-card-content>
-        <ng-container *ngTemplateOutlet="generalCreateForm" />
-      </mat-card-content>
-    </mat-card>
-  } @else {
-    <div class="flex content-card-wrap justify-center" fxLayout="row wrap">
-      <section class="content-card">
-        <div class="property-titlebar flex items-center gap-3 rounded-t-lg bg-slate-300 py-0 pl-8 pr-4 dbg-band-actions">
-          <div class="flex flex-wrap items-center py-4">
-            <span class="flex flex-shrink-0 flex-column items-center gap-3">
-              <mat-icon class="flex-shrink-0">contact_mail</mat-icon>
-              <span class="flex-shrink-0 text-xl font-medium">New general lead</span>
-            </span>
-          </div>
-        </div>
-        <mat-card class="general-create-standalone-mat-card">
-          <mat-card-content>
-            <ng-container *ngTemplateOutlet="generalCreateForm" />
-          </mat-card-content>
-        </mat-card>
-      </section>
-    </div>
-  }
+  <mat-card class="leads-embedded-lead-card">
+    <mat-card-content>
+      <ng-container *ngTemplateOutlet="generalCreateForm" />
+    </mat-card-content>
+  </mat-card>
 } @else if (isServiceError) {
-  @if (embeddedInShell()) {
-    <mat-card class="leads-embedded-lead-card">
-      <mat-card-content>
-        <div class="flex flex-col items-center justify-center p-8">
-          <mat-icon class="mb-4 text-6xl text-red-500">error_outline</mat-icon>
-          <h3 class="mb-2 text-xl font-semibold">General lead not found</h3>
-          <p class="text-gray-600">This general lead could not be loaded.</p>
-        </div>
-      </mat-card-content>
-    </mat-card>
-  } @else {
-    <div class="flex content-card-wrap justify-center" fxLayout="row wrap">
-      <section class="content-card">
-        <mat-card>
-          <div class="flex items-center justify-center p-8">
-            <div class="text-center">
-              <mat-icon class="mb-4 text-6xl text-red-500">error_outline</mat-icon>
-              <h3 class="mb-2 text-xl font-semibold">General lead not found</h3>
-              <p class="text-gray-600">This general lead could not be loaded.</p>
-              <button mat-raised-button type="button" color="primary" class="mt-4" (click)="back()">Back to list</button>
-            </div>
-          </div>
-        </mat-card>
-      </section>
-    </div>
-  }
+  <mat-card class="leads-embedded-lead-card">
+    <mat-card-content>
+      <div class="flex flex-col items-center justify-center p-8">
+        <mat-icon class="mb-4 text-6xl text-red-500">error_outline</mat-icon>
+        <h3 class="mb-2 text-xl font-semibold">General lead not found</h3>
+        <p class="text-gray-600">This general lead could not be loaded.</p>
+      </div>
+    </mat-card-content>
+  </mat-card>
 } @else if (lead) {
-  @if (embeddedInShell()) {
-    <mat-card class="leads-embedded-lead-card">
-      <mat-card-content>
-        <ng-container *ngTemplateOutlet="generalCreateForm" />
-      </mat-card-content>
-    </mat-card>
-  } @else {
-    <div class="flex content-card-wrap justify-center" fxLayout="row wrap">
-      <section class="content-card">
-        <div class="property-titlebar flex items-center justify-between gap-3 rounded-t-lg bg-slate-300 py-0 pl-8 pr-4 dbg-band-actions">
-          <div class="flex flex-wrap items-center py-4">
-            <span class="flex flex-shrink-0 flex-column items-center gap-3">
-              <mat-icon class="flex-shrink-0">contact_mail</mat-icon>
-              <span class="flex-shrink-0 text-xl font-medium">General lead</span>
-            </span>
-          </div>
-          <div class="form-titlebar-actions-wrap uniform-gap">
-            <button mat-raised-button type="button" color="accent" class="text-nowrap flex-shrink-0" (click)="back()">
-              <mat-icon>arrow_back</mat-icon>
-              Back
-            </button>
-          </div>
-        </div>
-        <mat-card>
-          <mat-card-content>
-            <ng-container *ngTemplateOutlet="generalCreateForm" />
-          </mat-card-content>
-        </mat-card>
-      </section>
-    </div>
-  }
+  <mat-card class="leads-embedded-lead-card">
+    <mat-card-content>
+      <ng-container *ngTemplateOutlet="generalCreateForm" />
+    </mat-card-content>
+  </mat-card>
 }

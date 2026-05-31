@@ -1,10 +1,10 @@
 import { CommonModule } from '@angular/common';
 import { HttpErrorResponse } from '@angular/common/http';
-import { Component, effect, input, NgZone, OnDestroy, OnInit, output } from '@angular/core';
+import { ChangeDetectorRef, Component, EventEmitter, Input, NgZone, OnChanges, OnDestroy, OnInit, Output, SimpleChanges } from '@angular/core';
 import { FormBuilder, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
-import { ActivatedRoute, Router } from '@angular/router';
+import { Router } from '@angular/router';
 import { ToastrService } from 'ngx-toastr';
-import { BehaviorSubject, Subject, filter, finalize, map, take, takeUntil } from 'rxjs';
+import { BehaviorSubject, Subject, filter, finalize, take, takeUntil } from 'rxjs';
 import { RouterUrl } from '../../../app.routes';
 import { CommonMessage } from '../../../enums/common-message.enum';
 import { MaterialModule } from '../../../material.module';
@@ -35,12 +35,11 @@ export type OwnerLeadFormClosed = { saved: boolean; ownerId?: number };
   styleUrls: ['./owner.component.scss'],
   imports: [CommonModule, MaterialModule, ReactiveFormsModule]
 })
-export class OwnerComponent implements OnInit, OnDestroy {
-  embeddedInShell = input(false);
-  shellLeadId = input<string | null>(null);
-  officeId = input<number | null>(null);
-  closed = output<OwnerLeadFormClosed>();
-  officeSelectionRequired = output<void>();
+export class OwnerComponent implements OnInit, OnChanges, OnDestroy {
+  @Input() shellLeadId: string | null = null;
+  @Input() officeId: number | null = null;
+  @Output() closed = new EventEmitter<OwnerLeadFormClosed>();
+  @Output() officeSelectionRequired = new EventEmitter<void>();
 
   form: FormGroup;
   isServiceError = false;
@@ -59,12 +58,11 @@ export class OwnerComponent implements OnInit, OnDestroy {
   agents: AgentResponse[] = [];
   states: string[] = [];
 
-  itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['owner-lead', 'agents']));
+  itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['owner-lead']));
   destroy$ = new Subject<void>();
 
   constructor(
     private router: Router,
-    private route: ActivatedRoute,
     private ngZone: NgZone,
     private fb: FormBuilder,
     private toastr: ToastrService,
@@ -77,56 +75,34 @@ export class OwnerComponent implements OnInit, OnDestroy {
     private mappingService: MappingService,
     private globalSelectionService: GlobalSelectionService,
     private officeService: OfficeService,
-    private commonService: CommonService
+    private commonService: CommonService,
+    private cdr: ChangeDetectorRef
   ) {
     this.form = this.buildForm();
-    effect(() => {
-      const id = this.officeId();
-      void id;
-      if (!this.embeddedInShell() || this.offices.length === 0 || !this.officeScopeResolved) {
-        return;
-      }
-      this.resolveOfficeScope(this.officeId());
-    });
-    effect(() => {
-      if (!this.embeddedInShell()) {
-        return;
-      }
-      const id = this.shellLeadId();
-      if (id == null || id === '') {
-        return;
-      }
-      this.loadOwnerLead(id);
-    });
   }
 
   //#region Owner
   ngOnInit(): void {
-    this.itemsToLoad$.pipe(takeUntil(this.destroy$)).subscribe(items => {
-      this.isPageReady = items.size === 0;
-    });
+    this.itemsToLoad$.pipe(takeUntil(this.destroy$)).subscribe(() => this.syncPageReadyFromLoadItems());
 
     const user = this.authService.getUser();
     this.organizationId = user?.organizationId?.trim() ?? '';
     this.preferredOfficeId = user?.defaultOfficeId ?? null;
 
-    this.globalSelectionService.getSelectedOfficeId$().pipe(takeUntil(this.destroy$)).subscribe(officeId => {
-      if (this.offices.length === 0) {
-        return;
-      }
-
-      if (this.embeddedInShell()) {
-        this.resolveOfficeScope(this.officeId());
-        return;
-      }
-      this.resolveOfficeScope(officeId);
-    });
-
     this.loadOffices();
     this.loadAgents();
     this.loadStates();
+    this.loadOwnerLead(this.shellLeadId);
+  }
 
-    this.route.paramMap .pipe(takeUntil(this.destroy$), map(pm => pm.get('id')), filter(() => !this.embeddedInShell())) .subscribe(id => this.loadOwnerLead(id));
+  ngOnChanges(changes: SimpleChanges): void {
+    if (changes['officeId']) {
+      this.resolveOfficeScope(this.officeId);
+    }
+
+    if (changes['shellLeadId'] && !changes['shellLeadId'].firstChange) {
+      this.loadOwnerLead(this.shellLeadId);
+    }
   }
 
   loadOwnerLead(idParam: string | null): void {
@@ -141,7 +117,7 @@ export class OwnerComponent implements OnInit, OnDestroy {
     }
 
     this.isAddMode = false;
-    this.itemsToLoad$.next(new Set([...this.itemsToLoad$.value, 'owner-lead']));
+    this.utilityService.addLoadItem(this.itemsToLoad$, 'owner-lead');
     this.isServiceError = false;
     const ownerId = parseInt(String(idParam || '').trim(), 10);
     if (!ownerId || Number.isNaN(ownerId)) {
@@ -151,7 +127,7 @@ export class OwnerComponent implements OnInit, OnDestroy {
       return;
     }
 
-    this.leadsService.getOwnerLeadById(ownerId).pipe(take(1), takeUntil(this.destroy$), finalize(() => this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'owner-lead'))).subscribe({
+    this.leadsService.getOwnerLeadById(ownerId).pipe(take(1), finalize(() => this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'owner-lead'))).subscribe({
         next: row => {
           this.lead = row;
           this.populateForm(row);
@@ -171,7 +147,7 @@ export class OwnerComponent implements OnInit, OnDestroy {
     this.form.markAllAsTouched();
     const resolvedOfficeId = this.resolveSaveOfficeId();
     const hasValidOfficeSelection = resolvedOfficeId != null && resolvedOfficeId > 0;
-    if (!hasValidOfficeSelection && this.embeddedInShell()) {
+    if (!hasValidOfficeSelection) {
       this.officeSelectionRequired.emit();
     }
     if (this.form.invalid || !hasValidOfficeSelection) {
@@ -217,15 +193,11 @@ export class OwnerComponent implements OnInit, OnDestroy {
     };
     this.isSavingCreate = true;
     if (this.isAddMode) {
-      this.leadsService.createOwnerLead(body).pipe(take(1), takeUntil(this.destroy$)).subscribe({
+      this.leadsService.createOwnerLead(body).pipe(take(1)).subscribe({
         next: created => {
           this.toastr.success('Owner lead created.', CommonMessage.Success);
-          if (this.embeddedInShell()) {
-            this.isSavingCreate = false;
-            this.closed.emit({ saved: true, ownerId: created.ownerId });
-            return;
-          }
-          void this.router.navigateByUrl(RouterUrl.replaceTokens(RouterUrl.LeadOwner, [String(created.ownerId)]));
+          this.isSavingCreate = false;
+          this.closed.emit({ saved: true, ownerId: created.ownerId });
         },
         error: () => {
           this.toastr.error('Unable to create owner lead.', CommonMessage.Error);
@@ -240,15 +212,13 @@ export class OwnerComponent implements OnInit, OnDestroy {
       return;
     }
     const updateBody: LeadOwnerUpdateRequest = { ...body, ownerId };
-    this.leadsService.updateOwnerLead(updateBody).pipe(take(1), takeUntil(this.destroy$)).subscribe({
+    this.leadsService.updateOwnerLead(updateBody).pipe(take(1)).subscribe({
       next: row => {
         this.toastr.success('Owner lead updated.', CommonMessage.Success);
         this.lead = row;
         this.populateForm(row);
         this.isSavingCreate = false;
-        if (this.embeddedInShell()) {
-          this.closed.emit({ saved: true, ownerId: row.ownerId });
-        }
+        this.closed.emit({ saved: true, ownerId: row.ownerId });
       },
       error: () => {
         this.toastr.error('Unable to update owner lead.', CommonMessage.Error);
@@ -262,7 +232,7 @@ export class OwnerComponent implements OnInit, OnDestroy {
     if (!ownerId || Number.isNaN(ownerId)) {
       return;
     }
-    this.leadsService.getOwnerLeadById(ownerId).pipe(take(1), takeUntil(this.destroy$)).subscribe({
+    this.leadsService.getOwnerLeadById(ownerId).pipe(take(1)).subscribe({
       next: ownerLead => {
         const leadOwnerRequest = this.mappingService.mapLeadOwnerResponseToUpdateRequest(ownerLead);
         this.contactService.matchContactToLead(leadOwnerRequest).pipe(take(1)).subscribe({
@@ -301,7 +271,7 @@ export class OwnerComponent implements OnInit, OnDestroy {
               isInternational: false,
               isActive: true
             };
-            this.contactService.createContact(createContactRequest).pipe(take(1), takeUntil(this.destroy$)).subscribe({
+            this.contactService.createContact(createContactRequest).pipe(take(1)).subscribe({
               next: () => {
                 this.contactService.refreshContacts().pipe(take(1)).subscribe({ next: () => {}, error: () => {} });
                 this.ensureOwnerLeadInactiveAndOpen(ownerId);
@@ -445,7 +415,7 @@ export class OwnerComponent implements OnInit, OnDestroy {
   }
 
   resolveCreateOfficeId(): number | null {
-    const fromShell = this.officeId();
+    const fromShell = this.officeId;
     if (fromShell != null && fromShell > 0) {
       return fromShell;
     }
@@ -457,8 +427,8 @@ export class OwnerComponent implements OnInit, OnDestroy {
   }
 
   resolveSaveOfficeId(): number | null {
-    const fromShell = this.officeId();
-    if (this.embeddedInShell() && fromShell != null && fromShell > 0) {
+    const fromShell = this.officeId;
+    if (fromShell != null && fromShell > 0) {
       return fromShell;
     }
     if (this.isAddMode) {
@@ -479,24 +449,58 @@ export class OwnerComponent implements OnInit, OnDestroy {
     const match = this.agents.find(a => String(a.agentCode ?? '').trim() === code);
     return match?.agentId ? String(match.agentId).trim() : null;
   }
+
+  ensureOwnerLeadInactiveAndOpen(ownerId: number): void {
+    const complete = () => {
+      this.ngZone.run(() => {
+        void this.router.navigateByUrl(`${RouterUrl.OwnerShell}?leadOwnerId=${ownerId}`);
+      });
+    };
+    if (this.lead?.isActive === false) {
+      complete();
+      return;
+    }
+    this.leadsService.patchOwnerLead(ownerId, body => {
+      body.isActive = false;
+    }).pipe(take(1)).subscribe({
+      next: updated => {
+        this.lead = updated;
+        this.populateForm(updated);
+        complete();
+      },
+      error: () => {
+        this.toastr.error('Unable to set owner lead inactive.', CommonMessage.Error);
+        complete();
+      }
+    });
+  }
   //#endregion
 
   //#region Data Loading Methods
   loadOffices(): void {
     this.globalSelectionService.ensureOfficeScope(this.organizationId, this.preferredOfficeId).pipe(take(1)).subscribe({
       next: () => {
-        this.officeService.getAllOffices().pipe(takeUntil(this.destroy$)).subscribe(offices => {
-          this.offices = offices || [];
+        this.officeService.getAllOffices().pipe(take(1)).subscribe({
+          next: offices => {
+            this.offices = offices || [];
+            this.resolveOfficeScope(this.officeId);
+            this.cdr.markForCheck();
+          },
+          error: () => {
+            this.offices = [];
+            this.cdr.markForCheck();
+          }
         });
       },
       error: () => {
         this.offices = [];
+        this.cdr.markForCheck();
       }
     });
   }
 
   loadAgents(): void {
-    this.agentService.getAgents().pipe(take(1), takeUntil(this.destroy$), finalize(() => this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'agents'))).subscribe({
+    this.agentService.getAgents().pipe(take(1)).subscribe({
       next: a => {
         this.agents = (a || []).filter(x => x.isActive);
         if (this.lead) {
@@ -512,7 +516,7 @@ export class OwnerComponent implements OnInit, OnDestroy {
     if (cachedStates && cachedStates.length) {
       this.states = [...cachedStates];
     }
-    this.commonService.getStates().pipe(filter(states => states && states.length > 0), take(1), takeUntil(this.destroy$)).subscribe({
+    this.commonService.getStates().pipe(filter(states => states && states.length > 0), take(1)).subscribe({
       next: states => {
         this.states = [...states];
         if (this.lead) {
@@ -525,45 +529,15 @@ export class OwnerComponent implements OnInit, OnDestroy {
   //#endregion
 
   //#region Utility Methods
-  ensureOwnerLeadInactiveAndOpen(ownerId: number): void {
-    const complete = () => {
-      this.ngZone.run(() => {
-        void this.router.navigateByUrl(`${RouterUrl.OwnerShell}?leadOwnerId=${ownerId}`);
-      });
-    };
-    if (this.lead?.isActive === false) {
-      complete();
-      return;
-    }
-    this.leadsService.patchOwnerLead(ownerId, body => {
-      body.isActive = false;
-    }).pipe(take(1), takeUntil(this.destroy$)).subscribe({
-      next: updated => {
-        this.lead = updated;
-        this.populateForm(updated);
-        complete();
-      },
-      error: () => {
-        this.toastr.error('Unable to set owner lead inactive.', CommonMessage.Error);
-        complete();
-      }
-    });
+  syncPageReadyFromLoadItems(): void {
+    this.isPageReady = this.itemsToLoad$.value.size === 0;
+    this.cdr.markForCheck();
   }
 
   formatPhone(): void {
     this.formatterService.formatPhoneControl(this.form.get('phone'));
   }
   
-  back(): void {
-    if (this.embeddedInShell()) {
-      this.closed.emit({ saved: false });
-      return;
-    }
-    this.ngZone.run(() => {
-      void this.router.navigateByUrl(`${RouterUrl.Leads}?tab=owner`);
-    });
-  }
-
   ngOnDestroy(): void {
     this.destroy$.next();
     this.destroy$.complete();

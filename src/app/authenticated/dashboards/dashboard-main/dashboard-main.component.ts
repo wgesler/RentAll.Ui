@@ -596,7 +596,7 @@ export class DashboardMainComponent extends PropertyMaintenanceBase implements O
       return;
     }
 
-    this.userService.getUserByGuid(userId).pipe(takeUntil(this.destroy$), take(1), finalize(() => {
+    this.userService.getUserByGuid(userId).pipe(take(1), finalize(() => {
       this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'currentUser');
       this.resolveCurrentAgentAndFilter();
       this.markViewForCheck();
@@ -786,7 +786,7 @@ export class DashboardMainComponent extends PropertyMaintenanceBase implements O
   //#region Data Loading Methods
   loadUsers(): void {
     this.utilityService.addLoadItem(this.itemsToLoad$, 'users');
-    this.userService.getUsers().pipe(takeUntil(this.destroy$), take(1), finalize(() => {
+    this.userService.getUsers().pipe(take(1), finalize(() => {
       this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'users');
       this.buildCommissionsList();
       this.markViewForCheck();
@@ -804,7 +804,7 @@ export class DashboardMainComponent extends PropertyMaintenanceBase implements O
 
   loadAgents(): void {
     this.utilityService.addLoadItem(this.itemsToLoad$, 'agents');
-    this.agentService.getAgents().pipe(takeUntil(this.destroy$), take(1), finalize(() => {
+    this.agentService.getAgents().pipe(take(1), finalize(() => {
       this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'agents');
       this.buildCommissionsList();
       this.markViewForCheck();

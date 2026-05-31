@@ -37,7 +37,6 @@ export type OwnerEditSelection = { ownerId: number; officeId: number | null };
   changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class OwnerListComponent implements OnInit, OnChanges, OnDestroy {
-  embeddedInShell = input(false);
   officeId = input<number | null>(null);
   requestNewOwner = output<void>();
   requestEditOwner = output<OwnerEditSelection>();
@@ -97,16 +96,6 @@ export class OwnerListComponent implements OnInit, OnChanges, OnDestroy {
     this.isOwnerAdmin = this.authService.isOwnerAdmin();
     this.organizationId = this.authService.getUser()?.organizationId?.trim() ?? '';
 
-    if (!this.embeddedInShell()) {
-      this.globalSelectionService.getSelectedOfficeId$().pipe(takeUntil(this.destroy$)).subscribe(officeId => {
-        if (this.offices.length === 0) {
-          return;
-        }
-        this.resolveOfficeScope(officeId);
-        this.markViewForCheck();
-      });
-    }
-
     this.loadOffices();
     this.loadOwnerLeads();
     this.navigationContextService.getIsInOwnerMode().pipe(takeUntil(this.destroy$)).subscribe(value => {
@@ -116,22 +105,13 @@ export class OwnerListComponent implements OnInit, OnChanges, OnDestroy {
   }
 
   ngOnChanges(changes: SimpleChanges): void {
-    if (!this.embeddedInShell()) {
-      return;
-    }
     if (changes['officeId']) {
       this.resolveOfficeScope(this.officeId());
     }
   }
 
   addOwnerLead(): void {
-    if (this.embeddedInShell()) {
-      this.requestNewOwner.emit();
-      return;
-    }
-    this.ngZone.run(() => {
-      this.router.navigateByUrl(RouterUrl.replaceTokens(RouterUrl.LeadOwner, ['new']));
-    });
+    this.requestNewOwner.emit();
   }
 
   goToOwnerLead(event: LeadOwnerListDisplay): void {
@@ -144,21 +124,9 @@ export class OwnerListComponent implements OnInit, OnChanges, OnDestroy {
     const ownerOfficeId = Number.isFinite(parsedOfficeId) && parsedOfficeId > 0
       ? parsedOfficeId
       : null;
-    if (this.embeddedInShell()) {
-      this.requestEditOwner.emit({
-        ownerId: event.ownerId,
-        officeId: ownerOfficeId
-      });
-      return;
-    }
-    if (this.isInOwnerMode) {
-      this.ngZone.run(() => {
-        void this.router.navigateByUrl(`${RouterUrl.OwnerShell}?leadOwnerId=${event.ownerId}`);
-      });
-      return;
-    }
-    this.ngZone.run(() => {
-      this.router.navigateByUrl(RouterUrl.replaceTokens(RouterUrl.LeadOwner, [String(event.ownerId)]));
+    this.requestEditOwner.emit({
+      ownerId: event.ownerId,
+      officeId: ownerOfficeId
     });
   }
 
@@ -419,7 +387,7 @@ export class OwnerListComponent implements OnInit, OnChanges, OnDestroy {
       next: () => {
         this.officeService.getAllOffices().pipe(takeUntil(this.destroy$)).subscribe(offices => {
           this.offices = offices || [];
-          const initialOfficeId = this.embeddedInShell() ? this.officeId() : this.globalSelectionService.getSelectedOfficeIdValue();
+          const initialOfficeId = this.officeId();
           this.resolveOfficeScope(initialOfficeId ?? null);
           this.markViewForCheck();
         });
@@ -434,7 +402,7 @@ export class OwnerListComponent implements OnInit, OnChanges, OnDestroy {
   loadOwnerLeads(): void {
     this.itemsToLoad$.next(new Set([...this.itemsToLoad$.value, 'owner-leads']));
     this.isServiceError = false;
-    this.leadsService.getOwnerLeads().pipe(take(1), takeUntil(this.destroy$), finalize(() => this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'owner-leads'))).subscribe({
+    this.leadsService.getOwnerLeads().pipe(take(1), finalize(() => this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'owner-leads'))).subscribe({
       next: rows => {
         this.allOwners = (rows || []).map(row => this.mappingService.mapLeadOwnerListRow(row));
         this.applyOwnerFilters();
@@ -453,12 +421,8 @@ export class OwnerListComponent implements OnInit, OnChanges, OnDestroy {
 
   //#region Filter Methods
   scopeOfficeIdForListFilter(): number | null {
-    if (this.embeddedInShell()) {
-      const id = this.officeId();
-      return id != null && id > 0 ? id : null;
-    }
-    const globalId = this.globalSelectionService.getSelectedOfficeIdValue();
-    return globalId != null && globalId > 0 ? globalId : null;
+    const id = this.officeId();
+    return id != null && id > 0 ? id : null;
   }
 
   toggleInactive(): void {

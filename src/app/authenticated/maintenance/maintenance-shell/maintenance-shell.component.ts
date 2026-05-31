@@ -8,7 +8,7 @@ import { CanComponentDeactivate } from '../../../guards/can-deactivate-guard';
 import { MaterialModule } from '../../../material.module';
 import { AuthService } from '../../../services/auth.service';
 import { UtilityService } from '../../../services/utility.service';
-import { PropertyListResponse, PropertyResponse } from '../../properties/models/property.model';
+import { PropertyCodeResponse, PropertyResponse } from '../../properties/models/property.model';
 import { PropertyService } from '../../properties/services/property.service';
 import { OfficeResponse } from '../../organizations/models/office.model';
 import { GlobalSelectionService } from '../../organizations/services/global-selection.service';
@@ -87,9 +87,10 @@ export class MaintenanceShellComponent implements OnInit, OnDestroy, CanComponen
   selectedPropertyId: string | null = null;
   preferredOfficeId: number | null = null;
   availableProperties: { propertyId: string; propertyCode: string }[] = [];
-  allProperties: PropertyListResponse[] = [];
+  allProperties: PropertyCodeResponse[] = [];
   inspectorPropertyIds = new Set<string>();
   skipNextPropertyCodeChange = false;
+  skipNextOfficeChange = false;
   openWithAllSelections = false;
   clearPropertyOnOpen = false;
   propertyLoadVersion = 0;
@@ -238,15 +239,8 @@ export class MaintenanceShellComponent implements OnInit, OnDestroy, CanComponen
   }
 
   loadTitleBarProperties(): void {
-    if (!this.userId) {
-      this.allProperties = [];
-      this.availableProperties = [];
-      this.showOfficeDropdown = true;
-      return;
-    }
-
-    this.propertyService.getActivePropertiesBySelectionCriteria(this.userId).pipe(take(1)).subscribe({
-      next: (properties) => {
+    this.propertyService.getPropertyCodes().pipe(take(1)).subscribe({
+      next: properties => {
         const propertyRows = properties || [];
         this.allProperties = this.isInspectorView && this.inspectorPropertyIds.size > 0
           ? propertyRows.filter(property => this.inspectorPropertyIds.has(String(property.propertyId || '').trim().toLowerCase()))
@@ -422,6 +416,12 @@ export class MaintenanceShellComponent implements OnInit, OnDestroy, CanComponen
   onOfficeChange(): void {
     this.workOrderSaveValidationAttempted = false;
     this.receiptSaveValidationAttempted = false;
+    if (this.skipNextOfficeChange) {
+      this.skipNextOfficeChange = false;
+      this.globalSelectionService.setSelectedOfficeId(this.selectedOfficeId);
+      this.updateAvailableProperties();
+      return;
+    }
     const keepWorkOrderAddDetailOpen = this.isWorkOrderDetailActive
       && (this.selectedWorkOrderId == null || this.maintenanceWorkOrderDetail?.isAddMode === true);
     const keepReceiptAddDetailOpen = this.isReceiptDetailActive
@@ -632,6 +632,7 @@ export class MaintenanceShellComponent implements OnInit, OnDestroy, CanComponen
     const selectedPropertyId = (selection?.propertyId || '').trim() || null;
     this.receiptSaveValidationAttempted = false;
     if (selectedOfficeId !== this.selectedOfficeId) {
+      this.skipNextOfficeChange = true;
       this.selectedOfficeId = selectedOfficeId;
       this.globalSelectionService.setSelectedOfficeId(this.selectedOfficeId);
     }
@@ -647,6 +648,7 @@ export class MaintenanceShellComponent implements OnInit, OnDestroy, CanComponen
     if (selectedPropertyId && selectedPropertyId !== this.selectedPropertyId) {
       this.skipNextPropertyCodeChange = true;
       this.selectedPropertyId = selectedPropertyId;
+      this.utilityService.addLoadItem(this.itemsToLoad$, 'property');
       this.loadProperty(selectedPropertyId, () => openReceiptDetail(), null);
       return;
     }

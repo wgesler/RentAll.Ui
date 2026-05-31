@@ -1,12 +1,13 @@
 import { CommonModule } from '@angular/common';
-import { ChangeDetectionStrategy, ChangeDetectorRef, Component, EventEmitter, Input, OnChanges, OnInit, Output, SimpleChanges } from '@angular/core';
+import { ChangeDetectionStrategy, ChangeDetectorRef, Component, EventEmitter, Input, OnChanges, OnDestroy, OnInit, Output, SimpleChanges } from '@angular/core';
 import { Router } from '@angular/router';
 import { ToastrService } from 'ngx-toastr';
-import { catchError, concatMap, forkJoin, from, map, Observable, of, switchMap, take, toArray } from 'rxjs';
+import { BehaviorSubject, Subject, catchError, concatMap, finalize, forkJoin, from, map, Observable, of, switchMap, take, takeUntil, toArray } from 'rxjs';
 import { RouterUrl } from '../../../app.routes';
 import { MaterialModule } from '../../../material.module';
 import { AuthService } from '../../../services/auth.service';
 import { MappingService } from '../../../services/mapping.service';
+import { UtilityService } from '../../../services/utility.service';
 import { PropertyResponse } from '../../properties/models/property.model';
 import { DataTableComponent } from '../../shared/data-table/data-table.component';
 import { DataTableFilterActionsDirective } from '../../shared/data-table/data-table-filter-actions.directive';
@@ -30,7 +31,7 @@ export interface WorkOrderSelection {
   styleUrl: './work-order-list.component.scss',
   changeDetection: ChangeDetectionStrategy.OnPush
 })
-export class WorkOrderListComponent implements OnInit, OnChanges {
+export class WorkOrderListComponent implements OnInit, OnChanges, OnDestroy {
   @Input() property: PropertyResponse | null = null;
   @Input() officeId: number | null = null;
   @Input() reservationId: string | null = null;
@@ -39,8 +40,10 @@ export class WorkOrderListComponent implements OnInit, OnChanges {
   @Input() embeddedInMaintenance = false;
   @Output() workOrderSelect = new EventEmitter<WorkOrderSelection>();
 
-  isLoading: boolean = false;
+  isPageReady = false;
   isServiceError: boolean = false;
+  itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set());
+  destroy$ = new Subject<void>();
   showInactive: boolean = false;
   canViewEnteredInQb: boolean = false;
   workOrders: WorkOrderResponse[] = [];
@@ -68,6 +71,7 @@ export class WorkOrderListComponent implements OnInit, OnChanges {
     private workOrderService: WorkOrderService,
     private receiptService: ReceiptService,
     private mappingService: MappingService,
+    private utilityService: UtilityService,
     private router: Router,
     private toastr: ToastrService,
     private cdr: ChangeDetectorRef
@@ -79,18 +83,15 @@ export class WorkOrderListComponent implements OnInit, OnChanges {
 
   //#region Work-Order List
   ngOnInit(): void {
+    this.itemsToLoad$.pipe(takeUntil(this.destroy$)).subscribe(items => {
+      this.isPageReady = items.size === 0;
+      this.markViewForCheck();
+    });
     this.setRoleBasedColumns();
-    if (!this.isActiveTab) {
-      return;
-    }
-    this.getWorkOrders();
   }
 
   ngOnChanges(changes: SimpleChanges): void {
-    if (changes['isActiveTab']) {
-      if (!this.isActiveTab) {
-        return;
-      }
+    if (changes['isActiveTab'] && this.isActiveTab) {
       this.getWorkOrders();
       return;
     }
@@ -122,15 +123,17 @@ export class WorkOrderListComponent implements OnInit, OnChanges {
 
   getWorkOrders(): void {
     this.isServiceError = false;
-    this.isLoading = true;
+    this.utilityService.addLoadItem(this.itemsToLoad$, 'workOrders');
     const propertyId = this.property?.propertyId ?? null;
     const officeId = this.officeId ?? null;
-    this.workOrderService.getWorkOrders(propertyId, officeId).pipe(take(1)).subscribe({
+    this.workOrderService.getWorkOrders(propertyId, officeId).pipe(take(1), finalize(() => {
+      this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'workOrders');
+      this.markViewForCheck();
+    })).subscribe({
       next: (workOrders: WorkOrderResponse[]) => {
         this.workOrders = workOrders || [];
         this.allWorkOrders = this.mappingService.mapWorkOrderDisplays(this.workOrders);
         this.applyFilters();
-        this.isLoading = false;
         this.markViewForCheck();
       },
       error: () => {
@@ -138,7 +141,6 @@ export class WorkOrderListComponent implements OnInit, OnChanges {
         this.workOrders = [];
         this.allWorkOrders = [];
         this.workOrdersDisplay = [];
-        this.isLoading = false;
         this.markViewForCheck();
       }
     });
@@ -336,7 +338,7 @@ export class WorkOrderListComponent implements OnInit, OnChanges {
               officeId: receipt.officeId,
               propertyIds: receipt.propertyIds || [],
               receiptDate: receipt.receiptDate || '',
-              maintenanceId: receipt.maintenanceId,
+              ticketId: receipt.ticketId,
               amount: receipt.amount,
               description: receipt.description,
               splits: nextSplits,
@@ -442,6 +444,12 @@ export class WorkOrderListComponent implements OnInit, OnChanges {
         ? { ...workOrder, [changedCheckboxColumn]: nextValue }
         : workOrder
     );
+  }
+
+  ngOnDestroy(): void {
+    this.destroy$.next();
+    this.destroy$.complete();
+    this.itemsToLoad$.complete();
   }
   //#endregion
 }

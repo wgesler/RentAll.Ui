@@ -71,7 +71,6 @@
           <ng-template matTabContent>
             @if (showRentalLeadForm) {
               <app-rental
-                [embeddedInShell]="true"
                 [shellLeadId]="rentalShellLeadId"
                 [officeId]="selectedOfficeId"
                 (closed)="onRentalLeadFormClosed($event)"
@@ -79,7 +78,6 @@
                 />
             } @else {
               <app-rental-list
-                [embeddedInShell]="true"
                 [officeId]="selectedOfficeId"
                 (requestNewRental)="onAddRentalLead()"
                 (requestEditRental)="onEditRentalLead($event)"
@@ -92,7 +90,6 @@
             <ng-template matTabContent>
               @if (showOwnerLeadForm) {
                 <app-owner
-                  [embeddedInShell]="true"
                   [shellLeadId]="ownerShellLeadId"
                   [officeId]="selectedOfficeId"
                   (closed)="onOwnerLeadFormClosed()"
@@ -100,7 +97,6 @@
                   />
               } @else {
                 <app-owner-list
-                  [embeddedInShell]="true"
                   [officeId]="selectedOfficeId"
                   (requestNewOwner)="onAddOwnerLead()"
                   (requestEditOwner)="onEditOwnerLead($event)"
@@ -113,7 +109,6 @@
           <ng-template matTabContent>
             @if (showGeneralLeadForm) {
               <app-general
-                [embeddedInShell]="true"
                 [shellLeadId]="generalShellLeadId"
                 [officeId]="selectedOfficeId"
                 (closed)="onGeneralLeadFormClosed($event)"
@@ -121,7 +116,6 @@
                 />
             } @else {
               <app-general-list
-                [embeddedInShell]="true"
                 [officeId]="selectedOfficeId"
                 (requestNewGeneral)="onAddGeneralLead()"
                 (requestEditGeneral)="onEditGeneralLead($event)"

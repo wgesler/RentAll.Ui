@@ -1,4 +1,4 @@
-@if (!(isLoading$ | async)) {
+@if (isPageReady) {
   @if (hideHeader) {
     @if (hideFilters) {
       <!-- Same shell as receipts / work orders: title-bar filters only; table block matches maintenance lists. -->

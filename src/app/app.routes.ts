@@ -30,9 +30,6 @@ import { ColorListComponent } from './authenticated/organizations/color-list/col
 import { ColorComponent } from './authenticated/organizations/color/color.component';
 import { ConfigurationComponent } from './authenticated/organizations/configuration/configuration.component';
 import { LeadsShellComponent } from './authenticated/leads/leads-shell/leads-shell.component';
-import { RentalComponent } from './authenticated/leads/rental/rental.component';
-import { OwnerComponent } from './authenticated/leads/owner/owner.component';
-import { GeneralComponent } from './authenticated/leads/general/general.component';
 import { OfficeListComponent } from './authenticated/organizations/office-list/office-list.component';
 import { OfficeComponent } from './authenticated/organizations/office/office.component';
 import { OrganizationListComponent } from './authenticated/organizations/organization-list/organization-list.component';
@@ -43,7 +40,6 @@ import { MaintenanceListComponent } from './authenticated/maintenance/maintenanc
 import { MaintenanceShellComponent } from './authenticated/maintenance/maintenance-shell/maintenance-shell.component';
 import { WorkOrderComponent } from './authenticated/maintenance/work-order/work-order.component';
 import { WorkOrderCreateComponent } from './authenticated/maintenance/work-order-create/work-order-create.component';
-import { ReceiptComponent } from './authenticated/maintenance/receipt/receipt.component';
 import { TicketShellComponent } from './authenticated/tickets/ticket-shell/ticket-shell.component';
 import { PropertyListComponent } from './authenticated/properties/property-list/property-list.component';
 import { QuoteCreateComponent } from './authenticated/properties/quote-create/quote-create.component';
@@ -121,9 +117,6 @@ export enum RouterToken {
   ColorList = 'colors',
   Color = RouterToken.ColorList + '/:id',
   Leads = 'leads',
-  LeadRental = 'leads/rentals/:id',
-  LeadOwner = 'leads/owners/:id',
-  LeadGeneral = 'leads/general/:id',
   OwnerShell = 'owner',
   Default = RouterToken.ReservationBoard
 }
@@ -184,9 +177,6 @@ export enum RouterUrl {
   ColorList            = `${RouterToken.Auth}/${RouterToken.ColorList}`,
   Color                = `${RouterToken.Auth}/${RouterToken.Color}`,
   Leads                = `${RouterToken.Auth}/${RouterToken.Leads}`,
-  LeadRental           = `${RouterToken.Auth}/${RouterToken.LeadRental}`,
-  LeadOwner            = `${RouterToken.Auth}/${RouterToken.LeadOwner}`,
-  LeadGeneral          = `${RouterToken.Auth}/${RouterToken.LeadGeneral}`,
   OwnerShell           = `${RouterToken.Auth}/${RouterToken.OwnerShell}`,
 }
 
@@ -211,7 +201,6 @@ export const authRoutes: Routes = [
   { path: RouterToken.Ticket, component: TicketShellComponent, canActivate: [authRouteGuard], canDeactivate: [canDeactivateGuard] },
   { path: RouterToken.MaintenanceWorkOrder, component: WorkOrderComponent, canActivate: [authRouteGuard] },
   { path: RouterToken.WorkOrderCreate, component: WorkOrderCreateComponent, canActivate: [authRouteGuard] },
-  { path: RouterToken.MaintenanceReceipt, component: ReceiptComponent, canActivate: [authRouteGuard] },
   { path: RouterToken.Maintenance, component: MaintenanceShellComponent, canActivate: [authRouteGuard], canDeactivate: [canDeactivateGuard] },
   { path: RouterToken.PropertyList, component: PropertyListComponent, canActivate: [authRouteGuard] },
   { path: RouterToken.Property, component: PropertyShellComponent, canActivate: [authRouteGuard], canDeactivate: [canDeactivateGuard] },
@@ -254,9 +243,6 @@ export const authRoutes: Routes = [
   { path: RouterToken.Region, component: RegionComponent, canActivate: [authRouteGuard] },
   { path: RouterToken.ColorList, component: ColorListComponent, canActivate: [authRouteGuard] },
   { path: RouterToken.Color, component: ColorComponent, canActivate: [authRouteGuard] },
-  { path: RouterToken.LeadRental, component: RentalComponent, canActivate: [authRouteGuard] },
-  { path: RouterToken.LeadOwner, component: OwnerComponent, canActivate: [authRouteGuard] },
-  { path: RouterToken.LeadGeneral, component: GeneralComponent, canActivate: [authRouteGuard] },
   { path: RouterToken.Leads, component: LeadsShellComponent, canActivate: [authRouteGuard] },
   { path: RouterToken.OwnerShell, component: OwnerShellComponent, canActivate: [authRouteGuard] },
   { path: `${RouterToken.OwnerShell}/:token`, component: OwnerShellComponent, canActivate: [authRouteGuard] },

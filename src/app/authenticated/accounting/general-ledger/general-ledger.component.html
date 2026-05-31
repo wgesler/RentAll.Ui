@@ -35,7 +35,7 @@
   }
   
   <div class="tableDiv" [class.mt-4]="!hideFilters">
-    @if (isLoading) {
+    @if (!isPageReady) {
       <div class="loading-container">
         <mat-spinner [diameter]="40"></mat-spinner>
         <p>Loading ledger lines...</p>

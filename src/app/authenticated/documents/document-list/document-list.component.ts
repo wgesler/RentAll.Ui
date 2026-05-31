@@ -3,7 +3,7 @@ import { ChangeDetectionStrategy, ChangeDetectorRef, Component, EventEmitter, In
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, NavigationEnd, Router } from '@angular/router';
 import { ToastrService } from 'ngx-toastr';
-import { BehaviorSubject, Observable, Subject, Subscription, filter, finalize, map, skip, take, takeUntil } from 'rxjs';
+import {BehaviorSubject, Subject, Subscription, filter, finalize, map, skip, take, takeUntil} from 'rxjs';
 import { RouterUrl } from '../../../app.routes';
 import { CommonMessage } from '../../../enums/common-message.enum';
 import { MaterialModule } from '../../../material.module';
@@ -97,8 +97,8 @@ export class DocumentListComponent implements OnInit, OnDestroy, OnChanges {
     'createdOn': { displayAs: 'Created', maxWidth: '35ch', alignment: 'center' },
   };
   
+  isPageReady = false;
   itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set());
-  isLoading$: Observable<boolean> = this.itemsToLoad$.pipe(map(items => items.size > 0));
   destroy$ = new Subject<void>();
 
   constructor(
@@ -123,6 +123,11 @@ export class DocumentListComponent implements OnInit, OnDestroy, OnChanges {
 
   //#region Document-List
   ngOnInit(): void {
+    this.itemsToLoad$.pipe(takeUntil(this.destroy$)).subscribe(items => {
+      this.isPageReady = items.size === 0;
+      this.markViewForCheck();
+    });
+
      this.organizationId = this.organizationId || this.authService.getUser()?.organizationId?.trim() || null;
      this.preferredOfficeId = this.authService.getUser()?.defaultOfficeId ?? null;
      if(this.isInAddReservationMode())

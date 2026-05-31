@@ -1,4 +1,4 @@
-@if (!(isLoading$ | async)) {
+@if (isPageReady) {
   @if (embeddedInSettings) {
     <div class="mat list-layout-tabbed">
       <div class="tableDiv px-4">

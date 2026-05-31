@@ -6,51 +6,24 @@
 } @else {
   <div class="flex content-card-wrap justify-center">
     <section class="content-card">
-      @if (!embeddedInMaintenance) {
-        <div class="flex justify-between items-center gap-3 bg-slate-200 rounded-t-lg py-0 pl-8 pr-4">
-          <span class="flex flex-column items-center gap-3 py-4">
-            <mat-icon class="flex-shrink-0">receipt</mat-icon>
-            <span class="flex-shrink-0 text-xl font-medium">
-              {{ isAddMode ? 'Add Receipt' : 'Edit Receipt' }}
-            </span>
-          </span>
-          <div class="flex gap-2">
-            @if (showBackButton) {
-              <button mat-raised-button type="button" color="accent" (click)="back()"
-                class="scale-90 text-nowrap flex-shrink-0">
-                <mat-icon>arrow_back</mat-icon>
-                Back
-              </button>
-            }
-            <button mat-raised-button type="button" color="primary" (click)="saveReceipt()"
-              class="scale-90 text-nowrap flex-shrink-0" [disabled]="isSubmitting || !form.valid">
-              <mat-icon>save</mat-icon>
-              Save
-            </button>
-          </div>
-        </div>
-      }
-
       <mat-card>
-        <form [formGroup]="form" (ngSubmit)="saveReceipt()" class="info-form pt-5" [class.mb-8]="!embeddedInMaintenance" [class.receipt-embedded-form]="embeddedInMaintenance">
+        <form [formGroup]="form" (ngSubmit)="saveReceipt()" class="info-form pt-5 receipt-embedded-form">
           <div class="receipt-status-row">
             <span class="text-lg font-medium">Full Receipt</span>
             <div class="flex items-center gap-2">
               <mat-checkbox formControlName="isActive" color="primary">
                 IsActive
               </mat-checkbox>
-              @if (embeddedInMaintenance) {
-                <button
-                  mat-raised-button
-                  type="button"
-                  color="primary"
-                  (click)="saveReceipt()"
-                  [disabled]="isSubmitting"
-                  class="text-nowrap flex-shrink-0">
-                  <mat-icon>save</mat-icon>
-                  Save
-                </button>
-              }
+              <button
+                mat-raised-button
+                type="button"
+                color="primary"
+                (click)="saveReceipt()"
+                [disabled]="isSubmitting"
+                class="text-nowrap flex-shrink-0">
+                <mat-icon>save</mat-icon>
+                Save
+              </button>
             </div>
           </div>
           <div class="grid grid-cols-4 gap-x-1.5 gap-y-1 receipt-form-grid">

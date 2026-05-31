@@ -4,7 +4,7 @@ import { ChangeDetectionStrategy, ChangeDetectorRef, Component, EventEmitter, In
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, Router } from '@angular/router';
 import { ToastrService } from 'ngx-toastr';
-import { BehaviorSubject, Observable, Subject, concatMap, filter, finalize, from, map, skip, take, takeUntil, toArray } from 'rxjs';
+import {BehaviorSubject, Subject, concatMap, filter, finalize, from, map, skip, take, takeUntil, toArray} from 'rxjs';
 import { RouterUrl } from '../../../app.routes';
 import { CommonMessage } from '../../../enums/common-message.enum';
 import { MaterialModule } from '../../../material.module';
@@ -127,8 +127,8 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
     amount: { displayAs: 'Amount', maxWidth: '15ch', wrap: false, alignment: 'right'}
   };
 
+  isPageReady = false;
   itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['offices', 'reservations', 'invoices', 'officeScope']));
-  isLoading$: Observable<boolean> = this.itemsToLoad$.pipe(map(items => items.size > 0));
   destroy$ = new Subject<void>();
 
   constructor(
@@ -157,6 +157,11 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
 
   //#region Invoice-List
   ngOnInit(): void {
+    this.itemsToLoad$.pipe(takeUntil(this.destroy$)).subscribe(items => {
+      this.isPageReady = items.size === 0;
+      this.markViewForCheck();
+    });
+
     this.isSuperUser = this.hasRole(UserGroups.SuperAdmin);
     this.loadOffices();
     this.loadReservations();

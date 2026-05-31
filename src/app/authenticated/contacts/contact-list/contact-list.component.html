@@ -1,4 +1,4 @@
-@if (!(isLoading$ | async)) {
+@if (isPageReady) {
   @if (entityTypeId === undefined || entityTypeId === null) {
     <div class="flex justify-between items-baseline bg-slate-200 rounded-t-lg px-8 py-4">
       <div class="flex items-baseline">

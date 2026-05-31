@@ -494,7 +494,7 @@ export class PropertyAgreementComponent implements OnInit, OnChanges, OnDestroy 
   //#region Data Loading Methods
   loadCostCodes(): void {
     this.costCodesService.ensureCostCodesLoaded();
-    this.costCodesService.areCostCodesLoaded().pipe(filter(loaded => loaded === true), take(1), takeUntil(this.destroy$)).subscribe(() => {
+    this.costCodesService.areCostCodesLoaded().pipe(filter(loaded => loaded === true), take(1)).subscribe(() => {
       this.costCodesService.getAllCostCodes().pipe(takeUntil(this.destroy$)).subscribe({
         next: (costCodes: CostCodesResponse[]) => {
           this.availableCostCodes = this.mapCostCodeOptions(costCodes || []);
@@ -690,7 +690,7 @@ export class PropertyAgreementComponent implements OnInit, OnChanges, OnDestroy 
       return;
     }
 
-    this.contactService.getContactByGuid(vendorId).pipe(take(1), takeUntil(this.destroy$)).subscribe({
+    this.contactService.getContactByGuid(vendorId).pipe(take(1)).subscribe({
       next: contact => {
         this.populateVendorAttachmentUi(contact || null);
       },

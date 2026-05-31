@@ -20,8 +20,7 @@ export class OfficeService {
       private configService: ConfigService) {
   }
 
-  /** Load offices for the given organization. Requires a non-empty organizationId. */
-  loadAllOffices(organizationId: string): Observable<OfficeResponse[]> {
+   loadAllOffices(organizationId: string): Observable<OfficeResponse[]> {
     const id = organizationId?.trim();
     if (!id) {
       this.allOffices$.next([]);

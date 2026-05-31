@@ -1,12 +1,10 @@
 import { CommonModule } from '@angular/common';
 import { HttpErrorResponse } from '@angular/common/http';
-import { Component, EventEmitter, Input, OnChanges, OnDestroy, OnInit, Output, SimpleChanges } from '@angular/core';
+import { ChangeDetectorRef, Component, EventEmitter, Input, OnChanges, OnDestroy, OnInit, Output, SimpleChanges } from '@angular/core';
 import { FormArray, FormBuilder, FormControl, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
 import { MatDialog } from '@angular/material/dialog';
-import { ActivatedRoute, Router } from '@angular/router';
 import { ToastrService } from 'ngx-toastr';
-import { BehaviorSubject, Observable, Subject, finalize, map, take, takeUntil } from 'rxjs';
-import { RouterUrl } from '../../../app.routes';
+import { BehaviorSubject, Subject, finalize, take, takeUntil } from 'rxjs';
 import { FileDetails } from '../../documents/models/document.model';
 import { FormatterService } from '../../../services/formatter-service';
 import { MaterialModule } from '../../../material.module';
@@ -18,7 +16,7 @@ import { EntityType } from '../../contacts/models/contact-enum';
 import { ContactResponse } from '../../contacts/models/contact.model';
 import { ContactService } from '../../contacts/services/contact.service';
 import { ContactComponent } from '../../contacts/contact/contact.component';
-import { PropertyListResponse, PropertyResponse } from '../../properties/models/property.model';
+import { PropertyCodeResponse, PropertyResponse } from '../../properties/models/property.model';
 import { PropertyService } from '../../properties/services/property.service';
 import { ReceiptRequest, ReceiptResponse, Split } from '../models/receipt.model';
 import { ReceiptService } from '../services/receipt.service';
@@ -37,12 +35,10 @@ import { SearchableSelectComponent, SearchableSelectOption } from '../../shared/
 })
 export class ReceiptComponent implements OnInit, OnChanges, OnDestroy {
   readonly newVendorOptionValue = '__new_vendor__';
+  @Input() officeId: number | null = null;
   @Input() property: PropertyResponse | null = null;
   @Input() receiptId: number | null = null;
-  @Input() maintenanceId: string | null = null;
-  @Input() maintenanceOfficeId: number | null = null;
-  @Input() showBackButton: boolean = true;
-   @Input() embeddedInMaintenance = false;
+  @Input() ticketId: string | null = null;
   @Output() backEvent = new EventEmitter<void>();
   @Output() savedEvent = new EventEmitter<ReceiptResponse>();
   @Output() saveValidationAttempted = new EventEmitter<void>();
@@ -65,28 +61,25 @@ export class ReceiptComponent implements OnInit, OnChanges, OnDestroy {
   receiptPdfThumbnailUrl: string | null = null;
   hasNewReceiptUpload: boolean = false;
   originalReceiptPath: string | null = null;
-  /** When true, amount input shows raw value for editing (no $); when false, shows getAmountDisplay() with $ prefix. */
   amountFocused = false;
   amountEditValue = '';
   focusedSplitAmountIndex: number | null = null;
   splitAmountEditValue = '';
   splitTotalValidationError = false;
   isSyncingInitialSplit = false;
-  propertyOptions: PropertyListResponse[] = [];
+  receiptOfficeInitialized = false;
+  propertyOptions: PropertyCodeResponse[] = [];
   receiptTypeOptions = getReceiptTypes();
   bankCardOptions: SearchableSelectOption<number>[] = [];
   vendorOptions: { value: string; label: string }[] = [];
 
-  itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['receipt', 'property', 'properties', 'accountingOffices', 'bankCards', 'vendors']));
-  isLoading$: Observable<boolean> = this.itemsToLoad$.pipe(map(items => items.size > 0));
+  itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['receipt']));
   destroy$ = new Subject<void>();
 
   constructor(
     fb: FormBuilder,
     authService: AuthService,
     receiptService: ReceiptService,
-    private route: ActivatedRoute,
-    private router: Router,
     private dialog: MatDialog,
     private propertyService: PropertyService,
     private accountingOfficeService: AccountingOfficeService,
@@ -96,7 +89,8 @@ export class ReceiptComponent implements OnInit, OnChanges, OnDestroy {
     private pdfThumbnailService: PdfThumbnailService,
     private mappingService: MappingService,
     public formatter: FormatterService,
-    private toastr: ToastrService
+    private toastr: ToastrService,
+    private cdr: ChangeDetectorRef
   ) {
     this.fb = fb;
     this.authService = authService;
@@ -108,47 +102,47 @@ export class ReceiptComponent implements OnInit, OnChanges, OnDestroy {
     this.organizationId = this.authService.getUser()?.organizationId || '';
     this.buildForm();
 
-    this.itemsToLoad$.pipe(takeUntil(this.destroy$)).subscribe(items => {
-      this.isPageReady = items.size === 0;
-    });
     this.splitsFormArray.valueChanges.pipe(takeUntil(this.destroy$)).subscribe(() => {
       this.updatePropertyRequirementByReceiptType();
     });
     this.updatePropertyRequirementByReceiptType();
-    
-    this.loadAccountingOffices();
-    this.loadVendors();
 
-    if (this.embeddedInMaintenance) {
-      this.isAddMode = this.receiptId == null;
-      this.selectedPropertyId = this.property?.propertyId ?? null;
-      this.loadProperty();
-      this.loadProperties();
-      this.loadReceipt();
-      return;
-    }
-    this.route.paramMap.pipe(take(1)).subscribe(paramMap => {
-      const receiptIdParam = paramMap.get('id');
-      if (receiptIdParam !== null)
-        this.receiptId = receiptIdParam === 'new' ? null : parseInt(receiptIdParam, 10) || null;
+    this.itemsToLoad$.pipe(takeUntil(this.destroy$)).subscribe(() => this.syncPageReadyFromLoadItems());
 
-      this.isAddMode = this.receiptId == null;
-      this.selectedPropertyId = this.property?.propertyId ?? this.route.snapshot.queryParamMap.get('propertyId') ?? null;
-      this.loadProperty();
-      this.loadProperties();
-      this.loadReceipt();
+    this.isAddMode = this.receiptId == null;
+    this.syncSelectedPropertyIdFromForm();
+
+    this.form.get('propertyIds')?.valueChanges.pipe(takeUntil(this.destroy$)).subscribe(() => {
+      this.syncSelectedPropertyIdFromForm();
+      this.form.patchValue({ propertyCode: this.getPropertyCodesDisplay(this.getSelectedPropertyIds()) }, { emitEvent: false });
     });
+
+    this.loadPropertyCodes();
+    this.loadReceipt();
+    if (this.isAddMode) {
+      this.applyShellOfficeToReceipt();
+    }
   }
 
   ngOnChanges(changes: SimpleChanges): void {
-    if (!this.embeddedInMaintenance) {
-      return;
+    if (changes['officeId'] && (this.isAddMode || this.receiptOfficeInitialized)) {
+      this.applyShellOfficeToReceipt();
     }
 
-    if (changes['maintenanceOfficeId'] && !changes['maintenanceOfficeId'].firstChange) {
-      const selectedOfficeId = Number(this.maintenanceOfficeId);
-      this.loadBankCardsForOffice(selectedOfficeId || null);
-      this.loadVendorsForOffice(selectedOfficeId || null);
+    if (changes['property']) {
+      this.applyPropertyInputToForm();
+    }
+
+    if (changes['receiptId'] && !changes['receiptId'].firstChange) {
+      this.isAddMode = this.receiptId == null;
+      this.receiptOfficeInitialized = false;
+      this.receipt = null;
+      if (this.isAddMode) {
+        this.clearReceiptLoading();
+        this.applyShellOfficeToReceipt();
+      } else {
+        this.loadReceipt();
+      }
     }
   }
 
@@ -227,10 +221,10 @@ export class ReceiptComponent implements OnInit, OnChanges, OnDestroy {
     const payload: ReceiptRequest = {
       receiptId: this.receipt?.receiptId,
       organizationId: this.organizationId,
-      officeId: this.receipt?.officeId || this.property?.officeId || 0,
+      officeId: this.getReceiptOfficeId() ?? 0,
       propertyIds: selectedPropertyIds,
       receiptDate: receiptDateValue,
-      maintenanceId: this.receipt?.maintenanceId || this.maintenanceId || '',
+      ticketId: this.receipt?.ticketId || this.ticketId || '',
       description: (this.form.get('description')?.value || '').trim(),
       amount: amountValue,
       bankCardId: isBill ? null : bankCardId,
@@ -342,7 +336,7 @@ export class ReceiptComponent implements OnInit, OnChanges, OnDestroy {
 
   populateForm(receipt: ReceiptResponse): void {
     this.form.patchValue({
-      officeName: this.property?.officeName || '',
+      officeName: receipt.officeName || this.property?.officeName || '',
       receiptDate: this.getReceiptDateControlValue(receipt.receiptDate),
       propertyCode: this.getPropertyCodesDisplay(receipt.propertyIds || []) || this.property?.propertyCode || '',
       propertyIds: receipt.propertyIds || [],
@@ -373,17 +367,19 @@ export class ReceiptComponent implements OnInit, OnChanges, OnDestroy {
 
   //#region Data Load Methods
   loadReceipt(): void {
-    if (this.isAddMode) {
-      this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'receipt');
+    if (this.isAddMode || !this.receiptId) {
+      this.clearReceiptLoading();
       return;
     }
 
-    this.receiptService.getReceipt(this.organizationId, this.receiptId!).pipe(take(1), finalize(() => { this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'receipt'); })).subscribe({
+    this.receiptService.getReceipt(this.organizationId, this.receiptId).pipe(take(1), finalize(() => this.clearReceiptLoading())).subscribe({
       next: (receipt: ReceiptResponse) => {
         this.receipt = receipt;
-        this.loadBankCardsForOffice(receipt.officeId || this.property?.officeId || this.maintenanceOfficeId || null);
-        this.loadVendorsForOffice(receipt.officeId || this.property?.officeId || this.maintenanceOfficeId || null);
+        this.receiptOfficeInitialized = true;
         this.populateForm(receipt);
+        this.syncSelectedPropertyIdFromForm();
+        this.loadBankCardsAndVendors();
+        this.cdr.markForCheck();
       },
       error: (_err: HttpErrorResponse) => {
         this.toastr.error('Unable to load receipt.', 'Error');
@@ -391,50 +387,8 @@ export class ReceiptComponent implements OnInit, OnChanges, OnDestroy {
     });
   }
 
-  loadProperty(): void {
-    if (this.property || !this.selectedPropertyId) {
-      const fallbackOfficeId = this.property?.officeId || this.maintenanceOfficeId;
-      if (fallbackOfficeId) {
-        this.loadBankCardsForOffice(fallbackOfficeId);
-        this.loadVendorsForOffice(fallbackOfficeId);
-      } else {
-        this.bankCardOptions = [];
-        this.vendorOptions = [{ value: this.newVendorOptionValue, label: 'New Vendor' }];
-        this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'bankCards');
-      }
-      if (this.isAddMode) {
-        const defaultPropertyId = this.selectedPropertyId || this.property?.propertyId || null;
-        if (defaultPropertyId) {
-          this.form.patchValue({ propertyIds: [defaultPropertyId] });
-        }
-      }
-      this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'property');
-      return;
-    }
-    this.propertyService.getPropertyByGuid(this.selectedPropertyId).pipe(take(1), finalize(() => { this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'property'); })).subscribe({
-      next: (p) => {
-        this.property = p;
-        this.loadBankCardsForOffice(this.property?.officeId || this.maintenanceOfficeId || null);
-        this.loadVendorsForOffice(this.property?.officeId || this.maintenanceOfficeId || null);
-        this.form.patchValue({
-          officeName: this.property?.officeName || '',
-          propertyCode: this.property?.propertyCode || '',
-          propertyIds: this.isAddMode && this.property?.propertyId ? [this.property.propertyId] : this.getSelectedPropertyIds(),
-        });
-      },
-      error: () => {
-        this.toastr.error('Unable to load property.', 'Error');
-      }
-    });
-  }
-
-  loadProperties(): void {
-    const userId = this.authService.getUser()?.userId?.trim() ?? '';
-    if (!userId) {
-      this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'properties');
-      return;
-    }
-    this.propertyService.getPropertiesBySelectionCriteria(userId).pipe(take(1), finalize(() => { this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'properties'); })).subscribe({
+  loadPropertyCodes(): void {
+    this.propertyService.getPropertyCodes().pipe(take(1)).subscribe({
       next: (properties) => {
         this.propertyOptions = (properties || []).filter(p => !!p.propertyId);
         if (this.isAddMode && this.selectedPropertyId) {
@@ -450,29 +404,33 @@ export class ReceiptComponent implements OnInit, OnChanges, OnDestroy {
     });
   }
 
-  loadAccountingOffices(): void {
-    this.accountingOfficeService.ensureAccountingOfficesLoaded().pipe(
-      take(1),
-      finalize(() => { this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'accountingOffices'); })
-    ).subscribe({
-      error: () => {}
-    });
+  loadBankCardsAndVendors(): void {
+    const officeId = this.getReceiptOfficeId();
+    if (officeId) {
+      this.loadBankCardsForOffice(officeId);
+      this.contactService.ensureContactsLoaded().pipe(take(1)).subscribe({
+        next: (contacts) => this.loadVendorsForOffice(officeId, contacts),
+        error: () => {
+          this.vendorOptions = [{ value: this.newVendorOptionValue, label: 'New Vendor' }];
+        }
+      });
+    } else {
+      this.bankCardOptions = [];
+      this.vendorOptions = [{ value: this.newVendorOptionValue, label: 'New Vendor' }];
+    }
+    this.applyPropertyInputToForm();
   }
 
   loadBankCardsForOffice(officeId: number | null | undefined): void {
-    this.utilityService.addLoadItem(this.itemsToLoad$, 'bankCards');
     const parsedOfficeId = Number(officeId);
     if (!parsedOfficeId || parsedOfficeId <= 0) {
       this.bankCardOptions = [];
-      this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'bankCards');
       return;
     }
 
-    this.accountingOfficeService.getAccountingOfficeById(parsedOfficeId).pipe(
-      take(1),
-      finalize(() => { this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'bankCards'); })
-    ).subscribe({
-      next: (accountingOffice) => {
+    this.accountingOfficeService.ensureAccountingOfficesLoaded().pipe(take(1)).subscribe({
+      next: (accountingOffices) => {
+        const accountingOffice = (accountingOffices || []).find(office => Number(office.officeId) === parsedOfficeId) ?? null;
         const bankCards = this.mappingService.mapBankCardsFromResponse(accountingOffice?.bankCards);
         this.bankCardOptions = bankCards
           .filter(card => Number(card.bankCardId) > 0)
@@ -481,33 +439,21 @@ export class ReceiptComponent implements OnInit, OnChanges, OnDestroy {
             label: this.toBankCardOptionLabel(card)
           }));
       },
-      error: (err) => {
-        console.error('[Receipt] Bank cards API call failed', {
-          officeId: parsedOfficeId,
-          error: err
-        });
+      error: () => {
         this.bankCardOptions = [];
       }
     });
   }
 
   loadVendors(): void {
-    this.utilityService.addLoadItem(this.itemsToLoad$, 'vendors');
-    this.contactService.ensureContactsLoaded().pipe(take(1), finalize(() => { this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'vendors'); })).subscribe({
-      next: () => {
-        const officeId = Number(this.receipt?.officeId || this.property?.officeId || this.maintenanceOfficeId || 0) || null;
-        this.loadVendorsForOffice(officeId);
-      },
-      error: () => {
-        this.vendorOptions = [{ value: this.newVendorOptionValue, label: 'New Vendor' }];
-      }
-    });
+    this.loadBankCardsAndVendors();
   }
 
-  loadVendorsForOffice(officeId: number | null | undefined): void {
+  loadVendorsForOffice(officeId: number | null | undefined, contacts?: ContactResponse[]): void {
     const parsedOfficeId = Number(officeId);
+    const sourceContacts = contacts ?? this.contactService.getAllContactsValue();
     const vendorContacts = Number.isFinite(parsedOfficeId) && parsedOfficeId > 0
-      ? this.contactService.getAllContactsValue().filter(contact => contact.entityTypeId === EntityType.Vendor && Number(contact.officeId) === parsedOfficeId)
+      ? sourceContacts.filter(contact => contact.entityTypeId === EntityType.Vendor && Number(contact.officeId) === parsedOfficeId)
       : [];
     this.vendorOptions = [
       { value: this.newVendorOptionValue, label: 'New Vendor' },
@@ -551,17 +497,6 @@ export class ReceiptComponent implements OnInit, OnChanges, OnDestroy {
     this.receiptFileName = null;
     this.receiptFileDetails = null;
     this.hasNewReceiptUpload = false;
-  }
-
-  extractFileName(path: string): string | null {
-    if (!path) return null;
-    const parts = path.split(/[\\/]/);
-    return parts.length ? parts[parts.length - 1] : null;
-  }
-
-  isReceiptPreviewPdf(): boolean {
-    const contentType = this.getReceiptPreviewContentType();
-    return contentType === 'application/pdf';
   }
 
   getReceiptPreviewContentType(): string {
@@ -662,6 +597,17 @@ export class ReceiptComponent implements OnInit, OnChanges, OnDestroy {
     }
   }
 
+  extractFileName(path: string): string | null {
+    if (!path) return null;
+    const parts = path.split(/[\\/]/);
+    return parts.length ? parts[parts.length - 1] : null;
+  }
+
+  isReceiptPreviewPdf(): boolean {
+    const contentType = this.getReceiptPreviewContentType();
+    return contentType === 'application/pdf';
+  }
+  
   toBlobObjectUrl(src: string): string | null {
     if (!src || !src.startsWith('data:')) {
       return null;
@@ -688,6 +634,38 @@ export class ReceiptComponent implements OnInit, OnChanges, OnDestroy {
     }
   }
 
+  getReceiptAmountValue(): number {
+    const raw = this.sanitizeSignedDecimalInput(this.form.get('amount')?.value?.toString() ?? '');
+    return parseFloat(raw) || 0;
+  }
+
+  sanitizeSignedDecimalInput(value: string): string {
+    if (!value) {
+      return '';
+    }
+    const cleaned = value.replace(/[^0-9.-]/g, '');
+    const isNegative = cleaned.startsWith('-');
+    const unsigned = cleaned.replace(/-/g, '');
+    const parts = unsigned.split('.');
+    const numericPortion = parts.length > 1 ? `${parts[0]}.${parts.slice(1).join('')}` : parts[0];
+    return `${isNegative ? '-' : ''}${numericPortion}`;
+  }
+
+  getReceiptDateForApi(): string | null {
+    const dateValue = this.form.get('receiptDate')?.value;
+    return this.utilityService.toDateOnlyJsonString(dateValue);
+  }
+
+  normalizeReceiptDate(value: string | null | undefined): string | null {
+    return this.utilityService.toDateOnlyJsonString(value);
+  }
+
+  getReceiptDateControlValue(value: string | null | undefined): Date {
+    return this.utilityService.parseCalendarDateInput(value) ?? new Date();
+  }
+  //#endrgeion
+
+  //#region Form Response Methods
   onAmountKeydown(event: Event): void {
     this.formatter.formatDecimalOnEnter(event as KeyboardEvent, this.form.get('amount'));
   }
@@ -729,6 +707,15 @@ export class ReceiptComponent implements OnInit, OnChanges, OnDestroy {
     this.form.get('amount')?.setValue(this.amountEditValue, { emitEvent: false });
   }
 
+  onOverallDescriptionBlur(): void {
+    if (this.amountFocused) {
+      return;
+    }
+    this.syncInitialSplitWithOverallIfNeeded();
+  }
+  //#endregion
+
+  //#region Split Response Methods
   getSplitAmountDisplay(index: number): string {
     const amountControl = this.splitsFormArray.at(index)?.get('amount');
     const raw = this.sanitizeSignedDecimalInput(amountControl?.value?.toString() ?? '');
@@ -772,13 +759,6 @@ export class ReceiptComponent implements OnInit, OnChanges, OnDestroy {
   onSplitAmountKeydown(event: Event, index: number): void {
     const amountControl = this.splitsFormArray.at(index)?.get('amount');
     this.formatter.formatDecimalOnEnter(event as KeyboardEvent, amountControl);
-  }
-
-  onOverallDescriptionBlur(): void {
-    if (this.amountFocused) {
-      return;
-    }
-    this.syncInitialSplitWithOverallIfNeeded();
   }
 
   get splitsFormArray(): FormArray {
@@ -874,93 +854,6 @@ export class ReceiptComponent implements OnInit, OnChanges, OnDestroy {
     });
   }
 
-  isOverallBillBankCard(): boolean {
-    const rawValue = this.form.get('bankCardId')?.value;
-    return Number(rawValue ?? 0) === 0;
-  }
-
-  onOverallBankCardChange(): void {
-    if (this.isOverallBillBankCard()) {
-      this.form.patchValue({ vendorName: null }, { emitEvent: false });
-      return;
-    }
-    this.form.patchValue({ vendorId: null }, { emitEvent: false });
-  }
-
-  onOverallBankCardSelectionChange(value: string | number | null | undefined): void {
-    const normalized = Number(value ?? 0);
-    this.form.patchValue({
-      bankCardId: Number.isFinite(normalized) ? normalized : 0
-    }, { emitEvent: false });
-    this.onOverallBankCardChange();
-  }
-
-  get overallBankCardOptions(): SearchableSelectOption<number>[] {
-    return [{ value: 0, label: 'Bill' }, ...(this.bankCardOptions || [])];
-  }
-
-  get overallVendorOptions(): SearchableSelectOption<string>[] {
-    return [{ value: '', label: '' }, ...(this.vendorOptions || [])];
-  }
-
-  onOverallVendorSelectionChange(value: string | null | undefined): void {
-    const selectedValue = String(value || '').trim();
-    if (!selectedValue) {
-      this.form.patchValue({ vendorId: null, vendorName: null }, { emitEvent: false });
-      return;
-    }
-    if (selectedValue === this.newVendorOptionValue) {
-      this.form.patchValue({ vendorId: null, vendorName: null }, { emitEvent: false });
-      this.openNewVendorContactDialog();
-      return;
-    }
-    this.form.patchValue({
-      vendorId: selectedValue,
-      vendorName: null
-    }, { emitEvent: false });
-  }
-
-  openNewVendorContactDialog(): void {
-    const selectedOfficeId = Number(this.receipt?.officeId || this.property?.officeId || this.maintenanceOfficeId || 0) || null;
-    const dialogRef = this.dialog.open(ContactComponent, {
-      width: '1200px',
-      maxWidth: '95vw',
-      disableClose: true,
-      data: {
-        compactDialogMode: true,
-        entityTypeId: EntityType.Vendor,
-        showDialogCancelButton: true,
-        ...(selectedOfficeId ? { preselectPropertyOfficeId: selectedOfficeId } : {})
-      }
-    });
-
-    dialogRef.componentInstance.id = 'new';
-    dialogRef.componentInstance.copyFrom = null;
-    dialogRef.componentInstance.closed
-      .pipe(take(1))
-      .subscribe((result: { saved?: boolean; contactId?: string; entityTypeId?: number }) => dialogRef.close(result));
-
-    dialogRef.afterClosed().pipe(take(1)).subscribe((result?: { saved?: boolean; contactId?: string; entityTypeId?: number }) => {
-      if (!result?.saved || !result.contactId) {
-        return;
-      }
-      this.contactService.refreshContacts().pipe(take(1)).subscribe({
-        next: (contacts: ContactResponse[]) => {
-          this.loadVendorsForOffice(selectedOfficeId);
-          const vendor = (contacts || []).find(contact => String(contact.contactId || '').trim() === String(result.contactId || '').trim());
-          if (!vendor) {
-            return;
-          }
-          this.form.patchValue({
-            vendorId: result.contactId,
-            vendorName: null
-          }, { emitEvent: false });
-        },
-        error: () => {}
-      });
-    });
-  }
-
   syncInitialSplitWithOverallIfNeeded(): void {
     if (this.isSyncingInitialSplit || this.splitsFormArray.length !== 1) {
       return;
@@ -1010,15 +903,7 @@ export class ReceiptComponent implements OnInit, OnChanges, OnDestroy {
   isSplitTotalGreaterThanReceipt(splitTotal: number, receiptAmount: number): boolean {
     return this.toCurrencyCents(splitTotal) > this.toCurrencyCents(receiptAmount);
   }
-
-  toCurrencyCents(value: unknown): number {
-    const numeric = Number(value);
-    if (!Number.isFinite(numeric)) {
-      return 0;
-    }
-    return Math.round((numeric + Number.EPSILON) * 100);
-  }
-
+ 
   haveSplitsChanged(nextSplits: Split[], currentSplits: Split[]): boolean {
     return JSON.stringify(this.normalizeSplits(nextSplits)) !== JSON.stringify(this.normalizeSplits(currentSplits));
   }
@@ -1033,6 +918,195 @@ export class ReceiptComponent implements OnInit, OnChanges, OnDestroy {
       workOrder: (split.workOrderCode || split.workOrder || '').trim(),
       receiptTypeId: split.receiptTypeId ?? 0
     }));
+  }
+
+  hasSplitWorkOrder(splitIndex: number): boolean {
+    const workOrderId = (this.splitsFormArray.at(splitIndex)?.get('workOrderId')?.value || '').toString().trim();
+    const workOrderCode = this.getSplitWorkOrderCode(splitIndex);
+    return workOrderId.length > 0 || workOrderCode.length > 0;
+  }
+
+  openWorkOrderFromSplit(splitIndex: number): void {
+    const targetWorkOrderId = (this.splitsFormArray.at(splitIndex)?.get('workOrderId')?.value || '').toString().trim();
+    const targetWorkOrderCode = this.getSplitWorkOrderCode(splitIndex);
+    if (!targetWorkOrderId && !targetWorkOrderCode) {
+      return;
+    }
+
+    const propertyId =
+      this.getSelectedPropertyIds().find(id => (id || '').trim().length > 0)
+      || (this.selectedPropertyId || '').trim()
+      || (this.property?.propertyId || '').trim()
+      || null;
+    const officeId = this.getReceiptOfficeId();
+
+    if (targetWorkOrderId) {
+      this.workOrderSelect.emit({
+        workOrderId: targetWorkOrderId,
+        propertyId
+      });
+      return;
+    }
+
+    this.workOrderService.getWorkOrders(propertyId, officeId).pipe(take(1)).subscribe({
+      next: workOrders => {
+        const matchingWorkOrder = (workOrders || []).find(
+          workOrder => (workOrder.workOrderCode || '').trim().toLowerCase() === targetWorkOrderCode.toLowerCase()
+        );
+        if (!matchingWorkOrder) {
+          this.toastr.warning(`Unable to locate ${targetWorkOrderCode}.`, 'Work Order');
+          return;
+        }
+
+        const workOrderId = String(matchingWorkOrder.workOrderId || '').trim();
+        const resolvedPropertyId = (matchingWorkOrder.propertyId || propertyId || '').trim();
+        if (!workOrderId || !resolvedPropertyId) {
+          this.toastr.error('Unable to open work order: missing work order context.', 'Work Order');
+          return;
+        }
+
+        this.workOrderSelect.emit({
+          workOrderId,
+          propertyId: resolvedPropertyId
+        });
+      },
+      error: () => {
+        this.toastr.error('Unable to load work order.', 'Work Order');
+      }
+    });
+  }
+
+  getSplitWorkOrderCode(splitIndex: number): string {
+    const row = this.splitsFormArray.at(splitIndex);
+    const rawWorkOrder = (
+      row?.get('workOrderCode')?.value
+      || row?.get('workOrder')?.value
+      || ''
+    ).toString().trim();
+    if (!rawWorkOrder) {
+      return '';
+    }
+    return rawWorkOrder
+      .split(',')
+      .map(code => code.trim())
+      .find(code => code.length > 0) || '';
+  }
+  //#endregion
+
+  //#region Bank Card Methods
+  isOverallBillBankCard(): boolean {
+    const rawValue = this.form.get('bankCardId')?.value;
+    return Number(rawValue ?? 0) === 0;
+  }
+
+  onOverallBankCardChange(): void {
+    if (this.isOverallBillBankCard()) {
+      this.form.patchValue({ vendorName: null }, { emitEvent: false });
+      return;
+    }
+    this.form.patchValue({ vendorId: null }, { emitEvent: false });
+  }
+
+  onOverallBankCardSelectionChange(value: string | number | null | undefined): void {
+    const normalized = Number(value ?? 0);
+    this.form.patchValue({
+      bankCardId: Number.isFinite(normalized) ? normalized : 0
+    }, { emitEvent: false });
+    this.onOverallBankCardChange();
+  }
+  
+  get overallBankCardOptions(): SearchableSelectOption<number>[] {
+    return [{ value: 0, label: 'Bill' }, ...(this.bankCardOptions || [])];
+  }
+
+  toBankCardOptionLabel(card: BankCardResponse): string {
+    return (card?.displayName || '').trim() || this.mappingService.mapBankCardDisplay(card);
+  }
+  //#endregion
+
+  //#region Vendor Methods
+  get overallVendorOptions(): SearchableSelectOption<string>[] {
+    return [{ value: '', label: '' }, ...(this.vendorOptions || [])];
+  }
+
+  onOverallVendorSelectionChange(value: string | null | undefined): void {
+    const selectedValue = String(value || '').trim();
+    if (!selectedValue) {
+      this.form.patchValue({ vendorId: null, vendorName: null }, { emitEvent: false });
+      return;
+    }
+    if (selectedValue === this.newVendorOptionValue) {
+      this.form.patchValue({ vendorId: null, vendorName: null }, { emitEvent: false });
+      this.openNewVendorContactDialog();
+      return;
+    }
+    this.form.patchValue({
+      vendorId: selectedValue,
+      vendorName: null
+    }, { emitEvent: false });
+  }
+
+  openNewVendorContactDialog(): void {
+    const selectedOfficeId = this.getReceiptOfficeId();
+    const dialogRef = this.dialog.open(ContactComponent, {
+      width: '1200px',
+      maxWidth: '95vw',
+      disableClose: true,
+      data: {
+        compactDialogMode: true,
+        entityTypeId: EntityType.Vendor,
+        showDialogCancelButton: true,
+        ...(selectedOfficeId ? { preselectPropertyOfficeId: selectedOfficeId } : {})
+      }
+    });
+
+    dialogRef.componentInstance.id = 'new';
+    dialogRef.componentInstance.copyFrom = null;
+    dialogRef.componentInstance.closed
+      .pipe(take(1))
+      .subscribe((result: { saved?: boolean; contactId?: string; entityTypeId?: number }) => dialogRef.close(result));
+
+    dialogRef.afterClosed().pipe(take(1)).subscribe((result?: { saved?: boolean; contactId?: string; entityTypeId?: number }) => {
+      if (!result?.saved || !result.contactId) {
+        return;
+      }
+      this.contactService.refreshContacts().pipe(take(1)).subscribe({
+        next: (contacts: ContactResponse[]) => {
+          this.loadVendorsForOffice(selectedOfficeId);
+          const vendor = (contacts || []).find(contact => String(contact.contactId || '').trim() === String(result.contactId || '').trim());
+          if (!vendor) {
+            return;
+          }
+          this.form.patchValue({
+            vendorId: result.contactId,
+            vendorName: null
+          }, { emitEvent: false });
+        },
+        error: () => {}
+      });
+    });
+  }
+  //#endregion 
+
+  //#region Property Selection Methods
+  applyPropertyInputToForm(): void {
+    if (this.property?.propertyId) {
+      this.selectedPropertyId = this.property.propertyId;
+    }
+    if (!this.form || !this.isAddMode || !this.selectedPropertyId) {
+      return;
+    }
+    const officeName = this.getOfficeNameForOfficeId(this.getReceiptOfficeId()) || this.property?.officeName || '';
+    this.form.patchValue({
+      officeName,
+      propertyCode: this.property?.propertyCode || this.getPropertyCodesDisplay([this.selectedPropertyId]),
+      propertyIds: [this.selectedPropertyId]
+    }, { emitEvent: false });
+  }
+
+  syncSelectedPropertyIdFromForm(): void {
+    const fromForm = this.getSelectedPropertyIds()[0] ?? null;
+    this.selectedPropertyId = fromForm ?? this.property?.propertyId ?? null;
   }
 
   isPropertySelectionRequired(): boolean {
@@ -1086,153 +1160,105 @@ export class ReceiptComponent implements OnInit, OnChanges, OnDestroy {
       .map(propertyId => codeLookup.get(propertyId) || propertyId)
       .join(', ');
   }
+  //#endregion 
 
-  getReceiptAmountValue(): number {
-    const raw = this.sanitizeSignedDecimalInput(this.form.get('amount')?.value?.toString() ?? '');
-    return parseFloat(raw) || 0;
+  //#region Load-state helpers
+  clearReceiptLoading(): void {
+    this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'receipt');
+    this.syncPageReadyFromLoadItems();
   }
 
-  sanitizeSignedDecimalInput(value: string): string {
-    if (!value) {
-      return '';
-    }
-    const cleaned = value.replace(/[^0-9.-]/g, '');
-    const isNegative = cleaned.startsWith('-');
-    const unsigned = cleaned.replace(/-/g, '');
-    const parts = unsigned.split('.');
-    const numericPortion = parts.length > 1 ? `${parts[0]}.${parts.slice(1).join('')}` : parts[0];
-    return `${isNegative ? '-' : ''}${numericPortion}`;
-  }
-
-  getReceiptDateForApi(): string | null {
-    const dateValue = this.form.get('receiptDate')?.value;
-    return this.utilityService.toDateOnlyJsonString(dateValue);
-  }
-
-  normalizeReceiptDate(value: string | null | undefined): string | null {
-    return this.utilityService.toDateOnlyJsonString(value);
-  }
-
-  getReceiptDateControlValue(value: string | null | undefined): Date {
-    return this.utilityService.parseCalendarDateInput(value) ?? new Date();
-  }
-
-  toBankCardOptionLabel(card: BankCardResponse): string {
-    return (card?.displayName || '').trim() || this.mappingService.mapBankCardDisplay(card);
-  }
-
-  hasSplitWorkOrder(splitIndex: number): boolean {
-    const workOrderId = (this.splitsFormArray.at(splitIndex)?.get('workOrderId')?.value || '').toString().trim();
-    const workOrderCode = this.getSplitWorkOrderCode(splitIndex);
-    return workOrderId.length > 0 || workOrderCode.length > 0;
-  }
-
-  openWorkOrderFromSplit(splitIndex: number): void {
-    const targetWorkOrderId = (this.splitsFormArray.at(splitIndex)?.get('workOrderId')?.value || '').toString().trim();
-    const targetWorkOrderCode = this.getSplitWorkOrderCode(splitIndex);
-    if (!targetWorkOrderId && !targetWorkOrderCode) {
-      return;
-    }
-
-    const propertyId =
-      this.getSelectedPropertyIds().find(id => (id || '').trim().length > 0)
-      || (this.selectedPropertyId || '').trim()
-      || (this.property?.propertyId || '').trim()
-      || null;
-    const officeId = Number(this.receipt?.officeId || this.property?.officeId || 0) || null;
-
-    if (targetWorkOrderId) {
-      if (this.embeddedInMaintenance) {
-        this.workOrderSelect.emit({
-          workOrderId: targetWorkOrderId,
-          propertyId
-        });
-        return;
-      }
-
-      if (!propertyId) {
-        this.toastr.error('Unable to open work order: property context is missing.', 'Work Order');
-        return;
-      }
-
-      const maintenanceUrl = '/' + RouterUrl.replaceTokens(RouterUrl.Maintenance, [propertyId]);
-      this.router.navigate([maintenanceUrl], {
-        queryParams: {
-          tab: 3,
-          workOrderId: targetWorkOrderId
-        }
-      });
-      return;
-    }
-
-    this.workOrderService.getWorkOrders(propertyId, officeId).pipe(take(1)).subscribe({
-      next: workOrders => {
-        const matchingWorkOrder = (workOrders || []).find(
-          workOrder => (workOrder.workOrderCode || '').trim().toLowerCase() === targetWorkOrderCode.toLowerCase()
-        );
-        if (!matchingWorkOrder) {
-          this.toastr.warning(`Unable to locate ${targetWorkOrderCode}.`, 'Work Order');
-          return;
-        }
-
-        const workOrderId = String(matchingWorkOrder.workOrderId || '').trim();
-        const resolvedPropertyId = (matchingWorkOrder.propertyId || propertyId || '').trim();
-        if (!workOrderId || !resolvedPropertyId) {
-          this.toastr.error('Unable to open work order: missing work order context.', 'Work Order');
-          return;
-        }
-
-        if (this.embeddedInMaintenance) {
-          this.workOrderSelect.emit({
-            workOrderId,
-            propertyId: resolvedPropertyId
-          });
-          return;
-        }
-
-        const maintenanceUrl = '/' + RouterUrl.replaceTokens(RouterUrl.Maintenance, [resolvedPropertyId]);
-        this.router.navigate([maintenanceUrl], {
-          queryParams: {
-            tab: 3,
-            workOrderId
-          }
-        });
-      },
-      error: () => {
-        this.toastr.error('Unable to load work order.', 'Work Order');
-      }
-    });
-  }
-
-  getSplitWorkOrderCode(splitIndex: number): string {
-    const row = this.splitsFormArray.at(splitIndex);
-    const rawWorkOrder = (
-      row?.get('workOrderCode')?.value
-      || row?.get('workOrder')?.value
-      || ''
-    ).toString().trim();
-    if (!rawWorkOrder) {
-      return '';
-    }
-    return rawWorkOrder
-      .split(',')
-      .map(code => code.trim())
-      .find(code => code.length > 0) || '';
+  syncPageReadyFromLoadItems(): void {
+    this.isPageReady = this.itemsToLoad$.value.size === 0;
+    this.cdr.markForCheck();
   }
   //#endregion
 
+  //#region OfficeId Methods
+  applyShellOfficeToReceipt(): void {
+    const shellOfficeId = this.normalizeOfficeId(this.officeId);
+    if (!shellOfficeId) {
+      this.bankCardOptions = [];
+      this.vendorOptions = [{ value: this.newVendorOptionValue, label: 'New Vendor' }];
+      return;
+    }
+    this.setReceiptOfficeId(shellOfficeId);
+    if (!this.form) {
+      return;
+    }
+    this.loadBankCardsAndVendors();
+  }
+
+  setReceiptOfficeId(officeId: number): void {
+    const officeName = this.getOfficeNameForOfficeId(officeId) || '';
+    if (!this.receipt) {
+      this.receipt = this.createDraftReceipt(officeId, officeName);
+    } else {
+      this.receipt.officeId = officeId;
+      if (officeName) {
+        this.receipt.officeName = officeName;
+      }
+    }
+    if (!this.form) {
+      return;
+    }
+    this.form.patchValue({ officeName: this.receipt.officeName || officeName }, { emitEvent: false });
+  }
+
+  getReceiptOfficeId(): number | null {
+    const officeId = Number(this.receipt?.officeId ?? 0);
+    return Number.isFinite(officeId) && officeId > 0 ? officeId : null;
+  }
+
+  normalizeOfficeId(value: number | null | undefined): number | null {
+    const officeId = Number(value ?? 0);
+    return Number.isFinite(officeId) && officeId > 0 ? officeId : null;
+  }
+
+  createDraftReceipt(officeId: number, officeName: string): ReceiptResponse {
+    return {
+      receiptId: 0,
+      organizationId: this.organizationId,
+      officeId,
+      officeName,
+      propertyIds: [],
+      receiptDate: '',
+      ticketId: this.ticketId || '',
+      description: '',
+      amount: 0,
+      splits: [],
+      isActive: true,
+      modifiedOn: '',
+      modifiedBy: ''
+    };
+  }
+
+  getOfficeNameForOfficeId(officeId: number | null): string {
+    if (!officeId) {
+      return '';
+    }
+    if (this.receipt?.officeId === officeId && (this.receipt.officeName || '').trim()) {
+      return this.receipt.officeName.trim();
+    }
+    const fromPropertyRow = this.propertyOptions.find(row => row.officeId === officeId);
+    if ((fromPropertyRow?.officeName || '').trim()) {
+      return fromPropertyRow.officeName.trim();
+    }
+    return (this.property?.officeName || '').trim();
+  }
+  //#endregion
+  
   //#region Utility Methods
+  toCurrencyCents(value: unknown): number {
+    const numeric = Number(value);
+    if (!Number.isFinite(numeric)) {
+      return 0;
+    }
+    return Math.round((numeric + Number.EPSILON) * 100);
+  }
+
   back(): void {
-    if (this.embeddedInMaintenance) {
-      this.backEvent.emit();
-      return;
-    }
-    if (this.selectedPropertyId) {
-      const maintenanceUrl = RouterUrl.replaceTokens(RouterUrl.Maintenance, [this.selectedPropertyId]);
-      this.router.navigate(['/' + maintenanceUrl], { queryParams: { tab: 2 } });
-      return;
-    }
-    this.router.navigateByUrl(RouterUrl.MaintenanceList);
+    this.backEvent.emit();
   }
 
   ngOnDestroy(): void {

@@ -1,9 +1,9 @@
 import { CommonModule } from '@angular/common';
-import { Component, OnDestroy, OnInit, ViewChild } from '@angular/core';
+import { ChangeDetectorRef, Component, OnDestroy, OnInit, ViewChild } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { MatDialog } from '@angular/material/dialog';
 import { ActivatedRoute, Router } from '@angular/router';
-import { BehaviorSubject, Observable, Subject, finalize, map, skip, take, takeUntil } from 'rxjs';
+import {BehaviorSubject, Subject, finalize, skip, take, takeUntil} from 'rxjs';
 import { RouterUrl } from '../../../app.routes';
 import { CanComponentDeactivate } from '../../../guards/can-deactivate-guard';
 import { MaterialModule } from '../../../material.module';
@@ -75,9 +75,8 @@ export class TicketShellComponent implements OnInit, OnDestroy, CanComponentDeac
   contacts: ContactResponse[] = [];
 
 
-  itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['offices', 'properties', 'reservations', 'contacts']));
-  isLoading$: Observable<boolean> = this.itemsToLoad$.pipe(map(items => items.size > 0));
   isPageReady = false;
+  itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['offices']));
   isApplyingTicketSelectionContext = false;
   destroy$ = new Subject<void>();
 
@@ -92,7 +91,8 @@ export class TicketShellComponent implements OnInit, OnDestroy, CanComponentDeac
     private contactService: ContactService,
     private globalSelectionService: GlobalSelectionService,
     private userService: UserService,
-    private utilityService: UtilityService
+    private utilityService: UtilityService,
+    private cdr: ChangeDetectorRef
   ) {}
 
   //#region Ticket-Shell
@@ -100,9 +100,7 @@ export class TicketShellComponent implements OnInit, OnDestroy, CanComponentDeac
     this.organizationId = this.authService.getUser()?.organizationId?.trim() ?? '';
     this.currentUserId = String(this.authService.getUser()?.userId || '').trim() || null;
 
-    this.itemsToLoad$.pipe(takeUntil(this.destroy$)).subscribe(items => {
-      this.isPageReady = items.size === 0;
-    });
+    this.itemsToLoad$.pipe(takeUntil(this.destroy$)).subscribe(() => this.syncPageReadyFromLoadItems());
 
     this.loadCurrentUserAgentId();
     this.loadOffices();
@@ -336,6 +334,7 @@ export class TicketShellComponent implements OnInit, OnDestroy, CanComponentDeac
           this.selectedOfficeId = this.normalizeOfficeId(this.selectedOfficeId ?? globalOfficeId ?? null);
           this.resolveOfficeScope(this.selectedOfficeId);
           this.onOfficeFilterChange(this.selectedOfficeId);
+          this.cdr.markForCheck();
         });
       },
       error: () => {
@@ -346,7 +345,7 @@ export class TicketShellComponent implements OnInit, OnDestroy, CanComponentDeac
   }
 
   loadProperties(): void {
-    this.propertyService.getPropertyCodes().pipe(take(1), finalize(() => this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'properties'))).subscribe({
+    this.propertyService.getPropertyCodes().pipe(take(1)).subscribe({
       next: properties => {
         const scopedByOffice = this.selectedOfficeId == null
           ? (properties || [])
@@ -372,7 +371,6 @@ export class TicketShellComponent implements OnInit, OnDestroy, CanComponentDeac
     this.reservationService.getReservationCodes().pipe(
       take(1),
       finalize(() => {
-        this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'reservations');
         if (shouldReleaseSelectionLock) {
           this.isApplyingTicketSelectionContext = false;
         }
@@ -402,7 +400,7 @@ export class TicketShellComponent implements OnInit, OnDestroy, CanComponentDeac
   }
 
   loadContacts(): void {
-    this.contactService.ensureContactsLoaded().pipe(take(1), finalize(() => this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'contacts'))).subscribe({
+    this.contactService.ensureContactsLoaded().pipe(take(1)).subscribe({
       next: contacts => {
         this.contacts = contacts || [];
       },
@@ -414,6 +412,11 @@ export class TicketShellComponent implements OnInit, OnDestroy, CanComponentDeac
   //#endregion
 
   //#region Utility Methods
+  syncPageReadyFromLoadItems(): void {
+    this.isPageReady = this.itemsToLoad$.value.size === 0;
+    this.cdr.markForCheck();
+  }
+
   getFilteredPropertiesByOffice(): PropertyCodeResponse[] {
     const scopedOfficeId = this.selectedOfficeId;
     if (scopedOfficeId == null) {

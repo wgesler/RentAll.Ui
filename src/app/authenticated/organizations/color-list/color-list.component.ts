@@ -4,7 +4,7 @@ import { ChangeDetectionStrategy, ChangeDetectorRef, Component, EventEmitter, In
 import { FormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
 import { ToastrService } from 'ngx-toastr';
-import { BehaviorSubject, Observable, finalize, map, take } from 'rxjs';
+import {BehaviorSubject, finalize, take, Subject, takeUntil} from 'rxjs';
 import { RouterUrl } from '../../../app.routes';
 import { MaterialModule } from '../../../material.module';
 import { MappingService } from '../../../services/mapping.service';
@@ -36,8 +36,9 @@ export class ColorListComponent implements OnInit, OnDestroy {
     'color': { displayAs: 'Color', maxWidth: '30ch' }
   };
 
+  isPageReady = false;
+  destroy$ = new Subject<void>();
   itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['colors']));
-  isLoading$: Observable<boolean> = this.itemsToLoad$.pipe(map(items => items.size > 0));
 
   constructor(
     public colorService: ColorService,
@@ -54,6 +55,11 @@ export class ColorListComponent implements OnInit, OnDestroy {
 
   //#region Color-List
   ngOnInit(): void {
+    this.itemsToLoad$.pipe(takeUntil(this.destroy$)).subscribe(items => {
+      this.isPageReady = items.size === 0;
+      this.markViewForCheck();
+    });
+
     this.getColors();
   }
 
@@ -98,6 +104,8 @@ export class ColorListComponent implements OnInit, OnDestroy {
   }
   
   ngOnDestroy(): void {
+    this.destroy$.next();
+    this.destroy$.complete();
     this.itemsToLoad$.complete();
   }
   //#endregion

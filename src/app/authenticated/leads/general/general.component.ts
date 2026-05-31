@@ -1,10 +1,8 @@
 import { CommonModule } from '@angular/common';
-import { Component, effect, input, NgZone, OnDestroy, OnInit, output } from '@angular/core';
+import { ChangeDetectorRef, Component, EventEmitter, Input, OnChanges, OnDestroy, OnInit, Output, SimpleChanges } from '@angular/core';
 import { FormBuilder, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
-import { ActivatedRoute, Router } from '@angular/router';
 import { ToastrService } from 'ngx-toastr';
-import { BehaviorSubject, Subject, filter, finalize, map, take, takeUntil } from 'rxjs';
-import { RouterUrl } from '../../../app.routes';
+import { BehaviorSubject, Subject, finalize, take, takeUntil } from 'rxjs';
 import { CommonMessage } from '../../../enums/common-message.enum';
 import { MaterialModule } from '../../../material.module';
 import { FormatterService } from '../../../services/formatter-service';
@@ -26,12 +24,11 @@ export type GeneralLeadFormClosed = { saved: boolean; generalId?: number };
   styleUrls: ['./general.component.scss'],
   imports: [CommonModule, MaterialModule, ReactiveFormsModule]
 })
-export class GeneralComponent implements OnInit, OnDestroy {
-  embeddedInShell = input(false);
-  shellLeadId = input<string | null>(null);
-  officeId = input<number | null>(null);
-  closed = output<GeneralLeadFormClosed>();
-  officeSelectionRequired = output<void>();
+export class GeneralComponent implements OnInit, OnChanges, OnDestroy {
+  @Input() shellLeadId: string | null = null;
+  @Input() officeId: number | null = null;
+  @Output() closed = new EventEmitter<GeneralLeadFormClosed>();
+  @Output() officeSelectionRequired = new EventEmitter<void>();
 
   form: FormGroup;
   isServiceError = false;
@@ -51,9 +48,6 @@ export class GeneralComponent implements OnInit, OnDestroy {
   destroy$ = new Subject<void>();
 
   constructor(
-    private router: Router,
-    private route: ActivatedRoute,
-    private ngZone: NgZone,
     private fb: FormBuilder,
     private toastr: ToastrService,
     private authService: AuthService,
@@ -61,53 +55,32 @@ export class GeneralComponent implements OnInit, OnDestroy {
     private utilityService: UtilityService,
     private formatterService: FormatterService,
     private globalSelectionService: GlobalSelectionService,
-    private officeService: OfficeService
+    private officeService: OfficeService,
+    private cdr: ChangeDetectorRef
   ) {
     this.form = this.buildForm();
-    effect(() => {
-      const id = this.officeId();
-      void id;
-      if (!this.embeddedInShell() || this.offices.length === 0 || !this.officeScopeResolved) {
-        return;
-      }
-      this.resolveOfficeScope(this.officeId());
-    });
-    effect(() => {
-      if (!this.embeddedInShell()) {
-        return;
-      }
-      const id = this.shellLeadId();
-      if (id == null || id === '') {
-        return;
-      }
-      this.loadGeneral(id);
-    });
   }
 
   //#region General
   ngOnInit(): void {
-    this.itemsToLoad$.pipe(takeUntil(this.destroy$)).subscribe(items => {
-      this.isPageReady = items.size === 0;
-    });
+    this.itemsToLoad$.pipe(takeUntil(this.destroy$)).subscribe(() => this.syncPageReadyFromLoadItems());
 
     const user = this.authService.getUser();
     this.organizationId = user?.organizationId?.trim() ?? '';
     this.preferredOfficeId = user?.defaultOfficeId ?? null;
 
-    this.globalSelectionService.getSelectedOfficeId$().pipe(takeUntil(this.destroy$)).subscribe(officeId => {
-      if (this.offices.length === 0) {
-        return;
-      }
-      if (this.embeddedInShell()) {
-        this.resolveOfficeScope(this.officeId());
-        return;
-      }
-      this.resolveOfficeScope(officeId);
-    });
-
     this.loadOffices();
+    this.loadGeneral(this.shellLeadId);
+  }
 
-    this.route.paramMap.pipe(takeUntil(this.destroy$), map(pm => pm.get('id')), filter(() => !this.embeddedInShell())).subscribe(id => this.loadGeneral(id));
+  ngOnChanges(changes: SimpleChanges): void {
+    if (changes['officeId']) {
+      this.resolveOfficeScope(this.officeId);
+    }
+
+    if (changes['shellLeadId'] && !changes['shellLeadId'].firstChange) {
+      this.loadGeneral(this.shellLeadId);
+    }
   }
 
   saveGeneralLead(): void {
@@ -118,7 +91,7 @@ export class GeneralComponent implements OnInit, OnDestroy {
     this.form.markAllAsTouched();
     const resolvedOfficeId = this.resolveSaveOfficeId();
     const hasValidOfficeSelection = resolvedOfficeId != null && resolvedOfficeId > 0;
-    if (!hasValidOfficeSelection && this.embeddedInShell()) {
+    if (!hasValidOfficeSelection) {
       this.officeSelectionRequired.emit();
     }
     if (this.form.invalid || !hasValidOfficeSelection) {
@@ -139,15 +112,11 @@ export class GeneralComponent implements OnInit, OnDestroy {
     };
     this.isSavingGeneralLead = true;
     if (this.isAddMode) {
-      this.leadsService.createGeneralLead(body).pipe(take(1), takeUntil(this.destroy$)).subscribe({
+      this.leadsService.createGeneralLead(body).pipe(take(1)).subscribe({
         next: created => {
           this.toastr.success('General lead created.', CommonMessage.Success);
-          if (this.embeddedInShell()) {
-            this.isSavingGeneralLead = false;
-            this.closed.emit({ saved: true, generalId: created.generalId });
-            return;
-          }
-          void this.router.navigateByUrl(RouterUrl.replaceTokens(RouterUrl.LeadGeneral, [String(created.generalId)]));
+          this.isSavingGeneralLead = false;
+          this.closed.emit({ saved: true, generalId: created.generalId });
         },
         error: () => {
           this.toastr.error('Unable to create general lead.', CommonMessage.Error);
@@ -162,15 +131,13 @@ export class GeneralComponent implements OnInit, OnDestroy {
       return;
     }
     const updateBody: LeadGeneralUpdateRequest = { ...body, generalId };
-    this.leadsService.updateGeneralLead(updateBody).pipe(take(1), takeUntil(this.destroy$)).subscribe({
+    this.leadsService.updateGeneralLead(updateBody).pipe(take(1)).subscribe({
       next: row => {
         this.toastr.success('General lead updated.', CommonMessage.Success);
         this.lead = row;
         this.populateForm(row);
         this.isSavingGeneralLead = false;
-        if (this.embeddedInShell()) {
-          this.closed.emit({ saved: true, generalId: row.generalId });
-        }
+        this.closed.emit({ saved: true, generalId: row.generalId });
       },
       error: () => {
         this.toastr.error('Unable to update general lead.', CommonMessage.Error);
@@ -229,7 +196,7 @@ export class GeneralComponent implements OnInit, OnDestroy {
   }
   
   resolveCreateOfficeId(): number | null {
-    const fromShell = this.officeId();
+    const fromShell = this.officeId;
     if (fromShell != null && fromShell > 0) {
       return fromShell;
     }
@@ -241,8 +208,8 @@ export class GeneralComponent implements OnInit, OnDestroy {
   }
 
   resolveSaveOfficeId(): number | null {
-    const fromShell = this.officeId();
-    if (this.embeddedInShell() && fromShell != null && fromShell > 0) {
+    const fromShell = this.officeId;
+    if (fromShell != null && fromShell > 0) {
       return fromShell;
     }
     if (this.isAddMode) {
@@ -264,12 +231,21 @@ export class GeneralComponent implements OnInit, OnDestroy {
   loadOffices(): void {
     this.globalSelectionService.ensureOfficeScope(this.organizationId, this.preferredOfficeId).pipe(take(1)).subscribe({
       next: () => {
-        this.officeService.getAllOffices().pipe(takeUntil(this.destroy$)).subscribe(offices => {
-          this.offices = offices || [];
+        this.officeService.getAllOffices().pipe(take(1)).subscribe({
+          next: offices => {
+            this.offices = offices || [];
+            this.resolveOfficeScope(this.officeId);
+            this.cdr.markForCheck();
+          },
+          error: () => {
+            this.offices = [];
+            this.cdr.markForCheck();
+          }
         });
       },
       error: () => {
         this.offices = [];
+        this.cdr.markForCheck();
       }
     });
   }
@@ -286,6 +262,7 @@ export class GeneralComponent implements OnInit, OnDestroy {
     }
 
     this.isAddMode = false;
+    this.utilityService.addLoadItem(this.itemsToLoad$, 'general-lead');
     this.isServiceError = false;
     const generalId = parseInt(String(idParam || '').trim(), 10);
     if (!generalId || Number.isNaN(generalId)) {
@@ -295,7 +272,7 @@ export class GeneralComponent implements OnInit, OnDestroy {
       return;
     }
 
-    this.leadsService.getGeneralLeadById(generalId).pipe(take(1), takeUntil(this.destroy$), finalize(() => this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'general-lead'))).subscribe({
+    this.leadsService.getGeneralLeadById(generalId).pipe(take(1), finalize(() => this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'general-lead'))).subscribe({
         next: row => {
           this.lead = row;
           this.populateForm(row);
@@ -309,18 +286,13 @@ export class GeneralComponent implements OnInit, OnDestroy {
   //#endregion
 
   //#region Utility Methods
-  formatPhone(): void {
-    this.formatterService.formatPhoneControl(this.form.get('phone'));
+  syncPageReadyFromLoadItems(): void {
+    this.isPageReady = this.itemsToLoad$.value.size === 0;
+    this.cdr.markForCheck();
   }
 
-  back(): void {
-    if (this.embeddedInShell()) {
-      this.closed.emit({ saved: false });
-      return;
-    }
-    this.ngZone.run(() => {
-      void this.router.navigateByUrl(`${RouterUrl.Leads}?tab=general`);
-    });
+  formatPhone(): void {
+    this.formatterService.formatPhoneControl(this.form.get('phone'));
   }
 
   ngOnDestroy(): void {

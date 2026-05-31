@@ -2,7 +2,7 @@
 import { CommonModule } from '@angular/common';
 import { Component, EventEmitter, Input, OnChanges, OnDestroy, OnInit, Output, SimpleChanges } from '@angular/core';
 import { FormsModule } from '@angular/forms';
-import { Subject, Subscription, filter, skip, take, takeUntil } from 'rxjs';
+import { Subject, Subscription, BehaviorSubject, filter, finalize, skip, switchMap, take, takeUntil } from 'rxjs';
 import { AuthService } from '../../../services/auth.service';
 import { MaterialModule } from '../../../material.module';
 import { GlobalSelectionService } from '../../organizations/services/global-selection.service';
@@ -81,7 +81,8 @@ export class GeneralLedgerComponent implements OnInit, OnChanges, OnDestroy {
   allInvoices: InvoiceResponse[] = [];
   costCodes: CostCodesResponse[] = [];
   ledgerRows: GeneralLedgerDisplayRow[] = [];
-  isLoading: boolean = false;
+  isPageReady = false;
+  itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['offices', 'reservations', 'companies', 'costCodes', 'invoices', 'officeScope']));
   showInactive: boolean = false;
   showOfficeDropdown: boolean = false;
   officeScopeResolved: boolean = false;
@@ -113,6 +114,9 @@ export class GeneralLedgerComponent implements OnInit, OnChanges, OnDestroy {
 
   //#region General-Ledger
   ngOnInit(): void {
+    this.itemsToLoad$.pipe(takeUntil(this.destroy$)).subscribe(items => {
+      this.isPageReady = items.size === 0;
+    });
     this.organizationId = this.organizationId || this.authService.getUser()?.organizationId?.trim() || null;
     this.preferredOfficeId = this.authService.getUser()?.defaultOfficeId ?? null;
     this.loadOffices();
@@ -200,7 +204,9 @@ export class GeneralLedgerComponent implements OnInit, OnChanges, OnDestroy {
 
   //#region Data Loading Methods
   loadOffices(): void {
-    this.globalSelectionService.ensureOfficeScope(this.organizationId || '', this.preferredOfficeId).pipe(take(1)).subscribe({
+    this.globalSelectionService.ensureOfficeScope(this.organizationId || '', this.preferredOfficeId).pipe(take(1), finalize(() => {
+      this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'offices');
+    })).subscribe({
       next: () => {
         this.officeService.getAllOffices().pipe(takeUntil(this.destroy$)).subscribe(offices => {
           this.offices = offices || [];
@@ -220,7 +226,9 @@ export class GeneralLedgerComponent implements OnInit, OnChanges, OnDestroy {
   }
 
   loadReservations(): void {
-    this.reservationService.getReservationList().pipe(take(1)).subscribe({
+    this.reservationService.getReservationList().pipe(take(1), finalize(() => {
+      this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'reservations');
+    })).subscribe({
       next: (reservations) => {
         this.reservations = reservations || [];
         this.filterReservations();
@@ -234,19 +242,13 @@ export class GeneralLedgerComponent implements OnInit, OnChanges, OnDestroy {
   }
 
   loadCompanyContacts(): void {
-    this.contactService.ensureContactsLoaded().pipe(take(1)).subscribe({
-      next: () => {
-        this.contactService.getAllCompanyContacts().pipe(take(1)).subscribe({
-          next: (contacts) => {
-            this.companyContacts = contacts || [];
-            this.filterCompanyContacts();
-            this.buildGeneralLedgerRows();
-          },
-          error: () => {
-            this.companyContacts = [];
-            this.availableCompanyContacts = [];
-          }
-        });
+    this.contactService.ensureContactsLoaded().pipe(take(1), switchMap(() => this.contactService.getAllCompanyContacts().pipe(take(1))), finalize(() => {
+      this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'companies');
+    })).subscribe({
+      next: contacts => {
+        this.companyContacts = contacts || [];
+        this.filterCompanyContacts();
+        this.buildGeneralLedgerRows();
       },
       error: () => {
         this.companyContacts = [];
@@ -256,22 +258,22 @@ export class GeneralLedgerComponent implements OnInit, OnChanges, OnDestroy {
   }
 
   loadInvoices(): void {
-    this.isLoading = true;
+    this.utilityService.addLoadItem(this.itemsToLoad$, 'invoices');
     this.invoicesSubscription?.unsubscribe();
     const invoiceObservable = this.selectedOfficeId
       ? this.accountingService.getInvoicesByOffice(this.selectedOfficeId)
       : this.accountingService.getAllInvoices();
 
-    this.invoicesSubscription = invoiceObservable.pipe(take(1)).subscribe({
+    this.invoicesSubscription = invoiceObservable.pipe(take(1), finalize(() => {
+      this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'invoices');
+    })).subscribe({
       next: (invoices) => {
         this.allInvoices = invoices || [];
         this.buildGeneralLedgerRows();
-        this.isLoading = false;
       },
       error: () => {
         this.allInvoices = [];
         this.ledgerRows = [];
-        this.isLoading = false;
       }
     });
   }
@@ -280,7 +282,9 @@ export class GeneralLedgerComponent implements OnInit, OnChanges, OnDestroy {
     this.costCodesService.ensureCostCodesLoaded();
     this.costCodesService.areCostCodesLoaded().pipe(filter(loaded => loaded === true), take(1)).subscribe(() => {
       this.costCodesSubscription?.unsubscribe();
-      this.costCodesSubscription = this.costCodesService.getAllCostCodes().subscribe(costCodes => {
+      this.costCodesSubscription = this.costCodesService.getAllCostCodes().pipe(take(1), finalize(() => {
+        this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'costCodes');
+      })).subscribe(costCodes => {
         this.costCodes = costCodes || [];
         this.buildGeneralLedgerRows();
       });
@@ -493,11 +497,13 @@ export class GeneralLedgerComponent implements OnInit, OnChanges, OnDestroy {
     this.costCodesSubscription?.unsubscribe();
     this.destroy$.next();
     this.destroy$.complete();
+    this.itemsToLoad$.complete();
   }
 
   resolveOfficeScope(officeId: number | null, emitChange: boolean): void {
     this.selectedOfficeId = this.utilityService.resolveSelectedOfficeById(this.offices, officeId)?.officeId ?? officeId ?? null;
     this.officeScopeResolved = true;
+    this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'officeScope');
     if (emitChange) {
       this.officeIdChange.emit(this.selectedOfficeId);
     }

@@ -1,5 +1,5 @@
 <div class="leads-reports-wrap">
-  @if (isLoading) {
+  @if (!isPageReady) {
     <div class="loading-container">
       <mat-spinner [diameter]="40"></mat-spinner>
       <p>Loading reports...</p>

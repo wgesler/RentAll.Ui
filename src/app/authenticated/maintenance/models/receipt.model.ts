@@ -20,7 +20,7 @@ export interface ReceiptRequest {
   officeId: number;
   propertyIds: string[];
   receiptDate: string;
-  maintenanceId: string;
+  ticketId: string;
   amount: number;
   description: string;
   bankCardId?: number | null;
@@ -39,7 +39,7 @@ export interface ReceiptResponse {
   officeName: string;
   propertyIds: string[];
   receiptDate: string;
-  maintenanceId: string;
+  ticketId: string;
   description: string;
   amount: number;
   bankCardId?: number | null;
@@ -64,7 +64,7 @@ export interface ReceiptDisplayList {
   receiptDate: string;
   receiptDateReadOnly?: boolean;
   propertyCode?: string;
-  maintenanceId: string;
+  ticketId: string;
   amount: number;
   amountDisplay?: string; // formatted for list (e.g. $0.00)
   splits: Split[];

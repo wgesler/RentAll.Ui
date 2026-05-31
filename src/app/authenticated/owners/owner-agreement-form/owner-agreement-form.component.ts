@@ -218,7 +218,7 @@ export class OwnerAgreementFormComponent extends BaseDocumentComponent implement
   // Shell-driven: consume the shared context observable instead of self-fetching every entity.
   loadFromSharedContext(context$: Observable<OwnerAgreementContext | null>): void {
     this.itemsToLoad$.next(new Set(['context']));
-    context$.pipe(take(1), takeUntil(this.destroy$), finalize(() => {
+    context$.pipe(take(1), finalize(() => {
       this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'context');
       this.generatePreviewIfReady();
     })).subscribe({

@@ -3,7 +3,7 @@ import { HttpErrorResponse } from '@angular/common/http';
 import { ChangeDetectionStrategy, ChangeDetectorRef, Component, EventEmitter, Input, OnChanges, OnDestroy, OnInit, Output, SimpleChanges } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { ToastrService } from 'ngx-toastr';
-import { BehaviorSubject, Observable, finalize, map, take } from 'rxjs';
+import {BehaviorSubject, finalize, take, Subject, takeUntil} from 'rxjs';
 import { CommonMessage } from '../../../enums/common-message.enum';
 import { MaterialModule } from '../../../material.module';
 import { MappingService } from '../../../services/mapping.service';
@@ -44,8 +44,9 @@ export class TrackerListComponent implements OnInit, OnDestroy, OnChanges {
   editingSuggestedSortOrder: number | null = null;
   processingOfficeIds = new Set<number>();
 
+  isPageReady = false;
+  destroy$ = new Subject<void>();
   itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['trackers']));
-  isLoading$: Observable<boolean> = this.itemsToLoad$.pipe(map(items => items.size > 0));
 
   constructor(
     public trackerService: TrackerService,
@@ -61,6 +62,11 @@ export class TrackerListComponent implements OnInit, OnDestroy, OnChanges {
 
   //#region Tracker-List
   ngOnInit(): void {
+    this.itemsToLoad$.pipe(takeUntil(this.destroy$)).subscribe(items => {
+      this.isPageReady = items.size === 0;
+      this.markViewForCheck();
+    });
+
     this.getTrackers();
   }
 
