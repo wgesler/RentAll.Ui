@@ -4,6 +4,7 @@ import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, Router } from '@angular/router';
 import { Subject, startWith, takeUntil } from 'rxjs';
 import { MaterialModule } from '../../../material.module';
+import { GlobalSelectionService } from '../../organizations/services/global-selection.service';
 import { getNumberQueryParam } from '../../shared/query-param.utils';
 import { TitleBarSelectComponent } from '../../shared/titlebar-select/titlebar-select.component';
 import { UserComponent } from '../user/user.component';
@@ -24,11 +25,15 @@ export class UsersShellComponent implements OnInit, AfterViewInit, OnDestroy {
   formUserId: string | null = null;
   formTabIndex: number | null = null;
   activeUsersSectionRef?: UserListComponent;
+  /** Page-level office filter shared across user tabs (does not write global selection). */
+  selectedOfficeId: number | null = null;
+  selectedOrganizationId: string | null = null;
   destroy$ = new Subject<void>();
 
   constructor(
     private router: Router,
-    private route: ActivatedRoute
+    private route: ActivatedRoute,
+    private globalSelectionService: GlobalSelectionService
   ) {}
 
   ngOnInit(): void {
@@ -36,6 +41,7 @@ export class UsersShellComponent implements OnInit, AfterViewInit, OnDestroy {
     if (tabIndex !== null) {
       this.selectedTabIndex = tabIndex;
     }
+    this.selectedOfficeId = this.globalSelectionService.getSelectedOfficeIdValue();
   }
 
   ngAfterViewInit(): void {
@@ -77,20 +83,16 @@ export class UsersShellComponent implements OnInit, AfterViewInit, OnDestroy {
   }
 
   onOrganizationDropdownChange(value: string | number | null): void {
-    this.getActiveSection()?.onOrganizationDropdownChange(value);
+    this.selectedOrganizationId = value == null || value === '' ? null : String(value);
   }
 
   onOfficeDropdownChange(value: string | number | null): void {
-    this.getActiveSection()?.onOfficeDropdownChange(value);
-  }
-
-  get activeUsersSection(): UserListComponent | undefined {
-    return this.activeUsersSectionRef;
+    this.selectedOfficeId = value == null || value === '' ? null : Number(value);
   }
 
   getActiveSection(): UserListComponent | undefined {
     const sections = this.userSections?.toArray() || [];
-    return sections[this.selectedTabIndex];
+    return sections.find(section => section.tabIndex === this.selectedTabIndex);
   }
 
   syncActiveSection(): void {

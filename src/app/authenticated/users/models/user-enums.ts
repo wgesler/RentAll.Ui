@@ -18,55 +18,6 @@ export enum UserGroups {
   OwnerAdmin = 16
 }
 
-/** Owner / Housekeeping / Inspector / Vendor tabs. If a user's roles are only from this set, they do not appear on the Employees tab. */
-export const SPECIALTY_ONLY_TAB_USER_GROUPS: UserGroups[] = [
-  UserGroups.Owner,
-  UserGroups.OwnerAdmin,
-  UserGroups.Housekeeping,
-  UserGroups.Inspector,
-  UserGroups.Vendor
-];
-
-/** Staff roles for the Employees tab (hasAnyUserGroup). Users with only roles in SPECIALTY_ONLY_TAB_USER_GROUPS are excluded in user-list applyFilters. */
-export const EMPLOYEE_USER_GROUPS: UserGroups[] = [
-  UserGroups.SuperAdmin,
-  UserGroups.Admin,
-  UserGroups.Accounting,
-  UserGroups.AccountingAdmin,
-  UserGroups.Agent,
-  UserGroups.AgentAdmin,
-  UserGroups.PropertyManager,
-  UserGroups.PropertyManagerAdmin,
-  UserGroups.Facilities,
-  UserGroups.OwnerAdmin
-];
-
-export function getUserGroup(userGroupId: number | undefined): string {
-  if (userGroupId === undefined || userGroupId === null) return '';
-  
-  const groupMap: { [key: number]: string } = {
-    [UserGroups.Unknown]: 'Unknown',
-    [UserGroups.SuperAdmin]: 'SuperAdmin',
-    [UserGroups.Admin]: 'Admin',
-    [UserGroups.Accounting]: 'Accounting',
-    [UserGroups.AccountingAdmin]: 'Accounting-Admin',
-    [UserGroups.Agent]: 'Agent',
-    [UserGroups.AgentAdmin]: 'Agent-Admin',
-    [UserGroups.PropertyManager]: 'PropertyManager',
-    [UserGroups.PropertyManagerAdmin]: 'PropertyManager-Admin',
-    [UserGroups.Facilities]: 'Facilities',
-    [UserGroups.Housekeeping]: 'Housekeeping',
-    [UserGroups.Company]: 'Company',
-    [UserGroups.Vendor]: 'Vendor',
-    [UserGroups.Tenant]: 'Tenant',
-    [UserGroups.Owner]: 'Owner',
-    [UserGroups.Inspector]: 'Inspector',
-    [UserGroups.OwnerAdmin]: 'OwnerAdmin'
-  };
-  
-  return groupMap[userGroupId] || '';
-}
-
 export enum StartupPage {
   Dashboard = 0,
   Boards = 1,

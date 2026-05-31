@@ -11,7 +11,7 @@
             <app-title-bar-select
               [label]="'Organization'"
               [formFieldClass]="'titlebar-field-office'"
-              [value]="activeUsersSectionRef?.selectedOrganizationId ?? null"
+              [value]="selectedOrganizationId"
               [options]="activeUsersSectionRef?.organizationOptions ?? []"
               [nullOptionLabel]="'All Organizations'"
               [noResultsText]="'No organizations match your search'"
@@ -21,7 +21,7 @@
             <app-title-bar-select
               [label]="'Office'"
               [formFieldClass]="'titlebar-field-office'"
-              [value]="activeUsersSectionRef?.selectedOfficeId ?? null"
+              [value]="selectedOfficeId"
               [options]="activeUsersSectionRef?.officeOptions ?? []"
               [nullOptionLabel]="'All Offices'"
               [noResultsText]="'No offices match your search'"
@@ -46,35 +46,35 @@
           @if (showUserForm && formTabIndex === 0) {
             <app-user [id]="formUserId ?? 'new'" (closed)="onUserClosed($event)" />
           } @else {
-            <app-user-list [tabIndex]="0" (openUser)="onOpenUser($event)"></app-user-list>
+            <app-user-list [tabIndex]="0" [officeId]="selectedOfficeId" [selectedOrganizationId]="selectedOrganizationId" (openUser)="onOpenUser($event)"></app-user-list>
           }
         </mat-tab>
         <mat-tab label="Owners">
           @if (showUserForm && formTabIndex === 1) {
             <app-user [id]="formUserId ?? 'new'" (closed)="onUserClosed($event)" />
           } @else {
-            <app-user-list [tabIndex]="1" (openUser)="onOpenUser($event)"></app-user-list>
+            <app-user-list [tabIndex]="1" [officeId]="selectedOfficeId" [selectedOrganizationId]="selectedOrganizationId" (openUser)="onOpenUser($event)"></app-user-list>
           }
         </mat-tab>
         <mat-tab label="Cleaners">
           @if (showUserForm && formTabIndex === 2) {
             <app-user [id]="formUserId ?? 'new'" (closed)="onUserClosed($event)" />
           } @else {
-            <app-user-list [tabIndex]="2" (openUser)="onOpenUser($event)"></app-user-list>
+            <app-user-list [tabIndex]="2" [officeId]="selectedOfficeId" [selectedOrganizationId]="selectedOrganizationId" (openUser)="onOpenUser($event)"></app-user-list>
           }
         </mat-tab>
         <mat-tab label="Inspectors">
           @if (showUserForm && formTabIndex === 3) {
             <app-user [id]="formUserId ?? 'new'" (closed)="onUserClosed($event)" />
           } @else {
-            <app-user-list [tabIndex]="3" (openUser)="onOpenUser($event)"></app-user-list>
+            <app-user-list [tabIndex]="3" [officeId]="selectedOfficeId" [selectedOrganizationId]="selectedOrganizationId" (openUser)="onOpenUser($event)"></app-user-list>
           }
         </mat-tab>
         <mat-tab label="Vendors">
           @if (showUserForm && formTabIndex === 4) {
             <app-user [id]="formUserId ?? 'new'" (closed)="onUserClosed($event)" />
           } @else {
-            <app-user-list [tabIndex]="4" (openUser)="onOpenUser($event)"></app-user-list>
+            <app-user-list [tabIndex]="4" [officeId]="selectedOfficeId" [selectedOrganizationId]="selectedOrganizationId" (openUser)="onOpenUser($event)"></app-user-list>
           }
         </mat-tab>
       </mat-tab-group>

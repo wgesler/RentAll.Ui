@@ -843,28 +843,6 @@ export class UserComponent implements OnInit, OnDestroy {
       .trim()
       .replace(/^./, str => str.toUpperCase()); // Capitalize first letter
   }
-
-  getOrganizationName(): string {
-    if (!this.user?.organizationId) {
-      return 'N/A';
-    }
-    const org = this.organizations.find(o => o.organizationId === this.user.organizationId);
-    return org?.name || 'N/A';
-  }
-
-  getOfficeAccessNames(): string {
-    if (!this.user?.officeAccess || this.user.officeAccess.length === 0) {
-      return 'None';
-    }
-    const officeIds = this.user.officeAccess.map(id => typeof id === 'string' ? parseInt(id, 10) : id);
-    const officeNames = officeIds
-      .map(id => {
-        const office = this.offices.find(o => o.officeId === id);
-        return office?.name;
-      })
-      .filter(name => name !== undefined);
-    return officeNames.length > 0 ? officeNames.join(', ') : 'None';
-  }
   //#endregion
 
   //#region User Group Helpers
@@ -874,11 +852,6 @@ export class UserComponent implements OnInit, OnDestroy {
       return { userGroupsRequired: true };
     }
     return null;
-  }
-
-  getUserGroupLabel(value: string): string {
-    const group = this.availableUserGroups.find(g => g.value === value);
-    return group ? group.label : value;
   }
 
   get userGroups(): string[] {
@@ -1102,7 +1075,7 @@ export class UserComponent implements OnInit, OnDestroy {
   }
   //#endregion
 
-  //#region Utility Methods
+  //#region Commission Methods
   onCommissionRateInput(event: Event): void {
     this.formatterService.formatDecimalInput(event, this.form.get('commissionRate'));
   }
@@ -1132,13 +1105,9 @@ export class UserComponent implements OnInit, OnDestroy {
       commissionRateControl.enable({ emitEvent: false });
     }
   }
+  //#endregion
 
-  ngOnDestroy(): void {
-    this.destroy$.next();
-    this.destroy$.complete();
-    this.itemsToLoad$.complete();
-  }
-
+  //#region Utility Methods
   back(): void {
     if (this.isDialog && this.dialogRef) {
       this.dialogRef.close();
@@ -1170,6 +1139,14 @@ export class UserComponent implements OnInit, OnDestroy {
     }
     this.router.navigateByUrl(RouterUrl.UserList);
   }
+
+  ngOnDestroy(): void {
+    this.destroy$.next();
+    this.destroy$.complete();
+    this.itemsToLoad$.complete();
+  }
+
+
   //#endregion
 }
 

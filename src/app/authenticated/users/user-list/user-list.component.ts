@@ -2,23 +2,21 @@ import { CommonModule } from "@angular/common";
 import { ChangeDetectionStrategy, ChangeDetectorRef, Component, EventEmitter, Input, OnChanges, OnDestroy, OnInit, Output, SimpleChanges } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { ToastrService } from 'ngx-toastr';
-import {BehaviorSubject, Subject, finalize, map, skip, take, takeUntil} from 'rxjs';
+import {BehaviorSubject, Subject, finalize, take, takeUntil} from 'rxjs';
 import { CommonMessage } from '../../../enums/common-message.enum';
 import { MaterialModule } from '../../../material.module';
 import { AuthService } from '../../../services/auth.service';
 import { FormatterService } from '../../../services/formatter-service';
-import { MappingService } from '../../../services/mapping.service';
 import { UtilityService } from '../../../services/utility.service';
 import { OfficeResponse } from '../../organizations/models/office.model';
 import { OrganizationResponse } from '../../organizations/models/organization.model';
-import { GlobalSelectionService } from '../../organizations/services/global-selection.service';
 import { OfficeService } from '../../organizations/services/office.service';
 import { OrganizationService } from '../../organizations/services/organization.service';
 import { DataTableComponent } from '../../shared/data-table/data-table.component';
 import { DataTableFilterActionsDirective } from '../../shared/data-table/data-table-filter-actions.directive';
 import { ColumnSet } from '../../shared/data-table/models/column-data';
 import { hasCompanyRole, hasHousekeepingRole, hasInspectorRole, hasOwnerRole, hasVendorRole } from '../../shared/access/role-access';
-import { getStartupPage, SPECIALTY_ONLY_TAB_USER_GROUPS, UserGroups } from '../models/user-enums';
+import { getStartupPage, UserGroups } from '../models/user-enums';
 import { UserListDisplay, UserRequest, UserResponse } from '../models/user.model';
 import { UserService } from '../services/user.service';
 
@@ -33,8 +31,9 @@ import { UserService } from '../services/user.service';
 
 export class UserListComponent implements OnInit, OnDestroy, OnChanges {
   @Input() tabIndex?: number;
+  @Input() officeId: number | null = null;
+  @Input() selectedOrganizationId: string | null = null;
   @Output() openUser = new EventEmitter<{ userId: string; tabIndex?: number }>();
-  panelOpenState: boolean = true;
   isServiceError: boolean = false;
   showInactive: boolean = false;
   selectedTabIndex: number = 0;
@@ -44,7 +43,6 @@ export class UserListComponent implements OnInit, OnDestroy, OnChanges {
   allUsers: UserListDisplay[] = [];
   usersDisplay: UserListDisplay[] = [];
   offices: OfficeResponse[] = [];
-  availableOffices: { value: number, name: string }[] = [];
   selectedOffice: OfficeResponse | null = null;
   showOfficeDropdown: boolean = false;
   isSuperAdminUser: boolean = false;
@@ -72,11 +70,9 @@ export class UserListComponent implements OnInit, OnDestroy, OnChanges {
     public userService: UserService,
     private organizationService: OrganizationService,
     private officeService: OfficeService,
-    private globalSelectionService: GlobalSelectionService,
     private authService: AuthService,
     public toastr: ToastrService,
     private formatterService: FormatterService,
-    public mappingService: MappingService,
     private utilityService: UtilityService,
     private cdr: ChangeDetectorRef) {
   }
@@ -104,13 +100,6 @@ export class UserListComponent implements OnInit, OnDestroy, OnChanges {
     this.loadOffices();
     this.loadUsers();
     this.loadOrganizations();
-
-    this.globalSelectionService.getSelectedOfficeId$().pipe(skip(1), takeUntil(this.destroy$)).subscribe(officeId => {
-      if (this.offices.length > 0) {
-        this.resolveOfficeScope(officeId);
-      }
-      this.markViewForCheck();
-    });
   }
 
   ngOnChanges(changes: SimpleChanges): void {
@@ -119,6 +108,22 @@ export class UserListComponent implements OnInit, OnDestroy, OnChanges {
       if (newTabIndex !== undefined && newTabIndex !== null) {
         this.setSelectedTabIndex(newTabIndex);
       }
+    }
+
+    if (changes['officeId']) {
+      const newOfficeId = changes['officeId'].currentValue as number | null;
+      const previousOfficeId = changes['officeId'].previousValue as number | null | undefined;
+      if (previousOfficeId === undefined || newOfficeId !== previousOfficeId) {
+        if (this.offices.length > 0) {
+          this.resolveOfficeScope(newOfficeId);
+        }
+        this.markViewForCheck();
+      }
+    }
+
+    if (changes['selectedOrganizationId']) {
+      this.applyOrganizationFromInput();
+      this.markViewForCheck();
     }
   }
 
@@ -227,11 +232,6 @@ export class UserListComponent implements OnInit, OnDestroy, OnChanges {
     this.usersDisplay = filtered;
   }
 
-  onTabChange(event: { index: number }): void {
-    this.selectedTabIndex = event.index;
-    this.applyFilters();
-  }
-
   setSelectedTabIndex(tabIndex: number): void {
     this.selectedTabIndex = tabIndex;
     this.applyFilters();
@@ -242,13 +242,13 @@ export class UserListComponent implements OnInit, OnDestroy, OnChanges {
     this.applyFilters();
   }
 
-  onOfficeChange(): void {
-    this.globalSelectionService.setSelectedOfficeId(this.selectedOffice?.officeId ?? null);
-    this.applyFilters();
-  }
-
-  onOrganizationChange(): void {
-    this.applyFilters();
+  private applyOrganizationFromInput(): void {
+    this.selectedOrganization = this.selectedOrganizationId
+      ? this.organizations.find(organization => organization.organizationId === this.selectedOrganizationId) || null
+      : null;
+    if (this.officeScopeResolved) {
+      this.applyFilters();
+    }
   }
 
   get organizationOptions(): { value: string, label: string }[] {
@@ -258,35 +258,11 @@ export class UserListComponent implements OnInit, OnDestroy, OnChanges {
     }));
   }
 
-  get selectedOrganizationId(): string | null {
-    return this.selectedOrganization?.organizationId ?? null;
-  }
-
   get officeOptions(): { value: number, label: string }[] {
     return this.offices.map(office => ({
       value: office.officeId,
       label: office.name
     }));
-  }
-
-  get selectedOfficeId(): number | null {
-    return this.selectedOffice?.officeId ?? null;
-  }
-
-  onOrganizationDropdownChange(value: string | number | null): void {
-    const organizationId = value == null || value === '' ? null : String(value);
-    this.selectedOrganization = organizationId
-      ? this.organizations.find(organization => organization.organizationId === organizationId) || null
-      : null;
-    this.onOrganizationChange();
-  }
-
-  onOfficeDropdownChange(value: string | number | null): void {
-    const officeId = value == null || value === '' ? null : Number(value);
-    this.selectedOffice = officeId == null
-      ? null
-      : this.offices.find(office => office.officeId === officeId) || null;
-    this.onOfficeChange();
   }
 
   getDefaultOfficeName(defaultOfficeId: number | null): string {
@@ -339,6 +315,7 @@ export class UserListComponent implements OnInit, OnDestroy, OnChanges {
     this.organizationService.getOrganizations().pipe(take(1), finalize(() => { this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'organizations'); })).subscribe({
       next: (organizations: OrganizationResponse[]) => {
         this.organizations = organizations || [];
+        this.applyOrganizationFromInput();
         this.rebuildUsersDisplay();
         this.markViewForCheck();
       },
@@ -356,15 +333,13 @@ export class UserListComponent implements OnInit, OnDestroy, OnChanges {
       next: () => {
         this.officeService.getAllOffices().pipe(takeUntil(this.destroy$)).subscribe(allOffices => {
           this.offices = (allOffices || []).filter(office => office.isActive);
-          this.availableOffices = this.mappingService.mapOfficesToDropdown(this.offices);
           this.showOfficeDropdown = this.offices.length > 1;
-          this.resolveOfficeScope(this.globalSelectionService.getSelectedOfficeIdValue());
+          this.resolveOfficeScope(this.officeId);
           this.markViewForCheck();
         });
       },
       error: () => {
         this.offices = [];
-        this.availableOffices = [];
         this.showOfficeDropdown = false;
         this.resolveOfficeScope(null);
         this.markViewForCheck();
@@ -464,38 +439,8 @@ export class UserListComponent implements OnInit, OnDestroy, OnChanges {
     this.applyFilters();
   }
 
-  hasUserGroup(user: UserListDisplay, group: UserGroups): boolean {
-    const groups = user.userGroups || [];
-    const targetGroup = UserGroups[group];
-    return groups.some(
-      userGroup => String(userGroup) === targetGroup || (!Number.isNaN(Number(userGroup)) && Number(userGroup) === group)
-    );
-  }
-
-  hasAnyUserGroup(user: UserListDisplay, groups: UserGroups[]): boolean {
-    return groups.some(group => this.hasUserGroup(user, group));
-  }
-
-  userHasOnlySpecialtyTabRoles(user: UserListDisplay): boolean {
-    const groups = user.userGroups || [];
-    if (groups.length === 0) {
-      return false;
-    }
-    return groups.every(g =>
-      SPECIALTY_ONLY_TAB_USER_GROUPS.some(sg => this.userGroupValueMatches(g, sg))
-    );
-  }
-
-  userGroupValueMatches(userGroupValue: unknown, group: UserGroups): boolean {
-    const targetName = UserGroups[group];
-    if (String(userGroupValue) === targetName) {
-      return true;
-    }
-    const n = Number(userGroupValue);
-    return !Number.isNaN(n) && n === group;
-  }
   //#endregion
-  
+
   //#region Utility Methods
   ngOnDestroy(): void {
     this.destroy$.next();
