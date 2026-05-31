@@ -3,11 +3,15 @@ import { Component, OnDestroy, OnInit, ViewChild } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { MatDialog } from '@angular/material/dialog';
 import { ActivatedRoute, Router } from '@angular/router';
-import { Subject, takeUntil } from 'rxjs';
+import { Subject, skip, take, takeUntil } from 'rxjs';
 import { CanComponentDeactivate } from '../../../guards/can-deactivate-guard';
 import { MaterialModule } from '../../../material.module';
 import { RouterUrl } from '../../../app.routes';
 import { AuthService } from '../../../services/auth.service';
+import { UtilityService } from '../../../services/utility.service';
+import { OfficeResponse } from '../../organizations/models/office.model';
+import { GlobalSelectionService } from '../../organizations/services/global-selection.service';
+import { OfficeService } from '../../organizations/services/office.service';
 import { DocumentListComponent } from '../../documents/document-list/document-list.component';
 import { EmailListComponent } from '../../email/email-list/email-list.component';
 import { PropertyTitleBarContext } from '../models/property-title-bar-context.model';
@@ -44,8 +48,14 @@ export class PropertyShellComponent implements OnInit, OnDestroy, CanComponentDe
 
   selectedTabIndex = 0;
   isHandlingTabGuard = false;
+  isAddMode = false;
+  organizationId = '';
+  /** Page-level office filter: seeded from global; does not write global. */
+  selectedOfficeId: number | null = null;
+  selectedOffice: OfficeResponse | null = null;
+  offices: OfficeResponse[] = [];
+  private initialOfficeScopeApplied = false;
 
-  titleBarGlobalOfficeId: number | null = null;
   titleBarPropertyOfficeId: number | null = null;
   titleBarReservationId: string | null = null;
   titleBarPropertyCode = '';
@@ -56,12 +66,30 @@ export class PropertyShellComponent implements OnInit, OnDestroy, CanComponentDe
     private route: ActivatedRoute,
     private router: Router,
     private dialog: MatDialog,
-    private authService: AuthService
+    private authService: AuthService,
+    private officeService: OfficeService,
+    private globalSelectionService: GlobalSelectionService,
+    private utilityService: UtilityService
   ) {}
 
   //#region Property-Shell
   ngOnInit(): void {
     this.isAdminUser = this.authService.isAdmin();
+    this.organizationId = this.authService.getUser()?.organizationId?.trim() ?? '';
+    this.selectedOfficeId = this.globalSelectionService.getSelectedOfficeIdValue();
+    this.loadOffices();
+    this.globalSelectionService
+      .getSelectedOfficeId$()
+      .pipe(skip(1), takeUntil(this.destroy$))
+      .subscribe(officeId => {
+        this.applyOfficeFromGlobal(officeId);
+      });
+
+    this.route.paramMap.pipe(takeUntil(this.destroy$)).subscribe(paramMap => {
+      const id = paramMap.get('id');
+      this.isAddMode = !id || id === 'new';
+    });
+
     this.route.queryParams.pipe(takeUntil(this.destroy$)).subscribe(queryParams => {
       if (queryParams['tab'] === 'documents') {
         this.selectedTabIndex = 5;
@@ -89,6 +117,10 @@ export class PropertyShellComponent implements OnInit, OnDestroy, CanComponentDe
   }
 
   get officeOptions(): SearchableSelectOption[] {
+    return this.offices.map(office => ({ value: office.officeId, label: office.name }));
+  }
+
+  get propertyOfficeOptions(): SearchableSelectOption[] {
     return this.propertySection?.officeOptions ?? [];
   }
 
@@ -149,15 +181,15 @@ export class PropertyShellComponent implements OnInit, OnDestroy, CanComponentDe
 
   //#region Top Bar Event Methods
   onTitleBarContextFromProperty(ctx: PropertyTitleBarContext): void {
-    this.titleBarGlobalOfficeId = ctx.globalOfficeId;
     this.titleBarPropertyOfficeId = ctx.officeId;
     this.titleBarReservationId = ctx.reservationId;
     this.titleBarPropertyCode = ctx.propertyCode ?? '';
   }
 
-  async onGlobalOfficeDropdownChange(value: string | number | null): Promise<void> {
-    this.propertySection?.applyTitleBarGlobalOfficeSelection(value);
-    if (this.shouldRouteToPropertyListForGlobalOfficeMismatch(value)) {
+  async onOfficeDropdownChange(value: string | number | null): Promise<void> {
+    const officeId = value == null || value === '' ? null : Number(value);
+    this.applyPageOfficeScope(officeId);
+    if (this.shouldRouteToPropertyListForPageOfficeMismatch(officeId)) {
       const canLeave = await (this.propertySection?.confirmNavigationWithUnsavedChanges() ?? Promise.resolve(true));
       if (canLeave) {
         this.router.navigateByUrl(RouterUrl.PropertyList);
@@ -228,21 +260,71 @@ export class PropertyShellComponent implements OnInit, OnDestroy, CanComponentDe
   }
 
   onChildTabOfficeChange(officeId: number | null): void {
-    this.propertySection?.applyTitleBarGlobalOfficeSelection(officeId);
+    this.propertySection?.applyTitleBarPropertyOfficeSelection(officeId);
   }
   //#endregion
 
-  //#region Utility Methods
-  shouldRouteToPropertyListForGlobalOfficeMismatch(value: string | number | null): boolean {
-    if (this.propertySection?.isAddMode) {
+  //#region Office scope
+  private loadOffices(): void {
+    this.officeService.ensureOfficesLoaded(this.organizationId).pipe(take(1)).subscribe({
+      next: () => {
+        this.officeService.getAllOffices().pipe(takeUntil(this.destroy$)).subscribe(offices => {
+          this.offices = (offices || []).filter(
+            o => o.organizationId === this.organizationId && o.isActive
+          );
+
+          if (!this.initialOfficeScopeApplied) {
+            this.initialOfficeScopeApplied = true;
+            if (this.offices.length === 1) {
+              this.applyPageOfficeScope(this.offices[0].officeId);
+            } else {
+              this.applyOfficeFromGlobal(
+                this.selectedOfficeId ?? this.globalSelectionService.getSelectedOfficeIdValue()
+              );
+            }
+          } else if (this.selectedOfficeId != null) {
+            this.applyPageOfficeScope(this.selectedOfficeId);
+          }
+        });
+      },
+      error: () => {
+        this.offices = [];
+      }
+    });
+  }
+
+  private applyOfficeFromGlobal(officeId: number | null): void {
+    if (this.offices.length === 1) {
+      this.applyPageOfficeScope(this.offices[0].officeId);
+    } else if (this.offices.length > 1) {
+      const resolved = officeId != null && this.offices.some(o => o.officeId === officeId) ? officeId : null;
+      this.applyPageOfficeScope(resolved);
+    } else {
+      this.selectedOfficeId = officeId;
+      this.selectedOffice = null;
+    }
+  }
+
+  /** Title-bar office change on this page only (never updates global selection). */
+  private applyPageOfficeScope(officeId: number | null): void {
+    if (this.offices.length > 0) {
+      this.selectedOffice = this.utilityService.resolveSelectedOfficeById(this.offices, officeId);
+      this.selectedOfficeId = this.selectedOffice?.officeId ?? null;
+    } else {
+      this.selectedOffice = null;
+      this.selectedOfficeId = officeId;
+    }
+  }
+
+  shouldRouteToPropertyListForPageOfficeMismatch(officeId: number | null): boolean {
+    if (this.isAddMode) {
       return false;
     }
-    const selectedGlobalOfficeId = value == null || value === '' ? null : Number(value);
     const propertyOfficeId = this.propertySection?.sharedPropertyOfficeId ?? null;
-    if (selectedGlobalOfficeId == null || propertyOfficeId == null) {
+    if (officeId == null || propertyOfficeId == null) {
       return false;
     }
-    return selectedGlobalOfficeId !== propertyOfficeId;
+    return officeId !== propertyOfficeId;
   }
   //#endregion
 

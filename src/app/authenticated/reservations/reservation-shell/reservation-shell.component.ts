@@ -2,7 +2,7 @@ import { CommonModule } from '@angular/common';
 import { AfterViewInit, Component, OnDestroy, OnInit, ViewChild } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, Router } from '@angular/router';
-import { BehaviorSubject, Observable, Subject, finalize, map, take, takeUntil } from 'rxjs';
+import { BehaviorSubject, Observable, Subject, finalize, map, skip, take, takeUntil } from 'rxjs';
 import { CanComponentDeactivate } from '../../../guards/can-deactivate-guard';
 import { MaterialModule } from '../../../material.module';
 import { AuthService } from '../../../services/auth.service';
@@ -88,6 +88,12 @@ export class ReservationShellComponent implements OnInit, AfterViewInit, OnDestr
   ngOnInit(): void {
     this.organizationId = this.authService.getUser()?.organizationId?.trim() ?? '';
     this.isAdmin = this.authService.isAdmin();
+    /** Page-level office seeded from global; does not write global (title bar office is read-only). */
+    this.selectedOfficeId = this.globalSelectionService.getSelectedOfficeIdValue();
+
+    this.globalSelectionService.getSelectedOfficeId$().pipe(skip(1), takeUntil(this.destroy$)).subscribe(officeId => {
+      this.applyOfficeFromGlobal(officeId);
+    });
 
     this.route.queryParams.pipe(take(1)).subscribe(queryParams => {
       this.selectedTabIndex = this.getTabIndexFromQueryParam(queryParams['tab']);
@@ -398,25 +404,18 @@ export class ReservationShellComponent implements OnInit, AfterViewInit, OnDestr
 
   //#region Data Loading Methods
   loadOffices(): void {
-    this.globalSelectionService.ensureOfficeScope(this.organizationId).pipe(take(1), finalize(() => { this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'offices'); })).subscribe({
+    this.officeService.ensureOfficesLoaded(this.organizationId).pipe(take(1), finalize(() => { this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'offices'); })).subscribe({
       next: () => {
         this.officeService.getAllOffices().pipe(takeUntil(this.destroy$)).subscribe(offices => {
           this.offices = offices || [];
           this.availableOffices = this.mappingService.mapOfficesToDropdown(this.offices);
-          if (this.selectedOfficeId != null) {
+          this.showOfficeDropdown = this.offices.length > 1;
+          if (this.isAddMode && !this.routeReservationId) {
+            this.applyOfficeFromGlobal(this.selectedOfficeId);
+          } else if (this.selectedOfficeId != null) {
             this.resolveOfficeScope(this.selectedOfficeId);
-            this.showOfficeDropdown = this.offices.length > 1;
             this.refreshHeaderReservationOptions();
-            return;
           }
-          this.globalSelectionService.getOfficeUiState$(this.offices, { explicitOfficeId: this.selectedOfficeId, useGlobalSelection: false, requireExplicitOfficeUnset: true }).pipe(take(1)).subscribe({
-            next: uiState => {
-              this.showOfficeDropdown = uiState.showOfficeDropdown;
-              this.selectedOfficeId = uiState.selectedOfficeId;
-              this.resolveOfficeScope(this.selectedOfficeId);
-              this.refreshHeaderReservationOptions();
-            }
-          });
         });
       },
       error: () => {
@@ -426,6 +425,25 @@ export class ReservationShellComponent implements OnInit, AfterViewInit, OnDestr
         this.selectedOffice = null;
       }
     });
+  }
+
+  /** Follows global header on add flow; does not write global. Existing reservations keep property office. */
+  private applyOfficeFromGlobal(officeId: number | null): void {
+    if (!this.isAddMode && this.routeReservationId) {
+      return;
+    }
+    if (this.offices.length === 0) {
+      this.selectedOfficeId = officeId;
+      return;
+    }
+    if (this.offices.length === 1) {
+      this.selectedOfficeId = this.offices[0].officeId;
+    } else {
+      const resolved = officeId != null && this.offices.some(o => o.officeId === officeId) ? officeId : null;
+      this.selectedOfficeId = resolved;
+    }
+    this.resolveOfficeScope(this.selectedOfficeId);
+    this.refreshHeaderReservationOptions();
   }
 
   loadSelectedReservationContext(): void {

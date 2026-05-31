@@ -1076,8 +1076,14 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
   //#endregion
 
   //#region Form Response Methods
+  onTitleBarOfficeIdUpdate(officeId: number | null): void {
+    this.resolveOfficeScope(officeId, false);
+  }
+
   onOfficeChange(): void {
-    this.globalSelectionService.setSelectedOfficeId(this.selectedOffice?.officeId ?? null);
+    if (this.source !== 'accounting') {
+      this.globalSelectionService.setSelectedOfficeId(this.selectedOffice?.officeId ?? null);
+    }
     this.resolveOfficeScope(this.selectedOffice?.officeId ?? null, true);
   }
 

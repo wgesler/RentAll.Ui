@@ -13,18 +13,20 @@
             <span class="flex-shrink-0 text-xl font-medium">Tickets</span>
           </span>
           <div class="header-title form-titlebar-fields-wrap">
-            <mat-form-field appearance="outline" class="titlebar-field-office" [class.ticket-shell-office-invalid]="isOfficeSelectionInvalidOnSave">
-              <mat-label>Office</mat-label>
-              <mat-select
+            @if (showOfficeDropdown) {
+              <app-title-bar-select
+                [label]="'Office'"
+                [formFieldClass]="'titlebar-field-office'"
+                [class.ticket-shell-office-invalid]="isOfficeSelectionInvalidOnSave"
                 [value]="selectedOfficeId"
-                (selectionChange)="onOfficeFilterChange($event.value)"
-                [canSelectNullableOptions]="true">
-                <mat-option [value]="null">All Offices</mat-option>
-                @for (office of officeFilterOptions; track office.officeId) {
-                  <mat-option [value]="office.officeId">{{ office.officeName }}</mat-option>
-                }
-              </mat-select>
-            </mat-form-field>
+                [options]="officeOptions"
+                [nullOptionLabel]="'All Offices'"
+                [noResultsText]="'No offices match your search'"
+                [showError]="isOfficeSelectionInvalidOnSave"
+                [errorText]="'Office is required'"
+                (valueChange)="onOfficeDropdownChange($event)">
+              </app-title-bar-select>
+            }
             <mat-form-field appearance="outline" class="titlebar-field-property-code">
               <mat-label>Property Code</mat-label>
               <mat-select

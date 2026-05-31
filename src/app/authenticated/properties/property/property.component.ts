@@ -194,10 +194,11 @@ export class PropertyComponent implements OnInit, OnChanges, AfterViewInit, OnDe
     this.loadBuildings();
 
     this.globalSelectionService.getSelectedOfficeId$().pipe(skip(1), takeUntil(this.destroy$)).subscribe(officeId => {
-      if (this.offices.length > 0) {
-        this.resolveOfficeScope(officeId);
-        this.emitTitleBarContextToShell();
+      if (!this.isAddMode || this.offices.length === 0) {
+        return;
       }
+      this.resolveOfficeScope(officeId);
+      this.emitTitleBarContextToShell();
     });
 
     // Initialize dropdown menus
@@ -1485,13 +1486,13 @@ export class PropertyComponent implements OnInit, OnChanges, AfterViewInit, OnDe
     });
   }
 
-  applyTitleBarGlobalOfficeSelection(value: string | number | null): void {
+  /** Page-level office scope from shell title bar; does not write global selection. */
+  applyTitleBarPageOfficeSelection(value: string | number | null): void {
     const nextId = value == null || value === '' ? null : Number(value);
-    const current = this.selectedOffice?.officeId ?? this.globalSelectionService.getSelectedOfficeIdValue() ?? null;
+    const current = this.selectedOffice?.officeId ?? null;
     if (nextId === current) {
       return;
     }
-    this.globalSelectionService.setSelectedOfficeId(nextId);
     this.resolveOfficeScope(nextId);
     this.emitTitleBarContextToShell();
   }
@@ -1881,7 +1882,9 @@ export class PropertyComponent implements OnInit, OnChanges, AfterViewInit, OnDe
         this.officeService.getAllOffices().pipe(takeUntil(this.destroy$)).subscribe(offices => {
           this.offices = (offices || []).filter(f => f.organizationId === this.organizationId && f.isActive);
           this.showOfficeDropdown = this.offices.length > 1;
-          this.resolveOfficeScope(this.globalSelectionService.getSelectedOfficeIdValue());
+          this.resolveOfficeScope(
+            this.isAddMode ? this.globalSelectionService.getSelectedOfficeIdValue() : null
+          );
 
           if (!this.officesInitialized) {
             this.officesInitialized = true;

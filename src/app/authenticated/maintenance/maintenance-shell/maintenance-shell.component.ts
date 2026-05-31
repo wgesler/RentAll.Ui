@@ -2,7 +2,7 @@ import { CommonModule } from '@angular/common';
 import { Component, OnDestroy, OnInit, ViewChild } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, Router } from '@angular/router';
-import { BehaviorSubject, Observable, Subject, filter, finalize, map, switchMap, take, takeUntil } from 'rxjs';
+import { BehaviorSubject, Observable, Subject, filter, finalize, map, skip, switchMap, take, takeUntil } from 'rxjs';
 import { RouterUrl } from '../../../app.routes';
 import { CanComponentDeactivate } from '../../../guards/can-deactivate-guard';
 import { MaterialModule } from '../../../material.module';
@@ -66,9 +66,10 @@ export class MaintenanceShellComponent implements OnInit, OnDestroy, CanComponen
 
   userId = '';
   organizationId = '';
-  showOfficeDropdown = true;
   offices: OfficeResponse[] = [];
+  /** Page-level office filter: seeded from global; does not write global. */
   selectedOfficeId: number | null = null;
+  private initialOfficeScopeApplied = false;
 
   titleBarReservationId: string | null = null;
   shellReservations: ReservationListResponse[] = [];
@@ -116,7 +117,18 @@ export class MaintenanceShellComponent implements OnInit, OnDestroy, CanComponen
     this.clearPropertyOnOpen = ((this.route.snapshot.queryParamMap.get('clearProperty') || '').trim() === '1');
     this.userId = this.authService.getUser()?.userId?.trim() ?? '';
     this.organizationId = this.authService.getUser()?.organizationId?.trim() ?? '';
-    this.loadTitleBarOfficeScope();
+    this.selectedOfficeId = this.openWithAllSelections
+      ? null
+      : this.globalSelectionService.getSelectedOfficeIdValue();
+    this.loadOffices();
+    this.globalSelectionService
+      .getSelectedOfficeId$()
+      .pipe(skip(1), takeUntil(this.destroy$))
+      .subscribe(officeId => {
+        if (!this.openWithAllSelections) {
+          this.applyOfficeFromGlobal(officeId);
+        }
+      });
 
     this.isInspectorView = isInspectorOnlyUser(this.authService.getUser()?.userGroups as Array<string | number> | undefined);
     this.showWorkOrdersTab = !this.isInspectorView;
@@ -197,41 +209,39 @@ export class MaintenanceShellComponent implements OnInit, OnDestroy, CanComponen
     });
   }
 
-  loadTitleBarOfficeScope(): void {
+  loadOffices(): void {
     if (!this.organizationId) {
-      this.showOfficeDropdown = true;
-      this.selectedOfficeId = null;
       this.loadTitleBarProperties();
       return;
     }
 
-    this.globalSelectionService.ensureOfficeScope(this.organizationId).pipe(take(1)).subscribe({
+    this.officeService.ensureOfficesLoaded(this.organizationId).pipe(take(1)).subscribe({
       next: () => {
         this.officeService.getAllOffices().pipe(takeUntil(this.destroy$)).subscribe(offices => {
-          this.offices = offices || [];
-          this.globalSelectionService.getOfficeUiState$(this.offices, { requireExplicitOfficeUnset: true }).pipe(take(1)).subscribe({
-            next: uiState => {
-              setTimeout(() => {
-                this.showOfficeDropdown = true;
-                this.selectedOfficeId = this.openWithAllSelections
-                  ? null
-                  : this.normalizeOfficeId(uiState.selectedOfficeId);
-                if (this.openWithAllSelections) {
-                  this.globalSelectionService.setSelectedOfficeId(null);
-                }
-                this.loadTitleBarProperties();
-              }, 0);
+          this.offices = (offices || []).filter(
+            o => o.organizationId === this.organizationId && o.isActive
+          );
+
+          if (!this.initialOfficeScopeApplied) {
+            this.initialOfficeScopeApplied = true;
+            if (this.openWithAllSelections) {
+              this.applyPageOfficeScope(null);
+            } else if (this.offices.length === 1) {
+              this.applyPageOfficeScope(this.offices[0].officeId);
+            } else {
+              this.applyOfficeFromGlobal(
+                this.selectedOfficeId ?? this.globalSelectionService.getSelectedOfficeIdValue()
+              );
             }
-          });
+          } else if (this.selectedOfficeId != null) {
+            this.applyPageOfficeScope(this.selectedOfficeId);
+          }
+          this.loadTitleBarProperties();
         });
       },
       error: () => {
-        setTimeout(() => {
-          this.offices = [];
-          this.showOfficeDropdown = true;
-          this.selectedOfficeId = null;
-          this.loadTitleBarProperties();
-        }, 0);
+        this.offices = [];
+        this.loadTitleBarProperties();
       }
     });
   }
@@ -248,13 +258,20 @@ export class MaintenanceShellComponent implements OnInit, OnDestroy, CanComponen
       error: () => {
         this.allProperties = [];
         this.availableProperties = [];
-        this.showOfficeDropdown = true;
       }
     });
   }
   //#endregion
 
   //#region Getter Methods
+  get officeOptions(): SearchableSelectOption[] {
+    return this.offices.map(office => ({ value: office.officeId, label: office.name }));
+  }
+
+  get showOfficeDropdown(): boolean {
+    return this.offices.length > 0;
+  }
+
   get reservationOptions(): SearchableSelectOption[] {
     const officeId = this.property?.officeId ?? null;
     const rows = (this.shellReservations || []).filter(r => officeId == null || r.officeId === officeId);
@@ -411,44 +428,10 @@ export class MaintenanceShellComponent implements OnInit, OnDestroy, CanComponen
   //#endregion
 
   //#region Top Bar Event Methods
-  onOfficeChange(): void {
-    this.workOrderSaveValidationAttempted = false;
-    this.receiptSaveValidationAttempted = false;
-    if (this.skipNextOfficeChange) {
-      this.skipNextOfficeChange = false;
-      this.globalSelectionService.setSelectedOfficeId(this.selectedOfficeId);
-      this.updateAvailableProperties();
-      return;
-    }
-    const keepWorkOrderAddDetailOpen = this.isWorkOrderDetailActive
-      && (this.selectedWorkOrderId == null || this.maintenanceWorkOrderDetail?.isAddMode === true);
-    const keepReceiptAddDetailOpen = this.isReceiptDetailActive
-      && (this.selectedReceiptId == null || this.maintenanceReceiptDetail?.isAddMode === true);
-    this.globalSelectionService.setSelectedOfficeId(this.selectedOfficeId);
-    this.updateAvailableProperties();
-    if (this.property && this.selectedOfficeId !== this.property.officeId) {
-      this.selectedPropertyId = null;
-      this.property = null;
-      this.titleBarReservationId = null;
-      this.shellReservations = [];
-      if (!keepReceiptAddDetailOpen) {
-        this.showReceiptDetail = false;
-        this.selectedReceiptId = null;
-      } else {
-        this.showReceiptDetail = true;
-        this.selectedReceiptId = null;
-      }
-      if (!keepWorkOrderAddDetailOpen) {
-        this.showWorkOrderDetail = false;
-        this.selectedWorkOrderId = null;
-      } else {
-        this.showWorkOrderDetail = true;
-        this.selectedWorkOrderId = null;
-      }
-      if (this.selectedTabIndex === this.receiptsTabIndex) {
-        this.refreshReceiptsTrigger++;
-      }
-    }
+  onOfficeDropdownChange(value: string | number | null): void {
+    const officeId = value == null || value === '' ? null : Number(value);
+    this.applyPageOfficeScope(officeId);
+    this.applyPageOfficeChangeEffects();
   }
 
   async onPropertyCodeChange(): Promise<void> {
@@ -567,6 +550,61 @@ export class MaintenanceShellComponent implements OnInit, OnDestroy, CanComponen
     return numericValue;
   }
 
+  private applyOfficeFromGlobal(officeId: number | null): void {
+    if (this.offices.length === 1) {
+      this.applyPageOfficeScope(this.offices[0].officeId);
+    } else if (this.offices.length > 1) {
+      const resolved = officeId != null && this.offices.some(o => o.officeId === officeId) ? officeId : null;
+      this.applyPageOfficeScope(resolved);
+    } else {
+      this.applyPageOfficeScope(officeId);
+    }
+    this.applyPageOfficeChangeEffects();
+  }
+
+  /** Title-bar office change on this page only (never updates global selection). */
+  private applyPageOfficeScope(officeId: number | null): void {
+    this.selectedOfficeId = this.normalizeOfficeId(officeId);
+  }
+
+  private applyPageOfficeChangeEffects(): void {
+    this.workOrderSaveValidationAttempted = false;
+    this.receiptSaveValidationAttempted = false;
+    if (this.skipNextOfficeChange) {
+      this.skipNextOfficeChange = false;
+      this.updateAvailableProperties();
+      return;
+    }
+    const keepWorkOrderAddDetailOpen = this.isWorkOrderDetailActive
+      && (this.selectedWorkOrderId == null || this.maintenanceWorkOrderDetail?.isAddMode === true);
+    const keepReceiptAddDetailOpen = this.isReceiptDetailActive
+      && (this.selectedReceiptId == null || this.maintenanceReceiptDetail?.isAddMode === true);
+    this.updateAvailableProperties();
+    if (this.property && this.selectedOfficeId !== this.property.officeId) {
+      this.selectedPropertyId = null;
+      this.property = null;
+      this.titleBarReservationId = null;
+      this.shellReservations = [];
+      if (!keepReceiptAddDetailOpen) {
+        this.showReceiptDetail = false;
+        this.selectedReceiptId = null;
+      } else {
+        this.showReceiptDetail = true;
+        this.selectedReceiptId = null;
+      }
+      if (!keepWorkOrderAddDetailOpen) {
+        this.showWorkOrderDetail = false;
+        this.selectedWorkOrderId = null;
+      } else {
+        this.showWorkOrderDetail = true;
+        this.selectedWorkOrderId = null;
+      }
+      if (this.selectedTabIndex === this.receiptsTabIndex) {
+        this.refreshReceiptsTrigger++;
+      }
+    }
+  }
+
   setTitleBarReservationForCurrentProperty(reservationId: string | null): void {
     const normalizedReservationId = (reservationId || '').trim();
     if (!normalizedReservationId) {
@@ -631,8 +669,8 @@ export class MaintenanceShellComponent implements OnInit, OnDestroy, CanComponen
     this.receiptSaveValidationAttempted = false;
     if (selectedOfficeId !== this.selectedOfficeId) {
       this.skipNextOfficeChange = true;
-      this.selectedOfficeId = selectedOfficeId;
-      this.globalSelectionService.setSelectedOfficeId(this.selectedOfficeId);
+      this.applyPageOfficeScope(selectedOfficeId);
+      this.updateAvailableProperties();
     }
 
     const openReceiptDetail = () => {
@@ -666,8 +704,7 @@ export class MaintenanceShellComponent implements OnInit, OnDestroy, CanComponen
     this.receiptSaveValidationAttempted = false;
     this.showReceiptDetail = false;
     this.selectedReceiptId = null;
-    this.selectedOfficeId = null;
-    this.globalSelectionService.setSelectedOfficeId(null);
+    this.applyPageOfficeScope(null);
     this.selectedPropertyId = null;
     this.property = null;
     this.titleBarReservationId = null;
@@ -679,8 +716,7 @@ export class MaintenanceShellComponent implements OnInit, OnDestroy, CanComponen
     this.receiptSaveValidationAttempted = false;
     this.showReceiptDetail = false;
     this.selectedReceiptId = null;
-    this.selectedOfficeId = null;
-    this.globalSelectionService.setSelectedOfficeId(null);
+    this.applyPageOfficeScope(null);
     this.selectedPropertyId = null;
     this.property = null;
     this.titleBarReservationId = null;
@@ -724,7 +760,7 @@ export class MaintenanceShellComponent implements OnInit, OnDestroy, CanComponen
     this.showWorkOrderDetail = false;
     this.selectedWorkOrderId = null;
     this.workOrderSaveValidationAttempted = false;
-    this.selectedOfficeId = this.normalizeOfficeId(this.globalSelectionService.getSelectedOfficeIdValue());
+    this.applyPageOfficeScope(this.globalSelectionService.getSelectedOfficeIdValue());
     this.titleBarReservationId = null;
     this.selectedPropertyId = null;
     this.property = null;
@@ -737,7 +773,7 @@ export class MaintenanceShellComponent implements OnInit, OnDestroy, CanComponen
     this.showWorkOrderDetail = false;
     this.selectedWorkOrderId = null;
     this.workOrderSaveValidationAttempted = false;
-    this.selectedOfficeId = this.normalizeOfficeId(this.globalSelectionService.getSelectedOfficeIdValue());
+    this.applyPageOfficeScope(this.globalSelectionService.getSelectedOfficeIdValue());
     this.selectedPropertyId = null;
     this.property = null;
     this.titleBarReservationId = null;

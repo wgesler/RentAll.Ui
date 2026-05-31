@@ -21,18 +21,18 @@
 
           <div class="header-title form-titlebar-fields-wrap">
             @if (showOfficeDropdown) {
-              <mat-form-field appearance="outline" class="titlebar-field-office" [class.work-order-required-field]="showOfficeRequiredErrorForWorkOrder || showOfficeRequiredErrorForReceipt">
-                <mat-label>Office</mat-label>
-                <mat-select [(ngModel)]="selectedOfficeId" (selectionChange)="onOfficeChange()" [canSelectNullableOptions]="true">
-                  <mat-option [value]="null">All Offices</mat-option>
-                  @for (office of offices; track office.officeId) {
-                    <mat-option [value]="office.officeId">{{ office.name }}</mat-option>
-                  }
-                </mat-select>
-                @if (showOfficeRequiredErrorForWorkOrder || showOfficeRequiredErrorForReceipt) {
-                  <mat-error>Office is required</mat-error>
-                }
-              </mat-form-field>
+              <app-title-bar-select
+                [label]="'Office'"
+                [formFieldClass]="'titlebar-field-office'"
+                [class.work-order-required-field]="showOfficeRequiredErrorForWorkOrder || showOfficeRequiredErrorForReceipt"
+                [value]="selectedOfficeId"
+                [options]="officeOptions"
+                [nullOptionLabel]="'All Offices'"
+                [noResultsText]="'No offices match your search'"
+                [showError]="showOfficeRequiredErrorForWorkOrder || showOfficeRequiredErrorForReceipt"
+                [errorText]="'Office is required'"
+                (valueChange)="onOfficeDropdownChange($event)">
+              </app-title-bar-select>
             }
             <mat-form-field appearance="outline" class="titlebar-field-property-code" [class.work-order-required-field]="showPropertyRequiredErrorForWorkOrder || showPropertyRequiredErrorForReceipt">
               <mat-label>Property Code</mat-label>

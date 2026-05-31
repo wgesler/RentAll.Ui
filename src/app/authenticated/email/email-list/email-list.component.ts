@@ -314,7 +314,7 @@ export class EmailListComponent implements OnInit, OnDestroy, OnChanges {
 
   //#region Form Response Methods
   onOfficeChange(): void {
-    if (this.source !== 'emails') {
+    if (this.source !== 'emails' && !this.hideFilters) {
       this.globalSelectionService.setSelectedOfficeId(this.selectedOfficeId);
     }
     this.officeIdChange.emit(this.selectedOfficeId);

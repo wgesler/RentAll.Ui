@@ -320,7 +320,6 @@ export class GeneralListComponent implements OnInit, OnChanges, OnDestroy {
 
   resolveOfficeScope(officeId: number | null): void {
     this.selectedOffice = this.utilityService.resolveSelectedOfficeById(this.offices, officeId);
-    this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'officeScope');
     this.applyGeneralFilters();
   }
 

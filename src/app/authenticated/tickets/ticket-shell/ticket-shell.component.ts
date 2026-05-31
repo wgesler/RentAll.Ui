@@ -22,11 +22,13 @@ import { AddAlertDialogComponent, AddAlertDialogData } from '../../shared/modals
 import { UserService } from '../../users/services/user.service';
 import { TicketComponent } from '../ticket/ticket.component';
 import { TicketListComponent } from '../ticket-list/ticket-list.component';
+import { SearchableSelectOption } from '../../shared/searchable-select/searchable-select.component';
+import { TitleBarSelectComponent } from '../../shared/titlebar-select/titlebar-select.component';
 
 @Component({
   standalone: true,
   selector: 'app-ticket-shell',
-  imports: [CommonModule, FormsModule, MaterialModule, TicketListComponent, TicketComponent],
+  imports: [CommonModule, FormsModule, MaterialModule, TitleBarSelectComponent, TicketListComponent, TicketComponent],
   templateUrl: './ticket-shell.component.html',
   styleUrl: './ticket-shell.component.scss'
 })
@@ -70,6 +72,8 @@ export class TicketShellComponent implements OnInit, OnDestroy, CanComponentDeac
   isOfficeSelectionInvalidOnSave = false;
   organizationId = '';
   offices: OfficeResponse[] = [];
+  /** Page-level office filter: seeded from global; does not write global. */
+  private initialOfficeScopeApplied = false;
   properties: PropertyCodeResponse[] = [];
   reservations: ReservationCodeResponse[] = [];
   contacts: ContactResponse[] = [];
@@ -99,20 +103,21 @@ export class TicketShellComponent implements OnInit, OnDestroy, CanComponentDeac
   ngOnInit(): void {
     this.organizationId = this.authService.getUser()?.organizationId?.trim() ?? '';
     this.currentUserId = String(this.authService.getUser()?.userId || '').trim() || null;
+    this.selectedOfficeId = this.globalSelectionService.getSelectedOfficeIdValue();
 
     this.itemsToLoad$.pipe(takeUntil(this.destroy$)).subscribe(() => this.syncPageReadyFromLoadItems());
 
     this.loadCurrentUserAgentId();
     this.loadOffices();
+    this.globalSelectionService
+      .getSelectedOfficeId$()
+      .pipe(skip(1), takeUntil(this.destroy$))
+      .subscribe(officeId => {
+        this.applyOfficeFromGlobal(officeId);
+      });
     this.loadProperties();
     this.loadContacts();
     this.loadReservations();
-
-    this.globalSelectionService.getSelectedOfficeId$().pipe(skip(1), takeUntil(this.destroy$)).subscribe(officeId => {
-      if (this.offices.length > 0) {
-        this.onOfficeFilterChange(officeId);
-      }
-    });
 
     this.route.paramMap.pipe(takeUntil(this.destroy$)).subscribe(paramMap => {
       const id = paramMap.get('id');
@@ -209,26 +214,50 @@ export class TicketShellComponent implements OnInit, OnDestroy, CanComponentDeac
     this.closedTicketListSectionRef?.getTickets();
   }
 
+  onOfficeDropdownChange(value: string | number | null): void {
+    const officeId = value == null || value === '' ? null : Number(value);
+    this.applyPageOfficeScope(officeId);
+    this.applyPageOfficeChangeEffects();
+  }
+
   onOfficeFilterChange(officeId: number | null): void {
+    this.applyPageOfficeScope(officeId);
+    this.applyPageOfficeChangeEffects();
+  }
+
+  private applyPageOfficeChangeEffects(): void {
     if (this.isApplyingTicketSelectionContext) {
       return;
     }
-    const nextOfficeId = this.normalizeOfficeId(officeId);
-    const currentOfficeId = this.normalizeOfficeId(this.selectedOfficeId);
-    if (nextOfficeId === currentOfficeId) {
-      this.resolveOfficeScope(nextOfficeId);
-      this.syncFiltersToList();
-      return;
-    }
-    this.selectedOfficeId = nextOfficeId;
+    const nextOfficeId = this.normalizeOfficeId(this.selectedOfficeId);
     this.isOfficeSelectionInvalidOnSave = false;
-    this.resolveOfficeScope(this.selectedOfficeId);
+    this.resolveOfficeScope(nextOfficeId);
     const isSelectedPropertyInScope = !!this.selectedPropertyId && this.getFilteredPropertiesByOffice().some(property => property.propertyId === this.selectedPropertyId);
     if (!isSelectedPropertyInScope) {
       this.selectedPropertyId = null;
     }
     this.loadReservations(this.selectedReservationId);
     this.syncFiltersToList();
+  }
+
+  private applyOfficeFromGlobal(officeId: number | null): void {
+    if (this.isApplyingTicketSelectionContext) {
+      return;
+    }
+    if (this.offices.length === 1) {
+      this.applyPageOfficeScope(this.offices[0].officeId);
+    } else if (this.offices.length > 1) {
+      const resolved = officeId != null && this.offices.some(o => o.officeId === officeId) ? officeId : null;
+      this.applyPageOfficeScope(resolved);
+    } else {
+      this.applyPageOfficeScope(officeId);
+    }
+    this.applyPageOfficeChangeEffects();
+  }
+
+  /** Title-bar office change on this page only (never updates global selection). */
+  private applyPageOfficeScope(officeId: number | null): void {
+    this.selectedOfficeId = this.normalizeOfficeId(officeId);
   }
 
   onPropertyFilterChange(propertyId: string | null): void {
@@ -326,14 +355,31 @@ export class TicketShellComponent implements OnInit, OnDestroy, CanComponentDeac
   }
 
   loadOffices(): void {
-    this.globalSelectionService.ensureOfficeScope(this.organizationId).pipe(take(1), finalize(() => this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'offices'))).subscribe({
+    if (!this.organizationId) {
+      this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'offices');
+      return;
+    }
+
+    this.officeService.ensureOfficesLoaded(this.organizationId).pipe(take(1), finalize(() => this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'offices'))).subscribe({
       next: () => {
         this.officeService.getAllOffices().pipe(takeUntil(this.destroy$)).subscribe(offices => {
-          this.offices = offices || [];
-          const globalOfficeId = this.globalSelectionService.getSelectedOfficeIdValue();
-          this.selectedOfficeId = this.normalizeOfficeId(this.selectedOfficeId ?? globalOfficeId ?? null);
-          this.resolveOfficeScope(this.selectedOfficeId);
-          this.onOfficeFilterChange(this.selectedOfficeId);
+          this.offices = (offices || []).filter(
+            o => o.organizationId === this.organizationId && o.isActive
+          );
+
+          if (!this.initialOfficeScopeApplied) {
+            this.initialOfficeScopeApplied = true;
+            if (this.offices.length === 1) {
+              this.applyPageOfficeScope(this.offices[0].officeId);
+            } else {
+              this.applyOfficeFromGlobal(
+                this.selectedOfficeId ?? this.globalSelectionService.getSelectedOfficeIdValue()
+              );
+            }
+          } else if (this.selectedOfficeId != null) {
+            this.applyPageOfficeScope(this.selectedOfficeId);
+          }
+          this.syncFiltersToList();
           this.cdr.markForCheck();
         });
       },
@@ -425,6 +471,17 @@ export class TicketShellComponent implements OnInit, OnDestroy, CanComponentDeac
     return (this.properties || []).filter(property => Number(property.officeId) === scopedOfficeId);
   }
 
+  get officeOptions(): SearchableSelectOption[] {
+    return this.officeFilterOptions.map(office => ({
+      value: office.officeId,
+      label: office.officeName
+    }));
+  }
+
+  get showOfficeDropdown(): boolean {
+    return this.offices.length > 0;
+  }
+
   get officeFilterOptions(): { officeId: number; officeName: string }[] {
     const baseOptions = this.offices.map(office => ({ officeId: office.officeId, officeName: office.name }));
     const selectedOfficeId = this.selectedOfficeId;
@@ -498,7 +555,7 @@ export class TicketShellComponent implements OnInit, OnDestroy, CanComponentDeac
     this.selectedPropertyCodeFallback = null;
     this.selectedReservationCodeFallback = null;
     this.selectedOfficeNameFallback = null;
-    this.selectedOfficeId = this.normalizeOfficeId(this.globalSelectionService.getSelectedOfficeIdValue());
+    this.applyPageOfficeScope(this.globalSelectionService.getSelectedOfficeIdValue());
     this.resolveOfficeScope(this.selectedOfficeId);
     this.syncFiltersToList();
     this.loadReservations();

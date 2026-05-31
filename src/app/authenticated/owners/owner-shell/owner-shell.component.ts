@@ -1,7 +1,7 @@
 import { CommonModule } from '@angular/common';
 import { Component, OnDestroy, OnInit } from '@angular/core';
 import { ActivatedRoute, Router } from '@angular/router';
-import { BehaviorSubject, Observable, Subject, Subscription, catchError, combineLatest, concatMap, defer, finalize, from, map, of, shareReplay, switchMap, take, takeUntil, toArray } from 'rxjs';
+import { BehaviorSubject, Observable, Subject, Subscription, catchError, combineLatest, concatMap, defer, finalize, from, map, of, shareReplay, skip, switchMap, take, takeUntil, toArray } from 'rxjs';
 import { ToastrService } from 'ngx-toastr';
 import { MaterialModule } from '../../../material.module';
 import { RouterUrl } from '../../../app.routes';
@@ -53,8 +53,10 @@ export class OwnerShellComponent implements OnInit, OnDestroy {
   // Guards the property-code/contact load so it runs once per owner context instead of on every tab
   // switch. Reset when the owner or office changes (those legitimately require a refresh).
   propertyContextLoaded = false;
+  /** Page-level office filter: seeded from global; does not write global. */
   selectedOfficeId: number | null = null;
   selectedOrganizationId: string | null = null;
+  private initialOfficeScopeApplied = false;
   selectedPropertyId = this.newPropertyOptionValue;
   newPropertyCode = '';
   propertyCodeTitleBarShowError = false;
@@ -103,7 +105,17 @@ export class OwnerShellComponent implements OnInit, OnDestroy {
     this.isOwnerAdmin = this.authService.isOwnerAdmin();
     this.canAccessInformationTab = this.authService.isAdmin();
     this.selectedTabIndex = 0;
+    this.selectedOfficeId = this.globalSelectionService.getSelectedOfficeIdValue();
     this.loadOffices();
+    this.globalSelectionService
+      .getSelectedOfficeId$()
+      .pipe(skip(1), takeUntil(this.destroy$))
+      .subscribe(officeId => {
+        if (this.isOwnerLinkMode() || this.isPublicOwnerTokenContext(this.token)) {
+          return;
+        }
+        this.applyOfficeFromGlobal(officeId);
+      });
 
     // One-way latch: the full-page spinner only covers the initial load. Once the shell is ready it
     // stays visible, so background reloads (state forms, property options on a tab switch or office
@@ -168,8 +180,7 @@ export class OwnerShellComponent implements OnInit, OnDestroy {
     if (token) {
       this.isOwnerListMode = false;
       if (Number.isFinite(officeId) && officeId > 0) {
-        this.selectedOfficeId = officeId;
-        this.globalSelectionService.setSelectedOfficeId(officeId);
+        this.applyPageOfficeScope(officeId);
       }
       this.selectedPropertyId = this.newPropertyOptionValue;
       this.newPropertyCode = String(propertyCode || '').trim().toUpperCase();
@@ -183,7 +194,7 @@ export class OwnerShellComponent implements OnInit, OnDestroy {
       this.isOwnerListMode = false;
       this.leadOwnerId = leadOwnerId;
       if (Number.isFinite(officeId) && officeId > 0) {
-        this.selectedOfficeId = officeId;
+        this.applyPageOfficeScope(officeId);
       }
       if (this.tabUsesPropertySelection(this.selectedTabIndex)) {
         this.loadPropertyCodeOptions();
@@ -236,15 +247,8 @@ export class OwnerShellComponent implements OnInit, OnDestroy {
     // Office change invalidates the owner's property options; force a reload on the next property
     // tab visit (or immediately if already on one).
     this.propertyContextLoaded = false;
-    if (value == null || value === '') {
-      this.selectedOfficeId = null;
-      if (this.tabUsesPropertySelection(this.selectedTabIndex) && !this.isOwnerListMode) {
-        this.loadPropertyCodeOptions();
-      }
-      this.rebuildOwnerAgreementContext();
-      return;
-    }
-    this.selectedOfficeId = Number(value);
+    const officeId = value == null || value === '' ? null : Number(value);
+    this.applyPageOfficeScope(officeId);
     if (this.tabUsesPropertySelection(this.selectedTabIndex) && !this.isOwnerListMode) {
       this.loadPropertyCodeOptions();
     }
@@ -334,8 +338,7 @@ export class OwnerShellComponent implements OnInit, OnDestroy {
         this.selectedOrganizationId = String(organization?.organizationId || office?.organizationId || '').trim() || null;
         const officeId = Number(office?.officeId);
         if (Number.isFinite(officeId) && officeId > 0) {
-          this.selectedOfficeId = officeId;
-          this.globalSelectionService.setSelectedOfficeId(officeId);
+          this.applyPageOfficeScope(officeId);
         }
         const officeName = String(office?.name || '').trim();
         if (officeName) {
@@ -363,15 +366,22 @@ export class OwnerShellComponent implements OnInit, OnDestroy {
     this.officesSubscription?.unsubscribe();
     this.officesSubscription = this.ownersService.getOfficeListStreamByContext(null, organizationId).pipe(takeUntil(this.destroy$)).subscribe({
       next: offices => {
-        this.offices = offices || [];
+        this.offices = (offices || []).filter(o => o.isActive);
         this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'offices');
-        if (this.selectedOfficeId != null && this.offices.some(office => office.officeId === this.selectedOfficeId)) {
+        if (!this.initialOfficeScopeApplied) {
+          this.initialOfficeScopeApplied = true;
+          if (this.offices.length === 1) {
+            this.applyPageOfficeScope(this.offices[0].officeId);
+          } else {
+            this.applyOfficeFromGlobal(
+              this.selectedOfficeId ?? this.globalSelectionService.getSelectedOfficeIdValue()
+            );
+          }
+        } else if (this.selectedOfficeId != null && this.offices.some(office => office.officeId === this.selectedOfficeId)) {
           return;
+        } else if (this.selectedOfficeId != null) {
+          this.applyPageOfficeScope(this.selectedOfficeId);
         }
-        const globalOfficeId = this.globalSelectionService.getSelectedOfficeIdValue();
-        this.selectedOfficeId = globalOfficeId != null && this.offices.some(office => office.officeId === globalOfficeId)
-          ? globalOfficeId
-          : null;
       },
       error: () => {
         this.offices = [];
@@ -652,8 +662,30 @@ export class OwnerShellComponent implements OnInit, OnDestroy {
 
   //#region Utility Methods
   onBackToOwnerList(): void {
-    this.selectedOfficeId = this.globalSelectionService.getSelectedOfficeIdValue();
+    this.applyPageOfficeScope(this.globalSelectionService.getSelectedOfficeIdValue());
     void this.router.navigateByUrl(RouterUrl.OwnerShell);
+  }
+
+  private applyOfficeFromGlobal(officeId: number | null): void {
+    if (this.offices.length === 1) {
+      this.applyPageOfficeScope(this.offices[0].officeId);
+    } else if (this.offices.length > 1) {
+      const resolved = officeId != null && this.offices.some(o => o.officeId === officeId) ? officeId : null;
+      this.applyPageOfficeScope(resolved);
+    } else {
+      this.applyPageOfficeScope(officeId);
+    }
+    if (this.tabUsesPropertySelection(this.selectedTabIndex) && !this.isOwnerListMode) {
+      this.propertyContextLoaded = false;
+      this.loadPropertyCodeOptions();
+    }
+    this.rebuildOwnerAgreementContext();
+  }
+
+  /** Title-bar office change on this page only (never updates global selection). */
+  private applyPageOfficeScope(officeId: number | null): void {
+    const numericValue = Number(officeId);
+    this.selectedOfficeId = Number.isFinite(numericValue) && numericValue > 0 ? numericValue : null;
   }
   
   ngOnDestroy(): void {

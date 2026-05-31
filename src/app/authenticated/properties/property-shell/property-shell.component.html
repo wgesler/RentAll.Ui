@@ -9,14 +9,26 @@
           </span>
         </span>
 
+        <div class="header-title form-titlebar-fields-wrap">
+          @if (offices.length > 0) {
+            <app-title-bar-select
+              [label]="'Office'"
+              [formFieldClass]="'titlebar-field-office'"
+              [value]="selectedOfficeId"
+              [options]="officeOptions"
+              [nullOptionLabel]="'All Offices'"
+              [noResultsText]="'No offices match your search'"
+              (valueChange)="onOfficeDropdownChange($event)">
+            </app-title-bar-select>
+          }
+
         @if (propertySection?.form) {
-          <div class="header-title form-titlebar-fields-wrap">
             @if (isHeaderPropertyOfficeEditable) {
               <app-title-bar-select
                 [label]="'Property Office'"
-                [formFieldClass]="'titlebar-field-office'"
+                [formFieldClass]="'titlebar-field-property-office'"
                 [value]="titleBarPropertyOfficeId"
-                [options]="officeOptions"
+                [options]="propertyOfficeOptions"
                 [nullOptionLabel]="'Select Office'"
                 [noResultsText]="'No offices match your search'"
                 [labelRequiredAsterisk]="!!propertySection?.isAddMode"
@@ -113,8 +125,8 @@
                 (valueChange)="onHeaderDocumentTypeDropdownChange($event)">
               </app-title-bar-select>
             }
-          </div>
         }
+        </div>
       </div>
 
       <div class="flex items-center gap-3 ml-[10px]">
@@ -133,7 +145,11 @@
     <mat-card>
       <mat-tab-group [selectedIndex]="selectedTabIndex" class="property-tabs dbg-band-tabs" (selectedIndexChange)="onTabIndexChange($event)">
         <mat-tab label="Property">
-          <app-property #propertySection (titleBarContextChange)="onTitleBarContextFromProperty($event)"></app-property>
+          <app-property
+            #propertySection
+            [shellOfficeId]="isAddMode ? selectedOfficeId : null"
+            (titleBarContextChange)="onTitleBarContextFromProperty($event)">
+          </app-property>
         </mat-tab>
 
         <mat-tab label="Information">

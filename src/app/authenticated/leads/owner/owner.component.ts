@@ -18,10 +18,9 @@ import { ContactRequest } from '../../contacts/models/contact.model';
 import { ContactService } from '../../contacts/services/contact.service';
 import { AgentResponse } from '../../organizations/models/agent.model';
 import { AgentService } from '../../organizations/services/agent.service';
-import { GlobalSelectionService } from '../../organizations/services/global-selection.service';
-import { OfficeResponse } from '../../organizations/models/office.model';
-import { OfficeService } from '../../organizations/services/office.service';
+import { PropertyCodeResponse } from '../../properties/models/property.model';
 import { getPropertyTypes } from '../../properties/models/property-enums';
+import { PropertyService } from '../../properties/services/property.service';
 import { LeadOwnerRequest, LeadOwnerResponse, LeadOwnerUpdateRequest } from '../models/lead-owner.model';
 import { LEAD_STATE_SELECT_OPTIONS, LeadStateType } from '../models/lead-enums';
 import { LeadsService } from '../services/leads.service';
@@ -49,15 +48,14 @@ export class OwnerComponent implements OnInit, OnChanges, OnDestroy {
   lead: LeadOwnerResponse | null = null;
   leadStateOptions = LEAD_STATE_SELECT_OPTIONS;
   organizationId = '';
-  offices: OfficeResponse[] = [];
   propertyTypeOptions = getPropertyTypes();
-  officeScopeResolved = false;
-  selectedOffice: OfficeResponse | null = null;
+  allPropertyCodes: PropertyCodeResponse[] = [];
+  propertyCodeOptions: PropertyCodeResponse[] = [];
 
   agents: AgentResponse[] = [];
   states: string[] = [];
 
-  itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['owner-lead']));
+  itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['owner-lead', 'property-codes']));
   destroy$ = new Subject<void>();
 
   constructor(
@@ -72,8 +70,7 @@ export class OwnerComponent implements OnInit, OnChanges, OnDestroy {
     private utilityService: UtilityService,
     private formatterService: FormatterService,
     private mappingService: MappingService,
-    private globalSelectionService: GlobalSelectionService,
-    private officeService: OfficeService,
+    private propertyService: PropertyService,
     private commonService: CommonService,
     private cdr: ChangeDetectorRef
   ) {
@@ -88,7 +85,7 @@ export class OwnerComponent implements OnInit, OnChanges, OnDestroy {
       this.markViewForCheck();
     });
  
-    this.loadOffices();
+    this.loadPropertyCodes();
     this.loadAgents();
     this.loadStates();
     this.getOwnerLead(this.shellLeadId);
@@ -96,7 +93,14 @@ export class OwnerComponent implements OnInit, OnChanges, OnDestroy {
 
   ngOnChanges(changes: SimpleChanges): void {
     if (changes['officeId']) {
-      this.resolveOfficeScope(this.officeId);
+      this.refreshPropertyCodeOptions();
+      const currentCode = this.normalizePropertyCodeValue(this.form.get('propertyCode')?.value);
+      if (currentCode && !this.propertyCodeOptions.some(
+        property => String(property.propertyCode || '').trim().toUpperCase() === currentCode.toUpperCase()
+      )) {
+        this.form.patchValue({ propertyCode: null, propertyOffice: '' }, { emitEvent: false });
+      }
+      this.syncPropertyOfficeFromSelectedCode();
     }
 
     if (changes['shellLeadId'] && !changes['shellLeadId'].firstChange) {
@@ -303,6 +307,8 @@ export class OwnerComponent implements OnInit, OnChanges, OnDestroy {
 
   formReset(): void {
     this.form.reset(this.defaultFormValues());
+    this.refreshPropertyCodeOptions();
+    this.syncPropertyOfficeFromSelectedCode();
   }
 
   populateForm(lead: LeadOwnerResponse): void {
@@ -333,7 +339,7 @@ export class OwnerComponent implements OnInit, OnChanges, OnDestroy {
       numberOfBaths: lead.numberOfBaths ?? '',
       approxSqFootage: lead.approxSqFootage ?? '',
       propertyTypeId: lead.propertyTypeId ?? null,
-      propertyCode: lead.propertyCode ?? '',
+      propertyCode: this.normalizePropertyCodeValue(lead.propertyCode),
       propertyOffice: lead.propertyOffice ?? '',
       tellUsWhatYouLikeMostAboutYourProperty: lead.tellUsWhatYouLikeMostAboutYourProperty ?? '',
       tellUsAnyDrawbacks: lead.tellUsAnyDrawbacks ?? '',
@@ -344,6 +350,8 @@ export class OwnerComponent implements OnInit, OnChanges, OnDestroy {
       smsConsent: !!lead.smsConsent,
       isActive: !!lead.isActive
     });
+    this.refreshPropertyCodeOptions();
+    this.syncPropertyOfficeFromSelectedCode();
   }
 
   defaultFormValues() {
@@ -371,7 +379,7 @@ export class OwnerComponent implements OnInit, OnChanges, OnDestroy {
       numberOfBaths: '',
       approxSqFootage: '',
       propertyTypeId: null as number | null,
-      propertyCode: '',
+      propertyCode: null as string | null,
       propertyOffice: '',
       tellUsWhatYouLikeMostAboutYourProperty: '',
       tellUsAnyDrawbacks: '',
@@ -403,10 +411,8 @@ export class OwnerComponent implements OnInit, OnChanges, OnDestroy {
     this.form.get(controlName)?.setValue(v, { emitEvent: false });
   }
 
-  resolveOfficeScope(officeId: number | null): void {
-    this.selectedOffice = this.utilityService.resolveSelectedOfficeById(this.offices, officeId);
-    this.officeScopeResolved = true;
-    this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'officeScope');
+  onPropertyCodeSelected(): void {
+    this.syncPropertyOfficeFromSelectedCode();
   }
 
   agentSelectLabel(agent: AgentResponse): string {
@@ -417,31 +423,20 @@ export class OwnerComponent implements OnInit, OnChanges, OnDestroy {
     return String(agent.agentCode ?? '').trim() || '—';
   }
 
-  resolveCreateOfficeId(): number | null {
-    const fromShell = this.officeId;
-    if (fromShell != null && fromShell > 0) {
-      return fromShell;
-    }
-    const fromResolved = this.selectedOffice?.officeId ?? null;
-    if (fromResolved != null && fromResolved > 0) {
-      return fromResolved;
-    }
-    return this.globalSelectionService.getSelectedOfficeIdValue();
-  }
-
   resolveSaveOfficeId(): number | null {
     const fromShell = this.officeId;
     if (fromShell != null && fromShell > 0) {
       return fromShell;
     }
-    if (this.isAddMode) {
-      return this.resolveCreateOfficeId();
+    const fromProperty = this.findPropertyCodeRow(this.form.get('propertyCode')?.value)?.officeId ?? null;
+    if (fromProperty != null && fromProperty > 0) {
+      return fromProperty;
     }
     const fromLead = this.lead?.officeId ?? null;
     if (fromLead != null && fromLead > 0) {
       return fromLead;
     }
-    return this.resolveCreateOfficeId();
+    return null;
   }
 
   resolveAgentIdFromAgentCode(agentCode: string | null | undefined): string | null {
@@ -480,24 +475,20 @@ export class OwnerComponent implements OnInit, OnChanges, OnDestroy {
   //#endregion
 
   //#region Data Loading Methods
-  loadOffices(): void {
-    this.globalSelectionService.ensureOfficeScope(this.organizationId).pipe(take(1)).subscribe({
-      next: () => {
-        this.officeService.getAllOffices().pipe(take(1)).subscribe({
-          next: offices => {
-            this.offices = offices || [];
-            this.resolveOfficeScope(this.officeId);
-            this.cdr.markForCheck();
-          },
-          error: () => {
-            this.offices = [];
-            this.cdr.markForCheck();
-          }
-        });
+  loadPropertyCodes(): void {
+    this.propertyService.getPropertyCodes().pipe(take(1), finalize(() => {
+      this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'property-codes');
+      this.refreshPropertyCodeOptions();
+      this.syncPropertyOfficeFromSelectedCode();
+      this.markViewForCheck();
+    })).subscribe({
+      next: codes => {
+        this.allPropertyCodes = (codes || []).slice().sort((a, b) =>
+          String(a.propertyCode || '').localeCompare(String(b.propertyCode || ''), undefined, { sensitivity: 'base' })
+        );
       },
       error: () => {
-        this.offices = [];
-        this.cdr.markForCheck();
+        this.allPropertyCodes = [];
       }
     });
   }
@@ -532,6 +523,56 @@ export class OwnerComponent implements OnInit, OnChanges, OnDestroy {
   //#endregion
 
   //#region Utility Methods
+  refreshPropertyCodeOptions(): void {
+    const scopeOfficeId = this.officeId != null && this.officeId > 0 ? this.officeId : null;
+    const scoped = scopeOfficeId == null
+      ? this.allPropertyCodes
+      : this.allPropertyCodes.filter(property => Number(property.officeId) === scopeOfficeId);
+    const byCode = new Map<string, PropertyCodeResponse>();
+    scoped.forEach(property => {
+      const code = String(property.propertyCode || '').trim();
+      if (code) {
+        byCode.set(code.toUpperCase(), property);
+      }
+    });
+    const currentCode = this.normalizePropertyCodeValue(this.form.get('propertyCode')?.value);
+    if (currentCode && !byCode.has(currentCode.toUpperCase())) {
+      const leadOfficeName = String(this.lead?.propertyOffice || this.form.get('propertyOffice')?.value || '').trim();
+      byCode.set(currentCode.toUpperCase(), {
+        propertyId: '',
+        propertyCode: currentCode,
+        propertyLeaseTypeId: 0,
+        shortAddress: '',
+        officeId: Number(this.lead?.officeId) || 0,
+        officeName: leadOfficeName
+      });
+    }
+    this.propertyCodeOptions = Array.from(byCode.values()).sort((a, b) =>
+      String(a.propertyCode || '').localeCompare(String(b.propertyCode || ''), undefined, { sensitivity: 'base' })
+    );
+  }
+
+  findPropertyCodeRow(propertyCode: string | null | undefined): PropertyCodeResponse | null {
+    const normalized = this.normalizePropertyCodeValue(propertyCode);
+    if (!normalized) {
+      return null;
+    }
+    return this.allPropertyCodes.find(
+      property => String(property.propertyCode || '').trim().toUpperCase() === normalized.toUpperCase()
+    ) ?? null;
+  }
+
+  syncPropertyOfficeFromSelectedCode(): void {
+    const row = this.findPropertyCodeRow(this.form.get('propertyCode')?.value);
+    const officeName = row?.officeName ? String(row.officeName).trim() : '';
+    this.form.get('propertyOffice')?.setValue(officeName, { emitEvent: false });
+  }
+
+  normalizePropertyCodeValue(value: string | null | undefined): string | null {
+    const code = String(value ?? '').trim();
+    return code === '' ? null : code;
+  }
+
   markViewForCheck(): void {
     this.cdr.markForCheck();
   }

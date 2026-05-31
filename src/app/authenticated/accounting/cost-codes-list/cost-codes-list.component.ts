@@ -257,8 +257,19 @@ export class CostCodesListComponent implements OnInit, OnDestroy, OnChanges {
   //#endregion
 
   //#region Filter Methods
+  onTitleBarOfficeIdUpdate(officeId: number | null): void {
+    if (this.offices.length > 0) {
+      this.resolveOfficeScope(officeId, false);
+    } else {
+      this.selectedOffice = null;
+      this.filterCostCodes();
+    }
+  }
+
   onOfficeChange(): void {
-    this.globalSelectionService.setSelectedOfficeId(this.selectedOffice?.officeId ?? null);
+    if (!this.embeddedInSettings) {
+      this.globalSelectionService.setSelectedOfficeId(this.selectedOffice?.officeId ?? null);
+    }
     if (this.selectedOffice) {
       this.officeIdChange.emit(this.selectedOffice.officeId);
     } else {

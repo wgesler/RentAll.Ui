@@ -2,7 +2,7 @@
 import { Component, OnDestroy, OnInit, ViewChild } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, Router } from '@angular/router';
-import { Subject, takeUntil } from 'rxjs';
+import { Subject, skip, take, takeUntil } from 'rxjs';
 import { RouterUrl } from '../../../app.routes';
 import { MaterialModule } from '../../../material.module';
 import { AuthService } from '../../../services/auth.service';
@@ -10,6 +10,8 @@ import { UtilityService } from '../../../services/utility.service';
 import { OrganizationResponse } from '../../organizations/models/organization.model';
 import { OrganizationService } from '../../organizations/services/organization.service';
 import { OfficeResponse } from '../../organizations/models/office.model';
+import { GlobalSelectionService } from '../../organizations/services/global-selection.service';
+import { OfficeService } from '../../organizations/services/office.service';
 import { ContactResponse } from '../../contacts/models/contact.model';
 import { UserGroups } from '../../users/models/user-enums';
 import { DocumentListComponent } from '../../documents/document-list/document-list.component';
@@ -51,9 +53,12 @@ export class AccountingComponent implements OnInit, OnDestroy {
   currentUserOrganizationId: string | null = null;
 
   organizations: OrganizationResponse[] = [];
-  availableOffices: OfficeResponse[] = [];
+  offices: OfficeResponse[] = [];
+  organizationId = '';
+  private initialOfficeScopeApplied = false;
   selectedOrganizationId: string | null = null;
-  selectedOfficeId: number | null = null; 
+  /** Page-level office filter: seeded from global; does not write global. */
+  selectedOfficeId: number | null = null;
   selectedCompanyId: string | null = null; 
   selectedReservationId: string | null = null; 
   activeInvoiceId: string | null = null;
@@ -66,14 +71,27 @@ export class AccountingComponent implements OnInit, OnDestroy {
     private authService: AuthService,
     private organizationService: OrganizationService,
     private costCodesService: CostCodesService,
-    private utilityService: UtilityService
+    private utilityService: UtilityService,
+    private officeService: OfficeService,
+    private globalSelectionService: GlobalSelectionService
   ) { }
 
   //#region Accounting
   ngOnInit(): void {
     // Shared accounting reference data: load once for all accounting tabs/components.
     this.costCodesService.ensureCostCodesLoaded();
+    this.organizationId = this.authService.getUser()?.organizationId?.trim() ?? '';
     this.initializeSuperAdminFilters();
+    if (!this.isSuperAdmin) {
+      this.selectedOfficeId = this.globalSelectionService.getSelectedOfficeIdValue();
+      this.loadOffices();
+      this.globalSelectionService
+        .getSelectedOfficeId$()
+        .pipe(skip(1), takeUntil(this.destroy$))
+        .subscribe(officeId => {
+          this.applyOfficeFromGlobal(officeId);
+        });
+    }
     this.applyQueryParamState(this.route.snapshot.queryParams);
     
     this.route.queryParams
@@ -225,6 +243,7 @@ export class AccountingComponent implements OnInit, OnDestroy {
   //#region Tab Selections
   onTabChange(event: any): void {
     this.selectedTabIndex = event.index;
+    this.propagateOfficeToAccountingTabs();
     this.costCodesService.ensureCostCodesLoaded();
     const queryParams: any = { tab: event.index.toString() };
     this.router.navigate([], { 
@@ -323,6 +342,14 @@ export class AccountingComponent implements OnInit, OnDestroy {
     return (reservations || []).map(reservation => ({ value: reservation.value.reservationId, label: reservation.label }));
   }
 
+  get showShellOfficeDropdown(): boolean {
+    return !this.isSuperAdmin && this.offices.length > 0;
+  }
+
+  get shellOfficeTitleBarOptions(): { value: number, label: string }[] {
+    return this.getOfficeOptions(this.offices);
+  }
+
   get organizationTitleBarOptions(): { value: string, label: string }[] {
     return (this.organizations || []).map((organization) => ({
       value: organization.organizationId,
@@ -363,6 +390,15 @@ export class AccountingComponent implements OnInit, OnDestroy {
 
   getInvoiceEditorReservationFieldClass(): string {
     return 'titlebar-field-reservation';
+  }
+
+  onShellOfficeDropdownChange(value: string | number | null): void {
+    const officeId = value == null || value === '' ? null : Number(value);
+    this.applyPageOfficeScope(officeId);
+    if (this.selectedTabIndex === 4) {
+      this.selectedReservationId = null;
+    }
+    this.propagateOfficeToAccountingTabs();
   }
 
   onAccountingOrganizationDropdownChange(value: string | number | null): void {
@@ -557,7 +593,8 @@ export class AccountingComponent implements OnInit, OnDestroy {
     }
 
     if ('officeId' in params) {
-      this.selectedOfficeId = getNumberQueryParam(params, 'officeId');
+      this.applyPageOfficeScope(getNumberQueryParam(params, 'officeId'));
+      this.propagateOfficeToAccountingTabs();
     }
 
     if ('reservationId' in params) {
@@ -574,6 +611,67 @@ export class AccountingComponent implements OnInit, OnDestroy {
       const organizationId = params['organizationId'];
       this.selectedOrganizationId = organizationId ? String(organizationId) : null;
     }
+  }
+
+  loadOffices(): void {
+    if (!this.organizationId) {
+      return;
+    }
+
+    this.officeService.ensureOfficesLoaded(this.organizationId).pipe(take(1)).subscribe({
+      next: () => {
+        this.officeService.getAllOffices().pipe(takeUntil(this.destroy$)).subscribe(offices => {
+          this.offices = (offices || []).filter(
+            o => o.organizationId === this.organizationId && o.isActive
+          );
+
+          if (!this.initialOfficeScopeApplied) {
+            this.initialOfficeScopeApplied = true;
+            if (this.offices.length === 1) {
+              this.applyPageOfficeScope(this.offices[0].officeId);
+            } else {
+              this.applyOfficeFromGlobal(
+                this.selectedOfficeId ?? this.globalSelectionService.getSelectedOfficeIdValue()
+              );
+            }
+            this.propagateOfficeToAccountingTabs();
+          }
+        });
+      },
+      error: () => {
+        this.offices = [];
+      }
+    });
+  }
+
+  private applyOfficeFromGlobal(officeId: number | null): void {
+    if (this.offices.length === 1) {
+      this.applyPageOfficeScope(this.offices[0].officeId);
+    } else if (this.offices.length > 1) {
+      const resolved = officeId != null && this.offices.some(o => o.officeId === officeId) ? officeId : null;
+      this.applyPageOfficeScope(resolved);
+    } else {
+      this.applyPageOfficeScope(officeId);
+    }
+    if (this.selectedTabIndex === 4) {
+      this.selectedReservationId = null;
+    }
+    this.propagateOfficeToAccountingTabs();
+  }
+
+  /** Title-bar office change on this page only (never updates global selection). */
+  private applyPageOfficeScope(officeId: number | null): void {
+    this.selectedOfficeId = officeId;
+  }
+
+  private propagateOfficeToAccountingTabs(): void {
+    queueMicrotask(() => {
+      this.accountingInvoiceList?.onTitleBarOfficeIdUpdate(this.selectedOfficeId);
+      this.accountingCostCodes?.onTitleBarOfficeIdUpdate(this.selectedOfficeId);
+      this.accountingGeneralLedger?.onTitleBarOfficeIdUpdate(this.selectedOfficeId);
+      this.accountingEmailList?.onTitleBarOfficeIdUpdate(this.selectedOfficeId);
+      this.accountingDocumentList?.onTitleBarOfficeIdUpdate(this.selectedOfficeId);
+    });
   }
 
   closeEmbeddedInvoiceEditor(): void {

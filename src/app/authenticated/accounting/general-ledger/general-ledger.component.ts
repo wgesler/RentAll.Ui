@@ -123,11 +123,13 @@ export class GeneralLedgerComponent implements OnInit, OnChanges, OnDestroy {
     this.loadCostCodes();
     this.loadInvoices();
 
-    this.globalSelectionService.getSelectedOfficeId$().pipe(skip(1), takeUntil(this.destroy$)).subscribe(officeId => {
-      if (this.offices.length > 0) {
-        this.resolveOfficeScope(officeId, true);
-      }
-    });
+    if (!this.hideFilters) {
+      this.globalSelectionService.getSelectedOfficeId$().pipe(skip(1), takeUntil(this.destroy$)).subscribe(officeId => {
+        if (this.offices.length > 0) {
+          this.resolveOfficeScope(officeId, true);
+        }
+      });
+    }
 
     this.officeService.areOfficesLoaded().pipe(filter(loaded => loaded === true), take(1)).subscribe(() => {
       if (this.officeId !== null && this.officeId !== undefined && this.offices.length > 0) {
@@ -176,8 +178,14 @@ export class GeneralLedgerComponent implements OnInit, OnChanges, OnDestroy {
     }
   }
    
+  onTitleBarOfficeIdUpdate(officeId: number | null): void {
+    this.resolveOfficeScope(officeId, false);
+  }
+
   onOfficeChange(): void {
-    this.globalSelectionService.setSelectedOfficeId(this.selectedOfficeId);
+    if (!this.hideFilters) {
+      this.globalSelectionService.setSelectedOfficeId(this.selectedOfficeId);
+    }
     this.officeIdChange.emit(this.selectedOfficeId);
     this.filterCompanyContacts();
     this.filterReservations();

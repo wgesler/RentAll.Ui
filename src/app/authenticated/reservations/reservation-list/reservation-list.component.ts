@@ -73,6 +73,9 @@ export class ReservationListComponent implements OnInit, OnDestroy, OnChanges {
   isCompactView = false;
   canEditIsActiveCheckbox = false;
 
+  /** Page-level office filter: seeded from global; does not write global. */
+  private pageOfficeId: number | null = null;
+  private initialOfficeScopeApplied = false;
   private readonly compactViewportWidth = 1024;
   private readonly fullReservationsDisplayedColumns: ColumnSet = {
     'reservationCode': { displayAs: 'Reservation', maxWidth: '15ch', sortType: 'natural' },
@@ -129,6 +132,18 @@ export class ReservationListComponent implements OnInit, OnDestroy, OnChanges {
     this.organizationId = this.user?.organizationId?.trim() ?? '';
     this.setIsActiveCheckboxEditability();
     this.updateDisplayedColumns();
+    this.pageOfficeId = this.globalSelectionService.getSelectedOfficeIdValue();
+    const officeIdParam = this.route.snapshot.queryParams['officeId'];
+    if (officeIdParam != null && String(officeIdParam).trim() !== '') {
+      const parsedOfficeId = parseInt(String(officeIdParam), 10);
+      if (!Number.isNaN(parsedOfficeId)) {
+        this.pageOfficeId = parsedOfficeId;
+      }
+    }
+    this.globalSelectionService.getSelectedOfficeId$().pipe(skip(1), takeUntil(this.destroy$)).subscribe(officeId => {
+      this.applyOfficeFromGlobal(officeId);
+      this.markViewForCheck();
+    });
     this.loadOffices();
 
     this.propertySelectionFilterService.propertiesFiltered$.pipe(takeUntil(this.destroy$)).subscribe(v => {
@@ -148,13 +163,6 @@ export class ReservationListComponent implements OnInit, OnDestroy, OnChanges {
       this.markViewForCheck();
     });
 
-    this.globalSelectionService.getSelectedOfficeId$().pipe(skip(1), takeUntil(this.destroy$)).subscribe(officeId => {
-      if (this.offices.length > 0) {
-        this.resolveOfficeScope(officeId, true);
-      }
-      this.markViewForCheck();
-    });
-
     this.router.events.pipe(filter((e): e is NavigationEnd => e instanceof NavigationEnd),takeUntil(this.destroy$)).subscribe(e => {
       const url = e.urlAfterRedirects.split('?')[0];
       const isReservationList = url.endsWith('/reservations');
@@ -166,30 +174,6 @@ export class ReservationListComponent implements OnInit, OnDestroy, OnChanges {
       this.markViewForCheck();
     });
 
-    this.globalSelectionService.ensureOfficeScope(this.organizationId).pipe(take(1)).subscribe(() => {
-      if (this.officeId !== null && this.offices.length > 0) {
-        this.selectedOffice = this.offices.find(o => o.officeId === this.officeId) || null;
-        if (this.selectedOffice) {
-          this.applyFilters();
-        }
-      }
-      
-      this.route.queryParams.pipe(takeUntil(this.destroy$)).subscribe(params => {
-        const officeIdParam = params['officeId'];
-        
-        if (officeIdParam) {
-          const parsedOfficeId = parseInt(officeIdParam, 10);
-          if (parsedOfficeId) {
-            this.resolveOfficeScope(parsedOfficeId, true);
-          }
-        } else {
-          this.resolveOfficeScope(this.officeId ?? this.globalSelectionService.getSelectedOfficeIdValue(), this.officeId === null || this.officeId === undefined);
-        }
-        this.markViewForCheck();
-      });
-      this.markViewForCheck();
-    });
-
     this.getReservations();
     this.loadProperties();
   }
@@ -198,10 +182,12 @@ export class ReservationListComponent implements OnInit, OnDestroy, OnChanges {
     if (changes['officeId']) {
       const newOfficeId = changes['officeId'].currentValue;
       const previousOfficeId = changes['officeId'].previousValue;
-      
+
       if (previousOfficeId === undefined || newOfficeId !== previousOfficeId) {
+        this.pageOfficeId = newOfficeId;
         if (this.offices.length > 0) {
-          this.resolveOfficeScope(newOfficeId, false);
+          this.applyPageOfficeScope(newOfficeId);
+          this.markViewForCheck();
         }
       }
     }
@@ -450,28 +436,52 @@ export class ReservationListComponent implements OnInit, OnDestroy, OnChanges {
   }
 
   loadOffices(): void {
-    this.globalSelectionService.ensureOfficeScope(this.organizationId).pipe(take(1), finalize(() => { this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'offices'); })).subscribe({
+    this.officeService.ensureOfficesLoaded(this.organizationId).pipe(take(1), finalize(() => { this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'offices'); })).subscribe({
       next: () => {
         this.officeService.getAllOffices().pipe(takeUntil(this.destroy$)).subscribe(offices => {
           this.offices = offices || [];
           this.availableOffices = this.mappingService.mapOfficesToDropdown(this.offices);
-          this.globalSelectionService.getOfficeUiState$(this.offices, { explicitOfficeId: this.officeId, requireExplicitOfficeUnset: true }).pipe(take(1)).subscribe({
-            next: uiState => {
-              this.showOfficeDropdown = uiState.showOfficeDropdown;
-              this.resolveOfficeScope(uiState.selectedOfficeId, this.officeId === null || this.officeId === undefined);
-              this.markViewForCheck();
-            }
-          });
+          this.showOfficeDropdown = this.offices.length > 1;
+          if (!this.initialOfficeScopeApplied) {
+            this.initialOfficeScopeApplied = true;
+            this.applyOfficeFromGlobal(this.pageOfficeId);
+          } else if (this.pageOfficeId != null || this.selectedOffice) {
+            this.applyPageOfficeScope(this.selectedOffice?.officeId ?? this.pageOfficeId);
+          }
           this.markViewForCheck();
         });
       },
       error: () => {
         this.offices = [];
         this.availableOffices = [];
-        this.resolveOfficeScope(this.officeId ?? this.globalSelectionService.getSelectedOfficeIdValue(), this.officeId === null || this.officeId === undefined);
+        this.applyPageOfficeScope(this.pageOfficeId);
         this.markViewForCheck();
       }
     });
+  }
+
+  /** Page-level office follows global header; does not write global. */
+  private applyOfficeFromGlobal(officeId: number | null): void {
+    this.pageOfficeId = officeId;
+    if (this.offices.length === 0) {
+      return;
+    }
+    if (this.offices.length === 1) {
+      this.applyPageOfficeScope(this.offices[0].officeId);
+      return;
+    }
+    const resolved = officeId != null && this.offices.some(o => o.officeId === officeId) ? officeId : null;
+    this.applyPageOfficeScope(resolved);
+  }
+
+  /** Title-bar office change on this page only (never updates global selection). */
+  private applyPageOfficeScope(officeId: number | null): void {
+    this.pageOfficeId = officeId;
+    const explicitFromParent = this.officeId;
+    const officeIdToUse = explicitFromParent != null && explicitFromParent !== undefined
+      ? explicitFromParent
+      : officeId;
+    this.resolveOfficeScope(officeIdToUse, false);
   }
 
   reloadAllowedPropertyIds(): void {
@@ -585,7 +595,7 @@ export class ReservationListComponent implements OnInit, OnDestroy, OnChanges {
   }
 
   onOfficeChange(): void {
-    this.globalSelectionService.setSelectedOfficeId(this.selectedOffice?.officeId ?? null);
+    this.pageOfficeId = this.selectedOffice?.officeId ?? null;
     if (this.selectedOffice) {
       this.officeIdChange.emit(this.selectedOffice.officeId);
     } else {
