@@ -11,22 +11,19 @@ import { AuthService } from '../../../services/auth.service';
 import { MappingService } from '../../../services/mapping.service';
 import { UtilityService } from '../../../services/utility.service';
 import { OfficeResponse } from '../../organizations/models/office.model';
-import { GlobalSelectionService } from '../../organizations/services/global-selection.service';
 import { OfficeService } from '../../organizations/services/office.service';
 import { DocumentService } from '../../documents/services/document.service';
 import { PropertyService } from '../../properties/services/property.service';
 import { DataTableComponent } from '../../shared/data-table/data-table.component';
 import { DataTableFilterActionsDirective } from '../../shared/data-table/data-table-filter-actions.directive';
 import { ColumnSet } from '../../shared/data-table/models/column-data';
-import { LeadRentalListDisplay } from '../models/lead-rental.model';
+import { LeadRentalListDisplay, RentalEditSelection } from '../models/lead-rental.model';
 import { formatLeadStateLabel, LEAD_STATE_SELECT_OPTIONS, LeadStateDropdownCell, LeadStateType } from '../models/lead-enums';
 import {
   RentalQuotePropertyOption,
   RentalQuotePropertySelectDialogComponent
 } from './rental-quote-property-select-dialog.component';
 import { LeadsService } from '../services/leads.service';
-
-export type RentalEditSelection = { rentalId: number; officeId: number | null };
 
 @Component({
   standalone: true,
@@ -75,27 +72,23 @@ export class RentalListComponent implements OnInit, OnChanges, OnDestroy {
     private leadsService: LeadsService,
     private utilityService: UtilityService,
     private officeService: OfficeService,
-    private globalSelectionService: GlobalSelectionService,
     private authService: AuthService,
     private documentService: DocumentService,
     private propertyService: PropertyService,
     private cdr: ChangeDetectorRef
   ) { }
 
-  private markViewForCheck(): void {
-    this.cdr.markForCheck();
-  }
 
   //#region Rental-List
   ngOnInit(): void {
+    this.organizationId = this.authService.getUser()?.organizationId?.trim() ?? '';
     this.itemsToLoad$.pipe(takeUntil(this.destroy$)).subscribe(items => {
       this.isPageReady = items.size === 0;
       this.markViewForCheck();
     });
-    this.organizationId = this.authService.getUser()?.organizationId?.trim() ?? '';
 
     this.loadOffices();
-    this.loadRentalLeads();
+    this.getRentalLeads();
   }
 
   ngOnChanges(changes: SimpleChanges): void {
@@ -106,6 +99,25 @@ export class RentalListComponent implements OnInit, OnChanges, OnDestroy {
 
   addRentalLead(): void {
     this.requestNewRental.emit();
+  }
+
+  getRentalLeads(): void {
+    this.itemsToLoad$.next(new Set([...this.itemsToLoad$.value, 'rental-leads']));
+    this.isServiceError = false;
+    this.leadsService.getRentalLeads().pipe(take(1), finalize(() => this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'rental-leads'))).subscribe({
+      next: rows => {
+        this.allRentals = (rows || []).map(row => this.mappingService.mapLeadRentalListRow(row));
+        this.applyRentalFilters();
+        this.leadsService.notifyLeadStateChanged();
+        this.markViewForCheck();
+      },
+      error: () => {
+        this.isServiceError = true;
+        this.allRentals = [];
+        this.rentalsDisplay = [];
+        this.markViewForCheck();
+      }
+    });
   }
 
   goToRentalLead(event: LeadRentalListDisplay): void {
@@ -125,7 +137,7 @@ export class RentalListComponent implements OnInit, OnChanges, OnDestroy {
     this.leadsService.deleteRentalLead(event.rentalId).pipe(take(1)).subscribe({
       next: () => {
         this.toastr.success('Rental lead deleted.', CommonMessage.Success);
-        this.loadRentalLeads();
+        this.getRentalLeads();
         this.markViewForCheck();
       },
       error: () => {
@@ -134,7 +146,9 @@ export class RentalListComponent implements OnInit, OnChanges, OnDestroy {
       }
     });
   }
+  //#endregion
 
+  //#region Quote Method
   generateQuote(event: LeadRentalListDisplay): void {
     const preparedForName = String(event.fullName || '').trim();
     const quoteEmail = String(event.email || '').trim();
@@ -410,25 +424,6 @@ export class RentalListComponent implements OnInit, OnChanges, OnDestroy {
       }
     });
   }
-
-  loadRentalLeads(): void {
-    this.itemsToLoad$.next(new Set([...this.itemsToLoad$.value, 'rental-leads']));
-    this.isServiceError = false;
-    this.leadsService.getRentalLeads().pipe(take(1), finalize(() => this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'rental-leads'))).subscribe({
-      next: rows => {
-        this.allRentals = (rows || []).map(row => this.mappingService.mapLeadRentalListRow(row));
-        this.applyRentalFilters();
-        this.leadsService.notifyLeadStateChanged();
-        this.markViewForCheck();
-      },
-      error: () => {
-        this.isServiceError = true;
-        this.allRentals = [];
-        this.rentalsDisplay = [];
-        this.markViewForCheck();
-      }
-    });
-  }
   //#endregion
 
   //#region Filter Methods
@@ -474,6 +469,10 @@ export class RentalListComponent implements OnInit, OnChanges, OnDestroy {
   //#endregion
 
   //#region Utility Methods
+  markViewForCheck(): void {
+    this.cdr.markForCheck();
+  }
+
   ngOnDestroy(): void {
     this.destroy$.next();
     this.destroy$.complete();

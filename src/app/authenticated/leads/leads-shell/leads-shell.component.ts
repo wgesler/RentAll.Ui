@@ -1,7 +1,7 @@
 import { CommonModule } from '@angular/common';
-import { ChangeDetectorRef, Component, OnDestroy, OnInit, inject } from '@angular/core';
+import { ChangeDetectorRef, Component, OnDestroy, OnInit, QueryList, ViewChildren, inject } from '@angular/core';
 import { FormsModule } from '@angular/forms';
-import { ActivatedRoute, Router } from '@angular/router';
+import { ActivatedRoute } from '@angular/router';
 import { ToastrService } from 'ngx-toastr';
 import { Subject, skip, take, takeUntil } from 'rxjs';
 import { MaterialModule } from '../../../material.module';
@@ -15,10 +15,12 @@ import { TitleBarSelectComponent } from '../../shared/titlebar-select/titlebar-s
 import { GeneralComponent, GeneralLeadFormClosed } from '../general/general.component';
 import { GeneralListComponent } from '../general-list/general-list.component';
 import { OwnerComponent } from '../owner/owner.component';
-import { OwnerEditSelection, OwnerListComponent } from '../owner-list/owner-list.component';
+import { OwnerEditSelection } from '../models/lead-owner.model';
+import { OwnerListComponent } from '../owner-list/owner-list.component';
 import { LeadsReportsComponent } from '../reports/leads-reports.component';
 import { RentalComponent, RentalLeadFormClosed } from '../rental/rental.component';
-import { RentalEditSelection, RentalListComponent } from '../rental-list/rental-list.component';
+import { RentalEditSelection } from '../models/lead-rental.model';
+import { RentalListComponent } from '../rental-list/rental-list.component';
 
 @Component({
   standalone: true,
@@ -40,8 +42,12 @@ import { RentalEditSelection, RentalListComponent } from '../rental-list/rental-
   ]
 })
 export class LeadsShellComponent implements OnInit, OnDestroy {
+  @ViewChildren(RentalListComponent) rentalLists?: QueryList<RentalListComponent>;
+  @ViewChildren(OwnerListComponent) ownerLists?: QueryList<OwnerListComponent>;
+  @ViewChildren(GeneralListComponent) generalLists?: QueryList<GeneralListComponent>;
+  @ViewChildren(LeadsReportsComponent) reportsSections?: QueryList<LeadsReportsComponent>;
+
   private route = inject(ActivatedRoute);
-  private router = inject(Router);
   private officeService = inject(OfficeService);
   private globalSelectionService = inject(GlobalSelectionService);
   private cdr = inject(ChangeDetectorRef);
@@ -71,24 +77,22 @@ export class LeadsShellComponent implements OnInit, OnDestroy {
 
   private destroy$ = new Subject<void>();
   private isApplyingQueryParamState = false;
-  private isWritingQueryParams = false;
   private lastKnownQueryStateKey: string | null = null;
+  private initialOfficeScopeApplied = false;
 
   //#region Leads-Shell
   ngOnInit(): void {
     this.isAdmin = this.authService.isAdmin();
     this.isOwnerAdmin = this.authService.isOwnerAdmin();
     this.organizationId = this.authService.getUser()?.organizationId?.trim() ?? '';
-    const initialGlobalOfficeId = this.globalSelectionService.getSelectedOfficeIdValue();
-    if (initialGlobalOfficeId != null && initialGlobalOfficeId > 0) {
-      this.selectedOfficeId = initialGlobalOfficeId;
-    }
+    /** Page-level office filter: seeded from global; does not write global. */
+    this.selectedOfficeId = this.globalSelectionService.getSelectedOfficeIdValue();
     this.loadOffices();
     this.globalSelectionService
       .getSelectedOfficeId$()
       .pipe(skip(1), takeUntil(this.destroy$))
       .subscribe(officeId => {
-        this.syncOfficeFromGlobal(officeId);
+        this.applyOfficeFromGlobal(officeId);
       });
     this.route.queryParamMap.pipe(takeUntil(this.destroy$)).subscribe(queryParamMap => {
       const params: Record<string, unknown> = {};
@@ -109,12 +113,9 @@ export class LeadsShellComponent implements OnInit, OnDestroy {
 
   //#region Form Response Methods
   onOfficeDropdownChange(value: string | number | null): void {
-    this.onOfficeIdChange(value == null || value === '' ? null : Number(value));
-  }
-
-  onOfficeIdChange(officeId: number | null): void {
-    this.resolveOfficeScope(officeId);
-    this.updateUrlWithCurrentState();
+    const officeId = value == null || value === '' ? null : Number(value);
+    this.applyPageOfficeScope(officeId);
+    this.cdr.markForCheck();
   }
 
   onTabIndexChange(nextTabIndex: number): void {
@@ -123,7 +124,6 @@ export class LeadsShellComponent implements OnInit, OnDestroy {
       this.selectedTabIndex = nextTabIndex;
       return;
     }
-    const wasEmbeddedLeadFormOpen = this.showRentalLeadForm || this.showOwnerLeadForm || this.showGeneralLeadForm;
     this.officeTitleBarShowError = false;
     this.showRentalLeadForm = false;
     this.showOwnerLeadForm = false;
@@ -135,10 +135,9 @@ export class LeadsShellComponent implements OnInit, OnDestroy {
     if (this.selectedTabIndex === this.getReportsTabIndex() && !this.reportsStartDate && !this.reportsEndDate) {
       this.setDefaultReportDateRange();
     }
-    this.updateUrlWithCurrentState();
   }
 
-  onReportsDateRangeChange(shouldSyncUrl: boolean = true): void {
+  onReportsDateRangeChange(): void {
     if (!this.reportsStartDate && !this.reportsEndDate) {
       this.setDefaultReportDateRange();
     } else if (this.reportsStartDate && !this.reportsEndDate) {
@@ -163,9 +162,6 @@ export class LeadsShellComponent implements OnInit, OnDestroy {
       this.reportsStartDate = this.reportsEndDate;
       this.reportsEndDate = temp;
     }
-    if (shouldSyncUrl && !this.isApplyingQueryParamState) {
-      this.updateUrlWithCurrentState();
-    }
   }
 
   onAddRentalLead(): void {
@@ -178,7 +174,6 @@ export class LeadsShellComponent implements OnInit, OnDestroy {
     this.rentalShellLeadId = 'new';
     this.showRentalLeadForm = true;
     this.selectedTabIndex = 0;
-    this.updateUrlWithCurrentState();
   }
 
   onEditRentalLead(selection: RentalEditSelection): void {
@@ -197,7 +192,6 @@ export class LeadsShellComponent implements OnInit, OnDestroy {
     this.rentalShellLeadId = String(selection.rentalId);
     this.showRentalLeadForm = true;
     this.selectedTabIndex = 0;
-    this.updateUrlWithCurrentState();
   }
 
   onRentalLeadFormClosed(result?: RentalLeadFormClosed): void {
@@ -208,7 +202,6 @@ export class LeadsShellComponent implements OnInit, OnDestroy {
     if (result?.saved) {
       this.restoreTitleBarOfficeFromGlobalSelection();
     }
-    this.updateUrlWithCurrentState();
   }
 
   onRentalOfficeSelectionRequired(): void {
@@ -218,14 +211,6 @@ export class LeadsShellComponent implements OnInit, OnDestroy {
       this.toastr.warning('Please select a specific office in the title bar before saving.', 'Office required');
     }
     this.cdr.markForCheck();
-  }
-
-  onOwnerOfficeSelectionRequired(): void {
-    this.onRentalOfficeSelectionRequired();
-  }
-
-  onGeneralOfficeSelectionRequired(): void {
-    this.onRentalOfficeSelectionRequired();
   }
 
   onAddOwnerLead(): void {
@@ -240,7 +225,6 @@ export class LeadsShellComponent implements OnInit, OnDestroy {
     this.ownerShellLeadId = 'new';
     this.showOwnerLeadForm = true;
     this.selectedTabIndex = this.getOwnerTabIndex();
-    this.updateUrlWithCurrentState();
   }
 
   onEditOwnerLead(selection: OwnerEditSelection): void {
@@ -262,7 +246,6 @@ export class LeadsShellComponent implements OnInit, OnDestroy {
     this.ownerShellLeadId = String(selection.ownerId);
     this.showOwnerLeadForm = true;
     this.selectedTabIndex = this.getOwnerTabIndex();
-    this.updateUrlWithCurrentState();
   }
 
   onOwnerLeadFormClosed(): void {
@@ -270,7 +253,6 @@ export class LeadsShellComponent implements OnInit, OnDestroy {
     this.ownerShellLeadId = null;
     this.selectedTabIndex = this.embeddedLeadFormReturnTabIndex;
     this.restoreTitleBarOfficeFromGlobalSelection();
-    this.updateUrlWithCurrentState();
   }
 
   onAddGeneralLead(): void {
@@ -282,7 +264,6 @@ export class LeadsShellComponent implements OnInit, OnDestroy {
     this.generalShellLeadId = 'new';
     this.showGeneralLeadForm = true;
     this.selectedTabIndex = this.getGeneralTabIndex();
-    this.updateUrlWithCurrentState();
   }
 
   onEditGeneralLead(generalId: number): void {
@@ -295,7 +276,6 @@ export class LeadsShellComponent implements OnInit, OnDestroy {
     this.generalShellLeadId = String(generalId);
     this.showGeneralLeadForm = true;
     this.selectedTabIndex = this.getGeneralTabIndex();
-    this.updateUrlWithCurrentState();
   }
 
   onGeneralLeadFormClosed(result?: GeneralLeadFormClosed): void {
@@ -305,7 +285,6 @@ export class LeadsShellComponent implements OnInit, OnDestroy {
     if (result?.saved) {
       this.restoreTitleBarOfficeFromGlobalSelection();
     }
-    this.updateUrlWithCurrentState();
   }
 
   onEmbeddedLeadFormBack(): void {
@@ -318,7 +297,6 @@ export class LeadsShellComponent implements OnInit, OnDestroy {
     this.generalShellLeadId = null;
     this.selectedTabIndex = this.embeddedLeadFormReturnTabIndex;
     this.restoreTitleBarOfficeFromGlobalSelection();
-    this.updateUrlWithCurrentState();
   }
   //#endregion
 
@@ -370,56 +348,74 @@ export class LeadsShellComponent implements OnInit, OnDestroy {
     this.reportsStartDate = this.utilityService.parseDateOnlyStringToDate(startDateParam);
     this.reportsEndDate = this.utilityService.parseDateOnlyStringToDate(endDateParam);
     if (this.selectedTabIndex === this.getReportsTabIndex()) {
-      this.onReportsDateRangeChange(false);
-    }
-
-    const officeId = getNumberQueryParam(params, 'officeId');
-    if (officeId !== null) {
-      if (this.offices.length > 0) {
-        const matchedOffice = this.offices.find(o => o.officeId === officeId) || null;
-        this.selectedOffice = matchedOffice;
-        this.selectedOfficeId = matchedOffice?.officeId ?? null;
-      } else {
-        this.selectedOffice = null;
-        this.selectedOfficeId = officeId;
-      }
-      this.clearOfficeTitleBarErrorIfValid();
-      return;
-    }
-
-    if (getStringQueryParam(params, 'officeId') === null) {
-      this.selectedOffice = null;
-      this.selectedOfficeId = null;
+      this.onReportsDateRangeChange();
     }
   }
 
-  syncOfficeFromGlobal(officeId: number | null): void {
-    if (this.offices.length === 0) {
-      return;
+  /** Page-level office follows global header; does not write global. */
+  private applyOfficeFromGlobal(officeId: number | null): void {
+    if (this.offices.length === 1) {
+      this.applyPageOfficeScope(this.offices[0].officeId);
+    } else if (this.offices.length > 1) {
+      const resolved = officeId != null && this.offices.some(o => o.officeId === officeId) ? officeId : null;
+      this.applyPageOfficeScope(resolved);
+    } else {
+      this.selectedOfficeId = officeId;
+      this.selectedOffice = null;
+      this.clearOfficeTitleBarErrorIfValid();
     }
-    this.resolveOfficeScope(officeId);
     this.cdr.markForCheck();
   }
 
-  resolveOfficeScope(officeId: number | null): void {
-    this.selectedOffice = this.offices.find(o => o.officeId === officeId) || null;
-    this.selectedOfficeId = this.selectedOffice?.officeId ?? null;
+  /** Title-bar office change on this page only (never updates global selection). */
+  private applyPageOfficeScope(officeId: number | null): void {
+    if (this.offices.length > 0) {
+      this.selectedOffice = this.offices.find(o => o.officeId === officeId) || null;
+      this.selectedOfficeId = this.selectedOffice?.officeId ?? null;
+    } else {
+      this.selectedOffice = null;
+      this.selectedOfficeId = officeId;
+    }
     this.clearOfficeTitleBarErrorIfValid();
+    this.propagateOfficeToLeadLists();
+  }
+
+  resolveOfficeScope(officeId: number | null): void {
+    this.applyPageOfficeScope(officeId);
   }
 
   restoreTitleBarOfficeFromGlobalSelection(): void {
-    const globalOfficeId = this.globalSelectionService.getSelectedOfficeIdValue();
-    this.resolveOfficeScope(globalOfficeId);
+    this.applyOfficeFromGlobal(this.globalSelectionService.getSelectedOfficeIdValue());
+  }
+
+  private propagateOfficeToLeadLists(): void {
+    const scopeOfficeId = this.selectedOfficeId;
+    queueMicrotask(() => {
+      this.rentalLists?.forEach(section => {
+        if (section.offices.length > 0) {
+          section.resolveOfficeScope(scopeOfficeId);
+          section.markViewForCheck();
+        }
+      });
+      this.ownerLists?.forEach(section => {
+        if (section.offices.length > 0) {
+          section.resolveOfficeScope(scopeOfficeId);
+          section.markViewForCheck();
+        }
+      });
+      this.generalLists?.forEach(section => {
+        if (section.offices.length > 0) {
+          section.resolveOfficeScope(scopeOfficeId);
+          section.markViewForCheck();
+        }
+      });
+    });
   }
 
   private clearOfficeTitleBarErrorIfValid(): void {
     if (this.selectedOfficeId != null && this.selectedOfficeId > 0) {
       this.officeTitleBarShowError = false;
     }
-  }
-
-  updateUrlWithCurrentState(): void {
-    return;
   }
 
   setDefaultReportDateRange(): void {
@@ -463,24 +459,17 @@ export class LeadsShellComponent implements OnInit, OnDestroy {
         this.officeService.getAllOffices().pipe(takeUntil(this.destroy$)).subscribe(offices => {
           this.offices = offices || [];
 
-          let didSetInitialOffice = false;
-          if (!this.selectedOffice && this.offices.length === 1) {
-            this.resolveOfficeScope(this.offices[0].officeId);
-            didSetInitialOffice = true;
-          } else if (!this.selectedOffice) {
-            const initialOfficeId = this.selectedOfficeId ?? this.globalSelectionService.getSelectedOfficeIdValue();
-            if (initialOfficeId !== null) {
-              const initialOffice = this.offices.find(office => office.officeId === initialOfficeId) || null;
-              if (initialOffice) {
-                this.resolveOfficeScope(initialOffice.officeId);
-                didSetInitialOffice = true;
-              }
+          if (!this.initialOfficeScopeApplied) {
+            this.initialOfficeScopeApplied = true;
+            if (this.offices.length === 1) {
+              this.applyPageOfficeScope(this.offices[0].officeId);
+            } else {
+              this.applyOfficeFromGlobal(this.selectedOfficeId ?? this.globalSelectionService.getSelectedOfficeIdValue());
             }
+          } else if (this.selectedOfficeId != null) {
+            this.applyPageOfficeScope(this.selectedOfficeId);
           }
           this.cdr.markForCheck();
-          if (didSetInitialOffice) {
-            this.updateUrlWithCurrentState();
-          }
         });
       },
       error: () => {

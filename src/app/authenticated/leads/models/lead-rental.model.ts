@@ -73,3 +73,5 @@ export interface LeadRentalListDisplay extends LeadRentalResponse {
   leadAttentionDot?: string;
   leadStateDropdown: LeadStateDropdownCell;
 }
+
+export type RentalEditSelection = { rentalId: number; officeId: number | null };

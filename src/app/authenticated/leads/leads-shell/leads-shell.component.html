@@ -93,7 +93,7 @@
                   [shellLeadId]="ownerShellLeadId"
                   [officeId]="selectedOfficeId"
                   (closed)="onOwnerLeadFormClosed()"
-                  (officeSelectionRequired)="onOwnerOfficeSelectionRequired()"
+                  (officeSelectionRequired)="onRentalOfficeSelectionRequired()"
                   />
               } @else {
                 <app-owner-list
@@ -112,7 +112,7 @@
                 [shellLeadId]="generalShellLeadId"
                 [officeId]="selectedOfficeId"
                 (closed)="onGeneralLeadFormClosed($event)"
-                (officeSelectionRequired)="onGeneralOfficeSelectionRequired()"
+                (officeSelectionRequired)="onRentalOfficeSelectionRequired()"
                 />
             } @else {
               <app-general-list

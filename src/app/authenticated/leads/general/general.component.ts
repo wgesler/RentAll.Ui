@@ -62,13 +62,15 @@ export class GeneralComponent implements OnInit, OnChanges, OnDestroy {
 
   //#region General
   ngOnInit(): void {
-    this.itemsToLoad$.pipe(takeUntil(this.destroy$)).subscribe(() => this.syncPageReadyFromLoadItems());
+    this.organizationId = this.authService.getUser()?.organizationId?.trim() ?? '';
+    this.itemsToLoad$.pipe(takeUntil(this.destroy$)).subscribe(items => {
+      this.isPageReady = items.size === 0;
+      this.markViewForCheck();
+    });
 
-    const user = this.authService.getUser();
-    this.organizationId = user?.organizationId?.trim() ?? '';
 
     this.loadOffices();
-    this.loadGeneral(this.shellLeadId);
+    this.getGeneralLead(this.shellLeadId);
   }
 
   ngOnChanges(changes: SimpleChanges): void {
@@ -77,8 +79,42 @@ export class GeneralComponent implements OnInit, OnChanges, OnDestroy {
     }
 
     if (changes['shellLeadId'] && !changes['shellLeadId'].firstChange) {
-      this.loadGeneral(this.shellLeadId);
+      this.getGeneralLead(this.shellLeadId);
     }
+  }
+
+  getGeneralLead(idParam: string | null): void {
+    const raw = String(idParam || '').trim().toLowerCase();
+    if (raw === 'new') {
+      this.isAddMode = true;
+      this.isServiceError = false;
+      this.lead = null;
+      this.resetForm();
+      this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'general-lead');
+      return;
+    }
+
+    this.isAddMode = false;
+    this.utilityService.addLoadItem(this.itemsToLoad$, 'general-lead');
+    this.isServiceError = false;
+    const generalId = parseInt(String(idParam || '').trim(), 10);
+    if (!generalId || Number.isNaN(generalId)) {
+      this.lead = null;
+      this.isServiceError = true;
+      this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'general-lead');
+      return;
+    }
+
+    this.leadsService.getGeneralLeadById(generalId).pipe(take(1), finalize(() => this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'general-lead'))).subscribe({
+        next: row => {
+          this.lead = row;
+          this.populateForm(row);
+        },
+        error: () => {
+          this.lead = null;
+          this.isServiceError = true;
+        }
+      });
   }
 
   saveGeneralLead(): void {
@@ -223,6 +259,10 @@ export class GeneralComponent implements OnInit, OnChanges, OnDestroy {
   onPhoneInput(event: Event): void {
     this.formatterService.formatPhoneInput(event, this.form.get('phone'));
   }
+ 
+  formatPhone(): void {
+    this.formatterService.formatPhoneControl(this.form.get('phone'));
+  }
   //#endregion
 
   //#region Data Loading Methods
@@ -247,50 +287,11 @@ export class GeneralComponent implements OnInit, OnChanges, OnDestroy {
       }
     });
   }
-
-  loadGeneral(idParam: string | null): void {
-    const raw = String(idParam || '').trim().toLowerCase();
-    if (raw === 'new') {
-      this.isAddMode = true;
-      this.isServiceError = false;
-      this.lead = null;
-      this.resetForm();
-      this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'general-lead');
-      return;
-    }
-
-    this.isAddMode = false;
-    this.utilityService.addLoadItem(this.itemsToLoad$, 'general-lead');
-    this.isServiceError = false;
-    const generalId = parseInt(String(idParam || '').trim(), 10);
-    if (!generalId || Number.isNaN(generalId)) {
-      this.lead = null;
-      this.isServiceError = true;
-      this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'general-lead');
-      return;
-    }
-
-    this.leadsService.getGeneralLeadById(generalId).pipe(take(1), finalize(() => this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'general-lead'))).subscribe({
-        next: row => {
-          this.lead = row;
-          this.populateForm(row);
-        },
-        error: () => {
-          this.lead = null;
-          this.isServiceError = true;
-        }
-      });
-  }
   //#endregion
 
   //#region Utility Methods
-  syncPageReadyFromLoadItems(): void {
-    this.isPageReady = this.itemsToLoad$.value.size === 0;
+  markViewForCheck(): void {
     this.cdr.markForCheck();
-  }
-
-  formatPhone(): void {
-    this.formatterService.formatPhoneControl(this.form.get('phone'));
   }
 
   ngOnDestroy(): void {

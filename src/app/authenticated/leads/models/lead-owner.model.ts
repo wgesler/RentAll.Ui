@@ -116,3 +116,5 @@ export interface LeadOwnerListDisplay extends LeadOwnerResponse {
   leadAttentionDot?: string;
   leadStateDropdown: LeadStateDropdownCell;
 }
+
+export type OwnerEditSelection = { ownerId: number; officeId: number | null };

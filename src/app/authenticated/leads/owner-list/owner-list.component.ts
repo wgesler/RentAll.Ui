@@ -11,22 +11,18 @@ import { MaterialModule } from '../../../material.module';
 import { AuthService } from '../../../services/auth.service';
 import { FormatterService } from '../../../services/formatter-service';
 import { MappingService } from '../../../services/mapping.service';
-import { NavigationContextService } from '../../../services/navigation-context.service';
 import { UtilityService } from '../../../services/utility.service';
 import { EntityType, OwnerType } from '../../contacts/models/contact-enum';
 import { ContactRequest } from '../../contacts/models/contact.model';
 import { ContactService } from '../../contacts/services/contact.service';
 import { OfficeResponse } from '../../organizations/models/office.model';
-import { GlobalSelectionService } from '../../organizations/services/global-selection.service';
 import { OfficeService } from '../../organizations/services/office.service';
 import { DataTableComponent } from '../../shared/data-table/data-table.component';
 import { DataTableFilterActionsDirective } from '../../shared/data-table/data-table-filter-actions.directive';
 import { ColumnSet } from '../../shared/data-table/models/column-data';
-import { LeadOwnerListDisplay } from '../models/lead-owner.model';
+import { LeadOwnerListDisplay, OwnerEditSelection } from '../models/lead-owner.model';
 import { formatLeadStateLabel, LEAD_STATE_SELECT_OPTIONS, LeadStateDropdownCell, LeadStateType } from '../models/lead-enums';
 import { LeadsService } from '../services/leads.service';
-
-export type OwnerEditSelection = { ownerId: number; officeId: number | null };
 
 @Component({
   standalone: true,
@@ -51,7 +47,6 @@ export class OwnerListComponent implements OnInit, OnChanges, OnDestroy {
   offices: OfficeResponse[] = [];
   selectedOffice: OfficeResponse | null = null;
   isOwnerAdmin = false;
-  isInOwnerMode = false;
 
   ownersDisplayedColumns: ColumnSet = {
     leadAttentionDot: { displayAs: ' ', maxWidth: '4ch', alignment: 'center', sort: false, wrap: false },
@@ -77,31 +72,22 @@ export class OwnerListComponent implements OnInit, OnChanges, OnDestroy {
     private contactService: ContactService,
     private utilityService: UtilityService,
     private officeService: OfficeService,
-    private globalSelectionService: GlobalSelectionService,
     private authService: AuthService,
-    private navigationContextService: NavigationContextService,
     private cdr: ChangeDetectorRef
   ) { }
 
-  private markViewForCheck(): void {
-    this.cdr.markForCheck();
-  }
-
   //#region Owner-List
   ngOnInit(): void {
+    this.isOwnerAdmin = this.authService.isOwnerAdmin();
+    this.organizationId = this.authService.getUser()?.organizationId?.trim() ?? '';
+
     this.itemsToLoad$.pipe(takeUntil(this.destroy$)).subscribe(items => {
       this.isPageReady = items.size === 0;
       this.markViewForCheck();
     });
-    this.isOwnerAdmin = this.authService.isOwnerAdmin();
-    this.organizationId = this.authService.getUser()?.organizationId?.trim() ?? '';
 
     this.loadOffices();
     this.loadOwnerLeads();
-    this.navigationContextService.getIsInOwnerMode().pipe(takeUntil(this.destroy$)).subscribe(value => {
-      this.isInOwnerMode = value;
-      this.markViewForCheck();
-    });
   }
 
   ngOnChanges(changes: SimpleChanges): void {
@@ -284,7 +270,6 @@ export class OwnerListComponent implements OnInit, OnChanges, OnDestroy {
       }
     });
   }
-
   //#endregion
 
   //#region Form Build methods
@@ -378,7 +363,6 @@ export class OwnerListComponent implements OnInit, OnChanges, OnDestroy {
     patch(this.allOwners);
     patch(this.ownersDisplay);
   }
-
   //#endregion
 
   //#region Data Loading Methods
@@ -461,7 +445,12 @@ export class OwnerListComponent implements OnInit, OnChanges, OnDestroy {
   getLeadAttentionDotValue(leadStateId: number): string {
     return leadStateId === LeadStateType.New ? '●' : '';
   }
-    ngOnDestroy(): void {
+
+  markViewForCheck(): void {
+    this.cdr.markForCheck();
+  }
+    
+  ngOnDestroy(): void {
     this.destroy$.next();
     this.destroy$.complete();
     this.itemsToLoad$.complete();

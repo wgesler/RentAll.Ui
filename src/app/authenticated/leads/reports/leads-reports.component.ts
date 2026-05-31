@@ -97,14 +97,6 @@ export class LeadsReportsComponent implements OnInit, OnChanges, OnDestroy {
     return this.closedLeadRows.length > 0 || this.openLeadRows.length > 0 || this.agentBreakdownRows.length > 0;
   }
 
-  get closedLeadTotalCount(): number {
-    return this.closedLeadRows.reduce((sum, row) => sum + row.totalCount, 0);
-  }
-
-  get openLeadTotalCount(): number {
-    return this.openLeadRows.reduce((sum, row) => sum + row.totalCount, 0);
-  }
-
   get agentBreakdownTotals(): { rental: number; owner: number; general: number; open: number; closed: number; total: number } {
     return this.agentBreakdownRows.reduce((acc, row) => {
       acc.rental += row.rentalCount;

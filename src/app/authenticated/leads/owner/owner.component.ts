@@ -82,15 +82,16 @@ export class OwnerComponent implements OnInit, OnChanges, OnDestroy {
 
   //#region Owner
   ngOnInit(): void {
-    this.itemsToLoad$.pipe(takeUntil(this.destroy$)).subscribe(() => this.syncPageReadyFromLoadItems());
-
-    const user = this.authService.getUser();
-    this.organizationId = user?.organizationId?.trim() ?? '';
-
+    this.organizationId = this.authService.getUser()?.organizationId?.trim() ?? '';
+    this.itemsToLoad$.pipe(takeUntil(this.destroy$)).subscribe(items => {
+      this.isPageReady = items.size === 0;
+      this.markViewForCheck();
+    });
+ 
     this.loadOffices();
     this.loadAgents();
     this.loadStates();
-    this.loadOwnerLead(this.shellLeadId);
+    this.getOwnerLead(this.shellLeadId);
   }
 
   ngOnChanges(changes: SimpleChanges): void {
@@ -99,11 +100,11 @@ export class OwnerComponent implements OnInit, OnChanges, OnDestroy {
     }
 
     if (changes['shellLeadId'] && !changes['shellLeadId'].firstChange) {
-      this.loadOwnerLead(this.shellLeadId);
+      this.getOwnerLead(this.shellLeadId);
     }
   }
 
-  loadOwnerLead(idParam: string | null): void {
+  getOwnerLead(idParam: string | null): void {
     const raw = String(idParam || '').trim().toLowerCase();
     if (raw === 'new') {
       this.isAddMode = true;
@@ -389,6 +390,10 @@ export class OwnerComponent implements OnInit, OnChanges, OnDestroy {
     this.formatterService.formatPhoneInput(event, this.form.get('phone'));
   }
 
+  formatPhone(): void {
+    this.formatterService.formatPhoneControl(this.form.get('phone'));
+  }
+
   onDigitsOnlyInput(event: Event, controlName: 'yearsOfExperienceWithRentals'): void {
     const input = event.target as HTMLInputElement;
     const v = input.value.replace(/\D/g, '');
@@ -527,15 +532,10 @@ export class OwnerComponent implements OnInit, OnChanges, OnDestroy {
   //#endregion
 
   //#region Utility Methods
-  syncPageReadyFromLoadItems(): void {
-    this.isPageReady = this.itemsToLoad$.value.size === 0;
+  markViewForCheck(): void {
     this.cdr.markForCheck();
   }
 
-  formatPhone(): void {
-    this.formatterService.formatPhoneControl(this.form.get('phone'));
-  }
-  
   ngOnDestroy(): void {
     this.destroy$.next();
     this.destroy$.complete();

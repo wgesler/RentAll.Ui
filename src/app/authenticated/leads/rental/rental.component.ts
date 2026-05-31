@@ -80,15 +80,16 @@ export class RentalComponent implements OnInit, OnChanges, OnDestroy {
 
   //#region Rental
   ngOnInit(): void {
-    this.itemsToLoad$.pipe(takeUntil(this.destroy$)).subscribe(() => this.syncPageReadyFromLoadItems());
-
-    const user = this.authService.getUser();
-    this.organizationId = user?.organizationId?.trim() ?? '';
+    this.organizationId = this.authService.getUser()?.organizationId?.trim() ?? '';
+    this.itemsToLoad$.pipe(takeUntil(this.destroy$)).subscribe(items => {
+      this.isPageReady = items.size === 0;
+      this.markViewForCheck();
+    });
 
     this.loadOffices();
     this.loadActiveProperties();
     this.loadAgents();
-    this.loadRentalLead(this.shellLeadId);
+    this.getRentalLead(this.shellLeadId);
 
     this.route.queryParamMap.pipe(takeUntil(this.destroy$)).subscribe(() => {
       if (!this.isNewRentalLeadFlow()) {
@@ -105,11 +106,11 @@ export class RentalComponent implements OnInit, OnChanges, OnDestroy {
     }
 
     if (changes['shellLeadId'] && !changes['shellLeadId'].firstChange) {
-      this.loadRentalLead(this.shellLeadId);
+      this.getRentalLead(this.shellLeadId);
     }
   }
 
-  loadRentalLead(idParam: string | null): void {
+  getRentalLead(idParam: string | null): void {
     const raw = String(idParam || '').trim().toLowerCase();
     if (raw === 'new') {
       this.isAddMode = true;
@@ -386,6 +387,10 @@ export class RentalComponent implements OnInit, OnChanges, OnDestroy {
     this.formatterService.formatPhoneInput(event, this.form.get('phone'));
   }
 
+  formatPhone(): void {
+    this.formatterService.formatPhoneControl(this.form.get('phone'));
+  }
+
   onMaxMonthlyBudgetDecimalInput(event: Event): void {
     this.formatterService.formatDecimalInput(event, this.form.get('maxMonthlyBudget'));
   }
@@ -628,13 +633,8 @@ export class RentalComponent implements OnInit, OnChanges, OnDestroy {
   //#endregion
 
   //#region Utility Methods
-  syncPageReadyFromLoadItems(): void {
-    this.isPageReady = this.itemsToLoad$.value.size === 0;
+  markViewForCheck(): void {
     this.cdr.markForCheck();
-  }
-
-  formatPhone(): void {
-    this.formatterService.formatPhoneControl(this.form.get('phone'));
   }
 
   ngOnDestroy(): void {

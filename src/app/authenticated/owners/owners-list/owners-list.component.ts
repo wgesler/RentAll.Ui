@@ -10,7 +10,7 @@ import { ContactComponent } from '../../contacts/contact/contact.component';
 import { ContactListComponent } from '../../contacts/contact-list/contact-list.component';
 import { EntityType } from '../../contacts/models/contact-enum';
 import { OwnerComponent } from '../../leads/owner/owner.component';
-import { OwnerEditSelection } from '../../leads/owner-list/owner-list.component';
+import { OwnerEditSelection } from '../../leads/models/lead-owner.model';
 import { OwnersService } from '../services/owners.service';
 
 @Component({

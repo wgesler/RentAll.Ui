@@ -1,6 +1,5 @@
 import { CommonModule } from '@angular/common';
-import { ChangeDetectionStrategy, ChangeDetectorRef, Component, input, NgZone, OnChanges, OnDestroy, OnInit, output, SimpleChanges } from '@angular/core';
-import { Router } from '@angular/router';
+import { ChangeDetectionStrategy, ChangeDetectorRef, Component, input, OnChanges, OnDestroy, OnInit, output, SimpleChanges } from '@angular/core';
 import { ToastrService } from 'ngx-toastr';
 import { BehaviorSubject, Subject, concatMap, finalize, take, takeUntil } from 'rxjs';
 import { RouterUrl } from '../../../app.routes';
@@ -11,7 +10,6 @@ import { FormatterService } from '../../../services/formatter-service';
 import { MappingService } from '../../../services/mapping.service';
 import { UtilityService } from '../../../services/utility.service';
 import { OfficeResponse } from '../../organizations/models/office.model';
-import { GlobalSelectionService } from '../../organizations/services/global-selection.service';
 import { OfficeService } from '../../organizations/services/office.service';
 import { DataTableComponent } from '../../shared/data-table/data-table.component';
 import { DataTableFilterActionsDirective } from '../../shared/data-table/data-table-filter-actions.directive';
@@ -58,22 +56,17 @@ export class GeneralListComponent implements OnInit, OnChanges, OnDestroy {
   destroy$ = new Subject<void>();
 
   constructor(
-    private router: Router,
-    private ngZone: NgZone,
     private toastr: ToastrService,
     private mappingService: MappingService,
     private formatterService: FormatterService,
     private leadsService: LeadsService,
     private utilityService: UtilityService,
     private officeService: OfficeService,
-    private globalSelectionService: GlobalSelectionService,
     private authService: AuthService,
     private cdr: ChangeDetectorRef
   ) { }
 
-  private markViewForCheck(): void {
-    this.cdr.markForCheck();
-  }
+
 
   //#region General-List
   ngOnInit(): void {
@@ -169,7 +162,6 @@ export class GeneralListComponent implements OnInit, OnChanges, OnDestroy {
       toString: () => value
     };
   }
-
   //#endregion
 
   //#region Form Response Methods
@@ -338,6 +330,10 @@ export class GeneralListComponent implements OnInit, OnChanges, OnDestroy {
   //#endregion
 
   //#region Utility Methods
+  markViewForCheck(): void {
+    this.cdr.markForCheck();
+  }
+  
   ngOnDestroy(): void {
     this.destroy$.next();
     this.destroy$.complete();
