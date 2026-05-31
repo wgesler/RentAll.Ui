@@ -22,7 +22,7 @@ import { ReceiptSelection } from '../models/receipt.model';
 import { ReceiptComponent } from '../receipt/receipt.component';
 import { WorkOrderComponent } from '../work-order/work-order.component';
 import { DocumentListComponent } from '../../documents/document-list/document-list.component';
-import { EmailListComponent } from '../../email/email-list/email-list.component';
+import { DocumentType } from '../../documents/models/document.enum';
 import { isInspectorOnlyUser } from '../../shared/access/role-access';
 import { MaintenanceComponent } from '../maintenance/maintenance.component';
 import { UnsavedChangesDialogService } from '../../shared/modals/unsaved-changes/unsaved-changes-dialog.service';
@@ -43,13 +43,13 @@ import { TitleBarSelectComponent } from '../../shared/titlebar-select/titlebar-s
     ReceiptComponent,
     WorkOrderComponent,
     DocumentListComponent,
-    EmailListComponent,
     MaintenanceComponent
   ],
   templateUrl: './maintenance-shell.component.html',
   styleUrl: './maintenance-shell.component.scss'
 })
 export class MaintenanceShellComponent implements OnInit, OnDestroy, CanComponentDeactivate {
+  readonly DocumentType = DocumentType;
   @ViewChild('inspectionChecklist') inspectionChecklist?: InspectionComponent;
   @ViewChild('maintenanceSection') maintenanceSection?: MaintenanceComponent;
   @ViewChild('maintenanceDocumentList') maintenanceDocumentList?: DocumentListComponent;
@@ -57,7 +57,6 @@ export class MaintenanceShellComponent implements OnInit, OnDestroy, CanComponen
   @ViewChild('maintenanceWorkOrderDetail') maintenanceWorkOrderDetail?: WorkOrderComponent;
   @ViewChild('maintenanceReceiptsList') maintenanceReceiptsList?: ReceiptsListComponent;
   @ViewChild('maintenanceReceiptDetail') maintenanceReceiptDetail?: ReceiptComponent;
-  @ViewChild('maintenanceEmailList') maintenanceEmailList?: EmailListComponent;
 
   property: PropertyResponse | null = null;
   isServiceError = false;
@@ -289,38 +288,12 @@ export class MaintenanceShellComponent implements OnInit, OnDestroy, CanComponen
     return 3;
   }
 
-  get emailTabIndex(): number {
-    return this.showWorkOrdersTab ? 4 : 3;
-  }
-
   get documentsTabIndex(): number {
-    return this.showWorkOrdersTab ? 5 : 4;
+    return this.showWorkOrdersTab ? 4 : 3;
   }
 
   get receiptsTabIndex(): number {
     return 2;
-  }
-
-  get emailTypeOptions(): SearchableSelectOption[] {
-    return (this.maintenanceEmailList?.emailTypeOptions || []).map(option => ({
-      value: option.value,
-      label: option.label
-    }));
-  }
-
-  get selectedEmailTypeId(): number | null {
-    return this.maintenanceEmailList?.selectedEmailTypeId ?? null;
-  }
-
-  get documentTypeOptions(): SearchableSelectOption[] {
-    return (this.maintenanceDocumentList?.documentTypeOptions || []).map(option => ({
-      value: option.value,
-      label: option.label
-    }));
-  }
-
-  get selectedDocumentTypeId(): number | null {
-    return this.maintenanceDocumentList?.selectedDocumentTypeId ?? null;
   }
 
   get showTitleBarReservationDropdown(): boolean {
@@ -333,7 +306,7 @@ export class MaintenanceShellComponent implements OnInit, OnDestroy, CanComponen
     if (this.showWorkOrdersTab && this.selectedTabIndex === this.workOrdersTabIndex && !this.showWorkOrderDetail) {
       return true;
     }
-    return this.selectedTabIndex === this.emailTabIndex || this.selectedTabIndex === this.documentsTabIndex;
+    return this.selectedTabIndex === this.documentsTabIndex;
   }
 
   get titleBarReservationNullLabel(): string {
@@ -500,19 +473,6 @@ export class MaintenanceShellComponent implements OnInit, OnDestroy, CanComponen
     this.titleBarReservationId = value == null || value === '' ? null : String(value);
   }
 
-  onHeaderEmailTypeDropdownChange(value: string | number | null): void {
-    if (!this.maintenanceEmailList) {
-      return;
-    }
-    this.maintenanceEmailList.onEmailTypeDropdownChange(value);
-  }
-
-  onHeaderDocumentTypeDropdownChange(value: string | number | null): void {
-    if (!this.maintenanceDocumentList) {
-      return;
-    }
-    this.maintenanceDocumentList.onDocumentTypeDropdownChange(value);
-  }
   //#endregion
 
   //#region Title Bar Sync
@@ -637,14 +597,11 @@ export class MaintenanceShellComponent implements OnInit, OnDestroy, CanComponen
         this.selectedTabIndex = previousTabIndex;
         return;
       }
-      if (nextTabIndex === this.receiptsTabIndex || nextTabIndex === this.documentsTabIndex || nextTabIndex === this.emailTabIndex) {
+      if (nextTabIndex === this.receiptsTabIndex || nextTabIndex === this.documentsTabIndex) {
         this.titleBarReservationId = null;
       }
       if (nextTabIndex === this.documentsTabIndex) {
         this.maintenanceDocumentList?.reload();
-      }
-      if (nextTabIndex === this.emailTabIndex) {
-        this.maintenanceEmailList?.reload();
       }
       if (nextTabIndex === 0) {
         setTimeout(() => this.inspectionChecklist?.pushTitleBarReservationToShell(), 0);
@@ -834,7 +791,7 @@ export class MaintenanceShellComponent implements OnInit, OnDestroy, CanComponen
       return null;
     }
 
-    const maxTab = this.showWorkOrdersTab ? 5 : 4;
+    const maxTab = this.documentsTabIndex;
     if (tabParam > maxTab) {
       return maxTab;
     }
@@ -861,7 +818,7 @@ export class MaintenanceShellComponent implements OnInit, OnDestroy, CanComponen
    * @param tabChange When set (mat-tab switch): prompt only when leaving Inspection (index 0) if that
    * checklist has unsaved changes, or when leaving Maintenance (index 1) if the maintenance form has
    * unsaved changes (maintenance-only edits do not require leaving Inspection). Other tabs stay mounted, so
-   * inspection `dirty` must not block moves like Emails ↔ Work Orders. Omit for property change, Back,
+   * inspection `dirty` must not block moves between read-only tabs. Omit for property change, Back,
    * and route deactivate — then both sections are checked.
    */
   async confirmChecklistNavigation(tabChange?: { previousIndex: number; nextIndex: number }): Promise<boolean> {

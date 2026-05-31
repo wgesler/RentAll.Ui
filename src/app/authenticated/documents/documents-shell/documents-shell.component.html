@@ -36,21 +36,36 @@
             [noResultsText]="'No reservations match your search'"
             (valueChange)="onReservationDropdownChange($event)">
           </app-title-bar-select>
-          <app-title-bar-select
-            [label]="'Document Types'"
-            [formFieldClass]="'titlebar-field-document-type'"
-            [value]="selectedDocumentTypeId"
-            [options]="documentTypeOptions"
-            [nullOptionLabel]="'All Document Types'"
-            [noResultsText]="'No document types match your search'"
-            (valueChange)="onDocumentTypeDropdownChange($event)">
-          </app-title-bar-select>
+          <mat-form-field appearance="outline" class="titlebar-field-office">
+            <mat-label>Start Date</mat-label>
+            <input
+              matInput
+              [matDatepicker]="documentsStartPicker"
+              [(ngModel)]="startDate"
+              [ngModelOptions]="{ standalone: true }"
+              (dateChange)="onDateRangeChange()"
+              [max]="endDate" />
+            <mat-datepicker-toggle matIconSuffix [for]="documentsStartPicker"></mat-datepicker-toggle>
+            <mat-datepicker #documentsStartPicker></mat-datepicker>
+          </mat-form-field>
+          <mat-form-field appearance="outline" class="titlebar-field-office">
+            <mat-label>End Date</mat-label>
+            <input
+              matInput
+              [matDatepicker]="documentsEndPicker"
+              [(ngModel)]="endDate"
+              [ngModelOptions]="{ standalone: true }"
+              (dateChange)="onDateRangeChange()"
+              [min]="startDate" />
+            <mat-datepicker-toggle matIconSuffix [for]="documentsEndPicker"></mat-datepicker-toggle>
+            <mat-datepicker #documentsEndPicker></mat-datepicker>
+          </mat-form-field>
         </div>
       </div>
     </div>
 
     <mat-card>
-      <mat-tab-group [selectedIndex]="0" [animationDuration]="'0ms'" class="property-tabs documents-shell-single-tab dbg-band-tabs">
+      <mat-tab-group [selectedIndex]="0" [animationDuration]="'0ms'" class="shell-tabs documents-shell-single-tab dbg-band-tabs">
         <mat-tab label="Documents">
           <app-document-list
             #documentsTabList
@@ -61,7 +76,8 @@
             [propertyId]="selectedPropertyId"
             [reservationId]="selectedReservationId"
             [propertyCode]="selectedPropertyCode"
-            [reservations]="reservations">
+            [reservations]="reservations"
+            [documentRequest]="documentRequest">
           </app-document-list>
         </mat-tab>
       </mat-tab-group>

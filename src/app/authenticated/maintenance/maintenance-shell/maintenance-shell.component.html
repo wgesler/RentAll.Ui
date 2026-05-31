@@ -65,28 +65,6 @@
                 </app-title-bar-select>
               </div>
             }
-            @if (selectedTabIndex === emailTabIndex) {
-              <app-title-bar-select
-                [label]="'Email Types'"
-                [formFieldClass]="'titlebar-field-document-type'"
-                [value]="selectedEmailTypeId"
-                [options]="emailTypeOptions"
-                [nullOptionLabel]="'All Email Types'"
-                [noResultsText]="'No email types match your search'"
-                (valueChange)="onHeaderEmailTypeDropdownChange($event)">
-              </app-title-bar-select>
-            }
-            @if (selectedTabIndex === documentsTabIndex) {
-              <app-title-bar-select
-                [label]="'Document Types'"
-                [formFieldClass]="'titlebar-field-document-type'"
-                [value]="selectedDocumentTypeId"
-                [options]="documentTypeOptions"
-                [nullOptionLabel]="'All Document Types'"
-                [noResultsText]="'No document types match your search'"
-                (valueChange)="onHeaderDocumentTypeDropdownChange($event)">
-              </app-title-bar-select>
-            }
           </div>
         </div>
 
@@ -116,7 +94,7 @@
       </div>
 
       <mat-card>
-        <mat-tab-group [selectedIndex]="selectedTabIndex" class="property-tabs dbg-band-tabs" (selectedIndexChange)="onTabIndexChange($event)">
+        <mat-tab-group [selectedIndex]="selectedTabIndex" class="shell-tabs dbg-band-tabs" (selectedIndexChange)="onTabIndexChange($event)">
           <mat-tab label="Inspection">
             @if (property) {
               <app-inspection
@@ -181,25 +159,10 @@
               }
             </mat-tab>
           }
-          <mat-tab label="Emails">
-            @if (property) {
-              <app-email-list
-                #maintenanceEmailList
-                [source]="'maintenance'"
-                [propertyId]="property.propertyId"
-                [propertyCode]="property.propertyCode ?? null"
-                [organizationId]="organizationId"
-                [officeId]="property.officeId ?? null"
-                [reservationId]="titleBarReservationId"
-                [reservations]="shellReservations"
-                [hideHeader]="true"
-                [hideFilters]="true"
-              />
-            }
-          </mat-tab>
           <mat-tab label="Documents">
             <app-document-list
               #maintenanceDocumentList
+              [documentTypeIds]="[DocumentType.Inspection, DocumentType.WorkOrder]"
               [propertyId]="property?.propertyId ?? undefined"
               [propertyCode]="property?.propertyCode ?? null"
               [officeId]="property?.officeId ?? null"

@@ -149,6 +149,17 @@
 
     .border p {
       margin: 0;
+      font-size: 10pt;
+      line-height: 150%;
+    }
+
+    .border p.authorization-grant {
+      margin-top: 8px;
+    }
+
+    .border p .form-inline-input {
+      font-size: 10pt;
+      line-height: 150%;
     }
 
     /* Make the first rows boxes equal height */
@@ -408,14 +419,15 @@
         <td colspan="2">
           <div class="border">
           <p>Thank you for reserving your furnished residence with {{organization-office}} ("{{organization-office}}"). All reservations require either a Company or Personal credit card, and will be confirmed upon receipt of this Authorization form.</p>
-          <div style="margin-top: 8px;">
+          <p class="authorization-grant">
             I,
             <input type="text" class="form-inline-input form-inline-input--name" value="{{tenantNamePlain}}">
             of
             <input type="text" class="form-inline-input form-inline-input--company" value="{{tenantState}}">
             hereby grant
-          </div>
-            {{organization-office}} authorization to charge my: <input type="checkbox"> Visa or <input type="checkbox"> MasterCard for charges incurred under the terms of this Agreement between the undersigned and {{organization-office}}.
+            {{organization-office}} authorization to charge my:
+            <input type="checkbox"> Visa or <input type="checkbox"> MasterCard for charges incurred under the terms of this Agreement between the undersigned and {{organization-office}}.
+          </p>
             <div class="form-line-row">
               <div class="form-line-cell">
                 <div class="form-inline-row">

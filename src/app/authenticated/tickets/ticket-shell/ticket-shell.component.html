@@ -96,7 +96,7 @@
             (backEvent)="onTicketBack()">
           </app-ticket>
         </ng-template>
-        <mat-tab-group [selectedIndex]="selectedTabIndex" (selectedIndexChange)="onTabIndexChange($event)" class="property-tabs ticket-shell-tabs ticket-shell-five-slot-tabs dbg-band-tabs">
+        <mat-tab-group [selectedIndex]="selectedTabIndex" (selectedIndexChange)="onTabIndexChange($event)" class="shell-tabs dbg-band-tabs">
           <mat-tab label="My Tickets">
             @if (!showTicketForm) {
               <app-ticket-list

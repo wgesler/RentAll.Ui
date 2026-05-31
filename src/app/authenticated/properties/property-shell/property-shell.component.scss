@@ -4,7 +4,7 @@
 }
 
 /* Hide Listing-shell Emails tab from view while keeping routing/component wiring intact. */
-:host ::ng-deep .property-tabs .mat-mdc-tab-header .mat-mdc-tab:nth-child(5) {
+:host ::ng-deep .shell-tabs .mat-mdc-tab-header .mat-mdc-tab:nth-child(5) {
   display: none !important;
 }
 

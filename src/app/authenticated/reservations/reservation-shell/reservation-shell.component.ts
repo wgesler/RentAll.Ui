@@ -12,8 +12,6 @@ import { InvoiceListComponent } from '../../accounting/invoice-list/invoice-list
 import { InvoiceComponent } from '../../accounting/invoice/invoice.component';
 import { DocumentListComponent } from '../../documents/document-list/document-list.component';
 import { DocumentType } from '../../documents/models/document.enum';
-import { EmailListComponent } from '../../email/email-list/email-list.component';
-import { EmailType } from '../../email/models/email.enum';
 import { OfficeResponse } from '../../organizations/models/office.model';
 import { GlobalSelectionService } from '../../organizations/services/global-selection.service';
 import { OfficeService } from '../../organizations/services/office.service';
@@ -21,7 +19,7 @@ import { SearchableSelectOption } from '../../shared/searchable-select/searchabl
 import { TitleBarSelectComponent } from '../../shared/titlebar-select/titlebar-select.component';
 import { LeaseComponent } from '../lease/lease.component';
 import { LeaseInformationComponent } from '../lease-information/lease-information.component';
-import { ReservationListResponse } from '../models/reservation-model';
+import { ReservationListResponse, ReservationResponse } from '../models/reservation-model';
 import { ReservationComponent } from '../reservation/reservation.component';
 import { ReservationService } from '../services/reservation.service';
 
@@ -38,7 +36,6 @@ import { ReservationService } from '../services/reservation.service';
     LeaseInformationComponent,
     InvoiceComponent,
     InvoiceListComponent,
-    EmailListComponent,
     DocumentListComponent
   ],
   templateUrl: './reservation-shell.component.html',
@@ -46,7 +43,6 @@ import { ReservationService } from '../services/reservation.service';
 })
 export class ReservationShellComponent implements OnInit, AfterViewInit, OnDestroy, CanComponentDeactivate {
   @ViewChild('reservationSection') reservationSection?: ReservationComponent;
-  @ViewChild('reservationEmailList') reservationEmailList?: EmailListComponent;
   @ViewChild('reservationDocumentList') reservationDocumentList?: DocumentListComponent;
 
   selectedTabIndex: number = 0;
@@ -66,12 +62,13 @@ export class ReservationShellComponent implements OnInit, AfterViewInit, OnDestr
   isAdmin: boolean = false;
   isHandlingTabGuard: boolean = false;
   activeInvoiceId: string | null = null;
+  activeOfficeId: number | null = null;
+  activePropertyId: string | null = null;
 
   itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['offices']));
   isLoading$: Observable<boolean> = this.itemsToLoad$.pipe(map(items => items.size > 0));
   destroy$ = new Subject<void>();
 
-  readonly EmailType = EmailType;
   readonly DocumentType = DocumentType;
   constructor(
     private route: ActivatedRoute,
@@ -88,7 +85,6 @@ export class ReservationShellComponent implements OnInit, AfterViewInit, OnDestr
   ngOnInit(): void {
     this.organizationId = this.authService.getUser()?.organizationId?.trim() ?? '';
     this.isAdmin = this.authService.isAdmin();
-    /** Page-level office seeded from global; does not write global (title bar office is read-only). */
     this.selectedOfficeId = this.globalSelectionService.getSelectedOfficeIdValue();
 
     this.globalSelectionService.getSelectedOfficeId$().pipe(skip(1), takeUntil(this.destroy$)).subscribe(officeId => {
@@ -115,8 +111,8 @@ export class ReservationShellComponent implements OnInit, AfterViewInit, OnDestr
       this.isAddMode = !id || id === 'new';
       this.routeReservationId = this.isAddMode ? null : id;
       this.selectedHeaderReservationId = this.routeReservationId;
-      this.loadSelectedReservationContext();
       this.loadOffices();
+      this.loadSelectedReservationContext();
     });
 
   }
@@ -165,9 +161,6 @@ export class ReservationShellComponent implements OnInit, AfterViewInit, OnDestr
         queryParamsHandling: 'merge'
       });
 
-      if (requestedTabIndex === this.getEmailTabIndex() && this.reservationEmailList) {
-        this.reservationEmailList.reload();
-      }
       if (requestedTabIndex === this.getDocumentsTabIndex() && this.reservationDocumentList) {
         this.reservationDocumentList.reload();
       }
@@ -187,8 +180,6 @@ export class ReservationShellComponent implements OnInit, AfterViewInit, OnDestr
         return this.getLeaseTabIndex();
       case 'invoices':
         return this.getInvoicesTabIndex();
-      case 'email':
-        return this.getEmailTabIndex();
       case 'documents':
         return this.getDocumentsTabIndex();
       default:
@@ -206,13 +197,41 @@ export class ReservationShellComponent implements OnInit, AfterViewInit, OnDestr
     if (tabIndex === this.getInvoicesTabIndex()) {
       return 'invoices';
     }
-    if (tabIndex === this.getEmailTabIndex()) {
-      return 'email';
-    }
     if (tabIndex === this.getDocumentsTabIndex()) {
       return 'documents';
     }
     return null;
+  }
+ 
+  getReservationDropdownLabel(reservation: ReservationListResponse): string {
+    const contacts = this.reservationSection?.contacts || [];
+    const contact = contacts.find(c => c.contactId === reservation.contactId) || null;
+    return this.utilityService.getReservationDropdownLabel(reservation, contact);
+  }
+
+  resolveOfficeScope(officeId: number | null): void {
+    this.selectedOffice = this.utilityService.resolveSelectedOfficeById(this.offices, officeId);
+  }
+
+  applyOfficeFromGlobal(officeId: number | null): void {
+    if (!this.isAddMode && this.routeReservationId) {
+      return;
+    }
+    if (this.isAddMode && !this.routeReservationId) {
+      return;
+    }
+    if (this.offices.length === 0) {
+      this.selectedOfficeId = officeId;
+      return;
+    }
+    if (this.offices.length === 1) {
+      this.selectedOfficeId = this.offices[0].officeId;
+    } else {
+      const resolved = officeId != null && this.offices.some(o => o.officeId === officeId) ? officeId : null;
+      this.selectedOfficeId = resolved;
+    }
+    this.resolveOfficeScope(this.selectedOfficeId);
+    this.refreshHeaderReservationOptions();
   }
   // #endregion
 
@@ -225,11 +244,15 @@ export class ReservationShellComponent implements OnInit, AfterViewInit, OnDestr
       this.routeReservationId = nextReservationId;
     }
     this.selectedReservationSummary = this.reservationList.find(r => r.reservationId === nextReservationId) || null;
-
-    if (this.selectedReservationSummary?.officeId != null && this.selectedOfficeId !== this.selectedReservationSummary.officeId) {
-      this.selectedOfficeId = this.selectedReservationSummary.officeId;
+    if (this.selectedReservationSummary) {
+      this.applyReservationScope(
+        this.selectedReservationSummary.officeId,
+        this.selectedReservationSummary.propertyId,
+        this.selectedReservationSummary.reservationId
+      );
+    } else {
+      this.clearReservationScope();
     }
-    this.syncOfficeToSelectedPropertyOffice();
 
     if (this.selectedTabIndex === 0 && this.reservationSection && nextReservationId) {
       const canLeave = await this.reservationSection.confirmNavigationWithUnsavedChanges();
@@ -259,9 +282,6 @@ export class ReservationShellComponent implements OnInit, AfterViewInit, OnDestr
       }
       return;
     }
-    if (this.selectedTabIndex === this.getEmailTabIndex() && this.reservationEmailList) {
-      this.reservationEmailList.reload();
-    }
     if (this.selectedTabIndex === this.getDocumentsTabIndex() && this.reservationDocumentList) {
       this.reservationDocumentList.reload();
     }
@@ -277,11 +297,21 @@ export class ReservationShellComponent implements OnInit, AfterViewInit, OnDestr
       this.routeReservationId = reservation.sharedReservationId ?? reservation.reservation?.reservationId ?? null;
     }
     this.selectedHeaderReservationId = this.routeReservationId ?? reservation.sharedReservationId ?? reservation.reservation?.reservationId ?? null;
-    if (reservation.sharedOfficeId != null) {
-      this.selectedOfficeId = reservation.sharedOfficeId;
-      this.resolveOfficeScope(this.selectedOfficeId);
+
+    if (this.isAddMode && !this.routeReservationId) {
+      if (this.offices.length > 0) {
+        this.initializeAddModeOfficeFromShell();
+      }
+      this.loadReservations();
+      this.refreshHeaderReservationOptions();
+      return;
     }
-    this.syncOfficeToSelectedPropertyOffice();
+
+    const officeId = reservation.sharedOfficeId;
+    const propertyId = reservation.sharedPropertyId;
+    if (officeId != null && propertyId) {
+      this.applyReservationScope(officeId, propertyId, reservation.sharedReservationId);
+    }
     this.loadReservations();
     this.refreshHeaderReservationOptions();
   }
@@ -306,25 +336,62 @@ export class ReservationShellComponent implements OnInit, AfterViewInit, OnDestr
     return this.availableOffices.map(o => ({ value: o.value, label: o.name }));
   }
 
+  /** Add-mode shell office scope; null means All Offices until the user picks one. */
+  get addModeOfficeId(): number | null {
+    return this.selectedOfficeId;
+  }
+
+  initializeAddModeOfficeFromShell(): void {
+    if (!this.isAddMode || this.routeReservationId || this.offices.length === 0) {
+      return;
+    }
+
+    let initialOfficeId: number | null = null;
+    const queryOfficeId = this.route.snapshot.queryParamMap.get('officeId');
+    if (queryOfficeId) {
+      const parsed = Number(queryOfficeId);
+      if (!isNaN(parsed) && this.offices.some(office => office.officeId === parsed)) {
+        initialOfficeId = parsed;
+      }
+    }
+
+    this.selectedOfficeId = initialOfficeId;
+    this.selectedOffice = initialOfficeId != null
+      ? this.offices.find(office => office.officeId === initialOfficeId) ?? null
+      : null;
+    this.activeOfficeId = initialOfficeId;
+    this.reservationSection?.initializeOfficeFromShell(initialOfficeId);
+    this.refreshHeaderReservationOptions();
+  }
+
+  onShellOfficeDropdownChange(officeId: string | number | null): void {
+    if (!this.reservationSection?.isAddMode) {
+      return;
+    }
+    const resolvedOfficeId = officeId == null || officeId === '' ? null : Number(officeId);
+    const normalizedOfficeId = resolvedOfficeId != null && !isNaN(resolvedOfficeId) ? resolvedOfficeId : null;
+    this.reservationSection.onTitleBarOfficeChange(normalizedOfficeId);
+    this.applyReservationScope(normalizedOfficeId, this.reservationSection.sharedPropertyId);
+  }
+
+  onShellPropertyCodeDropdownChange(propertyId: string | number | null): void {
+    if (!this.reservationSection?.isAddMode) {
+      return;
+    }
+    this.reservationSection.onPropertyDropdownChange(propertyId);
+    const officeId = this.reservationSection.sharedOfficeId ?? this.addModeOfficeId;
+    const resolvedPropertyId = this.reservationSection.sharedPropertyId;
+    this.applyReservationScope(officeId, resolvedPropertyId);
+  }
+
   get selectedPropertyId(): string | null {
-    return this.selectedReservationSummary?.propertyId
+    return this.activePropertyId
+      ?? this.selectedReservationSummary?.propertyId
       ?? this.reservationSection?.sharedPropertyId
       ?? this.reservationSection?.selectedProperty?.propertyId
       ?? this.reservationSection?.reservation?.propertyId
       ?? this.selectedPropertyIdSeed
       ?? null;
-  }
-
-  syncOfficeToSelectedPropertyOffice(): void {
-    const propertyOfficeId = this.reservationSection?.sharedOfficeId
-      ?? this.selectedReservationSummary?.officeId
-      ?? this.reservationSection?.selectedProperty?.officeId
-      ?? this.reservationSection?.reservation?.officeId
-      ?? null;
-    if (propertyOfficeId != null && this.selectedOfficeId !== propertyOfficeId) {
-      this.selectedOfficeId = propertyOfficeId;
-      this.resolveOfficeScope(this.selectedOfficeId);
-    }
   }
   //#endregion
 
@@ -343,46 +410,42 @@ export class ReservationShellComponent implements OnInit, AfterViewInit, OnDestr
   }
 
   get displayOfficeId(): number | null {
-    return this.selectedReservationSummary?.officeId
+    return this.activeOfficeId
+      ?? this.selectedReservationSummary?.officeId
       ?? this.selectedOfficeId
       ?? this.reservationSection?.sharedOfficeId
       ?? null;
   }
 
-  get emailTypeOptions(): SearchableSelectOption[] {
-    return (this.reservationEmailList?.emailTypeOptions || []).map(option => ({
-      value: option.value,
-      label: option.label
-    }));
-  }
+  /** Office and property for the active reservation; set in one call when the reservation is selected. */
+  applyReservationScope(officeId: number | null, propertyId: string | null, reservationId?: string | null): void {
+    this.activeOfficeId = officeId;
+    this.activePropertyId = propertyId?.trim() ? propertyId.trim() : null;
+    this.selectedOfficeId = officeId;
 
-  get selectedEmailTypeId(): number | null {
-    return this.reservationEmailList?.selectedEmailTypeId ?? null;
-  }
-
-  get documentTypeOptions(): SearchableSelectOption[] {
-    return (this.reservationDocumentList?.documentTypeOptions || []).map(option => ({
-      value: option.value,
-      label: option.label
-    }));
-  }
-
-  get selectedDocumentTypeId(): number | null {
-    return this.reservationDocumentList?.selectedDocumentTypeId ?? null;
-  }
-
-  onHeaderEmailTypeDropdownChange(value: string | number | null): void {
-    if (!this.reservationEmailList) {
-      return;
+    if (officeId != null) {
+      this.resolveOfficeScope(officeId);
+    } else {
+      this.selectedOffice = null;
     }
-    this.reservationEmailList.onEmailTypeDropdownChange(value);
+
+    if (this.activePropertyId) {
+      this.selectedPropertyIdSeed = this.activePropertyId;
+    }
+
+    if (reservationId) {
+      this.selectedHeaderReservationId = reservationId;
+      this.routeReservationId = reservationId;
+      this.selectedReservationSummary =
+        this.reservationList.find(r => r.reservationId === reservationId) ?? this.selectedReservationSummary;
+    }
+
+    this.refreshHeaderReservationOptions();
   }
 
-  onHeaderDocumentTypeDropdownChange(value: string | number | null): void {
-    if (!this.reservationDocumentList) {
-      return;
-    }
-    this.reservationDocumentList.onDocumentTypeDropdownChange(value);
+  clearReservationScope(): void {
+    this.activeOfficeId = null;
+    this.activePropertyId = null;
   }
 
   getLeaseTabIndex(): number {
@@ -393,25 +456,23 @@ export class ReservationShellComponent implements OnInit, AfterViewInit, OnDestr
     return this.isAdmin ? 3 : 2;
   }
 
-  getEmailTabIndex(): number {
-    return this.isAdmin ? 4 : 3;
-  }
-
   getDocumentsTabIndex(): number {
-    return this.isAdmin ? 5 : 4;
+    return this.isAdmin ? 4 : 3;
   }
   //#endregion
 
   //#region Data Loading Methods
   loadOffices(): void {
-    this.officeService.ensureOfficesLoaded(this.organizationId).pipe(take(1), finalize(() => { this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'offices'); })).subscribe({
+    this.officeService.ensureOfficesLoaded(this.organizationId).pipe(take(1), finalize(() => {
+      this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'offices');
+    })).subscribe({
       next: () => {
         this.officeService.getAllOffices().pipe(takeUntil(this.destroy$)).subscribe(offices => {
           this.offices = offices || [];
           this.availableOffices = this.mappingService.mapOfficesToDropdown(this.offices);
           this.showOfficeDropdown = this.offices.length > 1;
           if (this.isAddMode && !this.routeReservationId) {
-            this.applyOfficeFromGlobal(this.selectedOfficeId);
+            this.initializeAddModeOfficeFromShell();
           } else if (this.selectedOfficeId != null) {
             this.resolveOfficeScope(this.selectedOfficeId);
             this.refreshHeaderReservationOptions();
@@ -427,42 +488,36 @@ export class ReservationShellComponent implements OnInit, AfterViewInit, OnDestr
     });
   }
 
-  /** Follows global header on add flow; does not write global. Existing reservations keep property office. */
-  private applyOfficeFromGlobal(officeId: number | null): void {
-    if (!this.isAddMode && this.routeReservationId) {
-      return;
-    }
-    if (this.offices.length === 0) {
-      this.selectedOfficeId = officeId;
-      return;
-    }
-    if (this.offices.length === 1) {
-      this.selectedOfficeId = this.offices[0].officeId;
-    } else {
-      const resolved = officeId != null && this.offices.some(o => o.officeId === officeId) ? officeId : null;
-      this.selectedOfficeId = resolved;
-    }
-    this.resolveOfficeScope(this.selectedOfficeId);
-    this.refreshHeaderReservationOptions();
-  }
-
   loadSelectedReservationContext(): void {
     if (!this.routeReservationId || this.isAddMode) {
       return;
     }
 
-    this.reservationService.getReservationByGuid(this.routeReservationId).pipe(take(1)).subscribe({
-      next: reservation => {
-        if (reservation?.officeId == null) {
-          return;
+    this.utilityService.addLoadItem(this.itemsToLoad$, 'reservationContext');
+    this.reservationService.getReservationByGuid(this.routeReservationId).pipe(take(1), finalize(() => {
+      this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'reservationContext');
+    })).subscribe({
+      next: (reservation: ReservationResponse) => {
+        if (reservation?.officeId != null) {
+          this.applyReservationScope(
+            reservation.officeId,
+            reservation.propertyId ?? null,
+            reservation.reservationId
+          );
+        } else if (reservation?.propertyId) {
+          this.selectedPropertyIdSeed = reservation.propertyId;
+          this.activePropertyId = reservation.propertyId;
         }
-        this.selectedOfficeId = reservation.officeId;
-        this.selectedPropertyIdSeed = reservation.propertyId ?? null;
-        this.resolveOfficeScope(this.selectedOfficeId);
-        this.refreshHeaderReservationOptions();
-        this.loadReservations();
+
+        if (reservation?.propertyId) {
+          this.loadReservationsByPropertyId(reservation.propertyId);
+        } else {
+          this.loadReservations();
+        }
       },
-      error: () => {}
+      error: () => {
+        this.loadReservations();
+      }
     });
   }
 
@@ -510,15 +565,13 @@ export class ReservationShellComponent implements OnInit, AfterViewInit, OnDestr
           }
         }
         this.selectedReservationSummary = this.reservationList.find(r => r.reservationId === this.selectedHeaderReservationId) || null;
-        const selectedPropertyOfficeId = this.reservationSection?.sharedOfficeId
-          ?? this.selectedReservationSummary?.officeId
-          ?? null;
-        if (selectedPropertyOfficeId != null) {
-          this.selectedOfficeId = selectedPropertyOfficeId;
-          this.resolveOfficeScope(this.selectedOfficeId);
+        if (this.selectedReservationSummary) {
+          this.applyReservationScope(
+            this.selectedReservationSummary.officeId,
+            this.selectedReservationSummary.propertyId,
+            this.selectedReservationSummary.reservationId
+          );
         }
-        this.syncOfficeToSelectedPropertyOffice();
-        this.refreshHeaderReservationOptions();
       },
       error: () => {
         this.reservationList = [];
@@ -529,15 +582,6 @@ export class ReservationShellComponent implements OnInit, AfterViewInit, OnDestr
   //#endregion
 
   //#region Utility Methods
-  getReservationDropdownLabel(reservation: ReservationListResponse): string {
-    const contacts = this.reservationSection?.contacts || [];
-    const contact = contacts.find(c => c.contactId === reservation.contactId) || null;
-    return this.utilityService.getReservationDropdownLabel(reservation, contact);
-  }
-
-  resolveOfficeScope(officeId: number | null): void {
-    this.selectedOffice = this.utilityService.resolveSelectedOfficeById(this.offices, officeId);
-  }
 
   canDeactivate(): Promise<boolean> | boolean {
     return this.reservationSection?.canDeactivate() ?? true;

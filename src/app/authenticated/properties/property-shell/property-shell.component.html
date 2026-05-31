@@ -114,17 +114,6 @@
                 (valueChange)="onHeaderEmailTypeDropdownChange($event)">
               </app-title-bar-select>
             }
-            @if (selectedTabIndex === 5) {
-              <app-title-bar-select
-                [label]="'Document Types'"
-                [formFieldClass]="'titlebar-field-document-type'"
-                [value]="selectedDocumentTypeId"
-                [options]="documentTypeOptions"
-                [nullOptionLabel]="'All Document Types'"
-                [noResultsText]="'No document types match your search'"
-                (valueChange)="onHeaderDocumentTypeDropdownChange($event)">
-              </app-title-bar-select>
-            }
         }
         </div>
       </div>
@@ -143,7 +132,7 @@
     </div>
 
     <mat-card>
-      <mat-tab-group [selectedIndex]="selectedTabIndex" class="property-tabs dbg-band-tabs" (selectedIndexChange)="onTabIndexChange($event)">
+      <mat-tab-group [selectedIndex]="selectedTabIndex" class="shell-tabs dbg-band-tabs" (selectedIndexChange)="onTabIndexChange($event)">
         <mat-tab label="Property">
           <app-property
             #propertySection
@@ -203,6 +192,7 @@
         <mat-tab label="Documents">
           <app-document-list
             #propertyDocumentList
+            [documentTypeIds]="[DocumentType.PropertyLetter, DocumentType.Quote]"
             [propertyId]="propertySection?.isAddMode ? null : (propertySection?.propertyId ?? null)"
             [propertyCode]="sharedPropertyCode"
             [officeId]="titleBarPropertyOfficeId"

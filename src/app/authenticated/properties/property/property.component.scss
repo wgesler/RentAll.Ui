@@ -541,16 +541,9 @@
   }
 }
 
-// Property tabs styling - make all tabs equal width
-::ng-deep .property-tabs {
+// Property tabs: shell tab strip sizing is global (styles.scss --shell-tab-slot-count).
+::ng-deep .shell-tabs {
   width: 100%;
-  
-  .mat-mdc-tab-header {
-    .mdc-tab {
-      flex: 1;
-      min-width: 0;
-    }
-  }
   
   // Ensure tab body content doesn't affect container width
   .mat-mdc-tab-body-wrapper {
@@ -592,7 +585,7 @@ section.content-card {
   }
   
   // Ensure tab group doesn't resize
-  .property-tabs {
+  .shell-tabs {
     width: 100% !important;
     min-width: 0;
     max-width: 100%;

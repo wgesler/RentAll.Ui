@@ -47,6 +47,11 @@
   --global-action-button-height: 36px;
   --global-action-button-radius: 6px;
   --global-action-button-padding-x: 14px;
+  /* Shell mat-tab strip: cap each tab at 1/N of the row (N slots) so fewer tabs do not grow wider. */
+  --shell-tab-slot-count: 5;
+  --shell-tab-min-height: 48px;
+  --shell-tab-padding-block: 12px;
+  --shell-tab-label-line-height: 1.35;
   /* Settings accordion alignment: shared top offset for embedded action rows/lists. */
   --settings-embedded-actions-top-offset: 1.5rem;
   --settings-embedded-list-actions-visual-adjust: 0.1875rem;
@@ -87,38 +92,22 @@ html {
   overflow-y: auto;
 }
 
-/* Owner-shell tab standard.
-   The owner-shell mirrors the property-shell tab layout, but its tabs are declared HERE (always
-   present) instead of relying on app-property's styles. app-property is embedded only in the
-   Properties tab via lazy `matTabContent`, so it is created/destroyed as that tab is entered/left;
-   on Angular's default `removeStylesOnCompDestroy`, its global-leaking `::ng-deep .property-tabs`
-   rules toggle on and off with it. Declaring the standard on `.owner-shell-tabs` keeps the layout
-   stable regardless of that lifecycle.
-
-   The equal-width tab strip below is the one that actually fixed the "Properties tab jumps" bug:
-   without it the strip resized whenever app-property's styles came and went. */
-.owner-shell-tabs .mat-mdc-tab-header .mdc-tab {
-  flex: 1;
-  min-width: 0;
-}
-
-/* Defer vertical scrolling to the gutter-reserved page scroller (mat-sidenav-content) so a tall tab
-   never grows its own inner scrollbar, and lock widths so tab content can't resize the strip/card. */
-.owner-shell-tabs .mat-mdc-tab-body-content {
+/* Shell tab groups (mat-tab-group.shell-tabs): defer scroll to page; lock tab body width. */
+.shell-tabs .mat-mdc-tab-body-content {
   overflow: visible !important;
   overflow-x: hidden !important;
 }
 
-.owner-shell-tabs .mat-mdc-tab-body-wrapper,
-.owner-shell-tabs .mat-mdc-tab-body,
-.owner-shell-tabs .mat-mdc-tab-body-content {
+.shell-tabs .mat-mdc-tab-body-wrapper,
+.shell-tabs .mat-mdc-tab-body,
+.shell-tabs .mat-mdc-tab-body-content {
   width: 100% !important;
   max-width: 100% !important;
   min-width: 0 !important;
   box-sizing: border-box !important;
 }
 
-/* Band between mat-tabs and main content under .property-tabs (property + maintenance shells). */
+/* Band between mat-tabs and main content under .shell-tabs (property + maintenance shells). */
 .property-tab-actions-band {
   display: flex;
   flex-direction: column;
@@ -154,16 +143,16 @@ html {
  * Default align-items:center makes a short Save sit above the row bottom when siblings are taller; flex-end
  * lines up control bottoms; gap below Save is var(--property-tab-actions-band-inner-padding-block) + border.
  */
-.property-tabs .property-tab-actions-band > .property-tab-actions-band__row {
+.shell-tabs .property-tab-actions-band > .property-tab-actions-band__row {
   align-items: flex-end;
 }
 
-.property-tabs .document-list-tab-container .property-tab-actions-band > .property-tab-actions-band__row {
+.shell-tabs .document-list-tab-container .property-tab-actions-band > .property-tab-actions-band__row {
   align-items: center;
 }
 
 /* Band between tabs and main content (purple spacing always; colored chrome when body.dbg-page-debug-on). */
-.property-tabs .property-tab-actions-band {
+.shell-tabs .property-tab-actions-band {
   margin-bottom: var(--datatable-search-wrap-margin-bottom);
   box-sizing: border-box;
   min-height: var(--property-tab-actions-band-height);
@@ -174,7 +163,7 @@ html {
 }
 
 /* Property shell Emails/Documents: reservation band lives inside orange; no extra stack gap before orange. */
-.property-tabs .document-list-tab-container.list-layout-tabbed > .property-tab-main-area > .property-tab-actions-band {
+.shell-tabs .document-list-tab-container.list-layout-tabbed > .property-tab-main-area > .property-tab-actions-band {
   min-height: 0;
   margin-bottom: 0;
   padding-inline: 0;
@@ -189,13 +178,13 @@ html {
  * app-property nests legacy .content-card-wrap > .content-card inside the tab (width 96%, margin-top 24px, centered).
  * Other tabs render full width — reset so the actions band and form align with sibling tabs.
  */
-.property-tabs app-property .property-shell-embedded-wrap.content-card-wrap {
+.shell-tabs app-property .property-shell-embedded-wrap.content-card-wrap {
   align-items: stretch;
   width: 100%;
   margin-bottom: 0;
 }
 
-.property-tabs app-property .property-shell-embedded-wrap .content-card.property-shell-embedded {
+.shell-tabs app-property .property-shell-embedded-wrap .content-card.property-shell-embedded {
   width: 100% !important;
   max-width: 100% !important;
   margin-top: 0 !important;
@@ -204,26 +193,26 @@ html {
 
 /* Owner shell > Property Information tab:
    force embedded Property area and sibling accordion form to the same horizontal rhythm. */
-.owner-shell-tabs .owner-property-embedded app-property {
+app-owner-shell .shell-tabs .owner-property-embedded app-property {
   display: block;
   width: 100%;
 }
 
-.owner-shell-tabs .owner-property-embedded app-property .property-shell-embedded-wrap {
+app-owner-shell .shell-tabs .owner-property-embedded app-property .property-shell-embedded-wrap {
   width: 100% !important;
   margin: 0 !important;
   padding: 0 !important;
   align-items: stretch !important;
 }
 
-.owner-shell-tabs .owner-property-embedded app-property .property-shell-embedded-wrap .content-card.property-shell-embedded {
+app-owner-shell .shell-tabs .owner-property-embedded app-property .property-shell-embedded-wrap .content-card.property-shell-embedded {
   width: 100% !important;
   max-width: 100% !important;
   margin-top: 0 !important;
   margin-bottom: 0 !important;
 }
 
-.owner-shell-tabs .owner-property-embedded app-property .property-shell-embedded-wrap .content-card.property-shell-embedded > mat-card {
+app-owner-shell .shell-tabs .owner-property-embedded app-property .property-shell-embedded-wrap .content-card.property-shell-embedded > mat-card {
   border: 0 !important;
   box-shadow: none !important;
   border-radius: 0 !important;
@@ -231,16 +220,16 @@ html {
 }
 
 /* Tighten seam between embedded Property accordions and Owner-shell inventory accordion. */
-.owner-shell-tabs app-property .info-form.mb-8 {
+app-owner-shell .shell-tabs app-property .info-form.mb-8 {
   margin-bottom: var(--global-accordion-gap) !important;
 }
 
 /* Remove inherited bottom padding from embedded property form shell so seam matches true accordion spacing. */
-.owner-shell-tabs app-property .info-form {
+app-owner-shell .shell-tabs app-property .info-form {
   padding-bottom: 0 !important;
 }
 
-.owner-shell-tabs .owner-shell-property-info-form {
+app-owner-shell .shell-tabs .owner-shell-property-info-form {
   margin-top: 0 !important;
   padding-top: 0 !important;
   padding-left: 0 !important;
@@ -250,12 +239,12 @@ html {
 
 /* Boundary between embedded Property block and following Owner-shell accordion:
    use one explicit global accordion gap only. */
-.owner-shell-tabs .owner-shell-property-info-form .owner-shell-accordion {
+app-owner-shell .shell-tabs .owner-shell-property-info-form .owner-shell-accordion {
   margin-top: 0 !important;
 }
 
 /* Cancel .content-card-wrap .info-form horizontal padding for the band only (full width matches other tabs). */
-.property-tabs app-property .property-page-form > .property-tab-actions-band:first-child {
+.shell-tabs app-property .property-page-form > .property-tab-actions-band:first-child {
   margin-inline: calc(-1 * var(--global-page-inner-padding));
   width: calc(100% + 2 * var(--global-page-inner-padding));
   max-width: none;
@@ -263,20 +252,20 @@ html {
 }
 
 /* Band bleeds horizontally to tab content edges. */
-.property-tabs .letter-information-form-container > .letter-information-form > .property-tab-actions-band:first-child {
+.shell-tabs .letter-information-form-container > .letter-information-form > .property-tab-actions-band:first-child {
   margin-inline: calc(-1 * var(--global-page-inner-padding));
   width: calc(100% + 2 * var(--global-page-inner-padding));
   max-width: none;
 }
 
-.property-tabs .welcome-letter-container > .welcome-letter-form > .property-tab-actions-band:first-child {
+.shell-tabs .welcome-letter-container > .welcome-letter-form > .property-tab-actions-band:first-child {
   margin-inline: -1.5rem;
   width: calc(100% + 3rem);
   max-width: none;
 }
 
 /* Main area: match tab strip + actions band width (same bleed as band above; list tabs are already full width). */
-.property-tabs app-property .property-page-form > .property-tab-main-area {
+.shell-tabs app-property .property-page-form > .property-tab-main-area {
   margin-inline: calc(-1 * var(--global-page-inner-padding));
   width: calc(100% + 2 * var(--global-page-inner-padding));
   max-width: none;
@@ -284,70 +273,56 @@ html {
 }
 
 /* Leads shell: embedded rental/owner lead forms — same main-area bleed as property tab forms. */
-.property-tabs app-rental .property-tab-main-area,
-.property-tabs app-owner .property-tab-main-area {
+.shell-tabs app-rental .property-tab-main-area,
+.shell-tabs app-owner .property-tab-main-area {
   margin-inline: calc(-1 * var(--global-page-inner-padding));
   width: calc(100% + 2 * var(--global-page-inner-padding));
   max-width: none;
   box-sizing: border-box;
 }
 
-.property-tabs .letter-information-form-container > .letter-information-form > .property-tab-main-area {
+.shell-tabs .letter-information-form-container > .letter-information-form > .property-tab-main-area {
   margin-inline: calc(-1 * var(--global-page-inner-padding));
   width: calc(100% + 2 * var(--global-page-inner-padding));
   max-width: none;
   box-sizing: border-box;
 }
 
-.property-tabs .welcome-letter-container > .welcome-letter-form > .property-tab-main-area {
+.shell-tabs .welcome-letter-container > .welcome-letter-form > .property-tab-main-area {
   margin-inline: -1.5rem;
   width: calc(100% + 3rem);
   max-width: none;
   box-sizing: border-box;
 }
 
-.property-tabs .document-list-tab-container.list-layout-tabbed .property-tab-actions-band > .property-tab-actions-band__row:first-child {
+.shell-tabs .document-list-tab-container.list-layout-tabbed .property-tab-actions-band > .property-tab-actions-band__row:first-child {
   padding-top: 0;
   margin-top: 0;
 }
 
-/* Reservation shell: same band stack as property-tabs (purple actions band, then orange main). */
-.reservation-tabs .property-tab-actions-band > .property-tab-actions-band__row {
-  align-items: flex-end;
-}
-
-.reservation-tabs .property-tab-actions-band {
-  margin-bottom: var(--datatable-search-wrap-margin-bottom);
-  box-sizing: border-box;
-  min-height: var(--property-tab-actions-band-height);
-  padding-left: var(--global-page-inner-padding);
-  padding-right: calc(2 * var(--global-page-inner-padding));
-  padding-top: var(--property-tab-actions-band-inner-padding-block);
-  padding-bottom: var(--property-tab-actions-band-inner-padding-block);
-}
-
-.reservation-tabs app-reservation .reservation-shell-mode form.reservation-shell-form > .property-tab-actions-band:first-child {
+/* Reservation / lease tab content inside reservation shell. */
+.shell-tabs app-reservation .reservation-shell-mode form.reservation-shell-form > .property-tab-actions-band:first-child {
   margin-inline: calc(-1 * var(--global-page-inner-padding));
   width: calc(100% + 2 * var(--global-page-inner-padding));
   max-width: none;
   box-sizing: border-box;
 }
 
-.reservation-tabs app-reservation .reservation-shell-mode form.reservation-shell-form > .property-tab-main-area {
+.shell-tabs app-reservation .reservation-shell-mode form.reservation-shell-form > .property-tab-main-area {
   margin-inline: calc(-1 * var(--global-page-inner-padding));
   width: calc(100% + 2 * var(--global-page-inner-padding));
   max-width: none;
   box-sizing: border-box;
 }
 
-.reservation-tabs app-lease .lease-container.lease-shell-mode > .lease-form > .property-tab-actions-band:first-child {
+.shell-tabs app-lease .lease-container.lease-shell-mode > .lease-form > .property-tab-actions-band:first-child {
   margin-inline: calc(-1 * var(--global-page-inner-padding));
   width: calc(100% + 2 * var(--global-page-inner-padding));
   max-width: none;
   box-sizing: border-box;
 }
 
-.reservation-tabs app-lease .lease-container.lease-shell-mode > .lease-form > .property-tab-main-area {
+.shell-tabs app-lease .lease-container.lease-shell-mode > .lease-form > .property-tab-main-area {
   margin-inline: calc(-1 * var(--global-page-inner-padding));
   width: calc(100% + 2 * var(--global-page-inner-padding));
   max-width: none;
@@ -355,8 +330,8 @@ html {
 }
 
 /* Compact actions row when not in reservation shell (same DOM as shell band; lighter spacing). */
-.reservation-tabs .property-tab-actions-band.reservation-inline-actions,
-.reservation-tabs .property-tab-actions-band.lease-inline-actions {
+.shell-tabs .property-tab-actions-band.reservation-inline-actions,
+.shell-tabs .property-tab-actions-band.lease-inline-actions {
   min-height: 0;
   margin-bottom: 0.75rem;
   padding-top: 0;
@@ -1435,6 +1410,37 @@ mat-tab-header {
   margin-bottom: 20px;
 }
 
+/* Shell tab groups: size tabs as if the strip always has --shell-tab-slot-count slots. */
+.shell-tabs {
+  .mat-mdc-tab-header {
+    min-height: var(--shell-tab-min-height);
+
+    .mat-mdc-tab,
+    .mdc-tab {
+      flex: 0 1 calc(100% / var(--shell-tab-slot-count));
+      max-width: calc(100% / var(--shell-tab-slot-count));
+      min-width: 0;
+      min-height: var(--shell-tab-min-height);
+      overflow: visible !important;
+      box-sizing: border-box;
+    }
+
+    .mdc-tab__content {
+      min-height: var(--shell-tab-min-height);
+      padding-block: var(--shell-tab-padding-block);
+      box-sizing: border-box;
+    }
+
+    .mdc-tab__text-label {
+      line-height: var(--shell-tab-label-line-height);
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      max-width: 100%;
+    }
+  }
+}
+
 .mat-mdc-tab {
   position: relative;
   border-radius: 0.5rem;
@@ -1486,11 +1492,7 @@ mat-tab-header {
 }
 
 /* Shell/tab pages use a stronger active edge. */
-.property-tabs .mat-mdc-tab.mdc-tab--active::after,
-.reservation-tabs .mat-mdc-tab.mdc-tab--active::after,
-.contacts-tabs .mat-mdc-tab.mdc-tab--active::after,
-.accounting-tabs .mat-mdc-tab.mdc-tab--active::after,
-.users-tabs .mat-mdc-tab.mdc-tab--active::after {
+.shell-tabs .mat-mdc-tab.mdc-tab--active::after {
   border-top-width: 2px !important;
   border-left-width: 2px !important;
   border-right-width: 2px !important;
@@ -1814,16 +1816,8 @@ mat-form-field input,
  * .tableDiv. Drop filter top margin so there is no tinted strip above the purple band (invoices, embedded GL, etc.).
  * Lists that render .list-top-controls above .tableDiv keep the default margin from :not(.dbg-band-main) above.
  */
-.property-tabs .mat-mdc-tab-body-content .list-layout-standard > .tableDiv:first-child app-data-table .datatable-search-wrap,
-.reservation-tabs .mat-mdc-tab-body-content .list-layout-standard > .tableDiv:first-child app-data-table .datatable-search-wrap,
-.accounting-tabs .mat-mdc-tab-body-content .list-layout-standard > .tableDiv:first-child app-data-table .datatable-search-wrap,
-.contacts-tabs .mat-mdc-tab-body-content .list-layout-standard > .tableDiv:first-child app-data-table .datatable-search-wrap,
-.users-tabs .mat-mdc-tab-body-content .list-layout-standard > .tableDiv:first-child app-data-table .datatable-search-wrap,
-.property-tabs .mat-mdc-tab-body-content .general-ledger-container.list-layout-standard > .tableDiv:first-child app-data-table .datatable-search-wrap,
-.reservation-tabs .mat-mdc-tab-body-content .general-ledger-container.list-layout-standard > .tableDiv:first-child app-data-table .datatable-search-wrap,
-.accounting-tabs .mat-mdc-tab-body-content .general-ledger-container.list-layout-standard > .tableDiv:first-child app-data-table .datatable-search-wrap,
-.contacts-tabs .mat-mdc-tab-body-content .general-ledger-container.list-layout-standard > .tableDiv:first-child app-data-table .datatable-search-wrap,
-.users-tabs .mat-mdc-tab-body-content .general-ledger-container.list-layout-standard > .tableDiv:first-child app-data-table .datatable-search-wrap {
+.shell-tabs .mat-mdc-tab-body-content .list-layout-standard > .tableDiv:first-child app-data-table .datatable-search-wrap,
+.shell-tabs .mat-mdc-tab-body-content .general-ledger-container.list-layout-standard > .tableDiv:first-child app-data-table .datatable-search-wrap {
   margin-top: 0 !important;
 }
 
@@ -1851,15 +1845,13 @@ app-data-table .datatable-search-wrap {
  * Shell purple bands (Edit Property / Edit Reservation): green cluster matches list .list-layout-standard
  * app-data-table filter actions (e.g. Invoices tab — gap, vertical center, button height).
  */
-.property-tabs .property-tab-actions-band .table-filter-actions-group,
-.reservation-tabs .property-tab-actions-band .table-filter-actions-group {
+.shell-tabs .property-tab-actions-band .table-filter-actions-group {
   gap: 0.75rem !important;
   align-self: center;
   min-height: 0;
 }
 
-.property-tabs .property-tab-actions-band .table-filter-actions-group .mat-mdc-raised-button,
-.reservation-tabs .property-tab-actions-band .table-filter-actions-group .mat-mdc-raised-button {
+.shell-tabs .property-tab-actions-band .table-filter-actions-group .mat-mdc-raised-button {
   min-height: 36px;
   border-radius: 6px;
 }

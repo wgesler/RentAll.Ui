@@ -3,7 +3,7 @@ import { Injector, Injectable } from '@angular/core';
 import { MatDialog } from '@angular/material/dialog';
 import { Router } from '@angular/router';
 import { JwtHelperService } from '@auth0/angular-jwt';
-import { BehaviorSubject, Observable, of, take, tap } from 'rxjs';
+import { BehaviorSubject, Observable, catchError, finalize, of, take, tap } from 'rxjs';
 import { RouterToken, RouterUrl } from '../app.routes';
 import { StartupPage } from '../authenticated/users/models/user-enums';
 import { hasOwnerRole, isServiceProvider } from '../authenticated/shared/access/role-access';
@@ -57,19 +57,27 @@ export class AuthService {
 
     logout(): Observable<boolean> {
         this.isLoggingOut$.next(true);
+        const completeLocalLogout = (): void => {
+            this.clearSensitiveData();
+            this.dialog.closeAll();
+            void this.router.navigateByUrl(RouterToken.Login, { replaceUrl: true });
+            this.isLoggedIn$.next(false);
+        };
+
         const refreshToken = (this.authData$.value?.refreshToken || '').trim();
-        if (refreshToken && refreshToken !== 'undefined' && refreshToken !== 'null') {
+        const hasRefreshToken = refreshToken && refreshToken !== 'undefined' && refreshToken !== 'null';
+
+        completeLocalLogout();
+
+        if (hasRefreshToken) {
             const request: RefreshTokenRequest = { refreshToken };
-            this.http.post<boolean>(this.controller + 'logout', request).pipe(take(1)).subscribe({
-                error: () => {}
-            });
+            this.http.post<boolean>(this.controller + 'logout', request).pipe(
+                take(1),
+                catchError(() => of(false)),
+                finalize(() => completeLocalLogout())
+            ).subscribe();
         }
 
-        this.clearSensitiveData();
-        this.dialog.closeAll();
-        this.router.navigateByUrl(RouterToken.Login, { replaceUrl: true });
-
-        this.isLoggedIn$.next(false);
         return of(true);
     }
 

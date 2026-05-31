@@ -147,15 +147,6 @@
               [noResultsText]="'No reservations match your search'"
               (valueChange)="onAccountingDocumentReservationDropdownChange($event)">
             </app-title-bar-select>
-            <app-title-bar-select
-              [label]="'Document Types'"
-              [formFieldClass]="'titlebar-field-document-type'"
-              [value]="selectedAccountingDocumentTypeId"
-              [options]="accountingDocumentTypeOptions"
-              [nullOptionLabel]="'All Document Types'"
-              [noResultsText]="'No document types match your search'"
-              (valueChange)="onAccountingDocumentTypeDropdownChange($event)">
-            </app-title-bar-select>
           </div>
         }
       </div>
@@ -169,7 +160,7 @@
       </div>
     </div>
     <mat-card>
-      <mat-tab-group [selectedIndex]="selectedTabIndex" class="accounting-tabs dbg-band-tabs" (selectedTabChange)="onTabChange($event)">
+      <mat-tab-group [selectedIndex]="selectedTabIndex" class="shell-tabs dbg-band-tabs" (selectedTabChange)="onTabChange($event)">
         <mat-tab label="Invoices">
           @if (activeInvoiceId) {
             <app-invoice
@@ -240,6 +231,7 @@
             #accountingDocumentList
             [hideHeader]="true"
             [hideFilters]="true"
+            [documentTypeIds]="[DocumentType.Invoice]"
             [officeId]="selectedOfficeId"
             [reservationId]="selectedReservationId"
             [companyId]="selectedCompanyId"

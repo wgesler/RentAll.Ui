@@ -2,6 +2,7 @@ import { CommonModule } from '@angular/common';
 import { HttpClient } from '@angular/common/http';
 import { Component, ElementRef, EventEmitter, Input, OnChanges, OnDestroy, OnInit, Output, SimpleChanges, ViewChild } from '@angular/core';
 import { FormBuilder, FormControl, FormGroup, FormsModule, ReactiveFormsModule } from '@angular/forms';
+import { MatCheckboxChange } from '@angular/material/checkbox';
 import { DomSanitizer, SafeHtml } from '@angular/platform-browser';
 import { Router } from '@angular/router';
 import { ToastrService } from 'ngx-toastr';
@@ -63,11 +64,8 @@ export class LeaseComponent extends BaseDocumentComponent implements OnInit, OnD
   @Input() propertyId: string = '';
   @Input() officeId: number | null = null;
   @Input() lockOfficeSelection: boolean = false;
-  /** When true (reservation shell), use property-tab-actions-band + property-tab-main-area like property shell. */
   @Input() shellMode: boolean = false;
-  /** When toggled true, switch directly into view/create mode. */
   @Input() openInViewOnTabSelect: boolean = false;
-  /** When true, hide Edit button while in view mode. */
   @Input() hideEditButtonInViewMode: boolean = false;
   @Output() officeIdChange = new EventEmitter<number | null>();
   
@@ -89,7 +87,7 @@ export class LeaseComponent extends BaseDocumentComponent implements OnInit, OnD
   offices: OfficeResponse[] = [];
   availableOffices: { value: number, name: string }[] = [];
   selectedOffice: OfficeResponse | null = null;
-  private officesInitialized = false;
+  officesInitialized = false;
   accountingOffices: AccountingOfficeResponse[] = [];
   buildings: BuildingResponse[] = [];
 
@@ -117,11 +115,18 @@ export class LeaseComponent extends BaseDocumentComponent implements OnInit, OnD
   isCompanyRental: boolean = true;
   debuggingHtml: boolean = environment.local || environment.dev;
   isPageReady: boolean = false;
+  cachedPropertyHtmlFiles: {
+    lease: string;
+    letterOfResponsibility: string;
+    noticeToVacate: string;
+    creditAuthorization: string;
+    creditApplication: string;
+    rentalCreditApplication: string;
+  } | null = null;
 
-  itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['offices', 'organization', 'property', 'leaseInformation', 'reservation', 'reservations', 'contacts', 'emailHtml', 'accountingOffices', 'buildings', 'logo', 'previewHtml'])); 
+  itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['offices', 'organization', 'property', 'leaseInformation', 'reservation', 'reservations', 'contacts', 'emailHtml', 'accountingOffices', 'buildings', 'logo'])); 
   destroy$ = new Subject<void>();
   logoSourcesLoaded = { offices: false, organization: false };
-
 
   constructor(
     private reservationService: ReservationService,
@@ -159,10 +164,6 @@ export class LeaseComponent extends BaseDocumentComponent implements OnInit, OnD
 
   //#region Lease
   ngOnInit(): void {
-    if (!this.reservationId) {
-      this.resolvePreviewLoad();
-    }
-
     this.itemsToLoad$.pipe(filter(items => items.size === 0), take(1)).subscribe(() => {
       this.isPageReady = true;
       this.getLease();
@@ -177,11 +178,16 @@ export class LeaseComponent extends BaseDocumentComponent implements OnInit, OnD
     this.loadAccountingOffices();
     this.loadBuildings();
     this.loadReservations();
-    this.loadReservation();
-    this.loadProperty();
-    this.loadLeaseInformation();
+    if (!this.shellMode) {
+      this.loadReservation();
+      this.loadProperty();
+      this.loadLeaseInformation();
+    } else if (this.officeId != null && this.propertyId) {
+      this.applyShellScopeFromInputs();
+    } else {
+      this.clearShellScopeLoadItems();
+    }
     
-    // Subscribe to lease reload events
     this.leaseReloadService.reloadLease.pipe(takeUntil(this.destroy$)).subscribe((scope) => {
       this.leaseInformationScopeOverride = scope;
       this.reloadLease();
@@ -193,33 +199,37 @@ export class LeaseComponent extends BaseDocumentComponent implements OnInit, OnD
       this.applyOfficeSelectionLockState();
     }
 
+    if (this.shellMode && (changes['officeId'] || changes['propertyId'] || changes['reservationId'])) {
+      this.applyShellScopeFromInputs();
+      return;
+    }
+
     // When propertyId becomes available/changes, reload all property-scoped document data.
     if (changes['propertyId'] && changes['propertyId'].currentValue) {
+      this.invalidateCachedPropertyHtmlFiles();
       this.loadProperty();
       this.loadLeaseInformation();
       this.getLease();
     }
     
     // When officeId changes from parent, set the selected office (don't emit back)
-    if (changes['officeId'] && this.offices.length > 0) {
+    if (changes['officeId']) {
       const newOfficeId = changes['officeId'].currentValue;
       const previousOfficeId = changes['officeId'].previousValue;
-      
-      // Only update if the value actually changed
+
       if (newOfficeId !== previousOfficeId) {
-        if (newOfficeId !== null && newOfficeId !== undefined) {
+        if (newOfficeId !== null && newOfficeId !== undefined && this.offices.length > 0) {
           this.selectedOffice = this.offices.find(o => o.officeId === newOfficeId) || null;
           if (this.selectedOffice) {
             this.form.patchValue({ selectedOfficeId: this.selectedOffice.officeId });
             this.filterReservations();
           }
-        } else {
+        } else if (newOfficeId === null || newOfficeId === undefined) {
           this.selectedOffice = null;
           this.form.patchValue({ selectedOfficeId: null });
           this.filterReservations();
         }
 
-        // Keep merged lease content in sync with scope changes.
         this.utilityService.addLoadItem(this.itemsToLoad$, 'leaseInformation');
         this.loadLeaseInformation();
       }
@@ -248,9 +258,8 @@ export class LeaseComponent extends BaseDocumentComponent implements OnInit, OnD
       return;
     }
 
-    // For tab-entry auto-view, prefer stable sources (draft/base/form value).
-    // Avoid promoting from a potentially not-yet-initialized edit iframe snapshot.
-    const draftHtml = this.dynamicFormDraftService.loadDraft(this.getDraftStorageKey());
+    // Shell tab + merged reservation preview must use freshly generated HTML, not edit drafts.
+    const draftHtml = this.loadStoredLeaseDraft();
     const htmlForView = String(draftHtml || this.baseTemplateHtml || this.form.get('lease')?.value || '').trim();
     if (htmlForView) {
       this.isEditMode = false;
@@ -266,7 +275,6 @@ export class LeaseComponent extends BaseDocumentComponent implements OnInit, OnD
   getLease(): void {
     this.utilityService.addLoadItem(this.itemsToLoad$, 'lease');
 
-    // No reservation/property selected yet: show base lease template in the editor/preview.
     if (!this.propertyId) {
       this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'lease');
       this.http.get('assets/reservation-lease.html', { responseType: 'text' }).pipe(take(1), finalize(() => { this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'lease'); })).subscribe({
@@ -296,13 +304,14 @@ export class LeaseComponent extends BaseDocumentComponent implements OnInit, OnD
 
      this.propertyHtmlService.getPropertyHtmlByPropertyId(this.propertyId).pipe(take(1),finalize(() => { this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'lease'); })).subscribe({
        next: (response: PropertyHtmlResponse) => {
-         if (response) {
-           this.propertyHtml = response;
-           this.form.patchValue({ lease: response.lease || '' });
-           this.generatePreviewIframe();
-         }
+         this.propertyHtml = response ?? null;
+         this.invalidateCachedPropertyHtmlFiles();
+         this.generatePreviewIframe();
        },
-       error: () => {}
+       error: () => {
+         this.propertyHtml = null;
+         this.generatePreviewIframe();
+       }
      });
   }
 
@@ -314,11 +323,7 @@ export class LeaseComponent extends BaseDocumentComponent implements OnInit, OnD
           map((reservation: ReservationResponse) => {
             this.selectedReservation = reservation;
             this.form.patchValue({ selectedReservationId: reservation.reservationId });
-            if (reservation.officeId && this.offices.length > 0) {
-              this.selectedOffice = this.offices.find(o => o.officeId === reservation.officeId) || null;
-              this.form.patchValue({ selectedOfficeId: this.selectedOffice?.officeId });
-              this.filterReservations(); // This will filter to only show the selected reservation
-            }
+            this.syncSelectedOfficeFromContext();
             this.loadContact();
             return { type: 'reservation', data: reservation };
           }),
@@ -477,87 +482,38 @@ export class LeaseComponent extends BaseDocumentComponent implements OnInit, OnD
   //#endregion
 
   //#region Form Response Methods
-  onOfficeChange(): void {
-    if (this.lockOfficeSelection) {
-      return;
-    }
-
-    const officeId = this.form.get('selectedOfficeId')?.value;
-    if (!officeId) {
-      this.selectedOffice = null;
-      this.filterReservations();
-      this.selectedReservation = null;
-      this.form.patchValue({ selectedReservationId: null });
-      this.generatePreviewIframe();
-      this.officeIdChange.emit(null);
-      return;
-    }
-    
-    this.selectedOffice = this.offices.find(o => o.officeId === officeId) || null;
-    this.filterReservations();
-    this.selectedReservation = null;
-    this.form.patchValue({ selectedReservationId: null });
-    this.generatePreviewIframe();
-    this.officeIdChange.emit(this.selectedOffice?.officeId || null);
-  }
-
-  compareReservationId(a: string | null, b: string | null): boolean {
-    return String(a ?? '') === String(b ?? '');
-  }
-
-  onReservationSelected(reservationId: string | null): void {
-    if (!reservationId) {
-      this.selectedReservation = null;
-      this.form.patchValue({ selectedReservationId: null });
-      this.generatePreviewIframe();
-      return;
-    }
-    
-    // Load full reservation details when selected from dropdown
-    this.reservationService.getReservationByGuid(reservationId).pipe(take(1)).subscribe({
-      next: (reservation: ReservationResponse) => {
-        this.selectedReservation = reservation;
-        this.form.patchValue({ selectedReservationId: reservation.reservationId });
-        if (reservation.officeId && this.offices.length > 0) {
-          this.selectedOffice = this.offices.find(o => o.officeId === reservation.officeId) || null;
-          this.form.patchValue({ selectedOfficeId: this.selectedOffice?.officeId });
-        }
-        this.loadContact();
-        this.generatePreviewIframe();
-      },
-      error: () => {}
-    });
-  }
-
   applyReservationSelectionFromInput(reservationId: string | null | undefined): void {
     if (!reservationId || reservationId === 'new') {
       this.selectedReservation = null;
       this.contact = null;
       this.isCompanyRental = false;
       this.form.patchValue({ selectedReservationId: null }, { emitEvent: false });
+      this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'reservation');
       this.generatePreviewIframe();
       return;
     }
 
     if (this.selectedReservation?.reservationId === reservationId) {
       this.form.patchValue({ selectedReservationId: reservationId }, { emitEvent: false });
+      this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'reservation');
       this.generatePreviewIframe();
       return;
     }
 
-    this.reservationService.getReservationByGuid(reservationId).pipe(take(1)).subscribe({
+    this.reservationService.getReservationByGuid(reservationId).pipe(
+      take(1),
+      finalize(() => this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'reservation'))
+    ).subscribe({
       next: (reservation: ReservationResponse) => {
         this.selectedReservation = reservation;
         this.form.patchValue({ selectedReservationId: reservation.reservationId }, { emitEvent: false });
-        if (reservation.officeId && this.offices.length > 0) {
-          this.selectedOffice = this.offices.find(o => o.officeId === reservation.officeId) || null;
-          this.form.patchValue({ selectedOfficeId: this.selectedOffice?.officeId }, { emitEvent: false });
-          this.filterReservations();
-        }
+        this.syncSelectedOfficeFromContext();
         this.loadContact();
         this.generatePreviewIframe();
       },
-      error: () => {}
+      error: () => {
+        this.generatePreviewIframe();
+      }
     });
   }
 
@@ -586,15 +542,176 @@ export class LeaseComponent extends BaseDocumentComponent implements OnInit, OnD
     }));
   }
 
-  onIncludeCheckboxChange(): void {
-    this.includeLease = this.form.get('includeLease')?.value ?? true;
-    this.includeLetterOfResponsibility = this.form.get('includeLetterOfResponsibility')?.value ?? true;
-    this.includeNoticeToVacate = this.form.get('includeNoticeToVacate')?.value ?? true;
-    this.includeCreditCardAuthorization = this.form.get('includeCreditCardAuthorization')?.value ?? false;
-    this.includeBusinessCreditApplication = this.form.get('includeBusinessCreditApplication')?.value ?? false;
-    this.includeRentalCreditApplication = this.form.get('includeRentalCreditApplication')?.value ?? false;
+  onIncludeCheckboxChange(controlName: string, event: MatCheckboxChange): void {
+    const control = this.form.get(controlName);
+    if (!control) {
+      return;
+    }
 
+    control.setValue(event.checked, { emitEvent: false });
+    this.syncIncludeFlagsFromForm();
+    this.lastDocumentSelectionKey = '';
+    if (this.shouldBypassStoredDraft()) {
+      this.clearStoredLeaseDraft();
+    }
     this.generatePreviewIframe();
+  }
+
+  /** Shell mode: skip property-scoped loads until office + property are set. */
+  clearShellScopeLoadItems(): void {
+    this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'reservation');
+    this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'property');
+    this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'leaseInformation');
+  }
+
+  /** Shell passes officeId and propertyId together when the reservation is selected. */
+  applyShellScopeFromInputs(): void {
+    if (this.officeId == null || !this.propertyId) {
+      this.clearShellScopeLoadItems();
+      return;
+    }
+
+    this.clearStoredLeaseDraft();
+
+    if (this.reservationId && this.reservationId !== 'new') {
+      this.form.patchValue({ selectedReservationId: this.reservationId }, { emitEvent: false });
+    }
+
+    if (this.offices.length > 0) {
+      this.selectedOffice = this.offices.find(o => o.officeId === this.officeId) || null;
+      if (this.selectedOffice) {
+        this.form.patchValue({ selectedOfficeId: this.selectedOffice.officeId }, { emitEvent: false });
+        this.filterReservations();
+      }
+    }
+
+    this.loadProperty();
+    this.utilityService.addLoadItem(this.itemsToLoad$, 'leaseInformation');
+    this.loadLeaseInformation();
+
+    if (this.reservationId && this.reservationId !== 'new') {
+      this.applyReservationSelectionFromInput(this.reservationId);
+      return;
+    }
+
+    this.getLease();
+  }
+
+  /** Resolve selectedOffice from parent officeId, reservation, or property once offices are loaded. */
+  syncSelectedOfficeFromContext(): boolean {
+    if (this.selectedOffice) {
+      return true;
+    }
+
+    const officeIdToResolve =
+      (this.officeId != null && this.officeId !== undefined ? this.officeId : null) ??
+      this.selectedReservation?.officeId ??
+      this.property?.officeId ??
+      null;
+
+    if (officeIdToResolve == null || this.offices.length === 0) {
+      return false;
+    }
+
+    this.selectedOffice = this.offices.find(o => o.officeId === officeIdToResolve) || null;
+    if (!this.selectedOffice) {
+      return false;
+    }
+
+    this.form.patchValue({ selectedOfficeId: this.selectedOffice.officeId }, { emitEvent: false });
+    this.filterReservations();
+    return true;
+  }
+
+  get isOfficeSelectionLocked(): boolean {
+    return this.lockOfficeSelection;
+  }
+
+  getDocumentSelectionKey(): string {
+    const parts = [
+      this.form.get('includeLease')?.value ? 'lease' : '',
+      this.form.get('includeLetterOfResponsibility')?.value ? 'lor' : '',
+      this.form.get('includeNoticeToVacate')?.value ? 'ntv' : '',
+      this.form.get('includeCreditCardAuthorization')?.value ? 'cca' : ''
+    ];
+    if (this.isCompanyRental) {
+      parts.push(this.form.get('includeBusinessCreditApplication')?.value ? 'bca' : '');
+    } else {
+      parts.push(this.form.get('includeRentalCreditApplication')?.value ? 'rca' : '');
+    }
+    return parts.filter(part => part.length > 0).join('|');
+  }
+
+  getDraftStorageKey(): string {
+    const organizationId = String(this.authService.getUser()?.organizationId || '').trim();
+    return this.dynamicFormDraftService.buildDraftKey(
+      organizationId,
+      null,
+      this.selectedOffice?.officeId ?? this.officeId ?? null,
+      this.propertyId || null,
+      `reservation-lease-${this.reservationId || 'new'}`
+    );
+  }
+
+  /** Shell lease tab and merged reservation preview must not reuse edit-mode local drafts. */
+  shouldBypassStoredDraft(): boolean {
+    return (this.shellMode && this.openInViewOnTabSelect) || !!this.form?.get('selectedReservationId')?.value;
+  }
+
+  clearStoredLeaseDraft(): void {
+    this.dynamicFormDraftService.resetDraft(this.getDraftStorageKey());
+  }
+
+  loadStoredLeaseDraft(): string | null {
+    if (this.shouldBypassStoredDraft()) {
+      return null;
+    }
+    return this.dynamicFormDraftService.loadDraft(this.getDraftStorageKey());
+  }
+
+  renderLeasePreviewHtml(htmlToRender: string): void {
+    const normalizedHtml = htmlToRender || '';
+    this.form.patchValue({ lease: normalizedHtml }, { emitEvent: false });
+
+    const forceShellViewPreview = this.shellMode && this.openInViewOnTabSelect && !!this.form.get('selectedReservationId')?.value;
+    if (forceShellViewPreview) {
+      this.isEditMode = false;
+    }
+
+    if (forceShellViewPreview || !this.isEditMode) {
+      this.pendingOpenInViewMode = false;
+      this.editableHtml = null;
+      this.processAndSetHtml(normalizedHtml);
+      return;
+    }
+
+    this.setEditorHtml(normalizedHtml);
+    this.resolvePreviewLoad();
+    this.iframeKey++;
+  }
+
+  getLeaseInformationScope(): { officeId: number | null; propertyId: string | null } {
+    if (this.leaseInformationScopeOverride) {
+      return this.leaseInformationScopeOverride;
+    }
+
+    return {
+      officeId: this.officeId,
+      propertyId: this.propertyId || null
+    };
+  }
+
+  applyOfficeSelectionLockState(): void {
+    const officeControl = this.form?.get('selectedOfficeId');
+    if (!officeControl) {
+      return;
+    }
+
+    if (this.lockOfficeSelection) {
+      officeControl.disable({ emitEvent: false });
+    } else {
+      officeControl.enable({ emitEvent: false });
+    }
   }
   //#endregion
 
@@ -630,19 +747,13 @@ export class LeaseComponent extends BaseDocumentComponent implements OnInit, OnD
           this.availableOffices = this.mappingService.mapOfficesToDropdown(this.offices);
           if (!this.officesInitialized) {
             this.officesInitialized = true;
-            if (this.officeId !== null && this.officeId !== undefined) {
-              this.selectedOffice = this.offices.find(o => o.officeId === this.officeId) || null;
-              if (this.selectedOffice) {
-                this.form.patchValue({ selectedOfficeId: this.selectedOffice.officeId });
-                this.filterReservations();
-              }
-            } else if (this.selectedReservation?.officeId) {
-              this.selectedOffice = this.offices.find(o => o.officeId === this.selectedReservation.officeId) || null;
-              this.form.patchValue({ selectedOfficeId: this.selectedOffice?.officeId });
-              this.filterReservations();
-            } else if (this.reservationId && this.offices.length > 0) {
-              // If coming from reservation but no reservation loaded yet, try to find office from reservationId
-              // This will be handled when reservation loads
+          }
+          if (this.shellMode) {
+            this.applyShellScopeFromInputs();
+          } else {
+            this.syncSelectedOfficeFromContext();
+            if (this.selectedReservation && this.form.get('selectedReservationId')?.value) {
+              this.generatePreviewIframe();
             }
           }
         });
@@ -697,8 +808,18 @@ export class LeaseComponent extends BaseDocumentComponent implements OnInit, OnD
     this.propertyService.getPropertyByGuid(this.propertyId).pipe(take(1), finalize(() => { this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'property'); })).subscribe({
       next: (response: PropertyResponse) => {
         this.property = response;
+        this.syncSelectedOfficeFromContext();
+        if (this.isPageReady) {
+          this.invalidateCachedPropertyHtmlFiles();
+          this.generatePreviewIframe();
+        }
       },
-      error: () => {}
+      error: () => {
+        this.property = null;
+        if (this.isPageReady) {
+          this.generatePreviewIframe();
+        }
+      }
     });
   }
 
@@ -711,6 +832,7 @@ export class LeaseComponent extends BaseDocumentComponent implements OnInit, OnD
       },
       error: () => {
         this.leaseInformation = null;
+        this.generatePreviewIframe();
       }
     });
   }
@@ -739,11 +861,7 @@ export class LeaseComponent extends BaseDocumentComponent implements OnInit, OnD
       next: (reservation: ReservationResponse) => {
         this.selectedReservation = reservation;
         this.form.patchValue({ selectedReservationId: reservation.reservationId });
-        if (reservation.officeId && this.offices.length > 0) {
-          this.selectedOffice = this.offices.find(o => o.officeId === reservation.officeId) || null;
-          this.form.patchValue({ selectedOfficeId: this.selectedOffice?.officeId });
-          this.filterReservations(); // This will filter to only show the selected reservation
-        }
+        this.syncSelectedOfficeFromContext();
         this.loadContact();
         this.generatePreviewIframe();
       },
@@ -782,7 +900,6 @@ export class LeaseComponent extends BaseDocumentComponent implements OnInit, OnD
       this.form.patchValue({ includeBusinessCreditApplication: false });
     }
   }
-
   //#endregion
 
   //#region Field Replacement Helpers
@@ -813,29 +930,6 @@ export class LeaseComponent extends BaseDocumentComponent implements OnInit, OnD
       officeAddressSource.zip
     ].filter(p => p);
     return parts.join(', ');
-  }
-
-  getContactAddress(): string {
-    if (!this.contact) return '';
-    const isInternational = (this.contact as any).isInternational || false;
-    
-    if (isInternational) {
-      // For international addresses, compose from Address1 and Address2
-      const parts = [
-        this.contact.address1,
-        this.contact.address2
-      ].filter(p => p);
-      return parts.join(', ');
-    } else {
-      // For US addresses, use the existing logic
-      const parts = [
-        this.contact.address1,
-        this.contact.city,
-        this.contact.state,
-        this.contact.zip
-      ].filter(p => p);
-      return parts.join(', ');
-    }
   }
 
   getCommunityAddress(): string {
@@ -966,15 +1060,6 @@ export class LeaseComponent extends BaseDocumentComponent implements OnInit, OnD
     return `http://${website}`;
   }
 
-  getReservationDisplay(): string {
-    if (!this.selectedReservation) return '';
-    const reservationCode = this.selectedReservation.reservationCode || 'N/A';
-    // Try to get display name from availableReservations, fallback to tenantName
-    const reservationListItem = this.availableReservations.find(r => r.value.reservationId === this.selectedReservation.reservationId);
-    const displayName = reservationListItem?.value.contactName || this.selectedReservation.tenantName || 'Unnamed Tenant';
-    return `${reservationCode}: ${displayName}`;
-  }
-
   getReservationNoticeText(): string {
     if (this.selectedReservation?.reservationNoticeId === null || this.selectedReservation?.reservationNoticeId === undefined) return '';
     if (this.selectedReservation.reservationNoticeId === ReservationNotice.ThirtyDays) {
@@ -1095,7 +1180,7 @@ export class LeaseComponent extends BaseDocumentComponent implements OnInit, OnD
     return this.utilityService.getResponsibleParty(this.selectedReservation, this.getPrimaryResponsibleContact());
   }
 
-  private lookupStateName(code: string | null | undefined): string {
+  lookupStateName(code: string | null | undefined): string {
     const normalized = String(code || '').trim();
     if (!normalized) {
       return '';
@@ -1259,11 +1344,6 @@ export class LeaseComponent extends BaseDocumentComponent implements OnInit, OnD
     else return `(See below)`;
   }
 
-  getDefaultKeyFeeText(): string {
-    if (!this.selectedOffice) return '';
-    return '$' + this.selectedOffice.defaultKeyFee.toFixed(2);
-  }
-  
   getDefaultUtilityFeeText(): string {
     if(!this.property || !this.selectedOffice) return '';
 
@@ -1709,162 +1789,173 @@ export class LeaseComponent extends BaseDocumentComponent implements OnInit, OnD
     const formReservationId = this.form.get('selectedReservationId')?.value;
     const shouldMerge = !!formReservationId;
 
-    // If merge was requested but required merge context has not loaded yet, keep preview empty.
-    if (shouldMerge && (!this.selectedOffice || !this.selectedReservation)) {
-      console.warn('[LeasePreview] blocked merge: missing merge context', {
-        hasSelectedOffice: !!this.selectedOffice,
-        hasSelectedReservation: !!this.selectedReservation
-      });
-      this.previewIframeHtml = '';
-      this.resolvePreviewLoad();
-      return;
+    this.syncIncludeFlagsFromForm();
+
+    if (this.shouldBypassStoredDraft()) {
+      this.clearStoredLeaseDraft();
     }
 
-    // Load HTML files and process them
-    this.loadHtmlFiles().pipe(take(1)).subscribe({
-      next: (htmlFiles) => {
-        // Get selected checkboxes
-        const selectedDocuments: string[] = [];
+    if (shouldMerge) {
+      this.syncSelectedOfficeFromContext();
+    }
 
-        if (this.includeLease && htmlFiles.lease) {
-          selectedDocuments.push(htmlFiles.lease);
-        }
-        if (this.includeLetterOfResponsibility && htmlFiles.letterOfResponsibility) {
-          selectedDocuments.push(htmlFiles.letterOfResponsibility);
-        }
-        if (this.includeNoticeToVacate && htmlFiles.noticeToVacate) {
-          selectedDocuments.push(htmlFiles.noticeToVacate);
-        }
-        if (this.includeCreditCardAuthorization && htmlFiles.creditAuthorization) {
-          selectedDocuments.push(htmlFiles.creditAuthorization);
-        }
-        if (this.includeBusinessCreditApplication && htmlFiles.creditApplication) {
-          selectedDocuments.push(htmlFiles.creditApplication);
-        }
-        if (this.includeRentalCreditApplication && htmlFiles.rentalCreditApplication) {
-          selectedDocuments.push(htmlFiles.rentalCreditApplication);
-        }
-        const selectionKey = this.getDocumentSelectionKey();
+    if (shouldMerge && !this.selectedReservation) {
+      const pendingReservationId = this.form.get('selectedReservationId')?.value || this.reservationId;
+      if (pendingReservationId && pendingReservationId !== 'new') {
+        return;
+      }
+    }
 
-        // If no documents selected, show empty
-        if (selectedDocuments.length === 0) {
-          this.lastDocumentSelectionKey = selectionKey;
-          this.baseTemplateHtml = '';
-          this.editableHtml = null;
-          this.previewIframeHtml = '';
-          this.resolvePreviewLoad();
-          return;
-        }
+    if (shouldMerge && !this.selectedOffice) {
+      if (this.officeId != null && this.offices.length === 0) {
+        return;
+      }
+      if (!this.syncSelectedOfficeFromContext()) {
+        return;
+      }
+    }
 
-        try {
-      // If only one document selected, use it as-is
-      if (selectedDocuments.length === 1) {
-        const processedHtml = shouldMerge ? this.replacePlaceholders(selectedDocuments[0]) : selectedDocuments[0];
-        this.baseTemplateHtml = processedHtml;
-        const canUseDraft = this.lastDocumentSelectionKey === selectionKey;
-        const draftHtml = canUseDraft ? this.dynamicFormDraftService.loadDraft(this.getDraftStorageKey()) : null;
-        this.lastDocumentSelectionKey = selectionKey;
-        const htmlToRender = draftHtml || this.baseTemplateHtml;
-        this.setEditorHtml(htmlToRender);
-        if (!this.isEditMode) {
-          this.processAndSetHtml(htmlToRender);
-        } else {
-          this.resolvePreviewLoad();
-          this.iframeKey++;
-        }
+    const renderFromHtmlFiles = (htmlFiles: {
+      lease: string;
+      letterOfResponsibility: string;
+      noticeToVacate: string;
+      creditAuthorization: string;
+      creditApplication: string;
+      rentalCreditApplication: string;
+    }) => {
+      this.cachedPropertyHtmlFiles = htmlFiles;
+      const selectedDocuments = this.collectSelectedDocumentsInListOrder(htmlFiles);
+      const selectionKey = this.getDocumentSelectionKey();
+
+      if (selectedDocuments.length === 0) {
+        this.clearLeasePreviewDisplay();
         return;
       }
 
-      // Multiple documents: process first as base, strip and concatenate the rest
-      // Process first document as base (full HTML)
-      let combinedHtml = shouldMerge ? this.replacePlaceholders(selectedDocuments[0]) : selectedDocuments[0];
-      
-      // Extract and merge styles from all documents before stripping
-      const allExtractedStyles: string[] = [];
-      const styleRegex = /<style[^>]*>([\s\S]*?)<\/style>/gi;
-      
-      // Extract styles from first document
-      let match;
+      try {
+        const combinedHtml = this.buildCombinedPreviewHtml(selectedDocuments, shouldMerge);
+        this.baseTemplateHtml = combinedHtml;
+        const canUseDraft = !this.shouldBypassStoredDraft() && this.lastDocumentSelectionKey === selectionKey;
+        const draftHtml = canUseDraft ? this.loadStoredLeaseDraft() : null;
+        this.lastDocumentSelectionKey = selectionKey;
+        this.renderLeasePreviewHtml(draftHtml || this.baseTemplateHtml);
+      } catch (error) {
+        console.error('[LeasePreview] processing error', error);
+        this.clearLeasePreviewDisplay();
+      }
+    };
+
+    if (this.cachedPropertyHtmlFiles) {
+      renderFromHtmlFiles(this.cachedPropertyHtmlFiles);
+      return;
+    }
+
+    this.loadHtmlFiles().pipe(take(1)).subscribe({
+      next: (htmlFiles) => renderFromHtmlFiles(htmlFiles),
+      error: (error) => {
+        console.error('[LeasePreview] loadHtmlFiles:error', error);
+        this.clearLeasePreviewDisplay();
+      }
+    });
+  }
+
+  invalidateCachedPropertyHtmlFiles(): void {
+    this.cachedPropertyHtmlFiles = null;
+  }
+
+  /** Keep component include flags aligned with checkbox form controls. */
+  syncIncludeFlagsFromForm(): void {
+    this.includeLease = !!this.form.get('includeLease')?.value;
+    this.includeLetterOfResponsibility = !!this.form.get('includeLetterOfResponsibility')?.value;
+    this.includeNoticeToVacate = !!this.form.get('includeNoticeToVacate')?.value;
+    this.includeCreditCardAuthorization = !!this.form.get('includeCreditCardAuthorization')?.value;
+    this.includeBusinessCreditApplication = !!this.form.get('includeBusinessCreditApplication')?.value;
+    this.includeRentalCreditApplication = !!this.form.get('includeRentalCreditApplication')?.value;
+  }
+
+  /** Checked forms only, always in the same order as the Include list in the template. */
+  collectSelectedDocumentsInListOrder(htmlFiles: {
+    lease: string;
+    letterOfResponsibility: string;
+    noticeToVacate: string;
+    creditAuthorization: string;
+    creditApplication: string;
+    rentalCreditApplication: string;
+  }): string[] {
+    const documents: string[] = [];
+    const add = (controlName: string, html: string | undefined) => {
+      if (!!this.form.get(controlName)?.value && html?.trim()) {
+        documents.push(html);
+      }
+    };
+
+    add('includeLease', htmlFiles.lease);
+    add('includeLetterOfResponsibility', htmlFiles.letterOfResponsibility);
+    add('includeNoticeToVacate', htmlFiles.noticeToVacate);
+    add('includeCreditCardAuthorization', htmlFiles.creditAuthorization);
+    if (this.isCompanyRental) {
+      add('includeBusinessCreditApplication', htmlFiles.creditApplication);
+    } else {
+      add('includeRentalCreditApplication', htmlFiles.rentalCreditApplication);
+    }
+
+    return documents;
+  }
+
+  buildCombinedPreviewHtml(selectedDocuments: string[], shouldMerge: boolean): string {
+    const processDocument = (html: string) => (shouldMerge ? this.replacePlaceholders(html) : html);
+
+    if (selectedDocuments.length === 1) {
+      return processDocument(selectedDocuments[0]);
+    }
+
+    let combinedHtml = processDocument(selectedDocuments[0]);
+    const allExtractedStyles: string[] = [];
+    const styleRegex = /<style[^>]*>([\s\S]*?)<\/style>/gi;
+    let match: RegExpExecArray | null;
+
+    const extractStyles = (html: string) => {
       styleRegex.lastIndex = 0;
-      while ((match = styleRegex.exec(combinedHtml)) !== null) {
+      while ((match = styleRegex.exec(html)) !== null) {
         if (match[1]) {
           let styleContent = match[1].trim();
-          // Override gray text colors to black
           styleContent = styleContent.replace(/color:\s*#ccc\s*;/gi, 'color: #000 !important;');
           styleContent = styleContent.replace(/color:\s*#999\s*;/gi, 'color: #000 !important;');
           allExtractedStyles.push(styleContent);
         }
       }
-      
-      // Process and strip remaining documents, extracting their styles first
-      for (let i = 1; i < selectedDocuments.length; i++) {
-        if (selectedDocuments[i]) {
-          const processed = shouldMerge ? this.replacePlaceholders(selectedDocuments[i]) : selectedDocuments[i];
-          
-          // Extract styles from this document before stripping
-          styleRegex.lastIndex = 0;
-          while ((match = styleRegex.exec(processed)) !== null) {
-            if (match[1]) {
-              let styleContent = match[1].trim();
-              // Override gray text colors to black
-              styleContent = styleContent.replace(/color:\s*#ccc\s*;/gi, 'color: #000 !important;');
-              styleContent = styleContent.replace(/color:\s*#999\s*;/gi, 'color: #000 !important;');
-              allExtractedStyles.push(styleContent);
-            }
-          }
-          
-          const stripped = this.stripAndReplace(processed);
-          combinedHtml += stripped;
-        }
-      }
-      
-      // Remove existing style tags from combinedHtml (they'll be re-injected)
-      combinedHtml = combinedHtml.replace(/<style[^>]*>[\s\S]*?<\/style>/gi, '');
-      
-      // Combine all extracted styles and inject them into the combined HTML
-      if (allExtractedStyles.length > 0) {
-        const combinedStyles = allExtractedStyles.join('\n\n');
-        // Insert styles into the head section if it exists, otherwise create one
-        if (combinedHtml.includes('<head>')) {
-          combinedHtml = combinedHtml.replace(/<head[^>]*>/i, `$&<style>${combinedStyles}</style>`);
-        } else {
-          // If no head exists, add one before the body or at the start
-          if (combinedHtml.includes('<body>')) {
-            combinedHtml = combinedHtml.replace(/<body[^>]*>/i, `<head><style>${combinedStyles}</style></head>$&`);
-          } else {
-            combinedHtml = `<head><style>${combinedStyles}</style></head>${combinedHtml}`;
-          }
-        }
-      }
+    };
 
-        this.baseTemplateHtml = combinedHtml;
-        const canUseDraft = this.lastDocumentSelectionKey === selectionKey;
-        const draftHtml = canUseDraft ? this.dynamicFormDraftService.loadDraft(this.getDraftStorageKey()) : null;
-        this.lastDocumentSelectionKey = selectionKey;
-        const htmlToRender = draftHtml || this.baseTemplateHtml;
-        this.setEditorHtml(htmlToRender);
-        if (!this.isEditMode) {
-          this.processAndSetHtml(htmlToRender);
-        } else {
-          this.resolvePreviewLoad();
-          this.iframeKey++;
-        }
-        } catch (error) {
-          console.error('[LeasePreview] processing error', error);
-          this.baseTemplateHtml = '';
-          this.editableHtml = null;
-          this.previewIframeHtml = '';
-          this.resolvePreviewLoad();
-        }
-      },
-      error: (error) => {
-        console.error('[LeasePreview] loadHtmlFiles:error', error);
-        this.baseTemplateHtml = '';
-        this.editableHtml = null;
-        this.previewIframeHtml = '';
-        this.resolvePreviewLoad();
+    extractStyles(combinedHtml);
+
+    for (let i = 1; i < selectedDocuments.length; i++) {
+      const processed = processDocument(selectedDocuments[i]);
+      extractStyles(processed);
+      combinedHtml += this.stripAndReplace(processed);
+    }
+
+    combinedHtml = combinedHtml.replace(/<style[^>]*>[\s\S]*?<\/style>/gi, '');
+
+    if (allExtractedStyles.length > 0) {
+      const combinedStyles = allExtractedStyles.join('\n\n');
+      if (combinedHtml.includes('<head>')) {
+        combinedHtml = combinedHtml.replace(/<head[^>]*>/i, `$&<style>${combinedStyles}</style>`);
+      } else if (combinedHtml.includes('<body>')) {
+        combinedHtml = combinedHtml.replace(/<body[^>]*>/i, `<head><style>${combinedStyles}</style></head>$&`);
+      } else {
+        combinedHtml = `<head><style>${combinedStyles}</style></head>${combinedHtml}`;
       }
-    });
+    }
+
+    return combinedHtml;
+  }
+
+  clearLeasePreviewDisplay(): void {
+    this.lastDocumentSelectionKey = this.getDocumentSelectionKey();
+    this.baseTemplateHtml = '';
+    this.editableHtml = null;
+    const emptyPreviewHtml = this.documentHtmlService.buildHtmlDocument('', '', '');
+    this.renderLeasePreviewHtml(emptyPreviewHtml);
   }
 
   stripAndReplace(html: string): string {
@@ -2171,26 +2262,24 @@ export class LeaseComponent extends BaseDocumentComponent implements OnInit, OnD
 
   loadHtmlFiles(): Observable<{ lease: string; letterOfResponsibility: string; noticeToVacate: string; creditAuthorization: string; creditApplication: string; rentalCreditApplication: string }> {
     if (this.debuggingHtml) {
-      // Load HTML from assets for faster testing
       return forkJoin({
-        lease: this.includeLease ? this.http.get('assets/reservation-lease.html', { responseType: 'text' }) : of(''),
-        letterOfResponsibility: this.includeLetterOfResponsibility ? this.http.get('assets/letter-of-responsibility.html', { responseType: 'text' }) : of(''),
-        noticeToVacate: this.includeNoticeToVacate ? this.http.get('assets/notice-to-vacate.html', { responseType: 'text' }) : of(''),
-        creditAuthorization: this.includeCreditCardAuthorization ? this.http.get('assets/credit-authorization.html', { responseType: 'text' }) : of(''),
-        creditApplication: this.includeBusinessCreditApplication ? this.http.get('assets/credit-application-business.html', { responseType: 'text' }) : of(''),
-        rentalCreditApplication: this.includeRentalCreditApplication ? this.http.get('assets/credit-application-individual.html', { responseType: 'text' }) : of('')
-      });
-    } else {
-      // Read HTML from propertyHtml parameters
-      return of({
-        lease: this.includeLease ? (this.propertyHtml?.lease || '') : '',
-        letterOfResponsibility: this.includeLetterOfResponsibility ? (this.propertyHtml?.letterOfResponsibility || '') : '',
-        noticeToVacate: this.includeNoticeToVacate ? (this.propertyHtml?.noticeToVacate || '') : '',
-        creditAuthorization: this.includeCreditCardAuthorization ? (this.propertyHtml?.creditAuthorization || '') : '',
-        creditApplication: this.includeBusinessCreditApplication ? (this.propertyHtml?.creditApplicationBusiness || '') : '',
-        rentalCreditApplication: this.includeRentalCreditApplication ? (this.propertyHtml?.creditApplicationIndividual || '') : '',
+        lease: this.http.get('assets/reservation-lease.html', { responseType: 'text' }),
+        letterOfResponsibility: this.http.get('assets/letter-of-responsibility.html', { responseType: 'text' }),
+        noticeToVacate: this.http.get('assets/notice-to-vacate.html', { responseType: 'text' }),
+        creditAuthorization: this.http.get('assets/credit-authorization.html', { responseType: 'text' }),
+        creditApplication: this.http.get('assets/credit-application-business.html', { responseType: 'text' }),
+        rentalCreditApplication: this.http.get('assets/credit-application-individual.html', { responseType: 'text' })
       });
     }
+
+    return of({
+      lease: this.propertyHtml?.lease || '',
+      letterOfResponsibility: this.propertyHtml?.letterOfResponsibility || '',
+      noticeToVacate: this.propertyHtml?.noticeToVacate || '',
+      creditAuthorization: this.propertyHtml?.creditAuthorization || '',
+      creditApplication: this.propertyHtml?.creditApplicationBusiness || '',
+      rentalCreditApplication: this.propertyHtml?.creditApplicationIndividual || ''
+    });
   }  
   //#endregion 
 
@@ -2296,56 +2385,6 @@ export class LeaseComponent extends BaseDocumentComponent implements OnInit, OnD
   //#endregion
 
   //#region Utility Methods
-  get isOfficeSelectionLocked(): boolean {
-    return this.lockOfficeSelection;
-  }
-
-  getDocumentSelectionKey(): string {
-    return [
-      this.includeLease ? 'lease' : '',
-      this.includeLetterOfResponsibility ? 'lor' : '',
-      this.includeNoticeToVacate ? 'ntv' : '',
-      this.includeCreditCardAuthorization ? 'cca' : '',
-      this.includeBusinessCreditApplication ? 'bca' : '',
-      this.includeRentalCreditApplication ? 'rca' : ''
-    ].filter(part => part.length > 0).join('|');
-  }
-
-  getDraftStorageKey(): string {
-    const organizationId = String(this.authService.getUser()?.organizationId || '').trim();
-    return this.dynamicFormDraftService.buildDraftKey(
-      organizationId,
-      null,
-      this.selectedOffice?.officeId ?? this.officeId ?? null,
-      this.propertyId || null,
-      `reservation-lease-${this.reservationId || 'new'}`
-    );
-  }
-
-  getLeaseInformationScope(): { officeId: number | null; propertyId: string | null } {
-    if (this.leaseInformationScopeOverride) {
-      return this.leaseInformationScopeOverride;
-    }
-
-    return {
-      officeId: this.officeId,
-      propertyId: this.propertyId || null
-    };
-  }
-
-  applyOfficeSelectionLockState(): void {
-    const officeControl = this.form?.get('selectedOfficeId');
-    if (!officeControl) {
-      return;
-    }
-
-    if (this.lockOfficeSelection) {
-      officeControl.disable({ emitEvent: false });
-    } else {
-      officeControl.enable({ emitEvent: false });
-    }
-  }
-
   ngOnDestroy(): void {
     this.destroy$.next();
     this.destroy$.complete();

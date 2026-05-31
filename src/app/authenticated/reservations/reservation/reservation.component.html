@@ -60,7 +60,7 @@
       </div>
         
       <mat-card>
-        <mat-tab-group [selectedIndex]="selectedTabIndex" class="reservation-tabs dbg-band-tabs" (selectedTabChange)="selectedTabIndex = $event.index">
+        <mat-tab-group [selectedIndex]="selectedTabIndex" class="shell-tabs dbg-band-tabs" (selectedTabChange)="selectedTabIndex = $event.index">
           <mat-tab label="Reservation">
             @if (form) {
             <div class="mat">
@@ -890,7 +890,7 @@
               #reservationDocumentList
               [propertyId]="sharedPropertyId" 
               [propertyCode]="sharedPropertyCode"
-              [documentTypeId]="DocumentType.ReservationLease"
+              [documentTypeIds]="[DocumentType.ReservationLease]"
               [hideFilters]="true"
               [officeId]="sharedOfficeId"
               [reservationId]="selectedHeaderReservationId ?? null"

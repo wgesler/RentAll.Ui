@@ -16,16 +16,6 @@ export class LeaseInformationService {
       private configService: ConfigService) {
   }
 
-  // GET: Get lease information by ID
-  getLeaseInformationByGuid(leaseInformationId: string): Observable<LeaseInformationResponse> {
-    return this.http.get<LeaseInformationResponse>(this.controller + leaseInformationId);
-  }
-
-  // GET: Get lease information by property ID
-  getLeaseInformationByPropertyId(propertyId: string): Observable<LeaseInformationResponse> {
-    return this.http.get<LeaseInformationResponse>(this.controller + 'property/' + propertyId);
-  }
-
   // GET: Get lease information by scope with fallback
   getLeaseInformationByScope(officeId: number | null = null, propertyId: string | null = null): Observable<LeaseInformationResponse> {
     const query: string[] = [];
@@ -47,11 +37,6 @@ export class LeaseInformationService {
   // PUT: Update lease information
   updateLeaseInformation(leaseInformation: LeaseInformationRequest): Observable<LeaseInformationResponse> {
     return this.http.put<LeaseInformationResponse>(this.controller, leaseInformation);
-  }
-
-  // DELETE: Delete lease information
-  deleteLeaseInformation(leaseInformationId: string): Observable<void> {
-    return this.http.delete<void>(this.controller + leaseInformationId);
   }
 }
 

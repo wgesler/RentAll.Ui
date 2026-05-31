@@ -15,6 +15,7 @@ import { OfficeService } from '../../organizations/services/office.service';
 import { ContactResponse } from '../../contacts/models/contact.model';
 import { UserGroups } from '../../users/models/user-enums';
 import { DocumentListComponent } from '../../documents/document-list/document-list.component';
+import { DocumentType } from '../../documents/models/document.enum';
 import { EmailListComponent } from '../../email/email-list/email-list.component';
 import { getNumberQueryParam } from '../../shared/query-param.utils';
 import { TitleBarSelectComponent } from '../../shared/titlebar-select/titlebar-select.component';
@@ -42,6 +43,7 @@ import { CostCodesService } from '../services/cost-codes.service';
     styleUrls: ['./accounting.component.scss']
 })
 export class AccountingComponent implements OnInit, OnDestroy {
+  readonly DocumentType = DocumentType;
   @ViewChild(InvoiceListComponent) accountingInvoiceList?: InvoiceListComponent;
   @ViewChild('accountingInvoiceEditor') accountingInvoiceEditor?: InvoiceComponent;
   @ViewChild('accountingCostCodes') accountingCostCodes?: CostCodesListComponent;
@@ -365,14 +367,6 @@ export class AccountingComponent implements OnInit, OnDestroy {
     return this.accountingEmailList?.selectedEmailTypeId ?? null;
   }
 
-  get accountingDocumentTypeOptions(): { value: number, label: string }[] {
-    return this.accountingDocumentList?.documentTypeOptions || [];
-  }
-
-  get selectedAccountingDocumentTypeId(): number | null {
-    return this.accountingDocumentList?.selectedDocumentTypeId ?? null;
-  }
-
   get selectedOrganizationName(): string | null {
     if (!this.selectedOrganizationId) {
       return null;
@@ -577,13 +571,6 @@ export class AccountingComponent implements OnInit, OnDestroy {
     }
     this.accountingDocumentList.selectedReservationId = value == null || value === '' ? null : String(value);
     this.accountingDocumentList.onReservationChange();
-  }
-
-  onAccountingDocumentTypeDropdownChange(value: string | number | null): void {
-    if (!this.accountingDocumentList) {
-      return;
-    }
-    this.accountingDocumentList.onDocumentTypeDropdownChange(value);
   }
 
   applyQueryParamState(params: Record<string, string>): void {

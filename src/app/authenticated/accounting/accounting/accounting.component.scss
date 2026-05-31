@@ -1,15 +1,8 @@
-.accounting-tabs {
+.shell-tabs {
   width: 100%;
   box-sizing: border-box;
 
   ::ng-deep {
-    .mat-mdc-tab-header {
-      .mdc-tab {
-        flex: 1;
-        min-width: 0;
-      }
-    }
-
     .mat-mdc-tab-body-wrapper {
       width: 100%;
       max-width: 100%;
@@ -76,7 +69,7 @@
 
 
 // Disable animation when switching to Print Invoice tab
-.accounting-tabs.no-animation {
+.shell-tabs.no-animation {
   ::ng-deep {
     .mat-mdc-tab-body-wrapper {
       transition: none !important;

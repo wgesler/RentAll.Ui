@@ -115,17 +115,8 @@ export class ReservationListComponent implements OnInit, OnDestroy, OnChanges {
     private cdr: ChangeDetectorRef) {
   }
 
-  private markViewForCheck(): void {
-    this.cdr.markForCheck();
-  }
-
   //#region Reservation List
   ngOnInit(): void {
-    this.itemsToLoad$.pipe(takeUntil(this.destroy$)).subscribe(items => {
-      this.isPageReady = items.size === 0;
-      this.markViewForCheck();
-    });
-
     this.user = this.authService.getUser();
     this.isAdmin = this.authService.isAdmin();
     this.userId = this.user?.userId || '';
@@ -133,6 +124,12 @@ export class ReservationListComponent implements OnInit, OnDestroy, OnChanges {
     this.setIsActiveCheckboxEditability();
     this.updateDisplayedColumns();
     this.pageOfficeId = this.globalSelectionService.getSelectedOfficeIdValue();
+
+    this.itemsToLoad$.pipe(takeUntil(this.destroy$)).subscribe(items => {
+      this.isPageReady = items.size === 0;
+      this.markViewForCheck();
+    });
+
     const officeIdParam = this.route.snapshot.queryParams['officeId'];
     if (officeIdParam != null && String(officeIdParam).trim() !== '') {
       const parsedOfficeId = parseInt(String(officeIdParam), 10);
@@ -151,12 +148,14 @@ export class ReservationListComponent implements OnInit, OnDestroy, OnChanges {
       this.reloadAllowedPropertyIds();
       this.markViewForCheck();
     });
+
     this.propertySelectionFilterService.dateRange$.pipe(takeUntil(this.destroy$)).subscribe((range) => {
-        this.startDate = range.startDate;
-        this.endDate = range.endDate;
-        this.applyFilters();
-        this.markViewForCheck();
-      });
+      this.startDate = range.startDate;
+      this.endDate = range.endDate;
+      this.applyFilters();
+      this.markViewForCheck();
+    });
+    
     this.globalSelectionService.getFurnishedPropertySelection$().pipe(takeUntil(this.destroy$)).subscribe(v => {
       this.furnishedPropertyToggleChecked = v === true;
       this.applyFilters();
@@ -191,11 +190,6 @@ export class ReservationListComponent implements OnInit, OnDestroy, OnChanges {
         }
       }
     }
-  }
-
-  @HostListener('window:resize')
-  onWindowResize(): void {
-    this.updateDisplayedColumns();
   }
 
   addReservation(): void {
@@ -330,7 +324,6 @@ export class ReservationListComponent implements OnInit, OnDestroy, OnChanges {
       });
     });
   }
-
   //#endregion
 
   //#region Routing Methods
@@ -458,35 +451,6 @@ export class ReservationListComponent implements OnInit, OnDestroy, OnChanges {
         this.markViewForCheck();
       }
     });
-  }
-
-  /** Page-level office follows global header; does not write global. */
-  private applyOfficeFromGlobal(officeId: number | null): void {
-    this.pageOfficeId = officeId;
-    if (this.offices.length === 0) {
-      return;
-    }
-    if (this.offices.length === 1) {
-      this.applyPageOfficeScope(this.offices[0].officeId);
-      return;
-    }
-    const resolved = officeId != null && this.offices.some(o => o.officeId === officeId) ? officeId : null;
-    this.applyPageOfficeScope(resolved);
-  }
-
-  /** Title-bar office change on this page only (never updates global selection). */
-  private applyPageOfficeScope(officeId: number | null): void {
-    this.pageOfficeId = officeId;
-    const explicitFromParent = this.officeId;
-    const officeIdToUse = explicitFromParent != null && explicitFromParent !== undefined
-      ? explicitFromParent
-      : officeId;
-    this.resolveOfficeScope(officeIdToUse, false);
-  }
-
-  reloadAllowedPropertyIds(): void {
-    this.utilityService.addLoadItem(this.itemsToLoad$, 'properties');
-    this.loadProperties();
   }
   //#endregion
 
@@ -627,6 +591,33 @@ export class ReservationListComponent implements OnInit, OnDestroy, OnChanges {
     }
     this.applyFilters();
   }
+
+  applyOfficeFromGlobal(officeId: number | null): void {
+    this.pageOfficeId = officeId;
+    if (this.offices.length === 0) {
+      return;
+    }
+    if (this.offices.length === 1) {
+      this.applyPageOfficeScope(this.offices[0].officeId);
+      return;
+    }
+    const resolved = officeId != null && this.offices.some(o => o.officeId === officeId) ? officeId : null;
+    this.applyPageOfficeScope(resolved);
+  }
+
+  applyPageOfficeScope(officeId: number | null): void {
+    this.pageOfficeId = officeId;
+    const explicitFromParent = this.officeId;
+    const officeIdToUse = explicitFromParent != null && explicitFromParent !== undefined
+      ? explicitFromParent
+      : officeId;
+    this.resolveOfficeScope(officeIdToUse, false);
+  }
+
+  reloadAllowedPropertyIds(): void {
+    this.utilityService.addLoadItem(this.itemsToLoad$, 'properties');
+    this.loadProperties();
+  }  
   //#endregion
 
   //#region Email Methods
@@ -753,9 +744,18 @@ export class ReservationListComponent implements OnInit, OnDestroy, OnChanges {
   //#endregion
 
   //#region Utility Methods
+  markViewForCheck(): void {
+    this.cdr.markForCheck();
+  }
+
   updateDisplayedColumns(): void {
     this.isCompactView = window.innerWidth <= this.compactViewportWidth;
     this.reservationsDisplayedColumns = this.isCompactView ? this.compactReservationsDisplayedColumns : this.fullReservationsDisplayedColumns;
+  }
+
+  @HostListener('window:resize')
+  onWindowResize(): void {
+    this.updateDisplayedColumns();
   }
 
   ngOnDestroy(): void {

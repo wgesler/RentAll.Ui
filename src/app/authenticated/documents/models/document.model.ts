@@ -10,6 +10,18 @@ export interface FileDetails {
   fileName?: string;
 }
 
+/** Query parameters for GET /api/document (calendar dates as yyyy-MM-dd). */
+export interface DocumentGetRequest {
+  /** One office when the dropdown is set; all accessible offices when All Offices / null. */
+  officeIds: number[];
+  propertyId?: string | null;
+  documentTypeIds?: number | number[] | null;
+  /** Calendar date (yyyy-MM-dd), not a timestamp. */
+  startDate?: string | null;
+  /** Calendar date (yyyy-MM-dd), not a timestamp. */
+  endDate?: string | null;
+}
+
 export interface DocumentRequest {
   documentId?: string;
   organizationId: string;

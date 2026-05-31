@@ -41,7 +41,7 @@
     </div>
 
     <mat-card>
-      <mat-tab-group [selectedIndex]="selectedTabIndex" class="users-tabs dbg-band-tabs" (selectedIndexChange)="onTabIndexChange($event)">
+      <mat-tab-group [selectedIndex]="selectedTabIndex" class="shell-tabs dbg-band-tabs" (selectedIndexChange)="onTabIndexChange($event)">
         <mat-tab label="Employees">
           @if (showUserForm && formTabIndex === 0) {
             <app-user [id]="formUserId ?? 'new'" (closed)="onUserClosed($event)" />

@@ -1,14 +1,6 @@
 // Reservation styles
-.reservation-tabs {
+.shell-tabs {
   ::ng-deep {
-    // Make all tabs equal width
-    .mat-mdc-tab-header {
-      .mdc-tab {
-        flex: 1;
-        min-width: 0;
-      }
-    }
-
     .mat-mdc-tab.mdc-tab--active {
       border-top: 2px solid rgb(148, 163, 184); // Same color as tab background
       border-left: 2px solid rgb(148, 163, 184);
@@ -203,13 +195,13 @@
     padding: 0 !important;
   }
 
-  ::ng-deep .reservation-tabs .mat-mdc-tab-header {
+  ::ng-deep .shell-tabs .mat-mdc-tab-header {
     display: none;
   }
 
-  ::ng-deep .reservation-tabs .mat-mdc-tab-body-wrapper,
-  ::ng-deep .reservation-tabs .mat-mdc-tab-body-content,
-  ::ng-deep .reservation-tabs form.info-form {
+  ::ng-deep .shell-tabs .mat-mdc-tab-body-wrapper,
+  ::ng-deep .shell-tabs .mat-mdc-tab-body-content,
+  ::ng-deep .shell-tabs form.info-form {
     min-height: 0 !important;
   }
 

@@ -315,4 +315,29 @@ export interface ExtraFeeLineResponse {
   costCodeId: number;
 }
 
+/** UI state for an extra fee line on the reservation form. */
+export interface ExtraFeeLineDisplay {
+  extraFeeLineId: string | null;
+  feeDescription: string | null;
+  feeAmount: number | undefined;
+  feeFrequencyId: number | undefined;
+  costCodeId: number | undefined;
+  isNew?: boolean;
+}
+
+/** Additional contact row on the reservation form. */
+export interface AdditionalContactRow {
+  contactId: string;
+  contactPhone: string;
+  contactEmail: string;
+}
+
+/** Context for reservation change notification emails. */
+export interface ReservationNotificationContext {
+  shouldNotify: boolean;
+  isNewReservation: boolean;
+  isCancellation: boolean;
+  arrivalDateChanged: boolean;
+  departureDateChanged: boolean;
+}
 

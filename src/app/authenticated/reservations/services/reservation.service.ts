@@ -35,10 +35,6 @@ export class ReservationService {
     return this.http.get<ReservationListResponse[]>(this.controller + 'list');
   }
 
-  getActiveReservationList(): Observable<ReservationListResponse[]> {
-    return this.http.get<ReservationListResponse[]>(this.controller + 'active-list');
-  }
-
   getReservationCodes(): Observable<ReservationCodeResponse[]> {
     return this.http.get<ReservationCodeResponse[]>(this.controller + 'codes');
   }
@@ -47,15 +43,6 @@ export class ReservationService {
   // GET: Get reservations list for a particular property
   getReservationsByPropertyId(propertyId: string): Observable<ReservationListResponse[]> {
     return this.http.get<ReservationListResponse[]>(this.controller + 'property/' + propertyId);
-  }
-
-  getActiveReservationsByPropertyId(propertyId: string): Observable<ReservationListResponse[]> {
-    return this.http.get<ReservationListResponse[]>(this.controller + 'property/' + propertyId + '/active');
-  }
-
-  // GET: Get all reservations (full detail)
-  getReservations(): Observable<ReservationResponse[]> {
-    return this.http.get<ReservationResponse[]>(this.controller);
   }
 
   // GET: Get reservation by ID

@@ -30,11 +30,6 @@
   min-width: 64px;
 }
 
-::ng-deep .mat-mdc-tab-group .mat-mdc-tab-header .mat-mdc-tab {
-  flex: 1 1 0;
-  max-width: none;
-}
-
 .property-titlebar {
   min-height: var(--property-titlebar-height);
   box-sizing: border-box;

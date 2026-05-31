@@ -14,9 +14,8 @@
   box-sizing: border-box;
 }
 
-/* Consistent visual gap below the tab labels for all owner-shell tabs.
-   (The owner-shell tab layout standard lives globally in styles.scss under `.owner-shell-tabs`.) */
-:host ::ng-deep .owner-shell-tabs .mat-mdc-tab-body-content {
+/* Consistent visual gap below the tab labels for all owner-shell tabs. */
+:host ::ng-deep .shell-tabs .mat-mdc-tab-body-content {
   padding-top: 30px;
 }
 
@@ -32,7 +31,7 @@
     box-sizing: border-box;
   }
 
-  .owner-shell-tabs {
+  .shell-tabs {
     width: 100% !important;
     min-width: 0;
     max-width: 100%;

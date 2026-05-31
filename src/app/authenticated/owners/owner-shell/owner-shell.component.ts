@@ -24,6 +24,8 @@ import { OwnerAgreementFormComponent } from '../owner-agreement-form/owner-agree
 import { SharedFormEditorComponent } from '../../shared/forms/form-editor/form-editor.component';
 import { SharedFormCreateComponent } from '../../shared/forms/form-create/form-create.component';
 import { OwnerAgreementContext, OwnersService } from '../services/owners.service';
+import { DocumentListComponent } from '../../documents/document-list/document-list.component';
+import { DocumentType } from '../../documents/models/document.enum';
 
 @Component({
   standalone: true,
@@ -38,12 +40,14 @@ import { OwnerAgreementContext, OwnersService } from '../services/owners.service
     OwnerAgreementFormComponent,
     SharedFormEditorComponent,
     SharedFormCreateComponent,
-    OwnersListComponent
+    OwnersListComponent,
+    DocumentListComponent
   ],
   templateUrl: './owner-shell.component.html',
   styleUrl: './owner-shell.component.scss'
 })
 export class OwnerShellComponent implements OnInit, OnDestroy {
+  readonly DocumentType = DocumentType;
   readonly newPropertyOptionValue = 'new';
   readonly allStatesCode = 'XX';
   isOwnerAdmin = false;

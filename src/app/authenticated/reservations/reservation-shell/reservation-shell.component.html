@@ -16,21 +16,41 @@
         </span>
         @if (reservationSection?.form) {
           <div class="header-title form-titlebar-fields-wrap">
-            @if (showOfficeDropdown) {
+            @if (showOfficeDropdown || (reservationSection?.isAddMode && officeOptions.length > 0)) {
               <app-title-bar-select
                 [label]="'Office'"
                 [formFieldClass]="'titlebar-field-office'"
-                [value]="displayOfficeId"
+                [required]="reservationSection?.isAddMode ?? false"
+                [value]="reservationSection?.isAddMode ? addModeOfficeId : displayOfficeId"
                 [options]="officeOptions"
-                [disabled]="true"
+                [disabled]="!(reservationSection?.isAddMode ?? false)"
+                [showInstructionOption]="true"
                 [nullOptionLabel]="'All Offices'"
-                [noResultsText]="'No offices match your search'">
+                [noResultsText]="'No offices match your search'"
+                [showError]="reservationSection?.showTitleBarOfficeError ?? false"
+                [errorText]="'Office is required'"
+                (valueChange)="onShellOfficeDropdownChange($event)">
               </app-title-bar-select>
             }
-            <mat-form-field appearance="outline" class="titlebar-field-property-code">
-              <mat-label>Property Code</mat-label>
-              <input matInput [value]="selectedPropertyCode" readonly [disabled]="true" class="readonly-field">
-            </mat-form-field>
+            @if (reservationSection?.isAddMode) {
+              <app-title-bar-select
+                [label]="'Property Code'"
+                [formFieldClass]="'titlebar-field-property-code'"
+                [required]="true"
+                [value]="reservationSection.sharedPropertyId"
+                [options]="reservationSection.propertyOptions"
+                [nullOptionLabel]="'Select Property'"
+                [noResultsText]="'No properties match your search'"
+                [showError]="reservationSection.showTitleBarPropertyError"
+                [errorText]="'Property is required'"
+                (valueChange)="onShellPropertyCodeDropdownChange($event)">
+              </app-title-bar-select>
+            } @else {
+              <mat-form-field appearance="outline" class="titlebar-field-property-code">
+                <mat-label>Property Code</mat-label>
+                <input matInput [value]="selectedPropertyCode" readonly [disabled]="true" class="readonly-field">
+              </mat-form-field>
+            }
             @if (!(reservationSection?.isAddMode ?? true)) {
               <div class="titlebar-reservation-slot">
                 <app-title-bar-select
@@ -46,28 +66,6 @@
                 </app-title-bar-select>
               </div>
             }
-            @if (selectedTabIndex === getEmailTabIndex()) {
-              <app-title-bar-select
-                [label]="'Email Types'"
-                [formFieldClass]="'titlebar-field-document-type'"
-                [value]="selectedEmailTypeId"
-                [options]="emailTypeOptions"
-                [nullOptionLabel]="'All Email Types'"
-                [noResultsText]="'No email types match your search'"
-                (valueChange)="onHeaderEmailTypeDropdownChange($event)">
-              </app-title-bar-select>
-            }
-            @if (selectedTabIndex === getDocumentsTabIndex()) {
-              <app-title-bar-select
-                [label]="'Document Types'"
-                [formFieldClass]="'titlebar-field-document-type'"
-                [value]="selectedDocumentTypeId"
-                [options]="documentTypeOptions"
-                [nullOptionLabel]="'All Document Types'"
-                [noResultsText]="'No document types match your search'"
-                (valueChange)="onHeaderDocumentTypeDropdownChange($event)">
-              </app-title-bar-select>
-            }
           </div>
         }
       </div>
@@ -81,9 +79,13 @@
     </div>
 
     <mat-card>
-      <mat-tab-group [selectedIndex]="selectedTabIndex" class="reservation-tabs dbg-band-tabs" (selectedIndexChange)="onTabIndexChange($event)">
+      <mat-tab-group [selectedIndex]="selectedTabIndex" class="shell-tabs dbg-band-tabs" (selectedIndexChange)="onTabIndexChange($event)">
         <mat-tab label="Reservation">
-          <app-reservation #reservationSection [shellMode]="true"></app-reservation>
+          <app-reservation
+            #reservationSection
+            [shellMode]="true"
+            [shellOfficeOptions]="officeOptions">
+          </app-reservation>
         </mat-tab>
 
         @if (isAdmin) {
@@ -98,16 +100,18 @@
         }
 
         <mat-tab label="Lease">
-          <app-lease
-            [reservationId]="activeReservationId ?? ''"
-            [propertyId]="selectedPropertyId ?? ''"
-            [officeId]="displayOfficeId"
-            [lockOfficeSelection]="true"
-            [shellMode]="true"
-            [openInViewOnTabSelect]="selectedTabIndex === getLeaseTabIndex()"
-            [hideEditButtonInViewMode]="selectedTabIndex === getLeaseTabIndex()"
-            (officeIdChange)="reservationSection?.onLeaseOfficeIdChange($event)">
-          </app-lease>
+          @if (displayOfficeId != null && selectedPropertyId) {
+            <app-lease
+              [reservationId]="activeReservationId ?? ''"
+              [propertyId]="selectedPropertyId"
+              [officeId]="displayOfficeId"
+              [lockOfficeSelection]="true"
+              [shellMode]="true"
+              [openInViewOnTabSelect]="selectedTabIndex === getLeaseTabIndex()"
+              [hideEditButtonInViewMode]="selectedTabIndex === getLeaseTabIndex()"
+              (officeIdChange)="reservationSection?.onLeaseOfficeIdChange($event)">
+            </app-lease>
+          }
         </mat-tab>
 
         <mat-tab label="Invoices">
@@ -115,34 +119,26 @@
             <app-invoice
               [shellMode]="true"
               [invoiceIdInput]="activeInvoiceId"
-              [officeIdInput]="reservationSection?.sharedOfficeId ?? null"
+              [officeIdInput]="displayOfficeId"
               [reservationIdInput]="activeReservationId">
             </app-invoice>
           } @else {
             <app-invoice-list
-              [officeId]="reservationSection?.sharedOfficeId ?? null"
+              [officeId]="displayOfficeId"
               [reservationId]="activeReservationId"
               [source]="'reservation'">
             </app-invoice-list>
           }
         </mat-tab>
 
-        <mat-tab label="Emails">
-          <app-email-list
-            #reservationEmailList
-            [propertyId]="reservationSection?.sharedPropertyId"
-            [hideFilters]="true"
-            [reservationId]="activeReservationId"
-            [source]="'reservation'"
-            [hideHeader]="true">
-          </app-email-list>
-        </mat-tab>
-
         <mat-tab label="Documents">
           <app-document-list
             #reservationDocumentList
-            [propertyId]="reservationSection?.sharedPropertyId"
+            [propertyId]="selectedPropertyId"
+            [propertyCode]="selectedPropertyCode"
+            [documentTypeIds]="[DocumentType.ReservationLease]"
             [hideFilters]="true"
+            [officeId]="displayOfficeId"
             [reservationId]="activeReservationId"
             [source]="'reservation'"
             [hideHeader]="true">

@@ -13,6 +13,7 @@ import { OfficeResponse } from '../../organizations/models/office.model';
 import { GlobalSelectionService } from '../../organizations/services/global-selection.service';
 import { OfficeService } from '../../organizations/services/office.service';
 import { DocumentListComponent } from '../../documents/document-list/document-list.component';
+import { DocumentType } from '../../documents/models/document.enum';
 import { EmailListComponent } from '../../email/email-list/email-list.component';
 import { PropertyTitleBarContext } from '../models/property-title-bar-context.model';
 import { PropertyInformationComponent } from '../property-information/property-information.component';
@@ -42,6 +43,7 @@ import { AddAlertDialogComponent, AddAlertDialogData } from '../../shared/modals
   styleUrl: './property-shell.component.scss'
 })
 export class PropertyShellComponent implements OnInit, OnDestroy, CanComponentDeactivate {
+  readonly DocumentType = DocumentType;
   @ViewChild('propertySection') propertySection?: PropertyComponent;
   @ViewChild('propertyEmailList') propertyEmailList?: EmailListComponent;
   @ViewChild('propertyDocumentList') propertyDocumentList?: DocumentListComponent;
@@ -167,16 +169,6 @@ export class PropertyShellComponent implements OnInit, OnDestroy, CanComponentDe
     return this.propertyEmailList?.selectedEmailTypeId ?? null;
   }
 
-  get documentTypeOptions(): SearchableSelectOption[] {
-    return (this.propertyDocumentList?.documentTypeOptions || []).map(option => ({
-      value: option.value,
-      label: option.label
-    }));
-  }
-
-  get selectedDocumentTypeId(): number | null {
-    return this.propertyDocumentList?.selectedDocumentTypeId ?? null;
-  }
   //#endregion
 
   //#region Top Bar Event Methods
@@ -216,13 +208,6 @@ export class PropertyShellComponent implements OnInit, OnDestroy, CanComponentDe
       return;
     }
     this.propertyEmailList.onEmailTypeDropdownChange(value);
-  }
-
-  onHeaderDocumentTypeDropdownChange(value: string | number | null): void {
-    if (!this.propertyDocumentList) {
-      return;
-    }
-    this.propertyDocumentList.onDocumentTypeDropdownChange(value);
   }
 
   onPropertyCodeInput(event: Event): void {

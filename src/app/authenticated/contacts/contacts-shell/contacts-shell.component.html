@@ -30,7 +30,7 @@
       }
     </div>
     <mat-card>
-      <mat-tab-group [selectedIndex]="selectedTabIndex" class="contacts-tabs dbg-band-tabs" (selectedTabChange)="onTabChange($event)">
+      <mat-tab-group [selectedIndex]="selectedTabIndex" class="shell-tabs dbg-band-tabs" (selectedTabChange)="onTabChange($event)">
         <mat-tab label="Owners">
           @if (showContactForm && formTabIndex === 0) {
             <app-contact [id]="formContactId ?? 'new'" [copyFrom]="formCopyFrom" [presetEntityTypeId]="formEntityTypeId" (closed)="onContactClosed($event)" />

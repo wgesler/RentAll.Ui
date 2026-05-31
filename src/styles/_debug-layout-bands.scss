@@ -101,67 +101,44 @@ body.dbg-page-debug-on {
     padding: 4px 8px;
   }
 
-  .property-tabs .property-tab-main-area {
+  .shell-tabs .property-tab-main-area {
     @include dbg-band-main-visual;
   }
 
-  .property-tabs .property-tab-actions-band {
+  .shell-tabs .property-tab-actions-band {
     @include dbg-band-actions-visual;
   }
 
-  .property-tabs .document-list-tab-container.list-layout-tabbed > .property-tab-main-area > .property-tab-actions-band {
+  .shell-tabs .document-list-tab-container.list-layout-tabbed > .property-tab-main-area > .property-tab-actions-band {
     border: none;
     background: transparent;
     border-radius: 0;
   }
 
-  .users-tabs .mat-mdc-tab-body-content {
+  .shell-tabs .mat-mdc-tab-body-content {
     @include dbg-band-main-visual;
   }
 
-  .contacts-tabs .mat-mdc-tab-body-content {
-    @include dbg-band-main-visual;
-  }
-
-  .accounting-tabs .mat-mdc-tab-body-content {
-    @include dbg-band-main-visual;
-  }
-
-  .reservation-tabs .mat-mdc-tab-body-content {
-    @include dbg-band-main-visual;
-  }
-
-  .reservation-tabs .mat-mdc-tab-body-content:has(.property-tab-main-area) {
+  .shell-tabs .mat-mdc-tab-body-content:has(.property-tab-main-area) {
     border: none;
     background: transparent;
     border-radius: 0;
   }
 
-  .reservation-tabs .property-tab-actions-band {
-    @include dbg-band-actions-visual;
-  }
-
-  .reservation-tabs .property-tab-actions-band.reservation-inline-actions,
-  .reservation-tabs .property-tab-actions-band.lease-inline-actions {
+  .shell-tabs .property-tab-actions-band.reservation-inline-actions,
+  .shell-tabs .property-tab-actions-band.lease-inline-actions {
     border: none;
     background: transparent;
     border-radius: 0;
   }
 
-  .reservation-tabs .property-tab-main-area {
-    @include dbg-band-main-visual;
-  }
-
-  .reservation-shell-mode .reservation-tabs .mat-mdc-tab-body-content {
+  .reservation-shell-mode .shell-tabs .mat-mdc-tab-body-content {
     border: none;
     background: transparent;
     border-radius: 0;
   }
 
-  .reservation-tabs .mat-mdc-tab-body-content .dbg-band-main,
-  .accounting-tabs .mat-mdc-tab-body-content .dbg-band-main,
-  .users-tabs .mat-mdc-tab-body-content .dbg-band-main,
-  .contacts-tabs .mat-mdc-tab-body-content .dbg-band-main {
+  .shell-tabs .mat-mdc-tab-body-content .dbg-band-main {
     border: none;
     background: transparent;
     border-radius: 0;

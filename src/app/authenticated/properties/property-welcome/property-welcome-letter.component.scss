@@ -3,23 +3,23 @@
   box-sizing: border-box;
 }
 
-:host-context(.property-tabs) .welcome-letter-container {
+:host-context(.shell-tabs) .welcome-letter-container {
   padding-top: 0;
 }
 
-:host-context(.property-tabs) .property-tab-actions-band.property-tab-actions-band--centered > .property-tab-actions-band__row {
+:host-context(.shell-tabs) .property-tab-actions-band.property-tab-actions-band--centered > .property-tab-actions-band__row {
   align-items: center !important;
 }
 
-:host-context(.property-tabs) .property-tab-actions-band.property-tab-actions-band--centered .table-filter-actions-group.form-titlebar-actions-wrap {
+:host-context(.shell-tabs) .property-tab-actions-band.property-tab-actions-band--centered .table-filter-actions-group.form-titlebar-actions-wrap {
   align-items: center !important;
 }
 
-:host-context(.property-tabs) .property-tab-actions-band.property-tab-actions-band--centered .table-filter-actions-group.form-titlebar-actions-wrap .mat-mdc-raised-button {
+:host-context(.shell-tabs) .property-tab-actions-band.property-tab-actions-band--centered .table-filter-actions-group.form-titlebar-actions-wrap .mat-mdc-raised-button {
   align-self: center !important;
 }
 
-:host-context(.property-tabs) .property-tab-actions-band.top-controls .property-welcome-actions-group {
+:host-context(.shell-tabs) .property-tab-actions-band.top-controls .property-welcome-actions-group {
   min-height: 56px !important;
   height: 56px !important;
   align-items: center !important;
@@ -33,7 +33,7 @@
 }
 
 /* Match Property / Information tabs: stack gap comes only from .property-tab-actions-band margin-bottom, not flex gap. */
-:host-context(.property-tabs) .welcome-letter-form {
+:host-context(.shell-tabs) .welcome-letter-form {
   gap: 0;
 }
 

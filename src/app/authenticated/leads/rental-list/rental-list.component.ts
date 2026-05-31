@@ -12,6 +12,7 @@ import { MappingService } from '../../../services/mapping.service';
 import { UtilityService } from '../../../services/utility.service';
 import { OfficeResponse } from '../../organizations/models/office.model';
 import { OfficeService } from '../../organizations/services/office.service';
+import { DocumentGetRequest } from '../../documents/models/document.model';
 import { DocumentService } from '../../documents/services/document.service';
 import { PropertyService } from '../../properties/services/property.service';
 import { DataTableComponent } from '../../shared/data-table/data-table.component';
@@ -368,7 +369,8 @@ export class RentalListComponent implements OnInit, OnChanges, OnDestroy {
         this.navigateToQuoteDocument(document.documentId);
       },
       error: () => {
-        this.documentService.getDocuments().pipe(take(1)).subscribe({
+        const documentRequest: DocumentGetRequest = { officeIds: this.resolveDocumentOfficeIds() };
+        this.documentService.getDocuments(documentRequest).pipe(take(1)).subscribe({
           next: documents => {
             const matchedDocument = (documents || []).find(document => String(document.documentPath || '').trim() === quotePath);
             if (!matchedDocument?.documentId) {
@@ -464,6 +466,15 @@ export class RentalListComponent implements OnInit, OnChanges, OnDestroy {
 
   getLeadAttentionDotValue(leadStateId: number): string {
     return leadStateId === LeadStateType.New ? '●' : '';
+  }
+
+  private resolveDocumentOfficeIds(): number[] {
+    const scopeOfficeId = this.scopeOfficeIdForListFilter();
+    if (scopeOfficeId != null) {
+      return [scopeOfficeId];
+    }
+
+    return this.offices.map(office => office.officeId).filter(id => id > 0);
   }
   //#endregion
 

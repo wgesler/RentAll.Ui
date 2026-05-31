@@ -43,8 +43,10 @@ export class ReservationBoardComponent implements OnInit, OnDestroy {
   @Input() readOnly: boolean = false;
   @Input() showReservationNames: boolean = true;
   @ViewChild('boardContextMenuTrigger') boardContextMenuTrigger?: MatMenuTrigger;
-  getPropertyStatusLetter = getPropertyStatusLetter;
 
+  readonly boardAddressMaxChars = 23;
+  readonly reservationPollIntervalMs = 60_000;
+  getPropertyStatusLetter = getPropertyStatusLetter;  
   properties: BoardProperty[] = [];
   allPropertyRows: PropertyListResponse[] = [];
   propertyRows: PropertyListResponse[] = [];
@@ -72,26 +74,19 @@ export class ReservationBoardComponent implements OnInit, OnDestroy {
   userId: string = '';
   isOwner: boolean = false;
   organizationId: string = '';
+  propertiesFiltered = false;
+  furnishedPropertyToggleChecked = false;
+  propertyStatusOptions = getPropertyStatuses().map(status => ({ value: status.value, label: status.label, letter: getPropertyStatusLetter(status.value)}));
+  selectedPropertyIds = new Set<string>();
+  contextMenuPosition = { x: 0, y: 0 };
+  updatingPropertyStatusIds = new Set<string>();
+  isLoadingReservations = false;
+  lastLoadedOfficeId: number | null | undefined = undefined;
+  officeUseDailyOnBoardById = new Map<number, boolean>();
 
   itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['colors', 'reservations', 'properties', 'contacts', 'officeScope']));
   isLoading$: Observable<boolean> = this.itemsToLoad$.pipe(map(items => items.size > 0));
   destroy$ = new Subject<void>();
-  propertiesFiltered = false;
-  furnishedPropertyToggleChecked = false;
-  propertyStatusOptions = getPropertyStatuses().map(status => ({
-    value: status.value,
-    label: status.label,
-    letter: getPropertyStatusLetter(status.value)
-  }));
-  selectedPropertyIds = new Set<string>();
-  contextMenuPosition = { x: 0, y: 0 };
-  updatingPropertyStatusIds = new Set<string>();
-  private isLoadingReservations = false;
-  private lastLoadedOfficeId: number | null | undefined = undefined;
-  private officeUseDailyOnBoardById = new Map<number, boolean>();
-
-  private readonly boardAddressMaxChars = 23;
-  private readonly reservationPollIntervalMs = 60_000;
 
   constructor(
     private propertyService: PropertyService,
@@ -108,10 +103,6 @@ export class ReservationBoardComponent implements OnInit, OnDestroy {
     private toastr: ToastrService,
     private cdr: ChangeDetectorRef
   ) { }
-
-  private markViewForCheck(): void {
-    this.cdr.markForCheck();
-  }
 
   //#region Reservation-Board
   ngOnInit(): void {
@@ -153,7 +144,7 @@ export class ReservationBoardComponent implements OnInit, OnDestroy {
     this.startReservationPolling();
   }
 
-  private startReservationPolling(): void {
+  startReservationPolling(): void {
     interval(this.reservationPollIntervalMs).pipe(filter(() => !document.hidden && this.officeScopeResolved && !this.authService.isLoggingOut() && this.authService.getIsLoggedIn()), takeUntil(this.destroy$)).subscribe(() => this.loadReservations(true, true));
   }
 
@@ -431,15 +422,6 @@ export class ReservationBoardComponent implements OnInit, OnDestroy {
 
     this.calendarDays = days;
     this.displayTextCache.clear();
-  }
-
-  formatCurrency(amount: number): string {
-    return new Intl.NumberFormat('en-US', {
-      style: 'currency',
-      currency: 'USD',
-      minimumFractionDigits: 0,
-      maximumFractionDigits: 0
-    }).format(amount);
   }
 
   getMonthGroups(): { monthName: string; days: number }[] {
@@ -889,10 +871,6 @@ export class ReservationBoardComponent implements OnInit, OnDestroy {
     return '/' + RouterUrl.replaceTokens(RouterUrl.Property, [propertyId]);
   }
 
-  getReservationRoute(reservationId: string): string {
-    return '/' + RouterUrl.replaceTokens(RouterUrl.Reservation, [reservationId]);
-  }
-
   navigateToReservation(reservationId: string): void {
     if (this.readOnly) {
       return;
@@ -1104,6 +1082,10 @@ export class ReservationBoardComponent implements OnInit, OnDestroy {
       return text;
     }
     return text.slice(0, this.boardAddressMaxChars) + '…';
+  }
+
+  markViewForCheck(): void {
+    this.cdr.markForCheck();
   }
 
   ngOnDestroy(): void {

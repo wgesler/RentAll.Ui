@@ -36,7 +36,7 @@ import { AgentService } from '../../organizations/services/agent.service';
 import { GlobalSelectionService } from '../../organizations/services/global-selection.service';
 import { OfficeService } from '../../organizations/services/office.service';
 import { CheckinTimes, CheckoutTimes, getCheckInTimes, getCheckOutTimes, normalizeCheckInTimeId, normalizeCheckOutTimeId } from '../../properties/models/property-enums';
-import { PropertyListResponse } from '../../properties/models/property.model';
+import { PropertyCodeResponse, PropertyResponse } from '../../properties/models/property.model';
 import { PropertyService } from '../../properties/services/property.service';
 import { SearchableSelectComponent, SearchableSelectOption } from '../../shared/searchable-select/searchable-select.component';
 import { TitleBarSelectComponent } from '../../shared/titlebar-select/titlebar-select.component';
@@ -46,36 +46,20 @@ import { AddAlertDialogComponent, AddAlertDialogData } from '../../shared/modals
 import { UnsavedChangesDialogService } from '../../shared/modals/unsaved-changes/unsaved-changes-dialog.service';
 import { LeaseComponent } from '../lease/lease.component';
 import { BillingMethod, BillingType, DepositType, Frequency, ProrateType, ReservationNotice, ReservationStatus, ReservationType, getBillingMethods, getBillingTypes, getDepositTypes, getFrequencies, getProrateTypes, getReservationNotices, getReservationStatus, getReservationStatuses, getReservationTypes } from '../models/reservation-enum';
-import { ExtraFeeLineRequest, ReservationListResponse, ReservationRequest, ReservationResponse } from '../models/reservation-model';
+import {
+  AdditionalContactRow,
+  ExtraFeeLineDisplay,
+  ExtraFeeLineRequest,
+  ReservationListResponse,
+  ReservationNotificationContext,
+  ReservationRequest,
+  ReservationResponse
+} from '../models/reservation-model';
 import { LeaseReloadService } from '../services/lease-reload.service';
 import { ReservationService } from '../services/reservation.service';
 import { UserGroups } from '../../users/models/user-enums';
 import { UserResponse } from '../../users/models/user.model';
 import { UserService } from '../../users/services/user.service';
-
-// Display interface for ExtraFeeLine in the UI
-interface ExtraFeeLineDisplay {
-  extraFeeLineId: string | null;
-  feeDescription: string | null;
-  feeAmount: number | undefined;
-  feeFrequencyId: number | undefined;
-  costCodeId: number | undefined;
-  isNew?: boolean; // Track if this is a new line
-}
-
-interface AdditionalContactRow {
-  contactId: string;
-  contactPhone: string;
-  contactEmail: string;
-}
-
-type ReservationNotificationContext = {
-  shouldNotify: boolean;
-  isNewReservation: boolean;
-  isCancellation: boolean;
-  arrivalDateChanged: boolean;
-  departureDateChanged: boolean;
-};
 
 @Component({
     standalone: true,
@@ -87,6 +71,7 @@ type ReservationNotificationContext = {
 
 export class ReservationComponent implements OnInit, OnDestroy, CanComponentDeactivate {
   @Input() shellMode: boolean = false;
+  @Input() shellOfficeOptions: SearchableSelectOption[] | null = null;
   @ViewChild('reservationDocumentList') reservationDocumentList?: DocumentListComponent;
   @ViewChild('reservationEmailList') reservationEmailList?: EmailListComponent;
   @ViewChildren('extraFeeDescriptionInput') extraFeeDescriptionInputs?: QueryList<ElementRef<HTMLInputElement>>;
@@ -127,9 +112,9 @@ export class ReservationComponent implements OnInit, OnDestroy, CanComponentDeac
   filteredContacts: ContactResponse[] = [];
   selectedContact: ContactResponse | null = null;
   additionalContactRows: AdditionalContactRow[] = [];
-  properties: PropertyListResponse[] = [];
-  availableProperties: PropertyListResponse[] = [];
-  selectedProperty: PropertyListResponse | null = null;
+  propertyCodes: PropertyCodeResponse[] = [];
+  availablePropertyCodes: PropertyCodeResponse[] = [];
+  selectedProperty: PropertyResponse | null = null;
   selectedHeaderReservationId: string | null | undefined = undefined;
   organizationId: string = '';
   offices: OfficeResponse[] = [];
@@ -188,19 +173,20 @@ export class ReservationComponent implements OnInit, OnDestroy, CanComponentDeac
     this.organizationId = this.authService.getUser()?.organizationId?.trim() ?? '';
     this.loadContacts();  
     this.loadOrganization();
-    this.loadProperties();
+    this.loadPropertyCodes();
     this.loadAgents();
     this.loadHousekeepingUsers();
     this.loadOffices();
 
     this.globalSelectionService.getSelectedOfficeId$().pipe(skip(1), takeUntil(this.destroy$)).subscribe(officeId => {
-      if (this.offices.length > 0 && this.isAddMode) {
-        this.resolveOfficeScope(officeId);
-        if (this.selectedOffice) {
-          this.loadCostCodes();
-        }
-        this.filterPropertiesByOffice();
+      if (this.shellMode || this.offices.length === 0 || !this.isAddMode) {
+        return;
       }
+      this.resolveOfficeScope(officeId);
+      if (this.selectedOffice) {
+        this.loadCostCodes();
+      }
+      this.filterPropertiesByOffice();
     });
 
 
@@ -210,7 +196,8 @@ export class ReservationComponent implements OnInit, OnDestroy, CanComponentDeac
     this.route.paramMap.pipe(take(1)).subscribe((paramMap: ParamMap) => {
       this.reservationId = paramMap.get('id') || null;
       this.isAddMode = !this.reservationId || this.reservationId === 'new';
-      
+      this.applyAddModeScopeValidators();
+
       if (this.isAddMode) {
         this.propertyPanelOpen = true;
         this.billingPanelOpen = true;
@@ -224,7 +211,7 @@ export class ReservationComponent implements OnInit, OnDestroy, CanComponentDeac
       this.route.queryParams.pipe(take(1)).subscribe(queryParams => {
         this.selectedTabIndex = 0;
 
-        if (queryParams['officeId'] && this.isAddMode && this.offices.length > 0) {
+        if (!this.shellMode && queryParams['officeId'] && this.isAddMode && this.offices.length > 0) {
           const officeId = parseInt(queryParams['officeId'], 10);
           if (!isNaN(officeId)) {
             this.resolveOfficeScope(officeId);
@@ -233,7 +220,7 @@ export class ReservationComponent implements OnInit, OnDestroy, CanComponentDeac
               this.filterPropertiesByOffice();
             }
           }
-        } else if (this.isAddMode && this.offices.length > 0) {
+        } else if (!this.shellMode && this.isAddMode && this.offices.length > 0) {
           const globalOfficeId = this.globalSelectionService.getSelectedOfficeIdValue();
           if (globalOfficeId != null) {
             this.resolveOfficeScope(globalOfficeId);
@@ -265,6 +252,7 @@ export class ReservationComponent implements OnInit, OnDestroy, CanComponentDeac
 
   resolveOfficeScope(officeId: number | null): void {
     this.selectedOffice = this.utilityService.resolveSelectedOfficeById(this.offices, officeId);
+    this.syncOfficeIdToForm();
   }
 
   getPrimaryReservationContactId(reservation: ReservationResponse | null | undefined): string | null {
@@ -368,6 +356,7 @@ export class ReservationComponent implements OnInit, OnDestroy, CanComponentDeac
         isNew: true
       }));
     }
+    this.syncOfficeIdToForm();
   }
 
   applyAddModePrefillFromQueryParams(): void {
@@ -377,7 +366,7 @@ export class ReservationComponent implements OnInit, OnDestroy, CanComponentDeac
 
       const patch: Record<string, unknown> = {};
 
-      if (propertyId && this.properties.some(p => p.propertyId === propertyId)) {
+      if (propertyId && this.propertyCodes.some(p => p.propertyId === propertyId)) {
         patch['propertyId'] = propertyId;
       }
 
@@ -392,6 +381,10 @@ export class ReservationComponent implements OnInit, OnDestroy, CanComponentDeac
 
       if (Object.keys(patch).length > 0) {
         this.form.patchValue(patch);
+        const patchedPropertyId = patch['propertyId'] as string | undefined;
+        if (patchedPropertyId) {
+          this.hydrateSelectedProperty(patchedPropertyId);
+        }
       }
     });
   }
@@ -417,12 +410,13 @@ export class ReservationComponent implements OnInit, OnDestroy, CanComponentDeac
   }
 
   saveReservation(): void {
+    this.syncOfficeIdToForm();
     this.touchAllFormControls(this.form);
     this.form.markAsTouched();
     this.form.markAsDirty();
     this.validateNumberOfPeopleAgainstContacts();
     this.form.updateValueAndValidity({ emitEvent: false });
-    
+
     if (!this.form.valid) {
       this.toastr.error('Please correct the highlighted fields before saving.', CommonMessage.Error);
       return;
@@ -524,7 +518,7 @@ export class ReservationComponent implements OnInit, OnDestroy, CanComponentDeac
 
     const formValue = this.form.getRawValue();
     const user = this.authService.getUser();
-    const officeId = this.selectedOffice?.officeId || this.selectedProperty?.officeId;
+    const officeId = formValue.officeId ?? this.selectedOffice?.officeId ?? this.selectedProperty?.officeId;
     if (!officeId) {
       this.toastr.error('Please correct the highlighted fields before saving.', CommonMessage.Error);
       this.isSubmitting = false;
@@ -672,6 +666,7 @@ export class ReservationComponent implements OnInit, OnDestroy, CanComponentDeac
       allowExtensions: new FormControl(true),
       reservationCode: new FormControl({ value: '', disabled: true }), // Read-only, only shown in Edit Mode
       propertyCode: new FormControl({ value: '', disabled: true }), // Read-only
+      officeId: new FormControl<number | null>(null),
       propertyId: new FormControl('', [Validators.required]),
       propertyAddress: new FormControl({ value: '', disabled: true }), // No validators for disabled fields
       agentId: new FormControl(null, [this.agentSelectionRequiredValidator]),
@@ -724,15 +719,14 @@ export class ReservationComponent implements OnInit, OnDestroy, CanComponentDeac
       return;
     }
 
-    this.selectedProperty = this.properties.find(p => p.propertyId === this.reservation.propertyId) || null;
-    const reservationOfficeId = this.selectedProperty?.officeId ?? this.reservation.officeId;
+    const reservationOfficeId = this.reservation.officeId;
     this.selectedOffice = this.offices.find(o => o.officeId === reservationOfficeId) || null;
+    this.syncOfficeIdToForm();
     this.selectedContact = this.contacts.find(c => c.contactId === this.getPrimaryReservationContactId(this.reservation));
     if (this.selectedOffice) {
       this.loadCostCodes();
     }
     this.filterPropertiesByOffice();
-
 
     // Patch form with reservationTypeId and adjust dropdowns accordingly
     this.form.patchValue({ reservationTypeId: this.reservation.reservationTypeId }, { emitEvent: false });
@@ -746,8 +740,8 @@ export class ReservationComponent implements OnInit, OnDestroy, CanComponentDeac
       allowExtensions: this.reservation.allowExtensions ?? true,
       reservationCode: this.reservation.reservationCode || '',
       propertyId: this.reservation.propertyId,
-      propertyCode: this.selectedProperty?.propertyCode || this.properties.find(p => p.propertyId === this.reservation.propertyId)?.propertyCode || '',
-      propertyAddress: this.selectedProperty?.shortAddress || '',
+      propertyCode: this.propertyCodes.find(p => p.propertyId === this.reservation.propertyId)?.propertyCode || '',
+      propertyAddress: '',
       agentId: this.reservation.reservationTypeId === ReservationType.Owner
         ? null
         : (this.reservation.agentId || this.noneAgentOptionValue),
@@ -827,7 +821,9 @@ export class ReservationComponent implements OnInit, OnDestroy, CanComponentDeac
     }
     this.form.get('departureDate')?.updateValueAndValidity({ emitEvent: false });
 
-    this.captureSavedStateSignature();
+    this.hydrateSelectedProperty(this.reservation.propertyId, () => {
+      this.captureSavedStateSignature();
+    });
   }
 
   get canEditProperty(): boolean {
@@ -949,7 +945,6 @@ export class ReservationComponent implements OnInit, OnDestroy, CanComponentDeac
       next: (response: ReservationResponse) => {
         this.reservationId = response.reservationId;
         this.reservation = response;
-        this.selectedProperty = this.properties.find(p => p.propertyId === response.propertyId) || null;
         this.selectedContact = this.contacts.find(c => c.contactId === this.getPrimaryReservationContactId(response)) || null;
         this.populateForm();
       },
@@ -989,17 +984,141 @@ export class ReservationComponent implements OnInit, OnDestroy, CanComponentDeac
     });
   }
 
-  loadProperties(): void {
-    this.propertyService.getPropertyList().pipe(take(1), finalize(() => { this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'properties'); })).subscribe({
-      next: (properties: PropertyListResponse[]) => {
-        this.properties = properties;
+  loadPropertyCodes(): void {
+    this.propertyService.getPropertyCodes().pipe(take(1), finalize(() => {
+      this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'properties');
+    })).subscribe({
+      next: (codes: PropertyCodeResponse[]) => {
+        this.propertyCodes = codes || [];
         this.filterPropertiesByOffice();
-       },
+      },
       error: () => {
-        this.properties = [];
-        this.availableProperties = [];
+        this.propertyCodes = [];
+        this.availablePropertyCodes = [];
       }
     });
+  }
+
+  hydrateSelectedProperty(propertyId: string | null | undefined, afterHydrate?: () => void): void {
+    const id = propertyId?.trim();
+    if (!id) {
+      this.selectedProperty = null;
+      afterHydrate?.();
+      return;
+    }
+
+    this.propertyService.getPropertyByGuid(id).pipe(take(1)).subscribe({
+      next: (property: PropertyResponse) => {
+        this.selectedProperty = property;
+        const propertyCode = this.propertyCodes.find(p => p.propertyId === id)?.propertyCode ?? property.propertyCode ?? '';
+        this.form.patchValue({
+          propertyId: id,
+          propertyCode,
+          propertyAddress: this.getPropertyShortAddress(property)
+        }, { emitEvent: false });
+
+        if (property.officeId) {
+          const propertyOffice = this.offices.find(o => o.officeId === property.officeId) || null;
+          if (propertyOffice && this.selectedOffice?.officeId !== propertyOffice.officeId) {
+            this.selectedOffice = propertyOffice;
+            this.loadCostCodes();
+            this.filterPropertiesByOffice();
+          }
+        }
+        this.syncOfficeIdToForm();
+
+        this.updateDepositValues();
+        this.updateBillingValues();
+        this.updateDepartureFeeValue();
+        this.updatePetFields(false);
+        this.updateMaidServiceFields(false);
+        this.updateContactFields();
+        afterHydrate?.();
+      },
+      error: () => {
+        this.selectedProperty = null;
+        afterHydrate?.();
+      }
+    });
+  }
+
+  getPropertyShortAddress(property: PropertyResponse | PropertyCodeResponse | null): string {
+    if (!property) {
+      return '';
+    }
+    if ('shortAddress' in property && property.shortAddress) {
+      return property.shortAddress;
+    }
+    const response = property as PropertyResponse;
+    return [response.address1, response.suite].filter(part => !!part && String(part).trim()).join(' ').trim();
+  }
+
+  initializeOfficeFromShell(officeId: number | null): void {
+    if (!this.isAddMode) {
+      return;
+    }
+    this.onTitleBarOfficeChange(officeId);
+  }
+
+  onTitleBarOfficeChange(officeId: number | null): void {
+    this.resolveOfficeScope(officeId);
+    if (this.selectedOffice) {
+      this.loadCostCodes();
+    } else {
+      this.chargeCostCodes = [];
+      this.availableChargeCostCodes = [];
+    }
+    this.filterPropertiesByOffice();
+
+    if (this.isAddMode) {
+      this.selectedProperty = null;
+      this.form.patchValue({ propertyId: '', propertyCode: '', propertyAddress: '' }, { emitEvent: false });
+      this.form.get('propertyId')?.updateValueAndValidity({ emitEvent: false });
+    }
+    this.syncOfficeIdToForm();
+  }
+
+  applyAddModeScopeValidators(): void {
+    const officeControl = this.form?.get('officeId');
+    if (!officeControl) {
+      return;
+    }
+    if (this.isAddMode) {
+      officeControl.setValidators([Validators.required]);
+    } else {
+      officeControl.clearValidators();
+    }
+    officeControl.updateValueAndValidity({ emitEvent: false });
+  }
+
+  syncOfficeIdToForm(): void {
+    if (!this.form) {
+      return;
+    }
+    const officeId = this.selectedOffice?.officeId ?? this.selectedProperty?.officeId ?? null;
+    this.form.patchValue({ officeId }, { emitEvent: false });
+    this.form.get('officeId')?.updateValueAndValidity({ emitEvent: false });
+  }
+
+  get titleBarOfficeId(): number | null {
+    return this.selectedOffice?.officeId ?? null;
+  }
+
+  get titleBarOfficeOptions(): SearchableSelectOption[] {
+    if (this.shellOfficeOptions?.length) {
+      return this.shellOfficeOptions;
+    }
+    return this.availableOffices.map(office => ({ value: office.value, label: office.name }));
+  }
+
+  get showTitleBarOfficeError(): boolean {
+    const control = this.form?.get('officeId');
+    return this.isAddMode && !!(control?.invalid && control?.touched);
+  }
+
+  get showTitleBarPropertyError(): boolean {
+    const control = this.form?.get('propertyId');
+    return this.isAddMode && !!(control?.invalid && control?.touched);
   }
 
   loadOffices(): void {
@@ -1013,6 +1132,12 @@ export class ReservationComponent implements OnInit, OnDestroy, CanComponentDeac
             this.loadCostCodes();
           }
           this.filterPropertiesByOffice();
+          if (!this.shellMode && this.isAddMode && this.offices.length === 1 && !this.selectedOffice) {
+            this.resolveOfficeScope(this.offices[0].officeId);
+            this.loadCostCodes();
+          } else {
+            this.syncOfficeIdToForm();
+          }
         });
       },
       error: () => {
@@ -1074,34 +1199,13 @@ export class ReservationComponent implements OnInit, OnDestroy, CanComponentDeac
   
   setupPropertySelectionHandler(): void {
     this.form.get('propertyId')?.valueChanges.pipe(takeUntil(this.destroy$)).subscribe(propertyId => {
-      this.selectedProperty = propertyId ? this.availableProperties.find(p => p.propertyId === propertyId) || null : null;
-      if (this.selectedProperty) {
-        const propertyOffice = this.offices.find(o => o.officeId === this.selectedProperty!.officeId) || null;
-        if (propertyOffice && this.selectedOffice?.officeId !== propertyOffice.officeId) {
-          this.selectedOffice = propertyOffice;
-          this.loadCostCodes();
-          this.filterPropertiesByOffice();
-        }
+      const id = propertyId ? String(propertyId).trim() : '';
+      if (!id) {
+        this.selectedProperty = null;
+        this.form.patchValue({ propertyCode: '', propertyAddress: '' }, { emitEvent: false });
+        return;
       }
-      const selectedContactId = this.getPrimaryReservationContactId(this.reservation);
-      if (selectedContactId) {
-        this.selectedContact = this.contacts.find(c => c.contactId === selectedContactId);
-      }
-
-      const propertyAddress = this.selectedProperty?.shortAddress || '';
-      const propertyCode = this.selectedProperty?.propertyCode || '';
-      this.form.patchValue({ 
-        propertyAddress: propertyAddress,
-        propertyCode: propertyCode
-      }, { emitEvent: false });
-     
-      // Property affects the deposit and billing amounts
-      this.updateDepositValues();
-      this.updateBillingValues();
-      this.updateDepartureFeeValue();
-      this.updatePetFields(this.isAddMode);
-      this.updateMaidServiceFields(this.isAddMode);
-      this.updateContactFields();
+      this.hydrateSelectedProperty(id);
     });
   }
 
@@ -1480,7 +1584,7 @@ export class ReservationComponent implements OnInit, OnDestroy, CanComponentDeac
   }
 
   get propertyOptions(): SearchableSelectOption[] {
-    return this.availableProperties.map(property => ({ value: property.propertyId, label: property.propertyCode }));
+    return this.availablePropertyCodes.map(property => ({ value: property.propertyId, label: property.propertyCode }));
   }
 
   onAgentDropdownChange(value: string | number | null): void {
@@ -2018,11 +2122,11 @@ export class ReservationComponent implements OnInit, OnDestroy, CanComponentDeac
 
   filterPropertiesByOffice(): void {
     const officeFiltered = !this.selectedOffice
-      ? this.properties
-      : this.properties.filter(p => p.officeId === this.selectedOffice.officeId);
+      ? this.propertyCodes
+      : this.propertyCodes.filter(p => p.officeId === this.selectedOffice!.officeId);
 
     if (!this.canEditProperty || !this.reservation) {
-      this.availableProperties = officeFiltered;
+      this.availablePropertyCodes = officeFiltered;
       this.applySelectedPropertyClearIfOfficeMismatch();
       return;
     }
@@ -2030,7 +2134,7 @@ export class ReservationComponent implements OnInit, OnDestroy, CanComponentDeac
     const arrivalRaw = this.form.get('arrivalDate')?.value ?? this.reservation?.arrivalDate;
     const departureRaw = this.form.get('departureDate')?.value ?? this.reservation?.departureDate;
     if (!arrivalRaw || !departureRaw) {
-      this.availableProperties = officeFiltered;
+      this.availablePropertyCodes = officeFiltered;
       this.applySelectedPropertyClearIfOfficeMismatch();
       return;
     }
@@ -2051,7 +2155,7 @@ export class ReservationComponent implements OnInit, OnDestroy, CanComponentDeac
           propertyIdsWithConflict.add(r.propertyId);
         }
       }
-      this.availableProperties = officeFiltered.filter(p =>
+      this.availablePropertyCodes = officeFiltered.filter(p =>
         !propertyIdsWithConflict.has(p.propertyId) || p.propertyId === currentPropertyId
       );
       this.applySelectedPropertyClearIfOfficeMismatch();
@@ -2091,7 +2195,7 @@ export class ReservationComponent implements OnInit, OnDestroy, CanComponentDeac
       return formCode.trim();
     }
     return this.selectedProperty?.propertyCode
-      ?? this.properties.find(p => p.propertyId === this.reservation?.propertyId)?.propertyCode
+      ?? this.propertyCodes.find(p => p.propertyId === this.reservation?.propertyId)?.propertyCode
       ?? null;
   }
 
@@ -2360,7 +2464,7 @@ export class ReservationComponent implements OnInit, OnDestroy, CanComponentDeac
   getReservationNotificationPropertyCode(reservation: ReservationResponse): string {
     const propertyId = String(reservation.propertyId || '').trim();
     return this.selectedProperty?.propertyCode
-      || this.properties.find(property => property.propertyId === propertyId)?.propertyCode
+      || this.propertyCodes.find(property => property.propertyId === propertyId)?.propertyCode
       || '';
   }
 
@@ -2447,24 +2551,52 @@ export class ReservationComponent implements OnInit, OnDestroy, CanComponentDeac
       return;
     }
 
-    const selectedProperty = this.selectedProperty?.propertyId === propertyId
-      ? this.selectedProperty : this.properties.find(p => p.propertyId === propertyId) || null;
+    const runAvailabilityValidation = (property: PropertyResponse | null) => {
+      if (!property) {
+        if (offendingField === 'save') {
+          this.performSave();
+        }
+        return;
+      }
 
-    const availableFrom = this.parseDateOnly(selectedProperty?.availableFrom);
-    if (availableFrom && arrival < availableFrom) {
-      const message = `This property is not available until ${this.formatDateForMessage(availableFrom)}.`;
-      this.handleAvailabilityDateError(message, offendingField === 'save' ? 'arrivalDate' : offendingField, offendingField === 'save');
+      const availableFrom = this.parseDateOnly(property.availableFrom);
+      if (availableFrom && arrival < availableFrom) {
+        const message = `This property is not available until ${this.formatDateForMessage(availableFrom)}.`;
+        this.handleAvailabilityDateError(message, offendingField === 'save' ? 'arrivalDate' : offendingField, offendingField === 'save');
+        return;
+      }
+
+      const availableUntil = this.parseDateOnly(property.availableUntil);
+      if (availableUntil && departure > availableUntil) {
+        const message = `This property is not available after ${this.formatDateForMessage(availableUntil)}.`;
+        this.handleAvailabilityDateError(message, offendingField === 'save' ? 'departureDate' : offendingField, offendingField === 'save');
+        return;
+      }
+
+      this.continueReservationOverlapValidation(propertyId, arrival, departure, offendingField);
+    };
+
+    if (this.selectedProperty?.propertyId === propertyId) {
+      runAvailabilityValidation(this.selectedProperty);
       return;
     }
 
-    const availableUntil = this.parseDateOnly(selectedProperty?.availableUntil);
-    if (availableUntil && departure > availableUntil) {
-      const message = `This property is not available after ${this.formatDateForMessage(availableUntil)}.`;
-      this.handleAvailabilityDateError(message, offendingField === 'save' ? 'departureDate' : offendingField, offendingField === 'save');
-      return;
-    }
+    this.propertyService.getPropertyByGuid(String(propertyId)).pipe(take(1)).subscribe({
+      next: (property) => runAvailabilityValidation(property),
+      error: () => {
+        if (offendingField === 'save') {
+          this.performSave();
+        }
+      }
+    });
+  }
 
-    // Get all reservations for this property
+  private continueReservationOverlapValidation(
+    propertyId: string,
+    arrival: Date,
+    departure: Date,
+    offendingField: 'arrivalDate' | 'departureDate' | 'save'
+  ): void {
     this.reservationService.getReservationsByPropertyId(propertyId).pipe(take(1)).subscribe({
       next: (reservations) => {
       // Filter out the current reservation if editing
@@ -2716,7 +2848,7 @@ export class ReservationComponent implements OnInit, OnDestroy, CanComponentDeac
     this.extraFeeLines = this.cloneExtraFeeLines(this.savedExtraFeeLinesState || []);
 
     const propertyId = this.form.get('propertyId')?.value as string | null;
-    this.selectedProperty = propertyId ? this.properties.find(p => p.propertyId === propertyId) || null : null;
+    this.hydrateSelectedProperty(propertyId || null);
     const contactId = this.form.get('contactId')?.value as string | null;
     this.selectedContact = contactId ? this.contacts.find(c => c.contactId === contactId) || null : null;
 
