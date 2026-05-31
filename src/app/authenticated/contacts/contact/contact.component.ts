@@ -1,5 +1,5 @@
 import { CommonModule } from '@angular/common';
-import { Component, ElementRef, Inject, OnChanges, OnDestroy, OnInit, Input, Output, EventEmitter, Optional, SimpleChanges, ViewChild } from '@angular/core';
+import { ChangeDetectorRef, Component, ElementRef, Inject, OnChanges, OnDestroy, OnInit, Input, Output, EventEmitter, Optional, SimpleChanges, ViewChild } from '@angular/core';
 import { MAT_DIALOG_DATA } from '@angular/material/dialog';
 import { FormBuilder, FormControl, FormGroup, FormsModule, ReactiveFormsModule, Validators } from '@angular/forms';
 import { ActivatedRoute, Router } from '@angular/router';
@@ -40,10 +40,8 @@ import { PublicOwnerContactUpsertRequest } from '../../leads/models/owner-form-s
 })
 
 export class ContactComponent implements OnInit, OnChanges, OnDestroy {
-  /** Contact id to edit, or 'new' for add. Component is always embedded (contacts or maintenance tabs). */
   @Input() id: string = 'new';
   @Input() copyFrom: string | null = null;
-  /** Preset for the Contact Type field (`entityTypeId`) when opening Add from a list tab or dialog. */
   @Input() presetEntityTypeId: number | null = null;
   @Input() ownerLeadId: number | null = null;
   @Input() compactDialogMode: boolean = false;
@@ -125,6 +123,7 @@ export class ContactComponent implements OnInit, OnChanges, OnDestroy {
     private propertyService: PropertyService,
     private pdfThumbnailService: PdfThumbnailService,
     private userService: UserService,
+    private cdr: ChangeDetectorRef,
     @Optional() @Inject(MAT_DIALOG_DATA) public dialogData?: {
       preloadedContact?: ContactResponse;
       entityTypeId?: number;
@@ -183,25 +182,17 @@ export class ContactComponent implements OnInit, OnChanges, OnDestroy {
           this.showDialogCancelButton = this.dialogData.showDialogCancelButton;
         }
       }
-      // Only use route param when we're on the contact detail URL (/auth/.../contacts/:id). When embedded
-      // in maintenance or contacts tabs, the route has a different :id (e.g. property id) so we must use the input.
-      const url = this.router.url;
-      const contactDetailRoute = /\/contacts\/[^/]+$/.test(url);
-      const routeId = contactDetailRoute ? this.route.snapshot.paramMap.get('id') : null;
-      if (routeId != null) {
-        this.isEmbedded = false;
-        this.contactId = routeId;
-      } else {
-        this.contactId = this.id ?? 'new';
-      }
-      this.isAddMode = this.contactId === 'new';
+      this.resolveContactIdentity();
     }
     this.captureReturnUrl();
-    this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'contact');
-    this.buildForm();
     if (this.dialogData?.preloadedContact) {
+      this.clearContactLoading();
+      this.buildForm();
       this.populateForm();
+      this.applyContactTypeLockedState();
     } else if (this.isAddMode) {
+      this.clearContactLoading();
+      this.buildForm();
       if (this.copyFrom) {
         this.copyFromContact(this.copyFrom);
       } else {
@@ -218,16 +209,35 @@ export class ContactComponent implements OnInit, OnChanges, OnDestroy {
         }
         this.applyPrefillContact();
       }
+      this.applyContactTypeLockedState();
+      if (!this.copyFrom) {
+        this.applyEntityTypeContactValidators(this.form?.getRawValue()?.entityTypeId);
+      }
     } else {
       this.getContact();
-    }
-    this.applyContactTypeLockedState();
-    if (this.isAddMode && !this.copyFrom) {
-      this.applyEntityTypeContactValidators(this.form?.getRawValue()?.entityTypeId);
     }
   }
 
   ngOnChanges(changes: SimpleChanges): void {
+    if (changes['id'] && !changes['id'].firstChange && !this.dialogData?.preloadedContact) {
+      this.resolveContactIdentity();
+      if (this.isAddMode) {
+        this.clearContactLoading();
+        if (!this.form) {
+          this.buildForm();
+        }
+        if (this.copyFrom) {
+          this.copyFromContact(this.copyFrom);
+        } else {
+          this.setFormValuesFromQueryParams();
+          this.applyPrefillContact();
+        }
+        this.applyContactTypeLockedState();
+      } else {
+        this.getContact();
+      }
+      return;
+    }
     if (!this.form || !this.isAddMode) {
       return;
     }
@@ -291,15 +301,40 @@ export class ContactComponent implements OnInit, OnChanges, OnDestroy {
     this.applyEntityTypeContactValidators(this.form.getRawValue().entityTypeId);
   }
 
+  resolveContactIdentity(): void {
+    const pathOnly = this.router.url.split('?')[0].split('#')[0];
+    const contactDetailRoute = /\/contacts\/[^/]+$/.test(pathOnly);
+    const routeId = contactDetailRoute ? this.route.snapshot.paramMap.get('id') : null;
+    if (routeId != null) {
+      this.isEmbedded = false;
+      this.contactId = routeId;
+    } else {
+      this.isEmbedded = true;
+      const fromInput = String(this.id ?? '').trim();
+      this.contactId = fromInput.length > 0 ? fromInput : 'new';
+    }
+    this.isAddMode = this.contactId === 'new';
+  }
+
+  clearContactLoading(): void {
+    this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'contact');
+    this.cdr.markForCheck();
+  }
+
   getContact(): void {
-    this.contactService.getContactByGuid(this.contactId).pipe(take(1),finalize(() => { this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'contact'); })).subscribe({
+    this.isServiceError = false;
+    this.utilityService.addLoadItem(this.itemsToLoad$, 'contact');
+    this.contactService.getContactByGuid(this.contactId).pipe(take(1), finalize(() => this.clearContactLoading())).subscribe({
       next: (response: ContactResponse) => {
         this.contact = response;
         this.buildForm();
         this.populateForm();
+        this.applyContactTypeLockedState();
+        this.cdr.markForCheck();
       },
       error: () => {
         this.isServiceError = true;
+        this.cdr.markForCheck();
       }
     });
   }
