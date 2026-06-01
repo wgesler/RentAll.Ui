@@ -741,7 +741,10 @@ export class ReservationComponent implements OnInit, OnDestroy, CanComponentDeac
       reservationCode: this.reservation.reservationCode || '',
       propertyId: this.reservation.propertyId,
       propertyCode: this.propertyCodes.find(p => p.propertyId === this.reservation.propertyId)?.propertyCode || '',
-      propertyAddress: '',
+      propertyAddress: (() => {
+        const propertyCodeEntry = this.propertyCodes.find(p => p.propertyId === this.reservation.propertyId);
+        return propertyCodeEntry ? this.getPropertyShortAddress(propertyCodeEntry) : '';
+      })(),
       agentId: this.reservation.reservationTypeId === ReservationType.Owner
         ? null
         : (this.reservation.agentId || this.noneAgentOptionValue),
@@ -821,9 +824,7 @@ export class ReservationComponent implements OnInit, OnDestroy, CanComponentDeac
     }
     this.form.get('departureDate')?.updateValueAndValidity({ emitEvent: false });
 
-    this.hydrateSelectedProperty(this.reservation.propertyId, () => {
-      this.captureSavedStateSignature();
-    });
+    this.captureSavedStateSignature();
   }
 
   get canEditProperty(): boolean {
@@ -1203,6 +1204,18 @@ export class ReservationComponent implements OnInit, OnDestroy, CanComponentDeac
       if (!id) {
         this.selectedProperty = null;
         this.form.patchValue({ propertyCode: '', propertyAddress: '' }, { emitEvent: false });
+        return;
+      }
+      if (!this.isAddMode) {
+        const propertyCodeEntry = this.propertyCodes.find(p => p.propertyId === id);
+        this.form.patchValue({
+          propertyCode: propertyCodeEntry?.propertyCode ?? '',
+          propertyAddress: propertyCodeEntry ? this.getPropertyShortAddress(propertyCodeEntry) : ''
+        }, { emitEvent: false });
+        this.propertyService.getPropertyByGuid(id).pipe(take(1)).subscribe({
+          next: (property: PropertyResponse) => { this.selectedProperty = property; },
+          error: () => { this.selectedProperty = null; }
+        });
         return;
       }
       this.hydrateSelectedProperty(id);
@@ -2847,8 +2860,10 @@ export class ReservationComponent implements OnInit, OnDestroy, CanComponentDeac
     this.form.reset(this.cloneFormState(this.savedFormState), { emitEvent: false });
     this.extraFeeLines = this.cloneExtraFeeLines(this.savedExtraFeeLinesState || []);
 
-    const propertyId = this.form.get('propertyId')?.value as string | null;
-    this.hydrateSelectedProperty(propertyId || null);
+    if (this.isAddMode) {
+      const propertyId = this.form.get('propertyId')?.value as string | null;
+      this.hydrateSelectedProperty(propertyId || null);
+    }
     const contactId = this.form.get('contactId')?.value as string | null;
     this.selectedContact = contactId ? this.contacts.find(c => c.contactId === contactId) || null : null;
 
@@ -2856,9 +2871,6 @@ export class ReservationComponent implements OnInit, OnDestroy, CanComponentDeac
     this.updateContactsByReservationType();
     this.updateEnabledFieldsByReservationType();
     this.updateContactFields();
-    this.updateDepositValues();
-    this.updateBillingValues();
-    this.updateDepartureFeeValue();
     this.updatePetFields(false);
     this.updateMaidServiceFields(false);
     this.updateMaidStartDate();
