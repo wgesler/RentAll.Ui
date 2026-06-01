@@ -4,7 +4,7 @@ import { ChangeDetectionStrategy, ChangeDetectorRef, Component, EventEmitter, In
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, Router } from '@angular/router';
 import { ToastrService } from 'ngx-toastr';
-import {BehaviorSubject, Subject, filter, finalize, map, skip, take, takeUntil} from 'rxjs';
+import {BehaviorSubject, Subject, filter, skip, take, takeUntil} from 'rxjs';
 import { RouterUrl } from '../../../app.routes';
 import { CommonMessage } from '../../../enums/common-message.enum';
 import { MaterialModule } from '../../../material.module';
@@ -68,7 +68,7 @@ export class CostCodesListComponent implements OnInit, OnDestroy, OnChanges {
   };
 
   isPageReady = false;
-  itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['offices', 'costCodes', 'officeScope']));
+  itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['costCodes']));
   destroy$ = new Subject<void>();
 
   constructor(
@@ -219,7 +219,7 @@ export class CostCodesListComponent implements OnInit, OnDestroy, OnChanges {
 
   //#region Data Load Methods
   loadOffices(): void {
-    this.officeService.ensureOfficesLoaded(this.organizationId).pipe(take(1), finalize(() => { this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'offices'); })).subscribe(() => {
+    this.officeService.ensureOfficesLoaded(this.organizationId).pipe(take(1)).subscribe(() => {
       this.officeService.getAllOffices().pipe(takeUntil(this.destroy$)).subscribe(allOffices => {
         // API already filters offices by user access
         this.offices = allOffices || [];
@@ -331,7 +331,6 @@ export class CostCodesListComponent implements OnInit, OnDestroy, OnChanges {
   resolveOfficeScope(officeId: number | null, emitChange: boolean): void {
     this.selectedOffice = this.utilityService.resolveSelectedOfficeById(this.offices, officeId);
     this.officeScopeResolved = true;
-    this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'officeScope');
     if (emitChange) {
       this.officeIdChange.emit(this.selectedOffice?.officeId ?? null);
     }

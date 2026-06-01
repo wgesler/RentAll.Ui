@@ -85,9 +85,10 @@ export class InvoiceComponent implements OnInit, OnDestroy, OnChanges {
   contextReady: boolean = false;
   lastContextKey: string | null = null;
   activeInvoiceLoadId = 0;
+  organizationId = '';
 
   isPageReady = false;
-  itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['offices', 'reservations', 'costCodes']));
+  itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['invoice']));
   destroy$ = new Subject<void>();
 
   constructor(
@@ -110,35 +111,30 @@ export class InvoiceComponent implements OnInit, OnDestroy, OnChanges {
   //#region Invoice
   ngOnInit(): void {
     this.isPaymentMode = false;
+    this.organizationId = this.authService.getUser()?.organizationId?.trim() ?? '';
     this.routeInvoiceId = this.route.snapshot.paramMap.get('id');
     const initialInvoiceId = this.resolveInvoiceContextId();
-    const editMode = this.isEditInvoiceContext(initialInvoiceId);
+    this.isAddMode = !initialInvoiceId || initialInvoiceId === 'new';
+    if (initialInvoiceId) {
+      this.invoiceId = initialInvoiceId;
+    }
+
+    if (this.isAddMode) {
+      this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'invoice');
+    }
 
     this.itemsToLoad$.pipe(takeUntil(this.destroy$)).subscribe(items => {
       this.isPageReady = items.size === 0;
     });
 
-    if (editMode) {
-      this.itemsToLoad$.next(new Set());
-      this.loadOffices(false);
-      this.loadReservations(false);
-      this.loadCostCodes(false);
-      this.buildForm();
-      this.setupFormHandlers();
-      this.contextReady = true;
-      this.initializeInvoiceContext(true);
-    } else {
-      this.itemsToLoad$.next(new Set(['offices', 'reservations', 'costCodes']));
-      this.loadOffices(true);
-      this.loadReservations(true);
-      this.loadCostCodes(true);
-      this.itemsToLoad$.pipe(filter(items => items.size === 0), take(1), takeUntil(this.destroy$)).subscribe(() => {
-        this.buildForm();
-        this.setupFormHandlers();
-        this.contextReady = true;
-        this.initializeInvoiceContext();
-      });
-    }
+    this.loadOffices();
+    this.loadReservations();
+    this.loadCostCodes();
+
+    this.buildForm();
+    this.setupFormHandlers();
+    this.contextReady = true;
+    this.initializeInvoiceContext(true);
 
     this.globalSelectionService.getSelectedOfficeId$().pipe(skip(1), takeUntil(this.destroy$)).subscribe(officeId => {
       if (this.offices.length > 0 && this.isAddMode && this.form) {
@@ -155,10 +151,6 @@ export class InvoiceComponent implements OnInit, OnDestroy, OnChanges {
         this.initializeInvoiceContext(true);
       }
     });
-  }
-
-  private isEditInvoiceContext(invoiceId: string | null): boolean {
-    return !!invoiceId && invoiceId !== 'new';
   }
 
   ngOnChanges(changes: SimpleChanges): void {
@@ -209,7 +201,7 @@ export class InvoiceComponent implements OnInit, OnDestroy, OnChanges {
 
     this.lastContextKey = contextKey;
     this.invoiceId = contextInvoiceId;
-    this.isAddMode = this.invoiceId === 'new';
+    this.isAddMode = !this.invoiceId || this.invoiceId === 'new';
 
     if (!this.isAddMode) {
       this.getInvoice();
@@ -618,54 +610,18 @@ export class InvoiceComponent implements OnInit, OnDestroy, OnChanges {
   }
   //#endregion
 
-  //#region Data Loading Methods
-  loadOffices(trackLoading: boolean = true): void {
-    const clearOfficesLoading = () => {
-      if (trackLoading) {
-        this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'offices');
-      }
-    };
-
-    const organizationId = this.authService.getUser()?.organizationId?.trim() ?? '';
-    if (!organizationId) {
-      this.offices = [];
-      this.availableOffices = [];
-      clearOfficesLoading();
-      return;
-    }
-
-    this.officeService.ensureOfficesLoaded(organizationId).pipe(take(1)).subscribe({
-      next: () => {
-        this.officeService.getAllOffices().pipe(take(1), takeUntil(this.destroy$)).subscribe({
-          next: (offices) => {
-            this.offices = offices || [];
-            this.availableOffices = this.mappingService.mapOfficesToDropdown(this.offices);
-            clearOfficesLoading();
-          },
-          error: () => {
-            this.offices = [];
-            this.availableOffices = [];
-            clearOfficesLoading();
-          }
-        });
-      },
-      error: () => {
-        this.offices = [];
-        this.availableOffices = [];
-        clearOfficesLoading();
-      }
+  //#region Data Load Methods
+  loadOffices(): void {
+    this.officeService.ensureOfficesLoaded(this.organizationId).pipe(take(1)).subscribe(() => {
+      this.officeService.getAllOffices().pipe(takeUntil(this.destroy$)).subscribe(offices => {
+        this.offices = offices || [];
+        this.availableOffices = this.mappingService.mapOfficesToDropdown(this.offices);
+      });
     });
   }
 
-  loadReservations(trackLoading: boolean = true): void {
-    this.reservationService.getReservationList().pipe(
-      take(1),
-      finalize(() => {
-        if (trackLoading) {
-          this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'reservations');
-        }
-      })
-    ).subscribe({
+  loadReservations(): void {
+    this.reservationService.getReservationList().pipe(take(1)).subscribe({
       next: (reservations) => {
         this.reservations = reservations || [];
          if (this.form) {
@@ -684,21 +640,10 @@ export class InvoiceComponent implements OnInit, OnDestroy, OnChanges {
     });
   }
 
-  loadCostCodes(trackLoading: boolean = true): void {
+  loadCostCodes(): void {
     this.costCodesService.ensureCostCodesLoaded();
-    this.costCodesService.areCostCodesLoaded().pipe(
-      filter(loaded => loaded === true),
-      take(1),
-      takeUntil(this.destroy$)
-    ).subscribe(() => {
-      this.costCodesService.getAllCostCodes().pipe(
-        take(1),
-        finalize(() => {
-          if (trackLoading) {
-            this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'costCodes');
-          }
-        })
-      ).subscribe(() => {
+    this.costCodesService.areCostCodesLoaded().pipe(filter(loaded => loaded === true), take(1),takeUntil(this.destroy$)).subscribe(() => {
+      this.costCodesService.getAllCostCodes().pipe(take(1)).subscribe(() => {
         this.allCostCodes = this.costCodesService.getAllCostCodesValue();
         this.filterCostCodes();
         if (this.invoice && this.form) {

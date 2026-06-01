@@ -145,7 +145,6 @@ export class DocumentListComponent implements OnInit, OnDestroy, OnChanges {
     }
     
     this.utilityService.addLoadItem(this.itemsToLoad$, 'documents');
-    this.utilityService.addLoadItem(this.itemsToLoad$, 'officeScope');
     this.loadOffices();
 
     if (this.source !== 'documents') {
@@ -1067,7 +1066,6 @@ export class DocumentListComponent implements OnInit, OnDestroy, OnChanges {
   resolveOfficeScope(officeId: number | null, emitChange: boolean): void {
     this.selectedOfficeId = this.utilityService.resolveSelectedOfficeById(this.offices, officeId)?.officeId ?? officeId ?? null;
     this.officeScopeResolved = true;
-    this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'officeScope');
     if (emitChange) {
       this.officeIdChange.emit(this.selectedOfficeId);
     }

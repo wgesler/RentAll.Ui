@@ -96,7 +96,7 @@ export class GeneralLedgerComponent implements OnInit, OnChanges, OnDestroy {
   };
 
   isPageReady = false;
-  itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['offices', 'reservations', 'companies', 'costCodes', 'invoices', 'officeScope']));
+  itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['reservations', 'companies', 'invoices']));
   destroy$ = new Subject<void>();
 
   constructor(
@@ -268,7 +268,6 @@ export class GeneralLedgerComponent implements OnInit, OnChanges, OnDestroy {
   resolveOfficeScope(officeId: number | null, emitChange: boolean): void {
     this.selectedOfficeId = this.utilityService.resolveSelectedOfficeById(this.offices, officeId)?.officeId ?? officeId ?? null;
     this.officeScopeResolved = true;
-    this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'officeScope');
     if (emitChange) {
       this.officeIdChange.emit(this.selectedOfficeId);
     }
@@ -280,25 +279,34 @@ export class GeneralLedgerComponent implements OnInit, OnChanges, OnDestroy {
   }
   //#endregion
 
-  //#region Data Loading Methods
+  //#region Data Load Methods
   loadOffices(): void {
-    this.globalSelectionService.ensureOfficeScope(this.organizationId || '').pipe(take(1), finalize(() => {
-      this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'offices');
-    })).subscribe({
+    this.officeService.ensureOfficesLoaded(this.organizationId || '').pipe(take(1)).subscribe({
       next: () => {
         this.officeService.getAllOffices().pipe(takeUntil(this.destroy$)).subscribe(offices => {
           this.offices = offices || [];
           this.availableOffices = this.mappingService.mapOfficesToDropdown(this.offices);
-          this.showOfficeDropdown = this.offices.length > 1;
-          if (!this.officesInitialized) {
-            this.officesInitialized = true;
-            this.resolveOfficeScope(this.officeId ?? this.globalSelectionService.getSelectedOfficeIdValue(), this.officeId === null || this.officeId === undefined);
-          }
+          this.globalSelectionService.getOfficeUiState$(this.offices, {
+            explicitOfficeId: this.officeId,
+            useGlobalSelection: this.hideFilters
+          }).pipe(take(1)).subscribe({
+            next: uiState => {
+              this.showOfficeDropdown = this.hideFilters ? false : uiState.showOfficeDropdown;
+              if (!this.officesInitialized) {
+                this.officesInitialized = true;
+                const officeIdToUse = this.hideFilters ? this.officeId : uiState.selectedOfficeId;
+                this.resolveOfficeScope(officeIdToUse ?? null, this.officeId === null || this.officeId === undefined);
+              }
+            }
+          });
         });
       },
       error: () => {
         this.offices = [];
-        this.resolveOfficeScope(null, false);
+        if (!this.officesInitialized) {
+          this.officesInitialized = true;
+          this.resolveOfficeScope(null, false);
+        }
       }
     });
   }
@@ -369,9 +377,7 @@ export class GeneralLedgerComponent implements OnInit, OnChanges, OnDestroy {
     this.costCodesService.ensureCostCodesLoaded();
     this.costCodesService.areCostCodesLoaded().pipe(filter(loaded => loaded === true), take(1)).subscribe(() => {
       this.costCodesSubscription?.unsubscribe();
-      this.costCodesSubscription = this.costCodesService.getAllCostCodes().pipe(take(1), finalize(() => {
-        this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'costCodes');
-      })).subscribe(costCodes => {
+      this.costCodesSubscription = this.costCodesService.getAllCostCodes().pipe(take(1)).subscribe(costCodes => {
         this.costCodes = costCodes || [];
         this.buildGeneralLedgerRows();
       });
