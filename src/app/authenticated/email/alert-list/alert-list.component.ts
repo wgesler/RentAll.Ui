@@ -65,6 +65,7 @@ export class AlertListComponent implements OnInit, OnChanges, OnDestroy {
   contacts: ContactResponse[] = [];
 
   alertsDisplayedColumns: ColumnSet = {
+    no: { displayAs: 'No', maxWidth: '5ch', sort: false, wrap: false },
     propertyCode: { displayAs: 'Property', maxWidth: '15ch', sortType: 'natural' },
     reservationCode: { displayAs: 'Reservation', maxWidth: '15ch', sortType: 'natural' },
     subject: { displayAs: 'Subject', maxWidth: '20ch' },

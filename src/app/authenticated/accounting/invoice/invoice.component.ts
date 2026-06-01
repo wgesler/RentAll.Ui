@@ -84,6 +84,7 @@ export class InvoiceComponent implements OnInit, OnDestroy, OnChanges {
   routeInvoiceId: string | null = null;
   contextReady: boolean = false;
   lastContextKey: string | null = null;
+  activeInvoiceLoadId = 0;
 
   isPageReady = false;
   itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['offices', 'reservations', 'costCodes']));
@@ -110,12 +111,34 @@ export class InvoiceComponent implements OnInit, OnDestroy, OnChanges {
   ngOnInit(): void {
     this.isPaymentMode = false;
     this.routeInvoiceId = this.route.snapshot.paramMap.get('id');
+    const initialInvoiceId = this.resolveInvoiceContextId();
+    const editMode = this.isEditInvoiceContext(initialInvoiceId);
+
     this.itemsToLoad$.pipe(takeUntil(this.destroy$)).subscribe(items => {
       this.isPageReady = items.size === 0;
     });
-    this.loadOffices();
-    this.loadReservations();
-    this.loadCostCodes();
+
+    if (editMode) {
+      this.itemsToLoad$.next(new Set());
+      this.loadOffices(false);
+      this.loadReservations(false);
+      this.loadCostCodes(false);
+      this.buildForm();
+      this.setupFormHandlers();
+      this.contextReady = true;
+      this.initializeInvoiceContext(true);
+    } else {
+      this.itemsToLoad$.next(new Set(['offices', 'reservations', 'costCodes']));
+      this.loadOffices(true);
+      this.loadReservations(true);
+      this.loadCostCodes(true);
+      this.itemsToLoad$.pipe(filter(items => items.size === 0), take(1), takeUntil(this.destroy$)).subscribe(() => {
+        this.buildForm();
+        this.setupFormHandlers();
+        this.contextReady = true;
+        this.initializeInvoiceContext();
+      });
+    }
 
     this.globalSelectionService.getSelectedOfficeId$().pipe(skip(1), takeUntil(this.destroy$)).subscribe(officeId => {
       if (this.offices.length > 0 && this.isAddMode && this.form) {
@@ -132,13 +155,10 @@ export class InvoiceComponent implements OnInit, OnDestroy, OnChanges {
         this.initializeInvoiceContext(true);
       }
     });
+  }
 
-    this.itemsToLoad$.pipe(filter(items => items.size === 0),  take(1)).subscribe(() => {
-      this.buildForm();
-      this.setupFormHandlers();
-      this.contextReady = true;
-      this.initializeInvoiceContext();
-    });
+  private isEditInvoiceContext(invoiceId: string | null): boolean {
+    return !!invoiceId && invoiceId !== 'new';
   }
 
   ngOnChanges(changes: SimpleChanges): void {
@@ -256,22 +276,35 @@ export class InvoiceComponent implements OnInit, OnDestroy, OnChanges {
     if (companyIdParam) {
       this.companyId = companyIdParam;
     }
-    
+
+    const loadId = ++this.activeInvoiceLoadId;
+    const requestedInvoiceId = this.invoiceId;
     this.utilityService.addLoadItem(this.itemsToLoad$, 'invoice');
-    this.accountingService.getInvoiceByGuid(this.invoiceId).pipe(take(1), finalize(() => { this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'invoice'); })).subscribe({
+    this.accountingService.getInvoiceByGuid(this.invoiceId).pipe(take(1),finalize(() => {
+        if (this.activeInvoiceLoadId === loadId) {
+          this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'invoice');
+        }
+      })
+    ).subscribe({
       next: (response: InvoiceResponse) => {
+        if (this.activeInvoiceLoadId !== loadId || this.invoiceId !== requestedInvoiceId) {
+          return;
+        }
         this.invoice = response;
         this.populateForm();
-        this.loadLedgerLines(false); 
-        
+        this.loadLedgerLines(false);
+
         const addLedgerLineParam = this.route.snapshot.queryParams['addLedgerLine'];
-        if (addLedgerLineParam === 'true') {         
+        if (addLedgerLineParam === 'true') {
           this.isPaymentMode = true;
           this.filterCostCodes();
           this.addLedgerLine();
         }
       },
       error: (err: HttpErrorResponse) => {
+        if (this.activeInvoiceLoadId !== loadId) {
+          return;
+        }
         this.isServiceError = true;
         if (err.status === 404) {
         }
@@ -586,40 +619,53 @@ export class InvoiceComponent implements OnInit, OnDestroy, OnChanges {
   //#endregion
 
   //#region Data Loading Methods
-  loadOffices(): void {
+  loadOffices(trackLoading: boolean = true): void {
+    const clearOfficesLoading = () => {
+      if (trackLoading) {
+        this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'offices');
+      }
+    };
+
     const organizationId = this.authService.getUser()?.organizationId?.trim() ?? '';
     if (!organizationId) {
       this.offices = [];
       this.availableOffices = [];
-      this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'offices');
+      clearOfficesLoading();
       return;
     }
 
     this.officeService.ensureOfficesLoaded(organizationId).pipe(take(1)).subscribe({
       next: () => {
-        this.officeService.getAllOffices().pipe(takeUntil(this.destroy$)).subscribe({
+        this.officeService.getAllOffices().pipe(take(1), takeUntil(this.destroy$)).subscribe({
           next: (offices) => {
             this.offices = offices || [];
             this.availableOffices = this.mappingService.mapOfficesToDropdown(this.offices);
-            this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'offices');
+            clearOfficesLoading();
           },
           error: () => {
             this.offices = [];
             this.availableOffices = [];
-            this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'offices');
+            clearOfficesLoading();
           }
         });
       },
       error: () => {
         this.offices = [];
         this.availableOffices = [];
-        this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'offices');
+        clearOfficesLoading();
       }
     });
   }
 
-  loadReservations(): void {
-    this.reservationService.getReservationList().pipe(take(1), finalize(() => { this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'reservations'); })).subscribe({
+  loadReservations(trackLoading: boolean = true): void {
+    this.reservationService.getReservationList().pipe(
+      take(1),
+      finalize(() => {
+        if (trackLoading) {
+          this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'reservations');
+        }
+      })
+    ).subscribe({
       next: (reservations) => {
         this.reservations = reservations || [];
          if (this.form) {
@@ -638,13 +684,26 @@ export class InvoiceComponent implements OnInit, OnDestroy, OnChanges {
     });
   }
 
-  loadCostCodes(): void {
+  loadCostCodes(trackLoading: boolean = true): void {
     this.costCodesService.ensureCostCodesLoaded();
-    this.costCodesService.areCostCodesLoaded().pipe(filter(loaded => loaded === true), take(1)).subscribe(() => {
-      this.costCodesService.getAllCostCodes().pipe(takeUntil(this.destroy$)).subscribe(accounts => {
+    this.costCodesService.areCostCodesLoaded().pipe(
+      filter(loaded => loaded === true),
+      take(1),
+      takeUntil(this.destroy$)
+    ).subscribe(() => {
+      this.costCodesService.getAllCostCodes().pipe(
+        take(1),
+        finalize(() => {
+          if (trackLoading) {
+            this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'costCodes');
+          }
+        })
+      ).subscribe(() => {
         this.allCostCodes = this.costCodesService.getAllCostCodesValue();
         this.filterCostCodes();
-        this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'costCodes');
+        if (this.invoice && this.form) {
+          this.loadLedgerLines(false);
+        }
       });
     });
   }
@@ -784,7 +843,7 @@ export class InvoiceComponent implements OnInit, OnDestroy, OnChanges {
           this.utilityService.parseCalendarDateInput(this.invoice.invoiceDate),
         invoiceTotal: this.invoice.totalAmount || '',
         invoiceCode: this.invoice.invoiceCode || '',
-        invoicedAmount: this.invoice.totalAmount.toFixed(2),
+        invoicedAmount: (this.invoice.totalAmount ?? 0).toFixed(2),
         paidAmount: (this.invoice.paidAmount || 0).toFixed(2),
         totalDue: ((this.invoice.totalAmount || 0) - (this.invoice.paidAmount || 0)).toFixed(2),
         notes: this.invoice.notes || '',
@@ -1453,6 +1512,7 @@ export class InvoiceComponent implements OnInit, OnDestroy, OnChanges {
   }
 
   ngOnDestroy(): void {
+    this.activeInvoiceLoadId++;
     this.destroy$.next();
     this.destroy$.complete();
     this.itemsToLoad$.complete();

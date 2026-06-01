@@ -73,6 +73,7 @@ export class EmailListComponent implements OnInit, OnDestroy, OnChanges {
   destroy$ = new Subject<void>();
 
   emailsDisplayedColumns: ColumnSet = {
+    no: { displayAs: 'No', maxWidth: '5ch', sort: false, wrap: false },
     propertyCode: { displayAs: 'Property', maxWidth: '15ch', sortType: 'natural' },
     reservationCode: { displayAs: 'Reservation', maxWidth: '15ch', sortType: 'natural' },
     emailTypeName: { displayAs: 'Email Type', maxWidth: '20ch' },

@@ -253,14 +253,16 @@
       <mat-tab-group [selectedIndex]="selectedTabIndex" class="shell-tabs dbg-band-tabs" (selectedTabChange)="onTabChange($event)">
         <mat-tab label="Invoices">
           @if (activeInvoiceId) {
-            <app-invoice
-              #accountingInvoiceEditor
-              [shellMode]="true"
-              [invoiceIdInput]="activeInvoiceId"
-              [officeIdInput]="selectedOfficeId"
-              [reservationIdInput]="selectedReservationId"
-              [companyIdInput]="selectedCompanyId">
-            </app-invoice>
+            @for (invoiceEditorKey of [activeInvoiceId]; track invoiceEditorKey) {
+              <app-invoice
+                #accountingInvoiceEditor
+                [shellMode]="true"
+                [invoiceIdInput]="activeInvoiceId"
+                [officeIdInput]="selectedOfficeId"
+                [reservationIdInput]="selectedReservationId"
+                [companyIdInput]="selectedCompanyId">
+              </app-invoice>
+            }
           } @else {
             <app-invoice-list 
               [hideFilters]="true"

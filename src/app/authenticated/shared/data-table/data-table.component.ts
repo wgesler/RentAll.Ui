@@ -1087,15 +1087,27 @@ export class DataTableComponent implements OnChanges, OnInit {
       .toLocaleLowerCase();
   }
 
+  /** Shown left of the row-number column when `hasColumnIndex` is true. */
+  private static readonly leadingColumnsBeforeIndex = ['ticketAttentionDot', 'leadAttentionDot'];
+
   setTableColumns(): void {
     let columns = {} as ColumnSet;
     // order here is important
     if (this.hasActionsSelect)
       columns['select'] = { displayAs: this.columnTextSelect ?? 'Select', sort: false, wrap: false };
+
+    const leading: ColumnSet = {};
+    const rest: ColumnSet = {};
+    for (const name in this.columns) {
+      if (DataTableComponent.leadingColumnsBeforeIndex.includes(name))
+        leading[name] = this.columns[name];
+      else
+        rest[name] = this.columns[name];
+    }
+    columns = { ...columns, ...leading };
     if (this.hasColumnIndex)
       columns['no'] = { displayAs: 'No.', wrap: false, sort: false, maxWidth: '5ch' };
-
-    columns = {...columns, ...this.columns};
+    columns = { ...columns, ...rest };
     
     if (this.hasActionsEdit || this.hasActionsDelete || this.hasActionsSave || this.hasActionsRestore || this.hasActionsDownload || this.hasActionsView || this.hasActionsInspect || this.hasActionsCamera || this.hasActionsPayable || this.hasActionsInvoice || this.hasActionsCopy || this.hasActionsLink || this.hasActionsRental || this.hasActionsOwner || this.hasActionsCalendar || this.hasActionsQuote || this.hasActionsClearTracking || this.hasActionsCheckAll || this.hasColumnDynamicAction)
       columns['actions'] = { displayAs: 'Actions', sort: false, wrap: false };
