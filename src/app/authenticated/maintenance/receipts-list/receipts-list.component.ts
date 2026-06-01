@@ -109,15 +109,21 @@ export class ReceiptsListComponent implements OnInit, OnChanges, OnDestroy {
   }
 
   ngOnChanges(changes: SimpleChanges): void {
+    const tabActivated = !!changes['isActiveTab'] && this.isActiveTab;
     if (changes['isActiveTab']) {
       this.setIsActiveCheckboxEditability();
       if (this.isActiveTab) {
         this.beginTabLoads();
+      } else {
+        return;
       }
-      return;
     }
 
     if (!this.isActiveTab) {
+      return;
+    }
+
+    if (tabActivated && !changes['property'] && !changes['officeId'] && !changes['refreshTrigger'] && !changes['searchRequest']) {
       return;
     }
 
@@ -153,7 +159,6 @@ export class ReceiptsListComponent implements OnInit, OnChanges, OnDestroy {
   }
 
   beginTabLoads(): void {
-    this.utilityService.addLoadItem(this.itemsToLoad$, 'propertyLookup');
     this.loadPropertyLookup();
     this.tryLoadReceiptsForMaintenanceShell();
   }
@@ -196,12 +201,16 @@ export class ReceiptsListComponent implements OnInit, OnChanges, OnDestroy {
       ? this.receiptService.searchReceipts(this.buildMaintenanceSearchRequest())
       : this.receiptService.getReceipts(this.property?.propertyId ?? null, this.officeId ?? null);
 
-    load$.pipe(take(1), finalize(() => {
-      if (this.receiptsLoadId === loadId) {
-        this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'receipts');
-      }
-      this.markViewForCheck();
-    })).subscribe({
+    load$.pipe(
+      take(1),
+      takeUntil(this.destroy$),
+      finalize(() => {
+        if (this.receiptsLoadId === loadId) {
+          this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'receipts');
+        }
+        this.markViewForCheck();
+      })
+    ).subscribe({
       next: (receipts: ReceiptResponse[]) => {
         if (this.receiptsLoadId !== loadId) {
           return;
@@ -455,7 +464,7 @@ export class ReceiptsListComponent implements OnInit, OnChanges, OnDestroy {
         take(1),
         switchMap(receipt => {
           const isBill = Number(receipt.bankCardId ?? 0) === 0;
-          if (!isBill) {
+          if (isBill) {
             this.syncReceiptRowFromServer(receipt);
             return EMPTY;
           }
@@ -552,7 +561,7 @@ export class ReceiptsListComponent implements OnInit, OnChanges, OnDestroy {
         take(1),
         switchMap(receipt => {
           const isBill = Number(receipt.bankCardId ?? 0) === 0;
-          if (isBill) {
+          if (!isBill) {
             this.syncReceiptRowFromServer(receipt);
             return EMPTY;
           }
@@ -770,13 +779,9 @@ export class ReceiptsListComponent implements OnInit, OnChanges, OnDestroy {
   loadPropertyLookup(): void {
     const userId = this.authService.getUser()?.userId?.trim() ?? '';
     if (!userId) {
-      this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'propertyLookup');
       return;
     }
-    this.propertyService.getPropertiesBySelectionCriteria(userId).pipe(take(1), finalize(() => {
-      this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'propertyLookup');
-      this.markViewForCheck();
-    })).subscribe({
+    this.propertyService.getPropertiesBySelectionCriteria(userId).pipe(take(1), takeUntil(this.destroy$)).subscribe({
       next: properties => {
         this.propertyCodeLookup = new Map(
           (properties || []).map(property => [property.propertyId, property.propertyCode || ''])
@@ -786,7 +791,6 @@ export class ReceiptsListComponent implements OnInit, OnChanges, OnDestroy {
         this.markViewForCheck();
       },
       error: () => {
-        this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'propertyLookup');
         this.markViewForCheck();
       }
     });
@@ -886,8 +890,12 @@ export class ReceiptsListComponent implements OnInit, OnChanges, OnDestroy {
     this.allReceipts = (this.allReceipts || []).map(receipt => {
       const officeId = Number(receipt.officeId ?? 0);
       const isBill = Number(receipt.bankCardId ?? 0) === 0;
-      const vendorName = this.normalizeVendorDisplayText(receipt.vendorName);
-      if (!isBill) {
+      const vendorOptionsForOffice = this.vendorOptionsByOfficeId.get(officeId) || [];
+      const vendorFromContact = vendorOptionsForOffice.find(option => option.contactId === String(receipt.vendorId || '').trim())?.label;
+      const vendorName = this.normalizeVendorDisplayText(receipt.vendorName)
+        || this.normalizeVendorDisplayText(vendorFromContact);
+
+      if (isBill) {
         return {
           ...receipt,
           vendorDisplay: vendorName,
@@ -897,7 +905,6 @@ export class ReceiptsListComponent implements OnInit, OnChanges, OnDestroy {
         };
       }
 
-      const vendorOptionsForOffice = this.vendorOptionsByOfficeId.get(officeId) || [];
       const vendorLabels = vendorOptionsForOffice.map(option => option.label);
       const selectedVendorLabel = this.normalizeVendorDisplayText(
         vendorOptionsForOffice.find(option => option.contactId === String(receipt.vendorId || '').trim())?.label
@@ -1058,6 +1065,7 @@ export class ReceiptsListComponent implements OnInit, OnChanges, OnDestroy {
   }
 
   ngOnDestroy(): void {
+    this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'receipts');
     this.destroy$.next();
     this.destroy$.complete();
     this.itemsToLoad$.complete();
