@@ -141,6 +141,9 @@ export class ReservationBoardComponent implements OnInit, OnDestroy {
         this.applyBoardPropertyFilter();
       }
     });
+    this.reservationService.reservationSaved$.pipe(takeUntil(this.destroy$)).subscribe(() => {
+      this.loadReservations(true, true);
+    });
     this.startReservationPolling();
   }
 
@@ -1002,21 +1005,34 @@ export class ReservationBoardComponent implements OnInit, OnDestroy {
     this.updatingPropertyStatusIds.add(property.propertyId);
     property.propertyStatusId = statusId;
     property.statusLetter = getPropertyStatusLetter(statusId);
+    this.syncPropertyStatusInSourceRows(property.propertyId, statusId);
 
     void this.propertyService.updateModifiedProperty(property.propertyId, { propertyStatusId: statusId }).then(() => {
       property.propertyStatusId = statusId;
       property.statusLetter = getPropertyStatusLetter(statusId);
+      this.syncPropertyStatusInSourceRows(property.propertyId, statusId);
       this.toastr.success('Property status updated.', CommonMessage.Success);
       this.markViewForCheck();
     }).catch(() => {
       property.propertyStatusId = previousStatusId;
       property.statusLetter = getPropertyStatusLetter(previousStatusId);
+      this.syncPropertyStatusInSourceRows(property.propertyId, previousStatusId);
       this.toastr.error('Unable to update property status.', CommonMessage.Error);
       this.markViewForCheck();
     }).finally(() => {
       this.updatingPropertyStatusIds.delete(property.propertyId);
       this.markViewForCheck();
     });
+  }
+
+  syncPropertyStatusInSourceRows(propertyId: string, statusId: number): void {
+    const syncRow = (row: PropertyListResponse) => {
+      if (row.propertyId === propertyId) {
+        row.propertyStatusId = statusId;
+      }
+    };
+    this.allPropertyRows.forEach(syncRow);
+    this.propertyRows.forEach(syncRow);
   }
 
   openBoardStatusDropdown(event: Event, dropdown: { open: () => void } | undefined): void {
