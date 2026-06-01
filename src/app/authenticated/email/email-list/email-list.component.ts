@@ -573,7 +573,7 @@ export class EmailListComponent implements OnInit, OnDestroy, OnChanges {
       }
     } else if (this.source === 'invoice') {
       queryParams.returnTo = 'accountingTab';
-      queryParams.tab = '3';
+      queryParams.tab = '0';
       if (this.selectedOfficeId !== null && this.selectedOfficeId !== undefined) {
         queryParams.officeId = this.selectedOfficeId;
       }

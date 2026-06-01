@@ -77,16 +77,13 @@ export class GeneralLedgerComponent implements OnInit, OnChanges, OnDestroy {
   availableCompanyContacts: { value: ContactResponse, label: string }[] = [];
   invoicesSubscription?: Subscription;
   costCodesSubscription?: Subscription;
-  destroy$ = new Subject<void>();
   allInvoices: InvoiceResponse[] = [];
   costCodes: CostCodesResponse[] = [];
   ledgerRows: GeneralLedgerDisplayRow[] = [];
-  isPageReady = false;
-  itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['offices', 'reservations', 'companies', 'costCodes', 'invoices', 'officeScope']));
   showInactive: boolean = false;
   showOfficeDropdown: boolean = false;
   officeScopeResolved: boolean = false;
-  private officesInitialized = false;
+  officesInitialized = false;
   generalLedgerColumns: ColumnSet = {
     officeName: { displayAs: 'Office', maxWidth: '16ch' },
     reservationCode: { displayAs: 'ReservationCode', maxWidth: '18ch', sortType: 'natural' },
@@ -97,6 +94,10 @@ export class GeneralLedgerComponent implements OnInit, OnChanges, OnDestroy {
     credit: { displayAs: 'Credit', maxWidth: '14ch', alignment: 'right', headerAlignment: 'right' },
     total: { displayAs: 'Total', maxWidth: '14ch', alignment: 'right', headerAlignment: 'right' }
   };
+
+  isPageReady = false;
+  itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['offices', 'reservations', 'companies', 'costCodes', 'invoices', 'officeScope']));
+  destroy$ = new Subject<void>();
 
   constructor(
     private officeService: OfficeService,
@@ -113,15 +114,15 @@ export class GeneralLedgerComponent implements OnInit, OnChanges, OnDestroy {
 
   //#region General-Ledger
   ngOnInit(): void {
+    this.organizationId = this.organizationId || this.authService.getUser()?.organizationId?.trim() || null;
     this.itemsToLoad$.pipe(takeUntil(this.destroy$)).subscribe(items => {
       this.isPageReady = items.size === 0;
     });
-    this.organizationId = this.organizationId || this.authService.getUser()?.organizationId?.trim() || null;
+
     this.loadOffices();
     this.loadReservations();
     this.loadCompanyContacts();
     this.loadCostCodes();
-    this.loadInvoices();
 
     if (!this.hideFilters) {
       this.globalSelectionService.getSelectedOfficeId$().pipe(skip(1), takeUntil(this.destroy$)).subscribe(officeId => {
@@ -136,16 +137,6 @@ export class GeneralLedgerComponent implements OnInit, OnChanges, OnDestroy {
         this.selectedOfficeId = this.officeId;
       }
     });
-  }
-
-  onAdd(): void {
-  }
-  //#endregion
-
-  //#region Form Response methods
-  toggleInactive(): void {
-    this.showInactive = !this.showInactive;
-    this.buildGeneralLedgerRows();
   }
 
   ngOnChanges(changes: SimpleChanges): void {
@@ -177,7 +168,17 @@ export class GeneralLedgerComponent implements OnInit, OnChanges, OnDestroy {
       }
     }
   }
-   
+
+  onAdd(): void {
+  }
+  //#endregion
+
+  //#region Form Response methods
+  toggleInactive(): void {
+    this.showInactive = !this.showInactive;
+    this.buildGeneralLedgerRows();
+  }
+
   onTitleBarOfficeIdUpdate(officeId: number | null): void {
     this.resolveOfficeScope(officeId, false);
   }
@@ -206,97 +207,7 @@ export class GeneralLedgerComponent implements OnInit, OnChanges, OnDestroy {
     this.reservationIdChange.emit(this.selectedReservationId);
     this.buildGeneralLedgerRows();
   }
-  //#endregion
-
-  //#region Data Loading Methods
-  loadOffices(): void {
-    this.globalSelectionService.ensureOfficeScope(this.organizationId || '').pipe(take(1), finalize(() => {
-      this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'offices');
-    })).subscribe({
-      next: () => {
-        this.officeService.getAllOffices().pipe(takeUntil(this.destroy$)).subscribe(offices => {
-          this.offices = offices || [];
-          this.availableOffices = this.mappingService.mapOfficesToDropdown(this.offices);
-          this.showOfficeDropdown = this.offices.length > 1;
-          if (!this.officesInitialized) {
-            this.officesInitialized = true;
-            this.resolveOfficeScope(this.officeId ?? this.globalSelectionService.getSelectedOfficeIdValue(), this.officeId === null || this.officeId === undefined);
-          }
-        });
-      },
-      error: () => {
-        this.offices = [];
-        this.resolveOfficeScope(null, false);
-      }
-    });
-  }
-
-  loadReservations(): void {
-    this.reservationService.getReservationList().pipe(take(1), finalize(() => {
-      this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'reservations');
-    })).subscribe({
-      next: (reservations) => {
-        this.reservations = reservations || [];
-        this.filterReservations();
-        this.buildGeneralLedgerRows();
-      },
-      error: () => {
-        this.reservations = [];
-        this.availableReservations = [];
-      }
-    });
-  }
-
-  loadCompanyContacts(): void {
-    this.contactService.ensureContactsLoaded().pipe(take(1), switchMap(() => this.contactService.getAllCompanyContacts().pipe(take(1))), finalize(() => {
-      this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'companies');
-    })).subscribe({
-      next: contacts => {
-        this.companyContacts = contacts || [];
-        this.filterCompanyContacts();
-        this.buildGeneralLedgerRows();
-      },
-      error: () => {
-        this.companyContacts = [];
-        this.availableCompanyContacts = [];
-      }
-    });
-  }
-
-  loadInvoices(): void {
-    this.utilityService.addLoadItem(this.itemsToLoad$, 'invoices');
-    this.invoicesSubscription?.unsubscribe();
-    const invoiceObservable = this.selectedOfficeId
-      ? this.accountingService.getInvoicesByOffice(this.selectedOfficeId)
-      : this.accountingService.getAllInvoices();
-
-    this.invoicesSubscription = invoiceObservable.pipe(take(1), finalize(() => {
-      this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'invoices');
-    })).subscribe({
-      next: (invoices) => {
-        this.allInvoices = invoices || [];
-        this.buildGeneralLedgerRows();
-      },
-      error: () => {
-        this.allInvoices = [];
-        this.ledgerRows = [];
-      }
-    });
-  }
-
-  loadCostCodes(): void {
-    this.costCodesService.ensureCostCodesLoaded();
-    this.costCodesService.areCostCodesLoaded().pipe(filter(loaded => loaded === true), take(1)).subscribe(() => {
-      this.costCodesSubscription?.unsubscribe();
-      this.costCodesSubscription = this.costCodesService.getAllCostCodes().pipe(take(1), finalize(() => {
-        this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'costCodes');
-      })).subscribe(costCodes => {
-        this.costCodes = costCodes || [];
-        this.buildGeneralLedgerRows();
-      });
-    });
-  }
-
+    
   filterCompanyContacts(): void {
     const filtered = this.selectedOfficeId
       ? this.companyContacts.filter(c => c.officeId === this.selectedOfficeId && c.isActive)
@@ -352,6 +263,119 @@ export class GeneralLedgerComponent implements OnInit, OnChanges, OnDestroy {
     }
 
     this.buildGeneralLedgerRows();
+  }
+
+  resolveOfficeScope(officeId: number | null, emitChange: boolean): void {
+    this.selectedOfficeId = this.utilityService.resolveSelectedOfficeById(this.offices, officeId)?.officeId ?? officeId ?? null;
+    this.officeScopeResolved = true;
+    this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'officeScope');
+    if (emitChange) {
+      this.officeIdChange.emit(this.selectedOfficeId);
+    }
+    this.filterCompanyContacts();
+    this.filterReservations();
+    this.selectedReservationId = null;
+    this.reservationIdChange.emit(this.selectedReservationId);
+    this.loadInvoices();
+  }
+  //#endregion
+
+  //#region Data Loading Methods
+  loadOffices(): void {
+    this.globalSelectionService.ensureOfficeScope(this.organizationId || '').pipe(take(1), finalize(() => {
+      this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'offices');
+    })).subscribe({
+      next: () => {
+        this.officeService.getAllOffices().pipe(takeUntil(this.destroy$)).subscribe(offices => {
+          this.offices = offices || [];
+          this.availableOffices = this.mappingService.mapOfficesToDropdown(this.offices);
+          this.showOfficeDropdown = this.offices.length > 1;
+          if (!this.officesInitialized) {
+            this.officesInitialized = true;
+            this.resolveOfficeScope(this.officeId ?? this.globalSelectionService.getSelectedOfficeIdValue(), this.officeId === null || this.officeId === undefined);
+          }
+        });
+      },
+      error: () => {
+        this.offices = [];
+        this.resolveOfficeScope(null, false);
+      }
+    });
+  }
+
+  loadReservations(): void {
+    this.reservationService.getReservationList().pipe(take(1), finalize(() => {this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'reservations');})).subscribe({
+      next: (reservations) => {
+        this.reservations = reservations || [];
+        this.filterReservations();
+        this.buildGeneralLedgerRows();
+      },
+      error: () => {
+        this.reservations = [];
+        this.availableReservations = [];
+      }
+    });
+  }
+
+  loadCompanyContacts(): void {
+    this.contactService.ensureContactsLoaded().pipe(take(1), switchMap(() => this.contactService.getAllCompanyContacts().pipe(take(1))), finalize(() => {
+      this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'companies');
+    })).subscribe({
+      next: contacts => {
+        this.companyContacts = contacts || [];
+        this.filterCompanyContacts();
+        this.buildGeneralLedgerRows();
+      },
+      error: () => {
+        this.companyContacts = [];
+        this.availableCompanyContacts = [];
+      }
+    });
+  }
+
+  loadInvoices(): void {
+    this.invoicesSubscription?.unsubscribe();
+    const officeIds = this.selectedOfficeId
+      ? [this.selectedOfficeId]
+      : (this.offices || []).map(office => office.officeId).filter(id => id > 0);
+
+    if (officeIds.length === 0) {
+      this.allInvoices = [];
+      this.ledgerRows = [];
+      this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'invoices');
+      return;
+    }
+
+    this.utilityService.addLoadItem(this.itemsToLoad$, 'invoices');
+    this.invoicesSubscription = this.accountingService.searchInvoices({
+      officeIds,
+      includeInactive: true,
+      includePaid: true
+    }).pipe(take(1), finalize(() => {
+      this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'invoices');
+    })).subscribe({
+      next: (invoices) => {
+        this.allInvoices = invoices || [];
+        this.buildGeneralLedgerRows();
+      },
+      error: () => {
+        this.allInvoices = [];
+        this.ledgerRows = [];
+      }
+    });
+  }
+
+  loadCostCodes(): void {
+    this.costCodesService.ensureCostCodesLoaded();
+    this.costCodesService.areCostCodesLoaded().pipe(filter(loaded => loaded === true), take(1)).subscribe(() => {
+      this.costCodesSubscription?.unsubscribe();
+      this.costCodesSubscription = this.costCodesService.getAllCostCodes().pipe(take(1), finalize(() => {
+        this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'costCodes');
+      })).subscribe(costCodes => {
+        this.costCodes = costCodes || [];
+        this.buildGeneralLedgerRows();
+      });
+    });
   }
   //#endregion
 
@@ -504,20 +528,6 @@ export class GeneralLedgerComponent implements OnInit, OnChanges, OnDestroy {
     this.destroy$.next();
     this.destroy$.complete();
     this.itemsToLoad$.complete();
-  }
-
-  resolveOfficeScope(officeId: number | null, emitChange: boolean): void {
-    this.selectedOfficeId = this.utilityService.resolveSelectedOfficeById(this.offices, officeId)?.officeId ?? officeId ?? null;
-    this.officeScopeResolved = true;
-    this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'officeScope');
-    if (emitChange) {
-      this.officeIdChange.emit(this.selectedOfficeId);
-    }
-    this.filterCompanyContacts();
-    this.filterReservations();
-    this.selectedReservationId = null;
-    this.reservationIdChange.emit(this.selectedReservationId);
-    this.loadInvoices();
   }
   //#endregion
 }

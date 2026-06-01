@@ -1,9 +1,4 @@
-@if (isLoading$ | async) {
-  <div class="loading-container">
-    <mat-spinner [diameter]="40"></mat-spinner>
-        <p>Loading invoice...</p>
-      </div>
-} @else if (!isServiceError) {
+@if (isPageReady && !isServiceError) {
 
   
   <div class="flex content-card-wrap justify-center" fxLayout="row wrap">
@@ -30,16 +25,29 @@
                   (valueChange)="onTitleBarOfficeChange($event)">
                 </app-title-bar-select>
 
-                <app-title-bar-select
-                  [label]="'Reservation'"
-                  [formFieldClass]="'titlebar-field-reservation'"
-                  [value]="form.get('reservationId')?.value ?? null"
-                  [options]="reservationTitleBarOptions"
-                  [disabled]="!isAddMode"
-                  [nullOptionLabel]="'Select Reservation'"
-                  [noResultsText]="'No reservations match your search'"
-                  (valueChange)="onTitleBarReservationChange($event)">
-                </app-title-bar-select>
+                <div class="invoice-titlebar-reservation-wrap">
+                  <app-title-bar-select
+                    [label]="'Reservation'"
+                    [formFieldClass]="'titlebar-field-reservation'"
+                    [value]="form.get('reservationId')?.value ?? null"
+                    [options]="reservationTitleBarOptions"
+                    [disabled]="!isAddMode"
+                    [nullOptionLabel]="'Select Reservation'"
+                    [noResultsText]="'No reservations match your search'"
+                    (valueChange)="onTitleBarReservationChange($event)">
+                  </app-title-bar-select>
+                  @if (showReservationInfoIcon) {
+                    <button
+                      type="button"
+                      mat-icon-button
+                      class="invoice-reservation-info-btn"
+                      [matTooltip]="reservationInfoTooltip"
+                      matTooltipClass="invoice-reservation-info-tooltip"
+                      aria-label="Reservation details">
+                      <mat-icon fontIcon="info"></mat-icon>
+                    </button>
+                  }
+                </div>
 
                 <mat-form-field appearance="outline" class="titlebar-field-invoice-no">
                   <mat-label>Invoice No</mat-label>
@@ -269,5 +277,10 @@
           </form>
       </mat-card>
     </section>
+  </div>
+} @else if (!isServiceError) {
+  <div class="loading-container">
+    <mat-spinner [diameter]="40"></mat-spinner>
+    <p>Loading invoice...</p>
   </div>
 }

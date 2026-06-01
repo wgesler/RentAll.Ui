@@ -309,7 +309,7 @@ export class DocumentComponent implements OnInit, OnDestroy {
     }
 
     if (returnTo === 'accountingTab') {
-      const params: string[] = ['tab=4'];
+      const params: string[] = ['tab=3'];
       const officeId = queryParams['officeId'];
       const reservationId = queryParams['reservationId'];
       const companyId = queryParams['companyId'];

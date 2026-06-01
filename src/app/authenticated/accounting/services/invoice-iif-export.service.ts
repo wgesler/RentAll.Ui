@@ -98,16 +98,7 @@ export class InvoiceIifExportService {
     return rows.join('\r\n');
   }
 
-  generateInvoicesIifBytes(
-    invoices: InvoiceResponse[],
-    costCodes: CostCodesResponse[],
-    options?: InvoiceIifExportOptions
-  ): Uint8Array {
-    const iifContent = this.generateInvoicesIifContent(invoices, costCodes, options);
-    return new TextEncoder().encode(iifContent);
-  }
-
-  private isChargeLine(line: LedgerLineResponse, costCodesById: Map<number, CostCodesResponse>): boolean {
+  isChargeLine(line: LedgerLineResponse, costCodesById: Map<number, CostCodesResponse>): boolean {
     if (line.transactionTypeId === TransactionType.Charge || line.transactionTypeId === TransactionType.Deposit) {
       return true;
     }
@@ -123,7 +114,7 @@ export class InvoiceIifExportService {
     return costCode?.transactionTypeId === TransactionType.Charge || costCode?.transactionTypeId === TransactionType.Deposit;
   }
 
-  private resolveIncomeAccount(
+  resolveIncomeAccount(
     costCode: CostCodesResponse | undefined,
     accountMap: Record<string, string>,
     defaultIncomeAccount: string
@@ -145,20 +136,20 @@ export class InvoiceIifExportService {
     return this.sanitizeText(match ? accountMap[match] : defaultIncomeAccount);
   }
 
-  private toRow(values: string[]): string {
+  toRow(values: string[]): string {
     return values.join('\t');
   }
 
-  private sanitizeText(value: string): string {
+  sanitizeText(value: string): string {
     return String(value ?? '').replace(/[\t\r\n]+/g, ' ').trim();
   }
 
-  private formatAmount(value: number): string {
+  formatAmount(value: number): string {
     const numericValue = Number.isFinite(value) ? value : 0;
     return numericValue.toFixed(2);
   }
 
-  private formatDate(value?: string): string {
+  formatDate(value?: string): string {
     if (!value) {
       return '';
     }

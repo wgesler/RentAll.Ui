@@ -290,7 +290,6 @@ export class CostCodesComponent implements OnInit, OnDestroy, OnChanges {
   //#endregion
 
   //#region Data Load Methods
-
   loadOffices(): void {
     this.officeService.ensureOfficesLoaded(this.organizationId).pipe(take(1), finalize(() => { this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'offices'); })).subscribe(() => {
       this.officeService.getAllOffices().pipe(takeUntil(this.destroy$)).subscribe(offices => {
@@ -299,7 +298,9 @@ export class CostCodesComponent implements OnInit, OnDestroy, OnChanges {
       });
     });
   }
+  //#endregion
 
+  //#region Form Response Methods
   focusFirstField(): void {
     if (this.source === 'configuration' || !this.isAddMode) {
       this.costCodeInputRef?.nativeElement?.focus();
@@ -314,9 +315,7 @@ export class CostCodesComponent implements OnInit, OnDestroy, OnChanges {
       setTimeout(() => this.focusFirstField(), 100);
     });
   }
-  //#endregion
-
-  //#region Form Response Methods
+  
   onOfficeChange(): void {
     if (this.selectedOffice?.officeId) {
       this.saveAttempted = false;
@@ -345,26 +344,6 @@ export class CostCodesComponent implements OnInit, OnDestroy, OnChanges {
       costCodeControl.updateValueAndValidity();
     }
   }
-  //#endregion
-
-  //#region Utility Methods
-  ngOnDestroy(): void {
-    this.destroy$.next();
-    this.destroy$.complete();
-    this.itemsToLoad$.complete();
-  }
-
-  back(): void {
-    // Refresh cost codes when navigating back
-    if (this.selectedOffice) {
-      this.costCodesService.refreshCostCodesForOffice(this.selectedOffice.officeId);
-    }
-    
-    // Component is always embedded - just emit event, parent handles showing the list
-    // Parent components (accounting/configuration) will set isEditingCostCodes = false
-    // which will show the cost-codes-list component again
-    this.backEvent.emit();
-  }
 
   onEnterKey(event: Event): void {
     const target = (event as KeyboardEvent).target as HTMLElement;
@@ -383,6 +362,26 @@ export class CostCodesComponent implements OnInit, OnDestroy, OnChanges {
 
   get showOfficeValidationError(): boolean {
     return this.saveAttempted && this.shouldValidateOfficeSelection && !this.selectedOffice?.officeId;
+  }
+  //#endregion
+
+  //#region Utility Methods
+  back(): void {
+    // Refresh cost codes when navigating back
+    if (this.selectedOffice) {
+      this.costCodesService.refreshCostCodesForOffice(this.selectedOffice.officeId);
+    }
+    
+    // Component is always embedded - just emit event, parent handles showing the list
+    // Parent components (accounting/configuration) will set isEditingCostCodes = false
+    // which will show the cost-codes-list component again
+    this.backEvent.emit();
+  }
+  
+  ngOnDestroy(): void {
+    this.destroy$.next();
+    this.destroy$.complete();
+    this.itemsToLoad$.complete();
   }
   //#endregion
 }

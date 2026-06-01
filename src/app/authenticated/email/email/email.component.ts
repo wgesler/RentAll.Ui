@@ -141,7 +141,7 @@ export class EmailComponent implements OnInit, OnDestroy {
     }
 
     if (returnTo === 'accountingTab') {
-      const params: string[] = ['tab=3'];
+      const params: string[] = ['tab=0'];
       const officeId = queryParams['officeId'];
       const reservationId = queryParams['reservationId'];
       const companyId = queryParams['companyId'];

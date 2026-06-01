@@ -53,6 +53,7 @@ export class BillingCreateComponent extends BaseDocumentComponent implements OnI
   orgLogo: string = '';
   accountingOfficeLogo: string = '';
   selectedAccountingOffice: AccountingOfficeResponse | null = null;
+  accountingOffices: AccountingOfficeResponse[] = [];
 
   invoices: InvoiceResponse[] = [];
   availableInvoices: { value: InvoiceResponse, label: string }[] = [];
@@ -70,16 +71,6 @@ export class BillingCreateComponent extends BaseDocumentComponent implements OnI
   itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['organizations', 'emailHtml', 'billingHtml', 'accountingOffice', 'logo', 'previewHtml']));
   logoSourcesLoaded = { organizations: false, accountingOffice: false };
 
-  get organizationTitleBarOptions(): { value: string, label: string }[] {
-    return (this.organizations || []).map((organization) => ({
-      value: organization.organizationId,
-      label: organization.name || ''
-    }));
-  }
-
-  get invoiceCodeDisplay(): string {
-    return this.selectedInvoice?.invoiceCode || ' ';
-  }
 
   constructor(
     private accountingService: InvoiceService,
@@ -294,11 +285,23 @@ export class BillingCreateComponent extends BaseDocumentComponent implements OnI
       return;
     }
 
-    this.accountingService.getAllInvoices().pipe(take(1)).subscribe({
+    const officeIds = (this.accountingOffices || []).map(o => o.officeId).filter(id => id > 0);
+    if (officeIds.length === 0) {
+      this.invoices = [];
+      this.availableInvoices = [];
+      this.form.get('selectedInvoiceId')?.disable();
+      return;
+    }
+
+    this.accountingService.searchInvoices({
+      officeIds,
+      reservationId: this.recipientOrganization?.organizationId ?? null,
+      includeInactive: true,
+      includePaid: true
+    }).pipe(take(1)).subscribe({
       next: (invoices: InvoiceResponse[]) => {
         this.invoices = (invoices || []).filter(inv =>
-          inv.organizationId === this.billingOrganization?.organizationId &&
-          inv.reservationId === this.recipientOrganization?.organizationId
+          inv.organizationId === this.billingOrganization?.organizationId
         );
 
         this.availableInvoices = this.invoices.map(inv => ({
@@ -391,6 +394,7 @@ export class BillingCreateComponent extends BaseDocumentComponent implements OnI
     })).subscribe({
       next: (offices: AccountingOfficeResponse[]) => {
         const list = offices || [];
+        this.accountingOffices = list;
         const preferredOfficeId = this.selectedInvoice?.officeId || 1;
         this.selectedAccountingOffice =
           list.find(o => o.officeId === preferredOfficeId) ||
@@ -494,6 +498,16 @@ export class BillingCreateComponent extends BaseDocumentComponent implements OnI
     this.onInvoiceSelected(invoiceId);
   }
 
+  get organizationTitleBarOptions(): { value: string, label: string }[] {
+    return (this.organizations || []).map((organization) => ({
+      value: organization.organizationId,
+      label: organization.name || ''
+    }));
+  }
+
+  get invoiceCodeDisplay(): string {
+    return this.selectedInvoice?.invoiceCode || ' ';
+  }
   //#endregion
 
   //#region Form Replacement Methods
@@ -724,31 +738,6 @@ export class BillingCreateComponent extends BaseDocumentComponent implements OnI
   }
   //#endregion
 
-  onPreviewIframeLoad(): void {
-    this.injectStylesIntoIframe();
-    this.resizePreviewIframeToContent();
-  }
-
-  resizePreviewIframeToContent(): void {
-    if (!this.previewIframe?.nativeElement) {
-      return;
-    }
-
-    const iframeElement = this.previewIframe.nativeElement;
-
-    setTimeout(() => {
-      const doc = iframeElement.contentDocument || iframeElement.contentWindow?.document;
-      if (!doc?.body) {
-        return;
-      }
-
-      const bodyHeight = doc.body.scrollHeight;
-      const documentHeight = doc.documentElement?.scrollHeight || 0;
-      const targetHeight = Math.max(bodyHeight, documentHeight, 500);
-      iframeElement.style.height = `${targetHeight}px`;
-    }, 0);
-  }
-
   //#region Abstract BaseDocumentComponent
   protected getDocumentConfig(): DocumentConfig {
     return {
@@ -843,13 +832,34 @@ export class BillingCreateComponent extends BaseDocumentComponent implements OnI
 
     this.router.navigateByUrl(RouterUrl.EmailCreate);
   }
+    
+  onPreviewIframeLoad(): void {
+    this.injectStylesIntoIframe();
+    this.resizePreviewIframeToContent();
+  }
+
+  resizePreviewIframeToContent(): void {
+    if (!this.previewIframe?.nativeElement) {
+      return;
+    }
+
+    const iframeElement = this.previewIframe.nativeElement;
+
+    setTimeout(() => {
+      const doc = iframeElement.contentDocument || iframeElement.contentWindow?.document;
+      if (!doc?.body) {
+        return;
+      }
+
+      const bodyHeight = doc.body.scrollHeight;
+      const documentHeight = doc.documentElement?.scrollHeight || 0;
+      const targetHeight = Math.max(bodyHeight, documentHeight, 500);
+      iframeElement.style.height = `${targetHeight}px`;
+    }, 0);
+  }
   //#endregion
 
   //#region Utility Methods
-  ngOnDestroy(): void {
-    this.itemsToLoad$.complete();
-  }
-
   goBack(): void {
     const queryParams = this.route.snapshot.queryParams;
     const returnTo = queryParams['returnTo'];
@@ -883,5 +893,9 @@ export class BillingCreateComponent extends BaseDocumentComponent implements OnI
       this.router.navigateByUrl(accountingUrl);
     }
   }
- //#endregion
+
+  ngOnDestroy(): void {
+    this.itemsToLoad$.complete();
+  } 
+  //#endregion
 }

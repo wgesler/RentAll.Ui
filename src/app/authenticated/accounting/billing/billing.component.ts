@@ -17,7 +17,7 @@ import { getUserGroupNumbers } from '../../shared/access/role-access';
 import { UserGroups } from '../../users/models/user-enums';
 import { OrganizationResponse } from '../../organizations/models/organization.model';
 import { OrganizationService } from '../../organizations/services/organization.service';
-import { TransactionType, TransactionTypeLabels, getTransactionTypeLabel as getAccountingTransactionTypeLabel } from '../models/accounting-enum';
+import { TransactionType, TransactionTypeLabels } from '../models/accounting-enum';
 import { CostCodesResponse } from '../models/cost-codes.model';
 import { BillingMonthlyDataRequest, BillingMonthlyDataResponse, InvoiceRequest, InvoiceResponse, LedgerLineListDisplay, LedgerLineRequest } from '../models/invoice.model';
 import { InvoiceService } from '../services/invoice.service';
@@ -60,8 +60,6 @@ export class BillingComponent implements OnInit, OnDestroy {
   itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['organizations']));
   isLoading$: Observable<boolean> = this.itemsToLoad$.pipe(map(items => items.size > 0));
   destroy$ = new Subject<void>();
-  
-
 
   constructor(
     public accountingService: InvoiceService,
@@ -535,10 +533,6 @@ export class BillingComponent implements OnInit, OnDestroy {
     return this.availableCostCodes;
   }
 
-  getTransactionTypeLabel(transactionType: number): string {
-    return getAccountingTransactionTypeLabel(transactionType, this.transactionTypes);
-  }
-
   isPaymentLine(line: LedgerLineListDisplay): boolean {
     const transactionTypeId = (line as any).transactionTypeId;
     if (transactionTypeId !== undefined && transactionTypeId !== null) {
@@ -789,11 +783,6 @@ export class BillingComponent implements OnInit, OnDestroy {
     }, 0);
   }
 
-  calculateTotalAmount(): number {
-    // Legacy method - kept for compatibility, but should use calculateInvoicedAmount instead
-    return this.calculateInvoicedAmount();
-  }
-   
   updateTotalAmount(): void {
     const invoicedAmount = this.calculateInvoicedAmount();
     const paidAmount = this.calculatePaidAmount();
@@ -1086,48 +1075,6 @@ export class BillingComponent implements OnInit, OnDestroy {
   //#endregion
 
   //#region Formatting Methods
-  onAmountInput(event: Event, fieldName: string): void {
-    const control = this.form.get(fieldName);
-    this.formatter.formatDecimalInput(event, control);
-  }
-
-  onAmountFocus(event: Event, fieldName: string): void {
-    const input = event.target as HTMLInputElement;
-    const control = this.form.get(fieldName);
-    if (control) {
-      // Show raw numeric value when focused for editing
-      const value = parseFloat(control.value) || 0;
-      input.value = value.toFixed(2);
-      input.select();
-    }
-  }
-
-  onAmountBlur(event: Event, fieldName: string): void {
-    const input = event.target as HTMLInputElement;
-    const control = this.form.get(fieldName);
-    if (control) {
-      // Format with currency on blur
-      const value = parseFloat(input.value.replace(/[$,]/g, '')) || 0;
-      control.setValue(value.toFixed(2), { emitEvent: false });
-      input.value = '$' + this.formatter.currency(value);
-    }
-  }
-
-  selectAllOnFocus(event: Event): void {
-    const input = event.target as HTMLInputElement;
-    input.select();
-  }
-
-  parseNumber(value: string): number | null {
-    if (!value || value.trim() === '') {
-      return null;
-    }
-    // Remove currency formatting ($ and commas) before parsing
-    const cleanedValue = value.replace(/[$,]/g, '');
-    const parsed = parseFloat(cleanedValue);
-    return isNaN(parsed) ? null : parsed;
-  }
-
   endDateValidator(control: FormControl): { [key: string]: any } | null {
     if (!control.value || !this.form) {
       return null;
@@ -1191,8 +1138,7 @@ export class BillingComponent implements OnInit, OnDestroy {
 
   //#endregion
 
-   //#region Utility Methods
-
+  //#region Utility Methods
   back(): void {
     const queryParams = this.route.snapshot.queryParams;
     const returnTo = queryParams['returnTo'] || 'accounting';

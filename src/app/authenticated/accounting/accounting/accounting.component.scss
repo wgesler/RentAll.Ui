@@ -28,7 +28,6 @@
     app-invoice,
     app-cost-codes-list,
     app-general-ledger,
-    app-email-list,
     app-document-list {
       display: block;
       width: 100%;
@@ -37,7 +36,7 @@
     }
 
     /*
-     * Invoices use .list-layout-standard; Emails/Documents use .list-layout-tabbed — global rules differ
+     * Invoices use .list-layout-standard; Documents use .list-layout-tabbed — global rules differ
      * (margin-top, action gaps, add-button size) so the purple filter band jumps between tabs. Force one set.
      */
     app-data-table .datatable-search-wrap {
@@ -92,6 +91,55 @@ mat-card {
 .property-titlebar {
   min-height: var(--property-titlebar-height);
   box-sizing: border-box;
+}
+
+.accounting-shell-titlebar-fields {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.accounting-shell-titlebar-filters {
+  display: flex;
+  flex-wrap: nowrap;
+  align-items: center;
+  gap: 0.5rem;
+  min-width: 0;
+  flex: 1 1 auto;
+}
+
+/* Accounting packs extra shell filters + dates; enforce global title-bar field widths (see styles.scss). */
+:host ::ng-deep .accounting-shell-titlebar-filters {
+  .titlebar-field-office.mat-mdc-form-field {
+    flex: 0 1 200px;
+    min-width: var(--titlebar-field-min-office);
+    max-width: 200px;
+  }
+
+  .titlebar-field-company.mat-mdc-form-field {
+    flex: 0 1 300px;
+    min-width: var(--titlebar-field-min-company);
+    max-width: 300px;
+  }
+
+  .titlebar-field-reservation.mat-mdc-form-field {
+    flex: 0 1 307px;
+    flex-shrink: 0;
+    min-width: var(--titlebar-field-min-reservation);
+    max-width: 307px;
+  }
+}
+
+.accounting-shell-titlebar-dates {
+  display: flex;
+  flex-wrap: nowrap;
+  align-items: center;
+  gap: 0.5rem;
+  flex: 0 0 auto;
+}
+
+.accounting-shell-titlebar-filters .accounting-shell-titlebar-dates {
+  margin-left: 0;
+  padding-left: 0;
 }
 
 :host ::ng-deep .property-titlebar .header-title.form-titlebar-fields-wrap > .titlebar-field-office {

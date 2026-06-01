@@ -7,6 +7,7 @@ import { ToastrService } from 'ngx-toastr';
 import {BehaviorSubject, Subject, concatMap, filter, finalize, from, map, skip, take, takeUntil, toArray} from 'rxjs';
 import { RouterUrl } from '../../../app.routes';
 import { CommonMessage } from '../../../enums/common-message.enum';
+import { MatSlideToggleChange } from '@angular/material/slide-toggle';
 import { MaterialModule } from '../../../material.module';
 import { AuthService } from '../../../services/auth.service';
 import { FormatterService } from '../../../services/formatter-service';
@@ -26,7 +27,7 @@ import { ColumnSet } from '../../shared/data-table/models/column-data';
 import { UserGroups } from '../../users/models/user-enums';
 import { TransactionType, TransactionTypeLabels } from '../models/accounting-enum';
 import { CostCodesResponse } from '../models/cost-codes.model';
-import { InvoicePaymentRequest, InvoicePaymentResponse, InvoiceResponse } from '../models/invoice.model';
+import { InvoiceGetRequest, InvoicePaymentRequest, InvoicePaymentResponse, InvoiceResponse } from '../models/invoice.model';
 import { InvoiceService } from '../services/invoice.service';
 import { CostCodesService } from '../services/cost-codes.service';
 import { InvoiceIifExportService } from '../services/invoice-iif-export.service';
@@ -50,6 +51,8 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
   @Input() officeId: number | null = null; // Input to accept officeId from parent
   @Input() companyId: string | null = null; // Input to accept companyId from parent
   @Input() reservationId: string | null = null; // Input to accept reservationId from parent
+  @Input() startDate: Date | null = null;
+  @Input() endDate: Date | null = null;
   @Output() organizationIdChange = new EventEmitter<string | null>(); // Emit organization changes to parent
   @Output() officeIdChange = new EventEmitter<number | null>(); // Emit office changes to parent
   @Output() companyIdChange = new EventEmitter<string | null>(); // Emit company changes to parent
@@ -59,6 +62,7 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
   panelOpenState: boolean = true;
   isServiceError: boolean = false;
   showInactive: boolean = false;
+  showPaid: boolean = true;
   allInvoices: InvoiceResponse[] = [];
   invoicesDisplay: any[] = []; // Will contain invoices with expand property
 
@@ -151,10 +155,6 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
     private cdr: ChangeDetectorRef) {
   }
 
-  private markViewForCheck(): void {
-    this.cdr.markForCheck();
-  }
-
   //#region Invoice-List
   ngOnInit(): void {
     this.itemsToLoad$.pipe(takeUntil(this.destroy$)).subscribe(items => {
@@ -162,7 +162,7 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
       this.markViewForCheck();
     });
 
-    this.isSuperUser = this.hasRole(UserGroups.SuperAdmin);
+    this.isSuperUser = this.authService.hasRole(UserGroups.SuperAdmin);
     this.loadOffices();
     this.loadReservations();
 
@@ -300,24 +300,38 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
         this.applyFilters();
       }
     }
+
+    if (this.source === 'accounting' && (changes['startDate'] || changes['endDate'])) {
+      const startChanged = changes['startDate'] && !changes['startDate'].firstChange;
+      const endChanged = changes['endDate'] && !changes['endDate'].firstChange;
+      if (startChanged || endChanged) {
+        this.refreshInvoicesForCurrentScope();
+      }
+    }
   }
 
   getInvoices(): void {
-    if (!this.selectedOffice?.officeId) {
-      // Load all invoices when "All Offices" is selected
-      this.loadAllInvoices();
+    const officeIds = this.resolveOfficeIdsForSearch();
+    if (officeIds.length === 0) {
+      this.allInvoices = [];
+      this.invoicesDisplay = [];
+      this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'invoices');
+      this.markViewForCheck();
       return;
     }
-    this.accountingService.getInvoicesByOffice(this.selectedOffice.officeId).pipe(take(1), finalize(() => { this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'invoices'); })).subscribe({
+
+    this.accountingService.searchInvoices(this.buildInvoiceSearchRequest(officeIds)).pipe(take(1), finalize(() => {
+      this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'invoices');
+    })).subscribe({
       next: (invoices) => {
         this.allInvoices = invoices || [];
-         this.applyFilters();
-         this.markViewForCheck();
+        this.applyFilters();
+        this.markViewForCheck();
       },
-      error: (err: HttpErrorResponse) => {
+      error: () => {
         this.isServiceError = true;
-        if (err.status === 404) {
-         }
+        this.allInvoices = [];
+        this.invoicesDisplay = [];
         this.markViewForCheck();
       }
     });
@@ -466,12 +480,9 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
     this.accountingService.deleteInvoice(invoice.invoiceId).pipe(take(1)).subscribe({
       next: () => {
         this.toastr.success('Invoice deleted successfully', CommonMessage.Success);
-        this.loadAllInvoices();
+        this.refreshInvoicesForCurrentScope();
       },
-      error: (err: HttpErrorResponse) => {
-        if (err.status === 404) {
-          // Handle not found error if business logic requires
-        }
+      error: () => {
         this.markViewForCheck();
       }
     });
@@ -655,9 +666,16 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
   //#endregion
 
   //#region Filter methods
-  toggleInactive(): void {
-    this.showInactive = !this.showInactive;
+  onInactiveToggleChange(event: MatSlideToggleChange): void {
+    this.showInactive = event.checked;
     this.applyFilters();
+    this.cdr.markForCheck();
+  }
+
+  onShowPaidToggleChange(event: MatSlideToggleChange): void {
+    this.showPaid = event.checked;
+    this.applyFilters();
+    this.cdr.markForCheck();
   }
 
   applyFilters(): void {
@@ -670,31 +688,26 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
       filtered = filtered.filter(invoice => invoice.isActive);
     }
 
+    if (this.source === 'accounting' && !this.showPaid) {
+      filtered = filtered.filter(invoice => Math.abs(this.getInvoiceBalanceDue(invoice)) > 0.005);
+    }
+
     // In Accounting SuperAdmin mode, organization filter maps to recipient organization
     // which is stored in invoice.reservationId for billing invoices.
     if (this.source === 'accounting' && this.isSuperUser && this.organizationId) {
       filtered = filtered.filter(invoice => invoice.reservationId === this.organizationId);
     }
 
-    // Filter by office if selected
-    if (this.selectedOffice) {
+    if (this.selectedOffice && this.source !== 'accounting') {
       filtered = filtered.filter(invoice => invoice.officeId === this.selectedOffice.officeId);
     }
 
-    // Filter by company contact if selected (only when source is 'accounting')
-    if (this.selectedCompanyContact && this.source === 'accounting') {
-      const selectedCompanyName = this.normalizeCompanyMatchText(this.utilityService.getCompanyDropdownLabel(this.selectedCompanyContact));
-      if (selectedCompanyName) {
-        filtered = filtered.filter(invoice => {
-          const recipientName = this.normalizeCompanyMatchText(this.getRecipientDisplay(invoice));
-          return recipientName === selectedCompanyName;
-        });
-      }
+    if (this.selectedReservation && this.source !== 'accounting') {
+      filtered = filtered.filter(invoice => invoice.reservationId === this.selectedReservation.reservationId);
     }
 
-    // Filter by reservation if selected
-    if (this.selectedReservation) {
-      filtered = filtered.filter(invoice => invoice.reservationId === this.selectedReservation.reservationId);
+    if (this.source === 'accounting' && this.selectedCompanyContact) {
+      filtered = filtered.filter(invoice => this.invoiceMatchesSelectedCompany(invoice));
     }
 
     // Map invoices to include expand button data for DataTableComponent
@@ -760,6 +773,7 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
     });
     // Update isAllExpanded state after filtering
     this.updateIsAllExpanded();
+    this.cdr.markForCheck();
   }
 
   filterReservations(): void {
@@ -1016,23 +1030,6 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
     });
   }
 
-  loadAllInvoices(): void {
-    // This gets all invoices for the offices to which the user has access
-    this.accountingService.getAllInvoices().pipe(take(1), finalize(() => { this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'invoices'); })).subscribe({
-      next: (invoices) => {
-        this.allInvoices = invoices || [];
-        this.applyFilters();
-        this.markViewForCheck();
-      },
-      error: (err: HttpErrorResponse) => {
-        this.isServiceError = true;
-        if (err.status === 404) {
-         }
-        this.markViewForCheck();
-      }
-    });
-  }
-
   loadCostCodes(): void {
     this.costCodesService.ensureCostCodesLoaded();
     this.costCodesService.areCostCodesLoaded().pipe(filter(loaded => loaded === true), take(1)).subscribe(() => {
@@ -1092,8 +1089,7 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
 
     // Re-filter reservations based on selected company.
     this.filterReservations();
-    
-    // Filter invoices client-side by selected company
+
     this.applyFilters();
   }
 
@@ -1110,8 +1106,12 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
     // Preserve scroll position before filtering to prevent page jump
     const scrollContainer = document.querySelector('.tableDiv') || document.querySelector('.mat');
     const scrollTop = scrollContainer ? (scrollContainer as HTMLElement).scrollTop : window.pageYOffset;
-    
-    this.applyFilters();
+
+    if (this.source === 'accounting') {
+      this.refreshInvoicesForCurrentScope();
+    } else {
+      this.applyFilters();
+    }
     
     // Restore scroll position after Angular change detection completes
     this.zone.onStable.pipe(take(1)).subscribe(() => {
@@ -1246,8 +1246,57 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
     return this.organizationOptions.find(organization => organization.value === organizationId)?.label || null;
   }
 
+  getInvoiceBalanceDue(invoice: InvoiceResponse): number {
+    const totalAmount = invoice.totalAmount || 0;
+    const rawLedgerLines = invoice.ledgerLines ?? [];
+    const paidAmount = rawLedgerLines.length > 0
+      ? this.getPaidAmountFromLedgerLines(rawLedgerLines, invoice.officeId)
+      : Number(invoice.paidAmount || 0);
+    return totalAmount - paidAmount;
+  }
+
+  isInvoiceFullyPaid(invoice: InvoiceResponse): boolean {
+    return this.getInvoiceBalanceDue(invoice) <= 0.005;
+  }
+
   normalizeCompanyMatchText(value: string | null | undefined): string {
     return String(value || '').trim().toLowerCase();
+  }
+
+  invoiceMatchesSelectedCompany(invoice: InvoiceResponse): boolean {
+    if (!this.selectedCompanyContact) {
+      return true;
+    }
+
+    const selectedContactId = (this.selectedCompanyContact.contactId || '').trim();
+    const selectedCompanyName = this.normalizeCompanyMatchText(
+      this.selectedCompanyContact.companyName || this.selectedCompanyContact.fullName
+    );
+
+    const invoiceContactId = (invoice.contactId || '').trim();
+    if (selectedContactId && invoiceContactId === selectedContactId) {
+      return true;
+    }
+
+    if (!invoice.reservationId) {
+      return false;
+    }
+
+    const reservation = this.reservations.find(r => r.reservationId === invoice.reservationId);
+    if (!reservation) {
+      return false;
+    }
+
+    const reservationContactId = (reservation.contactId || '').trim();
+    if (selectedContactId && reservationContactId === selectedContactId) {
+      return true;
+    }
+
+    if (selectedCompanyName) {
+      return this.normalizeCompanyMatchText(reservation.companyName) === selectedCompanyName;
+    }
+
+    return false;
   }
 
   contactHasOfficeAccess(contact: ContactResponse, officeId: number | null): boolean {
@@ -1307,13 +1356,6 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
     }
   }
 
-  getDetailRowContextMethods() {
-    return {
-      getLedgerLineColumnValue: (line: any, columnName: string, invoice: any) => this.getLedgerLineColumnValue(line, columnName, invoice),
-      ledgerLinesDisplayedColumns: this.ledgerLinesDisplayedColumns,
-      ledgerLineColumnNames: Object.keys(this.ledgerLinesDisplayedColumns)
-    };
-  }
   //#endregion
 
   //#region Payment Form Methods
@@ -1570,12 +1612,6 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
     });
   }
 
-  applyManually(): void {
-    this.isManualApplyMode = true;
-    this.updateRemainingAmount();
-    this.applyFilters();
-  }
-  
   onApplyAmountInput(invoice: any, event: Event): void {
     const input = event.target as HTMLInputElement;
     let value = input.value.replace(/[^0-9.\-]/g, '');
@@ -1690,46 +1726,6 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
     this.refreshInvoicesForCurrentScope();
   }
 
-  //#endregion
-
-  //#region Total Row Methods
-  get totalAmountSum(): number {
-    return this.invoicesDisplay.reduce((sum, inv) => sum + (inv.totalAmountValue || 0), 0);
-  }
-
-  get totalPaidAmountSum(): number {
-    return this.invoicesDisplay.reduce((sum, inv) => sum + (inv.paidAmountValue || 0), 0);
-  }
-
-  get totalDueAmountSum(): number {
-    return this.invoicesDisplay.reduce((sum, inv) => sum + (inv.dueAmountValue || 0), 0);
-  }
-
-  get formattedTotalAmount(): string {
-    return '$' + this.formatter.currency(this.totalAmountSum);
-  }
-
-  get formattedTotalPaidAmount(): string {
-    return '$' + this.formatter.currency(this.totalPaidAmountSum);
-  }
-
-  get formattedTotalDueAmount(): string {
-    return '$' + this.formatter.currency(this.totalDueAmountSum);
-  }
-
-  get totalsRow(): { [key: string]: string } | undefined {
-    if (this.invoicesDisplay.length === 0) {
-      return undefined;
-    }
-    return {
-      totalAmount: this.formattedTotalAmount,
-      paidAmount: this.formattedTotalPaidAmount,
-      dueAmount: this.formattedTotalDueAmount
-    };
-  }
-  //#endregion
-
-  //#region Utility Methods
   resolveOfficeScope(officeId: number | null, emitChange: boolean): void {
     this.selectedOffice = this.utilityService.resolveSelectedOfficeById(this.offices, officeId);
     this.officeScopeResolved = true;
@@ -1739,15 +1735,9 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
     }
     this.filterCompanyContacts();
     this.filterReservations();
-    if (this.selectedOffice) {
-      this.filterCostCodes();
-      this.utilityService.addLoadItem(this.itemsToLoad$, 'invoices');
-      this.getInvoices();
-    } else {
-      this.utilityService.addLoadItem(this.itemsToLoad$, 'invoices');
-      this.loadAllInvoices();
-      this.applyFilters();
-    }
+    this.filterCostCodes();
+    this.utilityService.addLoadItem(this.itemsToLoad$, 'invoices');
+    this.getInvoices();
   }
 
   captureTopbarSelectionsForPayment(): void {
@@ -1805,35 +1795,36 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
 
   refreshInvoicesForCurrentScope(): void {
     this.utilityService.addLoadItem(this.itemsToLoad$, 'invoices');
+    this.getInvoices();
+  }
+
+  resolveOfficeIdsForSearch(): number[] {
     if (this.selectedOffice?.officeId) {
-      this.getInvoices();
-      return;
+      return [this.selectedOffice.officeId];
     }
-    this.loadAllInvoices();
+    return (this.offices || []).map(office => office.officeId).filter(id => id > 0);
   }
 
-  ngOnDestroy(): void {
-    this.itemsToLoad$.complete();
-    this.destroy$.next();
-    this.destroy$.complete();
-  }
+  buildInvoiceSearchRequest(officeIds: number[]): InvoiceGetRequest {
+    const reservationId = this.selectedReservation?.reservationId ?? this.reservationId ?? null;
 
-  hasRole(role: UserGroups): boolean {
-    const groups = this.authService.getUser()?.userGroups;
-    if (!groups) {
-      return false;
+    if (this.source === 'accounting') {
+      return {
+        officeIds,
+        reservationId,
+        includeInactive: true,
+        includePaid: true,
+        startDate: this.utilityService.formatDateOnlyForApi(this.startDate),
+        endDate: this.utilityService.formatDateOnlyForApi(this.endDate)
+      };
     }
 
-    return groups.some(group => {
-      if (typeof group === 'string') {
-        if (group === UserGroups[role]) {
-          return true;
-        }
-        const groupAsNumber = parseInt(group, 10);
-        return !isNaN(groupAsNumber) && groupAsNumber === role;
-      }
-      return typeof group === 'number' && group === role;
-    });
+    return {
+      officeIds,
+      reservationId: reservationId || null,
+      includeInactive: true,
+      includePaid: true
+    };
   }
 
   roundCurrencyValue(amount: number): number {
@@ -1865,6 +1856,54 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
     this.remainingAmount = (remaining > -0.005 && remaining < 0.005) ? 0 : remaining;
     this.remainingAmountDisplay = '$' + this.formatter.currency(this.remainingAmount);
   }
+  //#endregion
 
+  //#region Total Row Methods
+  get totalAmountSum(): number {
+    return this.invoicesDisplay.reduce((sum, inv) => sum + (inv.totalAmountValue || 0), 0);
+  }
+
+  get totalPaidAmountSum(): number {
+    return this.invoicesDisplay.reduce((sum, inv) => sum + (inv.paidAmountValue || 0), 0);
+  }
+
+  get totalDueAmountSum(): number {
+    return this.invoicesDisplay.reduce((sum, inv) => sum + (inv.dueAmountValue || 0), 0);
+  }
+
+  get formattedTotalAmount(): string {
+    return '$' + this.formatter.currency(this.totalAmountSum);
+  }
+
+  get formattedTotalPaidAmount(): string {
+    return '$' + this.formatter.currency(this.totalPaidAmountSum);
+  }
+
+  get formattedTotalDueAmount(): string {
+    return '$' + this.formatter.currency(this.totalDueAmountSum);
+  }
+
+  get totalsRow(): { [key: string]: string } | undefined {
+    if (this.invoicesDisplay.length === 0) {
+      return undefined;
+    }
+    return {
+      totalAmount: this.formattedTotalAmount,
+      paidAmount: this.formattedTotalPaidAmount,
+      dueAmount: this.formattedTotalDueAmount
+    };
+  }
+  //#endregion
+
+  //#region Utility Methods
+  markViewForCheck(): void {
+    this.cdr.markForCheck();
+  }
+
+  ngOnDestroy(): void {
+    this.itemsToLoad$.complete();
+    this.destroy$.next();
+    this.destroy$.complete();
+  }
   //#endregion
 }

@@ -1,9 +1,9 @@
 import { HttpClient } from '@angular/common/http';
 import { Injectable } from '@angular/core';
-import { Observable } from 'rxjs';
+import { map, Observable } from 'rxjs';
 import { ConfigService } from '../../../services/config.service';
 import { UtilityService } from '../../../services/utility.service';
-import { BillingMonthlyDataRequest, BillingMonthlyDataResponse, InvoiceMonthlyDataRequest, InvoiceMonthlyDataResponse, InvoicePaymentRequest, InvoicePaymentResponse, InvoiceRequest, InvoiceResponse } from '../models/invoice.model';
+import { BillingMonthlyDataRequest, BillingMonthlyDataResponse, InvoiceGetRequest, InvoiceMonthlyDataRequest, InvoiceMonthlyDataResponse, InvoicePaymentRequest, InvoicePaymentResponse, InvoiceRequest, InvoiceResponse } from '../models/invoice.model';
 
 @Injectable({
     providedIn: 'root'
@@ -33,8 +33,6 @@ export class InvoiceService {
         transactionTypeId: Number.isFinite(numericTransactionTypeId) ? numericTransactionTypeId : 0,
         amount: Number.isFinite(numericAmount) ? numericAmount : 0,
         ledgerLineDate: lineDate,
-        // Force an int payload so model binding never fails on this field.
-        // Invalid values become 0 and are handled by API IsValid() as a clear validation message.
         costCodeId: Number.isInteger(numericCostCodeId) ? numericCostCodeId : 0
       };
     });
@@ -45,14 +43,24 @@ export class InvoiceService {
     };
   }
 
-  // GET: Get all invoices
-  getAllInvoices(): Observable<InvoiceResponse[]> {
-    return this.http.get<InvoiceResponse[]>(this.controller + 'invoice');
-  }
+  searchInvoices(request: InvoiceGetRequest): Observable<InvoiceResponse[]> {
+    const officeIds = (request.officeIds ?? []).filter(id => id > 0);
+    if (officeIds.length === 0) {
+      throw new Error('At least one office ID is required to load invoices.');
+    }
 
-  // GET: Get all invoice by office
-  getInvoicesByOffice(officeId: number): Observable<InvoiceResponse[]> {
-    return this.http.get<InvoiceResponse[]>(this.controller + 'invoice/office/' + officeId.toString());
+    const body = {
+      officeIds,
+      reservationId: request.reservationId || null,
+      propertyId: request.propertyId || null,
+      invoiceCode: request.invoiceCode || null,
+      includeInactive: request.includeInactive,
+      includePaid: request.includePaid,
+      startDate: request.startDate || null,
+      endDate: request.endDate || null
+    };
+
+    return this.http.post<InvoiceResponse[]>(`${this.controller}invoice/search`, body);
   }
 
   // GET: Get invoice by ID
@@ -60,19 +68,23 @@ export class InvoiceService {
     return this.http.get<InvoiceResponse>(this.controller + 'invoice/' + invoiceId);
   }
 
-  // GET: Find invoice by code within an office.
-  getInvoiceByCode(invoiceCode: string): Observable<InvoiceResponse | null> {
-     return this.http.get<InvoiceResponse>(this.controller + 'invoice-code/' + invoiceCode);
-  }
+  // POST search: Find invoice by code within office scope.
+  getInvoiceByCode(invoiceCode: string, officeIds: number[]): Observable<InvoiceResponse | null> {
+    if (!invoiceCode?.trim()) {
+      return new Observable(observer => {
+        observer.next(null);
+        observer.complete();
+      });
+    }
 
-    // GET: Get invoice by property ID
-  getInvoicesByProperty(propertyId: string): Observable<InvoiceResponse> {
-    return this.http.get<InvoiceResponse>(this.controller + 'invoice/proprty/' + propertyId);
-  }
-
-    // GET: Get invoice by ID
-  getInvoicesByReservation(reservationId: string): Observable<InvoiceResponse> {
-    return this.http.get<InvoiceResponse>(this.controller + 'invoice/reservation' + reservationId);
+    return this.searchInvoices({
+      officeIds,
+      invoiceCode: invoiceCode.trim(),
+      includeInactive: true,
+      includePaid: true
+    }).pipe(
+      map(invoices => invoices?.[0] ?? null)
+    );
   }
 
   // POST: Create a new invoice

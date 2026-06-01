@@ -1117,6 +1117,42 @@ app-searchable-select .searchable-select-field.searchable-invalid .mat-mdc-selec
   max-width: 307px;
 }
 
+.invoice-titlebar-reservation-wrap {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.125rem;
+  flex: 0 1 307px;
+  min-width: var(--titlebar-field-min-reservation);
+  max-width: 307px;
+}
+
+.invoice-titlebar-reservation-wrap .titlebar-field-reservation.mat-mdc-form-field {
+  flex: 1 1 auto;
+  width: auto;
+  min-width: 0;
+  max-width: 100%;
+}
+
+.invoice-reservation-info-btn.mat-mdc-icon-button {
+  flex: 0 0 auto;
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  color: var(--mat-sys-primary, #1976d2);
+
+  .mat-icon {
+    font-size: 20px;
+    width: 20px;
+    height: 20px;
+  }
+}
+
+.invoice-reservation-info-tooltip {
+  white-space: pre-line;
+  line-height: 1.35;
+  max-width: 280px;
+}
+
 /* Reservation lives inside a slot wrapper on some shells; fill slot width when the slot shrinks. */
 .titlebar-reservation-slot .titlebar-field-reservation.mat-mdc-form-field {
   width: 100%;

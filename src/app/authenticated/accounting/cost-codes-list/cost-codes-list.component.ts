@@ -56,7 +56,6 @@ export class CostCodesListComponent implements OnInit, OnDestroy, OnChanges {
 
   costCodes: CostCodesResponse[] = [];
   availableCostCodes: { value: number, label: string }[] = [];
-  
   transactionTypes: { value: number, label: string }[] = TransactionTypeLabels;
  
   costCodesDisplayedColumns: ColumnSet = {
@@ -83,10 +82,6 @@ export class CostCodesListComponent implements OnInit, OnDestroy, OnChanges {
     private authService: AuthService,
     private globalSelectionService: GlobalSelectionService,
     private cdr: ChangeDetectorRef) {
-  }
-
-  private markViewForCheck(): void {
-    this.cdr.markForCheck();
   }
 
   //#region CostCodes-List
@@ -332,14 +327,6 @@ export class CostCodesListComponent implements OnInit, OnDestroy, OnChanges {
       this.applyFilters();
     }
   }
-  //#endregion
-
-  //#region Utility Methods
-  ngOnDestroy(): void {
-    this.destroy$.next();
-    this.destroy$.complete();
-    this.itemsToLoad$.complete();
-  }
 
   resolveOfficeScope(officeId: number | null, emitChange: boolean): void {
     this.selectedOffice = this.utilityService.resolveSelectedOfficeById(this.offices, officeId);
@@ -349,6 +336,18 @@ export class CostCodesListComponent implements OnInit, OnDestroy, OnChanges {
       this.officeIdChange.emit(this.selectedOffice?.officeId ?? null);
     }
     this.filterCostCodes();
+  }
+  //#endregion
+
+  //#region Utility Methods
+  markViewForCheck(): void {
+    this.cdr.markForCheck();
+  }
+
+  ngOnDestroy(): void {
+    this.destroy$.next();
+    this.destroy$.complete();
+    this.itemsToLoad$.complete();
   }
   //#endregion
 }

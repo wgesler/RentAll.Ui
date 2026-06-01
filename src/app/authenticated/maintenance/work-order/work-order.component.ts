@@ -410,7 +410,7 @@ export class WorkOrderComponent implements OnInit, OnChanges, OnDestroy {
     };
 
     this.isSubmitting = true;
-    this.invoiceService.getInvoiceByCode(invoiceRequest.invoiceCode || '').pipe(take(1),
+    this.invoiceService.getInvoiceByCode(invoiceRequest.invoiceCode || '', [this.property.officeId]).pipe(take(1),
       switchMap(existingInvoice => {
         if (existingInvoice) {
           invoiceRequest.invoiceId = existingInvoice.invoiceId;

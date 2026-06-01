@@ -239,9 +239,11 @@ export class DocumentListComponent implements OnInit, OnDestroy, OnChanges {
       this.applyFilters();
     }
 
-    if ((changes['startDate'] || changes['endDate']) && !changes['startDate']?.firstChange && !changes['endDate']?.firstChange) {
-      this.utilityService.addLoadItem(this.itemsToLoad$, 'documents');
-      this.getDocuments();
+    if (changes['documentRequest'] && !changes['documentRequest'].firstChange) {
+      if (this.source === 'invoice' || this.source === 'documents') {
+        this.utilityService.addLoadItem(this.itemsToLoad$, 'documents');
+        this.getDocuments();
+      }
     }
     
     if (changes['propertyId']) {
@@ -336,7 +338,7 @@ export class DocumentListComponent implements OnInit, OnDestroy, OnChanges {
       }
     } else if (this.source === 'invoice') {
       queryParams.returnTo = 'accountingTab';
-      queryParams.tab = '4';
+      queryParams.tab = '3';
       if (this.selectedOfficeId !== null && this.selectedOfficeId !== undefined) {
         queryParams.officeId = this.selectedOfficeId;
       }
@@ -404,7 +406,7 @@ export class DocumentListComponent implements OnInit, OnDestroy, OnChanges {
 
   private buildDocumentRequest(): DocumentGetRequest {
     const officeIds = this.resolveOfficeIdsForRequest();
-    const request: DocumentGetRequest = this.source === 'documents' && this.documentRequest
+    const request: DocumentGetRequest = (this.source === 'documents' || this.source === 'invoice') && this.documentRequest
       ? { ...this.documentRequest, officeIds }
       : { officeIds };
 
@@ -554,7 +556,7 @@ export class DocumentListComponent implements OnInit, OnDestroy, OnChanges {
       }
     } else if (this.source === 'invoice') {
       queryParams.returnTo = 'accountingTab';
-      queryParams.tab = '4';
+      queryParams.tab = '3';
       if (this.selectedOfficeId !== null && this.selectedOfficeId !== undefined) {
         queryParams.officeId = this.selectedOfficeId;
       }

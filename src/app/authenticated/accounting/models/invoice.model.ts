@@ -1,5 +1,17 @@
 import type { CalendarDateString } from '../../../services/utility.service';
 
+/** Body for POST accounting/invoice/search — matches API GetInvoiceDto. */
+export interface InvoiceGetRequest {
+  officeIds: number[];
+  reservationId?: string | null;
+  propertyId?: string | null;
+  invoiceCode?: string | null;
+  includeInactive: boolean;
+  includePaid: boolean;
+  startDate?: string | null;
+  endDate?: string | null;
+}
+
 export interface InvoiceRequest {
   invoiceId?: string;
   organizationId: string;

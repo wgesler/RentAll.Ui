@@ -4,7 +4,7 @@ import { Component, Input, OnChanges, OnDestroy, OnInit, SimpleChanges } from '@
 import { FormBuilder, FormControl, FormGroup, FormsModule, ReactiveFormsModule, Validators } from '@angular/forms';
 import { ActivatedRoute, ParamMap, Router } from '@angular/router';
 import { ToastrService } from 'ngx-toastr';
-import { BehaviorSubject, Observable, Subject, filter, finalize, map, skip, take, takeUntil } from 'rxjs';
+import { BehaviorSubject, Subject, filter, finalize, skip, take, takeUntil } from 'rxjs';
 import { RouterUrl } from '../../../app.routes';
 import { CommonMessage, CommonTimeouts } from '../../../enums/common-message.enum';
 import { MaterialModule } from '../../../material.module';
@@ -15,11 +15,12 @@ import { UtilityService } from '../../../services/utility.service';
 import { OfficeResponse } from '../../organizations/models/office.model';
 import { GlobalSelectionService } from '../../organizations/services/global-selection.service';
 import { OfficeService } from '../../organizations/services/office.service';
+import { getReservationStatus } from '../../reservations/models/reservation-enum';
 import { ReservationListResponse } from '../../reservations/models/reservation-model';
 import { ReservationService } from '../../reservations/services/reservation.service';
 import { SearchableSelectComponent } from '../../shared/searchable-select/searchable-select.component';
 import { TitleBarSelectComponent } from '../../shared/titlebar-select/titlebar-select.component';
-import { TransactionType, TransactionTypeLabels, getTransactionTypeLabel as getAccountingTransactionTypeLabel } from '../models/accounting-enum';
+import { TransactionType, TransactionTypeLabels } from '../models/accounting-enum';
 import { CostCodesResponse } from '../models/cost-codes.model';
 import { InvoiceMonthlyDataRequest, InvoiceMonthlyDataResponse, InvoiceRequest, InvoiceResponse, LedgerLineListDisplay, LedgerLineRequest } from '../models/invoice.model';
 import { InvoiceService } from '../services/invoice.service';
@@ -80,13 +81,14 @@ export class InvoiceComponent implements OnInit, OnDestroy, OnChanges {
     isActive: boolean;
   } | null = null;
 
-  itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['offices', 'reservations', 'costCodes']));
-  isLoading$: Observable<boolean> = this.itemsToLoad$.pipe(map(items => items.size > 0));
-  destroy$ = new Subject<void>();
   routeInvoiceId: string | null = null;
   contextReady: boolean = false;
   lastContextKey: string | null = null;
-  
+
+  isPageReady = false;
+  itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['offices', 'reservations', 'costCodes']));
+  destroy$ = new Subject<void>();
+
   constructor(
     public accountingService: InvoiceService,
     public router: Router,
@@ -108,6 +110,9 @@ export class InvoiceComponent implements OnInit, OnDestroy, OnChanges {
   ngOnInit(): void {
     this.isPaymentMode = false;
     this.routeInvoiceId = this.route.snapshot.paramMap.get('id');
+    this.itemsToLoad$.pipe(takeUntil(this.destroy$)).subscribe(items => {
+      this.isPageReady = items.size === 0;
+    });
     this.loadOffices();
     this.loadReservations();
     this.loadCostCodes();
@@ -288,6 +293,44 @@ export class InvoiceComponent implements OnInit, OnDestroy, OnChanges {
 
     this.performSave();
   }
+
+  toInvoiceCreate(invoiceToUse: InvoiceResponse | null | undefined, formValue?: any): void {
+    if (!invoiceToUse?.invoiceId) {
+      this.back(formValue || this.form?.getRawValue() || {});
+      return;
+    }
+
+    const queryParams = this.route.snapshot.queryParams;
+    const originReturnTo = queryParams['returnTo'] || 'accounting';
+    const params: string[] = [
+      'returnTo=invoice-edit',
+      `originReturnTo=${encodeURIComponent(originReturnTo)}`
+    ];
+
+    const officeIdToUse = this.selectedOffice?.officeId || invoiceToUse.officeId || formValue?.officeId;
+    const reservationIdToUse = this.selectedReservation?.reservationId || invoiceToUse.reservationId || formValue?.reservationId;
+
+    if (officeIdToUse) {
+      params.push(`officeId=${officeIdToUse}`);
+    }
+    if (reservationIdToUse) {
+      params.push(`reservationId=${reservationIdToUse}`);
+    }
+
+    params.push(`invoiceId=${invoiceToUse.invoiceId}`);
+
+    if (this.companyId) {
+      params.push(`companyId=${this.companyId}`);
+    }
+
+    const organizationIdParam = queryParams['organizationId'];
+    if (organizationIdParam) {
+      params.push(`organizationId=${encodeURIComponent(organizationIdParam)}`);
+    }
+
+    const invoiceCreateUrl = `${RouterUrl.InvoiceCreate}?${params.join('&')}`;
+    this.router.navigateByUrl(invoiceCreateUrl);
+  }
   //#endregion
 
   //#region Form Response Methods
@@ -314,6 +357,41 @@ export class InvoiceComponent implements OnInit, OnDestroy, OnChanges {
     }));
   }
 
+  get showReservationInfoIcon(): boolean {
+    return !!this.selectedReservation;
+  }
+
+  get reservationInfoTooltip(): string {
+    return this.buildReservationInfoTooltip(this.selectedReservation);
+  }
+
+  buildReservationInfoTooltip(reservation: ReservationListResponse | null): string {
+    if (!reservation) {
+      return '';
+    }
+
+    const contact = (reservation.contactName || '').trim() || '—';
+    const company = (reservation.companyName || '').trim();
+    const tenant = (reservation.tenantName || '').trim() || '—';
+    const arrival = this.formatter.formatDateString(reservation.arrivalDate) || '—';
+    const departure = this.formatter.formatDateString(reservation.departureDate) || '—';
+    const status = getReservationStatus(reservation.reservationStatusId) || '—';
+
+    const lines = [
+      `Reservation: ${reservation.reservationCode || '—'}`,
+      `Arrival: ${arrival}`,
+      `Departure: ${departure}`,
+      `Contact: ${contact}`
+    ];
+
+    if (company) {
+      lines.push(`Company: ${company}`);
+    }
+
+    lines.push(`Tenant: ${tenant}`, `Status: ${status}`);
+    return lines.join('\n');
+  }
+
   onTitleBarOfficeChange(value: string | number | null): void {
     if (!this.isAddMode || !this.form) {
       return;
@@ -325,7 +403,18 @@ export class InvoiceComponent implements OnInit, OnDestroy, OnChanges {
     if (!this.isAddMode || !this.form) {
       return;
     }
-    this.form.get('reservationId')?.setValue(value == null || value === '' ? null : String(value));
+
+    const reservationId = value == null || value === '' ? null : String(value);
+    this.form.get('reservationId')?.setValue(reservationId, { emitEvent: false });
+    this.selectedReservation = reservationId
+      ? this.reservations.find(r => r.reservationId === reservationId) || null
+      : null;
+
+    if (this.selectedReservation) {
+      this.setInvoiceCode(this.selectedReservation);
+    } else {
+      this.form.get('invoiceCode')?.setValue(' ', { emitEvent: false });
+    }
   }
   //#endregion
 
@@ -485,10 +574,6 @@ export class InvoiceComponent implements OnInit, OnDestroy, OnChanges {
       value: c.costCodeId,
       label: `${c.costCode}: ${c.description}`
     }));
-  }
-
-  getTransactionTypeLabel(transactionType: number): string {
-    return getAccountingTransactionTypeLabel(transactionType, this.transactionTypes);
   }
 
   isPaymentLine(line: LedgerLineListDisplay): boolean {
@@ -1094,7 +1179,7 @@ export class InvoiceComponent implements OnInit, OnDestroy, OnChanges {
       : baseClass;
   }
 
-  private hasLedgerLineValidationErrors(): boolean {
+  hasLedgerLineValidationErrors(): boolean {
     return this.ledgerLines.some((line) =>
       this.isLedgerLineFieldInvalid(line, 'costCodeId')
       || this.isLedgerLineFieldInvalid(line, 'transactionType')
@@ -1298,45 +1383,6 @@ export class InvoiceComponent implements OnInit, OnDestroy, OnChanges {
   //#endregion
 
   //#region Formatting Methods
-  onAmountInput(event: Event, fieldName: string): void {
-    const control = this.form.get(fieldName);
-    this.formatter.formatDecimalInput(event, control);
-  }
-
-  onAmountFocus(event: Event, fieldName: string): void {
-    const input = event.target as HTMLInputElement;
-    const control = this.form.get(fieldName);
-    if (control) {
-      const value = parseFloat(control.value) || 0;
-      input.value = value.toFixed(2);
-      input.select();
-    }
-  }
-
-  onAmountBlur(event: Event, fieldName: string): void {
-    const input = event.target as HTMLInputElement;
-    const control = this.form.get(fieldName);
-    if (control) {
-      const value = parseFloat(input.value.replace(/[$,]/g, '')) || 0;
-      control.setValue(value.toFixed(2), { emitEvent: false });
-      input.value = '$' + this.formatter.currency(value);
-    }
-  }
-
-  selectAllOnFocus(event: Event): void {
-    const input = event.target as HTMLInputElement;
-    input.select();
-  }
-
-  parseNumber(value: string): number | null {
-    if (!value || value.trim() === '') {
-      return null;
-    }
-    const cleanedValue = value.replace(/[$,]/g, '');
-    const parsed = parseFloat(cleanedValue);
-    return isNaN(parsed) ? null : parsed;
-  }
-
   endDateValidator(control: FormControl): { [key: string]: any } | null {
     if (!control.value || !this.form) {
       return null;
@@ -1365,44 +1411,6 @@ export class InvoiceComponent implements OnInit, OnDestroy, OnChanges {
   //#endregion
 
   //#region Utility Methods
-  toInvoiceCreate(invoiceToUse: InvoiceResponse | null | undefined, formValue?: any): void {
-    if (!invoiceToUse?.invoiceId) {
-      this.back(formValue || this.form?.getRawValue() || {});
-      return;
-    }
-
-    const queryParams = this.route.snapshot.queryParams;
-    const originReturnTo = queryParams['returnTo'] || 'accounting';
-    const params: string[] = [
-      'returnTo=invoice-edit',
-      `originReturnTo=${encodeURIComponent(originReturnTo)}`
-    ];
-
-    const officeIdToUse = this.selectedOffice?.officeId || invoiceToUse.officeId || formValue?.officeId;
-    const reservationIdToUse = this.selectedReservation?.reservationId || invoiceToUse.reservationId || formValue?.reservationId;
-
-    if (officeIdToUse) {
-      params.push(`officeId=${officeIdToUse}`);
-    }
-    if (reservationIdToUse) {
-      params.push(`reservationId=${reservationIdToUse}`);
-    }
-
-    params.push(`invoiceId=${invoiceToUse.invoiceId}`);
-
-    if (this.companyId) {
-      params.push(`companyId=${this.companyId}`);
-    }
-
-    const organizationIdParam = queryParams['organizationId'];
-    if (organizationIdParam) {
-      params.push(`organizationId=${encodeURIComponent(organizationIdParam)}`);
-    }
-
-    const invoiceCreateUrl = `${RouterUrl.InvoiceCreate}?${params.join('&')}`;
-    this.router.navigateByUrl(invoiceCreateUrl);
-  }
-
   back(formValue?: any): void {
     const queryParams = this.route.snapshot.queryParams;
     const returnTo = queryParams['returnTo'];

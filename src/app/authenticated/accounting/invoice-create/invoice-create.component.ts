@@ -456,12 +456,14 @@ export class InvoiceCreateComponent extends BaseDocumentComponent implements OnI
       this.availableInvoices = [];
       return;
     }
-    this.accountingService.getInvoicesByOffice(this.selectedOffice.officeId).pipe(take(1)).subscribe({
+    this.accountingService.searchInvoices({
+      officeIds: [this.selectedOffice.officeId],
+      reservationId,
+      includeInactive: true,
+      includePaid: true
+    }).pipe(take(1)).subscribe({
       next: (invoices: InvoiceResponse[]) => {
-        // Filter invoices by the selected reservation
-        this.invoices = (invoices || []).filter(inv => 
-          inv.reservationId === reservationId
-        );
+        this.invoices = invoices || [];
         this.availableInvoices = this.invoices.map(inv => ({
           value: inv,
           label: inv.invoiceCode || `Invoice ${inv.invoiceId}`
@@ -556,20 +558,6 @@ export class InvoiceCreateComponent extends BaseDocumentComponent implements OnI
     });
   }
 
-  loadPropertyHtml(): void {
-    if (!this.property) {
-      return;
-    }
-
-    this.propertyHtmlService.getPropertyHtmlByPropertyId(this.property.propertyId).pipe(take(1)).subscribe({
-      next: (response: PropertyHtmlResponse) => {
-        this.propertyHtml = response;
-      },
-      error: () => {
-      }
-    });
-  }
-
   loadInvoiceHtml(): void {
     if (this.debuggingHtml) {
       // Load HTML from assets for faster testing
@@ -629,13 +617,6 @@ export class InvoiceCreateComponent extends BaseDocumentComponent implements OnI
         this.updateOrgLogo();
       }
     });
-  }
-
-  markLogoSourceLoaded(source: 'offices' | 'accountingOffices' | 'organization'): void {
-    this.logoSourcesLoaded[source] = true;
-    if (this.logoSourcesLoaded.offices && this.logoSourcesLoaded.accountingOffices && this.logoSourcesLoaded.organization) {
-      this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'logo');
-    }
   }
 
   loadContacts(): void {
@@ -745,6 +726,13 @@ export class InvoiceCreateComponent extends BaseDocumentComponent implements OnI
       this.orgLogo = `data:${this.organization.fileDetails.contentType};base64,${this.organization.fileDetails.file}`;
     } else {
       this.orgLogo = '';
+    }
+  }
+
+  markLogoSourceLoaded(source: 'offices' | 'accountingOffices' | 'organization'): void {
+    this.logoSourcesLoaded[source] = true;
+    if (this.logoSourcesLoaded.offices && this.logoSourcesLoaded.accountingOffices && this.logoSourcesLoaded.organization) {
+      this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'logo');
     }
   }
   //#endregion
@@ -1218,26 +1206,6 @@ export class InvoiceCreateComponent extends BaseDocumentComponent implements OnI
     ].join('');
   }
 
-  getResponsibleParty(): string {
-    return this.utilityService.getResponsibleParty(this.selectedReservation, this.getPrimaryResponsibleContact());
-  }
-
-  getResponsiblePartyAddress1() {
-    return this.utilityService.getResponsiblePartyAddress1(this.selectedReservation, this.getPrimaryResponsibleContact());
-  }
-
-  getResponsiblePartyAddress2() {
-    return this.utilityService.getResponsiblePartyAddress2(this.selectedReservation, this.getPrimaryResponsibleContact());
-  }
-
-  getResponsiblePartyPhone() {
-    return this.utilityService.getResponsiblePartyPhone(this.getPrimaryResponsibleContact());
-  }
-
-  getResponsiblePartyEmail() {
-    return this.utilityService.getResponsiblePartyEmail(this.getPrimaryResponsibleContact());
-  }
-
   getPropertyAddress1() {
     if (!this.property) {
       return '';
@@ -1259,10 +1227,6 @@ export class InvoiceCreateComponent extends BaseDocumentComponent implements OnI
     return [city, stateZip].filter(part => part.length > 0).join(', ');
   }
   
-  getPrimaryResponsibleContact(): ContactResponse | null {
-    return this.getResponsibleContacts()[0] || null;
-  }
-
   getResponsibleContacts(): ContactResponse[] {
     const selectedContactIds = this.selectedReservation?.contactIds || [];
     const uniqueContactIds = new Set<string>();
