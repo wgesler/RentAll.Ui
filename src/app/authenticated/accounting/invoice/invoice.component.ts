@@ -1,6 +1,6 @@
 import { CommonModule } from '@angular/common';
 import { HttpErrorResponse } from '@angular/common/http';
-import { Component, Input, OnChanges, OnDestroy, OnInit, SimpleChanges } from '@angular/core';
+import { ChangeDetectorRef, Component, Input, OnChanges, OnDestroy, OnInit, SimpleChanges } from '@angular/core';
 import { FormBuilder, FormControl, FormGroup, FormsModule, ReactiveFormsModule, Validators } from '@angular/forms';
 import { ActivatedRoute, ParamMap, Router } from '@angular/router';
 import { ToastrService } from 'ngx-toastr';
@@ -103,7 +103,8 @@ export class InvoiceComponent implements OnInit, OnDestroy, OnChanges {
     private costCodesService: CostCodesService,
     public formatter: FormatterService,
     private utilityService: UtilityService,
-    private globalSelectionService: GlobalSelectionService
+    private globalSelectionService: GlobalSelectionService,
+    private cdr: ChangeDetectorRef
   ) {
   }
 
@@ -706,6 +707,7 @@ export class InvoiceComponent implements OnInit, OnDestroy, OnChanges {
         this.ledgerLines = this.mappingService.mapLedgerLines(rawLedgerLines, this.officeCostCodes, this.transactionTypes);
         this.originalLedgerLines = JSON.parse(JSON.stringify(this.ledgerLines));
         this.updateTotalAmount();
+        this.cdr.markForCheck();
       },
       error: (err: HttpErrorResponse) => {
         this.form.get('invoiceTotal')?.setValue('', { emitEvent: false });
@@ -713,6 +715,7 @@ export class InvoiceComponent implements OnInit, OnDestroy, OnChanges {
         this.form.get('invoicedAmount')?.setValue('0.00', { emitEvent: false });
         this.form.get('paidAmount')?.setValue('0.00', { emitEvent: false });
         this.form.get('totalDue')?.setValue('0.00', { emitEvent: false });
+        this.cdr.markForCheck();
         if (err.status === 404) {
         }
       }
