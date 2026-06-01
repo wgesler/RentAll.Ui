@@ -1,7 +1,8 @@
 import { HttpClient } from '@angular/common/http';
 import { Injectable } from '@angular/core';
-import { Observable } from 'rxjs';
+import { Observable, of } from 'rxjs';
 import { ConfigService } from '../../../services/config.service';
+import { MaintenanceListSearchRequest } from '../models/maintenance-search.model';
 import { ReceiptRequest, ReceiptResponse } from '../models/receipt.model';
 
 @Injectable({
@@ -19,6 +20,21 @@ export class ReceiptService {
     this.http = http;
     this.configService = configService;
     this.controller = this.configService.config().apiUrl + 'maintenance/receipt/';
+  }
+
+  searchReceipts(request: MaintenanceListSearchRequest): Observable<ReceiptResponse[]> {
+    const officeIds = (request.officeIds ?? []).filter(id => id > 0);
+    if (officeIds.length === 0) {
+      return of([]);
+    }
+
+    return this.http.post<ReceiptResponse[]>(`${this.controller}search`, {
+      officeIds,
+      propertyId: request.propertyId || null,
+      includeInactive: !!request.includeInactive,
+      startDate: request.startDate ?? null,
+      endDate: request.endDate ?? null
+    });
   }
 
   getReceipts(propertyId?: string | null, officeId?: number | null): Observable<ReceiptResponse[]> {

@@ -18,6 +18,7 @@ import { ContactService } from '../../contacts/services/contact.service';
 import { DataTableComponent } from '../../shared/data-table/data-table.component';
 import { DataTableFilterActionsDirective } from '../../shared/data-table/data-table-filter-actions.directive';
 import { ColumnSet } from '../../shared/data-table/models/column-data';
+import { MaintenanceListSearchRequest } from '../models/maintenance-search.model';
 import { ReceiptDisplayList, ReceiptRequest, ReceiptResponse, ReceiptSelection } from '../models/receipt.model';
 import { ReceiptService } from '../services/receipt.service';
 import { WorkOrderService } from '../services/work-order.service';
@@ -33,6 +34,7 @@ import { WorkOrderService } from '../services/work-order.service';
 export class ReceiptsListComponent implements OnInit, OnChanges, OnDestroy {
   @Input() property: PropertyResponse | null = null;
   @Input() officeId: number | null = null;
+  @Input() searchRequest?: MaintenanceListSearchRequest | null;
   @Input() isActiveTab = false;
   @Input() embeddedInMaintenance = false;
   @Input() refreshTrigger: number = 0;
@@ -57,9 +59,11 @@ export class ReceiptsListComponent implements OnInit, OnChanges, OnDestroy {
   selectedProperty: PropertyResponse | null = null;
   selectedPropertyId: string | null = null;
   persistedFilterVal = '';
+  private receiptsLoadId = 0;
   private readonly receiptListFilterStorageKey = 'maintenance.receiptsList.filter';
 
   receiptDisplayedColumns: ColumnSet = {
+    no: { displayAs: 'No', maxWidth: '5ch', sort: false, wrap: false },
     propertyCode: { displayAs: 'Property', wrap: false, maxWidth: '15ch' },
     workOrderDisplay: { displayAs: 'WO Code(s)', wrap: true, maxWidth: '18ch' },
     receiptTypeDisplay: { displayAs: 'Type(s)', wrap: true, maxWidth: '15ch' },
@@ -121,40 +125,87 @@ export class ReceiptsListComponent implements OnInit, OnChanges, OnDestroy {
       const propertyId = this.property?.propertyId || null;
       if (!propertyId) {
         this.selectedPropertyId = null;
-        this.getReceipts();
+        this.tryLoadReceiptsForMaintenanceShell();
         return;
       }
 
       if (this.selectedPropertyId !== propertyId) {
         this.selectedPropertyId = propertyId;
-        this.getReceipts();
+        this.tryLoadReceiptsForMaintenanceShell();
       }
     }
     if (changes['officeId'] && !this.property?.propertyId) {
-      this.getReceipts();
+      this.tryLoadReceiptsForMaintenanceShell();
     }
     if (changes['refreshTrigger']) {
-      this.getReceipts();
+      this.tryLoadReceiptsForMaintenanceShell();
     }
+    if (changes['searchRequest'] && this.embeddedInMaintenance && this.isActiveTab) {
+      this.tryLoadReceiptsForMaintenanceShell();
+    }
+  }
+
+  reloadForCurrentScope(): void {
+    if (!this.isActiveTab) {
+      return;
+    }
+    this.tryLoadReceiptsForMaintenanceShell();
   }
 
   beginTabLoads(): void {
-    this.utilityService.addLoadItem(this.itemsToLoad$, 'receipts');
     this.utilityService.addLoadItem(this.itemsToLoad$, 'propertyLookup');
     this.loadPropertyLookup();
-    this.getReceipts();
+    this.tryLoadReceiptsForMaintenanceShell();
+  }
+
+  /** Defer until shell inputs (searchRequest, officeIds) are bound — avoids a stuck receipts spinner. */
+  tryLoadReceiptsForMaintenanceShell(): void {
+    if (!this.isActiveTab) {
+      return;
+    }
+
+    if (!this.embeddedInMaintenance) {
+      this.getReceipts();
+      return;
+    }
+
+    queueMicrotask(() => {
+      if (!this.isActiveTab) {
+        return;
+      }
+      if (!this.canRunMaintenanceSearch(this.searchRequest)) {
+        this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'receipts');
+        this.markViewForCheck();
+        return;
+      }
+      this.getReceipts();
+    });
   }
 
   getReceipts(): void {
+    if (this.embeddedInMaintenance && !this.canRunMaintenanceSearch(this.searchRequest)) {
+      this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'receipts');
+      this.markViewForCheck();
+      return;
+    }
+
+    const loadId = ++this.receiptsLoadId;
     this.isServiceError = false;
     this.utilityService.addLoadItem(this.itemsToLoad$, 'receipts');
-    const propertyId = this.property?.propertyId ?? null;
-    const officeId = this.officeId ?? null;
-    this.receiptService.getReceipts(propertyId, officeId).pipe(take(1), finalize(() => {
-      this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'receipts');
+    const load$ = this.embeddedInMaintenance
+      ? this.receiptService.searchReceipts(this.buildMaintenanceSearchRequest())
+      : this.receiptService.getReceipts(this.property?.propertyId ?? null, this.officeId ?? null);
+
+    load$.pipe(take(1), finalize(() => {
+      if (this.receiptsLoadId === loadId) {
+        this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'receipts');
+      }
       this.markViewForCheck();
     })).subscribe({
       next: (receipts: ReceiptResponse[]) => {
+        if (this.receiptsLoadId !== loadId) {
+          return;
+        }
         this.receipts = receipts || [];
         this.allReceipts = this.mappingService.mapReceiptDisplays(this.receipts);
         this.applyBankCardDropdownsToDisplays();
@@ -164,6 +215,9 @@ export class ReceiptsListComponent implements OnInit, OnChanges, OnDestroy {
         this.markViewForCheck();
       },
       error: () => {
+        if (this.receiptsLoadId !== loadId) {
+          return;
+        }
         this.isServiceError = true;
         this.receipts = [];
         this.allReceipts = [];
@@ -642,13 +696,58 @@ export class ReceiptsListComponent implements OnInit, OnChanges, OnDestroy {
   //#region Filter Methods
   toggleInactive(): void {
     this.showInactive = !this.showInactive;
+    if (this.usesMaintenanceSearch()) {
+      this.reloadForCurrentScope();
+      return;
+    }
     this.applyFilters();
   }
 
   applyFilters(): void {
+    if (this.usesMaintenanceSearch()) {
+      this.receiptsDisplay = [...this.allReceipts];
+      return;
+    }
+
     this.receiptsDisplay = this.showInactive
       ? [...this.allReceipts]
       : this.allReceipts.filter(receipt => receipt.isActive !== false);
+  }
+
+  private usesMaintenanceSearch(): boolean {
+    return this.embeddedInMaintenance && this.canRunMaintenanceSearch(this.searchRequest);
+  }
+
+  private canRunMaintenanceSearch(request?: MaintenanceListSearchRequest | null): boolean {
+    if (!this.embeddedInMaintenance || request == null) {
+      return false;
+    }
+
+    return !!(request.startDate && request.endDate && this.resolveMaintenanceSearchOfficeIds(request).length > 0);
+  }
+
+  private resolveMaintenanceSearchOfficeIds(request?: MaintenanceListSearchRequest | null): number[] {
+    const fromShell = (request?.officeIds ?? this.searchRequest?.officeIds ?? []).filter(id => id > 0);
+    if (fromShell.length > 0) {
+      return fromShell;
+    }
+
+    const scopedOfficeId = this.officeId;
+    if (scopedOfficeId != null && Number.isFinite(Number(scopedOfficeId)) && Number(scopedOfficeId) > 0) {
+      return [Number(scopedOfficeId)];
+    }
+
+    return [];
+  }
+
+  private buildMaintenanceSearchRequest(): MaintenanceListSearchRequest {
+    const request = this.searchRequest ?? { officeIds: [] };
+    return {
+      ...request,
+      officeIds: this.resolveMaintenanceSearchOfficeIds(request),
+      includeInactive: this.showInactive,
+      propertyId: request.propertyId ?? this.property?.propertyId ?? null
+    };
   }
 
   onTableFilterValueChanged(filterValue: string): void {
@@ -684,6 +783,10 @@ export class ReceiptsListComponent implements OnInit, OnChanges, OnDestroy {
         );
         this.applyPropertyCodesToDisplays();
         this.applyFilters();
+        this.markViewForCheck();
+      },
+      error: () => {
+        this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'propertyLookup');
         this.markViewForCheck();
       }
     });

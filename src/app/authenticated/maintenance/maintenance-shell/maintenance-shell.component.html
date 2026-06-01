@@ -65,6 +65,32 @@
                 </app-title-bar-select>
               </div>
             }
+            <div class="maintenance-shell-titlebar-dates">
+              <mat-form-field appearance="outline" class="titlebar-field-office">
+                <mat-label>Start Date</mat-label>
+                <input
+                  matInput
+                  [matDatepicker]="maintenanceShellStartPicker"
+                  [(ngModel)]="startDate"
+                  [ngModelOptions]="{ standalone: true }"
+                  (dateChange)="onDateRangeChange()"
+                  [max]="endDate" />
+                <mat-datepicker-toggle matIconSuffix [for]="maintenanceShellStartPicker"></mat-datepicker-toggle>
+                <mat-datepicker #maintenanceShellStartPicker></mat-datepicker>
+              </mat-form-field>
+              <mat-form-field appearance="outline" class="titlebar-field-office">
+                <mat-label>End Date</mat-label>
+                <input
+                  matInput
+                  [matDatepicker]="maintenanceShellEndPicker"
+                  [(ngModel)]="endDate"
+                  [ngModelOptions]="{ standalone: true }"
+                  (dateChange)="onDateRangeChange()"
+                  [min]="startDate" />
+                <mat-datepicker-toggle matIconSuffix [for]="maintenanceShellEndPicker"></mat-datepicker-toggle>
+                <mat-datepicker #maintenanceShellEndPicker></mat-datepicker>
+              </mat-form-field>
+            </div>
           </div>
         </div>
 
@@ -128,6 +154,7 @@
                 #maintenanceReceiptsList
                 [property]="property"
                 [officeId]="selectedOfficeId"
+                [searchRequest]="receiptSearchRequest"
                 [isActiveTab]="selectedTabIndex === receiptsTabIndex"
                 [embeddedInMaintenance]="true"
                 [refreshTrigger]="refreshReceiptsTrigger"
@@ -154,6 +181,7 @@
                   #maintenanceWorkOrderList
                   [property]="property"
                   [officeId]="selectedOfficeId"
+                  [searchRequest]="workOrderSearchRequest"
                   [reservationId]="titleBarReservationId"
                   [isActiveTab]="selectedTabIndex === workOrdersTabIndex"
                   [embeddedInMaintenance]="true"
@@ -165,9 +193,10 @@
             <app-document-list
               #maintenanceDocumentList
               [documentTypeIds]="[DocumentType.Inspection, DocumentType.WorkOrder]"
-              [propertyId]="property?.propertyId ?? undefined"
+              [documentRequest]="documentRequest"
+              [propertyId]="selectedPropertyId ?? property?.propertyId ?? undefined"
               [propertyCode]="property?.propertyCode ?? null"
-              [officeId]="property?.officeId ?? null"
+              [officeId]="selectedOfficeId ?? property?.officeId ?? null"
               [reservationId]="titleBarReservationId"
               [reservations]="shellReservations"
               source="maintenance"

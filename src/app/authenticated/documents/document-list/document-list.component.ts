@@ -243,7 +243,7 @@ export class DocumentListComponent implements OnInit, OnDestroy, OnChanges {
 
     if (changes['documentRequest']) {
       const request = changes['documentRequest'].currentValue as DocumentGetRequest | null | undefined;
-      if ((this.source === 'invoice' || this.source === 'documents') && request?.startDate && request?.endDate && this.canLoadDocumentsFromApi()) {
+      if ((this.source === 'invoice' || this.source === 'documents' || this.source === 'maintenance') && request?.startDate && request?.endDate && this.canLoadDocumentsFromApi()) {
         this.utilityService.addLoadItem(this.itemsToLoad$, 'documents');
         this.getDocuments();
       }
@@ -413,11 +413,11 @@ export class DocumentListComponent implements OnInit, OnDestroy, OnChanges {
 
   private buildDocumentRequest(): DocumentGetRequest {
     const officeIds = this.resolveOfficeIdsForRequest();
-    const request: DocumentGetRequest = (this.source === 'documents' || this.source === 'invoice') && this.documentRequest
+    const request: DocumentGetRequest = (this.source === 'documents' || this.source === 'invoice' || this.source === 'maintenance') && this.documentRequest
       ? { ...this.documentRequest, officeIds }
       : { officeIds };
 
-    const propertyId = this.source === 'documents'
+    const propertyId = this.source === 'documents' || this.source === 'maintenance'
       ? (request.propertyId ?? this.propertyId ?? this.selectedPropertyId ?? undefined)
       : (this.propertyId && this.propertyId !== '' ? this.propertyId : undefined);
     if (propertyId) {
@@ -471,7 +471,7 @@ export class DocumentListComponent implements OnInit, OnDestroy, OnChanges {
   }
 
   private usesShellDocumentSearch(): boolean {
-    return (this.source === 'documents' || this.source === 'invoice') && this.documentRequest != null;
+    return (this.source === 'documents' || this.source === 'invoice' || this.source === 'maintenance') && this.documentRequest != null;
   }
 
   private hasShellDocumentSearchDates(): boolean {
@@ -479,7 +479,7 @@ export class DocumentListComponent implements OnInit, OnDestroy, OnChanges {
   }
 
   private resolveOfficeIdsForRequest(): number[] {
-    if (this.source === 'documents' && this.documentRequest?.officeIds?.length) {
+    if ((this.source === 'documents' || this.source === 'maintenance') && this.documentRequest?.officeIds?.length) {
       return this.documentRequest.officeIds.filter(id => id > 0);
     }
 

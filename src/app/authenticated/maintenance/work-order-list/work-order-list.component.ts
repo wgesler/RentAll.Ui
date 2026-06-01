@@ -14,6 +14,7 @@ import { DataTableFilterActionsDirective } from '../../shared/data-table/data-ta
 import { ColumnSet } from '../../shared/data-table/models/column-data';
 import { UserGroups } from '../../users/models/user-enums';
 import { ReceiptRequest, ReceiptResponse } from '../models/receipt.model';
+import { MaintenanceListSearchRequest } from '../models/maintenance-search.model';
 import { WorkOrderDisplayList, WorkOrderResponse } from '../models/work-order.model';
 import { ReceiptService } from '../services/receipt.service';
 import { WorkOrderService } from '../services/work-order.service';
@@ -34,6 +35,7 @@ export interface WorkOrderSelection {
 export class WorkOrderListComponent implements OnInit, OnChanges, OnDestroy {
   @Input() property: PropertyResponse | null = null;
   @Input() officeId: number | null = null;
+  @Input() searchRequest?: MaintenanceListSearchRequest | null;
   @Input() reservationId: string | null = null;
   @Input() isActiveTab = false;
   /** When true, selection is emitted via workOrderSelect and no navigation occurs (e.g. embedded in maintenance). */
@@ -55,6 +57,7 @@ export class WorkOrderListComponent implements OnInit, OnChanges, OnDestroy {
   private workOrdersLoadId = 0;
 
   workOrderDisplayedColumns: ColumnSet = {
+    no: { displayAs: 'No', maxWidth: '5ch', sort: false, wrap: false },
     workOrderCode: { displayAs: 'Code', wrap: false, maxWidth: '15ch' },
     propertyCode: { displayAs: 'Property', wrap: false, maxWidth: '15ch' },
     workOrderType: { displayAs: 'Type', wrap: false, maxWidth: '15ch' },
@@ -90,13 +93,13 @@ export class WorkOrderListComponent implements OnInit, OnChanges, OnDestroy {
     });
     this.setRoleBasedColumns();
     if (this.isActiveTab) {
-      this.getWorkOrders();
+      this.tryLoadWorkOrdersForMaintenanceShell();
     }
   }
 
   ngOnChanges(changes: SimpleChanges): void {
     if (changes['isActiveTab'] && this.isActiveTab) {
-      this.getWorkOrders();
+      this.tryLoadWorkOrdersForMaintenanceShell();
       return;
     }
 
@@ -123,15 +126,56 @@ export class WorkOrderListComponent implements OnInit, OnChanges, OnDestroy {
     if (changes['reservationId']) {
       this.applyFilters();
     }
+    if (changes['searchRequest'] && this.embeddedInMaintenance && this.isActiveTab) {
+      this.tryLoadWorkOrdersForMaintenanceShell();
+    }
+  }
+
+  reloadForCurrentScope(): void {
+    if (!this.isActiveTab) {
+      return;
+    }
+    this.tryLoadWorkOrdersForMaintenanceShell();
+  }
+
+  tryLoadWorkOrdersForMaintenanceShell(): void {
+    if (!this.isActiveTab) {
+      return;
+    }
+
+    if (!this.embeddedInMaintenance) {
+      this.getWorkOrders();
+      return;
+    }
+
+    queueMicrotask(() => {
+      if (!this.isActiveTab) {
+        return;
+      }
+      if (!this.canRunMaintenanceSearch(this.searchRequest)) {
+        this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'workOrders');
+        this.markViewForCheck();
+        return;
+      }
+      this.getWorkOrders();
+    });
   }
 
   getWorkOrders(): void {
+    if (this.embeddedInMaintenance && !this.canRunMaintenanceSearch(this.searchRequest)) {
+      this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'workOrders');
+      this.markViewForCheck();
+      return;
+    }
+
     const loadId = ++this.workOrdersLoadId;
     this.isServiceError = false;
     this.utilityService.addLoadItem(this.itemsToLoad$, 'workOrders');
-    const propertyId = this.property?.propertyId ?? null;
-    const officeId = this.officeId ?? null;
-    this.workOrderService.getWorkOrders(propertyId, officeId).pipe(take(1), finalize(() => {
+    const load$ = this.embeddedInMaintenance
+      ? this.workOrderService.searchWorkOrders(this.buildMaintenanceSearchRequest())
+      : this.workOrderService.getWorkOrders(this.property?.propertyId ?? null, this.officeId ?? null);
+
+    load$.pipe(take(1), finalize(() => {
       if (this.workOrdersLoadId === loadId) {
         this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'workOrders');
       }
@@ -418,17 +462,59 @@ export class WorkOrderListComponent implements OnInit, OnChanges, OnDestroy {
   //#region Filter Methods
   toggleInactive(): void {
     this.showInactive = !this.showInactive;
+    if (this.usesMaintenanceSearch()) {
+      this.reloadForCurrentScope();
+      return;
+    }
     this.applyFilters();
   }
 
   applyFilters(): void {
-    const activeScoped = this.showInactive
+    const activeScoped = this.usesMaintenanceSearch()
       ? [...this.allWorkOrders]
-      : this.allWorkOrders.filter(workOrder => workOrder.isActive !== false);
+      : (this.showInactive
+        ? [...this.allWorkOrders]
+        : this.allWorkOrders.filter(workOrder => workOrder.isActive !== false));
     const selectedReservationId = (this.reservationId || '').trim();
     this.workOrdersDisplay = !selectedReservationId
       ? activeScoped
       : activeScoped.filter(workOrder => (workOrder.reservationId || '').trim() === selectedReservationId);
+  }
+
+  private usesMaintenanceSearch(): boolean {
+    return this.embeddedInMaintenance && this.canRunMaintenanceSearch(this.searchRequest);
+  }
+
+  private canRunMaintenanceSearch(request?: MaintenanceListSearchRequest | null): boolean {
+    if (!this.embeddedInMaintenance || request == null) {
+      return false;
+    }
+
+    return !!(request.startDate && request.endDate && this.resolveMaintenanceSearchOfficeIds(request).length > 0);
+  }
+
+  private resolveMaintenanceSearchOfficeIds(request?: MaintenanceListSearchRequest | null): number[] {
+    const fromShell = (request?.officeIds ?? this.searchRequest?.officeIds ?? []).filter(id => id > 0);
+    if (fromShell.length > 0) {
+      return fromShell;
+    }
+
+    const scopedOfficeId = this.officeId;
+    if (scopedOfficeId != null && Number.isFinite(Number(scopedOfficeId)) && Number(scopedOfficeId) > 0) {
+      return [Number(scopedOfficeId)];
+    }
+
+    return [];
+  }
+
+  private buildMaintenanceSearchRequest(): MaintenanceListSearchRequest {
+    const request = this.searchRequest ?? { officeIds: [] };
+    return {
+      ...request,
+      officeIds: this.resolveMaintenanceSearchOfficeIds(request),
+      includeInactive: this.showInactive,
+      propertyId: request.propertyId ?? this.property?.propertyId ?? null
+    };
   }
   //#endregion
 

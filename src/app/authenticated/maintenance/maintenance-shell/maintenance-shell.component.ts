@@ -23,6 +23,8 @@ import { ReceiptComponent } from '../receipt/receipt.component';
 import { WorkOrderComponent } from '../work-order/work-order.component';
 import { DocumentListComponent } from '../../documents/document-list/document-list.component';
 import { DocumentType } from '../../documents/models/document.enum';
+import { DocumentGetRequest } from '../../documents/models/document.model';
+import { MaintenanceListSearchRequest } from '../models/maintenance-search.model';
 import { isInspectorOnlyUser } from '../../shared/access/role-access';
 import { MaintenanceComponent } from '../maintenance/maintenance.component';
 import { UnsavedChangesDialogService } from '../../shared/modals/unsaved-changes/unsaved-changes-dialog.service';
@@ -96,6 +98,12 @@ export class MaintenanceShellComponent implements OnInit, OnDestroy, CanComponen
   clearPropertyOnOpen = false;
   propertyLoadVersion = 0;
 
+  startDate: Date | null = null;
+  endDate: Date | null = null;
+  documentRequest: DocumentGetRequest = { officeIds: [] };
+  receiptSearchRequest: MaintenanceListSearchRequest = { officeIds: [] };
+  workOrderSearchRequest: MaintenanceListSearchRequest = { officeIds: [] };
+
   itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['property']));
   isLoading$: Observable<boolean> = this.itemsToLoad$.pipe(map(items => items.size > 0));
   destroy$ = new Subject<void>();
@@ -110,7 +118,10 @@ export class MaintenanceShellComponent implements OnInit, OnDestroy, CanComponen
     private officeService: OfficeService,
     private globalSelectionService: GlobalSelectionService,
     private unsavedChangesDialogService: UnsavedChangesDialogService
-  ) {}
+  ) {
+    this.setDefaultDateRange();
+    this.syncMaintenanceSearchRequests();
+  }
 
   //#region Maintenance-Shell
   ngOnInit(): void {
@@ -196,6 +207,8 @@ export class MaintenanceShellComponent implements OnInit, OnDestroy, CanComponen
         this.shellReservations = reservations;
         this.syncTitleBarSelections();
         this.setTitleBarReservationForCurrentProperty(preferredReservationId ?? null);
+        this.syncMaintenanceSearchRequests();
+        this.reloadMaintenanceSearchLists();
         onLoaded?.();
       },
       error: () => {
@@ -238,6 +251,8 @@ export class MaintenanceShellComponent implements OnInit, OnDestroy, CanComponen
           } else if (this.selectedOfficeId != null) {
             this.applyPageOfficeScope(this.selectedOfficeId);
           }
+          this.syncMaintenanceSearchRequests();
+          queueMicrotask(() => this.reloadMaintenanceSearchLists());
           this.loadTitleBarProperties();
         });
       },
@@ -256,6 +271,7 @@ export class MaintenanceShellComponent implements OnInit, OnDestroy, CanComponen
           ? propertyRows.filter(property => this.inspectorPropertyIds.has(String(property.propertyId || '').trim().toLowerCase()))
           : propertyRows;
         this.syncTitleBarSelections();
+        this.syncMaintenanceSearchRequests();
       },
       error: () => {
         this.allProperties = [];
@@ -408,6 +424,8 @@ export class MaintenanceShellComponent implements OnInit, OnDestroy, CanComponen
     const officeId = value == null || value === '' ? null : Number(value);
     this.applyPageOfficeScope(officeId);
     this.applyPageOfficeChangeEffects();
+    this.syncMaintenanceSearchRequests();
+    this.reloadMaintenanceSearchLists();
   }
 
   async onPropertyCodeChange(): Promise<void> {
@@ -461,19 +479,54 @@ export class MaintenanceShellComponent implements OnInit, OnDestroy, CanComponen
     this.property = null;
     this.isServiceError = false;
     if (!this.selectedPropertyId) {
-      if (this.selectedTabIndex === this.receiptsTabIndex) {
-        this.refreshReceiptsTrigger++;
-      }
+      this.syncMaintenanceSearchRequests();
+      this.reloadMaintenanceSearchLists();
       return;
     }
 
     this.utilityService.addLoadItem(this.itemsToLoad$, 'property');
     this.loadProperty(this.selectedPropertyId);
     this.router.navigateByUrl(`${RouterUrl.replaceTokens(RouterUrl.Maintenance, [this.selectedPropertyId])}?tab=${this.selectedTabIndex}`);
+    this.syncMaintenanceSearchRequests();
+    this.reloadMaintenanceSearchLists();
   }
 
   onReservationDropdownChange(value: string | number | null): void {
     this.titleBarReservationId = value == null || value === '' ? null : String(value);
+    if (this.selectedTabIndex === this.workOrdersTabIndex && this.showWorkOrdersTab) {
+      this.maintenanceWorkOrderList?.applyFilters();
+    }
+  }
+
+  onDateRangeChange(): void {
+    if (!this.startDate && !this.endDate) {
+      this.setDefaultDateRange();
+    } else if (this.startDate && !this.endDate) {
+      const end = new Date(this.startDate);
+      end.setHours(0, 0, 0, 0);
+      this.endDate = end;
+    } else if (!this.startDate && this.endDate) {
+      const start = new Date(this.endDate);
+      start.setDate(start.getDate() - 30);
+      start.setHours(0, 0, 0, 0);
+      this.startDate = start;
+    }
+
+    if (this.startDate) {
+      this.startDate.setHours(0, 0, 0, 0);
+    }
+    if (this.endDate) {
+      this.endDate.setHours(0, 0, 0, 0);
+    }
+
+    if (this.startDate && this.endDate && this.startDate.getTime() > this.endDate.getTime()) {
+      const tmp = this.startDate;
+      this.startDate = this.endDate;
+      this.endDate = tmp;
+    }
+
+    this.syncMaintenanceSearchRequests();
+    this.reloadMaintenanceSearchLists();
   }
 
   //#endregion
@@ -482,6 +535,7 @@ export class MaintenanceShellComponent implements OnInit, OnDestroy, CanComponen
   syncTitleBarSelections(): void {
     if (!this.property && !this.selectedOfficeId) {
       this.updateAvailableProperties();
+      this.syncMaintenanceSearchRequests();
       return;
     }
     if (this.property) {
@@ -489,6 +543,7 @@ export class MaintenanceShellComponent implements OnInit, OnDestroy, CanComponen
       this.selectedPropertyId = this.property.propertyId ?? null;
     }
     this.updateAvailableProperties();
+    this.syncMaintenanceSearchRequests();
   }
 
   updateAvailableProperties(): void {
@@ -562,9 +617,8 @@ export class MaintenanceShellComponent implements OnInit, OnDestroy, CanComponen
         this.showWorkOrderDetail = true;
         this.selectedWorkOrderId = null;
       }
-      if (this.selectedTabIndex === this.receiptsTabIndex) {
-        this.refreshReceiptsTrigger++;
-      }
+      this.syncMaintenanceSearchRequests();
+      this.reloadMaintenanceSearchLists();
     }
   }
 
@@ -603,8 +657,9 @@ export class MaintenanceShellComponent implements OnInit, OnDestroy, CanComponen
       if (nextTabIndex === this.receiptsTabIndex || nextTabIndex === this.documentsTabIndex) {
         this.titleBarReservationId = null;
       }
-      if (nextTabIndex === this.documentsTabIndex) {
-        this.maintenanceDocumentList?.reload();
+      if (nextTabIndex === this.receiptsTabIndex || nextTabIndex === this.workOrdersTabIndex || nextTabIndex === this.documentsTabIndex) {
+        this.syncMaintenanceSearchRequests();
+        queueMicrotask(() => this.reloadMaintenanceSearchLists());
       }
       if (nextTabIndex === 0) {
         setTimeout(() => this.inspectionChecklist?.pushTitleBarReservationToShell(), 0);
@@ -691,7 +746,8 @@ export class MaintenanceShellComponent implements OnInit, OnDestroy, CanComponen
   onMaintenanceReceiptsInactiveChange(showInactive: boolean): void {
     if (!this.maintenanceReceiptsList) return;
     this.maintenanceReceiptsList.showInactive = showInactive;
-    this.maintenanceReceiptsList.applyFilters();
+    this.syncMaintenanceSearchRequests();
+    this.maintenanceReceiptsList.reloadForCurrentScope();
   }
 
   onWorkOrderSelect(selection: WorkOrderSelection): void {
@@ -776,7 +832,8 @@ export class MaintenanceShellComponent implements OnInit, OnDestroy, CanComponen
   onMaintenanceWorkOrderInactiveChange(showInactive: boolean): void {
     if (!this.maintenanceWorkOrderList) return;
     this.maintenanceWorkOrderList.showInactive = showInactive;
-    this.maintenanceWorkOrderList.applyFilters();
+    this.syncMaintenanceSearchRequests();
+    this.maintenanceWorkOrderList.reloadForCurrentScope();
   }
 
   navigateToMaintenanceTabs(tabIndex?: number): void {
@@ -872,6 +929,73 @@ export class MaintenanceShellComponent implements OnInit, OnDestroy, CanComponen
       this.maintenanceSection?.discardUnsavedChanges();
     }
     return true;
+  }
+  //#endregion
+
+  //#region Search scope
+  setDefaultDateRange(): void {
+    const end = new Date();
+    end.setHours(0, 0, 0, 0);
+
+    const start = new Date(end);
+    start.setDate(start.getDate() - 30);
+
+    this.endDate = end;
+    this.startDate = start;
+  }
+
+  syncMaintenanceSearchRequests(): void {
+    const officeIds = this.resolveOfficeIdsForRequest();
+    const propertyId = this.selectedPropertyId;
+    const startDate = this.utilityService.formatDateOnlyForApi(this.startDate);
+    const endDate = this.utilityService.formatDateOnlyForApi(this.endDate);
+    const includeInactive = this.maintenanceReceiptsList?.showInactive
+      ?? this.maintenanceWorkOrderList?.showInactive
+      ?? false;
+
+    this.documentRequest = {
+      officeIds,
+      propertyId,
+      startDate,
+      endDate
+    };
+
+    this.receiptSearchRequest = {
+      officeIds,
+      propertyId,
+      includeInactive: this.maintenanceReceiptsList?.showInactive ?? includeInactive,
+      startDate,
+      endDate
+    };
+
+    this.workOrderSearchRequest = {
+      officeIds,
+      propertyId,
+      includeInactive: this.maintenanceWorkOrderList?.showInactive ?? includeInactive,
+      startDate,
+      endDate
+    };
+  }
+
+  /** When title bar is All Offices (null), send every loaded office id — same as documents-shell. */
+  private resolveOfficeIdsForRequest(): number[] {
+    if (this.selectedOfficeId != null) {
+      return [this.selectedOfficeId];
+    }
+
+    return this.offices.map(office => office.officeId).filter(id => id > 0);
+  }
+
+  reloadMaintenanceSearchLists(): void {
+    if (this.selectedTabIndex === this.receiptsTabIndex && !this.showReceiptDetail) {
+      this.maintenanceReceiptsList?.reloadForCurrentScope();
+    }
+    if (this.showWorkOrdersTab && this.selectedTabIndex === this.workOrdersTabIndex && !this.showWorkOrderDetail) {
+      this.maintenanceWorkOrderList?.reloadForCurrentScope();
+    }
+    if (this.selectedTabIndex === this.documentsTabIndex) {
+      this.maintenanceDocumentList?.reload();
+    }
   }
   //#endregion
 

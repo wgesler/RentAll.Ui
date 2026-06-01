@@ -1,7 +1,8 @@
 import { HttpClient } from '@angular/common/http';
 import { Injectable } from '@angular/core';
-import { Observable } from 'rxjs';
+import { Observable, of } from 'rxjs';
 import { ConfigService } from '../../../services/config.service';
+import { MaintenanceListSearchRequest } from '../models/maintenance-search.model';
 import { WorkOrderRequest, WorkOrderResponse } from '../models/work-order.model';
 
 @Injectable({
@@ -21,6 +22,21 @@ export class WorkOrderService {
     this.controller = this.configService.config().apiUrl + 'maintenance/work-order/';
   }
 
+
+  searchWorkOrders(request: MaintenanceListSearchRequest): Observable<WorkOrderResponse[]> {
+    const officeIds = (request.officeIds ?? []).filter(id => id > 0);
+    if (officeIds.length === 0) {
+      return of([]);
+    }
+
+    return this.http.post<WorkOrderResponse[]>(`${this.controller}search`, {
+      officeIds,
+      propertyId: request.propertyId || null,
+      includeInactive: !!request.includeInactive,
+      startDate: request.startDate ?? null,
+      endDate: request.endDate ?? null
+    });
+  }
 
   getWorkOrders(propertyId?: string | null, officeId?: number | null): Observable<WorkOrderResponse[]> {
     if (propertyId) {

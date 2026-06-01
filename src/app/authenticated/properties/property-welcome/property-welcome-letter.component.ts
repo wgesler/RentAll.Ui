@@ -85,7 +85,7 @@ export class PropertyWelcomeLetterComponent extends BaseDocumentComponent implem
   previewIframeStyles: string = '';
   iframeKey: number = 0;
   isDownloading: boolean = false;
-  debuggingHtml: boolean = environment.local || environment.dev;
+  debuggingHtml: boolean = false; // environment.local || environment.dev;
   isPageReady: boolean = false;
   propertyReservationsLoaded: boolean = false;
   pendingFilterOfficeId: number | null | undefined = undefined;
