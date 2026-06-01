@@ -134,8 +134,10 @@ export class AccountingComponent implements OnInit, OnDestroy {
   }
 
   onInvoiceOfficeChange(officeId: number | null): void {
-   if (this.selectedOfficeId !== officeId) {
+    if (this.selectedOfficeId !== officeId) {
       this.selectedOfficeId = officeId;
+      this.selectedCompanyId = null;
+      this.selectedReservationId = null;
     }
   }
   
@@ -167,6 +169,7 @@ export class AccountingComponent implements OnInit, OnDestroy {
       return;
     }
     const contactId = value == null || value === '' ? null : String(value);
+    this.selectedCompanyId = contactId;
     this.accountingInvoiceList.selectedCompanyContact = contactId
       ? this.accountingInvoiceList.companyContacts.find(company =>
           company.contactId === contactId
@@ -182,17 +185,19 @@ export class AccountingComponent implements OnInit, OnDestroy {
       return;
     }
 
+    const reservationId = value == null || value === '' ? null : String(value);
+
     // During list initialization, the title-bar select can briefly emit null before
-    // reservation options are hydrated. Ignore that transient clear so route state wins.
+    // reservation options are hydrated. Ignore only when parent already has no selection.
     if (
-      (value == null || value === '')
-      && !!this.selectedReservationId
+      !reservationId
+      && !this.selectedReservationId
       && (this.accountingInvoiceList.availableReservations?.length ?? 0) === 0
     ) {
       return;
     }
 
-    const reservationId = value == null || value === '' ? null : String(value);
+    this.selectedReservationId = reservationId;
     this.accountingInvoiceList.selectedReservation = reservationId
       ? this.accountingInvoiceList.availableReservations.find(reservation => reservation.value.reservationId === reservationId)?.value || null
       : null;
@@ -556,7 +561,12 @@ export class AccountingComponent implements OnInit, OnDestroy {
   //#region Form Response Methods
   onShellOfficeDropdownChange(value: string | number | null): void {
     const officeId = value == null || value === '' ? null : Number(value);
+    const officeChanged = this.selectedOfficeId !== officeId;
     this.applyPageOfficeScope(officeId);
+    if (officeChanged) {
+      this.selectedCompanyId = null;
+      this.selectedReservationId = null;
+    }
     if (this.selectedTabIndex === 3) {
       this.selectedReservationId = null;
     }
@@ -617,13 +627,17 @@ export class AccountingComponent implements OnInit, OnDestroy {
   }
 
   applyOfficeFromGlobal(officeId: number | null): void {
+    let resolvedOfficeId: number | null = officeId;
     if (this.offices.length === 1) {
-      this.applyPageOfficeScope(this.offices[0].officeId);
+      resolvedOfficeId = this.offices[0].officeId;
     } else if (this.offices.length > 1) {
-      const resolved = officeId != null && this.offices.some(o => o.officeId === officeId) ? officeId : null;
-      this.applyPageOfficeScope(resolved);
-    } else {
-      this.applyPageOfficeScope(officeId);
+      resolvedOfficeId = officeId != null && this.offices.some(o => o.officeId === officeId) ? officeId : null;
+    }
+    const officeChanged = this.selectedOfficeId !== resolvedOfficeId;
+    this.applyPageOfficeScope(resolvedOfficeId);
+    if (officeChanged) {
+      this.selectedCompanyId = null;
+      this.selectedReservationId = null;
     }
     if (this.selectedTabIndex === 3) {
       this.selectedReservationId = null;

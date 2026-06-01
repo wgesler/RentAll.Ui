@@ -249,7 +249,14 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
                 && (!this.selectedOffice || r.officeId === this.selectedOffice.officeId)
               ) || null
             : null;
-          this.applyFilters();
+          if (this.source === 'accounting') {
+            this.refreshInvoicesForCurrentScope();
+          } else {
+            this.applyFilters();
+          }
+        } else if (this.source === 'accounting' && !newReservationId) {
+          this.selectedReservation = null;
+          this.refreshInvoicesForCurrentScope();
         }
       }
     }
@@ -694,12 +701,12 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
       filtered = filtered.filter(invoice => invoice.reservationId === this.organizationId);
     }
 
-    if (this.selectedOffice && this.source !== 'accounting') {
-      filtered = filtered.filter(invoice => invoice.officeId === this.selectedOffice.officeId);
+    if (this.selectedOffice) {
+      filtered = filtered.filter(invoice => invoice.officeId === this.selectedOffice!.officeId);
     }
 
-    if (this.selectedReservation && this.source !== 'accounting') {
-      filtered = filtered.filter(invoice => invoice.reservationId === this.selectedReservation.reservationId);
+    if (this.selectedReservation) {
+      filtered = filtered.filter(invoice => invoice.reservationId === this.selectedReservation!.reservationId);
     }
 
     if (this.source === 'accounting' && this.selectedCompanyContact) {
@@ -1723,12 +1730,24 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
   }
 
   resolveOfficeScope(officeId: number | null, emitChange: boolean): void {
+    const previousOfficeId = this.selectedOffice?.officeId ?? null;
     this.selectedOffice = this.utilityService.resolveSelectedOfficeById(this.offices, officeId);
+    const nextOfficeId = this.selectedOffice?.officeId ?? null;
+    const officeChanged = previousOfficeId !== nextOfficeId;
+
     this.officeScopeResolved = true;
     this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'officeScope');
     if (emitChange) {
-      this.officeIdChange.emit(this.selectedOffice?.officeId ?? null);
+      this.officeIdChange.emit(nextOfficeId);
     }
+
+    if (officeChanged && this.source === 'accounting') {
+      this.selectedCompanyContact = null;
+      this.selectedReservation = null;
+      this.companyIdChange.emit(null);
+      this.reservationIdChange.emit(null);
+    }
+
     this.filterCompanyContacts();
     this.filterReservations();
     this.filterCostCodes();

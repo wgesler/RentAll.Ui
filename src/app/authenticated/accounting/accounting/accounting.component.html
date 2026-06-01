@@ -112,7 +112,7 @@
             <app-title-bar-select
               [label]="'Companies'"
               [formFieldClass]="'titlebar-field-company'"
-              [value]="accountingInvoiceList.selectedCompanyContact?.contactId ?? null"
+              [value]="selectedCompanyId"
               [options]="getAccountingCompanyOptions(accountingInvoiceList.companyContacts, accountingInvoiceList.selectedOffice?.officeId ?? null)"
               [nullOptionLabel]="'All Companies'"
               [noResultsText]="'No companies match your search'"
