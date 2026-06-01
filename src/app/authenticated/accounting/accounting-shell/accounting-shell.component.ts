@@ -154,55 +154,16 @@ export class AccountingShellComponent implements OnInit, OnDestroy {
     }
   }
 
-  onAccountingInvoiceOfficeDropdownChange(value: string | number | null): void {
-    if (!this.accountingInvoiceList) {
-      return;
-    }
-    const officeId = value == null || value === '' ? null : Number(value);
-    this.accountingInvoiceList.selectedOffice = officeId == null
-      ? null
-      : this.accountingInvoiceList.offices.find(office => office.officeId === officeId) || null;
-    this.accountingInvoiceList.onOfficeChange();
-  }
-
   onAccountingInvoiceCompanyDropdownChange(value: string | number | null): void {
-    if (!this.accountingInvoiceList) {
-      return;
-    }
-    const contactId = value == null || value === '' ? null : String(value);
-    this.selectedCompanyId = contactId;
-    this.accountingInvoiceList.selectedCompanyContact = contactId
-      ? this.accountingInvoiceList.companyContacts.find(company =>
-          company.contactId === contactId
-          && (!this.accountingInvoiceList?.selectedOffice || company.officeId === this.accountingInvoiceList.selectedOffice.officeId)
-          && !!company.isActive
-        ) || null
-      : null;
-    this.accountingInvoiceList.onCompanyChange();
+    this.selectedCompanyId = value == null || value === '' ? null : String(value);
   }
 
   onAccountingInvoiceReservationDropdownChange(value: string | number | null): void {
-    if (!this.accountingInvoiceList) {
-      return;
-    }
-
     const reservationId = value == null || value === '' ? null : String(value);
-
-    // During list initialization, the title-bar select can briefly emit null before
-    // reservation options are hydrated. Ignore only when parent already has no selection.
-    if (
-      !reservationId
-      && !this.selectedReservationId
-      && (this.accountingInvoiceList.availableReservations?.length ?? 0) === 0
-    ) {
+    if (!reservationId && !this.selectedReservationId) {
       return;
     }
-
     this.selectedReservationId = reservationId;
-    this.accountingInvoiceList.selectedReservation = reservationId
-      ? this.accountingInvoiceList.availableReservations.find(reservation => reservation.value.reservationId === reservationId)?.value || null
-      : null;
-    this.accountingInvoiceList.onReservationChange();
   }
 
   onAccountingInvoiceEditorOfficeDropdownChange(value: string | number | null): void {
@@ -228,17 +189,6 @@ export class AccountingShellComponent implements OnInit, OnDestroy {
      }
   }
    
-  onAccountingCostCodesOfficeDropdownChange(value: string | number | null): void {
-    if (!this.accountingCostCodes) {
-      return;
-    }
-    const officeId = value == null || value === '' ? null : Number(value);
-    this.accountingCostCodes.selectedOffice = officeId == null
-      ? null
-      : this.accountingCostCodes.offices.find(office => office.officeId === officeId) || null;
-    this.accountingCostCodes.onOfficeChange();
-  }
-  
   //#endregion
 
   //#region General Ledger Drop Downs
@@ -272,35 +222,12 @@ export class AccountingShellComponent implements OnInit, OnDestroy {
     }
   }
 
-  onAccountingGeneralLedgerOfficeDropdownChange(value: string | number | null): void {
-    if (!this.accountingGeneralLedger) {
-      return;
-    }
-    this.accountingGeneralLedger.selectedOfficeId = value == null || value === '' ? null : Number(value);
-    this.accountingGeneralLedger.onOfficeChange();
-  }
-
   onAccountingGeneralLedgerCompanyDropdownChange(value: string | number | null): void {
-    if (!this.accountingGeneralLedger) {
-      return;
-    }
-    const contactId = value == null || value === '' ? null : String(value);
-    this.accountingGeneralLedger.selectedCompanyContact = contactId
-      ? this.accountingGeneralLedger.companyContacts.find(company =>
-          company.contactId === contactId
-          && (this.accountingGeneralLedger?.selectedOfficeId == null || company.officeId === this.accountingGeneralLedger.selectedOfficeId)
-          && !!company.isActive
-        ) || null
-      : null;
-    this.accountingGeneralLedger.onCompanyChange();
+    this.selectedCompanyId = value == null || value === '' ? null : String(value);
   }
 
   onAccountingGeneralLedgerReservationDropdownChange(value: string | number | null): void {
-    if (!this.accountingGeneralLedger) {
-      return;
-    }
-    this.accountingGeneralLedger.selectedReservationId = value == null || value === '' ? null : String(value);
-    this.accountingGeneralLedger.onReservationChange();
+    this.selectedReservationId = value == null || value === '' ? null : String(value);
   }
  //#endregion
 
@@ -328,37 +255,14 @@ export class AccountingShellComponent implements OnInit, OnDestroy {
     }
   }
  
-  onAccountingDocumentOfficeDropdownChange(value: string | number | null): void {
-    if (!this.accountingDocumentList) {
-      return;
-    }
-    this.accountingDocumentList.selectedOfficeId = value == null || value === '' ? null : Number(value);
-    this.accountingDocumentList.onOfficeChange();
-  }
-
   onAccountingDocumentCompanyDropdownChange(value: string | number | null): void {
-    if (!this.accountingDocumentList) {
-      return;
-    }
-    const contactId = value == null || value === '' ? null : String(value);
-    this.accountingDocumentList.selectedCompany = contactId
-      ? this.accountingDocumentList.companies.find(company =>
-          company.contactId === contactId
-          && (this.accountingDocumentList?.selectedOfficeId == null || company.officeId === this.accountingDocumentList.selectedOfficeId)
-          && !!company.isActive
-        ) || null
-      : null;
-    this.accountingDocumentList.onCompanyChange();
+    this.selectedCompanyId = value == null || value === '' ? null : String(value);
   }
 
   onAccountingDocumentReservationDropdownChange(value: string | number | null): void {
-    if (!this.accountingDocumentList) {
-      return;
-    }
-    this.accountingDocumentList.selectedReservationId = value == null || value === '' ? null : String(value);
-    this.accountingDocumentList.onReservationChange();
+    this.selectedReservationId = value == null || value === '' ? null : String(value);
   }
-    
+
   syncDocumentRequest(): void {
     this.documentRequest = {
       officeIds: this.resolveOfficeIdsForDocumentRequest(),
@@ -385,7 +289,7 @@ export class AccountingShellComponent implements OnInit, OnDestroy {
   //#region Tab Selections
   onTabChange(event: any): void {
     this.selectedTabIndex = event.index;
-    this.propagateOfficeToAccountingTabs();
+    this.applyShellStateToActiveTab();
     this.costCodesService.ensureCostCodesLoaded();
     this.router.navigate([], { 
       relativeTo: this.route,
@@ -424,7 +328,9 @@ export class AccountingShellComponent implements OnInit, OnDestroy {
 
     this.syncDocumentRequest();
     this.syncInvoiceSearchDateRange();
-    this.reloadDateFilteredTabs();
+    if (this.selectedTabIndex === 3) {
+      queueMicrotask(() => this.accountingDocumentList?.reload());
+    }
     this.router.navigate([], {
       relativeTo: this.route,
       queryParams: this.buildShellQueryParams(),
@@ -571,7 +477,6 @@ export class AccountingShellComponent implements OnInit, OnDestroy {
     if (this.selectedTabIndex === 3) {
       this.selectedReservationId = null;
     }
-    this.propagateOfficeToAccountingTabs();
   }
 
   onAccountingOrganizationDropdownChange(value: string | number | null): void {
@@ -593,7 +498,6 @@ export class AccountingShellComponent implements OnInit, OnDestroy {
 
     if ('officeId' in params) {
       this.applyPageOfficeScope(getNumberQueryParam(params, 'officeId'));
-      this.propagateOfficeToAccountingTabs();
     }
 
     if ('reservationId' in params) {
@@ -619,11 +523,17 @@ export class AccountingShellComponent implements OnInit, OnDestroy {
       this.normalizeDateRangeValues();
       this.syncDocumentRequest();
       this.syncInvoiceSearchDateRange();
-      this.reloadDateFilteredTabs();
+      if (this.selectedTabIndex === 3) {
+        queueMicrotask(() => this.accountingDocumentList?.reload());
+      }
     } else if (!this.startDate && !this.endDate) {
       this.setDefaultDateRange();
       this.syncDocumentRequest();
       this.syncInvoiceSearchDateRange();
+    }
+
+    if (this.selectedTabIndex !== 0 || 'tab' in params) {
+      queueMicrotask(() => this.applyShellStateToActiveTab());
     }
   }
 
@@ -643,21 +553,32 @@ export class AccountingShellComponent implements OnInit, OnDestroy {
     if (this.selectedTabIndex === 3) {
       this.selectedReservationId = null;
     }
-    this.propagateOfficeToAccountingTabs();
   }
 
   applyPageOfficeScope(officeId: number | null): void {
     this.selectedOfficeId = officeId;
   }
 
-  propagateOfficeToAccountingTabs(): void {
-    this.syncDocumentRequest();
+  /** Push current title-bar state to the selected tab only (invoice list uses @Input bindings). */
+  applyShellStateToActiveTab(): void {
+    if (this.activeInvoiceId) {
+      return;
+    }
+
     queueMicrotask(() => {
-      this.accountingInvoiceList?.onTitleBarOfficeIdUpdate(this.selectedOfficeId);
-      this.accountingCostCodes?.onTitleBarOfficeIdUpdate(this.selectedOfficeId);
-      this.accountingGeneralLedger?.onTitleBarOfficeIdUpdate(this.selectedOfficeId);
-      this.accountingDocumentList?.onTitleBarOfficeIdUpdate(this.selectedOfficeId);
-      this.reloadDateFilteredTabs();
+      switch (this.selectedTabIndex) {
+        case 1:
+          this.accountingCostCodes?.onTitleBarOfficeIdUpdate(this.selectedOfficeId);
+          break;
+        case 2:
+          this.accountingGeneralLedger?.onTitleBarOfficeIdUpdate(this.selectedOfficeId);
+          break;
+        case 3:
+          this.syncDocumentRequest();
+          this.accountingDocumentList?.onTitleBarOfficeIdUpdate(this.selectedOfficeId);
+          this.accountingDocumentList?.reload();
+          break;
+      }
     });
   }
 
@@ -700,12 +621,6 @@ export class AccountingShellComponent implements OnInit, OnDestroy {
       this.startDate = this.endDate;
       this.endDate = tmp;
     }
-  }
-
-  reloadDateFilteredTabs(): void {
-    queueMicrotask(() => {
-      this.accountingDocumentList?.reload();
-    });
   }
 
   buildShellQueryParams(overrides: Record<string, string | null> = {}): Record<string, string | null> {
@@ -784,7 +699,6 @@ export class AccountingShellComponent implements OnInit, OnDestroy {
                 this.selectedOfficeId ?? this.globalSelectionService.getSelectedOfficeIdValue()
               );
             }
-            this.propagateOfficeToAccountingTabs();
             this.syncDocumentRequest();
           }
         });

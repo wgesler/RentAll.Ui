@@ -44,111 +44,6 @@
 
 @if (isPageReady) {
   <div class="mat list-layout-standard">
-      @if (source === null) {
-        <div class="list-top-controls list-top-controls--standard flex justify-between items-center gap-3 mt-4 px-4">
-          @if (!hideFilters) {
-            <div class="header-title form-titlebar-fields-wrap">
-              @if (showOfficeDropdown) {
-                <mat-form-field appearance="outline" class="titlebar-field-office">
-                  <mat-label>{{ selectedOffice ? 'Office' : 'All Offices' }}</mat-label>
-                  <mat-select [(ngModel)]="selectedOffice" (selectionChange)="onOfficeChange()" [disabled]="source === 'reservation'" placeholder="All Offices">
-                    <mat-option [value]="null">All Offices</mat-option>
-                    @for (office of offices; track office.officeId) {
-                      <mat-option [value]="office">{{ office.name }}</mat-option>
-                    }
-                  </mat-select>
-                </mat-form-field>
-              }
-              <mat-form-field appearance="outline" class="titlebar-field-reservation">
-                <mat-label>Reservation</mat-label>
-                <mat-select [(ngModel)]="selectedReservation" (selectionChange)="onReservationChange()" [compareWith]="compareReservationById" [canSelectNullableOptions]="true">
-                  <mat-option [value]="null">Select Reservation</mat-option>
-                  @for (reservation of availableReservations; track reservation.value.reservationId) {
-                    <mat-option [value]="reservation.value">{{ reservation.label }}</mat-option>
-                  }
-                </mat-select>
-              </mat-form-field>
-            </div>
-          }
-          <div class="form-titlebar-actions-wrap payment-actions-anchor">
-            <mat-slide-toggle id="toggle-invoices" [checked]="showInactive" color="primary" (change)="onInactiveToggleChange($event)" class="whitespace-nowrap">
-              InActive
-            </mat-slide-toggle>
-            @if (canShowApplyPaymentButton) {
-              <button mat-raised-button type="button" color="accent" id="apply-payment-button" (click)="openApplyPaymentDialog()" class="whitespace-nowrap items-center flex gap-1">
-                Apply Payment
-              </button>
-            }
-            <button mat-raised-button type="button" color="accent" id="export-invoice-button" (click)="exportInvoicesToIif()" class="whitespace-nowrap items-center flex gap-1">
-              <mat-icon class="text-base">download</mat-icon>
-              <span>Export</span>
-            </button>
-            <button mat-raised-button type="button" color="primary" id="add-invoice-button" (click)="addInvoice()" class="whitespace-nowrap items-center flex gap-1">
-              <mat-icon class="text-base">add</mat-icon>
-              <span>Add</span>
-            </button>
-
-            @if (showPaymentForm) {
-              <div class="payment-dialog-overlay">
-                <div class="payment-form-box" style="font-size: 11px !important;">
-                  <div class="flex gap-2 items-center payment-inline-row">
-                    <mat-form-field appearance="outline" class="payment-date-field" style="font-size: 11px !important;">
-                      <mat-label style="font-size: 11px !important;">Date</mat-label>
-                      <input matInput [matDatepicker]="paymentDatePickerTop" [(ngModel)]="paymentDate" style="font-size: 11px !important;">
-                      <mat-datepicker-toggle matIconSuffix [for]="paymentDatePickerTop"></mat-datepicker-toggle>
-                      <mat-datepicker #paymentDatePickerTop></mat-datepicker>
-                    </mat-form-field>
-                    <mat-form-field appearance="outline" class="payment-cost-code-dropdown" style="font-size: 11px !important;">
-                      <mat-label style="font-size: 11px !important;">Cost Center</mat-label>
-                      <mat-select [(ngModel)]="selectedPaymentCostCodeId" (selectionChange)="onPaymentCostCodeChange($event.value)" [disabled]="!selectedOffice" style="font-size: 11px !important;">
-                        <mat-option [value]="null" style="font-size: 11px !important;">Select Cost Code</mat-option>
-                        @for (costCode of creditCostCodes; track costCode.value) {
-                          <mat-option [value]="costCode.value" style="font-size: 11px !important;">{{ costCode.label }}</mat-option>
-                        }
-                      </mat-select>
-                    </mat-form-field>
-                    <mat-form-field appearance="outline" class="payment-type-field" style="font-size: 11px !important;">
-                      <mat-label style="font-size: 11px !important;">Type</mat-label>
-                      <input matInput [value]="paymentTransactionType" readonly style="font-size: 11px !important;">
-                    </mat-form-field>
-                    <mat-form-field appearance="outline" class="payment-description-field" style="font-size: 11px !important;">
-                      <mat-label style="font-size: 11px !important;">Description</mat-label>
-                      <input matInput [(ngModel)]="paymentDescription" placeholder="Enter description" style="font-size: 11px !important;">
-                    </mat-form-field>
-                    <mat-form-field appearance="outline" class="payment-amount-field" style="font-size: 11px !important;">
-                      <mat-label style="font-size: 11px !important;">Amount</mat-label>
-                      <input matInput
-                        type="text"
-                        [value]="paymentAmountDisplay"
-                        (input)="onPaymentAmountInput($event)"
-                        (focus)="onPaymentAmountFocus($event)"
-                        (blur)="onPaymentAmountBlur($event)"
-                        (keydown.enter)="onPaymentAmountEnter($event)"
-                        placeholder="0.00"
-                        style="font-size: 11px !important;">
-                    </mat-form-field>
-                    @if (isManualApplyMode) {
-                      <mat-form-field appearance="outline" class="payment-remaining-field" style="font-size: 11px !important;">
-                        <mat-label style="font-size: 11px !important;">Remaining</mat-label>
-                        <input matInput [value]="remainingAmountDisplay" readonly
-                               [style.color]="hasNegativeRemainingAmount() ? '#d32f2f' : 'inherit'"
-                               style="font-size: 11px !important; text-align: right;">
-                      </mat-form-field>
-                    }
-                  </div>
-                </div>
-                <button mat-raised-button type="button" color="primary" (click)="submitPayment()" [disabled]="!isPaymentFormValid || isSubmittingPayment" class="whitespace-nowrap items-center flex gap-1">
-                  Submit
-                </button>
-                <button mat-raised-button type="button" color="accent" (click)="cancelPaymentForm()" class="whitespace-nowrap items-center flex gap-1">
-                  Cancel
-                </button>
-              </div>
-            }
-          </div>
-        </div>
-      }
-      <!-- Filter and data table below -->
       <div class="tableDiv">
         <app-data-table
           [data]="invoicesDisplay"
@@ -187,7 +82,6 @@
           (reservationCodeClickEvent)="goToReservation($event)"
           (payableEvent)="onPayable($event)"
           (printEvent)="printInvoice($event)">
-        @if (source === 'accounting' || source === 'reservation') {
           <div dataTableFilterActions>
             <div class="table-filter-actions-group form-titlebar-actions-wrap uniform-gap payment-actions-anchor">
               <mat-slide-toggle id="toggle-invoices" [checked]="showInactive" color="primary" (change)="onInactiveToggleChange($event)" class="whitespace-nowrap">
@@ -270,7 +164,6 @@
               }
             </div>
           </div>
-        }
         </app-data-table>
       </div>
     </div>

@@ -53,7 +53,7 @@ export class AlertListComponent implements OnInit, OnChanges, OnDestroy {
   alertsById = new Map<string, AlertResponse>();
   isPageReady = false;
   isServiceError = false;
-  itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['alerts', 'offices', 'contacts', 'officeScope', 'reservations']));
+  itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['alerts', 'contacts', 'reservations']));
   showInactive = false;
 
   offices: OfficeResponse[] = [];
@@ -61,7 +61,6 @@ export class AlertListComponent implements OnInit, OnChanges, OnDestroy {
   availableReservations: { value: ReservationCodeResponse; label: string }[] = [];
   selectedReservationId: string | null = null;
   showOfficeDropdown = false;
-  officeScopeResolved = false;
   destroy$ = new Subject<void>();
   contacts: ContactResponse[] = [];
 
@@ -227,30 +226,10 @@ export class AlertListComponent implements OnInit, OnChanges, OnDestroy {
 
   loadOffices(): void {
     if (this.source === 'alerts') {
-      this.officeService.ensureOfficesLoaded(this.organizationId || '').pipe(take(1), finalize(() => {
-        this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'offices');
-      })).subscribe({
-        next: () => {
-          this.officeService.getAllOffices().pipe(takeUntil(this.destroy$)).subscribe(offices => {
-            this.offices = offices || [];
-            this.allAlerts = this.mappingService.mapAlertOfficeNames(this.allAlerts, this.offices);
-            this.applyAlertsRouteOfficeScope();
-            this.markViewForCheck();
-          });
-        },
-        error: () => {
-          this.offices = [];
-          this.showOfficeDropdown = false;
-          this.resolveOfficeScope(null, false);
-          this.markViewForCheck();
-        }
-      });
       return;
     }
 
-    this.globalSelectionService.ensureOfficeScope(this.organizationId || '').pipe(take(1), finalize(() => {
-      this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'offices');
-    })).subscribe({
+    this.globalSelectionService.ensureOfficeScope(this.organizationId || '').pipe(take(1)).subscribe({
       next: () => {
         this.officeService.getAllOffices().pipe(takeUntil(this.destroy$)).subscribe(offices => {
           this.offices = offices || [];
@@ -325,10 +304,6 @@ export class AlertListComponent implements OnInit, OnChanges, OnDestroy {
   }
 
   refreshAlertsForCurrentScope(): void {
-    if (!this.officeScopeResolved) {
-      return;
-    }
-
     const range = this.getEffectiveAlertSearchDateRange();
     if (!range?.startDate || !range?.endDate) {
       return;
@@ -440,9 +415,6 @@ export class AlertListComponent implements OnInit, OnChanges, OnDestroy {
   }
   
   applyFilters(): void {
-    if (!this.officeScopeResolved) {
-      return;
-    }
     let filtered = [...this.allAlerts];
     if (!this.showInactive) {
       filtered = filtered.filter(alert => alert.isActive);
@@ -590,9 +562,9 @@ export class AlertListComponent implements OnInit, OnChanges, OnDestroy {
   }
 
   resolveOfficeScope(officeId: number | null, emitChange: boolean): void {
-    this.selectedOfficeId = this.utilityService.resolveSelectedOfficeById(this.offices, officeId)?.officeId ?? officeId ?? null;
-    this.officeScopeResolved = true;
-    this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'officeScope');
+    this.selectedOfficeId = this.offices.length > 0
+      ? this.utilityService.resolveSelectedOfficeById(this.offices, officeId)?.officeId ?? officeId ?? null
+      : officeId ?? null;
     if (emitChange) {
       this.officeIdChange.emit(this.selectedOfficeId);
     }
@@ -625,7 +597,11 @@ export class AlertListComponent implements OnInit, OnChanges, OnDestroy {
     if (scopedOfficeId != null) {
       return [scopedOfficeId];
     }
-    return (this.offices || []).map(office => office.officeId).filter(id => id > 0);
+    const fromOffices = (this.offices || []).map(office => office.officeId).filter(id => id > 0);
+    if (fromOffices.length > 0) {
+      return fromOffices;
+    }
+    return [...new Set((this.reservations || []).map(reservation => reservation.officeId).filter(id => id > 0))];
   }
 
   buildAlertSearchRequest(officeIds: number[]): AlertGetRequest {

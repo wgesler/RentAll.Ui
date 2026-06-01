@@ -2,9 +2,9 @@ import { CommonModule } from "@angular/common";
 import { HttpErrorResponse } from '@angular/common/http';
 import { ChangeDetectionStrategy, ChangeDetectorRef, Component, EventEmitter, Input, NgZone, OnChanges, OnDestroy, OnInit, Output, SimpleChanges, TemplateRef, ViewChild } from '@angular/core';
 import { FormsModule } from '@angular/forms';
-import { ActivatedRoute, Router } from '@angular/router';
+import { Router } from '@angular/router';
 import { ToastrService } from 'ngx-toastr';
-import {BehaviorSubject, Subject, concatMap, filter, finalize, from, map, skip, take, takeUntil, toArray} from 'rxjs';
+import {BehaviorSubject, Subject, concatMap, filter, finalize, from, map, take, takeUntil, toArray} from 'rxjs';
 import { RouterUrl } from '../../../app.routes';
 import { CommonMessage } from '../../../enums/common-message.enum';
 import { MatSlideToggleChange } from '@angular/material/slide-toggle';
@@ -16,7 +16,6 @@ import { UtilityService } from '../../../services/utility.service';
 import { ContactResponse } from '../../contacts/models/contact.model';
 import { ContactService } from '../../contacts/services/contact.service';
 import { OfficeResponse } from '../../organizations/models/office.model';
-import { GlobalSelectionService } from '../../organizations/services/global-selection.service';
 import { OfficeService } from '../../organizations/services/office.service';
 import { ReservationListResponse } from '../../reservations/models/reservation-model';
 import { ReservationService } from '../../reservations/services/reservation.service';
@@ -43,8 +42,7 @@ import { InvoiceIifExportService } from '../services/invoice-iif-export.service'
 
 export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
   @ViewChild('ledgerLinesTemplate') ledgerLinesTemplate: TemplateRef<any>;
-  @Input() hideFilters: boolean = false;
-  @Input() source: 'reservation' | 'accounting' | null = null; // Track where we came from for back button navigation
+  @Input({ required: true }) source: 'reservation' | 'accounting';
   @Input() organizationId: string | null = null; // Input to accept organizationId from parent
   @Input() organizationName: string | null = null; // Selected organization display name for SuperAdmin recipient column
   @Input() organizationOptions: { value: string, label: string }[] = []; // SuperAdmin org lookup for recipient display
@@ -72,7 +70,6 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
   offices: OfficeResponse[] = [];
   availableOffices: { value: number, name: string }[] = [];
   selectedOffice: OfficeResponse | null = null;
-  showOfficeDropdown: boolean = false;
   isSuperUser: boolean = false;
   officeScopeResolved: boolean = false;
 
@@ -130,20 +127,20 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
     description: { displayAs: 'Description', maxWidth: '15ch', wrap: true },
     amount: { displayAs: 'Amount', maxWidth: '15ch', wrap: false, alignment: 'right'}
   };
+  lastInvoiceSearchKey: string | null = null;
+  invoiceSearchInFlightKey: string | null = null;
 
   isPageReady = false;
-  itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['offices', 'reservations', 'invoices', 'officeScope']));
+  itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['reservations', 'invoices']));
   destroy$ = new Subject<void>();
 
   constructor(
     public accountingService: InvoiceService,
     public toastr: ToastrService,
     public router: Router,
-    public route: ActivatedRoute,
     public mappingService: MappingService,
     private costCodesService: CostCodesService,
     private officeService: OfficeService,
-    private globalSelectionService: GlobalSelectionService,
     private reservationService: ReservationService,
     private propertyService: PropertyService,
     private contactService: ContactService,
@@ -165,56 +162,8 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
     this.isSuperUser = this.authService.hasRole(UserGroups.SuperAdmin);
     this.loadOffices();
     this.loadReservations();
-
-    this.globalSelectionService.getSelectedOfficeId$().pipe(skip(1), takeUntil(this.destroy$)).subscribe(officeId => {
-      if (this.offices.length > 0) {
-        this.resolveOfficeScope(officeId, true);
-      }
-      this.markViewForCheck();
-    });
     this.loadCompanyContacts();
     this.loadCostCodes();
-    
-    // Wait for offices to load before processing query params
-    this.officeService.areOfficesLoaded().pipe(filter(loaded => loaded === true), take(1)).subscribe(() => {
-      if (this.officeId !== null && this.offices.length > 0) {
-        this.resolveOfficeScope(this.officeId, false);
-      }
-      
-      if (!this.useRouteQueryParams) {
-        this.markViewForCheck();
-        return;
-      }
-
-      this.route.queryParams.pipe(takeUntil(this.destroy$)).subscribe(params => {
-        const officeIdParam = params['officeId'];
-        const companyIdParam = params['companyId'];
-        
-        if (officeIdParam) {
-          const parsedOfficeId = parseInt(officeIdParam, 10);
-          if (parsedOfficeId) {
-            this.resolveOfficeScope(parsedOfficeId, true);
-          }
-        } else {
-          if (this.officeId === null || this.officeId === undefined) {
-            const defaultOfficeId = this.source === 'accounting' ? null : this.globalSelectionService.getSelectedOfficeIdValue();
-            this.resolveOfficeScope(defaultOfficeId, true);
-          }
-        }
-        
-        // Handle companyId (contactId) even if officeId is not in params
-        if (companyIdParam && this.companyContacts.length > 0 && this.selectedOffice) {
-          const matching = this.companyContacts.find(c =>
-            c.contactId === companyIdParam && this.contactHasOfficeAccess(c, this.selectedOffice?.officeId ?? null)
-          );
-          if (matching && matching !== this.selectedCompanyContact) {
-            this.selectedCompanyContact = matching;
-            this.applyFilters();
-          }
-        }
-        this.markViewForCheck();
-      });
-    });
   }
 
   ngOnChanges(changes: SimpleChanges): void {
@@ -238,25 +187,10 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
       const newReservationId = changes['reservationId'].currentValue;
       const previousReservationId = changes['reservationId'].previousValue;
       
-      // Update if the value changed (including initial load when previousReservationId is undefined)
       if (previousReservationId === undefined || newReservationId !== previousReservationId) {
-        // Always try to set reservation, even if reservations haven't loaded yet
-        // filterReservations() will handle it when reservations are loaded
-        if (this.reservations.length > 0) {
-          this.selectedReservation = newReservationId 
-            ? this.reservations.find(r =>
-                r.reservationId === newReservationId
-                && (!this.selectedOffice || r.officeId === this.selectedOffice.officeId)
-              ) || null
-            : null;
-          if (this.source === 'accounting') {
-            this.refreshInvoicesForCurrentScope();
-          } else {
-            this.applyFilters();
-          }
-        } else if (this.source === 'accounting' && !newReservationId) {
-          this.selectedReservation = null;
-          this.refreshInvoicesForCurrentScope();
+        this.syncSelectedReservationFromInput(newReservationId);
+        if (this.officeScopeResolved) {
+          this.loadInvoicesForCurrentSearchCriteria();
         }
       }
     }
@@ -308,14 +242,20 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
       }
     }
 
-    if (this.source === 'accounting' && changes['invoiceSearchDateRange'] && !changes['invoiceSearchDateRange'].firstChange) {
-      this.refreshInvoicesForCurrentScope();
+    if (changes['invoiceSearchDateRange'] && !changes['invoiceSearchDateRange'].firstChange && this.officeScopeResolved) {
+      this.loadInvoicesForCurrentSearchCriteria();
     }
   }
 
-  getInvoices(): void {
+  loadInvoicesForCurrentSearchCriteria(force: boolean = false): void {
+    if (!this.officeScopeResolved) {
+      return;
+    }
+
     const officeIds = this.resolveOfficeIdsForSearch();
     if (officeIds.length === 0) {
+      this.lastInvoiceSearchKey = null;
+      this.invoiceSearchInFlightKey = null;
       this.allInvoices = [];
       this.invoicesDisplay = [];
       this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'invoices');
@@ -323,10 +263,21 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
       return;
     }
 
+    const searchKey = this.buildInvoiceSearchKey(officeIds);
+    if (!force && (searchKey === this.lastInvoiceSearchKey || searchKey === this.invoiceSearchInFlightKey)) {
+      return;
+    }
+
+    this.invoiceSearchInFlightKey = searchKey;
+    this.utilityService.addLoadItem(this.itemsToLoad$, 'invoices');
     this.accountingService.searchInvoices(this.buildInvoiceSearchRequest(officeIds)).pipe(take(1), finalize(() => {
       this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'invoices');
+      if (this.invoiceSearchInFlightKey === searchKey) {
+        this.invoiceSearchInFlightKey = null;
+      }
     })).subscribe({
       next: (invoices) => {
+        this.lastInvoiceSearchKey = searchKey;
         this.allInvoices = invoices || [];
         this.applyFilters();
         this.markViewForCheck();
@@ -338,6 +289,32 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
         this.markViewForCheck();
       }
     });
+  }
+
+  buildInvoiceSearchKey(officeIds: number[]): string {
+    const request = this.buildInvoiceSearchRequest(officeIds);
+    return JSON.stringify({
+      officeIds: [...officeIds].sort((a, b) => a - b),
+      reservationId: request.reservationId ?? null,
+      startDate: request.startDate ?? null,
+      endDate: request.endDate ?? null,
+      includeInactive: request.includeInactive,
+      includePaid: request.includePaid
+    });
+  }
+
+  syncSelectedReservationFromInput(reservationId: string | null | undefined): void {
+    this.selectedReservation = reservationId
+      ? this.reservations.find(r =>
+          r.reservationId === reservationId
+          && (!this.selectedOffice || r.officeId === this.selectedOffice.officeId)
+        ) || null
+      : null;
+    this.filterReservations();
+  }
+
+  getInvoices(): void {
+    this.loadInvoicesForCurrentSearchCriteria(true);
   }
 
   addInvoice(): void {
@@ -483,7 +460,7 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
     this.accountingService.deleteInvoice(invoice.invoiceId).pipe(take(1)).subscribe({
       next: () => {
         this.toastr.success('Invoice deleted successfully', CommonMessage.Success);
-        this.refreshInvoicesForCurrentScope();
+        this.loadInvoicesForCurrentSearchCriteria(true);
       },
       error: () => {
         this.markViewForCheck();
@@ -968,7 +945,7 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
   //#region Data Load Items
   loadOffices(): void {
     const organizationId = this.authService.getUser()?.organizationId?.trim() ?? '';
-    this.officeService.ensureOfficesLoaded(organizationId).pipe(take(1), finalize(() => { this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'offices'); })).subscribe(() => {
+    this.officeService.ensureOfficesLoaded(organizationId).pipe(take(1)).subscribe(() => {
       this.officeService.getAllOffices().pipe(takeUntil(this.destroy$)).subscribe(allOffices => {
         this.offices = allOffices || [];
         this.availableOffices = this.mappingService.mapOfficesToDropdown(this.offices);
@@ -978,7 +955,6 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
         if (!this.offices.length) {
           this.selectedOffice = null;
           this.officeScopeResolved = true;
-          this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'officeScope');
           this.selectedReservation = null;
           this.selectedCompanyContact = null;
           this.availableReservations = [];
@@ -988,12 +964,8 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
           this.markViewForCheck();
           return;
         }
-        
-        this.showOfficeDropdown = !(this.offices.length === 1 && this.source !== 'accounting');
-        const defaultOfficeId = this.officeId
-          ?? (this.source === 'accounting'
-            ? null
-            : (this.offices.length === 1 ? this.offices[0].officeId : this.globalSelectionService.getSelectedOfficeIdValue()));
+
+        const defaultOfficeId = this.officeId ?? null;
         this.resolveOfficeScope(defaultOfficeId, this.officeId === null || this.officeId === undefined);
         this.markViewForCheck();
       });
@@ -1076,17 +1048,6 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
   //#endregion
 
   //#region Form Response Methods
-  onTitleBarOfficeIdUpdate(officeId: number | null): void {
-    this.resolveOfficeScope(officeId, false);
-  }
-
-  onOfficeChange(): void {
-    if (this.source !== 'accounting') {
-      this.globalSelectionService.setSelectedOfficeId(this.selectedOffice?.officeId ?? null);
-    }
-    this.resolveOfficeScope(this.selectedOffice?.officeId ?? null, true);
-  }
-
   onCompanyChange(): void {
     this.companyIdChange.emit(this.selectedCompanyContact?.contactId || null);
 
@@ -1110,11 +1071,7 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
     const scrollContainer = document.querySelector('.tableDiv') || document.querySelector('.mat');
     const scrollTop = scrollContainer ? (scrollContainer as HTMLElement).scrollTop : window.pageYOffset;
 
-    if (this.source === 'accounting') {
-      this.refreshInvoicesForCurrentScope();
-    } else {
-      this.applyFilters();
-    }
+    this.loadInvoicesForCurrentSearchCriteria();
     
     // Restore scroll position after Angular change detection completes
     this.zone.onStable.pipe(take(1)).subscribe(() => {
@@ -1153,21 +1110,14 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
     return hasReservationOrCompanySelection && this.invoicesDisplay.length > 0;
   }
 
-  get useRouteQueryParams(): boolean {
-    // When embedded in parent tabs, parent inputs are the source of truth.
-    // Keep Accounting defaults at All* and avoid route-driven preselection.
-    return this.source !== 'reservation' && this.source !== 'accounting';
-  }
-
   get isPaymentFormValid(): boolean {
     const hasPaymentDate = this.utilityService.toDateOnlyJsonString(this.paymentDate) !== null;
     const baseValid = hasPaymentDate && !!this.selectedPaymentCostCodeId && this.paymentAmount !== 0;
-    
-    // In manual apply mode, also require that remaining amount equals 0
+
     if (this.isManualApplyMode) {
       return baseValid && this.isRemainingAmountZero();
     }
-    
+
     return baseValid;
   }
 
@@ -1188,13 +1138,7 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
       return this.companyId;
     }
 
-    // In embedded reservation mode, never consume route query params.
-    if (!this.useRouteQueryParams) {
-      return null;
-    }
-
-    const routeCompanyId = this.route.snapshot.queryParams['companyId'];
-    return routeCompanyId ? String(routeCompanyId) : null;
+    return this.selectedCompanyContact?.contactId ?? null;
   }
 
   getPaidAmountFromLedgerLines(ledgerLines: any[], officeId: number): number {
@@ -1553,7 +1497,7 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
         this.isSubmittingPayment = false;
         // Clear payment form after all payments are processed
         this.clearPaymentForm();
-        this.refreshInvoicesForCurrentScope();
+        this.loadInvoicesForCurrentSearchCriteria(true);
         // Refresh the display to show updated paid amounts
         this.applyFilters();
         this.markViewForCheck();
@@ -1726,7 +1670,7 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
     
     // Refresh the display to show updated paid amounts
     this.applyFilters();
-    this.refreshInvoicesForCurrentScope();
+    this.loadInvoicesForCurrentSearchCriteria(true);
   }
 
   resolveOfficeScope(officeId: number | null, emitChange: boolean): void {
@@ -1736,7 +1680,6 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
     const officeChanged = previousOfficeId !== nextOfficeId;
 
     this.officeScopeResolved = true;
-    this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'officeScope');
     if (emitChange) {
       this.officeIdChange.emit(nextOfficeId);
     }
@@ -1751,8 +1694,7 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
     this.filterCompanyContacts();
     this.filterReservations();
     this.filterCostCodes();
-    this.utilityService.addLoadItem(this.itemsToLoad$, 'invoices');
-    this.getInvoices();
+    this.loadInvoicesForCurrentSearchCriteria();
   }
 
   captureTopbarSelectionsForPayment(): void {
@@ -1806,11 +1748,6 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
     this.originalPaymentOfficeId = null;
     this.originalPaymentReservationId = null;
     this.originalPaymentCompanyId = null;
-  }
-
-  refreshInvoicesForCurrentScope(): void {
-    this.utilityService.addLoadItem(this.itemsToLoad$, 'invoices');
-    this.getInvoices();
   }
 
   resolveOfficeIdsForSearch(): number[] {

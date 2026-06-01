@@ -56,7 +56,7 @@ export class EmailListComponent implements OnInit, OnDestroy, OnChanges {
   allEmails: EmailListDisplay[] = [];
   isPageReady = false;
   isServiceError = false;
-  itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['emails', 'offices', 'companies', 'officeScope', 'reservations']));
+  itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['emails', 'companies', 'reservations']));
 
   offices: OfficeResponse[] = [];
   selectedOfficeId: number | null = null;
@@ -70,7 +70,6 @@ export class EmailListComponent implements OnInit, OnDestroy, OnChanges {
   emailTypes: { value: number, label: string }[] = [];
   
   showOfficeDropdown = false;
-  officeScopeResolved: boolean = false;
   destroy$ = new Subject<void>();
 
   emailsDisplayedColumns: ColumnSet = {
@@ -222,9 +221,9 @@ export class EmailListComponent implements OnInit, OnDestroy, OnChanges {
   }
 
   resolveOfficeScope(officeId: number | null, emitChange: boolean): void {
-    this.selectedOfficeId = this.utilityService.resolveSelectedOfficeById(this.offices, officeId)?.officeId ?? officeId ?? null;
-    this.officeScopeResolved = true;
-    this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'officeScope');
+    this.selectedOfficeId = this.offices.length > 0
+      ? this.utilityService.resolveSelectedOfficeById(this.offices, officeId)?.officeId ?? officeId ?? null
+      : officeId ?? null;
     if (emitChange) {
       this.officeIdChange.emit(this.selectedOfficeId);
     }
@@ -241,30 +240,10 @@ export class EmailListComponent implements OnInit, OnDestroy, OnChanges {
   //#region Data Loading Methods
   loadOffices(): void {
     if (this.source === 'emails') {
-      this.officeService.ensureOfficesLoaded(this.organizationId || '').pipe(take(1), finalize(() => {
-        this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'offices');
-      })).subscribe({
-        next: () => {
-          this.officeService.getAllOffices().pipe(takeUntil(this.destroy$)).subscribe(offices => {
-            this.offices = offices || [];
-            this.allEmails = this.mappingService.mapEmailOfficeNames(this.allEmails, this.offices);
-            this.applyEmailsRouteOfficeScope();
-            this.markViewForCheck();
-          });
-        },
-        error: () => {
-          this.offices = [];
-          this.showOfficeDropdown = false;
-          this.resolveOfficeScope(null, false);
-          this.markViewForCheck();
-        }
-      });
       return;
     }
 
-    this.globalSelectionService.ensureOfficeScope(this.organizationId || '').pipe(take(1), finalize(() => {
-      this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'offices');
-    })).subscribe({
+    this.globalSelectionService.ensureOfficeScope(this.organizationId || '').pipe(take(1)).subscribe({
       next: () => {
         this.officeService.getAllOffices().pipe(takeUntil(this.destroy$)).subscribe(offices => {
           this.offices = offices || [];
@@ -316,10 +295,6 @@ export class EmailListComponent implements OnInit, OnDestroy, OnChanges {
   }
 
   refreshEmailsForCurrentScope(): void {
-    if (!this.officeScopeResolved) {
-      return;
-    }
-
     const officeIds = this.resolveOfficeIdsForSearch();
     if (officeIds.length === 0) {
       this.allEmails = [];
@@ -549,10 +524,6 @@ export class EmailListComponent implements OnInit, OnDestroy, OnChanges {
   }
 
   applyFilters(): void {
-    if (!this.officeScopeResolved) {
-      return;
-    }
-
     let filtered = [...this.allEmails];
 
     // Keep alerts on the sidebar Emails page only; hide them in shell-embedded email tabs.
@@ -736,7 +707,11 @@ export class EmailListComponent implements OnInit, OnDestroy, OnChanges {
     if (scopedOfficeId != null) {
       return [scopedOfficeId];
     }
-    return (this.offices || []).map(office => office.officeId).filter(id => id > 0);
+    const fromOffices = (this.offices || []).map(office => office.officeId).filter(id => id > 0);
+    if (fromOffices.length > 0) {
+      return fromOffices;
+    }
+    return [...new Set((this.reservations || []).map(reservation => reservation.officeId).filter(id => id > 0))];
   }
 
   buildEmailSearchRequest(officeIds: number[]): EmailGetRequest {

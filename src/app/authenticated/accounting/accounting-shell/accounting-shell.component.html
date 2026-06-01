@@ -113,7 +113,7 @@
               [label]="'Companies'"
               [formFieldClass]="'titlebar-field-company'"
               [value]="selectedCompanyId"
-              [options]="getAccountingCompanyOptions(accountingInvoiceList.companyContacts, accountingInvoiceList.selectedOffice?.officeId ?? null)"
+              [options]="getAccountingCompanyOptions(accountingInvoiceList.companyContacts, selectedOfficeId)"
               [nullOptionLabel]="'All Companies'"
               [noResultsText]="'No companies match your search'"
               (valueChange)="onAccountingInvoiceCompanyDropdownChange($event)">
@@ -151,8 +151,8 @@
             <app-title-bar-select
               [label]="'Companies'"
               [formFieldClass]="'titlebar-field-company'"
-              [value]="accountingGeneralLedger.selectedCompanyContact?.contactId ?? null"
-              [options]="getAccountingCompanyOptions(accountingGeneralLedger.companyContacts, accountingGeneralLedger.selectedOfficeId)"
+              [value]="selectedCompanyId"
+              [options]="getAccountingCompanyOptions(accountingGeneralLedger.companyContacts, selectedOfficeId)"
               [nullOptionLabel]="'All Companies'"
               [noResultsText]="'No companies match your search'"
               (valueChange)="onAccountingGeneralLedgerCompanyDropdownChange($event)">
@@ -160,7 +160,7 @@
             <app-title-bar-select
               [label]="'Reservations'"
               [formFieldClass]="'titlebar-field-reservation'"
-              [value]="accountingGeneralLedger.selectedReservationId"
+              [value]="selectedReservationId"
               [options]="getReservationOptions(accountingGeneralLedger.availableReservations)"
               [nullOptionLabel]="'All Reservations'"
               [noResultsText]="'No reservations match your search'"
@@ -190,8 +190,8 @@
             <app-title-bar-select
               [label]="'Companies'"
               [formFieldClass]="'titlebar-field-company'"
-              [value]="accountingDocumentList.selectedCompany?.contactId ?? null"
-              [options]="getAccountingCompanyOptions(accountingDocumentList.companies, accountingDocumentList.selectedOfficeId)"
+              [value]="selectedCompanyId"
+              [options]="getAccountingCompanyOptions(accountingDocumentList.companies, selectedOfficeId)"
               [nullOptionLabel]="'All Companies'"
               [noResultsText]="'No companies match your search'"
               (valueChange)="onAccountingDocumentCompanyDropdownChange($event)">
@@ -199,7 +199,7 @@
             <app-title-bar-select
               [label]="'Reservations'"
               [formFieldClass]="'titlebar-field-reservation'"
-              [value]="accountingDocumentList.selectedReservationId"
+              [value]="selectedReservationId"
               [options]="getReservationOptions(accountingDocumentList.availableReservations)"
               [nullOptionLabel]="'All Reservations'"
               [noResultsText]="'No reservations match your search'"
@@ -265,7 +265,6 @@
             }
           } @else {
             <app-invoice-list 
-              [hideFilters]="true"
               [invoiceSearchDateRange]="invoiceSearchDateRange"
               [officeId]="selectedOfficeId"
               [reservationId]="selectedReservationId"
