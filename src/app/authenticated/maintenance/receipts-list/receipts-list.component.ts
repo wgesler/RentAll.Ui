@@ -459,7 +459,7 @@ export class ReceiptsListComponent implements OnInit, OnChanges, OnDestroy {
         take(1),
         switchMap(receipt => {
           const isBill = Number(receipt.bankCardId ?? 0) === 0;
-          if (isBill) {
+          if (!isBill) {
             this.syncReceiptRowFromServer(receipt);
             return EMPTY;
           }
@@ -556,7 +556,7 @@ export class ReceiptsListComponent implements OnInit, OnChanges, OnDestroy {
         take(1),
         switchMap(receipt => {
           const isBill = Number(receipt.bankCardId ?? 0) === 0;
-          if (!isBill) {
+          if (isBill) {
             this.syncReceiptRowFromServer(receipt);
             return EMPTY;
           }
@@ -895,32 +895,31 @@ export class ReceiptsListComponent implements OnInit, OnChanges, OnDestroy {
       const isBill = Number(receipt.bankCardId ?? 0) === 0;
       const vendorOptionsForOffice = this.vendorOptionsByOfficeId.get(officeId) || [];
       const matchedVendorOption = this.findVendorOptionForReceipt(vendorOptionsForOffice, receipt);
-      const vendorName = this.normalizeVendorDisplayText(receipt.vendorName)
-        || this.normalizeVendorDisplayText(matchedVendorOption?.label);
 
       if (isBill) {
+        const vendorLabels = vendorOptionsForOffice.map(option => option.label);
+        const preferredLabel = this.normalizeVendorDisplayText(matchedVendorOption?.label || receipt.vendorName);
+        const selectedVendorLabel = this.resolveDropdownLabelFromOptions(vendorLabels, preferredLabel);
+        const displayOptions = this.ensureDropdownOptionLabels(vendorLabels, selectedVendorLabel);
         return {
           ...receipt,
-          vendorDisplay: vendorName,
-          vendorDisplayReadOnly: !this.isAdmin,
-          vendorDisplayClickToEdit: this.isAdmin,
-          vendorDisplayEditing: false
+          vendorDisplay: {
+            value: selectedVendorLabel,
+            isOverridable: this.isAdmin,
+            options: displayOptions,
+            toString: () => selectedVendorLabel
+          },
+          vendorDisplayReadOnly: true
         };
       }
 
-      const vendorLabels = vendorOptionsForOffice.map(option => option.label);
-      const preferredLabel = this.normalizeVendorDisplayText(matchedVendorOption?.label || receipt.vendorName);
-      const selectedVendorLabel = this.resolveDropdownLabelFromOptions(vendorLabels, preferredLabel);
-      const displayOptions = this.ensureDropdownOptionLabels(vendorLabels, selectedVendorLabel);
+      const cardVendorName = this.normalizeVendorDisplayText(receipt.vendorName);
       return {
         ...receipt,
-        vendorDisplay: {
-          value: selectedVendorLabel,
-          isOverridable: this.isAdmin,
-          options: displayOptions,
-          toString: () => selectedVendorLabel
-        },
-        vendorDisplayReadOnly: true
+        vendorDisplay: cardVendorName,
+        vendorDisplayReadOnly: !this.isAdmin,
+        vendorDisplayClickToEdit: this.isAdmin,
+        vendorDisplayEditing: false
       };
     });
   }
@@ -959,17 +958,26 @@ export class ReceiptsListComponent implements OnInit, OnChanges, OnDestroy {
   }
 
   buildReceiptBankCardInlineUpdateRequest(receipt: ReceiptResponse, bankCardId: number): ReceiptRequest {
-    return this.buildReceiptFieldUpdateRequest(receipt, { bankCardId });
+    if (Number(bankCardId) === 0) {
+      return this.buildReceiptFieldUpdateRequest(receipt, { bankCardId, vendorName: null });
+    }
+    return this.buildReceiptFieldUpdateRequest(receipt, { bankCardId, vendorId: null });
   }
 
   buildReceiptVendorInlineUpdateRequest(receipt: ReceiptResponse, vendorName: string): ReceiptRequest {
     const normalizedVendorName = String(vendorName || '').trim();
-    return this.buildReceiptFieldUpdateRequest(receipt, { vendorName: normalizedVendorName || null });
+    return this.buildReceiptFieldUpdateRequest(receipt, {
+      vendorName: normalizedVendorName || null,
+      vendorId: null
+    });
   }
 
   buildReceiptVendorDropdownUpdateRequest(receipt: ReceiptResponse, vendorId: string): ReceiptRequest {
     const normalizedVendorId = String(vendorId || '').trim() || null;
-    return this.buildReceiptFieldUpdateRequest(receipt, { vendorId: normalizedVendorId });
+    return this.buildReceiptFieldUpdateRequest(receipt, {
+      vendorId: normalizedVendorId,
+      vendorName: null
+    });
   }
 
   buildReceiptDateInlineUpdateRequest(receipt: ReceiptResponse, receiptDate: string): ReceiptRequest {
