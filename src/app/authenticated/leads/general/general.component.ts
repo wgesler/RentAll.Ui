@@ -9,7 +9,6 @@ import { FormatterService } from '../../../services/formatter-service';
 import { UtilityService } from '../../../services/utility.service';
 import { AuthService } from '../../../services/auth.service';
 import { OfficeResponse } from '../../organizations/models/office.model';
-import { GlobalSelectionService } from '../../organizations/services/global-selection.service';
 import { OfficeService } from '../../organizations/services/office.service';
 import { LeadGeneralRequest, LeadGeneralResponse, LeadGeneralUpdateRequest } from '../models/lead-general.model';
 import { LEAD_STATE_SELECT_OPTIONS, LeadStateType } from '../models/lead-enums';
@@ -53,7 +52,6 @@ export class GeneralComponent implements OnInit, OnChanges, OnDestroy {
     private leadsService: LeadsService,
     private utilityService: UtilityService,
     private formatterService: FormatterService,
-    private globalSelectionService: GlobalSelectionService,
     private officeService: OfficeService,
     private cdr: ChangeDetectorRef
   ) {
@@ -226,19 +224,6 @@ export class GeneralComponent implements OnInit, OnChanges, OnDestroy {
   resolveOfficeScope(officeId: number | null): void {
     this.selectedOffice = this.utilityService.resolveSelectedOfficeById(this.offices, officeId);
     this.officeScopeResolved = true;
-    this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'officeScope');
-  }
-  
-  resolveCreateOfficeId(): number | null {
-    const fromShell = this.officeId;
-    if (fromShell != null && fromShell > 0) {
-      return fromShell;
-    }
-    const fromResolved = this.selectedOffice?.officeId ?? null;
-    if (fromResolved != null && fromResolved > 0) {
-      return fromResolved;
-    }
-    return this.globalSelectionService.getSelectedOfficeIdValue();
   }
 
   resolveSaveOfficeId(): number | null {
@@ -246,14 +231,11 @@ export class GeneralComponent implements OnInit, OnChanges, OnDestroy {
     if (fromShell != null && fromShell > 0) {
       return fromShell;
     }
-    if (this.isAddMode) {
-      return this.resolveCreateOfficeId();
-    }
     const fromLead = this.lead?.officeId ?? null;
     if (fromLead != null && fromLead > 0) {
       return fromLead;
     }
-    return this.resolveCreateOfficeId();
+    return null;
   }
   
   onPhoneInput(event: Event): void {
@@ -267,7 +249,7 @@ export class GeneralComponent implements OnInit, OnChanges, OnDestroy {
 
   //#region Data Loading Methods
   loadOffices(): void {
-    this.globalSelectionService.ensureOfficeScope(this.organizationId).pipe(take(1)).subscribe({
+    this.officeService.ensureOfficesLoaded(this.organizationId).pipe(take(1)).subscribe({
       next: () => {
         this.officeService.getAllOffices().pipe(take(1)).subscribe({
           next: offices => {

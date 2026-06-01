@@ -18,27 +18,20 @@
   margin: 0;
 }
 
-.lead-create-form-shell {
+.owner-create-form-shell {
   box-sizing: border-box;
+  max-height: min(72vh, calc(100vh - 200px));
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
 }
 
 .lead-owner-create-main.lead-create-form-after-title {
   margin-top: 0.75rem;
 }
 
-:host .owner-create-standalone-mat-card {
-  margin-top: 0.75rem;
-}
-
 .owner-create-form-title-row {
   box-sizing: border-box;
   padding-inline: var(--global-page-inner-padding);
-}
-
-.lead-create-form-shell--embedded {
-  max-height: min(72vh, calc(100vh - 200px));
-  overflow-y: auto;
-  -webkit-overflow-scrolling: touch;
 }
 
 .lead-owner-create-row-first,

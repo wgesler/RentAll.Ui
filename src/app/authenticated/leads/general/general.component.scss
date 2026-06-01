@@ -18,11 +18,9 @@
   margin: 0;
 }
 
-.lead-create-form-shell {
+.lead-create-form-shell,
+.general-create-form-shell {
   box-sizing: border-box;
-}
-
-.lead-create-form-shell--embedded {
   max-height: min(72vh, calc(100vh - 200px));
   overflow-y: auto;
   -webkit-overflow-scrolling: touch;
@@ -32,16 +30,7 @@
   margin-top: 0.75rem;
 }
 
-:host .general-create-standalone-mat-card {
-  margin-top: 0.75rem;
-}
-
 .general-create-form-title-row {
   box-sizing: border-box;
   padding-inline: var(--global-page-inner-padding);
-}
-
-.lead-create-form-shell--embedded {
-  max-height: min(72vh, calc(100vh - 200px));
-  overflow-y: auto;
 }

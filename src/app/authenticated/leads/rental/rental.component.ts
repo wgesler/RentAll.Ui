@@ -2,7 +2,7 @@ import { CommonModule } from '@angular/common';
 import { ChangeDetectorRef, Component, EventEmitter, Input, NgZone, OnChanges, OnDestroy, OnInit, Output, SimpleChanges } from '@angular/core';
 import { FormBuilder, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
 import { MatDialog } from '@angular/material/dialog';
-import { ActivatedRoute, Router } from '@angular/router';
+import { Router } from '@angular/router';
 import { ToastrService } from 'ngx-toastr';
 import { BehaviorSubject, Subject, finalize, take, takeUntil } from 'rxjs';
 import { RouterUrl } from '../../../app.routes';
@@ -13,12 +13,10 @@ import { FormatterService } from '../../../services/formatter-service';
 import { UtilityService } from '../../../services/utility.service';
 import { AgentResponse } from '../../organizations/models/agent.model';
 import { AgentService } from '../../organizations/services/agent.service';
-import { GlobalSelectionService } from '../../organizations/services/global-selection.service';
 import { OfficeResponse } from '../../organizations/models/office.model';
 import { OfficeService } from '../../organizations/services/office.service';
 import { PropertyListResponse } from '../../properties/models/property.model';
 import { PropertyService } from '../../properties/services/property.service';
-import { getStringQueryParam } from '../../shared/query-param.utils';
 import { LeadRentalRequest, LeadRentalResponse } from '../models/lead-rental.model';
 import { LEAD_STATE_SELECT_OPTIONS, LeadStateType } from '../models/lead-enums';
 import { RentalQuotePropertyOption, RentalQuotePropertySelectDialogComponent } from '../rental-list/rental-quote-property-select-dialog.component';
@@ -53,14 +51,12 @@ export class RentalComponent implements OnInit, OnChanges, OnDestroy {
   selectedOffice: OfficeResponse | null = null;
   activeProperties: PropertyListResponse[] = [];
   agents: AgentResponse[] = [];
-  routePropertyRefPrefillApplied = false;
 
   itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['rental-lead']));
   destroy$ = new Subject<void>();
 
   constructor(
     private router: Router,
-    private route: ActivatedRoute,
     private ngZone: NgZone,
     private fb: FormBuilder,
     private dialog: MatDialog,
@@ -71,7 +67,6 @@ export class RentalComponent implements OnInit, OnChanges, OnDestroy {
     private propertyService: PropertyService,
     private utilityService: UtilityService,
     private formatterService: FormatterService,
-    private globalSelectionService: GlobalSelectionService,
     private officeService: OfficeService,
     private cdr: ChangeDetectorRef
   ) {
@@ -90,14 +85,6 @@ export class RentalComponent implements OnInit, OnChanges, OnDestroy {
     this.loadActiveProperties();
     this.loadAgents();
     this.getRentalLead(this.shellLeadId);
-
-    this.route.queryParamMap.pipe(takeUntil(this.destroy$)).subscribe(() => {
-      if (!this.isNewRentalLeadFlow()) {
-        return;
-      }
-      this.applyPropertyRefFromRouteIfNeeded();
-      this.normalizePropertyRefToKnownPropertyCode();
-    });
   }
 
   ngOnChanges(changes: SimpleChanges): void {
@@ -116,10 +103,7 @@ export class RentalComponent implements OnInit, OnChanges, OnDestroy {
       this.isAddMode = true;
       this.isServiceError = false;
       this.lead = null;
-      this.routePropertyRefPrefillApplied = false;
       this.resetForm();
-      this.applyPropertyRefFromRouteIfNeeded();
-      this.normalizePropertyRefToKnownPropertyCode();
       this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'rental-lead');
       return;
     }
@@ -474,34 +458,6 @@ export class RentalComponent implements OnInit, OnChanges, OnDestroy {
     return Number.isFinite(officeId) && officeId > 0 ? officeId : null;
   }
 
-  isNewRentalLeadFlow(): boolean {
-    return String(this.shellLeadId ?? '').trim().toLowerCase() === 'new';
-  }
-
-  applyPropertyRefFromRouteIfNeeded(): void {
-    if (this.routePropertyRefPrefillApplied) {
-      return;
-    }
-    const fromQuery = this.readPropertyRefIdFromRouteQuery();
-    if (fromQuery) {
-      this.form.patchValue({ propertyRefId: fromQuery });
-      this.routePropertyRefPrefillApplied = true;
-    }
-  }
-
-  readPropertyRefIdFromRouteQuery(): string | null {
-    let current: ActivatedRoute | null = this.route;
-    while (current) {
-      const q = current.snapshot.queryParams as Record<string, unknown>;
-      const v = getStringQueryParam(q, 'propertyRefId') ?? getStringQueryParam(q, 'propertyRef');
-      if (v) {
-        return v;
-      }
-      current = current.parent;
-    }
-    return null;
-  }
-
   normalizePropertyRefToKnownPropertyCode(): void {
     const ctrl = this.form.get('propertyRefId');
     const raw = String(ctrl?.value ?? '').trim();
@@ -580,7 +536,7 @@ export class RentalComponent implements OnInit, OnChanges, OnDestroy {
 
   //#region Data Loading Methods
   loadOffices(): void {
-    this.globalSelectionService.ensureOfficeScope(this.organizationId).pipe(take(1)).subscribe({
+    this.officeService.ensureOfficesLoaded(this.organizationId).pipe(take(1)).subscribe({
       next: () => {
         this.officeService.getAllOffices().pipe(take(1)).subscribe({
           next: offices => {
