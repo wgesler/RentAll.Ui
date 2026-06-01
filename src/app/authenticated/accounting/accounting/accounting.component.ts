@@ -66,6 +66,8 @@ export class AccountingComponent implements OnInit, OnDestroy {
   startDate: Date | null = null;
   endDate: Date | null = null;
   documentRequest: DocumentGetRequest = { officeIds: [] };
+  /** Passed to invoice-list; updated only in syncInvoiceSearchDateRange (same pattern as documentRequest). */
+  invoiceSearchDateRange: { startDate: string | null; endDate: string | null } = { startDate: null, endDate: null };
    
   destroy$ = new Subject<void>();
 
@@ -87,6 +89,7 @@ export class AccountingComponent implements OnInit, OnDestroy {
     this.initializeSuperAdminFilters();
     this.setDefaultDateRange();
     this.syncDocumentRequest();
+    this.syncInvoiceSearchDateRange();
     if (!this.isSuperAdmin) {
       this.selectedOfficeId = this.globalSelectionService.getSelectedOfficeIdValue();
       this.loadOffices();
@@ -358,6 +361,13 @@ export class AccountingComponent implements OnInit, OnDestroy {
     };
   }
 
+  syncInvoiceSearchDateRange(): void {
+    this.invoiceSearchDateRange = {
+      startDate: this.utilityService.formatDateOnlyForApi(this.startDate),
+      endDate: this.utilityService.formatDateOnlyForApi(this.endDate)
+    };
+  }
+
   resolveOfficeIdsForDocumentRequest(): number[] {
     if (this.selectedOfficeId != null) {
       return [this.selectedOfficeId];
@@ -380,8 +390,34 @@ export class AccountingComponent implements OnInit, OnDestroy {
   }
 
   onDateRangeChange(): void {
-    this.normalizeDateRangeValues();
+    if (!this.startDate && !this.endDate) {
+      this.setDefaultDateRange();
+    } else if (this.startDate && !this.endDate) {
+      const end = new Date(this.startDate);
+      end.setHours(0, 0, 0, 0);
+      this.endDate = end;
+    } else if (!this.startDate && this.endDate) {
+      const start = new Date(this.endDate);
+      start.setMonth(start.getMonth() - 3);
+      start.setHours(0, 0, 0, 0);
+      this.startDate = start;
+    }
+
+    if (this.startDate) {
+      this.startDate.setHours(0, 0, 0, 0);
+    }
+    if (this.endDate) {
+      this.endDate.setHours(0, 0, 0, 0);
+    }
+
+    if (this.startDate && this.endDate && this.startDate.getTime() > this.endDate.getTime()) {
+      const tmp = this.startDate;
+      this.startDate = this.endDate;
+      this.endDate = tmp;
+    }
+
     this.syncDocumentRequest();
+    this.syncInvoiceSearchDateRange();
     this.reloadDateFilteredTabs();
     this.router.navigate([], {
       relativeTo: this.route,
@@ -571,10 +607,12 @@ export class AccountingComponent implements OnInit, OnDestroy {
       this.endDate = this.utilityService.parseDateOnlyStringToDate(endDateParam);
       this.normalizeDateRangeValues();
       this.syncDocumentRequest();
+      this.syncInvoiceSearchDateRange();
       this.reloadDateFilteredTabs();
     } else if (!this.startDate && !this.endDate) {
       this.setDefaultDateRange();
       this.syncDocumentRequest();
+      this.syncInvoiceSearchDateRange();
     }
   }
 
@@ -651,7 +689,6 @@ export class AccountingComponent implements OnInit, OnDestroy {
 
   reloadDateFilteredTabs(): void {
     queueMicrotask(() => {
-      this.accountingInvoiceList?.applyFilters();
       this.accountingDocumentList?.reload();
     });
   }

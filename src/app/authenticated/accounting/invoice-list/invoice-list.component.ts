@@ -51,8 +51,7 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
   @Input() officeId: number | null = null; // Input to accept officeId from parent
   @Input() companyId: string | null = null; // Input to accept companyId from parent
   @Input() reservationId: string | null = null; // Input to accept reservationId from parent
-  @Input() startDate: Date | null = null;
-  @Input() endDate: Date | null = null;
+  @Input() invoiceSearchDateRange: { startDate: string | null; endDate: string | null } | null = null;
   @Output() organizationIdChange = new EventEmitter<string | null>(); // Emit organization changes to parent
   @Output() officeIdChange = new EventEmitter<number | null>(); // Emit office changes to parent
   @Output() companyIdChange = new EventEmitter<string | null>(); // Emit company changes to parent
@@ -112,6 +111,7 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
   creditCostCodes: { value: number, label: string }[] = [];
   baseInvoicesDisplayedColumns: ColumnSet = {
     expand: { displayAs: ' ', maxWidth: '5ch', sort: false },
+    no: { displayAs: 'No', maxWidth: '5ch', sort: false, wrap: false },
     reservationCode: { displayAs: 'Reservation', maxWidth: '15ch', sortType: 'natural' },
     responsibleParty: { displayAs: 'Recipient',  wrap: false, maxWidth: '25ch' },
     invoiceNumber: { displayAs: 'Invoice', maxWidth: '15ch', sortType: 'natural' },
@@ -301,12 +301,8 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
       }
     }
 
-    if (this.source === 'accounting' && (changes['startDate'] || changes['endDate'])) {
-      const startChanged = changes['startDate'] && !changes['startDate'].firstChange;
-      const endChanged = changes['endDate'] && !changes['endDate'].firstChange;
-      if (startChanged || endChanged) {
-        this.refreshInvoicesForCurrentScope();
-      }
+    if (this.source === 'accounting' && changes['invoiceSearchDateRange'] && !changes['invoiceSearchDateRange'].firstChange) {
+      this.refreshInvoicesForCurrentScope();
     }
   }
 
@@ -1814,8 +1810,8 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
         reservationId,
         includeInactive: true,
         includePaid: true,
-        startDate: this.utilityService.formatDateOnlyForApi(this.startDate),
-        endDate: this.utilityService.formatDateOnlyForApi(this.endDate)
+        startDate: this.invoiceSearchDateRange?.startDate ?? null,
+        endDate: this.invoiceSearchDateRange?.endDate ?? null
       };
     }
 
