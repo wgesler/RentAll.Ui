@@ -92,16 +92,27 @@
       </div>
 
       <div class="editor-section property-tab-main-area">
-        @if (selectedOffice && selectedReservation && previewIframeHtml) {
-          <div class="preview-section">
-            <iframe 
-              [srcdoc]="safeHtml" 
-              class="preview-iframe"
-              [attr.key]="iframeKey"
-              (load)="injectStylesIntoIframe()"
-              frameborder="0">
-            </iframe>
-          </div>
+        @if (selectedOffice && selectedReservation) {
+          @if (previewIframeHtml) {
+            <div class="preview-section">
+              <iframe 
+                [srcdoc]="safeHtml" 
+                class="preview-iframe"
+                [attr.key]="iframeKey"
+                (load)="injectStylesIntoIframe()"
+                frameborder="0">
+              </iframe>
+            </div>
+          } @else if (isPreviewHtmlPending()) {
+            <div class="loading-container preview-loading-container">
+              <mat-spinner [diameter]="40"></mat-spinner>
+              <p>Loading preview...</p>
+            </div>
+          } @else {
+            <div class="loading-container preview-loading-container">
+              <p>Preview is not available yet. Save property HTML or try again.</p>
+            </div>
+          }
         } @else {
           <mat-form-field appearance="outline" class="full-width">
             <mat-label>Welcome Letter (HTML)</mat-label>

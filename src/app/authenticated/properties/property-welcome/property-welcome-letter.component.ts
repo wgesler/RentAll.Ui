@@ -92,7 +92,7 @@ export class PropertyWelcomeLetterComponent extends BaseDocumentComponent implem
   isBranded: boolean = true;
   includeDepartureDate: boolean = true;
    
-  itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['property', 'reservations', 'welcomeLetter', 'propertyInformation', 'organization', 'offices', 'accountingOffices', 'contacts', 'buildings', 'emailHtml', 'logo', 'previewHtml']));
+  itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['property', 'reservations', 'welcomeLetter', 'propertyInformation', 'organization', 'offices', 'accountingOffices', 'contacts', 'buildings', 'emailHtml', 'logo']));
   logoSourcesLoaded = { accountingOffices: false, organization: false };
   destroy$ = new Subject<void>();
 
@@ -131,9 +131,6 @@ export class PropertyWelcomeLetterComponent extends BaseDocumentComponent implem
   //#region Welcome Letter
   ngOnInit(): void {
     this.organizationId = this.authService.getUser()?.organizationId?.trim() ?? '';
-    if (!this.titleBarReservationId && !this.selectedReservation?.reservationId) {
-      this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'previewHtml');
-    }
 
     this.itemsToLoad$.pipe(filter(items => items.size === 0), take(1)).subscribe(() => {
       this.isPageReady = true;
@@ -861,6 +858,10 @@ export class PropertyWelcomeLetterComponent extends BaseDocumentComponent implem
 
   //#endregion
 
+  isPreviewHtmlPending(): boolean {
+    return this.itemsToLoad$.value.has('previewHtml');
+  }
+
   //#region Html Processing
   generatePreviewIframe(): void {
     if (!this.selectedOffice || !this.selectedReservation) {
@@ -870,6 +871,13 @@ export class PropertyWelcomeLetterComponent extends BaseDocumentComponent implem
       return;
     }
 
+    const welcomeLetterHtml = this.propertyHtml?.welcomeLetter || this.form.get('welcomeLetter')?.value || '';
+    if (!this.debuggingHtml && !welcomeLetterHtml.trim()) {
+      this.utilityService.addLoadItem(this.itemsToLoad$, 'previewHtml');
+      return;
+    }
+
+    this.utilityService.addLoadItem(this.itemsToLoad$, 'previewHtml');
     this.loadHtmlFiles().pipe(take(1)).subscribe({
       next: (htmlFiles) => {
         const selectedDocuments: string[] = [];
