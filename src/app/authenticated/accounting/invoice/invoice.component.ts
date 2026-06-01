@@ -15,8 +15,7 @@ import { UtilityService } from '../../../services/utility.service';
 import { OfficeResponse } from '../../organizations/models/office.model';
 import { GlobalSelectionService } from '../../organizations/services/global-selection.service';
 import { OfficeService } from '../../organizations/services/office.service';
-import { getReservationStatus } from '../../reservations/models/reservation-enum';
-import { ReservationListResponse } from '../../reservations/models/reservation-model';
+import { ReservationCodeResponse } from '../../reservations/models/reservation-model';
 import { ReservationService } from '../../reservations/services/reservation.service';
 import { SearchableSelectComponent } from '../../shared/searchable-select/searchable-select.component';
 import { TitleBarSelectComponent } from '../../shared/titlebar-select/titlebar-select.component';
@@ -53,9 +52,9 @@ export class InvoiceComponent implements OnInit, OnDestroy, OnChanges {
   availableOffices: { value: number, name: string }[] = [];
   selectedOffice: OfficeResponse | null = null;
 
-  reservations: ReservationListResponse[] = [];
+  reservations: ReservationCodeResponse[] = [];
   availableReservations: { value: string, label: string }[] = [];
-  selectedReservation: ReservationListResponse | null = null;
+  selectedReservation: ReservationCodeResponse | null = null;
   
   companyId: string | null = null;
   
@@ -88,7 +87,7 @@ export class InvoiceComponent implements OnInit, OnDestroy, OnChanges {
   organizationId = '';
 
   isPageReady = false;
-  itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['invoice']));
+  itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['invoice', 'reservations']));
   destroy$ = new Subject<void>();
 
   constructor(
@@ -128,7 +127,7 @@ export class InvoiceComponent implements OnInit, OnDestroy, OnChanges {
     });
 
     this.loadOffices();
-    this.loadReservations();
+    this.loadReservationCodes();
     this.loadCostCodes();
 
     this.buildForm();
@@ -390,7 +389,7 @@ export class InvoiceComponent implements OnInit, OnDestroy, OnChanges {
     return this.buildReservationInfoTooltip(this.selectedReservation);
   }
 
-  buildReservationInfoTooltip(reservation: ReservationListResponse | null): string {
+  buildReservationInfoTooltip(reservation: ReservationCodeResponse | null): string {
     if (!reservation) {
       return '';
     }
@@ -398,14 +397,13 @@ export class InvoiceComponent implements OnInit, OnDestroy, OnChanges {
     const contact = (reservation.contactName || '').trim() || '—';
     const company = (reservation.companyName || '').trim();
     const tenant = (reservation.tenantName || '').trim() || '—';
-    const arrival = this.formatter.formatDateString(reservation.arrivalDate) || '—';
-    const departure = this.formatter.formatDateString(reservation.departureDate) || '—';
-    const status = getReservationStatus(reservation.reservationStatusId) || '—';
+    const property = (reservation.propertyCode || '').trim() || '—';
+    const office = (reservation.officeName || '').trim() || '—';
 
     const lines = [
       `Reservation: ${reservation.reservationCode || '—'}`,
-      `Arrival: ${arrival}`,
-      `Departure: ${departure}`,
+      `Property: ${property}`,
+      `Office: ${office}`,
       `Contact: ${contact}`
     ];
 
@@ -413,7 +411,7 @@ export class InvoiceComponent implements OnInit, OnDestroy, OnChanges {
       lines.push(`Company: ${company}`);
     }
 
-    lines.push(`Tenant: ${tenant}`, `Status: ${status}`);
+    lines.push(`Tenant: ${tenant}`);
     return lines.join('\n');
   }
 
@@ -620,11 +618,11 @@ export class InvoiceComponent implements OnInit, OnDestroy, OnChanges {
     });
   }
 
-  loadReservations(): void {
-    this.reservationService.getReservationList().pipe(take(1)).subscribe({
+  loadReservationCodes(): void {
+    this.reservationService.getReservationCodes().pipe(take(1), finalize(() => { this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'reservations'); })).subscribe({
       next: (reservations) => {
         this.reservations = reservations || [];
-         if (this.form) {
+        if (this.form) {
           this.updateAvailableReservations();
         } else {
           this.availableReservations = this.reservations.map(r => ({
@@ -633,7 +631,7 @@ export class InvoiceComponent implements OnInit, OnDestroy, OnChanges {
           }));
         }
       },
-      error: (err: HttpErrorResponse) => {
+      error: () => {
         this.reservations = [];
         this.availableReservations = [];
       }
@@ -939,14 +937,20 @@ export class InvoiceComponent implements OnInit, OnDestroy, OnChanges {
     });
   }
 
-  setInvoiceCode(reservation: ReservationListResponse): void {
-    if (!this.isAddMode) {
+  setInvoiceCode(reservation: ReservationCodeResponse | null): void {
+    if (!this.isAddMode || !reservation || !this.form) {
       return;
     }
-    if (reservation && this.form) {
-      const invoiceCode = reservation.reservationCode + '-' + (reservation.currentInvoiceNo + 1).toString().padStart(3, '0');
-      this.form.get('invoiceCode')?.setValue(invoiceCode, { emitEvent: false });
-    }
+
+    this.reservationService.getReservationByGuid(reservation.reservationId).pipe(take(1)).subscribe({
+      next: (detail) => {
+        const invoiceCode = reservation.reservationCode + '-' + ((detail.currentInvoiceNo ?? 0) + 1).toString().padStart(3, '0');
+        this.form.get('invoiceCode')?.setValue(invoiceCode, { emitEvent: false });
+      },
+      error: () => {
+        this.form.get('invoiceCode')?.setValue(`${reservation.reservationCode}-001`, { emitEvent: false });
+      }
+    });
   }
 
   updateAvailableReservations(): void {

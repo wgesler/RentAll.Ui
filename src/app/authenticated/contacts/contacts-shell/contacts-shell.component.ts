@@ -227,10 +227,8 @@ export class ContactsShellComponent implements OnInit, OnDestroy {
     queueMicrotask(() => {
       const scopeOfficeId = this.selectedOfficeId;
       this.contactSections?.forEach(section => {
-        if (section.offices.length > 0) {
-          section.resolveOfficeScope(scopeOfficeId);
-          section.markViewForCheck();
-        }
+        section.resolveOfficeScope(scopeOfficeId);
+        section.markViewForCheck();
       });
     });
   }

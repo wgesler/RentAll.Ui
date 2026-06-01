@@ -51,7 +51,6 @@ export class ContactListComponent implements OnInit, OnDestroy, OnChanges {
   showOfficeDropdown: boolean = false;
   user: any;
   isAdmin = false;
-  officeScopeResolved: boolean = false;
   organizationId: string = '';
 
   hasInitialLoad: boolean = false;
@@ -79,7 +78,7 @@ export class ContactListComponent implements OnInit, OnDestroy, OnChanges {
   };
 
   isPageReady = false;
-  itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['contacts', 'offices', 'officeScope']));
+  itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['contacts']));
   destroy$ = new Subject<void>();
 
   constructor(
@@ -108,7 +107,9 @@ export class ContactListComponent implements OnInit, OnDestroy, OnChanges {
     this.isOwnerAdmin = this.authService.isOwnerAdmin();
     this.setIsActiveCheckboxEditability();
     this.organizationId = this.user?.organizationId?.trim() ?? '';
-    this.loadOffices();
+    if (this.entityTypeId === undefined || this.entityTypeId === null) {
+      this.loadOffices();
+    }
     this.loadContacts();
     this.navigationContextService.getIsInOwnerMode().pipe(takeUntil(this.destroy$)).subscribe(value => {
       this.isInOwnerMode = value;
@@ -146,9 +147,7 @@ export class ContactListComponent implements OnInit, OnDestroy, OnChanges {
       const previousOfficeId = changes['officeId'].previousValue;
 
       if (previousOfficeId === undefined || newOfficeId !== previousOfficeId) {
-        if (this.offices.length > 0) {
-          this.resolveOfficeScope(newOfficeId);
-        }
+        this.resolveOfficeScope(newOfficeId);
         this.markViewForCheck();
       }
     }
@@ -327,10 +326,6 @@ export class ContactListComponent implements OnInit, OnDestroy, OnChanges {
   }
 
   applyFilters(): void {
-    if (!this.officeScopeResolved) {
-      return;
-    }
-
     let filtered = this.allContacts;
     
     if (!this.showInactive) {
@@ -345,13 +340,14 @@ export class ContactListComponent implements OnInit, OnDestroy, OnChanges {
       filtered = filtered.filter(contact => contact.isOwnerReady !== true);
     }
 
-    if (this.selectedOffice) {
+    const scopeOfficeId = this.officeId ?? this.selectedOffice?.officeId ?? null;
+    if (scopeOfficeId != null) {
       filtered = filtered.filter(contact => {
         const officeAccess = (contact.officeAccess || []).map(id => Number(id)).filter(id => Number.isFinite(id) && id > 0);
         if (officeAccess.length > 0) {
-          return officeAccess.includes(this.selectedOffice!.officeId);
+          return officeAccess.includes(scopeOfficeId);
         }
-        return Number(contact.officeId) === this.selectedOffice!.officeId;
+        return Number(contact.officeId) === scopeOfficeId;
       });
     }
 
@@ -392,9 +388,9 @@ export class ContactListComponent implements OnInit, OnDestroy, OnChanges {
   }
 
   resolveOfficeScope(officeId: number | null): void {
-    this.selectedOffice = this.utilityService.resolveSelectedOfficeById(this.offices, officeId);
-    this.officeScopeResolved = true;
-    this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'officeScope');
+    this.selectedOffice = this.offices.length > 0
+      ? this.utilityService.resolveSelectedOfficeById(this.offices, officeId)
+      : null;
     this.applyFilters();
   }
   //#endregion
@@ -417,7 +413,7 @@ export class ContactListComponent implements OnInit, OnDestroy, OnChanges {
   }
 
   loadOffices(): void {
-    this.officeService.ensureOfficesLoaded(this.organizationId).pipe(take(1), finalize(() => { this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'offices'); })).subscribe({
+    this.officeService.ensureOfficesLoaded(this.organizationId).pipe(take(1)).subscribe({
       next: () => {
         this.officeService.getAllOffices().pipe(takeUntil(this.destroy$)).subscribe(offices => {
           this.offices = (offices || []).filter(office => office.isActive);

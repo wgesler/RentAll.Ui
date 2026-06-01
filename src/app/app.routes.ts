@@ -1,5 +1,5 @@
 import { Routes } from '@angular/router';
-import { AccountingComponent } from './authenticated/accounting/accounting/accounting.component';
+import { AccountingShellComponent } from './authenticated/accounting/accounting-shell/accounting-shell.component';
 import { CostCodesListComponent } from './authenticated/accounting/cost-codes-list/cost-codes-list.component';
 import { CostCodesComponent } from './authenticated/accounting/cost-codes/cost-codes.component';
 import { BillingCreateComponent } from './authenticated/accounting/billing-create/billing-create.component';
@@ -212,8 +212,8 @@ export const authRoutes: Routes = [
   { path: RouterToken.EmailCreate, component: EmailCreateComponent, canActivate: [authRouteGuard] },
   { path: RouterToken.Email, component: EmailComponent, canActivate: [authRouteGuard] },
   { path: RouterToken.Alert, component: AlertComponent, canActivate: [authRouteGuard] },
-  { path: RouterToken.AccountingList, component: AccountingComponent, canActivate: [authRouteGuard] },
-  { path: RouterToken.Accounting, component: AccountingComponent, canActivate: [authRouteGuard] },
+  { path: RouterToken.AccountingList, component: AccountingShellComponent, canActivate: [authRouteGuard] },
+  { path: RouterToken.Accounting, component: AccountingShellComponent, canActivate: [authRouteGuard] },
   { path: RouterToken.Billing, component: BillingComponent, canActivate: [authRouteGuard] },
   { path: RouterToken.BillingCreate, component: BillingCreateComponent, canActivate: [authRouteGuard] },
   { path: RouterToken.InvoiceCreate, component: InvoiceCreateComponent, canActivate: [authRouteGuard] },

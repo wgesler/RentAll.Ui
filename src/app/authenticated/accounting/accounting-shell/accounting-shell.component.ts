@@ -26,7 +26,7 @@ import { InvoiceListComponent } from '../invoice-list/invoice-list.component';
 import { CostCodesService } from '../services/cost-codes.service';
 
 @Component({
-    selector: 'app-accounting',
+    selector: 'app-accounting-shell',
     standalone: true,
     imports: [
     CommonModule,
@@ -39,10 +39,10 @@ import { CostCodesService } from '../services/cost-codes.service';
     DocumentListComponent,
     TitleBarSelectComponent
 ],
-    templateUrl: './accounting.component.html',
-    styleUrls: ['./accounting.component.scss']
+    templateUrl: './accounting-shell.component.html',
+    styleUrls: ['./accounting-shell.component.scss']
 })
-export class AccountingComponent implements OnInit, OnDestroy {
+export class AccountingShellComponent implements OnInit, OnDestroy {
   readonly DocumentType = DocumentType;
   @ViewChild(InvoiceListComponent) accountingInvoiceList?: InvoiceListComponent;
   @ViewChild('accountingInvoiceEditor') accountingInvoiceEditor?: InvoiceComponent;
