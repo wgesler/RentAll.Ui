@@ -241,8 +241,9 @@ export class DocumentListComponent implements OnInit, OnDestroy, OnChanges {
       this.applyFilters();
     }
 
-    if (changes['documentRequest'] && !changes['documentRequest'].firstChange) {
-      if (this.source === 'invoice' || this.source === 'documents') {
+    if (changes['documentRequest']) {
+      const request = changes['documentRequest'].currentValue as DocumentGetRequest | null | undefined;
+      if ((this.source === 'invoice' || this.source === 'documents') && request?.startDate && request?.endDate && this.canLoadDocumentsFromApi()) {
         this.utilityService.addLoadItem(this.itemsToLoad$, 'documents');
         this.getDocuments();
       }
@@ -388,6 +389,10 @@ export class DocumentListComponent implements OnInit, OnDestroy, OnChanges {
       return;
     }
 
+    if (this.usesShellDocumentSearch() && !this.hasShellDocumentSearchDates()) {
+      return;
+    }
+
     this.allDocuments = [];
     this.documentsDisplay = [];
 
@@ -463,6 +468,14 @@ export class DocumentListComponent implements OnInit, OnDestroy, OnChanges {
 
   private canLoadDocumentsFromApi(): boolean {
     return this.resolveOfficeIdsForRequest().length > 0;
+  }
+
+  private usesShellDocumentSearch(): boolean {
+    return (this.source === 'documents' || this.source === 'invoice') && this.documentRequest != null;
+  }
+
+  private hasShellDocumentSearchDates(): boolean {
+    return !!(this.documentRequest?.startDate && this.documentRequest?.endDate);
   }
 
   private resolveOfficeIdsForRequest(): number[] {
@@ -1070,6 +1083,9 @@ export class DocumentListComponent implements OnInit, OnDestroy, OnChanges {
     }
     this.applyFilters();
     if (this.canLoadDocumentsFromApi()) {
+      if (this.usesShellDocumentSearch() && !this.hasShellDocumentSearchDates()) {
+        return;
+      }
       this.utilityService.addLoadItem(this.itemsToLoad$, 'documents');
       this.getDocuments();
     }

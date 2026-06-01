@@ -188,8 +188,11 @@ export class EmailListComponent implements OnInit, OnDestroy, OnChanges {
       this.applyFilters();
     }
 
-    if (this.source === 'emails' && changes['emailSearchDateRange'] && !changes['emailSearchDateRange'].firstChange) {
-      this.refreshEmailsForCurrentScope();
+    if (this.source === 'emails' && changes['emailSearchDateRange']) {
+      const range = changes['emailSearchDateRange'].currentValue as { startDate: string | null; endDate: string | null } | null;
+      if (range?.startDate && range?.endDate) {
+        this.refreshEmailsForCurrentScope();
+      }
     }
 
     if (this.source === 'emails' && changes['propertyId'] && !changes['propertyId'].firstChange) {
@@ -731,7 +734,8 @@ export class EmailListComponent implements OnInit, OnDestroy, OnChanges {
   }
 
   usesServerSearchCriteria(): boolean {
-    return this.source === 'emails' && this.emailSearchDateRange != null;
+    return this.source === 'emails'
+      && !!(this.emailSearchDateRange?.startDate && this.emailSearchDateRange?.endDate);
   }
 
   resolveOfficeIdsForSearch(): number[] {

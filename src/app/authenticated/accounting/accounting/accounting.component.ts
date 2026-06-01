@@ -80,16 +80,17 @@ export class AccountingComponent implements OnInit, OnDestroy {
     private utilityService: UtilityService,
     private officeService: OfficeService,
     private globalSelectionService: GlobalSelectionService
-  ) { }
+  ) {
+    this.setDefaultDateRange();
+    this.syncDocumentRequest();
+    this.syncInvoiceSearchDateRange();
+  }
 
   //#region Accounting
   ngOnInit(): void {
     this.costCodesService.ensureCostCodesLoaded();
     this.organizationId = this.authService.getUser()?.organizationId?.trim() ?? '';
     this.initializeSuperAdminFilters();
-    this.setDefaultDateRange();
-    this.syncDocumentRequest();
-    this.syncInvoiceSearchDateRange();
     if (!this.isSuperAdmin) {
       this.selectedOfficeId = this.globalSelectionService.getSelectedOfficeIdValue();
       this.loadOffices();

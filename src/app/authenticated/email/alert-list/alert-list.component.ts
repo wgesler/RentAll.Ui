@@ -65,6 +65,11 @@ export class AlertListComponent implements OnInit, OnChanges, OnDestroy {
   destroy$ = new Subject<void>();
   contacts: ContactResponse[] = [];
 
+  /** Standalone /alerts route: dates owned here; emails-shell passes alertSearchDateRange instead. */
+  standaloneStartDate: Date | null = null;
+  standaloneEndDate: Date | null = null;
+  standaloneAlertSearchDateRange: { startDate: string | null; endDate: string | null } = { startDate: null, endDate: null };
+
   alertsDisplayedColumns: ColumnSet = {
     no: { displayAs: 'No', maxWidth: '5ch', sort: false, wrap: false },
     propertyCode: { displayAs: 'Property', maxWidth: '15ch', sortType: 'natural' },
@@ -91,7 +96,9 @@ export class AlertListComponent implements OnInit, OnChanges, OnDestroy {
     private toastr: ToastrService,
     private globalSelectionService: GlobalSelectionService,
     private cdr: ChangeDetectorRef
-  ) {}
+  ) {
+    this.initStandaloneAlertDateRange();
+  }
 
   private markViewForCheck(): void {
     this.cdr.markForCheck();
@@ -161,8 +168,11 @@ export class AlertListComponent implements OnInit, OnChanges, OnDestroy {
       this.applyFilters();
     }
 
-    if (this.source === 'alerts' && changes['alertSearchDateRange'] && !changes['alertSearchDateRange'].firstChange) {
-      this.refreshAlertsForCurrentScope();
+    if (this.source === 'alerts' && changes['alertSearchDateRange']) {
+      const range = changes['alertSearchDateRange'].currentValue as { startDate: string | null; endDate: string | null } | null;
+      if (range?.startDate && range?.endDate) {
+        this.refreshAlertsForCurrentScope();
+      }
     }
   }
 
@@ -299,6 +309,11 @@ export class AlertListComponent implements OnInit, OnChanges, OnDestroy {
       return;
     }
 
+    const range = this.getEffectiveAlertSearchDateRange();
+    if (!range?.startDate || !range?.endDate) {
+      return;
+    }
+
     const officeIds = this.resolveOfficeIdsForSearch();
     if (officeIds.length === 0) {
       this.allAlerts = [];
@@ -345,13 +360,27 @@ export class AlertListComponent implements OnInit, OnChanges, OnDestroy {
     this.filterReservations();
     this.selectedReservationId = null;
     this.reservationIdChange.emit(this.selectedReservationId);
+    if (this.usesServerSearchCriteria()) {
+      this.refreshAlertsForCurrentScope();
+      return;
+    }
     this.applyFilters();
   }
 
   onReservationDropdownChange(value: string | number | null): void {
     this.selectedReservationId = value == null || value === '' ? null : String(value);
     this.reservationIdChange.emit(this.selectedReservationId);
+    if (this.usesServerSearchCriteria()) {
+      this.refreshAlertsForCurrentScope();
+      return;
+    }
     this.applyFilters();
+  }
+
+  onStandaloneDateRangeChange(): void {
+    this.normalizeStandaloneDateRangeValues();
+    this.syncStandaloneAlertSearchDateRange();
+    this.refreshAlertsForCurrentScope();
   }
   //#endregion
 
@@ -577,8 +606,20 @@ export class AlertListComponent implements OnInit, OnChanges, OnDestroy {
     this.applyFilters();
   }
 
+  getEffectiveAlertSearchDateRange(): { startDate: string | null; endDate: string | null } | null {
+    if (this.alertSearchDateRange?.startDate && this.alertSearchDateRange?.endDate) {
+      return this.alertSearchDateRange;
+    }
+    if (!this.hideHeader && this.source === 'alerts'
+      && this.standaloneAlertSearchDateRange?.startDate && this.standaloneAlertSearchDateRange?.endDate) {
+      return this.standaloneAlertSearchDateRange;
+    }
+    return null;
+  }
+
   usesServerSearchCriteria(): boolean {
-    return this.source === 'alerts' && this.alertSearchDateRange != null;
+    const range = this.getEffectiveAlertSearchDateRange();
+    return this.source === 'alerts' && !!(range?.startDate && range?.endDate);
   }
 
   resolveOfficeIdsForSearch(): number[] {
@@ -591,13 +632,65 @@ export class AlertListComponent implements OnInit, OnChanges, OnDestroy {
 
   buildAlertSearchRequest(officeIds: number[]): AlertGetRequest {
     const reservationId = this.reservationId || this.selectedReservationId || null;
+    const range = this.getEffectiveAlertSearchDateRange();
     return {
       officeIds,
       propertyId: this.propertyId ?? null,
       reservationId,
-      startDate: this.alertSearchDateRange?.startDate ?? null,
-      endDate: this.alertSearchDateRange?.endDate ?? null
+      startDate: range?.startDate ?? null,
+      endDate: range?.endDate ?? null
     };
+  }
+
+  private initStandaloneAlertDateRange(): void {
+    const end = new Date();
+    end.setHours(0, 0, 0, 0);
+
+    const start = new Date(end);
+    start.setDate(start.getDate() - 30);
+    start.setHours(0, 0, 0, 0);
+
+    this.standaloneStartDate = start;
+    this.standaloneEndDate = end;
+    this.syncStandaloneAlertSearchDateRange();
+  }
+
+  private syncStandaloneAlertSearchDateRange(): void {
+    this.standaloneAlertSearchDateRange = {
+      startDate: this.utilityService.formatDateOnlyForApi(this.standaloneStartDate),
+      endDate: this.utilityService.formatDateOnlyForApi(this.standaloneEndDate)
+    };
+  }
+
+  private normalizeStandaloneDateRangeValues(): void {
+    if (!this.standaloneStartDate && !this.standaloneEndDate) {
+      this.initStandaloneAlertDateRange();
+      return;
+    }
+    if (this.standaloneStartDate && !this.standaloneEndDate) {
+      const end = new Date(this.standaloneStartDate);
+      end.setHours(0, 0, 0, 0);
+      this.standaloneEndDate = end;
+    } else if (!this.standaloneStartDate && this.standaloneEndDate) {
+      const start = new Date(this.standaloneEndDate);
+      start.setDate(start.getDate() - 30);
+      start.setHours(0, 0, 0, 0);
+      this.standaloneStartDate = start;
+    }
+
+    if (this.standaloneStartDate) {
+      this.standaloneStartDate.setHours(0, 0, 0, 0);
+    }
+    if (this.standaloneEndDate) {
+      this.standaloneEndDate.setHours(0, 0, 0, 0);
+    }
+
+    if (this.standaloneStartDate && this.standaloneEndDate
+      && this.standaloneStartDate.getTime() > this.standaloneEndDate.getTime()) {
+      const tmp = this.standaloneStartDate;
+      this.standaloneStartDate = this.standaloneEndDate;
+      this.standaloneEndDate = tmp;
+    }
   }
 
   ngOnDestroy(): void {

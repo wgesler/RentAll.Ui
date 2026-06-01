@@ -75,6 +75,34 @@
                 [noResultsText]="'No reservations match your search'"
                 (valueChange)="onReservationDropdownChange($event)">
               </app-title-bar-select>
+              @if (source === 'alerts') {
+                <div class="alert-list-titlebar-dates">
+                  <mat-form-field appearance="outline" class="titlebar-field-office">
+                    <mat-label>Start Date</mat-label>
+                    <input
+                      matInput
+                      [matDatepicker]="alertsStartPicker"
+                      [(ngModel)]="standaloneStartDate"
+                      [ngModelOptions]="{ standalone: true }"
+                      (dateChange)="onStandaloneDateRangeChange()"
+                      [max]="standaloneEndDate" />
+                    <mat-datepicker-toggle matIconSuffix [for]="alertsStartPicker"></mat-datepicker-toggle>
+                    <mat-datepicker #alertsStartPicker></mat-datepicker>
+                  </mat-form-field>
+                  <mat-form-field appearance="outline" class="titlebar-field-office">
+                    <mat-label>End Date</mat-label>
+                    <input
+                      matInput
+                      [matDatepicker]="alertsEndPicker"
+                      [(ngModel)]="standaloneEndDate"
+                      [ngModelOptions]="{ standalone: true }"
+                      (dateChange)="onStandaloneDateRangeChange()"
+                      [min]="standaloneStartDate" />
+                    <mat-datepicker-toggle matIconSuffix [for]="alertsEndPicker"></mat-datepicker-toggle>
+                    <mat-datepicker #alertsEndPicker></mat-datepicker>
+                  </mat-form-field>
+                </div>
+              }
             </div>
           </div>
           <div class="form-titlebar-actions-wrap">

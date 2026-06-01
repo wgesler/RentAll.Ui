@@ -15,6 +15,7 @@ import { ReservationCodeResponse } from '../../reservations/models/reservation-m
 import { ReservationService } from '../../reservations/services/reservation.service';
 import { SearchableSelectOption } from '../../shared/searchable-select/searchable-select.component';
 import { TitleBarSelectComponent } from '../../shared/titlebar-select/titlebar-select.component';
+import { getDocumentTypes } from '../models/document.enum';
 import { DocumentGetRequest } from '../models/document.model';
 import { DocumentListComponent } from '../document-list/document-list.component';
 
@@ -60,14 +61,15 @@ export class DocumentsShellComponent implements OnInit, OnDestroy {
     private globalSelectionService: GlobalSelectionService,
     private propertyService: PropertyService,
     private reservationService: ReservationService
-  ) {}
+  ) {
+    this.setDefaultDateRange();
+    this.syncDocumentRequest();
+  }
 
   //#region Documents-Shell
   ngOnInit(): void {
     this.organizationId = this.authService.getUser()?.organizationId?.trim() ?? '';
     this.selectedOfficeId = this.globalSelectionService.getSelectedOfficeIdValue();
-    this.setDefaultDateRange();
-    this.syncDocumentRequest();
 
     this.router.events.pipe(
       filter((event): event is NavigationEnd => event instanceof NavigationEnd),
@@ -124,6 +126,10 @@ export class DocumentsShellComponent implements OnInit, OnDestroy {
     this.reloadDocumentsList();
   }
 
+  onDocumentTypeDropdownChange(value: string | number | null): void {
+    this.documentsTabList?.onDocumentTypeDropdownChange(value);
+  }
+
   onDateRangeChange(): void {
     if (!this.startDate && !this.endDate) {
       this.setDefaultDateRange();
@@ -168,6 +174,17 @@ export class DocumentsShellComponent implements OnInit, OnDestroy {
 
   get reservationOptions(): SearchableSelectOption[] {
     return this.availableReservations;
+  }
+
+  get documentTypeOptions(): SearchableSelectOption[] {
+    return getDocumentTypes().map(type => ({
+      value: type.value,
+      label: type.label
+    }));
+  }
+
+  get selectedDocumentTypeId(): number | null {
+    return this.documentsTabList?.selectedDocumentTypeId ?? null;
   }
 
   get selectedPropertyCode(): string {

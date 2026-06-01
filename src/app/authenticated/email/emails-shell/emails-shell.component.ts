@@ -72,15 +72,17 @@ export class EmailsShellComponent implements OnInit, OnDestroy {
     private globalSelectionService: GlobalSelectionService,
     private propertyService: PropertyService,
     private reservationService: ReservationService
-  ) {}
+  ) {
+    // Before child lists bind @Input date range — ngOnInit is too late (first search can omit dates).
+    this.setDefaultDateRange();
+    this.syncEmailSearchDateRange();
+    this.syncAlertSearchDateRange();
+  }
 
   //#region Emails-Shell
   ngOnInit(): void {
     this.organizationId = this.authService.getUser()?.organizationId?.trim() ?? '';
     this.selectedOfficeId = this.globalSelectionService.getSelectedOfficeIdValue();
-    this.setDefaultDateRange();
-    this.syncEmailSearchDateRange();
-    this.syncAlertSearchDateRange();
 
     this.route.queryParams.pipe(takeUntil(this.destroy$)).subscribe(queryParams => {
       this.applyQueryParamState(queryParams);

@@ -36,6 +36,15 @@
             [noResultsText]="'No reservations match your search'"
             (valueChange)="onReservationDropdownChange($event)">
           </app-title-bar-select>
+          <app-title-bar-select
+            [label]="'Document Types'"
+            [formFieldClass]="'titlebar-field-document-type'"
+            [value]="selectedDocumentTypeId"
+            [options]="documentTypeOptions"
+            [nullOptionLabel]="'All Document Types'"
+            [noResultsText]="'No document types match your search'"
+            (valueChange)="onDocumentTypeDropdownChange($event)">
+          </app-title-bar-select>
           <mat-form-field appearance="outline" class="titlebar-field-office">
             <mat-label>Start Date</mat-label>
             <input
