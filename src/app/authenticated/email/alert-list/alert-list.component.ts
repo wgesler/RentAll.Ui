@@ -21,7 +21,7 @@ import { DataTableComponent } from '../../shared/data-table/data-table.component
 import { DataTableFilterActionsDirective } from '../../shared/data-table/data-table-filter-actions.directive';
 import { ColumnSet } from '../../shared/data-table/models/column-data';
 import { TitleBarSelectComponent } from '../../shared/titlebar-select/titlebar-select.component';
-import { AlertListDisplay, AlertRequest, AlertResponse } from '../models/alert.model';
+import { AlertGetRequest, AlertListDisplay, AlertRequest, AlertResponse } from '../models/alert.model';
 import { AlertService } from '../services/alert.service';
 
 @Component({
@@ -41,6 +41,7 @@ export class AlertListComponent implements OnInit, OnChanges, OnDestroy {
   @Input() organizationId: string | null = null;
   @Input() officeId: number | null = null;
   @Input() reservationId: string | null = null;
+  @Input() alertSearchDateRange: { startDate: string | null; endDate: string | null } | null = null;
   @Input() reservations: ReservationCodeResponse[] = [];
   @Output() officeIdChange = new EventEmitter<number | null>();
   @Output() reservationIdChange = new EventEmitter<string | null>();
@@ -146,16 +147,32 @@ export class AlertListComponent implements OnInit, OnChanges, OnDestroy {
     }
     if (changes['reservationId']) {
       this.selectedReservationId = changes['reservationId'].currentValue;
+      if (this.usesServerSearchCriteria()) {
+        this.refreshAlertsForCurrentScope();
+        return;
+      }
       this.applyFilters();
     }
     if (changes['propertyId'] && !changes['propertyId'].firstChange) {
+      if (this.usesServerSearchCriteria()) {
+        this.refreshAlertsForCurrentScope();
+        return;
+      }
       this.applyFilters();
+    }
+
+    if (this.source === 'alerts' && changes['alertSearchDateRange'] && !changes['alertSearchDateRange'].firstChange) {
+      this.refreshAlertsForCurrentScope();
     }
   }
 
   onTitleBarOfficeIdUpdate(officeId: number | null): void {
     this.selectedOfficeId = officeId;
     this.filterReservations();
+    if (this.usesServerSearchCriteria()) {
+      this.refreshAlertsForCurrentScope();
+      return;
+    }
     this.applyFilters();
   }
   //#endregion
@@ -248,6 +265,11 @@ export class AlertListComponent implements OnInit, OnChanges, OnDestroy {
   }
 
   loadAlerts(): void {
+    if (this.usesServerSearchCriteria()) {
+      this.refreshAlertsForCurrentScope();
+      return;
+    }
+
     this.utilityService.addLoadItem(this.itemsToLoad$, 'alerts');
     this.alertService.getAlerts().pipe(take(1), finalize(() => {
       this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'alerts');
@@ -266,6 +288,46 @@ export class AlertListComponent implements OnInit, OnChanges, OnDestroy {
       error: () => {
         this.allAlerts = [];
         this.alerts = [];
+        this.isServiceError = true;
+        this.markViewForCheck();
+      }
+    });
+  }
+
+  refreshAlertsForCurrentScope(): void {
+    if (!this.officeScopeResolved) {
+      return;
+    }
+
+    const officeIds = this.resolveOfficeIdsForSearch();
+    if (officeIds.length === 0) {
+      this.allAlerts = [];
+      this.alerts = [];
+      this.alertsById = new Map();
+      this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'alerts');
+      this.markViewForCheck();
+      return;
+    }
+
+    this.utilityService.addLoadItem(this.itemsToLoad$, 'alerts');
+    this.alertService.searchAlerts(this.buildAlertSearchRequest(officeIds)).pipe(take(1), finalize(() => {
+      this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'alerts');
+      this.markViewForCheck();
+    })).subscribe({
+      next: alerts => {
+        const alertResponses = alerts || [];
+        this.alertsById = new Map(alertResponses.map(alert => [alert.alertId, alert]));
+        this.allAlerts = this.mappingService.mapAlertListDisplays(alertResponses);
+        this.allAlerts = this.mappingService.mapAlertOfficeNames(this.allAlerts, this.offices);
+        this.applyReservationCodes();
+        this.applyFilters();
+        this.isServiceError = false;
+        this.markViewForCheck();
+      },
+      error: () => {
+        this.allAlerts = [];
+        this.alerts = [];
+        this.alertsById = new Map();
         this.isServiceError = true;
         this.markViewForCheck();
       }
@@ -350,14 +412,17 @@ export class AlertListComponent implements OnInit, OnChanges, OnDestroy {
     if (!this.showInactive) {
       filtered = filtered.filter(alert => alert.isActive);
     }
-    if (this.selectedOfficeId !== null && this.selectedOfficeId !== undefined) {
-      filtered = filtered.filter(alert => alert.officeId === String(this.selectedOfficeId));
-    }
-    if (this.selectedReservationId) {
-      filtered = filtered.filter(alert => alert.reservationId === this.selectedReservationId);
-    }
-    if ((this.source === 'property' || this.source === 'reservation') && this.propertyId) {
-      filtered = filtered.filter(alert => alert.propertyId === this.propertyId);
+    const serverSearch = this.usesServerSearchCriteria();
+    if (!serverSearch) {
+      if (this.selectedOfficeId !== null && this.selectedOfficeId !== undefined) {
+        filtered = filtered.filter(alert => alert.officeId === String(this.selectedOfficeId));
+      }
+      if (this.selectedReservationId) {
+        filtered = filtered.filter(alert => alert.reservationId === this.selectedReservationId);
+      }
+      if ((this.source === 'property' || this.source === 'reservation') && this.propertyId) {
+        filtered = filtered.filter(alert => alert.propertyId === this.propertyId);
+      }
     }
     this.alerts = filtered;
   }
@@ -368,6 +433,10 @@ export class AlertListComponent implements OnInit, OnChanges, OnDestroy {
   }
 
   reload(): void {
+    if (this.usesServerSearchCriteria()) {
+      this.refreshAlertsForCurrentScope();
+      return;
+    }
     this.loadAlerts();
   }
 
@@ -501,7 +570,34 @@ export class AlertListComponent implements OnInit, OnChanges, OnDestroy {
       this.officeIdChange.emit(this.selectedOfficeId);
     }
     this.filterReservations();
+    if (this.usesServerSearchCriteria()) {
+      this.refreshAlertsForCurrentScope();
+      return;
+    }
     this.applyFilters();
+  }
+
+  usesServerSearchCriteria(): boolean {
+    return this.source === 'alerts' && this.alertSearchDateRange != null;
+  }
+
+  resolveOfficeIdsForSearch(): number[] {
+    const scopedOfficeId = this.officeId ?? this.selectedOfficeId;
+    if (scopedOfficeId != null) {
+      return [scopedOfficeId];
+    }
+    return (this.offices || []).map(office => office.officeId).filter(id => id > 0);
+  }
+
+  buildAlertSearchRequest(officeIds: number[]): AlertGetRequest {
+    const reservationId = this.reservationId || this.selectedReservationId || null;
+    return {
+      officeIds,
+      propertyId: this.propertyId ?? null,
+      reservationId,
+      startDate: this.alertSearchDateRange?.startDate ?? null,
+      endDate: this.alertSearchDateRange?.endDate ?? null
+    };
   }
 
   ngOnDestroy(): void {

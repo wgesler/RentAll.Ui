@@ -47,6 +47,32 @@
               (valueChange)="onEmailTypeDropdownChange($event)">
             </app-title-bar-select>
           }
+          <div class="emails-shell-titlebar-dates">
+            <mat-form-field appearance="outline" class="titlebar-field-office">
+              <mat-label>Start Date</mat-label>
+              <input
+                matInput
+                [matDatepicker]="emailsShellStartPicker"
+                [(ngModel)]="startDate"
+                [ngModelOptions]="{ standalone: true }"
+                (dateChange)="onDateRangeChange()"
+                [max]="endDate" />
+              <mat-datepicker-toggle matIconSuffix [for]="emailsShellStartPicker"></mat-datepicker-toggle>
+              <mat-datepicker #emailsShellStartPicker></mat-datepicker>
+            </mat-form-field>
+            <mat-form-field appearance="outline" class="titlebar-field-office">
+              <mat-label>End Date</mat-label>
+              <input
+                matInput
+                [matDatepicker]="emailsShellEndPicker"
+                [(ngModel)]="endDate"
+                [ngModelOptions]="{ standalone: true }"
+                (dateChange)="onDateRangeChange()"
+                [min]="startDate" />
+              <mat-datepicker-toggle matIconSuffix [for]="emailsShellEndPicker"></mat-datepicker-toggle>
+              <mat-datepicker #emailsShellEndPicker></mat-datepicker>
+            </mat-form-field>
+          </div>
         </div>
       </div>
       <div class="flex items-center gap-3 ml-[10px]">
@@ -73,7 +99,8 @@
             [propertyId]="selectedPropertyId"
             [reservationId]="selectedReservationId"
             [propertyCode]="selectedPropertyCode"
-            [reservations]="reservations">
+            [reservations]="reservations"
+            [emailSearchDateRange]="emailSearchDateRange">
           </app-email-list>
         </mat-tab>
         <mat-tab label="Alerts">
@@ -89,7 +116,8 @@
               [propertyCode]="selectedPropertyCode"
               [reservations]="reservations"
               (alertEdit)="onAlertEdit($event)"
-              (alertSelected)="onAlertSelected($event)">
+              (alertSelected)="onAlertSelected($event)"
+              [alertSearchDateRange]="alertSearchDateRange">
             </app-alert-list>
           } @else {
             <app-alert

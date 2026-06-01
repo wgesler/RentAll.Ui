@@ -1,10 +1,12 @@
 import { CommonModule } from '@angular/common';
 import { Component, OnDestroy, OnInit, ViewChild } from '@angular/core';
+import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, Router } from '@angular/router';
 import { skip, Subject, take, takeUntil } from 'rxjs';
 import { MaterialModule } from '../../../material.module';
 import { AuthService } from '../../../services/auth.service';
 import { UtilityService } from '../../../services/utility.service';
+import { getStringQueryParam } from '../../shared/query-param.utils';
 import { OfficeResponse } from '../../organizations/models/office.model';
 import { GlobalSelectionService } from '../../organizations/services/global-selection.service';
 import { OfficeService } from '../../organizations/services/office.service';
@@ -24,6 +26,7 @@ import { AlertResponse } from '../models/alert.model';
   selector: 'app-emails-shell',
   imports: [
     CommonModule,
+    FormsModule,
     MaterialModule,
     TitleBarSelectComponent,
     EmailListComponent,
@@ -44,6 +47,11 @@ export class EmailsShellComponent implements OnInit, OnDestroy {
   selectedPropertyId: string | null = null;
   selectedReservationId: string | null = null;
   selectedReservationSummary: ReservationCodeResponse | null = null;
+
+  startDate: Date | null = null;
+  endDate: Date | null = null;
+  emailSearchDateRange: { startDate: string | null; endDate: string | null } = { startDate: null, endDate: null };
+  alertSearchDateRange: { startDate: string | null; endDate: string | null } = { startDate: null, endDate: null };
 
   offices: OfficeResponse[] = [];
   showOfficeDropdown = false;
@@ -70,8 +78,12 @@ export class EmailsShellComponent implements OnInit, OnDestroy {
   ngOnInit(): void {
     this.organizationId = this.authService.getUser()?.organizationId?.trim() ?? '';
     this.selectedOfficeId = this.globalSelectionService.getSelectedOfficeIdValue();
+    this.setDefaultDateRange();
+    this.syncEmailSearchDateRange();
+    this.syncAlertSearchDateRange();
 
     this.route.queryParams.pipe(takeUntil(this.destroy$)).subscribe(queryParams => {
+      this.applyQueryParamState(queryParams);
       const tab = String(queryParams['tab'] || '').trim().toLowerCase();
       const nextIndex = tab === 'alerts' ? 1 : 0;
       if (this.selectedTabIndex !== nextIndex) {
@@ -192,6 +204,18 @@ export class EmailsShellComponent implements OnInit, OnDestroy {
 
   onEmailTypeDropdownChange(value: string | number | null): void {
     this.emailsTabList?.onEmailTypeDropdownChange(value);
+  }
+
+  onDateRangeChange(): void {
+    this.normalizeDateRangeValues();
+    this.syncEmailSearchDateRange();
+    this.syncAlertSearchDateRange();
+    this.reloadActiveTabList();
+    this.router.navigate([], {
+      relativeTo: this.route,
+      queryParams: this.buildShellQueryParams(),
+      queryParamsHandling: 'merge'
+    });
   }
 
   get propertyOptions(): SearchableSelectOption[] {
@@ -344,6 +368,89 @@ export class EmailsShellComponent implements OnInit, OnDestroy {
     if (this.selectedTabIndex === 1) {
       this.alertsTabList?.reload();
     }
+  }
+
+  setDefaultDateRange(): void {
+    const end = new Date();
+    end.setHours(0, 0, 0, 0);
+
+    const start = new Date(end);
+    start.setDate(start.getDate() - 30);
+    start.setHours(0, 0, 0, 0);
+
+    this.endDate = end;
+    this.startDate = start;
+  }
+
+  syncEmailSearchDateRange(): void {
+    this.emailSearchDateRange = {
+      startDate: this.utilityService.formatDateOnlyForApi(this.startDate),
+      endDate: this.utilityService.formatDateOnlyForApi(this.endDate)
+    };
+  }
+
+  syncAlertSearchDateRange(): void {
+    this.alertSearchDateRange = {
+      startDate: this.utilityService.formatDateOnlyForApi(this.startDate),
+      endDate: this.utilityService.formatDateOnlyForApi(this.endDate)
+    };
+  }
+
+  applyQueryParamState(params: Record<string, unknown>): void {
+    const startDateParam = getStringQueryParam(params, 'startDate');
+    const endDateParam = getStringQueryParam(params, 'endDate');
+    if (startDateParam || endDateParam) {
+      this.startDate = this.utilityService.parseDateOnlyStringToDate(startDateParam);
+      this.endDate = this.utilityService.parseDateOnlyStringToDate(endDateParam);
+      this.normalizeDateRangeValues();
+      this.syncEmailSearchDateRange();
+      this.syncAlertSearchDateRange();
+      return;
+    }
+    if (!this.startDate && !this.endDate) {
+      this.setDefaultDateRange();
+      this.syncEmailSearchDateRange();
+      this.syncAlertSearchDateRange();
+    }
+  }
+
+  normalizeDateRangeValues(): void {
+    if (!this.startDate && !this.endDate) {
+      this.setDefaultDateRange();
+      return;
+    }
+    if (this.startDate && !this.endDate) {
+      const end = new Date(this.startDate);
+      end.setHours(0, 0, 0, 0);
+      this.endDate = end;
+    } else if (!this.startDate && this.endDate) {
+      const start = new Date(this.endDate);
+      start.setDate(start.getDate() - 30);
+      start.setHours(0, 0, 0, 0);
+      this.startDate = start;
+    }
+
+    if (this.startDate) {
+      this.startDate.setHours(0, 0, 0, 0);
+    }
+    if (this.endDate) {
+      this.endDate.setHours(0, 0, 0, 0);
+    }
+
+    if (this.startDate && this.endDate && this.startDate.getTime() > this.endDate.getTime()) {
+      const tmp = this.startDate;
+      this.startDate = this.endDate;
+      this.endDate = tmp;
+    }
+  }
+
+  buildShellQueryParams(overrides: Record<string, string | null> = {}): Record<string, string | null> {
+    return {
+      tab: this.selectedTabIndex === 1 ? 'alerts' : null,
+      startDate: this.utilityService.formatDateOnlyForApi(this.startDate),
+      endDate: this.utilityService.formatDateOnlyForApi(this.endDate),
+      ...overrides
+    };
   }
 
   ngOnDestroy(): void {

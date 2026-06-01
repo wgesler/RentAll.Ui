@@ -1,5 +1,15 @@
 import { FileDetails } from '../../documents/models/document.model';
 
+/** Body for POST email/search — matches API GetEmailsDto. */
+export interface EmailGetRequest {
+  officeIds: number[];
+  propertyId?: string | null;
+  reservationId?: string | null;
+  emailTypeIds?: string | null;
+  startDate?: string | null;
+  endDate?: string | null;
+}
+
 export interface EmailAddress {
   email: string;
   name: string;

@@ -7,3 +7,16 @@
   overflow-y: hidden !important;
 }
 
+.emails-shell-titlebar-dates {
+  display: flex;
+  flex-wrap: nowrap;
+  align-items: center;
+  gap: 0.5rem;
+  flex: 0 0 auto;
+}
+
+:host ::ng-deep .property-titlebar .header-title.form-titlebar-fields-wrap > .titlebar-field-office {
+  margin-left: 0 !important;
+  margin-right: 0 !important;
+}
+

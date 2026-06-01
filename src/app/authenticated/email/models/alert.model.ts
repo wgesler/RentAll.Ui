@@ -1,6 +1,15 @@
 import type { CalendarDateString } from '../../../services/utility.service';
 import { EmailAddress } from './email.model';
 
+/** Body for POST email/alert/search — matches API GetAlertDto. */
+export interface AlertGetRequest {
+  officeIds: number[];
+  propertyId?: string | null;
+  reservationId?: string | null;
+  startDate?: string | null;
+  endDate?: string | null;
+}
+
 export interface AlertRequest {
   alertId?: string;
   organizationId: string;

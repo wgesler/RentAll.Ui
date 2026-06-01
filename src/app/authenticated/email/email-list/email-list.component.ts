@@ -9,7 +9,7 @@ import { MaterialModule } from '../../../material.module';
 import { MappingService } from '../../../services/mapping.service';
 import { AuthService } from '../../../services/auth.service';
 import { skip, BehaviorSubject, Subject, finalize, switchMap, take, takeUntil } from 'rxjs';
-import { EmailListDisplay } from '../models/email.model';
+import { EmailGetRequest, EmailListDisplay } from '../models/email.model';
 import { EmailService } from '../services/email.service';
 import { DataTableComponent } from '../../shared/data-table/data-table.component';
 import { ColumnSet } from '../../shared/data-table/models/column-data';
@@ -46,6 +46,7 @@ export class EmailListComponent implements OnInit, OnDestroy, OnChanges {
   /** When set, keep only rows with this document type (e.g. Inspection). Rows without `documentTypeId` match if subject starts with "Inspection Issues". */
   @Input() filterDocumentTypeId?: number;
   @Input() activeOnly: boolean = false;
+  @Input() emailSearchDateRange: { startDate: string | null; endDate: string | null } | null = null;
   @Input() reservations: ReservationCodeResponse[] = []; // Shared reservations list from parent (or loaded internally)
   @Output() companyIdChange = new EventEmitter<string | null>();
   @Output() officeIdChange = new EventEmitter<number | null>();
@@ -186,6 +187,14 @@ export class EmailListComponent implements OnInit, OnDestroy, OnChanges {
     if (changes['filterDocumentTypeId']) {
       this.applyFilters();
     }
+
+    if (this.source === 'emails' && changes['emailSearchDateRange'] && !changes['emailSearchDateRange'].firstChange) {
+      this.refreshEmailsForCurrentScope();
+    }
+
+    if (this.source === 'emails' && changes['propertyId'] && !changes['propertyId'].firstChange) {
+      this.refreshEmailsForCurrentScope();
+    }
   }
 
   //#region Title Bar Updates
@@ -193,11 +202,19 @@ export class EmailListComponent implements OnInit, OnDestroy, OnChanges {
     this.selectedOfficeId = officeId;
     this.filterCompanies();
     this.filterReservations();
+    if (this.usesServerSearchCriteria()) {
+      this.refreshEmailsForCurrentScope();
+      return;
+    }
     this.applyFilters();
   }
 
   onTitleBarReservationIdUpdate(reservationId: string | null): void {
     this.selectedReservationId = reservationId;
+    if (this.usesServerSearchCriteria()) {
+      this.refreshEmailsForCurrentScope();
+      return;
+    }
     this.applyFilters();
   }
   //#endregion
@@ -253,12 +270,52 @@ export class EmailListComponent implements OnInit, OnDestroy, OnChanges {
   }
 
   loadEmails(): void {
+    if (this.usesServerSearchCriteria()) {
+      this.refreshEmailsForCurrentScope();
+      return;
+    }
+
     this.utilityService.addLoadItem(this.itemsToLoad$, 'emails');
     this.emailService.getEmails().pipe(take(1), finalize(() => {
       this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'emails');
       this.markViewForCheck();
     })).subscribe({
       next: (emails) => {
+        this.allEmails = this.mappingService.mapEmailListDisplays(emails || []);
+        this.allEmails = this.mappingService.mapEmailOfficeNames(this.allEmails, this.offices);
+        this.applyFilters();
+        this.isServiceError = false;
+        this.markViewForCheck();
+      },
+      error: () => {
+        this.allEmails = [];
+        this.emails = [];
+        this.isServiceError = true;
+        this.markViewForCheck();
+      }
+    });
+  }
+
+  refreshEmailsForCurrentScope(): void {
+    if (!this.officeScopeResolved) {
+      return;
+    }
+
+    const officeIds = this.resolveOfficeIdsForSearch();
+    if (officeIds.length === 0) {
+      this.allEmails = [];
+      this.emails = [];
+      this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'emails');
+      this.markViewForCheck();
+      return;
+    }
+
+    this.utilityService.addLoadItem(this.itemsToLoad$, 'emails');
+    this.emailService.searchEmails(this.buildEmailSearchRequest(officeIds)).pipe(take(1), finalize(() => {
+      this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'emails');
+      this.markViewForCheck();
+    })).subscribe({
+      next: emails => {
         this.allEmails = this.mappingService.mapEmailListDisplays(emails || []);
         this.allEmails = this.mappingService.mapEmailOfficeNames(this.allEmails, this.offices);
         this.applyFilters();
@@ -384,6 +441,10 @@ export class EmailListComponent implements OnInit, OnDestroy, OnChanges {
 
   onEmailTypeDropdownChange(value: string | number | null): void {
     this.selectedEmailTypeId = value == null || value === '' ? null : Number(value);
+    if (this.usesServerSearchCriteria()) {
+      this.refreshEmailsForCurrentScope();
+      return;
+    }
     this.applyFilters();
   }
 
@@ -480,25 +541,29 @@ export class EmailListComponent implements OnInit, OnDestroy, OnChanges {
       filtered = filtered.filter(email => email.emailTypeId !== EmailType.Alert);
     }
 
-    if (this.source !== 'reservation' && this.selectedOfficeId !== null && this.selectedOfficeId !== undefined) {
+    const serverSearch = this.usesServerSearchCriteria();
+
+    if (!serverSearch && this.source !== 'reservation' && this.selectedOfficeId !== null && this.selectedOfficeId !== undefined) {
       filtered = filtered.filter(email => email.officeId === String(this.selectedOfficeId));
     }
 
     const reservationIdToFilter = this.selectedReservationId || this.reservationId || null;
     const propertyIdToFilter = this.propertyId || null;
     const useShellScopeFilter = this.source === 'reservation' || this.source === 'property' || this.source === 'maintenance' || this.source === 'invoice';
-    if (useShellScopeFilter) {
-      if (reservationIdToFilter) {
-        filtered = filtered.filter(email => email.reservationId === reservationIdToFilter);
-      } else if (propertyIdToFilter) {
-        filtered = filtered.filter(email => email.propertyId === propertyIdToFilter);
+    if (!serverSearch) {
+      if (useShellScopeFilter) {
+        if (reservationIdToFilter) {
+          filtered = filtered.filter(email => email.reservationId === reservationIdToFilter);
+        } else if (propertyIdToFilter) {
+          filtered = filtered.filter(email => email.propertyId === propertyIdToFilter);
+        }
+      } else if (this.source === 'emails' && this.selectedReservationId !== null && this.selectedReservationId !== undefined && this.selectedReservationId !== '') {
+        filtered = filtered.filter(email => email.reservationId === this.selectedReservationId);
       }
-    } else if (this.source === 'emails' && this.selectedReservationId !== null && this.selectedReservationId !== undefined && this.selectedReservationId !== '') {
-      filtered = filtered.filter(email => email.reservationId === this.selectedReservationId);
     }
 
     const emailTypeToFilter = this.selectedEmailTypeId ?? this.emailTypeId;
-    if (emailTypeToFilter !== null && emailTypeToFilter !== undefined) {
+    if (!serverSearch && emailTypeToFilter !== null && emailTypeToFilter !== undefined) {
       filtered = filtered.filter(email => email.emailTypeId === emailTypeToFilter);
     }
 
@@ -520,6 +585,10 @@ export class EmailListComponent implements OnInit, OnDestroy, OnChanges {
   }
 
   reload(): void {
+    if (this.usesServerSearchCriteria()) {
+      this.refreshEmailsForCurrentScope();
+      return;
+    }
     this.loadEmails();
   }
 
@@ -654,7 +723,36 @@ export class EmailListComponent implements OnInit, OnDestroy, OnChanges {
     }
     this.filterCompanies();
     this.filterReservations();
+    if (this.usesServerSearchCriteria()) {
+      this.refreshEmailsForCurrentScope();
+      return;
+    }
     this.applyFilters();
+  }
+
+  usesServerSearchCriteria(): boolean {
+    return this.source === 'emails' && this.emailSearchDateRange != null;
+  }
+
+  resolveOfficeIdsForSearch(): number[] {
+    const scopedOfficeId = this.officeId ?? this.selectedOfficeId;
+    if (scopedOfficeId != null) {
+      return [scopedOfficeId];
+    }
+    return (this.offices || []).map(office => office.officeId).filter(id => id > 0);
+  }
+
+  buildEmailSearchRequest(officeIds: number[]): EmailGetRequest {
+    const reservationId = this.reservationId || this.selectedReservationId || null;
+    const emailTypeToFilter = this.selectedEmailTypeId ?? this.emailTypeId;
+    return {
+      officeIds,
+      propertyId: this.propertyId ?? null,
+      reservationId,
+      emailTypeIds: emailTypeToFilter != null ? String(emailTypeToFilter) : null,
+      startDate: this.emailSearchDateRange?.startDate ?? null,
+      endDate: this.emailSearchDateRange?.endDate ?? null
+    };
   }
 
   get emailTypeOptions(): { value: number, label: string }[] {
