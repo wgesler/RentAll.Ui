@@ -21,10 +21,6 @@ export class ReceiptService {
     this.controller = this.configService.config().apiUrl + 'maintenance/receipt/';
   }
 
-  getAllReceipts(): Observable<ReceiptResponse[]> {
-    return this.http.get<ReceiptResponse[]>(this.controller);
-  }
-
   getReceipts(propertyId?: string | null, officeId?: number | null): Observable<ReceiptResponse[]> {
     if (propertyId) {
       return this.http.get<ReceiptResponse[]>(this.controller + 'property/' + propertyId);
@@ -37,14 +33,6 @@ export class ReceiptService {
 
   getReceiptsByPropertyId(propertyId: string): Observable<ReceiptResponse[]> {
     return this.http.get<ReceiptResponse[]>(this.controller + 'property/' + propertyId);
-  }
-
-  getReceiptsByOfficeId(officeId: number): Observable<ReceiptResponse[]> {
-    return this.http.get<ReceiptResponse[]>(this.controller + 'office/' + officeId);
-  }
-
-  getReceiptByPropertyId(propertyId: string): Observable<ReceiptResponse[]> {
-    return this.getReceiptsByPropertyId(propertyId);
   }
 
   getReceiptById(receiptId: number): Observable<ReceiptResponse> {

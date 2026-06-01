@@ -21,10 +21,6 @@ export class MaintenanceUtilityService {
     return this.http.get<UtilityResponse[]>(this.controller + propertyId);
   }
 
-  getUtilityById(utilityId: number): Observable<UtilityResponse> {
-    return this.http.get<UtilityResponse>(this.controller + utilityId);
-  }
-
   createUtility(request: UtilityRequest): Observable<UtilityResponse> {
     return this.http.post<UtilityResponse>(this.controller, request);
   }

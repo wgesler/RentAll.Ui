@@ -137,6 +137,15 @@ tr.mat-mdc-row.mat-no-data-row,
     color: #334155;
 }
 
+.datatable-subheader-label--collapsible {
+    cursor: pointer;
+    user-select: none;
+}
+
+.datatable-subheader-label--collapsible:hover {
+    text-decoration: underline;
+}
+
 .datatable-search-field {
     min-width: 20em !important;
     width: auto;
@@ -190,13 +199,35 @@ tr.mat-mdc-row.mat-no-data-row,
     width: 100%;
 }
 
+:host ::ng-deep td.mat-cell .datatable-multiselect-wrapper .mat-mdc-select,
+:host ::ng-deep td.mat-mdc-cell .datatable-multiselect-wrapper .mat-mdc-select {
+    display: inline-flex !important;
+    align-items: center !important;
+    height: 100% !important;
+}
+
+:host ::ng-deep td.mat-cell .datatable-multiselect-wrapper .mat-mdc-select-trigger,
+:host ::ng-deep td.mat-mdc-cell .datatable-multiselect-wrapper .mat-mdc-select-trigger {
+    align-items: center !important;
+    height: 40px !important;
+    min-height: 40px !important;
+}
+
+:host ::ng-deep td.mat-cell .datatable-multiselect-wrapper .mat-mdc-select-value,
+:host ::ng-deep td.mat-mdc-cell .datatable-multiselect-wrapper .mat-mdc-select-value {
+    display: flex !important;
+    align-items: center !important;
+}
+
 .datatable-multiselect-wrapper {
     position: relative;
     display: inline-flex;
     align-items: center;
-    justify-content: center;
+    justify-content: flex-start;
     min-width: 42px;
-    height: 32px;
+    height: 40px;
+    min-height: 40px;
+    vertical-align: middle;
 }
 
 .datatable-multiselect-visible-checkbox {
@@ -671,6 +702,22 @@ td.mat-mdc-cell.align-center {
   background: #fff;
 }
 
+/* Date columns: fit date + picker icon; avoid ellipsis from fixed column width. */
+th.mat-header-cell.datatable-date-column,
+th.mat-mdc-header-cell.datatable-date-column,
+td.mat-cell.datatable-date-column,
+td.mat-mdc-cell.datatable-date-column {
+  overflow: visible !important;
+  text-overflow: clip !important;
+  width: auto !important;
+  max-width: none !important;
+}
+
+::ng-deep td.datatable-date-column .datatable-editable-date-field.mat-mdc-form-field {
+  width: auto !important;
+  max-width: none !important;
+}
+
 ::ng-deep .datatable-editable-date-field.mat-mdc-form-field {
   width: 100%;
 }
@@ -679,16 +726,66 @@ td.mat-mdc-cell.align-center {
   display: none;
 }
 
+::ng-deep .datatable-editable-date-field.mat-mdc-form-field {
+  display: inline-flex !important;
+  align-items: center !important;
+  vertical-align: middle !important;
+  margin: 0 !important;
+}
+
 ::ng-deep .datatable-editable-date-field .mat-mdc-text-field-wrapper {
-  height: 30px;
+  height: 24px;
+  min-height: 24px;
   padding-left: 8px !important;
   padding-right: 4px !important;
 }
 
+::ng-deep .datatable-editable-date-field .mat-mdc-form-field-flex {
+  align-items: center !important;
+  height: 24px !important;
+  min-height: 24px !important;
+}
+
 ::ng-deep .datatable-editable-date-field .mat-mdc-form-field-infix {
-  min-height: 30px;
-  padding-top: 2px !important;
-  padding-bottom: 2px !important;
+  display: flex !important;
+  align-items: center !important;
+  min-height: 24px !important;
+  padding-top: 0 !important;
+  padding-bottom: 0 !important;
+  font-size: 12px !important;
+}
+
+::ng-deep .datatable-editable-date-field .mat-mdc-form-field-input-control,
+::ng-deep .datatable-editable-date-field .mat-mdc-text-field-input-control {
+  display: flex !important;
+  align-items: center !important;
+  height: 24px !important;
+  min-height: 24px !important;
+}
+
+::ng-deep .datatable-editable-date-field .mat-mdc-form-field-icon-suffix {
+  display: flex !important;
+  align-items: center !important;
+  align-self: center !important;
+  height: 24px !important;
+}
+
+::ng-deep .datatable-editable-date-field .mat-mdc-input-element,
+::ng-deep .datatable-editable-date-field input.datatable-editable-date-input {
+  font-size: 12px !important;
+  font-weight: 400 !important;
+  line-height: 24px !important;
+  height: 24px !important;
+  padding: 0 !important;
+  margin: 0 !important;
+  color: #707070 !important;
+  letter-spacing: 0.25px;
+  box-sizing: border-box !important;
+}
+
+::ng-deep td.mat-mdc-cell .datatable-editable-date-field .mat-mdc-input-element,
+::ng-deep td.mat-cell .datatable-editable-date-field .mat-mdc-input-element {
+  color: #707070 !important;
 }
 
 /* Keep empty date cells visually blank while still showing picker icon. */

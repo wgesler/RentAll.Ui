@@ -1,8 +1,7 @@
 import { HttpClient } from '@angular/common/http';
 import { Injectable } from '@angular/core';
-import { Observable, firstValueFrom } from 'rxjs';
+import { Observable } from 'rxjs';
 import { ConfigService } from '../../../services/config.service';
-import { MixedMappingService } from '../../../services/mixed-mapping.service';
 import { MaintenanceListResponse, MaintenanceRequest, MaintenanceResponse } from '../models/maintenance.model';
 
 @Injectable({
@@ -15,8 +14,7 @@ export class MaintenanceService {
 
   constructor(
     http: HttpClient,
-    configService: ConfigService,
-    private mixedMappingService: MixedMappingService
+    configService: ConfigService
   ) {
     this.http = http;
     this.configService = configService;
@@ -25,10 +23,6 @@ export class MaintenanceService {
 
   getMaintenanceList(): Observable<MaintenanceListResponse[]> {
     return this.http.get<MaintenanceListResponse[]>(this.controller + 'list');
-  }
-
-  getMaintenanceByGuid(maintenanceId: string): Observable<MaintenanceResponse> {
-    return this.http.get<MaintenanceResponse>(this.controller + maintenanceId);
   }
 
   getByPropertyId(propertyId: string): Observable<MaintenanceResponse | null> {
@@ -41,18 +35,5 @@ export class MaintenanceService {
 
   updateMaintenance(request: MaintenanceRequest): Observable<MaintenanceResponse> {
     return this.http.put<MaintenanceResponse>(this.controller, request);
-  }
-
-  async updateModifiedMaintenance(
-    maintenanceId: string,
-    overrides: Partial<MaintenanceRequest> | ((maintenance: MaintenanceResponse) => Partial<MaintenanceRequest>)
-  ): Promise<MaintenanceResponse> {
-    const maintenance = await firstValueFrom(this.getMaintenanceByGuid(maintenanceId));
-    const patch = typeof overrides === 'function' ? overrides(maintenance) : overrides;
-    return firstValueFrom(this.updateMaintenance(this.mixedMappingService.mapMaintenanceResponseToRequest(maintenance, patch)));
-  }
-
-  deleteMaintenance(maintenanceId: string): Observable<void> {
-    return this.http.delete<void>(this.controller + maintenanceId);
   }
 }

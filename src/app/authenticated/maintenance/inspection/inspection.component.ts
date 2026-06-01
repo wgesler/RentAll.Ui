@@ -904,25 +904,6 @@ export class InspectionComponent implements OnChanges, OnDestroy, OnInit {
     return JSON.stringify(payload);
   }
 
-  deleteActiveChecklistRecords() {
-    const propertyId = this.property?.propertyId ?? '';
-    if (!propertyId) {
-      return of(void 0);
-    }
-
-    return this.inspectionService.getInspectionsByPropertyId(propertyId).pipe(take(1),
-      map((inspections) => (inspections || [])
-        .filter(inspection => inspection.isActive == true)
-        .map(inspection => this.inspectionService.deleteInspection(inspection.inspectionId).pipe(take(1)))),
-      switchMap(deleteRequests => {
-        if (deleteRequests.length === 0) {
-          return of(void 0);
-        }
-        return forkJoin(deleteRequests).pipe(map(() => void 0));
-      })
-    );
-  }
-
   /** Delete individual checklist photos via photo API (same as we use getPhotoByGuid to load them). */
   deleteChecklistPhotoDocuments() {
     const photoIds = Array.from(new Set(

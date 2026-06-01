@@ -1,5 +1,5 @@
 import { CommonModule } from '@angular/common';
-import { ChangeDetectionStrategy, ChangeDetectorRef, Component, EventEmitter, Input, OnChanges, Output, SimpleChanges } from '@angular/core';
+import { ChangeDetectionStrategy, Component, EventEmitter, Input, OnChanges, Output, SimpleChanges } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { MaterialModule } from '../../../material.module';
 import { FormatterService } from '../../../services/formatter-service';
@@ -37,13 +37,8 @@ export class MaintenanceUtilityListComponent implements OnChanges {
   rowCounter = 0;
 
   constructor(
-    private formatterService: FormatterService,
-    private cdr: ChangeDetectorRef
+    private formatterService: FormatterService
   ) {}
-
-  private markViewForCheck(): void {
-    this.cdr.markForCheck();
-  }
 
   //#region Maintenance Utility List
   ngOnChanges(changes: SimpleChanges): void {

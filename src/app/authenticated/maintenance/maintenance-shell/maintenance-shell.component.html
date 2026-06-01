@@ -138,15 +138,17 @@
           @if (showWorkOrdersTab) {
             <mat-tab label="Work Orders">
               @if (showWorkOrderDetail) {
-                <app-work-order
-                  #maintenanceWorkOrderDetail
-                  [property]="property"
-                  [workOrderId]="selectedWorkOrderId"
-                  [embeddedInMaintenance]="true"
-                  (saveValidationAttempted)="onWorkOrderSaveValidationAttempted()"
-                (receiptSelect)="onReceiptSelect($event)"
-                  (backEvent)="onWorkOrderBack()"
-                  (savedEvent)="onWorkOrderSaved()" />
+                @for (instance of [workOrderDetailInstance]; track instance) {
+                  <app-work-order
+                    #maintenanceWorkOrderDetail
+                    [property]="property"
+                    [workOrderId]="selectedWorkOrderId"
+                    [embeddedInMaintenance]="true"
+                    (saveValidationAttempted)="onWorkOrderSaveValidationAttempted()"
+                    (receiptSelect)="onReceiptSelect($event)"
+                    (backEvent)="onWorkOrderBack()"
+                    (savedEvent)="onWorkOrderSaved()" />
+                }
               } @else {
                 <app-work-order-list
                   #maintenanceWorkOrderList

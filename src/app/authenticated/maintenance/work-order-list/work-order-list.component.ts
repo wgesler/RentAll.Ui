@@ -52,6 +52,7 @@ export class WorkOrderListComponent implements OnInit, OnChanges, OnDestroy {
 
   selectedProperty: PropertyResponse | null = null;
   selectedPropertyId: string | null = null;
+  private workOrdersLoadId = 0;
 
   workOrderDisplayedColumns: ColumnSet = {
     workOrderCode: { displayAs: 'Code', wrap: false, maxWidth: '15ch' },
@@ -88,6 +89,9 @@ export class WorkOrderListComponent implements OnInit, OnChanges, OnDestroy {
       this.markViewForCheck();
     });
     this.setRoleBasedColumns();
+    if (this.isActiveTab) {
+      this.getWorkOrders();
+    }
   }
 
   ngOnChanges(changes: SimpleChanges): void {
@@ -122,21 +126,30 @@ export class WorkOrderListComponent implements OnInit, OnChanges, OnDestroy {
   }
 
   getWorkOrders(): void {
+    const loadId = ++this.workOrdersLoadId;
     this.isServiceError = false;
     this.utilityService.addLoadItem(this.itemsToLoad$, 'workOrders');
     const propertyId = this.property?.propertyId ?? null;
     const officeId = this.officeId ?? null;
     this.workOrderService.getWorkOrders(propertyId, officeId).pipe(take(1), finalize(() => {
-      this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'workOrders');
+      if (this.workOrdersLoadId === loadId) {
+        this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'workOrders');
+      }
       this.markViewForCheck();
     })).subscribe({
       next: (workOrders: WorkOrderResponse[]) => {
+        if (this.workOrdersLoadId !== loadId) {
+          return;
+        }
         this.workOrders = workOrders || [];
         this.allWorkOrders = this.mappingService.mapWorkOrderDisplays(this.workOrders);
         this.applyFilters();
         this.markViewForCheck();
       },
       error: () => {
+        if (this.workOrdersLoadId !== loadId) {
+          return;
+        }
         this.isServiceError = true;
         this.workOrders = [];
         this.allWorkOrders = [];
@@ -447,6 +460,7 @@ export class WorkOrderListComponent implements OnInit, OnChanges, OnDestroy {
   }
 
   ngOnDestroy(): void {
+    this.workOrdersLoadId++;
     this.destroy$.next();
     this.destroy$.complete();
     this.itemsToLoad$.complete();

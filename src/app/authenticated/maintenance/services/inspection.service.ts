@@ -29,10 +29,6 @@ export class InspectionService {
     return this.http.get<InspectionResponse>(this.controller + inspectionId);
   }
 
-  getInspection(organizationId: string, inspectionId: number): Observable<InspectionResponse> {
-    return this.http.get<InspectionResponse>(this.controller + inspectionId + '?organizationId=' + organizationId);
-  }
-
   createInspection(request: InspectionRequest): Observable<InspectionResponse> {
     return this.http.post<InspectionResponse>(this.controller, request);
   }

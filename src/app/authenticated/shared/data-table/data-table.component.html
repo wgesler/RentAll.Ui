@@ -54,9 +54,20 @@
 
   <div class="datatable-main-block" [class.dbg-band-main]="dbgBandMainBelowFilter">
   @if (subheaderLabel) {
-    <div class="datatable-subheader-label">{{ subheaderLabel }}</div>
+    <div
+      class="datatable-subheader-label"
+      [class.datatable-subheader-label--collapsible]="subheaderCollapsible"
+      [class.datatable-subheader-label--collapsed]="subheaderCollapsible && subheaderSectionCollapsed"
+      [attr.role]="subheaderCollapsible ? 'button' : null"
+      [attr.tabindex]="subheaderCollapsible ? 0 : null"
+      [attr.aria-expanded]="subheaderCollapsible ? !subheaderSectionCollapsed : null"
+      (click)="toggleSubheaderSection($event)"
+      (keydown)="onSubheaderSectionKeydown($event)">
+      {{ subheaderLabel }}
+    </div>
   }
 
+  @if (!subheaderCollapsible || !subheaderSectionCollapsed) {
   <div class="is-scrollable">
     <table class="data-table" mat-table [dataSource]="dataSource" matSort [multiTemplateDataRows]="hasDetailRow">
       <ng-container>
@@ -70,9 +81,10 @@
       @for (column of tableColumns; track column.name) {
         <ng-container [matColumnDef]="column.name">
           <th mat-header-cell *matHeaderCellDef mat-sort-header [disabled]="disableSort || !column.sort"
-            [style.max-width]="column.maxWidth"
-            [style.width]="column.maxWidth"
+            [style.max-width]="column.editableType === 'date' ? null : column.maxWidth"
+            [style.width]="column.editableType === 'date' ? null : column.maxWidth"
             [style.min-width]="column.maxWidth"
+            [class.datatable-date-column]="column.editableType === 'date'"
             [style.padding-left]="column.name === 'actions' ? getActionsColumnPaddingLeft() : null"
             [attr.data-alignment]="getHeaderAlignment(column)">
             @switch (column.name) {
@@ -108,15 +120,16 @@
           </th>
           <td mat-cell *matCellDef="let item, index as i"
             class="align-middle"
-            [style.max-width]="column.maxWidth"
-            [style.width]="column.maxWidth"
+            [style.max-width]="column.editableType === 'date' ? null : column.maxWidth"
+            [style.width]="column.editableType === 'date' ? null : column.maxWidth"
             [style.min-width]="column.maxWidth"
+            [class.datatable-date-column]="column.editableType === 'date'"
             [style.padding-left]="column.name === 'actions' ? getActionsColumnPaddingLeft() : null"
             [style.text-align]="getColumnAlignment(column) === 'center' ? 'center' : (getColumnAlignment(column) === 'right' ? 'right' : 'left')"
             (click)="onTableCellClick($event, item, column)"
             (mousedown)="onTableCellMouseDown($event, item, column)"
                 [ngClass]="{
-                'no-wrap': !column.wrap, 'datatable-truncated': !!column.maxWidth && column.editableType !== 'date',
+                'no-wrap': !column.wrap && column.editableType !== 'date', 'datatable-truncated': !!column.maxWidth && column.editableType !== 'date',
                 'align-center': getColumnAlignment(column) === 'center', 'align-right': getColumnAlignment(column) === 'right',
                 '!text-left': getColumnAlignment(column) === 'left', '!text-justify': getColumnAlignment(column) === 'justify',
                 '!text-center': getColumnAlignment(column) === 'center', '!text-right': getColumnAlignment(column) === 'right',
@@ -518,4 +531,5 @@
           aria-label="Select page"
           (page)="hasButtonSelectAll ? onPageChange() : null">
         </mat-paginator>
+  }
   </div>

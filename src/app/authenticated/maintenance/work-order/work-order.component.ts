@@ -57,7 +57,6 @@ export class WorkOrderComponent implements OnInit, OnChanges, OnDestroy {
 
   fb: FormBuilder;
   form: FormGroup;
-  isPageLoading = true;
   authService: AuthService;
   workOrderService: WorkOrderService;
   isAddMode: boolean = true;
@@ -82,10 +81,12 @@ export class WorkOrderComponent implements OnInit, OnChanges, OnDestroy {
   initialWorkOrderItemsSnapshot: WorkOrderItemSnapshot[] = [];
   lastMarkupFactor: number = 1;
   hasUserEditedWorkOrder = false;
-
-  itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['property', 'workOrder', 'propertyAgreement', 'propertyReceipts', 'propertyReservations', 'workOrderNumber']));
-  destroy$ = new Subject<void>();
+  activeWorkOrderLoadId = 0;
   selectedGlobalOfficeId: number | null = null;
+
+  isPageReady = false;
+  itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set());
+  destroy$ = new Subject<void>();
   
   constructor(
     fb: FormBuilder,
@@ -131,9 +132,8 @@ export class WorkOrderComponent implements OnInit, OnChanges, OnDestroy {
       this.selectedGlobalOfficeId = officeId;
     });
 
-    // Wait to load page until all data is available
     this.itemsToLoad$.pipe(takeUntil(this.destroy$)).subscribe(items => {
-      this.isPageLoading = items.size > 0;
+      this.isPageReady = items.size === 0;
     });
 
     // Only Tenant types have reservations...
@@ -162,29 +162,38 @@ export class WorkOrderComponent implements OnInit, OnChanges, OnDestroy {
   }
 
   ngOnChanges(changes: SimpleChanges): void {
-    if (changes['property'] && !changes['property'].firstChange) {
+    if (changes['property']) {
       this.selectedPropertyId = this.property?.propertyId ?? null;
 
       if (this.selectedPropertyId && this.embeddedInMaintenance) {
         this.form.patchValue({
-          workOrderCode: this.generatedWorkOrderCode ?? '',
-          officeName: this.property.officeName || '',
-          propertyCode: this.property.propertyCode || ''
+          workOrderCode: this.generatedWorkOrderCode ?? this.form.get('workOrderCode')?.value ?? '',
+          officeName: this.property?.officeName || '',
+          propertyCode: this.property?.propertyCode || ''
         }, { emitEvent: false });
-        this.loadAccountingOfficeForWorkOrderCode();
-        this.loadPropertyReservations();
-        this.loadPropertyReceipts();
-        this.loadPropertyAgreement();
+        if (!changes['property'].firstChange) {
+          this.loadAccountingOfficeForWorkOrderCode();
+          this.loadPropertyReservations();
+          this.loadPropertyReceipts();
+          this.loadPropertyAgreement();
+        }
       }
     }
 
     if (changes['workOrderId'] && !changes['workOrderId'].firstChange) {
-      this.isAddMode = this.workOrderId == null;
-      this.hasUserEditedWorkOrder = false;
-      this.loadWorkOrder();
-      if (this.isAddMode && this.property?.officeId) {
-        this.loadAccountingOfficeForWorkOrderCode();
-      }
+      this.onWorkOrderIdChanged();
+    }
+  }
+
+  private onWorkOrderIdChanged(): void {
+    this.isAddMode = this.workOrderId == null;
+    this.hasUserEditedWorkOrder = false;
+    this.workOrder = null;
+    this.workOrderItems = [];
+    this.associatedWorkOrderReceiptIds.clear();
+    this.loadWorkOrder();
+    if (this.isAddMode && this.property?.officeId) {
+      this.loadAccountingOfficeForWorkOrderCode();
     }
   }
 
@@ -1148,12 +1157,24 @@ export class WorkOrderComponent implements OnInit, OnChanges, OnDestroy {
   loadWorkOrder(): void {
     if (this.isAddMode || this.workOrderId == null) {
       this.associatedWorkOrderReceiptIds.clear();
+      this.activeWorkOrderLoadId++;
       this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'workOrder');
       return;
     }
 
-    this.workOrderService.getWorkOrderById(this.workOrderId).pipe(take(1), finalize(() => { this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'workOrder'); })).subscribe({
+    const loadId = ++this.activeWorkOrderLoadId;
+    const requestedWorkOrderId = this.workOrderId;
+    this.utilityService.addLoadItem(this.itemsToLoad$, 'workOrder');
+
+    this.workOrderService.getWorkOrderById(requestedWorkOrderId).pipe(take(1), finalize(() => {
+      if (this.activeWorkOrderLoadId === loadId) {
+        this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'workOrder');
+      }
+    })).subscribe({
       next: (workOrder: WorkOrderResponse) => {
+        if (this.activeWorkOrderLoadId !== loadId || this.workOrderId !== requestedWorkOrderId) {
+          return;
+        }
         this.workOrder = workOrder;
         this.associatedWorkOrderReceiptIds = new Set(
           (workOrder.workOrderItems || [])
@@ -1161,10 +1182,46 @@ export class WorkOrderComponent implements OnInit, OnChanges, OnDestroy {
             .filter(receiptId => Number.isFinite(receiptId) && receiptId > 0)
         );
         this.populateForm(workOrder);
+        this.applyPropertyContextFromWorkOrder(workOrder);
         this.loadAssociatedReceiptsForCurrentWorkOrder();
       },
       error: (_err: HttpErrorResponse) => {
+        if (this.activeWorkOrderLoadId !== loadId) {
+          return;
+        }
         this.toastr.error('Unable to load work order.', 'Error');
+      }
+    });
+  }
+
+  private applyPropertyContextFromWorkOrder(workOrder: WorkOrderResponse): void {
+    const propertyId = (workOrder.propertyId || '').trim();
+    if (!propertyId) {
+      return;
+    }
+
+    this.selectedPropertyId = propertyId;
+    if (this.property?.propertyId === propertyId) {
+      this.loadPropertyAgreement();
+      this.loadPropertyReceipts();
+      this.loadPropertyReservations();
+      return;
+    }
+
+    this.propertyService.getPropertyByGuid(propertyId).pipe(take(1)).subscribe({
+      next: property => {
+        this.property = property;
+        this.getOfficeCostCodes(property.officeId);
+        this.form.patchValue({
+          officeName: property.officeName || workOrder.officeName || '',
+          propertyCode: property.propertyCode || workOrder.propertyCode || ''
+        }, { emitEvent: false });
+        this.loadPropertyAgreement();
+        this.loadPropertyReceipts();
+        this.loadPropertyReservations();
+      },
+      error: () => {
+        this.toastr.error('Unable to load property for this work order.', 'Error');
       }
     });
   }
@@ -1172,16 +1229,14 @@ export class WorkOrderComponent implements OnInit, OnChanges, OnDestroy {
   loadProperty(): void {
     if (this.property) {
       this.getOfficeCostCodes(this.property.officeId);
-      this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'property');
       return;
     }
 
     if (!this.selectedPropertyId) {
-      this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'property');
       return;
     }
 
-    this.propertyService.getPropertyByGuid(this.selectedPropertyId).pipe(take(1), finalize(() => { this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'property'); })).subscribe({
+    this.propertyService.getPropertyByGuid(this.selectedPropertyId).pipe(take(1)).subscribe({
       next: (property) => {
         this.property = property;
         this.getOfficeCostCodes(property.officeId);
@@ -1196,11 +1251,10 @@ export class WorkOrderComponent implements OnInit, OnChanges, OnDestroy {
     if (!this.selectedPropertyId) {
       this.propertyAgreement = null;
       this.defaultLaborCost = 0;
-      this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'propertyAgreement');
       return;
     }
 
-    this.propertyAgreementService.getPropertyAgreement(this.selectedPropertyId).pipe(take(1), finalize(() => { this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'propertyAgreement'); })).subscribe({
+    this.propertyAgreementService.getPropertyAgreement(this.selectedPropertyId).pipe(take(1)).subscribe({
       next: agreement => {
         this.propertyAgreement = agreement;
         this.defaultLaborCost = Number(agreement?.hourlyLaborCost) || 0;
@@ -1222,10 +1276,9 @@ export class WorkOrderComponent implements OnInit, OnChanges, OnDestroy {
   loadPropertyReceipts(): void {
     if (!this.selectedPropertyId) {
       this.propertyReceipts = [];
-      this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'propertyReceipts');
       return;
     }
-    this.receiptService.getReceiptsByPropertyId(this.selectedPropertyId).pipe(take(1), finalize(() => { this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'propertyReceipts'); })).subscribe({
+    this.receiptService.getReceiptsByPropertyId(this.selectedPropertyId).pipe(take(1)).subscribe({
       next: (receipts) => {
         const activePropertyReceipts = (receipts ?? []).filter(r => r.isActive !== false);
         this.propertyReceipts = this.mergeAssociatedReceipts(activePropertyReceipts);
@@ -1303,10 +1356,9 @@ export class WorkOrderComponent implements OnInit, OnChanges, OnDestroy {
   loadPropertyReservations(): void {
     if (!this.selectedPropertyId) {
       this.propertyReservations = [];
-      this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'propertyReservations');
       return;
     }
-    this.reservationService.getReservationsByPropertyId(this.selectedPropertyId).pipe(take(1), finalize(() => { this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'propertyReservations'); })).subscribe({
+    this.reservationService.getReservationsByPropertyId(this.selectedPropertyId).pipe(take(1)).subscribe({
       next: reservations => {
         this.propertyReservations = (reservations ?? []).filter(r => r.isActive !== false);
       },
@@ -1319,13 +1371,17 @@ export class WorkOrderComponent implements OnInit, OnChanges, OnDestroy {
   loadAccountingOfficeForWorkOrderCode(): void {
     const officeId = Number(this.property?.officeId ?? this.selectedGlobalOfficeId ?? 0);
     if (!this.isAddMode || !Number.isFinite(officeId) || officeId <= 0) {
-      this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'workOrderNumber');
       return;
     }
 
-    this.accountingOfficeService.ensureAccountingOfficesLoaded().pipe(take(1), finalize(() => { this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'workOrderNumber'); })).subscribe(list => {
-      const office = (list || []).find(o => Number(o.officeId) === officeId) ?? null;
-      this.applyAccountingOfficeSequenceFromOffice(office);
+    this.accountingOfficeService.ensureAccountingOfficesLoaded().pipe(take(1)).subscribe({
+      next: list => {
+        const office = (list || []).find(o => Number(o.officeId) === officeId) ?? null;
+        this.applyAccountingOfficeSequenceFromOffice(office);
+      },
+      error: () => {
+        this.applyAccountingOfficeSequenceFromOffice(null);
+      }
     });
   }
 
@@ -1705,6 +1761,7 @@ export class WorkOrderComponent implements OnInit, OnChanges, OnDestroy {
   }
 
   ngOnDestroy(): void {
+    this.activeWorkOrderLoadId++;
     this.destroy$.next();
     this.destroy$.complete();
     this.itemsToLoad$.complete();

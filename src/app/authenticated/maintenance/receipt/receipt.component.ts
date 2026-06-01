@@ -445,10 +445,6 @@ export class ReceiptComponent implements OnInit, OnChanges, OnDestroy {
     });
   }
 
-  loadVendors(): void {
-    this.loadBankCardsAndVendors();
-  }
-
   loadVendorsForOffice(officeId: number | null | undefined, contacts?: ContactResponse[]): void {
     const parsedOfficeId = Number(officeId);
     const sourceContacts = contacts ?? this.contactService.getAllContactsValue();

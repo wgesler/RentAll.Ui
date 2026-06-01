@@ -25,7 +25,6 @@ import { SearchableSelectOption } from '../../shared/searchable-select/searchabl
 import { TitleBarSelectComponent } from '../../shared/titlebar-select/titlebar-select.component';
 import { MaintenanceListUserDropdownCell } from '../models/maintenance.model';
 import { MaintenanceItemResponse } from '../models/maintenance-item.model';
-import { INSPECTION_SECTIONS } from '../models/checklist-sections';
 import { MaintenanceService } from '../services/maintenance.service';
 import { MaintenanceItemsService } from '../services/maintenance-items.service';
 import { UserService } from '../../users/services/user.service';
@@ -59,6 +58,11 @@ export class MaintenanceListComponent extends PropertyMaintenanceBase implements
   proportiesInProgressMaintenanceDisplay: MaintenanceListDisplay[] = [];
   showOfficeDropdown: boolean = false;
   expandedSections = { calendarAtAGlance: true, reservationTurnover: true, propertyTurnover: true, propertiesInProgress: true, maidService: true, otherProperties: true };
+  /** Collapsed state for star-labeled table groups that use a divider header instead of a data-table subheader. */
+  maintenanceGroupSectionCollapsed: Record<'departures' | 'goingOffline', boolean> = {
+    departures: false,
+    goingOffline: false
+  };
 
   userId: string = '';
   housekeepingById = new Map<string, string>();
@@ -152,6 +156,24 @@ export class MaintenanceListComponent extends PropertyMaintenanceBase implements
 
   private markViewForCheck(): void {
     this.cdr.markForCheck();
+  }
+
+  toggleMaintenanceGroupSection(section: 'departures' | 'goingOffline', event?: Event): void {
+    event?.stopPropagation();
+    event?.preventDefault();
+    this.maintenanceGroupSectionCollapsed[section] = !this.maintenanceGroupSectionCollapsed[section];
+    this.markViewForCheck();
+  }
+
+  onMaintenanceGroupSectionKeydown(section: 'departures' | 'goingOffline', event: KeyboardEvent): void {
+    if (event.key === 'Enter' || event.key === ' ') {
+      event.preventDefault();
+      this.toggleMaintenanceGroupSection(section, event);
+    }
+  }
+
+  isMaintenanceGroupSectionCollapsed(section: 'departures' | 'goingOffline'): boolean {
+    return this.maintenanceGroupSectionCollapsed[section];
   }
 
   //#region Maintenance-List
@@ -430,14 +452,22 @@ export class MaintenanceListComponent extends PropertyMaintenanceBase implements
     this.refreshScheduleCalendars();
   }
 
+  /** Rows that feed Calendar At-A-Glance dots (all maintenance tables with provider dates). */
   syncAllDisplayedPropertiesFromTurnoverLists(): void {
     this.allDisplayedProperties = [
       ...this.arrivalMaintenanceDisplay,
       ...this.departureMaintenanceDisplay,
       ...this.maidMaintenanceDisplay,
       ...this.comingOnlineMaintenanceDisplay,
-      ...this.goingOfflineMaintenanceDisplay
+      ...this.goingOfflineMaintenanceDisplay,
+      ...this.proportiesInProgressMaintenanceDisplay,
+      ...this.otherPropertiesMaintenanceDisplay
     ];
+  }
+
+  private refreshScheduleCalendarsAfterProviderFieldChange(): void {
+    this.syncAllDisplayedPropertiesFromTurnoverLists();
+    this.refreshScheduleCalendars();
   }
   //#endregion
 
@@ -576,12 +606,6 @@ export class MaintenanceListComponent extends PropertyMaintenanceBase implements
   goToPropertyMaintenance(event: MaintenanceListDisplay): void {
     this.ngZone.run(() => {
       this.router.navigateByUrl(`${RouterUrl.replaceTokens(RouterUrl.Maintenance, [event.propertyId])}?tab=1`);
-    });
-  }
-
-  goToProperty(event: MaintenanceListDisplay): void {
-    this.ngZone.run(() => {
-      this.router.navigateByUrl(`${RouterUrl.replaceTokens(RouterUrl.Property, [event.propertyId])}?returnTo=maintenance-list`);
     });
   }
 
@@ -1124,6 +1148,7 @@ export class MaintenanceListComponent extends PropertyMaintenanceBase implements
         this.formatterService.formatDateString(carpetDate ?? undefined) || '',
         this.formatterService.formatDateString(inspectingDate ?? undefined) || ''
       );
+      this.refreshScheduleCalendarsAfterProviderFieldChange();
       this.toastr.success('Provider assignments updated.', CommonMessage.Success);
       this.markViewForCheck();
     };
@@ -1240,6 +1265,7 @@ export class MaintenanceListComponent extends PropertyMaintenanceBase implements
         this.formatterService.formatDateString(nextCarpetDate ?? undefined) || '',
         this.formatterService.formatDateString(nextInspectingDate ?? undefined) || ''
       );
+      this.refreshScheduleCalendarsAfterProviderFieldChange();
       this.toastr.success('Provider date updated.', CommonMessage.Success);
       this.markViewForCheck();
     };
@@ -1415,27 +1441,6 @@ export class MaintenanceListComponent extends PropertyMaintenanceBase implements
   //#endregion
 
   //#region Cleaner, Carpet Inspector Display
-  buildDefaultInspectionTemplateJson(): string {
-    const payload = {
-      sections: INSPECTION_SECTIONS.map(section => ({
-        key: section.key,
-        title: section.title,
-        notes: '',
-        sets: [
-          section.items.map(item => ({
-            text: item.text,
-            requiresPhoto: item.requiresPhoto,
-            requiresCount: false,
-            count: null,
-            isEditable: false,
-            photoPath: null as string | null
-          }))
-        ]
-      }))
-    };
-    return JSON.stringify(payload);
-  }
-
   getCleanerOptionsForOffice(officeId: number): string[] {
     const names = this.getHousekeepingUsersForScope(officeId)
       .map(user => `${user.firstName ?? ''} ${user.lastName ?? ''}`.trim())

@@ -124,37 +124,38 @@
   padding-bottom: 4px;
 }
 
-.date-input {
-  max-width: 140px;
-}
-
 .maintenance-item-date-field {
-  width: 100%;
-  max-width: 180px;
-  height: 28px;
-  display: flex;
+  display: inline-flex;
   align-items: center;
-  padding: 0 4px 0 6px;
-  gap: 4px;
+  height: 28px;
+  padding: 0;
+  gap: 2px;
+  border: none;
+  background: transparent;
+  box-shadow: none;
 }
 
 .maintenance-item-date-field .date-input {
-  flex: 1 1 auto;
-  min-width: 0;
+  flex: 0 0 auto;
+  width: 10ch;
+  min-width: 10ch;
+  max-width: 10ch;
   border: 0 !important;
   background: transparent !important;
   height: 100%;
-  line-height: 28px;
+  line-height: inherit;
   padding: 0;
   margin: 0;
-  font-size: 14px !important;
+  font-size: inherit !important;
+  font-weight: inherit;
   outline: none;
 }
 
 .maintenance-item-date-toggle-btn {
-  width: 18px;
-  height: 18px;
-  min-width: 18px;
+  width: 24px;
+  height: 24px;
+  min-width: 24px;
+  flex-shrink: 0;
   border: 0;
   background: transparent;
   display: inline-flex;
@@ -171,8 +172,8 @@
   font-size: 15px;
 }
 
-.maintenance-item-date-field.input-invalid {
-  border-color: #d32f2f !important;
+.maintenance-item-date-field.input-invalid .date-input {
+  color: #d32f2f;
 }
 
 .months-input {

@@ -1,6 +1,7 @@
 import { SelectionModel } from '@angular/cdk/collections';
 import { CommonModule } from '@angular/common';
 import { ChangeDetectionStrategy, ChangeDetectorRef, Component, contentChild, EventEmitter, Input, NgZone, OnChanges, OnInit, Output, SimpleChanges, TemplateRef, ViewChild } from '@angular/core';
+import { MatDateFormats, provideNativeDateAdapter } from '@angular/material/core';
 import { MatDialog } from '@angular/material/dialog';
 import { FormsModule } from '@angular/forms';
 import { MatCheckboxChange } from '@angular/material/checkbox';
@@ -20,13 +21,27 @@ import { ColumnData, ColumnSet, defaultColumnData } from './models/column-data';
 import { TableItem } from './models/table-item';
 import { DataTableFilterActionsDirective } from './data-table-filter-actions.directive';
 
+/** Match list display dates (`MM/dd/yyyy`) used by FormatterService.formatDateString. */
+const DATA_TABLE_DATE_FORMATS: MatDateFormats = {
+  parse: {
+    dateInput: 'MM/dd/yyyy'
+  },
+  display: {
+    dateInput: { year: 'numeric', month: '2-digit', day: '2-digit' },
+    monthYearLabel: { year: 'numeric', month: 'short' },
+    dateA11yLabel: { year: 'numeric', month: 'long', day: 'numeric' },
+    monthYearA11yLabel: { year: 'numeric', month: 'long' }
+  }
+};
+
 @Component({
     standalone: true,
     selector: 'app-data-table',
     imports: [CommonModule, MaterialModule, FormsModule],
     templateUrl: './data-table.component.html',
     styleUrls: ['./data-table.component.scss'],
-    changeDetection: ChangeDetectionStrategy.OnPush
+    changeDetection: ChangeDetectionStrategy.OnPush,
+    providers: [provideNativeDateAdapter(DATA_TABLE_DATE_FORMATS)]
 })
 
 export class DataTableComponent implements OnChanges, OnInit {
@@ -129,6 +144,9 @@ export class DataTableComponent implements OnChanges, OnInit {
   @Input() hasReservationCodeLink: boolean = false;
   @Input() hasWorkOrderCodeLink: boolean = false;
   @Input() subheaderLabel: string = '';
+  /** When true, clicking the subheader label toggles visibility of the table body. */
+  @Input() subheaderCollapsible = false;
+  subheaderSectionCollapsed = false;
   /** When true, layout-debug orange band wraps only the table/paginator block (below the purple filter row). */
   @Input() dbgBandMainBelowFilter = false;
 
@@ -280,6 +298,26 @@ export class DataTableComponent implements OnChanges, OnInit {
 
   private markViewForCheck(): void {
     this.cdr.markForCheck();
+  }
+
+  toggleSubheaderSection(event?: Event): void {
+    if (!this.subheaderCollapsible) {
+      return;
+    }
+    event?.stopPropagation();
+    event?.preventDefault();
+    this.subheaderSectionCollapsed = !this.subheaderSectionCollapsed;
+    this.markViewForCheck();
+  }
+
+  onSubheaderSectionKeydown(event: KeyboardEvent): void {
+    if (!this.subheaderCollapsible) {
+      return;
+    }
+    if (event.key === 'Enter' || event.key === ' ') {
+      event.preventDefault();
+      this.toggleSubheaderSection(event);
+    }
   }
 
   ngOnInit(): void {
@@ -874,12 +912,9 @@ export class DataTableComponent implements OnChanges, OnInit {
 
   commitInlineDateModelChange(rowItem: PurposefulAny, columnName: string, value: unknown): void {
     const parsedDate = this.parseDateValue(value);
-    if (!parsedDate) {
-      return;
-    }
-    const nextDate = this.getDateInputValue(parsedDate);
+    const nextDate = parsedDate ? this.getDateInputValue(parsedDate) : '';
     const currentDate = this.getDateInputValue(rowItem?.[columnName]);
-    if (!nextDate || nextDate === currentDate) {
+    if (nextDate === currentDate) {
       return;
     }
     this.emitInlineEditChangeEvent(rowItem, columnName, nextDate);

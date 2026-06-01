@@ -254,6 +254,7 @@
                       [data]="arrivalMaintenanceDisplay"
                       [columns]="arrivalMaintenanceColumns"
                       [subheaderLabel]="'Upcoming Arrivals (Next 15 Days)'"
+                      [subheaderCollapsible]="true"
                       [hasColumnIndex]="true"
                       [hasFilter]="false"
                       [hasToggleTop]="false"
@@ -273,15 +274,24 @@
                   }
                   @if (departureMaintenanceDisplay.length > 0) {
                     @if (arrivalMaintenanceDisplay.length > 0) {
-                      <div class="maintenance-group-divider">
+                      <div
+                        class="maintenance-group-divider maintenance-group-divider--collapsible"
+                        [class.maintenance-group-divider--collapsed]="isMaintenanceGroupSectionCollapsed('departures')"
+                        role="button"
+                        tabindex="0"
+                        [attr.aria-expanded]="!isMaintenanceGroupSectionCollapsed('departures')"
+                        (click)="toggleMaintenanceGroupSection('departures', $event)"
+                        (keydown)="onMaintenanceGroupSectionKeydown('departures', $event)">
                         <span class="maintenance-group-title">Upcoming Departures (Next 15 Days)</span>
                       </div>
                     }
+                    @if (arrivalMaintenanceDisplay.length === 0 || !isMaintenanceGroupSectionCollapsed('departures')) {
                     <app-data-table
                       [class.compact-code-only-table]="isCompactView"
                       [data]="departureMaintenanceDisplay"
                       [columns]="departureMaintenanceColumns"
                       [subheaderLabel]="arrivalMaintenanceDisplay.length > 0 ? '' : 'Upcoming Departures (Next 15 Days)'"
+                      [subheaderCollapsible]="arrivalMaintenanceDisplay.length === 0"
                       [hasColumnIndex]="true"
                       [hasFilter]="false"
                       [hasToggleTop]="false"
@@ -298,6 +308,7 @@
                       (rowClickEvent)="goToInspection($event)"
                       (propertyCodeClickEvent)="goToPropertyMaintenance($event)"
                       (contactClickEvent)="goToContact($event)"/>
+                    }
                   }
                 </div>
               </mat-expansion-panel>
@@ -315,6 +326,7 @@
                       [data]="comingOnlineMaintenanceDisplay"
                       [columns]="comingOnlineMaintenanceColumns"
                       [subheaderLabel]="'Coming Online (Next 15 Days)'"
+                      [subheaderCollapsible]="true"
                       [hasColumnIndex]="true"
                       [hasFilter]="false"
                       [hasToggleTop]="false"
@@ -334,15 +346,24 @@
                   }
                   @if (goingOfflineMaintenanceDisplay.length > 0) {
                     @if (comingOnlineMaintenanceDisplay.length > 0) {
-                      <div class="maintenance-group-divider">
+                      <div
+                        class="maintenance-group-divider maintenance-group-divider--collapsible"
+                        [class.maintenance-group-divider--collapsed]="isMaintenanceGroupSectionCollapsed('goingOffline')"
+                        role="button"
+                        tabindex="0"
+                        [attr.aria-expanded]="!isMaintenanceGroupSectionCollapsed('goingOffline')"
+                        (click)="toggleMaintenanceGroupSection('goingOffline', $event)"
+                        (keydown)="onMaintenanceGroupSectionKeydown('goingOffline', $event)">
                         <span class="maintenance-group-title">Going Offline (Next 15 Days)</span>
                       </div>
                     }
+                    @if (comingOnlineMaintenanceDisplay.length === 0 || !isMaintenanceGroupSectionCollapsed('goingOffline')) {
                     <app-data-table
                       [class.compact-code-only-table]="isCompactView"
                       [data]="goingOfflineMaintenanceDisplay"
                       [columns]="goingOfflineMaintenanceColumns"
                       [subheaderLabel]="comingOnlineMaintenanceDisplay.length > 0 ? '' : 'Going Offline (Next 15 Days)'"
+                      [subheaderCollapsible]="comingOnlineMaintenanceDisplay.length === 0"
                       [hasColumnIndex]="true"
                       [hasFilter]="false"
                       [hasToggleTop]="false"
@@ -359,6 +380,7 @@
                       (rowClickEvent)="goToInspection($event)"
                       (propertyCodeClickEvent)="goToPropertyMaintenance($event)"
                       (contactClickEvent)="goToContact($event)"/>
+                    }
                   }
                 </div>
               </mat-expansion-panel>
@@ -375,6 +397,7 @@
                     [data]="proportiesInProgressMaintenanceDisplay"
                     [columns]="proportiesInProgressMaintenanceColumns"
                     [subheaderLabel]="'Properties in Progress'"
+                    [subheaderCollapsible]="true"
                     [hasColumnIndex]="true"
                     [hasFilter]="false"
                     [hasToggleTop]="false"
@@ -407,6 +430,7 @@
                     [data]="maidMaintenanceDisplay"
                     [columns]="maidMaintenanceColumns"
                     [subheaderLabel]="'Maid Service (Next 2 Months)'"
+                    [subheaderCollapsible]="true"
                     [hasColumnIndex]="true"
                     [hasFilter]="false"
                     [hasToggleTop]="false"
@@ -438,6 +462,7 @@
                     [data]="otherPropertiesMaintenanceDisplay"
                     [columns]="otherPropertiesMaintenanceColumns"
                     [subheaderLabel]="'Other Properties'"
+                    [subheaderCollapsible]="true"
                     [hasColumnIndex]="true"
                     [hasFilter]="false"
                     [hasToggleTop]="false"

@@ -80,6 +80,8 @@ export class MaintenanceShellComponent implements OnInit, OnDestroy, CanComponen
 
   showWorkOrderDetail = false;
   selectedWorkOrderId: string | null = null;
+  /** Bumped on each work-order open so detail remounts and prior in-flight loads cannot stick the spinner. */
+  workOrderDetailInstance = 0;
   showWorkOrdersTab = true;
   workOrderSaveValidationAttempted = false;
 
@@ -155,6 +157,7 @@ export class MaintenanceShellComponent implements OnInit, OnDestroy, CanComponen
       if (this.showWorkOrdersTab && workOrderIdParam !== '') {
         this.selectedTabIndex = this.workOrdersTabIndex;
         this.selectedWorkOrderId = workOrderIdParam;
+        this.workOrderDetailInstance++;
         this.showWorkOrderDetail = true;
       }
     });
@@ -698,15 +701,16 @@ export class MaintenanceShellComponent implements OnInit, OnDestroy, CanComponen
       this.selectedTabIndex = this.workOrdersTabIndex;
       this.showReceiptDetail = false;
       this.selectedReceiptId = null;
-      this.showWorkOrderDetail = true;
+      this.workOrderDetailInstance++;
       this.selectedWorkOrderId = workOrderId;
+      this.showWorkOrderDetail = true;
     };
 
     if (targetPropertyId && targetPropertyId !== this.selectedPropertyId) {
       this.skipNextPropertyCodeChange = true;
       this.selectedPropertyId = targetPropertyId;
-      this.utilityService.addLoadItem(this.itemsToLoad$, 'property');
-      this.loadProperty(targetPropertyId, () => openWorkOrderDetail(), null);
+      openWorkOrderDetail();
+      this.loadProperty(targetPropertyId, null, null);
       return;
     }
     openWorkOrderDetail();

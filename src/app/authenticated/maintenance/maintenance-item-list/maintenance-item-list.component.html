@@ -46,7 +46,7 @@
                   [name]="'maintenance-item-name-' + row.rowId" />
               </td>
               <td>
-                <div class="maintenance-item-date-field editable-input" [class.input-invalid]="!row.lastServicedOn">
+                <div class="maintenance-item-date-field" [class.input-invalid]="!row.lastServicedOn">
                   <input
                     [matDatepicker]="lastServicedPicker"
                     class="date-input"
