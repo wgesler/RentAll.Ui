@@ -145,9 +145,14 @@ export class DocumentListComponent implements OnInit, OnDestroy, OnChanges {
     }
     
     this.utilityService.addLoadItem(this.itemsToLoad$, 'documents');
-    this.loadOffices();
+    if (this.usesShellTitleBarScope()) {
+      this.selectedOfficeId = this.officeId ?? null;
+      this.officeScopeResolved = true;
+    } else {
+      this.loadOffices();
+    }
 
-    if (this.source !== 'documents') {
+    if (this.source !== 'documents' && this.source !== 'maintenance') {
       this.globalSelectionService.getSelectedOfficeId$().pipe(skip(1), takeUntil(this.destroy$)).subscribe(officeId => {
         if (this.offices.length > 0 && (this.officeId === null || this.officeId === undefined)) {
           this.resolveOfficeScope(officeId, true);
@@ -505,6 +510,7 @@ export class DocumentListComponent implements OnInit, OnDestroy, OnChanges {
   //#region Title Bar Updates
   onTitleBarOfficeIdUpdate(newOfficeId: number | null): void {
     this.selectedOfficeId = newOfficeId;
+    this.officeScopeResolved = true;
 
     if (this.source === 'invoice' || this.source === 'reservation') {
       this.loadReservations();
@@ -671,18 +677,28 @@ export class DocumentListComponent implements OnInit, OnDestroy, OnChanges {
 
   //#region Data Loading Methods
   loadOffices(): void {
-    if (this.source === 'documents') {
+    if (this.source === 'documents' || this.source === 'maintenance') {
       this.officeService.ensureOfficesLoaded(this.organizationId || '').pipe(take(1)).subscribe({
         next: () => {
           this.officeService.getAllOffices().pipe(takeUntil(this.destroy$)).subscribe(offices => {
             this.offices = offices || [];
-            this.applyDocumentsListOfficeScope();
+            if (this.source === 'maintenance') {
+              this.selectedOfficeId = this.officeId ?? null;
+              this.officeScopeResolved = true;
+            } else {
+              this.applyDocumentsListOfficeScope();
+            }
             this.markViewForCheck();
           });
         },
         error: () => {
           this.offices = [];
-          this.resolveOfficeScope(null, false);
+          if (this.source === 'maintenance') {
+            this.selectedOfficeId = this.officeId ?? null;
+            this.officeScopeResolved = true;
+          } else {
+            this.resolveOfficeScope(null, false);
+          }
           this.markViewForCheck();
         }
       });
@@ -960,7 +976,9 @@ export class DocumentListComponent implements OnInit, OnDestroy, OnChanges {
   }
 
   onOfficeChange(): void {
-    this.officeIdChange.emit(this.selectedOfficeId);
+    if (this.source !== 'documents' && this.source !== 'maintenance') {
+      this.officeIdChange.emit(this.selectedOfficeId);
+    }
     if (this.source === 'invoice') {
       this.filterCompanies();
     }
@@ -1058,6 +1076,10 @@ export class DocumentListComponent implements OnInit, OnDestroy, OnChanges {
     this.resolveOfficeScope(officeIdToUse, false);
   }
 
+  private usesShellTitleBarScope(): boolean {
+    return (this.source === 'documents' || this.source === 'maintenance') && this.hideHeader && this.hideFilters;
+  }
+
   get documentsDisplayedColumns(): ColumnSet {
     const useTabColumns = (this.source !== 'documents' && this.propertyId && this.hasFixedDocumentTypeFilter()) || this.source === 'maintenance';
     return useTabColumns ? this.tabColumns : this.sidebarColumns;
@@ -1066,7 +1088,7 @@ export class DocumentListComponent implements OnInit, OnDestroy, OnChanges {
   resolveOfficeScope(officeId: number | null, emitChange: boolean): void {
     this.selectedOfficeId = this.utilityService.resolveSelectedOfficeById(this.offices, officeId)?.officeId ?? officeId ?? null;
     this.officeScopeResolved = true;
-    if (emitChange) {
+    if (emitChange && this.source !== 'documents' && this.source !== 'maintenance') {
       this.officeIdChange.emit(this.selectedOfficeId);
     }
     if (this.source === 'invoice') {

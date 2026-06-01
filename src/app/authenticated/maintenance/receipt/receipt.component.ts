@@ -20,7 +20,10 @@ import { PropertyCodeResponse, PropertyResponse } from '../../properties/models/
 import { PropertyService } from '../../properties/services/property.service';
 import { ReceiptRequest, ReceiptResponse, Split } from '../models/receipt.model';
 import { ReceiptService } from '../services/receipt.service';
+import { AccountingOfficeResponse } from '../../organizations/models/accounting-office.model';
 import { AccountingOfficeService } from '../../organizations/services/accounting-office.service';
+import { OfficeResponse } from '../../organizations/models/office.model';
+import { OfficeService } from '../../organizations/services/office.service';
 import { BankCardResponse } from '../../organizations/models/bank.model';
 import { WorkOrderService } from '../services/work-order.service';
 import { MappingService } from '../../../services/mapping.service';
@@ -42,6 +45,7 @@ export class ReceiptComponent implements OnInit, OnChanges, OnDestroy {
   @Output() backEvent = new EventEmitter<void>();
   @Output() savedEvent = new EventEmitter<ReceiptResponse>();
   @Output() saveValidationAttempted = new EventEmitter<void>();
+  @Output() propertySelectionRequiredChange = new EventEmitter<boolean>();
   @Output() workOrderSelect = new EventEmitter<{ workOrderId: string | null; propertyId: string | null }>();
 
   fb: FormBuilder;
@@ -69,6 +73,8 @@ export class ReceiptComponent implements OnInit, OnChanges, OnDestroy {
   isSyncingInitialSplit = false;
   receiptOfficeInitialized = false;
   propertyOptions: PropertyCodeResponse[] = [];
+  offices: OfficeResponse[] = [];
+  accountingOffices: AccountingOfficeResponse[] = [];
   receiptTypeOptions = getReceiptTypes();
   bankCardOptions: SearchableSelectOption<number>[] = [];
   vendorOptions: { value: string; label: string }[] = [];
@@ -82,6 +88,7 @@ export class ReceiptComponent implements OnInit, OnChanges, OnDestroy {
     receiptService: ReceiptService,
     private dialog: MatDialog,
     private propertyService: PropertyService,
+    private officeService: OfficeService,
     private accountingOfficeService: AccountingOfficeService,
     private contactService: ContactService,
     private workOrderService: WorkOrderService,
@@ -117,8 +124,12 @@ export class ReceiptComponent implements OnInit, OnChanges, OnDestroy {
       this.form.patchValue({ propertyCode: this.getPropertyCodesDisplay(this.getSelectedPropertyIds()) }, { emitEvent: false });
     });
 
+    this.loadOffices();
+    this.loadAccountingOffices();
+    this.loadVendors();
     this.loadPropertyCodes();
     this.loadReceipt();
+    this.emitPropertySelectionRequiredState();
     if (this.isAddMode) {
       this.applyShellOfficeToReceipt();
     }
@@ -404,6 +415,63 @@ export class ReceiptComponent implements OnInit, OnChanges, OnDestroy {
     });
   }
 
+  loadOffices(): void {
+    if (!this.organizationId) {
+      this.offices = [];
+      return;
+    }
+
+    this.officeService.ensureOfficesLoaded(this.organizationId).pipe(take(1)).subscribe({
+      next: () => {
+        this.officeService.getAllOffices().pipe(takeUntil(this.destroy$)).subscribe(offices => {
+          this.offices = offices || [];
+          this.cdr.markForCheck();
+        });
+      },
+      error: () => {
+        this.offices = [];
+        this.cdr.markForCheck();
+      }
+    });
+  }
+
+  loadAccountingOffices(): void {
+    this.accountingOfficeService.ensureAccountingOfficesLoaded().pipe(take(1)).subscribe({
+      next: list => {
+        this.accountingOffices = list || [];
+        this.refreshBankCardsForCurrentOffice();
+        this.cdr.markForCheck();
+      },
+      error: () => {
+        this.accountingOffices = [];
+        this.cdr.markForCheck();
+      }
+    });
+  }
+
+  loadVendors(): void {
+    this.contactService.ensureContactsLoaded().pipe(take(1)).subscribe({
+      next: contacts => {
+        const officeId = this.getReceiptOfficeId();
+        if (officeId) {
+          this.loadVendorsForOffice(officeId, contacts || []);
+        }
+        this.cdr.markForCheck();
+      },
+      error: () => {
+        this.vendorOptions = [{ value: this.newVendorOptionValue, label: 'New Vendor' }];
+        this.cdr.markForCheck();
+      }
+    });
+  }
+
+  refreshBankCardsForCurrentOffice(): void {
+    const officeId = this.getReceiptOfficeId();
+    if (officeId) {
+      this.loadBankCardsForOffice(officeId);
+    }
+  }
+
   loadBankCardsAndVendors(): void {
     const officeId = this.getReceiptOfficeId();
     if (officeId) {
@@ -428,16 +496,25 @@ export class ReceiptComponent implements OnInit, OnChanges, OnDestroy {
       return;
     }
 
+    const applyBankCards = (accountingOffice: AccountingOfficeResponse | null) => {
+      const bankCards = this.mappingService.mapBankCardsFromResponse(accountingOffice?.bankCards);
+      this.bankCardOptions = bankCards
+        .filter(card => Number(card.bankCardId) > 0)
+        .map(card => ({
+          value: Number(card.bankCardId),
+          label: this.toBankCardOptionLabel(card)
+        }));
+    };
+
+    if (this.accountingOffices.length > 0) {
+      applyBankCards(this.accountingOffices.find(office => Number(office.officeId) === parsedOfficeId) ?? null);
+      return;
+    }
+
     this.accountingOfficeService.ensureAccountingOfficesLoaded().pipe(take(1)).subscribe({
       next: (accountingOffices) => {
-        const accountingOffice = (accountingOffices || []).find(office => Number(office.officeId) === parsedOfficeId) ?? null;
-        const bankCards = this.mappingService.mapBankCardsFromResponse(accountingOffice?.bankCards);
-        this.bankCardOptions = bankCards
-          .filter(card => Number(card.bankCardId) > 0)
-          .map(card => ({
-            value: Number(card.bankCardId),
-            label: this.toBankCardOptionLabel(card)
-          }));
+        this.accountingOffices = accountingOffices || [];
+        applyBankCards(this.accountingOffices.find(office => Number(office.officeId) === parsedOfficeId) ?? null);
       },
       error: () => {
         this.bankCardOptions = [];
@@ -659,7 +736,7 @@ export class ReceiptComponent implements OnInit, OnChanges, OnDestroy {
   getReceiptDateControlValue(value: string | null | undefined): Date {
     return this.utilityService.parseCalendarDateInput(value) ?? new Date();
   }
-  //#endrgeion
+  //#endregion
 
   //#region Form Response Methods
   onAmountKeydown(event: Event): void {
@@ -1125,6 +1202,11 @@ export class ReceiptComponent implements OnInit, OnChanges, OnDestroy {
       propertyIdsControl.setErrors(null);
     }
     propertyIdsControl.updateValueAndValidity({ emitEvent: false });
+    this.emitPropertySelectionRequiredState();
+  }
+
+  emitPropertySelectionRequiredState(): void {
+    this.propertySelectionRequiredChange.emit(this.isPropertySelectionRequired());
   }
 
   getSelectedPropertyIds(): string[] {
@@ -1239,6 +1321,10 @@ export class ReceiptComponent implements OnInit, OnChanges, OnDestroy {
     const fromPropertyRow = this.propertyOptions.find(row => row.officeId === officeId);
     if ((fromPropertyRow?.officeName || '').trim()) {
       return fromPropertyRow.officeName.trim();
+    }
+    const fromOffice = this.offices.find(row => row.officeId === officeId);
+    if ((fromOffice?.name || '').trim()) {
+      return fromOffice.name.trim();
     }
     return (this.property?.officeName || '').trim();
   }

@@ -15,6 +15,7 @@ import { AccountingOfficeService } from '../../organizations/services/accounting
 import { OfficeResponse } from '../../organizations/models/office.model';
 import { OfficeService } from '../../organizations/services/office.service';
 import { GlobalSelectionService } from '../../organizations/services/global-selection.service';
+import { ContactService } from '../../contacts/services/contact.service';
 import { PropertyResponse } from '../../properties/models/property.model';
 import { PropertyService } from '../../properties/services/property.service';
 import { PropertyAgreementService } from '../../properties/services/property-agreement.service';
@@ -42,6 +43,7 @@ export class WorkOrderComponent implements OnInit, OnChanges, OnDestroy {
 
   @Input() property: PropertyResponse | null = null;
   @Input() workOrderId: string | null = null;
+  @Input() officeId: number | null = null;
   @Input() maintenanceId: string | null = null;
   @Input() showBackButton: boolean = true;
   @Input() embeddedInMaintenance = false;
@@ -49,6 +51,7 @@ export class WorkOrderComponent implements OnInit, OnChanges, OnDestroy {
   @Output() backEvent = new EventEmitter<void>();
   @Output() savedEvent = new EventEmitter<WorkOrderResponse>();
   @Output() saveValidationAttempted = new EventEmitter<void>();
+  @Output() propertySelectionRequiredChange = new EventEmitter<boolean>();
   @Output() receiptSelect = new EventEmitter<ReceiptSelection>();
   
   readonly parseInt = parseInt;
@@ -68,6 +71,7 @@ export class WorkOrderComponent implements OnInit, OnChanges, OnDestroy {
   workOrderTypeOptions = getWorkOrderTypes();
   workOrderItems: WorkOrderItemEditable[] = [];
   offices: OfficeResponse[] = [];
+  accountingOffices: AccountingOfficeResponse[] = [];
   propertyReceipts: ReceiptResponse[] = [];
   associatedWorkOrderReceiptIds = new Set<number>();
   accountingOffice: AccountingOfficeResponse | null = null;
@@ -85,7 +89,7 @@ export class WorkOrderComponent implements OnInit, OnChanges, OnDestroy {
   selectedGlobalOfficeId: number | null = null;
 
   isPageReady = false;
-  itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set());
+  itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['workOrder']));
   destroy$ = new Subject<void>();
   
   constructor(
@@ -99,6 +103,7 @@ export class WorkOrderComponent implements OnInit, OnChanges, OnDestroy {
     private accountingOfficeService: AccountingOfficeService,
     private officeService: OfficeService,
     private globalSelectionService: GlobalSelectionService,
+    private contactService: ContactService,
     private reservationService: ReservationService,
     private receiptService: ReceiptService,
     private workOrderAmountService: WorkOrderAmountService,
@@ -125,12 +130,12 @@ export class WorkOrderComponent implements OnInit, OnChanges, OnDestroy {
       }
       this.selectedPropertyId = this.property?.propertyId ?? this.route.snapshot.queryParamMap.get('propertyId') ?? null;
       this.isAddMode = this.workOrderId == null;
-    }
 
-    this.selectedGlobalOfficeId = this.globalSelectionService.getSelectedOfficeIdValue();
-    this.globalSelectionService.getSelectedOfficeId$().pipe(skip(1), takeUntil(this.destroy$)).subscribe(officeId => {
-      this.selectedGlobalOfficeId = officeId;
-    });
+      this.selectedGlobalOfficeId = this.globalSelectionService.getSelectedOfficeIdValue();
+      this.globalSelectionService.getSelectedOfficeId$().pipe(skip(1), takeUntil(this.destroy$)).subscribe(officeId => {
+        this.selectedGlobalOfficeId = officeId;
+      });
+    }
 
     this.itemsToLoad$.pipe(takeUntil(this.destroy$)).subscribe(items => {
       this.isPageReady = items.size === 0;
@@ -144,6 +149,7 @@ export class WorkOrderComponent implements OnInit, OnChanges, OnDestroy {
       this.reapplyMarkupToCurrentItems(true);
     });
     this.onWorkOrderTypeChanged(this.form.get('workOrderTypeId')?.value);
+    this.emitPropertySelectionRequiredState();
 
     if (this.isAddMode) {
       this.form.patchValue({
@@ -153,6 +159,8 @@ export class WorkOrderComponent implements OnInit, OnChanges, OnDestroy {
     }
 
     this.loadOffices();
+    this.loadAccountingOffices();
+    this.loadVendors();
     this.loadProperty();
     this.loadWorkOrder();
     this.loadAccountingOfficeForWorkOrderCode();
@@ -183,6 +191,10 @@ export class WorkOrderComponent implements OnInit, OnChanges, OnDestroy {
     if (changes['workOrderId'] && !changes['workOrderId'].firstChange) {
       this.onWorkOrderIdChanged();
     }
+
+    if (changes['officeId'] && this.embeddedInMaintenance && this.isAddMode && !this.property?.officeId) {
+      this.loadAccountingOfficeForWorkOrderCode();
+    }
   }
 
   private onWorkOrderIdChanged(): void {
@@ -203,7 +215,7 @@ export class WorkOrderComponent implements OnInit, OnChanges, OnDestroy {
 
     const requiresPropertySelection = this.isPropertySelectionRequired();
     const resolvedOrganizationId = (this.property?.organizationId || this.organizationId || '').trim();
-    const resolvedOfficeId = Number(this.property?.officeId ?? this.selectedGlobalOfficeId ?? 0);
+    const resolvedOfficeId = Number(this.property?.officeId ?? this.getShellOfficeId() ?? 0);
     const hasValidOfficeId = Number.isFinite(resolvedOfficeId) && resolvedOfficeId > 0;
     const resolvedPropertyId = (this.property?.propertyId || this.selectedPropertyId || '').trim();
 
@@ -543,6 +555,11 @@ export class WorkOrderComponent implements OnInit, OnChanges, OnDestroy {
     if (!skipItemRecalculation) {
       this.reapplyMarkupToCurrentItems(true);
     }
+    this.emitPropertySelectionRequiredState();
+  }
+
+  emitPropertySelectionRequiredState(): void {
+    this.propertySelectionRequiredChange.emit(this.isPropertySelectionRequired());
   }
 
   onApplyMarkupToggle(): void {
@@ -1149,6 +1166,23 @@ export class WorkOrderComponent implements OnInit, OnChanges, OnDestroy {
     });
   }
 
+  loadAccountingOffices(): void {
+    this.accountingOfficeService.ensureAccountingOfficesLoaded().pipe(take(1)).subscribe({
+      next: list => {
+        this.accountingOffices = list || [];
+      },
+      error: () => {
+        this.accountingOffices = [];
+      }
+    });
+  }
+
+  loadVendors(): void {
+    this.contactService.ensureContactsLoaded().pipe(take(1)).subscribe({
+      error: () => {}
+    });
+  }
+
   getOfficeCostCodes(officeId: number): void {
     const office = this.offices.find(o => o.officeId === officeId) ?? null;
     this.tenantDamagesCcId = office?.tenantChargeCcId ?? null;
@@ -1369,8 +1403,14 @@ export class WorkOrderComponent implements OnInit, OnChanges, OnDestroy {
   }
 
   loadAccountingOfficeForWorkOrderCode(): void {
-    const officeId = Number(this.property?.officeId ?? this.selectedGlobalOfficeId ?? 0);
+    const officeId = Number(this.property?.officeId ?? this.getShellOfficeId() ?? 0);
     if (!this.isAddMode || !Number.isFinite(officeId) || officeId <= 0) {
+      return;
+    }
+
+    if (this.accountingOffices.length > 0) {
+      const office = this.accountingOffices.find(o => Number(o.officeId) === officeId) ?? null;
+      this.applyAccountingOfficeSequenceFromOffice(office);
       return;
     }
 
@@ -1676,7 +1716,7 @@ export class WorkOrderComponent implements OnInit, OnChanges, OnDestroy {
   }
   //#endregion
 
-  //#region Utility Methods
+  //#region Receipt Methods
   getNumericCostCodeIdForInvoice(): number | null {
     const numericValue = Number(this.tenantDamagesCcId);
     if (!Number.isInteger(numericValue) || numericValue <= 0) {
@@ -1747,6 +1787,13 @@ export class WorkOrderComponent implements OnInit, OnChanges, OnDestroy {
     }
   }
 
+  getShellOfficeId(): number | null {
+    const officeId = Number((this.embeddedInMaintenance ? this.officeId : this.selectedGlobalOfficeId) ?? 0);
+    return Number.isFinite(officeId) && officeId > 0 ? officeId : null;
+  }
+  //#endregion
+  
+  //#region Utility Methods
   back(): void {
     if (this.embeddedInMaintenance) {
       this.backEvent.emit();

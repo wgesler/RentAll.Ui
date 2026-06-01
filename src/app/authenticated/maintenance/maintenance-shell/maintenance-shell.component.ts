@@ -1,5 +1,5 @@
 import { CommonModule } from '@angular/common';
-import { Component, OnDestroy, OnInit, ViewChild } from '@angular/core';
+import { Component, OnDestroy, OnInit } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, Router } from '@angular/router';
 import { BehaviorSubject, Observable, Subject, filter, finalize, map, skip, switchMap, take, takeUntil } from 'rxjs';
@@ -52,13 +52,6 @@ import { TitleBarSelectComponent } from '../../shared/titlebar-select/titlebar-s
 })
 export class MaintenanceShellComponent implements OnInit, OnDestroy, CanComponentDeactivate {
   readonly DocumentType = DocumentType;
-  @ViewChild('inspectionChecklist') inspectionChecklist?: InspectionComponent;
-  @ViewChild('maintenanceSection') maintenanceSection?: MaintenanceComponent;
-  @ViewChild('maintenanceDocumentList') maintenanceDocumentList?: DocumentListComponent;
-  @ViewChild('maintenanceWorkOrderList') maintenanceWorkOrderList?: WorkOrderListComponent;
-  @ViewChild('maintenanceWorkOrderDetail') maintenanceWorkOrderDetail?: WorkOrderComponent;
-  @ViewChild('maintenanceReceiptsList') maintenanceReceiptsList?: ReceiptsListComponent;
-  @ViewChild('maintenanceReceiptDetail') maintenanceReceiptDetail?: ReceiptComponent;
 
   property: PropertyResponse | null = null;
   isServiceError = false;
@@ -68,24 +61,35 @@ export class MaintenanceShellComponent implements OnInit, OnDestroy, CanComponen
   userId = '';
   organizationId = '';
   offices: OfficeResponse[] = [];
-  /** Page-level office filter: seeded from global; does not write global. */
   selectedOfficeId: number | null = null;
-  private initialOfficeScopeApplied = false;
+  initialOfficeScopeApplied = false;
 
   titleBarReservationId: string | null = null;
   shellReservations: ReservationListResponse[] = [];
+
+  inspectionHasUnsavedChanges = false;
+  maintenanceHasUnsavedChanges = false;
+  inspectionTitleBarReservationRequired = false;
+  inspectionShowTitleBarReservationError = false;
+  inspectionSaveRequestToken = 0;
+  inspectionDiscardRequestToken = 0;
+  maintenanceSaveRequestToken = 0;
+  maintenanceDiscardRequestToken = 0;
+  inspectionSaveResolver: ((success: boolean) => void) | null = null;
+  maintenanceSaveResolver: ((success: boolean) => void) | null = null;
 
   showReceiptDetail = false;
   selectedReceiptId: number | null = null;
   refreshReceiptsTrigger = 0;
   receiptSaveValidationAttempted = false;
+  receiptPropertySelectionRequired = true;
 
   showWorkOrderDetail = false;
   selectedWorkOrderId: string | null = null;
-  /** Bumped on each work-order open so detail remounts and prior in-flight loads cannot stick the spinner. */
-  workOrderDetailInstance = 0;
+   workOrderDetailInstance = 0;
   showWorkOrdersTab = true;
   workOrderSaveValidationAttempted = false;
+  workOrderPropertySelectionRequired = true;
 
   isInspectorView = false;
   selectedPropertyId: string | null = null;
@@ -208,7 +212,6 @@ export class MaintenanceShellComponent implements OnInit, OnDestroy, CanComponen
         this.syncTitleBarSelections();
         this.setTitleBarReservationForCurrentProperty(preferredReservationId ?? null);
         this.syncMaintenanceSearchRequests();
-        this.reloadMaintenanceSearchLists();
         onLoaded?.();
       },
       error: () => {
@@ -252,7 +255,6 @@ export class MaintenanceShellComponent implements OnInit, OnDestroy, CanComponen
             this.applyPageOfficeScope(this.selectedOfficeId);
           }
           this.syncMaintenanceSearchRequests();
-          queueMicrotask(() => this.reloadMaintenanceSearchLists());
           this.loadTitleBarProperties();
         });
       },
@@ -349,49 +351,16 @@ export class MaintenanceShellComponent implements OnInit, OnDestroy, CanComponen
     return this.selectedTabIndex === this.receiptsTabIndex && this.showReceiptDetail;
   }
 
-  get workOrderPrimaryActionLabel(): string {
-    if (!this.isWorkOrderDetailActive || !this.maintenanceWorkOrderDetail) {
-      return 'Save';
-    }
-    return this.maintenanceWorkOrderDetail.isViewModeBeforeChanges() ? 'View' : 'Save';
+  get isReceiptAddMode(): boolean {
+    return this.isReceiptDetailActive && this.selectedReceiptId == null;
   }
 
-  get workOrderPrimaryActionIcon(): string {
-    if (!this.isWorkOrderDetailActive || !this.maintenanceWorkOrderDetail) {
-      return 'save';
-    }
-    return this.maintenanceWorkOrderDetail.isViewModeBeforeChanges() ? 'visibility' : 'save';
-  }
-
-  get workOrderPrimaryActionDisabled(): boolean {
-    if (!this.isWorkOrderDetailActive || !this.maintenanceWorkOrderDetail) {
-      return true;
-    }
-    if (this.maintenanceWorkOrderDetail.isSubmitting) {
-      return true;
-    }
-    return !this.maintenanceWorkOrderDetail.isViewModeBeforeChanges() && !this.maintenanceWorkOrderDetail.form?.valid;
-  }
-
-  get receiptPrimaryActionLabel(): string {
-    return 'Save';
-  }
-
-  get receiptPrimaryActionIcon(): string {
-    return 'save';
-  }
-
-  get receiptPrimaryActionDisabled(): boolean {
-    if (!this.isReceiptDetailActive || !this.maintenanceReceiptDetail) {
-      return true;
-    }
-    return this.maintenanceReceiptDetail.isSubmitting || !this.maintenanceReceiptDetail.form?.valid;
+  get isWorkOrderAddMode(): boolean {
+    return this.isWorkOrderDetailActive && this.selectedWorkOrderId == null;
   }
 
   get shouldShowWorkOrderLocationRequiredState(): boolean {
-    return this.isWorkOrderDetailActive
-      && this.maintenanceWorkOrderDetail?.isAddMode === true
-      && this.workOrderSaveValidationAttempted;
+    return this.isWorkOrderAddMode && this.workOrderSaveValidationAttempted;
   }
 
   get showOfficeRequiredErrorForWorkOrder(): boolean {
@@ -399,14 +368,11 @@ export class MaintenanceShellComponent implements OnInit, OnDestroy, CanComponen
   }
 
   get showPropertyRequiredErrorForWorkOrder(): boolean {
-    const requiresPropertySelection = this.maintenanceWorkOrderDetail?.isPropertySelectionRequired() ?? true;
-    return this.shouldShowWorkOrderLocationRequiredState && requiresPropertySelection && !this.selectedPropertyId;
+    return this.shouldShowWorkOrderLocationRequiredState && this.workOrderPropertySelectionRequired && !this.selectedPropertyId;
   }
 
   get shouldShowReceiptLocationRequiredState(): boolean {
-    return this.isReceiptDetailActive
-      && this.maintenanceReceiptDetail?.isAddMode === true
-      && this.receiptSaveValidationAttempted;
+    return this.isReceiptAddMode && this.receiptSaveValidationAttempted;
   }
 
   get showOfficeRequiredErrorForReceipt(): boolean {
@@ -414,8 +380,7 @@ export class MaintenanceShellComponent implements OnInit, OnDestroy, CanComponen
   }
 
   get showPropertyRequiredErrorForReceipt(): boolean {
-    const requiresPropertySelection = this.maintenanceReceiptDetail?.isPropertySelectionRequired() ?? true;
-    return this.shouldShowReceiptLocationRequiredState && requiresPropertySelection && !this.selectedPropertyId;
+    return this.shouldShowReceiptLocationRequiredState && this.receiptPropertySelectionRequired && !this.selectedPropertyId;
   }
   //#endregion
 
@@ -424,17 +389,13 @@ export class MaintenanceShellComponent implements OnInit, OnDestroy, CanComponen
     const officeId = value == null || value === '' ? null : Number(value);
     this.applyPageOfficeScope(officeId);
     this.applyPageOfficeChangeEffects();
-    this.syncMaintenanceSearchRequests();
-    this.reloadMaintenanceSearchLists();
   }
 
   async onPropertyCodeChange(): Promise<void> {
     this.workOrderSaveValidationAttempted = false;
     this.receiptSaveValidationAttempted = false;
-    const keepWorkOrderAddDetailOpen = this.isWorkOrderDetailActive
-      && (this.selectedWorkOrderId == null || this.maintenanceWorkOrderDetail?.isAddMode === true);
-    const keepReceiptAddDetailOpen = this.isReceiptDetailActive
-      && (this.selectedReceiptId == null || this.maintenanceReceiptDetail?.isAddMode === true);
+    const keepWorkOrderAddDetailOpen = this.isWorkOrderAddMode;
+    const keepReceiptAddDetailOpen = this.isReceiptAddMode;
     if (this.skipNextPropertyCodeChange) {
       this.skipNextPropertyCodeChange = false;
       return;
@@ -480,7 +441,6 @@ export class MaintenanceShellComponent implements OnInit, OnDestroy, CanComponen
     this.isServiceError = false;
     if (!this.selectedPropertyId) {
       this.syncMaintenanceSearchRequests();
-      this.reloadMaintenanceSearchLists();
       return;
     }
 
@@ -488,14 +448,10 @@ export class MaintenanceShellComponent implements OnInit, OnDestroy, CanComponen
     this.loadProperty(this.selectedPropertyId);
     this.router.navigateByUrl(`${RouterUrl.replaceTokens(RouterUrl.Maintenance, [this.selectedPropertyId])}?tab=${this.selectedTabIndex}`);
     this.syncMaintenanceSearchRequests();
-    this.reloadMaintenanceSearchLists();
   }
 
   onReservationDropdownChange(value: string | number | null): void {
     this.titleBarReservationId = value == null || value === '' ? null : String(value);
-    if (this.selectedTabIndex === this.workOrdersTabIndex && this.showWorkOrdersTab) {
-      this.maintenanceWorkOrderList?.applyFilters();
-    }
   }
 
   onDateRangeChange(): void {
@@ -526,7 +482,43 @@ export class MaintenanceShellComponent implements OnInit, OnDestroy, CanComponen
     }
 
     this.syncMaintenanceSearchRequests();
-    this.reloadMaintenanceSearchLists();
+  }
+
+  onInspectionUnsavedChangesChange(hasChanges: boolean): void {
+    this.inspectionHasUnsavedChanges = hasChanges;
+  }
+
+  onMaintenanceUnsavedChangesChange(hasChanges: boolean): void {
+    this.maintenanceHasUnsavedChanges = hasChanges;
+  }
+
+  onInspectionTitleBarReservationUiChange(state: { required: boolean; showError: boolean }): void {
+    this.inspectionTitleBarReservationRequired = state.required;
+    this.inspectionShowTitleBarReservationError = state.showError;
+  }
+
+  onInspectionSaveRequestCompleted(event: { token: number; success: boolean }): void {
+    if (event.token !== this.inspectionSaveRequestToken) {
+      return;
+    }
+    this.inspectionSaveResolver?.(event.success);
+    this.inspectionSaveResolver = null;
+  }
+
+  onMaintenanceSaveRequestCompleted(event: { token: number; success: boolean }): void {
+    if (event.token !== this.maintenanceSaveRequestToken) {
+      return;
+    }
+    this.maintenanceSaveResolver?.(event.success);
+    this.maintenanceSaveResolver = null;
+  }
+
+  onReceiptPropertySelectionRequiredChange(required: boolean): void {
+    this.receiptPropertySelectionRequired = required;
+  }
+
+  onWorkOrderPropertySelectionRequiredChange(required: boolean): void {
+    this.workOrderPropertySelectionRequired = required;
   }
 
   //#endregion
@@ -591,12 +583,11 @@ export class MaintenanceShellComponent implements OnInit, OnDestroy, CanComponen
     if (this.skipNextOfficeChange) {
       this.skipNextOfficeChange = false;
       this.updateAvailableProperties();
+      this.syncMaintenanceSearchRequests();
       return;
     }
-    const keepWorkOrderAddDetailOpen = this.isWorkOrderDetailActive
-      && (this.selectedWorkOrderId == null || this.maintenanceWorkOrderDetail?.isAddMode === true);
-    const keepReceiptAddDetailOpen = this.isReceiptDetailActive
-      && (this.selectedReceiptId == null || this.maintenanceReceiptDetail?.isAddMode === true);
+    const keepWorkOrderAddDetailOpen = this.isWorkOrderAddMode;
+    const keepReceiptAddDetailOpen = this.isReceiptAddMode;
     this.updateAvailableProperties();
     if (this.property && this.selectedOfficeId !== this.property.officeId) {
       this.selectedPropertyId = null;
@@ -617,9 +608,8 @@ export class MaintenanceShellComponent implements OnInit, OnDestroy, CanComponen
         this.showWorkOrderDetail = true;
         this.selectedWorkOrderId = null;
       }
-      this.syncMaintenanceSearchRequests();
-      this.reloadMaintenanceSearchLists();
     }
+    this.syncMaintenanceSearchRequests();
   }
 
   setTitleBarReservationForCurrentProperty(reservationId: string | null): void {
@@ -659,10 +649,6 @@ export class MaintenanceShellComponent implements OnInit, OnDestroy, CanComponen
       }
       if (nextTabIndex === this.receiptsTabIndex || nextTabIndex === this.workOrdersTabIndex || nextTabIndex === this.documentsTabIndex) {
         this.syncMaintenanceSearchRequests();
-        queueMicrotask(() => this.reloadMaintenanceSearchLists());
-      }
-      if (nextTabIndex === 0) {
-        setTimeout(() => this.inspectionChecklist?.pushTitleBarReservationToShell(), 0);
       }
     } finally {
       this.isHandlingTabGuard = false;
@@ -719,7 +705,6 @@ export class MaintenanceShellComponent implements OnInit, OnDestroy, CanComponen
     this.receiptSaveValidationAttempted = false;
     this.showReceiptDetail = false;
     this.selectedReceiptId = null;
-    this.applyPageOfficeScope(null);
     this.selectedPropertyId = null;
     this.property = null;
     this.titleBarReservationId = null;
@@ -731,7 +716,6 @@ export class MaintenanceShellComponent implements OnInit, OnDestroy, CanComponen
     this.receiptSaveValidationAttempted = false;
     this.showReceiptDetail = false;
     this.selectedReceiptId = null;
-    this.applyPageOfficeScope(null);
     this.selectedPropertyId = null;
     this.property = null;
     this.titleBarReservationId = null;
@@ -741,13 +725,6 @@ export class MaintenanceShellComponent implements OnInit, OnDestroy, CanComponen
 
   onReceiptSaveValidationAttempted(): void {
     this.receiptSaveValidationAttempted = true;
-  }
-
-  onMaintenanceReceiptsInactiveChange(showInactive: boolean): void {
-    if (!this.maintenanceReceiptsList) return;
-    this.maintenanceReceiptsList.showInactive = showInactive;
-    this.syncMaintenanceSearchRequests();
-    this.maintenanceReceiptsList.reloadForCurrentScope();
   }
 
   onWorkOrderSelect(selection: WorkOrderSelection): void {
@@ -777,7 +754,6 @@ export class MaintenanceShellComponent implements OnInit, OnDestroy, CanComponen
     this.showWorkOrderDetail = false;
     this.selectedWorkOrderId = null;
     this.workOrderSaveValidationAttempted = false;
-    this.applyPageOfficeScope(this.globalSelectionService.getSelectedOfficeIdValue());
     this.titleBarReservationId = null;
     this.selectedPropertyId = null;
     this.property = null;
@@ -790,7 +766,6 @@ export class MaintenanceShellComponent implements OnInit, OnDestroy, CanComponen
     this.showWorkOrderDetail = false;
     this.selectedWorkOrderId = null;
     this.workOrderSaveValidationAttempted = false;
-    this.applyPageOfficeScope(this.globalSelectionService.getSelectedOfficeIdValue());
     this.selectedPropertyId = null;
     this.property = null;
     this.titleBarReservationId = null;
@@ -813,27 +788,6 @@ export class MaintenanceShellComponent implements OnInit, OnDestroy, CanComponen
       return;
     }
     void this.back();
-  }
-
-  onTopBarWorkOrderPrimaryActionClick(): void {
-    if (!this.isWorkOrderDetailActive) {
-      return;
-    }
-    this.maintenanceWorkOrderDetail?.onPrimaryAction();
-  }
-
-  onTopBarReceiptPrimaryActionClick(): void {
-    if (!this.isReceiptDetailActive) {
-      return;
-    }
-    this.maintenanceReceiptDetail?.saveReceipt();
-  }
-
-  onMaintenanceWorkOrderInactiveChange(showInactive: boolean): void {
-    if (!this.maintenanceWorkOrderList) return;
-    this.maintenanceWorkOrderList.showInactive = showInactive;
-    this.syncMaintenanceSearchRequests();
-    this.maintenanceWorkOrderList.reloadForCurrentScope();
   }
 
   navigateToMaintenanceTabs(tabIndex?: number): void {
@@ -883,8 +837,8 @@ export class MaintenanceShellComponent implements OnInit, OnDestroy, CanComponen
    * and route deactivate — then both sections are checked.
    */
   async confirmChecklistNavigation(tabChange?: { previousIndex: number; nextIndex: number }): Promise<boolean> {
-    const hasInspectionChanges = this.inspectionChecklist?.hasUnsavedChanges() ?? false;
-    const hasMaintenanceChanges = this.maintenanceSection?.hasUnsavedChanges() ?? false;
+    const hasInspectionChanges = this.inspectionHasUnsavedChanges;
+    const hasMaintenanceChanges = this.maintenanceHasUnsavedChanges;
 
     if (tabChange) {
       const { previousIndex, nextIndex } = tabChange;
@@ -918,15 +872,21 @@ export class MaintenanceShellComponent implements OnInit, OnDestroy, CanComponen
     const action = await this.unsavedChangesDialogService.confirmLeaveOrSave();
     if (action === 'save') {
       if (targetSection === 'inspection') {
-        return this.inspectionChecklist?.saveChecklistDataAndWait() ?? true;
+        return new Promise<boolean>(resolve => {
+          this.inspectionSaveResolver = resolve;
+          this.inspectionSaveRequestToken++;
+        });
       }
-      return this.maintenanceSection?.saveMaintenanceAndWait() ?? true;
+      return new Promise<boolean>(resolve => {
+        this.maintenanceSaveResolver = resolve;
+        this.maintenanceSaveRequestToken++;
+      });
     }
 
     if (targetSection === 'inspection') {
-      this.inspectionChecklist?.discardUnsavedChanges();
+      this.inspectionDiscardRequestToken++;
     } else {
-      this.maintenanceSection?.discardUnsavedChanges();
+      this.maintenanceDiscardRequestToken++;
     }
     return true;
   }
@@ -949,9 +909,6 @@ export class MaintenanceShellComponent implements OnInit, OnDestroy, CanComponen
     const propertyId = this.selectedPropertyId;
     const startDate = this.utilityService.formatDateOnlyForApi(this.startDate);
     const endDate = this.utilityService.formatDateOnlyForApi(this.endDate);
-    const includeInactive = this.maintenanceReceiptsList?.showInactive
-      ?? this.maintenanceWorkOrderList?.showInactive
-      ?? false;
 
     this.documentRequest = {
       officeIds,
@@ -963,7 +920,6 @@ export class MaintenanceShellComponent implements OnInit, OnDestroy, CanComponen
     this.receiptSearchRequest = {
       officeIds,
       propertyId,
-      includeInactive: this.maintenanceReceiptsList?.showInactive ?? includeInactive,
       startDate,
       endDate
     };
@@ -971,7 +927,6 @@ export class MaintenanceShellComponent implements OnInit, OnDestroy, CanComponen
     this.workOrderSearchRequest = {
       officeIds,
       propertyId,
-      includeInactive: this.maintenanceWorkOrderList?.showInactive ?? includeInactive,
       startDate,
       endDate
     };
@@ -984,18 +939,6 @@ export class MaintenanceShellComponent implements OnInit, OnDestroy, CanComponen
     }
 
     return this.offices.map(office => office.officeId).filter(id => id > 0);
-  }
-
-  reloadMaintenanceSearchLists(): void {
-    if (this.selectedTabIndex === this.receiptsTabIndex && !this.showReceiptDetail) {
-      this.maintenanceReceiptsList?.reloadForCurrentScope();
-    }
-    if (this.showWorkOrdersTab && this.selectedTabIndex === this.workOrdersTabIndex && !this.showWorkOrderDetail) {
-      this.maintenanceWorkOrderList?.reloadForCurrentScope();
-    }
-    if (this.selectedTabIndex === this.documentsTabIndex) {
-      this.maintenanceDocumentList?.reload();
-    }
   }
   //#endregion
 

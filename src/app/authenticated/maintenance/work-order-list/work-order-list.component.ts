@@ -8,6 +8,11 @@ import { MaterialModule } from '../../../material.module';
 import { AuthService } from '../../../services/auth.service';
 import { MappingService } from '../../../services/mapping.service';
 import { UtilityService } from '../../../services/utility.service';
+import { AccountingOfficeResponse } from '../../organizations/models/accounting-office.model';
+import { AccountingOfficeService } from '../../organizations/services/accounting-office.service';
+import { OfficeResponse } from '../../organizations/models/office.model';
+import { OfficeService } from '../../organizations/services/office.service';
+import { ContactService } from '../../contacts/services/contact.service';
 import { PropertyResponse } from '../../properties/models/property.model';
 import { DataTableComponent } from '../../shared/data-table/data-table.component';
 import { DataTableFilterActionsDirective } from '../../shared/data-table/data-table-filter-actions.directive';
@@ -37,15 +42,16 @@ export class WorkOrderListComponent implements OnInit, OnChanges, OnDestroy {
   @Input() officeId: number | null = null;
   @Input() searchRequest?: MaintenanceListSearchRequest | null;
   @Input() reservationId: string | null = null;
-  @Input() isActiveTab = false;
   /** When true, selection is emitted via workOrderSelect and no navigation occurs (e.g. embedded in maintenance). */
   @Input() embeddedInMaintenance = false;
   @Output() workOrderSelect = new EventEmitter<WorkOrderSelection>();
 
   isPageReady = false;
   isServiceError: boolean = false;
-  itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set());
+  itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['workOrders']));
   destroy$ = new Subject<void>();
+  offices: OfficeResponse[] = [];
+  accountingOffices: AccountingOfficeResponse[] = [];
   showInactive: boolean = false;
   canViewEnteredInQb: boolean = false;
   workOrders: WorkOrderResponse[] = [];
@@ -54,7 +60,9 @@ export class WorkOrderListComponent implements OnInit, OnChanges, OnDestroy {
 
   selectedProperty: PropertyResponse | null = null;
   selectedPropertyId: string | null = null;
-  private workOrdersLoadId = 0;
+  workOrdersLoadId = 0;
+  lastWorkOrderSearchKey: string | null = null;
+  workOrderSearchInFlightKey: string | null = null;
 
   workOrderDisplayedColumns: ColumnSet = {
     no: { displayAs: 'No', maxWidth: '5ch', sort: false, wrap: false },
@@ -75,15 +83,15 @@ export class WorkOrderListComponent implements OnInit, OnChanges, OnDestroy {
     private workOrderService: WorkOrderService,
     private receiptService: ReceiptService,
     private mappingService: MappingService,
+    private officeService: OfficeService,
+    private accountingOfficeService: AccountingOfficeService,
+    private contactService: ContactService,
     private utilityService: UtilityService,
     private router: Router,
     private toastr: ToastrService,
     private cdr: ChangeDetectorRef
   ) {}
 
-  private markViewForCheck(): void {
-    this.cdr.markForCheck();
-  }
 
   //#region Work-Order List
   ngOnInit(): void {
@@ -92,80 +100,56 @@ export class WorkOrderListComponent implements OnInit, OnChanges, OnDestroy {
       this.markViewForCheck();
     });
     this.setRoleBasedColumns();
-    if (this.isActiveTab) {
-      this.tryLoadWorkOrdersForMaintenanceShell();
-    }
+    this.loadOffices();
+    this.loadAccountingOffices();
+    this.loadVendors();
+    this.loadWorkOrdersForCurrentSearchCriteria();
   }
 
   ngOnChanges(changes: SimpleChanges): void {
-    if (changes['isActiveTab'] && this.isActiveTab) {
-      this.tryLoadWorkOrdersForMaintenanceShell();
-      return;
-    }
-
-    if (!this.isActiveTab) {
-      return;
-    }
-
     if (changes['property']) {
       const propertyId = this.property?.propertyId || null;
-      if (!propertyId) {
-        this.selectedPropertyId = null;
-        this.getWorkOrders();
-        return;
-      }
-
-      if (this.selectedPropertyId !== propertyId) {
+      if (propertyId !== this.selectedPropertyId) {
         this.selectedPropertyId = propertyId;
-        this.getWorkOrders();
+        if (!changes['property'].firstChange) {
+          this.loadWorkOrdersForCurrentSearchCriteria();
+        }
       }
     }
-    if (changes['officeId'] && !this.property?.propertyId) {
-      this.getWorkOrders();
+
+    if (changes['officeId'] && !changes['officeId'].firstChange && !this.property?.propertyId) {
+      this.loadWorkOrdersForCurrentSearchCriteria();
     }
-    if (changes['reservationId']) {
-      this.applyFilters();
+
+    if (changes['reservationId'] && !changes['reservationId'].firstChange) {
+      if (this.usesMaintenanceSearch()) {
+        this.applyFilters();
+      } else {
+        this.loadWorkOrdersForCurrentSearchCriteria();
+      }
     }
-    if (changes['searchRequest'] && this.embeddedInMaintenance && this.isActiveTab) {
-      this.tryLoadWorkOrdersForMaintenanceShell();
+
+    if (changes['searchRequest'] && !changes['searchRequest'].firstChange && this.embeddedInMaintenance) {
+      this.loadWorkOrdersForCurrentSearchCriteria();
     }
   }
 
-  reloadForCurrentScope(): void {
-    if (!this.isActiveTab) {
-      return;
-    }
-    this.tryLoadWorkOrdersForMaintenanceShell();
-  }
-
-  tryLoadWorkOrdersForMaintenanceShell(): void {
-    if (!this.isActiveTab) {
-      return;
-    }
-
-    if (!this.embeddedInMaintenance) {
-      this.getWorkOrders();
-      return;
-    }
-
-    queueMicrotask(() => {
-      if (!this.isActiveTab) {
-        return;
-      }
-      if (!this.canRunMaintenanceSearch(this.searchRequest)) {
-        this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'workOrders');
-        this.markViewForCheck();
-        return;
-      }
-      this.getWorkOrders();
-    });
-  }
-
-  getWorkOrders(): void {
+  getWorkOrders(force = false): void {
     if (this.embeddedInMaintenance && !this.canRunMaintenanceSearch(this.searchRequest)) {
+      this.lastWorkOrderSearchKey = null;
+      this.workOrderSearchInFlightKey = null;
       this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'workOrders');
       this.markViewForCheck();
       return;
+    }
+
+    let searchKey: string | null = null;
+    if (this.embeddedInMaintenance) {
+      searchKey = this.buildWorkOrderSearchKey();
+      if (!force && (searchKey === this.lastWorkOrderSearchKey || searchKey === this.workOrderSearchInFlightKey)) {
+        return;
+      }
+      this.workOrderSearchInFlightKey = searchKey;
     }
 
     const loadId = ++this.workOrdersLoadId;
@@ -178,12 +162,18 @@ export class WorkOrderListComponent implements OnInit, OnChanges, OnDestroy {
     load$.pipe(take(1), finalize(() => {
       if (this.workOrdersLoadId === loadId) {
         this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'workOrders');
+        if (this.embeddedInMaintenance && searchKey != null && this.workOrderSearchInFlightKey === searchKey) {
+          this.workOrderSearchInFlightKey = null;
+        }
       }
       this.markViewForCheck();
     })).subscribe({
       next: (workOrders: WorkOrderResponse[]) => {
         if (this.workOrdersLoadId !== loadId) {
           return;
+        }
+        if (this.embeddedInMaintenance && searchKey != null) {
+          this.lastWorkOrderSearchKey = searchKey;
         }
         this.workOrders = workOrders || [];
         this.allWorkOrders = this.mappingService.mapWorkOrderDisplays(this.workOrders);
@@ -287,75 +277,6 @@ export class WorkOrderListComponent implements OnInit, OnChanges, OnDestroy {
     this.router.navigateByUrl(
       `${RouterUrl.WorkOrderCreate}?workOrderId=${encodeURIComponent(workOrderId)}&propertyId=${encodeURIComponent(propertyId)}&returnTo=work-order-list`
     );
-  }
-
-   resolvePropertyIdForWorkOrder(event: WorkOrderDisplayList): string | null {
-    const fromRow = (event?.propertyId || '').toString().trim();
-    if (fromRow) {
-      return fromRow;
-    }
-
-    const workOrderId = (event?.workOrderId || '').toString().trim();
-    if (workOrderId) {
-      const fromLoadedWorkOrder = this.workOrders
-        .find(wo => (wo.workOrderId || '').toString().trim() === workOrderId)
-        ?.propertyId;
-      const normalizedLoadedPropertyId = (fromLoadedWorkOrder || '').toString().trim();
-      if (normalizedLoadedPropertyId) {
-        return normalizedLoadedPropertyId;
-      }
-    }
-
-    const fromSelectedProperty = (this.property?.propertyId || '').trim();
-    if (fromSelectedProperty) {
-      return fromSelectedProperty;
-    }
-
-    const fromSelectedPropertyId = (this.selectedPropertyId || '').trim();
-    return fromSelectedPropertyId || null;
-  }
-
-  onWorkOrderCheckboxChange(event: WorkOrderDisplayList): void {
-    const changedCheckboxColumn = (event as unknown as { __changedCheckboxColumn?: string }).__changedCheckboxColumn;
-    if (changedCheckboxColumn !== 'isActive' && changedCheckboxColumn !== 'enteredInQb') {
-      return;
-    }
-    if (changedCheckboxColumn === 'enteredInQb' && !this.canViewEnteredInQb) {
-      return;
-    }
-
-    const previousValue = (event as unknown as { __previousCheckboxValue?: boolean }).__previousCheckboxValue === true;
-    const nextValue = (event as unknown as { __checkboxValue?: boolean }).__checkboxValue === true;
-    if (previousValue === nextValue) {
-      return;
-    }
-
-    const workOrderId = String(event.workOrderId || '').trim();
-    if (!workOrderId) {
-      return;
-    }
-
-    this.applyWorkOrderCheckboxValue(workOrderId, changedCheckboxColumn, nextValue);
-
-    this.workOrderService.getWorkOrderById(workOrderId).pipe(take(1),
-      map((sourceWorkOrder: WorkOrderResponse) => this.mappingService.mapWorkOrderUpdateRequest(sourceWorkOrder, changedCheckboxColumn, nextValue)),
-      switchMap(updateRequest => this.workOrderService.updateWorkOrder(updateRequest))
-    ).subscribe({
-      next: (updatedWorkOrder: WorkOrderResponse) => {
-        this.workOrders = this.workOrders.map(workOrder =>
-          workOrder.workOrderId === updatedWorkOrder.workOrderId ? updatedWorkOrder : workOrder
-        );
-        this.allWorkOrders = this.mappingService.mapWorkOrderDisplays(this.workOrders);
-        this.applyFilters();
-        this.toastr.success('Work order updated.', 'Success');
-        this.markViewForCheck();
-      },
-      error: () => {
-        this.applyWorkOrderCheckboxValue(workOrderId, changedCheckboxColumn, previousValue);
-        this.toastr.error('Unable to update work order.', 'Error');
-        this.markViewForCheck();
-      }
-    });
   }
   //#endregion
 
@@ -463,7 +384,7 @@ export class WorkOrderListComponent implements OnInit, OnChanges, OnDestroy {
   toggleInactive(): void {
     this.showInactive = !this.showInactive;
     if (this.usesMaintenanceSearch()) {
-      this.reloadForCurrentScope();
+      this.loadWorkOrdersForCurrentSearchCriteria();
       return;
     }
     this.applyFilters();
@@ -480,12 +401,14 @@ export class WorkOrderListComponent implements OnInit, OnChanges, OnDestroy {
       ? activeScoped
       : activeScoped.filter(workOrder => (workOrder.reservationId || '').trim() === selectedReservationId);
   }
+  //#endregion
 
-  private usesMaintenanceSearch(): boolean {
+  //#region Search Methods
+  usesMaintenanceSearch(): boolean {
     return this.embeddedInMaintenance && this.canRunMaintenanceSearch(this.searchRequest);
   }
 
-  private canRunMaintenanceSearch(request?: MaintenanceListSearchRequest | null): boolean {
+  canRunMaintenanceSearch(request?: MaintenanceListSearchRequest | null): boolean {
     if (!this.embeddedInMaintenance || request == null) {
       return false;
     }
@@ -493,7 +416,7 @@ export class WorkOrderListComponent implements OnInit, OnChanges, OnDestroy {
     return !!(request.startDate && request.endDate && this.resolveMaintenanceSearchOfficeIds(request).length > 0);
   }
 
-  private resolveMaintenanceSearchOfficeIds(request?: MaintenanceListSearchRequest | null): number[] {
+  resolveMaintenanceSearchOfficeIds(request?: MaintenanceListSearchRequest | null): number[] {
     const fromShell = (request?.officeIds ?? this.searchRequest?.officeIds ?? []).filter(id => id > 0);
     if (fromShell.length > 0) {
       return fromShell;
@@ -507,7 +430,7 @@ export class WorkOrderListComponent implements OnInit, OnChanges, OnDestroy {
     return [];
   }
 
-  private buildMaintenanceSearchRequest(): MaintenanceListSearchRequest {
+  buildMaintenanceSearchRequest(): MaintenanceListSearchRequest {
     const request = this.searchRequest ?? { officeIds: [] };
     return {
       ...request,
@@ -516,9 +439,107 @@ export class WorkOrderListComponent implements OnInit, OnChanges, OnDestroy {
       propertyId: request.propertyId ?? this.property?.propertyId ?? null
     };
   }
+
+  buildWorkOrderSearchKey(): string {
+    const request = this.buildMaintenanceSearchRequest();
+    return JSON.stringify({
+      officeIds: [...(request.officeIds || [])].sort((a, b) => a - b),
+      propertyId: request.propertyId ?? null,
+      startDate: request.startDate ?? null,
+      endDate: request.endDate ?? null,
+      includeInactive: request.includeInactive ?? false
+    });
+  }
+    
+  loadWorkOrdersForCurrentSearchCriteria(force = false): void {
+    if (!this.embeddedInMaintenance) {
+      this.getWorkOrders(force);
+      return;
+    }
+
+    queueMicrotask(() => {
+      if (!this.canRunMaintenanceSearch(this.searchRequest)) {
+        this.lastWorkOrderSearchKey = null;
+        this.workOrderSearchInFlightKey = null;
+        this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'workOrders');
+        this.markViewForCheck();
+        return;
+      }
+      this.getWorkOrders(force);
+    });
+  }
+
   //#endregion
 
-  //#region Utility Methods
+  //#region Form Response Methods
+  resolvePropertyIdForWorkOrder(event: WorkOrderDisplayList): string | null {
+    const fromRow = (event?.propertyId || '').toString().trim();
+    if (fromRow) {
+      return fromRow;
+    }
+
+    const workOrderId = (event?.workOrderId || '').toString().trim();
+    if (workOrderId) {
+      const fromLoadedWorkOrder = this.workOrders
+        .find(wo => (wo.workOrderId || '').toString().trim() === workOrderId)
+        ?.propertyId;
+      const normalizedLoadedPropertyId = (fromLoadedWorkOrder || '').toString().trim();
+      if (normalizedLoadedPropertyId) {
+        return normalizedLoadedPropertyId;
+      }
+    }
+
+    const fromSelectedProperty = (this.property?.propertyId || '').trim();
+    if (fromSelectedProperty) {
+      return fromSelectedProperty;
+    }
+
+    const fromSelectedPropertyId = (this.selectedPropertyId || '').trim();
+    return fromSelectedPropertyId || null;
+  }
+
+  onWorkOrderCheckboxChange(event: WorkOrderDisplayList): void {
+    const changedCheckboxColumn = (event as unknown as { __changedCheckboxColumn?: string }).__changedCheckboxColumn;
+    if (changedCheckboxColumn !== 'isActive' && changedCheckboxColumn !== 'enteredInQb') {
+      return;
+    }
+    if (changedCheckboxColumn === 'enteredInQb' && !this.canViewEnteredInQb) {
+      return;
+    }
+
+    const previousValue = (event as unknown as { __previousCheckboxValue?: boolean }).__previousCheckboxValue === true;
+    const nextValue = (event as unknown as { __checkboxValue?: boolean }).__checkboxValue === true;
+    if (previousValue === nextValue) {
+      return;
+    }
+
+    const workOrderId = String(event.workOrderId || '').trim();
+    if (!workOrderId) {
+      return;
+    }
+
+    this.applyWorkOrderCheckboxValue(workOrderId, changedCheckboxColumn, nextValue);
+
+    this.workOrderService.getWorkOrderById(workOrderId).pipe(take(1),
+      map((sourceWorkOrder: WorkOrderResponse) => this.mappingService.mapWorkOrderUpdateRequest(sourceWorkOrder, changedCheckboxColumn, nextValue)),
+      switchMap(updateRequest => this.workOrderService.updateWorkOrder(updateRequest))
+    ).subscribe({
+      next: (updatedWorkOrder: WorkOrderResponse) => {
+        this.workOrders = this.workOrders.map(workOrder =>
+          workOrder.workOrderId === updatedWorkOrder.workOrderId ? updatedWorkOrder : workOrder
+        );
+        this.allWorkOrders = this.mappingService.mapWorkOrderDisplays(this.workOrders);
+        this.applyFilters();
+        this.toastr.success('Work order updated.', 'Success');
+        this.markViewForCheck();
+      },
+      error: () => {
+        this.applyWorkOrderCheckboxValue(workOrderId, changedCheckboxColumn, previousValue);
+        this.toastr.error('Unable to update work order.', 'Error');
+        this.markViewForCheck();
+      }
+    });
+  }
   setRoleBasedColumns(): void {
     this.canViewEnteredInQb =
       this.authService.hasRole(UserGroups.Admin) ||
@@ -544,6 +565,52 @@ export class WorkOrderListComponent implements OnInit, OnChanges, OnDestroy {
         : workOrder
     );
   }
+
+  loadOffices(): void {
+    const organizationId = this.authService.getUser()?.organizationId?.trim() || '';
+    if (!organizationId) {
+      this.offices = [];
+      return;
+    }
+
+    this.officeService.ensureOfficesLoaded(organizationId).pipe(take(1)).subscribe({
+      next: () => {
+        this.officeService.getAllOffices().pipe(takeUntil(this.destroy$)).subscribe(offices => {
+          this.offices = offices || [];
+          this.markViewForCheck();
+        });
+      },
+      error: () => {
+        this.offices = [];
+        this.markViewForCheck();
+      }
+    });
+  }
+
+  loadAccountingOffices(): void {
+    this.accountingOfficeService.ensureAccountingOfficesLoaded().pipe(take(1)).subscribe({
+      next: offices => {
+        this.accountingOffices = offices || [];
+        this.markViewForCheck();
+      },
+      error: () => {
+        this.accountingOffices = [];
+        this.markViewForCheck();
+      }
+    });
+  }
+
+  loadVendors(): void {
+    this.contactService.ensureContactsLoaded().pipe(take(1)).subscribe({
+      error: () => this.markViewForCheck()
+    });
+  }
+  //#endregion
+
+  //#region Utility Methods
+  markViewForCheck(): void {
+    this.cdr.markForCheck();
+  } 
 
   ngOnDestroy(): void {
     this.workOrdersLoadId++;

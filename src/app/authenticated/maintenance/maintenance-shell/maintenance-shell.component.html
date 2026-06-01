@@ -58,8 +58,8 @@
                   [showInstructionOption]="true"
                   [nullOptionLabel]="titleBarReservationNullLabel"
                   [noResultsText]="'No reservations match your search'"
-                  [labelRequiredAsterisk]="selectedTabIndex === 0 && (inspectionChecklist?.titleBarReservationRequired ?? false)"
-                  [showError]="selectedTabIndex === 0 && (inspectionChecklist?.showTitleBarReservationError ?? false)"
+                  [labelRequiredAsterisk]="selectedTabIndex === 0 && inspectionTitleBarReservationRequired"
+                  [showError]="selectedTabIndex === 0 && inspectionShowTitleBarReservationError"
                   [errorText]="'Required'"
                   (valueChange)="onReservationDropdownChange($event)">
                 </app-title-bar-select>
@@ -96,25 +96,11 @@
 
         <div class="flex items-center gap-3 ml-[10px]">
           <div class="uniform-gap form-titlebar-actions-wrap">
-            @if (isReceiptDetailActive) {
-              <button mat-raised-button type="button" color="accent" id="back-button" (click)="onTopBarBackClick()"
-                class="text-nowrap flex-shrink-0">
-                <mat-icon>arrow_back</mat-icon>
-                Back
-              </button>
-            } @else if (isWorkOrderDetailActive) {
-              <button mat-raised-button type="button" color="accent" id="back-button" (click)="onTopBarBackClick()"
-                class="text-nowrap flex-shrink-0">
-                <mat-icon>arrow_back</mat-icon>
-                Back
-              </button>
-            } @else {
-              <button mat-raised-button type="button" color="accent" id="back-button" (click)="onTopBarBackClick()"
-                class="text-nowrap flex-shrink-0">
-                <mat-icon>arrow_back</mat-icon>
-                Back
-              </button>
-            }
+            <button mat-raised-button type="button" color="accent" id="back-button" (click)="onTopBarBackClick()"
+              class="text-nowrap flex-shrink-0">
+              <mat-icon>arrow_back</mat-icon>
+              Back
+            </button>
           </div>
         </div>
       </div>
@@ -122,40 +108,48 @@
       <mat-card>
         <mat-tab-group [selectedIndex]="selectedTabIndex" class="shell-tabs dbg-band-tabs" (selectedIndexChange)="onTabIndexChange($event)">
           <mat-tab label="Inspection">
-            @if (property) {
+            @if (property && selectedTabIndex === 0) {
               <app-inspection
-                #inspectionChecklist
                 [property]="property"
                 [checklistType]="'inspection'"
+                [shellTabActive]="selectedTabIndex === 0"
+                [saveRequestToken]="inspectionSaveRequestToken"
+                [discardRequestToken]="inspectionDiscardRequestToken"
                 [titleBarReservationId]="titleBarReservationId"
                 [titleBarReservationDisplayText]="titleBarReservationDisplayLabel"
                 (titleBarReservationSync)="onInspectionTitleBarReservationSync($event)"
+                (titleBarReservationUiChange)="onInspectionTitleBarReservationUiChange($event)"
+                (unsavedChangesChange)="onInspectionUnsavedChangesChange($event)"
+                (saveRequestCompleted)="onInspectionSaveRequestCompleted($event)"
                 (inspectionSubmitted)="onInspectionSubmitted()" />
             }
           </mat-tab>
           <mat-tab label="Maintenance">
-            <app-maintenance
-              #maintenanceSection
-              [property]="property" />
+            @if (selectedTabIndex === 1) {
+              <app-maintenance
+                [property]="property"
+                [saveRequestToken]="maintenanceSaveRequestToken"
+                [discardRequestToken]="maintenanceDiscardRequestToken"
+                (unsavedChangesChange)="onMaintenanceUnsavedChangesChange($event)"
+                (saveRequestCompleted)="onMaintenanceSaveRequestCompleted($event)" />
+            }
           </mat-tab>
           <mat-tab label="Receipts">
             @if (showReceiptDetail) {
               <app-receipt
-                #maintenanceReceiptDetail
                 [property]="property"
                 [receiptId]="selectedReceiptId"
                 [officeId]="selectedOfficeId"
                 (saveValidationAttempted)="onReceiptSaveValidationAttempted()"
+                (propertySelectionRequiredChange)="onReceiptPropertySelectionRequiredChange($event)"
                 (workOrderSelect)="onWorkOrderSelect($event)"
                 (backEvent)="onReceiptBack()"
                 (savedEvent)="onReceiptSaved()" />
-            } @else {
+            } @else if (selectedTabIndex === receiptsTabIndex) {
               <app-receipts-list
-                #maintenanceReceiptsList
                 [property]="property"
                 [officeId]="selectedOfficeId"
                 [searchRequest]="receiptSearchRequest"
-                [isActiveTab]="selectedTabIndex === receiptsTabIndex"
                 [embeddedInMaintenance]="true"
                 [refreshTrigger]="refreshReceiptsTrigger"
                 (receiptSelect)="onReceiptSelect($event)"
@@ -167,41 +161,41 @@
               @if (showWorkOrderDetail) {
                 @for (instance of [workOrderDetailInstance]; track instance) {
                   <app-work-order
-                    #maintenanceWorkOrderDetail
                     [property]="property"
                     [workOrderId]="selectedWorkOrderId"
+                    [officeId]="selectedOfficeId"
                     [embeddedInMaintenance]="true"
                     (saveValidationAttempted)="onWorkOrderSaveValidationAttempted()"
+                    (propertySelectionRequiredChange)="onWorkOrderPropertySelectionRequiredChange($event)"
                     (receiptSelect)="onReceiptSelect($event)"
                     (backEvent)="onWorkOrderBack()"
                     (savedEvent)="onWorkOrderSaved()" />
                 }
-              } @else {
+              } @else if (selectedTabIndex === workOrdersTabIndex) {
                 <app-work-order-list
-                  #maintenanceWorkOrderList
                   [property]="property"
                   [officeId]="selectedOfficeId"
                   [searchRequest]="workOrderSearchRequest"
                   [reservationId]="titleBarReservationId"
-                  [isActiveTab]="selectedTabIndex === workOrdersTabIndex"
                   [embeddedInMaintenance]="true"
                   (workOrderSelect)="onWorkOrderSelect($event)" />
               }
             </mat-tab>
           }
           <mat-tab label="Documents">
-            <app-document-list
-              #maintenanceDocumentList
-              [documentTypeIds]="[DocumentType.Inspection, DocumentType.WorkOrder]"
-              [documentRequest]="documentRequest"
-              [propertyId]="selectedPropertyId ?? property?.propertyId ?? undefined"
-              [propertyCode]="property?.propertyCode ?? null"
-              [officeId]="selectedOfficeId ?? property?.officeId ?? null"
-              [reservationId]="titleBarReservationId"
-              [reservations]="shellReservations"
-              source="maintenance"
-              [hideHeader]="true"
-              [hideFilters]="true" />
+            @if (selectedTabIndex === documentsTabIndex) {
+              <app-document-list
+                [documentTypeIds]="[DocumentType.Inspection, DocumentType.WorkOrder]"
+                [documentRequest]="documentRequest"
+                [propertyId]="selectedPropertyId ?? property?.propertyId ?? undefined"
+                [propertyCode]="property?.propertyCode ?? null"
+                [officeId]="selectedOfficeId ?? property?.officeId ?? null"
+                [reservationId]="titleBarReservationId"
+                [reservations]="shellReservations"
+                source="maintenance"
+                [hideHeader]="true"
+                [hideFilters]="true" />
+            }
           </mat-tab>
         </mat-tab-group>
       </mat-card>

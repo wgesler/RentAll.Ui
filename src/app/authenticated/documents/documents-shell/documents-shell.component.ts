@@ -51,6 +51,7 @@ export class DocumentsShellComponent implements OnInit, OnDestroy {
   startDate: Date | null = null;
   endDate: Date | null = null;
   documentRequest: DocumentGetRequest = { officeIds: [] };
+  private initialOfficeScopeApplied = false;
   destroy$ = new Subject<void>();
 
   constructor(
@@ -79,7 +80,7 @@ export class DocumentsShellComponent implements OnInit, OnDestroy {
       if (currentPath.endsWith('/documents')) {
         this.selectedReservationId = null;
         this.refreshReservationOptions();
-        this.reloadDocumentsList();
+        this.syncDocumentRequest();
       }
     });
 
@@ -90,32 +91,23 @@ export class DocumentsShellComponent implements OnInit, OnDestroy {
     this.globalSelectionService.getSelectedOfficeId$().pipe(skip(1), takeUntil(this.destroy$)).subscribe(officeId => {
       this.applyOfficeFromGlobal(officeId);
       this.selectedReservationId = null;
-      this.refreshPropertyOptions();
-      this.refreshReservationOptions();
-      this.syncDocumentRequest();
-      queueMicrotask(() => {
-        this.documentsTabList?.onTitleBarOfficeIdUpdate(this.selectedOfficeId);
-      });
-      this.reloadDocumentsList();
+      this.applyPageOfficeChangeEffects();
     });
   }
   //#endregion
 
   //#region Form Response Methods
   onOfficeDropdownChange(value: string | number | null): void {
-    this.selectedOfficeId = value == null || value === '' ? null : Number(value);
-    this.refreshPropertyOptions();
-    this.refreshReservationOptions();
+    const officeId = value == null || value === '' ? null : Number(value);
+    this.applyPageOfficeScope(officeId);
     this.selectedReservationId = null;
-    this.syncDocumentRequest();
-    this.reloadDocumentsList();
+    this.applyPageOfficeChangeEffects();
   }
 
   onPropertyDropdownChange(value: string | number | null): void {
     this.selectedPropertyId = value == null || value === '' ? null : String(value);
     this.refreshReservationOptions();
     this.syncDocumentRequest();
-    this.reloadDocumentsList();
   }
 
   onReservationDropdownChange(value: string | number | null): void {
@@ -123,7 +115,6 @@ export class DocumentsShellComponent implements OnInit, OnDestroy {
     this.selectedReservationSummary = this.reservations.find(r => r.reservationId === this.selectedReservationId) || null;
     this.selectedPropertyId = this.selectedReservationSummary?.propertyId ?? this.selectedPropertyId;
     this.syncDocumentRequest();
-    this.reloadDocumentsList();
   }
 
   onDocumentTypeDropdownChange(value: string | number | null): void {
@@ -158,7 +149,6 @@ export class DocumentsShellComponent implements OnInit, OnDestroy {
     }
 
     this.syncDocumentRequest();
-    this.reloadDocumentsList();
   }
 
   get officeOptions(): SearchableSelectOption[] {
@@ -195,30 +185,37 @@ export class DocumentsShellComponent implements OnInit, OnDestroy {
     return this.selectedReservationSummary?.propertyCode || 'Code';
   }
 
-  applyShellOfficeScope(): void {
-    this.showOfficeDropdown = this.offices.length > 1;
-    let officeIdToUse = this.selectedOfficeId;
-    if (officeIdToUse != null && !this.offices.some(o => o.officeId === officeIdToUse)) {
-      officeIdToUse = null;
-    }
-    if (this.offices.length === 1) {
-      officeIdToUse = this.offices[0].officeId;
-    }
-    this.selectedOfficeId = officeIdToUse;
-  }
-
   applyOfficeFromGlobal(officeId: number | null): void {
     if (this.offices.length === 0) {
       this.selectedOfficeId = officeId;
+      this.showOfficeDropdown = false;
       return;
     }
     this.showOfficeDropdown = this.offices.length > 1;
     if (this.offices.length === 1) {
-      this.selectedOfficeId = this.offices[0].officeId;
+      this.applyPageOfficeScope(this.offices[0].officeId);
       return;
     }
-    const resolved = this.utilityService.resolveSelectedOfficeById(this.offices, officeId)?.officeId ?? officeId ?? null;
-    this.selectedOfficeId = resolved != null && this.offices.some(o => o.officeId === resolved) ? resolved : null;
+    const resolved = officeId != null && this.offices.some(o => o.officeId === officeId) ? officeId : null;
+    this.applyPageOfficeScope(resolved);
+  }
+
+  /** Title-bar office change on this page only (never updates global selection). */
+  applyPageOfficeScope(officeId: number | null): void {
+    let resolvedOfficeId = officeId;
+    if (resolvedOfficeId != null && !this.offices.some(o => o.officeId === resolvedOfficeId)) {
+      resolvedOfficeId = null;
+    }
+    if (this.offices.length === 1) {
+      resolvedOfficeId = this.offices[0].officeId;
+    }
+    this.selectedOfficeId = resolvedOfficeId;
+  }
+
+  applyPageOfficeChangeEffects(): void {
+    this.refreshPropertyOptions();
+    this.refreshReservationOptions();
+    this.syncDocumentRequest();
   }
 
   refreshReservationOptions(): void {
@@ -259,18 +256,23 @@ export class DocumentsShellComponent implements OnInit, OnDestroy {
       next: () => {
         this.officeService.getAllOffices().pipe(takeUntil(this.destroy$)).subscribe(offices => {
           this.offices = offices || [];
-          this.applyShellOfficeScope();
-          this.refreshPropertyOptions();
-          this.refreshReservationOptions();
-          this.syncDocumentRequest();
+          if (!this.initialOfficeScopeApplied) {
+            this.initialOfficeScopeApplied = true;
+            this.applyOfficeFromGlobal(
+              this.selectedOfficeId ?? this.globalSelectionService.getSelectedOfficeIdValue()
+            );
+          } else if (this.selectedOfficeId != null) {
+            this.applyPageOfficeScope(this.selectedOfficeId);
+          } else {
+            this.showOfficeDropdown = this.offices.length > 1;
+          }
+          this.applyPageOfficeChangeEffects();
         });
       },
       error: () => {
         this.offices = [];
         this.showOfficeDropdown = false;
         this.selectedOfficeId = null;
-        this.refreshPropertyOptions();
-        this.refreshReservationOptions();
         this.syncDocumentRequest();
       }
     });
@@ -333,10 +335,6 @@ export class DocumentsShellComponent implements OnInit, OnDestroy {
     }
 
     return this.offices.map(office => office.officeId).filter(id => id > 0);
-  }
-
-  reloadDocumentsList(): void {
-    this.documentsTabList?.reload();
   }
 
   ngOnDestroy(): void {

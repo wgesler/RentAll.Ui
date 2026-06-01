@@ -12,8 +12,12 @@ import { MappingService } from '../../../services/mapping.service';
 import { PropertyResponse } from '../../properties/models/property.model';
 import { PropertyService } from '../../properties/services/property.service';
 import { AccountingOfficeService } from '../../organizations/services/accounting-office.service';
+import { AccountingOfficeResponse } from '../../organizations/models/accounting-office.model';
+import { OfficeResponse } from '../../organizations/models/office.model';
+import { OfficeService } from '../../organizations/services/office.service';
 import { BankCardResponse } from '../../organizations/models/bank.model';
 import { EntityType } from '../../contacts/models/contact-enum';
+import { ContactResponse } from '../../contacts/models/contact.model';
 import { ContactService } from '../../contacts/services/contact.service';
 import { DataTableComponent } from '../../shared/data-table/data-table.component';
 import { DataTableFilterActionsDirective } from '../../shared/data-table/data-table-filter-actions.directive';
@@ -35,7 +39,6 @@ export class ReceiptsListComponent implements OnInit, OnChanges, OnDestroy {
   @Input() property: PropertyResponse | null = null;
   @Input() officeId: number | null = null;
   @Input() searchRequest?: MaintenanceListSearchRequest | null;
-  @Input() isActiveTab = false;
   @Input() embeddedInMaintenance = false;
   @Input() refreshTrigger: number = 0;
   @Output() receiptSelect = new EventEmitter<ReceiptSelection>();
@@ -43,8 +46,10 @@ export class ReceiptsListComponent implements OnInit, OnChanges, OnDestroy {
 
   isPageReady = false;
   isServiceError: boolean = false;
-  itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set());
+  itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['receipts']));
   destroy$ = new Subject<void>();
+  offices: OfficeResponse[] = [];
+  accountingOffices: AccountingOfficeResponse[] = [];
   showInactive: boolean = false;
   receipts: ReceiptResponse[] = [];
   receiptsDisplay: ReceiptDisplayList[] = [];
@@ -60,6 +65,8 @@ export class ReceiptsListComponent implements OnInit, OnChanges, OnDestroy {
   selectedPropertyId: string | null = null;
   persistedFilterVal = '';
   private receiptsLoadId = 0;
+  private lastReceiptSearchKey: string | null = null;
+  private receiptSearchInFlightKey: string | null = null;
   private readonly receiptListFilterStorageKey = 'maintenance.receiptsList.filter';
 
   receiptDisplayedColumns: ColumnSet = {
@@ -82,6 +89,7 @@ export class ReceiptsListComponent implements OnInit, OnChanges, OnDestroy {
     private mappingService: MappingService,
     private propertyService: PropertyService,
     private accountingOfficeService: AccountingOfficeService,
+    private officeService: OfficeService,
     private contactService: ContactService,
     private workOrderService: WorkOrderService,
     private authService: AuthService,
@@ -102,94 +110,71 @@ export class ReceiptsListComponent implements OnInit, OnChanges, OnDestroy {
     this.persistedFilterVal = this.readPersistedFilterValue();
     this.isAdmin = this.authService.isAdmin();
     this.setIsActiveCheckboxEditability();
-    this.loadBankCardOptions();
-    this.loadVendorOptions();
+    this.loadOffices();
+    this.loadAccountingOffices();
+    this.loadVendors();
+    this.loadPropertyLookup();
+    this.loadReceiptsForCurrentSearchCriteria();
   }
 
   ngOnChanges(changes: SimpleChanges): void {
-    const tabActivated = !!changes['isActiveTab'] && this.isActiveTab;
-    if (changes['isActiveTab']) {
-      this.setIsActiveCheckboxEditability();
-      if (this.isActiveTab) {
-        this.beginTabLoads();
-      } else {
-        return;
-      }
-    }
-
-    if (!this.isActiveTab) {
-      return;
-    }
-
-    if (tabActivated && !changes['property'] && !changes['officeId'] && !changes['refreshTrigger'] && !changes['searchRequest']) {
-      return;
-    }
-
     if (changes['property']) {
       const propertyId = this.property?.propertyId || null;
-      if (!propertyId) {
-        this.selectedPropertyId = null;
-        this.tryLoadReceiptsForMaintenanceShell();
-        return;
-      }
-
-      if (this.selectedPropertyId !== propertyId) {
+      if (propertyId !== this.selectedPropertyId) {
         this.selectedPropertyId = propertyId;
-        this.tryLoadReceiptsForMaintenanceShell();
+        if (!changes['property'].firstChange) {
+          this.loadReceiptsForCurrentSearchCriteria();
+        }
       }
     }
-    if (changes['officeId'] && !this.property?.propertyId) {
-      this.tryLoadReceiptsForMaintenanceShell();
+
+    if (changes['officeId'] && !changes['officeId'].firstChange && !this.property?.propertyId) {
+      this.loadReceiptsForCurrentSearchCriteria();
     }
-    if (changes['refreshTrigger']) {
-      this.tryLoadReceiptsForMaintenanceShell();
+
+    if (changes['refreshTrigger'] && !changes['refreshTrigger'].firstChange) {
+      this.loadReceiptsForCurrentSearchCriteria(true);
     }
-    if (changes['searchRequest'] && this.embeddedInMaintenance && this.isActiveTab) {
-      this.tryLoadReceiptsForMaintenanceShell();
+
+    if (changes['searchRequest'] && !changes['searchRequest'].firstChange && this.embeddedInMaintenance) {
+      this.loadReceiptsForCurrentSearchCriteria();
     }
   }
 
-  reloadForCurrentScope(): void {
-    if (!this.isActiveTab) {
-      return;
-    }
-    this.tryLoadReceiptsForMaintenanceShell();
-  }
-
-  beginTabLoads(): void {
-    this.loadPropertyLookup();
-    this.tryLoadReceiptsForMaintenanceShell();
-  }
-
-  /** Defer until shell inputs (searchRequest, officeIds) are bound — avoids a stuck receipts spinner. */
-  tryLoadReceiptsForMaintenanceShell(): void {
-    if (!this.isActiveTab) {
-      return;
-    }
-
+  loadReceiptsForCurrentSearchCriteria(force = false): void {
     if (!this.embeddedInMaintenance) {
-      this.getReceipts();
+      this.getReceipts(force);
       return;
     }
 
     queueMicrotask(() => {
-      if (!this.isActiveTab) {
-        return;
-      }
       if (!this.canRunMaintenanceSearch(this.searchRequest)) {
+        this.lastReceiptSearchKey = null;
+        this.receiptSearchInFlightKey = null;
         this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'receipts');
         this.markViewForCheck();
         return;
       }
-      this.getReceipts();
+      this.getReceipts(force);
     });
   }
 
-  getReceipts(): void {
+  getReceipts(force = false): void {
     if (this.embeddedInMaintenance && !this.canRunMaintenanceSearch(this.searchRequest)) {
+      this.lastReceiptSearchKey = null;
+      this.receiptSearchInFlightKey = null;
       this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'receipts');
       this.markViewForCheck();
       return;
+    }
+
+    let searchKey: string | null = null;
+    if (this.embeddedInMaintenance) {
+      searchKey = this.buildReceiptSearchKey();
+      if (!force && (searchKey === this.lastReceiptSearchKey || searchKey === this.receiptSearchInFlightKey)) {
+        return;
+      }
+      this.receiptSearchInFlightKey = searchKey;
     }
 
     const loadId = ++this.receiptsLoadId;
@@ -202,6 +187,9 @@ export class ReceiptsListComponent implements OnInit, OnChanges, OnDestroy {
     load$.pipe(take(1),takeUntil(this.destroy$),finalize(() => {
         if (this.receiptsLoadId === loadId) {
           this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'receipts');
+          if (this.embeddedInMaintenance && searchKey != null && this.receiptSearchInFlightKey === searchKey) {
+            this.receiptSearchInFlightKey = null;
+          }
         }
         this.markViewForCheck();
       })
@@ -209,6 +197,9 @@ export class ReceiptsListComponent implements OnInit, OnChanges, OnDestroy {
       next: (receipts: ReceiptResponse[]) => {
         if (this.receiptsLoadId !== loadId) {
           return;
+        }
+        if (this.embeddedInMaintenance && searchKey != null) {
+          this.lastReceiptSearchKey = searchKey;
         }
         this.receipts = receipts || [];
         this.allReceipts = this.mappingService.mapReceiptDisplays(this.receipts);
@@ -701,7 +692,7 @@ export class ReceiptsListComponent implements OnInit, OnChanges, OnDestroy {
   toggleInactive(): void {
     this.showInactive = !this.showInactive;
     if (this.usesMaintenanceSearch()) {
-      this.reloadForCurrentScope();
+      this.loadReceiptsForCurrentSearchCriteria();
       return;
     }
     this.applyFilters();
@@ -772,6 +763,17 @@ export class ReceiptsListComponent implements OnInit, OnChanges, OnDestroy {
       propertyId: request.propertyId ?? this.property?.propertyId ?? null
     };
   }
+
+  buildReceiptSearchKey(): string {
+    const request = this.buildMaintenanceSearchRequest();
+    return JSON.stringify({
+      officeIds: [...(request.officeIds || [])].sort((a, b) => a - b),
+      propertyId: request.propertyId ?? null,
+      startDate: request.startDate ?? null,
+      endDate: request.endDate ?? null,
+      includeInactive: request.includeInactive ?? false
+    });
+  }
   //#endregion
 
   //#region Data Load Methods
@@ -795,61 +797,100 @@ export class ReceiptsListComponent implements OnInit, OnChanges, OnDestroy {
     });
   }
 
-  loadBankCardOptions(): void {
-    this.accountingOfficeService.ensureAccountingOfficesLoaded().pipe(take(1)).subscribe({
-      next: accountingOffices => {
-        const officeMap = new Map<number, Array<{ bankCardId: number; label: string }>>();
-        (accountingOffices || []).forEach(office => {
-          const officeId = Number(office.officeId);
-          if (!Number.isFinite(officeId) || officeId <= 0) {
-            return;
-          }
-          const mappedCards = this.mappingService.mapBankCardsFromResponse(office.bankCards as BankCardResponse[]);
-          const cardOptions = [
-            { bankCardId: 0, label: 'Bill' },
-            ...mappedCards
-              .filter(card => Number(card.bankCardId) > 0)
-              .map(card => ({
-                bankCardId: Number(card.bankCardId),
-                label: this.toBankCardOptionLabel(card)
-              }))
-          ];
-          officeMap.set(officeId, cardOptions);
+  loadOffices(): void {
+    const organizationId = this.authService.getUser()?.organizationId?.trim() || '';
+    if (!organizationId) {
+      this.offices = [];
+      return;
+    }
+
+    this.officeService.ensureOfficesLoaded(organizationId).pipe(take(1)).subscribe({
+      next: () => {
+        this.officeService.getAllOffices().pipe(takeUntil(this.destroy$)).subscribe(offices => {
+          this.offices = offices || [];
+          this.markViewForCheck();
         });
-        this.bankCardOptionsByOfficeId = officeMap;
-        this.applyBankCardDropdownsToDisplays();
-        this.applyVendorCellsToDisplays();
-        this.applyFilters();
+      },
+      error: () => {
+        this.offices = [];
         this.markViewForCheck();
       }
     });
   }
 
-  loadVendorOptions(): void {
-    this.contactService.ensureContactsLoaded().pipe(take(1)).subscribe({
-      next: contacts => {
-        const officeMap = new Map<number, Array<{ contactId: string; label: string }>>();
-        (contacts || [])
-          .filter(contact => contact.entityTypeId === EntityType.Vendor)
-          .forEach(contact => {
-            const officeId = Number(contact.officeId);
-            const contactId = String(contact.contactId || '').trim();
-            if (!Number.isFinite(officeId) || officeId <= 0 || contactId.length === 0) {
-              return;
-            }
-            const rows = officeMap.get(officeId) || [];
-            rows.push({
-              contactId,
-              label: this.normalizeVendorDisplayText(this.utilityService.getVendorDropdownLabel(contact))
-            });
-            officeMap.set(officeId, rows);
-          });
-        this.vendorOptionsByOfficeId = officeMap;
-        this.applyVendorCellsToDisplays();
-        this.applyFilters();
+  loadAccountingOffices(): void {
+    this.accountingOfficeService.ensureAccountingOfficesLoaded().pipe(take(1)).subscribe({
+      next: accountingOffices => {
+        this.accountingOffices = accountingOffices || [];
+        this.applyBankCardOptionsFromAccountingOffices();
+      },
+      error: () => {
+        this.accountingOffices = [];
+        this.bankCardOptionsByOfficeId = new Map();
         this.markViewForCheck();
       }
     });
+  }
+
+  loadVendors(): void {
+    this.contactService.ensureContactsLoaded().pipe(take(1)).subscribe({
+      next: contacts => {
+        this.applyVendorOptionsFromContacts(contacts || []);
+      },
+      error: () => {
+        this.vendorOptionsByOfficeId = new Map();
+        this.markViewForCheck();
+      }
+    });
+  }
+
+  applyBankCardOptionsFromAccountingOffices(): void {
+    const officeMap = new Map<number, Array<{ bankCardId: number; label: string }>>();
+    (this.accountingOffices || []).forEach(office => {
+      const officeId = Number(office.officeId);
+      if (!Number.isFinite(officeId) || officeId <= 0) {
+        return;
+      }
+      const mappedCards = this.mappingService.mapBankCardsFromResponse(office.bankCards as BankCardResponse[]);
+      const cardOptions = [
+        { bankCardId: 0, label: 'Bill' },
+        ...mappedCards
+          .filter(card => Number(card.bankCardId) > 0)
+          .map(card => ({
+            bankCardId: Number(card.bankCardId),
+            label: this.toBankCardOptionLabel(card)
+          }))
+      ];
+      officeMap.set(officeId, cardOptions);
+    });
+    this.bankCardOptionsByOfficeId = officeMap;
+    this.applyBankCardDropdownsToDisplays();
+    this.applyVendorCellsToDisplays();
+    this.applyFilters();
+    this.markViewForCheck();
+  }
+
+  applyVendorOptionsFromContacts(contacts: ContactResponse[]): void {
+    const officeMap = new Map<number, Array<{ contactId: string; label: string }>>();
+    contacts
+      .filter(contact => contact.entityTypeId === EntityType.Vendor)
+      .forEach(contact => {
+        const officeId = Number(contact.officeId);
+        const contactId = String(contact.contactId || '').trim();
+        if (!Number.isFinite(officeId) || officeId <= 0 || contactId.length === 0) {
+          return;
+        }
+        const rows = officeMap.get(officeId) || [];
+        rows.push({
+          contactId,
+          label: this.normalizeVendorDisplayText(this.utilityService.getVendorDropdownLabel(contact))
+        });
+        officeMap.set(officeId, rows);
+      });
+    this.vendorOptionsByOfficeId = officeMap;
+    this.applyVendorCellsToDisplays();
+    this.applyFilters();
+    this.markViewForCheck();
   }
   //#endregion
 

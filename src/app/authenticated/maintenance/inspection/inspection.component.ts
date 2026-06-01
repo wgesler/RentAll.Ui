@@ -55,14 +55,22 @@ export class InspectionComponent implements OnChanges, OnDestroy, OnInit {
   /** Set by maintenance-shell title bar when embedding; required with Move-In / Move-Out inspection types. */
   @Input() titleBarReservationId: string | null = null;
   @Input() titleBarReservationDisplayText: string | null = null;
+  /** True when the maintenance shell Inspection tab is active (drives title-bar reservation sync). */
+  @Input() shellTabActive = false;
+  @Input() saveRequestToken = 0;
+  @Input() discardRequestToken = 0;
   @Output() inspectionSubmitted = new EventEmitter<void>();
   /** Emits persisted `activeInspection.reservationId` after load/save/patch so the maintenance shell title bar stays in sync. */
   @Output() titleBarReservationSync = new EventEmitter<string | null>();
+  @Output() titleBarReservationUiChange = new EventEmitter<{ required: boolean; showError: boolean }>();
+  @Output() unsavedChangesChange = new EventEmitter<boolean>();
+  @Output() saveRequestCompleted = new EventEmitter<{ token: number; success: boolean }>();
 
   readonly inspectionTypeOptions = getInspectionTypes();
   inspectionTypeIdControl = new FormControl<number>(InspectionType.Online, { nonNullable: true });
   shellReservationFieldTouched = false;
   destroy$ = new Subject<void>();
+  private formOutputBindingVersion$ = new Subject<void>();
 
   /** Cache of documentId -> blob URL for photos loaded via download API (private blob storage). */
   readonly maxSourceImageBytes = 20 * 1024 * 1024; // 20 MB
@@ -139,11 +147,29 @@ export class InspectionComponent implements OnChanges, OnDestroy, OnInit {
         this.shellReservationFieldTouched = false;
         this.titleBarReservationSync.emit(null);
       }
+      this.emitShellStateOutputs();
       this.cdr.markForCheck();
     });
+
+    this.emitShellStateOutputs();
   }
 
   ngOnChanges(changes: SimpleChanges): void {
+    if (changes['saveRequestToken'] && !changes['saveRequestToken'].firstChange) {
+      void this.saveChecklistDataAndWait().then(success =>
+        this.saveRequestCompleted.emit({ token: this.saveRequestToken, success }));
+    }
+
+    if (changes['discardRequestToken'] && !changes['discardRequestToken'].firstChange) {
+      this.discardUnsavedChanges();
+      this.emitShellStateOutputs();
+    }
+
+    if (changes['shellTabActive']?.currentValue === true) {
+      this.emitTitleBarReservationSync();
+      this.emitShellStateOutputs();
+    }
+
     if (!this.hasInitialized) {
       return;
     }
@@ -175,8 +201,36 @@ export class InspectionComponent implements OnChanges, OnDestroy, OnInit {
 
     if (this.hasInitialized && changes['titleBarReservationId'] && this.hasShellReservationSelected) {
       this.shellReservationFieldTouched = false;
+      this.emitShellStateOutputs();
       this.cdr.markForCheck();
     }
+
+    if (changes['titleBarReservationId'] || changes['property']) {
+      this.emitShellStateOutputs();
+    }
+  }
+
+  emitShellStateOutputs(): void {
+    this.unsavedChangesChange.emit(this.hasUnsavedChanges());
+    this.titleBarReservationUiChange.emit({
+      required: this.titleBarReservationRequired,
+      showError: this.showTitleBarReservationError
+    });
+  }
+
+  bindFormShellStateOutputs(): void {
+    this.formOutputBindingVersion$.next();
+    if (!this.form) {
+      return;
+    }
+    this.form.valueChanges.pipe(
+      takeUntil(this.formOutputBindingVersion$),
+      takeUntil(this.destroy$)
+    ).subscribe(() => this.emitShellStateOutputs());
+    this.form.statusChanges.pipe(
+      takeUntil(this.formOutputBindingVersion$),
+      takeUntil(this.destroy$)
+    ).subscribe(() => this.emitShellStateOutputs());
   }
 
   initializeChecklistState(): void {
@@ -198,7 +252,10 @@ export class InspectionComponent implements OnChanges, OnDestroy, OnInit {
     });
 
     this.applyModeState();
+    this.bindFormShellStateOutputs();
+    this.emitShellStateOutputs();
   }
+  //#endregion
 
   //#region Checklist Template Manipulation
   parseSavedSections(rawChecklistJson: string): SavedChecklistSection[] | null {
@@ -472,7 +529,6 @@ export class InspectionComponent implements OnChanges, OnDestroy, OnInit {
       }
     });
   }
-  //#endregion
 
   applySavedAnswersJson(rawChecklistJson: string): boolean {
     try {
@@ -749,6 +805,7 @@ export class InspectionComponent implements OnChanges, OnDestroy, OnInit {
     this.form?.markAsPristine();
     this.form?.markAsUntouched();
     this.inspectionTypeIdControl.markAsPristine();
+    this.emitShellStateOutputs();
   }
 
   patchInspectionTypeFromContext(): void {
@@ -762,16 +819,12 @@ export class InspectionComponent implements OnChanges, OnDestroy, OnInit {
       this.shellReservationFieldTouched = false;
     }
     this.emitTitleBarReservationSync();
+    this.emitShellStateOutputs();
   }
 
   emitTitleBarReservationSync(): void {
     const rid = (this.activeInspection?.reservationId || '').trim();
     this.titleBarReservationSync.emit(rid.length > 0 ? rid : null);
-  }
-
-  /** Call from maintenance shell when switching back to the Inspection tab so the reservation dropdown matches persisted inspection data. */
-  pushTitleBarReservationToShell(): void {
-    this.emitTitleBarReservationSync();
   }
 
   hasUnsavedChanges(): boolean {
@@ -828,6 +881,7 @@ export class InspectionComponent implements OnChanges, OnDestroy, OnInit {
     }
     this.patchInspectionTypeFromContext();
     this.captureSavedStateSignature();
+    this.emitShellStateOutputs();
   }
 
   saveChecklistData(submitRequested: boolean = false, onComplete?: (saved: boolean) => void): void {
@@ -2567,6 +2621,8 @@ export class InspectionComponent implements OnChanges, OnDestroy, OnInit {
 
   //#region Utility Methods
   ngOnDestroy(): void {
+    this.formOutputBindingVersion$.next();
+    this.formOutputBindingVersion$.complete();
     this.destroy$.next();
     this.destroy$.complete();
     this.photoBlobUrlCache.forEach(url => {

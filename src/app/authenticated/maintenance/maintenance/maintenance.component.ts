@@ -1,5 +1,5 @@
 import { CommonModule } from '@angular/common';
-import { Component, Input, OnChanges, OnDestroy, OnInit, SimpleChanges } from '@angular/core';
+import { Component, EventEmitter, Input, OnChanges, OnDestroy, OnInit, Output, SimpleChanges } from '@angular/core';
 import { FormBuilder, FormControl, FormGroup, ReactiveFormsModule } from '@angular/forms';
 import { ToastrService } from 'ngx-toastr';
 import { BehaviorSubject, catchError, concatMap, defaultIfEmpty, finalize, from, map, of, Subject, switchMap, take, takeUntil, toArray } from 'rxjs';
@@ -32,8 +32,11 @@ import { UnsavedChangesDialogService } from '../../shared/modals/unsaved-changes
 })
 export class MaintenanceComponent implements OnInit, OnDestroy, OnChanges {
   @Input() property: PropertyResponse | null = null;
+  @Input() saveRequestToken = 0;
+  @Input() discardRequestToken = 0;
+  @Output() unsavedChangesChange = new EventEmitter<boolean>();
+  @Output() saveRequestCompleted = new EventEmitter<{ token: number; success: boolean }>();
   form: FormGroup;
-  isPageLoading = true;
   isSaving = false;
   isSavingAppliances = false;
   isSavingUtilities = false;
@@ -46,6 +49,7 @@ export class MaintenanceComponent implements OnInit, OnDestroy, OnChanges {
   utilities: UtilityResponse[] = [];
   maintenanceItems: MaintenanceItemResponse[] = [];
 
+  isPageLoading = true;
   itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['maintenance', 'appliances', 'utilities', 'maintenanceItems']));
   destroy$ = new Subject<void>();
 
@@ -76,9 +80,23 @@ export class MaintenanceComponent implements OnInit, OnDestroy, OnChanges {
     this.loadAppliances();
     this.loadUtilities();
     this.loadMaintenanceItems();
+
+    this.form.valueChanges.pipe(takeUntil(this.destroy$)).subscribe(() => this.emitUnsavedChangesState());
+    this.form.statusChanges.pipe(takeUntil(this.destroy$)).subscribe(() => this.emitUnsavedChangesState());
+    this.emitUnsavedChangesState();
   }
 
   ngOnChanges(changes: SimpleChanges): void {
+    if (changes['saveRequestToken'] && !changes['saveRequestToken'].firstChange) {
+      void this.saveMaintenanceAndWait().then(success =>
+        this.saveRequestCompleted.emit({ token: this.saveRequestToken, success }));
+    }
+
+    if (changes['discardRequestToken'] && !changes['discardRequestToken'].firstChange) {
+      this.discardUnsavedChanges();
+      this.emitUnsavedChangesState();
+    }
+
     if (changes['property']) {
       this.loadMaintenance();
       this.loadAppliances();
@@ -490,6 +508,11 @@ export class MaintenanceComponent implements OnInit, OnDestroy, OnChanges {
     this.savedFormState = structuredClone(this.form.getRawValue() as Record<string, unknown>);
     this.form.markAsPristine();
     this.form.markAsUntouched();
+    this.emitUnsavedChangesState();
+  }
+
+  emitUnsavedChangesState(): void {
+    this.unsavedChangesChange.emit(this.hasUnsavedChanges());
   }
 
   saveMaintenanceAndWait(): Promise<boolean> {
@@ -503,6 +526,7 @@ export class MaintenanceComponent implements OnInit, OnDestroy, OnChanges {
     this.form.reset(structuredClone(this.savedFormState), { emitEvent: false });
     this.form.markAsPristine();
     this.form.markAsUntouched();
+    this.emitUnsavedChangesState();
   }
   //#endregion
 

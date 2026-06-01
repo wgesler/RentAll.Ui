@@ -184,6 +184,12 @@ export class SearchableSelectComponent {
   }
 
   get hasConcreteSelection(): boolean {
+    if (this.titleBarMode && this.showInstructionOption && this.nullOptionLabel) {
+      if (this.value === null || this.value === undefined || this.value === '') {
+        return true;
+      }
+    }
+
     if (this.normalizedValue === null || this.normalizedValue === undefined || this.normalizedValue === '') {
       return false;
     }
