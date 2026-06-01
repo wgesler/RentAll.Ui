@@ -91,9 +91,7 @@ export class ReceiptsListComponent implements OnInit, OnChanges, OnDestroy {
     private cdr: ChangeDetectorRef
   ) {}
 
-  private markViewForCheck(): void {
-    this.cdr.markForCheck();
-  }
+
 
   //#region Receipts List
   ngOnInit(): void {
@@ -201,10 +199,7 @@ export class ReceiptsListComponent implements OnInit, OnChanges, OnDestroy {
       ? this.receiptService.searchReceipts(this.buildMaintenanceSearchRequest())
       : this.receiptService.getReceipts(this.property?.propertyId ?? null, this.officeId ?? null);
 
-    load$.pipe(
-      take(1),
-      takeUntil(this.destroy$),
-      finalize(() => {
+    load$.pipe(take(1),takeUntil(this.destroy$),finalize(() => {
         if (this.receiptsLoadId === loadId) {
           this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'receipts');
         }
@@ -723,42 +718,6 @@ export class ReceiptsListComponent implements OnInit, OnChanges, OnDestroy {
       : this.allReceipts.filter(receipt => receipt.isActive !== false);
   }
 
-  private usesMaintenanceSearch(): boolean {
-    return this.embeddedInMaintenance && this.canRunMaintenanceSearch(this.searchRequest);
-  }
-
-  private canRunMaintenanceSearch(request?: MaintenanceListSearchRequest | null): boolean {
-    if (!this.embeddedInMaintenance || request == null) {
-      return false;
-    }
-
-    return !!(request.startDate && request.endDate && this.resolveMaintenanceSearchOfficeIds(request).length > 0);
-  }
-
-  private resolveMaintenanceSearchOfficeIds(request?: MaintenanceListSearchRequest | null): number[] {
-    const fromShell = (request?.officeIds ?? this.searchRequest?.officeIds ?? []).filter(id => id > 0);
-    if (fromShell.length > 0) {
-      return fromShell;
-    }
-
-    const scopedOfficeId = this.officeId;
-    if (scopedOfficeId != null && Number.isFinite(Number(scopedOfficeId)) && Number(scopedOfficeId) > 0) {
-      return [Number(scopedOfficeId)];
-    }
-
-    return [];
-  }
-
-  private buildMaintenanceSearchRequest(): MaintenanceListSearchRequest {
-    const request = this.searchRequest ?? { officeIds: [] };
-    return {
-      ...request,
-      officeIds: this.resolveMaintenanceSearchOfficeIds(request),
-      includeInactive: this.showInactive,
-      propertyId: request.propertyId ?? this.property?.propertyId ?? null
-    };
-  }
-
   onTableFilterValueChanged(filterValue: string): void {
     this.persistedFilterVal = filterValue || '';
     try {
@@ -775,7 +734,47 @@ export class ReceiptsListComponent implements OnInit, OnChanges, OnDestroy {
       return '';
     }
   }
+  //#endregion
 
+  //#region Search Criterea Methods
+  usesMaintenanceSearch(): boolean {
+    return this.embeddedInMaintenance && this.canRunMaintenanceSearch(this.searchRequest);
+  }
+
+  canRunMaintenanceSearch(request?: MaintenanceListSearchRequest | null): boolean {
+    if (!this.embeddedInMaintenance || request == null) {
+      return false;
+    }
+
+    return !!(request.startDate && request.endDate && this.resolveMaintenanceSearchOfficeIds(request).length > 0);
+  }
+
+  resolveMaintenanceSearchOfficeIds(request?: MaintenanceListSearchRequest | null): number[] {
+    const fromShell = (request?.officeIds ?? this.searchRequest?.officeIds ?? []).filter(id => id > 0);
+    if (fromShell.length > 0) {
+      return fromShell;
+    }
+
+    const scopedOfficeId = this.officeId;
+    if (scopedOfficeId != null && Number.isFinite(Number(scopedOfficeId)) && Number(scopedOfficeId) > 0) {
+      return [Number(scopedOfficeId)];
+    }
+
+    return [];
+  }
+
+  buildMaintenanceSearchRequest(): MaintenanceListSearchRequest {
+    const request = this.searchRequest ?? { officeIds: [] };
+    return {
+      ...request,
+      officeIds: this.resolveMaintenanceSearchOfficeIds(request),
+      includeInactive: this.showInactive,
+      propertyId: request.propertyId ?? this.property?.propertyId ?? null
+    };
+  }
+  //#endregion
+
+  //#region Data Load Methods
   loadPropertyLookup(): void {
     const userId = this.authService.getUser()?.userId?.trim() ?? '';
     if (!userId) {
@@ -794,16 +793,6 @@ export class ReceiptsListComponent implements OnInit, OnChanges, OnDestroy {
         this.markViewForCheck();
       }
     });
-  }
-
-  applyPropertyCodesToDisplays(): void {
-    this.allReceipts = (this.allReceipts || []).map(receipt => ({
-      ...receipt,
-      propertyCode: (receipt.propertyIds || [])
-        .map(propertyId => this.propertyCodeLookup.get(propertyId) || propertyId)
-        .filter(code => (code || '').trim().length > 0)
-        .join(', ')
-    }));
   }
 
   loadBankCardOptions(): void {
@@ -862,24 +851,38 @@ export class ReceiptsListComponent implements OnInit, OnChanges, OnDestroy {
       }
     });
   }
+  //#endregion
 
+  //#region Form Response Methods
+  applyPropertyCodesToDisplays(): void {
+    this.allReceipts = (this.allReceipts || []).map(receipt => ({
+      ...receipt,
+      propertyCode: (receipt.propertyIds || [])
+        .map(propertyId => this.propertyCodeLookup.get(propertyId) || propertyId)
+        .filter(code => (code || '').trim().length > 0)
+        .join(', ')
+    }));
+  }
+  
   applyBankCardDropdownsToDisplays(): void {
     this.allReceipts = (this.allReceipts || []).map(receipt => {
       const officeId = Number(receipt.officeId ?? 0);
       const bankCardId = Number(receipt.bankCardId ?? 0);
       const optionsForOffice = this.bankCardOptionsByOfficeId.get(officeId) || [{ bankCardId: 0, label: 'Bill' }];
       const optionLabels = optionsForOffice.map(option => option.label);
-      const selectedLabel =
+      const preferredLabel =
         optionsForOffice.find(option => option.bankCardId === bankCardId)?.label
         || (receipt.bankCardDisplayName || '').trim()
         || 'Bill';
+      const selectedLabel = this.resolveDropdownLabelFromOptions(optionLabels, preferredLabel);
+      const displayOptions = this.ensureDropdownOptionLabels(optionLabels, selectedLabel);
       return {
         ...receipt,
         receiptDateReadOnly: !this.isAdmin,
         bankCardDropdown: {
           value: selectedLabel,
           isOverridable: this.isAdmin,
-          options: optionLabels,
+          options: displayOptions,
           toString: () => selectedLabel
         }
       };
@@ -891,9 +894,9 @@ export class ReceiptsListComponent implements OnInit, OnChanges, OnDestroy {
       const officeId = Number(receipt.officeId ?? 0);
       const isBill = Number(receipt.bankCardId ?? 0) === 0;
       const vendorOptionsForOffice = this.vendorOptionsByOfficeId.get(officeId) || [];
-      const vendorFromContact = vendorOptionsForOffice.find(option => option.contactId === String(receipt.vendorId || '').trim())?.label;
+      const matchedVendorOption = this.findVendorOptionForReceipt(vendorOptionsForOffice, receipt);
       const vendorName = this.normalizeVendorDisplayText(receipt.vendorName)
-        || this.normalizeVendorDisplayText(vendorFromContact);
+        || this.normalizeVendorDisplayText(matchedVendorOption?.label);
 
       if (isBill) {
         return {
@@ -906,25 +909,22 @@ export class ReceiptsListComponent implements OnInit, OnChanges, OnDestroy {
       }
 
       const vendorLabels = vendorOptionsForOffice.map(option => option.label);
-      const selectedVendorLabel = this.normalizeVendorDisplayText(
-        vendorOptionsForOffice.find(option => option.contactId === String(receipt.vendorId || '').trim())?.label
-        || vendorName
-      );
+      const preferredLabel = this.normalizeVendorDisplayText(matchedVendorOption?.label || receipt.vendorName);
+      const selectedVendorLabel = this.resolveDropdownLabelFromOptions(vendorLabels, preferredLabel);
+      const displayOptions = this.ensureDropdownOptionLabels(vendorLabels, selectedVendorLabel);
       return {
         ...receipt,
         vendorDisplay: {
           value: selectedVendorLabel,
           isOverridable: this.isAdmin,
-          options: vendorLabels,
+          options: displayOptions,
           toString: () => selectedVendorLabel
         },
         vendorDisplayReadOnly: true
       };
     });
   }
-  //#endregion
 
-  //#region IsActive
   setIsActiveCheckboxEditability(): void {
     this.canEditIsActiveCheckbox = this.isAdmin;
     this.receiptDisplayedColumns['isActive'].checkboxEditable = this.canEditIsActiveCheckbox;
@@ -1051,6 +1051,58 @@ export class ReceiptsListComponent implements OnInit, OnChanges, OnDestroy {
     return (card?.displayName || '').trim() || this.mappingService.mapBankCardDisplay(card);
   }
 
+  findVendorOptionForReceipt(
+    vendorOptionsForOffice: Array<{ contactId: string; label: string }>,
+    receipt: Pick<ReceiptDisplayList, 'vendorId' | 'vendorName'>
+  ): { contactId: string; label: string } | undefined {
+    const vendorId = String(receipt.vendorId || '').trim().toLowerCase();
+    if (vendorId) {
+      const byId = vendorOptionsForOffice.find(
+        option => option.contactId.trim().toLowerCase() === vendorId
+      );
+      if (byId) {
+        return byId;
+      }
+    }
+
+    const normalizedName = this.normalizeVendorDisplayText(receipt.vendorName).toLowerCase();
+    if (!normalizedName) {
+      return undefined;
+    }
+
+    return vendorOptionsForOffice.find(
+      option => this.normalizeVendorDisplayText(option.label).toLowerCase() === normalizedName
+    );
+  }
+
+  resolveDropdownLabelFromOptions(optionLabels: string[], preferredLabel: string): string {
+    const normalizedPreferred = this.normalizeVendorDisplayText(preferredLabel).toLowerCase();
+    if (!normalizedPreferred) {
+      return '';
+    }
+
+    const exactMatch = optionLabels.find(
+      label => this.normalizeVendorDisplayText(label).toLowerCase() === normalizedPreferred
+    );
+    return exactMatch || this.normalizeVendorDisplayText(preferredLabel);
+  }
+
+  ensureDropdownOptionLabels(optionLabels: string[], selectedLabel: string): string[] {
+    const normalizedSelected = this.normalizeVendorDisplayText(selectedLabel).toLowerCase();
+    if (!normalizedSelected) {
+      return optionLabels;
+    }
+
+    const alreadyPresent = optionLabels.some(
+      label => this.normalizeVendorDisplayText(label).toLowerCase() === normalizedSelected
+    );
+    if (alreadyPresent) {
+      return optionLabels;
+    }
+
+    return [...optionLabels, this.normalizeVendorDisplayText(selectedLabel)];
+  }
+
   normalizeVendorDisplayText(value: unknown): string {
     const raw = String(value || '').trim();
     if (!raw) {
@@ -1063,6 +1115,12 @@ export class ReceiptsListComponent implements OnInit, OnChanges, OnDestroy {
   normalizeDateInputValue(value: unknown): string {
     return this.utilityService.toDateOnlyJsonString(value) || '';
   }
+  //#endregion
+
+  //#region Utility Methods
+  markViewForCheck(): void {
+    this.cdr.markForCheck();
+  }
 
   ngOnDestroy(): void {
     this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'receipts');
@@ -1070,6 +1128,5 @@ export class ReceiptsListComponent implements OnInit, OnChanges, OnDestroy {
     this.destroy$.complete();
     this.itemsToLoad$.complete();
   }
-
   //#endregion
 }
