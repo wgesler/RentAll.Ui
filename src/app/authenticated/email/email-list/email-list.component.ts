@@ -220,6 +220,22 @@ export class EmailListComponent implements OnInit, OnDestroy, OnChanges {
     }
     this.applyFilters();
   }
+
+  resolveOfficeScope(officeId: number | null, emitChange: boolean): void {
+    this.selectedOfficeId = this.utilityService.resolveSelectedOfficeById(this.offices, officeId)?.officeId ?? officeId ?? null;
+    this.officeScopeResolved = true;
+    this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'officeScope');
+    if (emitChange) {
+      this.officeIdChange.emit(this.selectedOfficeId);
+    }
+    this.filterCompanies();
+    this.filterReservations();
+    if (this.usesServerSearchCriteria()) {
+      this.refreshEmailsForCurrentScope();
+      return;
+    }
+    this.applyFilters();
+  }
   //#endregion
 
   //#region Data Loading Methods
@@ -682,7 +698,7 @@ export class EmailListComponent implements OnInit, OnDestroy, OnChanges {
   }
   //#endregion
 
-  //#region Utility Methods
+  //#region Search Methods
    emailMatchesDocumentTypeFilter(email: EmailListDisplay): boolean {
     const want = this.filterDocumentTypeId;
     if (want === null || want === undefined) {
@@ -698,14 +714,7 @@ export class EmailListComponent implements OnInit, OnDestroy, OnChanges {
     return false;
   }
 
-  ngOnDestroy(): void {
-    this.destroy$.next();
-    this.destroy$.complete();
-    this.itemsToLoad$.complete();
-  }
-
-  /** Emails route with shell parent office: page filter only; does not write global. */
-  private applyEmailsRouteOfficeScope(): void {
+  applyEmailsRouteOfficeScope(): void {
     this.showOfficeDropdown = this.offices.length > 1;
     let officeIdToUse = this.selectedOfficeId;
     if (officeIdToUse != null && !this.offices.some(o => o.officeId === officeIdToUse)) {
@@ -715,23 +724,7 @@ export class EmailListComponent implements OnInit, OnDestroy, OnChanges {
       officeIdToUse = this.offices[0].officeId;
     }
     this.resolveOfficeScope(officeIdToUse, false);
-  }
-
-  resolveOfficeScope(officeId: number | null, emitChange: boolean): void {
-    this.selectedOfficeId = this.utilityService.resolveSelectedOfficeById(this.offices, officeId)?.officeId ?? officeId ?? null;
-    this.officeScopeResolved = true;
-    this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'officeScope');
-    if (emitChange) {
-      this.officeIdChange.emit(this.selectedOfficeId);
-    }
-    this.filterCompanies();
-    this.filterReservations();
-    if (this.usesServerSearchCriteria()) {
-      this.refreshEmailsForCurrentScope();
-      return;
-    }
-    this.applyFilters();
-  }
+  } 
 
   usesServerSearchCriteria(): boolean {
     return this.source === 'emails'
@@ -761,6 +754,14 @@ export class EmailListComponent implements OnInit, OnDestroy, OnChanges {
 
   get emailTypeOptions(): { value: number, label: string }[] {
     return this.emailTypes;
+  }
+  //#endregion
+
+  //#region Utility Methods
+    ngOnDestroy(): void {
+    this.destroy$.next();
+    this.destroy$.complete();
+    this.itemsToLoad$.complete();
   }
   //#endregion
 }

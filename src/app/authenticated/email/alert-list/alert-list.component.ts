@@ -100,10 +100,6 @@ export class AlertListComponent implements OnInit, OnChanges, OnDestroy {
     this.initStandaloneAlertDateRange();
   }
 
-  private markViewForCheck(): void {
-    this.cdr.markForCheck();
-  }
-
   //#region Alert-List
   ngOnInit(): void {
     this.itemsToLoad$.pipe(takeUntil(this.destroy$)).subscribe(items => {
@@ -176,14 +172,38 @@ export class AlertListComponent implements OnInit, OnChanges, OnDestroy {
     }
   }
 
-  onTitleBarOfficeIdUpdate(officeId: number | null): void {
-    this.selectedOfficeId = officeId;
-    this.filterReservations();
-    if (this.usesServerSearchCriteria()) {
-      this.refreshAlertsForCurrentScope();
+  addAlert(): void {
+    if (this.hideHeader) {
+      this.alertEdit.emit('new');
+      this.alertSelected.emit(null);
       return;
     }
-    this.applyFilters();
+    this.router.navigateByUrl(RouterUrl.replaceTokens(RouterUrl.Alert, ['new']));
+  }
+
+  editAlert(alert: AlertListDisplay): void {
+    if (this.hideHeader) {
+      this.alertEdit.emit(alert.alertId);
+      this.alertSelected.emit(this.alertsById.get(alert.alertId) || null);
+      return;
+    }
+    this.router.navigateByUrl(RouterUrl.replaceTokens(RouterUrl.Alert, [alert.alertId]));
+  }
+
+  deleteAlert(alert: AlertListDisplay): void {
+    this.alertService.deleteAlert(alert.alertId).pipe(take(1)).subscribe({
+      next: () => {
+        this.toastr.success('Alert deleted successfully', CommonMessage.Success);
+        this.allAlerts = this.allAlerts.filter(item => item.alertId !== alert.alertId);
+        this.alertsById.delete(alert.alertId);
+        this.applyFilters();
+        this.markViewForCheck();
+      },
+      error: () => {
+        this.isServiceError = true;
+        this.markViewForCheck();
+      }
+    });
   }
   //#endregion
 
@@ -351,6 +371,16 @@ export class AlertListComponent implements OnInit, OnChanges, OnDestroy {
   //#endregion
 
   //#region Form Response Methods
+  onTitleBarOfficeIdUpdate(officeId: number | null): void {
+    this.selectedOfficeId = officeId;
+    this.filterReservations();
+    if (this.usesServerSearchCriteria()) {
+      this.refreshAlertsForCurrentScope();
+      return;
+    }
+    this.applyFilters();
+  }
+
   onOfficeDropdownChange(value: string | number | null): void {
     this.selectedOfficeId = value == null || value === '' ? null : Number(value);
     if (this.source !== 'alerts') {
@@ -384,18 +414,7 @@ export class AlertListComponent implements OnInit, OnChanges, OnDestroy {
   }
   //#endregion
 
-  //#region Utility Methods
-  get officeOptions(): { value: number; label: string }[] {
-    return this.offices.map(office => ({ value: office.officeId, label: office.name }));
-  }
-
-  get reservationOptions(): { value: string; label: string }[] {
-    return this.availableReservations.map(item => ({
-      value: item.value.reservationId,
-      label: item.label
-    }));
-  }
-
+  //#region Filter Methods
   filterReservations(): void {
     if (this.source !== 'alerts' && this.source !== 'property' && this.source !== 'reservation') {
       this.availableReservations = [];
@@ -419,20 +438,7 @@ export class AlertListComponent implements OnInit, OnChanges, OnDestroy {
       this.reservationIdChange.emit(null);
     }
   }
-
-  applyReservationCodes(): void {
-    if (!this.allAlerts.length || !this.reservations.length) {
-      return;
-    }
-    const reservationCodeById = new Map<string, string>(
-      this.reservations.map(reservation => [reservation.reservationId, reservation.reservationCode || ''])
-    );
-    this.allAlerts = this.allAlerts.map(alert => ({
-      ...alert,
-      reservationCode: alert.reservationCode || (alert.reservationId ? (reservationCodeById.get(alert.reservationId) || '') : '')
-    }));
-  }
-
+  
   applyFilters(): void {
     if (!this.officeScopeResolved) {
       return;
@@ -460,6 +466,32 @@ export class AlertListComponent implements OnInit, OnChanges, OnDestroy {
     this.showInactive = !this.showInactive;
     this.applyFilters();
   }
+   //#endregion
+
+  //#region Search Methods
+  get officeOptions(): { value: number; label: string }[] {
+    return this.offices.map(office => ({ value: office.officeId, label: office.name }));
+  }
+
+  get reservationOptions(): { value: string; label: string }[] {
+    return this.availableReservations.map(item => ({
+      value: item.value.reservationId,
+      label: item.label
+    }));
+  }
+
+  applyReservationCodes(): void {
+    if (!this.allAlerts.length || !this.reservations.length) {
+      return;
+    }
+    const reservationCodeById = new Map<string, string>(
+      this.reservations.map(reservation => [reservation.reservationId, reservation.reservationCode || ''])
+    );
+    this.allAlerts = this.allAlerts.map(alert => ({
+      ...alert,
+      reservationCode: alert.reservationCode || (alert.reservationId ? (reservationCodeById.get(alert.reservationId) || '') : '')
+    }));
+  }
 
   reload(): void {
     if (this.usesServerSearchCriteria()) {
@@ -467,40 +499,6 @@ export class AlertListComponent implements OnInit, OnChanges, OnDestroy {
       return;
     }
     this.loadAlerts();
-  }
-
-  addAlert(): void {
-    if (this.hideHeader) {
-      this.alertEdit.emit('new');
-      this.alertSelected.emit(null);
-      return;
-    }
-    this.router.navigateByUrl(RouterUrl.replaceTokens(RouterUrl.Alert, ['new']));
-  }
-
-  editAlert(alert: AlertListDisplay): void {
-    if (this.hideHeader) {
-      this.alertEdit.emit(alert.alertId);
-      this.alertSelected.emit(this.alertsById.get(alert.alertId) || null);
-      return;
-    }
-    this.router.navigateByUrl(RouterUrl.replaceTokens(RouterUrl.Alert, [alert.alertId]));
-  }
-
-  deleteAlert(alert: AlertListDisplay): void {
-    this.alertService.deleteAlert(alert.alertId).pipe(take(1)).subscribe({
-      next: () => {
-        this.toastr.success('Alert deleted successfully', CommonMessage.Success);
-        this.allAlerts = this.allAlerts.filter(item => item.alertId !== alert.alertId);
-        this.alertsById.delete(alert.alertId);
-        this.applyFilters();
-        this.markViewForCheck();
-      },
-      error: () => {
-        this.isServiceError = true;
-        this.markViewForCheck();
-      }
-    });
   }
 
   onAlertCheckboxChange(event: AlertListDisplay): void {
@@ -579,7 +577,7 @@ export class AlertListComponent implements OnInit, OnChanges, OnDestroy {
     }
   }
 
-  private applyAlertsRouteOfficeScope(): void {
+  applyAlertsRouteOfficeScope(): void {
     this.showOfficeDropdown = this.offices.length > 1;
     let officeIdToUse = this.selectedOfficeId;
     if (officeIdToUse != null && !this.offices.some(o => o.officeId === officeIdToUse)) {
@@ -642,7 +640,7 @@ export class AlertListComponent implements OnInit, OnChanges, OnDestroy {
     };
   }
 
-  private initStandaloneAlertDateRange(): void {
+  initStandaloneAlertDateRange(): void {
     const end = new Date();
     end.setHours(0, 0, 0, 0);
 
@@ -655,14 +653,14 @@ export class AlertListComponent implements OnInit, OnChanges, OnDestroy {
     this.syncStandaloneAlertSearchDateRange();
   }
 
-  private syncStandaloneAlertSearchDateRange(): void {
+  syncStandaloneAlertSearchDateRange(): void {
     this.standaloneAlertSearchDateRange = {
       startDate: this.utilityService.formatDateOnlyForApi(this.standaloneStartDate),
       endDate: this.utilityService.formatDateOnlyForApi(this.standaloneEndDate)
     };
   }
 
-  private normalizeStandaloneDateRangeValues(): void {
+  normalizeStandaloneDateRangeValues(): void {
     if (!this.standaloneStartDate && !this.standaloneEndDate) {
       this.initStandaloneAlertDateRange();
       return;
@@ -692,7 +690,13 @@ export class AlertListComponent implements OnInit, OnChanges, OnDestroy {
       this.standaloneEndDate = tmp;
     }
   }
+  //#endregion
 
+  //#region Utility Methods
+  markViewForCheck(): void {
+    this.cdr.markForCheck();
+  }
+  
   ngOnDestroy(): void {
     this.destroy$.next();
     this.destroy$.complete();
