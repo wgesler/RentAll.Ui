@@ -1,5 +1,5 @@
 import { CommonModule } from '@angular/common';
-import { AfterViewChecked, ChangeDetectorRef, Component, ElementRef, Input, OnChanges, OnDestroy, OnInit, SimpleChanges, ViewChild } from '@angular/core';
+import { AfterViewChecked, AfterViewInit, ChangeDetectorRef, Component, ElementRef, Input, OnChanges, OnDestroy, OnInit, SimpleChanges, ViewChild } from '@angular/core';
 import { CdkDragDrop, CdkDragMove, DragDropModule } from '@angular/cdk/drag-drop';
 import { getPropertyType } from '../models/property-enums';
 import {
@@ -31,7 +31,7 @@ import { ImageViewDialogComponent } from '../../shared/modals/image-view-dialog/
   templateUrl: './property-listing.component.html',
   styleUrl: './property-listing.component.scss'
 })
-export class PropertyListingComponent implements OnInit, OnChanges, OnDestroy, AfterViewChecked {
+export class PropertyListingComponent implements OnInit, OnChanges, OnDestroy, AfterViewChecked, AfterViewInit {
   @Input() propertyId: string | null = null;
   @Input() officeId: number | null = null;
   @Input() propertyCode: string | null = null;
@@ -78,7 +78,11 @@ export class PropertyListingComponent implements OnInit, OnChanges, OnDestroy, A
   //#region Property Listing
   ngOnInit(): void {
     this.itemsToLoad$.pipe(takeUntil(this.destroy$)).subscribe(items => {
+      const wasPageReady = this.isPageReady;
       this.isPageReady = items.size === 0;
+      if (!wasPageReady && this.isPageReady && this.property) {
+        this.queueDescriptionOverflowCheck();
+      }
       this.markViewForCheck();
     });
     
@@ -182,6 +186,10 @@ export class PropertyListingComponent implements OnInit, OnChanges, OnDestroy, A
         this.cdr.markForCheck();
       }
     });
+  }
+
+  ngAfterViewInit(): void {
+    this.queueDescriptionOverflowCheck();
   }
 
   ngAfterViewChecked(): void {
@@ -338,14 +346,16 @@ export class PropertyListingComponent implements OnInit, OnChanges, OnDestroy, A
 
   queueDescriptionOverflowCheck(): void {
     this.pendingDescriptionOverflowCheck = true;
-    setTimeout(() => {
-      this.updateDescriptionOverflow();
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => {
+        this.updateDescriptionOverflow();
+      });
     });
   }
 
   updateDescriptionOverflow(): void {
     const content = this.descriptionContent?.nativeElement;
-    if (!content) {
+    if (!content || !this.isPageReady || !this.property) {
       this.pendingDescriptionOverflowCheck = true;
       return;
     }
@@ -360,7 +370,21 @@ export class PropertyListingComponent implements OnInit, OnChanges, OnDestroy, A
       return;
     }
 
-    this.descriptionHasOverflow = (content.scrollHeight - content.clientHeight) > 1;
+    const clampedHeight = content.clientHeight;
+    const wasCollapsed = content.classList.contains('listing-description__content--collapsed');
+    if (wasCollapsed) {
+      content.classList.remove('listing-description__content--collapsed');
+    }
+    const fullHeight = content.scrollHeight;
+    if (wasCollapsed) {
+      content.classList.add('listing-description__content--collapsed');
+    }
+
+    const nextHasOverflow = fullHeight - clampedHeight > 1;
+    if (this.descriptionHasOverflow !== nextHasOverflow) {
+      this.descriptionHasOverflow = nextHasOverflow;
+      this.markViewForCheck();
+    }
     this.pendingDescriptionOverflowCheck = false;
   }
 
