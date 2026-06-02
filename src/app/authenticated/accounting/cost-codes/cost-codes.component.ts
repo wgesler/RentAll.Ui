@@ -3,7 +3,7 @@ import { HttpErrorResponse } from '@angular/common/http';
 import { Component, ElementRef, EventEmitter, Input, OnChanges, OnDestroy, OnInit, Output, SimpleChanges, ViewChild } from '@angular/core';
 import { MatSelect } from '@angular/material/select';
 import { FormBuilder, FormControl, FormGroup, FormsModule, ReactiveFormsModule, Validators } from '@angular/forms';
-import { Router } from '@angular/router';
+import { ActivatedRoute, Router } from '@angular/router';
 import { ToastrService } from 'ngx-toastr';
 import { BehaviorSubject, Observable, Subject, filter, finalize, map, take, takeUntil } from 'rxjs';
 import { CommonMessage, CommonTimeouts } from '../../../enums/common-message.enum';
@@ -14,7 +14,7 @@ import { UtilityService } from '../../../services/utility.service';
 import { OfficeResponse } from '../../organizations/models/office.model';
 import { OfficeService } from '../../organizations/services/office.service';
 import { TransactionTypeLabels } from '../models/accounting-enum';
-import { CostCodesRequest, CostCodesResponse } from '../models/cost-codes.model';
+import { CostCodesRequest, CostCodesResponse, CostCodesListDisplay } from '../models/cost-codes.model';
 import { CostCodesService } from '../services/cost-codes.service';
 
 @Component({
@@ -28,6 +28,7 @@ import { CostCodesService } from '../services/cost-codes.service';
 export class CostCodesComponent implements OnInit, OnDestroy, OnChanges {
   @Input() id: string | number | null = null; // Input to accept id from parent
   @Input() officeId: number | null = null; // Input to accept officeId from parent
+  @Input() copyFrom: CostCodesListDisplay | null = null;
   @Input() source: 'accounting' | 'configuration' = 'accounting'; // Track where component came from
   @Output() backEvent = new EventEmitter<void>(); // Emit when back button is clicked
   @Output() savedEvent = new EventEmitter<void>(); // Emit when save is successful
@@ -57,6 +58,7 @@ export class CostCodesComponent implements OnInit, OnDestroy, OnChanges {
   constructor(
     public costCodesService: CostCodesService,
     public router: Router,
+    private route: ActivatedRoute,
     public fb: FormBuilder,    private toastr: ToastrService,
     private authService: AuthService,
     private officeService: OfficeService,
@@ -83,6 +85,7 @@ export class CostCodesComponent implements OnInit, OnDestroy, OnChanges {
         this.updateCostCodeValidators();
         if (this.isAddMode) {
           this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'costCode');
+          this.applyCopyFromIfPresent();
           this.scheduleFocusFirstField();
         } else {
           this.costCodeId = Number(idStr);
@@ -101,6 +104,7 @@ export class CostCodesComponent implements OnInit, OnDestroy, OnChanges {
         this.isAddMode = true;
         this.updateCostCodeValidators();
         this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'costCode');
+        this.applyCopyFromIfPresent();
         this.scheduleFocusFirstField();
       }
     });
@@ -116,6 +120,7 @@ export class CostCodesComponent implements OnInit, OnDestroy, OnChanges {
         this.updateCostCodeValidators();
         if (this.isAddMode) {
           this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'costCode');
+          this.applyCopyFromIfPresent();
           this.scheduleFocusFirstField();
         } else {
           this.costCodeId = Number(idStr);
@@ -133,8 +138,13 @@ export class CostCodesComponent implements OnInit, OnDestroy, OnChanges {
         this.isAddMode = true;
         this.updateCostCodeValidators();
         this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'costCode');
+        this.applyCopyFromIfPresent();
         this.scheduleFocusFirstField();
       }
+    }
+    
+    if (changes['copyFrom'] && this.isAddMode && this.offices.length > 0) {
+      this.applyCopyFromIfPresent();
     }
     
     // Handle officeId changes (from title bar via parent)
@@ -270,6 +280,57 @@ export class CostCodesComponent implements OnInit, OnDestroy, OnChanges {
         isActive: this.costCode.isActive !== false
       });
     }
+  }
+
+  applyCopyFromIfPresent(): void {
+    if (!this.isAddMode || !this.form) {
+      return;
+    }
+    if (this.copyFrom) {
+      this.populateFormFromCopy(this.copyFrom);
+      return;
+    }
+    this.loadCopyFromQueryParam();
+  }
+
+  loadCopyFromQueryParam(): void {
+    const copyFromId = Number(this.route.snapshot.queryParamMap.get('copyFrom'));
+    const officeId = Number(this.route.snapshot.queryParamMap.get('officeId'));
+    if (!Number.isFinite(copyFromId) || copyFromId <= 0 || !Number.isFinite(officeId) || officeId <= 0) {
+      return;
+    }
+    this.selectedOffice = this.offices.find(o => o.officeId === officeId) || this.selectedOffice;
+    this.costCodesService.getCostCodeById(copyFromId, officeId).pipe(take(1)).subscribe({
+      next: (response: CostCodesResponse) => {
+        this.populateFormFromCopy({
+          costCodeId: response.costCodeId,
+          officeId: response.officeId,
+          officeName: '',
+          costCode: response.costCode,
+          transactionTypeId: response.transactionTypeId,
+          transactionType: '',
+          description: response.description,
+          isActive: response.isActive
+        });
+      }
+    });
+  }
+
+  populateFormFromCopy(source: CostCodesListDisplay): void {
+    if (!this.form) {
+      return;
+    }
+    if (source.officeId) {
+      this.selectedOffice = this.offices.find(o => o.officeId === source.officeId) || this.selectedOffice;
+    }
+    const user = this.authService.getUser();
+    this.form.patchValue({
+      organizationId: user?.organizationId || '',
+      costCode: '',
+      transactionTypeId: source.transactionTypeId?.toString() || '',
+      description: source.description || '',
+      isActive: source.isActive !== false
+    });
   }
 
   resetFormForNewEntry(): void {

@@ -1,0 +1,35 @@
+<div class="flex flex-col">
+  <div class="flex flex-1 justify-between items-center bg-slate-200 rounded-t-lg p-3">
+    <span class="text-2xl items-center flex gap-2 ml-1">
+      <mat-icon color="primary">file_copy</mat-icon>
+      Copy Cost Codes
+    </span>
+    <button mat-mini-fab mat-dialog-close type="button" class="bg-transparent cost-code-copy-dialog-close" id="cost-code-copy-dialog-exit" color="none">
+      <mat-icon>close</mat-icon>
+    </button>
+  </div>
+
+  <mat-dialog-content class="flex-shrink-0 w-full p-6 cost-code-copy-dialog-body">
+    <p class="text-base mb-4">Select Offices to be Copied to:</p>
+    <mat-form-field appearance="outline" class="cost-code-copy-dialog-field w-full">
+      <mat-label>Offices</mat-label>
+      <mat-select [(ngModel)]="selectedOfficeIds" multiple cdkFocusInitial>
+        @for (office of data.offices; track office.officeId) {
+          <mat-option [value]="office.officeId">{{ office.name }}</mat-option>
+        }
+      </mat-select>
+    </mat-form-field>
+  </mat-dialog-content>
+
+  <mat-divider class="flex-shrink-0 w-full"></mat-divider>
+
+  <div class="flex flex-1 justify-end gap-3 p-3">
+    <button mat-raised-button type="button" color="accent" id="cost-code-copy-dialog-cancel" (click)="onCancel()">
+      Cancel
+    </button>
+    <button mat-raised-button type="button" color="primary" id="cost-code-copy-dialog-copy" [disabled]="!canConfirm" (click)="onConfirm()" class="whitespace-nowrap items-center flex gap-1">
+      <mat-icon class="text-base">file_copy</mat-icon>
+      <span>Copy</span>
+    </button>
+  </div>
+</div>

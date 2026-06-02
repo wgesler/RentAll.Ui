@@ -1,10 +1,12 @@
 import { CommonModule } from "@angular/common";
 import { HttpErrorResponse } from '@angular/common/http';
+import { SelectionModel } from '@angular/cdk/collections';
 import { ChangeDetectionStrategy, ChangeDetectorRef, Component, EventEmitter, Input, OnChanges, OnDestroy, OnInit, Output, SimpleChanges } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, Router } from '@angular/router';
 import { ToastrService } from 'ngx-toastr';
-import {BehaviorSubject, Subject, filter, skip, take, takeUntil} from 'rxjs';
+import { MatDialog } from '@angular/material/dialog';
+import {BehaviorSubject, Subject, catchError, concatMap, filter, from, map, of, skip, take, takeUntil, toArray} from 'rxjs';
 import { RouterUrl } from '../../../app.routes';
 import { CommonMessage } from '../../../enums/common-message.enum';
 import { MaterialModule } from '../../../material.module';
@@ -19,8 +21,9 @@ import { DataTableFilterActionsDirective } from '../../shared/data-table/data-ta
 import { ColumnSet } from '../../shared/data-table/models/column-data';
 import { TransactionTypeLabels } from '../models/accounting-enum';
 import { CostCodesComponent } from '../cost-codes/cost-codes.component';
-import { CostCodesResponse } from '../models/cost-codes.model';
+import { CostCodesListDisplay, CostCodesRequest, CostCodesResponse } from '../models/cost-codes.model';
 import { CostCodesService } from '../services/cost-codes.service';
+import { CostCodeCopyOfficesDialogComponent } from './cost-code-copy-offices-dialog.component';
 
 @Component({
     standalone: true,
@@ -43,6 +46,7 @@ export class CostCodesListComponent implements OnInit, OnDestroy, OnChanges {
   showInactive: boolean = false;
   allCostCodes: CostCodesResponse[] = [];
   costCodesDisplay: any[] = [];
+  selectedCostCodes: CostCodesListDisplay[] = [];
 
   organizationId = '';
   offices: OfficeResponse[] = [];
@@ -81,6 +85,7 @@ export class CostCodesListComponent implements OnInit, OnDestroy, OnChanges {
     private utilityService: UtilityService,
     private authService: AuthService,
     private globalSelectionService: GlobalSelectionService,
+    private dialog: MatDialog,
     private cdr: ChangeDetectorRef) {
   }
 
@@ -214,6 +219,80 @@ export class CostCodesListComponent implements OnInit, OnDestroy, OnChanges {
   onCostCodesSaved(): void {
     this.costCodesService.refreshAllCostCodes();
     this.filterCostCodes();
+  }
+  //#endregion
+
+  //#region Copy Codes
+  onSelectionSet(selection: SelectionModel<unknown>): void {
+    this.selectedCostCodes = (selection?.selected ?? []) as CostCodesListDisplay[];
+    this.markViewForCheck();
+  }
+
+  copyCostCode(): void {
+    if (this.selectedCostCodes.length === 0) {
+      return;
+    }
+
+    this.dialog.open(CostCodeCopyOfficesDialogComponent, {
+      data: { offices: this.offices },
+      width: '28rem'
+    }).afterClosed().pipe(take(1)).subscribe((officeIds: number[] | undefined) => {
+      if (!officeIds?.length) {
+        return;
+      }
+      this.copySelectedCostCodesToOffices(this.selectedCostCodes, officeIds);
+    });
+  }
+
+  copySelectedCostCodesToOffices(sources: CostCodesListDisplay[], officeIds: number[]): void {
+    const organizationId = this.authService.getUser()?.organizationId?.trim() ?? '';
+    const copyPairs: { source: CostCodesListDisplay; officeId: number }[] = [];
+    for (const source of sources) {
+      for (const officeId of officeIds) {
+        if (source.officeId === officeId) {
+          continue;
+        }
+        copyPairs.push({ source, officeId });
+      }
+    }
+
+    if (copyPairs.length === 0) {
+      this.toastr.error('No copies to create. Select different target office(s).', CommonMessage.Error);
+      return;
+    }
+
+    from(copyPairs).pipe(
+      concatMap(({ source, officeId }) => {
+        const request: CostCodesRequest = {
+          organizationId,
+          officeId,
+          costCode: source.costCode,
+          transactionTypeId: source.transactionTypeId,
+          description: source.description,
+          isActive: source.isActive
+        };
+        return this.costCodesService.createCostCode(request).pipe(
+          take(1),
+          map(() => true),
+          catchError(() => of(false))
+        );
+      }),
+      toArray()
+    ).subscribe({
+      next: (results) => {
+        const successCount = results.filter(success => success).length;
+        const failCount = results.length - successCount;
+        if (successCount > 0) {
+          this.toastr.success(`${successCount} cost code${successCount === 1 ? '' : 's'} copied successfully.`, CommonMessage.Success);
+        }
+        if (failCount > 0) {
+          this.toastr.error(`${failCount} cost code cop${failCount === 1 ? 'y' : 'ies'} failed.` + CommonMessage.TryAgain, CommonMessage.ServiceError);
+        }
+        this.costCodesService.refreshAllCostCodes();
+        this.filterCostCodes();
+        this.markViewForCheck();
+      }
+    });
   }
   //#endregion
 

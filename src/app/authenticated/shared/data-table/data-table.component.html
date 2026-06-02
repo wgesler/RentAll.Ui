@@ -163,6 +163,7 @@
                 </button>
                 } @case ('select') {
                 <mat-checkbox [checked]="item?.selected" [disabled]="item?.updating || item?.disabled || !hasActionsEnabled" (change)="emitSelectEvent($event, item)"
+                  (click)="$event.stopPropagation()" (mousedown)="$event.stopPropagation()"
                   [matTooltip]="actionTooltipSelect"/>
                 @if (item?.updating) {<mat-spinner diameter="15" color="primary" class="inline relative top-px ml-2"/>}
                   } @case ('no') {

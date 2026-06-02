@@ -26,6 +26,8 @@
         [hasColumnIndex]="false"
         [hasFilter]="true"
         [hasToggleTop]="false"
+        [hasActionsSelect]="true"
+        [hasButtonSelectAll]="true"
         [hasActionsRowClick]="true"
         [hasActionsEdit]="true"
         [hasActionsDelete]="true"
@@ -36,13 +38,20 @@
         [itemsPerPage]="100"
         (editEvent)="goToCostCode($event)"
         (rowClickEvent)="goToCostCode($event)"
-        (deleteEvent)="deleteCostCode($event)">
+        (deleteEvent)="deleteCostCode($event)"
+        (selectionSet)="onSelectionSet($event)">
         @if (showInactiveInput === undefined) {
           <div dataTableFilterActions>
             <div class="table-filter-actions-group form-titlebar-actions-wrap uniform-gap">
               <mat-slide-toggle id="toggle-cost-codes-inactive" [checked]="showInactive" color="primary" (change)="toggleInactive()" class="whitespace-nowrap">
                 InActive
               </mat-slide-toggle>
+              @if (selectedCostCodes.length > 0) {
+                <button mat-raised-button type="button" color="accent" id="copy-cost-code-button" (click)="copyCostCode()" class="whitespace-nowrap items-center flex gap-1">
+                  <mat-icon class="text-base">file_copy</mat-icon>
+                  <span>Copy</span>
+                </button>
+              }
               <button mat-raised-button type="button" color="primary" id="add-cost-code-button" (click)="addCostCode()" class="whitespace-nowrap items-center flex gap-1">
                 <mat-icon class="text-base">add</mat-icon>
                 <span>Add</span>
