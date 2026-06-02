@@ -110,6 +110,7 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
     expand: { displayAs: ' ', maxWidth: '5ch', sort: false },
     no: { displayAs: 'No', maxWidth: '5ch', sort: false, wrap: false },
     reservationCode: { displayAs: 'Reservation', maxWidth: '15ch', sortType: 'natural' },
+    propertyCode: { displayAs: 'Property', maxWidth: '15ch', sortType: 'natural', wrap: false },
     responsibleParty: { displayAs: 'Recipient',  wrap: false, maxWidth: '25ch' },
     invoiceNumber: { displayAs: 'Invoice', maxWidth: '15ch', sortType: 'natural' },
     invoiceDate: { displayAs: 'Invoice Date', maxWidth: '15ch', alignment: 'center' },
@@ -720,6 +721,7 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
       ...invoice,
       invoiceNumber: invoice.invoiceCode || '',
       reservationCode: this.getCompanyCodeDisplay(invoice),
+      propertyCode: (invoice.propertyCode || '').trim() || '—',
       responsibleParty: this.getRecipientDisplay(invoice),
       totalAmount: '$' + this.formatter.currency(totalAmount),
       totalAmountValue: totalAmount, // Store raw value for validation

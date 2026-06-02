@@ -41,7 +41,10 @@ export interface InvoiceResponse {
   invoiceCode: string;
   reservationId?: string | null;
   reservationCode?: string | null;
+  propertyId?: string | null;
+  propertyCode?: string | null;
   contactId?: string | null;
+  contactName?: string | null;
   responsibleParty: string | null;
   startDate: string;
   endDate: string;
@@ -67,6 +70,10 @@ export interface InvoiceListDisplay {
   invoiceCode: string;
   reservationId?: string | null;
   reservationCode?: string | null;
+  propertyId?: string | null;
+  propertyCode?: string | null;
+  contactId?: string | null;
+  contactName?: string | null;
   responsibleParty: string | null;
   startDate: string;
   endDate: string;
