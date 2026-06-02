@@ -1448,10 +1448,7 @@ export class ReservationComponent implements OnInit, OnDestroy, CanComponentDeac
   get contactNameOptions(): SearchableSelectOption[] {
     return [
       this.getNewContactDropdownOption(),
-      ...this.filteredContacts.map(contact => ({
-        value: contact.contactId,
-        label: this.getContactNameLabel(contact)
-      }))
+      ...this.mapContactsToSortedSelectOptions(this.filteredContacts)
     ];
   }
 
@@ -1459,18 +1456,21 @@ export class ReservationComponent implements OnInit, OnDestroy, CanComponentDeac
   get contactNameOptionsNoCreate(): SearchableSelectOption[] {
     return [
       this.getNewContactDropdownOption(),
-      ...this.filteredContacts.map(contact => ({
-        value: contact.contactId,
-        label: this.getContactNameLabel(contact)
-      }))
+      ...this.mapContactsToSortedSelectOptions(this.filteredContacts)
     ];
   }
 
   get companyContactOptions(): SearchableSelectOption[] {
-    return this.companyContacts.map(contact => ({
-      value: contact.contactId,
-      label: this.getContactNameLabel(contact)
-    }));
+    return this.mapContactsToSortedSelectOptions(this.companyContacts);
+  }
+
+  private mapContactsToSortedSelectOptions(contacts: ContactResponse[]): SearchableSelectOption[] {
+    return [...contacts]
+      .map(contact => ({
+        value: contact.contactId,
+        label: this.getContactNameLabel(contact)
+      }))
+      .sort((a, b) => String(a.label).localeCompare(String(b.label), undefined, { sensitivity: 'base' }));
   }
 
   getContactNameLabel(contact: ContactResponse): string {
