@@ -166,7 +166,8 @@ export enum Frequency {
   Monthly = 4,
   Quarterly = 5,
   BiAnnually = 6,
-  Annually = 7
+  Annually = 7,
+  Daily = 8
 }
 
 export function getFrequency(frequencyId: number | undefined): string {
@@ -175,6 +176,7 @@ export function getFrequency(frequencyId: number | undefined): string {
   const frequencyMap: { [key: number]: string } = {
     [Frequency.NA]: 'N/A',
     [Frequency.OneTime]: 'One Time',
+    [Frequency.Daily]: 'Daily',
     [Frequency.Weekly]: 'Weekly',
     [Frequency.EOW]: 'EOW',
     [Frequency.Monthly]: 'Monthly',
@@ -191,6 +193,7 @@ export function getFrequencies(): { value: number, label: string }[] {
   return [
     { value: Frequency.NA, label: getFrequency(Frequency.NA) },
     { value: Frequency.OneTime, label: getFrequency(Frequency.OneTime) },
+    { value: Frequency.Daily, label: getFrequency(Frequency.Daily) },
     { value: Frequency.Weekly, label: getFrequency(Frequency.Weekly) },
     { value: Frequency.EOW, label: getFrequency(Frequency.EOW) },
     { value: Frequency.Monthly, label: getFrequency(Frequency.Monthly) },

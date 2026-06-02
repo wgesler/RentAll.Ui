@@ -393,6 +393,9 @@ export class PropertyMaintenanceBase implements OnInit, OnDestroy {
     const advanceMaidClean = (d: Date, frequencyId: number): Date => {
       const n = startOfDay(d);
       switch (frequencyId) {
+        case Frequency.Daily:
+          n.setDate(n.getDate() + 1);
+          return n;
         case Frequency.Weekly:
           n.setDate(n.getDate() + 7);
           return n;
@@ -429,6 +432,7 @@ export class PropertyMaintenanceBase implements OnInit, OnDestroy {
         return [];
       }
       const allowedRecurring = new Set<number>([
+        Frequency.Daily,
         Frequency.Weekly,
         Frequency.EOW,
         Frequency.Monthly,

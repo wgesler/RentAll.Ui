@@ -39,6 +39,7 @@
         (editEvent)="goToCostCode($event)"
         (rowClickEvent)="goToCostCode($event)"
         (deleteEvent)="deleteCostCode($event)"
+        (checkboxChangeEvent)="onCostCodeCheckboxChange($event)"
         (selectionSet)="onSelectionSet($event)">
         @if (showInactiveInput === undefined) {
           <div dataTableFilterActions>

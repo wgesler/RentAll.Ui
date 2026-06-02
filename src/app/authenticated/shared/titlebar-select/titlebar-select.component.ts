@@ -18,7 +18,7 @@ import { SearchableSelectComponent, SearchableSelectOption } from '../searchable
       [disabled]="disabled"
       [showInstructionOption]="showInstructionOption"
       [instructionOptionValue]="instructionOptionValue"
-      [showSearchInput]="showSearchInput"
+      [showSearchInput]="effectiveShowSearchInput"
       [hideSearchHint]="hideSearchHint"
       [hideSearchText]="hideSearchText"
       [nullOptionLabel]="nullOptionLabel"
@@ -49,6 +49,13 @@ export class TitleBarSelectComponent {
   @Input() showSearchInput = true;
   @Input() hideSearchHint = false;
   @Input() hideSearchText = false;
+
+  get effectiveShowSearchInput(): boolean {
+    if (this.formFieldClass.includes('titlebar-field-office') || this.label === 'Office') {
+      return false;
+    }
+    return this.showSearchInput;
+  }
 
   @Output() valueChange = new EventEmitter<string | number | null>();
 }

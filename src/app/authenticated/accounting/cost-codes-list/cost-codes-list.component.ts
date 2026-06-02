@@ -6,7 +6,7 @@ import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, Router } from '@angular/router';
 import { ToastrService } from 'ngx-toastr';
 import { MatDialog } from '@angular/material/dialog';
-import {BehaviorSubject, Subject, catchError, concatMap, filter, from, map, of, skip, take, takeUntil, toArray} from 'rxjs';
+import {BehaviorSubject, Subject, catchError, concatMap, filter, finalize, from, map, of, skip, switchMap, take, takeUntil, toArray} from 'rxjs';
 import { RouterUrl } from '../../../app.routes';
 import { CommonMessage } from '../../../enums/common-message.enum';
 import { MaterialModule } from '../../../material.module';
@@ -47,6 +47,8 @@ export class CostCodesListComponent implements OnInit, OnDestroy, OnChanges {
   allCostCodes: CostCodesResponse[] = [];
   costCodesDisplay: any[] = [];
   selectedCostCodes: CostCodesListDisplay[] = [];
+  isAdmin = false;
+  canEditIsActiveCheckbox = false;
 
   organizationId = '';
   offices: OfficeResponse[] = [];
@@ -67,7 +69,7 @@ export class CostCodesListComponent implements OnInit, OnDestroy, OnChanges {
     costCode: { displayAs: 'Cost Code', maxWidth: '20ch', sortType: 'natural' },
     transactionType: { displayAs: 'Type', maxWidth: '15ch' },
     description: { displayAs: 'Description', maxWidth: '33ch' },
-    isActive: { displayAs: 'IsActive', isCheckbox: true, sort: false, wrap: false, alignment: 'center', maxWidth: '15ch' },
+    isActive: { displayAs: 'IsActive', isCheckbox: true, checkboxEditable: false, sort: false, wrap: false, alignment: 'center', maxWidth: '15ch' },
     rowColor: { displayAs: '', sort: false, wrap: false } // Hidden column for row coloring
   };
 
@@ -97,6 +99,8 @@ export class CostCodesListComponent implements OnInit, OnDestroy, OnChanges {
     });
 
     this.organizationId = this.authService.getUser()?.organizationId?.trim() ?? '';
+    this.isAdmin = this.authService.isAdmin();
+    this.setIsActiveCheckboxEditability();
     this.loadOffices();
     this.loadCostCodes();
 
@@ -152,6 +156,44 @@ export class CostCodesListComponent implements OnInit, OnDestroy, OnChanges {
         this.router.navigateByUrl(url);
       }
     }
+  }
+
+  onCostCodeCheckboxChange(event: CostCodesListDisplay): void {
+    if (!this.canEditIsActiveCheckbox) {
+      return;
+    }
+
+    const changedCheckboxColumn = (event as { __changedCheckboxColumn?: string }).__changedCheckboxColumn;
+    if (changedCheckboxColumn !== 'isActive') {
+      return;
+    }
+
+    const previousValue = (event as { __previousCheckboxValue?: boolean }).__previousCheckboxValue === true;
+    const nextValue = (event as { __checkboxValue?: boolean }).__checkboxValue === true;
+    if (previousValue === nextValue) {
+      return;
+    }
+
+    this.applyCostCodeIsActiveValue(event.costCodeId, event.officeId, nextValue);
+
+    this.costCodesService.getCostCodeById(event.costCodeId, event.officeId).pipe(
+      take(1),
+      switchMap((costCode: CostCodesResponse) => this.costCodesService.updateCostCode(this.mappingService.mapCostCodeUpdateRequest(costCode, nextValue)).pipe(take(1))),
+      finalize(() => {
+        this.applyFilters();
+        this.markViewForCheck();
+      })
+    ).subscribe({
+      next: () => {
+        this.toastr.success('Cost code updated.', CommonMessage.Success);
+        this.costCodesService.refreshCostCodesForOffice(event.officeId);
+      },
+      error: () => {
+        this.applyCostCodeIsActiveValue(event.costCodeId, event.officeId, previousValue);
+        this.toastr.error('Unable to update cost code.', CommonMessage.Error);
+        this.markViewForCheck();
+      }
+    });
   }
 
   deleteCostCode(costCode: CostCodesResponse): void {
@@ -414,6 +456,23 @@ export class CostCodesListComponent implements OnInit, OnDestroy, OnChanges {
       this.officeIdChange.emit(this.selectedOffice?.officeId ?? null);
     }
     this.filterCostCodes();
+  }
+  //#endregion
+
+  //#region Dynamic List Methods
+  setIsActiveCheckboxEditability(): void {
+    this.canEditIsActiveCheckbox = this.isAdmin;
+    this.costCodesDisplayedColumns['isActive'].checkboxEditable = this.canEditIsActiveCheckbox;
+  }
+
+  applyCostCodeIsActiveValue(costCodeId: number, officeId: number, isActive: boolean): void {
+    for (const costCode of this.allCostCodes) {
+      if (costCode.costCodeId === costCodeId && costCode.officeId === officeId) {
+        costCode.isActive = isActive;
+        break;
+      }
+    }
+    this.applyFilters();
   }
   //#endregion
 

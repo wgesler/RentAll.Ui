@@ -60,7 +60,7 @@ export interface SearchableSelectOption<TValue = string | number | null> {
               {{ selectedOptionLabel || nullOptionLabel }}
             </span>
           </mat-select-trigger>
-          @if (showSearchInput && !(hideSearchHint && hideSearchText)) {
+          @if (allowSearchInput && !(hideSearchHint && hideSearchText)) {
             <mat-option>
               <input
                 matInput
@@ -113,7 +113,7 @@ export interface SearchableSelectOption<TValue = string | number | null> {
             {{ selectedOptionLabel || nullOptionLabel }}
           </span>
         </mat-select-trigger>
-        @if (showSearchInput && !(hideSearchHint && hideSearchText)) {
+        @if (allowSearchInput && !(hideSearchHint && hideSearchText)) {
           <mat-option>
             <input
               matInput
@@ -173,6 +173,20 @@ export class SearchableSelectComponent {
 
   searchText = '';
   isPanelOpen = false;
+  get allowSearchInput(): boolean {
+    if (this.isTitleBarOfficeSelect) {
+      return false;
+    }
+    return this.showSearchInput;
+  }
+
+  get isTitleBarOfficeSelect(): boolean {
+    return this.titleBarMode && (
+      this.formFieldClass.includes('titlebar-field-office')
+      || this.formFieldLabel === 'Office'
+    );
+  }
+
   get normalizedValue(): string | number | null {
     if (!this.showInstructionOption || !this.nullOptionLabel) {
       return this.value;
@@ -214,6 +228,9 @@ export class SearchableSelectComponent {
   };
 
   get filteredOptions(): SearchableSelectOption[] {
+    if (!this.allowSearchInput) {
+      return this.options;
+    }
     const search = this.searchText.trim().toLowerCase();
     if (!search) {
       return this.options;
@@ -240,7 +257,7 @@ export class SearchableSelectComponent {
   }
 
   onSelectKeydown(event: KeyboardEvent): void {
-    if (!this.isPanelOpen || event.ctrlKey || event.metaKey || event.altKey) {
+    if (!this.allowSearchInput || !this.isPanelOpen || event.ctrlKey || event.metaKey || event.altKey) {
       return;
     }
     if (event.key === 'Backspace') {

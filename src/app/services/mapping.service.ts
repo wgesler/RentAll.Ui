@@ -1,6 +1,6 @@
 import { Injectable } from '@angular/core';
 import { TransactionType, getTransactionTypeLabel } from '../authenticated/accounting/models/accounting-enum';
-import { CostCodesListDisplay, CostCodesResponse } from '../authenticated/accounting/models/cost-codes.model';
+import { CostCodesListDisplay, CostCodesRequest, CostCodesResponse } from '../authenticated/accounting/models/cost-codes.model';
 import { LedgerLineListDisplay, LedgerLineResponse } from '../authenticated/accounting/models/invoice.model';
 import { EntityType, getEntityType } from '../authenticated/contacts/models/contact-enum';
 import { ContactListDisplay, ContactRequest, ContactResponse } from '../authenticated/contacts/models/contact.model';
@@ -465,6 +465,18 @@ export class MappingService {
         rowColor: rowColor
       };
     });
+  }
+
+  mapCostCodeUpdateRequest(costCode: CostCodesResponse, isActive: boolean): CostCodesRequest {
+    return {
+      costCodeId: costCode.costCodeId,
+      organizationId: costCode.organizationId,
+      officeId: costCode.officeId,
+      costCode: costCode.costCode || '',
+      transactionTypeId: costCode.transactionTypeId,
+      description: costCode.description || '',
+      isActive
+    };
   }
 
   mapLedgerLines(ledgerLines: LedgerLineResponse[], costCodes?: CostCodesResponse[], transactionTypes?: { value: number, label: string }[]): LedgerLineListDisplay[] {
