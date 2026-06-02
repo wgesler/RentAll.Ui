@@ -387,7 +387,9 @@ export class InvoiceComponent implements OnInit, OnDestroy, OnChanges {
     }
 
     const queryParams = this.route.snapshot.queryParams;
-    const originReturnTo = queryParams['returnTo'] || 'accounting';
+    const originReturnTo = this.shellMode
+      ? 'reservation'
+      : (queryParams['returnTo'] || 'accounting');
     const params: string[] = [
       'returnTo=invoice-edit',
       `originReturnTo=${encodeURIComponent(originReturnTo)}`

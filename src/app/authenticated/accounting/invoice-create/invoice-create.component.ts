@@ -1141,12 +1141,18 @@ export class InvoiceCreateComponent extends BaseDocumentComponent implements OnI
   goBack(): void {
     const queryParams = this.route.snapshot.queryParams;
     const returnTo = queryParams['returnTo'];
+    const originReturnTo = queryParams['originReturnTo'] || 'accounting';
 
     const officeId = this.selectedOffice?.officeId ?? this.officeId ?? null;
     const reservationId = this.selectedReservation?.reservationId ?? this.reservationId ?? null;
     const invoiceId = this.selectedInvoice?.invoiceId ?? this.invoiceId ?? null;
 
     if (returnTo === 'invoice-edit') {
+      if (originReturnTo === 'reservation' && reservationId) {
+        this.navigateToReservationShell(reservationId, officeId, invoiceId, queryParams['organizationId']);
+        return;
+      }
+
       const accountingParams: string[] = ['tab=0'];
       if (officeId !== null && officeId !== undefined) {
         accountingParams.push(`officeId=${officeId}`);
@@ -1161,66 +1167,54 @@ export class InvoiceCreateComponent extends BaseDocumentComponent implements OnI
       if (organizationIdParam) {
         accountingParams.push(`organizationId=${encodeURIComponent(organizationIdParam)}`);
       }
-      const accountingUrl = `${RouterUrl.AccountingList}?${accountingParams.join('&')}`;
-      this.router.navigateByUrl(accountingUrl);
+      this.router.navigateByUrl(`${RouterUrl.AccountingList}?${accountingParams.join('&')}`);
       return;
     }
 
-    const params: string[] = [];
-    if (officeId !== null && officeId !== undefined) {
-      params.push(`officeId=${officeId}`);
-    }
-    if (invoiceId !== null && invoiceId !== undefined && invoiceId !== '') {
-      params.push(`invoiceId=${invoiceId}`);
+    if (returnTo === 'reservation' && reservationId) {
+      this.navigateToReservationShell(reservationId, officeId, null, queryParams['organizationId']);
+      return;
     }
 
-    if (returnTo === 'reservation' && reservationId) {
-      const reservationParams = params.filter(param => !param.startsWith('invoiceId='));
-      if (reservationId !== null && reservationId !== undefined && reservationId !== '') {
-        reservationParams.push(`reservationId=${reservationId}`);
-      }
-      reservationParams.push(`tab=invoices`);
-      const reservationUrl = reservationParams.length > 0
-        ? RouterUrl.replaceTokens(RouterUrl.Reservation, [reservationId]) + `?${reservationParams.join('&')}`
-        : RouterUrl.replaceTokens(RouterUrl.Reservation, [reservationId]);
-      this.router.navigateByUrl(reservationUrl);
-    } else if (returnTo === 'accounting' || !returnTo) {
-      const accountingParams: string[] = [];
-      if (officeId !== null && officeId !== undefined) {
-        accountingParams.push(`officeId=${officeId}`);
-      }
-      if (reservationId) {
-        accountingParams.push(`reservationId=${reservationId}`);
-      }
-      accountingParams.push('tab=0');
-      if (this.companyId) {
-        accountingParams.push(`companyId=${this.companyId}`);
-      }
-      const organizationIdParam = queryParams['organizationId'];
-      if (organizationIdParam) {
-        accountingParams.push(`organizationId=${encodeURIComponent(organizationIdParam)}`);
-      }
-      const accountingUrl = `${RouterUrl.AccountingList}?${accountingParams.join('&')}`;
-      this.router.navigateByUrl(accountingUrl);
-    } else {
-      const accountingParams: string[] = [];
-      if (officeId !== null && officeId !== undefined) {
-        accountingParams.push(`officeId=${officeId}`);
-      }
-      if (reservationId) {
-        accountingParams.push(`reservationId=${reservationId}`);
-      }
-      accountingParams.push('tab=0');
-      if (this.companyId) {
-        accountingParams.push(`companyId=${this.companyId}`);
-      }
-      const organizationIdParam = queryParams['organizationId'];
-      if (organizationIdParam) {
-        accountingParams.push(`organizationId=${encodeURIComponent(organizationIdParam)}`);
-      }
-      const accountingUrl = `${RouterUrl.AccountingList}?${accountingParams.join('&')}`;
-      this.router.navigateByUrl(accountingUrl);
+    const accountingParams: string[] = ['tab=0'];
+    if (officeId !== null && officeId !== undefined) {
+      accountingParams.push(`officeId=${officeId}`);
     }
+    if (reservationId) {
+      accountingParams.push(`reservationId=${reservationId}`);
+    }
+    if (this.companyId) {
+      accountingParams.push(`companyId=${this.companyId}`);
+    }
+    const organizationIdParam = queryParams['organizationId'];
+    if (organizationIdParam) {
+      accountingParams.push(`organizationId=${encodeURIComponent(organizationIdParam)}`);
+    }
+    this.router.navigateByUrl(`${RouterUrl.AccountingList}?${accountingParams.join('&')}`);
+  }
+
+  navigateToReservationShell(
+    reservationId: string,
+    officeId: number | null,
+    invoiceId: string | null,
+    organizationId: string | null | undefined
+  ): void {
+    const reservationParams: string[] = ['tab=invoices'];
+    if (officeId !== null && officeId !== undefined) {
+      reservationParams.push(`officeId=${officeId}`);
+    }
+    reservationParams.push(`reservationId=${reservationId}`);
+    if (invoiceId) {
+      reservationParams.push(`invoiceId=${invoiceId}`);
+    }
+    if (this.companyId) {
+      reservationParams.push(`companyId=${this.companyId}`);
+    }
+    if (organizationId) {
+      reservationParams.push(`organizationId=${encodeURIComponent(organizationId)}`);
+    }
+    const reservationUrl = `${RouterUrl.replaceTokens(RouterUrl.Reservation, [reservationId])}?${reservationParams.join('&')}`;
+    this.router.navigateByUrl(reservationUrl);
   }
   
   ngOnDestroy(): void {
