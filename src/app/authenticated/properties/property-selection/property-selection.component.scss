@@ -42,3 +42,22 @@ input.no-spinner[type='number'] {
   -moz-appearance: textfield;
   appearance: textfield;
 }
+
+.property-selection-sticky-btn {
+  flex-shrink: 0;
+  width: 32px;
+  height: 32px;
+  padding: 0;
+
+  .mat-icon {
+    width: 18px;
+    height: 18px;
+    font-size: 18px;
+    line-height: 18px;
+    color: rgba(15, 23, 42, 0.55);
+  }
+
+  &.property-selection-sticky-btn--active .mat-icon {
+    color: var(--mat-sys-secondary, #e91e63);
+  }
+}

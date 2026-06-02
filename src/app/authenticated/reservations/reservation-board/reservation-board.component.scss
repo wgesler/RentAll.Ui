@@ -85,6 +85,25 @@
   }
 }
 
+.reservation-board-sticky-dates-btn {
+  flex-shrink: 0;
+  width: 32px;
+  height: 32px;
+  padding: 0;
+
+  .mat-icon {
+    width: 18px;
+    height: 18px;
+    font-size: 18px;
+    line-height: 18px;
+    color: rgba(15, 23, 42, 0.55);
+  }
+
+  &.reservation-board-sticky-dates-btn--active .mat-icon {
+    color: var(--mat-sys-secondary, #e91e63);
+  }
+}
+
 .property-titlebar {
   min-height: var(--property-titlebar-height);
   box-sizing: border-box;

@@ -23,6 +23,9 @@ export function isPropertySelectionFiltered(s: PropertySelectionResponse | null 
   if (hasText(s.propertyCode) || hasText(s.city) || hasText(s.state)) {
     return true;
   }
+  if (s.propertyLeaseTypeId != null && Number(s.propertyLeaseTypeId) !== 0) {
+    return true;
+  }
   if (
     s.cable ||
     s.streaming ||
@@ -57,6 +60,7 @@ function hasText(v: string | null | undefined): boolean {
 
 @Injectable({ providedIn: 'root' })
 export class PropertySelectionFilterService {
+  private readonly stickySelectionStorageKeyPrefix = 'rentall-property-selection-sticky';
   private readonly _propertiesFiltered = new BehaviorSubject<boolean>(false);
   private readonly _dateRange = new BehaviorSubject<{ startDate: Date | null; endDate: Date | null }>({ startDate: null, endDate: null });
   private selectionFiltersApplied = false;
@@ -86,5 +90,66 @@ export class PropertySelectionFilterService {
     this.dateRangeApplied = false;
     this._dateRange.next({ startDate: null, endDate: null });
     this._propertiesFiltered.next(false);
+  }
+
+  isSelectionSticky(userId: string | null | undefined): boolean {
+    return this.readStickySelectionFromStorage(userId)?.enabled === true;
+  }
+
+  setSelectionSticky(userId: string | null | undefined, enabled: boolean): void {
+    const userKey = userId?.trim();
+    if (!userKey) {
+      return;
+    }
+
+    if (enabled) {
+      localStorage.setItem(this.getStickySelectionStorageKey(userKey), JSON.stringify({ enabled: true }));
+      return;
+    }
+
+    this.clearSelectionStickyStorage(userKey);
+  }
+
+  clearSelectionStickyStorage(userId: string | null | undefined): void {
+    if (typeof localStorage === 'undefined') {
+      return;
+    }
+
+    const userKey = userId?.trim();
+    if (!userKey) {
+      return;
+    }
+
+    localStorage.removeItem(this.getStickySelectionStorageKey(userKey));
+  }
+
+  private readStickySelectionFromStorage(userId: string | null | undefined): { enabled: boolean } | null {
+    if (typeof localStorage === 'undefined') {
+      return null;
+    }
+
+    const userKey = userId?.trim();
+    if (!userKey) {
+      return null;
+    }
+
+    const rawValue = localStorage.getItem(this.getStickySelectionStorageKey(userKey));
+    if (!rawValue) {
+      return null;
+    }
+
+    try {
+      const parsed = JSON.parse(rawValue) as { enabled?: boolean };
+      if (parsed?.enabled !== true) {
+        return null;
+      }
+      return { enabled: true };
+    } catch {
+      return null;
+    }
+  }
+
+  private getStickySelectionStorageKey(userId: string): string {
+    return `${this.stickySelectionStorageKeyPrefix}-${userId}`;
   }
 }

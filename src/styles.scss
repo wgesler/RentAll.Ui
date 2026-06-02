@@ -86,6 +86,11 @@ mat-toolbar#header.mat-toolbar.mat-primary .mdc-button__label {
   --mdc-filled-button-label-text-color: #fff !important;
 }
 
+/* Selection button: only the star turns pink when property filters are active. */
+.selection-button-star--active {
+  color: var(--mat-sys-secondary, #e91e63) !important;
+}
+
 /* Prevent horizontal layout shift when page scrollbar appears/disappears. */
 html {
   scrollbar-gutter: stable;

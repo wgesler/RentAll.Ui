@@ -50,6 +50,7 @@ export class PropertySelectionComponent implements OnInit, OnDestroy {
   returnSource: 'reservation-board' | 'property-list' | 'reservation-list' | 'maintenance-list' = 'reservation-board';
   reservationListReturnPath: string | null = null;
   formFilterTrackingSetup = false;
+  selectionSticky = false;
 
   itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['selection', 'lookups']));
   isLoading$: Observable<boolean> = this.itemsToLoad$.pipe(map(items => items.size > 0));
@@ -75,6 +76,7 @@ export class PropertySelectionComponent implements OnInit, OnDestroy {
   //#region Property-Selection
   ngOnInit(): void {
     this.buildForm();
+    this.applyStickySelectionFromStorage();
     this.propertySelectionFilterService.setDateRange(null, null);
     this.initializePropertyStatuses();
     this.loadStates();
@@ -86,7 +88,6 @@ export class PropertySelectionComponent implements OnInit, OnDestroy {
 
     this.itemsToLoad$.pipe(map((s) => s.size),filter((n) => n === 0),take(1),takeUntil(this.destroy$) ).subscribe(() => {
       this.setupFormFilterTrackingOnce();
-      this.propertySelectionFilterService.setFromResponse(this.buildSyntheticResponseFromForm());
     });
 
     // If we navigated here from the board or property list, it may have preloaded the selection.
@@ -326,7 +327,6 @@ export class PropertySelectionComponent implements OnInit, OnDestroy {
     });
   }
 
-  /** After selection + lookups load, track form edits for global Selection button highlight. */
   setupFormFilterTrackingOnce(): void {
     if (this.formFilterTrackingSetup || !this.form) return;
     this.formFilterTrackingSetup = true;
@@ -461,6 +461,24 @@ export class PropertySelectionComponent implements OnInit, OnDestroy {
       regionCodes: Array.isArray(v.regionCodes) ? v.regionCodes : [],
       areaCodes: Array.isArray(v.areaCodes) ? v.areaCodes : []
     };
+  }
+  //#endregion
+
+  //#region Sticky Selection
+  applyStickySelectionFromStorage(): void {
+    const userId = this.authService.getUser()?.userId;
+    this.selectionSticky = this.propertySelectionFilterService.isSelectionSticky(userId);
+  }
+
+  onStickySelectionToggle(): void {
+    const userId = this.authService.getUser()?.userId;
+    if (!userId) {
+      this.toastr.error('No userId found for this session.', CommonMessage.Unauthorized);
+      return;
+    }
+
+    this.selectionSticky = !this.selectionSticky;
+    this.propertySelectionFilterService.setSelectionSticky(userId, this.selectionSticky);
   }
   //#endregion
 

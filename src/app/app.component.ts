@@ -191,6 +191,10 @@ export class AppComponent implements OnInit, OnDestroy {
     if (this.isPropertySelectionPage(fromPath) || this.isPropertySelectionPage(toPath)) {
       return false;
     }
+    const userId = this.authService.getUser()?.userId?.trim() ?? '';
+    if (userId && this.propertySelectionFilterService.isSelectionSticky(userId)) {
+      return false;
+    }
     return fromDomain !== toDomain;
   }
 

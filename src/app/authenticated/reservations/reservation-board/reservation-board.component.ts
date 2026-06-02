@@ -69,6 +69,8 @@ export class ReservationBoardComponent implements OnInit, OnDestroy {
 
   startDate: Date = null;
   endDate: Date = null;
+  dateRangeSticky = false;
+  private readonly stickyDateRangeStorageKeyPrefix = 'rentall-reservation-board-sticky-dates';
   officeScopeResolved = false;
   selectedOfficeId: number | null = null;
   userId: string = '';
@@ -110,7 +112,7 @@ export class ReservationBoardComponent implements OnInit, OnDestroy {
     this.userId = this.authService.getUser()?.userId || '';
     this.isOwner = hasOwnerRole(this.authService.getUser()?.userGroups as Array<string | number> | undefined);
     this.organizationId = this.authService.getUser()?.organizationId?.trim() ?? '';
-    this.setDefaultDateRange();
+    this.applyStickyDateRangeFromStorage();
     this.generateCalendarDays();
     this.loadContacts();
     this.loadColors();
@@ -190,6 +192,10 @@ export class ReservationBoardComponent implements OnInit, OnDestroy {
     }
 
     this.generateCalendarDays();
+    if (this.dateRangeSticky) {
+      this.persistStickyDateRange();
+    }
+    this.markViewForCheck();
   }
   //#endregion
   
@@ -362,6 +368,96 @@ export class ReservationBoardComponent implements OnInit, OnDestroy {
     this.officeScopeResolved = true;
     this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'officeScope');
     this.markViewForCheck();
+  }
+  //#endregion
+
+  //#region Sticky Date Range
+  applyStickyDateRangeFromStorage(): void {
+    const stored = this.readStickyDateRangeFromStorage();
+    if (stored?.enabled && stored.startDate && stored.endDate) {
+      const start = this.utilityService.parseCalendarDateInput(stored.startDate);
+      const end = this.utilityService.parseCalendarDateInput(stored.endDate);
+      if (start && end) {
+        start.setHours(0, 0, 0, 0);
+        end.setHours(0, 0, 0, 0);
+        this.dateRangeSticky = true;
+        this.startDate = start;
+        this.endDate = end;
+        return;
+      }
+      this.clearStickyDateRangeStorage();
+    }
+
+    this.dateRangeSticky = false;
+    this.setDefaultDateRange();
+  }
+
+  onStickyDateRangeToggle(): void {
+    this.dateRangeSticky = !this.dateRangeSticky;
+    if (this.dateRangeSticky) {
+      this.onDateRangeChange();
+      this.persistStickyDateRange();
+    } else {
+      this.clearStickyDateRangeStorage();
+      this.setDefaultDateRange();
+      this.onDateRangeChange();
+    }
+    this.markViewForCheck();
+  }
+
+  persistStickyDateRange(): void {
+    if (!this.dateRangeSticky || !this.startDate || !this.endDate) {
+      return;
+    }
+
+    const startDate = this.utilityService.formatDateOnlyForApi(this.startDate);
+    const endDate = this.utilityService.formatDateOnlyForApi(this.endDate);
+    if (!startDate || !endDate) {
+      return;
+    }
+
+    localStorage.setItem(this.getStickyDateRangeStorageKey(), JSON.stringify({
+      enabled: true,
+      startDate,
+      endDate
+    }));
+  }
+
+  readStickyDateRangeFromStorage(): { enabled: boolean; startDate: string; endDate: string } | null {
+    if (typeof localStorage === 'undefined') {
+      return null;
+    }
+
+    const rawValue = localStorage.getItem(this.getStickyDateRangeStorageKey());
+    if (!rawValue) {
+      return null;
+    }
+
+    try {
+      const parsed = JSON.parse(rawValue) as { enabled?: boolean; startDate?: string; endDate?: string };
+      if (parsed?.enabled !== true || !parsed.startDate || !parsed.endDate) {
+        return null;
+      }
+      return {
+        enabled: true,
+        startDate: String(parsed.startDate),
+        endDate: String(parsed.endDate)
+      };
+    } catch {
+      return null;
+    }
+  }
+
+  clearStickyDateRangeStorage(): void {
+    if (typeof localStorage === 'undefined') {
+      return;
+    }
+    localStorage.removeItem(this.getStickyDateRangeStorageKey());
+  }
+
+  getStickyDateRangeStorageKey(): string {
+    const userKey = this.userId?.trim() || 'anonymous';
+    return `${this.stickyDateRangeStorageKeyPrefix}-${userKey}`;
   }
   //#endregion
 

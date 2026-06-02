@@ -36,7 +36,19 @@
       </div>
 
       <mat-card>
-        <div class="mb-4 flex justify-end" style="padding: 16px 24px 0 24px;">
+        <div class="mb-4 flex justify-end items-center gap-2" style="padding: 16px 24px 0 24px;">
+          <button
+            mat-icon-button
+            type="button"
+            class="property-selection-sticky-btn"
+            [class.property-selection-sticky-btn--active]="selectionSticky"
+            [attr.aria-pressed]="selectionSticky"
+            aria-label="Sticky property selection"
+            matTooltip="Keep property filters when switching between Reservations, Board, and Properties"
+            (click)="onStickySelectionToggle()">
+            <mat-icon>push_pin</mat-icon>
+          </button>
+
           <button
             mat-raised-button
             type="button"
