@@ -15,7 +15,6 @@ import { FormatterService } from '../../../services/formatter-service';
 import { MappingService } from '../../../services/mapping.service';
 import { NavigationContextService } from '../../../services/navigation-context.service';
 import { UtilityService } from '../../../services/utility.service';
-import { ContactComponent } from '../../contacts/contact/contact.component';
 import { EntityType } from '../../contacts/models/contact-enum';
 import { ContactResponse } from '../../contacts/models/contact.model';
 import { ContactService } from '../../contacts/services/contact.service';
@@ -43,6 +42,7 @@ import { PropertyService } from '../services/property.service';
 import { WelcomeLetterReloadService } from '../services/welcome-letter-reload.service';
 import { SearchableSelectComponent, SearchableSelectOption } from '../../shared/searchable-select/searchable-select.component';
 import { UnsavedChangesDialogService } from '../../shared/modals/unsaved-changes/unsaved-changes-dialog.service';
+import { NewContactDialogOptions, NewContactDialogService } from '../../shared/contacts/new-contact-dialog.service';
 import { OwnersService } from '../../owners/services/owners.service';
 
 @Component({
@@ -61,8 +61,6 @@ import { OwnersService } from '../../owners/services/owners.service';
 })
 
 export class PropertyComponent implements OnInit, OnChanges, AfterViewInit, OnDestroy, CanComponentDeactivate {
-  readonly newOwnerOptionValue = '__new_owner__';
-  readonly newVendorOptionValue = '__new_vendor__';
   readonly propertyCodeDefaultPrompt = 'Enter Code';
   readonly propertyLeaseTypeOptions = getPropertyLeaseTypes();
 
@@ -163,6 +161,7 @@ export class PropertyComponent implements OnInit, OnChanges, AfterViewInit, OnDe
     private reservationService: ReservationService,
     private globalSelectionService: GlobalSelectionService,
     private dialog: MatDialog,
+    private newContactDialogService: NewContactDialogService,
     private unsavedChangesDialogService: UnsavedChangesDialogService,
     private ownersService: OwnersService
   ) {
@@ -1110,19 +1109,13 @@ export class PropertyComponent implements OnInit, OnChanges, AfterViewInit, OnDe
     );
   }
 
-  buildNewContactDialogData(entityTypeId: number): {
-    compactDialogMode: true;
-    entityTypeId: number;
-    preselectPropertyCodes?: string[];
-    preselectPropertyOfficeId?: number;
-  } {
-    const base = { compactDialogMode: true as const, entityTypeId };
+  getNewContactPreselectOptions(): Pick<NewContactDialogOptions, 'preselectPropertyOfficeId' | 'preselectPropertyCodes'> {
     if (!this.isAddMode || !this.form) {
-      return base;
+      return {};
     }
     const rawCode = String(this.form.get('propertyCode')?.value ?? '').trim();
     if (!rawCode || rawCode.toLowerCase() === this.propertyCodeDefaultPrompt.toLowerCase()) {
-      return base;
+      return {};
     }
     const officeId =
       this.form.getRawValue().officeId ??
@@ -1130,17 +1123,15 @@ export class PropertyComponent implements OnInit, OnChanges, AfterViewInit, OnDe
       this.offices[0]?.officeId ??
       null;
     if (officeId == null || officeId === '') {
-      return base;
+      return {};
     }
     return {
-      ...base,
       preselectPropertyCodes: [rawCode.toUpperCase()],
       preselectPropertyOfficeId: Number(officeId)
     };
   }
 
-  openNewOwnerDialog(ownerField: 'owner1Id' | 'owner2Id' | 'owner3Id'): void {
-    const openContact = () => this.openNewOwnerContactDialog(ownerField);
+  withPropertyCodeForNewContact(openContact: () => void): void {
     if (!this.isPropertyCodeMissingForAdd()) {
       openContact();
       return;
@@ -1154,114 +1145,43 @@ export class PropertyComponent implements OnInit, OnChanges, AfterViewInit, OnDe
     });
   }
 
-  openNewOwnerContactDialog(ownerField: 'owner1Id' | 'owner2Id' | 'owner3Id'): void {
-    const dialogRef = this.dialog.open(ContactComponent, {
-      width: '1200px',
-      maxWidth: '95vw',
-      disableClose: true,
-      data: {
-        ...this.buildNewContactDialogData(EntityType.Owner),
-        showDialogCancelButton: true
-      }
-    });
-
-    dialogRef.componentInstance.id = 'new';
-    dialogRef.componentInstance.copyFrom = null;
-    dialogRef.componentInstance.closed
-      .pipe(take(1))
-      .subscribe((result: { saved?: boolean; contactId?: string; entityTypeId?: number }) => dialogRef.close(result));
-
-    dialogRef.afterClosed().pipe(take(1)).subscribe((result?: { saved?: boolean; contactId?: string; entityTypeId?: number }) => {
+  openNewContactForProperty(entityTypeId: number, applySavedContact: (contactId: string) => void): void {
+    this.newContactDialogService.openNewContactDialog({
+      entityTypeId,
+      ...this.getNewContactPreselectOptions()
+    }).pipe(take(1)).subscribe((result?: { saved?: boolean; contactId?: string }) => {
       if (!result?.saved || !result.contactId) {
         return;
       }
-
-      this.contactService.refreshContacts().pipe(take(1)).subscribe({
-        next: (contacts) => {
-          this.contacts = (contacts || []).filter(c => c.entityTypeId === EntityType.Owner);
-          this.form.patchValue({ [ownerField]: result.contactId }, { emitEvent: false });
-        },
-        error: () => {}
-      });
+      applySavedContact(result.contactId);
     });
+  }
+
+  openNewOwnerDialog(ownerField: 'owner1Id' | 'owner2Id' | 'owner3Id'): void {
+    this.withPropertyCodeForNewContact(() =>
+      this.openNewContactForProperty(EntityType.Owner, contactId =>
+        this.form.patchValue({ [ownerField]: contactId }, { emitEvent: false })
+      )
+    );
   }
 
   openNewVendorDialog(): void {
-    const openContact = () => this.openNewVendorContactDialog();
-    if (!this.isPropertyCodeMissingForAdd()) {
-      openContact();
-      return;
-    }
-    this.openPropertyCodeDialog().pipe(take(1)).subscribe(code => {
-      if (code == null) {
-        return;
-      }
-      this.applyTitleBarPropertyCode(code);
-      openContact();
-    });
-  }
-
-  openNewVendorContactDialog(): void {
-    const dialogRef = this.dialog.open(ContactComponent, {
-      width: '1200px',
-      maxWidth: '95vw',
-      disableClose: true,
-      data: {
-        ...this.buildNewContactDialogData(EntityType.Vendor),
-        showDialogCancelButton: true
-      }
-    });
-
-    dialogRef.componentInstance.id = 'new';
-    dialogRef.componentInstance.copyFrom = null;
-    dialogRef.componentInstance.closed
-      .pipe(take(1))
-      .subscribe((result: { saved?: boolean; contactId?: string; entityTypeId?: number }) => dialogRef.close(result));
-
-    dialogRef.afterClosed().pipe(take(1)).subscribe((result?: { saved?: boolean; contactId?: string; entityTypeId?: number }) => {
-      if (!result?.saved || !result.contactId) {
-        return;
-      }
-
-      this.contactService.refreshContacts().pipe(take(1)).subscribe({
-        next: (contacts) => {
-          this.contacts = (contacts || []).filter(c => c.entityTypeId === EntityType.Owner);
-          this.form.patchValue({ vendorId: result.contactId }, { emitEvent: false });
-        },
-        error: () => {}
-      });
-    });
+    this.withPropertyCodeForNewContact(() =>
+      this.openNewContactForProperty(EntityType.Vendor, contactId =>
+        this.form.patchValue({ vendorId: contactId }, { emitEvent: false })
+      )
+    );
   }
 
   openEditOwnerDialog(contactId: string): void {
-    if (!contactId || contactId === this.newOwnerOptionValue) return;
+    if (!contactId || this.newContactDialogService.isNewContactOptionValue(contactId, EntityType.Owner)) return;
 
     this.contactService.getContactByGuid(contactId).pipe(take(1)).subscribe({
       next: (contact) => {
-        const dialogRef = this.dialog.open(ContactComponent, {
-          width: '1200px',
-          maxWidth: '95vw',
-          disableClose: true,
-          data: {
-            preloadedContact: contact,
-            entityTypeId: EntityType.Owner,
-            compactDialogMode: true,
-            showDialogCancelButton: true
-          }
-        });
-
-        dialogRef.componentInstance.closed
-          .pipe(take(1))
-          .subscribe((result: { saved?: boolean; contactId?: string; entityTypeId?: number }) => dialogRef.close(result));
-
-        dialogRef.afterClosed().pipe(take(1)).subscribe(() => {
-          this.contactService.refreshContacts().pipe(take(1)).subscribe({
-            next: (contacts) => {
-              this.contacts = (contacts || []).filter(c => c.entityTypeId === EntityType.Owner);
-            },
-            error: () => {}
-          });
-        });
+        this.newContactDialogService.openEditContactDialog({
+          contact,
+          entityTypeId: EntityType.Owner
+        }).pipe(take(1)).subscribe();
       },
       error: () => {
         this.toastr.error('Failed to load contact.');
@@ -1303,14 +1223,14 @@ export class PropertyComponent implements OnInit, OnChanges, AfterViewInit, OnDe
     event.preventDefault();
     event.stopPropagation();
     const value = this.form?.get(ownerField)?.value;
-    if (value && value !== this.newOwnerOptionValue) {
+    if (value && !this.newContactDialogService.isNewContactOptionValue(value, EntityType.Owner)) {
       this.openEditOwnerDialog(value);
     }
   }
 
   hasOwnerSelected(ownerField: 'owner1Id' | 'owner2Id' | 'owner3Id'): boolean {
     const value = this.form?.get(ownerField)?.value;
-    return !!value && value !== this.newOwnerOptionValue;
+    return !!value && !this.newContactDialogService.isNewContactOptionValue(value, EntityType.Owner);
   }
   //#endregion
 
@@ -1466,14 +1386,14 @@ export class PropertyComponent implements OnInit, OnChanges, AfterViewInit, OnDe
 
   get ownerOptions(): SearchableSelectOption[] {
     return [
-      { value: this.newOwnerOptionValue, label: 'New Owner' },
+      this.newContactDialogService.buildSearchableSelectOption(EntityType.Owner),
       ...this.ownerContacts.map(contact => ({ value: contact.contactId, label: contact.fullName ?? '' }))
     ];
   }
 
   get vendorOptions(): SearchableSelectOption[] {
     return [
-      { value: this.newVendorOptionValue, label: 'New Vendor' },
+      this.newContactDialogService.buildSearchableSelectOption(EntityType.Vendor),
       ...this.vendorContactsForOffice.map(contact => ({
         value: contact.contactId,
         label: this.utilityService.getVendorDropdownLabel(contact)
@@ -1549,7 +1469,7 @@ export class PropertyComponent implements OnInit, OnChanges, AfterViewInit, OnDe
     const ownerFields: ('owner1Id' | 'owner2Id' | 'owner3Id')[] = ['owner1Id', 'owner2Id', 'owner3Id'];
     ownerFields.forEach(ownerField => {
       this.form.get(ownerField)?.valueChanges.pipe(takeUntil(this.destroy$)).subscribe(value => {
-        if (value === this.newOwnerOptionValue) {
+        if (this.newContactDialogService.isNewContactOptionValue(value, EntityType.Owner)) {
           const emptyValue = ownerField === 'owner1Id' ? '' : null;
           this.form.patchValue({ [ownerField]: emptyValue }, { emitEvent: false });
           this.openNewOwnerDialog(ownerField);
@@ -1560,7 +1480,7 @@ export class PropertyComponent implements OnInit, OnChanges, AfterViewInit, OnDe
 
   setupVendorSelectionHandlers(): void {
     this.form.get('vendorId')?.valueChanges.pipe(takeUntil(this.destroy$)).subscribe(value => {
-      if (value === this.newVendorOptionValue) {
+      if (this.newContactDialogService.isNewContactOptionValue(value, EntityType.Vendor)) {
         this.form.patchValue({ vendorId: null }, { emitEvent: false });
         this.openNewVendorDialog();
       }
@@ -1679,8 +1599,10 @@ export class PropertyComponent implements OnInit, OnChanges, AfterViewInit, OnDe
   //#region Data Loading Methods
   loadContacts(): void {
     this.contactService.ensureContactsLoaded().pipe(take(1), finalize(() => { this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'contacts'); })).subscribe({
-      next: (contacts) => {
-        this.contacts = (contacts || []).filter(c => c.entityTypeId === EntityType.Owner);
+      next: () => {
+        this.contactService.getAllContacts().pipe(takeUntil(this.destroy$)).subscribe(contacts => {
+          this.contacts = (contacts || []).filter(c => c.entityTypeId === EntityType.Owner);
+        });
       },
       error: () => {
         this.contacts = [];

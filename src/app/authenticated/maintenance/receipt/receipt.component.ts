@@ -2,7 +2,6 @@ import { CommonModule } from '@angular/common';
 import { HttpErrorResponse } from '@angular/common/http';
 import { ChangeDetectorRef, Component, EventEmitter, Input, OnChanges, OnDestroy, OnInit, Output, SimpleChanges } from '@angular/core';
 import { FormArray, FormBuilder, FormControl, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
-import { MatDialog } from '@angular/material/dialog';
 import { ToastrService } from 'ngx-toastr';
 import { BehaviorSubject, Subject, finalize, take, takeUntil } from 'rxjs';
 import { FileDetails } from '../../documents/models/document.model';
@@ -15,8 +14,8 @@ import { getReceiptTypes, ReceiptType } from '../models/maintenance-enums';
 import { EntityType } from '../../contacts/models/contact-enum';
 import { ContactResponse } from '../../contacts/models/contact.model';
 import { ContactService } from '../../contacts/services/contact.service';
-import { ContactComponent } from '../../contacts/contact/contact.component';
 import { PropertyCodeResponse, PropertyResponse } from '../../properties/models/property.model';
+import { NewContactDialogService } from '../../shared/contacts/new-contact-dialog.service';
 import { PropertyService } from '../../properties/services/property.service';
 import { ReceiptRequest, ReceiptResponse, Split } from '../models/receipt.model';
 import { ReceiptService } from '../services/receipt.service';
@@ -37,7 +36,6 @@ import { SearchableSelectComponent, SearchableSelectOption } from '../../shared/
   styleUrl: './receipt.component.scss'
 })
 export class ReceiptComponent implements OnInit, OnChanges, OnDestroy {
-  readonly newVendorOptionValue = '__new_vendor__';
   @Input() officeId: number | null = null;
   @Input() property: PropertyResponse | null = null;
   @Input() receiptId: number | null = null;
@@ -81,12 +79,13 @@ export class ReceiptComponent implements OnInit, OnChanges, OnDestroy {
 
   itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['receipt']));
   destroy$ = new Subject<void>();
+  private contactCache: ContactResponse[] = [];
 
   constructor(
     fb: FormBuilder,
     authService: AuthService,
     receiptService: ReceiptService,
-    private dialog: MatDialog,
+    private newContactDialogService: NewContactDialogService,
     private propertyService: PropertyService,
     private officeService: OfficeService,
     private accountingOfficeService: AccountingOfficeService,
@@ -441,10 +440,12 @@ export class ReceiptComponent implements OnInit, OnChanges, OnDestroy {
 
   loadAccountingOffices(): void {
     this.accountingOfficeService.ensureAccountingOfficesLoaded().pipe(take(1)).subscribe({
-      next: list => {
-        this.accountingOffices = list || [];
-        this.refreshBankCardsForCurrentOffice();
-        this.cdr.markForCheck();
+      next: () => {
+        this.accountingOfficeService.getAllAccountingOffices().pipe(takeUntil(this.destroy$)).subscribe(accountingOffices => {
+          this.accountingOffices = accountingOffices || [];
+          this.refreshBankCardsForCurrentOffice();
+          this.cdr.markForCheck();
+        });
       },
       error: () => {
         this.accountingOffices = [];
@@ -455,22 +456,32 @@ export class ReceiptComponent implements OnInit, OnChanges, OnDestroy {
 
   loadVendors(): void {
     this.contactService.ensureContactsLoaded().pipe(take(1)).subscribe({
-      next: contacts => {
-        if (this.isAllOfficesShellScope()) {
-          this.loadVendorsForAllOffices(contacts || []);
-        } else {
-          const officeId = this.getReceiptOfficeId();
-          if (officeId) {
-            this.loadVendorsForOffice(officeId, contacts || []);
-          }
-        }
-        this.cdr.markForCheck();
+      next: () => {
+        this.contactService.getAllContacts().pipe(takeUntil(this.destroy$)).subscribe(contacts => {
+          this.contactCache = contacts || [];
+          this.applyVendorsFromContactCache();
+        });
       },
       error: () => {
-        this.vendorOptions = [{ value: this.newVendorOptionValue, label: 'New Vendor' }];
+        this.vendorOptions = [this.newContactDialogService.buildSearchableSelectOption(EntityType.Vendor)];
         this.cdr.markForCheck();
       }
     });
+  }
+
+  private applyVendorsFromContactCache(): void {
+    const contacts = this.contactCache;
+    if (this.isAllOfficesShellScope()) {
+      this.loadVendorsForAllOffices(contacts);
+    } else {
+      const officeId = this.getReceiptOfficeId();
+      if (officeId) {
+        this.loadVendorsForOffice(officeId, contacts);
+      } else {
+        this.vendorOptions = [this.newContactDialogService.buildSearchableSelectOption(EntityType.Vendor)];
+      }
+    }
+    this.cdr.markForCheck();
   }
 
   refreshBankCardsForCurrentOffice(): void {
@@ -487,27 +498,16 @@ export class ReceiptComponent implements OnInit, OnChanges, OnDestroy {
   loadBankCardsAndVendors(): void {
     if (this.isAllOfficesShellScope()) {
       this.loadBankCardsForAllOffices();
-      this.contactService.ensureContactsLoaded().pipe(take(1)).subscribe({
-        next: (contacts) => this.loadVendorsForAllOffices(contacts),
-        error: () => {
-          this.vendorOptions = [{ value: this.newVendorOptionValue, label: 'New Vendor' }];
-        }
-      });
     } else {
       const officeId = this.getReceiptOfficeId();
       if (officeId) {
         this.loadBankCardsForOffice(officeId);
-        this.contactService.ensureContactsLoaded().pipe(take(1)).subscribe({
-          next: (contacts) => this.loadVendorsForOffice(officeId, contacts),
-          error: () => {
-            this.vendorOptions = [{ value: this.newVendorOptionValue, label: 'New Vendor' }];
-          }
-        });
       } else {
         this.bankCardOptions = [];
-        this.vendorOptions = [{ value: this.newVendorOptionValue, label: 'New Vendor' }];
+        this.vendorOptions = [this.newContactDialogService.buildSearchableSelectOption(EntityType.Vendor)];
       }
     }
+    this.applyVendorsFromContactCache();
     this.applyPropertyInputToForm();
   }
 
@@ -518,40 +518,24 @@ export class ReceiptComponent implements OnInit, OnChanges, OnDestroy {
       return;
     }
 
-    const applyBankCards = (accountingOffice: AccountingOfficeResponse | null) => {
-      const bankCards = this.mappingService.mapBankCardsFromResponse(accountingOffice?.bankCards);
-      this.bankCardOptions = bankCards
-        .filter(card => Number(card.bankCardId) > 0)
-        .map(card => ({
-          value: Number(card.bankCardId),
-          label: this.toBankCardOptionLabel(card)
-        }));
-    };
-
-    if (this.accountingOffices.length > 0) {
-      applyBankCards(this.accountingOffices.find(office => Number(office.officeId) === parsedOfficeId) ?? null);
-      return;
-    }
-
-    this.accountingOfficeService.ensureAccountingOfficesLoaded().pipe(take(1)).subscribe({
-      next: (accountingOffices) => {
-        this.accountingOffices = accountingOffices || [];
-        applyBankCards(this.accountingOffices.find(office => Number(office.officeId) === parsedOfficeId) ?? null);
-      },
-      error: () => {
-        this.bankCardOptions = [];
-      }
-    });
+    const accountingOffice = this.accountingOffices.find(office => Number(office.officeId) === parsedOfficeId) ?? null;
+    const bankCards = this.mappingService.mapBankCardsFromResponse(accountingOffice?.bankCards);
+    this.bankCardOptions = bankCards
+      .filter(card => Number(card.bankCardId) > 0)
+      .map(card => ({
+        value: Number(card.bankCardId),
+        label: this.toBankCardOptionLabel(card)
+      }));
   }
 
   loadVendorsForOffice(officeId: number | null | undefined, contacts?: ContactResponse[]): void {
     const parsedOfficeId = Number(officeId);
-    const sourceContacts = contacts ?? this.contactService.getAllContactsValue();
+    const sourceContacts = contacts ?? this.contactCache;
     const vendorContacts = Number.isFinite(parsedOfficeId) && parsedOfficeId > 0
       ? sourceContacts.filter(contact => contact.entityTypeId === EntityType.Vendor && Number(contact.officeId) === parsedOfficeId)
       : [];
     this.vendorOptions = [
-      { value: this.newVendorOptionValue, label: 'New Vendor' },
+      this.newContactDialogService.buildSearchableSelectOption(EntityType.Vendor),
       ...vendorContacts.map(contact => ({
         value: String(contact.contactId || ''),
         label: this.utilityService.getVendorDropdownLabel(contact)
@@ -560,45 +544,28 @@ export class ReceiptComponent implements OnInit, OnChanges, OnDestroy {
   }
 
   loadBankCardsForAllOffices(): void {
-    const applyBankCards = () => {
-      const byId = new Map<number, SearchableSelectOption<number>>();
-      (this.accountingOffices || []).forEach(office => {
-        const bankCards = this.mappingService.mapBankCardsFromResponse(office.bankCards);
-        bankCards
-          .filter(card => Number(card.bankCardId) > 0)
-          .forEach(card => {
-            const bankCardId = Number(card.bankCardId);
-            if (!byId.has(bankCardId)) {
-              byId.set(bankCardId, {
-                value: bankCardId,
-                label: this.toBankCardOptionLabel(card)
-              });
-            }
-          });
-      });
-      this.bankCardOptions = Array.from(byId.values()).sort((a, b) =>
-        String(a.label).localeCompare(String(b.label), undefined, { sensitivity: 'base' })
-      );
-    };
-
-    if (this.accountingOffices.length > 0) {
-      applyBankCards();
-      return;
-    }
-
-    this.accountingOfficeService.ensureAccountingOfficesLoaded().pipe(take(1)).subscribe({
-      next: (accountingOffices) => {
-        this.accountingOffices = accountingOffices || [];
-        applyBankCards();
-      },
-      error: () => {
-        this.bankCardOptions = [];
-      }
+    const byId = new Map<number, SearchableSelectOption<number>>();
+    (this.accountingOffices || []).forEach(office => {
+      const bankCards = this.mappingService.mapBankCardsFromResponse(office.bankCards);
+      bankCards
+        .filter(card => Number(card.bankCardId) > 0)
+        .forEach(card => {
+          const bankCardId = Number(card.bankCardId);
+          if (!byId.has(bankCardId)) {
+            byId.set(bankCardId, {
+              value: bankCardId,
+              label: this.toBankCardOptionLabel(card)
+            });
+          }
+        });
     });
+    this.bankCardOptions = Array.from(byId.values()).sort((a, b) =>
+      String(a.label).localeCompare(String(b.label), undefined, { sensitivity: 'base' })
+    );
   }
 
   loadVendorsForAllOffices(contacts?: ContactResponse[]): void {
-    const sourceContacts = contacts ?? this.contactService.getAllContactsValue();
+    const sourceContacts = contacts ?? this.contactCache;
     const byId = new Map<string, { value: string; label: string }>();
     (sourceContacts || [])
       .filter(contact => contact.entityTypeId === EntityType.Vendor)
@@ -613,7 +580,7 @@ export class ReceiptComponent implements OnInit, OnChanges, OnDestroy {
         });
       });
     this.vendorOptions = [
-      { value: this.newVendorOptionValue, label: 'New Vendor' },
+      this.newContactDialogService.buildSearchableSelectOption(EntityType.Vendor),
       ...Array.from(byId.values()).sort((a, b) => a.label.localeCompare(b.label, undefined, { sensitivity: 'base' }))
     ];
   }
@@ -1189,7 +1156,7 @@ export class ReceiptComponent implements OnInit, OnChanges, OnDestroy {
       this.form.patchValue({ vendorId: null, vendorName: null }, { emitEvent: false });
       return;
     }
-    if (selectedValue === this.newVendorOptionValue) {
+    if (this.newContactDialogService.isNewContactOptionValue(selectedValue, EntityType.Vendor)) {
       this.form.patchValue({ vendorId: null, vendorName: null }, { emitEvent: false });
       this.openNewVendorContactDialog();
       return;
@@ -1202,46 +1169,17 @@ export class ReceiptComponent implements OnInit, OnChanges, OnDestroy {
 
   openNewVendorContactDialog(): void {
     const selectedOfficeId = this.getReceiptOfficeId();
-    const dialogRef = this.dialog.open(ContactComponent, {
-      width: '1200px',
-      maxWidth: '95vw',
-      disableClose: true,
-      data: {
-        compactDialogMode: true,
-        entityTypeId: EntityType.Vendor,
-        showDialogCancelButton: true,
-        ...(selectedOfficeId ? { preselectPropertyOfficeId: selectedOfficeId } : {})
-      }
-    });
-
-    dialogRef.componentInstance.id = 'new';
-    dialogRef.componentInstance.copyFrom = null;
-    dialogRef.componentInstance.closed
-      .pipe(take(1))
-      .subscribe((result: { saved?: boolean; contactId?: string; entityTypeId?: number }) => dialogRef.close(result));
-
-    dialogRef.afterClosed().pipe(take(1)).subscribe((result?: { saved?: boolean; contactId?: string; entityTypeId?: number }) => {
+    this.newContactDialogService.openNewContactDialog({
+      entityTypeId: EntityType.Vendor,
+      preselectPropertyOfficeId: selectedOfficeId
+    }).pipe(take(1)).subscribe((result?: { saved?: boolean; contactId?: string; entityTypeId?: number }) => {
       if (!result?.saved || !result.contactId) {
         return;
       }
-      this.contactService.refreshContacts().pipe(take(1)).subscribe({
-        next: (contacts: ContactResponse[]) => {
-          if (this.isAllOfficesShellScope()) {
-            this.loadVendorsForAllOffices(contacts);
-          } else {
-            this.loadVendorsForOffice(selectedOfficeId, contacts);
-          }
-          const vendor = (contacts || []).find(contact => String(contact.contactId || '').trim() === String(result.contactId || '').trim());
-          if (!vendor) {
-            return;
-          }
-          this.form.patchValue({
-            vendorId: result.contactId,
-            vendorName: null
-          }, { emitEvent: false });
-        },
-        error: () => {}
-      });
+      this.form.patchValue({
+        vendorId: result.contactId,
+        vendorName: null
+      }, { emitEvent: false });
     });
   }
   //#endregion 

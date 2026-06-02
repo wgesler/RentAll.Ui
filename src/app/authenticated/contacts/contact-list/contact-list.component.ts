@@ -2,10 +2,9 @@ import { CommonModule } from "@angular/common";
 import { Clipboard } from "@angular/cdk/clipboard";
 import { ChangeDetectionStrategy, ChangeDetectorRef, Component, EventEmitter, Input, OnChanges, OnDestroy, OnInit, Output, SimpleChanges } from '@angular/core';
 import { FormsModule } from '@angular/forms';
-import { NavigationEnd, Router } from '@angular/router';
+import { Router } from '@angular/router';
 import { ToastrService } from 'ngx-toastr';
-import {BehaviorSubject, Subject, filter, finalize, switchMap, take, takeUntil} from 'rxjs';
-import { RouterUrl } from '../../../app.routes';
+import {BehaviorSubject, Subject, finalize, switchMap, take, takeUntil} from 'rxjs';
 import { CommonMessage } from '../../../enums/common-message.enum';
 import { MaterialModule } from '../../../material.module';
 import { AuthService } from '../../../services/auth.service';
@@ -116,20 +115,6 @@ export class ContactListComponent implements OnInit, OnDestroy, OnChanges {
       this.markViewForCheck();
     });
 
-    this.router.events.pipe(
-        filter(event => event instanceof NavigationEnd),
-        filter(() => (this.router.url.includes(RouterUrl.Contacts) || this.router.url.includes(RouterUrl.ContactList)) && !this.router.url.includes('/contact/')),
-        takeUntil(this.destroy$)
-      )
-      .subscribe(() => {
-        if (this.hasInitialLoad) {
-          this.contactService.refreshContacts().pipe(take(1)).subscribe(contacts => {
-            this.allContacts = this.mappingService.mapContacts(contacts || []);
-            this.applyFilters();
-            this.markViewForCheck();
-          });
-        }
-      });
   }
   
   ngOnChanges(changes: SimpleChanges): void {
@@ -170,16 +155,6 @@ export class ContactListComponent implements OnInit, OnDestroy, OnChanges {
     this.contactService.deleteContact(contact.contactId).pipe(take(1)).subscribe({
       next: () => {
         this.toastr.success('Contact deleted successfully', CommonMessage.Success);
-        this.contactService.refreshContacts().pipe(take(1)).subscribe({
-          next: contacts => {
-            this.allContacts = this.mappingService.mapContacts(contacts || []);
-            this.applyFilters();
-            this.markViewForCheck();
-          },
-          error: () => {
-            this.markViewForCheck();
-          }
-        });
       },
       error: () => {}
     });
@@ -398,11 +373,10 @@ export class ContactListComponent implements OnInit, OnDestroy, OnChanges {
   //#region Data Loading Methods
   loadContacts(): void {
     this.contactService.ensureContactsLoaded().pipe(take(1), finalize(() => { this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'contacts'); })).subscribe({
-      next: (contacts) => {
-        this.allContacts = this.mappingService.mapContacts(contacts || []);
-        this.applyFilters();
-        this.hasInitialLoad = true;
-        this.markViewForCheck();
+      next: () => {
+        this.contactService.getAllContacts().pipe(takeUntil(this.destroy$)).subscribe(contacts => {
+          this.syncContactsFromCache(contacts || []);
+        });
       },
       error: () => {
         this.allContacts = [];
@@ -410,6 +384,13 @@ export class ContactListComponent implements OnInit, OnDestroy, OnChanges {
         this.markViewForCheck();
       }
     });
+  }
+
+  private syncContactsFromCache(contacts: ContactResponse[]): void {
+    this.allContacts = this.mappingService.mapContacts(contacts);
+    this.applyFilters();
+    this.hasInitialLoad = true;
+    this.markViewForCheck();
   }
 
   loadOffices(): void {

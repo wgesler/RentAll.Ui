@@ -463,19 +463,11 @@ export class ContactComponent implements OnInit, OnChanges, OnDestroy {
         const savedContactId = savedContact?.contactId || contactRequest.contactId;
         const savedEntityTypeId = savedContact?.entityTypeId ?? contactRequest.entityTypeId;
         const finalizeContactSave = (): void => {
-          this.contactService.refreshContacts().pipe(take(1)).subscribe({
-            next: () => {
-              if (this.isEmbedded) {
-                this.closed.emit({ saved: true, contactId: savedContactId, entityTypeId: savedEntityTypeId });
-              } else {
-                this.navigateBackToOrigin();
-              }
-            },
-            error: () => {
-              if (this.isEmbedded) this.closed.emit({ saved: true, contactId: savedContactId, entityTypeId: savedEntityTypeId });
-              else this.navigateBackToOrigin();
-            }
-          });
+          if (this.isEmbedded) {
+            this.closed.emit({ saved: true, contactId: savedContactId, entityTypeId: savedEntityTypeId });
+          } else {
+            this.navigateBackToOrigin();
+          }
         };
         const finishSave = (): void => {
           finalizeContactSave();

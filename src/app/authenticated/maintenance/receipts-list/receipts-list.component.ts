@@ -19,6 +19,7 @@ import { BankCardResponse } from '../../organizations/models/bank.model';
 import { EntityType } from '../../contacts/models/contact-enum';
 import { ContactResponse } from '../../contacts/models/contact.model';
 import { ContactService } from '../../contacts/services/contact.service';
+import { NewContactDialogService } from '../../shared/contacts/new-contact-dialog.service';
 import { DataTableComponent } from '../../shared/data-table/data-table.component';
 import { DataTableFilterActionsDirective } from '../../shared/data-table/data-table-filter-actions.directive';
 import { ColumnSet } from '../../shared/data-table/models/column-data';
@@ -91,6 +92,7 @@ export class ReceiptsListComponent implements OnInit, OnChanges, OnDestroy {
     private accountingOfficeService: AccountingOfficeService,
     private officeService: OfficeService,
     private contactService: ContactService,
+    private newContactDialogService: NewContactDialogService,
     private workOrderService: WorkOrderService,
     private authService: AuthService,
     private utilityService: UtilityService,
@@ -444,7 +446,16 @@ export class ReceiptsListComponent implements OnInit, OnChanges, OnDestroy {
     if (!selectedVendorLabel) {
       return;
     }
+    if (this.newContactDialogService.isNewContactLabel(selectedVendorLabel, EntityType.Vendor)) {
+      this.applyVendorCellsToDisplays();
+      this.markViewForCheck();
+      this.openNewVendorForReceiptRow(event);
+      return;
+    }
     const selectedVendorId = this.resolveVendorIdFromLabel(event.officeId, selectedVendorLabel);
+    if (this.newContactDialogService.isNewContactOptionValue(selectedVendorId, EntityType.Vendor)) {
+      return;
+    }
     if (!selectedVendorId) {
       return;
     }
@@ -825,9 +836,11 @@ export class ReceiptsListComponent implements OnInit, OnChanges, OnDestroy {
 
   loadAccountingOffices(): void {
     this.accountingOfficeService.ensureAccountingOfficesLoaded().pipe(take(1)).subscribe({
-      next: accountingOffices => {
-        this.accountingOffices = accountingOffices || [];
-        this.applyBankCardOptionsFromAccountingOffices();
+      next: () => {
+        this.accountingOfficeService.getAllAccountingOffices().pipe(takeUntil(this.destroy$)).subscribe(accountingOffices => {
+          this.accountingOffices = accountingOffices || [];
+          this.applyBankCardOptionsFromAccountingOffices();
+        });
       },
       error: () => {
         this.accountingOffices = [];
@@ -839,8 +852,10 @@ export class ReceiptsListComponent implements OnInit, OnChanges, OnDestroy {
 
   loadVendors(): void {
     this.contactService.ensureContactsLoaded().pipe(take(1)).subscribe({
-      next: contacts => {
-        this.applyVendorOptionsFromContacts(contacts || []);
+      next: () => {
+        this.contactService.getAllContacts().pipe(takeUntil(this.destroy$)).subscribe(contacts => {
+          this.applyVendorOptionsFromContacts(contacts || []);
+        });
       },
       error: () => {
         this.vendorOptionsByOfficeId = new Map();
@@ -961,11 +976,61 @@ export class ReceiptsListComponent implements OnInit, OnChanges, OnDestroy {
   }
 
   getVendorOptionsForReceiptScope(receiptOfficeId: number): Array<{ contactId: string; label: string }> {
-    if (this.isAllOfficesScope()) {
-      return this.getAllOfficesVendorOptions();
-    }
-    const officeId = Number(receiptOfficeId ?? 0);
-    return this.vendorOptionsByOfficeId.get(officeId) || [];
+    const baseOptions = this.isAllOfficesScope()
+      ? this.getAllOfficesVendorOptions()
+      : (this.vendorOptionsByOfficeId.get(Number(receiptOfficeId ?? 0)) || []);
+    return this.newContactDialogService.prependNewContactListOption(EntityType.Vendor, baseOptions);
+  }
+
+  openNewVendorForReceiptRow(event: ReceiptDisplayList): void {
+    const receiptOfficeId = Number(event.officeId ?? 0);
+    this.newContactDialogService
+      .openNewContactDialog({
+        entityTypeId: EntityType.Vendor,
+        preselectPropertyOfficeId: Number.isFinite(receiptOfficeId) && receiptOfficeId > 0 ? receiptOfficeId : null
+      })
+      .pipe(take(1))
+      .subscribe(result => {
+        if (!result?.saved || !result.contactId) {
+          return;
+        }
+        this.receiptService
+          .getReceiptById(event.receiptId)
+          .pipe(
+            take(1),
+            switchMap(receipt => {
+              const isBill = Number(receipt.bankCardId ?? 0) === 0;
+              if (!isBill) {
+                this.syncReceiptRowFromServer(receipt);
+                return EMPTY;
+              }
+              return this.receiptService.updateReceipt(
+                this.buildReceiptVendorDropdownUpdateRequest(receipt, result.contactId!)
+              );
+            })
+          )
+          .subscribe({
+            next: saved => {
+              this.receipts = this.receipts.map(r => (r.receiptId === saved.receiptId ? saved : r));
+              this.allReceipts = this.mappingService.mapReceiptDisplays(this.receipts);
+              this.applyBankCardDropdownsToDisplays();
+              this.applyVendorCellsToDisplays();
+              this.applyPropertyCodesToDisplays();
+              this.applyFilters();
+              this.toastr.success('Receipt updated.', CommonMessage.Success);
+              this.markViewForCheck();
+            },
+            error: () => {
+              this.allReceipts = this.mappingService.mapReceiptDisplays(this.receipts);
+              this.applyBankCardDropdownsToDisplays();
+              this.applyVendorCellsToDisplays();
+              this.applyPropertyCodesToDisplays();
+              this.applyFilters();
+              this.toastr.error('Unable to update receipt.', CommonMessage.Error);
+              this.markViewForCheck();
+            }
+          });
+      });
   }
 
   applyBankCardDropdownsToDisplays(): void {

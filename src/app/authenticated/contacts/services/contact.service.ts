@@ -1,6 +1,6 @@
 import { HttpClient, HttpErrorResponse } from '@angular/common/http';
 import { Injectable } from '@angular/core';
-import { BehaviorSubject, Observable, catchError, map, of, switchMap, take, tap } from 'rxjs';
+import { BehaviorSubject, Observable, catchError, map, of, switchMap, take, tap, throwError } from 'rxjs';
 import { ConfigService } from '../../../services/config.service';
 import { MappingService } from '../../../services/mapping.service';
 import { LeadOwnerUpdateRequest } from '../../leads/models/lead-owner.model';
@@ -46,8 +46,26 @@ export class ContactService {
   }
 
   refreshContacts(): Observable<ContactResponse[]> {
-    this.contactsLoaded$.next(false);
     return this.loadAllContacts().pipe(take(1), switchMap(() => this.getAllContacts().pipe(take(1))));
+  }
+
+  /** Reload the global contact cache and push to all getAllContacts() subscribers. */
+  notifyContactsChanged(): void {
+    this.refreshContacts().pipe(take(1)).subscribe({ error: () => {} });
+  }
+
+  refreshCacheAfterMutation<T>(source: Observable<T>): Observable<T> {
+    return source.pipe(
+      switchMap(result =>
+        this.loadAllContacts().pipe(
+          map(() => result),
+          catchError((err: HttpErrorResponse) => {
+            console.error('Contact Service - Error refreshing contacts after mutation:', err);
+            return throwError(() => err);
+          })
+        )
+      )
+    );
   }
 
   clearContacts(): void {
@@ -82,25 +100,31 @@ export class ContactService {
   }
 
   createContact(contact: ContactRequest): Observable<ContactResponse> {
-    return this.http.post<ContactResponse>(this.controller, contact).pipe(
-      map(dto => this.mappingService.mapContactResponse(dto as unknown as Record<string, unknown>))
+    return this.refreshCacheAfterMutation(
+      this.http.post<ContactResponse>(this.controller, contact).pipe(
+        map(dto => this.mappingService.mapContactResponse(dto as unknown as Record<string, unknown>))
+      )
     );
   }
 
   updateContact(contact: ContactRequest): Observable<ContactResponse> {
-    return this.http.put<ContactResponse>(this.controller, contact).pipe(
-      map(dto => this.mappingService.mapContactResponse(dto as unknown as Record<string, unknown>))
+    return this.refreshCacheAfterMutation(
+      this.http.put<ContactResponse>(this.controller, contact).pipe(
+        map(dto => this.mappingService.mapContactResponse(dto as unknown as Record<string, unknown>))
+      )
     );
   }
 
   matchContactToLead(ownerLead: LeadOwnerUpdateRequest): Observable<ContactResponse> {
-    return this.http.put<ContactResponse>(this.controller + 'by-lead', ownerLead).pipe(
-      map(dto => this.mappingService.mapContactResponse(dto as unknown as Record<string, unknown>))
+    return this.refreshCacheAfterMutation(
+      this.http.put<ContactResponse>(this.controller + 'by-lead', ownerLead).pipe(
+        map(dto => this.mappingService.mapContactResponse(dto as unknown as Record<string, unknown>))
+      )
     );
   }
 
   deleteContact(contactId: string): Observable<void> {
-    return this.http.delete<void>(this.controller + contactId);
+    return this.refreshCacheAfterMutation(this.http.delete<void>(this.controller + contactId));
   }
 }
 

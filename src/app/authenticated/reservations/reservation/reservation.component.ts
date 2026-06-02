@@ -20,8 +20,8 @@ import { TransactionType } from '../../accounting/models/accounting-enum';
 import { CostCodesResponse } from '../../accounting/models/cost-codes.model';
 import { CostCodesService } from '../../accounting/services/cost-codes.service';
 import { EntityType } from '../../contacts/models/contact-enum';
-import { ContactComponent } from '../../contacts/contact/contact.component';
 import { ContactResponse } from '../../contacts/models/contact.model';
+import { NewContactDialogService } from '../../shared/contacts/new-contact-dialog.service';
 import { ContactService } from '../../contacts/services/contact.service';
 import { DocumentListComponent } from '../../documents/document-list/document-list.component';
 import { DocumentType } from '../../documents/models/document.enum';
@@ -130,7 +130,6 @@ export class ReservationComponent implements OnInit, OnDestroy, CanComponentDeac
   itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['agents', 'properties', 'contacts', 'cleaners']));
   isLoading$: Observable<boolean> = this.itemsToLoad$.pipe(map(items => items.size > 0));
   destroy$ = new Subject<void>();
-  readonly newContactOptionValue = '__new_contact__';
   readonly noneAgentOptionValue = '__none_agent__';
   readonly noneAssignedMaidOptionValue = '__none_assigned_maid__';
   savedFormState: Record<string, unknown> | null = null;
@@ -158,6 +157,7 @@ export class ReservationComponent implements OnInit, OnDestroy, CanComponentDeac
     private authService: AuthService,
     public formatterService: FormatterService,
     private dialog: MatDialog,
+    private newContactDialogService: NewContactDialogService,
     private leaseReloadService: LeaseReloadService,
     private mappingService: MappingService,
     private utilityService: UtilityService,
@@ -908,12 +908,14 @@ export class ReservationComponent implements OnInit, OnDestroy, CanComponentDeac
   //#region Data Load Methods
   loadContacts(): void {
     this.contactService.ensureContactsLoaded().pipe(take(1), finalize(() => { this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'contacts'); })).subscribe({
-      next: (contacts) => {
-        this.contacts = contacts || [];
-        this.companyContacts = this.contacts.filter(c => c.entityTypeId === EntityType.Company);
-        if (this.additionalContactRows.length > 0) {
-          this.buildAdditionalContactRows(this.getSelectedContactIdsFromForm());
-        }
+      next: () => {
+        this.contactService.getAllContacts().pipe(takeUntil(this.destroy$)).subscribe(contacts => {
+          this.contacts = contacts || [];
+          this.companyContacts = this.contacts.filter(c => c.entityTypeId === EntityType.Company);
+          if (this.additionalContactRows.length > 0) {
+            this.buildAdditionalContactRows(this.getSelectedContactIdsFromForm());
+          }
+        });
       },
       error: () => {
         this.contacts = [];
@@ -1234,7 +1236,7 @@ export class ReservationComponent implements OnInit, OnDestroy, CanComponentDeac
 
   setupContactSelectionHandler(): void {
     this.form.get('contactId')?.valueChanges.pipe(takeUntil(this.destroy$)).subscribe(contactId => {
-      if (contactId === this.newContactOptionValue) {
+      if (this.newContactDialogService.isNewContactOptionValue(contactId)) {
         this.form.patchValue({ contactId: '' }, { emitEvent: false });
         this.openNewContactDialog();
         return;
@@ -1421,9 +1423,31 @@ export class ReservationComponent implements OnInit, OnDestroy, CanComponentDeac
     }
   }
 
+  getNewContactEntityTypeIdForReservation(): number | null {
+    const reservationTypeId = this.form?.get('reservationTypeId')?.value as number | null;
+    if (reservationTypeId === ReservationType.Individual || reservationTypeId === ReservationType.Platform) {
+      return EntityType.Tenant;
+    }
+    if (reservationTypeId === ReservationType.Corporate) {
+      return EntityType.Company;
+    }
+    if (reservationTypeId === ReservationType.Owner) {
+      return EntityType.Owner;
+    }
+    return null;
+  }
+
+  getNewContactDropdownOption(): SearchableSelectOption<string> {
+    const entityTypeId = this.getNewContactEntityTypeIdForReservation();
+    if (entityTypeId == null) {
+      return { value: this.newContactDialogService.getNewContactOptionValue(EntityType.Tenant), label: 'New Contact' };
+    }
+    return this.newContactDialogService.buildSearchableSelectOption(entityTypeId);
+  }
+
   get contactNameOptions(): SearchableSelectOption[] {
     return [
-      { value: this.newContactOptionValue, label: 'New Contact' },
+      this.getNewContactDropdownOption(),
       ...this.filteredContacts.map(contact => ({
         value: contact.contactId,
         label: this.getContactNameLabel(contact)
@@ -1434,7 +1458,7 @@ export class ReservationComponent implements OnInit, OnDestroy, CanComponentDeac
   //#region Contact List Methods
   get contactNameOptionsNoCreate(): SearchableSelectOption[] {
     return [
-      { value: this.newContactOptionValue, label: 'New Contact' },
+      this.getNewContactDropdownOption(),
       ...this.filteredContacts.map(contact => ({
         value: contact.contactId,
         label: this.getContactNameLabel(contact)
@@ -1467,7 +1491,7 @@ export class ReservationComponent implements OnInit, OnDestroy, CanComponentDeac
 
   onAdditionalContactNameChange(index: number, contactId: string | number | null): void {
     const normalizedContactId = contactId === null || contactId === undefined ? '' : String(contactId).trim();
-    if (normalizedContactId === this.newContactOptionValue) {
+    if (this.newContactDialogService.isNewContactOptionValue(normalizedContactId)) {
       this.additionalContactRows[index] = {
         contactId: '',
         contactPhone: '',
@@ -1524,8 +1548,10 @@ export class ReservationComponent implements OnInit, OnDestroy, CanComponentDeac
     const primaryContactId = primaryContactIdRaw == null ? '' : String(primaryContactIdRaw).trim();
     const additionalContactIds = this.additionalContactRows
       .map(row => String(row.contactId || '').trim())
-      .filter(id => id.length > 0 && id !== this.newContactOptionValue);
-    const contactIds = [primaryContactId, ...additionalContactIds].filter(id => id.length > 0 && id !== this.newContactOptionValue);
+      .filter(id => id.length > 0 && !this.newContactDialogService.isNewContactOptionValue(id));
+    const contactIds = [primaryContactId, ...additionalContactIds].filter(
+      id => id.length > 0 && !this.newContactDialogService.isNewContactOptionValue(id)
+    );
     return [...new Set(contactIds)];
   }
 
@@ -1535,7 +1561,7 @@ export class ReservationComponent implements OnInit, OnDestroy, CanComponentDeac
 
   get canAddAdditionalContactRow(): boolean {
     const primaryContactId = String(this.form?.get('contactId')?.value || '').trim();
-    if (!primaryContactId || primaryContactId === this.newContactOptionValue) {
+    if (!primaryContactId || this.newContactDialogService.isNewContactOptionValue(primaryContactId)) {
       return false;
     }
     if (this.additionalContactRows.length === 0) {
@@ -1932,80 +1958,52 @@ export class ReservationComponent implements OnInit, OnDestroy, CanComponentDeac
   }
 
   openNewContactDialog(targetAdditionalContactRowIndex?: number): void {
-    const reservationTypeId = this.form?.get('reservationTypeId')?.value as number | null;
-    let entityTypeId: number | null = null;
-
-    if (reservationTypeId === ReservationType.Individual || reservationTypeId === ReservationType.Platform) {
-      entityTypeId = EntityType.Tenant;
-    } else if (reservationTypeId === ReservationType.Corporate) {
-      entityTypeId = EntityType.Company;
-    } else if (reservationTypeId === ReservationType.Owner) {
-      entityTypeId = EntityType.Owner;
+    const entityTypeId = this.getNewContactEntityTypeIdForReservation();
+    if (entityTypeId == null) {
+      return;
     }
 
-    const dialogRef = this.dialog.open(ContactComponent, {
-      width: '1200px',
-      maxWidth: '95vw',
-      disableClose: true
-    });
-
-    dialogRef.componentInstance.id = 'new';
-    dialogRef.componentInstance.copyFrom = null;
-    dialogRef.componentInstance.presetEntityTypeId = entityTypeId;
-    dialogRef.componentInstance.compactDialogMode = true;
-    dialogRef.componentInstance.closed
-      .pipe(take(1))
-      .subscribe((result: { saved?: boolean; contactId?: string; entityTypeId?: number }) => dialogRef.close(result));
-
-    dialogRef.afterClosed().pipe(take(1)).subscribe((result?: { saved?: boolean; contactId?: string; entityTypeId?: number }) => {
+    this.newContactDialogService.openNewContactDialog({ entityTypeId }).pipe(take(1)).subscribe((result?: { saved?: boolean; contactId?: string; entityTypeId?: number }) => {
       if (!result?.saved || !result.contactId) {
         return;
       }
 
-      this.contactService.refreshContacts().pipe(take(1)).subscribe({
-        next: (contacts) => {
-          this.contacts = contacts || [];
-          this.companyContacts = this.contacts.filter(c => c.entityTypeId === EntityType.Company);
+      if (targetAdditionalContactRowIndex !== undefined) {
+        const newContact = this.contacts.find(c => c.contactId === result.contactId) || null;
+        if (targetAdditionalContactRowIndex >= 0 && targetAdditionalContactRowIndex < this.additionalContactRows.length) {
+          this.additionalContactRows[targetAdditionalContactRowIndex] = {
+            contactId: result.contactId,
+            contactPhone: newContact ? (this.formatterService.phoneNumber(newContact.phone) || '') : '',
+            contactEmail: newContact?.email || ''
+          };
+        }
+        this.updateContactsByReservationType();
+        this.syncTenantNamesFromSelectedContacts();
+        this.validateNumberOfPeopleAgainstContacts();
+        return;
+      }
 
-          if (targetAdditionalContactRowIndex !== undefined) {
-            const newContact = this.contacts.find(c => c.contactId === result.contactId) || null;
-            if (targetAdditionalContactRowIndex >= 0 && targetAdditionalContactRowIndex < this.additionalContactRows.length) {
-              this.additionalContactRows[targetAdditionalContactRowIndex] = {
-                contactId: result.contactId,
-                contactPhone: newContact ? (this.formatterService.phoneNumber(newContact.phone) || '') : '',
-                contactEmail: newContact?.email || ''
-              };
-            }
-            this.updateContactsByReservationType();
-            this.syncTenantNamesFromSelectedContacts();
-            this.validateNumberOfPeopleAgainstContacts();
-            return;
-          }
+      let targetReservationTypeId: number | null = null;
+      if (result.entityTypeId === EntityType.Tenant) {
+        targetReservationTypeId = ReservationType.Individual;
+      } else if (result.entityTypeId === EntityType.Company) {
+        targetReservationTypeId = ReservationType.Corporate;
+      }
 
-          let targetReservationTypeId: number | null = null;
-          if (result.entityTypeId === EntityType.Tenant) {
-            targetReservationTypeId = ReservationType.Individual;
-          } else if (result.entityTypeId === EntityType.Company) {
-            targetReservationTypeId = ReservationType.Corporate;
-          }
+      if (targetReservationTypeId !== null) {
+        this.form.patchValue({ reservationTypeId: targetReservationTypeId }, { emitEvent: false });
+        this.updateReservationStatusesByReservationType();
+        this.updateContactsByReservationType();
+        this.applyDefaultProrateTypeByReservationType(targetReservationTypeId);
+        this.applyDefaultDepositTypeByReservationType(targetReservationTypeId);
+        this.updateEnabledFieldsByReservationType();
+      } else {
+        this.updateContactsByReservationType();
+      }
 
-          if (targetReservationTypeId !== null) {
-            this.form.patchValue({ reservationTypeId: targetReservationTypeId }, { emitEvent: false });
-            this.updateReservationStatusesByReservationType();
-            this.updateContactsByReservationType();
-            this.applyDefaultProrateTypeByReservationType(targetReservationTypeId);
-            this.applyDefaultDepositTypeByReservationType(targetReservationTypeId);
-            this.updateEnabledFieldsByReservationType();
-          } else {
-            this.updateContactsByReservationType();
-          }
-
-          this.form.patchValue({ contactId: result.contactId }, { emitEvent: false });
-          this.selectedContact = this.contacts.find(c => c.contactId === result.contactId) || null;
-          this.updateContactFields();
-        },
-        error: () => {}
-      });
+      this.form.patchValue({ contactId: result.contactId }, { emitEvent: false });
+      this.selectedContact = this.contacts.find(c => c.contactId === result.contactId) || null;
+      this.updateContactFields();
     });
   }
 
