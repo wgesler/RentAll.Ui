@@ -162,11 +162,16 @@ export class InvoiceComponent implements OnInit, OnDestroy, OnChanges {
 
     if (changes['shellMode'] || changes['invoiceIdInput']) {
       this.initializeInvoiceContext(false);
-      return;
     }
 
-    if (this.isAddMode && (changes['officeIdInput'] || changes['reservationIdInput'] || changes['companyIdInput'])) {
-      this.processQueryParams(this.route.snapshot.queryParams);
+    if (this.isAddMode && (
+      changes['shellMode'] ||
+      changes['invoiceIdInput'] ||
+      changes['officeIdInput'] ||
+      changes['reservationIdInput'] ||
+      changes['companyIdInput']
+    )) {
+      this.applyPrefilledInvoiceContext();
     }
   }
 
@@ -228,34 +233,10 @@ export class InvoiceComponent implements OnInit, OnDestroy, OnChanges {
     });
   }
 
-  processQueryParams(queryParams: any): void {
-    const officeIdParam = this.officeIdInput ?? queryParams['officeId'];
-    const reservationIdParam = this.reservationIdInput ?? queryParams['reservationId'];
-    const companyIdParam = this.companyIdInput ?? queryParams['companyId'];
-    const reservationFromParam = reservationIdParam
-      ? this.reservations.find(r => r.reservationId === reservationIdParam) || null
-      : null;
-    const parsedOfficeId = officeIdParam ? parseInt(officeIdParam, 10) : null;
-    const officeIdToApply = reservationFromParam?.officeId
-      ?? (parsedOfficeId && !Number.isNaN(parsedOfficeId) ? parsedOfficeId : null);
-    
-    if (companyIdParam) {
-      this.companyId = companyIdParam;
-    }
-    
-    if (officeIdToApply && this.offices.length > 0 && this.reservations.length > 0) {
-      this.resolveOfficeScope(officeIdToApply);
-      if (this.selectedOffice && this.form) {
-        this.form.get('officeId')?.setValue(this.selectedOffice.officeId, { emitEvent: false });
-        this.updateAvailableReservations();
-        this.filterCostCodes();
-        if (reservationFromParam && this.availableReservations.find(r => r.value === reservationFromParam.reservationId)) {
-          this.form.get('reservationId')?.setValue(reservationFromParam.reservationId, { emitEvent: false });
-          this.selectedReservation = reservationFromParam;
-          this.setInvoiceCode(this.selectedReservation);
-        }
-      }
-    } else if (this.isAddMode && this.offices.length > 0 && this.form) {
+  processQueryParams(queryParams: Record<string, unknown> = this.route.snapshot.queryParams): void {
+    this.applyPrefilledInvoiceContext(queryParams);
+
+    if (this.isAddMode && this.offices.length > 0 && this.form && !this.form.get('officeId')?.value && !this.shellMode) {
       const globalOfficeId = this.globalSelectionService.getSelectedOfficeIdValue();
       if (globalOfficeId != null) {
         this.resolveOfficeScope(globalOfficeId);
@@ -266,6 +247,79 @@ export class InvoiceComponent implements OnInit, OnDestroy, OnChanges {
         }
       }
     }
+  }
+
+  applyPrefilledInvoiceContext(queryParams: Record<string, unknown> = this.route.snapshot.queryParams): void {
+    if (!this.isAddMode || !this.form) {
+      return;
+    }
+
+    const reservationIdParam = this.getContextReservationId(queryParams);
+    const companyIdParam = this.companyIdInput ?? queryParams['companyId'];
+    const reservationFromContext = reservationIdParam
+      ? this.reservations.find(r => r.reservationId === reservationIdParam) || null
+      : null;
+    const officeIdToApply = reservationFromContext?.officeId ?? this.parseContextOfficeId(queryParams);
+
+    if (companyIdParam) {
+      this.companyId = String(companyIdParam);
+    }
+
+    if (this.offices.length === 0 || officeIdToApply == null) {
+      return;
+    }
+
+    this.resolveOfficeScope(officeIdToApply);
+    if (!this.selectedOffice) {
+      return;
+    }
+
+    this.form.get('officeId')?.setValue(this.selectedOffice.officeId, { emitEvent: false });
+    if (this.reservations.length > 0) {
+      this.updateAvailableReservations();
+    }
+    this.filterCostCodes();
+
+    if (!reservationFromContext) {
+      return;
+    }
+
+    this.form.get('reservationId')?.setValue(reservationFromContext.reservationId, { emitEvent: false });
+    this.selectedReservation = reservationFromContext;
+    this.setInvoiceCode(this.selectedReservation);
+  }
+
+  getContextReservationId(queryParams: Record<string, unknown> = this.route.snapshot.queryParams): string | null {
+    const fromInput = this.reservationIdInput?.trim();
+    if (fromInput) {
+      return fromInput;
+    }
+
+    const fromQuery = queryParams['reservationId'];
+    if (fromQuery == null || fromQuery === '') {
+      return null;
+    }
+
+    return String(fromQuery).trim() || null;
+  }
+
+  parseContextOfficeId(queryParams: Record<string, unknown> = this.route.snapshot.queryParams): number | null {
+    const officeIdParam = this.officeIdInput ?? queryParams['officeId'];
+    if (officeIdParam == null || officeIdParam === '') {
+      return null;
+    }
+
+    const parsedOfficeId = typeof officeIdParam === 'number' ? officeIdParam : parseInt(String(officeIdParam), 10);
+    return !Number.isNaN(parsedOfficeId) ? parsedOfficeId : null;
+  }
+
+  getEffectiveReservationId(): string | null {
+    const fromForm = this.form?.get('reservationId')?.value;
+    if (fromForm) {
+      return String(fromForm);
+    }
+
+    return this.getContextReservationId();
   }
 
   getInvoice(): void {
@@ -307,6 +361,10 @@ export class InvoiceComponent implements OnInit, OnDestroy, OnChanges {
   }
 
   saveInvoice(): void {
+    if (this.isAddMode) {
+      this.applyPrefilledInvoiceContext();
+    }
+
     this.saveAttempted = true;
     this.isSubmitting = true;
 
@@ -450,7 +508,7 @@ export class InvoiceComponent implements OnInit, OnDestroy, OnChanges {
     this.isSubmitting = true;
 
     if (this.ledgerLines.length === 0) {
-      this.toastr.error('Please correct the highlighted fields before saving.', CommonMessage.Error);
+      this.toastr.error('Add or generate ledger lines before saving.', CommonMessage.Error);
       this.isSubmitting = false;
       this.cdr.markForCheck();
       return;
@@ -464,6 +522,14 @@ export class InvoiceComponent implements OnInit, OnDestroy, OnChanges {
     }
 
     const formValue = this.form.getRawValue();
+    const reservationId = this.getEffectiveReservationId();
+    if (!reservationId) {
+      this.toastr.warning('Please select a reservation before saving.', 'No Reservation Selected');
+      this.isSubmitting = false;
+      this.cdr.markForCheck();
+      return;
+    }
+
     const user = this.authService.getUser();
          
     const invoiceDateString = this.utilityService.toDateOnlyJsonString(formValue.invoiceDate) ?? this.utilityService.todayAsCalendarDateString();
@@ -475,7 +541,7 @@ export class InvoiceComponent implements OnInit, OnDestroy, OnChanges {
           lineNumber: line.lineNumber !== undefined ? line.lineNumber : index + 1,
           costCodeId: Number.isInteger(numericCostCodeId) && numericCostCodeId > 0 ? numericCostCodeId : undefined,
           transactionTypeId: (line as any).transactionTypeId,
-          reservationId: formValue.reservationId || null,
+          reservationId,
           amount: line.amount || 0,
           description: line.description || '',
           ledgerLineDate: line.ledgerLineDate || invoiceDateString
@@ -486,7 +552,7 @@ export class InvoiceComponent implements OnInit, OnDestroy, OnChanges {
     const invoiceCode = formValue.invoiceCode || '';
     const selectedOffice = this.availableOffices.find(office => office.value === formValue.officeId);
     const officeName = selectedOffice?.name || '';  
-    const selectedReservation = this.reservations.find(res => res.reservationId === formValue.reservationId);
+    const selectedReservation = this.reservations.find(res => res.reservationId === reservationId);
     const reservationCode = selectedReservation?.reservationCode || null;
     const invoicedAmount = this.calculateInvoicedAmount();
     const paidAmount = this.isPaymentMode
@@ -498,7 +564,7 @@ export class InvoiceComponent implements OnInit, OnDestroy, OnChanges {
       officeId: formValue.officeId,
       officeName: officeName,
       invoiceCode: invoiceCode,
-      reservationId: formValue.reservationId || null,
+      reservationId,
       reservationCode: reservationCode,
       startDate: this.utilityService.toDateOnlyJsonString(formValue.startDate) ?? '',
       endDate: this.utilityService.toDateOnlyJsonString(formValue.endDate) ?? '',
@@ -623,6 +689,7 @@ export class InvoiceComponent implements OnInit, OnDestroy, OnChanges {
       this.officeService.getAllOffices().pipe(takeUntil(this.destroy$)).subscribe(offices => {
         this.offices = offices || [];
         this.availableOffices = this.mappingService.mapOfficesToDropdown(this.offices);
+        this.applyPrefilledInvoiceContext();
       });
     });
   }
@@ -641,6 +708,7 @@ export class InvoiceComponent implements OnInit, OnDestroy, OnChanges {
             label: this.utilityService.getReservationDropdownLabel(r, null)
           }));
         }
+        this.applyPrefilledInvoiceContext();
       },
       error: () => {
         this.reservations = [];
@@ -1364,7 +1432,8 @@ export class InvoiceComponent implements OnInit, OnDestroy, OnChanges {
   }
 
   generateLedgerLines(): void {
-    const reservationId = this.form.get('reservationId')?.value;
+    this.applyPrefilledInvoiceContext();
+    const reservationId = this.getEffectiveReservationId();
     if (reservationId) {
       this.loadMonthlyLedgerLines(reservationId);
     } else {
