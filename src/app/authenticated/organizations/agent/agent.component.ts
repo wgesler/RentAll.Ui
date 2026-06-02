@@ -14,6 +14,7 @@ import { UtilityService } from '../../../services/utility.service';
 import { AgentRequest, AgentResponse } from '../models/agent.model';
 import { OfficeResponse } from '../models/office.model';
 import { AgentService } from '../services/agent.service';
+import { GlobalSelectionService } from '../services/global-selection.service';
 import { OfficeService } from '../services/office.service';
 
 @Component({
@@ -26,6 +27,7 @@ import { OfficeService } from '../services/office.service';
 
 export class AgentComponent implements OnInit, OnDestroy, OnChanges {
   @Input() agentId: string | number | null = null;
+  @Input() officeId: number | null = null;
   @Output() backEvent = new EventEmitter<void>();
   @Output() savedEvent = new EventEmitter<void>();
   @ViewChild('firstInput') firstInputRef: ElementRef<HTMLInputElement>;
@@ -50,7 +52,9 @@ export class AgentComponent implements OnInit, OnDestroy, OnChanges {
     public fb: FormBuilder,
     private route: ActivatedRoute,
     private toastr: ToastrService,
-    private authService: AuthService,    private officeService: OfficeService,
+    private authService: AuthService,
+    private officeService: OfficeService,
+    private globalSelectionService: GlobalSelectionService,
     private formatterService: FormatterService,
     private mappingService: MappingService,
     private utilityService: UtilityService
@@ -67,6 +71,7 @@ export class AgentComponent implements OnInit, OnDestroy, OnChanges {
       if (this.isAddMode) {
         this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'agent');
         this.buildForm();
+        this.applyDefaultOfficeOnAdd();
         this.scheduleFocusFirstField();
       } else {
         this.getAgent(this.agentId.toString());
@@ -84,8 +89,12 @@ export class AgentComponent implements OnInit, OnDestroy, OnChanges {
         this.isAddMode = true;
         this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'agent');
         this.buildForm();
+        this.applyDefaultOfficeOnAdd();
         this.scheduleFocusFirstField();
       }
+    }
+    if (changes['officeId'] && this.isAddMode && this.form) {
+      this.applyDefaultOfficeOnAdd();
     }
   }
 
@@ -155,14 +164,27 @@ export class AgentComponent implements OnInit, OnDestroy, OnChanges {
   loadOffices(): void {
     this.officeService.ensureOfficesLoaded(this.organizationId).pipe(take(1), finalize(() => this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'offices'))).subscribe(() => {
       this.officeService.getAllOffices().pipe(takeUntil(this.destroy$)).subscribe(offices => {
-        this.offices = offices || [];
+        this.offices = this.globalSelectionService.filterOfficeListForUser(offices || []);
         this.availableOffices = this.mappingService.mapOfficesToDropdown(this.offices);
+        if (this.isAddMode && this.form) {
+          this.applyDefaultOfficeOnAdd();
+        }
       });
     });
   }
   //#endregion
 
   //#region Form Methods
+  applyDefaultOfficeOnAdd(): void {
+    if (!this.isAddMode || !this.form) {
+      return;
+    }
+    const scopedOfficeId = this.officeId ?? this.globalSelectionService.getSelectedOfficeIdValue();
+    const defaultOffice = this.utilityService.resolveSelectedOfficeById(this.offices, scopedOfficeId);
+    if (defaultOffice) {
+      this.form.patchValue({ officeId: defaultOffice.officeId }, { emitEvent: false });
+    }
+  }
   buildForm(): void {
     this.form = this.fb.group({
       agentCode: new FormControl('', [Validators.required]),

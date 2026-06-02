@@ -125,12 +125,22 @@ export class AuthService {
         });
     }
 
+    /** Organization Admin role only (not OfficeAdmin or SuperAdmin). */
+    isOrgAdmin(): boolean {
+        return this.hasRole(UserGroups.Admin);
+    }
+
+    /** Admin, SuperAdmin, or OfficeAdmin. */
     isAdmin(): boolean {
-        return this.hasRole(UserGroups.Admin) || this.hasRole(UserGroups.SuperAdmin);
+        return this.isOrgAdmin()
+            || this.hasRole(UserGroups.SuperAdmin)
+            || this.hasRole(UserGroups.OfficeAdmin);
     }
 
     isOwnerAdmin(): boolean {
-        return this.hasRole(UserGroups.Admin) || this.hasRole(UserGroups.OwnerAdmin);
+        return this.hasRole(UserGroups.Admin)
+            || this.hasRole(UserGroups.OwnerAdmin)
+            || this.hasRole(UserGroups.OfficeAdmin);
     }
 
     isInAccounting(): boolean {

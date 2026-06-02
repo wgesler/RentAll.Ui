@@ -96,10 +96,10 @@
               <div class="agents-container">
                 <div class="settings-section-stack">
                   <div [class.settings-section-hidden]="isEditingAgent && agentId">
-                  <app-agent-list (agentSelected)="onAgentSelected($event)"></app-agent-list>
+                  <app-agent-list [officeId]="selectedCostCodesOfficeId" [useGlobalOfficeSelection]="false" (agentSelected)="onAgentSelected($event)"></app-agent-list>
                   </div>
                   @if (isEditingAgent && agentId) {
-                    <app-agent [agentId]="agentId" (savedEvent)="onAgentSaved()" (backEvent)="onAgentBack()"></app-agent>
+                    <app-agent [agentId]="agentId" [officeId]="selectedCostCodesOfficeId" (savedEvent)="onAgentSaved()" (backEvent)="onAgentBack()"></app-agent>
                   }
                 </div>
               </div>
@@ -230,7 +230,7 @@
             </mat-expansion-panel>
           }
 
-          @if (isAdminLikeSettingsUser) {
+          @if (isOrgAdminLikeSettingsUser) {
             <!-- Color Section -->
             <mat-expansion-panel [expanded]="expandedSections.color" 
               (opened)="onPanelOpened('color')" 

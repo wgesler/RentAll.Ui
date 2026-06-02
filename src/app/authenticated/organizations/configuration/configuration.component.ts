@@ -109,6 +109,7 @@ export class ConfigurationComponent implements OnInit, OnDestroy {
   // Organization dropdown (SuperAdmin only)
   isSuperAdmin: boolean = false;
   isAdminLikeSettingsUser: boolean = false;
+  isOrgAdminLikeSettingsUser: boolean = false;
   isLimitedSettingsUser: boolean = false;
   organizations: OrganizationResponse[] = [];
   offices: OfficeResponse[] = [];
@@ -139,6 +140,7 @@ export class ConfigurationComponent implements OnInit, OnDestroy {
 
     this.isSuperAdmin = this.authService.hasRole(UserGroups.SuperAdmin);
     this.isAdminLikeSettingsUser = this.authService.isAdmin();
+    this.isOrgAdminLikeSettingsUser = this.authService.isOrgAdmin() || this.authService.hasRole(UserGroups.SuperAdmin);
     this.isLimitedSettingsUser = !this.isAdminLikeSettingsUser &&
     (
       this.authService.hasRole(UserGroups.Agent) ||
@@ -249,6 +251,10 @@ export class ConfigurationComponent implements OnInit, OnDestroy {
     }
     if (this.costCodesListComponent?.offices?.length) {
       this.costCodesListComponent.resolveOfficeScope(officeId, false);
+    }
+    if (this.agentListComponent?.offices?.length) {
+      this.agentListComponent.resolveOfficeScope(officeId);
+      this.agentListComponent.markViewForCheck();
     }
   }
   //#endregion

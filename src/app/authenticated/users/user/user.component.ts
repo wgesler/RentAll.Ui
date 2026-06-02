@@ -22,7 +22,7 @@ import { OfficeService } from '../../organizations/services/office.service';
 import { OrganizationListService } from '../../organizations/services/organization-list.service';
 import { PropertyListResponse } from '../../properties/models/property.model';
 import { PropertyService } from '../../properties/services/property.service';
-import { StartupPage, UserGroups } from '../models/user-enums';
+import { UserGroups, getStartupPages, getUserGroupOptions } from '../models/user-enums';
 import { UserRequest, UserResponse } from '../models/user.model';
 import { UserService } from '../services/user.service';
 
@@ -111,7 +111,7 @@ export class UserComponent implements OnInit, OnDestroy {
   //#region User
   ngOnInit(): void {
     this.organizationId = this.authService.getUser()?.organizationId?.trim() ?? '';
-    this.isPrivilegedOfficeEditor = this.hasRole(UserGroups.Admin) || this.hasRole(UserGroups.SuperAdmin);
+    this.isPrivilegedOfficeEditor = this.authService.isAdmin();
     this.initializeUserGroups();
     this.initializeStartupPages();
     this.loadOrganizations();
@@ -812,36 +812,11 @@ export class UserComponent implements OnInit, OnDestroy {
   }
 
   initializeUserGroups(): void {
-    this.availableUserGroups = Object.keys(UserGroups)
-      .filter(key => isNaN(Number(key))) // Filter out numeric keys
-      .filter(key => UserGroups[key] !== UserGroups.Unknown) // Exclude Unknown
-      .map(key => ({
-        value: key,
-        label: this.formatUserGroupLabel(key)
-      }));
+    this.availableUserGroups = getUserGroupOptions();
   }
 
   initializeStartupPages(): void {
-    this.availableStartupPages = Object.keys(StartupPage)
-      .filter(key => isNaN(Number(key))) // Filter out numeric keys
-      .map(key => ({
-        value: StartupPage[key as keyof typeof StartupPage],
-        label: this.formatStartupPageLabel(key)
-      }));
-  }
-
-  formatStartupPageLabel(enumKey: string): string {
-    return enumKey
-      .replace(/([A-Z])/g, ' $1') // Add space before capital letters
-      .trim()
-      .replace(/^./, str => str.toUpperCase()); // Capitalize first letter
-  }
-
-  formatUserGroupLabel(enumKey: string): string {
-    return enumKey
-      .replace(/([A-Z])/g, ' $1') // Add space before capital letters
-      .trim()
-      .replace(/^./, str => str.toUpperCase()); // Capitalize first letter
+    this.availableStartupPages = getStartupPages();
   }
   //#endregion
 

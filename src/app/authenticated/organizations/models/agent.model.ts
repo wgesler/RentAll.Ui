@@ -20,6 +20,8 @@ export interface AgentResponse {
 export interface AgentListDisplay {
   agentId: string;
   agentCode: string;
+  officeId: number;
+  officeName: string;
   name: string;
   isActive: boolean;
 }

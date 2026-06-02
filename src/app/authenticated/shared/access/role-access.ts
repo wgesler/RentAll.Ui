@@ -16,6 +16,7 @@ export type UserGroupInput = Array<string | number> | undefined;
 const COMPANY_ROLES: UserGroups[] = [
   UserGroups.SuperAdmin,
   UserGroups.Admin,
+  UserGroups.OfficeAdmin,
   UserGroups.Accounting,
   UserGroups.AccountingAdmin,
   UserGroups.Agent,
@@ -97,6 +98,11 @@ const accountingOnly: AccessRule = {
 };
 
 const adminOnly: AccessRule = {
+  requiredRoles: [UserGroups.Admin, UserGroups.SuperAdmin, UserGroups.OfficeAdmin],
+  excludedRoles: []
+};
+
+const orgAdminOnly: AccessRule = {
   requiredRoles: [UserGroups.Admin, UserGroups.SuperAdmin],
   excludedRoles: []
 };
@@ -110,6 +116,7 @@ const settingsAccess: AccessRule = {
   requiredRoles: [
     UserGroups.Admin,
     UserGroups.SuperAdmin,
+    UserGroups.OfficeAdmin,
     UserGroups.Agent,
     UserGroups.AgentAdmin,
     UserGroups.PropertyManager,
@@ -208,7 +215,7 @@ const routeRulesBySegment: Record<string, AccessRule> = {
   [ROUTER_TOKEN.AreaList]: adminOnly,
   [ROUTER_TOKEN.BuildingList]: adminOnly,
   [ROUTER_TOKEN.RegionList]: adminOnly,
-  [ROUTER_TOKEN.ColorList]: adminOnly,
+  [ROUTER_TOKEN.ColorList]: orgAdminOnly,
   [ROUTER_TOKEN.UserList]: adminOnly,
 
   [ROUTER_TOKEN.OrganizationList]: superAdminOnly,
@@ -234,6 +241,19 @@ export function getUserGroupNumbers(userGroups: UserGroupInput): number[] {
       return !isNaN(parsed) ? parsed : null;
     })
     .filter((value): value is number => value !== null);
+}
+
+export function isOrgAdmin(userGroups: UserGroupInput): boolean {
+  return getUserGroupNumbers(userGroups).includes(UserGroups.Admin);
+}
+
+export function hasOrgAdminAccess(userGroups: UserGroupInput): boolean {
+  const groups = getUserGroupNumbers(userGroups);
+  return groups.includes(UserGroups.Admin) || groups.includes(UserGroups.SuperAdmin);
+}
+
+export function hasOfficeAdminRole(userGroups: UserGroupInput): boolean {
+  return getUserGroupNumbers(userGroups).includes(UserGroups.OfficeAdmin);
 }
 
 export function hasOwnerRole(userGroups: UserGroupInput): boolean {
