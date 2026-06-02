@@ -64,11 +64,9 @@ export class ReceiptsListComponent implements OnInit, OnChanges, OnDestroy {
 
   selectedProperty: PropertyResponse | null = null;
   selectedPropertyId: string | null = null;
-  persistedFilterVal = '';
   private receiptsLoadId = 0;
   private lastReceiptSearchKey: string | null = null;
   private receiptSearchInFlightKey: string | null = null;
-  private readonly receiptListFilterStorageKey = 'maintenance.receiptsList.filter';
 
   receiptDisplayedColumns: ColumnSet = {
     no: { displayAs: 'No', maxWidth: '5ch', sort: false, wrap: false },
@@ -109,7 +107,6 @@ export class ReceiptsListComponent implements OnInit, OnChanges, OnDestroy {
       this.isPageReady = items.size === 0;
       this.markViewForCheck();
     });
-    this.persistedFilterVal = this.readPersistedFilterValue();
     this.isAdmin = this.authService.isAdmin();
     this.setIsActiveCheckboxEditability();
     this.loadOffices();
@@ -723,23 +720,6 @@ export class ReceiptsListComponent implements OnInit, OnChanges, OnDestroy {
     this.receiptsDisplay = this.showInactive
       ? [...this.allReceipts]
       : this.allReceipts.filter(receipt => receipt.isActive !== false);
-  }
-
-  onTableFilterValueChanged(filterValue: string): void {
-    this.persistedFilterVal = filterValue || '';
-    try {
-      sessionStorage.setItem(this.receiptListFilterStorageKey, this.persistedFilterVal);
-    } catch {
-      // no-op: ignore storage exceptions and keep in-memory value
-    }
-  }
-
-  readPersistedFilterValue(): string {
-    try {
-      return sessionStorage.getItem(this.receiptListFilterStorageKey) || '';
-    } catch {
-      return '';
-    }
   }
   //#endregion
 

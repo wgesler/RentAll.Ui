@@ -1,16 +1,17 @@
 import { SelectionModel } from '@angular/cdk/collections';
 import { CommonModule } from '@angular/common';
-import { ChangeDetectionStrategy, ChangeDetectorRef, Component, contentChild, EventEmitter, Input, NgZone, OnChanges, OnInit, Output, SimpleChanges, TemplateRef, ViewChild } from '@angular/core';
+import { ChangeDetectionStrategy, ChangeDetectorRef, Component, contentChild, EventEmitter, Input, NgZone, AfterViewInit, OnChanges, OnDestroy, OnInit, Output, SimpleChanges, TemplateRef, ViewChild } from '@angular/core';
 import { MatDateFormats, provideNativeDateAdapter } from '@angular/material/core';
 import { MatDialog } from '@angular/material/dialog';
 import { FormsModule } from '@angular/forms';
 import { MatCheckboxChange } from '@angular/material/checkbox';
 import { MatPaginator } from '@angular/material/paginator';
-import { MatSort } from '@angular/material/sort';
+import { MatSort, Sort } from '@angular/material/sort';
 import { MatTableDataSource } from '@angular/material/table';
-import { take } from 'rxjs';
+import { Subject, take, takeUntil } from 'rxjs';
 import { effectiveBedTypeIdForPropertySlot, getBedSizeType } from '../../properties/models/property-enums';
 import { FormatterService } from '../../../../app/services/formatter-service';
+import { AuthService } from '../../../services/auth.service';
 import { getStatus } from '../../../enums/status.enum';
 import { MaterialModule } from '../../../material.module';
 import { GenericModalComponent } from '../modals/generic/generic-modal.component';
@@ -22,6 +23,16 @@ import { TableItem } from './models/table-item';
 import { DataTableFilterActionsDirective } from './data-table-filter-actions.directive';
 
 /** Match list display dates (`MM/dd/yyyy`) used by FormatterService.formatDateString. */
+type DataTableStickySortDirection = 'asc' | 'desc' | '';
+
+interface DataTableStickyState {
+  enabled: boolean;
+  tableName: string;
+  filterText: string;
+  sortColumn: string;
+  sortDirection: DataTableStickySortDirection;
+}
+
 const DATA_TABLE_DATE_FORMATS: MatDateFormats = {
   parse: {
     dateInput: 'MM/dd/yyyy'
@@ -44,7 +55,7 @@ const DATA_TABLE_DATE_FORMATS: MatDateFormats = {
     providers: [provideNativeDateAdapter(DATA_TABLE_DATE_FORMATS)]
 })
 
-export class DataTableComponent implements OnChanges, OnInit {
+export class DataTableComponent implements OnChanges, OnInit, AfterViewInit, OnDestroy {
   // Expose Math for use in template
   Math = Math;
 
@@ -116,6 +127,8 @@ export class DataTableComponent implements OnChanges, OnInit {
   @Input() pageSizeOptions: number[] = [10, 20, 50, 100];
   @Input() showCustomRowTooltip: boolean = false;
   @Input() templateTableId: number = 1;
+  /** Unique table id for sticky filter/sort localStorage (required to show the pin). */
+  @Input() tableName = '';
   @Input() hasDetailRow: boolean = false;
   @Input() detailRowTemplate: TemplateRef<any>;
   @Input() detailRowContext: any;
@@ -197,8 +210,13 @@ export class DataTableComponent implements OnChanges, OnInit {
   dataSource = new MatTableDataSource<TableItem>();
   isDataLoaded: boolean = false;
   filterVal: string = null;
+  filterSticky = false;
 
   tableColumns: ColumnData[] = [];
+  private readonly stickyFilterStorageKeyPrefix = 'rentall-datatable-sticky';
+  private readonly destroy$ = new Subject<void>();
+  private pendingStickySort: { sortColumn: string; sortDirection: DataTableStickySortDirection } | null = null;
+  private stickySortApplied = false;
   
   isDateColumn(column: ColumnData): boolean {
     const target = `${column?.name ?? ''} ${column?.displayAs ?? ''}`.toLowerCase();
@@ -293,7 +311,8 @@ export class DataTableComponent implements OnChanges, OnInit {
     private zone: NgZone,
     private formatter: FormatterService,
     private dialog: MatDialog,
-    private cdr: ChangeDetectorRef
+    private cdr: ChangeDetectorRef,
+    private authService: AuthService
   ) {}
 
   private markViewForCheck(): void {
@@ -361,11 +380,24 @@ export class DataTableComponent implements OnChanges, OnInit {
       }
     };
 
-    const initialFilter = this.normalizeFilterValue(this.initialFilterVal);
-    if (initialFilter) {
-      this.filterVal = initialFilter;
-      this.applyFilter(false);
+    if (!this.applyStickyFilterAndSortFromStorage()) {
+      const initialFilter = this.normalizeFilterValue(this.initialFilterVal);
+      if (initialFilter) {
+        this.filterVal = initialFilter;
+        this.applyFilter(false);
+      }
     }
+  }
+
+  ngOnDestroy(): void {
+    this.destroy$.next();
+    this.destroy$.complete();
+  }
+
+  ngAfterViewInit(): void {
+    this.zone.onStable.pipe(take(1), takeUntil(this.destroy$)).subscribe(() => {
+      this.attachTableSortAndPaginator();
+    });
   }
 
   ngOnChanges(changes: SimpleChanges): void {
@@ -385,16 +417,25 @@ export class DataTableComponent implements OnChanges, OnInit {
     // only update what changed
     if (updateFilter && this.filterVal) this.applyFilter();
     if (updateActions) this.setActions();
-    if (updateColumns) this.setTableColumns();
+    if (updateColumns) {
+      this.setTableColumns();
+      this.zone.onStable.pipe(take(1)).subscribe(() => {
+        this.attachTableSortAndPaginator();
+        this.markViewForCheck();
+      });
+    }
     if (updateTools) this.setTableTools();
     else if (updateData) this.setData();
   }
 
-  applyFilter(resetPage: boolean = true): void {
+  applyFilter(resetPage: boolean = true, persistSticky: boolean = true): void {
     this.filterVal = this.normalizeFilterValue(this.filterVal);
     this.dataSource.filter = this.filterVal;
     this.filterValChangeEvent.emit(this.filterVal);
     if (resetPage) this.dataSource?.paginator.firstPage();
+    if (this.filterSticky && persistSticky) {
+      this.persistStickyFilterAndSort();
+    }
   }
 
   clearFilter(input: HTMLInputElement): void {
@@ -404,6 +445,9 @@ export class DataTableComponent implements OnChanges, OnInit {
     this.filterValChangeEvent.emit('');
 
     this.dataSource?.paginator.firstPage();
+    if (this.filterSticky) {
+      this.persistStickyFilterAndSort();
+    }
   }
 
   onFilterModelChange(value: string): void {
@@ -1163,16 +1207,173 @@ export class DataTableComponent implements OnChanges, OnInit {
     this.isDataLoaded = false;
     this.zone.onStable.pipe(take(1)).subscribe(() => {
       this.setData();
-      // Load viewChild components that load separately from rest of component.
-      this.dataSource.paginator = this.paginator;
-      this.dataSource.sort = this.sort;
+      this.attachTableSortAndPaginator();
       this.isDataLoaded = true;
       this.markViewForCheck();
     });
   }
 
+  //#region Sticky Filter And Sort
+  onStickyFilterToggle(): void {
+    if (!this.tableName?.trim()) {
+      return;
+    }
+
+    this.filterSticky = !this.filterSticky;
+    if (this.filterSticky) {
+      this.persistStickyFilterAndSort();
+    } else {
+      this.clearStickyStorage();
+    }
+    this.markViewForCheck();
+  }
+
+  onMatSortChange(_event: Sort): void {
+    if (this.filterSticky) {
+      this.persistStickyFilterAndSort();
+    }
+  }
+
+  applyStickyFilterAndSortFromStorage(): boolean {
+    const stored = this.readStickyFromStorage();
+    if (!stored?.enabled) {
+      this.filterSticky = false;
+      return false;
+    }
+
+    this.filterSticky = true;
+    this.filterVal = stored.filterText ?? '';
+    this.applyFilter(false, false);
+    if (stored.sortColumn && stored.sortDirection) {
+      this.pendingStickySort = {
+        sortColumn: stored.sortColumn,
+        sortDirection: stored.sortDirection
+      };
+    }
+    return true;
+  }
+
+  persistStickyFilterAndSort(): void {
+    if (!this.filterSticky || !this.tableName?.trim()) {
+      return;
+    }
+
+    const userId = this.authService.getUser()?.userId?.trim();
+    if (!userId) {
+      return;
+    }
+
+    const sortState = this.getSortState();
+    const payload: DataTableStickyState = {
+      enabled: true,
+      tableName: this.tableName.trim(),
+      filterText: this.filterVal ?? '',
+      sortColumn: sortState.sortColumn,
+      sortDirection: sortState.sortDirection
+    };
+
+    localStorage.setItem(this.getStickyStorageKey(userId), JSON.stringify(payload));
+  }
+
+  readStickyFromStorage(): DataTableStickyState | null {
+    if (typeof localStorage === 'undefined' || !this.tableName?.trim()) {
+      return null;
+    }
+
+    const userId = this.authService.getUser()?.userId?.trim();
+    if (!userId) {
+      return null;
+    }
+
+    const rawValue = localStorage.getItem(this.getStickyStorageKey(userId));
+    if (!rawValue) {
+      return null;
+    }
+
+    try {
+      const parsed = JSON.parse(rawValue) as Partial<DataTableStickyState>;
+      if (parsed?.enabled !== true || parsed.tableName !== this.tableName.trim()) {
+        return null;
+      }
+      const sortDirection = parsed.sortDirection;
+      const normalizedDirection: DataTableStickySortDirection =
+        sortDirection === 'asc' || sortDirection === 'desc' ? sortDirection : '';
+      return {
+        enabled: true,
+        tableName: this.tableName.trim(),
+        filterText: String(parsed.filterText ?? ''),
+        sortColumn: String(parsed.sortColumn ?? ''),
+        sortDirection: normalizedDirection
+      };
+    } catch {
+      return null;
+    }
+  }
+
+  clearStickyStorage(): void {
+    if (typeof localStorage === 'undefined' || !this.tableName?.trim()) {
+      return;
+    }
+
+    const userId = this.authService.getUser()?.userId?.trim();
+    if (!userId) {
+      return;
+    }
+
+    localStorage.removeItem(this.getStickyStorageKey(userId));
+  }
+
+  getStickyStorageKey(userId: string): string {
+    return `${this.stickyFilterStorageKeyPrefix}-${userId}-${this.tableName.trim()}`;
+  }
+
+  private getSortState(): { sortColumn: string; sortDirection: DataTableStickySortDirection } {
+    const sortColumn = this.sort?.active?.trim() ?? '';
+    const sortDirection = this.sort?.direction;
+    if (!sortColumn || (sortDirection !== 'asc' && sortDirection !== 'desc')) {
+      return { sortColumn: '', sortDirection: '' };
+    }
+    return { sortColumn, sortDirection };
+  }
+
+  private attachTableSortAndPaginator(): void {
+    if (this.paginator) {
+      this.dataSource.paginator = this.paginator;
+    }
+    if (!this.sort) {
+      return;
+    }
+
+    this.dataSource.sort = this.sort;
+    this.applyStickySortIfNeeded();
+  }
+
+  private applyStickySortIfNeeded(): void {
+    if (this.stickySortApplied || !this.pendingStickySort?.sortColumn || !this.pendingStickySort.sortDirection) {
+      return;
+    }
+    if (!this.sort || !this.displayedColumns.includes(this.pendingStickySort.sortColumn)) {
+      return;
+    }
+
+    const { sortColumn, sortDirection } = this.pendingStickySort;
+    this.stickySortApplied = true;
+    this.pendingStickySort = null;
+    this.sort.sort({
+      id: sortColumn,
+      start: sortDirection,
+      disableClear: false
+    });
+    this.dataSource.sort = this.sort;
+    if (this.filterSticky) {
+      this.persistStickyFilterAndSort();
+    }
+  }
+  //#endregion
+
   setData(): void {
     this.dataSource.data = this.data;
+    this.attachTableSortAndPaginator();
     this.selection.clear();
     this.selectionSet.emit(this.selection);
     this.isAllSelected = false;

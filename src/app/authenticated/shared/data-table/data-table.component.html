@@ -2,6 +2,7 @@
   <div class="datatable-search-wrap dbg-band-actions px-4">
     <div class="datatable-search-wrap__row mobile-flex-column-reverse">
     @if (hasFilter) {
+      <div class="datatable-filter-with-sticky">
       <mat-form-field id="datatable-search-field-{{templateTableId}}"
         floatLabel="always"
         subscriptSizing="dynamic"
@@ -20,6 +21,21 @@
           </span>
         }
       </mat-form-field>
+
+      @if (tableName) {
+        <button
+          mat-icon-button
+          type="button"
+          class="datatable-sticky-filter-btn"
+          [class.datatable-sticky-filter-btn--active]="filterSticky"
+          [attr.aria-pressed]="filterSticky"
+          aria-label="Sticky filter and sort"
+          matTooltip="Keep filter and column sort between visits"
+          (click)="onStickyFilterToggle()">
+          <mat-icon>push_pin</mat-icon>
+        </button>
+      }
+      </div>
     }
     @if (hasToggleTop2 || hasToggleTop || hasButtonTop || filterActionsSlot()) {
     <div class="datatable-search-wrap__actions mobile-view-full">
@@ -69,7 +85,7 @@
 
   @if (!subheaderCollapsible || !subheaderSectionCollapsed) {
   <div class="is-scrollable">
-    <table class="data-table" mat-table [dataSource]="dataSource" matSort [multiTemplateDataRows]="hasDetailRow">
+    <table class="data-table" mat-table [dataSource]="dataSource" matSort (matSortChange)="onMatSortChange($event)" [multiTemplateDataRows]="hasDetailRow">
       <ng-container>
         <tr class="mat-row mat-no-data-row" *matNoDataRow>
           <td class="mat-cell" [attr.colspan]="displayedColumns.length">

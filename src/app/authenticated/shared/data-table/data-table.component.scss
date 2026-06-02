@@ -108,7 +108,7 @@ tr.mat-mdc-row.mat-no-data-row,
     min-height: 0;
 }
 
-.datatable-search-wrap__row:not(:has(> .datatable-search-field)) {
+.datatable-search-wrap__row:not(:has(> .datatable-search-field)):not(:has(> .datatable-filter-with-sticky)) {
     justify-content: flex-end;
 }
 
@@ -121,8 +121,22 @@ tr.mat-mdc-row.mat-no-data-row,
     justify-content: flex-end;
 }
 
-:host ::ng-deep .datatable-search-wrap__row > mat-form-field.datatable-search-field {
+:host ::ng-deep .datatable-search-wrap__row > mat-form-field.datatable-search-field,
+:host ::ng-deep .datatable-search-wrap__row > .datatable-filter-with-sticky {
     max-width: 100%;
+    align-self: stretch;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+}
+
+:host ::ng-deep .datatable-search-wrap__row > .datatable-filter-with-sticky {
+    flex-direction: row;
+    align-items: center;
+    flex-shrink: 0;
+}
+
+:host ::ng-deep .datatable-filter-with-sticky > mat-form-field.datatable-search-field {
     align-self: stretch;
     display: flex;
     flex-direction: column;
@@ -149,6 +163,32 @@ tr.mat-mdc-row.mat-no-data-row,
 .datatable-search-field {
     min-width: 20em !important;
     width: auto;
+}
+
+.datatable-filter-with-sticky {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-shrink: 0;
+}
+
+.datatable-sticky-filter-btn {
+    flex-shrink: 0;
+    width: 32px;
+    height: 32px;
+    padding: 0;
+
+    .mat-icon {
+        width: 18px;
+        height: 18px;
+        font-size: 18px;
+        line-height: 18px;
+        color: rgba(15, 23, 42, 0.55);
+    }
+
+    &.datatable-sticky-filter-btn--active .mat-icon {
+        color: var(--mat-sys-secondary, #e91e63);
+    }
 }
 
 :host ::ng-deep .datatable-search-field .mat-mdc-text-field-wrapper {

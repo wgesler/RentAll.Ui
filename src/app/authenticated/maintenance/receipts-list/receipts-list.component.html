@@ -9,9 +9,9 @@
   <div class="mat list-layout-standard dbg-band-main">
     <div class="tableDiv">
       <app-data-table
+        tableName="receipts-list"
         [data]="receiptsDisplay"
         [columns]="receiptDisplayedColumns"
-        [initialFilterVal]="persistedFilterVal"
         noDataMessage="No unaccounted receipts"
         [hasColumnIndex]="false"
         [hasFilter]="true"
@@ -29,7 +29,6 @@
         (receiptClickEvent)="openReceiptDialog($event)"
         (workOrderCodeClickEvent)="goToWorkOrderFromCode($event)"
         (dropdownChangeEvent)="onReceiptDropdownChange($event)"
-        (filterValChangeEvent)="onTableFilterValueChanged($event)"
         (deleteEvent)="deleteReceipt($event)"
         (checkboxChangeEvent)="onReceiptCheckboxChange($event)"
         (inlineEditChangeEvent)="onReceiptInlineEditChange($event)">
