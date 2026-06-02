@@ -1,5 +1,5 @@
 import { ChangeDetectionStrategy, ChangeDetectorRef, Component, OnDestroy, OnInit } from '@angular/core';
-import { BehaviorSubject, Observable, Subscription, finalize, map, take } from 'rxjs';
+import { BehaviorSubject, Subject, finalize, take, takeUntil } from 'rxjs';
 import { MaterialModule } from '../../../material.module';
 import { JwtUser } from '../../../public/login/models/jwt';
 import { AuthService } from '../../../services/auth.service';
@@ -9,7 +9,7 @@ import { UtilityService } from '../../../services/utility.service';
 import { PropertyListResponse } from '../../properties/models/property.model';
 import { PropertyService } from '../../properties/services/property.service';
 import { getBillingType, ReservationStatus } from '../../reservations/models/reservation-enum';
-import { ReservationListDisplay, ReservationListResponse } from '../../reservations/models/reservation-model';
+import { ReservationListDisplay } from '../../reservations/models/reservation-model';
 import { ReservationBoardComponent } from '../../reservations/reservation-board/reservation-board.component';
 import { ReservationService } from '../../reservations/services/reservation.service';
 import { DataTableComponent } from '../../shared/data-table/data-table.component';
@@ -29,7 +29,6 @@ export class DashboardOwnerComponent implements OnInit, OnDestroy {
   user: JwtUser | null = null;
   ownerContactId: string | null = null;
   profilePictureUrl: string | null = null;
-  private userSubscription?: Subscription;
 
   allProperties: PropertyListResponse[] = [];
   allReservations: ReservationListDisplay[] = [];
@@ -41,11 +40,11 @@ export class DashboardOwnerComponent implements OnInit, OnDestroy {
   vacantCount: number = 0;
   currentReservationCount: number = 0;
   upcomingReservationCount: number = 0;
-  isLoadingProperties: boolean = false;
-  isLoadingReservations: boolean = false;
   todayDate: string = '';
-  itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['currentUser']));
-  isLoading$: Observable<boolean> = this.itemsToLoad$.pipe(map(items => items.size > 0));
+
+  isPageReady = false;
+  itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['currentUser', 'properties', 'reservations']));
+  destroy$ = new Subject<void>();
 
   ownerPropertiesDisplayedColumns: ColumnSet = {
     officeName: { displayAs: 'Office', maxWidth: '15ch' },
@@ -79,54 +78,102 @@ export class DashboardOwnerComponent implements OnInit, OnDestroy {
     private cdr: ChangeDetectorRef
   ) {}
 
-  private markViewForCheck(): void {
-    this.cdr.markForCheck();
-  }
 
   //#region Owner Dashboard
   ngOnInit(): void {
+    this.itemsToLoad$.pipe(takeUntil(this.destroy$)).subscribe(items => {
+      this.isPageReady = items.size === 0;
+      this.markViewForCheck();
+    });
+
     this.user = this.authService.getUser();
     this.setTodayDate();
-    if (!this.user?.userId) {
-      return;
-    }
     this.loadCurrentUser(this.user.userId);
-    this.loadReservations();
-  }
-
-  getFullName(): string {
-    return `${this.user?.firstName || ''} ${this.user?.lastName || ''}`.trim();
-  }
-
-  setTodayDate(): void {
-    const today = new Date();
-    this.todayDate = today.toLocaleDateString('en-US', {
-      weekday: 'long',
-      year: 'numeric',
-      month: 'long',
-      day: 'numeric'
-    });
   }
   //#endregion
   
   //#region Data Loading Methods
   loadCurrentUser(userId: string): void {
-    this.userSubscription = this.userService.getUserByGuid(userId).pipe(take(1), finalize(() => { this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'currentUser'); })).subscribe({
+    this.userService.getUserByGuid(userId).pipe(take(1),finalize(() => this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'currentUser'))).subscribe({
       next: (userResponse: UserResponse) => {
         this.applyUserProfilePicture(userResponse);
         this.ownerContactId = userResponse.contactId ? String(userResponse.contactId).trim() : null;
-        this.loadProperties();
+        if (!this.ownerContactId) {
+          this.resetOwnerDashboardData();
+          this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'properties');
+          this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'reservations');
+        } else {
+          this.loadProperties();
+          this.loadReservations();
+        }
         this.markViewForCheck();
       },
       error: () => {
         this.profilePictureUrl = null;
         this.ownerContactId = null;
-        this.loadProperties();
+        this.resetOwnerDashboardData();
+        this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'properties');
+        this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'reservations');
         this.markViewForCheck();
       }
     });
   }
 
+  loadProperties(): void {
+    const ownerContactId = this.ownerContactId?.trim();
+    if (!ownerContactId) {
+      this.allProperties = [];
+      this.ownerPropertiesTableData = [];
+      this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'properties');
+      this.refreshOwnerReservationData();
+      return;
+    }
+
+    this.propertyService.getPropertiesByOwner(ownerContactId).pipe( take(1),finalize(() => this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'properties'))).subscribe({
+      next: (properties) => {
+        this.allProperties = (properties || []).filter(p => p.isActive);
+        this.ownerPropertiesTableData = this.allProperties.map(property => ({
+          ...property,
+          monthlyRate: this.formatCurrencyValue(property.monthlyRate),
+          dailyRate: this.formatCurrencyValue(property.dailyRate)
+        }));
+        this.refreshOwnerReservationData();
+        this.markViewForCheck();
+      },
+      error: () => {
+        this.allProperties = [];
+        this.ownerPropertiesTableData = [];
+        this.refreshOwnerReservationData();
+        this.markViewForCheck();
+      }
+    });
+  }
+
+  loadReservations(): void {
+    const ownerContactId = this.ownerContactId?.trim();
+    if (!ownerContactId) {
+      this.allReservations = [];
+      this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'reservations');
+      this.refreshOwnerReservationData();
+      return;
+    }
+
+    this.reservationService.getReservationsByOwner(ownerContactId).pipe(take(1),finalize(() => this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'reservations'))).subscribe({
+      next: (reservations) => {
+        this.allReservations = this.mappingService.mapReservationList(reservations || []);
+        this.refreshOwnerReservationData();
+        this.markViewForCheck();
+      },
+      error: () => {
+        this.allReservations = [];
+        this.refreshOwnerReservationData();
+        this.markViewForCheck();
+      }
+    });
+  }
+  //#endregion
+
+  //#region Form Response Methods
   applyUserProfilePicture(userResponse: UserResponse): void {
     if (userResponse.fileDetails?.file) {
       const contentType = userResponse.fileDetails.contentType || 'image/png';
@@ -136,83 +183,24 @@ export class DashboardOwnerComponent implements OnInit, OnDestroy {
     }
   }
 
-  loadProperties(): void {
-    const ownerContactId = this.ownerContactId;
-    if (!ownerContactId) {
-      this.allProperties = [];
-      this.ownerPropertiesTableData = [];
-      this.ownerPropertyReservations = [];
-      this.ownerCurrentReservationsTableData = [];
-      this.ownerHistoricalReservationsTableData = [];
-      this.rentedCount = 0;
-      this.vacantCount = 0;
-      this.currentReservationCount = 0;
-      this.upcomingReservationCount = 0;
-      return;
-    }
-
-    this.isLoadingProperties = true;
-    this.propertyService.getPropertiesByOwner(ownerContactId).pipe(take(1)).subscribe({
-      next: (response: PropertyListResponse[]) => {
-        this.allProperties = (response || []).filter(p => p.isActive);
-        this.ownerPropertiesTableData = this.allProperties.map(property => ({
-          ...property,
-          monthlyRate: this.formatCurrencyValue(property.monthlyRate),
-          dailyRate: this.formatCurrencyValue(property.dailyRate)
-        }));
-        this.refreshOwnerReservationData();
-        this.isLoadingProperties = false;
-        this.markViewForCheck();
-      },
-      error: () => {
-        this.allProperties = [];
-        this.ownerPropertiesTableData = [];
-        this.ownerPropertyReservations = [];
-        this.ownerCurrentReservationsTableData = [];
-        this.ownerHistoricalReservationsTableData = [];
-        this.rentedCount = 0;
-        this.vacantCount = 0;
-        this.currentReservationCount = 0;
-        this.upcomingReservationCount = 0;
-        this.isLoadingProperties = false;
-        this.markViewForCheck();
-      }
-    });
-  }
-
-  loadReservations(): void {
-    this.isLoadingReservations = true;
-    this.reservationService.getReservationList().pipe(take(1)).subscribe({
-      next: (response: ReservationListResponse[]) => {
-        this.allReservations = this.mappingService.mapReservationList(response || []);
-        this.refreshOwnerReservationData();
-        this.isLoadingReservations = false;
-        this.markViewForCheck();
-      },
-      error: () => {
-        this.allReservations = [];
-        this.ownerPropertyReservations = [];
-        this.ownerCurrentReservationsTableData = [];
-        this.ownerHistoricalReservationsTableData = [];
-        this.rentedCount = 0;
-        this.vacantCount = this.allProperties.length;
-        this.currentReservationCount = 0;
-        this.upcomingReservationCount = 0;
-        this.isLoadingReservations = false;
-        this.markViewForCheck();
-      }
-    });
+  resetOwnerDashboardData(): void {
+    this.allProperties = [];
+    this.allReservations = [];
+    this.ownerPropertiesTableData = [];
+    this.ownerPropertyReservations = [];
+    this.ownerCurrentReservationsTableData = [];
+    this.ownerHistoricalReservationsTableData = [];
+    this.rentedCount = 0;
+    this.vacantCount = 0;
+    this.currentReservationCount = 0;
+    this.upcomingReservationCount = 0;
   }
 
   refreshOwnerReservationData(): void {
-    const ownerPropertyIds = new Set(this.allProperties.map(property => property.propertyId));
-
-    this.ownerPropertyReservations = this.allReservations
-      .filter(reservation => reservation.isActive && ownerPropertyIds.has(reservation.propertyId))
-      .map(reservation => ({
-        ...reservation,
-        billingType: getBillingType(reservation.billingTypeId ?? undefined)
-      }));
+    this.ownerPropertyReservations = this.allReservations.map(reservation => ({
+      ...reservation,
+      billingType: getBillingType(reservation.billingTypeId ?? undefined)
+    }));
     const reservationsForDisplay = this.ownerPropertyReservations.map(reservation => ({
       ...reservation,
       billingType: this.shouldMaskBillingFields(reservation.reservationStatusId) ? '--' : getBillingType(reservation.billingTypeId ?? undefined),
@@ -228,6 +216,10 @@ export class DashboardOwnerComponent implements OnInit, OnDestroy {
     let upcomingReservations = 0;
 
     this.ownerPropertyReservations.forEach(reservation => {
+      if (!reservation.isActive) {
+        return;
+      }
+
       if (!reservation.arrivalDate || !reservation.departureDate) {
         return;
       }
@@ -253,13 +245,21 @@ export class DashboardOwnerComponent implements OnInit, OnDestroy {
     this.currentReservationCount = currentReservations;
     this.upcomingReservationCount = upcomingReservations;
   }
-  //#endregion
 
-  //#region Utility Methods
-  ngOnDestroy(): void {
-    this.userSubscription?.unsubscribe();
+  getFullName(): string {
+    return `${this.user?.firstName || ''} ${this.user?.lastName || ''}`.trim();
   }
 
+  setTodayDate(): void {
+    const today = new Date();
+    this.todayDate = today.toLocaleDateString('en-US', {
+      weekday: 'long',
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric'
+    });
+  }
+    
   formatCurrencyValue(value: number | null | undefined): string {
     return this.formatterService.currencyUsd(Number(value) || 0);
   }
@@ -280,6 +280,17 @@ export class DashboardOwnerComponent implements OnInit, OnDestroy {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
     return departureDate.getTime() < today.getTime();
+  }
+  //#endregion
+
+  //#region Utility Methods
+  markViewForCheck(): void {
+    this.cdr.markForCheck();
+  }
+
+  ngOnDestroy(): void {
+    this.destroy$.next();
+    this.destroy$.complete();
   }
   //#endregion
 }

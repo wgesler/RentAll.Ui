@@ -1,5 +1,5 @@
 import { CommonModule } from '@angular/common';
-import { ChangeDetectionStrategy, ChangeDetectorRef, Component, Input, OnDestroy, OnInit, ViewChild } from '@angular/core';
+import { ChangeDetectionStrategy, ChangeDetectorRef, Component, Input, OnChanges, OnDestroy, OnInit, SimpleChanges, ViewChild } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { MatMenuTrigger } from '@angular/material/menu';
 import { MatSlideToggleChange } from '@angular/material/slide-toggle';
@@ -37,7 +37,7 @@ import { ReservationService } from '../services/reservation.service';
     styleUrl: './reservation-board.component.scss',
     changeDetection: ChangeDetectionStrategy.OnPush
 })
-export class ReservationBoardComponent implements OnInit, OnDestroy {
+export class ReservationBoardComponent implements OnInit, OnChanges, OnDestroy {
   @Input() ownerUserId: string | null = null;
   @Input() ownerContactId: string | null = null;
   @Input() readOnly: boolean = false;
@@ -147,6 +147,20 @@ export class ReservationBoardComponent implements OnInit, OnDestroy {
       this.loadReservations(true, true);
     });
     this.startReservationPolling();
+  }
+
+  ngOnChanges(changes: SimpleChanges): void {
+    if (!changes['ownerContactId'] && !changes['ownerUserId']) {
+      return;
+    }
+
+    const scopedOwnerId = (this.ownerContactId || this.ownerUserId || '').trim();
+    if (!scopedOwnerId || !this.officeScopeResolved) {
+      return;
+    }
+
+    this.loadReservations(true);
+    this.loadBoardProperties();
   }
 
   startReservationPolling(): void {
@@ -324,11 +338,16 @@ export class ReservationBoardComponent implements OnInit, OnDestroy {
     const currentOfficeId = this.selectedOfficeId ?? null;
     if (!force && (this.isLoadingReservations || this.lastLoadedOfficeId === currentOfficeId)) return;
 
+    const scopedOwnerId = (this.ownerContactId || this.ownerUserId || '').trim();
+    const reservations$ = scopedOwnerId
+      ? this.reservationService.getReservationsByOwner(scopedOwnerId)
+      : this.reservationService.getReservationList();
+
     this.isLoadingReservations = true;
     if (!silent) {
       this.utilityService.addLoadItem(this.itemsToLoad$, 'reservations');
     }
-    this.reservationService.getReservationList().pipe(take(1), finalize(() => { if (!silent) { this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'reservations'); } })).subscribe({
+    reservations$.pipe(take(1), finalize(() => { if (!silent) { this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'reservations'); } })).subscribe({
       next: (reservations: ReservationListResponse[]) => {
         const workingOfficeId = this.selectedOfficeId;
         this.reservations = (reservations || []).filter(r => workingOfficeId == null || r.officeId === workingOfficeId);

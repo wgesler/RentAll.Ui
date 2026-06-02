@@ -32,7 +32,7 @@
                 <h4 class="dashboard-titlebar-stat-heading dashboard-titlebar-stat-heading-single">
                   <span class="dashboard-titlebar-stat-line">Properties</span>
                 </h4>
-                @if (isLoadingProperties || isLoadingReservations) {
+                @if (!isPageReady) {
                   <div class="dashboard-titlebar-spinner">
                     <mat-spinner [diameter]="16"></mat-spinner>
                   </div>
@@ -55,7 +55,7 @@
                 <h4 class="dashboard-titlebar-stat-heading dashboard-titlebar-stat-heading-single">
                   <span class="dashboard-titlebar-stat-line">Reservations</span>
                 </h4>
-                @if (isLoadingReservations) {
+                @if (!isPageReady) {
                   <div class="dashboard-titlebar-spinner">
                     <mat-spinner [diameter]="16"></mat-spinner>
                   </div>
@@ -88,7 +88,7 @@
               <mat-expansion-panel-header>
                 <mat-panel-title>Owner Properties</mat-panel-title>
               </mat-expansion-panel-header>
-              @if (isLoadingProperties) {
+              @if (!isPageReady) {
                 <div class="loading-container">
                   <mat-spinner [diameter]="40"></mat-spinner>
                   <p>Loading properties...</p>
@@ -114,7 +114,7 @@
               <mat-expansion-panel-header>
                 <mat-panel-title>Current Reservations</mat-panel-title>
               </mat-expansion-panel-header>
-              @if (isLoadingReservations) {
+              @if (!isPageReady) {
                 <div class="loading-container">
                   <mat-spinner [diameter]="40"></mat-spinner>
                   <p>Loading reservations...</p>
@@ -139,7 +139,7 @@
               <mat-expansion-panel-header>
                 <mat-panel-title>Historical Reservations</mat-panel-title>
               </mat-expansion-panel-header>
-              @if (isLoadingReservations) {
+              @if (!isPageReady) {
                 <div class="loading-container">
                   <mat-spinner [diameter]="40"></mat-spinner>
                   <p>Loading reservations...</p>

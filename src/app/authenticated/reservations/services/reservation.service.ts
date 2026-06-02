@@ -35,6 +35,10 @@ export class ReservationService {
     return this.http.get<ReservationListResponse[]>(this.controller + 'list');
   }
 
+  getReservationsByOwner(ownerId: string): Observable<ReservationListResponse[]> {
+    return this.http.get<ReservationListResponse[]>(this.controller + 'owner/' + ownerId);
+  }
+
   getReservationCodes(): Observable<ReservationCodeResponse[]> {
     return this.http.get<ReservationCodeResponse[]>(this.controller + 'codes');
   }
