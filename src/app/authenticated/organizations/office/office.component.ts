@@ -255,14 +255,14 @@ export class OfficeComponent implements OnInit, OnDestroy, OnChanges, AfterViewI
               if (!isUpdated) {
                 this.toastr.warning('Office created, but failed to update your office access.', 'Partial Update');
               }
-              if (orgId) this.officeService.loadAllOffices(orgId);
+              if (orgId) this.officeService.notifyOfficesChanged(orgId);
               this.savedEvent.emit();
               this.backEvent.emit();
             },
             error: () => {
               this.toastr.success('Office created successfully', CommonMessage.Success, { timeOut: CommonTimeouts.Success });
               this.toastr.warning('Office created, but failed to update your office access.', 'Partial Update');
-              if (orgId) this.officeService.loadAllOffices(orgId);
+              if (orgId) this.officeService.notifyOfficesChanged(orgId);
               this.savedEvent.emit();
               this.backEvent.emit();
             }
@@ -292,14 +292,14 @@ export class OfficeComponent implements OnInit, OnDestroy, OnChanges, AfterViewI
                 if (!allUpdated) {
                   this.toastr.warning('Office updated, but failed to update your office access.', 'Partial Update');
                 }
-                if (orgId) this.officeService.loadAllOffices(orgId);
+                if (orgId) this.officeService.notifyOfficesChanged(orgId);
                 this.savedEvent.emit();
                 this.backEvent.emit();
               },
               error: () => {
                 this.toastr.success('Office updated successfully', CommonMessage.Success, { timeOut: CommonTimeouts.Success });
                 this.toastr.warning('Office updated, but failed to update your office access.', 'Partial Update');
-                if (orgId) this.officeService.loadAllOffices(orgId);
+                if (orgId) this.officeService.notifyOfficesChanged(orgId);
                 this.savedEvent.emit();
                 this.backEvent.emit();
               }
@@ -308,7 +308,7 @@ export class OfficeComponent implements OnInit, OnDestroy, OnChanges, AfterViewI
           }
 
           this.toastr.success('Office updated successfully', CommonMessage.Success, { timeOut: CommonTimeouts.Success });
-          if (orgId) this.officeService.loadAllOffices(orgId);
+          if (orgId) this.officeService.notifyOfficesChanged(orgId);
           this.savedEvent.emit();
           this.backEvent.emit();
         },

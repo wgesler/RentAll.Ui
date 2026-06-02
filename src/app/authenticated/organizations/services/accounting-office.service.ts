@@ -47,6 +47,11 @@ export class AccountingOfficeService {
     return this.loadAllAccountingOffices().pipe(take(1), switchMap(() => this.getAllAccountingOffices().pipe(take(1))));
   }
 
+  /** Reload the global accounting-office cache and push to all getAllAccountingOffices() subscribers. */
+  notifyAccountingOfficesChanged(): void {
+    this.refreshAccountingOffices().pipe(take(1)).subscribe();
+  }
+
   areAccountingOfficesLoaded(): Observable<boolean> {
     return this.accountingOfficesLoaded$.asObservable();
   }

@@ -89,7 +89,7 @@ export class OfficeListComponent implements OnInit, OnChanges, OnDestroy {
       this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'offices');
       return;
     }
-    this.officeService.getOffices(orgId).pipe(take(1), finalize(() => { this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'offices'); })).subscribe({
+    this.officeService.refreshOffices(orgId).pipe(take(1), finalize(() => { this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'offices'); })).subscribe({
       next: (response: OfficeResponse[]) => {
         this.allOffices = this.mappingService.mapOffices(response);
         this.applyFilters();

@@ -340,7 +340,7 @@ export class ConfigurationComponent implements OnInit, OnDestroy {
 
   onAccountingOfficeBack(): void {
     if (this.shouldRefreshAccountingOffices) {
-      this.accountingOfficeListComponent?.getAccountingOffices();
+      this.accountingOfficeListComponent?.getAccountingOffices(true);
     }
     this.shouldRefreshAccountingOffices = false;
     this.accountingOfficeId = null;

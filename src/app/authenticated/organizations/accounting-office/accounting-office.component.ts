@@ -247,6 +247,7 @@ export class AccountingOfficeComponent implements OnInit, OnDestroy, OnChanges {
       this.accountingOfficeService.createAccountingOffice(officeRequest).pipe(take(1), finalize(() => this.isSubmitting = false)).subscribe({
         next: (response: AccountingOfficeResponse) => {
           this.toastr.success('Office created successfully', CommonMessage.Success, { timeOut: CommonTimeouts.Success });
+          this.accountingOfficeService.notifyAccountingOfficesChanged();
           this.savedEvent.emit();
           this.backEvent.emit();
         },
@@ -266,6 +267,7 @@ export class AccountingOfficeComponent implements OnInit, OnDestroy, OnChanges {
       this.accountingOfficeService.updateAccountingOffice(officeRequest).pipe(take(1), finalize(() => this.isSubmitting = false)).subscribe({
         next: (response: AccountingOfficeResponse) => {
           this.toastr.success('Office updated successfully', CommonMessage.Success, { timeOut: CommonTimeouts.Success });
+          this.accountingOfficeService.notifyAccountingOfficesChanged();
           this.savedEvent.emit();
           this.backEvent.emit();
         },

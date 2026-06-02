@@ -121,7 +121,11 @@ export class ReceiptComponent implements OnInit, OnChanges, OnDestroy {
 
     this.form.get('propertyIds')?.valueChanges.pipe(takeUntil(this.destroy$)).subscribe(() => {
       this.syncSelectedPropertyIdFromForm();
+      this.syncReceiptOfficeFromSelectedProperties();
       this.form.patchValue({ propertyCode: this.getPropertyCodesDisplay(this.getSelectedPropertyIds()) }, { emitEvent: false });
+      if (!this.isAllOfficesShellScope()) {
+        this.loadBankCardsAndVendors();
+      }
     });
 
     this.loadOffices();
@@ -452,9 +456,13 @@ export class ReceiptComponent implements OnInit, OnChanges, OnDestroy {
   loadVendors(): void {
     this.contactService.ensureContactsLoaded().pipe(take(1)).subscribe({
       next: contacts => {
-        const officeId = this.getReceiptOfficeId();
-        if (officeId) {
-          this.loadVendorsForOffice(officeId, contacts || []);
+        if (this.isAllOfficesShellScope()) {
+          this.loadVendorsForAllOffices(contacts || []);
+        } else {
+          const officeId = this.getReceiptOfficeId();
+          if (officeId) {
+            this.loadVendorsForOffice(officeId, contacts || []);
+          }
         }
         this.cdr.markForCheck();
       },
@@ -466,6 +474,10 @@ export class ReceiptComponent implements OnInit, OnChanges, OnDestroy {
   }
 
   refreshBankCardsForCurrentOffice(): void {
+    if (this.isAllOfficesShellScope()) {
+      this.loadBankCardsForAllOffices();
+      return;
+    }
     const officeId = this.getReceiptOfficeId();
     if (officeId) {
       this.loadBankCardsForOffice(officeId);
@@ -473,18 +485,28 @@ export class ReceiptComponent implements OnInit, OnChanges, OnDestroy {
   }
 
   loadBankCardsAndVendors(): void {
-    const officeId = this.getReceiptOfficeId();
-    if (officeId) {
-      this.loadBankCardsForOffice(officeId);
+    if (this.isAllOfficesShellScope()) {
+      this.loadBankCardsForAllOffices();
       this.contactService.ensureContactsLoaded().pipe(take(1)).subscribe({
-        next: (contacts) => this.loadVendorsForOffice(officeId, contacts),
+        next: (contacts) => this.loadVendorsForAllOffices(contacts),
         error: () => {
           this.vendorOptions = [{ value: this.newVendorOptionValue, label: 'New Vendor' }];
         }
       });
     } else {
-      this.bankCardOptions = [];
-      this.vendorOptions = [{ value: this.newVendorOptionValue, label: 'New Vendor' }];
+      const officeId = this.getReceiptOfficeId();
+      if (officeId) {
+        this.loadBankCardsForOffice(officeId);
+        this.contactService.ensureContactsLoaded().pipe(take(1)).subscribe({
+          next: (contacts) => this.loadVendorsForOffice(officeId, contacts),
+          error: () => {
+            this.vendorOptions = [{ value: this.newVendorOptionValue, label: 'New Vendor' }];
+          }
+        });
+      } else {
+        this.bankCardOptions = [];
+        this.vendorOptions = [{ value: this.newVendorOptionValue, label: 'New Vendor' }];
+      }
     }
     this.applyPropertyInputToForm();
   }
@@ -534,6 +556,65 @@ export class ReceiptComponent implements OnInit, OnChanges, OnDestroy {
         value: String(contact.contactId || ''),
         label: this.utilityService.getVendorDropdownLabel(contact)
       })).filter(option => option.value.trim().length > 0)
+    ];
+  }
+
+  loadBankCardsForAllOffices(): void {
+    const applyBankCards = () => {
+      const byId = new Map<number, SearchableSelectOption<number>>();
+      (this.accountingOffices || []).forEach(office => {
+        const bankCards = this.mappingService.mapBankCardsFromResponse(office.bankCards);
+        bankCards
+          .filter(card => Number(card.bankCardId) > 0)
+          .forEach(card => {
+            const bankCardId = Number(card.bankCardId);
+            if (!byId.has(bankCardId)) {
+              byId.set(bankCardId, {
+                value: bankCardId,
+                label: this.toBankCardOptionLabel(card)
+              });
+            }
+          });
+      });
+      this.bankCardOptions = Array.from(byId.values()).sort((a, b) =>
+        String(a.label).localeCompare(String(b.label), undefined, { sensitivity: 'base' })
+      );
+    };
+
+    if (this.accountingOffices.length > 0) {
+      applyBankCards();
+      return;
+    }
+
+    this.accountingOfficeService.ensureAccountingOfficesLoaded().pipe(take(1)).subscribe({
+      next: (accountingOffices) => {
+        this.accountingOffices = accountingOffices || [];
+        applyBankCards();
+      },
+      error: () => {
+        this.bankCardOptions = [];
+      }
+    });
+  }
+
+  loadVendorsForAllOffices(contacts?: ContactResponse[]): void {
+    const sourceContacts = contacts ?? this.contactService.getAllContactsValue();
+    const byId = new Map<string, { value: string; label: string }>();
+    (sourceContacts || [])
+      .filter(contact => contact.entityTypeId === EntityType.Vendor)
+      .forEach(contact => {
+        const contactId = String(contact.contactId || '').trim();
+        if (!contactId || byId.has(contactId)) {
+          return;
+        }
+        byId.set(contactId, {
+          value: contactId,
+          label: this.utilityService.getVendorDropdownLabel(contact)
+        });
+      });
+    this.vendorOptions = [
+      { value: this.newVendorOptionValue, label: 'New Vendor' },
+      ...Array.from(byId.values()).sort((a, b) => a.label.localeCompare(b.label, undefined, { sensitivity: 'base' }))
     ];
   }
   //#endregion
@@ -1145,7 +1226,11 @@ export class ReceiptComponent implements OnInit, OnChanges, OnDestroy {
       }
       this.contactService.refreshContacts().pipe(take(1)).subscribe({
         next: (contacts: ContactResponse[]) => {
-          this.loadVendorsForOffice(selectedOfficeId);
+          if (this.isAllOfficesShellScope()) {
+            this.loadVendorsForAllOffices(contacts);
+          } else {
+            this.loadVendorsForOffice(selectedOfficeId, contacts);
+          }
           const vendor = (contacts || []).find(contact => String(contact.contactId || '').trim() === String(result.contactId || '').trim());
           if (!vendor) {
             return;
@@ -1162,10 +1247,22 @@ export class ReceiptComponent implements OnInit, OnChanges, OnDestroy {
   //#endregion 
 
   //#region Property Selection Methods
+  syncReceiptOfficeFromSelectedProperties(): void {
+    const propertyIds = this.getSelectedPropertyIds();
+    const firstProperty = propertyIds
+      .map(propertyId => this.propertyOptions.find(property => property.propertyId === propertyId))
+      .find(property => !!property);
+    const propertyOfficeId = this.normalizeOfficeId(firstProperty?.officeId ?? this.property?.officeId);
+    if (propertyOfficeId) {
+      this.setReceiptOfficeId(propertyOfficeId);
+    }
+  }
+
   applyPropertyInputToForm(): void {
     if (this.property?.propertyId) {
       this.selectedPropertyId = this.property.propertyId;
     }
+    this.syncReceiptOfficeFromSelectedProperties();
     if (!this.form || !this.isAddMode || !this.selectedPropertyId) {
       return;
     }
@@ -1253,11 +1350,21 @@ export class ReceiptComponent implements OnInit, OnChanges, OnDestroy {
   //#endregion
 
   //#region OfficeId Methods
+  isAllOfficesShellScope(): boolean {
+    return this.normalizeOfficeId(this.officeId) === null;
+  }
+
   applyShellOfficeToReceipt(): void {
     const shellOfficeId = this.normalizeOfficeId(this.officeId);
     if (!shellOfficeId) {
-      this.bankCardOptions = [];
-      this.vendorOptions = [{ value: this.newVendorOptionValue, label: 'New Vendor' }];
+      const propertyOfficeId = this.normalizeOfficeId(this.property?.officeId);
+      if (propertyOfficeId) {
+        this.setReceiptOfficeId(propertyOfficeId);
+      }
+      if (!this.form) {
+        return;
+      }
+      this.loadBankCardsAndVendors();
       return;
     }
     this.setReceiptOfficeId(shellOfficeId);

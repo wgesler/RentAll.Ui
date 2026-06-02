@@ -79,8 +79,11 @@ export class AccountingOfficeListComponent implements OnInit, OnDestroy {
     this.officeSelected.emit('new');
   }
 
-  getAccountingOffices(): void {
-    this.accountingOfficeService.ensureAccountingOfficesLoaded().pipe(take(1), finalize(() => { this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'accountingOffices'); })).subscribe({
+  getAccountingOffices(forceRefresh = false): void {
+    const load$ = forceRefresh
+      ? this.accountingOfficeService.refreshAccountingOffices()
+      : this.accountingOfficeService.ensureAccountingOfficesLoaded();
+    load$.pipe(take(1), finalize(() => { this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'accountingOffices'); })).subscribe({
       next: (response: AccountingOfficeResponse[]) => {
         this.allAccountingOffices = this.mappingService.mapAccountingOffices(response, this.offices);
         this.applyFilters();
@@ -98,17 +101,7 @@ export class AccountingOfficeListComponent implements OnInit, OnDestroy {
       next: () => {
         this.toastr.success('Accounting Office deleted successfully', CommonMessage.Success);
         this.utilityService.addLoadItem(this.itemsToLoad$, 'accountingOffices');
-        this.accountingOfficeService.refreshAccountingOffices().pipe(take(1), finalize(() => { this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'accountingOffices'); })).subscribe({
-          next: (list) => {
-            this.allAccountingOffices = this.mappingService.mapAccountingOffices(list, this.offices);
-            this.applyFilters();
-            this.markViewForCheck();
-          },
-          error: () => {
-            this.getAccountingOffices();
-            this.markViewForCheck();
-          }
-        });
+        this.getAccountingOffices(true);
       },
       error: (_err: HttpErrorResponse) => {}
     });

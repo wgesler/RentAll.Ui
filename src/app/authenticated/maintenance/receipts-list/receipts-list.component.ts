@@ -128,8 +128,13 @@ export class ReceiptsListComponent implements OnInit, OnChanges, OnDestroy {
       }
     }
 
-    if (changes['officeId'] && !changes['officeId'].firstChange && !this.property?.propertyId) {
-      this.loadReceiptsForCurrentSearchCriteria();
+    if (changes['officeId'] && !changes['officeId'].firstChange) {
+      if (!this.property?.propertyId) {
+        this.loadReceiptsForCurrentSearchCriteria();
+      }
+      this.applyBankCardDropdownsToDisplays();
+      this.applyVendorCellsToDisplays();
+      this.applyFilters();
     }
 
     if (changes['refreshTrigger'] && !changes['refreshTrigger'].firstChange) {
@@ -905,11 +910,69 @@ export class ReceiptsListComponent implements OnInit, OnChanges, OnDestroy {
     }));
   }
   
+  isAllOfficesScope(): boolean {
+    const scopedOfficeId = Number(this.officeId ?? 0);
+    return !Number.isFinite(scopedOfficeId) || scopedOfficeId <= 0;
+  }
+
+  getAllOfficesBankCardOptions(): Array<{ bankCardId: number; label: string }> {
+    const merged = new Map<number, { bankCardId: number; label: string }>();
+    merged.set(0, { bankCardId: 0, label: 'Bill' });
+    this.bankCardOptionsByOfficeId.forEach(options => {
+      options.forEach(option => {
+        if (!merged.has(option.bankCardId)) {
+          merged.set(option.bankCardId, option);
+        }
+      });
+    });
+    return Array.from(merged.values()).sort((a, b) => {
+      if (a.bankCardId === 0) {
+        return -1;
+      }
+      if (b.bankCardId === 0) {
+        return 1;
+      }
+      return a.label.localeCompare(b.label, undefined, { sensitivity: 'base' });
+    });
+  }
+
+  getAllOfficesVendorOptions(): Array<{ contactId: string; label: string }> {
+    const merged = new Map<string, { contactId: string; label: string }>();
+    this.vendorOptionsByOfficeId.forEach(options => {
+      options.forEach(option => {
+        const contactId = String(option.contactId || '').trim();
+        if (!contactId || merged.has(contactId)) {
+          return;
+        }
+        merged.set(contactId, option);
+      });
+    });
+    return Array.from(merged.values()).sort((a, b) =>
+      a.label.localeCompare(b.label, undefined, { sensitivity: 'base' })
+    );
+  }
+
+  getBankCardOptionsForReceiptScope(receiptOfficeId: number): Array<{ bankCardId: number; label: string }> {
+    if (this.isAllOfficesScope()) {
+      return this.getAllOfficesBankCardOptions();
+    }
+    const officeId = Number(receiptOfficeId ?? 0);
+    return this.bankCardOptionsByOfficeId.get(officeId) || [{ bankCardId: 0, label: 'Bill' }];
+  }
+
+  getVendorOptionsForReceiptScope(receiptOfficeId: number): Array<{ contactId: string; label: string }> {
+    if (this.isAllOfficesScope()) {
+      return this.getAllOfficesVendorOptions();
+    }
+    const officeId = Number(receiptOfficeId ?? 0);
+    return this.vendorOptionsByOfficeId.get(officeId) || [];
+  }
+
   applyBankCardDropdownsToDisplays(): void {
     this.allReceipts = (this.allReceipts || []).map(receipt => {
       const officeId = Number(receipt.officeId ?? 0);
       const bankCardId = Number(receipt.bankCardId ?? 0);
-      const optionsForOffice = this.bankCardOptionsByOfficeId.get(officeId) || [{ bankCardId: 0, label: 'Bill' }];
+      const optionsForOffice = this.getBankCardOptionsForReceiptScope(officeId);
       const optionLabels = optionsForOffice.map(option => option.label);
       const preferredLabel =
         optionsForOffice.find(option => option.bankCardId === bankCardId)?.label
@@ -934,7 +997,7 @@ export class ReceiptsListComponent implements OnInit, OnChanges, OnDestroy {
     this.allReceipts = (this.allReceipts || []).map(receipt => {
       const officeId = Number(receipt.officeId ?? 0);
       const isBill = Number(receipt.bankCardId ?? 0) === 0;
-      const vendorOptionsForOffice = this.vendorOptionsByOfficeId.get(officeId) || [];
+      const vendorOptionsForOffice = this.getVendorOptionsForReceiptScope(officeId);
       const matchedVendorOption = this.findVendorOptionForReceipt(vendorOptionsForOffice, receipt);
 
       if (isBill) {
@@ -1081,17 +1144,15 @@ export class ReceiptsListComponent implements OnInit, OnChanges, OnDestroy {
   }
 
   resolveBankCardIdFromLabel(officeId: number | null | undefined, label: string): number | null {
-    const parsedOfficeId = Number(officeId ?? 0);
     const normalizedLabel = String(label || '').trim().toLowerCase();
-    const options = this.bankCardOptionsByOfficeId.get(parsedOfficeId) || [];
+    const options = this.getBankCardOptionsForReceiptScope(Number(officeId ?? 0));
     const matchingOption = options.find(option => option.label.trim().toLowerCase() === normalizedLabel);
     return matchingOption ? matchingOption.bankCardId : null;
   }
 
   resolveVendorIdFromLabel(officeId: number | null | undefined, label: string): string | null {
-    const parsedOfficeId = Number(officeId ?? 0);
     const normalizedLabel = this.normalizeVendorDisplayText(label).toLowerCase();
-    const options = this.vendorOptionsByOfficeId.get(parsedOfficeId) || [];
+    const options = this.getVendorOptionsForReceiptScope(Number(officeId ?? 0));
     const matchingOption = options.find(option => this.normalizeVendorDisplayText(option.label).toLowerCase() === normalizedLabel);
     return matchingOption ? matchingOption.contactId : null;
   }

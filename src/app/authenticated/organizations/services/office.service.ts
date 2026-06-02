@@ -60,6 +60,15 @@ export class OfficeService {
     return this.loadAllOffices(organizationId).pipe(take(1), switchMap(() => this.getAllOffices().pipe(take(1))));
   }
 
+  /** Reload the global office cache and push to all getAllOffices() subscribers. */
+  notifyOfficesChanged(organizationId: string): void {
+    const id = organizationId?.trim();
+    if (!id) {
+      return;
+    }
+    this.refreshOffices(id).pipe(take(1)).subscribe();
+  }
+
   // Check if offices have been loaded
   areOfficesLoaded(): Observable<boolean> {
     return this.officesLoaded$.asObservable();
