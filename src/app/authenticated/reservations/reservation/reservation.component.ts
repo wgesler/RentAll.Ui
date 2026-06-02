@@ -824,7 +824,9 @@ export class ReservationComponent implements OnInit, OnDestroy, CanComponentDeac
     }
     this.form.get('departureDate')?.updateValueAndValidity({ emitEvent: false });
 
-    this.captureSavedStateSignature();
+    this.hydrateSelectedProperty(this.reservation.propertyId, () => {
+      this.captureSavedStateSignature();
+    });
   }
 
   get canEditProperty(): boolean {
@@ -1213,8 +1215,16 @@ export class ReservationComponent implements OnInit, OnDestroy, CanComponentDeac
           propertyAddress: propertyCodeEntry ? this.getPropertyShortAddress(propertyCodeEntry) : ''
         }, { emitEvent: false });
         this.propertyService.getPropertyByGuid(id).pipe(take(1)).subscribe({
-          next: (property: PropertyResponse) => { this.selectedProperty = property; },
-          error: () => { this.selectedProperty = null; }
+          next: (property: PropertyResponse) => {
+            this.selectedProperty = property;
+            this.updatePetFields(false);
+            this.updateMaidServiceFields(false);
+          },
+          error: () => {
+            this.selectedProperty = null;
+            this.updatePetFields(false);
+            this.updateMaidServiceFields(false);
+          }
         });
         return;
       }
@@ -2059,12 +2069,7 @@ export class ReservationComponent implements OnInit, OnDestroy, CanComponentDeac
       this.disableFieldWithValidation('petDescription');  
     } 
     else {
-      // Only need selectedProperty when enabling fields
-      if (!this.selectedProperty) {
-        return;
-      }
-
-      if (applyEnabledDefaults) {
+      if (applyEnabledDefaults && this.selectedProperty) {
         const petFee = this.selectedProperty.petFee != null
           ? this.selectedProperty.petFee.toFixed(2)
           : '0.00';
@@ -2073,7 +2078,6 @@ export class ReservationComponent implements OnInit, OnDestroy, CanComponentDeac
       }
       this.enableFieldWithValidation('petFee', [Validators.required]);
       this.enableFieldWithValidation('numberOfPets', [Validators.required]);
-      
       this.enableFieldWithValidation('petDescription', [Validators.required]);
     }
   }
@@ -2095,12 +2099,7 @@ export class ReservationComponent implements OnInit, OnDestroy, CanComponentDeac
 
     } 
     else {
-      // Only need selectedProperty when enabling fields
-      if (!this.selectedProperty) {
-        return;
-      }
-      
-      if (applyEnabledDefaults) {
+      if (applyEnabledDefaults && this.selectedProperty) {
         maidServiceFeeControl.setValue(this.selectedProperty.maidServiceFee.toFixed(2), { emitEvent: false });
       }
       this.enableFieldWithValidation('maidServiceFee', [Validators.required]);
@@ -2113,7 +2112,6 @@ export class ReservationComponent implements OnInit, OnDestroy, CanComponentDeac
         }
       }
       this.enableFieldWithValidation('frequencyId', [Validators.required]);
-
       this.enableFieldWithValidation('maidStartDate', [Validators.required]);
       this.enableFieldWithValidation('maidUserId');
     }
@@ -2860,10 +2858,8 @@ export class ReservationComponent implements OnInit, OnDestroy, CanComponentDeac
     this.form.reset(this.cloneFormState(this.savedFormState), { emitEvent: false });
     this.extraFeeLines = this.cloneExtraFeeLines(this.savedExtraFeeLinesState || []);
 
-    if (this.isAddMode) {
-      const propertyId = this.form.get('propertyId')?.value as string | null;
-      this.hydrateSelectedProperty(propertyId || null);
-    }
+    const propertyId = this.form.get('propertyId')?.value as string | null;
+    this.hydrateSelectedProperty(propertyId || null);
     const contactId = this.form.get('contactId')?.value as string | null;
     this.selectedContact = contactId ? this.contacts.find(c => c.contactId === contactId) || null : null;
 
