@@ -45,10 +45,10 @@ export class TitleBarSelectComponent {
   @Input() errorText = 'Required';
   @Input() labelRequiredAsterisk = false;
 
-  // Title-bar defaults (keeps current UX preference).
+  // Title-bar defaults: show filter row and visible typed text.
   @Input() showSearchInput = true;
-  @Input() hideSearchHint = true;
-  @Input() hideSearchText = true;
+  @Input() hideSearchHint = false;
+  @Input() hideSearchText = false;
 
   @Output() valueChange = new EventEmitter<string | number | null>();
 }
