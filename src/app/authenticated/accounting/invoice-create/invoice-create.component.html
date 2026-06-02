@@ -16,8 +16,7 @@
                 [options]="officeTitleBarOptions"
                 [disabled]="true"
                 [nullOptionLabel]="'Offices'"
-                [noResultsText]="'No offices match your search'"
-                (valueChange)="onTitleBarOfficeChange($event)">
+                [noResultsText]="'No offices match your search'">
               </app-title-bar-select>
 
               <app-title-bar-select
@@ -27,8 +26,7 @@
                 [options]="reservationTitleBarOptions"
                 [disabled]="true"
                 [nullOptionLabel]="'All Reservations'"
-                [noResultsText]="'No reservations match your search'"
-                (valueChange)="onTitleBarReservationChange($event)">
+                [noResultsText]="'No reservations match your search'">
               </app-title-bar-select>
 
               <app-title-bar-select
@@ -36,10 +34,9 @@
                 [formFieldClass]="'titlebar-field-invoice-no'"
                 [value]="form.get('selectedInvoiceId')?.value ?? null"
                 [options]="invoiceTitleBarOptions"
-                [disabled]="false"
+                [disabled]="true"
                 [nullOptionLabel]="'Select Invoice'"
-                [noResultsText]="'No invoices match your search'"
-                (valueChange)="onTitleBarInvoiceChange($event)">
+                [noResultsText]="'No invoices match your search'">
               </app-title-bar-select>
             </div>
           }
@@ -78,8 +75,7 @@
                 [options]="officeTitleBarOptions"
                 [disabled]="true"
                 [nullOptionLabel]="'Offices'"
-                [noResultsText]="'No offices match your search'"
-                (valueChange)="onTitleBarOfficeChange($event)">
+                [noResultsText]="'No offices match your search'">
               </app-title-bar-select>
 
               <app-title-bar-select
@@ -89,8 +85,7 @@
                 [options]="reservationTitleBarOptions"
                 [disabled]="true"
                 [nullOptionLabel]="'All Reservations'"
-                [noResultsText]="'No reservations match your search'"
-                (valueChange)="onTitleBarReservationChange($event)">
+                [noResultsText]="'No reservations match your search'">
               </app-title-bar-select>
 
               <app-title-bar-select
@@ -98,10 +93,9 @@
                 [formFieldClass]="'titlebar-field-invoice-no'"
                 [value]="form.get('selectedInvoiceId')?.value ?? null"
                 [options]="invoiceTitleBarOptions"
-                [disabled]="false"
+                [disabled]="true"
                 [nullOptionLabel]="'Select Invoice'"
-                [noResultsText]="'No invoices match your search'"
-                (valueChange)="onTitleBarInvoiceChange($event)">
+                [noResultsText]="'No invoices match your search'">
               </app-title-bar-select>
             </div>
           }
@@ -157,11 +151,6 @@
                       (load)="onPreviewIframeLoad()"
                       frameborder="0">
                     </iframe>
-                  </div>
-                } @else if (isPreviewHtmlPending()) {
-                  <div class="loading-container">
-                    <mat-spinner [diameter]="40"></mat-spinner>
-                    <p>Loading invoice preview...</p>
                   </div>
                 } @else {
                   <mat-form-field appearance="outline" class="full-width">

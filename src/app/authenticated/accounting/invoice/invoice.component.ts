@@ -85,6 +85,7 @@ export class InvoiceComponent implements OnInit, OnDestroy, OnChanges {
   lastContextKey: string | null = null;
   activeInvoiceLoadId = 0;
   organizationId = '';
+  private addModeQueryParamsBound = false;
 
   isPageReady = false;
   itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['invoice', 'reservations']));
@@ -125,6 +126,7 @@ export class InvoiceComponent implements OnInit, OnDestroy, OnChanges {
 
     this.itemsToLoad$.pipe(takeUntil(this.destroy$)).subscribe(items => {
       this.isPageReady = items.size === 0;
+      this.cdr.markForCheck();
     });
 
     this.loadOffices();
@@ -134,7 +136,7 @@ export class InvoiceComponent implements OnInit, OnDestroy, OnChanges {
     this.buildForm();
     this.setupFormHandlers();
     this.contextReady = true;
-    this.initializeInvoiceContext(true);
+    this.initializeInvoiceContext(false);
 
     this.globalSelectionService.getSelectedOfficeId$().pipe(skip(1), takeUntil(this.destroy$)).subscribe(officeId => {
       if (this.offices.length > 0 && this.isAddMode && this.form) {
@@ -148,7 +150,7 @@ export class InvoiceComponent implements OnInit, OnDestroy, OnChanges {
     this.route.paramMap.pipe(takeUntil(this.destroy$)).subscribe((paramMap: ParamMap) => {
       this.routeInvoiceId = paramMap.get('id');
       if (this.contextReady && !this.shellMode) {
-        this.initializeInvoiceContext(true);
+        this.initializeInvoiceContext(false);
       }
     });
   }
@@ -158,14 +160,13 @@ export class InvoiceComponent implements OnInit, OnDestroy, OnChanges {
       return;
     }
 
-    if (
-      changes['invoiceIdInput']
-      || changes['officeIdInput']
-      || changes['reservationIdInput']
-      || changes['companyIdInput']
-      || changes['shellMode']
-    ) {
-      this.initializeInvoiceContext(true);
+    if (changes['shellMode'] || changes['invoiceIdInput']) {
+      this.initializeInvoiceContext(false);
+      return;
+    }
+
+    if (this.isAddMode && (changes['officeIdInput'] || changes['reservationIdInput'] || changes['companyIdInput'])) {
+      this.processQueryParams(this.route.snapshot.queryParams);
     }
   }
 
@@ -215,9 +216,13 @@ export class InvoiceComponent implements OnInit, OnDestroy, OnChanges {
   }
 
   handleAddModeQueryParams(): void {
-    const snapshotParams = this.route.snapshot.queryParams;
-    this.processQueryParams(snapshotParams);
-    
+    this.processQueryParams(this.route.snapshot.queryParams);
+
+    if (this.addModeQueryParamsBound) {
+      return;
+    }
+    this.addModeQueryParamsBound = true;
+
     this.route.queryParams.pipe(takeUntil(this.destroy$)).subscribe(queryParams => {
       this.processQueryParams(queryParams);
     });
@@ -271,11 +276,8 @@ export class InvoiceComponent implements OnInit, OnDestroy, OnChanges {
 
     const loadId = ++this.activeInvoiceLoadId;
     const requestedInvoiceId = this.invoiceId;
-    this.utilityService.addLoadItem(this.itemsToLoad$, 'invoice');
-    this.accountingService.getInvoiceByGuid(this.invoiceId).pipe(take(1),finalize(() => {
-        if (this.activeInvoiceLoadId === loadId) {
-          this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'invoice');
-        }
+    this.accountingService.getInvoiceByGuid(this.invoiceId).pipe(take(1), finalize(() => {
+        this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'invoice');
       })
     ).subscribe({
       next: (response: InvoiceResponse) => {
@@ -313,6 +315,7 @@ export class InvoiceComponent implements OnInit, OnDestroy, OnChanges {
       this.form?.updateValueAndValidity({ emitEvent: false });
       this.toastr.error('Please correct the highlighted fields before saving.', CommonMessage.Error);
       this.isSubmitting = false;
+      this.cdr.markForCheck();
       return;
     }
 
@@ -449,12 +452,14 @@ export class InvoiceComponent implements OnInit, OnDestroy, OnChanges {
     if (this.ledgerLines.length === 0) {
       this.toastr.error('Please correct the highlighted fields before saving.', CommonMessage.Error);
       this.isSubmitting = false;
+      this.cdr.markForCheck();
       return;
     }
 
     if (this.hasLedgerLineValidationErrors()) {
       this.toastr.error('Please correct the highlighted fields before saving.', CommonMessage.Error);
       this.isSubmitting = false;
+      this.cdr.markForCheck();
       return;
     }
 
@@ -523,6 +528,7 @@ export class InvoiceComponent implements OnInit, OnDestroy, OnChanges {
 
     save$.pipe(take(1), finalize(() => {
       this.isSubmitting = false;
+      this.cdr.markForCheck();
     })).subscribe({
       next: (savedInvoice: InvoiceResponse) => {
         const message = isCreating ? 'Invoice created successfully' : 'Invoice updated successfully';
@@ -541,7 +547,9 @@ export class InvoiceComponent implements OnInit, OnDestroy, OnChanges {
       },
       error: (err: HttpErrorResponse) => {
         if (err.status === 404) {
+          return;
         }
+        this.toastr.error('Unable to save invoice. ' + CommonMessage.TryAgain, CommonMessage.ServiceError);
       }
     });
   }
@@ -620,7 +628,9 @@ export class InvoiceComponent implements OnInit, OnDestroy, OnChanges {
   }
 
   loadReservationCodes(): void {
-    this.reservationService.getReservationCodes().pipe(take(1), finalize(() => { this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'reservations'); })).subscribe({
+    this.reservationService.getReservationCodes().pipe(take(1), finalize(() => {
+      this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'reservations');
+    })).subscribe({
       next: (reservations) => {
         this.reservations = reservations || [];
         if (this.form) {
@@ -904,7 +914,9 @@ export class InvoiceComponent implements OnInit, OnDestroy, OnChanges {
 
   setupOfficeIdHandler(): void {
     this.form.get('officeId')?.valueChanges.pipe(takeUntil(this.destroy$)).subscribe(officeId => {
-      this.globalSelectionService.setSelectedOfficeId(officeId ?? null);
+      if (!this.shellMode) {
+        this.globalSelectionService.setSelectedOfficeId(officeId ?? null);
+      }
       this.resolveOfficeScope(officeId);
       this.updateAvailableReservations();
       this.filterCostCodes();
