@@ -1,6 +1,8 @@
 import { HttpClient } from '@angular/common/http';
 import { Injectable } from '@angular/core';
-import { map, Observable } from 'rxjs';
+import { ToastrService } from 'ngx-toastr';
+import { catchError, map, Observable, of, tap } from 'rxjs';
+import { CommonMessage } from '../../../enums/common-message.enum';
 import { ConfigService } from '../../../services/config.service';
 import { UtilityService } from '../../../services/utility.service';
 import { BillingMonthlyDataRequest, BillingMonthlyDataResponse, InvoiceGetRequest, InvoiceMonthlyDataRequest, InvoiceMonthlyDataResponse, InvoicePaymentRequest, InvoicePaymentResponse, InvoiceRequest, InvoiceResponse } from '../models/invoice.model';
@@ -16,51 +18,8 @@ export class InvoiceService {
   constructor(
       private http: HttpClient,
       private configService: ConfigService,
-      private utilityService: UtilityService) {
-  }
-
-   normalizeInvoiceRequest(invoice: InvoiceRequest): InvoiceRequest {
-    const normalizedLedgerLines = (invoice.ledgerLines ?? []).map(line => {
-      const numericCostCodeId = Number(line.costCodeId);
-      const numericLineNumber = Number(line.lineNumber);
-      const numericTransactionTypeId = Number(line.transactionTypeId);
-      const numericAmount = Number(line.amount);
-      const lineDate = line.ledgerLineDate || invoice.invoiceDate || this.utilityService.todayAsCalendarDateString();
-
-      return {
-        ...line,
-        lineNumber: Number.isFinite(numericLineNumber) ? numericLineNumber : 0,
-        transactionTypeId: Number.isFinite(numericTransactionTypeId) ? numericTransactionTypeId : 0,
-        amount: Number.isFinite(numericAmount) ? numericAmount : 0,
-        ledgerLineDate: lineDate,
-        costCodeId: Number.isInteger(numericCostCodeId) ? numericCostCodeId : 0
-      };
-    });
-
-    return {
-      ...invoice,
-      ledgerLines: normalizedLedgerLines
-    };
-  }
-
-  searchInvoices(request: InvoiceGetRequest): Observable<InvoiceResponse[]> {
-    const officeIds = (request.officeIds ?? []).filter(id => id > 0);
-    if (officeIds.length === 0) {
-      throw new Error('At least one office ID is required to load invoices.');
-    }
-
-    const body = {
-      officeIds,
-      reservationId: request.reservationId || null,
-      propertyId: request.propertyId || null,
-      invoiceCode: request.invoiceCode || null,
-      includeInactive: request.includeInactive,
-      includePaid: request.includePaid,
-      startDate: request.startDate || null,
-      endDate: request.endDate || null
-    };
-
-    return this.http.post<InvoiceResponse[]>(`${this.controller}invoice/search`, body);
+      private utilityService: UtilityService,
+      private toastr: ToastrService) {
   }
 
   // GET: Get invoice by ID
@@ -118,5 +77,110 @@ export class InvoiceService {
   // PUT: Apply payment to invoices
   applyPayment(payment: InvoicePaymentRequest): Observable<InvoicePaymentResponse> {
     return this.http.put<InvoicePaymentResponse>(this.controller + 'invoice/payment', payment);
+  }
+
+
+  // Helper Methods
+  normalizeInvoiceRequest(invoice: InvoiceRequest): InvoiceRequest {
+    const normalizedLedgerLines = (invoice.ledgerLines ?? []).map(line => {
+      const numericCostCodeId = Number(line.costCodeId);
+      const numericLineNumber = Number(line.lineNumber);
+      const numericTransactionTypeId = Number(line.transactionTypeId);
+      const numericAmount = Number(line.amount);
+      const lineDate = line.ledgerLineDate || invoice.invoiceDate || this.utilityService.todayAsCalendarDateString();
+
+      return {
+        ...line,
+        lineNumber: Number.isFinite(numericLineNumber) ? numericLineNumber : 0,
+        transactionTypeId: Number.isFinite(numericTransactionTypeId) ? numericTransactionTypeId : 0,
+        amount: Number.isFinite(numericAmount) ? numericAmount : 0,
+        ledgerLineDate: lineDate,
+        costCodeId: Number.isInteger(numericCostCodeId) ? numericCostCodeId : 0
+      };
+    });
+
+    return {
+      ...invoice,
+      ledgerLines: normalizedLedgerLines
+    };
+  }
+
+  searchInvoices(request: InvoiceGetRequest): Observable<InvoiceResponse[]> {
+    const officeIds = (request.officeIds ?? []).filter(id => id > 0);
+    if (officeIds.length === 0) {
+      throw new Error('At least one office ID is required to load invoices.');
+    }
+
+    const body = {
+      officeIds,
+      reservationId: request.reservationId || null,
+      propertyId: request.propertyId || null,
+      invoiceCode: request.invoiceCode || null,
+      includeInactive: request.includeInactive,
+      includePaid: request.includePaid,
+      startDate: request.startDate || null,
+      endDate: request.endDate || null
+    };
+
+    return this.http.post<InvoiceResponse[]>(`${this.controller}invoice/search`, body);
+  }
+
+  deactivateInvoicesByReservationId(reservationId: string): Observable<{ deactivatedCount: number }> {
+    return this.http.put<{ deactivatedCount: number }>(
+      this.controller + 'invoice/reservation/' + reservationId + '/deactivate',
+      {}
+    );
+  }
+
+  reactivateInvoicesByReservationId(reservationId: string): Observable<{ reactivatedCount: number }> {
+    return this.http.put<{ reactivatedCount: number }>(
+      this.controller + 'invoice/reservation/' + reservationId + '/reactivate',
+      {}
+    );
+  }
+
+  syncInvoicesForReservationActiveChange( reservationId: string,previousIsActive: boolean, nextIsActive: boolean): Observable<void> {
+    const id = reservationId?.trim();
+    const previous = !!previousIsActive;
+    const next = !!nextIsActive;
+    if (!id || previous === next) {
+      return of(undefined);
+    }
+
+    const showSuccess = (count: number) => {
+      this.toastr.success(this.formatAssociatedInvoicesSyncMessage(next, count), CommonMessage.Success);
+    };
+    const showFailure = () => {
+      this.toastr.warning(
+        next ? 'Related invoices could not be reactivated.' : 'Related invoices could not be inactivated.',
+        CommonMessage.Error
+      );
+      return of(undefined);
+    };
+
+    if (next) {
+      return this.reactivateInvoicesByReservationId(id).pipe(
+        tap(result => showSuccess(result.reactivatedCount)),
+        catchError(showFailure),
+        map(() => undefined)
+      );
+    }
+
+    return this.deactivateInvoicesByReservationId(id).pipe(
+      tap(result => showSuccess(result.deactivatedCount)),
+      catchError(showFailure),
+      map(() => undefined)
+    );
+  }
+
+  formatAssociatedInvoicesSyncMessage(reactivated: boolean, count: number): string {
+    const normalizedCount = Math.max(0, Number(count) || 0);
+    const invoiceNoun = normalizedCount === 1 ? 'invoice' : 'invoices';
+    const verb = reactivated ? 'reactivated' : 'inactivated';
+    if (normalizedCount === 0) {
+      return `No related ${invoiceNoun} were ${verb}.`;
+    }
+    const auxiliary = normalizedCount === 1 ? 'was' : 'were';
+    return `${normalizedCount} related ${invoiceNoun} ${auxiliary} also ${verb}.`;
   }
 }

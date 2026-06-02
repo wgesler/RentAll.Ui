@@ -5,7 +5,7 @@ import { MatDialog } from '@angular/material/dialog';
 import { MatSlideToggleChange } from '@angular/material/slide-toggle';
 import { ActivatedRoute, NavigationEnd, Router } from '@angular/router';
 import { ToastrService } from 'ngx-toastr';
-import {BehaviorSubject, Subject, filter, finalize, map, skip, take, takeUntil} from 'rxjs';
+import {BehaviorSubject, Subject, filter, finalize, firstValueFrom, map, skip, take, takeUntil} from 'rxjs';
 import { RouterUrl } from '../../../app.routes';
 import { CommonMessage } from '../../../enums/common-message.enum';
 import { MaterialModule } from '../../../material.module';
@@ -31,6 +31,7 @@ import { GenericModalComponent } from '../../shared/modals/generic/generic-modal
 import { GenericModalData } from '../../shared/modals/generic/models/generic-modal-data';
 import { ReservationStatus, ReservationType } from '../models/reservation-enum';
 import { ReservationListDisplay, ReservationListResponse, ReservationResponse } from '../models/reservation-model';
+import { InvoiceService } from '../../accounting/services/invoice.service';
 import { ReservationService } from '../services/reservation.service';
 
 @Component({
@@ -112,6 +113,7 @@ export class ReservationListComponent implements OnInit, OnDestroy, OnChanges {
     private authService: AuthService,
     private dialog: MatDialog,
     private propertySelectionFilterService: PropertySelectionFilterService,
+    private invoiceService: InvoiceService,
     private cdr: ChangeDetectorRef) {
   }
 
@@ -715,8 +717,9 @@ export class ReservationListComponent implements OnInit, OnDestroy, OnChanges {
 
     this.applyReservationIsActiveValue(event.reservationId, nextValue);
 
-    void this.reservationService.updateModifiedReservation(event.reservationId, { isActive: nextValue }).then(() => {
+    void this.reservationService.updateModifiedReservation(event.reservationId, { isActive: nextValue }).then(async () => {
       this.toastr.success('Reservation updated.', CommonMessage.Success);
+      await firstValueFrom(this.invoiceService.syncInvoicesForReservationActiveChange(event.reservationId, previousValue, nextValue));
     }).catch(() => {
       this.applyReservationIsActiveValue(event.reservationId, previousValue);
       this.toastr.error('Unable to update reservation.', CommonMessage.Error);

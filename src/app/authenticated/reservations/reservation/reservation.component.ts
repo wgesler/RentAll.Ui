@@ -5,7 +5,8 @@ import { AbstractControl, FormBuilder, FormControl, FormGroup, FormsModule, Reac
 import { MatDialog } from '@angular/material/dialog';
 import { ActivatedRoute, ParamMap, Router } from '@angular/router';
 import { ToastrService } from 'ngx-toastr';
-import { BehaviorSubject, Observable, Subject, catchError, filter, finalize, map, of, pairwise, skip, startWith, take, takeUntil } from 'rxjs';
+import { BehaviorSubject, Observable, Subject, catchError, filter, finalize, map, of, pairwise, skip, startWith, switchMap, take, takeUntil } from 'rxjs';
+import { InvoiceService } from '../../accounting/services/invoice.service';
 import { RouterUrl } from '../../../app.routes';
 import { CanComponentDeactivate } from '../../../guards/can-deactivate-guard';
 import { CommonMessage, CommonTimeouts } from '../../../enums/common-message.enum';
@@ -164,7 +165,8 @@ export class ReservationComponent implements OnInit, OnDestroy, CanComponentDeac
     private costCodesService: CostCodesService,
     private globalSelectionService: GlobalSelectionService,
     private unsavedChangesDialogService: UnsavedChangesDialogService,
-    private userService: UserService
+    private userService: UserService,
+    private invoiceService: InvoiceService
   ) {
   }
 
@@ -429,90 +431,6 @@ export class ReservationComponent implements OnInit, OnDestroy, CanComponentDeac
     this.validateDates('save');
   }
 
-  touchAllFormControls(control: AbstractControl): void {
-    if (control instanceof FormGroup) {
-      Object.keys(control.controls).forEach(key => this.touchAllFormControls(control.controls[key]));
-      return;
-    }
-
-    control.markAsTouched();
-    control.markAsDirty();
-    control.updateValueAndValidity({ emitEvent: false });
-  }
-
-  deleteReservation(): void {
-    if (this.isAddMode || !this.reservationId) {
-      return;
-    }
-
-    const now = new Date();
-    now.setHours(0, 0, 0, 0);
-    const arrivalDate = this.parseDateOnly(this.reservation?.arrivalDate ?? this.form.get('arrivalDate')?.value);
-    if (arrivalDate && now >= arrivalDate) {
-      const dialogData: GenericModalData = {
-        title: 'Cancel Reservation',
-        message: 'It is not possible to cancel a reservation that has already begun.',
-        icon: 'warning' as any,
-        iconColor: 'warn',
-        no: '',
-        yes: 'OK',
-        callback: (dialogRef) => dialogRef.close(),
-        useHTML: false
-      };
-
-      this.dialog.open(GenericModalComponent, {
-        data: dialogData,
-        width: '35rem'
-      });
-      return;
-    }
-
-    const dialogData: GenericModalData = {
-      title: 'Delete Reservation',
-      message: 'Are you sure you want to delete this reservation?',
-      icon: 'warning' as any,
-      iconColor: 'warn',
-      no: 'No',
-      yes: 'Yes',
-      callback: (dialogRef, result) => dialogRef.close(result),
-      useHTML: false,
-      hideClose: true
-    };
-
-    const dialogRef = this.dialog.open(GenericModalComponent, {
-      data: dialogData,
-      width: '35rem'
-    });
-
-    dialogRef.afterClosed().pipe(take(1)).subscribe(result => {
-      if (result !== true) {
-        return;
-      }
-
-      const deletedReservation = this.reservation ? { ...this.reservation, isDeleted: true } : null;
-      this.isSubmitting = true;
-      this.reservationService.deleteReservation(this.reservationId).pipe(
-        take(1),
-        finalize(() => this.isSubmitting = false)
-      ).subscribe({
-        next: () => {
-          this.sendReservationChangeNotification(deletedReservation, {
-            shouldNotify: true,
-            isNewReservation: false,
-            isCancellation: true,
-            arrivalDateChanged: false,
-            departureDateChanged: false
-          });
-          this.toastr.success('Reservation deleted successfully', CommonMessage.Success, { timeOut: CommonTimeouts.Success });
-          this.navigateToReservationEntryOrigin();
-        },
-        error: () => {
-          this.toastr.error('Failed to delete reservation', CommonMessage.Error);
-        }
-      });
-    });
-  }
-
   performSave(): void {
     this.isSubmitting = true;
 
@@ -609,7 +527,19 @@ export class ReservationComponent implements OnInit, OnDestroy, CanComponentDeac
       ? this.reservationService.createReservation(reservationRequest)
       : this.reservationService.updateReservation(reservationRequest);
 
-    save$.pipe(take(1),  finalize(() => this.isSubmitting = false) ).subscribe({
+    const previousIsActive = typeof this.reservation?.isActive === 'number'
+      ? this.reservation.isActive === 1
+      : Boolean(this.reservation?.isActive ?? true);
+
+    save$.pipe(take(1),switchMap((response: ReservationResponse) => {
+        const reservationId = String(response?.reservationId || reservationRequest.reservationId || '').trim();
+        if (this.isAddMode || !reservationId) {
+          return of(response);
+        }
+        return this.invoiceService.syncInvoicesForReservationActiveChange(reservationId,previousIsActive,reservationRequest.isActive ?? true).pipe(map(() => response));
+      }),
+      finalize(() => this.isSubmitting = false)
+    ).subscribe({
       next: (response: ReservationResponse) => {
         if (response?.reservationId) {
           this.reservationService.notifyReservationSaved(response.reservationId);
@@ -657,6 +587,92 @@ export class ReservationComponent implements OnInit, OnDestroy, CanComponentDeac
       }
     });
   }
+
+  touchAllFormControls(control: AbstractControl): void {
+    if (control instanceof FormGroup) {
+      Object.keys(control.controls).forEach(key => this.touchAllFormControls(control.controls[key]));
+      return;
+    }
+
+    control.markAsTouched();
+    control.markAsDirty();
+    control.updateValueAndValidity({ emitEvent: false });
+  }
+
+  deleteReservation(): void {
+    if (this.isAddMode || !this.reservationId) {
+      return;
+    }
+
+    const now = new Date();
+    now.setHours(0, 0, 0, 0);
+    const arrivalDate = this.parseDateOnly(this.reservation?.arrivalDate ?? this.form.get('arrivalDate')?.value);
+    if (arrivalDate && now >= arrivalDate) {
+      const dialogData: GenericModalData = {
+        title: 'Cancel Reservation',
+        message: 'It is not possible to cancel a reservation that has already begun.',
+        icon: 'warning' as any,
+        iconColor: 'warn',
+        no: '',
+        yes: 'OK',
+        callback: (dialogRef) => dialogRef.close(),
+        useHTML: false
+      };
+
+      this.dialog.open(GenericModalComponent, {
+        data: dialogData,
+        width: '35rem'
+      });
+      return;
+    }
+
+    const dialogData: GenericModalData = {
+      title: 'Delete Reservation',
+      message: 'Are you sure you want to delete this reservation?',
+      icon: 'warning' as any,
+      iconColor: 'warn',
+      no: 'No',
+      yes: 'Yes',
+      callback: (dialogRef, result) => dialogRef.close(result),
+      useHTML: false,
+      hideClose: true
+    };
+
+    const dialogRef = this.dialog.open(GenericModalComponent, {
+      data: dialogData,
+      width: '35rem'
+    });
+
+    dialogRef.afterClosed().pipe(take(1)).subscribe(result => {
+      if (result !== true) {
+        return;
+      }
+
+      const deletedReservation = this.reservation ? { ...this.reservation, isDeleted: true } : null;
+      this.isSubmitting = true;
+      this.reservationService.deleteReservation(this.reservationId).pipe(
+        take(1),
+        finalize(() => this.isSubmitting = false)
+      ).subscribe({
+        next: () => {
+          this.sendReservationChangeNotification(deletedReservation, {
+            shouldNotify: true,
+            isNewReservation: false,
+            isCancellation: true,
+            arrivalDateChanged: false,
+            departureDateChanged: false
+          });
+          this.toastr.success('Reservation deleted successfully', CommonMessage.Success, { timeOut: CommonTimeouts.Success });
+          this.navigateToReservationEntryOrigin();
+        },
+        error: () => {
+          this.toastr.error('Failed to delete reservation', CommonMessage.Error);
+        }
+      });
+    });
+  }
+
+
   //#endregion
 
   //#region Form Methods
