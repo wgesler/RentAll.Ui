@@ -381,12 +381,6 @@ export class OwnerAgreementFormComponent extends BaseDocumentComponent implement
     });
   }
 
-  loadPropertyContext(): void {
-    this.loadProperty();
-    this.loadPropertyAgreement();
-    this.loadAgreementInformation();
-  }
-
   loadLeadOwner(leadOwnerId: number | null): void {
     const parsedLeadOwnerId = Number(leadOwnerId);
     if (!Number.isFinite(parsedLeadOwnerId) || parsedLeadOwnerId <= 0) {
@@ -1839,17 +1833,6 @@ export class OwnerAgreementFormComponent extends BaseDocumentComponent implement
       return this.getEmptyUnderlineSpan();
     }
     return this.getPopulatedUnderlineSpan(`${n}%`);
-  }
-
-  formatAgreementDecimalForDisplay(value: number | string | null | undefined): string {
-    if (value == null || value === '') {
-      return this.getEmptyUnderlineSpan();
-    }
-    const n = Number(String(value).replace(/[$,]/g, ''));
-    if (!Number.isFinite(n) || n === 0) {
-      return this.getEmptyUnderlineSpan();
-    }
-    return this.getPopulatedUnderlineSpan(this.formatAgreementCurrencyRaw(n));
   }
 
   formatAgreementCurrency(value: number | string | null | undefined): string {

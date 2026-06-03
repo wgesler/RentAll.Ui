@@ -262,10 +262,6 @@ export class OwnersService {
     return this.accountingOfficeService.ensureAccountingOfficesLoaded();
   }
 
-  getAllAccountingOfficesValue(): AccountingOfficeResponse[] {
-    return this.accountingOfficeService.getAllAccountingOfficesValue();
-  }
-
   getOwnerHtmlByContext(token: string | null | undefined, propertyId: string | null | undefined): Observable<OwnerHtmlResponse | null> {
     if (this.isPublicTokenMode(token)) {
       return this.leadsService.getPublicOwnerTemplatesByToken(token!);
@@ -283,13 +279,6 @@ export class OwnersService {
         ? String(ownerHtml?.directDeposit || '').trim()
         : String(ownerHtml?.ownerAgreement || '').trim())
     );
-  }
-
-  getOwnerInventoryInformationByOwnerId(ownerId: number): Observable<OwnerInventoryInformationResponse | null> {
-    if (!Number.isFinite(ownerId) || ownerId <= 0) {
-      return of(null);
-    }
-    return this.leadsService.getOwnerInventoryInformationByOwnerId(ownerId);
   }
   //#endregion
 

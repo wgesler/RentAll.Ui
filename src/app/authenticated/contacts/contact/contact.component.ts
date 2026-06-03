@@ -41,6 +41,8 @@ import { PublicOwnerContactUpsertRequest } from '../../leads/models/owner-form-s
 
 export class ContactComponent implements OnInit, OnChanges, OnDestroy {
   @Input() id: string = 'new';
+  /** When embedded with prefill, update this existing contact on save without loading by id. */
+  @Input() linkedContactId: string | null = null;
   @Input() copyFrom: string | null = null;
   @Input() presetEntityTypeId: number | null = null;
   @Input() ownerLeadId: number | null = null;
@@ -240,7 +242,7 @@ export class ContactComponent implements OnInit, OnChanges, OnDestroy {
     if (!this.form || !this.isAddMode) {
       return;
     }
-    if (changes['prefillContact'] || changes['presetEntityTypeId']) {
+    if (changes['prefillContact'] || changes['presetEntityTypeId'] || changes['linkedContactId']) {
       this.applyPrefillContact();
     }
   }
@@ -445,14 +447,19 @@ export class ContactComponent implements OnInit, OnChanges, OnDestroy {
     const isCompany = entityTypeId === EntityType.Company;
     contactRequest.displayName = isCompany ? ((formValue.displayName || '').trim() || null) : (this.contact?.displayName ?? undefined);
 
+    const linkedContactId = String(this.linkedContactId || '').trim();
     if (!this.isAddMode) {
       contactRequest.contactId = this.contactId;
       contactRequest.contactCode = this.contact?.contactCode;
       contactRequest.organizationId = this.contact?.organizationId || user?.organizationId || '';
       contactRequest.userId = this.contact?.userId;
+    } else if (linkedContactId) {
+      contactRequest.contactId = linkedContactId;
+      contactRequest.contactCode = String(this.prefillContact?.['contactCode'] ?? contactRequest.contactCode ?? '').trim() || contactRequest.contactCode;
+      contactRequest.organizationId = user?.organizationId || '';
     }
 
-    const save$ = this.isAddMode
+    const save$ = this.isAddMode && !linkedContactId
       ? this.contactService.createContact(contactRequest)
       : this.contactService.updateContact(contactRequest);
 

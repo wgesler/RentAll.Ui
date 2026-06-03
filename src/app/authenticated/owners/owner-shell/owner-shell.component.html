@@ -1,10 +1,4 @@
-@if (!isPageReady) {
-  <div class="page-loading-container">
-    <mat-spinner [diameter]="40"></mat-spinner>
-    <p>Loading owners...</p>
-  </div>
-} @else {
-  <div class="flex content-card-wrap justify-center items-start">
+<div class="flex content-card-wrap justify-center items-start">
     <section class="content-card">
       <div class="flex justify-between items-center gap-3 rounded-t-lg bg-slate-300 py-0 pl-8 pr-4 property-titlebar dbg-band-actions">
         <div class="flex items-center flex-wrap py-4">
@@ -71,13 +65,14 @@
         @if (isOwnerListMode) {
           <app-owners-list [officeId]="selectedOfficeId"></app-owners-list>
         } @else {
-          <mat-tab-group class="shell-tabs dbg-band-tabs" [selectedIndex]="selectedTabIndex" [preserveContent]="true" (selectedIndexChange)="onTabIndexChange($event)">
+          <mat-tab-group class="shell-tabs dbg-band-tabs" [selectedIndex]="selectedTabIndex" [preserveContent]="false" (selectedIndexChange)="onTabIndexChange($event)">
             <mat-tab label="Owners">
               <ng-template matTabContent>
                 <app-owner-information
                   [token]="token"
                   [ownerEntityTypeId]="ownerEntityTypeId"
                   [ownerLeadId]="leadOwnerId"
+                  [ownerContactId]="selectedOwnerContactId"
                   [selectedOfficeId]="selectedOfficeId">
                 </app-owner-information>
               </ng-template>
@@ -112,18 +107,6 @@
                 </ng-template>
               </mat-tab>
             }
-            <mat-tab label="Documents">
-              <ng-template matTabContent>
-                <app-document-list
-                  [documentTypeIds]="[DocumentType.OwnerAgreement]"
-                  [propertyId]="selectedPropertyId === newPropertyOptionValue ? null : selectedPropertyId"
-                  [officeId]="selectedOfficeId"
-                  [organizationId]="selectedOrganizationId"
-                  source="property"
-                  [hideHeader]="true"
-                  [hideFilters]="true" />
-              </ng-template>
-            </mat-tab>
             <mat-tab label="Agreement">
               <ng-template matTabContent>
                 <app-owner-agreement-form
@@ -194,5 +177,4 @@
         }
       </mat-card>
     </section>
-  </div>
-}
+</div>

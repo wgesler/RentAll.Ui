@@ -1,28 +1,12 @@
 <div class="owners-list-shell dbg-band-main">
-  @if (showOwnerLeadForm) {
-    <app-owner
-      [shellLeadId]="ownerLeadFormId"
+  <div class="owners-accordion-body">
+    <app-contact-list
+      [entityTypeId]="ownerEntityTypeId"
       [officeId]="officeId()"
-      (closed)="onOwnerLeadFormClosed()">
-    </app-owner>
-  } @else if (showOwnerContactForm) {
-    <app-contact
-      [id]="ownerContactId"
-      [copyFrom]="ownerContactCopyFrom"
-      [presetEntityTypeId]="ownerEntityTypeId"
-      [ownerLeadId]="null"
-      (closed)="onOwnerContactFormClosed()">
-    </app-contact>
-  } @else {
-    <div class="owners-accordion-body">
-      <app-contact-list
-        [entityTypeId]="ownerEntityTypeId"
-        [officeId]="officeId()"
-        [onlyOwnerNotReady]="true"
-        [showInactive]="showInactiveOwnerContacts"
-        (showInactiveChange)="onOwnerContactsShowInactiveChange($event)"
-        (openContact)="onOpenOwnerContact($event)">
-      </app-contact-list>
-    </div>
-  }
+      [onlyOwnerNotReady]="true"
+      [showInactive]="showInactiveOwnerContacts"
+      (showInactiveChange)="onOwnerContactsShowInactiveChange($event)"
+      (openContact)="onOpenOwnerContact($event)">
+    </app-contact-list>
+  </div>
 </div>
