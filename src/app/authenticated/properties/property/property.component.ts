@@ -240,6 +240,7 @@ export class PropertyComponent implements OnInit, OnChanges, AfterViewInit, OnDe
     
     // Check query params for tab selection
     this.setupConditionalFields();
+    this.setupPropertyAgreementSyncHandlers();
     this.setupBuildingAmenitySyncFromSelection();
     this.setupOwnerSelectionHandlers();
     this.setupVendorSelectionHandlers();
@@ -554,9 +555,7 @@ export class PropertyComponent implements OnInit, OnChanges, AfterViewInit, OnDe
             map(() => response)
           )
         ),
-        take(1),
-        finalize(() => { this.isSubmitting = false; })
-      ).subscribe({
+        take(1),finalize(() => { this.isSubmitting = false; })).subscribe({
         next: (response) => {
           this.toastr.success('Property created successfully', CommonMessage.Success, { timeOut: CommonTimeouts.Success });
           this.property = response;
@@ -951,6 +950,17 @@ export class PropertyComponent implements OnInit, OnChanges, AfterViewInit, OnDe
   //#endregion
 
   //#region Validators
+  setupPropertyAgreementSyncHandlers(): void {
+    if (!this.form) {
+      return;
+    }
+    const syncAgreementFromProperty = () => {
+      this.propertyAgreementSection?.syncFromPropertyContext(true);
+    };
+    this.form.get('unfurnished')?.valueChanges.pipe(takeUntil(this.destroy$)).subscribe(() => syncAgreementFromProperty());
+    this.form.get('bedrooms')?.valueChanges.pipe(takeUntil(this.destroy$)).subscribe(() => syncAgreementFromProperty());
+  }
+
   setupLeaseTypeOwnerVendorValidators(): void {
     this.form.get('propertyLeaseTypeId')?.valueChanges.pipe(takeUntil(this.destroy$)).subscribe(() => {
       this.applyOwnerVendorLeaseValidators();

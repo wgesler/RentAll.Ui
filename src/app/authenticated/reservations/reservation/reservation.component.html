@@ -93,7 +93,7 @@
                 <div class="grid grid-cols-4 form-standard-grid">
               @if (!isAddMode) {
                 <div class="col-span-4 reservation-mobile-toggle-row">
-                  <div class="flex items-center justify-end gap-4 reservation-first-row-toggles reservation-toggle-cell">
+                  <div class="reservation-first-row-toggles reservation-toggle-cell form-standard-checkbox-row justify-end">
                     <mat-checkbox formControlName="isActive" color="primary">
                       IsActive
                     </mat-checkbox>
@@ -124,11 +124,20 @@
                   </app-searchable-select>
                 }
 
-                <mat-form-field appearance="outline" [class.col-span-2]="canEditProperty" [class.col-span-3]="!canEditProperty">
-                  <mat-label>Property Address</mat-label>
-                  <input matInput formControlName="propertyAddress" readonly class="readonly-field">
-                </mat-form-field>
-                <div class="col-span-1 flex items-center justify-end gap-4 reservation-first-row-toggles reservation-toggle-cell reservation-desktop-toggle-cell">
+                <div
+                  class="grid grid-cols-6 form-standard-grid min-w-0"
+                  [class.col-span-2]="canEditProperty"
+                  [class.col-span-3]="!canEditProperty">
+                  <mat-form-field appearance="outline" class="col-span-1 min-w-0">
+                    <mat-label>Reservation</mat-label>
+                    <input matInput formControlName="reservationCode" readonly class="readonly-field">
+                  </mat-form-field>
+                  <mat-form-field appearance="outline" class="col-span-5 min-w-0">
+                    <mat-label>Property Address</mat-label>
+                    <input matInput formControlName="propertyAddress" readonly class="readonly-field">
+                  </mat-form-field>
+                </div>
+                <div class="col-span-1 reservation-first-row-toggles reservation-toggle-cell reservation-desktop-toggle-cell form-standard-checkbox-row justify-end">
                   <mat-checkbox formControlName="isActive" color="primary">
                     IsActive
                   </mat-checkbox>
@@ -161,7 +170,7 @@
                   <mat-label>Property Address</mat-label>
                   <input matInput formControlName="propertyAddress" readonly class="readonly-field">
                 </mat-form-field>
-                <div class="col-span-1 flex items-center justify-end gap-4 reservation-first-row-toggles reservation-toggle-cell">
+                <div class="col-span-1 reservation-first-row-toggles reservation-toggle-cell form-standard-checkbox-row justify-end">
                   <mat-checkbox formControlName="isActive" color="primary">
                     IsActive
                   </mat-checkbox>
@@ -460,7 +469,7 @@
               }
 
               <!-- Line 5: Arrival/Departure/Times/Codes on one row -->
-              <div class="col-span-4 grid grid-cols-6 gap-4">
+              <div class="col-span-4 grid grid-cols-6 form-standard-grid">
                 <mat-form-field appearance="outline">
                   <mat-label>Arrival Date</mat-label>
                   <input matInput [matDatepicker]="arrivalPicker" formControlName="arrivalDate" required>
@@ -539,9 +548,8 @@
                 <mat-expansion-panel-header>
                   <mat-panel-title>Billing and Fees</mat-panel-title>
                 </mat-expansion-panel-header>
-                <!-- Line 6: Billing Type, Billing Rate, DepositType, Deposit -->
-                <div class="flex form-standard-row">
-              <mat-form-field appearance="outline" class="flex-1">
+                <div class="grid grid-cols-4 form-standard-grid">
+              <mat-form-field appearance="outline" class="col-span-1 min-w-0">
                 <mat-label>Billing Type</mat-label>
                 <mat-select formControlName="billingTypeId" required>
                   @for (billingType of availableBillingTypes; track billingType.value) {
@@ -553,7 +561,7 @@
                 }
               </mat-form-field>
 
-              <mat-form-field appearance="outline" class="flex-1">
+              <mat-form-field appearance="outline" class="col-span-1 min-w-0">
                 <mat-label>Billing Rate</mat-label>
                 <input matInput type="text" formControlName="billingRate" placeholder="0.00" (blur)="formatDecimal('billingRate')" (input)="onDecimalInput($event, 'billingRate')" (focus)="selectAllOnFocus($event)" required>
                 @if (form.get('billingRate')?.invalid && form.get('billingRate')?.touched) {
@@ -561,7 +569,7 @@
                 }
               </mat-form-field>
 
-              <mat-form-field appearance="outline" class="flex-1">
+              <mat-form-field appearance="outline" class="col-span-1 min-w-0">
                 <mat-label>DepositType</mat-label>
                 <mat-select formControlName="depositType" required>
                   @for (depositType of availableDepositTypes; track depositType.value) {
@@ -573,7 +581,7 @@
                 }
               </mat-form-field>
 
-              <mat-form-field appearance="outline" class="flex-1">
+              <mat-form-field appearance="outline" class="col-span-1 min-w-0">
                 <mat-label>Deposit</mat-label>
                 <input matInput type="text" formControlName="deposit" placeholder="0.00" (blur)="formatDecimal('deposit')" (input)="onDecimalInput($event, 'deposit')" (focus)="selectAllOnFocus($event)">
                 @if (form.get('deposit')?.hasError('required') && form.get('deposit')?.touched) {
@@ -583,11 +591,8 @@
                   <mat-error>Deposit must be greater than 0</mat-error>
                 }
               </mat-form-field>
-            </div>
 
-                <!-- Line 7: Billing Method, Departure Fee, Taxes -->
-                <div class="flex form-standard-row">
-              <mat-form-field appearance="outline" class="flex-1">
+              <mat-form-field appearance="outline" class="col-span-1 min-w-0">
                 <mat-label>Client Billing Method</mat-label>
                 <mat-select formControlName="billingMethodId" required>
                   @for (billingMethod of availableBillingMethods; track billingMethod.value) {
@@ -599,7 +604,7 @@
                 }
               </mat-form-field>
 
-              <mat-form-field appearance="outline" class="flex-1">
+              <mat-form-field appearance="outline" class="col-span-1 min-w-0">
                 <mat-label>Client Prorate Month</mat-label>
                 <mat-select formControlName="prorateTypeId">
                   @for (prorateType of availableProrateTypes; track prorateType.value) {
@@ -611,7 +616,7 @@
                 }
               </mat-form-field>
 
-              <mat-form-field appearance="outline" class="flex-1">
+              <mat-form-field appearance="outline" class="col-span-1 min-w-0">
                 <mat-label>Departure Fee</mat-label>
                 <input matInput type="text" formControlName="departureFee" placeholder="0.00" (blur)="formatDecimal('departureFee')" (input)="onDecimalInput($event, 'departureFee')" (focus)="selectAllOnFocus($event)" required>
                 @if (form.get('departureFee')?.invalid && form.get('departureFee')?.touched) {
@@ -619,15 +624,12 @@
                 }
               </mat-form-field>
 
-              <mat-form-field appearance="outline" class="flex-1">
+              <mat-form-field appearance="outline" class="col-span-1 min-w-0">
                 <mat-label>Taxes</mat-label>
                 <input matInput type="text" inputmode="numeric" pattern="[0-9.]*" formControlName="taxes" placeholder="0" (focus)="selectAllOnFocus($event)">
               </mat-form-field>
-            </div>
 
-            <!-- Line 7: All Pet fields (Pets, Pet Fee, Number of Pets, Pet(s) Description) -->
-            <div class="flex form-standard-row">
-              <mat-form-field appearance="outline" class="flex-1">
+              <mat-form-field appearance="outline" class="col-span-1 min-w-0">
                 <mat-label>Pets</mat-label>
                 <mat-select formControlName="pets" required>
                   <mat-option [value]="false">No</mat-option>
@@ -638,7 +640,7 @@
                 }
               </mat-form-field>
 
-              <mat-form-field appearance="outline" class="flex-1">
+              <mat-form-field appearance="outline" class="col-span-1 min-w-0">
                 <mat-label>Pet Fee</mat-label>
                 <input matInput type="text" formControlName="petFee" placeholder="0.00" (blur)="formatDecimal('petFee')" (input)="onDecimalInput($event, 'petFee')" (focus)="selectAllOnFocus($event)" [required]="form.get('pets')?.value === true">
                 @if (form.get('petFee')?.invalid && form.get('petFee')?.touched) {
@@ -646,7 +648,7 @@
                 }
               </mat-form-field>
 
-              <mat-form-field appearance="outline" class="flex-1">
+              <mat-form-field appearance="outline" class="col-span-1 min-w-0">
                 <mat-label>Number of Pets</mat-label>
                 <mat-select formControlName="numberOfPets" [required]="form.get('pets')?.value === true">
                   <mat-option [value]="1">1</mat-option>
@@ -659,18 +661,15 @@
                 }
               </mat-form-field>
 
-              <mat-form-field appearance="outline" class="flex-1">
+              <mat-form-field appearance="outline" class="col-span-1 min-w-0">
                 <mat-label>Pet(s) Description</mat-label>
                 <input matInput type="text" formControlName="petDescription" placeholder="" [required]="form.get('pets')?.value === true">
                 @if (form.get('petDescription')?.invalid && form.get('petDescription')?.touched) {
                   <mat-error>Pet Description is required</mat-error>
                 }
               </mat-form-field>
-            </div>
 
-            <!-- Line 8: All Maid Service fields and Maid Start Date (MaidService, Maid Fee, Frequency, Maid Start Date) -->
-            <div class="flex form-standard-row">
-              <mat-form-field appearance="outline" class="flex-1">
+              <mat-form-field appearance="outline" class="col-span-1 min-w-0">
                 <mat-label>MaidService</mat-label>
                 <mat-select formControlName="maidService" required>
                   <mat-option [value]="false">No</mat-option>
@@ -681,7 +680,7 @@
                 }
               </mat-form-field>
 
-              <mat-form-field appearance="outline" class="flex-1">
+              <mat-form-field appearance="outline" class="col-span-1 min-w-0">
                 <mat-label>Maid Fee</mat-label>
                 <input matInput type="text" formControlName="maidServiceFee" placeholder="0.00" (blur)="formatDecimal('maidServiceFee')" (input)="onDecimalInput($event, 'maidServiceFee')" (focus)="selectAllOnFocus($event)" [required]="form.get('maidService')?.value === true">
                 @if (form.get('maidServiceFee')?.hasError('required') && form.get('maidServiceFee')?.touched) {
@@ -692,7 +691,7 @@
                 }
               </mat-form-field>
 
-              <mat-form-field appearance="outline" class="flex-1">
+              <mat-form-field appearance="outline" class="col-span-1 min-w-0">
                 <mat-label>Frequency</mat-label>
                 <mat-select formControlName="frequencyId" [required]="form.get('maidService')?.value === true">
                   @for (frequency of availableFrequencies; track frequency.value) {
@@ -707,7 +706,7 @@
                 }
               </mat-form-field>
 
-              <mat-form-field appearance="outline" class="flex-1">
+              <mat-form-field appearance="outline" class="col-span-1 min-w-0">
                 <mat-label>Maid Start Date</mat-label>
                 <input matInput [matDatepicker]="maidStartDatePicker" formControlName="maidStartDate" [min]="form.get('arrivalDate')?.value">
                 <mat-datepicker-toggle matIconSuffix [for]="maidStartDatePicker"></mat-datepicker-toggle>
@@ -715,7 +714,7 @@
               </mat-form-field>
 
               <app-searchable-select
-                class="flex-1"
+                class="col-span-1 min-w-0"
                 [renderInFormField]="true"
                 [formFieldLabel]="'Assigned Cleaner'"
                 [value]="form.get('maidUserId')?.value ?? null"

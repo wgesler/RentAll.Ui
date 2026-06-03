@@ -373,18 +373,23 @@ export class PropertyAgreementComponent implements OnInit, OnChanges, OnDestroy 
         if (this.hasPersistedAgreement(data)) {
           this.agreementExists = true;
           this.populatePropertyAgreement(data);
+          this.applyFurnishedAndBedroomDefaults();
           this.agreementForm?.markAsPristine();
           this.agreementForm?.markAsUntouched();
         } else {
           this.agreementExists = false;
           this.resetAgreementForm();
           this.applyOfficeAgreementDefaults();
+          this.agreementForm?.markAsPristine();
+          this.agreementForm?.markAsUntouched();
         }
       },
       error: () => {
         this.agreementExists = false;
         this.resetAgreementForm();
         this.applyOfficeAgreementDefaults();
+        this.agreementForm?.markAsPristine();
+        this.agreementForm?.markAsUntouched();
       }
     });
   }
@@ -475,7 +480,21 @@ export class PropertyAgreementComponent implements OnInit, OnChanges, OnDestroy 
     }
 
     this.agreementForm.patchValue(patch, { emitEvent: false });
-    this.agreementForm.markAsDirty();
+  }
+
+  /** Sync agreement fields from property context (furnished, bedrooms, office). */
+  syncFromPropertyContext(markDirty = false): void {
+    if (!this.agreementForm) {
+      return;
+    }
+    if (this.agreementExists) {
+      this.applyFurnishedAndBedroomDefaults();
+    } else {
+      this.applyOfficeAgreementDefaults();
+    }
+    if (markDirty) {
+      this.agreementForm.markAsDirty();
+    }
   }
 
   applyOfficeAgreementDefaults(): void {
@@ -493,7 +512,6 @@ export class PropertyAgreementComponent implements OnInit, OnChanges, OnDestroy 
       if (Object.keys(patch).length > 0) {
         this.agreementForm.patchValue(patch, { emitEvent: false });
         this.syncManagementAgreementFieldState();
-        this.agreementForm.markAsDirty();
       }
       return;
     }

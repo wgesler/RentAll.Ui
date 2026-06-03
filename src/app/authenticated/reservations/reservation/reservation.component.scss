@@ -33,9 +33,6 @@
   --mat-expansion-header-text-weight: 600;
   --mat-expansion-header-text-size: 16px;
 
-  .form-standard-grid {
-    row-gap: 16px !important;
-  }
 }
 
 :host ::ng-deep .reservation-accordion-wrap mat-expansion-panel {
