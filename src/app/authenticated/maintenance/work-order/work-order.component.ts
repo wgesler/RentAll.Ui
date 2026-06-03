@@ -362,8 +362,10 @@ export class WorkOrderComponent implements OnInit, OnChanges, OnDestroy {
 
         if (saved.workOrderId) {
           const propertyId = this.property?.propertyId ?? this.selectedPropertyId ?? '';
+          const reservationId = (saved.reservationId || this.form.get('reservationId')?.value || '').toString().trim();
+          const reservationParam = reservationId ? `&reservationId=${encodeURIComponent(reservationId)}` : '';
           this.router.navigateByUrl(
-            `${RouterUrl.WorkOrderCreate}?workOrderId=${encodeURIComponent(saved.workOrderId)}&propertyId=${encodeURIComponent(propertyId)}&returnTo=work-order`
+            `${RouterUrl.WorkOrderCreate}?workOrderId=${encodeURIComponent(saved.workOrderId)}&propertyId=${encodeURIComponent(propertyId)}${reservationParam}&returnTo=work-order`
           );
           return;
         }
@@ -1774,8 +1776,11 @@ export class WorkOrderComponent implements OnInit, OnChanges, OnDestroy {
   }
 
   navigateToWorkOrderView(workOrderId: string): void {
+    const propertyId = (this.property?.propertyId ?? this.selectedPropertyId ?? '').toString().trim();
+    const reservationId = (this.workOrder?.reservationId || this.form.get('reservationId')?.value || '').toString().trim();
+    const reservationParam = reservationId ? `&reservationId=${encodeURIComponent(reservationId)}` : '';
     this.router.navigateByUrl(
-      `${RouterUrl.WorkOrderCreate}?workOrderId=${encodeURIComponent(workOrderId)}&propertyId=${encodeURIComponent(this.property?.propertyId ?? this.selectedPropertyId ?? '')}&returnTo=work-order`
+      `${RouterUrl.WorkOrderCreate}?workOrderId=${encodeURIComponent(workOrderId)}&propertyId=${encodeURIComponent(propertyId)}${reservationParam}&returnTo=work-order`
     );
   }
 

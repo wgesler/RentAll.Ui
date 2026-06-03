@@ -105,7 +105,7 @@ export class InvoiceCreateComponent extends BaseDocumentComponent implements OnI
 
   isPageReady: boolean = false;
   itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['offices', 'accountingOffices', 'contacts', 'reservation', 'property', 'emailHtml', 'invoice', 'previewHtml']));
-  destroy$ = new Subject<void>();
+    destroy$ = new Subject<void>();
 
   constructor(
     private propertyHtmlService: PropertyHtmlService,
@@ -150,11 +150,7 @@ export class InvoiceCreateComponent extends BaseDocumentComponent implements OnI
       this.cdr.markForCheck();
     });
 
-    this.itemsToLoad$.pipe(
-      filter(items => items.size === 1 && items.has('previewHtml')),
-      take(1),
-      takeUntil(this.destroy$)
-    ).subscribe(() => {
+    this.itemsToLoad$.pipe(filter(items => items.size === 1 && items.has('previewHtml')),take(1),takeUntil(this.destroy$)).subscribe(() => {
       this.applyRouteOfficeSelection();
       this.loadContact();
       this.tryGeneratePreview();

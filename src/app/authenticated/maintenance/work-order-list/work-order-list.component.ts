@@ -274,8 +274,10 @@ export class WorkOrderListComponent implements OnInit, OnChanges, OnDestroy {
       this.toastr.error('Unable to view work order: property was not provided.', 'Missing Property');
       return;
     }
+    const reservationId = (event.reservationId || '').toString().trim();
+    const reservationParam = reservationId ? `&reservationId=${encodeURIComponent(reservationId)}` : '';
     this.router.navigateByUrl(
-      `${RouterUrl.WorkOrderCreate}?workOrderId=${encodeURIComponent(workOrderId)}&propertyId=${encodeURIComponent(propertyId)}&returnTo=work-order-list`
+      `${RouterUrl.WorkOrderCreate}?workOrderId=${encodeURIComponent(workOrderId)}&propertyId=${encodeURIComponent(propertyId)}${reservationParam}&returnTo=work-order-list`
     );
   }
   //#endregion

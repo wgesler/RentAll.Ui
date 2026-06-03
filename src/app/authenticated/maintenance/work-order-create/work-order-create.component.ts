@@ -1,10 +1,10 @@
 import { CommonModule } from '@angular/common';
 import { HttpClient } from '@angular/common/http';
-import { Component, OnDestroy, OnInit } from '@angular/core';
+import { ChangeDetectorRef, Component, OnDestroy, OnInit } from '@angular/core';
 import { DomSanitizer, SafeHtml } from '@angular/platform-browser';
 import { ActivatedRoute, Router } from '@angular/router';
 import { ToastrService } from 'ngx-toastr';
-import { BehaviorSubject, catchError, filter, finalize, firstValueFrom, forkJoin, of, take } from 'rxjs';
+import { BehaviorSubject, Subject, catchError, filter, finalize, firstValueFrom, forkJoin, of, take, takeUntil } from 'rxjs';
 import { RouterUrl } from '../../../app.routes';
 import { MaterialModule } from '../../../material.module';
 import { AuthService } from '../../../services/auth.service';
@@ -13,7 +13,6 @@ import { DocumentHtmlService } from '../../../services/document-html.service';
 import { FormatterService } from '../../../services/formatter-service';
 import { UtilityService } from '../../../services/utility.service';
 import { ContactResponse } from '../../contacts/models/contact.model';
-import { EntityType } from '../../contacts/models/contact-enum';
 import { ContactService } from '../../contacts/services/contact.service';
 import { DocumentType } from '../../documents/models/document.enum';
 import { GenerateDocumentFromHtmlDto } from '../../documents/models/document.model';
@@ -24,7 +23,7 @@ import { EmailService } from '../../email/services/email.service';
 import { EmailCreateDraftService } from '../../email/services/email-create-draft.service';
 import { EmailHtmlResponse } from '../../email/models/email-html.model';
 import { EmailHtmlService } from '../../email/services/email-html.service';
-import { getWorkOrderType, WorkOrderType } from '../models/maintenance-enums';
+import { WorkOrderType } from '../models/maintenance-enums';
 import { ReceiptResponse, Split } from '../models/receipt.model';
 import { WorkOrderItemResponse, WorkOrderResponse } from '../models/work-order.model';
 import { ReceiptService } from '../services/receipt.service';
@@ -32,7 +31,7 @@ import { WorkOrderService } from '../services/work-order.service';
 import { BaseDocumentComponent, DocumentConfig, DownloadConfig, EmailConfig } from '../../shared/base-document.component';
 import { PropertyResponse } from '../../properties/models/property.model';
 import { PropertyService } from '../../properties/services/property.service';
-import { ReservationListResponse, ReservationResponse } from '../../reservations/models/reservation-model';
+import { ReservationResponse } from '../../reservations/models/reservation-model';
 import { ReservationService } from '../../reservations/services/reservation.service';
 import { AccountingOfficeResponse } from '../../organizations/models/accounting-office.model';
 import { AccountingOfficeService } from '../../organizations/services/accounting-office.service';
@@ -50,6 +49,7 @@ import { getBillingMethod } from '../../reservations/models/reservation-enum';
 export class WorkOrderCreateComponent extends BaseDocumentComponent implements OnInit, OnDestroy {
   workOrderId: string | null = null;
   propertyId: string | null = null;
+  reservationId: string | null = null;
   returnTo: string | null = null;
 
   templateHtml = '';
@@ -65,11 +65,8 @@ export class WorkOrderCreateComponent extends BaseDocumentComponent implements O
   workOrder: WorkOrderResponse | null = null;
   property: PropertyResponse | null = null;
   selectedReservation: ReservationResponse | null = null;
-  propertyReservations: ReservationListResponse[] = [];
   selectedContact: ContactResponse | null = null;
   contacts: ContactResponse[] = [];
-  companyContacts: ContactResponse[] = [];
-  additionalContactRows: { contactId: string | null }[] = [];
 
   propertyReceipts: ReceiptResponse[] = [];
   emailHtml: EmailHtmlResponse | null = null;
@@ -78,8 +75,8 @@ export class WorkOrderCreateComponent extends BaseDocumentComponent implements O
   accountingOfficeLogo = '';
   organization: OrganizationResponse | null = null;
 
-  itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['property', 'workOrder', 'costCode', 'propertyAgreement', 'propertyReceipts', 'propertyReservations', 'accountingOffices', 'contacts', 'organization', 'logo', 'previewHtml']));
-  logoSourcesLoaded = { organization: false, accountingOffice: false };
+  itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['accountingOffices', 'contacts', 'reservation', 'property', 'emailHtml', 'workOrder', 'previewHtml', 'template', 'propertyReceipts', 'organization']));
+  destroy$ = new Subject<void>();
 
   constructor(
     private route: ActivatedRoute,
@@ -100,6 +97,7 @@ export class WorkOrderCreateComponent extends BaseDocumentComponent implements O
     private accountingOfficeService: AccountingOfficeService,
     private organizationService: OrganizationService,
     private formatterService: FormatterService,
+    private cdr: ChangeDetectorRef,
     documentService: DocumentService,
     documentExportService: DocumentExportService,
     documentHtmlService: DocumentHtmlService,
@@ -110,117 +108,115 @@ export class WorkOrderCreateComponent extends BaseDocumentComponent implements O
     this.safePreviewIframeHtml = this.sanitizer.bypassSecurityTrustHtml('');
   }
 
+  //#region Work Order Create
   ngOnInit(): void {
     this.organizationId = this.authService.getUser()?.organizationId?.trim() || '';
 
-    // Single gate: page is ready only after every load-item is resolved (including previewHtml).
-    this.itemsToLoad$.pipe(filter(items => items.size === 0), take(1)).subscribe(() => {
-      this.isPageReady = true;
+    this.itemsToLoad$.pipe(takeUntil(this.destroy$)).subscribe(items => {
+      this.isPageReady = items.size === 0;
+      this.cdr.markForCheck();
     });
 
-    this.route.queryParams.pipe(take(1)).subscribe(params => {
-      const workOrderId = (params['workOrderId'] ?? '').toString().trim();
-      const propertyId = (params['propertyId'] ?? '').toString().trim();
-      this.workOrderId = workOrderId || null;
-      this.propertyId = propertyId || null;
-      this.returnTo = params['returnTo'] ?? null;
-
-      if (!this.workOrderId || !this.propertyId) {
-        this.toastr.error('workOrderId and propertyId are required.', 'Missing Parameters');
-        this.itemsToLoad$.next(new Set());
-        return;
-      }
-
-      this.loadTemplate();
-      this.loadEmailHtml();
-      this.loadWorkOrder();
-      this.loadContacts();
-      this.loadAccountingOffices();
-      this.loadOrganization();
-      this.loadProperty();
-      this.loadPropertyReservations();
-     });
-  }
-  
-  //#region Data Load Methods
-  loadTemplate(): void {
-    this.http.get('assets/work-order.html', { responseType: 'text' }).pipe(take(1), finalize(() => { this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'costCode'); })).subscribe({
-      next: html => {
-        this.templateHtml = html || '';
-        this.tryGeneratePreview();
-      },
-      error: () => this.toastr.error('Unable to load work order HTML template.', 'Template Error')
-    });
-  }
-
-  loadEmailHtml(): void {
-    this.emailHtmlService.getEmailHtml().pipe(take(1), finalize(() => { this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'propertyAgreement'); })).subscribe({
-      next: html => this.emailHtml = html,
-      error: () => this.emailHtml = null
-    });
-  }
-
-  loadWorkOrder(): void {
-    this.workOrderService.getWorkOrderById(this.workOrderId!).pipe(take(1), finalize(() => { this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'workOrder'); })).subscribe({
-      next: wo => {
-        this.workOrder = wo;
-        this.loadClientPartyData();
-        this.tryGeneratePreview();
-        this.loadPropertyReceipts();
-        this.loadAccountingOffice();
-        this.loadReservation(wo.reservationId);
-      },
-      error: () => {
-        this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'workOrderNumber');
-        this.markLogoSourceLoaded('accountingOffice');
-        this.toastr.error('Unable to load work order.', 'Error');
-      }
-    });
-  }
-
-  loadContacts(): void {
-    this.contactService.ensureContactsLoaded().pipe(take(1), finalize(() => { this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'contacts'); })).subscribe({
-      next: (contacts) => {
-        this.contacts = contacts || [];
-        this.companyContacts = this.contacts.filter(c => c.entityTypeId === EntityType.Company);
-        if (this.additionalContactRows.length > 0) {
-          this.buildAdditionalContactRows(this.getSelectedContactIdsFromForm());
-        }
-        this.loadClientPartyData();
-        this.tryGeneratePreview();
-      },
-      error: () => {
-        this.contacts = [];
-        this.companyContacts = [];
-        this.additionalContactRows = [];
-      }
-    });
-  }
-
-  loadOrganization(): void {
-    if (!this.organizationId) {
-      this.organization = null;
-      this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'organization');
-      this.markLogoSourceLoaded('organization');
+    this.itemsToLoad$.pipe(
+      filter(items => items.size === 1 && items.has('previewHtml')),
+      take(1),
+      takeUntil(this.destroy$)
+    ).subscribe(() => {
+      this.syncAccountingOfficeFromLists();
+      this.loadClientPartyData();
       this.tryGeneratePreview();
+    });
+
+    this.applyRouteParams(this.route.snapshot.queryParamMap);
+
+    if (!this.workOrderId || !this.propertyId) {
+      this.toastr.error('workOrderId and propertyId are required.', 'Missing Parameters');
+      this.itemsToLoad$.next(new Set());
       return;
     }
 
-    this.organizationService.getOrganizationByGuid(this.organizationId).pipe(take(1), finalize(() => {
-      this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'organization');
-      this.markLogoSourceLoaded('organization');
-    })).subscribe({
-      next: organization => {
-        this.organization = organization;
-        this.tryGeneratePreview();
-      },
-      error: () => {
-        this.organization = null;
-        this.tryGeneratePreview();
-      }
-    });
+    if (!this.reservationId?.trim()) {
+      this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'reservation');
+    }
+
+    this.loadAccountingOffices();
+    this.loadOrganization();
+    this.loadContacts();
+    this.loadEmailHtml();
+    this.loadTemplate();
+    this.loadProperty();
+    this.loadWorkOrder();
+
+    if (this.reservationId?.trim()) {
+      this.loadReservation(this.reservationId);
+    }
   }
 
+  applyRouteParams(paramMap: { get: (key: string) => string | null }): void {
+    const workOrderId = paramMap.get('workOrderId')?.trim() ?? '';
+    this.workOrderId = workOrderId || null;
+
+    const propertyId = paramMap.get('propertyId')?.trim() ?? '';
+    this.propertyId = propertyId || null;
+
+    const reservationId = paramMap.get('reservationId')?.trim();
+    if (reservationId) {
+      this.reservationId = reservationId;
+    }
+
+    this.returnTo = paramMap.get('returnTo') ?? null;
+  }
+
+  async saveWorkOrder(): Promise<void> {
+    if (!this.previewIframeHtml || !this.workOrder) {
+      this.toastr.warning('No work order preview is available to save.', 'No Preview');
+      return;
+    }
+
+    this.isSubmitting = true;
+    try {
+      const config = this.getDocumentConfig();
+      if (!config.organizationId || !config.selectedOfficeId) {
+        this.toastr.warning('Work order office/organization is not available.', 'Missing Data');
+        return;
+      }
+
+      const htmlWithStyles = this.documentHtmlService.getPdfHtmlWithStyles(
+        config.previewIframeHtml,
+        config.previewIframeStyles
+      );
+
+      const generateDto: GenerateDocumentFromHtmlDto = {
+        htmlContent: htmlWithStyles,
+        organizationId: config.organizationId,
+        officeId: config.selectedOfficeId,
+        officeName: config.selectedOfficeName || '',
+        propertyId: config.propertyId || null,
+        reservationId: this.workOrder.reservationId ?? this.selectedReservation?.reservationId ?? null,
+        reservationCode: this.workOrder.reservationCode ?? this.selectedReservation?.reservationCode ?? null,
+        documentTypeId: DocumentType.WorkOrder,
+        fileName: this.getWorkOrderFileName(),
+        generatePdf: true
+      };
+
+      await firstValueFrom(this.documentService.generate(generateDto).pipe(take(1)));
+      this.toastr.success('Document generated successfully', 'Success');
+      this.documentReloadService.triggerReload();
+      this.iframeKey++;
+    } catch (error) {
+      const detail = this.utilityService.extractApiErrorMessage(error);
+      this.toastr.error(
+        detail ? `Document generation failed. ${detail}` : 'Document generation failed. Please try again.',
+        'Error'
+      );
+      this.iframeKey++;
+    } finally {
+      this.isSubmitting = false;
+    }
+  }
+  //#endregion
+
+  //#region Data Load Methods
   loadAccountingOffices(): void {
     this.accountingOfficeService.ensureAccountingOfficesLoaded().pipe(
       take(1),
@@ -237,58 +233,105 @@ export class WorkOrderCreateComponent extends BaseDocumentComponent implements O
     });
   }
 
-  loadAccountingOffice(): void {
-    const officeId = this.workOrder?.officeId ?? this.property?.officeId ?? null;
-    if (!officeId) {
-      this.selectedAccountingOffice = null;
-      this.accountingOfficeLogo = '';
-      this.markLogoSourceLoaded('accountingOffice');
-      this.tryGeneratePreview();
+  loadOrganization(): void {
+    if (!this.organizationId) {
+      this.organization = null;
+      this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'organization');
       return;
     }
 
-    const officeFromList = this.accountingOffices.find(o => o.officeId === officeId) ?? null;
-    if (officeFromList) {
-      this.selectedAccountingOffice = officeFromList;
-      this.updateAccountingOfficeLogo();
-      this.markLogoSourceLoaded('accountingOffice');
-      this.tryGeneratePreview();
-      return;
-    }
-
-    this.accountingOfficeService.getAccountingOfficeById(officeId).pipe(take(1), finalize(() => {
-      this.markLogoSourceLoaded('accountingOffice');
+    this.organizationService.getOrganizationByGuid(this.organizationId).pipe(take(1), finalize(() => {
+      this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'organization');
     })).subscribe({
-      next: office => {
-        this.selectedAccountingOffice = office;
-        this.updateAccountingOfficeLogo();
-        this.tryGeneratePreview();
+      next: organization => {
+        this.organization = organization;
       },
       error: () => {
-        this.selectedAccountingOffice = null;
-        this.accountingOfficeLogo = '';
-        this.tryGeneratePreview();
+        this.organization = null;
       }
     });
   }
 
-  markLogoSourceLoaded(source: 'organization' | 'accountingOffice'): void {
-    this.logoSourcesLoaded[source] = true;
-    if (this.logoSourcesLoaded.organization && this.logoSourcesLoaded.accountingOffice) {
-      this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'logo');
-    }
+  loadContacts(): void {
+    this.contactService.ensureContactsLoaded().pipe(take(1), finalize(() => { this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'contacts'); })).subscribe({
+      next: (contacts) => {
+        this.contacts = contacts || [];
+        this.loadClientPartyData();
+      },
+      error: () => {
+        this.contacts = [];
+      }
+    });
   }
 
-  updateAccountingOfficeLogo(): void {
-    if (this.selectedAccountingOffice?.fileDetails?.dataUrl) {
-      this.accountingOfficeLogo = this.selectedAccountingOffice.fileDetails.dataUrl;
+  loadEmailHtml(): void {
+    this.emailHtmlService.getEmailHtml().pipe(take(1), finalize(() => { this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'emailHtml'); })).subscribe({
+      next: html => this.emailHtml = html,
+      error: () => this.emailHtml = null
+    });
+  }
+
+  loadTemplate(): void {
+    this.http.get('assets/work-order.html', { responseType: 'text' }).pipe(take(1), finalize(() => { this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'template'); })).subscribe({
+      next: html => {
+        this.templateHtml = html || '';
+      },
+      error: () => {
+        this.templateHtml = '';
+        this.toastr.error('Unable to load work order HTML template.', 'Template Error');
+      }
+    });
+  }
+
+  loadReservation(reservationId?: string | null): void {
+    const id = reservationId?.trim();
+    if (!id) {
+      this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'reservation');
       return;
     }
-    if (this.selectedAccountingOffice?.fileDetails?.file && this.selectedAccountingOffice?.fileDetails?.contentType) {
-      this.accountingOfficeLogo = `data:${this.selectedAccountingOffice.fileDetails.contentType};base64,${this.selectedAccountingOffice.fileDetails.file}`;
-      return;
+
+    this.reservationService.getReservationByGuid(id).pipe(take(1), finalize(() => { this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'reservation'); })).subscribe({
+      next: (response: ReservationResponse) => {
+        this.reservationId = response.reservationId;
+        this.selectedReservation = response;
+        this.loadClientPartyData();
+      },
+      error: () => {
+        this.selectedReservation = null;
+        this.loadClientPartyData();
+      }
+    });
+  }
+
+  loadWorkOrder(): void {
+    this.workOrderService.getWorkOrderById(this.workOrderId!).pipe(take(1), finalize(() => { this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'workOrder'); })).subscribe({
+      next: wo => {
+        this.workOrder = wo;
+        this.applyLoadedWorkOrder(wo);
+      },
+      error: () => {
+        this.workOrder = null;
+        this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'reservation');
+        this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'propertyReceipts');
+        this.toastr.error('Unable to load work order.', 'Error');
+      }
+    });
+  }
+
+  applyLoadedWorkOrder(wo: WorkOrderResponse): void {
+    const woReservationId = wo.reservationId?.trim() || '';
+    if (woReservationId) {
+      if (!this.selectedReservation || this.selectedReservation.reservationId !== woReservationId) {
+        this.reservationId = woReservationId;
+        this.loadReservation(woReservationId);
+      }
+    } else {
+      this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'reservation');
     }
-    this.accountingOfficeLogo = '';
+
+    this.loadPropertyReceipts();
+    this.syncAccountingOfficeFromLists();
+    this.loadClientPartyData();
   }
 
   loadProperty(): void {
@@ -301,7 +344,6 @@ export class WorkOrderCreateComponent extends BaseDocumentComponent implements O
       next: p => {
         this.property = p;
         this.loadClientPartyData();
-        this.tryGeneratePreview();
       },
       error: () => {
         this.property = null;
@@ -310,8 +352,7 @@ export class WorkOrderCreateComponent extends BaseDocumentComponent implements O
   }
 
   loadPropertyReceipts(): void {
-    this.utilityService.addLoadItem(this.itemsToLoad$, 'propertyReceipts');
-    if (!this.propertyId) {
+        if (!this.propertyId) {
       this.propertyReceipts = [];
       this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'propertyReceipts');
       return;
@@ -325,7 +366,6 @@ export class WorkOrderCreateComponent extends BaseDocumentComponent implements O
         if (!includedReceiptIds.length) {
           this.propertyReceipts = baseReceipts.map(receipt => this.withReceiptDataUrl(receipt));
           this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'propertyReceipts');
-          this.tryGeneratePreview();
           return;
         }
 
@@ -351,60 +391,53 @@ export class WorkOrderCreateComponent extends BaseDocumentComponent implements O
 
             this.propertyReceipts = mergedReceipts.map(receipt => this.withReceiptDataUrl(receipt));
             this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'propertyReceipts');
-            this.tryGeneratePreview();
           },
           error: () => {
             this.propertyReceipts = baseReceipts.map(receipt => this.withReceiptDataUrl(receipt));
             this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'propertyReceipts');
-            this.tryGeneratePreview();
           }
         });
       },
       error: () => {
         this.propertyReceipts = [];
         this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'propertyReceipts');
-        this.tryGeneratePreview();
       }
     });
   }
 
-  loadPropertyReservations(): void {
-    if (!this.propertyId) {
-      this.propertyReservations = [];
-      this.selectedReservation = null;
-      this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'propertyReservations');
+  loadAccountingOffice(): void {
+    const officeId = this.workOrder?.officeId ?? this.property?.officeId ?? null;
+    if (!officeId) {
+      this.selectedAccountingOffice = null;
+      this.accountingOfficeLogo = '';
       return;
     }
 
-    this.reservationService.getReservationsByPropertyId(this.propertyId).pipe(take(1), finalize(() => { this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'propertyReservations'); })).subscribe({
-      next: reservations => {
-        this.propertyReservations = (reservations ?? []).filter(r => r.isActive !== false);
+    const officeFromList = this.accountingOffices.find(o => o.officeId === officeId) ?? null;
+    if (officeFromList) {
+      this.selectedAccountingOffice = officeFromList;
+      this.updateAccountingOfficeLogo();
+      return;
+    }
+
+    this.accountingOfficeService.getAccountingOfficeById(officeId).pipe(take(1)).subscribe({
+      next: office => {
+        this.selectedAccountingOffice = office;
+        this.updateAccountingOfficeLogo();
       },
       error: () => {
-        this.propertyReservations = [];
-        this.selectedReservation = null;
+        this.selectedAccountingOffice = null;
+        this.accountingOfficeLogo = '';
       }
     });
   }
 
-  loadReservation(reservationId?: string): void {
-    if(!reservationId)
-      return;
-    
-    this.utilityService.addLoadItem(this.itemsToLoad$, 'reservation');
-    this.reservationService.getReservationByGuid(reservationId).pipe(take(1),finalize(() => { this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'reservation'); })).subscribe({
-      next: (response: ReservationResponse) => {
-        this.selectedReservation = response;
-        this.loadClientPartyData();
-        this.tryGeneratePreview();
-      },
-      error: () => {
-        this.selectedReservation = null;
-        this.loadClientPartyData();
-      }
-    });
+  syncAccountingOfficeFromLists(): void {
+    if (this.accountingOffices.length > 0) {
+      this.loadAccountingOffice();
+    }
   }
-    
+
   loadClientPartyData(): void {
     if (!this.workOrder) return;
 
@@ -421,17 +454,15 @@ export class WorkOrderCreateComponent extends BaseDocumentComponent implements O
         return;
     }
   }
-
-  buildAdditionalContactRows(_selectedContactIds: string[]): void {
-  }
   //#endregion
 
-  //#region Html to Image(s)
+  //#region Preview Methods
   tryGeneratePreview(): void {
-    if (!this.templateHtml || !this.workOrder) {
-      this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'previewHtml');
+    if (!this.templateHtml?.trim() || !this.workOrder) {
+      this.clearPreview();
       return;
     }
+
     const processedHtml = this.replacePlaceholders(this.templateHtml);
     const processed = this.documentHtmlService.processHtml(processedHtml, true);
     this.previewIframeHtml = processed.processedHtml;
@@ -439,28 +470,49 @@ export class WorkOrderCreateComponent extends BaseDocumentComponent implements O
     this.safePreviewIframeHtml = this.sanitizer.bypassSecurityTrustHtml(processed.processedHtml);
     this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'previewHtml');
     this.iframeKey++;
+    this.cdr.markForCheck();
   }
 
-  isPreviewHtmlPending(): boolean {
-    return this.itemsToLoad$.value.has('previewHtml');
+  clearPreview(): void {
+    this.previewIframeHtml = '';
+    this.previewIframeStyles = '';
+    this.safePreviewIframeHtml = this.sanitizer.bypassSecurityTrustHtml('');
+    this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'previewHtml');
+    this.cdr.markForCheck();
+  }
+  //#endregion
+
+  //#region Logo Update Methods
+  updateAccountingOfficeLogo(): void {
+    if (this.selectedAccountingOffice?.fileDetails?.dataUrl) {
+      this.accountingOfficeLogo = this.selectedAccountingOffice.fileDetails.dataUrl;
+      return;
+    }
+    if (this.selectedAccountingOffice?.fileDetails?.file && this.selectedAccountingOffice?.fileDetails?.contentType) {
+      this.accountingOfficeLogo = `data:${this.selectedAccountingOffice.fileDetails.contentType};base64,${this.selectedAccountingOffice.fileDetails.file}`;
+      return;
+    }
+    this.accountingOfficeLogo = '';
   }
 
+  getOrganizationLogoDataUrl(): string {
+    if (this.organization?.fileDetails?.dataUrl) {
+      return this.organization.fileDetails.dataUrl;
+    }
+    if (this.organization?.fileDetails?.file && this.organization?.fileDetails?.contentType) {
+      return `data:${this.organization.fileDetails.contentType};base64,${this.organization.fileDetails.file}`;
+    }
+    return '';
+  }
+  //#endregion
+
+  //#region Form Replacement Methods
   replacePlaceholders(html: string): string {
     if (!this.workOrder) {
       return html;
     }
 
     const total = this.workOrder.workOrderItems?.reduce((sum, item) => sum + (Number(item.itemAmount) || 0), 0) ?? 0;
-    const suite = (this.property?.suite || '').trim();
-    const propertyAddressLine1 = this.property
-      ? [this.property.address1 || '', suite ? `#${suite}` : ''].filter(part => part.trim().length > 0).join(' ')
-      : '';
-    const propertyAddressLine2 = this.property
-      ? `${[this.property.city || '', this.property.state || ''].filter(part => part.trim().length > 0).join(', ')}${this.property.zip ? ` ${this.property.zip}` : ''}`.trim()
-      : '';
-    const propertyAddress = [propertyAddressLine1, propertyAddressLine2].filter(part => part.length > 0).join(' ');
-    const officeName = this.selectedAccountingOffice?.name || this.workOrder.officeName || this.property?.officeName || '';
-    const typeLabel = getWorkOrderType(this.workOrder.workOrderTypeId);
     const workOrderDateDisplay = this.formatter.formatDateString(this.workOrder.workOrderDate) || '';
     const workOrderItemCount = this.workOrder.workOrderItems?.length ?? 0;
     const isTenantWorkOrder = this.workOrder.workOrderTypeId === WorkOrderType.Tenant;
@@ -767,10 +819,6 @@ export class WorkOrderCreateComponent extends BaseDocumentComponent implements O
     return `<p class="breakhere"></p>${pages.join('\n<p class="breakhere"></p>\n')}`;
   }
 
-  getSelectedContactIdsFromForm(): string[] {
-    return [];
-  }
-  
   getIncludedReceiptIds(): number[] {
     if (!this.workOrder?.workOrderItems?.length) {
       return [];
@@ -961,26 +1009,6 @@ export class WorkOrderCreateComponent extends BaseDocumentComponent implements O
     return tenantLines.join('<br>');
   }
 
-  getResponsibleParty(): string {
-    return this.utilityService.getResponsibleParty(this.selectedReservation, this.getPrimaryResponsibleContact());
-  }
-
-  getResponsiblePartyAddress1() {
-    return this.utilityService.getResponsiblePartyAddress1(this.selectedReservation, this.getPrimaryResponsibleContact());
-  }
-
-  getResponsiblePartyAddress2() {
-    return this.utilityService.getResponsiblePartyAddress2(this.selectedReservation, this.getPrimaryResponsibleContact());
-  }
-
-  getResponsiblePartyPhone() {
-    return this.utilityService.getResponsiblePartyPhone(this.getPrimaryResponsibleContact());
-  }
-
-  getResponsiblePartyEmail() {
-    return this.utilityService.getResponsiblePartyEmail(this.getPrimaryResponsibleContact());
-  }
-
   getPropertyAddress1() {
     if (!this.property) {
       return '';
@@ -1054,47 +1082,6 @@ export class WorkOrderCreateComponent extends BaseDocumentComponent implements O
     return `${this.selectedAccountingOffice.address1 || ''} ${this.selectedAccountingOffice.suite || ''}`.trim(); 
   }
 
-  getOrganizationLogoDataUrl(): string {
-    if (this.organization?.fileDetails?.dataUrl) {
-      return this.organization.fileDetails.dataUrl;
-    }
-    if (this.organization?.fileDetails?.file && this.organization?.fileDetails?.contentType) {
-      return `data:${this.organization.fileDetails.contentType};base64,${this.organization.fileDetails.file}`;
-    }
-    return '';
-  }
-
-  getOrganizationAddress1(): string {
-    if (!this.organization) return '';
-
-    const address1 = String(this.organization?.address1 ?? '').trim();
-    const suite = String(this.organization?.suite ?? '').trim();
-    return suite ? `${address1}, ${suite}` : address1;
-  }
-   
-  getOrganizationAddress2(): string {
-    if (!this.organization) return '';
-    return `${this.organization.city || ''}, ${this.organization.state || ''} ${this.organization.zip || ''}`.trim();
-  }
-
-  getEmailRecipientByType(): { email: string; name: string, salutationName: string } {
-    if (!this.workOrder) {
-      return { email: '', name: '', salutationName: '' };
-    }
-
-    return {  
-      email: this.selectedContact?.email || '',
-      name: this.selectedContact?.fullName || `${this.selectedContact?.firstName || ''} ${this.selectedContact?.lastName || ''}`.trim(),
-      salutationName: `${this.selectedContact?.firstName || ''}`.trim()
-    };
-  }
-
-  getWorkOrderFileName(): string {
-    const propertyCode = (this.property?.propertyCode || this.workOrder?.propertyCode || 'Property').replace(/[^a-zA-Z0-9-]/g, '');
-    const workOrderCode = (this.workOrder?.workOrderId || 'WorkOrder').replace(/[^a-zA-Z0-9-]/g, '');
-    const date = this.utilityService.todayAsCalendarDateString();
-    return `WorkOrder_${propertyCode}_${workOrderCode}_${date}.pdf`;
-  }
   //#endregion
 
   //#region Base Class Overrides
@@ -1120,53 +1107,7 @@ export class WorkOrderCreateComponent extends BaseDocumentComponent implements O
     super.onPrint('No work order preview is available to print.');
   }
 
-  async saveWorkOrderDocument(): Promise<void> {
-    if (!this.previewIframeHtml || !this.workOrder) {
-      this.toastr.warning('No work order preview is available to save.', 'No Preview');
-      return;
-    }
 
-    this.isSubmitting = true;
-    try {
-      const config = this.getDocumentConfig();
-      if (!config.organizationId || !config.selectedOfficeId) {
-        this.toastr.warning('Work order office/organization is not available.', 'Missing Data');
-        return;
-      }
-
-      const htmlWithStyles = this.documentHtmlService.getPdfHtmlWithStyles(
-        config.previewIframeHtml,
-        config.previewIframeStyles
-      );
-
-      const generateDto: GenerateDocumentFromHtmlDto = {
-        htmlContent: htmlWithStyles,
-        organizationId: config.organizationId,
-        officeId: config.selectedOfficeId,
-        officeName: config.selectedOfficeName || '',
-        propertyId: config.propertyId || null,
-        reservationId: this.workOrder.reservationId ?? this.selectedReservation?.reservationId ?? null,
-        reservationCode: this.workOrder.reservationCode ?? this.selectedReservation?.reservationCode ?? null,
-        documentTypeId: DocumentType.WorkOrder,
-        fileName: this.getWorkOrderFileName(),
-        generatePdf: true
-      };
-
-      await firstValueFrom(this.documentService.generate(generateDto).pipe(take(1)));
-      this.toastr.success('Document generated successfully', 'Success');
-      this.documentReloadService.triggerReload();
-      this.iframeKey++;
-    } catch (error) {
-      const detail = this.utilityService.extractApiErrorMessage(error);
-      this.toastr.error(
-        detail ? `Document generation failed. ${detail}` : 'Document generation failed. Please try again.',
-        'Error'
-      );
-      this.iframeKey++;
-    } finally {
-      this.isSubmitting = false;
-    }
-  }
 
   override async onDownload(): Promise<void> {
     if (!this.workOrder) {
@@ -1254,9 +1195,29 @@ export class WorkOrderCreateComponent extends BaseDocumentComponent implements O
     this.router.navigateByUrl(RouterUrl.MaintenanceList);
   }
 
+  getWorkOrderFileName(): string {
+    const propertyCode = (this.property?.propertyCode || this.workOrder?.propertyCode || 'Property').replace(/[^a-zA-Z0-9-]/g, '');
+    const workOrderCode = (this.workOrder?.workOrderId || 'WorkOrder').replace(/[^a-zA-Z0-9-]/g, '');
+    const date = this.utilityService.todayAsCalendarDateString();
+    return `WorkOrder_${propertyCode}_${workOrderCode}_${date}.pdf`;
+  }
+
+  getEmailRecipientByType(): { email: string; name: string; salutationName: string } {
+    if (!this.workOrder) {
+      return { email: '', name: '', salutationName: '' };
+    }
+
+    return {
+      email: this.selectedContact?.email || '',
+      name: this.selectedContact?.fullName || `${this.selectedContact?.firstName || ''} ${this.selectedContact?.lastName || ''}`.trim(),
+      salutationName: `${this.selectedContact?.firstName || ''}`.trim()
+    };
+  }
+
   ngOnDestroy(): void {
+    this.destroy$.next();
+    this.destroy$.complete();
     this.itemsToLoad$.complete();
   }
   //#endregion
 }
-

@@ -51,9 +51,9 @@
               <mat-icon>download</mat-icon>
               {{ isDownloading ? 'Downloading...' : 'Download' }}
             </button>
-            <button mat-raised-button type="button" color="primary" (click)="saveWorkOrderDocument()" [disabled]="!previewIframeHtml || isSubmitting">
+            <button mat-raised-button type="button" color="primary" (click)="saveWorkOrder()" [disabled]="!previewIframeHtml || isSubmitting">
               <mat-icon>save</mat-icon>
-              {{ isSubmitting ? 'Saving...' : 'Save' }}
+              {{ isSubmitting ? 'Saving...' : 'Document' }}
             </button>
           </div>
 
@@ -66,11 +66,6 @@
                 (load)="injectStylesIntoIframe()"
                 frameborder="0">
               </iframe>
-            } @else if (isPreviewHtmlPending()) {
-              <div class="loading-container">
-                <mat-spinner [diameter]="40"></mat-spinner>
-                <p>Loading work order preview...</p>
-              </div>
             } @else {
               <div class="empty-preview">No preview is available for this work order.</div>
             }
