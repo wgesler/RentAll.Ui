@@ -2299,8 +2299,8 @@ export class ReservationComponent implements OnInit, OnDestroy, CanComponentDeac
       }
 
       // Check if feeAmount is provided and greater than 0
-      if (line.feeAmount === undefined || line.feeAmount === null || line.feeAmount <= 0) {
-        this.toastr.error(`Extra Fee Line ${i + 1}: Fee Amount must be greater than 0`, CommonMessage.Error);
+      if (line.feeAmount === undefined || line.feeAmount === null || line.feeAmount == 0) {
+        this.toastr.error(`Extra Fee Line ${i + 1}: Fee Amount should not be 0`, CommonMessage.Error);
         return false;
       }
 
