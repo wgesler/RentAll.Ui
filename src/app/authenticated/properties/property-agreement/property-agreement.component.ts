@@ -280,8 +280,7 @@ export class PropertyAgreementComponent implements OnInit, OnChanges, OnDestroy 
       propertyId
     };
     this.isAgreementSaving = true;
-    return this.propertyAgreementService.createPropertyAgreement(payload).pipe(
-      take(1),
+    return this.propertyAgreementService.createPropertyAgreement(payload).pipe(take(1),
       map((saved: PropertyAgreementResponse) => {
         this.agreementExists = true;
         this.populatePropertyAgreement(saved);
@@ -509,7 +508,7 @@ export class PropertyAgreementComponent implements OnInit, OnChanges, OnDestroy 
   }
   //#endregion
 
-  //#region Data Loading Methods
+  //#region Cost Code Methods
   loadCostCodes(): void {
     this.costCodesService.ensureCostCodesLoaded();
     this.costCodesService.areCostCodesLoaded().pipe(filter(loaded => loaded === true), take(1)).subscribe(() => {

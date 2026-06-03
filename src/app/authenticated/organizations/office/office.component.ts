@@ -233,6 +233,15 @@ export class OfficeComponent implements OnInit, OnDestroy, OnChanges, AfterViewI
       maidHouse: formValue.maidHouse ? parseFloat(formValue.maidHouse.toString()) : 0,
       parkingLowEnd: formValue.parkingLowEnd ? parseFloat(formValue.parkingLowEnd.toString()) : 0,
       parkingHighEnd: formValue.parkingHighEnd ? parseFloat(formValue.parkingHighEnd.toString()) : 0,
+      defaultMarkup: this.parseOptionalOfficePercentage(formValue.defaultMarkup),
+      defaultRevenueSplitOwner: this.parseOptionalOfficePercentage(formValue.defaultRevenueSplitOwner),
+      defaultRevenueSplitOffice: this.parseOptionalOfficePercentage(formValue.defaultRevenueSplitOffice),
+      defaultWorkingCapitalBalance: this.parseOptionalOfficeDecimal(formValue.defaultWorkingCapitalBalance),
+      defaultHourlyLaborCost: this.parseOptionalOfficeDecimal(formValue.defaultHourlyLaborCost),
+      defaultLinenTowelOneBed: this.parseOptionalOfficeDecimal(formValue.defaultLinenTowelOneBed),
+      defaultLinenTowelTwoBed: this.parseOptionalOfficeDecimal(formValue.defaultLinenTowelTwoBed),
+      defaultLinenTowelThreeBed: this.parseOptionalOfficeDecimal(formValue.defaultLinenTowelThreeBed),
+      defaultLinenTowelFourBed: this.parseOptionalOfficeDecimal(formValue.defaultLinenTowelFourBed),
       emailListForReservations: (formValue.emailListForReservations || '').trim() || null,
       quotePreface: (formValue.quotePreface ?? '').toString().trim(),
       quoteSuffix: (formValue.quoteSuffix ?? '').toString().trim(),
@@ -429,6 +438,15 @@ export class OfficeComponent implements OnInit, OnDestroy, OnChanges, AfterViewI
       maidHouse: new FormControl<string>('0.00', [Validators.required]),
       parkingLowEnd: new FormControl<string>('0.00', [Validators.required]),
       parkingHighEnd: new FormControl<string>('0.00', [Validators.required]),
+      defaultMarkup: new FormControl<string>(''),
+      defaultRevenueSplitOwner: new FormControl<string>(''),
+      defaultRevenueSplitOffice: new FormControl<string>(''),
+      defaultWorkingCapitalBalance: new FormControl<string>(''),
+      defaultHourlyLaborCost: new FormControl<string>(''),
+      defaultLinenTowelOneBed: new FormControl<string>(''),
+      defaultLinenTowelTwoBed: new FormControl<string>(''),
+      defaultLinenTowelThreeBed: new FormControl<string>(''),
+      defaultLinenTowelFourBed: new FormControl<string>(''),
       emailListForReservations: new FormControl<string>(''),
       tenantChargeCcId: new FormControl<number | null>(null),
       tenantExpenseCcId: new FormControl<number | null>(null),
@@ -502,6 +520,15 @@ export class OfficeComponent implements OnInit, OnDestroy, OnChanges, AfterViewI
           maidHouse: this.office.maidHouse !== null && this.office.maidHouse !== undefined ? this.office.maidHouse.toFixed(2) : '0.00',
           parkingLowEnd: this.office.parkingLowEnd !== null && this.office.parkingLowEnd !== undefined ? this.office.parkingLowEnd.toFixed(2) : '0.00',
           parkingHighEnd: this.office.parkingHighEnd !== null && this.office.parkingHighEnd !== undefined ? this.office.parkingHighEnd.toFixed(2) : '0.00',
+          defaultMarkup: this.formatOptionalOfficePercentage(this.office.defaultMarkup),
+          defaultRevenueSplitOwner: this.formatOptionalOfficePercentage(this.office.defaultRevenueSplitOwner),
+          defaultRevenueSplitOffice: this.formatOptionalOfficePercentage(this.office.defaultRevenueSplitOffice),
+          defaultWorkingCapitalBalance: this.formatOptionalOfficeDecimal(this.office.defaultWorkingCapitalBalance),
+          defaultHourlyLaborCost: this.formatOptionalOfficeDecimal(this.office.defaultHourlyLaborCost),
+          defaultLinenTowelOneBed: this.formatOptionalOfficeDecimal(this.office.defaultLinenTowelOneBed),
+          defaultLinenTowelTwoBed: this.formatOptionalOfficeDecimal(this.office.defaultLinenTowelTwoBed),
+          defaultLinenTowelThreeBed: this.formatOptionalOfficeDecimal(this.office.defaultLinenTowelThreeBed),
+          defaultLinenTowelFourBed: this.formatOptionalOfficeDecimal(this.office.defaultLinenTowelFourBed),
           emailListForReservations: this.office.emailListForReservations || '',
           tenantChargeCcId: this.office.tenantChargeCcId ?? null,
           tenantExpenseCcId: this.office.tenantExpenseCcId ?? null,
@@ -573,6 +600,15 @@ export class OfficeComponent implements OnInit, OnDestroy, OnChanges, AfterViewI
       maidHouse: o.maidHouse != null ? o.maidHouse.toFixed(2) : '0.00',
       parkingLowEnd: o.parkingLowEnd != null ? o.parkingLowEnd.toFixed(2) : '0.00',
       parkingHighEnd: o.parkingHighEnd != null ? o.parkingHighEnd.toFixed(2) : '0.00',
+      defaultMarkup: this.formatOptionalOfficePercentage(o.defaultMarkup),
+      defaultRevenueSplitOwner: this.formatOptionalOfficePercentage(o.defaultRevenueSplitOwner),
+      defaultRevenueSplitOffice: this.formatOptionalOfficePercentage(o.defaultRevenueSplitOffice),
+      defaultWorkingCapitalBalance: this.formatOptionalOfficeDecimal(o.defaultWorkingCapitalBalance),
+      defaultHourlyLaborCost: this.formatOptionalOfficeDecimal(o.defaultHourlyLaborCost),
+      defaultLinenTowelOneBed: this.formatOptionalOfficeDecimal(o.defaultLinenTowelOneBed),
+      defaultLinenTowelTwoBed: this.formatOptionalOfficeDecimal(o.defaultLinenTowelTwoBed),
+      defaultLinenTowelThreeBed: this.formatOptionalOfficeDecimal(o.defaultLinenTowelThreeBed),
+      defaultLinenTowelFourBed: this.formatOptionalOfficeDecimal(o.defaultLinenTowelFourBed),
       emailListForReservations: o.emailListForReservations || '',
       tenantChargeCcId: o.tenantChargeCcId ?? null,
       tenantExpenseCcId: o.tenantExpenseCcId ?? null,
@@ -889,6 +925,68 @@ export class OfficeComponent implements OnInit, OnDestroy, OnChanges, AfterViewI
 
   onDecimalInput(event: Event, fieldName: string): void {
     this.formatterService.formatDecimalInput(event, this.form.get(fieldName));
+  }
+
+  onOfficePercentInput(event: Event, fieldName: 'defaultMarkup' | 'defaultRevenueSplitOwner' | 'defaultRevenueSplitOffice'): void {
+    this.formatterService.formatPercentageInput(event, this.form.get(fieldName));
+  }
+
+  clearOfficePercentOnFocus(event: FocusEvent, fieldName: 'defaultMarkup' | 'defaultRevenueSplitOwner' | 'defaultRevenueSplitOffice'): void {
+    this.formatterService.clearPercentageOnFocus(event, this.form.get(fieldName));
+  }
+
+  formatOfficePercentOnBlur(fieldName: 'defaultMarkup' | 'defaultRevenueSplitOwner' | 'defaultRevenueSplitOffice'): void {
+    const control = this.form.get(fieldName);
+    const raw = (control?.value ?? '').toString().replace('%', '').trim();
+    if (raw === '') {
+      control?.setValue('', { emitEvent: false });
+      return;
+    }
+    this.formatterService.formatPercentageOnBlur(control, 0);
+  }
+
+  formatOfficePercentOnEnter(event: KeyboardEvent, fieldName: 'defaultMarkup' | 'defaultRevenueSplitOwner' | 'defaultRevenueSplitOffice'): void {
+    if (event.key !== 'Enter') {
+      return;
+    }
+    event.preventDefault();
+    this.formatOfficePercentOnBlur(fieldName);
+    (event.target as HTMLInputElement)?.blur();
+  }
+
+  formatOptionalDecimal(fieldName: string): void {
+    const control = this.form.get(fieldName);
+    const raw = (control?.value ?? '').toString().trim();
+    if (raw === '') {
+      control?.setValue('', { emitEvent: false });
+      return;
+    }
+    this.formatterService.formatDecimalControl(control);
+  }
+
+  formatOptionalOfficePercentage(value: number | null | undefined): string {
+    return value == null ? '' : this.formatterService.formatPercentageValue(value, 0);
+  }
+
+  parseOptionalOfficePercentage(value: unknown): number | null {
+    const raw = (value ?? '').toString().replace('%', '').trim();
+    if (raw === '') {
+      return null;
+    }
+    return this.formatterService.parsePercentageValue(value as string | number, 0);
+  }
+
+  formatOptionalOfficeDecimal(value: number | null | undefined): string {
+    return value == null ? '' : value.toFixed(2);
+  }
+
+  parseOptionalOfficeDecimal(value: unknown): number | null {
+    const raw = (value ?? '').toString().trim();
+    if (raw === '') {
+      return null;
+    }
+    const parsed = parseFloat(raw);
+    return Number.isFinite(parsed) ? parsed : null;
   }
 
   onIntegerInput(event: Event, fieldName: string): void {

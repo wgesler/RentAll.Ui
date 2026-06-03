@@ -465,6 +465,81 @@
                   </div>
                 </div>
 
+                <!-- Owner Default Agreement Fees -->
+                <div class="mb-4">
+                  <h3 class="text-lg font-bold mb-3 text-black">Owner Default Agreement Fees</h3>
+                  <div class="grid grid-cols-5 form-standard-grid mb-4">
+                    <mat-form-field appearance="outline" class="col-span-1 w-full">
+                      <mat-label>Default Markup</mat-label>
+                      <input matInput type="text" formControlName="defaultMarkup"
+                        (focus)="clearOfficePercentOnFocus($event, 'defaultMarkup')"
+                        (input)="onOfficePercentInput($event, 'defaultMarkup')"
+                        (blur)="formatOfficePercentOnBlur('defaultMarkup')"
+                        (keydown)="formatOfficePercentOnEnter($event, 'defaultMarkup')">
+                    </mat-form-field>
+                    <mat-form-field appearance="outline" class="col-span-1 w-full">
+                      <mat-label>Revenue Split (Owner) %</mat-label>
+                      <input matInput type="text" formControlName="defaultRevenueSplitOwner"
+                        (focus)="clearOfficePercentOnFocus($event, 'defaultRevenueSplitOwner')"
+                        (input)="onOfficePercentInput($event, 'defaultRevenueSplitOwner')"
+                        (blur)="formatOfficePercentOnBlur('defaultRevenueSplitOwner')"
+                        (keydown)="formatOfficePercentOnEnter($event, 'defaultRevenueSplitOwner')">
+                    </mat-form-field>
+                    <mat-form-field appearance="outline" class="col-span-1 w-full">
+                      <mat-label>Revenue Split (Office) %</mat-label>
+                      <input matInput type="text" formControlName="defaultRevenueSplitOffice"
+                        (focus)="clearOfficePercentOnFocus($event, 'defaultRevenueSplitOffice')"
+                        (input)="onOfficePercentInput($event, 'defaultRevenueSplitOffice')"
+                        (blur)="formatOfficePercentOnBlur('defaultRevenueSplitOffice')"
+                        (keydown)="formatOfficePercentOnEnter($event, 'defaultRevenueSplitOffice')">
+                    </mat-form-field>
+                    <mat-form-field appearance="outline" class="col-span-1 w-full">
+                      <mat-label>Working Capital Balance</mat-label>
+                      <input matInput type="text" formControlName="defaultWorkingCapitalBalance"
+                        (blur)="formatOptionalDecimal('defaultWorkingCapitalBalance')"
+                        (input)="onDecimalInput($event, 'defaultWorkingCapitalBalance')"
+                        (focus)="selectAllOnFocus($event)">
+                    </mat-form-field>
+                    <mat-form-field appearance="outline" class="col-span-1 w-full">
+                      <mat-label>Hourly Labor Cost</mat-label>
+                      <input matInput type="text" formControlName="defaultHourlyLaborCost"
+                        (blur)="formatOptionalDecimal('defaultHourlyLaborCost')"
+                        (input)="onDecimalInput($event, 'defaultHourlyLaborCost')"
+                        (focus)="selectAllOnFocus($event)">
+                    </mat-form-field>
+                  </div>
+                  <div class="grid grid-cols-4 form-standard-grid">
+                    <mat-form-field appearance="outline" class="col-span-1 w-full">
+                      <mat-label>Linen and Towel Fee (1 bedroom)</mat-label>
+                      <input matInput type="text" formControlName="defaultLinenTowelOneBed"
+                        (blur)="formatOptionalDecimal('defaultLinenTowelOneBed')"
+                        (input)="onDecimalInput($event, 'defaultLinenTowelOneBed')"
+                        (focus)="selectAllOnFocus($event)">
+                    </mat-form-field>
+                    <mat-form-field appearance="outline" class="col-span-1 w-full">
+                      <mat-label>2 Bedroom</mat-label>
+                      <input matInput type="text" formControlName="defaultLinenTowelTwoBed"
+                        (blur)="formatOptionalDecimal('defaultLinenTowelTwoBed')"
+                        (input)="onDecimalInput($event, 'defaultLinenTowelTwoBed')"
+                        (focus)="selectAllOnFocus($event)">
+                    </mat-form-field>
+                    <mat-form-field appearance="outline" class="col-span-1 w-full">
+                      <mat-label>3 Bedroom</mat-label>
+                      <input matInput type="text" formControlName="defaultLinenTowelThreeBed"
+                        (blur)="formatOptionalDecimal('defaultLinenTowelThreeBed')"
+                        (input)="onDecimalInput($event, 'defaultLinenTowelThreeBed')"
+                        (focus)="selectAllOnFocus($event)">
+                    </mat-form-field>
+                    <mat-form-field appearance="outline" class="col-span-1 w-full">
+                      <mat-label>4 Bedroom</mat-label>
+                      <input matInput type="text" formControlName="defaultLinenTowelFourBed"
+                        (blur)="formatOptionalDecimal('defaultLinenTowelFourBed')"
+                        (input)="onDecimalInput($event, 'defaultLinenTowelFourBed')"
+                        (focus)="selectAllOnFocus($event)">
+                    </mat-form-field>
+                  </div>
+                </div>
+
                 <div class="mb-4">
                   <h3 class="text-lg font-bold mb-3 text-black">Tenant and Owner Charges</h3>
                   <div class="grid grid-cols-4 form-standard-grid">

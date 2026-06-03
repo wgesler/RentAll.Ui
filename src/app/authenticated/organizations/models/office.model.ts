@@ -41,6 +41,15 @@ export interface OfficeRequest {
   maidHouse: number;
   parkingLowEnd: number;
   parkingHighEnd: number;
+  defaultMarkup?: number | null;
+  defaultRevenueSplitOwner?: number | null;
+  defaultRevenueSplitOffice?: number | null;
+  defaultWorkingCapitalBalance?: number | null;
+  defaultHourlyLaborCost?: number | null;
+  defaultLinenTowelOneBed?: number | null;
+  defaultLinenTowelTwoBed?: number | null;
+  defaultLinenTowelThreeBed?: number | null;
+  defaultLinenTowelFourBed?: number | null;
   emailListForReservations?: string | null;
   // Cost Codes
   tenantChargeCcId?: number | null;
@@ -109,6 +118,15 @@ export interface OfficeResponse {
   maidHouse: number;
   parkingLowEnd: number;
   parkingHighEnd: number;
+  defaultMarkup?: number | null;
+  defaultRevenueSplitOwner?: number | null;
+  defaultRevenueSplitOffice?: number | null;
+  defaultWorkingCapitalBalance?: number | null;
+  defaultHourlyLaborCost?: number | null;
+  defaultLinenTowelOneBed?: number | null;
+  defaultLinenTowelTwoBed?: number | null;
+  defaultLinenTowelThreeBed?: number | null;
+  defaultLinenTowelFourBed?: number | null;
   emailListForReservations?: string | null;
   // Cost Codes
   tenantChargeCcId?: number | null;
