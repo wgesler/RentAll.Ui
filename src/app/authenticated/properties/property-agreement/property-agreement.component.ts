@@ -565,6 +565,9 @@ export class PropertyAgreementComponent implements OnInit, OnChanges, OnDestroy 
   }
 
   resolveLinenTowelFeeFromOffice(office: OfficeResponse, bedrooms: number | null | undefined): number | null {
+    if (!this.isFurnished) {
+      return 0;
+    }
     const count = Number(bedrooms);
     if (!Number.isFinite(count) || count < 1 || count > 4) {
       return null;

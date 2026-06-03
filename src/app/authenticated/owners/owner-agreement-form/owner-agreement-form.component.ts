@@ -274,6 +274,7 @@ export class OwnerAgreementFormComponent extends BaseDocumentComponent implement
 
   onPreviewIframeLoad(): void {
     this.clearIframeBeforeUnloadHandlers(this.previewIframe);
+    this.ensurePreviewControlsReadOnly();
   }
 
 
@@ -667,7 +668,9 @@ export class OwnerAgreementFormComponent extends BaseDocumentComponent implement
           // template gained its <style> block (style-less editorStyles) would otherwise clobber the
           // freshly loaded, styled asset on every reload.
           const draftHtml = this.debuggingHtml ? null : this.dynamicFormDraftService.loadDraft(this.getDraftStorageKey());
-          let htmlToRender = draftHtml || this.baseTemplateHtml;
+          let htmlToRender = draftHtml
+            ? this.ensureHtmlHasTemplateStyles(draftHtml, this.baseTemplateHtml)
+            : this.baseTemplateHtml;
           if (!String(htmlToRender || '').trim()) {
             htmlToRender = String(ownerAgreementHtml || '').trim();
           }
@@ -803,6 +806,7 @@ export class OwnerAgreementFormComponent extends BaseDocumentComponent implement
     this.previewIframeStyles = result.extractedStyles;
     this.refreshPreviewSafeHtml();
     this.iframeKey++;
+    setTimeout(() => this.ensurePreviewControlsReadOnly());
   }
 
   setEditorHtml(html: string): void {
@@ -943,6 +947,73 @@ export class OwnerAgreementFormComponent extends BaseDocumentComponent implement
     }
   }
 
+  ensurePreviewControlsReadOnly(): void {
+    const previewDoc = this.previewIframe?.nativeElement?.contentDocument || this.previewIframe?.nativeElement?.contentWindow?.document;
+    const previewHost = previewDoc?.body;
+    if (!previewDoc || !previewHost) {
+      return;
+    }
+    this.ensurePreviewViewModeStyles(previewDoc);
+    this.applyReadOnlyToAgreementHost(previewHost);
+  }
+
+  applyReadOnlyToAgreementHost(host: HTMLElement): void {
+    host.setAttribute('contenteditable', 'false');
+    host.removeAttribute('spellcheck');
+    const editableNodes = Array.from(host.querySelectorAll('[contenteditable]')) as HTMLElement[];
+    editableNodes.forEach(node => {
+      node.setAttribute('contenteditable', 'false');
+      node.removeAttribute('spellcheck');
+      node.removeAttribute('tabindex');
+    });
+    host.querySelectorAll('.owner-editable-field').forEach(node => node.classList.remove('owner-editable-field'));
+    host.querySelectorAll('.owner-editable-control').forEach(node => node.classList.remove('owner-editable-control'));
+    const formControls = Array.from(host.querySelectorAll('input, textarea, select')) as Array<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>;
+    formControls.forEach(control => {
+      control.setAttribute('disabled', 'disabled');
+      if (control instanceof HTMLInputElement || control instanceof HTMLTextAreaElement) {
+        control.readOnly = true;
+      }
+    });
+    const checkboxMarkers = Array.from(host.querySelectorAll('span.checkbox')) as HTMLSpanElement[];
+    checkboxMarkers.forEach(marker => {
+      marker.setAttribute('contenteditable', 'false');
+      marker.style.cursor = 'default';
+      marker.style.pointerEvents = 'none';
+      marker.style.userSelect = 'none';
+    });
+  }
+
+  ensurePreviewViewModeStyles(editDoc: Document): void {
+    const styleId = 'owner-agreement-view-mode-style';
+    if (editDoc.getElementById(styleId)) {
+      return;
+    }
+    const style = editDoc.createElement('style');
+    style.id = styleId;
+    style.textContent = `
+      .inline-underline-fill,
+      .owner-editable-field,
+      .owner-editable-control {
+        background-color: transparent !important;
+        cursor: default !important;
+        outline: none !important;
+        box-shadow: none !important;
+      }
+      .inline-underline-fill:hover,
+      .owner-editable-field:hover,
+      .owner-editable-control:hover,
+      .inline-underline-fill:focus,
+      .owner-editable-field:focus,
+      .owner-editable-control:focus {
+        outline: none !important;
+        background-color: transparent !important;
+        box-shadow: none !important;
+      }
+    `;
+    editDoc.head.appendChild(style);
+  }
+
   clearIframeBeforeUnloadHandlers(iframeRef?: ElementRef<HTMLIFrameElement>): void {
     const iframeWindow = iframeRef?.nativeElement?.contentWindow ?? null;
     const iframeDocument = iframeRef?.nativeElement?.contentDocument ?? null;
@@ -958,7 +1029,7 @@ export class OwnerAgreementFormComponent extends BaseDocumentComponent implement
     }
   }
 
-  private ensureEditableFieldStyles(editDoc: Document): void {
+  ensureEditableFieldStyles(editDoc: Document): void {
     const styleId = 'owner-editable-field-style';
     if (editDoc.getElementById(styleId)) {
       return;
@@ -1186,8 +1257,44 @@ export class OwnerAgreementFormComponent extends BaseDocumentComponent implement
 
     controls.forEach(control => control.removeAttribute('data-agreement-control-id'));
     Array.from(clonedRoot.querySelectorAll('[data-agreement-control-id]')).forEach(control => control.removeAttribute('data-agreement-control-id'));
+    this.applyReadOnlyToAgreementHost(clonedRoot);
     const bodyContent = clonedRoot.innerHTML;
-    return this.documentHtmlService.buildHtmlDocument(bodyContent, '', this.editorStyles || '');
+    const templateStyles = this.getViewTemplateStyles(editDoc);
+    return this.documentHtmlService.buildHtmlDocument(bodyContent, '', templateStyles);
+  }
+
+  /** Template CSS for view/export; excludes runtime edit-only style blocks injected into the iframe. */
+  private getViewTemplateStyles(editDoc?: Document | null): string {
+    if (editDoc) {
+      const collected = this.collectTemplateDocumentStyles(editDoc);
+      if (collected.trim()) {
+        return collected;
+      }
+    }
+    return (this.editorStyles || this.previewIframeStyles || '').trim();
+  }
+
+  private ensureHtmlHasTemplateStyles(html: string, styleSourceHtml: string): string {
+    const draftStyles = this.documentHtmlService.processHtml(html, false).extractedStyles.trim();
+    if (draftStyles) {
+      return html;
+    }
+    const templateStyles = this.documentHtmlService.processHtml(styleSourceHtml, false).extractedStyles.trim();
+    if (!templateStyles) {
+      return html;
+    }
+    const bodyContent = this.documentHtmlService.extractBodyContent(html);
+    return this.documentHtmlService.buildHtmlDocument(bodyContent, '', templateStyles);
+  }
+
+  private collectTemplateDocumentStyles(doc: Document): string {
+    const runtimeStyleIds = new Set(['owner-editable-field-style', 'owner-agreement-view-mode-style']);
+    const styleTags = Array.from(doc.querySelectorAll('style'));
+    return styleTags
+      .filter(tag => !runtimeStyleIds.has(tag.id || ''))
+      .map(tag => tag.textContent || '')
+      .filter(styleText => styleText.trim().length > 0)
+      .join('\n\n');
   }
 
   getPreviewDocument(): Document | null {
