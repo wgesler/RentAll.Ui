@@ -1,6 +1,6 @@
 import { CommonModule } from '@angular/common';
 import { HttpErrorResponse } from '@angular/common/http';
-import { Component, ElementRef, Input, OnChanges, OnDestroy, OnInit, SimpleChanges, ViewChild } from '@angular/core';
+import { ChangeDetectorRef, Component, ElementRef, Input, OnChanges, OnDestroy, OnInit, SimpleChanges, ViewChild } from '@angular/core';
 import { FormBuilder, FormControl, FormGroup, ReactiveFormsModule } from '@angular/forms';
 import { ActivatedRoute, Router } from '@angular/router';
 import { ToastrService } from 'ngx-toastr';
@@ -95,7 +95,9 @@ export class PropertyAgreementComponent implements OnInit, OnChanges, OnDestroy 
   vendorInsurancePdfThumbnailUrl: string | null = null;
 
   agreementLines: AgreementLineDisplay[] = [];
-  
+
+  private agreementLoadSeq = 0;
+
   destroy$ = new Subject<void>();
 
   @ViewChild('agreementW9FileInput') agreementW9FileInputRef: ElementRef<HTMLInputElement> | null = null;
@@ -171,7 +173,8 @@ export class PropertyAgreementComponent implements OnInit, OnChanges, OnDestroy 
     private propertyAgreementService: PropertyAgreementService,
     private costCodesService: CostCodesService,
     private pdfThumbnailService: PdfThumbnailService,
-    private contactService: ContactService
+    private contactService: ContactService,
+    private cdr: ChangeDetectorRef
   ) {}
 
   //#region Property Agreement
@@ -362,14 +365,26 @@ export class PropertyAgreementComponent implements OnInit, OnChanges, OnDestroy 
       return;
     }
     if (this.isAddMode) {
+      this.agreementLoadSeq++;
+      this.isAgreementLoading = false;
       this.resetAgreementToDefaults();
       this.agreementForm.markAsPristine();
       this.agreementForm.markAsUntouched();
+      this.cdr.markForCheck();
       return;
     }
+    const loadSeq = ++this.agreementLoadSeq;
     this.isAgreementLoading = true;
-    this.propertyAgreementService.getPropertyAgreement(this.propertyId).pipe(take(1), finalize(() => { this.isAgreementLoading = false; })).subscribe({
+    this.propertyAgreementService.getPropertyAgreement(this.propertyId).pipe(take(1), finalize(() => {
+      if (loadSeq === this.agreementLoadSeq) {
+        this.isAgreementLoading = false;
+        this.cdr.markForCheck();
+      }
+    })).subscribe({
       next: (data: PropertyAgreementResponse | null) => {
+        if (loadSeq !== this.agreementLoadSeq) {
+          return;
+        }
         if (!this.hasPersistedAgreement(data)) {
           this.agreementExists = false;
           this.resetAgreementToDefaults();
@@ -383,6 +398,9 @@ export class PropertyAgreementComponent implements OnInit, OnChanges, OnDestroy 
         this.agreementForm?.markAsUntouched();
       },
       error: (err: HttpErrorResponse) => {
+        if (loadSeq !== this.agreementLoadSeq) {
+          return;
+        }
         this.agreementExists = false;
         if (err.status !== 404 && err.status !== 200 && err.status !== 204) {
           this.toastr.error('Failed to load property agreement', CommonMessage.Error);

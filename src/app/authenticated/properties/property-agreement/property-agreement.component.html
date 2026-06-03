@@ -1,7 +1,7 @@
 @if (isAgreementLoading) {
-  <div class="flex items-center gap-3 py-4">
-    <mat-spinner [diameter]="32"></mat-spinner>
-    <span>Loading agreement…</span>
+  <div class="loading-container loading-container--section">
+    <mat-spinner [diameter]="40"></mat-spinner>
+    <p>Loading agreement…</p>
   </div>
 } @else if (agreementForm) {
   <div [formGroup]="agreementForm" class="property-agreement-panel-content">

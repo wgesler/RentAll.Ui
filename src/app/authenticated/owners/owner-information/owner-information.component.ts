@@ -64,7 +64,7 @@ export class OwnerInformationComponent implements OnInit, OnChanges, OnDestroy {
     this.resetOwnerInformationState();
     this.loadOwnerForm();
     this.loadOwnerLead();
-    this.loadContacts();
+    this.loadContact();
   }
 
   ngOnChanges(changes: SimpleChanges): void {
@@ -130,7 +130,7 @@ export class OwnerInformationComponent implements OnInit, OnChanges, OnDestroy {
     });
   }
 
-  loadContacts(): void {
+  loadContact(): void {
     if (String(this.token || '').trim()) {
       this.ownersService.getOwnerContactByContext(this.token, this.ownerLeadId).pipe(take(1)).subscribe({
         next: (contact) => {

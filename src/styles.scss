@@ -1430,6 +1430,11 @@ mat-form-field.company-dropdown {
   }
 }
 
+.loading-container--section {
+  min-height: auto !important;
+  padding: 1.5rem 3rem !important;
+}
+
 mat-spinner {
   --mdc-circular-progress-active-indicator-color: var(--brand-primary-color);
 }
