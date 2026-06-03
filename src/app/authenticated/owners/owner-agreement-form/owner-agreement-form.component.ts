@@ -91,21 +91,6 @@ export class OwnerAgreementFormComponent extends BaseDocumentComponent implement
 
   itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['organization', 'offices', 'contacts', 'leadOwner', 'property', 'propertyAgreement', 'agreementInfo', 'accountingOffices']));
   destroy$ = new Subject<void>();
-  private readonly onEditHostClick = (event: MouseEvent): void => {
-    const target = event.target as HTMLElement | null;
-    if (!target) {
-      return;
-    }
-    const marker = target.closest('span.checkbox') as HTMLSpanElement | null;
-    if (!marker) {
-      return;
-    }
-    const isChecked = marker.getAttribute('data-checked') === 'true';
-    marker.setAttribute('data-checked', isChecked ? 'false' : 'true');
-    marker.textContent = '';
-    event.preventDefault();
-    event.stopPropagation();
-  };
 
   constructor(
     private fb: FormBuilder,
@@ -237,6 +222,9 @@ export class OwnerAgreementFormComponent extends BaseDocumentComponent implement
     this.propertyAgreement = context?.propertyAgreement || null;
     this.agreementInformation = context?.agreementInformation || null;
     this.syncSelectedOfficeFromLoadedOffices(context?.offices || []);
+    if (this.hasAttemptedPreviewRender) {
+      this.generatePreview();
+    }
   }
 
   onIncludeChange(): void {
@@ -713,6 +701,7 @@ export class OwnerAgreementFormComponent extends BaseDocumentComponent implement
 
   replaceAgreementPlaceholders(html: string): string { 
     const today = this.formatterService.formatDateStringLong(this.utilityService.todayAsCalendarDateString()) || '';
+    const agreementStartDate = this.getAgreementStartDate();
     const signerName = `${this.authService.getUser()?.firstName || ''} ${this.authService.getUser()?.lastName || ''}`.trim();
     const logoOfficeId = Number(this.selectedProperty?.officeId || this.selectedOffice?.officeId || this.officeId || 0);
     const selectedAccountingOffice = Number.isFinite(logoOfficeId) && logoOfficeId > 0
@@ -774,8 +763,8 @@ export class OwnerAgreementFormComponent extends BaseDocumentComponent implement
       ownerAddress: this.getTopAddressDisplay('Owner Address:', ownerAddressLines.address1, ownerAddressLines.address2),
       propertyAddressSingleLine,
       propertyAddress: this.getTopAddressDisplay('Property Address:', propertyAddressLines.address1, propertyAddressLines.address2),
-      agreementStartDate: today,
-      agreementStartDateUnderlined: this.getUnderlinedFillValue(today),
+      agreementStartDate,
+      agreementStartDateUnderlined: this.getUnderlinedFillValue(agreementStartDate),
       ownerSignatureDate: today,
       agentSignatureDate: today,
       agentSignerName: signerName,
@@ -789,7 +778,7 @@ export class OwnerAgreementFormComponent extends BaseDocumentComponent implement
       onlineClean: this.getOnlineCleanFee() || '',
       onlineFee: this.getOnlineFee() || '',
       offlineFee: this.getOfflineFee() || '',
-      monthlyRent: this.getUnderlinedFillValue(monthlyRent),
+      monthlyRent: this.getInlineFillTokenValue(monthlyRent),
       officeLogoBase64: officeLogo
     };
 
@@ -829,6 +818,22 @@ export class OwnerAgreementFormComponent extends BaseDocumentComponent implement
     );
     this.editableHtml = this.sanitizer.bypassSecurityTrustHtml(editableHtmlDocument);
     setTimeout(() => this.ensureEditorControlsInteractive());
+  }
+
+  onEditHostClick(event: MouseEvent): void {
+    const target = event.target as HTMLElement | null;
+    if (!target) {
+      return;
+    }
+    const marker = target.closest('span.checkbox') as HTMLSpanElement | null;
+    if (!marker) {
+      return;
+    }
+    const isChecked = marker.getAttribute('data-checked') === 'true';
+    marker.setAttribute('data-checked', isChecked ? 'false' : 'true');
+    marker.textContent = '';
+    event.preventDefault();
+    event.stopPropagation();
   }
 
   ensureEditorControlsInteractive(): void {
@@ -961,6 +966,7 @@ export class OwnerAgreementFormComponent extends BaseDocumentComponent implement
     const style = editDoc.createElement('style');
     style.id = styleId;
     style.textContent = `
+      .inline-underline-fill,
       .owner-editable-field {
         position: relative;
         border-radius: 4px !important;
@@ -971,6 +977,7 @@ export class OwnerAgreementFormComponent extends BaseDocumentComponent implement
         transition: outline-color 120ms ease, background-color 120ms ease, box-shadow 120ms ease;
         cursor: text;
       }
+      .inline-underline-fill::after,
       .owner-editable-field::after {
         content: "";
         position: absolute;
@@ -980,11 +987,13 @@ export class OwnerAgreementFormComponent extends BaseDocumentComponent implement
         border-bottom: 1pt solid #000;
         pointer-events: none;
       }
+      .inline-underline-fill:hover,
       .owner-editable-field:hover {
         outline: 1px solid #90caf9;
         outline-offset: 1px;
         background-color: rgba(33, 150, 243, 0.06);
       }
+      .inline-underline-fill:focus,
       .owner-editable-field:focus {
         outline: 1px solid #1976d2 !important;
         outline-offset: 1px;
@@ -1507,6 +1516,14 @@ export class OwnerAgreementFormComponent extends BaseDocumentComponent implement
   //#endregion
 
   //#region Get Methods
+  getAgreementStartDate(): string {
+    const availableFrom = String(this.selectedProperty?.availableFrom || '').trim();
+    if (!availableFrom) {
+      return '';
+    }
+    return this.formatterService.formatDateStringLong(availableFrom) || '';
+  }
+
   getDocumentFileName(label: string): string {
     return this.utilityService.generateDocumentFileName('lease', this.selectedProperty?.propertyCode || undefined, label);
   }
@@ -1761,11 +1778,17 @@ export class OwnerAgreementFormComponent extends BaseDocumentComponent implement
   }
 
   getOwnerSplit(): string {
-    return this.formatAgreementPercentForDisplay(this.propertyAgreement?.revenueSplitOwner);
+    return this.formatAgreementPercentToken(
+      this.propertyAgreement?.revenueSplitOwner,
+      this.getEffectiveOffice()?.defaultRevenueSplitOwner
+    );
   }
 
   getCompanySplit(): string {
-    return this.formatAgreementPercentForDisplay(this.propertyAgreement?.revenueSplitOffice);
+    return this.formatAgreementPercentToken(
+      this.propertyAgreement?.revenueSplitOffice,
+      this.getEffectiveOffice()?.defaultRevenueSplitOffice
+    );
   }
 
   getCompanyMarkup(): string {
@@ -1782,36 +1805,38 @@ export class OwnerAgreementFormComponent extends BaseDocumentComponent implement
     return this.formatterService.phoneNumber(fax) || 'N/A';
   }
 
-  getWorkingBalance(): string { 
-    return this.formatAgreementCurrency(this.leadOwner?.workingBalance);
-  }
-  
-  getOnlineFee(): string { 
-    return this.formatAgreementCurrency(this.leadOwner?.onlineFee);
+  getWorkingBalance(): string {
+    return this.formatAgreementCurrency(this.propertyAgreement?.workingCapitalBalance);
   }
 
-  getOfflineFee(): string { 
-    return this.formatAgreementCurrency(this.leadOwner?.offlineFee);
+  getOnlineFee(): string {
+    return this.formatAgreementCurrency(this.getEffectiveOffice()?.defaultOnlineFee);
   }
 
-  getOnlineCleanFee(): string { 
-    return this.formatAgreementCurrency(this.leadOwner?.onlineClean);
+  getOfflineFee(): string {
+    return this.formatAgreementCurrency(this.getEffectiveOffice()?.defaultOfflineFee);
+  }
+
+  getOnlineCleanFee(): string {
+    return this.formatAgreementCurrency(this.getEffectiveOffice()?.defaultOnlineClean);
   }
 
   getMonthlyRent(): string {
-    const leadOwnerTargetMonthly = Number(this.leadOwner?.adjustedGrossRentTarget);
-    if (Number.isFinite(leadOwnerTargetMonthly) && leadOwnerTargetMonthly > 0) {
-      return this.formatAgreementCurrencyRaw(leadOwnerTargetMonthly);
+    const monthlyRate = Number(this.selectedProperty?.monthlyRate);
+    if (!Number.isFinite(monthlyRate) || monthlyRate <= 0) {
+      return '';
     }
-    const propertyBillingRate = Number((this.selectedProperty as any)?.billingRate);
-    if (Number.isFinite(propertyBillingRate) && propertyBillingRate > 0) {
-      return this.formatAgreementCurrencyRaw(propertyBillingRate);
+    const rangeLow = Math.max(0, monthlyRate - 500);
+    const lowFormatted = this.formatAgreementCurrencyRaw(rangeLow);
+    const highFormatted = this.formatAgreementCurrencyRaw(monthlyRate);
+    if (!lowFormatted || !highFormatted) {
+      return '';
     }
-    return '';
+    return `${lowFormatted} - ${highFormatted}`;
   }
 
   getEmptyUnderlineSpan(): string {
-    return '<span class="inline-underline-fill"></span>';
+    return '<span class="inline-underline-fill owner-editable-field"></span>';
   }
 
   getPopulatedUnderlineSpan(value: string): string {
@@ -1819,11 +1844,39 @@ export class OwnerAgreementFormComponent extends BaseDocumentComponent implement
     if (!trimmed) {
       return this.getEmptyUnderlineSpan();
     }
-    return `<span class="inline-underline-fill">&nbsp;&nbsp;${trimmed}&nbsp;&nbsp;</span>`;
+    return `<span class="inline-underline-fill owner-editable-field">&nbsp;&nbsp;${trimmed}&nbsp;&nbsp;</span>`;
+  }
+
+  /** Inner text for spans that already exist in the template (e.g. {{monthlyRent}}). */
+  getInlineFillTokenValue(value: string | null | undefined): string {
+    const trimmed = String(value || '').trim();
+    if (!trimmed) {
+      return '';
+    }
+    return `&nbsp;&nbsp;${trimmed}&nbsp;&nbsp;`;
   }
   //#endregion
 
   //#region Utility Methods
+  formatAgreementPercentPlain(value: number | string | null | undefined): string {
+    if (value == null || value === '') {
+      return '';
+    }
+    const n = Number(String(value).replace(/%\s*$/, ''));
+    if (!Number.isFinite(n) || n === 0) {
+      return '';
+    }
+    return `${n}%`;
+  }
+
+  formatAgreementPercentToken(
+    agreementValue: number | string | null | undefined,
+    officeDefaultValue: number | string | null | undefined
+  ): string {
+    const plain = this.formatAgreementPercentPlain(agreementValue) || this.formatAgreementPercentPlain(officeDefaultValue);
+    return plain ? this.getPopulatedUnderlineSpan(plain) : this.getEmptyUnderlineSpan();
+  }
+
   formatAgreementPercentForDisplay(value: number | string | null | undefined): string {
     if (value == null || value === '') {
       return this.getEmptyUnderlineSpan();

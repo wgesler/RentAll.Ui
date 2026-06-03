@@ -104,6 +104,7 @@ export class OwnerFormTokenProviderService implements FormTokenProvider {
     }
     const ownerPairSeparator = owner2Name ? ', ' : '';
     const today = this.formatterService.formatDateStringLong(this.utilityService.todayAsCalendarDateString()) || '';
+    const agreementStartDate = this.getAgreementStartDate(data.property?.availableFrom);
     const monthlyRent = this.getMonthlyRent(data.property, data.leadOwner);
     const ownerStateCode = String(ownerContact?.state || '').trim();
     const ownerState = this.lookupStateName(ownerStateCode);
@@ -124,7 +125,7 @@ export class OwnerFormTokenProviderService implements FormTokenProvider {
     const officeLogoBase64 = selectedOffice?.fileDetails?.dataUrl || data.organization?.fileDetails?.dataUrl || '';
 
     const tokenValues: Record<string, string> = {
-      agreementStartDate: today,
+      agreementStartDate,
       ownerSignatureDate: today,
       agentSignatureDate: today,
       ownerName: ownerFullName,
@@ -162,6 +163,14 @@ export class OwnerFormTokenProviderService implements FormTokenProvider {
       highlightUnresolved: true,
       includeUnderlinedVariants: true
     });
+  }
+
+  private getAgreementStartDate(availableFrom: string | null | undefined): string {
+    const normalized = String(availableFrom || '').trim();
+    if (!normalized) {
+      return '';
+    }
+    return this.formatterService.formatDateStringLong(normalized) || '';
   }
 
   private resolveSelectedOffice(offices: OfficeResponse[], officeId: number | null): OfficeResponse | null {
@@ -232,16 +241,18 @@ export class OwnerFormTokenProviderService implements FormTokenProvider {
     ].filter(part => part.length > 0).join(', ');
   }
 
-  private getMonthlyRent(property: PropertyResponse | null, leadOwner: LeadOwnerResponse | null): string {
-    const leadOwnerTargetMonthly = Number(leadOwner?.adjustedGrossRentTarget);
-    if (Number.isFinite(leadOwnerTargetMonthly) && leadOwnerTargetMonthly > 0) {
-      return this.formatCurrencyRaw(leadOwnerTargetMonthly);
+  private getMonthlyRent(property: PropertyResponse | null, _leadOwner: LeadOwnerResponse | null): string {
+    const monthlyRate = Number(property?.monthlyRate);
+    if (!Number.isFinite(monthlyRate) || monthlyRate <= 0) {
+      return '';
     }
-    const propertyBillingRate = Number((property as any)?.billingRate);
-    if (Number.isFinite(propertyBillingRate) && propertyBillingRate > 0) {
-      return this.formatCurrencyRaw(propertyBillingRate);
+    const rangeLow = Math.max(0, monthlyRate - 500);
+    const lowFormatted = this.formatCurrencyRaw(rangeLow);
+    const highFormatted = this.formatCurrencyRaw(monthlyRate);
+    if (!lowFormatted || !highFormatted) {
+      return '';
     }
-    return '';
+    return `${lowFormatted} - ${highFormatted}`;
   }
 
   private formatCurrencyRaw(value: number | string | null | undefined): string {

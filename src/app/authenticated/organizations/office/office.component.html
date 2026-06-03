@@ -508,7 +508,7 @@
                         (focus)="selectAllOnFocus($event)">
                     </mat-form-field>
                   </div>
-                  <div class="grid grid-cols-4 form-standard-grid">
+                  <div class="grid grid-cols-7 form-standard-grid">
                     <mat-form-field appearance="outline" class="col-span-1 w-full">
                       <mat-label>Linen and Towel Fee (1 bedroom)</mat-label>
                       <input matInput type="text" formControlName="defaultLinenTowelOneBed"
@@ -535,6 +535,27 @@
                       <input matInput type="text" formControlName="defaultLinenTowelFourBed"
                         (blur)="formatOptionalDecimal('defaultLinenTowelFourBed')"
                         (input)="onDecimalInput($event, 'defaultLinenTowelFourBed')"
+                        (focus)="selectAllOnFocus($event)">
+                    </mat-form-field>
+                    <mat-form-field appearance="outline" class="col-span-1 w-full">
+                      <mat-label>On-line Fee</mat-label>
+                      <input matInput type="text" formControlName="defaultOnlineFee"
+                        (blur)="formatOptionalDecimal('defaultOnlineFee')"
+                        (input)="onDecimalInput($event, 'defaultOnlineFee')"
+                        (focus)="selectAllOnFocus($event)">
+                    </mat-form-field>
+                    <mat-form-field appearance="outline" class="col-span-1 w-full">
+                      <mat-label>On-line Clean</mat-label>
+                      <input matInput type="text" formControlName="defaultOnlineClean"
+                        (blur)="formatOptionalDecimal('defaultOnlineClean')"
+                        (input)="onDecimalInput($event, 'defaultOnlineClean')"
+                        (focus)="selectAllOnFocus($event)">
+                    </mat-form-field>
+                    <mat-form-field appearance="outline" class="col-span-1 w-full">
+                      <mat-label>Off-line Fee</mat-label>
+                      <input matInput type="text" formControlName="defaultOfflineFee"
+                        (blur)="formatOptionalDecimal('defaultOfflineFee')"
+                        (input)="onDecimalInput($event, 'defaultOfflineFee')"
                         (focus)="selectAllOnFocus($event)">
                     </mat-form-field>
                   </div>

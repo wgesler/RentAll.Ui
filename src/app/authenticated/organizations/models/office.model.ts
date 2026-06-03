@@ -50,6 +50,9 @@ export interface OfficeRequest {
   defaultLinenTowelTwoBed?: number | null;
   defaultLinenTowelThreeBed?: number | null;
   defaultLinenTowelFourBed?: number | null;
+  defaultOnlineFee?: number | null;
+  defaultOnlineClean?: number | null;
+  defaultOfflineFee?: number | null;
   emailListForReservations?: string | null;
   // Cost Codes
   tenantChargeCcId?: number | null;
@@ -127,6 +130,9 @@ export interface OfficeResponse {
   defaultLinenTowelTwoBed?: number | null;
   defaultLinenTowelThreeBed?: number | null;
   defaultLinenTowelFourBed?: number | null;
+  defaultOnlineFee?: number | null;
+  defaultOnlineClean?: number | null;
+  defaultOfflineFee?: number | null;
   emailListForReservations?: string | null;
   // Cost Codes
   tenantChargeCcId?: number | null;
