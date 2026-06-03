@@ -1,5 +1,6 @@
 import { CommonModule } from '@angular/common';
-import { Component, OnDestroy, OnInit } from '@angular/core';
+import { ChangeDetectorRef, Component, OnDestroy, OnInit, ViewChild } from '@angular/core';
+import { MatTabGroup } from '@angular/material/tabs';
 import { ActivatedRoute, Router } from '@angular/router';
 import { Observable, Subject, Subscription, catchError, combineLatest, concatMap, defer, from, map, of, shareReplay, skip, switchMap, take, takeUntil, toArray } from 'rxjs';
 import { ToastrService } from 'ngx-toastr';
@@ -81,6 +82,8 @@ export class OwnerShellComponent implements OnInit, OnDestroy {
   stateForms: StateFormResponse[] = [];
   dynamicFormViewState: Record<string, { isView: boolean; editedHtml: string | null }> = {};
 
+  @ViewChild(MatTabGroup) ownerShellTabGroup?: MatTabGroup;
+
   constructor(
     private route: ActivatedRoute,
     private router: Router,
@@ -88,7 +91,8 @@ export class OwnerShellComponent implements OnInit, OnDestroy {
     private globalSelectionService: GlobalSelectionService,
     private navigationContextService: NavigationContextService,
     private ownersService: OwnersService,
-    private toastr: ToastrService
+    private toastr: ToastrService,
+    private cdr: ChangeDetectorRef
   ) {}
 
   //#region Owner-Shell
@@ -143,11 +147,8 @@ export class OwnerShellComponent implements OnInit, OnDestroy {
       if (Number.isFinite(officeId) && officeId > 0) {
         this.applyPageOfficeScope(officeId);
       }
-      if (this.tabUsesPropertySelection(this.selectedTabIndex)) {
-        this.loadPropertyCodeOptions();
-      }
+      this.loadPropertyCodeOptions();
       this.refreshOwnerContactIdForContext();
-      this.loadStateFormsForContext();
       this.rebuildOwnerAgreementContext();
       return;
     }
@@ -468,6 +469,7 @@ export class OwnerShellComponent implements OnInit, OnDestroy {
 
     this.selectedPropertyId = this.newPropertyOptionValue;
     this.newPropertyCode = this.ownerLeadPropertyCode;
+    this.reloadStateFormsForSelectedProperty();
   }
   //#endregion
 
@@ -511,7 +513,7 @@ export class OwnerShellComponent implements OnInit, OnDestroy {
       },
       error: () => {
         this.stateFormOrganizationId = '';
-        this.stateForms = [];
+        this.applyLoadedStateForms([], '');
         this.toastr.error('Unable to load owner state forms.', CommonMessage.Error);
       }
     });
@@ -548,18 +550,32 @@ export class OwnerShellComponent implements OnInit, OnDestroy {
         if (requestId !== this.stateFormsRequestId) {
           return;
         }
-        this.stateForms = this.mapOwnerStateForms(responsesByState.flat(), preferredStateCode);
-        if ((this.stateForms || []).length === 0) {
-          this.toastr.error('Unable to load owner state forms.', CommonMessage.Error);
-        }
+        this.applyLoadedStateForms(responsesByState.flat(), preferredStateCode);
       },
       error: () => {
         if (requestId !== this.stateFormsRequestId) {
           return;
         }
-        this.stateForms = [];
+        this.applyLoadedStateForms([], preferredStateCode);
         this.toastr.error('Unable to load owner state forms.', CommonMessage.Error);
       }
+    });
+  }
+
+  applyLoadedStateForms(forms: StateFormResponse[], preferredStateCode: string): void {
+    this.stateForms = this.mapOwnerStateForms(forms, preferredStateCode);
+    if ((this.stateForms || []).length === 0) {
+      this.toastr.error('Unable to load owner state forms.', CommonMessage.Error);
+    }
+    this.refreshOwnerShellTabStrip();
+  }
+
+  /** MatTabGroup (OnPush) does not always repaint the tab header when @for adds mat-tab children. */
+  refreshOwnerShellTabStrip(): void {
+    this.cdr.detectChanges();
+    setTimeout(() => {
+      this.ownerShellTabGroup?.updatePagination();
+      this.ownerShellTabGroup?.realignInkBar();
     });
   }
 
