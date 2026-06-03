@@ -1,15 +1,15 @@
 import { CommonModule } from '@angular/common';
-import { HttpErrorResponse } from '@angular/common/http';
-import { ChangeDetectorRef, Component, ElementRef, Input, OnChanges, OnDestroy, OnInit, SimpleChanges, ViewChild } from '@angular/core';
+import { Component, ElementRef, Input, OnChanges, OnDestroy, OnInit, SimpleChanges, ViewChild } from '@angular/core';
 import { FormBuilder, FormControl, FormGroup, ReactiveFormsModule } from '@angular/forms';
 import { ActivatedRoute, Router } from '@angular/router';
 import { ToastrService } from 'ngx-toastr';
-import { Observable, Subject, catchError, filter, finalize, map, of, take, takeUntil } from 'rxjs';
+import { BehaviorSubject, Observable, Subject, catchError, filter, finalize, map, of, take, takeUntil } from 'rxjs';
 import { RouterUrl } from '../../../app.routes';
 import { CommonMessage, CommonTimeouts } from '../../../enums/common-message.enum';
 import { MaterialModule } from '../../../material.module';
 import { FormatterService } from '../../../services/formatter-service';
 import { MappingService } from '../../../services/mapping.service';
+import { AuthService } from '../../../services/auth.service';
 import { UtilityService } from '../../../services/utility.service';
 import { PdfThumbnailService } from '../../../services/pdf-thumbnail.service';
 import { FileDetails } from '../../documents/models/document.model';
@@ -20,6 +20,8 @@ import { PropertyAgreementLineRequest, PropertyAgreementRequest, PropertyAgreeme
 import { PropertyAgreementService } from '../services/property-agreement.service';
 import { ContactService } from '../../contacts/services/contact.service';
 import { ContactResponse } from '../../contacts/models/contact.model';
+import { OfficeResponse } from '../../organizations/models/office.model';
+import { OfficeService } from '../../organizations/services/office.service';
 
 interface AgreementLineDisplay {
   agreementLineId: string | null;
@@ -44,16 +46,20 @@ export class PropertyAgreementComponent implements OnInit, OnChanges, OnDestroy 
   @Input({ required: true }) isAddMode!: boolean;
   @Input({ required: true }) canManageAgreement!: boolean;
   @Input() officeId: number | null = null;
+  @Input() isFurnished = true;
+  @Input() bedrooms: number | null = null;
   @Input() propertyLeaseTypeId: number | null = null;
   @Input() vendorContactId: string | null = null;
 
   readonly ManagementFeeType = ManagementFeeType;
   agreementForm: FormGroup | null = null;
   agreementExists = false;
-  isAgreementLoading = false;
   isAgreementSaving = false;
+  offices: OfficeResponse[] = [];
+  organizationId = '';
   availableCostCodes: { value: number, label: string }[] = [];
   agreementOfficeId: number | null = null;
+  agreementLines: AgreementLineDisplay[] = [];
 
   agreementW9FileName: string | null = null;
   agreementW9FileDataUrl: string | null = null;
@@ -94,73 +100,13 @@ export class PropertyAgreementComponent implements OnInit, OnChanges, OnDestroy 
   vendorInsurancePath: string | null = null;
   vendorInsurancePdfThumbnailUrl: string | null = null;
 
-  agreementLines: AgreementLineDisplay[] = [];
-
-  private agreementLoadSeq = 0;
-
-  destroy$ = new Subject<void>();
-
   @ViewChild('agreementW9FileInput') agreementW9FileInputRef: ElementRef<HTMLInputElement> | null = null;
   @ViewChild('agreementInsuranceFileInput') agreementInsuranceFileInputRef: ElementRef<HTMLInputElement> | null = null;
   @ViewChild('agreementDocFileInput') agreementDocFileInputRef: ElementRef<HTMLInputElement> | null = null;
 
-  get isAgreementDirty(): boolean {
-    return !!this.agreementForm?.dirty;
-  }
-
-  get managementFlatRateFieldLabel(): string {
-    const mode = this.agreementForm?.get('managementFeeMode')?.value;
-    return mode === ManagementFeeType.Minimum ? 'Minimum Amount' : 'Flat Rate Amount';
-  }
-
-  get isPropertyManagementLease(): boolean {
-    return normalizePropertyLeaseTypeId(this.propertyLeaseTypeId) === PropertyLeaseType.PropertyManagement;
-  }
-
-  get isVendorAttachmentMode(): boolean {
-    return !this.isPropertyManagementLease;
-  }
-
-  get displayW9FileName(): string | null {
-    return this.isVendorAttachmentMode ? this.vendorW9FileName : this.agreementW9FileName;
-  }
-
-  get displayW9FileDataUrl(): string | null {
-    return this.isVendorAttachmentMode ? this.vendorW9FileDataUrl : this.agreementW9FileDataUrl;
-  }
-
-  get displayW9FileContentType(): string | null {
-    return this.isVendorAttachmentMode ? this.vendorW9FileContentType : this.agreementW9FileContentType;
-  }
-
-  get displayW9PdfThumbnailUrl(): string | null {
-    return this.isVendorAttachmentMode ? this.vendorW9PdfThumbnailUrl : this.agreementW9PdfThumbnailUrl;
-  }
-
-  get displayInsuranceFileName(): string | null {
-    return this.isVendorAttachmentMode ? this.vendorInsuranceFileName : this.agreementInsuranceFileName;
-  }
-
-  get displayInsuranceFileDataUrl(): string | null {
-    return this.isVendorAttachmentMode ? this.vendorInsuranceFileDataUrl : this.agreementInsuranceFileDataUrl;
-  }
-
-  get displayInsuranceFileContentType(): string | null {
-    return this.isVendorAttachmentMode ? this.vendorInsuranceFileContentType : this.agreementInsuranceFileContentType;
-  }
-
-  get displayInsurancePdfThumbnailUrl(): string | null {
-    return this.isVendorAttachmentMode ? this.vendorInsurancePdfThumbnailUrl : this.agreementInsurancePdfThumbnailUrl;
-  }
-
-  get vendorInsuranceExpirationDisplay(): string {
-    if (!this.isVendorAttachmentMode) {
-      return '';
-    }
-
-    const parsedDate = this.utilityService.parseDateOnlyStringToDate(this.vendorContact?.insuranceExpiration ?? null);
-    return parsedDate ? this.formatterService.dateOnly(parsedDate) : 'Not provided';
-  }
+  isPageReady = false;
+  itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['offices', 'propertyAgreement']));
+  destroy$ = new Subject<void>();
 
   constructor(
     private fb: FormBuilder,
@@ -174,14 +120,34 @@ export class PropertyAgreementComponent implements OnInit, OnChanges, OnDestroy 
     private costCodesService: CostCodesService,
     private pdfThumbnailService: PdfThumbnailService,
     private contactService: ContactService,
-    private cdr: ChangeDetectorRef
+    private authService: AuthService,
+    private officeService: OfficeService
   ) {}
 
   //#region Property Agreement
   ngOnInit(): void {
+    this.organizationId = this.authService.getUser()?.organizationId?.trim() ?? '';
+    this.itemsToLoad$.pipe(takeUntil(this.destroy$)).subscribe(() => {
+      this.isPageReady = this.itemsToLoad$.value.size === 0;
+    });
+
     this.buildAgreementForm();
+    if (!this.canManageAgreement || !this.propertyId) {
+      this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'offices');
+      this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'propertyAgreement');
+      return;
+    }
+
     this.loadCostCodes();
-    this.loadPropertyAgreement();
+    this.loadOffices();
+    if (this.isAddMode) {
+      this.agreementExists = false;
+      this.resetAgreementForm();
+      this.applyOfficeAgreementDefaults();
+      this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'propertyAgreement');
+    } else {
+      this.loadAgreement();
+    }
     this.loadVendorContactAttachments();
   }
 
@@ -189,24 +155,26 @@ export class PropertyAgreementComponent implements OnInit, OnChanges, OnDestroy 
     if (!this.agreementForm) {
       return;
     }
-    const id = changes['propertyId'];
-    const add = changes['isAddMode'];
-    const adm = changes['canManageAgreement'];
-    const shouldReload =
-      (id && !id.firstChange) ||
-      (add && !add.firstChange) ||
-      (adm && !adm.firstChange);
-    const office = changes['officeId'];
-    if (office && !office.firstChange) {
+    const officeIdChange = changes['officeId'];
+    if (officeIdChange && !officeIdChange.firstChange) {
       this.filterCostCodesByOffice();
+    }
+    const bedroomsChange = changes['bedrooms'] && !changes['bedrooms'].firstChange;
+    const furnishedChange = changes['isFurnished'] && !changes['isFurnished'].firstChange;
+    if (this.agreementExists) {
+      if (bedroomsChange || furnishedChange) {
+        this.applyFurnishedAndBedroomDefaults();
+      }
+    } else {
+      const officeDefaultsChange = changes['officeId'] || bedroomsChange || furnishedChange;
+      if (officeDefaultsChange) {
+        this.applyOfficeAgreementDefaults();
+      }
     }
     const leaseTypeChanged = !!(changes['propertyLeaseTypeId'] && !changes['propertyLeaseTypeId'].firstChange);
     const vendorChanged = !!(changes['vendorContactId'] && !changes['vendorContactId'].firstChange);
     if (leaseTypeChanged || vendorChanged) {
       this.loadVendorContactAttachments();
-    }
-    if (shouldReload) {
-      this.loadPropertyAgreement();
     }
   }
 
@@ -302,28 +270,59 @@ export class PropertyAgreementComponent implements OnInit, OnChanges, OnDestroy 
 
   //#region Form Methods
   buildAgreementForm(): void {
-    const d = this.getAgreementFormDefaultValues();
     this.agreementForm = this.fb.group({
-      markup: new FormControl(d.markup),
-      revenueSplitOwner: new FormControl<string>(d.revenueSplitOwner),
-      revenueSplitOffice: new FormControl<string>(d.revenueSplitOffice),
-      workingCapitalBalance: new FormControl<string>(d.workingCapitalBalance),
-      linenAndTowelFee: new FormControl<string>(d.linenAndTowelFee),
-      hourlyLaborCost: new FormControl<string>(d.hourlyLaborCost),
-      bankName: new FormControl(d.bankName),
-      routingNumber: new FormControl(d.routingNumber),
-      accountNumber: new FormControl(d.accountNumber),
-      notes: new FormControl(d.notes),
-      insuranceExpiration: new FormControl<Date | null>(d.insuranceExpiration),
-      managementFeeMode: new FormControl<ManagementFeeType>(d.managementFeeMode),
-      managementFlatRateAmount: new FormControl<string>(d.managementFlatRateAmount),
-      rentalIncomeCcId: new FormControl<number | null>(d.rentalIncomeCcId),
-      rentalExpenseCcId: new FormControl<number | null>(d.rentalExpenseCcId)
+      markup: new FormControl<string>(''),
+      revenueSplitOwner: new FormControl<string>(''),
+      revenueSplitOffice: new FormControl<string>(''),
+      workingCapitalBalance: new FormControl<string>(''),
+      linenAndTowelFee: new FormControl<string>(''),
+      hourlyLaborCost: new FormControl<string>(''),
+      bankName: new FormControl(''),
+      routingNumber: new FormControl(''),
+      accountNumber: new FormControl(''),
+      notes: new FormControl(''),
+      insuranceExpiration: new FormControl<Date | null>(null),
+      managementFeeMode: new FormControl<ManagementFeeType>(ManagementFeeType.FlatRate),
+      managementFlatRateAmount: new FormControl<string>(''),
+      rentalIncomeCcId: new FormControl<number | null>(null),
+      rentalExpenseCcId: new FormControl<number | null>(null)
     });
+    this.resetAgreementForm();
     this.agreementForm.get('managementFeeMode')?.valueChanges.pipe(takeUntil(this.destroy$)).subscribe(() => {
       this.syncManagementAgreementFieldState();
     });
     this.syncManagementAgreementFieldState();
+  }
+
+  resetAgreementForm(): void {
+    if (!this.agreementForm) {
+      return;
+    }
+    this.agreementExists = false;
+    this.agreementOfficeId = this.officeId ?? null;
+    this.agreementForm.reset({
+      markup: '0%',
+      revenueSplitOwner: '0%',
+      revenueSplitOffice: '0%',
+      workingCapitalBalance: '$0.00',
+      linenAndTowelFee: '$0.00',
+      hourlyLaborCost: '$0.00',
+      bankName: '',
+      routingNumber: '',
+      accountNumber: '',
+      notes: '',
+      insuranceExpiration: null,
+      managementFeeMode: ManagementFeeType.FlatRate,
+      managementFlatRateAmount: '$0.00',
+      rentalIncomeCcId: null,
+      rentalExpenseCcId: null
+    }, { emitEvent: false });
+    this.filterCostCodesByOffice();
+    this.syncManagementAgreementFieldState();
+    this.clearAgreementW9Ui();
+    this.clearAgreementInsuranceUi();
+    this.clearAgreementDocUi();
+    this.agreementLines = [];
   }
 
   populatePropertyAgreement(data: PropertyAgreementResponse): void {
@@ -358,114 +357,236 @@ export class PropertyAgreementComponent implements OnInit, OnChanges, OnDestroy 
   }
   //#endregion
 
-  //#region Property Agreement Methods
-  loadPropertyAgreement(): void {
-    if (!this.propertyId || !this.canManageAgreement || !this.agreementForm) {
-      return;
-    }
-    if (this.isAddMode) {
-      this.agreementLoadSeq++;
-      this.isAgreementLoading = false;
-      this.resetAgreementToDefaults();
-      this.agreementForm.markAsPristine();
-      this.agreementForm.markAsUntouched();
-      this.cdr.markForCheck();
-      return;
-    }
-    const loadSeq = ++this.agreementLoadSeq;
-    this.isAgreementLoading = true;
-    this.propertyAgreementService.getPropertyAgreement(this.propertyId).pipe(take(1), finalize(() => {
-      if (loadSeq === this.agreementLoadSeq) {
-        this.isAgreementLoading = false;
-        this.cdr.markForCheck();
-      }
-    })).subscribe({
-      next: (data: PropertyAgreementResponse | null) => {
-        if (loadSeq !== this.agreementLoadSeq) {
-          return;
-        }
-        if (!this.hasPersistedAgreement(data)) {
-          this.agreementExists = false;
-          this.resetAgreementToDefaults();
-          this.agreementForm?.markAsPristine();
-          this.agreementForm?.markAsUntouched();
-          return;
-        }
-        this.agreementExists = true;
-        this.populatePropertyAgreement(data);
-        this.agreementForm?.markAsPristine();
-        this.agreementForm?.markAsUntouched();
-      },
-      error: (err: HttpErrorResponse) => {
-        if (loadSeq !== this.agreementLoadSeq) {
-          return;
-        }
-        this.agreementExists = false;
-        if (err.status !== 404 && err.status !== 200 && err.status !== 204) {
-          this.toastr.error('Failed to load property agreement', CommonMessage.Error);
-        }
-        this.resetAgreementToDefaults();
-        this.agreementForm?.markAsPristine();
-        this.agreementForm?.markAsUntouched();
-      }
+  //#region Data Load Methods
+  loadOffices(): void {
+    this.officeService.ensureOfficesLoaded(this.organizationId).pipe(take(1),
+      finalize(() => {this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'offices');})).subscribe(() => {
+      this.officeService.getAllOffices().pipe(takeUntil(this.destroy$)).subscribe(offices => {
+        this.offices = offices || [];
+      });
     });
   }
 
-  resetAgreementToDefaults(): void {
+  loadAgreement(): void {
+    this.propertyAgreementService.getPropertyAgreement(this.propertyId).pipe(take(1),finalize(() => {this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'propertyAgreement');})).subscribe({
+      next: (data: PropertyAgreementResponse | null) => {
+        if (this.hasPersistedAgreement(data)) {
+          this.agreementExists = true;
+          this.populatePropertyAgreement(data);
+          this.agreementForm?.markAsPristine();
+          this.agreementForm?.markAsUntouched();
+        } else {
+          this.agreementExists = false;
+          this.resetAgreementForm();
+          this.applyOfficeAgreementDefaults();
+        }
+      },
+      error: () => {
+        this.agreementExists = false;
+        this.resetAgreementForm();
+        this.applyOfficeAgreementDefaults();
+      }
+    });
+  }
+  //#endregion
+
+  //#region Get Methods
+ get isAgreementDirty(): boolean {
+    return !!this.agreementForm?.dirty;
+  }
+
+  get managementFlatRateFieldLabel(): string {
+    const mode = this.agreementForm?.get('managementFeeMode')?.value;
+    return mode === ManagementFeeType.Minimum ? 'Minimum Amount' : 'Flat Rate Amount';
+  }
+
+  get isPropertyManagementLease(): boolean {
+    return normalizePropertyLeaseTypeId(this.propertyLeaseTypeId) === PropertyLeaseType.PropertyManagement;
+  }
+
+  get isVendorAttachmentMode(): boolean {
+    return !this.isPropertyManagementLease;
+  }
+
+  get displayW9FileName(): string | null {
+    return this.isVendorAttachmentMode ? this.vendorW9FileName : this.agreementW9FileName;
+  }
+
+  get displayW9FileDataUrl(): string | null {
+    return this.isVendorAttachmentMode ? this.vendorW9FileDataUrl : this.agreementW9FileDataUrl;
+  }
+
+  get displayW9FileContentType(): string | null {
+    return this.isVendorAttachmentMode ? this.vendorW9FileContentType : this.agreementW9FileContentType;
+  }
+
+  get displayW9PdfThumbnailUrl(): string | null {
+    return this.isVendorAttachmentMode ? this.vendorW9PdfThumbnailUrl : this.agreementW9PdfThumbnailUrl;
+  }
+
+  get displayInsuranceFileName(): string | null {
+    return this.isVendorAttachmentMode ? this.vendorInsuranceFileName : this.agreementInsuranceFileName;
+  }
+
+  get displayInsuranceFileDataUrl(): string | null {
+    return this.isVendorAttachmentMode ? this.vendorInsuranceFileDataUrl : this.agreementInsuranceFileDataUrl;
+  }
+
+  get displayInsuranceFileContentType(): string | null {
+    return this.isVendorAttachmentMode ? this.vendorInsuranceFileContentType : this.agreementInsuranceFileContentType;
+  }
+
+  get displayInsurancePdfThumbnailUrl(): string | null {
+    return this.isVendorAttachmentMode ? this.vendorInsurancePdfThumbnailUrl : this.agreementInsurancePdfThumbnailUrl;
+  }
+
+  get vendorInsuranceExpirationDisplay(): string {
+    if (!this.isVendorAttachmentMode) {
+      return '';
+    }
+
+    const parsedDate = this.utilityService.parseDateOnlyStringToDate(this.vendorContact?.insuranceExpiration ?? null);
+    return parsedDate ? this.formatterService.dateOnly(parsedDate) : 'Not provided';
+  }
+  //#endregion
+
+  //#region Default Mapping Functions
+  getAgreementOffice(): OfficeResponse | null {
+    const resolvedOfficeId = this.officeId ?? this.agreementOfficeId;
+    if (resolvedOfficeId == null || Number.isNaN(Number(resolvedOfficeId))) {
+      return null;
+    }
+    return this.offices.find(o => o.officeId === Number(resolvedOfficeId)) ?? null;
+  }
+
+   applyFurnishedAndBedroomDefaults(): void {
     if (!this.agreementForm) {
       return;
     }
-    this.agreementExists = false;
-    this.agreementOfficeId = this.officeId ?? null;
-    this.agreementForm.reset(this.getAgreementFormDefaultValues(), { emitEvent: false });
-    this.filterCostCodesByOffice();
-    this.syncManagementAgreementFieldState();
-    this.clearAgreementW9Ui();
-    this.clearAgreementInsuranceUi();
-    this.clearAgreementDocUi();
-    this.agreementLines = [];
-  } 
-  
-  discardAndReloadIfDirty(): void {
-    if (this.agreementForm?.dirty) {
-      this.loadPropertyAgreement();
+
+    const office = this.getAgreementOffice();
+    if (!office) {
+      return;
+    }
+
+    const patch = this.buildFurnishedAndBedroomDefaultPatch(office);
+    if (Object.keys(patch).length === 0) {
+      return;
+    }
+
+    this.agreementForm.patchValue(patch, { emitEvent: false });
+    this.agreementForm.markAsDirty();
+  }
+
+  applyOfficeAgreementDefaults(): void {
+    if (!this.agreementForm) {
+      return;
+    }
+
+    const office = this.getAgreementOffice();
+    if (!office) {
+      return;
+    }
+
+    if (this.agreementForm.pristine) {
+      const patch = this.buildOfficeAgreementDefaultPatch(office);
+      if (Object.keys(patch).length > 0) {
+        this.agreementForm.patchValue(patch, { emitEvent: false });
+        this.syncManagementAgreementFieldState();
+        this.agreementForm.markAsDirty();
+      }
+      return;
+    }
+
+    const patch = this.buildFurnishedAndBedroomDefaultPatch(office);
+    if (Object.keys(patch).length > 0) {
+      this.agreementForm.patchValue(patch, { emitEvent: false });
     }
   }
 
-  getAgreementFormDefaultValues(): {
-    markup: string;
-    revenueSplitOwner: string;
-    revenueSplitOffice: string;
-    workingCapitalBalance: string;
-    linenAndTowelFee: string;
-    hourlyLaborCost: string;
-    bankName: string;
-    routingNumber: string;
-    accountNumber: string;
-    notes: string;
-    insuranceExpiration: null;
-    managementFeeMode: ManagementFeeType;
-    managementFlatRateAmount: string;
-    rentalIncomeCcId: null;
-    rentalExpenseCcId: null;
-  } {
+  buildFurnishedAndBedroomDefaultPatch(office: OfficeResponse): Record<string, string | number | null> {
+    const patch: Record<string, string | number | null> = {};
+    const linenFee = this.resolveLinenTowelFeeFromOffice(office, this.bedrooms);
+    if (linenFee != null) {
+      patch['linenAndTowelFee'] = this.formatAgreementDecimalForDisplay(linenFee);
+    }
+    const rentCostCodes = this.getOfficeRentCostCodeDefaults(office);
+    if (rentCostCodes.rentalIncomeCcId != null) {
+      patch['rentalIncomeCcId'] = rentCostCodes.rentalIncomeCcId;
+    }
+    if (rentCostCodes.rentalExpenseCcId != null) {
+      patch['rentalExpenseCcId'] = rentCostCodes.rentalExpenseCcId;
+    }
+    return patch;
+  }
+
+  getOfficeRentCostCodeDefaults(office: OfficeResponse): { rentalIncomeCcId: number | null; rentalExpenseCcId: number | null } {
+    if (this.isFurnished) {
+      return {
+        rentalIncomeCcId: office.furnishedRentChargeCcId ?? null,
+        rentalExpenseCcId: office.furnishedRentExpenseCcId ?? null
+      };
+    }
     return {
-      markup: '0%',
-      revenueSplitOwner: '0%',
-      revenueSplitOffice: '0%',
-      workingCapitalBalance: '$0.00',
-      linenAndTowelFee: '$0.00',
-      hourlyLaborCost: '$0.00',
-      bankName: '',
-      routingNumber: '',
-      accountNumber: '',
-      notes: '',
-      insuranceExpiration: null,
-      managementFeeMode: ManagementFeeType.FlatRate,
-      managementFlatRateAmount: '$0.00',
-      rentalIncomeCcId: null,
-      rentalExpenseCcId: null
+      rentalIncomeCcId: office.unfurnishedRentChargeCcId ?? null,
+      rentalExpenseCcId: office.unfurnishedRentExpenseCcId ?? null
     };
+  }
+
+  buildOfficeAgreementDefaultPatch(office: OfficeResponse): Record<string, string | number | null> {
+    const patch: Record<string, string | number | null> = {};
+    if (office.defaultMarkup != null) {
+      patch['markup'] = this.formatterService.formatPercentageValue(office.defaultMarkup, 0);
+    }
+    if (office.defaultRevenueSplitOwner != null) {
+      patch['revenueSplitOwner'] = this.formatAgreementPercentForDisplay(office.defaultRevenueSplitOwner);
+    }
+    if (office.defaultRevenueSplitOffice != null) {
+      patch['revenueSplitOffice'] = this.formatAgreementPercentForDisplay(office.defaultRevenueSplitOffice);
+    }
+    if (office.defaultWorkingCapitalBalance != null) {
+      patch['workingCapitalBalance'] = this.formatAgreementDecimalForDisplay(office.defaultWorkingCapitalBalance);
+    }
+    if (office.defaultHourlyLaborCost != null) {
+      patch['hourlyLaborCost'] = this.formatAgreementDecimalForDisplay(office.defaultHourlyLaborCost);
+    }
+    const linenFee = this.resolveLinenTowelFeeFromOffice(office, this.bedrooms);
+    if (linenFee != null) {
+      patch['linenAndTowelFee'] = this.formatAgreementDecimalForDisplay(linenFee);
+    }
+    const rentCostCodes = this.getOfficeRentCostCodeDefaults(office);
+    if (rentCostCodes.rentalIncomeCcId != null) {
+      patch['rentalIncomeCcId'] = rentCostCodes.rentalIncomeCcId;
+    }
+    if (rentCostCodes.rentalExpenseCcId != null) {
+      patch['rentalExpenseCcId'] = rentCostCodes.rentalExpenseCcId;
+    }
+    return patch;
+  }
+
+  resolveLinenTowelFeeFromOffice(office: OfficeResponse, bedrooms: number | null | undefined): number | null {
+    const count = Number(bedrooms);
+    if (!Number.isFinite(count) || count < 1 || count > 4) {
+      return null;
+    }
+    switch (count) {
+      case 1:
+        return office.defaultLinenTowelOneBed ?? null;
+      case 2:
+        return office.defaultLinenTowelTwoBed ?? null;
+      case 3:
+        return office.defaultLinenTowelThreeBed ?? null;
+      case 4:
+        return office.defaultLinenTowelFourBed ?? null;
+      default:
+        return null;
+    }
+  }
+  
+  discardAndReloadIfDirty(): void {
+    if (this.agreementForm?.dirty) {
+      this.loadAgreement();
+    }
   }
 
   buildPropertyAgreementRequest(): PropertyAgreementRequest {
@@ -1252,6 +1373,7 @@ export class PropertyAgreementComponent implements OnInit, OnChanges, OnDestroy 
   ngOnDestroy(): void {
     this.destroy$.next();
     this.destroy$.complete();
+    this.itemsToLoad$.complete();
   }
   //#endregion
 }

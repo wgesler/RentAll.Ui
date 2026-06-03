@@ -956,6 +956,8 @@
                 [isAddMode]="isAddMode"
                 [canManageAgreement]="isInAccounting"
                 [officeId]="sharedPropertyOfficeId"
+                [isFurnished]="!form?.get('unfurnished')?.value"
+                [bedrooms]="form?.get('bedrooms')?.value ?? null"
                 [propertyLeaseTypeId]="form?.get('propertyLeaseTypeId')?.value ?? null"
                 [vendorContactId]="form?.get('vendorId')?.value ?? null"
               />

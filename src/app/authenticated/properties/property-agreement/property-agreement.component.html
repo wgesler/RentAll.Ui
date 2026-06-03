@@ -1,4 +1,4 @@
-@if (isAgreementLoading) {
+@if (!isPageReady) {
   <div class="loading-container loading-container--section">
     <mat-spinner [diameter]="40"></mat-spinner>
     <p>Loading agreement…</p>
