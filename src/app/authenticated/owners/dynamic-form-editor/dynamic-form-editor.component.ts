@@ -157,7 +157,7 @@ export class DynamicFormEditorComponent implements OnInit, OnChanges, OnDestroy 
     const rawStyles = result.extractedStyles || '';
     this.editorStyles = this.documentHtmlService.scopeEmbeddedDocumentStyles(
       rawStyles,
-      DynamicFormEditorComponent.embeddedStyleScope
+      this.embeddedStyleScope
     );
     const bodyContent = this.documentHtmlService.extractBodyContent(result.processedHtml || '');
     this.editableHtml = this.sanitizer.bypassSecurityTrustHtml(`<style>${this.editorStyles}</style>${bodyContent}`);
