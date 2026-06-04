@@ -57,6 +57,9 @@ export class OwnerAgreementFormComponent extends BaseDocumentComponent implement
   // When provided (by the owner-shell), the heavy owner/property/office context is resolved once and
   // shared across all form tabs instead of each tab re-fetching it. Null = standalone self-loading.
   @Input() sharedContext$: Observable<OwnerAgreementContext | null> | null = null;
+  /** When true (owner-shell Agreement tab selected), open document preview in view mode — mirrors lease shell behavior. */
+  @Input() openInViewOnTabSelect = false;
+  @Input() hideEditButtonInViewMode = false;
 
   form: FormGroup = this.buildForm();
   // Local/dev: load templates straight from local assets for fast iteration (mirrors lease.component).
@@ -71,6 +74,7 @@ export class OwnerAgreementFormComponent extends BaseDocumentComponent implement
   editorStyles = '';
   baseTemplateHtml = '';
   isEditMode = true;
+  pendingOpenInViewMode = false;
   safeHtml: SafeHtml | null = null;
   fallbackIframeHtml: SafeHtml | null = null;
   hasAttemptedPreviewRender = false;
@@ -176,6 +180,31 @@ export class OwnerAgreementFormComponent extends BaseDocumentComponent implement
       this.hasAttemptedPreviewRender = false;
       this.generatePreview();
     }
+    if (changes['openInViewOnTabSelect']) {
+      const shouldOpenInView = !!changes['openInViewOnTabSelect'].currentValue;
+      const wasOpenInView = !!changes['openInViewOnTabSelect'].previousValue;
+      if (shouldOpenInView && !wasOpenInView) {
+        this.switchToViewModeFromTabSelection();
+      }
+    }
+  }
+
+  switchToViewModeFromTabSelection(): void {
+    if (!this.isEditMode) {
+      this.pendingOpenInViewMode = false;
+      return;
+    }
+
+    const draftHtml = this.debuggingHtml ? null : this.dynamicFormDraftService.loadDraft(this.getDraftStorageKey());
+    const htmlForView = String(draftHtml || this.baseTemplateHtml || '').trim();
+    if (htmlForView) {
+      this.isEditMode = false;
+      this.processAndSetHtml(htmlForView);
+      this.pendingOpenInViewMode = false;
+      return;
+    }
+
+    this.pendingOpenInViewMode = true;
   }
 
   isPublicTokenMode(): boolean {
@@ -270,6 +299,9 @@ export class OwnerAgreementFormComponent extends BaseDocumentComponent implement
   onEditIframeLoad(): void {
     this.clearIframeBeforeUnloadHandlers(this.editIframe);
     this.ensureEditorControlsInteractive();
+    if (this.pendingOpenInViewMode && this.openInViewOnTabSelect) {
+      this.switchToViewModeFromTabSelection();
+    }
   }
 
   onPreviewIframeLoad(): void {
@@ -822,6 +854,9 @@ export class OwnerAgreementFormComponent extends BaseDocumentComponent implement
     );
     this.editableHtml = this.sanitizer.bypassSecurityTrustHtml(editableHtmlDocument);
     setTimeout(() => this.ensureEditorControlsInteractive());
+    if (this.pendingOpenInViewMode && this.openInViewOnTabSelect) {
+      setTimeout(() => this.switchToViewModeFromTabSelection());
+    }
   }
 
   onEditHostClick(event: MouseEvent): void {

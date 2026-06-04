@@ -62,76 +62,64 @@
       </div>
     </div>
     <mat-card>
-      <mat-tab-group
-        [selectedIndex]="selectedTabIndex"
-        [animationDuration]="'0ms'"
-        class="shell-tabs dbg-band-tabs"
-        (selectedIndexChange)="onTabIndexChange($event)">
+      <mat-tab-group [selectedIndex]="selectedTabIndex" class="shell-tabs dbg-band-tabs" (selectedIndexChange)="onTabIndexChange($event)">
         <mat-tab label="Rental">
-          <ng-template matTabContent>
-            @if (showRentalLeadForm) {
-              <app-rental
-                [shellLeadId]="rentalShellLeadId"
-                [officeId]="selectedOfficeId"
-                (closed)="onRentalLeadFormClosed($event)"
-                (officeSelectionRequired)="onRentalOfficeSelectionRequired()"
-                />
-            } @else {
-              <app-rental-list
-                [officeId]="selectedOfficeId"
-                (requestNewRental)="onAddRentalLead()"
-                (requestEditRental)="onEditRentalLead($event)"
-                />
-            }
-          </ng-template>
+          @if (showRentalLeadForm) {
+            <app-rental
+              [shellLeadId]="rentalShellLeadId"
+              [officeId]="selectedOfficeId"
+              (closed)="onRentalLeadFormClosed($event)"
+              (officeSelectionRequired)="onRentalOfficeSelectionRequired()"
+              />
+          } @else {
+            <app-rental-list
+              [officeId]="selectedOfficeId"
+              (requestNewRental)="onAddRentalLead()"
+              (requestEditRental)="onEditRentalLead($event)"
+              />
+          }
         </mat-tab>
         @if (isOwnerAdmin) {
           <mat-tab label="Owner">
-            <ng-template matTabContent>
-              @if (showOwnerLeadForm) {
-                <app-owner
-                  [shellLeadId]="ownerShellLeadId"
-                  [officeId]="selectedOfficeId"
-                  (closed)="onOwnerLeadFormClosed()"
-                  (officeSelectionRequired)="onRentalOfficeSelectionRequired()"
-                  />
-              } @else {
-                <app-owner-list
-                  [officeId]="selectedOfficeId"
-                  (requestNewOwner)="onAddOwnerLead()"
-                  (requestEditOwner)="onEditOwnerLead($event)"
-                  />
-              }
-            </ng-template>
-          </mat-tab>
-        }
-        <mat-tab label="General">
-          <ng-template matTabContent>
-            @if (showGeneralLeadForm) {
-              <app-general
-                [shellLeadId]="generalShellLeadId"
+            @if (showOwnerLeadForm) {
+              <app-owner
+                [shellLeadId]="ownerShellLeadId"
                 [officeId]="selectedOfficeId"
-                (closed)="onGeneralLeadFormClosed($event)"
+                (closed)="onOwnerLeadFormClosed()"
                 (officeSelectionRequired)="onRentalOfficeSelectionRequired()"
                 />
             } @else {
-              <app-general-list
+              <app-owner-list
                 [officeId]="selectedOfficeId"
-                (requestNewGeneral)="onAddGeneralLead()"
-                (requestEditGeneral)="onEditGeneralLead($event)"
+                (requestNewOwner)="onAddOwnerLead()"
+                (requestEditOwner)="onEditOwnerLead($event)"
                 />
             }
-          </ng-template>
+          </mat-tab>
+        }
+        <mat-tab label="General">
+          @if (showGeneralLeadForm) {
+            <app-general
+              [shellLeadId]="generalShellLeadId"
+              [officeId]="selectedOfficeId"
+              (closed)="onGeneralLeadFormClosed($event)"
+              (officeSelectionRequired)="onRentalOfficeSelectionRequired()"
+              />
+          } @else {
+            <app-general-list
+              [officeId]="selectedOfficeId"
+              (requestNewGeneral)="onAddGeneralLead()"
+              (requestEditGeneral)="onEditGeneralLead($event)"
+              />
+          }
         </mat-tab>
         <mat-tab label="Reports">
-          <ng-template matTabContent>
-            <app-leads-reports
-              [officeId]="selectedOfficeId"
-              [startDate]="reportsStartDate"
-              [endDate]="reportsEndDate"
-              [offices]="offices">
-            </app-leads-reports>
-          </ng-template>
+          <app-leads-reports
+            [officeId]="selectedOfficeId"
+            [startDate]="reportsStartDate"
+            [endDate]="reportsEndDate"
+            [offices]="offices">
+          </app-leads-reports>
         </mat-tab>
       </mat-tab-group>
     </mat-card>

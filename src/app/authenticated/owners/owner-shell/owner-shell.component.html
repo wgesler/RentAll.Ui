@@ -65,112 +65,104 @@
         @if (isOwnerListMode) {
           <app-owners-list [officeId]="selectedOfficeId"></app-owners-list>
         } @else {
-          <mat-tab-group class="shell-tabs dbg-band-tabs" [selectedIndex]="selectedTabIndex" [preserveContent]="false" (selectedIndexChange)="onTabIndexChange($event)">
+          <mat-tab-group class="shell-tabs dbg-band-tabs" [selectedIndex]="selectedTabIndex" (selectedIndexChange)="onTabIndexChange($event)">
             <mat-tab label="Owners">
-              <ng-template matTabContent>
-                <app-owner-information
-                  [token]="token"
-                  [ownerEntityTypeId]="ownerEntityTypeId"
-                  [ownerLeadId]="leadOwnerId"
-                  [ownerContactId]="selectedOwnerContactId"
-                  [selectedOfficeId]="selectedOfficeId">
-                </app-owner-information>
-              </ng-template>
+              <app-owner-information
+                [token]="token"
+                [ownerEntityTypeId]="ownerEntityTypeId"
+                [ownerLeadId]="leadOwnerId"
+                [ownerContactId]="selectedOwnerContactId"
+                [selectedOfficeId]="selectedOfficeId">
+              </app-owner-information>
             </mat-tab>
 
             <mat-tab label="Properties">
-              <ng-template matTabContent>
-                <app-property-information
-                  [token]="token"
-                  [ownerLeadId]="leadOwnerId"
-                  [ownerContactId]="selectedOwnerContactId"
-                  [organizationId]="selectedOrganizationId"
-                  [selectedOfficeId]="selectedOfficeId"
-                  [shellPropertyId]="selectedPropertyId"
-                  [shellPropertyCode]="selectedPropertyId === newPropertyOptionValue ? newPropertyCode : null"
-                  [shellPropertyAddress1]="selectedPropertyId === newPropertyOptionValue ? ownerLeadPropertyAddress1 : null"
-                  [shellPropertyCity]="selectedPropertyId === newPropertyOptionValue ? ownerLeadPropertyCity : null"
-                  [shellPropertyState]="selectedPropertyId === newPropertyOptionValue ? ownerLeadPropertyState : null"
-                  [shellPropertyZip]="selectedPropertyId === newPropertyOptionValue ? ownerLeadPropertyZip : null"
-                  (titleBarPropertyCodeInvalid)="onTitleBarPropertyCodeInvalid()">
-                </app-property-information>
-              </ng-template>
+              <app-property-information
+                [token]="token"
+                [ownerLeadId]="leadOwnerId"
+                [ownerContactId]="selectedOwnerContactId"
+                [organizationId]="selectedOrganizationId"
+                [selectedOfficeId]="selectedOfficeId"
+                [shellPropertyId]="selectedPropertyId"
+                [shellPropertyCode]="selectedPropertyId === newPropertyOptionValue ? newPropertyCode : null"
+                [shellPropertyAddress1]="selectedPropertyId === newPropertyOptionValue ? ownerLeadPropertyAddress1 : null"
+                [shellPropertyCity]="selectedPropertyId === newPropertyOptionValue ? ownerLeadPropertyCity : null"
+                [shellPropertyState]="selectedPropertyId === newPropertyOptionValue ? ownerLeadPropertyState : null"
+                [shellPropertyZip]="selectedPropertyId === newPropertyOptionValue ? ownerLeadPropertyZip : null"
+                (titleBarPropertyCodeInvalid)="onTitleBarPropertyCodeInvalid()">
+              </app-property-information>
             </mat-tab>
 
             @if (canAccessInformationTab) {
               <mat-tab label="Information">
-                <ng-template matTabContent>
-                  <app-owner-agreement-information
-                    [officeId]="selectedOfficeId"
-                    [propertyId]="selectedPropertyId === newPropertyOptionValue ? null : selectedPropertyId">
-                  </app-owner-agreement-information>
-                </ng-template>
+                <app-owner-agreement-information
+                  [officeId]="selectedOfficeId"
+                  [propertyId]="selectedPropertyId === newPropertyOptionValue ? null : selectedPropertyId">
+                </app-owner-agreement-information>
               </mat-tab>
             }
             <mat-tab label="Agreement">
-              <ng-template matTabContent>
+              @if (canMountOwnerAgreementTab()) {
                 <app-owner-agreement-form
                   [token]="token"
                   [ownerLeadId]="leadOwnerId"
                   [officeId]="selectedOfficeId"
                   [propertyId]="selectedPropertyId === newPropertyOptionValue ? null : selectedPropertyId"
-                  [sharedContext$]="ownerAgreementContext$">
+                  [sharedContext$]="ownerAgreementContext$"
+                  [openInViewOnTabSelect]="selectedTabIndex === getAgreementTabIndex()"
+                  [hideEditButtonInViewMode]="selectedTabIndex === getAgreementTabIndex()">
                 </app-owner-agreement-form>
-              </ng-template>
+              }
             </mat-tab>
             <mat-tab label="Deposit">
-              <ng-template matTabContent>
-                <app-owner-agreement-form
-                  [token]="token"
-                  [ownerLeadId]="leadOwnerId"
-                  [officeId]="selectedOfficeId"
-                  [propertyId]="selectedPropertyId === newPropertyOptionValue ? null : selectedPropertyId"
-                  [includeLabel]="'Deposit'"
-                  [templateAssetPath]="'assets/direct-deposit.html'"
-                  [documentDisplayName]="'Deposit'"
-                  [documentFileSuffix]="'Deposit'"
-                  [sharedContext$]="ownerAgreementContext$">
-                </app-owner-agreement-form>
-              </ng-template>
+              <app-owner-agreement-form
+                [token]="token"
+                [ownerLeadId]="leadOwnerId"
+                [officeId]="selectedOfficeId"
+                [propertyId]="selectedPropertyId === newPropertyOptionValue ? null : selectedPropertyId"
+                [includeLabel]="'Deposit'"
+                [templateAssetPath]="'assets/direct-deposit.html'"
+                [documentDisplayName]="'Deposit'"
+                [documentFileSuffix]="'Deposit'"
+                [sharedContext$]="ownerAgreementContext$">
+              </app-owner-agreement-form>
             </mat-tab>
             @for (stateForm of stateForms; track stateForm.stateFormId) {
               <mat-tab [label]="stateForm.formName">
-                <ng-template matTabContent>
-                  @if (isOwnerAdmin && !isPublicOwnerTokenContext(token)) {
-                    @if (isDynamicFormInViewMode(getDynamicFormKey(stateForm))) {
-                      <app-shared-form-create
-                        [formName]="stateForm.formName"
-                        [ownerLeadId]="leadOwnerId"
-                        [officeId]="selectedOfficeId"
-                        [propertyId]="selectedPropertyId === newPropertyOptionValue ? null : selectedPropertyId"
-                        [editedHtml]="getDynamicFormEditedHtml(stateForm)"
-                        (editRequested)="onDynamicFormEditRequested(getDynamicFormKey(stateForm))">
-                      </app-shared-form-create>
-                    } @else {
-                      <app-shared-form-editor
-                        [formName]="stateForm.formName"
-                        [formKey]="getDynamicFormKey(stateForm)"
-                        [ownerLeadId]="leadOwnerId"
-                        [officeId]="selectedOfficeId"
-                        [propertyId]="selectedPropertyId === newPropertyOptionValue ? null : selectedPropertyId"
-                        [templateHtml]="getDynamicFormEditedHtml(stateForm)"
-                        (viewRequested)="onDynamicFormViewRequested(getDynamicFormKey(stateForm), $event)">
-                      </app-shared-form-editor>
-                    }
-                  } @else {
-                    <app-owner-agreement-form
-                      [token]="token"
+                @if (isOwnerAdmin && !isPublicOwnerTokenContext(token)) {
+                  @if (isDynamicFormInViewMode(getDynamicFormKey(stateForm))) {
+                    <app-shared-form-create
+                      [formName]="stateForm.formName"
                       [ownerLeadId]="leadOwnerId"
                       [officeId]="selectedOfficeId"
                       [propertyId]="selectedPropertyId === newPropertyOptionValue ? null : selectedPropertyId"
-                      [includeLabel]="stateForm.formName"
-                      [templateHtml]="stateForm.formAsHtml ?? ''"
-                      [documentDisplayName]="stateForm.formName"
-                      [documentFileSuffix]="stateForm.formName"
-                      [sharedContext$]="ownerAgreementContext$">
-                    </app-owner-agreement-form>
+                      [editedHtml]="getDynamicFormEditedHtml(stateForm)"
+                      (editRequested)="onDynamicFormEditRequested(getDynamicFormKey(stateForm))">
+                    </app-shared-form-create>
+                  } @else {
+                    <app-shared-form-editor
+                      [formName]="stateForm.formName"
+                      [formKey]="getDynamicFormKey(stateForm)"
+                      [ownerLeadId]="leadOwnerId"
+                      [officeId]="selectedOfficeId"
+                      [propertyId]="selectedPropertyId === newPropertyOptionValue ? null : selectedPropertyId"
+                      [templateHtml]="getDynamicFormEditedHtml(stateForm)"
+                      (viewRequested)="onDynamicFormViewRequested(getDynamicFormKey(stateForm), $event)">
+                    </app-shared-form-editor>
                   }
-                </ng-template>
+                } @else {
+                  <app-owner-agreement-form
+                    [token]="token"
+                    [ownerLeadId]="leadOwnerId"
+                    [officeId]="selectedOfficeId"
+                    [propertyId]="selectedPropertyId === newPropertyOptionValue ? null : selectedPropertyId"
+                    [includeLabel]="stateForm.formName"
+                    [templateHtml]="stateForm.formAsHtml ?? ''"
+                    [documentDisplayName]="stateForm.formName"
+                    [documentFileSuffix]="stateForm.formName"
+                    [sharedContext$]="ownerAgreementContext$">
+                  </app-owner-agreement-form>
+                }
               </mat-tab>
             }
           </mat-tab-group>

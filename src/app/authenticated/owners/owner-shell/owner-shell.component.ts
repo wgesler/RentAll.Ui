@@ -161,6 +161,21 @@ export class OwnerShellComponent implements OnInit, OnDestroy {
     return tabIndex >= 1;
   }
 
+  getAgreementTabIndex(): number {
+    return this.canAccessInformationTab ? 3 : 2;
+  }
+
+  /** Mirrors reservation Lease tab: mount once office + property context exist; stays alive when switching tabs. */
+  canMountOwnerAgreementTab(): boolean {
+    if (this.selectedOfficeId == null) {
+      return false;
+    }
+    if (this.isPublicOwnerTokenContext(this.token)) {
+      return true;
+    }
+    return this.selectedPropertyId !== this.newPropertyOptionValue;
+  }
+
   isPublicOwnerTokenContext(token: string): boolean {
     const hasToken = String(token || '').trim().length > 0;
     return hasToken && !this.authService.getIsLoggedIn();
