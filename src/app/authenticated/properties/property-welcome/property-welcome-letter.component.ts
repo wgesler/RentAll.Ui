@@ -1,6 +1,6 @@
 import { CommonModule } from '@angular/common';
 import { HttpClient } from '@angular/common/http';
-import { Component, EventEmitter, Input, OnChanges, OnDestroy, OnInit, Output, SimpleChanges } from '@angular/core';
+import { ChangeDetectorRef, Component, EventEmitter, Input, OnChanges, OnDestroy, OnInit, Output, SimpleChanges } from '@angular/core';
 import { FormBuilder, FormControl, FormGroup, FormsModule, ReactiveFormsModule } from '@angular/forms';
 import { DomSanitizer, SafeHtml } from '@angular/platform-browser';
 import { Router } from '@angular/router';
@@ -91,7 +91,8 @@ export class PropertyWelcomeLetterComponent extends BaseDocumentComponent implem
   pendingFilterOfficeId: number | null | undefined = undefined;
   isBranded: boolean = true;
   includeDepartureDate: boolean = true;
-   
+  reservationLoadSeq = 0;
+
   itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['property', 'reservations', 'welcomeLetter', 'propertyInformation', 'organization', 'offices', 'accountingOffices', 'contacts', 'buildings', 'emailHtml', 'logo']));
   logoSourcesLoaded = { accountingOffices: false, organization: false };
   destroy$ = new Subject<void>();
@@ -118,6 +119,7 @@ export class PropertyWelcomeLetterComponent extends BaseDocumentComponent implem
     private http: HttpClient,
     private router: Router,
     private emailCreateDraftService: EmailCreateDraftService,
+    private cdr: ChangeDetectorRef,
     public override toastr: ToastrService,
     documentExportService: DocumentExportService,
     documentService: DocumentService,
@@ -182,9 +184,9 @@ export class PropertyWelcomeLetterComponent extends BaseDocumentComponent implem
     }
 
     if (changes['titleBarReservationId']) {
-      const newReservationId = changes['titleBarReservationId'].currentValue;
-      const previousReservationId = changes['titleBarReservationId'].previousValue;
-      if (previousReservationId === undefined || newReservationId !== previousReservationId) {
+      const newReservationId = this.normalizeReservationId(changes['titleBarReservationId'].currentValue);
+      const previousReservationId = this.normalizeReservationId(changes['titleBarReservationId'].previousValue);
+      if (changes['titleBarReservationId'].firstChange || newReservationId !== previousReservationId) {
         this.onTitleBarReservationIdUpdate(newReservationId);
       }
     }
@@ -444,28 +446,38 @@ export class PropertyWelcomeLetterComponent extends BaseDocumentComponent implem
 
   //#region Form Response Methods
   onReservationSelected(reservationId: string | null, skipEmit: boolean = false): void {
+    const loadSeq = ++this.reservationLoadSeq;
     if (!reservationId) {
       this.selectedReservation = null;
       this.generatePreviewIframe();
+      this.cdr.markForCheck();
       if (!skipEmit) {
         this.reservationSelected.emit(null);
       }
       return;
     }
-    
+
     this.reservationService.getReservationByGuid(reservationId).pipe(take(1)).subscribe({
       next: (reservation: ReservationResponse) => {
+        if (loadSeq !== this.reservationLoadSeq) {
+          return;
+        }
         this.selectedReservation = reservation;
-        this.form.patchValue({ selectedReservationId: reservation.reservationId });
+        this.form.patchValue({ selectedReservationId: reservation.reservationId }, { emitEvent: false });
         if (reservation.officeId && this.offices.length > 0) {
           this.selectedOffice = this.offices.find(o => o.officeId === reservation.officeId) || null;
         }
         this.generatePreviewIframe();
+        this.cdr.markForCheck();
         if (!skipEmit) {
           this.reservationSelected.emit(reservationId);
         }
       },
-      error: () => {}
+      error: () => {
+        if (loadSeq !== this.reservationLoadSeq) {
+          return;
+        }
+      }
     });
   }
   
@@ -540,6 +552,10 @@ export class PropertyWelcomeLetterComponent extends BaseDocumentComponent implem
   //#endregion
 
   //#region Title Bar Updates
+  normalizeReservationId(value: string | null | undefined): string | null {
+    return value == null || value === '' ? null : String(value);
+  }
+
   onTitleBarReservationIdUpdate(newReservationId: string | null | undefined): void {
     if (newReservationId) {
       this.form.get('selectedReservationId')?.setValue(newReservationId, { emitEvent: false });
@@ -972,6 +988,7 @@ export class PropertyWelcomeLetterComponent extends BaseDocumentComponent implem
     this.previewIframeStyles = result.extractedStyles;
     this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'previewHtml');
     this.iframeKey++;
+    this.cdr.markForCheck();
   }
 
   stripAndReplace(html: string): string {

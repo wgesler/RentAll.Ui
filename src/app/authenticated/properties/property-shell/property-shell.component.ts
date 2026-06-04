@@ -44,8 +44,11 @@ import { AddAlertDialogComponent, AddAlertDialogData } from '../../shared/modals
 export class PropertyShellComponent implements OnInit, AfterViewInit, OnDestroy, CanComponentDeactivate {
   readonly DocumentType = DocumentType;
   @ViewChild('propertySection') propertySection?: PropertyComponent;
+  @ViewChild(PropertyWelcomeLetterComponent) propertyWelcomeLetter?: PropertyWelcomeLetterComponent;
   @ViewChild('propertyEmailList') propertyEmailList?: EmailListComponent;
   @ViewChild('propertyDocumentList') propertyDocumentList?: DocumentListComponent;
+
+  private static readonly welcomeLetterTabIndex = 2;
 
   selectedTabIndex = 0;
   isHandlingTabGuard = false;
@@ -167,9 +170,11 @@ export class PropertyShellComponent implements OnInit, AfterViewInit, OnDestroy,
 
   //#region Top Bar Event Methods
   onTitleBarContextFromProperty(ctx: PropertyTitleBarContext): void {
+    const previousReservationId = this.titleBarReservationId;
     this.titleBarPropertyOfficeId = ctx.officeId;
     this.titleBarReservationId = ctx.reservationId;
     this.titleBarPropertyCode = ctx.propertyCode ?? '';
+    this.syncWelcomeLetterToTitleBarReservation(previousReservationId, ctx.reservationId);
   }
 
   onOfficeDropdownChange(value: string | number | null): void {
@@ -224,7 +229,26 @@ export class PropertyShellComponent implements OnInit, AfterViewInit, OnDestroy,
 
   //#region Top Bar Child Updates
   onChildTabReservationChange(reservationId: string | null): void {
+    const normalizedId = this.normalizeTitleBarReservationId(reservationId);
+    this.titleBarReservationId = normalizedId;
     this.propertySection?.applyTitleBarReservationSelection(reservationId);
+  }
+
+  private normalizeTitleBarReservationId(value: string | number | null | undefined): string | null {
+    return value == null || value === '' ? null : String(value);
+  }
+
+  private syncWelcomeLetterToTitleBarReservation(
+    previousReservationId: string | null,
+    nextReservationId: string | null
+  ): void {
+    if (this.selectedTabIndex !== PropertyShellComponent.welcomeLetterTabIndex) {
+      return;
+    }
+    if (previousReservationId === nextReservationId) {
+      return;
+    }
+    this.propertyWelcomeLetter?.onTitleBarReservationIdUpdate(nextReservationId);
   }
 
   onChildTabOfficeChange(officeId: number | null): void {
