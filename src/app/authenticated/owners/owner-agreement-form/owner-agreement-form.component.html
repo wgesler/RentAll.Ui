@@ -55,12 +55,14 @@
       </div>
 
       <div class="property-tab-main-area">
-        <div class="include-controls">
-          <span class="include-label">Include:</span>
-          <mat-checkbox formControlName="includeDocument" class="include-checkbox" (change)="onIncludeChange()">
-            {{ includeLabel }}
-          </mat-checkbox>
-        </div>
+        @if (showIncludeControls) {
+          <div class="include-controls">
+            <span class="include-label">Include:</span>
+            <mat-checkbox formControlName="includeDocument" class="include-checkbox" (change)="onIncludeChange()">
+              {{ includeLabel }}
+            </mat-checkbox>
+          </div>
+        }
 
         <div class="editor-section">
           @if (isEditMode) {

@@ -50,6 +50,7 @@ export class OwnerAgreementFormComponent extends BaseDocumentComponent implement
   @Input() officeId: number | null = null;
   @Input() propertyId: string | null = null;
   @Input() includeLabel = 'Owner Agreement';
+  @Input() showIncludeControls = false;
   @Input() templateAssetPath = 'assets/owner-agreement.html';
   @Input() templateHtml: string | null = null;
   @Input() documentDisplayName = 'Owner Agreement';
