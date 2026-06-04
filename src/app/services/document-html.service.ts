@@ -286,6 +286,24 @@ export class DocumentHtmlService {
   }
 
   /**
+   * Rewrites template CSS so html/body/:root/* rules target an embedded surface only.
+   * Used when form HTML is injected via innerHTML (e.g. dynamic form editor); otherwise
+   * those selectors apply to the Angular app shell and break layout.
+   */
+  scopeEmbeddedDocumentStyles(css: string, scopeSelector: string): string {
+    if (!String(css || '').trim() || !String(scopeSelector || '').trim()) {
+      return css || '';
+    }
+
+    let scoped = css;
+    scoped = scoped.replace(/:root\b/g, scopeSelector);
+    scoped = scoped.replace(/(^|[,{]\s*)html\b/g, `$1${scopeSelector}`);
+    scoped = scoped.replace(/(^|[,{]\s*)body\b/g, `$1${scopeSelector}`);
+    scoped = scoped.replace(/(^|[,{]\s*)\*(?=\s*(?:,|::|{))/gm, `$1${scopeSelector} *`);
+    return scoped;
+  }
+
+  /**
    * Processes HTML by extracting styles, removing style tags, and optionally fixing logo images
    * Returns processed HTML and extracted styles
    */

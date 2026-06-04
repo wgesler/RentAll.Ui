@@ -22,6 +22,7 @@ import { OWNER_FORM_TOKEN_PROVIDER } from '../services/owner-form-token-provider
   styleUrl: './dynamic-form-editor.component.scss'
 })
 export class DynamicFormEditorComponent implements OnInit, OnChanges, OnDestroy {
+
   @Input() formName = '';
   @Input() formKey = '';
   @Input() ownerLeadId: number | null = null;
@@ -38,6 +39,7 @@ export class DynamicFormEditorComponent implements OnInit, OnChanges, OnDestroy 
   editableHtml: SafeHtml | null = null;
   baseTemplateHtml = '';
   editorStyles = '';
+  embeddedStyleScope = '.dynamic-form-edit-surface';
 
   destroy$ = new Subject<void>();
 
@@ -152,7 +154,11 @@ export class DynamicFormEditorComponent implements OnInit, OnChanges, OnDestroy 
 
   setEditorHtml(html: string): void {
     const result = this.documentHtmlService.processHtml(html || '', true);
-    this.editorStyles = result.extractedStyles || '';
+    const rawStyles = result.extractedStyles || '';
+    this.editorStyles = this.documentHtmlService.scopeEmbeddedDocumentStyles(
+      rawStyles,
+      DynamicFormEditorComponent.embeddedStyleScope
+    );
     const bodyContent = this.documentHtmlService.extractBodyContent(result.processedHtml || '');
     this.editableHtml = this.sanitizer.bypassSecurityTrustHtml(`<style>${this.editorStyles}</style>${bodyContent}`);
     setTimeout(() => this.ensureEditorControlsInteractive());
