@@ -56,29 +56,41 @@ export class AuthService {
     }
 
     logout(): Observable<boolean> {
-        this.isLoggingOut$.next(true);
-        const completeLocalLogout = (): void => {
-            this.clearSensitiveData();
-            this.dialog.closeAll();
-            void this.router.navigateByUrl(RouterToken.Login, { replaceUrl: true });
-            this.isLoggedIn$.next(false);
-        };
+        if (this.isLoggingOut$.value) {
+            return of(true);
+        }
 
-        const refreshToken = (this.authData$.value?.refreshToken || '').trim();
+        this.isLoggingOut$.next(true);
+
+        const refreshToken = (this.authData$.value?.refreshToken || this.getAuthData()?.refreshToken || '').trim();
         const hasRefreshToken = refreshToken && refreshToken !== 'undefined' && refreshToken !== 'null';
 
-        completeLocalLogout();
+        this.clearSensitiveData();
+        this.isLoggedIn$.next(false);
+        this.dialog.closeAll();
+        this.teardownSessionOverlayState();
 
+        void this.router.navigateByUrl(RouterToken.Login, { replaceUrl: true }).finally(() => {
+            this.isLoggingOut$.next(false);
+        });
         if (hasRefreshToken) {
             const request: RefreshTokenRequest = { refreshToken };
             this.http.post<boolean>(this.controller + 'logout', request).pipe(
                 take(1),
-                catchError(() => of(false)),
-                finalize(() => completeLocalLogout())
+                catchError(() => of(false))
             ).subscribe();
         }
 
         return of(true);
+    }
+
+    /** Clears Material dialog scroll lock / stray backdrops after session timeout or idle logout. */
+    private teardownSessionOverlayState(): void {
+        if (typeof document === 'undefined') {
+            return;
+        }
+        document.body.classList.remove('cdk-global-scrollblock');
+        document.querySelectorAll('.cdk-overlay-backdrop').forEach(node => node.remove());
     }
 
     refresh(): Observable<AuthResponse> {

@@ -1,6 +1,6 @@
 
 import { HttpErrorResponse } from '@angular/common/http';
-import { Component, CUSTOM_ELEMENTS_SCHEMA } from '@angular/core';
+import { Component, CUSTOM_ELEMENTS_SCHEMA, OnInit } from '@angular/core';
 import { FormBuilder, FormControl, FormGroup, FormsModule, ReactiveFormsModule, Validators } from '@angular/forms';
 import { Router } from '@angular/router';
 import { ToastrService } from 'ngx-toastr';
@@ -21,7 +21,10 @@ import { LoginRequest } from './models/login-request';
     styleUrl: './login.component.scss'
 })
 
-export class LoginComponent {
+export class LoginComponent implements OnInit {
+  readonly headerLogoUrl = '/assets/images/RentAll_TwoHouses_NoCardinal_Transparent.png';
+  readonly backdropLogoUrl = '/assets/images/login-backdrop-rentall-exchange.png';
+
   checked = false;
   disabled = false;
   hide = true;
@@ -54,6 +57,14 @@ export class LoginComponent {
       password: [this.password],
       rememberMe: [this.rememberMe]
     });
+  }
+
+  ngOnInit(): void {
+    if (typeof document === 'undefined') {
+      return;
+    }
+    document.body.classList.remove('cdk-global-scrollblock');
+    document.querySelectorAll('.cdk-overlay-backdrop').forEach(node => node.remove());
   }
 
   //#region Login

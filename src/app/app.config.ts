@@ -4,7 +4,7 @@ import { ApplicationConfig } from '@angular/core';
 import { MAT_DIALOG_DEFAULT_OPTIONS, MatDialogConfig } from '@angular/material/dialog';
 import { MAT_TABS_CONFIG } from '@angular/material/tabs';
 import { provideAnimationsAsync } from '@angular/platform-browser/animations/async';
-import { provideRouter } from '@angular/router';
+import { provideRouter, withRouterConfig } from '@angular/router';
 import { Idle } from '@ng-idle/core';
 import { Keepalive } from '@ng-idle/keepalive';
 import { provideEnvironmentNgxMask } from 'ngx-mask';
@@ -14,7 +14,10 @@ import { authInterceptor } from './interceptor/auth.interceptor';
 
 export const appConfig: ApplicationConfig = {
   providers: [
-    provideRouter(routes), 
+    provideRouter(
+      routes,
+      withRouterConfig({ onSameUrlNavigation: 'reload' })
+    ), 
     provideHttpClient(withInterceptors([authInterceptor])),
     provideEnvironmentNgxMask(),
     provideAnimationsAsync(),

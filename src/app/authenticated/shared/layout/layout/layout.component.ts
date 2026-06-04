@@ -65,8 +65,10 @@ export class LayoutComponent implements OnInit, OnDestroy {
     this.idle.watch();
 
     this.authService.jwtChanged$.pipe(takeUntil(this.destroy$)).subscribe(() => {
-      if (this.authService.getIsLoggedIn()) return;
-      this.userIsTimedOut();
+      if (this.authService.getIsLoggedIn() || this.authService.isLoggingOut()) {
+        return;
+      }
+      this.stopIdleMonitoring();
     });
   }
 
@@ -110,14 +112,23 @@ export class LayoutComponent implements OnInit, OnDestroy {
   endIdle(): void {
     if (!this.idleMonitor) return;
 
+    this.stopIdleMonitoring();
+
+    // Auth service takes care of returning the user to the login page
+    this.authService.logout();
+  }
+
+  /** Stops ng-idle and closes the timeout dialog without logging out (used when auth already cleared). */
+  private stopIdleMonitoring(): void {
+    if (!this.idleMonitor) {
+      return;
+    }
+
     this.destroy$.next();
     this.idle.stop();
     this.keepalive.stop();
     this.dialog.closeAll();
     this.idleMonitor = false;
     LayoutComponent.isIdleModalOn = false;
-
-    // Auth service takes care of returning the user to the login page
-    this.authService.logout();
   }
 }
