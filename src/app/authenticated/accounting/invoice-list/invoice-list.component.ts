@@ -125,6 +125,7 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
 
   ledgerLinesDisplayedColumns: ColumnSet = {
     lineNo: { displayAs: 'No', maxWidth: '5ch', wrap: false, alignment: 'left' },
+    ledgerLineDate: { displayAs: 'Date', maxWidth: '15ch', wrap: false, alignment: 'center' },
     costCode: { displayAs: 'Cost Code', maxWidth: '25ch', wrap: false },
     transactionType: { displayAs: 'Type', maxWidth: '15ch', wrap: false },
     description: { displayAs: 'Description', maxWidth: '15ch', wrap: true },
@@ -1292,6 +1293,8 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
     switch (columnName) {
       case 'lineNo':
         return lineIndex !== undefined ? lineIndex + 1 : '-';
+      case 'ledgerLineDate':
+        return this.formatter.formatDateString(line.ledgerLineDate || invoice.invoiceDate) || '—';
       case 'costCode':
         return line.costCode || this.getCostCodeDescription(line.costCodeId, invoice.officeId);
       case 'transactionType':
