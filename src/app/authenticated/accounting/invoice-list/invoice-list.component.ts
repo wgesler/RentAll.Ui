@@ -113,8 +113,10 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
     propertyCode: { displayAs: 'Property', maxWidth: '15ch', sortType: 'natural', wrap: false },
     responsibleParty: { displayAs: 'Recipient',  wrap: false, maxWidth: '25ch' },
     invoiceNumber: { displayAs: 'Invoice', maxWidth: '15ch', sortType: 'natural' },
+    period: { displayAs: 'Period', maxWidth: '12ch', alignment: 'center' },
     invoiceDate: { displayAs: 'Invoice Date', maxWidth: '15ch', alignment: 'center' },
     dueDate: { displayAs: 'Due Date', maxWidth: '15ch', alignment: 'center' },
+    created: { displayAs: 'Created', maxWidth: '15ch', alignment: 'center' },
     totalAmount: { displayAs: 'Total', maxWidth: '15ch', alignment: 'right', headerAlignment: 'right' },
     paidAmount: { displayAs: '  Paid', maxWidth: '15ch', alignment: 'right', headerAlignment: 'right' },
     dueAmount: { displayAs: 'Due', maxWidth: '15ch', alignment: 'right', headerAlignment: 'right' },
@@ -736,8 +738,10 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
       applyAmountDisplay: this.isManualApplyMode ? (applyAmountValue < 0 ? '-$' + this.formatter.currency(-applyAmountValue) : '$' + this.formatter.currency(applyAmountValue)) : '',
       startDate: this.formatter.formatDateString(invoice.startDate),
       endDate: this.formatter.formatDateString(invoice.endDate),
+      period: this.formatter.formatInvoiceListAccountingPeriod(invoice.accountingPeriod),
       invoiceDate: this.formatter.formatDateString(invoice.invoiceDate),
       dueDate: this.formatter.formatDateString(invoice.dueDate),
+      created: this.formatter.formatInvoiceListCreatedOn(invoice.createdOn),
       expand: invoice.invoiceId, // Store invoiceId for expand functionality
       expanded: this.expandedInvoices.has(invoice.invoiceId), // Restore expanded state from Set
       ledgerLines: mappedLedgerLines,

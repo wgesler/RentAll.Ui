@@ -112,6 +112,44 @@ export class FormatterService {
         return this.datePipe.transform(value, 'MM/dd/yyyy');
     }
 
+    //#region Invoice list formatting
+
+    /** Invoice list: accounting period calendar date as `MM/yyyy`, or em dash when empty. */
+    formatInvoiceListAccountingPeriod(accountingPeriod?: string | null): string {
+        return this.formatAccountingPeriodMonthYear(accountingPeriod) || '—';
+    }
+
+    /** Invoice list: created-on `DateTimeOffset` as calendar date `MM/dd/yyyy`, or em dash when empty. */
+    formatInvoiceListCreatedOn(createdOn?: string | null): string {
+        return this.formatDateTimeOffsetAsDateOnly(createdOn) || '—';
+    }
+
+    /** `DateTimeOffset` / ISO string → local calendar date `MM/dd/yyyy` (date portion only). */
+    formatDateTimeOffsetAsDateOnly(value?: string | null): string {
+        if (!value) {
+            return '';
+        }
+        const fromCalendar = this.parseCalendarPrefixToLocalDate(value);
+        if (!fromCalendar) {
+            return '';
+        }
+        return this.datePipe.transform(fromCalendar, 'MM/dd/yyyy') || '';
+    }
+
+    /** Calendar **DATE** (`YYYY-MM-DD`) → `MM/yyyy` for accounting period display. */
+    formatAccountingPeriodMonthYear(calendarDate?: string | null): string {
+        if (!calendarDate) {
+            return '';
+        }
+        const fromCalendar = this.parseCalendarPrefixToLocalDate(calendarDate);
+        if (!fromCalendar) {
+            return '';
+        }
+        return this.datePipe.transform(fromCalendar, 'MM/yyyy') || '';
+    }
+
+    //#endregion
+
     /** Calendar / SQL **DATE** string (`YYYY-MM-DD` or ISO with that prefix) → `MM/dd/yyyy`. */
     formatDateString(dateString?: string): string {
         if (!dateString) return '';

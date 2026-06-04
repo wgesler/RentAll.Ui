@@ -275,8 +275,8 @@
                   </div>
                 } @else if (form.get('entityTypeId')?.value === EntityType.Company) {
                   @if (!isAddMode) {
-                    <div class="col-span-4 grid grid-cols-4 gap-x-1.5 gap-y-1">
-                      <mat-form-field appearance="outline" class="field-min-0 col-span-2">
+                    <div class="col-span-4 grid gap-x-1.5 gap-y-1 form-grid-eighths">
+                      <mat-form-field appearance="outline" class="field-min-0 col-span-1">
                         <mat-label>Code</mat-label>
                         <input matInput [value]="contact?.contactCode || ''" readonly disabled>
                       </mat-form-field>
@@ -519,22 +519,50 @@
               }
 
               @if (form.get('entityTypeId')?.value !== EntityType.Vendor) {
-                <div class="col-span-4 grid gap-x-1.5 gap-y-1 form-grid-sevenths">
-                  <mat-form-field appearance="outline" class="field-min-0 col-span-3">
-                    <mat-label>Phone</mat-label>
-                    <input matInput formControlName="phone" maxlength="20" (blur)="formatPhone()" (input)="onPhoneInput($event)"
-                      [required]="needsStrictPhoneValidation(form.get('entityTypeId')?.value)"
-                      placeholder="(555) 555-5555 or +1 234 567 8900">
-                  </mat-form-field>
-                  <mat-form-field appearance="outline" class="field-min-0 col-span-1">
-                    <mat-label>Extension</mat-label>
-                    <input matInput formControlName="extension" maxlength="20">
-                  </mat-form-field>
-                  <mat-form-field appearance="outline" class="field-min-0 col-span-3">
-                    <mat-label>Email</mat-label>
-                    <input matInput type="email" formControlName="email" required>
-                  </mat-form-field>
-                </div>
+                @if (form.get('entityTypeId')?.value === EntityType.Company && !compactDialogMode) {
+                  <div class="col-span-4 grid gap-x-1.5 gap-y-1 form-grid-eighths">
+                    <mat-form-field appearance="outline" class="field-min-0 col-span-3">
+                      <mat-label>Phone</mat-label>
+                      <input matInput formControlName="phone" maxlength="20" (blur)="formatPhone()" (input)="onPhoneInput($event)"
+                        [required]="needsStrictPhoneValidation(form.get('entityTypeId')?.value)"
+                        placeholder="(555) 555-5555 or +1 234 567 8900">
+                    </mat-form-field>
+                    <mat-form-field appearance="outline" class="field-min-0 col-span-1">
+                      <mat-label>Extension</mat-label>
+                      <input matInput formControlName="extension" maxlength="20">
+                    </mat-form-field>
+                    <mat-form-field appearance="outline" class="field-min-0 col-span-2">
+                      <mat-label>Email</mat-label>
+                      <input matInput type="email" formControlName="email" required>
+                    </mat-form-field>
+                    <mat-form-field appearance="outline" class="field-min-0 col-span-2">
+                      <mat-label>Payment Terms</mat-label>
+                      <mat-select formControlName="paymentTermsId">
+                        <mat-option [value]="null">—</mat-option>
+                        @for (term of availablePaymentTerms; track term.value) {
+                          <mat-option [value]="term.value">{{ term.label }}</mat-option>
+                        }
+                      </mat-select>
+                    </mat-form-field>
+                  </div>
+                } @else {
+                  <div class="col-span-4 grid gap-x-1.5 gap-y-1 form-grid-sevenths">
+                    <mat-form-field appearance="outline" class="field-min-0 col-span-3">
+                      <mat-label>Phone</mat-label>
+                      <input matInput formControlName="phone" maxlength="20" (blur)="formatPhone()" (input)="onPhoneInput($event)"
+                        [required]="needsStrictPhoneValidation(form.get('entityTypeId')?.value)"
+                        placeholder="(555) 555-5555 or +1 234 567 8900">
+                    </mat-form-field>
+                    <mat-form-field appearance="outline" class="field-min-0 col-span-1">
+                      <mat-label>Extension</mat-label>
+                      <input matInput formControlName="extension" maxlength="20">
+                    </mat-form-field>
+                    <mat-form-field appearance="outline" class="field-min-0 col-span-3">
+                      <mat-label>Email</mat-label>
+                      <input matInput type="email" formControlName="email" required>
+                    </mat-form-field>
+                  </div>
+                }
               }
 
               @if (form.get('isInternational')?.value) {

@@ -20,7 +20,7 @@ import { GlobalSelectionService } from '../../organizations/services/global-sele
 import { OfficeService } from '../../organizations/services/office.service';
 import { PropertyService } from '../../properties/services/property.service';
 import { PropertyListResponse } from '../../properties/models/property.model';
-import { EntityType, getContactTypes, getEntityType, OwnerType, getOwnerTypes, VendorType, getVendorTypes } from '../models/contact-enum';
+import { EntityType, getContactTypes, getEntityType, OwnerType, getOwnerTypes, VendorType, getVendorTypes, getTermTypes } from '../models/contact-enum';
 import { ContactRequest, ContactResponse } from '../models/contact.model';
 import { FileDetails } from '../../documents/models/document.model';
 import { ContactService } from '../services/contact.service';
@@ -76,6 +76,7 @@ export class ContactComponent implements OnInit, OnChanges, OnDestroy {
   availableContactTypes: { value: number, label: string }[] = [];
   availableOwnerTypes: { value: number; label: string }[] = [];
   availableVendorTypes: { value: number; label: string }[] = [];
+  availablePaymentTerms: { value: number; label: string }[] = [];
 
   offices: OfficeResponse[] = [];
   availableOffices: { value: number, name: string }[] = [];
@@ -147,6 +148,7 @@ export class ContactComponent implements OnInit, OnChanges, OnDestroy {
     this.initializeContactTypes();
     this.availableOwnerTypes = getOwnerTypes();
     this.availableVendorTypes = getVendorTypes();
+    this.availablePaymentTerms = getTermTypes();
     this.loadStates();
     this.loadOffices();
     this.loadAllProperties();
@@ -430,13 +432,30 @@ export class ContactComponent implements OnInit, OnChanges, OnDestroy {
       insurancePath: this.compactDialogMode && this.contact ? (this.insurancePath ?? this.contact.insurancePath ?? null) : (this.hasNewInsuranceUpload ? undefined : this.insurancePath),
       insuranceFileDetails: this.compactDialogMode && this.contact ? (this.insuranceFileDetails ?? this.contact.insuranceFileDetails ?? null) : (this.hasNewInsuranceUpload ? (this.insuranceFileDetails ?? null) : undefined),
       insuranceExpiration: this.compactDialogMode && this.contact ? (this.utilityService.formatDateOnlyForApi(formValue.insuranceExpiration) ?? this.contact.insuranceExpiration ?? null) : (this.utilityService.formatDateOnlyForApi(formValue.insuranceExpiration)),
-      revenueSplitOwner: this.parseAgreementPercentFromForm(formValue.revenueSplitOwner),
-      revenueSplitOffice: this.parseAgreementPercentFromForm(formValue.revenueSplitOffice),
-      workingCapitalBalance: this.parseAgreementDecimalFromForm(formValue.workingCapitalBalance),
-      linenAndTowelFee: this.parseAgreementDecimalFromForm(formValue.linenAndTowelFee),
-      bankName: (formValue.bankName || '').trim() || null,
-      routingNumber: (formValue.routingNumber || '').trim() || null,
-      accountNumber: (formValue.accountNumber || '').trim() || null,
+      revenueSplitOwner: this.compactDialogMode && this.contact
+        ? (this.contact.revenueSplitOwner ?? this.parseAgreementPercentFromForm(formValue.revenueSplitOwner))
+        : this.parseAgreementPercentFromForm(formValue.revenueSplitOwner),
+      revenueSplitOffice: this.compactDialogMode && this.contact
+        ? (this.contact.revenueSplitOffice ?? this.parseAgreementPercentFromForm(formValue.revenueSplitOffice))
+        : this.parseAgreementPercentFromForm(formValue.revenueSplitOffice),
+      workingCapitalBalance: this.compactDialogMode && this.contact
+        ? (this.contact.workingCapitalBalance ?? this.parseAgreementDecimalFromForm(formValue.workingCapitalBalance))
+        : this.parseAgreementDecimalFromForm(formValue.workingCapitalBalance),
+      linenAndTowelFee: this.compactDialogMode && this.contact
+        ? (this.contact.linenAndTowelFee ?? this.parseAgreementDecimalFromForm(formValue.linenAndTowelFee))
+        : this.parseAgreementDecimalFromForm(formValue.linenAndTowelFee),
+      bankName: this.compactDialogMode && this.contact
+        ? (this.contact.bankName ?? null)
+        : ((formValue.bankName || '').trim() || null),
+      routingNumber: this.compactDialogMode && this.contact
+        ? (this.contact.routingNumber ?? null)
+        : ((formValue.routingNumber || '').trim() || null),
+      accountNumber: this.compactDialogMode && this.contact
+        ? (this.contact.accountNumber ?? null)
+        : ((formValue.accountNumber || '').trim() || null),
+      paymentTermsId: this.compactDialogMode && this.contact
+        ? (this.contact.paymentTermsId ?? null)
+        : (formValue.paymentTermsId ?? null),
       isOwnerReady: !!formValue.isOwnerReady
     };
     delete (contactRequest as any).propertyCodes;
@@ -560,6 +579,7 @@ export class ContactComponent implements OnInit, OnChanges, OnDestroy {
       isOwnerReady: new FormControl(false),
       isActive: new FormControl(true),
       insuranceExpiration: new FormControl<Date | null>(null),
+      paymentTermsId: new FormControl<number | null>(null),
       addAsUser: new FormControl(false)
     });
 
@@ -772,6 +792,7 @@ export class ContactComponent implements OnInit, OnChanges, OnDestroy {
         isOwnerReady: this.contact.isOwnerReady || false,
         isActive: isActiveValue,
         insuranceExpiration: insuranceExpirationDate,
+        paymentTermsId: this.contact.paymentTermsId ?? null,
         addAsUser: (this.contact.addAsUser ?? 0) === 1
       }, { emitEvent: false });
 
@@ -1611,6 +1632,7 @@ export class ContactComponent implements OnInit, OnChanges, OnDestroy {
       bankName: savedContact.bankName ?? originalRequest.bankName,
       routingNumber: savedContact.routingNumber ?? originalRequest.routingNumber,
       accountNumber: savedContact.accountNumber ?? originalRequest.accountNumber,
+      paymentTermsId: savedContact.paymentTermsId ?? originalRequest.paymentTermsId ?? null,
       isOwnerReady: savedContact.isOwnerReady ?? originalRequest.isOwnerReady ?? false,
       addAsUser: savedContact.addAsUser ?? originalRequest.addAsUser ?? 0,
       isActive

@@ -151,10 +151,73 @@ export class UtilityService {
     return null;
   }
 
+  /**
+   * **From API:** `DateOnly` may be `yyyy-MM-dd` or a `{ year, month, day }` object from System.Text.Json.
+   */
+  coerceCalendarDateStringFromApi(value: unknown): CalendarDateString | null {
+    if (value == null || value === '') {
+      return null;
+    }
+    if (typeof value === 'string') {
+      return this.toDateOnlyJsonString(value);
+    }
+    if (typeof value === 'object') {
+      const source = value as Record<string, unknown>;
+      const year = Number(source['year'] ?? source['Year']);
+      const month = Number(source['month'] ?? source['Month']);
+      const dayRaw = source['day'] ?? source['Day'] ?? 1;
+      const day = Number(dayRaw);
+      if (Number.isFinite(year) && Number.isFinite(month) && month >= 1 && month <= 12) {
+        const safeDay = Number.isFinite(day) && day >= 1 && day <= 31 ? day : 1;
+        return `${year}-${String(month).padStart(2, '0')}-${String(safeDay).padStart(2, '0')}`;
+      }
+    }
+    return null;
+  }
+
+  /** **From API:** `DateTimeOffset` as ISO string (or pass-through when already a string). */
+  coerceDateTimeOffsetStringFromApi(value: unknown): string | null {
+    if (value == null || value === '') {
+      return null;
+    }
+    if (typeof value === 'string') {
+      const trimmed = value.trim();
+      return trimmed || null;
+    }
+    if (value instanceof Date && !Number.isNaN(value.getTime())) {
+      return value.toISOString();
+    }
+    return null;
+  }
+
   /** **To API:** today in the org’s local calendar as `yyyy-MM-dd` (defaults, queries). */
   todayAsCalendarDateString(): CalendarDateString {
     const t = new Date();
     return `${t.getFullYear()}-${String(t.getMonth() + 1).padStart(2, '0')}-${String(t.getDate()).padStart(2, '0')}`;
+  }
+
+  /**
+   * Resolve invoice billing-period start/end from explicit fields or `invoicePeriod` (`"start - end"`).
+   */
+  invoicePeriodStartEnd(
+    invoicePeriod?: string | null,
+    startDate?: string | null,
+    endDate?: string | null
+  ): { startDate: string; endDate: string } {
+    const start = (startDate ?? '').trim();
+    const end = (endDate ?? '').trim();
+    if (start && end) {
+      return { startDate: start, endDate: end };
+    }
+    const period = (invoicePeriod ?? '').trim();
+    if (!period || !period.includes('-')) {
+      return { startDate: start, endDate: end };
+    }
+    const [periodStart, periodEnd] = period.split(/\s*-\s*/, 2).map(part => part.trim());
+    return {
+      startDate: start || periodStart || '',
+      endDate: end || periodEnd || ''
+    };
   }
   //#endregion
 

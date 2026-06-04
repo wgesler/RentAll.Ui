@@ -253,7 +253,8 @@ export class BillingComponent implements OnInit, OnDestroy {
       startDate: this.utilityService.toDateOnlyJsonString(formValue.startDate) ?? '',
       endDate: this.utilityService.toDateOnlyJsonString(formValue.endDate) ?? '',
       invoiceDate: invoiceDateString,
-      dueDate: this.utilityService.toDateOnlyJsonString(formValue.dueDate) ?? '',
+      dueDate: this.utilityService.toDateOnlyJsonString(formValue.dueDate) ?? invoiceDateString,
+      accountingPeriod: this.resolveAccountingPeriodForSave(formValue),
       invoicePeriod: invoicePeriod,
       totalAmount: invoicedAmount,
       paidAmount: paidAmount,
@@ -327,6 +328,7 @@ export class BillingComponent implements OnInit, OnDestroy {
       endDate: new FormControl(lastDayOfCurrentMonth, [Validators.required, this.endDateValidator.bind(this)]),
       invoiceDate: new FormControl(today, [Validators.required]),
       dueDate: new FormControl(today, [Validators.required]),
+      accountingPeriod: new FormControl(firstDayOfCurrentMonth, [Validators.required]),
       invoiceTotal: new FormControl({ value: '', disabled: true }),
       invoiceCode: new FormControl({ value: ' ', disabled: true }),
       invoicedAmount: new FormControl({ value: '0.00', disabled: true }), 
@@ -370,6 +372,7 @@ export class BillingComponent implements OnInit, OnDestroy {
             // Defer the update to avoid change detection errors
             setTimeout(() => {
               this.form.get('endDate')?.setValue(lastDayOfStartMonth, { emitEvent: false });
+              this.syncAccountingPeriodFromStartDate(startDate);
             }, 0);
           }
         } else {
@@ -379,53 +382,64 @@ export class BillingComponent implements OnInit, OnDestroy {
           // Defer the update to avoid change detection errors
           setTimeout(() => {
             this.form.get('endDate')?.setValue(lastDayOfStartMonth, { emitEvent: false });
+            this.syncAccountingPeriodFromStartDate(startDate);
           }, 0);
         }
       }
     });
   }
 
+  firstDayOfMonthDate(value: Date | null | undefined): Date | null {
+    if (!value) {
+      return null;
+    }
+    const first = new Date(value.getFullYear(), value.getMonth(), 1);
+    first.setHours(0, 0, 0, 0);
+    return first;
+  }
+
+  syncAccountingPeriodFromStartDate(startDate: Date): void {
+    const firstOfMonth = this.firstDayOfMonthDate(startDate);
+    if (firstOfMonth) {
+      this.form.get('accountingPeriod')?.setValue(firstOfMonth, { emitEvent: false });
+    }
+  }
+
+  resolveAccountingPeriodForSave(formValue: Record<string, unknown>): string {
+    const explicit = this.utilityService.toDateOnlyJsonString(formValue['accountingPeriod']);
+    if (explicit) {
+      return explicit;
+    }
+    const start = this.utilityService.parseCalendarDateInput(formValue['startDate'] as string | Date | null | undefined);
+    const fromStart = start ? this.utilityService.toDateOnlyJsonString(this.firstDayOfMonthDate(start)) : null;
+    if (fromStart) {
+      return fromStart;
+    }
+    const fromInvoiceDate = this.utilityService.toDateOnlyJsonString(
+      formValue['invoiceDate'] as string | Date | null | undefined
+    );
+    if (fromInvoiceDate) {
+      const match = /^(\d{4})-(\d{2})/.exec(fromInvoiceDate);
+      return match ? `${match[1]}-${match[2]}-01` : fromInvoiceDate;
+    }
+    const today = new Date();
+    return this.utilityService.toDateOnlyJsonString(new Date(today.getFullYear(), today.getMonth(), 1)) ?? '';
+  }
+
   populateForm(): void {
     if (this.invoice && this.form) {
-      const invoiceAny = this.invoice as any;
-      const resolvedInvoicePeriod =
-        this.invoice.invoicePeriod ||
-        invoiceAny.invoicePeriod ||
-        invoiceAny.InvoicePeriod ||
-        '';
-      const [periodStartRaw, periodEndRaw] = typeof resolvedInvoicePeriod === 'string' && resolvedInvoicePeriod.includes('-')
-        ? resolvedInvoicePeriod.split(/\s*-\s*/, 2).map(part => part.trim())
-        : ['', ''];
-      const resolvedRecipientOrganizationId =
-        this.invoice.reservationId ||
-        invoiceAny.reservationId ||
-        invoiceAny.ReservationId ||
-        null;
-      const resolvedStartDate =
-        this.invoice.startDate ||
-        invoiceAny.startDate ||
-        invoiceAny.StartDate ||
-        invoiceAny.invoiceStartDate ||
-        invoiceAny.InvoiceStartDate ||
-        periodStartRaw ||
-        null;
-      const resolvedEndDate =
-        this.invoice.endDate ||
-        invoiceAny.endDate ||
-        invoiceAny.EndDate ||
-        invoiceAny.invoiceEndDate ||
-        invoiceAny.InvoiceEndDate ||
-        periodEndRaw ||
-        null;
-
+      const { startDate, endDate } = this.utilityService.invoicePeriodStartEnd(
+        this.invoice.invoicePeriod,
+        this.invoice.startDate,
+        this.invoice.endDate
+      );
       this.form.patchValue({
-        organizationId: resolvedRecipientOrganizationId,
-        startDate: this.utilityService.parseCalendarDateInput(resolvedStartDate),
-        endDate: this.utilityService.parseCalendarDateInput(resolvedEndDate),
+        organizationId: this.invoice.reservationId ?? null,
+        startDate: this.utilityService.parseCalendarDateInput(startDate),
+        endDate: this.utilityService.parseCalendarDateInput(endDate),
+        accountingPeriod: this.utilityService.parseCalendarDateInput(this.invoice.accountingPeriod),
         invoiceDate: this.utilityService.parseCalendarDateInput(this.invoice.invoiceDate),
-        dueDate:
-          this.utilityService.parseCalendarDateInput(this.invoice.dueDate) ??
-          this.utilityService.parseCalendarDateInput(this.invoice.invoiceDate),
+        dueDate: this.utilityService.parseCalendarDateInput(this.invoice.dueDate),
         invoiceTotal: this.invoice.totalAmount || '',
         invoiceCode: this.invoice.invoiceCode || '',
         invoicedAmount: this.invoice.totalAmount.toFixed(2),

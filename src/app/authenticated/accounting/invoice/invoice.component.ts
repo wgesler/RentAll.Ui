@@ -76,6 +76,7 @@ export class InvoiceComponent implements OnInit, OnDestroy, OnChanges {
     endDate: string | null;
     invoiceDate: string | null;
     dueDate: string | null;
+    accountingPeriod: string | null;
     notes: string | null;
     isActive: boolean;
   } | null = null;
@@ -571,7 +572,8 @@ export class InvoiceComponent implements OnInit, OnDestroy, OnChanges {
       startDate: this.utilityService.toDateOnlyJsonString(formValue.startDate) ?? '',
       endDate: this.utilityService.toDateOnlyJsonString(formValue.endDate) ?? '',
       invoiceDate: invoiceDateString,
-      dueDate: this.utilityService.toDateOnlyJsonString(formValue.dueDate) ?? '',
+      dueDate: this.utilityService.toDateOnlyJsonString(formValue.dueDate) ?? invoiceDateString,
+      accountingPeriod: this.resolveAccountingPeriodForSave(formValue),
       invoicePeriod: (() => {
         const sd = this.utilityService.parseCalendarDateInput(formValue.startDate);
         const ed = this.utilityService.parseCalendarDateInput(formValue.endDate);
@@ -825,6 +827,7 @@ export class InvoiceComponent implements OnInit, OnDestroy, OnChanges {
       endDate: new FormControl(lastDayOfCurrentMonth, [this.endDateValidator.bind(this)]),
       invoiceDate: new FormControl(today, [Validators.required]),
       dueDate: new FormControl(today, [Validators.required]),
+      accountingPeriod: new FormControl(firstDayOfCurrentMonth, [Validators.required]),
       invoiceTotal: new FormControl({ value: '', disabled: true }),
       invoiceCode: new FormControl({ value: ' ', disabled: true }),
       invoicedAmount: new FormControl({ value: '0.00', disabled: true }), 
@@ -849,24 +852,29 @@ export class InvoiceComponent implements OnInit, OnDestroy, OnChanges {
       lastDayOfStartMonth.setHours(0, 0, 0, 0);
       setTimeout(() => {
         this.form.get('endDate')?.setValue(lastDayOfStartMonth, { emitEvent: false });
+        this.syncAccountingPeriodFromStartDate(startDate);
       }, 0);
     });
   }
 
   populateForm(): void {
     if (this.invoice && this.form) {
+      const { startDate, endDate } = this.utilityService.invoicePeriodStartEnd(
+        this.invoice.invoicePeriod,
+        this.invoice.startDate,
+        this.invoice.endDate
+      );
       this.form.patchValue({
         organizationId: this.invoice.organizationId,
         officeId: this.invoice.officeId,
         officeName: this.invoice.officeName || '',
         reservationId: this.invoice.reservationId || null,
         reservationCode: this.invoice.reservationCode || '',
-        startDate: this.utilityService.parseCalendarDateInput(this.invoice.startDate),
-        endDate: this.utilityService.parseCalendarDateInput(this.invoice.endDate),
+        startDate: this.utilityService.parseCalendarDateInput(startDate),
+        endDate: this.utilityService.parseCalendarDateInput(endDate),
+        accountingPeriod: this.utilityService.parseCalendarDateInput(this.invoice.accountingPeriod),
         invoiceDate: this.utilityService.parseCalendarDateInput(this.invoice.invoiceDate),
-        dueDate:
-          this.utilityService.parseCalendarDateInput(this.invoice.dueDate) ??
-          this.utilityService.parseCalendarDateInput(this.invoice.invoiceDate),
+        dueDate: this.utilityService.parseCalendarDateInput(this.invoice.dueDate),
         invoiceTotal: this.invoice.totalAmount || '',
         invoiceCode: this.invoice.invoiceCode || '',
         invoicedAmount: (this.invoice.totalAmount ?? 0).toFixed(2),
@@ -979,7 +987,45 @@ export class InvoiceComponent implements OnInit, OnDestroy, OnChanges {
       this.form.get('dueDate')?.setValue(new Date(syncedDate.getTime()), { emitEvent: false });
       this.form.get('startDate')?.setValue(new Date(syncedDate.getTime()), { emitEvent: false });
       this.form.get('endDate')?.setValue(new Date(syncedEndDate.getTime()), { emitEvent: false });
+      this.form.get('accountingPeriod')?.setValue(this.firstDayOfMonthDate(syncedDate), { emitEvent: false });
     });
+  }
+
+  firstDayOfMonthDate(value: Date | null | undefined): Date | null {
+    if (!value) {
+      return null;
+    }
+    const first = new Date(value.getFullYear(), value.getMonth(), 1);
+    first.setHours(0, 0, 0, 0);
+    return first;
+  }
+
+  syncAccountingPeriodFromStartDate(startDate: Date): void {
+    const firstOfMonth = this.firstDayOfMonthDate(startDate);
+    if (firstOfMonth) {
+      this.form.get('accountingPeriod')?.setValue(firstOfMonth, { emitEvent: false });
+    }
+  }
+
+  resolveAccountingPeriodForSave(formValue: Record<string, unknown>): string {
+    const explicit = this.utilityService.toDateOnlyJsonString(formValue['accountingPeriod']);
+    if (explicit) {
+      return explicit;
+    }
+    const start = this.utilityService.parseCalendarDateInput(formValue['startDate'] as string | Date | null | undefined);
+    const fromStart = start ? this.utilityService.toDateOnlyJsonString(this.firstDayOfMonthDate(start)) : null;
+    if (fromStart) {
+      return fromStart;
+    }
+    const fromInvoiceDate = this.utilityService.toDateOnlyJsonString(
+      formValue['invoiceDate'] as string | Date | null | undefined
+    );
+    if (fromInvoiceDate) {
+      const match = /^(\d{4})-(\d{2})/.exec(fromInvoiceDate);
+      return match ? `${match[1]}-${match[2]}-01` : fromInvoiceDate;
+    }
+    const today = new Date();
+    return this.utilityService.toDateOnlyJsonString(new Date(today.getFullYear(), today.getMonth(), 1)) ?? '';
   }
 
   setupOfficeIdHandler(): void {
@@ -1357,6 +1403,7 @@ export class InvoiceComponent implements OnInit, OnDestroy, OnChanges {
     endDate: string | null;
     invoiceDate: string | null;
     dueDate: string | null;
+    accountingPeriod: string | null;
     notes: string | null;
     isActive: boolean;
   } {
@@ -1369,6 +1416,7 @@ export class InvoiceComponent implements OnInit, OnDestroy, OnChanges {
       endDate: toDateKey(formValue?.endDate),
       invoiceDate: toDateKey(formValue?.invoiceDate),
       dueDate: toDateKey(formValue?.dueDate),
+      accountingPeriod: toDateKey(formValue?.accountingPeriod),
       notes: (formValue?.notes ?? '').trim() || null,
       isActive: !!formValue?.isActive
     };

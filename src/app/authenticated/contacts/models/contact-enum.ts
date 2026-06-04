@@ -95,3 +95,38 @@ export function getVendorTypes(): { value: number; label: string }[] {
 }
 //#endregion
 
+//#region TermType
+export enum TermType {
+  DueOnReceipt = 0,
+  Net10 = 1,
+  Net15 = 2,
+  Net30 = 3,
+  Net60 = 4
+}
+
+export function getTermType(termTypeId: number | undefined | null): string {
+  if (termTypeId === undefined || termTypeId === null) {
+    return '';
+  }
+
+  const typeMap: { [key: number]: string } = {
+    [TermType.DueOnReceipt]: 'Due on receipt',
+    [TermType.Net10]: 'Net 10',
+    [TermType.Net15]: 'Net 15',
+    [TermType.Net30]: 'Net 30',
+    [TermType.Net60]: 'Net 60'
+  };
+
+  return typeMap[termTypeId] || '';
+}
+
+export function getTermTypes(): { value: number; label: string }[] {
+  return Object.keys(TermType)
+    .filter(key => isNaN(Number(key)))
+    .map(key => ({
+      value: TermType[key as keyof typeof TermType],
+      label: getTermType(TermType[key as keyof typeof TermType])
+    }));
+}
+//#endregion
+

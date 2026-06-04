@@ -420,12 +420,7 @@ export class ContactListComponent implements OnInit, OnDestroy, OnChanges {
   }
 
   buildContactIsActiveUpdateRequest(contact: ContactResponse, isActive: boolean): ContactRequest {
-    const { fullName: _fullName, officeName: _officeName, ...requestBase } = contact;
-    return {
-      ...requestBase,
-      officeAccess: this.mappingService.normalizeOfficeAccessNumbers(contact.officeAccess),
-      isActive
-    };
+    return this.mappingService.mapContactResponseToUpdateRequest(contact, { isActive });
   }
 
   applyContactIsActiveValue(contactId: string, isActive: boolean): void {

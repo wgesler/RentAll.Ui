@@ -4,6 +4,7 @@ import { ToastrService } from 'ngx-toastr';
 import { catchError, map, Observable, of, tap } from 'rxjs';
 import { CommonMessage } from '../../../enums/common-message.enum';
 import { ConfigService } from '../../../services/config.service';
+import { MappingService } from '../../../services/mapping.service';
 import { UtilityService } from '../../../services/utility.service';
 import { BillingMonthlyDataRequest, BillingMonthlyDataResponse, InvoiceGetRequest, InvoiceMonthlyDataRequest, InvoiceMonthlyDataResponse, InvoicePaymentRequest, InvoicePaymentResponse, InvoiceRequest, InvoiceResponse } from '../models/invoice.model';
 
@@ -18,13 +19,16 @@ export class InvoiceService {
   constructor(
       private http: HttpClient,
       private configService: ConfigService,
+      private mappingService: MappingService,
       private utilityService: UtilityService,
       private toastr: ToastrService) {
   }
 
   // GET: Get invoice by ID
   getInvoiceByGuid(invoiceId: string): Observable<InvoiceResponse> {
-    return this.http.get<InvoiceResponse>(this.controller + 'invoice/' + invoiceId);
+    return this.http.get<InvoiceResponse>(this.controller + 'invoice/' + invoiceId).pipe(
+      map(dto => this.mappingService.mapInvoiceResponse(dto as unknown as Record<string, unknown>))
+    );
   }
 
   // POST search: Find invoice by code within office scope.
@@ -49,13 +53,17 @@ export class InvoiceService {
   // POST: Create a new invoice
   createInvoice(invoice: InvoiceRequest): Observable<InvoiceResponse> {
     const normalized = this.normalizeInvoiceRequest(invoice);
-    return this.http.post<InvoiceResponse>(this.controller + 'invoice', normalized);
+    return this.http.post<InvoiceResponse>(this.controller + 'invoice', normalized).pipe(
+      map(dto => this.mappingService.mapInvoiceResponse(dto as unknown as Record<string, unknown>))
+    );
   }
 
   // PUT: Update entire invoice
   updateInvoice(invoice: InvoiceRequest): Observable<InvoiceResponse> {
     const normalized = this.normalizeInvoiceRequest(invoice);
-    return this.http.put<InvoiceResponse>(this.controller + 'invoice', normalized);
+    return this.http.put<InvoiceResponse>(this.controller + 'invoice', normalized).pipe(
+      map(dto => this.mappingService.mapInvoiceResponse(dto as unknown as Record<string, unknown>))
+    );
   }
 
 
@@ -76,7 +84,14 @@ export class InvoiceService {
 
   // PUT: Apply payment to invoices
   applyPayment(payment: InvoicePaymentRequest): Observable<InvoicePaymentResponse> {
-    return this.http.put<InvoicePaymentResponse>(this.controller + 'invoice/payment', payment);
+    return this.http.put<InvoicePaymentResponse>(this.controller + 'invoice/payment', payment).pipe(
+      map(response => ({
+        ...response,
+        invoices: (response.invoices ?? []).map(inv =>
+          this.mappingService.mapInvoiceResponse(inv as unknown as Record<string, unknown>)
+        )
+      }))
+    );
   }
 
 
@@ -99,10 +114,29 @@ export class InvoiceService {
       };
     });
 
+    const invoiceDate =
+      this.utilityService.toDateOnlyJsonString(invoice.invoiceDate) ?? invoice.invoiceDate;
+    const dueDate =
+      this.utilityService.toDateOnlyJsonString(invoice.dueDate) ?? invoiceDate;
+    const accountingPeriod =
+      this.utilityService.toDateOnlyJsonString(invoice.accountingPeriod) ??
+      this.firstDayOfMonthFromCalendarDate(invoiceDate);
+
     return {
       ...invoice,
+      invoiceDate,
+      dueDate,
+      accountingPeriod,
       ledgerLines: normalizedLedgerLines
     };
+  }
+
+  private firstDayOfMonthFromCalendarDate(calendarDate: string): string {
+    const match = /^(\d{4})-(\d{2})/.exec(calendarDate.trim());
+    if (!match) {
+      return calendarDate;
+    }
+    return `${match[1]}-${match[2]}-01`;
   }
 
   searchInvoices(request: InvoiceGetRequest): Observable<InvoiceResponse[]> {
@@ -122,7 +156,11 @@ export class InvoiceService {
       endDate: request.endDate || null
     };
 
-    return this.http.post<InvoiceResponse[]>(`${this.controller}invoice/search`, body);
+    return this.http.post<InvoiceResponse[]>(`${this.controller}invoice/search`, body).pipe(
+      map(invoices =>
+        (invoices ?? []).map(inv => this.mappingService.mapInvoiceResponse(inv as unknown as Record<string, unknown>))
+      )
+    );
   }
 
   deactivateInvoicesByReservationId(reservationId: string): Observable<{ deactivatedCount: number }> {

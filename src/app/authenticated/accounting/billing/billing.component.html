@@ -68,6 +68,13 @@
                 }
               </mat-form-field>
 
+              <mat-form-field appearance="outline" class="col-span-1">
+                <mat-label>Accounting Period</mat-label>
+                <input matInput [matDatepicker]="accountingPeriodPicker" formControlName="accountingPeriod">
+                <mat-datepicker-toggle matIconSuffix [for]="accountingPeriodPicker"></mat-datepicker-toggle>
+                <mat-datepicker #accountingPeriodPicker></mat-datepicker>
+              </mat-form-field>
+
               @if (isAddMode) {
                 <mat-form-field appearance="outline" class="col-span-1">
                   <mat-label>Start Date</mat-label>

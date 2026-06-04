@@ -24,7 +24,8 @@ export interface InvoiceRequest {
   startDate: string;
   endDate: string;
   invoiceDate: CalendarDateString;
-  dueDate?: CalendarDateString;
+  dueDate: CalendarDateString;
+  accountingPeriod: CalendarDateString;
   invoicePeriod?: string;
   totalAmount: number;
   paidAmount: number;
@@ -49,7 +50,8 @@ export interface InvoiceResponse {
   startDate: string;
   endDate: string;
   invoiceDate: CalendarDateString;
-  dueDate?: CalendarDateString;
+  dueDate: CalendarDateString;
+  accountingPeriod: CalendarDateString;
   invoicePeriod?: string;
   totalAmount: number;
   paidAmount: number;
@@ -60,28 +62,6 @@ export interface InvoiceResponse {
   createdBy: string;
   modifiedOn: string;
   modifiedBy: string;
-}
-
-export interface InvoiceListDisplay {
-  invoiceId: string;
-  organizationId: string;
-  officeId: number;
-  officeName: string;
-  invoiceCode: string;
-  reservationId?: string | null;
-  reservationCode?: string | null;
-  propertyId?: string | null;
-  propertyCode?: string | null;
-  contactId?: string | null;
-  contactName?: string | null;
-  responsibleParty: string | null;
-  startDate: string;
-  endDate: string;
-  totalAmount: number;
-  paidAmount: number;
-  dueAmount: number;
-  isActive: boolean;
-  ledgerLines: LedgerLineResponse[];
 }
 
 export interface InvoiceMonthlyDataRequest {

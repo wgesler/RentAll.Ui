@@ -424,6 +424,7 @@ export class WorkOrderComponent implements OnInit, OnChanges, OnDestroy {
       endDate: todayCalendar,
       invoiceDate: todayCalendar,
       dueDate: todayCalendar,
+      accountingPeriod: this.utilityService.toDateOnlyJsonString(new Date(now.getFullYear(), now.getMonth(), 1)),
       invoicePeriod: `${this.formatter.dateOnly(now)} - ${this.formatter.dateOnly(now)}`,
       totalAmount: roundedTotalAmount,
       paidAmount: 0,

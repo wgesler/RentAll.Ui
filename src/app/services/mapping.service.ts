@@ -1,7 +1,7 @@
 import { Injectable } from '@angular/core';
 import { TransactionType, getTransactionTypeLabel } from '../authenticated/accounting/models/accounting-enum';
 import { CostCodesListDisplay, CostCodesRequest, CostCodesResponse } from '../authenticated/accounting/models/cost-codes.model';
-import { LedgerLineListDisplay, LedgerLineResponse } from '../authenticated/accounting/models/invoice.model';
+import { InvoiceResponse, LedgerLineListDisplay, LedgerLineResponse } from '../authenticated/accounting/models/invoice.model';
 import { EntityType, getEntityType } from '../authenticated/contacts/models/contact-enum';
 import { ContactListDisplay, ContactRequest, ContactResponse } from '../authenticated/contacts/models/contact.model';
 import { DocumentType, getDocumentTypeLabel } from '../authenticated/documents/models/document.enum';
@@ -255,11 +255,55 @@ export class MappingService {
         vendorTypeId = Number.isFinite(n) ? n : null;
       }
     }
+    const rawPaymentTermsId = raw['paymentTermsId'] ?? raw['PaymentTermsId'];
+    const paymentTermsId =
+      rawPaymentTermsId === undefined || rawPaymentTermsId === null || rawPaymentTermsId === ''
+        ? null
+        : (Number.isFinite(Number(rawPaymentTermsId)) ? Number(rawPaymentTermsId) : null);
+
     return {
       ...base,
       officeAccess,
       officeId,
-      vendorTypeId
+      vendorTypeId,
+      paymentTermsId
+    };
+  }
+
+  /** Full contact PUT body from API response — use for inline saves so optional fields are not cleared. */
+  mapContactResponseToUpdateRequest(
+    contact: ContactResponse,
+    overrides: Partial<ContactRequest> = {}
+  ): ContactRequest {
+    const { fullName: _fullName, officeName: _officeName, ...requestBase } = contact;
+    const officeAccess = this.normalizeOfficeAccessNumbers(contact.officeAccess);
+    const resolvedOfficeAccess = officeAccess.length > 0
+      ? officeAccess
+      : (Number.isFinite(Number(contact.officeId)) && Number(contact.officeId) > 0 ? [Number(contact.officeId)] : []);
+    const isActive =
+      typeof contact.isActive === 'number' ? contact.isActive === 1 : !!contact.isActive;
+
+    return {
+      ...requestBase,
+      contactId: contact.contactId,
+      organizationId: contact.organizationId,
+      officeId: contact.officeId,
+      officeAccess: resolvedOfficeAccess,
+      entityTypeId: contact.entityTypeId,
+      ownerTypeId: contact.ownerTypeId ?? null,
+      vendorTypeId: contact.vendorTypeId ?? null,
+      properties: contact.properties ?? [],
+      paymentTermsId: contact.paymentTermsId ?? null,
+      bankName: contact.bankName ?? null,
+      routingNumber: contact.routingNumber ?? null,
+      accountNumber: contact.accountNumber ?? null,
+      markup: contact.markup ?? null,
+      revenueSplitOwner: contact.revenueSplitOwner ?? null,
+      revenueSplitOffice: contact.revenueSplitOffice ?? null,
+      workingCapitalBalance: contact.workingCapitalBalance ?? null,
+      linenAndTowelFee: contact.linenAndTowelFee ?? null,
+      isActive,
+      ...overrides
     };
   }
 
@@ -477,6 +521,57 @@ export class MappingService {
       description: costCode.description || '',
       isActive
     };
+  }
+
+  mapInvoiceResponse(raw: Record<string, unknown>): InvoiceResponse {
+    const base = raw as unknown as InvoiceResponse;
+    const invoiceDate =
+      this.utility.coerceCalendarDateStringFromApi(raw['invoiceDate'] ?? raw['InvoiceDate'] ?? base.invoiceDate) ??
+      base.invoiceDate ??
+      '';
+    const dueDate =
+      this.utility.coerceCalendarDateStringFromApi(raw['dueDate'] ?? raw['DueDate'] ?? base.dueDate) ??
+      invoiceDate;
+    const accountingPeriod =
+      this.utility.coerceCalendarDateStringFromApi(
+        raw['accountingPeriod'] ?? raw['AccountingPeriod'] ?? base.accountingPeriod
+      ) ?? this.firstDayOfMonthCalendarDate(invoiceDate);
+    const createdOn =
+      this.utility.coerceDateTimeOffsetStringFromApi(raw['createdOn'] ?? raw['CreatedOn'] ?? base.createdOn) ??
+      base.createdOn ??
+      '';
+    const modifiedOn =
+      this.utility.coerceDateTimeOffsetStringFromApi(raw['modifiedOn'] ?? raw['ModifiedOn'] ?? base.modifiedOn) ??
+      base.modifiedOn ??
+      '';
+    const invoicePeriod = String(raw['invoicePeriod'] ?? raw['InvoicePeriod'] ?? base.invoicePeriod ?? '');
+    const { startDate, endDate } = this.utility.invoicePeriodStartEnd(
+      invoicePeriod,
+      base.startDate,
+      base.endDate
+    );
+
+    return {
+      ...base,
+      invoiceDate,
+      dueDate,
+      accountingPeriod,
+      invoicePeriod: invoicePeriod || base.invoicePeriod,
+      startDate,
+      endDate,
+      createdOn,
+      modifiedOn,
+      ledgerLines: base.ledgerLines ?? []
+    };
+  }
+
+  /** First calendar day of the month for `YYYY-MM-DD` (or `YYYY-MM` prefix). */
+  private firstDayOfMonthCalendarDate(calendarDate: string): string {
+    const match = /^(\d{4})-(\d{2})/.exec(calendarDate.trim());
+    if (!match) {
+      return calendarDate;
+    }
+    return `${match[1]}-${match[2]}-01`;
   }
 
   mapLedgerLines(ledgerLines: LedgerLineResponse[], costCodes?: CostCodesResponse[], transactionTypes?: { value: number, label: string }[]): LedgerLineListDisplay[] {
@@ -914,18 +1009,7 @@ export class MappingService {
   }
 
   mapContactToOwnerLeadLinkRequest(contact: ContactResponse, ownerLeadId: number): ContactRequest {
-    const { fullName: _fullName, officeName: _officeName, ...requestBase } = contact;
-    const officeAccess = Array.from(new Set((contact.officeAccess || [])
-      .map(value => Number(value))
-      .filter(value => Number.isFinite(value) && value > 0)));
-    const resolvedOfficeAccess = officeAccess.length > 0
-      ? officeAccess
-      : (Number.isFinite(Number(contact.officeId)) && Number(contact.officeId) > 0 ? [Number(contact.officeId)] : []);
-    return {
-      ...requestBase,
-      officeAccess: resolvedOfficeAccess,
-      ownerLeadId
-    };
+    return this.mapContactResponseToUpdateRequest(contact, { ownerLeadId });
   }
 
   mapLeadOwnerListRow(lead: LeadOwnerResponse): LeadOwnerListDisplay {
