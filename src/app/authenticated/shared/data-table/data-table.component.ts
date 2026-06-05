@@ -407,7 +407,7 @@ export class DataTableComponent implements OnChanges, OnInit, AfterViewInit, OnD
         updateActions = true;
       } else if (!updateTools && ['hasButton', 'hasFilter', 'hasToggle'].some(prefix => key.startsWith(prefix))) {
         updateTools = true;
-      } else if (!updateColumns && ['columns', 'hasColumn'].some(prefix => key.startsWith(prefix))) {
+      } else if (!updateColumns && (key === 'columns' || key.startsWith('hasColumn') || key === 'hasActionsSelect' || key === 'hasButtonSelectAll')) {
         updateColumns = true;
       } else if (key === 'data') {
         updateData = true;

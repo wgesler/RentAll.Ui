@@ -53,7 +53,9 @@
           [hasFilter]="true"
           [hasToggleTop]="false"
           [hasButtonTop]="false"
-                [hasActionsRowClick]="!showPaymentForm"
+          [hasActionsSelect]="showSelections"
+          [hasButtonSelectAll]="showSelections"
+          [hasActionsRowClick]="!showPaymentForm"
           [hasActionsView]="true"
           [hasActionsEdit]="true"
           [hasActionsDelete]="true"
@@ -82,7 +84,8 @@
           (deleteEvent)="deleteInvoice($event)"
           (reservationCodeClickEvent)="goToReservation($event)"
           (payableEvent)="onPayable($event)"
-          (printEvent)="printInvoice($event)">
+          (printEvent)="printInvoice($event)"
+          (selectionSet)="onInvoiceSelectionSet($event)">
           <div dataTableFilterActions>
             <div class="table-filter-actions-group form-titlebar-actions-wrap uniform-gap payment-actions-anchor">
               <mat-slide-toggle id="toggle-invoices" [checked]="showInactive" color="primary" (change)="onInactiveToggleChange($event)" class="whitespace-nowrap">
@@ -93,12 +96,15 @@
                   ShowPaid
                 </mat-slide-toggle>
               }
+              <mat-slide-toggle id="toggle-invoices-show-selections" [checked]="showSelections" color="primary" (change)="onShowSelectionsToggleChange($event)" class="whitespace-nowrap">
+                Show Selections
+              </mat-slide-toggle>
               @if (canShowApplyPaymentButton) {
                 <button mat-raised-button type="button" color="accent" id="apply-payment-button" (click)="openApplyPaymentDialog()" class="whitespace-nowrap items-center flex gap-1">
                   Apply Payment
                 </button>
               }
-              <button mat-raised-button type="button" color="accent" id="export-invoice-button" (click)="exportInvoicesToIif()" class="whitespace-nowrap items-center flex gap-1">
+              <button mat-raised-button type="button" color="accent" id="export-invoice-button" (click)="exportInvoicesToIif()" [disabled]="selectedInvoiceIds.size === 0" class="whitespace-nowrap items-center flex gap-1">
                 <mat-icon class="text-base">download</mat-icon>
                 <span>Export</span>
               </button>

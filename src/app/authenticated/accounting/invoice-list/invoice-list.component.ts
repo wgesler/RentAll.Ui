@@ -1,4 +1,5 @@
 import { CommonModule } from "@angular/common";
+import { SelectionModel } from '@angular/cdk/collections';
 import { HttpErrorResponse } from '@angular/common/http';
 import { ChangeDetectionStrategy, ChangeDetectorRef, Component, EventEmitter, Input, NgZone, OnChanges, OnDestroy, OnInit, Output, SimpleChanges, TemplateRef, ViewChild } from '@angular/core';
 import { FormsModule } from '@angular/forms';
@@ -67,6 +68,11 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
   isAllExpanded: boolean = false; // Track if all rows are expanded
   loadingInvoiceLedgerLines: Set<string> = new Set();
 
+  // Selection/Export
+  selectedInvoiceIds: Set<string> = new Set();
+  selectedInvoices: InvoiceResponse[] = [];
+  showSelections = false;
+
   offices: OfficeResponse[] = [];
   availableOffices: { value: number, name: string }[] = [];
   selectedOffice: OfficeResponse | null = null;
@@ -111,7 +117,7 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
     no: { displayAs: 'No', maxWidth: '5ch', sort: false, wrap: false },
     reservationCode: { displayAs: 'Reservation', maxWidth: '15ch', sortType: 'natural' },
     propertyCode: { displayAs: 'Property', maxWidth: '15ch', sortType: 'natural', wrap: false },
-    responsibleParty: { displayAs: 'Recipient',  wrap: false, maxWidth: '25ch' },
+    responsibleParty: { displayAs: 'Recipient',  wrap: false, maxWidth: '20ch' },
     invoiceNumber: { displayAs: 'Invoice', maxWidth: '15ch', sortType: 'natural' },
     period: { displayAs: 'Period', maxWidth: '12ch', alignment: 'center' },
     invoiceDate: { displayAs: 'Invoice Date', maxWidth: '15ch', alignment: 'center' },
@@ -369,94 +375,6 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
     }
     this.router.navigateByUrl(params.length > 0 ? `${url}?${params.join('&')}` : url);
   }
-
-  //#region Quickbooks Support
-  exportInvoicesToIif(): void {
-    if (!this.invoicesDisplay || this.invoicesDisplay.length === 0) {
-      this.toastr.warning('No invoices available to export.', 'Export');
-      return;
-    }
-
-    const invoiceIds = this.invoicesDisplay
-      .map(invoice => invoice?.invoiceId)
-      .filter((invoiceId): invoiceId is string => !!invoiceId);
-    if (invoiceIds.length === 0) {
-      this.toastr.warning('No invoice records were found to export.', 'Export');
-      return;
-    }
-
-    this.utilityService.addLoadItem(this.itemsToLoad$, 'invoiceExport');
-    from(invoiceIds).pipe(
-      concatMap(invoiceId => this.accountingService.getInvoiceByGuid(invoiceId).pipe(take(1))),
-      toArray(),
-      finalize(() => this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'invoiceExport'))
-    ).subscribe({
-      next: (invoices) => {
-        const reservationsById = new Map<string, ReservationListResponse>();
-        this.reservations.forEach(reservation => reservationsById.set(reservation.reservationId, reservation));
-
-        const propertyIds = Array.from(new Set(
-          invoices
-            .map(invoice => reservationsById.get(invoice.reservationId || '')?.propertyId)
-            .filter((propertyId): propertyId is string => !!propertyId)
-        ));
-
-        from(propertyIds).pipe(
-          concatMap(propertyId => this.propertyService.getPropertyByGuid(propertyId).pipe(take(1))),
-          toArray()
-        ).subscribe({
-          next: (properties) => {
-            const propertyById = new Map<string, { city: string; propertyCode: string }>();
-            properties.forEach(property => {
-              propertyById.set(property.propertyId, {
-                city: String(property.city || '').trim(),
-                propertyCode: String(property.propertyCode || '').trim()
-              });
-            });
-
-            const classAndMemoByInvoiceId: Record<string, string> = {};
-            const nameByInvoiceId: Record<string, string> = {};
-            invoices.forEach(invoice => {
-              const reservation = reservationsById.get(invoice.reservationId || '');
-              const property = reservation?.propertyId ? propertyById.get(reservation.propertyId) : undefined;
-              const city = String(property?.city || '').trim();
-              const propertyCode = String(property?.propertyCode || reservation?.propertyCode || '').trim();
-              classAndMemoByInvoiceId[invoice.invoiceId] = [city, propertyCode].filter(value => !!value).join(':');
-
-              const recipient = String(this.getRecipientDisplay(invoice) || '').trim();
-              const reservationCode = String(reservation?.reservationCode || invoice.reservationCode || '').trim().replace(/^R-/i, '');
-              const occupantName = String(reservation?.tenantName || '').trim();
-              const job = [reservationCode, occupantName].filter(value => !!value).join(' ');
-              nameByInvoiceId[invoice.invoiceId] = job && recipient ? `${recipient}:${job}` : (recipient || job);
-            });
-
-            const iifContent = this.invoiceIifExportService.generateInvoicesIifContent(invoices, this.allCostCodes, {
-              nameByInvoiceId,
-              classByInvoiceId: classAndMemoByInvoiceId,
-              memoByInvoiceId: classAndMemoByInvoiceId
-            });
-            const fileName = `invoices-${this.utilityService.todayAsCalendarDateString()}.iif`;
-            const blob = new Blob([iifContent], { type: 'text/plain;charset=utf-8;' });
-            const url = URL.createObjectURL(blob);
-            const link = document.createElement('a');
-            link.href = url;
-            link.download = fileName;
-            link.click();
-            URL.revokeObjectURL(url);
-          },
-          error: () => {
-            this.toastr.error('Failed to load property details for invoice export.', CommonMessage.Error);
-            this.markViewForCheck();
-          }
-        });
-      },
-      error: () => {
-        this.toastr.error('Failed to export invoices.', CommonMessage.Error);
-        this.markViewForCheck();
-      }
-    });
-  }
-  //#endregion
   //#endregion
 
   //#region Action Methods
@@ -722,6 +640,7 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
       
       return {
       ...invoice,
+      selected: this.showSelections && this.selectedInvoiceIds.has(invoice.invoiceId),
       invoiceNumber: invoice.invoiceCode || '',
       reservationCode: this.getCompanyCodeDisplay(invoice),
       propertyCode: (invoice.propertyCode || '').trim() || '—',
@@ -946,6 +865,119 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
     this.isAllExpanded = this.invoicesDisplay.every(invoice => 
       invoice.invoiceId && this.expandedInvoices.has(invoice.invoiceId)
     );
+  }
+  //#endregion
+
+  //#region Selection/Export Methods
+  onShowSelectionsToggleChange(event: MatSlideToggleChange): void {
+    this.showSelections = event.checked;
+    if (!this.showSelections) {
+      this.selectedInvoiceIds.clear();
+      this.selectedInvoices = [];
+      this.applyFilters();
+    }
+    this.markViewForCheck();
+  }
+
+  onInvoiceSelectionSet(selection: SelectionModel<unknown>): void {
+    const selectedRows = (selection?.selected ?? []) as { invoiceId?: string; selected?: boolean }[];
+    if (selectedRows.length > 0) {
+      this.selectedInvoiceIds = new Set(
+        selectedRows
+          .map(row => String(row.invoiceId ?? '').trim())
+          .filter(id => id.length > 0)
+      );
+    } else {
+      const idsFromDisplay = this.invoicesDisplay
+        .filter(row => row.selected && row.invoiceId)
+        .map(row => String(row.invoiceId));
+      if (idsFromDisplay.length > 0) {
+        this.selectedInvoiceIds = new Set(idsFromDisplay);
+      } else {
+        this.selectedInvoiceIds.clear();
+      }
+    }
+    this.selectedInvoices = this.allInvoices.filter(inv => this.selectedInvoiceIds.has(inv.invoiceId));
+    this.markViewForCheck();
+  }
+
+  exportInvoicesToIif(): void {
+    const invoiceIds = Array.from(this.selectedInvoiceIds);
+    if (invoiceIds.length === 0) {
+      this.toastr.warning('Select one or more invoices to export.', 'Export');
+      return;
+    }
+
+    this.utilityService.addLoadItem(this.itemsToLoad$, 'invoiceExport');
+    from(invoiceIds).pipe(
+      concatMap(invoiceId => this.accountingService.getInvoiceByGuid(invoiceId).pipe(take(1))),
+      toArray(),
+      finalize(() => this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'invoiceExport'))
+    ).subscribe({
+      next: (invoices) => {
+        const reservationsById = new Map<string, ReservationListResponse>();
+        this.reservations.forEach(reservation => reservationsById.set(reservation.reservationId, reservation));
+
+        const propertyIds = Array.from(new Set(
+          invoices
+            .map(invoice => reservationsById.get(invoice.reservationId || '')?.propertyId)
+            .filter((propertyId): propertyId is string => !!propertyId)
+        ));
+
+        from(propertyIds).pipe(
+          concatMap(propertyId => this.propertyService.getPropertyByGuid(propertyId).pipe(take(1))),
+          toArray()
+        ).subscribe({
+          next: (properties) => {
+            const propertyById = new Map<string, { city: string; propertyCode: string }>();
+            properties.forEach(property => {
+              propertyById.set(property.propertyId, {
+                city: String(property.city || '').trim(),
+                propertyCode: String(property.propertyCode || '').trim()
+              });
+            });
+
+            const classAndMemoByInvoiceId: Record<string, string> = {};
+            const nameByInvoiceId: Record<string, string> = {};
+            invoices.forEach(invoice => {
+              const reservation = reservationsById.get(invoice.reservationId || '');
+              const property = reservation?.propertyId ? propertyById.get(reservation.propertyId) : undefined;
+              const city = String(property?.city || '').trim();
+              const propertyCode = String(property?.propertyCode || reservation?.propertyCode || '').trim();
+              classAndMemoByInvoiceId[invoice.invoiceId] = [city, propertyCode].filter(value => !!value).join(':');
+
+              const recipient = String(this.getRecipientDisplay(invoice) || '').trim();
+              const reservationCode = String(reservation?.reservationCode || invoice.reservationCode || '').trim().replace(/^R-/i, '');
+              const occupantName = String(reservation?.tenantName || '').trim();
+              const job = [reservationCode, occupantName].filter(value => !!value).join(' ');
+              nameByInvoiceId[invoice.invoiceId] = job && recipient ? `${recipient}:${job}` : (recipient || job);
+            });
+
+            const iifContent = this.invoiceIifExportService.generateInvoicesIifContent(invoices, this.allCostCodes, {
+              nameByInvoiceId,
+              classByInvoiceId: classAndMemoByInvoiceId,
+              memoByInvoiceId: classAndMemoByInvoiceId
+            });
+            const fileName = `invoices-${this.utilityService.todayAsCalendarDateString()}.iif`;
+            const blob = new Blob([iifContent], { type: 'text/plain;charset=utf-8;' });
+            const url = URL.createObjectURL(blob);
+            const link = document.createElement('a');
+            link.href = url;
+            link.download = fileName;
+            link.click();
+            URL.revokeObjectURL(url);
+          },
+          error: () => {
+            this.toastr.error('Failed to load property details for invoice export.', CommonMessage.Error);
+            this.markViewForCheck();
+          }
+        });
+      },
+      error: () => {
+        this.toastr.error('Failed to export invoices.', CommonMessage.Error);
+        this.markViewForCheck();
+      }
+    });
   }
   //#endregion
 
