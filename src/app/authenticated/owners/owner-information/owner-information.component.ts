@@ -1,5 +1,5 @@
 import { CommonModule } from '@angular/common';
-import { Component, Input, OnChanges, OnDestroy, OnInit, SimpleChanges } from '@angular/core';
+import { Component, EventEmitter, Input, OnChanges, OnDestroy, OnInit, Output, SimpleChanges } from '@angular/core';
 import { FormBuilder, FormGroup, ReactiveFormsModule } from '@angular/forms';
 import { BehaviorSubject, Subject, finalize, take, takeUntil } from 'rxjs';
 import { ToastrService } from 'ngx-toastr';
@@ -29,6 +29,7 @@ export class OwnerInformationComponent implements OnInit, OnChanges, OnDestroy {
   @Input() ownerLeadId: number | null = null;
   @Input() ownerContactId: string | null = null;
   @Input() selectedOfficeId: number | null = null;
+  @Output() ownerContextChanged = new EventEmitter<void>();
 
   ownerForm: FormGroup = this.buildForm();
   isSaving = false;
@@ -347,6 +348,7 @@ export class OwnerInformationComponent implements OnInit, OnChanges, OnDestroy {
       this.primaryOwnerContactId = contactId;
       this.syncCurrentContactFromList();
     }
+    this.ownerContextChanged.emit();
   }
 
   onAddAdditionalOwnerRequested(): void {
@@ -410,6 +412,7 @@ export class OwnerInformationComponent implements OnInit, OnChanges, OnDestroy {
         }
         this.publicOwnerFormSnapshot = response;
         this.applyOwnerFormResponse(response);
+        this.ownerContextChanged.emit();
         this.toastr.success('Owner information saved.', CommonMessage.Success);
       },
       error: () => {
@@ -484,6 +487,7 @@ export class OwnerInformationComponent implements OnInit, OnChanges, OnDestroy {
         }
         this.leadOwnerSnapshot = updated;
         this.applyOwnerLeadPrefill(updated);
+        this.ownerContextChanged.emit();
         this.toastr.success('Owner information saved.', CommonMessage.Success);
       },
       error: () => {

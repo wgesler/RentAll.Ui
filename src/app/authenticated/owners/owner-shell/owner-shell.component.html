@@ -72,7 +72,8 @@
                 [ownerEntityTypeId]="ownerEntityTypeId"
                 [ownerLeadId]="leadOwnerId"
                 [ownerContactId]="selectedOwnerContactId"
-                [selectedOfficeId]="selectedOfficeId">
+                [selectedOfficeId]="selectedOfficeId"
+                (ownerContextChanged)="onOwnerAgreementContextRefresh()">
               </app-owner-information>
             </mat-tab>
 
@@ -89,7 +90,8 @@
                 [shellPropertyCity]="selectedPropertyId === newPropertyOptionValue ? ownerLeadPropertyCity : null"
                 [shellPropertyState]="selectedPropertyId === newPropertyOptionValue ? ownerLeadPropertyState : null"
                 [shellPropertyZip]="selectedPropertyId === newPropertyOptionValue ? ownerLeadPropertyZip : null"
-                (titleBarPropertyCodeInvalid)="onTitleBarPropertyCodeInvalid()">
+                (titleBarPropertyCodeInvalid)="onTitleBarPropertyCodeInvalid()"
+                (propertyContextChanged)="onOwnerAgreementContextRefresh()">
               </app-property-information>
             </mat-tab>
 
@@ -108,9 +110,7 @@
                   [ownerLeadId]="leadOwnerId"
                   [officeId]="selectedOfficeId"
                   [propertyId]="selectedPropertyId === newPropertyOptionValue ? null : selectedPropertyId"
-                  [sharedContext$]="ownerAgreementContext$"
-                  [openInViewOnTabSelect]="selectedTabIndex === getAgreementTabIndex()"
-                  [hideEditButtonInViewMode]="selectedTabIndex === getAgreementTabIndex()">
+                  [sharedContext$]="ownerAgreementContext$">
                 </app-owner-agreement-form>
               }
             </mat-tab>

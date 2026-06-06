@@ -735,7 +735,7 @@ export class OwnerAgreementFormComponent extends BaseDocumentComponent implement
     });
   }
 
-  replaceAgreementPlaceholders(html: string): string { 
+  replaceAgreementPlaceholders(html: string): string {
     const today = this.formatterService.formatDateStringLong(this.utilityService.todayAsCalendarDateString()) || '';
     const agreementStartDate = this.getAgreementStartDate();
     const signerName = `${this.authService.getUser()?.firstName || ''} ${this.authService.getUser()?.lastName || ''}`.trim();
@@ -815,11 +815,15 @@ export class OwnerAgreementFormComponent extends BaseDocumentComponent implement
       onlineFee: this.getOnlineFee() || '',
       offlineFee: this.getOfflineFee() || '',
       monthlyRent: this.getInlineFillTokenValue(monthlyRent),
+      ownerMinimumMonthly: this.getInlineFillTokenValue(this.getPropertyAgreementFlatRateAmountText()),
+      ownerFlatMonthly: this.getInlineFillTokenValue(this.getPropertyAgreementFlatRateAmountText()),
       officeLogoBase64: officeLogo
     };
 
     let content = this.ownerFormPlaceholderService.replaceTokens(
-      replaceOwnerAgreementInformationSections(html, this.agreementInformation),
+      replaceOwnerAgreementInformationSections(html, this.agreementInformation, {
+        managementFeeTypeId: this.propertyAgreement?.managementFeeTypeId ?? null
+      }),
       tokenValues,
       { highlightUnresolved: false }
     );
@@ -1076,6 +1080,7 @@ export class OwnerAgreementFormComponent extends BaseDocumentComponent implement
       .inline-underline-fill,
       .owner-editable-field {
         position: relative;
+        border-bottom: none !important;
         border-radius: 4px !important;
         background-clip: padding-box;
         padding: 0 4px 1pt 4px;
@@ -1976,6 +1981,19 @@ export class OwnerAgreementFormComponent extends BaseDocumentComponent implement
       return '';
     }
     return `${lowFormatted} - ${highFormatted}`;
+  }
+
+  /** Plain currency text for tokens inside an existing inline-underline-fill span (property agreement flat rate). */
+  getPropertyAgreementFlatRateAmountText(): string {
+    const value = this.propertyAgreement?.flatRateAmount;
+    if (value == null) {
+      return '';
+    }
+    const parsed = Number(String(value).replace(/[$,]/g, ''));
+    if (!Number.isFinite(parsed) || parsed === 0) {
+      return '';
+    }
+    return this.formatAgreementCurrencyRaw(parsed);
   }
 
   getEmptyUnderlineSpan(): string {

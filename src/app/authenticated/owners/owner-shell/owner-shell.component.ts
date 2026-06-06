@@ -161,10 +161,6 @@ export class OwnerShellComponent implements OnInit, OnDestroy {
     return tabIndex >= 1;
   }
 
-  getAgreementTabIndex(): number {
-    return this.canAccessInformationTab ? 3 : 2;
-  }
-
   /** Mirrors reservation Lease tab: mount once office + property context exist; stays alive when switching tabs. */
   canMountOwnerAgreementTab(): boolean {
     if (this.selectedOfficeId == null) {
@@ -199,6 +195,13 @@ export class OwnerShellComponent implements OnInit, OnDestroy {
       const propertyId = this.selectedPropertyId === this.newPropertyOptionValue ? null : this.selectedPropertyId;
       return this.ownersService.getOwnerAgreementContextByContext(token, this.leadOwnerId, propertyId, this.selectedOfficeId);
     }).pipe(shareReplay(1));
+  }
+
+  onOwnerAgreementContextRefresh(): void {
+    if (this.isOwnerListMode || !this.canMountOwnerAgreementTab()) {
+      return;
+    }
+    this.rebuildOwnerAgreementContext();
   }
   //#endregion
 

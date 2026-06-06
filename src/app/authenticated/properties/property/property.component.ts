@@ -97,6 +97,7 @@ export class PropertyComponent implements OnInit, OnChanges, AfterViewInit, OnDe
   @Input() publicOwnerToken: string | null = null;
   @Output() titleBarContextChange = new EventEmitter<PropertyTitleBarContext>();
   @Output() titleBarPropertyCodeInvalid = new EventEmitter<void>();
+  @Output() ownerShellContextChanged = new EventEmitter<void>();
 
   propertyId: string;
   property: PropertyResponse;
@@ -532,6 +533,7 @@ export class PropertyComponent implements OnInit, OnChanges, AfterViewInit, OnDe
           this.captureSavedStateSignature();
           this.welcomeLetterReloadService.triggerReload();
           this.documentReloadService.triggerReload();
+          this.notifyOwnerShellContextChangedIfEmbedded();
           this.loadReservations();
           onComplete?.(true);
         },
@@ -566,6 +568,7 @@ export class PropertyComponent implements OnInit, OnChanges, AfterViewInit, OnDe
 
           this.welcomeLetterReloadService.triggerReload();
           this.documentReloadService.triggerReload();
+          this.notifyOwnerShellContextChangedIfEmbedded();
           this.loadReservations();
           onComplete?.(true);
         },
@@ -591,6 +594,7 @@ export class PropertyComponent implements OnInit, OnChanges, AfterViewInit, OnDe
           this.captureSavedStateSignature();
           this.welcomeLetterReloadService.triggerReload();
           this.documentReloadService.triggerReload();
+          this.notifyOwnerShellContextChangedIfEmbedded();
           onComplete?.(ok);
         },
         error: () => {
@@ -598,6 +602,16 @@ export class PropertyComponent implements OnInit, OnChanges, AfterViewInit, OnDe
         }
       });
     }
+  }
+
+  private notifyOwnerShellContextChangedIfEmbedded(): void {
+    const isEmbeddedInOwnerShell =
+      String(this.shellPropertyId ?? '').trim().length > 0 ||
+      String(this.publicOwnerToken ?? '').trim().length > 0;
+    if (!isEmbeddedInOwnerShell) {
+      return;
+    }
+    this.ownerShellContextChanged.emit();
   }
   //#endregion
 

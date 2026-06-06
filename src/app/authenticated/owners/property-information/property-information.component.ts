@@ -78,6 +78,7 @@ export class PropertyInformationComponent implements OnChanges, OnDestroy {
   @Input() shellPropertyState: string | null = null;
   @Input() shellPropertyZip: string | null = null;
   @Output() titleBarPropertyCodeInvalid = new EventEmitter<void>();
+  @Output() propertyContextChanged = new EventEmitter<void>();
 
   ownerForm: FormGroup = this.buildForm();
   isPageReady = false;
