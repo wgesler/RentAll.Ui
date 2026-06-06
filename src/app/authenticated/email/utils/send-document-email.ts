@@ -19,6 +19,13 @@ export function splitEmailList(value: string): string[] {
     .filter(email => email.length > 0);
 }
 
+export function mapManualEmailRecipients(emails: string[] | undefined): EmailAddress[] {
+  return (emails || [])
+    .map(email => email.trim())
+    .filter(email => email.length > 0)
+    .map(email => ({ email, name: null }));
+}
+
 export async function sendDocumentEmail(
   deps: SendDocumentEmailDependencies,
   documentConfig: DocumentConfig,
@@ -53,14 +60,8 @@ export async function sendDocumentEmail(
     email: emailConfig.fromEmail,
     name: emailConfig.fromName
   };
-  const ccRecipients: EmailAddress[] = (emailConfig.ccEmails || [])
-    .map(email => email.trim())
-    .filter(Boolean)
-    .map(email => ({ email, name: '' }));
-  const bccRecipients: EmailAddress[] = (emailConfig.bccEmails || [])
-    .map(email => email.trim())
-    .filter(Boolean)
-    .map(email => ({ email, name: '' }));
+  const ccRecipients = mapManualEmailRecipients(emailConfig.ccEmails);
+  const bccRecipients = mapManualEmailRecipients(emailConfig.bccEmails);
 
   const emailRequest: EmailRequest = {
     organizationId: documentConfig.organizationId!,

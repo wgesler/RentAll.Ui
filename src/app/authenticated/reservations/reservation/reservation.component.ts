@@ -2482,12 +2482,12 @@ export class ReservationComponent implements OnInit, OnDestroy, CanComponentDeac
     return String(office?.emailListForReservations || '').trim();
   }
 
-  parseSemicolonEmailRecipients(value: string): { email: string; name: string }[] {
+  parseSemicolonEmailRecipients(value: string): { email: string; name: string | null }[] {
     return (value || '')
       .split(';')
       .map(email => email.trim())
       .filter(email => email.length > 0)
-      .map(email => ({ email, name: '' }));
+      .map(email => ({ email, name: null }));
   }
 
   getReservationNotificationLabel(reservation: ReservationResponse): string {

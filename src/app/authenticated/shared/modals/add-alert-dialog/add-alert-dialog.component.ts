@@ -11,6 +11,7 @@ import { UtilityService } from '../../../../services/utility.service';
 import { EmailType } from '../../../email/models/email.enum';
 import { AlertRequest } from '../../../email/models/alert.model';
 import { AlertService } from '../../../email/services/alert.service';
+import { mapManualEmailRecipients } from '../../../email/utils/send-document-email';
 import { OfficeResponse } from '../../../organizations/models/office.model';
 import { OfficeService } from '../../../organizations/services/office.service';
 import { PropertyListResponse } from '../../../properties/models/property.model';
@@ -119,10 +120,7 @@ export class AddAlertDialogComponent implements OnInit, OnDestroy {
         email: fromEmail,
         name: fromName
       },
-      toRecipients: [{
-        email: toEmail,
-        name: ''
-      }],
+      toRecipients: mapManualEmailRecipients([toEmail]),
       ccRecipients: this.parseEmailAddresses(String(value.ccEmails || '').trim()),
       bccRecipients: this.parseEmailAddresses(String(value.bccEmails || '').trim()),
       subject: String(value.subject || '').trim(),
@@ -357,12 +355,10 @@ export class AddAlertDialogComponent implements OnInit, OnDestroy {
     };
   }
 
-  parseEmailAddresses(value: string): { email: string; name: string }[] {
-    return (value || '')
-      .split(';')
-      .map(email => email.trim())
-      .filter(email => email.length > 0)
-      .map(email => ({ email, name: '' }));
+  parseEmailAddresses(value: string) {
+    return mapManualEmailRecipients(
+      (value || '').split(';').map(email => email.trim()).filter(email => email.length > 0)
+    );
   }
 
   ensureTicketSubjectDefault(): void {

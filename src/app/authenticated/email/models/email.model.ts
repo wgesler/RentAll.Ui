@@ -12,7 +12,7 @@ export interface EmailGetRequest {
 
 export interface EmailAddress {
   email: string;
-  name: string;
+  name: string | null;
 }
 
 export interface EmailRequest {

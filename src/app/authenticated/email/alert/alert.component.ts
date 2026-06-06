@@ -14,6 +14,7 @@ import { EmailType } from '../models/email.enum';
 import { getFrequencies } from '../../reservations/models/reservation-enum';
 import { AlertRequest, AlertResponse } from '../models/alert.model';
 import { AlertService } from '../services/alert.service';
+import { mapManualEmailRecipients } from '../utils/send-document-email';
 import { OfficeResponse } from '../../organizations/models/office.model';
 import { OfficeService } from '../../organizations/services/office.service';
 import { PropertyListResponse } from '../../properties/models/property.model';
@@ -157,10 +158,7 @@ export class AlertComponent implements OnInit, OnChanges, OnDestroy {
         email: String(user?.email || '').trim(),
         name: this.getCurrentUserName()
       },
-      toRecipients: [{
-        email: String(value.toEmail || '').trim(),
-        name: this.alert?.toRecipients?.[0]?.name || ''
-      }],
+      toRecipients: mapManualEmailRecipients([String(value.toEmail || '').trim()]),
       ccRecipients: this.parseEmailAddresses(String(value.ccEmails || '').trim()),
       bccRecipients: this.parseEmailAddresses(String(value.bccEmails || '').trim()),
       subject: String(value.subject || '').trim(),
@@ -242,12 +240,10 @@ export class AlertComponent implements OnInit, OnChanges, OnDestroy {
     this.setDaysBeforeDepartureEnabled(contextReservationId);
   }
 
-  parseEmailAddresses(value: string): { email: string; name: string }[] {
-    return (value || '')
-      .split(';')
-      .map(email => email.trim())
-      .filter(email => email.length > 0)
-      .map(email => ({ email, name: '' }));
+  parseEmailAddresses(value: string) {
+    return mapManualEmailRecipients(
+      (value || '').split(';').map(email => email.trim()).filter(email => email.length > 0)
+    );
   }
 
   onDaysBeforeDepartureInput(event: Event): void {

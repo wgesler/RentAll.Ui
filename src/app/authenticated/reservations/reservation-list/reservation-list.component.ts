@@ -670,12 +670,12 @@ export class ReservationListComponent implements OnInit, OnDestroy, OnChanges {
     });
   }
 
-  parseSemicolonEmailRecipients(value: string): { email: string; name: string }[] {
+  parseSemicolonEmailRecipients(value: string): { email: string; name: string | null }[] {
     return (value || '')
       .split(';')
       .map(email => email.trim())
       .filter(email => email.length > 0)
-      .map(email => ({ email, name: '' }));
+      .map(email => ({ email, name: null }));
   }
 
   getReservationDeletedLabel(reservation: ReservationListDisplay): string {
