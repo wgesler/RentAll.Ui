@@ -9,6 +9,6 @@ export const environment = {
     quoteListingHrefLogDebug: false,
     publicListingUiOrigin: '',
     featureFlags: {
-        docuSign: false
+        docuSign: true
     }
 };

@@ -12,6 +12,6 @@ export const environment = {
 	/** Empty = use current browser origin for listing links. Set deployed UI base (https://...) so PDFs/emails use public URLs; localhost mail recipients cannot open localhost links. */
 	publicListingUiOrigin: '',
 	featureFlags: {
-		docuSign: false
+		docuSign: true
 	}
 };
