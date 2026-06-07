@@ -15,6 +15,8 @@ import { DynamicFormEditorComponent } from '../../../owners/dynamic-form-editor/
       [propertyId]="propertyId"
       [templateHtml]="templateHtml"
       [templateAssetPath]="templateAssetPath"
+      [restoreProcessedHtml]="restoreProcessedHtml"
+      [restoreProcessedStyles]="restoreProcessedStyles"
       [tokenContextType]="tokenContextType"
       (viewRequested)="viewRequested.emit($event)">
     </app-dynamic-form-editor>
@@ -28,6 +30,8 @@ export class SharedFormEditorComponent {
   @Input() propertyId: string | null = null;
   @Input() templateHtml: string | null = null;
   @Input() templateAssetPath: string | null = null;
+  @Input() restoreProcessedHtml: string | null = null;
+  @Input() restoreProcessedStyles: string | null = null;
   @Input() tokenContextType = 'owner';
   @Output() viewRequested = new EventEmitter<string>();
 }

@@ -12,6 +12,7 @@ import { DocumentHtmlService } from '../../../services/document-html.service';
 import { DynamicFormDraftService } from '../services/dynamic-form-draft.service';
 import { FormTokenProviderRegistryService } from '../../shared/forms/services/form-token-provider-registry.service';
 import { OWNER_FORM_TOKEN_PROVIDER } from '../services/owner-form-token-provider.service';
+import { OwnerFormViewModeService } from '../services/owner-form-view-mode.service';
 
 @Component({
   standalone: true,
@@ -30,16 +31,18 @@ export class DynamicFormEditorComponent implements OnInit, OnChanges, OnDestroy 
   @Input() propertyId: string | null = null;
   @Input() templateHtml: string | null = null;
   @Input() templateAssetPath: string | null = null;
+  @Input() restoreProcessedHtml: string | null = null;
+  @Input() restoreProcessedStyles: string | null = null;
   @Input() tokenContextType = 'owner';
   @Output() viewRequested = new EventEmitter<string>();
-  @ViewChild('editSurface') editSurface?: ElementRef<HTMLElement>;
+  @ViewChild('editIframe') editIframe?: ElementRef<HTMLIFrameElement>;
 
   isLoading = false;
   hasDraft = false;
   editableHtml: SafeHtml | null = null;
   baseTemplateHtml = '';
-  editorStyles = '';
-  embeddedStyleScope = '.dynamic-form-edit-surface';
+  templateStyles = '';
+  iframeKey = 0;
 
   destroy$ = new Subject<void>();
 
@@ -51,6 +54,7 @@ export class DynamicFormEditorComponent implements OnInit, OnChanges, OnDestroy 
     private documentHtmlService: DocumentHtmlService,
     private dynamicFormDraftService: DynamicFormDraftService,
     private formTokenProviderRegistryService: FormTokenProviderRegistryService,
+    private ownerFormViewModeService: OwnerFormViewModeService,
     private changeDetectorRef: ChangeDetectorRef
   ) {}
 
@@ -67,6 +71,8 @@ export class DynamicFormEditorComponent implements OnInit, OnChanges, OnDestroy 
     if (
       changes['templateHtml'] ||
       changes['templateAssetPath'] ||
+      changes['restoreProcessedHtml'] ||
+      changes['restoreProcessedStyles'] ||
       changes['formKey'] ||
       changes['ownerLeadId'] ||
       changes['officeId'] ||
@@ -106,10 +112,23 @@ export class DynamicFormEditorComponent implements OnInit, OnChanges, OnDestroy 
     this.viewRequested.emit(htmlSnapshot);
   }
 
+  onEditIframeLoad(): void {
+    this.ensureEditorControlsInteractive();
+  }
+
   //#endregion
 
   //#region Template Loading
   loadEditorHtml(): void {
+    const restoredHtml = String(this.restoreProcessedHtml || '').trim();
+    const restoredStyles = String(this.restoreProcessedStyles || '').trim();
+    if (restoredHtml && restoredStyles) {
+      this.baseTemplateHtml = String(this.templateHtml || '').trim() || restoredHtml;
+      this.setEditorHtmlFromProcessed(restoredHtml, restoredStyles);
+      this.changeDetectorRef.markForCheck();
+      return;
+    }
+
     const inlineTemplate = String(this.templateHtml || '').trim();
     if (inlineTemplate && !this.htmlNeedsTokenReplacement(inlineTemplate)) {
       this.isLoading = true;
@@ -184,34 +203,45 @@ export class DynamicFormEditorComponent implements OnInit, OnChanges, OnDestroy 
 
   setEditorHtml(html: string): void {
     const result = this.documentHtmlService.processHtml(html || '', true);
-    const rawStyles = result.extractedStyles || '';
-    this.editorStyles = this.documentHtmlService.scopeEmbeddedDocumentStyles(
-      rawStyles,
-      this.embeddedStyleScope
+    const extractedStyles = String(result.extractedStyles || '').trim();
+    this.templateStyles = extractedStyles
+      || String(this.restoreProcessedStyles || '').trim()
+      || this.templateStyles
+      || '';
+    this.setEditorHtmlFromProcessed(result.processedHtml || '', this.templateStyles);
+  }
+
+  setEditorHtmlFromProcessed(processedHtml: string, styles: string): void {
+    const templateStyles = String(styles || '').trim();
+    this.templateStyles = templateStyles;
+    const editableHtmlDocument = this.documentHtmlService.buildHtmlDocument(
+      this.documentHtmlService.extractBodyContent(processedHtml || ''),
+      '',
+      templateStyles
     );
-    const bodyContent = this.documentHtmlService.extractBodyContent(result.processedHtml || '');
-    this.editableHtml = this.sanitizer.bypassSecurityTrustHtml(`<style>${this.editorStyles}</style>${bodyContent}`);
+    this.editableHtml = this.sanitizer.bypassSecurityTrustHtml(editableHtmlDocument);
+    this.iframeKey++;
     setTimeout(() => this.ensureEditorControlsInteractive());
   }
   //#endregion
 
   //#region Editor Interaction Methods
   ensureEditorControlsInteractive(): void {
-    const editHost = this.editSurface?.nativeElement;
-    if (!editHost) {
+    const editDoc = this.editIframe?.nativeElement?.contentDocument || this.editIframe?.nativeElement?.contentWindow?.document;
+    const editHost = editDoc?.body;
+    if (!editDoc || !editHost) {
       return;
     }
     const normalizedTemplatePath = String(this.templateAssetPath || '').trim().toLowerCase();
     const normalizedFormName = String(this.formName || '').trim().toLowerCase();
     const isBrokerageEditor = normalizedTemplatePath.includes('brokerage') || normalizedFormName.includes('brokerage');
     const isW9Editor = normalizedTemplatePath.includes('w9') || normalizedFormName.includes('w9');
+    this.ownerFormViewModeService.ensureEditModeStyles(editDoc);
     editHost.classList.toggle('w9-editor-mode', isW9Editor);
-    this.ensureEditableFieldStyles(editHost.ownerDocument);
     editHost.setAttribute('contenteditable', 'false');
     const staticEditableNodes = Array.from(editHost.querySelectorAll('[contenteditable]')) as HTMLElement[];
     staticEditableNodes.forEach(node => node.setAttribute('contenteditable', 'false'));
 
-    // Keep static form text read-only; only unlock fillable fields/underlines.
     const fillableRegions = Array.from(
       editHost.querySelectorAll(
         [
@@ -224,6 +254,7 @@ export class DynamicFormEditorComponent implements OnInit, OnChanges, OnDestroy 
           '.blank-line-short',
           '.line-input',
           '.sig-input',
+          '.sig-line',
           '.signature-edit-line',
           '.signature-date-line',
           '.printed-line',
@@ -232,6 +263,8 @@ export class DynamicFormEditorComponent implements OnInit, OnChanges, OnDestroy 
           '.field-line',
           '.fill-line',
           '.fill-field',
+          '.address-single',
+          '.address-values > div',
           '[data-fillable="true"]',
           '[class*="underline"]'
         ].join(', ')
@@ -243,14 +276,16 @@ export class DynamicFormEditorComponent implements OnInit, OnChanges, OnDestroy 
       if (candidate.classList.contains('checkbox')) {
         return;
       }
-      // Ignore wrappers/containers; only leaf nodes should be promoted as fields.
       if (candidate.childElementCount > 0) {
         return;
       }
       if (candidate.querySelector('input, textarea, select, button')) {
         return;
       }
-      const computed = window.getComputedStyle(candidate);
+      const computed = editDoc.defaultView?.getComputedStyle(candidate);
+      if (!computed) {
+        return;
+      }
       const borderBottomWidth = Number.parseFloat(computed.borderBottomWidth || '0');
       const hasBorderBottom = computed.borderBottomStyle !== 'none' && Number.isFinite(borderBottomWidth) && borderBottomWidth > 0;
       if (!hasBorderBottom) {
@@ -276,8 +311,6 @@ export class DynamicFormEditorComponent implements OnInit, OnChanges, OnDestroy 
           return;
         }
       }
-      // Prevent large wrapper containers from becoming one giant editable box.
-      // Keep only the most specific field targets editable.
       const nestedFillTarget = region.querySelector(
         '.line, .inline-underline-fill, .signature-line, .signature-entry, .form-line, .field-line, .fill-line, .fill-field, [data-fillable="true"]'
       );
@@ -314,147 +347,13 @@ export class DynamicFormEditorComponent implements OnInit, OnChanges, OnDestroy 
     });
     this.wrapStaticChoiceMarkers(editHost);
     this.initializeStaticCheckboxMarkers(editHost);
-  }
-
-  private ensureEditableFieldStyles(doc: Document): void {
-    const styleId = 'owner-editable-field-style';
-    if (doc.getElementById(styleId)) {
-      return;
+    if (!editHost.dataset['dynamicFormClickBound']) {
+      editHost.addEventListener('click', this.onEditHostClick);
+      editHost.dataset['dynamicFormClickBound'] = 'true';
     }
-    const style = doc.createElement('style');
-    style.id = styleId;
-    style.textContent = `
-      .owner-editable-field {
-        position: relative;
-        border-radius: 4px !important;
-        background-clip: padding-box;
-        background-color: rgba(37, 99, 235, 0.14);
-        padding: 0 4px 1pt 4px;
-        margin-bottom: 1pt;
-        transition: outline-color 120ms ease, background-color 120ms ease, box-shadow 120ms ease;
-        cursor: text;
-      }
-      .owner-editable-field::after {
-        content: "";
-        position: absolute;
-        left: 0;
-        right: 0;
-        bottom: -1pt;
-        border-bottom: 1pt solid #000;
-        pointer-events: none;
-      }
-      .owner-editable-field.checkbox::after {
-        content: none !important;
-      }
-      .owner-editable-field:hover {
-        outline: 1px solid #90caf9;
-        outline-offset: 1px;
-        background-color: rgba(33, 150, 243, 0.06);
-      }
-      .owner-editable-field:focus {
-        outline: 1px solid #1976d2 !important;
-        outline-offset: 1px;
-        background-color: rgba(25, 118, 210, 0.10);
-        box-shadow: 0 0 0 1px rgba(25, 118, 210, 0.25);
-      }
-      .owner-editable-control {
-        border-radius: 4px !important;
-        background-clip: padding-box;
-        background:
-          linear-gradient(#000, #000) left calc(100% - 0pt) / 100% 1pt no-repeat,
-          rgba(37, 99, 235, 0.14);
-        padding: 0 4px 1pt 4px;
-        margin-bottom: 1pt;
-        transition: outline-color 120ms ease, background-color 120ms ease, box-shadow 120ms ease;
-      }
-      .owner-editable-control:hover {
-        outline: 1px solid #90caf9;
-        outline-offset: 1px;
-        background-color: rgba(33, 150, 243, 0.06);
-      }
-      .owner-editable-control:focus {
-        outline: 1px solid #1976d2 !important;
-        outline-offset: 1px;
-        background-color: rgba(25, 118, 210, 0.10);
-        box-shadow: 0 0 0 1px rgba(25, 118, 210, 0.25);
-      }
-      .owner-editable-control[type="radio"],
-      .owner-editable-control[type="checkbox"] {
-        appearance: none !important;
-        -webkit-appearance: none !important;
-        width: 14px;
-        height: 14px;
-        min-width: 14px;
-        min-height: 14px;
-        border: 1px solid #000;
-        border-radius: 0 !important;
-        background: #fff !important;
-        padding: 0 !important;
-        margin: 0 2px 0 0 !important;
-        position: relative;
-        transform: translateY(1px);
-      }
-      .owner-editable-control[type="radio"]:checked::after,
-      .owner-editable-control[type="checkbox"]:checked::after {
-        content: "X";
-        position: absolute;
-        left: 0;
-        top: 0;
-        width: 100%;
-        height: 100%;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        transform: none;
-        font-size: 10px;
-        line-height: 1;
-        font-weight: 700;
-        color: #000;
-      }
-      .w9-editor-mode .owner-editable-control {
-        background-image: none !important;
-        box-shadow: none !important;
-      }
-      .w9-editor-mode input.digit.owner-editable-control {
-        background: #fff !important;
-        border: 1px solid #000 !important;
-        border-radius: 3px !important;
-        padding: 0 !important;
-      }
-      span.checkbox {
-        position: relative;
-        display: inline-flex;
-        align-items: center;
-        justify-content: center;
-        width: 12px;
-        height: 12px;
-        border: 1px solid #000;
-        border-radius: 0;
-        background: #fff;
-        vertical-align: middle;
-        margin-right: 4px;
-      }
-      span.checkbox[data-checked="true"]::after {
-        content: "X";
-        position: absolute;
-        left: 0;
-        top: 0;
-        width: 100%;
-        height: 100%;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        transform: none;
-        font-size: 10px;
-        font-weight: 700;
-        line-height: 1;
-        pointer-events: none;
-      }
-    `;
-    doc.head?.appendChild(style);
   }
 
-  onEditSurfaceClick(event: MouseEvent): void {
+  onEditHostClick = (event: MouseEvent): void => {
     const target = event.target as HTMLElement | null;
     if (!target) {
       return;
@@ -474,7 +373,7 @@ export class DynamicFormEditorComponent implements OnInit, OnChanges, OnDestroy 
     marker.textContent = marker.textContent === '☒' ? '☐' : '☒';
     event.preventDefault();
     event.stopPropagation();
-  }
+  };
   //#endregion
 
   //#region Marker Methods
@@ -544,8 +443,9 @@ export class DynamicFormEditorComponent implements OnInit, OnChanges, OnDestroy 
 
   //#region Snapshot Methods
   captureLiveHtmlSnapshot(): string {
-    const editHost = this.editSurface?.nativeElement;
-    if (!editHost) {
+    const editDoc = this.editIframe?.nativeElement?.contentDocument || this.editIframe?.nativeElement?.contentWindow?.document;
+    const editHost = editDoc?.body;
+    if (!editDoc || !editHost) {
       return '';
     }
 
@@ -624,7 +524,17 @@ export class DynamicFormEditorComponent implements OnInit, OnChanges, OnDestroy 
     Array.from(clonedRoot.querySelectorAll('[data-dynamic-control-id]')).forEach(control => control.removeAttribute('data-dynamic-control-id'));
 
     const bodyContent = clonedRoot.innerHTML;
-    return this.documentHtmlService.buildHtmlDocument(bodyContent, '', this.editorStyles || '');
+    const templateStyles = this.collectTemplateDocumentStyles(editDoc);
+    return this.documentHtmlService.buildHtmlDocument(bodyContent, '', templateStyles);
+  }
+
+  private collectTemplateDocumentStyles(doc: Document): string {
+    const styleTags = Array.from(doc.querySelectorAll('style'));
+    return styleTags
+      .filter(tag => !this.ownerFormViewModeService.isRuntimeStyleId(tag.id || ''))
+      .map(tag => tag.textContent || '')
+      .filter(styleText => styleText.trim().length > 0)
+      .join('\n\n');
   }
   //#endregion
 

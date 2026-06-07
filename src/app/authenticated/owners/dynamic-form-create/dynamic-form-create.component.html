@@ -41,7 +41,7 @@
     <div class="property-tab-main-area">
       @if (previewIframeHtml) {
         <div class="preview-section">
-          <iframe [srcdoc]="safeHtml" class="dynamic-form-create-iframe" [attr.key]="iframeKey" #previewIframe frameborder="0"></iframe>
+          <iframe [srcdoc]="safeHtml" class="dynamic-form-create-iframe" [attr.key]="iframeKey" #previewIframe (load)="onPreviewIframeLoad()" frameborder="0"></iframe>
         </div>
       } @else {
         <div class="owner-shell-placeholder">

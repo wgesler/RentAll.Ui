@@ -138,7 +138,8 @@
                       [propertyId]="selectedPropertyId === newPropertyOptionValue ? null : selectedPropertyId"
                       [editedHtml]="getDynamicFormEditedHtml(stateForm)"
                       [sourceTemplateHtml]="stateForm.formAsHtml ?? ''"
-                      (editRequested)="onDynamicFormEditRequested(getDynamicFormKey(stateForm))">
+                      (displayStateUpdated)="onDynamicFormDisplayStateUpdated(getDynamicFormKey(stateForm), $event)"
+                      (editRequested)="onDynamicFormEditRequested(getDynamicFormKey(stateForm), $event)">
                     </app-shared-form-create>
                   } @else {
                     <app-shared-form-editor
@@ -148,6 +149,8 @@
                       [officeId]="selectedOfficeId"
                       [propertyId]="selectedPropertyId === newPropertyOptionValue ? null : selectedPropertyId"
                       [templateHtml]="getDynamicFormEditedHtml(stateForm)"
+                      [restoreProcessedHtml]="getDynamicFormProcessedHtml(stateForm)"
+                      [restoreProcessedStyles]="getDynamicFormProcessedStyles(stateForm)"
                       (viewRequested)="onDynamicFormViewRequested(getDynamicFormKey(stateForm), $event)">
                     </app-shared-form-editor>
                   }

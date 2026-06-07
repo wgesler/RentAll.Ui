@@ -25,6 +25,7 @@ import { BaseDocumentComponent, DocumentConfig, EmailConfig } from '../../shared
 import { OwnerDocuSignSignerService } from '../services/owner-docusign-signer.service';
 import { OwnerDocuSignSignersDialogService } from '../services/owner-docusign-signers-dialog.service';
 import { OwnersService } from '../services/owners.service';
+import { OwnerFormViewModeService } from '../services/owner-form-view-mode.service';
 
 @Component({
   standalone: true,
@@ -40,7 +41,8 @@ export class DynamicFormCreateComponent extends BaseDocumentComponent implements
   @Input() propertyId: string | null = null;
   @Input() editedHtml = '';
   @Input() sourceTemplateHtml = '';
-  @Output() editRequested = new EventEmitter<void>();
+  @Output() editRequested = new EventEmitter<{ processedHtml: string; processedStyles: string }>();
+  @Output() displayStateUpdated = new EventEmitter<{ processedHtml: string; processedStyles: string }>();
   @ViewChild('previewIframe') previewIframe?: ElementRef<HTMLIFrameElement>;
 
   isPageReady = true;
@@ -64,6 +66,7 @@ export class DynamicFormCreateComponent extends BaseDocumentComponent implements
 
   constructor(
     private ownersService: OwnersService,
+    private ownerFormViewModeService: OwnerFormViewModeService,
     private ownerDocuSignSignerService: OwnerDocuSignSignerService,
     private ownerDocuSignSignersDialogService: OwnerDocuSignSignersDialogService,
     private utilityService: UtilityService,
@@ -111,7 +114,10 @@ export class DynamicFormCreateComponent extends BaseDocumentComponent implements
   }
 
   onEdit(): void {
-    this.editRequested.emit();
+    this.editRequested.emit({
+      processedHtml: this.previewIframeHtml || '',
+      processedStyles: this.previewIframeStyles || ''
+    });
   }
 
   override onPrint(): void {
@@ -348,10 +354,33 @@ export class DynamicFormCreateComponent extends BaseDocumentComponent implements
     const result = this.documentHtmlService.processHtml(html, true);
     this.previewIframeHtml = result.processedHtml;
     this.previewIframeStyles = result.extractedStyles;
-    const previewHtmlWithStyles = this.documentHtmlService.getPreviewHtmlWithStyles(this.previewIframeHtml, this.previewIframeStyles);
-    this.safeHtml = this.sanitizer.bypassSecurityTrustHtml(previewHtmlWithStyles);
+    this.refreshPreviewSafeHtml();
     this.iframeKey++;
+    this.displayStateUpdated.emit({
+      processedHtml: this.previewIframeHtml,
+      processedStyles: this.previewIframeStyles
+    });
+    setTimeout(() => this.ensurePreviewViewMode());
     this.changeDetectorRef.markForCheck();
+  }
+
+  getPreviewStylesForView(): string {
+    const viewModeStyles = this.ownerFormViewModeService.getViewModeStylesCss();
+    return [this.previewIframeStyles, viewModeStyles].filter(style => String(style || '').trim()).join('\n\n');
+  }
+
+  refreshPreviewSafeHtml(): void {
+    const previewHtmlWithStyles = this.documentHtmlService.getPreviewHtmlWithStyles(this.previewIframeHtml, this.getPreviewStylesForView());
+    this.safeHtml = this.sanitizer.bypassSecurityTrustHtml(previewHtmlWithStyles);
+  }
+
+  onPreviewIframeLoad(): void {
+    this.ensurePreviewViewMode();
+  }
+
+  ensurePreviewViewMode(): void {
+    const previewDoc = this.previewIframe?.nativeElement?.contentDocument || this.previewIframe?.nativeElement?.contentWindow?.document;
+    this.ownerFormViewModeService.applyViewModeToDocument(previewDoc);
   }
 
   getPreviewDocument(): Document | null {
@@ -464,7 +493,11 @@ export class DynamicFormCreateComponent extends BaseDocumentComponent implements
 
   collectDocumentStyles(doc: Document): string {
     const styleTags = Array.from(doc.querySelectorAll('style'));
-    return styleTags.map(styleTag => styleTag.textContent || '').filter(styleText => styleText.trim().length > 0).join('\n\n');
+    return styleTags
+      .filter(tag => !this.ownerFormViewModeService.isRuntimeStyleId(tag.id || ''))
+      .map(styleTag => styleTag.textContent || '')
+      .filter(styleText => styleText.trim().length > 0)
+      .join('\n\n');
   }
   //#endregion
 

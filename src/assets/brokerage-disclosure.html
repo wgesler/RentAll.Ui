@@ -1,0 +1,374 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="docusign-signers" content="owner,owner2,agent" />
+<title>Brokerage Disclosure to Landlord</title>
+<style>
+    @page {
+        size: letter;
+        margin: 0.45in 0.6in;
+    }
+
+    * {
+        box-sizing: border-box;
+    }
+
+    body {
+        margin: 0;
+        background: #fff;
+        color: #000;
+        font-family: Arial, Helvetica, sans-serif;
+        font-size: 10pt;
+        line-height: 1.22;
+    }
+
+    .page {
+        position: relative;
+        width: 8.5in;
+        
+        
+        padding: 0.45in 0.6in;
+        margin: 0 auto;
+        page-break-after: always;
+        background: #fff;
+    }
+
+    .page:last-child {
+        page-break-after: auto;
+    }
+
+    .form-header {
+        font-size: 8.5pt;
+        margin-bottom: 4pt;
+    }
+
+    .approval-note {
+        border: 1pt solid #000;
+        text-align: left;
+        font-size: 8.5pt;
+        margin-bottom: 6pt;
+    }
+
+    .relationship-box {
+        padding: 5pt 8pt;
+        text-align: center;
+        font-weight: bold;
+        line-height: 1.15;
+        margin: 0 0 8pt 0;
+    }
+
+    h1 {
+        text-align: center;
+        font-size: 13pt;
+        margin: 0 0 8pt 0;
+        font-weight: bold;
+    }
+
+    .section-title {
+        font-weight: bold;
+        margin: 4pt 0 2pt 0;
+    }
+
+    p {
+        margin: 0 0 6pt 0;
+        text-align: justify;
+    }
+
+    .checkbox-section-title {
+        font-weight: bold;
+        margin: 15pt 0 4pt 0;
+    }
+
+    .checkbox-option {
+        display: flex;
+        align-items: flex-start;
+        gap: 7pt;
+        margin: 2pt 0;
+    }
+
+    .checkbox-option input[type="checkbox"],
+    .checkbox-option input[type="radio"],
+    .inline-checkbox {
+        appearance: none;
+        -webkit-appearance: none;
+        width: 8.5pt;
+        height: 8.5pt;
+        min-width: 8.5pt;
+        border: 1pt solid #000;
+        background: #fff;
+        margin: 1.5pt 0 0 0;
+        padding: 0;
+        vertical-align: -1pt;
+        position: relative;
+        cursor: pointer;
+        background-image: none !important;
+        box-shadow: none !important;
+        text-decoration: none !important;
+    }
+
+    .checkbox-option input[type="checkbox"]:checked::after,
+    .checkbox-option input[type="radio"]:checked::after,
+    .inline-checkbox:checked::after {
+        content: 'X';
+        position: absolute;
+        left: 0;
+        top: 0;
+        width: 100%;
+        height: 100%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        transform: none;
+        font-size: 7.5pt;
+        font-weight: bold;
+        line-height: 1;
+        color: #000;
+    }
+
+    .inline-checkbox {
+        display: inline-block;
+        margin: 0 3pt 0 5pt;
+    }
+
+    .checkbox-text {
+        flex: 1;
+        text-align: justify;
+    }
+
+    .checkbox-text strong {
+        font-weight: bold;
+        margin-right: 3pt;
+    }
+
+    .underline {
+        position: relative;
+        display: inline-flex;
+        align-items: flex-end;
+        height: 13pt;
+        vertical-align: bottom;
+        text-decoration: none !important;
+        padding: 0 4pt 1pt 4pt;
+        margin-bottom: 1pt;
+        line-height: 1.1;
+        border-radius: 5px;
+    }
+
+    .underline::after {
+        content: "";
+        position: absolute;
+        left: 0;
+        right: 0;
+        bottom: -1pt;
+        border-bottom: 1pt solid #000;
+    }
+
+    .address-line {
+        display: flex !important;
+        justify-content: center;
+        align-items: flex-end;
+        text-align: center;
+    }
+
+    .line-input {
+        border: 0;
+        border-bottom: 1pt solid #000;
+        background: transparent;
+        border-radius: 0;
+        font: inherit;
+        color: inherit;
+        height: 14pt;
+        line-height: 14pt;
+        padding: 0 4pt 1pt 4pt;
+        margin-bottom: 1pt;
+        vertical-align: baseline;
+    }
+
+    .line-input:focus {
+        outline: none;
+    }
+
+    .line-input-block {
+        width: 100%;
+        margin: 4pt 0 8pt 0;
+    }
+
+    .important {
+        font-weight: bold;
+        text-align: center;
+        margin-top: 9pt;
+    }
+
+    .signature-row {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 28pt;
+        width: 84%;
+        margin-top: 18pt;
+    }
+
+    .sig-line {
+        position: relative;
+        height: 18pt;
+        margin-bottom: 3pt;
+        border-radius: 5px;
+    }
+
+    .sig-line::after {
+        content: "";
+        position: absolute;
+        left: 0;
+        right: 0;
+        bottom: -1pt;
+        border-bottom: 1pt solid #000;
+    }
+
+    .sig-input {
+        width: 100%;
+        border: 0;
+        border-bottom: 1pt solid #000;
+        background: transparent;
+        border-radius: 0;
+        font: inherit;
+        color: inherit;
+        height: 18pt;
+        line-height: 18pt;
+        padding: 0 4pt 1pt 4pt;
+        margin-bottom: 1pt;
+        margin-bottom: 3pt;
+    }
+
+    .sig-input:focus {
+        outline: none;
+    }
+
+    .ack-space {
+        margin-top: 12pt;
+    }
+
+    .signature-block p {
+        text-align: left;
+    }
+
+    .broker-ack-line {
+        white-space: nowrap;
+    }
+
+    @media print {
+        body {
+            margin: 0;
+        }
+
+        .page {
+        position: relative;
+            margin: 0;
+            width: auto;
+            min-height: auto;
+        }
+    }
+</style>
+</head>
+<body>
+
+<section class="page" style="padding-top:0.2in;">
+    
+
+    <div class="approval-note">
+        The printed portions of this form, except differentiated additions, have been approved by the Colorado Real Estate Commission.
+        (BDL17-10-19) (Mandatory 1-20)
+    </div>
+
+    <div class="relationship-box">
+        DIFFERENT BROKERAGE RELATIONSHIPS ARE AVAILABLE WHICH INCLUDE SELLER AGENCY,<br>
+        BUYER AGENCY OR TRANSACTION-BROKERAGE.
+    </div>
+
+    <h1>BROKERAGE DISCLOSURE TO LANDLORD</h1>
+
+    <div class="section-title">DEFINITIONS OF WORKING RELATIONSHIPS</div>
+
+    <p>For purposes of this document, “landlord” includes the owner of the Property or sub-landlord and “tenant” includes subtenant.</p>
+
+    <p><strong>Landlord’s Agent:</strong> A landlord’s agent (or Landlord listing agent) works solely on behalf of the landlord to promote the interests of the landlord with the utmost good faith, loyalty and fidelity. The agent negotiates on behalf of and acts as an advocate for the landlord. The landlord’s agent must disclose to potential tenants all adverse material facts actually known by the landlord’s agent about the property. A separate written listing agreement is required which sets forth the duties and obligations of the broker and the landlord or owner.</p>
+
+    <p><strong>Tenant’s Agent:</strong> A tenant’s agent works solely on behalf of the tenant to promote the interests of the tenant with the utmost good faith, loyalty and fidelity. The agent negotiates on behalf of and acts as an advocate for the tenant. The tenant’s agent must disclose to potential landlords all adverse material facts actually known by the tenant’s agent, including the tenant’s financial ability to perform the terms of the transaction and, if a residential property, whether the tenant intends to occupy the property. A separate written tenant agency agreement is required which sets forth the duties and obligations of the broker and the tenant.</p>
+
+    <p><strong>Transaction-Broker:</strong> A transaction-broker assists the tenant or landlord or both throughout a real estate transaction by performing terms of any written or oral agreement, fully informing the parties, presenting all offers and assisting the parties with any contracts, including the closing of the transaction without being an agent or advocate for any of the parties. A transaction-broker must use reasonable skill and care in the performance of any oral or written agreement and must make the same disclosures as agents about all adverse material facts actually known by the transaction-broker concerning a property or a tenant’s financial ability to perform the terms of a transaction. No written agreement is required.</p>
+
+    <p><strong>Customer:</strong> A customer is a party to a real estate transaction with whom the broker has no brokerage relationship because such party has not engaged or employed the broker, either as the party’s agent or as the party’s transaction-broker.</p>
+
+    <div style="border-top:2pt solid #000; margin:10pt 0 12pt 0;"></div>
+<div class="section-title" style="text-align:center; font-size:13pt;">RELATIONSHIP BETWEEN BROKER AND LANDLORD</div>
+
+    <p>Broker and Landlord referenced below have NOT entered into a Landlord agency (listing agency) agreement. The working relationship specified below is for a specific property or properties described as:</p>
+
+    <p><span class="underline address-line" style="width: 100%;">{{propertyAddressSingleLine}}</span></p>
+
+    <p>
+        Landlord understands that Landlord is not liable for Broker’s acts or omissions that have not been approved, directed, or ratified by Landlord.
+    </p>
+
+    <div class="checkbox-section-title">CHECK ONE BOX ONLY:</div>
+
+    <div class="checkbox-option">
+        <input type="radio" name="firmType" />
+        <div class="checkbox-text"><strong>Multiple-Person Firm.</strong> Broker, referenced below, is designated by Brokerage Firm to serve as Broker. If more than one individual is so designated, then references in this document to Broker shall include all persons so designated, including substitute or additional brokers. The brokerage relationship exists only with Broker and does not extend to the employing broker, Brokerage Firm or to any other brokers employed or engaged by Brokerage Firm who are not so designated.</div>
+    </div>
+
+    <div class="checkbox-option">
+        <input type="radio" name="firmType" checked />
+        <div class="checkbox-text"><strong>One-Person Firm.</strong> If Broker is a real estate brokerage firm with only one licensed natural person, then any references to Broker or Brokerage Firm mean both the licensed natural person and brokerage firm who shall serve as Broker.</div>
+    </div>
+    
+    <div class="checkbox-section-title">CHECK ONE BOX ONLY:</div>
+
+    <div class="checkbox-option">
+        <input type="radio" name="relationshipType" />
+        <div class="checkbox-text"><strong>Customer.</strong> Broker is the <input type="checkbox" class="inline-checkbox" /> tenant’s agent <input type="checkbox" class="inline-checkbox" /> tenant’s transaction-broker and Landlord is a customer. Broker intends to perform the following list of tasks: <input type="checkbox" class="inline-checkbox" /> Show a property <input type="checkbox" class="inline-checkbox" /> Prepare and Convey written offers, counteroffers and agreements to amend or extend the lease. Broker is not the agent or transaction-broker of Landlord.</div>
+    </div>
+
+
+    <div class="checkbox-option">
+        <input type="radio" name="relationshipType" checked />
+        <div class="checkbox-text"><strong>Transaction-Brokerage Only.</strong> Broker is a transaction-broker assisting the Landlord in the transaction. Broker is not the agent of Landlord.</div>
+    </div>
+
+    <p style="margin-top: 14pt;">Landlord consents to Broker’s disclosure of Landlord’s confidential information to the supervising broker or designee for the purpose of proper supervision, provided such supervising broker or designee shall not further disclose such information without consent of Landlord, or use such information to the detriment of Landlord.</p>
+
+    <p class="important">THIS IS NOT A CONTRACT. IT IS BROKER’S DISCLOSURE OF BROKER’S WORKING RELATIONSHIP.</p>
+
+    <div class="signature-block">
+    <div class="section-title ack-space">LANDLORD ACKNOWLEDGMENT:</div>
+
+    <p>Landlord acknowledges receipt of this document on <span class="underline" style="width: 200pt;">{{agreementStartDate}}</span>.</p>
+
+    <div class="signature-row">
+        <div>
+            <div class="sig-line"></div>
+            Landlord
+        </div>
+        <div>
+            <div class="sig-line"></div>
+            Landlord
+        </div>
+    </div>
+
+    <div class="section-title ack-space">BROKER ACKNOWLEDGMENT:</div>
+
+    <p class="broker-ack-line">On <span class="underline" style="width: 105pt;">{{agreementStartDate}}</span>, Broker provided <span class="underline" style="width: 190pt;">{{Owner1Name}}{{ownerPairSeparator}}{{Owner2Name}}</span> (Landlord)</p>
+
+    <p>with this document via <input type="text" class="line-input" style="width: 130pt;" /> and retained a copy for Broker’s records.</p>
+
+    <p style="margin-top: 18pt; margin-bottom: 8pt;">Brokerage Firm’s Name: <span class="underline" style="width: 320pt;">{{companyName}} {{officeName}}</span></p>
+
+    <div style="margin-top: 16pt; width: 400pt;">
+        <div class="sig-line"></div>
+        Broker
+    </div>
+    </div>
+
+
+</section>
+
+</body>
+</html>

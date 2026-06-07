@@ -38,6 +38,7 @@ import { OwnerAgreementContext, OwnersService } from '../services/owners.service
 import { OwnerDocuSignSignerService } from '../services/owner-docusign-signer.service';
 import { OwnerDocuSignSignersDialogService } from '../services/owner-docusign-signers-dialog.service';
 import { OwnerIncludedOwnersService } from '../services/owner-included-owners.service';
+import { OwnerFormViewModeService } from '../services/owner-form-view-mode.service';
 
 @Component({
   standalone: true,
@@ -125,6 +126,7 @@ export class OwnerAgreementFormComponent extends BaseDocumentComponent implement
     private ownerIncludedOwnersService: OwnerIncludedOwnersService,
     private ownerDocuSignSignerService: OwnerDocuSignSignerService,
     private ownerDocuSignSignersDialogService: OwnerDocuSignSignersDialogService,
+    private ownerFormViewModeService: OwnerFormViewModeService,
     private http: HttpClient
   ) {
     super(documentService, documentExportService, documentHtmlService, toastr, emailService);
@@ -728,33 +730,8 @@ export class OwnerAgreementFormComponent extends BaseDocumentComponent implement
     return this.resolveTemplateTypeForLookup(this.templateAssetPath) === 'directDeposit';
   }
 
-  getDirectDepositOwnerNames(): string {
-    const propertyOwner1Name = this.getPropertyOwnerName(this.selectedProperty?.owner1Id);
-    const propertyOwner2Name = this.getPropertyOwnerName(this.selectedProperty?.owner2Id);
-    const pair = this.ownerIncludedOwnersService.resolveOwner1AndOwner2Names(
-      this.ownerContact,
-      [],
-      this.allContacts,
-      propertyOwner1Name,
-      propertyOwner2Name
-    );
-    const names = [pair.owner1Name, pair.owner2Name].filter(Boolean).join(pair.ownerPairSeparator);
-    return names || this.getPrimaryOwnerName();
-  }
-
-  getPropertyOwnerName(contactId: string | null | undefined): string {
-    const normalizedContactId = String(contactId || '').trim().toLowerCase();
-    if (!normalizedContactId) {
-      return '';
-    }
-    const contact = (this.allContacts || []).find(item =>
-      String(item.contactId || '').trim().toLowerCase() === normalizedContactId
-    );
-    return this.ownerIncludedOwnersService.getContactDisplayName(contact);
-  }
-
   getOwnerNameForDocument(): string {
-    return this.isDirectDepositDocument() ? this.getDirectDepositOwnerNames() : this.getPrimaryOwnerName();
+    return this.getPrimaryOwnerName();
   }
 
   //#region Preview Methods
@@ -947,13 +924,17 @@ export class OwnerAgreementFormComponent extends BaseDocumentComponent implement
       ? html
       : '<div style="padding:24px;font-family:Arial,sans-serif;font-size:14px;color:#444;">Agreement preview is unavailable.</div>';
     const result = this.documentHtmlService.processHtml(fallbackHtml, true);
-    this.editorStyles = result.extractedStyles || '';
+    const extractedStyles = String(result.extractedStyles || '').trim();
+    // Returning from view passes previewIframeHtml, which no longer contains <style> tags.
+    // Keep the styles that were split out when view mode was entered.
+    this.editorStyles = extractedStyles || this.previewIframeStyles || this.editorStyles || '';
     const editableHtmlDocument = this.documentHtmlService.buildHtmlDocument(
       this.documentHtmlService.extractBodyContent(result.processedHtml || ''),
       '',
-      this.editorStyles || ''
+      this.editorStyles
     );
     this.editableHtml = this.sanitizer.bypassSecurityTrustHtml(editableHtmlDocument);
+    this.iframeKey++;
     setTimeout(() => this.ensureEditorControlsInteractive());
     if (this.pendingOpenInViewMode && this.openInViewOnTabSelect) {
       setTimeout(() => this.switchToViewModeFromTabSelection());
@@ -1088,12 +1069,9 @@ export class OwnerAgreementFormComponent extends BaseDocumentComponent implement
 
   ensurePreviewControlsReadOnly(): void {
     const previewDoc = this.previewIframe?.nativeElement?.contentDocument || this.previewIframe?.nativeElement?.contentWindow?.document;
-    const previewHost = previewDoc?.body;
-    if (!previewDoc || !previewHost) {
-      return;
-    }
-    this.ensurePreviewViewModeStyles(previewDoc);
-    this.applyReadOnlyToAgreementHost(previewHost);
+    this.ownerFormViewModeService.applyViewModeToDocument(previewDoc, {
+      isDirectDeposit: this.isDirectDepositDocument()
+    });
   }
 
   wireDirectDepositUploadHandler(editDoc: Document, editHost: HTMLElement): void {
@@ -1218,7 +1196,7 @@ export class OwnerAgreementFormComponent extends BaseDocumentComponent implement
       return;
     }
     const iframe = this.previewIframe?.nativeElement;
-    const previewHtmlWithStyles = this.documentHtmlService.getPreviewHtmlWithStyles(this.previewIframeHtml, this.previewIframeStyles);
+    const previewHtmlWithStyles = this.documentHtmlService.getPreviewHtmlWithStyles(this.previewIframeHtml, this.getPreviewStylesForView());
     if (!iframe || !String(previewHtmlWithStyles || '').trim()) {
       return;
     }
@@ -1417,73 +1395,7 @@ export class OwnerAgreementFormComponent extends BaseDocumentComponent implement
   }
 
   applyReadOnlyToAgreementHost(host: HTMLElement): void {
-    host.setAttribute('contenteditable', 'false');
-    host.removeAttribute('spellcheck');
-    const editableNodes = Array.from(host.querySelectorAll('[contenteditable]')) as HTMLElement[];
-    editableNodes.forEach(node => {
-      node.setAttribute('contenteditable', 'false');
-      node.removeAttribute('spellcheck');
-      node.removeAttribute('tabindex');
-    });
-    host.querySelectorAll('.owner-editable-field').forEach(node => node.classList.remove('owner-editable-field'));
-    host.querySelectorAll('.owner-editable-control').forEach(node => node.classList.remove('owner-editable-control'));
-    const formControls = Array.from(host.querySelectorAll('input, textarea, select')) as Array<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>;
-    formControls.forEach(control => {
-      control.setAttribute('disabled', 'disabled');
-      if (control instanceof HTMLInputElement || control instanceof HTMLTextAreaElement) {
-        control.readOnly = true;
-      }
-    });
-    const checkboxMarkers = Array.from(host.querySelectorAll('span.checkbox')) as HTMLSpanElement[];
-    checkboxMarkers.forEach(marker => {
-      marker.setAttribute('contenteditable', 'false');
-      marker.style.cursor = 'default';
-      marker.style.pointerEvents = 'none';
-      marker.style.userSelect = 'none';
-    });
-  }
-
-  ensurePreviewViewModeStyles(editDoc: Document): void {
-    const styleId = 'owner-agreement-view-mode-style';
-    if (editDoc.getElementById(styleId)) {
-      return;
-    }
-    const isDirectDeposit = this.resolveTemplateTypeForLookup(this.templateAssetPath) === 'directDeposit';
-    const directDepositViewStyles = isDirectDeposit
-      ? `
-      .upload-check-header,
-      .upload-check-input {
-        display: none !important;
-      }
-      .uploaded-check-image[src] {
-        display: block !important;
-      }
-      `
-      : '';
-    const style = editDoc.createElement('style');
-    style.id = styleId;
-    style.textContent = `
-      .inline-underline-fill,
-      .owner-editable-field,
-      .owner-editable-control {
-        background-color: transparent !important;
-        cursor: default !important;
-        outline: none !important;
-        box-shadow: none !important;
-      }
-      .inline-underline-fill:hover,
-      .owner-editable-field:hover,
-      .owner-editable-control:hover,
-      .inline-underline-fill:focus,
-      .owner-editable-field:focus,
-      .owner-editable-control:focus {
-        outline: none !important;
-        background-color: transparent !important;
-        box-shadow: none !important;
-      }
-      ${directDepositViewStyles}
-    `;
-    editDoc.head.appendChild(style);
+    this.ownerFormViewModeService.applyReadOnlyForView(host);
   }
 
   clearIframeBeforeUnloadHandlers(iframeRef?: ElementRef<HTMLIFrameElement>): void {
@@ -1502,140 +1414,7 @@ export class OwnerAgreementFormComponent extends BaseDocumentComponent implement
   }
 
   ensureEditableFieldStyles(editDoc: Document): void {
-    const styleId = 'owner-editable-field-style';
-    if (editDoc.getElementById(styleId)) {
-      return;
-    }
-    const style = editDoc.createElement('style');
-    style.id = styleId;
-    style.textContent = `
-      .inline-underline-fill,
-      .owner-editable-field {
-        position: relative;
-        border-bottom: none !important;
-        border-radius: 4px !important;
-        background-clip: padding-box;
-        padding: 0 4px 1pt 4px;
-        margin-bottom: 1pt;
-        background-color: rgba(37, 99, 235, 0.14);
-        transition: outline-color 120ms ease, background-color 120ms ease, box-shadow 120ms ease;
-        cursor: text;
-      }
-      .inline-underline-fill::after,
-      .owner-editable-field::after {
-        content: "";
-        position: absolute;
-        left: 0;
-        right: 0;
-        bottom: -1pt;
-        border-bottom: 1pt solid #000;
-        pointer-events: none;
-      }
-      .inline-underline-fill:hover,
-      .owner-editable-field:hover {
-        outline: 1px solid #90caf9;
-        outline-offset: 1px;
-        background-color: rgba(33, 150, 243, 0.06);
-      }
-      .inline-underline-fill:focus,
-      .owner-editable-field:focus {
-        outline: 1px solid #1976d2 !important;
-        outline-offset: 1px;
-        background-color: rgba(25, 118, 210, 0.10);
-        box-shadow: 0 0 0 1px rgba(25, 118, 210, 0.25);
-      }
-      .owner-editable-control {
-        border-radius: 4px !important;
-        background-clip: padding-box;
-        background:
-          linear-gradient(#000, #000) left calc(100% - 0pt) / 100% 1pt no-repeat,
-          rgba(37, 99, 235, 0.14);
-        padding: 0 4px 1pt 4px;
-        margin-bottom: 1pt;
-        transition: outline-color 120ms ease, background-color 120ms ease, box-shadow 120ms ease;
-      }
-      .owner-editable-control:hover {
-        outline: 1px solid #90caf9;
-        outline-offset: 1px;
-        background-color: rgba(33, 150, 243, 0.06);
-      }
-      .owner-editable-control:focus {
-        outline: 1px solid #1976d2 !important;
-        outline-offset: 1px;
-        background-color: rgba(25, 118, 210, 0.10);
-        box-shadow: 0 0 0 1px rgba(25, 118, 210, 0.25);
-      }
-      .owner-editable-control[type="radio"],
-      .owner-editable-control[type="checkbox"] {
-        appearance: none !important;
-        -webkit-appearance: none !important;
-        width: 14px;
-        height: 14px;
-        min-width: 14px;
-        min-height: 14px;
-        border: 1px solid #000;
-        border-radius: 0 !important;
-        background: #fff !important;
-        background-image: none !important;
-        padding: 0 !important;
-        margin: 0 2px 0 0 !important;
-        box-shadow: none !important;
-        position: relative;
-        transform: translateY(1px);
-      }
-      .owner-editable-control[type="radio"]::after,
-      .owner-editable-control[type="checkbox"]::after {
-        content: "";
-      }
-      .owner-editable-control[type="radio"]:checked::after,
-      .owner-editable-control[type="checkbox"]:checked::after {
-        content: "X";
-        position: absolute;
-        left: 0;
-        top: 0;
-        width: 100%;
-        height: 100%;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        transform: none;
-        font-size: 10px;
-        line-height: 1;
-        font-weight: 700;
-        color: #000;
-      }
-      span.checkbox {
-        position: relative;
-        display: inline-flex;
-        align-items: center;
-        justify-content: center;
-        width: 12px;
-        height: 12px;
-        border: 1px solid #000;
-        border-radius: 0;
-        background: #fff;
-        vertical-align: middle;
-        margin-right: 4px;
-      }
-      span.checkbox[data-checked="true"]::after {
-        content: "X";
-        position: absolute;
-        left: 0;
-        top: 0;
-        width: 100%;
-        height: 100%;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        transform: none;
-        font-size: 10px;
-        line-height: 1;
-        font-weight: 700;
-        color: #000;
-        pointer-events: none;
-      }
-    `;
-    editDoc.head?.appendChild(style);
+    this.ownerFormViewModeService.ensureEditModeStyles(editDoc);
   }
   //#endregion
 
@@ -1797,10 +1576,9 @@ export class OwnerAgreementFormComponent extends BaseDocumentComponent implement
   }
 
   private collectTemplateDocumentStyles(doc: Document): string {
-    const runtimeStyleIds = new Set(['owner-editable-field-style', 'owner-agreement-view-mode-style']);
     const styleTags = Array.from(doc.querySelectorAll('style'));
     return styleTags
-      .filter(tag => !runtimeStyleIds.has(tag.id || ''))
+      .filter(tag => !this.ownerFormViewModeService.isRuntimeStyleId(tag.id || ''))
       .map(tag => tag.textContent || '')
       .filter(styleText => styleText.trim().length > 0)
       .join('\n\n');
@@ -1992,8 +1770,15 @@ export class OwnerAgreementFormComponent extends BaseDocumentComponent implement
     return styleTags.map(styleTag => styleTag.textContent || '').filter(styleText => styleText.trim().length > 0).join('\n\n');
   }
 
+  getPreviewStylesForView(): string {
+    const viewModeStyles = !this.isEditMode
+      ? this.ownerFormViewModeService.getViewModeStylesCss({ isDirectDeposit: this.isDirectDepositDocument() })
+      : '';
+    return [this.previewIframeStyles, viewModeStyles].filter(style => String(style || '').trim()).join('\n\n');
+  }
+
   refreshPreviewSafeHtml(): void {
-    const previewHtmlWithStyles = this.documentHtmlService.getPreviewHtmlWithStyles(this.previewIframeHtml, this.previewIframeStyles);
+    const previewHtmlWithStyles = this.documentHtmlService.getPreviewHtmlWithStyles(this.previewIframeHtml, this.getPreviewStylesForView());
     this.safeHtml = this.sanitizer.bypassSecurityTrustHtml(previewHtmlWithStyles);
   }
 

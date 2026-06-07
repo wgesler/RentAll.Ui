@@ -14,7 +14,8 @@ import { DynamicFormCreateComponent } from '../../../owners/dynamic-form-create/
       [propertyId]="propertyId"
       [editedHtml]="editedHtml"
       [sourceTemplateHtml]="sourceTemplateHtml"
-      (editRequested)="editRequested.emit()">
+      (editRequested)="editRequested.emit($event)"
+      (displayStateUpdated)="displayStateUpdated.emit($event)">
     </app-dynamic-form-create>
   `
 })
@@ -25,5 +26,6 @@ export class SharedFormCreateComponent {
   @Input() propertyId: string | null = null;
   @Input() editedHtml = '';
   @Input() sourceTemplateHtml = '';
-  @Output() editRequested = new EventEmitter<void>();
+  @Output() editRequested = new EventEmitter<{ processedHtml: string; processedStyles: string }>();
+  @Output() displayStateUpdated = new EventEmitter<{ processedHtml: string; processedStyles: string }>();
 }

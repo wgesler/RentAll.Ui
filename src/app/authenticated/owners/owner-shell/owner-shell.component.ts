@@ -80,7 +80,12 @@ export class OwnerShellComponent implements OnInit, OnDestroy {
   stateFormOrganizationId = '';
   stateFormsRequestId = 0;
   stateForms: StateFormResponse[] = [];
-  dynamicFormViewState: Record<string, { isView: boolean; editedHtml: string | null }> = {};
+  dynamicFormViewState: Record<string, {
+    isView: boolean;
+    editedHtml: string | null;
+    processedHtml: string | null;
+    processedStyles: string | null;
+  }> = {};
 
   @ViewChild(MatTabGroup) ownerShellTabGroup?: MatTabGroup;
 
@@ -650,18 +655,49 @@ export class OwnerShellComponent implements OnInit, OnDestroy {
     return String(stateForm?.formAsHtml || '');
   }
 
+  getDynamicFormProcessedHtml(stateForm: StateFormResponse): string {
+    const formKey = this.getDynamicFormKey(stateForm);
+    return String(this.dynamicFormViewState[formKey]?.processedHtml || '').trim();
+  }
+
+  getDynamicFormProcessedStyles(stateForm: StateFormResponse): string {
+    const formKey = this.getDynamicFormKey(stateForm);
+    return String(this.dynamicFormViewState[formKey]?.processedStyles || '').trim();
+  }
+
   onDynamicFormViewRequested(formKey: string, editedHtml: string): void {
+    const current = this.dynamicFormViewState[formKey];
     this.dynamicFormViewState[formKey] = {
       isView: true,
-      editedHtml: editedHtml || ''
+      editedHtml: editedHtml || '',
+      processedHtml: current?.processedHtml || null,
+      processedStyles: current?.processedStyles || null
     };
   }
 
-  onDynamicFormEditRequested(formKey: string): void {
+  onDynamicFormDisplayStateUpdated(
+    formKey: string,
+    displayState: { processedHtml: string; processedStyles: string }
+  ): void {
+    const current = this.dynamicFormViewState[formKey];
+    this.dynamicFormViewState[formKey] = {
+      isView: current?.isView ?? true,
+      editedHtml: current?.editedHtml || null,
+      processedHtml: displayState?.processedHtml || '',
+      processedStyles: displayState?.processedStyles || ''
+    };
+  }
+
+  onDynamicFormEditRequested(
+    formKey: string,
+    displayState?: { processedHtml: string; processedStyles: string }
+  ): void {
     const current = this.dynamicFormViewState[formKey];
     this.dynamicFormViewState[formKey] = {
       isView: false,
-      editedHtml: current?.editedHtml || null
+      editedHtml: current?.editedHtml || null,
+      processedHtml: displayState?.processedHtml || current?.processedHtml || null,
+      processedStyles: displayState?.processedStyles || current?.processedStyles || null
     };
   }
   //#endregion

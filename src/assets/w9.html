@@ -1,0 +1,963 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+  <meta name="docusign-signers" content="owner" />
+<title>Form W-9 Hybrid HTML</title>
+<style>
+  @page { size: Letter; margin: 0; }
+  * { box-sizing: border-box; }
+
+  body {
+    margin: 0;
+    padding: 0;
+    background: #eee;
+    font-family: Arial, Helvetica, sans-serif;
+    color: #000;
+  }
+
+  .page {
+    width: 7.85in;
+    min-height: 10.2in;
+    height: auto;
+    margin: 0 auto;
+    background: #fff;
+    padding: .35in .45in .25in .45in;
+    overflow: visible;
+  }
+
+  .top {
+    display: grid;
+    grid-template-columns: 1.4in 1fr 1.45in;
+    min-height: .82in;
+    align-items: stretch;
+    overflow: hidden;
+    width: 100%;
+    position: relative;
+    border-bottom: 2px solid #000;
+  }
+
+  .form-cell {
+    border-right: 2px solid #000;
+    padding: 4px 6px;
+    font-size: 8px;
+    line-height: 1.05;
+    white-space: normal;
+  }
+
+  .w9 {
+    font-size: 31px;
+    font-weight: 800;
+    line-height: .9;
+    margin-left: 24px;
+  }
+
+  .title-cell {
+    text-align: center;
+    font-weight: 800;
+    font-size: 17px;
+    line-height: 1.15;
+    padding-top: 15px;
+  }
+
+  .give-cell {
+    border-left: 2px solid #000;
+    padding: 8px 8px;
+    font-weight: 800;
+    font-size: 12px;
+    line-height: 1.18;
+  }
+
+  .agency-line {
+    white-space: nowrap;
+  }
+
+  .body-grid {
+    display: grid;
+    grid-template-columns: .34in 1fr;
+    align-items: stretch;
+  }
+
+  .vertical {
+    writing-mode: vertical-rl;
+    transform: rotate(180deg);
+    text-align: center;
+    font-weight: 700;
+    font-size: 10px;
+    border-right: 1px solid #000;
+    padding: 4px 0;
+    line-height: 1.05;
+    letter-spacing: .1px;
+    align-self: stretch;
+  }
+
+  .fields {
+    font-size: 9px;
+  }
+
+  .full-row {
+    height: .38in;
+    border-bottom: 1px solid #000;
+    padding: 3px 5px 1px 5px;
+  }
+
+  .label {
+    display: block;
+    font-size: 9px;
+    line-height: 1.05;
+  }
+
+  input[type="text"] {
+    width: 100%;
+    border: 0;
+    background: transparent;
+    border-radius: 5px;
+    font-family: Arial, Helvetica, sans-serif;
+    font-size: 12px;
+    line-height: 1.25;
+    height: 19px;
+    padding: 2px 4px 1pt 4px;
+    margin-bottom: 1pt;
+    outline: none;
+  }
+
+  /* Uniform W-9 edit box sizing/typography */
+  .fields input[type="text"],
+  .fields .line,
+  .fields .underline,
+  .sig-line,
+  .date-line,
+  .llc-line {
+    box-sizing: border-box !important;
+    height: 18px !important;
+    min-height: 18px !important;
+    font-family: Arial, Helvetica, sans-serif !important;
+    font-size: 12px !important;
+    line-height: 14px !important;
+    padding: 2px 4px !important;
+    border-radius: 5px !important;
+  }
+
+  /* Same uniform size in iframe editor mode */
+  .fields input[type="text"].owner-editable-control,
+  .fields .line.owner-editable-field,
+  .fields .underline.owner-editable-field,
+  .sig-line.owner-editable-field,
+  .date-line.owner-editable-field,
+  .llc-line.owner-editable-field {
+    box-sizing: border-box !important;
+    height: 18px !important;
+    min-height: 18px !important;
+    font-family: Arial, Helvetica, sans-serif !important;
+    font-size: 12px !important;
+    line-height: 14px !important;
+    padding: 2px 4px !important;
+    border-radius: 5px !important;
+  }
+
+  /* W-9 has printed rule-lines in different row geometries.
+     Nudge each edit box so it sits about 1px above its local line. */
+  .full-row input[type="text"] {
+    height: 17px;
+    margin-top: 1px;
+    margin-bottom: 2px;
+  }
+
+  /* Top Name + Business rows: seat edit boxes on the lower rule line */
+  .fields > .full-row:nth-child(1) input[type="text"],
+  .fields > .full-row:nth-child(2) input[type="text"] {
+    margin-top: 4px;
+    margin-bottom: 0;
+  }
+
+  .address-row input[type="text"] {
+    height: 18px;
+    margin-top: 2px;
+    margin-bottom: 2px;
+  }
+
+  .requester-box input[type="text"] {
+    height: 16px;
+    margin-top: 3px;
+    margin-bottom: 2px;
+  }
+
+  .account-row input[type="text"] {
+    height: 18px;
+    margin-top: 2px;
+    margin-bottom: 2px;
+  }
+
+  /* Editor runtime adds .owner-editable-control; force these three fields taller there too. */
+  .address-row input[type="text"].owner-editable-control,
+  .address-left .address-row:last-child input[type="text"].owner-editable-control,
+  .account-row input[type="text"].owner-editable-control {
+    height: 18px !important;
+    min-height: 18px !important;
+    margin-top: 2px !important;
+    margin-bottom: 2px !important;
+    padding-top: 2px !important;
+    padding-bottom: 2px !important;
+  }
+
+  .tax-section {
+    border-bottom: 2px solid #000;
+    width: 100%;
+  }
+
+  .classification-row {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 1.72in;
+    border-bottom: 1px solid #000;
+    min-height: .98in;
+  }
+
+  .classification-left {
+    padding: 5px;
+    border-right: 1px solid #000;
+    min-width: 0;
+    overflow: hidden;
+  }
+
+  .exemptions-box {
+    padding: 5px;
+    font-size: 8.6px;
+    line-height: 1.16;
+    overflow: hidden;
+    border-right: 0;
+  }
+
+  .address-requester-row {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 2.55in;
+    border-bottom: 1px solid #000;
+    min-height: .60in;
+  }
+
+  .address-left {
+    min-width: 0;
+    overflow: hidden;
+  }
+
+  .address-row {
+    height: .30in;
+    padding: 2px 5px 0 5px;
+    border-bottom: 1px solid #000;
+  }
+
+  .address-row:last-child {
+    border-bottom: 0;
+  }
+
+  .requester-box {
+    border-left: 1px solid #000;
+    border-right: 0;
+    padding: 4px 5px;
+    font-size: 8.7px;
+    overflow: hidden;
+  }
+
+  .account-row {
+    height: .30in;
+    padding: 2px 5px 0 5px;
+  }
+
+  .w9-contact-table {
+    width: 100%;
+    border-collapse: collapse;
+    table-layout: fixed;
+  }
+
+  .w9-contact-row {
+    height: .30in;
+  }
+
+  .w9-contact-cell {
+    padding: 2px 5px 0 5px;
+    vertical-align: top;
+    border-bottom: 1px solid #000;
+  }
+
+  .w9-contact-cell.with-center-divider {
+    border-left: 1px solid #000;
+  }
+
+  .w9-contact-cell.no-bottom-divider {
+    border-bottom: 0;
+  }
+
+  .w9-contact-cell.section-2 input[name="requester1"] {
+    margin-top: 6px;
+    margin-bottom: 0;
+  }
+
+  .w9-contact-cell.section-2 {
+    padding-top: 2px;
+    padding-bottom: 0;
+  }
+
+  .w9-contact-cell.section-4 {
+    padding-top: 8px;
+    padding-bottom: 0;
+  }
+
+  .w9-contact-cell.section-4 .w9-contact-field {
+    display: none;
+  }
+
+  .w9-contact-cell.section-4 input[name="requester2"] {
+    margin-top: 0;
+    margin-bottom: 0;
+  }
+
+  .w9-contact-row:last-child .w9-contact-cell {
+    border-bottom: 0;
+  }
+
+  .w9-contact-field {
+    display: block;
+    font-size: 9px;
+    line-height: 1.05;
+  }
+
+  .w9-contact-table input[type="text"] {
+    width: 100%;
+    margin-top: 2px;
+    margin-bottom: 2px;
+  }
+
+  .checks {
+    display: flex;
+    gap: 7px;
+    flex-wrap: nowrap;
+    margin-top: 5px;
+    align-items: center;
+  }
+
+  .check {
+    display: inline-flex;
+    align-items: flex-start;
+    gap: 2px;
+    white-space: nowrap;
+    font-size: 8.3px;
+  }
+
+  input[type="checkbox"] {
+    width: 10px;
+    height: 10px;
+    margin: 1px 0 0 0;
+    appearance: none;
+    -webkit-appearance: none;
+    border: 1px solid #000;
+    border-radius: 0;
+    background: #fff;
+    position: relative;
+  }
+
+  input[type="checkbox"]:checked::after {
+    content: "X";
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 100%;
+    height: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transform: none;
+    font-size: 8px;
+    line-height: 1;
+    font-weight: 700;
+    color: #000;
+  }
+
+  .inline-entry {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    margin-top: 8px;
+    font-size: 8.25px;
+    min-width: 0;
+  }
+
+  .inline-arrow {
+    flex: 0 0 auto;
+    font-size: 10px;
+    line-height: 1;
+    margin-left: 2px;
+    margin-right: 2px;
+  }
+
+  .inline-entry .check {
+    flex: 0 1 auto;
+    min-width: 0;
+  }
+
+  .inline-entry .line {
+    position: relative;
+    flex: 1 1 auto;
+    min-width: 36px;
+    height: 14px;
+    padding: 0 4px 1pt 4px;
+    margin-bottom: 1pt;
+    border-radius: 5px;
+    background: transparent;
+    transform: translateY(-1px);
+  }
+
+  .inline-entry .line.llc-line {
+    flex: 0 0 108px;
+    min-width: 108px;
+  }
+
+  .llc-entry {
+    margin-top: 8px;
+  }
+
+  .llc-entry-table {
+    width: 100%;
+    border-collapse: collapse;
+    table-layout: fixed;
+  }
+
+  .llc-entry-table td {
+    vertical-align: top;
+    padding: 0;
+  }
+
+  .llc-entry-left {
+    width: auto;
+    white-space: normal;
+    line-height: 1.05;
+  }
+
+  .llc-text-block {
+    display: inline-block;
+    vertical-align: top;
+  }
+
+  .llc-main-line {
+    display: inline;
+    font-size: 8.3px;
+  }
+
+  .llc-sub-line {
+    display: block;
+    font-size: 7.2px;
+    line-height: 1.05;
+    margin-left: 16px;
+    margin-top: 1px;
+  }
+
+  .llc-entry-right {
+    width: 86px;
+    text-align: right;
+    white-space: nowrap;
+    padding-top: 0;
+  }
+
+  .llc-checkbox {
+    margin-right: 2px;
+    vertical-align: top;
+    margin-top: 1px;
+  }
+
+  .llc-tail {
+    display: inline-flex;
+    align-items: flex-start;
+    gap: 2px;
+    margin-left: 0;
+    margin-top: 0;
+    white-space: nowrap;
+  }
+
+  .llc-tail .inline-arrow {
+    margin: 0;
+    flex: 0 0 auto;
+  }
+
+  .llc-line {
+    position: relative;
+    display: inline-block;
+    width: 72px;
+    min-width: 72px;
+    height: 14px;
+    padding: 0 4px 1pt 4px;
+    margin-bottom: 1pt;
+    border-radius: 5px;
+    background: transparent;
+    transform: none;
+  }
+
+  .llc-line::after,
+  .llc-line.owner-editable-field::after {
+    content: none !important;
+    border-bottom: 0 !important;
+  }
+
+  .inline-entry .line::after {
+    content: none;
+  }
+
+  .exempt-line {
+    display: grid;
+    grid-template-columns: 1fr .72in;
+    align-items: end;
+    gap: 3px;
+    margin-top: 8px;
+  }
+
+  .underline {
+    position: relative;
+    height: 14px;
+    padding: 0 4px 1pt 4px;
+    margin-bottom: 1pt;
+    border-radius: 5px;
+    background: transparent;
+    transform: translateY(-1px);
+  }
+
+  .underline::after {
+    content: none;
+  }
+
+  .part-title {
+    display: grid;
+    grid-template-columns: .75in 1fr;
+    align-items: center;
+    margin-top: 5px;
+    border-bottom: 1px solid #000;
+  }
+
+  .part-label {
+    background: #000;
+    color: #fff;
+    font-weight: 800;
+    font-size: 14px;
+    padding: 2px 8px;
+  }
+
+  .part-heading {
+    font-weight: 800;
+    font-size: 14px;
+    padding-left: 8px;
+  }
+
+  .tin-grid {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 2.42in;
+    border-bottom: 1px solid #000;
+  }
+
+  .tin-text {
+    font-size: 9px;
+    line-height: 1.18;
+    padding: 4px 8px 5px 0;
+  }
+
+  .tin-box {
+    border-left: 1px solid #000;
+    padding: 4px 0 5px 8px;
+    font-size: 9px;
+    font-weight: 700;
+  }
+
+  .digits {
+    display: flex;
+    align-items: center;
+    gap: 1px;
+    margin: 2px 0 8px 0;
+  }
+
+  .digit {
+    width: 18px;
+    height: 24px;
+    border: 1px solid #000 !important;
+    text-align: center;
+    font-size: 14px;
+    font-weight: 600;
+    line-height: 22px;
+    font-family: Arial, Helvetica, sans-serif;
+  }
+
+  .dash {
+    padding: 0 2px;
+    font-size: 15px;
+  }
+
+  .cert {
+    font-size: 8.7px;
+    line-height: 1.11;
+    padding: 2px 0;
+    border-bottom: 1px solid #000;
+  }
+
+  .cert ol {
+    margin: 2px 0 0 18px;
+    padding: 0;
+  }
+
+  .cert li {
+    margin-bottom: 1px;
+  }
+
+  .signature {
+    display: grid;
+    grid-template-columns: .55in 1fr .58in 1.62in;
+    min-height: .31in;
+    align-items: end;
+    border-bottom: 1px solid #000;
+    font-size: 9px;
+  }
+
+  .signature-person-cell {
+    display: flex;
+    align-items: end;
+    gap: 8px;
+    min-width: 0;
+    padding-right: 10px;
+  }
+
+  .signature-person-label {
+    font-weight: 700;
+    line-height: 1.05;
+    white-space: nowrap;
+    flex: 0 0 auto;
+  }
+
+  .signature-person-cell .sig-line {
+    flex: 1 1 auto;
+    min-width: 120px;
+  }
+
+  .date-cell {
+    display: flex;
+    align-items: end;
+    gap: 8px;
+    min-width: 0;
+  }
+
+  .date-label {
+    font-weight: 700;
+    white-space: nowrap;
+    flex: 0 0 auto;
+  }
+
+  .sign-here {
+    font-size: 13px;
+    font-weight: 800;
+    padding-left: 4px;
+  }
+
+  .sig-line, .date-line {
+    position: relative;
+    height: 18px;
+    padding: 0 4px 1pt 4px;
+    margin-bottom: 2px;
+    border-radius: 5px;
+    background: transparent;
+    transform: none;
+  }
+
+  .date-line {
+    align-self: end;
+    margin-top: 0;
+    margin-bottom: 2px;
+    transform: none;
+    margin-left: 0;
+    flex: 1 1 auto;
+  }
+
+  .sig-line::after,
+  .date-line::after {
+    content: none;
+  }
+
+  .instructions {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 14px;
+    padding-top: 5px;
+    font-size: 8.2px;
+    line-height: 1.06;
+  }
+
+  .instructions h2 {
+    font-size: 14px;
+    margin: 0 0 2px 0;
+  }
+
+  .instructions h3 {
+    font-size: 10.5px;
+    margin: 5px 0 1px 0;
+  }
+
+  .footer {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    border-top: 1px solid #000;
+    margin-top: 5px;
+    padding-top: 3px;
+    font-size: 9px;
+  }
+  .footer div:nth-child(2) { text-align: center; }
+  .footer div:nth-child(3) { text-align: right; }
+
+  @media print {
+    body { background: #fff; }
+    .page {
+      margin: 0;
+      border: 0;
+      width: 7.85in;
+      min-height: 10.2in;
+      height: auto;
+    }
+  }
+</style>
+</head>
+<body>
+<div class="page">
+
+  <div class="top">
+    <div class="form-cell">
+      Form
+      <div class="w9">W-9</div>
+      (Rev. August 2013)<br>
+      <span class="agency-line">Department of the Treasury</span><br>
+      <span class="agency-line">Internal Revenue Service</span>
+    </div>
+    <div class="title-cell">
+      Request for Taxpayer<br>
+      Identification Number and Certification
+    </div>
+    <div class="give-cell">
+      Give Form to the<br>
+      requester. Do not<br>
+      send to the IRS.
+    </div>
+  </div>
+
+  <div class="body-grid">
+    <div class="vertical">Print or type<br>See Specific Instructions on page 2.</div>
+
+    <div class="fields">
+      <div class="full-row">
+        <label class="label">Name (as shown on your income tax return)</label>
+        <input type="text" name="name">
+      </div>
+
+      <div class="full-row">
+        <label class="label">Business name/disregarded entity name, if different from above</label>
+        <input type="text" name="businessName">
+      </div>
+      <div class="tax-section">
+        <div class="classification-row">
+          <div class="classification-left">
+            <div>Check appropriate box for federal tax classification:</div>
+            <div class="checks">
+              <label class="check"><input type="checkbox"> Individual/sole proprietor</label>
+              <label class="check"><input type="checkbox"> C Corporation</label>
+              <label class="check"><input type="checkbox"> S Corporation</label>
+              <label class="check"><input type="checkbox"> Partnership</label>
+              <label class="check"><input type="checkbox"> Trust/estate</label>
+            </div>
+
+            <div class="llc-entry">
+              <table class="llc-entry-table">
+                <tr>
+                  <td class="llc-entry-left">
+                    <input type="checkbox" class="llc-checkbox">
+                    <span class="llc-text-block">
+                      <span class="llc-main-line">Limited liability company. Enter the tax classification</span>
+                      <span class="llc-sub-line">(C=C corporation, S=S corporation, P=partnership)</span>
+                    </span>
+                  </td>
+                  <td class="llc-entry-right">
+                    <div class="llc-tail">
+                      <span class="inline-arrow">&#9654;</span>
+                      <div class="line llc-line"></div>
+                    </div>
+                  </td>
+                </tr>
+              </table>
+            </div>
+
+            <div class="inline-entry">
+              <label class="check"><input type="checkbox"> Other (see instructions) ▶</label>
+              <div class="line"></div>
+            </div>
+          </div>
+
+          <div class="exemptions-box">
+            <strong>Exemptions</strong> (see instructions):<br>
+            <div class="exempt-line">
+              <span>Exempt payee code (if any)</span>
+              <span class="underline"></span>
+            </div>
+            <div class="exempt-line">
+              <span>Exemption from FATCA reporting<br>code (if any)</span>
+              <span class="underline"></span>
+            </div>
+          </div>
+        </div>
+
+        <table class="w9-contact-table">
+          <colgroup>
+            <col>
+            <col style="width: 2.55in;">
+          </colgroup>
+          <tr class="w9-contact-row">
+            <td class="w9-contact-cell">
+              <label class="w9-contact-field">Address (number, street, and apt. or suite no.)</label>
+              <input type="text" name="address">
+            </td>
+            <td class="w9-contact-cell with-center-divider no-bottom-divider section-2">
+              <label class="w9-contact-field">Requester’s name and address (optional)</label>
+              <input type="text" name="requester1">
+            </td>
+          </tr>
+          <tr class="w9-contact-row">
+            <td class="w9-contact-cell">
+              <label class="w9-contact-field">City, state, and ZIP code</label>
+              <input type="text" name="cityStateZip">
+            </td>
+            <td class="w9-contact-cell with-center-divider section-4">
+              <label class="w9-contact-field">&nbsp;</label>
+              <input type="text" name="requester2">
+            </td>
+          </tr>
+          <tr class="w9-contact-row">
+            <td class="w9-contact-cell">
+              <label class="w9-contact-field">List account number(s) here (optional)</label>
+              <input type="text" name="accountNumbers">
+            </td>
+            <td class="w9-contact-cell">
+              <label class="w9-contact-field">&nbsp;</label>
+            </td>
+          </tr>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <div class="part-title">
+    <div class="part-label">Part I</div>
+    <div class="part-heading">Taxpayer Identification Number (TIN)</div>
+  </div>
+
+  <div class="tin-grid">
+    <div class="tin-text">
+      Enter your TIN in the appropriate box. The TIN provided must match the name given on the “Name”
+      line to avoid backup withholding. For individuals, this is your social security number (SSN).
+      However, for a resident alien, sole proprietor, or disregarded entity, see the Part I instructions
+      on page 3. For other entities, it is your employer identification number (EIN). If you do not have
+      a number, see <em>How to get a TIN</em> on page 3.<br><br>
+      <strong>Note.</strong> If the account is in more than one name, see the chart on page 4 for guidelines on whose
+      number to enter.
+    </div>
+
+    <div class="tin-box">
+      Social security number
+      <div class="digits">
+        <input class="digit" maxlength="1"><input class="digit" maxlength="1"><input class="digit" maxlength="1">
+        <span class="dash">-</span>
+        <input class="digit" maxlength="1"><input class="digit" maxlength="1">
+        <span class="dash">-</span>
+        <input class="digit" maxlength="1"><input class="digit" maxlength="1"><input class="digit" maxlength="1"><input class="digit" maxlength="1">
+      </div>
+
+      Employer identification number
+      <div class="digits">
+        <input class="digit" maxlength="1"><input class="digit" maxlength="1">
+        <span class="dash">-</span>
+        <input class="digit" maxlength="1"><input class="digit" maxlength="1"><input class="digit" maxlength="1"><input class="digit" maxlength="1"><input class="digit" maxlength="1"><input class="digit" maxlength="1"><input class="digit" maxlength="1">
+      </div>
+    </div>
+  </div>
+
+  <div class="part-title">
+    <div class="part-label">Part II</div>
+    <div class="part-heading">Certification</div>
+  </div>
+
+  <div class="cert">
+    Under penalties of perjury, I certify that:
+    <ol>
+      <li>The number shown on this form is my correct taxpayer identification number, or I am waiting for a number to be issued to me; and</li>
+      <li>I am not subject to backup withholding because: (a) I am exempt from backup withholding, or
+        (b) I have not been notified by the Internal Revenue Service (IRS) that I am subject to backup
+        withholding as a result of a failure to report all interest or dividends, or (c) the IRS has
+        notified me that I am no longer subject to backup withholding; and</li>
+      <li>I am a U.S. citizen or other U.S. person (defined below); and</li>
+      <li>The FATCA code(s) entered on this form (if any) indicating that I am exempt from FATCA reporting is correct.</li>
+    </ol>
+    <strong>Certification instructions.</strong> You must cross out item 2 above if you have been notified by the IRS that
+    you are currently subject to backup withholding because you have failed to report all interest and
+    dividends on your tax return. For real estate transactions, item 2 does not apply.
+  </div>
+
+  <div class="signature">
+    <div class="sign-here">Sign<br>Here</div>
+    <div class="signature-person-cell">
+      <span class="signature-person-label">Signature of<br>U.S. person ▶</span>
+      <div class="sig-line"></div>
+    </div>
+    <div class="date-cell" style="grid-column: 3 / 5;">
+      <span class="date-label">Date ▶</span>
+      <div class="date-line"></div>
+    </div>
+  </div>
+
+  <div class="instructions">
+    <div>
+      <h2>General Instructions</h2>
+      Section references are to the Internal Revenue Code unless otherwise noted.<br>
+      Future developments. The IRS has created a page on IRS.gov for information about
+      Form W-9, at www.irs.gov/w9. Information about any future developments affecting
+      Form W-9, such as legislation enacted after we release it, will be posted on that page.
+
+      <h3>Purpose of Form</h3>
+      A person who is required to file an information return with the IRS must obtain your
+      correct taxpayer identification number (TIN) to report, for example, income paid to you,
+      payments made to you in settlement of payment card and third party network transactions,
+      real estate transactions, mortgage interest you paid, acquisition or abandonment of secured
+      property, cancellation of debt, or contributions you made to an IRA.<br><br>
+      Use Form W-9 only if you are a U.S. person, including a resident alien, to provide your
+      correct TIN to the person requesting it and, when applicable, to:<br>
+      1. Certify that the TIN you are giving is correct;<br>
+      2. Certify that you are not subject to backup withholding; or<br>
+      3. Claim exemption from backup withholding if you are a U.S. exempt payee.
+    </div>
+
+    <div>
+      4. Certify that FATCA code(s) entered on this form indicating that you are exempt from
+      FATCA reporting is correct.<br><br>
+      <strong>Note.</strong> If you are a U.S. person and a requester gives you a form other than Form W-9
+      to request your TIN, you must use the requester’s form if it is substantially similar to this
+      Form W-9.
+
+      <h3>Definition of a U.S. person.</h3>
+      For federal tax purposes, you are considered a U.S. person if you are:<br>
+      • An individual who is a U.S. citizen or U.S. resident alien;<br>
+      • A partnership, corporation, company, or association created or organized in the United States
+      or under the laws of the United States;<br>
+      • An estate other than a foreign estate; or<br>
+      • A domestic trust as defined in Regulations section 301.7701-7.
+
+      <h3>Special rules for partnerships.</h3>
+      Partnerships that conduct a trade or business in the United States are generally required to pay
+      a withholding tax under section 1446 on any foreign partners’ share of effectively connected
+      taxable income from such business. Further, in certain cases where a Form W-9 has not been
+      received, the rules under section 1446 require a partnership to presume that a partner is a foreign
+      person, and pay the section 1446 withholding tax.
+    </div>
+  </div>
+
+  <div class="footer">
+    <div>Cat. No. 10231X</div>
+    <div></div>
+    <div>Form W-9 (Rev. 8-2013)</div>
+  </div>
+</div>
+</body>
+</html>

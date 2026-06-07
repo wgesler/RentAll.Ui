@@ -14,18 +14,18 @@
   padding: 0.75rem;
 }
 
-.dynamic-form-edit-surface {
+.dynamic-form-edit-iframe {
   width: 100%;
-  min-height: 900px;
+  min-height: 1200px;
+  height: 1200px;
+  border: none;
   display: block;
   background-color: white;
   border-radius: 4px;
   box-shadow: 0 1px 2px rgba(0, 0, 0, 0.08);
-  padding: 8px;
-  overflow: auto;
 }
 
-.dynamic-form-edit-surface .dynamic-form-choice-marker {
+.dynamic-form-choice-marker {
   cursor: pointer;
   user-select: none;
   display: inline-block;

@@ -27,12 +27,14 @@
     <div class="property-tab-main-area">
       @if (editableHtml) {
         <div class="preview-section">
-          <div
-            class="dynamic-form-edit-surface"
-            #editSurface
-            spellcheck="false"
-            (click)="onEditSurfaceClick($event)"
-            [innerHTML]="editableHtml"></div>
+          <iframe
+            [srcdoc]="editableHtml"
+            class="dynamic-form-edit-iframe"
+            [attr.key]="iframeKey"
+            #editIframe
+            (load)="onEditIframeLoad()"
+            frameborder="0">
+          </iframe>
         </div>
       } @else {
         <div class="owner-shell-placeholder">
