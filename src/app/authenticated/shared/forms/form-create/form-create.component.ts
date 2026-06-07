@@ -13,6 +13,7 @@ import { DynamicFormCreateComponent } from '../../../owners/dynamic-form-create/
       [officeId]="officeId"
       [propertyId]="propertyId"
       [editedHtml]="editedHtml"
+      [sourceTemplateHtml]="sourceTemplateHtml"
       (editRequested)="editRequested.emit()">
     </app-dynamic-form-create>
   `
@@ -23,5 +24,6 @@ export class SharedFormCreateComponent {
   @Input() officeId: number | null = null;
   @Input() propertyId: string | null = null;
   @Input() editedHtml = '';
+  @Input() sourceTemplateHtml = '';
   @Output() editRequested = new EventEmitter<void>();
 }

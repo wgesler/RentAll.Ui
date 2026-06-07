@@ -35,9 +35,6 @@ export class OwnerInformationComponent implements OnInit, OnChanges, OnDestroy {
   isSaving = false;
   primaryOwnerContactId: string | null = null;
   primaryOwnerPrefill: Record<string, unknown> | null = null;
-  additionalOwnerFormIds: number[] = [];
-  nextAdditionalOwnerFormId = 1;
-  additionalOwnerContactIdsByFormId: Record<number, string> = {};
   publicOwnerFormSnapshot: PublicOwnerFormResponse | null = null;
   leadOwnerSnapshot: LeadOwnerResponse | null = null;
   publicOwnerContactCode: string | null = null;
@@ -89,9 +86,6 @@ export class OwnerInformationComponent implements OnInit, OnChanges, OnDestroy {
   resetOwnerInformationState(): void {
     this.primaryOwnerContactId = null;
     this.primaryOwnerPrefill = null;
-    this.additionalOwnerFormIds = [];
-    this.additionalOwnerContactIdsByFormId = {};
-    this.nextAdditionalOwnerFormId = 1;
     this.publicOwnerFormSnapshot = null;
     this.leadOwnerSnapshot = null;
     this.publicOwnerContactCode = null;
@@ -351,35 +345,6 @@ export class OwnerInformationComponent implements OnInit, OnChanges, OnDestroy {
     this.ownerContextChanged.emit();
   }
 
-  onAddAdditionalOwnerRequested(): void {
-    this.additionalOwnerFormIds.push(this.nextAdditionalOwnerFormId);
-    this.nextAdditionalOwnerFormId += 1;
-  }
-
-  onAdditionalOwnerSaved(formId: number, event: { saved?: boolean; contactId?: string; entityTypeId?: number }): void {
-    if (!event?.saved) {
-      return;
-    }
-    const contactId = String(event.contactId || '').trim();
-    if (!contactId) {
-      return;
-    }
-    this.additionalOwnerContactIdsByFormId[formId] = contactId;
-  }
-
-  onRemoveAdditionalOwnerRequested(formId: number): void {
-    this.additionalOwnerFormIds = this.additionalOwnerFormIds.filter(id => id !== formId);
-    const contactId = this.additionalOwnerContactIdsByFormId[formId];
-    delete this.additionalOwnerContactIdsByFormId[formId];
-    if (!contactId) {
-      return;
-    }
-    this.ownersService.deleteOwnerContactByContext(contactId).pipe(take(1)).subscribe({
-      next: () => {},
-      error: () => {}
-    });
-  }
-
   onSaveRequested(): void {
     this.ownerForm.markAllAsTouched();
     if (this.ownerForm.invalid || this.isSaving) {
@@ -509,7 +474,7 @@ export class OwnerInformationComponent implements OnInit, OnChanges, OnDestroy {
     }
     return { officeId };
   }
-  
+
   onCurrencyInput(event: Event, controlName: string): void {
     this.formatterService.formatCurrencyInput(event, this.ownerForm.get(controlName));
   }

@@ -1,5 +1,5 @@
 import { CommonModule } from '@angular/common';
-import { Component, ElementRef, EventEmitter, Input, OnChanges, OnDestroy, OnInit, Output, SimpleChanges, ViewChild } from '@angular/core';
+import { ChangeDetectorRef, Component, ElementRef, EventEmitter, Input, OnChanges, OnDestroy, OnInit, Output, SimpleChanges, ViewChild } from '@angular/core';
 import { DomSanitizer, SafeHtml } from '@angular/platform-browser';
 import { Router } from '@angular/router';
 import { ToastrService } from 'ngx-toastr';
@@ -7,7 +7,6 @@ import { BehaviorSubject, Subject, finalize, take, takeUntil } from 'rxjs';
 import { RouterUrl } from '../../../app.routes';
 import { CommonMessage } from '../../../enums/common-message.enum';
 import { MaterialModule } from '../../../material.module';
-import { AuthService } from '../../../services/auth.service';
 import { DocumentExportService } from '../../../services/document-export.service';
 import { DocumentHtmlService } from '../../../services/document-html.service';
 import { UtilityService } from '../../../services/utility.service';
@@ -23,6 +22,8 @@ import { OfficeResponse } from '../../organizations/models/office.model';
 import { OrganizationResponse } from '../../organizations/models/organization.model';
 import { PropertyResponse } from '../../properties/models/property.model';
 import { BaseDocumentComponent, DocumentConfig, EmailConfig } from '../../shared/base-document.component';
+import { OwnerDocuSignSignerService } from '../services/owner-docusign-signer.service';
+import { OwnerDocuSignSignersDialogService } from '../services/owner-docusign-signers-dialog.service';
 import { OwnersService } from '../services/owners.service';
 
 @Component({
@@ -38,10 +39,11 @@ export class DynamicFormCreateComponent extends BaseDocumentComponent implements
   @Input() officeId: number | null = null;
   @Input() propertyId: string | null = null;
   @Input() editedHtml = '';
+  @Input() sourceTemplateHtml = '';
   @Output() editRequested = new EventEmitter<void>();
   @ViewChild('previewIframe') previewIframe?: ElementRef<HTMLIFrameElement>;
 
-  isPageReady = false;
+  isPageReady = true;
   isSaving = false;
   isDownloading = false;
   iframeKey = 0;
@@ -55,16 +57,19 @@ export class DynamicFormCreateComponent extends BaseDocumentComponent implements
   selectedOffice: OfficeResponse | null = null;
   selectedProperty: PropertyResponse | null = null;
   ownerContact: ContactResponse | null = null;
+  allContacts: ContactResponse[] = [];
 
-  itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['organization', 'offices', 'contacts', 'property', 'preview']));
+  itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set());
   destroy$ = new Subject<void>();
 
   constructor(
-    private authService: AuthService,
     private ownersService: OwnersService,
+    private ownerDocuSignSignerService: OwnerDocuSignSignerService,
+    private ownerDocuSignSignersDialogService: OwnerDocuSignSignersDialogService,
     private utilityService: UtilityService,
     documentHtmlService: DocumentHtmlService,
     private sanitizer: DomSanitizer,
+    private changeDetectorRef: ChangeDetectorRef,
     documentService: DocumentService,
     documentExportService: DocumentExportService,
     public override toastr: ToastrService,
@@ -86,7 +91,9 @@ export class DynamicFormCreateComponent extends BaseDocumentComponent implements
     this.loadOffices();
     this.loadContacts();
     this.loadProperty();
-    this.processAndSetHtml(this.editedHtml || '');
+    if (!this.previewIframeHtml) {
+      this.processAndSetHtml(this.editedHtml || '');
+    }
   }
 
   ngOnChanges(changes: SimpleChanges): void {
@@ -96,7 +103,6 @@ export class DynamicFormCreateComponent extends BaseDocumentComponent implements
       this.syncSelectedOfficeFromLoadedOffices();
     }
     if (propertyIdChanged) {
-      this.itemsToLoad$.next(new Set(['property', 'preview']));
       this.loadProperty();
     }
     if (changes['editedHtml']) {
@@ -198,21 +204,43 @@ export class DynamicFormCreateComponent extends BaseDocumentComponent implements
     });
     await this.router.navigateByUrl(RouterUrl.EmailCreate);
   }
+  //#endregion
+
+  //#region DocuSign Methods
+  getDocuSignSignerRolesHtmlSource(): string {
+    return String(this.sourceTemplateHtml || '').trim();
+  }
+
+  buildDocuSignSignerContext() {
+    const currentUser = this.authService.getUser();
+    return {
+      primaryOwnerContact: this.ownerContact,
+      additionalOwnerContactIds: [],
+      contacts: this.allContacts,
+      agent: {
+        email: String(currentUser?.email || '').trim(),
+        name: `${currentUser?.firstName || ''} ${currentUser?.lastName || ''}`.trim()
+      }
+    };
+  }
 
   override async onDocuSign(): Promise<void> {
     this.captureLiveSnapshotForExport();
-    const toEmail = this.ownerContact?.email || '';
-    const toName = this.ownerContact?.fullName || `${this.ownerContact?.firstName || ''} ${this.ownerContact?.lastName || ''}`.trim();
-    const currentUser = this.authService.getUser();
-    const agentEmail = String(currentUser?.email || '').trim();
-    const agentName = `${currentUser?.firstName || ''} ${currentUser?.lastName || ''}`.trim();
     const propertyCode = this.selectedProperty?.propertyCode || '';
     const title = this.formName || 'Form';
     const subject = propertyCode ? `${title} - ${propertyCode}` : title;
-    const signers = [{ email: toEmail, name: toName, routingOrder: 1 }];
-
-    if (agentEmail && agentName) {
-      signers.push({ email: agentEmail, name: agentName, routingOrder: 2 });
+    const roles = this.ownerDocuSignSignerService.parseSignerRolesFromHtml(
+      this.getDocuSignSignerRolesHtmlSource()
+    );
+    const signers = await this.ownerDocuSignSignersDialogService.promptForSigners({
+      formTitle: title,
+      roles,
+      context: this.buildDocuSignSignerContext(),
+      officeId: this.selectedOffice?.officeId ?? this.officeId,
+      contacts: this.allContacts
+    });
+    if (!signers) {
+      return;
     }
 
     await super.onDocuSign({
@@ -277,13 +305,15 @@ export class DynamicFormCreateComponent extends BaseDocumentComponent implements
   loadContacts(): void {
     this.ownersService.getOwnerContactsByContext().pipe(take(1),finalize(() => { this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'contacts'); })).subscribe({
       next: contacts => {
+        this.allContacts = contacts || [];
         const ownerLeadId = Number(this.ownerLeadId);
-        this.ownerContact = (contacts || []).find(contact =>
+        this.ownerContact = this.allContacts.find(contact =>
           Number(contact.entityTypeId) === Number(EntityType.Owner) &&
           Number(contact.ownerLeadId) === ownerLeadId
         ) || null;
       },
       error: () => {
+        this.allContacts = [];
         this.ownerContact = null;
       }
     });
@@ -312,17 +342,16 @@ export class DynamicFormCreateComponent extends BaseDocumentComponent implements
       this.previewIframeHtml = '';
       this.previewIframeStyles = '';
       this.safeHtml = null;
-      this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'preview');
+      this.changeDetectorRef.markForCheck();
       return;
     }
-    this.utilityService.addLoadItem(this.itemsToLoad$, 'preview');
     const result = this.documentHtmlService.processHtml(html, true);
     this.previewIframeHtml = result.processedHtml;
     this.previewIframeStyles = result.extractedStyles;
     const previewHtmlWithStyles = this.documentHtmlService.getPreviewHtmlWithStyles(this.previewIframeHtml, this.previewIframeStyles);
     this.safeHtml = this.sanitizer.bypassSecurityTrustHtml(previewHtmlWithStyles);
     this.iframeKey++;
-    this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'preview');
+    this.changeDetectorRef.markForCheck();
   }
 
   getPreviewDocument(): Document | null {

@@ -9,7 +9,6 @@ import { BehaviorSubject, Observable, filter, finalize, firstValueFrom, map, tak
 import { RouterUrl } from '../../../app.routes';
 import { CommonMessage } from '../../../enums/common-message.enum';
 import { MaterialModule } from '../../../material.module';
-import { AuthService } from '../../../services/auth.service';
 import { DocumentExportService } from '../../../services/document-export.service';
 import { DocumentHtmlService } from '../../../services/document-html.service';
 import { FormatterService } from '../../../services/formatter-service';
@@ -80,7 +79,6 @@ export class BillingCreateComponent extends BaseDocumentComponent implements OnI
     private mappingService: MappingService,
     emailService: EmailService,
     private http: HttpClient,
-    private authService: AuthService,
     private documentReloadService: DocumentReloadService,
     private sanitizer: DomSanitizer,
     public override toastr: ToastrService,

@@ -5,7 +5,6 @@ import { Router } from '@angular/router';
 import { ToastrService } from 'ngx-toastr';
 import { RouterUrl } from '../../../app.routes';
 import { MaterialModule } from '../../../material.module';
-import { AuthService } from '../../../services/auth.service';
 import { DocumentHtmlService } from '../../../services/document-html.service';
 import { DocumentExportService } from '../../../services/document-export.service';
 import { DocumentType } from '../../documents/models/document.enum';
@@ -290,7 +289,6 @@ export class DialogChecklistIssuesComponent extends BaseDocumentComponent {
     documentExportService: DocumentExportService,
     emailService: EmailService,
     toastr: ToastrService,
-    private authService: AuthService,
     private ticketService: TicketService,
     private router: Router,
     private emailCreateDraftService: EmailCreateDraftService,

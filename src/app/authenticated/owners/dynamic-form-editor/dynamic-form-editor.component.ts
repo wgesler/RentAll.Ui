@@ -1,6 +1,6 @@
 import { CommonModule } from '@angular/common';
 import { HttpClient } from '@angular/common/http';
-import { Component, ElementRef, Input, OnChanges, OnDestroy, OnInit, Output, EventEmitter, SimpleChanges, ViewChild } from '@angular/core';
+import { ChangeDetectorRef, Component, ElementRef, Input, OnChanges, OnDestroy, OnInit, Output, EventEmitter, SimpleChanges, ViewChild } from '@angular/core';
 import { DomSanitizer, SafeHtml } from '@angular/platform-browser';
 import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
@@ -50,7 +50,8 @@ export class DynamicFormEditorComponent implements OnInit, OnChanges, OnDestroy 
     private toastr: ToastrService,
     private documentHtmlService: DocumentHtmlService,
     private dynamicFormDraftService: DynamicFormDraftService,
-    private formTokenProviderRegistryService: FormTokenProviderRegistryService
+    private formTokenProviderRegistryService: FormTokenProviderRegistryService,
+    private changeDetectorRef: ChangeDetectorRef
   ) {}
 
   //#region Dynamic-Form-Editor
@@ -59,6 +60,10 @@ export class DynamicFormEditorComponent implements OnInit, OnChanges, OnDestroy 
   }
 
   ngOnChanges(changes: SimpleChanges): void {
+    const isInitialRender = Object.values(changes).every(change => change.firstChange);
+    if (isInitialRender) {
+      return;
+    }
     if (
       changes['templateHtml'] ||
       changes['templateAssetPath'] ||
@@ -105,27 +110,45 @@ export class DynamicFormEditorComponent implements OnInit, OnChanges, OnDestroy 
 
   //#region Template Loading
   loadEditorHtml(): void {
+    const inlineTemplate = String(this.templateHtml || '').trim();
+    if (inlineTemplate && !this.htmlNeedsTokenReplacement(inlineTemplate)) {
+      this.isLoading = true;
+      this.baseTemplateHtml = inlineTemplate;
+      this.applyInitialEditorHtml();
+      this.isLoading = false;
+      this.changeDetectorRef.markForCheck();
+      return;
+    }
+
     this.isLoading = true;
+    this.changeDetectorRef.markForCheck();
     this.loadTemplateHtml().pipe(
-      switchMap(templateHtml => this.formTokenProviderRegistryService.applyTokens(this.tokenContextType, templateHtml, {
-        formName: this.formName,
-        formKey: this.formKey,
-        ownerLeadId: this.ownerLeadId,
-        officeId: this.officeId,
-        propertyId: this.propertyId,
-        templateAssetPath: this.templateAssetPath
-      })),
+      switchMap(templateHtml => {
+        if (!this.htmlNeedsTokenReplacement(templateHtml)) {
+          return of(templateHtml);
+        }
+        return this.formTokenProviderRegistryService.applyTokens(this.tokenContextType, templateHtml, {
+          formName: this.formName,
+          formKey: this.formKey,
+          ownerLeadId: this.ownerLeadId,
+          officeId: this.officeId,
+          propertyId: this.propertyId,
+          templateAssetPath: this.templateAssetPath
+        });
+      }),
       take(1)
     ).subscribe({
       next: replacedHtml => {
         this.baseTemplateHtml = replacedHtml || '';
         this.applyInitialEditorHtml();
         this.isLoading = false;
+        this.changeDetectorRef.markForCheck();
       },
       error: () => {
         this.baseTemplateHtml = '';
         this.applyInitialEditorHtml();
         this.isLoading = false;
+        this.changeDetectorRef.markForCheck();
       }
     });
   }
@@ -146,10 +169,17 @@ export class DynamicFormEditorComponent implements OnInit, OnChanges, OnDestroy 
   }
 
   applyInitialEditorHtml(): void {
+    const inlineTemplate = String(this.templateHtml || '').trim();
     const draftHtml = this.dynamicFormDraftService.loadDraft(this.getDraftStorageKey());
     this.hasDraft = !!draftHtml;
-    const htmlToRender = draftHtml || this.baseTemplateHtml || '';
+    const htmlToRender = inlineTemplate && !this.htmlNeedsTokenReplacement(inlineTemplate)
+      ? inlineTemplate
+      : (draftHtml || this.baseTemplateHtml || '');
     this.setEditorHtml(htmlToRender);
+  }
+
+  private htmlNeedsTokenReplacement(html: string): boolean {
+    return /\{\{[^}]+\}\}/.test(String(html || ''));
   }
 
   setEditorHtml(html: string): void {

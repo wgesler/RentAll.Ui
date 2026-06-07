@@ -122,13 +122,13 @@ export class OwnerShellComponent implements OnInit, OnDestroy {
     const isUnauthorizedViewMode = this.isPublicOwnerTokenContext(token);
     this.canAccessInformationTab = this.authService.isAdmin() && !this.isOwnerLinkMode();
     this.navigationContextService.setIsInUnauthorizedViewMode(isUnauthorizedViewMode);
-    this.navigationContextService.setIsInOwnerMode(isUnauthorizedViewMode);
     this.resetPropertyDropdownState();
     this.resetStateFormsContext();
 
     if (token) {
       this.isOwnerListMode = false;
       this.leadOwnerId = null;
+      this.navigationContextService.setIsInOwnerMode(true);
       if (Number.isFinite(officeId) && officeId > 0) {
         this.applyPageOfficeScope(officeId);
       }
@@ -144,6 +144,7 @@ export class OwnerShellComponent implements OnInit, OnDestroy {
       this.isOwnerListMode = false;
       this.selectedTabIndex = 0;
       this.leadOwnerId = leadOwnerId;
+      this.navigationContextService.setIsInOwnerMode(true);
       if (Number.isFinite(officeId) && officeId > 0) {
         this.applyPageOfficeScope(officeId);
       }
@@ -155,6 +156,7 @@ export class OwnerShellComponent implements OnInit, OnDestroy {
 
     this.isOwnerListMode = true;
     this.leadOwnerId = null;
+    this.navigationContextService.setIsInOwnerMode(false);
   }
 
   tabUsesPropertySelection(tabIndex: number): boolean {

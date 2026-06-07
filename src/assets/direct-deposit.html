@@ -3,6 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="docusign-signers" content="owner,owner2" />
   <title>Direct Deposit Authorization Agreement</title>
   <style>
     * {
@@ -307,22 +308,22 @@
       <div class="signature-row">
         <div class="signature-line">
           <div class="label">Signed:</div>
-          <div class="line"><span class="docusign-anchor" style="color:transparent;font-size:1px;line-height:1px;">/ds1/</span></div>
+          <div class="line"></div>
         </div>
         <div class="date-line">
           <div class="label">Date:</div>
-          <div class="line"><span class="docusign-anchor" style="color:transparent;font-size:1px;line-height:1px;">/ds1date/</span></div>
+          <div class="line"></div>
         </div>
       </div>
 
       <div class="signature-row">
         <div class="signature-line">
           <div class="label">Signed:</div>
-          <div class="line"><span class="docusign-anchor" style="color:transparent;font-size:1px;line-height:1px;">/ds2/</span></div>
+          <div class="line"></div>
         </div>
         <div class="date-line">
           <div class="label">Date:</div>
-          <div class="line"><span class="docusign-anchor" style="color:transparent;font-size:1px;line-height:1px;">/ds2date/</span></div>
+          <div class="line"></div>
         </div>
       </div>
     </div>
@@ -341,8 +342,7 @@
           class="upload-check-input"
           type="file"
           accept="image/*"
-          capture="environment"
-          onchange="handleVoidedCheckUpload(this)" />
+          capture="environment" />
       </div>
       <div class="uploaded-check-preview" id="uploadedCheckPreview">
         <p class="uploaded-check-placeholder" id="uploadedCheckPlaceholder">No check image uploaded</p>
@@ -356,33 +356,5 @@
       <div><span>P:</span> {{officePhone}} &nbsp;&nbsp;&nbsp; <span>F:</span> {{officeFax}} &nbsp;&nbsp;&nbsp; <a href="http://{{organizationWebsite}}">{{organizationWebsite}}</a></div>
     </div>
   </div>
-  <script>
-    function handleVoidedCheckUpload(input) {
-      var file = input && input.files && input.files.length > 0 ? input.files[0] : null;
-      var previewImage = document.getElementById('uploadedCheckImage');
-      var placeholder = document.getElementById('uploadedCheckPlaceholder');
-      if (!previewImage || !placeholder) {
-        return;
-      }
-      if (!file) {
-        previewImage.style.display = 'none';
-        previewImage.removeAttribute('src');
-        placeholder.style.display = 'block';
-        return;
-      }
-
-      var reader = new FileReader();
-      reader.onload = function (event) {
-        var dataUrl = event && event.target ? event.target.result : null;
-        if (!dataUrl) {
-          return;
-        }
-        previewImage.setAttribute('src', String(dataUrl));
-        previewImage.style.display = 'block';
-        placeholder.style.display = 'none';
-      };
-      reader.readAsDataURL(file);
-    }
-  </script>
 </body>
 </html>

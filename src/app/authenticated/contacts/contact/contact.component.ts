@@ -48,14 +48,10 @@ export class ContactComponent implements OnInit, OnChanges, OnDestroy {
   @Input() ownerLeadId: number | null = null;
   @Input() compactDialogMode: boolean = false;
   @Input() showDialogCancelButton: boolean = false;
-  @Input() showAddAdditionalOwnerButton: boolean = false;
-  @Input() showCancelAdditionalOwnerButton: boolean = false;
   @Input() prefillContact: Record<string, unknown> | null = null;
   @Input() publicOwnerToken: string | null = null;
   @Input() publicReadOnlyContactCode: string | null = null;
   @Output() closed = new EventEmitter<{ saved?: boolean; contactId?: string; entityTypeId?: number }>();
-  @Output() addAdditionalOwnerRequested = new EventEmitter<void>();
-  @Output() cancelAdditionalOwnerRequested = new EventEmitter<void>();
 
   readonly ratingStars: number[] = [1, 2, 3, 4, 5];
   EntityType = EntityType;
@@ -1407,14 +1403,6 @@ export class ContactComponent implements OnInit, OnChanges, OnDestroy {
 
   onPhoneInput(event: Event): void {
     this.formatterService.formatPhoneInput(event, this.form.get('phone'));
-  }
-
-  requestAddAdditionalOwner(): void {
-    this.addAdditionalOwnerRequested.emit();
-  }
-
-  requestCancelAdditionalOwner(): void {
-    this.cancelAdditionalOwnerRequested.emit();
   }
 
   isPublicOwnerTokenMode(): boolean {

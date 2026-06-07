@@ -13,10 +13,14 @@ export interface SendDocumentForSignatureRequest {
   htmlContent: string;
   fileName: string;
   subject: string;
+  returnUrl: string;
+  senderEmail: string;
+  senderName: string;
   signers: DocuSignSigner[];
 }
 
 export interface SendDocumentForSignatureResponse {
   envelopeId: string;
   status: string;
+  senderViewUrl: string;
 }

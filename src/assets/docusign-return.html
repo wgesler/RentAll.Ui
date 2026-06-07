@@ -1,0 +1,57 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>DocuSign Complete</title>
+    <style>
+      body {
+        margin: 0;
+        font-family: Arial, sans-serif;
+        background: #f5f6f8;
+        color: #1f2937;
+      }
+
+      .wrap {
+        min-height: 100vh;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 24px;
+        box-sizing: border-box;
+      }
+
+      .card {
+        max-width: 420px;
+        background: #fff;
+        border: 1px solid #d1d5db;
+        border-radius: 8px;
+        padding: 24px;
+        text-align: center;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="wrap">
+      <div class="card">
+        <p id="message">Finishing DocuSign...</p>
+      </div>
+    </div>
+    <script>
+      (function () {
+        var message = document.getElementById('message');
+
+        function showManualClose() {
+          message.textContent = 'DocuSign is complete. You can close this tab and return to RentAll.';
+        }
+
+        window.close();
+
+        window.setTimeout(function () {
+          if (!window.closed) {
+            showManualClose();
+          }
+        }, 400);
+      })();
+    </script>
+  </body>
+</html>

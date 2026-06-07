@@ -86,16 +86,6 @@
                 </mat-checkbox>
               }
               @if (isInOwnerMode) {
-                @if (showAddAdditionalOwnerButton) {
-                  <button mat-raised-button type="button" color="accent" (click)="requestAddAdditionalOwner()">
-                    Add Additional Owner
-                  </button>
-                }
-                @if (showCancelAdditionalOwnerButton) {
-                  <button mat-raised-button type="button" color="accent" (click)="requestCancelAdditionalOwner()">
-                    Remove
-                  </button>
-                }
                 <button mat-raised-button type="button" color="primary" (click)="saveContact()">
                   <mat-icon>save</mat-icon>
                   Save

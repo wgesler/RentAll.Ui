@@ -7,7 +7,6 @@ import { ToastrService } from 'ngx-toastr';
 import { BehaviorSubject, Subject, catchError, filter, finalize, firstValueFrom, forkJoin, of, take, takeUntil } from 'rxjs';
 import { RouterUrl } from '../../../app.routes';
 import { MaterialModule } from '../../../material.module';
-import { AuthService } from '../../../services/auth.service';
 import { DocumentExportService } from '../../../services/document-export.service';
 import { DocumentHtmlService } from '../../../services/document-html.service';
 import { FormatterService } from '../../../services/formatter-service';
@@ -90,7 +89,6 @@ export class WorkOrderCreateComponent extends BaseDocumentComponent implements O
     private http: HttpClient,
     private formatter: FormatterService,
     private utilityService: UtilityService,
-    private authService: AuthService,
     private sanitizer: DomSanitizer,
     private emailCreateDraftService: EmailCreateDraftService,
     private documentReloadService: DocumentReloadService,

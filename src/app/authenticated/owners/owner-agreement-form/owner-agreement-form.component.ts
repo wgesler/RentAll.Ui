@@ -10,7 +10,6 @@ import { BehaviorSubject, finalize, Observable, Subject, of, take, takeUntil } f
 import { CommonMessage } from '../../../enums/common-message.enum';
 import { RouterUrl } from '../../../app.routes';
 import { MaterialModule } from '../../../material.module';
-import { AuthService } from '../../../services/auth.service';
 import { DocumentExportService } from '../../../services/document-export.service';
 import { DocumentHtmlService } from '../../../services/document-html.service';
 import { FormatterService } from '../../../services/formatter-service';
@@ -36,6 +35,9 @@ import { LeadOwnerResponse } from '../../leads/models/lead-owner.model';
 import { DynamicFormDraftService } from '../services/dynamic-form-draft.service';
 import { OwnerFormPlaceholderService } from '../services/owner-form-placeholder.service';
 import { OwnerAgreementContext, OwnersService } from '../services/owners.service';
+import { OwnerDocuSignSignerService } from '../services/owner-docusign-signer.service';
+import { OwnerDocuSignSignersDialogService } from '../services/owner-docusign-signers-dialog.service';
+import { OwnerIncludedOwnersService } from '../services/owner-included-owners.service';
 
 @Component({
   standalone: true,
@@ -74,6 +76,7 @@ export class OwnerAgreementFormComponent extends BaseDocumentComponent implement
   editableHtml: SafeHtml | null = null;
   editorStyles = '';
   baseTemplateHtml = '';
+  docuSignSignerTemplateHtml = '';
   isEditMode = true;
   pendingOpenInViewMode = false;
   safeHtml: SafeHtml | null = null;
@@ -82,6 +85,10 @@ export class OwnerAgreementFormComponent extends BaseDocumentComponent implement
   contextInitialized = false;
   liveExportHtml = '';
   liveExportStyles = '';
+  /** Compressed check image kept outside srcdoc so view-mode iframe does not exceed size limits. */
+  directDepositCheckImageDataUrl: string | null = null;
+  pendingDirectDepositCheckImageDataUrl: string | null = null;
+  directDepositCheckImageBlobUrl: string | null = null;
   @ViewChild('previewIframe') previewIframe?: ElementRef<HTMLIFrameElement>;
   @ViewChild('editIframe') editIframe?: ElementRef<HTMLIFrameElement>;
   organizationId = '';
@@ -91,6 +98,7 @@ export class OwnerAgreementFormComponent extends BaseDocumentComponent implement
   selectedProperty: PropertyResponse | null = null;
   propertyAgreement: PropertyAgreementResponse| null;
   ownerContact: ContactResponse | null = null;
+  allContacts: ContactResponse[] = [];
   leadOwner: LeadOwnerResponse | null = null;
   agreementInformation: OwnerAgreementInformationResponse | null = null;
 
@@ -99,7 +107,6 @@ export class OwnerAgreementFormComponent extends BaseDocumentComponent implement
 
   constructor(
     private fb: FormBuilder,
-    private authService: AuthService,
     private commonService: CommonService,
     private formatterService: FormatterService,
     private utilityService: UtilityService,
@@ -115,6 +122,9 @@ export class OwnerAgreementFormComponent extends BaseDocumentComponent implement
     private ownerFormPlaceholderService: OwnerFormPlaceholderService,
     private mappingService: MappingService,
     private ownersService: OwnersService,
+    private ownerIncludedOwnersService: OwnerIncludedOwnersService,
+    private ownerDocuSignSignerService: OwnerDocuSignSignerService,
+    private ownerDocuSignSignersDialogService: OwnerDocuSignSignersDialogService,
     private http: HttpClient
   ) {
     super(documentService, documentExportService, documentHtmlService, toastr, emailService);
@@ -215,6 +225,7 @@ export class OwnerAgreementFormComponent extends BaseDocumentComponent implement
   initializeDataContext(): void {
     if (this.sharedContext$) {
       this.loadFromSharedContext(this.sharedContext$);
+      this.loadAllContactsForOwnerNames();
       return;
     }
     if (this.isPublicTokenMode()) {
@@ -252,6 +263,7 @@ export class OwnerAgreementFormComponent extends BaseDocumentComponent implement
     this.propertyAgreement = context?.propertyAgreement || null;
     this.agreementInformation = context?.agreementInformation || null;
     this.syncSelectedOfficeFromLoadedOffices(context?.offices || []);
+    this.loadAllContactsForOwnerNames();
     if (this.hasAttemptedPreviewRender) {
       this.generatePreview();
     }
@@ -262,6 +274,11 @@ export class OwnerAgreementFormComponent extends BaseDocumentComponent implement
   }
 
   saveDraft(): void {
+    const isDirectDeposit = this.resolveTemplateTypeForLookup(this.templateAssetPath) === 'directDeposit';
+    if (isDirectDeposit) {
+      void this.prepareDirectDepositCheckImageForView().then(() => this.persistDirectDepositDraft(true));
+      return;
+    }
     const htmlSnapshot = this.captureLiveHtmlSnapshot();
     if (!htmlSnapshot) {
       this.toastr.warning('There is no form content to save.');
@@ -273,33 +290,48 @@ export class OwnerAgreementFormComponent extends BaseDocumentComponent implement
 
   resetForm(): void {
     this.dynamicFormDraftService.resetDraft(this.getDraftStorageKey());
+    this.clearDirectDepositCheckImageState();
     this.setEditorHtml(this.baseTemplateHtml || '');
     this.toastr.success('Form reset.');
   }
 
-  viewForm(): void {
-    const htmlSnapshot = this.captureLiveHtmlSnapshot();
+  async viewForm(): Promise<void> {
+    const isDirectDeposit = this.resolveTemplateTypeForLookup(this.templateAssetPath) === 'directDeposit';
+    if (isDirectDeposit) {
+      await this.prepareDirectDepositCheckImageForView();
+    }
+    const htmlSnapshot = this.captureLiveHtmlSnapshot({ omitCheckImageFromHtml: isDirectDeposit });
     if (!htmlSnapshot) {
       this.toastr.warning('There is no form content to view.');
       return;
     }
-    this.dynamicFormDraftService.saveDraft(this.getDraftStorageKey(), htmlSnapshot);
+    if (isDirectDeposit) {
+      this.persistDirectDepositDraft(false);
+    } else {
+      this.dynamicFormDraftService.saveDraft(this.getDraftStorageKey(), htmlSnapshot);
+    }
+    this.pendingDirectDepositCheckImageDataUrl = this.directDepositCheckImageDataUrl;
     this.isEditMode = false;
     this.processAndSetHtml(htmlSnapshot);
   }
 
   editForm(): void {
     if (!this.isEditMode) {
-      this.captureLiveSnapshotForExport();
-      const htmlForEdit = this.liveExportHtml || this.previewIframeHtml || this.baseTemplateHtml;
-      this.setEditorHtml(htmlForEdit);
+      let htmlForEdit = String(this.previewIframeHtml || '').trim();
+      if (!htmlForEdit) {
+        this.captureLiveSnapshotForExport();
+        htmlForEdit = String(this.liveExportHtml || this.baseTemplateHtml || '').trim();
+      }
+      const htmlToRestore = htmlForEdit || this.baseTemplateHtml || '';
       this.isEditMode = true;
+      setTimeout(() => this.setEditorHtml(htmlToRestore));
     }
   }
 
   onEditIframeLoad(): void {
     this.clearIframeBeforeUnloadHandlers(this.editIframe);
     this.ensureEditorControlsInteractive();
+    this.restoreDirectDepositCheckImageInEditor();
     if (this.pendingOpenInViewMode && this.openInViewOnTabSelect) {
       this.switchToViewModeFromTabSelection();
     }
@@ -308,6 +340,7 @@ export class OwnerAgreementFormComponent extends BaseDocumentComponent implement
   onPreviewIframeLoad(): void {
     this.clearIframeBeforeUnloadHandlers(this.previewIframe);
     this.ensurePreviewControlsReadOnly();
+    this.applyPendingDirectDepositCheckImage();
   }
 
 
@@ -388,6 +421,8 @@ export class OwnerAgreementFormComponent extends BaseDocumentComponent implement
         this.ownerContact = ownerContacts.length > 0
           ? ownerContacts[0]
           : this.mappingService.mapPublicOwnerContact(response.publicForm?.form);
+        this.allContacts = this.ownerContact ? [this.ownerContact] : [];
+        this.loadAllContactsForOwnerNames();
       },
       error: () => {
         this.organization = null;
@@ -500,13 +535,15 @@ export class OwnerAgreementFormComponent extends BaseDocumentComponent implement
         this.generatePreviewIfReady();
       })).subscribe({
       next: contacts => {
+        this.allContacts = contacts || [];
         const ownerLeadId = Number(this.ownerLeadId);
-        this.ownerContact = (contacts || []).find(contact =>
+        this.ownerContact = this.allContacts.find(contact =>
           Number(contact.entityTypeId) === Number(EntityType.Owner) &&
           Number(contact.ownerLeadId) === ownerLeadId
         ) || null;
       },
       error: () => {
+        this.allContacts = [];
         this.ownerContact = null;
       }
     });
@@ -672,6 +709,54 @@ export class OwnerAgreementFormComponent extends BaseDocumentComponent implement
   }
   //#endregion
 
+  loadAllContactsForOwnerNames(): void {
+    this.ownersService.getOwnerContactsByContext().pipe(take(1)).subscribe({
+      next: contacts => {
+        this.allContacts = contacts || [];
+      },
+      error: () => {
+        this.allContacts = this.ownerContact ? [this.ownerContact] : [];
+      }
+    });
+  }
+
+  getPrimaryOwnerName(): string {
+    return this.ownerIncludedOwnersService.getContactDisplayName(this.ownerContact);
+  }
+
+  isDirectDepositDocument(): boolean {
+    return this.resolveTemplateTypeForLookup(this.templateAssetPath) === 'directDeposit';
+  }
+
+  getDirectDepositOwnerNames(): string {
+    const propertyOwner1Name = this.getPropertyOwnerName(this.selectedProperty?.owner1Id);
+    const propertyOwner2Name = this.getPropertyOwnerName(this.selectedProperty?.owner2Id);
+    const pair = this.ownerIncludedOwnersService.resolveOwner1AndOwner2Names(
+      this.ownerContact,
+      [],
+      this.allContacts,
+      propertyOwner1Name,
+      propertyOwner2Name
+    );
+    const names = [pair.owner1Name, pair.owner2Name].filter(Boolean).join(pair.ownerPairSeparator);
+    return names || this.getPrimaryOwnerName();
+  }
+
+  getPropertyOwnerName(contactId: string | null | undefined): string {
+    const normalizedContactId = String(contactId || '').trim().toLowerCase();
+    if (!normalizedContactId) {
+      return '';
+    }
+    const contact = (this.allContacts || []).find(item =>
+      String(item.contactId || '').trim().toLowerCase() === normalizedContactId
+    );
+    return this.ownerIncludedOwnersService.getContactDisplayName(contact);
+  }
+
+  getOwnerNameForDocument(): string {
+    return this.isDirectDepositDocument() ? this.getDirectDepositOwnerNames() : this.getPrimaryOwnerName();
+  }
+
   //#region Preview Methods
   generatePreviewIfReady(): void {
     const items = this.itemsToLoad$.value;
@@ -695,12 +780,17 @@ export class OwnerAgreementFormComponent extends BaseDocumentComponent implement
     this.loadAgreementTemplate(includeDocument, this.templateAssetPath, this.templateHtml).pipe(finalize(() => {this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'preview'); })).subscribe({
       next: ownerAgreementHtml => {
         try {
+          this.docuSignSignerTemplateHtml = String(ownerAgreementHtml || '').trim();
           const combinedHtml = this.replaceAgreementPlaceholders(ownerAgreementHtml);
           this.baseTemplateHtml = combinedHtml;
           // Local/dev: never let a saved draft mask template iteration. A draft captured before the
           // template gained its <style> block (style-less editorStyles) would otherwise clobber the
           // freshly loaded, styled asset on every reload.
-          const draftHtml = this.debuggingHtml ? null : this.dynamicFormDraftService.loadDraft(this.getDraftStorageKey());
+          const draftKey = this.getDraftStorageKey();
+          const draftHtml = this.debuggingHtml ? null : this.dynamicFormDraftService.loadDraft(draftKey);
+          if (this.resolveTemplateTypeForLookup(this.templateAssetPath) === 'directDeposit') {
+            this.directDepositCheckImageDataUrl = this.dynamicFormDraftService.loadDraftImage(draftKey);
+          }
           let htmlToRender = draftHtml
             ? this.ensureHtmlHasTemplateStyles(draftHtml, this.baseTemplateHtml)
             : this.baseTemplateHtml;
@@ -716,6 +806,7 @@ export class OwnerAgreementFormComponent extends BaseDocumentComponent implement
           }
         } catch {
           // Fallback: render raw template so preview remains usable even if token replacement fails.
+          this.docuSignSignerTemplateHtml = String(ownerAgreementHtml || '').trim();
           this.baseTemplateHtml = ownerAgreementHtml || '';
           const fallbackHtml = this.baseTemplateHtml;
           this.setEditorHtml(fallbackHtml);
@@ -771,7 +862,7 @@ export class OwnerAgreementFormComponent extends BaseDocumentComponent implement
     const propertyAddressLines = this.getPropertyAddressLines();
     const accountingOfficeAddressLines = this.getAccountingOfficeAddressLines();
 
-    const ownerFullName = this.ownerContact?.fullName || `${this.ownerContact?.firstName || ''} ${this.ownerContact?.lastName || ''}`.trim();
+    const ownerFullName = this.getOwnerNameForDocument();
     const tokenValues: Record<string, string> = {
       ownerAgreementTitle: this.documentDisplayName,
       companyName,
@@ -843,7 +934,12 @@ export class OwnerAgreementFormComponent extends BaseDocumentComponent implement
     this.previewIframeStyles = result.extractedStyles;
     this.refreshPreviewSafeHtml();
     this.iframeKey++;
-    setTimeout(() => this.ensurePreviewControlsReadOnly());
+    setTimeout(() => {
+      this.writePreviewIframeDocument();
+      this.ensurePreviewControlsReadOnly();
+      this.applyPendingDirectDepositCheckImage();
+      setTimeout(() => this.applyPendingDirectDepositCheckImage(), 150);
+    });
   }
 
   setEditorHtml(html: string): void {
@@ -985,6 +1081,9 @@ export class OwnerAgreementFormComponent extends BaseDocumentComponent implement
       editHost.addEventListener('click', this.onEditHostClick);
       editHost.dataset['checkboxToggleBound'] = 'true';
     }
+    if (isDirectDepositEditor) {
+      this.wireDirectDepositUploadHandler(editDoc, editHost);
+    }
   }
 
   ensurePreviewControlsReadOnly(): void {
@@ -995,6 +1094,326 @@ export class OwnerAgreementFormComponent extends BaseDocumentComponent implement
     }
     this.ensurePreviewViewModeStyles(previewDoc);
     this.applyReadOnlyToAgreementHost(previewHost);
+  }
+
+  wireDirectDepositUploadHandler(editDoc: Document, editHost: HTMLElement): void {
+    const fileInput = editHost.querySelector('#voidedCheckUpload') as HTMLInputElement | null;
+    if (!fileInput || fileInput.dataset['directDepositUploadBound'] === 'true') {
+      return;
+    }
+    fileInput.dataset['directDepositUploadBound'] = 'true';
+    fileInput.addEventListener('change', () => this.applyDirectDepositCheckUpload(editDoc, fileInput));
+  }
+
+  applyDirectDepositCheckUpload(editDoc: Document, fileInput: HTMLInputElement): void {
+    const previewImage = editDoc.getElementById('uploadedCheckImage') as HTMLImageElement | null;
+    const placeholder = editDoc.getElementById('uploadedCheckPlaceholder') as HTMLElement | null;
+    if (!previewImage || !placeholder) {
+      return;
+    }
+
+    const file = fileInput.files?.[0] || null;
+    if (!file) {
+      previewImage.style.display = 'none';
+      previewImage.removeAttribute('src');
+      placeholder.style.display = 'block';
+      this.directDepositCheckImageDataUrl = null;
+      this.pendingDirectDepositCheckImageDataUrl = null;
+      return;
+    }
+
+    const objectUrl = URL.createObjectURL(file);
+    const loader = new Image();
+    loader.onload = () => {
+      const compressed = this.compressImageForSnapshot(loader);
+      URL.revokeObjectURL(objectUrl);
+      if (!compressed) {
+        this.toastr.warning('Unable to process the check image.');
+        return;
+      }
+      previewImage.setAttribute('src', compressed);
+      previewImage.style.display = 'block';
+      placeholder.style.display = 'none';
+      this.directDepositCheckImageDataUrl = compressed;
+      this.pendingDirectDepositCheckImageDataUrl = compressed;
+    };
+    loader.onerror = () => URL.revokeObjectURL(objectUrl);
+    loader.src = objectUrl;
+  }
+
+  async prepareDirectDepositCheckImageForView(): Promise<void> {
+    const editDoc = this.editIframe?.nativeElement?.contentDocument || this.editIframe?.nativeElement?.contentWindow?.document;
+    const sourceImage = editDoc?.getElementById('uploadedCheckImage') as HTMLImageElement | null;
+    const src = String(sourceImage?.getAttribute('src') || '').trim();
+    if (!sourceImage || !src) {
+      this.clearDirectDepositCheckImageState();
+      return;
+    }
+
+    const compressed = await this.compressImageDataUrlAsync(src, editDoc);
+    if (!compressed) {
+      this.toastr.warning('Unable to prepare the check image for preview.');
+      this.clearDirectDepositCheckImageState();
+      return;
+    }
+
+    this.directDepositCheckImageDataUrl = compressed;
+    this.pendingDirectDepositCheckImageDataUrl = compressed;
+    sourceImage.setAttribute('src', compressed);
+    sourceImage.style.display = 'block';
+    const placeholder = editDoc?.getElementById('uploadedCheckPlaceholder') as HTMLElement | null;
+    if (placeholder) {
+      placeholder.style.display = 'none';
+    }
+  }
+
+  persistDirectDepositDraft(showToast: boolean): void {
+    const draftKey = this.getDraftStorageKey();
+    const htmlSnapshot = this.captureLiveHtmlSnapshot({ omitCheckImageFromHtml: true });
+    if (!htmlSnapshot) {
+      if (showToast) {
+        this.toastr.warning('There is no form content to save.');
+      }
+      return;
+    }
+    this.dynamicFormDraftService.saveDraft(draftKey, htmlSnapshot);
+    if (this.directDepositCheckImageDataUrl) {
+      this.dynamicFormDraftService.saveDraftImage(draftKey, this.directDepositCheckImageDataUrl);
+    } else {
+      this.dynamicFormDraftService.resetDraftImage(draftKey);
+    }
+    if (showToast) {
+      this.toastr.success('Draft saved.');
+    }
+  }
+
+  restoreDirectDepositCheckImageInEditor(): void {
+    if (this.resolveTemplateTypeForLookup(this.templateAssetPath) !== 'directDeposit') {
+      return;
+    }
+    const dataUrl = String(
+      this.directDepositCheckImageDataUrl || this.dynamicFormDraftService.loadDraftImage(this.getDraftStorageKey()) || ''
+    ).trim();
+    if (!dataUrl) {
+      return;
+    }
+    const editDoc = this.editIframe?.nativeElement?.contentDocument || this.editIframe?.nativeElement?.contentWindow?.document;
+    const previewImage = editDoc?.getElementById('uploadedCheckImage') as HTMLImageElement | null;
+    const placeholder = editDoc?.getElementById('uploadedCheckPlaceholder') as HTMLElement | null;
+    if (!previewImage) {
+      return;
+    }
+    previewImage.setAttribute('src', dataUrl);
+    previewImage.style.display = 'block';
+    if (placeholder) {
+      placeholder.style.display = 'none';
+    }
+    this.directDepositCheckImageDataUrl = dataUrl;
+  }
+
+  writePreviewIframeDocument(): void {
+    const shouldWriteDirectly = this.resolveTemplateTypeForLookup(this.templateAssetPath) === 'directDeposit'
+      && !!String(this.pendingDirectDepositCheckImageDataUrl || '').trim();
+    if (!shouldWriteDirectly) {
+      return;
+    }
+    const iframe = this.previewIframe?.nativeElement;
+    const previewHtmlWithStyles = this.documentHtmlService.getPreviewHtmlWithStyles(this.previewIframeHtml, this.previewIframeStyles);
+    if (!iframe || !String(previewHtmlWithStyles || '').trim()) {
+      return;
+    }
+    const previewDoc = iframe.contentDocument || iframe.contentWindow?.document || null;
+    if (!previewDoc) {
+      return;
+    }
+    previewDoc.open();
+    previewDoc.write(previewHtmlWithStyles);
+    previewDoc.close();
+  }
+
+  applyPendingDirectDepositCheckImage(): void {
+    const dataUrl = String(this.pendingDirectDepositCheckImageDataUrl || '').trim();
+    if (!dataUrl || this.resolveTemplateTypeForLookup(this.templateAssetPath) !== 'directDeposit') {
+      return;
+    }
+    const previewDoc = this.previewIframe?.nativeElement?.contentDocument || this.previewIframe?.nativeElement?.contentWindow?.document;
+    const previewImage = previewDoc?.getElementById('uploadedCheckImage') as HTMLImageElement | null;
+    const placeholder = previewDoc?.getElementById('uploadedCheckPlaceholder') as HTMLElement | null;
+    if (!previewImage) {
+      return;
+    }
+
+    this.revokeDirectDepositCheckImageBlobUrl();
+    const blob = this.dataUrlToBlob(dataUrl);
+    if (!blob) {
+      return;
+    }
+    this.directDepositCheckImageBlobUrl = URL.createObjectURL(blob);
+    previewImage.src = this.directDepositCheckImageBlobUrl;
+    previewImage.style.display = 'block';
+    if (placeholder) {
+      placeholder.style.display = 'none';
+    }
+  }
+
+  clearDirectDepositCheckImageState(): void {
+    this.directDepositCheckImageDataUrl = null;
+    this.pendingDirectDepositCheckImageDataUrl = null;
+    this.revokeDirectDepositCheckImageBlobUrl();
+    this.dynamicFormDraftService.resetDraftImage(this.getDraftStorageKey());
+  }
+
+  revokeDirectDepositCheckImageBlobUrl(): void {
+    if (!this.directDepositCheckImageBlobUrl) {
+      return;
+    }
+    URL.revokeObjectURL(this.directDepositCheckImageBlobUrl);
+    this.directDepositCheckImageBlobUrl = null;
+  }
+
+  async compressImageDataUrlAsync(dataUrl: string, ownerDocument?: Document | null): Promise<string | null> {
+    const doc = ownerDocument || document;
+    return new Promise(resolve => {
+      const loader = doc.createElement('img');
+      loader.onload = () => resolve(this.compressImageForSnapshot(loader));
+      loader.onerror = () => resolve(null);
+      loader.src = dataUrl;
+    });
+  }
+
+  dataUrlToBlob(dataUrl: string): Blob | null {
+    const match = String(dataUrl || '').trim().match(/^data:([^;,]+)?(?:;charset=[^;,]+)?(;base64)?,(.*)$/i);
+    if (!match) {
+      return null;
+    }
+    const mimeType = match[1] || 'application/octet-stream';
+    const isBase64 = !!match[2];
+    const data = match[3] || '';
+    try {
+      if (isBase64) {
+        const binary = atob(data);
+        const bytes = new Uint8Array(binary.length);
+        for (let index = 0; index < binary.length; index++) {
+          bytes[index] = binary.charCodeAt(index);
+        }
+        return new Blob([bytes], { type: mimeType });
+      }
+      return new Blob([decodeURIComponent(data)], { type: mimeType });
+    } catch {
+      return null;
+    }
+  }
+
+  attachDirectDepositCheckImageToHtml(html: string, checkImageDataUrl: string | null): string {
+    const dataUrl = String(checkImageDataUrl || '').trim();
+    if (!dataUrl) {
+      return html;
+    }
+    const parser = new DOMParser();
+    const doc = parser.parseFromString(html, 'text/html');
+    const previewImage = doc.getElementById('uploadedCheckImage') as HTMLImageElement | null;
+    const placeholder = doc.getElementById('uploadedCheckPlaceholder') as HTMLElement | null;
+    if (!previewImage) {
+      return html;
+    }
+    previewImage.setAttribute('src', dataUrl);
+    previewImage.style.display = 'block';
+    if (placeholder) {
+      placeholder.style.display = 'none';
+    }
+    const bodyContent = doc.body?.innerHTML || '';
+    const templateStyles = this.documentHtmlService.processHtml(html, false).extractedStyles;
+    return this.documentHtmlService.buildHtmlDocument(bodyContent, '', templateStyles);
+  }
+
+  syncFillableRegionsForSnapshot(sourceHost: HTMLElement, clonedHost: HTMLElement): void {
+    const selector = [
+      '.line',
+      '.inline-underline-fill',
+      '.signature-line',
+      '.signature-entry',
+      '.form-line',
+      '.field-line',
+      '.fill-line',
+      '.fill-field',
+      '[data-fillable="true"]'
+    ].join(', ');
+    const sourceRegions = Array.from(sourceHost.querySelectorAll(selector)) as HTMLElement[];
+    const clonedRegions = Array.from(clonedHost.querySelectorAll(selector)) as HTMLElement[];
+    sourceRegions.forEach((sourceRegion, index) => {
+      const clonedRegion = clonedRegions[index];
+      if (!clonedRegion) {
+        return;
+      }
+      clonedRegion.innerHTML = sourceRegion.innerHTML;
+    });
+  }
+
+  finalizeDirectDepositViewSnapshot(
+    sourceHost: HTMLElement,
+    clonedHost: HTMLElement,
+    options?: { omitCheckImageFromHtml?: boolean }
+  ): void {
+    const sourceImage = sourceHost.querySelector('#uploadedCheckImage') as HTMLImageElement | null;
+    const clonedImage = clonedHost.querySelector('#uploadedCheckImage') as HTMLImageElement | null;
+    const clonedPlaceholder = clonedHost.querySelector('#uploadedCheckPlaceholder') as HTMLElement | null;
+    if (clonedImage && sourceImage) {
+      const optimizedSrc = this.compressImageForSnapshot(sourceImage) || sourceImage.getAttribute('src') || '';
+      if (optimizedSrc && !options?.omitCheckImageFromHtml) {
+        clonedImage.setAttribute('src', optimizedSrc);
+        clonedImage.style.display = 'block';
+        if (clonedPlaceholder) {
+          clonedPlaceholder.style.display = 'none';
+        }
+      } else {
+        clonedImage.removeAttribute('src');
+        clonedImage.style.display = 'none';
+        if (clonedPlaceholder) {
+          clonedPlaceholder.style.display = optimizedSrc ? 'none' : 'block';
+        }
+      }
+    }
+
+    clonedHost.querySelector('.upload-check-header')?.remove();
+    clonedHost.querySelector('#voidedCheckUpload')?.remove();
+    clonedHost.querySelector('script')?.remove();
+  }
+
+  compressImageForSnapshot(img: HTMLImageElement, maxWidth = 480, maxHeight = 360, quality = 0.65): string | null {
+    const doc = img.ownerDocument;
+    if (!doc || !img.naturalWidth || !img.naturalHeight) {
+      return null;
+    }
+
+    let width = img.naturalWidth;
+    let height = img.naturalHeight;
+    const widthScale = maxWidth / width;
+    const heightScale = maxHeight / height;
+    const scale = Math.min(1, widthScale, heightScale);
+    width = Math.max(1, Math.round(width * scale));
+    height = Math.max(1, Math.round(height * scale));
+
+    const canvas = doc.createElement('canvas');
+    canvas.width = width;
+    canvas.height = height;
+    const context = canvas.getContext('2d');
+    if (!context) {
+      return null;
+    }
+    context.drawImage(img, 0, 0, width, height);
+
+    const maxBytes = 180000;
+    let currentQuality = quality;
+    try {
+      let dataUrl = canvas.toDataURL('image/jpeg', currentQuality);
+      while (dataUrl.length > maxBytes && currentQuality > 0.35) {
+        currentQuality -= 0.08;
+        dataUrl = canvas.toDataURL('image/jpeg', currentQuality);
+      }
+      return dataUrl.length <= maxBytes ? dataUrl : null;
+    } catch {
+      return null;
+    }
   }
 
   applyReadOnlyToAgreementHost(host: HTMLElement): void {
@@ -1029,6 +1448,18 @@ export class OwnerAgreementFormComponent extends BaseDocumentComponent implement
     if (editDoc.getElementById(styleId)) {
       return;
     }
+    const isDirectDeposit = this.resolveTemplateTypeForLookup(this.templateAssetPath) === 'directDeposit';
+    const directDepositViewStyles = isDirectDeposit
+      ? `
+      .upload-check-header,
+      .upload-check-input {
+        display: none !important;
+      }
+      .uploaded-check-image[src] {
+        display: block !important;
+      }
+      `
+      : '';
     const style = editDoc.createElement('style');
     style.id = styleId;
     style.textContent = `
@@ -1050,6 +1481,7 @@ export class OwnerAgreementFormComponent extends BaseDocumentComponent implement
         background-color: transparent !important;
         box-shadow: none !important;
       }
+      ${directDepositViewStyles}
     `;
     editDoc.head.appendChild(style);
   }
@@ -1216,11 +1648,15 @@ export class OwnerAgreementFormComponent extends BaseDocumentComponent implement
       return;
     }
 
-    const liveHtml = this.buildLiveHtmlSnapshot(doc);
+    let liveHtml = this.buildLiveHtmlSnapshot(doc);
     if (!liveHtml.trim()) {
       this.liveExportHtml = '';
       this.liveExportStyles = '';
       return;
+    }
+
+    if (this.resolveTemplateTypeForLookup(this.templateAssetPath) === 'directDeposit' && this.directDepositCheckImageDataUrl) {
+      liveHtml = this.attachDirectDepositCheckImageToHtml(liveHtml, this.directDepositCheckImageDataUrl);
     }
 
     this.liveExportHtml = liveHtml;
@@ -1229,18 +1665,46 @@ export class OwnerAgreementFormComponent extends BaseDocumentComponent implement
     this.previewIframeStyles = this.liveExportStyles;
   }
 
-  captureLiveHtmlSnapshot(): string {
+  captureLiveHtmlSnapshot(options?: { omitCheckImageFromHtml?: boolean }): string {
     const editDoc = this.editIframe?.nativeElement?.contentDocument || this.editIframe?.nativeElement?.contentWindow?.document;
     const editHost = editDoc?.body;
     if (!editDoc || !editHost) {
       return '';
     }
+
+    const sourceCheckImage = editHost.querySelector('#uploadedCheckImage') as HTMLImageElement | null;
+    const savedCheckImageState = options?.omitCheckImageFromHtml && sourceCheckImage
+      ? {
+          src: sourceCheckImage.getAttribute('src'),
+          display: sourceCheckImage.style.display,
+          placeholderDisplay: (editHost.querySelector('#uploadedCheckPlaceholder') as HTMLElement | null)?.style.display || ''
+        }
+      : null;
+    if (options?.omitCheckImageFromHtml && sourceCheckImage) {
+      sourceCheckImage.removeAttribute('src');
+      sourceCheckImage.style.display = 'none';
+    }
+
     const controls = Array.from(editHost.querySelectorAll('input, textarea, select')) as Array<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>;
     controls.forEach((control, index) => {
       control.setAttribute('data-agreement-control-id', String(index));
     });
 
-    const clonedRoot = editHost.cloneNode(true) as HTMLElement;
+    let clonedRoot: HTMLElement;
+    try {
+      clonedRoot = editHost.cloneNode(true) as HTMLElement;
+    } finally {
+      if (savedCheckImageState && sourceCheckImage) {
+        if (savedCheckImageState.src) {
+          sourceCheckImage.setAttribute('src', savedCheckImageState.src);
+        }
+        sourceCheckImage.style.display = savedCheckImageState.display || 'block';
+        const placeholder = editHost.querySelector('#uploadedCheckPlaceholder') as HTMLElement | null;
+        if (placeholder) {
+          placeholder.style.display = savedCheckImageState.placeholderDisplay || 'none';
+        }
+      }
+    }
     controls.forEach(sourceControl => {
       const controlId = sourceControl.getAttribute('data-agreement-control-id');
       if (!controlId) {
@@ -1298,6 +1762,10 @@ export class OwnerAgreementFormComponent extends BaseDocumentComponent implement
 
     controls.forEach(control => control.removeAttribute('data-agreement-control-id'));
     Array.from(clonedRoot.querySelectorAll('[data-agreement-control-id]')).forEach(control => control.removeAttribute('data-agreement-control-id'));
+    if (this.resolveTemplateTypeForLookup(this.templateAssetPath) === 'directDeposit') {
+      this.syncFillableRegionsForSnapshot(editHost, clonedRoot);
+      this.finalizeDirectDepositViewSnapshot(editHost, clonedRoot, options);
+    }
     this.applyReadOnlyToAgreementHost(clonedRoot);
     const bodyContent = clonedRoot.innerHTML;
     const templateStyles = this.getViewTemplateStyles(editDoc);
@@ -1569,6 +2037,55 @@ export class OwnerAgreementFormComponent extends BaseDocumentComponent implement
   }
   //#endregion
 
+  //#region DocuSign Methods
+  getDocuSignSignerRolesHtmlSource(): string {
+    return String(this.docuSignSignerTemplateHtml || this.templateHtml || '').trim();
+  }
+
+  buildDocuSignSignerContext() {
+    const currentUser = this.authService.getUser();
+    return {
+      primaryOwnerContact: this.ownerContact,
+      additionalOwnerContactIds: [],
+      contacts: this.allContacts,
+      agent: {
+        email: String(currentUser?.email || '').trim(),
+        name: `${currentUser?.firstName || ''} ${currentUser?.lastName || ''}`.trim()
+      }
+    };
+  }
+
+  override async onDocuSign(): Promise<void> {
+    this.captureLiveSnapshotForExport();
+    const propertyCode = this.selectedProperty?.propertyCode || '';
+    const subject = propertyCode
+      ? `${this.documentDisplayName} - ${propertyCode}`
+      : this.documentDisplayName;
+
+    const roles = this.ownerDocuSignSignerService.parseSignerRolesFromHtml(
+      this.getDocuSignSignerRolesHtmlSource()
+    );
+    const signers = await this.ownerDocuSignSignersDialogService.promptForSigners({
+      formTitle: this.documentDisplayName,
+      roles,
+      context: this.buildDocuSignSignerContext(),
+      officeId: this.selectedOffice?.officeId ?? this.officeId,
+      contacts: this.allContacts
+    });
+    if (!signers) {
+      return;
+    }
+
+    await super.onDocuSign({
+      subject,
+      signers,
+      documentType: DocumentType.OwnerAgreement,
+      fileName: this.getDocumentFileName(this.documentFileSuffix),
+      errorMessage: `Error sending ${this.documentDisplayName.toLowerCase()} for signature. Please try again.`
+    });
+  }
+  //#endregion
+
   //#region Abstract BaseDocumentComponent
   protected override getDocumentConfig(): DocumentConfig {
     return {
@@ -1626,32 +2143,6 @@ export class OwnerAgreementFormComponent extends BaseDocumentComponent implement
     await this.router.navigateByUrl(RouterUrl.EmailCreate);
   }
 
-  override async onDocuSign(): Promise<void> {
-    this.captureLiveSnapshotForExport();
-    const toEmail = this.ownerContact?.email || '';
-    const toName = this.ownerContact?.fullName || `${this.ownerContact?.firstName || ''} ${this.ownerContact?.lastName || ''}`.trim();
-    const currentUser = this.authService.getUser();
-    const agentEmail = String(currentUser?.email || '').trim();
-    const agentName = `${currentUser?.firstName || ''} ${currentUser?.lastName || ''}`.trim();
-    const propertyCode = this.selectedProperty?.propertyCode || '';
-    const subject = propertyCode
-      ? `${this.documentDisplayName} - ${propertyCode}`
-      : this.documentDisplayName;
-    const signers = [{ email: toEmail, name: toName, routingOrder: 1 }];
-
-    if (agentEmail && agentName) {
-      signers.push({ email: agentEmail, name: agentName, routingOrder: 2 });
-    }
-
-    await super.onDocuSign({
-      subject,
-      signers,
-      documentType: DocumentType.OwnerAgreement,
-      fileName: this.getDocumentFileName(this.documentFileSuffix),
-      errorMessage: `Error sending ${this.documentDisplayName.toLowerCase()} for signature. Please try again.`
-    });
-  }
-  
   override onPrint(): void {
     this.captureLiveSnapshotForExport();
     const htmlForPrint = this.liveExportHtml || this.previewIframeHtml;
@@ -2098,6 +2589,7 @@ export class OwnerAgreementFormComponent extends BaseDocumentComponent implement
   }
 
   ngOnDestroy(): void {
+    this.revokeDirectDepositCheckImageBlobUrl();
     this.destroy$.next();
     this.destroy$.complete();
     this.itemsToLoad$.complete();

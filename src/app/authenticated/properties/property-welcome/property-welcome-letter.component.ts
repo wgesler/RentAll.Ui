@@ -8,7 +8,6 @@ import { ToastrService } from 'ngx-toastr';
 import { BehaviorSubject, Observable, Subject, filter, finalize, map, of, take, takeUntil } from 'rxjs';
 import { MaterialModule } from '../../../material.module';
 import { RouterUrl } from '../../../app.routes';
-import { AuthService } from '../../../services/auth.service';
 import { CommonService } from '../../../services/common.service';
 import { DocumentExportService } from '../../../services/document-export.service';
 import { DocumentHtmlService } from '../../../services/document-html.service';
@@ -105,7 +104,6 @@ export class PropertyWelcomeLetterComponent extends BaseDocumentComponent implem
     private emailHtmlService: EmailHtmlService,
     private reservationService: ReservationService,
     private contactService: ContactService,
-    private authService: AuthService,
     private fb: FormBuilder,
     private sanitizer: DomSanitizer,
     private formatterService: FormatterService,

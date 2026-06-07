@@ -21,26 +21,9 @@
           [ownerLeadId]="resolvedOwnerLeadId"
           [prefillContact]="primaryOwnerPrefill"
           [compactDialogMode]="true"
-          [showAddAdditionalOwnerButton]="true"
-          (addAdditionalOwnerRequested)="onAddAdditionalOwnerRequested()"
           (closed)="onPrimaryOwnerSaved($event)">
         </app-contact>
       </section>
-
-      @for (additionalOwnerFormId of additionalOwnerFormIds; track additionalOwnerFormId) {
-        <section class="owner-contact-section">
-          <h3>Owner {{ additionalOwnerFormId + 1 }} Information</h3>
-          <app-contact
-            [id]="'new'"
-            [presetEntityTypeId]="ownerEntityTypeId"
-            [prefillContact]="defaultOwnerOfficePrefill"
-            [compactDialogMode]="true"
-            [showCancelAdditionalOwnerButton]="true"
-            (closed)="onAdditionalOwnerSaved(additionalOwnerFormId, $event)"
-            (cancelAdditionalOwnerRequested)="onRemoveAdditionalOwnerRequested(additionalOwnerFormId)">
-          </app-contact>
-        </section>
-      }
     </div>
   </mat-expansion-panel>
 

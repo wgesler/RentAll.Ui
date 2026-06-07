@@ -1,0 +1,94 @@
+.docusign-signers-dialog {
+  min-width: min(100%, 36rem);
+  box-sizing: border-box;
+}
+
+.docusign-signers-dialog__header {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  background: #e2e8f0;
+  border-radius: 0.5rem 0.5rem 0 0;
+  padding: 0.75rem 1rem;
+}
+
+.docusign-signers-dialog__title {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 1.25rem;
+}
+
+.docusign-signers-dialog__subtitle {
+  color: #475569;
+  font-size: 0.875rem;
+}
+
+.docusign-signers-dialog__content {
+  padding: 1rem !important;
+}
+
+.docusign-signers-dialog__help {
+  margin: 0 0 1rem;
+  color: #475569;
+  font-size: 0.875rem;
+}
+
+.docusign-signers-dialog__list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.docusign-signers-dialog__box {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  padding: 0.75rem;
+  border: 1px solid #cbd5e1;
+  border-radius: 0.5rem;
+  background: #fff;
+}
+
+.docusign-signers-dialog__box-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+
+.docusign-signers-dialog__role {
+  font-weight: 600;
+}
+
+.docusign-signers-dialog__select-field {
+  width: 100%;
+}
+
+.docusign-signers-dialog__contact {
+  display: flex;
+  flex-direction: column;
+  gap: 0.125rem;
+  font-size: 0.875rem;
+}
+
+.docusign-signers-dialog__contact--missing {
+  color: #b45309;
+}
+
+.docusign-signers-dialog__email {
+  color: #64748b;
+}
+
+.docusign-signers-dialog__warning {
+  margin: 1rem 0 0;
+  color: #b45309;
+  font-size: 0.875rem;
+}
+
+.docusign-signers-dialog__actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.75rem;
+  padding: 0.75rem 1rem;
+}

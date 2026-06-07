@@ -137,6 +137,7 @@
                       [officeId]="selectedOfficeId"
                       [propertyId]="selectedPropertyId === newPropertyOptionValue ? null : selectedPropertyId"
                       [editedHtml]="getDynamicFormEditedHtml(stateForm)"
+                      [sourceTemplateHtml]="stateForm.formAsHtml ?? ''"
                       (editRequested)="onDynamicFormEditRequested(getDynamicFormKey(stateForm))">
                     </app-shared-form-create>
                   } @else {

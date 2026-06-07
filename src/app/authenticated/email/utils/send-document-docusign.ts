@@ -1,7 +1,7 @@
 import { firstValueFrom } from 'rxjs';
 import { DocumentConfig, DocuSignConfig } from '../../shared/base-document.component';
 import { DocumentHtmlService } from '../../../services/document-html.service';
-import { SendDocumentForSignatureRequest } from '../models/docusign.model';
+import { SendDocumentForSignatureRequest, SendDocumentForSignatureResponse } from '../models/docusign.model';
 import { DocuSignService } from '../services/docusign.service';
 
 export interface SendDocumentDocuSignDependencies {
@@ -12,8 +12,9 @@ export interface SendDocumentDocuSignDependencies {
 export async function sendDocumentDocuSign(
   deps: SendDocumentDocuSignDependencies,
   documentConfig: DocumentConfig,
-  docuSignConfig: DocuSignConfig
-): Promise<void> {
+  docuSignConfig: DocuSignConfig,
+  senderContext: { returnUrl: string; senderEmail: string; senderName: string }
+): Promise<SendDocumentForSignatureResponse> {
   const htmlWithStyles = deps.documentHtmlService.getPdfHtmlWithStyles(
     documentConfig.previewIframeHtml,
     documentConfig.previewIframeStyles,
@@ -29,6 +30,9 @@ export async function sendDocumentDocuSign(
     htmlContent: htmlWithStyles,
     fileName: docuSignConfig.fileName,
     subject: docuSignConfig.subject,
+    returnUrl: senderContext.returnUrl,
+    senderEmail: senderContext.senderEmail,
+    senderName: senderContext.senderName,
     signers: docuSignConfig.signers.map(signer => ({
       email: signer.email.trim(),
       name: signer.name.trim(),
@@ -36,5 +40,5 @@ export async function sendDocumentDocuSign(
     }))
   };
 
-  await firstValueFrom(deps.docuSignService.sendForSignature(request));
+  return firstValueFrom(deps.docuSignService.sendForSignature(request));
 }

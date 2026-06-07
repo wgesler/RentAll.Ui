@@ -8,6 +8,7 @@ import { ContactResponse } from '../contacts/models/contact.model';
 import { DocumentType } from '../documents/models/document.enum';
 import { EmailType } from '../email/models/email.enum';
 import { GenerateDocumentFromHtmlDto } from '../documents/models/document.model';
+import { AuthService } from '../../services/auth.service';
 import { ConfigService } from '../../services/config.service';
 import { DocuSignService } from '../email/services/docusign.service';
 import { EmailService } from '../email/services/email.service';
@@ -67,6 +68,7 @@ export interface DocuSignConfig {
 }
 
 export abstract class BaseDocumentComponent {
+  protected authService = inject(AuthService);
   protected configService = inject(ConfigService);
   protected docuSignService = inject(DocuSignService);
   isSendingDocuSign = false;
@@ -242,10 +244,34 @@ export abstract class BaseDocumentComponent {
       return;
     }
 
+    const currentUser = this.authService.getUser();
+    const senderEmail = currentUser?.email?.trim() || '';
+    const senderName = `${currentUser?.firstName || ''} ${currentUser?.lastName || ''}`.trim();
+    if (!senderEmail || !senderName) {
+      this.toastr.warning('Current user email sender information is not available.', 'No Sender');
+      return;
+    }
+
+    const returnUrl = this.buildDocuSignReturnUrl();
+    if (!returnUrl) {
+      this.toastr.warning('Return URL is not available for DocuSign.', 'No Return URL');
+      return;
+    }
+
+    const docuSignWindow = window.open('', '_blank');
+    if (!docuSignWindow) {
+      this.toastr.warning('Please allow pop-ups to open DocuSign in a new tab.', 'DocuSign');
+      return;
+    }
+
+    docuSignWindow.document.title = 'DocuSign';
+    docuSignWindow.document.body.innerHTML =
+      '<p style="font-family: Arial, sans-serif; padding: 12px;">Preparing DocuSign...</p>';
+
     this.isSendingDocuSign = true;
 
     try {
-      await sendDocumentDocuSign(
+      const response = await sendDocumentDocuSign(
         {
           documentHtmlService: this.documentHtmlService,
           docuSignService: this.docuSignService
@@ -255,10 +281,25 @@ export abstract class BaseDocumentComponent {
           ...docuSignConfig,
           subject,
           signers
+        },
+        {
+          returnUrl,
+          senderEmail,
+          senderName
         }
       );
-      this.toastr.success('Document sent for signature.', 'Success');
+
+      const senderViewUrl = this.resolveDocuSignSenderViewUrl(response);
+      if (!senderViewUrl) {
+        docuSignWindow.close();
+        this.toastr.warning('DocuSign draft was created, but no sender view URL was returned.', 'DocuSign');
+        return;
+      }
+
+      docuSignWindow.location.href = senderViewUrl;
+      this.toastr.success('DocuSign opened in a new tab. Place signature fields, then send the envelope.', 'Success');
     } catch (error) {
+      docuSignWindow.close();
       const fallbackMsg = docuSignConfig.errorMessage || 'Error sending document for signature. Please try again.';
       const errorMsg = this.getDocuSignErrorMessage(error, fallbackMsg);
       this.toastr.error(errorMsg, 'Error');
@@ -266,6 +307,20 @@ export abstract class BaseDocumentComponent {
     } finally {
       this.isSendingDocuSign = false;
     }
+  }
+
+  private buildDocuSignReturnUrl(): string {
+    if (typeof window === 'undefined') {
+      return '';
+    }
+
+    return new URL('assets/docusign-return.html', window.location.origin + '/').href;
+  }
+
+  private resolveDocuSignSenderViewUrl(
+    response: { senderViewUrl?: string; SenderViewUrl?: string } | null | undefined
+  ): string {
+    return String(response?.senderViewUrl || response?.SenderViewUrl || '').trim();
   }
 
   injectStylesIntoIframe(): void {

@@ -8,7 +8,6 @@ import { BehaviorSubject, Subject, Subscription, finalize, firstValueFrom, skip,
 import { RouterUrl } from '../../../app.routes';
 import { environment } from '../../../../environments/environment';
 import { MaterialModule } from '../../../material.module';
-import { AuthService } from '../../../services/auth.service';
 import { FormatterService } from '../../../services/formatter-service';
 import { UtilityService } from '../../../services/utility.service';
 import { DocumentExportService } from '../../../services/document-export.service';
@@ -82,7 +81,6 @@ export class QuoteCreateComponent extends BaseDocumentComponent implements OnIni
     private http: HttpClient,
     private route: ActivatedRoute,
     private router: Router,
-    private authService: AuthService,
     private officeService: OfficeService,
     private accountingOfficeService: AccountingOfficeService,
     private globalSelectionService: GlobalSelectionService,

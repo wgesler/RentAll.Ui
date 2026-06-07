@@ -12,6 +12,7 @@ import { PropertyResponse } from '../../properties/models/property.model';
 import { FORM_TOKEN_PROVIDERS, FormTokenProvider, FormTokenProviderInputs } from '../../shared/forms/services/form-token-provider';
 import { OwnerFormPlaceholderService } from './owner-form-placeholder.service';
 import { OwnersService } from './owners.service';
+import { OwnerIncludedOwnersService } from './owner-included-owners.service';
 
 @Injectable({
   providedIn: 'root'
@@ -24,7 +25,8 @@ export class OwnerFormTokenProviderService implements FormTokenProvider {
     private ownersService: OwnersService,
     private formatterService: FormatterService,
     private utilityService: UtilityService,
-    private ownerFormPlaceholderService: OwnerFormPlaceholderService
+    private ownerFormPlaceholderService: OwnerFormPlaceholderService,
+    private ownerIncludedOwnersService: OwnerIncludedOwnersService
   ) {}
 
   applyTokens(templateHtml: string, inputs: FormTokenProviderInputs): Observable<string> {
@@ -90,19 +92,23 @@ export class OwnerFormTokenProviderService implements FormTokenProvider {
       Number(contact.ownerLeadId) === Number(inputs.ownerLeadId)
     ) || null;
 
-    const ownerFullName = ownerContact?.fullName || `${ownerContact?.firstName || ''} ${ownerContact?.lastName || ''}`.trim();
     const propertyOwner1Name = this.getPropertyOwnerName(data.contacts, data.property?.owner1Id);
     const propertyOwner2Name = this.getPropertyOwnerName(data.contacts, data.property?.owner2Id);
-    let owner1Name = propertyOwner1Name || ownerFullName;
-    let owner2Name = '';
-    if (propertyOwner2Name && propertyOwner2Name.toLowerCase() !== owner1Name.toLowerCase()) {
-      owner2Name = propertyOwner2Name;
-    }
-    if (!owner1Name && owner2Name) {
-      owner1Name = owner2Name;
-      owner2Name = '';
-    }
-    const ownerPairSeparator = owner2Name ? ', ' : '';
+    const ownerFullName = this.ownerIncludedOwnersService.buildConcatenatedOwnerNames(
+      ownerContact,
+      [],
+      data.contacts
+    ) || this.ownerIncludedOwnersService.getContactDisplayName(ownerContact);
+    const ownerNamePair = this.ownerIncludedOwnersService.resolveOwner1AndOwner2Names(
+      ownerContact,
+      [],
+      data.contacts,
+      propertyOwner1Name,
+      propertyOwner2Name
+    );
+    const owner1Name = ownerNamePair.owner1Name || ownerFullName;
+    const owner2Name = ownerNamePair.owner2Name;
+    const ownerPairSeparator = ownerNamePair.ownerPairSeparator;
     const today = this.formatterService.formatDateStringLong(this.utilityService.todayAsCalendarDateString()) || '';
     const agreementStartDate = this.getAgreementStartDate(data.property?.availableFrom);
     const monthlyRent = this.getMonthlyRent(data.property, data.leadOwner);

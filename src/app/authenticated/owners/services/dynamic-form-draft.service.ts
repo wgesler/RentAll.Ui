@@ -48,6 +48,45 @@ export class DynamicFormDraftService {
     }
     try {
       localStorage.removeItem(key);
+      localStorage.removeItem(this.buildImageDraftKey(key));
+    } catch {
+      // Ignore storage errors to keep form usable.
+    }
+  }
+
+  buildImageDraftKey(key: string): string {
+    return `${key}:check-image`;
+  }
+
+  saveDraftImage(key: string, dataUrl: string): void {
+    if (!key || !String(dataUrl || '').trim()) {
+      return;
+    }
+    try {
+      sessionStorage.setItem(this.buildImageDraftKey(key), dataUrl);
+    } catch {
+      // Ignore storage errors to keep form usable.
+    }
+  }
+
+  loadDraftImage(key: string): string | null {
+    if (!key) {
+      return null;
+    }
+    try {
+      const value = sessionStorage.getItem(this.buildImageDraftKey(key));
+      return value && value.trim() ? value : null;
+    } catch {
+      return null;
+    }
+  }
+
+  resetDraftImage(key: string): void {
+    if (!key) {
+      return;
+    }
+    try {
+      sessionStorage.removeItem(this.buildImageDraftKey(key));
     } catch {
       // Ignore storage errors to keep form usable.
     }

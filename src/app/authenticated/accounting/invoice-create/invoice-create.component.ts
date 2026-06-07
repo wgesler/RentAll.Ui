@@ -8,7 +8,6 @@ import { ToastrService } from 'ngx-toastr';
 import { BehaviorSubject, Subject, Subscription, filter, finalize, firstValueFrom, take, takeUntil } from 'rxjs';
 import { RouterUrl } from '../../../app.routes';
 import { MaterialModule } from '../../../material.module';
-import { AuthService } from '../../../services/auth.service';
 import { CommonService } from '../../../services/common.service';
 import { DocumentExportService } from '../../../services/document-export.service';
 import { DocumentHtmlService } from '../../../services/document-html.service';
@@ -127,7 +126,6 @@ export class InvoiceCreateComponent extends BaseDocumentComponent implements OnI
     private emailHtmlService: EmailHtmlService,
     private contactService: ContactService,
     private http: HttpClient,
-    private authService: AuthService,
     private documentReloadService: DocumentReloadService,
     private sanitizer: DomSanitizer,
     public override toastr: ToastrService,

@@ -9,7 +9,6 @@ import { ToastrService } from 'ngx-toastr';
 import { BehaviorSubject, Observable, Subject, catchError, filter, finalize, forkJoin, map, of, take, takeUntil } from 'rxjs';
 import { MaterialModule } from '../../../material.module';
 import { RouterUrl } from '../../../app.routes';
-import { AuthService } from '../../../services/auth.service';
 import { CommonService } from '../../../services/common.service';
 import { DocumentExportService } from '../../../services/document-export.service';
 import { DocumentHtmlService } from '../../../services/document-html.service';
@@ -141,7 +140,6 @@ export class LeaseComponent extends BaseDocumentComponent implements OnInit, OnD
     private officeService: OfficeService,
     private accountingOfficeService: AccountingOfficeService,
     private buildingService: BuildingService,
-    private authService: AuthService,
     private fb: FormBuilder,
     private formatterService: FormatterService,
     private utilityService: UtilityService,
