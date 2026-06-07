@@ -198,6 +198,31 @@ export class DynamicFormCreateComponent extends BaseDocumentComponent implements
     });
     await this.router.navigateByUrl(RouterUrl.EmailCreate);
   }
+
+  override async onDocuSign(): Promise<void> {
+    this.captureLiveSnapshotForExport();
+    const toEmail = this.ownerContact?.email || '';
+    const toName = this.ownerContact?.fullName || `${this.ownerContact?.firstName || ''} ${this.ownerContact?.lastName || ''}`.trim();
+    const currentUser = this.authService.getUser();
+    const agentEmail = String(currentUser?.email || '').trim();
+    const agentName = `${currentUser?.firstName || ''} ${currentUser?.lastName || ''}`.trim();
+    const propertyCode = this.selectedProperty?.propertyCode || '';
+    const title = this.formName || 'Form';
+    const subject = propertyCode ? `${title} - ${propertyCode}` : title;
+    const signers = [{ email: toEmail, name: toName, routingOrder: 1 }];
+
+    if (agentEmail && agentName) {
+      signers.push({ email: agentEmail, name: agentName, routingOrder: 2 });
+    }
+
+    await super.onDocuSign({
+      subject,
+      signers,
+      documentType: DocumentType.OwnerAgreement,
+      fileName: this.getDocumentFileName(),
+      errorMessage: `Error sending ${String(title).toLowerCase()} for signature. Please try again.`
+    });
+  }
   //#endregion
 
   //#region Data Loading Methods

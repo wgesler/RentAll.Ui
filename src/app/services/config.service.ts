@@ -30,6 +30,7 @@ export class ConfigService {
         local: false,
         title: 'RentAll - Dev',
         apiUrl: 'https://localhost:7154/api/',
+        featureFlags: environment.featureFlags,
       } as Environment;
 	}
 

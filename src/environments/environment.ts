@@ -10,5 +10,8 @@ export const environment = {
 	/** Local/dev: true logs listing URLs to console after links resolve (compare with PDF href). */
 	quoteListingHrefLogDebug: false,
 	/** Empty = use current browser origin for listing links. Set deployed UI base (https://...) so PDFs/emails use public URLs; localhost mail recipients cannot open localhost links. */
-	publicListingUiOrigin: ''
+	publicListingUiOrigin: '',
+	featureFlags: {
+		docuSign: false
+	}
 };

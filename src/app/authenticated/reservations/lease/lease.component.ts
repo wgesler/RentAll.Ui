@@ -2382,6 +2382,30 @@ export class LeaseComponent extends BaseDocumentComponent implements OnInit, OnD
     });
     this.router.navigateByUrl(RouterUrl.EmailCreate);
   }
+
+  override async onDocuSign(): Promise<void> {
+    const toEmail = this.contact?.email || '';
+    const toName = this.contact?.fullName || `${this.contact?.firstName || ''} ${this.contact?.lastName || ''}`.trim();
+    const reservationCode = this.selectedReservation?.reservationCode;
+    const subject = this.emailHtml?.leaseSubject?.trim()
+      .replace(/\{\{reservationCode\}\}/g, reservationCode || '') || 'Lease Agreement';
+    const fileName = this.utilityService.generateDocumentFileName(
+      'lease',
+      this.property.propertyCode,
+      this.utilityService.getReservationDropdownLabel(
+        this.selectedReservation,
+        this.contacts.find(c => c.contactId === this.getPrimaryReservationContactId(this.selectedReservation)) ?? null
+      ).trim() || undefined
+    );
+
+    await super.onDocuSign({
+      subject,
+      signers: [{ email: toEmail, name: toName, routingOrder: 1 }],
+      documentType: DocumentType.ReservationLease,
+      fileName,
+      errorMessage: 'Error sending lease for signature. Please try again.'
+    });
+  }
   //#endregion
 
   //#region Utility Methods

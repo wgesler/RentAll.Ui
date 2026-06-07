@@ -7,5 +7,8 @@ export const environment = {
     apiUrl: 'https://rentall-api-linux-dkfbdaaehthhb0fc.centralus-01.azurewebsites.net/api/',
     quoteListingHrefDiagnostic: '',
     quoteListingHrefLogDebug: false,
-    publicListingUiOrigin: ''
+    publicListingUiOrigin: '',
+    featureFlags: {
+        docuSign: false
+    }
 };
