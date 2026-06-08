@@ -16,7 +16,7 @@
       </p>
     } @else {
       <p class="docusign-signers-dialog__help">
-        Configure each signature required by this form. Choose a second owner or tenant where needed, and remove optional Owner 2 or Tenant 2 signers if they are not required.
+        The following names/emails will be sent to DocuSign for signatures.
       </p>
 
       <div class="docusign-signers-dialog__list">
@@ -60,18 +60,33 @@
             </mat-form-field>
           }
 
-          <div
-            class="docusign-signers-dialog__contact"
-            [class.docusign-signers-dialog__contact--missing]="!slot.name || !slot.email">
-            @if (slot.name && slot.email) {
-              <span>{{ slot.name }}</span>
-              <span class="docusign-signers-dialog__email">{{ slot.email }}</span>
-            } @else if (slot.isOwner2 || slot.isTenant) {
-              <span>Select a contact with name and email.</span>
-            } @else {
-              <span>Contact information is missing.</span>
-            }
-          </div>
+          @if (slot.isCompanyTenant) {
+            <div
+              class="docusign-signers-dialog__contact"
+              [class.docusign-signers-dialog__contact--missing]="!slot.name || !slot.email">
+              @if (slot.name && slot.email) {
+                <span>{{ slot.name }}</span>
+                <span class="docusign-signers-dialog__email">{{ slot.email }}</span>
+              } @else {
+                <span>Contact information is missing.</span>
+              }
+            </div>
+          } @else {
+            <div
+              class="docusign-signers-dialog__contact"
+              [class.docusign-signers-dialog__contact--missing]="!slot.name || !slot.email">
+              @if (slot.name && slot.email) {
+                <span>{{ slot.name }}</span>
+                <span class="docusign-signers-dialog__email">{{ slot.email }}</span>
+              } @else if (slot.isOwner2 || slot.isTenant) {
+                <span>Select a contact with name and email.</span>
+              } @else if (slot.isCompany) {
+                <span>Company contact information is missing.</span>
+              } @else {
+                <span>Contact information is missing.</span>
+              }
+            </div>
+          }
         </div>
       }
     </div>

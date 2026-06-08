@@ -1,32 +1,17 @@
 import { Injectable } from '@angular/core';
 import { MatDialog } from '@angular/material/dialog';
 import { firstValueFrom } from 'rxjs';
-import { ContactResponse } from '../../contacts/models/contact.model';
-import {
-  OwnerDocuSignSignersDialogComponent,
-  OwnerDocuSignSignersDialogData
-} from '../modals/owner-docusign-signers-dialog.component';
-import {
-  DocuSignSignerConfig,
-  OwnerDocuSignSignerContext,
-  OwnerDocuSignSignerService
-} from './owner-docusign-signer.service';
-
-export interface OwnerDocuSignSignersPromptInput {
-  formTitle: string;
-  roles: string[];
-  context: OwnerDocuSignSignerContext;
-  officeId: number | null | undefined;
-  contacts: ContactResponse[];
-}
+import { DocuSignSignersDialogComponent, DocuSignSignersDialogData } from '../../shared/modals/docusign-signers-dialog/docusign-signers-dialog.component';
+import { DocuSignSignerConfig, OwnerDocuSignSignersPromptInput } from '../models/owner-docusign.model';
+import { OwnerDocuSignSignerService } from './owner-docusign-signer.service';
 
 @Injectable({
   providedIn: 'root'
 })
 export class OwnerDocuSignSignersDialogService {
   constructor(
-    private dialog: MatDialog,
-    private ownerDocuSignSignerService: OwnerDocuSignSignerService
+    public dialog: MatDialog,
+    public ownerDocuSignSignerService: OwnerDocuSignSignerService
   ) {}
 
   async promptForSigners(input: OwnerDocuSignSignersPromptInput): Promise<DocuSignSignerConfig[] | null> {
@@ -46,10 +31,10 @@ export class OwnerDocuSignSignersDialogService {
       ? []
       : this.ownerDocuSignSignerService.buildSignerSlots(roles, input.context);
     const dialogRef = this.dialog.open<
-      OwnerDocuSignSignersDialogComponent,
-      OwnerDocuSignSignersDialogData,
+      DocuSignSignersDialogComponent,
+      DocuSignSignersDialogData,
       DocuSignSignerConfig[] | undefined
-    >(OwnerDocuSignSignersDialogComponent, {
+    >(DocuSignSignersDialogComponent, {
       width: '42rem',
       maxWidth: '95vw',
       disableClose: true,

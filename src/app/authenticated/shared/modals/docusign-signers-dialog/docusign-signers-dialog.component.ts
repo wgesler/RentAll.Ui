@@ -1,15 +1,12 @@
 import { CommonModule } from '@angular/common';
 import { Component, Inject } from '@angular/core';
 import { MAT_DIALOG_DATA, MatDialogRef } from '@angular/material/dialog';
-import { MaterialModule } from '../../../material.module';
-import { ContactResponse } from '../../contacts/models/contact.model';
-import {
-  DocuSignSignerConfig,
-  DocuSignSignerSlot,
-  OwnerDocuSignSignerService
-} from '../services/owner-docusign-signer.service';
+import { MaterialModule } from '../../../../material.module';
+import { ContactResponse } from '../../../contacts/models/contact.model';
+import { DocuSignSignerConfig, DocuSignSignerSlot } from '../../../owners/models/owner-docusign.model';
+import { OwnerDocuSignSignerService } from '../../../owners/services/owner-docusign-signer.service';
 
-export interface OwnerDocuSignSignersDialogData {
+export interface DocuSignSignersDialogData {
   formTitle: string;
   slots: DocuSignSignerSlot[];
   tenantContacts: ContactResponse[];
@@ -19,18 +16,18 @@ export interface OwnerDocuSignSignersDialogData {
 
 @Component({
   standalone: true,
-  selector: 'app-owner-docusign-signers-dialog',
+  selector: 'app-docusign-signers-dialog',
   imports: [CommonModule, MaterialModule],
-  templateUrl: './owner-docusign-signers-dialog.component.html',
-  styleUrl: './owner-docusign-signers-dialog.component.scss'
+  templateUrl: './docusign-signers-dialog.component.html',
+  styleUrl: './docusign-signers-dialog.component.scss'
 })
-export class OwnerDocuSignSignersDialogComponent {
+export class DocuSignSignersDialogComponent {
   slots: DocuSignSignerSlot[];
 
   constructor(
-    @Inject(MAT_DIALOG_DATA) public data: OwnerDocuSignSignersDialogData,
-    private dialogRef: MatDialogRef<OwnerDocuSignSignersDialogComponent, DocuSignSignerConfig[] | undefined>,
-    private ownerDocuSignSignerService: OwnerDocuSignSignerService
+    @Inject(MAT_DIALOG_DATA) public data: DocuSignSignersDialogData,
+    public dialogRef: MatDialogRef<DocuSignSignersDialogComponent, DocuSignSignerConfig[] | undefined>,
+    public ownerDocuSignSignerService: OwnerDocuSignSignerService
   ) {
     this.slots = (data.slots || []).map(slot => ({ ...slot }));
   }

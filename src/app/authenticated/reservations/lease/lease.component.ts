@@ -48,6 +48,8 @@ import { LeaseReloadService } from '../services/lease-reload.service';
 import { ReservationService } from '../services/reservation.service';
 import { environment } from '../../../../environments/environment';
 import { DynamicFormDraftService } from '../../owners/services/dynamic-form-draft.service';
+import { OwnerDocuSignSignerService } from '../../owners/services/owner-docusign-signer.service';
+import { OwnerDocuSignSignersDialogService } from '../../owners/services/owner-docusign-signers-dialog.service';
 
 @Component({
     standalone: true,
@@ -149,6 +151,8 @@ export class LeaseComponent extends BaseDocumentComponent implements OnInit, OnD
     private globalSelectionService: GlobalSelectionService,
     private http: HttpClient,
     private dynamicFormDraftService: DynamicFormDraftService,
+    public ownerDocuSignSignerService: OwnerDocuSignSignerService,
+    public ownerDocuSignSignersDialogService: OwnerDocuSignSignersDialogService,
     public override toastr: ToastrService,
     documentExportService: DocumentExportService,
     documentService: DocumentService,
@@ -2380,10 +2384,85 @@ export class LeaseComponent extends BaseDocumentComponent implements OnInit, OnD
     });
     this.router.navigateByUrl(RouterUrl.EmailCreate);
   }
+  //#endregion
+
+  //#region DocuSign Methods
+  getDocuSignSignerRolesHtmlSource(): string {
+    return String(this.baseTemplateHtml || this.previewIframeHtml || '').trim();
+  }
+
+  isCorporateLetterOfResponsibility(): boolean {
+    return this.selectedReservation?.depositTypeId === DepositType.CLR || this.isCompanyRental;
+  }
+
+  getDocuSignSignerRoles(): string[] {
+    let roles: string[] = [];
+    const htmlFiles = this.cachedPropertyHtmlFiles;
+
+    if (this.form.get('includeLease')?.value) {
+      roles = this.ownerDocuSignSignerService.mergeSignerRoles(
+        roles,
+        this.ownerDocuSignSignerService.parseSignerRolesFromHtml(htmlFiles?.lease || '')
+      );
+    }
+    if (this.form.get('includeLetterOfResponsibility')?.value) {
+      roles = this.ownerDocuSignSignerService.mergeSignerRoles(
+        roles,
+        this.ownerDocuSignSignerService.parseSignerRolesFromHtml(htmlFiles?.letterOfResponsibility || '')
+      );
+    }
+    if (this.form.get('includeNoticeToVacate')?.value) {
+      roles = this.ownerDocuSignSignerService.mergeSignerRoles(
+        roles,
+        this.ownerDocuSignSignerService.parseSignerRolesFromHtml(htmlFiles?.noticeToVacate || '')
+      );
+    }
+    if (this.form.get('includeCreditCardAuthorization')?.value) {
+      roles = this.ownerDocuSignSignerService.mergeSignerRoles(
+        roles,
+        this.ownerDocuSignSignerService.parseSignerRolesFromHtml(htmlFiles?.creditAuthorization || '')
+      );
+    }
+    if (this.form.get('includeBusinessCreditApplication')?.value) {
+      roles = this.ownerDocuSignSignerService.mergeSignerRoles(
+        roles,
+        this.ownerDocuSignSignerService.parseSignerRolesFromHtml(htmlFiles?.creditApplication || '')
+      );
+    }
+    if (this.form.get('includeRentalCreditApplication')?.value) {
+      roles = this.ownerDocuSignSignerService.mergeSignerRoles(
+        roles,
+        this.ownerDocuSignSignerService.parseSignerRolesFromHtml(htmlFiles?.rentalCreditApplication || '')
+      );
+    }
+
+    if (roles.length === 0) {
+      roles = this.ownerDocuSignSignerService.parseSignerRolesFromHtml(
+        this.getDocuSignSignerRolesHtmlSource()
+      );
+    }
+
+    return this.ownerDocuSignSignerService.mergeSignerRoles([], roles);
+  }
+
+  buildDocuSignSignerContext() {
+    const currentUser = this.authService.getUser();
+    const companyContact = this.companyContact
+      ?? (this.contact?.entityTypeId === EntityType.Company ? this.contact : null);
+    return {
+      primaryOwnerContact: null,
+      additionalOwnerContactIds: [] as string[],
+      contacts: this.contacts,
+      agent: {
+        email: String(currentUser?.email || '').trim(),
+        name: `${currentUser?.firstName || ''} ${currentUser?.lastName || ''}`.trim()
+      },
+      primaryTenantContact: this.contact,
+      primaryCompanyContact: companyContact
+    };
+  }
 
   override async onDocuSign(): Promise<void> {
-    const toEmail = this.contact?.email || '';
-    const toName = this.contact?.fullName || `${this.contact?.firstName || ''} ${this.contact?.lastName || ''}`.trim();
     const reservationCode = this.selectedReservation?.reservationCode;
     const subject = this.emailHtml?.leaseSubject?.trim()
       .replace(/\{\{reservationCode\}\}/g, reservationCode || '') || 'Lease Agreement';
@@ -2396,9 +2475,21 @@ export class LeaseComponent extends BaseDocumentComponent implements OnInit, OnD
       ).trim() || undefined
     );
 
+    const roles = this.getDocuSignSignerRoles();
+    const signers = await this.ownerDocuSignSignersDialogService.promptForSigners({
+      formTitle: 'Lease Agreement',
+      roles,
+      context: this.buildDocuSignSignerContext(),
+      officeId: this.selectedOffice?.officeId ?? this.officeId,
+      contacts: this.contacts
+    });
+    if (!signers) {
+      return;
+    }
+
     await super.onDocuSign({
       subject,
-      signers: [{ email: toEmail, name: toName, routingOrder: 1 }],
+      signers,
       documentType: DocumentType.ReservationLease,
       fileName,
       errorMessage: 'Error sending lease for signature. Please try again.'
