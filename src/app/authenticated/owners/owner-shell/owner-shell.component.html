@@ -133,10 +133,10 @@
                   @if (isDynamicFormInViewMode(getDynamicFormKey(stateForm))) {
                     <app-shared-form-create
                       [formName]="stateForm.formName"
+                      [formKey]="getDynamicFormKey(stateForm)"
                       [ownerLeadId]="leadOwnerId"
                       [officeId]="selectedOfficeId"
                       [propertyId]="selectedPropertyId === newPropertyOptionValue ? null : selectedPropertyId"
-                      [editedHtml]="getDynamicFormEditedHtml(stateForm)"
                       [sourceTemplateHtml]="stateForm.formAsHtml ?? ''"
                       (displayStateUpdated)="onDynamicFormDisplayStateUpdated(getDynamicFormKey(stateForm), $event)"
                       (editRequested)="onDynamicFormEditRequested(getDynamicFormKey(stateForm), $event)">
@@ -148,7 +148,7 @@
                       [ownerLeadId]="leadOwnerId"
                       [officeId]="selectedOfficeId"
                       [propertyId]="selectedPropertyId === newPropertyOptionValue ? null : selectedPropertyId"
-                      [templateHtml]="getDynamicFormEditedHtml(stateForm)"
+                      [templateHtml]="stateForm.formAsHtml ?? ''"
                       [restoreProcessedHtml]="getDynamicFormProcessedHtml(stateForm)"
                       [restoreProcessedStyles]="getDynamicFormProcessedStyles(stateForm)"
                       (viewRequested)="onDynamicFormViewRequested(getDynamicFormKey(stateForm), $event)">

@@ -25,6 +25,7 @@ import { BaseDocumentComponent, DocumentConfig, EmailConfig } from '../../shared
 import { OwnerDocuSignSignerService } from '../services/owner-docusign-signer.service';
 import { OwnerDocuSignSignersDialogService } from '../services/owner-docusign-signers-dialog.service';
 import { OwnersService } from '../services/owners.service';
+import { OwnerFormTokenProviderService } from '../services/owner-form-token-provider.service';
 import { OwnerFormViewModeService } from '../services/owner-form-view-mode.service';
 
 @Component({
@@ -36,10 +37,10 @@ import { OwnerFormViewModeService } from '../services/owner-form-view-mode.servi
 })
 export class DynamicFormCreateComponent extends BaseDocumentComponent implements OnInit, OnChanges, OnDestroy {
   @Input() formName = '';
+  @Input() formKey = '';
   @Input() ownerLeadId: number | null = null;
   @Input() officeId: number | null = null;
   @Input() propertyId: string | null = null;
-  @Input() editedHtml = '';
   @Input() sourceTemplateHtml = '';
   @Output() editRequested = new EventEmitter<{ processedHtml: string; processedStyles: string }>();
   @Output() displayStateUpdated = new EventEmitter<{ processedHtml: string; processedStyles: string }>();
@@ -66,6 +67,7 @@ export class DynamicFormCreateComponent extends BaseDocumentComponent implements
 
   constructor(
     private ownersService: OwnersService,
+    private ownerFormTokenProviderService: OwnerFormTokenProviderService,
     private ownerFormViewModeService: OwnerFormViewModeService,
     private ownerDocuSignSignerService: OwnerDocuSignSignerService,
     private ownerDocuSignSignersDialogService: OwnerDocuSignSignersDialogService,
@@ -94,9 +96,7 @@ export class DynamicFormCreateComponent extends BaseDocumentComponent implements
     this.loadOffices();
     this.loadContacts();
     this.loadProperty();
-    if (!this.previewIframeHtml) {
-      this.processAndSetHtml(this.editedHtml || '');
-    }
+    this.loadDisplayHtml();
   }
 
   ngOnChanges(changes: SimpleChanges): void {
@@ -108,9 +108,40 @@ export class DynamicFormCreateComponent extends BaseDocumentComponent implements
     if (propertyIdChanged) {
       this.loadProperty();
     }
-    if (changes['editedHtml']) {
-      this.processAndSetHtml(this.editedHtml || '');
+    if (changes['sourceTemplateHtml'] || changes['propertyId'] || changes['officeId']) {
+      this.loadDisplayHtml();
     }
+  }
+
+  private loadDisplayHtml(): void {
+    const templateHtml = this.getTokenSourceHtml();
+    if (!templateHtml) {
+      this.processAndSetHtml('');
+      return;
+    }
+    if (!this.htmlNeedsTokenReplacement(templateHtml)) {
+      this.processAndSetHtml(templateHtml);
+      return;
+    }
+    this.ownerFormTokenProviderService.applyTokens(templateHtml, {
+      formName: this.formName,
+      formKey: this.formKey,
+      ownerLeadId: this.ownerLeadId,
+      officeId: this.officeId,
+      propertyId: this.propertyId,
+      templateAssetPath: null
+    }).pipe(take(1)).subscribe({
+      next: html => this.processAndSetHtml(html || ''),
+      error: () => this.processAndSetHtml(templateHtml)
+    });
+  }
+
+  private getTokenSourceHtml(): string {
+    return String(this.sourceTemplateHtml || '').trim();
+  }
+
+  private htmlNeedsTokenReplacement(html: string): boolean {
+    return /\{\{[^}]+\}\}/.test(String(html || ''));
   }
 
   onEdit(): void {

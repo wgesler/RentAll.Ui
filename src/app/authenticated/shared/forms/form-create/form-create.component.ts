@@ -9,10 +9,10 @@ import { DynamicFormCreateComponent } from '../../../owners/dynamic-form-create/
   template: `
     <app-dynamic-form-create
       [formName]="formName"
+      [formKey]="formKey"
       [ownerLeadId]="ownerLeadId"
       [officeId]="officeId"
       [propertyId]="propertyId"
-      [editedHtml]="editedHtml"
       [sourceTemplateHtml]="sourceTemplateHtml"
       (editRequested)="editRequested.emit($event)"
       (displayStateUpdated)="displayStateUpdated.emit($event)">
@@ -21,10 +21,10 @@ import { DynamicFormCreateComponent } from '../../../owners/dynamic-form-create/
 })
 export class SharedFormCreateComponent {
   @Input() formName = '';
+  @Input() formKey = '';
   @Input() ownerLeadId: number | null = null;
   @Input() officeId: number | null = null;
   @Input() propertyId: string | null = null;
-  @Input() editedHtml = '';
   @Input() sourceTemplateHtml = '';
   @Output() editRequested = new EventEmitter<{ processedHtml: string; processedStyles: string }>();
   @Output() displayStateUpdated = new EventEmitter<{ processedHtml: string; processedStyles: string }>();

@@ -1,24 +1,21 @@
 import { CommonModule } from '@angular/common';
-import { HttpClient } from '@angular/common/http';
 import { ChangeDetectorRef, Component, ElementRef, Input, OnChanges, OnDestroy, OnInit, Output, EventEmitter, SimpleChanges, ViewChild } from '@angular/core';
 import { DomSanitizer, SafeHtml } from '@angular/platform-browser';
 import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { ToastrService } from 'ngx-toastr';
-import { Subject, catchError, of, switchMap, take } from 'rxjs';
+import { Subject, take } from 'rxjs';
 import { AuthService } from '../../../services/auth.service';
 import { DocumentHtmlService } from '../../../services/document-html.service';
 import { DynamicFormDraftService } from '../services/dynamic-form-draft.service';
-import { FormTokenProviderRegistryService } from '../../shared/forms/services/form-token-provider-registry.service';
-import { OWNER_FORM_TOKEN_PROVIDER } from '../services/owner-form-token-provider.service';
+import { OwnerFormTokenProviderService } from '../services/owner-form-token-provider.service';
 import { OwnerFormViewModeService } from '../services/owner-form-view-mode.service';
 
 @Component({
   standalone: true,
   selector: 'app-dynamic-form-editor',
   imports: [CommonModule, MatButtonModule, MatIconModule, MatProgressSpinnerModule],
-  providers: [OWNER_FORM_TOKEN_PROVIDER, FormTokenProviderRegistryService],
   templateUrl: './dynamic-form-editor.component.html',
   styleUrl: './dynamic-form-editor.component.scss'
 })
@@ -47,13 +44,12 @@ export class DynamicFormEditorComponent implements OnInit, OnChanges, OnDestroy 
   destroy$ = new Subject<void>();
 
   constructor(
-    private http: HttpClient,
     private sanitizer: DomSanitizer,
     private authService: AuthService,
     private toastr: ToastrService,
     private documentHtmlService: DocumentHtmlService,
     private dynamicFormDraftService: DynamicFormDraftService,
-    private formTokenProviderRegistryService: FormTokenProviderRegistryService,
+    private ownerFormTokenProviderService: OwnerFormTokenProviderService,
     private ownerFormViewModeService: OwnerFormViewModeService,
     private changeDetectorRef: ChangeDetectorRef
   ) {}
@@ -129,10 +125,17 @@ export class DynamicFormEditorComponent implements OnInit, OnChanges, OnDestroy 
       return;
     }
 
-    const inlineTemplate = String(this.templateHtml || '').trim();
-    if (inlineTemplate && !this.htmlNeedsTokenReplacement(inlineTemplate)) {
+    const templateHtml = String(this.templateHtml || '').trim();
+    if (!templateHtml) {
+      this.baseTemplateHtml = '';
+      this.setEditorHtml('');
+      this.changeDetectorRef.markForCheck();
+      return;
+    }
+
+    if (!this.htmlNeedsTokenReplacement(templateHtml)) {
       this.isLoading = true;
-      this.baseTemplateHtml = inlineTemplate;
+      this.baseTemplateHtml = templateHtml;
       this.applyInitialEditorHtml();
       this.isLoading = false;
       this.changeDetectorRef.markForCheck();
@@ -141,22 +144,14 @@ export class DynamicFormEditorComponent implements OnInit, OnChanges, OnDestroy 
 
     this.isLoading = true;
     this.changeDetectorRef.markForCheck();
-    this.loadTemplateHtml().pipe(
-      switchMap(templateHtml => {
-        if (!this.htmlNeedsTokenReplacement(templateHtml)) {
-          return of(templateHtml);
-        }
-        return this.formTokenProviderRegistryService.applyTokens(this.tokenContextType, templateHtml, {
-          formName: this.formName,
-          formKey: this.formKey,
-          ownerLeadId: this.ownerLeadId,
-          officeId: this.officeId,
-          propertyId: this.propertyId,
-          templateAssetPath: this.templateAssetPath
-        });
-      }),
-      take(1)
-    ).subscribe({
+    this.ownerFormTokenProviderService.applyTokens(templateHtml, {
+      formName: this.formName,
+      formKey: this.formKey,
+      ownerLeadId: this.ownerLeadId,
+      officeId: this.officeId,
+      propertyId: this.propertyId,
+      templateAssetPath: this.templateAssetPath
+    }).pipe(take(1)).subscribe({
       next: replacedHtml => {
         this.baseTemplateHtml = replacedHtml || '';
         this.applyInitialEditorHtml();
@@ -164,7 +159,7 @@ export class DynamicFormEditorComponent implements OnInit, OnChanges, OnDestroy 
         this.changeDetectorRef.markForCheck();
       },
       error: () => {
-        this.baseTemplateHtml = '';
+        this.baseTemplateHtml = templateHtml;
         this.applyInitialEditorHtml();
         this.isLoading = false;
         this.changeDetectorRef.markForCheck();
@@ -172,28 +167,13 @@ export class DynamicFormEditorComponent implements OnInit, OnChanges, OnDestroy 
     });
   }
 
-  loadTemplateHtml() {
-    const inlineTemplate = String(this.templateHtml || '').trim();
-    if (inlineTemplate) {
-      return of(inlineTemplate);
-    }
-    const assetPath = String(this.templateAssetPath || '').trim();
-    if (!assetPath) {
-      return of('');
-    }
-    return this.http.get(assetPath, { responseType: 'text' }).pipe(
-      take(1),
-      catchError(() => of(''))
-    );
-  }
-
   applyInitialEditorHtml(): void {
-    const inlineTemplate = String(this.templateHtml || '').trim();
+    const templateHtml = String(this.templateHtml || '').trim();
     const draftHtml = this.dynamicFormDraftService.loadDraft(this.getDraftStorageKey());
     this.hasDraft = !!draftHtml;
-    const htmlToRender = inlineTemplate && !this.htmlNeedsTokenReplacement(inlineTemplate)
-      ? inlineTemplate
-      : (draftHtml || this.baseTemplateHtml || '');
+    const htmlToRender = templateHtml && this.htmlNeedsTokenReplacement(templateHtml)
+      ? (this.baseTemplateHtml || '')
+      : (draftHtml || this.baseTemplateHtml || templateHtml || '');
     this.setEditorHtml(htmlToRender);
   }
 

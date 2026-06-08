@@ -646,15 +646,6 @@ export class OwnerShellComponent implements OnInit, OnDestroy {
     return !!this.dynamicFormViewState[formKey]?.isView;
   }
 
-  getDynamicFormEditedHtml(stateForm: StateFormResponse): string {
-    const formKey = this.getDynamicFormKey(stateForm);
-    const edited = this.dynamicFormViewState[formKey]?.editedHtml || '';
-    if (edited.trim()) {
-      return edited;
-    }
-    return String(stateForm?.formAsHtml || '');
-  }
-
   getDynamicFormProcessedHtml(stateForm: StateFormResponse): string {
     const formKey = this.getDynamicFormKey(stateForm);
     return String(this.dynamicFormViewState[formKey]?.processedHtml || '').trim();
