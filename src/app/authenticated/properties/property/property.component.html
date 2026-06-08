@@ -946,7 +946,7 @@
               </mat-expansion-panel>
             }
 
-            @if (isInAccounting && propertyId) {
+            @if (isInAccounting && propertyId && !isInOwnerMode) {
             <mat-expansion-panel [expanded]="expandedSections.agreement" (opened)="onPanelOpened('agreement')" (closed)="onPanelClosed('agreement')" class="mb-4">
               <mat-expansion-panel-header>
                 <mat-panel-title>Property Agreements</mat-panel-title>

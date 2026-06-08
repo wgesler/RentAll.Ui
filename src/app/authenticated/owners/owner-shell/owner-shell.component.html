@@ -39,7 +39,6 @@
                   [formFieldClass]="'titlebar-field-property-code'"
                   [value]="selectedPropertyId"
                   [options]="propertyCodeOptions"
-                  [disabled]="isPublicOwnerTokenContext(token)"
                   [showInstructionOption]="false"
                   [nullOptionLabel]="'Select Property'"
                   [noResultsText]="'No properties match your search'"
@@ -86,10 +85,10 @@
                 [selectedOfficeId]="selectedOfficeId"
                 [shellPropertyId]="selectedPropertyId"
                 [shellPropertyCode]="selectedPropertyId === newPropertyOptionValue ? newPropertyCode : null"
-                [shellPropertyAddress1]="selectedPropertyId === newPropertyOptionValue ? ownerLeadPropertyAddress1 : null"
-                [shellPropertyCity]="selectedPropertyId === newPropertyOptionValue ? ownerLeadPropertyCity : null"
-                [shellPropertyState]="selectedPropertyId === newPropertyOptionValue ? ownerLeadPropertyState : null"
-                [shellPropertyZip]="selectedPropertyId === newPropertyOptionValue ? ownerLeadPropertyZip : null"
+                [shellPropertyAddress1]="selectedPropertyId === newPropertyOptionValue && shouldSeedNewPropertyAddress() ? ownerLeadPropertyAddress1 : null"
+                [shellPropertyCity]="selectedPropertyId === newPropertyOptionValue && shouldSeedNewPropertyAddress() ? ownerLeadPropertyCity : null"
+                [shellPropertyState]="selectedPropertyId === newPropertyOptionValue && shouldSeedNewPropertyAddress() ? ownerLeadPropertyState : null"
+                [shellPropertyZip]="selectedPropertyId === newPropertyOptionValue && shouldSeedNewPropertyAddress() ? ownerLeadPropertyZip : null"
                 (titleBarPropertyCodeInvalid)="onTitleBarPropertyCodeInvalid()"
                 (propertyContextChanged)="onOwnerAgreementContextRefresh()">
               </app-property-information>

@@ -255,9 +255,11 @@ export class PropertyComponent implements OnInit, OnChanges, AfterViewInit, OnDe
 
   ngOnChanges(changes: SimpleChanges): void {
     if (changes['shellPropertyId'] && !changes['shellPropertyId'].firstChange) {
-      const nextId = String(this.shellPropertyId ?? '').trim();
-      if (nextId) {
-        this.applyPropertyIdContext(nextId);
+      const nextId = String(this.shellPropertyId ?? '').trim() || 'new';
+      this.applyPropertyIdContext(nextId);
+      if (nextId === 'new') {
+        this.applyShellPropertyCodeContext();
+        this.applyShellPropertyAddressContext();
       }
     }
     if (changes['shellPropertyCode'] && !changes['shellPropertyCode'].firstChange) {
@@ -279,15 +281,20 @@ export class PropertyComponent implements OnInit, OnChanges, AfterViewInit, OnDe
     this.ownersService.getPropertyByContext(this.publicOwnerToken, this.propertyId).pipe(take(1), finalize(() => { this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'property'); })).subscribe({
       next: (response) => {
         if (!response) {
-          this.isServiceError = true;
+          if (!this.isEmbeddedInOwnerShell()) {
+            this.isServiceError = true;
+          }
           return;
         }
+        this.isServiceError = false;
         this.property = response;
         this.populateForm();
         this.filterLocationLookupsByOffice();
       },
       error: () => {
-        this.isServiceError = true;
+        if (!this.isEmbeddedInOwnerShell()) {
+          this.isServiceError = true;
+        }
       }
     });
   }
@@ -604,11 +611,13 @@ export class PropertyComponent implements OnInit, OnChanges, AfterViewInit, OnDe
     }
   }
 
-  private notifyOwnerShellContextChangedIfEmbedded(): void {
-    const isEmbeddedInOwnerShell =
-      String(this.shellPropertyId ?? '').trim().length > 0 ||
+  private isEmbeddedInOwnerShell(): boolean {
+    return String(this.shellPropertyId ?? '').trim().length > 0 ||
       String(this.publicOwnerToken ?? '').trim().length > 0;
-    if (!isEmbeddedInOwnerShell) {
+  }
+
+  private notifyOwnerShellContextChangedIfEmbedded(): void {
+    if (!this.isEmbeddedInOwnerShell()) {
       return;
     }
     this.ownerShellContextChanged.emit();
@@ -1350,6 +1359,10 @@ export class PropertyComponent implements OnInit, OnChanges, AfterViewInit, OnDe
     const city = String(this.shellPropertyCity ?? '').trim();
     const state = String(this.shellPropertyState ?? '').trim().toUpperCase();
     const zip = String(this.shellPropertyZip ?? '').trim();
+    if (!address1 && !city && !state && !zip) {
+      this.form.patchValue({ address1: '', city: '', state: '', zip: '' }, { emitEvent: false });
+      return;
+    }
     const patch: Record<string, string> = {};
     const currentAddress1 = String(this.form.get('address1')?.value ?? '').trim();
     const currentCity = String(this.form.get('city')?.value ?? '').trim();
@@ -2023,6 +2036,7 @@ export class PropertyComponent implements OnInit, OnChanges, AfterViewInit, OnDe
   }
 
   applyPropertyIdContext(id: string): void {
+    this.isServiceError = false;
     this.propertyId = id;
     this.isAddMode = id === 'new';
     this.expandedSections.agreement = this.isInAccounting;

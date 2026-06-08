@@ -28,7 +28,7 @@ import { StateFormResponse } from '../../organizations/models/state-form.model';
 import { OrganizationResponse } from '../../organizations/models/organization.model';
 import { OfficeResponse } from '../../organizations/models/office.model';
 import { AccountingOfficeResponse } from '../../organizations/models/accounting-office.model';
-import { PropertyRequest, PropertyResponse } from '../../properties/models/property.model';
+import { PropertyListResponse, PropertyRequest, PropertyResponse } from '../../properties/models/property.model';
 import { PropertyAgreementResponse } from '../../properties/models/property-agreement.model';
 import { PropertyInformationResponse } from '../../properties/models/property-information.model';
 import {
@@ -225,6 +225,17 @@ export class LeadsService {
     return this.rawHttp.get<PropertyResponse>(`${this.commonController}owner-form/${normalized}/property`);
   }
 
+  getPublicOwnerPropertyByIdAndToken(token: string, propertyId: string): Observable<PropertyResponse> {
+    const normalized = this.normalizeOwnerFormShareToken(token);
+    const normalizedPropertyId = encodeURIComponent(String(propertyId || '').trim());
+    return this.rawHttp.get<PropertyResponse>(`${this.commonController}owner-form/${normalized}/property/${normalizedPropertyId}`);
+  }
+
+  getPublicOwnerPropertiesByToken(token: string): Observable<PropertyListResponse[]> {
+    const normalized = this.normalizeOwnerFormShareToken(token);
+    return this.rawHttp.get<PropertyListResponse[]>(`${this.commonController}owner-form/${normalized}/properties`);
+  }
+
   getPublicOwnerPropertyAgreementByToken(token: string): Observable<PropertyAgreementResponse> {
     const normalized = this.normalizeOwnerFormShareToken(token);
     return this.rawHttp.get<PropertyAgreementResponse>(`${this.commonController}owner-form/${normalized}/property-agreement`);
@@ -233,6 +244,12 @@ export class LeadsService {
   getPublicOwnerPropertyInformationByToken(token: string): Observable<PropertyInformationResponse> {
     const normalized = this.normalizeOwnerFormShareToken(token);
     return this.rawHttp.get<PropertyInformationResponse>(`${this.commonController}owner-form/${normalized}/property-information`);
+  }
+
+  getPublicOwnerPropertyInformationByIdAndToken(token: string, propertyId: string): Observable<PropertyInformationResponse> {
+    const normalized = this.normalizeOwnerFormShareToken(token);
+    const normalizedPropertyId = encodeURIComponent(String(propertyId || '').trim());
+    return this.rawHttp.get<PropertyInformationResponse>(`${this.commonController}owner-form/${normalized}/property-information/${normalizedPropertyId}`);
   }
 
   getPublicOwnerAgreementInformationByToken(token: string): Observable<OwnerAgreementInformationResponse> {

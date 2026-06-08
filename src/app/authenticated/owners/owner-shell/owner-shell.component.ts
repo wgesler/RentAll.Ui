@@ -75,6 +75,8 @@ export class OwnerShellComponent implements OnInit, OnDestroy {
   ownerLeadPropertyCity = '';
   ownerLeadPropertyState = '';
   ownerLeadPropertyZip = '';
+  /** True when the public owner link arrived with a propertyCode query param (leads-owner path). */
+  tokenRouteHadPropertyCode = false;
 
   currentPropertyStateCode = '';
   stateFormOrganizationId = '';
@@ -135,6 +137,7 @@ export class OwnerShellComponent implements OnInit, OnDestroy {
       this.isOwnerListMode = false;
       this.leadOwnerId = null;
       this.navigationContextService.setIsInOwnerMode(true);
+      this.tokenRouteHadPropertyCode = String(propertyCode || '').trim().length > 0;
       if (Number.isFinite(officeId) && officeId > 0) {
         this.applyPageOfficeScope(officeId);
       }
@@ -388,10 +391,18 @@ export class OwnerShellComponent implements OnInit, OnDestroy {
   //#endregion
 
   //#region Property Dropdown
+  shouldSeedNewPropertyAddress(): boolean {
+    if (!this.isOwnerLinkMode()) {
+      return true;
+    }
+    return this.tokenRouteHadPropertyCode;
+  }
+
   resetPropertyDropdownState(): void {
     this.propertyContextLoaded = false;
     this.selectedPropertyId = this.newPropertyOptionValue;
     this.newPropertyCode = '';
+    this.tokenRouteHadPropertyCode = false;
     this.ownerLeadPropertyCode = '';
     this.ownerLeadPropertyAddress1 = '';
     this.ownerLeadPropertyCity = '';
@@ -455,23 +466,38 @@ export class OwnerShellComponent implements OnInit, OnDestroy {
         return;
       }
 
-      this.ownersService.getPropertyByContext(token, null).pipe(take(1), catchError(() => of(null))).subscribe(property => {
-        const propertyId = String(property?.propertyId || '').trim();
-        const propertyCode = String(property?.propertyCode || '').trim().toUpperCase();
-        if (propertyId) {
-          this.propertyCodeOptions = [
-            { value: this.newPropertyOptionValue, label: 'New Property' },
-            { value: propertyId, label: propertyCode || 'Existing Property' }
-          ];
-          this.selectedPropertyId = propertyId;
-          this.newPropertyCode = '';
-          this.reloadStateFormsForSelectedProperty();
-          return;
-        }
+      const routePropertyCode = String(this.newPropertyCode || '').trim().toUpperCase();
+      if (routePropertyCode) {
+        this.ownersService.getPropertyByContext(token, null).pipe(take(1), catchError(() => of(null))).subscribe(property => {
+          const propertyId = String(property?.propertyId || '').trim();
+          const propertyCode = String(property?.propertyCode || '').trim().toUpperCase();
+          if (propertyId) {
+            this.propertyCodeOptions = [
+              { value: this.newPropertyOptionValue, label: 'New Property' },
+              { value: propertyId, label: propertyCode || 'Existing Property' }
+            ];
+            this.selectedPropertyId = propertyId;
+            this.newPropertyCode = '';
+            this.reloadStateFormsForSelectedProperty();
+            return;
+          }
 
-        this.selectedPropertyId = this.newPropertyOptionValue;
-        this.propertyCodeOptions = [{ value: this.newPropertyOptionValue, label: 'New Property' }];
-        this.newPropertyCode = String(this.newPropertyCode || '').trim().toUpperCase();
+          this.selectedPropertyId = this.newPropertyOptionValue;
+          this.propertyCodeOptions = [{ value: this.newPropertyOptionValue, label: 'New Property' }];
+          this.newPropertyCode = routePropertyCode;
+          this.applyOwnerLeadAddressSeedFromPublicForm(token);
+        });
+        return;
+      }
+
+      this.selectedPropertyId = this.newPropertyOptionValue;
+      this.newPropertyCode = '';
+      this.ownerLeadPropertyCode = '';
+      this.propertyCodeOptions = [{ value: this.newPropertyOptionValue, label: 'New Property' }];
+
+      this.ownersService.getOwnerPropertiesByContext(token, null).pipe(take(1), catchError(() => of([] as PropertyListResponse[]))).subscribe({
+        next: properties => this.applyOwnerPropertyOptions(properties || []),
+        error: () => this.applyOwnerPropertyOptions([])
       });
       return;
     }
@@ -497,7 +523,7 @@ export class OwnerShellComponent implements OnInit, OnDestroy {
         this.ownerLeadPropertyState = String(ownerLead?.state || '').trim().toUpperCase();
         this.ownerLeadPropertyZip = String(ownerLead?.zip || '').trim();
         const ownerContactId = String(ownerContact?.contactId || '').trim();
-        return this.ownersService.getOwnerPropertiesByContext(ownerContactId).pipe(take(1), catchError(() => of([] as PropertyListResponse[])));
+        return this.ownersService.getOwnerPropertiesByContext(null, ownerContactId).pipe(take(1), catchError(() => of([] as PropertyListResponse[])));
       })
     ).subscribe({
       next: properties => this.applyOwnerPropertyOptions(properties || []),
@@ -522,8 +548,19 @@ export class OwnerShellComponent implements OnInit, OnDestroy {
     }
 
     this.selectedPropertyId = this.newPropertyOptionValue;
-    this.newPropertyCode = this.ownerLeadPropertyCode;
+    this.newPropertyCode = this.shouldSeedNewPropertyAddress() ? this.ownerLeadPropertyCode : '';
     this.reloadStateFormsForSelectedProperty();
+  }
+
+  private applyOwnerLeadAddressSeedFromPublicForm(token: string): void {
+    this.ownersService.getOwnerFormByContext(token).pipe(take(1), catchError(() => of(null))).subscribe(ownerForm => {
+      const ownerLead = ownerForm?.form;
+      this.ownerLeadPropertyCode = String(ownerLead?.propertyCode || '').trim().toUpperCase();
+      this.ownerLeadPropertyAddress1 = String(ownerLead?.address || '').trim();
+      this.ownerLeadPropertyCity = String(ownerLead?.city || '').trim();
+      this.ownerLeadPropertyState = String(ownerLead?.state || '').trim().toUpperCase();
+      this.ownerLeadPropertyZip = String(ownerLead?.zip || '').trim();
+    });
   }
   //#endregion
 

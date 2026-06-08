@@ -610,7 +610,7 @@ export class OwnerAgreementFormComponent extends BaseDocumentComponent implement
         if (!ownerContactId) {
           return;
         }
-        this.ownersService.getOwnerPropertiesByContext(ownerContactId).pipe(take(1)).subscribe({
+        this.ownersService.getOwnerPropertiesByContext(null, ownerContactId).pipe(take(1)).subscribe({
           next: properties => {
             const matching = (properties || []).find(property =>
               String(property.propertyCode || '').trim().toUpperCase() === targetPropertyCode

@@ -105,16 +105,23 @@ export class OwnersService {
   }
 
   getPropertyByContext(token: string | null | undefined, propertyId: string | null | undefined): Observable<PropertyResponse | null> {
+    const normalizedPropertyId = String(propertyId || '').trim();
     if (this.isPublicTokenMode(token)) {
+      if (normalizedPropertyId && normalizedPropertyId !== 'new') {
+        return this.leadsService.getPublicOwnerPropertyByIdAndToken(token!, normalizedPropertyId);
+      }
       return this.leadsService.getPublicOwnerPropertyByToken(token!);
     }
-    if (!propertyId || propertyId === 'new') {
+    if (!normalizedPropertyId || normalizedPropertyId === 'new') {
       return of(null);
     }
-    return this.propertyService.getPropertyByGuid(propertyId);
+    return this.propertyService.getPropertyByGuid(normalizedPropertyId);
   }
 
-  getOwnerPropertiesByContext(ownerContactId: string | null | undefined): Observable<PropertyListResponse[]> {
+  getOwnerPropertiesByContext(token: string | null | undefined, ownerContactId: string | null | undefined): Observable<PropertyListResponse[]> {
+    if (this.isPublicTokenMode(token)) {
+      return this.leadsService.getPublicOwnerPropertiesByToken(token!);
+    }
     const normalizedOwnerId = String(ownerContactId || '').trim();
     if (!normalizedOwnerId) {
       return of([]);
@@ -123,13 +130,17 @@ export class OwnersService {
   }
 
   getPropertyInformationByContext(token: string | null | undefined, propertyId: string | null | undefined): Observable<PropertyInformationResponse | null> {
+    const normalizedPropertyId = String(propertyId || '').trim();
     if (this.isPublicTokenMode(token)) {
+      if (normalizedPropertyId && normalizedPropertyId !== 'new') {
+        return this.leadsService.getPublicOwnerPropertyInformationByIdAndToken(token!, normalizedPropertyId);
+      }
       return this.leadsService.getPublicOwnerPropertyInformationByToken(token!);
     }
-    if (!propertyId || propertyId === 'new') {
+    if (!normalizedPropertyId || normalizedPropertyId === 'new') {
       return of(null);
     }
-    return this.propertyInformationService.getPropertyInformationByGuid(propertyId);
+    return this.propertyInformationService.getPropertyInformationByGuid(normalizedPropertyId);
   }
 
   getPropertyAgreementByContext(token: string | null | undefined, propertyId: string | null | undefined): Observable<PropertyAgreementResponse | null> {

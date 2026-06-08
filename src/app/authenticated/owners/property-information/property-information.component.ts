@@ -104,6 +104,9 @@ export class PropertyInformationComponent implements OnChanges, OnDestroy {
       this.itemsToLoad$.next(new Set(['property-information']));
       this.loadPropertyInformation();
     }
+    if (changes['shellPropertyId'] && !changes['shellPropertyId'].firstChange) {
+      this.loadPropertyInformation();
+    }
   }
 
   onSaveRequested(): void {
