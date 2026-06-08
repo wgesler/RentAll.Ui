@@ -829,14 +829,15 @@ export class OwnerAgreementFormComponent extends BaseDocumentComponent implement
       state: this.leadOwner?.state || '',
       zip: this.leadOwner?.zip || ''
     });
+    const propertyAddressLines = this.getPropertyAddressLines();
     const propertyAddressSingleLine =
-      this.composeAddress(this.selectedProperty)
+      [propertyAddressLines.address1, propertyAddressLines.address2].filter(part => part.length > 0).join(', ')
       || leadOwnerPropertyAddressSingleLine
       || String(this.leadOwner?.locationOfProperty || '').trim();
+    const propertyAddressFields = this.getPropertyAddressFieldTokens();
     const companyAddressSingleLine = this.getCompanyAddress();
     const accountingOfficeAddressSingleLine = this.getAccountingOfficeAddress();
     const ownerAddressLines = this.getOwnerAddressLines();
-    const propertyAddressLines = this.getPropertyAddressLines();
     const accountingOfficeAddressLines = this.getAccountingOfficeAddressLines();
 
     const ownerFullName = this.getOwnerNameForDocument();
@@ -867,6 +868,12 @@ export class OwnerAgreementFormComponent extends BaseDocumentComponent implement
       ownerAddress: this.getTopAddressDisplay('Owner Address:', ownerAddressLines.address1, ownerAddressLines.address2),
       propertyAddressSingleLine,
       propertyAddress: this.getTopAddressDisplay('Property Address:', propertyAddressLines.address1, propertyAddressLines.address2),
+      propertyAddress1: propertyAddressLines.address1,
+      propertyAddress2: propertyAddressLines.address2,
+      address1: propertyAddressFields.address1,
+      city: propertyAddressFields.city,
+      state: propertyAddressFields.state,
+      zip: propertyAddressFields.zip,
       agreementStartDate,
       agreementStartDateUnderlined: this.getUnderlinedFillValue(agreementStartDate),
       ownerSignatureDate: today,
@@ -2169,12 +2176,47 @@ export class OwnerAgreementFormComponent extends BaseDocumentComponent implement
       return { address1: '', address2: '' };
     }
     return this.buildAddressLines(
-      this.selectedProperty.address1,
+      this.getPropertyAddressLine1(this.selectedProperty),
       this.selectedProperty.address2,
       this.selectedProperty.city,
       this.selectedProperty.state,
       this.selectedProperty.zip
     );
+  }
+
+  getPropertyAddressLine1(property: PropertyResponse | null | undefined): string {
+    if (!property) {
+      return '';
+    }
+    const address1 = String(property.address1 ?? '').trim();
+    const suite = String(property.suite ?? '')
+      .trim()
+      .replace(/^#+\s*/, '');
+    const streetParts: string[] = [];
+    if (address1) {
+      streetParts.push(address1);
+    }
+    if (suite) {
+      streetParts.push(`#${suite}`);
+    }
+    return streetParts.join(' ');
+  }
+
+  getPropertyAddressFieldTokens(): { address1: string; city: string; state: string; zip: string } {
+    if (this.selectedProperty) {
+      return {
+        address1: this.getPropertyAddressLine1(this.selectedProperty),
+        city: String(this.selectedProperty.city || '').trim(),
+        state: String(this.selectedProperty.state || '').trim(),
+        zip: String(this.selectedProperty.zip || '').trim()
+      };
+    }
+    return {
+      address1: String(this.leadOwner?.address || '').trim(),
+      city: String(this.leadOwner?.city || '').trim(),
+      state: String(this.leadOwner?.state || '').trim(),
+      zip: String(this.leadOwner?.zip || '').trim()
+    };
   }
 
   buildAddressLines(address1: string | null | undefined, address2: string | null | undefined, city: string | null | undefined, state: string | null | undefined, zip: string | null | undefined): { address1: string; address2: string } {

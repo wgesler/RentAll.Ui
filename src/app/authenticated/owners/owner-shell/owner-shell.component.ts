@@ -86,6 +86,7 @@ export class OwnerShellComponent implements OnInit, OnDestroy {
     processedHtml: string | null;
     processedStyles: string | null;
   }> = {};
+  dynamicFormReloadVersion: Record<string, number> = {};
 
   @ViewChild(MatTabGroup) ownerShellTabGroup?: MatTabGroup;
 
@@ -194,6 +195,34 @@ export class OwnerShellComponent implements OnInit, OnDestroy {
       this.loadPropertyCodeOptions();
       this.refreshOwnerContactIdForContext();
     }
+    this.reloadStateFormTabIfSelected(nextIndex);
+  }
+
+  reloadStateFormTabIfSelected(tabIndex: number): void {
+    let fixedTabCount = 2;
+    if (this.canAccessInformationTab) {
+      fixedTabCount++;
+    }
+    fixedTabCount += 2;
+    const stateFormIndex = tabIndex - fixedTabCount;
+    if (stateFormIndex < 0 || stateFormIndex >= this.stateForms.length) {
+      return;
+    }
+    const formKey = this.getDynamicFormKey(this.stateForms[stateFormIndex]);
+    const current = this.dynamicFormViewState[formKey];
+    this.dynamicFormViewState = {
+      ...this.dynamicFormViewState,
+      [formKey]: {
+        isView: current?.isView ?? false,
+        editedHtml: current?.editedHtml ?? null,
+        processedHtml: null,
+        processedStyles: null
+      }
+    };
+    this.dynamicFormReloadVersion = {
+      ...this.dynamicFormReloadVersion,
+      [formKey]: (this.dynamicFormReloadVersion[formKey] || 0) + 1
+    };
   }
 
   rebuildOwnerAgreementContext(): void {

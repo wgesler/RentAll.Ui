@@ -148,6 +148,7 @@
                       [ownerLeadId]="leadOwnerId"
                       [officeId]="selectedOfficeId"
                       [propertyId]="selectedPropertyId === newPropertyOptionValue ? null : selectedPropertyId"
+                      [reloadVersion]="dynamicFormReloadVersion[getDynamicFormKey(stateForm)] || 0"
                       [templateHtml]="stateForm.formAsHtml ?? ''"
                       [restoreProcessedHtml]="getDynamicFormProcessedHtml(stateForm)"
                       [restoreProcessedStyles]="getDynamicFormProcessedStyles(stateForm)"

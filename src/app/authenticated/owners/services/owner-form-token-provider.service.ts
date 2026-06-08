@@ -123,8 +123,13 @@ export class OwnerFormTokenProviderService implements FormTokenProvider {
     const companyAddress2 = this.getCompanyAddress2(selectedOffice, data.organization, companyState);
     const companyAddress = [companyAddress1, companyAddress2].filter(part => part.length > 0).join(', ');
     const ownerAddress = this.composeAddress(ownerContact);
-    const propertyAddress = this.composeAddress(data.property) || String(data.leadOwner?.locationOfProperty || '').trim();
-    const propertyAddress1 = String(data.property?.address1 || '').trim();
+    const propertyAddressLine1 = this.getPropertyAddressLine1(data.property);
+    const propertyAddressLine2 = this.getPropertyAddressLine2(data.property);
+    const propertyAddressSingleLineValue =
+      [propertyAddressLine1, propertyAddressLine2].filter(part => part.length > 0).join(', ')
+      || String(data.leadOwner?.locationOfProperty || '').trim();
+    const propertyAddress = propertyAddressSingleLineValue;
+    const propertyAddress1 = propertyAddressLine1;
     const propertyCity = String(data.property?.city || '').trim();
     const propertyState = this.lookupStateName(data.property?.state);
     const propertyZip = String(data.property?.zip || '').trim();
@@ -143,8 +148,10 @@ export class OwnerFormTokenProviderService implements FormTokenProvider {
       ownerState,
       ownerAddressSingleLine: ownerAddress,
       ownerAddress: ownerAddress,
-      propertyAddressSingleLine: propertyAddress,
-      propertyAddress: propertyAddress,
+      propertyAddressSingleLine: propertyAddressSingleLineValue,
+      propertyAddress: propertyAddressSingleLineValue,
+      propertyAddress1,
+      propertyAddress2: propertyAddressLine2,
       address1: propertyAddress1,
       city: propertyCity,
       state: propertyState,
@@ -226,6 +233,35 @@ export class OwnerFormTokenProviderService implements FormTokenProvider {
       return value;
     }
     return `#${value}`;
+  }
+
+  getPropertyAddressLine1(property: PropertyResponse | null | undefined): string {
+    if (!property) {
+      return '';
+    }
+    const address1 = String(property.address1 ?? '').trim();
+    const suite = String(property.suite ?? '')
+      .trim()
+      .replace(/^#+\s*/, '');
+    const streetParts: string[] = [];
+    if (address1) {
+      streetParts.push(address1);
+    }
+    if (suite) {
+      streetParts.push(`#${suite}`);
+    }
+    return streetParts.join(' ');
+  }
+
+  getPropertyAddressLine2(property: { city?: string | null; state?: string | null; zip?: string | null } | null | undefined): string {
+    if (!property) {
+      return '';
+    }
+    const city = String(property.city ?? '').trim();
+    const state = this.lookupStateName(property.state);
+    const zip = String(property.zip ?? '').trim();
+    const stateZip = [state, zip].filter(part => part.length > 0).join(' ');
+    return [city, stateZip].filter(part => part.length > 0).join(', ');
   }
 
   private composeAddress(source: {
