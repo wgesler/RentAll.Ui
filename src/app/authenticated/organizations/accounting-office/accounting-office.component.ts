@@ -160,10 +160,6 @@ export class AccountingOfficeComponent implements OnInit, OnDestroy, OnChanges {
       this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'office');
     })).subscribe({
       next: (response: AccountingOfficeResponse) => {
-        console.log('[AccountingOffice] getAccountingOffice response', {
-          officeId: response?.officeId,
-          bankCards: response?.bankCards
-        });
         this.accountingOffice = response;
         this.applyBankCardsFromSource(response?.bankCards);
         this.loadCostCodesForOffice(response?.officeId);
@@ -547,10 +543,6 @@ export class AccountingOfficeComponent implements OnInit, OnDestroy, OnChanges {
       next: () => {
         const cachedOffice = this.accountingOfficeService.getAllAccountingOfficesValue()
           .find(office => office.officeId === officeIdNum);
-        console.log('[AccountingOffice] loadBankCards', {
-          officeId: officeIdNum,
-          bankCards: cachedOffice?.bankCards
-        });
         this.applyBankCardsFromSource(cachedOffice?.bankCards);
       },
       error: () => {

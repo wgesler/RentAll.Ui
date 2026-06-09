@@ -7,10 +7,11 @@ import { ToastrService } from 'ngx-toastr';
 import { BehaviorSubject, catchError, forkJoin, finalize, of, skip, Subject, switchMap, take, takeUntil } from 'rxjs';
 import { RouterUrl } from '../../../app.routes';
 import { FormatterService } from '../../../services/formatter-service';
+import { MappingService } from '../../../services/mapping.service';
 import { MaterialModule } from '../../../material.module';
 import { AuthService } from '../../../services/auth.service';
 import { UtilityService } from '../../../services/utility.service';
-import { AccountingOfficeRequest, AccountingOfficeResponse } from '../../organizations/models/accounting-office.model';
+import { AccountingOfficeResponse } from '../../organizations/models/accounting-office.model';
 import { AccountingOfficeService } from '../../organizations/services/accounting-office.service';
 import { OfficeResponse } from '../../organizations/models/office.model';
 import { OfficeService } from '../../organizations/services/office.service';
@@ -109,6 +110,7 @@ export class WorkOrderComponent implements OnInit, OnChanges, OnDestroy {
     private workOrderAmountService: WorkOrderAmountService,
     public utilityService: UtilityService,
     private formatter: FormatterService,
+    private mappingService: MappingService,
     private toastr: ToastrService
   ) {
     this.fb = fb;
@@ -1411,20 +1413,9 @@ export class WorkOrderComponent implements OnInit, OnChanges, OnDestroy {
       return;
     }
 
-    if (this.accountingOffices.length > 0) {
-      const office = this.accountingOffices.find(o => Number(o.officeId) === officeId) ?? null;
-      this.applyAccountingOfficeSequenceFromOffice(office);
-      return;
-    }
-
-    this.accountingOfficeService.ensureAccountingOfficesLoaded().pipe(take(1)).subscribe({
-      next: list => {
-        const office = (list || []).find(o => Number(o.officeId) === officeId) ?? null;
-        this.applyAccountingOfficeSequenceFromOffice(office);
-      },
-      error: () => {
-        this.applyAccountingOfficeSequenceFromOffice(null);
-      }
+    this.accountingOfficeService.getAccountingOfficeById(officeId).pipe(take(1)).subscribe({
+      next: office => this.applyAccountingOfficeSequenceFromOffice(office),
+      error: () => this.applyAccountingOfficeSequenceFromOffice(null)
     });
   }
 
@@ -1466,32 +1457,17 @@ export class WorkOrderComponent implements OnInit, OnChanges, OnDestroy {
     if (!this.accountingOffice || this.nextWorkOrderNo == null) {
       return;
     }
-    const updateRequest: AccountingOfficeRequest = {
-      organizationId: this.accountingOffice.organizationId,
-      officeId: this.accountingOffice.officeId,
-      name: this.accountingOffice.name,
-      address1: this.accountingOffice.address1,
-      address2: this.accountingOffice.address2,
-      suite: this.accountingOffice.suite,
-      city: this.accountingOffice.city,
-      state: this.accountingOffice.state,
-      zip: this.accountingOffice.zip,
-      phone: this.accountingOffice.phone,
-      fax: this.accountingOffice.fax,
-      email: this.accountingOffice.email,
-      website: this.accountingOffice.website,
-      bankName: this.accountingOffice.bankName,
-      bankRouting: this.accountingOffice.bankRouting,
-      bankAccount: this.accountingOffice.bankAccount,
-      bankSwiftCode: this.accountingOffice.bankSwiftCode,
-      bankAddress: this.accountingOffice.bankAddress,
-      bankPhone: this.accountingOffice.bankPhone,
-      workOrderNo: this.nextWorkOrderNo,
-      logoPath: this.accountingOffice.logoPath,
-      fileDetails: this.accountingOffice.fileDetails,
-      isActive: this.accountingOffice.isActive
-    };
-    this.accountingOfficeService.updateAccountingOffice(updateRequest).pipe(take(1)).subscribe({
+
+    const officeId = this.accountingOffice.officeId;
+    this.accountingOfficeService.getAccountingOfficeById(officeId).pipe(
+      take(1),
+      switchMap(office => {
+        const updateRequest = this.mappingService.mapAccountingOfficeResponseToRequest(office, {
+          workOrderNo: this.nextWorkOrderNo!
+        });
+        return this.accountingOfficeService.updateAccountingOffice(updateRequest);
+      })
+    ).subscribe({
       next: updated => {
         this.accountingOffice = updated;
       },
