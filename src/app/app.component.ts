@@ -1,6 +1,7 @@
 import { Component, OnDestroy, OnInit } from '@angular/core';
 import { NavigationStart, Router, RouterOutlet } from '@angular/router';
 import { BehaviorSubject, Observable, Subject, catchError, filter, finalize, map, of, take, takeUntil } from 'rxjs';
+import { ChartOfAccountsService } from './authenticated/accounting/services/chart-of-accounts.service';
 import { CostCodesService } from './authenticated/accounting/services/cost-codes.service';
 import { ContactService } from './authenticated/contacts/services/contact.service';
 import { AccountingOfficeService } from './authenticated/organizations/services/accounting-office.service';
@@ -45,6 +46,7 @@ export class AppComponent implements OnInit, OnDestroy {
     private organizationService: OrganizationService,
     private officeService: OfficeService,
     private globalSelectionService: GlobalSelectionService,
+    private chartOfAccountsService: ChartOfAccountsService,
     private costCodesService: CostCodesService,
     private accountingOfficeService: AccountingOfficeService,
     private utilityService: UtilityService,
@@ -78,6 +80,7 @@ export class AppComponent implements OnInit, OnDestroy {
         this.contactService.clearContacts();
         this.officeService.clearOffices();
         this.accountingOfficeService.clearAccountingOffices();
+        this.chartOfAccountsService.clearChartOfAccounts();
         this.costCodesService.clearCostCodes();
         this.propertySelectionFilterService.clear();
       }

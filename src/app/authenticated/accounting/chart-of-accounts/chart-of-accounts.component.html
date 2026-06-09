@@ -1,0 +1,119 @@
+@if (isLoading$ | async) {
+  <div class="loading-container">
+    <mat-spinner [diameter]="40"></mat-spinner>
+    <p>Loading chart of account...</p>
+  </div>
+} @else if (!isServiceError) {
+  <div class="flex content-card-wrap justify-center" fxLayout="row wrap" [class.settings-embedded-edit-wrap]="source === 'configuration'">
+    <section class="content-card">
+      <mat-card>
+        <form id="chartOfAccountForm" [formGroup]="form" (ngSubmit)="saveChartOfAccount()" (keydown.enter)="onEnterKey($event)" class="info-form mb-8 form-hide-error-text" [class.settings-embedded-edit-top-offset]="source === 'configuration'">
+          <div class="grid grid-cols-4 form-standard-grid">
+            <div class="col-span-4 flex items-center justify-end" [class.settings-embedded-edit-actions]="source === 'configuration'">
+              <mat-checkbox formControlName="isSubaccount" color="primary">
+                Is Subaccount
+              </mat-checkbox>
+              @if (source === 'configuration') {
+                <button mat-raised-button type="button" color="accent" id="back-button-embedded" (click)="back()"
+                  class="text-nowrap flex-shrink-0">
+                  <mat-icon>arrow_back</mat-icon>
+                  Back
+                </button>
+                <button mat-raised-button type="submit" form="chartOfAccountForm" color="primary" id="save-button-embedded"
+                  class="text-nowrap flex-shrink-0" [disabled]="isSubmitting">
+                  <mat-icon>save</mat-icon>
+                  Save
+                </button>
+              }
+            </div>
+
+            <div class="col-span-4 grid grid-cols-2 form-standard-grid">
+              @if (isAddMode) {
+                <mat-form-field appearance="outline" class="col-span-1 w-full" [class.cost-code-required-field]="showOfficeValidationError">
+                  <mat-label>Office</mat-label>
+                  <mat-select #officeSelect [(ngModel)]="selectedOffice" [ngModelOptions]="{standalone: true}" (selectionChange)="onOfficeChange()" required [canSelectNullableOptions]="true">
+                    <mat-option [value]="null">Select Office</mat-option>
+                    @for (office of offices; track office.officeId) {
+                      <mat-option [value]="office">{{ office.name }}</mat-option>
+                    }
+                  </mat-select>
+                  @if (showOfficeValidationError) {
+                    <mat-error>Office is required</mat-error>
+                  }
+                </mat-form-field>
+              } @else {
+                <mat-form-field appearance="outline" class="col-span-1 w-full">
+                  <mat-label>Office</mat-label>
+                  <input matInput [value]="getOfficeName()" readonly class="readonly-field">
+                </mat-form-field>
+              }
+
+              <mat-form-field appearance="outline" class="col-span-1 w-full">
+                <mat-label>Account No</mat-label>
+                <input matInput #accountNoInput formControlName="accountNo" type="text" required>
+                @if (form.get('accountNo')?.hasError('required') && form.get('accountNo')?.touched) {
+                  <mat-error>Account No is required</mat-error>
+                }
+              </mat-form-field>
+            </div>
+
+            <div class="col-span-4 grid grid-cols-2 form-standard-grid">
+              <mat-form-field appearance="outline" class="col-span-1 w-full">
+                <mat-label>Account Type</mat-label>
+                <mat-select formControlName="accountTypeId" required>
+                  <mat-option [value]="">Select Account Type</mat-option>
+                  @for (accountType of accountTypes; track accountType.value) {
+                    <mat-option [value]="accountType.value.toString()">{{ accountType.label }}</mat-option>
+                  }
+                </mat-select>
+                @if (form.get('accountTypeId')?.hasError('required') && form.get('accountTypeId')?.touched) {
+                  <mat-error>Account Type is required</mat-error>
+                }
+              </mat-form-field>
+
+              <mat-form-field appearance="outline" class="col-span-1 w-full">
+                <mat-label>Name</mat-label>
+                <input matInput formControlName="name" required>
+                @if (form.get('name')?.hasError('required') && form.get('name')?.touched) {
+                  <mat-error>Name is required</mat-error>
+                }
+              </mat-form-field>
+            </div>
+
+            @if (showSubaccountFields) {
+              <mat-form-field appearance="outline" class="col-span-4">
+                <mat-label>Parent Account</mat-label>
+                <mat-select formControlName="subAccountId" required>
+                  <mat-option [value]="">Select Parent Account</mat-option>
+                  @for (option of parentAccountOptions; track option.value) {
+                    <mat-option [value]="option.value.toString()">{{ option.label }}</mat-option>
+                  }
+                </mat-select>
+                @if (form.get('subAccountId')?.hasError('required') && form.get('subAccountId')?.touched) {
+                  <mat-error>Parent Account is required</mat-error>
+                }
+              </mat-form-field>
+            }
+
+            <mat-form-field appearance="outline" class="col-span-4">
+              <mat-label>Description</mat-label>
+              <input matInput formControlName="description">
+            </mat-form-field>
+
+            <mat-form-field appearance="outline" class="col-span-4">
+              <mat-label>Note</mat-label>
+              <input matInput formControlName="note">
+            </mat-form-field>
+          </div>
+
+          @if (isSubmitting) {
+            <div class="flex justify-start gap-3 items-center">
+              <mat-spinner [diameter]="20" color="accent" class="inline-block relative right-1 m-1"/>
+              <span>Saving...</span>
+            </div>
+          }
+        </form>
+      </mat-card>
+    </section>
+  </div>
+}

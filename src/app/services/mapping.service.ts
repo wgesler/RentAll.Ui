@@ -1,5 +1,6 @@
 import { Injectable } from '@angular/core';
-import { TransactionType, getTransactionTypeLabel } from '../authenticated/accounting/models/accounting-enum';
+import { TransactionType, getAccountTypeLabel, getTransactionTypeLabel } from '../authenticated/accounting/models/accounting-enum';
+import { ChartOfAccountListDisplay, ChartOfAccountResponse } from '../authenticated/accounting/models/chart-of-accounts.model';
 import { CostCodesListDisplay, CostCodesRequest, CostCodesResponse } from '../authenticated/accounting/models/cost-codes.model';
 import { InvoiceResponse, LedgerLineListDisplay, LedgerLineResponse } from '../authenticated/accounting/models/invoice.model';
 import { EntityType, getEntityType } from '../authenticated/contacts/models/contact-enum';
@@ -521,6 +522,31 @@ export class MappingService {
       description: costCode.description || '',
       isActive
     };
+  }
+
+  mapChartOfAccounts(
+    accounts: ChartOfAccountResponse[],
+    offices?: { officeId: number; name?: string }[],
+    accountTypes?: { value: number; label: string }[]
+  ): ChartOfAccountListDisplay[] {
+    return accounts.map<ChartOfAccountListDisplay>(account => {
+      const office = offices?.find(o => o.officeId === account.officeId);
+      return {
+        organizationId: account.organizationId,
+        officeId: account.officeId,
+        officeName: office?.name || '',
+        accountId: account.accountId,
+        accountNo: account.accountNo || '',
+        accountTypeId: account.accountTypeId,
+        accountType: getAccountTypeLabel(account.accountTypeId, accountTypes),
+        name: account.name || '',
+        isSubaccount: account.isSubaccount === true,
+        isSubaccountDisplay: account.isSubaccount ? 'Yes' : 'No',
+        subAccountId: account.subAccountId ?? null,
+        description: account.description || '',
+        note: account.note || ''
+      };
+    });
   }
 
   mapInvoiceResponse(raw: Record<string, unknown>): InvoiceResponse {

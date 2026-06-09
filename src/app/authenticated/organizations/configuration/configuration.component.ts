@@ -9,6 +9,7 @@ import { MaterialModule } from '../../../material.module';
 import { AuthService } from '../../../services/auth.service';
 import { GlobalSelectionService } from '../services/global-selection.service';
 import { NavigationContextService } from '../../../services/navigation-context.service';
+import { ChartOfAccountsListComponent } from '../../accounting/chart-of-accounts-list/chart-of-accounts-list.component';
 import { CostCodesListComponent } from '../../accounting/cost-codes-list/cost-codes-list.component';
 import { UserGroups } from '../../users/models/user-enums';
 import { AccountingOfficeListComponent } from '../accounting-office-list/accounting-office-list.component';
@@ -54,6 +55,7 @@ import { StateFormComponent } from '../state-form/state-form.component';
     AreaComponent,
     BuildingListComponent,
     BuildingComponent,
+    ChartOfAccountsListComponent,
     CostCodesListComponent,
     ColorListComponent,
     ColorComponent,
@@ -71,12 +73,13 @@ export class ConfigurationComponent implements OnInit, OnDestroy {
   @ViewChild(RegionListComponent) regionListComponent?: RegionListComponent;
   @ViewChild(AreaListComponent) areaListComponent?: AreaListComponent;
   @ViewChild(BuildingListComponent) buildingListComponent?: BuildingListComponent;
+  @ViewChild(ChartOfAccountsListComponent) chartOfAccountsListComponent?: ChartOfAccountsListComponent;
   @ViewChild(CostCodesListComponent) costCodesListComponent?: CostCodesListComponent;
   @ViewChild(AccountingOfficeListComponent) accountingOfficeListComponent?: AccountingOfficeListComponent;
   @ViewChild(ColorListComponent) colorListComponent?: ColorListComponent;
   @ViewChild(StateFormListComponent) stateFormListComponent?: StateFormListComponent;
 
-  expandedSections = {offices: false, accountingOffices: false,  agents: false, regions: false, area: false, building: false, costCodes: false, color: false, trackers: false, stateForms: false };
+  expandedSections = {offices: false, accountingOffices: false,  agents: false, regions: false, area: false, building: false, chartOfAccounts: false, costCodes: false, color: false, trackers: false, stateForms: false };
   isEditingAgent: boolean = false;
   agentId: string | null = null;
   shouldRefreshAgents: boolean = false;
@@ -248,6 +251,9 @@ export class ConfigurationComponent implements OnInit, OnDestroy {
     if (this.buildingListComponent?.offices?.length) {
       this.buildingListComponent.resolveOfficeScope(officeId);
       this.buildingListComponent.markViewForCheck();
+    }
+    if (this.chartOfAccountsListComponent?.offices?.length) {
+      this.chartOfAccountsListComponent.resolveOfficeScope(officeId, false);
     }
     if (this.costCodesListComponent?.offices?.length) {
       this.costCodesListComponent.resolveOfficeScope(officeId, false);

@@ -26,9 +26,11 @@ import { DataTableFilterActionsDirective } from '../../shared/data-table/data-ta
 import { ColumnSet } from '../../shared/data-table/models/column-data';
 import { UserGroups } from '../../users/models/user-enums';
 import { TransactionType, TransactionTypeLabels } from '../models/accounting-enum';
+import { ChartOfAccountResponse } from '../models/chart-of-accounts.model';
 import { CostCodesResponse } from '../models/cost-codes.model';
 import { InvoiceGetRequest, InvoicePaymentRequest, InvoicePaymentResponse, InvoiceResponse } from '../models/invoice.model';
 import { InvoiceService } from '../services/invoice.service';
+import { ChartOfAccountsService } from '../services/chart-of-accounts.service';
 import { CostCodesService } from '../services/cost-codes.service';
 import { InvoiceIifExportService } from '../services/invoice-iif-export.service';
 
@@ -89,6 +91,8 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
  
   costCodes: CostCodesResponse[] = [];
   allCostCodes: CostCodesResponse[] = [];
+  chartOfAccounts: ChartOfAccountResponse[] = [];
+  allChartOfAccounts: ChartOfAccountResponse[] = [];
   availableCostCodes: { value: number, label: string }[] = [];
   
   transactionTypes: { value: number, label: string }[] = TransactionTypeLabels;
@@ -150,6 +154,7 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
     public router: Router,
     public mappingService: MappingService,
     private costCodesService: CostCodesService,
+    private chartOfAccountsService: ChartOfAccountsService,
     private officeService: OfficeService,
     private reservationService: ReservationService,
     private propertyService: PropertyService,
@@ -174,6 +179,7 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
     this.loadReservations();
     this.loadCompanyContacts();
     this.loadCostCodes();
+    this.loadChartOfAccounts();
   }
 
   ngOnChanges(changes: SimpleChanges): void {
@@ -539,6 +545,7 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
         this.selectedOffice = matchingOffice;
         // Filter dependent data
         this.filterCostCodes();
+        this.filterChartOfAccounts();
         this.filterCompanyContacts();
         this.filterReservations();
         // Emit office change to parent
@@ -777,6 +784,15 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
     }
   }
     
+  filterChartOfAccounts(): void {
+    if (!this.selectedOffice) {
+      this.chartOfAccounts = [];
+      return;
+    }
+
+    this.chartOfAccounts = this.chartOfAccountsService.getChartOfAccountsForOffice(this.selectedOffice.officeId);
+  }
+
   filterCostCodes(): void {
     if (!this.selectedOffice) {
       this.costCodes = [];
@@ -953,11 +969,18 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
               nameByInvoiceId[invoice.invoiceId] = job && recipient ? `${recipient}:${job}` : (recipient || job);
             });
 
-            const iifContent = this.invoiceIifExportService.generateInvoicesIifContent(invoices, this.allCostCodes, {
-              nameByInvoiceId,
-              classByInvoiceId: classAndMemoByInvoiceId,
-              memoByInvoiceId: classAndMemoByInvoiceId
-            });
+            const chartOfAccountsForExport = this.selectedOffice
+              ? this.chartOfAccounts
+              : this.allChartOfAccounts;
+            const iifContent = this.invoiceIifExportService.generateInvoicesIifContent(
+              invoices,
+              this.allCostCodes,
+              chartOfAccountsForExport,
+              {
+                nameByInvoiceId,
+                classByInvoiceId: classAndMemoByInvoiceId
+              }
+            );
             const fileName = `invoices-${this.utilityService.todayAsCalendarDateString()}.iif`;
             const blob = new Blob([iifContent], { type: 'text/plain;charset=utf-8;' });
             const url = URL.createObjectURL(blob);
@@ -1051,6 +1074,17 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
         this.allCostCodes = accounts || [];
         this.filterCostCodes();
         this.applyFilters();
+        this.markViewForCheck();
+      });
+    });
+  }
+
+  loadChartOfAccounts(): void {
+    this.chartOfAccountsService.ensureChartOfAccountsLoaded();
+    this.chartOfAccountsService.areChartOfAccountsLoaded().pipe(filter(loaded => loaded === true), take(1)).subscribe(() => {
+      this.chartOfAccountsService.getAllChartOfAccounts().pipe(takeUntil(this.destroy$)).subscribe(accounts => {
+        this.allChartOfAccounts = accounts || [];
+        this.filterChartOfAccounts();
         this.markViewForCheck();
       });
     });
@@ -1735,6 +1769,10 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
     this.filterCompanyContacts();
     this.filterReservations();
     this.filterCostCodes();
+    this.filterChartOfAccounts();
+    if (nextOfficeId != null) {
+      this.chartOfAccountsService.refreshChartOfAccountsForOffice(nextOfficeId);
+    }
     this.loadInvoicesForCurrentSearchCriteria();
   }
 
@@ -1754,6 +1792,7 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
     this.officeIdChange.emit(this.selectedOffice?.officeId ?? null);
 
     this.filterCostCodes();
+    this.filterChartOfAccounts();
     this.filterCompanyContacts();
     this.filterReservations();
 

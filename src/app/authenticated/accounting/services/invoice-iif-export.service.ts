@@ -1,14 +1,12 @@
 import { Injectable } from '@angular/core';
-import { TransactionType } from '../models/accounting-enum';
+import { ChartOfAccountResponse } from '../models/chart-of-accounts.model';
 import { CostCodesResponse } from '../models/cost-codes.model';
-import { InvoiceResponse, LedgerLineResponse } from '../models/invoice.model';
+import { InvoiceResponse } from '../models/invoice.model';
 
 export interface InvoiceIifExportOptions {
-  costCodeToIncomeAccountMap?: Record<string, string>;
   accountsReceivableAccount?: string;
   defaultIncomeAccount?: string;
   classByInvoiceId?: Record<string, string>;
-  memoByInvoiceId?: Record<string, string>;
   nameByInvoiceId?: Record<string, string>;
 }
 
@@ -22,15 +20,11 @@ export class InvoiceIifExportService {
     '!ENDTRNS'
   ];
 
-  // Start with an explicit example mapping and extend as needed per office/accounting setup.
-  private readonly defaultCostCodeToIncomeAccountMap: Record<string, string> = {
-    '4300 Parking Charge': 'Parking Income'
-  };
-
   //#region Quickbooks Support
   generateInvoicesIifContent(
     invoices: InvoiceResponse[],
     costCodes: CostCodesResponse[],
+    chartOfAccounts: ChartOfAccountResponse[],
     options?: InvoiceIifExportOptions
   ): string {
     if (!Array.isArray(invoices) || invoices.length === 0) {
@@ -42,29 +36,26 @@ export class InvoiceIifExportService {
 
     const accountsReceivableAccount = this.sanitizeText(options?.accountsReceivableAccount || 'Accounts Receivable');
     const defaultIncomeAccount = this.sanitizeText(options?.defaultIncomeAccount || 'Income');
-    const accountMap = {
-      ...this.defaultCostCodeToIncomeAccountMap,
-      ...(options?.costCodeToIncomeAccountMap || {})
-    };
+    const chartOfAccountsByOfficeAndNo = this.buildChartOfAccountsLookup(chartOfAccounts);
 
     const rows: string[] = [...this.iifHeaders];
     invoices.forEach(invoice => {
-      const chargeLines = (invoice.ledgerLines || []).filter(line => this.isChargeLine(line, costCodesById));
-      if (chargeLines.length === 0) {
+      const ledgerLines = [...(invoice.ledgerLines || [])].sort((a, b) => (a.lineNumber ?? 0) - (b.lineNumber ?? 0));
+      if (ledgerLines.length === 0) {
         return;
       }
 
-      const invoiceDate = this.formatDate(invoice.invoiceDate);
+      const transactionDate = this.formatDate(invoice.accountingPeriod ?? invoice.invoiceDate);
       const customerName = this.sanitizeText(options?.nameByInvoiceId?.[invoice.invoiceId] || invoice.responsibleParty || '');
       const invoiceNumber = this.sanitizeText(invoice.invoiceCode || '');
       const invoiceClass = this.sanitizeText(options?.classByInvoiceId?.[invoice.invoiceId] || '');
-      const invoiceMemo = this.sanitizeText(options?.memoByInvoiceId?.[invoice.invoiceId] || invoice.notes || '');
+      const invoiceMemo = this.sanitizeText(ledgerLines[0]?.description || '');
       const invoiceTotal = this.formatAmount(Math.abs(Number(invoice.totalAmount || 0)));
 
       rows.push(this.toRow([
         'TRNS',
         'INVOICE',
-        invoiceDate,
+        transactionDate,
         accountsReceivableAccount,
         customerName,
         invoiceNumber,
@@ -73,17 +64,17 @@ export class InvoiceIifExportService {
         invoiceMemo
       ]));
 
-      chargeLines.forEach(line => {
+      ledgerLines.forEach(line => {
         const costCode = line.costCodeId != null ? costCodesById.get(line.costCodeId) : undefined;
-        const incomeAccount = this.resolveIncomeAccount(costCode, accountMap, defaultIncomeAccount);
+        const accountName = this.resolveAccountName(costCode, invoice.officeId, chartOfAccountsByOfficeAndNo, defaultIncomeAccount);
         const quickBooksLineAmount = this.formatAmount(-Number(line.amount || 0));
         const description = this.sanitizeText(line.description || '');
 
         rows.push(this.toRow([
           'SPL',
           'INVOICE',
-          invoiceDate,
-          incomeAccount,
+          transactionDate,
+          accountName,
           customerName,
           invoiceNumber,
           quickBooksLineAmount,
@@ -98,42 +89,40 @@ export class InvoiceIifExportService {
     return rows.join('\r\n');
   }
 
-  isChargeLine(line: LedgerLineResponse, costCodesById: Map<number, CostCodesResponse>): boolean {
-    if (line.transactionTypeId === TransactionType.Charge || line.transactionTypeId === TransactionType.Deposit) {
-      return true;
-    }
-    if (line.transactionTypeId === TransactionType.Payment) {
-      return false;
-    }
-
-    if (line.costCodeId == null) {
-      return false;
-    }
-
-    const costCode = costCodesById.get(line.costCodeId);
-    return costCode?.transactionTypeId === TransactionType.Charge || costCode?.transactionTypeId === TransactionType.Deposit;
+  buildChartOfAccountsLookup(chartOfAccounts: ChartOfAccountResponse[]): Map<string, ChartOfAccountResponse> {
+    const lookup = new Map<string, ChartOfAccountResponse>();
+    (chartOfAccounts || []).forEach(account => {
+      const accountNo = this.normalizeAccountCode(account.accountNo || '');
+      if (!accountNo) {
+        return;
+      }
+      lookup.set(`${account.officeId}|${accountNo}`, account);
+    });
+    return lookup;
   }
 
-  resolveIncomeAccount(
+  resolveAccountName(
     costCode: CostCodesResponse | undefined,
-    accountMap: Record<string, string>,
+    officeId: number | undefined,
+    chartOfAccountsByOfficeAndNo: Map<string, ChartOfAccountResponse>,
     defaultIncomeAccount: string
   ): string {
-    if (!costCode) {
+    if (!costCode || officeId == null) {
       return defaultIncomeAccount;
     }
 
-    const code = this.sanitizeText(costCode.costCode || '');
-    const description = this.sanitizeText(costCode.description || '');
-    const mapKeys = [
-      `${code} ${description}`.trim(),
-      `${code}: ${description}`.trim(),
-      description,
-      code
-    ];
+    const accountCode = this.normalizeAccountCode(costCode.costCode || '');
+    if (!accountCode) {
+      return defaultIncomeAccount;
+    }
 
-    const match = mapKeys.find(key => !!key && !!accountMap[key]);
-    return this.sanitizeText(match ? accountMap[match] : defaultIncomeAccount);
+    const chartOfAccount = chartOfAccountsByOfficeAndNo.get(`${officeId}|${accountCode}`);
+    const accountName = this.sanitizeText(chartOfAccount?.name || '');
+    return accountName || defaultIncomeAccount;
+  }
+
+  normalizeAccountCode(value: string): string {
+    return this.sanitizeText(value);
   }
 
   toRow(values: string[]): string {
