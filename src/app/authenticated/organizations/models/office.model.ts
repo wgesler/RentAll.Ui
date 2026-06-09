@@ -78,6 +78,8 @@ export interface OfficeRequest {
   quotePetFee: boolean;
   quoteDepartureFee: boolean;
   quoteMaidFee: boolean;
+  docuSignUserId?: string | null;
+  docuSignApiAccountId?: string | null;
 }
 
 export interface OfficeResponse {
@@ -158,6 +160,8 @@ export interface OfficeResponse {
   quotePetFee: boolean;
   quoteDepartureFee: boolean;
   quoteMaidFee: boolean;
+  docuSignUserId?: string | null;
+  docuSignApiAccountId?: string | null;
 
 }
 

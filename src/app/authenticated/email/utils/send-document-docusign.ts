@@ -13,7 +13,13 @@ export async function sendDocumentDocuSign(
   deps: SendDocumentDocuSignDependencies,
   documentConfig: DocumentConfig,
   docuSignConfig: DocuSignConfig,
-  senderContext: { returnUrl: string; senderEmail: string; senderName: string }
+  senderContext: {
+    returnUrl: string;
+    senderEmail: string;
+    senderName: string;
+    userId?: string | null;
+    apiAccountId?: string | null;
+  }
 ): Promise<SendDocumentForSignatureResponse> {
   const htmlWithStyles = deps.documentHtmlService.getPdfHtmlWithStyles(
     documentConfig.previewIframeHtml,
@@ -33,6 +39,8 @@ export async function sendDocumentDocuSign(
     returnUrl: senderContext.returnUrl,
     senderEmail: senderContext.senderEmail,
     senderName: senderContext.senderName,
+    userId: senderContext.userId || null,
+    apiAccountId: senderContext.apiAccountId || null,
     signers: docuSignConfig.signers.map(signer => ({
       email: signer.email.trim(),
       name: signer.name.trim(),

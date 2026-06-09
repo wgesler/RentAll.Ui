@@ -823,6 +823,28 @@
                 </div>
               </mat-expansion-panel>
 
+              <mat-expansion-panel [expanded]="true" class="mb-4">
+                <mat-expansion-panel-header>
+                  <mat-panel-title>DocuSign</mat-panel-title>
+                </mat-expansion-panel-header>
+                <div class="grid grid-cols-4 form-standard-grid">
+                  <mat-form-field appearance="outline" class="col-span-2 w-full">
+                    <mat-label>User Id</mat-label>
+                    <input matInput formControlName="docuSignUserId" placeholder="00000000-0000-0000-0000-000000000000">
+                    @if (form.get('docuSignUserId')?.hasError('pattern') && form.get('docuSignUserId')?.touched) {
+                      <mat-error>Enter a valid GUID</mat-error>
+                    }
+                  </mat-form-field>
+                  <mat-form-field appearance="outline" class="col-span-2 w-full">
+                    <mat-label>Api Account Id</mat-label>
+                    <input matInput formControlName="docuSignApiAccountId" placeholder="00000000-0000-0000-0000-000000000000">
+                    @if (form.get('docuSignApiAccountId')?.hasError('pattern') && form.get('docuSignApiAccountId')?.touched) {
+                      <mat-error>Enter a valid GUID</mat-error>
+                    }
+                  </mat-form-field>
+                </div>
+              </mat-expansion-panel>
+
             </mat-accordion>
 
             @if (isSubmitting) {

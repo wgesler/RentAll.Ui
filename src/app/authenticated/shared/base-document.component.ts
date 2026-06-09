@@ -10,6 +10,8 @@ import { EmailType } from '../email/models/email.enum';
 import { GenerateDocumentFromHtmlDto } from '../documents/models/document.model';
 import { AuthService } from '../../services/auth.service';
 import { ConfigService } from '../../services/config.service';
+import { GlobalSelectionService } from '../organizations/services/global-selection.service';
+import { OfficeService } from '../organizations/services/office.service';
 import { DocuSignService } from '../email/services/docusign.service';
 import { EmailService } from '../email/services/email.service';
 import { DocumentService } from '../documents/services/document.service';
@@ -71,6 +73,8 @@ export abstract class BaseDocumentComponent {
   protected authService = inject(AuthService);
   protected configService = inject(ConfigService);
   protected docuSignService = inject(DocuSignService);
+  protected globalSelectionService = inject(GlobalSelectionService);
+  protected officeService = inject(OfficeService);
   isSendingDocuSign = false;
 
   get docuSignEnabled(): boolean {
@@ -268,6 +272,8 @@ export abstract class BaseDocumentComponent {
     docuSignWindow.document.body.innerHTML =
       '<p style="font-family: Arial, sans-serif; padding: 12px;">Preparing DocuSign...</p>';
 
+    const { userId, apiAccountId } = this.resolveDocuSignOfficeCredentials(config.selectedOfficeId);
+
     this.isSendingDocuSign = true;
 
     try {
@@ -285,7 +291,9 @@ export abstract class BaseDocumentComponent {
         {
           returnUrl,
           senderEmail,
-          senderName
+          senderName,
+          userId,
+          apiAccountId
         }
       );
 
@@ -307,6 +315,19 @@ export abstract class BaseDocumentComponent {
     } finally {
       this.isSendingDocuSign = false;
     }
+  }
+
+  private resolveDocuSignOfficeCredentials(officeId: number | null): { userId: string | null; apiAccountId: string | null } {
+    const resolvedOfficeId = officeId ?? this.globalSelectionService.getSelectedOfficeIdValue();
+    if (!resolvedOfficeId) {
+      return { userId: null, apiAccountId: null };
+    }
+
+    const office = this.officeService.getAllOfficesValue().find(o => o.officeId === resolvedOfficeId);
+    return {
+      userId: office?.docuSignUserId?.trim() || null,
+      apiAccountId: office?.docuSignApiAccountId?.trim() || null
+    };
   }
 
   private buildDocuSignReturnUrl(): string {

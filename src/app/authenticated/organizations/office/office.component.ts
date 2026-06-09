@@ -253,6 +253,8 @@ export class OfficeComponent implements OnInit, OnDestroy, OnChanges, AfterViewI
       quotePetFee: !!formValue.quotePetFee,
       quoteDepartureFee: !!formValue.quoteDepartureFee,
       quoteMaidFee: !!formValue.quoteMaidFee,
+      docuSignUserId: this.parseOptionalGuid(formValue.docuSignUserId),
+      docuSignApiAccountId: this.parseOptionalGuid(formValue.docuSignApiAccountId),
       ...this.buildValidCostCodeRequest(formValue)
     };
     const orgId = (this.organizationId || this.office?.organizationId || user?.organizationId || '').trim();
@@ -476,7 +478,9 @@ export class OfficeComponent implements OnInit, OnDestroy, OnChanges, AfterViewI
       quotePropertyCode: new FormControl<boolean>(false),
       quotePetFee: new FormControl<boolean>(false),
       quoteDepartureFee: new FormControl<boolean>(false),
-      quoteMaidFee: new FormControl<boolean>(false)
+      quoteMaidFee: new FormControl<boolean>(false),
+      docuSignUserId: new FormControl<string>('', [Validators.pattern(/^$|^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/)]),
+      docuSignApiAccountId: new FormControl<string>('', [Validators.pattern(/^$|^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/)])
     });
 
     // Setup conditional validation for international addresses
@@ -561,7 +565,9 @@ export class OfficeComponent implements OnInit, OnDestroy, OnChanges, AfterViewI
           quotePropertyCode: this.office.quotePropertyCode ?? false,
           quotePetFee: this.office.quotePetFee ?? false,
           quoteDepartureFee: this.office.quoteDepartureFee ?? false,
-          quoteMaidFee: this.office.quoteMaidFee ?? false
+          quoteMaidFee: this.office.quoteMaidFee ?? false,
+          docuSignUserId: this.office.docuSignUserId || '',
+          docuSignApiAccountId: this.office.docuSignApiAccountId || ''
         });
         this.syncAllQuoteTextEditorsFromForm();
       }, 0);
@@ -644,7 +650,9 @@ export class OfficeComponent implements OnInit, OnDestroy, OnChanges, AfterViewI
       quotePropertyCode: o.quotePropertyCode ?? false,
       quotePetFee: o.quotePetFee ?? false,
       quoteDepartureFee: o.quoteDepartureFee ?? false,
-      quoteMaidFee: o.quoteMaidFee ?? false
+      quoteMaidFee: o.quoteMaidFee ?? false,
+      docuSignUserId: o.docuSignUserId || '',
+      docuSignApiAccountId: o.docuSignApiAccountId || ''
     }, { emitEvent: false });
     setTimeout(() => this.syncAllQuoteTextEditorsFromForm(), 0);
   }
@@ -999,6 +1007,11 @@ export class OfficeComponent implements OnInit, OnDestroy, OnChanges, AfterViewI
     }
     const parsed = parseFloat(raw);
     return Number.isFinite(parsed) ? parsed : null;
+  }
+
+  parseOptionalGuid(value: unknown): string | null {
+    const raw = (value ?? '').toString().trim();
+    return raw || null;
   }
 
   onIntegerInput(event: Event, fieldName: string): void {
