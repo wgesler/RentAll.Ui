@@ -73,8 +73,8 @@ export abstract class BaseDocumentComponent {
   protected authService = inject(AuthService);
   protected configService = inject(ConfigService);
   protected docuSignService = inject(DocuSignService);
-  protected globalSelectionService = inject(GlobalSelectionService);
-  protected officeService = inject(OfficeService);
+  private readonly docuSignGlobalSelectionService = inject(GlobalSelectionService);
+  private readonly docuSignOfficeService = inject(OfficeService);
   isSendingDocuSign = false;
 
   get docuSignEnabled(): boolean {
@@ -318,12 +318,12 @@ export abstract class BaseDocumentComponent {
   }
 
   private resolveDocuSignOfficeCredentials(officeId: number | null): { userId: string | null; apiAccountId: string | null } {
-    const resolvedOfficeId = officeId ?? this.globalSelectionService.getSelectedOfficeIdValue();
+    const resolvedOfficeId = officeId ?? this.docuSignGlobalSelectionService.getSelectedOfficeIdValue();
     if (!resolvedOfficeId) {
       return { userId: null, apiAccountId: null };
     }
 
-    const office = this.officeService.getAllOfficesValue().find(o => o.officeId === resolvedOfficeId);
+    const office = this.docuSignOfficeService.getAllOfficesValue().find(o => o.officeId === resolvedOfficeId);
     return {
       userId: office?.docuSignUserId?.trim() || null,
       apiAccountId: office?.docuSignApiAccountId?.trim() || null
