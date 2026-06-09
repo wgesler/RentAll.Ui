@@ -156,10 +156,16 @@ export class AccountingOfficeComponent implements OnInit, OnDestroy, OnChanges {
   }
 
   getAccountingOffice(officeIdNum: number): void {
-    this.accountingOfficeService.getAccountingOfficeById(officeIdNum).pipe(take(1), finalize(() => { this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'office'); })).subscribe({
+    this.accountingOfficeService.getAccountingOfficeById(officeIdNum).pipe(take(1), finalize(() => {
+      this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'office');
+    })).subscribe({
       next: (response: AccountingOfficeResponse) => {
+        console.log('[AccountingOffice] getAccountingOffice response', {
+          officeId: response?.officeId,
+          bankCards: response?.bankCards
+        });
         this.accountingOffice = response;
-        this.applyBankCardsFromSource(response?.bankCards, officeIdNum);
+        this.applyBankCardsFromSource(response?.bankCards);
         this.loadCostCodesForOffice(response?.officeId);
         // Load logo from fileDetails if present (contains base64 image data)
         if (response.fileDetails && response.fileDetails.file) {
@@ -184,7 +190,7 @@ export class AccountingOfficeComponent implements OnInit, OnDestroy, OnChanges {
         this.buildForm();
         this.populateForm();
       },
-      error: (err: HttpErrorResponse) => {
+      error: () => {
         this.isServiceError = true;
         this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'office');
       }
@@ -534,12 +540,18 @@ export class AccountingOfficeComponent implements OnInit, OnDestroy, OnChanges {
   loadBankCards(officeIdNum: number): void {
     this.accountingOfficeService.ensureAccountingOfficesLoaded().pipe(
       take(1),
-      finalize(() => this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'bankCards'))
+      finalize(() => {
+        this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'bankCards');
+      })
     ).subscribe({
       next: () => {
         const cachedOffice = this.accountingOfficeService.getAllAccountingOfficesValue()
           .find(office => office.officeId === officeIdNum);
-        this.applyBankCardsFromSource(cachedOffice?.bankCards, officeIdNum);
+        console.log('[AccountingOffice] loadBankCards', {
+          officeId: officeIdNum,
+          bankCards: cachedOffice?.bankCards
+        });
+        this.applyBankCardsFromSource(cachedOffice?.bankCards);
       },
       error: () => {
         this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'bankCards');
@@ -547,7 +559,7 @@ export class AccountingOfficeComponent implements OnInit, OnDestroy, OnChanges {
     });
   }
 
-  private applyBankCardsFromSource(cards: BankCardResponse[] | null | undefined, officeIdNum: number): void {
+  private applyBankCardsFromSource(cards: BankCardResponse[] | null | undefined): void {
     const mapped = this.mappingService.mapBankCardsFromResponse(cards);
     if (mapped.length === 0) {
       return;
