@@ -551,7 +551,7 @@ export class AccountingOfficeComponent implements OnInit, OnDestroy, OnChanges {
     });
   }
 
-  private applyBankCardsFromSource(cards: BankCardResponse[] | null | undefined): void {
+  applyBankCardsFromSource(cards: BankCardResponse[] | null | undefined): void {
     const mapped = this.mappingService.mapBankCardsFromResponse(cards);
     if (mapped.length === 0) {
       return;

@@ -50,6 +50,7 @@ export class ChartOfAccountsListComponent implements OnInit, OnDestroy, OnChange
   accountTypes = AccountTypeLabels.map(({ value, label }) => ({ value, label }));
 
   chartOfAccountsDisplayedColumns: ColumnSet = {
+    no: { displayAs: 'No', maxWidth: '5ch', sort: false, wrap: false },
     officeName: { displayAs: 'Office', maxWidth: '20ch' },
     accountNo: { displayAs: 'Account No', maxWidth: '15ch', sortType: 'natural' },
     accountType: { displayAs: 'Type', maxWidth: '25ch' },

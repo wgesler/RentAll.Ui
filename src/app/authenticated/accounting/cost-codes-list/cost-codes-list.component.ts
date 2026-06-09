@@ -65,6 +65,7 @@ export class CostCodesListComponent implements OnInit, OnDestroy, OnChanges {
   transactionTypes: { value: number, label: string }[] = TransactionTypeLabels;
  
   costCodesDisplayedColumns: ColumnSet = {
+    no: { displayAs: 'No', maxWidth: '5ch', sort: false, wrap: false },
     officeName: { displayAs: 'Office', maxWidth: '20ch' },
     costCode: { displayAs: 'Cost Code', maxWidth: '20ch', sortType: 'natural' },
     transactionType: { displayAs: 'Type', maxWidth: '15ch' },

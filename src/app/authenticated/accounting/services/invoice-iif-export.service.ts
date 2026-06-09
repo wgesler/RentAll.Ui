@@ -1,7 +1,8 @@
 import { Injectable } from '@angular/core';
+import { TransactionType } from '../models/accounting-enum';
 import { ChartOfAccountResponse } from '../models/chart-of-accounts.model';
 import { CostCodesResponse } from '../models/cost-codes.model';
-import { InvoiceResponse } from '../models/invoice.model';
+import { InvoiceResponse, LedgerLineResponse } from '../models/invoice.model';
 
 export interface InvoiceIifExportOptions {
   accountsReceivableAccount?: string;
@@ -37,6 +38,7 @@ export class InvoiceIifExportService {
     const accountsReceivableAccount = this.sanitizeText(options?.accountsReceivableAccount || 'Accounts Receivable');
     const defaultIncomeAccount = this.sanitizeText(options?.defaultIncomeAccount || 'Income');
     const chartOfAccountsByOfficeAndNo = this.buildChartOfAccountsLookup(chartOfAccounts);
+    const chartOfAccountsByOfficeAndId = this.buildChartOfAccountsByOfficeAndIdLookup(chartOfAccounts);
 
     const rows: string[] = [...this.iifHeaders];
     invoices.forEach(invoice => {
@@ -45,48 +47,118 @@ export class InvoiceIifExportService {
         return;
       }
 
-      const transactionDate = this.formatDate(invoice.accountingPeriod ?? invoice.invoiceDate);
-      const customerName = this.sanitizeText(options?.nameByInvoiceId?.[invoice.invoiceId] || invoice.responsibleParty || '');
-      const invoiceNumber = this.sanitizeText(invoice.invoiceCode || '');
-      const invoiceClass = this.sanitizeText(options?.classByInvoiceId?.[invoice.invoiceId] || '');
-      const invoiceMemo = this.sanitizeText(ledgerLines[0]?.description || '');
-      const invoiceTotal = this.formatAmount(Math.abs(Number(invoice.totalAmount || 0)));
+      const { otherLines } = this.partitionLedgerLines(ledgerLines, costCodesById);
+      if (otherLines.length === 0) {
+        return;
+      }
 
-      rows.push(this.toRow([
-        'TRNS',
-        'INVOICE',
+      const customerName = this.sanitizeText(options?.nameByInvoiceId?.[invoice.invoiceId] || invoice.responsibleParty || '');
+      const invoiceNumber = this.formatQuickBooksDocNumber(invoice.invoiceCode || '');
+      const invoiceClass = this.sanitizeText(options?.classByInvoiceId?.[invoice.invoiceId] || '');
+      const transactionDate = this.formatDate(invoice.accountingPeriod ?? invoice.invoiceDate);
+
+      this.appendInvoiceTransactionSet(rows, {
+        ledgerLines: otherLines,
         transactionDate,
         accountsReceivableAccount,
         customerName,
         invoiceNumber,
-        invoiceTotal,
         invoiceClass,
-        invoiceMemo
-      ]));
-
-      ledgerLines.forEach(line => {
-        const costCode = line.costCodeId != null ? costCodesById.get(line.costCodeId) : undefined;
-        const accountName = this.resolveAccountName(costCode, invoice.officeId, chartOfAccountsByOfficeAndNo, defaultIncomeAccount);
-        const quickBooksLineAmount = this.formatAmount(-Number(line.amount || 0));
-        const description = this.sanitizeText(line.description || '');
-
-        rows.push(this.toRow([
-          'SPL',
-          'INVOICE',
-          transactionDate,
-          accountName,
-          customerName,
-          invoiceNumber,
-          quickBooksLineAmount,
-          invoiceClass,
-          description
-        ]));
+        officeId: invoice.officeId,
+        costCodesById,
+        chartOfAccountsByOfficeAndNo,
+        chartOfAccountsByOfficeAndId,
+        defaultIncomeAccount
       });
-
-      rows.push('ENDTRNS');
     });
 
     return rows.join('\r\n');
+  }
+
+  partitionLedgerLines(
+    ledgerLines: LedgerLineResponse[],
+    costCodesById: Map<number, CostCodesResponse>
+  ): { paymentLines: LedgerLineResponse[]; otherLines: LedgerLineResponse[] } {
+    const paymentLines: LedgerLineResponse[] = [];
+    const otherLines: LedgerLineResponse[] = [];
+
+    ledgerLines.forEach(line => {
+      if (this.isPaymentLine(line, costCodesById)) {
+        paymentLines.push(line);
+      } else {
+        otherLines.push(line);
+      }
+    });
+
+    return { paymentLines, otherLines };
+  }
+
+  isPaymentLine(line: LedgerLineResponse, costCodesById: Map<number, CostCodesResponse>): boolean {
+    const costCode = line.costCodeId != null ? costCodesById.get(line.costCodeId) : undefined;
+    const transactionTypeId = line.transactionTypeId ?? costCode?.transactionTypeId;
+    return transactionTypeId === TransactionType.Payment;
+  }
+
+  appendInvoiceTransactionSet(
+    rows: string[],
+    context: {
+      ledgerLines: LedgerLineResponse[];
+      transactionDate: string;
+      accountsReceivableAccount: string;
+      customerName: string;
+      invoiceNumber: string;
+      invoiceClass: string;
+      officeId: number;
+      costCodesById: Map<number, CostCodesResponse>;
+      chartOfAccountsByOfficeAndNo: Map<string, ChartOfAccountResponse>;
+      chartOfAccountsByOfficeAndId: Map<string, ChartOfAccountResponse>;
+      defaultIncomeAccount: string;
+    }
+  ): void {
+    const transactionTotal = context.ledgerLines.reduce(
+      (sum, line) => sum + Number(line.amount || 0),
+      0
+    );
+    const transactionMemo = this.sanitizeText(context.ledgerLines[0]?.description || '');
+
+    rows.push(this.toRow([
+      'TRNS',
+      'INVOICE',
+      context.transactionDate,
+      context.accountsReceivableAccount,
+      context.customerName,
+      context.invoiceNumber,
+      this.formatAmount(Math.abs(transactionTotal)),
+      context.invoiceClass,
+      transactionMemo
+    ]));
+
+    context.ledgerLines.forEach(line => {
+      const costCode = line.costCodeId != null ? context.costCodesById.get(line.costCodeId) : undefined;
+      const accountName = this.resolveAccountName(
+        costCode,
+        context.officeId,
+        context.chartOfAccountsByOfficeAndNo,
+        context.chartOfAccountsByOfficeAndId,
+        context.defaultIncomeAccount
+      );
+      const quickBooksLineAmount = this.formatAmount(-Number(line.amount || 0));
+      const description = this.sanitizeText(line.description || '');
+
+      rows.push(this.toRow([
+        'SPL',
+        'INVOICE',
+        context.transactionDate,
+        accountName,
+        context.customerName,
+        context.invoiceNumber,
+        quickBooksLineAmount,
+        context.invoiceClass,
+        description
+      ]));
+    });
+
+    rows.push('ENDTRNS');
   }
 
   buildChartOfAccountsLookup(chartOfAccounts: ChartOfAccountResponse[]): Map<string, ChartOfAccountResponse> {
@@ -101,10 +173,22 @@ export class InvoiceIifExportService {
     return lookup;
   }
 
+  buildChartOfAccountsByOfficeAndIdLookup(chartOfAccounts: ChartOfAccountResponse[]): Map<string, ChartOfAccountResponse> {
+    const lookup = new Map<string, ChartOfAccountResponse>();
+    (chartOfAccounts || []).forEach(account => {
+      if (account.accountId == null) {
+        return;
+      }
+      lookup.set(`${account.officeId}|${account.accountId}`, account);
+    });
+    return lookup;
+  }
+
   resolveAccountName(
     costCode: CostCodesResponse | undefined,
     officeId: number | undefined,
     chartOfAccountsByOfficeAndNo: Map<string, ChartOfAccountResponse>,
+    chartOfAccountsByOfficeAndId: Map<string, ChartOfAccountResponse>,
     defaultIncomeAccount: string
   ): string {
     if (!costCode || officeId == null) {
@@ -117,8 +201,35 @@ export class InvoiceIifExportService {
     }
 
     const chartOfAccount = chartOfAccountsByOfficeAndNo.get(`${officeId}|${accountCode}`);
-    const accountName = this.sanitizeText(chartOfAccount?.name || '');
-    return accountName || defaultIncomeAccount;
+    if (!chartOfAccount) {
+      return defaultIncomeAccount;
+    }
+
+    return this.formatQuickBooksAccountName(chartOfAccount, officeId, chartOfAccountsByOfficeAndId)
+      || defaultIncomeAccount;
+  }
+
+  formatQuickBooksAccountName(
+    chartOfAccount: ChartOfAccountResponse,
+    officeId: number,
+    chartOfAccountsByOfficeAndId: Map<string, ChartOfAccountResponse>
+  ): string {
+    const childName = this.sanitizeText(chartOfAccount.name || '');
+    if (!childName) {
+      return '';
+    }
+
+    if (!chartOfAccount.isSubaccount || chartOfAccount.subAccountId == null) {
+      return childName;
+    }
+
+    const parentAccount = chartOfAccountsByOfficeAndId.get(`${officeId}|${chartOfAccount.subAccountId}`);
+    const parentName = this.sanitizeText(parentAccount?.name || '');
+    if (!parentName) {
+      return childName;
+    }
+
+    return `${parentName}:${childName}`;
   }
 
   normalizeAccountCode(value: string): string {
@@ -131,6 +242,10 @@ export class InvoiceIifExportService {
 
   sanitizeText(value: string): string {
     return String(value ?? '').replace(/[\t\r\n]+/g, ' ').trim();
+  }
+
+  formatQuickBooksDocNumber(invoiceCode: string): string {
+    return this.sanitizeText(invoiceCode).replace(/^R-/i, '');
   }
 
   formatAmount(value: number): string {
