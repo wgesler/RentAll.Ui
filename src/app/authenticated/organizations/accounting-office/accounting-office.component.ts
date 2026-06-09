@@ -59,7 +59,7 @@ export class AccountingOfficeComponent implements OnInit, OnDestroy, OnChanges {
   offices: OfficeResponse[] = [];
   availableOffices: { value: number, name: string }[] = [];
 
-  itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['office', 'offices']));
+  itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['office', 'offices', 'bankCards']));
   isLoading$: Observable<boolean> = this.itemsToLoad$.pipe(map(items => items.size > 0));
   destroy$ = new Subject<void>();
 
@@ -82,23 +82,34 @@ export class AccountingOfficeComponent implements OnInit, OnDestroy, OnChanges {
     this.loadStates();
     this.loadOffices();
 
-    // Wait for offices to be loaded before loading accounting office data
     this.officeService.areOfficesLoaded().pipe(filter(loaded => loaded === true), take(1)).subscribe(() => {
-      // Use the input id
-      if (this.id) {
-        this.isAddMode = this.id === 'new' || this.id === 'new';
-        if (this.isAddMode) {
-          this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'office');
-          this.buildForm();
-          this.setupOfficeSelectionHandler();
-          this.scheduleFocusFirstField();
-          if (this.copyFrom) {
-            setTimeout(() => this.populateFormFromCopy(), 0);
-          }
-        } else {
-          this.getAccountingOffice(this.id.toString());
-        }
+      if (!this.id) {
+        return;
       }
+
+      this.isAddMode = this.id === 'new';
+      if (this.isAddMode) {
+        this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'office');
+        this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'bankCards');
+        this.buildForm();
+        this.setupOfficeSelectionHandler();
+        this.scheduleFocusFirstField();
+        if (this.copyFrom) {
+          setTimeout(() => this.populateFormFromCopy(), 0);
+        }
+        return;
+      }
+
+      const officeIdNum = this.parseOfficeId(this.id);
+      if (officeIdNum == null) {
+        this.isServiceError = true;
+        this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'office');
+        this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'bankCards');
+        return;
+      }
+
+      this.getAccountingOffice(officeIdNum);
+      this.loadBankCards(officeIdNum);
     });
   }
 
@@ -106,16 +117,25 @@ export class AccountingOfficeComponent implements OnInit, OnDestroy, OnChanges {
     if (changes['copyFrom'] && this.copyFrom && this.form && this.isAddMode) {
       this.populateFormFromCopy();
     }
-    // If id changes, reload office
     if (changes['id'] && !changes['id'].firstChange) {
       const newId = changes['id'].currentValue;
-      // Wait for offices to be loaded before getting accounting office
       this.officeService.areOfficesLoaded().pipe(filter(loaded => loaded === true), take(1)).subscribe(() => {
         if (newId && newId !== 'new') {
-          this.getAccountingOffice(newId.toString());
+          const officeIdNum = this.parseOfficeId(newId);
+          if (officeIdNum == null) {
+            this.isServiceError = true;
+            return;
+          }
+          this.utilityService.addLoadItem(this.itemsToLoad$, 'office');
+          this.utilityService.addLoadItem(this.itemsToLoad$, 'bankCards');
+          this.getAccountingOffice(officeIdNum);
+          this.loadBankCards(officeIdNum);
         } else if (newId === 'new') {
           this.isAddMode = true;
           this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'office');
+          this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'bankCards');
+          this.bankCards = [];
+          this.showBankCardRows = false;
           this.buildForm();
           this.setupOfficeSelectionHandler();
           this.scheduleFocusFirstField();
@@ -127,24 +147,19 @@ export class AccountingOfficeComponent implements OnInit, OnDestroy, OnChanges {
     }
   }
 
-  getAccountingOffice(id?: string | number): void {
-    const idToUse = id || this.id;
-    if (!idToUse || idToUse === 'new') {
-      return;
+  private parseOfficeId(id: string | number | null): number | null {
+    if (id == null || id === 'new') {
+      return null;
     }
+    const officeIdNum = typeof id === 'number' ? id : parseInt(id.toString(), 10);
+    return Number.isFinite(officeIdNum) && officeIdNum > 0 ? officeIdNum : null;
+  }
 
-    const officeIdNum = typeof idToUse === 'number' ? idToUse : parseInt(idToUse.toString(), 10);
-    if (isNaN(officeIdNum)) {
-      this.isServiceError = true;
-      this.toastr.error('Invalid office ID', CommonMessage.Error);
-      return;
-    }
-
+  getAccountingOffice(officeIdNum: number): void {
     this.accountingOfficeService.getAccountingOfficeById(officeIdNum).pipe(take(1), finalize(() => { this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'office'); })).subscribe({
       next: (response: AccountingOfficeResponse) => {
         this.accountingOffice = response;
-        this.bankCards = this.mappingService.mapBankCardsFromResponse(response?.bankCards);
-        this.showBankCardRows = this.bankCards.length > 0;
+        this.applyBankCardsFromSource(response?.bankCards, officeIdNum);
         this.loadCostCodesForOffice(response?.officeId);
         // Load logo from fileDetails if present (contains base64 image data)
         if (response.fileDetails && response.fileDetails.file) {
@@ -516,6 +531,33 @@ export class AccountingOfficeComponent implements OnInit, OnDestroy, OnChanges {
   //#endregion
 
   //#region Bank Cards
+  loadBankCards(officeIdNum: number): void {
+    this.accountingOfficeService.ensureAccountingOfficesLoaded().pipe(
+      take(1),
+      finalize(() => this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'bankCards'))
+    ).subscribe({
+      next: () => {
+        const cachedOffice = this.accountingOfficeService.getAllAccountingOfficesValue()
+          .find(office => office.officeId === officeIdNum);
+        this.applyBankCardsFromSource(cachedOffice?.bankCards, officeIdNum);
+      },
+      error: () => {
+        this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'bankCards');
+      }
+    });
+  }
+
+  private applyBankCardsFromSource(cards: BankCardResponse[] | null | undefined, officeIdNum: number): void {
+    const mapped = this.mappingService.mapBankCardsFromResponse(cards);
+    if (mapped.length === 0) {
+      return;
+    }
+
+    this.bankCards = mapped;
+    this.showBankCardRows = true;
+    this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'bankCards');
+  }
+
   selectAllOnFocus(event: Event): void {
     (event.target as HTMLInputElement).select();
   }
