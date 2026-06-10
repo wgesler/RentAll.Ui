@@ -15,6 +15,10 @@ export interface InvoiceIifExportOptions {
   providedIn: 'root'
 })
 export class InvoiceIifExportService {
+  private static readonly quickBooksNameMaxLength = 41;
+  private static readonly quickBooksAccntMaxLength = 31;
+  private static readonly quickBooksClassMaxLength = 31;
+
   private readonly iifHeaders: string[] = [
     '!TRNS\tTRNSTYPE\tDATE\tACCNT\tNAME\tDOCNUM\tAMOUNT\tCLASS\tMEMO',
     '!SPL\tTRNSTYPE\tDATE\tACCNT\tNAME\tDOCNUM\tAMOUNT\tCLASS\tMEMO',
@@ -35,8 +39,8 @@ export class InvoiceIifExportService {
     const costCodesById = new Map<number, CostCodesResponse>();
     costCodes.forEach(costCode => costCodesById.set(costCode.costCodeId, costCode));
 
-    const accountsReceivableAccount = this.sanitizeText(options?.accountsReceivableAccount || 'Accounts Receivable');
-    const defaultIncomeAccount = this.sanitizeText(options?.defaultIncomeAccount || 'Income');
+    const accountsReceivableAccount = this.formatQuickBooksAccnt(options?.accountsReceivableAccount || 'Accounts Receivable');
+    const defaultIncomeAccount = this.formatQuickBooksAccnt(options?.defaultIncomeAccount || 'Income');
     const chartOfAccountsByOfficeAndNo = this.buildChartOfAccountsLookup(chartOfAccounts);
     const chartOfAccountsByOfficeAndId = this.buildChartOfAccountsByOfficeAndIdLookup(chartOfAccounts);
 
@@ -52,9 +56,9 @@ export class InvoiceIifExportService {
         return;
       }
 
-      const customerName = this.sanitizeText(options?.nameByInvoiceId?.[invoice.invoiceId] || invoice.responsibleParty || '');
+      const customerName = this.formatQuickBooksName(options?.nameByInvoiceId?.[invoice.invoiceId] || invoice.responsibleParty || '');
       const invoiceNumber = this.formatQuickBooksDocNumber(invoice.invoiceCode || '');
-      const invoiceClass = this.sanitizeText(options?.classByInvoiceId?.[invoice.invoiceId] || '');
+      const invoiceClass = this.formatQuickBooksClass(options?.classByInvoiceId?.[invoice.invoiceId] || '');
       const transactionDate = this.formatDate(invoice.accountingPeriod ?? invoice.invoiceDate);
 
       this.appendInvoiceTransactionSet(rows, {
@@ -205,8 +209,10 @@ export class InvoiceIifExportService {
       return defaultIncomeAccount;
     }
 
-    return this.formatQuickBooksAccountName(chartOfAccount, officeId, chartOfAccountsByOfficeAndId)
-      || defaultIncomeAccount;
+    return this.formatQuickBooksAccnt(
+      this.formatQuickBooksAccountName(chartOfAccount, officeId, chartOfAccountsByOfficeAndId)
+        || defaultIncomeAccount
+    );
   }
 
   formatQuickBooksAccountName(
@@ -242,6 +248,25 @@ export class InvoiceIifExportService {
 
   sanitizeText(value: string): string {
     return String(value ?? '').replace(/[\t\r\n]+/g, ' ').trim();
+  }
+
+  formatQuickBooksName(value: string): string {
+    return this.truncateText(this.sanitizeText(value), InvoiceIifExportService.quickBooksNameMaxLength);
+  }
+
+  formatQuickBooksAccnt(value: string): string {
+    return this.truncateText(this.sanitizeText(value), InvoiceIifExportService.quickBooksAccntMaxLength);
+  }
+
+  formatQuickBooksClass(value: string): string {
+    return this.truncateText(this.sanitizeText(value), InvoiceIifExportService.quickBooksClassMaxLength);
+  }
+
+  truncateText(value: string, maxLength: number): string {
+    if (maxLength <= 0) {
+      return '';
+    }
+    return value.length <= maxLength ? value : value.slice(0, maxLength);
   }
 
   formatQuickBooksDocNumber(invoiceCode: string): string {
