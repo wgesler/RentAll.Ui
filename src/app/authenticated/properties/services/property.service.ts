@@ -67,6 +67,10 @@ export class PropertyService {
     );
   }
 
+  mergePropertyUpdateRequest(property: PropertyResponse, overrides: Partial<PropertyRequest>): PropertyRequest {
+    return this.mixedMappingService.mapPropertyResponseToRequest(property, overrides);
+  }
+
   /**
    * Loads the property by id, maps response to a full update request, merges overrides, then PUTs.
    */

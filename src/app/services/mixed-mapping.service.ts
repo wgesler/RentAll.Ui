@@ -797,10 +797,32 @@ export class MixedMappingService {
 
   //#region Response-To-Request Mappers
   mapPropertyResponseToRequest(property: PropertyResponse, overrides?: Partial<PropertyRequest>): PropertyRequest {
-    const { parkingNotes, ...requestBase } = property;
+    const {
+      parkingNotes,
+      officeName,
+      createdOn: _createdOn,
+      createdBy: _createdBy,
+      modifiedOn: _modifiedOn,
+      modifiedBy: _modifiedBy,
+      ...requestBase
+    } = property as PropertyResponse & {
+      createdOn?: unknown;
+      createdBy?: unknown;
+      modifiedOn?: unknown;
+      modifiedBy?: unknown;
+    };
+    void officeName;
+    void _createdOn;
+    void _createdBy;
+    void _modifiedOn;
+    void _modifiedBy;
     const base = {
       ...requestBase,
-      parkingNotes: parkingNotes ?? null
+      parkingNotes: parkingNotes ?? null,
+      description: property.description ?? null,
+      amenities: property.amenities ?? null,
+      notes: property.notes ?? null,
+      externalCalendar: property.externalCalendar ?? null
     } as PropertyRequest;
     return { ...base, ...(overrides ?? {}) };
   }

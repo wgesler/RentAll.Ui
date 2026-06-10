@@ -1345,6 +1345,7 @@ export class MappingService {
         ),
         onlineChecked: o.onlineChecked === true,
         offlineChecked: o.offlineChecked === true,
+        externalCalendar: o.externalCalendar ?? null,
         isActive: o.isActive,
         unfurnished: this.toBooleanValue(o.unfurnished),
       };
@@ -1418,12 +1419,14 @@ export class MappingService {
     const description = raw['description'] ?? raw['Description'];
     const amenities = raw['amenities'] ?? raw['Amenities'];
     const notes = raw['notes'] ?? raw['Notes'];
+    const externalCalendar = raw['externalCalendar'] ?? raw['ExternalCalendar'];
     return {
       ...rest,
       propertyLeaseTypeId: Number(leaseTypeId ?? 0),
       description: description == null ? null : String(description),
       amenities: amenities == null ? null : String(amenities),
       notes: notes == null ? null : String(notes),
+      externalCalendar: externalCalendar == null ? null : String(externalCalendar),
       ...(bldgNo !== undefined ? { bldgNo } : {})
     } as unknown as PropertyResponse;
   }

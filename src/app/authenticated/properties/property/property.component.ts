@@ -393,136 +393,92 @@ export class PropertyComponent implements OnInit, OnChanges, AfterViewInit, OnDe
     }
 
     this.isSubmitting = true;
-    // Use getRawValue() to include disabled form controls
     const formValue = this.form.getRawValue();
     const user = this.authService.getUser();
-
-    // Exclude enum/display-only controls from request
-    const { ...restFormValue } = formValue;
-    const propertyRequest: PropertyRequest = { ...restFormValue, organizationId: user?.organizationId || '' } as PropertyRequest;
-    if (isPublicOwnerUpsertMode) {
-      const tokenOrganizationId = String(this.shellOrganizationId || '').trim();
-      if (tokenOrganizationId) {
-        propertyRequest.organizationId = tokenOrganizationId;
-      }
-    }
-    
-    // Transform fields that need special handling
-    propertyRequest.dailyRate = formValue.dailyRate ? parseFloat(formValue.dailyRate.toString()) : 0;
-    propertyRequest.monthlyRate = formValue.monthlyRate ? parseFloat(formValue.monthlyRate.toString()) : 0;
-    propertyRequest.departureFee = formValue.departureFee ? parseFloat(formValue.departureFee.toString()) : 0;
-    propertyRequest.maidServiceFee = formValue.maidServiceFee ? parseFloat(formValue.maidServiceFee.toString()) : 0;
-    propertyRequest.petFee = formValue.petFee ? parseFloat(formValue.petFee.toString()) : 0;
-    
-    // Ensure time fields are integers
-    propertyRequest.checkInTimeId = this.parseIdValue(formValue.checkInTimeId, 0);
-    propertyRequest.checkOutTimeId = this.parseIdValue(formValue.checkOutTimeId, 0);
-    propertyRequest.propertyLeaseTypeId = this.parseIdValue(formValue.propertyLeaseTypeId, 0);
-
-    if (propertyRequest.propertyLeaseTypeId === PropertyLeaseType.PropertyManagement) {
-      propertyRequest.vendorId = null;
-      const owner1Raw = String(formValue.owner1Id ?? '').trim();
-      propertyRequest.owner1Id = owner1Raw.length > 0 ? owner1Raw : null;
-      const owner2Raw = String(formValue.owner2Id ?? '').trim();
-      propertyRequest.owner2Id = owner2Raw.length > 0 ? owner2Raw : null;
-      const owner3Raw = String(formValue.owner3Id ?? '').trim();
-      propertyRequest.owner3Id = owner3Raw.length > 0 ? owner3Raw : null;
-    } else {
-      propertyRequest.owner1Id = null;
-      propertyRequest.owner2Id = null;
-      propertyRequest.owner3Id = null;
-      const vid = formValue.vendorId;
-      propertyRequest.vendorId =
-        vid != null && String(vid).trim() !== '' ? String(vid).trim() : null;
-    }
-    if (this.isOwnerMode) {
-      const ownerContactId = String(this.ownerPrimaryContactId || '').trim();
-      if (ownerContactId) {
-        propertyRequest.owner1Id = ownerContactId;
-      } else {
-        propertyRequest.owner1Id = null;
-      }
-      propertyRequest.owner2Id = null;
-      propertyRequest.owner3Id = null;
-    }
-    // Ensure numeric fields are numbers
-    propertyRequest.accomodates = formValue.accomodates ? Number(formValue.accomodates) : 0;
-    propertyRequest.bedrooms = formValue.bedrooms ? Number(formValue.bedrooms) : 0;
-    propertyRequest.bathrooms = formValue.bathrooms ? Number(formValue.bathrooms) : 0;
-    propertyRequest.squareFeet = formValue.squareFeet ? Number(formValue.squareFeet) : 0;
-    propertyRequest.unitLevel = formValue.unitLevel != null && formValue.unitLevel !== '' ? Number(formValue.unitLevel) : 1;
-    propertyRequest.bedroomId1 = formValue.bedroomId1 ? Number(formValue.bedroomId1) : 0;
-    propertyRequest.bedroomId2 = formValue.bedroomId2 ? Number(formValue.bedroomId2) : 0;
-    propertyRequest.bedroomId3 = formValue.bedroomId3 ? Number(formValue.bedroomId3) : 0;
-    propertyRequest.bedroomId4 = formValue.bedroomId4 ? Number(formValue.bedroomId4) : 0;
-    
-    propertyRequest.availableFrom =
-      this.utilityService.formatDateOnlyForApi(formValue.availableFrom as Date | null | undefined) ?? undefined;
-    propertyRequest.availableUntil =
-      this.utilityService.formatDateOnlyForApi(formValue.availableUntil as Date | null | undefined) ?? undefined;
-    
-    // Map enum fields to Id fields
-    propertyRequest.propertyStyleId = formValue.propertyStyle ?? PropertyStyle.Standard;
-    propertyRequest.propertyTypeId = formValue.propertyType ?? PropertyType.Unspecified;
-    propertyRequest.propertyStatusId = formValue.propertyStatus ?? PropertyStatus.Vacant;
-    propertyRequest.noticeToVacateId = this.parseIdValue(formValue.noticeToVacateId, 0);
-
-    // Handle owner2Id - set to undefined if empty string or null
-    if (!propertyRequest.owner2Id || propertyRequest.owner2Id === '' || propertyRequest.owner2Id === null) {
-      propertyRequest.owner2Id = undefined;
-    }
-    
-    // Handle optional nullable string fields - keep as undefined if empty
-    const optionalStringFields = ['address2', 'suite', 'communityAddress', 'neighborhood', 'crossStreet',
-                                   'view', 'mailbox', 'amenities', 'alarmCode',
-                                   'unitMstrCode', 'unitTenantCode', 'bldgMstrCode', 'bldgTenantCode',
-                                   'mailRoomCode', 'garageCode', 'trashRemoval', 'description', 'notes'];
-    optionalStringFields.forEach(field => {
-      if (propertyRequest[field] === '' || propertyRequest[field] === null) {
-        propertyRequest[field] = undefined;
-      }
+    const formOverrides = this.buildPropertyFormOverrides(formValue, {
+      isPublicOwnerUpsertMode,
+      shellOrganizationId: this.shellOrganizationId,
+      userOrganizationId: user?.organizationId || '',
+      isOwnerMode: this.isOwnerMode,
+      ownerPrimaryContactId: this.ownerPrimaryContactId,
+      existingOfficeId: this.property?.officeId ?? null,
+      isAddMode: this.isAddMode
     });
+    const isPropertyUpdate = this.isExistingPropertyUpdate();
 
-    const bldgNoTrim = String(formValue.bldgNo ?? '').trim();
-    propertyRequest.bldgNo = bldgNoTrim.length > 0 ? bldgNoTrim : undefined;
+    if (isPropertyUpdate) {
+      if (!this.property) {
+        this.isSubmitting = false;
+        this.toastr.error('Property is not loaded. Refresh and try again.', CommonMessage.Error);
+        onComplete?.(false);
+        return;
+      }
 
-    const existingPhone = this.property?.phone;
-    propertyRequest.phone = !this.isAddMode && existingPhone != null && String(existingPhone).trim() !== '' ? String(existingPhone).trim() : undefined;
-    
-    // Handle boolean defaults
-    if (propertyRequest.yard === undefined) {
-      propertyRequest.yard = false;
+      const propertyRequest = this.propertyService.mergePropertyUpdateRequest(this.property, formOverrides);
+
+      if (isPublicOwnerUpsertMode) {
+        this.ownersService.upsertPropertyByContext(publicOwnerToken, propertyRequest).pipe(
+          take(1),
+          finalize(() => { this.isSubmitting = false; })
+        ).subscribe({
+          next: (response) => {
+            if (!response) {
+              this.toastr.error('Unable to save property.', CommonMessage.Error);
+              onComplete?.(false);
+              return;
+            }
+            this.toastr.success('Property saved successfully', CommonMessage.Success, { timeOut: CommonTimeouts.Success });
+            this.property = response;
+            this.propertyId = response.propertyId;
+            this.isAddMode = false;
+            this.populateForm();
+            this.captureSavedStateSignature();
+            this.welcomeLetterReloadService.triggerReload();
+            this.documentReloadService.triggerReload();
+            this.notifyOwnerShellContextChangedIfEmbedded();
+            this.loadReservations();
+            onComplete?.(true);
+          },
+          error: (error: unknown) => {
+            const apiMessage = this.getApiErrorMessage(error);
+            this.toastr.error((apiMessage || 'Unable to save property.').toString(), CommonMessage.Error);
+            onComplete?.(false);
+          }
+        });
+        return;
+      }
+
+      this.propertyService.updateProperty(propertyRequest).pipe(
+        switchMap((response: PropertyResponse) => {
+          const persist$ = this.propertyAgreementSection?.persistAgreementIfDirty() ?? of(true);
+          return persist$.pipe(map(ok => ({ response, ok })));
+        }),
+        take(1),
+        finalize(() => { this.isSubmitting = false; })
+      ).subscribe({
+        next: ({ response, ok }) => {
+          this.toastr.success('Property updated successfully', CommonMessage.Success, { timeOut: CommonTimeouts.Success });
+          this.property = response;
+          this.populateForm();
+          this.captureSavedStateSignature();
+          this.welcomeLetterReloadService.triggerReload();
+          this.documentReloadService.triggerReload();
+          this.notifyOwnerShellContextChangedIfEmbedded();
+          onComplete?.(ok);
+        },
+        error: () => {
+          onComplete?.(false);
+        }
+      });
+      return;
     }
 
-    // Assign location IDs directly
-    const officeId = formValue.officeId ?? this.property?.officeId ?? null;
-    propertyRequest.officeId = Number(officeId);
-    propertyRequest.regionId = formValue.regionId || null;
-    propertyRequest.areaId = formValue.areaId || null;
-    propertyRequest.buildingId = formValue.buildingId || null;
-    propertyRequest.latitude = this.parseCoordinateValue(formValue.latitude, 0);
-    propertyRequest.longitude = this.parseCoordinateValue(formValue.longitude, 0);
-
-    // Sofabed is a bed-size dropdown; send selected bed type id.
-    propertyRequest.sofabed = formValue.sofabed ? Number(formValue.sofabed) : 0;
-    
-    // Map parking notes directly to the API/DB-backed field name.
-    propertyRequest.parkingNotes = formValue.parkingNotes || '';
-
-    const trimOrNull = (v: unknown): string | null => {
-      if (v == null) return null;
-      const s = String(v).trim();
-      return s.length > 0 ? s : null;
-    };
-
-    propertyRequest.communityAddress = trimOrNull(formValue.communityAddress) ?? undefined;
-
-    propertyRequest.gateCode = trimOrNull(formValue.gateCode);
-    propertyRequest.trashCode = trimOrNull(formValue.trashCode);
-    propertyRequest.storageCode = trimOrNull(formValue.storageCode);
-
-    // Explicitly set notes field from form
-    propertyRequest.notes = formValue.notes || '';
+    const { ...restFormValue } = formValue;
+    const propertyRequest: PropertyRequest = {
+      ...restFormValue,
+      ...formOverrides,
+      organizationId: formOverrides.organizationId ?? user?.organizationId ?? ''
+    } as PropertyRequest;
 
     if (isPublicOwnerUpsertMode) {
       this.ownersService.upsertPropertyByContext(publicOwnerToken, propertyRequest).pipe(take(1),finalize(() => { this.isSubmitting = false; })).subscribe({
@@ -583,31 +539,6 @@ export class PropertyComponent implements OnInit, OnChanges, AfterViewInit, OnDe
           onComplete?.(false);
         }
       });
-    } else {
-      propertyRequest.propertyId = this.propertyId;
-      propertyRequest.organizationId = this.property?.organizationId || user?.organizationId || '';
-      this.propertyService.updateProperty(propertyRequest).pipe(
-        switchMap((response: PropertyResponse) => {
-          const persist$ = this.propertyAgreementSection?.persistAgreementIfDirty() ?? of(true);
-          return persist$.pipe(map(ok => ({ response, ok })));
-        }),
-        take(1),
-        finalize(() => { this.isSubmitting = false; })
-      ).subscribe({
-        next: ({ response, ok }) => {
-          this.toastr.success('Property updated successfully', CommonMessage.Success, { timeOut: CommonTimeouts.Success });
-          this.property = response;
-          this.populateForm();
-          this.captureSavedStateSignature();
-          this.welcomeLetterReloadService.triggerReload();
-          this.documentReloadService.triggerReload();
-          this.notifyOwnerShellContextChangedIfEmbedded();
-          onComplete?.(ok);
-        },
-        error: () => {
-          onComplete?.(false);
-        }
-      });
     }
   }
 
@@ -623,6 +554,173 @@ export class PropertyComponent implements OnInit, OnChanges, AfterViewInit, OnDe
     this.ownerShellContextChanged.emit();
   }
   //#endregion
+
+  isExistingPropertyUpdate(): boolean {
+    const propertyId = String(this.propertyId ?? '').trim();
+    return !this.isAddMode && propertyId.length > 0 && propertyId !== 'new';
+  }
+
+  buildPropertyFormOverrides(
+    formValue: Record<string, unknown>,
+    context: {
+      isPublicOwnerUpsertMode: boolean;
+      shellOrganizationId: string | null;
+      userOrganizationId: string;
+      isOwnerMode: boolean;
+      ownerPrimaryContactId: string | null;
+      existingOfficeId: number | null;
+      isAddMode: boolean;
+    }
+  ): Partial<PropertyRequest> {
+    const overrides: Partial<PropertyRequest> = {
+      propertyCode: String(formValue['propertyCode'] ?? ''),
+      isActive: (formValue['isActive'] as boolean) ?? true,
+      dailyRate: formValue['dailyRate'] ? parseFloat(String(formValue['dailyRate'])) : 0,
+      monthlyRate: formValue['monthlyRate'] ? parseFloat(String(formValue['monthlyRate'])) : 0,
+      departureFee: formValue['departureFee'] ? parseFloat(String(formValue['departureFee'])) : 0,
+      maidServiceFee: formValue['maidServiceFee'] ? parseFloat(String(formValue['maidServiceFee'])) : 0,
+      petFee: formValue['petFee'] ? parseFloat(String(formValue['petFee'])) : 0,
+      externalCalendar: formValue['externalCalendar'] == null ? null : String(formValue['externalCalendar']),
+      checkInTimeId: this.parseIdValue(formValue['checkInTimeId'], 0),
+      checkOutTimeId: this.parseIdValue(formValue['checkOutTimeId'], 0),
+      propertyLeaseTypeId: this.parseIdValue(formValue['propertyLeaseTypeId'], 0),
+      accomodates: formValue['accomodates'] ? Number(formValue['accomodates']) : 0,
+      bedrooms: formValue['bedrooms'] ? Number(formValue['bedrooms']) : 0,
+      bathrooms: formValue['bathrooms'] ? Number(formValue['bathrooms']) : 0,
+      squareFeet: formValue['squareFeet'] ? Number(formValue['squareFeet']) : 0,
+      unitLevel: formValue['unitLevel'] != null && formValue['unitLevel'] !== '' ? Number(formValue['unitLevel']) : 1,
+      bedroomId1: formValue['bedroomId1'] ? Number(formValue['bedroomId1']) : 0,
+      bedroomId2: formValue['bedroomId2'] ? Number(formValue['bedroomId2']) : 0,
+      bedroomId3: formValue['bedroomId3'] ? Number(formValue['bedroomId3']) : 0,
+      bedroomId4: formValue['bedroomId4'] ? Number(formValue['bedroomId4']) : 0,
+      availableFrom: this.utilityService.formatDateOnlyForApi(formValue['availableFrom'] as Date | null | undefined) ?? undefined,
+      availableUntil: this.utilityService.formatDateOnlyForApi(formValue['availableUntil'] as Date | null | undefined) ?? undefined,
+      propertyStyleId: (formValue['propertyStyle'] as number | undefined) ?? PropertyStyle.Standard,
+      propertyTypeId: (formValue['propertyType'] as number | undefined) ?? PropertyType.Unspecified,
+      propertyStatusId: (formValue['propertyStatus'] as number | undefined) ?? PropertyStatus.Vacant,
+      noticeToVacateId: this.parseIdValue(formValue['noticeToVacateId'], 0),
+      officeId: Number(formValue['officeId'] ?? context.existingOfficeId ?? 0),
+      regionId: (formValue['regionId'] as number | null) || null,
+      areaId: (formValue['areaId'] as number | null) || null,
+      buildingId: (formValue['buildingId'] as number | null) || null,
+      latitude: this.parseCoordinateValue(formValue['latitude'] as string | number | null | undefined, 0),
+      longitude: this.parseCoordinateValue(formValue['longitude'] as string | number | null | undefined, 0),
+      sofabed: formValue['sofabed'] ? Number(formValue['sofabed']) : 0,
+      parkingNotes: String(formValue['parkingNotes'] ?? ''),
+      notes: String(formValue['notes'] ?? ''),
+      minStay: formValue['minStay'] != null ? Number(formValue['minStay']) : 0,
+      maxStay: formValue['maxStay'] != null ? Number(formValue['maxStay']) : 0,
+      trashPickupId: formValue['trashPickupId'] != null ? Number(formValue['trashPickupId']) : 0,
+      address1: String(formValue['address1'] ?? ''),
+      city: String(formValue['city'] ?? ''),
+      state: String(formValue['state'] ?? ''),
+      zip: String(formValue['zip'] ?? ''),
+      unfurnished: (formValue['unfurnished'] as boolean) ?? false,
+      heating: (formValue['heating'] as boolean) ?? false,
+      ac: (formValue['ac'] as boolean) ?? false,
+      elevator: (formValue['elevator'] as boolean) ?? false,
+      security: (formValue['security'] as boolean) ?? false,
+      gated: (formValue['gated'] as boolean) ?? false,
+      petsAllowed: (formValue['petsAllowed'] as boolean) ?? false,
+      dogsOkay: (formValue['dogsOkay'] as boolean) ?? false,
+      catsOkay: (formValue['catsOkay'] as boolean) ?? false,
+      poundLimit: String(formValue['poundLimit'] ?? ''),
+      smoking: (formValue['smoking'] as boolean) ?? false,
+      parking: (formValue['parking'] as boolean) ?? false,
+      kitchen: (formValue['kitchen'] as boolean) ?? false,
+      oven: (formValue['oven'] as boolean) ?? false,
+      refrigerator: (formValue['refrigerator'] as boolean) ?? false,
+      microwave: (formValue['microwave'] as boolean) ?? false,
+      dishwasher: (formValue['dishwasher'] as boolean) ?? false,
+      bathtub: (formValue['bathtub'] as boolean) ?? false,
+      washerDryerInUnit: (formValue['washerDryerInUnit'] as boolean) ?? false,
+      washerDryerInBldg: (formValue['washerDryerInBldg'] as boolean) ?? false,
+      tv: (formValue['tv'] as boolean) ?? false,
+      cable: (formValue['cable'] as boolean) ?? false,
+      dvd: (formValue['dvd'] as boolean) ?? false,
+      streaming: (formValue['streaming'] as boolean) ?? false,
+      fastInternet: (formValue['fastInternet'] as boolean) ?? false,
+      deck: (formValue['deck'] as boolean) ?? false,
+      patio: (formValue['patio'] as boolean) ?? false,
+      yard: (formValue['yard'] as boolean) ?? false,
+      garden: (formValue['garden'] as boolean) ?? false,
+      commonPool: (formValue['commonPool'] as boolean) ?? false,
+      privatePool: (formValue['privatePool'] as boolean) ?? false,
+      jacuzzi: (formValue['jacuzzi'] as boolean) ?? false,
+      sauna: (formValue['sauna'] as boolean) ?? false,
+      gym: (formValue['gym'] as boolean) ?? false
+    };
+
+    if (context.isPublicOwnerUpsertMode) {
+      const tokenOrganizationId = String(context.shellOrganizationId || '').trim();
+      if (tokenOrganizationId) {
+        overrides.organizationId = tokenOrganizationId;
+      }
+    } else {
+      overrides.organizationId = context.userOrganizationId;
+    }
+
+    const propertyLeaseTypeId = overrides.propertyLeaseTypeId ?? 0;
+    if (propertyLeaseTypeId === PropertyLeaseType.PropertyManagement) {
+      overrides.vendorId = null;
+      const owner1Raw = String(formValue['owner1Id'] ?? '').trim();
+      overrides.owner1Id = owner1Raw.length > 0 ? owner1Raw : null;
+      const owner2Raw = String(formValue['owner2Id'] ?? '').trim();
+      overrides.owner2Id = owner2Raw.length > 0 ? owner2Raw : null;
+      const owner3Raw = String(formValue['owner3Id'] ?? '').trim();
+      overrides.owner3Id = owner3Raw.length > 0 ? owner3Raw : null;
+    } else {
+      overrides.owner1Id = null;
+      overrides.owner2Id = null;
+      overrides.owner3Id = null;
+      const vid = formValue['vendorId'];
+      overrides.vendorId = vid != null && String(vid).trim() !== '' ? String(vid).trim() : null;
+    }
+
+    if (context.isOwnerMode) {
+      const ownerContactId = String(context.ownerPrimaryContactId || '').trim();
+      overrides.owner1Id = ownerContactId.length > 0 ? ownerContactId : null;
+      overrides.owner2Id = null;
+      overrides.owner3Id = null;
+    }
+
+    if (!overrides.owner2Id) {
+      overrides.owner2Id = undefined;
+    }
+
+    const trimOrNull = (v: unknown): string | null => {
+      if (v == null) {
+        return null;
+      }
+      const s = String(v).trim();
+      return s.length > 0 ? s : null;
+    };
+
+    const optionalStringFields: Array<keyof PropertyRequest> = [
+      'address2', 'suite', 'communityAddress', 'neighborhood', 'crossStreet',
+      'view', 'mailbox', 'amenities', 'alarmCode',
+      'unitMstrCode', 'bldgMstrCode', 'bldgTenantCode',
+      'mailRoomCode', 'garageCode', 'trashRemoval', 'description', 'internetNetwork', 'internetPassword'
+    ];
+    optionalStringFields.forEach(field => {
+      const raw = formValue[field as string];
+      overrides[field] = (raw === '' || raw == null ? undefined : String(raw)) as never;
+    });
+
+    const bldgNoTrim = String(formValue['bldgNo'] ?? '').trim();
+    overrides.bldgNo = bldgNoTrim.length > 0 ? bldgNoTrim : undefined;
+
+    if (context.isAddMode) {
+      overrides.phone = undefined;
+    }
+
+    overrides.communityAddress = trimOrNull(formValue['communityAddress']) ?? undefined;
+    overrides.gateCode = trimOrNull(formValue['gateCode']);
+    overrides.trashCode = trimOrNull(formValue['trashCode']);
+    overrides.storageCode = trimOrNull(formValue['storageCode']);
+
+    return overrides;
+  }
 
   //#region Form Methods
   buildForm(): void {
@@ -643,6 +741,7 @@ export class PropertyComponent implements OnInit, OnChanges, AfterViewInit, OnDe
       accomodates: new FormControl(0, [Validators.required, Validators.min(1)]),
       dailyRate: new FormControl<string>('0.00', [Validators.required]),
       monthlyRate: new FormControl<string>('0.00', [Validators.required]),
+      externalCalendar: new FormControl<string | null>(null, [Validators.maxLength(4000)]),
       departureFee: new FormControl<string>('0.00', [Validators.required]),
       maidServiceFee: new FormControl<string>('0.00', [Validators.required]),
       petFee: new FormControl<string>('0.00', [Validators.required]),
@@ -759,6 +858,7 @@ export class PropertyComponent implements OnInit, OnChanges, AfterViewInit, OnDe
       formData.owner3Id = this.property.owner3Id || null;
       formData.dailyRate = this.property.dailyRate !== null && this.property.dailyRate !== undefined ? this.property.dailyRate.toFixed(2) : '0.00';
       formData.monthlyRate = this.property.monthlyRate !== null && this.property.monthlyRate !== undefined ? this.property.monthlyRate.toFixed(2) : '0.00';
+      formData.externalCalendar = this.property.externalCalendar ?? null;
       formData.departureFee = this.property.departureFee !== null && this.property.departureFee !== undefined ? this.property.departureFee.toFixed(2) : '0.00';
       formData.maidServiceFee = this.property.maidServiceFee !== null && this.property.maidServiceFee !== undefined ? this.property.maidServiceFee.toFixed(2) : '0.00';
       formData.petFee = this.property.petFee !== null && this.property.petFee !== undefined ? this.property.petFee.toFixed(2) : '0.00';

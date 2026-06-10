@@ -31,7 +31,7 @@
         <h4 class="mb-2 calendar-response-heading"><strong>API Response:</strong></h4>
         @for (pair of responseKeyValuePairs; track pair.key) {
           <div class="calendar-response-row mb-1">
-            <strong>{{ pair.key }}:</strong>
+            <strong>{{ formatResponseLabel(pair.key) }}: </strong>
             <span class="calendar-response-value">{{ pair.value }}</span>
           </div>
         }

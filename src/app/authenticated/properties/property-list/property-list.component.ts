@@ -375,6 +375,16 @@ export class PropertyListComponent implements OnInit, OnDestroy, OnChanges {
   }
 
   openPropertyCalendar(property: PropertyListDisplay): void {
+    const externalCalendarUrl = String(property.externalCalendar ?? '').trim();
+    if (externalCalendarUrl) {
+      this.showPropertyCalendarUrlDialog(
+        property.propertyCode,
+        externalCalendarUrl,
+        { externalCalendar: externalCalendarUrl }
+      );
+      return;
+    }
+
     this.propertyService.getPropertyCalendarUrl(property.propertyId).pipe(take(1)).subscribe({
       next: (response: CalendarUrlResponse) => {
         if (!response?.subscriptionUrl) {
@@ -382,23 +392,35 @@ export class PropertyListComponent implements OnInit, OnDestroy, OnChanges {
           return;
         }
 
-        const dialogConfig: MatDialogConfig<PropertyCalendarUrlDialogData> = {
-          width: '700px',
-          autoFocus: true,
-          restoreFocus: true,
-          disableClose: false,
-          hasBackdrop: true,
-          data: {
-            propertyCode: property.propertyCode,
-            subscriptionUrl: response.subscriptionUrl,
-            calendarLinkResponse: response as unknown as Record<string, unknown>
-          }
-        };
-
-        this.dialog.open(PropertyCalendarUrlDialogComponent, dialogConfig);
+        this.showPropertyCalendarUrlDialog(
+          property.propertyCode,
+          response.subscriptionUrl,
+          response as unknown as Record<string, unknown>
+        );
       },
       error: () => {}
     });
+  }
+
+  private showPropertyCalendarUrlDialog(
+    propertyCode: string,
+    subscriptionUrl: string,
+    calendarLinkResponse: Record<string, unknown>
+  ): void {
+    const dialogConfig: MatDialogConfig<PropertyCalendarUrlDialogData> = {
+      width: '700px',
+      autoFocus: true,
+      restoreFocus: true,
+      disableClose: false,
+      hasBackdrop: true,
+      data: {
+        propertyCode,
+        subscriptionUrl,
+        calendarLinkResponse
+      }
+    };
+
+    this.dialog.open(PropertyCalendarUrlDialogComponent, dialogConfig);
   }
     
   onPropertyCheckboxChange(event: PropertyListDisplayRow): void {

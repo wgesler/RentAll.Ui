@@ -61,6 +61,7 @@ export interface PropertyRequest {
   buildingId?: number | null;
   latitude: number;
   longitude: number;
+  externalCalendar?: string | null;
 
   // Features & Security section
   unfurnished: boolean;
@@ -206,6 +207,7 @@ export interface PropertyResponse {
   buildingId?: number | null;
   latitude: number;
   longitude: number;
+  externalCalendar?: string | null;
   
   // Features & Security section
   unfurnished: boolean;
@@ -333,6 +335,7 @@ export interface PropertyListResponse{
   offInspectingDate?: CalendarDateString | null;
   onlineChecked: boolean;
   offlineChecked: boolean;
+  externalCalendar?: string | null;
   isActive: boolean;
  }
 
@@ -392,6 +395,7 @@ export interface PropertyListDisplay {
   offInspectingDate?: CalendarDateString | null;
   onlineChecked: boolean;
   offlineChecked: boolean;
+  externalCalendar?: string | null;
   isActive: boolean;
 }
 

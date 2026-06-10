@@ -63,6 +63,14 @@ export class PropertyCalendarUrlDialogComponent {
     return '';
   }
 
+  formatResponseLabel(key: string): string {
+    if (key === 'externalCalendar') {
+      return 'External Calendar';
+    }
+
+    return key;
+  }
+
   formatResponseValue(value: unknown): string {
     if (value === null || value === undefined) {
       return '';
