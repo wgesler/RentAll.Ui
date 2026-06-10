@@ -624,7 +624,7 @@
                   </div>
                   <div class="basic-row w-full min-w-0">
                     <mat-form-field appearance="outline" class="w-full min-w-0">
-                      <mat-label>External Calendar</mat-label>
+                      <mat-label>External iCalendar</mat-label>
                       <input matInput formControlName="externalCalendar" maxlength="4000">
                       @if (form.get('externalCalendar')?.hasError('maxlength') && form.get('externalCalendar')?.touched) {
                         <mat-error>Maximum 4000 characters</mat-error>
