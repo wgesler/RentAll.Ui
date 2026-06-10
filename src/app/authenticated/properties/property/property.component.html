@@ -585,7 +585,7 @@
                   </div>
                 }
                 @if (!isOwnerView) {
-                  <div class="basic-row">
+                  <div class="basic-row rates-line-grid gap-x-1.5 gap-y-1">
                     <mat-form-field appearance="outline" class="basic-compact">
                       <mat-label>Monthly Rate</mat-label>
                       <input matInput type="text" formControlName="monthlyRate" (blur)="formatDecimal('monthlyRate')" (input)="onDecimalInput($event, 'monthlyRate')" (focus)="selectAllOnFocus($event)" required>
@@ -593,18 +593,6 @@
                         <mat-error>Required</mat-error>
                       }
                     </mat-form-field>
-                  </div>
-                  <div class="basic-row w-full min-w-0">
-                    <mat-form-field appearance="outline" class="w-full min-w-0">
-                      <mat-label>External Calendar</mat-label>
-                      <input matInput formControlName="externalCalendar" maxlength="4000">
-                      @if (form.get('externalCalendar')?.hasError('maxlength') && form.get('externalCalendar')?.touched) {
-                        <mat-error>Maximum 4000 characters</mat-error>
-                      }
-                    </mat-form-field>
-                  </div>
-                  <!-- Rates (4) -->
-                  <div class="basic-row rates-line-grid gap-x-1.5 gap-y-1">
                     <mat-form-field appearance="outline" class="basic-compact">
                       <mat-label>Daily Rate</mat-label>
                       <input matInput type="text" formControlName="dailyRate" (blur)="formatDecimal('dailyRate')" (input)="onDecimalInput($event, 'dailyRate')" (focus)="selectAllOnFocus($event)" required>
@@ -631,6 +619,15 @@
                       <input matInput type="text" formControlName="petFee" (blur)="formatDecimal('petFee')" (input)="onDecimalInput($event, 'petFee')" (focus)="selectAllOnFocus($event)" required>
                       @if (form.get('petFee')?.hasError('required') && form.get('petFee')?.touched) {
                         <mat-error>Required</mat-error>
+                      }
+                    </mat-form-field>
+                  </div>
+                  <div class="basic-row w-full min-w-0">
+                    <mat-form-field appearance="outline" class="w-full min-w-0">
+                      <mat-label>External Calendar</mat-label>
+                      <input matInput formControlName="externalCalendar" maxlength="4000">
+                      @if (form.get('externalCalendar')?.hasError('maxlength') && form.get('externalCalendar')?.touched) {
+                        <mat-error>Maximum 4000 characters</mat-error>
                       }
                     </mat-form-field>
                   </div>
