@@ -1,17 +1,21 @@
 import { CommonModule } from '@angular/common';
 import { HttpErrorResponse } from '@angular/common/http';
 import { ChangeDetectorRef, Component, EventEmitter, Input, OnChanges, OnDestroy, OnInit, Output, SimpleChanges } from '@angular/core';
-import { FormArray, FormBuilder, FormControl, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
+import { Router } from '@angular/router';
+import { RouterUrl } from '../../../app.routes';
+import { AbstractControl, FormArray, FormBuilder, FormControl, FormGroup, ReactiveFormsModule, ValidationErrors, Validators } from '@angular/forms';
 import { ToastrService } from 'ngx-toastr';
-import { BehaviorSubject, Subject, finalize, take, takeUntil } from 'rxjs';
+import { BehaviorSubject, Subject, filter, finalize, take, takeUntil } from 'rxjs';
 import { FileDetails } from '../../documents/models/document.model';
 import { FormatterService } from '../../../services/formatter-service';
 import { MaterialModule } from '../../../material.module';
 import { AuthService } from '../../../services/auth.service';
+import { AccountType } from '../../accounting/models/accounting-enum';
+import { ChartOfAccountsService } from '../../accounting/services/chart-of-accounts.service';
 import { PdfThumbnailService } from '../../../services/pdf-thumbnail.service';
 import { UtilityService } from '../../../services/utility.service';
 import { getReceiptTypes, ReceiptType } from '../models/maintenance-enums';
-import { EntityType } from '../../contacts/models/contact-enum';
+import { EntityType, getPaymentTermDays } from '../../contacts/models/contact-enum';
 import { ContactResponse } from '../../contacts/models/contact.model';
 import { ContactService } from '../../contacts/services/contact.service';
 import { PropertyCodeResponse, PropertyResponse } from '../../properties/models/property.model';
@@ -28,6 +32,9 @@ import { WorkOrderService } from '../services/work-order.service';
 import { MappingService } from '../../../services/mapping.service';
 import { SearchableSelectComponent, SearchableSelectOption } from '../../shared/searchable-select/searchable-select.component';
 
+/** Form-only sentinel for company-level receipts in the accounting shell (not sent to the API). */
+const ACCOUNTING_COMPANY_PROPERTY_ID = '__accounting_company__';
+
 @Component({
   standalone: true,
   selector: 'app-receipt',
@@ -40,6 +47,7 @@ export class ReceiptComponent implements OnInit, OnChanges, OnDestroy {
   @Input() property: PropertyResponse | null = null;
   @Input() receiptId: number | null = null;
   @Input() ticketId: string | null = null;
+  @Input() shellContext: 'maintenance' | 'accounting' | null = null;
   @Output() backEvent = new EventEmitter<void>();
   @Output() savedEvent = new EventEmitter<ReceiptResponse>();
   @Output() saveValidationAttempted = new EventEmitter<void>();
@@ -68,6 +76,8 @@ export class ReceiptComponent implements OnInit, OnChanges, OnDestroy {
   focusedSplitAmountIndex: number | null = null;
   splitAmountEditValue = '';
   splitTotalValidationError = false;
+  saveValidationHighlightActive = false;
+  receiptFileValidationError = false;
   isSyncingInitialSplit = false;
   receiptOfficeInitialized = false;
   propertyOptions: PropertyCodeResponse[] = [];
@@ -75,11 +85,19 @@ export class ReceiptComponent implements OnInit, OnChanges, OnDestroy {
   accountingOffices: AccountingOfficeResponse[] = [];
   receiptTypeOptions = getReceiptTypes();
   bankCardOptions: SearchableSelectOption<number>[] = [];
+  expenseAccountOptions: SearchableSelectOption<number>[] = [];
+  readonly billSplitAccountTypeIds = new Set<number>([
+    AccountType.Expense,
+    AccountType.CostOfGoodsSold
+  ]);
   vendorOptions: { value: string; label: string }[] = [];
+
+  readonly accountingCompanyPropertyId = ACCOUNTING_COMPANY_PROPERTY_ID;
+  lastPropertyIdsValue: string[] = [];
 
   itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['receipt']));
   destroy$ = new Subject<void>();
-  private contactCache: ContactResponse[] = [];
+  contactCache: ContactResponse[] = [];
 
   constructor(
     fb: FormBuilder,
@@ -91,12 +109,14 @@ export class ReceiptComponent implements OnInit, OnChanges, OnDestroy {
     private accountingOfficeService: AccountingOfficeService,
     private contactService: ContactService,
     private workOrderService: WorkOrderService,
+    private chartOfAccountsService: ChartOfAccountsService,
     private utilityService: UtilityService,
     private pdfThumbnailService: PdfThumbnailService,
     private mappingService: MappingService,
     public formatter: FormatterService,
     private toastr: ToastrService,
-    private cdr: ChangeDetectorRef
+    private cdr: ChangeDetectorRef,
+    private router: Router
   ) {
     this.fb = fb;
     this.authService = authService;
@@ -107,6 +127,8 @@ export class ReceiptComponent implements OnInit, OnChanges, OnDestroy {
   ngOnInit(): void {
     this.organizationId = this.authService.getUser()?.organizationId || '';
     this.buildForm();
+    this.setupAccountingBillDateHandlers();
+    this.applyPropertyInputToForm();
 
     this.splitsFormArray.valueChanges.pipe(takeUntil(this.destroy$)).subscribe(() => {
       this.updatePropertyRequirementByReceiptType();
@@ -118,10 +140,14 @@ export class ReceiptComponent implements OnInit, OnChanges, OnDestroy {
     this.isAddMode = this.receiptId == null;
     this.syncSelectedPropertyIdFromForm();
 
-    this.form.get('propertyIds')?.valueChanges.pipe(takeUntil(this.destroy$)).subscribe(() => {
+    this.form.get('propertyIds')?.valueChanges.pipe(takeUntil(this.destroy$)).subscribe((value) => {
+      const previous = this.lastPropertyIdsValue;
+      this.normalizeAccountingCompanyPropertySelection(value, previous);
+      this.lastPropertyIdsValue = this.getFormPropertyIds();
       this.syncSelectedPropertyIdFromForm();
       this.syncReceiptOfficeFromSelectedProperties();
-      this.form.patchValue({ propertyCode: this.getPropertyCodesDisplay(this.getSelectedPropertyIds()) }, { emitEvent: false });
+      this.updatePropertyRequirementByReceiptType();
+      this.form.patchValue({ propertyCode: this.getPropertyCodesDisplay(this.getFormPropertyIds()) }, { emitEvent: false });
       if (!this.isAllOfficesShellScope()) {
         this.loadBankCardsAndVendors();
       }
@@ -129,6 +155,7 @@ export class ReceiptComponent implements OnInit, OnChanges, OnDestroy {
 
     this.loadOffices();
     this.loadAccountingOffices();
+    this.loadChartOfAccounts();
     this.loadVendors();
     this.loadPropertyCodes();
     this.loadReceipt();
@@ -147,6 +174,13 @@ export class ReceiptComponent implements OnInit, OnChanges, OnDestroy {
       this.applyPropertyInputToForm();
     }
 
+    if (changes['shellContext'] && !changes['shellContext'].firstChange) {
+      this.loadChartOfAccounts();
+      this.updateAccountingBillFieldValidators();
+      this.updateSplitLineAccountValidators();
+      this.cdr.markForCheck();
+    }
+
     if (changes['receiptId'] && !changes['receiptId'].firstChange) {
       this.isAddMode = this.receiptId == null;
       this.receiptOfficeInitialized = false;
@@ -162,8 +196,11 @@ export class ReceiptComponent implements OnInit, OnChanges, OnDestroy {
 
   saveReceipt(): void {
     this.updatePropertyRequirementByReceiptType();
+    this.updateVendorFieldValidators();
+    this.saveValidationHighlightActive = true;
     this.saveValidationAttempted.emit();
     this.form.markAllAsTouched();
+    this.receiptFileValidationError = !this.hasReceiptFileForSave();
 
     if (!this.organizationId || this.form.invalid) {
       this.showValidationErrorToast();
@@ -175,19 +212,29 @@ export class ReceiptComponent implements OnInit, OnChanges, OnDestroy {
       this.showValidationErrorToast();
       return;
     }
+    if (this.showAccountingBillFields && !this.utilityService.toDateOnlyJsonString(this.form.get('dueDate')?.value)) {
+      this.form.get('dueDate')?.markAsTouched();
+      this.showValidationErrorToast();
+      return;
+    }
+    if (this.showAccountingBillFields && !this.utilityService.toDateOnlyJsonString(this.form.get('accountingPeriod')?.value)) {
+      this.form.get('accountingPeriod')?.markAsTouched();
+      this.showValidationErrorToast();
+      return;
+    }
     if (this.isAddMode && !this.property && this.isPropertySelectionRequired()) {
       this.showValidationErrorToast();
       return;
     }
-    const selectedPropertyIds = this.getSelectedPropertyIds();
+    const selectedPropertyIds = this.getPayloadPropertyIds();
     if (this.isPropertySelectionRequired() && selectedPropertyIds.length === 0) {
       this.form.get('propertyIds')?.markAsTouched();
       this.showValidationErrorToast();
       return;
     }
 
-    const hasReceiptFile = !!(this.receiptFileDetails?.file) || !!(this.form.get('receiptPath')?.value) || !!(this.receipt?.receiptPath);
-    if (!hasReceiptFile) {
+    if (!this.hasReceiptFileForSave()) {
+      this.receiptFileValidationError = true;
       this.showValidationErrorToast();
       return;
     }
@@ -238,6 +285,9 @@ export class ReceiptComponent implements OnInit, OnChanges, OnDestroy {
       officeId: this.getReceiptOfficeId() ?? 0,
       propertyIds: selectedPropertyIds,
       receiptDate: receiptDateValue,
+      dueDate: this.resolveDueDateForPayload(receiptDateValue),
+      accountingPeriod: this.resolveAccountingPeriodForPayload(receiptDateValue),
+      billNumber: this.resolveBillNumberForPayload(),
       ticketId: this.receipt?.ticketId || this.ticketId || '',
       description: (this.form.get('description')?.value || '').trim(),
       amount: amountValue,
@@ -257,6 +307,9 @@ export class ReceiptComponent implements OnInit, OnChanges, OnDestroy {
       const hasReceiptUpdates = this.receipt
         ? (payload.description !== (this.receipt.description ?? '').trim()) ||
           (this.normalizeReceiptDate(payload.receiptDate) !== this.normalizeReceiptDate(this.receipt.receiptDate)) ||
+          (this.normalizeReceiptDate(payload.dueDate) !== this.normalizeReceiptDate(this.receipt.dueDate)) ||
+          (this.normalizeReceiptDate(payload.accountingPeriod) !== this.normalizeReceiptDate(this.receipt.accountingPeriod)) ||
+          ((payload.billNumber || '').toString().trim() || null) !== ((this.receipt.billNumber || '').toString().trim() || null) ||
           payload.amount !== (this.receipt.amount ?? 0) ||
           (payload.bankCardId ?? null) !== (this.receipt.bankCardId ?? null) ||
           ((payload.vendorId || '').toString().trim() || null) !== ((this.receipt.vendorId || '').toString().trim() || null) ||
@@ -267,7 +320,7 @@ export class ReceiptComponent implements OnInit, OnChanges, OnDestroy {
           hasReceiptChange
         : true;
       if (!hasReceiptUpdates) {
-        if (this.selectedPropertyId) {
+        if (this.selectedPropertyId || this.isEmbeddedInShell) {
           this.back();
         }
         return;
@@ -287,17 +340,21 @@ export class ReceiptComponent implements OnInit, OnChanges, OnDestroy {
         this.form.patchValue({
           officeName: saved.officeName || this.property?.officeName || '',
           receiptDate: this.getReceiptDateControlValue(saved.receiptDate),
-          propertyCode: this.getPropertyCodesDisplay(saved.propertyIds || []) || this.property?.propertyCode || '',
-          propertyIds: saved.propertyIds || [],
+          dueDate: this.getReceiptDateControlValue(saved.dueDate || saved.receiptDate),
+          accountingPeriod: this.getReceiptDateControlValue(saved.accountingPeriod || saved.receiptDate),
+          propertyCode: this.getPropertyCodesDisplay(this.toFormPropertyIds(saved.propertyIds || [])) || this.property?.propertyCode || '',
+          propertyIds: this.toFormPropertyIds(saved.propertyIds || []),
           description: saved.description || '',
           amount: saved.amount != null ? this.formatter.currency(saved.amount) : '0.00',
           bankCardId: saved.bankCardId ?? 0,
           vendorId: (saved.vendorId || '').trim() || null,
           vendorName: (saved.vendorName || '').trim() || null,
+          billNumber: (saved.billNumber || '').trim() || null,
           receiptPath: saved.receiptPath || '',
           isActive: saved.isActive
         });
         this.replaceSplitLines(saved.splits || []);
+        this.lastPropertyIdsValue = this.getFormPropertyIds();
         this.receiptFileDetails = saved.fileDetails || this.receiptFileDetails;
         if (saved.fileDetails?.file && saved.fileDetails?.contentType) {
           this.receiptPreviewDataUrl = saved.fileDetails.dataUrl
@@ -312,9 +369,11 @@ export class ReceiptComponent implements OnInit, OnChanges, OnDestroy {
         this.hasNewReceiptUpload = false;
         this.originalReceiptPath = saved.receiptPath ?? null;
         this.splitTotalValidationError = false;
+        this.saveValidationHighlightActive = false;
+        this.receiptFileValidationError = false;
         this.savedEvent.emit(saved);
         this.toastr.success('Receipt saved.', 'Success');
-        if (this.selectedPropertyId) {
+        if (this.selectedPropertyId || this.isEmbeddedInShell) {
           this.back();
         }
       },
@@ -325,48 +384,93 @@ export class ReceiptComponent implements OnInit, OnChanges, OnDestroy {
   }
 
   showValidationErrorToast(): void {
+    this.cdr.markForCheck();
     this.toastr.error('Please correct the highlighted fields before saving.', 'Error');
+  }
+
+  shouldShowControlError(control: AbstractControl | null | undefined): boolean {
+    if (!control) {
+      return false;
+    }
+    return control.invalid && (control.touched || this.saveValidationHighlightActive);
+  }
+
+  shouldShowSplitControlError(splitGroup: AbstractControl, controlName: string): boolean {
+    return this.shouldShowControlError((splitGroup as FormGroup).get(controlName));
+  }
+
+  hasReceiptFileForSave(): boolean {
+    return !!(this.receiptFileDetails?.file)
+      || !!(this.form.get('receiptPath')?.value)
+      || !!(this.receipt?.receiptPath);
   }
   //#endregion
 
   //#region Form Methods
+  readonly requireNonEmptyArray = (control: AbstractControl): ValidationErrors | null => {
+    const value = control.value;
+    if (!Array.isArray(value) || value.filter(entry => entry != null && String(entry).trim().length > 0).length === 0) {
+      return { required: true };
+    }
+    return null;
+  };
+
+  readonly requireNonEmptyVendorId = (control: AbstractControl): ValidationErrors | null => {
+    const value = (control.value || '').toString().trim();
+    return value ? null : { required: true };
+  };
+
   buildForm(): void {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
     this.form = this.fb.group({
       officeName: new FormControl(''),
-      receiptDate: new FormControl<Date | null>(null, [Validators.required]),
+      receiptDate: new FormControl<Date | null>(today, [Validators.required]),
+      dueDate: new FormControl<Date | null>(new Date(today.getTime())),
+      accountingPeriod: new FormControl<Date | null>(new Date(today.getTime())),
       propertyCode: new FormControl(''),
-      propertyIds: new FormControl<string[]>([], [Validators.required]),
+      propertyIds: new FormControl<string[]>([], [this.requireNonEmptyArray]),
       amount: new FormControl('0.00', [Validators.required]),
       description: new FormControl('', [Validators.required]),
       bankCardId: new FormControl<number>(0, [Validators.required]),
       vendorId: new FormControl<string | null>(null),
       vendorName: new FormControl<string | null>(null),
+      billNumber: new FormControl<string | null>(null),
       splits: this.fb.array([]),
       receiptPath: new FormControl(''),
       isActive: new FormControl(true)
     });
     this.ensureAtLeastOneSplit();
+    this.updateAccountingBillFieldValidators();
+    this.updateVendorFieldValidators();
   }
 
   populateForm(receipt: ReceiptResponse): void {
     this.form.patchValue({
       officeName: receipt.officeName || this.property?.officeName || '',
       receiptDate: this.getReceiptDateControlValue(receipt.receiptDate),
-      propertyCode: this.getPropertyCodesDisplay(receipt.propertyIds || []) || this.property?.propertyCode || '',
-      propertyIds: receipt.propertyIds || [],
+      dueDate: this.getReceiptDateControlValue(receipt.dueDate || receipt.receiptDate),
+      accountingPeriod: this.getReceiptDateControlValue(receipt.accountingPeriod || receipt.receiptDate),
+      propertyCode: this.getPropertyCodesDisplay(this.toFormPropertyIds(receipt.propertyIds || [])) || this.property?.propertyCode || '',
+      propertyIds: this.toFormPropertyIds(receipt.propertyIds || []),
       description: receipt.description || '',
       amount: receipt.amount != null ? this.formatter.currency(receipt.amount) : '0.00',
       bankCardId: receipt.bankCardId ?? 0,
       vendorId: (receipt.vendorId || '').trim() || null,
       vendorName: (receipt.vendorName || '').trim() || null,
+      billNumber: (receipt.billNumber || '').trim() || null,
       receiptPath: receipt.receiptPath || '',
       isActive: receipt.isActive
     });
     this.replaceSplitLines(receipt.splits || []);
+    this.lastPropertyIdsValue = this.getFormPropertyIds();
     this.receiptFileDetails = receipt.fileDetails || null;
     this.hasNewReceiptUpload = false;
     this.originalReceiptPath = receipt.receiptPath ?? null;
     this.splitTotalValidationError = false;
+    this.updateAccountingBillFieldValidators();
+    this.updateVendorFieldValidators();
+    this.applyLegacyBillAccountingDatesIfNeeded();
     if (receipt.fileDetails?.file && receipt.fileDetails?.contentType) {
       this.receiptPreviewDataUrl = receipt.fileDetails.dataUrl || `data:${receipt.fileDetails.contentType};base64,${receipt.fileDetails.file}`;
       this.receiptFileName = receipt.fileDetails.fileName || this.extractFileName(receipt.receiptPath || '');
@@ -407,9 +511,13 @@ export class ReceiptComponent implements OnInit, OnChanges, OnDestroy {
         this.propertyOptions = (properties || []).filter(p => !!p.propertyId);
         if (this.isAddMode && this.selectedPropertyId) {
           this.form.patchValue({ propertyIds: [this.selectedPropertyId] });
+        } else if (this.showAccountingCompanyPropertyOption && this.shouldDefaultToAccountingCompany()) {
+          this.applyAccountingCompanySelection();
         } else {
-          this.form.patchValue({ propertyCode: this.getPropertyCodesDisplay(this.getSelectedPropertyIds()) });
+          this.form.patchValue({ propertyCode: this.getPropertyCodesDisplay(this.getFormPropertyIds()) });
         }
+        this.lastPropertyIdsValue = this.getFormPropertyIds();
+        this.updatePropertyRequirementByReceiptType();
       },
       error: () => {
         this.propertyOptions = [];
@@ -469,7 +577,7 @@ export class ReceiptComponent implements OnInit, OnChanges, OnDestroy {
     });
   }
 
-  private applyVendorsFromContactCache(): void {
+  applyVendorsFromContactCache(): void {
     const contacts = this.contactCache;
     if (this.isAllOfficesShellScope()) {
       this.loadVendorsForAllOffices(contacts);
@@ -481,6 +589,7 @@ export class ReceiptComponent implements OnInit, OnChanges, OnDestroy {
         this.vendorOptions = [this.newContactDialogService.buildSearchableSelectOption(EntityType.Vendor)];
       }
     }
+    this.applyLegacyBillAccountingDatesIfNeeded();
     this.cdr.markForCheck();
   }
 
@@ -508,7 +617,62 @@ export class ReceiptComponent implements OnInit, OnChanges, OnDestroy {
       }
     }
     this.applyVendorsFromContactCache();
+    this.loadSplitAccountsForCurrentOffice();
     this.applyPropertyInputToForm();
+  }
+
+  loadChartOfAccounts(): void {
+    if (!this.isAccountingShell) {
+      this.expenseAccountOptions = [];
+      return;
+    }
+
+    this.chartOfAccountsService.ensureChartOfAccountsLoaded();
+    this.chartOfAccountsService.areChartOfAccountsLoaded().pipe(filter(loaded => loaded === true), take(1)).subscribe(() => {
+      this.loadSplitAccountsForCurrentOffice();
+      this.cdr.markForCheck();
+    });
+  }
+
+  loadSplitAccountsForCurrentOffice(): void {
+    if (!this.isAccountingShell) {
+      this.expenseAccountOptions = [];
+      return;
+    }
+
+    const officeId = this.getReceiptOfficeId();
+    if (!officeId) {
+      this.expenseAccountOptions = [];
+      return;
+    }
+
+    this.expenseAccountOptions = (this.chartOfAccountsService.getChartOfAccountsForOffice(officeId) || [])
+      .filter(account => this.billSplitAccountTypeIds.has(account.accountTypeId))
+      .map(account => ({
+        value: account.accountId,
+        label: `${account.accountNo} - ${account.name}`.trim()
+      }))
+      .sort((a, b) => a.label.localeCompare(b.label, undefined, { sensitivity: 'base' }));
+
+    const splitAccountIds = this.splitsFormArray.controls
+      .map(control => Number(control.get('chartOfAccountId')?.value ?? 0))
+      .filter(accountId => Number.isFinite(accountId) && accountId > 0);
+    const fallbackLabels = new Map<number, string>();
+    (this.receipt?.splits || []).forEach(split => {
+      const accountId = Number(split.chartOfAccountId ?? 0);
+      if (accountId > 0 && split.chartOfAccountDisplayName) {
+        fallbackLabels.set(accountId, split.chartOfAccountDisplayName.trim());
+      }
+    });
+
+    splitAccountIds.forEach(accountId => {
+      if (this.expenseAccountOptions.some(option => option.value === accountId)) {
+        return;
+      }
+      const fallbackLabel = fallbackLabels.get(accountId) || `Account ${accountId}`;
+      this.expenseAccountOptions = [...this.expenseAccountOptions, { value: accountId, label: fallbackLabel }]
+        .sort((a, b) => a.label.localeCompare(b.label, undefined, { sensitivity: 'base' }));
+    });
   }
 
   loadBankCardsForOffice(officeId: number | null | undefined): void {
@@ -586,7 +750,7 @@ export class ReceiptComponent implements OnInit, OnChanges, OnDestroy {
   }
   //#endregion
 
-  //#region Receipt Methods
+  //#region Receipt File Methods
   openReceiptPicker(fileInput: HTMLInputElement): void {
     if (!this.property) return;
     fileInput.click();
@@ -604,6 +768,7 @@ export class ReceiptComponent implements OnInit, OnChanges, OnDestroy {
     this.setReceiptPdfThumbnail(payload.fileDetails.dataUrl, payload.fileDetails.contentType || file.type || '');
     this.receiptFileName = payload.fileDetails.fileName;
     this.hasNewReceiptUpload = true;
+    this.receiptFileValidationError = false;
     this.form.patchValue({ receiptPath: '' });
   }
 
@@ -728,7 +893,7 @@ export class ReceiptComponent implements OnInit, OnChanges, OnDestroy {
     const contentType = this.getReceiptPreviewContentType();
     return contentType === 'application/pdf';
   }
-  
+
   toBlobObjectUrl(src: string): string | null {
     if (!src || !src.startsWith('data:')) {
       return null;
@@ -754,7 +919,9 @@ export class ReceiptComponent implements OnInit, OnChanges, OnDestroy {
       return null;
     }
   }
+  //#endregion
 
+  //#region Accounting Bill Date Methods
   getReceiptAmountValue(): number {
     const raw = this.sanitizeSignedDecimalInput(this.form.get('amount')?.value?.toString() ?? '');
     return parseFloat(raw) || 0;
@@ -775,6 +942,177 @@ export class ReceiptComponent implements OnInit, OnChanges, OnDestroy {
   getReceiptDateForApi(): string | null {
     const dateValue = this.form.get('receiptDate')?.value;
     return this.utilityService.toDateOnlyJsonString(dateValue);
+  }
+
+  resolveDueDateForPayload(receiptDate: string): string {
+    if (this.isOverallBillBankCard()) {
+      return this.utilityService.toDateOnlyJsonString(this.form.get('dueDate')?.value) ?? receiptDate;
+    }
+    return receiptDate;
+  }
+
+  resolveAccountingPeriodForPayload(receiptDate: string): string {
+    if (this.isOverallBillBankCard()) {
+      const explicit = this.utilityService.toDateOnlyJsonString(this.form.get('accountingPeriod')?.value);
+      if (explicit) {
+        return explicit;
+      }
+      return receiptDate;
+    }
+    const match = /^(\d{4})-(\d{2})/.exec(receiptDate);
+    return match ? `${match[1]}-${match[2]}-01` : receiptDate;
+  }
+
+  resolveBillNumberForPayload(): string | null {
+    if (!this.isOverallBillBankCard() && this.shellContext !== 'maintenance') {
+      return null;
+    }
+    const billNumber = (this.form.get('billNumber')?.value || '').toString().trim();
+    return billNumber.length > 0 ? billNumber : null;
+  }
+
+  setupAccountingBillDateHandlers(): void {
+    this.form.get('receiptDate')?.valueChanges.pipe(takeUntil(this.destroy$)).subscribe(receiptDateValue => {
+      if (!this.isAccountingShell) {
+        return;
+      }
+      if (this.showAccountingBillFields) {
+        this.applyCalculatedDueDate();
+      }
+      if (!this.isAddMode) {
+        return;
+      }
+      const parsedReceiptDate = this.utilityService.parseCalendarDateInput(receiptDateValue);
+      if (!parsedReceiptDate) {
+        return;
+      }
+      parsedReceiptDate.setHours(0, 0, 0, 0);
+      this.form.get('accountingPeriod')?.setValue(new Date(parsedReceiptDate.getTime()), { emitEvent: false });
+    });
+
+    this.form.get('vendorId')?.valueChanges.pipe(takeUntil(this.destroy$)).subscribe(() => {
+      if (this.showAccountingBillFields) {
+        this.applyCalculatedDueDate();
+      }
+    });
+  }
+
+  calculateDueDateFromPaymentTerms(
+    receiptDate: Date | null | undefined,
+    paymentTermsId: number | null | undefined
+  ): Date | null {
+    const parsedReceiptDate = this.utilityService.parseCalendarDateInput(receiptDate);
+    if (!parsedReceiptDate) {
+      return null;
+    }
+    parsedReceiptDate.setHours(0, 0, 0, 0);
+    const dueDate = new Date(parsedReceiptDate.getTime());
+    dueDate.setDate(dueDate.getDate() + getPaymentTermDays(paymentTermsId));
+    return dueDate;
+  }
+
+  getSelectedVendorPaymentTermsId(): number | null {
+    const vendorId = (this.form.get('vendorId')?.value || '').toString().trim();
+    if (!vendorId) {
+      return null;
+    }
+    const vendor = this.contactCache.find(contact => String(contact.contactId || '').trim() === vendorId);
+    return vendor?.paymentTermsId ?? null;
+  }
+
+  applyCalculatedDueDate(): void {
+    if (!this.showAccountingBillFields) {
+      return;
+    }
+    const dueDate = this.calculateDueDateFromPaymentTerms(
+      this.form.get('receiptDate')?.value,
+      this.getSelectedVendorPaymentTermsId()
+    );
+    if (!dueDate) {
+      return;
+    }
+    this.form.get('dueDate')?.setValue(dueDate, { emitEvent: false });
+  }
+
+  getDefaultBillAccountingPeriodFromReceiptDate(receiptDate: string | null | undefined): string | null {
+    const normalizedReceiptDate = this.normalizeReceiptDate(receiptDate);
+    if (!normalizedReceiptDate) {
+      return null;
+    }
+    const match = /^(\d{4})-(\d{2})/.exec(normalizedReceiptDate);
+    return match ? `${match[1]}-${match[2]}-01` : normalizedReceiptDate;
+  }
+
+  hasLegacyBillDueDate(receipt: ReceiptResponse, paymentTermsId: number | null): boolean {
+    if (Number(receipt.bankCardId ?? 0) !== 0) {
+      return false;
+    }
+
+    const receiptDate = this.normalizeReceiptDate(receipt.receiptDate);
+    if (!receiptDate) {
+      return false;
+    }
+
+    const storedDueDate = this.normalizeReceiptDate(receipt.dueDate) ?? receiptDate;
+    if (storedDueDate !== receiptDate) {
+      return false;
+    }
+
+    const calculatedDueDate = this.normalizeReceiptDate(
+      this.utilityService.toDateOnlyJsonString(
+        this.calculateDueDateFromPaymentTerms(
+          this.getReceiptDateControlValue(receipt.receiptDate),
+          paymentTermsId
+        )
+      )
+    );
+    return !!calculatedDueDate && calculatedDueDate !== storedDueDate;
+  }
+
+  hasLegacyBillAccountingPeriod(receipt: ReceiptResponse): boolean {
+    if (Number(receipt.bankCardId ?? 0) !== 0) {
+      return false;
+    }
+
+    const receiptDate = this.normalizeReceiptDate(receipt.receiptDate);
+    if (!receiptDate) {
+      return false;
+    }
+
+    const storedAccountingPeriod = this.normalizeReceiptDate(receipt.accountingPeriod);
+    const defaultAccountingPeriod = this.getDefaultBillAccountingPeriodFromReceiptDate(receiptDate);
+    return !!storedAccountingPeriod
+      && !!defaultAccountingPeriod
+      && storedAccountingPeriod === defaultAccountingPeriod
+      && storedAccountingPeriod !== receiptDate;
+  }
+
+  applyLegacyBillAccountingDatesIfNeeded(): void {
+    if (this.isAddMode || !this.receipt || !this.isOverallBillBankCard()) {
+      return;
+    }
+
+    const paymentTermsId = this.getSelectedVendorPaymentTermsId();
+    const receiptDateControl = this.getReceiptDateControlValue(this.receipt.receiptDate);
+    receiptDateControl.setHours(0, 0, 0, 0);
+    let updated = false;
+
+    if (this.hasLegacyBillDueDate(this.receipt, paymentTermsId)) {
+      const dueDate = this.calculateDueDateFromPaymentTerms(receiptDateControl, paymentTermsId);
+      if (dueDate) {
+        this.form.get('dueDate')?.setValue(dueDate, { emitEvent: false });
+        updated = true;
+      }
+    }
+
+    if (this.hasLegacyBillAccountingPeriod(this.receipt)) {
+      this.form.get('accountingPeriod')?.setValue(new Date(receiptDateControl.getTime()), { emitEvent: false });
+      updated = true;
+    }
+
+    if (updated) {
+      this.cdr.markForCheck();
+    }
   }
 
   normalizeReceiptDate(value: string | null | undefined): string | null {
@@ -886,8 +1224,18 @@ export class ReceiptComponent implements OnInit, OnChanges, OnDestroy {
     return this.form.get('splits') as FormArray;
   }
 
+  onSplitAccountSelectionChange(splitIndex: number, value: string | number | null | undefined): void {
+    const parsed = Number(value ?? 0);
+    const accountId = Number.isFinite(parsed) && parsed > 0 ? parsed : null;
+    const row = this.splitsFormArray.at(splitIndex);
+    row?.get('chartOfAccountId')?.setValue(accountId);
+    row?.get('chartOfAccountId')?.markAsTouched();
+    this.cdr.markForCheck();
+  }
+
   addSplitLine(): void {
     this.splitsFormArray.push(this.createSplitFormGroup());
+    this.updateSplitLineAccountValidators();
   }
 
   removeSplitLine(index: number): void {
@@ -918,6 +1266,14 @@ export class ReceiptComponent implements OnInit, OnChanges, OnDestroy {
     const amount = Number(split?.amount);
     const normalizedReceiptTypeId = split?.receiptTypeId ?? 0;
     const normalizedWorkOrderCode = (split?.workOrderCode || split?.workOrder || '').trim();
+    const rawSplit = split as (Partial<Split> & Record<string, unknown>) | undefined;
+    const normalizedChartOfAccountId = Number(
+      rawSplit?.chartOfAccountId
+      ?? rawSplit?.['ChartOfAccountId']
+      ?? rawSplit?.accountId
+      ?? rawSplit?.['AccountId']
+      ?? 0
+    );
     return this.fb.group({
       receiptSplitId: new FormControl(split?.receiptSplitId ?? null),
       amount: new FormControl(Number.isFinite(amount) ? amount.toFixed(2) : '', [Validators.required]),
@@ -925,6 +1281,9 @@ export class ReceiptComponent implements OnInit, OnChanges, OnDestroy {
       workOrderId: new FormControl(split?.workOrderId ?? null),
       workOrderCode: new FormControl(normalizedWorkOrderCode),
       workOrder: new FormControl(normalizedWorkOrderCode),
+      chartOfAccountId: new FormControl(
+        Number.isFinite(normalizedChartOfAccountId) && normalizedChartOfAccountId > 0 ? normalizedChartOfAccountId : null
+      ),
       receiptTypeId: new FormControl(normalizedReceiptTypeId, [Validators.required])
     });
   }
@@ -941,6 +1300,12 @@ export class ReceiptComponent implements OnInit, OnChanges, OnDestroy {
       if (!amountRaw) return `Split line ${i + 1}: Amount is required.`;
       if (!description) return `Split line ${i + 1}: Description is required.`;
       if (receiptTypeId === null || receiptTypeId === undefined || receiptTypeId === '') return `Split line ${i + 1}: Type is required.`;
+      if (this.showSplitAccountColumn) {
+        const chartOfAccountId = Number(row.get('chartOfAccountId')?.value ?? 0);
+        if (!Number.isFinite(chartOfAccountId) || chartOfAccountId <= 0) {
+          return `Split line ${i + 1}: Account is required.`;
+        }
+      }
     }
 
     return null;
@@ -957,12 +1322,15 @@ export class ReceiptComponent implements OnInit, OnChanges, OnDestroy {
     this.splitsFormArray.clear();
     (splits || []).forEach(split => this.splitsFormArray.push(this.createSplitFormGroup(split)));
     this.ensureAtLeastOneSplit();
+    this.updateSplitLineAccountValidators();
     this.updatePropertyRequirementByReceiptType();
   }
 
   getPayloadSplitsFromForm(): Split[] {
+    const includeChartOfAccount = this.isOverallBillBankCard();
     return this.splitsFormArray.controls.map(control => {
       const amountRaw = this.sanitizeSignedDecimalInput(control.get('amount')?.value?.toString() ?? '');
+      const chartOfAccountId = Number(control.get('chartOfAccountId')?.value ?? 0);
       return {
         receiptSplitId: control.get('receiptSplitId')?.value ?? null,
         amount: parseFloat(amountRaw) || 0,
@@ -970,6 +1338,12 @@ export class ReceiptComponent implements OnInit, OnChanges, OnDestroy {
         workOrderId: (control.get('workOrderId')?.value || '').toString().trim() || null,
         workOrderCode: (control.get('workOrderCode')?.value || control.get('workOrder')?.value || '').trim(),
         workOrder: (control.get('workOrderCode')?.value || control.get('workOrder')?.value || '').trim(),
+        chartOfAccountId: includeChartOfAccount && Number.isFinite(chartOfAccountId) && chartOfAccountId > 0
+          ? chartOfAccountId
+          : null,
+        accountId: includeChartOfAccount && Number.isFinite(chartOfAccountId) && chartOfAccountId > 0
+          ? chartOfAccountId
+          : null,
         receiptTypeId: control.get('receiptTypeId')?.value ?? 0
       };
     });
@@ -1030,15 +1404,20 @@ export class ReceiptComponent implements OnInit, OnChanges, OnDestroy {
   }
 
   normalizeSplits(splits: Split[]): Split[] {
-    return (splits || []).map(split => ({
-      receiptSplitId: split.receiptSplitId ?? null,
-      amount: Number(split.amount) || 0,
-      description: (split.description || '').trim(),
-      workOrderId: (split.workOrderId || '').toString().trim() || null,
-      workOrderCode: (split.workOrderCode || split.workOrder || '').trim(),
-      workOrder: (split.workOrderCode || split.workOrder || '').trim(),
-      receiptTypeId: split.receiptTypeId ?? 0
-    }));
+    return (splits || []).map(split => {
+      const chartOfAccountId = this.mappingService.readSplitChartOfAccountId(split);
+      return {
+        receiptSplitId: split.receiptSplitId ?? null,
+        amount: Number(split.amount) || 0,
+        description: (split.description || '').trim(),
+        workOrderId: (split.workOrderId || '').toString().trim() || null,
+        workOrderCode: (split.workOrderCode || split.workOrder || '').trim(),
+        workOrder: (split.workOrderCode || split.workOrder || '').trim(),
+        chartOfAccountId,
+        accountId: chartOfAccountId,
+        receiptTypeId: split.receiptTypeId ?? 0
+      };
+    });
   }
 
   hasSplitWorkOrder(splitIndex: number): boolean {
@@ -1123,9 +1502,18 @@ export class ReceiptComponent implements OnInit, OnChanges, OnDestroy {
   onOverallBankCardChange(): void {
     if (this.isOverallBillBankCard()) {
       this.form.patchValue({ vendorName: null }, { emitEvent: false });
-      return;
+      this.applyCalculatedDueDate();
+    } else {
+      const patchValue: { vendorId: null; billNumber?: null } = { vendorId: null };
+      if (this.isAccountingShell) {
+        patchValue.billNumber = null;
+      }
+      this.form.patchValue(patchValue, { emitEvent: false });
     }
-    this.form.patchValue({ vendorId: null }, { emitEvent: false });
+    this.updateSplitLineAccountValidators();
+    this.updateAccountingBillFieldValidators();
+    this.updateVendorFieldValidators();
+    this.cdr.markForCheck();
   }
 
   onOverallBankCardSelectionChange(value: string | number | null | undefined): void {
@@ -1145,6 +1533,53 @@ export class ReceiptComponent implements OnInit, OnChanges, OnDestroy {
   }
   //#endregion
 
+  //#region Account Methods
+  get isAccountingShell(): boolean {
+    return this.shellContext === 'accounting';
+  }
+
+  get showSplitAccountColumn(): boolean {
+    return this.isAccountingShell && this.isOverallBillBankCard();
+  }
+
+  get showAccountingBillFields(): boolean {
+    return this.showSplitAccountColumn;
+  }
+
+  updateAccountingBillFieldValidators(): void {
+    const dueDateControl = this.form.get('dueDate');
+    const accountingPeriodControl = this.form.get('accountingPeriod');
+    if (!dueDateControl || !accountingPeriodControl) {
+      return;
+    }
+    if (this.showAccountingBillFields) {
+      dueDateControl.setValidators([Validators.required]);
+      accountingPeriodControl.setValidators([Validators.required]);
+    } else {
+      dueDateControl.clearValidators();
+      accountingPeriodControl.clearValidators();
+    }
+    dueDateControl.updateValueAndValidity({ emitEvent: false });
+    accountingPeriodControl.updateValueAndValidity({ emitEvent: false });
+  }
+
+  updateSplitLineAccountValidators(): void {
+    this.splitsFormArray.controls.forEach(control => {
+      const accountControl = control.get('chartOfAccountId');
+      if (!accountControl) {
+        return;
+      }
+      if (this.showSplitAccountColumn) {
+        accountControl.setValidators([Validators.required]);
+      } else {
+        accountControl.clearValidators();
+        accountControl.setValue(null, { emitEvent: false });
+      }
+      accountControl.updateValueAndValidity({ emitEvent: false });
+    });
+  }
+  //#endregion
+
   //#region Vendor Methods
   get overallVendorOptions(): SearchableSelectOption<string>[] {
     return [{ value: '', label: '' }, ...(this.vendorOptions || [])];
@@ -1154,6 +1589,7 @@ export class ReceiptComponent implements OnInit, OnChanges, OnDestroy {
     const selectedValue = String(value || '').trim();
     if (!selectedValue) {
       this.form.patchValue({ vendorId: null, vendorName: null }, { emitEvent: false });
+      this.applyCalculatedDueDate();
       return;
     }
     if (this.newContactDialogService.isNewContactOptionValue(selectedValue, EntityType.Vendor)) {
@@ -1165,6 +1601,7 @@ export class ReceiptComponent implements OnInit, OnChanges, OnDestroy {
       vendorId: selectedValue,
       vendorName: null
     }, { emitEvent: false });
+    this.applyCalculatedDueDate();
   }
 
   openNewVendorContactDialog(): void {
@@ -1180,6 +1617,18 @@ export class ReceiptComponent implements OnInit, OnChanges, OnDestroy {
         vendorId: result.contactId,
         vendorName: null
       }, { emitEvent: false });
+      this.contactService.refreshContacts().pipe(take(1)).subscribe({
+        next: contacts => {
+          this.contactCache = contacts || [];
+          this.applyVendorsFromContactCache();
+          this.applyCalculatedDueDate();
+          this.cdr.markForCheck();
+        },
+        error: () => {
+          this.applyCalculatedDueDate();
+          this.cdr.markForCheck();
+        }
+      });
     });
   }
   //#endregion 
@@ -1200,8 +1649,22 @@ export class ReceiptComponent implements OnInit, OnChanges, OnDestroy {
     if (this.property?.propertyId) {
       this.selectedPropertyId = this.property.propertyId;
     }
+    if (!this.form) {
+      const propertyOfficeId = this.normalizeOfficeId(this.property?.officeId);
+      if (propertyOfficeId) {
+        this.setReceiptOfficeId(propertyOfficeId);
+      }
+      return;
+    }
     this.syncReceiptOfficeFromSelectedProperties();
-    if (!this.form || !this.isAddMode || !this.selectedPropertyId) {
+    if (!this.isAddMode) {
+      return;
+    }
+    if (this.showAccountingCompanyPropertyOption && !this.property?.propertyId) {
+      this.applyAccountingCompanySelection();
+      return;
+    }
+    if (!this.selectedPropertyId) {
       return;
     }
     const officeName = this.getOfficeNameForOfficeId(this.getReceiptOfficeId()) || this.property?.officeName || '';
@@ -1210,14 +1673,98 @@ export class ReceiptComponent implements OnInit, OnChanges, OnDestroy {
       propertyCode: this.property?.propertyCode || this.getPropertyCodesDisplay([this.selectedPropertyId]),
       propertyIds: [this.selectedPropertyId]
     }, { emitEvent: false });
+    this.lastPropertyIdsValue = this.getFormPropertyIds();
   }
 
   syncSelectedPropertyIdFromForm(): void {
     const fromForm = this.getSelectedPropertyIds()[0] ?? null;
-    this.selectedPropertyId = fromForm ?? this.property?.propertyId ?? null;
+    this.selectedPropertyId = fromForm ?? (this.isAccountingCompanySelected() ? null : this.property?.propertyId ?? null);
+  }
+
+  get showAccountingCompanyPropertyOption(): boolean {
+    return this.shellContext === 'accounting';
+  }
+
+  isAccountingCompanySelected(): boolean {
+    return this.showAccountingCompanyPropertyOption
+      && this.getFormPropertyIds().includes(ACCOUNTING_COMPANY_PROPERTY_ID);
+  }
+
+  shouldDefaultToAccountingCompany(): boolean {
+    if (!this.showAccountingCompanyPropertyOption) {
+      return false;
+    }
+    if (this.getSelectedPropertyIds().length > 0) {
+      return false;
+    }
+    return this.isAddMode || this.getFormPropertyIds().length === 0;
+  }
+
+  applyAccountingCompanySelection(): void {
+    this.form.patchValue({
+      propertyIds: [ACCOUNTING_COMPANY_PROPERTY_ID],
+      propertyCode: 'Company'
+    }, { emitEvent: false });
+    this.lastPropertyIdsValue = [ACCOUNTING_COMPANY_PROPERTY_ID];
+    this.selectedPropertyId = null;
+    this.updatePropertyRequirementByReceiptType();
+  }
+
+  normalizeAccountingCompanyPropertySelection(current: string[] | null | undefined, previous: string[]): void {
+    if (!this.showAccountingCompanyPropertyOption || !Array.isArray(current)) {
+      return;
+    }
+
+    const hasCompany = current.includes(ACCOUNTING_COMPANY_PROPERTY_ID);
+    const realIds = current
+      .filter(propertyId => propertyId !== ACCOUNTING_COMPANY_PROPERTY_ID)
+      .map(propertyId => (propertyId || '').toString().trim())
+      .filter(propertyId => propertyId.length > 0);
+
+    if (!hasCompany || realIds.length === 0) {
+      return;
+    }
+
+    const companyAdded = hasCompany && !previous.includes(ACCOUNTING_COMPANY_PROPERTY_ID);
+    const next = companyAdded ? [ACCOUNTING_COMPANY_PROPERTY_ID] : realIds;
+    this.form.patchValue({ propertyIds: next }, { emitEvent: false });
+  }
+
+  toFormPropertyIds(propertyIds: string[] | null | undefined): string[] {
+    const realIds = (propertyIds || [])
+      .map(propertyId => (propertyId || '').toString().trim())
+      .filter(propertyId => propertyId.length > 0);
+    if (realIds.length > 0) {
+      return realIds;
+    }
+    if (this.showAccountingCompanyPropertyOption) {
+      return [ACCOUNTING_COMPANY_PROPERTY_ID];
+    }
+    return [];
+  }
+
+  getFormPropertyIds(): string[] {
+    if (!this.form) {
+      return [];
+    }
+    const value = this.form.get('propertyIds')?.value;
+    if (!Array.isArray(value)) {
+      return [];
+    }
+    return value.map(propertyId => (propertyId || '').toString().trim()).filter(propertyId => propertyId.length > 0);
+  }
+
+  getPayloadPropertyIds(): string[] {
+    if (this.isAccountingCompanySelected()) {
+      return [];
+    }
+    return this.getSelectedPropertyIds();
   }
 
   isPropertySelectionRequired(): boolean {
+    if (this.isAccountingCompanySelected()) {
+      return false;
+    }
     const splits = this.getPayloadSplitsFromForm();
     if (!splits || splits.length === 0) {
       return true;
@@ -1231,7 +1778,7 @@ export class ReceiptComponent implements OnInit, OnChanges, OnDestroy {
       return;
     }
     if (this.isPropertySelectionRequired()) {
-      propertyIdsControl.setValidators([Validators.required]);
+      propertyIdsControl.setValidators([this.requireNonEmptyArray]);
     } else {
       propertyIdsControl.clearValidators();
       propertyIdsControl.setErrors(null);
@@ -1240,18 +1787,32 @@ export class ReceiptComponent implements OnInit, OnChanges, OnDestroy {
     this.emitPropertySelectionRequiredState();
   }
 
+  updateVendorFieldValidators(): void {
+    const vendorIdControl = this.form.get('vendorId');
+    const vendorNameControl = this.form.get('vendorName');
+    if (!vendorIdControl || !vendorNameControl) {
+      return;
+    }
+
+    if (this.isOverallBillBankCard()) {
+      vendorIdControl.setValidators([this.requireNonEmptyVendorId]);
+      vendorNameControl.clearValidators();
+    } else {
+      vendorNameControl.setValidators([Validators.required]);
+      vendorIdControl.clearValidators();
+    }
+
+    vendorIdControl.updateValueAndValidity({ emitEvent: false });
+    vendorNameControl.updateValueAndValidity({ emitEvent: false });
+  }
+
   emitPropertySelectionRequiredState(): void {
     this.propertySelectionRequiredChange.emit(this.isPropertySelectionRequired());
   }
 
   getSelectedPropertyIds(): string[] {
-    const value = this.form.get('propertyIds')?.value;
-    if (!Array.isArray(value)) {
-      return [];
-    }
-    return value
-      .map(propertyId => (propertyId || '').toString().trim())
-      .filter(propertyId => propertyId.length > 0);
+    return this.getFormPropertyIds()
+      .filter(propertyId => propertyId !== ACCOUNTING_COMPANY_PROPERTY_ID);
   }
 
   havePropertyIdsChanged(nextPropertyIds: string[], currentPropertyIds: string[]): boolean {
@@ -1264,10 +1825,18 @@ export class ReceiptComponent implements OnInit, OnChanges, OnDestroy {
   }
 
   getPropertyCodesDisplay(propertyIds: string[] | null | undefined): string {
+    const ids = propertyIds || [];
+    if (this.showAccountingCompanyPropertyOption && ids.includes(ACCOUNTING_COMPANY_PROPERTY_ID)) {
+      const realIds = ids.filter(propertyId => propertyId !== ACCOUNTING_COMPANY_PROPERTY_ID && (propertyId || '').trim());
+      if (realIds.length === 0) {
+        return 'Company';
+      }
+    }
     const codeLookup = new Map(
       (this.propertyOptions || []).map(property => [property.propertyId, (property.propertyCode || '').trim()])
     );
-    return (propertyIds || [])
+    return ids
+      .filter(propertyId => propertyId !== ACCOUNTING_COMPANY_PROPERTY_ID)
       .map(propertyId => (propertyId || '').trim())
       .filter(propertyId => propertyId.length > 0)
       .map(propertyId => codeLookup.get(propertyId) || propertyId)
@@ -1346,6 +1915,8 @@ export class ReceiptComponent implements OnInit, OnChanges, OnDestroy {
       officeName,
       propertyIds: [],
       receiptDate: '',
+      dueDate: '',
+      accountingPeriod: '',
       ticketId: this.ticketId || '',
       description: '',
       amount: 0,
@@ -1384,8 +1955,23 @@ export class ReceiptComponent implements OnInit, OnChanges, OnDestroy {
     return Math.round((numeric + Number.EPSILON) * 100);
   }
 
+  get isEmbeddedInShell(): boolean {
+    return this.shellContext === 'maintenance' || this.shellContext === 'accounting';
+  }
+
   back(): void {
-    this.backEvent.emit();
+    if (this.isEmbeddedInShell) {
+      this.backEvent.emit();
+      return;
+    }
+
+    if (this.selectedPropertyId) {
+      const maintenanceUrl = RouterUrl.replaceTokens(RouterUrl.Maintenance, [this.selectedPropertyId]);
+      this.router.navigate(['/' + maintenanceUrl], { queryParams: { tab: 2 } });
+      return;
+    }
+
+    this.router.navigateByUrl(RouterUrl.MaintenanceList);
   }
 
   ngOnDestroy(): void {

@@ -12,7 +12,7 @@
         tableName="receipts-list"
         [data]="receiptsDisplay"
         [columns]="receiptDisplayedColumns"
-        noDataMessage="No unaccounted receipts"
+        [noDataMessage]="embeddedInAccounting ? 'No bills' : 'No unaccounted receipts'"
         [hasColumnIndex]="false"
         [hasFilter]="true"
         [hasToggleTop]="false"
@@ -20,7 +20,8 @@
         [hasActionsRowClick]="true"
         [hasActionsEdit]="true"
         [hasActionsDelete]="true"
-        [hasWorkOrderCodeLink]="true"
+        [hasActionsPayable]="embeddedInAccounting"
+        [hasWorkOrderCodeLink]="!embeddedInAccounting"
         [deleteConfirmTitle]="'Delete Receipt'"
         [deleteConfirmMessage]="'Are you sure you want to delete this receipt?'"
         [itemsPerPage]="100"
@@ -30,6 +31,7 @@
         (workOrderCodeClickEvent)="goToWorkOrderFromCode($event)"
         (dropdownChangeEvent)="onReceiptDropdownChange($event)"
         (deleteEvent)="deleteReceipt($event)"
+        (payableEvent)="onPayable($event)"
         (checkboxChangeEvent)="onReceiptCheckboxChange($event)"
         (inlineEditChangeEvent)="onReceiptInlineEditChange($event)">
         <div dataTableFilterActions>

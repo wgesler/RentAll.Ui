@@ -7,6 +7,9 @@ export interface Split {
   workOrderId?: string | null;
   workOrderCode?: string | null;
   receiptTypeId: number;
+  chartOfAccountId?: number | null;
+  accountId?: number | null;
+  chartOfAccountDisplayName?: string | null;
   bankCardId?: number | null;
   bankCardDisplayName?: string | null;
   vendorId?: string | null;
@@ -20,6 +23,9 @@ export interface ReceiptRequest {
   officeId: number;
   propertyIds: string[];
   receiptDate: string;
+  dueDate?: string;
+  accountingPeriod?: string;
+  billNumber?: string | null;
   ticketId: string;
   amount: number;
   description: string;
@@ -39,6 +45,9 @@ export interface ReceiptResponse {
   officeName: string;
   propertyIds: string[];
   receiptDate: string;
+  dueDate: string;
+  accountingPeriod: string;
+  billNumber?: string | null;
   ticketId: string;
   description: string;
   amount: number;
@@ -50,6 +59,7 @@ export interface ReceiptResponse {
   fileDetails?: FileDetails | null;
   bankCardDisplayName?: string;
   isActive: boolean;
+  createdOn?: string;
   createdBy?: string;
   createdByName?: string;
   modifiedOn: string;
@@ -75,6 +85,7 @@ export interface ReceiptDisplayList {
   vendorId?: string | null;
   vendorName?: string | null;
   bankCardDisplayName?: string;
+  accountDisplay?: string;
   bankCardDropdown?: {
     value: string;
     isOverridable: boolean;
@@ -90,8 +101,18 @@ export interface ReceiptDisplayList {
   receiptTypeDisplay?: string;
   descriptionDisplay?: string;
   isActive: boolean;
+  payableDisabled?: boolean;
   receiptPath?: string | null;
   description: string;
+  billNumber?: string | null;
+  dueDate: string;
+  accountingPeriod: string;
+  period?: string;
+  created?: string;
+  paidAmount?: string;
+  dueAmount?: string;
+  paidAmountValue?: number;
+  dueAmountValue?: number;
   createdBy?: string;
   createdByName?: string;
   modifiedOn: string;

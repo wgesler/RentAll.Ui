@@ -2,7 +2,7 @@ import { CommonModule } from '@angular/common';
 import { ChangeDetectionStrategy, ChangeDetectorRef, Component, EventEmitter, Input, OnChanges, OnDestroy, OnInit, Output, SimpleChanges } from '@angular/core';
 import { Router } from '@angular/router';
 import { ToastrService } from 'ngx-toastr';
-import { BehaviorSubject, EMPTY, Subject, finalize, switchMap, take, takeUntil } from 'rxjs';
+import { BehaviorSubject, EMPTY, Subject, filter, finalize, switchMap, take, takeUntil } from 'rxjs';
 import { RouterUrl } from '../../../app.routes';
 import { CommonMessage } from '../../../enums/common-message.enum';
 import { MaterialModule } from '../../../material.module';
@@ -13,8 +13,8 @@ import { PropertyResponse } from '../../properties/models/property.model';
 import { PropertyService } from '../../properties/services/property.service';
 import { AccountingOfficeService } from '../../organizations/services/accounting-office.service';
 import { AccountingOfficeResponse } from '../../organizations/models/accounting-office.model';
-import { OfficeResponse } from '../../organizations/models/office.model';
-import { OfficeService } from '../../organizations/services/office.service';
+import { ChartOfAccountResponse } from '../../accounting/models/chart-of-accounts.model';
+import { ChartOfAccountsService } from '../../accounting/services/chart-of-accounts.service';
 import { BankCardResponse } from '../../organizations/models/bank.model';
 import { EntityType } from '../../contacts/models/contact-enum';
 import { ContactResponse } from '../../contacts/models/contact.model';
@@ -24,7 +24,7 @@ import { DataTableComponent } from '../../shared/data-table/data-table.component
 import { DataTableFilterActionsDirective } from '../../shared/data-table/data-table-filter-actions.directive';
 import { ColumnSet } from '../../shared/data-table/models/column-data';
 import { MaintenanceListSearchRequest } from '../models/maintenance-search.model';
-import { ReceiptDisplayList, ReceiptRequest, ReceiptResponse, ReceiptSelection } from '../models/receipt.model';
+import { ReceiptDisplayList, ReceiptRequest, ReceiptResponse, ReceiptSelection, Split } from '../models/receipt.model';
 import { ReceiptService } from '../services/receipt.service';
 import { WorkOrderService } from '../services/work-order.service';
 
@@ -41,15 +41,16 @@ export class ReceiptsListComponent implements OnInit, OnChanges, OnDestroy {
   @Input() officeId: number | null = null;
   @Input() searchRequest?: MaintenanceListSearchRequest | null;
   @Input() embeddedInMaintenance = false;
+  @Input() embeddedInAccounting = false;
   @Input() refreshTrigger: number = 0;
   @Output() receiptSelect = new EventEmitter<ReceiptSelection>();
+  @Output() payableEvent = new EventEmitter<ReceiptDisplayList>();
   @Output() workOrderSelect = new EventEmitter<{ workOrderId: string | null; propertyId: string | null }>();
 
   isPageReady = false;
   isServiceError: boolean = false;
   itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['receipts']));
   destroy$ = new Subject<void>();
-  offices: OfficeResponse[] = [];
   accountingOffices: AccountingOfficeResponse[] = [];
   showInactive: boolean = false;
   receipts: ReceiptResponse[] = [];
@@ -58,17 +59,17 @@ export class ReceiptsListComponent implements OnInit, OnChanges, OnDestroy {
   propertyCodeLookup = new Map<string, string>();
   bankCardOptionsByOfficeId = new Map<number, Array<{ bankCardId: number; label: string }>>();
   vendorOptionsByOfficeId = new Map<number, Array<{ contactId: string; label: string }>>();
+  chartOfAccountsByOfficeId = new Map<number, Map<number, ChartOfAccountResponse>>();
 
   isAdmin = false;
   canEditIsActiveCheckbox = false;
 
-  selectedProperty: PropertyResponse | null = null;
   selectedPropertyId: string | null = null;
-  private receiptsLoadId = 0;
-  private lastReceiptSearchKey: string | null = null;
-  private receiptSearchInFlightKey: string | null = null;
+  receiptsLoadId = 0;
+  lastReceiptSearchKey: string | null = null;
+  receiptSearchInFlightKey: string | null = null;
 
-  receiptDisplayedColumns: ColumnSet = {
+  readonly maintenanceReceiptDisplayedColumns: ColumnSet = {
     no: { displayAs: 'No', maxWidth: '5ch', sort: false, wrap: false },
     propertyCode: { displayAs: 'Property', wrap: false, maxWidth: '15ch' },
     workOrderDisplay: { displayAs: 'WO Code(s)', wrap: true, maxWidth: '18ch' },
@@ -83,22 +84,40 @@ export class ReceiptsListComponent implements OnInit, OnChanges, OnDestroy {
     isActive: { displayAs: 'IsActive', isCheckbox: true, checkboxEditable: false, sort: false, wrap: false, alignment: 'center', maxWidth: '15ch' }
   };
 
+  readonly accountingReceiptDisplayedColumns: ColumnSet = {
+    no: { displayAs: 'No', maxWidth: '5ch', sort: false, wrap: false },
+    propertyCode: { displayAs: 'Property', wrap: false, maxWidth: '15ch' },
+    accountDisplay: { displayAs: 'Account(s)', wrap: true, maxWidth: '25ch' },
+    billNumber: { displayAs: 'Bill Number', wrap: false, maxWidth: '15ch' },
+    receipt: { displayAs: 'Receipt', wrap: false, sort: false, maxWidth: '12ch', alignment: 'center' },
+    period: { displayAs: 'Period', maxWidth: '12ch', alignment: 'center' },
+    receiptDate: { displayAs: 'Bill Date', wrap: false, maxWidth: '15ch', alignment: 'center' },
+    dueDate: { displayAs: 'Due Date', maxWidth: '15ch', alignment: 'center' },
+    created: { displayAs: 'Created', maxWidth: '15ch', alignment: 'center' },
+    amountDisplay: { displayAs: 'Amount', maxWidth: '15ch', alignment: 'right', headerAlignment: 'right', sort: false },
+    paidAmount: { displayAs: 'Paid', maxWidth: '15ch', alignment: 'right', headerAlignment: 'right', sort: false },
+    dueAmount: { displayAs: 'Due', maxWidth: '15ch', alignment: 'right', headerAlignment: 'right', sort: false }
+  };
+
+  get receiptDisplayedColumns(): ColumnSet {
+    return this.embeddedInAccounting ? this.accountingReceiptDisplayedColumns : this.maintenanceReceiptDisplayedColumns;
+  }
+
   constructor(
     private receiptService: ReceiptService,
     private mappingService: MappingService,
     private propertyService: PropertyService,
     private accountingOfficeService: AccountingOfficeService,
-    private officeService: OfficeService,
     private contactService: ContactService,
     private newContactDialogService: NewContactDialogService,
     private workOrderService: WorkOrderService,
+    private chartOfAccountsService: ChartOfAccountsService,
     private authService: AuthService,
     private utilityService: UtilityService,
     private router: Router,
     private toastr: ToastrService,
     private cdr: ChangeDetectorRef
   ) {}
-
 
 
   //#region Receipts List
@@ -109,10 +128,10 @@ export class ReceiptsListComponent implements OnInit, OnChanges, OnDestroy {
     });
     this.isAdmin = this.authService.isAdmin();
     this.setIsActiveCheckboxEditability();
-    this.loadOffices();
     this.loadAccountingOffices();
     this.loadVendors();
     this.loadPropertyLookup();
+    this.loadChartOfAccountsForAccounting();
     this.loadReceiptsForCurrentSearchCriteria();
   }
 
@@ -131,11 +150,15 @@ export class ReceiptsListComponent implements OnInit, OnChanges, OnDestroy {
       if (!this.property?.propertyId) {
         this.loadReceiptsForCurrentSearchCriteria();
       }
-      this.applyBankCardDropdownsToDisplays();
-      this.applyVendorCellsToDisplays();
+      this.applyReceiptDisplayMappings();
       this.applyFilters();
     }
 
+    if (changes['embeddedInAccounting']) {
+      this.loadChartOfAccountsForAccounting();
+      this.applyReceiptDisplayMappings();
+      this.applyFilters();
+    }
     if (changes['refreshTrigger'] && !changes['refreshTrigger'].firstChange) {
       this.loadReceiptsForCurrentSearchCriteria(true);
     }
@@ -143,24 +166,6 @@ export class ReceiptsListComponent implements OnInit, OnChanges, OnDestroy {
     if (changes['searchRequest'] && !changes['searchRequest'].firstChange && this.embeddedInMaintenance) {
       this.loadReceiptsForCurrentSearchCriteria();
     }
-  }
-
-  loadReceiptsForCurrentSearchCriteria(force = false): void {
-    if (!this.embeddedInMaintenance) {
-      this.getReceipts(force);
-      return;
-    }
-
-    queueMicrotask(() => {
-      if (!this.canRunMaintenanceSearch(this.searchRequest)) {
-        this.lastReceiptSearchKey = null;
-        this.receiptSearchInFlightKey = null;
-        this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'receipts');
-        this.markViewForCheck();
-        return;
-      }
-      this.getReceipts(force);
-    });
   }
 
   getReceipts(force = false): void {
@@ -207,9 +212,7 @@ export class ReceiptsListComponent implements OnInit, OnChanges, OnDestroy {
         }
         this.receipts = receipts || [];
         this.allReceipts = this.mappingService.mapReceiptDisplays(this.receipts);
-        this.applyBankCardDropdownsToDisplays();
-        this.applyVendorCellsToDisplays();
-        this.applyPropertyCodesToDisplays();
+        this.applyReceiptDisplayMappings();
         this.applyFilters();
         this.markViewForCheck();
       },
@@ -249,9 +252,7 @@ export class ReceiptsListComponent implements OnInit, OnChanges, OnDestroy {
         this.toastr.success('Receipt deleted successfully', CommonMessage.Success);
         this.receipts = this.receipts.filter(receipt => receipt.receiptId !== event.receiptId);
         this.allReceipts = this.mappingService.mapReceiptDisplays(this.receipts);
-        this.applyBankCardDropdownsToDisplays();
-        this.applyVendorCellsToDisplays();
-        this.applyPropertyCodesToDisplays();
+        this.applyReceiptDisplayMappings();
         this.applyFilters();
         this.markViewForCheck();
       },
@@ -260,6 +261,13 @@ export class ReceiptsListComponent implements OnInit, OnChanges, OnDestroy {
         this.markViewForCheck();
       }
     });
+  }
+
+  onPayable(event: ReceiptDisplayList): void {
+    if (!this.embeddedInAccounting || event?.payableDisabled) {
+      return;
+    }
+    this.payableEvent.emit(event);
   }
 
   goToReceipt(event: ReceiptDisplayList): void {
@@ -368,9 +376,7 @@ export class ReceiptsListComponent implements OnInit, OnChanges, OnDestroy {
         next: saved => {
           this.receipts = this.receipts.map(r => (r.receiptId === saved.receiptId ? saved : r));
           this.allReceipts = this.mappingService.mapReceiptDisplays(this.receipts);
-          this.applyBankCardDropdownsToDisplays();
-          this.applyVendorCellsToDisplays();
-          this.applyPropertyCodesToDisplays();
+          this.applyReceiptDisplayMappings();
           this.applyFilters();
           this.toastr.success('Receipt updated.', CommonMessage.Success);
           this.markViewForCheck();
@@ -419,18 +425,14 @@ export class ReceiptsListComponent implements OnInit, OnChanges, OnDestroy {
           next: saved => {
             this.receipts = this.receipts.map(r => (r.receiptId === saved.receiptId ? saved : r));
             this.allReceipts = this.mappingService.mapReceiptDisplays(this.receipts);
-            this.applyBankCardDropdownsToDisplays();
-            this.applyVendorCellsToDisplays();
-            this.applyPropertyCodesToDisplays();
+            this.applyReceiptDisplayMappings();
             this.applyFilters();
             this.toastr.success('Receipt updated.', CommonMessage.Success);
             this.markViewForCheck();
           },
           error: () => {
             this.allReceipts = this.mappingService.mapReceiptDisplays(this.receipts);
-            this.applyBankCardDropdownsToDisplays();
-            this.applyVendorCellsToDisplays();
-            this.applyPropertyCodesToDisplays();
+            this.applyReceiptDisplayMappings();
             this.applyFilters();
             this.toastr.error('Unable to update receipt.', CommonMessage.Error);
             this.markViewForCheck();
@@ -480,18 +482,14 @@ export class ReceiptsListComponent implements OnInit, OnChanges, OnDestroy {
         next: saved => {
           this.receipts = this.receipts.map(r => (r.receiptId === saved.receiptId ? saved : r));
           this.allReceipts = this.mappingService.mapReceiptDisplays(this.receipts);
-          this.applyBankCardDropdownsToDisplays();
-          this.applyVendorCellsToDisplays();
-          this.applyPropertyCodesToDisplays();
+          this.applyReceiptDisplayMappings();
           this.applyFilters();
           this.toastr.success('Receipt updated.', CommonMessage.Success);
           this.markViewForCheck();
         },
         error: () => {
           this.allReceipts = this.mappingService.mapReceiptDisplays(this.receipts);
-          this.applyBankCardDropdownsToDisplays();
-          this.applyVendorCellsToDisplays();
-          this.applyPropertyCodesToDisplays();
+          this.applyReceiptDisplayMappings();
           this.applyFilters();
           this.toastr.error('Unable to update receipt.', CommonMessage.Error);
           this.markViewForCheck();
@@ -528,18 +526,14 @@ export class ReceiptsListComponent implements OnInit, OnChanges, OnDestroy {
           next: saved => {
             this.receipts = this.receipts.map(r => (r.receiptId === saved.receiptId ? saved : r));
             this.allReceipts = this.mappingService.mapReceiptDisplays(this.receipts);
-            this.applyBankCardDropdownsToDisplays();
-            this.applyVendorCellsToDisplays();
-            this.applyPropertyCodesToDisplays();
+            this.applyReceiptDisplayMappings();
             this.applyFilters();
             this.toastr.success('Receipt updated.', CommonMessage.Success);
             this.markViewForCheck();
           },
           error: () => {
             this.allReceipts = this.mappingService.mapReceiptDisplays(this.receipts);
-            this.applyBankCardDropdownsToDisplays();
-            this.applyVendorCellsToDisplays();
-            this.applyPropertyCodesToDisplays();
+            this.applyReceiptDisplayMappings();
             this.applyFilters();
             this.toastr.error('Unable to update receipt.', CommonMessage.Error);
             this.markViewForCheck();
@@ -576,9 +570,7 @@ export class ReceiptsListComponent implements OnInit, OnChanges, OnDestroy {
         next: saved => {
           this.receipts = this.receipts.map(r => (r.receiptId === saved.receiptId ? saved : r));
           this.allReceipts = this.mappingService.mapReceiptDisplays(this.receipts);
-          this.applyBankCardDropdownsToDisplays();
-          this.applyVendorCellsToDisplays();
-          this.applyPropertyCodesToDisplays();
+          this.applyReceiptDisplayMappings();
           this.applyFilters();
           this.toastr.success('Receipt updated.', CommonMessage.Success);
           this.markViewForCheck();
@@ -712,18 +704,49 @@ export class ReceiptsListComponent implements OnInit, OnChanges, OnDestroy {
   }
 
   applyFilters(): void {
+    let filtered = this.filterAccountingBillsOnly(this.allReceipts);
+
     if (this.usesMaintenanceSearch()) {
-      this.receiptsDisplay = [...this.allReceipts];
+      this.receiptsDisplay = filtered;
       return;
     }
 
     this.receiptsDisplay = this.showInactive
-      ? [...this.allReceipts]
-      : this.allReceipts.filter(receipt => receipt.isActive !== false);
+      ? filtered
+      : filtered.filter(receipt => receipt.isActive !== false);
+  }
+
+  filterAccountingBillsOnly(receipts: ReceiptDisplayList[]): ReceiptDisplayList[] {
+    if (!this.embeddedInAccounting) {
+      return receipts;
+    }
+    return receipts.filter(receipt => this.isBillReceipt(receipt));
+  }
+
+  isBillReceipt(receipt: Pick<ReceiptDisplayList, 'bankCardId'>): boolean {
+    return Number(receipt.bankCardId ?? 0) === 0;
   }
   //#endregion
 
-  //#region Search Criterea Methods
+  //#region Search Criteria Methods
+  loadReceiptsForCurrentSearchCriteria(force = false): void {
+    if (!this.embeddedInMaintenance) {
+      this.getReceipts(force);
+      return;
+    }
+
+    queueMicrotask(() => {
+      if (!this.canRunMaintenanceSearch(this.searchRequest)) {
+        this.lastReceiptSearchKey = null;
+        this.receiptSearchInFlightKey = null;
+        this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'receipts');
+        this.markViewForCheck();
+        return;
+      }
+      this.getReceipts(force);
+    });
+  }
+
   usesMaintenanceSearch(): boolean {
     return this.embeddedInMaintenance && this.canRunMaintenanceSearch(this.searchRequest);
   }
@@ -774,41 +797,19 @@ export class ReceiptsListComponent implements OnInit, OnChanges, OnDestroy {
 
   //#region Data Load Methods
   loadPropertyLookup(): void {
-    const userId = this.authService.getUser()?.userId?.trim() ?? '';
-    if (!userId) {
-      return;
-    }
-    this.propertyService.getPropertiesBySelectionCriteria(userId).pipe(take(1), takeUntil(this.destroy$)).subscribe({
+    this.propertyService.getPropertyCodes().pipe(take(1), takeUntil(this.destroy$)).subscribe({
       next: properties => {
         this.propertyCodeLookup = new Map(
-          (properties || []).map(property => [property.propertyId, property.propertyCode || ''])
+          (properties || []).map(property => [
+            this.utilityService.normalizeId(property.propertyId),
+            (property.propertyCode || '').trim()
+          ])
         );
         this.applyPropertyCodesToDisplays();
         this.applyFilters();
         this.markViewForCheck();
       },
       error: () => {
-        this.markViewForCheck();
-      }
-    });
-  }
-
-  loadOffices(): void {
-    const organizationId = this.authService.getUser()?.organizationId?.trim() || '';
-    if (!organizationId) {
-      this.offices = [];
-      return;
-    }
-
-    this.officeService.ensureOfficesLoaded(organizationId).pipe(take(1)).subscribe({
-      next: () => {
-        this.officeService.getAllOffices().pipe(takeUntil(this.destroy$)).subscribe(offices => {
-          this.offices = offices || [];
-          this.markViewForCheck();
-        });
-      },
-      error: () => {
-        this.offices = [];
         this.markViewForCheck();
       }
     });
@@ -843,68 +844,9 @@ export class ReceiptsListComponent implements OnInit, OnChanges, OnDestroy {
       }
     });
   }
-
-  applyBankCardOptionsFromAccountingOffices(): void {
-    const officeMap = new Map<number, Array<{ bankCardId: number; label: string }>>();
-    (this.accountingOffices || []).forEach(office => {
-      const officeId = Number(office.officeId);
-      if (!Number.isFinite(officeId) || officeId <= 0) {
-        return;
-      }
-      const mappedCards = this.mappingService.mapBankCardsFromResponse(office.bankCards as BankCardResponse[]);
-      const cardOptions = [
-        { bankCardId: 0, label: 'Bill' },
-        ...mappedCards
-          .filter(card => Number(card.bankCardId) > 0)
-          .map(card => ({
-            bankCardId: Number(card.bankCardId),
-            label: this.toBankCardOptionLabel(card)
-          }))
-      ];
-      officeMap.set(officeId, cardOptions);
-    });
-    this.bankCardOptionsByOfficeId = officeMap;
-    this.applyBankCardDropdownsToDisplays();
-    this.applyVendorCellsToDisplays();
-    this.applyFilters();
-    this.markViewForCheck();
-  }
-
-  applyVendorOptionsFromContacts(contacts: ContactResponse[]): void {
-    const officeMap = new Map<number, Array<{ contactId: string; label: string }>>();
-    contacts
-      .filter(contact => contact.entityTypeId === EntityType.Vendor)
-      .forEach(contact => {
-        const officeId = Number(contact.officeId);
-        const contactId = String(contact.contactId || '').trim();
-        if (!Number.isFinite(officeId) || officeId <= 0 || contactId.length === 0) {
-          return;
-        }
-        const rows = officeMap.get(officeId) || [];
-        rows.push({
-          contactId,
-          label: this.normalizeVendorDisplayText(this.utilityService.getVendorDropdownLabel(contact))
-        });
-        officeMap.set(officeId, rows);
-      });
-    this.vendorOptionsByOfficeId = officeMap;
-    this.applyVendorCellsToDisplays();
-    this.applyFilters();
-    this.markViewForCheck();
-  }
   //#endregion
 
-  //#region Form Response Methods
-  applyPropertyCodesToDisplays(): void {
-    this.allReceipts = (this.allReceipts || []).map(receipt => ({
-      ...receipt,
-      propertyCode: (receipt.propertyIds || [])
-        .map(propertyId => this.propertyCodeLookup.get(propertyId) || propertyId)
-        .filter(code => (code || '').trim().length > 0)
-        .join(', ')
-    }));
-  }
-  
+  //#region Dropdown Options Methods
   isAllOfficesScope(): boolean {
     const scopedOfficeId = Number(this.officeId ?? 0);
     return !Number.isFinite(scopedOfficeId) || scopedOfficeId <= 0;
@@ -993,24 +935,103 @@ export class ReceiptsListComponent implements OnInit, OnChanges, OnDestroy {
             next: saved => {
               this.receipts = this.receipts.map(r => (r.receiptId === saved.receiptId ? saved : r));
               this.allReceipts = this.mappingService.mapReceiptDisplays(this.receipts);
-              this.applyBankCardDropdownsToDisplays();
-              this.applyVendorCellsToDisplays();
-              this.applyPropertyCodesToDisplays();
+              this.applyReceiptDisplayMappings();
               this.applyFilters();
               this.toastr.success('Receipt updated.', CommonMessage.Success);
               this.markViewForCheck();
             },
             error: () => {
               this.allReceipts = this.mappingService.mapReceiptDisplays(this.receipts);
-              this.applyBankCardDropdownsToDisplays();
-              this.applyVendorCellsToDisplays();
-              this.applyPropertyCodesToDisplays();
+              this.applyReceiptDisplayMappings();
               this.applyFilters();
               this.toastr.error('Unable to update receipt.', CommonMessage.Error);
               this.markViewForCheck();
             }
           });
       });
+  }
+  //#endregion
+
+  //#region Display Mapping Methods
+   applyBankCardOptionsFromAccountingOffices(): void {
+    const officeMap = new Map<number, Array<{ bankCardId: number; label: string }>>();
+    (this.accountingOffices || []).forEach(office => {
+      const officeId = Number(office.officeId);
+      if (!Number.isFinite(officeId) || officeId <= 0) {
+        return;
+      }
+      const mappedCards = this.mappingService.mapBankCardsFromResponse(office.bankCards as BankCardResponse[]);
+      const cardOptions = [
+        { bankCardId: 0, label: 'Bill' },
+        ...mappedCards
+          .filter(card => Number(card.bankCardId) > 0)
+          .map(card => ({
+            bankCardId: Number(card.bankCardId),
+            label: this.toBankCardOptionLabel(card)
+          }))
+      ];
+      officeMap.set(officeId, cardOptions);
+    });
+    this.bankCardOptionsByOfficeId = officeMap;
+    this.applyReceiptDisplayMappings();
+    this.applyFilters();
+    this.markViewForCheck();
+  }
+
+  applyVendorOptionsFromContacts(contacts: ContactResponse[]): void {
+    const officeMap = new Map<number, Array<{ contactId: string; label: string }>>();
+    contacts
+      .filter(contact => contact.entityTypeId === EntityType.Vendor)
+      .forEach(contact => {
+        const officeId = Number(contact.officeId);
+        const contactId = String(contact.contactId || '').trim();
+        if (!Number.isFinite(officeId) || officeId <= 0 || contactId.length === 0) {
+          return;
+        }
+        const rows = officeMap.get(officeId) || [];
+        rows.push({
+          contactId,
+          label: this.normalizeVendorDisplayText(this.utilityService.getVendorDropdownLabel(contact))
+        });
+        officeMap.set(officeId, rows);
+      });
+    this.vendorOptionsByOfficeId = officeMap;
+    this.applyVendorCellsToDisplays();
+    this.applyFilters();
+    this.markViewForCheck();
+  }
+  
+  applyReceiptDisplayMappings(): void {
+    this.applyBankCardDropdownsToDisplays();
+    this.applyVendorCellsToDisplays();
+    this.applyPropertyCodesToDisplays();
+    if (this.embeddedInAccounting) {
+      this.refreshChartOfAccountsLookups();
+      this.applyAccountDisplayToDisplays();
+      this.applyPayableActionFlagsToDisplays();
+    }
+  }
+
+  applyPropertyCodesToDisplays(): void {
+    this.allReceipts = (this.allReceipts || []).map(receipt => ({
+      ...receipt,
+      propertyCode: this.buildPropertyCodesDisplay(receipt.propertyIds)
+    }));
+  }
+
+  buildPropertyCodesDisplay(propertyIds: string[] | null | undefined): string {
+    return (propertyIds || [])
+      .map(propertyId => this.resolvePropertyCode(propertyId))
+      .filter(code => code.length > 0)
+      .join(', ');
+  }
+
+  resolvePropertyCode(propertyId: string | null | undefined): string {
+    const normalizedPropertyId = this.utilityService.normalizeId(propertyId);
+    if (!normalizedPropertyId) {
+      return '';
+    }
+    return (this.propertyCodeLookup.get(normalizedPropertyId) || '').trim();
   }
 
   applyBankCardDropdownsToDisplays(): void {
@@ -1072,35 +1093,134 @@ export class ReceiptsListComponent implements OnInit, OnChanges, OnDestroy {
       };
     });
   }
+  //#endregion
 
+  //#region Accounting Display Methods
+  loadChartOfAccountsForAccounting(): void {
+    if (!this.embeddedInAccounting) {
+      this.chartOfAccountsByOfficeId.clear();
+      return;
+    }
+
+    this.chartOfAccountsService.ensureChartOfAccountsLoaded();
+    this.chartOfAccountsService.areChartOfAccountsLoaded().pipe(
+      filter(loaded => loaded === true),
+      take(1),
+      takeUntil(this.destroy$)
+    ).subscribe(() => {
+      this.refreshChartOfAccountsLookups();
+      this.applyAccountDisplayToDisplays();
+      this.applyFilters();
+      this.markViewForCheck();
+    });
+  }
+
+  refreshChartOfAccountsLookups(): void {
+    if (!this.embeddedInAccounting) {
+      this.chartOfAccountsByOfficeId.clear();
+      return;
+    }
+
+    const officeIds = new Set<number>();
+    (this.allReceipts || []).forEach(receipt => {
+      const officeId = Number(receipt.officeId ?? 0);
+      if (Number.isFinite(officeId) && officeId > 0) {
+        officeIds.add(officeId);
+      }
+    });
+
+    this.chartOfAccountsByOfficeId.clear();
+    officeIds.forEach(officeId => {
+      const accounts = this.chartOfAccountsService.getChartOfAccountsForOffice(officeId) || [];
+      this.chartOfAccountsByOfficeId.set(
+        officeId,
+        new Map(accounts.map(account => [Number(account.accountId), account]))
+      );
+    });
+  }
+
+  applyAccountDisplayToDisplays(): void {
+    if (!this.embeddedInAccounting) {
+      return;
+    }
+
+    this.allReceipts = (this.allReceipts || []).map(receipt => ({
+      ...receipt,
+      accountDisplay: this.buildAccountDisplayFromSplits(receipt)
+    }));
+  }
+
+  buildAccountDisplayFromSplits(receipt: ReceiptDisplayList): string {
+    const officeId = Number(receipt.officeId ?? 0);
+    const accountLabels = Array.from(new Set(
+      (receipt.splits || [])
+        .map(split => this.resolveSplitAccountLabel(split, officeId))
+        .filter(label => label.length > 0)
+    ));
+    return accountLabels.join(', ');
+  }
+
+  resolveSplitAccountLabel(split: Split, officeId: number): string {
+    const rawSplit = split as Split & Record<string, unknown>;
+    const displayName = String(
+      rawSplit.chartOfAccountDisplayName ?? rawSplit['ChartOfAccountDisplayName'] ?? ''
+    ).trim();
+    if (displayName) {
+      return displayName;
+    }
+
+    const accountId = this.mappingService.readSplitChartOfAccountId(split);
+    if (!accountId) {
+      return '';
+    }
+
+    const account = this.chartOfAccountsByOfficeId.get(officeId)?.get(accountId);
+    if (!account) {
+      return `Account ${accountId}`;
+    }
+
+    const accountNo = (account.accountNo || '').trim();
+    const accountName = (account.name || '').trim();
+    if (accountNo && accountName) {
+      return `${accountNo} - ${accountName}`;
+    }
+    return accountNo || accountName || `Account ${accountId}`;
+  }
+
+  applyPayableActionFlagsToDisplays(): void {
+    this.allReceipts = (this.allReceipts || []).map(receipt => ({
+      ...receipt,
+      payableDisabled: Number(receipt.bankCardId ?? 0) !== 0
+    }));
+  }
+  //#endregion
+
+  //#region Inline Update Request Methods
   setIsActiveCheckboxEditability(): void {
     this.canEditIsActiveCheckbox = this.isAdmin;
-    this.receiptDisplayedColumns['isActive'].checkboxEditable = this.canEditIsActiveCheckbox;
+    const maintenanceIsActiveColumn = this.maintenanceReceiptDisplayedColumns['isActive'];
+    if (maintenanceIsActiveColumn) {
+      maintenanceIsActiveColumn.checkboxEditable = this.canEditIsActiveCheckbox;
+    }
   }
 
   buildReceiptIsActiveUpdateRequest(receipt: ReceiptResponse, isActive: boolean): ReceiptRequest {
-    const splits = (receipt.splits || []).map(s => ({
-      receiptSplitId: s.receiptSplitId ?? null,
-      amount: Number(s.amount) || 0,
-      description: String(s.description ?? '').trim(),
-      workOrderId: s.workOrderId ?? null,
-      workOrderCode: s.workOrderCode != null && String(s.workOrderCode).trim().length > 0 ? String(s.workOrderCode).trim() : '',
-      workOrder: s.workOrder != null && String(s.workOrder).trim().length > 0 ? String(s.workOrder).trim() : '',
-      receiptTypeId: s.receiptTypeId ?? 0
-    }));
     return {
       receiptId: receipt.receiptId,
       organizationId: receipt.organizationId,
       officeId: receipt.officeId,
       propertyIds: [...(receipt.propertyIds || [])],
       receiptDate: receipt.receiptDate || '',
+      dueDate: receipt.dueDate,
+      accountingPeriod: receipt.accountingPeriod,
+      billNumber: receipt.billNumber ?? null,
       ticketId: receipt.ticketId,
       amount: Number(receipt.amount) || 0,
       description: String(receipt.description ?? '').trim(),
       bankCardId: receipt.bankCardId ?? null,
       vendorId: receipt.vendorId ?? null,
       vendorName: receipt.vendorName ?? null,
-      splits,
+      splits: this.mapReceiptSplitsForRequest(receipt.splits),
       receiptPath: receipt.receiptPath ?? null,
       isActive
     };
@@ -1133,34 +1253,42 @@ export class ReceiptsListComponent implements OnInit, OnChanges, OnDestroy {
     return this.buildReceiptFieldUpdateRequest(receipt, { receiptDate });
   }
 
-  buildReceiptFieldUpdateRequest(receipt: ReceiptResponse, fields: Partial<Pick<ReceiptRequest, 'bankCardId' | 'vendorId' | 'vendorName' | 'receiptDate' | 'isActive'>>): ReceiptRequest {
-    const hasBankCardId = Object.prototype.hasOwnProperty.call(fields, 'bankCardId');
-    const hasVendorId = Object.prototype.hasOwnProperty.call(fields, 'vendorId');
-    const hasVendorName = Object.prototype.hasOwnProperty.call(fields, 'vendorName');
-    const hasReceiptDate = Object.prototype.hasOwnProperty.call(fields, 'receiptDate');
-    const hasIsActive = Object.prototype.hasOwnProperty.call(fields, 'isActive');
-    const splits = (receipt.splits || []).map(s => ({
+  mapReceiptSplitsForRequest(splits: Split[] | undefined): Split[] {
+    return (splits || []).map(s => ({
       receiptSplitId: s.receiptSplitId ?? null,
       amount: Number(s.amount) || 0,
       description: String(s.description ?? '').trim(),
       workOrderId: s.workOrderId ?? null,
       workOrderCode: s.workOrderCode != null && String(s.workOrderCode).trim().length > 0 ? String(s.workOrderCode).trim() : '',
       workOrder: s.workOrder != null && String(s.workOrder).trim().length > 0 ? String(s.workOrder).trim() : '',
-      receiptTypeId: s.receiptTypeId ?? 0
+      receiptTypeId: s.receiptTypeId ?? 0,
+      chartOfAccountId: this.mappingService.readSplitChartOfAccountId(s),
+      accountId: this.mappingService.readSplitChartOfAccountId(s)
     }));
+  }
+
+  buildReceiptFieldUpdateRequest(receipt: ReceiptResponse, fields: Partial<Pick<ReceiptRequest, 'bankCardId' | 'vendorId' | 'vendorName' | 'receiptDate' | 'isActive'>>): ReceiptRequest {
+    const hasBankCardId = Object.prototype.hasOwnProperty.call(fields, 'bankCardId');
+    const hasVendorId = Object.prototype.hasOwnProperty.call(fields, 'vendorId');
+    const hasVendorName = Object.prototype.hasOwnProperty.call(fields, 'vendorName');
+    const hasReceiptDate = Object.prototype.hasOwnProperty.call(fields, 'receiptDate');
+    const hasIsActive = Object.prototype.hasOwnProperty.call(fields, 'isActive');
     return {
       receiptId: receipt.receiptId,
       organizationId: receipt.organizationId,
       officeId: receipt.officeId,
       propertyIds: [...(receipt.propertyIds || [])],
       receiptDate: hasReceiptDate ? (fields.receiptDate || '') : (receipt.receiptDate || ''),
+      dueDate: receipt.dueDate,
+      accountingPeriod: receipt.accountingPeriod,
+      billNumber: receipt.billNumber ?? null,
       ticketId: receipt.ticketId,
       amount: Number(receipt.amount) || 0,
       description: String(receipt.description ?? '').trim(),
       bankCardId: hasBankCardId ? (fields.bankCardId ?? null) : (receipt.bankCardId ?? null),
       vendorId: hasVendorId ? (fields.vendorId ?? null) : (receipt.vendorId ?? null),
       vendorName: hasVendorName ? (fields.vendorName ?? null) : (receipt.vendorName ?? null),
-      splits,
+      splits: this.mapReceiptSplitsForRequest(receipt.splits),
       receiptPath: receipt.receiptPath ?? null,
       isActive: hasIsActive ? (fields.isActive ?? receipt.isActive) : receipt.isActive
     };
@@ -1169,9 +1297,7 @@ export class ReceiptsListComponent implements OnInit, OnChanges, OnDestroy {
   syncReceiptRowFromServer(receipt: ReceiptResponse): void {
     this.receipts = this.receipts.map(r => (r.receiptId === receipt.receiptId ? receipt : r));
     this.allReceipts = this.mappingService.mapReceiptDisplays(this.receipts);
-    this.applyBankCardDropdownsToDisplays();
-    this.applyVendorCellsToDisplays();
-    this.applyPropertyCodesToDisplays();
+    this.applyReceiptDisplayMappings();
     this.applyFilters();
   }
 

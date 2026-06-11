@@ -6,46 +6,7 @@
           <mat-icon class="flex-shrink-0">account_balance</mat-icon>
           <span class="flex-shrink-0 text-xl font-medium">Accounting</span>
         </span>
-        @if (showShellOfficeDropdown && selectedTabIndex === 1) {
-          <div class="header-title form-titlebar-fields-wrap accounting-shell-titlebar-fields">
-            <div class="accounting-shell-titlebar-filters">
-            <app-title-bar-select
-              [label]="'Office'"
-              [formFieldClass]="'titlebar-field-office'"
-              [value]="selectedOfficeId"
-              [options]="shellOfficeTitleBarOptions"
-              [nullOptionLabel]="'All Offices'"
-              [noResultsText]="'No offices match your search'"
-              (valueChange)="onShellOfficeDropdownChange($event)">
-            </app-title-bar-select>
-            @if (showShellDateRange) {
-              <div class="accounting-shell-titlebar-dates">
-                <ng-container [ngTemplateOutlet]="accountingShellDateFields" />
-              </div>
-            }
-            </div>
-          </div>
-        }
-        @if (isSuperAdmin && !activeInvoiceId && selectedTabIndex !== 0 && selectedTabIndex !== 1) {
-          <div class="header-title form-titlebar-fields-wrap accounting-shell-titlebar-fields">
-            <div class="accounting-shell-titlebar-filters">
-            <app-title-bar-select
-              [label]="'Organization'"
-              [formFieldClass]="'titlebar-field-company'"
-              [value]="selectedOrganizationId"
-              [options]="organizationTitleBarOptions"
-              [nullOptionLabel]="'Select Organization'"
-              [noResultsText]="'No organizations match your search'"
-              (valueChange)="onAccountingOrganizationDropdownChange($event)">
-            </app-title-bar-select>
-            @if (showShellDateRange) {
-              <div class="accounting-shell-titlebar-dates">
-                <ng-container [ngTemplateOutlet]="accountingShellDateFields" />
-              </div>
-            }
-            </div>
-          </div>
-        } @else if (selectedTabIndex === 0 && activeInvoiceId && accountingInvoiceEditor?.form) {
+        @if (activeInvoiceId && accountingInvoiceEditor?.form) {
           <div class="header-title form-titlebar-fields-wrap accounting-shell-titlebar-fields">
             <div class="accounting-shell-titlebar-filters">
             <app-title-bar-select
@@ -134,7 +95,7 @@
             }
             </div>
           </div>
-        } @else if (selectedTabIndex === 2 && !isSuperAdmin && accountingGeneralLedger) {
+        } @else if (selectedTabIndex === 1 && !showBillsReceiptDetail) {
           <div class="header-title form-titlebar-fields-wrap accounting-shell-titlebar-fields">
             <div class="accounting-shell-titlebar-filters">
             @if (showShellOfficeDropdown) {
@@ -148,63 +109,6 @@
                 (valueChange)="onShellOfficeDropdownChange($event)">
               </app-title-bar-select>
             }
-            <app-title-bar-select
-              [label]="'Companies'"
-              [formFieldClass]="'titlebar-field-company'"
-              [value]="selectedCompanyId"
-              [options]="getAccountingCompanyOptions(accountingGeneralLedger.companyContacts, selectedOfficeId)"
-              [nullOptionLabel]="'All Companies'"
-              [noResultsText]="'No companies match your search'"
-              (valueChange)="onAccountingGeneralLedgerCompanyDropdownChange($event)">
-            </app-title-bar-select>
-            <app-title-bar-select
-              [label]="'Reservations'"
-              [formFieldClass]="'titlebar-field-reservation'"
-              [value]="selectedReservationId"
-              [options]="getReservationOptions(accountingGeneralLedger.availableReservations)"
-              [nullOptionLabel]="'All Reservations'"
-              [noResultsText]="'No reservations match your search'"
-              (valueChange)="onAccountingGeneralLedgerReservationDropdownChange($event)">
-            </app-title-bar-select>
-            @if (showShellDateRange) {
-              <div class="accounting-shell-titlebar-dates">
-                <ng-container [ngTemplateOutlet]="accountingShellDateFields" />
-              </div>
-            }
-            </div>
-          </div>
-        } @else if (selectedTabIndex === 3 && !isSuperAdmin && accountingDocumentList) {
-          <div class="header-title form-titlebar-fields-wrap accounting-shell-titlebar-fields">
-            <div class="accounting-shell-titlebar-filters">
-            @if (showShellOfficeDropdown) {
-              <app-title-bar-select
-                [label]="'Office'"
-                [formFieldClass]="'titlebar-field-office'"
-                [value]="selectedOfficeId"
-                [options]="shellOfficeTitleBarOptions"
-                [nullOptionLabel]="'All Offices'"
-                [noResultsText]="'No offices match your search'"
-                (valueChange)="onShellOfficeDropdownChange($event)">
-              </app-title-bar-select>
-            }
-            <app-title-bar-select
-              [label]="'Companies'"
-              [formFieldClass]="'titlebar-field-company'"
-              [value]="selectedCompanyId"
-              [options]="getAccountingCompanyOptions(accountingDocumentList.companies, selectedOfficeId)"
-              [nullOptionLabel]="'All Companies'"
-              [noResultsText]="'No companies match your search'"
-              (valueChange)="onAccountingDocumentCompanyDropdownChange($event)">
-            </app-title-bar-select>
-            <app-title-bar-select
-              [label]="'Reservations'"
-              [formFieldClass]="'titlebar-field-reservation'"
-              [value]="selectedReservationId"
-              [options]="getReservationOptions(accountingDocumentList.availableReservations)"
-              [nullOptionLabel]="'All Reservations'"
-              [noResultsText]="'No reservations match your search'"
-              (valueChange)="onAccountingDocumentReservationDropdownChange($event)">
-            </app-title-bar-select>
             @if (showShellDateRange) {
               <div class="accounting-shell-titlebar-dates">
                 <ng-container [ngTemplateOutlet]="accountingShellDateFields" />
@@ -246,25 +150,30 @@
             <mat-icon>arrow_back</mat-icon>
             Back
           </button>
+        } @else if (isBillsReceiptDetailActive) {
+          <button mat-raised-button type="button" color="accent" (click)="onBillsReceiptBack()">
+            <mat-icon>arrow_back</mat-icon>
+            Back
+          </button>
         }
       </div>
     </div>
     <mat-card>
-      <mat-tab-group [selectedIndex]="selectedTabIndex" class="shell-tabs dbg-band-tabs" (selectedTabChange)="onTabChange($event)">
-        <mat-tab label="Invoices">
-          @if (activeInvoiceId) {
-            @for (invoiceEditorKey of [activeInvoiceId]; track invoiceEditorKey) {
-              <app-invoice
-                #accountingInvoiceEditor
-                [shellMode]="true"
-                [invoiceIdInput]="activeInvoiceId"
-                [officeIdInput]="selectedOfficeId"
-                [reservationIdInput]="selectedReservationId"
-                [companyIdInput]="selectedCompanyId">
-              </app-invoice>
-            }
-          } @else {
-            <app-invoice-list 
+      @if (activeInvoiceId) {
+        @for (invoiceEditorKey of [activeInvoiceId]; track invoiceEditorKey) {
+          <app-invoice
+            #accountingInvoiceEditor
+            [shellMode]="true"
+            [invoiceIdInput]="activeInvoiceId"
+            [officeIdInput]="selectedOfficeId"
+            [reservationIdInput]="selectedReservationId"
+            [companyIdInput]="selectedCompanyId">
+          </app-invoice>
+        }
+      } @else {
+        <mat-tab-group [selectedIndex]="selectedTabIndex" class="shell-tabs dbg-band-tabs" (selectedTabChange)="onTabChange($event)">
+          <mat-tab label="Invoices">
+            <app-invoice-list
               [invoiceSearchDateRange]="invoiceSearchDateRange"
               [officeId]="selectedOfficeId"
               [reservationId]="selectedReservationId"
@@ -279,48 +188,29 @@
               (companyIdChange)="onInvoiceCompanyChange($event)"
               (printInvoiceEvent)="onPrintInvoice($event)">
             </app-invoice-list>
-          }
-        </mat-tab>
-        <mat-tab label="Cost Codes">
-          <app-cost-codes-list 
-            #accountingCostCodes
-            [officeId]="selectedOfficeId"
-            [embeddedInSettings]="true"
-            (officeIdChange)="onCostCodesOfficeChange($event)">
-          </app-cost-codes-list>
-        </mat-tab>
-        <mat-tab label="General Ledger">
-          <app-general-ledger 
-            #accountingGeneralLedger
-            [hideFilters]="true"
-            [officeId]="selectedOfficeId"
-            [reservationId]="selectedReservationId"
-            [companyId]="selectedCompanyId"
-            [organizationId]="selectedOrganizationId"
-            (organizationIdChange)="onGeneralLedgerOrganizationChange($event)"
-            (officeIdChange)="onGeneralLedgerOfficeChange($event)"
-            (reservationIdChange)="onGeneralLedgerReservationChange($event)"
-            (companyIdChange)="onGeneralLedgerCompanyChange($event)">
-          </app-general-ledger>
-        </mat-tab>
-        <mat-tab label="Documents">
-          <app-document-list 
-            #accountingDocumentList
-            [hideHeader]="true"
-            [hideFilters]="true"
-            [documentTypeIds]="[DocumentType.Invoice]"
-            [documentRequest]="documentRequest"
-            [officeId]="selectedOfficeId"
-            [reservationId]="selectedReservationId"
-            [companyId]="selectedCompanyId"
-            [organizationId]="selectedOrganizationId"
-            [source]="'invoice'"
-            (officeIdChange)="onDocumentsOfficeChange($event)"
-            (reservationIdChange)="onDocumentsReservationChange($event)"
-            (companyIdChange)="onDocumentsCompanyChange($event)">
-          </app-document-list>
-        </mat-tab>
-      </mat-tab-group>
+          </mat-tab>
+          <mat-tab label="Bills">
+            @if (showBillsReceiptDetail) {
+              <app-receipt
+                [property]="billsReceiptProperty"
+                [receiptId]="selectedBillsReceiptId"
+                [officeId]="selectedOfficeId"
+                [shellContext]="'accounting'"
+                (backEvent)="onBillsReceiptBack()"
+                (savedEvent)="onBillsReceiptSaved()" />
+            } @else {
+              <app-receipts-list
+                [officeId]="selectedOfficeId"
+                [searchRequest]="billsSearchRequest"
+                [embeddedInMaintenance]="true"
+              [embeddedInAccounting]="true"
+                [refreshTrigger]="billsRefreshTrigger"
+                (receiptSelect)="onBillsReceiptSelect($event)">
+              </app-receipts-list>
+            }
+          </mat-tab>
+        </mat-tab-group>
+      }
     </mat-card>
   </section>
 </div>

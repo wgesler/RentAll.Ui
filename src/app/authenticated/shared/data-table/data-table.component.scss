@@ -541,9 +541,40 @@ th.mat-mdc-header-cell {
   
 }
 
+th.mat-header-cell[data-alignment="right"],
+th.mat-mdc-header-cell[data-alignment="right"] {
+  text-align: right !important;
+}
+
+/* Right-aligned headers: label flush with cell values; sort arrow out of flow (left side). */
 :host ::ng-deep th.mat-header-cell[data-alignment="right"] .mat-sort-header-container,
-:host ::ng-deep th.mat-mdc-header-cell[data-alignment="right"] .mat-sort-header-container {
-  justify-content: flex-end !important;
+:host ::ng-deep th.mat-mdc-header-cell[data-alignment="right"] .mat-sort-header-container,
+:host ::ng-deep th.mat-header-cell[data-alignment="right"] .mat-mdc-sort-header-container,
+:host ::ng-deep th.mat-mdc-header-cell[data-alignment="right"] .mat-mdc-sort-header-container {
+  display: block !important;
+  width: 100% !important;
+  position: relative !important;
+}
+
+:host ::ng-deep th.mat-header-cell[data-alignment="right"] .mat-sort-header-content,
+:host ::ng-deep th.mat-mdc-header-cell[data-alignment="right"] .mat-sort-header-content,
+:host ::ng-deep th.mat-header-cell[data-alignment="right"] .mat-mdc-sort-header-content,
+:host ::ng-deep th.mat-mdc-header-cell[data-alignment="right"] .mat-mdc-sort-header-content {
+  display: block !important;
+  width: 100% !important;
+  text-align: right !important;
+  white-space: nowrap !important;
+}
+
+:host ::ng-deep th.mat-header-cell[data-alignment="right"] .mat-sort-header-arrow,
+:host ::ng-deep th.mat-mdc-header-cell[data-alignment="right"] .mat-sort-header-arrow,
+:host ::ng-deep th.mat-header-cell[data-alignment="right"] .mat-mdc-sort-header-arrow,
+:host ::ng-deep th.mat-mdc-header-cell[data-alignment="right"] .mat-mdc-sort-header-arrow {
+  position: absolute !important;
+  left: 0 !important;
+  top: 50% !important;
+  margin: 0 !important;
+  transform: translateY(-50%) !important;
 }
 
 th.mat-header-cell[data-alignment="center"],
@@ -553,22 +584,22 @@ th.mat-mdc-header-cell[data-alignment="center"] {
   padding-right: 0 !important;
 }
 
+/* Center-aligned headers: label centered in column; sort arrow out of flow (left side). */
 :host ::ng-deep th.mat-header-cell[data-alignment="center"] .mat-sort-header-container,
 :host ::ng-deep th.mat-mdc-header-cell[data-alignment="center"] .mat-sort-header-container,
 :host ::ng-deep th.mat-header-cell[data-alignment="center"] .mat-mdc-sort-header-container,
 :host ::ng-deep th.mat-mdc-header-cell[data-alignment="center"] .mat-mdc-sort-header-container {
-  display: grid !important;
-  grid-template-columns: 18px 1fr 18px !important;
-  align-items: center !important;
+  display: block !important;
   width: 100% !important;
+  position: relative !important;
 }
 
 :host ::ng-deep th.mat-header-cell[data-alignment="center"] .mat-sort-header-content,
 :host ::ng-deep th.mat-mdc-header-cell[data-alignment="center"] .mat-sort-header-content,
 :host ::ng-deep th.mat-header-cell[data-alignment="center"] .mat-mdc-sort-header-content,
 :host ::ng-deep th.mat-mdc-header-cell[data-alignment="center"] .mat-mdc-sort-header-content {
-  grid-column: 2 !important;
-  justify-self: center !important;
+  display: block !important;
+  width: 100% !important;
   text-align: center !important;
   white-space: nowrap !important;
 }
@@ -577,9 +608,11 @@ th.mat-mdc-header-cell[data-alignment="center"] {
 :host ::ng-deep th.mat-mdc-header-cell[data-alignment="center"] .mat-sort-header-arrow,
 :host ::ng-deep th.mat-header-cell[data-alignment="center"] .mat-mdc-sort-header-arrow,
 :host ::ng-deep th.mat-mdc-header-cell[data-alignment="center"] .mat-mdc-sort-header-arrow {
-  grid-column: 3 !important;
-  justify-self: end !important;
-  position: relative !important;
+  position: absolute !important;
+  left: 0 !important;
+  top: 50% !important;
+  margin: 0 !important;
+  transform: translateY(-50%) !important;
 }
 
 :host ::ng-deep th.mat-header-cell[data-alignment="left"] .mat-sort-header-container,

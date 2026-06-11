@@ -81,21 +81,53 @@
 .receipt-overall-row {
   display: grid;
   align-items: center;
-  gap: 0.375rem;
+  gap: var(--global-form-field-gap-x);
   min-width: 0;
   width: 100%;
 }
 
-.receipt-overall-primary-row {
-  grid-template-columns: 9% minmax(0, 18rem) minmax(0, 18rem) minmax(0, 18rem);
-  justify-content: start;
-  width: fit-content;
-  max-width: 100%;
+.receipt-shell--maintenance {
+  .receipt-overall-primary-row {
+    grid-template-columns: minmax(0, 0.5fr) minmax(0, 1fr) minmax(0, 1fr) minmax(0, 1.5fr);
+    width: 100%;
+    max-width: 100%;
+  }
+
+  .receipt-overall-secondary-row {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) minmax(0, 1fr) minmax(0, 3fr);
+    width: 100%;
+  }
 }
 
-.receipt-overall-secondary-row {
-  grid-template-columns: 11.5rem 8.5rem minmax(0, 1fr);
-  width: 100%;
+.receipt-shell--accounting {
+  .receipt-overall-primary-row {
+    grid-template-columns: minmax(0, 0.5fr) minmax(0, 1fr) minmax(0, 1.5fr) minmax(0, 2fr) minmax(0, 1fr);
+    width: 100%;
+    max-width: 100%;
+  }
+
+  .receipt-overall-secondary-row {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    width: 100%;
+  }
+
+  .receipt-overall-secondary-row--accounting-bill {
+    grid-template-columns: repeat(3, minmax(0, 1fr)) minmax(0, 1fr) minmax(0, 3fr);
+  }
+
+  .split-lines-table.split-lines-table--accounting-bill {
+    .split-col-description {
+      width: 34%;
+    }
+
+    .split-col-type {
+      width: 13ch;
+    }
+
+    .split-col-account {
+      width: 193px;
+    }
+  }
 }
 
 .receipt-overall-compact-field {
@@ -129,7 +161,8 @@
 }
 
 .receipt-overall-bank-card-field,
-.receipt-overall-vendor-field {
+.receipt-overall-vendor-field,
+.receipt-overall-bill-number-field {
   width: 100%;
   min-width: 0;
 }
@@ -192,6 +225,10 @@
     width: 126px;
   }
 
+  .split-col-account {
+    width: 220px;
+  }
+
   .split-col-type {
     width: 19.5ch;
   }
@@ -209,18 +246,8 @@
   td {
     text-align: left;
     border-bottom: 1px solid var(--mat-sys-outline-variant, #e0e0e0);
-    padding: 5px 7px;
+    padding: 5px 10px;
     vertical-align: middle;
-  }
-
-  th:first-child,
-  td:first-child {
-    padding-left: 14px;
-  }
-
-  th:last-child,
-  td:last-child {
-    padding-right: 14px;
   }
 
   th {
@@ -240,16 +267,13 @@
 .split-editable-input,
 .split-readonly-input {
   width: 100%;
+  min-width: 0;
   height: 28px;
   line-height: 28px;
   padding: 0 6px;
   box-sizing: border-box;
   font-size: 14px;
   border-radius: 4px;
-}
-
-.split-col-description .split-editable-input {
-  width: calc(100% - 12px);
 }
 
 .split-editable-input {
@@ -263,8 +287,46 @@
 }
 
 select.split-editable-input {
+  display: block;
+  width: 100%;
   appearance: auto;
   cursor: pointer;
+}
+
+.split-account-select {
+  display: block;
+  width: 100%;
+  min-width: 0;
+}
+
+.split-account-select-control {
+  width: 100%;
+}
+
+.split-account-select ::ng-deep .searchable-select-control {
+  width: 100%;
+  min-width: 0;
+}
+
+.split-account-select ::ng-deep .mat-mdc-select-trigger {
+  min-height: 28px;
+  height: 28px;
+  padding: 0 6px;
+  box-sizing: border-box;
+  font-size: 14px;
+  border: 1px solid var(--mat-sys-outline, #ccc);
+  border-radius: 4px;
+  background-color: var(--mat-sys-surface, #fff);
+}
+
+.split-account-select ::ng-deep .searchable-trigger-value {
+  line-height: 28px;
+}
+
+.split-account-select ::ng-deep .mat-mdc-option:first-child input {
+  width: 100%;
+  color: var(--mat-sys-on-surface, rgba(0, 0, 0, 0.87));
+  caret-color: var(--mat-sys-primary, #1976d2);
 }
 
 .split-readonly-input {
@@ -288,7 +350,7 @@ select.split-editable-input {
 }
 
 .split-col-actions .mat-mdc-icon-button {
-  margin-right: 8px;
+  margin-right: 0;
 }
 
 .split-total-invalid,
@@ -299,4 +361,14 @@ select.split-editable-input {
 .split-total-error {
   margin-top: 0.25rem;
   font-size: 0.8125rem;
+}
+
+.receipt-image-section--invalid .receipt-field-invalid-label {
+  color: #b91c1c;
+}
+
+.receipt-file-error {
+  color: #b91c1c;
+  font-size: 0.8125rem;
+  margin-top: 0.25rem;
 }

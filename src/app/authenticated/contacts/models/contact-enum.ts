@@ -128,5 +128,25 @@ export function getTermTypes(): { value: number; label: string }[] {
       label: getTermType(TermType[key as keyof typeof TermType])
     }));
 }
+
+export function getPaymentTermDays(paymentTermsId: number | undefined | null): number {
+  if (paymentTermsId === undefined || paymentTermsId === null) {
+    return 0;
+  }
+
+  switch (paymentTermsId) {
+    case TermType.Net10:
+      return 10;
+    case TermType.Net15:
+      return 15;
+    case TermType.Net30:
+      return 30;
+    case TermType.Net60:
+      return 60;
+    case TermType.DueOnReceipt:
+    default:
+      return 0;
+  }
+}
 //#endregion
 

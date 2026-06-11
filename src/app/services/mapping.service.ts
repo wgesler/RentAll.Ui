@@ -1665,17 +1665,102 @@ export class MappingService {
     });
   }
 
+  mapReceiptResponse(raw: ReceiptResponse | Record<string, unknown>): ReceiptResponse {
+    const base = raw as ReceiptResponse;
+    const rawRecord = raw as Record<string, unknown>;
+    const receiptDate =
+      this.utility.coerceCalendarDateStringFromApi(
+        rawRecord['receiptDate'] ?? rawRecord['ReceiptDate'] ?? base.receiptDate
+      ) ??
+      base.receiptDate ??
+      '';
+    const dueDate =
+      this.utility.coerceCalendarDateStringFromApi(
+        rawRecord['dueDate'] ?? rawRecord['DueDate'] ?? base.dueDate
+      ) ??
+      receiptDate;
+    const accountingPeriod =
+      this.utility.coerceCalendarDateStringFromApi(
+        rawRecord['accountingPeriod'] ?? rawRecord['AccountingPeriod'] ?? base.accountingPeriod
+      ) ??
+      receiptDate;
+    const billNumberRaw = rawRecord['billNumber'] ?? rawRecord['BillNumber'] ?? base.billNumber;
+    const billNumber =
+      billNumberRaw == null || String(billNumberRaw).trim().length === 0
+        ? null
+        : String(billNumberRaw).trim();
+    const createdOn =
+      this.utility.coerceDateTimeOffsetStringFromApi(
+        rawRecord['createdOn'] ?? rawRecord['CreatedOn'] ?? base.createdOn
+      ) ??
+      base.createdOn ??
+      '';
+
+    return {
+      ...base,
+      receiptDate,
+      dueDate,
+      accountingPeriod,
+      billNumber,
+      createdOn,
+      splits: this.mapReceiptSplitsFromApi(base.splits)
+    };
+  }
+
+  mapReceiptSplitsFromApi(splits: Split[] | undefined | null): Split[] {
+    const mapped = (splits || []).map(split => this.mapReceiptSplitFromApi(split));
+    const seenSplitIds = new Set<number>();
+    return mapped.filter(split => {
+      const splitId = Number(split.receiptSplitId ?? 0);
+      if (!Number.isFinite(splitId) || splitId <= 0) {
+        return true;
+      }
+      if (seenSplitIds.has(splitId)) {
+        return false;
+      }
+      seenSplitIds.add(splitId);
+      return true;
+    });
+  }
+
+  readSplitChartOfAccountId(split: Split | Record<string, unknown> | undefined | null): number | null {
+    if (!split) {
+      return null;
+    }
+    const record = split as Split & Record<string, unknown>;
+    const accountId = Number(
+      record.chartOfAccountId
+      ?? record['ChartOfAccountId']
+      ?? record.accountId
+      ?? record['AccountId']
+      ?? 0
+    );
+    return Number.isFinite(accountId) && accountId > 0 ? accountId : null;
+  }
+
+  mapReceiptSplitFromApi(raw: Split | Record<string, unknown>): Split {
+    const record = raw as Split & Record<string, unknown>;
+    const chartOfAccountId = this.readSplitChartOfAccountId(record) ?? undefined;
+    const receiptTypeId = Number(record.receiptTypeId ?? record['ReceiptTypeId'] ?? 0);
+    return {
+      receiptSplitId: (record.receiptSplitId ?? record['ReceiptSplitId'] ?? null) as number | null,
+      amount: Number(record.amount ?? record['Amount'] ?? 0) || 0,
+      description: String(record.description ?? record['Description'] ?? '').trim(),
+      workOrderId: (record.workOrderId ?? record['WorkOrderId'] ?? null) as string | null,
+      workOrderCode: String(record.workOrderCode ?? record['WorkOrderCode'] ?? record.workOrder ?? record['WorkOrder'] ?? '').trim(),
+      workOrder: String(record.workOrder ?? record['WorkOrder'] ?? record.workOrderCode ?? record['WorkOrderCode'] ?? '').trim(),
+      receiptTypeId: Number.isFinite(receiptTypeId) ? receiptTypeId : 0,
+      chartOfAccountId: chartOfAccountId ?? null,
+      accountId: chartOfAccountId ?? null,
+      chartOfAccountDisplayName: String(
+        record.chartOfAccountDisplayName ?? record['ChartOfAccountDisplayName'] ?? ''
+      ).trim() || null
+    };
+  }
+
   mapReceiptDisplays(receipts: ReceiptResponse[]): ReceiptDisplayList[] {
     return (receipts || []).map((receipt: ReceiptResponse): ReceiptDisplayList => {
-      const splits = (receipt.splits || []).map((split: Split) => ({
-        receiptSplitId: split.receiptSplitId ?? null,
-        amount: Number(split.amount) || 0,
-        description: split.description || '',
-        workOrderId: split.workOrderId ?? null,
-        workOrderCode: split.workOrderCode || split.workOrder || '',
-        workOrder: split.workOrderCode || split.workOrder || '',
-        receiptTypeId: split.receiptTypeId ?? 0
-      }));
+      const splits = this.mapReceiptSplitsFromApi(receipt.splits);
       const splitTotalAmount = splits.reduce((sum, split) => sum + (Number(split.amount) || 0), 0);
       const receiptAmount = Number(receipt.amount) || 0;
       const distinctWorkOrders = Array.from(
@@ -1694,9 +1779,19 @@ export class MappingService {
       );
       const workOrderDisplay = distinctWorkOrders.join(', ');
       const receiptTypeDisplay = distinctReceiptTypes.join(', ');
+      const distinctAccounts = Array.from(
+        new Set(
+          splits
+            .map(split => (split.chartOfAccountDisplayName || '').trim())
+            .filter(label => label.length > 0)
+        )
+      );
+      const accountDisplay = distinctAccounts.join(', ');
       const isFirstSplitBill = Number(receipt.bankCardId ?? 0) === 0;
       const vendorDisplay = (receipt.vendorName || '').trim();
       const isSplitAmountValid = splitTotalAmount <= receiptAmount;
+      const paidAmountValue = Number((receipt as ReceiptResponse & { paidAmount?: number }).paidAmount ?? 0) || 0;
+      const dueAmountValue = Math.max(0, receiptAmount - paidAmountValue);
 
       return {
         receiptId: receipt.receiptId,
@@ -1704,12 +1799,21 @@ export class MappingService {
         officeName: receipt.officeName,
         propertyIds: receipt.propertyIds || [],
         receiptDate: this.formatter.formatDateString(receipt.receiptDate),
-        propertyCode: (receipt.propertyIds || []).join(', '),
+        billNumber: (receipt.billNumber || '').trim() || '—',
+        dueDate: this.formatter.formatDateString(receipt.dueDate),
+        accountingPeriod: receipt.accountingPeriod,
+        period: this.formatter.formatInvoiceListAccountingPeriod(receipt.accountingPeriod),
+        created: this.formatter.formatInvoiceListCreatedOn(receipt.createdOn),
+        propertyCode: '',
         ticketId: receipt.ticketId,
         description: receipt.description || '',
         descriptionDisplay: receipt.description || '',
         amount: receiptAmount,
         amountDisplay: this.formatter.currencyUsd(receiptAmount),
+        paidAmountValue,
+        dueAmountValue,
+        paidAmount: this.formatter.currencyUsd(paidAmountValue),
+        dueAmount: this.formatter.currencyUsd(dueAmountValue),
         splits,
         splitTotalAmount,
         splitTotalDisplay: this.formatter.currencyUsd(splitTotalAmount),
@@ -1718,6 +1822,7 @@ export class MappingService {
         vendorId: receipt.vendorId ?? null,
         vendorName: receipt.vendorName ?? null,
         bankCardDisplayName: (receipt.bankCardDisplayName || '').trim(),
+        accountDisplay,
         vendorDisplay,
         vendorDisplayReadOnly: !isFirstSplitBill,
         isSplitAmountValid,

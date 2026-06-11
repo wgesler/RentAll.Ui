@@ -2,6 +2,7 @@ import { CommonModule } from '@angular/common';
 import { Component, OnDestroy, OnInit, ViewChild } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, Router } from '@angular/router';
+import { ToastrService } from 'ngx-toastr';
 import { Subject, skip, take, takeUntil } from 'rxjs';
 import { RouterUrl } from '../../../app.routes';
 import { MaterialModule } from '../../../material.module';
@@ -14,13 +15,14 @@ import { GlobalSelectionService } from '../../organizations/services/global-sele
 import { OfficeService } from '../../organizations/services/office.service';
 import { ContactResponse } from '../../contacts/models/contact.model';
 import { UserGroups } from '../../users/models/user-enums';
-import { DocumentListComponent } from '../../documents/document-list/document-list.component';
-import { DocumentType } from '../../documents/models/document.enum';
-import { DocumentGetRequest } from '../../documents/models/document.model';
 import { getNumberQueryParam, getStringQueryParam } from '../../shared/query-param.utils';
 import { TitleBarSelectComponent } from '../../shared/titlebar-select/titlebar-select.component';
-import { CostCodesListComponent } from '../cost-codes-list/cost-codes-list.component';
-import { GeneralLedgerComponent } from '../general-ledger/general-ledger.component';
+import { MaintenanceListSearchRequest } from '../../maintenance/models/maintenance-search.model';
+import { ReceiptSelection } from '../../maintenance/models/receipt.model';
+import { ReceiptComponent } from '../../maintenance/receipt/receipt.component';
+import { ReceiptsListComponent } from '../../maintenance/receipts-list/receipts-list.component';
+import { PropertyResponse } from '../../properties/models/property.model';
+import { PropertyService } from '../../properties/services/property.service';
 import { InvoiceComponent } from '../invoice/invoice.component';
 import { InvoiceListComponent } from '../invoice-list/invoice-list.component';
 import { CostCodesService } from '../services/cost-codes.service';
@@ -34,41 +36,41 @@ import { CostCodesService } from '../services/cost-codes.service';
     FormsModule,
     InvoiceComponent,
     InvoiceListComponent,
-    CostCodesListComponent,
-    GeneralLedgerComponent,
-    DocumentListComponent,
+    ReceiptsListComponent,
+    ReceiptComponent,
     TitleBarSelectComponent
 ],
     templateUrl: './accounting-shell.component.html',
     styleUrls: ['./accounting-shell.component.scss']
 })
 export class AccountingShellComponent implements OnInit, OnDestroy {
-  readonly DocumentType = DocumentType;
   @ViewChild(InvoiceListComponent) accountingInvoiceList?: InvoiceListComponent;
   @ViewChild('accountingInvoiceEditor') accountingInvoiceEditor?: InvoiceComponent;
-  @ViewChild('accountingCostCodes') accountingCostCodes?: CostCodesListComponent;
-  @ViewChild('accountingGeneralLedger') accountingGeneralLedger?: GeneralLedgerComponent;
-  @ViewChild('accountingDocumentList') accountingDocumentList?: DocumentListComponent;
-  selectedTabIndex: number = 0;
+
+  selectedTabIndex = 0;
   isSuperAdmin: boolean = false;
   currentUserOrganizationId: string | null = null;
 
   organizations: OrganizationResponse[] = [];
   offices: OfficeResponse[] = [];
   organizationId = '';
-  private initialOfficeScopeApplied = false;
+  initialOfficeScopeApplied = false;
   selectedOrganizationId: string | null = null;
   /** Page-level office filter: seeded from global; does not write global. */
   selectedOfficeId: number | null = null;
-  selectedCompanyId: string | null = null; 
-  selectedReservationId: string | null = null; 
+  selectedCompanyId: string | null = null;
+  selectedReservationId: string | null = null;
   activeInvoiceId: string | null = null;
   startDate: Date | null = null;
   endDate: Date | null = null;
-  documentRequest: DocumentGetRequest = { officeIds: [] };
-  /** Passed to invoice-list; updated only in syncInvoiceSearchDateRange (same pattern as documentRequest). */
+  /** Passed to invoice-list; updated only in syncInvoiceSearchDateRange. */
   invoiceSearchDateRange: { startDate: string | null; endDate: string | null } = { startDate: null, endDate: null };
-   
+  billsSearchRequest: MaintenanceListSearchRequest = { officeIds: [] };
+  billsRefreshTrigger = 0;
+  showBillsReceiptDetail = false;
+  selectedBillsReceiptId: number | null = null;
+  billsReceiptProperty: PropertyResponse | null = null;
+
   destroy$ = new Subject<void>();
 
   constructor(
@@ -79,11 +81,13 @@ export class AccountingShellComponent implements OnInit, OnDestroy {
     private costCodesService: CostCodesService,
     private utilityService: UtilityService,
     private officeService: OfficeService,
-    private globalSelectionService: GlobalSelectionService
+    private globalSelectionService: GlobalSelectionService,
+    private propertyService: PropertyService,
+    private toastr: ToastrService
   ) {
     this.setDefaultDateRange();
-    this.syncDocumentRequest();
     this.syncInvoiceSearchDateRange();
+    this.syncBillsSearchRequest();
   }
 
   //#region Accounting
@@ -94,12 +98,12 @@ export class AccountingShellComponent implements OnInit, OnDestroy {
     if (!this.isSuperAdmin) {
       this.selectedOfficeId = this.globalSelectionService.getSelectedOfficeIdValue();
       this.loadOffices();
-      this.globalSelectionService.getSelectedOfficeId$().pipe(skip(1), takeUntil(this.destroy$)) .subscribe(officeId => {
+      this.globalSelectionService.getSelectedOfficeId$().pipe(skip(1), takeUntil(this.destroy$)).subscribe(officeId => {
         this.applyOfficeFromGlobal(officeId);
       });
     }
     this.applyQueryParamState(this.route.snapshot.queryParams);
-    
+
     this.route.queryParams.pipe(takeUntil(this.destroy$)).subscribe(params => this.applyQueryParamState(params));
 
     this.route.paramMap.pipe(takeUntil(this.destroy$)).subscribe(paramMap => {
@@ -141,7 +145,7 @@ export class AccountingShellComponent implements OnInit, OnDestroy {
       this.selectedReservationId = null;
     }
   }
-  
+
   onInvoiceCompanyChange(companyId: string | null): void {
     if (this.selectedCompanyId !== companyId) {
       this.selectedCompanyId = companyId;
@@ -179,98 +183,76 @@ export class AccountingShellComponent implements OnInit, OnDestroy {
     }
     this.accountingInvoiceEditor.onTitleBarReservationChange(value);
   }
-  
   //#endregion
 
-  //#region CostCode Drop Downs
-  onCostCodesOfficeChange(officeId: number | null): void {
-    if (this.selectedOfficeId !== officeId) {
-      this.selectedOfficeId = officeId;
-     }
-  }
-   
-  //#endregion
+  //#region Bills Receipt Detail
+  onBillsReceiptSelect(selection: ReceiptSelection): void {
+    const receiptId = selection?.receiptId ?? null;
+    const propertyId = (selection?.propertyId || '').trim() || null;
+    const officeId = selection?.officeId ?? this.selectedOfficeId ?? null;
 
-  //#region General Ledger Drop Downs
-  onGeneralLedgerOrganizationChange(organizationId: string | null): void {
-    if (this.selectedOrganizationId !== organizationId) {
-      this.selectedOrganizationId = organizationId;
-    }
-  }
-
-  onGeneralLedgerOfficeChange(officeId: number | null): void {
-     if (this.selectedOfficeId !== officeId) {
-      this.selectedOfficeId = officeId;
-    }
-  }
-
-  onGeneralLedgerReservationChange(reservationId: string | null): void {
-    // General Ledger child can emit null during initialization while hidden.
-    // Do not let non-active tab emissions clear Invoice tab reservation state.
-    if (this.selectedTabIndex !== 2 && reservationId === null) {
-      return;
-    }
-
-    if (this.selectedReservationId !== reservationId) {
-      this.selectedReservationId = reservationId;
-    }
-  }
-
-  onGeneralLedgerCompanyChange(companyId: string | null): void {
-    if (this.selectedCompanyId !== companyId) {
-      this.selectedCompanyId = companyId;
-    }
-  }
-
-  onAccountingGeneralLedgerCompanyDropdownChange(value: string | number | null): void {
-    this.selectedCompanyId = value == null || value === '' ? null : String(value);
-  }
-
-  onAccountingGeneralLedgerReservationDropdownChange(value: string | number | null): void {
-    this.selectedReservationId = value == null || value === '' ? null : String(value);
-  }
- //#endregion
-
-  //#region Document Drop Downs
-  onDocumentsOfficeChange(officeId: number | null): void {
-     if (this.selectedOfficeId !== officeId) {
-      this.selectedOfficeId = officeId;
-       this.selectedReservationId = null;
-    }
-  }
-
-  onDocumentsCompanyChange(companyId: string | null): void {
-    if (this.selectedCompanyId !== companyId) {
-      this.selectedCompanyId = companyId;
-      }
-  }
-
-  onDocumentsReservationChange(reservationId: string | null): void {
-    if (this.selectedTabIndex !== 3 && reservationId === null) {
-      return;
-    }
-
-    if (this.selectedReservationId !== reservationId) {
-      this.selectedReservationId = reservationId;
-    }
-  }
- 
-  onAccountingDocumentCompanyDropdownChange(value: string | number | null): void {
-    this.selectedCompanyId = value == null || value === '' ? null : String(value);
-  }
-
-  onAccountingDocumentReservationDropdownChange(value: string | number | null): void {
-    this.selectedReservationId = value == null || value === '' ? null : String(value);
-  }
-
-  syncDocumentRequest(): void {
-    this.documentRequest = {
-      officeIds: this.resolveOfficeIdsForDocumentRequest(),
-      startDate: this.utilityService.formatDateOnlyForApi(this.startDate),
-      endDate: this.utilityService.formatDateOnlyForApi(this.endDate)
+    const openReceiptDetail = (property: PropertyResponse | null) => {
+      this.selectedTabIndex = 1;
+      this.billsReceiptProperty = property;
+      this.selectedBillsReceiptId = receiptId;
+      this.showBillsReceiptDetail = true;
     };
+
+    if (propertyId) {
+      this.propertyService.getPropertyByGuid(propertyId).pipe(take(1)).subscribe({
+        next: (property: PropertyResponse) => openReceiptDetail(property),
+        error: () => this.toastr.error('Unable to load property for receipt.', 'Error')
+      });
+      return;
+    }
+
+    openReceiptDetail(this.buildBillsReceiptPropertyStub(officeId));
   }
 
+  onBillsReceiptBack(): void {
+    this.showBillsReceiptDetail = false;
+    this.selectedBillsReceiptId = null;
+    this.billsReceiptProperty = null;
+  }
+
+  onBillsReceiptSaved(): void {
+    this.onBillsReceiptBack();
+    this.billsRefreshTrigger++;
+  }
+
+  buildBillsReceiptPropertyStub(officeId: number | null): PropertyResponse {
+    const resolvedOfficeId = officeId ?? 0;
+    const officeName = this.offices.find(office => office.officeId === resolvedOfficeId)?.name ?? '';
+    return {
+      propertyId: '',
+      organizationId: this.organizationId,
+      propertyCode: '',
+      officeId: resolvedOfficeId,
+      officeName,
+      isActive: true
+    } as PropertyResponse;
+  }
+  //#endregion
+
+  //#region Tab Selection
+  onTabChange(event: { index: number }): void {
+    if (event.index !== 1) {
+      this.onBillsReceiptBack();
+    }
+    this.selectedTabIndex = event.index;
+    this.syncBillsSearchRequest();
+    if (this.selectedTabIndex === 1) {
+      this.billsRefreshTrigger++;
+    }
+    this.router.navigate([], {
+      relativeTo: this.route,
+      queryParams: this.buildShellQueryParams({ tab: String(event.index) }),
+      queryParamsHandling: 'merge'
+    });
+  }
+  //#endregion
+
+  //#region Date Range
   syncInvoiceSearchDateRange(): void {
     this.invoiceSearchDateRange = {
       startDate: this.utilityService.formatDateOnlyForApi(this.startDate),
@@ -278,25 +260,19 @@ export class AccountingShellComponent implements OnInit, OnDestroy {
     };
   }
 
-  resolveOfficeIdsForDocumentRequest(): number[] {
+  syncBillsSearchRequest(): void {
+    this.billsSearchRequest = {
+      officeIds: this.resolveOfficeIdsForBillsSearch(),
+      startDate: this.utilityService.formatDateOnlyForApi(this.startDate),
+      endDate: this.utilityService.formatDateOnlyForApi(this.endDate)
+    };
+  }
+
+  resolveOfficeIdsForBillsSearch(): number[] {
     if (this.selectedOfficeId != null) {
       return [this.selectedOfficeId];
     }
     return this.offices.map(office => office.officeId).filter(id => id > 0);
-  }
-  //#endregion
-
-  //#region Tab Selections
-  onTabChange(event: any): void {
-    this.selectedTabIndex = event.index;
-    this.applyShellStateToActiveTab();
-    this.costCodesService.ensureCostCodesLoaded();
-    this.router.navigate([], { 
-      relativeTo: this.route,
-      queryParams: this.buildShellQueryParams({ tab: event.index.toString() }),
-      queryParamsHandling: 'merge'
-    });
-    
   }
 
   onDateRangeChange(): void {
@@ -326,10 +302,10 @@ export class AccountingShellComponent implements OnInit, OnDestroy {
       this.endDate = tmp;
     }
 
-    this.syncDocumentRequest();
     this.syncInvoiceSearchDateRange();
-    if (this.selectedTabIndex === 3) {
-      queueMicrotask(() => this.accountingDocumentList?.reload());
+    this.syncBillsSearchRequest();
+    if (this.selectedTabIndex === 1) {
+      this.billsRefreshTrigger++;
     }
     this.router.navigate([], {
       relativeTo: this.route,
@@ -342,15 +318,13 @@ export class AccountingShellComponent implements OnInit, OnDestroy {
     const params: string[] = [];
     params.push(`returnTo=accounting`);
     params.push(`autoPrint=true`);
-    
-    if(this.isSuperAdmin)
-    {
+
+    if (this.isSuperAdmin) {
       if (this.currentUserOrganizationId) {
         params.push(`organizationId=${this.currentUserOrganizationId}`);
         params.push(`reservationId=${this.selectedOrganizationId}`);
       }
-    }
-    else {
+    } else {
       if (event.officeId !== null && event.officeId !== undefined) {
         params.push(`officeId=${event.officeId}`);
       }
@@ -364,13 +338,12 @@ export class AccountingShellComponent implements OnInit, OnDestroy {
         params.push(`invoiceId=${event.invoiceId}`);
       }
     }
-    
-    const url = params.length > 0 
+
+    const url = params.length > 0
       ? `${RouterUrl.InvoiceCreate}?${params.join('&')}`
       : RouterUrl.InvoiceCreate;
     this.router.navigateByUrl(url);
   }
-
   //#endregion
 
   //#region Get Methods
@@ -401,7 +374,6 @@ export class AccountingShellComponent implements OnInit, OnDestroy {
         }
 
         const existing = dedupedByCompanyLabel.get(dedupeKey)!;
-        // Prefer the more descriptive label when two variants normalize to same company key.
         if (label.length > existing.label.length) {
           dedupedByCompanyLabel.set(dedupeKey, {
             value: contact.contactId,
@@ -431,7 +403,11 @@ export class AccountingShellComponent implements OnInit, OnDestroy {
   }
 
   get showShellDateRange(): boolean {
-    return !this.activeInvoiceId;
+    return !this.activeInvoiceId && !this.showBillsReceiptDetail;
+  }
+
+  get isBillsReceiptDetailActive(): boolean {
+    return this.selectedTabIndex === 1 && this.showBillsReceiptDetail;
   }
 
   get shellOfficeTitleBarOptions(): { value: number, label: string }[] {
@@ -463,7 +439,7 @@ export class AccountingShellComponent implements OnInit, OnDestroy {
   getInvoiceEditorReservationFieldClass(): string {
     return 'titlebar-field-reservation';
   }
-  //#endregion 
+  //#endregion
 
   //#region Form Response Methods
   onShellOfficeDropdownChange(value: string | number | null): void {
@@ -474,8 +450,9 @@ export class AccountingShellComponent implements OnInit, OnDestroy {
       this.selectedCompanyId = null;
       this.selectedReservationId = null;
     }
-    if (this.selectedTabIndex === 3) {
-      this.selectedReservationId = null;
+    this.syncBillsSearchRequest();
+    if (this.selectedTabIndex === 1) {
+      this.billsRefreshTrigger++;
     }
   }
 
@@ -485,12 +462,9 @@ export class AccountingShellComponent implements OnInit, OnDestroy {
   }
 
   applyQueryParamState(params: Record<string, string>): void {
-    let tabIndex = getNumberQueryParam(params, 'tab', 0, 4);
+    let tabIndex = getNumberQueryParam(params, 'tab', 0, 2);
     if (tabIndex !== null) {
-      if (tabIndex === 4) {
-        tabIndex = 3;
-      }
-      tabIndex = Math.min(tabIndex, 3);
+      tabIndex = Math.min(Math.max(tabIndex, 0), 1);
       if (this.selectedTabIndex !== tabIndex) {
         this.selectedTabIndex = tabIndex;
       }
@@ -521,19 +495,15 @@ export class AccountingShellComponent implements OnInit, OnDestroy {
       this.startDate = this.utilityService.parseDateOnlyStringToDate(startDateParam);
       this.endDate = this.utilityService.parseDateOnlyStringToDate(endDateParam);
       this.normalizeDateRangeValues();
-      this.syncDocumentRequest();
       this.syncInvoiceSearchDateRange();
-      if (this.selectedTabIndex === 3) {
-        queueMicrotask(() => this.accountingDocumentList?.reload());
+      this.syncBillsSearchRequest();
+      if (this.selectedTabIndex === 1) {
+        queueMicrotask(() => { this.billsRefreshTrigger++; });
       }
     } else if (!this.startDate && !this.endDate) {
       this.setDefaultDateRange();
-      this.syncDocumentRequest();
       this.syncInvoiceSearchDateRange();
-    }
-
-    if (this.selectedTabIndex !== 0 || 'tab' in params) {
-      queueMicrotask(() => this.applyShellStateToActiveTab());
+      this.syncBillsSearchRequest();
     }
   }
 
@@ -550,36 +520,11 @@ export class AccountingShellComponent implements OnInit, OnDestroy {
       this.selectedCompanyId = null;
       this.selectedReservationId = null;
     }
-    if (this.selectedTabIndex === 3) {
-      this.selectedReservationId = null;
-    }
   }
 
   applyPageOfficeScope(officeId: number | null): void {
     this.selectedOfficeId = officeId;
-  }
-
-  /** Push current title-bar state to the selected tab only (invoice list uses @Input bindings). */
-  applyShellStateToActiveTab(): void {
-    if (this.activeInvoiceId) {
-      return;
-    }
-
-    queueMicrotask(() => {
-      switch (this.selectedTabIndex) {
-        case 1:
-          this.accountingCostCodes?.onTitleBarOfficeIdUpdate(this.selectedOfficeId);
-          break;
-        case 2:
-          this.accountingGeneralLedger?.onTitleBarOfficeIdUpdate(this.selectedOfficeId);
-          break;
-        case 3:
-          this.syncDocumentRequest();
-          this.accountingDocumentList?.onTitleBarOfficeIdUpdate(this.selectedOfficeId);
-          this.accountingDocumentList?.reload();
-          break;
-      }
-    });
+    this.syncBillsSearchRequest();
   }
 
   setDefaultDateRange(): void {
@@ -624,13 +569,12 @@ export class AccountingShellComponent implements OnInit, OnDestroy {
   }
 
   buildShellQueryParams(overrides: Record<string, string | null> = {}): Record<string, string | null> {
-    const queryParams: Record<string, string | null> = {
+    return {
       tab: String(this.selectedTabIndex),
       startDate: this.utilityService.formatDateOnlyForApi(this.startDate),
       endDate: this.utilityService.formatDateOnlyForApi(this.endDate),
       ...overrides
     };
-    return queryParams;
   }
 
   closeEmbeddedInvoiceEditor(): void {
@@ -673,7 +617,10 @@ export class AccountingShellComponent implements OnInit, OnDestroy {
       params.push(`organizationId=${organizationIdToUse}`);
     }
 
-    this.router.navigateByUrl(`${RouterUrl.AccountingList}?${params.join('&')}`);
+    const url = params.length > 0
+      ? `${RouterUrl.AccountingList}?${params.join('&')}`
+      : RouterUrl.AccountingList;
+    this.router.navigateByUrl(url);
   }
   //#endregion
 
@@ -699,13 +646,12 @@ export class AccountingShellComponent implements OnInit, OnDestroy {
                 this.selectedOfficeId ?? this.globalSelectionService.getSelectedOfficeIdValue()
               );
             }
-            this.syncDocumentRequest();
+            this.syncBillsSearchRequest();
           }
         });
       },
       error: () => {
         this.offices = [];
-        this.syncDocumentRequest();
       }
     });
   }

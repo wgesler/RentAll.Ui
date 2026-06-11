@@ -29,13 +29,19 @@
   margin-bottom: 0.75rem;
 }
 
-/* Bank Card dropdown: blue text, no underline. */
+/* Bank Card + Account dropdown: blue text, no underline. */
 :host ::ng-deep td.mat-cell.mat-column-bankCardDropdown .mat-mdc-select-min-line,
 :host ::ng-deep td.mat-mdc-cell.mat-column-bankCardDropdown .mat-mdc-select-min-line,
 :host ::ng-deep td.mat-cell.mat-column-bankCardDropdown .mat-mdc-select-value-text,
 :host ::ng-deep td.mat-mdc-cell.mat-column-bankCardDropdown .mat-mdc-select-value-text,
 :host ::ng-deep td.mat-cell.mat-column-bankCardDropdown .mat-mdc-select-value,
-:host ::ng-deep td.mat-mdc-cell.mat-column-bankCardDropdown .mat-mdc-select-value {
+:host ::ng-deep td.mat-mdc-cell.mat-column-bankCardDropdown .mat-mdc-select-value,
+:host ::ng-deep td.mat-cell.mat-column-accountDropdown .mat-mdc-select-min-line,
+:host ::ng-deep td.mat-mdc-cell.mat-column-accountDropdown .mat-mdc-select-min-line,
+:host ::ng-deep td.mat-cell.mat-column-accountDropdown .mat-mdc-select-value-text,
+:host ::ng-deep td.mat-mdc-cell.mat-column-accountDropdown .mat-mdc-select-value-text,
+:host ::ng-deep td.mat-cell.mat-column-accountDropdown .mat-mdc-select-value,
+:host ::ng-deep td.mat-mdc-cell.mat-column-accountDropdown .mat-mdc-select-value {
   color: #1d4ed8 !important;
   font-size: 12px !important;
   line-height: 16px !important;
@@ -57,15 +63,19 @@
   text-decoration: none !important;
 }
 
-/* Vendor dropdown selected value should truncate with ellipsis in list view. */
+/* Vendor + Account dropdown selected value should truncate with ellipsis in list view. */
 :host ::ng-deep td.mat-cell.mat-column-vendorDisplay .mat-mdc-select-trigger,
-:host ::ng-deep td.mat-mdc-cell.mat-column-vendorDisplay .mat-mdc-select-trigger {
+:host ::ng-deep td.mat-mdc-cell.mat-column-vendorDisplay .mat-mdc-select-trigger,
+:host ::ng-deep td.mat-cell.mat-column-accountDropdown .mat-mdc-select-trigger,
+:host ::ng-deep td.mat-mdc-cell.mat-column-accountDropdown .mat-mdc-select-trigger {
   width: 100%;
   min-width: 0;
 }
 
 :host ::ng-deep td.mat-cell.mat-column-vendorDisplay .mat-mdc-select-min-line,
-:host ::ng-deep td.mat-mdc-cell.mat-column-vendorDisplay .mat-mdc-select-min-line {
+:host ::ng-deep td.mat-mdc-cell.mat-column-vendorDisplay .mat-mdc-select-min-line,
+:host ::ng-deep td.mat-cell.mat-column-accountDropdown .mat-mdc-select-min-line,
+:host ::ng-deep td.mat-mdc-cell.mat-column-accountDropdown .mat-mdc-select-min-line {
   display: block;
   width: 100%;
   min-width: 0;
@@ -163,16 +173,20 @@
 :host ::ng-deep td.mat-cell.mat-column-vendorDisplay,
 :host ::ng-deep td.mat-mdc-cell.mat-column-vendorDisplay,
 :host ::ng-deep td.mat-cell.mat-column-bankCardDropdown,
-:host ::ng-deep td.mat-mdc-cell.mat-column-bankCardDropdown {
+:host ::ng-deep td.mat-mdc-cell.mat-column-bankCardDropdown,
+:host ::ng-deep td.mat-cell.mat-column-accountDropdown,
+:host ::ng-deep td.mat-mdc-cell.mat-column-accountDropdown {
   vertical-align: middle !important;
   line-height: 16px !important;
 }
 
-/* Bank card + vendor dropdown: match plain row text (not 40px select chrome). */
+/* Bank card + vendor + account dropdown: match plain row text (not 40px select chrome). */
 :host ::ng-deep td.mat-cell.mat-column-bankCardDropdown .datatable-multiselect-wrapper,
 :host ::ng-deep td.mat-mdc-cell.mat-column-bankCardDropdown .datatable-multiselect-wrapper,
 :host ::ng-deep td.mat-cell.mat-column-vendorDisplay .datatable-multiselect-wrapper,
-:host ::ng-deep td.mat-mdc-cell.mat-column-vendorDisplay .datatable-multiselect-wrapper {
+:host ::ng-deep td.mat-mdc-cell.mat-column-vendorDisplay .datatable-multiselect-wrapper,
+:host ::ng-deep td.mat-cell.mat-column-accountDropdown .datatable-multiselect-wrapper,
+:host ::ng-deep td.mat-mdc-cell.mat-column-accountDropdown .datatable-multiselect-wrapper {
   height: auto !important;
   min-height: 0 !important;
   line-height: 16px !important;
@@ -184,14 +198,18 @@
 :host ::ng-deep td.mat-cell.mat-column-bankCardDropdown .mat-mdc-select,
 :host ::ng-deep td.mat-mdc-cell.mat-column-bankCardDropdown .mat-mdc-select,
 :host ::ng-deep td.mat-cell.mat-column-vendorDisplay .mat-mdc-select,
-:host ::ng-deep td.mat-mdc-cell.mat-column-vendorDisplay .mat-mdc-select {
+:host ::ng-deep td.mat-mdc-cell.mat-column-vendorDisplay .mat-mdc-select,
+:host ::ng-deep td.mat-cell.mat-column-accountDropdown .mat-mdc-select,
+:host ::ng-deep td.mat-mdc-cell.mat-column-accountDropdown .mat-mdc-select {
   height: auto !important;
 }
 
 :host ::ng-deep td.mat-cell.mat-column-bankCardDropdown .mat-mdc-select-trigger,
 :host ::ng-deep td.mat-mdc-cell.mat-column-bankCardDropdown .mat-mdc-select-trigger,
 :host ::ng-deep td.mat-cell.mat-column-vendorDisplay .mat-mdc-select-trigger,
-:host ::ng-deep td.mat-mdc-cell.mat-column-vendorDisplay .mat-mdc-select-trigger {
+:host ::ng-deep td.mat-mdc-cell.mat-column-vendorDisplay .mat-mdc-select-trigger,
+:host ::ng-deep td.mat-cell.mat-column-accountDropdown .mat-mdc-select-trigger,
+:host ::ng-deep td.mat-mdc-cell.mat-column-accountDropdown .mat-mdc-select-trigger {
   height: auto !important;
   min-height: 0 !important;
   line-height: 16px !important;
@@ -202,7 +220,9 @@
 :host ::ng-deep td.mat-cell.mat-column-bankCardDropdown .mat-mdc-select-value,
 :host ::ng-deep td.mat-mdc-cell.mat-column-bankCardDropdown .mat-mdc-select-value,
 :host ::ng-deep td.mat-cell.mat-column-vendorDisplay .mat-mdc-select-value,
-:host ::ng-deep td.mat-mdc-cell.mat-column-vendorDisplay .mat-mdc-select-value {
+:host ::ng-deep td.mat-mdc-cell.mat-column-vendorDisplay .mat-mdc-select-value,
+:host ::ng-deep td.mat-cell.mat-column-accountDropdown .mat-mdc-select-value,
+:host ::ng-deep td.mat-mdc-cell.mat-column-accountDropdown .mat-mdc-select-value {
   display: inline-flex !important;
   align-items: center !important;
   line-height: 16px !important;
@@ -211,7 +231,9 @@
 :host ::ng-deep td.mat-cell.mat-column-bankCardDropdown .mat-mdc-select-min-line,
 :host ::ng-deep td.mat-mdc-cell.mat-column-bankCardDropdown .mat-mdc-select-min-line,
 :host ::ng-deep td.mat-cell.mat-column-vendorDisplay .mat-mdc-select-min-line,
-:host ::ng-deep td.mat-mdc-cell.mat-column-vendorDisplay .mat-mdc-select-min-line {
+:host ::ng-deep td.mat-mdc-cell.mat-column-vendorDisplay .mat-mdc-select-min-line,
+:host ::ng-deep td.mat-cell.mat-column-accountDropdown .mat-mdc-select-min-line,
+:host ::ng-deep td.mat-mdc-cell.mat-column-accountDropdown .mat-mdc-select-min-line {
   line-height: 16px !important;
 }
 

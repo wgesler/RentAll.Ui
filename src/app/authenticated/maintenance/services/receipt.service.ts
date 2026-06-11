@@ -1,7 +1,9 @@
 import { HttpClient } from '@angular/common/http';
 import { Injectable } from '@angular/core';
 import { Observable, of } from 'rxjs';
+import { map } from 'rxjs/operators';
 import { ConfigService } from '../../../services/config.service';
+import { MappingService } from '../../../services/mapping.service';
 import { MaintenanceListSearchRequest } from '../models/maintenance-search.model';
 import { ReceiptRequest, ReceiptResponse } from '../models/receipt.model';
 
@@ -15,7 +17,8 @@ export class ReceiptService {
 
   constructor(
     http: HttpClient,
-    configService: ConfigService
+    configService: ConfigService,
+    private mappingService: MappingService
   ) {
     this.http = http;
     this.configService = configService;
@@ -34,37 +37,41 @@ export class ReceiptService {
       includeInactive: !!request.includeInactive,
       startDate: request.startDate ?? null,
       endDate: request.endDate ?? null
-    });
+    }).pipe(map(receipts => (receipts || []).map(receipt => this.mappingService.mapReceiptResponse(receipt))));
   }
 
   getReceipts(propertyId?: string | null, officeId?: number | null): Observable<ReceiptResponse[]> {
-    if (propertyId) {
-      return this.http.get<ReceiptResponse[]>(this.controller + 'property/' + propertyId);
-    }
-    if (officeId != null && Number.isFinite(officeId) && officeId > 0) {
-      return this.http.get<ReceiptResponse[]>(this.controller + 'office/' + officeId);
-    }
-    return this.http.get<ReceiptResponse[]>(this.controller);
+    const request$ = propertyId
+      ? this.http.get<ReceiptResponse[]>(this.controller + 'property/' + propertyId)
+      : officeId != null && Number.isFinite(officeId) && officeId > 0
+        ? this.http.get<ReceiptResponse[]>(this.controller + 'office/' + officeId)
+        : this.http.get<ReceiptResponse[]>(this.controller);
+    return request$.pipe(map(receipts => (receipts || []).map(receipt => this.mappingService.mapReceiptResponse(receipt))));
   }
 
   getReceiptsByPropertyId(propertyId: string): Observable<ReceiptResponse[]> {
-    return this.http.get<ReceiptResponse[]>(this.controller + 'property/' + propertyId);
+    return this.http.get<ReceiptResponse[]>(this.controller + 'property/' + propertyId)
+      .pipe(map(receipts => (receipts || []).map(receipt => this.mappingService.mapReceiptResponse(receipt))));
   }
 
   getReceiptById(receiptId: number): Observable<ReceiptResponse> {
-    return this.http.get<ReceiptResponse>(this.controller + receiptId);
+    return this.http.get<ReceiptResponse>(this.controller + receiptId)
+      .pipe(map(receipt => this.mappingService.mapReceiptResponse(receipt)));
   }
 
   getReceipt(organizationId: string, receiptId: number): Observable<ReceiptResponse> {
-    return this.http.get<ReceiptResponse>(this.controller + receiptId + '?organizationId=' + organizationId);
+    return this.http.get<ReceiptResponse>(this.controller + receiptId + '?organizationId=' + organizationId)
+      .pipe(map(receipt => this.mappingService.mapReceiptResponse(receipt)));
   }
 
   createReceipt(request: ReceiptRequest): Observable<ReceiptResponse> {
-    return this.http.post<ReceiptResponse>(this.controller, request);
+    return this.http.post<ReceiptResponse>(this.controller, request)
+      .pipe(map(receipt => this.mappingService.mapReceiptResponse(receipt)));
   }
 
   updateReceipt(request: ReceiptRequest): Observable<ReceiptResponse> {
-    return this.http.put<ReceiptResponse>(this.controller, request);
+    return this.http.put<ReceiptResponse>(this.controller, request)
+      .pipe(map(receipt => this.mappingService.mapReceiptResponse(receipt)));
   }
 
   deleteReceipt(receiptId: number): Observable<void> {

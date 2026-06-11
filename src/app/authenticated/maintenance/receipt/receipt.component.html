@@ -8,188 +8,489 @@
     <section class="content-card">
       <mat-card>
         <form [formGroup]="form" (ngSubmit)="saveReceipt()" class="info-form pt-5 receipt-embedded-form">
-          <div class="receipt-status-row">
-            <span class="text-lg font-medium">Full Receipt</span>
-            <div class="flex items-center gap-2">
-              <mat-checkbox formControlName="isActive" color="primary">
-                IsActive
-              </mat-checkbox>
-              <button
-                mat-raised-button
-                type="button"
-                color="primary"
-                (click)="saveReceipt()"
-                [disabled]="isSubmitting"
-                class="text-nowrap flex-shrink-0">
-                <mat-icon>save</mat-icon>
-                Save
-              </button>
-            </div>
-          </div>
-          <div class="grid grid-cols-4 gap-x-1.5 gap-y-1 receipt-form-grid">
-            <div class="col-span-4 receipt-overall-row receipt-overall-primary-row">
-              <mat-form-field appearance="outline" class="receipt-overall-no-field">
-                <mat-label>No</mat-label>
-                <input matInput [value]="isAddMode ? '' : (receipt?.receiptId || '')" readonly disabled>
-              </mat-form-field>
-              <mat-form-field appearance="outline" class="receipt-overall-property-field">
-                <mat-label>Properties</mat-label>
-                <mat-select formControlName="propertyIds" multiple [required]="isPropertySelectionRequired()">
-                  @for (option of propertyOptions; track option.propertyId) {
-                    <mat-option [value]="option.propertyId">
-                      {{ option.propertyCode }}
-                    </mat-option>
-                  }
-                </mat-select>
-              </mat-form-field>
-              <app-searchable-select
-                class="receipt-overall-bank-card-field"
-                [renderInFormField]="true"
-                [formFieldClass]="'receipt-overall-bank-card-field'"
-                [formFieldLabel]="'Bank Card'"
-                [value]="form.get('bankCardId')?.value ?? 0"
-                [options]="overallBankCardOptions"
-                [showSearchInput]="true"
-                [hideSearchHint]="true"
-                [hideSearchText]="true"
-                [searchPlaceholder]="'Type to filter bank cards...'"
-                [showInstructionOption]="false"
-                [noResultsText]="'No bank cards match your search'"
-                (valueChange)="onOverallBankCardSelectionChange($event)">
-              </app-searchable-select>
-              @if (isOverallBillBankCard()) {
-                <app-searchable-select
-                  class="receipt-overall-vendor-field"
-                  [renderInFormField]="true"
-                  [formFieldClass]="'receipt-overall-vendor-field'"
-                  [formFieldLabel]="'Vendor'"
-                  [value]="form.get('vendorId')?.value ?? ''"
-                  [options]="overallVendorOptions"
-                  [showSearchInput]="true"
-                  [hideSearchHint]="true"
-                  [hideSearchText]="true"
-                  [searchPlaceholder]="'Type to filter vendors...'"
-                  [showInstructionOption]="false"
-                  [noResultsText]="'No vendors match your search'"
-                  (valueChange)="onOverallVendorSelectionChange($any($event))">
-                </app-searchable-select>
-              } @else {
-                <mat-form-field appearance="outline" class="receipt-overall-vendor-field">
-                  <mat-label>Vendor</mat-label>
-                  <input matInput formControlName="vendorName">
-                </mat-form-field>
-              }
-            </div>
-            <div class="col-span-4 receipt-overall-row receipt-overall-secondary-row">
-              <mat-form-field appearance="outline" class="receipt-overall-date-field">
-                <mat-label>Receipt Date</mat-label>
-                <input matInput [matDatepicker]="receiptDatePicker" formControlName="receiptDate" required>
-                <mat-datepicker-toggle matIconSuffix [for]="receiptDatePicker"></mat-datepicker-toggle>
-                <mat-datepicker #receiptDatePicker></mat-datepicker>
-              </mat-form-field>
-              <mat-form-field appearance="outline" class="receipt-overall-compact-field">
-                <mat-label>Amount</mat-label>
-                <input matInput type="text" inputmode="decimal" [value]="getAmountDisplay()"
-                  (focus)="onAmountFocus($event)"
-                  (blur)="onAmountBlur($event)"
-                  (input)="onAmountInput($event)"
-                  (keydown.enter)="onAmountKeydown($event)">
-              </mat-form-field>
-              <mat-form-field appearance="outline" class="receipt-overall-description-field">
-                <mat-label>Description</mat-label>
-                <input matInput formControlName="description" required (blur)="onOverallDescriptionBlur()">
-              </mat-form-field>
-            </div>
-            <div class="col-span-4 receipt-overall-summary-row">
-              <div class="receipt-overall-summary">
-                <span class="receipt-overall-summary-label">Split Total:</span>
-                <span class="receipt-overall-summary-value" [class.split-total-invalid]="isDisplayedSplitTotalInvalid() || splitTotalValidationError">
-                  ${{ formatter.currency(getDisplayedSplitTotal()) }} / Receipt: ${{ formatter.currency(getReceiptAmountValue()) }}
-                </span>
+          @if (isAccountingShell) {
+            <div class="receipt-shell receipt-shell--accounting">
+              <div class="receipt-status-row">
+                <span class="text-lg font-medium">Bill Details</span>
+                <div class="flex items-center gap-2">
+                  <mat-checkbox formControlName="isActive" color="primary">
+                    IsActive
+                  </mat-checkbox>
+                  <button
+                    mat-raised-button
+                    type="button"
+                    color="primary"
+                    (click)="saveReceipt()"
+                    [disabled]="isSubmitting"
+                    class="text-nowrap flex-shrink-0">
+                    <mat-icon>save</mat-icon>
+                    Save
+                  </button>
+                </div>
               </div>
-            </div>
-
-            <div class="col-span-4 receipt-splits-section">
-              <div class="receipt-splits-header">
-                <span class="text-lg font-medium">Split Lines</span>
-                <button type="button" mat-raised-button color="primary" (click)="addSplitLine()">
-                  <mat-icon>add</mat-icon>
-                  Add Split
-                </button>
-              </div>
-              <div class="receipt-splits-list" formArrayName="splits">
-                <div class="receipt-splits-table-wrap">
-                  <table class="split-lines-table">
-                    <thead>
-                      <tr>
-                        <th class="split-col-no">No</th>
-                        <th class="split-col-amount">Amount</th>
-                        <th class="split-col-description">Description</th>
-                        <th class="split-col-type">Type</th>
-                        <th class="split-col-work-order">Work Order</th>
-                        <th class="split-col-actions"></th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      @for (splitGroup of splitsFormArray.controls; track splitIndex; let splitIndex = $index) {
-                        <tr [formGroupName]="splitIndex">
-                          <td class="split-col-no">{{ splitIndex + 1 }}</td>
-                          <td class="split-col-amount">
-                            <input type="text" inputmode="decimal" [value]="getSplitAmountDisplay(splitIndex)" required class="split-editable-input"
-                              (focus)="onSplitAmountFocus($event, splitIndex)"
-                              (blur)="onSplitAmountBlur($event, splitIndex)"
-                              (input)="onSplitAmountInput($event, splitIndex)"
-                              (keydown.enter)="onSplitAmountKeydown($event, splitIndex)"
-                              [class.split-input-invalid]="splitGroup.get('amount')?.hasError('required') && splitGroup.get('amount')?.touched">
-                          </td>
-                          <td class="split-col-description">
-                            <input type="text" formControlName="description" required class="split-editable-input"
-                              [class.split-input-invalid]="splitGroup.get('description')?.hasError('required') && splitGroup.get('description')?.touched">
-                          </td>
-                          <td class="split-col-type">
-                            <select formControlName="receiptTypeId" required class="split-editable-input"
-                              [class.split-input-invalid]="splitGroup.get('receiptTypeId')?.hasError('required') && splitGroup.get('receiptTypeId')?.touched">
-                              @for (option of receiptTypeOptions; track option.value) {
-                                <option [ngValue]="option.value">{{ option.label }}</option>
-                              }
-                            </select>
-                          </td>
-                          <td class="split-col-work-order">
-                            <input
-                              type="text"
-                              formControlName="workOrder"
-                              readonly
-                              class="split-readonly-input"
-                              [class.split-work-order-link]="hasSplitWorkOrder(splitIndex)"
-                              [attr.title]="hasSplitWorkOrder(splitIndex) ? 'Open work order' : null"
-                              (click)="openWorkOrderFromSplit(splitIndex)">
-                          </td>
-                          <td class="split-col-actions">
-                            <button
-                              type="button"
-                              mat-icon-button
-                              color="accent"
-                              [disabled]="splitsFormArray.length <= 1"
-                              (click)="removeSplitLine(splitIndex)"
-                              matTooltip="Remove this split line">
-                              <mat-icon>close</mat-icon>
-                            </button>
-                          </td>
-                        </tr>
+              <div class="grid grid-cols-4 form-standard-grid receipt-form-grid">
+                <div class="col-span-4 receipt-overall-row receipt-overall-primary-row">
+                  <mat-form-field appearance="outline" class="receipt-overall-no-field">
+                    <mat-label>No</mat-label>
+                    <input matInput [value]="isAddMode ? '' : (receipt?.receiptId || '')" readonly disabled>
+                  </mat-form-field>
+                  <mat-form-field appearance="outline" class="receipt-overall-property-field"
+                    [class.mat-form-field-invalid]="shouldShowControlError(form.get('propertyIds'))"
+                    [class.mat-mdc-form-field-invalid]="shouldShowControlError(form.get('propertyIds'))">
+                    <mat-label>Properties</mat-label>
+                    <mat-select formControlName="propertyIds" multiple [required]="isPropertySelectionRequired()">
+                      <mat-option [value]="accountingCompanyPropertyId">Company</mat-option>
+                      @for (option of propertyOptions; track option.propertyId) {
+                        <mat-option [value]="option.propertyId">
+                          {{ option.propertyCode }}
+                        </mat-option>
                       }
-                    </tbody>
-                  </table>
+                    </mat-select>
+                  </mat-form-field>
+                  <app-searchable-select
+                    class="receipt-overall-bank-card-field"
+                    [renderInFormField]="true"
+                    [formFieldClass]="'receipt-overall-bank-card-field'"
+                    [formFieldLabel]="'Bank Card'"
+                    [value]="form.get('bankCardId')?.value ?? 0"
+                    [options]="overallBankCardOptions"
+                    [required]="true"
+                    [showSearchInput]="true"
+                    [hideSearchHint]="true"
+                    [hideSearchText]="true"
+                    [searchPlaceholder]="'Type to filter bank cards...'"
+                    [showInstructionOption]="false"
+                    [noResultsText]="'No bank cards match your search'"
+                    (valueChange)="onOverallBankCardSelectionChange($event)">
+                  </app-searchable-select>
+                  @if (isOverallBillBankCard()) {
+                    <app-searchable-select
+                      class="receipt-overall-vendor-field"
+                      [renderInFormField]="true"
+                      [formFieldClass]="'receipt-overall-vendor-field'"
+                      [formFieldLabel]="'Vendor'"
+                      [value]="form.get('vendorId')?.value ?? ''"
+                      [options]="overallVendorOptions"
+                      [required]="true"
+                      [showError]="shouldShowControlError(form.get('vendorId'))"
+                      errorText="Vendor is required"
+                      [showSearchInput]="true"
+                      [hideSearchHint]="true"
+                      [hideSearchText]="true"
+                      [searchPlaceholder]="'Type to filter vendors...'"
+                      [showInstructionOption]="false"
+                      [noResultsText]="'No vendors match your search'"
+                      (valueChange)="onOverallVendorSelectionChange($any($event))">
+                    </app-searchable-select>
+                    <mat-form-field appearance="outline" class="receipt-overall-bill-number-field">
+                      <mat-label>Bill Number</mat-label>
+                      <input matInput formControlName="billNumber" maxlength="50">
+                    </mat-form-field>
+                  } @else {
+                    <mat-form-field appearance="outline" class="receipt-overall-vendor-field"
+                      [class.mat-form-field-invalid]="shouldShowControlError(form.get('vendorName'))"
+                      [class.mat-mdc-form-field-invalid]="shouldShowControlError(form.get('vendorName'))">
+                      <mat-label>Vendor</mat-label>
+                      <input matInput formControlName="vendorName" required>
+                      @if (shouldShowControlError(form.get('vendorName'))) {
+                        <mat-error>Vendor is required</mat-error>
+                      }
+                    </mat-form-field>
+                    <span class="receipt-overall-primary-spacer" aria-hidden="true"></span>
+                  }
+                </div>
+                @if (isOverallBillBankCard()) {
+                  <div class="col-span-4 receipt-overall-row receipt-overall-secondary-row receipt-overall-secondary-row--accounting-bill">
+                    <mat-form-field appearance="outline" class="receipt-overall-date-field">
+                      <mat-label>Receipt/Bill Date</mat-label>
+                      <input matInput [matDatepicker]="accountingReceiptDatePicker" formControlName="receiptDate" required>
+                      <mat-datepicker-toggle matIconSuffix [for]="accountingReceiptDatePicker"></mat-datepicker-toggle>
+                      <mat-datepicker #accountingReceiptDatePicker></mat-datepicker>
+                    </mat-form-field>
+                    <mat-form-field appearance="outline" class="receipt-overall-date-field">
+                      <mat-label>Due Date</mat-label>
+                      <input matInput [matDatepicker]="accountingDueDatePicker" formControlName="dueDate" required>
+                      <mat-datepicker-toggle matIconSuffix [for]="accountingDueDatePicker"></mat-datepicker-toggle>
+                      <mat-datepicker #accountingDueDatePicker></mat-datepicker>
+                    </mat-form-field>
+                    <mat-form-field appearance="outline" class="receipt-overall-date-field">
+                      <mat-label>Accounting Period</mat-label>
+                      <input matInput [matDatepicker]="accountingPeriodPicker" formControlName="accountingPeriod" required>
+                      <mat-datepicker-toggle matIconSuffix [for]="accountingPeriodPicker"></mat-datepicker-toggle>
+                      <mat-datepicker #accountingPeriodPicker></mat-datepicker>
+                    </mat-form-field>
+                    <mat-form-field appearance="outline" class="receipt-overall-compact-field"
+                      [class.mat-form-field-invalid]="shouldShowControlError(form.get('amount'))"
+                      [class.mat-mdc-form-field-invalid]="shouldShowControlError(form.get('amount'))">
+                      <mat-label>Amount</mat-label>
+                      <input matInput type="text" inputmode="decimal" [value]="getAmountDisplay()"
+                        [class.split-input-invalid]="shouldShowControlError(form.get('amount'))"
+                        (focus)="onAmountFocus($event)"
+                        (blur)="onAmountBlur($event)"
+                        (input)="onAmountInput($event)"
+                        (keydown.enter)="onAmountKeydown($event)">
+                      @if (shouldShowControlError(form.get('amount'))) {
+                        <mat-error>Amount is required</mat-error>
+                      }
+                    </mat-form-field>
+                    <mat-form-field appearance="outline" class="receipt-overall-description-field">
+                      <mat-label>Description</mat-label>
+                      <input matInput formControlName="description" required (blur)="onOverallDescriptionBlur()">
+                    </mat-form-field>
+                  </div>
+                } @else {
+                  <div class="col-span-4 receipt-overall-row receipt-overall-secondary-row">
+                    <mat-form-field appearance="outline" class="receipt-overall-date-field">
+                      <mat-label>Receipt/Bill Date</mat-label>
+                      <input matInput [matDatepicker]="accountingReceiptDatePickerCard" formControlName="receiptDate" required>
+                      <mat-datepicker-toggle matIconSuffix [for]="accountingReceiptDatePickerCard"></mat-datepicker-toggle>
+                      <mat-datepicker #accountingReceiptDatePickerCard></mat-datepicker>
+                    </mat-form-field>
+                    <mat-form-field appearance="outline" class="receipt-overall-compact-field"
+                      [class.mat-form-field-invalid]="shouldShowControlError(form.get('amount'))"
+                      [class.mat-mdc-form-field-invalid]="shouldShowControlError(form.get('amount'))">
+                      <mat-label>Amount</mat-label>
+                      <input matInput type="text" inputmode="decimal" [value]="getAmountDisplay()"
+                        [class.split-input-invalid]="shouldShowControlError(form.get('amount'))"
+                        (focus)="onAmountFocus($event)"
+                        (blur)="onAmountBlur($event)"
+                        (input)="onAmountInput($event)"
+                        (keydown.enter)="onAmountKeydown($event)">
+                      @if (shouldShowControlError(form.get('amount'))) {
+                        <mat-error>Amount is required</mat-error>
+                      }
+                    </mat-form-field>
+                    <mat-form-field appearance="outline" class="receipt-overall-description-field">
+                      <mat-label>Description</mat-label>
+                      <input matInput formControlName="description" required (blur)="onOverallDescriptionBlur()">
+                    </mat-form-field>
+                  </div>
+                }
+                <div class="col-span-4 receipt-overall-summary-row">
+                  <div class="receipt-overall-summary">
+                    <span class="receipt-overall-summary-label">Split Total:</span>
+                    <span class="receipt-overall-summary-value" [class.split-total-invalid]="isDisplayedSplitTotalInvalid() || splitTotalValidationError">
+                      ${{ formatter.currency(getDisplayedSplitTotal()) }} / Receipt: ${{ formatter.currency(getReceiptAmountValue()) }}
+                    </span>
+                  </div>
+                </div>
+
+                <div class="col-span-4 receipt-splits-section">
+                  <div class="receipt-splits-header">
+                    <span class="text-lg font-medium">Split Lines</span>
+                    <button type="button" mat-raised-button color="primary" (click)="addSplitLine()">
+                      <mat-icon>add</mat-icon>
+                      Add Split
+                    </button>
+                  </div>
+                  <div class="receipt-splits-list" formArrayName="splits">
+                    <div class="receipt-splits-table-wrap">
+                      <table class="split-lines-table" [class.split-lines-table--accounting-bill]="isOverallBillBankCard()">
+                        <thead>
+                          <tr>
+                            <th class="split-col-no">No</th>
+                            <th class="split-col-amount">Amount</th>
+                            <th class="split-col-description">Description</th>
+                            <th class="split-col-type">Type</th>
+                            @if (isOverallBillBankCard()) {
+                              <th class="split-col-account">Account</th>
+                            } @else {
+                              <th class="split-col-work-order">Work Order</th>
+                            }
+                            <th class="split-col-actions"></th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          @for (splitGroup of splitsFormArray.controls; track splitIndex; let splitIndex = $index) {
+                            <tr [formGroupName]="splitIndex">
+                              <td class="split-col-no">{{ splitIndex + 1 }}</td>
+                              <td class="split-col-amount">
+                                <input type="text" inputmode="decimal" [value]="getSplitAmountDisplay(splitIndex)" required class="split-editable-input"
+                                  (focus)="onSplitAmountFocus($event, splitIndex)"
+                                  (blur)="onSplitAmountBlur($event, splitIndex)"
+                                  (input)="onSplitAmountInput($event, splitIndex)"
+                                  (keydown.enter)="onSplitAmountKeydown($event, splitIndex)"
+                                  [class.split-input-invalid]="shouldShowSplitControlError(splitGroup, 'amount')">
+                              </td>
+                              <td class="split-col-description">
+                                <input type="text" formControlName="description" required class="split-editable-input"
+                                  [class.split-input-invalid]="shouldShowSplitControlError(splitGroup, 'description')">
+                              </td>
+                              <td class="split-col-type">
+                                <select formControlName="receiptTypeId" required class="split-editable-input"
+                                  [class.split-input-invalid]="shouldShowSplitControlError(splitGroup, 'receiptTypeId')">
+                                  @for (option of receiptTypeOptions; track option.value) {
+                                    <option [ngValue]="option.value">{{ option.label }}</option>
+                                  }
+                                </select>
+                              </td>
+                              @if (isOverallBillBankCard()) {
+                                <td class="split-col-account">
+                                  <app-searchable-select
+                                    class="split-account-select"
+                                    [renderInFormField]="false"
+                                    [value]="splitGroup.get('chartOfAccountId')?.value ?? null"
+                                    [options]="expenseAccountOptions"
+                                    [required]="true"
+                                    [showInstructionOption]="true"
+                                    [instructionOptionValue]="null"
+                                    nullOptionLabel="Select Account"
+                                    [showSearchInput]="true"
+                                    [hideSearchHint]="false"
+                                    [hideSearchText]="false"
+                                    searchPlaceholder="Type to filter accounts..."
+                                    noResultsText="No accounts match your search"
+                                    selectClass="split-editable-input split-account-select-control"
+                                    [showError]="shouldShowSplitControlError(splitGroup, 'chartOfAccountId')"
+                                    errorText="Account is required"
+                                    (valueChange)="onSplitAccountSelectionChange(splitIndex, $event)" />
+                                </td>
+                              } @else {
+                                <td class="split-col-work-order">
+                                  <input
+                                    type="text"
+                                    formControlName="workOrder"
+                                    readonly
+                                    class="split-readonly-input"
+                                    [class.split-work-order-link]="hasSplitWorkOrder(splitIndex)"
+                                    [attr.title]="hasSplitWorkOrder(splitIndex) ? 'Open work order' : null"
+                                    (click)="openWorkOrderFromSplit(splitIndex)">
+                                </td>
+                              }
+                              <td class="split-col-actions">
+                                <button
+                                  type="button"
+                                  mat-icon-button
+                                  color="accent"
+                                  [disabled]="splitsFormArray.length <= 1"
+                                  (click)="removeSplitLine(splitIndex)"
+                                  matTooltip="Remove this split line">
+                                  <mat-icon>close</mat-icon>
+                                </button>
+                              </td>
+                            </tr>
+                          }
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                  @if (isDisplayedSplitTotalInvalid() || splitTotalValidationError) {
+                    <div class="split-total-error">
+                      Split total cannot be greater than the receipt amount.
+                    </div>
+                  }
                 </div>
               </div>
-              @if (isDisplayedSplitTotalInvalid() || splitTotalValidationError) {
-                <div class="split-total-error">
-                  Split total cannot be greater than the receipt amount.
-                </div>
-              }
             </div>
+          } @else {
+            <div class="receipt-shell receipt-shell--maintenance">
+              <div class="receipt-status-row">
+                <span class="text-lg font-medium">Receipt Details</span>
+                <div class="flex items-center gap-2">
+                  <mat-checkbox formControlName="isActive" color="primary">
+                    IsActive
+                  </mat-checkbox>
+                  <button
+                    mat-raised-button
+                    type="button"
+                    color="primary"
+                    (click)="saveReceipt()"
+                    [disabled]="isSubmitting"
+                    class="text-nowrap flex-shrink-0">
+                    <mat-icon>save</mat-icon>
+                    Save
+                  </button>
+                </div>
+              </div>
+              <div class="grid grid-cols-4 form-standard-grid receipt-form-grid">
+                <div class="col-span-4 receipt-overall-row receipt-overall-primary-row">
+                  <mat-form-field appearance="outline" class="receipt-overall-no-field">
+                    <mat-label>No</mat-label>
+                    <input matInput [value]="isAddMode ? '' : (receipt?.receiptId || '')" readonly disabled>
+                  </mat-form-field>
+                  <mat-form-field appearance="outline" class="receipt-overall-property-field"
+                    [class.mat-form-field-invalid]="shouldShowControlError(form.get('propertyIds'))"
+                    [class.mat-mdc-form-field-invalid]="shouldShowControlError(form.get('propertyIds'))">
+                    <mat-label>Properties</mat-label>
+                    <mat-select formControlName="propertyIds" multiple [required]="isPropertySelectionRequired()">
+                      @for (option of propertyOptions; track option.propertyId) {
+                        <mat-option [value]="option.propertyId">
+                          {{ option.propertyCode }}
+                        </mat-option>
+                      }
+                    </mat-select>
+                  </mat-form-field>
+                  <app-searchable-select
+                    class="receipt-overall-bank-card-field"
+                    [renderInFormField]="true"
+                    [formFieldClass]="'receipt-overall-bank-card-field'"
+                    [formFieldLabel]="'Bank Card'"
+                    [value]="form.get('bankCardId')?.value ?? 0"
+                    [options]="overallBankCardOptions"
+                    [required]="true"
+                    [showSearchInput]="true"
+                    [hideSearchHint]="true"
+                    [hideSearchText]="true"
+                    [searchPlaceholder]="'Type to filter bank cards...'"
+                    [showInstructionOption]="false"
+                    [noResultsText]="'No bank cards match your search'"
+                    (valueChange)="onOverallBankCardSelectionChange($event)">
+                  </app-searchable-select>
+                  @if (isOverallBillBankCard()) {
+                    <app-searchable-select
+                      class="receipt-overall-vendor-field"
+                      [renderInFormField]="true"
+                      [formFieldClass]="'receipt-overall-vendor-field'"
+                      [formFieldLabel]="'Vendor'"
+                      [value]="form.get('vendorId')?.value ?? ''"
+                      [options]="overallVendorOptions"
+                      [required]="true"
+                      [showError]="shouldShowControlError(form.get('vendorId'))"
+                      errorText="Vendor is required"
+                      [showSearchInput]="true"
+                      [hideSearchHint]="true"
+                      [hideSearchText]="true"
+                      [searchPlaceholder]="'Type to filter vendors...'"
+                      [showInstructionOption]="false"
+                      [noResultsText]="'No vendors match your search'"
+                      (valueChange)="onOverallVendorSelectionChange($any($event))">
+                    </app-searchable-select>
+                  } @else {
+                    <mat-form-field appearance="outline" class="receipt-overall-vendor-field"
+                      [class.mat-form-field-invalid]="shouldShowControlError(form.get('vendorName'))"
+                      [class.mat-mdc-form-field-invalid]="shouldShowControlError(form.get('vendorName'))">
+                      <mat-label>Vendor</mat-label>
+                      <input matInput formControlName="vendorName" required>
+                      @if (shouldShowControlError(form.get('vendorName'))) {
+                        <mat-error>Vendor is required</mat-error>
+                      }
+                    </mat-form-field>
+                  }
+                </div>
+                <div class="col-span-4 receipt-overall-row receipt-overall-secondary-row">
+                  <mat-form-field appearance="outline" class="receipt-overall-bill-number-field">
+                    <mat-label>Bill Number</mat-label>
+                    <input matInput formControlName="billNumber" maxlength="50">
+                  </mat-form-field>
+                  <mat-form-field appearance="outline" class="receipt-overall-date-field">
+                    <mat-label>Receipt/Bill Date</mat-label>
+                    <input matInput [matDatepicker]="maintenanceReceiptDatePicker" formControlName="receiptDate" required>
+                    <mat-datepicker-toggle matIconSuffix [for]="maintenanceReceiptDatePicker"></mat-datepicker-toggle>
+                    <mat-datepicker #maintenanceReceiptDatePicker></mat-datepicker>
+                  </mat-form-field>
+                  <mat-form-field appearance="outline" class="receipt-overall-compact-field"
+                    [class.mat-form-field-invalid]="shouldShowControlError(form.get('amount'))"
+                    [class.mat-mdc-form-field-invalid]="shouldShowControlError(form.get('amount'))">
+                    <mat-label>Amount</mat-label>
+                    <input matInput type="text" inputmode="decimal" [value]="getAmountDisplay()"
+                      [class.split-input-invalid]="shouldShowControlError(form.get('amount'))"
+                      (focus)="onAmountFocus($event)"
+                      (blur)="onAmountBlur($event)"
+                      (input)="onAmountInput($event)"
+                      (keydown.enter)="onAmountKeydown($event)">
+                    @if (shouldShowControlError(form.get('amount'))) {
+                      <mat-error>Amount is required</mat-error>
+                    }
+                  </mat-form-field>
+                  <mat-form-field appearance="outline" class="receipt-overall-description-field">
+                    <mat-label>Description</mat-label>
+                    <input matInput formControlName="description" required (blur)="onOverallDescriptionBlur()">
+                  </mat-form-field>
+                </div>
+                <div class="col-span-4 receipt-overall-summary-row">
+                  <div class="receipt-overall-summary">
+                    <span class="receipt-overall-summary-label">Split Total:</span>
+                    <span class="receipt-overall-summary-value" [class.split-total-invalid]="isDisplayedSplitTotalInvalid() || splitTotalValidationError">
+                      ${{ formatter.currency(getDisplayedSplitTotal()) }} / Receipt: ${{ formatter.currency(getReceiptAmountValue()) }}
+                    </span>
+                  </div>
+                </div>
 
-            <div class="col-span-4 receipt-image-section">
-              <span class="text-lg font-medium block mb-2">Receipt *</span>
+                <div class="col-span-4 receipt-splits-section">
+                  <div class="receipt-splits-header">
+                    <span class="text-lg font-medium">Split Lines</span>
+                    <button type="button" mat-raised-button color="primary" (click)="addSplitLine()">
+                      <mat-icon>add</mat-icon>
+                      Add Split
+                    </button>
+                  </div>
+                  <div class="receipt-splits-list" formArrayName="splits">
+                    <div class="receipt-splits-table-wrap">
+                      <table class="split-lines-table">
+                        <thead>
+                          <tr>
+                            <th class="split-col-no">No</th>
+                            <th class="split-col-amount">Amount</th>
+                            <th class="split-col-description">Description</th>
+                            <th class="split-col-type">Type</th>
+                            <th class="split-col-work-order">Work Order</th>
+                            <th class="split-col-actions"></th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          @for (splitGroup of splitsFormArray.controls; track splitIndex; let splitIndex = $index) {
+                            <tr [formGroupName]="splitIndex">
+                              <td class="split-col-no">{{ splitIndex + 1 }}</td>
+                              <td class="split-col-amount">
+                                <input type="text" inputmode="decimal" [value]="getSplitAmountDisplay(splitIndex)" required class="split-editable-input"
+                                  (focus)="onSplitAmountFocus($event, splitIndex)"
+                                  (blur)="onSplitAmountBlur($event, splitIndex)"
+                                  (input)="onSplitAmountInput($event, splitIndex)"
+                                  (keydown.enter)="onSplitAmountKeydown($event, splitIndex)"
+                                  [class.split-input-invalid]="shouldShowSplitControlError(splitGroup, 'amount')">
+                              </td>
+                              <td class="split-col-description">
+                                <input type="text" formControlName="description" required class="split-editable-input"
+                                  [class.split-input-invalid]="shouldShowSplitControlError(splitGroup, 'description')">
+                              </td>
+                              <td class="split-col-type">
+                                <select formControlName="receiptTypeId" required class="split-editable-input"
+                                  [class.split-input-invalid]="shouldShowSplitControlError(splitGroup, 'receiptTypeId')">
+                                  @for (option of receiptTypeOptions; track option.value) {
+                                    <option [ngValue]="option.value">{{ option.label }}</option>
+                                  }
+                                </select>
+                              </td>
+                              <td class="split-col-work-order">
+                                <input
+                                  type="text"
+                                  formControlName="workOrder"
+                                  readonly
+                                  class="split-readonly-input"
+                                  [class.split-work-order-link]="hasSplitWorkOrder(splitIndex)"
+                                  [attr.title]="hasSplitWorkOrder(splitIndex) ? 'Open work order' : null"
+                                  (click)="openWorkOrderFromSplit(splitIndex)">
+                              </td>
+                              <td class="split-col-actions">
+                                <button
+                                  type="button"
+                                  mat-icon-button
+                                  color="accent"
+                                  [disabled]="splitsFormArray.length <= 1"
+                                  (click)="removeSplitLine(splitIndex)"
+                                  matTooltip="Remove this split line">
+                                  <mat-icon>close</mat-icon>
+                                </button>
+                              </td>
+                            </tr>
+                          }
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                  @if (isDisplayedSplitTotalInvalid() || splitTotalValidationError) {
+                    <div class="split-total-error">
+                      Split total cannot be greater than the receipt amount.
+                    </div>
+                  }
+                </div>
+              </div>
+            </div>
+          }
+
+          <div class="grid grid-cols-4 form-standard-grid receipt-form-grid">
+            <div class="col-span-4 receipt-image-section" [class.receipt-image-section--invalid]="receiptFileValidationError">
+              <span class="text-lg font-medium block mb-2" [class.receipt-field-invalid-label]="receiptFileValidationError">Receipt *</span>
               <div class="flex items-center gap-3">
                 @if (receiptPreviewDataUrl) {
                   @if (isReceiptPreviewPdf()) {
@@ -234,8 +535,10 @@
                 accept="image/*,application/pdf"
                 style="display: none;"
                 (change)="onReceiptSelected($event)" />
+              @if (receiptFileValidationError) {
+                <div class="receipt-file-error">Receipt image or PDF is required.</div>
+              }
             </div>
-
           </div>
 
           @if (isSubmitting) {

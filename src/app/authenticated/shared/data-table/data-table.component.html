@@ -179,8 +179,8 @@
                           <button mat-icon-button type="button"
                             id="row-{{button.name}}-btn-{{templateTableId}}-{{i}}"
                             (click)="button.callback($event, item)"
-                            [disabled]="!hasActionsEnabled || (button.name === 'view' && item?.canView === false) || (button.name === 'camera' && !item?.documentPath) || (button.name === 'invoice' && item?.invoiceDisabled === true)"
-                            [style.color]="hasActionsEnabled && !(button.name === 'view' && item?.canView === false) && !(button.name === 'camera' && !item?.documentPath) && !(button.name === 'invoice' && item?.invoiceDisabled === true) ? button.color : ''"
+                            [disabled]="!hasActionsEnabled || (button.name === 'view' && item?.canView === false) || (button.name === 'camera' && !item?.documentPath) || (button.name === 'invoice' && item?.invoiceDisabled === true) || (button.name === 'payable' && item?.payableDisabled === true)"
+                            [style.color]="hasActionsEnabled && !(button.name === 'view' && item?.canView === false) && !(button.name === 'camera' && !item?.documentPath) && !(button.name === 'invoice' && item?.invoiceDisabled === true) && !(button.name === 'payable' && item?.payableDisabled === true) ? button.color : ''"
                             [color]="button.color">
                             @if (button.suspendOnUpdate && item?.updating) {
                               <div class="datatable-{{button.name}}-loader-wrap">
@@ -329,6 +329,11 @@
                       }
                     } @else {
                       {{item[column.name]}}
+                    }
+                  } @case ('accountDisplay') {
+                    @let accountLabels = getDelimitedValues(item[column.name]);
+                    @for (accountLabel of accountLabels; track accountLabel; let labelIndex = $index) {
+                      <span>{{ accountLabel }}</span>@if (labelIndex < accountLabels.length - 1) {<span>, </span>}
                     }
                   } @default {
                   @if (column.editableType === 'date' && item[(column.name ?? '') + 'ReadOnly'] !== true) {

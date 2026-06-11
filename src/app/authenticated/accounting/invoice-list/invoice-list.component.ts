@@ -128,7 +128,7 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
     dueDate: { displayAs: 'Due Date', maxWidth: '15ch', alignment: 'center' },
     created: { displayAs: 'Created', maxWidth: '15ch', alignment: 'center' },
     totalAmount: { displayAs: 'Total', maxWidth: '15ch', alignment: 'right', headerAlignment: 'right' },
-    paidAmount: { displayAs: '  Paid', maxWidth: '15ch', alignment: 'right', headerAlignment: 'right' },
+    paidAmount: { displayAs: 'Paid', maxWidth: '15ch', alignment: 'right', headerAlignment: 'right' },
     dueAmount: { displayAs: 'Due', maxWidth: '15ch', alignment: 'right', headerAlignment: 'right' },
     applyAmount: { displayAs: 'Apply', maxWidth: '20ch', alignment: 'right', headerAlignment: 'right' }
   };
