@@ -31,7 +31,8 @@ import { getTrackerContextCode, getTrackerContextType } from '../authenticated/o
 import { ManagementFeeType, PropertyLeaseType, PropertyType, TrashDays, effectiveBedTypeIdForPropertySlot, getBedSizeType, getPropertyStatus, getPropertyStatusLetter, getPropertyType } from '../authenticated/properties/models/property-enums';
 import { PropertyBedDropdownCell, PropertyListDisplay, PropertyListResponse, PropertyResponse } from '../authenticated/properties/models/property.model';
 import { BoardProperty } from '../authenticated/reservations/models/reservation-board-model';
-import { getFrequency, getReservationStatus } from '../authenticated/reservations/models/reservation-enum';
+import { getFrequency, getReservationStatus, ReservationStatus, ReservationType } from '../authenticated/reservations/models/reservation-enum';
+import { ExternalCalendarImportEvent } from '../authenticated/reservations/models/external-calendar-import.model';
 import { ExtraFeeLineRequest, ExtraFeeLineResponse, ReservationListDisplay, ReservationListResponse } from '../authenticated/reservations/models/reservation-model';
 import { LeadGeneralListDisplay, LeadGeneralResponse, LeadGeneralUpdateRequest } from '../authenticated/leads/models/lead-general.model';
 import { LeadOwnerRequest, LeadOwnerListDisplay, LeadOwnerResponse, LeadOwnerUpdateRequest } from '../authenticated/leads/models/lead-owner.model';
@@ -1887,6 +1888,46 @@ export class MappingService {
       feeFrequencyId: line.feeFrequencyId,
       costCodeId: line.costCodeId
     }));
+  }
+
+  mapExternalCalendarEventsToReservationList(
+    property: Pick<PropertyListResponse, 'propertyId' | 'propertyCode' | 'officeId' | 'officeName' | 'monthlyRate'>,
+    events: ExternalCalendarImportEvent[]
+  ): ReservationListResponse[] {
+    const defaultLabel = 'External Calendar';
+    return (events || []).map((event, index) => {
+      const summary = String(event.summary || '').trim() || defaultLabel;
+      const uid = String(event.uid || '').trim() || `${event.arrivalDate}-${event.departureDate}-${index}`;
+      return {
+        reservationId: `extcal:${property.propertyId}:${uid}`,
+        reservationCode: summary,
+        propertyId: property.propertyId,
+        propertyCode: property.propertyCode,
+        officeId: property.officeId,
+        officeName: property.officeName,
+        contactId: '',
+        contactName: summary,
+        companyId: null,
+        companyName: null,
+        tenantName: summary,
+        agentCode: null,
+        billingTypeId: null,
+        billingRate: 0,
+        monthlyRate: property.monthlyRate,
+        arrivalDate: event.arrivalDate,
+        departureDate: event.departureDate,
+        reservationTypeId: ReservationType.Individual,
+        reservationStatusId: ReservationStatus.Confirmed,
+        hasPets: false,
+        maidUserId: null,
+        maidStartDate: null,
+        frequencyId: 0,
+        maidServiceFee: 0,
+        currentInvoiceNo: 0,
+        isActive: true,
+        createdOn: event.arrivalDate
+      };
+    });
   }
 
   //#endregion

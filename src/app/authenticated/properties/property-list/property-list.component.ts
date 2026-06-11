@@ -375,16 +375,6 @@ export class PropertyListComponent implements OnInit, OnDestroy, OnChanges {
   }
 
   openPropertyCalendar(property: PropertyListDisplay): void {
-    const externalCalendarUrl = String(property.externalCalendar ?? '').trim();
-    if (externalCalendarUrl) {
-      this.showPropertyCalendarUrlDialog(
-        property.propertyCode,
-        externalCalendarUrl,
-        { externalCalendar: externalCalendarUrl }
-      );
-      return;
-    }
-
     this.propertyService.getPropertyCalendarUrl(property.propertyId).pipe(take(1)).subscribe({
       next: (response: CalendarUrlResponse) => {
         if (!response?.subscriptionUrl) {

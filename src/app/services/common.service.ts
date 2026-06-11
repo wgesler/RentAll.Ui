@@ -3,6 +3,7 @@ import { Injectable } from '@angular/core';
 import { BehaviorSubject, Observable, take } from 'rxjs';
 import { EmailRequest, EmailResponse } from '../authenticated/email/models/email.model';
 import { OrganizationResponse } from '../authenticated/organizations/models/organization.model';
+import { ExternalCalendarImportRequest, ExternalCalendarImportResponse } from '../authenticated/reservations/models/external-calendar-import.model';
 import { OrganizationService } from '../authenticated/organizations/services/organization.service';
 import { DailyQuote } from '../shared/models/daily-quote';
 import { StateResponse } from '../shared/models/state-response';
@@ -109,5 +110,10 @@ export class CommonService {
 
   sendEmail(request: EmailRequest): Observable<EmailResponse> {
     return this.http.post<EmailResponse>(this.controller + 'send-email', request);
+  }
+
+  importExternalCalendar(externalCalendarUrl: string): Observable<ExternalCalendarImportResponse> {
+    const request: ExternalCalendarImportRequest = { externalCalendarUrl };
+    return this.http.post<ExternalCalendarImportResponse>(this.controller + 'calendar/import', request);
   }
 }

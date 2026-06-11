@@ -5,11 +5,12 @@ import { MatMenuTrigger } from '@angular/material/menu';
 import { MatSlideToggleChange } from '@angular/material/slide-toggle';
 import { Router } from '@angular/router';
 import { ToastrService } from 'ngx-toastr';
-import { BehaviorSubject, Observable, Subject, distinctUntilChanged, filter, finalize, interval, map, skip, take, takeUntil } from 'rxjs';
+import { BehaviorSubject, Observable, Subject, catchError, distinctUntilChanged, filter, finalize, forkJoin, interval, map, of, skip, take, takeUntil } from 'rxjs';
 import { RouterUrl } from '../../../app.routes';
 import { CommonMessage } from '../../../enums/common-message.enum';
 import { MaterialModule } from '../../../material.module';
 import { AuthService } from '../../../services/auth.service';
+import { CommonService } from '../../../services/common.service';
 import { MappingService } from '../../../services/mapping.service';
 import { UtilityService } from '../../../services/utility.service';
 import { ContactResponse } from '../../contacts/models/contact.model';
@@ -52,6 +53,8 @@ export class ReservationBoardComponent implements OnInit, OnChanges, OnDestroy {
   propertyRows: PropertyListResponse[] = [];
   calendarDays: CalendarDay[] = [];
   reservations: ReservationListResponse[] = [];
+  apiReservations: ReservationListResponse[] = [];
+  externalCalendarReservations: ReservationListResponse[] = [];
   offices: OfficeResponse[] = [];
   contacts: ContactResponse[] = [];
   colors: ColorResponse[] = [];
@@ -85,6 +88,8 @@ export class ReservationBoardComponent implements OnInit, OnChanges, OnDestroy {
   isLoadingReservations = false;
   lastLoadedOfficeId: number | null | undefined = undefined;
   officeUseDailyOnBoardById = new Map<number, boolean>();
+  private externalCalendarLoadSequence = 0;
+  private readonly externalCalendarReservationIdPrefix = 'extcal:';
 
   itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['colors', 'reservations', 'properties', 'contacts', 'officeScope']));
   isLoading$: Observable<boolean> = this.itemsToLoad$.pipe(map(items => items.size > 0));
@@ -95,6 +100,7 @@ export class ReservationBoardComponent implements OnInit, OnChanges, OnDestroy {
     private reservationService: ReservationService,
     private contactService: ContactService,
     private colorService: ColorService,
+    private commonService: CommonService,
     private router: Router,
     private authService: AuthService,
     private mappingService: MappingService,
@@ -350,16 +356,17 @@ export class ReservationBoardComponent implements OnInit, OnChanges, OnDestroy {
     reservations$.pipe(take(1), finalize(() => { if (!silent) { this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'reservations'); } })).subscribe({
       next: (reservations: ReservationListResponse[]) => {
         const workingOfficeId = this.selectedOfficeId;
-        this.reservations = (reservations || []).filter(r => workingOfficeId == null || r.officeId === workingOfficeId);
-        this.properties = this.mappingService.mapPropertiesToBoardProperties(this.propertyRows, this.reservations);
+        this.apiReservations = (reservations || []).filter(r => workingOfficeId == null || r.officeId === workingOfficeId);
+        this.loadExternalCalendarReservations();
         this.lastLoadedOfficeId = workingOfficeId ?? null;
         this.displayTextCache.clear();
         this.isLoadingReservations = false;
         this.markViewForCheck();
       },
       error: () => {
-        this.reservations = [];
-        this.properties = this.mappingService.mapPropertiesToBoardProperties(this.propertyRows, this.reservations);
+        this.apiReservations = [];
+        this.externalCalendarReservations = [];
+        this.combineBoardReservations();
         this.lastLoadedOfficeId = currentOfficeId;
         this.isLoadingReservations = false;
         this.markViewForCheck();
@@ -500,8 +507,7 @@ export class ReservationBoardComponent implements OnInit, OnChanges, OnDestroy {
   applyBoardPropertyFilter(): void {
     const showUnfurnished = this.globalSelectionService.getFurnishedPropertySelection() === true;
     this.propertyRows = (this.allPropertyRows || []).filter(p => this.mappingService.toBooleanValue(p.unfurnished) === showUnfurnished);
-    this.properties = this.mappingService.mapPropertiesToBoardProperties(this.propertyRows, this.reservations);
-    this.markViewForCheck();
+    this.loadExternalCalendarReservations();
   }
 
   generateCalendarDays(): void {
@@ -637,6 +643,11 @@ export class ReservationBoardComponent implements OnInit, OnChanges, OnDestroy {
 
     // If multiple reservations overlap on the same date, prioritize most recent arrival date.
     matchingReservations.sort((a, b) => {
+      const aIsExternal = this.isExternalCalendarReservation(a.reservationId);
+      const bIsExternal = this.isExternalCalendarReservation(b.reservationId);
+      if (aIsExternal !== bIsExternal) {
+        return aIsExternal ? 1 : -1;
+      }
       if (!a.arrivalDate || !b.arrivalDate) return 0;
       const dateA = this.parseDateOnly(a.arrivalDate);
       const dateB = this.parseDateOnly(b.arrivalDate);
@@ -1048,6 +1059,9 @@ export class ReservationBoardComponent implements OnInit, OnChanges, OnDestroy {
       this.togglePropertySelection(propertyId);
       return;
     }
+    if (this.isExternalCalendarReservation(reservationId)) {
+      return;
+    }
     this.navigateToReservation(reservationId);
   }
 
@@ -1217,6 +1231,52 @@ export class ReservationBoardComponent implements OnInit, OnChanges, OnDestroy {
 
   markViewForCheck(): void {
     this.cdr.markForCheck();
+  }
+
+  loadExternalCalendarReservations(): void {
+    const currentSequence = ++this.externalCalendarLoadSequence;
+    const propertiesWithExternalCalendar = (this.propertyRows || []).filter(property => String(property.externalCalendar || '').trim() !== '');
+    if (propertiesWithExternalCalendar.length === 0) {
+      this.externalCalendarReservations = [];
+      this.combineBoardReservations();
+      return;
+    }
+
+    const requests = propertiesWithExternalCalendar.map(property => {
+      const externalCalendarUrl = String(property.externalCalendar || '').trim();
+      return this.commonService.importExternalCalendar(externalCalendarUrl).pipe(
+        map(response => this.mappingService.mapExternalCalendarEventsToReservationList(property, response.events || [])),
+        catchError(() => of([] as ReservationListResponse[]))
+      );
+    });
+
+    forkJoin(requests).pipe(take(1)).subscribe({
+      next: (reservationLists: ReservationListResponse[][]) => {
+        if (currentSequence !== this.externalCalendarLoadSequence) {
+          return;
+        }
+        this.externalCalendarReservations = reservationLists.flat();
+        this.combineBoardReservations();
+      },
+      error: () => {
+        if (currentSequence !== this.externalCalendarLoadSequence) {
+          return;
+        }
+        this.externalCalendarReservations = [];
+        this.combineBoardReservations();
+      }
+    });
+  }
+
+  combineBoardReservations(): void {
+    this.reservations = [...this.apiReservations, ...this.externalCalendarReservations];
+    this.properties = this.mappingService.mapPropertiesToBoardProperties(this.propertyRows, this.reservations);
+    this.displayTextCache.clear();
+    this.markViewForCheck();
+  }
+
+  isExternalCalendarReservation(reservationId: string | null | undefined): boolean {
+    return String(reservationId || '').startsWith(this.externalCalendarReservationIdPrefix);
   }
 
   ngOnDestroy(): void {

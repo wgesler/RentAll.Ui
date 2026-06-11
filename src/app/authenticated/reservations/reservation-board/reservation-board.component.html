@@ -192,6 +192,8 @@
                               [ngClass]="getReservationStatusClass(reservation, day.date)" 
                               [style.backgroundColor]="bgColor"
                               [style.color]="getTextColor(bgColor)"
+                              [matTooltip]="isExternalCalendarReservation(reservation.reservationId) ? 'External Reseration' : ''"
+                              [matTooltipDisabled]="!isExternalCalendarReservation(reservation.reservationId)"
                               (click)="onReservationCellClick(reservation.reservationId, property.propertyId, $event)">
                             @if (readOnly) {
                               <span class="reservation-link">{{ getReservationDisplayText(reservation, day.date) }}</span>
@@ -204,6 +206,8 @@
                               [ngClass]="getReservationStatusClass(reservation, day.date)" 
                               [style.backgroundColor]="bgColor"
                               [style.color]="getTextColor(bgColor)"
+                              [matTooltip]="isExternalCalendarReservation(reservation.reservationId) ? 'External Reseration' : ''"
+                              [matTooltipDisabled]="!isExternalCalendarReservation(reservation.reservationId)"
                               (click)="onReservationCellClick(reservation.reservationId, property.propertyId, $event)">
                             {{ getReservationDisplayText(reservation, day.date) }}
                           </td>
@@ -213,6 +217,8 @@
                             [ngClass]="getReservationStatusClass(reservation, day.date)" 
                             [style.backgroundColor]="bgColor"
                             [style.color]="getTextColor(bgColor)"
+                            [matTooltip]="isExternalCalendarReservation(reservation.reservationId) ? 'External Reseration' : ''"
+                            [matTooltipDisabled]="!isExternalCalendarReservation(reservation.reservationId)"
                             (click)="onReservationCellClick(reservation.reservationId, property.propertyId, $event)">
                           {{ getReservationDisplayText(reservation, day.date) }}
                         </td>
@@ -220,7 +226,7 @@
                     } @else {
                       @if (getReservationDisplayText(reservation, day.date) === 'A' || getReservationDisplayText(reservation, day.date) === 'D') {
                         @if (getReservationStatusClass(reservation, day.date) === 'reservation-arrival' || getReservationStatusClass(reservation, day.date) === 'reservation-departure') {
-                          <td class="calendar-cell" [ngClass]="getReservationStatusClass(reservation, day.date)" (click)="onReservationCellClick(reservation.reservationId, property.propertyId, $event)">
+                          <td class="calendar-cell" [ngClass]="getReservationStatusClass(reservation, day.date)" [matTooltip]="isExternalCalendarReservation(reservation.reservationId) ? 'External Reseration' : ''" [matTooltipDisabled]="!isExternalCalendarReservation(reservation.reservationId)" (click)="onReservationCellClick(reservation.reservationId, property.propertyId, $event)">
                             @if (readOnly) {
                               <span class="reservation-link">{{ getReservationDisplayText(reservation, day.date) }}</span>
                             } @else {
@@ -228,12 +234,12 @@
                             }
                           </td>
                         } @else {
-                          <td class="calendar-cell" [ngClass]="getReservationStatusClass(reservation, day.date)" (click)="onReservationCellClick(reservation.reservationId, property.propertyId, $event)">
+                          <td class="calendar-cell" [ngClass]="getReservationStatusClass(reservation, day.date)" [matTooltip]="isExternalCalendarReservation(reservation.reservationId) ? 'External Reseration' : ''" [matTooltipDisabled]="!isExternalCalendarReservation(reservation.reservationId)" (click)="onReservationCellClick(reservation.reservationId, property.propertyId, $event)">
                             {{ getReservationDisplayText(reservation, day.date) }}
                           </td>
                         }
                       } @else {
-                        <td class="calendar-cell" [ngClass]="getReservationStatusClass(reservation, day.date)" (click)="onReservationCellClick(reservation.reservationId, property.propertyId, $event)">
+                        <td class="calendar-cell" [ngClass]="getReservationStatusClass(reservation, day.date)" [matTooltip]="isExternalCalendarReservation(reservation.reservationId) ? 'External Reseration' : ''" [matTooltipDisabled]="!isExternalCalendarReservation(reservation.reservationId)" (click)="onReservationCellClick(reservation.reservationId, property.propertyId, $event)">
                           {{ getReservationDisplayText(reservation, day.date) }}
                         </td>
                       }
