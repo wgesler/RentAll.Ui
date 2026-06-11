@@ -884,6 +884,21 @@ td.mat-mdc-cell.datatable-checkbox-td {
   text-align: center !important;
 }
 
+/* Keep selection checkboxes adjacent to leading columns when the table stretches full width. */
+@media screen and (min-width: 960px) {
+  th.mat-header-cell.mat-column-select,
+  th.mat-mdc-header-cell.mat-column-select,
+  td.mat-cell.mat-column-select,
+  td.mat-mdc-cell.mat-column-select {
+    width: 5ch !important;
+    max-width: 5ch !important;
+    min-width: 5ch !important;
+    padding-left: 0 !important;
+    padding-right: 0 !important;
+    text-align: center !important;
+  }
+}
+
 // Rating stars column: larger font and centered (so it applies on every load, not just when parent has scoped styles)
 td.mat-cell.mat-column-ratingStars,
 td.mat-mdc-cell.mat-column-ratingStars {

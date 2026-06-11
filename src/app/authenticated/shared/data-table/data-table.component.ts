@@ -1138,7 +1138,7 @@ export class DataTableComponent implements OnChanges, OnInit, AfterViewInit, OnD
     let columns = {} as ColumnSet;
     // order here is important
     if (this.hasActionsSelect)
-      columns['select'] = { displayAs: this.columnTextSelect ?? 'Select', sort: false, wrap: false };
+      columns['select'] = { displayAs: this.columnTextSelect ?? 'Select', sort: false, wrap: false, maxWidth: '5ch', alignment: 'center', headerAlignment: 'center' };
 
     const leading: ColumnSet = {};
     const rest: ColumnSet = {};
