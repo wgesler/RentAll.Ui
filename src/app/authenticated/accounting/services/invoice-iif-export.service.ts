@@ -1,15 +1,9 @@
 import { Injectable } from '@angular/core';
+import { QbClassType, QbNameType } from '../../organizations/models/qb-type-enum';
 import { TransactionType } from '../models/accounting-enum';
 import { ChartOfAccountResponse } from '../models/chart-of-accounts.model';
 import { CostCodesResponse } from '../models/cost-codes.model';
-import { InvoiceResponse, LedgerLineResponse } from '../models/invoice.model';
-
-export interface InvoiceIifExportOptions {
-  accountsReceivableAccount?: string;
-  defaultIncomeAccount?: string;
-  classByInvoiceId?: Record<string, string>;
-  nameByInvoiceId?: Record<string, string>;
-}
+import { InvoiceIifExportFieldContext, InvoiceIifExportOptions, InvoiceResponse, LedgerLineResponse } from '../models/invoice.model';
 
 @Injectable({
   providedIn: 'root'
@@ -77,6 +71,30 @@ export class InvoiceIifExportService {
     });
 
     return rows.join('\r\n');
+  }
+
+  buildQuickBooksName(qbNameTypeId: number | null | undefined, context: InvoiceIifExportFieldContext): string {
+    switch (qbNameTypeId ?? QbNameType.Unselected) {
+      case QbNameType.CorporationCodeName: {
+        const job = [context.reservationCode, context.occupantName].filter(value => !!value).join(' ');
+        return job && context.recipient ? `${context.recipient}:${job}` : (context.recipient || job);
+      }
+      case QbNameType.CodeBoardName:
+        return [context.reservationCode, context.reservationBoardLabel].filter(value => !!value).join(':');
+      default:
+        return context.reservationCode;
+    }
+  }
+
+  buildQuickBooksClass(qbClassTypeId: number | null | undefined, context: InvoiceIifExportFieldContext): string {
+    switch (qbClassTypeId ?? QbClassType.Unselected) {
+      case QbClassType.CityProperty:
+        return [context.city, context.propertyCode].filter(value => !!value).join(':');
+      case QbClassType.OfficeProperty:
+        return [context.officeName, context.propertyCode].filter(value => !!value).join(':');
+      default:
+        return context.propertyCode;
+    }
   }
 
   partitionLedgerLines(

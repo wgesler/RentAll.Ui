@@ -140,3 +140,22 @@ export interface LedgerLineListDisplay {
   isNew?: boolean; // Track if this is a newly added line (should remain editable)
   rowColor?: string; // Hidden column for row coloring
 }
+
+export interface InvoiceIifExportFieldContext {
+  recipient: string;
+  reservationCode: string;
+  reservationBoardLabel: string;
+  occupantName: string;
+  city: string;
+  propertyCode: string;
+  officeCode: string;
+  officeName: string;
+  responsibleParty: string;
+}
+
+export interface InvoiceIifExportOptions {
+  accountsReceivableAccount?: string;
+  defaultIncomeAccount?: string;
+  classByInvoiceId?: Record<string, string>;
+  nameByInvoiceId?: Record<string, string>;
+}

@@ -33,6 +33,7 @@ import { InvoiceService } from '../services/invoice.service';
 import { ChartOfAccountsService } from '../services/chart-of-accounts.service';
 import { CostCodesService } from '../services/cost-codes.service';
 import { InvoiceIifExportService } from '../services/invoice-iif-export.service';
+import { QbClassType, QbNameType } from '../../organizations/models/qb-type-enum';
 
 @Component({
     selector: 'app-invoice-list',
@@ -953,20 +954,38 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
               });
             });
 
+            const officesById = new Map((this.offices || []).map(office => [office.officeId, office]));
             const classAndMemoByInvoiceId: Record<string, string> = {};
             const nameByInvoiceId: Record<string, string> = {};
             invoices.forEach(invoice => {
               const reservation = reservationsById.get(invoice.reservationId || '');
               const property = reservation?.propertyId ? propertyById.get(reservation.propertyId) : undefined;
-              const city = String(property?.city || '').trim();
-              const propertyCode = String(property?.propertyCode || reservation?.propertyCode || '').trim();
-              classAndMemoByInvoiceId[invoice.invoiceId] = [city, propertyCode].filter(value => !!value).join(':');
+              const office = officesById.get(invoice.officeId);
+              const contact = reservation?.contactId
+                ? this.contactService.getAllContactsValue().find(c => c.contactId === reservation.contactId) ?? null
+                : null;
+              const exportContext = {
+                recipient: String(this.getRecipientDisplay(invoice) || '').trim(),
+                reservationCode: String(reservation?.reservationCode || invoice.reservationCode || '').trim().replace(/^R-/i, ''),
+                reservationBoardLabel: reservation
+                  ? this.utilityService.getReservationBoardLabel(reservation, contact).trim()
+                  : '',
+                occupantName: String(reservation?.tenantName || '').trim(),
+                city: String(property?.city || '').trim(),
+                propertyCode: String(property?.propertyCode || reservation?.propertyCode || '').trim(),
+                officeCode: String(office?.officeCode || '').trim(),
+                officeName: String(office?.name || invoice.officeName || '').trim(),
+                responsibleParty: String(invoice.responsibleParty || '').trim()
+              };
 
-              const recipient = String(this.getRecipientDisplay(invoice) || '').trim();
-              const reservationCode = String(reservation?.reservationCode || invoice.reservationCode || '').trim().replace(/^R-/i, '');
-              const occupantName = String(reservation?.tenantName || '').trim();
-              const job = [reservationCode, occupantName].filter(value => !!value).join(' ');
-              nameByInvoiceId[invoice.invoiceId] = job && recipient ? `${recipient}:${job}` : (recipient || job);
+              nameByInvoiceId[invoice.invoiceId] = this.invoiceIifExportService.buildQuickBooksName(
+                office?.qbNameTypeId ?? QbNameType.Unselected,
+                exportContext
+              );
+              classAndMemoByInvoiceId[invoice.invoiceId] = this.invoiceIifExportService.buildQuickBooksClass(
+                office?.qbClassTypeId ?? QbClassType.Unselected,
+                exportContext
+              );
             });
 
             const chartOfAccountsForExport = this.selectedOffice
