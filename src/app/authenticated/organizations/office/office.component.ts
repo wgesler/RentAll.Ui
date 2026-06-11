@@ -18,6 +18,7 @@ import { CostCodesService } from '../../accounting/services/cost-codes.service';
 import { UserRequest, UserResponse } from '../../users/models/user.model';
 import { UserService } from '../../users/services/user.service';
 import { OfficeRequest, OfficeResponse } from '../models/office.model';
+import { getQbClassTypes, getQbNameTypes } from '../models/qb-type-enum';
 import { OfficeService } from '../services/office.service';
 
 @Component({
@@ -67,6 +68,8 @@ export class OfficeComponent implements OnInit, OnDestroy, OnChanges, AfterViewI
   expenseCostCodeOptions: { value: number, label: string }[] = [];
   depositCostCodeOptions: { value: number, label: string }[] = [];
   sdwCostCodeOptions: { value: number, label: string }[] = [];
+  qbNameTypeOptions: { value: number; label: string }[] = getQbNameTypes();
+  qbClassTypeOptions: { value: number; label: string }[] = getQbClassTypes();
 
   itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['office']));
   isLoading$: Observable<boolean> = this.itemsToLoad$.pipe(map(items => items.size > 0));
@@ -255,6 +258,8 @@ export class OfficeComponent implements OnInit, OnDestroy, OnChanges, AfterViewI
       quoteMaidFee: !!formValue.quoteMaidFee,
       docuSignUserId: this.parseOptionalGuid(formValue.docuSignUserId),
       docuSignApiAccountId: this.parseOptionalGuid(formValue.docuSignApiAccountId),
+      qbNameTypeId: this.parseOptionalQbTypeId(formValue.qbNameTypeId),
+      qbClassTypeId: this.parseOptionalQbTypeId(formValue.qbClassTypeId),
       ...this.buildValidCostCodeRequest(formValue)
     };
     const orgId = (this.organizationId || this.office?.organizationId || user?.organizationId || '').trim();
@@ -480,7 +485,9 @@ export class OfficeComponent implements OnInit, OnDestroy, OnChanges, AfterViewI
       quoteDepartureFee: new FormControl<boolean>(false),
       quoteMaidFee: new FormControl<boolean>(false),
       docuSignUserId: new FormControl<string>('', [Validators.pattern(/^$|^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/)]),
-      docuSignApiAccountId: new FormControl<string>('', [Validators.pattern(/^$|^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/)])
+      docuSignApiAccountId: new FormControl<string>('', [Validators.pattern(/^$|^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/)]),
+      qbNameTypeId: new FormControl<number | null>(null),
+      qbClassTypeId: new FormControl<number | null>(null)
     });
 
     // Setup conditional validation for international addresses
@@ -567,7 +574,9 @@ export class OfficeComponent implements OnInit, OnDestroy, OnChanges, AfterViewI
           quoteDepartureFee: this.office.quoteDepartureFee ?? false,
           quoteMaidFee: this.office.quoteMaidFee ?? false,
           docuSignUserId: this.office.docuSignUserId || '',
-          docuSignApiAccountId: this.office.docuSignApiAccountId || ''
+          docuSignApiAccountId: this.office.docuSignApiAccountId || '',
+          qbNameTypeId: this.office.qbNameTypeId ?? null,
+          qbClassTypeId: this.office.qbClassTypeId ?? null
         });
         this.syncAllQuoteTextEditorsFromForm();
       }, 0);
@@ -652,7 +661,9 @@ export class OfficeComponent implements OnInit, OnDestroy, OnChanges, AfterViewI
       quoteDepartureFee: o.quoteDepartureFee ?? false,
       quoteMaidFee: o.quoteMaidFee ?? false,
       docuSignUserId: o.docuSignUserId || '',
-      docuSignApiAccountId: o.docuSignApiAccountId || ''
+      docuSignApiAccountId: o.docuSignApiAccountId || '',
+      qbNameTypeId: o.qbNameTypeId ?? null,
+      qbClassTypeId: o.qbClassTypeId ?? null
     }, { emitEvent: false });
     setTimeout(() => this.syncAllQuoteTextEditorsFromForm(), 0);
   }
@@ -1012,6 +1023,14 @@ export class OfficeComponent implements OnInit, OnDestroy, OnChanges, AfterViewI
   parseOptionalGuid(value: unknown): string | null {
     const raw = (value ?? '').toString().trim();
     return raw || null;
+  }
+
+  parseOptionalQbTypeId(value: unknown): number | null {
+    if (value === null || value === undefined || value === '') {
+      return null;
+    }
+    const numericValue = Number(value);
+    return Number.isFinite(numericValue) ? numericValue : null;
   }
 
   onIntegerInput(event: Event, fieldName: string): void {

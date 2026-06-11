@@ -80,6 +80,8 @@ export interface OfficeRequest {
   quoteMaidFee: boolean;
   docuSignUserId?: string | null;
   docuSignApiAccountId?: string | null;
+  qbNameTypeId?: number | null;
+  qbClassTypeId?: number | null;
 }
 
 export interface OfficeResponse {
@@ -162,6 +164,8 @@ export interface OfficeResponse {
   quoteMaidFee: boolean;
   docuSignUserId?: string | null;
   docuSignApiAccountId?: string | null;
+  qbNameTypeId?: number | null;
+  qbClassTypeId?: number | null;
 
 }
 
