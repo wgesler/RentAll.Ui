@@ -15,7 +15,7 @@ import { UtilityService } from '../../../services/utility.service';
 import { OfficeResponse } from '../../organizations/models/office.model';
 import { GlobalSelectionService } from '../../organizations/services/global-selection.service';
 import { OfficeService } from '../../organizations/services/office.service';
-import { ReservationCodeResponse } from '../../reservations/models/reservation-model';
+import { ReservationCodeResponse, ReservationResponse } from '../../reservations/models/reservation-model';
 import { ReservationService } from '../../reservations/services/reservation.service';
 import { SearchableSelectComponent } from '../../shared/searchable-select/searchable-select.component';
 import { TitleBarSelectComponent } from '../../shared/titlebar-select/titlebar-select.component';
@@ -55,6 +55,8 @@ export class InvoiceComponent implements OnInit, OnDestroy, OnChanges {
   reservations: ReservationCodeResponse[] = [];
   availableReservations: { value: string, label: string }[] = [];
   selectedReservation: ReservationCodeResponse | null = null;
+  selectedReservationDetail: ReservationResponse | null = null;
+  selectedReservationDetailRequestId: string | null = null;
   
   companyId: string | null = null;
   
@@ -446,40 +448,6 @@ export class InvoiceComponent implements OnInit, OnDestroy, OnChanges {
     }));
   }
 
-  get showReservationInfoIcon(): boolean {
-    return !!this.selectedReservation;
-  }
-
-  get reservationInfoTooltip(): string {
-    return this.buildReservationInfoTooltip(this.selectedReservation);
-  }
-
-  buildReservationInfoTooltip(reservation: ReservationCodeResponse | null): string {
-    if (!reservation) {
-      return '';
-    }
-
-    const contact = (reservation.contactName || '').trim() || '—';
-    const company = (reservation.companyName || '').trim();
-    const tenant = (reservation.tenantName || '').trim() || '—';
-    const property = (reservation.propertyCode || '').trim() || '—';
-    const office = (reservation.officeName || '').trim() || '—';
-
-    const lines = [
-      `Reservation: ${reservation.reservationCode || '—'}`,
-      `Property: ${property}`,
-      `Office: ${office}`,
-      `Contact: ${contact}`
-    ];
-
-    if (company) {
-      lines.push(`Company: ${company}`);
-    }
-
-    lines.push(`Tenant: ${tenant}`);
-    return lines.join('\n');
-  }
-
   onTitleBarOfficeChange(value: string | number | null): void {
     if (!this.isAddMode || !this.form) {
       return;
@@ -494,15 +462,147 @@ export class InvoiceComponent implements OnInit, OnDestroy, OnChanges {
 
     const reservationId = value == null || value === '' ? null : String(value);
     this.form.get('reservationId')?.setValue(reservationId, { emitEvent: false });
-    this.selectedReservation = reservationId
-      ? this.reservations.find(r => r.reservationId === reservationId) || null
-      : null;
+    this.syncSelectedReservationFromForm();
 
     if (this.selectedReservation) {
       this.setInvoiceCode(this.selectedReservation);
     } else {
       this.form.get('invoiceCode')?.setValue(' ', { emitEvent: false });
     }
+  }
+  //#endregion
+
+  //#region Reservation Tooltip Methods
+  get showReservationInfoIcon(): boolean {
+    return !!(this.resolveReservationForInfoTooltip() || this.form?.get('reservationId')?.value);
+  }
+
+  get reservationInfoTooltip(): string {
+    return this.buildReservationInfoTooltip(this.resolveReservationForInfoTooltip());
+  }
+
+  resolveReservationForInfoTooltip(): ReservationCodeResponse | null {
+    if (this.selectedReservation) {
+      return this.selectedReservation;
+    }
+
+    const reservationId = this.form?.get('reservationId')?.value;
+    if (!reservationId) {
+      return null;
+    }
+
+    return this.reservations.find(r => r.reservationId === reservationId) || null;
+  }
+
+  syncSelectedReservationFromForm(): void {
+    if (!this.form) {
+      this.selectedReservation = null;
+      this.loadSelectedReservationDetail(null);
+      return;
+    }
+
+    const reservationId = this.form.get('reservationId')?.value;
+    this.selectedReservation = reservationId
+      ? this.reservations.find(r => r.reservationId === reservationId) || null
+      : null;
+    this.loadSelectedReservationDetail(reservationId ? String(reservationId) : null);
+  }
+
+  loadSelectedReservationDetail(reservationId: string | null): void {
+    if (!reservationId) {
+      this.selectedReservationDetail = null;
+      this.selectedReservationDetailRequestId = null;
+      return;
+    }
+
+    if (this.selectedReservationDetailRequestId === reservationId && this.selectedReservationDetail?.reservationId === reservationId) {
+      return;
+    }
+
+    this.selectedReservationDetailRequestId = reservationId;
+    this.reservationService.getReservationByGuid(reservationId).pipe(take(1)).subscribe({
+      next: (detail) => {
+        if (this.selectedReservationDetailRequestId !== reservationId) {
+          return;
+        }
+
+        this.selectedReservationDetail = detail;
+        this.updateInvoiceCodeFromSelectedReservation();
+        this.form?.get('startDate')?.updateValueAndValidity({ emitEvent: false });
+        this.form?.get('endDate')?.updateValueAndValidity({ emitEvent: false });
+        this.cdr.markForCheck();
+      },
+      error: () => {
+        if (this.selectedReservationDetailRequestId !== reservationId) {
+          return;
+        }
+
+        this.selectedReservationDetail = null;
+        if (this.isAddMode && this.form && this.selectedReservation?.reservationId === reservationId) {
+          this.form.get('invoiceCode')?.setValue(`${this.selectedReservation.reservationCode}-001`, { emitEvent: false });
+        }
+        this.cdr.markForCheck();
+      }
+    });
+  }
+
+  buildReservationInfoTooltip(reservation: ReservationCodeResponse | null): string {
+    const detail = this.selectedReservationDetail;
+    const reservationId = reservation?.reservationId ?? this.form?.get('reservationId')?.value ?? null;
+
+    if (!reservation && !detail && reservationId) {
+      return 'Loading reservation details...';
+    }
+
+    if (!reservation && !detail) {
+      return '';
+    }
+
+    const contact = (reservation?.contactName ?? detail?.contactName ?? '').trim() || '—';
+    const company = (reservation?.companyName ?? detail?.companyName ?? '').trim();
+    const tenant = (reservation?.tenantName ?? detail?.tenantName ?? '').trim() || '—';
+    const property = (reservation?.propertyCode ?? '').trim() || '—';
+    const office = (reservation?.officeName ?? detail?.officeName ?? '').trim() || '—';
+    const reservationCode = reservation?.reservationCode ?? detail?.reservationCode ?? this.form?.get('reservationCode')?.value ?? '—';
+
+    const lines = [
+      `Reservation: ${reservationCode || '—'}`,
+      `Property: ${property}`,
+      `Office: ${office}`,
+      `Start Date: ${this.formatReservationTooltipDate(detail?.arrivalDate)}`,
+      `End Date: ${this.formatReservationTooltipDate(detail?.departureDate)}`,
+      `Billing Rate: ${this.formatReservationTooltipBillingRate(detail?.billingRate)}`,
+      `Contact: ${contact}`
+    ];
+
+    if (company) {
+      lines.push(`Company: ${company}`);
+    }
+
+    lines.push(`Tenant: ${tenant}`);
+    return lines.join('\n');
+  }
+
+  formatReservationTooltipDate(value: string | Date | null | undefined): string {
+    if (value instanceof Date) {
+      return this.formatter.dateOnly(value) || '—';
+    }
+
+    const formatted = this.formatter.formatDateString(value ?? undefined);
+    return formatted?.trim() || '—';
+  }
+
+  formatReservationTooltipBillingRate(value: number | string | null | undefined): string {
+    if (value == null || value === '') {
+      return '—';
+    }
+
+    const numeric = Number(value);
+    if (Number.isNaN(numeric)) {
+      return '—';
+    }
+
+    return '$' + this.formatter.currency(numeric);
   }
   //#endregion
 
@@ -704,6 +804,7 @@ export class InvoiceComponent implements OnInit, OnDestroy, OnChanges {
     })).subscribe({
       next: (reservations) => {
         this.reservations = reservations || [];
+        this.syncSelectedReservationFromForm();
         if (this.form) {
           this.updateAvailableReservations();
         } else {
@@ -823,8 +924,14 @@ export class InvoiceComponent implements OnInit, OnDestroy, OnChanges {
       officeName: new FormControl({ value: '', disabled: true }), 
       reservationId: new FormControl(null),
       reservationCode: new FormControl({ value: '', disabled: true }), 
-      startDate: new FormControl(firstDayOfCurrentMonth, [this.endDateValidator.bind(this)]),
-      endDate: new FormControl(lastDayOfCurrentMonth, [this.endDateValidator.bind(this)]),
+      startDate: new FormControl(firstDayOfCurrentMonth, [
+        this.endDateValidator.bind(this),
+        this.startDateReservationValidator.bind(this)
+      ]),
+      endDate: new FormControl(lastDayOfCurrentMonth, [
+        this.endDateValidator.bind(this),
+        this.endDateReservationValidator.bind(this)
+      ]),
       invoiceDate: new FormControl(today, [Validators.required]),
       dueDate: new FormControl(today, [Validators.required]),
       accountingPeriod: new FormControl(firstDayOfCurrentMonth, [Validators.required]),
@@ -890,7 +997,7 @@ export class InvoiceComponent implements OnInit, OnDestroy, OnChanges {
       this.selectedOffice = officeId ? this.offices.find(o => o.officeId === officeId) || null : null;
       
       const reservationId = this.form.get('reservationId')?.value;
-      this.selectedReservation = reservationId ? this.reservations.find(r => r.reservationId === reservationId) || null : null;
+      this.syncSelectedReservationFromForm();
       
       this.updateAvailableReservations();
       this.filterCostCodes();
@@ -1055,7 +1162,7 @@ export class InvoiceComponent implements OnInit, OnDestroy, OnChanges {
 
   setupReservationIdHandler(): void {
     this.form.get('reservationId')?.valueChanges.pipe(takeUntil(this.destroy$)).subscribe(reservationId => {
-      this.selectedReservation = reservationId ? this.reservations.find(r => r.reservationId === reservationId) || null : null;
+      this.syncSelectedReservationFromForm();
       if (this.selectedReservation) {
         const selectedOfficeId = this.form.get('officeId')?.value;
         if (selectedOfficeId !== this.selectedReservation.officeId) {
@@ -1073,15 +1180,27 @@ export class InvoiceComponent implements OnInit, OnDestroy, OnChanges {
       return;
     }
 
-    this.reservationService.getReservationByGuid(reservation.reservationId).pipe(take(1)).subscribe({
-      next: (detail) => {
-        const invoiceCode = reservation.reservationCode + '-' + ((detail.currentInvoiceNo ?? 0) + 1).toString().padStart(3, '0');
-        this.form.get('invoiceCode')?.setValue(invoiceCode, { emitEvent: false });
-      },
-      error: () => {
-        this.form.get('invoiceCode')?.setValue(`${reservation.reservationCode}-001`, { emitEvent: false });
-      }
-    });
+    if (this.selectedReservationDetail?.reservationId === reservation.reservationId) {
+      this.updateInvoiceCodeFromSelectedReservation();
+      return;
+    }
+
+    if (this.selectedReservationDetailRequestId !== reservation.reservationId) {
+      this.loadSelectedReservationDetail(reservation.reservationId);
+    }
+  }
+
+  updateInvoiceCodeFromSelectedReservation(): void {
+    if (!this.isAddMode || !this.form || !this.selectedReservation || !this.selectedReservationDetail) {
+      return;
+    }
+
+    if (this.selectedReservation.reservationId !== this.selectedReservationDetail.reservationId) {
+      return;
+    }
+
+    const invoiceCode = `${this.selectedReservation.reservationCode}-${((this.selectedReservationDetail.currentInvoiceNo ?? 0) + 1).toString().padStart(3, '0')}`;
+    this.form.get('invoiceCode')?.setValue(invoiceCode, { emitEvent: false });
   }
 
   updateAvailableReservations(): void {
@@ -1483,6 +1602,27 @@ export class InvoiceComponent implements OnInit, OnDestroy, OnChanges {
 
   generateLedgerLines(): void {
     this.applyPrefilledInvoiceContext();
+    const startDateControl = this.form?.get('startDate');
+    startDateControl?.markAsTouched();
+    startDateControl?.updateValueAndValidity({ emitEvent: false });
+    if (startDateControl?.hasError('startDateBeforeArrivalMonth')) {
+      this.toastr.error('Start Date month cannot be before the reservation arrival month.', CommonMessage.Error);
+      return;
+    }
+
+    if (startDateControl?.hasError('startDateAfterDeparture')) {
+      this.toastr.error('Start Date cannot be after the reservation departure date.', CommonMessage.Error);
+      return;
+    }
+
+    const endDateControl = this.form?.get('endDate');
+    endDateControl?.markAsTouched();
+    endDateControl?.updateValueAndValidity({ emitEvent: false });
+    if (endDateControl?.hasError('endDateAfterDepartureMonth')) {
+      this.toastr.error('End Date month cannot be after the reservation departure month.', CommonMessage.Error);
+      return;
+    }
+
     const reservationId = this.getEffectiveReservationId();
     if (reservationId) {
       this.loadMonthlyLedgerLines(reservationId);
@@ -1525,6 +1665,93 @@ export class InvoiceComponent implements OnInit, OnDestroy, OnChanges {
   //#endregion
 
   //#region Formatting Methods
+  get reservationArrivalMonthMin(): Date | null {
+    if (!this.isAddMode || !this.selectedReservationDetail?.arrivalDate) {
+      return null;
+    }
+
+    const arrival = this.utilityService.parseCalendarDateInput(this.selectedReservationDetail.arrivalDate);
+    if (!arrival) {
+      return null;
+    }
+
+    return new Date(arrival.getFullYear(), arrival.getMonth(), 1);
+  }
+
+  get reservationDepartureDateMax(): Date | null {
+    if (!this.isAddMode || !this.selectedReservationDetail?.departureDate) {
+      return null;
+    }
+
+    return this.utilityService.parseCalendarDateInput(this.selectedReservationDetail.departureDate);
+  }
+
+  startDateReservationValidator(control: FormControl): { [key: string]: any } | null {
+    if (!this.isAddMode || !control.value || !this.form) {
+      return null;
+    }
+
+    const detail = this.selectedReservationDetail;
+    if (!detail) {
+      return null;
+    }
+
+    const startDate = this.utilityService.parseCalendarDateInput(control.value);
+    if (!startDate) {
+      return null;
+    }
+
+    startDate.setHours(0, 0, 0, 0);
+
+    if (detail.arrivalDate) {
+      const arrival = this.utilityService.parseCalendarDateInput(detail.arrivalDate);
+      if (arrival) {
+        const startMonthIndex = startDate.getFullYear() * 12 + startDate.getMonth();
+        const arrivalMonthIndex = arrival.getFullYear() * 12 + arrival.getMonth();
+        if (startMonthIndex < arrivalMonthIndex) {
+          return { startDateBeforeArrivalMonth: true };
+        }
+      }
+    }
+
+    if (detail.departureDate) {
+      const departure = this.utilityService.parseCalendarDateInput(detail.departureDate);
+      if (departure) {
+        departure.setHours(0, 0, 0, 0);
+        if (startDate > departure) {
+          return { startDateAfterDeparture: true };
+        }
+      }
+    }
+
+    return null;
+  }
+
+  endDateReservationValidator(control: FormControl): { [key: string]: any } | null {
+    if (!this.isAddMode || !control.value || !this.form) {
+      return null;
+    }
+
+    const departureDate = this.selectedReservationDetail?.departureDate;
+    if (!departureDate) {
+      return null;
+    }
+
+    const endDate = this.utilityService.parseCalendarDateInput(control.value);
+    const departure = this.utilityService.parseCalendarDateInput(departureDate);
+    if (!endDate || !departure) {
+      return null;
+    }
+
+    const endMonthIndex = endDate.getFullYear() * 12 + endDate.getMonth();
+    const departureMonthIndex = departure.getFullYear() * 12 + departure.getMonth();
+    if (endMonthIndex > departureMonthIndex) {
+      return { endDateAfterDepartureMonth: true };
+    }
+
+    return null;
+  }
+
   endDateValidator(control: FormControl): { [key: string]: any } | null {
     if (!control.value || !this.form) {
       return null;
