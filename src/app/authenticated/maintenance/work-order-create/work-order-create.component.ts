@@ -1142,6 +1142,7 @@ export class WorkOrderCreateComponent extends BaseDocumentComponent implements O
       .replace(/\{\{salutationName\}\}/g, recipient.salutationName)
       .replace(/\{\{fromName\}\}/g, fromName)
       .replace(/\{\{fromEmail\}\}/g, fromEmail)
+      .replace(/\{\{companyName\}\}/g, this.organization?.name || '')
       .replace(/\{\{accountingName\}\}/g, accountingName)
       .replace(/\{\{accountingPhone\}\}/g, accountingPhone);
 

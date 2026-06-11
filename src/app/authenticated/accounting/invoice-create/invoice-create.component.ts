@@ -1169,6 +1169,7 @@ export class InvoiceCreateComponent extends BaseDocumentComponent implements OnI
       .replace(/\{\{salutationName\}\}/g, salutationName)
       .replace(/\{\{tenantName\}\}/g, tenantName)
       .replace(/\{\{fromName\}\}/g, fromName)
+      .replace(/\{\{companyName\}\}/g, this.organization?.name || '')
       .replace(/\{\{accountingName\}\}/g, accountingName || '')
       .replace(/\{\{accountingPhone\}\}/g, accountingPhone || '');
 

@@ -1080,6 +1080,7 @@ export class PropertyWelcomeLetterComponent extends BaseDocumentComponent implem
       .replace(/\{\{salutationName\}\}/g, salutationName)
       .replace(/\{\{tenantName\}\}/g, tenantName)
       .replace(/\{\{fromName\}\}/g, fromName)
+      .replace(/\{\{companyName\}\}/g, this.organization?.name || '')
       .replace(/\{\{agentName\}\}/g, agentName || '')
       .replace(/\{\{agentPhone\}\}/g, agentPhone || '');
  
