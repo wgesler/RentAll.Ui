@@ -190,6 +190,14 @@ export class AccountingShellComponent implements OnInit, OnDestroy {
     const receiptId = selection?.receiptId ?? null;
     const propertyId = (selection?.propertyId || '').trim() || null;
     const officeId = selection?.officeId ?? this.selectedOfficeId ?? null;
+    const resolvedOfficeId = officeId != null && Number.isFinite(Number(officeId)) ? Number(officeId) : null;
+
+    if (this.selectedOfficeId !== resolvedOfficeId) {
+      this.selectedOfficeId = resolvedOfficeId;
+      this.selectedCompanyId = null;
+      this.selectedReservationId = null;
+      this.syncBillsSearchRequest();
+    }
 
     const openReceiptDetail = (property: PropertyResponse | null) => {
       this.selectedTabIndex = 1;
@@ -403,7 +411,7 @@ export class AccountingShellComponent implements OnInit, OnDestroy {
   }
 
   get showShellDateRange(): boolean {
-    return !this.activeInvoiceId && !this.showBillsReceiptDetail;
+    return !this.activeInvoiceId;
   }
 
   get isBillsReceiptDetailActive(): boolean {

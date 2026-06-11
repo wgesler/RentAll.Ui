@@ -404,6 +404,38 @@ export class ReservationShellComponent implements OnInit, AfterViewInit, OnDestr
     return this.selectedReservationSummary?.propertyCode ?? this.reservationSection?.sharedPropertyCode ?? 'Code';
   }
 
+  get showTopbarReservationInfoIcon(): boolean {
+    return this.selectedTabIndex === this.getInvoicesTabIndex() && !!this.selectedHeaderReservationId;
+  }
+
+  get topbarReservationInfoTooltip(): string {
+    const reservation = this.selectedReservationSummary;
+    if (!reservation && this.selectedHeaderReservationId) {
+      return 'Loading reservation details...';
+    }
+
+    if (!reservation) {
+      return '';
+    }
+
+    const lines = [
+      `Reservation: ${reservation.reservationCode || '—'}`,
+      `Property: ${reservation.propertyCode || '—'}`,
+      `Office: ${reservation.officeName || '—'}`,
+      `Start Date: ${reservation.arrivalDate || '—'}`,
+      `End Date: ${reservation.departureDate || '—'}`,
+      `Billing Rate: ${this.formatTopbarReservationBillingRate(reservation.billingRate)}`,
+      `Contact: ${reservation.contactName || '—'}`
+    ];
+
+    if ((reservation.companyName || '').trim()) {
+      lines.push(`Company: ${reservation.companyName}`);
+    }
+
+    lines.push(`Tenant: ${reservation.tenantName || '—'}`);
+    return lines.join('\n');
+  }
+
   get selectedOfficeName(): string {
     const officeId = this.displayOfficeId;
     return this.selectedOffice?.name ?? this.offices.find(office => office.officeId === officeId)?.name ?? '';
@@ -415,6 +447,15 @@ export class ReservationShellComponent implements OnInit, AfterViewInit, OnDestr
       ?? this.selectedOfficeId
       ?? this.reservationSection?.sharedOfficeId
       ?? null;
+  }
+
+  formatTopbarReservationBillingRate(value: number | null | undefined): string {
+    const numeric = Number(value);
+    if (!Number.isFinite(numeric)) {
+      return '—';
+    }
+
+    return numeric.toLocaleString(undefined, { style: 'currency', currency: 'USD' });
   }
 
   /** Office and property for the active reservation; set in one call when the reservation is selected. */

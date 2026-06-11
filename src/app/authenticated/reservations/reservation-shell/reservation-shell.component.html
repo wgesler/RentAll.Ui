@@ -52,7 +52,7 @@
               </mat-form-field>
             }
             @if (!(reservationSection?.isAddMode ?? true)) {
-              <div class="titlebar-reservation-slot">
+              <div class="titlebar-reservation-slot invoice-titlebar-reservation-wrap">
                 <app-title-bar-select
                   [label]="'Reservation'"
                   [formFieldClass]="'header-title-reservation titlebar-field-reservation'"
@@ -64,6 +64,17 @@
                   [noResultsText]="'No reservations match your search'"
                   (valueChange)="onHeaderReservationDropdownChange($event)">
                 </app-title-bar-select>
+                @if (showTopbarReservationInfoIcon) {
+                  <button
+                    type="button"
+                    mat-icon-button
+                    class="invoice-reservation-info-btn"
+                    [matTooltip]="topbarReservationInfoTooltip"
+                    matTooltipClass="invoice-reservation-info-tooltip"
+                    aria-label="Reservation details">
+                    <mat-icon fontIcon="info"></mat-icon>
+                  </button>
+                }
               </div>
             }
           </div>

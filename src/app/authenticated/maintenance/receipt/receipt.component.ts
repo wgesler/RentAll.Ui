@@ -81,6 +81,7 @@ export class ReceiptComponent implements OnInit, OnChanges, OnDestroy {
   isSyncingInitialSplit = false;
   receiptOfficeInitialized = false;
   propertyOptions: PropertyCodeResponse[] = [];
+  allPropertyOptions: PropertyCodeResponse[] = [];
   offices: OfficeResponse[] = [];
   accountingOffices: AccountingOfficeResponse[] = [];
   receiptTypeOptions = getReceiptTypes();
@@ -508,7 +509,8 @@ export class ReceiptComponent implements OnInit, OnChanges, OnDestroy {
   loadPropertyCodes(): void {
     this.propertyService.getPropertyCodes().pipe(take(1)).subscribe({
       next: (properties) => {
-        this.propertyOptions = (properties || []).filter(p => !!p.propertyId);
+        this.allPropertyOptions = (properties || []).filter(p => !!p.propertyId);
+        this.applyPropertyOptionsForCurrentOffice();
         if (this.isAddMode && this.selectedPropertyId) {
           this.form.patchValue({ propertyIds: [this.selectedPropertyId] });
         } else if (this.showAccountingCompanyPropertyOption && this.shouldDefaultToAccountingCompany()) {
@@ -520,6 +522,7 @@ export class ReceiptComponent implements OnInit, OnChanges, OnDestroy {
         this.updatePropertyRequirementByReceiptType();
       },
       error: () => {
+        this.allPropertyOptions = [];
         this.propertyOptions = [];
         this.toastr.error('Unable to load properties.', 'Error');
       }
@@ -1895,6 +1898,7 @@ export class ReceiptComponent implements OnInit, OnChanges, OnDestroy {
       return;
     }
     this.form.patchValue({ officeName: this.receipt.officeName || officeName }, { emitEvent: false });
+    this.applyPropertyOptionsForCurrentOffice();
   }
 
   getReceiptOfficeId(): number | null {
@@ -1943,6 +1947,22 @@ export class ReceiptComponent implements OnInit, OnChanges, OnDestroy {
       return fromOffice.name.trim();
     }
     return (this.property?.officeName || '').trim();
+  }
+
+  applyPropertyOptionsForCurrentOffice(): void {
+    const source = this.allPropertyOptions || [];
+    if (source.length === 0) {
+      this.propertyOptions = [];
+      return;
+    }
+
+    const receiptOfficeId = this.getReceiptOfficeId();
+    if (this.isAllOfficesShellScope() || !receiptOfficeId) {
+      this.propertyOptions = source;
+      return;
+    }
+
+    this.propertyOptions = source.filter(property => Number(property.officeId) === receiptOfficeId);
   }
   //#endregion
   
