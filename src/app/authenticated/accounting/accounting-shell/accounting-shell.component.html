@@ -95,7 +95,7 @@
             }
             </div>
           </div>
-        } @else if (selectedTabIndex === 1) {
+        } @else if (selectedTabIndex === 1 || selectedTabIndex === 2) {
           <div class="header-title form-titlebar-fields-wrap accounting-shell-titlebar-fields">
             <div class="accounting-shell-titlebar-filters">
             @if (showShellOfficeDropdown) {
@@ -155,6 +155,11 @@
             <mat-icon>arrow_back</mat-icon>
             Back
           </button>
+        } @else if (isReceiptsReceiptDetailActive) {
+          <button mat-raised-button type="button" color="accent" (click)="onReceiptsReceiptBack()">
+            <mat-icon>arrow_back</mat-icon>
+            Back
+          </button>
         }
       </div>
     </div>
@@ -203,9 +208,31 @@
                 [officeId]="selectedOfficeId"
                 [searchRequest]="billsSearchRequest"
                 [embeddedInMaintenance]="true"
-              [embeddedInAccounting]="true"
+                [embeddedInAccounting]="true"
+                [accountingListMode]="'bills'"
                 [refreshTrigger]="billsRefreshTrigger"
                 (receiptSelect)="onBillsReceiptSelect($event)">
+              </app-receipts-list>
+            }
+          </mat-tab>
+          <mat-tab label="Receipts">
+            @if (showReceiptsReceiptDetail) {
+              <app-receipt
+                [property]="receiptsReceiptProperty"
+                [receiptId]="selectedReceiptsReceiptId"
+                [officeId]="selectedOfficeId"
+                [shellContext]="'accounting'"
+                (backEvent)="onReceiptsReceiptBack()"
+                (savedEvent)="onReceiptsReceiptSaved()" />
+            } @else {
+              <app-receipts-list
+                [officeId]="selectedOfficeId"
+                [searchRequest]="billsSearchRequest"
+                [embeddedInMaintenance]="true"
+                [embeddedInAccounting]="true"
+                [accountingListMode]="'receipts'"
+                [refreshTrigger]="receiptsRefreshTrigger"
+                (receiptSelect)="onReceiptsReceiptSelect($event)">
               </app-receipts-list>
             }
           </mat-tab>

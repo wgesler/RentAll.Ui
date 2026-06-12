@@ -45,6 +45,7 @@ export class ReceiptsListComponent implements OnInit, OnChanges, OnDestroy {
   @Input() searchRequest?: MaintenanceListSearchRequest | null;
   @Input() embeddedInMaintenance = false;
   @Input() embeddedInAccounting = false;
+  @Input() accountingListMode: 'all' | 'bills' | 'receipts' = 'all';
   @Input() refreshTrigger: number = 0;
   @Output() receiptSelect = new EventEmitter<ReceiptSelection>();
   @Output() payableEvent = new EventEmitter<ReceiptDisplayList>();
@@ -120,15 +121,34 @@ export class ReceiptsListComponent implements OnInit, OnChanges, OnDestroy {
     applyAmount: { displayAs: 'Apply', maxWidth: '20ch', alignment: 'right', headerAlignment: 'right', sort: false }
   };
 
+  readonly accountingNonBillReceiptDisplayedColumns: ColumnSet = {
+    no: { displayAs: 'No', maxWidth: '5ch', sort: false, wrap: false },
+    propertyCode: { displayAs: 'Property', wrap: false, maxWidth: '15ch' },
+    workOrderDisplay: { displayAs: 'WO Code(s)', wrap: true, maxWidth: '18ch' },
+    receiptTypeDisplay: { displayAs: 'Type(s)', wrap: true, maxWidth: '15ch' },
+    receipt: { displayAs: 'Receipt', wrap: false, sort: false, maxWidth: '12ch', alignment: 'center' },
+    period: { displayAs: 'Period', maxWidth: '12ch', alignment: 'center' },
+    receiptDate: { displayAs: 'Receipt Date', wrap: false, maxWidth: '15ch', alignment: 'center' },
+    dueDate: { displayAs: 'Due Date', maxWidth: '15ch', alignment: 'center' },
+    created: { displayAs: 'Created', maxWidth: '15ch', alignment: 'center' },
+    amountDisplay: { displayAs: 'Amount', maxWidth: '15ch', alignment: 'right', headerAlignment: 'right', sort: false },
+    paidAmount: { displayAs: 'Paid', maxWidth: '15ch', alignment: 'right', headerAlignment: 'right', sort: false },
+    dueAmount: { displayAs: 'Due', maxWidth: '15ch', alignment: 'right', headerAlignment: 'right', sort: false },
+    applyAmount: { displayAs: 'Apply', maxWidth: '20ch', alignment: 'right', headerAlignment: 'right', sort: false }
+  };
+
   get receiptDisplayedColumns(): ColumnSet {
     if (!this.embeddedInAccounting) {
       return this.maintenanceReceiptDisplayedColumns;
     }
+    const accountingColumns = this.accountingListMode === 'receipts'
+      ? this.accountingNonBillReceiptDisplayedColumns
+      : this.accountingReceiptDisplayedColumns;
     if (!this.isManualApplyMode) {
-      const { applyAmount, ...columnsWithoutApply } = this.accountingReceiptDisplayedColumns;
+      const { applyAmount, ...columnsWithoutApply } = accountingColumns;
       return columnsWithoutApply;
     }
-    return this.accountingReceiptDisplayedColumns;
+    return accountingColumns;
   }
 
   constructor(
@@ -186,6 +206,9 @@ export class ReceiptsListComponent implements OnInit, OnChanges, OnDestroy {
     if (changes['embeddedInAccounting']) {
       this.loadChartOfAccountsForAccounting();
       this.applyReceiptDisplayMappings();
+      this.applyFilters();
+    }
+    if (changes['accountingListMode'] && !changes['accountingListMode'].firstChange) {
       this.applyFilters();
     }
     if (changes['refreshTrigger'] && !changes['refreshTrigger'].firstChange) {
@@ -737,7 +760,7 @@ export class ReceiptsListComponent implements OnInit, OnChanges, OnDestroy {
   }
 
   applyFilters(): void {
-    let filtered = this.filterAccountingBillsOnly(this.allReceipts);
+    let filtered = this.filterAccountingReceiptsByMode(this.allReceipts);
 
     if (this.embeddedInAccounting) {
       filtered = filtered.map(receipt => {
@@ -775,11 +798,17 @@ export class ReceiptsListComponent implements OnInit, OnChanges, OnDestroy {
     this.focusPendingApplyAmountInput();
   }
 
-  filterAccountingBillsOnly(receipts: ReceiptDisplayList[]): ReceiptDisplayList[] {
+  filterAccountingReceiptsByMode(receipts: ReceiptDisplayList[]): ReceiptDisplayList[] {
     if (!this.embeddedInAccounting) {
       return receipts;
     }
-    return receipts.filter(receipt => this.isBillReceipt(receipt));
+    if (this.accountingListMode === 'bills') {
+      return receipts.filter(receipt => this.isBillReceipt(receipt));
+    }
+    if (this.accountingListMode === 'receipts') {
+      return receipts.filter(receipt => !this.isBillReceipt(receipt));
+    }
+    return receipts;
   }
 
   isBillReceipt(receipt: Pick<ReceiptDisplayList, 'bankCardId'>): boolean {

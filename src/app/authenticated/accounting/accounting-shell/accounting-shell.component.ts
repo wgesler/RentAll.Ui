@@ -67,9 +67,13 @@ export class AccountingShellComponent implements OnInit, OnDestroy {
   invoiceSearchDateRange: { startDate: string | null; endDate: string | null } = { startDate: null, endDate: null };
   billsSearchRequest: MaintenanceListSearchRequest = { officeIds: [] };
   billsRefreshTrigger = 0;
+  receiptsRefreshTrigger = 0;
   showBillsReceiptDetail = false;
   selectedBillsReceiptId: number | null = null;
   billsReceiptProperty: PropertyResponse | null = null;
+  showReceiptsReceiptDetail = false;
+  selectedReceiptsReceiptId: number | null = null;
+  receiptsReceiptProperty: PropertyResponse | null = null;
 
   destroy$ = new Subject<void>();
 
@@ -228,6 +232,48 @@ export class AccountingShellComponent implements OnInit, OnDestroy {
     this.billsRefreshTrigger++;
   }
 
+  onReceiptsReceiptSelect(selection: ReceiptSelection): void {
+    const receiptId = selection?.receiptId ?? null;
+    const propertyId = (selection?.propertyId || '').trim() || null;
+    const officeId = selection?.officeId ?? this.selectedOfficeId ?? null;
+    const resolvedOfficeId = officeId != null && Number.isFinite(Number(officeId)) ? Number(officeId) : null;
+
+    if (this.selectedOfficeId !== resolvedOfficeId) {
+      this.selectedOfficeId = resolvedOfficeId;
+      this.selectedCompanyId = null;
+      this.selectedReservationId = null;
+      this.syncBillsSearchRequest();
+    }
+
+    const openReceiptDetail = (property: PropertyResponse | null) => {
+      this.selectedTabIndex = 2;
+      this.receiptsReceiptProperty = property;
+      this.selectedReceiptsReceiptId = receiptId;
+      this.showReceiptsReceiptDetail = true;
+    };
+
+    if (propertyId) {
+      this.propertyService.getPropertyByGuid(propertyId).pipe(take(1)).subscribe({
+        next: (property: PropertyResponse) => openReceiptDetail(property),
+        error: () => this.toastr.error('Unable to load property for receipt.', 'Error')
+      });
+      return;
+    }
+
+    openReceiptDetail(this.buildBillsReceiptPropertyStub(officeId));
+  }
+
+  onReceiptsReceiptBack(): void {
+    this.showReceiptsReceiptDetail = false;
+    this.selectedReceiptsReceiptId = null;
+    this.receiptsReceiptProperty = null;
+  }
+
+  onReceiptsReceiptSaved(): void {
+    this.onReceiptsReceiptBack();
+    this.receiptsRefreshTrigger++;
+  }
+
   buildBillsReceiptPropertyStub(officeId: number | null): PropertyResponse {
     const resolvedOfficeId = officeId ?? 0;
     const officeName = this.offices.find(office => office.officeId === resolvedOfficeId)?.name ?? '';
@@ -247,10 +293,16 @@ export class AccountingShellComponent implements OnInit, OnDestroy {
     if (event.index !== 1) {
       this.onBillsReceiptBack();
     }
+    if (event.index !== 2) {
+      this.onReceiptsReceiptBack();
+    }
     this.selectedTabIndex = event.index;
     this.syncBillsSearchRequest();
     if (this.selectedTabIndex === 1) {
       this.billsRefreshTrigger++;
+    }
+    if (this.selectedTabIndex === 2) {
+      this.receiptsRefreshTrigger++;
     }
     this.router.navigate([], {
       relativeTo: this.route,
@@ -314,6 +366,9 @@ export class AccountingShellComponent implements OnInit, OnDestroy {
     this.syncBillsSearchRequest();
     if (this.selectedTabIndex === 1) {
       this.billsRefreshTrigger++;
+    }
+    if (this.selectedTabIndex === 2) {
+      this.receiptsRefreshTrigger++;
     }
     this.router.navigate([], {
       relativeTo: this.route,
@@ -418,6 +473,10 @@ export class AccountingShellComponent implements OnInit, OnDestroy {
     return this.selectedTabIndex === 1 && this.showBillsReceiptDetail;
   }
 
+  get isReceiptsReceiptDetailActive(): boolean {
+    return this.selectedTabIndex === 2 && this.showReceiptsReceiptDetail;
+  }
+
   get shellOfficeTitleBarOptions(): { value: number, label: string }[] {
     return this.getOfficeOptions(this.offices);
   }
@@ -462,6 +521,9 @@ export class AccountingShellComponent implements OnInit, OnDestroy {
     if (this.selectedTabIndex === 1) {
       this.billsRefreshTrigger++;
     }
+    if (this.selectedTabIndex === 2) {
+      this.receiptsRefreshTrigger++;
+    }
   }
 
   onAccountingOrganizationDropdownChange(value: string | number | null): void {
@@ -470,9 +532,9 @@ export class AccountingShellComponent implements OnInit, OnDestroy {
   }
 
   applyQueryParamState(params: Record<string, string>): void {
-    let tabIndex = getNumberQueryParam(params, 'tab', 0, 2);
+    let tabIndex = getNumberQueryParam(params, 'tab', 0, 3);
     if (tabIndex !== null) {
-      tabIndex = Math.min(Math.max(tabIndex, 0), 1);
+      tabIndex = Math.min(Math.max(tabIndex, 0), 2);
       if (this.selectedTabIndex !== tabIndex) {
         this.selectedTabIndex = tabIndex;
       }
@@ -505,8 +567,11 @@ export class AccountingShellComponent implements OnInit, OnDestroy {
       this.normalizeDateRangeValues();
       this.syncInvoiceSearchDateRange();
       this.syncBillsSearchRequest();
-      if (this.selectedTabIndex === 1) {
-        queueMicrotask(() => { this.billsRefreshTrigger++; });
+      if (this.selectedTabIndex === 1 || this.selectedTabIndex === 2) {
+        queueMicrotask(() => {
+          this.billsRefreshTrigger++;
+          this.receiptsRefreshTrigger++;
+        });
       }
     } else if (!this.startDate && !this.endDate) {
       this.setDefaultDateRange();
