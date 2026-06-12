@@ -1,4 +1,5 @@
 import { FileDetails } from "../../documents/models/document.model";
+import type { CalendarDateString } from '../../../services/utility.service';
 
 export interface Split {
   receiptSplitId?: number | null;
@@ -28,6 +29,8 @@ export interface ReceiptRequest {
   billNumber?: string | null;
   ticketId: string;
   amount: number;
+  paidAmount?: number | null;
+  paidDate?: string | null;
   description: string;
   bankCardId?: number | null;
   vendorId?: string | null;
@@ -40,6 +43,7 @@ export interface ReceiptRequest {
 
 export interface ReceiptResponse {
   receiptId: number;
+  invoiceId?: string | null;
   organizationId: string;
   officeId: number;
   officeName: string;
@@ -51,6 +55,8 @@ export interface ReceiptResponse {
   ticketId: string;
   description: string;
   amount: number;
+  paidAmount?: number | null;
+  paidDate?: string | null;
   bankCardId?: number | null;
   vendorId?: string | null;
   vendorName?: string | null;
@@ -68,6 +74,7 @@ export interface ReceiptResponse {
 
 export interface ReceiptDisplayList {
   receiptId: number;
+  invoiceId?: string | null;
   officeId: number;
   officeName: string;
   propertyIds: string[];
@@ -110,9 +117,14 @@ export interface ReceiptDisplayList {
   period?: string;
   created?: string;
   paidAmount?: string;
+  paidDate?: string | null;
   dueAmount?: string;
   paidAmountValue?: number;
   dueAmountValue?: number;
+  applyAmount?: string;
+  applyAmountValue?: number;
+  applyAmountDisplay?: string;
+  applyAmountEditable?: boolean;
   createdBy?: string;
   createdByName?: string;
   modifiedOn: string;
@@ -123,4 +135,16 @@ export interface ReceiptSelection {
   receiptId: number | null;
   officeId: number | null;
   propertyId: string | null;
+}
+
+export interface BillPaymentRequest {
+  paymentDate: CalendarDateString;
+  costCodeId: number;
+  description: string;
+  amount: number;
+  bills: number[];
+}
+
+export interface BillPaymentResponse {
+  bills: ReceiptResponse[];
 }

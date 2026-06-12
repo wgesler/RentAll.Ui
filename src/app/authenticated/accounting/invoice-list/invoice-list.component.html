@@ -99,11 +99,9 @@
               <mat-slide-toggle id="toggle-invoices-show-selections" [checked]="showSelections" color="primary" (change)="onShowSelectionsToggleChange($event)" class="whitespace-nowrap">
                 Show Selections
               </mat-slide-toggle>
-              @if (canShowApplyPaymentButton) {
-                <button mat-raised-button type="button" color="accent" id="apply-payment-button" (click)="openApplyPaymentDialog()" class="whitespace-nowrap items-center flex gap-1">
-                  Apply Payment
-                </button>
-              }
+              <button mat-raised-button type="button" color="accent" id="apply-payment-button" (click)="openApplyPaymentDialog()" class="whitespace-nowrap items-center flex gap-1">
+                Apply Payment
+              </button>
               <button mat-raised-button type="button" color="accent" id="export-invoice-button" (click)="exportInvoicesToIif()" [disabled]="selectedInvoiceIds.size === 0" class="whitespace-nowrap items-center flex gap-1">
                 <mat-icon class="text-base">download</mat-icon>
                 <span>Export</span>
@@ -124,7 +122,7 @@
                       </mat-form-field>
                       <mat-form-field appearance="outline" class="payment-cost-code-dropdown" style="font-size: 11px !important;">
                         <mat-label style="font-size: 11px !important;">Cost Center</mat-label>
-                        <mat-select [(ngModel)]="selectedPaymentCostCodeId" (selectionChange)="onPaymentCostCodeChange($event.value)" [disabled]="!selectedOffice" style="font-size: 11px !important;">
+                        <mat-select [(ngModel)]="selectedPaymentCostCodeId" (selectionChange)="onPaymentCostCodeChange($event.value)" [disabled]="!resolvedPaymentOfficeId" style="font-size: 11px !important;">
                           <mat-option [value]="null" style="font-size: 11px !important;">Select Cost Code</mat-option>
                           @for (costCode of creditCostCodes; track costCode.value) {
                             <mat-option [value]="costCode.value" style="font-size: 11px !important;">{{ costCode.label }}</mat-option>
@@ -151,7 +149,7 @@
                           placeholder="0.00"
                           style="font-size: 11px !important;">
                       </mat-form-field>
-                      @if (isManualApplyMode) {
+                      @if (isManualApplyMode && !isRowScopedPaymentMode) {
                         <mat-form-field appearance="outline" class="payment-remaining-field" style="font-size: 11px !important;">
                           <mat-label style="font-size: 11px !important;">Remaining</mat-label>
                           <input matInput [value]="remainingAmountDisplay" readonly

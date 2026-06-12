@@ -384,8 +384,9 @@
                         </mat-icon>
                       </button>
                     </span>
-                  } @else if (column.name === 'applyAmount' && isManualApplyMode) {
+                  } @else if (column.name === 'applyAmount' && isManualApplyMode && item?.applyAmountEditable !== false) {
                     <input type="text"
+                      id="apply-amount-{{templateTableId}}-{{item?.invoiceId || item?.receiptId || i}}"
                       [value]="item.applyAmountDisplay || item.applyAmount || ''"
                       (input)="applyAmountInputCallback && applyAmountInputCallback(item, $event); applyAmountChangeCallback && applyAmountChangeCallback(item, ($any($event.target)).value)"
                       (blur)="applyAmountBlurCallback && applyAmountBlurCallback(item, $event)"
@@ -396,6 +397,8 @@
                       class="editable-apply-amount"
                       [style.color]="isApplyAmountOverDue(item) ? '#d32f2f' : 'inherit'"
                       style="text-align: right; width: 100%; border: 1px solid #ccc; padding: 4px 8px; border-radius: 4px; font-size: 12px;">
+                  } @else if (column.name === 'applyAmount' && isManualApplyMode) {
+                    <span>{{ item.applyAmount || '' }}</span>
                   } @else if (column.isCheckbox) {
                     @if (item[column.name] !== 'NONE') {
                       <div class="datatable-checkbox-cell">

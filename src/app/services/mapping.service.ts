@@ -1692,12 +1692,20 @@ export class MappingService {
       billNumberRaw == null || String(billNumberRaw).trim().length === 0
         ? null
         : String(billNumberRaw).trim();
+    const paidDate =
+      this.utility.coerceCalendarDateStringFromApi(
+        rawRecord['paidDate'] ?? rawRecord['PaidDate'] ?? base.paidDate
+      ) ?? null;
     const createdOn =
       this.utility.coerceDateTimeOffsetStringFromApi(
         rawRecord['createdOn'] ?? rawRecord['CreatedOn'] ?? base.createdOn
       ) ??
       base.createdOn ??
       '';
+    const invoiceIdRaw = rawRecord['invoiceId'] ?? rawRecord['InvoiceId'] ?? base.invoiceId;
+    const invoiceId = invoiceIdRaw == null || String(invoiceIdRaw).trim().length === 0
+      ? null
+      : String(invoiceIdRaw).trim();
 
     return {
       ...base,
@@ -1705,7 +1713,9 @@ export class MappingService {
       dueDate,
       accountingPeriod,
       billNumber,
+      paidDate,
       createdOn,
+      invoiceId,
       splits: this.mapReceiptSplitsFromApi(base.splits)
     };
   }
@@ -1798,6 +1808,7 @@ export class MappingService {
 
       return {
         receiptId: receipt.receiptId,
+        invoiceId: (receipt as ReceiptResponse & { invoiceId?: string | null }).invoiceId ?? null,
         officeId: receipt.officeId,
         officeName: receipt.officeName,
         propertyIds: receipt.propertyIds || [],
@@ -1816,6 +1827,7 @@ export class MappingService {
         paidAmountValue,
         dueAmountValue,
         paidAmount: this.formatter.currencyUsd(paidAmountValue),
+        paidDate: receipt.paidDate ? this.formatter.formatDateString(receipt.paidDate) : null,
         dueAmount: this.formatter.currencyUsd(dueAmountValue),
         splits,
         splitTotalAmount,

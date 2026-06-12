@@ -203,7 +203,11 @@ export class ReceiptComponent implements OnInit, OnChanges, OnDestroy {
     this.form.markAllAsTouched();
     this.receiptFileValidationError = !this.hasReceiptFileForSave();
 
-    if (!this.organizationId || this.form.invalid) {
+    if (!this.organizationId) {
+      this.showValidationErrorToast();
+      return;
+    }
+    if (this.form.invalid) {
       this.showValidationErrorToast();
       return;
     }
@@ -227,7 +231,9 @@ export class ReceiptComponent implements OnInit, OnChanges, OnDestroy {
       this.showValidationErrorToast();
       return;
     }
-    const selectedPropertyIds = this.getPayloadPropertyIds();
+    const selectedPropertyIds = this.getPayloadPropertyIds()
+      .map(propertyId => this.normalizeGuidOrNull(propertyId))
+      .filter((propertyId): propertyId is string => !!propertyId);
     if (this.isPropertySelectionRequired() && selectedPropertyIds.length === 0) {
       this.form.get('propertyIds')?.markAsTouched();
       this.showValidationErrorToast();
@@ -241,10 +247,18 @@ export class ReceiptComponent implements OnInit, OnChanges, OnDestroy {
     }
 
     const sendNewReceipt = this.hasNewReceiptUpload;
-    const receiptPathValue = this.form.get('receiptPath')?.value ?? this.receipt?.receiptPath ?? null;
+    const receiptPathValue = (this.form.get('receiptPath')?.value ?? this.receipt?.receiptPath ?? null)
+      ?.toString()
+      .trim() || null;
     const amountStr = this.sanitizeSignedDecimalInput(this.form.get('amount')?.value?.toString() ?? '');
     const amountValue = parseFloat(amountStr) || 0;
-    const payloadSplits = this.getPayloadSplitsFromForm();
+    const payloadSplits = this.getPayloadSplitsFromForm().map(split => {
+      const normalizedWorkOrderId = this.normalizeGuidOrNull(split.workOrderId);
+      return {
+        ...split,
+        workOrderId: normalizedWorkOrderId
+      };
+    });
     if (payloadSplits.length === 0) {
       this.showValidationErrorToast();
       return;
@@ -263,7 +277,7 @@ export class ReceiptComponent implements OnInit, OnChanges, OnDestroy {
     this.splitTotalValidationError = false;
     const bankCardId = Number(this.form.get('bankCardId')?.value ?? 0);
     const isBill = bankCardId === 0;
-    const vendorId = (this.form.get('vendorId')?.value || '').toString().trim() || null;
+    const vendorId = this.normalizeGuidOrNull(this.form.get('vendorId')?.value);
     const vendorName = (this.form.get('vendorName')?.value || '').toString().trim() || null;
     if (!Number.isFinite(bankCardId) || bankCardId < 0) {
       this.form.get('bankCardId')?.markAsTouched();
@@ -292,12 +306,14 @@ export class ReceiptComponent implements OnInit, OnChanges, OnDestroy {
       ticketId: this.receipt?.ticketId || this.ticketId || '',
       description: (this.form.get('description')?.value || '').trim(),
       amount: amountValue,
+      paidAmount: this.receipt?.paidAmount ?? 0,
+      paidDate: this.receipt?.paidDate ?? null,
       bankCardId: isBill ? null : bankCardId,
       vendorId: isBill ? vendorId : null,
       vendorName: isBill ? null : vendorName,
       splits: payloadSplits,
-      receiptPath: sendNewReceipt ? undefined : receiptPathValue,
-      fileDetails: sendNewReceipt ? this.receiptFileDetails : undefined,
+      receiptPath: sendNewReceipt ? null : receiptPathValue,
+      fileDetails: sendNewReceipt ? (this.receiptFileDetails ?? null) : null,
       isActive: this.form.get('isActive')?.value
     };
 
@@ -1122,6 +1138,16 @@ export class ReceiptComponent implements OnInit, OnChanges, OnDestroy {
     return this.utilityService.toDateOnlyJsonString(value);
   }
 
+  normalizeGuidOrNull(value: unknown): string | null {
+    const normalized = (value || '').toString().trim();
+    if (!normalized) {
+      return null;
+    }
+    return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(normalized)
+      ? normalized
+      : null;
+  }
+
   getReceiptDateControlValue(value: string | null | undefined): Date {
     return this.utilityService.parseCalendarDateInput(value) ?? new Date();
   }
@@ -1330,7 +1356,9 @@ export class ReceiptComponent implements OnInit, OnChanges, OnDestroy {
   }
 
   getPayloadSplitsFromForm(): Split[] {
-    const includeChartOfAccount = this.isOverallBillBankCard();
+    // Maintenance-shell does not expose split account fields, but must preserve existing values.
+    // Accounting-shell sends split accounts only for bill mode where the field is visible/editable.
+    const includeChartOfAccount = !this.isAccountingShell || this.isOverallBillBankCard();
     return this.splitsFormArray.controls.map(control => {
       const amountRaw = this.sanitizeSignedDecimalInput(control.get('amount')?.value?.toString() ?? '');
       const chartOfAccountId = Number(control.get('chartOfAccountId')?.value ?? 0);
@@ -1576,7 +1604,11 @@ export class ReceiptComponent implements OnInit, OnChanges, OnDestroy {
         accountControl.setValidators([Validators.required]);
       } else {
         accountControl.clearValidators();
-        accountControl.setValue(null, { emitEvent: false });
+        // Preserve hidden account values in maintenance-shell so bill-set values are not erased on save.
+        // In accounting shell (card mode), clear since account field is not applicable.
+        if (this.isAccountingShell) {
+          accountControl.setValue(null, { emitEvent: false });
+        }
       }
       accountControl.updateValueAndValidity({ emitEvent: false });
     });

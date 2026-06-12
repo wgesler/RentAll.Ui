@@ -1,12 +1,14 @@
 import { CommonModule } from '@angular/common';
 import { ChangeDetectionStrategy, ChangeDetectorRef, Component, EventEmitter, Input, OnChanges, OnDestroy, OnInit, Output, SimpleChanges } from '@angular/core';
+import { FormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
 import { ToastrService } from 'ngx-toastr';
-import { BehaviorSubject, EMPTY, Subject, filter, finalize, switchMap, take, takeUntil } from 'rxjs';
+import { BehaviorSubject, EMPTY, Subject, concatMap, filter, finalize, from, map, switchMap, take, takeUntil } from 'rxjs';
 import { RouterUrl } from '../../../app.routes';
 import { CommonMessage } from '../../../enums/common-message.enum';
 import { MaterialModule } from '../../../material.module';
 import { AuthService } from '../../../services/auth.service';
+import { FormatterService } from '../../../services/formatter-service';
 import { UtilityService } from '../../../services/utility.service';
 import { MappingService } from '../../../services/mapping.service';
 import { PropertyResponse } from '../../properties/models/property.model';
@@ -14,6 +16,7 @@ import { PropertyService } from '../../properties/services/property.service';
 import { AccountingOfficeService } from '../../organizations/services/accounting-office.service';
 import { AccountingOfficeResponse } from '../../organizations/models/accounting-office.model';
 import { ChartOfAccountResponse } from '../../accounting/models/chart-of-accounts.model';
+import { AccountType } from '../../accounting/models/accounting-enum';
 import { ChartOfAccountsService } from '../../accounting/services/chart-of-accounts.service';
 import { BankCardResponse } from '../../organizations/models/bank.model';
 import { EntityType } from '../../contacts/models/contact-enum';
@@ -24,14 +27,14 @@ import { DataTableComponent } from '../../shared/data-table/data-table.component
 import { DataTableFilterActionsDirective } from '../../shared/data-table/data-table-filter-actions.directive';
 import { ColumnSet } from '../../shared/data-table/models/column-data';
 import { MaintenanceListSearchRequest } from '../models/maintenance-search.model';
-import { ReceiptDisplayList, ReceiptRequest, ReceiptResponse, ReceiptSelection, Split } from '../models/receipt.model';
+import { BillPaymentRequest, BillPaymentResponse, ReceiptDisplayList, ReceiptRequest, ReceiptResponse, ReceiptSelection, Split } from '../models/receipt.model';
 import { ReceiptService } from '../services/receipt.service';
 import { WorkOrderService } from '../services/work-order.service';
 
 @Component({
   standalone: true,
   selector: 'app-receipts-list',
-  imports: [CommonModule, MaterialModule, DataTableComponent, DataTableFilterActionsDirective],
+  imports: [CommonModule, FormsModule, MaterialModule, DataTableComponent, DataTableFilterActionsDirective],
   templateUrl: './receipts-list.component.html',
   styleUrl: './receipts-list.component.scss',
   changeDetection: ChangeDetectionStrategy.OnPush
@@ -60,6 +63,23 @@ export class ReceiptsListComponent implements OnInit, OnChanges, OnDestroy {
   bankCardOptionsByOfficeId = new Map<number, Array<{ bankCardId: number; label: string }>>();
   vendorOptionsByOfficeId = new Map<number, Array<{ contactId: string; label: string }>>();
   chartOfAccountsByOfficeId = new Map<number, Map<number, ChartOfAccountResponse>>();
+  creditCostCodes: { value: number; label: string }[] = [];
+
+  showPaymentForm: boolean = false;
+  isManualApplyMode: boolean = false;
+  selectedPaymentCostCodeId: number | null = null;
+  paymentTransactionType: string = '';
+  paymentDescription: string = '';
+  paymentDate: Date | null = new Date();
+  paymentAmount: number = 0;
+  paymentAmountDisplay: string = '$0.00';
+  remainingAmount: number = 0;
+  remainingAmountDisplay: string = '$0.00';
+  paymentOfficeId: number | null = null;
+  isSubmittingPayment: boolean = false;
+  paymentTargetInvoiceId: string | null = null;
+  manualApplyEditableReceiptId: number | null = null;
+  pendingApplyAmountFocusReceiptId: number | null = null;
 
   isAdmin = false;
   canEditIsActiveCheckbox = false;
@@ -96,11 +116,19 @@ export class ReceiptsListComponent implements OnInit, OnChanges, OnDestroy {
     created: { displayAs: 'Created', maxWidth: '15ch', alignment: 'center' },
     amountDisplay: { displayAs: 'Amount', maxWidth: '15ch', alignment: 'right', headerAlignment: 'right', sort: false },
     paidAmount: { displayAs: 'Paid', maxWidth: '15ch', alignment: 'right', headerAlignment: 'right', sort: false },
-    dueAmount: { displayAs: 'Due', maxWidth: '15ch', alignment: 'right', headerAlignment: 'right', sort: false }
+    dueAmount: { displayAs: 'Due', maxWidth: '15ch', alignment: 'right', headerAlignment: 'right', sort: false },
+    applyAmount: { displayAs: 'Apply', maxWidth: '20ch', alignment: 'right', headerAlignment: 'right', sort: false }
   };
 
   get receiptDisplayedColumns(): ColumnSet {
-    return this.embeddedInAccounting ? this.accountingReceiptDisplayedColumns : this.maintenanceReceiptDisplayedColumns;
+    if (!this.embeddedInAccounting) {
+      return this.maintenanceReceiptDisplayedColumns;
+    }
+    if (!this.isManualApplyMode) {
+      const { applyAmount, ...columnsWithoutApply } = this.accountingReceiptDisplayedColumns;
+      return columnsWithoutApply;
+    }
+    return this.accountingReceiptDisplayedColumns;
   }
 
   constructor(
@@ -113,6 +141,7 @@ export class ReceiptsListComponent implements OnInit, OnChanges, OnDestroy {
     private workOrderService: WorkOrderService,
     private chartOfAccountsService: ChartOfAccountsService,
     private authService: AuthService,
+    private formatter: FormatterService,
     private utilityService: UtilityService,
     private router: Router,
     private toastr: ToastrService,
@@ -267,6 +296,10 @@ export class ReceiptsListComponent implements OnInit, OnChanges, OnDestroy {
     if (!this.embeddedInAccounting || event?.payableDisabled) {
       return;
     }
+    const receiptOfficeId = Number(event?.officeId ?? 0);
+    this.paymentOfficeId = Number.isFinite(receiptOfficeId) && receiptOfficeId > 0 ? receiptOfficeId : null;
+    this.pendingApplyAmountFocusReceiptId = Number(event?.receiptId ?? 0) || null;
+    this.openApplyPaymentDialog(event?.receiptId ?? null);
     this.payableEvent.emit(event);
   }
 
@@ -706,14 +739,40 @@ export class ReceiptsListComponent implements OnInit, OnChanges, OnDestroy {
   applyFilters(): void {
     let filtered = this.filterAccountingBillsOnly(this.allReceipts);
 
+    if (this.embeddedInAccounting) {
+      filtered = filtered.map(receipt => {
+        const receiptAny = receipt as ReceiptDisplayList & Record<string, unknown>;
+        const applyAmountValue = this.isManualApplyMode ? Number(receiptAny['applyAmountValue'] ?? 0) : 0;
+        const applyAmountEditable =
+          this.manualApplyEditableReceiptId == null || this.manualApplyEditableReceiptId === receipt.receiptId;
+        return {
+          ...receipt,
+          applyAmountValue,
+          applyAmountDisplay: this.isManualApplyMode
+            ? (applyAmountValue < 0
+              ? '-$' + this.formatter.currency(-applyAmountValue)
+              : '$' + this.formatter.currency(applyAmountValue))
+            : '',
+          applyAmount: this.isManualApplyMode
+            ? (applyAmountValue < 0
+              ? '-$' + this.formatter.currency(-applyAmountValue)
+              : '$' + this.formatter.currency(applyAmountValue))
+            : '',
+          applyAmountEditable
+        } as ReceiptDisplayList;
+      });
+    }
+
     if (this.usesMaintenanceSearch()) {
       this.receiptsDisplay = filtered;
+      this.focusPendingApplyAmountInput();
       return;
     }
 
     this.receiptsDisplay = this.showInactive
       ? filtered
       : filtered.filter(receipt => receipt.isActive !== false);
+    this.focusPendingApplyAmountInput();
   }
 
   filterAccountingBillsOnly(receipts: ReceiptDisplayList[]): ReceiptDisplayList[] {
@@ -1099,6 +1158,7 @@ export class ReceiptsListComponent implements OnInit, OnChanges, OnDestroy {
   loadChartOfAccountsForAccounting(): void {
     if (!this.embeddedInAccounting) {
       this.chartOfAccountsByOfficeId.clear();
+      this.creditCostCodes = [];
       return;
     }
 
@@ -1109,6 +1169,7 @@ export class ReceiptsListComponent implements OnInit, OnChanges, OnDestroy {
       takeUntil(this.destroy$)
     ).subscribe(() => {
       this.refreshChartOfAccountsLookups();
+      this.refreshPaymentCostCodesForResolvedOffice();
       this.applyAccountDisplayToDisplays();
       this.applyFilters();
       this.markViewForCheck();
@@ -1216,6 +1277,8 @@ export class ReceiptsListComponent implements OnInit, OnChanges, OnDestroy {
       billNumber: receipt.billNumber ?? null,
       ticketId: receipt.ticketId,
       amount: Number(receipt.amount) || 0,
+      paidAmount: Number(receipt.paidAmount ?? 0) || 0,
+      paidDate: receipt.paidDate ?? null,
       description: String(receipt.description ?? '').trim(),
       bankCardId: receipt.bankCardId ?? null,
       vendorId: receipt.vendorId ?? null,
@@ -1284,6 +1347,8 @@ export class ReceiptsListComponent implements OnInit, OnChanges, OnDestroy {
       billNumber: receipt.billNumber ?? null,
       ticketId: receipt.ticketId,
       amount: Number(receipt.amount) || 0,
+      paidAmount: Number(receipt.paidAmount ?? 0) || 0,
+      paidDate: receipt.paidDate ?? null,
       description: String(receipt.description ?? '').trim(),
       bankCardId: hasBankCardId ? (fields.bankCardId ?? null) : (receipt.bankCardId ?? null),
       vendorId: hasVendorId ? (fields.vendorId ?? null) : (receipt.vendorId ?? null),
@@ -1395,6 +1460,372 @@ export class ReceiptsListComponent implements OnInit, OnChanges, OnDestroy {
 
   normalizeDateInputValue(value: unknown): string {
     return this.utilityService.toDateOnlyJsonString(value) || '';
+  }
+  //#endregion
+
+  //#region Payment Methods
+  get resolvedPaymentOfficeId(): number | null {
+    return this.paymentOfficeId ?? this.officeId ?? null;
+  }
+
+  get isRowScopedPaymentMode(): boolean {
+    return this.manualApplyEditableReceiptId != null;
+  }
+
+  get isPaymentFormValid(): boolean {
+    const hasPaymentDate = this.utilityService.toDateOnlyJsonString(this.paymentDate) !== null;
+    const baseValid = hasPaymentDate && !!this.selectedPaymentCostCodeId && this.paymentAmount !== 0;
+
+    if (this.isRowScopedPaymentMode) {
+      return baseValid;
+    }
+
+    if (this.isManualApplyMode) {
+      return baseValid && this.isRemainingAmountZero();
+    }
+
+    return baseValid;
+  }
+
+  roundCurrencyValue(amount: number): number {
+    if (!isFinite(amount)) {
+      return 0;
+    }
+    return Math.round(amount * 100) / 100;
+  }
+
+  isRemainingAmountZero(): boolean {
+    return this.remainingAmount > -0.005 && this.remainingAmount < 0.005;
+  }
+
+  hasNegativeRemainingAmount(): boolean {
+    return this.remainingAmount < -0.005;
+  }
+
+  updateRemainingAmount(): void {
+    if (!this.isManualApplyMode) {
+      this.remainingAmount = 0;
+      this.remainingAmountDisplay = '$' + this.formatter.currency(0);
+      return;
+    }
+
+    const totalApplied = this.roundCurrencyValue(
+      this.receiptsDisplay.reduce((sum, receipt) => sum + Number((receipt as any).applyAmountValue || 0), 0)
+    );
+
+    const remaining = this.roundCurrencyValue(this.roundCurrencyValue(this.paymentAmount) - totalApplied);
+    this.remainingAmount = remaining > -0.005 && remaining < 0.005 ? 0 : remaining;
+    this.remainingAmountDisplay = '$' + this.formatter.currency(this.remainingAmount);
+  }
+
+  refreshPaymentCostCodesForResolvedOffice(): void {
+    const officeId = this.resolvedPaymentOfficeId;
+    if (!officeId) {
+      this.creditCostCodes = [];
+      if (this.selectedPaymentCostCodeId != null) {
+        this.selectedPaymentCostCodeId = null;
+        this.paymentTransactionType = '';
+      }
+      return;
+    }
+
+    this.creditCostCodes = (this.chartOfAccountsService.getChartOfAccountsForOffice(officeId) || [])
+      .filter(account => Number(account.accountTypeId) === AccountType.AccountsPayable)
+      .sort((left, right) => {
+        const leftLabel = `${left.accountNo || ''} ${left.name || ''}`.trim();
+        const rightLabel = `${right.accountNo || ''} ${right.name || ''}`.trim();
+        return leftLabel.localeCompare(rightLabel, undefined, { sensitivity: 'base' });
+      })
+      .map(account => ({
+        value: Number(account.accountId),
+        label: `${account.accountNo}: ${account.name}`
+      }));
+
+    if (
+      this.selectedPaymentCostCodeId != null &&
+      !this.creditCostCodes.some(c => c.value === this.selectedPaymentCostCodeId)
+    ) {
+      this.selectedPaymentCostCodeId = null;
+      this.paymentTransactionType = '';
+    }
+  }
+
+  onPaymentCostCodeChange(costCodeId: number | null): void {
+    this.selectedPaymentCostCodeId = costCodeId;
+    if (costCodeId === null) {
+      this.paymentTransactionType = '';
+      return;
+    }
+
+    this.paymentTransactionType = 'Accounts Payable';
+  }
+
+  onPaymentAmountInput(event: Event): void {
+    const input = event.target as HTMLInputElement;
+    let value = input.value.replace(/[^0-9.-]/g, '');
+    const hasLeadingMinus = value.startsWith('-');
+    const unsignedValue = value.replace(/-/g, '');
+    const normalizedValue = hasLeadingMinus ? `-${unsignedValue}` : unsignedValue;
+    const parts = normalizedValue.split('.');
+    input.value = parts.length > 2 ? `${parts[0]}.${parts.slice(1).join('')}` : normalizedValue;
+    this.paymentAmountDisplay = input.value;
+
+    if (this.isRowScopedPaymentMode) {
+      const parsed = parseFloat(input.value.replace(/[^0-9.-]/g, '').trim());
+      this.paymentAmount = isNaN(parsed) ? 0 : parsed;
+      this.syncRowApplyAmountFromDialog();
+    }
+  }
+
+  onPaymentAmountBlur(event: Event): void {
+    const input = event.target as HTMLInputElement;
+    const rawValue = input.value.replace(/[^0-9.-]/g, '').trim();
+    const parsed = rawValue ? parseFloat(rawValue) : NaN;
+    this.paymentAmount = isNaN(parsed) ? 0 : parsed;
+    this.paymentAmountDisplay =
+      this.paymentAmount < 0
+        ? '-$' + this.formatter.currency(-this.paymentAmount)
+        : '$' + this.formatter.currency(this.paymentAmount);
+    input.value = this.paymentAmountDisplay;
+    this.syncRowApplyAmountFromDialog();
+    this.updateRemainingAmount();
+  }
+
+  onPaymentAmountFocus(event: Event): void {
+    const input = event.target as HTMLInputElement;
+    input.value = this.paymentAmount.toString();
+    input.select();
+  }
+
+  onPaymentAmountEnter(event: Event): void {
+    const input = event.target as HTMLInputElement;
+    input.blur();
+  }
+
+  openApplyPaymentDialog(targetReceiptId: number | null = null): void {
+    const isRowScopedApply = targetReceiptId != null;
+
+    if (!isRowScopedApply) {
+      this.paymentOfficeId = null;
+      if (!this.officeId) {
+        this.toastr.warning('Please select an office first');
+        return;
+      }
+      this.paymentOfficeId = this.officeId;
+    } else if (!this.paymentOfficeId) {
+      this.toastr.warning('Unable to determine office for selected bill.');
+      return;
+    }
+
+    this.paymentTargetInvoiceId = null;
+    this.manualApplyEditableReceiptId = targetReceiptId;
+    this.isManualApplyMode = true;
+    this.paymentDate = this.paymentDate ?? new Date();
+    this.refreshPaymentCostCodesForResolvedOffice();
+    this.updateRemainingAmount();
+    this.showPaymentForm = true;
+    this.applyFilters();
+    this.syncRowApplyAmountFromDialog();
+    this.focusPendingApplyAmountInput();
+  }
+
+  cancelPaymentForm(): void {
+    this.showPaymentForm = false;
+    this.isManualApplyMode = false;
+    this.clearPaymentForm();
+  }
+
+  submitPayment(): void {
+    if (this.isSubmittingPayment) {
+      return;
+    }
+    if (!this.selectedPaymentCostCodeId) {
+      this.toastr.warning('Please select an accounts payable account');
+      return;
+    }
+    if (!this.utilityService.toDateOnlyJsonString(this.paymentDate)) {
+      this.toastr.warning('Please select a payment date');
+      return;
+    }
+    if (this.paymentAmount === 0) {
+      this.toastr.warning('Please enter an amount');
+      return;
+    }
+    this.submitManualPayments();
+  }
+
+  submitManualPayments(): void {
+    if (this.isSubmittingPayment) {
+      return;
+    }
+
+    const receiptsWithPayments = this.receiptsDisplay.filter(receipt => {
+      const applyAmountValue = Number((receipt as any).applyAmountValue || 0);
+      return applyAmountValue !== 0;
+    });
+
+    if (receiptsWithPayments.length === 0) {
+      this.toastr.warning('No payments have been applied to any bills');
+      return;
+    }
+
+    if (!this.isRowScopedPaymentMode && !this.isRemainingAmountZero()) {
+      this.toastr.warning(
+        `Remaining amount must be $0.00 before submitting. Current remaining: ${this.remainingAmountDisplay}`
+      );
+      return;
+    }
+
+    const paymentDescription = (this.paymentDescription || '').trim() || `Payment ${new Date().toISOString()}`;
+    const paymentData = receiptsWithPayments
+      .map(receipt => {
+        return {
+          receipt,
+          billId: Number(receipt.receiptId || 0),
+          paidAmount: Number((receipt as any).applyAmountValue || 0)
+        };
+      })
+      .filter(item => item.billId > 0);
+
+    if (paymentData.length === 0) {
+      this.toastr.warning('Unable to apply payment: no bill id found for selected bill(s).');
+      return;
+    }
+
+    this.isSubmittingPayment = true;
+    from(paymentData)
+      .pipe(
+        concatMap(({ billId, paidAmount }) => {
+          const paymentRequest: BillPaymentRequest = {
+            paymentDate:
+              this.utilityService.toDateOnlyJsonString(this.paymentDate) ?? this.utilityService.todayAsCalendarDateString(),
+            costCodeId: this.selectedPaymentCostCodeId!,
+            description: paymentDescription,
+            amount: paidAmount,
+            bills: [billId]
+          };
+          return this.receiptService.applyBillPayment(paymentRequest).pipe(
+            take(1),
+            map((response: BillPaymentResponse) => ({ response, paidAmount }))
+          );
+        }),
+        finalize(() => {
+          this.isSubmittingPayment = false;
+          this.clearPaymentForm();
+          this.loadReceiptsForCurrentSearchCriteria(true);
+          this.markViewForCheck();
+        })
+      )
+      .subscribe({
+        next: ({ paidAmount }) => {
+          this.toastr.success(`Payment of $${this.formatter.currency(paidAmount)} applied`, CommonMessage.Success);
+          this.markViewForCheck();
+        },
+        error: () => {
+          this.toastr.error('Failed to apply payment', CommonMessage.Error);
+          this.markViewForCheck();
+        }
+      });
+  }
+
+  clearPaymentForm(): void {
+    this.showPaymentForm = false;
+    this.isManualApplyMode = false;
+    this.selectedPaymentCostCodeId = null;
+    this.paymentTransactionType = '';
+    this.paymentDescription = '';
+    this.paymentDate = new Date();
+    this.paymentAmount = 0;
+    this.paymentAmountDisplay = '$' + this.formatter.currency(0);
+    this.updateRemainingAmount();
+    this.paymentOfficeId = null;
+    this.paymentTargetInvoiceId = null;
+    this.manualApplyEditableReceiptId = null;
+    this.pendingApplyAmountFocusReceiptId = null;
+    this.receiptsDisplay.forEach(receipt => {
+      (receipt as any).applyAmountValue = 0;
+      (receipt as any).applyAmount = '';
+      (receipt as any).applyAmountDisplay = '';
+    });
+  }
+
+  onApplyAmountInput(receipt: ReceiptDisplayList, event: Event): void {
+    const input = event.target as HTMLInputElement;
+    let value = input.value.replace(/[^0-9.\-]/g, '');
+    value = value.replace(/(?!^)-/g, '');
+    const parts = value.split('.');
+    input.value = parts.length > 2 ? `${parts[0]}.${parts.slice(1).join('')}` : value;
+    (receipt as any).applyAmountDisplay = input.value;
+  }
+
+  onApplyAmountChange(receipt: ReceiptDisplayList, newValue: string): void {
+    (receipt as any).applyAmountDisplay = newValue;
+  }
+
+  onApplyAmountBlur(receipt: ReceiptDisplayList, event: Event): void {
+    const input = event.target as HTMLInputElement;
+    const sanitizedValue = input.value.replace(/[^0-9.-]/g, '').trim();
+    const parsed = sanitizedValue === '' || sanitizedValue === '-' ? NaN : parseFloat(sanitizedValue);
+    const finalValue = isNaN(parsed) ? 0 : parsed;
+    (receipt as any).applyAmountValue = finalValue;
+    (receipt as any).applyAmountDisplay =
+      finalValue < 0 ? '-$' + this.formatter.currency(-finalValue) : '$' + this.formatter.currency(finalValue);
+    (receipt as any).applyAmount = (receipt as any).applyAmountDisplay;
+    input.value = (receipt as any).applyAmountDisplay;
+    this.updateRemainingAmount();
+  }
+
+  onApplyAmountFocus(receipt: ReceiptDisplayList, event: Event): void {
+    const input = event.target as HTMLInputElement;
+    input.value = String(Number((receipt as any).applyAmountValue || 0));
+    input.select();
+  }
+
+  onApplyAmountEnter(_receipt: ReceiptDisplayList, event: Event): void {
+    const input = event.target as HTMLInputElement;
+    input.blur();
+  }
+
+  syncRowApplyAmountFromDialog(): void {
+    if (this.manualApplyEditableReceiptId == null) {
+      return;
+    }
+
+    const amountValue = Number(this.paymentAmount || 0);
+    const amountDisplay =
+      amountValue < 0 ? '-$' + this.formatter.currency(-amountValue) : '$' + this.formatter.currency(amountValue);
+
+    const row = this.receiptsDisplay.find(receipt => receipt.receiptId === this.manualApplyEditableReceiptId);
+    if (!row) {
+      return;
+    }
+    (row as any).applyAmountValue = amountValue;
+    (row as any).applyAmountDisplay = amountDisplay;
+    (row as any).applyAmount = amountDisplay;
+  }
+
+  getApplyAmountInputId(receiptId: number): string {
+    return `apply-amount-1-${receiptId}`;
+  }
+
+  focusPendingApplyAmountInput(): void {
+    const receiptId = this.pendingApplyAmountFocusReceiptId;
+    if (!receiptId || !this.isManualApplyMode || !this.showPaymentForm) {
+      return;
+    }
+
+    const inputId = this.getApplyAmountInputId(receiptId);
+    queueMicrotask(() => {
+      setTimeout(() => {
+        const input = document.getElementById(inputId) as HTMLInputElement | null;
+        if (!input) {
+          return;
+        }
+        input.focus();
+        input.select();
+        this.pendingApplyAmountFocusReceiptId = null;
+      }, 0);
+    });
   }
   //#endregion
 

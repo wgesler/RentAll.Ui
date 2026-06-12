@@ -5,7 +5,7 @@ import { map } from 'rxjs/operators';
 import { ConfigService } from '../../../services/config.service';
 import { MappingService } from '../../../services/mapping.service';
 import { MaintenanceListSearchRequest } from '../models/maintenance-search.model';
-import { ReceiptRequest, ReceiptResponse } from '../models/receipt.model';
+import { BillPaymentRequest, BillPaymentResponse, ReceiptRequest, ReceiptResponse } from '../models/receipt.model';
 
 @Injectable({
   providedIn: 'root'
@@ -65,16 +65,29 @@ export class ReceiptService {
   }
 
   createReceipt(request: ReceiptRequest): Observable<ReceiptResponse> {
-    return this.http.post<ReceiptResponse>(this.controller, request)
+    return this.http.post<ReceiptResponse>(this.controller, this.normalizeReceiptRequest(request))
       .pipe(map(receipt => this.mappingService.mapReceiptResponse(receipt)));
   }
 
   updateReceipt(request: ReceiptRequest): Observable<ReceiptResponse> {
-    return this.http.put<ReceiptResponse>(this.controller, request)
+    const payload = this.normalizeReceiptRequest(request);
+    return this.http.put<ReceiptResponse>(this.controller, payload)
       .pipe(map(receipt => this.mappingService.mapReceiptResponse(receipt)));
   }
 
   deleteReceipt(receiptId: number): Observable<void> {
     return this.http.delete<void>(this.controller + receiptId);
+  }
+
+  applyBillPayment(payment: BillPaymentRequest): Observable<BillPaymentResponse> {
+    return this.http.put<BillPaymentResponse>(this.configService.config().apiUrl + 'accounting/bill/payment', payment);
+  }
+
+  normalizeReceiptRequest(request: ReceiptRequest): ReceiptRequest {
+    return {
+      ...request,
+      billNumber: (request?.billNumber ?? '').toString(),
+      paidAmount: Number(request?.paidAmount ?? 0) || 0
+    };
   }
 }

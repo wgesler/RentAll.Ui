@@ -110,8 +110,11 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
   paymentAmountDisplay: string = '$0.00';
   remainingAmount: number = 0;
   remainingAmountDisplay: string = '0.00';
+  paymentOfficeId: number | null = null;
   isSubmittingPayment: boolean = false;
   paymentTargetInvoiceId: string | null = null;
+  manualApplyEditableInvoiceId: string | null = null;
+  pendingApplyAmountFocusInvoiceId: string | null = null;
   restoreTopbarAfterPayment: boolean = false;
   originalPaymentOfficeId: number | null = null;
   originalPaymentReservationId: string | null = null;
@@ -532,46 +535,13 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
   }
 
   onPayable(event: InvoiceResponse | any): void {
-    // Preserve current top-bar selections so refresh returns to the original user context.
-    this.captureTopbarSelectionsForPayment();
-
-    // Auto-select the invoice's office and reservation
-    const invoiceOfficeId = event.officeId;
-    const invoiceReservationId = event.reservationId;
-    
-    // Set selectedOffice from invoice's officeId
-    if (invoiceOfficeId && this.offices.length > 0) {
-      const matchingOffice = this.offices.find(o => o.officeId === invoiceOfficeId);
-      if (matchingOffice && matchingOffice !== this.selectedOffice) {
-        this.selectedOffice = matchingOffice;
-        // Filter dependent data
-        this.filterCostCodes();
-        this.filterChartOfAccounts();
-        this.filterCompanyContacts();
-        this.filterReservations();
-        // Emit office change to parent
-        this.officeIdChange.emit(this.selectedOffice.officeId);
-        // Apply filters
-        this.applyFilters();
-      }
-    }
-    
-    // Set selectedReservation from invoice's reservationId (after office is set)
-    if (invoiceReservationId && this.selectedOffice && this.reservations.length > 0) {
-      const matchingReservation = this.reservations.find(r => 
-        r.reservationId === invoiceReservationId && r.officeId === this.selectedOffice?.officeId
-      );
-      if (matchingReservation && matchingReservation !== this.selectedReservation) {
-        this.selectedReservation = matchingReservation;
-        // Emit reservation change to parent
-        this.reservationIdChange.emit(this.selectedReservation.reservationId);
-        // Apply filters
-        this.applyFilters();
-      }
-    }
-    
-    // Open inline Apply Payment row and scope submit to the clicked invoice row.
-    this.openApplyPaymentDialog(event.invoiceId);
+    // Keep top-bar filters unchanged. Open manual apply mode and focus clicked row amount.
+    const invoiceOfficeId = Number(event?.officeId ?? 0);
+    this.paymentOfficeId = Number.isFinite(invoiceOfficeId) && invoiceOfficeId > 0 ? invoiceOfficeId : null;
+    this.pendingApplyAmountFocusInvoiceId = event?.invoiceId ? String(event.invoiceId) : null;
+    this.openApplyPaymentDialog(this.pendingApplyAmountFocusInvoiceId);
+    this.applyFilters();
+    this.focusPendingApplyAmountInput();
   }
   //#endregion
 
@@ -645,6 +615,7 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
       const applyAmountValue = this.isManualApplyMode 
         ? (invoiceAny.applyAmountValue !== undefined ? invoiceAny.applyAmountValue : 0)
         : 0;
+      const applyAmountEditable = !this.manualApplyEditableInvoiceId || this.manualApplyEditableInvoiceId === invoice.invoiceId;
       
       return {
       ...invoice,
@@ -664,6 +635,7 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
       applyAmount: this.isManualApplyMode ? (applyAmountValue < 0 ? '-$' + this.formatter.currency(-applyAmountValue) : '$' + this.formatter.currency(applyAmountValue)) : '',
       applyAmountValue: applyAmountValue, // Store raw value for calculations
       applyAmountDisplay: this.isManualApplyMode ? (applyAmountValue < 0 ? '-$' + this.formatter.currency(-applyAmountValue) : '$' + this.formatter.currency(applyAmountValue)) : '',
+      applyAmountEditable: applyAmountEditable,
       startDate: this.formatter.formatDateString(invoice.startDate),
       endDate: this.formatter.formatDateString(invoice.endDate),
       period: this.formatter.formatInvoiceListAccountingPeriod(invoice.accountingPeriod),
@@ -816,6 +788,36 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
         value: c.costCodeId,
         label: `${c.costCode}: ${c.description}`
       }));
+  }
+
+  get resolvedPaymentOfficeId(): number | null {
+    return this.paymentOfficeId ?? this.selectedOffice?.officeId ?? null;
+  }
+
+  refreshPaymentCostCodesForResolvedOffice(): void {
+    const officeId = this.resolvedPaymentOfficeId;
+    if (!officeId) {
+      this.creditCostCodes = [];
+      if (this.selectedPaymentCostCodeId != null) {
+        this.selectedPaymentCostCodeId = null;
+        this.selectedPaymentCostCode = null;
+        this.paymentTransactionType = '';
+      }
+      return;
+    }
+
+    this.creditCostCodes = this.allCostCodes
+      .filter(c => c.officeId === officeId && c.isActive && c.transactionTypeId === TransactionType.Payment)
+      .map(c => ({
+        value: c.costCodeId,
+        label: `${c.costCode}: ${c.description}`
+      }));
+
+    if (this.selectedPaymentCostCodeId != null && !this.creditCostCodes.some(c => c.value === this.selectedPaymentCostCodeId)) {
+      this.selectedPaymentCostCodeId = null;
+      this.selectedPaymentCostCode = null;
+      this.paymentTransactionType = '';
+    }
   }
 
   ensureInvoiceLedgerLinesLoaded(invoiceId: string | null | undefined): void {
@@ -1197,14 +1199,13 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
     return this.invoicesDisplay.filter(invoice => (invoice?.dueAmountValue || 0) > 0).length;
   }
 
-  get canShowApplyPaymentButton(): boolean {
-    const hasReservationOrCompanySelection = !!this.selectedReservation || !!this.selectedCompanyContact;
-    return hasReservationOrCompanySelection && this.invoicesDisplay.length > 0;
-  }
-
   get isPaymentFormValid(): boolean {
     const hasPaymentDate = this.utilityService.toDateOnlyJsonString(this.paymentDate) !== null;
     const baseValid = hasPaymentDate && !!this.selectedPaymentCostCodeId && this.paymentAmount !== 0;
+
+    if (this.isRowScopedPaymentMode) {
+      return baseValid;
+    }
 
     if (this.isManualApplyMode) {
       return baseValid && this.isRemainingAmountZero();
@@ -1403,7 +1404,10 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
   onPaymentCostCodeChange(costCodeId: number | null): void {
     this.selectedPaymentCostCodeId = costCodeId;
     if (costCodeId !== null) {
-      this.selectedPaymentCostCode = this.costCodes.find(c => c.costCodeId === costCodeId) || null;
+      const officeId = this.resolvedPaymentOfficeId;
+      this.selectedPaymentCostCode = this.allCostCodes.find(c =>
+        c.costCodeId === costCodeId && (!officeId || c.officeId === officeId)
+      ) || null;
       if (this.selectedPaymentCostCode) {
         const transactionType = this.transactionTypes.find(t => t.value === this.selectedPaymentCostCode!.transactionTypeId);
         this.paymentTransactionType = transactionType?.label || '';
@@ -1432,6 +1436,11 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
     }
     
     this.paymentAmountDisplay = input.value;
+    if (this.isRowScopedPaymentMode) {
+      const parsed = parseFloat(input.value.replace(/[^0-9.-]/g, '').trim());
+      this.paymentAmount = isNaN(parsed) ? 0 : parsed;
+      this.syncRowApplyAmountFromDialog();
+    }
   }
 
   onPaymentAmountBlur(event: Event): void {
@@ -1447,17 +1456,20 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
           ? '-$' + this.formatter.currency(-finalValue)
           : '$' + this.formatter.currency(finalValue);
         input.value = this.paymentAmountDisplay;
+        this.syncRowApplyAmountFromDialog();
         this.updateRemainingAmount();
       } else {
         this.paymentAmount = 0;
         this.paymentAmountDisplay = '$' + this.formatter.currency(0);
         input.value = this.paymentAmountDisplay;
+        this.syncRowApplyAmountFromDialog();
         this.updateRemainingAmount();
       }
     } else {
       this.paymentAmount = 0;
       this.paymentAmountDisplay = '$' + this.formatter.currency(0);
       input.value = this.paymentAmountDisplay;
+      this.syncRowApplyAmountFromDialog();
       this.updateRemainingAmount();
     }
   }
@@ -1474,19 +1486,34 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
   }
 
   openApplyPaymentDialog(targetInvoiceId: string | null = null): void {
-    if (!this.selectedOffice) {
-      this.toastr.warning('Please select an office first');
+    const isRowScopedApply = !!targetInvoiceId;
+
+    if (!isRowScopedApply) {
+      // Toolbar "Apply Payment" requires explicit office scope from the top bar.
+      this.paymentOfficeId = null;
+      if (!this.selectedOffice?.officeId) {
+        this.toastr.warning('Please select an office first');
+        return;
+      }
+      this.paymentOfficeId = this.selectedOffice.officeId;
+    } else if (!this.paymentOfficeId) {
+      // Row-level "$" applies against that invoice's office context.
+      this.toastr.warning('Unable to determine office for selected invoice.');
       return;
     }
 
-    this.paymentTargetInvoiceId = targetInvoiceId;
+    this.paymentTargetInvoiceId = null;
+    this.manualApplyEditableInvoiceId = targetInvoiceId ? String(targetInvoiceId) : null;
     this.restoreTopbarAfterPayment = !!targetInvoiceId;
-    this.isManualApplyMode = !targetInvoiceId;
+    this.isManualApplyMode = true;
     this.paymentDate = this.paymentDate ?? new Date();
+    this.refreshPaymentCostCodesForResolvedOffice();
     this.updateRemainingAmount();
     // Show payment form fields
     this.showPaymentForm = true;
     this.applyFilters();
+    this.syncRowApplyAmountFromDialog();
+    this.focusPendingApplyAmountInput();
   }
 
   cancelPaymentForm(): void {
@@ -1495,6 +1522,7 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
     this.clearPaymentForm();
   }
 
+  //#region Apply Payment Methods
   submitPayment(): void {
     if (this.isSubmittingPayment) {
       return;
@@ -1740,7 +1768,10 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
     this.paymentAmount = 0;
     this.paymentAmountDisplay = '$' + this.formatter.currency(0);
     this.updateRemainingAmount();
+    this.paymentOfficeId = null;
     this.paymentTargetInvoiceId = null;
+    this.manualApplyEditableInvoiceId = null;
+    this.pendingApplyAmountFocusInvoiceId = null;
     // Clear apply amounts from all invoices
     this.invoicesDisplay.forEach(invoice => {
       invoice.applyAmountValue = 0;
@@ -1766,6 +1797,7 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
     this.applyFilters();
     this.loadInvoicesForCurrentSearchCriteria(true);
   }
+  //#endregion
 
   resolveOfficeScope(officeId: number | null, emitChange: boolean): void {
     const previousOfficeId = this.selectedOffice?.officeId ?? null;
@@ -1907,6 +1939,29 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
     this.remainingAmount = (remaining > -0.005 && remaining < 0.005) ? 0 : remaining;
     this.remainingAmountDisplay = '$' + this.formatter.currency(this.remainingAmount);
   }
+
+  get isRowScopedPaymentMode(): boolean {
+    return !!this.manualApplyEditableInvoiceId;
+  }
+
+  syncRowApplyAmountFromDialog(): void {
+    const targetInvoiceId = this.manualApplyEditableInvoiceId;
+    if (!targetInvoiceId) {
+      return;
+    }
+
+    const amountValue = Number(this.paymentAmount || 0);
+    const amountDisplay = amountValue < 0
+      ? '-$' + this.formatter.currency(-amountValue)
+      : '$' + this.formatter.currency(amountValue);
+
+    const row = this.invoicesDisplay.find(invoice => invoice.invoiceId === targetInvoiceId);
+    if (row) {
+      row.applyAmountValue = amountValue;
+      row.applyAmountDisplay = amountDisplay;
+      row.applyAmount = amountDisplay;
+    }
+  }
   //#endregion
 
   //#region Total Row Methods
@@ -1947,6 +2002,30 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
   //#endregion
 
   //#region Utility Methods
+  getApplyAmountInputId(invoiceId: string): string {
+    return `apply-amount-invoice-list-${invoiceId}`;
+  }
+
+  focusPendingApplyAmountInput(): void {
+    const invoiceId = this.pendingApplyAmountFocusInvoiceId;
+    if (!invoiceId || !this.isManualApplyMode || !this.showPaymentForm) {
+      return;
+    }
+
+    const inputId = this.getApplyAmountInputId(invoiceId);
+    queueMicrotask(() => {
+      setTimeout(() => {
+        const input = document.getElementById(inputId) as HTMLInputElement | null;
+        if (!input) {
+          return;
+        }
+        input.focus();
+        input.select();
+        this.pendingApplyAmountFocusInvoiceId = null;
+      }, 0);
+    });
+  }
+
   markViewForCheck(): void {
     this.cdr.markForCheck();
   }
