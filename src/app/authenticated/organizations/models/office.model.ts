@@ -14,6 +14,8 @@ export interface OfficeRequest {
   phone: string;
   fax?: string;
   website?: string;
+  yearEndMonth: number;
+  yearEndDay: number;
   logoPath?: string; // File path (e.g., '/images/logos/organization-logo.png')
   fileDetails?: FileDetails; // Contains base64 image data for display
   isInternational: boolean;
@@ -98,6 +100,8 @@ export interface OfficeResponse {
   phone: string;
   fax?: string;
   website?: string;
+  yearEndMonth: number;
+  yearEndDay: number;
   logoPath?: string; // File path (e.g., '/images/logos/organization-logo.png')
   fileDetails?: FileDetails; // Contains base64 image data for display
   isInternational: boolean;
@@ -177,6 +181,8 @@ export interface OfficeListDisplay {
   phone: string;
   fax?: string;
   website?: string;
+  yearEndMonth: number;
+  yearEndDay: number;
   maintenanceEmail?: string;
   afterHoursPhone?: string;
   defaultDeposit: number;
