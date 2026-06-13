@@ -36,7 +36,8 @@ export class ReceiptService {
       propertyId: request.propertyId || null,
       includeInactive: !!request.includeInactive,
       startDate: request.startDate ?? null,
-      endDate: request.endDate ?? null
+      endDate: request.endDate ?? null,
+      receiptKind: request.receiptKind ?? null
     }).pipe(map(receipts => (receipts || []).map(receipt => this.mappingService.mapReceiptResponse(receipt))));
   }
 

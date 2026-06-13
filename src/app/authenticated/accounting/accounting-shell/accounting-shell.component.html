@@ -130,18 +130,31 @@
             <mat-datepicker-toggle matIconSuffix [for]="accountingStartPicker"></mat-datepicker-toggle>
             <mat-datepicker #accountingStartPicker></mat-datepicker>
           </mat-form-field>
-          <mat-form-field appearance="outline" class="titlebar-field-office">
-            <mat-label>End Date</mat-label>
-            <input
-              matInput
-              [matDatepicker]="accountingEndPicker"
-              [(ngModel)]="endDate"
-              [ngModelOptions]="{ standalone: true }"
-              (dateChange)="onDateRangeChange()"
-              [min]="startDate" />
-            <mat-datepicker-toggle matIconSuffix [for]="accountingEndPicker"></mat-datepicker-toggle>
-            <mat-datepicker #accountingEndPicker></mat-datepicker>
-          </mat-form-field>
+          <div class="accounting-shell-end-date-wrap">
+            <mat-form-field appearance="outline" class="titlebar-field-office">
+              <mat-label>End Date</mat-label>
+              <input
+                matInput
+                [matDatepicker]="accountingEndPicker"
+                [(ngModel)]="endDate"
+                [ngModelOptions]="{ standalone: true }"
+                (dateChange)="onDateRangeChange()"
+                [min]="startDate" />
+              <mat-datepicker-toggle matIconSuffix [for]="accountingEndPicker"></mat-datepicker-toggle>
+              <mat-datepicker #accountingEndPicker></mat-datepicker>
+            </mat-form-field>
+            <button
+              mat-icon-button
+              type="button"
+              class="accounting-shell-date-pin-btn"
+              [class.accounting-shell-date-pin-btn--active]="dateRangePinned"
+              [attr.aria-pressed]="dateRangePinned"
+              [attr.aria-label]="dateRangePinned ? 'Unpin date range' : 'Pin date range'"
+              [matTooltip]="dateRangePinned ? 'Unpin date range' : 'Keep date range fixed'"
+              (click)="toggleDateRangePin()">
+              <mat-icon>push_pin</mat-icon>
+            </button>
+          </div>
         </ng-template>
       </div>
       <div class="form-titlebar-actions-wrap">

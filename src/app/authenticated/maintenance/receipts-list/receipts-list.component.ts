@@ -210,13 +210,18 @@ export class ReceiptsListComponent implements OnInit, OnChanges, OnDestroy {
     }
     if (changes['accountingListMode'] && !changes['accountingListMode'].firstChange) {
       this.applyFilters();
+      if (this.embeddedInAccounting && this.usesMaintenanceSearch()) {
+        this.loadReceiptsForCurrentSearchCriteria(true);
+      }
     }
     if (changes['refreshTrigger'] && !changes['refreshTrigger'].firstChange) {
       this.loadReceiptsForCurrentSearchCriteria(true);
     }
 
-    if (changes['searchRequest'] && !changes['searchRequest'].firstChange && this.embeddedInMaintenance) {
-      this.loadReceiptsForCurrentSearchCriteria();
+    if (changes['searchRequest'] && this.embeddedInMaintenance) {
+      if (!changes['searchRequest'].firstChange) {
+        this.loadReceiptsForCurrentSearchCriteria();
+      }
     }
   }
 
@@ -232,7 +237,12 @@ export class ReceiptsListComponent implements OnInit, OnChanges, OnDestroy {
     let searchKey: string | null = null;
     if (this.embeddedInMaintenance) {
       searchKey = this.buildReceiptSearchKey();
-      if (!force && (searchKey === this.lastReceiptSearchKey || searchKey === this.receiptSearchInFlightKey)) {
+      if (!force && searchKey === this.lastReceiptSearchKey) {
+        this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'receipts');
+        this.markViewForCheck();
+        return;
+      }
+      if (!force && searchKey === this.receiptSearchInFlightKey) {
         return;
       }
       this.receiptSearchInFlightKey = searchKey;
@@ -245,12 +255,10 @@ export class ReceiptsListComponent implements OnInit, OnChanges, OnDestroy {
       ? this.receiptService.searchReceipts(this.buildMaintenanceSearchRequest())
       : this.receiptService.getReceipts(this.property?.propertyId ?? null, this.officeId ?? null);
 
-    load$.pipe(take(1),takeUntil(this.destroy$),finalize(() => {
-        if (this.receiptsLoadId === loadId) {
-          this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'receipts');
-          if (this.embeddedInMaintenance && searchKey != null && this.receiptSearchInFlightKey === searchKey) {
-            this.receiptSearchInFlightKey = null;
-          }
+    load$.pipe(take(1), takeUntil(this.destroy$), finalize(() => {
+        this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'receipts');
+        if (this.embeddedInMaintenance && searchKey != null && this.receiptSearchInFlightKey === searchKey) {
+          this.receiptSearchInFlightKey = null;
         }
         this.markViewForCheck();
       })
@@ -394,6 +402,57 @@ export class ReceiptsListComponent implements OnInit, OnChanges, OnDestroy {
       },
       error: () => {
         this.toastr.error('Unable to load work order.', 'Work Order');
+        this.markViewForCheck();
+      }
+    });
+  }
+  //#endregion
+
+  //#region Data Load Methods
+  loadPropertyLookup(): void {
+    this.propertyService.getPropertyCodes().pipe(take(1), takeUntil(this.destroy$)).subscribe({
+      next: properties => {
+        this.propertyCodeLookup = new Map(
+          (properties || []).map(property => [
+            this.utilityService.normalizeId(property.propertyId),
+            (property.propertyCode || '').trim()
+          ])
+        );
+        this.applyPropertyCodesToDisplays();
+        this.applyFilters();
+        this.markViewForCheck();
+      },
+      error: () => {
+        this.markViewForCheck();
+      }
+    });
+  }
+
+  loadAccountingOffices(): void {
+    this.accountingOfficeService.ensureAccountingOfficesLoaded().pipe(take(1)).subscribe({
+      next: () => {
+        this.accountingOfficeService.getAllAccountingOffices().pipe(takeUntil(this.destroy$)).subscribe(accountingOffices => {
+          this.accountingOffices = accountingOffices || [];
+          this.applyBankCardOptionsFromAccountingOffices();
+        });
+      },
+      error: () => {
+        this.accountingOffices = [];
+        this.bankCardOptionsByOfficeId = new Map();
+        this.markViewForCheck();
+      }
+    });
+  }
+
+  loadVendors(): void {
+    this.contactService.ensureContactsLoaded().pipe(take(1)).subscribe({
+      next: () => {
+        this.contactService.getAllContacts().pipe(takeUntil(this.destroy$)).subscribe(contacts => {
+          this.applyVendorOptionsFromContacts(contacts || []);
+        });
+      },
+      error: () => {
+        this.vendorOptionsByOfficeId = new Map();
         this.markViewForCheck();
       }
     });
@@ -867,8 +926,22 @@ export class ReceiptsListComponent implements OnInit, OnChanges, OnDestroy {
       ...request,
       officeIds: this.resolveMaintenanceSearchOfficeIds(request),
       includeInactive: this.showInactive,
-      propertyId: request.propertyId ?? this.property?.propertyId ?? null
+      propertyId: request.propertyId ?? this.property?.propertyId ?? null,
+      receiptKind: this.resolveReceiptKindForSearch()
     };
+  }
+
+  resolveReceiptKindForSearch(): 1 | 2 | null {
+    if (!this.embeddedInAccounting) {
+      return null;
+    }
+    if (this.accountingListMode === 'bills') {
+      return 1;
+    }
+    if (this.accountingListMode === 'receipts') {
+      return 2;
+    }
+    return null;
   }
 
   buildReceiptSearchKey(): string {
@@ -878,58 +951,8 @@ export class ReceiptsListComponent implements OnInit, OnChanges, OnDestroy {
       propertyId: request.propertyId ?? null,
       startDate: request.startDate ?? null,
       endDate: request.endDate ?? null,
-      includeInactive: request.includeInactive ?? false
-    });
-  }
-  //#endregion
-
-  //#region Data Load Methods
-  loadPropertyLookup(): void {
-    this.propertyService.getPropertyCodes().pipe(take(1), takeUntil(this.destroy$)).subscribe({
-      next: properties => {
-        this.propertyCodeLookup = new Map(
-          (properties || []).map(property => [
-            this.utilityService.normalizeId(property.propertyId),
-            (property.propertyCode || '').trim()
-          ])
-        );
-        this.applyPropertyCodesToDisplays();
-        this.applyFilters();
-        this.markViewForCheck();
-      },
-      error: () => {
-        this.markViewForCheck();
-      }
-    });
-  }
-
-  loadAccountingOffices(): void {
-    this.accountingOfficeService.ensureAccountingOfficesLoaded().pipe(take(1)).subscribe({
-      next: () => {
-        this.accountingOfficeService.getAllAccountingOffices().pipe(takeUntil(this.destroy$)).subscribe(accountingOffices => {
-          this.accountingOffices = accountingOffices || [];
-          this.applyBankCardOptionsFromAccountingOffices();
-        });
-      },
-      error: () => {
-        this.accountingOffices = [];
-        this.bankCardOptionsByOfficeId = new Map();
-        this.markViewForCheck();
-      }
-    });
-  }
-
-  loadVendors(): void {
-    this.contactService.ensureContactsLoaded().pipe(take(1)).subscribe({
-      next: () => {
-        this.contactService.getAllContacts().pipe(takeUntil(this.destroy$)).subscribe(contacts => {
-          this.applyVendorOptionsFromContacts(contacts || []);
-        });
-      },
-      error: () => {
-        this.vendorOptionsByOfficeId = new Map();
-        this.markViewForCheck();
-      }
+      includeInactive: request.includeInactive ?? false,
+      receiptKind: request.receiptKind ?? null
     });
   }
   //#endregion

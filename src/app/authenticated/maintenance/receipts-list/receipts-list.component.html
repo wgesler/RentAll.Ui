@@ -20,7 +20,7 @@
         [hasActionsRowClick]="!showPaymentForm"
         [hasActionsEdit]="true"
         [hasActionsDelete]="true"
-        [hasActionsPayable]="embeddedInAccounting"
+        [hasActionsPayable]="embeddedInAccounting && accountingListMode !== 'receipts'"
         [hasWorkOrderCodeLink]="!embeddedInAccounting"
         [deleteConfirmTitle]="'Delete Receipt'"
         [deleteConfirmMessage]="'Are you sure you want to delete this receipt?'"
@@ -45,9 +45,9 @@
             <mat-slide-toggle [checked]="showInactive" color="primary" (change)="toggleInactive()">
               InActive
             </mat-slide-toggle>
-            @if (embeddedInAccounting) {
+            @if (embeddedInAccounting && accountingListMode !== 'receipts') {
               <button mat-raised-button type="button" color="accent" id="apply-payment-button" (click)="openApplyPaymentDialog()" class="whitespace-nowrap items-center flex gap-1">
-                Apply Payment
+                Pay Bills
               </button>
             }
             <button mat-raised-button type="button" color="primary" id="add-receipt-button" class="text-nowrap flex-shrink-0" (click)="addReceipt()">

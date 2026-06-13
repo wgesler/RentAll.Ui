@@ -61,8 +61,11 @@ export class AccountingShellComponent implements OnInit, OnDestroy {
   selectedCompanyId: string | null = null;
   selectedReservationId: string | null = null;
   activeInvoiceId: string | null = null;
+  userId = '';
   startDate: Date | null = null;
   endDate: Date | null = null;
+  dateRangePinned = false;
+  private readonly pinnedDateRangeStorageKeyPrefix = 'rentall-accounting-shell-pinned-dates';
   /** Passed to invoice-list; updated only in syncInvoiceSearchDateRange. */
   invoiceSearchDateRange: { startDate: string | null; endDate: string | null } = { startDate: null, endDate: null };
   billsSearchRequest: MaintenanceListSearchRequest = { officeIds: [] };
@@ -89,13 +92,14 @@ export class AccountingShellComponent implements OnInit, OnDestroy {
     private propertyService: PropertyService,
     private toastr: ToastrService
   ) {
-    this.setDefaultDateRange();
     this.syncInvoiceSearchDateRange();
     this.syncBillsSearchRequest();
   }
 
   //#region Accounting
   ngOnInit(): void {
+    this.userId = this.authService.getUser()?.userId || '';
+    this.applyPinnedDateRangeFromStorage();
     this.costCodesService.ensureCostCodesLoaded();
     this.organizationId = this.authService.getUser()?.organizationId?.trim() ?? '';
     this.initializeSuperAdminFilters();
@@ -104,6 +108,13 @@ export class AccountingShellComponent implements OnInit, OnDestroy {
       this.loadOffices();
       this.globalSelectionService.getSelectedOfficeId$().pipe(skip(1), takeUntil(this.destroy$)).subscribe(officeId => {
         this.applyOfficeFromGlobal(officeId);
+        this.syncBillsSearchRequest();
+        if (this.selectedTabIndex === 1) {
+          this.billsRefreshTrigger++;
+        }
+        if (this.selectedTabIndex === 2) {
+          this.receiptsRefreshTrigger++;
+        }
       });
     }
     this.applyQueryParamState(this.route.snapshot.queryParams);
@@ -336,32 +347,14 @@ export class AccountingShellComponent implements OnInit, OnDestroy {
   }
 
   onDateRangeChange(): void {
-    if (!this.startDate && !this.endDate) {
-      this.setDefaultDateRange();
-    } else if (this.startDate && !this.endDate) {
-      const end = new Date(this.startDate);
-      end.setHours(0, 0, 0, 0);
-      this.endDate = end;
-    } else if (!this.startDate && this.endDate) {
-      const start = new Date(this.endDate);
-      start.setMonth(start.getMonth() - 3);
-      start.setHours(0, 0, 0, 0);
-      this.startDate = start;
+    this.normalizeDateRangeValues();
+    if (this.dateRangePinned) {
+      this.persistPinnedDateRange();
     }
+    this.publishDateRangeState();
+  }
 
-    if (this.startDate) {
-      this.startDate.setHours(0, 0, 0, 0);
-    }
-    if (this.endDate) {
-      this.endDate.setHours(0, 0, 0, 0);
-    }
-
-    if (this.startDate && this.endDate && this.startDate.getTime() > this.endDate.getTime()) {
-      const tmp = this.startDate;
-      this.startDate = this.endDate;
-      this.endDate = tmp;
-    }
-
+  publishDateRangeState(): void {
     this.syncInvoiceSearchDateRange();
     this.syncBillsSearchRequest();
     if (this.selectedTabIndex === 1) {
@@ -406,6 +399,99 @@ export class AccountingShellComponent implements OnInit, OnDestroy {
       ? `${RouterUrl.InvoiceCreate}?${params.join('&')}`
       : RouterUrl.InvoiceCreate;
     this.router.navigateByUrl(url);
+  }
+  //#endregion
+
+  //#region Pinned Date Range
+  toggleDateRangePin(): void {
+    this.dateRangePinned = !this.dateRangePinned;
+    if (this.dateRangePinned) {
+      this.onDateRangeChange();
+      this.persistPinnedDateRange();
+      return;
+    }
+    this.clearPinnedDateRangeStorage();
+    this.setDefaultDateRange();
+    this.publishDateRangeState();
+  }
+
+  applyPinnedDateRangeFromStorage(): void {
+    const stored = this.readPinnedDateRangeFromStorage();
+    if (stored?.enabled && stored.startDate && stored.endDate) {
+      const start = this.utilityService.parseCalendarDateInput(stored.startDate);
+      const end = this.utilityService.parseCalendarDateInput(stored.endDate);
+      if (start && end) {
+        start.setHours(0, 0, 0, 0);
+        end.setHours(0, 0, 0, 0);
+        this.dateRangePinned = true;
+        this.startDate = start;
+        this.endDate = end;
+        this.syncInvoiceSearchDateRange();
+        this.syncBillsSearchRequest();
+        return;
+      }
+      this.clearPinnedDateRangeStorage();
+    }
+
+    this.dateRangePinned = false;
+    this.setDefaultDateRange();
+    this.syncInvoiceSearchDateRange();
+    this.syncBillsSearchRequest();
+  }
+
+  persistPinnedDateRange(): void {
+    if (!this.dateRangePinned || !this.startDate || !this.endDate) {
+      return;
+    }
+
+    const startDate = this.utilityService.formatDateOnlyForApi(this.startDate);
+    const endDate = this.utilityService.formatDateOnlyForApi(this.endDate);
+    if (!startDate || !endDate) {
+      return;
+    }
+
+    localStorage.setItem(this.getPinnedDateRangeStorageKey(), JSON.stringify({
+      enabled: true,
+      startDate,
+      endDate
+    }));
+  }
+
+  readPinnedDateRangeFromStorage(): { enabled: boolean; startDate: string; endDate: string } | null {
+    if (typeof localStorage === 'undefined') {
+      return null;
+    }
+
+    const rawValue = localStorage.getItem(this.getPinnedDateRangeStorageKey());
+    if (!rawValue) {
+      return null;
+    }
+
+    try {
+      const parsed = JSON.parse(rawValue) as { enabled?: boolean; startDate?: string; endDate?: string };
+      if (parsed?.enabled !== true || !parsed.startDate || !parsed.endDate) {
+        return null;
+      }
+      return {
+        enabled: true,
+        startDate: String(parsed.startDate),
+        endDate: String(parsed.endDate)
+      };
+    } catch {
+      return null;
+    }
+  }
+
+  clearPinnedDateRangeStorage(): void {
+    if (typeof localStorage === 'undefined') {
+      return;
+    }
+    localStorage.removeItem(this.getPinnedDateRangeStorageKey());
+  }
+
+  getPinnedDateRangeStorageKey(): string {
+    const userKey = this.userId?.trim() || 'anonymous';
+    return `${this.pinnedDateRangeStorageKeyPrefix}-${userKey}`;
   }
   //#endregion
 
@@ -565,6 +651,9 @@ export class AccountingShellComponent implements OnInit, OnDestroy {
       this.startDate = this.utilityService.parseDateOnlyStringToDate(startDateParam);
       this.endDate = this.utilityService.parseDateOnlyStringToDate(endDateParam);
       this.normalizeDateRangeValues();
+      if (this.dateRangePinned) {
+        this.persistPinnedDateRange();
+      }
       this.syncInvoiceSearchDateRange();
       this.syncBillsSearchRequest();
       if (this.selectedTabIndex === 1 || this.selectedTabIndex === 2) {
@@ -573,7 +662,7 @@ export class AccountingShellComponent implements OnInit, OnDestroy {
           this.receiptsRefreshTrigger++;
         });
       }
-    } else if (!this.startDate && !this.endDate) {
+    } else if (!this.startDate && !this.endDate && !this.dateRangePinned) {
       this.setDefaultDateRange();
       this.syncInvoiceSearchDateRange();
       this.syncBillsSearchRequest();
@@ -601,6 +690,10 @@ export class AccountingShellComponent implements OnInit, OnDestroy {
   }
 
   setDefaultDateRange(): void {
+    if (this.dateRangePinned) {
+      return;
+    }
+
     const end = new Date();
     end.setHours(0, 0, 0, 0);
 
@@ -612,6 +705,16 @@ export class AccountingShellComponent implements OnInit, OnDestroy {
   }
 
   normalizeDateRangeValues(): void {
+    if (this.dateRangePinned) {
+      if (this.startDate) {
+        this.startDate.setHours(0, 0, 0, 0);
+      }
+      if (this.endDate) {
+        this.endDate.setHours(0, 0, 0, 0);
+      }
+      return;
+    }
+
     if (!this.startDate && !this.endDate) {
       this.setDefaultDateRange();
       return;
