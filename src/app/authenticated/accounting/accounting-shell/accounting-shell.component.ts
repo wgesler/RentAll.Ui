@@ -424,6 +424,11 @@ export class AccountingShellComponent implements OnInit, OnDestroy {
 
   //#region Tab Selection
   onTabChange(event: { index: number }): void {
+    if (!this.journalEntrySyncToolsEnabled && event.index > 0) {
+      this.selectedTabIndex = 0;
+      return;
+    }
+
     if (event.index !== 1) {
       this.onBillsReceiptBack();
     }
@@ -701,6 +706,19 @@ export class AccountingShellComponent implements OnInit, OnDestroy {
     return this.configService.config().featureFlags.journalEntrySyncTools;
   }
 
+  get effectiveSelectedTabIndex(): number {
+    if (!this.journalEntrySyncToolsEnabled && this.selectedTabIndex > 0) {
+      return 0;
+    }
+    return this.selectedTabIndex;
+  }
+
+  clampSelectedTabIndexForFeatureFlags(): void {
+    if (!this.journalEntrySyncToolsEnabled && this.selectedTabIndex > 0) {
+      this.selectedTabIndex = 0;
+    }
+  }
+
   get showJournalEntrySyncTools(): boolean {
     return !this.activeInvoiceId
       && !this.isGeneralLedgerDetailActive
@@ -925,6 +943,7 @@ export class AccountingShellComponent implements OnInit, OnDestroy {
       if (this.selectedTabIndex !== tabIndex) {
         this.selectedTabIndex = tabIndex;
       }
+      this.clampSelectedTabIndexForFeatureFlags();
     }
 
     if ('officeId' in params) {

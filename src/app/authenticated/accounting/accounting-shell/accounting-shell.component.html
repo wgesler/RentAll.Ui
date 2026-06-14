@@ -45,7 +45,7 @@
             </div>
             </div>
           </div>
-        } @else if (journalEntrySyncToolsEnabled && selectedTabIndex === 0 && accountingInvoiceList) {
+        } @else if (selectedTabIndex === 0 && accountingInvoiceList) {
           <div class="header-title form-titlebar-fields-wrap accounting-shell-titlebar-fields">
             <div class="accounting-shell-titlebar-filters">
             @if (showShellOfficeDropdown) {
@@ -251,8 +251,8 @@
             [companyIdInput]="selectedCompanyId">
           </app-invoice>
         }
-      } @else if (journalEntrySyncToolsEnabled) {
-        <mat-tab-group [selectedIndex]="selectedTabIndex" class="shell-tabs dbg-band-tabs" (selectedTabChange)="onTabChange($event)">
+      } @else {
+        <mat-tab-group [selectedIndex]="effectiveSelectedTabIndex" class="shell-tabs dbg-band-tabs" (selectedTabChange)="onTabChange($event)">
           <mat-tab label="Invoices">
             <app-invoice-list
               [invoiceSearchDateRange]="invoiceSearchDateRange"
@@ -271,6 +271,7 @@
               (journalEntriesChanged)="onJournalEntriesChanged()">
             </app-invoice-list>
           </mat-tab>
+          @if (journalEntrySyncToolsEnabled) {
           <mat-tab label="Bills">
             @if (showBillsReceiptDetail) {
               <app-receipt
@@ -372,9 +373,8 @@
               </app-general-ledger-list>
             }
           </mat-tab>
+          }
         </mat-tab-group>
-      } @else {
-        <p class="accounting-shell-disabled-message">Accounting is not enabled in this environment.</p>
       }
     </mat-card>
   </section>
