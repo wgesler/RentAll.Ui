@@ -1518,7 +1518,9 @@ export class PropertyComponent implements OnInit, OnChanges, AfterViewInit, OnDe
     if (!officeId) return [];
     return this.contactService
       .getAllContactsValue()
-      .filter(c => c.entityTypeId === EntityType.Vendor && Number(c.officeId) === Number(officeId));
+      .filter(c =>
+        c.entityTypeId === EntityType.Vendor
+        && this.utilityService.contactHasOfficeAccess(c, Number(officeId)));
   }
 
   get ownerOptions(): SearchableSelectOption[] {

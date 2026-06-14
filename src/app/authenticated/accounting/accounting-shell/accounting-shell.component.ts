@@ -3,11 +3,14 @@ import { Component, OnDestroy, OnInit, ViewChild } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, Router } from '@angular/router';
 import { ToastrService } from 'ngx-toastr';
-import { Subject, skip, take, takeUntil, filter } from 'rxjs';
+import { Subject, skip, take, takeUntil, filter, forkJoin, finalize } from 'rxjs';
+import { HttpErrorResponse } from '@angular/common/http';
 import { RouterUrl } from '../../../app.routes';
 import { MaterialModule } from '../../../material.module';
 import { AuthService } from '../../../services/auth.service';
+import { ConfigService } from '../../../services/config.service';
 import { UtilityService } from '../../../services/utility.service';
+import { CommonMessage } from '../../../enums/common-message.enum';
 import { OrganizationResponse } from '../../organizations/models/organization.model';
 import { OrganizationService } from '../../organizations/services/organization.service';
 import { OfficeResponse } from '../../organizations/models/office.model';
@@ -33,6 +36,8 @@ import { GeneralLedgerListComponent } from '../general-ledger-list/general-ledge
 import { CostCodesService } from '../services/cost-codes.service';
 import { ChartOfAccountsService } from '../services/chart-of-accounts.service';
 import { ChartOfAccountResponse } from '../models/chart-of-accounts.model';
+import { GeneralLedgerService } from '../services/general-ledger.service';
+import { JournalEntrySyncResult } from '../models/journal-entry.model';
 
 @Component({
     selector: 'app-accounting-shell',
@@ -98,7 +103,9 @@ export class AccountingShellComponent implements OnInit, OnDestroy {
   selectedJournalEntryLineId: string | null = null;
   generalLedgerRefreshTrigger = 0;
   depositsRefreshTrigger = 0;
+  printChecksRefreshTrigger = 0;
   chartOfAccounts: ChartOfAccountResponse[] = [];
+  isJournalEntrySyncInProgress = false;
 
   destroy$ = new Subject<void>();
 
@@ -106,9 +113,11 @@ export class AccountingShellComponent implements OnInit, OnDestroy {
     private router: Router,
     private route: ActivatedRoute,
     private authService: AuthService,
+    private configService: ConfigService,
     private organizationService: OrganizationService,
     private costCodesService: CostCodesService,
     private chartOfAccountsService: ChartOfAccountsService,
+    private generalLedgerService: GeneralLedgerService,
     private utilityService: UtilityService,
     private officeService: OfficeService,
     private globalSelectionService: GlobalSelectionService,
@@ -147,6 +156,9 @@ export class AccountingShellComponent implements OnInit, OnDestroy {
           this.depositsRefreshTrigger++;
         }
         if (this.selectedTabIndex === 4) {
+          this.printChecksRefreshTrigger++;
+        }
+        if (this.selectedTabIndex === 5) {
           this.refreshGlPropertyOptions();
           this.refreshGlReservationOptions();
           this.clearInvalidChartOfAccountSelection();
@@ -347,7 +359,10 @@ export class AccountingShellComponent implements OnInit, OnDestroy {
 
   onJournalEntriesChanged(): void {
     this.syncGlFiltersFromInvoiceContext();
+    this.billsRefreshTrigger++;
+    this.receiptsRefreshTrigger++;
     this.depositsRefreshTrigger++;
+    this.printChecksRefreshTrigger++;
     this.generalLedgerRefreshTrigger++;
   }
 
@@ -415,7 +430,7 @@ export class AccountingShellComponent implements OnInit, OnDestroy {
     if (event.index !== 2) {
       this.onReceiptsReceiptBack();
     }
-    if (event.index !== 3 && event.index !== 4) {
+    if (event.index !== 3 && event.index !== 4 && event.index !== 5) {
       this.onGeneralLedgerBack();
     }
     this.selectedTabIndex = event.index;
@@ -430,6 +445,9 @@ export class AccountingShellComponent implements OnInit, OnDestroy {
       this.depositsRefreshTrigger++;
     }
     if (this.selectedTabIndex === 4) {
+      this.printChecksRefreshTrigger++;
+    }
+    if (this.selectedTabIndex === 5) {
       if (!('chartOfAccountId' in this.route.snapshot.queryParams)) {
         this.selectedChartOfAccountId = null;
       }
@@ -490,6 +508,9 @@ export class AccountingShellComponent implements OnInit, OnDestroy {
       this.depositsRefreshTrigger++;
     }
     if (this.selectedTabIndex === 4) {
+      this.printChecksRefreshTrigger++;
+    }
+    if (this.selectedTabIndex === 5) {
       this.generalLedgerRefreshTrigger++;
     }
     this.router.navigate([], {
@@ -676,6 +697,116 @@ export class AccountingShellComponent implements OnInit, OnDestroy {
     return (reservations || []).map(reservation => ({ value: reservation.value.reservationId, label: reservation.label }));
   }
 
+  get journalEntrySyncToolsEnabled(): boolean {
+    return this.configService.config().featureFlags.journalEntrySyncTools;
+  }
+
+  get showJournalEntrySyncTools(): boolean {
+    return !this.activeInvoiceId
+      && !this.isGeneralLedgerDetailActive
+      && !this.isBillsReceiptDetailActive
+      && !this.isReceiptsReceiptDetailActive;
+  }
+
+  resolveOfficeIdsForJournalEntrySync(): number[] {
+    if (this.selectedOfficeId != null && this.selectedOfficeId > 0) {
+      return [this.selectedOfficeId];
+    }
+
+    return (this.offices || []).map(office => office.officeId).filter(id => id > 0);
+  }
+
+  syncJournalEntries(): void {
+    const officeIds = this.resolveOfficeIdsForJournalEntrySync();
+    if (officeIds.length === 0) {
+      this.toastr.warning('Select at least one office before syncing journal entries.', 'Sync');
+      return;
+    }
+
+    this.isJournalEntrySyncInProgress = true;
+    forkJoin([
+      this.generalLedgerService.syncInvoiceJournalEntries(officeIds),
+      this.generalLedgerService.syncBillJournalEntries(officeIds),
+      this.generalLedgerService.syncReceiptJournalEntries(officeIds)
+    ]).pipe(
+      take(1),
+      finalize(() => {
+        this.isJournalEntrySyncInProgress = false;
+      })
+    ).subscribe({
+      next: ([invoiceResult, billResult, receiptResult]) => {
+        const result = this.mergeJournalEntrySyncResults([invoiceResult, billResult, receiptResult]);
+        this.showJournalEntrySyncResult('Journal entries synced', result);
+        this.onJournalEntriesChanged();
+      },
+      error: (error: HttpErrorResponse) => {
+        this.toastr.error(error?.error ?? 'Unable to sync journal entries.', CommonMessage.Error);
+      }
+    });
+  }
+
+  clearJournalEntries(): void {
+    if (!window.confirm('Delete all journal entries and journal entry lines for this organization?')) {
+      return;
+    }
+
+    this.isJournalEntrySyncInProgress = true;
+    this.generalLedgerService.clearAllJournalEntries().pipe(
+      take(1),
+      finalize(() => {
+        this.isJournalEntrySyncInProgress = false;
+      })
+    ).subscribe({
+      next: (result) => {
+        this.showJournalEntrySyncResult('Journal entries cleared', result, true);
+        this.onJournalEntriesChanged();
+      },
+      error: (error: HttpErrorResponse) => {
+        this.toastr.error(error?.error ?? 'Unable to clear journal entries.', CommonMessage.Error);
+      }
+    });
+  }
+
+  mergeJournalEntrySyncResults(results: JournalEntrySyncResult[]): JournalEntrySyncResult {
+    return results.reduce((merged, result) => ({
+      documentsProcessed: merged.documentsProcessed + (result?.documentsProcessed ?? 0),
+      journalEntriesCreated: merged.journalEntriesCreated + (result?.journalEntriesCreated ?? 0),
+      journalEntriesSkipped: merged.journalEntriesSkipped + (result?.journalEntriesSkipped ?? 0),
+      journalEntriesDeleted: merged.journalEntriesDeleted + (result?.journalEntriesDeleted ?? 0),
+      errors: [...merged.errors, ...(result?.errors ?? [])]
+    }), {
+      documentsProcessed: 0,
+      journalEntriesCreated: 0,
+      journalEntriesSkipped: 0,
+      journalEntriesDeleted: 0,
+      errors: [] as string[]
+    });
+  }
+
+  showJournalEntrySyncResult(title: string, result: JournalEntrySyncResult, isClear: boolean = false): void {
+    const actionLabel = isClear ? 'deleted' : 'created';
+    const count = isClear ? result.journalEntriesDeleted : result.journalEntriesCreated;
+    const skipped = isClear ? 0 : result.journalEntriesSkipped;
+    let message = isClear
+      ? `${count} journal entries ${actionLabel}`
+      : `${result.documentsProcessed} documents processed, ${count} journal entries ${actionLabel}`;
+
+    if (!isClear && skipped > 0) {
+      message += `, ${skipped} skipped`;
+    }
+
+    if (result.errors.length > 0) {
+      message += `. ${result.errors.length} issue(s): ${result.errors.slice(0, 3).join('; ')}`;
+      if (result.errors.length > 3) {
+        message += '...';
+      }
+      this.toastr.warning(message, title);
+      return;
+    }
+
+    this.toastr.success(message, title);
+  }
+
   get showShellOfficeDropdown(): boolean {
     return !this.isSuperAdmin && this.offices.length > 0;
   }
@@ -693,7 +824,7 @@ export class AccountingShellComponent implements OnInit, OnDestroy {
   }
 
   get isGeneralLedgerDetailActive(): boolean {
-    return (this.selectedTabIndex === 3 || this.selectedTabIndex === 4) && this.showGeneralLedgerDetail;
+    return (this.selectedTabIndex === 3 || this.selectedTabIndex === 4 || this.selectedTabIndex === 5) && this.showGeneralLedgerDetail;
   }
 
   get shellOfficeTitleBarOptions(): { value: number, label: string }[] {
@@ -707,7 +838,7 @@ export class AccountingShellComponent implements OnInit, OnDestroy {
 
     return accounts.map(account => ({
       value: account.accountId,
-      label: `${account.accountNo} - ${account.name}`.trim()
+      label: this.utilityService.getChartOfAccountDropdownLabel(account)
     }));
   }
 
@@ -767,6 +898,10 @@ export class AccountingShellComponent implements OnInit, OnDestroy {
       this.depositsRefreshTrigger++;
     }
     if (this.selectedTabIndex === 4) {
+      this.onGeneralLedgerBack();
+      this.printChecksRefreshTrigger++;
+    }
+    if (this.selectedTabIndex === 5) {
       this.refreshGlPropertyOptions();
       this.refreshGlReservationOptions();
       this.clearInvalidChartOfAccountSelection();
@@ -781,9 +916,12 @@ export class AccountingShellComponent implements OnInit, OnDestroy {
   }
 
   applyQueryParamState(params: Record<string, string>): void {
-    let tabIndex = getNumberQueryParam(params, 'tab', 0, 5);
+    let tabIndex = getNumberQueryParam(params, 'tab', 0, 6);
     if (tabIndex !== null) {
-      tabIndex = Math.min(Math.max(tabIndex, 0), 4);
+      tabIndex = Math.min(Math.max(tabIndex, 0), 5);
+      if (tabIndex === 4 && ('chartOfAccountId' in params || 'propertyId' in params || 'glReservationId' in params)) {
+        tabIndex = 5;
+      }
       if (this.selectedTabIndex !== tabIndex) {
         this.selectedTabIndex = tabIndex;
       }
@@ -808,7 +946,7 @@ export class AccountingShellComponent implements OnInit, OnDestroy {
       this.selectedOrganizationId = organizationId ? String(organizationId) : null;
     }
 
-    if (this.selectedTabIndex === 4) {
+    if (this.selectedTabIndex === 5) {
       if ('chartOfAccountId' in params) {
         this.selectedChartOfAccountId = getNumberQueryParam(params, 'chartOfAccountId');
       } else {
@@ -845,11 +983,12 @@ export class AccountingShellComponent implements OnInit, OnDestroy {
       }
       this.syncInvoiceSearchDateRange();
       this.syncBillsSearchRequest();
-      if (this.selectedTabIndex === 1 || this.selectedTabIndex === 2 || this.selectedTabIndex === 3 || this.selectedTabIndex === 4) {
+      if (this.selectedTabIndex >= 1 && this.selectedTabIndex <= 5) {
         queueMicrotask(() => {
           this.billsRefreshTrigger++;
           this.receiptsRefreshTrigger++;
           this.depositsRefreshTrigger++;
+          this.printChecksRefreshTrigger++;
           this.generalLedgerRefreshTrigger++;
         });
       }
@@ -940,11 +1079,11 @@ export class AccountingShellComponent implements OnInit, OnDestroy {
       tab: String(this.selectedTabIndex),
       startDate: this.utilityService.formatDateOnlyForApi(this.startDate),
       endDate: this.utilityService.formatDateOnlyForApi(this.endDate),
-      chartOfAccountId: this.selectedTabIndex === 4 && this.selectedChartOfAccountId != null
+      chartOfAccountId: this.selectedTabIndex === 5 && this.selectedChartOfAccountId != null
         ? String(this.selectedChartOfAccountId)
         : null,
-      propertyId: this.selectedTabIndex === 4 ? this.selectedGlPropertyId : null,
-      glReservationId: this.selectedTabIndex === 4 ? this.selectedGlReservationId : null,
+      propertyId: this.selectedTabIndex === 5 ? this.selectedGlPropertyId : null,
+      glReservationId: this.selectedTabIndex === 5 ? this.selectedGlReservationId : null,
       ...overrides
     };
   }
@@ -1077,7 +1216,7 @@ export class AccountingShellComponent implements OnInit, OnDestroy {
   }
 
   syncGlFiltersFromInvoiceContext(): void {
-    if (this.selectedTabIndex !== 4) {
+    if (this.selectedTabIndex !== 5) {
       return;
     }
 

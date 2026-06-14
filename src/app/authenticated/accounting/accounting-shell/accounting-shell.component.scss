@@ -211,3 +211,20 @@ mat-card {
   color: #dc2626 !important;
 }
 
+.accounting-shell-disabled-message {
+  margin: 1.5rem;
+  color: rgba(0, 0, 0, 0.6);
+}
+
+.journal-entry-sync-btn {
+  flex-shrink: 0;
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 1;
+}
+
+.form-titlebar-actions-wrap {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}

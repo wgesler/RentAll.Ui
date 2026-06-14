@@ -739,12 +739,12 @@ export class InvoiceComponent implements OnInit, OnDestroy, OnChanges {
     
     this.availableCostCodes = this.allCostCodes.filter(c => c.isActive).map(c => ({
         value: c.costCodeId,
-        label: `${c.costCode}: ${c.description}`
+        label: this.utilityService.getCostCodeDropdownLabel(c)
       }));
     
     this.officeAvailableCostCodes = this.officeCostCodes.filter(c => c.isActive).map(c => ({
         value: c.costCodeId,
-        label: `${c.costCode}: ${c.description}`
+        label: this.utilityService.getCostCodeDropdownLabel(c)
       }));
   }
   
@@ -759,7 +759,7 @@ export class InvoiceComponent implements OnInit, OnDestroy, OnChanges {
       );
       return chargeAndPayment.map(c => ({
         value: c.costCodeId,
-        label: `${c.costCode}: ${c.description}`
+        label: this.utilityService.getCostCodeDropdownLabel(c)
       }));
     }
 
@@ -768,13 +768,13 @@ export class InvoiceComponent implements OnInit, OnDestroy, OnChanges {
     if (transactionTypeId !== undefined && transactionTypeId !== null && transactionTypeId === TransactionType.Payment) {
       return this.creditCostCodes.filter(c => c.isActive).map(c => ({
         value: c.costCodeId,
-        label: `${c.costCode}: ${c.description}`
+        label: this.utilityService.getCostCodeDropdownLabel(c)
       }));
     }
 
     return this.debitCostCodes.filter(c => c.isActive).map(c => ({
       value: c.costCodeId,
-      label: `${c.costCode}: ${c.description}`
+      label: this.utilityService.getCostCodeDropdownLabel(c)
     }));
   }
 

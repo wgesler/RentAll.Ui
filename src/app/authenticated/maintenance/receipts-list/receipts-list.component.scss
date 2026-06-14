@@ -174,9 +174,9 @@
 }
 
 .payment-cost-code-dropdown {
-  min-width: 220px;
-  width: 220px;
-  max-width: 220px;
+  min-width: 260px;
+  width: 260px;
+  max-width: 260px;
 
   ::ng-deep {
     .mat-mdc-text-field-wrapper {
@@ -253,14 +253,23 @@
 }
 
 .payment-type-field {
-  min-width: 120px;
-  width: 120px;
-  max-width: 120px;
+  min-width: 150px;
+  width: 150px;
+  max-width: 150px;
 
   ::ng-deep {
     .mat-mdc-text-field-wrapper {
       padding-bottom: 0 !important;
       height: auto !important;
+    }
+
+    .mat-mdc-form-field-infix {
+      min-width: 110px !important;
+      width: 110px !important;
+    }
+
+    .mat-mdc-floating-label {
+      max-width: none !important;
     }
 
     .mdc-text-field {

@@ -45,28 +45,12 @@
         (inlineEditChangeEvent)="onReceiptInlineEditChange($event)">
         <div dataTableFilterActions>
           <div class="table-filter-actions-group form-titlebar-actions-wrap uniform-gap payment-actions-anchor">
-            @if (embeddedInAccounting && accountingListMode === 'bills' && journalEntrySyncToolsEnabled) {
-              <button mat-mini-fab type="button" color="primary" id="sync-bill-journal-entries-button" matTooltip="Sync journal entries" aria-label="Sync journal entries" (click)="syncBillJournalEntries()" [disabled]="isJournalEntrySyncInProgress" class="journal-entry-sync-btn">
-                S
-              </button>
-              <button mat-mini-fab type="button" color="warn" id="clear-bill-journal-entries-button" matTooltip="Clear journal entries" aria-label="Clear journal entries" (click)="clearBillJournalEntries()" [disabled]="isJournalEntrySyncInProgress" class="journal-entry-sync-btn">
-                C
-              </button>
-            }
-            @if (embeddedInAccounting && accountingListMode === 'receipts' && journalEntrySyncToolsEnabled) {
-              <button mat-mini-fab type="button" color="primary" id="sync-receipt-journal-entries-button" matTooltip="Sync journal entries" aria-label="Sync journal entries" (click)="syncReceiptJournalEntries()" [disabled]="isJournalEntrySyncInProgress" class="journal-entry-sync-btn">
-                S
-              </button>
-              <button mat-mini-fab type="button" color="warn" id="clear-receipt-journal-entries-button" matTooltip="Clear journal entries" aria-label="Clear journal entries" (click)="clearReceiptJournalEntries()" [disabled]="isJournalEntrySyncInProgress" class="journal-entry-sync-btn">
-                C
-              </button>
-            }
             <mat-slide-toggle [checked]="showInactive" color="primary" (change)="toggleInactive()">
               InActive
             </mat-slide-toggle>
             @if (embeddedInAccounting && accountingListMode !== 'receipts') {
               <button mat-raised-button type="button" color="accent" id="apply-payment-button" (click)="openApplyPaymentDialog()" class="whitespace-nowrap items-center flex gap-1">
-                Pay Bills
+                Apply Payments
               </button>
             }
             <button mat-raised-button type="button" color="primary" id="add-receipt-button" class="text-nowrap flex-shrink-0" (click)="addReceipt()">
@@ -84,17 +68,21 @@
                       <mat-datepicker #paymentDatePickerEmbedded></mat-datepicker>
                     </mat-form-field>
                     <mat-form-field appearance="outline" class="payment-cost-code-dropdown" style="font-size: 11px !important;">
-                      <mat-label style="font-size: 11px !important;">Accounts Payable</mat-label>
+                      <mat-label style="font-size: 11px !important;">Bank</mat-label>
                       <mat-select [(ngModel)]="selectedPaymentChartOfAccountId" (selectionChange)="onPaymentChartOfAccountChange($event.value)" [disabled]="!resolvedPaymentOfficeId" style="font-size: 11px !important;">
-                        <mat-option [value]="null" style="font-size: 11px !important;">Select Accounts Payable</mat-option>
+                        <mat-option [value]="null" style="font-size: 11px !important;">Select Bank Account</mat-option>
                         @for (account of paymentChartOfAccounts; track account.value) {
                           <mat-option [value]="account.value" style="font-size: 11px !important;">{{ account.label }}</mat-option>
                         }
                       </mat-select>
                     </mat-form-field>
-                    <mat-form-field appearance="outline" class="payment-type-field" style="font-size: 11px !important;">
-                      <mat-label style="font-size: 11px !important;">Type</mat-label>
-                      <input matInput [value]="paymentTransactionType" readonly style="font-size: 11px !important;">
+                    <mat-form-field appearance="outline" class="payment-type-dropdown" style="font-size: 11px !important;">
+                      <mat-label style="font-size: 11px !important;">Payment Type</mat-label>
+                      <mat-select [(ngModel)]="selectedPaymentTypeId" style="font-size: 11px !important;">
+                        @for (type of paymentTypeOptions; track type.value) {
+                          <mat-option [value]="type.value" style="font-size: 11px !important;">{{ type.label }}</mat-option>
+                        }
+                      </mat-select>
                     </mat-form-field>
                     <mat-form-field appearance="outline" class="payment-description-field" style="font-size: 11px !important;">
                       <mat-label style="font-size: 11px !important;">Description</mat-label>

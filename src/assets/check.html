@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<title>QuickBooks-Style Voucher Check</title>
+<style>
+  @page { size: 8.5in 11in; margin: 0; }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: #eee; font-family: Arial, Helvetica, sans-serif; color: #111; }
+  .page { width: 8.5in; height: 11in; margin: 0 auto; background: #fff; position: relative; padding: .35in .45in; }
+  .check { height: 3.45in; border-bottom: 1px dashed #999; position: relative; padding-top: .1in; }
+  .company { font-size: 13px; line-height: 1.25; font-weight: bold; }
+  .bank { position: absolute; top: .12in; left: 3.05in; width: 2.4in; text-align: center; font-size: 11px; line-height: 1.25; }
+  .check-no { position: absolute; top: .1in; right: 0; font-size: 13px; font-weight: bold; }
+  .date-box { position: absolute; top: .68in; right: 0; width: 1.55in; text-align: center; }
+  .label { font-size: 8px; text-transform: uppercase; color: #444; }
+  .line { border-bottom: 1px solid #111; height: 18px; padding-top: 2px; }
+  .pay-row { position: absolute; top: 1.18in; left: 0; right: 0; display: grid; grid-template-columns: .85in 1fr 1.35in; gap: .12in; align-items: end; }
+  .amount-box { border: 1px solid #111; height: 24px; padding: 4px 6px; text-align: right; font-size: 13px; }
+  .words { position: absolute; top: 1.65in; left: 0; right: 0; display: grid; grid-template-columns: 1fr .25in; gap: .1in; align-items: end; }
+  .address { position: absolute; top: 2.14in; left: .48in; width: 3.6in; font-size: 12px; line-height: 1.35; }
+  .memo { position: absolute; bottom: .28in; left: 0; width: 3.1in; }
+  .signature { position: absolute; bottom: .28in; right: 0; width: 2.6in; text-align: center; }
+  .micr { position: absolute; bottom: .03in; left: 1.2in; right: 1.2in; text-align: center; font-family: 'Courier New', monospace; font-size: 16px; letter-spacing: 2px; }
+  .stub { height: 3.55in; border-bottom: 1px dashed #999; padding-top: .18in; font-size: 11px; }
+  .stub:last-child { border-bottom: none; }
+  .stub-header { display: grid; grid-template-columns: 1fr 1.2in 1.2in; gap: .1in; margin-bottom: .14in; }
+  .stub-title { font-size: 14px; font-weight: bold; }
+  table { width: 100%; border-collapse: collapse; font-size: 10.5px; }
+  th { text-align: left; border-bottom: 1px solid #111; padding: 4px 3px; }
+  td { border-bottom: 1px solid #ccc; padding: 5px 3px; height: 24px; }
+  .num { text-align: right; }
+  .total-row td { border-bottom: none; font-weight: bold; padding-top: 8px; }
+  .small { font-size: 10px; color: #333; }
+  @media print { body { background: #fff; } .page { margin: 0; } }
+</style>
+</head>
+<body>
+<div class="page">
+  <section class="check">
+    <div class="company">{{companyBlock}}</div>
+    <div class="bank">{{bankBlock}}</div>
+    <div class="check-no">No. {{checkNumber}}</div>
+
+    <div class="date-box">
+      <div class="label">Date</div>
+      <div class="line">{{checkDate}}</div>
+    </div>
+
+    <div class="pay-row">
+      <div class="label">Pay to the<br>order of</div>
+      <div class="line">{{payeeName}}</div>
+      <div class="amount-box">{{checkAmountFormatted}}</div>
+    </div>
+
+    <div class="words">
+      <div class="line">{{amountInWords}}</div>
+      <div class="label">Dollars</div>
+    </div>
+
+    <div class="address">{{payeeAddressBlock}}</div>
+
+    <div class="memo">
+      <div class="label">Memo</div>
+      <div class="line">{{memo}}</div>
+    </div>
+
+    <div class="signature">
+      <div class="line"></div>
+      <div class="label">Authorized Signature</div>
+    </div>
+
+    <div class="micr">{{micrLine}}</div>
+  </section>
+
+  <section class="stub">
+    <div class="stub-header">
+      <div class="stub-title">Vendor Stub</div>
+      <div><span class="small">Check No.</span><br><strong>{{checkNumber}}</strong></div>
+      <div><span class="small">Date</span><br><strong>{{checkDate}}</strong></div>
+    </div>
+    <div><strong>Payee:</strong> {{payeeName}}</div><br>
+    <table>
+      <thead>
+        <tr><th>Date</th><th>Type</th><th>Reference</th><th>Memo</th><th class="num">Amount</th></tr>
+      </thead>
+      <tbody>
+        {{vendorStubDetailRows}}
+      </tbody>
+    </table>
+  </section>
+
+  <section class="stub">
+    <div class="stub-header">
+      <div class="stub-title">Company Stub</div>
+      <div><span class="small">Check No.</span><br><strong>{{checkNumber}}</strong></div>
+      <div><span class="small">Date</span><br><strong>{{checkDate}}</strong></div>
+    </div>
+    <div><strong>Payee:</strong> {{payeeName}}</div><br>
+    <table>
+      <thead>
+        <tr><th>Date</th><th>Account</th><th>Reference</th><th>Memo</th><th class="num">Amount</th></tr>
+      </thead>
+      <tbody>
+        {{companyStubDetailRows}}
+      </tbody>
+    </table>
+  </section>
+</div>
+</body>
+</html>

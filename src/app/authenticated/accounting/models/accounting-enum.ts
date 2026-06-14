@@ -233,3 +233,53 @@ export function getAccountTypeLabel(accountTypeId: number, accountTypes?: { valu
   return getAccountType(accountTypeId) || 'Unknown';
 }
 //#endregion
+
+//#region PaymentType
+export enum PaymentType {
+  Check = 0,
+  Ach = 1,
+  Eft = 2,
+  OnlineBanking = 3,
+  WireTransfer = 4
+}
+
+export const PaymentTypeLabels: { value: PaymentType; label: string }[] = [
+  { value: PaymentType.Check, label: 'Check' },
+  { value: PaymentType.Ach, label: 'ACH' },
+  { value: PaymentType.Eft, label: 'EFT' },
+  { value: PaymentType.OnlineBanking, label: 'Online banking' },
+  { value: PaymentType.WireTransfer, label: 'Wire transfer' },
+];
+
+export function getPaymentType(paymentTypeId: number | undefined | null): string {
+  if (paymentTypeId === undefined || paymentTypeId === null) {
+    return '';
+  }
+
+  const typeMap: { [key: number]: string } = {
+    [PaymentType.Check]: 'Check',
+    [PaymentType.Ach]: 'ACH',
+    [PaymentType.Eft]: 'EFT',
+    [PaymentType.OnlineBanking]: 'Online banking',
+    [PaymentType.WireTransfer]: 'Wire transfer',
+  };
+
+  return typeMap[paymentTypeId] || '';
+}
+
+export function getPaymentTypes(): { value: number; label: string }[] {
+  return PaymentTypeLabels.map(({ value, label }) => ({ value, label }));
+}
+
+export function getPaymentTypeLabel(
+  paymentTypeId: number | undefined | null,
+  paymentTypes?: { value: number; label: string }[]
+): string {
+  if (paymentTypeId === undefined || paymentTypeId === null) {
+    return '';
+  }
+
+  const options = paymentTypes?.length ? paymentTypes : PaymentTypeLabels;
+  return options.find(type => type.value === paymentTypeId)?.label ?? getPaymentType(paymentTypeId);
+}
+//#endregion

@@ -138,6 +138,12 @@ export class GeneralLedgerService {
     );
   }
 
+  clearAllJournalEntries(): Observable<JournalEntrySyncResult> {
+    return this.http.post<JournalEntrySyncResult>(`${this.controller}journal-entry/clear/all`, {}).pipe(
+      map(result => this.mapJournalEntrySyncResult(result))
+    );
+  }
+
   makeDeposit(request: DepositRequest): Observable<DepositResponse> {
     return this.http.put<DepositResponse>(`${this.controller}deposit`, {
       officeId: request.officeId,

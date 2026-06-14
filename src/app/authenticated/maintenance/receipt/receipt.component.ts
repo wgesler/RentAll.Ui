@@ -91,14 +91,12 @@ export class ReceiptComponent implements OnInit, OnChanges, OnDestroy {
     AccountType.Expense,
     AccountType.CostOfGoodsSold
   ]);
-  vendorOptions: { value: string; label: string }[] = [];
 
   readonly accountingCompanyPropertyId = ACCOUNTING_COMPANY_PROPERTY_ID;
   lastPropertyIdsValue: string[] = [];
 
   itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['receipt']));
   destroy$ = new Subject<void>();
-  contactCache: ContactResponse[] = [];
 
   constructor(
     fb: FormBuilder,
@@ -129,6 +127,7 @@ export class ReceiptComponent implements OnInit, OnChanges, OnDestroy {
     this.organizationId = this.authService.getUser()?.organizationId || '';
     this.buildForm();
     this.setupAccountingBillDateHandlers();
+    this.setupVendorSelectionHandlers();
     this.applyPropertyInputToForm();
 
     this.splitsFormArray.valueChanges.pipe(takeUntil(this.destroy$)).subscribe(() => {
@@ -584,32 +583,14 @@ export class ReceiptComponent implements OnInit, OnChanges, OnDestroy {
   loadVendors(): void {
     this.contactService.ensureContactsLoaded().pipe(take(1)).subscribe({
       next: () => {
-        this.contactService.getAllContacts().pipe(takeUntil(this.destroy$)).subscribe(contacts => {
-          this.contactCache = contacts || [];
-          this.applyVendorsFromContactCache();
+        this.contactService.getAllContacts().pipe(takeUntil(this.destroy$)).subscribe(() => {
+          this.cdr.markForCheck();
         });
       },
       error: () => {
-        this.vendorOptions = [this.newContactDialogService.buildSearchableSelectOption(EntityType.Vendor)];
         this.cdr.markForCheck();
       }
     });
-  }
-
-  applyVendorsFromContactCache(): void {
-    const contacts = this.contactCache;
-    if (this.isAllOfficesShellScope()) {
-      this.loadVendorsForAllOffices(contacts);
-    } else {
-      const officeId = this.getReceiptOfficeId();
-      if (officeId) {
-        this.loadVendorsForOffice(officeId, contacts);
-      } else {
-        this.vendorOptions = [this.newContactDialogService.buildSearchableSelectOption(EntityType.Vendor)];
-      }
-    }
-    this.applyLegacyBillAccountingDatesIfNeeded();
-    this.cdr.markForCheck();
   }
 
   refreshBankCardsForCurrentOffice(): void {
@@ -632,12 +613,12 @@ export class ReceiptComponent implements OnInit, OnChanges, OnDestroy {
         this.loadBankCardsForOffice(officeId);
       } else {
         this.bankCardOptions = [];
-        this.vendorOptions = [this.newContactDialogService.buildSearchableSelectOption(EntityType.Vendor)];
       }
     }
-    this.applyVendorsFromContactCache();
+    this.applyLegacyBillAccountingDatesIfNeeded();
     this.loadSplitAccountsForCurrentOffice();
     this.applyPropertyInputToForm();
+    this.cdr.markForCheck();
   }
 
   loadChartOfAccounts(): void {
@@ -669,7 +650,7 @@ export class ReceiptComponent implements OnInit, OnChanges, OnDestroy {
       .filter(account => this.billSplitAccountTypeIds.has(account.accountTypeId))
       .map(account => ({
         value: account.accountId,
-        label: `${account.accountNo} - ${account.name}`.trim()
+        label: this.utilityService.getChartOfAccountDropdownLabel(account)
       }))
       .sort((a, b) => a.label.localeCompare(b.label, undefined, { sensitivity: 'base' }));
 
@@ -711,21 +692,6 @@ export class ReceiptComponent implements OnInit, OnChanges, OnDestroy {
       }));
   }
 
-  loadVendorsForOffice(officeId: number | null | undefined, contacts?: ContactResponse[]): void {
-    const parsedOfficeId = Number(officeId);
-    const sourceContacts = contacts ?? this.contactCache;
-    const vendorContacts = Number.isFinite(parsedOfficeId) && parsedOfficeId > 0
-      ? sourceContacts.filter(contact => contact.entityTypeId === EntityType.Vendor && Number(contact.officeId) === parsedOfficeId)
-      : [];
-    this.vendorOptions = [
-      this.newContactDialogService.buildSearchableSelectOption(EntityType.Vendor),
-      ...vendorContacts.map(contact => ({
-        value: String(contact.contactId || ''),
-        label: this.utilityService.getVendorDropdownLabel(contact)
-      })).filter(option => option.value.trim().length > 0)
-    ];
-  }
-
   loadBankCardsForAllOffices(): void {
     const byId = new Map<number, SearchableSelectOption<number>>();
     (this.accountingOffices || []).forEach(office => {
@@ -745,27 +711,6 @@ export class ReceiptComponent implements OnInit, OnChanges, OnDestroy {
     this.bankCardOptions = Array.from(byId.values()).sort((a, b) =>
       String(a.label).localeCompare(String(b.label), undefined, { sensitivity: 'base' })
     );
-  }
-
-  loadVendorsForAllOffices(contacts?: ContactResponse[]): void {
-    const sourceContacts = contacts ?? this.contactCache;
-    const byId = new Map<string, { value: string; label: string }>();
-    (sourceContacts || [])
-      .filter(contact => contact.entityTypeId === EntityType.Vendor)
-      .forEach(contact => {
-        const contactId = String(contact.contactId || '').trim();
-        if (!contactId || byId.has(contactId)) {
-          return;
-        }
-        byId.set(contactId, {
-          value: contactId,
-          label: this.utilityService.getVendorDropdownLabel(contact)
-        });
-      });
-    this.vendorOptions = [
-      this.newContactDialogService.buildSearchableSelectOption(EntityType.Vendor),
-      ...Array.from(byId.values()).sort((a, b) => a.label.localeCompare(b.label, undefined, { sensitivity: 'base' }))
-    ];
   }
   //#endregion
 
@@ -1008,8 +953,15 @@ export class ReceiptComponent implements OnInit, OnChanges, OnDestroy {
       parsedReceiptDate.setHours(0, 0, 0, 0);
       this.form.get('accountingPeriod')?.setValue(new Date(parsedReceiptDate.getTime()), { emitEvent: false });
     });
+  }
 
-    this.form.get('vendorId')?.valueChanges.pipe(takeUntil(this.destroy$)).subscribe(() => {
+  setupVendorSelectionHandlers(): void {
+    this.form.get('vendorId')?.valueChanges.pipe(takeUntil(this.destroy$)).subscribe(value => {
+      if (this.newContactDialogService.isNewContactOptionValue(value, EntityType.Vendor)) {
+        this.form.patchValue({ vendorId: null, vendorName: null }, { emitEvent: false });
+        this.openNewVendorContactDialog();
+        return;
+      }
       if (this.showAccountingBillFields) {
         this.applyCalculatedDueDate();
       }
@@ -1035,7 +987,7 @@ export class ReceiptComponent implements OnInit, OnChanges, OnDestroy {
     if (!vendorId) {
       return null;
     }
-    const vendor = this.contactCache.find(contact => String(contact.contactId || '').trim() === vendorId);
+    const vendor = this.contactService.getAllContactsValue().find(contact => String(contact.contactId || '').trim() === vendorId);
     return vendor?.paymentTermsId ?? null;
   }
 
@@ -1616,35 +1568,75 @@ export class ReceiptComponent implements OnInit, OnChanges, OnDestroy {
   //#endregion
 
   //#region Vendor Methods
+  get vendorContactsForOffice(): ContactResponse[] {
+    if (this.isAllOfficesShellScope()) {
+      return this.contactService
+        .getAllContactsValue()
+        .filter(contact => contact.entityTypeId === EntityType.Vendor);
+    }
+
+    const officeId = this.getReceiptOfficeId();
+    if (!officeId) {
+      return [];
+    }
+
+    return this.contactService
+      .getAllContactsValue()
+      .filter(contact =>
+        contact.entityTypeId === EntityType.Vendor
+        && this.utilityService.contactHasOfficeAccess(contact, officeId));
+  }
+
+  get vendorOptions(): SearchableSelectOption<string>[] {
+    if (this.isAllOfficesShellScope()) {
+      const byId = new Map<string, SearchableSelectOption<string>>();
+      this.vendorContactsForOffice.forEach(contact => {
+        const contactId = String(contact.contactId || '').trim();
+        if (!contactId || byId.has(contactId)) {
+          return;
+        }
+        byId.set(contactId, {
+          value: contactId,
+          label: this.utilityService.getVendorDropdownLabel(contact)
+        });
+      });
+
+      return [
+        this.newContactDialogService.buildSearchableSelectOption(EntityType.Vendor),
+        ...Array.from(byId.values()).sort((left, right) =>
+          left.label.localeCompare(right.label, undefined, { sensitivity: 'base' }))
+      ];
+    }
+
+    return [
+      this.newContactDialogService.buildSearchableSelectOption(EntityType.Vendor),
+      ...this.vendorContactsForOffice.map(contact => ({
+        value: String(contact.contactId || ''),
+        label: this.utilityService.getVendorDropdownLabel(contact)
+      })).filter(option => option.value.trim().length > 0)
+    ];
+  }
+
   get overallVendorOptions(): SearchableSelectOption<string>[] {
-    return [{ value: '', label: '' }, ...(this.vendorOptions || [])];
+    return [{ value: '', label: '' }, ...this.vendorOptions];
   }
 
   onOverallVendorSelectionChange(value: string | null | undefined): void {
-    const selectedValue = String(value || '').trim();
-    if (!selectedValue) {
-      this.form.patchValue({ vendorId: null, vendorName: null }, { emitEvent: false });
-      this.applyCalculatedDueDate();
-      return;
+    const control = this.form.get('vendorId');
+    const normalized = value == null || value === '' ? null : String(value);
+    control?.setValue(normalized);
+    control?.markAsTouched();
+    control?.markAsDirty();
+    if (normalized && !this.newContactDialogService.isNewContactOptionValue(normalized, EntityType.Vendor)) {
+      this.form.patchValue({ vendorName: null }, { emitEvent: false });
     }
-    if (this.newContactDialogService.isNewContactOptionValue(selectedValue, EntityType.Vendor)) {
-      this.form.patchValue({ vendorId: null, vendorName: null }, { emitEvent: false });
-      this.openNewVendorContactDialog();
-      return;
-    }
-    this.form.patchValue({
-      vendorId: selectedValue,
-      vendorName: null
-    }, { emitEvent: false });
-    this.applyCalculatedDueDate();
   }
 
   openNewVendorContactDialog(): void {
-    const selectedOfficeId = this.getReceiptOfficeId();
     this.newContactDialogService.openNewContactDialog({
       entityTypeId: EntityType.Vendor,
-      preselectPropertyOfficeId: selectedOfficeId
-    }).pipe(take(1)).subscribe((result?: { saved?: boolean; contactId?: string; entityTypeId?: number }) => {
+      preselectPropertyOfficeId: this.getReceiptOfficeId()
+    }).pipe(take(1)).subscribe((result?: { saved?: boolean; contactId?: string }) => {
       if (!result?.saved || !result.contactId) {
         return;
       }
@@ -1652,21 +1644,11 @@ export class ReceiptComponent implements OnInit, OnChanges, OnDestroy {
         vendorId: result.contactId,
         vendorName: null
       }, { emitEvent: false });
-      this.contactService.refreshContacts().pipe(take(1)).subscribe({
-        next: contacts => {
-          this.contactCache = contacts || [];
-          this.applyVendorsFromContactCache();
-          this.applyCalculatedDueDate();
-          this.cdr.markForCheck();
-        },
-        error: () => {
-          this.applyCalculatedDueDate();
-          this.cdr.markForCheck();
-        }
-      });
+      this.applyCalculatedDueDate();
+      this.cdr.markForCheck();
     });
   }
-  //#endregion 
+  //#endregion
 
   //#region Property Selection Methods
   syncReceiptOfficeFromSelectedProperties(): void {

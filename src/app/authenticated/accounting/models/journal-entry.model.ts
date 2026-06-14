@@ -119,6 +119,7 @@ export interface JournalEntryLineListDisplay {
   source: string;
   propertyCode: string;
   reservationCode: string;
+  contactId?: string | null;
   contactName: string;
   account: string;
   description: string;
@@ -159,19 +160,18 @@ export interface DepositResponse {
 }
 
 export interface JournalEntryLineDetailDisplay {
+  lineNo: number;
   journalEntryLineId: string;
   chartOfAccountId: number;
-  accountNo: string;
-  accountName: string;
+  account: string;
   propertyCode: string;
   reservationCode: string;
   contactName: string;
-  costCodeLabel: string;
+  memo: string;
   debit: string;
   credit: string;
   debitValue: number;
   creditValue: number;
-  memo: string;
 }
 
 export interface JournalEntrySyncRequest {

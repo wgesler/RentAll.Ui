@@ -1,10 +1,52 @@
 @if (isPageReady) {
   <div class="mat list-layout-standard dbg-band-main">
-    @if (isServiceError) {
+    @if (showCheckPreview) {
+      <div class="check-preview-layout">
+        <div class="check-preview-header">
+          <div class="check-preview-title">
+            <mat-icon>visibility</mat-icon>
+            <span>{{ checkPreviewTitle }}</span>
+          </div>
+          <button
+            mat-raised-button
+            type="button"
+            color="accent"
+            (click)="closeCheckPreview()"
+            class="text-nowrap flex-shrink-0 whitespace-nowrap items-center flex gap-1">
+            <mat-icon>arrow_back</mat-icon>
+            Back
+          </button>
+        </div>
+        <div class="check-preview-container">
+          @if (isLoadingCheckPreview) {
+            <div class="loading-container">
+              <mat-spinner [diameter]="40"></mat-spinner>
+              <p>Loading check preview...</p>
+            </div>
+          } @else if (safeCheckPreviewHtml) {
+            <div class="check-preview-iframe-container">
+              <iframe
+                #checkPreviewIframe
+                [srcdoc]="safeCheckPreviewHtml"
+                class="check-preview-iframe"
+                [attr.key]="checkPreviewIframeKey"
+                (load)="onCheckPreviewIframeLoad()"
+                frameborder="0"
+                title="Check preview">
+              </iframe>
+            </div>
+          } @else {
+            <div class="general-ledger-empty-state">
+              <p>Unable to load check preview.</p>
+            </div>
+          }
+        </div>
+      </div>
+    } @else if (isServiceError) {
       <div class="general-ledger-empty-state">
         <p>{{ noActivityMessage }}</p>
       </div>
-    } @else if (!undepositedFundsOnly && linesDisplay.length === 0) {
+    } @else if (!undepositedFundsOnly && !printChecksOnly && linesDisplay.length === 0) {
       <div class="general-ledger-empty-state">
         <p>{{ noActivityMessage }}</p>
       </div>
@@ -13,18 +55,18 @@
         <app-data-table
           [data]="linesDisplay"
           [columns]="displayedColumns"
-          [noDataMessage]="undepositedFundsOnly ? noActivityMessage : null"
+          [noDataMessage]="undepositedFundsOnly || printChecksOnly ? noActivityMessage : null"
           [hasColumnIndex]="false"
           [hasFilter]="true"
           [hasToggleTop]="false"
           [hasButtonTop]="false"
-          [hasActionsSelect]="showDepositTableSelections"
-          [hasButtonSelectAll]="showDepositTableSelections"
+          [hasActionsSelect]="showDepositTableSelections || showPrintCheckTableSelections"
+          [hasButtonSelectAll]="showDepositTableSelections || showPrintCheckTableSelections"
           [hasContactNameLink]="false"
           [hasActionsRowClick]="!showDepositForm"
           [itemsPerPage]="100"
           (rowClickEvent)="onLineSelect($event)"
-          (selectionSet)="onDepositLineSelectionSet($event)">
+          (selectionSet)="onTableLineSelectionSet($event)">
           @if (undepositedFundsOnly) {
             <div dataTableFilterActions>
               <div class="table-filter-actions-group form-titlebar-actions-wrap uniform-gap payment-actions-anchor">
@@ -102,6 +144,23 @@
                     </button>
                   </div>
                 }
+              </div>
+            </div>
+          }
+          @if (printChecksOnly) {
+            <div dataTableFilterActions>
+              <div class="table-filter-actions-group form-titlebar-actions-wrap uniform-gap">
+                <button
+                  mat-raised-button
+                  type="button"
+                  color="primary"
+                  id="view-checks-button"
+                  class="text-nowrap flex-shrink-0 whitespace-nowrap items-center flex gap-1"
+                  (click)="viewSelectedChecks()"
+                  [disabled]="!isPrintChecksFormValid || isLoadingCheckPreview">
+                  <mat-icon>visibility</mat-icon>
+                  View
+                </button>
               </div>
             </div>
           }

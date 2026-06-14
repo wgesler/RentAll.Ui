@@ -38,6 +38,8 @@ export interface ReceiptRequest {
   splits: Split[];
   receiptPath?: string | null;
   fileDetails?: FileDetails | null;
+  paymentTypeId?: number;
+  checkPrinted?: boolean;
   isActive: boolean;
 }
 
@@ -65,6 +67,8 @@ export interface ReceiptResponse {
   splits: Split[];
   receiptPath?: string | null;
   fileDetails?: FileDetails | null;
+  paymentTypeId?: number;
+  checkPrinted?: boolean;
   bankCardDisplayName?: string;
   isActive: boolean;
   createdOn?: string;
@@ -145,6 +149,7 @@ export interface ReceiptSelection {
 export interface BillPaymentRequest {
   paymentDate: CalendarDateString;
   chartOfAccountId: number;
+  paymentTypeId: number;
   description: string;
   amount: number;
   bills: number[];

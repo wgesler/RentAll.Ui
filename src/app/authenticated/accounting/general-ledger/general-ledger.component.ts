@@ -14,10 +14,8 @@ import { DataTableComponent } from '../../shared/data-table/data-table.component
 import { ColumnSet } from '../../shared/data-table/models/column-data';
 import { SourceTypeLabels, getSourceTypeLabel } from '../models/accounting-enum';
 import { ChartOfAccountResponse } from '../models/chart-of-accounts.model';
-import { CostCodesResponse } from '../models/cost-codes.model';
 import { JournalEntryLineDetailDisplay, JournalEntryRequest, JournalEntryResponse } from '../models/journal-entry.model';
 import { ChartOfAccountsService } from '../services/chart-of-accounts.service';
-import { CostCodesService } from '../services/cost-codes.service';
 import { GeneralLedgerService } from '../services/general-ledger.service';
 
 @Component({
@@ -40,7 +38,6 @@ export class GeneralLedgerComponent implements OnInit, OnDestroy, OnChanges {
   lineRows: JournalEntryLineDetailDisplay[] = [];
   organizationId = '';
   chartOfAccounts: ChartOfAccountResponse[] = [];
-  costCodes: CostCodesResponse[] = [];
 
   form = this.formBuilder.group({
     postingDate: this.formBuilder.control<Date | null>(null, Validators.required),
@@ -49,15 +46,14 @@ export class GeneralLedgerComponent implements OnInit, OnDestroy, OnChanges {
   });
 
   lineDisplayedColumns: ColumnSet = {
-    accountNo: { displayAs: 'Account No', maxWidth: '12ch' },
-    accountName: { displayAs: 'Account', maxWidth: '24ch' },
+    lineNo: { displayAs: 'Line No', maxWidth: '8ch', alignment: 'center', headerAlignment: 'center', sort: false },
     propertyCode: { displayAs: 'Property', maxWidth: '15ch' },
     reservationCode: { displayAs: 'Reservation', maxWidth: '15ch' },
     contactName: { displayAs: 'Contact', maxWidth: '20ch' },
-    costCodeLabel: { displayAs: 'Cost Code', maxWidth: '24ch' },
-    debit: { displayAs: 'Debit', maxWidth: '14ch', alignment: 'right' },
-    credit: { displayAs: 'Credit', maxWidth: '14ch', alignment: 'right' },
-    memo: { displayAs: 'Memo' }
+    account: { displayAs: 'Account', maxWidth: '28ch' },
+    memo: { displayAs: 'Memo', maxWidth: '28ch', wrap: true },
+    debit: { displayAs: 'Debit', maxWidth: '14ch', alignment: 'right', headerAlignment: 'right', sort: false },
+    credit: { displayAs: 'Credit', maxWidth: '14ch', alignment: 'right', headerAlignment: 'right', sort: false }
   };
 
   isPageReady = false;
@@ -71,7 +67,6 @@ export class GeneralLedgerComponent implements OnInit, OnDestroy, OnChanges {
     private formBuilder: FormBuilder,
     private authService: AuthService,
     private chartOfAccountsService: ChartOfAccountsService,
-    private costCodesService: CostCodesService,
     private utilityService: UtilityService,
     private toastr: ToastrService,
     private cdr: ChangeDetectorRef) {
@@ -220,15 +215,6 @@ export class GeneralLedgerComponent implements OnInit, OnDestroy, OnChanges {
       });
     });
 
-    this.costCodesService.ensureCostCodesLoaded();
-    this.costCodesService.areCostCodesLoaded().pipe(filter(loaded => loaded === true), take(1), takeUntil(this.destroy$)).subscribe(() => {
-      this.costCodesService.getAllCostCodes().pipe(takeUntil(this.destroy$)).subscribe(costCodes => {
-        this.costCodes = costCodes || [];
-        this.applyLineDisplay();
-        this.markViewForCheck();
-      });
-    });
-
     this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'referenceData');
   }
 
@@ -299,7 +285,6 @@ export class GeneralLedgerComponent implements OnInit, OnDestroy, OnChanges {
     this.lineRows = this.mappingService.mapJournalEntryLineDetailDisplay(
       this.journalEntry.journalEntryLines,
       this.chartOfAccounts,
-      this.costCodes,
       this.journalEntry.officeId
     );
   }

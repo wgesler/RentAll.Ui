@@ -2,6 +2,8 @@ import { Injectable } from '@angular/core';
 import { HttpErrorResponse } from '@angular/common/http';
 import { BehaviorSubject } from 'rxjs';
 import { ContactResponse } from '../authenticated/contacts/models/contact.model';
+import { ChartOfAccountResponse } from '../authenticated/accounting/models/chart-of-accounts.model';
+import { CostCodesResponse } from '../authenticated/accounting/models/cost-codes.model';
 import { EntityType } from '../authenticated/contacts/models/contact-enum';
 import { ReservationCodeResponse, ReservationListResponse, ReservationResponse } from '../authenticated/reservations/models/reservation-model';
 import { ReservationType } from '../authenticated/reservations/models/reservation-enum';
@@ -597,6 +599,61 @@ export class UtilityService {
       return companyName;
     }
     return `${contact.firstName || ''} ${contact.lastName || ''}`.trim();
+  }
+
+  contactHasOfficeAccess(
+    contact: Pick<ContactResponse, 'officeId' | 'officeAccess'> | null | undefined,
+    officeId: number | null | undefined
+  ): boolean {
+    if (officeId == null || !Number.isFinite(Number(officeId)) || Number(officeId) <= 0) {
+      return true;
+    }
+
+    const parsedOfficeId = Number(officeId);
+    if (Number(contact?.officeId) === parsedOfficeId) {
+      return true;
+    }
+
+    const officeAccess = Array.isArray(contact?.officeAccess) ? contact.officeAccess : [];
+    return officeAccess.some(id => Number(id) === parsedOfficeId);
+  }
+  //#endregion
+
+  //#region Accounting display
+  getChartOfAccountDropdownLabel(
+    account: Pick<ChartOfAccountResponse, 'accountNo' | 'name'> | null | undefined,
+    fallbackId?: number | string | null
+  ): string {
+    const accountNo = String(account?.accountNo ?? '').trim();
+    const accountName = String(account?.name ?? '').trim();
+    if (accountNo && accountName) {
+      return `${accountNo}:${accountName}`;
+    }
+    if (accountNo || accountName) {
+      return accountNo || accountName;
+    }
+    if (fallbackId != null && String(fallbackId).trim() !== '') {
+      return `Account ${fallbackId}`;
+    }
+    return '';
+  }
+
+  getCostCodeDropdownLabel(
+    costCode: Pick<CostCodesResponse, 'costCode' | 'description'> | null | undefined,
+    fallbackId?: number | string | null
+  ): string {
+    const code = String(costCode?.costCode ?? '').trim();
+    const description = String(costCode?.description ?? '').trim();
+    if (code && description) {
+      return `${code}:${description}`;
+    }
+    if (code || description) {
+      return code || description;
+    }
+    if (fallbackId != null && String(fallbackId).trim() !== '') {
+      return `Cost Code ${fallbackId}`;
+    }
+    return '';
   }
   //#endregion
 

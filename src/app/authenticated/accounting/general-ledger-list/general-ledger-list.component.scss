@@ -440,3 +440,49 @@
     border-radius: 6px !important;
   }
 }
+
+.check-preview-layout {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.check-preview-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.75rem 1rem;
+  background: rgb(203 213 225);
+  border-radius: 0.5rem 0.5rem 0 0;
+}
+
+.check-preview-title {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 1.125rem;
+  font-weight: 500;
+}
+
+.check-preview-container {
+  background: #fff;
+  border: 1px solid rgba(15, 23, 42, 0.12);
+  border-radius: 0 0 0.5rem 0.5rem;
+  padding: 1rem;
+}
+
+.check-preview-iframe-container {
+  width: 100%;
+  overflow: auto;
+  background: #eee;
+  padding: 1rem;
+}
+
+.check-preview-iframe {
+  display: block;
+  width: 100%;
+  min-height: 11in;
+  border: 0;
+  background: #fff;
+}

@@ -1,9 +1,10 @@
 import { SelectionModel } from '@angular/cdk/collections';
 import { CommonModule } from '@angular/common';
-import { ChangeDetectionStrategy, ChangeDetectorRef, Component, EventEmitter, Input, OnChanges, OnDestroy, OnInit, Output, SimpleChanges } from '@angular/core';
+import { ChangeDetectionStrategy, ChangeDetectorRef, Component, ElementRef, EventEmitter, Input, OnChanges, OnDestroy, OnInit, Output, SimpleChanges, ViewChild } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { HttpErrorResponse } from '@angular/common/http';
-import { BehaviorSubject, Subject, filter, finalize, take, takeUntil } from 'rxjs';
+import { DomSanitizer, SafeHtml } from '@angular/platform-browser';
+import { BehaviorSubject, Subject, catchError, filter, finalize, forkJoin, of, take, takeUntil } from 'rxjs';
 import { ToastrService } from 'ngx-toastr';
 import { CommonMessage } from '../../../enums/common-message.enum';
 import { AuthService } from '../../../services/auth.service';
@@ -11,15 +12,19 @@ import { MaterialModule } from '../../../material.module';
 import { FormatterService } from '../../../services/formatter-service';
 import { MappingService } from '../../../services/mapping.service';
 import { UtilityService } from '../../../services/utility.service';
+import { DocumentHtmlService } from '../../../services/document-html.service';
 import { OfficeResponse } from '../../organizations/models/office.model';
 import { OfficeService } from '../../organizations/services/office.service';
+import { AccountingOfficeService } from '../../organizations/services/accounting-office.service';
 import { DataTableComponent } from '../../shared/data-table/data-table.component';
 import { DataTableFilterActionsDirective } from '../../shared/data-table/data-table-filter-actions.directive';
 import { ColumnSet } from '../../shared/data-table/models/column-data';
-import { AccountType, SourceTypeLabels } from '../models/accounting-enum';
+import { AccountType, SourceType, SourceTypeLabels } from '../models/accounting-enum';
 import { ChartOfAccountResponse } from '../models/chart-of-accounts.model';
 import { JournalEntryLineListDisplay, JournalEntryLineSearchResponse } from '../models/journal-entry.model';
 import { ChartOfAccountsService } from '../services/chart-of-accounts.service';
+import { CheckHtmlService } from '../services/check-html.service';
+import { CheckPrintService } from '../services/check-print.service';
 import { GeneralLedgerService } from '../services/general-ledger.service';
 
 @Component({
@@ -36,6 +41,7 @@ export class GeneralLedgerListComponent implements OnInit, OnDestroy, OnChanges 
   @Input() reservationId: string | null = null;
   @Input() chartOfAccountId: number | null = null;
   @Input() undepositedFundsOnly = false;
+  @Input() printChecksOnly = false;
   @Input() searchDateRange: { startDate: string | null; endDate: string | null } | null = null;
   @Input() refreshTrigger = 0;
   @Output() lineSelectEvent = new EventEmitter<{ journalEntryId: string; journalEntryLineId: string }>();
@@ -44,6 +50,12 @@ export class GeneralLedgerListComponent implements OnInit, OnDestroy, OnChanges 
   selectedJournalEntryLineIds = new Set<string>();
   showDepositSelections = false;
   showDepositForm = false;
+  showCheckPreview = false;
+  isLoadingCheckPreview = false;
+  checkPreviewTitle = 'Check Preview';
+  safeCheckPreviewHtml: SafeHtml | null = null;
+  checkPreviewIframeKey = 0;
+  @ViewChild('checkPreviewIframe') checkPreviewIframe?: ElementRef<HTMLIFrameElement>;
   isManualDepositMode = false;
   isSubmittingDeposit = false;
   depositOfficeId: number | null = null;
@@ -79,7 +91,7 @@ export class GeneralLedgerListComponent implements OnInit, OnDestroy, OnChanges 
   };
 
   isPageReady = false;
-  itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['offices', 'chartOfAccounts', 'generalLedgerLines']));
+  itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['offices', 'chartOfAccounts']));
   destroy$ = new Subject<void>();
 
   constructor(
@@ -88,6 +100,11 @@ export class GeneralLedgerListComponent implements OnInit, OnDestroy, OnChanges 
     public formatter: FormatterService,
     private officeService: OfficeService,
     private chartOfAccountsService: ChartOfAccountsService,
+    private accountingOfficeService: AccountingOfficeService,
+    private checkHtmlService: CheckHtmlService,
+    private checkPrintService: CheckPrintService,
+    private documentHtmlService: DocumentHtmlService,
+    private sanitizer: DomSanitizer,
     private authService: AuthService,
     private utilityService: UtilityService,
     private toastr: ToastrService,
@@ -102,6 +119,9 @@ export class GeneralLedgerListComponent implements OnInit, OnDestroy, OnChanges 
     });
 
     this.organizationId = this.authService.getUser()?.organizationId?.trim() ?? '';
+    if (this.printChecksOnly) {
+      this.displayedColumns['contactName'].displayAs = 'Vendor';
+    }
     this.loadOffices();
     this.loadChartOfAccounts();
     this.loadJournalEntryLines();
@@ -112,12 +132,16 @@ export class GeneralLedgerListComponent implements OnInit, OnDestroy, OnChanges 
       if (this.showDepositForm) {
         this.cancelDepositForm();
       }
+      if (this.showCheckPreview) {
+        this.closeCheckPreview();
+      }
       this.applyLinesDisplay();
     }
 
     const shouldReloadLines =
       (changes['chartOfAccountId'] && !changes['chartOfAccountId'].firstChange)
       || (changes['undepositedFundsOnly'] && !changes['undepositedFundsOnly'].firstChange)
+      || (changes['printChecksOnly'] && !changes['printChecksOnly'].firstChange)
       || (changes['propertyId'] && !changes['propertyId'].firstChange)
       || (changes['reservationId'] && !changes['reservationId'].firstChange)
       || (changes['searchDateRange'] && !changes['searchDateRange'].firstChange)
@@ -129,6 +153,8 @@ export class GeneralLedgerListComponent implements OnInit, OnDestroy, OnChanges 
         this.cancelDepositForm();
       } else if (this.undepositedFundsOnly) {
         this.clearDepositLineSelection();
+      } else if (this.printChecksOnly) {
+        this.clearPrintCheckLineSelection();
       }
       this.loadJournalEntryLines();
     }
@@ -136,6 +162,14 @@ export class GeneralLedgerListComponent implements OnInit, OnDestroy, OnChanges 
 
   get showDepositTableSelections(): boolean {
     return this.undepositedFundsOnly && this.showDepositSelections;
+  }
+
+  get showPrintCheckTableSelections(): boolean {
+    return this.printChecksOnly;
+  }
+
+  get isPrintChecksFormValid(): boolean {
+    return this.selectedJournalEntryLineIds.size > 0;
   }
 
   get resolvedDepositOfficeId(): number | null {
@@ -236,45 +270,124 @@ export class GeneralLedgerListComponent implements OnInit, OnDestroy, OnChanges 
       return;
     }
 
-    const selectedRows = (selection?.selected ?? []) as JournalEntryLineListDisplay[];
-    let nextSelectedIds: Set<string>;
-
-    if (selectedRows.length > 0) {
-      nextSelectedIds = new Set(
-        selectedRows
-          .map(row => String(row.journalEntryLineId ?? '').trim())
-          .filter(id => id.length > 0)
-      );
-    } else {
-      const idsFromDisplay = this.linesDisplay
-        .filter(row => row.selected && row.journalEntryLineId)
-        .map(row => String(row.journalEntryLineId));
-      nextSelectedIds = idsFromDisplay.length > 0 ? new Set(idsFromDisplay) : new Set<string>();
-    }
-
-    for (const lineId of [...nextSelectedIds]) {
-      const row = this.linesDisplay.find(line => line.journalEntryLineId === lineId);
-      if (!row || this.getLineNetAmount(row) <= 0) {
-        nextSelectedIds.delete(lineId);
-        if (row) {
-          row.selected = false;
-        }
-      }
-    }
-
-    this.selectedJournalEntryLineIds = nextSelectedIds;
+    this.applyLineSelectionSet(selection, line => this.getLineNetAmount(line) > 0);
 
     if (this.isDepositSelectionMode) {
       this.syncDepositAmountFromLineSelection();
-    } else {
-      this.applyLinesDisplay();
     }
 
     this.markViewForCheck();
   }
 
+  onPrintCheckLineSelectionSet(selection: SelectionModel<unknown>): void {
+    if (!this.showPrintCheckTableSelections) {
+      return;
+    }
+
+    const previousSelectedIds = new Set(this.selectedJournalEntryLineIds);
+    this.applyLineSelectionSet(selection, line => this.isPrintCheckLineSelectable(line));
+    const rejectedDifferentVendor = this.rejectPrintCheckRowsWithDifferentVendor(previousSelectedIds);
+
+    if (rejectedDifferentVendor) {
+      this.toastr.warning('A single check can only be sent to one vendor at a time.');
+    }
+
+    this.syncPrintCheckLineSelectionInPlace();
+    this.markViewForCheck();
+  }
+
+  onTableLineSelectionSet(selection: SelectionModel<unknown>): void {
+    if (this.showDepositTableSelections) {
+      this.onDepositLineSelectionSet(selection);
+    } else if (this.showPrintCheckTableSelections) {
+      this.onPrintCheckLineSelectionSet(selection);
+    }
+  }
+
+  viewSelectedChecks(): void {
+    if (!this.isPrintChecksFormValid) {
+      this.toastr.warning('Select one or more checks to view.');
+      return;
+    }
+
+    if (!this.officeId) {
+      this.toastr.warning('Please select an office first');
+      return;
+    }
+
+    const selectedLines = this.linesDisplay.filter(line =>
+      this.selectedJournalEntryLineIds.has(line.journalEntryLineId)
+    );
+    if (selectedLines.length === 0) {
+      this.toastr.warning('Select one or more checks to view.');
+      return;
+    }
+
+    this.isLoadingCheckPreview = true;
+    forkJoin({
+      template: this.checkHtmlService.getCheckHtmlByScope(this.officeId),
+      accountingOffice: this.accountingOfficeService.getAccountingOfficeById(this.officeId).pipe(catchError(() => of(null)))
+    }).pipe(
+      finalize(() => {
+        this.isLoadingCheckPreview = false;
+        this.markViewForCheck();
+      }),
+      takeUntil(this.destroy$)
+    ).subscribe(({ template, accountingOffice }) => {
+      if (!template) {
+        this.toastr.error('Check HTML template was not found.', CommonMessage.Error);
+        return;
+      }
+
+      const mergedHtml = this.checkPrintService.buildMergedChecksHtml(template, selectedLines, accountingOffice);
+      const processed = this.documentHtmlService.processHtml(mergedHtml, true);
+      const bodyContent = this.documentHtmlService.extractBodyContent(processed.processedHtml);
+      const styles = processed.extractedStyles;
+      const srcdoc = styles.trim()
+        ? `<!DOCTYPE html><html><head><meta charset="UTF-8"><style data-dynamic-styles="true">${styles}</style></head><body>${bodyContent}</body></html>`
+        : mergedHtml;
+
+      this.safeCheckPreviewHtml = this.sanitizer.bypassSecurityTrustHtml(srcdoc);
+      this.checkPreviewTitle = selectedLines.length === 1
+        ? `Check ${(selectedLines[0].journalEntryCode || '').trim()}`.trim()
+        : `${selectedLines.length} Checks`;
+      this.checkPreviewIframeKey++;
+      this.showCheckPreview = true;
+      this.markViewForCheck();
+    });
+  }
+
+  closeCheckPreview(): void {
+    this.showCheckPreview = false;
+    this.safeCheckPreviewHtml = null;
+    this.markViewForCheck();
+  }
+
+  onCheckPreviewIframeLoad(): void {
+    const iframe = this.checkPreviewIframe?.nativeElement;
+    if (!iframe) {
+      return;
+    }
+
+    const doc = iframe.contentDocument || iframe.contentWindow?.document;
+    if (!doc) {
+      return;
+    }
+
+    const contentHeight = Math.max(
+      doc.body?.scrollHeight || 0,
+      doc.body?.offsetHeight || 0,
+      doc.documentElement?.scrollHeight || 0,
+      doc.documentElement?.offsetHeight || 0
+    );
+
+    if (contentHeight > 0) {
+      iframe.style.height = `${contentHeight + 12}px`;
+    }
+  }
+
   onLineSelect(row: JournalEntryLineListDisplay): void {
-    if (this.showDepositForm || !row?.journalEntryId) {
+    if (this.showDepositForm || this.showCheckPreview || !row?.journalEntryId) {
       return;
     }
     this.lineSelectEvent.emit({
@@ -297,7 +410,6 @@ export class GeneralLedgerListComponent implements OnInit, OnDestroy, OnChanges 
       next: () => {
         this.officeService.getAllOffices().pipe(takeUntil(this.destroy$)).subscribe(offices => {
           this.offices = offices || [];
-          this.loadJournalEntryLines();
           this.markViewForCheck();
         });
       },
@@ -318,7 +430,6 @@ export class GeneralLedgerListComponent implements OnInit, OnDestroy, OnChanges 
       next: () => {
         this.chartOfAccountsService.getAllChartOfAccounts().pipe(takeUntil(this.destroy$)).subscribe(accounts => {
           this.chartOfAccounts = accounts || [];
-          this.applyLinesDisplay();
           this.markViewForCheck();
         });
       },
@@ -342,8 +453,9 @@ export class GeneralLedgerListComponent implements OnInit, OnDestroy, OnChanges 
         } else {
           this.clearDepositLineSelection();
         }
+      } else if (this.printChecksOnly) {
+        this.clearPrintCheckLineSelection();
       }
-      this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'generalLedgerLines');
       this.markViewForCheck();
       return;
     }
@@ -351,18 +463,27 @@ export class GeneralLedgerListComponent implements OnInit, OnDestroy, OnChanges 
     const undepositedFundsAccountIds = this.undepositedFundsOnly
       ? this.resolveUndepositedFundsAccountIds(officeIds)
       : [];
+    const printChecksBankAccountIds = this.printChecksOnly
+      ? this.resolveBankAccountIds(officeIds)
+      : [];
+    const filteredAccountIds = undepositedFundsAccountIds.length > 0
+      ? undepositedFundsAccountIds
+      : printChecksBankAccountIds;
 
-    if (this.undepositedFundsOnly && undepositedFundsAccountIds.length === 0) {
+    if ((this.undepositedFundsOnly || this.printChecksOnly) && filteredAccountIds.length === 0) {
       this.allLines = [];
       this.linesDisplay = [];
       this.isServiceError = false;
       if (this.showDepositForm) {
         this.cancelDepositForm();
-      } else {
+      } else if (this.undepositedFundsOnly) {
         this.clearDepositLineSelection();
+      } else if (this.printChecksOnly) {
+        this.clearPrintCheckLineSelection();
       }
-      this.noActivityMessage = 'No Undeposited Funds account is configured for the selected office.';
-      this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'generalLedgerLines');
+      this.noActivityMessage = this.undepositedFundsOnly
+        ? 'No Undeposited Funds account is configured for the selected office.'
+        : 'No Bank account is configured for the selected office.';
       this.markViewForCheck();
       return;
     }
@@ -375,33 +496,43 @@ export class GeneralLedgerListComponent implements OnInit, OnDestroy, OnChanges 
       }
     }
 
-    this.utilityService.addLoadItem(this.itemsToLoad$, 'generalLedgerLines');
     this.isServiceError = false;
 
-    const chartOfAccountId = this.undepositedFundsOnly
-      ? (undepositedFundsAccountIds.length === 1 ? undepositedFundsAccountIds[0] : null)
+    const usesFixedAccountFilter = this.undepositedFundsOnly || this.printChecksOnly;
+    const chartOfAccountId = usesFixedAccountFilter
+      ? (filteredAccountIds.length === 1 ? filteredAccountIds[0] : null)
       : (this.chartOfAccountId != null && this.chartOfAccountId > 0 ? this.chartOfAccountId : null);
 
     this.generalLedgerService.searchJournalEntryLines({
       officeIds,
       chartOfAccountId,
-      propertyId: this.undepositedFundsOnly ? null : (this.propertyId?.trim() || null),
-      reservationId: this.undepositedFundsOnly ? null : (this.reservationId?.trim() || null),
+      sourceTypeId: this.printChecksOnly ? SourceType.BillPayment : null,
+      propertyId: usesFixedAccountFilter ? null : (this.propertyId?.trim() || null),
+      reservationId: usesFixedAccountFilter ? null : (this.reservationId?.trim() || null),
       includeVoided: false,
       includeUnposted: true,
       startDate: this.searchDateRange?.startDate ?? null,
       endDate: this.searchDateRange?.endDate ?? null
-    }).pipe(finalize(() => this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'generalLedgerLines')), takeUntil(this.destroy$)).subscribe({
+    }).pipe(takeUntil(this.destroy$)).subscribe({
       next: lines => {
         let resolvedLines = lines || [];
-        if (this.undepositedFundsOnly && undepositedFundsAccountIds.length > 1) {
-          const accountIdSet = new Set(undepositedFundsAccountIds);
+        if (usesFixedAccountFilter && filteredAccountIds.length > 1) {
+          const accountIdSet = new Set(filteredAccountIds);
           resolvedLines = resolvedLines.filter(line => accountIdSet.has(line.chartOfAccountId));
+        }
+        if (this.printChecksOnly) {
+          const bankAccountIdSet = new Set(filteredAccountIds);
+          resolvedLines = resolvedLines.filter(line =>
+            Number(line.sourceTypeId) === SourceType.BillPayment
+            && bankAccountIdSet.has(line.chartOfAccountId)
+            && Number(line.credit || 0) > 0);
         }
         this.allLines = resolvedLines;
         this.noActivityMessage = this.undepositedFundsOnly
           ? 'No Undeposited Funds activity for the selected office and date range.'
-          : 'No general ledger activity for the selected filters and date range.';
+          : this.printChecksOnly
+            ? 'No bill payment bank credits for the selected office and date range.'
+            : 'No general ledger activity for the selected filters and date range.';
         this.applyLinesDisplay();
         this.markViewForCheck();
       },
@@ -430,9 +561,106 @@ export class GeneralLedgerListComponent implements OnInit, OnDestroy, OnChanges 
       SourceTypeLabels
     ).map(line => ({
       ...line,
-      selected: this.showDepositTableSelections && this.selectedJournalEntryLineIds.has(line.journalEntryLineId),
-      disabled: this.showDepositTableSelections && this.getLineNetAmount(line) <= 0
+      selected: (this.showDepositTableSelections || this.showPrintCheckTableSelections)
+        && this.selectedJournalEntryLineIds.has(line.journalEntryLineId),
+      disabled: (this.showDepositTableSelections && this.getLineNetAmount(line) <= 0)
+        || (this.showPrintCheckTableSelections && !this.isPrintCheckLineSelectable(line))
     }));
+  }
+
+  applyLineSelectionSet(
+    selection: SelectionModel<unknown>,
+    isLineSelectable: (line: JournalEntryLineListDisplay) => boolean
+  ): void {
+    const selectedRows = (selection?.selected ?? []) as JournalEntryLineListDisplay[];
+    let nextSelectedIds: Set<string>;
+
+    if (selectedRows.length > 0) {
+      nextSelectedIds = new Set(
+        selectedRows
+          .map(row => String(row.journalEntryLineId ?? '').trim())
+          .filter(id => id.length > 0)
+      );
+    } else {
+      const idsFromDisplay = this.linesDisplay
+        .filter(row => row.selected && row.journalEntryLineId)
+        .map(row => String(row.journalEntryLineId));
+      nextSelectedIds = idsFromDisplay.length > 0 ? new Set(idsFromDisplay) : new Set<string>();
+    }
+
+    for (const lineId of [...nextSelectedIds]) {
+      const row = this.linesDisplay.find(line => line.journalEntryLineId === lineId);
+      if (!row || !isLineSelectable(row)) {
+        nextSelectedIds.delete(lineId);
+        if (row) {
+          row.selected = false;
+        }
+      }
+    }
+
+    this.selectedJournalEntryLineIds = nextSelectedIds;
+  }
+
+  clearPrintCheckLineSelection(): void {
+    this.selectedJournalEntryLineIds.clear();
+    this.syncPrintCheckLineSelectionInPlace();
+  }
+
+  syncPrintCheckLineSelectionInPlace(): void {
+    if (!this.showPrintCheckTableSelections) {
+      return;
+    }
+
+    this.linesDisplay.forEach(row => {
+      row.selected = this.selectedJournalEntryLineIds.has(row.journalEntryLineId);
+    });
+  }
+
+  isPrintCheckLineSelectable(line: Pick<JournalEntryLineListDisplay, 'creditValue'>): boolean {
+    return Number(line.creditValue || 0) > 0;
+  }
+
+  rejectPrintCheckRowsWithDifferentVendor(previousSelectedIds: Set<string>): boolean {
+    const newlySelectedIds = [...this.selectedJournalEntryLineIds].filter(id => !previousSelectedIds.has(id));
+    if (newlySelectedIds.length === 0) {
+      return false;
+    }
+
+    const existingSelectedRows = this.linesDisplay.filter(row =>
+      previousSelectedIds.has(row.journalEntryLineId)
+    );
+    let anchorVendorId: string | null = null;
+
+    if (existingSelectedRows.length > 0) {
+      anchorVendorId = this.normalizePrintCheckVendorId(existingSelectedRows[0].contactId);
+    } else {
+      const firstNewRow = this.linesDisplay.find(row => newlySelectedIds.includes(row.journalEntryLineId));
+      anchorVendorId = firstNewRow ? this.normalizePrintCheckVendorId(firstNewRow.contactId) : null;
+    }
+
+    if (anchorVendorId === null) {
+      return false;
+    }
+
+    let rejected = false;
+    for (const lineId of newlySelectedIds) {
+      const row = this.linesDisplay.find(line => line.journalEntryLineId === lineId);
+      if (!row) {
+        continue;
+      }
+
+      if (this.normalizePrintCheckVendorId(row.contactId) !== anchorVendorId) {
+        this.selectedJournalEntryLineIds.delete(lineId);
+        row.selected = false;
+        rejected = true;
+      }
+    }
+
+    return rejected;
+  }
+
+  normalizePrintCheckVendorId(contactId?: string | null): string {
+    return String(contactId ?? '').trim();
   }
 
   clearDepositLineSelection(): void {
@@ -557,13 +785,27 @@ export class GeneralLedgerListComponent implements OnInit, OnDestroy, OnChanges 
     return (this.offices || []).map(office => office.officeId).filter(id => id > 0);
   }
 
+  resolveBankAccountIds(officeIds: number[]): number[] {
+    return this.getChartOfAccountsForOfficeIds(officeIds)
+      .filter(account => Number(account.accountTypeId) === AccountType.Bank)
+      .map(account => Number(account.accountId));
+  }
+
   resolveUndepositedFundsAccountIds(officeIds: number[]): number[] {
-    return (this.chartOfAccounts || [])
+    return this.getChartOfAccountsForOfficeIds(officeIds)
       .filter(account =>
-        officeIds.includes(account.officeId)
-        && account.accountTypeId === AccountType.OtherCurrentAsset
+        Number(account.accountTypeId) === AccountType.OtherCurrentAsset
         && this.isUndepositedFundsAccount(account))
-      .map(account => account.accountId);
+      .map(account => Number(account.accountId));
+  }
+
+  getChartOfAccountsForOfficeIds(officeIds: number[]): ChartOfAccountResponse[] {
+    if (officeIds.length === 1) {
+      return this.chartOfAccountsService.getChartOfAccountsForOffice(officeIds[0]) || [];
+    }
+
+    const allAccounts = this.chartOfAccountsService.getAllChartOfAccountsValue() || [];
+    return allAccounts.filter(account => officeIds.includes(account.officeId));
   }
 
   isUndepositedFundsAccount(account: ChartOfAccountResponse): boolean {

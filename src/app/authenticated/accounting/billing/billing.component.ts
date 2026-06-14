@@ -538,7 +538,7 @@ export class BillingComponent implements OnInit, OnDestroy {
     this.creditCostCodes = this.billingCostCodes.filter(c => c.transactionTypeId === TransactionType.Payment);
     this.availableCostCodes = this.billingCostCodes.map(c => ({
       value: c.costCodeId,
-      label: `${c.costCode}: ${c.description}`
+      label: this.utilityService.getCostCodeDropdownLabel(c)
     }));
     this.hasInitializedBillingCostCodes = true;
   }

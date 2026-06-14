@@ -45,7 +45,7 @@
             </div>
             </div>
           </div>
-        } @else if (selectedTabIndex === 0 && accountingInvoiceList) {
+        } @else if (journalEntrySyncToolsEnabled && selectedTabIndex === 0 && accountingInvoiceList) {
           <div class="header-title form-titlebar-fields-wrap accounting-shell-titlebar-fields">
             <div class="accounting-shell-titlebar-filters">
             @if (showShellOfficeDropdown) {
@@ -95,7 +95,7 @@
             }
             </div>
           </div>
-        } @else if (selectedTabIndex === 1 || selectedTabIndex === 2 || selectedTabIndex === 3) {
+        } @else if (journalEntrySyncToolsEnabled && (selectedTabIndex === 1 || selectedTabIndex === 2 || selectedTabIndex === 3 || selectedTabIndex === 4)) {
           <div class="header-title form-titlebar-fields-wrap accounting-shell-titlebar-fields">
             <div class="accounting-shell-titlebar-filters">
             @if (showShellOfficeDropdown) {
@@ -116,7 +116,7 @@
             }
             </div>
           </div>
-        } @else if (selectedTabIndex === 4) {
+        } @else if (journalEntrySyncToolsEnabled && selectedTabIndex === 5) {
           <div class="header-title form-titlebar-fields-wrap accounting-shell-titlebar-fields">
             <div class="accounting-shell-titlebar-filters">
             @if (showShellOfficeDropdown) {
@@ -208,6 +208,14 @@
         </ng-template>
       </div>
       <div class="form-titlebar-actions-wrap">
+        @if (journalEntrySyncToolsEnabled && showJournalEntrySyncTools) {
+          <button mat-mini-fab type="button" color="primary" id="sync-journal-entries-button" matTooltip="Sync journal entries" aria-label="Sync journal entries" (click)="syncJournalEntries()" [disabled]="isJournalEntrySyncInProgress" class="journal-entry-sync-btn">
+            S
+          </button>
+          <button mat-mini-fab type="button" color="warn" id="clear-journal-entries-button" matTooltip="Clear journal entries" aria-label="Clear journal entries" (click)="clearJournalEntries()" [disabled]="isJournalEntrySyncInProgress" class="journal-entry-sync-btn">
+            C
+          </button>
+        }
         @if (activeInvoiceId) {
           <button mat-raised-button type="button" color="accent" (click)="closeEmbeddedInvoiceEditor()">
             <mat-icon>arrow_back</mat-icon>
@@ -243,7 +251,7 @@
             [companyIdInput]="selectedCompanyId">
           </app-invoice>
         }
-      } @else {
+      } @else if (journalEntrySyncToolsEnabled) {
         <mat-tab-group [selectedIndex]="selectedTabIndex" class="shell-tabs dbg-band-tabs" (selectedTabChange)="onTabChange($event)">
           <mat-tab label="Invoices">
             <app-invoice-list
@@ -326,6 +334,24 @@
               </app-general-ledger-list>
             }
           </mat-tab>
+          <mat-tab label="Print Checks">
+            @if (showGeneralLedgerDetail && activeJournalEntryId) {
+              <app-general-ledger
+                [journalEntryId]="activeJournalEntryId"
+                [selectedJournalEntryLineId]="selectedJournalEntryLineId"
+                (backEvent)="onGeneralLedgerBack()"
+                (savedEvent)="onJournalEntriesChanged()">
+              </app-general-ledger>
+            } @else {
+              <app-general-ledger-list
+                [officeId]="selectedOfficeId"
+                [printChecksOnly]="true"
+                [searchDateRange]="invoiceSearchDateRange"
+                [refreshTrigger]="printChecksRefreshTrigger"
+                (lineSelectEvent)="onGeneralLedgerLineSelect($event)">
+              </app-general-ledger-list>
+            }
+          </mat-tab>
           <mat-tab label="General Ledger">
             @if (showGeneralLedgerDetail && activeJournalEntryId) {
               <app-general-ledger
@@ -347,6 +373,8 @@
             }
           </mat-tab>
         </mat-tab-group>
+      } @else {
+        <p class="accounting-shell-disabled-message">Accounting is not enabled in this environment.</p>
       }
     </mat-card>
   </section>

@@ -14,7 +14,7 @@ import { getEmailType } from '../authenticated/email/models/email.enum';
 import { EmailHtmlResponse } from '../authenticated/email/models/email-html.model';
 import { MaintenanceListResponse } from '../authenticated/maintenance/models/maintenance.model';
 import { InspectionDisplayList, InspectionResponse } from '../authenticated/maintenance/models/inspection.model';
-import { ReceiptDisplayList, ReceiptResponse, Split } from '../authenticated/maintenance/models/receipt.model';
+import { ReceiptDisplayList, ReceiptRequest, ReceiptResponse, Split } from '../authenticated/maintenance/models/receipt.model';
 import { getInspectionType, getReceiptType, getWorkOrderType } from '../authenticated/maintenance/models/maintenance-enums';
 import { WorkOrderDisplayList, WorkOrderRequest, WorkOrderResponse } from '../authenticated/maintenance/models/work-order.model';
 import { AccountingOfficeListDisplay, AccountingOfficeRequest, AccountingOfficeResponse } from '../authenticated/organizations/models/accounting-office.model';
@@ -665,9 +665,11 @@ export class MappingService {
         item.accountId === line.chartOfAccountId &&
         item.officeId === line.officeId
       );
-      const accountLabel = account
-        ? `${account.accountNo} - ${account.name}`.trim()
-        : String(line.chartOfAccountId);
+      const accountNo = (account?.accountNo || '').trim();
+      const accountName = (account?.name || '').trim();
+      const accountLabel = accountNo && accountName
+        ? `${accountNo}:${accountName}`
+        : accountNo || accountName || String(line.chartOfAccountId);
       runningBalance += debitValue - creditValue;
 
       return {
@@ -679,6 +681,7 @@ export class MappingService {
         source: getSourceTypeLabel(line.sourceTypeId, sourceTypes),
         propertyCode: (line.propertyCode || '').trim(),
         reservationCode: (line.reservationCode || '').trim(),
+        contactId: line.contactId ?? null,
         contactName: (line.contactName || '').trim(),
         account: accountLabel,
         description,
@@ -698,32 +701,35 @@ export class MappingService {
   mapJournalEntryLineDetailDisplay(
     lines: JournalEntryLineResponse[],
     chartOfAccounts?: ChartOfAccountResponse[],
-    costCodes?: CostCodesResponse[],
     officeId?: number | null
   ): JournalEntryLineDetailDisplay[] {
-    return (lines ?? []).map(line => {
+    return (lines ?? []).map((line, index) => {
       const account = chartOfAccounts?.find(item =>
         item.accountId === line.chartOfAccountId &&
         (officeId == null || item.officeId === officeId)
       );
-      const costCode = costCodes?.find(item => item.costCodeId === line.costCodeId);
       const debitValue = Number(line.debit) || 0;
       const creditValue = Number(line.credit) || 0;
 
+      const accountNo = (account?.accountNo || '').trim();
+      const accountName = (account?.name || '').trim();
+      const accountLabel = accountNo && accountName
+        ? `${accountNo}:${accountName}`
+        : accountNo || accountName || String(line.chartOfAccountId);
+
       return {
+        lineNo: index + 1,
         journalEntryLineId: line.journalEntryLineId,
         chartOfAccountId: line.chartOfAccountId,
-        accountNo: account?.accountNo || String(line.chartOfAccountId),
-        accountName: account?.name || '',
+        account: accountLabel,
         propertyCode: (line.propertyCode || '').trim(),
         reservationCode: (line.reservationCode || '').trim(),
         contactName: (line.contactName || '').trim(),
-        costCodeLabel: costCode ? `${costCode.costCode} - ${costCode.description}` : '',
+        memo: line.memo || '',
         debit: debitValue ? this.formatter.currency(debitValue) : '',
         credit: creditValue ? this.formatter.currency(creditValue) : '',
         debitValue,
-        creditValue,
-        memo: line.memo || ''
+        creditValue
       };
     });
   }
@@ -807,9 +813,9 @@ export class MappingService {
         ledgerLineId: line.ledgerLineId,
         lineNumber: line.lineNumber,
         costCodeId: costCodeId, // From invoice.ledgerLine.costCodeId
-        costCode: matchingCostCode 
-          ? `${matchingCostCode.costCode}: ${matchingCostCode.description}` 
-          : (costCodeId != null ? `Cost Code ${costCodeId}` : ''),
+        costCode: matchingCostCode
+          ? this.utility.getCostCodeDropdownLabel(matchingCostCode)
+          : this.utility.getCostCodeDropdownLabel(null, costCodeId ?? undefined),
         transactionType: transactionTypeLabel, // Translated from CostCode.transactionTypeId
         description: line.description || '',
         amount: line.amount,
@@ -1840,6 +1846,10 @@ export class MappingService {
     const receiptCode = String(receiptCodeRaw ?? base.receiptCode ?? '').trim();
     const receiptGuidRaw = rawRecord['receiptGuid'] ?? rawRecord['ReceiptGuid'] ?? base.receiptGuid;
     const receiptGuid = String(receiptGuidRaw ?? base.receiptGuid ?? '').trim();
+    const paymentTypeIdRaw = rawRecord['paymentTypeId'] ?? rawRecord['PaymentTypeId'] ?? base.paymentTypeId;
+    const paymentTypeId = paymentTypeIdRaw == null ? 0 : Number(paymentTypeIdRaw);
+    const checkPrintedRaw = rawRecord['checkPrinted'] ?? rawRecord['CheckPrinted'] ?? base.checkPrinted;
+    const checkPrinted = checkPrintedRaw === true || checkPrintedRaw === 'true' || checkPrintedRaw === 1;
 
     return {
       ...base,
@@ -1852,6 +1862,8 @@ export class MappingService {
       invoiceId,
       receiptCode,
       receiptGuid,
+      paymentTypeId: Number.isFinite(paymentTypeId) ? paymentTypeId : 0,
+      checkPrinted,
       splits: this.mapReceiptSplitsFromApi(base.splits)
     };
   }
@@ -1904,6 +1916,60 @@ export class MappingService {
       chartOfAccountDisplayName: String(
         record.chartOfAccountDisplayName ?? record['ChartOfAccountDisplayName'] ?? ''
       ).trim() || null
+    };
+  }
+
+  mapReceiptSplitsForRequest(splits: Split[] | undefined | null): Split[] {
+    return this.mapReceiptSplitsFromApi(splits).map(split => {
+      const chartOfAccountId = this.readSplitChartOfAccountId(split);
+      return {
+        receiptSplitId: split.receiptSplitId ?? null,
+        amount: Number(split.amount) || 0,
+        description: String(split.description ?? '').trim(),
+        workOrderId: split.workOrderId ?? null,
+        workOrderCode: split.workOrderCode != null && String(split.workOrderCode).trim().length > 0
+          ? String(split.workOrderCode).trim()
+          : '',
+        workOrder: split.workOrder != null && String(split.workOrder).trim().length > 0
+          ? String(split.workOrder).trim()
+          : '',
+        receiptTypeId: split.receiptTypeId ?? 0,
+        chartOfAccountId,
+        accountId: chartOfAccountId
+      };
+    });
+  }
+
+  mapReceiptUpdateRequest(
+    receipt: ReceiptResponse,
+    updates: Partial<Pick<ReceiptRequest, 'bankCardId' | 'vendorId' | 'vendorName' | 'receiptDate' | 'isActive'>> = {}
+  ): ReceiptRequest {
+    const hasBankCardId = Object.prototype.hasOwnProperty.call(updates, 'bankCardId');
+    const hasVendorId = Object.prototype.hasOwnProperty.call(updates, 'vendorId');
+    const hasVendorName = Object.prototype.hasOwnProperty.call(updates, 'vendorName');
+    const hasReceiptDate = Object.prototype.hasOwnProperty.call(updates, 'receiptDate');
+    const hasIsActive = Object.prototype.hasOwnProperty.call(updates, 'isActive');
+
+    return {
+      receiptId: receipt.receiptId,
+      organizationId: receipt.organizationId,
+      officeId: receipt.officeId,
+      propertyIds: [...(receipt.propertyIds || [])],
+      receiptDate: hasReceiptDate ? (updates.receiptDate || '') : (receipt.receiptDate || ''),
+      dueDate: receipt.dueDate,
+      accountingPeriod: receipt.accountingPeriod,
+      billNumber: receipt.billNumber ?? null,
+      ticketId: receipt.ticketId || '',
+      amount: Number(receipt.amount) || 0,
+      paidAmount: Number(receipt.paidAmount ?? 0) || 0,
+      paidDate: receipt.paidDate ?? null,
+      description: String(receipt.description ?? '').trim(),
+      bankCardId: hasBankCardId ? (updates.bankCardId ?? null) : (receipt.bankCardId ?? null),
+      vendorId: hasVendorId ? (updates.vendorId ?? null) : (receipt.vendorId ?? null),
+      vendorName: hasVendorName ? (updates.vendorName ?? null) : (receipt.vendorName ?? null),
+      splits: this.mapReceiptSplitsForRequest(receipt.splits),
+      receiptPath: receipt.receiptPath ?? null,
+      isActive: hasIsActive ? (updates.isActive ?? receipt.isActive) : receipt.isActive
     };
   }
 

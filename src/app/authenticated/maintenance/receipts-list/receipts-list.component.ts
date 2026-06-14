@@ -9,7 +9,6 @@ import { RouterUrl } from '../../../app.routes';
 import { CommonMessage } from '../../../enums/common-message.enum';
 import { MaterialModule } from '../../../material.module';
 import { AuthService } from '../../../services/auth.service';
-import { ConfigService } from '../../../services/config.service';
 import { FormatterService } from '../../../services/formatter-service';
 import { UtilityService } from '../../../services/utility.service';
 import { MappingService } from '../../../services/mapping.service';
@@ -18,7 +17,7 @@ import { PropertyService } from '../../properties/services/property.service';
 import { AccountingOfficeService } from '../../organizations/services/accounting-office.service';
 import { AccountingOfficeResponse } from '../../organizations/models/accounting-office.model';
 import { ChartOfAccountResponse } from '../../accounting/models/chart-of-accounts.model';
-import { AccountType } from '../../accounting/models/accounting-enum';
+import { AccountType, PaymentType, PaymentTypeLabels } from '../../accounting/models/accounting-enum';
 import { ChartOfAccountsService } from '../../accounting/services/chart-of-accounts.service';
 import { BankCardResponse } from '../../organizations/models/bank.model';
 import { EntityType } from '../../contacts/models/contact-enum';
@@ -29,12 +28,9 @@ import { DataTableComponent } from '../../shared/data-table/data-table.component
 import { DataTableFilterActionsDirective } from '../../shared/data-table/data-table-filter-actions.directive';
 import { ColumnSet } from '../../shared/data-table/models/column-data';
 import { MaintenanceListSearchRequest } from '../models/maintenance-search.model';
-import { BillPaymentRequest, BillPaymentResponse, ReceiptDisplayList, ReceiptRequest, ReceiptResponse, ReceiptSelection, Split } from '../models/receipt.model';
+import { BillPaymentRequest, BillPaymentResponse, ReceiptDisplayList, ReceiptResponse, ReceiptSelection, Split } from '../models/receipt.model';
 import { ReceiptService } from '../services/receipt.service';
 import { WorkOrderService } from '../services/work-order.service';
-import { GeneralLedgerService } from '../../accounting/services/general-ledger.service';
-import { JournalEntrySyncResult } from '../../accounting/models/journal-entry.model';
-import { HttpErrorResponse } from '@angular/common/http';
 
 @Component({
   standalone: true,
@@ -71,13 +67,14 @@ export class ReceiptsListComponent implements OnInit, OnChanges, OnDestroy {
   vendorOptionsByOfficeId = new Map<number, Array<{ contactId: string; label: string }>>();
   chartOfAccountsByOfficeId = new Map<number, Map<number, ChartOfAccountResponse>>();
   paymentChartOfAccounts: { value: number; label: string }[] = [];
+  paymentTypeOptions = PaymentTypeLabels;
 
   showPaymentForm: boolean = false;
   showBillSelections = false;
   selectedBillReceiptIds = new Set<number>();
   isManualApplyMode: boolean = false;
   selectedPaymentChartOfAccountId: number | null = null;
-  paymentTransactionType: string = '';
+  selectedPaymentTypeId: number = PaymentType.Check;
   paymentDescription: string = '';
   paymentDate: Date | null = new Date();
   paymentAmount: number = 0;
@@ -89,7 +86,6 @@ export class ReceiptsListComponent implements OnInit, OnChanges, OnDestroy {
   paymentTargetInvoiceId: string | null = null;
   manualApplyEditableReceiptId: number | null = null;
   pendingApplyAmountFocusReceiptId: number | null = null;
-  isJournalEntrySyncInProgress = false;
 
   isAdmin = false;
   canEditIsActiveCheckbox = false;
@@ -125,7 +121,8 @@ export class ReceiptsListComponent implements OnInit, OnChanges, OnDestroy {
     created: { displayAs: 'Created', maxWidth: '15ch', alignment: 'center' },
     amountDisplay: { displayAs: 'Amount', maxWidth: '15ch', alignment: 'right', headerAlignment: 'right', sort: false },
     paidAmount: { displayAs: 'Paid', maxWidth: '15ch', alignment: 'right', headerAlignment: 'right', sort: false },
-    dueAmount: { displayAs: 'Due', maxWidth: '15ch', alignment: 'right', headerAlignment: 'right', sort: false }
+    dueAmount: { displayAs: 'Due', maxWidth: '15ch', alignment: 'right', headerAlignment: 'right', sort: false },
+    isActive: { displayAs: 'IsActive', isCheckbox: true, checkboxEditable: false, sort: false, wrap: false, alignment: 'center', maxWidth: '15ch' }
   };
 
   readonly accountingNonBillReceiptDisplayedColumns: ColumnSet = {
@@ -140,7 +137,8 @@ export class ReceiptsListComponent implements OnInit, OnChanges, OnDestroy {
     amountDisplay: { displayAs: 'Amount', maxWidth: '15ch', alignment: 'right', headerAlignment: 'right', sort: false },
     paidAmount: { displayAs: 'Paid', maxWidth: '15ch', alignment: 'right', headerAlignment: 'right', sort: false },
     dueAmount: { displayAs: 'Due', maxWidth: '15ch', alignment: 'right', headerAlignment: 'right', sort: false },
-    applyAmount: { displayAs: 'Apply', maxWidth: '20ch', alignment: 'right', headerAlignment: 'right', sort: false }
+    applyAmount: { displayAs: 'Apply', maxWidth: '20ch', alignment: 'right', headerAlignment: 'right', sort: false },
+    isActive: { displayAs: 'IsActive', isCheckbox: true, checkboxEditable: false, sort: false, wrap: false, alignment: 'center', maxWidth: '15ch' }
   };
 
   get receiptDisplayedColumns(): ColumnSet {
@@ -175,14 +173,8 @@ export class ReceiptsListComponent implements OnInit, OnChanges, OnDestroy {
     private utilityService: UtilityService,
     private router: Router,
     private toastr: ToastrService,
-    private generalLedgerService: GeneralLedgerService,
-    private configService: ConfigService,
     private cdr: ChangeDetectorRef
   ) {}
-
-  get journalEntrySyncToolsEnabled(): boolean {
-    return this.configService.config().featureFlags.journalEntrySyncTools;
-  }
 
 
   //#region Receipts List
@@ -490,6 +482,8 @@ export class ReceiptsListComponent implements OnInit, OnChanges, OnDestroy {
       return;
     }
 
+    this.applyReceiptIsActiveValue(event.receiptId, nextValue);
+
     this.receiptService
       .getReceiptById(event.receiptId)
       .pipe(
@@ -499,23 +493,27 @@ export class ReceiptsListComponent implements OnInit, OnChanges, OnDestroy {
             this.syncReceiptRowFromServer(receipt);
             return EMPTY;
           }
-          const payload = this.buildReceiptIsActiveUpdateRequest(receipt, nextValue);
-          return this.receiptService.updateReceipt(payload);
+          return this.receiptService.updateReceipt(
+            this.mappingService.mapReceiptUpdateRequest(receipt, { isActive: nextValue })
+          );
+        }),
+        finalize(() => {
+          this.applyFilters();
+          this.markViewForCheck();
         })
       )
       .subscribe({
         next: saved => {
-          this.receipts = this.receipts.map(r => (r.receiptId === saved.receiptId ? saved : r));
-          this.allReceipts = this.mappingService.mapReceiptDisplays(this.receipts);
-          this.applyReceiptDisplayMappings();
-          this.applyFilters();
+          if (this.usesMaintenanceSearch()) {
+            this.loadReceiptsForCurrentSearchCriteria(true);
+          } else {
+            this.syncReceiptRowFromServer(saved);
+          }
           this.toastr.success('Receipt updated.', CommonMessage.Success);
-          this.markViewForCheck();
         },
         error: () => {
           this.applyReceiptIsActiveValue(event.receiptId, previousValue);
           this.toastr.error('Unable to update receipt.', CommonMessage.Error);
-          this.markViewForCheck();
         }
       });
   }
@@ -548,7 +546,9 @@ export class ReceiptsListComponent implements OnInit, OnChanges, OnDestroy {
               this.syncReceiptRowFromServer(receipt);
               return EMPTY;
             }
-            const payload = this.buildReceiptBankCardInlineUpdateRequest(receipt, selectedBankCardId);
+            const payload = Number(selectedBankCardId) === 0
+              ? this.mappingService.mapReceiptUpdateRequest(receipt, { bankCardId: selectedBankCardId, vendorName: null })
+              : this.mappingService.mapReceiptUpdateRequest(receipt, { bankCardId: selectedBankCardId, vendorId: null });
             return this.receiptService.updateReceipt(payload);
           })
         )
@@ -605,7 +605,10 @@ export class ReceiptsListComponent implements OnInit, OnChanges, OnDestroy {
             this.syncReceiptRowFromServer(receipt);
             return EMPTY;
           }
-          const payload = this.buildReceiptVendorDropdownUpdateRequest(receipt, selectedVendorId);
+          const payload = this.mappingService.mapReceiptUpdateRequest(receipt, {
+            vendorId: selectedVendorId,
+            vendorName: null
+          });
           return this.receiptService.updateReceipt(payload);
         })
       )
@@ -649,7 +652,7 @@ export class ReceiptsListComponent implements OnInit, OnChanges, OnDestroy {
               this.syncReceiptRowFromServer(receipt);
               return EMPTY;
             }
-            const payload = this.buildReceiptDateInlineUpdateRequest(receipt, nextReceiptDate);
+            const payload = this.mappingService.mapReceiptUpdateRequest(receipt, { receiptDate: nextReceiptDate });
             return this.receiptService.updateReceipt(payload);
           })
         )
@@ -693,7 +696,10 @@ export class ReceiptsListComponent implements OnInit, OnChanges, OnDestroy {
           if (nextVendorName === previousVendorName) {
             return EMPTY;
           }
-          const payload = this.buildReceiptVendorInlineUpdateRequest(receipt, nextVendorName);
+          const payload = this.mappingService.mapReceiptUpdateRequest(receipt, {
+            vendorName: nextVendorName || null,
+            vendorId: null
+          });
           return this.receiptService.updateReceipt(payload);
         })
       )
@@ -866,13 +872,6 @@ export class ReceiptsListComponent implements OnInit, OnChanges, OnDestroy {
       });
     }
 
-    if (this.usesMaintenanceSearch()) {
-      this.receiptsDisplay = filtered;
-      this.focusPendingApplyAmountInput();
-      this.markViewForCheck();
-      return;
-    }
-
     this.receiptsDisplay = this.showInactive
       ? filtered
       : filtered.filter(receipt => receipt.isActive !== false);
@@ -952,138 +951,6 @@ export class ReceiptsListComponent implements OnInit, OnChanges, OnDestroy {
       propertyId: request.propertyId ?? this.property?.propertyId ?? null,
       receiptKind: this.resolveReceiptKindForSearch()
     };
-  }
-
-  syncBillJournalEntries(): void {
-    const officeIds = this.resolveMaintenanceSearchOfficeIds(this.searchRequest);
-    if (officeIds.length === 0) {
-      this.toastr.warning('Select at least one office before syncing journal entries.', 'Sync');
-      return;
-    }
-
-    this.isJournalEntrySyncInProgress = true;
-    this.markViewForCheck();
-    this.generalLedgerService.syncBillJournalEntries(officeIds).pipe(
-      take(1),
-      finalize(() => {
-        this.isJournalEntrySyncInProgress = false;
-        this.markViewForCheck();
-      })
-    ).subscribe({
-      next: (result) => {
-        this.showJournalEntrySyncResult('Bill journal entries synced', result);
-        this.journalEntriesChanged.emit();
-      },
-      error: (error: HttpErrorResponse) => {
-        this.toastr.error(error?.error ?? 'Unable to sync bill journal entries.', CommonMessage.Error);
-      }
-    });
-  }
-
-  clearBillJournalEntries(): void {
-    const officeIds = this.resolveMaintenanceSearchOfficeIds(this.searchRequest);
-    if (officeIds.length === 0) {
-      this.toastr.warning('Select at least one office before clearing journal entries.', 'Clear');
-      return;
-    }
-
-    if (!window.confirm('Delete all unposted bill and bill payment journal entries for the selected offices?')) {
-      return;
-    }
-
-    this.isJournalEntrySyncInProgress = true;
-    this.markViewForCheck();
-    this.generalLedgerService.clearBillJournalEntries(officeIds).pipe(
-      take(1),
-      finalize(() => {
-        this.isJournalEntrySyncInProgress = false;
-        this.markViewForCheck();
-      })
-    ).subscribe({
-      next: (result) => {
-        this.showJournalEntrySyncResult('Bill journal entries cleared', result, true);
-        this.journalEntriesChanged.emit();
-      },
-      error: (error: HttpErrorResponse) => {
-        this.toastr.error(error?.error ?? 'Unable to clear bill journal entries.', CommonMessage.Error);
-      }
-    });
-  }
-
-  syncReceiptJournalEntries(): void {
-    const officeIds = this.resolveMaintenanceSearchOfficeIds(this.searchRequest);
-    if (officeIds.length === 0) {
-      this.toastr.warning('Select at least one office before syncing journal entries.', 'Sync');
-      return;
-    }
-
-    this.isJournalEntrySyncInProgress = true;
-    this.markViewForCheck();
-    this.generalLedgerService.syncReceiptJournalEntries(officeIds).pipe(
-      take(1),
-      finalize(() => {
-        this.isJournalEntrySyncInProgress = false;
-        this.markViewForCheck();
-      })
-    ).subscribe({
-      next: (result) => {
-        this.showJournalEntrySyncResult('Receipt journal entries synced', result);
-        this.journalEntriesChanged.emit();
-      },
-      error: (error: HttpErrorResponse) => {
-        this.toastr.error(error?.error ?? 'Unable to sync receipt journal entries.', CommonMessage.Error);
-      }
-    });
-  }
-
-  clearReceiptJournalEntries(): void {
-    const officeIds = this.resolveMaintenanceSearchOfficeIds(this.searchRequest);
-    if (officeIds.length === 0) {
-      this.toastr.warning('Select at least one office before clearing journal entries.', 'Clear');
-      return;
-    }
-
-    if (!window.confirm('Delete all unposted receipt journal entries for the selected offices?')) {
-      return;
-    }
-
-    this.isJournalEntrySyncInProgress = true;
-    this.markViewForCheck();
-    this.generalLedgerService.clearReceiptJournalEntries(officeIds).pipe(
-      take(1),
-      finalize(() => {
-        this.isJournalEntrySyncInProgress = false;
-        this.markViewForCheck();
-      })
-    ).subscribe({
-      next: (result) => {
-        this.showJournalEntrySyncResult('Receipt journal entries cleared', result, true);
-        this.journalEntriesChanged.emit();
-      },
-      error: (error: HttpErrorResponse) => {
-        this.toastr.error(error?.error ?? 'Unable to clear receipt journal entries.', CommonMessage.Error);
-      }
-    });
-  }
-
-  showJournalEntrySyncResult(title: string, result: JournalEntrySyncResult, isClear: boolean = false): void {
-    const actionLabel = isClear ? 'deleted' : 'created';
-    const count = isClear ? result.journalEntriesDeleted : result.journalEntriesCreated;
-    const skipped = isClear ? 0 : result.journalEntriesSkipped;
-    let message = `${result.documentsProcessed} documents processed, ${count} journal entries ${actionLabel}`;
-    if (!isClear && skipped > 0) {
-      message += `, ${skipped} skipped`;
-    }
-    if (result.errors.length > 0) {
-      message += `. ${result.errors.length} issue(s): ${result.errors.slice(0, 3).join('; ')}`;
-      if (result.errors.length > 3) {
-        message += '...';
-      }
-      this.toastr.warning(message, title);
-      return;
-    }
-
-    this.toastr.success(message, title);
   }
 
   resolveReceiptKindForSearch(): 1 | 2 | null {
@@ -1193,7 +1060,10 @@ export class ReceiptsListComponent implements OnInit, OnChanges, OnDestroy {
                 return EMPTY;
               }
               return this.receiptService.updateReceipt(
-                this.buildReceiptVendorDropdownUpdateRequest(receipt, result.contactId!)
+                this.mappingService.mapReceiptUpdateRequest(receipt, {
+                  vendorId: result.contactId!,
+                  vendorName: null
+                })
               );
             })
           )
@@ -1249,17 +1119,31 @@ export class ReceiptsListComponent implements OnInit, OnChanges, OnDestroy {
     contacts
       .filter(contact => contact.entityTypeId === EntityType.Vendor)
       .forEach(contact => {
-        const officeId = Number(contact.officeId);
         const contactId = String(contact.contactId || '').trim();
-        if (!Number.isFinite(officeId) || officeId <= 0 || contactId.length === 0) {
+        if (contactId.length === 0) {
           return;
         }
-        const rows = officeMap.get(officeId) || [];
-        rows.push({
-          contactId,
-          label: this.normalizeVendorDisplayText(this.utilityService.getVendorDropdownLabel(contact))
+
+        const label = this.normalizeVendorDisplayText(this.utilityService.getVendorDropdownLabel(contact));
+        const officeIds = new Set<number>();
+        const primaryOfficeId = Number(contact.officeId);
+        if (Number.isFinite(primaryOfficeId) && primaryOfficeId > 0) {
+          officeIds.add(primaryOfficeId);
+        }
+        (contact.officeAccess || []).forEach(id => {
+          const parsedOfficeId = Number(id);
+          if (Number.isFinite(parsedOfficeId) && parsedOfficeId > 0) {
+            officeIds.add(parsedOfficeId);
+          }
         });
-        officeMap.set(officeId, rows);
+
+        officeIds.forEach(officeId => {
+          const rows = officeMap.get(officeId) || [];
+          if (!rows.some(row => row.contactId === contactId)) {
+            rows.push({ contactId, label });
+          }
+          officeMap.set(officeId, rows);
+        });
       });
     this.vendorOptionsByOfficeId = officeMap;
     this.applyVendorCellsToDisplays();
@@ -1453,16 +1337,7 @@ export class ReceiptsListComponent implements OnInit, OnChanges, OnDestroy {
     }
 
     const account = this.chartOfAccountsByOfficeId.get(officeId)?.get(accountId);
-    if (!account) {
-      return `Account ${accountId}`;
-    }
-
-    const accountNo = (account.accountNo || '').trim();
-    const accountName = (account.name || '').trim();
-    if (accountNo && accountName) {
-      return `${accountNo} - ${accountName}`;
-    }
-    return accountNo || accountName || `Account ${accountId}`;
+    return this.utilityService.getChartOfAccountDropdownLabel(account, accountId);
   }
 
   applyPayableActionFlagsToDisplays(): void {
@@ -1476,104 +1351,16 @@ export class ReceiptsListComponent implements OnInit, OnChanges, OnDestroy {
   //#region Inline Update Request Methods
   setIsActiveCheckboxEditability(): void {
     this.canEditIsActiveCheckbox = this.isAdmin;
-    const maintenanceIsActiveColumn = this.maintenanceReceiptDisplayedColumns['isActive'];
-    if (maintenanceIsActiveColumn) {
-      maintenanceIsActiveColumn.checkboxEditable = this.canEditIsActiveCheckbox;
-    }
-  }
-
-  buildReceiptIsActiveUpdateRequest(receipt: ReceiptResponse, isActive: boolean): ReceiptRequest {
-    return {
-      receiptId: receipt.receiptId,
-      organizationId: receipt.organizationId,
-      officeId: receipt.officeId,
-      propertyIds: [...(receipt.propertyIds || [])],
-      receiptDate: receipt.receiptDate || '',
-      dueDate: receipt.dueDate,
-      accountingPeriod: receipt.accountingPeriod,
-      billNumber: receipt.billNumber ?? null,
-      ticketId: receipt.ticketId,
-      amount: Number(receipt.amount) || 0,
-      paidAmount: Number(receipt.paidAmount ?? 0) || 0,
-      paidDate: receipt.paidDate ?? null,
-      description: String(receipt.description ?? '').trim(),
-      bankCardId: receipt.bankCardId ?? null,
-      vendorId: receipt.vendorId ?? null,
-      vendorName: receipt.vendorName ?? null,
-      splits: this.mapReceiptSplitsForRequest(receipt.splits),
-      receiptPath: receipt.receiptPath ?? null,
-      isActive
-    };
-  }
-
-  buildReceiptBankCardInlineUpdateRequest(receipt: ReceiptResponse, bankCardId: number): ReceiptRequest {
-    if (Number(bankCardId) === 0) {
-      return this.buildReceiptFieldUpdateRequest(receipt, { bankCardId, vendorName: null });
-    }
-    return this.buildReceiptFieldUpdateRequest(receipt, { bankCardId, vendorId: null });
-  }
-
-  buildReceiptVendorInlineUpdateRequest(receipt: ReceiptResponse, vendorName: string): ReceiptRequest {
-    const normalizedVendorName = String(vendorName || '').trim();
-    return this.buildReceiptFieldUpdateRequest(receipt, {
-      vendorName: normalizedVendorName || null,
-      vendorId: null
+    [
+      this.maintenanceReceiptDisplayedColumns,
+      this.accountingReceiptDisplayedColumns,
+      this.accountingNonBillReceiptDisplayedColumns
+    ].forEach(columns => {
+      const isActiveColumn = columns['isActive'];
+      if (isActiveColumn) {
+        isActiveColumn.checkboxEditable = this.canEditIsActiveCheckbox;
+      }
     });
-  }
-
-  buildReceiptVendorDropdownUpdateRequest(receipt: ReceiptResponse, vendorId: string): ReceiptRequest {
-    const normalizedVendorId = String(vendorId || '').trim() || null;
-    return this.buildReceiptFieldUpdateRequest(receipt, {
-      vendorId: normalizedVendorId,
-      vendorName: null
-    });
-  }
-
-  buildReceiptDateInlineUpdateRequest(receipt: ReceiptResponse, receiptDate: string): ReceiptRequest {
-    return this.buildReceiptFieldUpdateRequest(receipt, { receiptDate });
-  }
-
-  mapReceiptSplitsForRequest(splits: Split[] | undefined): Split[] {
-    return (splits || []).map(s => ({
-      receiptSplitId: s.receiptSplitId ?? null,
-      amount: Number(s.amount) || 0,
-      description: String(s.description ?? '').trim(),
-      workOrderId: s.workOrderId ?? null,
-      workOrderCode: s.workOrderCode != null && String(s.workOrderCode).trim().length > 0 ? String(s.workOrderCode).trim() : '',
-      workOrder: s.workOrder != null && String(s.workOrder).trim().length > 0 ? String(s.workOrder).trim() : '',
-      receiptTypeId: s.receiptTypeId ?? 0,
-      chartOfAccountId: this.mappingService.readSplitChartOfAccountId(s),
-      accountId: this.mappingService.readSplitChartOfAccountId(s)
-    }));
-  }
-
-  buildReceiptFieldUpdateRequest(receipt: ReceiptResponse, fields: Partial<Pick<ReceiptRequest, 'bankCardId' | 'vendorId' | 'vendorName' | 'receiptDate' | 'isActive'>>): ReceiptRequest {
-    const hasBankCardId = Object.prototype.hasOwnProperty.call(fields, 'bankCardId');
-    const hasVendorId = Object.prototype.hasOwnProperty.call(fields, 'vendorId');
-    const hasVendorName = Object.prototype.hasOwnProperty.call(fields, 'vendorName');
-    const hasReceiptDate = Object.prototype.hasOwnProperty.call(fields, 'receiptDate');
-    const hasIsActive = Object.prototype.hasOwnProperty.call(fields, 'isActive');
-    return {
-      receiptId: receipt.receiptId,
-      organizationId: receipt.organizationId,
-      officeId: receipt.officeId,
-      propertyIds: [...(receipt.propertyIds || [])],
-      receiptDate: hasReceiptDate ? (fields.receiptDate || '') : (receipt.receiptDate || ''),
-      dueDate: receipt.dueDate,
-      accountingPeriod: receipt.accountingPeriod,
-      billNumber: receipt.billNumber ?? null,
-      ticketId: receipt.ticketId,
-      amount: Number(receipt.amount) || 0,
-      paidAmount: Number(receipt.paidAmount ?? 0) || 0,
-      paidDate: receipt.paidDate ?? null,
-      description: String(receipt.description ?? '').trim(),
-      bankCardId: hasBankCardId ? (fields.bankCardId ?? null) : (receipt.bankCardId ?? null),
-      vendorId: hasVendorId ? (fields.vendorId ?? null) : (receipt.vendorId ?? null),
-      vendorName: hasVendorName ? (fields.vendorName ?? null) : (receipt.vendorName ?? null),
-      splits: this.mapReceiptSplitsForRequest(receipt.splits),
-      receiptPath: receipt.receiptPath ?? null,
-      isActive: hasIsActive ? (fields.isActive ?? receipt.isActive) : receipt.isActive
-    };
   }
 
   syncReceiptRowFromServer(receipt: ReceiptResponse): void {
@@ -1782,40 +1569,39 @@ export class ReceiptsListComponent implements OnInit, OnChanges, OnDestroy {
       this.paymentChartOfAccounts = [];
       if (this.selectedPaymentChartOfAccountId != null) {
         this.selectedPaymentChartOfAccountId = null;
-        this.paymentTransactionType = '';
       }
       return;
     }
 
     this.paymentChartOfAccounts = (this.chartOfAccountsService.getChartOfAccountsForOffice(officeId) || [])
-      .filter(account => Number(account.accountTypeId) === AccountType.AccountsPayable)
-      .sort((left, right) => {
-        const leftLabel = `${left.accountNo || ''} ${left.name || ''}`.trim();
-        const rightLabel = `${right.accountNo || ''} ${right.name || ''}`.trim();
-        return leftLabel.localeCompare(rightLabel, undefined, { sensitivity: 'base' });
-      })
+      .filter(account => Number(account.accountTypeId) === AccountType.Bank)
+      .sort((left, right) =>
+        this.utilityService.getChartOfAccountDropdownLabel(left).localeCompare(
+          this.utilityService.getChartOfAccountDropdownLabel(right),
+          undefined,
+          { sensitivity: 'base' }
+        )
+      )
       .map(account => ({
         value: Number(account.accountId),
-        label: `${account.accountNo}: ${account.name}`
+        label: this.utilityService.getChartOfAccountDropdownLabel(account)
       }));
 
-    if (
-      this.selectedPaymentChartOfAccountId != null &&
-      !this.paymentChartOfAccounts.some(account => account.value === this.selectedPaymentChartOfAccountId)
-    ) {
+    if (this.paymentChartOfAccounts.length > 0) {
+      const hasValidSelection =
+        this.selectedPaymentChartOfAccountId != null &&
+        this.paymentChartOfAccounts.some(account => account.value === this.selectedPaymentChartOfAccountId);
+
+      if (!hasValidSelection) {
+        this.selectedPaymentChartOfAccountId = this.paymentChartOfAccounts[0].value;
+      }
+    } else {
       this.selectedPaymentChartOfAccountId = null;
-      this.paymentTransactionType = '';
     }
   }
 
   onPaymentChartOfAccountChange(accountId: number | null): void {
     this.selectedPaymentChartOfAccountId = accountId;
-    if (accountId === null) {
-      this.paymentTransactionType = '';
-      return;
-    }
-
-    this.paymentTransactionType = 'Accounts Payable';
   }
 
   onPaymentAmountInput(event: Event): void {
@@ -1903,7 +1689,7 @@ export class ReceiptsListComponent implements OnInit, OnChanges, OnDestroy {
       return;
     }
     if (!this.selectedPaymentChartOfAccountId) {
-      this.toastr.warning('Please select an accounts payable account');
+      this.toastr.warning('Please select a bank account');
       return;
     }
     if (!this.utilityService.toDateOnlyJsonString(this.paymentDate)) {
@@ -1968,6 +1754,7 @@ export class ReceiptsListComponent implements OnInit, OnChanges, OnDestroy {
             paymentDate:
               this.utilityService.toDateOnlyJsonString(this.paymentDate) ?? this.utilityService.todayAsCalendarDateString(),
             chartOfAccountId: this.selectedPaymentChartOfAccountId!,
+            paymentTypeId: this.selectedPaymentTypeId,
             description: paymentDescription,
             amount: paidAmount,
             bills: [billId]
@@ -1980,7 +1767,6 @@ export class ReceiptsListComponent implements OnInit, OnChanges, OnDestroy {
         finalize(() => {
           this.isSubmittingPayment = false;
           this.clearPaymentForm();
-          this.loadReceiptsForCurrentSearchCriteria(true);
           if (appliedPaymentCount > 0) {
             this.journalEntriesChanged.emit();
           }
@@ -1988,8 +1774,12 @@ export class ReceiptsListComponent implements OnInit, OnChanges, OnDestroy {
         })
       )
       .subscribe({
-        next: ({ paidAmount }) => {
+        next: ({ response, paidAmount }) => {
           appliedPaymentCount++;
+          const updatedBills = response?.bills ?? [];
+          updatedBills.forEach(bill => {
+            this.syncReceiptRowFromServer(this.mappingService.mapReceiptResponse(bill));
+          });
           this.toastr.success(`Payment of $${this.formatter.currency(paidAmount)} applied`, CommonMessage.Success);
           this.markViewForCheck();
         },
@@ -2004,7 +1794,7 @@ export class ReceiptsListComponent implements OnInit, OnChanges, OnDestroy {
     this.showPaymentForm = false;
     this.isManualApplyMode = false;
     this.selectedPaymentChartOfAccountId = null;
-    this.paymentTransactionType = '';
+    this.selectedPaymentTypeId = PaymentType.Check;
     this.paymentDescription = '';
     this.paymentDate = new Date();
     this.paymentAmount = 0;
