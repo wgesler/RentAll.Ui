@@ -1,4 +1,5 @@
 import { CommonModule } from '@angular/common';
+import { SelectionModel } from '@angular/cdk/collections';
 import { ChangeDetectionStrategy, ChangeDetectorRef, Component, EventEmitter, Input, OnChanges, OnDestroy, OnInit, Output, SimpleChanges } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
@@ -69,11 +70,13 @@ export class ReceiptsListComponent implements OnInit, OnChanges, OnDestroy {
   bankCardOptionsByOfficeId = new Map<number, Array<{ bankCardId: number; label: string }>>();
   vendorOptionsByOfficeId = new Map<number, Array<{ contactId: string; label: string }>>();
   chartOfAccountsByOfficeId = new Map<number, Map<number, ChartOfAccountResponse>>();
-  creditCostCodes: { value: number; label: string }[] = [];
+  paymentChartOfAccounts: { value: number; label: string }[] = [];
 
   showPaymentForm: boolean = false;
+  showBillSelections = false;
+  selectedBillReceiptIds = new Set<number>();
   isManualApplyMode: boolean = false;
-  selectedPaymentCostCodeId: number | null = null;
+  selectedPaymentChartOfAccountId: number | null = null;
   paymentTransactionType: string = '';
   paymentDescription: string = '';
   paymentDate: Date | null = new Date();
@@ -122,8 +125,7 @@ export class ReceiptsListComponent implements OnInit, OnChanges, OnDestroy {
     created: { displayAs: 'Created', maxWidth: '15ch', alignment: 'center' },
     amountDisplay: { displayAs: 'Amount', maxWidth: '15ch', alignment: 'right', headerAlignment: 'right', sort: false },
     paidAmount: { displayAs: 'Paid', maxWidth: '15ch', alignment: 'right', headerAlignment: 'right', sort: false },
-    dueAmount: { displayAs: 'Due', maxWidth: '15ch', alignment: 'right', headerAlignment: 'right', sort: false },
-    applyAmount: { displayAs: 'Apply', maxWidth: '20ch', alignment: 'right', headerAlignment: 'right', sort: false }
+    dueAmount: { displayAs: 'Due', maxWidth: '15ch', alignment: 'right', headerAlignment: 'right', sort: false }
   };
 
   readonly accountingNonBillReceiptDisplayedColumns: ColumnSet = {
@@ -148,11 +150,15 @@ export class ReceiptsListComponent implements OnInit, OnChanges, OnDestroy {
     const accountingColumns = this.accountingListMode === 'receipts'
       ? this.accountingNonBillReceiptDisplayedColumns
       : this.accountingReceiptDisplayedColumns;
-    if (!this.isManualApplyMode) {
+    if (this.accountingListMode === 'bills' || !this.isManualApplyMode) {
       const { applyAmount, ...columnsWithoutApply } = accountingColumns;
       return columnsWithoutApply;
     }
     return accountingColumns;
+  }
+
+  get showBillsTableSelections(): boolean {
+    return this.embeddedInAccounting && this.accountingListMode === 'bills' && this.showBillSelections;
   }
 
   constructor(
@@ -839,6 +845,11 @@ export class ReceiptsListComponent implements OnInit, OnChanges, OnDestroy {
           this.manualApplyEditableReceiptId == null || this.manualApplyEditableReceiptId === receipt.receiptId;
         return {
           ...receipt,
+          selected: this.showBillSelections && this.selectedBillReceiptIds.has(receipt.receiptId),
+          disabled:
+            this.showBillSelections &&
+            this.accountingListMode === 'bills' &&
+            this.roundCurrencyValue(Number(receipt.dueAmountValue ?? 0)) <= 0,
           applyAmountValue,
           applyAmountDisplay: this.isManualApplyMode
             ? (applyAmountValue < 0
@@ -858,6 +869,7 @@ export class ReceiptsListComponent implements OnInit, OnChanges, OnDestroy {
     if (this.usesMaintenanceSearch()) {
       this.receiptsDisplay = filtered;
       this.focusPendingApplyAmountInput();
+      this.markViewForCheck();
       return;
     }
 
@@ -865,6 +877,7 @@ export class ReceiptsListComponent implements OnInit, OnChanges, OnDestroy {
       ? filtered
       : filtered.filter(receipt => receipt.isActive !== false);
     this.focusPendingApplyAmountInput();
+    this.markViewForCheck();
   }
 
   filterAccountingReceiptsByMode(receipts: ReceiptDisplayList[]): ReceiptDisplayList[] {
@@ -1363,7 +1376,6 @@ export class ReceiptsListComponent implements OnInit, OnChanges, OnDestroy {
   loadChartOfAccountsForAccounting(): void {
     if (!this.embeddedInAccounting) {
       this.chartOfAccountsByOfficeId.clear();
-      this.creditCostCodes = [];
       return;
     }
 
@@ -1374,7 +1386,7 @@ export class ReceiptsListComponent implements OnInit, OnChanges, OnDestroy {
       takeUntil(this.destroy$)
     ).subscribe(() => {
       this.refreshChartOfAccountsLookups();
-      this.refreshPaymentCostCodesForResolvedOffice();
+      this.refreshPaymentChartOfAccountsForResolvedOffice();
       this.applyAccountDisplayToDisplays();
       this.applyFilters();
       this.markViewForCheck();
@@ -1677,15 +1689,56 @@ export class ReceiptsListComponent implements OnInit, OnChanges, OnDestroy {
     return this.manualApplyEditableReceiptId != null;
   }
 
+  get isBillSelectionPaymentMode(): boolean {
+    return this.showPaymentForm && this.showBillsTableSelections && !this.isRowScopedPaymentMode;
+  }
+
+  getReceiptDueAmountValue(receiptId: number): number {
+    const receipt =
+      this.allReceipts.find(row => row.receiptId === receiptId) ??
+      this.receiptsDisplay.find(row => row.receiptId === receiptId);
+    return this.roundCurrencyValue(Number(receipt?.dueAmountValue ?? 0));
+  }
+
+  formatPaymentAmountDisplay(amount: number): string {
+    return amount < 0
+      ? '-$' + this.formatter.currency(-amount)
+      : '$' + this.formatter.currency(amount);
+  }
+
+  syncPaymentAmountFromBillSelection(): void {
+    let totalDue = 0;
+
+    this.receiptsDisplay.forEach(row => {
+      const isSelected = this.selectedBillReceiptIds.has(row.receiptId);
+      row.selected = isSelected;
+      const dueAmount = isSelected ? this.getReceiptDueAmountValue(row.receiptId) : 0;
+      (row as ReceiptDisplayList & { applyAmountValue?: number }).applyAmountValue = dueAmount;
+      if (isSelected) {
+        totalDue = this.roundCurrencyValue(totalDue + dueAmount);
+      }
+    });
+
+    this.allReceipts.forEach(receipt => {
+      const isSelected = this.selectedBillReceiptIds.has(receipt.receiptId);
+      (receipt as ReceiptDisplayList & { applyAmountValue?: number }).applyAmountValue = isSelected
+        ? this.getReceiptDueAmountValue(receipt.receiptId)
+        : 0;
+    });
+
+    this.paymentAmount = totalDue;
+    this.paymentAmountDisplay = this.formatPaymentAmountDisplay(totalDue);
+  }
+
   get isPaymentFormValid(): boolean {
     const hasPaymentDate = this.utilityService.toDateOnlyJsonString(this.paymentDate) !== null;
-    const baseValid = hasPaymentDate && !!this.selectedPaymentCostCodeId && this.paymentAmount !== 0;
+    const baseValid = hasPaymentDate && !!this.selectedPaymentChartOfAccountId && this.paymentAmount !== 0;
 
     if (this.isRowScopedPaymentMode) {
       return baseValid;
     }
 
-    if (this.isManualApplyMode) {
+    if (this.isManualApplyMode && this.accountingListMode !== 'bills') {
       return baseValid && this.isRemainingAmountZero();
     }
 
@@ -1723,18 +1776,18 @@ export class ReceiptsListComponent implements OnInit, OnChanges, OnDestroy {
     this.remainingAmountDisplay = '$' + this.formatter.currency(this.remainingAmount);
   }
 
-  refreshPaymentCostCodesForResolvedOffice(): void {
+  refreshPaymentChartOfAccountsForResolvedOffice(): void {
     const officeId = this.resolvedPaymentOfficeId;
     if (!officeId) {
-      this.creditCostCodes = [];
-      if (this.selectedPaymentCostCodeId != null) {
-        this.selectedPaymentCostCodeId = null;
+      this.paymentChartOfAccounts = [];
+      if (this.selectedPaymentChartOfAccountId != null) {
+        this.selectedPaymentChartOfAccountId = null;
         this.paymentTransactionType = '';
       }
       return;
     }
 
-    this.creditCostCodes = (this.chartOfAccountsService.getChartOfAccountsForOffice(officeId) || [])
+    this.paymentChartOfAccounts = (this.chartOfAccountsService.getChartOfAccountsForOffice(officeId) || [])
       .filter(account => Number(account.accountTypeId) === AccountType.AccountsPayable)
       .sort((left, right) => {
         const leftLabel = `${left.accountNo || ''} ${left.name || ''}`.trim();
@@ -1747,17 +1800,17 @@ export class ReceiptsListComponent implements OnInit, OnChanges, OnDestroy {
       }));
 
     if (
-      this.selectedPaymentCostCodeId != null &&
-      !this.creditCostCodes.some(c => c.value === this.selectedPaymentCostCodeId)
+      this.selectedPaymentChartOfAccountId != null &&
+      !this.paymentChartOfAccounts.some(account => account.value === this.selectedPaymentChartOfAccountId)
     ) {
-      this.selectedPaymentCostCodeId = null;
+      this.selectedPaymentChartOfAccountId = null;
       this.paymentTransactionType = '';
     }
   }
 
-  onPaymentCostCodeChange(costCodeId: number | null): void {
-    this.selectedPaymentCostCodeId = costCodeId;
-    if (costCodeId === null) {
+  onPaymentChartOfAccountChange(accountId: number | null): void {
+    this.selectedPaymentChartOfAccountId = accountId;
+    if (accountId === null) {
       this.paymentTransactionType = '';
       return;
     }
@@ -1812,6 +1865,7 @@ export class ReceiptsListComponent implements OnInit, OnChanges, OnDestroy {
 
     if (!isRowScopedApply) {
       this.paymentOfficeId = null;
+      this.showBillSelections = true;
       if (!this.officeId) {
         this.toastr.warning('Please select an office first');
         return;
@@ -1826,25 +1880,29 @@ export class ReceiptsListComponent implements OnInit, OnChanges, OnDestroy {
     this.manualApplyEditableReceiptId = targetReceiptId;
     this.isManualApplyMode = true;
     this.paymentDate = this.paymentDate ?? new Date();
-    this.refreshPaymentCostCodesForResolvedOffice();
+    this.refreshPaymentChartOfAccountsForResolvedOffice();
     this.updateRemainingAmount();
     this.showPaymentForm = true;
     this.applyFilters();
     this.syncRowApplyAmountFromDialog();
     this.focusPendingApplyAmountInput();
+    this.markViewForCheck();
   }
 
   cancelPaymentForm(): void {
     this.showPaymentForm = false;
     this.isManualApplyMode = false;
+    this.showBillSelections = false;
     this.clearPaymentForm();
+    this.applyFilters();
+    this.markViewForCheck();
   }
 
   submitPayment(): void {
     if (this.isSubmittingPayment) {
       return;
     }
-    if (!this.selectedPaymentCostCodeId) {
+    if (!this.selectedPaymentChartOfAccountId) {
       this.toastr.warning('Please select an accounts payable account');
       return;
     }
@@ -1874,7 +1932,11 @@ export class ReceiptsListComponent implements OnInit, OnChanges, OnDestroy {
       return;
     }
 
-    if (!this.isRowScopedPaymentMode && !this.isRemainingAmountZero()) {
+    if (
+      this.accountingListMode !== 'bills' &&
+      !this.isRowScopedPaymentMode &&
+      !this.isRemainingAmountZero()
+    ) {
       this.toastr.warning(
         `Remaining amount must be $0.00 before submitting. Current remaining: ${this.remainingAmountDisplay}`
       );
@@ -1898,13 +1960,14 @@ export class ReceiptsListComponent implements OnInit, OnChanges, OnDestroy {
     }
 
     this.isSubmittingPayment = true;
+    let appliedPaymentCount = 0;
     from(paymentData)
       .pipe(
         concatMap(({ billId, paidAmount }) => {
           const paymentRequest: BillPaymentRequest = {
             paymentDate:
               this.utilityService.toDateOnlyJsonString(this.paymentDate) ?? this.utilityService.todayAsCalendarDateString(),
-            costCodeId: this.selectedPaymentCostCodeId!,
+            chartOfAccountId: this.selectedPaymentChartOfAccountId!,
             description: paymentDescription,
             amount: paidAmount,
             bills: [billId]
@@ -1918,11 +1981,15 @@ export class ReceiptsListComponent implements OnInit, OnChanges, OnDestroy {
           this.isSubmittingPayment = false;
           this.clearPaymentForm();
           this.loadReceiptsForCurrentSearchCriteria(true);
+          if (appliedPaymentCount > 0) {
+            this.journalEntriesChanged.emit();
+          }
           this.markViewForCheck();
         })
       )
       .subscribe({
         next: ({ paidAmount }) => {
+          appliedPaymentCount++;
           this.toastr.success(`Payment of $${this.formatter.currency(paidAmount)} applied`, CommonMessage.Success);
           this.markViewForCheck();
         },
@@ -1936,7 +2003,7 @@ export class ReceiptsListComponent implements OnInit, OnChanges, OnDestroy {
   clearPaymentForm(): void {
     this.showPaymentForm = false;
     this.isManualApplyMode = false;
-    this.selectedPaymentCostCodeId = null;
+    this.selectedPaymentChartOfAccountId = null;
     this.paymentTransactionType = '';
     this.paymentDescription = '';
     this.paymentDate = new Date();
@@ -1947,6 +2014,7 @@ export class ReceiptsListComponent implements OnInit, OnChanges, OnDestroy {
     this.paymentTargetInvoiceId = null;
     this.manualApplyEditableReceiptId = null;
     this.pendingApplyAmountFocusReceiptId = null;
+    this.selectedBillReceiptIds.clear();
     this.receiptsDisplay.forEach(receipt => {
       (receipt as any).applyAmountValue = 0;
       (receipt as any).applyAmount = '';
@@ -1989,6 +2057,50 @@ export class ReceiptsListComponent implements OnInit, OnChanges, OnDestroy {
   onApplyAmountEnter(_receipt: ReceiptDisplayList, event: Event): void {
     const input = event.target as HTMLInputElement;
     input.blur();
+  }
+
+  onBillSelectionSet(selection: SelectionModel<unknown>): void {
+    if (!this.showBillsTableSelections) {
+      return;
+    }
+
+    const selectedRows = (selection?.selected ?? []) as ReceiptDisplayList[];
+    let nextSelectedIds: Set<number>;
+
+    if (selectedRows.length > 0) {
+      nextSelectedIds = new Set(
+        selectedRows
+          .map(row => Number(row.receiptId))
+          .filter(receiptId => Number.isFinite(receiptId) && receiptId > 0)
+      );
+    } else {
+      const idsFromDisplay = this.receiptsDisplay
+        .filter(row => row.selected && row.receiptId)
+        .map(row => Number(row.receiptId));
+      nextSelectedIds = idsFromDisplay.length > 0 ? new Set(idsFromDisplay) : new Set<number>();
+    }
+
+    for (const receiptId of [...nextSelectedIds]) {
+      if (this.getReceiptDueAmountValue(receiptId) <= 0) {
+        nextSelectedIds.delete(receiptId);
+        const row = this.receiptsDisplay.find(receipt => receipt.receiptId === receiptId);
+        if (row) {
+          row.selected = false;
+        }
+      }
+    }
+
+    this.selectedBillReceiptIds = nextSelectedIds;
+
+    if (this.isBillSelectionPaymentMode) {
+      this.syncPaymentAmountFromBillSelection();
+    } else {
+      this.receiptsDisplay.forEach(row => {
+        row.selected = this.selectedBillReceiptIds.has(row.receiptId);
+      });
+    }
+
+    this.markViewForCheck();
   }
 
   syncRowApplyAmountFromDialog(): void {

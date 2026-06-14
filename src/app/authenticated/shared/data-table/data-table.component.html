@@ -219,11 +219,15 @@
                     {{item[column.name]}}
                   </span>
                   } @case ('contactName') {
-                  <span (click)="onContactClick($event, item)"
-                    class="text-blue-700 underline cursor-pointer"
-                    id="table-contact-link-{{templateTableId}}-{{i}}">
+                  @if (hasContactNameLink) {
+                    <span (click)="onContactClick($event, item)"
+                      class="text-blue-700 underline cursor-pointer"
+                      id="table-contact-link-{{templateTableId}}-{{i}}">
+                      {{item[column.name]}}
+                    </span>
+                  } @else {
                     {{item[column.name]}}
-                  </span>
+                  }
                   } @case ('contact') {
                   <span (click)="onContactClick($event, item)"
                     class="text-blue-700 underline cursor-pointer"

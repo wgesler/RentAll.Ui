@@ -22,8 +22,11 @@ export interface JournalEntryLineSearchResponse {
   chartOfAccountId: number;
   costCodeId?: number | null;
   propertyId?: string | null;
+  propertyCode?: string | null;
   reservationId?: string | null;
+  reservationCode?: string | null;
   contactId?: string | null;
+  contactName?: string | null;
   debit: number;
   credit: number;
   memo?: string | null;
@@ -74,8 +77,11 @@ export interface JournalEntryLineResponse {
   chartOfAccountId: number;
   costCodeId?: number | null;
   propertyId?: string | null;
+  propertyCode?: string | null;
   reservationId?: string | null;
+  reservationCode?: string | null;
   contactId?: string | null;
+  contactName?: string | null;
   debit: number;
   credit: number;
   memo?: string | null;
@@ -111,6 +117,9 @@ export interface JournalEntryLineListDisplay {
   transactionDate: string;
   journalEntryCode: string;
   source: string;
+  propertyCode: string;
+  reservationCode: string;
+  contactName: string;
   account: string;
   description: string;
   debit: string;
@@ -129,6 +138,9 @@ export interface JournalEntryLineDetailDisplay {
   chartOfAccountId: number;
   accountNo: string;
   accountName: string;
+  propertyCode: string;
+  reservationCode: string;
+  contactName: string;
   costCodeLabel: string;
   debit: string;
   credit: string;

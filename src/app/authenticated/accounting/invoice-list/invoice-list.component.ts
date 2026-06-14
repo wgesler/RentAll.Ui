@@ -1617,6 +1617,7 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
     });
 
     this.isSubmittingPayment = true;
+    let appliedPaymentCount = 0;
 
     // Execute payments sequentially using concatMap
     from(paymentData).pipe(
@@ -1633,10 +1634,14 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
         this.loadInvoicesForCurrentSearchCriteria(true);
         // Refresh the display to show updated paid amounts
         this.applyFilters();
+        if (appliedPaymentCount > 0) {
+          this.journalEntriesChanged.emit();
+        }
         this.markViewForCheck();
       })
     ).subscribe({
       next: ({ response, paymentRequest, invoice }) => {
+        appliedPaymentCount++;
         // Update invoice data from response
         response.invoices.forEach(i => {
           const invoiceToUpdate = this.allInvoices.find(r => r.invoiceId === i.invoiceId);
@@ -1807,6 +1812,7 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
     // Refresh the display to show updated paid amounts
     this.applyFilters();
     this.loadInvoicesForCurrentSearchCriteria(true);
+    this.journalEntriesChanged.emit();
   }
   //#endregion
 

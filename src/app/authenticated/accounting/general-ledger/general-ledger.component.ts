@@ -51,6 +51,9 @@ export class GeneralLedgerComponent implements OnInit, OnDestroy, OnChanges {
   lineDisplayedColumns: ColumnSet = {
     accountNo: { displayAs: 'Account No', maxWidth: '12ch' },
     accountName: { displayAs: 'Account', maxWidth: '24ch' },
+    propertyCode: { displayAs: 'Property', maxWidth: '15ch' },
+    reservationCode: { displayAs: 'Reservation', maxWidth: '15ch' },
+    contactName: { displayAs: 'Contact', maxWidth: '20ch' },
     costCodeLabel: { displayAs: 'Cost Code', maxWidth: '24ch' },
     debit: { displayAs: 'Debit', maxWidth: '14ch', alignment: 'right' },
     credit: { displayAs: 'Credit', maxWidth: '14ch', alignment: 'right' },

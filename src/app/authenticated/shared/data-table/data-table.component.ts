@@ -155,6 +155,7 @@ export class DataTableComponent implements OnChanges, OnInit, AfterViewInit, OnD
   @Input() suppressRowClickOnDropdownCells: boolean = true;
   @Input() hasPropertyCodeLink: boolean = false;
   @Input() hasReservationCodeLink: boolean = false;
+  @Input() hasContactNameLink: boolean = true;
   @Input() hasWorkOrderCodeLink: boolean = false;
   @Input() subheaderLabel: string = '';
   /** When true, clicking the subheader label toggles visibility of the table body. */
@@ -403,12 +404,12 @@ export class DataTableComponent implements OnChanges, OnInit, AfterViewInit, OnD
   ngOnChanges(changes: SimpleChanges): void {
     let updateActions, updateTools, updateColumns, updateData, updateFilter;
     for (const key in changes) {
-      if (!updateActions && ['hasActions'].some(prefix => key.startsWith(prefix))) {
+      if (!updateColumns && (key === 'columns' || key.startsWith('hasColumn') || key === 'hasActionsSelect' || key === 'hasButtonSelectAll')) {
+        updateColumns = true;
+      } else if (!updateActions && ['hasActions'].some(prefix => key.startsWith(prefix))) {
         updateActions = true;
       } else if (!updateTools && ['hasButton', 'hasFilter', 'hasToggle'].some(prefix => key.startsWith(prefix))) {
         updateTools = true;
-      } else if (!updateColumns && (key === 'columns' || key.startsWith('hasColumn') || key === 'hasActionsSelect' || key === 'hasButtonSelectAll')) {
-        updateColumns = true;
       } else if (key === 'data') {
         updateData = true;
       }
@@ -668,6 +669,15 @@ export class DataTableComponent implements OnChanges, OnInit, AfterViewInit, OnD
   }
 
   emitSelectEvent(event: MatCheckboxChange, rowItem: PurposefulAny): void {
+    if (event.checked && (rowItem?.disabled || rowItem?.updating)) {
+      rowItem.selected = false;
+      if (this.hasButtonSelectAll) {
+        this.selection.deselect(rowItem);
+        this.isAllSelected = this.setIsAllSelected();
+      }
+      return;
+    }
+
     rowItem.selected = event.checked;
     if (this.hasButtonSelectAll) {
       event.checked ? this.selection.select(rowItem) : this.selection.deselect(rowItem);
@@ -1380,9 +1390,11 @@ export class DataTableComponent implements OnChanges, OnInit, AfterViewInit, OnD
   }
 
   setIsAllSelected(): boolean {
-    const numSelected = this.selection.selected.length;
-    const numRows = this.paginator.pageSize;
-    return numSelected === numRows;
+    const selectableItems = this.getCurrentPageItems().filter(item => !item?.disabled && !item?.updating);
+    if (selectableItems.length === 0) {
+      return false;
+    }
+    return selectableItems.every(item => !!item?.selected);
   }
 
   toggleAllRows(event: MatCheckboxChange): void {
@@ -1390,11 +1402,18 @@ export class DataTableComponent implements OnChanges, OnInit, AfterViewInit, OnD
     if (this.isAllSelected) {
       this.selection.clear();
       this.selectAllToolTip = 'Select all visible checks';
-    } else {
-      this.selection.select(...currentPageItems);
-      this.selectAllToolTip = 'Unselect all visible checks';
+      currentPageItems.forEach((i) => { this.emitSelectEvent({ ...event, checked: false }, i); });
+      return;
     }
-    currentPageItems.forEach((i) => { this.emitSelectEvent(event, i) });
+
+    const selectableItems = currentPageItems.filter(item => !item?.disabled && !item?.updating);
+    this.selection.clear();
+    this.selection.select(...selectableItems);
+    this.selectAllToolTip = 'Unselect all visible checks';
+    currentPageItems.forEach((i) => {
+      const checked = !i?.disabled && !i?.updating;
+      this.emitSelectEvent({ ...event, checked }, i);
+    });
   }
 
   getCurrentPageItems(): PurposefulAny[] {

@@ -604,6 +604,9 @@ export class MappingService {
     return {
       ...base,
       journalEntryCode: String(raw['journalEntryCode'] ?? raw['JournalEntryCode'] ?? base.journalEntryCode ?? ''),
+      propertyCode: String(raw['propertyCode'] ?? raw['PropertyCode'] ?? base.propertyCode ?? '').trim() || null,
+      reservationCode: String(raw['reservationCode'] ?? raw['ReservationCode'] ?? base.reservationCode ?? '').trim() || null,
+      contactName: String(raw['contactName'] ?? raw['ContactName'] ?? base.contactName ?? '').trim() || null,
       transactionDate: this.utility.coerceCalendarDateStringFromApi(raw['transactionDate'] ?? raw['TransactionDate'] ?? base.transactionDate) ?? base.transactionDate ?? '',
       postingDate: this.utility.coerceCalendarDateStringFromApi(raw['postingDate'] ?? raw['PostingDate'] ?? base.postingDate) ?? base.postingDate ?? ''
     };
@@ -622,7 +625,13 @@ export class MappingService {
   }
 
   mapJournalEntryLineResponse(raw: Record<string, unknown>): JournalEntryLineResponse {
-    return raw as unknown as JournalEntryLineResponse;
+    const base = raw as unknown as JournalEntryLineResponse;
+    return {
+      ...base,
+      propertyCode: String(raw['propertyCode'] ?? raw['PropertyCode'] ?? base.propertyCode ?? '').trim() || null,
+      reservationCode: String(raw['reservationCode'] ?? raw['ReservationCode'] ?? base.reservationCode ?? '').trim() || null,
+      contactName: String(raw['contactName'] ?? raw['ContactName'] ?? base.contactName ?? '').trim() || null
+    };
   }
 
   mapJournalEntryLineListDisplay(
@@ -670,6 +679,9 @@ export class MappingService {
         transactionDate: this.formatter.formatDateString(transactionDate),
         journalEntryCode: (line.journalEntryCode || '').trim(),
         source: getSourceTypeLabel(line.sourceTypeId, sourceTypes),
+        propertyCode: (line.propertyCode || '').trim(),
+        reservationCode: (line.reservationCode || '').trim(),
+        contactName: (line.contactName || '').trim(),
         account: accountLabel,
         description,
         debit: debitValue ? this.formatter.currency(debitValue) : '',
@@ -705,6 +717,9 @@ export class MappingService {
         chartOfAccountId: line.chartOfAccountId,
         accountNo: account?.accountNo || String(line.chartOfAccountId),
         accountName: account?.name || '',
+        propertyCode: (line.propertyCode || '').trim(),
+        reservationCode: (line.reservationCode || '').trim(),
+        contactName: (line.contactName || '').trim(),
         costCodeLabel: costCode ? `${costCode.costCode} - ${costCode.description}` : '',
         debit: debitValue ? this.formatter.currency(debitValue) : '',
         credit: creditValue ? this.formatter.currency(creditValue) : '',

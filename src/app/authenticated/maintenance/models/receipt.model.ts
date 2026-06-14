@@ -125,6 +125,7 @@ export interface ReceiptDisplayList {
   dueAmount?: string;
   paidAmountValue?: number;
   dueAmountValue?: number;
+  selected?: boolean;
   applyAmount?: string;
   applyAmountValue?: number;
   applyAmountDisplay?: string;
@@ -143,7 +144,7 @@ export interface ReceiptSelection {
 
 export interface BillPaymentRequest {
   paymentDate: CalendarDateString;
-  costCodeId: number;
+  chartOfAccountId: number;
   description: string;
   amount: number;
   bills: number[];
