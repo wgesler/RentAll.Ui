@@ -5,6 +5,13 @@
   font-style: italic;
 }
 
+.journal-entry-sync-btn {
+  flex-shrink: 0;
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 1;
+}
+
 .accounting-list-tabs {
   ::ng-deep {
     .mat-mdc-tab-header {

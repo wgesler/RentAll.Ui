@@ -42,6 +42,22 @@
         (inlineEditChangeEvent)="onReceiptInlineEditChange($event)">
         <div dataTableFilterActions>
           <div class="table-filter-actions-group form-titlebar-actions-wrap uniform-gap payment-actions-anchor">
+            @if (embeddedInAccounting && accountingListMode === 'bills' && journalEntrySyncToolsEnabled) {
+              <button mat-mini-fab type="button" color="primary" id="sync-bill-journal-entries-button" matTooltip="Sync journal entries" aria-label="Sync journal entries" (click)="syncBillJournalEntries()" [disabled]="isJournalEntrySyncInProgress" class="journal-entry-sync-btn">
+                S
+              </button>
+              <button mat-mini-fab type="button" color="warn" id="clear-bill-journal-entries-button" matTooltip="Clear journal entries" aria-label="Clear journal entries" (click)="clearBillJournalEntries()" [disabled]="isJournalEntrySyncInProgress" class="journal-entry-sync-btn">
+                C
+              </button>
+            }
+            @if (embeddedInAccounting && accountingListMode === 'receipts' && journalEntrySyncToolsEnabled) {
+              <button mat-mini-fab type="button" color="primary" id="sync-receipt-journal-entries-button" matTooltip="Sync journal entries" aria-label="Sync journal entries" (click)="syncReceiptJournalEntries()" [disabled]="isJournalEntrySyncInProgress" class="journal-entry-sync-btn">
+                S
+              </button>
+              <button mat-mini-fab type="button" color="warn" id="clear-receipt-journal-entries-button" matTooltip="Clear journal entries" aria-label="Clear journal entries" (click)="clearReceiptJournalEntries()" [disabled]="isJournalEntrySyncInProgress" class="journal-entry-sync-btn">
+                C
+              </button>
+            }
             <mat-slide-toggle [checked]="showInactive" color="primary" (change)="toggleInactive()">
               InActive
             </mat-slide-toggle>

@@ -1,536 +1,315 @@
-
 import { CommonModule } from '@angular/common';
-import { Component, EventEmitter, Input, OnChanges, OnDestroy, OnInit, Output, SimpleChanges } from '@angular/core';
-import { FormsModule } from '@angular/forms';
-import { Subject, Subscription, BehaviorSubject, filter, finalize, skip, switchMap, take, takeUntil } from 'rxjs';
+import { ChangeDetectionStrategy, ChangeDetectorRef, Component, EventEmitter, Input, OnChanges, OnDestroy, OnInit, Output, SimpleChanges } from '@angular/core';
+import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
+import { HttpErrorResponse } from '@angular/common/http';
+import { ToastrService } from 'ngx-toastr';
+import { BehaviorSubject, Subject, finalize, filter, switchMap, take, takeUntil } from 'rxjs';
+import { of } from 'rxjs';
 import { AuthService } from '../../../services/auth.service';
 import { MaterialModule } from '../../../material.module';
-import { GlobalSelectionService } from '../../organizations/services/global-selection.service';
 import { FormatterService } from '../../../services/formatter-service';
 import { MappingService } from '../../../services/mapping.service';
-import { OfficeResponse } from '../../organizations/models/office.model';
-import { OfficeService } from '../../organizations/services/office.service';
-import { ReservationListResponse } from '../../reservations/models/reservation-model';
-import { ReservationService } from '../../reservations/services/reservation.service';
-import { DataTableComponent } from '../../shared/data-table/data-table.component';
-import { DataTableFilterActionsDirective } from '../../shared/data-table/data-table-filter-actions.directive';
-import { ColumnSet } from '../../shared/data-table/models/column-data';
-import { ContactResponse } from '../../contacts/models/contact.model';
-import { ContactService } from '../../contacts/services/contact.service';
-import { CostCodesResponse } from '../models/cost-codes.model';
-import { TransactionType } from '../models/accounting-enum';
-import { InvoiceResponse } from '../models/invoice.model';
-import { InvoiceService } from '../services/invoice.service';
-import { CostCodesService } from '../services/cost-codes.service';
 import { UtilityService } from '../../../services/utility.service';
-
-interface GeneralLedgerDisplayRow {
-  officeName: string;
-  reservationCode: string;
-  invoiceCode: string;
-  date: string;
-  description: string;
-  debit: string;
-  credit: string;
-  total: string;
-  sortDateValue: number;
-  debitValue: number;
-  creditValue: number;
-  totalValue: number;
-}
-
-interface LedgerLineWithDateFields {
-  costCodeId?: number;
-  transactionTypeId?: number;
-  amount?: number;
-  transactionDate?: string;
-  createdOn?: string;
-  modifiedOn?: string;
-}
+import { DataTableComponent } from '../../shared/data-table/data-table.component';
+import { ColumnSet } from '../../shared/data-table/models/column-data';
+import { SourceTypeLabels, getSourceTypeLabel } from '../models/accounting-enum';
+import { ChartOfAccountResponse } from '../models/chart-of-accounts.model';
+import { CostCodesResponse } from '../models/cost-codes.model';
+import { JournalEntryLineDetailDisplay, JournalEntryRequest, JournalEntryResponse } from '../models/journal-entry.model';
+import { ChartOfAccountsService } from '../services/chart-of-accounts.service';
+import { CostCodesService } from '../services/cost-codes.service';
+import { GeneralLedgerService } from '../services/general-ledger.service';
 
 @Component({
-    selector: 'app-general-ledger',
-    standalone: true,
-    imports: [CommonModule, MaterialModule, FormsModule, DataTableComponent, DataTableFilterActionsDirective],
-    templateUrl: './general-ledger.component.html',
-    styleUrls: ['./general-ledger.component.scss']
+  selector: 'app-general-ledger',
+  standalone: true,
+  imports: [CommonModule, MaterialModule, ReactiveFormsModule, DataTableComponent],
+  templateUrl: './general-ledger.component.html',
+  styleUrls: ['./general-ledger.component.scss'],
+  changeDetection: ChangeDetectionStrategy.OnPush
 })
-export class GeneralLedgerComponent implements OnInit, OnChanges, OnDestroy {
-  @Input() hideFilters: boolean = false;
-  @Input() organizationId: string | null = null; // Input to accept organizationId from parent
-  @Input() companyId: string | null = null; // Input to accept companyId from parent
-  @Input() officeId: number | null = null; // Input to accept officeId from parent
-  @Input() reservationId: string | null = null; // Input to accept reservationId from parent
-  @Output() organizationIdChange = new EventEmitter<string | null>(); // Emit organization changes to parent
-  @Output() officeIdChange = new EventEmitter<number | null>(); // Emit office changes to parent
-  @Output() companyIdChange = new EventEmitter<string | null>(); // Emit company changes to parent
-  @Output() reservationIdChange = new EventEmitter<string | null>(); // Emit reservation changes to parent
-  
-  selectedOfficeId: number | null = null;
-  selectedReservationId: string | null = null;
-  selectedCompanyContact: ContactResponse | null = null;
-  offices: OfficeResponse[] = [];
-  availableOffices: { value: number, name: string }[] = [];
-  reservations: ReservationListResponse[] = [];
-  availableReservations: { value: ReservationListResponse, label: string }[] = [];
-  companyContacts: ContactResponse[] = [];
-  availableCompanyContacts: { value: ContactResponse, label: string }[] = [];
-  invoicesSubscription?: Subscription;
-  costCodesSubscription?: Subscription;
-  allInvoices: InvoiceResponse[] = [];
+export class GeneralLedgerComponent implements OnInit, OnDestroy, OnChanges {
+  @Input() journalEntryId: string | null = null;
+  @Input() selectedJournalEntryLineId: string | null = null;
+  @Output() backEvent = new EventEmitter<void>();
+  @Output() savedEvent = new EventEmitter<void>();
+
+  isServiceError = false;
+  isSaving = false;
+  journalEntry: JournalEntryResponse | null = null;
+  lineRows: JournalEntryLineDetailDisplay[] = [];
+  organizationId = '';
+  chartOfAccounts: ChartOfAccountResponse[] = [];
   costCodes: CostCodesResponse[] = [];
-  ledgerRows: GeneralLedgerDisplayRow[] = [];
-  showInactive: boolean = false;
-  showOfficeDropdown: boolean = false;
-  officeScopeResolved: boolean = false;
-  officesInitialized = false;
-  generalLedgerColumns: ColumnSet = {
-    officeName: { displayAs: 'Office', maxWidth: '16ch' },
-    reservationCode: { displayAs: 'ReservationCode', maxWidth: '18ch', sortType: 'natural' },
-    invoiceCode: { displayAs: 'InvoiceCode', maxWidth: '16ch', sortType: 'natural' },
-    date: { displayAs: 'Date', maxWidth: '20ch' },
-    description: { displayAs: 'Description', maxWidth: '28ch' },
-    debit: { displayAs: 'Debit', maxWidth: '14ch', alignment: 'right', headerAlignment: 'right' },
-    credit: { displayAs: 'Credit', maxWidth: '14ch', alignment: 'right', headerAlignment: 'right' },
-    total: { displayAs: 'Total', maxWidth: '14ch', alignment: 'right', headerAlignment: 'right' }
+
+  form = this.formBuilder.group({
+    postingDate: this.formBuilder.control<Date | null>(null, Validators.required),
+    memo: this.formBuilder.control<string>(''),
+    isPosted: this.formBuilder.control<boolean>(false)
+  });
+
+  lineDisplayedColumns: ColumnSet = {
+    accountNo: { displayAs: 'Account No', maxWidth: '12ch' },
+    accountName: { displayAs: 'Account', maxWidth: '24ch' },
+    costCodeLabel: { displayAs: 'Cost Code', maxWidth: '24ch' },
+    debit: { displayAs: 'Debit', maxWidth: '14ch', alignment: 'right' },
+    credit: { displayAs: 'Credit', maxWidth: '14ch', alignment: 'right' },
+    memo: { displayAs: 'Memo' }
   };
 
   isPageReady = false;
-  itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['reservations', 'companies', 'invoices']));
+  itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['journalEntry', 'referenceData']));
   destroy$ = new Subject<void>();
 
   constructor(
-    private officeService: OfficeService,
-    private mappingService: MappingService,
-    private reservationService: ReservationService,
-    private contactService: ContactService,
-    private accountingService: InvoiceService,
+    public generalLedgerService: GeneralLedgerService,
+    public mappingService: MappingService,
+    public formatter: FormatterService,
+    private formBuilder: FormBuilder,
+    private authService: AuthService,
+    private chartOfAccountsService: ChartOfAccountsService,
     private costCodesService: CostCodesService,
     private utilityService: UtilityService,
-    private formatter: FormatterService,
-    private authService: AuthService,
-    private globalSelectionService: GlobalSelectionService
-  ) {}
+    private toastr: ToastrService,
+    private cdr: ChangeDetectorRef) {
+  }
 
   //#region General-Ledger
   ngOnInit(): void {
-    this.organizationId = this.organizationId || this.authService.getUser()?.organizationId?.trim() || null;
     this.itemsToLoad$.pipe(takeUntil(this.destroy$)).subscribe(items => {
       this.isPageReady = items.size === 0;
+      this.markViewForCheck();
     });
-
-    this.loadOffices();
-    this.loadReservations();
-    this.loadCompanyContacts();
-    this.loadCostCodes();
-
-    if (!this.hideFilters) {
-      this.globalSelectionService.getSelectedOfficeId$().pipe(skip(1), takeUntil(this.destroy$)).subscribe(officeId => {
-        if (this.offices.length > 0) {
-          this.resolveOfficeScope(officeId, true);
-        }
-      });
-    }
-
-    this.officeService.areOfficesLoaded().pipe(filter(loaded => loaded === true), take(1)).subscribe(() => {
-      if (this.officeId !== null && this.officeId !== undefined && this.offices.length > 0) {
-        this.selectedOfficeId = this.officeId;
-      }
-    });
+    this.organizationId = this.authService.getUser()?.organizationId?.trim() ?? '';
+    this.loadReferenceData();
+    this.loadJournalEntry();
   }
 
   ngOnChanges(changes: SimpleChanges): void {
-    if (changes['officeId']) {
-      const newOfficeId = changes['officeId'].currentValue;
-      const previousOfficeId = changes['officeId'].previousValue;
-      
-      if (previousOfficeId === undefined || newOfficeId !== previousOfficeId) {
-        if (this.offices.length > 0) {
-          this.resolveOfficeScope(newOfficeId, false);
-        }
-      }
-    }
-
-    if (changes['reservationId']) {
-      const newReservationId = changes['reservationId'].currentValue;
-      if (this.reservations.length > 0) {
-        this.selectedReservationId = newReservationId;
-      }
-    }
-
-    if (changes['companyId']) {
-      const newCompanyId = changes['companyId'].currentValue;
-      if (this.companyContacts.length > 0) {
-        this.selectedCompanyContact = newCompanyId
-          ? this.companyContacts.find(c => c.contactId === newCompanyId && (!this.selectedOfficeId || c.officeId === this.selectedOfficeId)) || null
-          : null;
-        this.filterReservations();
-      }
+    if (changes['journalEntryId'] && !changes['journalEntryId'].firstChange) {
+      this.loadJournalEntry();
     }
   }
 
-  onAdd(): void {
+  get canEdit(): boolean {
+    return !!this.journalEntry && !this.journalEntry.isVoided;
+  }
+
+  get canSave(): boolean {
+    return this.canEdit && this.form.valid && !this.isSaving;
   }
   //#endregion
 
-  //#region Form Response methods
-  toggleInactive(): void {
-    this.showInactive = !this.showInactive;
-    this.buildGeneralLedgerRows();
+  //#region Get Methods
+  getSourceTypeLabel(): string {
+    return getSourceTypeLabel(this.journalEntry?.sourceTypeId, SourceTypeLabels);
   }
 
-  onTitleBarOfficeIdUpdate(officeId: number | null): void {
-    this.resolveOfficeScope(officeId, false);
+  getTotalDebitDisplay(): string {
+    const total = (this.journalEntry?.journalEntryLines ?? []).reduce((sum, line) => sum + (Number(line.debit) || 0), 0);
+    return this.formatter.currency(total);
   }
 
-  onOfficeChange(): void {
-    if (!this.hideFilters) {
-      this.globalSelectionService.setSelectedOfficeId(this.selectedOfficeId);
-    }
-    this.officeIdChange.emit(this.selectedOfficeId);
-    this.filterCompanyContacts();
-    this.filterReservations();
-    this.selectedReservationId = null;
-    this.reservationIdChange.emit(this.selectedReservationId);
-    this.loadInvoices();
-  }
-
-  onCompanyChange(): void {
-    this.companyIdChange.emit(this.selectedCompanyContact?.contactId || null);
-    this.filterReservations();
-    this.selectedReservationId = null;
-    this.reservationIdChange.emit(this.selectedReservationId);
-    this.buildGeneralLedgerRows();
-  }
-
-  onReservationChange(): void {
-    this.reservationIdChange.emit(this.selectedReservationId);
-    this.buildGeneralLedgerRows();
-  }
-    
-  filterCompanyContacts(): void {
-    const filtered = this.selectedOfficeId
-      ? this.companyContacts.filter(c => c.officeId === this.selectedOfficeId && c.isActive)
-      : this.companyContacts.filter(c => c.isActive);
-
-    this.availableCompanyContacts = filtered.map(c => ({
-      value: c,
-      label: this.utilityService.getCompanyDropdownLabel(c)
-    }));
-
-    if (this.selectedCompanyContact && !filtered.some(c => c.contactId === this.selectedCompanyContact?.contactId)) {
-      this.selectedCompanyContact = null;
-      this.companyIdChange.emit(null);
-    }
-
-    if (this.companyId && !this.selectedCompanyContact) {
-      const matching = filtered.find(c => c.contactId === this.companyId) || null;
-      if (matching) {
-        this.selectedCompanyContact = matching;
-      }
-    }
-  }
-
-  filterReservations(): void {
-    let filteredReservations = this.selectedOfficeId
-      ? this.reservations.filter(r => r.officeId === this.selectedOfficeId)
-      : this.reservations;
-
-    if (this.selectedCompanyContact?.contactId) {
-      const selectedContactId = this.selectedCompanyContact.contactId;
-      filteredReservations = filteredReservations.filter(r => {
-        const reservationAny = r as ReservationListResponse & { entityId?: string | null; EntityId?: string | null; contactId?: string };
-        const reservationEntityId = reservationAny.entityId ?? reservationAny.EntityId ?? reservationAny.contactId ?? null;
-        return reservationEntityId === selectedContactId;
-      });
-    }
-
-    this.availableReservations = filteredReservations.map(r => ({
-      value: r,
-      label: this.utilityService.getReservationDropdownLabel(r, this.companyContacts.find(c => c.contactId === r.contactId) ?? null)
-    }));
-
-    if (this.selectedReservationId && !filteredReservations.some(r => r.reservationId === this.selectedReservationId)) {
-      this.selectedReservationId = null;
-      this.reservationIdChange.emit(null);
-    }
-
-    if (this.reservationId && !this.selectedReservationId) {
-      const matchingReservation = filteredReservations.find(r => r.reservationId === this.reservationId) || null;
-      if (matchingReservation) {
-        this.selectedReservationId = matchingReservation.reservationId;
-      }
-    }
-
-    this.buildGeneralLedgerRows();
-  }
-
-  resolveOfficeScope(officeId: number | null, emitChange: boolean): void {
-    this.selectedOfficeId = this.utilityService.resolveSelectedOfficeById(this.offices, officeId)?.officeId ?? officeId ?? null;
-    this.officeScopeResolved = true;
-    if (emitChange) {
-      this.officeIdChange.emit(this.selectedOfficeId);
-    }
-    this.filterCompanyContacts();
-    this.filterReservations();
-    this.selectedReservationId = null;
-    this.reservationIdChange.emit(this.selectedReservationId);
-    this.loadInvoices();
+  getTotalCreditDisplay(): string {
+    const total = (this.journalEntry?.journalEntryLines ?? []).reduce((sum, line) => sum + (Number(line.credit) || 0), 0);
+    return this.formatter.currency(total);
   }
   //#endregion
 
-  //#region Data Load Methods
-  loadOffices(): void {
-    this.officeService.ensureOfficesLoaded(this.organizationId || '').pipe(take(1)).subscribe({
-      next: () => {
-        this.officeService.getAllOffices().pipe(takeUntil(this.destroy$)).subscribe(offices => {
-          this.offices = offices || [];
-          this.availableOffices = this.mappingService.mapOfficesToDropdown(this.offices);
-          this.globalSelectionService.getOfficeUiState$(this.offices, {
-            explicitOfficeId: this.officeId,
-            useGlobalSelection: this.hideFilters
-          }).pipe(take(1)).subscribe({
-            next: uiState => {
-              this.showOfficeDropdown = this.hideFilters ? false : uiState.showOfficeDropdown;
-              if (!this.officesInitialized) {
-                this.officesInitialized = true;
-                const officeIdToUse = this.hideFilters ? this.officeId : uiState.selectedOfficeId;
-                this.resolveOfficeScope(officeIdToUse ?? null, this.officeId === null || this.officeId === undefined);
-              }
-            }
-          });
-        });
-      },
-      error: () => {
-        this.offices = [];
-        if (!this.officesInitialized) {
-          this.officesInitialized = true;
-          this.resolveOfficeScope(null, false);
-        }
-      }
-    });
-  }
-
-  loadReservations(): void {
-    this.reservationService.getReservationList().pipe(take(1), finalize(() => {this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'reservations');})).subscribe({
-      next: (reservations) => {
-        this.reservations = reservations || [];
-        this.filterReservations();
-        this.buildGeneralLedgerRows();
-      },
-      error: () => {
-        this.reservations = [];
-        this.availableReservations = [];
-      }
-    });
-  }
-
-  loadCompanyContacts(): void {
-    this.contactService.ensureContactsLoaded().pipe(take(1), switchMap(() => this.contactService.getAllCompanyContacts().pipe(take(1))), finalize(() => {
-      this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'companies');
-    })).subscribe({
-      next: contacts => {
-        this.companyContacts = contacts || [];
-        this.filterCompanyContacts();
-        this.buildGeneralLedgerRows();
-      },
-      error: () => {
-        this.companyContacts = [];
-        this.availableCompanyContacts = [];
-      }
-    });
-  }
-
-  loadInvoices(): void {
-    this.invoicesSubscription?.unsubscribe();
-    const officeIds = this.selectedOfficeId
-      ? [this.selectedOfficeId]
-      : (this.offices || []).map(office => office.officeId).filter(id => id > 0);
-
-    if (officeIds.length === 0) {
-      this.allInvoices = [];
-      this.ledgerRows = [];
-      this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'invoices');
+  //#region Save
+  saveJournalEntry(): void {
+    if (!this.journalEntry || !this.canSave) {
       return;
     }
 
-    this.utilityService.addLoadItem(this.itemsToLoad$, 'invoices');
-    this.invoicesSubscription = this.accountingService.searchInvoices({
-      officeIds,
-      includeInactive: true,
-      includePaid: true
-    }).pipe(take(1), finalize(() => {
-      this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'invoices');
-    })).subscribe({
-      next: (invoices) => {
-        this.allInvoices = invoices || [];
-        this.buildGeneralLedgerRows();
+    const request = this.buildUpdateRequest();
+    if (!request) {
+      return;
+    }
+
+    const shouldPost = !!this.form.getRawValue().isPosted;
+    this.isSaving = true;
+    this.markViewForCheck();
+
+    this.generalLedgerService.updateJournalEntry(request).pipe(
+      switchMap(updated => {
+        if (shouldPost && !updated.isPosted) {
+          return this.generalLedgerService.postJournalEntry(updated.journalEntryId);
+        }
+        if (!shouldPost && updated.isPosted) {
+          return this.generalLedgerService.unpostJournalEntry(updated.journalEntryId);
+        }
+        return of(updated);
+      }),
+      finalize(() => {
+        this.isSaving = false;
+        this.markViewForCheck();
+      }),
+      takeUntil(this.destroy$)
+    ).subscribe({
+      next: updatedEntry => {
+        this.journalEntry = updatedEntry;
+        this.syncFormFromJournalEntry();
+        this.applyLineDisplay();
+        this.toastr.success('Journal entry saved.', 'Success');
+        this.savedEvent.emit();
+        this.markViewForCheck();
       },
-      error: () => {
-        this.allInvoices = [];
-        this.ledgerRows = [];
+      error: (error: HttpErrorResponse) => {
+        const apiMessage = typeof error.error === 'string'
+          ? error.error
+          : error.error?.title || error.error?.message || error.message;
+        this.toastr.error(apiMessage || 'Unable to save journal entry.', 'Error');
       }
     });
   }
 
-  loadCostCodes(): void {
-    this.costCodesService.ensureCostCodesLoaded();
-    this.costCodesService.areCostCodesLoaded().pipe(filter(loaded => loaded === true), take(1)).subscribe(() => {
-      this.costCodesSubscription?.unsubscribe();
-      this.costCodesSubscription = this.costCodesService.getAllCostCodes().pipe(take(1)).subscribe(costCodes => {
-        this.costCodes = costCodes || [];
-        this.buildGeneralLedgerRows();
-      });
-    });
-  }
-  //#endregion
-
-  //#region General Ledger Table
-  buildGeneralLedgerRows(): void {
-    const reservationById = new Map(this.reservations.map(r => [r.reservationId, r]));
-    let filteredInvoices = this.allInvoices;
-
-    if (!this.showInactive) {
-      filteredInvoices = filteredInvoices.filter(invoice => invoice.isActive);
-    }
-
-    if (this.selectedCompanyContact?.contactId) {
-      const selectedCompanyName = this.selectedCompanyContact.fullName;
-      filteredInvoices = filteredInvoices.filter(invoice => {
-        if (!invoice.reservationId) {
-          return false;
-        }
-        const reservation = reservationById.get(invoice.reservationId);
-        return reservation?.contactName === selectedCompanyName;
-      });
-    }
-
-    if (this.selectedReservationId) {
-      filteredInvoices = filteredInvoices.filter(invoice => invoice.reservationId === this.selectedReservationId);
-    }
-
-    const lineRows = filteredInvoices.flatMap(invoice => {
-      const reservation = invoice.reservationId ? reservationById.get(invoice.reservationId) : undefined;
-      return (invoice.ledgerLines || []).map(line => {
-        const lineWithDateFields = line as LedgerLineWithDateFields;
-        const isCredit = this.isCreditLine(lineWithDateFields, invoice.officeId);
-        const amount = line.amount || 0;
-        const debitValue = isCredit ? 0 : amount;
-        const creditValue = isCredit ? Math.abs(amount) : 0;
-        const sortDateValue = this.getSortDateValue(invoice, lineWithDateFields);
-        const officeName = invoice.officeName || reservation?.officeName || this.getOfficeName(invoice.officeId);
-        const reservationCode = invoice.reservationCode || reservation?.reservationCode || '-';
-        const invoiceCode = invoice.invoiceCode || '-';
-
-        return {
-          officeName,
-          reservationCode,
-          invoiceCode,
-          sortDateValue,
-          description: line.description || '',
-          debitValue,
-          creditValue,
-          sourceDate: this.getSourceDate(invoice, lineWithDateFields)
-        };
-      });
-    });
-
-    lineRows.sort((a, b) => a.sortDateValue - b.sortDateValue);
-    let runningTotal = 0;
-
-    this.ledgerRows = lineRows.map(row => {
-      runningTotal += row.debitValue - row.creditValue;
-      return {
-        officeName: row.officeName,
-        reservationCode: row.reservationCode,
-        invoiceCode: row.invoiceCode,
-        date: this.formatter.formatDateTimeString(row.sourceDate),
-        description: row.description,
-        debit: row.debitValue !== 0 ? this.formatSignedCurrency(row.debitValue) : '',
-        credit: row.creditValue > 0 ? this.formatCurrency(row.creditValue) : '',
-        total: this.formatSignedCurrency(runningTotal),
-        sortDateValue: row.sortDateValue,
-        debitValue: row.debitValue,
-        creditValue: row.creditValue,
-        totalValue: runningTotal
-      };
-    });
-  }
-
-  getOfficeName(officeId: number): string {
-    return this.offices.find(o => o.officeId === officeId)?.name || '';
-  }
-
-  isCreditLine(line: LedgerLineWithDateFields, officeId: number): boolean {
-    const transactionTypeId = this.resolveTransactionTypeId(line, officeId);
-    if (transactionTypeId === null) {
-      return false;
-    }
-    return transactionTypeId === TransactionType.Payment;
-  }
-
-  resolveTransactionTypeId(line: LedgerLineWithDateFields, officeId: number): number | null {
-    if (line.transactionTypeId !== undefined && line.transactionTypeId !== null) {
-      return line.transactionTypeId;
-    }
-
-    const costCodeId = line.costCodeId;
-    if (!Number.isInteger(costCodeId) || (costCodeId as number) <= 0) {
+  buildUpdateRequest(): JournalEntryRequest | null {
+    if (!this.journalEntry) {
       return null;
     }
 
-    const matchingCostCode = this.costCodes.find(c => c.officeId === officeId && Number(c.costCodeId) === costCodeId);
-    return matchingCostCode?.transactionTypeId ?? null;
-  }
-
-  getSortDateValue(invoice: InvoiceResponse, line: LedgerLineWithDateFields): number {
-    const sourceDate = this.getSourceDate(invoice, line);
-    const parsedDate = sourceDate ? new Date(sourceDate).getTime() : Number.NaN;
-    return Number.isNaN(parsedDate) ? 0 : parsedDate;
-  }
-
-  getSourceDate(invoice: InvoiceResponse, line: LedgerLineWithDateFields): string {
-    const lineDate = typeof line.transactionDate === 'string'
-      ? line.transactionDate
-      : typeof line.createdOn === 'string'
-        ? line.createdOn
-        : typeof line.modifiedOn === 'string'
-          ? line.modifiedOn
-          : '';
-    return lineDate || invoice.invoiceDate || invoice.createdOn || invoice.modifiedOn || '';
-  }
-
-  formatCurrency(value: number): string {
-    return '$' + this.formatter.currency(value);
-  }
-
-  formatSignedCurrency(value: number): string {
-    const absoluteValue = Math.abs(value);
-    const formatted = this.formatCurrency(absoluteValue);
-    return value < 0 ? `-${formatted}` : formatted;
-  }
-
-  get totalsRow(): { [columnName: string]: string } | undefined {
-    if (this.ledgerRows.length === 0) {
-      return undefined;
-    }
-
-    const debitTotal = this.ledgerRows.reduce((sum, row) => sum + row.debitValue, 0);
-    const creditTotal = this.ledgerRows.reduce((sum, row) => sum + row.creditValue, 0);
-    const endingTotal = this.ledgerRows[this.ledgerRows.length - 1]?.totalValue ?? 0;
+    const postingDate = this.utilityService.toDateOnlyJsonString(this.form.getRawValue().postingDate)
+      ?? this.journalEntry.postingDate;
 
     return {
-      debit: this.formatCurrency(debitTotal),
-      credit: this.formatCurrency(creditTotal),
-      total: this.formatSignedCurrency(endingTotal)
+      journalEntryId: this.journalEntry.journalEntryId,
+      organizationId: this.journalEntry.organizationId,
+      officeId: this.journalEntry.officeId,
+      transactionDate: this.journalEntry.transactionDate,
+      postingDate,
+      sourceTypeId: this.journalEntry.sourceTypeId ?? null,
+      sourceId: this.journalEntry.sourceId ?? null,
+      memo: this.form.getRawValue().memo?.trim() || null,
+      isPosted: this.journalEntry.isPosted,
+      isVoided: this.journalEntry.isVoided,
+      journalEntryLines: (this.journalEntry.journalEntryLines ?? []).map(line => ({
+        journalEntryLineId: line.journalEntryLineId,
+        journalEntryId: line.journalEntryId,
+        chartOfAccountId: line.chartOfAccountId,
+        costCodeId: line.costCodeId ?? null,
+        propertyId: line.propertyId ?? null,
+        reservationId: line.reservationId ?? null,
+        contactId: line.contactId ?? null,
+        debit: line.debit,
+        credit: line.credit,
+        memo: line.memo ?? null
+      }))
     };
   }
   //#endregion
 
+  //#region Data Loading Methods
+  loadReferenceData(): void {
+    if (!this.organizationId) {
+      this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'referenceData');
+      return;
+    }
+
+    this.utilityService.addLoadItem(this.itemsToLoad$, 'referenceData');
+
+    this.chartOfAccountsService.ensureChartOfAccountsLoaded();
+    this.chartOfAccountsService.areChartOfAccountsLoaded().pipe(filter(loaded => loaded === true), take(1), takeUntil(this.destroy$)).subscribe(() => {
+      this.chartOfAccountsService.getAllChartOfAccounts().pipe(takeUntil(this.destroy$)).subscribe(accounts => {
+        this.chartOfAccounts = accounts || [];
+        this.applyLineDisplay();
+        this.markViewForCheck();
+      });
+    });
+
+    this.costCodesService.ensureCostCodesLoaded();
+    this.costCodesService.areCostCodesLoaded().pipe(filter(loaded => loaded === true), take(1), takeUntil(this.destroy$)).subscribe(() => {
+      this.costCodesService.getAllCostCodes().pipe(takeUntil(this.destroy$)).subscribe(costCodes => {
+        this.costCodes = costCodes || [];
+        this.applyLineDisplay();
+        this.markViewForCheck();
+      });
+    });
+
+    this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'referenceData');
+  }
+
+  loadJournalEntry(): void {
+    const journalEntryId = this.journalEntryId?.trim();
+    if (!journalEntryId) {
+      this.journalEntry = null;
+      this.lineRows = [];
+      this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'journalEntry');
+      this.markViewForCheck();
+      return;
+    }
+
+    this.utilityService.addLoadItem(this.itemsToLoad$, 'journalEntry');
+    this.isServiceError = false;
+
+    this.generalLedgerService.getJournalEntryById(journalEntryId).pipe(
+      finalize(() => this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'journalEntry')),
+      takeUntil(this.destroy$)
+    ).subscribe({
+      next: journalEntry => {
+        this.journalEntry = journalEntry;
+        this.syncFormFromJournalEntry();
+        this.applyLineDisplay();
+        this.markViewForCheck();
+      },
+      error: (error: HttpErrorResponse) => {
+        console.error('General Ledger - error loading journal entry:', error);
+        this.isServiceError = true;
+        this.journalEntry = null;
+        this.lineRows = [];
+        this.markViewForCheck();
+      }
+    });
+  }
+  //#endregion
+
   //#region Utility Methods
+  syncFormFromJournalEntry(): void {
+    if (!this.journalEntry) {
+      this.form.reset({
+        postingDate: null,
+        memo: '',
+        isPosted: false
+      });
+      return;
+    }
+
+    this.form.reset({
+      postingDate: this.utilityService.parseDateOnlyStringToDate(this.journalEntry.postingDate),
+      memo: this.journalEntry.memo ?? '',
+      isPosted: this.journalEntry.isPosted
+    });
+
+    if (this.canEdit) {
+      this.form.enable();
+    } else {
+      this.form.disable();
+    }
+  }
+
+  applyLineDisplay(): void {
+    if (!this.journalEntry) {
+      this.lineRows = [];
+      return;
+    }
+
+    this.lineRows = this.mappingService.mapJournalEntryLineDetailDisplay(
+      this.journalEntry.journalEntryLines,
+      this.chartOfAccounts,
+      this.costCodes,
+      this.journalEntry.officeId
+    );
+  }
+
+  markViewForCheck(): void {
+    this.cdr.markForCheck();
+  }
+
+  back(): void {
+    this.backEvent.emit();
+  }
+
   ngOnDestroy(): void {
-    this.invoicesSubscription?.unsubscribe();
-    this.costCodesSubscription?.unsubscribe();
     this.destroy$.next();
     this.destroy$.complete();
     this.itemsToLoad$.complete();

@@ -88,6 +88,14 @@
           (selectionSet)="onInvoiceSelectionSet($event)">
           <div dataTableFilterActions>
             <div class="table-filter-actions-group form-titlebar-actions-wrap uniform-gap payment-actions-anchor">
+              @if (source === 'accounting' && journalEntrySyncToolsEnabled) {
+                <button mat-mini-fab type="button" color="primary" id="sync-invoice-journal-entries-button" matTooltip="Sync journal entries" aria-label="Sync journal entries" (click)="syncInvoiceJournalEntries()" [disabled]="isJournalEntrySyncInProgress" class="journal-entry-sync-btn">
+                  S
+                </button>
+                <button mat-mini-fab type="button" color="warn" id="clear-invoice-journal-entries-button" matTooltip="Clear journal entries" aria-label="Clear journal entries" (click)="clearInvoiceJournalEntries()" [disabled]="isJournalEntrySyncInProgress" class="journal-entry-sync-btn">
+                  C
+                </button>
+              }
               <mat-slide-toggle id="toggle-invoices" [checked]="showInactive" color="primary" (change)="onInactiveToggleChange($event)" class="whitespace-nowrap">
                 InActive
               </mat-slide-toggle>

@@ -883,17 +883,13 @@ export class TicketComponent implements OnInit, OnChanges, AfterViewInit, OnDest
   }
 
   resolveReceiptCode(receipt: ReceiptResponse): string {
-    const receiptAsAny = receipt as unknown as { receiptCode?: string | null; receipt?: string | null };
-    const explicitCode = String(receiptAsAny.receiptCode || receiptAsAny.receipt || '').trim();
-    if (explicitCode) {
-      return explicitCode;
-    }
-    return `No: ${receipt.receiptId}`;
+    return String(receipt.receiptCode || '').trim();
   }
 
   buildReceiptCreatedComment(receipt: ReceiptResponse): string {
     const description = this.normalizeText(receipt.description) || 'Receipt';
-    return `Receipt Created: ${description} No: ${receipt.receiptId}`;
+    const receiptCode = this.resolveReceiptCode(receipt);
+    return `Receipt Created: ${description} ${receiptCode}`;
   }
 
   openReceiptFromComment(code: string): void {

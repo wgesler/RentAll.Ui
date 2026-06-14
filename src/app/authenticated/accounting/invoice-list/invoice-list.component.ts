@@ -11,6 +11,7 @@ import { CommonMessage } from '../../../enums/common-message.enum';
 import { MatSlideToggleChange } from '@angular/material/slide-toggle';
 import { MaterialModule } from '../../../material.module';
 import { AuthService } from '../../../services/auth.service';
+import { ConfigService } from '../../../services/config.service';
 import { FormatterService } from '../../../services/formatter-service';
 import { MappingService } from '../../../services/mapping.service';
 import { UtilityService } from '../../../services/utility.service';
@@ -33,6 +34,8 @@ import { InvoiceService } from '../services/invoice.service';
 import { ChartOfAccountsService } from '../services/chart-of-accounts.service';
 import { CostCodesService } from '../services/cost-codes.service';
 import { InvoiceIifExportService } from '../services/invoice-iif-export.service';
+import { GeneralLedgerService } from '../services/general-ledger.service';
+import { JournalEntrySyncResult } from '../models/journal-entry.model';
 import { QbClassType, QbNameType } from '../../organizations/models/qb-type-enum';
 
 @Component({
@@ -59,6 +62,7 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
   @Output() companyIdChange = new EventEmitter<string | null>(); // Emit company changes to parent
   @Output() reservationIdChange = new EventEmitter<string | null>(); // Emit reservation changes to parent
   @Output() printInvoiceEvent = new EventEmitter<{ officeId: number | null, reservationId: string | null, invoiceId: string }>(); // Emit print invoice event to parent
+  @Output() journalEntriesChanged = new EventEmitter<void>();
   
   panelOpenState: boolean = true;
   isServiceError: boolean = false;
@@ -120,6 +124,7 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
   originalPaymentReservationId: string | null = null;
   originalPaymentCompanyId: string | null = null;
   creditCostCodes: { value: number, label: string }[] = [];
+  isJournalEntrySyncInProgress = false;
   baseInvoicesDisplayedColumns: ColumnSet = {
     expand: { displayAs: ' ', maxWidth: '5ch', sort: false },
     no: { displayAs: 'No', maxWidth: '5ch', sort: false, wrap: false },
@@ -167,8 +172,14 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
     private formatter: FormatterService,
     private utilityService: UtilityService,
     private invoiceIifExportService: InvoiceIifExportService,
+    private generalLedgerService: GeneralLedgerService,
+    private configService: ConfigService,
     private zone: NgZone,
     private cdr: ChangeDetectorRef) {
+  }
+
+  get journalEntrySyncToolsEnabled(): boolean {
+    return this.configService.config().featureFlags.journalEntrySyncTools;
   }
 
   //#region Invoice-List
@@ -1886,6 +1897,82 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
       return [this.selectedOffice.officeId];
     }
     return (this.offices || []).map(office => office.officeId).filter(id => id > 0);
+  }
+
+  syncInvoiceJournalEntries(): void {
+    const officeIds = this.resolveOfficeIdsForSearch();
+    if (officeIds.length === 0) {
+      this.toastr.warning('Select at least one office before syncing journal entries.', 'Sync');
+      return;
+    }
+
+    this.isJournalEntrySyncInProgress = true;
+    this.markViewForCheck();
+    this.generalLedgerService.syncInvoiceJournalEntries(officeIds).pipe(
+      take(1),
+      finalize(() => {
+        this.isJournalEntrySyncInProgress = false;
+        this.markViewForCheck();
+      })
+    ).subscribe({
+      next: (result) => {
+        this.showJournalEntrySyncResult('Invoice journal entries synced', result);
+        this.journalEntriesChanged.emit();
+      },
+      error: (error: HttpErrorResponse) => {
+        this.toastr.error(error?.error ?? 'Unable to sync invoice journal entries.', CommonMessage.Error);
+      }
+    });
+  }
+
+  clearInvoiceJournalEntries(): void {
+    const officeIds = this.resolveOfficeIdsForSearch();
+    if (officeIds.length === 0) {
+      this.toastr.warning('Select at least one office before clearing journal entries.', 'Clear');
+      return;
+    }
+
+    if (!window.confirm('Delete all unposted invoice and payment journal entries for the selected offices?')) {
+      return;
+    }
+
+    this.isJournalEntrySyncInProgress = true;
+    this.markViewForCheck();
+    this.generalLedgerService.clearInvoiceJournalEntries(officeIds).pipe(
+      take(1),
+      finalize(() => {
+        this.isJournalEntrySyncInProgress = false;
+        this.markViewForCheck();
+      })
+    ).subscribe({
+      next: (result) => {
+        this.showJournalEntrySyncResult('Invoice journal entries cleared', result, true);
+        this.journalEntriesChanged.emit();
+      },
+      error: (error: HttpErrorResponse) => {
+        this.toastr.error(error?.error ?? 'Unable to clear invoice journal entries.', CommonMessage.Error);
+      }
+    });
+  }
+
+  showJournalEntrySyncResult(title: string, result: JournalEntrySyncResult, isClear: boolean = false): void {
+    const actionLabel = isClear ? 'deleted' : 'created';
+    const count = isClear ? result.journalEntriesDeleted : result.journalEntriesCreated;
+    const skipped = isClear ? 0 : result.journalEntriesSkipped;
+    let message = `${result.documentsProcessed} documents processed, ${count} journal entries ${actionLabel}`;
+    if (!isClear && skipped > 0) {
+      message += `, ${skipped} skipped`;
+    }
+    if (result.errors.length > 0) {
+      message += `. ${result.errors.length} issue(s): ${result.errors.slice(0, 3).join('; ')}`;
+      if (result.errors.length > 3) {
+        message += '...';
+      }
+      this.toastr.warning(message, title);
+      return;
+    }
+
+    this.toastr.success(message, title);
   }
 
   buildInvoiceSearchRequest(officeIds: number[]): InvoiceGetRequest {

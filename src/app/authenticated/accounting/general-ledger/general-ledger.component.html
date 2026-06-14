@@ -1,70 +1,102 @@
-<div class="mat general-ledger-container list-layout-standard">
-  @if (!hideFilters) {
-    <!-- Shared dropdown row -->
-    <div class="list-top-controls list-top-controls--standard flex gap-4 items-center mt-4">
-      @if (showOfficeDropdown) {
-        <mat-form-field appearance="outline" style="width: 300px;">
-          <mat-label>{{ selectedOfficeId ? 'Office' : 'All Offices' }}</mat-label>
-            <mat-select [(ngModel)]="selectedOfficeId" (selectionChange)="onOfficeChange()" placeholder="All Offices">
-              <mat-option [value]="null">All Offices</mat-option>
-            @for (office of offices; track office.officeId) {
-              <mat-option [value]="office.officeId">{{ office.name }}</mat-option>
-            }
-          </mat-select>
-        </mat-form-field>
-      }
-      <mat-form-field appearance="outline" style="width: 300px;">
-        <mat-label>{{ selectedCompanyContact ? 'Company' : 'All Companies' }}</mat-label>
-          <mat-select [(ngModel)]="selectedCompanyContact" (selectionChange)="onCompanyChange()">
-            <mat-option [value]="null">All Companies</mat-option>
-          @for (company of availableCompanyContacts; track company.value.contactId) {
-            <mat-option [value]="company.value">{{ company.label }}</mat-option>
-          }
-        </mat-select>
-      </mat-form-field>
-      <mat-form-field appearance="outline" style="width: 300px;">
-        <mat-label>{{ selectedReservationId ? 'Reservation' : 'All Reservations' }}</mat-label>
-          <mat-select [(ngModel)]="selectedReservationId" (selectionChange)="onReservationChange()">
-            <mat-option [value]="null">All Reservations</mat-option>
-          @for (reservation of availableReservations; track reservation.value.reservationId) {
-            <mat-option [value]="reservation.value.reservationId">{{ reservation.label }}</mat-option>
-          }
-        </mat-select>
-      </mat-form-field>
+@if (isPageReady) {
+  @if (isServiceError || !journalEntry) {
+    <div class="general-ledger-empty-state">
+      <p>Unable to load journal entry details.</p>
     </div>
-  }
-  
-  <div class="tableDiv" [class.mt-4]="!hideFilters">
-    @if (!isPageReady) {
-      <div class="loading-container">
-        <mat-spinner [diameter]="40"></mat-spinner>
-        <p>Loading ledger lines...</p>
+  } @else {
+    <form [formGroup]="form" class="info-form mb-8 form-standard-top-padding general-ledger-form" (ngSubmit)="saveJournalEntry()">
+      <div class="general-ledger-posted-row">
+        <mat-checkbox
+          formControlName="isPosted"
+          color="primary"
+          class="text-nowrap">
+          Posted
+        </mat-checkbox>
+        <button
+          mat-raised-button
+          type="submit"
+          color="primary"
+          class="text-nowrap flex-shrink-0"
+          [disabled]="!canSave || isSaving">
+          <mat-icon>save</mat-icon>
+          Save
+        </button>
       </div>
-    } @else {
-      <app-data-table
-        [data]="ledgerRows"
-        [columns]="generalLedgerColumns"
-        [hasFilter]="true"
-        [hasButtonTop]="false"
-        [hasToggleTop]="false"
-        [hasColumnIndex]="false"
-        [totalsRow]="totalsRow"
-        [totalsLabel]="'Totals:'"
-        [itemsPerPage]="100">
-        @if (!hideFilters) {
-          <div dataTableFilterActions>
-            <div class="table-filter-actions-group form-titlebar-actions-wrap uniform-gap">
-              <mat-slide-toggle id="toggle-general-ledger-inactive" [checked]="showInactive" color="primary" (change)="toggleInactive()" class="whitespace-nowrap">
-                Inactive
-              </mat-slide-toggle>
-              <button mat-raised-button type="button" color="primary" id="add-general-ledger-button" (click)="onAdd()" [disabled]="!selectedOfficeId" class="whitespace-nowrap items-center flex gap-1">
-                <mat-icon class="text-base">add</mat-icon>
-                <span>Add</span>
-              </button>
-            </div>
-          </div>
-        }
-      </app-data-table>
-    }
+
+      <div class="general-ledger-header-row">
+        <mat-form-field appearance="outline" class="general-ledger-field general-ledger-field-entry w-full">
+          <mat-label>Entry No</mat-label>
+          <input matInput [value]="journalEntry.journalEntryCode || ''" readonly disabled class="readonly-field">
+        </mat-form-field>
+
+        <mat-form-field appearance="outline" class="general-ledger-field w-full">
+          <mat-label>Source Type</mat-label>
+          <input matInput [value]="getSourceTypeLabel()" readonly disabled class="readonly-field">
+        </mat-form-field>
+
+        <mat-form-field appearance="outline" class="general-ledger-field w-full">
+          <mat-label>Transaction Date</mat-label>
+          <input matInput [value]="formatter.formatDateString(journalEntry.transactionDate)" readonly disabled class="readonly-field">
+        </mat-form-field>
+
+        <mat-form-field appearance="outline" class="general-ledger-field w-full">
+          <mat-label>Posting Date</mat-label>
+          <input matInput [matDatepicker]="postingDatePicker" formControlName="postingDate">
+          <mat-datepicker-toggle matIconSuffix [for]="postingDatePicker"></mat-datepicker-toggle>
+          <mat-datepicker #postingDatePicker></mat-datepicker>
+        </mat-form-field>
+
+        <mat-form-field appearance="outline" class="general-ledger-field general-ledger-field-memo w-full">
+          <mat-label>Memo</mat-label>
+          <input matInput formControlName="memo" maxlength="2500">
+        </mat-form-field>
+      </div>
+
+      <div class="general-ledger-lines-table">
+        <app-data-table
+          [data]="lineRows"
+          [columns]="lineDisplayedColumns"
+          [hasColumnIndex]="false"
+          [hasFilter]="false"
+          [hasToggleTop]="false"
+          [itemsPerPage]="100">
+        </app-data-table>
+      </div>
+
+      <div class="general-ledger-totals-row">
+        <mat-form-field
+          appearance="outline"
+          subscriptSizing="dynamic"
+          class="general-ledger-field general-ledger-total-debit general-ledger-total-display-field w-full"
+          (mousedown)="$event.preventDefault()">
+          <mat-label>Total Debit</mat-label>
+          <input
+            matInput
+            [value]="getTotalDebitDisplay()"
+            readonly
+            tabindex="-1"
+            (focus)="$any($event.target).blur()">
+        </mat-form-field>
+
+        <mat-form-field
+          appearance="outline"
+          subscriptSizing="dynamic"
+          class="general-ledger-field general-ledger-total-credit general-ledger-total-display-field w-full"
+          (mousedown)="$event.preventDefault()">
+          <mat-label>Total Credit</mat-label>
+          <input
+            matInput
+            [value]="getTotalCreditDisplay()"
+            readonly
+            tabindex="-1"
+            (focus)="$any($event.target).blur()">
+        </mat-form-field>
+      </div>
+    </form>
+  }
+} @else {
+  <div class="loading-container">
+    <mat-spinner [diameter]="40"></mat-spinner>
+    <p>Loading journal entry...</p>
   </div>
-</div>
+}

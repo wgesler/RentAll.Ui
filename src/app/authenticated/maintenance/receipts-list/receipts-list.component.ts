@@ -8,6 +8,7 @@ import { RouterUrl } from '../../../app.routes';
 import { CommonMessage } from '../../../enums/common-message.enum';
 import { MaterialModule } from '../../../material.module';
 import { AuthService } from '../../../services/auth.service';
+import { ConfigService } from '../../../services/config.service';
 import { FormatterService } from '../../../services/formatter-service';
 import { UtilityService } from '../../../services/utility.service';
 import { MappingService } from '../../../services/mapping.service';
@@ -30,6 +31,9 @@ import { MaintenanceListSearchRequest } from '../models/maintenance-search.model
 import { BillPaymentRequest, BillPaymentResponse, ReceiptDisplayList, ReceiptRequest, ReceiptResponse, ReceiptSelection, Split } from '../models/receipt.model';
 import { ReceiptService } from '../services/receipt.service';
 import { WorkOrderService } from '../services/work-order.service';
+import { GeneralLedgerService } from '../../accounting/services/general-ledger.service';
+import { JournalEntrySyncResult } from '../../accounting/models/journal-entry.model';
+import { HttpErrorResponse } from '@angular/common/http';
 
 @Component({
   standalone: true,
@@ -50,6 +54,7 @@ export class ReceiptsListComponent implements OnInit, OnChanges, OnDestroy {
   @Output() receiptSelect = new EventEmitter<ReceiptSelection>();
   @Output() payableEvent = new EventEmitter<ReceiptDisplayList>();
   @Output() workOrderSelect = new EventEmitter<{ workOrderId: string | null; propertyId: string | null }>();
+  @Output() journalEntriesChanged = new EventEmitter<void>();
 
   isPageReady = false;
   isServiceError: boolean = false;
@@ -81,6 +86,7 @@ export class ReceiptsListComponent implements OnInit, OnChanges, OnDestroy {
   paymentTargetInvoiceId: string | null = null;
   manualApplyEditableReceiptId: number | null = null;
   pendingApplyAmountFocusReceiptId: number | null = null;
+  isJournalEntrySyncInProgress = false;
 
   isAdmin = false;
   canEditIsActiveCheckbox = false;
@@ -108,8 +114,7 @@ export class ReceiptsListComponent implements OnInit, OnChanges, OnDestroy {
   readonly accountingReceiptDisplayedColumns: ColumnSet = {
     no: { displayAs: 'No', maxWidth: '5ch', sort: false, wrap: false },
     propertyCode: { displayAs: 'Property', wrap: false, maxWidth: '15ch' },
-    accountDisplay: { displayAs: 'Account(s)', wrap: true, maxWidth: '25ch' },
-    billNumber: { displayAs: 'Bill Number', wrap: false, maxWidth: '15ch' },
+    vendorDisplay: { displayAs: 'Vendor', wrap: false, maxWidth: '25ch' },
     receipt: { displayAs: 'Receipt', wrap: false, sort: false, maxWidth: '12ch', alignment: 'center' },
     period: { displayAs: 'Period', maxWidth: '12ch', alignment: 'center' },
     receiptDate: { displayAs: 'Bill Date', wrap: false, maxWidth: '15ch', alignment: 'center' },
@@ -124,8 +129,7 @@ export class ReceiptsListComponent implements OnInit, OnChanges, OnDestroy {
   readonly accountingNonBillReceiptDisplayedColumns: ColumnSet = {
     no: { displayAs: 'No', maxWidth: '5ch', sort: false, wrap: false },
     propertyCode: { displayAs: 'Property', wrap: false, maxWidth: '15ch' },
-    workOrderDisplay: { displayAs: 'WO Code(s)', wrap: true, maxWidth: '18ch' },
-    receiptTypeDisplay: { displayAs: 'Type(s)', wrap: true, maxWidth: '15ch' },
+    vendorDisplay: { displayAs: 'Vendor', wrap: false, maxWidth: '25ch' },
     receipt: { displayAs: 'Receipt', wrap: false, sort: false, maxWidth: '12ch', alignment: 'center' },
     period: { displayAs: 'Period', maxWidth: '12ch', alignment: 'center' },
     receiptDate: { displayAs: 'Receipt Date', wrap: false, maxWidth: '15ch', alignment: 'center' },
@@ -165,8 +169,14 @@ export class ReceiptsListComponent implements OnInit, OnChanges, OnDestroy {
     private utilityService: UtilityService,
     private router: Router,
     private toastr: ToastrService,
+    private generalLedgerService: GeneralLedgerService,
+    private configService: ConfigService,
     private cdr: ChangeDetectorRef
   ) {}
+
+  get journalEntrySyncToolsEnabled(): boolean {
+    return this.configService.config().featureFlags.journalEntrySyncTools;
+  }
 
 
   //#region Receipts List
@@ -931,6 +941,138 @@ export class ReceiptsListComponent implements OnInit, OnChanges, OnDestroy {
     };
   }
 
+  syncBillJournalEntries(): void {
+    const officeIds = this.resolveMaintenanceSearchOfficeIds(this.searchRequest);
+    if (officeIds.length === 0) {
+      this.toastr.warning('Select at least one office before syncing journal entries.', 'Sync');
+      return;
+    }
+
+    this.isJournalEntrySyncInProgress = true;
+    this.markViewForCheck();
+    this.generalLedgerService.syncBillJournalEntries(officeIds).pipe(
+      take(1),
+      finalize(() => {
+        this.isJournalEntrySyncInProgress = false;
+        this.markViewForCheck();
+      })
+    ).subscribe({
+      next: (result) => {
+        this.showJournalEntrySyncResult('Bill journal entries synced', result);
+        this.journalEntriesChanged.emit();
+      },
+      error: (error: HttpErrorResponse) => {
+        this.toastr.error(error?.error ?? 'Unable to sync bill journal entries.', CommonMessage.Error);
+      }
+    });
+  }
+
+  clearBillJournalEntries(): void {
+    const officeIds = this.resolveMaintenanceSearchOfficeIds(this.searchRequest);
+    if (officeIds.length === 0) {
+      this.toastr.warning('Select at least one office before clearing journal entries.', 'Clear');
+      return;
+    }
+
+    if (!window.confirm('Delete all unposted bill and bill payment journal entries for the selected offices?')) {
+      return;
+    }
+
+    this.isJournalEntrySyncInProgress = true;
+    this.markViewForCheck();
+    this.generalLedgerService.clearBillJournalEntries(officeIds).pipe(
+      take(1),
+      finalize(() => {
+        this.isJournalEntrySyncInProgress = false;
+        this.markViewForCheck();
+      })
+    ).subscribe({
+      next: (result) => {
+        this.showJournalEntrySyncResult('Bill journal entries cleared', result, true);
+        this.journalEntriesChanged.emit();
+      },
+      error: (error: HttpErrorResponse) => {
+        this.toastr.error(error?.error ?? 'Unable to clear bill journal entries.', CommonMessage.Error);
+      }
+    });
+  }
+
+  syncReceiptJournalEntries(): void {
+    const officeIds = this.resolveMaintenanceSearchOfficeIds(this.searchRequest);
+    if (officeIds.length === 0) {
+      this.toastr.warning('Select at least one office before syncing journal entries.', 'Sync');
+      return;
+    }
+
+    this.isJournalEntrySyncInProgress = true;
+    this.markViewForCheck();
+    this.generalLedgerService.syncReceiptJournalEntries(officeIds).pipe(
+      take(1),
+      finalize(() => {
+        this.isJournalEntrySyncInProgress = false;
+        this.markViewForCheck();
+      })
+    ).subscribe({
+      next: (result) => {
+        this.showJournalEntrySyncResult('Receipt journal entries synced', result);
+        this.journalEntriesChanged.emit();
+      },
+      error: (error: HttpErrorResponse) => {
+        this.toastr.error(error?.error ?? 'Unable to sync receipt journal entries.', CommonMessage.Error);
+      }
+    });
+  }
+
+  clearReceiptJournalEntries(): void {
+    const officeIds = this.resolveMaintenanceSearchOfficeIds(this.searchRequest);
+    if (officeIds.length === 0) {
+      this.toastr.warning('Select at least one office before clearing journal entries.', 'Clear');
+      return;
+    }
+
+    if (!window.confirm('Delete all unposted receipt journal entries for the selected offices?')) {
+      return;
+    }
+
+    this.isJournalEntrySyncInProgress = true;
+    this.markViewForCheck();
+    this.generalLedgerService.clearReceiptJournalEntries(officeIds).pipe(
+      take(1),
+      finalize(() => {
+        this.isJournalEntrySyncInProgress = false;
+        this.markViewForCheck();
+      })
+    ).subscribe({
+      next: (result) => {
+        this.showJournalEntrySyncResult('Receipt journal entries cleared', result, true);
+        this.journalEntriesChanged.emit();
+      },
+      error: (error: HttpErrorResponse) => {
+        this.toastr.error(error?.error ?? 'Unable to clear receipt journal entries.', CommonMessage.Error);
+      }
+    });
+  }
+
+  showJournalEntrySyncResult(title: string, result: JournalEntrySyncResult, isClear: boolean = false): void {
+    const actionLabel = isClear ? 'deleted' : 'created';
+    const count = isClear ? result.journalEntriesDeleted : result.journalEntriesCreated;
+    const skipped = isClear ? 0 : result.journalEntriesSkipped;
+    let message = `${result.documentsProcessed} documents processed, ${count} journal entries ${actionLabel}`;
+    if (!isClear && skipped > 0) {
+      message += `, ${skipped} skipped`;
+    }
+    if (result.errors.length > 0) {
+      message += `. ${result.errors.length} issue(s): ${result.errors.slice(0, 3).join('; ')}`;
+      if (result.errors.length > 3) {
+        message += '...';
+      }
+      this.toastr.warning(message, title);
+      return;
+    }
+
+    this.toastr.success(message, title);
+  }
+
   resolveReceiptKindForSearch(): 1 | 2 | null {
     if (!this.embeddedInAccounting) {
       return null;
@@ -1176,6 +1318,17 @@ export class ReceiptsListComponent implements OnInit, OnChanges, OnDestroy {
       const isBill = Number(receipt.bankCardId ?? 0) === 0;
       const vendorOptionsForOffice = this.getVendorOptionsForReceiptScope(officeId);
       const matchedVendorOption = this.findVendorOptionForReceipt(vendorOptionsForOffice, receipt);
+
+      if (this.embeddedInAccounting) {
+        const vendorLabel = this.normalizeVendorDisplayText(
+          matchedVendorOption?.label || receipt.vendorName
+        );
+        return {
+          ...receipt,
+          vendorDisplay: vendorLabel,
+          vendorDisplayReadOnly: true
+        };
+      }
 
       if (isBill) {
         const vendorLabels = vendorOptionsForOffice.map(option => option.label);

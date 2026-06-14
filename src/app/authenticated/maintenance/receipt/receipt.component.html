@@ -31,8 +31,8 @@
               <div class="grid grid-cols-4 form-standard-grid receipt-form-grid">
                 <div class="col-span-4 receipt-overall-row receipt-overall-primary-row">
                   <mat-form-field appearance="outline" class="receipt-overall-no-field">
-                    <mat-label>No</mat-label>
-                    <input matInput [value]="isAddMode ? '' : (receipt?.receiptId || '')" readonly disabled>
+                    <mat-label>Receipt Code</mat-label>
+                    <input matInput [value]="isAddMode ? '' : (receipt?.receiptCode || '')" readonly disabled>
                   </mat-form-field>
                   <mat-form-field appearance="outline" class="receipt-overall-property-field"
                     [class.mat-form-field-invalid]="shouldShowControlError(form.get('propertyIds'))"
@@ -305,8 +305,8 @@
               <div class="grid grid-cols-4 form-standard-grid receipt-form-grid">
                 <div class="col-span-4 receipt-overall-row receipt-overall-primary-row">
                   <mat-form-field appearance="outline" class="receipt-overall-no-field">
-                    <mat-label>No</mat-label>
-                    <input matInput [value]="isAddMode ? '' : (receipt?.receiptId || '')" readonly disabled>
+                    <mat-label>Receipt Code</mat-label>
+                    <input matInput [value]="isAddMode ? '' : (receipt?.receiptCode || '')" readonly disabled>
                   </mat-form-field>
                   <mat-form-field appearance="outline" class="receipt-overall-property-field"
                     [class.mat-form-field-invalid]="shouldShowControlError(form.get('propertyIds'))"

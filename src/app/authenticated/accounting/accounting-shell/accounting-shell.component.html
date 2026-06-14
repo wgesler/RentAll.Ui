@@ -116,6 +116,38 @@
             }
             </div>
           </div>
+        } @else if (selectedTabIndex === 3) {
+          <div class="header-title form-titlebar-fields-wrap accounting-shell-titlebar-fields">
+            <div class="accounting-shell-titlebar-filters">
+            @if (showShellOfficeDropdown) {
+              <app-title-bar-select
+                [label]="'Office'"
+                [formFieldClass]="'titlebar-field-office'"
+                [value]="selectedOfficeId"
+                [options]="shellOfficeTitleBarOptions"
+                [nullOptionLabel]="'All Offices'"
+                [noResultsText]="'No offices match your search'"
+                (valueChange)="onShellOfficeDropdownChange($event)">
+              </app-title-bar-select>
+            }
+            <app-title-bar-select
+              [label]="'Account'"
+              [formFieldClass]="'titlebar-field-chart-of-account'"
+              [value]="selectedChartOfAccountId"
+              [options]="shellChartOfAccountTitleBarOptions"
+              [nullOptionLabel]="'All Accounts'"
+              [noResultsText]="'No accounts match your search'"
+              [showSearchInput]="true"
+              [searchPlaceholder]="'Search accounts...'"
+              (valueChange)="onShellChartOfAccountDropdownChange($event)">
+            </app-title-bar-select>
+            @if (showShellDateRange) {
+              <div class="accounting-shell-titlebar-dates">
+                <ng-container [ngTemplateOutlet]="accountingShellDateFields" />
+              </div>
+            }
+            </div>
+          </div>
         }
         <ng-template #accountingShellDateFields>
           <mat-form-field appearance="outline" class="titlebar-field-office">
@@ -163,6 +195,11 @@
             <mat-icon>arrow_back</mat-icon>
             Back
           </button>
+        } @else if (isGeneralLedgerDetailActive) {
+          <button mat-raised-button type="button" color="accent" (click)="onGeneralLedgerBack()">
+            <mat-icon>arrow_back</mat-icon>
+            Back
+          </button>
         } @else if (isBillsReceiptDetailActive) {
           <button mat-raised-button type="button" color="accent" (click)="onBillsReceiptBack()">
             <mat-icon>arrow_back</mat-icon>
@@ -204,7 +241,8 @@
               (officeIdChange)="onInvoiceOfficeChange($event)"
               (reservationIdChange)="onInvoiceReservationChange($event)"
               (companyIdChange)="onInvoiceCompanyChange($event)"
-              (printInvoiceEvent)="onPrintInvoice($event)">
+              (printInvoiceEvent)="onPrintInvoice($event)"
+              (journalEntriesChanged)="onJournalEntriesChanged()">
             </app-invoice-list>
           </mat-tab>
           <mat-tab label="Bills">
@@ -224,7 +262,8 @@
                 [embeddedInAccounting]="true"
                 [accountingListMode]="'bills'"
                 [refreshTrigger]="billsRefreshTrigger"
-                (receiptSelect)="onBillsReceiptSelect($event)">
+                (receiptSelect)="onBillsReceiptSelect($event)"
+                (journalEntriesChanged)="onJournalEntriesChanged()">
               </app-receipts-list>
             }
           </mat-tab>
@@ -245,8 +284,27 @@
                 [embeddedInAccounting]="true"
                 [accountingListMode]="'receipts'"
                 [refreshTrigger]="receiptsRefreshTrigger"
-                (receiptSelect)="onReceiptsReceiptSelect($event)">
+                (receiptSelect)="onReceiptsReceiptSelect($event)"
+                (journalEntriesChanged)="onJournalEntriesChanged()">
               </app-receipts-list>
+            }
+          </mat-tab>
+          <mat-tab label="General Ledger">
+            @if (showGeneralLedgerDetail && activeJournalEntryId) {
+              <app-general-ledger
+                [journalEntryId]="activeJournalEntryId"
+                [selectedJournalEntryLineId]="selectedJournalEntryLineId"
+                (backEvent)="onGeneralLedgerBack()"
+                (savedEvent)="onJournalEntriesChanged()">
+              </app-general-ledger>
+            } @else {
+              <app-general-ledger-list
+                [officeId]="selectedOfficeId"
+                [chartOfAccountId]="selectedChartOfAccountId"
+                [searchDateRange]="invoiceSearchDateRange"
+                [refreshTrigger]="generalLedgerRefreshTrigger"
+                (lineSelectEvent)="onGeneralLedgerLineSelect($event)">
+              </app-general-ledger-list>
             }
           </mat-tab>
         </mat-tab-group>

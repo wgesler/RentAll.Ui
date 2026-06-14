@@ -3,7 +3,7 @@ import { Component, OnDestroy, OnInit, ViewChild } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, Router } from '@angular/router';
 import { ToastrService } from 'ngx-toastr';
-import { Subject, skip, take, takeUntil } from 'rxjs';
+import { Subject, skip, take, takeUntil, filter } from 'rxjs';
 import { RouterUrl } from '../../../app.routes';
 import { MaterialModule } from '../../../material.module';
 import { AuthService } from '../../../services/auth.service';
@@ -25,7 +25,11 @@ import { PropertyResponse } from '../../properties/models/property.model';
 import { PropertyService } from '../../properties/services/property.service';
 import { InvoiceComponent } from '../invoice/invoice.component';
 import { InvoiceListComponent } from '../invoice-list/invoice-list.component';
+import { GeneralLedgerComponent } from '../general-ledger/general-ledger.component';
+import { GeneralLedgerListComponent } from '../general-ledger-list/general-ledger-list.component';
 import { CostCodesService } from '../services/cost-codes.service';
+import { ChartOfAccountsService } from '../services/chart-of-accounts.service';
+import { ChartOfAccountResponse } from '../models/chart-of-accounts.model';
 
 @Component({
     selector: 'app-accounting-shell',
@@ -38,6 +42,8 @@ import { CostCodesService } from '../services/cost-codes.service';
     InvoiceListComponent,
     ReceiptsListComponent,
     ReceiptComponent,
+    GeneralLedgerListComponent,
+    GeneralLedgerComponent,
     TitleBarSelectComponent
 ],
     templateUrl: './accounting-shell.component.html',
@@ -77,6 +83,12 @@ export class AccountingShellComponent implements OnInit, OnDestroy {
   showReceiptsReceiptDetail = false;
   selectedReceiptsReceiptId: number | null = null;
   receiptsReceiptProperty: PropertyResponse | null = null;
+  selectedChartOfAccountId: number | null = null;
+  showGeneralLedgerDetail = false;
+  activeJournalEntryId: string | null = null;
+  selectedJournalEntryLineId: string | null = null;
+  generalLedgerRefreshTrigger = 0;
+  chartOfAccounts: ChartOfAccountResponse[] = [];
 
   destroy$ = new Subject<void>();
 
@@ -86,6 +98,7 @@ export class AccountingShellComponent implements OnInit, OnDestroy {
     private authService: AuthService,
     private organizationService: OrganizationService,
     private costCodesService: CostCodesService,
+    private chartOfAccountsService: ChartOfAccountsService,
     private utilityService: UtilityService,
     private officeService: OfficeService,
     private globalSelectionService: GlobalSelectionService,
@@ -101,6 +114,8 @@ export class AccountingShellComponent implements OnInit, OnDestroy {
     this.userId = this.authService.getUser()?.userId || '';
     this.applyPinnedDateRangeFromStorage();
     this.costCodesService.ensureCostCodesLoaded();
+    this.chartOfAccountsService.ensureChartOfAccountsLoaded();
+    this.loadChartOfAccounts();
     this.organizationId = this.authService.getUser()?.organizationId?.trim() ?? '';
     this.initializeSuperAdminFilters();
     if (!this.isSuperAdmin) {
@@ -200,6 +215,35 @@ export class AccountingShellComponent implements OnInit, OnDestroy {
   }
   //#endregion
 
+  //#region General Ledger
+  onGeneralLedgerLineSelect(event: { journalEntryId: string; journalEntryLineId: string }): void {
+    this.activeJournalEntryId = event.journalEntryId;
+    this.selectedJournalEntryLineId = event.journalEntryLineId;
+    this.showGeneralLedgerDetail = true;
+  }
+
+  onGeneralLedgerBack(): void {
+    this.showGeneralLedgerDetail = false;
+    this.activeJournalEntryId = null;
+    this.selectedJournalEntryLineId = null;
+  }
+
+  onShellChartOfAccountDropdownChange(value: string | number | null): void {
+    const chartOfAccountId = value == null || value === '' ? null : Number(value);
+    if (this.selectedChartOfAccountId === chartOfAccountId) {
+      return;
+    }
+    this.selectedChartOfAccountId = chartOfAccountId;
+    this.onGeneralLedgerBack();
+    this.generalLedgerRefreshTrigger++;
+    this.router.navigate([], {
+      relativeTo: this.route,
+      queryParams: this.buildShellQueryParams(),
+      queryParamsHandling: 'merge'
+    });
+  }
+  //#endregion
+
   //#region Bills Receipt Detail
   onBillsReceiptSelect(selection: ReceiptSelection): void {
     const receiptId = selection?.receiptId ?? null;
@@ -241,6 +285,10 @@ export class AccountingShellComponent implements OnInit, OnDestroy {
   onBillsReceiptSaved(): void {
     this.onBillsReceiptBack();
     this.billsRefreshTrigger++;
+  }
+
+  onJournalEntriesChanged(): void {
+    this.generalLedgerRefreshTrigger++;
   }
 
   onReceiptsReceiptSelect(selection: ReceiptSelection): void {
@@ -307,6 +355,9 @@ export class AccountingShellComponent implements OnInit, OnDestroy {
     if (event.index !== 2) {
       this.onReceiptsReceiptBack();
     }
+    if (event.index !== 3) {
+      this.onGeneralLedgerBack();
+    }
     this.selectedTabIndex = event.index;
     this.syncBillsSearchRequest();
     if (this.selectedTabIndex === 1) {
@@ -314,6 +365,12 @@ export class AccountingShellComponent implements OnInit, OnDestroy {
     }
     if (this.selectedTabIndex === 2) {
       this.receiptsRefreshTrigger++;
+    }
+    if (this.selectedTabIndex === 3) {
+      if (!('chartOfAccountId' in this.route.snapshot.queryParams)) {
+        this.selectedChartOfAccountId = null;
+      }
+      this.generalLedgerRefreshTrigger++;
     }
     this.router.navigate([], {
       relativeTo: this.route,
@@ -362,6 +419,9 @@ export class AccountingShellComponent implements OnInit, OnDestroy {
     }
     if (this.selectedTabIndex === 2) {
       this.receiptsRefreshTrigger++;
+    }
+    if (this.selectedTabIndex === 3) {
+      this.generalLedgerRefreshTrigger++;
     }
     this.router.navigate([], {
       relativeTo: this.route,
@@ -563,8 +623,23 @@ export class AccountingShellComponent implements OnInit, OnDestroy {
     return this.selectedTabIndex === 2 && this.showReceiptsReceiptDetail;
   }
 
+  get isGeneralLedgerDetailActive(): boolean {
+    return this.selectedTabIndex === 3 && this.showGeneralLedgerDetail;
+  }
+
   get shellOfficeTitleBarOptions(): { value: number, label: string }[] {
     return this.getOfficeOptions(this.offices);
+  }
+
+  get shellChartOfAccountTitleBarOptions(): { value: number, label: string }[] {
+    const accounts = (this.chartOfAccounts || [])
+      .filter(account => this.selectedOfficeId == null || account.officeId === this.selectedOfficeId)
+      .sort((a, b) => a.accountNo.localeCompare(b.accountNo, undefined, { numeric: true, sensitivity: 'base' }));
+
+    return accounts.map(account => ({
+      value: account.accountId,
+      label: `${account.accountNo} - ${account.name}`.trim()
+    }));
   }
 
   get organizationTitleBarOptions(): { value: string, label: string }[] {
@@ -610,6 +685,11 @@ export class AccountingShellComponent implements OnInit, OnDestroy {
     if (this.selectedTabIndex === 2) {
       this.receiptsRefreshTrigger++;
     }
+    if (this.selectedTabIndex === 3) {
+      this.clearInvalidChartOfAccountSelection();
+      this.onGeneralLedgerBack();
+      this.generalLedgerRefreshTrigger++;
+    }
   }
 
   onAccountingOrganizationDropdownChange(value: string | number | null): void {
@@ -618,9 +698,9 @@ export class AccountingShellComponent implements OnInit, OnDestroy {
   }
 
   applyQueryParamState(params: Record<string, string>): void {
-    let tabIndex = getNumberQueryParam(params, 'tab', 0, 3);
+    let tabIndex = getNumberQueryParam(params, 'tab', 0, 4);
     if (tabIndex !== null) {
-      tabIndex = Math.min(Math.max(tabIndex, 0), 2);
+      tabIndex = Math.min(Math.max(tabIndex, 0), 3);
       if (this.selectedTabIndex !== tabIndex) {
         this.selectedTabIndex = tabIndex;
       }
@@ -645,6 +725,14 @@ export class AccountingShellComponent implements OnInit, OnDestroy {
       this.selectedOrganizationId = organizationId ? String(organizationId) : null;
     }
 
+    if (this.selectedTabIndex === 3) {
+      if ('chartOfAccountId' in params) {
+        this.selectedChartOfAccountId = getNumberQueryParam(params, 'chartOfAccountId');
+      } else {
+        this.selectedChartOfAccountId = null;
+      }
+    }
+
     const startDateParam = getStringQueryParam(params, 'startDate');
     const endDateParam = getStringQueryParam(params, 'endDate');
     if (startDateParam || endDateParam) {
@@ -656,10 +744,11 @@ export class AccountingShellComponent implements OnInit, OnDestroy {
       }
       this.syncInvoiceSearchDateRange();
       this.syncBillsSearchRequest();
-      if (this.selectedTabIndex === 1 || this.selectedTabIndex === 2) {
+      if (this.selectedTabIndex === 1 || this.selectedTabIndex === 2 || this.selectedTabIndex === 3) {
         queueMicrotask(() => {
           this.billsRefreshTrigger++;
           this.receiptsRefreshTrigger++;
+          this.generalLedgerRefreshTrigger++;
         });
       }
     } else if (!this.startDate && !this.endDate && !this.dateRangePinned) {
@@ -749,8 +838,20 @@ export class AccountingShellComponent implements OnInit, OnDestroy {
       tab: String(this.selectedTabIndex),
       startDate: this.utilityService.formatDateOnlyForApi(this.startDate),
       endDate: this.utilityService.formatDateOnlyForApi(this.endDate),
+      chartOfAccountId: this.selectedChartOfAccountId != null ? String(this.selectedChartOfAccountId) : null,
       ...overrides
     };
+  }
+
+  clearInvalidChartOfAccountSelection(): void {
+    if (this.selectedChartOfAccountId == null) {
+      return;
+    }
+
+    const isValid = this.shellChartOfAccountTitleBarOptions.some(option => option.value === this.selectedChartOfAccountId);
+    if (!isValid) {
+      this.selectedChartOfAccountId = null;
+    }
   }
 
   closeEmbeddedInvoiceEditor(): void {
@@ -801,6 +902,15 @@ export class AccountingShellComponent implements OnInit, OnDestroy {
   //#endregion
 
   //#region Data Load Methods
+  loadChartOfAccounts(): void {
+    this.chartOfAccountsService.areChartOfAccountsLoaded().pipe(filter(loaded => loaded === true), take(1), takeUntil(this.destroy$)).subscribe(() => {
+      this.chartOfAccountsService.getAllChartOfAccounts().pipe(takeUntil(this.destroy$)).subscribe(accounts => {
+        this.chartOfAccounts = accounts || [];
+        this.clearInvalidChartOfAccountSelection();
+      });
+    });
+  }
+
   loadOffices(): void {
     if (!this.organizationId) {
       return;

@@ -9,6 +9,7 @@ export const environment = {
     quoteListingHrefLogDebug: false,
     publicListingUiOrigin: '',
     featureFlags: {
-        docuSign: true
+        docuSign: true,
+        journalEntrySyncTools: true
     }
 };

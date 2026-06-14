@@ -43,6 +43,8 @@ export interface ReceiptRequest {
 
 export interface ReceiptResponse {
   receiptId: number;
+  receiptGuid: string;
+  receiptCode: string;
   invoiceId?: string | null;
   organizationId: string;
   officeId: number;
@@ -74,6 +76,8 @@ export interface ReceiptResponse {
 
 export interface ReceiptDisplayList {
   receiptId: number;
+  receiptGuid: string;
+  receiptCode: string;
   invoiceId?: string | null;
   officeId: number;
   officeName: string;

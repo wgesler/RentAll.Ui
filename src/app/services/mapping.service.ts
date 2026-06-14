@@ -1,8 +1,9 @@
 import { Injectable } from '@angular/core';
-import { TransactionType, getAccountTypeLabel, getTransactionTypeLabel } from '../authenticated/accounting/models/accounting-enum';
+import { TransactionType, getAccountTypeLabel, getSourceTypeLabel, getTransactionTypeLabel, isCreditNormalAccountType } from '../authenticated/accounting/models/accounting-enum';
 import { ChartOfAccountListDisplay, ChartOfAccountResponse } from '../authenticated/accounting/models/chart-of-accounts.model';
 import { CostCodesListDisplay, CostCodesRequest, CostCodesResponse } from '../authenticated/accounting/models/cost-codes.model';
 import { InvoiceResponse, LedgerLineListDisplay, LedgerLineResponse } from '../authenticated/accounting/models/invoice.model';
+import { JournalEntryLineDetailDisplay, JournalEntryLineListDisplay, JournalEntryLineResponse, JournalEntryLineSearchResponse, JournalEntryResponse } from '../authenticated/accounting/models/journal-entry.model';
 import { EntityType, getEntityType } from '../authenticated/contacts/models/contact-enum';
 import { ContactListDisplay, ContactRequest, ContactResponse } from '../authenticated/contacts/models/contact.model';
 import { DocumentType, getDocumentTypeLabel } from '../authenticated/documents/models/document.enum';
@@ -594,6 +595,122 @@ export class MappingService {
         subAccountId: account.subAccountId ?? null,
         description: account.description || '',
         note: account.note || ''
+      };
+    });
+  }
+
+  mapJournalEntryLineSearchResponse(raw: Record<string, unknown>): JournalEntryLineSearchResponse {
+    const base = raw as unknown as JournalEntryLineSearchResponse;
+    return {
+      ...base,
+      journalEntryCode: String(raw['journalEntryCode'] ?? raw['JournalEntryCode'] ?? base.journalEntryCode ?? ''),
+      transactionDate: this.utility.coerceCalendarDateStringFromApi(raw['transactionDate'] ?? raw['TransactionDate'] ?? base.transactionDate) ?? base.transactionDate ?? '',
+      postingDate: this.utility.coerceCalendarDateStringFromApi(raw['postingDate'] ?? raw['PostingDate'] ?? base.postingDate) ?? base.postingDate ?? ''
+    };
+  }
+
+  mapJournalEntryResponse(raw: Record<string, unknown>): JournalEntryResponse {
+    const base = raw as unknown as JournalEntryResponse;
+    const rawLines = (raw['journalEntryLines'] ?? raw['JournalEntryLines'] ?? base.journalEntryLines ?? []) as Record<string, unknown>[];
+    return {
+      ...base,
+      journalEntryCode: String(raw['journalEntryCode'] ?? raw['JournalEntryCode'] ?? base.journalEntryCode ?? ''),
+      transactionDate: this.utility.coerceCalendarDateStringFromApi(raw['transactionDate'] ?? raw['TransactionDate'] ?? base.transactionDate) ?? base.transactionDate ?? '',
+      postingDate: this.utility.coerceCalendarDateStringFromApi(raw['postingDate'] ?? raw['PostingDate'] ?? base.postingDate) ?? base.postingDate ?? '',
+      journalEntryLines: rawLines.map(line => this.mapJournalEntryLineResponse(line))
+    };
+  }
+
+  mapJournalEntryLineResponse(raw: Record<string, unknown>): JournalEntryLineResponse {
+    return raw as unknown as JournalEntryLineResponse;
+  }
+
+  mapJournalEntryLineListDisplay(
+    lines: JournalEntryLineSearchResponse[],
+    chartOfAccounts?: ChartOfAccountResponse[],
+    sourceTypes?: { value: number; label: string }[]
+  ): JournalEntryLineListDisplay[] {
+    const sortedLines = [...(lines ?? [])].sort((left, right) => {
+      const dateCompare = (left.transactionDate || '').localeCompare(right.transactionDate || '');
+      if (dateCompare !== 0) {
+        return dateCompare;
+      }
+
+      const createdCompare = (left.createdOn || '').localeCompare(right.createdOn || '');
+      if (createdCompare !== 0) {
+        return createdCompare;
+      }
+
+      return (left.journalEntryLineId || '').localeCompare(right.journalEntryLineId || '');
+    });
+
+    let runningBalance = 0;
+
+    return sortedLines.map(line => {
+      const transactionDate = line.transactionDate || '';
+      const description = (line.memo || line.journalEntryMemo || '').trim();
+      const debitValue = Number(line.debit) || 0;
+      const creditValue = Number(line.credit) || 0;
+      const sortDateValue = transactionDate ? Date.parse(`${transactionDate}T00:00:00`) : 0;
+      const account = chartOfAccounts?.find(item =>
+        item.accountId === line.chartOfAccountId &&
+        item.officeId === line.officeId
+      );
+      const accountLabel = account
+        ? `${account.accountNo} - ${account.name}`.trim()
+        : String(line.chartOfAccountId);
+      const creditNormal = isCreditNormalAccountType(account?.accountTypeId);
+      const netChange = creditNormal ? (creditValue - debitValue) : (debitValue - creditValue);
+      runningBalance += netChange;
+
+      return {
+        journalEntryLineId: line.journalEntryLineId,
+        journalEntryId: line.journalEntryId,
+        officeId: line.officeId,
+        transactionDate: this.formatter.formatDateString(transactionDate),
+        journalEntryCode: (line.journalEntryCode || '').trim(),
+        source: getSourceTypeLabel(line.sourceTypeId, sourceTypes),
+        account: accountLabel,
+        description,
+        debit: debitValue ? this.formatter.currency(debitValue) : '',
+        credit: creditValue ? this.formatter.currency(creditValue) : '',
+        balance: this.formatter.currency(runningBalance),
+        debitValue,
+        creditValue,
+        balanceValue: runningBalance,
+        isPosted: line.isPosted,
+        isVoided: line.isVoided,
+        sortDateValue
+      };
+    });
+  }
+
+  mapJournalEntryLineDetailDisplay(
+    lines: JournalEntryLineResponse[],
+    chartOfAccounts?: ChartOfAccountResponse[],
+    costCodes?: CostCodesResponse[],
+    officeId?: number | null
+  ): JournalEntryLineDetailDisplay[] {
+    return (lines ?? []).map(line => {
+      const account = chartOfAccounts?.find(item =>
+        item.accountId === line.chartOfAccountId &&
+        (officeId == null || item.officeId === officeId)
+      );
+      const costCode = costCodes?.find(item => item.costCodeId === line.costCodeId);
+      const debitValue = Number(line.debit) || 0;
+      const creditValue = Number(line.credit) || 0;
+
+      return {
+        journalEntryLineId: line.journalEntryLineId,
+        chartOfAccountId: line.chartOfAccountId,
+        accountNo: account?.accountNo || String(line.chartOfAccountId),
+        accountName: account?.name || '',
+        costCodeLabel: costCode ? `${costCode.costCode} - ${costCode.description}` : '',
+        debit: debitValue ? this.formatter.currency(debitValue) : '',
+        credit: creditValue ? this.formatter.currency(creditValue) : '',
+        debitValue,
+        creditValue,
+        memo: line.memo || ''
       };
     });
   }
@@ -1706,6 +1823,10 @@ export class MappingService {
     const invoiceId = invoiceIdRaw == null || String(invoiceIdRaw).trim().length === 0
       ? null
       : String(invoiceIdRaw).trim();
+    const receiptCodeRaw = rawRecord['receiptCode'] ?? rawRecord['ReceiptCode'] ?? base.receiptCode;
+    const receiptCode = String(receiptCodeRaw ?? base.receiptCode ?? '').trim();
+    const receiptGuidRaw = rawRecord['receiptGuid'] ?? rawRecord['ReceiptGuid'] ?? base.receiptGuid;
+    const receiptGuid = String(receiptGuidRaw ?? base.receiptGuid ?? '').trim();
 
     return {
       ...base,
@@ -1716,6 +1837,8 @@ export class MappingService {
       paidDate,
       createdOn,
       invoiceId,
+      receiptCode,
+      receiptGuid,
       splits: this.mapReceiptSplitsFromApi(base.splits)
     };
   }
@@ -1808,6 +1931,8 @@ export class MappingService {
 
       return {
         receiptId: receipt.receiptId,
+        receiptGuid: receipt.receiptGuid,
+        receiptCode: receipt.receiptCode,
         invoiceId: (receipt as ReceiptResponse & { invoiceId?: string | null }).invoiceId ?? null,
         officeId: receipt.officeId,
         officeName: receipt.officeName,

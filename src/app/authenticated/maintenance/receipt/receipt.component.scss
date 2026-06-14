@@ -101,9 +101,24 @@
 
 .receipt-shell--accounting {
   .receipt-overall-primary-row {
-    grid-template-columns: minmax(0, 0.5fr) minmax(0, 1fr) minmax(0, 1.5fr) minmax(0, 2fr) minmax(0, 1fr);
+    grid-template-columns: minmax(0, 0.65fr) minmax(0, 1fr) minmax(0, 1.5fr) minmax(0, 2fr) minmax(0, 0.85fr);
     width: 100%;
     max-width: 100%;
+  }
+
+  .receipt-overall-no-field ::ng-deep {
+    .mat-mdc-form-field-input-control input.mat-mdc-input-element,
+    .mat-mdc-form-field-input-control input.mdc-text-field__input {
+      font-size: 15px !important;
+      font-weight: 600 !important;
+    }
+
+    .mdc-floating-label,
+    .mat-mdc-form-field-label,
+    .mat-mdc-form-field .mdc-floating-label--float-above {
+      font-size: 14px !important;
+      font-weight: 500 !important;
+    }
   }
 
   .receipt-overall-secondary-row {

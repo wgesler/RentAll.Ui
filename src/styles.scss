@@ -43,6 +43,7 @@
   --titlebar-field-min-property-code: 14ch;
   --titlebar-field-min-invoice-no: 24ch;
   --titlebar-field-min-reservation: 120px;
+  --titlebar-field-min-chart-of-account: 320px;
   --titlebar-field-min-document-type: 100px;
   --global-action-button-height: 36px;
   --global-action-button-radius: 6px;
@@ -926,6 +927,13 @@ app-searchable-select .searchable-select-field.searchable-invalid .mat-mdc-selec
   max-width: 300px;
 }
 
+.titlebar-field-chart-of-account {
+  flex: 0 1 320px;
+  width: auto;
+  min-width: var(--titlebar-field-min-chart-of-account);
+  max-width: 320px;
+}
+
 .titlebar-field-property-code {
   flex: 0 1 22ch;
   width: auto;
@@ -962,6 +970,7 @@ app-searchable-select .searchable-select-field.searchable-invalid .mat-mdc-selec
 /* Keep Office / Property Code / Reservation at identical vertical height. */
 .header-title .titlebar-field-office.mat-mdc-form-field,
 .header-title .titlebar-field-company.mat-mdc-form-field,
+.header-title .titlebar-field-chart-of-account.mat-mdc-form-field,
 .header-title .titlebar-field-property-code.mat-mdc-form-field,
 .header-title .titlebar-field-invoice-no.mat-mdc-form-field,
 .header-title .titlebar-field-reservation.mat-mdc-form-field,
@@ -1067,6 +1076,7 @@ app-searchable-select .searchable-select-field.searchable-invalid .mat-mdc-selec
 /* Keep empty title-bar labels vertically centered for both select and input fields. */
 .header-title .titlebar-field-office.mat-mdc-form-field .mdc-floating-label:not(.mdc-floating-label--float-above),
 .header-title .titlebar-field-company.mat-mdc-form-field .mdc-floating-label:not(.mdc-floating-label--float-above),
+.header-title .titlebar-field-chart-of-account.mat-mdc-form-field .mdc-floating-label:not(.mdc-floating-label--float-above),
 .header-title .titlebar-field-property-code.mat-mdc-form-field .mdc-floating-label:not(.mdc-floating-label--float-above),
 .header-title .titlebar-field-invoice-no.mat-mdc-form-field .mdc-floating-label:not(.mdc-floating-label--float-above),
 .header-title .titlebar-field-reservation.mat-mdc-form-field .mdc-floating-label:not(.mdc-floating-label--float-above),

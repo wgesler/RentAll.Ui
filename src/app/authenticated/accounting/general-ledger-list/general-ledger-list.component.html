@@ -1,0 +1,31 @@
+@if (isPageReady) {
+  <div class="mat list-layout-standard dbg-band-main">
+    @if (isServiceError) {
+      <div class="general-ledger-empty-state">
+        <p>{{ noActivityMessage }}</p>
+      </div>
+    } @else if (linesDisplay.length === 0) {
+      <div class="general-ledger-empty-state">
+        <p>{{ noActivityMessage }}</p>
+      </div>
+    } @else {
+      <div class="tableDiv">
+        <app-data-table
+          [data]="linesDisplay"
+          [columns]="displayedColumns"
+          [hasColumnIndex]="false"
+          [hasFilter]="true"
+          [hasToggleTop]="false"
+          [hasActionsRowClick]="true"
+          [itemsPerPage]="100"
+          (rowClickEvent)="onLineSelect($event)">
+        </app-data-table>
+      </div>
+    }
+  </div>
+} @else {
+  <div class="loading-container">
+    <mat-spinner [diameter]="40"></mat-spinner>
+    <p>Loading general ledger...</p>
+  </div>
+}

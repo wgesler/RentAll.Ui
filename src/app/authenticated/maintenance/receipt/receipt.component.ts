@@ -1946,6 +1946,8 @@ export class ReceiptComponent implements OnInit, OnChanges, OnDestroy {
   createDraftReceipt(officeId: number, officeName: string): ReceiptResponse {
     return {
       receiptId: 0,
+      receiptGuid: '',
+      receiptCode: '',
       organizationId: this.organizationId,
       officeId,
       officeName,

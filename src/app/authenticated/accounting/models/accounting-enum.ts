@@ -43,6 +43,98 @@ export function getTransactionType(transactionTypeId: number | undefined): strin
   return typeMap[transactionTypeId] || '';
 }
 
+export enum SourceType {
+  Check = 0,
+  Deposit = 1,
+  Invoice = 2,
+  InvoicePayment = 3,
+  InvoiceCredit = 4,
+  Bill = 5,
+  BillPayment = 6,
+  BillCredit = 7,
+  Receipt = 8,
+  CreditMemo = 9,
+  Journal = 10,
+  Adjustment = 11,
+  CreditCard = 12,
+  CreditCardCredit = 13,
+  CreditCardRefund = 14,
+  SecurityDeposit = 15,
+  OwnerDistribution = 16,
+  Paycheck = 17,
+  PayrollLiabilityCheck = 18,
+  YtdAdjustment = 19,
+  LiabilityAdjustment = 20,
+  Transfer = 21
+}
+
+export const SourceTypeCodes: Record<SourceType, string> = {
+  [SourceType.Check]: 'CK',
+  [SourceType.Deposit]: 'DEP',
+  [SourceType.Invoice]: 'INV',
+  [SourceType.InvoicePayment]: 'PAY',
+  [SourceType.InvoiceCredit]: 'PAY',
+  [SourceType.Bill]: 'BILL',
+  [SourceType.BillPayment]: 'BPAY',
+  [SourceType.BillCredit]: 'BCRD',
+  [SourceType.Receipt]: 'REC',
+  [SourceType.CreditMemo]: 'CMEM',
+  [SourceType.Journal]: 'JRN',
+  [SourceType.Adjustment]: 'ADJ',
+  [SourceType.CreditCard]: 'CC',
+  [SourceType.CreditCardCredit]: 'CCC',
+  [SourceType.CreditCardRefund]: 'CCRF',
+  [SourceType.SecurityDeposit]: 'SDEP',
+  [SourceType.OwnerDistribution]: 'ODIS',
+  [SourceType.Paycheck]: 'PAY',
+  [SourceType.PayrollLiabilityCheck]: 'PLB',
+  [SourceType.YtdAdjustment]: 'YADJ',
+  [SourceType.LiabilityAdjustment]: 'LADJ',
+  [SourceType.Transfer]: 'TRAN',
+};
+
+export const SourceTypeLabels: { value: SourceType, label: string }[] = [
+  { value: SourceType.Check, label: 'Check' },
+  { value: SourceType.Deposit, label: 'Deposit' },
+  { value: SourceType.Invoice, label: 'Invoice' },
+  { value: SourceType.InvoicePayment, label: 'Invoice Payment' },
+  { value: SourceType.InvoiceCredit, label: 'Invoice Credit' },
+  { value: SourceType.Bill, label: 'Bill' },
+  { value: SourceType.BillPayment, label: 'Bill Payment' },
+  { value: SourceType.BillCredit, label: 'Bill Credit' },
+  { value: SourceType.Receipt, label: 'Sales Receipt' },
+  { value: SourceType.CreditMemo, label: 'Credit Memo' },
+  { value: SourceType.Journal, label: 'Journal' },
+  { value: SourceType.Adjustment, label: 'Adjustment' },
+  { value: SourceType.CreditCard, label: 'Credit Card' },
+  { value: SourceType.CreditCardCredit, label: 'Credit Card Credit' },
+  { value: SourceType.CreditCardRefund, label: 'Credit Card Refund' },
+  { value: SourceType.SecurityDeposit, label: 'Security Deposit' },
+  { value: SourceType.OwnerDistribution, label: 'Owner Distribution' },
+  { value: SourceType.Paycheck, label: 'Paycheck' },
+  { value: SourceType.PayrollLiabilityCheck, label: 'Payroll Liability Check' },
+  { value: SourceType.YtdAdjustment, label: 'YTD Adjustment' },
+  { value: SourceType.LiabilityAdjustment, label: 'Liability Adjustment' },
+  { value: SourceType.Transfer, label: 'Transfer' },
+];
+
+export function getSourceTypeCode(sourceTypeId: number | undefined | null): string {
+  if (sourceTypeId === undefined || sourceTypeId === null) {
+    return '';
+  }
+
+  return SourceTypeCodes[sourceTypeId as SourceType] ?? '';
+}
+
+export function getSourceTypeLabel(sourceTypeId: number | undefined | null, sourceTypes?: { value: number, label: string }[]): string {
+  if (sourceTypeId === undefined || sourceTypeId === null) {
+    return '';
+  }
+
+  const options = sourceTypes?.length ? sourceTypes : SourceTypeLabels;
+  return options.find(type => type.value === sourceTypeId)?.label ?? '';
+}
+
 export function getTransactionTypeLabel(transactionType: number, transactionTypes?: { value: number, label: string }[]): string {
   if (transactionTypes && transactionTypes.length > 0) {
     const found = transactionTypes.find(t => t.value === transactionType);
@@ -88,6 +180,20 @@ export const AccountTypeLabels: { value: AccountType; label: string }[] = [
   { value: AccountType.OtherIncome, label: 'Other Income' },
   { value: AccountType.OtherExpense, label: 'Other Expense' },
 ];
+
+export function isCreditNormalAccountType(accountTypeId: number | undefined | null): boolean {
+  if (accountTypeId === undefined || accountTypeId === null) {
+    return false;
+  }
+
+  return accountTypeId === AccountType.AccountsPayable
+    || accountTypeId === AccountType.CreditCard
+    || accountTypeId === AccountType.OtherCurrentLiability
+    || accountTypeId === AccountType.LongTermLiability
+    || accountTypeId === AccountType.Equity
+    || accountTypeId === AccountType.Income
+    || accountTypeId === AccountType.OtherIncome;
+}
 
 export function getAccountType(accountTypeId: number | undefined | null): string {
   if (accountTypeId === undefined || accountTypeId === null) {

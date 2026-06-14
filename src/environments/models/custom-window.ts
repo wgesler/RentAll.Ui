@@ -4,6 +4,7 @@ export interface CustomWindow extends Window {
 
 export interface FeatureFlags {
     docuSign: boolean;
+    journalEntrySyncTools: boolean;
 }
 
 export interface Environment {

@@ -29,6 +29,7 @@
     app-receipts-list,
     app-receipt,
     app-cost-codes-list,
+    app-general-ledger-list,
     app-general-ledger,
     app-document-list {
       display: block;
@@ -121,6 +122,12 @@ mat-card {
     flex: 0 1 300px;
     min-width: var(--titlebar-field-min-company);
     max-width: 300px;
+  }
+
+  .titlebar-field-chart-of-account.mat-mdc-form-field {
+    flex: 0 1 320px;
+    min-width: var(--titlebar-field-min-chart-of-account);
+    max-width: 320px;
   }
 
   .titlebar-field-reservation.mat-mdc-form-field {
