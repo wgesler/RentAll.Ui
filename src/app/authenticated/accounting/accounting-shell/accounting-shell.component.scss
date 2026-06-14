@@ -130,6 +130,12 @@ mat-card {
     max-width: 320px;
   }
 
+  .titlebar-field-property-code.mat-mdc-form-field {
+    flex: 0 1 22ch;
+    min-width: var(--titlebar-field-min-property-code);
+    max-width: 22ch;
+  }
+
   .titlebar-field-reservation.mat-mdc-form-field {
     flex: 0 1 307px;
     flex-shrink: 0;

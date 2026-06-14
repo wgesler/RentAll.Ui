@@ -21,8 +21,11 @@ import { MaintenanceListSearchRequest } from '../../maintenance/models/maintenan
 import { ReceiptSelection } from '../../maintenance/models/receipt.model';
 import { ReceiptComponent } from '../../maintenance/receipt/receipt.component';
 import { ReceiptsListComponent } from '../../maintenance/receipts-list/receipts-list.component';
-import { PropertyResponse } from '../../properties/models/property.model';
+import { PropertyCodeResponse, PropertyResponse } from '../../properties/models/property.model';
 import { PropertyService } from '../../properties/services/property.service';
+import { ReservationCodeResponse } from '../../reservations/models/reservation-model';
+import { ReservationService } from '../../reservations/services/reservation.service';
+import { SearchableSelectOption } from '../../shared/searchable-select/searchable-select.component';
 import { InvoiceComponent } from '../invoice/invoice.component';
 import { InvoiceListComponent } from '../invoice-list/invoice-list.component';
 import { GeneralLedgerComponent } from '../general-ledger/general-ledger.component';
@@ -84,6 +87,12 @@ export class AccountingShellComponent implements OnInit, OnDestroy {
   selectedReceiptsReceiptId: number | null = null;
   receiptsReceiptProperty: PropertyResponse | null = null;
   selectedChartOfAccountId: number | null = null;
+  selectedGlPropertyId: string | null = null;
+  selectedGlReservationId: string | null = null;
+  glProperties: PropertyCodeResponse[] = [];
+  glReservations: ReservationCodeResponse[] = [];
+  availableGlProperties: SearchableSelectOption[] = [];
+  availableGlReservations: SearchableSelectOption[] = [];
   showGeneralLedgerDetail = false;
   activeJournalEntryId: string | null = null;
   selectedJournalEntryLineId: string | null = null;
@@ -103,6 +112,7 @@ export class AccountingShellComponent implements OnInit, OnDestroy {
     private officeService: OfficeService,
     private globalSelectionService: GlobalSelectionService,
     private propertyService: PropertyService,
+    private reservationService: ReservationService,
     private toastr: ToastrService
   ) {
     this.syncInvoiceSearchDateRange();
@@ -116,6 +126,8 @@ export class AccountingShellComponent implements OnInit, OnDestroy {
     this.costCodesService.ensureCostCodesLoaded();
     this.chartOfAccountsService.ensureChartOfAccountsLoaded();
     this.loadChartOfAccounts();
+    this.loadGlPropertyCodes();
+    this.loadGlReservationCodes();
     this.organizationId = this.authService.getUser()?.organizationId?.trim() ?? '';
     this.initializeSuperAdminFilters();
     if (!this.isSuperAdmin) {
@@ -129,6 +141,12 @@ export class AccountingShellComponent implements OnInit, OnDestroy {
         }
         if (this.selectedTabIndex === 2) {
           this.receiptsRefreshTrigger++;
+        }
+        if (this.selectedTabIndex === 3) {
+          this.refreshGlPropertyOptions();
+          this.refreshGlReservationOptions();
+          this.clearInvalidChartOfAccountSelection();
+          this.generalLedgerRefreshTrigger++;
         }
       });
     }
@@ -242,6 +260,42 @@ export class AccountingShellComponent implements OnInit, OnDestroy {
       queryParamsHandling: 'merge'
     });
   }
+
+  onShellGlPropertyDropdownChange(value: string | number | null): void {
+    const propertyId = value == null || value === '' ? null : String(value);
+    if (this.selectedGlPropertyId === propertyId) {
+      return;
+    }
+    this.selectedGlPropertyId = propertyId;
+    this.refreshGlReservationOptions();
+    this.onGeneralLedgerBack();
+    this.generalLedgerRefreshTrigger++;
+    this.router.navigate([], {
+      relativeTo: this.route,
+      queryParams: this.buildShellQueryParams(),
+      queryParamsHandling: 'merge'
+    });
+  }
+
+  onShellGlReservationDropdownChange(value: string | number | null): void {
+    const reservationId = value == null || value === '' ? null : String(value);
+    if (this.selectedGlReservationId === reservationId) {
+      return;
+    }
+    this.selectedGlReservationId = reservationId;
+    const reservation = this.glReservations.find(item => item.reservationId === reservationId) || null;
+    if (reservation?.propertyId) {
+      this.selectedGlPropertyId = reservation.propertyId;
+      this.refreshGlPropertyOptions();
+    }
+    this.onGeneralLedgerBack();
+    this.generalLedgerRefreshTrigger++;
+    this.router.navigate([], {
+      relativeTo: this.route,
+      queryParams: this.buildShellQueryParams(),
+      queryParamsHandling: 'merge'
+    });
+  }
   //#endregion
 
   //#region Bills Receipt Detail
@@ -288,6 +342,7 @@ export class AccountingShellComponent implements OnInit, OnDestroy {
   }
 
   onJournalEntriesChanged(): void {
+    this.syncGlFiltersFromInvoiceContext();
     this.generalLedgerRefreshTrigger++;
   }
 
@@ -370,6 +425,9 @@ export class AccountingShellComponent implements OnInit, OnDestroy {
       if (!('chartOfAccountId' in this.route.snapshot.queryParams)) {
         this.selectedChartOfAccountId = null;
       }
+      this.syncGlFiltersFromInvoiceContext();
+      this.refreshGlPropertyOptions();
+      this.refreshGlReservationOptions();
       this.generalLedgerRefreshTrigger++;
     }
     this.router.navigate([], {
@@ -642,6 +700,14 @@ export class AccountingShellComponent implements OnInit, OnDestroy {
     }));
   }
 
+  get shellGlPropertyTitleBarOptions(): SearchableSelectOption[] {
+    return this.availableGlProperties;
+  }
+
+  get shellGlReservationTitleBarOptions(): SearchableSelectOption[] {
+    return this.availableGlReservations;
+  }
+
   get organizationTitleBarOptions(): { value: string, label: string }[] {
     return (this.organizations || []).map((organization) => ({
       value: organization.organizationId,
@@ -686,6 +752,8 @@ export class AccountingShellComponent implements OnInit, OnDestroy {
       this.receiptsRefreshTrigger++;
     }
     if (this.selectedTabIndex === 3) {
+      this.refreshGlPropertyOptions();
+      this.refreshGlReservationOptions();
       this.clearInvalidChartOfAccountSelection();
       this.onGeneralLedgerBack();
       this.generalLedgerRefreshTrigger++;
@@ -731,6 +799,24 @@ export class AccountingShellComponent implements OnInit, OnDestroy {
       } else {
         this.selectedChartOfAccountId = null;
       }
+
+      if ('propertyId' in params) {
+        this.selectedGlPropertyId = params['propertyId'] ? String(params['propertyId']) : null;
+      } else {
+        this.selectedGlPropertyId = null;
+      }
+
+      if ('glReservationId' in params) {
+        this.selectedGlReservationId = params['glReservationId'] ? String(params['glReservationId']) : null;
+      } else if ('reservationId' in params) {
+        this.selectedGlReservationId = params['reservationId'] ? String(params['reservationId']) : null;
+      } else {
+        this.selectedGlReservationId = null;
+      }
+
+      this.syncGlFiltersFromInvoiceContext();
+      this.refreshGlPropertyOptions();
+      this.refreshGlReservationOptions();
     }
 
     const startDateParam = getStringQueryParam(params, 'startDate');
@@ -839,6 +925,8 @@ export class AccountingShellComponent implements OnInit, OnDestroy {
       startDate: this.utilityService.formatDateOnlyForApi(this.startDate),
       endDate: this.utilityService.formatDateOnlyForApi(this.endDate),
       chartOfAccountId: this.selectedChartOfAccountId != null ? String(this.selectedChartOfAccountId) : null,
+      propertyId: this.selectedTabIndex === 3 ? this.selectedGlPropertyId : null,
+      glReservationId: this.selectedTabIndex === 3 ? this.selectedGlReservationId : null,
       ...overrides
     };
   }
@@ -909,6 +997,82 @@ export class AccountingShellComponent implements OnInit, OnDestroy {
         this.clearInvalidChartOfAccountSelection();
       });
     });
+  }
+
+  loadGlPropertyCodes(): void {
+    this.propertyService.getPropertyCodes().pipe(take(1), takeUntil(this.destroy$)).subscribe({
+      next: properties => {
+        this.glProperties = properties || [];
+        this.refreshGlPropertyOptions();
+      },
+      error: () => {
+        this.glProperties = [];
+        this.availableGlProperties = [];
+        this.selectedGlPropertyId = null;
+      }
+    });
+  }
+
+  loadGlReservationCodes(): void {
+    this.reservationService.getReservationCodes().pipe(take(1), takeUntil(this.destroy$)).subscribe({
+      next: reservations => {
+        this.glReservations = reservations || [];
+        this.refreshGlReservationOptions();
+      },
+      error: () => {
+        this.glReservations = [];
+        this.availableGlReservations = [];
+        this.selectedGlReservationId = null;
+      }
+    });
+  }
+
+  refreshGlPropertyOptions(): void {
+    const filteredProperties = this.selectedOfficeId == null
+      ? this.glProperties
+      : this.glProperties.filter(property => property.officeId === this.selectedOfficeId);
+    this.availableGlProperties = filteredProperties.map(property => ({
+      value: property.propertyId,
+      label: property.propertyCode
+    }));
+
+    if (this.selectedGlPropertyId && !filteredProperties.some(property => property.propertyId === this.selectedGlPropertyId)) {
+      this.selectedGlPropertyId = null;
+    }
+  }
+
+  refreshGlReservationOptions(): void {
+    const officeFilteredReservations = this.selectedOfficeId == null
+      ? this.glReservations
+      : this.glReservations.filter(reservation => reservation.officeId === this.selectedOfficeId);
+    const filteredReservations = this.selectedGlPropertyId == null
+      ? officeFilteredReservations
+      : officeFilteredReservations.filter(reservation => reservation.propertyId === this.selectedGlPropertyId);
+    this.availableGlReservations = filteredReservations.map(reservation => ({
+      value: reservation.reservationId,
+      label: this.utilityService.getReservationDropdownLabel(reservation, null)
+    }));
+
+    if (this.selectedGlReservationId && !filteredReservations.some(reservation => reservation.reservationId === this.selectedGlReservationId)) {
+      this.selectedGlReservationId = null;
+    }
+  }
+
+  syncGlFiltersFromInvoiceContext(): void {
+    if (this.selectedTabIndex !== 3) {
+      return;
+    }
+
+    if (!this.selectedGlReservationId && this.selectedReservationId) {
+      this.selectedGlReservationId = this.selectedReservationId;
+    }
+
+    if (!this.selectedGlPropertyId && this.selectedGlReservationId) {
+      const reservation = this.glReservations.find(item => item.reservationId === this.selectedGlReservationId);
+      if (reservation?.propertyId) {
+        this.selectedGlPropertyId = reservation.propertyId;
+      }
+    }
   }
 
   loadOffices(): void {

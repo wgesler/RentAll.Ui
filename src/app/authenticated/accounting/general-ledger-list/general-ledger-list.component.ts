@@ -27,6 +27,8 @@ import { GeneralLedgerService } from '../services/general-ledger.service';
 })
 export class GeneralLedgerListComponent implements OnInit, OnDestroy, OnChanges {
   @Input() officeId: number | null = null;
+  @Input() propertyId: string | null = null;
+  @Input() reservationId: string | null = null;
   @Input() chartOfAccountId: number | null = null;
   @Input() searchDateRange: { startDate: string | null; endDate: string | null } | null = null;
   @Input() refreshTrigger = 0;
@@ -89,6 +91,8 @@ export class GeneralLedgerListComponent implements OnInit, OnDestroy, OnChanges 
 
     const shouldReloadLines =
       (changes['chartOfAccountId'] && !changes['chartOfAccountId'].firstChange)
+      || (changes['propertyId'] && !changes['propertyId'].firstChange)
+      || (changes['reservationId'] && !changes['reservationId'].firstChange)
       || (changes['searchDateRange'] && !changes['searchDateRange'].firstChange)
       || (changes['refreshTrigger'] && !changes['refreshTrigger'].firstChange)
       || (changes['officeId'] && !changes['officeId'].firstChange);
@@ -172,6 +176,8 @@ export class GeneralLedgerListComponent implements OnInit, OnDestroy, OnChanges 
     this.generalLedgerService.searchJournalEntryLines({
       officeIds,
       chartOfAccountId: this.chartOfAccountId != null && this.chartOfAccountId > 0 ? this.chartOfAccountId : null,
+      propertyId: this.propertyId?.trim() || null,
+      reservationId: this.reservationId?.trim() || null,
       includeVoided: false,
       includeUnposted: true,
       startDate: this.searchDateRange?.startDate ?? null,
@@ -179,7 +185,7 @@ export class GeneralLedgerListComponent implements OnInit, OnDestroy, OnChanges 
     }).pipe(finalize(() => this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'generalLedgerLines')), takeUntil(this.destroy$)).subscribe({
       next: lines => {
         this.allLines = lines || [];
-        this.noActivityMessage = 'No general ledger activity for the selected office and date range.';
+        this.noActivityMessage = 'No general ledger activity for the selected filters and date range.';
         this.applyLinesDisplay();
         this.markViewForCheck();
       },

@@ -1,5 +1,5 @@
 import { Injectable } from '@angular/core';
-import { TransactionType, getAccountTypeLabel, getSourceTypeLabel, getTransactionTypeLabel, isCreditNormalAccountType } from '../authenticated/accounting/models/accounting-enum';
+import { TransactionType, getAccountTypeLabel, getSourceTypeLabel, getTransactionTypeLabel } from '../authenticated/accounting/models/accounting-enum';
 import { ChartOfAccountListDisplay, ChartOfAccountResponse } from '../authenticated/accounting/models/chart-of-accounts.model';
 import { CostCodesListDisplay, CostCodesRequest, CostCodesResponse } from '../authenticated/accounting/models/cost-codes.model';
 import { InvoiceResponse, LedgerLineListDisplay, LedgerLineResponse } from '../authenticated/accounting/models/invoice.model';
@@ -668,9 +668,7 @@ export class MappingService {
       const accountLabel = account
         ? `${account.accountNo} - ${account.name}`.trim()
         : String(line.chartOfAccountId);
-      const creditNormal = isCreditNormalAccountType(account?.accountTypeId);
-      const netChange = creditNormal ? (creditValue - debitValue) : (debitValue - creditValue);
-      runningBalance += netChange;
+      runningBalance += debitValue - creditValue;
 
       return {
         journalEntryLineId: line.journalEntryLineId,

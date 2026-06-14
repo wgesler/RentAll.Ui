@@ -131,6 +131,24 @@
               </app-title-bar-select>
             }
             <app-title-bar-select
+              [label]="'Property Code'"
+              [formFieldClass]="'titlebar-field-property-code'"
+              [value]="selectedGlPropertyId"
+              [options]="shellGlPropertyTitleBarOptions"
+              [nullOptionLabel]="'All Properties'"
+              [noResultsText]="'No properties match your search'"
+              (valueChange)="onShellGlPropertyDropdownChange($event)">
+            </app-title-bar-select>
+            <app-title-bar-select
+              [label]="'Reservation'"
+              [formFieldClass]="'titlebar-field-reservation'"
+              [value]="selectedGlReservationId"
+              [options]="shellGlReservationTitleBarOptions"
+              [nullOptionLabel]="'All Reservations'"
+              [noResultsText]="'No reservations match your search'"
+              (valueChange)="onShellGlReservationDropdownChange($event)">
+            </app-title-bar-select>
+            <app-title-bar-select
               [label]="'Account'"
               [formFieldClass]="'titlebar-field-chart-of-account'"
               [value]="selectedChartOfAccountId"
@@ -300,6 +318,8 @@
             } @else {
               <app-general-ledger-list
                 [officeId]="selectedOfficeId"
+                [propertyId]="selectedGlPropertyId"
+                [reservationId]="selectedGlReservationId"
                 [chartOfAccountId]="selectedChartOfAccountId"
                 [searchDateRange]="invoiceSearchDateRange"
                 [refreshTrigger]="generalLedgerRefreshTrigger"
