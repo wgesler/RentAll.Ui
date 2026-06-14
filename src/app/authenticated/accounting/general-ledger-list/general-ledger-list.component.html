@@ -4,7 +4,7 @@
       <div class="general-ledger-empty-state">
         <p>{{ noActivityMessage }}</p>
       </div>
-    } @else if (linesDisplay.length === 0) {
+    } @else if (!undepositedFundsOnly && linesDisplay.length === 0) {
       <div class="general-ledger-empty-state">
         <p>{{ noActivityMessage }}</p>
       </div>
@@ -13,13 +13,98 @@
         <app-data-table
           [data]="linesDisplay"
           [columns]="displayedColumns"
+          [noDataMessage]="undepositedFundsOnly ? noActivityMessage : null"
           [hasColumnIndex]="false"
           [hasFilter]="true"
           [hasToggleTop]="false"
+          [hasButtonTop]="false"
+          [hasActionsSelect]="showDepositTableSelections"
+          [hasButtonSelectAll]="showDepositTableSelections"
           [hasContactNameLink]="false"
-          [hasActionsRowClick]="true"
+          [hasActionsRowClick]="!showDepositForm"
           [itemsPerPage]="100"
-          (rowClickEvent)="onLineSelect($event)">
+          (rowClickEvent)="onLineSelect($event)"
+          (selectionSet)="onDepositLineSelectionSet($event)">
+          @if (undepositedFundsOnly) {
+            <div dataTableFilterActions>
+              <div class="table-filter-actions-group form-titlebar-actions-wrap uniform-gap payment-actions-anchor">
+                <button
+                  mat-raised-button
+                  type="button"
+                  color="accent"
+                  id="make-deposit-button"
+                  class="text-nowrap flex-shrink-0 whitespace-nowrap items-center flex gap-1"
+                  (click)="openMakeDepositDialog()">
+                  Make Deposit
+                </button>
+                @if (showDepositForm) {
+                  <div class="payment-dialog-overlay">
+                    <div class="payment-form-box" style="font-size: 11px !important;">
+                      <div class="flex gap-2 items-center payment-inline-row">
+                        <mat-form-field appearance="outline" class="payment-date-field" style="font-size: 11px !important;">
+                          <mat-label style="font-size: 11px !important;">Date</mat-label>
+                          <input matInput [matDatepicker]="depositDatePickerEmbedded" [(ngModel)]="depositDate" style="font-size: 11px !important;">
+                          <mat-datepicker-toggle matIconSuffix [for]="depositDatePickerEmbedded"></mat-datepicker-toggle>
+                          <mat-datepicker #depositDatePickerEmbedded></mat-datepicker>
+                        </mat-form-field>
+                        <mat-form-field appearance="outline" class="payment-cost-code-dropdown" style="font-size: 11px !important;">
+                          <mat-label style="font-size: 11px !important;">Bank</mat-label>
+                          <mat-select
+                            [(ngModel)]="selectedDepositBankChartOfAccountId"
+                            (selectionChange)="onDepositBankChartOfAccountChange($event.value)"
+                            [disabled]="!resolvedDepositOfficeId"
+                            style="font-size: 11px !important;">
+                            <mat-option [value]="null" style="font-size: 11px !important;">Select Bank Account</mat-option>
+                            @for (account of depositBankChartOfAccounts; track account.value) {
+                              <mat-option [value]="account.value" style="font-size: 11px !important;">{{ account.label }}</mat-option>
+                            }
+                          </mat-select>
+                        </mat-form-field>
+                        <mat-form-field appearance="outline" class="payment-type-field" style="font-size: 11px !important;">
+                          <mat-label style="font-size: 11px !important;">Type</mat-label>
+                          <input matInput [value]="depositTransactionType" readonly style="font-size: 11px !important;">
+                        </mat-form-field>
+                        <mat-form-field appearance="outline" class="payment-description-field" style="font-size: 11px !important;">
+                          <mat-label style="font-size: 11px !important;">Description</mat-label>
+                          <input matInput [(ngModel)]="depositDescription" placeholder="Enter description" style="font-size: 11px !important;">
+                        </mat-form-field>
+                        <mat-form-field appearance="outline" class="payment-amount-field" style="font-size: 11px !important;">
+                          <mat-label style="font-size: 11px !important;">Amount</mat-label>
+                          <input
+                            matInput
+                            type="text"
+                            [value]="depositAmountDisplay"
+                            (input)="onDepositAmountInput($event)"
+                            (focus)="onDepositAmountFocus($event)"
+                            (blur)="onDepositAmountBlur($event)"
+                            (keydown.enter)="onDepositAmountEnter($event)"
+                            placeholder="0.00"
+                            style="font-size: 11px !important;">
+                        </mat-form-field>
+                      </div>
+                    </div>
+                    <button
+                      mat-raised-button
+                      type="button"
+                      color="primary"
+                      (click)="submitDeposit()"
+                      [disabled]="!isDepositFormValid || isSubmittingDeposit"
+                      class="whitespace-nowrap items-center flex gap-1">
+                      Submit
+                    </button>
+                    <button
+                      mat-raised-button
+                      type="button"
+                      color="accent"
+                      (click)="cancelDepositForm()"
+                      class="whitespace-nowrap items-center flex gap-1">
+                      Cancel
+                    </button>
+                  </div>
+                }
+              </div>
+            </div>
+          }
         </app-data-table>
       </div>
     }

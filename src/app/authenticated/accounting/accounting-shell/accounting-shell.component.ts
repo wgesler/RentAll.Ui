@@ -97,6 +97,7 @@ export class AccountingShellComponent implements OnInit, OnDestroy {
   activeJournalEntryId: string | null = null;
   selectedJournalEntryLineId: string | null = null;
   generalLedgerRefreshTrigger = 0;
+  depositsRefreshTrigger = 0;
   chartOfAccounts: ChartOfAccountResponse[] = [];
 
   destroy$ = new Subject<void>();
@@ -143,6 +144,9 @@ export class AccountingShellComponent implements OnInit, OnDestroy {
           this.receiptsRefreshTrigger++;
         }
         if (this.selectedTabIndex === 3) {
+          this.depositsRefreshTrigger++;
+        }
+        if (this.selectedTabIndex === 4) {
           this.refreshGlPropertyOptions();
           this.refreshGlReservationOptions();
           this.clearInvalidChartOfAccountSelection();
@@ -343,6 +347,7 @@ export class AccountingShellComponent implements OnInit, OnDestroy {
 
   onJournalEntriesChanged(): void {
     this.syncGlFiltersFromInvoiceContext();
+    this.depositsRefreshTrigger++;
     this.generalLedgerRefreshTrigger++;
   }
 
@@ -410,7 +415,7 @@ export class AccountingShellComponent implements OnInit, OnDestroy {
     if (event.index !== 2) {
       this.onReceiptsReceiptBack();
     }
-    if (event.index !== 3) {
+    if (event.index !== 3 && event.index !== 4) {
       this.onGeneralLedgerBack();
     }
     this.selectedTabIndex = event.index;
@@ -422,6 +427,9 @@ export class AccountingShellComponent implements OnInit, OnDestroy {
       this.receiptsRefreshTrigger++;
     }
     if (this.selectedTabIndex === 3) {
+      this.depositsRefreshTrigger++;
+    }
+    if (this.selectedTabIndex === 4) {
       if (!('chartOfAccountId' in this.route.snapshot.queryParams)) {
         this.selectedChartOfAccountId = null;
       }
@@ -479,6 +487,9 @@ export class AccountingShellComponent implements OnInit, OnDestroy {
       this.receiptsRefreshTrigger++;
     }
     if (this.selectedTabIndex === 3) {
+      this.depositsRefreshTrigger++;
+    }
+    if (this.selectedTabIndex === 4) {
       this.generalLedgerRefreshTrigger++;
     }
     this.router.navigate([], {
@@ -682,7 +693,7 @@ export class AccountingShellComponent implements OnInit, OnDestroy {
   }
 
   get isGeneralLedgerDetailActive(): boolean {
-    return this.selectedTabIndex === 3 && this.showGeneralLedgerDetail;
+    return (this.selectedTabIndex === 3 || this.selectedTabIndex === 4) && this.showGeneralLedgerDetail;
   }
 
   get shellOfficeTitleBarOptions(): { value: number, label: string }[] {
@@ -752,6 +763,10 @@ export class AccountingShellComponent implements OnInit, OnDestroy {
       this.receiptsRefreshTrigger++;
     }
     if (this.selectedTabIndex === 3) {
+      this.onGeneralLedgerBack();
+      this.depositsRefreshTrigger++;
+    }
+    if (this.selectedTabIndex === 4) {
       this.refreshGlPropertyOptions();
       this.refreshGlReservationOptions();
       this.clearInvalidChartOfAccountSelection();
@@ -766,9 +781,9 @@ export class AccountingShellComponent implements OnInit, OnDestroy {
   }
 
   applyQueryParamState(params: Record<string, string>): void {
-    let tabIndex = getNumberQueryParam(params, 'tab', 0, 4);
+    let tabIndex = getNumberQueryParam(params, 'tab', 0, 5);
     if (tabIndex !== null) {
-      tabIndex = Math.min(Math.max(tabIndex, 0), 3);
+      tabIndex = Math.min(Math.max(tabIndex, 0), 4);
       if (this.selectedTabIndex !== tabIndex) {
         this.selectedTabIndex = tabIndex;
       }
@@ -793,7 +808,7 @@ export class AccountingShellComponent implements OnInit, OnDestroy {
       this.selectedOrganizationId = organizationId ? String(organizationId) : null;
     }
 
-    if (this.selectedTabIndex === 3) {
+    if (this.selectedTabIndex === 4) {
       if ('chartOfAccountId' in params) {
         this.selectedChartOfAccountId = getNumberQueryParam(params, 'chartOfAccountId');
       } else {
@@ -830,10 +845,11 @@ export class AccountingShellComponent implements OnInit, OnDestroy {
       }
       this.syncInvoiceSearchDateRange();
       this.syncBillsSearchRequest();
-      if (this.selectedTabIndex === 1 || this.selectedTabIndex === 2 || this.selectedTabIndex === 3) {
+      if (this.selectedTabIndex === 1 || this.selectedTabIndex === 2 || this.selectedTabIndex === 3 || this.selectedTabIndex === 4) {
         queueMicrotask(() => {
           this.billsRefreshTrigger++;
           this.receiptsRefreshTrigger++;
+          this.depositsRefreshTrigger++;
           this.generalLedgerRefreshTrigger++;
         });
       }
@@ -924,9 +940,11 @@ export class AccountingShellComponent implements OnInit, OnDestroy {
       tab: String(this.selectedTabIndex),
       startDate: this.utilityService.formatDateOnlyForApi(this.startDate),
       endDate: this.utilityService.formatDateOnlyForApi(this.endDate),
-      chartOfAccountId: this.selectedChartOfAccountId != null ? String(this.selectedChartOfAccountId) : null,
-      propertyId: this.selectedTabIndex === 3 ? this.selectedGlPropertyId : null,
-      glReservationId: this.selectedTabIndex === 3 ? this.selectedGlReservationId : null,
+      chartOfAccountId: this.selectedTabIndex === 4 && this.selectedChartOfAccountId != null
+        ? String(this.selectedChartOfAccountId)
+        : null,
+      propertyId: this.selectedTabIndex === 4 ? this.selectedGlPropertyId : null,
+      glReservationId: this.selectedTabIndex === 4 ? this.selectedGlReservationId : null,
       ...overrides
     };
   }
@@ -1059,7 +1077,7 @@ export class AccountingShellComponent implements OnInit, OnDestroy {
   }
 
   syncGlFiltersFromInvoiceContext(): void {
-    if (this.selectedTabIndex !== 3) {
+    if (this.selectedTabIndex !== 4) {
       return;
     }
 

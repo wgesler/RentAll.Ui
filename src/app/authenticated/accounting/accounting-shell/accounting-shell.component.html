@@ -95,7 +95,7 @@
             }
             </div>
           </div>
-        } @else if (selectedTabIndex === 1 || selectedTabIndex === 2) {
+        } @else if (selectedTabIndex === 1 || selectedTabIndex === 2 || selectedTabIndex === 3) {
           <div class="header-title form-titlebar-fields-wrap accounting-shell-titlebar-fields">
             <div class="accounting-shell-titlebar-filters">
             @if (showShellOfficeDropdown) {
@@ -116,7 +116,7 @@
             }
             </div>
           </div>
-        } @else if (selectedTabIndex === 3) {
+        } @else if (selectedTabIndex === 4) {
           <div class="header-title form-titlebar-fields-wrap accounting-shell-titlebar-fields">
             <div class="accounting-shell-titlebar-filters">
             @if (showShellOfficeDropdown) {
@@ -305,6 +305,25 @@
                 (receiptSelect)="onReceiptsReceiptSelect($event)"
                 (journalEntriesChanged)="onJournalEntriesChanged()">
               </app-receipts-list>
+            }
+          </mat-tab>
+          <mat-tab label="Deposits">
+            @if (showGeneralLedgerDetail && activeJournalEntryId) {
+              <app-general-ledger
+                [journalEntryId]="activeJournalEntryId"
+                [selectedJournalEntryLineId]="selectedJournalEntryLineId"
+                (backEvent)="onGeneralLedgerBack()"
+                (savedEvent)="onJournalEntriesChanged()">
+              </app-general-ledger>
+            } @else {
+              <app-general-ledger-list
+                [officeId]="selectedOfficeId"
+                [undepositedFundsOnly]="true"
+                [searchDateRange]="invoiceSearchDateRange"
+                [refreshTrigger]="depositsRefreshTrigger"
+                (lineSelectEvent)="onGeneralLedgerLineSelect($event)"
+                (depositCompletedEvent)="onJournalEntriesChanged()">
+              </app-general-ledger-list>
             }
           </mat-tab>
           <mat-tab label="General Ledger">

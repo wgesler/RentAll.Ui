@@ -131,6 +131,31 @@ export interface JournalEntryLineListDisplay {
   isPosted: boolean;
   isVoided: boolean;
   sortDateValue: number;
+  selected?: boolean;
+  disabled?: boolean;
+}
+
+export interface MakeDepositRequest {
+  officeId: number;
+  depositDate: string;
+  bankChartOfAccountId: number;
+  description: string;
+  amount: number;
+  journalEntryLineIds: string[];
+  lines: JournalEntryLineListDisplay[];
+}
+
+export interface DepositRequest {
+  officeId: number;
+  depositDate: string;
+  chartOfAccountId: number;
+  description: string;
+  amount: number;
+  journalEntryLineIds: string[];
+}
+
+export interface DepositResponse {
+  journalEntry: JournalEntryResponse;
 }
 
 export interface JournalEntryLineDetailDisplay {
