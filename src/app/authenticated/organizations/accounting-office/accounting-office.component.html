@@ -326,8 +326,9 @@
                   <mat-panel-title>Default Chart of Accounts</mat-panel-title>
                 </mat-expansion-panel-header>
 
+                <h4 class="text-base font-semibold mb-3 mt-1">Tenant/Owner/Company Accounts</h4>
                 <div class="grid grid-cols-5 form-standard-grid mb-4">
-                  @for (field of defaultAccountFieldsRow1; track field.controlName) {
+                  @for (field of defaultTenantOwnerCompanyAccountFields; track field.controlName) {
                     <app-searchable-select
                       class="col-span-1 w-full"
                       [renderInFormField]="true"
@@ -346,6 +347,7 @@
                       (valueChange)="onDefaultAccountIdChange(field.controlName, $event)" />
                   }
                 </div>
+                <h4 class="text-base font-semibold mb-3">Bank &amp; Balance Sheet Accounts</h4>
                 <div class="grid grid-cols-6 form-standard-grid">
                   @for (field of defaultAccountFieldsRow2; track field.controlName) {
                     <app-searchable-select

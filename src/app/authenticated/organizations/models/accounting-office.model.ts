@@ -30,9 +30,9 @@ export interface AccountingOfficeRequest {
   defaultActPayableAccountId?: number | null;
   defaultOwnActPayableAccountId?: number | null;
   defaultTenantExpAccountId?: number | null;
-  defaultTenantChgAccountId?: number | null;
+  defaultTenantIncAccountId?: number | null;
   defaultOwnerExpAccountId?: number | null;
-  defaultOwnerChgAccountId?: number | null;
+  defaultOwnerIncAccountId?: number | null;
   defaultCompanyExpAccountId?: number | null;
   logoPath?: string; 
   fileDetails?: FileDetails;
@@ -68,9 +68,9 @@ export interface AccountingOfficeResponse {
   defaultActPayableAccountId?: number | null;
   defaultOwnActPayableAccountId?: number | null;
   defaultTenantExpAccountId?: number | null;
-  defaultTenantChgAccountId?: number | null;
+  defaultTenantIncAccountId?: number | null;
   defaultOwnerExpAccountId?: number | null;
-  defaultOwnerChgAccountId?: number | null;
+  defaultOwnerIncAccountId?: number | null;
   defaultCompanyExpAccountId?: number | null;
   logoPath?: string; 
   fileDetails?: FileDetails;
