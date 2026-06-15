@@ -504,6 +504,11 @@ export class AccountingOfficeComponent implements OnInit, OnDestroy, OnChanges {
   }
 
   loadChartOfAccountsForOffice(officeId?: number | null): void {
+    if (!this.hasAccountingAccess) {
+      this.chartOfAccountOptions = [];
+      return;
+    }
+
     const parsedOfficeId = Number(officeId);
     if (!parsedOfficeId || parsedOfficeId <= 0) {
       this.chartOfAccountOptions = [];
@@ -571,6 +576,10 @@ export class AccountingOfficeComponent implements OnInit, OnDestroy, OnChanges {
   //#endregion
 
   //#region Form Response Methods
+  get hasAccountingAccess(): boolean {
+    return this.authService.hasAccountingAccess();
+  }
+
   focusFirstField(): void {
     this.firstInputRef?.focus();
   }

@@ -321,6 +321,7 @@
               </mat-expansion-panel>
 
               <!-- Default Chart of Accounts -->
+              @if (hasAccountingAccess) {
               <mat-expansion-panel [expanded]="true" class="mb-4">
                 <mat-expansion-panel-header>
                   <mat-panel-title>Default Chart of Accounts</mat-panel-title>
@@ -367,6 +368,7 @@
                   }
                 </div>
               </mat-expansion-panel>
+              }
 
             </mat-accordion>
 
