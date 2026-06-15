@@ -218,7 +218,7 @@ export class CostCodesComponent implements OnInit, OnDestroy, OnChanges {
           this.toastr.success('Cost Code created successfully', CommonMessage.Success, { timeOut: CommonTimeouts.Success });
           
           // Refresh all cached cost codes so all list views are current.
-          this.costCodesService.loadAllCostCodes();
+          this.costCodesService.refreshAllCostCodes().pipe(take(1)).subscribe();
           
           // Clear form for another entry (don't navigate back)
           this.resetFormForNewEntry();
@@ -236,7 +236,7 @@ export class CostCodesComponent implements OnInit, OnDestroy, OnChanges {
         next: (response: CostCodesResponse | null) => {
           // Handle successful response (even if body is empty/null)
           this.toastr.success('Cost Code updated successfully', CommonMessage.Success, { timeOut: CommonTimeouts.Success });
-          this.costCodesService.loadAllCostCodes();
+          this.costCodesService.refreshAllCostCodes().pipe(take(1)).subscribe();
           this.savedEvent.emit();
           this.back();
         },

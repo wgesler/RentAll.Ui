@@ -1,7 +1,7 @@
 import { HttpClient, HttpErrorResponse } from '@angular/common/http';
 import { Injectable } from '@angular/core';
-import { BehaviorSubject, Observable } from 'rxjs';
-import { map } from 'rxjs/operators';
+import { BehaviorSubject, Observable, catchError, of, switchMap, take, tap } from 'rxjs';
+import { map, filter } from 'rxjs/operators';
 import { ConfigService } from '../../../services/config.service';
 import { CostCodesRequest, CostCodesResponse } from '../models/cost-codes.model';
 
@@ -15,6 +15,7 @@ export class CostCodesService {
   private allCostCodes$ = new BehaviorSubject<CostCodesResponse[]>([]);
   private costCodesLoaded$ = new BehaviorSubject<boolean>(false);
   private isCostCodesLoading = false;
+  private costCodeIdByOfficeAndCode = new Map<string, number>();
 
   constructor(
     private http: HttpClient,
@@ -70,43 +71,41 @@ export class CostCodesService {
   }
 
   // Load all cost codes for all offices on startup
-  loadAllCostCodes(): void {
-    if (this.costCodesLoaded$.value || this.isCostCodesLoading) {
-      return;
-    }
-    this.fetchAllCostCodes();
-  }
-
-  refreshAllCostCodes(): void {
-    if (this.isCostCodesLoading) {
-      return;
-    }
-    this.fetchAllCostCodes();
-  }
-
-  fetchAllCostCodes(): void {
-    this.isCostCodesLoading = true;
-    // Call the API endpoint that gets cost codes for all offices
-    this.getCostCodesForAllOffices().subscribe({
-      next: (costCodes) => {
-        this.allCostCodes$.next(costCodes || []);
+  loadAllCostCodes(): Observable<CostCodesResponse[]> {
+    return this.getCostCodesForAllOffices().pipe(
+      tap((costCodes) => {
+        this.setAllCostCodes(costCodes || []);
         this.costCodesLoaded$.next(true);
         this.isCostCodesLoading = false;
-      },
-      error: (err: HttpErrorResponse) => {
+      }),
+      catchError((err: HttpErrorResponse) => {
         console.error('Cost Codes Service - Error loading all cost codes:', err);
-        this.allCostCodes$.next([]);
-        this.costCodesLoaded$.next(true); // Mark as loaded even on error
+        this.setAllCostCodes([]);
+        this.costCodesLoaded$.next(true);
         this.isCostCodesLoading = false;
-      }
-    });
+        return of([]);
+      })
+    );
   }
 
-  ensureCostCodesLoaded(): void {
-    if (this.costCodesLoaded$.value || this.isCostCodesLoading) {
-      return;
+  refreshAllCostCodes(): Observable<CostCodesResponse[]> {
+    this.costCodesLoaded$.next(false);
+    return this.loadAllCostCodes().pipe(take(1), switchMap(() => this.getAllCostCodes().pipe(take(1))));
+  }
+
+  ensureCostCodesLoaded(): Observable<CostCodesResponse[]> {
+    if (this.costCodesLoaded$.value) {
+      return this.getAllCostCodes().pipe(take(1));
     }
-    this.loadAllCostCodes();
+    if (this.isCostCodesLoading) {
+      return this.areCostCodesLoaded().pipe(
+        filter(loaded => loaded === true),
+        take(1),
+        switchMap(() => this.getAllCostCodes().pipe(take(1)))
+      );
+    }
+    this.isCostCodesLoading = true;
+    return this.loadAllCostCodes().pipe(take(1), switchMap(() => this.getAllCostCodes().pipe(take(1))));
   }
 
   // Check if cost codes have been loaded
@@ -116,9 +115,44 @@ export class CostCodesService {
 
   // Clear all cost codes (e.g., on logout)
   clearCostCodes(): void {
-    this.allCostCodes$.next([]);
+    this.setAllCostCodes([]);
     this.costCodesLoaded$.next(false);
     this.isCostCodesLoading = false;
+  }
+
+  getCostCodeIdByOfficeAndAccountNo(officeId: number, accountNo: string | null | undefined): number | null {
+    const code = this.normalizeAccountCode(accountNo);
+    if (!code) {
+      return null;
+    }
+    return this.costCodeIdByOfficeAndCode.get(`${officeId}|${code}`) ?? null;
+  }
+
+  private setAllCostCodes(costCodes: CostCodesResponse[]): void {
+    this.allCostCodes$.next(costCodes);
+    this.rebuildCostCodeLookup(costCodes);
+  }
+
+  private rebuildCostCodeLookup(costCodes: CostCodesResponse[]): void {
+    this.costCodeIdByOfficeAndCode.clear();
+    for (const costCode of costCodes) {
+      if (!costCode.isActive) {
+        continue;
+      }
+      const code = this.normalizeAccountCode(costCode.costCode);
+      if (code) {
+        this.costCodeIdByOfficeAndCode.set(`${costCode.officeId}|${code}`, costCode.costCodeId);
+      }
+    }
+  }
+
+  private normalizeAccountCode(value: string | null | undefined): string {
+    return String(value ?? '')
+      .split(/\s+/)
+      .filter(part => part.length > 0)
+      .join(' ')
+      .trim()
+      .toLowerCase();
   }
 
   // Get all cost codes as observable
@@ -145,7 +179,7 @@ export class CostCodesService {
         const filteredCostCodes = currentCostCodes.filter(c => c.officeId !== officeId);
         // Add new cost codes
         const updatedCostCodes = [...filteredCostCodes, ...(costCodes || [])];
-        this.allCostCodes$.next(updatedCostCodes);
+        this.setAllCostCodes(updatedCostCodes);
       },
       error: (err: HttpErrorResponse) => {
         console.error(`Cost Codes Service - Error refreshing cost codes for office ${officeId}:`, err);

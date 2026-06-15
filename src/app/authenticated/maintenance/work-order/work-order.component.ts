@@ -24,6 +24,8 @@ import { ReservationListResponse } from '../../reservations/models/reservation-m
 import { ReservationService } from '../../reservations/services/reservation.service';
 import { TransactionType } from '../../accounting/models/accounting-enum';
 import { InvoiceRequest, LedgerLineRequest } from '../../accounting/models/invoice.model';
+import { ChartOfAccountsService } from '../../accounting/services/chart-of-accounts.service';
+import { CostCodesService } from '../../accounting/services/cost-codes.service';
 import { InvoiceService } from '../../accounting/services/invoice.service';
 import { PropertyAgreementResponse } from '../../properties/models/property-agreement.model';
 import { getWorkOrderTypes, WorkOrderType } from '../models/maintenance-enums';
@@ -101,6 +103,8 @@ export class WorkOrderComponent implements OnInit, OnChanges, OnDestroy {
     private router: Router,
     private propertyService: PropertyService,
     private propertyAgreementService: PropertyAgreementService,    private invoiceService: InvoiceService,
+    private costCodesService: CostCodesService,
+    private chartOfAccountsService: ChartOfAccountsService,
     private accountingOfficeService: AccountingOfficeService,
     private officeService: OfficeService,
     private globalSelectionService: GlobalSelectionService,
@@ -162,6 +166,7 @@ export class WorkOrderComponent implements OnInit, OnChanges, OnDestroy {
 
     this.loadOffices();
     this.loadAccountingOffices();
+    this.loadCostCodes();
     this.loadVendors();
     this.loadProperty();
     this.loadWorkOrder();
@@ -1173,12 +1178,30 @@ export class WorkOrderComponent implements OnInit, OnChanges, OnDestroy {
 
   loadAccountingOffices(): void {
     this.accountingOfficeService.ensureAccountingOfficesLoaded().pipe(take(1)).subscribe({
-      next: list => {
-        this.accountingOffices = list || [];
+      next: () => {
+        this.accountingOfficeService.getAllAccountingOffices().pipe(takeUntil(this.destroy$)).subscribe(accountingOffices => {
+          this.accountingOffices = accountingOffices || [];
+          if (this.property?.officeId) {
+            this.setTenantDamagesCcId(this.property.officeId);
+          }
+        });
       },
       error: () => {
         this.accountingOffices = [];
       }
+    });
+  }
+
+  loadCostCodes(): void {
+    this.costCodesService.ensureCostCodesLoaded().pipe(take(1)).subscribe({
+      next: () => {
+        this.costCodesService.getAllCostCodes().pipe(takeUntil(this.destroy$)).subscribe(() => {
+          if (this.property?.officeId) {
+            this.setTenantDamagesCcId(this.property.officeId);
+          }
+        });
+      },
+      error: () => {}
     });
   }
 
@@ -1188,10 +1211,28 @@ export class WorkOrderComponent implements OnInit, OnChanges, OnDestroy {
     });
   }
 
-  getOfficeCostCodes(officeId: number): void {
-    const office = this.offices.find(o => o.officeId === officeId) ?? null;
-    const accountingOffice = this.accountingOffices.find(o => o.officeId === officeId) ?? null;
-    this.tenantDamagesCcId = office?.defaultTenantIncAccountId ?? null;
+  setTenantDamagesCcId(officeId: number): void {
+    const accountId = this.accountingOffices.find(o => o.officeId === officeId)?.defaultTenantIncAccountId;
+    if (accountId == null || accountId <= 0) {
+      this.tenantDamagesCcId = null;
+      return;
+    }
+
+    const cachedAccountNo = this.chartOfAccountsService.getChartOfAccountsForOffice(officeId)
+      .find(account => account.accountId === accountId)?.accountNo;
+    if (cachedAccountNo) {
+      this.tenantDamagesCcId = this.costCodesService.getCostCodeIdByOfficeAndAccountNo(officeId, cachedAccountNo);
+      return;
+    }
+
+    this.chartOfAccountsService.getChartOfAccountById(officeId, accountId).pipe(take(1), takeUntil(this.destroy$)).subscribe({
+      next: account => {
+        this.tenantDamagesCcId = this.costCodesService.getCostCodeIdByOfficeAndAccountNo(officeId, account?.accountNo);
+      },
+      error: () => {
+        this.tenantDamagesCcId = null;
+      }
+    });
   }
 
   loadWorkOrder(): void {
@@ -1251,7 +1292,7 @@ export class WorkOrderComponent implements OnInit, OnChanges, OnDestroy {
     this.propertyService.getPropertyByGuid(propertyId).pipe(take(1)).subscribe({
       next: property => {
         this.property = property;
-        this.getOfficeCostCodes(property.officeId);
+        this.setTenantDamagesCcId(property.officeId);
         this.form.patchValue({
           officeName: property.officeName || workOrder.officeName || '',
           propertyCode: property.propertyCode || workOrder.propertyCode || ''
@@ -1268,7 +1309,7 @@ export class WorkOrderComponent implements OnInit, OnChanges, OnDestroy {
 
   loadProperty(): void {
     if (this.property) {
-      this.getOfficeCostCodes(this.property.officeId);
+      this.setTenantDamagesCcId(this.property.officeId);
       return;
     }
 
@@ -1279,7 +1320,7 @@ export class WorkOrderComponent implements OnInit, OnChanges, OnDestroy {
     this.propertyService.getPropertyByGuid(this.selectedPropertyId).pipe(take(1)).subscribe({
       next: (property) => {
         this.property = property;
-        this.getOfficeCostCodes(property.officeId);
+        this.setTenantDamagesCcId(property.officeId);
      },
       error: () => {
         this.toastr.error('Unable to load property.', 'Error');

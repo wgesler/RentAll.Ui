@@ -421,20 +421,26 @@ export class InvoiceCreateComponent extends BaseDocumentComponent implements OnI
   }
 
   loadCostCodes(): void {
-    this.costCodesService.ensureCostCodesLoaded();
-    this.costCodesService.areCostCodesLoaded().pipe(filter(loaded => loaded === true), take(1)).subscribe(() => {
-      this.costCodesSubscription?.unsubscribe();
-      this.costCodesSubscription = this.costCodesService.getAllCostCodes().subscribe({
-        next: () => {
-          this.allCostCodes = this.costCodesService.getAllCostCodesValue();
-          this.filterCostCodes();
-        },
-        error: () => {
-          this.allCostCodes = [];
-          this.officeCostCodes = [];
-          this.paymentCostCodeIds.clear();
-        }
-      });
+    this.costCodesService.ensureCostCodesLoaded().pipe(take(1)).subscribe({
+      next: () => {
+        this.costCodesSubscription?.unsubscribe();
+        this.costCodesSubscription = this.costCodesService.getAllCostCodes().subscribe({
+          next: () => {
+            this.allCostCodes = this.costCodesService.getAllCostCodesValue();
+            this.filterCostCodes();
+          },
+          error: () => {
+            this.allCostCodes = [];
+            this.officeCostCodes = [];
+            this.paymentCostCodeIds.clear();
+          }
+        });
+      },
+      error: () => {
+        this.allCostCodes = [];
+        this.officeCostCodes = [];
+        this.paymentCostCodeIds.clear();
+      }
     });
   }
 

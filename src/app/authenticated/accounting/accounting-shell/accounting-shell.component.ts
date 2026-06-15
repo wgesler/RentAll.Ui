@@ -130,7 +130,7 @@ export class AccountingShellComponent implements OnInit, OnDestroy {
   ngOnInit(): void {
     this.userId = this.authService.getUser()?.userId || '';
     this.applyPinnedDateRangeFromStorage();
-    this.costCodesService.ensureCostCodesLoaded();
+    this.costCodesService.ensureCostCodesLoaded().pipe(take(1)).subscribe();
     this.chartOfAccountsService.ensureChartOfAccountsLoaded();
     this.loadChartOfAccounts();
     this.loadPropertyCodes();

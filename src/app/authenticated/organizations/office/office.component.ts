@@ -358,12 +358,16 @@ export class OfficeComponent implements OnInit, OnDestroy, OnChanges, AfterViewI
   }
 
   loadCostCodes(): void {
-    this.costCodesService.ensureCostCodesLoaded();
-    this.costCodesService.areCostCodesLoaded().pipe(filter(loaded => loaded === true), take(1)).subscribe(() => {
-      this.costCodesService.getAllCostCodes().pipe(takeUntil(this.destroy$)).subscribe(costCodes => {
-        this.allCostCodes = costCodes || [];
-        this.filterOfficeCostCodeOptions();
-      });
+    this.costCodesService.ensureCostCodesLoaded().pipe(take(1)).subscribe({
+      next: () => {
+        this.costCodesService.getAllCostCodes().pipe(takeUntil(this.destroy$)).subscribe(costCodes => {
+          this.allCostCodes = costCodes || [];
+          this.filterOfficeCostCodeOptions();
+        });
+      },
+      error: () => {
+        this.allCostCodes = [];
+      }
     });
   }
 
@@ -465,10 +469,6 @@ export class OfficeComponent implements OnInit, OnDestroy, OnChanges, AfterViewI
       defaultOnlineClean: new FormControl<string>(''),
       defaultOfflineFee: new FormControl<string>(''),
       emailListForReservations: new FormControl<string>(''),
-      tenantChargeCcId: new FormControl<number | null>(null),
-      tenantExpenseCcId: new FormControl<number | null>(null),
-      ownerChargeCcId: new FormControl<number | null>(null),
-      ownerExpenseCcId: new FormControl<number | null>(null),
       furnishedRentChargeCcId: new FormControl<number | null>(null),
       furnishedRentExpenseCcId: new FormControl<number | null>(null),
       unfurnishedRentChargeCcId: new FormControl<number | null>(null),
@@ -556,10 +556,6 @@ export class OfficeComponent implements OnInit, OnDestroy, OnChanges, AfterViewI
           defaultOnlineClean: this.formatOptionalOfficeDecimal(this.office.defaultOnlineClean),
           defaultOfflineFee: this.formatOptionalOfficeDecimal(this.office.defaultOfflineFee),
           emailListForReservations: this.office.emailListForReservations || '',
-          tenantChargeCcId: this.office.tenantChargeCcId ?? null,
-          tenantExpenseCcId: this.office.tenantExpenseCcId ?? null,
-          ownerChargeCcId: this.office.ownerChargeCcId ?? null,
-          ownerExpenseCcId: this.office.ownerExpenseCcId ?? null,
           furnishedRentChargeCcId: this.office.furnishedRentChargeCcId ?? null,
           furnishedRentExpenseCcId: this.office.furnishedRentExpenseCcId ?? null,
           unfurnishedRentChargeCcId: this.office.unfurnishedRentChargeCcId ?? null,
@@ -645,10 +641,6 @@ export class OfficeComponent implements OnInit, OnDestroy, OnChanges, AfterViewI
       defaultOnlineClean: this.formatOptionalOfficeDecimal(o.defaultOnlineClean),
       defaultOfflineFee: this.formatOptionalOfficeDecimal(o.defaultOfflineFee),
       emailListForReservations: o.emailListForReservations || '',
-      tenantChargeCcId: o.tenantChargeCcId ?? null,
-      tenantExpenseCcId: o.tenantExpenseCcId ?? null,
-      ownerChargeCcId: o.ownerChargeCcId ?? null,
-      ownerExpenseCcId: o.ownerExpenseCcId ?? null,
       furnishedRentChargeCcId: o.furnishedRentChargeCcId ?? null,
       furnishedRentExpenseCcId: o.furnishedRentExpenseCcId ?? null,
       unfurnishedRentChargeCcId: o.unfurnishedRentChargeCcId ?? null,
@@ -1080,10 +1072,6 @@ export class OfficeComponent implements OnInit, OnDestroy, OnChanges, AfterViewI
 
   buildValidCostCodeRequest(formValue: Record<string, unknown>): Partial<OfficeRequest> {
     type OfficeCostCodeKey =
-      | 'tenantChargeCcId'
-      | 'tenantExpenseCcId'
-      | 'ownerChargeCcId'
-      | 'ownerExpenseCcId'
       | 'furnishedRentChargeCcId'
       | 'furnishedRentExpenseCcId'
       | 'unfurnishedRentChargeCcId'
@@ -1098,10 +1086,6 @@ export class OfficeComponent implements OnInit, OnDestroy, OnChanges, AfterViewI
       | 'securityDepositWaiverCcId';
 
     const costCodeKeys: OfficeCostCodeKey[] = [
-      'tenantChargeCcId',
-      'tenantExpenseCcId',
-      'ownerChargeCcId',
-      'ownerExpenseCcId',
       'furnishedRentChargeCcId',
       'furnishedRentExpenseCcId',
       'unfurnishedRentChargeCcId',

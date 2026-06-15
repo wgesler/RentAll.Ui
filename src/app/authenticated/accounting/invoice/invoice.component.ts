@@ -823,15 +823,19 @@ export class InvoiceComponent implements OnInit, OnDestroy, OnChanges {
   }
 
   loadCostCodes(): void {
-    this.costCodesService.ensureCostCodesLoaded();
-    this.costCodesService.areCostCodesLoaded().pipe(filter(loaded => loaded === true), take(1),takeUntil(this.destroy$)).subscribe(() => {
-      this.costCodesService.getAllCostCodes().pipe(take(1)).subscribe(() => {
-        this.allCostCodes = this.costCodesService.getAllCostCodesValue();
-        this.filterCostCodes();
-        if (this.invoice && this.form) {
-          this.loadLedgerLines(false);
-        }
-      });
+    this.costCodesService.ensureCostCodesLoaded().pipe(take(1), takeUntil(this.destroy$)).subscribe({
+      next: () => {
+        this.costCodesService.getAllCostCodes().pipe(take(1)).subscribe(() => {
+          this.allCostCodes = this.costCodesService.getAllCostCodesValue();
+          this.filterCostCodes();
+          if (this.invoice && this.form) {
+            this.loadLedgerLines(false);
+          }
+        });
+      },
+      error: () => {
+        this.allCostCodes = [];
+      }
     });
   }
 

@@ -57,10 +57,6 @@ export interface OfficeRequest {
   defaultOfflineFee?: number | null;
   emailListForReservations?: string | null;
   // Cost Codes
-  tenantChargeCcId?: number | null;
-  tenantExpenseCcId?: number | null;
-  ownerChargeCcId?: number | null;
-  ownerExpenseCcId?: number | null;
   furnishedRentChargeCcId?: number | null;
   furnishedRentExpenseCcId?: number | null;
   unfurnishedRentChargeCcId?: number | null;
@@ -143,10 +139,6 @@ export interface OfficeResponse {
   defaultOfflineFee?: number | null;
   emailListForReservations?: string | null;
   // Cost Codes
-  tenantChargeCcId?: number | null;
-  tenantExpenseCcId?: number | null;
-  ownerChargeCcId?: number | null;
-  ownerExpenseCcId?: number | null;
   furnishedRentChargeCcId?: number | null;
   furnishedRentExpenseCcId?: number | null;
   unfurnishedRentChargeCcId?: number | null;

@@ -361,14 +361,18 @@ export class CostCodesListComponent implements OnInit, OnDestroy, OnChanges {
   }
 
   loadCostCodes(): void {
-    this.costCodesService.ensureCostCodesLoaded();
-    this.costCodesService.areCostCodesLoaded().pipe(filter(loaded => loaded === true), take(1)).subscribe(() => {
-      this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'costCodes');
-      this.costCodesService.getAllCostCodes().pipe(takeUntil(this.destroy$)).subscribe(codes => {
-        this.filterCostCodes();
+    this.costCodesService.ensureCostCodesLoaded().pipe(take(1)).subscribe({
+      next: () => {
+        this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'costCodes');
+        this.costCodesService.getAllCostCodes().pipe(takeUntil(this.destroy$)).subscribe(() => {
+          this.filterCostCodes();
+          this.markViewForCheck();
+        });
         this.markViewForCheck();
-      });
-      this.markViewForCheck();
+      },
+      error: () => {
+        this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'costCodes');
+      }
     });
   }
   //#endregion

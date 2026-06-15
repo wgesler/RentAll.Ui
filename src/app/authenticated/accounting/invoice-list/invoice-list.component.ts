@@ -1054,14 +1054,18 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
   }
 
   loadCostCodes(): void {
-    this.costCodesService.ensureCostCodesLoaded();
-    this.costCodesService.areCostCodesLoaded().pipe(filter(loaded => loaded === true), take(1)).subscribe(() => {
-      this.costCodesService.getAllCostCodes().pipe(takeUntil(this.destroy$)).subscribe(accounts => {
-        this.allCostCodes = accounts || [];
-        this.filterCostCodes();
-        this.applyFilters();
-        this.markViewForCheck();
-      });
+    this.costCodesService.ensureCostCodesLoaded().pipe(take(1)).subscribe({
+      next: () => {
+        this.costCodesService.getAllCostCodes().pipe(takeUntil(this.destroy$)).subscribe(accounts => {
+          this.allCostCodes = accounts || [];
+          this.filterCostCodes();
+          this.applyFilters();
+          this.markViewForCheck();
+        });
+      },
+      error: () => {
+        this.allCostCodes = [];
+      }
     });
   }
 

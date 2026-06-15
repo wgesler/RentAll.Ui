@@ -178,8 +178,10 @@ export class AppComponent implements OnInit, OnDestroy {
   }
 
   loadCostCodes(): void {
-    this.costCodesService.loadAllCostCodes();
-    this.costCodesService.areCostCodesLoaded().pipe(filter(loaded => loaded === true),take(1),finalize(() => { this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'costCodes'); })).subscribe({
+    this.costCodesService.ensureCostCodesLoaded().pipe(
+      take(1),
+      finalize(() => { this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'costCodes'); })
+    ).subscribe({
       next: () => {},
       error: () => {
         this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'costCodes');

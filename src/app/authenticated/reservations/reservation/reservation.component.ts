@@ -1207,7 +1207,7 @@ export class ReservationComponent implements OnInit, OnDestroy, CanComponentDeac
     }
 
     // Wait for cost codes to be loaded, then filter for charge types
-    this.costCodesService.areCostCodesLoaded().pipe(filter(loaded => loaded === true), take(1)).subscribe({
+    this.costCodesService.ensureCostCodesLoaded().pipe(take(1)).subscribe({
       next: () => {
         this.costCodesService.getAllCostCodes().pipe(takeUntil(this.destroy$)).subscribe(() => {
           // Get cost codes for the selected office and filter for charge types (non-payment)
