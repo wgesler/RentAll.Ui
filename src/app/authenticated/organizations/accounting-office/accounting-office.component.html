@@ -320,6 +320,54 @@
                 </div>
               </mat-expansion-panel>
 
+              <!-- Default Chart of Accounts -->
+              <mat-expansion-panel [expanded]="true" class="mb-4">
+                <mat-expansion-panel-header>
+                  <mat-panel-title>Default Chart of Accounts</mat-panel-title>
+                </mat-expansion-panel-header>
+
+                <div class="grid grid-cols-3 form-standard-grid mb-4">
+                  @for (field of defaultAccountFieldsRow1; track field.controlName) {
+                    <app-searchable-select
+                      class="col-span-1 w-full"
+                      [renderInFormField]="true"
+                      [formFieldClass]="'w-full'"
+                      [formFieldLabel]="field.label"
+                      [value]="form.get(field.controlName)?.value ?? null"
+                      [options]="chartOfAccountOptions"
+                      [showInstructionOption]="true"
+                      [instructionOptionValue]="null"
+                      nullOptionLabel="None"
+                      [showSearchInput]="true"
+                      [hideSearchHint]="false"
+                      [hideSearchText]="false"
+                      searchPlaceholder="Type to filter accounts..."
+                      noResultsText="No accounts match your search"
+                      (valueChange)="onDefaultAccountIdChange(field.controlName, $event)" />
+                  }
+                </div>
+                <div class="grid grid-cols-5 form-standard-grid">
+                  @for (field of defaultAccountFieldsRow2; track field.controlName) {
+                    <app-searchable-select
+                      class="col-span-1 w-full"
+                      [renderInFormField]="true"
+                      [formFieldClass]="'w-full'"
+                      [formFieldLabel]="field.label"
+                      [value]="form.get(field.controlName)?.value ?? null"
+                      [options]="chartOfAccountOptions"
+                      [showInstructionOption]="true"
+                      [instructionOptionValue]="null"
+                      nullOptionLabel="None"
+                      [showSearchInput]="true"
+                      [hideSearchHint]="false"
+                      [hideSearchText]="false"
+                      searchPlaceholder="Type to filter accounts..."
+                      noResultsText="No accounts match your search"
+                      (valueChange)="onDefaultAccountIdChange(field.controlName, $event)" />
+                  }
+                </div>
+              </mat-expansion-panel>
+
             </mat-accordion>
 
             @if (isSubmitting) {

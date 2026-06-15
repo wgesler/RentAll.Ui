@@ -22,11 +22,13 @@ import { OfficeResponse } from '../models/office.model';
 import { AccountingOfficeService } from '../services/accounting-office.service';
 import { OfficeService } from '../services/office.service';
 import { CostCodesService } from '../../accounting/services/cost-codes.service';
+import { ChartOfAccountsService } from '../../accounting/services/chart-of-accounts.service';
+import { SearchableSelectComponent, SearchableSelectOption } from '../../shared/searchable-select/searchable-select.component';
 
 @Component({
     standalone: true,
     selector: 'app-accounting-office',
-    imports: [CommonModule, MaterialModule, FormsModule, ReactiveFormsModule],
+    imports: [CommonModule, MaterialModule, FormsModule, ReactiveFormsModule, SearchableSelectComponent],
     templateUrl: './accounting-office.component.html',
     styleUrl: './accounting-office.component.scss'
 })
@@ -54,6 +56,19 @@ export class AccountingOfficeComponent implements OnInit, OnDestroy, OnChanges {
   editingBankCardNumberIndexes: Set<number> = new Set<number>();
   cardTypeOptions: { value: number; label: string }[] = getCardTypes();
   costCodeOptions: { value: number; label: string }[] = [];
+  chartOfAccountOptions: SearchableSelectOption<number>[] = [];
+  defaultAccountFieldsRow1: { controlName: string; label: string }[] = [
+    { controlName: 'defaultTenantExpAccountId', label: 'Tenant' },
+    { controlName: 'defaultOwnerExpAccountId', label: 'Owner' },
+    { controlName: 'defaultCompanyExpAccountId', label: 'Company' }
+  ];
+  defaultAccountFieldsRow2: { controlName: string; label: string }[] = [
+    { controlName: 'defaultBankAccountId', label: 'Checking' },
+    { controlName: 'defaultDepositAccountId', label: 'Deposit' },
+    { controlName: 'defaultEscrowAccountId', label: 'Escrow' },
+    { controlName: 'defaultUndepFundsAccountId', label: 'Undeposited' },
+    { controlName: 'defaultPayOutAccountId', label: 'Payout' }
+  ];
 
   organizationId = '';
   offices: OfficeResponse[] = [];
@@ -71,6 +86,7 @@ export class AccountingOfficeComponent implements OnInit, OnDestroy, OnChanges {
     private formatterService: FormatterService,    private commonService: CommonService,
     private officeService: OfficeService,
     private costCodesService: CostCodesService,
+    private chartOfAccountsService: ChartOfAccountsService,
     private mappingService: MappingService,
     private utilityService: UtilityService
   ) {
@@ -163,6 +179,7 @@ export class AccountingOfficeComponent implements OnInit, OnDestroy, OnChanges {
         this.accountingOffice = response;
         this.applyBankCardsFromSource(response?.bankCards);
         this.loadCostCodesForOffice(response?.officeId);
+        this.loadChartOfAccountsForOffice(response?.officeId);
         // Load logo from fileDetails if present (contains base64 image data)
         if (response.fileDetails && response.fileDetails.file) {
           this.fileDetails = response.fileDetails;
@@ -252,6 +269,14 @@ export class AccountingOfficeComponent implements OnInit, OnDestroy, OnChanges {
       bankAddress: formValue.bankAddress || '',
       bankPhone: bankPhoneDigits,
       workOrderNo: Number(formValue.workOrderNo) || 0,
+      defaultDepositAccountId: this.parseOptionalAccountId(formValue.defaultDepositAccountId),
+      defaultEscrowAccountId: this.parseOptionalAccountId(formValue.defaultEscrowAccountId),
+      defaultUndepFundsAccountId: this.parseOptionalAccountId(formValue.defaultUndepFundsAccountId),
+      defaultBankAccountId: this.parseOptionalAccountId(formValue.defaultBankAccountId),
+      defaultPayOutAccountId: this.parseOptionalAccountId(formValue.defaultPayOutAccountId),
+      defaultTenantExpAccountId: this.parseOptionalAccountId(formValue.defaultTenantExpAccountId),
+      defaultOwnerExpAccountId: this.parseOptionalAccountId(formValue.defaultOwnerExpAccountId),
+      defaultCompanyExpAccountId: this.parseOptionalAccountId(formValue.defaultCompanyExpAccountId),
       email: formValue.email || '',
       website: formValue.website || '',
       fileDetails: this.hasNewFileUpload ? this.fileDetails : undefined,
@@ -344,6 +369,14 @@ export class AccountingOfficeComponent implements OnInit, OnDestroy, OnChanges {
       bankAddress: new FormControl('', [Validators.required]),
       bankPhone: new FormControl('', [Validators.required, Validators.pattern(/^(\([0-9]{3}\) [0-9]{3}-[0-9]{4}|\+[0-9\s]+)$/)]),
       workOrderNo: new FormControl(0, [Validators.required, Validators.min(0)]),
+      defaultDepositAccountId: new FormControl<number | null>(null),
+      defaultEscrowAccountId: new FormControl<number | null>(null),
+      defaultUndepFundsAccountId: new FormControl<number | null>(null),
+      defaultBankAccountId: new FormControl<number | null>(null),
+      defaultPayOutAccountId: new FormControl<number | null>(null),
+      defaultTenantExpAccountId: new FormControl<number | null>(null),
+      defaultOwnerExpAccountId: new FormControl<number | null>(null),
+      defaultCompanyExpAccountId: new FormControl<number | null>(null),
       fileUpload: new FormControl('', { validators: [], asyncValidators: [fileValidator(['png', 'jpg', 'jpeg', 'jfif', 'gif', 'svg', 'heic', 'heif', 'pdf'], ['image/png', 'image/jpeg', 'image/gif', 'image/svg+xml', 'image/heic', 'image/heif', 'application/pdf'], 2000000, true)] }),
       isActive: new FormControl(true)
     });
@@ -371,6 +404,14 @@ export class AccountingOfficeComponent implements OnInit, OnDestroy, OnChanges {
         bankAddress: this.accountingOffice.bankAddress || '',
         bankPhone: this.accountingOffice.bankPhone ? this.formatterService.phoneNumber(this.accountingOffice.bankPhone) : '',
         workOrderNo: this.accountingOffice.workOrderNo ?? 0,
+        defaultDepositAccountId: this.accountingOffice.defaultDepositAccountId ?? null,
+        defaultEscrowAccountId: this.accountingOffice.defaultEscrowAccountId ?? null,
+        defaultUndepFundsAccountId: this.accountingOffice.defaultUndepFundsAccountId ?? null,
+        defaultBankAccountId: this.accountingOffice.defaultBankAccountId ?? null,
+        defaultPayOutAccountId: this.accountingOffice.defaultPayOutAccountId ?? null,
+        defaultTenantExpAccountId: this.accountingOffice.defaultTenantExpAccountId ?? null,
+        defaultOwnerExpAccountId: this.accountingOffice.defaultOwnerExpAccountId ?? null,
+        defaultCompanyExpAccountId: this.accountingOffice.defaultCompanyExpAccountId ?? null,
         isActive: this.accountingOffice.isActive
       }, { emitEvent: false });
     }
@@ -399,6 +440,14 @@ export class AccountingOfficeComponent implements OnInit, OnDestroy, OnChanges {
       bankAddress: o.bankAddress || '',
       bankPhone: o.bankPhone ? this.formatterService.phoneNumber(o.bankPhone) : '',
       workOrderNo: o.workOrderNo ?? 0,
+      defaultDepositAccountId: o.defaultDepositAccountId ?? null,
+      defaultEscrowAccountId: o.defaultEscrowAccountId ?? null,
+      defaultUndepFundsAccountId: o.defaultUndepFundsAccountId ?? null,
+      defaultBankAccountId: o.defaultBankAccountId ?? null,
+      defaultPayOutAccountId: o.defaultPayOutAccountId ?? null,
+      defaultTenantExpAccountId: o.defaultTenantExpAccountId ?? null,
+      defaultOwnerExpAccountId: o.defaultOwnerExpAccountId ?? null,
+      defaultCompanyExpAccountId: o.defaultCompanyExpAccountId ?? null,
       isActive: o.isActive
     }, { emitEvent: false });
     this.bankCards = [];
@@ -424,6 +473,7 @@ export class AccountingOfficeComponent implements OnInit, OnDestroy, OnChanges {
               fax: selectedOffice.fax ? this.formatterService.phoneNumber(selectedOffice.fax) : ''
             }, { emitEvent: false });
             this.loadCostCodesForOffice(officeId);
+            this.loadChartOfAccountsForOffice(officeId);
           }
         }
       });
@@ -451,6 +501,40 @@ export class AccountingOfficeComponent implements OnInit, OnDestroy, OnChanges {
         this.costCodeOptions = [];
       }
     });
+  }
+
+  loadChartOfAccountsForOffice(officeId?: number | null): void {
+    const parsedOfficeId = Number(officeId);
+    if (!parsedOfficeId || parsedOfficeId <= 0) {
+      this.chartOfAccountOptions = [];
+      return;
+    }
+
+    this.chartOfAccountsService.getChartOfAccountsByOfficeId(parsedOfficeId).pipe(take(1)).subscribe({
+      next: accounts => {
+        this.chartOfAccountOptions = (accounts || [])
+          .map(account => ({
+            value: account.accountId,
+            label: this.utilityService.getChartOfAccountDropdownLabel(account)
+          }))
+          .sort((a, b) => a.label.localeCompare(b.label, undefined, { sensitivity: 'base' }));
+      },
+      error: () => {
+        this.chartOfAccountOptions = [];
+      }
+    });
+  }
+
+  parseOptionalAccountId(value: unknown): number | null {
+    const parsed = this.utilityService.parseOptionalIntString(value);
+    return parsed == null ? null : parsed;
+  }
+
+  onDefaultAccountIdChange(controlName: string, value: string | number | null): void {
+    const control = this.form.get(controlName);
+    control?.setValue(this.parseOptionalAccountId(value));
+    control?.markAsTouched();
+    control?.markAsDirty();
   }
   //#endregion
 
