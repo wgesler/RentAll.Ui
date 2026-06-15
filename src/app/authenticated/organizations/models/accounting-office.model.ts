@@ -23,11 +23,11 @@ export interface AccountingOfficeRequest {
   bankPhone: string;
   bankCards?: BankCardRequest[];
   workOrderNo: number;
-  defaultDepositAccountId?: number | null;
+  defaultActRecvAccountId?: number | null;
   defaultEscrowAccountId?: number | null;
   defaultUndepFundsAccountId?: number | null;
   defaultBankAccountId?: number | null;
-  defaultPayOutAccountId?: number | null;
+  defaultActPayableAccountId?: number | null;
   defaultTenantExpAccountId?: number | null;
   defaultOwnerExpAccountId?: number | null;
   defaultCompanyExpAccountId?: number | null;
@@ -58,11 +58,11 @@ export interface AccountingOfficeResponse {
   bankPhone: string;
   bankCards?: BankCardResponse[];
   workOrderNo: number;
-  defaultDepositAccountId?: number | null;
+  defaultActRecvAccountId?: number | null;
   defaultEscrowAccountId?: number | null;
   defaultUndepFundsAccountId?: number | null;
   defaultBankAccountId?: number | null;
-  defaultPayOutAccountId?: number | null;
+  defaultActPayableAccountId?: number | null;
   defaultTenantExpAccountId?: number | null;
   defaultOwnerExpAccountId?: number | null;
   defaultCompanyExpAccountId?: number | null;
