@@ -271,9 +271,6 @@ export class ConfigurationComponent implements OnInit, OnDestroy {
     }));
   }
 
-  get hasAccountingAccess(): boolean {
-    return this.authService.hasAccountingAccess();
-  }
   onSettingsOrganizationDropdownChange(value: string | number | null): void {
     this.selectedOrganizationId = value == null || value === '' ? null : String(value);
     this.onOrganizationChange();

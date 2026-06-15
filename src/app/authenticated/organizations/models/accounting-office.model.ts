@@ -28,8 +28,11 @@ export interface AccountingOfficeRequest {
   defaultUndepFundsAccountId?: number | null;
   defaultBankAccountId?: number | null;
   defaultActPayableAccountId?: number | null;
+  defaultOwnActPayableAccountId?: number | null;
   defaultTenantExpAccountId?: number | null;
+  defaultTenantChgAccountId?: number | null;
   defaultOwnerExpAccountId?: number | null;
+  defaultOwnerChgAccountId?: number | null;
   defaultCompanyExpAccountId?: number | null;
   logoPath?: string; 
   fileDetails?: FileDetails;
@@ -63,8 +66,11 @@ export interface AccountingOfficeResponse {
   defaultUndepFundsAccountId?: number | null;
   defaultBankAccountId?: number | null;
   defaultActPayableAccountId?: number | null;
+  defaultOwnActPayableAccountId?: number | null;
   defaultTenantExpAccountId?: number | null;
+  defaultTenantChgAccountId?: number | null;
   defaultOwnerExpAccountId?: number | null;
+  defaultOwnerChgAccountId?: number | null;
   defaultCompanyExpAccountId?: number | null;
   logoPath?: string; 
   fileDetails?: FileDetails;

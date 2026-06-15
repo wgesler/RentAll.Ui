@@ -58,16 +58,19 @@ export class AccountingOfficeComponent implements OnInit, OnDestroy, OnChanges {
   costCodeOptions: { value: number; label: string }[] = [];
   chartOfAccountOptions: SearchableSelectOption<number>[] = [];
   defaultAccountFieldsRow1: { controlName: string; label: string }[] = [
-    { controlName: 'defaultTenantExpAccountId', label: 'Tenant' },
-    { controlName: 'defaultOwnerExpAccountId', label: 'Owner' },
-    { controlName: 'defaultCompanyExpAccountId', label: 'Company' }
+    { controlName: 'defaultTenantExpAccountId', label: 'Tenant Expense' },
+    { controlName: 'defaultTenantChgAccountId', label: 'Tenant Charge' },
+    { controlName: 'defaultOwnerExpAccountId', label: 'Owner Expense' },
+    { controlName: 'defaultOwnerChgAccountId', label: 'Owner Charge' },
+    { controlName: 'defaultCompanyExpAccountId', label: 'Company Expense' }
   ];
   defaultAccountFieldsRow2: { controlName: string; label: string }[] = [
-    { controlName: 'defaultBankAccountId', label: 'Checking' },
+    { controlName: 'defaultBankAccountId', label: 'Bank' },
     { controlName: 'defaultActRecvAccountId', label: 'A/R' },
-    { controlName: 'defaultEscrowAccountId', label: 'Escrow' },
+    { controlName: 'defaultEscrowAccountId', label: 'Deposits' },
     { controlName: 'defaultUndepFundsAccountId', label: 'Undeposited' },
-    { controlName: 'defaultActPayableAccountId', label: 'A/P' }
+    { controlName: 'defaultActPayableAccountId', label: 'A/P' },
+    { controlName: 'defaultOwnActPayableAccountId', label: 'Owner A/P' }
   ];
 
   organizationId = '';
@@ -274,8 +277,11 @@ export class AccountingOfficeComponent implements OnInit, OnDestroy, OnChanges {
       defaultUndepFundsAccountId: this.parseOptionalAccountId(formValue.defaultUndepFundsAccountId),
       defaultBankAccountId: this.parseOptionalAccountId(formValue.defaultBankAccountId),
       defaultActPayableAccountId: this.parseOptionalAccountId(formValue.defaultActPayableAccountId),
+      defaultOwnActPayableAccountId: this.parseOptionalAccountId(formValue.defaultOwnActPayableAccountId),
       defaultTenantExpAccountId: this.parseOptionalAccountId(formValue.defaultTenantExpAccountId),
+      defaultTenantChgAccountId: this.parseOptionalAccountId(formValue.defaultTenantChgAccountId),
       defaultOwnerExpAccountId: this.parseOptionalAccountId(formValue.defaultOwnerExpAccountId),
+      defaultOwnerChgAccountId: this.parseOptionalAccountId(formValue.defaultOwnerChgAccountId),
       defaultCompanyExpAccountId: this.parseOptionalAccountId(formValue.defaultCompanyExpAccountId),
       email: formValue.email || '',
       website: formValue.website || '',
@@ -374,8 +380,11 @@ export class AccountingOfficeComponent implements OnInit, OnDestroy, OnChanges {
       defaultUndepFundsAccountId: new FormControl<number | null>(null),
       defaultBankAccountId: new FormControl<number | null>(null),
       defaultActPayableAccountId: new FormControl<number | null>(null),
+      defaultOwnActPayableAccountId: new FormControl<number | null>(null),
       defaultTenantExpAccountId: new FormControl<number | null>(null),
+      defaultTenantChgAccountId: new FormControl<number | null>(null),
       defaultOwnerExpAccountId: new FormControl<number | null>(null),
+      defaultOwnerChgAccountId: new FormControl<number | null>(null),
       defaultCompanyExpAccountId: new FormControl<number | null>(null),
       fileUpload: new FormControl('', { validators: [], asyncValidators: [fileValidator(['png', 'jpg', 'jpeg', 'jfif', 'gif', 'svg', 'heic', 'heif', 'pdf'], ['image/png', 'image/jpeg', 'image/gif', 'image/svg+xml', 'image/heic', 'image/heif', 'application/pdf'], 2000000, true)] }),
       isActive: new FormControl(true)
@@ -409,8 +418,11 @@ export class AccountingOfficeComponent implements OnInit, OnDestroy, OnChanges {
         defaultUndepFundsAccountId: this.accountingOffice.defaultUndepFundsAccountId ?? null,
         defaultBankAccountId: this.accountingOffice.defaultBankAccountId ?? null,
         defaultActPayableAccountId: this.accountingOffice.defaultActPayableAccountId ?? null,
+        defaultOwnActPayableAccountId: this.accountingOffice.defaultOwnActPayableAccountId ?? null,
         defaultTenantExpAccountId: this.accountingOffice.defaultTenantExpAccountId ?? null,
+        defaultTenantChgAccountId: this.accountingOffice.defaultTenantChgAccountId ?? null,
         defaultOwnerExpAccountId: this.accountingOffice.defaultOwnerExpAccountId ?? null,
+        defaultOwnerChgAccountId: this.accountingOffice.defaultOwnerChgAccountId ?? null,
         defaultCompanyExpAccountId: this.accountingOffice.defaultCompanyExpAccountId ?? null,
         isActive: this.accountingOffice.isActive
       }, { emitEvent: false });
@@ -445,8 +457,11 @@ export class AccountingOfficeComponent implements OnInit, OnDestroy, OnChanges {
       defaultUndepFundsAccountId: o.defaultUndepFundsAccountId ?? null,
       defaultBankAccountId: o.defaultBankAccountId ?? null,
       defaultActPayableAccountId: o.defaultActPayableAccountId ?? null,
+      defaultOwnActPayableAccountId: o.defaultOwnActPayableAccountId ?? null,
       defaultTenantExpAccountId: o.defaultTenantExpAccountId ?? null,
+      defaultTenantChgAccountId: o.defaultTenantChgAccountId ?? null,
       defaultOwnerExpAccountId: o.defaultOwnerExpAccountId ?? null,
+      defaultOwnerChgAccountId: o.defaultOwnerChgAccountId ?? null,
       defaultCompanyExpAccountId: o.defaultCompanyExpAccountId ?? null,
       isActive: o.isActive
     }, { emitEvent: false });
@@ -504,11 +519,6 @@ export class AccountingOfficeComponent implements OnInit, OnDestroy, OnChanges {
   }
 
   loadChartOfAccountsForOffice(officeId?: number | null): void {
-    if (!this.hasAccountingAccess) {
-      this.chartOfAccountOptions = [];
-      return;
-    }
-
     const parsedOfficeId = Number(officeId);
     if (!parsedOfficeId || parsedOfficeId <= 0) {
       this.chartOfAccountOptions = [];
@@ -576,10 +586,6 @@ export class AccountingOfficeComponent implements OnInit, OnDestroy, OnChanges {
   //#endregion
 
   //#region Form Response Methods
-  get hasAccountingAccess(): boolean {
-    return this.authService.hasAccountingAccess();
-  }
-
   focusFirstField(): void {
     this.firstInputRef?.focus();
   }

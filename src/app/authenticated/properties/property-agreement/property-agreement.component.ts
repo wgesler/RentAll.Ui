@@ -3,7 +3,7 @@ import { Component, ElementRef, Input, OnChanges, OnDestroy, OnInit, SimpleChang
 import { FormBuilder, FormControl, FormGroup, ReactiveFormsModule } from '@angular/forms';
 import { ActivatedRoute, Router } from '@angular/router';
 import { ToastrService } from 'ngx-toastr';
-import { BehaviorSubject, Observable, Subject, catchError, filter, finalize, map, of, take, takeUntil } from 'rxjs';
+import { BehaviorSubject, Observable, Subject, catchError, finalize, map, of, take, takeUntil } from 'rxjs';
 import { RouterUrl } from '../../../app.routes';
 import { CommonMessage, CommonTimeouts } from '../../../enums/common-message.enum';
 import { MaterialModule } from '../../../material.module';
@@ -13,8 +13,6 @@ import { AuthService } from '../../../services/auth.service';
 import { UtilityService } from '../../../services/utility.service';
 import { PdfThumbnailService } from '../../../services/pdf-thumbnail.service';
 import { FileDetails } from '../../documents/models/document.model';
-import { CostCodesResponse } from '../../accounting/models/cost-codes.model';
-import { CostCodesService } from '../../accounting/services/cost-codes.service';
 import { ManagementFeeType, PropertyLeaseType, normalizeManagementFeeTypeId, normalizePropertyLeaseTypeId } from '../models/property-enums';
 import { PropertyAgreementLineRequest, PropertyAgreementRequest, PropertyAgreementResponse } from '../models/property-agreement.model';
 import { PropertyAgreementService } from '../services/property-agreement.service';
@@ -57,7 +55,6 @@ export class PropertyAgreementComponent implements OnInit, OnChanges, OnDestroy 
   isAgreementSaving = false;
   offices: OfficeResponse[] = [];
   organizationId = '';
-  availableCostCodes: { value: number, label: string }[] = [];
   agreementOfficeId: number | null = null;
   agreementLines: AgreementLineDisplay[] = [];
 
@@ -117,7 +114,6 @@ export class PropertyAgreementComponent implements OnInit, OnChanges, OnDestroy 
     private mappingService: MappingService,
     private utilityService: UtilityService,
     private propertyAgreementService: PropertyAgreementService,
-    private costCodesService: CostCodesService,
     private pdfThumbnailService: PdfThumbnailService,
     private contactService: ContactService,
     private authService: AuthService,
@@ -138,7 +134,6 @@ export class PropertyAgreementComponent implements OnInit, OnChanges, OnDestroy 
       return;
     }
 
-    this.loadCostCodes();
     this.loadOffices();
     if (this.isAddMode) {
       this.agreementExists = false;
@@ -154,10 +149,6 @@ export class PropertyAgreementComponent implements OnInit, OnChanges, OnDestroy 
   ngOnChanges(changes: SimpleChanges): void {
     if (!this.agreementForm) {
       return;
-    }
-    const officeIdChange = changes['officeId'];
-    if (officeIdChange && !officeIdChange.firstChange) {
-      this.filterCostCodesByOffice();
     }
     const bedroomsChange = changes['bedrooms'] && !changes['bedrooms'].firstChange;
     const furnishedChange = changes['isFurnished'] && !changes['isFurnished'].firstChange;
@@ -283,9 +274,7 @@ export class PropertyAgreementComponent implements OnInit, OnChanges, OnDestroy 
       notes: new FormControl(''),
       insuranceExpiration: new FormControl<Date | null>(null),
       managementFeeMode: new FormControl<ManagementFeeType>(ManagementFeeType.FlatRate),
-      managementFlatRateAmount: new FormControl<string>(''),
-      rentalIncomeCcId: new FormControl<number | null>(null),
-      rentalExpenseCcId: new FormControl<number | null>(null)
+      managementFlatRateAmount: new FormControl<string>('')
     });
     this.resetAgreementForm();
     this.agreementForm.get('managementFeeMode')?.valueChanges.pipe(takeUntil(this.destroy$)).subscribe(() => {
@@ -313,11 +302,8 @@ export class PropertyAgreementComponent implements OnInit, OnChanges, OnDestroy 
       notes: '',
       insuranceExpiration: null,
       managementFeeMode: ManagementFeeType.FlatRate,
-      managementFlatRateAmount: '$0.00',
-      rentalIncomeCcId: null,
-      rentalExpenseCcId: null
+      managementFlatRateAmount: '$0.00'
     }, { emitEvent: false });
-    this.filterCostCodesByOffice();
     this.syncManagementAgreementFieldState();
     this.clearAgreementW9Ui();
     this.clearAgreementInsuranceUi();
@@ -340,15 +326,12 @@ export class PropertyAgreementComponent implements OnInit, OnChanges, OnDestroy 
       bankName: data.bankName ?? '',
       routingNumber: data.routingNumber ?? '',
       accountNumber: data.accountNumber ?? '',
-      rentalIncomeCcId: data.rentalIncomeCcId ?? null,
-      rentalExpenseCcId: data.rentalExpenseCcId ?? null,
       notes: data.notes ?? '',
       insuranceExpiration: insuranceExpirationDate,
       managementFeeMode: this.mappingService.mapManagementFeeTypeIdFromApi(data.managementFeeTypeId),
       managementFlatRateAmount: this.formatAgreementDecimalForDisplay(data.flatRateAmount ?? null)
     }, { emitEvent: false });
     this.agreementOfficeId = data.officeId ?? this.officeId ?? null;
-    this.filterCostCodesByOffice();
     this.syncManagementAgreementFieldState();
     this.populateAgreementW9(data);
     this.populateAgreementInsurance(data);
@@ -528,27 +511,7 @@ export class PropertyAgreementComponent implements OnInit, OnChanges, OnDestroy 
     if (linenFee != null) {
       patch['linenAndTowelFee'] = this.formatAgreementDecimalForDisplay(linenFee);
     }
-    const rentCostCodes = this.getOfficeRentCostCodeDefaults(office);
-    if (rentCostCodes.rentalIncomeCcId != null) {
-      patch['rentalIncomeCcId'] = rentCostCodes.rentalIncomeCcId;
-    }
-    if (rentCostCodes.rentalExpenseCcId != null) {
-      patch['rentalExpenseCcId'] = rentCostCodes.rentalExpenseCcId;
-    }
     return patch;
-  }
-
-  getOfficeRentCostCodeDefaults(office: OfficeResponse): { rentalIncomeCcId: number | null; rentalExpenseCcId: number | null } {
-    if (this.isFurnished) {
-      return {
-        rentalIncomeCcId: office.furnishedRentChargeCcId ?? null,
-        rentalExpenseCcId: office.furnishedRentExpenseCcId ?? null
-      };
-    }
-    return {
-      rentalIncomeCcId: office.unfurnishedRentChargeCcId ?? null,
-      rentalExpenseCcId: office.unfurnishedRentExpenseCcId ?? null
-    };
   }
 
   buildOfficeAgreementDefaultPatch(office: OfficeResponse): Record<string, string | number | null> {
@@ -571,13 +534,6 @@ export class PropertyAgreementComponent implements OnInit, OnChanges, OnDestroy 
     const linenFee = this.resolveLinenTowelFeeFromOffice(office, this.bedrooms);
     if (linenFee != null) {
       patch['linenAndTowelFee'] = this.formatAgreementDecimalForDisplay(linenFee);
-    }
-    const rentCostCodes = this.getOfficeRentCostCodeDefaults(office);
-    if (rentCostCodes.rentalIncomeCcId != null) {
-      patch['rentalIncomeCcId'] = rentCostCodes.rentalIncomeCcId;
-    }
-    if (rentCostCodes.rentalExpenseCcId != null) {
-      patch['rentalExpenseCcId'] = rentCostCodes.rentalExpenseCcId;
     }
     return patch;
   }
@@ -637,8 +593,6 @@ export class PropertyAgreementComponent implements OnInit, OnChanges, OnDestroy 
       bankName: (v?.bankName || '').trim() || null,
       routingNumber: (v?.routingNumber || '').trim() || null,
       accountNumber: (v?.accountNumber || '').trim() || null,
-      rentalIncomeCcId: v?.rentalIncomeCcId == null ? null : Number(v.rentalIncomeCcId),
-      rentalExpenseCcId: v?.rentalExpenseCcId == null ? null : Number(v.rentalExpenseCcId),
       agreementLines: this.mapAgreementLinesToRequest(),
       notes: (v?.notes || '').trim() || null,
       managementFeeTypeId: normalizeManagementFeeTypeId(v?.managementFeeMode),
@@ -647,49 +601,6 @@ export class PropertyAgreementComponent implements OnInit, OnChanges, OnDestroy 
           ? null
           : this.parseAgreementDecimalFromForm(v?.managementFlatRateAmount)
     };
-  }
-  //#endregion
-
-  //#region Cost Code Methods
-  loadCostCodes(): void {
-    this.costCodesService.ensureCostCodesLoaded();
-    this.costCodesService.areCostCodesLoaded().pipe(filter(loaded => loaded === true), take(1)).subscribe(() => {
-      this.costCodesService.getAllCostCodes().pipe(takeUntil(this.destroy$)).subscribe({
-        next: (costCodes: CostCodesResponse[]) => {
-          this.availableCostCodes = this.mapCostCodeOptions(costCodes || []);
-          this.filterCostCodesByOffice();
-        },
-        error: () => {
-          this.availableCostCodes = [];
-        }
-      });
-    });
-  }
-
-  filterCostCodesByOffice(): void {
-    const resolvedOfficeId = this.officeId ?? this.agreementOfficeId;
-    if (!resolvedOfficeId) {
-      this.availableCostCodes = [];
-      return;
-    }
-    const officeCostCodes = this.costCodesService.getCostCodesForOffice(resolvedOfficeId)
-      .filter(c => c.isActive);
-    this.availableCostCodes = this.mapCostCodeOptions(officeCostCodes);
-  }
-
-  mapCostCodeOptions(costCodes: CostCodesResponse[]): { value: number, label: string }[] {
-    return (costCodes || [])
-      .map(c => {
-        const parsedId = Number(c.costCodeId);
-        if (isNaN(parsedId)) {
-          return null;
-        }
-        return {
-          value: parsedId,
-          label: `${c.costCode} - ${c.description}`
-        };
-      })
-      .filter((option): option is { value: number, label: string } => option !== null);
   }
   //#endregion
 

@@ -125,26 +125,6 @@
         </mat-form-field>
       </div>
     }
-    <div class="grid grid-cols-1 sm:grid-cols-2 gap-x-2 gap-y-2 mb-4">
-      <mat-form-field appearance="outline" class="min-w-0">
-        <mat-label>Rental Income Cost Code</mat-label>
-        <mat-select formControlName="rentalIncomeCcId">
-          <mat-option [value]="null">None</mat-option>
-          @for (costCode of availableCostCodes; track costCode.value) {
-            <mat-option [value]="costCode.value">{{ costCode.label }}</mat-option>
-          }
-        </mat-select>
-      </mat-form-field>
-      <mat-form-field appearance="outline" class="min-w-0">
-        <mat-label>Rental Expense Cost Code</mat-label>
-        <mat-select formControlName="rentalExpenseCcId">
-          <mat-option [value]="null">None</mat-option>
-          @for (costCode of availableCostCodes; track costCode.value) {
-            <mat-option [value]="costCode.value">{{ costCode.label }}</mat-option>
-          }
-        </mat-select>
-      </mat-form-field>
-    </div>
     @if (isPropertyManagementLease) {
       <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-x-2 gap-y-2 mb-4">
         <mat-form-field appearance="outline" class="min-w-0">

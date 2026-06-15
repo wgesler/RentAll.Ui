@@ -213,7 +213,6 @@
           }
 
           @if (isAdminLikeSettingsUser) {
-            @if (hasAccountingAccess) {
               <!-- Chart of Accounts Section -->
               <mat-expansion-panel [expanded]="expandedSections.chartOfAccounts"
                 (opened)="onPanelOpened('chartOfAccounts')"
@@ -229,7 +228,6 @@
                   </app-chart-of-accounts-list>
                 </div>
               </mat-expansion-panel>
-            }
 
             <!-- Cost Codes Section -->
             <mat-expansion-panel [expanded]="expandedSections.costCodes" 

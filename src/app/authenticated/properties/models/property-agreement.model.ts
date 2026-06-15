@@ -43,8 +43,6 @@ export interface PropertyAgreementRequest {
   bankName?: string | null;
   routingNumber?: string | null;
   accountNumber?: string | null;
-  rentalIncomeCcId?: number | null;
-  rentalExpenseCcId?: number | null;
   agreementLines?: PropertyAgreementLineRequest[] | null;
   notes?: string | null;
 }
@@ -70,8 +68,6 @@ export interface PropertyAgreementResponse {
   bankName?: string | null;
   routingNumber?: string | null;
   accountNumber?: string | null;
-  rentalIncomeCcId?: number | null;
-  rentalExpenseCcId?: number | null;
   agreementLines?: PropertyAgreementLineResponse[] | null;
   notes?: string | null;
 }
