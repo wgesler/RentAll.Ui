@@ -1190,7 +1190,8 @@ export class WorkOrderComponent implements OnInit, OnChanges, OnDestroy {
 
   getOfficeCostCodes(officeId: number): void {
     const office = this.offices.find(o => o.officeId === officeId) ?? null;
-    this.tenantDamagesCcId = office?.tenantChargeCcId ?? null;
+    const accountingOffice = this.accountingOffices.find(o => o.officeId === officeId) ?? null;
+    this.tenantDamagesCcId = office?.defaultTenantIncAccountId ?? null;
   }
 
   loadWorkOrder(): void {
