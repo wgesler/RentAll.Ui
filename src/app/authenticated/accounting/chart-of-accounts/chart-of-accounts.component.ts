@@ -160,20 +160,10 @@ export class ChartOfAccountComponent implements OnInit, OnDestroy, OnChanges {
     const officeIdNumber = this.selectedOffice!.officeId;
     const isSubaccount = formValue.isSubaccount === true;
     const parsedSubAccountId = this.utilityService.parseOptionalIntString(formValue.subAccountId);
-    const parsedAccountId = this.isAddMode
-      ? this.resolveNextAccountId(officeIdNumber)
-      : this.accountId;
-
-    if (!Number.isInteger(parsedAccountId) || (parsedAccountId as number) < 0) {
-      this.isSubmitting = false;
-      this.toastr.error('Unable to assign account id.', CommonMessage.Error);
-      return;
-    }
 
     const request: ChartOfAccountRequest = {
       organizationId: user?.organizationId || '',
       officeId: officeIdNumber,
-      accountId: parsedAccountId as number,
       accountNo: String(formValue.accountNo || '').trim(),
       accountTypeId: parseInt(formValue.accountTypeId, 10),
       name: String(formValue.name || '').trim(),
@@ -183,10 +173,26 @@ export class ChartOfAccountComponent implements OnInit, OnDestroy, OnChanges {
       note: this.utilityService.trimOrNull(formValue.note)
     };
 
-    if (isSubaccount && (request.subAccountId == null || request.subAccountId === request.accountId)) {
-      this.isSubmitting = false;
-      this.toastr.error('Select a valid parent account for the subaccount.', CommonMessage.Error);
-      return;
+    if (this.isAddMode) {
+      if (isSubaccount && request.subAccountId == null) {
+        this.isSubmitting = false;
+        this.toastr.error('Select a valid parent account for the subaccount.', CommonMessage.Error);
+        return;
+      }
+    } else {
+      request.accountId = this.accountId ?? undefined;
+
+      if (request.accountId == null) {
+        this.isSubmitting = false;
+        this.toastr.error('Unable to determine account id.', CommonMessage.Error);
+        return;
+      }
+
+      if (isSubaccount && (request.subAccountId == null || request.subAccountId === request.accountId)) {
+        this.isSubmitting = false;
+        this.toastr.error('Select a valid parent account for the subaccount.', CommonMessage.Error);
+        return;
+      }
     }
 
     const save$ = this.isAddMode
@@ -296,14 +302,6 @@ export class ChartOfAccountComponent implements OnInit, OnDestroy, OnChanges {
   //#endregion
 
   //#region Form Response Methods
-  resolveNextAccountId(officeId: number): number {
-    const accounts = this.chartOfAccountsService.getChartOfAccountsForOffice(officeId);
-    if (!accounts.length) {
-      return 1;
-    }
-    return Math.max(...accounts.map(account => account.accountId)) + 1;
-  }
-
   refreshParentAccountOptions(): void {
     const officeId = this.selectedOffice?.officeId;
     if (!officeId) {
