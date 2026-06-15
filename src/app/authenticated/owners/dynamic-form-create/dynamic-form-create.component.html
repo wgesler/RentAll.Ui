@@ -24,7 +24,7 @@
             <mat-icon>download</mat-icon>
             Download
           </button>
-          @if (docuSignEnabled) {
+          @if (hasDocuSignAccess) {
             <button mat-raised-button type="button" color="accent" (click)="onDocuSign()" [disabled]="isSendingDocuSign || !previewIframeHtml">
               <mat-icon>draw</mat-icon>
               DocuSign

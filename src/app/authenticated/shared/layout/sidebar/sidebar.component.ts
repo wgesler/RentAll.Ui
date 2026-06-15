@@ -100,25 +100,38 @@ export class SidebarComponent implements OnInit, OnDestroy {
     const user = this.authService.getUser();
     let items = getVisibleNavItems(user?.userGroups as Array<string | number> | undefined);
     const showLeadsMenu =
-      this.authService.hasRole(UserGroups.Admin) ||
+      (this.authService.hasRole(UserGroups.Admin) ||
       this.authService.hasRole(UserGroups.Agent) ||
-      this.authService.hasRole(UserGroups.AgentAdmin);
+      this.authService.hasRole(UserGroups.AgentAdmin)) &&
+      this.authService.hasAccessToLeads();
     if (!showLeadsMenu) {
       items = items.filter(item => {
         const url = String(item.url || '');
         return url !== 'leads' && !url.startsWith('leads/');
       });
     }
-    if (!this.authService.isOwnerAdmin()) {
+    if (!this.authService.isOwnerAdmin() || !this.authService.hasAccessToOwners()) {
       items = items.filter(item => {
         const url = String(item.url || '');
         return url !== 'owner' && !url.startsWith('owner/');
+      });
+    }
+    if (!this.authService.hasTicketingAccess()) {
+      items = items.filter(item => {
+        const url = String(item.url || '');
+        return url !== 'tickets' && !url.startsWith('tickets/');
       });
     }
     this.navItems = items;
   }
 
   refreshAssignedTicketBadge(): void {
+    if (!this.authService.hasTicketingAccess()) {
+      this.hasAssignedTicketBadge = false;
+      this.markViewForCheck();
+      return;
+    }
+
     const currentUserId = String(this.authService.getUser()?.userId || '').trim();
     const currentUserAgentId = String(this.authService.getUser()?.agentId || '').trim();
     if (!currentUserId) {
@@ -153,6 +166,12 @@ export class SidebarComponent implements OnInit, OnDestroy {
   }
 
   refreshLeadBadge(): void {
+    if (!this.authService.hasAccessToLeads()) {
+      this.hasNewLeadBadge = false;
+      this.markViewForCheck();
+      return;
+    }
+
     const hasLeadsNavItem = this.navItems.some(navItem => {
       const url = String(navItem?.url || '');
       return url === 'leads' || url.startsWith('leads/');

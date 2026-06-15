@@ -2,11 +2,6 @@ export interface CustomWindow extends Window {
     env: Environment;
 }
 
-export interface FeatureFlags {
-    docuSign: boolean;
-    journalEntrySyncTools: boolean;
-}
-
 export interface Environment {
     production: boolean;
     staging: boolean;
@@ -14,7 +9,10 @@ export interface Environment {
     local: boolean;
     title: string;
     apiUrl: string;
-    featureFlags: FeatureFlags;
     /** When set, public listing share/copy/PDF links use this UI origin (https://your-app...) instead of window.location — required for emailed PDFs to external users. */
-    publicListingUiOrigin?: string;
+    propertyListingUiOrigin?: string;
+    /** Leave empty for normal quotes. Set full listing URL only for PDF/href isolation tests; never in prod. */
+    propertyListingHrefDiagnostic?: string;
+    /** Local/dev: true logs listing URLs to console after links resolve (compare with PDF href). */
+    propertyListingHrefLogDebug?: boolean;
 }

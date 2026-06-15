@@ -1,9 +1,11 @@
 import { Injectable } from '@angular/core';
-import { BehaviorSubject, Observable, map, switchMap, take } from 'rxjs';
+import { BehaviorSubject, Observable, forkJoin, map, switchMap, take } from 'rxjs';
 import { AuthService } from '../../../services/auth.service';
+import { FeatureResponse } from '../models/organization-feature.model';
 import { OfficeResponse } from '../models/office.model';
 import { AccountingOfficeService } from './accounting-office.service';
 import { OfficeService } from './office.service';
+import { OrganizationFeatureService } from './organization-feature.service';
 
 export interface OfficeUiStateOptions {
   explicitOfficeId?: number | null;
@@ -20,6 +22,11 @@ export interface OfficeUiState {
   autoSelectedOfficeId: number | null;
 }
 
+export interface OfficeScopeResult {
+  selectedOfficeId: number | null;
+  features: FeatureResponse[];
+}
+
 @Injectable({
   providedIn: 'root'
 })
@@ -33,6 +40,7 @@ export class GlobalSelectionService {
   constructor(
     private officeService: OfficeService,
     private accountingOfficeService: AccountingOfficeService,
+    private organizationFeatureService: OrganizationFeatureService,
     private authService: AuthService
   ) {}
 
@@ -99,16 +107,26 @@ export class GlobalSelectionService {
     return null;
   }
 
-  ensureOfficeScope(organizationId: string): Observable<number | null> {
+  ensureOfficeScope(organizationId: string): Observable<OfficeScopeResult> {
     return this.officeService.ensureOfficesLoaded(organizationId).pipe(
       take(1),
-      switchMap(offices =>
-        this.accountingOfficeService.ensureAccountingOfficesLoaded().pipe(
-          take(1),
-          map(() => this.syncWithAvailableOffices((offices || []).filter(office => office.isActive)))
-        )
-      )
+      switchMap(offices => {
+        const activeOffices = (offices || []).filter(office => office.isActive);
+        return forkJoin({
+          accountingOffices: this.accountingOfficeService.ensureAccountingOfficesLoaded().pipe(take(1)),
+          features: this.organizationFeatureService.refreshFeatures(organizationId).pipe(take(1))
+        }).pipe(
+          map(({ features }) => ({
+            selectedOfficeId: this.syncWithAvailableOffices(activeOffices),
+            features: features || []
+          }))
+        );
+      })
     );
+  }
+
+  verifyMainProgramAccess(features?: FeatureResponse[]): boolean {
+    return this.authService.hasMainProgramAccess(features);
   }
 
   private resolveUserDefaultOfficeId(accessibleOffices: OfficeResponse[]): number | null {

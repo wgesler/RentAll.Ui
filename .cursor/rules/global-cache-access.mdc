@@ -18,7 +18,7 @@ Do not change how these are consumed.
 
 ## Group B — one sanctioned pattern, no exceptions
 
-Offices, Accounting offices, Cost codes, Contacts, and the office-selection stream.
+Offices, Accounting offices, Cost codes, Contacts, Features, and the office-selection stream.
 
 ### The pattern: `ensure...Loaded()` → live `getAll...()`
 
@@ -68,7 +68,7 @@ this.officeService
   used to populate component data.
 - **Raw HTTP** — `getOffices()`, `getOfficesByOrganization()`, `loadAllOffices()`,
   `getAccountingOffices()`, `loadAllAccountingOffices()`, `loadAllCostCodes()`,
-  `loadAllContacts()` from a feature component.
+  `loadAllContacts()`, `loadAllFeatures()`, `getFeaturesByOrganization()` from a feature component.
 
 ### Inline sync reads inside event handlers
 

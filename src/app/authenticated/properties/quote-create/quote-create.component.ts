@@ -421,7 +421,7 @@ export class QuoteCreateComponent extends BaseDocumentComponent implements OnIni
         const token = shareResponse.token;
         const listingUrl = this.propertyListingShareService.getPublicListingUrl(token);
         if (!listingUrl) {
-          console.error('Quote listing URL missing: set publicListingUiOrigin in environment or open RentAll in a normal browser context.', {
+          console.error('Quote listing URL missing: set propertyListingUiOrigin in environment or open RentAll in a normal browser context.', {
             propertyId
           });
           return null;
@@ -451,7 +451,7 @@ export class QuoteCreateComponent extends BaseDocumentComponent implements OnIni
       if (resolved.length < requestedCount) {
         this.toastr.warning('Some properties could not generate listing links. Check the API or network.', 'Quote links');
       }
-      if (!environment.production && environment.quoteListingHrefLogDebug && resolved.length > 0) {
+      if (!environment.production && environment.propertyListingHrefLogDebug && resolved.length > 0) {
         console.info('[Quote listing href debug]', resolved.map(l => ({ propertyCode: l.propertyCode, url: l.url })));
       }
       const previousPriceByPropertyId = new Map(this.propertyListingLinks.map(link => [link.propertyId, link.price]));
@@ -629,7 +629,7 @@ export class QuoteCreateComponent extends BaseDocumentComponent implements OnIni
   }
 
   getResolvedListingUrl(link: QuotePropertyListingLink): string {
-    const diagnostic = String(environment.quoteListingHrefDiagnostic || '').trim();
+    const diagnostic = String(environment.propertyListingHrefDiagnostic || '').trim();
     const chosen = diagnostic.length > 0 ? diagnostic : link.url || '';
     return this.stripSurroundingAngleBracketsFromUrl(String(chosen).trim());
   }

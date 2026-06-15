@@ -36,21 +36,9 @@ export class OfficeComponent implements OnInit, OnDestroy, OnChanges, AfterViewI
   @Output() backEvent = new EventEmitter<void>();
   @Output() savedEvent = new EventEmitter<void>();
   @ViewChild('firstInput') firstInputRef: ElementRef<HTMLInputElement>;
-  @ViewChild('quotePrefaceEditor') set quotePrefaceEditorRef(value: ElementRef<HTMLDivElement> | undefined) {
-    this.quotePrefaceEditor = value;
-    this.syncQuoteTextEditorFromForm('quotePreface');
-  }
-  quotePrefaceEditor?: ElementRef<HTMLDivElement>;
-  @ViewChild('quoteSuffixEditor') set quoteSuffixEditorRef(value: ElementRef<HTMLDivElement> | undefined) {
-    this.quoteSuffixEditor = value;
-    this.syncQuoteTextEditorFromForm('quoteSuffix');
-  }
-  quoteSuffixEditor?: ElementRef<HTMLDivElement>;
-  @ViewChild('quoteDisclaimerEditor') set quoteDisclaimerEditorRef(value: ElementRef<HTMLDivElement> | undefined) {
-    this.quoteDisclaimerEditor = value;
-    this.syncQuoteTextEditorFromForm('quoteDisclaimer');
-  }
-  quoteDisclaimerEditor?: ElementRef<HTMLDivElement>;
+  @ViewChild('quotePrefaceEditor') set quotePrefaceEditorRef(value: ElementRef<HTMLDivElement> | undefined) {this.quotePrefaceEditor = value; this.syncQuoteTextEditorFromForm('quotePreface'); }
+  @ViewChild('quoteSuffixEditor') set quoteSuffixEditorRef(value: ElementRef<HTMLDivElement> | undefined) { this.quoteSuffixEditor = value; this.syncQuoteTextEditorFromForm('quoteSuffix'); }
+  @ViewChild('quoteDisclaimerEditor') set quoteDisclaimerEditorRef(value: ElementRef<HTMLDivElement> | undefined) { this.quoteDisclaimerEditor = value; this.syncQuoteTextEditorFromForm('quoteDisclaimer'); }
 
   isServiceError: boolean = false;
   office: OfficeResponse;
@@ -62,6 +50,10 @@ export class OfficeComponent implements OnInit, OnDestroy, OnChanges, AfterViewI
   isSubmitting: boolean = false;
   isUploadingLogo: boolean = false;
   isAddMode: boolean = false;
+  quotePrefaceEditor?: ElementRef<HTMLDivElement>;
+  quoteSuffixEditor?: ElementRef<HTMLDivElement>;
+  quoteDisclaimerEditor?: ElementRef<HTMLDivElement>;
+
   states: string[] = [];
   allCostCodes: CostCodesResponse[] = [];
   chargeCostCodeOptions: { value: number, label: string }[] = [];
@@ -1168,6 +1160,14 @@ export class OfficeComponent implements OnInit, OnDestroy, OnChanges, AfterViewI
     if (this.form?.status === 'VALID' && !this.isSubmitting) {
       this.saveOffice();
     }
+  }
+
+  get hasQuickBooksAccess(): boolean {
+    return this.authService.hasQuickBooksAccess();
+  }
+
+  get hasDocuSignAccess(): boolean {
+    return this.authService.hasDocuSignAccess();
   }
  //#endregion
 

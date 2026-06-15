@@ -5,6 +5,8 @@ import { Router } from '@angular/router';
 import { JwtHelperService } from '@auth0/angular-jwt';
 import { BehaviorSubject, Observable, catchError, finalize, of, take, tap } from 'rxjs';
 import { RouterToken, RouterUrl } from '../app.routes';
+import { FeatureType } from '../authenticated/organizations/models/organization-enum';
+import { FeatureResponse } from '../authenticated/organizations/models/organization-feature.model';
 import { StartupPage } from '../authenticated/users/models/user-enums';
 import { hasOwnerRole, isServiceProvider } from '../authenticated/shared/access/role-access';
 import { StorageKey } from '../enums/storage-keys.enum';
@@ -14,6 +16,9 @@ import { LoginRequest } from '../public/login/models/login-request';
 import { RefreshTokenRequest } from '../public/login/models/refresh-token-request';
 import { UserGroups } from '../authenticated/users/models/user-enums';
 import { GlobalSelectionService } from '../authenticated/organizations/services/global-selection.service';
+import { OfficeService } from '../authenticated/organizations/services/office.service';
+import { OrganizationFeatureService } from '../authenticated/organizations/services/organization-feature.service';
+import { AccountingOfficeService } from '../authenticated/organizations/services/accounting-office.service';
 import { ConfigService } from './config.service';
 import { StorageService } from './storage.service';
 
@@ -49,6 +54,7 @@ export class AuthService {
     login(request: LoginRequest): Observable<AuthResponse> {
         this.isLoggingOut$.next(false);
         this.clearSensitiveData();
+        this.clearBootstrapCaches();
         return this.http.post<AuthResponse>(this.controller + 'login', request).pipe(
             tap(() => this.injector.get(GlobalSelectionService).resetFurnishedPropertySelection()),
             tap((response: AuthResponse) => this.setAuthData(response))
@@ -167,6 +173,51 @@ export class AuthService {
             || this.hasRole(UserGroups.Admin)
             || this.hasRole(UserGroups.Agent);
     }
+
+    //#region Organization feature access
+    /** Org-scoped feature flag from login bootstrap cache. SuperAdmin bypasses all checks. */
+    hasOrganizationFeature(featureType: FeatureType, features?: FeatureResponse[]): boolean {
+        if (this.hasRole(UserGroups.SuperAdmin)) {
+            return true;
+        }
+
+        const organizationId = this.getUser()?.organizationId?.trim() ?? '';
+        if (!organizationId) {
+            return false;
+        }
+
+        return this.injector.get(OrganizationFeatureService).hasFeatureAccess(organizationId, featureType, features);
+    }
+
+    hasMainProgramAccess(features?: FeatureResponse[]): boolean {
+        return this.hasOrganizationFeature(FeatureType.MainProgram, features);
+    }
+
+    hasTicketingAccess(features?: FeatureResponse[]): boolean {
+        return this.hasOrganizationFeature(FeatureType.Ticketing, features);
+    }
+
+    hasDocuSignAccess(features?: FeatureResponse[]): boolean {
+        return this.hasOrganizationFeature(FeatureType.DocuSign, features);
+    }
+
+    hasQuickBooksAccess(features?: FeatureResponse[]): boolean {
+        return this.hasOrganizationFeature(FeatureType.QuickBooks, features);
+    }
+
+    /** Organization Accounting feature flag (not the same as user role checks such as isInAccounting). */
+    hasAccountingAccess(features?: FeatureResponse[]): boolean {
+        return this.hasOrganizationFeature(FeatureType.Accounting, features);
+    }
+
+    hasAccessToLeads(features?: FeatureResponse[]): boolean {
+        return this.hasOrganizationFeature(FeatureType.Leads, features);
+    }
+
+    hasAccessToOwners(features?: FeatureResponse[]): boolean {
+        return this.hasOrganizationFeature(FeatureType.Owners, features);
+    }
+    //#endregion
 
     getSessionId(): string | null {
         return this.jwtContainer$?.value?.sub;
@@ -321,6 +372,16 @@ export class AuthService {
             this.injector.get(GlobalSelectionService).resetFurnishedPropertySelection();
         } catch {
             /* GlobalSelectionService may not be available during teardown */
+        }
+    }
+
+    clearBootstrapCaches(): void {
+        try {
+            this.injector.get(OfficeService).clearOffices();
+            this.injector.get(OrganizationFeatureService).clearFeatures();
+            this.injector.get(AccountingOfficeService).clearAccountingOffices();
+        } catch {
+            /* Bootstrap services may not be available during teardown */
         }
     }
 

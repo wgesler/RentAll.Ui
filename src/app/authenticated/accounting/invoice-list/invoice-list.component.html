@@ -53,8 +53,8 @@
           [hasFilter]="true"
           [hasToggleTop]="false"
           [hasButtonTop]="false"
-          [hasActionsSelect]="showSelections"
-          [hasButtonSelectAll]="showSelections"
+          [hasActionsSelect]="hasQuickBooksAccess && showSelections"
+          [hasButtonSelectAll]="hasQuickBooksAccess && showSelections"
           [hasActionsRowClick]="!showPaymentForm"
           [hasActionsView]="true"
           [hasActionsEdit]="true"
@@ -96,16 +96,20 @@
                   ShowPaid
                 </mat-slide-toggle>
               }
-              <mat-slide-toggle id="toggle-invoices-show-selections" [checked]="showSelections" color="primary" (change)="onShowSelectionsToggleChange($event)" class="whitespace-nowrap">
-                Show Selections
-              </mat-slide-toggle>
+              @if (hasQuickBooksAccess) {
+                <mat-slide-toggle id="toggle-invoices-show-selections" [checked]="showSelections" color="primary" (change)="onShowSelectionsToggleChange($event)" class="whitespace-nowrap">
+                  Show Selections
+                </mat-slide-toggle>
+              }
               <button mat-raised-button type="button" color="accent" id="apply-payment-button" (click)="openApplyPaymentDialog()" class="whitespace-nowrap items-center flex gap-1">
                 Apply Payment
               </button>
-              <button mat-raised-button type="button" color="accent" id="export-invoice-button" (click)="exportInvoicesToIif()" [disabled]="selectedInvoiceIds.size === 0" class="whitespace-nowrap items-center flex gap-1">
-                <mat-icon class="text-base">download</mat-icon>
-                <span>Export</span>
-              </button>
+              @if (hasQuickBooksAccess) {
+                <button mat-raised-button type="button" color="accent" id="export-invoice-button" (click)="exportInvoicesToIif()" [disabled]="selectedInvoiceIds.size === 0" class="whitespace-nowrap items-center flex gap-1">
+                  <mat-icon class="text-base">download</mat-icon>
+                  <span>Export</span>
+                </button>
+              }
               <button mat-raised-button type="button" color="primary" id="add-invoice-button" (click)="addInvoice()" class="whitespace-nowrap items-center flex gap-1">
                 <mat-icon class="text-base">add</mat-icon>
                 <span>Add</span>

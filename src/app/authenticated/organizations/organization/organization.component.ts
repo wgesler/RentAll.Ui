@@ -3,17 +3,23 @@ import { HttpErrorResponse } from '@angular/common/http';
 import { Component, ElementRef, OnDestroy, OnInit, ViewChild } from '@angular/core';
 import { FormBuilder, FormControl, FormGroup, FormsModule, ReactiveFormsModule, Validators } from '@angular/forms';
 import { ActivatedRoute, Router } from '@angular/router';
+import { MatSlideToggleChange } from '@angular/material/slide-toggle';
 import { ToastrService } from 'ngx-toastr';
 import { BehaviorSubject, Observable, Subject, filter, finalize, map, take, takeUntil } from 'rxjs';
 import { RouterUrl } from '../../../app.routes';
 import { CommonMessage, CommonTimeouts } from '../../../enums/common-message.enum';
 import { MaterialModule } from '../../../material.module';
+import { AuthService } from '../../../services/auth.service';
 import { CommonService } from '../../../services/common.service';
 import { FormatterService } from '../../../services/formatter-service';
 import { UtilityService } from '../../../services/utility.service';
 import { FileDetails } from '../../../shared/models/fileDetails';
 import { fileValidator } from '../../../validators/file-validator';
+import { UserGroups } from '../../users/models/user-enums';
+import { getFeatureTypes } from '../models/organization-enum';
+import { FeatureResponse, FeatureToggleCell } from '../models/organization-feature.model';
 import { OrganizationRequest, OrganizationResponse } from '../models/organization.model';
+import { OrganizationFeatureService } from '../services/organization-feature.service';
 import { OrganizationService } from '../services/organization.service';
 
 @Component({
@@ -25,6 +31,8 @@ import { OrganizationService } from '../services/organization.service';
 })
 
 export class OrganizationComponent implements OnInit, OnDestroy {
+  @ViewChild('firstInput') firstInputRef: ElementRef<HTMLInputElement>;
+  
   isServiceError: boolean = false;
   organizationId: string;
   organization: OrganizationResponse;
@@ -36,12 +44,16 @@ export class OrganizationComponent implements OnInit, OnDestroy {
   isSubmitting: boolean = false;
   isUploadingLogo: boolean = false;
   isAddMode: boolean = false;
+  isSuperAdmin: boolean = false;
+  featureTypes = getFeatureTypes();
+  featureToggles: FeatureToggleCell[] = [];
+  organizationFeaturesSubscribed = false;
+  organizationFeaturesLoadItemCleared = false;
   states: string[] = [];
 
   itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['organization']));
   isLoading$: Observable<boolean> = this.itemsToLoad$.pipe(map(items => items.size > 0));
   destroy$ = new Subject<void>();
-  @ViewChild('firstInput') firstInputRef: ElementRef<HTMLInputElement>;
 
   constructor(
     public organizationService: OrganizationService,
@@ -51,12 +63,15 @@ export class OrganizationComponent implements OnInit, OnDestroy {
     private toastr: ToastrService,
     private commonService: CommonService,
     public formatterService: FormatterService,
-    private utilityService: UtilityService
+    private utilityService: UtilityService,
+    private authService: AuthService,
+    private organizationFeatureService: OrganizationFeatureService
   ) {
   }
 
   //#region Organization
   ngOnInit(): void {
+    this.isSuperAdmin = this.authService.hasRole(UserGroups.SuperAdmin);
     this.loadStates();
     const routeId = this.route.snapshot.paramMap.get('id');
     this.organizationId = routeId || '';
@@ -92,6 +107,9 @@ export class OrganizationComponent implements OnInit, OnDestroy {
         }
         this.populateForm();
         this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'organization');
+        if (this.isSuperAdmin) {
+          this.loadOrganizationFeatures();
+        }
       },
       error: (err: HttpErrorResponse) => {
         this.isServiceError = true;
@@ -276,6 +294,118 @@ export class OrganizationComponent implements OnInit, OnDestroy {
       }
     });
   }
+
+  loadOrganizationFeatures(): void {
+    if (!this.isSuperAdmin || this.isAddMode || this.organizationFeaturesSubscribed) {
+      return;
+    }
+    this.organizationFeaturesSubscribed = true;
+
+    this.utilityService.addLoadItem(this.itemsToLoad$, 'organizationFeatures');
+    this.organizationFeaturesLoadItemCleared = false;
+
+    this.organizationFeatureService.ensureFeaturesLoaded(this.organizationId).pipe(take(1)).subscribe({
+      next: (features) => {
+        const organizationFeatures = this.filterFeaturesForOrganization(features || [], this.organizationId);
+        this.featureToggles = this.buildFeatureToggles(organizationFeatures);
+        this.clearOrganizationFeaturesLoadItemOnce();
+      },
+      error: (err: HttpErrorResponse) => {
+        console.error('Organization Component - Error loading features:', err);
+        this.featureToggles = [];
+        this.clearOrganizationFeaturesLoadItemOnce();
+      }
+    });
+  }
+  //#endregion
+
+  //#region Feature Toggle Methods
+  clearOrganizationFeaturesLoadItemOnce(): void {
+    if (this.organizationFeaturesLoadItemCleared) {
+      return;
+    }
+    this.organizationFeaturesLoadItemCleared = true;
+    this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'organizationFeatures');
+  }
+
+  filterFeaturesForOrganization(features: FeatureResponse[], organizationId: string): FeatureResponse[] {
+    const normalizedOrganizationId = organizationId.trim().toLowerCase();
+    return features.filter(feature => String(feature.organizationId ?? '').trim().toLowerCase() === normalizedOrganizationId);
+  }
+
+  buildFeatureToggles(features: FeatureResponse[]): FeatureToggleCell[] {
+    return this.featureTypes.map(featureType => {
+      const match = features.find(feature => feature.featureTypeId === featureType.value);
+      return {
+        featureTypeId: featureType.value,
+        featureTypeLabel: featureType.label,
+        featureId: match?.featureId,
+        hasAccess: match?.hasAccess ?? false,
+        isSaving: false
+      };
+    });
+  }
+
+  onFeatureToggle(toggleIndex: number, event: MatSlideToggleChange): void {
+    const toggle = this.featureToggles[toggleIndex];
+    if (!toggle || toggle.isSaving) {
+      return;
+    }
+
+    const hasAccess = event.checked;
+    const previousHasAccess = toggle.hasAccess;
+    const previousFeatureId = toggle.featureId;
+
+    toggle.hasAccess = hasAccess;
+    toggle.isSaving = true;
+
+    if (toggle.featureId) {
+      this.organizationFeatureService.updateFeature({
+        featureId: toggle.featureId,
+        organizationId: this.organizationId,
+        featureTypeId: toggle.featureTypeId,
+        hasAccess
+      }).pipe(take(1), finalize(() => { toggle.isSaving = false; })).subscribe({
+        next: (response) => {
+          toggle.hasAccess = response.hasAccess;
+          toggle.featureId = response.featureId;
+        },
+        error: (err: HttpErrorResponse) => {
+          toggle.hasAccess = previousHasAccess;
+          toggle.featureId = previousFeatureId;
+          event.source.checked = previousHasAccess;
+          console.error('Organization Component - Error updating feature:', err);
+          this.toastr.error('Unable to update feature access', CommonMessage.Error, { timeOut: CommonTimeouts.Error });
+        }
+      });
+      return;
+    }
+
+    if (!hasAccess) {
+      toggle.hasAccess = previousHasAccess;
+      toggle.isSaving = false;
+      event.source.checked = previousHasAccess;
+      return;
+    }
+
+    this.organizationFeatureService.createFeature({
+      organizationId: this.organizationId,
+      featureTypeId: toggle.featureTypeId,
+      hasAccess: true
+    }).pipe(take(1), finalize(() => { toggle.isSaving = false; })).subscribe({
+      next: (response) => {
+        toggle.hasAccess = response.hasAccess;
+        toggle.featureId = response.featureId;
+      },
+      error: (err: HttpErrorResponse) => {
+        toggle.hasAccess = previousHasAccess;
+        toggle.featureId = previousFeatureId;
+        event.source.checked = previousHasAccess;
+        console.error('Organization Component - Error creating feature:', err);
+        this.toastr.error('Unable to enable feature access', CommonMessage.Error, { timeOut: CommonTimeouts.Error });
+      }
+    });
+  }
   //#endregion
 
   //#region Logo Methods
@@ -391,14 +521,14 @@ export class OrganizationComponent implements OnInit, OnDestroy {
   //#endregion
 
   //#region Utility Methods
+  back(): void {
+    this.router.navigateByUrl(RouterUrl.OrganizationList);
+  }
+  
   ngOnDestroy(): void {
     this.destroy$.next();
     this.destroy$.complete();
     this.itemsToLoad$.complete();
-  }
-
-  back(): void {
-    this.router.navigateByUrl(RouterUrl.OrganizationList);
   }
   //#endregion
 }

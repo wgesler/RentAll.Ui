@@ -9,7 +9,6 @@ import { DocumentType } from '../documents/models/document.enum';
 import { EmailType } from '../email/models/email.enum';
 import { GenerateDocumentFromHtmlDto } from '../documents/models/document.model';
 import { AuthService } from '../../services/auth.service';
-import { ConfigService } from '../../services/config.service';
 import { GlobalSelectionService } from '../organizations/services/global-selection.service';
 import { OfficeService } from '../organizations/services/office.service';
 import { DocuSignService } from '../email/services/docusign.service';
@@ -71,14 +70,13 @@ export interface DocuSignConfig {
 
 export abstract class BaseDocumentComponent {
   protected authService = inject(AuthService);
-  protected configService = inject(ConfigService);
   protected docuSignService = inject(DocuSignService);
   private readonly docuSignGlobalSelectionService = inject(GlobalSelectionService);
   private readonly docuSignOfficeService = inject(OfficeService);
   isSendingDocuSign = false;
 
-  get docuSignEnabled(): boolean {
-    return this.configService.config().featureFlags.docuSign;
+  get hasDocuSignAccess(): boolean {
+    return this.authService.hasDocuSignAccess();
   }
 
   protected abstract getDocumentConfig(): DocumentConfig;
@@ -213,7 +211,7 @@ export abstract class BaseDocumentComponent {
   }
 
   async onDocuSign(docuSignConfig: DocuSignConfig): Promise<void> {
-    if (!this.docuSignEnabled) {
+    if (!this.hasDocuSignAccess) {
       return;
     }
 

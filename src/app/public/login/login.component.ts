@@ -4,9 +4,11 @@ import { Component, CUSTOM_ELEMENTS_SCHEMA, OnInit } from '@angular/core';
 import { FormBuilder, FormControl, FormGroup, FormsModule, ReactiveFormsModule, Validators } from '@angular/forms';
 import { Router } from '@angular/router';
 import { ToastrService } from 'ngx-toastr';
-import { finalize, take } from 'rxjs';
+import { finalize, map, of, switchMap, take } from 'rxjs';
 import { StorageKey } from '../../enums/storage-keys.enum';
+import { CommonMessage, CommonTimeouts } from '../../enums/common-message.enum';
 import { MaterialModule } from '../../material.module';
+import { GlobalSelectionService } from '../../authenticated/organizations/services/global-selection.service';
 import { emailRegex } from '../../regex/email-regex';
 import { AuthService } from '../../services/auth.service';
 import { StorageService } from '../../services/storage.service';
@@ -43,7 +45,8 @@ export class LoginComponent implements OnInit {
       private router: Router,
       private toastr: ToastrService,
       private storageService: StorageService,
-      private authService: AuthService)
+      private authService: AuthService,
+      private globalSelectionService: GlobalSelectionService)
   {
     const username = this.storageService.getItem(StorageKey.Username);
     const password = this.storageService.getItem(StorageKey.Password);
@@ -85,8 +88,25 @@ export class LoginComponent implements OnInit {
       this.storageService.removeItem(StorageKey.Password);
     }
 
-    this.authService.login(this.getLoginRequest()).pipe(take(1), finalize(() => this.isSubmitting = false)).subscribe({
-      next: () => {
+    this.authService.login(this.getLoginRequest()).pipe(
+      take(1),
+      switchMap(() => {
+        const organizationId = this.authService.getUser()?.organizationId?.trim() ?? '';
+        if (!organizationId) {
+          return of(true);
+        }
+        return this.globalSelectionService.ensureOfficeScope(organizationId).pipe(
+          map(scope => this.globalSelectionService.verifyMainProgramAccess(scope.features))
+        );
+      }),
+      finalize(() => this.isSubmitting = false)
+    ).subscribe({
+      next: (allowed) => {
+        if (!allowed) {
+          this.toastr.error('Your organization does not have access to The RentAll Exchange. Please contact your system administrator for assistance.', CommonMessage.Unauthorized, { timeOut: CommonTimeouts.Error });
+          this.authService.logout();
+          return;
+        }
         if (this.authService.getIsLoggedIn()) {
           this.router.navigateByUrl(this.authService.getStartupPageUrl());
         } else {

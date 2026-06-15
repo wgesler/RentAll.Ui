@@ -1,5 +1,6 @@
 import { Component, OnDestroy, OnInit } from '@angular/core';
 import { NavigationStart, Router, RouterOutlet } from '@angular/router';
+import { ToastrService } from 'ngx-toastr';
 import { BehaviorSubject, Observable, Subject, catchError, filter, finalize, map, of, take, takeUntil } from 'rxjs';
 import { ChartOfAccountsService } from './authenticated/accounting/services/chart-of-accounts.service';
 import { CostCodesService } from './authenticated/accounting/services/cost-codes.service';
@@ -7,8 +8,11 @@ import { ContactService } from './authenticated/contacts/services/contact.servic
 import { AccountingOfficeService } from './authenticated/organizations/services/accounting-office.service';
 import { GlobalSelectionService } from './authenticated/organizations/services/global-selection.service';
 import { OfficeService } from './authenticated/organizations/services/office.service';
+import { OrganizationFeatureService } from './authenticated/organizations/services/organization-feature.service';
+import { FeatureResponse } from './authenticated/organizations/models/organization-feature.model';
 import { OrganizationListService } from './authenticated/organizations/services/organization-list.service';
 import { OrganizationService } from './authenticated/organizations/services/organization.service';
+import { CommonMessage, CommonTimeouts } from './enums/common-message.enum';
 import { AuthService } from './services/auth.service';
 import { BrandingService } from './services/branding.service';
 import { CommonService } from './services/common.service';
@@ -28,7 +32,7 @@ export class AppComponent implements OnInit, OnDestroy {
   title = 'RentAll.Ui';
   organizationId: string = '';
   isLoggedIn: Observable<boolean> = this.authService.getIsLoggedIn$();
-  itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['states', 'dailyQuote', 'organizations', 'branding', 'contacts', 'offices', 'accountingOffices', 'costCodes']));
+  itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['states', 'dailyQuote', 'organizations', 'branding', 'contacts', 'offices', 'features', 'accountingOffices', 'costCodes']));
   isLoading$: Observable<boolean> = this.itemsToLoad$.pipe(map(items => items.size > 0));
   destroy$ = new Subject<void>();
   private readonly propertySelectionDomains: Array<{ name: string; prefixes: string[] }> = [
@@ -45,6 +49,7 @@ export class AppComponent implements OnInit, OnDestroy {
     private organizationListService: OrganizationListService,
     private organizationService: OrganizationService,
     private officeService: OfficeService,
+    private organizationFeatureService: OrganizationFeatureService,
     private globalSelectionService: GlobalSelectionService,
     private chartOfAccountsService: ChartOfAccountsService,
     private costCodesService: CostCodesService,
@@ -53,7 +58,8 @@ export class AppComponent implements OnInit, OnDestroy {
     private propertyService: PropertyService,
     private propertySelectionFilterService: PropertySelectionFilterService,
     private debugLayoutBandsService: DebugLayoutBandsService,
-    private router: Router
+    private router: Router,
+    private toastr: ToastrService
   ) { }
 
   ngOnInit(): void {
@@ -79,6 +85,7 @@ export class AppComponent implements OnInit, OnDestroy {
         this.organizationListService.clearOrganizations();
         this.contactService.clearContacts();
         this.officeService.clearOffices();
+        this.organizationFeatureService.clearFeatures();
         this.accountingOfficeService.clearAccountingOffices();
         this.chartOfAccountsService.clearChartOfAccounts();
         this.costCodesService.clearCostCodes();
@@ -136,21 +143,38 @@ export class AppComponent implements OnInit, OnDestroy {
   loadOffices(): void {
     if (!this.organizationId) {
       this.officeService.clearOffices();
+      this.organizationFeatureService.clearFeatures();
       this.accountingOfficeService.clearAccountingOffices();
       this.globalSelectionService.setSelectedOfficeId(null);
       this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'offices');
+      this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'features');
       this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'accountingOffices');
       return;
     }
     this.globalSelectionService.ensureOfficeScope(this.organizationId).pipe(take(1), finalize(() => {
       this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'offices');
       this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'accountingOffices');
+      this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'features');
     })).subscribe({
-      next: () => {
+      next: (scope) => {
+        const onLoginRoute = this.normalizePath(this.router.url) === '/login';
+        if (!onLoginRoute && !this.verifyMainProgramAccess(scope.features)) {
+          return;
+        }
         this.loadCostCodes();
       },
       error: () => {}
     });
+  }
+
+  verifyMainProgramAccess(features?: FeatureResponse[]): boolean {
+    if (this.globalSelectionService.verifyMainProgramAccess(features)) {
+      return true;
+    }
+
+    this.toastr.error('Your organization does not have access to The RentAll Exchange. Please contact your system administrator for assistance.', CommonMessage.Unauthorized, { timeOut: CommonTimeouts.Error });
+    this.authService.logout();
+    return false;
   }
 
   loadCostCodes(): void {

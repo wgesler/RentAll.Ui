@@ -95,7 +95,7 @@
             }
             </div>
           </div>
-        } @else if (journalEntrySyncToolsEnabled && (selectedTabIndex === 1 || selectedTabIndex === 2 || selectedTabIndex === 3 || selectedTabIndex === 4)) {
+        } @else if (hasAccountingAccess && (selectedTabIndex === 1 || selectedTabIndex === 2 || selectedTabIndex === 3 || selectedTabIndex === 4)) {
           <div class="header-title form-titlebar-fields-wrap accounting-shell-titlebar-fields">
             <div class="accounting-shell-titlebar-filters">
             @if (showShellOfficeDropdown) {
@@ -116,7 +116,7 @@
             }
             </div>
           </div>
-        } @else if (journalEntrySyncToolsEnabled && selectedTabIndex === 5) {
+        } @else if (hasAccountingAccess && selectedTabIndex === 5) {
           <div class="header-title form-titlebar-fields-wrap accounting-shell-titlebar-fields">
             <div class="accounting-shell-titlebar-filters">
             @if (showShellOfficeDropdown) {
@@ -208,7 +208,7 @@
         </ng-template>
       </div>
       <div class="form-titlebar-actions-wrap">
-        @if (journalEntrySyncToolsEnabled && showJournalEntrySyncTools) {
+        @if (hasAccountingAccess && showJournalEntrySyncTools) {
           <button mat-mini-fab type="button" color="primary" id="sync-journal-entries-button" matTooltip="Sync journal entries" aria-label="Sync journal entries" (click)="syncJournalEntries()" [disabled]="isJournalEntrySyncInProgress" class="journal-entry-sync-btn">
             S
           </button>
@@ -271,7 +271,7 @@
               (journalEntriesChanged)="onJournalEntriesChanged()">
             </app-invoice-list>
           </mat-tab>
-          @if (journalEntrySyncToolsEnabled) {
+          @if (hasAccountingAccess) {
           <mat-tab label="Bills">
             @if (showBillsReceiptDetail) {
               <app-receipt

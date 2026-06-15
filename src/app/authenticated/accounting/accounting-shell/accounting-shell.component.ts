@@ -8,7 +8,6 @@ import { HttpErrorResponse } from '@angular/common/http';
 import { RouterUrl } from '../../../app.routes';
 import { MaterialModule } from '../../../material.module';
 import { AuthService } from '../../../services/auth.service';
-import { ConfigService } from '../../../services/config.service';
 import { UtilityService } from '../../../services/utility.service';
 import { CommonMessage } from '../../../enums/common-message.enum';
 import { OrganizationResponse } from '../../organizations/models/organization.model';
@@ -61,6 +60,8 @@ export class AccountingShellComponent implements OnInit, OnDestroy {
   @ViewChild(InvoiceListComponent) accountingInvoiceList?: InvoiceListComponent;
   @ViewChild('accountingInvoiceEditor') accountingInvoiceEditor?: InvoiceComponent;
 
+  private readonly pinnedDateRangeStorageKeyPrefix = 'rentall-accounting-shell-pinned-dates';
+
   selectedTabIndex = 0;
   isSuperAdmin: boolean = false;
   currentUserOrganizationId: string | null = null;
@@ -70,7 +71,6 @@ export class AccountingShellComponent implements OnInit, OnDestroy {
   organizationId = '';
   initialOfficeScopeApplied = false;
   selectedOrganizationId: string | null = null;
-  /** Page-level office filter: seeded from global; does not write global. */
   selectedOfficeId: number | null = null;
   selectedCompanyId: string | null = null;
   selectedReservationId: string | null = null;
@@ -79,8 +79,6 @@ export class AccountingShellComponent implements OnInit, OnDestroy {
   startDate: Date | null = null;
   endDate: Date | null = null;
   dateRangePinned = false;
-  private readonly pinnedDateRangeStorageKeyPrefix = 'rentall-accounting-shell-pinned-dates';
-  /** Passed to invoice-list; updated only in syncInvoiceSearchDateRange. */
   invoiceSearchDateRange: { startDate: string | null; endDate: string | null } = { startDate: null, endDate: null };
   billsSearchRequest: MaintenanceListSearchRequest = { officeIds: [] };
   billsRefreshTrigger = 0;
@@ -113,7 +111,6 @@ export class AccountingShellComponent implements OnInit, OnDestroy {
     private router: Router,
     private route: ActivatedRoute,
     private authService: AuthService,
-    private configService: ConfigService,
     private organizationService: OrganizationService,
     private costCodesService: CostCodesService,
     private chartOfAccountsService: ChartOfAccountsService,
@@ -136,8 +133,8 @@ export class AccountingShellComponent implements OnInit, OnDestroy {
     this.costCodesService.ensureCostCodesLoaded();
     this.chartOfAccountsService.ensureChartOfAccountsLoaded();
     this.loadChartOfAccounts();
-    this.loadGlPropertyCodes();
-    this.loadGlReservationCodes();
+    this.loadPropertyCodes();
+    this.loadReservationCodes();
     this.organizationId = this.authService.getUser()?.organizationId?.trim() ?? '';
     this.initializeSuperAdminFilters();
     if (!this.isSuperAdmin) {
@@ -159,8 +156,8 @@ export class AccountingShellComponent implements OnInit, OnDestroy {
           this.printChecksRefreshTrigger++;
         }
         if (this.selectedTabIndex === 5) {
-          this.refreshGlPropertyOptions();
-          this.refreshGlReservationOptions();
+          this.refreshPropertyOptions();
+          this.refreshReservationOptions();
           this.clearInvalidChartOfAccountSelection();
           this.generalLedgerRefreshTrigger++;
         }
@@ -283,7 +280,7 @@ export class AccountingShellComponent implements OnInit, OnDestroy {
       return;
     }
     this.selectedGlPropertyId = propertyId;
-    this.refreshGlReservationOptions();
+    this.refreshReservationOptions();
     this.onGeneralLedgerBack();
     this.generalLedgerRefreshTrigger++;
     this.router.navigate([], {
@@ -302,7 +299,7 @@ export class AccountingShellComponent implements OnInit, OnDestroy {
     const reservation = this.glReservations.find(item => item.reservationId === reservationId) || null;
     if (reservation?.propertyId) {
       this.selectedGlPropertyId = reservation.propertyId;
-      this.refreshGlPropertyOptions();
+      this.refreshPropertyOptions();
     }
     this.onGeneralLedgerBack();
     this.generalLedgerRefreshTrigger++;
@@ -424,7 +421,7 @@ export class AccountingShellComponent implements OnInit, OnDestroy {
 
   //#region Tab Selection
   onTabChange(event: { index: number }): void {
-    if (!this.journalEntrySyncToolsEnabled && event.index > 0) {
+    if (!this.hasAccountingAccess && event.index > 0) {
       this.selectedTabIndex = 0;
       return;
     }
@@ -457,8 +454,8 @@ export class AccountingShellComponent implements OnInit, OnDestroy {
         this.selectedChartOfAccountId = null;
       }
       this.syncGlFiltersFromInvoiceContext();
-      this.refreshGlPropertyOptions();
-      this.refreshGlReservationOptions();
+      this.refreshPropertyOptions();
+      this.refreshReservationOptions();
       this.generalLedgerRefreshTrigger++;
     }
     this.router.navigate([], {
@@ -702,19 +699,19 @@ export class AccountingShellComponent implements OnInit, OnDestroy {
     return (reservations || []).map(reservation => ({ value: reservation.value.reservationId, label: reservation.label }));
   }
 
-  get journalEntrySyncToolsEnabled(): boolean {
-    return this.configService.config().featureFlags.journalEntrySyncTools;
+  get hasAccountingAccess(): boolean {
+    return this.authService.hasAccountingAccess();
   }
 
   get effectiveSelectedTabIndex(): number {
-    if (!this.journalEntrySyncToolsEnabled && this.selectedTabIndex > 0) {
+    if (!this.hasAccountingAccess && this.selectedTabIndex > 0) {
       return 0;
     }
     return this.selectedTabIndex;
   }
 
-  clampSelectedTabIndexForFeatureFlags(): void {
-    if (!this.journalEntrySyncToolsEnabled && this.selectedTabIndex > 0) {
+  clampSelectedTabIndexForAccountingAccess(): void {
+    if (!this.hasAccountingAccess && this.selectedTabIndex > 0) {
       this.selectedTabIndex = 0;
     }
   }
@@ -920,8 +917,8 @@ export class AccountingShellComponent implements OnInit, OnDestroy {
       this.printChecksRefreshTrigger++;
     }
     if (this.selectedTabIndex === 5) {
-      this.refreshGlPropertyOptions();
-      this.refreshGlReservationOptions();
+      this.refreshPropertyOptions();
+      this.refreshReservationOptions();
       this.clearInvalidChartOfAccountSelection();
       this.onGeneralLedgerBack();
       this.generalLedgerRefreshTrigger++;
@@ -943,7 +940,7 @@ export class AccountingShellComponent implements OnInit, OnDestroy {
       if (this.selectedTabIndex !== tabIndex) {
         this.selectedTabIndex = tabIndex;
       }
-      this.clampSelectedTabIndexForFeatureFlags();
+      this.clampSelectedTabIndexForAccountingAccess();
     }
 
     if ('officeId' in params) {
@@ -987,8 +984,8 @@ export class AccountingShellComponent implements OnInit, OnDestroy {
       }
 
       this.syncGlFiltersFromInvoiceContext();
-      this.refreshGlPropertyOptions();
-      this.refreshGlReservationOptions();
+      this.refreshPropertyOptions();
+      this.refreshReservationOptions();
     }
 
     const startDateParam = getStringQueryParam(params, 'startDate');
@@ -1166,6 +1163,36 @@ export class AccountingShellComponent implements OnInit, OnDestroy {
   //#endregion
 
   //#region Data Load Methods
+  loadOffices(): void {
+    if (!this.organizationId) {
+      return;
+    }
+
+    this.officeService.ensureOfficesLoaded(this.organizationId).pipe(take(1)).subscribe({
+      next: () => {
+        this.officeService.getAllOffices().pipe(takeUntil(this.destroy$)).subscribe(offices => {
+          this.offices = (offices || []).filter(
+            o => o.organizationId === this.organizationId && o.isActive
+          );
+
+          if (!this.initialOfficeScopeApplied) {
+            this.initialOfficeScopeApplied = true;
+            if (this.offices.length === 1) {
+              this.applyPageOfficeScope(this.offices[0].officeId);
+            } else {
+              this.applyOfficeFromGlobal(
+                this.selectedOfficeId ?? this.globalSelectionService.getSelectedOfficeIdValue()
+              );
+            }
+            this.syncBillsSearchRequest();
+          }
+        });
+      },
+      error: () => {
+        this.offices = [];
+      }
+    });
+  }
   loadChartOfAccounts(): void {
     this.chartOfAccountsService.areChartOfAccountsLoaded().pipe(filter(loaded => loaded === true), take(1), takeUntil(this.destroy$)).subscribe(() => {
       this.chartOfAccountsService.getAllChartOfAccounts().pipe(takeUntil(this.destroy$)).subscribe(accounts => {
@@ -1175,11 +1202,11 @@ export class AccountingShellComponent implements OnInit, OnDestroy {
     });
   }
 
-  loadGlPropertyCodes(): void {
+  loadPropertyCodes(): void {
     this.propertyService.getPropertyCodes().pipe(take(1), takeUntil(this.destroy$)).subscribe({
       next: properties => {
         this.glProperties = properties || [];
-        this.refreshGlPropertyOptions();
+        this.refreshPropertyOptions();
       },
       error: () => {
         this.glProperties = [];
@@ -1189,11 +1216,11 @@ export class AccountingShellComponent implements OnInit, OnDestroy {
     });
   }
 
-  loadGlReservationCodes(): void {
+  loadReservationCodes(): void {
     this.reservationService.getReservationCodes().pipe(take(1), takeUntil(this.destroy$)).subscribe({
       next: reservations => {
         this.glReservations = reservations || [];
-        this.refreshGlReservationOptions();
+        this.refreshReservationOptions();
       },
       error: () => {
         this.glReservations = [];
@@ -1203,7 +1230,7 @@ export class AccountingShellComponent implements OnInit, OnDestroy {
     });
   }
 
-  refreshGlPropertyOptions(): void {
+  refreshPropertyOptions(): void {
     const filteredProperties = this.selectedOfficeId == null
       ? this.glProperties
       : this.glProperties.filter(property => property.officeId === this.selectedOfficeId);
@@ -1217,7 +1244,7 @@ export class AccountingShellComponent implements OnInit, OnDestroy {
     }
   }
 
-  refreshGlReservationOptions(): void {
+  refreshReservationOptions(): void {
     const officeFilteredReservations = this.selectedOfficeId == null
       ? this.glReservations
       : this.glReservations.filter(reservation => reservation.officeId === this.selectedOfficeId);
@@ -1249,37 +1276,6 @@ export class AccountingShellComponent implements OnInit, OnDestroy {
         this.selectedGlPropertyId = reservation.propertyId;
       }
     }
-  }
-
-  loadOffices(): void {
-    if (!this.organizationId) {
-      return;
-    }
-
-    this.officeService.ensureOfficesLoaded(this.organizationId).pipe(take(1)).subscribe({
-      next: () => {
-        this.officeService.getAllOffices().pipe(takeUntil(this.destroy$)).subscribe(offices => {
-          this.offices = (offices || []).filter(
-            o => o.organizationId === this.organizationId && o.isActive
-          );
-
-          if (!this.initialOfficeScopeApplied) {
-            this.initialOfficeScopeApplied = true;
-            if (this.offices.length === 1) {
-              this.applyPageOfficeScope(this.offices[0].officeId);
-            } else {
-              this.applyOfficeFromGlobal(
-                this.selectedOfficeId ?? this.globalSelectionService.getSelectedOfficeIdValue()
-              );
-            }
-            this.syncBillsSearchRequest();
-          }
-        });
-      },
-      error: () => {
-        this.offices = [];
-      }
-    });
   }
   //#endregion
 

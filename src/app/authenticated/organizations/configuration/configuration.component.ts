@@ -100,7 +100,6 @@ export class ConfigurationComponent implements OnInit, OnDestroy {
   isEditingBuilding: boolean = false;
   buildingId: string | number | null = null;
   shouldRefreshBuildings: boolean = false;
-  /** Settings title-bar office filter (seeded from global once; does not write global). */
   selectedCostCodesOfficeId: number | null = null;
   isEditingColor: boolean = false;
   colorId: string | number | null = null;
@@ -117,10 +116,9 @@ export class ConfigurationComponent implements OnInit, OnDestroy {
   organizations: OrganizationResponse[] = [];
   offices: OfficeResponse[] = [];
   selectedOrganizationId: string | null = null;
-
   currentUserOrganizationId: string | null = null;
+  settingsOfficesInitialized = false;
 
-  private settingsOfficesInitialized = false;
   destroy$ = new Subject<void>();
 
   constructor(
@@ -273,6 +271,9 @@ export class ConfigurationComponent implements OnInit, OnDestroy {
     }));
   }
 
+  get hasAccountingAccess(): boolean {
+    return this.authService.hasAccountingAccess();
+  }
   onSettingsOrganizationDropdownChange(value: string | number | null): void {
     this.selectedOrganizationId = value == null || value === '' ? null : String(value);
     this.onOrganizationChange();

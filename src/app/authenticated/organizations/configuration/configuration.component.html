@@ -213,21 +213,23 @@
           }
 
           @if (isAdminLikeSettingsUser) {
-            <!-- Chart of Accounts Section -->
-            <mat-expansion-panel [expanded]="expandedSections.chartOfAccounts"
-              (opened)="onPanelOpened('chartOfAccounts')"
-              (closed)="onPanelClosed('chartOfAccounts')"
-              class="mb-4">
-              <mat-expansion-panel-header>
-                <mat-panel-title>Chart of Accounts</mat-panel-title>
-              </mat-expansion-panel-header>
-              <div class="agents-container">
-                <app-chart-of-accounts-list
-                  [embeddedInSettings]="true"
-                  [officeId]="selectedCostCodesOfficeId">
-                </app-chart-of-accounts-list>
-              </div>
-            </mat-expansion-panel>
+            @if (hasAccountingAccess) {
+              <!-- Chart of Accounts Section -->
+              <mat-expansion-panel [expanded]="expandedSections.chartOfAccounts"
+                (opened)="onPanelOpened('chartOfAccounts')"
+                (closed)="onPanelClosed('chartOfAccounts')"
+                class="mb-4">
+                <mat-expansion-panel-header>
+                  <mat-panel-title>Chart of Accounts</mat-panel-title>
+                </mat-expansion-panel-header>
+                <div class="agents-container">
+                  <app-chart-of-accounts-list
+                    [embeddedInSettings]="true"
+                    [officeId]="selectedCostCodesOfficeId">
+                  </app-chart-of-accounts-list>
+                </div>
+              </mat-expansion-panel>
+            }
 
             <!-- Cost Codes Section -->
             <mat-expansion-panel [expanded]="expandedSections.costCodes" 

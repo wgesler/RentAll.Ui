@@ -76,6 +76,7 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
   selectedInvoiceIds: Set<string> = new Set();
   selectedInvoices: InvoiceResponse[] = [];
   showSelections = false;
+  hasQuickBooksAccess = false;
 
   offices: OfficeResponse[] = [];
   availableOffices: { value: number, name: string }[] = [];
@@ -121,6 +122,9 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
   originalPaymentReservationId: string | null = null;
   originalPaymentCompanyId: string | null = null;
   creditCostCodes: { value: number, label: string }[] = [];
+  lastInvoiceSearchKey: string | null = null;
+  invoiceSearchInFlightKey: string | null = null;
+
   baseInvoicesDisplayedColumns: ColumnSet = {
     expand: { displayAs: ' ', maxWidth: '5ch', sort: false },
     no: { displayAs: 'No', maxWidth: '5ch', sort: false, wrap: false },
@@ -146,8 +150,6 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
     description: { displayAs: 'Description', maxWidth: '15ch', wrap: true },
     amount: { displayAs: 'Amount', maxWidth: '15ch', wrap: false, alignment: 'right'}
   };
-  lastInvoiceSearchKey: string | null = null;
-  invoiceSearchInFlightKey: string | null = null;
 
   isPageReady = false;
   itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['reservations', 'invoices']));
@@ -180,6 +182,7 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
     });
 
     this.isSuperUser = this.authService.hasRole(UserGroups.SuperAdmin);
+    this.hasQuickBooksAccess = this.authService.hasQuickBooksAccess();
     this.loadOffices();
     this.loadReservations();
     this.loadCompanyContacts();
@@ -268,72 +271,6 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
     }
   }
 
-  loadInvoicesForCurrentSearchCriteria(force: boolean = false): void {
-    if (!this.officeScopeResolved) {
-      return;
-    }
-
-    const officeIds = this.resolveOfficeIdsForSearch();
-    if (officeIds.length === 0) {
-      this.lastInvoiceSearchKey = null;
-      this.invoiceSearchInFlightKey = null;
-      this.allInvoices = [];
-      this.invoicesDisplay = [];
-      this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'invoices');
-      this.markViewForCheck();
-      return;
-    }
-
-    const searchKey = this.buildInvoiceSearchKey(officeIds);
-    if (!force && (searchKey === this.lastInvoiceSearchKey || searchKey === this.invoiceSearchInFlightKey)) {
-      return;
-    }
-
-    this.invoiceSearchInFlightKey = searchKey;
-    this.utilityService.addLoadItem(this.itemsToLoad$, 'invoices');
-    this.accountingService.searchInvoices(this.buildInvoiceSearchRequest(officeIds)).pipe(take(1), finalize(() => {
-      this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'invoices');
-      if (this.invoiceSearchInFlightKey === searchKey) {
-        this.invoiceSearchInFlightKey = null;
-      }
-    })).subscribe({
-      next: (invoices) => {
-        this.lastInvoiceSearchKey = searchKey;
-        this.allInvoices = invoices || [];
-        this.applyFilters();
-        this.markViewForCheck();
-      },
-      error: () => {
-        this.isServiceError = true;
-        this.allInvoices = [];
-        this.invoicesDisplay = [];
-        this.markViewForCheck();
-      }
-    });
-  }
-
-  buildInvoiceSearchKey(officeIds: number[]): string {
-    const request = this.buildInvoiceSearchRequest(officeIds);
-    return JSON.stringify({
-      officeIds: [...officeIds].sort((a, b) => a - b),
-      reservationId: request.reservationId ?? null,
-      startDate: request.startDate ?? null,
-      endDate: request.endDate ?? null,
-      includeInactive: request.includeInactive,
-      includePaid: request.includePaid
-    });
-  }
-
-  syncSelectedReservationFromInput(reservationId: string | null | undefined): void {
-    this.selectedReservation = reservationId
-      ? this.reservations.find(r =>
-          r.reservationId === reservationId
-          && (!this.selectedOffice || r.officeId === this.selectedOffice.officeId)
-        ) || null
-      : null;
-    this.filterReservations();
-  }
-
   getInvoices(): void {
     this.loadInvoicesForCurrentSearchCriteria(true);
   }
@@ -386,9 +323,7 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
     }
     this.router.navigateByUrl(params.length > 0 ? `${url}?${params.join('&')}` : url);
   }
-  //#endregion
 
-  //#region Action Methods
   deleteInvoice(invoice: InvoiceResponse): void {
     this.accountingService.deleteInvoice(invoice.invoiceId).pipe(take(1)).subscribe({
       next: () => {
@@ -399,8 +334,9 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
         this.markViewForCheck();
       }
     });
-  }
+  }  //#endregion
 
+  //#region Action Methods
   printInvoice(invoice: InvoiceResponse): void {
     // Get values directly from the clicked invoice line
     const officeId = invoice?.officeId ?? null;
@@ -544,6 +480,28 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
     this.applyFilters();
     this.focusPendingApplyAmountInput();
   }
+
+  buildInvoiceSearchKey(officeIds: number[]): string {
+    const request = this.buildInvoiceSearchRequest(officeIds);
+    return JSON.stringify({
+      officeIds: [...officeIds].sort((a, b) => a - b),
+      reservationId: request.reservationId ?? null,
+      startDate: request.startDate ?? null,
+      endDate: request.endDate ?? null,
+      includeInactive: request.includeInactive,
+      includePaid: request.includePaid
+    });
+  }
+
+  syncSelectedReservationFromInput(reservationId: string | null | undefined): void {
+    this.selectedReservation = reservationId
+      ? this.reservations.find(r =>
+          r.reservationId === reservationId
+          && (!this.selectedOffice || r.officeId === this.selectedOffice.officeId)
+        ) || null
+      : null;
+    this.filterReservations();
+  }
   //#endregion
 
   //#region Filter methods
@@ -620,7 +578,7 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
       
       return {
       ...invoice,
-      selected: this.showSelections && this.selectedInvoiceIds.has(invoice.invoiceId),
+      selected: this.hasQuickBooksAccess && this.showSelections && this.selectedInvoiceIds.has(invoice.invoiceId),
       invoiceNumber: invoice.invoiceCode || '',
       reservationCode: this.getCompanyCodeDisplay(invoice),
       propertyCode: (invoice.propertyCode || '').trim() || '—',
@@ -890,6 +848,9 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
 
   //#region Selection/Export Methods
   onShowSelectionsToggleChange(event: MatSlideToggleChange): void {
+    if (!this.hasQuickBooksAccess) {
+      return;
+    }
     this.showSelections = event.checked;
     if (!this.showSelections) {
       this.selectedInvoiceIds.clear();
@@ -922,6 +883,9 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
   }
 
   exportInvoicesToIif(): void {
+    if (!this.hasQuickBooksAccess) {
+      return;
+    }
     const invoiceIds = Array.from(this.selectedInvoiceIds);
     if (invoiceIds.length === 0) {
       this.toastr.warning('Select one or more invoices to export.', 'Export');
@@ -1140,6 +1104,50 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
       }
     });
   }
+
+  loadInvoicesForCurrentSearchCriteria(force: boolean = false): void {
+    if (!this.officeScopeResolved) {
+      return;
+    }
+
+    const officeIds = this.resolveOfficeIdsForSearch();
+    if (officeIds.length === 0) {
+      this.lastInvoiceSearchKey = null;
+      this.invoiceSearchInFlightKey = null;
+      this.allInvoices = [];
+      this.invoicesDisplay = [];
+      this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'invoices');
+      this.markViewForCheck();
+      return;
+    }
+
+    const searchKey = this.buildInvoiceSearchKey(officeIds);
+    if (!force && (searchKey === this.lastInvoiceSearchKey || searchKey === this.invoiceSearchInFlightKey)) {
+      return;
+    }
+
+    this.invoiceSearchInFlightKey = searchKey;
+    this.utilityService.addLoadItem(this.itemsToLoad$, 'invoices');
+    this.accountingService.searchInvoices(this.buildInvoiceSearchRequest(officeIds)).pipe(take(1), finalize(() => {
+      this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'invoices');
+      if (this.invoiceSearchInFlightKey === searchKey) {
+        this.invoiceSearchInFlightKey = null;
+      }
+    })).subscribe({
+      next: (invoices) => {
+        this.lastInvoiceSearchKey = searchKey;
+        this.allInvoices = invoices || [];
+        this.applyFilters();
+        this.markViewForCheck();
+      },
+      error: () => {
+        this.isServiceError = true;
+        this.allInvoices = [];
+        this.invoicesDisplay = [];
+        this.markViewForCheck();
+      }
+    });
+  }
   //#endregion
 
   //#region Form Response Methods
@@ -1175,6 +1183,26 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
       } else {
         window.scrollTo({ top: scrollTop, behavior: 'auto' });
       }
+    });
+  }
+
+  focusPendingApplyAmountInput(): void {
+    const invoiceId = this.pendingApplyAmountFocusInvoiceId;
+    if (!invoiceId || !this.isManualApplyMode || !this.showPaymentForm) {
+      return;
+    }
+
+    const inputId = this.getApplyAmountInputId(invoiceId);
+    queueMicrotask(() => {
+      setTimeout(() => {
+        const input = document.getElementById(inputId) as HTMLInputElement | null;
+        if (!input) {
+          return;
+        }
+        input.focus();
+        input.select();
+        this.pendingApplyAmountFocusInvoiceId = null;
+      }, 0);
     });
   }
   //#endregion
@@ -1296,6 +1324,10 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
     return totalAmount - paidAmount;
   }
 
+  getApplyAmountInputId(invoiceId: string): string {
+    return `apply-amount-invoice-list-${invoiceId}`;
+  }
+
   isInvoiceFullyPaid(invoice: InvoiceResponse): boolean {
     return this.getInvoiceBalanceDue(invoice) <= 0.005;
   }
@@ -1352,7 +1384,6 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
     const officeAccess = Array.isArray(contact.officeAccess) ? contact.officeAccess : [];
     return officeAccess.some(id => Number(id) === officeId);
   }
-
 
   getTransactionTypeLabel(transactionTypeId: number): string {
     const transactionType = this.transactionTypes.find(t => t.value === transactionTypeId);
@@ -2009,30 +2040,6 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
   //#endregion
 
   //#region Utility Methods
-  getApplyAmountInputId(invoiceId: string): string {
-    return `apply-amount-invoice-list-${invoiceId}`;
-  }
-
-  focusPendingApplyAmountInput(): void {
-    const invoiceId = this.pendingApplyAmountFocusInvoiceId;
-    if (!invoiceId || !this.isManualApplyMode || !this.showPaymentForm) {
-      return;
-    }
-
-    const inputId = this.getApplyAmountInputId(invoiceId);
-    queueMicrotask(() => {
-      setTimeout(() => {
-        const input = document.getElementById(inputId) as HTMLInputElement | null;
-        if (!input) {
-          return;
-        }
-        input.focus();
-        input.select();
-        this.pendingApplyAmountFocusInvoiceId = null;
-      }, 0);
-    });
-  }
-
   markViewForCheck(): void {
     this.cdr.markForCheck();
   }

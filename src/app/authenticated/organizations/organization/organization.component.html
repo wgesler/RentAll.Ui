@@ -304,6 +304,25 @@
               </mat-form-field>
             </div>
 
+            @if (isSuperAdmin && !isAddMode) {
+              <mat-divider class="my-5"/>
+
+              <h3 class="pt-2">Features</h3>
+              <div class="organization-features-list mb-4">
+                @for (toggle of featureToggles; track toggle.featureTypeId; let toggleIndex = $index) {
+                  <div class="organization-features-toggle-row">
+                    <span>{{ toggle.featureTypeLabel }}</span>
+                    <mat-slide-toggle
+                      color="primary"
+                      [checked]="toggle.hasAccess"
+                      [disabled]="toggle.isSaving"
+                      (change)="onFeatureToggle(toggleIndex, $event)">
+                    </mat-slide-toggle>
+                  </div>
+                }
+              </div>
+            }
+
             @if (isSubmitting) {
               <div class="flex justify-start gap-3 items-center">
                 <mat-spinner [diameter]="20" color="accent" class="inline-block relative right-1 m-1"/>

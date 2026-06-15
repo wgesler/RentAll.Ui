@@ -34,7 +34,7 @@ export class PropertyListingShareService {
     if (!normalized) {
       return '';
     }
-    const configured = String(this.configService.config().publicListingUiOrigin ?? '').trim().replace(/\/$/, '');
+    const configured = String(this.configService.config().propertyListingUiOrigin ?? '').trim().replace(/\/$/, '');
     const windowOrigin =
       typeof window !== 'undefined' && window.location?.origin ? window.location.origin.replace(/\/$/, '') : '';
     const origin = configured.length > 0 ? configured : windowOrigin;
