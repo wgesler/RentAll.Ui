@@ -1,0 +1,168 @@
+.financial-report-layout {
+  padding: 1.25rem 1rem 1.5rem;
+  display: flex;
+  justify-content: center;
+}
+
+.financial-report-panel {
+  width: 100%;
+  max-width: 48rem;
+}
+
+.financial-report-empty-state,
+.financial-report-loading {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.75rem;
+  padding: 2rem 1rem;
+  color: rgba(15, 23, 42, 0.72);
+}
+
+.financial-report-header {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.175rem;
+  margin-bottom: 0.5rem;
+  text-align: center;
+}
+
+.financial-report-entity-line,
+.financial-report-title,
+.financial-report-period {
+  margin: 0;
+  font-weight: 600;
+  line-height: 1.1;
+}
+
+.financial-report-entity-line,
+.financial-report-period {
+  font-size: 0.875rem;
+}
+
+.financial-report-title {
+  font-size: 1rem;
+}
+
+.financial-report-table-wrap {
+  overflow-x: auto;
+  border: 1px solid rgba(15, 23, 42, 0.12);
+  border-radius: 0.5rem;
+  background: #fff;
+}
+
+.financial-report-table {
+  width: 100%;
+  border-collapse: collapse;
+  table-layout: fixed;
+}
+
+.financial-report-table thead th {
+  text-align: left;
+  font-weight: 600;
+  padding: 0.325rem 0.85rem;
+  border-bottom: 1px solid rgba(15, 23, 42, 0.12);
+  background: rgba(241, 245, 249, 0.9);
+}
+
+.financial-report-col-label {
+  width: auto;
+}
+
+.financial-report-table thead th.financial-report-col-amount {
+  text-align: right;
+}
+
+.financial-report-col-amount {
+  width: 10rem;
+  text-align: right;
+  white-space: nowrap;
+}
+
+.financial-report-header-label {
+  display: flex;
+  align-items: center;
+  gap: 0.15rem;
+}
+
+.financial-report-table tbody td {
+  padding: 0.225rem 0.85rem;
+  border-bottom: 1px solid rgba(15, 23, 42, 0.08);
+  vertical-align: middle;
+  background-color: #fff;
+}
+
+.financial-report-table tbody tr.financial-report-row-expandable td {
+  background-color: #faf6ef;
+}
+
+.financial-report-table tbody tr.financial-report-row-double-underline .financial-report-col-amount {
+  border-bottom: 3px double rgba(15, 23, 42, 0.45);
+}
+
+.financial-report-row-section td,
+.financial-report-row-total td,
+.financial-report-row-summary td {
+  font-weight: 600;
+}
+
+.financial-report-table tbody tr.financial-report-row-total td,
+.financial-report-table tbody tr.financial-report-row-summary td {
+  background-color: #eff6ff;
+}
+
+.financial-report-row-total td,
+.financial-report-row-summary td {
+  border-top: 1px solid rgba(15, 23, 42, 0.18);
+}
+
+.financial-report-label-wrap {
+  display: flex;
+  align-items: center;
+  gap: 0.15rem;
+  min-height: 1rem;
+}
+
+.financial-report-icon-expand-btn {
+  width: 20px !important;
+  height: 20px !important;
+  line-height: 20px !important;
+  min-width: 20px !important;
+  padding: 0 !important;
+
+  .mat-icon {
+    width: 18px;
+    height: 18px;
+    font-size: 18px;
+    line-height: 18px;
+  }
+}
+
+.expand-button {
+  width: 20px !important;
+  height: 20px !important;
+  line-height: 20px !important;
+  min-width: 20px !important;
+  padding: 0 !important;
+
+  .expand-text {
+    font-size: 16px !important;
+    font-weight: 500;
+    line-height: 20px !important;
+    display: inline-block;
+  }
+}
+
+.financial-report-expand-spacer {
+  display: inline-block;
+  width: 20px;
+  flex: 0 0 auto;
+}
+
+.financial-report-label {
+  line-height: 1.1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}

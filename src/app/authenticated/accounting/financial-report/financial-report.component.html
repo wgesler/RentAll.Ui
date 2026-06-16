@@ -1,0 +1,98 @@
+@if (isPageReady) {
+  <div class="mat list-layout-standard dbg-band-main financial-report-layout">
+    <div class="financial-report-panel">
+      @if (isServiceError) {
+        <div class="financial-report-empty-state">
+          <p>{{ noActivityMessage }}</p>
+        </div>
+      } @else {
+        <div class="financial-report-header">
+          @if (entityLineLabel) {
+            <p class="financial-report-entity-line">
+              @if (companyName && displayOfficeName) {
+                {{ companyName }} {{ displayOfficeName }}
+              } @else if (companyName) {
+                {{ companyName }}
+              } @else {
+                {{ displayOfficeName }}
+              }
+            </p>
+          }
+          @if (reportResult) {
+            <h2 class="financial-report-title">{{ reportResult.reportTitle }}</h2>
+            @if (reportResult.periodLabel) {
+              <p class="financial-report-period">{{ reportResult.periodLabel }}</p>
+            }
+          }
+        </div>
+
+        @if (!reportResult || visibleRows.length === 0) {
+          <div class="financial-report-empty-state">
+            <p>{{ noActivityMessage }}</p>
+          </div>
+        } @else {
+          <div class="financial-report-table-wrap">
+          <table class="financial-report-table">
+            <thead>
+              <tr>
+                <th class="financial-report-col-label">
+                  <div class="financial-report-header-label">
+                    <button
+                      mat-icon-button
+                      type="button"
+                      class="financial-report-expand-all-btn financial-report-icon-expand-btn"
+                      [matTooltip]="isAllExpanded ? 'Collapse all' : 'Expand all'"
+                      [attr.aria-label]="isAllExpanded ? 'Collapse all' : 'Expand all'"
+                      (click)="toggleExpandAll()">
+                      <mat-icon>{{ getExpandAllIcon() }}</mat-icon>
+                    </button>
+                  </div>
+                </th>
+                <th class="financial-report-col-amount">{{ amountColumnHeaderLabel }}</th>
+              </tr>
+            </thead>
+            <tbody>
+              @for (row of visibleRows; track row.nodeId) {
+                <tr
+                  [class.financial-report-row-section]="row.rowKind === 'section'"
+                  [class.financial-report-row-expandable]="row.expandable"
+                  [class.financial-report-row-double-underline]="row.showDoubleUnderlineBeforeTotal"
+                  [class.financial-report-row-total]="row.rowKind === 'total'"
+                  [class.financial-report-row-summary]="row.rowKind === 'summary'"
+                  [class.financial-report-row-account]="row.rowKind === 'account'">
+                  <td class="financial-report-col-label">
+                    <div class="financial-report-label-wrap" [style.padding-left.px]="row.depth * 18">
+                      @if (row.expandable) {
+                        <button
+                          type="button"
+                          mat-icon-button
+                          class="financial-report-expand-btn financial-report-icon-expand-btn"
+                          [attr.aria-expanded]="row.expanded"
+                          [attr.aria-label]="row.expanded ? 'Collapse ' + row.label : 'Expand ' + row.label"
+                          (click)="toggleNodeExpansion(row.nodeId)">
+                          <mat-icon>{{ getRowExpandIcon(row) }}</mat-icon>
+                        </button>
+                      } @else {
+                        <span class="financial-report-expand-spacer"></span>
+                      }
+                      <span class="financial-report-label">{{ row.label }}</span>
+                    </div>
+                  </td>
+                  <td class="financial-report-col-amount">{{ row.amountDisplay }}</td>
+                </tr>
+              }
+            </tbody>
+          </table>
+        </div>
+        }
+      }
+    </div>
+  </div>
+} @else {
+  <div class="financial-report-layout">
+    <div class="financial-report-loading">
+      <mat-spinner [diameter]="40"></mat-spinner>
+      <p>Loading report...</p>
+    </div>
+  </div>
+}

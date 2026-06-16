@@ -1,5 +1,6 @@
 import { Injectable } from '@angular/core';
-import { TransactionType, getAccountTypeLabel, getSourceTypeLabel, getTransactionTypeLabel } from '../authenticated/accounting/models/accounting-enum';
+import { AccountType, TransactionType, getAccountTypeLabel, getSourceTypeLabel, getTransactionTypeLabel, isCreditNormalAccountType } from '../authenticated/accounting/models/accounting-enum';
+import { FinancialReportBuildRequest, FinancialReportKind, FinancialReportResult, FinancialReportTreeNode } from '../authenticated/accounting/models/financial-report.model';
 import { ChartOfAccountListDisplay, ChartOfAccountRequest, ChartOfAccountResponse } from '../authenticated/accounting/models/chart-of-accounts.model';
 import { CostCodesListDisplay, CostCodesRequest, CostCodesResponse } from '../authenticated/accounting/models/cost-codes.model';
 import { InvoiceResponse, LedgerLineListDisplay, LedgerLineResponse } from '../authenticated/accounting/models/invoice.model';
@@ -2208,6 +2209,545 @@ export class MappingService {
     });
   }
 
+  //#endregion
+
+  //#region Financial Report Mapping
+  buildFinancialReport(request: FinancialReportBuildRequest): FinancialReportResult {
+    if (request.reportKind === 'balanceSheet') {
+      return this.buildBalanceSheetReport(request);
+    }
+    return this.buildProfitLossReport(request);
+  }
+
+  buildProfitLossReport(request: FinancialReportBuildRequest): FinancialReportResult {
+    const accounts = this.filterFinancialReportAccounts(request.accounts, request.chartOfAccountId, [
+      AccountType.Income,
+      AccountType.OtherIncome,
+      AccountType.CostOfGoodsSold,
+      AccountType.Expense,
+      AccountType.OtherExpense
+    ]);
+    const amountsByAccountId = this.aggregateProfitLossAmountsByAccountId(
+      request.lines,
+      request.startDate,
+      request.endDate,
+      accounts
+    );
+    const incomeAccounts = accounts.filter(account => account.accountTypeId === AccountType.Income || account.accountTypeId === AccountType.OtherIncome);
+    const cogsAccounts = accounts.filter(account => account.accountTypeId === AccountType.CostOfGoodsSold);
+    const expenseAccounts = accounts.filter(account => account.accountTypeId === AccountType.Expense || account.accountTypeId === AccountType.OtherExpense);
+    const incomeTree = this.buildFinancialReportAccountTree(incomeAccounts, amountsByAccountId, request.chartOfAccountId);
+    const cogsTree = this.buildFinancialReportAccountTree(cogsAccounts, amountsByAccountId, request.chartOfAccountId);
+    const expenseTree = this.buildFinancialReportAccountTree(expenseAccounts, amountsByAccountId, request.chartOfAccountId);
+    const totalIncome = this.sumFinancialReportTreeAmounts(incomeTree);
+    const totalCogs = this.sumFinancialReportTreeAmounts(cogsTree);
+    const totalExpense = this.sumFinancialReportTreeAmounts(expenseTree);
+    const grossProfit = this.roundFinancialReportAmount(totalIncome - totalCogs);
+    const netIncome = this.roundFinancialReportAmount(grossProfit - totalExpense);
+
+    return {
+      reportTitle: 'Profit & Loss',
+      periodLabel: this.buildFinancialReportPeriodLabel(request.startDate, request.endDate, false),
+      sections: [
+        this.buildFinancialReportSectionNode('section-income', 'Income', incomeTree, totalIncome),
+        this.buildFinancialReportTotalNode('total-income', 'Total Income', totalIncome),
+        this.buildFinancialReportSectionNode('section-cogs', 'Cost of Goods Sold', cogsTree, totalCogs),
+        this.buildFinancialReportTotalNode('total-cogs', 'Total COGS', totalCogs),
+        this.buildFinancialReportSummaryNode('summary-gross-profit', 'Gross Profit', grossProfit),
+        this.buildFinancialReportSectionNode('section-expense', 'Expense', expenseTree, totalExpense),
+        this.buildFinancialReportTotalNode('total-expense', 'Total Expense', totalExpense),
+        this.buildFinancialReportSummaryNode('summary-net-income', 'Net Income', netIncome)
+      ]
+    };
+  }
+
+  buildBalanceSheetReport(request: FinancialReportBuildRequest): FinancialReportResult {
+    const assetAccounts = this.filterFinancialReportAccounts(request.accounts, request.chartOfAccountId, [
+      AccountType.Bank,
+      AccountType.AccountsReceivable,
+      AccountType.OtherCurrentAsset,
+      AccountType.FixedAsset,
+      AccountType.OtherAsset
+    ]);
+    const liabilityAccounts = this.filterFinancialReportAccounts(request.accounts, request.chartOfAccountId, [
+      AccountType.AccountsPayable,
+      AccountType.CreditCard,
+      AccountType.OtherCurrentLiability,
+      AccountType.LongTermLiability
+    ]);
+    const equityAccounts = this.filterFinancialReportAccounts(request.accounts, request.chartOfAccountId, [AccountType.Equity]);
+    const balanceAmountsByAccountId = this.aggregateBalanceSheetAmountsByAccountId(request.lines, request.endDate, [
+      ...assetAccounts,
+      ...liabilityAccounts,
+      ...equityAccounts
+    ]);
+    const profitLossAmountsByAccountId = this.aggregateProfitLossAmountsByAccountId(
+      request.lines,
+      request.startDate,
+      request.endDate,
+      this.filterFinancialReportAccounts(request.accounts, request.chartOfAccountId, [
+        AccountType.Income,
+        AccountType.OtherIncome,
+        AccountType.CostOfGoodsSold,
+        AccountType.Expense,
+        AccountType.OtherExpense
+      ])
+    );
+    const netIncome = this.roundFinancialReportAmount(
+      this.sumFinancialReportAmountsForAccountTypes(profitLossAmountsByAccountId, request.accounts, AccountType.Income, AccountType.OtherIncome)
+      - this.sumFinancialReportAmountsForAccountTypes(profitLossAmountsByAccountId, request.accounts, AccountType.CostOfGoodsSold)
+      - this.sumFinancialReportAmountsForAccountTypes(profitLossAmountsByAccountId, request.accounts, AccountType.Expense, AccountType.OtherExpense)
+    );
+
+    const currentAssetTree = this.buildFinancialReportAccountTree(
+      assetAccounts.filter(account =>
+        account.accountTypeId === AccountType.Bank
+        || account.accountTypeId === AccountType.AccountsReceivable
+        || account.accountTypeId === AccountType.OtherCurrentAsset),
+      balanceAmountsByAccountId,
+      request.chartOfAccountId
+    );
+    const fixedAssetTree = this.buildFinancialReportAccountTree(
+      assetAccounts.filter(account => account.accountTypeId === AccountType.FixedAsset),
+      balanceAmountsByAccountId,
+      request.chartOfAccountId
+    );
+    const otherAssetTree = this.buildFinancialReportAccountTree(
+      assetAccounts.filter(account => account.accountTypeId === AccountType.OtherAsset),
+      balanceAmountsByAccountId,
+      request.chartOfAccountId
+    );
+    const currentLiabilityTree = this.buildFinancialReportAccountTree(
+      liabilityAccounts.filter(account =>
+        account.accountTypeId === AccountType.AccountsPayable
+        || account.accountTypeId === AccountType.CreditCard
+        || account.accountTypeId === AccountType.OtherCurrentLiability),
+      balanceAmountsByAccountId,
+      request.chartOfAccountId
+    );
+    const longTermLiabilityTree = this.buildFinancialReportAccountTree(
+      liabilityAccounts.filter(account => account.accountTypeId === AccountType.LongTermLiability),
+      balanceAmountsByAccountId,
+      request.chartOfAccountId
+    );
+    const equityTree = this.buildFinancialReportAccountTree(equityAccounts, balanceAmountsByAccountId, request.chartOfAccountId);
+
+    const totalCurrentAssets = this.sumFinancialReportTreeAmounts(currentAssetTree);
+    const totalFixedAssets = this.sumFinancialReportTreeAmounts(fixedAssetTree);
+    const totalOtherAssets = this.sumFinancialReportTreeAmounts(otherAssetTree);
+    const totalAssets = this.roundFinancialReportAmount(totalCurrentAssets + totalFixedAssets + totalOtherAssets);
+    const totalCurrentLiabilities = this.sumFinancialReportTreeAmounts(currentLiabilityTree);
+    const totalLongTermLiabilities = this.sumFinancialReportTreeAmounts(longTermLiabilityTree);
+    const totalLiabilities = this.roundFinancialReportAmount(totalCurrentLiabilities + totalLongTermLiabilities);
+    const totalEquityAccounts = this.sumFinancialReportTreeAmounts(equityTree);
+    const totalEquity = this.roundFinancialReportAmount(totalEquityAccounts + netIncome);
+    const totalLiabilitiesAndEquity = this.roundFinancialReportAmount(totalLiabilities + totalEquity);
+
+    const assetSections: FinancialReportTreeNode[] = [
+      this.buildFinancialReportSectionNode('section-assets', 'ASSETS', [], totalAssets, 0)
+    ];
+    if (currentAssetTree.length > 0) {
+      assetSections.push(this.buildFinancialReportSectionNode('section-current-assets', 'Current Assets', currentAssetTree, totalCurrentAssets, 1));
+    }
+    if (fixedAssetTree.length > 0) {
+      assetSections.push(this.buildFinancialReportSectionNode('section-fixed-assets', 'Fixed Assets', fixedAssetTree, totalFixedAssets, 1));
+    }
+    if (otherAssetTree.length > 0) {
+      assetSections.push(this.buildFinancialReportSectionNode('section-other-assets', 'Other Assets', otherAssetTree, totalOtherAssets, 1));
+    }
+    assetSections.push(this.buildFinancialReportTotalNode('total-assets', 'TOTAL ASSETS', totalAssets));
+
+    const liabilityEquitySections: FinancialReportTreeNode[] = [
+      this.buildFinancialReportSectionNode('section-liabilities-equity', 'LIABILITIES & EQUITY', [], totalLiabilitiesAndEquity, 0)
+    ];
+    if (currentLiabilityTree.length > 0) {
+      liabilityEquitySections.push(this.buildFinancialReportSectionNode('section-current-liabilities', 'Current Liabilities', currentLiabilityTree, totalCurrentLiabilities, 1));
+    }
+    if (longTermLiabilityTree.length > 0) {
+      liabilityEquitySections.push(this.buildFinancialReportSectionNode('section-long-term-liabilities', 'Long Term Liabilities', longTermLiabilityTree, totalLongTermLiabilities, 1));
+    }
+    liabilityEquitySections.push(this.buildFinancialReportTotalNode('total-liabilities', 'Total Liabilities', totalLiabilities));
+    const equityNodes = [
+      ...equityTree,
+      this.buildFinancialReportSummaryNode('summary-net-income', 'Net Income', netIncome, 1)
+    ];
+    liabilityEquitySections.push(this.buildFinancialReportSectionNode('section-equity', 'Equity', equityNodes, totalEquity, 1));
+    liabilityEquitySections.push(this.buildFinancialReportTotalNode('total-liabilities-equity', 'TOTAL LIABILITIES & EQUITY', totalLiabilitiesAndEquity));
+
+    return {
+      reportTitle: 'Balance Sheet',
+      periodLabel: this.buildFinancialReportPeriodLabel(request.startDate, request.endDate, true),
+      sections: [...assetSections, ...liabilityEquitySections]
+    };
+  }
+
+  aggregateProfitLossAmountsByAccountId(
+    lines: import('../authenticated/accounting/models/journal-entry.model').JournalEntryLineSearchResponse[],
+    startDate: string | null,
+    endDate: string | null,
+    accounts: ChartOfAccountResponse[]
+  ): Map<number, number> {
+    const accountTypeById = new Map(accounts.map(account => [account.accountId, account.accountTypeId]));
+    const totals = new Map<number, { debit: number; credit: number }>();
+
+    for (const line of lines || []) {
+      const accountTypeId = accountTypeById.get(line.chartOfAccountId);
+      if (accountTypeId === undefined) {
+        continue;
+      }
+      if (!this.isJournalEntryLineInDateRange(line.transactionDate, startDate, endDate)) {
+        continue;
+      }
+
+      const current = totals.get(line.chartOfAccountId) || { debit: 0, credit: 0 };
+      current.debit += Number(line.debit) || 0;
+      current.credit += Number(line.credit) || 0;
+      totals.set(line.chartOfAccountId, current);
+    }
+
+    const amounts = new Map<number, number>();
+    totals.forEach((value, accountId) => {
+      const accountTypeId = accountTypeById.get(accountId);
+      if (accountTypeId === undefined) {
+        return;
+      }
+      amounts.set(accountId, this.signedFinancialReportAmount(accountTypeId, value.debit, value.credit, 'activity'));
+    });
+    return amounts;
+  }
+
+  aggregateBalanceSheetAmountsByAccountId(
+    lines: import('../authenticated/accounting/models/journal-entry.model').JournalEntryLineSearchResponse[],
+    endDate: string | null,
+    accounts: ChartOfAccountResponse[]
+  ): Map<number, number> {
+    const accountTypeById = new Map(accounts.map(account => [account.accountId, account.accountTypeId]));
+    const totals = new Map<number, { debit: number; credit: number }>();
+
+    for (const line of lines || []) {
+      const accountTypeId = accountTypeById.get(line.chartOfAccountId);
+      if (accountTypeId === undefined) {
+        continue;
+      }
+      if (!this.isJournalEntryLineOnOrBeforeDate(line.transactionDate, endDate)) {
+        continue;
+      }
+
+      const current = totals.get(line.chartOfAccountId) || { debit: 0, credit: 0 };
+      current.debit += Number(line.debit) || 0;
+      current.credit += Number(line.credit) || 0;
+      totals.set(line.chartOfAccountId, current);
+    }
+
+    const amounts = new Map<number, number>();
+    totals.forEach((value, accountId) => {
+      const accountTypeId = accountTypeById.get(accountId);
+      if (accountTypeId === undefined) {
+        return;
+      }
+      amounts.set(accountId, this.signedFinancialReportAmount(accountTypeId, value.debit, value.credit, 'balance'));
+    });
+    return amounts;
+  }
+
+  buildFinancialReportAccountTree(
+    accounts: ChartOfAccountResponse[],
+    amountsByAccountId: Map<number, number>,
+    chartOfAccountId: number | null
+  ): FinancialReportTreeNode[] {
+    const allowedAccountIds = this.resolveFinancialReportAllowedAccountIds(accounts, chartOfAccountId);
+    const scopedAccounts = accounts
+      .filter(account => allowedAccountIds.has(account.accountId))
+      .sort((left, right) => this.compareFinancialReportAccounts(left, right));
+    const accountById = new Map(scopedAccounts.map(account => [account.accountId, account]));
+    const childrenByParentId = new Map<number, ChartOfAccountResponse[]>();
+
+    scopedAccounts.forEach(account => {
+      const parentAccountId = account.isSubaccount ? account.subAccountId ?? null : null;
+      if (parentAccountId != null && accountById.has(parentAccountId)) {
+        const siblings = childrenByParentId.get(parentAccountId) || [];
+        siblings.push(account);
+        childrenByParentId.set(parentAccountId, siblings);
+      }
+    });
+
+    const rootAccounts = scopedAccounts.filter(account => {
+      const parentAccountId = account.isSubaccount ? account.subAccountId ?? null : null;
+      return parentAccountId == null || !accountById.has(parentAccountId);
+    });
+
+    return rootAccounts
+      .map(account => this.buildFinancialReportAccountNode(account, childrenByParentId, amountsByAccountId, 1))
+      .filter(node => node.amount !== 0 || node.childNodes.length > 0);
+  }
+
+  buildFinancialReportAccountNode(
+    account: ChartOfAccountResponse,
+    childrenByParentId: Map<number, ChartOfAccountResponse[]>,
+    amountsByAccountId: Map<number, number>,
+    depth: number
+  ): FinancialReportTreeNode {
+    const childAccounts = (childrenByParentId.get(account.accountId) || [])
+      .slice()
+      .sort((left, right) => this.compareFinancialReportAccounts(left, right));
+    const childNodes = childAccounts
+      .map(childAccount => this.buildFinancialReportAccountNode(childAccount, childrenByParentId, amountsByAccountId, depth + 1))
+      .filter(node => node.amount !== 0 || node.childNodes.length > 0);
+    const ownAmount = amountsByAccountId.get(account.accountId) || 0;
+    const childAmount = childNodes.reduce((sum, node) => sum + node.amount, 0);
+    const amount = this.roundFinancialReportAmount(ownAmount + childAmount);
+
+    return {
+      nodeId: `account-${account.accountId}`,
+      label: this.formatFinancialReportAccountLabel(account),
+      amount,
+      depth,
+      rowKind: 'account',
+      accountId: account.accountId,
+      childNodes
+    };
+  }
+
+  buildFinancialReportSectionNode(
+    nodeId: string,
+    label: string,
+    childNodes: FinancialReportTreeNode[],
+    amount: number,
+    depth = 0
+  ): FinancialReportTreeNode {
+    return {
+      nodeId,
+      label,
+      amount: this.roundFinancialReportAmount(amount),
+      depth,
+      rowKind: 'section',
+      childNodes
+    };
+  }
+
+  buildFinancialReportTotalNode(nodeId: string, label: string, amount: number, depth = 0): FinancialReportTreeNode {
+    return {
+      nodeId,
+      label,
+      amount: this.roundFinancialReportAmount(amount),
+      depth,
+      rowKind: 'total',
+      childNodes: []
+    };
+  }
+
+  buildFinancialReportSummaryNode(nodeId: string, label: string, amount: number, depth = 0): FinancialReportTreeNode {
+    return {
+      nodeId,
+      label,
+      amount: this.roundFinancialReportAmount(amount),
+      depth,
+      rowKind: 'summary',
+      childNodes: []
+    };
+  }
+
+  filterFinancialReportAccounts(
+    accounts: ChartOfAccountResponse[],
+    chartOfAccountId: number | null,
+    accountTypeIds: AccountType[]
+  ): ChartOfAccountResponse[] {
+    const allowedTypes = new Set<number>(accountTypeIds);
+    const scopedAccounts = (accounts || []).filter(account => allowedTypes.has(account.accountTypeId));
+    const allowedAccountIds = this.resolveFinancialReportAllowedAccountIds(scopedAccounts, chartOfAccountId);
+    return scopedAccounts.filter(account => allowedAccountIds.has(account.accountId));
+  }
+
+  resolveFinancialReportAllowedAccountIds(
+    accounts: ChartOfAccountResponse[],
+    chartOfAccountId: number | null
+  ): Set<number> {
+    const accountById = new Map((accounts || []).map(account => [account.accountId, account]));
+    if (chartOfAccountId == null || chartOfAccountId <= 0) {
+      return new Set(accountById.keys());
+    }
+    if (!accountById.has(chartOfAccountId)) {
+      return new Set<number>();
+    }
+
+    const childrenByParentId = new Map<number, number[]>();
+    accountById.forEach(account => {
+      const parentAccountId = account.isSubaccount ? account.subAccountId ?? null : null;
+      if (parentAccountId != null && accountById.has(parentAccountId)) {
+        const siblings = childrenByParentId.get(parentAccountId) || [];
+        siblings.push(account.accountId);
+        childrenByParentId.set(parentAccountId, siblings);
+      }
+    });
+
+    const allowedAccountIds = new Set<number>();
+    const visit = (accountId: number) => {
+      if (!accountById.has(accountId) || allowedAccountIds.has(accountId)) {
+        return;
+      }
+      allowedAccountIds.add(accountId);
+      (childrenByParentId.get(accountId) || []).forEach(childAccountId => visit(childAccountId));
+    };
+    visit(chartOfAccountId);
+    return allowedAccountIds;
+  }
+
+  signedFinancialReportAmount(
+    accountTypeId: number,
+    debit: number,
+    credit: number,
+    mode: 'activity' | 'balance'
+  ): number {
+    const normalizedDebit = Number(debit) || 0;
+    const normalizedCredit = Number(credit) || 0;
+    if (isCreditNormalAccountType(accountTypeId)) {
+      return this.roundFinancialReportAmount(normalizedCredit - normalizedDebit);
+    }
+    return this.roundFinancialReportAmount(normalizedDebit - normalizedCredit);
+  }
+
+  sumFinancialReportTreeAmounts(nodes: FinancialReportTreeNode[]): number {
+    return this.roundFinancialReportAmount((nodes || []).reduce((sum, node) => sum + node.amount, 0));
+  }
+
+  sumFinancialReportAmountsForAccountTypes(
+    amountsByAccountId: Map<number, number>,
+    accounts: ChartOfAccountResponse[],
+    ...accountTypeIds: AccountType[]
+  ): number {
+    const allowedTypes = new Set<number>(accountTypeIds);
+    const accountTypeById = new Map(accounts.map(account => [account.accountId, account.accountTypeId]));
+    let total = 0;
+    amountsByAccountId.forEach((amount, accountId) => {
+      const accountTypeId = accountTypeById.get(accountId);
+      if (accountTypeId !== undefined && allowedTypes.has(accountTypeId)) {
+        total += amount;
+      }
+    });
+    return this.roundFinancialReportAmount(total);
+  }
+
+  isJournalEntryLineInDateRange(
+    transactionDate: string | null | undefined,
+    startDate: string | null,
+    endDate: string | null
+  ): boolean {
+    const lineDate = this.normalizeFinancialReportDate(transactionDate);
+    if (!lineDate) {
+      return false;
+    }
+    const normalizedStartDate = this.normalizeFinancialReportDate(startDate);
+    const normalizedEndDate = this.normalizeFinancialReportDate(endDate);
+    if (normalizedStartDate && lineDate < normalizedStartDate) {
+      return false;
+    }
+    if (normalizedEndDate && lineDate > normalizedEndDate) {
+      return false;
+    }
+    return true;
+  }
+
+  isJournalEntryLineOnOrBeforeDate(transactionDate: string | null | undefined, endDate: string | null): boolean {
+    const lineDate = this.normalizeFinancialReportDate(transactionDate);
+    if (!lineDate) {
+      return false;
+    }
+    const normalizedEndDate = this.normalizeFinancialReportDate(endDate);
+    if (normalizedEndDate && lineDate > normalizedEndDate) {
+      return false;
+    }
+    return true;
+  }
+
+  normalizeFinancialReportDate(value: string | null | undefined): string | null {
+    const normalized = this.utility.toDateOnlyJsonString(value);
+    return normalized || null;
+  }
+
+  buildFinancialReportColumnHeaderLabel(startDate: string | null, endDate: string | null, balanceSheet: boolean): string {
+    const formatMonthYear = (date: Date): string => {
+      const month = date.toLocaleDateString('en-US', { month: 'short' });
+      const year = String(date.getFullYear() % 100).padStart(2, '0');
+      return `${month} ${year}`;
+    };
+
+    const end = this.formatter.parseCalendarPrefixToLocalDate(endDate);
+    if (balanceSheet) {
+      return end ? formatMonthYear(end) : '';
+    }
+
+    const start = this.formatter.parseCalendarPrefixToLocalDate(startDate);
+    if (start && end) {
+      const startMonth = start.toLocaleDateString('en-US', { month: 'short' });
+      const endMonth = end.toLocaleDateString('en-US', { month: 'short' });
+      const endYear = String(end.getFullYear() % 100).padStart(2, '0');
+      if (start.getMonth() === end.getMonth() && start.getFullYear() === end.getFullYear()) {
+        return `${endMonth} ${endYear}`;
+      }
+      if (start.getFullYear() !== end.getFullYear()) {
+        const startYear = String(start.getFullYear() % 100).padStart(2, '0');
+        return `${startMonth} ${startYear} - ${endMonth} ${endYear}`;
+      }
+      return `${startMonth} - ${endMonth} ${endYear}`;
+    }
+    if (end) {
+      return formatMonthYear(end);
+    }
+    if (start) {
+      return formatMonthYear(start);
+    }
+    return '';
+  }
+
+  buildFinancialReportPeriodLabel(startDate: string | null, endDate: string | null, balanceSheet: boolean): string {
+    if (balanceSheet) {
+      const formattedEndDate = this.formatter.formatDateString(endDate || undefined);
+      return formattedEndDate ? `As of ${formattedEndDate}` : 'As of';
+    }
+
+    const start = this.formatter.parseCalendarPrefixToLocalDate(startDate);
+    const end = this.formatter.parseCalendarPrefixToLocalDate(endDate);
+    if (start && end) {
+      const startMonth = start.toLocaleDateString('en-US', { month: 'long' });
+      const endMonth = end.toLocaleDateString('en-US', { month: 'long' });
+      const endYear = end.getFullYear();
+      if (start.getFullYear() !== endYear) {
+        return `${startMonth} ${start.getFullYear()} through ${endMonth} ${endYear}`;
+      }
+      return `${startMonth} through ${endMonth} ${endYear}`;
+    }
+    if (end) {
+      const endMonth = end.toLocaleDateString('en-US', { month: 'long' });
+      return `${endMonth} ${end.getFullYear()}`;
+    }
+    if (start) {
+      const startMonth = start.toLocaleDateString('en-US', { month: 'long' });
+      return `${startMonth} ${start.getFullYear()}`;
+    }
+    return '';
+  }
+
+  formatFinancialReportAccountLabel(account: ChartOfAccountResponse): string {
+    const accountNo = (account.accountNo || '').trim();
+    const name = (account.name || '').trim();
+    if (accountNo && name) {
+      return `${accountNo} - ${name}`;
+    }
+    return accountNo || name || 'Account';
+  }
+
+  compareFinancialReportAccounts(left: ChartOfAccountResponse, right: ChartOfAccountResponse): number {
+    const leftLabel = `${left.accountNo || ''} ${left.name || ''}`.trim();
+    const rightLabel = `${right.accountNo || ''} ${right.name || ''}`.trim();
+    return leftLabel.localeCompare(rightLabel, undefined, { numeric: true, sensitivity: 'base' });
+  }
+
+  roundFinancialReportAmount(amount: number): number {
+    if (!isFinite(amount)) {
+      return 0;
+    }
+    return Math.round(amount * 100) / 100;
+  }
   //#endregion
 
   //#region Helper/Format Functions

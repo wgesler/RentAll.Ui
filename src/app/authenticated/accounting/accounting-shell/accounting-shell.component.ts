@@ -32,6 +32,7 @@ import { InvoiceComponent } from '../invoice/invoice.component';
 import { InvoiceListComponent } from '../invoice-list/invoice-list.component';
 import { GeneralLedgerComponent } from '../general-ledger/general-ledger.component';
 import { GeneralLedgerListComponent } from '../general-ledger-list/general-ledger-list.component';
+import { FinancialReportComponent } from '../financial-report/financial-report.component';
 import { CostCodesService } from '../services/cost-codes.service';
 import { ChartOfAccountsService } from '../services/chart-of-accounts.service';
 import { ChartOfAccountResponse } from '../models/chart-of-accounts.model';
@@ -51,6 +52,7 @@ import { JournalEntrySyncResult } from '../models/journal-entry.model';
     ReceiptComponent,
     GeneralLedgerListComponent,
     GeneralLedgerComponent,
+    FinancialReportComponent,
     TitleBarSelectComponent
 ],
     templateUrl: './accounting-shell.component.html',
@@ -61,6 +63,10 @@ export class AccountingShellComponent implements OnInit, OnDestroy {
   @ViewChild('accountingInvoiceEditor') accountingInvoiceEditor?: InvoiceComponent;
 
   private readonly pinnedDateRangeStorageKeyPrefix = 'rentall-accounting-shell-pinned-dates';
+  readonly tabProfitLoss = 5;
+  readonly tabBalanceSheet = 6;
+  readonly tabGeneralLedger = 7;
+  readonly tabMaxIndex = 7;
 
   selectedTabIndex = 0;
   isSuperAdmin: boolean = false;
@@ -100,6 +106,7 @@ export class AccountingShellComponent implements OnInit, OnDestroy {
   activeJournalEntryId: string | null = null;
   selectedJournalEntryLineId: string | null = null;
   generalLedgerRefreshTrigger = 0;
+  financialReportsRefreshTrigger = 0;
   depositsRefreshTrigger = 0;
   printChecksRefreshTrigger = 0;
   chartOfAccounts: ChartOfAccountResponse[] = [];
@@ -155,10 +162,11 @@ export class AccountingShellComponent implements OnInit, OnDestroy {
         if (this.selectedTabIndex === 4) {
           this.printChecksRefreshTrigger++;
         }
-        if (this.selectedTabIndex === 5) {
+        if (this.usesGlTitleBarFilters()) {
           this.refreshPropertyOptions();
           this.refreshReservationOptions();
           this.clearInvalidChartOfAccountSelection();
+          this.financialReportsRefreshTrigger++;
           this.generalLedgerRefreshTrigger++;
         }
       });
@@ -266,6 +274,7 @@ export class AccountingShellComponent implements OnInit, OnDestroy {
     }
     this.selectedChartOfAccountId = chartOfAccountId;
     this.onGeneralLedgerBack();
+    this.financialReportsRefreshTrigger++;
     this.generalLedgerRefreshTrigger++;
     this.router.navigate([], {
       relativeTo: this.route,
@@ -282,6 +291,7 @@ export class AccountingShellComponent implements OnInit, OnDestroy {
     this.selectedGlPropertyId = propertyId;
     this.refreshReservationOptions();
     this.onGeneralLedgerBack();
+    this.financialReportsRefreshTrigger++;
     this.generalLedgerRefreshTrigger++;
     this.router.navigate([], {
       relativeTo: this.route,
@@ -302,6 +312,7 @@ export class AccountingShellComponent implements OnInit, OnDestroy {
       this.refreshPropertyOptions();
     }
     this.onGeneralLedgerBack();
+    this.financialReportsRefreshTrigger++;
     this.generalLedgerRefreshTrigger++;
     this.router.navigate([], {
       relativeTo: this.route,
@@ -360,6 +371,7 @@ export class AccountingShellComponent implements OnInit, OnDestroy {
     this.receiptsRefreshTrigger++;
     this.depositsRefreshTrigger++;
     this.printChecksRefreshTrigger++;
+    this.financialReportsRefreshTrigger++;
     this.generalLedgerRefreshTrigger++;
   }
 
@@ -432,7 +444,7 @@ export class AccountingShellComponent implements OnInit, OnDestroy {
     if (event.index !== 2) {
       this.onReceiptsReceiptBack();
     }
-    if (event.index !== 3 && event.index !== 4 && event.index !== 5) {
+    if (event.index !== 3 && event.index !== 4 && !this.usesGlTitleBarFilters()) {
       this.onGeneralLedgerBack();
     }
     this.selectedTabIndex = event.index;
@@ -449,13 +461,14 @@ export class AccountingShellComponent implements OnInit, OnDestroy {
     if (this.selectedTabIndex === 4) {
       this.printChecksRefreshTrigger++;
     }
-    if (this.selectedTabIndex === 5) {
-      if (!('chartOfAccountId' in this.route.snapshot.queryParams)) {
+    if (this.usesGlTitleBarFilters()) {
+      if (this.selectedTabIndex === this.tabGeneralLedger && !('chartOfAccountId' in this.route.snapshot.queryParams)) {
         this.selectedChartOfAccountId = null;
       }
       this.syncGlFiltersFromInvoiceContext();
       this.refreshPropertyOptions();
       this.refreshReservationOptions();
+      this.financialReportsRefreshTrigger++;
       this.generalLedgerRefreshTrigger++;
     }
     this.router.navigate([], {
@@ -512,7 +525,8 @@ export class AccountingShellComponent implements OnInit, OnDestroy {
     if (this.selectedTabIndex === 4) {
       this.printChecksRefreshTrigger++;
     }
-    if (this.selectedTabIndex === 5) {
+    if (this.usesGlTitleBarFilters()) {
+      this.financialReportsRefreshTrigger++;
       this.generalLedgerRefreshTrigger++;
     }
     this.router.navigate([], {
@@ -843,7 +857,11 @@ export class AccountingShellComponent implements OnInit, OnDestroy {
   }
 
   get isGeneralLedgerDetailActive(): boolean {
-    return (this.selectedTabIndex === 3 || this.selectedTabIndex === 4 || this.selectedTabIndex === 5) && this.showGeneralLedgerDetail;
+    return (this.selectedTabIndex === 3 || this.selectedTabIndex === 4 || this.selectedTabIndex === this.tabGeneralLedger) && this.showGeneralLedgerDetail;
+  }
+
+  usesGlTitleBarFilters(): boolean {
+    return this.selectedTabIndex >= this.tabProfitLoss && this.selectedTabIndex <= this.tabGeneralLedger;
   }
 
   get shellOfficeTitleBarOptions(): { value: number, label: string }[] {
@@ -920,11 +938,12 @@ export class AccountingShellComponent implements OnInit, OnDestroy {
       this.onGeneralLedgerBack();
       this.printChecksRefreshTrigger++;
     }
-    if (this.selectedTabIndex === 5) {
+    if (this.usesGlTitleBarFilters()) {
       this.refreshPropertyOptions();
       this.refreshReservationOptions();
       this.clearInvalidChartOfAccountSelection();
       this.onGeneralLedgerBack();
+      this.financialReportsRefreshTrigger++;
       this.generalLedgerRefreshTrigger++;
     }
   }
@@ -935,11 +954,11 @@ export class AccountingShellComponent implements OnInit, OnDestroy {
   }
 
   applyQueryParamState(params: Record<string, string>): void {
-    let tabIndex = getNumberQueryParam(params, 'tab', 0, 6);
+    let tabIndex = getNumberQueryParam(params, 'tab', 0, this.tabMaxIndex + 1);
     if (tabIndex !== null) {
-      tabIndex = Math.min(Math.max(tabIndex, 0), 5);
+      tabIndex = Math.min(Math.max(tabIndex, 0), this.tabMaxIndex);
       if (tabIndex === 4 && ('chartOfAccountId' in params || 'propertyId' in params || 'glReservationId' in params)) {
-        tabIndex = 5;
+        tabIndex = this.tabGeneralLedger;
       }
       if (this.selectedTabIndex !== tabIndex) {
         this.selectedTabIndex = tabIndex;
@@ -966,7 +985,7 @@ export class AccountingShellComponent implements OnInit, OnDestroy {
       this.selectedOrganizationId = organizationId ? String(organizationId) : null;
     }
 
-    if (this.selectedTabIndex === 5) {
+    if (this.usesGlTitleBarFilters()) {
       if ('chartOfAccountId' in params) {
         this.selectedChartOfAccountId = getNumberQueryParam(params, 'chartOfAccountId');
       } else {
@@ -1003,12 +1022,13 @@ export class AccountingShellComponent implements OnInit, OnDestroy {
       }
       this.syncInvoiceSearchDateRange();
       this.syncBillsSearchRequest();
-      if (this.selectedTabIndex >= 1 && this.selectedTabIndex <= 5) {
+      if (this.selectedTabIndex >= 1 && this.selectedTabIndex <= this.tabGeneralLedger) {
         queueMicrotask(() => {
           this.billsRefreshTrigger++;
           this.receiptsRefreshTrigger++;
           this.depositsRefreshTrigger++;
           this.printChecksRefreshTrigger++;
+          this.financialReportsRefreshTrigger++;
           this.generalLedgerRefreshTrigger++;
         });
       }
@@ -1099,11 +1119,11 @@ export class AccountingShellComponent implements OnInit, OnDestroy {
       tab: String(this.selectedTabIndex),
       startDate: this.utilityService.formatDateOnlyForApi(this.startDate),
       endDate: this.utilityService.formatDateOnlyForApi(this.endDate),
-      chartOfAccountId: this.selectedTabIndex === 5 && this.selectedChartOfAccountId != null
+      chartOfAccountId: this.usesGlTitleBarFilters() && this.selectedChartOfAccountId != null
         ? String(this.selectedChartOfAccountId)
         : null,
-      propertyId: this.selectedTabIndex === 5 ? this.selectedGlPropertyId : null,
-      glReservationId: this.selectedTabIndex === 5 ? this.selectedGlReservationId : null,
+      propertyId: this.usesGlTitleBarFilters() ? this.selectedGlPropertyId : null,
+      glReservationId: this.usesGlTitleBarFilters() ? this.selectedGlReservationId : null,
       ...overrides
     };
   }
@@ -1266,7 +1286,7 @@ export class AccountingShellComponent implements OnInit, OnDestroy {
   }
 
   syncGlFiltersFromInvoiceContext(): void {
-    if (this.selectedTabIndex !== 5) {
+    if (!this.usesGlTitleBarFilters()) {
       return;
     }
 

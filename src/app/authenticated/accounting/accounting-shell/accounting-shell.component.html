@@ -116,7 +116,7 @@
             }
             </div>
           </div>
-        } @else if (hasAccountingAccess && selectedTabIndex === 5) {
+        } @else if (hasAccountingAccess && usesGlTitleBarFilters()) {
           <div class="header-title form-titlebar-fields-wrap accounting-shell-titlebar-fields">
             <div class="accounting-shell-titlebar-filters">
             @if (showShellOfficeDropdown) {
@@ -352,6 +352,28 @@
                 (lineSelectEvent)="onGeneralLedgerLineSelect($event)">
               </app-general-ledger-list>
             }
+          </mat-tab>
+          <mat-tab label="Profit & Loss">
+            <app-financial-report
+              reportKind="profitLoss"
+              [officeId]="selectedOfficeId"
+              [propertyId]="selectedGlPropertyId"
+              [reservationId]="selectedGlReservationId"
+              [chartOfAccountId]="selectedChartOfAccountId"
+              [searchDateRange]="invoiceSearchDateRange"
+              [refreshTrigger]="financialReportsRefreshTrigger">
+            </app-financial-report>
+          </mat-tab>
+          <mat-tab label="Balance Sheet">
+            <app-financial-report
+              reportKind="balanceSheet"
+              [officeId]="selectedOfficeId"
+              [propertyId]="selectedGlPropertyId"
+              [reservationId]="selectedGlReservationId"
+              [chartOfAccountId]="selectedChartOfAccountId"
+              [searchDateRange]="invoiceSearchDateRange"
+              [refreshTrigger]="financialReportsRefreshTrigger">
+            </app-financial-report>
           </mat-tab>
           <mat-tab label="General Ledger">
             @if (showGeneralLedgerDetail && activeJournalEntryId) {
