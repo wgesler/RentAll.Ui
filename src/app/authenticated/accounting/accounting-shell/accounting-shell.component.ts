@@ -3,7 +3,7 @@ import { Component, OnDestroy, OnInit, ViewChild } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, Router } from '@angular/router';
 import { ToastrService } from 'ngx-toastr';
-import { Subject, skip, take, takeUntil, filter, forkJoin, finalize } from 'rxjs';
+import { Subject, skip, take, takeUntil, filter, finalize, firstValueFrom } from 'rxjs';
 import { HttpErrorResponse } from '@angular/common/http';
 import { RouterUrl } from '../../../app.routes';
 import { MaterialModule } from '../../../material.module';
@@ -731,7 +731,7 @@ export class AccountingShellComponent implements OnInit, OnDestroy {
     return (this.offices || []).map(office => office.officeId).filter(id => id > 0);
   }
 
-  syncJournalEntries(): void {
+  async syncJournalEntries(): Promise<void> {
     const officeIds = this.resolveOfficeIdsForJournalEntrySync();
     if (officeIds.length === 0) {
       this.toastr.warning('Select at least one office before syncing journal entries.', 'Sync');
@@ -739,25 +739,39 @@ export class AccountingShellComponent implements OnInit, OnDestroy {
     }
 
     this.isJournalEntrySyncInProgress = true;
-    forkJoin([
-      this.generalLedgerService.syncInvoiceJournalEntries(officeIds),
-      this.generalLedgerService.syncBillJournalEntries(officeIds),
-      this.generalLedgerService.syncReceiptJournalEntries(officeIds)
-    ]).pipe(
-      take(1),
-      finalize(() => {
-        this.isJournalEntrySyncInProgress = false;
-      })
-    ).subscribe({
-      next: ([invoiceResult, billResult, receiptResult]) => {
-        const result = this.mergeJournalEntrySyncResults([invoiceResult, billResult, receiptResult]);
-        this.showJournalEntrySyncResult('Journal entries synced', result);
-        this.onJournalEntriesChanged();
-      },
-      error: (error: HttpErrorResponse) => {
-        this.toastr.error(error?.error ?? 'Unable to sync journal entries.', CommonMessage.Error);
+    let anySyncSucceeded = false;
+
+    try {
+      try {
+        const invoiceResult = await firstValueFrom(this.generalLedgerService.syncInvoiceJournalEntries(officeIds));
+        this.showJournalEntrySyncResult('Invoice sync', invoiceResult);
+        anySyncSucceeded = true;
+      } catch (error) {
+        this.showJournalEntrySyncError('Invoice sync', error);
       }
-    });
+
+      try {
+        const billResult = await firstValueFrom(this.generalLedgerService.syncBillJournalEntries(officeIds));
+        this.showJournalEntrySyncResult('Bill sync', billResult);
+        anySyncSucceeded = true;
+      } catch (error) {
+        this.showJournalEntrySyncError('Bill sync', error);
+      }
+
+      try {
+        const receiptResult = await firstValueFrom(this.generalLedgerService.syncReceiptJournalEntries(officeIds));
+        this.showJournalEntrySyncResult('Receipt sync', receiptResult);
+        anySyncSucceeded = true;
+      } catch (error) {
+        this.showJournalEntrySyncError('Receipt sync', error);
+      }
+
+      if (anySyncSucceeded) {
+        this.onJournalEntriesChanged();
+      }
+    } finally {
+      this.isJournalEntrySyncInProgress = false;
+    }
   }
 
   clearJournalEntries(): void {
@@ -779,22 +793,6 @@ export class AccountingShellComponent implements OnInit, OnDestroy {
       error: (error: HttpErrorResponse) => {
         this.toastr.error(error?.error ?? 'Unable to clear journal entries.', CommonMessage.Error);
       }
-    });
-  }
-
-  mergeJournalEntrySyncResults(results: JournalEntrySyncResult[]): JournalEntrySyncResult {
-    return results.reduce((merged, result) => ({
-      documentsProcessed: merged.documentsProcessed + (result?.documentsProcessed ?? 0),
-      journalEntriesCreated: merged.journalEntriesCreated + (result?.journalEntriesCreated ?? 0),
-      journalEntriesSkipped: merged.journalEntriesSkipped + (result?.journalEntriesSkipped ?? 0),
-      journalEntriesDeleted: merged.journalEntriesDeleted + (result?.journalEntriesDeleted ?? 0),
-      errors: [...merged.errors, ...(result?.errors ?? [])]
-    }), {
-      documentsProcessed: 0,
-      journalEntriesCreated: 0,
-      journalEntriesSkipped: 0,
-      journalEntriesDeleted: 0,
-      errors: [] as string[]
     });
   }
 
@@ -820,6 +818,14 @@ export class AccountingShellComponent implements OnInit, OnDestroy {
     }
 
     this.toastr.success(message, title);
+  }
+
+  showJournalEntrySyncError(title: string, error: unknown): void {
+    const httpError = error as HttpErrorResponse;
+    const message = typeof httpError?.error === 'string'
+      ? httpError.error
+      : httpError?.message ?? 'Unable to sync journal entries.';
+    this.toastr.error(message, title);
   }
 
   get showShellOfficeDropdown(): boolean {
