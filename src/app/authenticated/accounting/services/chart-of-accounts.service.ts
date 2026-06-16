@@ -1,6 +1,6 @@
 import { HttpClient, HttpErrorResponse } from '@angular/common/http';
 import { Injectable } from '@angular/core';
-import { BehaviorSubject, Observable } from 'rxjs';
+import { BehaviorSubject, Observable, tap } from 'rxjs';
 import { ConfigService } from '../../../services/config.service';
 import { ChartOfAccountRequest, ChartOfAccountResponse } from '../models/chart-of-accounts.model';
 
@@ -102,15 +102,12 @@ export class ChartOfAccountsService {
     return this.allChartOfAccounts$.value.filter(account => account.officeId === officeId);
   }
 
-  refreshChartOfAccountsForOffice(officeId: number): void {
-    this.getChartOfAccountsByOfficeId(officeId).subscribe({
-      next: accounts => {
+  refreshChartOfAccountsForOffice(officeId: number): Observable<ChartOfAccountResponse[]> {
+    return this.getChartOfAccountsByOfficeId(officeId).pipe(
+      tap(accounts => {
         const filtered = this.allChartOfAccounts$.value.filter(account => account.officeId !== officeId);
         this.allChartOfAccounts$.next([...filtered, ...(accounts || [])]);
-      },
-      error: (err: HttpErrorResponse) => {
-        console.error(`Chart of Accounts Service - Error refreshing accounts for office ${officeId}:`, err);
-      }
-    });
+      })
+    );
   }
 }

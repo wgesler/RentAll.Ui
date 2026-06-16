@@ -1864,7 +1864,7 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
     this.filterCostCodes();
     this.filterChartOfAccounts();
     if (nextOfficeId != null) {
-      this.chartOfAccountsService.refreshChartOfAccountsForOffice(nextOfficeId);
+      this.chartOfAccountsService.refreshChartOfAccountsForOffice(nextOfficeId).pipe(take(1)).subscribe();
     }
     this.loadInvoicesForCurrentSearchCriteria();
   }

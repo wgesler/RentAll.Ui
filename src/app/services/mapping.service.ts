@@ -1,6 +1,6 @@
 import { Injectable } from '@angular/core';
 import { TransactionType, getAccountTypeLabel, getSourceTypeLabel, getTransactionTypeLabel } from '../authenticated/accounting/models/accounting-enum';
-import { ChartOfAccountListDisplay, ChartOfAccountResponse } from '../authenticated/accounting/models/chart-of-accounts.model';
+import { ChartOfAccountListDisplay, ChartOfAccountRequest, ChartOfAccountResponse } from '../authenticated/accounting/models/chart-of-accounts.model';
 import { CostCodesListDisplay, CostCodesRequest, CostCodesResponse } from '../authenticated/accounting/models/cost-codes.model';
 import { InvoiceResponse, LedgerLineListDisplay, LedgerLineResponse } from '../authenticated/accounting/models/invoice.model';
 import { JournalEntryLineDetailDisplay, JournalEntryLineListDisplay, JournalEntryLineResponse, JournalEntryLineSearchResponse, JournalEntryResponse } from '../authenticated/accounting/models/journal-entry.model';
@@ -552,13 +552,20 @@ export class MappingService {
     return (value.match(/.{1,4}/g) || []).join(' ');
   }
   
-  mapCostCodes(costCodes: CostCodesResponse[], offices?: any[], transactionTypes?: { value: number, label: string }[]): CostCodesListDisplay[] {
+  mapCostCodes(
+    costCodes: CostCodesResponse[],
+    offices?: any[],
+    transactionTypes?: { value: number, label: string }[],
+    chartOfAccounts?: ChartOfAccountResponse[]
+  ): CostCodesListDisplay[] {
+    const chartOfAccountLookup = this.buildChartOfAccountLookupByOfficeAndAccountNo(chartOfAccounts);
+
     return costCodes.map<CostCodesListDisplay>((costCode: CostCodesResponse) => {
-      // Find office name by officeId
       const office = offices?.find(o => o.officeId === costCode.officeId);
       const officeName = office?.name || '';
-      // Set row color to green (lighter version of #4caf50) if transactionTypeId >= StartOfCredits (credit/payment types)
       const rowColor = costCode.transactionTypeId === TransactionType.Payment ? '#E8F5E9' : undefined;
+      const matchedChartOfAccount = chartOfAccountLookup.get(`${costCode.officeId}|${this.normalizeAccountCodeForMatch(costCode.costCode)}`);
+
       return {
         costCodeId: costCode.costCodeId,
         officeId: costCode.officeId,
@@ -567,10 +574,36 @@ export class MappingService {
         transactionTypeId: costCode.transactionTypeId,
         transactionType: getTransactionTypeLabel(costCode.transactionTypeId, transactionTypes),
         description: costCode.description || '',
-        isActive: costCode.isActive ?? true, // Default to true if undefined
+        chartOfAccountDisplay: matchedChartOfAccount ? this.formatChartOfAccountListLabel(matchedChartOfAccount) : '',
+        isActive: costCode.isActive ?? true,
         rowColor: rowColor
       };
     });
+  }
+
+  private buildChartOfAccountLookupByOfficeAndAccountNo(chartOfAccounts?: ChartOfAccountResponse[]): Map<string, ChartOfAccountResponse> {
+    const lookup = new Map<string, ChartOfAccountResponse>();
+    for (const account of chartOfAccounts ?? []) {
+      const normalizedAccountNo = this.normalizeAccountCodeForMatch(account.accountNo);
+      if (!normalizedAccountNo) {
+        continue;
+      }
+      lookup.set(`${account.officeId}|${normalizedAccountNo}`, account);
+    }
+    return lookup;
+  }
+
+  private normalizeAccountCodeForMatch(value: string | null | undefined): string {
+    return String(value ?? '')
+      .split(/\s+/)
+      .filter(part => part.length > 0)
+      .join(' ')
+      .trim()
+      .toLowerCase();
+  }
+
+  formatChartOfAccountListLabel(account: ChartOfAccountResponse): string {
+    return `${account.accountNo} - ${account.name}`;
   }
 
   mapCostCodeUpdateRequest(costCode: CostCodesResponse, isActive: boolean): CostCodesRequest {
@@ -582,6 +615,22 @@ export class MappingService {
       transactionTypeId: costCode.transactionTypeId,
       description: costCode.description || '',
       isActive
+    };
+  }
+
+  mapChartOfAccountSubaccountParentUpdate(account: ChartOfAccountResponse, parentAccountId: number | null): ChartOfAccountRequest {
+    const isSubaccount = parentAccountId != null && parentAccountId > 0;
+    return {
+      accountId: account.accountId,
+      organizationId: account.organizationId,
+      officeId: account.officeId,
+      accountNo: account.accountNo || '',
+      accountTypeId: account.accountTypeId,
+      name: account.name || '',
+      isSubaccount,
+      subAccountId: isSubaccount ? parentAccountId : null,
+      description: account.description ?? null,
+      note: account.note ?? null
     };
   }
 

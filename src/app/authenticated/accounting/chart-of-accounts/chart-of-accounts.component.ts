@@ -385,7 +385,7 @@ export class ChartOfAccountComponent implements OnInit, OnDestroy, OnChanges {
   //#region Utility Methods
   back(): void {
     if (this.selectedOffice) {
-      this.chartOfAccountsService.refreshChartOfAccountsForOffice(this.selectedOffice.officeId);
+      this.chartOfAccountsService.refreshChartOfAccountsForOffice(this.selectedOffice.officeId).pipe(take(1)).subscribe();
     }
     this.backEvent.emit();
   }

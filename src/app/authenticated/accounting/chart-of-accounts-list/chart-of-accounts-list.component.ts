@@ -4,7 +4,7 @@ import { ChangeDetectionStrategy, ChangeDetectorRef, Component, EventEmitter, In
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, Router } from '@angular/router';
 import { ToastrService } from 'ngx-toastr';
-import { BehaviorSubject, Subject, filter, finalize, skip, take, takeUntil } from 'rxjs';
+import { BehaviorSubject, Subject, filter, finalize, skip, switchMap, take, takeUntil } from 'rxjs';
 import { CommonMessage } from '../../../enums/common-message.enum';
 import { MaterialModule } from '../../../material.module';
 import { AuthService } from '../../../services/auth.service';
@@ -46,6 +46,8 @@ export class ChartOfAccountsListComponent implements OnInit, OnDestroy, OnChange
   isEditingChartOfAccount = false;
   chartOfAccountId: string | number | null = null;
   chartOfAccountOfficeId: number | null = null;
+  isAdmin = false;
+  readonly noParentLabel = 'None';
 
   accountTypes = AccountTypeLabels.map(({ value, label }) => ({ value, label }));
 
@@ -56,6 +58,7 @@ export class ChartOfAccountsListComponent implements OnInit, OnDestroy, OnChange
     accountType: { displayAs: 'Type', maxWidth: '25ch' },
     name: { displayAs: 'Name', maxWidth: '35ch' },
     description: { displayAs: 'Description', maxWidth: '35ch' },
+    parentAccountDropdown: { displayAs: 'Parent Account', maxWidth: '30ch', suppressRowClick: true, searchableDropdown: true, dropdownSearchPlaceholder: 'Type to filter accounts...' },
     isSubaccountDisplay: { displayAs: 'Subaccount', maxWidth: '12ch', alignment: 'center' }
   };
 
@@ -84,6 +87,7 @@ export class ChartOfAccountsListComponent implements OnInit, OnDestroy, OnChange
     });
 
     this.organizationId = this.authService.getUser()?.organizationId?.trim() ?? '';
+    this.isAdmin = this.authService.isAdmin();
     this.loadOffices();
     this.loadChartOfAccounts();
 
@@ -124,9 +128,10 @@ export class ChartOfAccountsListComponent implements OnInit, OnDestroy, OnChange
     this.chartOfAccountsService.deleteChartOfAccount(officeIdToUse, account.accountId).pipe(take(1)).subscribe({
       next: () => {
         this.toastr.success('Chart of account deleted successfully', CommonMessage.Success);
-        this.chartOfAccountsService.refreshChartOfAccountsForOffice(officeIdToUse);
-        this.filterChartOfAccounts();
-        this.markViewForCheck();
+        this.chartOfAccountsService.refreshChartOfAccountsForOffice(officeIdToUse).pipe(take(1)).subscribe(() => {
+          this.filterChartOfAccounts();
+          this.markViewForCheck();
+        });
       },
       error: (err: HttpErrorResponse) => {
         if (err.status !== 404) {
@@ -143,6 +148,72 @@ export class ChartOfAccountsListComponent implements OnInit, OnDestroy, OnChange
     this.chartOfAccountId = event.accountId;
     this.chartOfAccountOfficeId = event.officeId || this.selectedOffice?.officeId || this.officeId || null;
     this.isEditingChartOfAccount = true;
+  }
+
+  onChartOfAccountParentAccountDropdownChange(event: ChartOfAccountListDisplay & { __changedDropdownColumn?: string }): void {
+    if (!this.isAdmin) {
+      return;
+    }
+
+    const changedColumn = event.__changedDropdownColumn || '';
+    if (changedColumn !== 'parentAccountDropdown') {
+      return;
+    }
+
+    const selectedLabel = String(event.parentAccountDropdown?.value || this.noParentLabel).trim();
+    const selectedParentAccountId = this.resolveParentAccountIdFromLabel(event.officeId, selectedLabel, event.accountId);
+    const currentParentLabel = this.getParentAccountLabel(event.officeId, event.subAccountId) || this.noParentLabel;
+
+    if (selectedLabel === currentParentLabel) {
+      return;
+    }
+
+    if (selectedLabel !== this.noParentLabel && selectedParentAccountId == null) {
+      this.applyParentAccountDropdownsToDisplays();
+      this.toastr.error('Select a valid parent account.', CommonMessage.Error);
+      this.markViewForCheck();
+      return;
+    }
+
+    if (selectedParentAccountId === event.accountId) {
+      this.applyParentAccountDropdownsToDisplays();
+      this.toastr.error('An account cannot be its own parent.', CommonMessage.Error);
+      this.markViewForCheck();
+      return;
+    }
+
+    this.chartOfAccountsService.getChartOfAccountById(event.officeId, event.accountId).pipe(take(1),
+      switchMap(account => {
+        const nextIsSubaccount = selectedLabel !== this.noParentLabel && selectedParentAccountId != null;
+        const nextParentAccountId = nextIsSubaccount ? selectedParentAccountId : null;
+
+        if (account.isSubaccount === nextIsSubaccount && (account.subAccountId ?? null) === nextParentAccountId) {
+          return this.chartOfAccountsService.refreshChartOfAccountsForOffice(event.officeId);
+        }
+
+        return this.chartOfAccountsService.updateChartOfAccount(
+          this.mappingService.mapChartOfAccountSubaccountParentUpdate(account, nextParentAccountId)).pipe(take(1),
+          switchMap(() => this.chartOfAccountsService.refreshChartOfAccountsForOffice(event.officeId))
+        );
+      }),
+      finalize(() => {
+        this.markViewForCheck();
+      })
+    ).subscribe({
+      next: () => {
+        const nextIsSubaccount = selectedLabel !== this.noParentLabel && selectedParentAccountId != null;
+        const nextParentAccountId = nextIsSubaccount ? selectedParentAccountId : null;
+        this.patchLocalChartOfAccountSubaccountState(event.officeId, event.accountId, nextIsSubaccount, nextParentAccountId);
+        this.toastr.success('Chart of account updated.', CommonMessage.Success);
+        this.filterChartOfAccounts();
+        this.markViewForCheck();
+      },
+      error: () => {
+        this.applyParentAccountDropdownsToDisplays();
+        this.toastr.error('Unable to update chart of account.', CommonMessage.Error);
+        this.markViewForCheck();
+      }
+    });
   }
 
   onChartOfAccountSaved(): void {
@@ -196,6 +267,7 @@ export class ChartOfAccountsListComponent implements OnInit, OnDestroy, OnChange
       return;
     }
     this.chartOfAccountsDisplay = this.mappingService.mapChartOfAccounts(this.allChartOfAccounts, this.offices, this.accountTypes);
+    this.applyParentAccountDropdownsToDisplays();
   }
 
   filterChartOfAccounts(): void {
@@ -222,6 +294,95 @@ export class ChartOfAccountsListComponent implements OnInit, OnDestroy, OnChange
   }
   //#endregion
 
+  //#region Dynamic List Methods
+  applyParentAccountDropdownsToDisplays(): void {
+    this.chartOfAccountsDisplay = (this.chartOfAccountsDisplay || []).map(row => {
+      const parentOptionLabels = this.getParentAccountOptionLabels(row.officeId, row.accountId);
+      const preferredLabel = this.getParentAccountLabel(row.officeId, row.subAccountId) || this.noParentLabel;
+      const selectedLabel = this.resolveDropdownLabelFromOptions(parentOptionLabels, preferredLabel);
+      const displayOptions = this.ensureDropdownOptionLabels(parentOptionLabels, selectedLabel);
+
+      return {
+        ...row,
+        parentAccountDropdown: {
+          value: selectedLabel,
+          isOverridable: this.isAdmin,
+          options: displayOptions,
+          searchableDropdown: true,
+          dropdownSearchPlaceholder: 'Type to filter accounts...',
+          toString: () => selectedLabel
+        }
+      };
+    });
+  }
+
+  getParentAccountOptionLabels(officeId: number, accountId: number): string[] {
+    return this.chartOfAccountsService.getChartOfAccountsForOffice(officeId)
+      .filter(account => !account.isSubaccount && account.accountId !== accountId)
+      .map(account => this.formatParentAccountLabel(account));
+  }
+
+  getParentAccountLabel(officeId: number, subAccountId?: number | null): string {
+    if (!subAccountId) {
+      return '';
+    }
+
+    const parentAccount = this.chartOfAccountsService.getChartOfAccountsForOffice(officeId)
+      .find(account => account.accountId === subAccountId);
+    return parentAccount ? this.formatParentAccountLabel(parentAccount) : '';
+  }
+
+  resolveParentAccountIdFromLabel(officeId: number, label: string, accountId: number): number | null {
+    const normalizedLabel = label.trim().toLowerCase();
+    if (!normalizedLabel || normalizedLabel === this.noParentLabel.toLowerCase()) {
+      return null;
+    }
+
+    const matchedAccount = this.chartOfAccountsService.getChartOfAccountsForOffice(officeId)
+      .find(account => !account.isSubaccount && account.accountId !== accountId && this.formatParentAccountLabel(account).toLowerCase() === normalizedLabel);
+    return matchedAccount?.accountId ?? null;
+  }
+
+  formatParentAccountLabel(account: ChartOfAccountResponse): string {
+    return `${account.accountNo} - ${account.name}`;
+  }
+
+  resolveDropdownLabelFromOptions(optionLabels: string[], preferredLabel: string): string {
+    const normalizedPreferred = preferredLabel.trim().toLowerCase();
+    if (!normalizedPreferred || normalizedPreferred === this.noParentLabel.toLowerCase()) {
+      return this.noParentLabel;
+    }
+
+    const exactMatch = optionLabels.find(label => label.trim().toLowerCase() === normalizedPreferred);
+    return exactMatch || preferredLabel.trim();
+  }
+
+  ensureDropdownOptionLabels(optionLabels: string[], selectedLabel: string): string[] {
+    const dedupedOptions = optionLabels.filter(label => label.trim().toLowerCase() !== this.noParentLabel.toLowerCase());
+    const normalizedSelected = selectedLabel.trim().toLowerCase();
+    const baseOptions = [this.noParentLabel, ...dedupedOptions];
+
+    if (!normalizedSelected || normalizedSelected === this.noParentLabel.toLowerCase()) {
+      return baseOptions;
+    }
+
+    const alreadyPresent = baseOptions.some(label => label.trim().toLowerCase() === normalizedSelected);
+    if (alreadyPresent) {
+      return baseOptions;
+    }
+
+    return [...baseOptions, selectedLabel.trim()];
+  }
+
+  patchLocalChartOfAccountSubaccountState(officeId: number, accountId: number, isSubaccount: boolean, subAccountId: number | null): void {
+    this.allChartOfAccounts = this.allChartOfAccounts.map(account =>
+      account.officeId === officeId && account.accountId === accountId
+        ? { ...account, isSubaccount, subAccountId }
+        : account
+    );
+  }
+  //#endregion
+
   //#region Utility Methods
   markViewForCheck(): void {
     this.cdr.markForCheck();
@@ -229,7 +390,7 @@ export class ChartOfAccountsListComponent implements OnInit, OnDestroy, OnChange
 
   onChartOfAccountBack(): void {
     if (this.selectedOffice?.officeId) {
-      this.chartOfAccountsService.refreshChartOfAccountsForOffice(this.selectedOffice.officeId);
+      this.chartOfAccountsService.refreshChartOfAccountsForOffice(this.selectedOffice.officeId).pipe(take(1)).subscribe();
     }
     this.chartOfAccountId = null;
     this.chartOfAccountOfficeId = null;

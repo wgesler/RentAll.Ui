@@ -27,5 +27,6 @@ export interface CostCodesListDisplay {
   transactionType: string;
   description: string;
   isActive: boolean;
+  chartOfAccountDisplay?: string;
   rowColor?: string; // Hidden column for row coloring
 }

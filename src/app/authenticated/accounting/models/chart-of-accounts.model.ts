@@ -38,4 +38,12 @@ export interface ChartOfAccountListDisplay {
   subAccountId?: number | null;
   description: string;
   note: string;
+  parentAccountDropdown?: {
+    value: string;
+    isOverridable: boolean;
+    options: string[];
+    searchableDropdown?: boolean;
+    dropdownSearchPlaceholder?: string;
+    toString: () => string;
+  };
 }

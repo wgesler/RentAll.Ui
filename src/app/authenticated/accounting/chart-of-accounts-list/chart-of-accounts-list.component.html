@@ -17,6 +17,7 @@
         }
         <div class="tableDiv">
           <app-data-table
+            class="chart-of-accounts-list-table"
             [data]="chartOfAccountsDisplay"
             [columns]="chartOfAccountsDisplayedColumns"
             [hasColumnIndex]="false"
@@ -30,7 +31,8 @@
             [itemsPerPage]="100"
             (editEvent)="goToChartOfAccount($event)"
             (rowClickEvent)="goToChartOfAccount($event)"
-            (deleteEvent)="deleteChartOfAccount($event)">
+            (deleteEvent)="deleteChartOfAccount($event)"
+            (dropdownChangeEvent)="onChartOfAccountParentAccountDropdownChange($event)">
             <div dataTableFilterActions>
               <div class="table-filter-actions-group form-titlebar-actions-wrap uniform-gap">
                 <button mat-raised-button type="button" color="primary" id="add-chart-of-account-button" (click)="addChartOfAccount()" class="whitespace-nowrap items-center flex gap-1">

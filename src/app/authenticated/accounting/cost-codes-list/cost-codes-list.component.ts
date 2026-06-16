@@ -23,6 +23,7 @@ import { TransactionTypeLabels } from '../models/accounting-enum';
 import { CostCodesComponent } from '../cost-codes/cost-codes.component';
 import { CostCodesListDisplay, CostCodesRequest, CostCodesResponse } from '../models/cost-codes.model';
 import { CostCodesService } from '../services/cost-codes.service';
+import { ChartOfAccountsService } from '../services/chart-of-accounts.service';
 import { CostCodeCopyOfficesDialogComponent } from './cost-code-copy-offices-dialog.component';
 
 @Component({
@@ -70,16 +71,18 @@ export class CostCodesListComponent implements OnInit, OnDestroy, OnChanges {
     costCode: { displayAs: 'Cost Code', maxWidth: '20ch', sortType: 'natural' },
     transactionType: { displayAs: 'Type', maxWidth: '15ch' },
     description: { displayAs: 'Description', maxWidth: '33ch' },
+    chartOfAccountDisplay: { displayAs: 'Chart Of Account', maxWidth: '30ch' },
     isActive: { displayAs: 'IsActive', isCheckbox: true, checkboxEditable: false, sort: false, wrap: false, alignment: 'center', maxWidth: '15ch' },
     rowColor: { displayAs: '', sort: false, wrap: false } // Hidden column for row coloring
   };
 
   isPageReady = false;
-  itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['costCodes']));
+  itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['costCodes', 'chartOfAccounts']));
   destroy$ = new Subject<void>();
 
   constructor(
     public costCodesService: CostCodesService,
+    public chartOfAccountsService: ChartOfAccountsService,
     public toastr: ToastrService,
     public router: Router,
     public route: ActivatedRoute,
@@ -104,6 +107,7 @@ export class CostCodesListComponent implements OnInit, OnDestroy, OnChanges {
     this.setIsActiveCheckboxEditability();
     this.loadOffices();
     this.loadCostCodes();
+    this.loadChartOfAccounts();
 
     this.globalSelectionService.getSelectedOfficeId$().pipe(skip(1), takeUntil(this.destroy$)).subscribe(officeId => {
       if (this.offices.length > 0) {
@@ -375,6 +379,18 @@ export class CostCodesListComponent implements OnInit, OnDestroy, OnChanges {
       }
     });
   }
+
+  loadChartOfAccounts(): void {
+    this.chartOfAccountsService.ensureChartOfAccountsLoaded();
+    this.chartOfAccountsService.areChartOfAccountsLoaded().pipe(filter(loaded => loaded === true), take(1), takeUntil(this.destroy$)).subscribe(() => {
+      this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'chartOfAccounts');
+      this.chartOfAccountsService.getAllChartOfAccounts().pipe(takeUntil(this.destroy$)).subscribe(() => {
+        this.applyFilters();
+        this.markViewForCheck();
+      });
+      this.markViewForCheck();
+    });
+  }
   //#endregion
 
   //#region Filter Methods
@@ -414,7 +430,12 @@ export class CostCodesListComponent implements OnInit, OnDestroy, OnChanges {
       filtered = filtered.filter(costCode => costCode.isActive !== false);
     }
     // Map cost codes using mapping service to convert transactionTypeId to display string
-    const mapped = this.mappingService.mapCostCodes(filtered, this.offices, this.transactionTypes);
+    const mapped = this.mappingService.mapCostCodes(
+      filtered,
+      this.offices,
+      this.transactionTypes,
+      this.chartOfAccountsService.getAllChartOfAccountsValue()
+    );
     this.costCodesDisplay = mapped;
   }
 

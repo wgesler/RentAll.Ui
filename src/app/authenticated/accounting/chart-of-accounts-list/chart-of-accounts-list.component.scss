@@ -10,3 +10,20 @@
     color: #666;
   }
 }
+
+:host ::ng-deep .chart-of-accounts-list-table .datatable-dropdown-trigger .mat-mdc-select-value-text {
+  color: #1d4ed8;
+  text-decoration: underline;
+}
+
+:host ::ng-deep .chart-of-accounts-list-table td.mat-cell.mat-column-parentAccountDropdown .mat-mdc-select,
+:host ::ng-deep .chart-of-accounts-list-table td.mat-mdc-cell.mat-column-parentAccountDropdown .mat-mdc-select,
+:host ::ng-deep .chart-of-accounts-list-table td.mat-cell.mat-column-parentAccountDropdown .mat-mdc-select-min-line,
+:host ::ng-deep .chart-of-accounts-list-table td.mat-mdc-cell.mat-column-parentAccountDropdown .mat-mdc-select-min-line,
+:host ::ng-deep .chart-of-accounts-list-table td.mat-cell.mat-column-parentAccountDropdown .mat-mdc-select-value,
+:host ::ng-deep .chart-of-accounts-list-table td.mat-mdc-cell.mat-column-parentAccountDropdown .mat-mdc-select-value,
+:host ::ng-deep .chart-of-accounts-list-table td.mat-cell.mat-column-parentAccountDropdown .mat-mdc-select-value-text,
+:host ::ng-deep .chart-of-accounts-list-table td.mat-mdc-cell.mat-column-parentAccountDropdown .mat-mdc-select-value-text {
+  font-size: inherit !important;
+  line-height: inherit !important;
+}
