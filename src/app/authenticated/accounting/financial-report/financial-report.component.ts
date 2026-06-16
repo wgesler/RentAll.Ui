@@ -1,7 +1,7 @@
 import { CommonModule } from '@angular/common';
 import { ChangeDetectionStrategy, ChangeDetectorRef, Component, Input, OnChanges, OnDestroy, OnInit, SimpleChanges } from '@angular/core';
 import { HttpErrorResponse } from '@angular/common/http';
-import { BehaviorSubject, filter, Subject, take, takeUntil } from 'rxjs';
+import { BehaviorSubject, filter, finalize, Subject, take, takeUntil } from 'rxjs';
 import { MaterialModule } from '../../../material.module';
 import { AuthService } from '../../../services/auth.service';
 import { CommonService } from '../../../services/common.service';
@@ -11,7 +11,14 @@ import { UtilityService } from '../../../services/utility.service';
 import { OfficeResponse } from '../../organizations/models/office.model';
 import { OfficeService } from '../../organizations/services/office.service';
 import { ChartOfAccountResponse } from '../models/chart-of-accounts.model';
-import { FinancialReportKind, FinancialReportResult, FinancialReportTreeNode } from '../models/financial-report.model';
+import { Class } from '../models/accounting-enum';
+import {
+  FINANCIAL_REPORT_TOTAL_COLUMN_ID,
+  FinancialReportColumn,
+  FinancialReportKind,
+  FinancialReportResult,
+  FinancialReportTreeNode
+} from '../models/financial-report.model';
 import { JournalEntryLineSearchResponse } from '../models/journal-entry.model';
 import { ChartOfAccountsService } from '../services/chart-of-accounts.service';
 import { GeneralLedgerService } from '../services/general-ledger.service';
@@ -21,6 +28,7 @@ interface FinancialReportVisibleRow {
   label: string;
   amount: number;
   amountDisplay: string;
+  columnAmountDisplays: Record<string, string>;
   depth: number;
   rowKind: FinancialReportTreeNode['rowKind'];
   expandable: boolean;
@@ -39,9 +47,7 @@ interface FinancialReportVisibleRow {
 export class FinancialReportComponent implements OnInit, OnDestroy, OnChanges {
   @Input() reportKind: FinancialReportKind = 'profitLoss';
   @Input() officeId: number | null = null;
-  @Input() propertyId: string | null = null;
-  @Input() reservationId: string | null = null;
-  @Input() chartOfAccountId: number | null = null;
+  @Input() reportClass: Class = Class.TotalOnly;
   @Input() searchDateRange: { startDate: string | null; endDate: string | null } | null = null;
   @Input() refreshTrigger = 0;
 
@@ -57,7 +63,8 @@ export class FinancialReportComponent implements OnInit, OnDestroy, OnChanges {
   allLines: JournalEntryLineSearchResponse[] = [];
 
   isPageReady = false;
-  itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['offices', 'chartOfAccounts', 'journalEntryLines']));
+  isLoadingLines = false;
+  itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['offices', 'chartOfAccounts']));
   destroy$ = new Subject<void>();
 
   constructor(
@@ -76,7 +83,11 @@ export class FinancialReportComponent implements OnInit, OnDestroy, OnChanges {
   //#region Financial-Report
   ngOnInit(): void {
     this.itemsToLoad$.pipe(takeUntil(this.destroy$)).subscribe(items => {
+      const wasReady = this.isPageReady;
       this.isPageReady = items.size === 0;
+      if (!wasReady && this.isPageReady) {
+        this.loadJournalEntryLines();
+      }
       this.markViewForCheck();
     });
 
@@ -84,20 +95,27 @@ export class FinancialReportComponent implements OnInit, OnDestroy, OnChanges {
     this.loadOrganization();
     this.loadOffices();
     this.loadChartOfAccounts();
-    this.loadJournalEntryLines();
   }
 
   ngOnChanges(changes: SimpleChanges): void {
-    const shouldReload =
+    const reportClassChanged = !!changes['reportClass']
+      && !changes['reportClass'].firstChange;
+    const searchDateRangeChanged = !!changes['searchDateRange']
+      && !changes['searchDateRange'].firstChange
+      && this.hasSearchDateRangeChanged(changes['searchDateRange']);
+
+    if (reportClassChanged || searchDateRangeChanged) {
+      this.applyReportDisplay();
+      this.markViewForCheck();
+    }
+
+    const shouldReloadLines =
       (changes['officeId'] && !changes['officeId'].firstChange)
-      || (changes['propertyId'] && !changes['propertyId'].firstChange)
-      || (changes['reservationId'] && !changes['reservationId'].firstChange)
-      || (changes['chartOfAccountId'] && !changes['chartOfAccountId'].firstChange)
-      || (changes['searchDateRange'] && !changes['searchDateRange'].firstChange)
+      || searchDateRangeChanged
       || (changes['refreshTrigger'] && !changes['refreshTrigger'].firstChange)
       || (changes['reportKind'] && !changes['reportKind'].firstChange);
 
-    if (shouldReload) {
+    if (shouldReloadLines) {
       this.loadJournalEntryLines();
     }
   }
@@ -149,20 +167,24 @@ export class FinancialReportComponent implements OnInit, OnDestroy, OnChanges {
   loadOffices(): void {
     if (!this.organizationId) {
       this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'offices');
+      this.loadJournalEntryLines();
       return;
     }
 
-    this.officeService.ensureOfficesLoaded(this.organizationId).pipe(take(1)).subscribe({
+    this.officeService.ensureOfficesLoaded(this.organizationId).pipe(
+      take(1),
+      finalize(() => this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'offices'))
+    ).subscribe({
       next: () => {
         this.officeService.getAllOffices().pipe(takeUntil(this.destroy$)).subscribe(offices => {
           this.offices = (offices || []).filter(office => office.organizationId === this.organizationId && office.isActive);
-          this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'offices');
+          this.loadJournalEntryLines();
           this.markViewForCheck();
         });
       },
       error: () => {
         this.offices = [];
-        this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'offices');
+        this.loadJournalEntryLines();
         this.markViewForCheck();
       }
     });
@@ -170,46 +192,67 @@ export class FinancialReportComponent implements OnInit, OnDestroy, OnChanges {
 
   loadChartOfAccounts(): void {
     this.chartOfAccountsService.ensureChartOfAccountsLoaded();
-    this.chartOfAccountsService.areChartOfAccountsLoaded().pipe(filter(loaded => loaded === true), take(1), takeUntil(this.destroy$)).subscribe(() => {
-      this.chartOfAccountsService.getAllChartOfAccounts().pipe(takeUntil(this.destroy$)).subscribe(accounts => {
-        this.chartOfAccounts = accounts || [];
-        this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'chartOfAccounts');
+    this.chartOfAccountsService.areChartOfAccountsLoaded().pipe(
+      filter(loaded => loaded === true),
+      take(1),
+      takeUntil(this.destroy$),
+      finalize(() => this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'chartOfAccounts'))
+    ).subscribe({
+      next: () => {
+        this.chartOfAccountsService.getAllChartOfAccounts().pipe(take(1), takeUntil(this.destroy$)).subscribe(accounts => {
+          this.chartOfAccounts = accounts || [];
+          this.applyReportDisplay();
+          this.markViewForCheck();
+        });
+      },
+      error: () => {
+        this.chartOfAccounts = [];
         this.applyReportDisplay();
         this.markViewForCheck();
-      });
+      }
     });
   }
 
   loadJournalEntryLines(): void {
+    if (!this.isPageReady) {
+      return;
+    }
+
     const officeIds = this.resolveOfficeIds();
     if (officeIds.length === 0) {
       this.allLines = [];
+      this.isServiceError = false;
+      this.isLoadingLines = false;
       this.applyReportDisplay();
-      this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'journalEntryLines');
       this.markViewForCheck();
       return;
     }
 
-    this.utilityService.addLoadItem(this.itemsToLoad$, 'journalEntryLines');
+    this.isLoadingLines = true;
     this.isServiceError = false;
 
     this.generalLedgerService.searchJournalEntryLines({
       officeIds,
-      chartOfAccountId: this.chartOfAccountId != null && this.chartOfAccountId > 0 ? this.chartOfAccountId : null,
-      propertyId: this.propertyId?.trim() || null,
-      reservationId: this.reservationId?.trim() || null,
+      chartOfAccountId: null,
+      propertyId: null,
+      reservationId: null,
       includeVoided: false,
       includeUnposted: true,
       startDate: this.reportKind === 'balanceSheet' ? null : (this.searchDateRange?.startDate ?? null),
       endDate: this.searchDateRange?.endDate ?? null
-    }).pipe(takeUntil(this.destroy$)).subscribe({
+    }).pipe(
+      takeUntil(this.destroy$),
+      finalize(() => {
+        this.isLoadingLines = false;
+        this.markViewForCheck();
+      })
+    ).subscribe({
       next: lines => {
         this.allLines = lines || [];
         this.noActivityMessage = this.reportKind === 'balanceSheet'
           ? 'No balance sheet activity for the selected filters.'
           : 'No profit and loss activity for the selected filters and date range.';
         this.applyReportDisplay();
-        this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'journalEntryLines');
         this.markViewForCheck();
       },
       error: (error: HttpErrorResponse) => {
@@ -224,7 +267,6 @@ export class FinancialReportComponent implements OnInit, OnDestroy, OnChanges {
         this.noActivityMessage = apiMessage
           ? `Unable to load financial report data: ${apiMessage}`
           : 'Unable to load financial report data.';
-        this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'journalEntryLines');
         this.markViewForCheck();
       }
     });
@@ -233,17 +275,26 @@ export class FinancialReportComponent implements OnInit, OnDestroy, OnChanges {
 
   //#region Utility Methods
   applyReportDisplay(): void {
-    const scopedAccounts = this.getChartOfAccountsForOfficeIds(this.resolveOfficeIds());
-    this.reportResult = this.mappingService.buildFinancialReport({
-      reportKind: this.reportKind,
-      accounts: scopedAccounts,
-      lines: this.allLines,
-      startDate: this.searchDateRange?.startDate ?? null,
-      endDate: this.searchDateRange?.endDate ?? null,
-      chartOfAccountId: this.chartOfAccountId
-    });
-    this.initializeExpandedNodes(this.reportResult.sections);
-    this.rebuildVisibleRows();
+    try {
+      const scopedAccounts = this.getChartOfAccountsForOfficeIds(this.resolveOfficeIds());
+      this.reportResult = this.mappingService.buildFinancialReport({
+        reportKind: this.reportKind,
+        accounts: scopedAccounts,
+        lines: this.allLines,
+        startDate: this.searchDateRange?.startDate ?? null,
+        endDate: this.searchDateRange?.endDate ?? null,
+        chartOfAccountId: null,
+        reportClass: this.mappingService.normalizeFinancialReportClass(this.reportClass)
+      });
+      this.initializeExpandedNodes(this.reportResult.sections);
+      this.rebuildVisibleRows();
+    } catch (error) {
+      console.error('Financial Report - error building report display:', error);
+      this.isServiceError = true;
+      this.reportResult = null;
+      this.visibleRows = [];
+      this.noActivityMessage = 'Unable to build the financial report display.';
+    }
   }
 
   initializeExpandedNodes(sections: FinancialReportTreeNode[]): void {
@@ -279,6 +330,7 @@ export class FinancialReportComponent implements OnInit, OnDestroy, OnChanges {
       label: node.label,
       amount: node.amount,
       amountDisplay: this.formatAmountDisplay(node.amount, node.rowKind),
+      columnAmountDisplays: this.formatColumnAmountDisplays(node.columnAmounts, node.rowKind),
       depth: node.depth,
       rowKind: node.rowKind,
       expandable,
@@ -300,6 +352,74 @@ export class FinancialReportComponent implements OnInit, OnDestroy, OnChanges {
     return this.formatter.currencyUsd(amount);
   }
 
+  formatColumnAmountDisplays(
+    columnAmounts: Record<string, number>,
+    rowKind: FinancialReportTreeNode['rowKind']
+  ): Record<string, string> {
+    if (rowKind === 'section') {
+      return {};
+    }
+
+    const displays: Record<string, string> = {};
+    Object.entries(columnAmounts || {}).forEach(([columnId, amount]) => {
+      displays[columnId] = this.formatter.currencyUsd(amount);
+    });
+    return displays;
+  }
+
+  getAmountColumnIds(): string[] {
+    const columns = this.reportResult?.columns || [];
+    if (!this.reportResult?.showTotalColumn) {
+      return columns.map(column => column.columnId);
+    }
+    return [...columns.map(column => column.columnId), FINANCIAL_REPORT_TOTAL_COLUMN_ID];
+  }
+
+  getAmountColumns(): FinancialReportColumn[] {
+    const columns = this.reportResult?.columns || [];
+    if (!this.reportResult?.showTotalColumn) {
+      return columns;
+    }
+    return [...columns, { columnId: FINANCIAL_REPORT_TOTAL_COLUMN_ID, label: 'Total' }];
+  }
+
+  get amountColumnCount(): number {
+    return this.getAmountColumnIds().length;
+  }
+
+  get hasMultipleAmountColumns(): boolean {
+    return this.amountColumnCount > 1;
+  }
+
+  isTotalColumn(columnId: string): boolean {
+    return columnId === FINANCIAL_REPORT_TOTAL_COLUMN_ID;
+  }
+
+  /** Panel max-width grows with column count and caps at the viewport. */
+  get panelMaxWidthCss(): string {
+    const count = this.amountColumnCount;
+    if (count <= 1) {
+      return '48rem';
+    }
+
+    const labelWidthRem = 14;
+    const amountColumnWidthRem = 10;
+    const chromeRem = 3;
+    const calculatedRem = labelWidthRem + (count * amountColumnWidthRem) + chromeRem;
+    return `min(100%, ${Math.ceil(calculatedRem)}rem)`;
+  }
+
+  get amountColumnHeaderLabel(): string {
+    if (this.reportResult?.columns?.length === 1 && !this.reportResult.showTotalColumn) {
+      return this.reportResult.columns[0].label;
+    }
+    return this.mappingService.buildFinancialReportColumnHeaderLabel(
+      this.searchDateRange?.startDate ?? null,
+      this.searchDateRange?.endDate ?? null,
+      this.reportKind === 'balanceSheet'
+    );
+  }
+
   isTitleRowExpander(row: FinancialReportVisibleRow): boolean {
     return row.expandable && row.rowKind === 'section';
   }
@@ -313,14 +433,6 @@ export class FinancialReportComponent implements OnInit, OnDestroy, OnChanges {
 
   getExpandAllIcon(): string {
     return this.isAllExpanded ? 'expand_less' : 'expand_more';
-  }
-
-  get amountColumnHeaderLabel(): string {
-    return this.mappingService.buildFinancialReportColumnHeaderLabel(
-      this.searchDateRange?.startDate ?? null,
-      this.searchDateRange?.endDate ?? null,
-      this.reportKind === 'balanceSheet'
-    );
   }
 
   resolveOfficeIds(): number[] {
@@ -365,6 +477,13 @@ export class FinancialReportComponent implements OnInit, OnDestroy, OnChanges {
   get isAllExpanded(): boolean {
     const expandableNodeIds = this.collectExpandableNodeIds(this.reportResult?.sections || []);
     return expandableNodeIds.length > 0 && expandableNodeIds.every(nodeId => this.expandedNodeIds.has(nodeId));
+  }
+
+  hasSearchDateRangeChanged(change: SimpleChanges['searchDateRange']): boolean {
+    const previous = change?.previousValue as { startDate: string | null; endDate: string | null } | null | undefined;
+    const current = change?.currentValue as { startDate: string | null; endDate: string | null } | null | undefined;
+    return (previous?.startDate ?? null) !== (current?.startDate ?? null)
+      || (previous?.endDate ?? null) !== (current?.endDate ?? null);
   }
 
   markViewForCheck(): void {

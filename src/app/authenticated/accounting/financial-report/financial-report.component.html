@@ -1,5 +1,7 @@
 @if (isPageReady) {
-  <div class="mat list-layout-standard dbg-band-main financial-report-layout">
+  <div
+    class="mat list-layout-standard dbg-band-main financial-report-layout"
+    [style.--financial-report-panel-max-width]="panelMaxWidthCss">
     <div class="financial-report-panel">
       @if (isServiceError) {
         <div class="financial-report-empty-state">
@@ -32,7 +34,7 @@
           </div>
         } @else {
           <div class="financial-report-table-wrap">
-          <table class="financial-report-table">
+          <table class="financial-report-table" [class.financial-report-table--multi-column]="hasMultipleAmountColumns">
             <thead>
               <tr>
                 <th class="financial-report-col-label">
@@ -48,7 +50,13 @@
                     </button>
                   </div>
                 </th>
-                <th class="financial-report-col-amount">{{ amountColumnHeaderLabel }}</th>
+                @for (column of getAmountColumns(); track column.columnId) {
+                  <th
+                    class="financial-report-col-amount"
+                    [class.financial-report-col-total]="isTotalColumn(column.columnId)">
+                    {{ column.label }}
+                  </th>
+                }
               </tr>
             </thead>
             <tbody>
@@ -78,7 +86,13 @@
                       <span class="financial-report-label">{{ row.label }}</span>
                     </div>
                   </td>
-                  <td class="financial-report-col-amount">{{ row.amountDisplay }}</td>
+                  @for (columnId of getAmountColumnIds(); track columnId) {
+                    <td
+                      class="financial-report-col-amount"
+                      [class.financial-report-col-total]="isTotalColumn(columnId)">
+                      {{ row.columnAmountDisplays[columnId] || '' }}
+                    </td>
+                  }
                 </tr>
               }
             </tbody>
@@ -89,10 +103,8 @@
     </div>
   </div>
 } @else {
-  <div class="financial-report-layout">
-    <div class="financial-report-loading">
-      <mat-spinner [diameter]="40"></mat-spinner>
-      <p>Loading report...</p>
-    </div>
+  <div class="loading-container">
+    <mat-spinner [diameter]="40"></mat-spinner>
+    <p>Loading report...</p>
   </div>
 }

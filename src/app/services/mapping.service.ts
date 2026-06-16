@@ -1,6 +1,15 @@
 import { Injectable } from '@angular/core';
-import { AccountType, TransactionType, getAccountTypeLabel, getSourceTypeLabel, getTransactionTypeLabel, isCreditNormalAccountType } from '../authenticated/accounting/models/accounting-enum';
-import { FinancialReportBuildRequest, FinancialReportKind, FinancialReportResult, FinancialReportTreeNode } from '../authenticated/accounting/models/financial-report.model';
+import { AccountType, Class, SourceType, TransactionType, getAccountTypeLabel, getSourceTypeLabel, getTransactionTypeLabel, isCreditNormalAccountType } from '../authenticated/accounting/models/accounting-enum';
+import {
+  FINANCIAL_REPORT_TOTAL_COLUMN_ID,
+  FINANCIAL_REPORT_UNASSIGNED_COLUMN_ID,
+  FinancialReportBuildRequest,
+  FinancialReportColumn,
+  FinancialReportColumnContext,
+  FinancialReportKind,
+  FinancialReportResult,
+  FinancialReportTreeNode
+} from '../authenticated/accounting/models/financial-report.model';
 import { ChartOfAccountListDisplay, ChartOfAccountRequest, ChartOfAccountResponse } from '../authenticated/accounting/models/chart-of-accounts.model';
 import { CostCodesListDisplay, CostCodesRequest, CostCodesResponse } from '../authenticated/accounting/models/cost-codes.model';
 import { InvoiceResponse, LedgerLineListDisplay, LedgerLineResponse } from '../authenticated/accounting/models/invoice.model';
@@ -2213,124 +2222,224 @@ export class MappingService {
 
   //#region Financial Report Mapping
   buildFinancialReport(request: FinancialReportBuildRequest): FinancialReportResult {
+    request = {
+      ...request,
+      reportClass: this.normalizeFinancialReportClass(request.reportClass)
+    };
     if (request.reportKind === 'balanceSheet') {
       return this.buildBalanceSheetReport(request);
     }
     return this.buildProfitLossReport(request);
   }
 
+  normalizeFinancialReportClass(reportClass: Class | number | null | undefined): Class {
+    const normalized = Number(reportClass);
+    if (!Number.isFinite(normalized) || normalized < Class.TotalOnly || normalized > Class.Account) {
+      return Class.TotalOnly;
+    }
+    return normalized as Class;
+  }
+
   buildProfitLossReport(request: FinancialReportBuildRequest): FinancialReportResult {
-    const accounts = this.filterFinancialReportAccounts(request.accounts, request.chartOfAccountId, [
+    const filteredAccounts = this.filterFinancialReportAccounts(request.accounts, request.chartOfAccountId, [
       AccountType.Income,
       AccountType.OtherIncome,
       AccountType.CostOfGoodsSold,
       AccountType.Expense,
       AccountType.OtherExpense
     ]);
-    const amountsByAccountId = this.aggregateProfitLossAmountsByAccountId(
+    const { accounts, chartOfAccountId, accountIdRemap } = this.prepareFinancialReportScope(
+      filteredAccounts,
+      request.chartOfAccountId
+    );
+    const columnContext = this.buildFinancialReportColumnContext(
+      request.reportClass ?? Class.TotalOnly,
+      request.startDate,
+      request.endDate,
+      false,
+      request.lines,
+      accounts
+    );
+    const rawAmountsByAccountId = this.aggregateProfitLossAmountsByAccountIdAndColumn(
       request.lines,
       request.startDate,
       request.endDate,
-      accounts
+      filteredAccounts,
+      columnContext,
+      accountIdRemap
+    );
+    const amountsByAccountIdAndColumn = this.consolidateFinancialReportAmountsByAccountIdAndColumn(
+      rawAmountsByAccountId,
+      accountIdRemap,
+      columnContext.columnIds,
+      filteredAccounts,
+      'activity'
     );
     const incomeAccounts = accounts.filter(account => account.accountTypeId === AccountType.Income || account.accountTypeId === AccountType.OtherIncome);
     const cogsAccounts = accounts.filter(account => account.accountTypeId === AccountType.CostOfGoodsSold);
     const expenseAccounts = accounts.filter(account => account.accountTypeId === AccountType.Expense || account.accountTypeId === AccountType.OtherExpense);
-    const incomeTree = this.buildFinancialReportAccountTree(incomeAccounts, amountsByAccountId, request.chartOfAccountId);
-    const cogsTree = this.buildFinancialReportAccountTree(cogsAccounts, amountsByAccountId, request.chartOfAccountId);
-    const expenseTree = this.buildFinancialReportAccountTree(expenseAccounts, amountsByAccountId, request.chartOfAccountId);
+    const incomeTree = this.buildFinancialReportAccountTree(incomeAccounts, amountsByAccountIdAndColumn, chartOfAccountId, columnContext);
+    const cogsTree = this.buildFinancialReportAccountTree(cogsAccounts, amountsByAccountIdAndColumn, chartOfAccountId, columnContext);
+    const expenseTree = this.buildFinancialReportAccountTree(expenseAccounts, amountsByAccountIdAndColumn, chartOfAccountId, columnContext);
     const totalIncome = this.sumFinancialReportTreeAmounts(incomeTree);
     const totalCogs = this.sumFinancialReportTreeAmounts(cogsTree);
     const totalExpense = this.sumFinancialReportTreeAmounts(expenseTree);
     const grossProfit = this.roundFinancialReportAmount(totalIncome - totalCogs);
     const netIncome = this.roundFinancialReportAmount(grossProfit - totalExpense);
+    const incomeColumnAmounts = this.sumFinancialReportTreeColumnAmounts(incomeTree, columnContext);
+    const cogsColumnAmounts = this.sumFinancialReportTreeColumnAmounts(cogsTree, columnContext);
+    const expenseColumnAmounts = this.sumFinancialReportTreeColumnAmounts(expenseTree, columnContext);
+    const grossProfitColumnAmounts = this.subtractFinancialReportColumnAmounts(incomeColumnAmounts, cogsColumnAmounts, columnContext);
+    const netIncomeColumnAmounts = this.subtractFinancialReportColumnAmounts(grossProfitColumnAmounts, expenseColumnAmounts, columnContext);
 
     return {
       reportTitle: 'Profit & Loss',
       periodLabel: this.buildFinancialReportPeriodLabel(request.startDate, request.endDate, false),
+      columns: columnContext.columns,
+      showTotalColumn: columnContext.showTotalColumn,
       sections: [
-        this.buildFinancialReportSectionNode('section-income', 'Income', incomeTree, totalIncome),
-        this.buildFinancialReportTotalNode('total-income', 'Total Income', totalIncome),
-        this.buildFinancialReportSectionNode('section-cogs', 'Cost of Goods Sold', cogsTree, totalCogs),
-        this.buildFinancialReportTotalNode('total-cogs', 'Total COGS', totalCogs),
-        this.buildFinancialReportSummaryNode('summary-gross-profit', 'Gross Profit', grossProfit),
-        this.buildFinancialReportSectionNode('section-expense', 'Expense', expenseTree, totalExpense),
-        this.buildFinancialReportTotalNode('total-expense', 'Total Expense', totalExpense),
-        this.buildFinancialReportSummaryNode('summary-net-income', 'Net Income', netIncome)
+        this.buildFinancialReportSectionNode('section-income', 'Income', incomeTree, totalIncome, incomeColumnAmounts),
+        this.buildFinancialReportTotalNode('total-income', 'Total Income', totalIncome, incomeColumnAmounts),
+        this.buildFinancialReportSectionNode('section-cogs', 'Cost of Goods Sold', cogsTree, totalCogs, cogsColumnAmounts),
+        this.buildFinancialReportTotalNode('total-cogs', 'Total COGS', totalCogs, cogsColumnAmounts),
+        this.buildFinancialReportSummaryNode('summary-gross-profit', 'Gross Profit', grossProfit, grossProfitColumnAmounts),
+        this.buildFinancialReportSectionNode('section-expense', 'Expense', expenseTree, totalExpense, expenseColumnAmounts),
+        this.buildFinancialReportTotalNode('total-expense', 'Total Expense', totalExpense, expenseColumnAmounts),
+        this.buildFinancialReportSummaryNode('summary-net-income', 'Net Income', netIncome, netIncomeColumnAmounts)
       ]
     };
   }
 
   buildBalanceSheetReport(request: FinancialReportBuildRequest): FinancialReportResult {
-    const assetAccounts = this.filterFinancialReportAccounts(request.accounts, request.chartOfAccountId, [
+    const balanceFilteredAccounts = this.filterFinancialReportAccounts(request.accounts, request.chartOfAccountId, [
       AccountType.Bank,
       AccountType.AccountsReceivable,
       AccountType.OtherCurrentAsset,
       AccountType.FixedAsset,
-      AccountType.OtherAsset
-    ]);
-    const liabilityAccounts = this.filterFinancialReportAccounts(request.accounts, request.chartOfAccountId, [
+      AccountType.OtherAsset,
       AccountType.AccountsPayable,
       AccountType.CreditCard,
       AccountType.OtherCurrentLiability,
-      AccountType.LongTermLiability
+      AccountType.LongTermLiability,
+      AccountType.Equity
     ]);
-    const equityAccounts = this.filterFinancialReportAccounts(request.accounts, request.chartOfAccountId, [AccountType.Equity]);
-    const balanceAmountsByAccountId = this.aggregateBalanceSheetAmountsByAccountId(request.lines, request.endDate, [
-      ...assetAccounts,
-      ...liabilityAccounts,
-      ...equityAccounts
+    const { accounts: balanceAccounts, chartOfAccountId, accountIdRemap } = this.prepareFinancialReportScope(
+      balanceFilteredAccounts,
+      request.chartOfAccountId
+    );
+    const columnContext = this.buildFinancialReportColumnContext(
+      request.reportClass ?? Class.TotalOnly,
+      request.startDate,
+      request.endDate,
+      true,
+      request.lines,
+      balanceAccounts
+    );
+    const rawBalanceAmountsByAccountId = this.aggregateBalanceSheetAmountsByAccountIdAndColumn(
+      request.lines,
+      request.endDate,
+      balanceFilteredAccounts,
+      columnContext,
+      accountIdRemap
+    );
+    const balanceAmountsByAccountIdAndColumn = this.consolidateFinancialReportAmountsByAccountIdAndColumn(
+      rawBalanceAmountsByAccountId,
+      accountIdRemap,
+      columnContext.columnIds,
+      balanceFilteredAccounts,
+      'balance'
+    );
+    const plFilteredAccounts = this.filterFinancialReportAccounts(request.accounts, request.chartOfAccountId, [
+      AccountType.Income,
+      AccountType.OtherIncome,
+      AccountType.CostOfGoodsSold,
+      AccountType.Expense,
+      AccountType.OtherExpense
     ]);
-    const profitLossAmountsByAccountId = this.aggregateProfitLossAmountsByAccountId(
+    const { accounts: plAccounts, accountIdRemap: plAccountIdRemap } = this.prepareFinancialReportScope(
+      plFilteredAccounts,
+      request.chartOfAccountId
+    );
+    const rawProfitLossAmountsByAccountId = this.aggregateProfitLossAmountsByAccountIdAndColumn(
       request.lines,
       request.startDate,
       request.endDate,
-      this.filterFinancialReportAccounts(request.accounts, request.chartOfAccountId, [
-        AccountType.Income,
-        AccountType.OtherIncome,
-        AccountType.CostOfGoodsSold,
-        AccountType.Expense,
-        AccountType.OtherExpense
-      ])
+      plFilteredAccounts,
+      columnContext,
+      plAccountIdRemap
+    );
+    const profitLossAmountsByAccountIdAndColumn = this.consolidateFinancialReportAmountsByAccountIdAndColumn(
+      rawProfitLossAmountsByAccountId,
+      plAccountIdRemap,
+      columnContext.columnIds,
+      plFilteredAccounts,
+      'activity'
     );
     const netIncome = this.roundFinancialReportAmount(
-      this.sumFinancialReportAmountsForAccountTypes(profitLossAmountsByAccountId, request.accounts, AccountType.Income, AccountType.OtherIncome)
-      - this.sumFinancialReportAmountsForAccountTypes(profitLossAmountsByAccountId, request.accounts, AccountType.CostOfGoodsSold)
-      - this.sumFinancialReportAmountsForAccountTypes(profitLossAmountsByAccountId, request.accounts, AccountType.Expense, AccountType.OtherExpense)
+      this.sumFinancialReportAmountsForAccountTypesAndColumn(profitLossAmountsByAccountIdAndColumn, plAccounts, columnContext, AccountType.Income, AccountType.OtherIncome)
+      - this.sumFinancialReportAmountsForAccountTypesAndColumn(profitLossAmountsByAccountIdAndColumn, plAccounts, columnContext, AccountType.CostOfGoodsSold)
+      - this.sumFinancialReportAmountsForAccountTypesAndColumn(profitLossAmountsByAccountIdAndColumn, plAccounts, columnContext, AccountType.Expense, AccountType.OtherExpense)
     );
+    const netIncomeColumnAmounts = this.subtractFinancialReportColumnAmounts(
+      this.subtractFinancialReportColumnAmounts(
+        this.sumFinancialReportAmountsForAccountTypesColumnAmounts(profitLossAmountsByAccountIdAndColumn, plAccounts, columnContext, AccountType.Income, AccountType.OtherIncome),
+        this.sumFinancialReportAmountsForAccountTypesColumnAmounts(profitLossAmountsByAccountIdAndColumn, plAccounts, columnContext, AccountType.CostOfGoodsSold),
+        columnContext
+      ),
+      this.sumFinancialReportAmountsForAccountTypesColumnAmounts(profitLossAmountsByAccountIdAndColumn, plAccounts, columnContext, AccountType.Expense, AccountType.OtherExpense),
+      columnContext
+    );
+
+    const assetAccounts = balanceAccounts.filter(account =>
+      account.accountTypeId === AccountType.Bank
+      || account.accountTypeId === AccountType.AccountsReceivable
+      || account.accountTypeId === AccountType.OtherCurrentAsset
+      || account.accountTypeId === AccountType.FixedAsset
+      || account.accountTypeId === AccountType.OtherAsset);
+    const liabilityAccounts = balanceAccounts.filter(account =>
+      account.accountTypeId === AccountType.AccountsPayable
+      || account.accountTypeId === AccountType.CreditCard
+      || account.accountTypeId === AccountType.OtherCurrentLiability
+      || account.accountTypeId === AccountType.LongTermLiability);
+    const equityAccounts = balanceAccounts.filter(account => account.accountTypeId === AccountType.Equity);
 
     const currentAssetTree = this.buildFinancialReportAccountTree(
       assetAccounts.filter(account =>
         account.accountTypeId === AccountType.Bank
         || account.accountTypeId === AccountType.AccountsReceivable
         || account.accountTypeId === AccountType.OtherCurrentAsset),
-      balanceAmountsByAccountId,
-      request.chartOfAccountId
+      balanceAmountsByAccountIdAndColumn,
+      chartOfAccountId,
+      columnContext
     );
     const fixedAssetTree = this.buildFinancialReportAccountTree(
       assetAccounts.filter(account => account.accountTypeId === AccountType.FixedAsset),
-      balanceAmountsByAccountId,
-      request.chartOfAccountId
+      balanceAmountsByAccountIdAndColumn,
+      chartOfAccountId,
+      columnContext
     );
     const otherAssetTree = this.buildFinancialReportAccountTree(
       assetAccounts.filter(account => account.accountTypeId === AccountType.OtherAsset),
-      balanceAmountsByAccountId,
-      request.chartOfAccountId
+      balanceAmountsByAccountIdAndColumn,
+      chartOfAccountId,
+      columnContext
     );
     const currentLiabilityTree = this.buildFinancialReportAccountTree(
       liabilityAccounts.filter(account =>
         account.accountTypeId === AccountType.AccountsPayable
         || account.accountTypeId === AccountType.CreditCard
         || account.accountTypeId === AccountType.OtherCurrentLiability),
-      balanceAmountsByAccountId,
-      request.chartOfAccountId
+      balanceAmountsByAccountIdAndColumn,
+      chartOfAccountId,
+      columnContext
     );
     const longTermLiabilityTree = this.buildFinancialReportAccountTree(
       liabilityAccounts.filter(account => account.accountTypeId === AccountType.LongTermLiability),
-      balanceAmountsByAccountId,
-      request.chartOfAccountId
+      balanceAmountsByAccountIdAndColumn,
+      chartOfAccountId,
+      columnContext
     );
-    const equityTree = this.buildFinancialReportAccountTree(equityAccounts, balanceAmountsByAccountId, request.chartOfAccountId);
+    const equityTree = this.buildFinancialReportAccountTree(equityAccounts, balanceAmountsByAccountIdAndColumn, chartOfAccountId, columnContext);
 
     const totalCurrentAssets = this.sumFinancialReportTreeAmounts(currentAssetTree);
     const totalFixedAssets = this.sumFinancialReportTreeAmounts(fixedAssetTree);
@@ -2342,43 +2451,603 @@ export class MappingService {
     const totalEquityAccounts = this.sumFinancialReportTreeAmounts(equityTree);
     const totalEquity = this.roundFinancialReportAmount(totalEquityAccounts + netIncome);
     const totalLiabilitiesAndEquity = this.roundFinancialReportAmount(totalLiabilities + totalEquity);
+    const totalAssetsColumnAmounts = this.sumFinancialReportTreeColumnAmounts([...currentAssetTree, ...fixedAssetTree, ...otherAssetTree], columnContext);
+    const totalCurrentAssetsColumnAmounts = this.sumFinancialReportTreeColumnAmounts(currentAssetTree, columnContext);
+    const totalFixedAssetsColumnAmounts = this.sumFinancialReportTreeColumnAmounts(fixedAssetTree, columnContext);
+    const totalOtherAssetsColumnAmounts = this.sumFinancialReportTreeColumnAmounts(otherAssetTree, columnContext);
+    const totalCurrentLiabilitiesColumnAmounts = this.sumFinancialReportTreeColumnAmounts(currentLiabilityTree, columnContext);
+    const totalLongTermLiabilitiesColumnAmounts = this.sumFinancialReportTreeColumnAmounts(longTermLiabilityTree, columnContext);
+    const totalLiabilitiesColumnAmounts = this.addFinancialReportColumnAmounts(totalCurrentLiabilitiesColumnAmounts, totalLongTermLiabilitiesColumnAmounts, columnContext);
+    const totalEquityAccountsColumnAmounts = this.sumFinancialReportTreeColumnAmounts(equityTree, columnContext);
+    const totalEquityColumnAmounts = this.addFinancialReportColumnAmounts(totalEquityAccountsColumnAmounts, netIncomeColumnAmounts, columnContext);
+    const totalLiabilitiesAndEquityColumnAmounts = this.addFinancialReportColumnAmounts(totalLiabilitiesColumnAmounts, totalEquityColumnAmounts, columnContext);
 
     const assetSections: FinancialReportTreeNode[] = [
-      this.buildFinancialReportSectionNode('section-assets', 'ASSETS', [], totalAssets, 0)
+      this.buildFinancialReportSectionNode('section-assets', 'ASSETS', [], totalAssets, totalAssetsColumnAmounts, 0)
     ];
     if (currentAssetTree.length > 0) {
-      assetSections.push(this.buildFinancialReportSectionNode('section-current-assets', 'Current Assets', currentAssetTree, totalCurrentAssets, 1));
+      assetSections.push(this.buildFinancialReportSectionNode('section-current-assets', 'Current Assets', currentAssetTree, totalCurrentAssets, totalCurrentAssetsColumnAmounts, 1));
     }
     if (fixedAssetTree.length > 0) {
-      assetSections.push(this.buildFinancialReportSectionNode('section-fixed-assets', 'Fixed Assets', fixedAssetTree, totalFixedAssets, 1));
+      assetSections.push(this.buildFinancialReportSectionNode('section-fixed-assets', 'Fixed Assets', fixedAssetTree, totalFixedAssets, totalFixedAssetsColumnAmounts, 1));
     }
     if (otherAssetTree.length > 0) {
-      assetSections.push(this.buildFinancialReportSectionNode('section-other-assets', 'Other Assets', otherAssetTree, totalOtherAssets, 1));
+      assetSections.push(this.buildFinancialReportSectionNode('section-other-assets', 'Other Assets', otherAssetTree, totalOtherAssets, totalOtherAssetsColumnAmounts, 1));
     }
-    assetSections.push(this.buildFinancialReportTotalNode('total-assets', 'TOTAL ASSETS', totalAssets));
+    assetSections.push(this.buildFinancialReportTotalNode('total-assets', 'TOTAL ASSETS', totalAssets, totalAssetsColumnAmounts));
 
     const liabilityEquitySections: FinancialReportTreeNode[] = [
-      this.buildFinancialReportSectionNode('section-liabilities-equity', 'LIABILITIES & EQUITY', [], totalLiabilitiesAndEquity, 0)
+      this.buildFinancialReportSectionNode('section-liabilities-equity', 'LIABILITIES & EQUITY', [], totalLiabilitiesAndEquity, totalLiabilitiesAndEquityColumnAmounts, 0)
     ];
     if (currentLiabilityTree.length > 0) {
-      liabilityEquitySections.push(this.buildFinancialReportSectionNode('section-current-liabilities', 'Current Liabilities', currentLiabilityTree, totalCurrentLiabilities, 1));
+      liabilityEquitySections.push(this.buildFinancialReportSectionNode('section-current-liabilities', 'Current Liabilities', currentLiabilityTree, totalCurrentLiabilities, totalCurrentLiabilitiesColumnAmounts, 1));
     }
     if (longTermLiabilityTree.length > 0) {
-      liabilityEquitySections.push(this.buildFinancialReportSectionNode('section-long-term-liabilities', 'Long Term Liabilities', longTermLiabilityTree, totalLongTermLiabilities, 1));
+      liabilityEquitySections.push(this.buildFinancialReportSectionNode('section-long-term-liabilities', 'Long Term Liabilities', longTermLiabilityTree, totalLongTermLiabilities, totalLongTermLiabilitiesColumnAmounts, 1));
     }
-    liabilityEquitySections.push(this.buildFinancialReportTotalNode('total-liabilities', 'Total Liabilities', totalLiabilities));
+    liabilityEquitySections.push(this.buildFinancialReportTotalNode('total-liabilities', 'Total Liabilities', totalLiabilities, totalLiabilitiesColumnAmounts));
     const equityNodes = [
       ...equityTree,
-      this.buildFinancialReportSummaryNode('summary-net-income', 'Net Income', netIncome, 1)
+      this.buildFinancialReportSummaryNode('summary-net-income', 'Net Income', netIncome, netIncomeColumnAmounts, 1)
     ];
-    liabilityEquitySections.push(this.buildFinancialReportSectionNode('section-equity', 'Equity', equityNodes, totalEquity, 1));
-    liabilityEquitySections.push(this.buildFinancialReportTotalNode('total-liabilities-equity', 'TOTAL LIABILITIES & EQUITY', totalLiabilitiesAndEquity));
+    liabilityEquitySections.push(this.buildFinancialReportSectionNode('section-equity', 'Equity', equityNodes, totalEquity, totalEquityColumnAmounts, 1));
+    liabilityEquitySections.push(this.buildFinancialReportTotalNode('total-liabilities-equity', 'TOTAL LIABILITIES & EQUITY', totalLiabilitiesAndEquity, totalLiabilitiesAndEquityColumnAmounts));
 
     return {
       reportTitle: 'Balance Sheet',
       periodLabel: this.buildFinancialReportPeriodLabel(request.startDate, request.endDate, true),
+      columns: columnContext.columns,
+      showTotalColumn: columnContext.showTotalColumn,
       sections: [...assetSections, ...liabilityEquitySections]
     };
+  }
+
+  buildFinancialReportColumnContext(
+    reportClass: Class,
+    startDate: string | null,
+    endDate: string | null,
+    balanceSheet: boolean,
+    lines: JournalEntryLineSearchResponse[],
+    accounts: ChartOfAccountResponse[]
+  ): FinancialReportColumnContext {
+    const normalizedReportClass = this.normalizeFinancialReportClass(reportClass);
+    if (normalizedReportClass === Class.TotalOnly) {
+      const totalColumn: FinancialReportColumn = {
+        columnId: FINANCIAL_REPORT_TOTAL_COLUMN_ID,
+        label: this.buildFinancialReportColumnHeaderLabel(startDate, endDate, balanceSheet)
+      };
+      return {
+        reportClass: normalizedReportClass,
+        columns: [totalColumn],
+        showTotalColumn: false,
+        columnIds: [FINANCIAL_REPORT_TOTAL_COLUMN_ID],
+        isTimeBased: false,
+        balanceSheet
+      };
+    }
+
+    const dataColumns = this.isFinancialReportTimeBasedClass(normalizedReportClass)
+      ? this.buildFinancialReportTimePeriodColumns(normalizedReportClass, startDate, endDate)
+      : this.buildFinancialReportEntityColumns(normalizedReportClass, lines, accounts);
+
+    const columns = dataColumns.length > 0
+      ? dataColumns
+      : [{
+        columnId: FINANCIAL_REPORT_UNASSIGNED_COLUMN_ID,
+        label: 'Unassigned'
+      }];
+
+    return {
+      reportClass: normalizedReportClass,
+      columns,
+      showTotalColumn: true,
+      columnIds: columns.map(column => column.columnId),
+      isTimeBased: this.isFinancialReportTimeBasedClass(normalizedReportClass),
+      balanceSheet
+    };
+  }
+
+  isFinancialReportTimeBasedClass(reportClass: Class): boolean {
+    return reportClass === Class.Month
+      || reportClass === Class.Quarter
+      || reportClass === Class.Year;
+  }
+
+  buildFinancialReportTimePeriodColumns(
+    reportClass: Class,
+    startDate: string | null,
+    endDate: string | null
+  ): FinancialReportColumn[] {
+    const normalizedStartDate = this.normalizeFinancialReportDate(startDate);
+    const normalizedEndDate = this.normalizeFinancialReportDate(endDate);
+    const start = this.formatter.parseCalendarPrefixToLocalDate(normalizedStartDate);
+    const end = this.formatter.parseCalendarPrefixToLocalDate(normalizedEndDate);
+    if (!start || !end) {
+      return [];
+    }
+
+    const columns: FinancialReportColumn[] = [];
+    if (reportClass === Class.Month) {
+      let cursor = new Date(start.getFullYear(), start.getMonth(), 1);
+      const endMonth = new Date(end.getFullYear(), end.getMonth(), 1);
+      while (cursor.getTime() <= endMonth.getTime()) {
+        const periodStartDate = new Date(cursor.getFullYear(), cursor.getMonth(), 1);
+        const periodEndDate = new Date(cursor.getFullYear(), cursor.getMonth() + 1, 0);
+        columns.push(this.buildFinancialReportTimePeriodColumn(
+          `month-${cursor.getFullYear()}-${cursor.getMonth() + 1}`,
+          periodStartDate,
+          normalizedStartDate,
+          periodEndDate,
+          normalizedEndDate
+        ));
+        cursor = new Date(cursor.getFullYear(), cursor.getMonth() + 1, 1);
+      }
+      return columns;
+    }
+
+    if (reportClass === Class.Quarter) {
+      let cursor = new Date(start.getFullYear(), Math.floor(start.getMonth() / 3) * 3, 1);
+      const endQuarterStart = new Date(end.getFullYear(), Math.floor(end.getMonth() / 3) * 3, 1);
+      while (cursor.getTime() <= endQuarterStart.getTime()) {
+        const quarterIndex = Math.floor(cursor.getMonth() / 3) + 1;
+        const periodStartDate = new Date(cursor.getFullYear(), cursor.getMonth(), 1);
+        const periodEndDate = new Date(cursor.getFullYear(), cursor.getMonth() + 3, 0);
+        columns.push(this.buildFinancialReportTimePeriodColumn(
+          `quarter-${cursor.getFullYear()}-${quarterIndex}`,
+          periodStartDate,
+          normalizedStartDate,
+          periodEndDate,
+          normalizedEndDate,
+          `Q${quarterIndex} ${String(cursor.getFullYear() % 100).padStart(2, '0')}`
+        ));
+        cursor = new Date(cursor.getFullYear(), cursor.getMonth() + 3, 1);
+      }
+      return columns;
+    }
+
+    for (let year = start.getFullYear(); year <= end.getFullYear(); year++) {
+      const periodStartDate = new Date(year, 0, 1);
+      const periodEndDate = new Date(year, 11, 31);
+      columns.push(this.buildFinancialReportTimePeriodColumn(
+        `year-${year}`,
+        periodStartDate,
+        normalizedStartDate,
+        periodEndDate,
+        normalizedEndDate,
+        String(year)
+      ));
+    }
+    return columns;
+  }
+
+  buildFinancialReportTimePeriodColumn(
+    columnId: string,
+    periodStartDate: Date,
+    reportStartDate: string | null,
+    periodEndDate: Date,
+    reportEndDate: string | null,
+    labelOverride?: string
+  ): FinancialReportColumn {
+    const periodStart = this.normalizeFinancialReportDate(this.utility.formatDateOnlyForApi(periodStartDate));
+    const periodEnd = this.normalizeFinancialReportDate(this.utility.formatDateOnlyForApi(periodEndDate));
+    const clampedStart = reportStartDate && periodStart && reportStartDate > periodStart ? reportStartDate : periodStart;
+    const clampedEnd = reportEndDate && periodEnd && reportEndDate < periodEnd ? reportEndDate : periodEnd;
+    const labelDate = this.formatter.parseCalendarPrefixToLocalDate(clampedEnd || periodEnd);
+    const label = labelOverride || (labelDate
+      ? `${labelDate.toLocaleDateString('en-US', { month: 'short' })} ${String(labelDate.getFullYear() % 100).padStart(2, '0')}`
+      : columnId);
+
+    return {
+      columnId,
+      label,
+      periodStart: clampedStart,
+      periodEnd: clampedEnd
+    };
+  }
+
+  buildFinancialReportEntityColumns(
+    reportClass: Class,
+    lines: JournalEntryLineSearchResponse[],
+    accounts: ChartOfAccountResponse[]
+  ): FinancialReportColumn[] {
+    const entityMap = new Map<string, string>();
+
+    if (reportClass === Class.Account) {
+      accounts.forEach(account => {
+        entityMap.set(String(account.accountId), this.formatFinancialReportAccountLabel(account));
+      });
+      return this.sortFinancialReportEntityColumns(entityMap);
+    }
+
+    (lines || []).forEach(line => {
+      if (!this.isFinancialReportLineEligibleForClass(line, reportClass)) {
+        return;
+      }
+      const columnId = this.resolveFinancialReportEntityColumnId(line, reportClass, accounts);
+      const label = this.resolveFinancialReportEntityColumnLabel(line, reportClass, accounts, columnId);
+      entityMap.set(columnId, label);
+    });
+
+    return this.sortFinancialReportEntityColumns(entityMap);
+  }
+
+  sortFinancialReportEntityColumns(entityMap: Map<string, string>): FinancialReportColumn[] {
+    return [...entityMap.entries()]
+      .sort((left, right) => {
+        if (left[0] === FINANCIAL_REPORT_UNASSIGNED_COLUMN_ID) {
+          return 1;
+        }
+        if (right[0] === FINANCIAL_REPORT_UNASSIGNED_COLUMN_ID) {
+          return -1;
+        }
+        return left[1].localeCompare(right[1], undefined, { numeric: true, sensitivity: 'base' });
+      })
+      .map(([columnId, label]) => ({ columnId, label }));
+  }
+
+  isFinancialReportLineEligibleForClass(line: JournalEntryLineSearchResponse, reportClass: Class): boolean {
+    const sourceTypeId = line.sourceTypeId ?? null;
+    switch (reportClass) {
+      case Class.Customer:
+        return this.isFinancialReportCustomerSourceType(sourceTypeId);
+      case Class.Vendor:
+        return this.isFinancialReportVendorSourceType(sourceTypeId);
+      case Class.Employee:
+        return this.isFinancialReportEmployeeSourceType(sourceTypeId);
+      case Class.OtherName:
+        return !this.isFinancialReportCustomerSourceType(sourceTypeId)
+          && !this.isFinancialReportVendorSourceType(sourceTypeId)
+          && !this.isFinancialReportEmployeeSourceType(sourceTypeId);
+      default:
+        return true;
+    }
+  }
+
+  isFinancialReportCustomerSourceType(sourceTypeId: number | null): boolean {
+    return sourceTypeId === SourceType.Invoice
+      || sourceTypeId === SourceType.InvoicePayment
+      || sourceTypeId === SourceType.InvoiceCredit
+      || sourceTypeId === SourceType.Receipt
+      || sourceTypeId === SourceType.CreditMemo
+      || sourceTypeId === SourceType.Deposit;
+  }
+
+  isFinancialReportVendorSourceType(sourceTypeId: number | null): boolean {
+    return sourceTypeId === SourceType.Bill
+      || sourceTypeId === SourceType.BillPayment
+      || sourceTypeId === SourceType.BillCredit;
+  }
+
+  isFinancialReportEmployeeSourceType(sourceTypeId: number | null): boolean {
+    return sourceTypeId === SourceType.Paycheck
+      || sourceTypeId === SourceType.PayrollLiabilityCheck;
+  }
+
+  resolveFinancialReportEntityColumnId(
+    line: JournalEntryLineSearchResponse,
+    reportClass: Class,
+    accounts: ChartOfAccountResponse[]
+  ): string {
+    void accounts;
+    switch (reportClass) {
+      case Class.Customer:
+      case Class.Vendor:
+      case Class.Employee:
+      case Class.OtherName:
+        return line.contactId?.trim() || line.contactName?.trim() || FINANCIAL_REPORT_UNASSIGNED_COLUMN_ID;
+      case Class.Class:
+        return line.propertyCode?.trim() || line.propertyId?.trim() || FINANCIAL_REPORT_UNASSIGNED_COLUMN_ID;
+      case Class.Item:
+        return line.costCodeId != null && line.costCodeId > 0
+          ? String(line.costCodeId)
+          : FINANCIAL_REPORT_UNASSIGNED_COLUMN_ID;
+      case Class.CustomerJob:
+        return line.reservationId?.trim() || line.reservationCode?.trim() || FINANCIAL_REPORT_UNASSIGNED_COLUMN_ID;
+      case Class.Account:
+        return String(line.chartOfAccountId);
+      default:
+        return FINANCIAL_REPORT_UNASSIGNED_COLUMN_ID;
+    }
+  }
+
+  resolveFinancialReportEntityColumnLabel(
+    line: JournalEntryLineSearchResponse,
+    reportClass: Class,
+    accounts: ChartOfAccountResponse[],
+    columnId: string
+  ): string {
+    if (columnId === FINANCIAL_REPORT_UNASSIGNED_COLUMN_ID) {
+      return 'Unassigned';
+    }
+
+    switch (reportClass) {
+      case Class.Customer:
+      case Class.Vendor:
+      case Class.Employee:
+      case Class.OtherName:
+        return line.contactName?.trim() || 'Unknown Contact';
+      case Class.Class:
+        return line.propertyCode?.trim() || 'Unknown Class';
+      case Class.Item:
+        return line.costCodeId != null && line.costCodeId > 0 ? `Item ${line.costCodeId}` : 'Unassigned';
+      case Class.CustomerJob:
+        return line.reservationCode?.trim() || 'Unknown Job';
+      case Class.Account: {
+        const account = accounts.find(item => String(item.accountId) === columnId);
+        return account ? this.formatFinancialReportAccountLabel(account) : columnId;
+      }
+      default:
+        return columnId;
+    }
+  }
+
+  resolveFinancialReportLineColumnId(
+    line: JournalEntryLineSearchResponse,
+    columnContext: FinancialReportColumnContext,
+    accounts: ChartOfAccountResponse[]
+  ): string | null {
+    if (columnContext.reportClass === Class.TotalOnly) {
+      return FINANCIAL_REPORT_TOTAL_COLUMN_ID;
+    }
+
+    if (columnContext.isTimeBased) {
+      return this.resolveFinancialReportTimePeriodColumnId(line.transactionDate, columnContext.columns);
+    }
+
+    if (!this.isFinancialReportLineEligibleForClass(line, columnContext.reportClass)) {
+      return null;
+    }
+
+    const columnId = this.resolveFinancialReportEntityColumnId(line, columnContext.reportClass, accounts);
+    return columnContext.columnIds.includes(columnId) ? columnId : null;
+  }
+
+  resolveFinancialReportTimePeriodColumnId(
+    transactionDate: string | null | undefined,
+    columns: FinancialReportColumn[]
+  ): string | null {
+    const lineDate = this.normalizeFinancialReportDate(transactionDate);
+    if (!lineDate) {
+      return null;
+    }
+
+    for (const column of columns) {
+      const periodStart = this.normalizeFinancialReportDate(column.periodStart);
+      const periodEnd = this.normalizeFinancialReportDate(column.periodEnd);
+      if (periodStart && lineDate < periodStart) {
+        continue;
+      }
+      if (periodEnd && lineDate > periodEnd) {
+        continue;
+      }
+      return column.columnId;
+    }
+
+    return null;
+  }
+
+  aggregateProfitLossAmountsByAccountIdAndColumn(
+    lines: JournalEntryLineSearchResponse[],
+    startDate: string | null,
+    endDate: string | null,
+    accounts: ChartOfAccountResponse[],
+    columnContext: FinancialReportColumnContext,
+    accountIdRemap?: Map<number, number>
+  ): Map<number, Map<string, { debit: number; credit: number }>> {
+    const accountTypeById = new Map(accounts.map(account => [account.accountId, account.accountTypeId]));
+    const totals = new Map<number, Map<string, { debit: number; credit: number }>>();
+
+    for (const line of lines || []) {
+      if (accountTypeById.get(line.chartOfAccountId) === undefined) {
+        continue;
+      }
+      if (!this.isJournalEntryLineInDateRange(line.transactionDate, startDate, endDate)) {
+        continue;
+      }
+
+      const accountId = accountIdRemap?.get(line.chartOfAccountId) ?? line.chartOfAccountId;
+      const columnId = this.resolveFinancialReportLineColumnId(line, columnContext, accounts);
+      if (!columnId) {
+        continue;
+      }
+
+      const accountTotals = totals.get(accountId) || new Map<string, { debit: number; credit: number }>();
+      const columnTotals = accountTotals.get(columnId) || { debit: 0, credit: 0 };
+      columnTotals.debit += Number(line.debit) || 0;
+      columnTotals.credit += Number(line.credit) || 0;
+      accountTotals.set(columnId, columnTotals);
+      totals.set(accountId, accountTotals);
+    }
+
+    return totals;
+  }
+
+  aggregateBalanceSheetAmountsByAccountIdAndColumn(
+    lines: JournalEntryLineSearchResponse[],
+    endDate: string | null,
+    accounts: ChartOfAccountResponse[],
+    columnContext: FinancialReportColumnContext,
+    accountIdRemap?: Map<number, number>
+  ): Map<number, Map<string, { debit: number; credit: number }>> {
+    const accountTypeById = new Map(accounts.map(account => [account.accountId, account.accountTypeId]));
+    const totals = new Map<number, Map<string, { debit: number; credit: number }>>();
+
+    for (const line of lines || []) {
+      if (accountTypeById.get(line.chartOfAccountId) === undefined) {
+        continue;
+      }
+      if (!this.isJournalEntryLineOnOrBeforeDate(line.transactionDate, endDate)) {
+        continue;
+      }
+
+      const accountId = accountIdRemap?.get(line.chartOfAccountId) ?? line.chartOfAccountId;
+      const targetColumnIds = columnContext.isTimeBased
+        ? columnContext.columns
+          .filter(column => this.isJournalEntryLineOnOrBeforeDate(line.transactionDate, column.periodEnd || endDate))
+          .map(column => column.columnId)
+        : [this.resolveFinancialReportLineColumnId(line, columnContext, accounts)].filter((columnId): columnId is string => !!columnId);
+
+      if (targetColumnIds.length === 0) {
+        continue;
+      }
+
+      targetColumnIds.forEach(columnId => {
+        const accountTotals = totals.get(accountId) || new Map<string, { debit: number; credit: number }>();
+        const columnTotals = accountTotals.get(columnId) || { debit: 0, credit: 0 };
+        columnTotals.debit += Number(line.debit) || 0;
+        columnTotals.credit += Number(line.credit) || 0;
+        accountTotals.set(columnId, columnTotals);
+        totals.set(accountId, accountTotals);
+      });
+    }
+
+    return totals;
+  }
+
+  consolidateFinancialReportAmountsByAccountIdAndColumn(
+    rawTotals: Map<number, Map<string, { debit: number; credit: number }>>,
+    accountIdRemap: Map<number, number>,
+    columnIds: string[],
+    accounts: ChartOfAccountResponse[],
+    mode: 'activity' | 'balance'
+  ): Map<number, Map<string, number>> {
+    const accountTypeById = new Map(accounts.map(account => [account.accountId, account.accountTypeId]));
+    const consolidated = new Map<number, Map<string, number>>();
+
+    rawTotals.forEach((columnTotals, accountId) => {
+      const canonicalAccountId = accountIdRemap.get(accountId) ?? accountId;
+      const accountTypeId = accountTypeById.get(canonicalAccountId) ?? accountTypeById.get(accountId);
+      if (accountTypeId === undefined) {
+        return;
+      }
+
+      const accountAmounts = consolidated.get(canonicalAccountId) || new Map<string, number>();
+      columnTotals.forEach((value, columnId) => {
+        if (!columnIds.includes(columnId)) {
+          return;
+        }
+        const signedAmount = this.signedFinancialReportAmount(accountTypeId, value.debit, value.credit, mode);
+        accountAmounts.set(columnId, this.roundFinancialReportAmount((accountAmounts.get(columnId) || 0) + signedAmount));
+      });
+      consolidated.set(canonicalAccountId, accountAmounts);
+    });
+
+    return consolidated;
+  }
+
+  getFinancialReportAccountColumnAmounts(
+    columnAmounts: Map<string, number> | undefined,
+    columnContext: FinancialReportColumnContext
+  ): Record<string, number> {
+    const amounts = this.createEmptyFinancialReportColumnAmounts(columnContext.columnIds, columnContext.showTotalColumn);
+    (columnAmounts || new Map<string, number>()).forEach((amount, columnId) => {
+      if (amounts[columnId] !== undefined) {
+        amounts[columnId] = this.roundFinancialReportAmount(amount);
+      }
+    });
+    return this.finalizeFinancialReportColumnAmounts(amounts, columnContext);
+  }
+
+  createEmptyFinancialReportColumnAmounts(columnIds: string[], includeTotal: boolean): Record<string, number> {
+    const amounts: Record<string, number> = {};
+    columnIds.forEach(columnId => {
+      amounts[columnId] = 0;
+    });
+    if (includeTotal) {
+      amounts[FINANCIAL_REPORT_TOTAL_COLUMN_ID] = 0;
+    }
+    return amounts;
+  }
+
+  finalizeFinancialReportColumnAmounts(
+    amounts: Record<string, number>,
+    columnContext: FinancialReportColumnContext
+  ): Record<string, number> {
+    if (columnContext.showTotalColumn) {
+      amounts[FINANCIAL_REPORT_TOTAL_COLUMN_ID] = this.roundFinancialReportAmount(
+        columnContext.columnIds.reduce((sum, columnId) => sum + (amounts[columnId] || 0), 0)
+      );
+    }
+    return amounts;
+  }
+
+  getFinancialReportTotalFromColumnAmounts(
+    columnAmounts: Record<string, number>,
+    columnContext: FinancialReportColumnContext
+  ): number {
+    if (columnContext.showTotalColumn) {
+      return this.roundFinancialReportAmount(columnAmounts[FINANCIAL_REPORT_TOTAL_COLUMN_ID] || 0);
+    }
+    return this.roundFinancialReportAmount(columnAmounts[FINANCIAL_REPORT_TOTAL_COLUMN_ID] || columnAmounts[columnContext.columnIds[0]] || 0);
+  }
+
+  addFinancialReportColumnAmounts(
+    left: Record<string, number>,
+    right: Record<string, number>,
+    columnContext: FinancialReportColumnContext
+  ): Record<string, number> {
+    const amounts = this.createEmptyFinancialReportColumnAmounts(columnContext.columnIds, columnContext.showTotalColumn);
+    Object.keys(amounts).forEach(key => {
+      amounts[key] = this.roundFinancialReportAmount((left[key] || 0) + (right[key] || 0));
+    });
+    return amounts;
+  }
+
+  subtractFinancialReportColumnAmounts(
+    left: Record<string, number>,
+    right: Record<string, number>,
+    columnContext: FinancialReportColumnContext
+  ): Record<string, number> {
+    const amounts = this.createEmptyFinancialReportColumnAmounts(columnContext.columnIds, columnContext.showTotalColumn);
+    Object.keys(amounts).forEach(key => {
+      amounts[key] = this.roundFinancialReportAmount((left[key] || 0) - (right[key] || 0));
+    });
+    return amounts;
+  }
+
+  sumFinancialReportTreeColumnAmounts(
+    nodes: FinancialReportTreeNode[],
+    columnContext: FinancialReportColumnContext
+  ): Record<string, number> {
+    return (nodes || []).reduce(
+      (totals, node) => this.addFinancialReportColumnAmounts(totals, node.columnAmounts, columnContext),
+      this.createEmptyFinancialReportColumnAmounts(columnContext.columnIds, columnContext.showTotalColumn)
+    );
+  }
+
+  sumFinancialReportAmountsForAccountTypesAndColumn(
+    amountsByAccountIdAndColumn: Map<number, Map<string, number>>,
+    accounts: ChartOfAccountResponse[],
+    columnContext: FinancialReportColumnContext,
+    ...accountTypeIds: AccountType[]
+  ): number {
+    return this.getFinancialReportTotalFromColumnAmounts(
+      this.sumFinancialReportAmountsForAccountTypesColumnAmounts(amountsByAccountIdAndColumn, accounts, columnContext, ...accountTypeIds),
+      columnContext
+    );
+  }
+
+  sumFinancialReportAmountsForAccountTypesColumnAmounts(
+    amountsByAccountIdAndColumn: Map<number, Map<string, number>>,
+    accounts: ChartOfAccountResponse[],
+    columnContext: FinancialReportColumnContext,
+    ...accountTypeIds: AccountType[]
+  ): Record<string, number> {
+    const allowedTypes = new Set<number>(accountTypeIds);
+    const accountTypeById = new Map(accounts.map(account => [account.accountId, account.accountTypeId]));
+    const totals = this.createEmptyFinancialReportColumnAmounts(columnContext.columnIds, columnContext.showTotalColumn);
+
+    amountsByAccountIdAndColumn.forEach((columnAmounts, accountId) => {
+      const accountTypeId = accountTypeById.get(accountId);
+      if (accountTypeId === undefined || !allowedTypes.has(accountTypeId)) {
+        return;
+      }
+      Object.keys(totals).forEach(key => {
+        totals[key] = this.roundFinancialReportAmount(totals[key] + (columnAmounts.get(key) || 0));
+      });
+    });
+
+    return totals;
   }
 
   aggregateProfitLossAmountsByAccountId(
@@ -2452,8 +3121,9 @@ export class MappingService {
 
   buildFinancialReportAccountTree(
     accounts: ChartOfAccountResponse[],
-    amountsByAccountId: Map<number, number>,
-    chartOfAccountId: number | null
+    amountsByAccountIdAndColumn: Map<number, Map<string, number>>,
+    chartOfAccountId: number | null,
+    columnContext: FinancialReportColumnContext
   ): FinancialReportTreeNode[] {
     const allowedAccountIds = this.resolveFinancialReportAllowedAccountIds(accounts, chartOfAccountId);
     const scopedAccounts = accounts
@@ -2477,30 +3147,36 @@ export class MappingService {
     });
 
     return rootAccounts
-      .map(account => this.buildFinancialReportAccountNode(account, childrenByParentId, amountsByAccountId, 1))
+      .map(account => this.buildFinancialReportAccountNode(account, childrenByParentId, amountsByAccountIdAndColumn, columnContext, 1))
       .filter(node => node.amount !== 0 || node.childNodes.length > 0);
   }
 
   buildFinancialReportAccountNode(
     account: ChartOfAccountResponse,
     childrenByParentId: Map<number, ChartOfAccountResponse[]>,
-    amountsByAccountId: Map<number, number>,
+    amountsByAccountIdAndColumn: Map<number, Map<string, number>>,
+    columnContext: FinancialReportColumnContext,
     depth: number
   ): FinancialReportTreeNode {
     const childAccounts = (childrenByParentId.get(account.accountId) || [])
       .slice()
       .sort((left, right) => this.compareFinancialReportAccounts(left, right));
     const childNodes = childAccounts
-      .map(childAccount => this.buildFinancialReportAccountNode(childAccount, childrenByParentId, amountsByAccountId, depth + 1))
+      .map(childAccount => this.buildFinancialReportAccountNode(childAccount, childrenByParentId, amountsByAccountIdAndColumn, columnContext, depth + 1))
       .filter(node => node.amount !== 0 || node.childNodes.length > 0);
-    const ownAmount = amountsByAccountId.get(account.accountId) || 0;
-    const childAmount = childNodes.reduce((sum, node) => sum + node.amount, 0);
-    const amount = this.roundFinancialReportAmount(ownAmount + childAmount);
+    const ownColumnAmounts = this.getFinancialReportAccountColumnAmounts(amountsByAccountIdAndColumn.get(account.accountId), columnContext);
+    const columnAmounts = this.addFinancialReportColumnAmounts(
+      ownColumnAmounts,
+      this.sumFinancialReportTreeColumnAmounts(childNodes, columnContext),
+      columnContext
+    );
+    const amount = this.getFinancialReportTotalFromColumnAmounts(columnAmounts, columnContext);
 
     return {
       nodeId: `account-${account.accountId}`,
       label: this.formatFinancialReportAccountLabel(account),
       amount,
+      columnAmounts,
       depth,
       rowKind: 'account',
       accountId: account.accountId,
@@ -2513,38 +3189,145 @@ export class MappingService {
     label: string,
     childNodes: FinancialReportTreeNode[],
     amount: number,
+    columnAmounts: Record<string, number>,
     depth = 0
   ): FinancialReportTreeNode {
     return {
       nodeId,
       label,
       amount: this.roundFinancialReportAmount(amount),
+      columnAmounts,
       depth,
       rowKind: 'section',
       childNodes
     };
   }
 
-  buildFinancialReportTotalNode(nodeId: string, label: string, amount: number, depth = 0): FinancialReportTreeNode {
+  buildFinancialReportTotalNode(
+    nodeId: string,
+    label: string,
+    amount: number,
+    columnAmounts: Record<string, number>,
+    depth = 0
+  ): FinancialReportTreeNode {
     return {
       nodeId,
       label,
       amount: this.roundFinancialReportAmount(amount),
+      columnAmounts,
       depth,
       rowKind: 'total',
       childNodes: []
     };
   }
 
-  buildFinancialReportSummaryNode(nodeId: string, label: string, amount: number, depth = 0): FinancialReportTreeNode {
+  buildFinancialReportSummaryNode(
+    nodeId: string,
+    label: string,
+    amount: number,
+    columnAmounts: Record<string, number>,
+    depth = 0
+  ): FinancialReportTreeNode {
     return {
       nodeId,
       label,
       amount: this.roundFinancialReportAmount(amount),
+      columnAmounts,
       depth,
       rowKind: 'summary',
       childNodes: []
     };
+  }
+
+  prepareFinancialReportScope(
+    filteredAccounts: ChartOfAccountResponse[],
+    chartOfAccountId: number | null
+  ): {
+    accounts: ChartOfAccountResponse[];
+    chartOfAccountId: number | null;
+    accountIdRemap: Map<number, number>;
+  } {
+    const { accounts, accountIdRemap, remapChartOfAccountId } = this.consolidateFinancialReportAccountsByCode(filteredAccounts);
+    return {
+      accounts,
+      chartOfAccountId: remapChartOfAccountId(chartOfAccountId),
+      accountIdRemap
+    };
+  }
+
+  consolidateFinancialReportAccountsByCode(accounts: ChartOfAccountResponse[]): {
+    accounts: ChartOfAccountResponse[];
+    accountIdRemap: Map<number, number>;
+    remapChartOfAccountId(chartOfAccountId: number | null): number | null;
+  } {
+    const sortedAccounts = [...(accounts || [])].sort((left, right) => this.compareFinancialReportAccounts(left, right));
+    const accountById = new Map(sortedAccounts.map(account => [account.accountId, account]));
+    const canonicalByKey = new Map<string, ChartOfAccountResponse>();
+    const accountIdRemap = new Map<number, number>();
+
+    sortedAccounts.forEach(account => {
+      const key = this.financialReportAccountKey(account);
+      const canonicalAccount = canonicalByKey.get(key);
+      if (!canonicalAccount) {
+        canonicalByKey.set(key, account);
+        accountIdRemap.set(account.accountId, account.accountId);
+        return;
+      }
+      accountIdRemap.set(account.accountId, canonicalAccount.accountId);
+    });
+
+    const consolidatedAccounts = [...canonicalByKey.values()].map(account => {
+      let subAccountId = account.subAccountId ?? null;
+      let isSubaccount = account.isSubaccount;
+      if (isSubaccount && subAccountId != null) {
+        const parentAccount = accountById.get(subAccountId);
+        if (parentAccount) {
+          const parentKey = this.financialReportAccountKey(parentAccount);
+          subAccountId = canonicalByKey.get(parentKey)?.accountId ?? null;
+        } else {
+          subAccountId = null;
+        }
+      }
+      if (subAccountId == null) {
+        isSubaccount = false;
+      }
+
+      return {
+        ...account,
+        subAccountId,
+        isSubaccount
+      };
+    });
+
+    return {
+      accounts: consolidatedAccounts.sort((left, right) => this.compareFinancialReportAccounts(left, right)),
+      accountIdRemap,
+      remapChartOfAccountId: (selectedChartOfAccountId: number | null) => {
+        if (selectedChartOfAccountId == null || selectedChartOfAccountId <= 0) {
+          return selectedChartOfAccountId;
+        }
+        return accountIdRemap.get(selectedChartOfAccountId) ?? selectedChartOfAccountId;
+      }
+    };
+  }
+
+  consolidateFinancialReportAmountsByAccountId(
+    amountsByAccountId: Map<number, number>,
+    accountIdRemap: Map<number, number>
+  ): Map<number, number> {
+    const consolidatedAmounts = new Map<number, number>();
+    amountsByAccountId.forEach((amount, accountId) => {
+      const canonicalAccountId = accountIdRemap.get(accountId) ?? accountId;
+      consolidatedAmounts.set(
+        canonicalAccountId,
+        this.roundFinancialReportAmount((consolidatedAmounts.get(canonicalAccountId) || 0) + amount)
+      );
+    });
+    return consolidatedAmounts;
+  }
+
+  financialReportAccountKey(account: ChartOfAccountResponse): string {
+    return `${account.accountTypeId}:${(account.accountNo || '').trim()}`;
   }
 
   filterFinancialReportAccounts(

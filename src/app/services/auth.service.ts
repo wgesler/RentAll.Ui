@@ -8,7 +8,7 @@ import { RouterToken, RouterUrl } from '../app.routes';
 import { FeatureType } from '../authenticated/organizations/models/organization-enum';
 import { FeatureResponse } from '../authenticated/organizations/models/organization-feature.model';
 import { StartupPage } from '../authenticated/users/models/user-enums';
-import { hasOwnerRole, isServiceProvider } from '../authenticated/shared/access/role-access';
+import { hasAccountingFullAccess, hasAccountingNavAccess, hasOwnerRole, isServiceProvider } from '../authenticated/shared/access/role-access';
 import { StorageKey } from '../enums/storage-keys.enum';
 import { AuthResponse } from '../public/login/models/auth-response';
 import { JwtContainer, JwtUser } from '../public/login/models/jwt';
@@ -208,6 +208,15 @@ export class AuthService {
     /** Organization Accounting feature flag (not the same as user role checks such as isInAccounting). */
     hasAccountingAccess(features?: FeatureResponse[]): boolean {
         return this.hasOrganizationFeature(FeatureType.Accounting, features);
+    }
+
+    hasAccountingNavAccess(): boolean {
+        return hasAccountingNavAccess(this.getUser()?.userGroups as Array<string | number> | undefined);
+    }
+
+    /** Deposits, GL, reports, and journal sync/clear within Accounting. */
+    hasAccountingFullAccess(): boolean {
+        return hasAccountingFullAccess(this.getUser()?.userGroups as Array<string | number> | undefined);
     }
 
     hasAccessToLeads(features?: FeatureResponse[]): boolean {

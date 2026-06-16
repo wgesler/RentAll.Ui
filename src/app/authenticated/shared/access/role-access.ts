@@ -92,8 +92,26 @@ const ticketAccess: AccessRule = {
   excludedRoles: []
 };
 
-const accountingOnly: AccessRule = {
-  requiredRoles: [UserGroups.Accounting, UserGroups.Admin, UserGroups.SuperAdmin],
+const accountingStaffOnly: AccessRule = {
+  requiredRoles: [UserGroups.Accounting, UserGroups.AccountingAdmin],
+  excludedRoles: []
+};
+
+/** Sidebar and /auth/accounting route: accounting staff, office admins, and org admins. */
+const accountingNavAccess: AccessRule = {
+  requiredRoles: [
+    UserGroups.Accounting,
+    UserGroups.AccountingAdmin,
+    UserGroups.OfficeAdmin,
+    UserGroups.Admin,
+    UserGroups.SuperAdmin
+  ],
+  excludedRoles: []
+};
+
+/** Deposits, GL, reports, and journal sync/clear: org admins only. */
+const accountingFullAccess: AccessRule = {
+  requiredRoles: [UserGroups.Admin, UserGroups.SuperAdmin],
   excludedRoles: []
 };
 
@@ -154,7 +172,7 @@ export const COMPANY_USERS_NAV_ITEMS: NavItemDefinition[] = [
   { icon: 'home', displayName: 'Properties', url: ROUTER_TOKEN.PropertyList, ...openToAllExceptSuperAdmin },
   { icon: 'build', displayName: 'Maintenance', url: ROUTER_TOKEN.MaintenanceList, ...openToAllExceptSuperAdmin },
   { icon: 'confirmation_number', displayName: 'Tickets', url: ROUTER_TOKEN.TicketList, ...ticketAccess },
-  { icon: 'account_balance', displayName: 'Accounting', url: ROUTER_TOKEN.AccountingList, ...accountingOnly },
+  { icon: 'account_balance', displayName: 'Accounting', url: ROUTER_TOKEN.AccountingList, ...accountingNavAccess },
   { icon: 'mail', displayName: 'Emails', url: ROUTER_TOKEN.EmailList, ...openToAll },
   { icon: 'description', displayName: 'Documents', url: ROUTER_TOKEN.DocumentList, ...openToAllExceptSuperAdmin },
   { icon: 'contacts', displayName: 'Contacts', url: ROUTER_TOKEN.Contacts, ...openToAllExceptSuperAdmin },
@@ -165,7 +183,7 @@ export const COMPANY_USERS_NAV_ITEMS: NavItemDefinition[] = [
 export const SUPER_USER_NAV_ITEMS: NavItemDefinition[] = [
   { icon: 'corporate_fare', displayName: 'Organizations', url: ROUTER_TOKEN.OrganizationList, ...superAdminOnly },
   { icon: 'confirmation_number', displayName: 'Tickets', url: ROUTER_TOKEN.TicketList, ...ticketAccess },
-  { icon: 'account_balance', displayName: 'Accounting', url: ROUTER_TOKEN.AccountingList, ...accountingOnly },
+  { icon: 'account_balance', displayName: 'Accounting', url: ROUTER_TOKEN.AccountingList, ...accountingNavAccess },
   { icon: 'hub', displayName: 'Leads', url: ROUTER_TOKEN.Leads, ...leadsAdminAndAgent },
   { icon: 'person', displayName: 'Owners', url: ROUTER_TOKEN.Owner, ...openToAll },
   { icon: 'mail', displayName: 'Emails', url: ROUTER_TOKEN.EmailList, ...openToAll },
@@ -200,13 +218,13 @@ const routeRulesBySegment: Record<string, AccessRule> = {
   [ROUTER_TOKEN.DocumentList]: openToAllExceptSuperAdmin,
   [ROUTER_TOKEN.Contacts]: openToAllExceptSuperAdmin,
 
-  [ROUTER_TOKEN.AccountingList]: accountingOnly,
+  [ROUTER_TOKEN.AccountingList]: accountingNavAccess,
   leads: leadsAdminAndAgent,
   [ROUTER_TOKEN.Owner]: openToAll,
-  billing: accountingOnly,
+  billing: accountingNavAccess,
   [ROUTER_TOKEN.BillingCreate]: superAdminOnly,
-  [ROUTER_TOKEN.InvoiceCreate]: accountingOnly,
-  [ROUTER_TOKEN.CostCodesList]: accountingOnly,
+  [ROUTER_TOKEN.InvoiceCreate]: accountingNavAccess,
+  [ROUTER_TOKEN.CostCodesList]: accountingNavAccess,
 
   [ROUTER_TOKEN.OrganizationConfiguration]: settingsAccess,
   [ROUTER_TOKEN.OfficeList]: adminOnly,
@@ -254,6 +272,18 @@ export function hasOrgAdminAccess(userGroups: UserGroupInput): boolean {
 
 export function hasOfficeAdminRole(userGroups: UserGroupInput): boolean {
   return getUserGroupNumbers(userGroups).includes(UserGroups.OfficeAdmin);
+}
+
+export function hasAccountingNavAccess(userGroups: UserGroupInput): boolean {
+  return hasAccessByRule(userGroups, accountingNavAccess);
+}
+
+export function hasAccountingFullAccess(userGroups: UserGroupInput): boolean {
+  return hasAccessByRule(userGroups, accountingFullAccess);
+}
+
+export function hasAccountingStaffAccess(userGroups: UserGroupInput): boolean {
+  return hasAccessByRule(userGroups, accountingStaffOnly);
 }
 
 export function hasOwnerRole(userGroups: UserGroupInput): boolean {

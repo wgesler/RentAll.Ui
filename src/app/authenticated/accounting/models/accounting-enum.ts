@@ -283,3 +283,74 @@ export function getPaymentTypeLabel(
   return options.find(type => type.value === paymentTypeId)?.label ?? getPaymentType(paymentTypeId);
 }
 //#endregion
+
+//#region Class
+export enum Class {
+  TotalOnly = 0,
+  Month = 1,
+  Quarter = 2,
+  Year = 3,
+  Customer = 4,
+  Vendor = 5,
+  Employee = 6,
+  OtherName = 7,
+  Class = 8,
+  Item = 9,
+  CustomerJob = 10,
+  Account = 11
+}
+
+export const ClassLabels: { value: Class; label: string }[] = [
+  { value: Class.TotalOnly, label: 'Total Only' },
+  { value: Class.Month, label: 'Month' },
+  { value: Class.Quarter, label: 'Quarter' },
+  { value: Class.Year, label: 'Year' },
+  { value: Class.Customer, label: 'Customer' },
+  { value: Class.Vendor, label: 'Vendor' },
+  { value: Class.Employee, label: 'Employee' },
+  { value: Class.OtherName, label: 'Other Name' },
+  { value: Class.Class, label: 'Class' },
+  { value: Class.Item, label: 'Item' },
+  { value: Class.CustomerJob, label: 'Customer:Job' },
+  { value: Class.Account, label: 'Account' },
+];
+
+export function getClass(classId: number | undefined | null): string {
+  if (classId === undefined || classId === null) {
+    return '';
+  }
+
+  const typeMap: { [key: number]: string } = {
+    [Class.TotalOnly]: 'Total Only',
+    [Class.Month]: 'Month',
+    [Class.Quarter]: 'Quarter',
+    [Class.Year]: 'Year',
+    [Class.Customer]: 'Customer',
+    [Class.Vendor]: 'Vendor',
+    [Class.Employee]: 'Employee',
+    [Class.OtherName]: 'Other Name',
+    [Class.Class]: 'Class',
+    [Class.Item]: 'Item',
+    [Class.CustomerJob]: 'Customer:Job',
+    [Class.Account]: 'Account',
+  };
+
+  return typeMap[classId] || '';
+}
+
+export function getClasses(): { value: number; label: string }[] {
+  return ClassLabels.map(({ value, label }) => ({ value, label }));
+}
+
+export function getClassLabel(
+  classId: number | undefined | null,
+  classes?: { value: number; label: string }[]
+): string {
+  if (classId === undefined || classId === null) {
+    return '';
+  }
+
+  const options = classes?.length ? classes : ClassLabels;
+  return options.find(type => type.value === classId)?.label ?? getClass(classId);
+}
+//#endregion

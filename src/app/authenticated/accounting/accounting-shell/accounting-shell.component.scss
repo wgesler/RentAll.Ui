@@ -31,11 +31,16 @@
     app-cost-codes-list,
     app-general-ledger-list,
     app-general-ledger,
+    app-financial-report,
     app-document-list {
       display: block;
       width: 100%;
       min-width: 0;
       box-sizing: border-box;
+    }
+
+    .mat-mdc-tab-body-content:has(app-financial-report) {
+      overflow-x: visible;
     }
 
     /*
