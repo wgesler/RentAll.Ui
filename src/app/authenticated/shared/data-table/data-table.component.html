@@ -162,10 +162,14 @@
                   <span class="expand-text">{{ item.expanded ? '−' : '+' }}</span>
                 </button>
                 } @case ('select') {
-                <mat-checkbox [checked]="item?.selected" [disabled]="item?.updating || item?.disabled || !hasActionsEnabled" (change)="emitSelectEvent($event, item)"
-                  (click)="$event.stopPropagation()" (mousedown)="$event.stopPropagation()"
-                  [matTooltip]="actionTooltipSelect"/>
-                @if (item?.updating) {<mat-spinner diameter="15" color="primary" class="inline relative top-px ml-2"/>}
+                <div class="datatable-select-cell" (click)="$event.stopPropagation()" (mousedown)="$event.stopPropagation()">
+                  <mat-checkbox [checked]="item?.selected" [disabled]="item?.updating || item?.disabled || !hasActionsEnabled" (change)="emitSelectEvent($event, item)"
+                    (click)="$event.stopPropagation()" (mousedown)="$event.stopPropagation()"
+                    [matTooltip]="actionTooltipSelect"/>
+                  @if (item?.updating) {
+                    <mat-spinner diameter="15" color="primary" class="inline relative top-px ml-2"/>
+                  }
+                </div>
                   } @case ('no') {
                   {{dataSource.filteredData.indexOf(item)+1}}
                   } @case ('actions') {
@@ -391,8 +395,10 @@
                   } @else if (column.name === 'applyAmount' && isManualApplyMode && item?.applyAmountEditable !== false) {
                     <input type="text"
                       id="apply-amount-{{templateTableId}}-{{item?.invoiceId || item?.receiptId || i}}"
-                      [value]="item.applyAmountDisplay || item.applyAmount || ''"
-                      (input)="applyAmountInputCallback && applyAmountInputCallback(item, $event); applyAmountChangeCallback && applyAmountChangeCallback(item, ($any($event.target)).value)"
+                      [ngModel]="item.applyAmountDisplay || item.applyAmount || ''"
+                      [ngModelOptions]="{standalone: true}"
+                      (ngModelChange)="item.applyAmountDisplay = $event; applyAmountChangeCallback && applyAmountChangeCallback(item, $event)"
+                      (input)="applyAmountInputCallback && applyAmountInputCallback(item, $event)"
                       (blur)="applyAmountBlurCallback && applyAmountBlurCallback(item, $event)"
                       (focus)="applyAmountFocusCallback && applyAmountFocusCallback(item, $event)"
                       (keydown.enter)="applyAmountEnterCallback && applyAmountEnterCallback(item, $event)"

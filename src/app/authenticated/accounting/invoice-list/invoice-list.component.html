@@ -53,8 +53,8 @@
           [hasFilter]="true"
           [hasToggleTop]="false"
           [hasButtonTop]="false"
-          [hasActionsSelect]="hasQuickBooksAccess && showSelections"
-          [hasButtonSelectAll]="hasQuickBooksAccess && showSelections"
+          [hasActionsSelect]="showInvoiceTableSelections"
+          [hasButtonSelectAll]="showInvoiceTableSelections"
           [hasActionsRowClick]="!showPaymentForm"
           [hasActionsView]="true"
           [hasActionsEdit]="true"
@@ -75,6 +75,7 @@
           [applyAmountBlurCallback]="onApplyAmountBlur.bind(this)"
           [applyAmountFocusCallback]="onApplyAmountFocus.bind(this)"
           [applyAmountEnterCallback]="onApplyAmountEnter.bind(this)"
+          [selectionRowChangedCallback]="onInvoiceApplySelectionRowChanged.bind(this)"
           [itemsPerPage]="100"
           [totalsRow]="totalsRow"
           [totalsLabel]="'Totals:'"
@@ -96,15 +97,10 @@
                   ShowPaid
                 </mat-slide-toggle>
               }
-              @if (hasQuickBooksAccess) {
-                <mat-slide-toggle id="toggle-invoices-show-selections" [checked]="showSelections" color="primary" (change)="onShowSelectionsToggleChange($event)" class="whitespace-nowrap">
-                  Show Selections
-                </mat-slide-toggle>
-              }
               <button mat-raised-button type="button" color="accent" id="apply-payment-button" (click)="openApplyPaymentDialog()" class="whitespace-nowrap items-center flex gap-1">
                 Apply Payment
               </button>
-              @if (hasQuickBooksAccess) {
+              @if (source === 'accounting') {
                 <button mat-raised-button type="button" color="accent" id="export-invoice-button" (click)="exportInvoicesToIif()" [disabled]="selectedInvoiceIds.size === 0" class="whitespace-nowrap items-center flex gap-1">
                   <mat-icon class="text-base">download</mat-icon>
                   <span>Export</span>

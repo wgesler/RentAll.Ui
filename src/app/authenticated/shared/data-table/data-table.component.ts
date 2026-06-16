@@ -148,6 +148,7 @@ export class DataTableComponent implements OnChanges, OnInit, AfterViewInit, OnD
   @Input() applyAmountBlurCallback?: (item: PurposefulAny, event: Event) => void; // Callback for apply amount blur
   @Input() applyAmountFocusCallback?: (item: PurposefulAny, event: Event) => void; // Callback for apply amount focus
   @Input() applyAmountEnterCallback?: (item: PurposefulAny, event: Event) => void; // Callback for apply amount enter key
+  @Input() selectionRowChangedCallback?: (item: PurposefulAny, checked: boolean) => void; // Checkbox toggle in manual apply mode
   @Input() totalsRow?: { [columnName: string]: string }; // Totals data for each column
   @Input() totalsLabel?: string = 'Total'; // Label for the totals row
   @Input() noDataMessage: string = 'No data found...'; // Message when table has no rows
@@ -596,6 +597,10 @@ export class DataTableComponent implements OnChanges, OnInit, AfterViewInit, OnD
       return;
     }
 
+    if (event && this.isSelectColumnInteraction(event)) {
+      return;
+    }
+
     // Shift+click is reserved for multi-select flows; do not trigger standard row-click handlers.
     if (event?.shiftKey) {
       this.rowClickMouseEvent.emit({ rowItem, mouseEvent: event });
@@ -679,6 +684,9 @@ export class DataTableComponent implements OnChanges, OnInit, AfterViewInit, OnD
     }
 
     rowItem.selected = event.checked;
+    if (this.isManualApplyMode && this.selectionRowChangedCallback) {
+      this.selectionRowChangedCallback(rowItem, event.checked);
+    }
     if (this.hasButtonSelectAll) {
       event.checked ? this.selection.select(rowItem) : this.selection.deselect(rowItem);
       this.selectionSet.emit(this.selection);
@@ -903,10 +911,21 @@ export class DataTableComponent implements OnChanges, OnInit, AfterViewInit, OnD
     if (!columnName) {
       return false;
     }
+    if (columnName === 'select') {
+      return true;
+    }
     if (column.suppressRowClick === true) {
       return true;
     }
     return !!(this.suppressRowClickOnDropdownCells && (item[columnName]?.options?.length || column.options?.length));
+  }
+
+  isSelectColumnInteraction(event: MouseEvent): boolean {
+    const target = event.target as HTMLElement | null;
+    if (!target) {
+      return false;
+    }
+    return !!target.closest('.mat-column-select, mat-checkbox, .mdc-checkbox, .mdc-form-field');
   }
 
   onTableCellClick(event: MouseEvent, item: PurposefulAny, column: ColumnData): void {
@@ -1387,6 +1406,15 @@ export class DataTableComponent implements OnChanges, OnInit, AfterViewInit, OnD
     this.selection.clear();
     this.selectionSet.emit(this.selection);
     this.isAllSelected = false;
+  }
+
+  /** Re-render rows without clearing checkbox selection (e.g. after programmatic apply-amount updates). */
+  refreshDisplayedData(): void {
+    if (!this.data) {
+      return;
+    }
+    this.dataSource.data = [...this.data];
+    this.markViewForCheck();
   }
 
   setIsAllSelected(): boolean {

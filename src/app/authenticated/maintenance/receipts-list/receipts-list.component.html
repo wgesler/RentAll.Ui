@@ -48,6 +48,11 @@
             <mat-slide-toggle [checked]="showInactive" color="primary" (change)="toggleInactive()">
               InActive
             </mat-slide-toggle>
+            @if (embeddedInAccounting && accountingListMode === 'bills') {
+              <mat-slide-toggle id="toggle-bills-show-paid" [checked]="showPaid" color="primary" (change)="onShowPaidToggleChange($event.checked)" class="whitespace-nowrap">
+                ShowPaid
+              </mat-slide-toggle>
+            }
             @if (embeddedInAccounting && accountingListMode !== 'receipts') {
               <button mat-raised-button type="button" color="accent" id="apply-payment-button" (click)="openApplyPaymentDialog()" class="whitespace-nowrap items-center flex gap-1">
                 Apply Payments

@@ -1,6 +1,6 @@
 import { CommonModule } from '@angular/common';
 import { SelectionModel } from '@angular/cdk/collections';
-import { ChangeDetectionStrategy, ChangeDetectorRef, Component, EventEmitter, Input, OnChanges, OnDestroy, OnInit, Output, SimpleChanges } from '@angular/core';
+import { ChangeDetectionStrategy, ChangeDetectorRef, Component, EventEmitter, Input, OnChanges, OnDestroy, OnInit, Output, SimpleChanges, ViewChild } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
 import { ToastrService } from 'ngx-toastr';
@@ -41,6 +41,7 @@ import { WorkOrderService } from '../services/work-order.service';
   changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class ReceiptsListComponent implements OnInit, OnChanges, OnDestroy {
+  @ViewChild(DataTableComponent) billsDataTable?: DataTableComponent;
   @Input() property: PropertyResponse | null = null;
   @Input() officeId: number | null = null;
   @Input() searchRequest?: MaintenanceListSearchRequest | null;
@@ -70,7 +71,7 @@ export class ReceiptsListComponent implements OnInit, OnChanges, OnDestroy {
   paymentTypeOptions = PaymentTypeLabels;
 
   showPaymentForm: boolean = false;
-  showBillSelections = false;
+  showPaid = true;
   selectedBillReceiptIds = new Set<number>();
   isManualApplyMode: boolean = false;
   selectedPaymentChartOfAccountId: number | null = null;
@@ -122,6 +123,7 @@ export class ReceiptsListComponent implements OnInit, OnChanges, OnDestroy {
     amountDisplay: { displayAs: 'Amount', maxWidth: '15ch', alignment: 'right', headerAlignment: 'right', sort: false },
     paidAmount: { displayAs: 'Paid', maxWidth: '15ch', alignment: 'right', headerAlignment: 'right', sort: false },
     dueAmount: { displayAs: 'Due', maxWidth: '15ch', alignment: 'right', headerAlignment: 'right', sort: false },
+    applyAmount: { displayAs: 'Apply', maxWidth: '20ch', alignment: 'right', headerAlignment: 'right', sort: false },
     isActive: { displayAs: 'IsActive', isCheckbox: true, checkboxEditable: false, sort: false, wrap: false, alignment: 'center', maxWidth: '15ch' }
   };
 
@@ -148,7 +150,7 @@ export class ReceiptsListComponent implements OnInit, OnChanges, OnDestroy {
     const accountingColumns = this.accountingListMode === 'receipts'
       ? this.accountingNonBillReceiptDisplayedColumns
       : this.accountingReceiptDisplayedColumns;
-    if (this.accountingListMode === 'bills' || !this.isManualApplyMode) {
+    if (!this.isManualApplyMode) {
       const { applyAmount, ...columnsWithoutApply } = accountingColumns;
       return columnsWithoutApply;
     }
@@ -156,7 +158,7 @@ export class ReceiptsListComponent implements OnInit, OnChanges, OnDestroy {
   }
 
   get showBillsTableSelections(): boolean {
-    return this.embeddedInAccounting && this.accountingListMode === 'bills' && this.showBillSelections;
+    return this.embeddedInAccounting && this.accountingListMode === 'bills';
   }
 
   constructor(
@@ -840,8 +842,17 @@ export class ReceiptsListComponent implements OnInit, OnChanges, OnDestroy {
     this.applyFilters();
   }
 
+  onShowPaidToggleChange(checked: boolean): void {
+    this.showPaid = checked;
+    this.applyFilters();
+  }
+
   applyFilters(): void {
     let filtered = this.filterAccountingReceiptsByMode(this.allReceipts);
+
+    if (this.showBillsTableSelections && !this.showPaid) {
+      filtered = filtered.filter(receipt => Math.abs(Number(receipt.dueAmountValue ?? 0)) > 0.005);
+    }
 
     if (this.embeddedInAccounting) {
       filtered = filtered.map(receipt => {
@@ -851,11 +862,7 @@ export class ReceiptsListComponent implements OnInit, OnChanges, OnDestroy {
           this.manualApplyEditableReceiptId == null || this.manualApplyEditableReceiptId === receipt.receiptId;
         return {
           ...receipt,
-          selected: this.showBillSelections && this.selectedBillReceiptIds.has(receipt.receiptId),
-          disabled:
-            this.showBillSelections &&
-            this.accountingListMode === 'bills' &&
-            this.roundCurrencyValue(Number(receipt.dueAmountValue ?? 0)) <= 0,
+          selected: this.showBillsTableSelections && this.selectedBillReceiptIds.has(receipt.receiptId),
           applyAmountValue,
           applyAmountDisplay: this.isManualApplyMode
             ? (applyAmountValue < 0
@@ -1493,28 +1500,89 @@ export class ReceiptsListComponent implements OnInit, OnChanges, OnDestroy {
       : '$' + this.formatter.currency(amount);
   }
 
-  syncPaymentAmountFromBillSelection(): void {
-    let totalDue = 0;
+  formatApplyAmountDisplay(amount: number): string {
+    return amount < 0
+      ? '-$' + this.formatter.currency(-amount)
+      : '$' + this.formatter.currency(amount);
+  }
 
+  setReceiptApplyAmount(receipt: ReceiptDisplayList, amount: number): void {
+    const value = this.roundCurrencyValue(amount);
+    (receipt as ReceiptDisplayList & { applyAmountValue?: number }).applyAmountValue = value;
+    const display = this.formatApplyAmountDisplay(value);
+    (receipt as ReceiptDisplayList & { applyAmountDisplay?: string; applyAmount?: string }).applyAmountDisplay = display;
+    (receipt as ReceiptDisplayList & { applyAmount?: string }).applyAmount = display;
+  }
+
+  syncPaymentAmountFromBillSelection(): void {
     this.receiptsDisplay.forEach(row => {
       const isSelected = this.selectedBillReceiptIds.has(row.receiptId);
       row.selected = isSelected;
       const dueAmount = isSelected ? this.getReceiptDueAmountValue(row.receiptId) : 0;
-      (row as ReceiptDisplayList & { applyAmountValue?: number }).applyAmountValue = dueAmount;
-      if (isSelected) {
-        totalDue = this.roundCurrencyValue(totalDue + dueAmount);
+      this.setReceiptApplyAmount(row, dueAmount);
+      const sourceReceipt = this.allReceipts.find(receipt => receipt.receiptId === row.receiptId);
+      if (sourceReceipt) {
+        this.setReceiptApplyAmount(sourceReceipt, dueAmount);
       }
     });
 
-    this.allReceipts.forEach(receipt => {
-      const isSelected = this.selectedBillReceiptIds.has(receipt.receiptId);
-      (receipt as ReceiptDisplayList & { applyAmountValue?: number }).applyAmountValue = isSelected
-        ? this.getReceiptDueAmountValue(receipt.receiptId)
-        : 0;
-    });
+    this.syncPaymentHeaderFromAppliedBillAmounts();
+    this.refreshBillsTableDisplay();
+    this.markViewForCheck();
+  }
 
-    this.paymentAmount = totalDue;
-    this.paymentAmountDisplay = this.formatPaymentAmountDisplay(totalDue);
+  syncPaymentHeaderFromAppliedBillAmounts(): void {
+    if (!this.isManualApplyMode || !this.showPaymentForm) {
+      return;
+    }
+
+    if (this.isRowScopedPaymentMode && this.manualApplyEditableReceiptId != null) {
+      const row = this.receiptsDisplay.find(
+        receipt => receipt.receiptId === this.manualApplyEditableReceiptId
+      );
+      const amount = this.roundCurrencyValue(Number((row as any)?.applyAmountValue || 0));
+      this.paymentAmount = amount;
+      this.paymentAmountDisplay = this.formatPaymentAmountDisplay(amount);
+    } else {
+      const total = this.receiptsDisplay.reduce(
+        (sum, row) => this.roundCurrencyValue(sum + Number((row as any).applyAmountValue || 0)),
+        0
+      );
+      this.paymentAmount = total;
+      this.paymentAmountDisplay = this.formatPaymentAmountDisplay(total);
+    }
+
+    this.updateRemainingAmount();
+  }
+
+  refreshBillsTableDisplay(): void {
+    this.billsDataTable?.refreshDisplayedData();
+  }
+
+  ensureBillApplyLineSelected(receipt: ReceiptDisplayList, applyAmount: number): void {
+    if (!this.isManualApplyMode || !this.showPaymentForm || this.isRowScopedPaymentMode) {
+      return;
+    }
+
+    const receiptId = Number(receipt?.receiptId ?? 0);
+    if (!Number.isFinite(receiptId) || receiptId <= 0) {
+      return;
+    }
+
+    const value = this.roundCurrencyValue(applyAmount);
+
+    if (Math.abs(value) <= 0.005) {
+      this.selectedBillReceiptIds.delete(receiptId);
+      receipt.selected = false;
+      this.refreshBillsTableDisplay();
+      return;
+    }
+
+    if (!this.selectedBillReceiptIds.has(receiptId)) {
+      this.selectedBillReceiptIds.add(receiptId);
+      receipt.selected = true;
+      this.refreshBillsTableDisplay();
+    }
   }
 
   get isPaymentFormValid(): boolean {
@@ -1651,7 +1719,6 @@ export class ReceiptsListComponent implements OnInit, OnChanges, OnDestroy {
 
     if (!isRowScopedApply) {
       this.paymentOfficeId = null;
-      this.showBillSelections = true;
       if (!this.officeId) {
         this.toastr.warning('Please select an office first');
         return;
@@ -1670,7 +1737,18 @@ export class ReceiptsListComponent implements OnInit, OnChanges, OnDestroy {
     this.updateRemainingAmount();
     this.showPaymentForm = true;
     this.applyFilters();
-    this.syncRowApplyAmountFromDialog();
+    if (!isRowScopedApply && this.selectedBillReceiptIds.size > 0) {
+      this.syncPaymentAmountFromBillSelection();
+    } else if (isRowScopedApply && targetReceiptId != null) {
+      const dueAmount = this.getReceiptDueAmountValue(targetReceiptId);
+      this.paymentAmount = dueAmount;
+      this.paymentAmountDisplay = this.formatPaymentAmountDisplay(dueAmount);
+      this.syncRowApplyAmountFromDialog();
+      this.refreshBillsTableDisplay();
+      this.updateRemainingAmount();
+    } else {
+      this.syncRowApplyAmountFromDialog();
+    }
     this.focusPendingApplyAmountInput();
     this.markViewForCheck();
   }
@@ -1678,7 +1756,6 @@ export class ReceiptsListComponent implements OnInit, OnChanges, OnDestroy {
   cancelPaymentForm(): void {
     this.showPaymentForm = false;
     this.isManualApplyMode = false;
-    this.showBillSelections = false;
     this.clearPaymentForm();
     this.applyFilters();
     this.markViewForCheck();
@@ -1835,7 +1912,9 @@ export class ReceiptsListComponent implements OnInit, OnChanges, OnDestroy {
       finalValue < 0 ? '-$' + this.formatter.currency(-finalValue) : '$' + this.formatter.currency(finalValue);
     (receipt as any).applyAmount = (receipt as any).applyAmountDisplay;
     input.value = (receipt as any).applyAmountDisplay;
-    this.updateRemainingAmount();
+    this.ensureBillApplyLineSelected(receipt, finalValue);
+    this.syncPaymentHeaderFromAppliedBillAmounts();
+    this.markViewForCheck();
   }
 
   onApplyAmountFocus(receipt: ReceiptDisplayList, event: Event): void {
@@ -1870,19 +1949,9 @@ export class ReceiptsListComponent implements OnInit, OnChanges, OnDestroy {
       nextSelectedIds = idsFromDisplay.length > 0 ? new Set(idsFromDisplay) : new Set<number>();
     }
 
-    for (const receiptId of [...nextSelectedIds]) {
-      if (this.getReceiptDueAmountValue(receiptId) <= 0) {
-        nextSelectedIds.delete(receiptId);
-        const row = this.receiptsDisplay.find(receipt => receipt.receiptId === receiptId);
-        if (row) {
-          row.selected = false;
-        }
-      }
-    }
-
     this.selectedBillReceiptIds = nextSelectedIds;
 
-    if (this.isBillSelectionPaymentMode) {
+    if (this.isManualApplyMode && this.showPaymentForm && !this.isRowScopedPaymentMode) {
       this.syncPaymentAmountFromBillSelection();
     } else {
       this.receiptsDisplay.forEach(row => {
@@ -1909,6 +1978,7 @@ export class ReceiptsListComponent implements OnInit, OnChanges, OnDestroy {
     (row as any).applyAmountValue = amountValue;
     (row as any).applyAmountDisplay = amountDisplay;
     (row as any).applyAmount = amountDisplay;
+    this.refreshBillsTableDisplay();
   }
 
   getApplyAmountInputId(receiptId: number): string {

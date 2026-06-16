@@ -780,9 +780,7 @@ export class AccountingShellComponent implements OnInit, OnDestroy {
     }
 
     this.isJournalEntrySyncInProgress = true;
-    this.generalLedgerService.clearAllJournalEntries().pipe(
-      take(1),
-      finalize(() => {
+    this.generalLedgerService.clearAllJournalEntries().pipe(take(1), finalize(() => {
         this.isJournalEntrySyncInProgress = false;
       })
     ).subscribe({
