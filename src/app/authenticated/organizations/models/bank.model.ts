@@ -3,7 +3,7 @@ export interface BankCardRequest {
   cardTypeId: number;
   cardName: string;
   cardNumber: string;
-  costCodeId: number;
+  chartOfAccountId: number;
 }
 
 export interface BankCardResponse {
@@ -16,5 +16,5 @@ export interface BankCardResponse {
   cardNumber: string;
   rawCardNumber?: string;
   lastFour: string;
-  costCodeId: number;
+  chartOfAccountId: number;
 }

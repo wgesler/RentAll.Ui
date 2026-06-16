@@ -485,7 +485,7 @@ export class MappingService {
       cardTypeId: Number(card.cardTypeId) || 0,
       cardName: (card.cardName || '').trim(),
       cardNumber: this.formatter.stripCreditCardFormatting(card.rawCardNumber || card.cardNumber || ''),
-      costCodeId: Number(card.costCodeId) || 0
+      chartOfAccountId: Number(card.chartOfAccountId) || 0
     }));
   }
 
@@ -504,7 +504,7 @@ export class MappingService {
         cardNumber: this.formatBankCardNumberForDisplay(card.cardNumber, normalizedLastFour, (card.bankCardId || 0) > 0),
         rawCardNumber,
         lastFour: normalizedLastFour,
-        costCodeId: Number(card.costCodeId) || 0
+        chartOfAccountId: Number(card.chartOfAccountId) || 0
       };
     });
   }

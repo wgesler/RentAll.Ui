@@ -270,7 +270,7 @@
                               <th class="text-left bank-card-col-type">Type</th>
                               <th class="text-left bank-card-col-name">Name On Card</th>
                               <th class="text-left bank-card-col-number">Card Number</th>
-                              <th class="text-left bank-card-col-cost-code">Cost Code</th>
+                              <th class="text-left bank-card-col-account">Account</th>
                               <th class="text-right bank-card-col-actions"></th>
                             </tr>
                           </thead>
@@ -292,10 +292,10 @@
                                 <td class="bank-card-col-number">
                                   <input class="bank-card-entry-input" type="text" [value]="getBankCardNumberDisplay(card, $index)" inputmode="numeric" (focus)="onBankCardNumberFocus($index)" (blur)="onBankCardNumberBlur($index)" (input)="onBankCardNumberInput($event, $index)" placeholder="Card Number" />
                                 </td>
-                                <td class="bank-card-col-cost-code">
-                                  <select class="bank-card-entry-input" [(ngModel)]="card.costCodeId" [ngModelOptions]="{standalone: true}" aria-label="Cost Codes">
-                                    <option [ngValue]="0">Select Cost Code</option>
-                                    @for (option of costCodeOptions; track option.value) {
+                                <td class="bank-card-col-account">
+                                  <select class="bank-card-entry-input" [(ngModel)]="card.chartOfAccountId" [ngModelOptions]="{standalone: true}" aria-label="Chart of Account">
+                                    <option [ngValue]="0">Select Account</option>
+                                    @for (option of bankCardChartOfAccountOptions; track option.value) {
                                       <option [ngValue]="option.value">{{ option.label }}</option>
                                     }
                                   </select>

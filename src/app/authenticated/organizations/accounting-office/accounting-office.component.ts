@@ -17,6 +17,7 @@ import { fileValidator } from '../../../validators/file-validator';
 import { AccountingOfficeRequest, AccountingOfficeResponse } from '../models/accounting-office.model';
 import { BankCardRequest, BankCardResponse } from '../models/bank.model';
 import { getCardTypes } from '../models/card-type-enum';
+import { AccountType } from '../../accounting/models/accounting-enum';
 import { CostCodesResponse } from '../../accounting/models/cost-codes.model';
 import { OfficeResponse } from '../models/office.model';
 import { AccountingOfficeService } from '../services/accounting-office.service';
@@ -57,6 +58,7 @@ export class AccountingOfficeComponent implements OnInit, OnDestroy, OnChanges {
   cardTypeOptions: { value: number; label: string }[] = getCardTypes();
   costCodeOptions: { value: number; label: string }[] = [];
   chartOfAccountOptions: SearchableSelectOption<number>[] = [];
+  bankCardChartOfAccountOptions: SearchableSelectOption<number>[] = [];
   defaultTenantOwnerCompanyAccountFields: { controlName: string; label: string }[] = [
     { controlName: 'defaultTenantIncAccountId', label: 'Tenant Income' },
     { controlName: 'defaultTenantExpAccountId', label: 'Tenant Expense' },
@@ -522,20 +524,27 @@ export class AccountingOfficeComponent implements OnInit, OnDestroy, OnChanges {
     const parsedOfficeId = Number(officeId);
     if (!parsedOfficeId || parsedOfficeId <= 0) {
       this.chartOfAccountOptions = [];
+      this.bankCardChartOfAccountOptions = [];
       return;
     }
 
     this.chartOfAccountsService.getChartOfAccountsByOfficeId(parsedOfficeId).pipe(take(1)).subscribe({
       next: accounts => {
-        this.chartOfAccountOptions = (accounts || [])
+        const sortedAccounts = (accounts || [])
           .map(account => ({
             value: account.accountId,
-            label: this.utilityService.getChartOfAccountDropdownLabel(account)
+            label: this.utilityService.getChartOfAccountDropdownLabel(account),
+            accountTypeId: account.accountTypeId
           }))
           .sort((a, b) => a.label.localeCompare(b.label, undefined, { sensitivity: 'base' }));
+        this.chartOfAccountOptions = sortedAccounts.map(({ value, label }) => ({ value, label }));
+        this.bankCardChartOfAccountOptions = sortedAccounts
+          .filter(account => account.accountTypeId === AccountType.CreditCard)
+          .map(({ value, label }) => ({ value, label }));
       },
       error: () => {
         this.chartOfAccountOptions = [];
+        this.bankCardChartOfAccountOptions = [];
       }
     });
   }
@@ -712,7 +721,7 @@ export class AccountingOfficeComponent implements OnInit, OnDestroy, OnChanges {
       cardNumber: '',
       rawCardNumber: '',
       lastFour: '',
-      costCodeId: 0
+      chartOfAccountId: 0
     });
   }
 
@@ -734,14 +743,14 @@ export class AccountingOfficeComponent implements OnInit, OnDestroy, OnChanges {
       const cardTypeId = Number(card.cardTypeId);
       const cardName = (card.cardName || '').trim();
       const cardNumber = this.formatterService.stripCreditCardFormatting(card.rawCardNumber || card.cardNumber || '');
-      const costCodeId = Number(card.costCodeId) || 0;
+      const chartOfAccountId = Number(card.chartOfAccountId) || 0;
 
-      const hasAnyValue = cardTypeId >= 0 || cardName.length > 0 || cardNumber.length > 0 || costCodeId > 0;
+      const hasAnyValue = cardTypeId >= 0 || cardName.length > 0 || cardNumber.length > 0 || chartOfAccountId > 0;
       if (!hasAnyValue) {
         continue;
       }
 
-      if (cardTypeId < 0 || !cardName || !cardNumber || costCodeId <= 0) {
+      if (cardTypeId < 0 || !cardName || !cardNumber || chartOfAccountId <= 0) {
         this.toastr.error(`Bank card row ${i + 1} is incomplete. Please complete or remove it.`, CommonMessage.Error);
         return null;
       }
@@ -751,7 +760,7 @@ export class AccountingOfficeComponent implements OnInit, OnDestroy, OnChanges {
         cardTypeId,
         cardName,
         cardNumber,
-        costCodeId
+        chartOfAccountId
       });
     }
 
