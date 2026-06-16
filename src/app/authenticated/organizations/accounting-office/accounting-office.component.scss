@@ -189,6 +189,11 @@
   }
 }
 
+.bank-card-entry-input--invalid {
+  border-color: #dc2626;
+  background-color: #fef2f2;
+}
+
 .delete-bank-card-btn {
   &:hover {
     background-color: rgba(126, 105, 180, 0.1);

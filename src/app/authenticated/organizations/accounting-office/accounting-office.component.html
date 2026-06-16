@@ -279,7 +279,12 @@
                               <tr class="border-b">
                                 <td class="bank-card-col-no">{{ $index + 1 }}</td>
                                 <td class="bank-card-col-type">
-                                  <select class="bank-card-entry-input" [(ngModel)]="card.cardTypeId" [ngModelOptions]="{standalone: true}" aria-label="Card Type">
+                                  <select
+                                    class="bank-card-entry-input"
+                                    [class.bank-card-entry-input--invalid]="isBankCardFieldInvalid($index, 'type')"
+                                    [(ngModel)]="card.cardTypeId"
+                                    [ngModelOptions]="{standalone: true}"
+                                    aria-label="Card Type">
                                     <option [ngValue]="-1">Select Card Type</option>
                                     @for (cardType of cardTypeOptions; track cardType.value) {
                                       <option [ngValue]="cardType.value">{{ cardType.label }}</option>
@@ -287,14 +292,33 @@
                                   </select>
                                 </td>
                                 <td class="bank-card-col-name">
-                                  <input class="bank-card-entry-input" type="text" [(ngModel)]="card.cardName" [ngModelOptions]="{standalone: true}" placeholder="Name On Card" />
+                                  <input
+                                    class="bank-card-entry-input"
+                                    [class.bank-card-entry-input--invalid]="isBankCardFieldInvalid($index, 'name')"
+                                    type="text"
+                                    [(ngModel)]="card.cardName"
+                                    [ngModelOptions]="{standalone: true}"
+                                    placeholder="Name On Card" />
                                 </td>
                                 <td class="bank-card-col-number">
-                                  <input class="bank-card-entry-input" type="text" [value]="getBankCardNumberDisplay(card, $index)" inputmode="numeric" (focus)="onBankCardNumberFocus($index)" (blur)="onBankCardNumberBlur($index)" (input)="onBankCardNumberInput($event, $index)" placeholder="Card Number" />
+                                  <input
+                                    class="bank-card-entry-input"
+                                    [class.bank-card-entry-input--invalid]="isBankCardFieldInvalid($index, 'number')"
+                                    type="text"
+                                    [value]="getBankCardNumberDisplay(card, $index)"
+                                    inputmode="numeric"
+                                    (focus)="onBankCardNumberFocus($index)"
+                                    (blur)="onBankCardNumberBlur($index)"
+                                    (input)="onBankCardNumberInput($event, $index)"
+                                    placeholder="Card Number" />
                                 </td>
                                 <td class="bank-card-col-account">
-                                  <select class="bank-card-entry-input" [(ngModel)]="card.chartOfAccountId" [ngModelOptions]="{standalone: true}" aria-label="Chart of Account">
-                                    <option [ngValue]="0">Select Account</option>
+                                  <select
+                                    class="bank-card-entry-input"
+                                    [(ngModel)]="card.chartOfAccountId"
+                                    [ngModelOptions]="{standalone: true}"
+                                    aria-label="Chart of Account">
+                                    <option [ngValue]="null">Select Account</option>
                                     @for (option of bankCardChartOfAccountOptions; track option.value) {
                                       <option [ngValue]="option.value">{{ option.label }}</option>
                                     }

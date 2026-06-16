@@ -485,7 +485,7 @@ export class MappingService {
       cardTypeId: Number(card.cardTypeId) || 0,
       cardName: (card.cardName || '').trim(),
       cardNumber: this.formatter.stripCreditCardFormatting(card.rawCardNumber || card.cardNumber || ''),
-      chartOfAccountId: Number(card.chartOfAccountId) || 0
+      chartOfAccountId: this.normalizeBankCardChartOfAccountId(card.chartOfAccountId)
     }));
   }
 
@@ -504,9 +504,14 @@ export class MappingService {
         cardNumber: this.formatBankCardNumberForDisplay(card.cardNumber, normalizedLastFour, (card.bankCardId || 0) > 0),
         rawCardNumber,
         lastFour: normalizedLastFour,
-        chartOfAccountId: Number(card.chartOfAccountId) || 0
+        chartOfAccountId: this.normalizeBankCardChartOfAccountId(card.chartOfAccountId)
       };
     });
+  }
+
+  normalizeBankCardChartOfAccountId(value: unknown): number | null {
+    const parsed = Number(value);
+    return Number.isFinite(parsed) && parsed > 0 ? parsed : null;
   }
 
   normalizeBankCardLastFour(lastFour?: string | null, cardNumber?: string | null): string {
