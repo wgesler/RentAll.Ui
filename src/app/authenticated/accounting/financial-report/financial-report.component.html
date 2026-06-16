@@ -89,7 +89,14 @@
                   @for (columnId of getAmountColumnIds(); track columnId) {
                     <td
                       class="financial-report-col-amount"
-                      [class.financial-report-col-total]="isTotalColumn(columnId)">
+                      [class.financial-report-col-total]="isTotalColumn(columnId)"
+                      [class.financial-report-col-amount--clickable]="canDrillDownAmount(row, columnId)"
+                      [attr.role]="canDrillDownAmount(row, columnId) ? 'button' : null"
+                      [attr.tabindex]="canDrillDownAmount(row, columnId) ? 0 : null"
+                      [attr.aria-label]="canDrillDownAmount(row, columnId) ? 'View general ledger lines for ' + row.label : null"
+                      (click)="openDrillDown(row, columnId)"
+                      (keydown.enter)="openDrillDown(row, columnId)"
+                      (keydown.space)="$event.preventDefault(); openDrillDown(row, columnId)">
                       {{ row.columnAmountDisplays[columnId] || '' }}
                     </td>
                   }

@@ -152,6 +152,16 @@
   white-space: nowrap;
 }
 
+.financial-report-col-amount--clickable {
+  cursor: pointer;
+}
+
+.financial-report-col-amount--clickable:hover,
+.financial-report-col-amount--clickable:focus-visible {
+  outline: none;
+  background-color: rgba(59, 130, 246, 0.08);
+}
+
 .financial-report-table--multi-column .financial-report-col-amount {
   width: 7.5rem;
   min-width: 7.5rem;

@@ -218,28 +218,30 @@
           </div>
         }
         <ng-template #accountingShellDateFields>
-          <mat-form-field appearance="outline" class="titlebar-field-office">
-            <mat-label>Start Date</mat-label>
-            <input
-              matInput
-              [matDatepicker]="accountingStartPicker"
-              [(ngModel)]="startDate"
-              [ngModelOptions]="{ standalone: true }"
-              (dateChange)="onDateRangeChange()"
-              [max]="endDate" />
-            <mat-datepicker-toggle matIconSuffix [for]="accountingStartPicker"></mat-datepicker-toggle>
-            <mat-datepicker #accountingStartPicker></mat-datepicker>
-          </mat-form-field>
+          @if (showAccountingShellStartDate) {
+            <mat-form-field appearance="outline" class="titlebar-field-office">
+              <mat-label>Start Date</mat-label>
+              <input
+                matInput
+                [matDatepicker]="accountingStartPicker"
+                [(ngModel)]="startDate"
+                [ngModelOptions]="{ standalone: true }"
+                (dateChange)="onDateRangeChange()"
+                [max]="endDate" />
+              <mat-datepicker-toggle matIconSuffix [for]="accountingStartPicker"></mat-datepicker-toggle>
+              <mat-datepicker #accountingStartPicker></mat-datepicker>
+            </mat-form-field>
+          }
           <div class="accounting-shell-end-date-wrap">
             <mat-form-field appearance="outline" class="titlebar-field-office">
-              <mat-label>End Date</mat-label>
+              <mat-label>{{ accountingShellEndDateLabel }}</mat-label>
               <input
                 matInput
                 [matDatepicker]="accountingEndPicker"
                 [(ngModel)]="endDate"
                 [ngModelOptions]="{ standalone: true }"
                 (dateChange)="onDateRangeChange()"
-                [min]="startDate" />
+                [min]="showAccountingShellStartDate ? startDate : null" />
               <mat-datepicker-toggle matIconSuffix [for]="accountingEndPicker"></mat-datepicker-toggle>
               <mat-datepicker #accountingEndPicker></mat-datepicker>
             </mat-form-field>

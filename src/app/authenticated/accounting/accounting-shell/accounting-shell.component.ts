@@ -878,6 +878,14 @@ export class AccountingShellComponent implements OnInit, OnDestroy {
     return this.selectedTabIndex === this.tabProfitLoss || this.selectedTabIndex === this.tabBalanceSheet;
   }
 
+  get showAccountingShellStartDate(): boolean {
+    return this.selectedTabIndex !== this.tabBalanceSheet;
+  }
+
+  get accountingShellEndDateLabel(): string {
+    return this.selectedTabIndex === this.tabBalanceSheet ? 'As of' : 'End Date';
+  }
+
   usesGeneralLedgerTitleBarFilters(): boolean {
     return this.selectedTabIndex === this.tabGeneralLedger;
   }

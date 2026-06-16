@@ -6,6 +6,8 @@ import {
   FinancialReportBuildRequest,
   FinancialReportColumn,
   FinancialReportColumnContext,
+  FinancialReportDrillDownContext,
+  FinancialReportDrillDownSpec,
   FinancialReportKind,
   FinancialReportResult,
   FinancialReportTreeNode
@@ -2221,6 +2223,14 @@ export class MappingService {
   //#endregion
 
   //#region Financial Report Mapping
+  private readonly financialReportProfitLossAccountTypes = [
+    AccountType.Income,
+    AccountType.OtherIncome,
+    AccountType.CostOfGoodsSold,
+    AccountType.Expense,
+    AccountType.OtherExpense
+  ];
+
   buildFinancialReport(request: FinancialReportBuildRequest): FinancialReportResult {
     request = {
       ...request,
@@ -2291,26 +2301,61 @@ export class MappingService {
     const expenseColumnAmounts = this.sumFinancialReportTreeColumnAmounts(expenseTree, columnContext);
     const grossProfitColumnAmounts = this.subtractFinancialReportColumnAmounts(incomeColumnAmounts, cogsColumnAmounts, columnContext);
     const netIncomeColumnAmounts = this.subtractFinancialReportColumnAmounts(grossProfitColumnAmounts, expenseColumnAmounts, columnContext);
+    const incomeDrillDown: FinancialReportDrillDownSpec = {
+      accountTypeIds: [AccountType.Income, AccountType.OtherIncome],
+      mode: 'activity'
+    };
+    const cogsDrillDown: FinancialReportDrillDownSpec = {
+      accountTypeIds: [AccountType.CostOfGoodsSold],
+      mode: 'activity'
+    };
+    const expenseDrillDown: FinancialReportDrillDownSpec = {
+      accountTypeIds: [AccountType.Expense, AccountType.OtherExpense],
+      mode: 'activity'
+    };
+    const grossProfitDrillDown: FinancialReportDrillDownSpec = {
+      accountTypeIds: [AccountType.Income, AccountType.OtherIncome, AccountType.CostOfGoodsSold],
+      mode: 'activity'
+    };
+    const netIncomeDrillDown: FinancialReportDrillDownSpec = {
+      includeProfitLossActivity: true,
+      mode: 'activity'
+    };
 
     return {
       reportTitle: 'Profit & Loss',
       periodLabel: this.buildFinancialReportPeriodLabel(request.startDate, request.endDate, false),
       columns: columnContext.columns,
       showTotalColumn: columnContext.showTotalColumn,
+      drillDownContext: this.buildFinancialReportDrillDownContext(
+        'profitLoss',
+        columnContext,
+        accounts,
+        accountIdRemap,
+        request.startDate,
+        request.endDate
+      ),
       sections: [
-        this.buildFinancialReportSectionNode('section-income', 'Income', incomeTree, totalIncome, incomeColumnAmounts),
-        this.buildFinancialReportTotalNode('total-income', 'Total Income', totalIncome, incomeColumnAmounts),
-        this.buildFinancialReportSectionNode('section-cogs', 'Cost of Goods Sold', cogsTree, totalCogs, cogsColumnAmounts),
-        this.buildFinancialReportTotalNode('total-cogs', 'Total COGS', totalCogs, cogsColumnAmounts),
-        this.buildFinancialReportSummaryNode('summary-gross-profit', 'Gross Profit', grossProfit, grossProfitColumnAmounts),
-        this.buildFinancialReportSectionNode('section-expense', 'Expense', expenseTree, totalExpense, expenseColumnAmounts),
-        this.buildFinancialReportTotalNode('total-expense', 'Total Expense', totalExpense, expenseColumnAmounts),
-        this.buildFinancialReportSummaryNode('summary-net-income', 'Net Income', netIncome, netIncomeColumnAmounts)
+        this.buildFinancialReportSectionNode('section-income', 'Income', incomeTree, totalIncome, incomeColumnAmounts, 0, incomeDrillDown),
+        this.buildFinancialReportTotalNode('total-income', 'Total Income', totalIncome, incomeColumnAmounts, 0, incomeDrillDown),
+        this.buildFinancialReportSectionNode('section-cogs', 'Cost of Goods Sold', cogsTree, totalCogs, cogsColumnAmounts, 0, cogsDrillDown),
+        this.buildFinancialReportTotalNode('total-cogs', 'Total COGS', totalCogs, cogsColumnAmounts, 0, cogsDrillDown),
+        this.buildFinancialReportSummaryNode('summary-gross-profit', 'Gross Profit', grossProfit, grossProfitColumnAmounts, 0, grossProfitDrillDown),
+        this.buildFinancialReportSectionNode('section-expense', 'Expense', expenseTree, totalExpense, expenseColumnAmounts, 0, expenseDrillDown),
+        this.buildFinancialReportTotalNode('total-expense', 'Total Expense', totalExpense, expenseColumnAmounts, 0, expenseDrillDown),
+        this.buildFinancialReportSummaryNode('summary-net-income', 'Net Income', netIncome, netIncomeColumnAmounts, 0, netIncomeDrillDown)
       ]
     };
   }
 
   buildBalanceSheetReport(request: FinancialReportBuildRequest): FinancialReportResult {
+    const asOfDate = this.resolveFinancialReportBalanceSheetAsOfDate(request.endDate);
+    request = {
+      ...request,
+      startDate: null,
+      endDate: asOfDate
+    };
+
     const balanceFilteredAccounts = this.filterFinancialReportAccounts(request.accounts, request.chartOfAccountId, [
       AccountType.Bank,
       AccountType.AccountsReceivable,
@@ -2462,42 +2507,115 @@ export class MappingService {
     const totalEquityColumnAmounts = this.addFinancialReportColumnAmounts(totalEquityAccountsColumnAmounts, netIncomeColumnAmounts, columnContext);
     const totalLiabilitiesAndEquityColumnAmounts = this.addFinancialReportColumnAmounts(totalLiabilitiesColumnAmounts, totalEquityColumnAmounts, columnContext);
 
-    const assetSections: FinancialReportTreeNode[] = [
-      this.buildFinancialReportSectionNode('section-assets', 'ASSETS', [], totalAssets, totalAssetsColumnAmounts, 0)
-    ];
+    const currentAssetDrillDown: FinancialReportDrillDownSpec = {
+      accountTypeIds: [AccountType.Bank, AccountType.AccountsReceivable, AccountType.OtherCurrentAsset],
+      mode: 'balance'
+    };
+    const fixedAssetDrillDown: FinancialReportDrillDownSpec = {
+      accountTypeIds: [AccountType.FixedAsset],
+      mode: 'balance'
+    };
+    const otherAssetDrillDown: FinancialReportDrillDownSpec = {
+      accountTypeIds: [AccountType.OtherAsset],
+      mode: 'balance'
+    };
+    const totalAssetsDrillDown: FinancialReportDrillDownSpec = {
+      accountTypeIds: [
+        AccountType.Bank,
+        AccountType.AccountsReceivable,
+        AccountType.OtherCurrentAsset,
+        AccountType.FixedAsset,
+        AccountType.OtherAsset
+      ],
+      mode: 'balance'
+    };
+    const currentLiabilityDrillDown: FinancialReportDrillDownSpec = {
+      accountTypeIds: [AccountType.AccountsPayable, AccountType.CreditCard, AccountType.OtherCurrentLiability],
+      mode: 'balance'
+    };
+    const longTermLiabilityDrillDown: FinancialReportDrillDownSpec = {
+      accountTypeIds: [AccountType.LongTermLiability],
+      mode: 'balance'
+    };
+    const totalLiabilitiesDrillDown: FinancialReportDrillDownSpec = {
+      accountTypeIds: [
+        AccountType.AccountsPayable,
+        AccountType.CreditCard,
+        AccountType.OtherCurrentLiability,
+        AccountType.LongTermLiability
+      ],
+      mode: 'balance'
+    };
+    const netIncomeDrillDown: FinancialReportDrillDownSpec = {
+      includeProfitLossActivity: true,
+      mode: 'activity'
+    };
+    const totalEquityDrillDown: FinancialReportDrillDownSpec = {
+      accountTypeIds: [AccountType.Equity],
+      includeProfitLossActivity: true,
+      mode: 'balance'
+    };
+    const totalLiabilitiesAndEquityDrillDown: FinancialReportDrillDownSpec = {
+      accountTypeIds: [
+        AccountType.AccountsPayable,
+        AccountType.CreditCard,
+        AccountType.OtherCurrentLiability,
+        AccountType.LongTermLiability,
+        AccountType.Equity
+      ],
+      includeProfitLossActivity: true,
+      mode: 'balance'
+    };
+
+    const assetChildNodes: FinancialReportTreeNode[] = [];
     if (currentAssetTree.length > 0) {
-      assetSections.push(this.buildFinancialReportSectionNode('section-current-assets', 'Current Assets', currentAssetTree, totalCurrentAssets, totalCurrentAssetsColumnAmounts, 1));
+      assetChildNodes.push(this.buildFinancialReportSectionNode('section-current-assets', 'Current Assets', currentAssetTree, totalCurrentAssets, totalCurrentAssetsColumnAmounts, 1, currentAssetDrillDown));
     }
     if (fixedAssetTree.length > 0) {
-      assetSections.push(this.buildFinancialReportSectionNode('section-fixed-assets', 'Fixed Assets', fixedAssetTree, totalFixedAssets, totalFixedAssetsColumnAmounts, 1));
+      assetChildNodes.push(this.buildFinancialReportSectionNode('section-fixed-assets', 'Fixed Assets', fixedAssetTree, totalFixedAssets, totalFixedAssetsColumnAmounts, 1, fixedAssetDrillDown));
     }
     if (otherAssetTree.length > 0) {
-      assetSections.push(this.buildFinancialReportSectionNode('section-other-assets', 'Other Assets', otherAssetTree, totalOtherAssets, totalOtherAssetsColumnAmounts, 1));
+      assetChildNodes.push(this.buildFinancialReportSectionNode('section-other-assets', 'Other Assets', otherAssetTree, totalOtherAssets, totalOtherAssetsColumnAmounts, 1, otherAssetDrillDown));
     }
-    assetSections.push(this.buildFinancialReportTotalNode('total-assets', 'TOTAL ASSETS', totalAssets, totalAssetsColumnAmounts));
+    assetChildNodes.push(this.buildFinancialReportTotalNode('total-assets', 'TOTAL ASSETS', totalAssets, totalAssetsColumnAmounts, 1, totalAssetsDrillDown));
 
-    const liabilityEquitySections: FinancialReportTreeNode[] = [
-      this.buildFinancialReportSectionNode('section-liabilities-equity', 'LIABILITIES & EQUITY', [], totalLiabilitiesAndEquity, totalLiabilitiesAndEquityColumnAmounts, 0)
+    const assetSections: FinancialReportTreeNode[] = [
+      this.buildFinancialReportSectionNode('section-assets', 'ASSETS', assetChildNodes, totalAssets, totalAssetsColumnAmounts, 0, totalAssetsDrillDown)
     ];
+
+    const liabilityEquityChildNodes: FinancialReportTreeNode[] = [];
     if (currentLiabilityTree.length > 0) {
-      liabilityEquitySections.push(this.buildFinancialReportSectionNode('section-current-liabilities', 'Current Liabilities', currentLiabilityTree, totalCurrentLiabilities, totalCurrentLiabilitiesColumnAmounts, 1));
+      liabilityEquityChildNodes.push(this.buildFinancialReportSectionNode('section-current-liabilities', 'Current Liabilities', currentLiabilityTree, totalCurrentLiabilities, totalCurrentLiabilitiesColumnAmounts, 1, currentLiabilityDrillDown));
     }
     if (longTermLiabilityTree.length > 0) {
-      liabilityEquitySections.push(this.buildFinancialReportSectionNode('section-long-term-liabilities', 'Long Term Liabilities', longTermLiabilityTree, totalLongTermLiabilities, totalLongTermLiabilitiesColumnAmounts, 1));
+      liabilityEquityChildNodes.push(this.buildFinancialReportSectionNode('section-long-term-liabilities', 'Long Term Liabilities', longTermLiabilityTree, totalLongTermLiabilities, totalLongTermLiabilitiesColumnAmounts, 1, longTermLiabilityDrillDown));
     }
-    liabilityEquitySections.push(this.buildFinancialReportTotalNode('total-liabilities', 'Total Liabilities', totalLiabilities, totalLiabilitiesColumnAmounts));
+    liabilityEquityChildNodes.push(this.buildFinancialReportTotalNode('total-liabilities', 'Total Liabilities', totalLiabilities, totalLiabilitiesColumnAmounts, 1, totalLiabilitiesDrillDown));
     const equityNodes = [
       ...equityTree,
-      this.buildFinancialReportSummaryNode('summary-net-income', 'Net Income', netIncome, netIncomeColumnAmounts, 1)
+      this.buildFinancialReportLineItemNode('line-net-income', 'Net Income', netIncome, netIncomeColumnAmounts, 1, netIncomeDrillDown)
     ];
-    liabilityEquitySections.push(this.buildFinancialReportSectionNode('section-equity', 'Equity', equityNodes, totalEquity, totalEquityColumnAmounts, 1));
-    liabilityEquitySections.push(this.buildFinancialReportTotalNode('total-liabilities-equity', 'TOTAL LIABILITIES & EQUITY', totalLiabilitiesAndEquity, totalLiabilitiesAndEquityColumnAmounts));
+    liabilityEquityChildNodes.push(this.buildFinancialReportSectionNode('section-equity', 'Equity', equityNodes, totalEquity, totalEquityColumnAmounts, 1, totalEquityDrillDown));
+    liabilityEquityChildNodes.push(this.buildFinancialReportTotalNode('total-equity', 'Total Equity', totalEquity, totalEquityColumnAmounts, 1, totalEquityDrillDown));
+    liabilityEquityChildNodes.push(this.buildFinancialReportTotalNode('total-liabilities-equity', 'TOTAL LIABILITIES & EQUITY', totalLiabilitiesAndEquity, totalLiabilitiesAndEquityColumnAmounts, 1, totalLiabilitiesAndEquityDrillDown));
+
+    const liabilityEquitySections: FinancialReportTreeNode[] = [
+      this.buildFinancialReportSectionNode('section-liabilities-equity', 'LIABILITIES & EQUITY', liabilityEquityChildNodes, totalLiabilitiesAndEquity, totalLiabilitiesAndEquityColumnAmounts, 0, totalLiabilitiesAndEquityDrillDown)
+    ];
 
     return {
       reportTitle: 'Balance Sheet',
       periodLabel: this.buildFinancialReportPeriodLabel(request.startDate, request.endDate, true),
       columns: columnContext.columns,
       showTotalColumn: columnContext.showTotalColumn,
+      drillDownContext: this.buildFinancialReportDrillDownContext(
+        'balanceSheet',
+        columnContext,
+        balanceAccounts,
+        accountIdRemap,
+        request.startDate,
+        request.endDate
+      ),
       sections: [...assetSections, ...liabilityEquitySections]
     };
   }
@@ -2511,10 +2629,15 @@ export class MappingService {
     accounts: ChartOfAccountResponse[]
   ): FinancialReportColumnContext {
     const normalizedReportClass = this.normalizeFinancialReportClass(reportClass);
+    const columnStartDate = balanceSheet
+      ? this.resolveFinancialReportBalanceSheetColumnStartDate(startDate, endDate, normalizedReportClass)
+      : startDate;
+    const columnEndDate = endDate;
+
     if (normalizedReportClass === Class.TotalOnly) {
       const totalColumn: FinancialReportColumn = {
         columnId: FINANCIAL_REPORT_TOTAL_COLUMN_ID,
-        label: this.buildFinancialReportColumnHeaderLabel(startDate, endDate, balanceSheet)
+        label: this.buildFinancialReportColumnHeaderLabel(columnStartDate, columnEndDate, balanceSheet)
       };
       return {
         reportClass: normalizedReportClass,
@@ -2527,7 +2650,7 @@ export class MappingService {
     }
 
     const dataColumns = this.isFinancialReportTimeBasedClass(normalizedReportClass)
-      ? this.buildFinancialReportTimePeriodColumns(normalizedReportClass, startDate, endDate)
+      ? this.buildFinancialReportTimePeriodColumns(normalizedReportClass, columnStartDate, columnEndDate)
       : this.buildFinancialReportEntityColumns(normalizedReportClass, lines, accounts);
 
     const columns = dataColumns.length > 0
@@ -2767,11 +2890,11 @@ export class MappingService {
       case Class.OtherName:
         return line.contactName?.trim() || 'Unknown Contact';
       case Class.Class:
-        return line.propertyCode?.trim() || 'Unknown Class';
+        return line.propertyCode?.trim() || 'Unknown Property';
       case Class.Item:
         return line.costCodeId != null && line.costCodeId > 0 ? `Item ${line.costCodeId}` : 'Unassigned';
       case Class.CustomerJob:
-        return line.reservationCode?.trim() || 'Unknown Job';
+        return line.reservationCode?.trim() || 'Unknown Reservation';
       case Class.Account: {
         const account = accounts.find(item => String(item.accountId) === columnId);
         return account ? this.formatFinancialReportAccountLabel(account) : columnId;
@@ -3171,6 +3294,18 @@ export class MappingService {
       columnContext
     );
     const amount = this.getFinancialReportTotalFromColumnAmounts(columnAmounts, columnContext);
+    const accountIds = this.collectFinancialReportAccountIdsFromTree([
+      {
+        nodeId: `account-${account.accountId}`,
+        label: '',
+        amount: 0,
+        columnAmounts: {},
+        depth: 0,
+        rowKind: 'account',
+        accountId: account.accountId,
+        childNodes
+      }
+    ]);
 
     return {
       nodeId: `account-${account.accountId}`,
@@ -3180,6 +3315,10 @@ export class MappingService {
       depth,
       rowKind: 'account',
       accountId: account.accountId,
+      drillDownSpec: {
+        accountIds,
+        mode: columnContext.balanceSheet ? 'balance' : 'activity'
+      },
       childNodes
     };
   }
@@ -3190,7 +3329,8 @@ export class MappingService {
     childNodes: FinancialReportTreeNode[],
     amount: number,
     columnAmounts: Record<string, number>,
-    depth = 0
+    depth = 0,
+    drillDownSpec?: FinancialReportDrillDownSpec
   ): FinancialReportTreeNode {
     return {
       nodeId,
@@ -3199,6 +3339,7 @@ export class MappingService {
       columnAmounts,
       depth,
       rowKind: 'section',
+      drillDownSpec,
       childNodes
     };
   }
@@ -3208,7 +3349,8 @@ export class MappingService {
     label: string,
     amount: number,
     columnAmounts: Record<string, number>,
-    depth = 0
+    depth = 0,
+    drillDownSpec?: FinancialReportDrillDownSpec
   ): FinancialReportTreeNode {
     return {
       nodeId,
@@ -3217,6 +3359,7 @@ export class MappingService {
       columnAmounts,
       depth,
       rowKind: 'total',
+      drillDownSpec,
       childNodes: []
     };
   }
@@ -3226,7 +3369,8 @@ export class MappingService {
     label: string,
     amount: number,
     columnAmounts: Record<string, number>,
-    depth = 0
+    depth = 0,
+    drillDownSpec?: FinancialReportDrillDownSpec
   ): FinancialReportTreeNode {
     return {
       nodeId,
@@ -3235,6 +3379,27 @@ export class MappingService {
       columnAmounts,
       depth,
       rowKind: 'summary',
+      drillDownSpec,
+      childNodes: []
+    };
+  }
+
+  buildFinancialReportLineItemNode(
+    nodeId: string,
+    label: string,
+    amount: number,
+    columnAmounts: Record<string, number>,
+    depth = 0,
+    drillDownSpec?: FinancialReportDrillDownSpec
+  ): FinancialReportTreeNode {
+    return {
+      nodeId,
+      label,
+      amount: this.roundFinancialReportAmount(amount),
+      columnAmounts,
+      depth,
+      rowKind: 'account',
+      drillDownSpec,
       childNodes: []
     };
   }
@@ -3447,19 +3612,59 @@ export class MappingService {
     return normalized || null;
   }
 
+  resolveFinancialReportBalanceSheetAsOfDate(endDate: string | null | undefined): string {
+    return this.normalizeFinancialReportDate(endDate)
+      ?? this.normalizeFinancialReportDate(this.utility.formatDateOnlyForApi(new Date()))
+      ?? '';
+  }
+
+  resolveFinancialReportBalanceSheetColumnStartDate(
+    startDate: string | null,
+    endDate: string | null,
+    reportClass: Class
+  ): string | null {
+    if (!this.isFinancialReportTimeBasedClass(reportClass)) {
+      return null;
+    }
+
+    const normalizedStartDate = this.normalizeFinancialReportDate(startDate);
+    if (normalizedStartDate) {
+      return normalizedStartDate;
+    }
+
+    const asOfDate = this.formatter.parseCalendarPrefixToLocalDate(endDate);
+    if (!asOfDate) {
+      return null;
+    }
+
+    return `${asOfDate.getFullYear()}-01-01`;
+  }
+
+  formatFinancialReportAsOfDate(dateString: string | null | undefined): string {
+    const date = this.formatter.parseCalendarPrefixToLocalDate(this.normalizeFinancialReportDate(dateString) ?? undefined);
+    if (!date) {
+      return '';
+    }
+
+    const month = date.toLocaleDateString('en-US', { month: 'short' });
+    const day = String(date.getDate());
+    const year = String(date.getFullYear() % 100).padStart(2, '0');
+    return `${month} ${day}, ${year}`;
+  }
+
   buildFinancialReportColumnHeaderLabel(startDate: string | null, endDate: string | null, balanceSheet: boolean): string {
+    if (balanceSheet) {
+      return this.formatFinancialReportAsOfDate(endDate);
+    }
+
     const formatMonthYear = (date: Date): string => {
       const month = date.toLocaleDateString('en-US', { month: 'short' });
       const year = String(date.getFullYear() % 100).padStart(2, '0');
       return `${month} ${year}`;
     };
 
-    const end = this.formatter.parseCalendarPrefixToLocalDate(endDate);
-    if (balanceSheet) {
-      return end ? formatMonthYear(end) : '';
-    }
-
     const start = this.formatter.parseCalendarPrefixToLocalDate(startDate);
+    const end = this.formatter.parseCalendarPrefixToLocalDate(endDate);
     if (start && end) {
       const startMonth = start.toLocaleDateString('en-US', { month: 'short' });
       const endMonth = end.toLocaleDateString('en-US', { month: 'short' });
@@ -3484,7 +3689,7 @@ export class MappingService {
 
   buildFinancialReportPeriodLabel(startDate: string | null, endDate: string | null, balanceSheet: boolean): string {
     if (balanceSheet) {
-      const formattedEndDate = this.formatter.formatDateString(endDate || undefined);
+      const formattedEndDate = this.formatFinancialReportAsOfDate(endDate);
       return formattedEndDate ? `As of ${formattedEndDate}` : 'As of';
     }
 
@@ -3530,6 +3735,214 @@ export class MappingService {
       return 0;
     }
     return Math.round(amount * 100) / 100;
+  }
+
+  buildFinancialReportDrillDownContext(
+    reportKind: FinancialReportKind,
+    columnContext: FinancialReportColumnContext,
+    scopedAccounts: ChartOfAccountResponse[],
+    accountIdRemap: Map<number, number>,
+    startDate: string | null,
+    endDate: string | null
+  ): FinancialReportDrillDownContext {
+    return {
+      reportKind,
+      columnContext,
+      scopedAccounts,
+      accountIdRemap,
+      startDate,
+      endDate
+    };
+  }
+
+  findFinancialReportTreeNode(nodes: FinancialReportTreeNode[], nodeId: string): FinancialReportTreeNode | null {
+    for (const node of nodes || []) {
+      if (node.nodeId === nodeId) {
+        return node;
+      }
+      const childMatch = this.findFinancialReportTreeNode(node.childNodes, nodeId);
+      if (childMatch) {
+        return childMatch;
+      }
+    }
+    return null;
+  }
+
+  collectFinancialReportAccountIdsFromTree(nodes: FinancialReportTreeNode[]): number[] {
+    const accountIds = new Set<number>();
+    const visit = (node: FinancialReportTreeNode) => {
+      if (node.accountId != null) {
+        accountIds.add(node.accountId);
+      }
+      node.childNodes.forEach(childNode => visit(childNode));
+    };
+    (nodes || []).forEach(node => visit(node));
+    return [...accountIds];
+  }
+
+  resolveFinancialReportDrillDownSpec(
+    node: FinancialReportTreeNode,
+    reportKind: FinancialReportKind
+  ): FinancialReportDrillDownSpec {
+    if (node.drillDownSpec) {
+      return node.drillDownSpec;
+    }
+
+    const accountIds = this.collectFinancialReportAccountIdsFromTree(node.childNodes);
+    return {
+      accountIds,
+      mode: reportKind === 'balanceSheet' ? 'balance' : 'activity'
+    };
+  }
+
+  expandFinancialReportAccountIdsForRemap(
+    accountIds: Set<number>,
+    accountIdRemap: Map<number, number>
+  ): Set<number> {
+    const expanded = new Set(accountIds);
+    accountIdRemap.forEach((canonicalId, sourceId) => {
+      if (expanded.has(canonicalId)) {
+        expanded.add(sourceId);
+      }
+      if (expanded.has(sourceId)) {
+        expanded.add(canonicalId);
+      }
+    });
+    return expanded;
+  }
+
+  resolveFinancialReportDrillDownAccountIds(
+    spec: FinancialReportDrillDownSpec,
+    accounts: ChartOfAccountResponse[],
+    accountIdRemap: Map<number, number>
+  ): Set<number> {
+    const allowed = new Set<number>();
+    (spec.accountIds || []).forEach(accountId => allowed.add(accountId));
+    if (spec.accountTypeIds?.length) {
+      const allowedTypes = new Set(spec.accountTypeIds);
+      accounts.forEach(account => {
+        if (allowedTypes.has(account.accountTypeId)) {
+          allowed.add(account.accountId);
+        }
+      });
+    }
+    if (spec.includeProfitLossActivity) {
+      const profitLossTypes = new Set<number>(this.financialReportProfitLossAccountTypes);
+      accounts.forEach(account => {
+        if (profitLossTypes.has(account.accountTypeId)) {
+          allowed.add(account.accountId);
+        }
+      });
+    }
+    return this.expandFinancialReportAccountIdsForRemap(allowed, accountIdRemap);
+  }
+
+  isFinancialReportProfitLossAccountType(accountTypeId: number | undefined): boolean {
+    return accountTypeId !== undefined
+      && this.financialReportProfitLossAccountTypes.includes(accountTypeId as AccountType);
+  }
+
+  isFinancialReportDrillDownLineInDateScope(
+    line: JournalEntryLineSearchResponse,
+    spec: FinancialReportDrillDownSpec,
+    accounts: ChartOfAccountResponse[],
+    startDate: string | null,
+    endDate: string | null
+  ): boolean {
+    const accountTypeId = accounts.find(account => account.accountId === line.chartOfAccountId)?.accountTypeId;
+    const isProfitLossAccount = this.isFinancialReportProfitLossAccountType(accountTypeId);
+
+    if (spec.includeProfitLossActivity && isProfitLossAccount) {
+      return this.isJournalEntryLineInDateRange(line.transactionDate, null, endDate);
+    }
+    if (spec.mode === 'balance') {
+      return this.isJournalEntryLineOnOrBeforeDate(line.transactionDate, endDate);
+    }
+    return this.isJournalEntryLineInDateRange(line.transactionDate, startDate, endDate);
+  }
+
+  isFinancialReportDrillDownLineInColumn(
+    line: JournalEntryLineSearchResponse,
+    columnId: string,
+    context: FinancialReportDrillDownContext,
+    spec: FinancialReportDrillDownSpec
+  ): boolean {
+    if (columnId === FINANCIAL_REPORT_TOTAL_COLUMN_ID) {
+      return true;
+    }
+
+    const { columnContext, scopedAccounts, startDate, endDate } = context;
+    const accountTypeId = scopedAccounts.find(account => account.accountId === line.chartOfAccountId)?.accountTypeId;
+    const isProfitLossAccount = this.isFinancialReportProfitLossAccountType(accountTypeId);
+    const column = columnContext.columns.find(item => item.columnId === columnId);
+
+    if (columnContext.isTimeBased && columnContext.balanceSheet && spec.mode === 'balance') {
+      if (spec.includeProfitLossActivity && isProfitLossAccount) {
+        if (!column) {
+          return false;
+        }
+        return this.isJournalEntryLineInDateRange(line.transactionDate, column.periodStart, column.periodEnd);
+      }
+      return this.isJournalEntryLineOnOrBeforeDate(line.transactionDate, column?.periodEnd || endDate);
+    }
+
+    if (columnContext.isTimeBased) {
+      if (!column) {
+        return false;
+      }
+      return this.resolveFinancialReportTimePeriodColumnId(line.transactionDate, [column]) === columnId;
+    }
+
+    return this.resolveFinancialReportLineColumnId(line, columnContext, scopedAccounts) === columnId;
+  }
+
+  filterFinancialReportDrillDownLines(
+    lines: JournalEntryLineSearchResponse[],
+    nodeId: string,
+    columnId: string,
+    context: FinancialReportDrillDownContext,
+    sections: FinancialReportTreeNode[]
+  ): JournalEntryLineSearchResponse[] {
+    const node = this.findFinancialReportTreeNode(sections, nodeId);
+    if (!node) {
+      return [];
+    }
+
+    const spec = this.resolveFinancialReportDrillDownSpec(node, context.reportKind);
+    const allowedAccountIds = this.resolveFinancialReportDrillDownAccountIds(
+      spec,
+      context.scopedAccounts,
+      context.accountIdRemap
+    );
+    if (allowedAccountIds.size === 0) {
+      return [];
+    }
+
+    return (lines || []).filter(line => {
+      if (!allowedAccountIds.has(line.chartOfAccountId)) {
+        return false;
+      }
+      if (!this.isFinancialReportDrillDownLineInDateScope(
+        line,
+        spec,
+        context.scopedAccounts,
+        context.startDate,
+        context.endDate
+      )) {
+        return false;
+      }
+      return this.isFinancialReportDrillDownLineInColumn(line, columnId, context, spec);
+    });
+  }
+
+  getFinancialReportDrillDownColumnLabel(
+    columnId: string,
+    reportResult: FinancialReportResult
+  ): string {
+    if (columnId === FINANCIAL_REPORT_TOTAL_COLUMN_ID) {
+      return 'Total';
+    }
+    return reportResult.columns.find(column => column.columnId === columnId)?.label || columnId;
   }
   //#endregion
 

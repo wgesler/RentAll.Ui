@@ -305,13 +305,11 @@ export const ClassLabels: { value: Class; label: string }[] = [
   { value: Class.Month, label: 'Month' },
   { value: Class.Quarter, label: 'Quarter' },
   { value: Class.Year, label: 'Year' },
+  { value: Class.Class, label: 'Property' },
+  { value: Class.CustomerJob, label: 'Reservation' },
   { value: Class.Customer, label: 'Customer' },
   { value: Class.Vendor, label: 'Vendor' },
   { value: Class.Employee, label: 'Employee' },
-  { value: Class.OtherName, label: 'Other Name' },
-  { value: Class.Class, label: 'Class' },
-  { value: Class.Item, label: 'Item' },
-  { value: Class.CustomerJob, label: 'Customer:Job' },
   { value: Class.Account, label: 'Account' },
 ];
 
@@ -329,9 +327,9 @@ export function getClass(classId: number | undefined | null): string {
     [Class.Vendor]: 'Vendor',
     [Class.Employee]: 'Employee',
     [Class.OtherName]: 'Other Name',
-    [Class.Class]: 'Class',
+    [Class.Class]: 'Property',
     [Class.Item]: 'Item',
-    [Class.CustomerJob]: 'Customer:Job',
+    [Class.CustomerJob]: 'Reservation',
     [Class.Account]: 'Account',
   };
 

@@ -1,0 +1,41 @@
+<div class="financial-report-drill-down-dialog-wrap">
+  <div class="financial-report-drill-down-dialog-header">
+    <span class="financial-report-drill-down-dialog-title">
+      <mat-icon class="flex-shrink-0" color="primary">receipt_long</mat-icon>
+      <span class="flex-shrink-0 text-xl font-medium">{{ data.title }}</span>
+    </span>
+    @if (data.subtitle) {
+      <span class="financial-report-drill-down-dialog-subtitle">{{ data.subtitle }}</span>
+    }
+  </div>
+
+  <mat-dialog-content class="financial-report-drill-down-dialog-content">
+    @if (data.lines.length === 0) {
+      <p class="financial-report-drill-down-dialog-empty">No general ledger lines found for this amount.</p>
+    } @else {
+      <div class="financial-report-drill-down-dialog-table">
+        <app-data-table
+          [data]="data.lines"
+          [columns]="displayedColumns"
+          [noDataMessage]="'No general ledger lines found for this amount.'"
+          [hasColumnIndex]="false"
+          [hasFilter]="true"
+          [hasToggleTop]="false"
+          [hasButtonTop]="false"
+          [hasActionsSelect]="false"
+          [hasContactNameLink]="false"
+          [hasActionsRowClick]="false"
+          [itemsPerPage]="100">
+        </app-data-table>
+      </div>
+    }
+  </mat-dialog-content>
+
+  <mat-divider class="flex-shrink-0 w-full"></mat-divider>
+
+  <div class="flex flex-1 justify-end gap-3 p-3">
+    <button mat-raised-button type="button" color="primary" (click)="close()" class="text-nowrap flex-shrink-0">
+      Close
+    </button>
+  </div>
+</div>

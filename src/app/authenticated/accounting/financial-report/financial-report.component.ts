@@ -1,6 +1,7 @@
 import { CommonModule } from '@angular/common';
 import { ChangeDetectionStrategy, ChangeDetectorRef, Component, Input, OnChanges, OnDestroy, OnInit, SimpleChanges } from '@angular/core';
 import { HttpErrorResponse } from '@angular/common/http';
+import { MatDialog } from '@angular/material/dialog';
 import { BehaviorSubject, filter, finalize, Subject, take, takeUntil } from 'rxjs';
 import { MaterialModule } from '../../../material.module';
 import { AuthService } from '../../../services/auth.service';
@@ -11,7 +12,7 @@ import { UtilityService } from '../../../services/utility.service';
 import { OfficeResponse } from '../../organizations/models/office.model';
 import { OfficeService } from '../../organizations/services/office.service';
 import { ChartOfAccountResponse } from '../models/chart-of-accounts.model';
-import { Class } from '../models/accounting-enum';
+import { Class, SourceTypeLabels } from '../models/accounting-enum';
 import {
   FINANCIAL_REPORT_TOTAL_COLUMN_ID,
   FinancialReportColumn,
@@ -22,6 +23,10 @@ import {
 import { JournalEntryLineSearchResponse } from '../models/journal-entry.model';
 import { ChartOfAccountsService } from '../services/chart-of-accounts.service';
 import { GeneralLedgerService } from '../services/general-ledger.service';
+import {
+  FinancialReportDrillDownDialogComponent,
+  FinancialReportDrillDownDialogData
+} from './financial-report-drill-down-dialog.component';
 
 interface FinancialReportVisibleRow {
   nodeId: string;
@@ -76,6 +81,7 @@ export class FinancialReportComponent implements OnInit, OnDestroy, OnChanges {
     private authService: AuthService,
     private commonService: CommonService,
     private utilityService: UtilityService,
+    private dialog: MatDialog,
     private cdr: ChangeDetectorRef
   ) {
   }
@@ -148,6 +154,43 @@ export class FinancialReportComponent implements OnInit, OnDestroy, OnChanges {
     this.expandedNodeIds.clear();
     this.rebuildVisibleRows();
     this.markViewForCheck();
+  }
+
+  canDrillDownAmount(row: FinancialReportVisibleRow, columnId: string): boolean {
+    return !!row.columnAmountDisplays[columnId]?.trim();
+  }
+
+  openDrillDown(row: FinancialReportVisibleRow, columnId: string): void {
+    if (!this.canDrillDownAmount(row, columnId) || !this.reportResult?.drillDownContext) {
+      return;
+    }
+
+    const filteredLines = this.mappingService.filterFinancialReportDrillDownLines(
+      this.allLines,
+      row.nodeId,
+      columnId,
+      this.reportResult.drillDownContext,
+      this.reportResult.sections
+    );
+    const columnLabel = this.mappingService.getFinancialReportDrillDownColumnLabel(columnId, this.reportResult);
+    const linesDisplay = this.mappingService.mapJournalEntryLineListDisplay(
+      filteredLines,
+      this.getChartOfAccountsForOfficeIds(this.resolveOfficeIds()),
+      SourceTypeLabels
+    );
+    const dialogData: FinancialReportDrillDownDialogData = {
+      title: row.label,
+      subtitle: `${columnLabel} · ${this.reportResult.periodLabel}`,
+      lines: linesDisplay
+    };
+
+    this.dialog.open(FinancialReportDrillDownDialogComponent, {
+      data: dialogData,
+      width: 'min(92vw, 64rem)',
+      maxWidth: '92vw',
+      panelClass: 'financial-report-drill-down-dialog-panel',
+      autoFocus: false
+    });
   }
   //#endregion
 
@@ -281,8 +324,8 @@ export class FinancialReportComponent implements OnInit, OnDestroy, OnChanges {
         reportKind: this.reportKind,
         accounts: scopedAccounts,
         lines: this.allLines,
-        startDate: this.searchDateRange?.startDate ?? null,
-        endDate: this.searchDateRange?.endDate ?? null,
+        startDate: this.reportKind === 'balanceSheet' ? null : (this.searchDateRange?.startDate ?? null),
+        endDate: this.resolveReportEndDate(),
         chartOfAccountId: null,
         reportClass: this.mappingService.normalizeFinancialReportClass(this.reportClass)
       });
@@ -325,12 +368,22 @@ export class FinancialReportComponent implements OnInit, OnDestroy, OnChanges {
   appendVisibleRows(node: FinancialReportTreeNode, rows: FinancialReportVisibleRow[]): void {
     const expandable = node.childNodes.length > 0;
     const expanded = expandable && this.expandedNodeIds.has(node.nodeId);
+    const hideParentAmounts = expandable && expanded;
+    const showCollapsedSectionTotal = node.rowKind === 'section' && expandable && !expanded;
     rows.push({
       nodeId: node.nodeId,
       label: node.label,
       amount: node.amount,
-      amountDisplay: this.formatAmountDisplay(node.amount, node.rowKind),
-      columnAmountDisplays: this.formatColumnAmountDisplays(node.columnAmounts, node.rowKind),
+      amountDisplay: hideParentAmounts
+        ? ''
+        : showCollapsedSectionTotal
+          ? this.formatter.currencyUsd(node.amount)
+          : this.formatAmountDisplay(node.amount, node.rowKind),
+      columnAmountDisplays: hideParentAmounts
+        ? {}
+        : showCollapsedSectionTotal
+          ? this.formatColumnAmountDisplays(node.columnAmounts, 'account')
+          : this.formatColumnAmountDisplays(node.columnAmounts, node.rowKind),
       depth: node.depth,
       rowKind: node.rowKind,
       expandable,
@@ -414,10 +467,18 @@ export class FinancialReportComponent implements OnInit, OnDestroy, OnChanges {
       return this.reportResult.columns[0].label;
     }
     return this.mappingService.buildFinancialReportColumnHeaderLabel(
-      this.searchDateRange?.startDate ?? null,
-      this.searchDateRange?.endDate ?? null,
+      this.reportKind === 'balanceSheet' ? null : (this.searchDateRange?.startDate ?? null),
+      this.resolveReportEndDate(),
       this.reportKind === 'balanceSheet'
     );
+  }
+
+  resolveReportEndDate(): string | null {
+    if (this.reportKind === 'balanceSheet') {
+      return this.searchDateRange?.endDate ?? this.utilityService.formatDateOnlyForApi(new Date());
+    }
+
+    return this.searchDateRange?.endDate ?? null;
   }
 
   isTitleRowExpander(row: FinancialReportVisibleRow): boolean {

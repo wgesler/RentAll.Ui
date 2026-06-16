@@ -6,6 +6,24 @@ export type FinancialReportKind = 'profitLoss' | 'balanceSheet';
 
 export type FinancialReportRowKind = 'section' | 'account' | 'total' | 'summary';
 
+export type FinancialReportDrillDownMode = 'activity' | 'balance';
+
+export interface FinancialReportDrillDownSpec {
+  accountIds?: number[];
+  accountTypeIds?: number[];
+  includeProfitLossActivity?: boolean;
+  mode: FinancialReportDrillDownMode;
+}
+
+export interface FinancialReportDrillDownContext {
+  reportKind: FinancialReportKind;
+  columnContext: FinancialReportColumnContext;
+  scopedAccounts: ChartOfAccountResponse[];
+  accountIdRemap: Map<number, number>;
+  startDate: string | null;
+  endDate: string | null;
+}
+
 export const FINANCIAL_REPORT_TOTAL_COLUMN_ID = 'total';
 export const FINANCIAL_REPORT_UNASSIGNED_COLUMN_ID = '__unassigned__';
 
@@ -24,6 +42,7 @@ export interface FinancialReportTreeNode {
   depth: number;
   rowKind: FinancialReportRowKind;
   accountId?: number;
+  drillDownSpec?: FinancialReportDrillDownSpec;
   childNodes: FinancialReportTreeNode[];
 }
 
@@ -33,6 +52,7 @@ export interface FinancialReportResult {
   columns: FinancialReportColumn[];
   showTotalColumn: boolean;
   sections: FinancialReportTreeNode[];
+  drillDownContext: FinancialReportDrillDownContext;
 }
 
 export interface FinancialReportColumnContext {
