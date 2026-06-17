@@ -175,7 +175,7 @@ export class AuthService {
     }
 
     //#region Organization feature access
-    /** Org-scoped feature flag from login bootstrap cache. SuperAdmin bypasses all checks. */
+    /** Org-scoped feature flag from JWT bootstrap and live feature cache. SuperAdmin bypasses all checks. */
     hasOrganizationFeature(featureType: FeatureType, features?: FeatureResponse[]): boolean {
         if (this.hasRole(UserGroups.SuperAdmin)) {
             return true;
@@ -186,7 +186,21 @@ export class AuthService {
             return false;
         }
 
-        return this.injector.get(OrganizationFeatureService).hasFeatureAccess(organizationId, featureType, features);
+        const featureService = this.injector.get(OrganizationFeatureService);
+        if (features?.length) {
+            return featureService.hasFeatureAccess(organizationId, featureType, features);
+        }
+
+        if (featureService.isFeaturesLoadedForOrganization(organizationId)) {
+            return featureService.hasFeatureAccess(organizationId, featureType);
+        }
+
+        const enabledFeatureTypeIds = this.getUser()?.enabledFeatureTypeIds;
+        if (enabledFeatureTypeIds !== undefined) {
+            return enabledFeatureTypeIds.includes(featureType);
+        }
+
+        return featureService.hasFeatureAccess(organizationId, featureType);
     }
 
     hasMainProgramAccess(features?: FeatureResponse[]): boolean {
@@ -343,6 +357,7 @@ export class AuthService {
                 this.storageService.addItem(StorageKey.AuthData, JSON.stringify(response));
                 this.jwtContainer$.next(jwtContainer);
                 this.isLoggedIn$.next(this.getIsLoggedIn());
+                this.seedOrganizationFeaturesFromJwt(jwtContainer.user);
             } catch (containerError) {
                 console.error('Error creating JwtContainer:', containerError);
                 console.error('JWT User Object:', jwtUserObj);
@@ -398,4 +413,16 @@ export class AuthService {
   buildRefreshAuthData(response: AuthResponse): void {
         this.setAuthData(response);
   }
+
+    private seedOrganizationFeaturesFromJwt(user: JwtUser | null | undefined): void {
+        if (!user || user.enabledFeatureTypeIds === undefined) {
+            return;
+        }
+
+        try {
+            this.injector.get(OrganizationFeatureService).seedFeaturesFromJwt(user.organizationId, user.enabledFeatureTypeIds);
+        } catch {
+            /* OrganizationFeatureService may not be available during teardown */
+        }
+    }
 }

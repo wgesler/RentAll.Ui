@@ -1,7 +1,7 @@
 import { HttpClient, HttpErrorResponse } from '@angular/common/http';
 import { Injectable } from '@angular/core';
 import { BehaviorSubject, Observable, catchError, of, switchMap, take, tap, throwError } from 'rxjs';
-import { FeatureType } from '../models/organization-enum';
+import { FeatureType, getFeatureTypeCode } from '../models/organization-enum';
 import { ConfigService } from '../../../services/config.service';
 import { FeatureRequest, FeatureResponse } from '../models/organization-feature.model';
 
@@ -77,6 +77,32 @@ export class OrganizationFeatureService {
     this.allFeatures$.next([]);
     this.featuresLoaded$.next(false);
     this.loadedOrganizationId = null;
+  }
+
+  seedFeaturesFromJwt(organizationId: string, enabledFeatureTypeIds: number[]): void {
+    const id = organizationId?.trim();
+    if (!id) {
+      return;
+    }
+
+    const enabledSet = new Set(enabledFeatureTypeIds);
+    const featureTypeIds = Object.values(FeatureType).filter(value => typeof value === 'number') as number[];
+    const features = featureTypeIds.map(featureTypeId => ({
+      featureId: 0,
+      organizationId: id,
+      featureTypeId,
+      featureCode: getFeatureTypeCode(featureTypeId),
+      featureTypeDescription: getFeatureTypeCode(featureTypeId),
+      hasAccess: enabledSet.has(featureTypeId)
+    }));
+
+    this.allFeatures$.next(features);
+    this.featuresLoaded$.next(true);
+    this.loadedOrganizationId = id;
+  }
+
+  isFeaturesLoadedForOrganization(organizationId: string): boolean {
+    return this.featuresLoaded$.value && this.isSameOrganizationId(this.loadedOrganizationId, organizationId);
   }
 
   getAllFeatures(): Observable<FeatureResponse[]> {

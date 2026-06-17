@@ -11,6 +11,7 @@ import { LeadsService } from '../../../leads/services/leads.service';
 import { getVisibleNavItems } from '../../access/role-access';
 import { TicketStateType } from '../../../tickets/models/ticket-enum';
 import { TicketService } from '../../../tickets/services/ticket.service';
+import { OrganizationFeatureService } from '../../../organizations/services/organization-feature.service';
 import { UserGroups } from '../../../users/models/user-enums';
 import { SidebarStateService } from '../services/sidebar-state.service';
 
@@ -47,6 +48,7 @@ export class SidebarComponent implements OnInit, OnDestroy {
     private sidebarStateService: SidebarStateService,
     private ticketService: TicketService,
     private leadsService: LeadsService,
+    private organizationFeatureService: OrganizationFeatureService,
     private cdr: ChangeDetectorRef
   ) {}
 
@@ -79,6 +81,13 @@ export class SidebarComponent implements OnInit, OnDestroy {
     
     // Re-filter when login status changes
     this.authService.getIsLoggedIn$().pipe(takeUntil(this.destroy$)).subscribe(() => {
+      this.filterNavItemsByRole();
+      this.refreshAssignedTicketBadge();
+      this.refreshLeadBadge();
+      this.markViewForCheck();
+    });
+
+    this.organizationFeatureService.getAllFeatures().pipe(takeUntil(this.destroy$)).subscribe(() => {
       this.filterNavItemsByRole();
       this.refreshAssignedTicketBadge();
       this.refreshLeadBadge();

@@ -49,6 +49,20 @@ export class JwtContainer {
             : null;
         const agentId = user.agentId ?? null;
         const userGuid = user.userGuid || user.userId || '';
+
+        const enabledFeaturesRaw = user.enabledFeatures ?? user.EnabledFeatures;
+        let enabledFeatureTypeIds: number[] | undefined;
+        if (enabledFeaturesRaw !== undefined && enabledFeaturesRaw !== null) {
+            if (Array.isArray(enabledFeaturesRaw)) {
+                enabledFeatureTypeIds = enabledFeaturesRaw
+                    .map((featureTypeId: unknown) => typeof featureTypeId === 'number' ? featureTypeId : parseInt(String(featureTypeId), 10))
+                    .filter((featureTypeId: number) => !isNaN(featureTypeId));
+            } else if (typeof enabledFeaturesRaw === 'string') {
+                enabledFeatureTypeIds = enabledFeaturesRaw === ''
+                    ? []
+                    : enabledFeaturesRaw.split(',').map((featureTypeId: string) => parseInt(featureTypeId.trim(), 10)).filter((featureTypeId: number) => !isNaN(featureTypeId));
+            }
+        }
         
         this.user = new JwtUser(
             userGuid,
@@ -62,7 +76,8 @@ export class JwtContainer {
             startupPage,
             defaultOfficeId,
             agentId,
-            properties
+            properties,
+            enabledFeatureTypeIds
         );
     }
 }
@@ -82,6 +97,7 @@ export class JwtUser {
     defaultOfficeId: number | null;
     agentId: string | null;
     properties: string[];
+    enabledFeatureTypeIds?: number[];
   
 
 
@@ -97,7 +113,8 @@ export class JwtUser {
         startupPage: number,
         defaultOfficeId: number | null = null,
         agentId: string | null = null,
-        properties: string[] = []
+        properties: string[] = [],
+        enabledFeatureTypeIds?: number[]
     ) {
         this.userGuid = userGuid;
         // Keep userId for backward compatibility in existing UI code paths.
@@ -115,5 +132,6 @@ export class JwtUser {
         this.defaultOfficeId = defaultOfficeId;
         this.agentId = agentId;
         this.properties = properties;
+        this.enabledFeatureTypeIds = enabledFeatureTypeIds;
     }
 }
