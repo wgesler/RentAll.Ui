@@ -879,10 +879,11 @@ export class InvoiceCreateComponent extends BaseDocumentComponent implements OnI
 
     const paymentLines = invoice.ledgerLines.filter(l => this.isPaymentLedgerLine(l));
     const chargeLines = invoice.ledgerLines.filter(l => !this.isPaymentLedgerLine(l));
-    const totalLedgerLines = chargeLines.length + paymentLines.length;
+    const displayChargeLines = this.collapseChargeLinesForDisplay(chargeLines);
+    const totalLedgerLines = displayChargeLines.length + paymentLines.length;
     const hasPayments = paymentLines.length > 0;
 
-    const chargeRows = chargeLines.map(l => this.formatInvoiceLedgerRowHtml(l)).join('\n');
+    const chargeRows = displayChargeLines.map(l => this.formatInvoiceLedgerRowHtml(l)).join('\n');
     const paymentRows = paymentLines.map(l => this.formatInvoiceLedgerRowHtml(l)).join('\n');
 
     const totalChargesAmount = chargeLines.reduce((sum, l) => sum + (l.amount || 0), 0);
@@ -946,6 +947,36 @@ export class InvoiceCreateComponent extends BaseDocumentComponent implements OnI
       return true;
 
     return line.transactionTypeId === TransactionType.Payment;
+  }
+
+  isRentChargeLedgerLine(line: LedgerLineResponse): boolean {
+    const costCodeId = Number(line.costCodeId);
+    if (Number.isFinite(costCodeId) && this.getRentChargeCostCodeIds().has(costCodeId))
+      return true;
+
+    return /^Rental Fee/i.test(line.description || '');
+  }
+
+  getRentChargeCostCodeIds(): Set<number> {
+    const ids = new Set<number>();
+    const office = this.selectedOffice;
+    if (office?.furnishedRentChargeCcId != null)
+      ids.add(Number(office.furnishedRentChargeCcId));
+    if (office?.unfurnishedRentChargeCcId != null)
+      ids.add(Number(office.unfurnishedRentChargeCcId));
+    return ids;
+  }
+
+  collapseChargeLinesForDisplay(chargeLines: LedgerLineResponse[]): LedgerLineResponse[] {
+    if (!this.selectedReservation?.collapseCharges || chargeLines.length <= 1)
+      return chargeLines;
+
+    const rentLine = chargeLines.find(line => this.isRentChargeLedgerLine(line));
+    if (!rentLine)
+      return chargeLines;
+
+    const totalAmount = chargeLines.reduce((sum, line) => sum + (line.amount || 0), 0);
+    return [{ ...rentLine, amount: totalAmount }];
   }
 
   getInvoiceDisplayTotals(invoice: InvoiceResponse): { totalCharges: number; totalPayments: number; totalDue: number } {
