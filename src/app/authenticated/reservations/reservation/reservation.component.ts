@@ -949,11 +949,13 @@ export class ReservationComponent implements OnInit, OnDestroy, CanComponentDeac
     today.setHours(0, 0, 0, 0);
     const arrivalSource = this.parseDateOnly(source.arrivalDate);
     const departureSource = this.parseDateOnly(source.departureDate);
+    const billingTypeId = source.billingTypeId ?? BillingType.Monthly;
     const stayDays = arrivalSource && departureSource
-      ? (this.utilityService.getCalendarDaySpanBetweenDates(arrivalSource, departureSource) ?? 1)
+      ? (this.getDisplayedStayDaysFromDates(arrivalSource, departureSource, billingTypeId) ?? 1)
       : 1;
+    const departureOffset = this.getCalendarDayOffsetForStayDays(stayDays, billingTypeId) ?? stayDays;
     const departure = new Date(today);
-    departure.setDate(departure.getDate() + stayDays);
+    departure.setDate(departure.getDate() + departureOffset);
     departure.setHours(0, 0, 0, 0);
 
     this.form.patchValue({ reservationTypeId: source.reservationTypeId }, { emitEvent: false });
@@ -1144,13 +1146,39 @@ export class ReservationComponent implements OnInit, OnDestroy, CanComponentDeac
     return parsed;
   }
 
+  isNightlyBillingType(billingTypeId?: number | null): boolean {
+    return billingTypeId === BillingType.Nightly;
+  }
+
+  getDisplayedStayDaysFromDates(arrival: Date, departure: Date, billingTypeId?: number | null): number | null {
+    const span = this.utilityService.getCalendarDaySpanBetweenDates(arrival, departure);
+    if (span == null) {
+      return null;
+    }
+    return this.isNightlyBillingType(billingTypeId) ? span : span + 1;
+  }
+
+  getCalendarDayOffsetForStayDays(stayDays: number, billingTypeId?: number | null): number | null {
+    if (!Number.isFinite(stayDays) || stayDays <= 0) {
+      return null;
+    }
+    if (this.isNightlyBillingType(billingTypeId)) {
+      return stayDays;
+    }
+    const offset = stayDays - 1;
+    return offset > 0 ? offset : null;
+  }
+
   syncStayDaysFromDates(): void {
     if (!this.form || this.syncingStayDayFields) {
       return;
     }
     const arrival = this.parseDateOnly(this.form.get('arrivalDate')?.value);
     const departure = this.parseDateOnly(this.form.get('departureDate')?.value);
-    const days = arrival && departure ? this.utilityService.getCalendarDaySpanBetweenDates(arrival, departure) : null;
+    const billingTypeId = this.form.get('billingTypeId')?.value as number | null | undefined;
+    const days = arrival && departure
+      ? this.getDisplayedStayDaysFromDates(arrival, departure, billingTypeId)
+      : null;
     this.syncingStayDayFields = true;
     this.form.get('numberOfStayDays')?.setValue(days != null ? String(days) : null, { emitEvent: false });
     this.syncingStayDayFields = false;
@@ -1164,7 +1192,12 @@ export class ReservationComponent implements OnInit, OnDestroy, CanComponentDeac
     if (!arrival) {
       return;
     }
-    const departure = this.utilityService.addCalendarDaysToDate(arrival, days);
+    const billingTypeId = this.form.get('billingTypeId')?.value as number | null | undefined;
+    const calendarDayOffset = this.getCalendarDayOffsetForStayDays(days, billingTypeId);
+    if (calendarDayOffset == null) {
+      return;
+    }
+    const departure = this.utilityService.addCalendarDaysToDate(arrival, calendarDayOffset);
     if (!departure) {
       return;
     }
@@ -1359,8 +1392,9 @@ export class ReservationComponent implements OnInit, OnDestroy, CanComponentDeac
   }
 
   setupBillingTypeHandler(): void {
-    this.form.get('billingTypeId')?.valueChanges.pipe(takeUntil(this.destroy$)).subscribe(billingTypeId => {
+    this.form.get('billingTypeId')?.valueChanges.pipe(takeUntil(this.destroy$)).subscribe(() => {
       this.updateBillingValues();
+      this.syncStayDaysFromDates();
     });
   }
 
