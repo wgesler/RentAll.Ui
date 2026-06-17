@@ -584,37 +584,6 @@ export class AccountingShellComponent implements OnInit, OnDestroy {
       queryParamsHandling: 'merge'
     });
   }
-
-  onPrintInvoice(event: { officeId: number | null, reservationId: string | null, invoiceId: string }): void {
-    const params: string[] = [];
-    params.push(`returnTo=accounting`);
-    params.push(`autoPrint=true`);
-
-    if (this.isSuperAdmin) {
-      if (this.currentUserOrganizationId) {
-        params.push(`organizationId=${this.currentUserOrganizationId}`);
-        params.push(`reservationId=${this.selectedOrganizationId}`);
-      }
-    } else {
-      if (event.officeId !== null && event.officeId !== undefined) {
-        params.push(`officeId=${event.officeId}`);
-      }
-      if (this.selectedCompanyId) {
-        params.push(`companyId=${this.selectedCompanyId}`);
-      }
-      if (event.reservationId !== null && event.reservationId !== undefined && event.reservationId !== '') {
-        params.push(`reservationId=${event.reservationId}`);
-      }
-      if (event.invoiceId) {
-        params.push(`invoiceId=${event.invoiceId}`);
-      }
-    }
-
-    const url = params.length > 0
-      ? `${RouterUrl.InvoiceCreate}?${params.join('&')}`
-      : RouterUrl.InvoiceCreate;
-    this.router.navigateByUrl(url);
-  }
   //#endregion
 
   //#region Pinned Date Range

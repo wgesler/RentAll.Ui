@@ -32,6 +32,7 @@ import { InvoiceGetRequest, InvoicePaymentRequest, InvoicePaymentResponse, Invoi
 import { InvoiceService } from '../services/invoice.service';
 import { ChartOfAccountsService } from '../services/chart-of-accounts.service';
 import { CostCodesService } from '../services/cost-codes.service';
+import { InvoiceDocumentService } from '../services/invoice-document.service';
 import { InvoiceIifExportService } from '../services/invoice-iif-export.service';
 import { QbClassType, QbNameType } from '../../organizations/models/qb-type-enum';
 
@@ -59,7 +60,6 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
   @Output() officeIdChange = new EventEmitter<number | null>(); // Emit office changes to parent
   @Output() companyIdChange = new EventEmitter<string | null>(); // Emit company changes to parent
   @Output() reservationIdChange = new EventEmitter<string | null>(); // Emit reservation changes to parent
-  @Output() printInvoiceEvent = new EventEmitter<{ officeId: number | null, reservationId: string | null, invoiceId: string }>(); // Emit print invoice event to parent
   @Output() journalEntriesChanged = new EventEmitter<void>();
   
   panelOpenState: boolean = true;
@@ -172,6 +172,7 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
     private formatter: FormatterService,
     private utilityService: UtilityService,
     private invoiceIifExportService: InvoiceIifExportService,
+    private invoiceDocumentService: InvoiceDocumentService,
     private zone: NgZone,
     private cdr: ChangeDetectorRef) {
   }
@@ -341,15 +342,30 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
 
   //#region Action Methods
   printInvoice(invoice: InvoiceResponse): void {
-    // Get values directly from the clicked invoice line
-    const officeId = invoice?.officeId ?? null;
-    const reservationId = invoice?.reservationId ?? null;
-    const invoiceId = invoice?.invoiceId ?? null;
-    
-    // Emit event to parent to switch tabs without navigation
-    if (invoiceId) {
-      this.printInvoiceEvent.emit({ officeId, reservationId, invoiceId });
+    if (!invoice?.invoiceId) {
+      return;
     }
+
+    this.invoiceDocumentService.printInvoice(invoice).pipe(take(1)).subscribe({
+      error: (err: Error) => {
+        this.toastr.error(err?.message || 'Failed to print invoice.', CommonMessage.Error);
+      }
+    });
+  }
+
+  downloadInvoice(invoice: InvoiceResponse): void {
+    if (!invoice?.invoiceId) {
+      return;
+    }
+
+    this.invoiceDocumentService.downloadInvoicePdf(invoice).pipe(take(1)).subscribe({
+      next: () => {
+        this.toastr.success('Invoice downloaded.', CommonMessage.Success);
+      },
+      error: (err: Error) => {
+        this.toastr.error(err?.message || 'Failed to download invoice.', CommonMessage.Error);
+      }
+    });
   }
 
   goToInvoice(event: InvoiceResponse, fromEditButton: boolean = false): void {

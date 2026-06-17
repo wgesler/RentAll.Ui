@@ -64,6 +64,8 @@
           [hasReservationCodeLink]="true"
           [hasActionsPayable]="true"
           [hasActionsPrint]="true"
+          [hasActionsDownload]="true"
+          [downloadActionTooltip]="'Download'"
           [hasDetailRow]="true"
           [detailRowTemplate]="ledgerLinesTemplate"
           [includeDetailRowHeader]="false"
@@ -86,6 +88,7 @@
           (reservationCodeClickEvent)="goToReservation($event)"
           (payableEvent)="onPayable($event)"
           (printEvent)="printInvoice($event)"
+          (downloadEvent)="downloadInvoice($event)"
           (selectionSet)="onInvoiceSelectionSet($event)">
           <div dataTableFilterActions>
             <div class="table-filter-actions-group form-titlebar-actions-wrap uniform-gap payment-actions-anchor">
