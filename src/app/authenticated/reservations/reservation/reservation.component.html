@@ -468,8 +468,8 @@
                 </mat-form-field>
               }
 
-              <!-- Line 5: Arrival/Departure/Times/Codes on one row -->
-              <div class="col-span-4 grid grid-cols-6 form-standard-grid">
+              <!-- Line 5: Arrival/Departure/Days/Times/Codes on one row -->
+              <div class="col-span-4 grid grid-cols-7 form-standard-grid min-w-0">
                 <mat-form-field appearance="outline">
                   <mat-label>Arrival Date</mat-label>
                   <input matInput [matDatepicker]="arrivalPicker" formControlName="arrivalDate" required>
@@ -496,6 +496,11 @@
                   } @else if (form.get('departureDate')?.hasError('departureAfterArrival') && form.get('departureDate')?.touched) {
                     <mat-error>Departure must be after arrival date</mat-error>
                   }
+                </mat-form-field>
+
+                <mat-form-field appearance="outline" class="min-w-0">
+                  <mat-label>No of Days</mat-label>
+                  <input matInput type="text" inputmode="numeric" pattern="[0-9]*" formControlName="numberOfStayDays" placeholder="" (focus)="selectAllOnFocus($event)" (blur)="onNumberOfStayDaysCommitted()" (keydown.enter)="$event.preventDefault(); onNumberOfStayDaysCommitted()">
                 </mat-form-field>
 
                 <app-searchable-select
@@ -549,6 +554,12 @@
                   <mat-panel-title>Billing and Fees</mat-panel-title>
                 </mat-expansion-panel-header>
                 <div class="grid grid-cols-4 form-standard-grid">
+              <div class="col-span-4 reservation-first-row-toggles reservation-toggle-cell form-standard-checkbox-row justify-end">
+                <mat-checkbox formControlName="collapseCharges" color="primary">
+                  Collapse Charges on Invoice
+                </mat-checkbox>
+              </div>
+
               <mat-form-field appearance="outline" class="col-span-1 min-w-0">
                 <mat-label>Billing Type</mat-label>
                 <mat-select formControlName="billingTypeId" required>
@@ -629,6 +640,7 @@
                 <input matInput type="text" inputmode="numeric" pattern="[0-9.]*" formControlName="taxes" placeholder="0" (focus)="selectAllOnFocus($event)">
               </mat-form-field>
 
+              <div class="col-span-4 grid grid-cols-4 form-standard-grid billing-pet-fields-row min-w-0">
               <mat-form-field appearance="outline" class="col-span-1 min-w-0">
                 <mat-label>Pets</mat-label>
                 <mat-select formControlName="pets" required>
@@ -668,7 +680,9 @@
                   <mat-error>Pet Description is required</mat-error>
                 }
               </mat-form-field>
+              </div>
 
+              <div class="col-span-4 grid grid-cols-5 form-standard-grid billing-maid-fields-row min-w-0">
               <mat-form-field appearance="outline" class="col-span-1 min-w-0">
                 <mat-label>MaidService</mat-label>
                 <mat-select formControlName="maidService" required>
@@ -727,10 +741,11 @@
                 [noResultsText]="'No assigned cleaners match your search'"
                 (valueChange)="onAssignedMaidDropdownChange($event)">
               </app-searchable-select>
+              </div>
             </div>
 
             <!-- Extra Fee Lines Section -->
-            <div class="mb-4">
+            <div class="mb-4 mt-6">
               <!-- Title Bar with Add Button -->
               <div class="flex justify-between items-center mb-2">
                 <span class="text-lg font-medium">Extra Fee Lines</span>

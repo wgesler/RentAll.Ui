@@ -295,6 +295,31 @@ export class UtilityService {
     return ao - bo;
   }
 
+  /**
+   * Calendar-day span from `fromDate` to `toDate` (DateOnly / picker dates at local calendar day).
+   * Handles month lengths, leap years, and year boundaries; UTC date parts avoid DST skew.
+   * Returns null when either date is invalid or departure is not after arrival.
+   */
+  getCalendarDaySpanBetweenDates(fromDate: Date, toDate: Date): number | null {
+    if (!fromDate || !toDate || isNaN(fromDate.getTime()) || isNaN(toDate.getTime())) {
+      return null;
+    }
+    const fromUtc = Date.UTC(fromDate.getFullYear(), fromDate.getMonth(), fromDate.getDate());
+    const toUtc = Date.UTC(toDate.getFullYear(), toDate.getMonth(), toDate.getDate());
+    const days = Math.round((toUtc - fromUtc) / 86400000);
+    return days > 0 ? days : null;
+  }
+
+  /** Adds whole calendar days to a local DateOnly date (month/leap/year safe). */
+  addCalendarDaysToDate(fromDate: Date, days: number): Date | null {
+    if (!fromDate || isNaN(fromDate.getTime()) || !Number.isFinite(days) || days <= 0) {
+      return null;
+    }
+    const result = new Date(fromDate.getFullYear(), fromDate.getMonth(), fromDate.getDate());
+    result.setDate(result.getDate() + days);
+    return result;
+  }
+
   isSameCalendarDayStrings(a: string | null | undefined, b: string | null | undefined): boolean {
     const ao = this.parseCalendarDateToOrdinal(a);
     const bo = this.parseCalendarDateToOrdinal(b);

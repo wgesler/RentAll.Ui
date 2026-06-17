@@ -842,43 +842,50 @@ export class MixedMappingService {
     overrides?: Partial<ReservationRequest>
   ): ReservationRequest {
     const contactIds = (reservation.contactIds || []).filter(id => String(id || '').trim().length > 0);
-    const {
-      officeName: _officeName,
-      contactName: _contactName,
-      isDeleted: _isDeleted,
-      createdOn: _createdOn,
-      createdBy: _createdBy,
-      modifiedOn: _modifiedOn,
-      modifiedBy: _modifiedBy,
-      extraFeeLines,
-      ...requestBase
-    } = reservation;
-    void _officeName;
-    void _contactName;
-    void _isDeleted;
-    void _createdOn;
-    void _createdBy;
-    void _modifiedOn;
-    void _modifiedBy;
     const base: ReservationRequest = {
-      ...requestBase,
+      reservationId: reservation.reservationId,
       organizationId: reservation.organizationId || '',
-      currentInvoiceNo: reservation.currentInvoiceNo ?? 0,
+      officeId: reservation.officeId,
       agentId: reservation.agentId ?? null,
+      propertyId: reservation.propertyId,
       reservationCode: reservation.reservationCode ?? null,
+      reservationTypeId: reservation.reservationTypeId,
+      reservationStatusId: reservation.reservationStatusId,
       reservationNoticeId: reservation.reservationNoticeId ?? 0,
       contactIds,
       companyId: reservation.companyId ?? null,
       companyName: reservation.companyName ?? null,
+      numberOfPeople: reservation.numberOfPeople ?? 1,
       tenantName: reservation.tenantName || '',
       referenceNo: reservation.referenceNo || '',
+      arrivalDate: reservation.arrivalDate,
+      departureDate: reservation.departureDate,
+      checkInTimeId: reservation.checkInTimeId,
+      checkOutTimeId: reservation.checkOutTimeId,
+      maidUserId: reservation.maidUserId ?? null,
       lockBoxCode: reservation.lockBoxCode ?? null,
       unitTenantCode: reservation.unitTenantCode ?? null,
+      currentInvoiceNo: reservation.currentInvoiceNo ?? 0,
+      billingMethodId: reservation.billingMethodId,
+      prorateTypeId: reservation.prorateTypeId ?? 0,
+      billingTypeId: reservation.billingTypeId,
+      billingRate: reservation.billingRate ?? 0,
+      deposit: reservation.deposit ?? 0,
       depositTypeId: reservation.depositTypeId ?? 0,
+      departureFee: reservation.departureFee ?? 0,
+      taxes: reservation.taxes ?? 0,
+      hasPets: reservation.hasPets ?? false,
+      petFee: reservation.petFee ?? 0,
+      numberOfPets: reservation.numberOfPets ?? 0,
       petDescription: reservation.petDescription ?? null,
-      maidUserId: reservation.maidUserId ?? null,
-      extraFeeLines: this.mappingService.mapExtraFeeLinesResponseToRequest(extraFeeLines),
+      maidService: reservation.maidService ?? false,
+      maidServiceFee: reservation.maidServiceFee ?? 0,
+      frequencyId: reservation.frequencyId ?? 0,
+      maidStartDate: reservation.maidStartDate,
+      extraFeeLines: this.mappingService.mapExtraFeeLinesResponseToRequest(reservation.extraFeeLines),
       notes: reservation.notes ?? null,
+      allowExtensions: reservation.allowExtensions ?? true,
+      collapseCharges: reservation.collapseCharges ?? false,
       aCleanerUserId: reservation.aCleanerUserId ?? null,
       aCleaningDate: reservation.aCleaningDate ?? null,
       aCarpetUserId: reservation.aCarpetUserId ?? null,
@@ -890,7 +897,8 @@ export class MixedMappingService {
       dCarpetUserId: reservation.dCarpetUserId ?? null,
       dCarpetDate: reservation.dCarpetDate ?? null,
       dInspectorUserId: reservation.dInspectorUserId ?? null,
-      dInspectingDate: reservation.dInspectingDate ?? null
+      dInspectingDate: reservation.dInspectingDate ?? null,
+      isActive: this.toBoolean(reservation.isActive)
     };
     return { ...base, ...overrides };
   }

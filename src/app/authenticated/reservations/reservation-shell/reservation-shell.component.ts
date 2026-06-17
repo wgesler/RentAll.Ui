@@ -261,7 +261,7 @@ export class ReservationShellComponent implements OnInit, AfterViewInit, OnDestr
         this.selectedReservationSummary = this.reservationList.find(r => r.reservationId === previousReservationId) || null;
         return;
       }
-      this.reservationSection.loadReservation(nextReservationId);
+      this.reservationSection.getReservation(nextReservationId);
     }
 
     this.onHeaderReservationChange();
@@ -278,7 +278,7 @@ export class ReservationShellComponent implements OnInit, AfterViewInit, OnDestr
         return;
       }
       if (reservation.reservation?.reservationId !== this.selectedHeaderReservationId) {
-        reservation.loadReservation(this.selectedHeaderReservationId);
+        reservation.getReservation(this.selectedHeaderReservationId);
       }
       return;
     }

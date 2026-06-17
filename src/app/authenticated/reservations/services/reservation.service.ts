@@ -64,8 +64,10 @@ export class ReservationService {
     return this.http.put<ReservationResponse>(this.controller, reservation);
   }
 
-  // Loads the reservation by id, maps it to a full ReservationRequest, merges overrides, then PUTs.
-  async updateModifiedReservation( reservationId: string,
+  // Loads the reservation by id, maps every field to ReservationRequest, merges overrides, then PUTs.
+  // Use this for inline/partial updates (list toggles, maintenance provider fields, etc.) so nothing is lost.
+  async updateModifiedReservation(
+    reservationId: string,
     overrides: Partial<ReservationRequest> | ((reservation: ReservationResponse) => Partial<ReservationRequest>)
   ): Promise<ReservationResponse> {
     const reservation = await firstValueFrom(this.getReservationByGuid(reservationId));

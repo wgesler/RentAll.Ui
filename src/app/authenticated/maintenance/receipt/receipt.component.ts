@@ -94,6 +94,7 @@ export class ReceiptComponent implements OnInit, OnChanges, OnDestroy {
 
   readonly accountingCompanyPropertyId = ACCOUNTING_COMPANY_PROPERTY_ID;
   lastPropertyIdsValue: string[] = [];
+  manualSplitAccountIndexes = new Set<number>();
 
   itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['receipt']));
   destroy$ = new Subject<void>();
@@ -182,6 +183,7 @@ export class ReceiptComponent implements OnInit, OnChanges, OnDestroy {
     }
 
     if (changes['receiptId'] && !changes['receiptId'].firstChange) {
+      this.clearManualSplitAccountOverrides();
       this.isAddMode = this.receiptId == null;
       this.receiptOfficeInitialized = false;
       this.receipt = null;
@@ -251,9 +253,6 @@ export class ReceiptComponent implements OnInit, OnChanges, OnDestroy {
       .trim() || null;
     const amountStr = this.sanitizeSignedDecimalInput(this.form.get('amount')?.value?.toString() ?? '');
     const amountValue = parseFloat(amountStr) || 0;
-    if (this.shouldAutoSetSplitAccountFromReceiptType()) {
-      this.applyDefaultSplitAccountsFromReceiptTypes();
-    }
     const payloadSplits = this.getPayloadSplitsFromForm().map(split => {
       const normalizedWorkOrderId = this.normalizeGuidOrNull(split.workOrderId);
       return {
@@ -595,6 +594,7 @@ export class ReceiptComponent implements OnInit, OnChanges, OnDestroy {
         this.accountingOfficeService.getAllAccountingOffices().pipe(takeUntil(this.destroy$)).subscribe(accountingOffices => {
           this.accountingOffices = accountingOffices || [];
           this.refreshBankCardsForCurrentOffice();
+          this.applyDefaultSplitAccountsForAddMode();
           this.cdr.markForCheck();
         });
       },
@@ -699,9 +699,7 @@ export class ReceiptComponent implements OnInit, OnChanges, OnDestroy {
         .sort((a, b) => a.label.localeCompare(b.label, undefined, { sensitivity: 'base' }));
     });
 
-    if (this.shouldAutoSetSplitAccountFromReceiptType()) {
-      this.applyDefaultSplitAccountsFromReceiptTypes(true);
-    }
+    this.applyDefaultSplitAccountsForAddMode();
   }
 
   loadBankCardsForOffice(officeId: number | null | undefined): void {
@@ -1242,6 +1240,7 @@ export class ReceiptComponent implements OnInit, OnChanges, OnDestroy {
     const row = this.splitsFormArray.at(splitIndex);
     row?.get('chartOfAccountId')?.setValue(accountId);
     row?.get('chartOfAccountId')?.markAsTouched();
+    this.markSplitAccountAsManual(splitIndex);
     this.cdr.markForCheck();
   }
 
@@ -1263,12 +1262,32 @@ export class ReceiptComponent implements OnInit, OnChanges, OnDestroy {
     return Number.isFinite(accountId) && accountId > 0 ? accountId : null;
   }
 
-  shouldAutoSetSplitAccountFromReceiptType(): boolean {
-    return this.isAccountingShell && !this.isOverallBillBankCard();
+  clearManualSplitAccountOverrides(): void {
+    this.manualSplitAccountIndexes.clear();
+  }
+
+  markSplitAccountAsManual(splitIndex: number): void {
+    this.manualSplitAccountIndexes.add(splitIndex);
+  }
+
+  isSplitAccountManuallySet(splitIndex: number): boolean {
+    return this.manualSplitAccountIndexes.has(splitIndex);
+  }
+
+  shiftManualSplitAccountIndexesAfterRemove(removedIndex: number): void {
+    const nextManualSplitAccountIndexes = new Set<number>();
+    this.manualSplitAccountIndexes.forEach(index => {
+      if (index < removedIndex) {
+        nextManualSplitAccountIndexes.add(index);
+      } else if (index > removedIndex) {
+        nextManualSplitAccountIndexes.add(index - 1);
+      }
+    });
+    this.manualSplitAccountIndexes = nextManualSplitAccountIndexes;
   }
 
   resolveDefaultChartOfAccountIdForReceiptType(receiptTypeId: number | null | undefined): number | null {
-    if (!this.shouldAutoSetSplitAccountFromReceiptType()) {
+    if (!this.isAccountingShell) {
       return null;
     }
 
@@ -1279,9 +1298,9 @@ export class ReceiptComponent implements OnInit, OnChanges, OnDestroy {
 
     switch (Number(receiptTypeId)) {
       case ReceiptType.Tenant:
-        return this.normalizeOptionalAccountId(accountingOffice.defaultTenantIncAccountId);
+        return this.normalizeOptionalAccountId(accountingOffice.defaultTenantExpAccountId);
       case ReceiptType.Owner:
-        return this.normalizeOptionalAccountId(accountingOffice.defaultOwnerIncAccountId);
+        return this.normalizeOptionalAccountId(accountingOffice.defaultOwnerExpAccountId);
       case ReceiptType.Organization:
         return this.normalizeOptionalAccountId(accountingOffice.defaultCompanyExpAccountId);
       default:
@@ -1289,8 +1308,8 @@ export class ReceiptComponent implements OnInit, OnChanges, OnDestroy {
     }
   }
 
-  applyDefaultSplitAccountFromReceiptType(splitIndex: number, onlyWhenEmpty = false): void {
-    if (!this.shouldAutoSetSplitAccountFromReceiptType()) {
+  applyDefaultSplitAccountFromReceiptType(splitIndex: number): void {
+    if (!this.isAccountingShell || this.isSplitAccountManuallySet(splitIndex)) {
       return;
     }
 
@@ -1299,23 +1318,28 @@ export class ReceiptComponent implements OnInit, OnChanges, OnDestroy {
       return;
     }
 
-    const currentAccountId = Number(row.get('chartOfAccountId')?.value ?? 0);
-    if (onlyWhenEmpty && Number.isFinite(currentAccountId) && currentAccountId > 0) {
-      return;
-    }
-
     const accountId = this.resolveDefaultChartOfAccountIdForReceiptType(row.get('receiptTypeId')?.value);
     row.get('chartOfAccountId')?.setValue(accountId, { emitEvent: false });
     this.cdr.markForCheck();
   }
 
-  applyDefaultSplitAccountsFromReceiptTypes(onlyWhenEmpty = false): void {
-    if (!this.shouldAutoSetSplitAccountFromReceiptType()) {
+  applyDefaultSplitAccountsForAddMode(): void {
+    if (!this.isAddMode || !this.isAccountingShell) {
       return;
     }
 
     for (let splitIndex = 0; splitIndex < this.splitsFormArray.length; splitIndex++) {
-      this.applyDefaultSplitAccountFromReceiptType(splitIndex, onlyWhenEmpty);
+      if (this.isSplitAccountManuallySet(splitIndex)) {
+        continue;
+      }
+
+      const row = this.splitsFormArray.at(splitIndex);
+      const currentAccountId = Number(row?.get('chartOfAccountId')?.value ?? 0);
+      if (Number.isFinite(currentAccountId) && currentAccountId > 0) {
+        continue;
+      }
+
+      this.applyDefaultSplitAccountFromReceiptType(splitIndex);
     }
   }
 
@@ -1330,12 +1354,16 @@ export class ReceiptComponent implements OnInit, OnChanges, OnDestroy {
   addSplitLine(): void {
     this.splitsFormArray.push(this.createSplitFormGroup());
     this.updateSplitLineAccountValidators();
+    if (this.isAccountingShell) {
+      this.applyDefaultSplitAccountFromReceiptType(this.splitsFormArray.length - 1);
+    }
   }
 
   removeSplitLine(index: number): void {
     if (this.splitsFormArray.length <= 1 || index < 0 || index >= this.splitsFormArray.length) {
       return;
     }
+    this.shiftManualSplitAccountIndexesAfterRemove(index);
     this.splitsFormArray.removeAt(index);
     if (this.focusedSplitAmountIndex !== null) {
       if (this.focusedSplitAmountIndex === index) {
@@ -1370,7 +1398,7 @@ export class ReceiptComponent implements OnInit, OnChanges, OnDestroy {
     );
     const resolvedChartOfAccountId = Number.isFinite(normalizedChartOfAccountId) && normalizedChartOfAccountId > 0
       ? normalizedChartOfAccountId
-      : (this.shouldAutoSetSplitAccountFromReceiptType()
+      : (this.isAccountingShell
         ? this.resolveDefaultChartOfAccountIdForReceiptType(normalizedReceiptTypeId)
         : null);
     return this.fb.group({
@@ -1416,14 +1444,12 @@ export class ReceiptComponent implements OnInit, OnChanges, OnDestroy {
   }
 
   replaceSplitLines(splits: Split[]): void {
+    this.clearManualSplitAccountOverrides();
     this.splitsFormArray.clear();
     (splits || []).forEach(split => this.splitsFormArray.push(this.createSplitFormGroup(split)));
     this.ensureAtLeastOneSplit();
     this.updateSplitLineAccountValidators();
     this.updatePropertyRequirementByReceiptType();
-    if (this.shouldAutoSetSplitAccountFromReceiptType()) {
-      this.applyDefaultSplitAccountsFromReceiptTypes(true);
-    }
   }
 
   getPayloadSplitsFromForm(): Split[] {
@@ -1615,9 +1641,6 @@ export class ReceiptComponent implements OnInit, OnChanges, OnDestroy {
     this.updateAccountingBillFieldValidators();
     this.updateVendorFieldValidators();
     this.loadSplitAccountsForCurrentOffice();
-    if (this.shouldAutoSetSplitAccountFromReceiptType()) {
-      this.applyDefaultSplitAccountsFromReceiptTypes();
-    }
     this.cdr.markForCheck();
   }
 

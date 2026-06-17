@@ -45,6 +45,7 @@ export interface ReservationRequest {
   extraFeeLines: ExtraFeeLineRequest[];
   notes?: string | null;
   allowExtensions: boolean;
+  collapseCharges: boolean;
 
   aCleanerUserId?: string | null;
   aCleaningDate?: CalendarDateString | null;
@@ -106,6 +107,7 @@ export interface ReservationResponse {
   extraFeeLines?: ExtraFeeLineResponse[] | null;
   notes?: string | null;
   allowExtensions: boolean;
+  collapseCharges: boolean;
 
   aCleanerUserId?: string | null;
   aCleaningDate?: CalendarDateString | null;
