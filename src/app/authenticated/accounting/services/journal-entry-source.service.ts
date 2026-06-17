@@ -34,7 +34,15 @@ export class JournalEntrySourceService {
     switch (row.sourceTypeId) {
       case SourceType.Invoice:
         return this.invoiceService.getInvoiceByGuid(sourceId).pipe(
-          map(invoice => invoice?.invoiceId ? { kind: 'invoice', invoice } : null)
+          switchMap(invoice => {
+            if (invoice?.invoiceId) {
+              return of({ kind: 'invoice' as const, invoice });
+            }
+
+            return this.getInvoiceByLedgerLineId(sourceId, row).pipe(
+              map(found => found?.invoiceId ? { kind: 'invoice' as const, invoice: found } : null)
+            );
+          })
         );
       case SourceType.InvoicePayment:
         return this.getInvoiceByLedgerLineId(sourceId, row).pipe(
