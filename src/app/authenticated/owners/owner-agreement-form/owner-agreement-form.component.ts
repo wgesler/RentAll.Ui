@@ -2367,11 +2367,13 @@ export class OwnerAgreementFormComponent extends BaseDocumentComponent implement
     if (value == null || value === '') {
       return '';
     }
-    const n = Number(String(value).replace(/%\s*$/, ''));
+    const n = Number(String(value).replace(/%\s*$/, '').trim());
     if (!Number.isFinite(n) || n === 0) {
       return '';
     }
-    return `${n}%`;
+    const rounded = Math.round(n * 100) / 100;
+    const plain = Number.isInteger(rounded) ? String(rounded) : rounded.toFixed(2).replace(/0+$/, '').replace(/\.$/, '');
+    return `${plain}%`;
   }
 
   formatAgreementPercentToken(
@@ -2386,11 +2388,13 @@ export class OwnerAgreementFormComponent extends BaseDocumentComponent implement
     if (value == null || value === '') {
       return this.getEmptyUnderlineSpan();
     }
-    const n = Number(String(value).replace(/%\s*$/, ''));
+    const n = Number(String(value).replace(/%\s*$/, '').trim());
     if (!Number.isFinite(n) || n === 0) {
       return this.getEmptyUnderlineSpan();
     }
-    return this.getPopulatedUnderlineSpan(`${n}%`);
+    const rounded = Math.round(n * 100) / 100;
+    const plain = Number.isInteger(rounded) ? String(rounded) : rounded.toFixed(2).replace(/0+$/, '').replace(/\.$/, '');
+    return this.getPopulatedUnderlineSpan(`${plain}%`);
   }
 
   formatAgreementCurrency(value: number | string | null | undefined): string {

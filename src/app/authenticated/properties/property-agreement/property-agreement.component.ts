@@ -1113,7 +1113,22 @@ export class PropertyAgreementComponent implements OnInit, OnChanges, OnDestroy 
       return '0%';
     }
     const n = Number(String(value).replace(/%\s*$/, ''));
-    return isNaN(n) ? '0%' : `${n}%`;
+    if (isNaN(n)) {
+      return '0%';
+    }
+    return `${this.formatAgreementPercentPlain(n)}%`;
+  }
+
+  formatAgreementPercentPlain(value: number | string | null | undefined): string {
+    if (value == null || value === '') {
+      return '0';
+    }
+    const n = Number(String(value).replace(/%\s*$/, '').trim());
+    if (!Number.isFinite(n)) {
+      return '0';
+    }
+    const rounded = Math.round(n * 100) / 100;
+    return Number.isInteger(rounded) ? String(rounded) : rounded.toFixed(2).replace(/0+$/, '').replace(/\.$/, '');
   }
 
   formatAgreementDecimalForDisplay(value: number | string | null | undefined): string {
@@ -1134,7 +1149,10 @@ export class PropertyAgreementComponent implements OnInit, OnChanges, OnDestroy 
     }
     const s = String(value).replace(/%\s*$/, '').trim();
     const n = Number(s);
-    return isNaN(n) ? 0 : n;
+    if (isNaN(n)) {
+      return 0;
+    }
+    return Math.round(n * 100) / 100;
   }
 
   parseAgreementDecimalFromForm(value: string | number | null | undefined): number | null {
@@ -1176,9 +1194,8 @@ export class PropertyAgreementComponent implements OnInit, OnChanges, OnDestroy 
       c?.setValue('0%', { emitEvent: false });
       return;
     }
-    const s = String(v).replace(/%\s*$/, '').trim();
-    const n = Number(s);
-    c?.setValue(isNaN(n) ? '0%' : `${n}%`, { emitEvent: false });
+    const plain = this.formatAgreementPercentPlain(v);
+    c?.setValue(`${plain}%`, { emitEvent: false });
     this.agreementForm?.markAsDirty();
   }
 

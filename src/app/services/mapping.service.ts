@@ -464,6 +464,7 @@ export class MappingService {
       defaultBankAccountId: office.defaultBankAccountId ?? null,
       defaultActPayableAccountId: office.defaultActPayableAccountId ?? null,
       defaultOwnActPayableAccountId: office.defaultOwnActPayableAccountId ?? null,
+      defaultPrePayAccountId: office.defaultPrePayAccountId ?? null,
       defaultTenantExpAccountId: office.defaultTenantExpAccountId ?? null,
       defaultTenantIncAccountId: office.defaultTenantIncAccountId ?? null,
       defaultOwnerExpAccountId: office.defaultOwnerExpAccountId ?? null,

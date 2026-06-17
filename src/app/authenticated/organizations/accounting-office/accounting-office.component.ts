@@ -71,9 +71,12 @@ export class AccountingOfficeComponent implements OnInit, OnDestroy, OnChanges {
     { controlName: 'defaultBankAccountId', label: 'Bank' },
     { controlName: 'defaultActRecvAccountId', label: 'A/R' },
     { controlName: 'defaultEscrowAccountId', label: 'Deposits' },
-    { controlName: 'defaultUndepFundsAccountId', label: 'Undeposited' },
+    { controlName: 'defaultUndepFundsAccountId', label: 'Undeposited' }
+  ];
+  defaultAccountFieldsRow3: { controlName: string; label: string }[] = [
     { controlName: 'defaultActPayableAccountId', label: 'A/P' },
-    { controlName: 'defaultOwnActPayableAccountId', label: 'Owner A/P' }
+    { controlName: 'defaultOwnActPayableAccountId', label: 'Owner A/P' },
+    { controlName: 'defaultPrePayAccountId', label: 'Pre-Payment' }
   ];
 
   organizationId = '';
@@ -280,6 +283,7 @@ export class AccountingOfficeComponent implements OnInit, OnDestroy, OnChanges {
       defaultBankAccountId: this.parseOptionalAccountId(formValue.defaultBankAccountId),
       defaultActPayableAccountId: this.parseOptionalAccountId(formValue.defaultActPayableAccountId),
       defaultOwnActPayableAccountId: this.parseOptionalAccountId(formValue.defaultOwnActPayableAccountId),
+      defaultPrePayAccountId: this.parseOptionalAccountId(formValue.defaultPrePayAccountId),
       defaultTenantExpAccountId: this.parseOptionalAccountId(formValue.defaultTenantExpAccountId),
       defaultTenantIncAccountId: this.parseOptionalAccountId(formValue.defaultTenantIncAccountId),
       defaultOwnerExpAccountId: this.parseOptionalAccountId(formValue.defaultOwnerExpAccountId),
@@ -383,6 +387,7 @@ export class AccountingOfficeComponent implements OnInit, OnDestroy, OnChanges {
       defaultBankAccountId: new FormControl<number | null>(null),
       defaultActPayableAccountId: new FormControl<number | null>(null),
       defaultOwnActPayableAccountId: new FormControl<number | null>(null),
+      defaultPrePayAccountId: new FormControl<number | null>(null),
       defaultTenantExpAccountId: new FormControl<number | null>(null),
       defaultTenantIncAccountId: new FormControl<number | null>(null),
       defaultOwnerExpAccountId: new FormControl<number | null>(null),
@@ -421,6 +426,7 @@ export class AccountingOfficeComponent implements OnInit, OnDestroy, OnChanges {
         defaultBankAccountId: this.accountingOffice.defaultBankAccountId ?? null,
         defaultActPayableAccountId: this.accountingOffice.defaultActPayableAccountId ?? null,
         defaultOwnActPayableAccountId: this.accountingOffice.defaultOwnActPayableAccountId ?? null,
+        defaultPrePayAccountId: this.accountingOffice.defaultPrePayAccountId ?? null,
         defaultTenantExpAccountId: this.accountingOffice.defaultTenantExpAccountId ?? null,
         defaultTenantIncAccountId: this.accountingOffice.defaultTenantIncAccountId ?? null,
         defaultOwnerExpAccountId: this.accountingOffice.defaultOwnerExpAccountId ?? null,
@@ -460,6 +466,7 @@ export class AccountingOfficeComponent implements OnInit, OnDestroy, OnChanges {
       defaultBankAccountId: o.defaultBankAccountId ?? null,
       defaultActPayableAccountId: o.defaultActPayableAccountId ?? null,
       defaultOwnActPayableAccountId: o.defaultOwnActPayableAccountId ?? null,
+      defaultPrePayAccountId: o.defaultPrePayAccountId ?? null,
       defaultTenantExpAccountId: o.defaultTenantExpAccountId ?? null,
       defaultTenantIncAccountId: o.defaultTenantIncAccountId ?? null,
       defaultOwnerExpAccountId: o.defaultOwnerExpAccountId ?? null,
