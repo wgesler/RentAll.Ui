@@ -288,6 +288,11 @@
             <mat-icon>arrow_back</mat-icon>
             Back
           </button>
+        } @else if (isFinancialReportDrillDownActive) {
+          <button mat-raised-button type="button" color="accent" (click)="onFinancialReportDrillDownBack()">
+            <mat-icon>arrow_back</mat-icon>
+            Back
+          </button>
         }
       </div>
     </div>
@@ -408,22 +413,30 @@
           <mat-tab label="Profit & Loss">
             @if (selectedTabIndex === tabProfitLoss) {
               <app-financial-report
+                #profitLossReport
                 reportKind="profitLoss"
                 [officeId]="selectedOfficeId"
                 [reportClass]="selectedFinancialReportClass"
                 [searchDateRange]="invoiceSearchDateRange"
-                [refreshTrigger]="financialReportsRefreshTrigger">
+                [refreshTrigger]="financialReportsRefreshTrigger"
+                (drillDownActiveChange)="onFinancialReportDrillDownActiveChange($event)"
+                (journalEntryDetailActiveChange)="onFinancialReportJournalEntryDetailChange($event)"
+                (journalEntriesChanged)="onJournalEntriesChanged()">
               </app-financial-report>
             }
           </mat-tab>
           <mat-tab label="Balance Sheet">
             @if (selectedTabIndex === tabBalanceSheet) {
               <app-financial-report
+                #balanceSheetReport
                 reportKind="balanceSheet"
                 [officeId]="selectedOfficeId"
                 [reportClass]="selectedFinancialReportClass"
                 [searchDateRange]="invoiceSearchDateRange"
-                [refreshTrigger]="financialReportsRefreshTrigger">
+                [refreshTrigger]="financialReportsRefreshTrigger"
+                (drillDownActiveChange)="onFinancialReportDrillDownActiveChange($event)"
+                (journalEntryDetailActiveChange)="onFinancialReportJournalEntryDetailChange($event)"
+                (journalEntriesChanged)="onJournalEntriesChanged()">
               </app-financial-report>
             }
           </mat-tab>

@@ -251,3 +251,50 @@
   line-height: 1.1;
   white-space: nowrap;
 }
+
+:host .list-layout-standard.dbg-band-main {
+  padding-top: 1.25rem;
+}
+
+:host ::ng-deep .datatable-search-wrap__row:has(.financial-report-drill-down-filter-actions) {
+  position: relative;
+}
+
+.financial-report-drill-down-filter-actions {
+  display: inline-flex;
+  align-items: center;
+  justify-content: flex-end;
+  min-width: 0;
+}
+
+:host ::ng-deep .financial-report-drill-down-context {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  text-align: center;
+  color: rgba(15, 23, 42, 0.84);
+  font-size: 0.9375rem;
+  font-weight: 600;
+  line-height: 1.25;
+  max-width: min(72%, 42rem);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  pointer-events: none;
+  z-index: 1;
+}
+
+.financial-report-drill-down-excel-btn {
+  position: relative;
+  z-index: 2;
+}
+
+.loading-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.75rem;
+  padding: 2rem 1rem;
+}

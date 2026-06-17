@@ -1,12 +1,12 @@
 import { Injectable } from '@angular/core';
+import { utils, write } from 'xlsx';
 
 @Injectable({
   providedIn: 'root'
 })
 export class DocumentExportService {
 
-
-   /**
+  /**
    * Triggers a browser download for a binary blob (e.g. a generated PDF).
    * @param blob The file content to download
    * @param fileName The name to save the file as
@@ -20,6 +20,39 @@ export class DocumentExportService {
     link.click();
     document.body.removeChild(link);
     setTimeout(() => URL.revokeObjectURL(url), 100);
+  }
+
+  downloadExcelTable(fileName: string, headers: string[], rows: string[][]): void {
+    this.exportExcelTable(fileName, headers, rows);
+  }
+
+  exportExcelTable(fileName: string, headers: string[], rows: string[][]): void {
+    const blob = this.buildExcelBlob(headers, rows);
+    const resolvedFileName = this.resolveExcelFileName(fileName);
+    this.downloadBlob(blob, resolvedFileName);
+  }
+
+  private buildExcelBlob(headers: string[], rows: string[][]): Blob {
+    const worksheet = utils.aoa_to_sheet([headers, ...rows]);
+    const workbook = utils.book_new();
+    utils.book_append_sheet(workbook, worksheet, 'Sheet1');
+
+    const workbookBytes = write(workbook, { bookType: 'xlsx', type: 'array' });
+    return new Blob(
+      [workbookBytes],
+      { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' }
+    );
+  }
+
+  private resolveExcelFileName(fileName: string): string {
+    const trimmed = (fileName || 'export').trim();
+    if (/\.xlsx$/i.test(trimmed)) {
+      return trimmed;
+    }
+    if (/\.xls$/i.test(trimmed)) {
+      return trimmed.replace(/\.xls$/i, '.xlsx');
+    }
+    return `${trimmed}.xlsx`;
   }
 
   /**

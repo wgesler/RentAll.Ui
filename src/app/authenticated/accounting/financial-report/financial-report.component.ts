@@ -1,14 +1,18 @@
 import { CommonModule } from '@angular/common';
-import { ChangeDetectionStrategy, ChangeDetectorRef, Component, Input, OnChanges, OnDestroy, OnInit, SimpleChanges } from '@angular/core';
+import { ChangeDetectionStrategy, ChangeDetectorRef, Component, EventEmitter, Input, OnChanges, OnDestroy, OnInit, Output, SimpleChanges } from '@angular/core';
 import { HttpErrorResponse } from '@angular/common/http';
-import { MatDialog } from '@angular/material/dialog';
 import { BehaviorSubject, filter, finalize, Subject, take, takeUntil } from 'rxjs';
+import { ToastrService } from 'ngx-toastr';
 import { MaterialModule } from '../../../material.module';
 import { AuthService } from '../../../services/auth.service';
 import { CommonService } from '../../../services/common.service';
 import { FormatterService } from '../../../services/formatter-service';
+import { DocumentExportService } from '../../../services/document-export.service';
 import { MappingService } from '../../../services/mapping.service';
 import { UtilityService } from '../../../services/utility.service';
+import { ColumnSet } from '../../shared/data-table/models/column-data';
+import { DataTableComponent } from '../../shared/data-table/data-table.component';
+import { DataTableFilterActionsDirective } from '../../shared/data-table/data-table-filter-actions.directive';
 import { OfficeResponse } from '../../organizations/models/office.model';
 import { OfficeService } from '../../organizations/services/office.service';
 import { ChartOfAccountResponse } from '../models/chart-of-accounts.model';
@@ -16,23 +20,25 @@ import { Class, SourceTypeLabels } from '../models/accounting-enum';
 import {
   FINANCIAL_REPORT_TOTAL_COLUMN_ID,
   FinancialReportColumn,
+  FinancialReportDrillDownView,
   FinancialReportKind,
   FinancialReportResult,
   FinancialReportTreeNode
 } from '../models/financial-report.model';
-import { JournalEntryLineSearchResponse } from '../models/journal-entry.model';
+import { JournalEntryLineListDisplay, JournalEntryLineSearchResponse } from '../models/journal-entry.model';
 import { ChartOfAccountsService } from '../services/chart-of-accounts.service';
 import { GeneralLedgerService } from '../services/general-ledger.service';
-import {
-  FinancialReportDrillDownDialogComponent,
-  FinancialReportDrillDownDialogData
-} from './financial-report-drill-down-dialog.component';
+import { JournalEntrySourceService } from '../services/journal-entry-source.service';
+import { GeneralLedgerComponent } from '../general-ledger/general-ledger.component';
+import { InvoiceComponent } from '../invoice/invoice.component';
+import { ReceiptComponent } from '../../maintenance/receipt/receipt.component';
+import { ReceiptResponse } from '../../maintenance/models/receipt.model';
+import { PropertyResponse } from '../../properties/models/property.model';
+import { PropertyService } from '../../properties/services/property.service';
 
 interface FinancialReportVisibleRow {
   nodeId: string;
   label: string;
-  amount: number;
-  amountDisplay: string;
   columnAmountDisplays: Record<string, string>;
   depth: number;
   rowKind: FinancialReportTreeNode['rowKind'];
@@ -44,7 +50,7 @@ interface FinancialReportVisibleRow {
 @Component({
   selector: 'app-financial-report',
   standalone: true,
-  imports: [CommonModule, MaterialModule],
+  imports: [CommonModule, MaterialModule, DataTableComponent, DataTableFilterActionsDirective, GeneralLedgerComponent, InvoiceComponent, ReceiptComponent],
   templateUrl: './financial-report.component.html',
   styleUrls: ['./financial-report.component.scss'],
   changeDetection: ChangeDetectionStrategy.OnPush
@@ -55,9 +61,35 @@ export class FinancialReportComponent implements OnInit, OnDestroy, OnChanges {
   @Input() reportClass: Class = Class.TotalOnly;
   @Input() searchDateRange: { startDate: string | null; endDate: string | null } | null = null;
   @Input() refreshTrigger = 0;
+  @Output() drillDownActiveChange = new EventEmitter<boolean>();
+  @Output() journalEntryDetailActiveChange = new EventEmitter<boolean>();
+  @Output() journalEntriesChanged = new EventEmitter<void>();
 
   reportResult: FinancialReportResult | null = null;
   visibleRows: FinancialReportVisibleRow[] = [];
+  drillDownView: FinancialReportDrillDownView | null = null;
+  activeJournalEntryId: string | null = null;
+  selectedJournalEntryLineId: string | null = null;
+  activeInvoiceId: string | null = null;
+  activeInvoiceOfficeId: number | null = null;
+  activeInvoiceReservationId: string | null = null;
+  activeReceiptId: string | null = null;
+  drillDownReceiptProperty: PropertyResponse | null = null;
+  drillDownReceiptOfficeId: number | null = null;
+  drillDownColumns: ColumnSet = {
+    no: { displayAs: 'No', maxWidth: '5ch', sort: false, wrap: false },
+    transactionDate: { displayAs: 'Date', maxWidth: '12ch' },
+    journalEntryCode: { displayAs: 'Entry No', maxWidth: '14ch', sortType: 'natural' },
+    source: { displayAs: 'Source', maxWidth: '16ch' },
+    propertyCode: { displayAs: 'Property', maxWidth: '15ch' },
+    reservationCode: { displayAs: 'Reservation', maxWidth: '15ch' },
+    contactName: { displayAs: 'Contact', maxWidth: '20ch' },
+    account: { displayAs: 'Account', maxWidth: '28ch' },
+    description: { displayAs: 'Description', maxWidth: '32ch' },
+    debit: { displayAs: 'Debit', maxWidth: '14ch', alignment: 'right', headerAlignment: 'right', sort: false },
+    credit: { displayAs: 'Credit', maxWidth: '14ch', alignment: 'right', headerAlignment: 'right', sort: false },
+    balance: { displayAs: 'Balance', maxWidth: '14ch', alignment: 'right', headerAlignment: 'right', sort: false }
+  };
   expandedNodeIds = new Set<string>();
   isServiceError = false;
   noActivityMessage = 'No activity for the selected filters and date range.';
@@ -68,7 +100,6 @@ export class FinancialReportComponent implements OnInit, OnDestroy, OnChanges {
   allLines: JournalEntryLineSearchResponse[] = [];
 
   isPageReady = false;
-  isLoadingLines = false;
   itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['offices', 'chartOfAccounts']));
   destroy$ = new Subject<void>();
 
@@ -81,7 +112,10 @@ export class FinancialReportComponent implements OnInit, OnDestroy, OnChanges {
     private authService: AuthService,
     private commonService: CommonService,
     private utilityService: UtilityService,
-    private dialog: MatDialog,
+    private documentExportService: DocumentExportService,
+    private journalEntrySourceService: JournalEntrySourceService,
+    private propertyService: PropertyService,
+    private toastr: ToastrService,
     private cdr: ChangeDetectorRef
   ) {
   }
@@ -125,76 +159,9 @@ export class FinancialReportComponent implements OnInit, OnDestroy, OnChanges {
       this.loadJournalEntryLines();
     }
   }
-
-  toggleNodeExpansion(nodeId: string): void {
-    if (this.expandedNodeIds.has(nodeId)) {
-      this.expandedNodeIds.delete(nodeId);
-    } else {
-      this.expandedNodeIds.add(nodeId);
-    }
-    this.rebuildVisibleRows();
-    this.markViewForCheck();
-  }
-
-  toggleExpandAll(): void {
-    if (this.isAllExpanded) {
-      this.collapseAllNodes();
-      return;
-    }
-    this.expandAllNodes();
-  }
-
-  expandAllNodes(): void {
-    this.collectExpandableNodeIds(this.reportResult?.sections || []).forEach(nodeId => this.expandedNodeIds.add(nodeId));
-    this.rebuildVisibleRows();
-    this.markViewForCheck();
-  }
-
-  collapseAllNodes(): void {
-    this.expandedNodeIds.clear();
-    this.rebuildVisibleRows();
-    this.markViewForCheck();
-  }
-
-  canDrillDownAmount(row: FinancialReportVisibleRow, columnId: string): boolean {
-    return !!row.columnAmountDisplays[columnId]?.trim();
-  }
-
-  openDrillDown(row: FinancialReportVisibleRow, columnId: string): void {
-    if (!this.canDrillDownAmount(row, columnId) || !this.reportResult?.drillDownContext) {
-      return;
-    }
-
-    const filteredLines = this.mappingService.filterFinancialReportDrillDownLines(
-      this.allLines,
-      row.nodeId,
-      columnId,
-      this.reportResult.drillDownContext,
-      this.reportResult.sections
-    );
-    const columnLabel = this.mappingService.getFinancialReportDrillDownColumnLabel(columnId, this.reportResult);
-    const linesDisplay = this.mappingService.mapJournalEntryLineListDisplay(
-      filteredLines,
-      this.getChartOfAccountsForOfficeIds(this.resolveOfficeIds()),
-      SourceTypeLabels
-    );
-    const dialogData: FinancialReportDrillDownDialogData = {
-      title: row.label,
-      subtitle: `${columnLabel} · ${this.reportResult.periodLabel}`,
-      lines: linesDisplay
-    };
-
-    this.dialog.open(FinancialReportDrillDownDialogComponent, {
-      data: dialogData,
-      width: 'min(92vw, 64rem)',
-      maxWidth: '92vw',
-      panelClass: 'financial-report-drill-down-dialog-panel',
-      autoFocus: false
-    });
-  }
   //#endregion
 
-  //#region Data Loading Methods
+  //#region Data Load Methods
   loadOrganization(): void {
     const cachedOrganization = this.commonService.getOrganizationValue();
     if (cachedOrganization?.name) {
@@ -265,13 +232,11 @@ export class FinancialReportComponent implements OnInit, OnDestroy, OnChanges {
     if (officeIds.length === 0) {
       this.allLines = [];
       this.isServiceError = false;
-      this.isLoadingLines = false;
       this.applyReportDisplay();
       this.markViewForCheck();
       return;
     }
 
-    this.isLoadingLines = true;
     this.isServiceError = false;
 
     this.generalLedgerService.searchJournalEntryLines({
@@ -284,11 +249,7 @@ export class FinancialReportComponent implements OnInit, OnDestroy, OnChanges {
       startDate: this.reportKind === 'balanceSheet' ? null : (this.searchDateRange?.startDate ?? null),
       endDate: this.searchDateRange?.endDate ?? null
     }).pipe(
-      takeUntil(this.destroy$),
-      finalize(() => {
-        this.isLoadingLines = false;
-        this.markViewForCheck();
-      })
+      takeUntil(this.destroy$)
     ).subscribe({
       next: lines => {
         this.allLines = lines || [];
@@ -296,6 +257,7 @@ export class FinancialReportComponent implements OnInit, OnDestroy, OnChanges {
           ? 'No balance sheet activity for the selected filters.'
           : 'No profit and loss activity for the selected filters and date range.';
         this.applyReportDisplay();
+        this.refreshDrillDownView();
         this.markViewForCheck();
       },
       error: (error: HttpErrorResponse) => {
@@ -316,7 +278,347 @@ export class FinancialReportComponent implements OnInit, OnDestroy, OnChanges {
   }
   //#endregion
 
-  //#region Utility Methods
+  //#region Expand All Methods
+  toggleNodeExpansion(nodeId: string): void {
+    if (this.expandedNodeIds.has(nodeId)) {
+      this.expandedNodeIds.delete(nodeId);
+    } else {
+      this.expandedNodeIds.add(nodeId);
+    }
+    this.rebuildVisibleRows();
+    this.markViewForCheck();
+  }
+
+  toggleExpandAll(): void {
+    if (this.isAllExpanded) {
+      this.collapseAllNodes();
+      return;
+    }
+    this.expandAllNodes();
+  }
+
+  expandAllNodes(): void {
+    this.collectExpandableNodeIds(this.reportResult?.sections || []).forEach(nodeId => this.expandedNodeIds.add(nodeId));
+    this.rebuildVisibleRows();
+    this.markViewForCheck();
+  }
+
+  collapseAllNodes(): void {
+    this.expandedNodeIds.clear();
+    this.rebuildVisibleRows();
+    this.markViewForCheck();
+  }
+
+  initializeExpandedNodes(sections: FinancialReportTreeNode[]): void {
+    this.expandedNodeIds = new Set(this.collectExpandableNodeIds(sections));
+  }
+
+  collectExpandableNodeIds(nodes: FinancialReportTreeNode[]): string[] {
+    const nodeIds: string[] = [];
+    (nodes || []).forEach(node => {
+      if (node.childNodes.length > 0) {
+        nodeIds.push(node.nodeId);
+        nodeIds.push(...this.collectExpandableNodeIds(node.childNodes));
+      }
+    });
+    return nodeIds;
+  }
+
+  isTitleRowExpander(row: FinancialReportVisibleRow): boolean {
+    return row.expandable && row.rowKind === 'section';
+  }
+
+  getRowExpandIcon(row: FinancialReportVisibleRow): string {
+    if (this.isTitleRowExpander(row)) {
+      return row.expanded ? 'expand_less' : 'expand_more';
+    }
+    return row.expanded ? 'chevron_left' : 'chevron_right';
+  }
+
+  getExpandAllIcon(): string {
+    return this.isAllExpanded ? 'expand_less' : 'expand_more';
+  }
+
+  get isAllExpanded(): boolean {
+    const expandableNodeIds = this.collectExpandableNodeIds(this.reportResult?.sections || []);
+    return expandableNodeIds.length > 0 && expandableNodeIds.every(nodeId => this.expandedNodeIds.has(nodeId));
+  }
+  //#endregion
+
+  //#region Drill-Down
+  canDrillDownAmount(row: FinancialReportVisibleRow, columnId: string): boolean {
+    return !!row.columnAmountDisplays[columnId]?.trim();
+  }
+
+  openDrillDown(row: FinancialReportVisibleRow, columnId: string): void {
+    if (!this.canDrillDownAmount(row, columnId) || !this.reportResult?.drillDownContext) {
+      return;
+    }
+
+    const filteredLines = this.mappingService.filterFinancialReportDrillDownLines(
+      this.allLines,
+      row.nodeId,
+      columnId,
+      this.reportResult.drillDownContext,
+      this.reportResult.sections
+    );
+    const columnLabel = this.mappingService.getFinancialReportDrillDownColumnLabel(columnId, this.reportResult);
+    const linesDisplay = this.mappingService.mapJournalEntryLineListDisplay(
+      filteredLines,
+      this.getChartOfAccountsForOfficeIds(this.resolveOfficeIds()),
+      SourceTypeLabels
+    );
+
+    this.drillDownView = {
+      title: row.label,
+      subtitle: `${columnLabel} · ${this.reportResult.periodLabel}`,
+      nodeId: row.nodeId,
+      columnId,
+      lines: linesDisplay
+    };
+    this.drillDownActiveChange.emit(true);
+    this.markViewForCheck();
+  }
+
+  closeDrillDown(): void {
+    if (!this.drillDownView) {
+      return;
+    }
+
+    this.closeSourceDocumentDetail();
+    this.closeJournalEntryDetail();
+    this.drillDownView = null;
+    this.drillDownActiveChange.emit(false);
+    this.markViewForCheck();
+  }
+
+  drillDownBack(): void {
+    if (this.activeInvoiceId || this.activeReceiptId) {
+      this.closeSourceDocumentDetail();
+      return;
+    }
+
+    if (this.activeJournalEntryId) {
+      this.closeJournalEntryDetail();
+      return;
+    }
+
+    this.closeDrillDown();
+  }
+
+  onDrillDownJournalEntryCodeClick(row: JournalEntryLineListDisplay): void {
+    if (!row?.journalEntryId) {
+      return;
+    }
+
+    this.activeJournalEntryId = row.journalEntryId;
+    this.selectedJournalEntryLineId = row.journalEntryLineId;
+    this.emitDrillDownChildDetailActive();
+    this.markViewForCheck();
+  }
+
+  onDrillDownSourceClick(row: JournalEntryLineListDisplay): void {
+    if (!row?.sourceLinkable || !row.sourceTypeId || !(row.sourceId || '').trim()) {
+      return;
+    }
+
+    this.journalEntrySourceService.resolveSource(row).pipe(take(1)).subscribe({
+      next: target => {
+        if (!target) {
+          this.toastr.error('Unable to load the source document.', 'Error');
+          return;
+        }
+
+        if (target.kind === 'invoice' && target.invoice?.invoiceId) {
+          this.openDrillDownInvoice(
+            target.invoice.invoiceId,
+            target.invoice.officeId ?? row.officeId,
+            target.invoice.reservationId ?? row.reservationId ?? null
+          );
+          return;
+        }
+
+        if (target.kind === 'receipt' && target.receipt?.receiptId) {
+          this.openDrillDownReceiptDetail(
+            target.receipt,
+            row.propertyId ?? target.receipt.propertyIds?.[0] ?? null
+          );
+        }
+      },
+      error: () => this.toastr.error('Unable to load the source document.', 'Error')
+    });
+  }
+
+  openDrillDownInvoice(invoiceId: string, officeId: number, reservationId: string | null): void {
+    this.activeInvoiceId = invoiceId;
+    this.activeInvoiceOfficeId = officeId;
+    this.activeInvoiceReservationId = reservationId;
+    this.emitDrillDownChildDetailActive();
+    this.markViewForCheck();
+  }
+
+  openDrillDownReceiptDetail(receipt: ReceiptResponse, propertyId: string | null): void {
+    const resolvedOfficeId = receipt.officeId ?? null;
+    const resolvedPropertyId = (propertyId || receipt.propertyIds?.[0] || '').trim() || null;
+
+    const openDetail = (property: PropertyResponse | null) => {
+      this.activeReceiptId = receipt.receiptId;
+      this.drillDownReceiptOfficeId = resolvedOfficeId;
+      this.drillDownReceiptProperty = property;
+      this.emitDrillDownChildDetailActive();
+      this.markViewForCheck();
+    };
+
+    if (resolvedPropertyId) {
+      this.propertyService.getPropertyByGuid(resolvedPropertyId).pipe(take(1)).subscribe({
+        next: property => openDetail(property),
+        error: () => openDetail(this.buildDrillDownReceiptPropertyStub(resolvedOfficeId))
+      });
+      return;
+    }
+
+    openDetail(this.buildDrillDownReceiptPropertyStub(resolvedOfficeId));
+  }
+
+  closeSourceDocumentDetail(): void {
+    if (!this.activeInvoiceId && !this.activeReceiptId) {
+      return;
+    }
+
+    this.activeInvoiceId = null;
+    this.activeInvoiceOfficeId = null;
+    this.activeInvoiceReservationId = null;
+    this.activeReceiptId = null;
+    this.drillDownReceiptProperty = null;
+    this.drillDownReceiptOfficeId = null;
+    this.emitDrillDownChildDetailActive();
+    this.markViewForCheck();
+  }
+
+  onDrillDownReceiptSaved(): void {
+    this.closeSourceDocumentDetail();
+    this.loadJournalEntryLines();
+    this.journalEntriesChanged.emit();
+  }
+
+  closeJournalEntryDetail(): void {
+    if (!this.activeJournalEntryId) {
+      return;
+    }
+
+    this.activeJournalEntryId = null;
+    this.selectedJournalEntryLineId = null;
+    this.emitDrillDownChildDetailActive();
+    this.markViewForCheck();
+  }
+
+  onJournalEntrySaved(): void {
+    this.closeJournalEntryDetail();
+    this.loadJournalEntryLines();
+    this.journalEntriesChanged.emit();
+  }
+
+  private emitDrillDownChildDetailActive(): void {
+    const active = !!(this.activeJournalEntryId || this.activeInvoiceId || this.activeReceiptId);
+    this.journalEntryDetailActiveChange.emit(active);
+  }
+
+  private buildDrillDownReceiptPropertyStub(officeId: number | null): PropertyResponse {
+    const resolvedOfficeId = officeId ?? 0;
+    const officeName = this.offices.find(office => office.officeId === resolvedOfficeId)?.name ?? '';
+    return {
+      propertyId: '',
+      organizationId: this.organizationId,
+      propertyCode: '',
+      officeId: resolvedOfficeId,
+      officeName,
+      isActive: true
+    } as PropertyResponse;
+  }
+
+  exportDrillDownToExcel(): void {
+    if (!this.drillDownView) {
+      return;
+    }
+
+    const headers = [
+      'No',
+      'Date',
+      'Entry No',
+      'Source',
+      'Property',
+      'Reservation',
+      'Contact',
+      'Account',
+      'Description',
+      'Debit',
+      'Credit',
+      'Balance'
+    ];
+    const rows = this.drillDownView.lines.map((line, index) => [
+      String(index + 1),
+      line.transactionDate || '',
+      line.journalEntryCode || '',
+      line.source || '',
+      line.propertyCode || '',
+      line.reservationCode || '',
+      line.contactName || '',
+      line.account || '',
+      line.description || '',
+      line.debit || '',
+      line.credit || '',
+      line.balance || ''
+    ]);
+
+    const fileName = this.buildDrillDownExcelFileName();
+    this.documentExportService.exportExcelTable(fileName, headers, rows);
+  }
+
+  private buildDrillDownExcelFileName(): string {
+    const reportLabel = this.reportKind === 'balanceSheet' ? 'Balance-Sheet' : 'Profit-Loss';
+    const title = (this.drillDownView?.title || 'Ledger')
+      .trim()
+      .replace(/[^\w\s-]/g, '')
+      .replace(/\s+/g, '-')
+      .slice(0, 60);
+    const dateStamp = this.utilityService.formatDateOnlyForApi(new Date()) || 'export';
+    return `${reportLabel}-${title}-${dateStamp}.xlsx`;
+  }
+
+  get drillDownNoDataMessage(): string {
+    if (!this.drillDownView) {
+      return 'No general ledger lines found for this amount.';
+    }
+
+    return `${this.drillDownView.title} · ${this.drillDownView.subtitle} — no general ledger lines found.`;
+  }
+
+  private refreshDrillDownView(): void {
+    if (!this.drillDownView || !this.reportResult?.drillDownContext) {
+      return;
+    }
+
+    const filteredLines = this.mappingService.filterFinancialReportDrillDownLines(
+      this.allLines,
+      this.drillDownView.nodeId,
+      this.drillDownView.columnId,
+      this.reportResult.drillDownContext,
+      this.reportResult.sections
+    );
+    const linesDisplay = this.mappingService.mapJournalEntryLineListDisplay(
+      filteredLines,
+      this.getChartOfAccountsForOfficeIds(this.resolveOfficeIds()),
+      SourceTypeLabels
+    );
+
+    this.drillDownView = {
+      ...this.drillDownView,
+      lines: linesDisplay
+    };
+  }
+  //#endregion
+
+  //#region Report Display Methods
   applyReportDisplay(): void {
     try {
       const scopedAccounts = this.getChartOfAccountsForOfficeIds(this.resolveOfficeIds());
@@ -340,21 +642,6 @@ export class FinancialReportComponent implements OnInit, OnDestroy, OnChanges {
     }
   }
 
-  initializeExpandedNodes(sections: FinancialReportTreeNode[]): void {
-    this.expandedNodeIds = new Set(this.collectExpandableNodeIds(sections));
-  }
-
-  collectExpandableNodeIds(nodes: FinancialReportTreeNode[]): string[] {
-    const nodeIds: string[] = [];
-    (nodes || []).forEach(node => {
-      if (node.childNodes.length > 0) {
-        nodeIds.push(node.nodeId);
-        nodeIds.push(...this.collectExpandableNodeIds(node.childNodes));
-      }
-    });
-    return nodeIds;
-  }
-
   rebuildVisibleRows(): void {
     const rows: FinancialReportVisibleRow[] = [];
     (this.reportResult?.sections || []).forEach(section => this.appendVisibleRows(section, rows));
@@ -373,12 +660,6 @@ export class FinancialReportComponent implements OnInit, OnDestroy, OnChanges {
     rows.push({
       nodeId: node.nodeId,
       label: node.label,
-      amount: node.amount,
-      amountDisplay: hideParentAmounts
-        ? ''
-        : showCollapsedSectionTotal
-          ? this.formatter.currencyUsd(node.amount)
-          : this.formatAmountDisplay(node.amount, node.rowKind),
       columnAmountDisplays: hideParentAmounts
         ? {}
         : showCollapsedSectionTotal
@@ -398,13 +679,6 @@ export class FinancialReportComponent implements OnInit, OnDestroy, OnChanges {
     node.childNodes.forEach(childNode => this.appendVisibleRows(childNode, rows));
   }
 
-  formatAmountDisplay(amount: number, rowKind: FinancialReportTreeNode['rowKind']): string {
-    if (rowKind === 'section') {
-      return '';
-    }
-    return this.formatter.currencyUsd(amount);
-  }
-
   formatColumnAmountDisplays(
     columnAmounts: Record<string, number>,
     rowKind: FinancialReportTreeNode['rowKind']
@@ -419,7 +693,9 @@ export class FinancialReportComponent implements OnInit, OnDestroy, OnChanges {
     });
     return displays;
   }
+  //#endregion
 
+  //#region Get Methods
   getAmountColumnIds(): string[] {
     const columns = this.reportResult?.columns || [];
     if (!this.reportResult?.showTotalColumn) {
@@ -462,62 +738,6 @@ export class FinancialReportComponent implements OnInit, OnDestroy, OnChanges {
     return `min(100%, ${Math.ceil(calculatedRem)}rem)`;
   }
 
-  get amountColumnHeaderLabel(): string {
-    if (this.reportResult?.columns?.length === 1 && !this.reportResult.showTotalColumn) {
-      return this.reportResult.columns[0].label;
-    }
-    return this.mappingService.buildFinancialReportColumnHeaderLabel(
-      this.reportKind === 'balanceSheet' ? null : (this.searchDateRange?.startDate ?? null),
-      this.resolveReportEndDate(),
-      this.reportKind === 'balanceSheet'
-    );
-  }
-
-  resolveReportEndDate(): string | null {
-    if (this.reportKind === 'balanceSheet') {
-      return this.searchDateRange?.endDate ?? this.utilityService.formatDateOnlyForApi(new Date());
-    }
-
-    return this.searchDateRange?.endDate ?? null;
-  }
-
-  isTitleRowExpander(row: FinancialReportVisibleRow): boolean {
-    return row.expandable && row.rowKind === 'section';
-  }
-
-  getRowExpandIcon(row: FinancialReportVisibleRow): string {
-    if (this.isTitleRowExpander(row)) {
-      return row.expanded ? 'expand_less' : 'expand_more';
-    }
-    return row.expanded ? 'chevron_left' : 'chevron_right';
-  }
-
-  getExpandAllIcon(): string {
-    return this.isAllExpanded ? 'expand_less' : 'expand_more';
-  }
-
-  resolveOfficeIds(): number[] {
-    if (this.officeId != null && this.officeId > 0) {
-      return [this.officeId];
-    }
-    return (this.offices || []).map(office => office.officeId).filter(id => id > 0);
-  }
-
-  getChartOfAccountsForOfficeIds(officeIds: number[]): ChartOfAccountResponse[] {
-    if (officeIds.length === 1) {
-      return this.chartOfAccountsService.getChartOfAccountsForOffice(officeIds[0]) || [];
-    }
-
-    const allAccounts = this.chartOfAccounts.length > 0
-      ? this.chartOfAccounts
-      : (this.chartOfAccountsService.getAllChartOfAccountsValue() || []);
-    return allAccounts.filter(account => officeIds.includes(account.officeId));
-  }
-
-  get hasVisibleRows(): boolean {
-    return this.visibleRows.some(row => row.rowKind !== 'section' || row.expandable || row.amount !== 0);
-  }
-
   get displayOfficeName(): string {
     if (this.officeId != null && this.officeId > 0) {
       return (this.offices.find(office => office.officeId === this.officeId)?.name || '').trim();
@@ -535,9 +755,30 @@ export class FinancialReportComponent implements OnInit, OnDestroy, OnChanges {
     return [this.companyName, this.displayOfficeName].filter(label => !!label).join(' ');
   }
 
-  get isAllExpanded(): boolean {
-    const expandableNodeIds = this.collectExpandableNodeIds(this.reportResult?.sections || []);
-    return expandableNodeIds.length > 0 && expandableNodeIds.every(nodeId => this.expandedNodeIds.has(nodeId));
+  getChartOfAccountsForOfficeIds(officeIds: number[]): ChartOfAccountResponse[] {
+    if (officeIds.length === 1) {
+      return this.chartOfAccountsService.getChartOfAccountsForOffice(officeIds[0]) || [];
+    }
+
+    const allAccounts = this.chartOfAccounts.length > 0
+      ? this.chartOfAccounts
+      : (this.chartOfAccountsService.getAllChartOfAccountsValue() || []);
+    return allAccounts.filter(account => officeIds.includes(account.officeId));
+  }
+
+  resolveReportEndDate(): string | null {
+    if (this.reportKind === 'balanceSheet') {
+      return this.searchDateRange?.endDate ?? this.utilityService.formatDateOnlyForApi(new Date());
+    }
+
+    return this.searchDateRange?.endDate ?? null;
+  }
+
+  resolveOfficeIds(): number[] {
+    if (this.officeId != null && this.officeId > 0) {
+      return [this.officeId];
+    }
+    return (this.offices || []).map(office => office.officeId).filter(id => id > 0);
   }
 
   hasSearchDateRangeChanged(change: SimpleChanges['searchDateRange']): boolean {
@@ -546,7 +787,9 @@ export class FinancialReportComponent implements OnInit, OnDestroy, OnChanges {
     return (previous?.startDate ?? null) !== (current?.startDate ?? null)
       || (previous?.endDate ?? null) !== (current?.endDate ?? null);
   }
+  //#endregion
 
+  //#region Utility Methods
   markViewForCheck(): void {
     this.cdr.markForCheck();
   }

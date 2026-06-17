@@ -19,7 +19,7 @@ export interface Split {
 }
 
 export interface ReceiptRequest {
-  receiptId?: number;
+  receiptId?: string;
   organizationId: string;
   officeId: number;
   propertyIds: string[];
@@ -44,8 +44,7 @@ export interface ReceiptRequest {
 }
 
 export interface ReceiptResponse {
-  receiptId: number;
-  receiptGuid: string;
+  receiptId: string;
   receiptCode: string;
   invoiceId?: string | null;
   organizationId: string;
@@ -79,8 +78,7 @@ export interface ReceiptResponse {
 }
 
 export interface ReceiptDisplayList {
-  receiptId: number;
-  receiptGuid: string;
+  receiptId: string;
   receiptCode: string;
   invoiceId?: string | null;
   officeId: number;
@@ -91,7 +89,7 @@ export interface ReceiptDisplayList {
   propertyCode?: string;
   ticketId: string;
   amount: number;
-  amountDisplay?: string; // formatted for list (e.g. $0.00)
+  amountDisplay?: string;
   splits: Split[];
   splitTotalAmount?: number;
   splitTotalDisplay?: string;
@@ -141,7 +139,7 @@ export interface ReceiptDisplayList {
 }
 
 export interface ReceiptSelection {
-  receiptId: number | null;
+  receiptId: string | null;
   officeId: number | null;
   propertyId: string | null;
 }
@@ -152,7 +150,7 @@ export interface BillPaymentRequest {
   paymentTypeId: number;
   description: string;
   amount: number;
-  bills: number[];
+  bills: string[];
 }
 
 export interface BillPaymentResponse {

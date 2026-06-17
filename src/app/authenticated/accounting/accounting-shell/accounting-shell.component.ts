@@ -62,6 +62,8 @@ import { JournalEntrySyncResult } from '../models/journal-entry.model';
 export class AccountingShellComponent implements OnInit, OnDestroy {
   @ViewChild(InvoiceListComponent) accountingInvoiceList?: InvoiceListComponent;
   @ViewChild('accountingInvoiceEditor') accountingInvoiceEditor?: InvoiceComponent;
+  @ViewChild('profitLossReport') profitLossReport?: FinancialReportComponent;
+  @ViewChild('balanceSheetReport') balanceSheetReport?: FinancialReportComponent;
 
   private readonly pinnedDateRangeStorageKeyPrefix = 'rentall-accounting-shell-pinned-dates';
   readonly tabReceipts = 2;
@@ -93,10 +95,10 @@ export class AccountingShellComponent implements OnInit, OnDestroy {
   billsRefreshTrigger = 0;
   receiptsRefreshTrigger = 0;
   showBillsReceiptDetail = false;
-  selectedBillsReceiptId: number | null = null;
+  selectedBillsReceiptId: string | null = null;
   billsReceiptProperty: PropertyResponse | null = null;
   showReceiptsReceiptDetail = false;
-  selectedReceiptsReceiptId: number | null = null;
+  selectedReceiptsReceiptId: string | null = null;
   receiptsReceiptProperty: PropertyResponse | null = null;
   selectedChartOfAccountId: number | null = null;
   selectedFinancialReportClass: Class = Class.TotalOnly;
@@ -115,6 +117,8 @@ export class AccountingShellComponent implements OnInit, OnDestroy {
   printChecksRefreshTrigger = 0;
   chartOfAccounts: ChartOfAccountResponse[] = [];
   isJournalEntrySyncInProgress = false;
+  isFinancialReportDrillDownActive = false;
+  isFinancialReportJournalEntryDetailActive = false;
 
   destroy$ = new Subject<void>();
 
@@ -330,6 +334,34 @@ export class AccountingShellComponent implements OnInit, OnDestroy {
   }
   //#endregion
 
+  //#region Financial Report Drill-Down
+  onFinancialReportDrillDownBack(): void {
+    this.activeFinancialReport?.drillDownBack();
+  }
+
+  onFinancialReportDrillDownActiveChange(active: boolean): void {
+    this.isFinancialReportDrillDownActive = active;
+  }
+
+  onFinancialReportJournalEntryDetailChange(active: boolean): void {
+    this.isFinancialReportJournalEntryDetailActive = active;
+  }
+
+  syncFinancialReportDrillDownActiveState(): void {
+    this.isFinancialReportDrillDownActive = !!this.activeFinancialReport?.drillDownView;
+  }
+
+  get activeFinancialReport(): FinancialReportComponent | undefined {
+    if (this.selectedTabIndex === this.tabProfitLoss) {
+      return this.profitLossReport;
+    }
+    if (this.selectedTabIndex === this.tabBalanceSheet) {
+      return this.balanceSheetReport;
+    }
+    return undefined;
+  }
+  //#endregion
+
   //#region Bills Receipt Detail
   onBillsReceiptSelect(selection: ReceiptSelection): void {
     const receiptId = selection?.receiptId ?? null;
@@ -455,6 +487,10 @@ export class AccountingShellComponent implements OnInit, OnDestroy {
     if (event.index !== 3 && event.index !== 4 && !this.usesReportTitleBarFilters()) {
       this.onGeneralLedgerBack();
     }
+    if (event.index !== this.tabProfitLoss && event.index !== this.tabBalanceSheet) {
+      this.isFinancialReportDrillDownActive = false;
+      this.isFinancialReportJournalEntryDetailActive = false;
+    }
     this.selectedTabIndex = event.index;
     this.syncBillsSearchRequest();
     if (this.selectedTabIndex === 1) {
@@ -471,6 +507,7 @@ export class AccountingShellComponent implements OnInit, OnDestroy {
     }
     if (this.usesFinancialReportTitleBarFilters()) {
       this.financialReportsRefreshTrigger++;
+      queueMicrotask(() => this.syncFinancialReportDrillDownActiveState());
     }
     if (this.usesGeneralLedgerTitleBarFilters()) {
       if (!('chartOfAccountId' in this.route.snapshot.queryParams)) {
@@ -748,7 +785,8 @@ export class AccountingShellComponent implements OnInit, OnDestroy {
       && !this.activeInvoiceId
       && !this.isGeneralLedgerDetailActive
       && !this.isBillsReceiptDetailActive
-      && !this.isReceiptsReceiptDetailActive;
+      && !this.isReceiptsReceiptDetailActive
+      && !this.isFinancialReportDrillDownActive;
   }
 
   resolveOfficeIdsForJournalEntrySync(): number[] {

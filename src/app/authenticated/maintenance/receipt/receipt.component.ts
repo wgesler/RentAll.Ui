@@ -45,7 +45,7 @@ const ACCOUNTING_COMPANY_PROPERTY_ID = '__accounting_company__';
 export class ReceiptComponent implements OnInit, OnChanges, OnDestroy {
   @Input() officeId: number | null = null;
   @Input() property: PropertyResponse | null = null;
-  @Input() receiptId: number | null = null;
+  @Input() receiptId: string | null = null;
   @Input() ticketId: string | null = null;
   @Input() shellContext: 'maintenance' | 'accounting' | null = null;
   @Output() backEvent = new EventEmitter<void>();
@@ -393,8 +393,11 @@ export class ReceiptComponent implements OnInit, OnChanges, OnDestroy {
           this.back();
         }
       },
-      error: (_err: HttpErrorResponse) => {
-        this.toastr.error('Unable to save receipt.', 'Error');
+      error: (err: HttpErrorResponse) => {
+        const apiMessage = typeof err.error === 'string'
+          ? err.error
+          : err.error?.message || err.error?.title || err.message;
+        this.toastr.error(apiMessage || 'Unable to save receipt.', 'Error');
       }
     });
   }
@@ -419,6 +422,25 @@ export class ReceiptComponent implements OnInit, OnChanges, OnDestroy {
     return !!(this.receiptFileDetails?.file)
       || !!(this.form.get('receiptPath')?.value)
       || !!(this.receipt?.receiptPath);
+  }
+
+  canChooseReceiptFile(): boolean {
+    if ((this.property?.propertyId || '').trim().length > 0) {
+      return true;
+    }
+    if (this.isAccountingCompanySelected()) {
+      return true;
+    }
+    if (this.getSelectedPropertyIds().length > 0) {
+      return true;
+    }
+    if (!this.isPropertySelectionRequired()) {
+      return true;
+    }
+    if (this.isAccountingShell && (this.getReceiptOfficeId() ?? 0) > 0) {
+      return true;
+    }
+    return false;
   }
   //#endregion
 
@@ -716,13 +738,15 @@ export class ReceiptComponent implements OnInit, OnChanges, OnDestroy {
 
   //#region Receipt File Methods
   openReceiptPicker(fileInput: HTMLInputElement): void {
-    if (!this.property) return;
+    if (!this.canChooseReceiptFile()) {
+      return;
+    }
     fileInput.click();
   }
 
   async onReceiptSelected(event: Event): Promise<void> {
     const file = this.utilityService.getFirstSelectedFile(event);
-    if (!file || !this.property) {
+    if (!file || !this.canChooseReceiptFile()) {
       return;
     }
 
@@ -1927,8 +1951,7 @@ export class ReceiptComponent implements OnInit, OnChanges, OnDestroy {
 
   createDraftReceipt(officeId: number, officeName: string): ReceiptResponse {
     return {
-      receiptId: 0,
-      receiptGuid: '',
+      receiptId: '',
       receiptCode: '',
       organizationId: this.organizationId,
       officeId,

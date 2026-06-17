@@ -899,51 +899,69 @@ export class TicketComponent implements OnInit, OnChanges, AfterViewInit, OnDest
       return;
     }
 
-    const receiptId = this.tryParseReceiptIdFromCode(code);
-    if (receiptId == null) {
-      this.toastr.warning('Unable to open receipt. Receipt id was not found in the comment.', 'Missing receipt id');
+    const normalizedCode = String(code || '').trim();
+    if (!normalizedCode) {
+      this.toastr.warning('Unable to open receipt. Receipt reference was not found in the comment.', 'Missing receipt');
       return;
     }
 
-    this.propertyService.getPropertyByGuid(selectedPropertyId).pipe(take(1)).subscribe({
-      next: (property: PropertyResponse) => {
-        this.dialog.open(TicketReceiptDialogComponent, {
-          width: '95vw',
-          maxWidth: '1300px',
-          maxHeight: '95vh',
-          disableClose: true,
-          panelClass: 'ticket-receipt-dialog-panel',
-          data: {
-            property,
-            ticketId: this.ticket?.ticketId ?? null,
-            receiptId
-          }
+    const openDialog = (receiptId: string): void => {
+      this.propertyService.getPropertyByGuid(selectedPropertyId).pipe(take(1)).subscribe({
+        next: (property: PropertyResponse) => {
+          this.dialog.open(TicketReceiptDialogComponent, {
+            width: '95vw',
+            maxWidth: '1300px',
+            maxHeight: '95vh',
+            disableClose: true,
+            panelClass: 'ticket-receipt-dialog-panel',
+            data: {
+              property,
+              ticketId: this.ticket?.ticketId ?? null,
+              receiptId
+            }
+          });
+        },
+        error: () => {
+          this.toastr.error('Unable to load property for receipt dialog.', 'Error');
+        }
+      });
+    };
+
+    if (this.isReceiptGuid(normalizedCode)) {
+      openDialog(normalizedCode);
+      return;
+    }
+
+    const receiptCode = this.extractReceiptCodeFromCommentToken(normalizedCode);
+    this.receiptService.getReceiptsByPropertyId(selectedPropertyId).pipe(take(1)).subscribe({
+      next: receipts => {
+        const match = (receipts || []).find(receipt => {
+          const codeValue = String(receipt.receiptCode || '').trim();
+          return codeValue.length > 0 && codeValue.localeCompare(receiptCode, undefined, { sensitivity: 'base' }) === 0;
         });
+        if (!match?.receiptId) {
+          this.toastr.warning('Unable to open receipt. No receipt matched that comment reference.', 'Receipt not found');
+          return;
+        }
+        openDialog(match.receiptId);
       },
       error: () => {
-        this.toastr.error('Unable to load property for receipt dialog.', 'Error');
+        this.toastr.error('Unable to load receipts for this property.', 'Error');
       }
     });
   }
 
-  tryParseReceiptIdFromCode(code: string): number | null {
+  isReceiptGuid(value: string): boolean {
+    return /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(String(value || '').trim());
+  }
+
+  extractReceiptCodeFromCommentToken(code: string): string {
     const normalized = String(code || '').trim();
-    const noMatch = normalized.match(/No:\s*(\d+)/i);
-    if (noMatch?.[1]) {
-      const parsedNoId = Number(noMatch[1]);
-      return Number.isFinite(parsedNoId) && parsedNoId > 0 ? parsedNoId : null;
+    const legacyNoMatch = normalized.match(/^No:\s*(.+)$/i);
+    if (legacyNoMatch?.[1]) {
+      return legacyNoMatch[1].trim();
     }
-    const hashMatch = normalized.match(/^#(\d+)$/);
-    if (hashMatch?.[1]) {
-      const parsedHashId = Number(hashMatch[1]);
-      return Number.isFinite(parsedHashId) && parsedHashId > 0 ? parsedHashId : null;
-    }
-    const numericMatch = normalized.match(/(\d+)/);
-    if (!numericMatch?.[1]) {
-      return null;
-    }
-    const parsedId = Number(numericMatch[1]);
-    return Number.isFinite(parsedId) && parsedId > 0 ? parsedId : null;
+    return normalized;
   }
   //#endregion
 

@@ -79,7 +79,7 @@ export class MaintenanceShellComponent implements OnInit, OnDestroy, CanComponen
   maintenanceSaveResolver: ((success: boolean) => void) | null = null;
 
   showReceiptDetail = false;
-  selectedReceiptId: number | null = null;
+  selectedReceiptId: string | null = null;
   refreshReceiptsTrigger = 0;
   receiptSaveValidationAttempted = false;
   receiptPropertySelectionRequired = true;
@@ -164,7 +164,7 @@ export class MaintenanceShellComponent implements OnInit, OnDestroy, CanComponen
       const receiptIdParam = (params.get('receiptId') || '').trim();
       if (receiptIdParam !== '') {
         this.selectedTabIndex = this.receiptsTabIndex;
-        this.selectedReceiptId = receiptIdParam.toLowerCase() === 'new' ? null : (parseInt(receiptIdParam, 10) || null);
+        this.selectedReceiptId = receiptIdParam.toLowerCase() === 'new' ? null : receiptIdParam;
         this.showReceiptDetail = true;
       }
 

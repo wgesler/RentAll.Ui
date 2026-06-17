@@ -1,5 +1,5 @@
 import { ChartOfAccountResponse } from './chart-of-accounts.model';
-import { JournalEntryLineSearchResponse } from './journal-entry.model';
+import { JournalEntryLineListDisplay, JournalEntryLineSearchResponse } from './journal-entry.model';
 import { Class } from './accounting-enum';
 
 export type FinancialReportKind = 'profitLoss' | 'balanceSheet';
@@ -44,6 +44,14 @@ export interface FinancialReportTreeNode {
   accountId?: number;
   drillDownSpec?: FinancialReportDrillDownSpec;
   childNodes: FinancialReportTreeNode[];
+}
+
+export interface FinancialReportDrillDownView {
+  title: string;
+  subtitle: string;
+  nodeId: string;
+  columnId: string;
+  lines: JournalEntryLineListDisplay[];
 }
 
 export interface FinancialReportResult {

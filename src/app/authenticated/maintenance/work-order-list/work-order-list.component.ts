@@ -217,14 +217,14 @@ export class WorkOrderListComponent implements OnInit, OnChanges, OnDestroy {
     const associatedReceiptIds = Array.from(
       new Set(
         (targetWorkOrder?.workOrderItems || [])
-          .map(item => Number(item.receiptId))
-          .filter(receiptId => Number.isFinite(receiptId) && receiptId > 0)
+          .map(item => String(item.receiptId ?? '').trim())
+          .filter(receiptId => receiptId.length > 0)
       )
     );
 
     this.collectReceiptIdsWithWorkOrderCode(workOrderCode, associatedReceiptIds)
       .pipe(
-        switchMap((receiptIdsToUpdate: number[]) => this.removeWorkOrderAssociationsFromReceipts(workOrderCode, receiptIdsToUpdate)),
+        switchMap((receiptIdsToUpdate: string[]) => this.removeWorkOrderAssociationsFromReceipts(workOrderCode, receiptIdsToUpdate)),
         switchMap(() => this.workOrderService.deleteWorkOrder(id)),
         take(1)
       )
@@ -283,7 +283,7 @@ export class WorkOrderListComponent implements OnInit, OnChanges, OnDestroy {
   //#endregion
 
   //#region Receipt Update Methods
-  removeWorkOrderAssociationsFromReceipts(workOrderCode: string, receiptIds: number[]): Observable<void> {
+  removeWorkOrderAssociationsFromReceipts(workOrderCode: string, receiptIds: string[]): Observable<void> {
     if (!workOrderCode || !receiptIds.length) {
       return of(void 0);
     }
@@ -355,13 +355,13 @@ export class WorkOrderListComponent implements OnInit, OnChanges, OnDestroy {
     return remainingTokens.join(', ');
   }
 
-  collectReceiptIdsWithWorkOrderCode(workOrderCode: string, seedReceiptIds: number[]): Observable<number[]> {
+  collectReceiptIdsWithWorkOrderCode(workOrderCode: string, seedReceiptIds: string[]): Observable<string[]> {
     const normalizedCode = (workOrderCode || '').trim();
     if (!normalizedCode) {
       return of(seedReceiptIds);
     }
 
-    const seedSet = new Set<number>((seedReceiptIds || []).filter(id => Number.isFinite(id) && id > 0));
+    const seedSet = new Set<string>((seedReceiptIds || []).filter(id => !!id && id.trim().length > 0));
     const propertyId = this.property?.propertyId ?? null;
     const officeId = this.officeId ?? null;
 
@@ -376,8 +376,8 @@ export class WorkOrderListComponent implements OnInit, OnChanges, OnDestroy {
               .filter(token => token.length > 0);
             return tokens.includes(normalizedCode.toLowerCase());
           });
-          if (hasCode && Number.isFinite(receipt.receiptId) && receipt.receiptId > 0) {
-            seedSet.add(receipt.receiptId);
+          if (hasCode && String(receipt.receiptId || '').trim().length > 0) {
+            seedSet.add(String(receipt.receiptId).trim());
           }
         });
         return Array.from(seedSet);

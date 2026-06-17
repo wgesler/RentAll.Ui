@@ -156,6 +156,8 @@ export class DataTableComponent implements OnChanges, OnInit, AfterViewInit, OnD
   @Input() suppressRowClickOnDropdownCells: boolean = true;
   @Input() hasPropertyCodeLink: boolean = false;
   @Input() hasReservationCodeLink: boolean = false;
+  @Input() hasJournalEntryCodeLink: boolean = false;
+  @Input() hasSourceLink: boolean = false;
   @Input() hasContactNameLink: boolean = true;
   @Input() hasWorkOrderCodeLink: boolean = false;
   @Input() subheaderLabel: string = '';
@@ -199,6 +201,8 @@ export class DataTableComponent implements OnChanges, OnInit, AfterViewInit, OnD
   @Output() receiptClickEvent = new EventEmitter<PurposefulAny>();
   @Output() propertyCodeClickEvent = new EventEmitter<PurposefulAny>();
   @Output() reservationCodeClickEvent = new EventEmitter<PurposefulAny>();
+  @Output() journalEntryCodeClickEvent = new EventEmitter<PurposefulAny>();
+  @Output() sourceClickEvent = new EventEmitter<PurposefulAny>();
   @Output() workOrderCodeClickEvent = new EventEmitter<PurposefulAny>();
   @Output() inlineEditChangeEvent = new EventEmitter<PurposefulAny>();
   @Output() topButtonEvent = new EventEmitter<boolean>();
@@ -659,6 +663,16 @@ export class DataTableComponent implements OnChanges, OnInit, AfterViewInit, OnD
   onReservationCodeClick(event: Event, rowItem: PurposefulAny): void {
     event.stopPropagation();
     this.reservationCodeClickEvent.emit(rowItem);
+  }
+
+  onJournalEntryCodeClick(event: Event, rowItem: PurposefulAny): void {
+    event.stopPropagation();
+    this.journalEntryCodeClickEvent.emit(rowItem);
+  }
+
+  onSourceClick(event: Event, rowItem: PurposefulAny): void {
+    event.stopPropagation();
+    this.sourceClickEvent.emit(rowItem);
   }
 
   onWorkOrderCodeClick(event: Event, rowItem: PurposefulAny, workOrderCode: string): void {

@@ -275,7 +275,7 @@
                             </tr>
                           </thead>
                           <tbody>
-                            @for (card of bankCards; track $index) {
+                            @for (card of bankCards; track card.bankCardId || $index) {
                               <tr class="border-b">
                                 <td class="bank-card-col-no">{{ $index + 1 }}</td>
                                 <td class="bank-card-col-type">

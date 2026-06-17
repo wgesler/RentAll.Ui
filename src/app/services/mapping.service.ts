@@ -1,5 +1,5 @@
 import { Injectable } from '@angular/core';
-import { AccountType, Class, SourceType, TransactionType, getAccountTypeLabel, getSourceTypeLabel, getTransactionTypeLabel, isCreditNormalAccountType } from '../authenticated/accounting/models/accounting-enum';
+import { AccountType, Class, SourceType, TransactionType, getAccountTypeLabel, getSourceTypeLabel, getTransactionTypeLabel, isCreditNormalAccountType, isJournalEntrySourceNavigable } from '../authenticated/accounting/models/accounting-enum';
 import {
   FINANCIAL_REPORT_TOTAL_COLUMN_ID,
   FINANCIAL_REPORT_UNASSIGNED_COLUMN_ID,
@@ -756,7 +756,12 @@ export class MappingService {
         transactionDate: this.formatter.formatDateString(transactionDate),
         journalEntryCode: (line.journalEntryCode || '').trim(),
         source: getSourceTypeLabel(line.sourceTypeId, sourceTypes),
+        sourceTypeId: line.sourceTypeId ?? null,
+        sourceId: line.sourceId ?? null,
+        sourceLinkable: isJournalEntrySourceNavigable(line.sourceTypeId) && !!(line.sourceId || '').trim(),
+        propertyId: line.propertyId ?? null,
         propertyCode: (line.propertyCode || '').trim(),
+        reservationId: line.reservationId ?? null,
         reservationCode: (line.reservationCode || '').trim(),
         contactId: line.contactId ?? null,
         contactName: (line.contactName || '').trim(),
@@ -1921,8 +1926,8 @@ export class MappingService {
       : String(invoiceIdRaw).trim();
     const receiptCodeRaw = rawRecord['receiptCode'] ?? rawRecord['ReceiptCode'] ?? base.receiptCode;
     const receiptCode = String(receiptCodeRaw ?? base.receiptCode ?? '').trim();
-    const receiptGuidRaw = rawRecord['receiptGuid'] ?? rawRecord['ReceiptGuid'] ?? base.receiptGuid;
-    const receiptGuid = String(receiptGuidRaw ?? base.receiptGuid ?? '').trim();
+    const receiptIdRaw = rawRecord['receiptId'] ?? rawRecord['ReceiptId'] ?? base.receiptId;
+    const receiptId = String(receiptIdRaw ?? '').trim();
     const paymentTypeIdRaw = rawRecord['paymentTypeId'] ?? rawRecord['PaymentTypeId'] ?? base.paymentTypeId;
     const paymentTypeId = paymentTypeIdRaw == null ? 0 : Number(paymentTypeIdRaw);
     const checkPrintedRaw = rawRecord['checkPrinted'] ?? rawRecord['CheckPrinted'] ?? base.checkPrinted;
@@ -1938,7 +1943,7 @@ export class MappingService {
       createdOn,
       invoiceId,
       receiptCode,
-      receiptGuid,
+      receiptId,
       paymentTypeId: Number.isFinite(paymentTypeId) ? paymentTypeId : 0,
       checkPrinted,
       splits: this.mapReceiptSplitsFromApi(base.splits)
@@ -2006,10 +2011,10 @@ export class MappingService {
         workOrderId: split.workOrderId ?? null,
         workOrderCode: split.workOrderCode != null && String(split.workOrderCode).trim().length > 0
           ? String(split.workOrderCode).trim()
-          : '',
+          : null,
         workOrder: split.workOrder != null && String(split.workOrder).trim().length > 0
           ? String(split.workOrder).trim()
-          : '',
+          : null,
         receiptTypeId: split.receiptTypeId ?? 0,
         chartOfAccountId,
         accountId: chartOfAccountId
@@ -2087,7 +2092,6 @@ export class MappingService {
 
       return {
         receiptId: receipt.receiptId,
-        receiptGuid: receipt.receiptGuid,
         receiptCode: receipt.receiptCode,
         invoiceId: (receipt as ReceiptResponse & { invoiceId?: string | null }).invoiceId ?? null,
         officeId: receipt.officeId,
@@ -3742,6 +3746,7 @@ export class MappingService {
     return Math.round(amount * 100) / 100;
   }
 
+  //#region Drill-Down
   buildFinancialReportDrillDownContext(
     reportKind: FinancialReportKind,
     columnContext: FinancialReportColumnContext,
@@ -3949,6 +3954,7 @@ export class MappingService {
     }
     return reportResult.columns.find(column => column.columnId === columnId)?.label || columnId;
   }
+  //#endregion
   //#endregion
 
   //#region Helper/Format Functions

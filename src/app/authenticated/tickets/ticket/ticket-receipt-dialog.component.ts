@@ -9,7 +9,7 @@ import { PropertyResponse } from '../../properties/models/property.model';
 export interface TicketReceiptDialogData {
   property: PropertyResponse;
   ticketId: string | null;
-  receiptId?: number | null;
+  receiptId?: string | null;
 }
 
 export interface TicketReceiptDialogResult {

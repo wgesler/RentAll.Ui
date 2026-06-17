@@ -117,7 +117,12 @@ export interface JournalEntryLineListDisplay {
   transactionDate: string;
   journalEntryCode: string;
   source: string;
+  sourceTypeId?: number | null;
+  sourceId?: string | null;
+  sourceLinkable?: boolean;
+  propertyId?: string | null;
   propertyCode: string;
+  reservationId?: string | null;
   reservationCode: string;
   contactId?: string | null;
   contactName: string;

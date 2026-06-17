@@ -126,6 +126,20 @@ export function getSourceTypeCode(sourceTypeId: number | undefined | null): stri
   return SourceTypeCodes[sourceTypeId as SourceType] ?? '';
 }
 
+export function isJournalEntrySourceNavigable(sourceTypeId: number | undefined | null): boolean {
+  if (sourceTypeId == null) {
+    return false;
+  }
+
+  return [
+    SourceType.Invoice,
+    SourceType.InvoicePayment,
+    SourceType.Bill,
+    SourceType.BillPayment,
+    SourceType.Receipt
+  ].includes(sourceTypeId);
+}
+
 export function getSourceTypeLabel(sourceTypeId: number | undefined | null, sourceTypes?: { value: number, label: string }[]): string {
   if (sourceTypeId === undefined || sourceTypeId === null) {
     return '';

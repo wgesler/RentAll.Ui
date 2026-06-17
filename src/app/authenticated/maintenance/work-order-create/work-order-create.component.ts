@@ -373,7 +373,7 @@ export class WorkOrderCreateComponent extends BaseDocumentComponent implements O
         });
         forkJoin(detailRequests).pipe(take(1)).subscribe({
           next: detailedReceipts => {
-            const detailsById = new Map<number, ReceiptResponse>();
+            const detailsById = new Map<string, ReceiptResponse>();
             detailedReceipts.forEach(receipt => {
               if (receipt?.receiptId != null) {
                 detailsById.set(receipt.receiptId, receipt);
@@ -605,7 +605,7 @@ export class WorkOrderCreateComponent extends BaseDocumentComponent implements O
       return '';
     }
 
-    const usedSplitIndexesByReceipt = new Map<number, Set<number>>();
+    const usedSplitIndexesByReceipt = new Map<string, Set<number>>();
     const receiptRows: string[] = [];
     const laborRows: string[] = [];
 
@@ -685,10 +685,10 @@ export class WorkOrderCreateComponent extends BaseDocumentComponent implements O
 
   resolveSplitForWorkOrderItem(
     item: WorkOrderItemResponse,
-    usedSplitIndexesByReceipt: Map<number, Set<number>>
+    usedSplitIndexesByReceipt: Map<string, Set<number>>
   ): { description: string; amount: number } | null {
-    const receiptId = Number(item.receiptId);
-    if (!Number.isFinite(receiptId) || receiptId <= 0) {
+    const receiptId = String(item.receiptId ?? '').trim();
+    if (!receiptId) {
       return null;
     }
 
@@ -817,15 +817,15 @@ export class WorkOrderCreateComponent extends BaseDocumentComponent implements O
     return `<p class="breakhere"></p>${pages.join('\n<p class="breakhere"></p>\n')}`;
   }
 
-  getIncludedReceiptIds(): number[] {
+  getIncludedReceiptIds(): string[] {
     if (!this.workOrder?.workOrderItems?.length) {
       return [];
     }
 
     return [...new Set(
       this.workOrder.workOrderItems
-        .map(item => item.receiptId)
-        .filter((receiptId): receiptId is number => Number(receiptId) > 0)
+        .map(item => String(item.receiptId ?? '').trim())
+        .filter(receiptId => receiptId.length > 0)
     )];
   }
 

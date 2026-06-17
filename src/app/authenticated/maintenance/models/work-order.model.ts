@@ -66,7 +66,7 @@ export interface WorkOrderItemRequest {
   workOrderId?: string;
   workOrderItemId?: string;
   description: string;
-  receiptId?: number;
+  receiptId?: string;
   laborHours: number;
   laborCost: number;
   itemAmount: number;
@@ -76,7 +76,7 @@ export interface WorkOrderItemResponse {
   workOrderItemId: string;
   workOrderId: string;
   description: string;
-  receiptId?: number;
+  receiptId?: string;
   laborHours: number;
   laborCost: number;
   itemAmount: number;
@@ -88,7 +88,7 @@ export type WorkOrderItemSource = 'noReceipt' | 'receipt' | 'inventory';
 export type WorkOrderItemEditable =
   Partial<Pick<WorkOrderItemResponse, 'workOrderItemId' | 'workOrderId'>> &
   Pick<WorkOrderItemResponse, 'description' | 'laborHours' | 'laborCost' | 'itemAmount'> & {
-    receiptId?: number | null;
+    receiptId?: string | null;
     receiptSplitKey?: string | null;
     receiptAmount?: number;
     itemSource?: WorkOrderItemSource;
@@ -96,7 +96,7 @@ export type WorkOrderItemEditable =
 
 export interface ReceiptSplitOption {
   key: string;
-  receiptId: number;
+  receiptId: string;
   receiptSplitId: number | null;
   splitIndex: number;
   amount: number;
@@ -110,7 +110,7 @@ export interface WorkOrderItemSnapshot {
   workOrderItemId: string | null;
   workOrderCode: string | null;
   description: string;
-  receiptId: number | null;
+  receiptId: string | null;
   receiptSplitKey: string | null;
   laborHours: number;
   laborCost: number;

@@ -1,6 +1,6 @@
 import { CommonModule } from '@angular/common';
 import { HttpErrorResponse } from '@angular/common/http';
-import { Component, EventEmitter, Input, OnChanges, OnDestroy, OnInit, Output, SimpleChanges, ViewChild } from '@angular/core';
+import { ChangeDetectorRef, Component, EventEmitter, Input, OnChanges, OnDestroy, OnInit, Output, SimpleChanges, ViewChild } from '@angular/core';
 import { MatSelect } from '@angular/material/select';
 import { FormBuilder, FormControl, FormGroup, FormsModule, ReactiveFormsModule, Validators } from '@angular/forms';
 import { ToastrService } from 'ngx-toastr';
@@ -80,7 +80,7 @@ export class AccountingOfficeComponent implements OnInit, OnDestroy, OnChanges {
   offices: OfficeResponse[] = [];
   availableOffices: { value: number, name: string }[] = [];
 
-  itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['office', 'offices', 'bankCards']));
+  itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['office', 'offices']));
   isLoading$: Observable<boolean> = this.itemsToLoad$.pipe(map(items => items.size > 0));
   destroy$ = new Subject<void>();
 
@@ -94,7 +94,8 @@ export class AccountingOfficeComponent implements OnInit, OnDestroy, OnChanges {
     private costCodesService: CostCodesService,
     private chartOfAccountsService: ChartOfAccountsService,
     private mappingService: MappingService,
-    private utilityService: UtilityService
+    private utilityService: UtilityService,
+    private cdr: ChangeDetectorRef
   ) {
   }
 
@@ -112,7 +113,6 @@ export class AccountingOfficeComponent implements OnInit, OnDestroy, OnChanges {
       this.isAddMode = this.id === 'new';
       if (this.isAddMode) {
         this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'office');
-        this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'bankCards');
         this.buildForm();
         this.setupOfficeSelectionHandler();
         this.scheduleFocusFirstField();
@@ -126,12 +126,10 @@ export class AccountingOfficeComponent implements OnInit, OnDestroy, OnChanges {
       if (officeIdNum == null) {
         this.isServiceError = true;
         this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'office');
-        this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'bankCards');
         return;
       }
 
       this.getAccountingOffice(officeIdNum);
-      this.loadBankCards(officeIdNum);
     });
   }
 
@@ -149,13 +147,10 @@ export class AccountingOfficeComponent implements OnInit, OnDestroy, OnChanges {
             return;
           }
           this.utilityService.addLoadItem(this.itemsToLoad$, 'office');
-          this.utilityService.addLoadItem(this.itemsToLoad$, 'bankCards');
           this.getAccountingOffice(officeIdNum);
-          this.loadBankCards(officeIdNum);
         } else if (newId === 'new') {
           this.isAddMode = true;
           this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'office');
-          this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'bankCards');
           this.bankCards = [];
           this.showBankCardRows = false;
           this.buildForm();
@@ -183,9 +178,7 @@ export class AccountingOfficeComponent implements OnInit, OnDestroy, OnChanges {
     })).subscribe({
       next: (response: AccountingOfficeResponse) => {
         this.accountingOffice = response;
-        this.applyBankCardsFromSource(response?.bankCards);
         this.loadCostCodesForOffice(response?.officeId);
-        this.loadChartOfAccountsForOffice(response?.officeId);
         // Load logo from fileDetails if present (contains base64 image data)
         if (response.fileDetails && response.fileDetails.file) {
           this.fileDetails = response.fileDetails;
@@ -207,7 +200,11 @@ export class AccountingOfficeComponent implements OnInit, OnDestroy, OnChanges {
           this.logoPath = response.logoPath;
         }
         this.buildForm();
-        this.populateForm();
+        this.loadChartOfAccountsForOffice(response?.officeId, () => {
+          this.populateForm();
+          this.applyBankCardsFromSource(response?.bankCards);
+          this.cdr.markForCheck();
+        });
       },
       error: () => {
         this.isServiceError = true;
@@ -523,11 +520,13 @@ export class AccountingOfficeComponent implements OnInit, OnDestroy, OnChanges {
     });
   }
 
-  loadChartOfAccountsForOffice(officeId?: number | null): void {
+  loadChartOfAccountsForOffice(officeId?: number | null, onLoaded?: () => void): void {
     const parsedOfficeId = Number(officeId);
     if (!parsedOfficeId || parsedOfficeId <= 0) {
       this.chartOfAccountOptions = [];
       this.bankCardChartOfAccountOptions = [];
+      onLoaded?.();
+      this.cdr.markForCheck();
       return;
     }
 
@@ -544,10 +543,14 @@ export class AccountingOfficeComponent implements OnInit, OnDestroy, OnChanges {
         this.bankCardChartOfAccountOptions = sortedAccounts
           .filter(account => account.accountTypeId === AccountType.CreditCard)
           .map(({ value, label }) => ({ value, label }));
+        onLoaded?.();
+        this.cdr.markForCheck();
       },
       error: () => {
         this.chartOfAccountOptions = [];
         this.bankCardChartOfAccountOptions = [];
+        onLoaded?.();
+        this.cdr.markForCheck();
       }
     });
   }
@@ -644,24 +647,6 @@ export class AccountingOfficeComponent implements OnInit, OnDestroy, OnChanges {
   //#endregion
 
   //#region Bank Cards
-  loadBankCards(officeIdNum: number): void {
-    this.accountingOfficeService.ensureAccountingOfficesLoaded().pipe(
-      take(1),
-      finalize(() => {
-        this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'bankCards');
-      })
-    ).subscribe({
-      next: () => {
-        const cachedOffice = this.accountingOfficeService.getAllAccountingOfficesValue()
-          .find(office => office.officeId === officeIdNum);
-        this.applyBankCardsFromSource(cachedOffice?.bankCards);
-      },
-      error: () => {
-        this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'bankCards');
-      }
-    });
-  }
-
   applyBankCardsFromSource(cards: BankCardResponse[] | null | undefined): void {
     const mapped = this.mappingService.mapBankCardsFromResponse(cards);
     if (mapped.length === 0) {
@@ -670,7 +655,6 @@ export class AccountingOfficeComponent implements OnInit, OnDestroy, OnChanges {
 
     this.bankCards = mapped;
     this.showBankCardRows = true;
-    this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'bankCards');
   }
 
   selectAllOnFocus(event: Event): void {

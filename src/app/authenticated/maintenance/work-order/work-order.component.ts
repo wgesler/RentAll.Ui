@@ -76,7 +76,7 @@ export class WorkOrderComponent implements OnInit, OnChanges, OnDestroy {
   offices: OfficeResponse[] = [];
   accountingOffices: AccountingOfficeResponse[] = [];
   propertyReceipts: ReceiptResponse[] = [];
-  associatedWorkOrderReceiptIds = new Set<number>();
+  associatedWorkOrderReceiptIds = new Set<string>();
   accountingOffice: AccountingOfficeResponse | null = null;
   generatedWorkOrderCode: string | null = null;
   nextWorkOrderNo: number | null = null;
@@ -290,9 +290,9 @@ export class WorkOrderComponent implements OnInit, OnChanges, OnDestroy {
     const usedSplitKeys = new Set<string>();
     const currentWorkOrderCodeForSelection = (this.workOrder?.workOrderCode ?? this.generatedWorkOrderCode ?? this.form.get('workOrderCode')?.value ?? '').toString();
     this.workOrderItems
-      .filter(item => item.itemSource === 'receipt' && item.receiptId != null && Number(item.receiptId) > 0)
+      .filter(item => item.itemSource === 'receipt' && this.isValidReceiptId(item.receiptId))
       .forEach(item => {
-        const splitKey = item.receiptSplitKey || this.resolveInitialSplitKeyForItem(item.receiptId as number, currentWorkOrderCodeForSelection, usedSplitKeys);
+        const splitKey = item.receiptSplitKey || this.resolveInitialSplitKeyForItem(String(item.receiptId), currentWorkOrderCodeForSelection, usedSplitKeys);
         if (splitKey) {
           item.receiptSplitKey = splitKey;
           usedSplitKeys.add(splitKey);
@@ -659,15 +659,15 @@ export class WorkOrderComponent implements OnInit, OnChanges, OnDestroy {
     });
 
     this.workOrderItems.forEach(item => {
-      const numericReceiptId = Number(item.receiptId);
-      if (!Number.isFinite(numericReceiptId) || numericReceiptId <= 0) {
+      const receiptId = String(item.receiptId ?? '').trim();
+      if (!receiptId) {
         return;
       }
       item.itemSource = 'receipt';
       if (item.receiptSplitKey) {
         return;
       }
-      const splitKey = this.resolveInitialSplitKeyForItem(numericReceiptId, currentWorkOrderCode, usedSplitKeys);
+      const splitKey = this.resolveInitialSplitKeyForItem(receiptId, currentWorkOrderCode, usedSplitKeys);
       if (splitKey) {
         item.receiptSplitKey = splitKey;
         usedSplitKeys.add(splitKey);
@@ -695,7 +695,7 @@ export class WorkOrderComponent implements OnInit, OnChanges, OnDestroy {
     }
 
     const associatedReceiptIds = this.getCurrentAssociatedReceiptIds();
-    const existingReceiptIds = new Set((this.propertyReceipts || []).map(receipt => Number(receipt.receiptId)));
+    const existingReceiptIds = new Set((this.propertyReceipts || []).map(receipt => String(receipt.receiptId).trim()));
     const missingReceiptIds = associatedReceiptIds.filter(receiptId => !existingReceiptIds.has(receiptId));
     if (!missingReceiptIds.length) {
       this.navigateToWorkOrderView(id);
@@ -785,7 +785,7 @@ export class WorkOrderComponent implements OnInit, OnChanges, OnDestroy {
 
     if (receiptSelectionValue === this.inventoryItemOptionValue) {
       item.itemSource = 'inventory';
-      item.receiptId = 0;
+      item.receiptId = null;
       item.receiptSplitKey = null;
       item.receiptAmount = 0;
       return;
@@ -813,9 +813,9 @@ export class WorkOrderComponent implements OnInit, OnChanges, OnDestroy {
     if (item.itemSource === 'receipt' && item.receiptSplitKey) {
       return item.receiptSplitKey;
     }
-    if (item.itemSource === 'receipt' && item.receiptId != null && Number(item.receiptId) > 0) {
+    if (item.itemSource === 'receipt' && this.isValidReceiptId(item.receiptId)) {
       const currentWorkOrderCode = this.workOrder?.workOrderCode ?? this.generatedWorkOrderCode ?? '';
-      const resolvedSplitKey = this.resolveInitialSplitKeyForItem(Number(item.receiptId), currentWorkOrderCode, new Set<string>());
+      const resolvedSplitKey = this.resolveInitialSplitKeyForItem(String(item.receiptId), currentWorkOrderCode, new Set<string>());
       if (resolvedSplitKey) {
         return resolvedSplitKey;
       }
@@ -823,14 +823,11 @@ export class WorkOrderComponent implements OnInit, OnChanges, OnDestroy {
     return this.noReceiptOptionValue;
   }
 
-  resolveItemSourceFromReceiptId(receiptId: number | null | undefined): 'noReceipt' | 'receipt' | 'inventory' {
-    if (receiptId === 0) {
-      return 'inventory';
+  resolveItemSourceFromReceiptId(receiptId: string | null | undefined): 'noReceipt' | 'receipt' | 'inventory' {
+    if (!this.isValidReceiptId(receiptId)) {
+      return 'noReceipt';
     }
-    if (receiptId != null) {
-      return 'receipt';
-    }
-    return 'noReceipt';
+    return 'receipt';
   }
 
   onAmountInput(itemIndex: number, event: Event): void {
@@ -1021,7 +1018,7 @@ export class WorkOrderComponent implements OnInit, OnChanges, OnDestroy {
     return this.workOrderItems.map(item => {
       const base: WorkOrderItemRequest = {
         description: (item.description ?? '').trim(),
-        receiptId: item.itemSource === 'inventory' ? 0 : (item.receiptId ?? undefined),
+        receiptId: item.itemSource === 'receipt' ? (item.receiptId ?? undefined) : undefined,
         laborHours: Math.floor(Number(item.laborHours)) || 0,
         laborCost: Number(item.laborCost) || 0,
         itemAmount: this.getItemTotal(item)
@@ -1259,8 +1256,8 @@ export class WorkOrderComponent implements OnInit, OnChanges, OnDestroy {
         this.workOrder = workOrder;
         this.associatedWorkOrderReceiptIds = new Set(
           (workOrder.workOrderItems || [])
-            .map(item => Number(item.receiptId))
-            .filter(receiptId => Number.isFinite(receiptId) && receiptId > 0)
+            .map(item => String(item.receiptId ?? '').trim())
+            .filter(receiptId => receiptId.length > 0)
         );
         this.populateForm(workOrder);
         this.applyPropertyContextFromWorkOrder(workOrder);
@@ -1382,7 +1379,7 @@ export class WorkOrderComponent implements OnInit, OnChanges, OnDestroy {
 
   loadAssociatedReceiptsForCurrentWorkOrder(): void {
     const associatedIds = Array.from(this.associatedWorkOrderReceiptIds)
-      .filter(receiptId => Number.isFinite(receiptId) && receiptId > 0);
+      .filter(receiptId => receiptId.length > 0);
     if (!associatedIds.length) {
       return;
     }
@@ -1419,7 +1416,7 @@ export class WorkOrderComponent implements OnInit, OnChanges, OnDestroy {
   }
 
   mergeAssociatedReceipts(baseReceipts: ReceiptResponse[], additionalReceipts: ReceiptResponse[] = []): ReceiptResponse[] {
-    const mergedById = new Map<number, ReceiptResponse>();
+    const mergedById = new Map<string, ReceiptResponse>();
     (baseReceipts || []).forEach(receipt => mergedById.set(receipt.receiptId, receipt));
     (additionalReceipts || []).forEach(receipt => mergedById.set(receipt.receiptId, receipt));
 
@@ -1533,7 +1530,7 @@ export class WorkOrderComponent implements OnInit, OnChanges, OnDestroy {
     const currentSplitKeys = new Set(selectedSplitKeys || []);
     const previousSplitKeySet = new Set(previousSplitKeys);
 
-    const affectedReceiptIds = new Set<number>();
+    const affectedReceiptIds = new Set<string>();
     [...currentSplitKeys, ...previousSplitKeySet].forEach(splitKey => {
       const parsed = this.parseSplitKey(splitKey);
       if (parsed) {
@@ -1666,7 +1663,7 @@ export class WorkOrderComponent implements OnInit, OnChanges, OnDestroy {
           description,
           workOrderId: (split.workOrderId || '').toString().trim() || null,
           workOrder: this.getSplitWorkOrder(split),
-          label: `R${receipt.receiptId}: ${displayDescription} - $${this.formatter.currency(amount)}`
+          label: `${receipt.receiptCode}: ${displayDescription} - $${this.formatter.currency(amount)}`
         };
       });
   }
@@ -1687,7 +1684,7 @@ export class WorkOrderComponent implements OnInit, OnChanges, OnDestroy {
     return this.getReceiptSplitOptions(receipt, currentWorkOrderCode).find(option => option.key === splitKey) ?? null;
   }
 
-  buildSplitKey(receiptId: number, splitIndex: number, receiptSplitId?: number | null): string {
+  buildSplitKey(receiptId: string, splitIndex: number, receiptSplitId?: number | null): string {
     const numericSplitId = Number(receiptSplitId);
     const identity = Number.isFinite(numericSplitId) && numericSplitId > 0
       ? `sid-${numericSplitId}`
@@ -1695,13 +1692,13 @@ export class WorkOrderComponent implements OnInit, OnChanges, OnDestroy {
     return `${receiptId}::${identity}`;
   }
 
-  parseSplitKey(splitKey: string): { receiptId: number; splitIndex: number | null; receiptSplitId: number | null } | null {
+  parseSplitKey(splitKey: string): { receiptId: string; splitIndex: number | null; receiptSplitId: number | null } | null {
     const parts = (splitKey || '').split('::');
     if (parts.length !== 2) {
       return null;
     }
-    const receiptId = Number(parts[0]);
-    if (!Number.isFinite(receiptId)) {
+    const receiptId = (parts[0] || '').trim();
+    if (!receiptId) {
       return null;
     }
 
@@ -1727,7 +1724,7 @@ export class WorkOrderComponent implements OnInit, OnChanges, OnDestroy {
     return (split?.workOrderCode || split?.workOrder || '').trim();
   }
 
-  resolveInitialSplitKeyForItem(receiptId: number, currentWorkOrderCode: string, usedKeys: Set<string>): string | null {
+  resolveInitialSplitKeyForItem(receiptId: string, currentWorkOrderCode: string, usedKeys: Set<string>): string | null {
     const receipt = this.propertyReceipts.find(r => r.receiptId === receiptId);
     if (!receipt) {
       return null;
@@ -1755,21 +1752,21 @@ export class WorkOrderComponent implements OnInit, OnChanges, OnDestroy {
     return this.form.valid;
   }
 
-  getCurrentAssociatedReceiptIds(): number[] {
+  getCurrentAssociatedReceiptIds(): string[] {
     return Array.from(new Set(
       (this.workOrderItems || [])
-        .map(item => Number(item.receiptId))
-        .filter(receiptId => Number.isFinite(receiptId) && receiptId > 0)
+        .map(item => String(item.receiptId ?? '').trim())
+        .filter(receiptId => receiptId.length > 0)
     ));
   }
 
   hasSelectedReceipt(item: WorkOrderItemEditable): boolean {
-    return Number.isFinite(Number(item?.receiptId)) && Number(item?.receiptId) > 0;
+    return this.isValidReceiptId(item?.receiptId);
   }
 
   openReceiptFromItem(item: WorkOrderItemEditable): void {
-    const receiptId = Number(item?.receiptId);
-    if (!Number.isFinite(receiptId) || receiptId <= 0) {
+    const receiptId = String(item?.receiptId ?? '').trim();
+    if (!receiptId) {
       return;
     }
 
@@ -1841,6 +1838,10 @@ export class WorkOrderComponent implements OnInit, OnChanges, OnDestroy {
     this.destroy$.next();
     this.destroy$.complete();
     this.itemsToLoad$.complete();
+  }
+
+  private isValidReceiptId(receiptId: string | null | undefined): boolean {
+    return !!(receiptId && String(receiptId).trim());
   }
   //#endregion
 }

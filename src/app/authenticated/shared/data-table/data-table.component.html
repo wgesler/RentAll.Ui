@@ -324,6 +324,26 @@
                     } @else {
                       {{item[column.name]}}
                     }
+                  } @case ('journalEntryCode') {
+                    @if (hasJournalEntryCodeLink && item?.journalEntryId) {
+                      <span (click)="onJournalEntryCodeClick($event, item)"
+                        class="text-blue-700 underline cursor-pointer"
+                        id="table-journal-entry-code-link-{{templateTableId}}-{{i}}">
+                        {{item[column.name]}}
+                      </span>
+                    } @else {
+                      {{item[column.name]}}
+                    }
+                  } @case ('source') {
+                    @if (hasSourceLink && item?.sourceLinkable) {
+                      <span (click)="onSourceClick($event, item)"
+                        class="text-blue-700 underline cursor-pointer"
+                        id="table-source-link-{{templateTableId}}-{{i}}">
+                        {{item[column.name]}}
+                      </span>
+                    } @else {
+                      {{item[column.name]}}
+                    }
                   } @case ('workOrderDisplay') {
                     @if (hasWorkOrderCodeLink) {
                       @let workOrderCodes = getDelimitedValues(item[column.name]);

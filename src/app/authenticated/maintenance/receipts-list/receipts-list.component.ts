@@ -72,7 +72,7 @@ export class ReceiptsListComponent implements OnInit, OnChanges, OnDestroy {
 
   showPaymentForm: boolean = false;
   showPaid = true;
-  selectedBillReceiptIds = new Set<number>();
+  selectedBillReceiptIds = new Set<string>();
   isManualApplyMode: boolean = false;
   selectedPaymentChartOfAccountId: number | null = null;
   selectedPaymentTypeId: number = PaymentType.Check;
@@ -85,8 +85,8 @@ export class ReceiptsListComponent implements OnInit, OnChanges, OnDestroy {
   paymentOfficeId: number | null = null;
   isSubmittingPayment: boolean = false;
   paymentTargetInvoiceId: string | null = null;
-  manualApplyEditableReceiptId: number | null = null;
-  pendingApplyAmountFocusReceiptId: number | null = null;
+  manualApplyEditableReceiptId: string | null = null;
+  pendingApplyAmountFocusReceiptId: string | null = null;
 
   isAdmin = false;
   canEditIsActiveCheckbox = false;
@@ -339,7 +339,7 @@ export class ReceiptsListComponent implements OnInit, OnChanges, OnDestroy {
     }
     const receiptOfficeId = Number(event?.officeId ?? 0);
     this.paymentOfficeId = Number.isFinite(receiptOfficeId) && receiptOfficeId > 0 ? receiptOfficeId : null;
-    this.pendingApplyAmountFocusReceiptId = Number(event?.receiptId ?? 0) || null;
+    this.pendingApplyAmountFocusReceiptId = String(event?.receiptId ?? '').trim() || null;
     this.openApplyPaymentDialog(event?.receiptId ?? null);
     this.payableEvent.emit(event);
   }
@@ -1377,13 +1377,13 @@ export class ReceiptsListComponent implements OnInit, OnChanges, OnDestroy {
     this.applyFilters();
   }
 
-  applyReceiptIsActiveValue(receiptId: number, isActive: boolean): void {
+  applyReceiptIsActiveValue(receiptId: string, isActive: boolean): void {
     this.allReceipts = (this.allReceipts || []).map(r => (r.receiptId === receiptId ? { ...r, isActive } : r));
     this.receipts = (this.receipts || []).map(r => (r.receiptId === receiptId ? { ...r, isActive } : r));
     this.applyFilters();
   }
 
-  applyReceiptVendorDisplayValue(receiptId: number, vendorDisplay: string): void {
+  applyReceiptVendorDisplayValue(receiptId: string, vendorDisplay: string): void {
     this.allReceipts = (this.allReceipts || []).map(r => (
       r.receiptId === receiptId ? { ...r, vendorDisplay: this.normalizeVendorDisplayText(vendorDisplay) } : r
     ));
@@ -1487,7 +1487,7 @@ export class ReceiptsListComponent implements OnInit, OnChanges, OnDestroy {
     return this.showPaymentForm && this.showBillsTableSelections && !this.isRowScopedPaymentMode;
   }
 
-  getReceiptDueAmountValue(receiptId: number): number {
+  getReceiptDueAmountValue(receiptId: string): number {
     const receipt =
       this.allReceipts.find(row => row.receiptId === receiptId) ??
       this.receiptsDisplay.find(row => row.receiptId === receiptId);
@@ -1564,8 +1564,8 @@ export class ReceiptsListComponent implements OnInit, OnChanges, OnDestroy {
       return;
     }
 
-    const receiptId = Number(receipt?.receiptId ?? 0);
-    if (!Number.isFinite(receiptId) || receiptId <= 0) {
+    const receiptId = String(receipt?.receiptId ?? '').trim();
+    if (!receiptId) {
       return;
     }
 
@@ -1714,7 +1714,7 @@ export class ReceiptsListComponent implements OnInit, OnChanges, OnDestroy {
     input.blur();
   }
 
-  openApplyPaymentDialog(targetReceiptId: number | null = null): void {
+  openApplyPaymentDialog(targetReceiptId: string | null = null): void {
     const isRowScopedApply = targetReceiptId != null;
 
     if (!isRowScopedApply) {
@@ -1811,11 +1811,11 @@ export class ReceiptsListComponent implements OnInit, OnChanges, OnDestroy {
       .map(receipt => {
         return {
           receipt,
-          billId: Number(receipt.receiptId || 0),
+          billId: String(receipt.receiptId || '').trim(),
           paidAmount: Number((receipt as any).applyAmountValue || 0)
         };
       })
-      .filter(item => item.billId > 0);
+      .filter(item => item.billId.length > 0);
 
     if (paymentData.length === 0) {
       this.toastr.warning('Unable to apply payment: no bill id found for selected bill(s).');
@@ -1934,19 +1934,19 @@ export class ReceiptsListComponent implements OnInit, OnChanges, OnDestroy {
     }
 
     const selectedRows = (selection?.selected ?? []) as ReceiptDisplayList[];
-    let nextSelectedIds: Set<number>;
+    let nextSelectedIds: Set<string>;
 
     if (selectedRows.length > 0) {
       nextSelectedIds = new Set(
         selectedRows
-          .map(row => Number(row.receiptId))
-          .filter(receiptId => Number.isFinite(receiptId) && receiptId > 0)
+          .map(row => String(row.receiptId ?? '').trim())
+          .filter(receiptId => receiptId.length > 0)
       );
     } else {
       const idsFromDisplay = this.receiptsDisplay
         .filter(row => row.selected && row.receiptId)
-        .map(row => Number(row.receiptId));
-      nextSelectedIds = idsFromDisplay.length > 0 ? new Set(idsFromDisplay) : new Set<number>();
+        .map(row => String(row.receiptId).trim());
+      nextSelectedIds = idsFromDisplay.length > 0 ? new Set(idsFromDisplay) : new Set<string>();
     }
 
     this.selectedBillReceiptIds = nextSelectedIds;
@@ -1981,7 +1981,7 @@ export class ReceiptsListComponent implements OnInit, OnChanges, OnDestroy {
     this.refreshBillsTableDisplay();
   }
 
-  getApplyAmountInputId(receiptId: number): string {
+  getApplyAmountInputId(receiptId: string): string {
     return `apply-amount-1-${receiptId}`;
   }
 

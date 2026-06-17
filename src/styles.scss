@@ -1678,13 +1678,6 @@ mat-form-field input,
   background: #fff;
 }
 
-.financial-report-drill-down-dialog-panel .mat-mdc-dialog-container .mdc-dialog__surface {
-  padding: 0 !important;
-  border-radius: 0.5rem !important;
-  overflow: hidden !important;
-  background: #fff;
-}
-
 /* Keep floating receipt/image viewer above other overlays/dialogs. */
 .cdk-overlay-pane.image-view-dialog-topmost {
   z-index: 5000 !important;
