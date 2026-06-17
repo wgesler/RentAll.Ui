@@ -185,16 +185,15 @@
                   </div>
                   <div class="receipt-splits-list" formArrayName="splits">
                     <div class="receipt-splits-table-wrap">
-                      <table class="split-lines-table" [class.split-lines-table--accounting-bill]="isOverallBillBankCard()">
+                      <table class="split-lines-table" [class.split-lines-table--accounting-bill]="isOverallBillBankCard()" [class.split-lines-table--accounting-receipt]="!isOverallBillBankCard()">
                         <thead>
                           <tr>
                             <th class="split-col-no">No</th>
                             <th class="split-col-amount">Amount</th>
                             <th class="split-col-description">Description</th>
                             <th class="split-col-type">Type</th>
-                            @if (isOverallBillBankCard()) {
-                              <th class="split-col-account">Account</th>
-                            } @else {
+                            <th class="split-col-account">Account</th>
+                            @if (!isOverallBillBankCard()) {
                               <th class="split-col-work-order">Work Order</th>
                             }
                             <th class="split-col-actions"></th>
@@ -218,34 +217,34 @@
                               </td>
                               <td class="split-col-type">
                                 <select formControlName="receiptTypeId" required class="split-editable-input"
-                                  [class.split-input-invalid]="shouldShowSplitControlError(splitGroup, 'receiptTypeId')">
+                                  [class.split-input-invalid]="shouldShowSplitControlError(splitGroup, 'receiptTypeId')"
+                                  (change)="onSplitReceiptTypeChange(splitIndex)">
                                   @for (option of receiptTypeOptions; track option.value) {
                                     <option [ngValue]="option.value">{{ option.label }}</option>
                                   }
                                 </select>
                               </td>
-                              @if (isOverallBillBankCard()) {
-                                <td class="split-col-account">
-                                  <app-searchable-select
-                                    class="split-account-select"
-                                    [renderInFormField]="false"
-                                    [value]="splitGroup.get('chartOfAccountId')?.value ?? null"
-                                    [options]="expenseAccountOptions"
-                                    [required]="true"
-                                    [showInstructionOption]="true"
-                                    [instructionOptionValue]="null"
-                                    nullOptionLabel="Select Account"
-                                    [showSearchInput]="true"
-                                    [hideSearchHint]="false"
-                                    [hideSearchText]="false"
-                                    searchPlaceholder="Type to filter accounts..."
-                                    noResultsText="No accounts match your search"
-                                    selectClass="split-editable-input split-account-select-control"
-                                    [showError]="shouldShowSplitControlError(splitGroup, 'chartOfAccountId')"
-                                    errorText="Account is required"
-                                    (valueChange)="onSplitAccountSelectionChange(splitIndex, $event)" />
-                                </td>
-                              } @else {
+                              <td class="split-col-account">
+                                <app-searchable-select
+                                  class="split-account-select"
+                                  [renderInFormField]="false"
+                                  [value]="splitGroup.get('chartOfAccountId')?.value ?? null"
+                                  [options]="expenseAccountOptions"
+                                  [required]="true"
+                                  [showInstructionOption]="true"
+                                  [instructionOptionValue]="null"
+                                  nullOptionLabel="Select Account"
+                                  [showSearchInput]="true"
+                                  [hideSearchHint]="false"
+                                  [hideSearchText]="false"
+                                  searchPlaceholder="Type to filter accounts..."
+                                  noResultsText="No accounts match your search"
+                                  selectClass="split-editable-input split-account-select-control"
+                                  [showError]="shouldShowSplitControlError(splitGroup, 'chartOfAccountId')"
+                                  errorText="Account is required"
+                                  (valueChange)="onSplitAccountSelectionChange(splitIndex, $event)" />
+                              </td>
+                              @if (!isOverallBillBankCard()) {
                                 <td class="split-col-work-order">
                                   <input
                                     type="text"

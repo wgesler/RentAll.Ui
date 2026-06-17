@@ -251,6 +251,9 @@ export class ReceiptComponent implements OnInit, OnChanges, OnDestroy {
       .trim() || null;
     const amountStr = this.sanitizeSignedDecimalInput(this.form.get('amount')?.value?.toString() ?? '');
     const amountValue = parseFloat(amountStr) || 0;
+    if (this.shouldAutoSetSplitAccountFromReceiptType()) {
+      this.applyDefaultSplitAccountsFromReceiptTypes();
+    }
     const payloadSplits = this.getPayloadSplitsFromForm().map(split => {
       const normalizedWorkOrderId = this.normalizeGuidOrNull(split.workOrderId);
       return {
@@ -669,7 +672,7 @@ export class ReceiptComponent implements OnInit, OnChanges, OnDestroy {
     }
 
     this.expenseAccountOptions = (this.chartOfAccountsService.getChartOfAccountsForOffice(officeId) || [])
-      .filter(account => this.billSplitAccountTypeIds.has(account.accountTypeId))
+      .filter(account => this.getSplitAccountOptionTypeIds().has(account.accountTypeId))
       .map(account => ({
         value: account.accountId,
         label: this.utilityService.getChartOfAccountDropdownLabel(account)
@@ -695,6 +698,10 @@ export class ReceiptComponent implements OnInit, OnChanges, OnDestroy {
       this.expenseAccountOptions = [...this.expenseAccountOptions, { value: accountId, label: fallbackLabel }]
         .sort((a, b) => a.label.localeCompare(b.label, undefined, { sensitivity: 'base' }));
     });
+
+    if (this.shouldAutoSetSplitAccountFromReceiptType()) {
+      this.applyDefaultSplitAccountsFromReceiptTypes(true);
+    }
   }
 
   loadBankCardsForOffice(officeId: number | null | undefined): void {
@@ -1238,6 +1245,88 @@ export class ReceiptComponent implements OnInit, OnChanges, OnDestroy {
     this.cdr.markForCheck();
   }
 
+  onSplitReceiptTypeChange(splitIndex: number): void {
+    this.applyDefaultSplitAccountFromReceiptType(splitIndex);
+    this.updatePropertyRequirementByReceiptType();
+  }
+
+  getAccountingOfficeForReceiptOffice(): AccountingOfficeResponse | null {
+    const officeId = this.getReceiptOfficeId();
+    if (!officeId) {
+      return null;
+    }
+    return (this.accountingOffices || []).find(office => office.officeId === officeId) ?? null;
+  }
+
+  normalizeOptionalAccountId(value: number | null | undefined): number | null {
+    const accountId = Number(value ?? 0);
+    return Number.isFinite(accountId) && accountId > 0 ? accountId : null;
+  }
+
+  shouldAutoSetSplitAccountFromReceiptType(): boolean {
+    return this.isAccountingShell && !this.isOverallBillBankCard();
+  }
+
+  resolveDefaultChartOfAccountIdForReceiptType(receiptTypeId: number | null | undefined): number | null {
+    if (!this.shouldAutoSetSplitAccountFromReceiptType()) {
+      return null;
+    }
+
+    const accountingOffice = this.getAccountingOfficeForReceiptOffice();
+    if (!accountingOffice) {
+      return null;
+    }
+
+    switch (Number(receiptTypeId)) {
+      case ReceiptType.Tenant:
+        return this.normalizeOptionalAccountId(accountingOffice.defaultTenantIncAccountId);
+      case ReceiptType.Owner:
+        return this.normalizeOptionalAccountId(accountingOffice.defaultOwnerIncAccountId);
+      case ReceiptType.Organization:
+        return this.normalizeOptionalAccountId(accountingOffice.defaultCompanyExpAccountId);
+      default:
+        return null;
+    }
+  }
+
+  applyDefaultSplitAccountFromReceiptType(splitIndex: number, onlyWhenEmpty = false): void {
+    if (!this.shouldAutoSetSplitAccountFromReceiptType()) {
+      return;
+    }
+
+    const row = this.splitsFormArray.at(splitIndex);
+    if (!row) {
+      return;
+    }
+
+    const currentAccountId = Number(row.get('chartOfAccountId')?.value ?? 0);
+    if (onlyWhenEmpty && Number.isFinite(currentAccountId) && currentAccountId > 0) {
+      return;
+    }
+
+    const accountId = this.resolveDefaultChartOfAccountIdForReceiptType(row.get('receiptTypeId')?.value);
+    row.get('chartOfAccountId')?.setValue(accountId, { emitEvent: false });
+    this.cdr.markForCheck();
+  }
+
+  applyDefaultSplitAccountsFromReceiptTypes(onlyWhenEmpty = false): void {
+    if (!this.shouldAutoSetSplitAccountFromReceiptType()) {
+      return;
+    }
+
+    for (let splitIndex = 0; splitIndex < this.splitsFormArray.length; splitIndex++) {
+      this.applyDefaultSplitAccountFromReceiptType(splitIndex, onlyWhenEmpty);
+    }
+  }
+
+  getSplitAccountOptionTypeIds(): Set<number> {
+    if (this.isOverallBillBankCard()) {
+      return this.billSplitAccountTypeIds;
+    }
+
+    return new Set<number>([AccountType.Income, AccountType.Expense, AccountType.CostOfGoodsSold]);
+  }
+
   addSplitLine(): void {
     this.splitsFormArray.push(this.createSplitFormGroup());
     this.updateSplitLineAccountValidators();
@@ -1279,6 +1368,11 @@ export class ReceiptComponent implements OnInit, OnChanges, OnDestroy {
       ?? rawSplit?.['AccountId']
       ?? 0
     );
+    const resolvedChartOfAccountId = Number.isFinite(normalizedChartOfAccountId) && normalizedChartOfAccountId > 0
+      ? normalizedChartOfAccountId
+      : (this.shouldAutoSetSplitAccountFromReceiptType()
+        ? this.resolveDefaultChartOfAccountIdForReceiptType(normalizedReceiptTypeId)
+        : null);
     return this.fb.group({
       receiptSplitId: new FormControl(split?.receiptSplitId ?? null),
       amount: new FormControl(Number.isFinite(amount) ? amount.toFixed(2) : '', [Validators.required]),
@@ -1286,9 +1380,7 @@ export class ReceiptComponent implements OnInit, OnChanges, OnDestroy {
       workOrderId: new FormControl(split?.workOrderId ?? null),
       workOrderCode: new FormControl(normalizedWorkOrderCode),
       workOrder: new FormControl(normalizedWorkOrderCode),
-      chartOfAccountId: new FormControl(
-        Number.isFinite(normalizedChartOfAccountId) && normalizedChartOfAccountId > 0 ? normalizedChartOfAccountId : null
-      ),
+      chartOfAccountId: new FormControl(resolvedChartOfAccountId),
       receiptTypeId: new FormControl(normalizedReceiptTypeId, [Validators.required])
     });
   }
@@ -1329,12 +1421,14 @@ export class ReceiptComponent implements OnInit, OnChanges, OnDestroy {
     this.ensureAtLeastOneSplit();
     this.updateSplitLineAccountValidators();
     this.updatePropertyRequirementByReceiptType();
+    if (this.shouldAutoSetSplitAccountFromReceiptType()) {
+      this.applyDefaultSplitAccountsFromReceiptTypes(true);
+    }
   }
 
   getPayloadSplitsFromForm(): Split[] {
-    // Maintenance-shell does not expose split account fields, but must preserve existing values.
-    // Accounting-shell sends split accounts only for bill mode where the field is visible/editable.
-    const includeChartOfAccount = !this.isAccountingShell || this.isOverallBillBankCard();
+    // Maintenance preserves existing split account values when present; accounting sends them for bill and card modes.
+    const includeChartOfAccount = true;
     return this.splitsFormArray.controls.map(control => {
       const amountRaw = this.sanitizeSignedDecimalInput(control.get('amount')?.value?.toString() ?? '');
       const chartOfAccountId = Number(control.get('chartOfAccountId')?.value ?? 0);
@@ -1520,6 +1614,10 @@ export class ReceiptComponent implements OnInit, OnChanges, OnDestroy {
     this.updateSplitLineAccountValidators();
     this.updateAccountingBillFieldValidators();
     this.updateVendorFieldValidators();
+    this.loadSplitAccountsForCurrentOffice();
+    if (this.shouldAutoSetSplitAccountFromReceiptType()) {
+      this.applyDefaultSplitAccountsFromReceiptTypes();
+    }
     this.cdr.markForCheck();
   }
 
@@ -1546,7 +1644,7 @@ export class ReceiptComponent implements OnInit, OnChanges, OnDestroy {
   }
 
   get showSplitAccountColumn(): boolean {
-    return this.isAccountingShell && this.isOverallBillBankCard();
+    return this.isAccountingShell;
   }
 
   get showAccountingBillFields(): boolean {
@@ -1580,11 +1678,6 @@ export class ReceiptComponent implements OnInit, OnChanges, OnDestroy {
         accountControl.setValidators([Validators.required]);
       } else {
         accountControl.clearValidators();
-        // Preserve hidden account values in maintenance-shell so bill-set values are not erased on save.
-        // In accounting shell (card mode), clear since account field is not applicable.
-        if (this.isAccountingShell) {
-          accountControl.setValue(null, { emitEvent: false });
-        }
       }
       accountControl.updateValueAndValidity({ emitEvent: false });
     });

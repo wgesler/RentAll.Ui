@@ -143,6 +143,24 @@
       width: 193px;
     }
   }
+
+  .split-lines-table.split-lines-table--accounting-receipt {
+    .split-col-description {
+      width: 28%;
+    }
+
+    .split-col-type {
+      width: 13ch;
+    }
+
+    .split-col-account {
+      width: 193px;
+    }
+
+    .split-col-work-order {
+      width: 126px;
+    }
+  }
 }
 
 .receipt-overall-compact-field {
