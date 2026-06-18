@@ -1,5 +1,5 @@
 import { CommonModule } from '@angular/common';
-import { Component, OnDestroy, OnInit, ViewChild } from '@angular/core';
+import { Component, OnDestroy, OnInit, ViewChild, ChangeDetectorRef } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, Router } from '@angular/router';
 import { ToastrService } from 'ngx-toastr';
@@ -135,7 +135,8 @@ export class AccountingShellComponent implements OnInit, OnDestroy {
     private globalSelectionService: GlobalSelectionService,
     private propertyService: PropertyService,
     private reservationService: ReservationService,
-    private toastr: ToastrService
+    private toastr: ToastrService,
+    private cdr: ChangeDetectorRef
   ) {
     this.syncInvoiceSearchDateRange();
     this.syncBillsSearchRequest();
@@ -252,17 +253,19 @@ export class AccountingShellComponent implements OnInit, OnDestroy {
   }
 
   onAccountingInvoiceEditorOfficeDropdownChange(value: string | number | null): void {
-    if (!this.accountingInvoiceEditor) {
+    const editor = this.shellInvoiceEditor;
+    if (!editor) {
       return;
     }
-    this.accountingInvoiceEditor.onTitleBarOfficeChange(value);
+    editor.onTitleBarOfficeChange(value);
   }
 
   onAccountingInvoiceEditorReservationDropdownChange(value: string | number | null): void {
-    if (!this.accountingInvoiceEditor) {
+    const editor = this.shellInvoiceEditor;
+    if (!editor) {
       return;
     }
-    this.accountingInvoiceEditor.onTitleBarReservationChange(value);
+    editor.onTitleBarReservationChange(value);
   }
   //#endregion
 
@@ -345,6 +348,11 @@ export class AccountingShellComponent implements OnInit, OnDestroy {
 
   onFinancialReportJournalEntryDetailChange(active: boolean): void {
     this.isFinancialReportJournalEntryDetailActive = active;
+    this.cdr.markForCheck();
+  }
+
+  onFinancialReportShellTitleBarRefresh(): void {
+    this.cdr.markForCheck();
   }
 
   syncFinancialReportDrillDownActiveState(): void {
@@ -359,6 +367,22 @@ export class AccountingShellComponent implements OnInit, OnDestroy {
       return this.balanceSheetReport;
     }
     return undefined;
+  }
+
+  get shellInvoiceEditor(): InvoiceComponent | undefined {
+    if (this.activeInvoiceId) {
+      return this.accountingInvoiceEditor;
+    }
+
+    if (this.activeFinancialReport?.activeInvoiceId) {
+      return this.activeFinancialReport.drillDownInvoiceEditor;
+    }
+
+    return undefined;
+  }
+
+  get isShellInvoiceTitleBarActive(): boolean {
+    return !!this.shellInvoiceEditor?.form;
   }
   //#endregion
 
@@ -944,7 +968,7 @@ export class AccountingShellComponent implements OnInit, OnDestroy {
 
   getInvoiceEditorOfficeFieldClass(): string {
     const baseClass = 'titlebar-field-office';
-    if (!this.accountingInvoiceEditor?.showOfficeValidationError) {
+    if (!this.shellInvoiceEditor?.showOfficeValidationError) {
       return baseClass;
     }
     return `${baseClass} invoice-required-field`;

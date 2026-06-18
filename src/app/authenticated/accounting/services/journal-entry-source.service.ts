@@ -39,7 +39,7 @@ export class JournalEntrySourceService {
               return of({ kind: 'invoice' as const, invoice });
             }
 
-            return this.getInvoiceByLedgerLineId(sourceId, row).pipe(
+            return this.findInvoiceForJournalEntrySource(sourceId, row).pipe(
               map(found => found?.invoiceId ? { kind: 'invoice' as const, invoice: found } : null)
             );
           })
@@ -82,6 +82,29 @@ export class JournalEntrySourceService {
           includeInactive: true,
           includePaid: true
         }).pipe(map(findInvoice));
+      })
+    );
+  }
+
+  private findInvoiceForJournalEntrySource(sourceId: string, row: JournalEntryLineListDisplay): Observable<InvoiceResponse | null> {
+    return this.getInvoiceByLedgerLineId(sourceId, row).pipe(
+      switchMap(invoice => {
+        if (invoice?.invoiceId) {
+          return of(invoice);
+        }
+
+        if (!row.reservationId) {
+          return of(null);
+        }
+
+        return this.invoiceService.searchInvoices({
+          officeIds: [row.officeId],
+          reservationId: row.reservationId,
+          includeInactive: true,
+          includePaid: true
+        }).pipe(
+          map(invoices => invoices.find(item => item.invoiceId === sourceId) ?? invoices[0] ?? null)
+        );
       })
     );
   }

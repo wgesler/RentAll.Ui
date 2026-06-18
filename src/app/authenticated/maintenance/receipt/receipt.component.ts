@@ -89,7 +89,8 @@ export class ReceiptComponent implements OnInit, OnChanges, OnDestroy {
   expenseAccountOptions: SearchableSelectOption<number>[] = [];
   readonly billSplitAccountTypeIds = new Set<number>([
     AccountType.Expense,
-    AccountType.CostOfGoodsSold
+    AccountType.CostOfGoodsSold,
+    AccountType.OtherExpense
   ]);
 
   readonly accountingCompanyPropertyId = ACCOUNTING_COMPANY_PROPERTY_ID;
@@ -1348,7 +1349,13 @@ export class ReceiptComponent implements OnInit, OnChanges, OnDestroy {
       return this.billSplitAccountTypeIds;
     }
 
-    return new Set<number>([AccountType.Income, AccountType.Expense, AccountType.CostOfGoodsSold]);
+    return new Set<number>([
+      AccountType.Income,
+      AccountType.Expense,
+      AccountType.CostOfGoodsSold,
+      AccountType.OtherExpense,
+      AccountType.OtherIncome
+    ]);
   }
 
   addSplitLine(): void {

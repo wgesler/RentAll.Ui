@@ -1,5 +1,5 @@
 import { CommonModule } from '@angular/common';
-import { ChangeDetectionStrategy, ChangeDetectorRef, Component, EventEmitter, Input, OnChanges, OnDestroy, OnInit, Output, SimpleChanges } from '@angular/core';
+import { ChangeDetectionStrategy, ChangeDetectorRef, Component, EventEmitter, Input, OnChanges, OnDestroy, OnInit, Output, SimpleChanges, ViewChild } from '@angular/core';
 import { HttpErrorResponse } from '@angular/common/http';
 import { BehaviorSubject, filter, finalize, Subject, take, takeUntil } from 'rxjs';
 import { ToastrService } from 'ngx-toastr';
@@ -64,6 +64,8 @@ export class FinancialReportComponent implements OnInit, OnDestroy, OnChanges {
   @Output() drillDownActiveChange = new EventEmitter<boolean>();
   @Output() journalEntryDetailActiveChange = new EventEmitter<boolean>();
   @Output() journalEntriesChanged = new EventEmitter<void>();
+  @Output() shellTitleBarRefresh = new EventEmitter<void>();
+  @ViewChild('drillDownInvoiceEditor') drillDownInvoiceEditor?: InvoiceComponent;
 
   reportResult: FinancialReportResult | null = null;
   visibleRows: FinancialReportVisibleRow[] = [];
@@ -455,6 +457,17 @@ export class FinancialReportComponent implements OnInit, OnDestroy, OnChanges {
     this.activeInvoiceReservationId = reservationId;
     this.emitDrillDownChildDetailActive();
     this.markViewForCheck();
+    this.scheduleShellTitleBarRefresh();
+  }
+
+  private scheduleShellTitleBarRefresh(attempt = 0): void {
+    if (this.drillDownInvoiceEditor?.form || attempt >= 40) {
+      this.shellTitleBarRefresh.emit();
+      this.markViewForCheck();
+      return;
+    }
+
+    setTimeout(() => this.scheduleShellTitleBarRefresh(attempt + 1), 50);
   }
 
   openDrillDownReceiptDetail(receipt: ReceiptResponse, propertyId: string | null): void {
@@ -492,6 +505,7 @@ export class FinancialReportComponent implements OnInit, OnDestroy, OnChanges {
     this.drillDownReceiptProperty = null;
     this.drillDownReceiptOfficeId = null;
     this.emitDrillDownChildDetailActive();
+    this.shellTitleBarRefresh.emit();
     this.markViewForCheck();
   }
 
@@ -591,6 +605,12 @@ export class FinancialReportComponent implements OnInit, OnDestroy, OnChanges {
     }
 
     return `${this.drillDownView.title} · ${this.drillDownView.subtitle} — no general ledger lines found.`;
+  }
+
+  get drillDownTableName(): string {
+    return this.reportKind === 'balanceSheet'
+      ? 'financial-report-balance-sheet-journal-entries'
+      : 'financial-report-profit-loss-journal-entries';
   }
 
   private refreshDrillDownView(): void {

@@ -2,6 +2,7 @@
   @if (drillDownView) {
     @if (activeInvoiceId) {
       <app-invoice
+        #drillDownInvoiceEditor
         [shellMode]="true"
         [invoiceIdInput]="activeInvoiceId"
         [officeIdInput]="activeInvoiceOfficeId"
@@ -28,6 +29,7 @@
         <app-data-table
           [data]="drillDownView.lines"
           [columns]="drillDownColumns"
+          [tableName]="drillDownTableName"
           [noDataMessage]="drillDownNoDataMessage"
           [hasColumnIndex]="false"
           [hasFilter]="true"

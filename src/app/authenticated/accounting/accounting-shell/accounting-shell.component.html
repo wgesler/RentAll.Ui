@@ -6,15 +6,15 @@
           <mat-icon class="flex-shrink-0">account_balance</mat-icon>
           <span class="flex-shrink-0 text-xl font-medium">Accounting</span>
         </span>
-        @if (activeInvoiceId && accountingInvoiceEditor?.form) {
+        @if (isShellInvoiceTitleBarActive) {
           <div class="header-title form-titlebar-fields-wrap accounting-shell-titlebar-fields">
             <div class="accounting-shell-titlebar-filters">
             <app-title-bar-select
               [label]="'Office'"
               [formFieldClass]="getInvoiceEditorOfficeFieldClass()"
-              [value]="accountingInvoiceEditor.form.get('officeId')?.value ?? null"
-              [options]="accountingInvoiceEditor.officeTitleBarOptions"
-              [disabled]="!accountingInvoiceEditor.isAddMode"
+              [value]="shellInvoiceEditor!.form.get('officeId')?.value ?? null"
+              [options]="shellInvoiceEditor!.officeTitleBarOptions"
+              [disabled]="!shellInvoiceEditor!.isAddMode"
               [nullOptionLabel]="'Select Office'"
               [noResultsText]="'No offices match your search'"
               (valueChange)="onAccountingInvoiceEditorOfficeDropdownChange($event)">
@@ -24,19 +24,19 @@
               <app-title-bar-select
                 [label]="'Reservation'"
                 [formFieldClass]="getInvoiceEditorReservationFieldClass()"
-                [value]="accountingInvoiceEditor.form.get('reservationId')?.value ?? null"
-                [options]="accountingInvoiceEditor.reservationTitleBarOptions"
-                [disabled]="!accountingInvoiceEditor.isAddMode"
+                [value]="shellInvoiceEditor!.form.get('reservationId')?.value ?? null"
+                [options]="shellInvoiceEditor!.reservationTitleBarOptions"
+                [disabled]="!shellInvoiceEditor!.isAddMode"
                 [nullOptionLabel]="'Select Reservation'"
                 [noResultsText]="'No reservations match your search'"
                 (valueChange)="onAccountingInvoiceEditorReservationDropdownChange($event)">
               </app-title-bar-select>
-              @if (accountingInvoiceEditor.showReservationInfoIcon) {
+              @if (shellInvoiceEditor!.showReservationInfoIcon) {
                 <button
                   type="button"
                   mat-icon-button
                   class="invoice-reservation-info-btn"
-                  [matTooltip]="accountingInvoiceEditor.reservationInfoTooltip"
+                  [matTooltip]="shellInvoiceEditor!.reservationInfoTooltip"
                   matTooltipClass="invoice-reservation-info-tooltip"
                   aria-label="Reservation details">
                   <mat-icon fontIcon="info"></mat-icon>
@@ -420,6 +420,7 @@
                 [refreshTrigger]="financialReportsRefreshTrigger"
                 (drillDownActiveChange)="onFinancialReportDrillDownActiveChange($event)"
                 (journalEntryDetailActiveChange)="onFinancialReportJournalEntryDetailChange($event)"
+                (shellTitleBarRefresh)="onFinancialReportShellTitleBarRefresh()"
                 (journalEntriesChanged)="onJournalEntriesChanged()">
               </app-financial-report>
             }
@@ -435,6 +436,7 @@
                 [refreshTrigger]="financialReportsRefreshTrigger"
                 (drillDownActiveChange)="onFinancialReportDrillDownActiveChange($event)"
                 (journalEntryDetailActiveChange)="onFinancialReportJournalEntryDetailChange($event)"
+                (shellTitleBarRefresh)="onFinancialReportShellTitleBarRefresh()"
                 (journalEntriesChanged)="onJournalEntriesChanged()">
               </app-financial-report>
             }
