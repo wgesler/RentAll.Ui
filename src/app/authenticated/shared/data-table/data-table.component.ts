@@ -92,6 +92,7 @@ export class DataTableComponent implements OnChanges, OnInit, AfterViewInit, OnD
   @Input() deleteConfirmMessage: string = 'Are you sure you want to delete this item?';
   @Input() hasActionsDownload: boolean = false;
   @Input() downloadActionTooltip: string = 'View / Download';
+  @Input() downloadActionColor: string = '#7E69B4';
   @Input() hasActionsEdit: boolean = false;
   @Input() hasActionsLock: boolean = false;
   @Input() hasActionsPayable: boolean = false;
@@ -1242,7 +1243,7 @@ export class DataTableComponent implements OnChanges, OnInit, AfterViewInit, OnD
     if (this.hasActionsCheckAll) this.buttons.push({name: 'checkAll', callback: (event, rowItem) => this.emitCheckAllEvent(event, rowItem), color: '#2E7D32', tooltip: 'Check All', tooltipPosition: 'before', icon: 'done', suspendOnUpdate: false});
     if (this.hasActionsClearTracking) this.buttons.push({name: 'clearTracking', callback: (event, rowItem) => this.emitClearTrackingEvent(event, rowItem), color: '#1E88E5', tooltip: 'Clear Tracking', tooltipPosition: 'before', icon: 'restart_alt', suspendOnUpdate: false});
     if (this.hasActionsSave)     this.buttons.push({name: 'save', callback: (event, rowItem) => this.emitSaveEvent(event, rowItem), color: '#93C47D', tooltip: 'Save', tooltipPosition: 'after', icon: 'save', suspendOnUpdate: false});
-    if (this.hasActionsDownload) this.buttons.push({name: 'download', callback: (event, rowItem) => this.emitDownloadEvent(event, rowItem), color: '#7E69B4', tooltip: this.downloadActionTooltip, tooltipPosition: 'after', icon: 'download', suspendOnUpdate: false});
+    if (this.hasActionsDownload) this.buttons.push({name: 'download', callback: (event, rowItem) => this.emitDownloadEvent(event, rowItem), color: this.downloadActionColor, tooltip: this.downloadActionTooltip, tooltipPosition: 'after', icon: 'download', suspendOnUpdate: false});
     if (this.hasActionsDelete)   this.buttons.push({name: 'delete', callback: (event, rowItem) => this.emitDeleteEvent(event, rowItem), color: '#FA6868', tooltip: 'Delete', tooltipPosition: 'after', icon: 'delete', suspendOnUpdate: false});
     if (this.hasActionsCancel)   this.buttons.push({name: 'cancel', callback: (event, rowItem) => this.emitCancelEvent(event, rowItem), color: '#3F51B5', tooltip: 'Cancel', tooltipPosition: 'after', icon: 'cancel', suspendOnUpdate: false});
   }
