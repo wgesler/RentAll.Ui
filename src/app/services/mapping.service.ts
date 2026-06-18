@@ -29,14 +29,14 @@ import { InspectionDisplayList, InspectionResponse } from '../authenticated/main
 import { ReceiptDisplayList, ReceiptRequest, ReceiptResponse, Split } from '../authenticated/maintenance/models/receipt.model';
 import { getInspectionType, getReceiptType, getWorkOrderType } from '../authenticated/maintenance/models/maintenance-enums';
 import { WorkOrderDisplayList, WorkOrderRequest, WorkOrderResponse } from '../authenticated/maintenance/models/work-order.model';
-import { AccountingOfficeListDisplay, AccountingOfficeRequest, AccountingOfficeResponse } from '../authenticated/organizations/models/accounting-office.model';
+import { AccountingOfficeListDisplay, AccountingOfficeResponse } from '../authenticated/organizations/models/accounting-office.model';
 import { AgentListDisplay, AgentResponse } from '../authenticated/organizations/models/agent.model';
 import { AreaListDisplay, AreaResponse } from '../authenticated/organizations/models/area.model';
 import { BuildingListDisplay, BuildingResponse } from '../authenticated/organizations/models/building.model';
 import { ColorListDisplay, ColorResponse } from '../authenticated/organizations/models/color.model';
 import { OfficeListDisplay, OfficeResponse } from '../authenticated/organizations/models/office.model';
 import { OrganizationListDisplay, OrganizationResponse } from '../authenticated/organizations/models/organization.model';
-import { BankCardRequest, BankCardResponse } from '../authenticated/organizations/models/bank.model';
+import { BankCardResponse } from '../authenticated/organizations/models/bank.model';
 import { RegionListDisplay, RegionResponse } from '../authenticated/organizations/models/region.model';
 import { StateFormListDisplay, StateFormResponse } from '../authenticated/organizations/models/state-form.model';
 import { TrackerConfigurationDefinitionResponse, TrackerDefinitionListDisplay, TrackerDefinitionResponse } from '../authenticated/organizations/models/tracker.model';
@@ -430,64 +430,6 @@ export class MappingService {
         isActive: o.isActive
       };
     });
-  }
-
-  mapAccountingOfficeResponseToRequest(
-    office: AccountingOfficeResponse,
-    overrides?: Partial<AccountingOfficeRequest>
-  ): AccountingOfficeRequest {
-    return {
-      organizationId: office.organizationId,
-      officeId: office.officeId,
-      name: office.name,
-      address1: office.address1,
-      address2: office.address2,
-      suite: office.suite,
-      city: office.city,
-      state: office.state,
-      zip: office.zip,
-      phone: office.phone,
-      fax: office.fax || '',
-      email: office.email,
-      website: office.website,
-      bankName: office.bankName,
-      bankRouting: office.bankRouting,
-      bankAccount: office.bankAccount,
-      bankSwiftCode: office.bankSwiftCode,
-      bankAddress: office.bankAddress,
-      bankPhone: office.bankPhone,
-      bankCards: this.mapBankCardsToRequests(office.bankCards),
-      workOrderNo: office.workOrderNo,
-      defaultActRecvAccountId: office.defaultActRecvAccountId ?? null,
-      defaultEscrowAccountId: office.defaultEscrowAccountId ?? null,
-      defaultUndepFundsAccountId: office.defaultUndepFundsAccountId ?? null,
-      defaultBankAccountId: office.defaultBankAccountId ?? null,
-      defaultActPayableAccountId: office.defaultActPayableAccountId ?? null,
-      defaultOwnActPayableAccountId: office.defaultOwnActPayableAccountId ?? null,
-      defaultPrePayAccountId: office.defaultPrePayAccountId ?? null,
-      defaultTenantExpAccountId: office.defaultTenantExpAccountId ?? null,
-      defaultTenantIncAccountId: office.defaultTenantIncAccountId ?? null,
-      defaultOwnerExpAccountId: office.defaultOwnerExpAccountId ?? null,
-      defaultOwnerIncAccountId: office.defaultOwnerIncAccountId ?? null,
-      defaultCompanyExpAccountId: office.defaultCompanyExpAccountId ?? null,
-      logoPath: office.logoPath,
-      isActive: office.isActive,
-      ...overrides
-    };
-  }
-
-  mapBankCardsToRequests(cards?: BankCardResponse[] | null): BankCardRequest[] {
-    if (!cards?.length) {
-      return [];
-    }
-
-    return cards.map(card => ({
-      bankCardId: (card.bankCardId || 0) > 0 ? card.bankCardId : undefined,
-      cardTypeId: Number(card.cardTypeId) || 0,
-      cardName: (card.cardName || '').trim(),
-      cardNumber: this.formatter.stripCreditCardFormatting(card.rawCardNumber || card.cardNumber || ''),
-      chartOfAccountId: this.normalizeBankCardChartOfAccountId(card.chartOfAccountId)
-    }));
   }
 
   mapBankCardsFromResponse(cards?: BankCardResponse[] | null): BankCardResponse[] {

@@ -1,5 +1,5 @@
 import { FileDetails } from "../../../shared/models/fileDetails";
-import { BankCardRequest, BankCardResponse } from "./bank.model";
+import { BankCardResponse } from "./bank.model";
 
 export interface AccountingOfficeRequest {
   organizationId: string;
@@ -21,7 +21,6 @@ export interface AccountingOfficeRequest {
   bankSwiftCode: string;
   bankAddress: string;
   bankPhone: string;
-  bankCards?: BankCardRequest[];
   workOrderNo: number;
   defaultActRecvAccountId?: number | null;
   defaultEscrowAccountId?: number | null;
@@ -89,4 +88,13 @@ export interface AccountingOfficeListDisplay {
   bankName: string;
   email: string;
   isActive: boolean;
+}
+
+export interface AccountingOfficeWorkOrderNoUpdateRequest {
+  workOrderNo: number;
+}
+
+export interface AccountingOfficeWorkOrderNoUpdateResponse {
+  officeId: number;
+  workOrderNo: number;
 }

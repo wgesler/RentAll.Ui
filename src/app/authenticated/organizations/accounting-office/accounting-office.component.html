@@ -255,7 +255,7 @@
                   <div class="col-span-4 bank-card-section">
                     <div class="bank-card-header mb-2">
                       <h4 class="m-0">Bank Cards</h4>
-                      <button mat-raised-button type="button" color="primary" (click)="onAddCardClick()">
+                      <button mat-raised-button type="button" color="primary" (click)="onAddCardClick()" [disabled]="isAddMode">
                         <mat-icon>add</mat-icon>
                         Add Card
                       </button>
@@ -284,6 +284,7 @@
                                     [class.bank-card-entry-input--invalid]="isBankCardFieldInvalid($index, 'type')"
                                     [(ngModel)]="card.cardTypeId"
                                     [ngModelOptions]="{standalone: true}"
+                                    (ngModelChange)="onBankCardFieldChange($index)"
                                     aria-label="Card Type">
                                     <option [ngValue]="-1">Select Card Type</option>
                                     @for (cardType of cardTypeOptions; track cardType.value) {
@@ -298,6 +299,7 @@
                                     type="text"
                                     [(ngModel)]="card.cardName"
                                     [ngModelOptions]="{standalone: true}"
+                                    (blur)="onBankCardFieldChange($index)"
                                     placeholder="Name On Card" />
                                 </td>
                                 <td class="bank-card-col-number">
@@ -315,8 +317,10 @@
                                 <td class="bank-card-col-account">
                                   <select
                                     class="bank-card-entry-input"
+                                    [class.bank-card-entry-input--invalid]="isBankCardFieldInvalid($index, 'account')"
                                     [(ngModel)]="card.chartOfAccountId"
                                     [ngModelOptions]="{standalone: true}"
+                                    (ngModelChange)="onBankCardFieldChange($index)"
                                     aria-label="Chart of Account">
                                     <option [ngValue]="null">Select Account</option>
                                     @for (option of bankCardChartOfAccountOptions; track option.value) {

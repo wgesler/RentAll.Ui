@@ -2,7 +2,7 @@ import { HttpClient, HttpErrorResponse } from '@angular/common/http';
 import { Injectable } from '@angular/core';
 import { BehaviorSubject, Observable, catchError, of, switchMap, take, tap } from 'rxjs';
 import { ConfigService } from '../../../services/config.service';
-import { AccountingOfficeRequest, AccountingOfficeResponse } from '../models/accounting-office.model';
+import { AccountingOfficeRequest, AccountingOfficeResponse, AccountingOfficeWorkOrderNoUpdateRequest, AccountingOfficeWorkOrderNoUpdateResponse } from '../models/accounting-office.model';
 
 @Injectable({
   providedIn: 'root'
@@ -79,6 +79,11 @@ export class AccountingOfficeService {
 
   updateAccountingOffice(office: AccountingOfficeRequest): Observable<AccountingOfficeResponse> {
     return this.http.put<AccountingOfficeResponse>(this.controller, office);
+  }
+
+  updateAccountingOfficeWorkOrderNo(officeId: number, workOrderNo: number): Observable<AccountingOfficeWorkOrderNoUpdateResponse> {
+    const body: AccountingOfficeWorkOrderNoUpdateRequest = { workOrderNo };
+    return this.http.put<AccountingOfficeWorkOrderNoUpdateResponse>(this.controller + officeId + '/work-order-no', body);
   }
 
   deleteAccountingOffice(officeId: number): Observable<void> {

@@ -21,6 +21,7 @@ import { AccountType } from '../../accounting/models/accounting-enum';
 import { CostCodesResponse } from '../../accounting/models/cost-codes.model';
 import { OfficeResponse } from '../models/office.model';
 import { AccountingOfficeService } from '../services/accounting-office.service';
+import { BankCardService } from '../services/bank-card.service';
 import { OfficeService } from '../services/office.service';
 import { CostCodesService } from '../../accounting/services/cost-codes.service';
 import { ChartOfAccountsService } from '../../accounting/services/chart-of-accounts.service';
@@ -52,14 +53,20 @@ export class AccountingOfficeComponent implements OnInit, OnDestroy, OnChanges {
   isAddMode: boolean = false;
   states: string[] = [];
   accountingOffice: AccountingOfficeResponse;
+
+  // Bank card state
   bankCards: BankCardResponse[] = [];
   showBankCardRows: boolean = false;
   bankCardValidationAttempted = false;
-  editingBankCardNumberIndexes: Set<number> = new Set<number>();
+  bankCardActionIndexes = new Set<number>();
+  editingBankCardNumberIndexes = new Set<number>();
+  bankCardNumberUpdatePendingIndexes = new Set<number>();
+  private bankCardLastSavedState = new Map<number, { cardTypeId: number; cardName: string; chartOfAccountId: number | null }>();
   cardTypeOptions: { value: number; label: string }[] = getCardTypes();
+  bankCardChartOfAccountOptions: SearchableSelectOption<number>[] = [];
+
   costCodeOptions: { value: number; label: string }[] = [];
   chartOfAccountOptions: SearchableSelectOption<number>[] = [];
-  bankCardChartOfAccountOptions: SearchableSelectOption<number>[] = [];
   defaultTenantOwnerCompanyAccountFields: { controlName: string; label: string }[] = [
     { controlName: 'defaultTenantIncAccountId', label: 'Tenant Income' },
     { controlName: 'defaultTenantExpAccountId', label: 'Tenant Expense' },
@@ -89,6 +96,7 @@ export class AccountingOfficeComponent implements OnInit, OnDestroy, OnChanges {
 
   constructor(
     public accountingOfficeService: AccountingOfficeService,
+    private bankCardService: BankCardService,
     public fb: FormBuilder,
     private toastr: ToastrService,
     private authService: AuthService,
@@ -154,8 +162,7 @@ export class AccountingOfficeComponent implements OnInit, OnDestroy, OnChanges {
         } else if (newId === 'new') {
           this.isAddMode = true;
           this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'office');
-          this.bankCards = [];
-          this.showBankCardRows = false;
+          this.resetBankCards();
           this.buildForm();
           this.setupOfficeSelectionHandler();
           this.scheduleFocusFirstField();
@@ -238,14 +245,7 @@ export class AccountingOfficeComponent implements OnInit, OnDestroy, OnChanges {
       return;
     }
 
-    const bankCardValidationError = this.validateBankCardsBeforeSave();
-    if (bankCardValidationError) {
-      this.toastr.error(bankCardValidationError, CommonMessage.Error);
-      return;
-    }
-
     this.isSubmitting = true;
-    const bankCardRequests = this.buildBankCardRequests();
     const phoneDigits = this.formatterService.stripPhoneFormatting(formValue.phone);
     const faxDigits = formValue.fax ? this.formatterService.stripPhoneFormatting(formValue.fax) : '';
     const bankPhoneDigits = formValue.bankPhone ? this.formatterService.stripPhoneFormatting(formValue.bankPhone) : '';
@@ -293,41 +293,34 @@ export class AccountingOfficeComponent implements OnInit, OnDestroy, OnChanges {
       website: formValue.website || '',
       fileDetails: this.hasNewFileUpload ? this.fileDetails : undefined,
       logoPath: this.hasNewFileUpload ? undefined : this.logoPath,
-      isActive: formValue.isActive,
-      bankCards: bankCardRequests
+      isActive: formValue.isActive
     };
 
-    if (this.isAddMode) {
-      this.accountingOfficeService.createAccountingOffice(officeRequest).pipe(take(1), finalize(() => this.isSubmitting = false)).subscribe({
-        next: (response: AccountingOfficeResponse) => {
-          this.toastr.success('Office created successfully', CommonMessage.Success, { timeOut: CommonTimeouts.Success });
-          this.accountingOfficeService.notifyAccountingOfficesChanged();
-          this.savedEvent.emit();
-          this.backEvent.emit();
-        },
-        error: (_err: HttpErrorResponse) => {}
-      });
-    } else {
+    if (!this.isAddMode) {
       const idToUse = this.id;
-      const officeIdNum = typeof idToUse === 'number' ? idToUse : parseInt(idToUse?.toString() || '', 10);
-      if (isNaN(officeIdNum)) {
+      const resolvedOfficeId = typeof idToUse === 'number' ? idToUse : parseInt(idToUse?.toString() || '', 10);
+      if (isNaN(resolvedOfficeId)) {
         this.toastr.error('Invalid office ID', CommonMessage.Error);
         this.isSubmitting = false;
         return;
       }
-      officeRequest.officeId = officeIdNum;
+      officeRequest.officeId = resolvedOfficeId;
       officeRequest.organizationId = this.accountingOffice?.organizationId || user?.organizationId || '';
-      
-      this.accountingOfficeService.updateAccountingOffice(officeRequest).pipe(take(1), finalize(() => this.isSubmitting = false)).subscribe({
-        next: (response: AccountingOfficeResponse) => {
-          this.toastr.success('Office updated successfully', CommonMessage.Success, { timeOut: CommonTimeouts.Success });
-          this.accountingOfficeService.notifyAccountingOfficesChanged();
-          this.savedEvent.emit();
-          this.backEvent.emit();
-        },
-        error: (_err: HttpErrorResponse) => {}
-      });
     }
+
+    const saveOffice$ = this.isAddMode
+      ? this.accountingOfficeService.createAccountingOffice(officeRequest)
+      : this.accountingOfficeService.updateAccountingOffice(officeRequest);
+
+    saveOffice$.pipe(take(1), finalize(() => this.isSubmitting = false)).subscribe({
+      next: () => {
+        this.toastr.success(this.isAddMode ? 'Office created successfully' : 'Office updated successfully', CommonMessage.Success, { timeOut: CommonTimeouts.Success });
+        this.accountingOfficeService.notifyAccountingOfficesChanged();
+        this.savedEvent.emit();
+        this.backEvent.emit();
+      },
+      error: (_err: HttpErrorResponse) => {}
+    });
   }
   //#endregion
 
@@ -474,7 +467,7 @@ export class AccountingOfficeComponent implements OnInit, OnDestroy, OnChanges {
       defaultCompanyExpAccountId: o.defaultCompanyExpAccountId ?? null,
       isActive: o.isActive
     }, { emitEvent: false });
-    this.bankCards = [];
+    this.resetBankCards();
   }
 
   setupOfficeSelectionHandler(): void {
@@ -531,7 +524,7 @@ export class AccountingOfficeComponent implements OnInit, OnDestroy, OnChanges {
     const parsedOfficeId = Number(officeId);
     if (!parsedOfficeId || parsedOfficeId <= 0) {
       this.chartOfAccountOptions = [];
-      this.bankCardChartOfAccountOptions = [];
+      this.setBankCardChartOfAccountOptions([]);
       onLoaded?.();
       this.cdr.markForCheck();
       return;
@@ -547,15 +540,13 @@ export class AccountingOfficeComponent implements OnInit, OnDestroy, OnChanges {
           }))
           .sort((a, b) => a.label.localeCompare(b.label, undefined, { sensitivity: 'base' }));
         this.chartOfAccountOptions = sortedAccounts.map(({ value, label }) => ({ value, label }));
-        this.bankCardChartOfAccountOptions = sortedAccounts
-          .filter(account => account.accountTypeId === AccountType.CreditCard)
-          .map(({ value, label }) => ({ value, label }));
+        this.setBankCardChartOfAccountOptions(sortedAccounts);
         onLoaded?.();
         this.cdr.markForCheck();
       },
       error: () => {
         this.chartOfAccountOptions = [];
-        this.bankCardChartOfAccountOptions = [];
+        this.setBankCardChartOfAccountOptions([]);
         onLoaded?.();
         this.cdr.markForCheck();
       }
@@ -656,18 +647,243 @@ export class AccountingOfficeComponent implements OnInit, OnDestroy, OnChanges {
   //#region Bank Cards
   applyBankCardsFromSource(cards: BankCardResponse[] | null | undefined): void {
     const mapped = this.mappingService.mapBankCardsFromResponse(cards);
-    if (mapped.length === 0) {
+    this.bankCards = mapped;
+    this.bankCardLastSavedState.clear();
+    mapped.forEach(card => this.captureBankCardSavedState(card));
+    if (mapped.length > 0) {
+      this.showBankCardRows = true;
+    }
+  }
+
+  resetBankCards(): void {
+    this.bankCards = [];
+    this.showBankCardRows = false;
+    this.bankCardValidationAttempted = false;
+    this.bankCardActionIndexes.clear();
+    this.editingBankCardNumberIndexes.clear();
+    this.bankCardNumberUpdatePendingIndexes.clear();
+    this.bankCardLastSavedState.clear();
+  }
+
+  captureBankCardSavedState(card: BankCardResponse): void {
+    if ((card.bankCardId || 0) <= 0) {
       return;
     }
 
-    this.bankCards = mapped;
-    this.showBankCardRows = true;
+    this.bankCardLastSavedState.set(card.bankCardId, {
+      cardTypeId: Number(card.cardTypeId),
+      cardName: (card.cardName || '').trim(),
+      chartOfAccountId: this.mappingService.normalizeBankCardChartOfAccountId(card.chartOfAccountId)
+    });
   }
 
-  selectAllOnFocus(event: Event): void {
-    (event.target as HTMLInputElement).select();
+  hasPersistedBankCardChanges(card: BankCardResponse, request: BankCardRequest): boolean {
+    const saved = this.bankCardLastSavedState.get(card.bankCardId);
+    if (!saved) {
+      return true;
+    }
+
+    if (Number(card.cardTypeId) !== saved.cardTypeId) {
+      return true;
+    }
+    if ((card.cardName || '').trim() !== saved.cardName) {
+      return true;
+    }
+    if (this.mappingService.normalizeBankCardChartOfAccountId(card.chartOfAccountId) !== saved.chartOfAccountId) {
+      return true;
+    }
+    if (request.cardNumber.length >= 13) {
+      return true;
+    }
+
+    return false;
   }
-  
+
+  setBankCardChartOfAccountOptions(accounts: { value: number; label: string; accountTypeId: number }[]): void {
+    this.bankCardChartOfAccountOptions = accounts
+      .filter(account => account.accountTypeId === AccountType.CreditCard)
+      .map(({ value, label }) => ({ value, label }));
+  }
+
+  getBankCardOfficeId(): number | null {
+    if (this.isAddMode) {
+      return null;
+    }
+
+    const fromAccountingOffice = Number(this.accountingOffice?.officeId || 0);
+    if (fromAccountingOffice > 0) {
+      return fromAccountingOffice;
+    }
+
+    const idToUse = this.id;
+    const fromRoute = typeof idToUse === 'number' ? idToUse : parseInt(idToUse?.toString() || '', 10);
+    return Number.isFinite(fromRoute) && fromRoute > 0 ? fromRoute : null;
+  }
+
+  onAddCardClick(): void {
+    if (this.isAddMode) {
+      this.toastr.warning('Save the accounting office before adding bank cards.', CommonMessage.Error);
+      return;
+    }
+
+    const officeId = this.getBankCardOfficeId();
+    if (!officeId) {
+      this.toastr.error('Office is required before adding bank cards.', CommonMessage.Error);
+      return;
+    }
+
+    this.showBankCardRows = true;
+    this.bankCardValidationAttempted = false;
+    this.addBankCard();
+  }
+
+  addBankCard(): void {
+    const officeIdNum = Number(this.form?.get('officeId')?.value || this.accountingOffice?.officeId || 0);
+    const organizationId = this.accountingOffice?.organizationId || this.authService.getUser()?.organizationId || '';
+    this.bankCards.push({
+      bankCardId: 0,
+      organizationId,
+      officeId: officeIdNum,
+      cardTypeId: -1,
+      cardName: '',
+      displayName: '',
+      cardNumber: '',
+      rawCardNumber: '',
+      lastFour: '',
+      chartOfAccountId: null
+    });
+  }
+
+  removeBankCard(index: number): void {
+    if (index < 0 || index >= this.bankCards.length) {
+      return;
+    }
+
+    const card = this.bankCards[index];
+    const officeId = this.getBankCardOfficeId();
+    if ((card.bankCardId || 0) > 0 && officeId) {
+      this.bankCardService.deleteBankCard(officeId, card.bankCardId).pipe(take(1)).subscribe({
+        next: () => {
+          this.bankCards.splice(index, 1);
+          this.cdr.markForCheck();
+        },
+        error: () => {
+          this.toastr.error('Failed to delete bank card.', CommonMessage.Error);
+        }
+      });
+      return;
+    }
+
+    this.bankCards.splice(index, 1);
+  }
+
+  onBankCardFieldChange(index: number): void {
+    const card = this.bankCards[index];
+    if (!card) {
+      return;
+    }
+
+    const officeId = this.getBankCardOfficeId();
+    if (!officeId) {
+      return;
+    }
+
+    if ((card.bankCardId || 0) > 0) {
+      this.persistBankCardUpdate(index, officeId);
+      return;
+    }
+
+    this.persistBankCardCreate(index, officeId);
+  }
+
+  persistBankCardCreate(index: number, officeId: number): void {
+    const card = this.bankCards[index];
+    if (!card || (card.bankCardId || 0) > 0 || this.bankCardActionIndexes.has(index)) {
+      return;
+    }
+
+    if (this.isBankCardRowBlank(card)) {
+      return;
+    }
+
+    const missingFields = this.getMissingBankCardFields(card, true);
+    if (missingFields.length > 0) {
+      this.bankCardValidationAttempted = true;
+      return;
+    }
+
+    this.bankCardActionIndexes.add(index);
+    const request = this.buildBankCardRequest(card);
+    this.bankCardService.createBankCard(officeId, request).pipe(take(1), finalize(() => this.bankCardActionIndexes.delete(index))).subscribe({
+      next: (response) => {
+        const mapped = this.mappingService.mapBankCardsFromResponse([response]);
+        if (mapped[0]) {
+          this.bankCards[index] = mapped[0];
+          this.captureBankCardSavedState(mapped[0]);
+        }
+        this.bankCardValidationAttempted = false;
+        this.cdr.markForCheck();
+      },
+      error: () => {
+        this.toastr.error('Failed to create bank card.', CommonMessage.Error);
+      }
+    });
+  }
+
+  persistBankCardUpdate(index: number, officeId: number): void {
+    const card = this.bankCards[index];
+    if (!card || (card.bankCardId || 0) <= 0 || this.bankCardActionIndexes.has(index)) {
+      return;
+    }
+
+    const missingFields = this.getMissingBankCardFields(card, false);
+    if (missingFields.length > 0) {
+      this.bankCardNumberUpdatePendingIndexes.delete(index);
+      this.bankCardValidationAttempted = true;
+      return;
+    }
+
+    const request = this.buildBankCardRequest(card);
+    if (!this.hasPersistedBankCardChanges(card, request)) {
+      this.bankCardNumberUpdatePendingIndexes.delete(index);
+      return;
+    }
+
+    this.bankCardActionIndexes.add(index);
+    if (request.cardNumber.length >= 13) {
+      this.bankCardNumberUpdatePendingIndexes.add(index);
+      card.cardNumber = '';
+      card.rawCardNumber = '';
+      this.cdr.markForCheck();
+    }
+
+    this.bankCardService.updateBankCard(officeId, card.bankCardId, request).pipe(take(1), finalize(() => this.bankCardActionIndexes.delete(index))).subscribe({
+      next: (response) => this.onBankCardUpdateSucceeded(index, response),
+      error: () => this.onBankCardUpdateFailed(index)
+    });
+  }
+
+  onBankCardUpdateSucceeded(index: number, response: BankCardResponse): void {
+    this.bankCardNumberUpdatePendingIndexes.delete(index);
+    const mapped = this.mappingService.mapBankCardsFromResponse([response]);
+    if (!mapped[0]) {
+      this.cdr.markForCheck();
+      return;
+    }
+
+    this.bankCards[index] = mapped[0];
+    this.captureBankCardSavedState(mapped[0]);
+    this.bankCardValidationAttempted = false;
+    this.toastr.success('Bank card updated successfully', CommonMessage.Success, { timeOut: CommonTimeouts.Success });
+    this.cdr.markForCheck();
+  }
+
+  onBankCardUpdateFailed(index: number): void {
+    this.bankCardNumberUpdatePendingIndexes.delete(index);
+    this.toastr.error('Failed to update bank card.', CommonMessage.Error);
+    this.cdr.markForCheck();
+  }
+
   onBankCardNumberInput(event: Event, index: number): void {
     this.formatterService.formatCreditCardInput(event, null);
     const input = event.target as HTMLInputElement;
@@ -689,84 +905,69 @@ export class AccountingOfficeComponent implements OnInit, OnDestroy, OnChanges {
   }
 
   onBankCardNumberBlur(index: number): void {
+    const card = this.bankCards[index];
+    if (card && this.isBankCardNumberChangeUpdate(card, index)) {
+      this.bankCardNumberUpdatePendingIndexes.add(index);
+    }
+
     this.editingBankCardNumberIndexes.delete(index);
+    this.onBankCardFieldChange(index);
   }
 
   getBankCardNumberDisplay(card: BankCardResponse, index: number): string {
     const isPersisted = (card?.bankCardId || 0) > 0;
     const isEditing = this.editingBankCardNumberIndexes.has(index);
     if (isPersisted && !isEditing) {
+      if (this.bankCardNumberUpdatePendingIndexes.has(index)) {
+        return '';
+      }
       return card.displayName || '';
     }
 
     return card.cardNumber || '';
   }
-  
-  addBankCard(): void {
-    const officeIdNum = Number(this.form?.get('officeId')?.value || this.accountingOffice?.officeId || 0);
-    const organizationId = this.accountingOffice?.organizationId || this.authService.getUser()?.organizationId || '';
-    this.bankCards.push({
-      bankCardId: 0,
-      organizationId,
-      officeId: officeIdNum,
-      cardTypeId: -1,
-      cardName: '',
-      displayName: '',
-      cardNumber: '',
-      rawCardNumber: '',
-      lastFour: '',
-      chartOfAccountId: null
-    });
-  }
 
-  removeBankCard(index: number): void {
-    if (index < 0 || index >= this.bankCards.length) return;
-    this.bankCards.splice(index, 1);
-  }
-
-  onAddCardClick(): void {
-    this.showBankCardRows = true;
-    this.addBankCard();
-  }
-
-  buildBankCardRequests(): BankCardRequest[] {
-    const requests: BankCardRequest[] = [];
-
-    for (let i = 0; i < this.bankCards.length; i++) {
-      const card = this.bankCards[i];
-      if (this.isBankCardRowBlank(card)) {
-        continue;
-      }
-
-      requests.push({
-        bankCardId: (card.bankCardId || 0) > 0 ? card.bankCardId : undefined,
-        cardTypeId: Number(card.cardTypeId),
-        cardName: (card.cardName || '').trim(),
-        cardNumber: this.getBankCardNumberDigits(card),
-        chartOfAccountId: this.mappingService.normalizeBankCardChartOfAccountId(card.chartOfAccountId)
-      });
+  isBankCardNumberChangeUpdate(card: BankCardResponse, index: number): boolean {
+    if ((card.bankCardId || 0) <= 0 || this.bankCardActionIndexes.has(index)) {
+      return false;
     }
 
-    return requests;
+    return this.getBankCardNumberDigits(card).length >= 13
+      && this.getMissingBankCardFields(card, false).length === 0;
   }
 
-  validateBankCardsBeforeSave(): string | null {
-    this.bankCardValidationAttempted = true;
+  buildBankCardRequest(card: BankCardResponse): BankCardRequest {
+    return {
+      bankCardId: (card.bankCardId || 0) > 0 ? card.bankCardId : undefined,
+      cardTypeId: Number(card.cardTypeId),
+      cardName: (card.cardName || '').trim(),
+      cardNumber: this.getBankCardNumberDigits(card),
+      chartOfAccountId: this.mappingService.normalizeBankCardChartOfAccountId(card.chartOfAccountId)
+    };
+  }
 
-    for (let i = 0; i < this.bankCards.length; i++) {
-      const card = this.bankCards[i];
-      if (this.isBankCardRowBlank(card)) {
-        continue;
-      }
+  getMissingBankCardFields(card: BankCardResponse, requireFullCardNumber: boolean): string[] {
+    const missingFields: string[] = [];
+    const cardTypeId = Number(card?.cardTypeId);
 
-      const missingFields = this.getMissingBankCardFields(card);
-      if (missingFields.length > 0) {
-        return `Bank card row ${i + 1}: ${missingFields.join(', ')} ${missingFields.length === 1 ? 'is' : 'are'} required.`;
+    if (!this.isValidBankCardType(cardTypeId)) {
+      missingFields.push('Type');
+    }
+    if (!(card?.cardName || '').trim()) {
+      missingFields.push('Name');
+    }
+    if (requireFullCardNumber) {
+      if (this.getBankCardNumberDigits(card).length < 13) {
+        missingFields.push('Number');
       }
+    } else if (!this.isBankCardNumberValid(card)) {
+      missingFields.push('Number');
+    }
+    if (!this.mappingService.normalizeBankCardChartOfAccountId(card.chartOfAccountId)) {
+      missingFields.push('Account');
     }
 
-    this.bankCardValidationAttempted = false;
-    return null;
+    return missingFields;
   }
 
   isBankCardRowBlank(card: BankCardResponse): boolean {
@@ -796,24 +997,7 @@ export class AccountingOfficeComponent implements OnInit, OnDestroy, OnChanges {
     return this.cardTypeOptions.some(option => option.value === cardTypeId);
   }
 
-  getMissingBankCardFields(card: BankCardResponse): string[] {
-    const missingFields: string[] = [];
-    const cardTypeId = Number(card?.cardTypeId);
-
-    if (!this.isValidBankCardType(cardTypeId)) {
-      missingFields.push('Type');
-    }
-    if (!(card?.cardName || '').trim()) {
-      missingFields.push('Name');
-    }
-    if (!this.isBankCardNumberValid(card)) {
-      missingFields.push('Number');
-    }
-
-    return missingFields;
-  }
-
-  isBankCardFieldInvalid(index: number, field: 'type' | 'name' | 'number'): boolean {
+  isBankCardFieldInvalid(index: number, field: 'type' | 'name' | 'number' | 'account'): boolean {
     if (!this.bankCardValidationAttempted) {
       return false;
     }
@@ -823,22 +1007,30 @@ export class AccountingOfficeComponent implements OnInit, OnDestroy, OnChanges {
       return false;
     }
 
+    const requireFullCardNumber = (card.bankCardId || 0) <= 0;
+
     switch (field) {
       case 'type':
         return !this.isValidBankCardType(Number(card.cardTypeId));
       case 'name':
         return !(card.cardName || '').trim();
       case 'number':
-        return !this.isBankCardNumberValid(card);
+        return requireFullCardNumber
+          ? this.getBankCardNumberDigits(card).length < 13
+          : !this.isBankCardNumberValid(card);
+      case 'account':
+        return !this.mappingService.normalizeBankCardChartOfAccountId(card.chartOfAccountId);
       default:
         return false;
     }
   }
-
-
   //#endregion
 
   //#region Utility Methods
+  selectAllOnFocus(event: Event): void {
+    (event.target as HTMLInputElement).select();
+  }
+
   back(): void {
     this.backEvent.emit();
   }

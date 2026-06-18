@@ -7,7 +7,6 @@ import { ToastrService } from 'ngx-toastr';
 import { BehaviorSubject, catchError, forkJoin, finalize, of, skip, Subject, switchMap, take, takeUntil } from 'rxjs';
 import { RouterUrl } from '../../../app.routes';
 import { FormatterService } from '../../../services/formatter-service';
-import { MappingService } from '../../../services/mapping.service';
 import { MaterialModule } from '../../../material.module';
 import { AuthService } from '../../../services/auth.service';
 import { UtilityService } from '../../../services/utility.service';
@@ -114,7 +113,6 @@ export class WorkOrderComponent implements OnInit, OnChanges, OnDestroy {
     private workOrderAmountService: WorkOrderAmountService,
     public utilityService: UtilityService,
     private formatter: FormatterService,
-    private mappingService: MappingService,
     private toastr: ToastrService
   ) {
     this.fb = fb;
@@ -1498,17 +1496,9 @@ export class WorkOrderComponent implements OnInit, OnChanges, OnDestroy {
     }
 
     const officeId = this.accountingOffice.officeId;
-    this.accountingOfficeService.getAccountingOfficeById(officeId).pipe(
-      take(1),
-      switchMap(office => {
-        const updateRequest = this.mappingService.mapAccountingOfficeResponseToRequest(office, {
-          workOrderNo: this.nextWorkOrderNo!
-        });
-        return this.accountingOfficeService.updateAccountingOffice(updateRequest);
-      })
-    ).subscribe({
+    this.accountingOfficeService.updateAccountingOfficeWorkOrderNo(officeId, this.nextWorkOrderNo).pipe(take(1)).subscribe({
       next: updated => {
-        this.accountingOffice = updated;
+        this.accountingOffice = { ...this.accountingOffice!, workOrderNo: updated.workOrderNo };
       },
       error: () => {
         this.toastr.warning('Work order saved, but failed to update Accounting Office work order number.', 'Partial Update');
