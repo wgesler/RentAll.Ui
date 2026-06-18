@@ -34,6 +34,8 @@ export interface AccountingOfficeRequest {
   defaultOwnerExpAccountId?: number | null;
   defaultOwnerIncAccountId?: number | null;
   defaultCompanyExpAccountId?: number | null;
+  defaultDepartureIncAccountId?: number | null;
+  defaultDepartureExpAccountId?: number | null;
   logoPath?: string; 
   fileDetails?: FileDetails;
   isActive: boolean;
@@ -73,6 +75,8 @@ export interface AccountingOfficeResponse {
   defaultOwnerExpAccountId?: number | null;
   defaultOwnerIncAccountId?: number | null;
   defaultCompanyExpAccountId?: number | null;
+  defaultDepartureIncAccountId?: number | null;
+  defaultDepartureExpAccountId?: number | null;
   logoPath?: string; 
   fileDetails?: FileDetails;
   isActive: boolean;

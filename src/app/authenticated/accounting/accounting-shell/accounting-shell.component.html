@@ -20,6 +20,11 @@
               (valueChange)="onAccountingInvoiceEditorOfficeDropdownChange($event)">
             </app-title-bar-select>
 
+            <mat-form-field appearance="outline" class="titlebar-field-property-code">
+              <mat-label>Property Code</mat-label>
+              <input matInput [value]="shellInvoiceEditor!.titleBarPropertyCode" readonly [disabled]="true" class="readonly-field">
+            </mat-form-field>
+
             <div class="invoice-titlebar-reservation-wrap">
               <app-title-bar-select
                 [label]="'Reservation'"

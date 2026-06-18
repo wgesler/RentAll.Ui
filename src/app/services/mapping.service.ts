@@ -1914,14 +1914,12 @@ export class MappingService {
       return null;
     }
     const record = split as Split & Record<string, unknown>;
-    const accountId = Number(
+    const chartOfAccountId = Number(
       record.chartOfAccountId
       ?? record['ChartOfAccountId']
-      ?? record.accountId
-      ?? record['AccountId']
       ?? 0
     );
-    return Number.isFinite(accountId) && accountId > 0 ? accountId : null;
+    return Number.isFinite(chartOfAccountId) && chartOfAccountId > 0 ? chartOfAccountId : null;
   }
 
   mapReceiptSplitFromApi(raw: Split | Record<string, unknown>): Split {
@@ -1937,7 +1935,6 @@ export class MappingService {
       workOrder: String(record.workOrder ?? record['WorkOrder'] ?? record.workOrderCode ?? record['WorkOrderCode'] ?? '').trim(),
       receiptTypeId: Number.isFinite(receiptTypeId) ? receiptTypeId : 0,
       chartOfAccountId: chartOfAccountId ?? null,
-      accountId: chartOfAccountId ?? null,
       chartOfAccountDisplayName: String(
         record.chartOfAccountDisplayName ?? record['ChartOfAccountDisplayName'] ?? ''
       ).trim() || null
@@ -1959,8 +1956,7 @@ export class MappingService {
           ? String(split.workOrder).trim()
           : null,
         receiptTypeId: split.receiptTypeId ?? 0,
-        chartOfAccountId,
-        accountId: chartOfAccountId
+        chartOfAccountId
       };
     });
   }

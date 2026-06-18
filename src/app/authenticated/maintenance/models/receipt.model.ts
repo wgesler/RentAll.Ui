@@ -9,7 +9,6 @@ export interface Split {
   workOrderCode?: string | null;
   receiptTypeId: number;
   chartOfAccountId?: number | null;
-  accountId?: number | null;
   chartOfAccountDisplayName?: string | null;
   bankCardId?: number | null;
   bankCardDisplayName?: string | null;

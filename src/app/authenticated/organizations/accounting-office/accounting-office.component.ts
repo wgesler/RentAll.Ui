@@ -74,6 +74,10 @@ export class AccountingOfficeComponent implements OnInit, OnDestroy, OnChanges {
     { controlName: 'defaultOwnerExpAccountId', label: 'Owner Expense' },
     { controlName: 'defaultCompanyExpAccountId', label: 'Company Expense' }
   ];
+  defaultDepartureAccountFields: { controlName: string; label: string }[] = [
+    { controlName: 'defaultDepartureIncAccountId', label: 'Departure Income' },
+    { controlName: 'defaultDepartureExpAccountId', label: 'Departure Expense' }
+  ];
   defaultAccountFieldsRow2: { controlName: string; label: string }[] = [
     { controlName: 'defaultBankAccountId', label: 'Bank' },
     { controlName: 'defaultActRecvAccountId', label: 'A/R' },
@@ -289,6 +293,8 @@ export class AccountingOfficeComponent implements OnInit, OnDestroy, OnChanges {
       defaultOwnerExpAccountId: this.parseOptionalAccountId(formValue.defaultOwnerExpAccountId),
       defaultOwnerIncAccountId: this.parseOptionalAccountId(formValue.defaultOwnerIncAccountId),
       defaultCompanyExpAccountId: this.parseOptionalAccountId(formValue.defaultCompanyExpAccountId),
+      defaultDepartureIncAccountId: this.parseOptionalAccountId(formValue.defaultDepartureIncAccountId),
+      defaultDepartureExpAccountId: this.parseOptionalAccountId(formValue.defaultDepartureExpAccountId),
       email: formValue.email || '',
       website: formValue.website || '',
       fileDetails: this.hasNewFileUpload ? this.fileDetails : undefined,
@@ -386,6 +392,8 @@ export class AccountingOfficeComponent implements OnInit, OnDestroy, OnChanges {
       defaultOwnerExpAccountId: new FormControl<number | null>(null),
       defaultOwnerIncAccountId: new FormControl<number | null>(null),
       defaultCompanyExpAccountId: new FormControl<number | null>(null),
+      defaultDepartureIncAccountId: new FormControl<number | null>(null),
+      defaultDepartureExpAccountId: new FormControl<number | null>(null),
       fileUpload: new FormControl('', { validators: [], asyncValidators: [fileValidator(['png', 'jpg', 'jpeg', 'jfif', 'gif', 'svg', 'heic', 'heif', 'pdf'], ['image/png', 'image/jpeg', 'image/gif', 'image/svg+xml', 'image/heic', 'image/heif', 'application/pdf'], 2000000, true)] }),
       isActive: new FormControl(true)
     });
@@ -425,6 +433,8 @@ export class AccountingOfficeComponent implements OnInit, OnDestroy, OnChanges {
         defaultOwnerExpAccountId: this.accountingOffice.defaultOwnerExpAccountId ?? null,
         defaultOwnerIncAccountId: this.accountingOffice.defaultOwnerIncAccountId ?? null,
         defaultCompanyExpAccountId: this.accountingOffice.defaultCompanyExpAccountId ?? null,
+        defaultDepartureIncAccountId: this.accountingOffice.defaultDepartureIncAccountId ?? null,
+        defaultDepartureExpAccountId: this.accountingOffice.defaultDepartureExpAccountId ?? null,
         isActive: this.accountingOffice.isActive
       }, { emitEvent: false });
     }
@@ -465,6 +475,8 @@ export class AccountingOfficeComponent implements OnInit, OnDestroy, OnChanges {
       defaultOwnerExpAccountId: o.defaultOwnerExpAccountId ?? null,
       defaultOwnerIncAccountId: o.defaultOwnerIncAccountId ?? null,
       defaultCompanyExpAccountId: o.defaultCompanyExpAccountId ?? null,
+      defaultDepartureIncAccountId: o.defaultDepartureIncAccountId ?? null,
+      defaultDepartureExpAccountId: o.defaultDepartureExpAccountId ?? null,
       isActive: o.isActive
     }, { emitEvent: false });
     this.resetBankCards();

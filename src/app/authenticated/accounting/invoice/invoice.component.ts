@@ -448,6 +448,33 @@ export class InvoiceComponent implements OnInit, OnDestroy, OnChanges {
     }));
   }
 
+  get titleBarPropertyCode(): string {
+    const fromInvoice = (this.invoice?.propertyCode ?? '').trim();
+    if (fromInvoice) {
+      return fromInvoice;
+    }
+
+    const fromSelectedReservation = (this.selectedReservation?.propertyCode ?? '').trim();
+    if (fromSelectedReservation) {
+      return fromSelectedReservation;
+    }
+
+    const reservationId = String(this.form?.get('reservationId')?.value ?? this.invoice?.reservationId ?? '').trim();
+    if (reservationId) {
+      const fromReservationList = (this.reservations.find(r => r.reservationId === reservationId)?.propertyCode ?? '').trim();
+      if (fromReservationList) {
+        return fromReservationList;
+      }
+    }
+
+    const propertyId = (this.selectedReservationDetail?.propertyId ?? this.invoice?.propertyId ?? '').trim();
+    if (propertyId) {
+      return (this.reservations.find(r => r.propertyId === propertyId)?.propertyCode ?? '').trim();
+    }
+
+    return '';
+  }
+
   onTitleBarOfficeChange(value: string | number | null): void {
     if (!this.isAddMode || !this.form) {
       return;

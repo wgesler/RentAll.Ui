@@ -1399,8 +1399,6 @@ export class ReceiptComponent implements OnInit, OnChanges, OnDestroy {
     const normalizedChartOfAccountId = Number(
       rawSplit?.chartOfAccountId
       ?? rawSplit?.['ChartOfAccountId']
-      ?? rawSplit?.accountId
-      ?? rawSplit?.['AccountId']
       ?? 0
     );
     const resolvedChartOfAccountId = Number.isFinite(normalizedChartOfAccountId) && normalizedChartOfAccountId > 0
@@ -1475,9 +1473,6 @@ export class ReceiptComponent implements OnInit, OnChanges, OnDestroy {
         chartOfAccountId: includeChartOfAccount && Number.isFinite(chartOfAccountId) && chartOfAccountId > 0
           ? chartOfAccountId
           : null,
-        accountId: includeChartOfAccount && Number.isFinite(chartOfAccountId) && chartOfAccountId > 0
-          ? chartOfAccountId
-          : null,
         receiptTypeId: control.get('receiptTypeId')?.value ?? 0
       };
     });
@@ -1548,7 +1543,6 @@ export class ReceiptComponent implements OnInit, OnChanges, OnDestroy {
         workOrderCode: (split.workOrderCode || split.workOrder || '').trim(),
         workOrder: (split.workOrderCode || split.workOrder || '').trim(),
         chartOfAccountId,
-        accountId: chartOfAccountId,
         receiptTypeId: split.receiptTypeId ?? 0
       };
     });

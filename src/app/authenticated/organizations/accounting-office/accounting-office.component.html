@@ -375,6 +375,27 @@
                       (valueChange)="onDefaultAccountIdChange(field.controlName, $event)" />
                   }
                 </div>
+                <h4 class="text-base font-semibold mb-3">Departure Accounts</h4>
+                <div class="grid grid-cols-2 form-standard-grid mb-4">
+                  @for (field of defaultDepartureAccountFields; track field.controlName) {
+                    <app-searchable-select
+                      class="col-span-1 w-full"
+                      [renderInFormField]="true"
+                      [formFieldClass]="'w-full'"
+                      [formFieldLabel]="field.label"
+                      [value]="form.get(field.controlName)?.value ?? null"
+                      [options]="chartOfAccountOptions"
+                      [showInstructionOption]="true"
+                      [instructionOptionValue]="null"
+                      nullOptionLabel="None"
+                      [showSearchInput]="true"
+                      [hideSearchHint]="false"
+                      [hideSearchText]="false"
+                      searchPlaceholder="Type to filter accounts..."
+                      noResultsText="No accounts match your search"
+                      (valueChange)="onDefaultAccountIdChange(field.controlName, $event)" />
+                  }
+                </div>
                 <h4 class="text-base font-semibold mb-3">Bank &amp; Balance Sheet Accounts</h4>
                 <div class="grid grid-cols-4 form-standard-grid mb-4">
                   @for (field of defaultAccountFieldsRow2; track field.controlName) {

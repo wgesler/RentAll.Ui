@@ -98,8 +98,9 @@ export class ReceiptsListComponent implements OnInit, OnChanges, OnDestroy {
 
   readonly maintenanceReceiptDisplayedColumns: ColumnSet = {
     no: { displayAs: 'No', maxWidth: '5ch', sort: false, wrap: false },
+    receiptCode: { displayAs: 'Code', maxWidth: '15ch', sort: false, sortType: 'natural', wrap: false },
     propertyCode: { displayAs: 'Property', wrap: false, maxWidth: '15ch' },
-    workOrderDisplay: { displayAs: 'WO Code(s)', wrap: true, maxWidth: '18ch' },
+    workOrderDisplay: { displayAs: 'WO Code(s)', wrap: true, maxWidth: '15ch' },
     receiptTypeDisplay: { displayAs: 'Type(s)', wrap: true, maxWidth: '15ch' },
     receipt: { displayAs: 'Receipt', wrap: false, sort: false, maxWidth: '12ch', alignment: 'center'  },
     receiptDate: { displayAs: 'Receipt Date', wrap: false, maxWidth: '22ch', alignment: 'center', editableType: 'date', suppressRowClick: true },
