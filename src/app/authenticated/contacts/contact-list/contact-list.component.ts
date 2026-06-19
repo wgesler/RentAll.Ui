@@ -21,6 +21,7 @@ import { EntityType } from '../models/contact-enum';
 import { ContactListDisplay, ContactRequest, ContactResponse } from '../models/contact.model';
 import { ContactService } from '../services/contact.service';
 import { LeadsService } from '../../leads/services/leads.service';
+import { OwnersService } from '../../owners/services/owners.service';
 
 @Component({
     standalone: true,
@@ -87,6 +88,7 @@ export class ContactListComponent implements OnInit, OnDestroy, OnChanges {
     public router: Router,
     public mappingService: MappingService,
     private leadsService: LeadsService,
+    private ownersService: OwnersService,
     private authService: AuthService,
     private navigationContextService: NavigationContextService,
     private utilityService: UtilityService,
@@ -243,11 +245,25 @@ export class ContactListComponent implements OnInit, OnDestroy, OnChanges {
     this.contactService.getContactByGuid(contactId).pipe(take(1)).subscribe({
       next: contact => {
         const resolvedOwnerLeadId = Number(contact?.ownerLeadId);
-        if (!Number.isFinite(resolvedOwnerLeadId) || resolvedOwnerLeadId <= 0) {
-          this.toastr.error('This owner contact is not linked to an owner lead.', CommonMessage.Error);
+        if (Number.isFinite(resolvedOwnerLeadId) && resolvedOwnerLeadId > 0) {
+          this.copyOwnerFormShareUrl(resolvedOwnerLeadId, Number(contact?.officeId));
           return;
         }
-        this.copyOwnerFormShareUrl(resolvedOwnerLeadId, Number(contact?.officeId));
+
+        this.ownersService.createOwnerLeadFromContactByContext(contactId).pipe(take(1)).subscribe({
+          next: result => {
+            const createdOwnerLeadId = Number(result?.createdLead?.ownerId);
+            if (!Number.isFinite(createdOwnerLeadId) || createdOwnerLeadId <= 0) {
+              this.toastr.error('This owner contact is not linked to an owner lead.', CommonMessage.Error);
+              return;
+            }
+            const officeId = Number(result?.contact?.officeId ?? contact?.officeId);
+            this.copyOwnerFormShareUrl(createdOwnerLeadId, officeId);
+          },
+          error: () => {
+            this.toastr.error('Unable to generate owner form share link.', CommonMessage.Error);
+          }
+        });
       },
       error: () => {
         this.toastr.error('Unable to determine owner link for this contact.', CommonMessage.Error);
