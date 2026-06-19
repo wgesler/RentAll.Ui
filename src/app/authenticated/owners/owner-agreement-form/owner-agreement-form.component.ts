@@ -57,6 +57,7 @@ export class OwnerAgreementFormComponent extends BaseDocumentComponent implement
   @Input() ownerLeadId: number | null = null;
   @Input() officeId: number | null = null;
   @Input() propertyId: string | null = null;
+  @Input() propertyCode: string | null = null;
   @Input() includeLabel = 'Owner Agreement';
   @Input() showIncludeControls = false;
   @Input() templateAssetPath = 'assets/owner-agreement.html';
@@ -178,6 +179,7 @@ export class OwnerAgreementFormComponent extends BaseDocumentComponent implement
     }
     const tokenChanged = changes['token'] && (changes['token'].previousValue !== changes['token'].currentValue);
     const propertyIdChanged = changes['propertyId'] && (changes['propertyId'].previousValue !== changes['propertyId'].currentValue);
+    const propertyCodeChanged = changes['propertyCode'] && (changes['propertyCode'].previousValue !== changes['propertyCode'].currentValue);
     const officeIdChanged = changes['officeId'] && (changes['officeId'].previousValue !== changes['officeId'].currentValue);
     const templateHtmlChanged = changes['templateHtml'] && (changes['templateHtml'].previousValue !== changes['templateHtml'].currentValue);
     if (tokenChanged) {
@@ -189,7 +191,7 @@ export class OwnerAgreementFormComponent extends BaseDocumentComponent implement
     if (officeIdChanged) {
       this.syncSelectedOfficeFromLoadedOffices();
     }
-    if (propertyIdChanged || officeIdChanged) {
+    if (propertyIdChanged || propertyCodeChanged || officeIdChanged) {
       // Incremental restore: add property next.
       this.hasAttemptedPreviewRender = false;
       this.itemsToLoad$.next(new Set(['organization', 'offices', 'contacts', 'leadOwner', 'property', 'propertyAgreement', 'agreementInfo', 'accountingOffices']));
@@ -1837,7 +1839,11 @@ export class OwnerAgreementFormComponent extends BaseDocumentComponent implement
       return this.http.get(primaryPath, { responseType: 'text' }).pipe(take(1));
     }
     const templateType = this.resolveTemplateTypeForLookup(primaryPath);
-    return this.ownersService.getTemplateHtmlByContext(this.token, this.propertyId, templateType).pipe(take(1));
+    const resolvedPropertyId = String(this.propertyId || this.selectedProperty?.propertyId || '').trim() || null;
+    const resolvedPropertyCode = String(
+      this.propertyCode || this.selectedProperty?.propertyCode || this.leadOwner?.propertyCode || ''
+    ).trim() || null;
+    return this.ownersService.getTemplateHtmlByContext(this.token, resolvedPropertyId, templateType, resolvedPropertyCode).pipe(take(1));
   }
 
   resolveTemplateTypeForLookup(assetPath: string): string {

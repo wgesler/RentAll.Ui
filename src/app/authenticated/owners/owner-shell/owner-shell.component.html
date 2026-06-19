@@ -110,6 +110,7 @@
                   [ownerLeadId]="leadOwnerId"
                   [officeId]="selectedOfficeId"
                   [propertyId]="selectedPropertyId === newPropertyOptionValue ? null : selectedPropertyId"
+                  [propertyCode]="selectedPropertyId === newPropertyOptionValue ? newPropertyCode : null"
                   [sharedContext$]="ownerAgreementContext$">
                 </app-owner-agreement-form>
               }
@@ -121,6 +122,7 @@
                 [ownerLeadId]="leadOwnerId"
                 [officeId]="selectedOfficeId"
                 [propertyId]="selectedPropertyId === newPropertyOptionValue ? null : selectedPropertyId"
+                [propertyCode]="selectedPropertyId === newPropertyOptionValue ? newPropertyCode : null"
                 [includeLabel]="'Deposit'"
                 [templateAssetPath]="'assets/direct-deposit.html'"
                 [documentDisplayName]="'Deposit'"

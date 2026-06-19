@@ -1,4 +1,4 @@
-import { HttpBackend, HttpClient } from '@angular/common/http';
+import { HttpBackend, HttpClient, HttpParams } from '@angular/common/http';
 import { Injectable } from '@angular/core';
 import { Observable, Subject, switchMap } from 'rxjs';
 import { ConfigService } from '../../../services/config.service';
@@ -220,9 +220,11 @@ export class LeadsService {
     return this.rawHttp.get<AccountingOfficeResponse>(`${this.commonController}owner-form/${normalized}/accounting-office`);
   }
 
-  getPublicOwnerPropertyByToken(token: string): Observable<PropertyResponse> {
+  getPublicOwnerPropertyByToken(token: string, propertyCode?: string | null): Observable<PropertyResponse> {
     const normalized = this.normalizeOwnerFormShareToken(token);
-    return this.rawHttp.get<PropertyResponse>(`${this.commonController}owner-form/${normalized}/property`);
+    return this.rawHttp.get<PropertyResponse>(`${this.commonController}owner-form/${normalized}/property`, {
+      params: this.buildPublicOwnerPropertyCodeParams(propertyCode)
+    });
   }
 
   getPublicOwnerPropertyByIdAndToken(token: string, propertyId: string): Observable<PropertyResponse> {
@@ -257,9 +259,17 @@ export class LeadsService {
     return this.rawHttp.get<OwnerAgreementInformationResponse>(`${this.commonController}owner-form/${normalized}/agreement-information`);
   }
 
-  getPublicOwnerTemplatesByToken(token: string): Observable<OwnerHtmlResponse> {
+  getPublicOwnerTemplatesByToken(token: string, propertyCode?: string | null): Observable<OwnerHtmlResponse> {
     const normalized = this.normalizeOwnerFormShareToken(token);
-    return this.rawHttp.get<OwnerHtmlResponse>(`${this.commonController}owner-form/${normalized}/templates`);
+    return this.rawHttp.get<OwnerHtmlResponse>(`${this.commonController}owner-form/${normalized}/templates`, {
+      params: this.buildPublicOwnerPropertyCodeParams(propertyCode)
+    });
+  }
+
+  getPublicOwnerTemplatesByPropertyIdAndToken(token: string, propertyId: string): Observable<OwnerHtmlResponse> {
+    const normalized = this.normalizeOwnerFormShareToken(token);
+    const normalizedPropertyId = encodeURIComponent(String(propertyId || '').trim());
+    return this.rawHttp.get<OwnerHtmlResponse>(`${this.commonController}owner-form/${normalized}/property/${normalizedPropertyId}/templates`);
   }
 
   getPublicOwnerContactByToken(token: string): Observable<ContactResponse | null> {
@@ -337,6 +347,14 @@ export class LeadsService {
       .replace(/\u00AD/g, '')
       .replace(/[\u200B-\u200D\uFEFF]/g, '')
       .replace(/[\u2010\u2011\u2012\u2013\u2014\u2015\u2212\uFE58\uFE63\uFF0D]/g, '-');
+  }
+
+  private buildPublicOwnerPropertyCodeParams(propertyCode?: string | null): HttpParams | undefined {
+    const normalizedPropertyCode = String(propertyCode || '').trim();
+    if (!normalizedPropertyCode) {
+      return undefined;
+    }
+    return new HttpParams().set('propertyCode', normalizedPropertyCode);
   }
   //#endregion
 }

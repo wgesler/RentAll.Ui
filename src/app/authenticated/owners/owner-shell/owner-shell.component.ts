@@ -247,7 +247,16 @@ export class OwnerShellComponent implements OnInit, OnDestroy {
     this.ownerAgreementContext$ = defer(() => {
       const token = String(this.token || '').trim() || null;
       const propertyId = this.selectedPropertyId === this.newPropertyOptionValue ? null : this.selectedPropertyId;
-      return this.ownersService.getOwnerAgreementContextByContext(token, this.leadOwnerId, propertyId, this.selectedOfficeId);
+      const propertyCode = this.selectedPropertyId === this.newPropertyOptionValue
+        ? (String(this.newPropertyCode || '').trim() || null)
+        : null;
+      return this.ownersService.getOwnerAgreementContextByContext(
+        token,
+        this.leadOwnerId,
+        propertyId,
+        this.selectedOfficeId,
+        propertyCode
+      );
     }).pipe(shareReplay(1));
   }
 
@@ -491,7 +500,7 @@ export class OwnerShellComponent implements OnInit, OnDestroy {
           return;
         }
 
-        this.ownersService.getPropertyByContext(token, null).pipe(take(1), catchError(() => of(null))).subscribe(property => {
+        this.ownersService.getPropertyByContext(token, null, routePropertyCode).pipe(take(1), catchError(() => of(null))).subscribe(property => {
           const propertyId = String(property?.propertyId || '').trim();
           const propertyCode = String(property?.propertyCode || '').trim().toUpperCase();
           if (propertyId) {

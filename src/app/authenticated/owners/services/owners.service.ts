@@ -104,13 +104,17 @@ export class OwnersService {
     return this.contactService.ensureContactsLoaded();
   }
 
-  getPropertyByContext(token: string | null | undefined, propertyId: string | null | undefined): Observable<PropertyResponse | null> {
+  getPropertyByContext(
+    token: string | null | undefined,
+    propertyId: string | null | undefined,
+    propertyCode?: string | null
+  ): Observable<PropertyResponse | null> {
     const normalizedPropertyId = String(propertyId || '').trim();
     if (this.isPublicTokenMode(token)) {
       if (normalizedPropertyId && normalizedPropertyId !== 'new') {
         return this.leadsService.getPublicOwnerPropertyByIdAndToken(token!, normalizedPropertyId);
       }
-      return this.leadsService.getPublicOwnerPropertyByToken(token!);
+      return this.leadsService.getPublicOwnerPropertyByToken(token!, propertyCode);
     }
     if (!normalizedPropertyId || normalizedPropertyId === 'new') {
       return of(null);
@@ -191,17 +195,19 @@ export class OwnersService {
     token: string | null | undefined,
     ownerLeadId: number | null | undefined,
     propertyId: string | null | undefined,
-    officeId: number | null | undefined
+    officeId: number | null | undefined,
+    propertyCode?: string | null
   ): Observable<OwnerAgreementContext> {
     if (this.isPublicTokenMode(token)) {
       const scopedPropertyId = propertyId && propertyId !== 'new' ? propertyId : null;
+      const scopedPropertyCode = scopedPropertyId ? null : (String(propertyCode || '').trim() || null);
       return forkJoin({
         organization: this.leadsService.getPublicOwnerOrganizationByToken(token!).pipe(catchError(() => of(null))),
         office: this.leadsService.getPublicOwnerOfficeByToken(token!).pipe(catchError(() => of(null))),
         contact: this.leadsService.getPublicOwnerContactByToken(token!).pipe(catchError(() => of(null))),
         publicForm: this.leadsService.getPublicOwnerFormByToken(token!).pipe(catchError(() => of(null))),
         owner: this.leadsService.getPublicOwnerLeadByToken(token!).pipe(catchError(() => of(null))),
-        property: this.getPropertyByContext(token, scopedPropertyId).pipe(catchError(() => of(null))),
+        property: this.getPropertyByContext(token, scopedPropertyId, scopedPropertyCode).pipe(catchError(() => of(null))),
         propertyAgreement: this.getPropertyAgreementByContext(token, scopedPropertyId).pipe(catchError(() => of(null))),
         agreementInfo: this.getAgreementInformationByContext(token, officeId, scopedPropertyId).pipe(catchError(() => of(null))),
         accountingOffice: this.leadsService.getPublicOwnerAccountingOfficeByToken(token!).pipe(catchError(() => of(null)))
@@ -284,19 +290,32 @@ export class OwnersService {
     return this.accountingOfficeService.ensureAccountingOfficesLoaded();
   }
 
-  getOwnerHtmlByContext(token: string | null | undefined, propertyId: string | null | undefined): Observable<OwnerHtmlResponse | null> {
+  getOwnerHtmlByContext(
+    token: string | null | undefined,
+    propertyId: string | null | undefined,
+    propertyCode?: string | null
+  ): Observable<OwnerHtmlResponse | null> {
+    const normalizedPropertyId = String(propertyId || '').trim();
     if (this.isPublicTokenMode(token)) {
-      return this.leadsService.getPublicOwnerTemplatesByToken(token!);
+      if (normalizedPropertyId && normalizedPropertyId !== 'new') {
+        return this.leadsService.getPublicOwnerTemplatesByPropertyIdAndToken(token!, normalizedPropertyId).pipe(catchError(() => of(null)));
+      }
+      return this.leadsService.getPublicOwnerTemplatesByToken(token!, propertyCode).pipe(catchError(() => of(null)));
     }
-    if (!propertyId || propertyId === 'new') {
+    if (!normalizedPropertyId || normalizedPropertyId === 'new') {
       return of(null);
     }
-    return this.leadsService.getOwnerHtmlByPropertyId(propertyId);
+    return this.leadsService.getOwnerHtmlByPropertyId(normalizedPropertyId).pipe(catchError(() => of(null)));
   }
 
-  getTemplateHtmlByContext(token: string | null | undefined, propertyId: string | null | undefined, templateType: string): Observable<string> {
+  getTemplateHtmlByContext(
+    token: string | null | undefined,
+    propertyId: string | null | undefined,
+    templateType: string,
+    propertyCode?: string | null
+  ): Observable<string> {
     const normalizedTemplateType = String(templateType || '').trim().toLowerCase();
-    return this.getOwnerHtmlByContext(token, propertyId).pipe(
+    return this.getOwnerHtmlByContext(token, propertyId, propertyCode).pipe(
       map(ownerHtml => normalizedTemplateType.includes('deposit')
         ? String(ownerHtml?.directDeposit || '').trim()
         : String(ownerHtml?.ownerAgreement || '').trim())
