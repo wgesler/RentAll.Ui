@@ -10,8 +10,6 @@ import { InvoiceIifExportFieldContext, InvoiceIifExportOptions, InvoiceResponse,
 })
 export class InvoiceIifExportService {
   private static readonly quickBooksNameMaxLength = 41;
-  private static readonly quickBooksAccntMaxLength = 31;
-  private static readonly quickBooksClassMaxLength = 31;
 
   private readonly iifHeaders: string[] = [
     '!TRNS\tTRNSTYPE\tDATE\tACCNT\tNAME\tDOCNUM\tAMOUNT\tCLASS\tMEMO',
@@ -273,11 +271,11 @@ export class InvoiceIifExportService {
   }
 
   formatQuickBooksAccnt(value: string): string {
-    return this.truncateText(this.sanitizeText(value), InvoiceIifExportService.quickBooksAccntMaxLength);
+    return this.sanitizeText(value);
   }
 
   formatQuickBooksClass(value: string): string {
-    return this.truncateText(this.sanitizeText(value), InvoiceIifExportService.quickBooksClassMaxLength);
+    return this.sanitizeText(value);
   }
 
   truncateText(value: string, maxLength: number): string {
