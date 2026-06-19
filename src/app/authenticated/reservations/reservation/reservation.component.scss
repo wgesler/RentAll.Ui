@@ -244,10 +244,29 @@
   }
 }
 
+.reservation-dates-codes-row {
+  align-items: center;
+
+  > mat-form-field,
+  > app-searchable-select {
+    margin-bottom: 0 !important;
+    min-width: 0;
+  }
+
+  > app-searchable-select {
+    display: block;
+    width: 100%;
+
+    ::ng-deep .searchable-select-field.mat-mdc-form-field {
+      margin-bottom: 0 !important;
+    }
+  }
+}
+
 .code-symbol-field {
   ::ng-deep .mat-mdc-text-field-wrapper {
     position: relative;
-    padding-top: 10px !important;
+    overflow: visible;
   }
 
   .code-palette-popout {
