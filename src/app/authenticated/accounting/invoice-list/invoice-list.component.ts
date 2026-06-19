@@ -653,7 +653,7 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
 
     // In Accounting mode, when a company is selected, only show reservations with that company name.
     if (this.source === 'accounting' && this.selectedCompanyContact) {
-      const selectedCompanyName = this.getSelectedCompanyMatchName();
+      const selectedCompanyName = this.normalizeCompanyMatchText(this.selectedCompanyContact.companyName);
       if (selectedCompanyName) {
         filteredReservations = filteredReservations.filter(r =>
           this.normalizeCompanyMatchText(r.companyName) === selectedCompanyName
@@ -1415,30 +1415,10 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
     return String(value || '').trim().toLowerCase();
   }
 
-  getSelectedCompanyMatchName(): string {
-    return this.normalizeCompanyMatchText(this.selectedCompanyContact?.companyName);
-  }
-
   invoiceMatchesSelectedCompany(invoice: InvoiceResponse): boolean {
-    if (!this.selectedCompanyContact) {
-      return true;
-    }
-
-    const selectedCompanyName = this.getSelectedCompanyMatchName();
-    if (!selectedCompanyName) {
-      return false;
-    }
-
-    if (!invoice.reservationId) {
-      return false;
-    }
-
-    const reservation = this.reservations.find(r => r.reservationId === invoice.reservationId);
-    if (!reservation) {
-      return false;
-    }
-
-    return this.normalizeCompanyMatchText(reservation.companyName) === selectedCompanyName;
+    const selectedCompanyName = this.normalizeCompanyMatchText(this.selectedCompanyContact?.companyName);
+    return !!selectedCompanyName
+      && this.normalizeCompanyMatchText(invoice.responsibleParty) === selectedCompanyName;
   }
 
   contactHasOfficeAccess(contact: ContactResponse, officeId: number | null): boolean {
