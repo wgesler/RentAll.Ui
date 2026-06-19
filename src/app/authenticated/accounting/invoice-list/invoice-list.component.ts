@@ -563,8 +563,18 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
       filtered = filtered.filter(invoice => invoice.reservationId === this.selectedReservation!.reservationId);
     }
 
-    if (this.source === 'accounting' && this.selectedCompanyContact) {
-      filtered = filtered.filter(invoice => this.invoiceMatchesSelectedCompany(invoice));
+    if (this.selectedCompanyContact) {
+      const companyName = this.selectedCompanyContact.companyName;
+      const companyContacts = this.companyContacts.filter(contact => contact.isActive && contact.companyName === companyName);
+      const companyContactIds = companyContacts.map(contact => contact.contactId);
+      filtered = filtered.filter(invoice => {
+        const reservation = this.reservations.find(r => r.reservationId === invoice.reservationId);
+        if (!reservation) {
+          return false;
+        }
+        return companyContactIds.includes(reservation.contactId)
+          || companyContacts.some(contact => contact.companyName === reservation.companyName || contact.displayName === reservation.companyName);
+      });
     }
 
     // Map invoices to include expand button data for DataTableComponent
@@ -651,14 +661,14 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
       ? this.reservations.filter(r => r.officeId === this.selectedOffice!.officeId)
       : this.reservations;
 
-    // In Accounting mode, when a company is selected, only show reservations with that company name.
-    if (this.source === 'accounting' && this.selectedCompanyContact) {
-      const selectedCompanyName = this.normalizeCompanyMatchText(this.selectedCompanyContact.companyName);
-      if (selectedCompanyName) {
-        filteredReservations = filteredReservations.filter(r =>
-          this.normalizeCompanyMatchText(r.companyName) === selectedCompanyName
-        );
-      }
+    if (this.selectedCompanyContact) {
+      const companyName = this.selectedCompanyContact.companyName;
+      const companyContacts = this.companyContacts.filter(contact => contact.isActive && contact.companyName === companyName);
+      const companyContactIds = companyContacts.map(contact => contact.contactId);
+      filteredReservations = filteredReservations.filter(reservation =>
+        companyContactIds.includes(reservation.contactId)
+        || companyContacts.some(contact => contact.companyName === reservation.companyName || contact.displayName === reservation.companyName)
+      );
     }
 
     this.availableReservations = filteredReservations.map(r => ({
@@ -1087,8 +1097,8 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
         }
         
         // If a company is selected, re-apply filters now that reservations are loaded
-        // This ensures company filtering works correctly (it depends on reservations to match companyName)
-        if (this.selectedCompanyContact && this.source === 'accounting') {
+        // Re-apply filters once reservations load so company matching can evaluate reservation fields.
+        if (this.selectedCompanyContact) {
           this.applyFilters();
         }
         this.markViewForCheck();
@@ -1409,16 +1419,6 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
 
   isInvoiceFullyPaid(invoice: InvoiceResponse): boolean {
     return this.getInvoiceBalanceDue(invoice) <= 0.005;
-  }
-
-  normalizeCompanyMatchText(value: string | null | undefined): string {
-    return String(value || '').trim().toLowerCase();
-  }
-
-  invoiceMatchesSelectedCompany(invoice: InvoiceResponse): boolean {
-    const selectedCompanyName = this.normalizeCompanyMatchText(this.selectedCompanyContact?.companyName);
-    return !!selectedCompanyName
-      && this.normalizeCompanyMatchText(invoice.responsibleParty) === selectedCompanyName;
   }
 
   contactHasOfficeAccess(contact: ContactResponse, officeId: number | null): boolean {
