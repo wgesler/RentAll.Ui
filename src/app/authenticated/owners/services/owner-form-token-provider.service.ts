@@ -11,7 +11,7 @@ import { OrganizationResponse } from '../../organizations/models/organization.mo
 import { PropertyResponse } from '../../properties/models/property.model';
 import { FORM_TOKEN_PROVIDERS, FormTokenProvider, FormTokenProviderInputs } from '../../shared/forms/services/form-token-provider';
 import { OwnerFormPlaceholderService } from './owner-form-placeholder.service';
-import { OwnersService } from './owners.service';
+import { OwnerAgreementContext, OwnersService } from './owners.service';
 import { OwnerIncludedOwnersService } from './owner-included-owners.service';
 
 @Injectable({
@@ -73,6 +73,21 @@ export class OwnerFormTokenProviderService implements FormTokenProvider {
         });
       })
     );
+  }
+
+  applyTokensFromOwnerAgreementContext(
+    templateHtml: string,
+    inputs: FormTokenProviderInputs,
+    context: OwnerAgreementContext
+  ): string {
+    const contacts = context.ownerContact ? [context.ownerContact] : [];
+    return this.applyOwnerTokens(templateHtml, inputs, {
+      organization: context.organization,
+      offices: context.offices || [],
+      contacts,
+      property: context.property,
+      leadOwner: context.leadOwner
+    });
   }
 
   private applyOwnerTokens(

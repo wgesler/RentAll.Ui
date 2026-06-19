@@ -364,4 +364,60 @@ export class OwnerFormViewModeService {
       || styleId === this.viewModeStyleId
       || styleId === 'owner-agreement-view-mode-style';
   }
+
+  isBrokerageFormContext(
+    formName: string,
+    templatePath?: string | null,
+    templateHtml?: string | null
+  ): boolean {
+    const normalizedName = String(formName || '').trim().toLowerCase();
+    const normalizedPath = String(templatePath || '').trim().toLowerCase();
+    const normalizedHtml = String(templateHtml || '').trim().toLowerCase();
+    return normalizedName.includes('brokerage')
+      || normalizedPath.includes('brokerage')
+      || normalizedHtml.includes('brokerage disclosure to landlord');
+  }
+
+  shouldTreatAsStaticFormRegion(
+    region: HTMLElement,
+    doc: Document,
+    options?: { isBrokerage?: boolean }
+  ): boolean {
+    if (region.classList.contains('checkbox') || region.matches('input[type="checkbox"], input[type="radio"]')) {
+      return true;
+    }
+    if (region.closest(
+      '.approval-note, .relationship-box, .form-header, .static-text, .intro-box, .top-info-lines, .top-info-line, #container .border'
+    )) {
+      return true;
+    }
+    const tag = region.tagName.toLowerCase();
+    if (tag === 'h1' || tag === 'h2' || tag === 'h3') {
+      return true;
+    }
+    const text = String(region.textContent || '').replace(/\s+/g, ' ').trim();
+    if (text.length > 80) {
+      return true;
+    }
+    if (!options?.isBrokerage) {
+      return false;
+    }
+    if (region.offsetTop < 260) {
+      return true;
+    }
+    const computed = doc.defaultView?.getComputedStyle(region);
+    if (!computed) {
+      return false;
+    }
+    const borderTopWidth = Number.parseFloat(computed.borderTopWidth || '0');
+    const borderLeftWidth = Number.parseFloat(computed.borderLeftWidth || '0');
+    const borderRightWidth = Number.parseFloat(computed.borderRightWidth || '0');
+    const hasBoxBorder = computed.borderTopStyle !== 'none'
+      && borderTopWidth > 0
+      && (
+        (computed.borderLeftStyle !== 'none' && borderLeftWidth > 0)
+        || (computed.borderRightStyle !== 'none' && borderRightWidth > 0)
+      );
+    return hasBoxBorder && region.offsetTop < 420;
+  }
 }

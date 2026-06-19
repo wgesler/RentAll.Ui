@@ -24,6 +24,12 @@ import { OwnerAgreementFormComponent } from '../owner-agreement-form/owner-agree
 import { SharedFormEditorComponent } from '../../shared/forms/form-editor/form-editor.component';
 import { SharedFormCreateComponent } from '../../shared/forms/form-create/form-create.component';
 import { OwnerAgreementContext, OwnersService } from '../services/owners.service';
+import {
+  OwnerAuthorization,
+  isOwnerAuthorizedAdmin,
+  isOwnerUnauthorized,
+  resolveOwnerAuthorization
+} from '../models/owner-authorization.model';
 
 @Component({
   standalone: true,
@@ -48,9 +54,11 @@ export class OwnerShellComponent implements OnInit, OnDestroy {
   readonly allStatesCode = 'XX';
   readonly ownerEntityTypeId = EntityType.Owner;
 
-  isOwnerAdmin = false;
+  readonly OwnerAuthorization = OwnerAuthorization;
+  readonly isOwnerUnauthorized = isOwnerUnauthorized;
+
+  ownerAuthorization: OwnerAuthorization = OwnerAuthorization.UnauthorizedOwner;
   isOwnerListMode = false;
-  canAccessInformationTab = false;
   selectedTabIndex = 0;
   token = '';
   leadOwnerId: number | null = null;
@@ -106,9 +114,7 @@ export class OwnerShellComponent implements OnInit, OnDestroy {
   //#region Owner-Shell
   ngOnInit(): void {
     this.navigationContextService.setIsInOwnerMode(false);
-    this.navigationContextService.setIsInUnauthorizedViewMode(false);
-    this.isOwnerAdmin = this.authService.isOwnerAdmin();
-    this.canAccessInformationTab = this.authService.isAdmin();
+    this.applyOwnerAuthorization(resolveOwnerAuthorization({}, this.authService));
     this.selectedTabIndex = 0;
     this.selectedOfficeId = this.globalSelectionService.getSelectedOfficeIdValue();
     this.setupOfficeDropdownReactions();
@@ -127,9 +133,11 @@ export class OwnerShellComponent implements OnInit, OnDestroy {
     this.token = token;
     this.tokenPropertyOffice = String(propertyOffice || '').trim();
     this.loadOffices();
-    const isUnauthorizedViewMode = this.isPublicOwnerTokenContext(token);
-    this.canAccessInformationTab = this.authService.isAdmin() && !this.isOwnerLinkMode();
-    this.navigationContextService.setIsInUnauthorizedViewMode(isUnauthorizedViewMode);
+    this.applyOwnerAuthorization(resolveOwnerAuthorization({
+      token,
+      propertyCode,
+      leadOwnerId: Number.isFinite(leadOwnerId) && leadOwnerId > 0 ? leadOwnerId : null
+    }, this.authService));
     this.resetPropertyDropdownState();
     this.resetStateFormsContext();
 
@@ -144,6 +152,7 @@ export class OwnerShellComponent implements OnInit, OnDestroy {
       this.selectedPropertyId = this.newPropertyOptionValue;
       this.newPropertyCode = String(propertyCode || '').trim().toUpperCase();
       this.refreshOwnerContactIdForContext();
+      this.loadPropertyCodeOptions();
       this.loadStateFormsForContext();
       this.rebuildOwnerAgreementContext();
       return;
@@ -168,6 +177,17 @@ export class OwnerShellComponent implements OnInit, OnDestroy {
     this.navigationContextService.setIsInOwnerMode(false);
   }
 
+  applyOwnerAuthorization(authorization: OwnerAuthorization): void {
+    this.ownerAuthorization = authorization;
+    this.navigationContextService.setOwnerAuthorization(authorization);
+  }
+
+  get canAccessInformationTab(): boolean {
+    return isOwnerAuthorizedAdmin(this.ownerAuthorization)
+      && this.authService.isAdmin()
+      && !this.isOwnerLinkMode();
+  }
+
   tabUsesPropertySelection(tabIndex: number): boolean {
     return tabIndex >= 1;
   }
@@ -177,15 +197,10 @@ export class OwnerShellComponent implements OnInit, OnDestroy {
     if (this.selectedOfficeId == null) {
       return false;
     }
-    if (this.isPublicOwnerTokenContext(this.token)) {
+    if (isOwnerUnauthorized(this.ownerAuthorization)) {
       return true;
     }
     return this.selectedPropertyId !== this.newPropertyOptionValue;
-  }
-
-  isPublicOwnerTokenContext(token: string): boolean {
-    const hasToken = String(token || '').trim().length > 0;
-    return hasToken && !this.authService.getIsLoggedIn();
   }
 
   isOwnerLinkMode(): boolean {
@@ -247,7 +262,7 @@ export class OwnerShellComponent implements OnInit, OnDestroy {
   //#region Office Dropdown
   setupOfficeDropdownReactions(): void {
     this.globalSelectionService.getSelectedOfficeId$().pipe(skip(1), takeUntil(this.destroy$)).subscribe(officeId => {
-      if (this.isOwnerLinkMode() || this.isPublicOwnerTokenContext(this.token)) {
+      if (this.isOwnerLinkMode() || isOwnerUnauthorized(this.ownerAuthorization)) {
         return;
       }
       this.applyOfficeFromGlobal(officeId);
@@ -282,7 +297,7 @@ export class OwnerShellComponent implements OnInit, OnDestroy {
     if (selected) {
       return String(selected.name || '').trim();
     }
-    if (this.isPublicOwnerTokenContext(this.token)) {
+    if (isOwnerUnauthorized(this.ownerAuthorization)) {
       return this.tokenPropertyOffice || '';
     }
     return '';
@@ -468,6 +483,14 @@ export class OwnerShellComponent implements OnInit, OnDestroy {
 
       const routePropertyCode = String(this.newPropertyCode || '').trim().toUpperCase();
       if (routePropertyCode) {
+        if (this.tokenRouteHadPropertyCode) {
+          this.selectedPropertyId = this.newPropertyOptionValue;
+          this.propertyCodeOptions = [{ value: this.newPropertyOptionValue, label: 'New Property' }];
+          this.newPropertyCode = routePropertyCode;
+          this.reloadStateFormsForSelectedProperty();
+          return;
+        }
+
         this.ownersService.getPropertyByContext(token, null).pipe(take(1), catchError(() => of(null))).subscribe(property => {
           const propertyId = String(property?.propertyId || '').trim();
           const propertyCode = String(property?.propertyCode || '').trim().toUpperCase();
@@ -767,7 +790,7 @@ export class OwnerShellComponent implements OnInit, OnDestroy {
 
   ngOnDestroy(): void {
     this.navigationContextService.setIsInOwnerMode(false);
-    this.navigationContextService.setIsInUnauthorizedViewMode(false);
+    this.applyOwnerAuthorization(OwnerAuthorization.UnauthorizedOwner);
     this.officesSubscription?.unsubscribe();
     this.destroy$.next();
     this.destroy$.complete();

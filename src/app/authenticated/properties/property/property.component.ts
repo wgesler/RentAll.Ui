@@ -44,6 +44,11 @@ import { SearchableSelectComponent, SearchableSelectOption } from '../../shared/
 import { UnsavedChangesDialogService } from '../../shared/modals/unsaved-changes/unsaved-changes-dialog.service';
 import { NewContactDialogOptions, NewContactDialogService } from '../../shared/contacts/new-contact-dialog.service';
 import { OwnersService } from '../../owners/services/owners.service';
+import {
+  OwnerAuthorization,
+  isOwnerAuthorizedAdmin,
+  isOwnerUnauthorized
+} from '../../owners/models/owner-authorization.model';
 
 @Component({
     selector: 'app-property',
@@ -95,6 +100,7 @@ export class PropertyComponent implements OnInit, OnChanges, AfterViewInit, OnDe
   @Input() shellOfficeId: number | null = null;
   @Input() shellOrganizationId: string | null = null;
   @Input() publicOwnerToken: string | null = null;
+  @Input() ownerAuthorization: OwnerAuthorization = OwnerAuthorization.UnauthorizedOwner;
   @Output() titleBarContextChange = new EventEmitter<PropertyTitleBarContext>();
   @Output() titleBarPropertyCodeInvalid = new EventEmitter<void>();
   @Output() ownerShellContextChanged = new EventEmitter<void>();
@@ -172,6 +178,29 @@ export class PropertyComponent implements OnInit, OnChanges, AfterViewInit, OnDe
     return this.isInOwnerMode && !this.disableOwnerModeLayout;
   }
 
+  get canShowPropertyAgreement(): boolean {
+    if (!this.propertyId || this.isAddMode) {
+      return false;
+    }
+    if (isOwnerUnauthorized(this.ownerAuthorization) || String(this.publicOwnerToken || '').trim().length > 0) {
+      return false;
+    }
+    if (this.isInOwnerMode) {
+      return isOwnerAuthorizedAdmin(this.ownerAuthorization);
+    }
+    return this.isInAccounting;
+  }
+
+  get canManagePropertyAgreement(): boolean {
+    if (isOwnerUnauthorized(this.ownerAuthorization) || String(this.publicOwnerToken || '').trim().length > 0) {
+      return false;
+    }
+    if (this.isInOwnerMode) {
+      return isOwnerAuthorizedAdmin(this.ownerAuthorization);
+    }
+    return this.isInAccounting;
+  }
+
   //#region Property
   ngOnInit(): void {
     this.navigationContextService.getIsInOwnerMode().pipe(takeUntil(this.destroy$)).subscribe(value => {
@@ -184,7 +213,7 @@ export class PropertyComponent implements OnInit, OnChanges, AfterViewInit, OnDe
     this.organizationId = this.authService.getUser()?.organizationId?.trim() ?? '';
     const initialRouteId = this.route.snapshot.paramMap.get('id');
     if (initialRouteId) {
-      this.expandedSections.agreement = this.isInAccounting;
+      this.expandedSections.agreement = this.canShowPropertyAgreement;
     }
 
     this.loadStates();
@@ -2140,7 +2169,7 @@ export class PropertyComponent implements OnInit, OnChanges, AfterViewInit, OnDe
     this.isServiceError = false;
     this.propertyId = id;
     this.isAddMode = id === 'new';
-    this.expandedSections.agreement = this.isInAccounting;
+    this.expandedSections.agreement = this.canShowPropertyAgreement;
 
     const codeControl = this.form.get('propertyCode');
     if (this.isAddMode) {

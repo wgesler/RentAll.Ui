@@ -87,6 +87,7 @@
                 [officeId]="selectedOfficeId"
                 (closed)="onOwnerLeadFormClosed()"
                 (officeSelectionRequired)="onRentalOfficeSelectionRequired()"
+                (officeChange)="onOfficeDropdownChange($event)"
                 />
             } @else {
               <app-owner-list

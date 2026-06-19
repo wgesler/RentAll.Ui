@@ -39,6 +39,10 @@ import { OwnerDocuSignSignerService } from '../services/owner-docusign-signer.se
 import { OwnerDocuSignSignersDialogService } from '../services/owner-docusign-signers-dialog.service';
 import { OwnerIncludedOwnersService } from '../services/owner-included-owners.service';
 import { OwnerFormViewModeService } from '../services/owner-form-view-mode.service';
+import {
+  OwnerAuthorization,
+  isOwnerAuthorizedAdmin
+} from '../models/owner-authorization.model';
 
 @Component({
   standalone: true,
@@ -49,6 +53,7 @@ import { OwnerFormViewModeService } from '../services/owner-form-view-mode.servi
 })
 export class OwnerAgreementFormComponent extends BaseDocumentComponent implements OnInit, OnChanges, OnDestroy {
   @Input() token: string | null = null;
+  @Input() ownerAuthorization: OwnerAuthorization = OwnerAuthorization.UnauthorizedOwner;
   @Input() ownerLeadId: number | null = null;
   @Input() officeId: number | null = null;
   @Input() propertyId: string | null = null;
@@ -105,6 +110,8 @@ export class OwnerAgreementFormComponent extends BaseDocumentComponent implement
 
   itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['organization', 'offices', 'contacts', 'leadOwner', 'property', 'propertyAgreement', 'agreementInfo', 'accountingOffices']));
   destroy$ = new Subject<void>();
+
+  readonly OwnerAuthorization = OwnerAuthorization;
 
   constructor(
     private fb: FormBuilder,
@@ -220,8 +227,16 @@ export class OwnerAgreementFormComponent extends BaseDocumentComponent implement
     this.pendingOpenInViewMode = true;
   }
 
-  isPublicTokenMode(): boolean {
+  isOwnerLinkTokenMode(): boolean {
     return String(this.token || '').trim().length > 0;
+  }
+
+  get canUseAuthorizedDocumentActions(): boolean {
+    return isOwnerAuthorizedAdmin(this.ownerAuthorization);
+  }
+
+  get canUseAdminDocumentActions(): boolean {
+    return isOwnerAuthorizedAdmin(this.ownerAuthorization);
   }
 
   initializeDataContext(): void {
@@ -230,7 +245,7 @@ export class OwnerAgreementFormComponent extends BaseDocumentComponent implement
       this.loadAllContactsForOwnerNames();
       return;
     }
-    if (this.isPublicTokenMode()) {
+    if (this.isOwnerLinkTokenMode()) {
       this.loadPublicContext();
       return;
     }
@@ -467,7 +482,7 @@ export class OwnerAgreementFormComponent extends BaseDocumentComponent implement
   }
 
   loadOrganization(): void {
-    if (!this.organizationId && !this.isPublicTokenMode()) {
+    if (!this.organizationId && !this.isOwnerLinkTokenMode()) {
       this.organization = null;
       this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'organization');
       this.generatePreviewIfReady();
@@ -585,7 +600,7 @@ export class OwnerAgreementFormComponent extends BaseDocumentComponent implement
   }
 
   private tryLoadPropertyByLeadOwnerCode(): void {
-    if (this.isPublicTokenMode()) {
+    if (this.isOwnerLinkTokenMode()) {
       return;
     }
     if (this.selectedProperty) {
@@ -659,7 +674,7 @@ export class OwnerAgreementFormComponent extends BaseDocumentComponent implement
   }
 
   loadAgreementInformation(): void {
-    if (this.isPublicTokenMode()) {
+    if (this.isOwnerLinkTokenMode()) {
       const token = String(this.token || '').trim();
       if (!token) {
         this.agreementInformation = null;
@@ -971,10 +986,23 @@ export class OwnerAgreementFormComponent extends BaseDocumentComponent implement
       return;
     }
     const isDirectDepositEditor = this.resolveTemplateTypeForLookup(this.templateAssetPath) === 'directDeposit';
+    const isBrokerageEditor = this.ownerFormViewModeService.isBrokerageFormContext(
+      this.documentDisplayName || this.includeLabel,
+      this.templateAssetPath,
+      this.templateHtml
+    );
     this.ensureEditableFieldStyles(editDoc);
     editHost.setAttribute('contenteditable', 'false');
     const staticEditableNodes = Array.from(editHost.querySelectorAll('[contenteditable]')) as HTMLElement[];
     staticEditableNodes.forEach(node => node.setAttribute('contenteditable', 'false'));
+    editHost.querySelectorAll('.owner-editable-field').forEach(node => {
+      const element = node as HTMLElement;
+      if (this.ownerFormViewModeService.shouldTreatAsStaticFormRegion(element, editDoc, { isBrokerage: isBrokerageEditor })) {
+        element.classList.remove('owner-editable-field');
+        element.setAttribute('contenteditable', 'false');
+        this.ownerFormViewModeService.clearEditableFieldAppearance(element);
+      }
+    });
 
     // Keep static form text read-only; only unlock fillable fields/underlines.
     const fillableRegions = Array.from(
@@ -994,7 +1022,9 @@ export class OwnerAgreementFormComponent extends BaseDocumentComponent implement
       )
     ) as HTMLElement[];
 
-    const borderBottomCandidates = Array.from(editHost.querySelectorAll('span, div')) as HTMLElement[];
+    const borderBottomCandidates = isBrokerageEditor
+      ? []
+      : Array.from(editHost.querySelectorAll('span, div')) as HTMLElement[];
     borderBottomCandidates.forEach(candidate => {
       if (candidate.querySelector('input, textarea, select, button')) {
         return;
@@ -1015,6 +1045,9 @@ export class OwnerAgreementFormComponent extends BaseDocumentComponent implement
 
     fillableRegions.forEach(region => {
       if (region.querySelector('input, textarea, select, button')) {
+        return;
+      }
+      if (this.ownerFormViewModeService.shouldTreatAsStaticFormRegion(region, editDoc, { isBrokerage: isBrokerageEditor })) {
         return;
       }
       // Keep top agreement info boxes read-only.

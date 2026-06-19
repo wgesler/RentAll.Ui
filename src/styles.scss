@@ -225,7 +225,7 @@ app-owner-shell .shell-tabs .owner-property-embedded app-property .property-shel
   padding: 0 !important;
 }
 
-/* Tighten seam between embedded Property accordions and Owner-shell inventory accordion. */
+/* Spacing between embedded Property accordions and Owner-shell inventory accordion. */
 app-owner-shell .shell-tabs app-property .info-form.mb-8 {
   margin-bottom: var(--global-accordion-gap) !important;
 }
@@ -236,15 +236,15 @@ app-owner-shell .shell-tabs app-property .info-form {
 }
 
 app-owner-shell .shell-tabs .owner-shell-property-info-form {
-  margin-top: 0 !important;
+  /* Same vertical rhythm as stacked mat-expansion-panels above (no extra gap for hidden Property Agreement). */
+  margin-top: var(--global-accordion-gap) !important;
   padding-top: 0 !important;
   padding-left: 0 !important;
   padding-right: 0 !important;
   box-sizing: border-box;
 }
 
-/* Boundary between embedded Property block and following Owner-shell accordion:
-   use one explicit global accordion gap only. */
+/* Inventory accordion stacks below property panels — gap is on the form above, not duplicated here. */
 app-owner-shell .shell-tabs .owner-shell-property-info-form .owner-shell-accordion {
   margin-top: 0 !important;
 }

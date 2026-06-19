@@ -12,20 +12,18 @@
               [formFieldClass]="'titlebar-field-office'"
               [value]="selectedOfficeId"
               [options]="officeOptionsForDisplay"
-              [disabled]="officeOptionsForDisplay.length === 0 || isPublicOwnerTokenContext(token)"
+              [disabled]="officeOptionsForDisplay.length === 0 || isOwnerUnauthorized(ownerAuthorization)"
               [nullOptionLabel]="'All Offices'"
               [noResultsText]="'No offices match your search'"
               (valueChange)="onOfficeDropdownChange($event)">
             </app-title-bar-select>
-            @if (!isOwnerListMode && (selectedTabIndex >= 1 || isPublicOwnerTokenContext(token))) {
+            @if (!isOwnerListMode && (selectedTabIndex >= 1 || isOwnerUnauthorized(ownerAuthorization))) {
               @if (selectedPropertyId === newPropertyOptionValue) {
                 <mat-form-field appearance="outline" class="titlebar-field-property-code" [class.titlebar-field--error]="propertyCodeTitleBarShowError">
                   <mat-label>Property Code</mat-label>
                   <input
                     matInput
                     [value]="newPropertyCode"
-                    [readonly]="isPublicOwnerTokenContext(token)"
-                    [disabled]="isPublicOwnerTokenContext(token)"
                     (input)="onNewPropertyCodeChange($any($event.target).value)"
                     placeholder="Enter Code"
                     maxlength="20" />
@@ -50,7 +48,7 @@
             }
           </div>
         </div>
-        @if (!isOwnerListMode && !isPublicOwnerTokenContext(token)) {
+        @if (!isOwnerListMode && !isOwnerUnauthorized(ownerAuthorization)) {
           <div class="form-titlebar-actions-wrap uniform-gap">
             <button mat-raised-button type="button" color="accent" class="text-nowrap flex-shrink-0" (click)="onBackToOwnerList()">
               <mat-icon>arrow_back</mat-icon>
@@ -68,6 +66,7 @@
             <mat-tab label="Owners">
               <app-owner-information
                 [token]="token"
+                [ownerAuthorization]="ownerAuthorization"
                 [ownerEntityTypeId]="ownerEntityTypeId"
                 [ownerLeadId]="leadOwnerId"
                 [ownerContactId]="selectedOwnerContactId"
@@ -79,6 +78,7 @@
             <mat-tab label="Properties">
               <app-property-information
                 [token]="token"
+                [ownerAuthorization]="ownerAuthorization"
                 [ownerLeadId]="leadOwnerId"
                 [ownerContactId]="selectedOwnerContactId"
                 [organizationId]="selectedOrganizationId"
@@ -106,6 +106,7 @@
               @if (canMountOwnerAgreementTab()) {
                 <app-owner-agreement-form
                   [token]="token"
+                  [ownerAuthorization]="ownerAuthorization"
                   [ownerLeadId]="leadOwnerId"
                   [officeId]="selectedOfficeId"
                   [propertyId]="selectedPropertyId === newPropertyOptionValue ? null : selectedPropertyId"
@@ -116,6 +117,7 @@
             <mat-tab label="Deposit">
               <app-owner-agreement-form
                 [token]="token"
+                [ownerAuthorization]="ownerAuthorization"
                 [ownerLeadId]="leadOwnerId"
                 [officeId]="selectedOfficeId"
                 [propertyId]="selectedPropertyId === newPropertyOptionValue ? null : selectedPropertyId"
@@ -128,45 +130,36 @@
             </mat-tab>
             @for (stateForm of stateForms; track stateForm.stateFormId) {
               <mat-tab [label]="stateForm.formName">
-                @if (isOwnerAdmin && !isPublicOwnerTokenContext(token)) {
-                  @if (isDynamicFormInViewMode(getDynamicFormKey(stateForm))) {
-                    <app-shared-form-create
-                      [formName]="stateForm.formName"
-                      [formKey]="getDynamicFormKey(stateForm)"
-                      [ownerLeadId]="leadOwnerId"
-                      [officeId]="selectedOfficeId"
-                      [propertyId]="selectedPropertyId === newPropertyOptionValue ? null : selectedPropertyId"
-                      [sourceTemplateHtml]="stateForm.formAsHtml ?? ''"
-                      (displayStateUpdated)="onDynamicFormDisplayStateUpdated(getDynamicFormKey(stateForm), $event)"
-                      (editRequested)="onDynamicFormEditRequested(getDynamicFormKey(stateForm), $event)">
-                    </app-shared-form-create>
-                  } @else {
-                    <app-shared-form-editor
-                      [formName]="stateForm.formName"
-                      [formKey]="getDynamicFormKey(stateForm)"
-                      [ownerLeadId]="leadOwnerId"
-                      [officeId]="selectedOfficeId"
-                      [propertyId]="selectedPropertyId === newPropertyOptionValue ? null : selectedPropertyId"
-                      [reloadVersion]="dynamicFormReloadVersion[getDynamicFormKey(stateForm)] || 0"
-                      [templateHtml]="stateForm.formAsHtml ?? ''"
-                      [restoreProcessedHtml]="getDynamicFormProcessedHtml(stateForm)"
-                      [restoreProcessedStyles]="getDynamicFormProcessedStyles(stateForm)"
-                      (viewRequested)="onDynamicFormViewRequested(getDynamicFormKey(stateForm), $event)">
-                    </app-shared-form-editor>
-                  }
-                } @else {
-                  <app-owner-agreement-form
+                @if (isDynamicFormInViewMode(getDynamicFormKey(stateForm))) {
+                  <app-shared-form-create
                     [token]="token"
+                    [ownerAuthorization]="ownerAuthorization"
+                    [formName]="stateForm.formName"
+                    [formKey]="getDynamicFormKey(stateForm)"
                     [ownerLeadId]="leadOwnerId"
                     [officeId]="selectedOfficeId"
                     [propertyId]="selectedPropertyId === newPropertyOptionValue ? null : selectedPropertyId"
-                    [includeLabel]="stateForm.formName"
-                    [showIncludeControls]="true"
+                    [sourceTemplateHtml]="stateForm.formAsHtml ?? ''"
+                    [sharedContext$]="ownerAgreementContext$"
+                    (displayStateUpdated)="onDynamicFormDisplayStateUpdated(getDynamicFormKey(stateForm), $event)"
+                    (editRequested)="onDynamicFormEditRequested(getDynamicFormKey(stateForm), $event)">
+                  </app-shared-form-create>
+                } @else {
+                  <app-shared-form-editor
+                    [token]="token"
+                    [ownerAuthorization]="ownerAuthorization"
+                    [formName]="stateForm.formName"
+                    [formKey]="getDynamicFormKey(stateForm)"
+                    [ownerLeadId]="leadOwnerId"
+                    [officeId]="selectedOfficeId"
+                    [propertyId]="selectedPropertyId === newPropertyOptionValue ? null : selectedPropertyId"
+                    [reloadVersion]="dynamicFormReloadVersion[getDynamicFormKey(stateForm)] || 0"
                     [templateHtml]="stateForm.formAsHtml ?? ''"
-                    [documentDisplayName]="stateForm.formName"
-                    [documentFileSuffix]="stateForm.formName"
-                    [sharedContext$]="ownerAgreementContext$">
-                  </app-owner-agreement-form>
+                    [restoreProcessedHtml]="getDynamicFormProcessedHtml(stateForm)"
+                    [restoreProcessedStyles]="getDynamicFormProcessedStyles(stateForm)"
+                    [sharedContext$]="ownerAgreementContext$"
+                    (viewRequested)="onDynamicFormViewRequested(getDynamicFormKey(stateForm), $event)">
+                  </app-shared-form-editor>
                 }
               </mat-tab>
             }

@@ -939,7 +939,7 @@
               </mat-expansion-panel>
             }
 
-            @if (isInAccounting && propertyId && !isInOwnerMode) {
+            @if (canShowPropertyAgreement) {
             <mat-expansion-panel [expanded]="expandedSections.agreement" (opened)="onPanelOpened('agreement')" (closed)="onPanelClosed('agreement')" class="mb-4">
               <mat-expansion-panel-header>
                 <mat-panel-title>Property Agreements</mat-panel-title>
@@ -947,7 +947,7 @@
               <app-property-agreement
                 [propertyId]="propertyId"
                 [isAddMode]="isAddMode"
-                [canManageAgreement]="isInAccounting"
+                [canManageAgreement]="canManagePropertyAgreement"
                 [officeId]="sharedPropertyOfficeId"
                 [isFurnished]="!form?.get('unfurnished')?.value"
                 [bedrooms]="form?.get('bedrooms')?.value ?? null"

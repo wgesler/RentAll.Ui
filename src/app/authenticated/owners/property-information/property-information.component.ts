@@ -13,6 +13,7 @@ import { UtilityService } from '../../../services/utility.service';
 import { FormatterService } from '../../../services/formatter-service';
 import { AuthService } from '../../../services/auth.service';
 import { OwnersService } from '../services/owners.service';
+import { OwnerAuthorization, isOwnerUnauthorized } from '../models/owner-authorization.model';
 
 export function buildPropertyInformationPatchFromResponse(response: PublicOwnerFormResponse): Partial<PublicOwnerFormSubmitRequest> {
   return {
@@ -66,7 +67,11 @@ export function buildPropertyInformationPatchFromPropertyInfo(response: Property
   styleUrl: '../owner-shell/owner-shell.component.scss'
 })
 export class PropertyInformationComponent implements OnChanges, OnDestroy {
+  readonly OwnerAuthorization = OwnerAuthorization;
+  readonly isOwnerUnauthorized = isOwnerUnauthorized;
+
   @Input() token = '';
+  @Input() ownerAuthorization: OwnerAuthorization = OwnerAuthorization.UnauthorizedOwner;
   @Input() ownerLeadId: number | null = null;
   @Input() ownerContactId: string | null = null;
   @Input() organizationId: string | null = null;

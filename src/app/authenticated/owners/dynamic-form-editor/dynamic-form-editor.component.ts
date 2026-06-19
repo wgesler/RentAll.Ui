@@ -5,10 +5,13 @@ import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { ToastrService } from 'ngx-toastr';
-import { Subject, take } from 'rxjs';
+import { Observable, of, Subject, take } from 'rxjs';
 import { AuthService } from '../../../services/auth.service';
 import { DocumentHtmlService } from '../../../services/document-html.service';
+import { FormTokenProviderInputs } from '../../shared/forms/services/form-token-provider';
+import { OwnerAuthorization } from '../models/owner-authorization.model';
 import { DynamicFormDraftService } from '../services/dynamic-form-draft.service';
+import { OwnerAgreementContext } from '../services/owners.service';
 import { OwnerFormTokenProviderService } from '../services/owner-form-token-provider.service';
 import { OwnerFormViewModeService } from '../services/owner-form-view-mode.service';
 
@@ -23,6 +26,8 @@ export class DynamicFormEditorComponent implements OnInit, OnChanges, OnDestroy 
 
   @Input() formName = '';
   @Input() formKey = '';
+  @Input() token: string | null = null;
+  @Input() ownerAuthorization: OwnerAuthorization = OwnerAuthorization.UnauthorizedOwner;
   @Input() ownerLeadId: number | null = null;
   @Input() officeId: number | null = null;
   @Input() propertyId: string | null = null;
@@ -32,6 +37,7 @@ export class DynamicFormEditorComponent implements OnInit, OnChanges, OnDestroy 
   @Input() restoreProcessedStyles: string | null = null;
   @Input() tokenContextType = 'owner';
   @Input() reloadVersion = 0;
+  @Input() sharedContext$: Observable<OwnerAgreementContext | null> | null = null;
   @Output() viewRequested = new EventEmitter<string>();
   @ViewChild('editIframe') editIframe?: ElementRef<HTMLIFrameElement>;
 
@@ -41,6 +47,7 @@ export class DynamicFormEditorComponent implements OnInit, OnChanges, OnDestroy 
   baseTemplateHtml = '';
   templateStyles = '';
   iframeKey = 0;
+  private ownerAgreementContext: OwnerAgreementContext | null = null;
 
   destroy$ = new Subject<void>();
 
@@ -57,11 +64,19 @@ export class DynamicFormEditorComponent implements OnInit, OnChanges, OnDestroy 
 
   //#region Dynamic-Form-Editor
   ngOnInit(): void {
+    if (this.sharedContext$) {
+      this.loadFromSharedContext(this.sharedContext$);
+      return;
+    }
     this.loadEditorHtml();
   }
 
   ngOnChanges(changes: SimpleChanges): void {
     const isInitialRender = Object.values(changes).every(change => change.firstChange);
+    if (changes['sharedContext$'] && this.sharedContext$ && !isInitialRender) {
+      this.loadFromSharedContext(this.sharedContext$);
+      return;
+    }
     if (isInitialRender) {
       return;
     }
@@ -79,6 +94,13 @@ export class DynamicFormEditorComponent implements OnInit, OnChanges, OnDestroy 
     ) {
       this.loadEditorHtml();
     }
+  }
+
+  loadFromSharedContext(context$: Observable<OwnerAgreementContext | null>): void {
+    context$.pipe(take(1)).subscribe(context => {
+      this.ownerAgreementContext = context;
+      this.loadEditorHtml();
+    });
   }
 
   saveDraft(): void {
@@ -147,14 +169,7 @@ export class DynamicFormEditorComponent implements OnInit, OnChanges, OnDestroy 
 
     this.isLoading = true;
     this.changeDetectorRef.markForCheck();
-    this.ownerFormTokenProviderService.applyTokens(templateHtml, {
-      formName: this.formName,
-      formKey: this.formKey,
-      ownerLeadId: this.ownerLeadId,
-      officeId: this.officeId,
-      propertyId: this.propertyId,
-      templateAssetPath: this.templateAssetPath
-    }).pipe(take(1)).subscribe({
+    this.applyTokensToTemplate(templateHtml).pipe(take(1)).subscribe({
       next: replacedHtml => {
         this.baseTemplateHtml = replacedHtml || '';
         this.applyInitialEditorHtml();
@@ -168,6 +183,29 @@ export class DynamicFormEditorComponent implements OnInit, OnChanges, OnDestroy 
         this.changeDetectorRef.markForCheck();
       }
     });
+  }
+
+  private getTokenProviderInputs(): FormTokenProviderInputs {
+    return {
+      formName: this.formName,
+      formKey: this.formKey,
+      ownerLeadId: this.ownerLeadId,
+      officeId: this.officeId,
+      propertyId: this.propertyId,
+      templateAssetPath: this.templateAssetPath
+    };
+  }
+
+  private applyTokensToTemplate(templateHtml: string): Observable<string> {
+    const inputs = this.getTokenProviderInputs();
+    if (this.ownerAgreementContext) {
+      return of(this.ownerFormTokenProviderService.applyTokensFromOwnerAgreementContext(
+        templateHtml,
+        inputs,
+        this.ownerAgreementContext
+      ));
+    }
+    return this.ownerFormTokenProviderService.applyTokens(templateHtml, inputs);
   }
 
   applyInitialEditorHtml(): void {
@@ -217,13 +255,25 @@ export class DynamicFormEditorComponent implements OnInit, OnChanges, OnDestroy 
     }
     const normalizedTemplatePath = String(this.templateAssetPath || '').trim().toLowerCase();
     const normalizedFormName = String(this.formName || '').trim().toLowerCase();
-    const isBrokerageEditor = normalizedTemplatePath.includes('brokerage') || normalizedFormName.includes('brokerage');
+    const isBrokerageEditor = this.ownerFormViewModeService.isBrokerageFormContext(
+      this.formName,
+      this.templateAssetPath,
+      this.templateHtml
+    );
     const isW9Editor = normalizedTemplatePath.includes('w9') || normalizedFormName.includes('w9');
     this.ownerFormViewModeService.ensureEditModeStyles(editDoc);
     editHost.classList.toggle('w9-editor-mode', isW9Editor);
     editHost.setAttribute('contenteditable', 'false');
     const staticEditableNodes = Array.from(editHost.querySelectorAll('[contenteditable]')) as HTMLElement[];
     staticEditableNodes.forEach(node => node.setAttribute('contenteditable', 'false'));
+    editHost.querySelectorAll('.owner-editable-field').forEach(node => {
+      const element = node as HTMLElement;
+      if (this.ownerFormViewModeService.shouldTreatAsStaticFormRegion(element, editDoc, { isBrokerage: isBrokerageEditor })) {
+        element.classList.remove('owner-editable-field');
+        element.setAttribute('contenteditable', 'false');
+        this.ownerFormViewModeService.clearEditableFieldAppearance(element);
+      }
+    });
 
     const fillableRegions = Array.from(
       editHost.querySelectorAll(
@@ -254,7 +304,9 @@ export class DynamicFormEditorComponent implements OnInit, OnChanges, OnDestroy 
       )
     ) as HTMLElement[];
 
-    const borderBottomCandidates = Array.from(editHost.querySelectorAll('span, div')) as HTMLElement[];
+    const borderBottomCandidates = isBrokerageEditor
+      ? []
+      : Array.from(editHost.querySelectorAll('span, div')) as HTMLElement[];
     borderBottomCandidates.forEach(candidate => {
       if (candidate.classList.contains('checkbox')) {
         return;
@@ -286,13 +338,8 @@ export class DynamicFormEditorComponent implements OnInit, OnChanges, OnDestroy 
       if (region.querySelector('input, textarea, select, button')) {
         return;
       }
-      if (isBrokerageEditor) {
-        if (region.closest('.approval-note, .relationship-box') || region.tagName.toLowerCase() === 'h1') {
-          return;
-        }
-        if (region.classList.contains('underline') && region.offsetTop < 260) {
-          return;
-        }
+      if (this.ownerFormViewModeService.shouldTreatAsStaticFormRegion(region, editDoc, { isBrokerage: isBrokerageEditor })) {
+        return;
       }
       const nestedFillTarget = region.querySelector(
         '.line, .inline-underline-fill, .signature-line, .signature-entry, .form-line, .field-line, .fill-line, .fill-field, [data-fillable="true"]'
@@ -523,7 +570,11 @@ export class DynamicFormEditorComponent implements OnInit, OnChanges, OnDestroy 
 
   //#region Utility Methods
   getDraftStorageKey(): string {
-    const organizationId = String(this.authService.getUser()?.organizationId || '').trim();
+    const organizationId = String(
+      this.ownerAgreementContext?.organization?.organizationId
+      || this.authService.getUser()?.organizationId
+      || ''
+    ).trim();
     return this.dynamicFormDraftService.buildDraftKey(
       organizationId,
       this.ownerLeadId,

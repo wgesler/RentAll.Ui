@@ -5,10 +5,10 @@
   </div>
 } @else {
 <div class="dbg-band-main">
-  <app-property [shellPropertyId]="shellPropertyId" [shellPropertyCode]="shellPropertyCode" [shellPropertyAddress1]="shellPropertyAddress1" [shellPropertyCity]="shellPropertyCity" [shellPropertyState]="shellPropertyState" [shellPropertyZip]="shellPropertyZip" [ownerPrimaryContactId]="ownerContactId" [shellOfficeId]="selectedOfficeId" [shellOrganizationId]="organizationId" [publicOwnerToken]="token || null" (titleBarPropertyCodeInvalid)="titleBarPropertyCodeInvalid.emit()" (ownerShellContextChanged)="propertyContextChanged.emit()"></app-property>
+  <app-property [shellPropertyId]="shellPropertyId" [shellPropertyCode]="shellPropertyCode" [shellPropertyAddress1]="shellPropertyAddress1" [shellPropertyCity]="shellPropertyCity" [shellPropertyState]="shellPropertyState" [shellPropertyZip]="shellPropertyZip" [ownerPrimaryContactId]="ownerContactId" [shellOfficeId]="selectedOfficeId" [shellOrganizationId]="organizationId" [publicOwnerToken]="token || null" [ownerAuthorization]="ownerAuthorization" (titleBarPropertyCodeInvalid)="titleBarPropertyCodeInvalid.emit()" (ownerShellContextChanged)="propertyContextChanged.emit()"></app-property>
 </div>
 
-<form [formGroup]="ownerForm" class="owner-shell-property-info-form form-standard-grid info-form form-hide-error-text" [class.owner-shell-property-info-form--owner-link]="!!token">
+<form [formGroup]="ownerForm" class="owner-shell-property-info-form form-standard-grid info-form form-hide-error-text">
   <mat-accordion multi="true" class="owner-shell-accordion">
     <mat-expansion-panel [expanded]="false" class="mb-4">
       <mat-expansion-panel-header>

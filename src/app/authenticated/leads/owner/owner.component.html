@@ -159,16 +159,21 @@
         </mat-form-field>
         <mat-form-field appearance="outline" class="min-w-0">
           <mat-label>Property Code</mat-label>
-          <mat-select formControlName="propertyCode" [canSelectNullableOptions]="true" (selectionChange)="onPropertyCodeSelected()">
-            <mat-option [value]="null">Select Property Code</mat-option>
-            @for (property of propertyCodeOptions; track property.propertyCode) {
-              <mat-option [value]="property.propertyCode">{{ property.propertyCode }}</mat-option>
-            }
-          </mat-select>
+          <input
+            matInput
+            formControlName="propertyCode"
+            maxlength="20"
+            placeholder="Enter code"
+            (blur)="onPropertyCodeBlur()" />
         </mat-form-field>
         <mat-form-field appearance="outline" class="min-w-0">
           <mat-label>Property Office</mat-label>
-          <input matInput formControlName="propertyOffice" readonly class="readonly-field" />
+          <mat-select formControlName="propertyOfficeId" [canSelectNullableOptions]="true" (selectionChange)="onPropertyOfficeSelected()">
+            <mat-option [value]="null">Select Office</mat-option>
+            @for (office of offices; track office.officeId) {
+              <mat-option [value]="office.officeId">{{ office.name }}</mat-option>
+            }
+          </mat-select>
         </mat-form-field>
       </div>
       <div class="lead-owner-create-row-contact col-span-12 grid min-w-0 grid-cols-6 form-standard-grid">

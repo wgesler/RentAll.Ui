@@ -194,7 +194,18 @@ export class OwnersService {
     officeId: number | null | undefined
   ): Observable<OwnerAgreementContext> {
     if (this.isPublicTokenMode(token)) {
-      return this.getPublicAgreementContext(token!).pipe(
+      const scopedPropertyId = propertyId && propertyId !== 'new' ? propertyId : null;
+      return forkJoin({
+        organization: this.leadsService.getPublicOwnerOrganizationByToken(token!).pipe(catchError(() => of(null))),
+        office: this.leadsService.getPublicOwnerOfficeByToken(token!).pipe(catchError(() => of(null))),
+        contact: this.leadsService.getPublicOwnerContactByToken(token!).pipe(catchError(() => of(null))),
+        publicForm: this.leadsService.getPublicOwnerFormByToken(token!).pipe(catchError(() => of(null))),
+        owner: this.leadsService.getPublicOwnerLeadByToken(token!).pipe(catchError(() => of(null))),
+        property: this.getPropertyByContext(token, scopedPropertyId).pipe(catchError(() => of(null))),
+        propertyAgreement: this.getPropertyAgreementByContext(token, scopedPropertyId).pipe(catchError(() => of(null))),
+        agreementInfo: this.getAgreementInformationByContext(token, officeId, scopedPropertyId).pipe(catchError(() => of(null))),
+        accountingOffice: this.leadsService.getPublicOwnerAccountingOfficeByToken(token!).pipe(catchError(() => of(null)))
+      }).pipe(
         map(context => ({
           organization: context.organization,
           offices: context.office ? [context.office] : [],

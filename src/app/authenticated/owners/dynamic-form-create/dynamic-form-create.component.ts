@@ -3,7 +3,7 @@ import { ChangeDetectorRef, Component, ElementRef, EventEmitter, Input, OnChange
 import { DomSanitizer, SafeHtml } from '@angular/platform-browser';
 import { Router } from '@angular/router';
 import { ToastrService } from 'ngx-toastr';
-import { BehaviorSubject, Subject, finalize, take, takeUntil } from 'rxjs';
+import { BehaviorSubject, finalize, Observable, Subject, take, takeUntil } from 'rxjs';
 import { RouterUrl } from '../../../app.routes';
 import { CommonMessage } from '../../../enums/common-message.enum';
 import { MaterialModule } from '../../../material.module';
@@ -22,9 +22,11 @@ import { OfficeResponse } from '../../organizations/models/office.model';
 import { OrganizationResponse } from '../../organizations/models/organization.model';
 import { PropertyResponse } from '../../properties/models/property.model';
 import { BaseDocumentComponent, DocumentConfig, EmailConfig } from '../../shared/base-document.component';
+import { FormTokenProviderInputs } from '../../shared/forms/services/form-token-provider';
+import { OwnerAuthorization, isOwnerAuthorizedAdmin } from '../models/owner-authorization.model';
 import { OwnerDocuSignSignerService } from '../services/owner-docusign-signer.service';
 import { OwnerDocuSignSignersDialogService } from '../services/owner-docusign-signers-dialog.service';
-import { OwnersService } from '../services/owners.service';
+import { OwnersService, OwnerAgreementContext } from '../services/owners.service';
 import { OwnerFormTokenProviderService } from '../services/owner-form-token-provider.service';
 import { OwnerFormViewModeService } from '../services/owner-form-view-mode.service';
 
@@ -38,10 +40,13 @@ import { OwnerFormViewModeService } from '../services/owner-form-view-mode.servi
 export class DynamicFormCreateComponent extends BaseDocumentComponent implements OnInit, OnChanges, OnDestroy {
   @Input() formName = '';
   @Input() formKey = '';
+  @Input() token: string | null = null;
+  @Input() ownerAuthorization: OwnerAuthorization = OwnerAuthorization.UnauthorizedOwner;
   @Input() ownerLeadId: number | null = null;
   @Input() officeId: number | null = null;
   @Input() propertyId: string | null = null;
   @Input() sourceTemplateHtml = '';
+  @Input() sharedContext$: Observable<OwnerAgreementContext | null> | null = null;
   @Output() editRequested = new EventEmitter<{ processedHtml: string; processedStyles: string }>();
   @Output() displayStateUpdated = new EventEmitter<{ processedHtml: string; processedStyles: string }>();
   @ViewChild('previewIframe') previewIframe?: ElementRef<HTMLIFrameElement>;
@@ -64,6 +69,11 @@ export class DynamicFormCreateComponent extends BaseDocumentComponent implements
 
   itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set());
   destroy$ = new Subject<void>();
+  private ownerAgreementContext: OwnerAgreementContext | null = null;
+
+  get canShowDocuSignButton(): boolean {
+    return isOwnerAuthorizedAdmin(this.ownerAuthorization) && this.hasDocuSignAccess;
+  }
 
   constructor(
     private ownersService: OwnersService,
@@ -87,11 +97,16 @@ export class DynamicFormCreateComponent extends BaseDocumentComponent implements
 
   //#region Dynamic-Form-Create
   ngOnInit(): void {
-    this.organizationId = String(this.authService.getUser()?.organizationId || '').trim();
     this.itemsToLoad$.pipe(takeUntil(this.destroy$)).subscribe(items => {
       this.isPageReady = items.size === 0;
     });
 
+    if (this.sharedContext$) {
+      this.loadFromSharedContext(this.sharedContext$);
+      return;
+    }
+
+    this.organizationId = String(this.authService.getUser()?.organizationId || '').trim();
     this.loadOrganization();
     this.loadOffices();
     this.loadContacts();
@@ -100,6 +115,11 @@ export class DynamicFormCreateComponent extends BaseDocumentComponent implements
   }
 
   ngOnChanges(changes: SimpleChanges): void {
+    if (changes['sharedContext$'] && this.sharedContext$ && !changes['sharedContext$'].firstChange) {
+      this.loadFromSharedContext(this.sharedContext$);
+      return;
+    }
+
     const officeIdChanged = changes['officeId'] && (changes['officeId'].previousValue !== changes['officeId'].currentValue);
     const propertyIdChanged = changes['propertyId'] && (changes['propertyId'].previousValue !== changes['propertyId'].currentValue);
     if (officeIdChanged) {
@@ -113,27 +133,74 @@ export class DynamicFormCreateComponent extends BaseDocumentComponent implements
     }
   }
 
+  loadFromSharedContext(context$: Observable<OwnerAgreementContext | null>): void {
+    this.itemsToLoad$.next(new Set(['context']));
+    context$.pipe(take(1), finalize(() => {
+      this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'context');
+    })).subscribe({
+      next: context => {
+        this.applySharedContext(context);
+        this.loadDisplayHtml();
+      },
+      error: () => {
+        this.applySharedContext(null);
+        this.loadDisplayHtml();
+      }
+    });
+  }
+
+  applySharedContext(context: OwnerAgreementContext | null): void {
+    this.ownerAgreementContext = context;
+    this.organization = context?.organization || null;
+    this.organizationId = String(context?.organization?.organizationId || '').trim();
+    this.ownerContact = context?.ownerContact || null;
+    this.allContacts = context?.ownerContact ? [context.ownerContact] : [];
+    this.selectedProperty = context?.property || null;
+    this.syncSelectedOfficeFromLoadedOffices(context?.offices || []);
+  }
+
   private loadDisplayHtml(): void {
     const templateHtml = this.getTokenSourceHtml();
     if (!templateHtml) {
       this.processAndSetHtml('');
       return;
     }
+    this.applyDisplayTokens(templateHtml);
+  }
+
+  private applyDisplayTokens(templateHtml: string): void {
     if (!this.htmlNeedsTokenReplacement(templateHtml)) {
       this.processAndSetHtml(templateHtml);
       return;
     }
-    this.ownerFormTokenProviderService.applyTokens(templateHtml, {
+
+    const inputs = this.getTokenProviderInputs();
+    if (this.ownerAgreementContext) {
+      this.processAndSetHtml(
+        this.ownerFormTokenProviderService.applyTokensFromOwnerAgreementContext(
+          templateHtml,
+          inputs,
+          this.ownerAgreementContext
+        )
+      );
+      return;
+    }
+
+    this.ownerFormTokenProviderService.applyTokens(templateHtml, inputs).pipe(take(1)).subscribe({
+      next: html => this.processAndSetHtml(html || ''),
+      error: () => this.processAndSetHtml(templateHtml)
+    });
+  }
+
+  private getTokenProviderInputs(): FormTokenProviderInputs {
+    return {
       formName: this.formName,
       formKey: this.formKey,
       ownerLeadId: this.ownerLeadId,
       officeId: this.officeId,
       propertyId: this.propertyId,
       templateAssetPath: null
-    }).pipe(take(1)).subscribe({
-      next: html => this.processAndSetHtml(html || ''),
-      error: () => this.processAndSetHtml(templateHtml)
-    });
+    };
   }
 
   private getTokenSourceHtml(): string {
@@ -175,7 +242,7 @@ export class DynamicFormCreateComponent extends BaseDocumentComponent implements
     }
     this.isDownloading = true;
     const dto = this.buildGenerateDto();
-    this.ownersService.generateDocumentDownloadByContext(null, dto).pipe(take(1)).subscribe({
+    this.ownersService.generateDocumentDownloadByContext(this.token, dto).pipe(take(1)).subscribe({
       next: blob => {
         this.documentExportService.downloadBlob(blob, dto.fileName);
         this.isDownloading = false;
@@ -195,7 +262,7 @@ export class DynamicFormCreateComponent extends BaseDocumentComponent implements
     }
     this.isSaving = true;
     const dto = this.buildGenerateDto();
-    this.ownersService.saveGeneratedDocumentByContext(null, dto).pipe(take(1)).subscribe({
+    this.ownersService.saveGeneratedDocumentByContext(this.token, dto).pipe(take(1)).subscribe({
       next: () => {
         this.isSaving = false;
         this.toastr.success(`${this.formName || 'Form'} saved successfully`, CommonMessage.Success);

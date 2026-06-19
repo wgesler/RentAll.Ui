@@ -15,6 +15,7 @@ import { CommonMessage } from '../../../enums/common-message.enum';
 import { OWNER_INFORMATION_CURRENCY_CONTROL_NAMES } from '../models/owner-information.model';
 import { UtilityService } from '../../../services/utility.service';
 import { OwnersService } from '../services/owners.service';
+import { OwnerAuthorization } from '../models/owner-authorization.model';
 
 @Component({
   standalone: true,
@@ -25,6 +26,7 @@ import { OwnersService } from '../services/owners.service';
 })
 export class OwnerInformationComponent implements OnInit, OnChanges, OnDestroy {
   @Input() token = '';
+  @Input() ownerAuthorization: OwnerAuthorization = OwnerAuthorization.UnauthorizedOwner;
   @Input() ownerEntityTypeId!: number;
   @Input() ownerLeadId: number | null = null;
   @Input() ownerContactId: string | null = null;
