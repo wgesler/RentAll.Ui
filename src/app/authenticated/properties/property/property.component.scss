@@ -161,10 +161,10 @@
     }
   }
 
-  /* Line 2: 6 code fields, equal columns */
+  /* Line 2: 5 code fields, equal columns */
   .features-code-fields-row {
     display: grid;
-    grid-template-columns: repeat(6, minmax(0, 1fr));
+    grid-template-columns: repeat(5, minmax(0, 1fr));
     gap: 8px 10px;
     align-items: start;
     width: 100%;

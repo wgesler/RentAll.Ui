@@ -751,7 +751,7 @@
                   </mat-form-field>
                 </div>
 
-                <!-- Line 2: 7 codes -->
+                <!-- Line 2: 5 codes -->
                 <div class="features-code-fields-row features-content">
                   <mat-form-field appearance="outline" class="code-symbol-field">
                     <mat-label>Bldg Code</mat-label>
@@ -780,21 +780,6 @@
                         </div>
                       } @else {
                         <button type="button" class="code-palette-trigger" (click)="toggleCodePalette('unitMstrCode', $event)" matTooltip="Amenities symbols" aria-label="Amenities symbols">✨</button>
-                      }
-                    </div>
-                  </mat-form-field>
-                  <mat-form-field appearance="outline" class="code-symbol-field">
-                    <mat-label>Garage Code</mat-label>
-                    <input matInput formControlName="garageCode" maxlength="20">
-                    <div class="code-palette-popout" (click)="$event.stopPropagation()">
-                      @if (codePaletteTargetControl === 'garageCode') {
-                        <div class="code-inline-palette">
-                          <button type="button" class="code-palette-item" (click)="insertCodePaletteSymbol('*', $event)" matTooltip="Insert *">⭐</button>
-                          <button type="button" class="code-palette-item" (click)="insertCodePaletteSymbol('✅', $event)" matTooltip="Insert ✅">✅</button>
-                          <button type="button" class="code-palette-item" (click)="insertCodePaletteSymbol('↩️', $event)" matTooltip="Insert ↩️">↩️</button>
-                        </div>
-                      } @else {
-                        <button type="button" class="code-palette-trigger" (click)="toggleCodePalette('garageCode', $event)" matTooltip="Amenities symbols" aria-label="Amenities symbols">✨</button>
                       }
                     </div>
                   </mat-form-field>

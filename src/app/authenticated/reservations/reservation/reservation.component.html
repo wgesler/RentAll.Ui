@@ -468,8 +468,8 @@
                 </mat-form-field>
               }
 
-              <!-- Line 5: Arrival/Departure/Days/Times/Codes on one row -->
-              <div class="col-span-4 grid grid-cols-7 form-standard-grid min-w-0">
+              <!-- Line 5: Arrival/Departure/Days/Times/Codes on one row (8 columns) -->
+              <div class="col-span-4 grid grid-cols-8 form-standard-grid min-w-0">
                 <mat-form-field appearance="outline">
                   <mat-label>Arrival Date</mat-label>
                   <input matInput [matDatepicker]="arrivalPicker" formControlName="arrivalDate" required>
@@ -535,14 +535,52 @@
                   (valueChange)="onReservationNumberDropdownChange('checkOutTimeId', $event)">
                 </app-searchable-select>
 
-                <mat-form-field appearance="outline">
+                <mat-form-field appearance="outline" class="code-symbol-field">
                   <mat-label>Lock Box Code</mat-label>
-                  <input matInput formControlName="lockBoxCode" maxlength="32">
+                  <input matInput formControlName="lockBoxCode" maxlength="20">
+                  <div class="code-palette-popout" (click)="$event.stopPropagation()">
+                    @if (codePaletteTargetControl === 'lockBoxCode') {
+                      <div class="code-inline-palette">
+                        <button type="button" class="code-palette-item" (click)="insertCodePaletteSymbol('*', $event)" matTooltip="Insert *">⭐</button>
+                        <button type="button" class="code-palette-item" (click)="insertCodePaletteSymbol('✅', $event)" matTooltip="Insert ✅">✅</button>
+                        <button type="button" class="code-palette-item" (click)="insertCodePaletteSymbol('↩️', $event)" matTooltip="Insert ↩️">↩️</button>
+                      </div>
+                    } @else {
+                      <button type="button" class="code-palette-trigger" (click)="toggleCodePalette('lockBoxCode', $event)" matTooltip="Amenities symbols" aria-label="Amenities symbols">✨</button>
+                    }
+                  </div>
                 </mat-form-field>
 
-                <mat-form-field appearance="outline">
+                <mat-form-field appearance="outline" class="code-symbol-field">
                   <mat-label>Unit Tenant Code</mat-label>
-                  <input matInput formControlName="unitTenantCode" maxlength="32">
+                  <input matInput formControlName="unitTenantCode" maxlength="20">
+                  <div class="code-palette-popout" (click)="$event.stopPropagation()">
+                    @if (codePaletteTargetControl === 'unitTenantCode') {
+                      <div class="code-inline-palette">
+                        <button type="button" class="code-palette-item" (click)="insertCodePaletteSymbol('*', $event)" matTooltip="Insert *">⭐</button>
+                        <button type="button" class="code-palette-item" (click)="insertCodePaletteSymbol('✅', $event)" matTooltip="Insert ✅">✅</button>
+                        <button type="button" class="code-palette-item" (click)="insertCodePaletteSymbol('↩️', $event)" matTooltip="Insert ↩️">↩️</button>
+                      </div>
+                    } @else {
+                      <button type="button" class="code-palette-trigger" (click)="toggleCodePalette('unitTenantCode', $event)" matTooltip="Amenities symbols" aria-label="Amenities symbols">✨</button>
+                    }
+                  </div>
+                </mat-form-field>
+
+                <mat-form-field appearance="outline" class="code-symbol-field">
+                  <mat-label>Garage Code</mat-label>
+                  <input matInput formControlName="garageCode" maxlength="20">
+                  <div class="code-palette-popout" (click)="$event.stopPropagation()">
+                    @if (codePaletteTargetControl === 'garageCode') {
+                      <div class="code-inline-palette">
+                        <button type="button" class="code-palette-item" (click)="insertCodePaletteSymbol('*', $event)" matTooltip="Insert *">⭐</button>
+                        <button type="button" class="code-palette-item" (click)="insertCodePaletteSymbol('✅', $event)" matTooltip="Insert ✅">✅</button>
+                        <button type="button" class="code-palette-item" (click)="insertCodePaletteSymbol('↩️', $event)" matTooltip="Insert ↩️">↩️</button>
+                      </div>
+                    } @else {
+                      <button type="button" class="code-palette-trigger" (click)="toggleCodePalette('garageCode', $event)" matTooltip="Amenities symbols" aria-label="Amenities symbols">✨</button>
+                    }
+                  </div>
                 </mat-form-field>
               </div>
                 </div>

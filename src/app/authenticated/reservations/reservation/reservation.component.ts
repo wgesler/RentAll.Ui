@@ -119,6 +119,7 @@ export class ReservationComponent implements OnInit, OnDestroy, CanComponentDeac
   availableChargeCostCodes: { value: number, label: string }[] = [];
   noneAgentOptionValue = '__none_agent__';
   noneAssignedMaidOptionValue = '__none_assigned_maid__';
+  codePaletteTargetControl: string | null = null;
   savedFormState: Record<string, unknown> | null = null;
   savedExtraFeeLinesState: ExtraFeeLineDisplay[] = [];
   syncingStayDayFields = false;
@@ -711,6 +712,7 @@ export class ReservationComponent implements OnInit, OnDestroy, CanComponentDeac
       checkOutTimeId: new FormControl<number>(CheckoutTimes.ElevenAM, [Validators.required]),
       lockBoxCode: new FormControl(''),
       unitTenantCode: new FormControl(''),
+      garageCode: new FormControl(''),
       billingTypeId: new FormControl(BillingType.Monthly, [Validators.required]),
       billingMethodId: new FormControl(BillingMethod.Invoice, [Validators.required]),
       prorateTypeId: new FormControl<number | null>(ProrateType.FirstMonth),
@@ -779,6 +781,7 @@ export class ReservationComponent implements OnInit, OnDestroy, CanComponentDeac
       checkOutTimeId: normalizeCheckOutTimeId(formValue['checkOutTimeId'] as number | null | undefined),
       lockBoxCode: (formValue['lockBoxCode'] as string | null | undefined) || null,
       unitTenantCode: (formValue['unitTenantCode'] as string | null | undefined) || null,
+      garageCode: (formValue['garageCode'] as string | null | undefined) || null,
       billingTypeId: (formValue['billingTypeId'] as number | null | undefined) ?? BillingType.Monthly,
       billingMethodId: (formValue['billingMethodId'] as number | null | undefined) ?? BillingMethod.Invoice,
       prorateTypeId: formValue['prorateTypeId'] !== null && formValue['prorateTypeId'] !== undefined
@@ -856,6 +859,7 @@ export class ReservationComponent implements OnInit, OnDestroy, CanComponentDeac
       checkOutTimeId: this.reservation.checkOutTimeId,
       lockBoxCode: this.reservation.lockBoxCode || '',
       unitTenantCode: this.reservation.unitTenantCode || '',
+      garageCode: this.reservation.garageCode || '',
       billingTypeId: this.reservation.billingTypeId ?? BillingType.Monthly,
       billingMethodId: this.reservation.billingMethodId ?? BillingMethod.Invoice,
       prorateTypeId: this.reservation.prorateTypeId ?? null,
@@ -986,6 +990,7 @@ export class ReservationComponent implements OnInit, OnDestroy, CanComponentDeac
       checkOutTimeId: source.checkOutTimeId,
       lockBoxCode: source.lockBoxCode || '',
       unitTenantCode: source.unitTenantCode || '',
+      garageCode: source.garageCode || '',
       billingTypeId: source.billingTypeId ?? BillingType.Monthly,
       billingMethodId: source.billingMethodId ?? BillingMethod.Invoice,
       prorateTypeId: source.prorateTypeId ?? null,
@@ -3199,6 +3204,43 @@ export class ReservationComponent implements OnInit, OnDestroy, CanComponentDeac
 
   canDeactivate(): Promise<boolean> | boolean {
     return this.confirmNavigationWithUnsavedChanges();
+  }
+
+  quickInsertCodeSymbol(controlName: string, symbol: string): void {
+    const codeControl = this.form.get(controlName);
+    if (!codeControl) {
+      return;
+    }
+
+    const currentValue = String(codeControl.value ?? '');
+    const nextValue = `${currentValue}${symbol}`.slice(0, 20);
+    codeControl.setValue(nextValue);
+    codeControl.markAsDirty();
+    codeControl.markAsTouched();
+  }
+
+  toggleCodePalette(controlName: string, event: Event): void {
+    event.stopPropagation();
+    this.codePaletteTargetControl = this.codePaletteTargetControl === controlName ? null : controlName;
+  }
+
+  insertCodePaletteSymbol(symbol: string, event?: Event): void {
+    event?.stopPropagation();
+    if (!this.codePaletteTargetControl) {
+      return;
+    }
+
+    this.quickInsertCodeSymbol(this.codePaletteTargetControl, symbol);
+    this.clearCodePaletteTarget();
+  }
+
+  clearCodePaletteTarget(): void {
+    this.codePaletteTargetControl = null;
+  }
+
+  @HostListener('document:click')
+  onDocumentClick(): void {
+    this.clearCodePaletteTarget();
   }
 
   ngOnDestroy(): void {

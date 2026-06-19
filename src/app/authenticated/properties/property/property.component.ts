@@ -700,7 +700,7 @@ export class PropertyComponent implements OnInit, OnChanges, AfterViewInit, OnDe
       'address2', 'suite', 'communityAddress', 'neighborhood', 'crossStreet',
       'view', 'mailbox', 'amenities', 'alarmCode',
       'unitMstrCode', 'bldgMstrCode', 'bldgTenantCode',
-      'mailRoomCode', 'garageCode', 'trashRemoval', 'description', 'internetNetwork', 'internetPassword'
+      'mailRoomCode', 'trashRemoval', 'description', 'internetNetwork', 'internetPassword'
     ];
     optionalStringFields.forEach(field => {
       const raw = formValue[field as string];
@@ -815,7 +815,6 @@ export class PropertyComponent implements OnInit, OnChanges, AfterViewInit, OnDe
       bldgMstrCode: new FormControl(''),
       bldgTenantCode: new FormControl(''),
       mailRoomCode: new FormControl(''),
-      garageCode: new FormControl(''),
       gateCode: new FormControl(''),
       trashCode: new FormControl(''),
       storageCode: new FormControl(''),
@@ -904,7 +903,7 @@ export class PropertyComponent implements OnInit, OnChanges, AfterViewInit, OnDe
       // Handle string fields that might be null/undefined - convert to empty strings
       const stringFields = ['address2', 'suite', 'communityAddress', 'bldgNo', 'neighborhood', 'crossStreet', 'view',
                            'trashRemoval', 'amenities', 'alarmCode', 'unitMstrCode', 'unitTenantCode',
-                           'bldgMstrCode', 'bldgTenantCode', 'mailRoomCode', 'garageCode',
+                           'bldgMstrCode', 'bldgTenantCode', 'mailRoomCode',
                            'gateCode', 'trashCode', 'storageCode',
                            'mailbox', 'description', 'notes', 'poundLimit'];
       stringFields.forEach(field => {

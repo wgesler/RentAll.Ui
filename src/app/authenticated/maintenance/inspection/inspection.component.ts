@@ -2579,7 +2579,6 @@ export class InspectionComponent implements OnChanges, OnDestroy, OnInit {
       this.property?.bldgMstrCode,
       this.property?.bldgTenantCode,
       this.property?.mailRoomCode,
-      this.property?.garageCode,
       this.property?.gateCode,
       this.property?.trashCode,
       this.property?.storageCode

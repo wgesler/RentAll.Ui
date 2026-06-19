@@ -25,6 +25,7 @@ export interface ReservationRequest {
   maidUserId?: string | null;
   lockBoxCode?: string | null;
   unitTenantCode?: string | null;
+  garageCode?: string | null;
   currentInvoiceNo: number;
   billingMethodId: number;
   prorateTypeId: number;
@@ -87,6 +88,7 @@ export interface ReservationResponse {
   maidUserId?: string | null;
   lockBoxCode?: string | null;
   unitTenantCode?: string | null;
+  garageCode?: string | null;
   currentInvoiceNo: number;
   billingMethodId: number;
   prorateTypeId: number;

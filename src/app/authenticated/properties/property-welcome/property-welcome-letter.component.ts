@@ -610,6 +610,7 @@ export class PropertyWelcomeLetterComponent extends BaseDocumentComponent implem
       result = this.applyOptionalCodePlaceholder(result, 'lockBoxCode', this.selectedReservation.lockBoxCode);
       result = this.applyOptionalCodePlaceholder(result, 'unitAccessCode', this.selectedReservation.unitTenantCode);
       result = this.applyOptionalCodePlaceholder(result, 'unitTenantCode', this.selectedReservation.unitTenantCode);
+      result = this.applyOptionalCodePlaceholder(result, 'garageCode', this.selectedReservation.garageCode);
     }
 
     if (this.property) {
@@ -627,7 +628,6 @@ export class PropertyWelcomeLetterComponent extends BaseDocumentComponent implem
       result = result.replace(/\{\{amenities\}\}/g, this.property.amenities || '');
       result = this.applyOptionalCodePlaceholder(result, 'alarmCode', this.property.alarmCode);
       result = this.applyOptionalCodePlaceholder(result, 'bldgcode', this.property.bldgMstrCode);
-      result = this.applyOptionalCodePlaceholder(result, 'garageCode', this.property.garageCode);
       result = this.applyOptionalCodePlaceholder(result, 'gateCode', this.property.gateCode);
       result = this.applyOptionalCodePlaceholder(result, 'trashCode', this.property.trashCode);
       result = this.applyOptionalCodePlaceholder(result, 'mailcode', this.property.mailRoomCode);

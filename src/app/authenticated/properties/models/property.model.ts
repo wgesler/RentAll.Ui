@@ -82,7 +82,6 @@ export interface PropertyRequest {
   bldgMstrCode?: string | null;
   bldgTenantCode?: string | null;
   mailRoomCode?: string | null;
-  garageCode?: string | null;
   gateCode?: string | null;
   trashCode?: string | null;
   storageCode?: string | null;
@@ -228,7 +227,6 @@ export interface PropertyResponse {
   bldgMstrCode?: string | null;
   bldgTenantCode?: string | null;
   mailRoomCode?: string | null;
-  garageCode?: string | null;
   gateCode?: string | null;
   trashCode?: string | null;
   storageCode?: string | null;
