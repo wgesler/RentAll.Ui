@@ -27,8 +27,8 @@ import { ChartOfAccountsService } from '../../accounting/services/chart-of-accou
 import { CostCodesService } from '../../accounting/services/cost-codes.service';
 import { InvoiceService } from '../../accounting/services/invoice.service';
 import { PropertyAgreementResponse } from '../../properties/models/property-agreement.model';
-import { getWorkOrderTypes, WorkOrderType } from '../models/maintenance-enums';
-import { ReceiptRequest, ReceiptResponse, ReceiptSelection } from '../models/receipt.model';
+import { getWorkOrderTypes, ReceiptType, WorkOrderType } from '../models/maintenance-enums';
+import { ReceiptRequest, ReceiptResponse, ReceiptSelection, Split } from '../models/receipt.model';
 import { ReceiptSplitOption, WorkOrderItemEditable, WorkOrderItemRequest, WorkOrderItemResponse, WorkOrderItemSnapshot, WorkOrderRequest, WorkOrderResponse } from '../models/work-order.model';
 import { WorkOrderAmountService } from '../services/work-order-amount.service';
 import { ReceiptService } from '../services/receipt.service';
@@ -261,7 +261,7 @@ export class WorkOrderComponent implements OnInit, OnChanges, OnDestroy {
       applyMarkup: this.isOwnerTypeSelected() ? (this.form.get('applyMarkup')?.value === true) : false,
       reservationId: this.isTenantTypeSelected() ? (this.form.get('reservationId')?.value ?? null) : null,
       reservationCode: this.isTenantTypeSelected() ? this.getSelectedReservationCode() : null,
-      useDepartureFee: this.isTenantTypeSelected() ? (this.form.get('useDepartureFee')?.value === true) : false,
+      useDepartureFee: this.getUseDepartureFeeForSave(),
       enteredInQb: this.form.get('enteredInQb')?.value === true,
       description: (this.form.get('description')?.value ?? '').trim(),
       workOrderItems: workOrderItemsForSave,
@@ -345,6 +345,8 @@ export class WorkOrderComponent implements OnInit, OnChanges, OnDestroy {
         if (this.isAddMode) {
           this.syncReceiptAmounts();
         }
+        this.hydrateReceiptSplitKeysFromLoadedReceipts();
+        this.syncUseDepartureFeeFromItems();
         this.hasUserEditedWorkOrder = false;
         this.captureInitialWorkOrderItemsSnapshot();
         this.savedEvent.emit(saved);
@@ -389,8 +391,7 @@ export class WorkOrderComponent implements OnInit, OnChanges, OnDestroy {
 
   saveWorkOrderAsInvoice(workOrder: WorkOrderResponse, totalAmount: number): void {
     const workOrderTypeId = Number(this.form.get('workOrderTypeId')?.value ?? -1);
-    const useDepartureFee = this.form.get('useDepartureFee')?.value === true;
-    if (workOrderTypeId !== WorkOrderType.Tenant || useDepartureFee) {
+    if (workOrderTypeId !== WorkOrderType.Tenant || workOrder.useDepartureFee) {
       return;
     }
     
@@ -528,6 +529,7 @@ export class WorkOrderComponent implements OnInit, OnChanges, OnDestroy {
     this.lastMarkupFactor = this.getMarkupFactor();
     this.hasUserEditedWorkOrder = false;
     this.captureInitialWorkOrderItemsSnapshot();
+    this.syncUseDepartureFeeFromItems();
   }
 
   isInventoryItemSelected(item: WorkOrderItemEditable): boolean {
@@ -546,20 +548,72 @@ export class WorkOrderComponent implements OnInit, OnChanges, OnDestroy {
     return Number(this.form.get('workOrderTypeId')?.value ?? -1) !== WorkOrderType.Organization;
   }
 
+  getUseDepartureFeeForSave(): boolean {
+    return this.isTenantTypeSelected() && this.workOrderItemsHasDepartureReceiptSplit();
+  }
+
+  workOrderItemsHasDepartureReceiptSplit(): boolean {
+    return this.workOrderItems.some(item => {
+      if (item.itemSource !== 'receipt' || !item.receiptSplitKey) {
+        return false;
+      }
+      return this.getReceiptTypeIdForSplitKey(item.receiptSplitKey) === ReceiptType.Departure;
+    });
+  }
+
+  getReceiptTypeIdForSplitKey(splitKey: string | null | undefined): number | null {
+    const parsed = this.parseSplitKey(splitKey || '');
+    if (!parsed) {
+      return null;
+    }
+
+    const receipt = this.propertyReceipts.find(r => r.receiptId === parsed.receiptId);
+    if (!receipt) {
+      return null;
+    }
+
+    const splits: Split[] = receipt.splits?.length
+      ? receipt.splits
+      : [{ receiptTypeId: ReceiptType.Tenant, amount: 0, description: '' }];
+
+    if (parsed.receiptSplitId != null) {
+      const split = splits.find(s => Number(s.receiptSplitId) === parsed.receiptSplitId);
+      return split == null ? null : Number(split.receiptTypeId);
+    }
+
+    if (parsed.splitIndex != null && parsed.splitIndex >= 0 && parsed.splitIndex < splits.length) {
+      return Number(splits[parsed.splitIndex].receiptTypeId);
+    }
+
+    return null;
+  }
+
+  syncUseDepartureFeeFromItems(): void {
+    const useDepartureFeeControl = this.form.get('useDepartureFee');
+    if (!useDepartureFeeControl) {
+      return;
+    }
+
+    if (!this.isTenantTypeSelected()) {
+      useDepartureFeeControl.setValue(false, { emitEvent: false });
+      useDepartureFeeControl.enable({ emitEvent: false });
+      return;
+    }
+
+    useDepartureFeeControl.setValue(this.workOrderItemsHasDepartureReceiptSplit(), { emitEvent: false });
+    useDepartureFeeControl.disable({ emitEvent: false });
+  }
+
   onWorkOrderTypeChanged(typeId: number | null | undefined, skipItemRecalculation: boolean = false): void {
     this.updateReservationRequirementByType(typeId);
-    const isTenant = Number(typeId) === WorkOrderType.Tenant;
     const isOwner = Number(typeId) === WorkOrderType.Owner;
     const applyMarkupControl = this.form.get('applyMarkup');
-    const useDepartureFeeControl = this.form.get('useDepartureFee');
     if (this.isAddMode) {
       applyMarkupControl?.setValue(isOwner, { emitEvent: false });
     } else if (!isOwner) {
       applyMarkupControl?.setValue(false, { emitEvent: false });
     }
-    if (!isTenant) {
-      useDepartureFeeControl?.setValue(false, { emitEvent: false });
-    }
+    this.syncUseDepartureFeeFromItems();
     if (!skipItemRecalculation) {
       this.reapplyMarkupToCurrentItems(true);
     }
@@ -671,6 +725,8 @@ export class WorkOrderComponent implements OnInit, OnChanges, OnDestroy {
         usedSplitKeys.add(splitKey);
       }
     });
+
+    this.syncUseDepartureFeeFromItems();
   }
 
   onPrimaryAction(): void {
@@ -750,6 +806,7 @@ export class WorkOrderComponent implements OnInit, OnChanges, OnDestroy {
     if (index >= 0 && index < this.workOrderItems.length) {
       this.workOrderItems.splice(index, 1);
     }
+    this.syncUseDepartureFeeFromItems();
   }
 
   updateWorkOrderItemField(index: number, field: keyof WorkOrderItemEditable, value: number | string | null): void {
@@ -786,6 +843,7 @@ export class WorkOrderComponent implements OnInit, OnChanges, OnDestroy {
       item.receiptId = null;
       item.receiptSplitKey = null;
       item.receiptAmount = 0;
+      this.syncUseDepartureFeeFromItems();
       return;
     }
 
@@ -802,6 +860,7 @@ export class WorkOrderComponent implements OnInit, OnChanges, OnDestroy {
     if (splitOption?.description) {
       this.updateWorkOrderItemField(itemIndex, 'description', splitOption.description);
     }
+    this.syncUseDepartureFeeFromItems();
   }
 
   getReceiptSelectionValue(item: WorkOrderItemEditable): number | string {
@@ -1002,7 +1061,7 @@ export class WorkOrderComponent implements OnInit, OnChanges, OnDestroy {
       applyMarkup: this.isOwnerTypeSelected() ? (this.form.get('applyMarkup')?.value === true) : false,
       reservationId: this.isTenantTypeSelected() ? (this.form.get('reservationId')?.value ?? null) : null,
       reservationCode: this.isTenantTypeSelected() ? this.getSelectedReservationCode() : null,
-      useDepartureFee: this.isTenantTypeSelected() ? (this.form.get('useDepartureFee')?.value === true) : false,
+      useDepartureFee: this.getUseDepartureFeeForSave(),
       enteredInQb: this.form.get('enteredInQb')?.value === true,
       description: (this.form.get('description')?.value ?? '').trim(),
       workOrderItems: this.mapWorkOrderItemsForSave(false),
@@ -1088,9 +1147,7 @@ export class WorkOrderComponent implements OnInit, OnChanges, OnDestroy {
     const workOrderDescription = this.normalizeComparableString(this.workOrder.description) ?? '';
     const payloadWorkOrderDate = this.normalizeComparableString(payload.workOrderDate) ?? '';
     const workOrderWorkOrderDate = this.normalizeComparableString(this.normalizeWorkOrderDate(this.workOrder.workOrderDate)) ?? '';
-    const useDepartureFeeMismatch = this.isTenantTypeSelected()
-      ? (payload.useDepartureFee !== (this.workOrder.useDepartureFee === true))
-      : false;
+    const useDepartureFeeMismatch = this.getUseDepartureFeeForSave() !== (this.workOrder.useDepartureFee === true);
 
     return (
       payloadWorkOrderDate !== workOrderWorkOrderDate ||
@@ -1651,6 +1708,7 @@ export class WorkOrderComponent implements OnInit, OnChanges, OnDestroy {
           splitIndex: index,
           amount,
           description,
+          receiptTypeId: Number(split.receiptTypeId) || 0,
           workOrderId: (split.workOrderId || '').toString().trim() || null,
           workOrder: this.getSplitWorkOrder(split),
           label: `${receipt.receiptCode}: ${displayDescription} - $${this.formatter.currency(amount)}`

@@ -31,7 +31,8 @@ export function getWorkOrderTypes(): { value: number; label: string }[] {
 export enum ReceiptType {
   Tenant = 0,
   Owner = 1,
-  Organization = 2
+  Organization = 2,
+  Departure = 3
 }
 
 export function getReceiptType(receiptTypeId: number | undefined | null): string {
@@ -40,7 +41,8 @@ export function getReceiptType(receiptTypeId: number | undefined | null): string
   const typeMap: { [key: number]: string } = {
     [ReceiptType.Tenant]: 'Tenant',
     [ReceiptType.Owner]: 'Owner',
-    [ReceiptType.Organization]: 'Organization'
+    [ReceiptType.Organization]: 'Organization',
+    [ReceiptType.Departure]: 'Tenant (Out of Dept)'
   };
 
   return typeMap[receiptTypeId] || '';

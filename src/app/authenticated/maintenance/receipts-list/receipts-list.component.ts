@@ -958,7 +958,9 @@ export class ReceiptsListComponent implements OnInit, OnChanges, OnDestroy {
       ...request,
       officeIds: this.resolveMaintenanceSearchOfficeIds(request),
       includeInactive: this.showInactive,
-      propertyId: request.propertyId ?? this.property?.propertyId ?? null,
+      propertyId: this.embeddedInMaintenance
+        ? (request.propertyId ?? null)
+        : (request.propertyId ?? this.property?.propertyId ?? null),
       receiptKind: this.resolveReceiptKindForSearch()
     };
   }

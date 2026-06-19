@@ -710,6 +710,8 @@ export class MaintenanceShellComponent implements OnInit, OnDestroy, CanComponen
     this.titleBarReservationId = null;
     this.shellReservations = [];
     this.updateAvailableProperties();
+    this.syncMaintenanceSearchRequests();
+    this.refreshReceiptsTrigger++;
   }
 
   onReceiptSaved(): void {
@@ -721,6 +723,8 @@ export class MaintenanceShellComponent implements OnInit, OnDestroy, CanComponen
     this.titleBarReservationId = null;
     this.shellReservations = [];
     this.updateAvailableProperties();
+    this.syncMaintenanceSearchRequests();
+    this.refreshReceiptsTrigger++;
   }
 
   onReceiptSaveValidationAttempted(): void {

@@ -60,6 +60,10 @@
 
 .work-order-use-departure-fee-checkbox {
   white-space: nowrap;
+
+  &.mat-mdc-checkbox-disabled {
+    opacity: 0.72;
+  }
 }
 
 .work-order-apply-markup-checkbox {
