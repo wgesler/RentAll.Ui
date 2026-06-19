@@ -19,10 +19,67 @@ export class InvoiceHtmlBuilderService {
     private documentHtmlService: DocumentHtmlService
   ) {}
 
+  private readonly chargesTableLayoutStyles = `
+    .charges-table {
+      table-layout: fixed;
+    }
+
+    .charges-table .col-date {
+      width: 11ch;
+    }
+
+    .charges-table .col-amount {
+      width: 12ch;
+    }
+
+    .charges-table th.amount-col,
+    .charges-table td.amount-col {
+      width: 12ch;
+      min-width: 12ch;
+      max-width: 12ch;
+      padding: 8px 8px 8px 4px;
+      text-align: right;
+      box-sizing: border-box;
+      white-space: nowrap;
+    }
+
+    .charges-table .ledger-line-row td.amount-col {
+      padding-right: 10px;
+    }
+
+    .charges-table .subtotal-row td.invoice-summary-cell {
+      text-align: right;
+      padding: 8px;
+    }
+  `;
+
   buildProcessedPreview(templateHtml: string, ctx: InvoicePrintContext): { processedHtml: string; extractedStyles: string } {
     const processedHtml = this.replacePlaceholders(templateHtml, ctx);
     const normalized = this.normalizeInvoiceLayoutHtml(processedHtml);
-    return this.documentHtmlService.processHtml(normalized, true);
+    const { processedHtml: html, extractedStyles } = this.documentHtmlService.processHtml(normalized, true);
+    return {
+      processedHtml: html,
+      extractedStyles: this.ensureChargesTableStyles(extractedStyles)
+    };
+  }
+
+  isLegacyInvoiceTemplate(html: string): boolean {
+    return !/rentall-row-client/i.test(String(html || ''));
+  }
+
+  resolveInvoiceTemplateHtml(propertyInvoiceHtml: string | null | undefined, canonicalInvoiceHtml: string): string {
+    const property = String(propertyInvoiceHtml || '').trim();
+    const canonical = String(canonicalInvoiceHtml || '').trim();
+
+    if (!property) {
+      return canonical;
+    }
+
+    if (this.isLegacyInvoiceTemplate(property) && canonical) {
+      return canonical;
+    }
+
+    return property;
   }
 
   replacePlaceholders(html: string, ctx: InvoicePrintContext): string {
@@ -378,18 +435,18 @@ export class InvoiceHtmlBuilderService {
     let result = this.tagInvoiceFooterDiagnostics(this.tagInvoiceHeaderDiagnostics(html));
 
     if (/rentall-row-client/i.test(result)) {
-      return result;
+      return this.normalizeChargesTableHtml(result);
     }
 
     const containerBounds = this.findContainerTableBounds(result);
     if (!containerBounds) {
-      return result;
+      return this.normalizeChargesTableHtml(result);
     }
 
     const containerHtml = result.substring(containerBounds.start, containerBounds.end);
     const tbodyMatch = containerHtml.match(/<tbody[^>]*>([\s\S]*)<\/tbody>/i);
     if (!tbodyMatch) {
-      return result;
+      return this.normalizeChargesTableHtml(result);
     }
 
     let rows = this.extractDirectTbodyRows(tbodyMatch[1]).filter((row) => !/rentall-section-gap/i.test(row));
@@ -426,7 +483,61 @@ export class InvoiceHtmlBuilderService {
       /<tbody[^>]*>[\s\S]*<\/tbody>/i,
       `<tbody>${rows.join('')}</tbody>`
     );
-    return result.substring(0, containerBounds.start) + rebuiltContainer + result.substring(containerBounds.end);
+    return this.normalizeChargesTableHtml(
+      result.substring(0, containerBounds.start) + rebuiltContainer + result.substring(containerBounds.end)
+    );
+  }
+
+  normalizeChargesTableHtml(html: string): string {
+    if (!html) {
+      return html;
+    }
+
+    let result = html;
+
+    result = result.replace(
+      /<tr class="subtotal-row([^"]*)"([^>]*)>\s*<td colspan="2" class="text-right">([\s\S]*?)<\/td>\s*<td class="text-right">([\s\S]*?)<\/td>\s*<\/tr>/gi,
+      '<tr class="subtotal-row$1"$2><td></td><td class="invoice-summary-cell">$3</td><td class="amount-col">$4</td></tr>'
+    );
+
+    if (/<table class="charges-table">[\s\S]*?<colgroup>/i.test(result)) {
+      return result;
+    }
+
+    result = result.replace(
+      /<table class="charges-table">\s*<thead>/gi,
+      `<table class="charges-table">
+              <colgroup>
+                <col class="col-date">
+                <col class="col-description">
+                <col class="col-amount">
+              </colgroup>
+              <thead>`
+    );
+
+    result = result.replace(
+      /<table class="charges-table">(\s*)<tbody>/gi,
+      `<table class="charges-table">$1<colgroup>
+                <col class="col-date">
+                <col class="col-description">
+                <col class="col-amount">
+              </colgroup>$1<tbody>`
+    );
+
+    result = result.replace(
+      /<th class="text-right">Amount<\/th>/gi,
+      '<th class="text-right amount-col">Amount</th>'
+    );
+
+    return result;
+  }
+
+  ensureChargesTableStyles(styles: string): string {
+    if (/\.charges-table\s+th\.amount-col/i.test(styles)) {
+      return styles;
+    }
+
+    return `${styles}\n\n${this.chargesTableLayoutStyles}`;
   }
 
   tagInvoiceHeaderDiagnostics(html: string): string {
@@ -465,11 +576,11 @@ export class InvoiceHtmlBuilderService {
 
     if (!/rentall-invoice-title-block/i.test(result)) {
       result = result.replace(
-        /<\/div>\s*(<!-- =+ MAIN CONTENT =+ -->)?\s*<h3([^>]*text-align:\s*center[^>]*)>\s*<span class="label">Client Invoice #:<\/span>/i,
-        '</div>\n\n  <!-- ===================== MAIN CONTENT ===================== -->\n  <div class="rentall-invoice-title-block">\n    <h3$1 style="text-align: center;"><span class="label">Client Invoice #:</span>'
+        /<\/div>\s*(?:<!-- =+ MAIN CONTENT =+ -->)?\s*<h3([^>]*text-align:\s*center[^>]*)>\s*<span class="label">Client Invoice #:<\/span>/i,
+        '</div>\n\n  <!-- ===================== MAIN CONTENT ===================== -->\n  <div class="rentall-invoice-title-block">\n    <h3$1><span class="label">Client Invoice #:</span>'
       );
       result = result.replace(
-        /(<div class="rentall-invoice-title-block">\s*<h3[^>]*>\s*<span class="label">Client Invoice #:<\/span>[^<]*<\/span>\s*\{\{invoiceName\}\}\s*<\/h3>)(?!\s*<\/div>)/i,
+        /(<div class="rentall-invoice-title-block">\s*<h3[^>]*>[\s\S]*?<\/h3>)(?!\s*<\/div>)/i,
         '$1\n  </div>'
       );
     }

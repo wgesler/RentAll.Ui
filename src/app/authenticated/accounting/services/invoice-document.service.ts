@@ -1,5 +1,6 @@
 import { Injectable } from '@angular/core';
-import { Observable, forkJoin, map, of, switchMap, take, throwError } from 'rxjs';
+import { HttpClient } from '@angular/common/http';
+import { Observable, forkJoin, map, of, switchMap, take, throwError, catchError } from 'rxjs';
 import { AuthService } from '../../../services/auth.service';
 import { CommonService } from '../../../services/common.service';
 import { DocumentExportService } from '../../../services/document-export.service';
@@ -43,6 +44,7 @@ interface InvoiceDownloadData extends InvoiceDownloadBaseData {
   office: OfficeResponse;
   property: PropertyResponse;
   propertyHtml: PropertyHtmlResponse;
+  canonicalInvoiceTemplate: string;
 }
 
 @Injectable({
@@ -51,6 +53,7 @@ interface InvoiceDownloadData extends InvoiceDownloadBaseData {
 export class InvoiceDocumentService {
   constructor(
     private authService: AuthService,
+    private http: HttpClient,
     private invoiceService: InvoiceService,
     private reservationService: ReservationService,
     private propertyService: PropertyService,
@@ -152,11 +155,18 @@ export class InvoiceDocumentService {
           costCodes: of(base.costCodes),
           office: of(office),
           property: this.propertyService.getPropertyByGuid(propertyId).pipe(take(1)),
-          propertyHtml: this.propertyHtmlService.getPropertyHtmlByPropertyId(propertyId).pipe(take(1))
+          propertyHtml: this.propertyHtmlService.getPropertyHtmlByPropertyId(propertyId).pipe(take(1)),
+          canonicalInvoiceTemplate: this.http.get('assets/invoice.html', { responseType: 'text' }).pipe(
+            take(1),
+            catchError(() => of(''))
+          )
         });
       }),
       switchMap((data: InvoiceDownloadData) => {
-        const templateHtml = data.propertyHtml?.invoice?.trim();
+        const templateHtml = this.invoiceHtmlBuilder.resolveInvoiceTemplateHtml(
+          data.propertyHtml?.invoice,
+          data.canonicalInvoiceTemplate
+        );
         if (!templateHtml) {
           return throwError(() => new Error('No invoice HTML template found for this property.'));
         }
@@ -177,7 +187,10 @@ export class InvoiceDocumentService {
       data.costCodes
     );
 
-    const templateHtml = data.propertyHtml?.invoice?.trim() ?? '';
+    const templateHtml = this.invoiceHtmlBuilder.resolveInvoiceTemplateHtml(
+      data.propertyHtml?.invoice,
+      data.canonicalInvoiceTemplate
+    );
     return this.invoiceHtmlBuilder.buildProcessedPreview(templateHtml, ctx);
   }
 

@@ -61,6 +61,8 @@ export class DocumentExportService {
    * @returns void
    */
   printHTML(htmlContent: string): void {
+    const isFullDocument = /<!DOCTYPE\s+html/i.test(htmlContent) || /<html[\s>]/i.test(htmlContent);
+
     // Create a hidden iframe for printing
     const iframe = document.createElement('iframe');
     iframe.style.position = 'fixed';
@@ -74,8 +76,9 @@ export class DocumentExportService {
     const iframeDoc = iframe.contentDocument || iframe.contentWindow?.document;
     if (iframeDoc) {
       iframeDoc.open();
-      iframeDoc.write(`
-        <!DOCTYPE html>
+      iframeDoc.write(isFullDocument
+        ? htmlContent
+        : `<!DOCTYPE html>
         <html>
           <head>
             <title>Document</title>
@@ -98,8 +101,7 @@ export class DocumentExportService {
           <body>
             ${htmlContent}
           </body>
-        </html>
-      `);
+        </html>`);
       iframeDoc.close();
 
       let hasPrinted = false;
