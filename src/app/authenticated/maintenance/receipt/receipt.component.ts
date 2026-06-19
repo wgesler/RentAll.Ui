@@ -86,6 +86,9 @@ export class ReceiptComponent implements OnInit, OnChanges, OnDestroy {
   accountingOffices: AccountingOfficeResponse[] = [];
   receiptTypeOptions = getReceiptTypes();
   bankCardOptions: SearchableSelectOption<number>[] = [];
+  showAllOrganizationBankCards = false;
+  private lastAppliedShellOfficeId: number | null | undefined;
+  readonly moreBankCardsOptionValue = -1;
   expenseAccountOptions: SearchableSelectOption<number>[] = [];
   readonly billSplitAccountTypeIds = new Set<number>([
     AccountType.Expense,
@@ -187,6 +190,7 @@ export class ReceiptComponent implements OnInit, OnChanges, OnDestroy {
       this.clearManualSplitAccountOverrides();
       this.isAddMode = this.receiptId == null;
       this.receiptOfficeInitialized = false;
+      this.lastAppliedShellOfficeId = undefined;
       this.receipt = null;
       if (this.isAddMode) {
         this.clearReceiptLoading();
@@ -537,7 +541,8 @@ export class ReceiptComponent implements OnInit, OnChanges, OnDestroy {
         this.receiptOfficeInitialized = true;
         this.populateForm(receipt);
         this.syncSelectedPropertyIdFromForm();
-        this.loadBankCardsAndVendors();
+        this.syncBankCardOptionsForCurrentContext();
+        this.ensureEditModeBankCardVisible();
         this.cdr.markForCheck();
       },
       error: (_err: HttpErrorResponse) => {
@@ -594,7 +599,7 @@ export class ReceiptComponent implements OnInit, OnChanges, OnDestroy {
       next: () => {
         this.accountingOfficeService.getAllAccountingOffices().pipe(takeUntil(this.destroy$)).subscribe(accountingOffices => {
           this.accountingOffices = accountingOffices || [];
-          this.refreshBankCardsForCurrentOffice();
+          this.syncBankCardOptionsForCurrentContext();
           this.applyDefaultSplitAccountsForAddMode();
           this.cdr.markForCheck();
         });
@@ -619,28 +624,63 @@ export class ReceiptComponent implements OnInit, OnChanges, OnDestroy {
     });
   }
 
-  refreshBankCardsForCurrentOffice(): void {
+  syncBankCardOptionsForCurrentContext(): void {
     if (this.isAllOfficesShellScope()) {
-      this.loadBankCardsForAllOffices();
+      this.loadOrganizationBankCardOptions();
       return;
     }
+
     const officeId = this.getReceiptOfficeId();
-    if (officeId) {
-      this.loadBankCardsForOffice(officeId);
+    if (this.showAllOrganizationBankCards) {
+      if (officeId) {
+        if (!this.bankCardOptions.length) {
+          this.loadOfficeBankCardOptions(officeId);
+        }
+        this.appendOtherOfficeBankCardOptions();
+        return;
+      }
+      this.loadOrganizationBankCardOptions();
+      return;
     }
+
+    if (officeId) {
+      this.loadOfficeBankCardOptions(officeId);
+      return;
+    }
+
+    this.bankCardOptions = [];
+  }
+
+  resetBankCardsToOfficeScope(): void {
+    this.showAllOrganizationBankCards = false;
+    if (this.form) {
+      this.form.patchValue({ bankCardId: 0 }, { emitEvent: false });
+      this.onOverallBankCardChange();
+    }
+    this.syncBankCardOptionsForCurrentContext();
+    this.cdr.markForCheck();
+  }
+
+  ensureEditModeBankCardVisible(): void {
+    if (this.isAddMode || !this.form) {
+      return;
+    }
+
+    const selectedBankCardId = Number(this.form.get('bankCardId')?.value ?? 0);
+    if (!Number.isFinite(selectedBankCardId) || selectedBankCardId <= 0) {
+      return;
+    }
+
+    if (this.bankCardOptions.some(option => option.value === selectedBankCardId)) {
+      return;
+    }
+
+    this.showAllOrganizationBankCards = true;
+    this.syncBankCardOptionsForCurrentContext();
   }
 
   loadBankCardsAndVendors(): void {
-    if (this.isAllOfficesShellScope()) {
-      this.loadBankCardsForAllOffices();
-    } else {
-      const officeId = this.getReceiptOfficeId();
-      if (officeId) {
-        this.loadBankCardsForOffice(officeId);
-      } else {
-        this.bankCardOptions = [];
-      }
-    }
+    this.syncBankCardOptionsForCurrentContext();
     this.applyLegacyBillAccountingDatesIfNeeded();
     this.loadSplitAccountsForCurrentOffice();
     this.applyPropertyInputToForm();
@@ -703,7 +743,7 @@ export class ReceiptComponent implements OnInit, OnChanges, OnDestroy {
     this.applyDefaultSplitAccountsForAddMode();
   }
 
-  loadBankCardsForOffice(officeId: number | null | undefined): void {
+  loadOfficeBankCardOptions(officeId: number | null | undefined): void {
     const parsedOfficeId = Number(officeId);
     if (!parsedOfficeId || parsedOfficeId <= 0) {
       this.bankCardOptions = [];
@@ -717,10 +757,11 @@ export class ReceiptComponent implements OnInit, OnChanges, OnDestroy {
       .map(card => ({
         value: Number(card.bankCardId),
         label: this.toBankCardOptionLabel(card)
-      }));
+      }))
+      .sort((a, b) => String(a.label).localeCompare(String(b.label), undefined, { sensitivity: 'base' }));
   }
 
-  loadBankCardsForAllOffices(): void {
+  loadOrganizationBankCardOptions(): void {
     const byId = new Map<number, SearchableSelectOption<number>>();
     (this.accountingOffices || []).forEach(office => {
       const bankCards = this.mappingService.mapBankCardsFromResponse(office.bankCards);
@@ -739,6 +780,37 @@ export class ReceiptComponent implements OnInit, OnChanges, OnDestroy {
     this.bankCardOptions = Array.from(byId.values()).sort((a, b) =>
       String(a.label).localeCompare(String(b.label), undefined, { sensitivity: 'base' })
     );
+  }
+
+  appendOtherOfficeBankCardOptions(): void {
+    const currentOfficeId = this.getReceiptOfficeId();
+    const existingIds = new Set(this.bankCardOptions.map(option => option.value));
+    const additionalOptions: SearchableSelectOption<number>[] = [];
+
+    (this.accountingOffices || []).forEach(office => {
+      const officeId = Number(office.officeId);
+      if (currentOfficeId && officeId === currentOfficeId) {
+        return;
+      }
+
+      const bankCards = this.mappingService.mapBankCardsFromResponse(office.bankCards);
+      bankCards
+        .filter(card => Number(card.bankCardId) > 0)
+        .forEach(card => {
+          const bankCardId = Number(card.bankCardId);
+          if (!existingIds.has(bankCardId)) {
+            existingIds.add(bankCardId);
+            additionalOptions.push({
+              value: bankCardId,
+              label: this.toBankCardOptionLabel(card)
+            });
+          }
+        });
+    });
+
+    if (additionalOptions.length > 0) {
+      this.bankCardOptions = [...this.bankCardOptions, ...additionalOptions];
+    }
   }
   //#endregion
 
@@ -1647,6 +1719,13 @@ export class ReceiptComponent implements OnInit, OnChanges, OnDestroy {
 
   onOverallBankCardSelectionChange(value: string | number | null | undefined): void {
     const normalized = Number(value ?? 0);
+    if (normalized === this.moreBankCardsOptionValue) {
+      this.showAllOrganizationBankCards = true;
+      this.syncBankCardOptionsForCurrentContext();
+      this.cdr.markForCheck();
+      return;
+    }
+
     this.form.patchValue({
       bankCardId: Number.isFinite(normalized) ? normalized : 0
     }, { emitEvent: false });
@@ -1654,7 +1733,11 @@ export class ReceiptComponent implements OnInit, OnChanges, OnDestroy {
   }
   
   get overallBankCardOptions(): SearchableSelectOption<number>[] {
-    return [{ value: 0, label: 'Bill' }, ...(this.bankCardOptions || [])];
+    const options: SearchableSelectOption<number>[] = [{ value: 0, label: 'Bill' }, ...(this.bankCardOptions || [])];
+    if (!this.showAllOrganizationBankCards && !this.isAllOfficesShellScope() && this.getReceiptOfficeId()) {
+      options.push({ value: this.moreBankCardsOptionValue, label: 'More...' });
+    }
+    return options;
   }
 
   toBankCardOptionLabel(card: BankCardResponse): string {
@@ -2021,11 +2104,15 @@ export class ReceiptComponent implements OnInit, OnChanges, OnDestroy {
 
   applyShellOfficeToReceipt(): void {
     const shellOfficeId = this.normalizeOfficeId(this.officeId);
+    const shellOfficeChanged = this.lastAppliedShellOfficeId !== shellOfficeId;
     if (!shellOfficeId) {
       const propertyOfficeId = this.normalizeOfficeId(this.property?.officeId);
       if (propertyOfficeId) {
         this.setReceiptOfficeId(propertyOfficeId);
+      } else if (this.isAddMode && this.form && shellOfficeChanged) {
+        this.resetBankCardsToOfficeScope();
       }
+      this.lastAppliedShellOfficeId = shellOfficeId;
       if (!this.form) {
         return;
       }
@@ -2033,6 +2120,10 @@ export class ReceiptComponent implements OnInit, OnChanges, OnDestroy {
       return;
     }
     this.setReceiptOfficeId(shellOfficeId);
+    if (this.isAddMode && this.form && shellOfficeChanged) {
+      this.resetBankCardsToOfficeScope();
+    }
+    this.lastAppliedShellOfficeId = shellOfficeId;
     if (!this.form) {
       return;
     }
@@ -2040,11 +2131,13 @@ export class ReceiptComponent implements OnInit, OnChanges, OnDestroy {
   }
 
   setReceiptOfficeId(officeId: number): void {
-    const officeName = this.getOfficeNameForOfficeId(officeId) || '';
+    const previousOfficeId = this.normalizeOfficeId(this.receipt?.officeId);
+    const nextOfficeId = this.normalizeOfficeId(officeId) ?? officeId;
+    const officeName = this.getOfficeNameForOfficeId(nextOfficeId) || '';
     if (!this.receipt) {
-      this.receipt = this.createDraftReceipt(officeId, officeName);
+      this.receipt = this.createDraftReceipt(nextOfficeId, officeName);
     } else {
-      this.receipt.officeId = officeId;
+      this.receipt.officeId = nextOfficeId;
       if (officeName) {
         this.receipt.officeName = officeName;
       }
@@ -2054,6 +2147,9 @@ export class ReceiptComponent implements OnInit, OnChanges, OnDestroy {
     }
     this.form.patchValue({ officeName: this.receipt.officeName || officeName }, { emitEvent: false });
     this.applyPropertyOptionsForCurrentOffice();
+    if (previousOfficeId !== this.normalizeOfficeId(nextOfficeId)) {
+      this.resetBankCardsToOfficeScope();
+    }
   }
 
   getReceiptOfficeId(): number | null {

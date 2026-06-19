@@ -1,8 +1,8 @@
 import { CommonModule } from '@angular/common';
-import { Component, EventEmitter, Input, Output } from '@angular/core';
+import { AfterViewInit, Component, EventEmitter, Input, OnChanges, Output, SimpleChanges, ViewChild } from '@angular/core';
 import { FormControl, FormGroupDirective, FormsModule, NgForm } from '@angular/forms';
 import { ErrorStateMatcher } from '@angular/material/core';
-import { MatSelect } from '@angular/material/select';
+import { MatSelect, MatSelectChange } from '@angular/material/select';
 import { MaterialModule } from '../../../material.module';
 
 export interface SearchableSelectOption<TValue = string | number | null> {
@@ -47,7 +47,7 @@ export interface SearchableSelectOption<TValue = string | number | null> {
           class="searchable-select-control"
           [ngClass]="selectClass"
           (focusin)="onFocusIn(searchableSelectRef)"
-          (selectionChange)="valueChange.emit($event.value)"
+          (selectionChange)="onSelectionChange($event)"
           (keydown)="onSelectKeydown($event)"
           (openedChange)="onOpenedChange($event)">
           <mat-select-trigger>
@@ -100,7 +100,7 @@ export interface SearchableSelectOption<TValue = string | number | null> {
         class="searchable-select-control"
         [ngClass]="selectClass"
         (focusin)="onFocusIn(searchableSelectRef)"
-        (selectionChange)="valueChange.emit($event.value)"
+        (selectionChange)="onSelectionChange($event)"
         (keydown)="onSelectKeydown($event)"
         (openedChange)="onOpenedChange($event)">
         <mat-select-trigger>
@@ -139,7 +139,7 @@ export interface SearchableSelectOption<TValue = string | number | null> {
     }
   `
 })
-export class SearchableSelectComponent {
+export class SearchableSelectComponent implements OnChanges, AfterViewInit {
   @Input() options: SearchableSelectOption[] = [];
   @Input() value: string | number | null = null;
   @Input() disabled = false;
@@ -164,8 +164,12 @@ export class SearchableSelectComponent {
   @Input() labelRequiredAsterisk = false;
   @Input() triggerValueClickable = false;
   @Input() openOnFocus = false;
+  /** Option values that expand the list without committing a selection (panel stays open). */
+  @Input() keepPanelOpenOnValues: Array<string | number | null> = [];
   @Output() valueChange = new EventEmitter<string | number | null>();
   @Output() triggerValueClick = new EventEmitter<Event>();
+
+  @ViewChild('searchableSelectRef') private searchableSelectRef?: MatSelect;
 
   showErrorStateMatcher: ErrorStateMatcher = {
     isErrorState: (_control: FormControl | null, _form: FormGroupDirective | NgForm | null): boolean => this.showError
@@ -243,6 +247,48 @@ export class SearchableSelectComponent {
     if (opened && this.resetSearchOnOpen) {
       this.searchText = '';
     }
+  }
+
+  ngOnChanges(changes: SimpleChanges): void {
+    if (changes['value']) {
+      this.syncSelectValueFromInput();
+    }
+  }
+
+  ngAfterViewInit(): void {
+    this.syncSelectValueFromInput();
+  }
+
+  onSelectionChange(event: MatSelectChange): void {
+    const value = event.value as string | number | null;
+    const keepOpen = this.keepPanelOpenOnValues.some(optionValue => this.compareValues(optionValue, value));
+
+    if (keepOpen) {
+      const boundValue = this.normalizedValue;
+      event.source.value = boundValue;
+      this.valueChange.emit(value);
+      setTimeout(() => {
+        if (!event.source.panelOpen) {
+          event.source.open();
+        }
+      }, 0);
+      return;
+    }
+
+    this.valueChange.emit(value);
+  }
+
+  private syncSelectValueFromInput(): void {
+    setTimeout(() => {
+      const select = this.searchableSelectRef;
+      if (!select) {
+        return;
+      }
+      const boundValue = this.normalizedValue;
+      if (!this.compareValues(select.value, boundValue)) {
+        select.value = boundValue;
+      }
+    });
   }
 
   onFocusIn(select: MatSelect): void {

@@ -61,6 +61,7 @@
                     [searchPlaceholder]="'Type to filter bank cards...'"
                     [showInstructionOption]="false"
                     [noResultsText]="'No bank cards match your search'"
+                    [keepPanelOpenOnValues]="[moreBankCardsOptionValue]"
                     (valueChange)="onOverallBankCardSelectionChange($event)">
                   </app-searchable-select>
                   @if (isOverallBillBankCard()) {
@@ -333,6 +334,7 @@
                     [searchPlaceholder]="'Type to filter bank cards...'"
                     [showInstructionOption]="false"
                     [noResultsText]="'No bank cards match your search'"
+                    [keepPanelOpenOnValues]="[moreBankCardsOptionValue]"
                     (valueChange)="onOverallBankCardSelectionChange($event)">
                   </app-searchable-select>
                   @if (isOverallBillBankCard()) {

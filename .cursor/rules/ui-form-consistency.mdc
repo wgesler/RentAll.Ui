@@ -28,9 +28,10 @@ alwaysApply: true
 - Keep Save label simple (`Save`) unless user explicitly asks for contextual wording.
 - Remove duplicate in-tab save buttons when parent contextual save is active.
 
-# Component Member Style
+# Component Member Style (Angular/TypeScript UI only)
 
-- For new variables and methods inside components, do NOT add explicit `public`/`private` modifiers.
+- This visibility rule applies to `RentAll.Ui` only. It does NOT apply to `RentAll.Api` or `RentAll.Db`.
+- For new variables and methods inside Angular components, do NOT add explicit `public`/`private` modifiers.
 - Let class members use default visibility unless there is an explicit exception requested.
 - Constructor-injected dependencies SHOULD use access modifiers (`public`/`private`) directly in the constructor signature to avoid redundant define/assign boilerplate.
 
