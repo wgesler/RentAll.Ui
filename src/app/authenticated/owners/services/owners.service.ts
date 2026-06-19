@@ -1,4 +1,5 @@
 import { Injectable } from '@angular/core';
+import { HttpClient } from '@angular/common/http';
 import { Observable, forkJoin, of, throwError } from 'rxjs';
 import { catchError, filter, map, switchMap, take } from 'rxjs/operators';
 import { DocumentResponse, GenerateDocumentFromHtmlDto } from '../../documents/models/document.model';
@@ -67,6 +68,7 @@ export type OwnerAgreementContext = {
 })
 export class OwnersService {
   constructor(
+    private http: HttpClient,
     private leadsService: LeadsService,
     private contactService: ContactService,
     private propertyService: PropertyService,
@@ -315,10 +317,46 @@ export class OwnersService {
     propertyCode?: string | null
   ): Observable<string> {
     const normalizedTemplateType = String(templateType || '').trim().toLowerCase();
-    return this.getOwnerHtmlByContext(token, propertyId, propertyCode).pipe(
+    return this.getOwnerHtmlByContextWithFallback(token, propertyId, propertyCode).pipe(
       map(ownerHtml => normalizedTemplateType.includes('deposit')
-        ? String(ownerHtml?.directDeposit || '').trim()
-        : String(ownerHtml?.ownerAgreement || '').trim())
+        ? String(ownerHtml.directDeposit || '').trim()
+        : String(ownerHtml.ownerAgreement || '').trim()),
+      catchError(() => of(''))
+    );
+  }
+
+  private getOwnerHtmlByContextWithFallback(
+    token: string | null | undefined,
+    propertyId: string | null | undefined,
+    propertyCode?: string | null
+  ): Observable<OwnerHtmlResponse> {
+    return forkJoin({
+      ownerHtml: this.getOwnerHtmlByContext(token, propertyId, propertyCode).pipe(catchError(() => of(null))),
+      ownerAgreementAsset: this.loadTemplateAssetHtml('/assets/owner-agreement.html').pipe(catchError(() => of(''))),
+      directDepositAsset: this.loadTemplateAssetHtml('/assets/direct-deposit.html').pipe(catchError(() => of('')))
+    }).pipe(
+      map(result => {
+        const ownerAgreement = String(result.ownerHtml?.ownerAgreement || '').trim();
+        const directDeposit = String(result.ownerHtml?.directDeposit || '').trim();
+        const resolvedOwnerAgreement = this.resolveOwnerAgreementTemplate(ownerAgreement, result.ownerAgreementAsset);
+        const resolvedDirectDeposit = this.resolveDirectDepositTemplate(directDeposit, result.directDepositAsset);
+
+        if (!ownerAgreement && !directDeposit) {
+          return this.createOwnerHtmlFallbackModel(result.ownerAgreementAsset, result.directDepositAsset, propertyId);
+        }
+
+        return {
+          propertyId: String(result.ownerHtml?.propertyId || propertyId || '').trim(),
+          organizationId: String(result.ownerHtml?.organizationId || '').trim(),
+          ownerAgreement: resolvedOwnerAgreement,
+          directDeposit: resolvedDirectDeposit,
+          isDeleted: !!result.ownerHtml?.isDeleted,
+          createdOn: String(result.ownerHtml?.createdOn || ''),
+          createdBy: String(result.ownerHtml?.createdBy || ''),
+          modifiedOn: String(result.ownerHtml?.modifiedOn || ''),
+          modifiedBy: String(result.ownerHtml?.modifiedBy || '')
+        } as OwnerHtmlResponse;
+      })
     );
   }
   //#endregion
@@ -412,6 +450,63 @@ export class OwnersService {
 
   normalizeToken(token: string | null | undefined): string {
     return String(token || '').trim();
+  }
+
+  private loadTemplateAssetHtml(path: string): Observable<string> {
+    const normalizedPath = path.startsWith('/') ? path : `/${path}`;
+    return this.http.get(normalizedPath, { responseType: 'text' }).pipe(catchError(() => of('')));
+  }
+
+  private createOwnerHtmlFallbackModel(
+    ownerAgreementHtml: string,
+    directDepositHtml: string,
+    propertyId: string | null | undefined
+  ): OwnerHtmlResponse {
+    return {
+      propertyId: String(propertyId || '').trim(),
+      organizationId: '',
+      ownerAgreement: String(ownerAgreementHtml || ''),
+      directDeposit: String(directDepositHtml || ''),
+      isDeleted: false,
+      createdOn: '',
+      createdBy: '',
+      modifiedOn: '',
+      modifiedBy: ''
+    };
+  }
+
+  private resolveOwnerAgreementTemplate(apiTemplate: string, assetTemplate: string): string {
+    const normalizedApiTemplate = String(apiTemplate || '').trim();
+    if (!normalizedApiTemplate) {
+      return String(assetTemplate || '');
+    }
+
+    const hasTemplateStyles = /<style[\s>]/i.test(normalizedApiTemplate);
+    const hasAgreementScaffold = /id=["']terms["']/i.test(normalizedApiTemplate) || /class=["']section-text["']/i.test(normalizedApiTemplate);
+    if (hasTemplateStyles && hasAgreementScaffold) {
+      return normalizedApiTemplate;
+    }
+
+    return String(assetTemplate || normalizedApiTemplate);
+  }
+
+  private resolveDirectDepositTemplate(apiTemplate: string, assetTemplate: string): string {
+    const normalizedApiTemplate = String(apiTemplate || '').trim();
+    if (!normalizedApiTemplate) {
+      return String(assetTemplate || '');
+    }
+
+    const hasTemplateStyles = /<style[\s>]/i.test(normalizedApiTemplate);
+    const hasDirectDepositMarkers =
+      /Direct Deposit Authorization\/Agreement/i.test(normalizedApiTemplate) &&
+      /\{\{ownerName\}\}/.test(normalizedApiTemplate) &&
+      /\{\{officeLogoBase64\}\}/.test(normalizedApiTemplate);
+
+    if (hasTemplateStyles && hasDirectDepositMarkers) {
+      return normalizedApiTemplate;
+    }
+
+    return String(assetTemplate || normalizedApiTemplate);
   }
   //#endregion
 }

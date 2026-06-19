@@ -6,7 +6,7 @@ import { FormBuilder, FormControl, FormGroup, ReactiveFormsModule } from '@angul
 import { DomSanitizer, SafeHtml } from '@angular/platform-browser';
 import { Router } from '@angular/router';
 import { ToastrService } from 'ngx-toastr';
-import { BehaviorSubject, finalize, Observable, Subject, of, take, takeUntil } from 'rxjs';
+import { BehaviorSubject, finalize, Observable, Subject, of, take, takeUntil, switchMap, catchError, map } from 'rxjs';
 import { CommonMessage } from '../../../enums/common-message.enum';
 import { RouterUrl } from '../../../app.routes';
 import { MaterialModule } from '../../../material.module';
@@ -1832,7 +1832,7 @@ export class OwnerAgreementFormComponent extends BaseDocumentComponent implement
     if (String(templateHtml || '').trim()) {
       return of(String(templateHtml));
     }
-    const primaryPath = String(assetPath || '').trim() || 'assets/owner-agreement.html';
+    const primaryPath = this.normalizeTemplateAssetPath(String(assetPath || '').trim() || 'assets/owner-agreement.html');
     // Local/dev: pull the template straight from the local asset for fast iteration; the DB
     // template (seeded copy + per-property overrides) is used in staging/production.
     if (this.debuggingHtml) {
@@ -1843,7 +1843,23 @@ export class OwnerAgreementFormComponent extends BaseDocumentComponent implement
     const resolvedPropertyCode = String(
       this.propertyCode || this.selectedProperty?.propertyCode || this.leadOwner?.propertyCode || ''
     ).trim() || null;
-    return this.ownersService.getTemplateHtmlByContext(this.token, resolvedPropertyId, templateType, resolvedPropertyCode).pipe(take(1));
+    return this.ownersService.getTemplateHtmlByContext(this.token, resolvedPropertyId, templateType, resolvedPropertyCode).pipe(
+      switchMap(templateHtml => {
+        if (String(templateHtml || '').trim()) {
+          return of(String(templateHtml));
+        }
+        return this.http.get(primaryPath, { responseType: 'text' }).pipe(
+          map(assetHtml => String(assetHtml || '').trim()),
+          catchError(() => of(''))
+        );
+      }),
+      take(1)
+    );
+  }
+
+  private normalizeTemplateAssetPath(assetPath: string): string {
+    const normalized = String(assetPath || '').trim() || 'assets/owner-agreement.html';
+    return normalized.startsWith('/') ? normalized : `/${normalized}`;
   }
 
   resolveTemplateTypeForLookup(assetPath: string): string {
