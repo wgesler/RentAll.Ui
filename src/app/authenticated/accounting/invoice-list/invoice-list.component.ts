@@ -992,9 +992,7 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
               const exportContext = {
                 recipient: String(this.getRecipientDisplay(invoice) || '').trim(),
                 reservationCode: String(reservation?.reservationCode || invoice.reservationCode || '').trim().replace(/^R-/i, ''),
-                reservationBoardLabel: reservation
-                  ? this.utilityService.getReservationBoardLabel(reservation, contact).trim()
-                  : '',
+                reservationBoardLabel: reservation ? this.utilityService.getReservationBoardLabel(reservation, contact).trim().replace(':', ' /') : '',
                 occupantName: String(reservation?.tenantName || '').trim(),
                 city: String(property?.city || '').trim(),
                 propertyCode: String(property?.propertyCode || reservation?.propertyCode || '').trim(),
