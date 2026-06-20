@@ -182,20 +182,26 @@ export class PropertyComponent implements OnInit, OnChanges, AfterViewInit, OnDe
     if (!this.propertyId || this.isAddMode) {
       return false;
     }
-    if (isOwnerUnauthorized(this.ownerAuthorization) || String(this.publicOwnerToken || '').trim().length > 0) {
+    if (String(this.publicOwnerToken || '').trim().length > 0) {
       return false;
     }
     if (this.isInOwnerMode) {
+      if (isOwnerUnauthorized(this.ownerAuthorization)) {
+        return false;
+      }
       return isOwnerAuthorizedAdmin(this.ownerAuthorization);
     }
     return this.isInAccounting;
   }
 
   get canManagePropertyAgreement(): boolean {
-    if (isOwnerUnauthorized(this.ownerAuthorization) || String(this.publicOwnerToken || '').trim().length > 0) {
+    if (String(this.publicOwnerToken || '').trim().length > 0) {
       return false;
     }
     if (this.isInOwnerMode) {
+      if (isOwnerUnauthorized(this.ownerAuthorization)) {
+        return false;
+      }
       return isOwnerAuthorizedAdmin(this.ownerAuthorization);
     }
     return this.isInAccounting;
