@@ -46,6 +46,8 @@ export interface InvoiceResponse {
   propertyCode?: string | null;
   contactId?: string | null;
   contactName?: string | null;
+  companyId?: string | null;
+  companyName?: string | null;
   responsibleParty: string | null;
   startDate: string;
   endDate: string;

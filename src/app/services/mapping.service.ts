@@ -1,6 +1,6 @@
 import { Injectable } from '@angular/core';
 import { AccountType, Class, SourceType, TransactionType, getAccountTypeLabel, getSourceTypeLabel, getTransactionTypeLabel, isCreditNormalAccountType, isJournalEntrySourceNavigable } from '../authenticated/accounting/models/accounting-enum';
-import { ArAgingBucketDefinition, ArAgingBucketId, ArAgingCustomerRow, ArAgingDetailBuildRequest, ArAgingDetailReportResult, ArAgingDetailRow, ArAgingInvoiceDetail, ArAgingReportBuildRequest, ArAgingReportResult, ArAgingReservationRow, buildArAgingBucketDefinitions, createEmptyArAgingBucketAmounts, resolveArAgingBucketId, sortArAgingCustomerRows } from '../authenticated/accounting/models/ar-aging-report.model';
+import { ArAgingBucketDefinition, ArAgingBucketId, ArAgingCustomerRow, ArAgingDetailBuildRequest, ArAgingDetailReportResult, ArAgingDetailRow, ArAgingInvoiceDetail, ArAgingReportBuildRequest, ArAgingReportResult, ArAgingReservationRow, buildArAgingBucketDefinitions, buildArAgingCompanySortKey, buildArAgingContactSortKey, compareArAgingCustomerSortKeys, compareArAgingInvoiceSortKeys, createEmptyArAgingBucketAmounts, resolveArAgingBucketId, sortArAgingCustomerRows } from '../authenticated/accounting/models/ar-aging-report.model';
 import { FINANCIAL_REPORT_TOTAL_COLUMN_ID, FINANCIAL_REPORT_UNASSIGNED_COLUMN_ID, FinancialReportBuildRequest, FinancialReportColumn, FinancialReportColumnContext, FinancialReportDrillDownContext, FinancialReportDrillDownSpec, FinancialReportKind, FinancialReportResult, FinancialReportTreeNode } from '../authenticated/accounting/models/financial-report.model';
 import { ChartOfAccountListDisplay, ChartOfAccountRequest, ChartOfAccountResponse } from '../authenticated/accounting/models/chart-of-accounts.model';
 import { CostCodesListDisplay, CostCodesRequest, CostCodesResponse } from '../authenticated/accounting/models/cost-codes.model';
@@ -3908,8 +3908,7 @@ export class MappingService {
         }
       })
       .filter((invoice): invoice is ArAgingInvoiceDetail => invoice != null)
-      .sort((a, b) => a.customerLabel.localeCompare(b.customerLabel, undefined, { sensitivity: 'base' })
-        || a.invoiceCode.localeCompare(b.invoiceCode, undefined, { numeric: true, sensitivity: 'base' }));
+      .sort((a, b) => compareArAgingInvoiceSortKeys(a, b));
 
     const customerRows = sortArAgingCustomerRows(
       this.buildArAgingCustomerRows(invoiceDetails, bucketIds),
@@ -3945,6 +3944,9 @@ export class MappingService {
         row = {
           customerKey: invoice.customerKey,
           customerLabel: invoice.customerLabel,
+          companySortKey: invoice.companySortKey,
+          contactSortKey: invoice.contactSortKey,
+          contactId: invoice.contactId,
           bucketAmounts: createEmptyArAgingBucketAmounts(bucketIds),
           total: 0,
           reservationRows: [],
@@ -3961,9 +3963,7 @@ export class MappingService {
       row.reservationRows = this.buildArAgingReservationRows(row.invoices, bucketIds);
     });
 
-    return Array.from(rowsByCustomer.values()).sort((a, b) =>
-      a.customerLabel.localeCompare(b.customerLabel, undefined, { sensitivity: 'base' })
-    );
+    return Array.from(rowsByCustomer.values()).sort((a, b) => compareArAgingCustomerSortKeys(a, b));
   }
 
   buildArAgingReservationRows(invoices: ArAgingInvoiceDetail[], bucketIds: ArAgingBucketId[]): ArAgingReservationRow[] {
@@ -4063,14 +4063,20 @@ export class MappingService {
 
     const dueDate = this.toDateOnlyJsonString(invoice.dueDate) || invoiceDate || asOfDate;
     const daysPastDue = this.getArAgingDaysPastDue(asOfDate, dueDate);
+    const companySortKey = buildArAgingCompanySortKey(invoice);
+    const contactSortKey = buildArAgingContactSortKey(invoice);
+    const contactId = (invoice.contactId || '').trim() || null;
     const customerLabel = (invoice.responsibleParty || invoice.contactName || 'Unknown').trim() || 'Unknown';
-    const customerKey = `${invoice.contactId || ''}|${customerLabel.toLowerCase()}`;
+    const customerKey = `${contactId || ''}|${companySortKey.toLowerCase()}|${contactSortKey.toLowerCase()}`;
 
     return {
       invoiceId: invoice.invoiceId,
       invoiceCode: invoice.invoiceCode,
       customerKey,
       customerLabel,
+      companySortKey,
+      contactSortKey,
+      contactId,
       reservationKey: this.buildArAgingReservationKey(invoice),
       reservationId: invoice.reservationId,
       reservationLabel: this.buildArAgingReservationLabel(invoice),

@@ -111,6 +111,9 @@ export interface ArAgingInvoiceDetail {
   invoiceCode: string;
   customerKey: string;
   customerLabel: string;
+  companySortKey: string;
+  contactSortKey: string;
+  contactId: string | null;
   reservationKey: string;
   reservationId?: string | null;
   reservationLabel: string;
@@ -136,6 +139,9 @@ export interface ArAgingReservationRow {
 export interface ArAgingCustomerRow {
   customerKey: string;
   customerLabel: string;
+  companySortKey: string;
+  contactSortKey: string;
+  contactId: string | null;
   bucketAmounts: Record<ArAgingBucketId, number>;
   total: number;
   reservationRows: ArAgingReservationRow[];
@@ -433,6 +439,79 @@ export function resolveArAgingAsOfDate(preset: ArAgingDatePreset, customAsOfDate
 //#endregion
 
 //#region Sort Helpers
+export function buildArAgingCompanySortKey(
+  invoice: Pick<InvoiceResponse, 'companyName' | 'responsibleParty' | 'contactName'>
+): string {
+  const companyName = (invoice.companyName || '').trim();
+  if (companyName) {
+    return companyName;
+  }
+
+  const contactName = (invoice.contactName || '').trim();
+  const responsibleParty = (invoice.responsibleParty || '').trim();
+  if (
+    contactName
+    && responsibleParty
+    && contactName.localeCompare(responsibleParty, undefined, { sensitivity: 'base'}) !== 0
+  ) {
+    return responsibleParty;
+  }
+
+  return '';
+}
+
+export function buildArAgingContactSortKey(
+  invoice: Pick<InvoiceResponse, 'contactName' | 'contactId'>
+): string {
+  const contactName = (invoice.contactName || '').trim();
+  if (contactName) {
+    return contactName;
+  }
+
+  return (invoice.contactId || '').trim();
+}
+
+export function compareArAgingCustomerSortKeys(
+  left: Pick<ArAgingCustomerRow, 'companySortKey' | 'contactSortKey' | 'contactId' | 'customerLabel'>,
+  right: Pick<ArAgingCustomerRow, 'companySortKey' | 'contactSortKey' | 'contactId' | 'customerLabel'>
+): number {
+  const companyCompare = left.companySortKey.localeCompare(right.companySortKey, undefined, { sensitivity: 'base' });
+  if (companyCompare !== 0) {
+    return companyCompare;
+  }
+
+  if (!left.companySortKey && !right.companySortKey) {
+    const leftContactId = (left.contactId || '').trim();
+    const rightContactId = (right.contactId || '').trim();
+    if (leftContactId || rightContactId) {
+      const contactIdCompare = leftContactId.localeCompare(rightContactId, undefined, { sensitivity: 'base' });
+      if (contactIdCompare !== 0) {
+        return contactIdCompare;
+      }
+    }
+  }
+
+  const contactCompare = left.contactSortKey.localeCompare(right.contactSortKey, undefined, { sensitivity: 'base' });
+  if (contactCompare !== 0) {
+    return contactCompare;
+  }
+
+  return (left.contactId || '').localeCompare(right.contactId || '', undefined, { sensitivity: 'base' })
+    || left.customerLabel.localeCompare(right.customerLabel, undefined, { sensitivity: 'base' });
+}
+
+export function compareArAgingInvoiceSortKeys(
+  left: Pick<ArAgingInvoiceDetail, 'companySortKey' | 'contactSortKey' | 'contactId' | 'customerLabel' | 'invoiceCode'>,
+  right: Pick<ArAgingInvoiceDetail, 'companySortKey' | 'contactSortKey' | 'contactId' | 'customerLabel' | 'invoiceCode'>
+): number {
+  const customerCompare = compareArAgingCustomerSortKeys(left, right);
+  if (customerCompare !== 0) {
+    return customerCompare;
+  }
+
+  return left.invoiceCode.localeCompare(right.invoiceCode, undefined, { numeric: true, sensitivity: 'base' });
+}
+
 export function getArAgingCustomerClassSortKey(row: ArAgingCustomerRow): string {
   const propertyCode = row.reservationRows
     .flatMap(reservationRow => reservationRow.invoices)
@@ -447,17 +526,17 @@ export function sortArAgingCustomerRows(customerRows: ArAgingCustomerRow[], sort
     case 'balance':
     case 'total':
       rows.sort((a, b) => b.total - a.total
-        || a.customerLabel.localeCompare(b.customerLabel, undefined, { sensitivity: 'base' }));
+        || compareArAgingCustomerSortKeys(a, b));
       break;
     case 'class':
       rows.sort((a, b) => getArAgingCustomerClassSortKey(a).localeCompare(getArAgingCustomerClassSortKey(b), undefined, { sensitivity: 'base' })
-        || a.customerLabel.localeCompare(b.customerLabel, undefined, { sensitivity: 'base' }));
+        || compareArAgingCustomerSortKeys(a, b));
       break;
     case 'name':
     case 'customer':
     case 'default':
     default:
-      rows.sort((a, b) => a.customerLabel.localeCompare(b.customerLabel, undefined, { sensitivity: 'base' }));
+      rows.sort((a, b) => compareArAgingCustomerSortKeys(a, b));
       break;
   }
   return rows;
