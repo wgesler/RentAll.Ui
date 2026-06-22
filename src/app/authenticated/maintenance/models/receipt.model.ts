@@ -39,6 +39,7 @@ export interface ReceiptRequest {
   fileDetails?: FileDetails | null;
   paymentTypeId?: number;
   checkPrinted?: boolean;
+  isUtility?: boolean;
   isActive: boolean;
 }
 
@@ -68,6 +69,7 @@ export interface ReceiptResponse {
   paymentTypeId?: number;
   checkPrinted?: boolean;
   bankCardDisplayName?: string;
+  isUtility?: boolean;
   isActive: boolean;
   createdOn?: string;
   createdBy?: string;
@@ -112,6 +114,7 @@ export interface ReceiptDisplayList {
   workOrderDisplay?: string;
   receiptTypeDisplay?: string;
   descriptionDisplay?: string;
+  isUtility?: boolean;
   isActive: boolean;
   payableDisabled?: boolean;
   receiptPath?: string | null;

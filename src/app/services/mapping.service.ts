@@ -1865,6 +1865,8 @@ export class MappingService {
     const paymentTypeId = paymentTypeIdRaw == null ? 0 : Number(paymentTypeIdRaw);
     const checkPrintedRaw = rawRecord['checkPrinted'] ?? rawRecord['CheckPrinted'] ?? base.checkPrinted;
     const checkPrinted = checkPrintedRaw === true || checkPrintedRaw === 'true' || checkPrintedRaw === 1;
+    const isUtilityRaw = rawRecord['isUtility'] ?? rawRecord['IsUtility'] ?? base.isUtility;
+    const isUtility = isUtilityRaw === true || isUtilityRaw === 'true' || isUtilityRaw === 1;
 
     return {
       ...base,
@@ -1879,6 +1881,7 @@ export class MappingService {
       receiptId,
       paymentTypeId: Number.isFinite(paymentTypeId) ? paymentTypeId : 0,
       checkPrinted,
+      isUtility,
       splits: this.mapReceiptSplitsFromApi(base.splits)
     };
   }
@@ -1953,13 +1956,14 @@ export class MappingService {
 
   mapReceiptUpdateRequest(
     receipt: ReceiptResponse,
-    updates: Partial<Pick<ReceiptRequest, 'bankCardId' | 'vendorId' | 'vendorName' | 'receiptDate' | 'isActive'>> = {}
+    updates: Partial<Pick<ReceiptRequest, 'bankCardId' | 'vendorId' | 'vendorName' | 'receiptDate' | 'isActive' | 'isUtility'>> = {}
   ): ReceiptRequest {
     const hasBankCardId = Object.prototype.hasOwnProperty.call(updates, 'bankCardId');
     const hasVendorId = Object.prototype.hasOwnProperty.call(updates, 'vendorId');
     const hasVendorName = Object.prototype.hasOwnProperty.call(updates, 'vendorName');
     const hasReceiptDate = Object.prototype.hasOwnProperty.call(updates, 'receiptDate');
     const hasIsActive = Object.prototype.hasOwnProperty.call(updates, 'isActive');
+    const hasIsUtility = Object.prototype.hasOwnProperty.call(updates, 'isUtility');
 
     return {
       receiptId: receipt.receiptId,
@@ -1980,6 +1984,7 @@ export class MappingService {
       vendorName: hasVendorName ? (updates.vendorName ?? null) : (receipt.vendorName ?? null),
       splits: this.mapReceiptSplitsForRequest(receipt.splits),
       receiptPath: receipt.receiptPath ?? null,
+      isUtility: hasIsUtility ? (updates.isUtility ?? receipt.isUtility ?? false) : (receipt.isUtility ?? false),
       isActive: hasIsActive ? (updates.isActive ?? receipt.isActive) : receipt.isActive
     };
   }
@@ -2058,6 +2063,7 @@ export class MappingService {
         workOrderDisplay,
         receiptTypeDisplay,
         receiptPath: receipt.receiptPath ?? null,
+        isUtility: receipt.isUtility ?? false,
         isActive: receipt.isActive,
         createdBy: receipt.createdBy ?? receipt.createdByName ?? '',
         createdByName: receipt.createdByName ?? receipt.createdBy ?? '',

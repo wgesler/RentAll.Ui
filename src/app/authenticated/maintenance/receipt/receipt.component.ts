@@ -320,6 +320,7 @@ export class ReceiptComponent implements OnInit, OnChanges, OnDestroy {
       splits: payloadSplits,
       receiptPath: sendNewReceipt ? null : receiptPathValue,
       fileDetails: sendNewReceipt ? (this.receiptFileDetails ?? null) : null,
+      isUtility: !!this.form.get('isUtility')?.value,
       isActive: this.form.get('isActive')?.value
     };
 
@@ -339,6 +340,7 @@ export class ReceiptComponent implements OnInit, OnChanges, OnDestroy {
           ((payload.vendorName || '').toString().trim() || null) !== ((this.receipt.vendorName || '').toString().trim() || null) ||
           this.havePropertyIdsChanged(payload.propertyIds, this.receipt.propertyIds || []) ||
           this.haveSplitsChanged(payload.splits, this.receipt.splits || []) ||
+          payload.isUtility !== (this.receipt.isUtility ?? false) ||
           payload.isActive !== this.receipt.isActive ||
           hasReceiptChange
         : true;
@@ -374,6 +376,7 @@ export class ReceiptComponent implements OnInit, OnChanges, OnDestroy {
           vendorName: (saved.vendorName || '').trim() || null,
           billNumber: (saved.billNumber || '').trim() || null,
           receiptPath: saved.receiptPath || '',
+          isUtility: saved.isUtility ?? false,
           isActive: saved.isActive
         });
         this.replaceSplitLines(saved.splits || []);
@@ -483,6 +486,7 @@ export class ReceiptComponent implements OnInit, OnChanges, OnDestroy {
       billNumber: new FormControl<string | null>(null),
       splits: this.fb.array([]),
       receiptPath: new FormControl(''),
+      isUtility: new FormControl(false),
       isActive: new FormControl(true)
     });
     this.ensureAtLeastOneSplit();
@@ -505,6 +509,7 @@ export class ReceiptComponent implements OnInit, OnChanges, OnDestroy {
       vendorName: (receipt.vendorName || '').trim() || null,
       billNumber: (receipt.billNumber || '').trim() || null,
       receiptPath: receipt.receiptPath || '',
+      isUtility: receipt.isUtility ?? false,
       isActive: receipt.isActive
     });
     this.replaceSplitLines(receipt.splits || []);
@@ -2177,6 +2182,7 @@ export class ReceiptComponent implements OnInit, OnChanges, OnDestroy {
       description: '',
       amount: 0,
       splits: [],
+      isUtility: false,
       isActive: true,
       modifiedOn: '',
       modifiedBy: ''
