@@ -1,6 +1,6 @@
 import { Injectable } from '@angular/core';
 import { AccountType, Class, SourceType, TransactionType, getAccountTypeLabel, getSourceTypeLabel, getTransactionTypeLabel, isCreditNormalAccountType, isJournalEntrySourceNavigable } from '../authenticated/accounting/models/accounting-enum';
-import { ArAgingBucketDefinition, ArAgingBucketId, ArAgingCustomerRow, ArAgingInvoiceDetail, ArAgingReportBuildRequest, ArAgingReportResult, ArAgingReservationRow, buildArAgingBucketDefinitions, createEmptyArAgingBucketAmounts, resolveArAgingBucketId, sortArAgingCustomerRows } from '../authenticated/accounting/models/ar-aging-report.model';
+import { ArAgingBucketDefinition, ArAgingBucketId, ArAgingCustomerRow, ArAgingDetailBuildRequest, ArAgingDetailReportResult, ArAgingDetailRow, ArAgingInvoiceDetail, ArAgingReportBuildRequest, ArAgingReportResult, ArAgingReservationRow, buildArAgingBucketDefinitions, createEmptyArAgingBucketAmounts, resolveArAgingBucketId, sortArAgingCustomerRows } from '../authenticated/accounting/models/ar-aging-report.model';
 import { FINANCIAL_REPORT_TOTAL_COLUMN_ID, FINANCIAL_REPORT_UNASSIGNED_COLUMN_ID, FinancialReportBuildRequest, FinancialReportColumn, FinancialReportColumnContext, FinancialReportDrillDownContext, FinancialReportDrillDownSpec, FinancialReportKind, FinancialReportResult, FinancialReportTreeNode } from '../authenticated/accounting/models/financial-report.model';
 import { ChartOfAccountListDisplay, ChartOfAccountRequest, ChartOfAccountResponse } from '../authenticated/accounting/models/chart-of-accounts.model';
 import { CostCodesListDisplay, CostCodesRequest, CostCodesResponse } from '../authenticated/accounting/models/cost-codes.model';
@@ -4142,6 +4142,174 @@ export class MappingService {
     }
     const diffMs = asOf.getTime() - due.getTime();
     return Math.floor(diffMs / 86400000);
+  }
+
+  buildArAgingDetailReport(request: ArAgingDetailBuildRequest): ArAgingDetailReportResult {
+    const asOfDate = request.asOfDate;
+    const bucketsToShow = request.bucketFilter
+      ? request.bucketColumns.filter(bucket => bucket.id === request.bucketFilter)
+      : request.bucketColumns;
+    const transactionsByBucket = new Map<ArAgingBucketId, ArAgingDetailRow[]>();
+
+    request.invoiceDetails.forEach(detail => {
+      if (request.bucketFilter && detail.bucketId !== request.bucketFilter) {
+        return;
+      }
+
+      const sourceInvoice = request.invoicesById.get(detail.invoiceId);
+      if (!sourceInvoice) {
+        return;
+      }
+
+      const reservationContext = sourceInvoice.reservationId
+        ? request.reservationContextByReservationId.get(sourceInvoice.reservationId.trim())
+        : undefined;
+      const referenceNo = reservationContext?.referenceNo ?? null;
+      const terms = reservationContext?.termsLabel ?? null;
+
+      const bucketRows = transactionsByBucket.get(detail.bucketId) ?? [];
+      bucketRows.push({
+        rowId: `invoice:${detail.invoiceId}`,
+        kind: 'transaction',
+        label: null,
+        bucketId: detail.bucketId,
+        transactionType: 'Invoice',
+        transactionDate: detail.invoiceDate,
+        num: detail.invoiceCode,
+        referenceNo,
+        name: detail.customerLabel,
+        terms,
+        dueDate: detail.dueDate,
+        classLabel: detail.propertyCode?.trim() || null,
+        aging: detail.daysPastDue,
+        openBalance: this.roundFinancialReportAmount(Number(sourceInvoice.totalAmount || 0)),
+        invoiceId: detail.invoiceId
+      });
+
+      (sourceInvoice.ledgerLines || []).forEach(line => {
+        const lineDate = this.toDateOnlyJsonString(line.ledgerLineDate);
+        if (lineDate && lineDate > asOfDate) {
+          return;
+        }
+        if (!this.isArAgingPaymentLine(line, sourceInvoice.officeId, request.costCodes)) {
+          return;
+        }
+
+        const amount = Number(line.amount || 0);
+        if (!Number.isFinite(amount) || amount <= 0.005) {
+          return;
+        }
+
+        bucketRows.push({
+          rowId: `payment:${line.ledgerLineId}`,
+          kind: 'transaction',
+          label: null,
+          bucketId: detail.bucketId,
+          transactionType: 'Payment',
+          transactionDate: lineDate || detail.invoiceDate,
+          num: detail.invoiceCode,
+          referenceNo,
+          name: detail.customerLabel,
+          terms,
+          dueDate: detail.dueDate,
+          classLabel: detail.propertyCode?.trim() || null,
+          aging: detail.daysPastDue,
+          openBalance: this.roundFinancialReportAmount(-amount),
+          invoiceId: detail.invoiceId
+        });
+      });
+
+      transactionsByBucket.set(detail.bucketId, bucketRows);
+    });
+
+    const rows: ArAgingDetailRow[] = [];
+    let reportTotal = 0;
+    let bucketSectionCount = 0;
+
+    bucketsToShow.forEach(bucket => {
+      const transactionRows = (transactionsByBucket.get(bucket.id) ?? []).sort((a, b) =>
+        (a.transactionDate || '').localeCompare(b.transactionDate || '')
+        || (a.num || '').localeCompare(b.num || '', undefined, { numeric: true, sensitivity: 'base' })
+        || (a.transactionType || '').localeCompare(b.transactionType || '')
+      );
+      if (transactionRows.length === 0) {
+        return;
+      }
+
+      bucketSectionCount++;
+      let bucketTotal = 0;
+      rows.push({
+        rowId: `bucket-header:${bucket.id}`,
+        kind: 'bucketHeader',
+        label: bucket.label,
+        bucketId: bucket.id,
+        transactionType: null,
+        transactionDate: null,
+        num: null,
+        referenceNo: null,
+        name: null,
+        terms: null,
+        dueDate: null,
+        classLabel: null,
+        aging: null,
+        openBalance: null,
+        invoiceId: null
+      });
+
+      transactionRows.forEach(row => {
+        rows.push(row);
+        bucketTotal = this.roundFinancialReportAmount(bucketTotal + Number(row.openBalance || 0));
+      });
+
+      rows.push({
+        rowId: `bucket-total:${bucket.id}`,
+        kind: 'bucketTotal',
+        label: `Total ${bucket.label}`,
+        bucketId: bucket.id,
+        transactionType: null,
+        transactionDate: null,
+        num: null,
+        referenceNo: null,
+        name: null,
+        terms: null,
+        dueDate: null,
+        classLabel: null,
+        aging: null,
+        openBalance: bucketTotal,
+        invoiceId: null
+      });
+      reportTotal = this.roundFinancialReportAmount(reportTotal + bucketTotal);
+    });
+
+    if (bucketSectionCount > 1) {
+      rows.push({
+        rowId: 'report-total',
+        kind: 'reportTotal',
+        label: 'Total',
+        bucketId: null,
+        transactionType: null,
+        transactionDate: null,
+        num: null,
+        referenceNo: null,
+        name: null,
+        terms: null,
+        dueDate: null,
+        classLabel: null,
+        aging: null,
+        openBalance: reportTotal,
+        invoiceId: null
+      });
+    }
+
+    const entityParts = [request.companyName?.trim(), request.officeName?.trim()].filter(part => !!part);
+    return {
+      reportTitle: 'A/R Aging Detail',
+      periodLabel: `As of ${this.buildArAgingAsOfLabel(asOfDate)}`,
+      entityLineLabel: entityParts.length > 0 ? entityParts.join(' ') : null,
+      scopeLabel: request.scopeLabel,
+      rows,
+      reportTotal
+    };
   }
 
   buildArAgingAsOfLabel(asOfDate: string): string {

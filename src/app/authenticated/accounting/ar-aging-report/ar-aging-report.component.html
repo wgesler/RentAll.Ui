@@ -8,29 +8,81 @@
       [reservationIdInput]="activeInvoiceReservationId"
       (savedEvent)="onInvoiceSaved()">
     </app-invoice>
-  } @else if (drillDownView) {
-    <div class="mat list-layout-standard dbg-band-main">
-      <div class="tableDiv">
-        <app-data-table
-          [data]="drillDownInvoices"
-          [columns]="drillDownColumns"
-          [tableName]="'ar-aging-drill-down'"
-          [noDataMessage]="'No invoices match the selected aging bucket.'"
-          [hasColumnIndex]="false"
-          [hasFilter]="true"
-          [hasToggleTop]="false"
-          [hasButtonTop]="false"
-          [hasActionsSelect]="false"
-          [hasContactNameLink]="false"
-          [hasActionsRowClick]="true"
-          [itemsPerPage]="100"
-          (rowClickEvent)="onDrillDownInvoiceClick($event)">
-          <div dataTableFilterActions>
-            <div class="table-filter-actions-group form-titlebar-actions-wrap uniform-gap">
-              <span class="ar-aging-report-drill-down-context">{{ drillDownView.title }} · {{ drillDownView.subtitle }}</span>
-            </div>
+  } @else if (detailReport && drillDownView) {
+    <div
+      class="mat list-layout-standard dbg-band-main financial-report-layout ar-aging-detail-layout"
+      [style.--financial-report-panel-max-width]="detailPanelMaxWidthCss">
+      <div class="financial-report-panel">
+        <div class="financial-report-header">
+          @if (detailReport.entityLineLabel) {
+            <p class="financial-report-entity-line">{{ detailReport.entityLineLabel }}</p>
+          }
+          <h2 class="financial-report-title">{{ detailReport.reportTitle }}</h2>
+          @if (detailReport.periodLabel) {
+            <p class="financial-report-period">{{ detailReport.periodLabel }}</p>
+          }
+        </div>
+
+        @if (detailReport.rows.length === 0) {
+          <div class="financial-report-empty-state">
+            <p>No transactions match the selected aging bucket.</p>
           </div>
-        </app-data-table>
+        } @else {
+          <div class="financial-report-table-wrap">
+            <table class="financial-report-table ar-aging-detail-table">
+              <thead>
+                <tr>
+                  @for (columnKey of detailColumnNames; track columnKey) {
+                    <th
+                      [class.financial-report-col-amount]="isDetailAmountColumn(columnKey)"
+                      [style.width]="getDetailColumnStyle(columnKey)?.width"
+                      [style.min-width]="getDetailColumnStyle(columnKey)?.minWidth"
+                      [style.max-width]="getDetailColumnStyle(columnKey)?.maxWidth">
+                      {{ detailDisplayedColumns[columnKey].displayAs }}
+                    </th>
+                  }
+                </tr>
+              </thead>
+              <tbody>
+                @for (row of detailReport.rows; track row.rowId) {
+                  <tr
+                    [class.financial-report-row-section]="row.kind === 'bucketHeader'"
+                    [class.financial-report-row-total]="row.kind === 'bucketTotal' || row.kind === 'reportTotal'"
+                    [class.ar-aging-detail-row-transaction]="row.kind === 'transaction'"
+                    [class.ar-aging-detail-row-clickable]="isDetailRowClickable(row)"
+                    [attr.role]="isDetailRowClickable(row) ? 'button' : null"
+                    [attr.tabindex]="isDetailRowClickable(row) ? 0 : null"
+                    (click)="onDetailRowClick(row)"
+                    (keydown.enter)="onDetailRowClick(row)"
+                    (keydown.space)="onDetailRowClick(row); $event.preventDefault()">
+                    @if (row.kind === 'bucketHeader' || row.kind === 'bucketTotal' || row.kind === 'reportTotal') {
+                      <td [attr.colspan]="detailColumnNames.length - 1" class="ar-aging-detail-label-cell">
+                        <span class="financial-report-label">{{ row.label }}</span>
+                      </td>
+                      <td
+                        class="financial-report-col-amount"
+                        [style.width]="getDetailColumnStyle('openBalance')?.width"
+                        [style.min-width]="getDetailColumnStyle('openBalance')?.minWidth"
+                        [style.max-width]="getDetailColumnStyle('openBalance')?.maxWidth">
+                        {{ formatDetailAmount(row.openBalance) }}
+                      </td>
+                    } @else {
+                      @for (columnKey of detailColumnNames; track columnKey) {
+                        <td
+                          [class.financial-report-col-amount]="isDetailAmountColumn(columnKey)"
+                          [style.width]="getDetailColumnStyle(columnKey)?.width"
+                          [style.min-width]="getDetailColumnStyle(columnKey)?.minWidth"
+                          [style.max-width]="getDetailColumnStyle(columnKey)?.maxWidth">
+                          {{ getDetailCellDisplay(row, columnKey) }}
+                        </td>
+                      }
+                    }
+                  </tr>
+                }
+              </tbody>
+            </table>
+          </div>
+        }
       </div>
     </div>
   } @else {

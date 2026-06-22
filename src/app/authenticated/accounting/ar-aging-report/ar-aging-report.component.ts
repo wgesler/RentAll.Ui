@@ -1,7 +1,7 @@
 import { CommonModule } from '@angular/common';
 import { ChangeDetectionStrategy, ChangeDetectorRef, Component, EventEmitter, Input, OnChanges, OnDestroy, OnInit, Output, SimpleChanges, ViewChild } from '@angular/core';
 import { HttpErrorResponse } from '@angular/common/http';
-import { BehaviorSubject, Subject, take, takeUntil } from 'rxjs';
+import { BehaviorSubject, Subject, catchError, forkJoin, map, of, switchMap, take, takeUntil } from 'rxjs';
 import { ToastrService } from 'ngx-toastr';
 import { MaterialModule } from '../../../material.module';
 import { AuthService } from '../../../services/auth.service';
@@ -10,21 +10,22 @@ import { FormatterService } from '../../../services/formatter-service';
 import { MappingService } from '../../../services/mapping.service';
 import { UtilityService } from '../../../services/utility.service';
 import { ColumnSet } from '../../shared/data-table/models/column-data';
-import { DataTableComponent } from '../../shared/data-table/data-table.component';
-import { DataTableFilterActionsDirective } from '../../shared/data-table/data-table-filter-actions.directive';
 import { OfficeResponse } from '../../organizations/models/office.model';
 import { OfficeService } from '../../organizations/services/office.service';
 import { CostCodesResponse } from '../models/cost-codes.model';
 import { InvoiceResponse } from '../models/invoice.model';
-import { ArAgingBucketId, ArAgingDrillDownRow, ArAgingDrillDownView, ArAgingInvoiceDetail, ArAgingReportFilters, ArAgingReportResult, ArAgingVisibleRow } from '../models/ar-aging-report.model';
+import { ArAgingBucketId, ArAgingDetailReportResult, ArAgingDetailRow, ArAgingDrillDownView, ArAgingInvoiceDetail, ArAgingReportFilters, ArAgingReportResult, ArAgingReservationContext, ArAgingVisibleRow, buildArAgingReservationContext } from '../models/ar-aging-report.model';
 import { CostCodesService } from '../services/cost-codes.service';
 import { InvoiceService } from '../services/invoice.service';
 import { InvoiceComponent } from '../invoice/invoice.component';
+import { ContactService } from '../../contacts/services/contact.service';
+import { ReservationService } from '../../reservations/services/reservation.service';
+import { ReservationResponse } from '../../reservations/models/reservation-model';
 
 @Component({
   selector: 'app-ar-aging-report',
   standalone: true,
-  imports: [CommonModule, MaterialModule, DataTableComponent, DataTableFilterActionsDirective, InvoiceComponent],
+  imports: [CommonModule, MaterialModule, InvoiceComponent],
   templateUrl: './ar-aging-report.component.html',
   styleUrls: ['./ar-aging-report.component.scss', '../financial-report/financial-report.component.scss'],
   changeDetection: ChangeDetectionStrategy.OnPush
@@ -43,7 +44,7 @@ export class ArAgingReportComponent implements OnInit, OnDestroy, OnChanges {
   visibleRows: ArAgingVisibleRow[] = [];
   expandedCustomerKeys = new Set<string>();
   drillDownView: ArAgingDrillDownView | null = null;
-  drillDownInvoices: ArAgingDrillDownRow[] = [];
+  detailReport: ArAgingDetailReportResult | null = null;
   activeInvoiceId: string | null = null;
   activeInvoiceOfficeId: number | null = null;
   activeInvoiceReservationId: string | null = null;
@@ -53,15 +54,19 @@ export class ArAgingReportComponent implements OnInit, OnDestroy, OnChanges {
   offices: OfficeResponse[] = [];
   allInvoices: InvoiceResponse[] = [];
   allCostCodes: CostCodesResponse[] = [];
-  drillDownColumns: ColumnSet = {
-    invoiceCode: { displayAs: 'Invoice No', maxWidth: '14ch', sortType: 'natural' },
-    customerLabel: { displayAs: 'Customer', maxWidth: '24ch' },
-    invoiceDate: { displayAs: 'Invoice Date', maxWidth: '12ch' },
-    dueDate: { displayAs: 'Due Date', maxWidth: '12ch' },
-    daysPastDue: { displayAs: 'Days Past Due', maxWidth: '12ch', alignment: 'right', headerAlignment: 'right' },
-    balanceDueDisplay: { displayAs: 'Balance Due', maxWidth: '14ch', alignment: 'right', headerAlignment: 'right', sort: false },
-    reservationCode: { displayAs: 'Reservation', maxWidth: '14ch' },
-    propertyCode: { displayAs: 'Property', maxWidth: '14ch' }
+  reservationContextByReservationId = new Map<string, ArAgingReservationContext>();
+
+  detailDisplayedColumns: ColumnSet = {
+    transactionType: { displayAs: 'Type', maxWidth: '10ch', sort: false },
+    transactionDate: { displayAs: 'Date', maxWidth: '12ch', sort: false },
+    num: { displayAs: 'Num', maxWidth: '14ch', sort: false, sortType: 'natural' },
+    referenceNo: { displayAs: 'Ref No', maxWidth: '14ch', sort: false },
+    name: { displayAs: 'Name', maxWidth: '24ch', sort: false },
+    terms: { displayAs: 'Terms', maxWidth: '10ch', sort: false },
+    dueDate: { displayAs: 'Due Date', maxWidth: '12ch', sort: false },
+    classLabel: { displayAs: 'Class', maxWidth: '14ch', sort: false },
+    aging: { displayAs: 'Aging', maxWidth: '8ch', alignment: 'right', headerAlignment: 'center', sort: false },
+    openBalance: { displayAs: 'Open Balance', maxWidth: '14ch', alignment: 'right', headerAlignment: 'right', sort: false }
   };
 
   isPageReady = false;
@@ -77,6 +82,8 @@ export class ArAgingReportComponent implements OnInit, OnDestroy, OnChanges {
     private authService: AuthService,
     private commonService: CommonService,
     private utilityService: UtilityService,
+    private contactService: ContactService,
+    private reservationService: ReservationService,
     private toastr: ToastrService,
     private cdr: ChangeDetectorRef
   ) {
@@ -117,6 +124,12 @@ export class ArAgingReportComponent implements OnInit, OnDestroy, OnChanges {
     if (shouldReload) {
       this.loadInvoices();
     }
+  }
+
+  ngOnDestroy(): void {
+    this.destroy$.next();
+    this.destroy$.complete();
+    this.itemsToLoad$.complete();
   }
   //#endregion
 
@@ -202,6 +215,7 @@ export class ArAgingReportComponent implements OnInit, OnDestroy, OnChanges {
     const officeIds = this.resolveOfficeIds();
     if (officeIds.length === 0) {
       this.allInvoices = [];
+      this.reservationContextByReservationId.clear();
       this.isServiceError = false;
       this.applyReportDisplay();
       this.markViewForCheck();
@@ -219,16 +233,64 @@ export class ArAgingReportComponent implements OnInit, OnDestroy, OnChanges {
         this.allInvoices = invoices || [];
         this.isServiceError = false;
         this.applyReportDisplay();
+        this.loadReservationContexts();
         this.markViewForCheck();
       },
       error: (error: HttpErrorResponse) => {
         this.allInvoices = [];
+        this.reservationContextByReservationId.clear();
         this.isServiceError = true;
         this.reportResult = null;
         const message = typeof error?.error === 'string' ? error.error : 'Unable to load invoices for AR Aging.';
         this.toastr.error(message, 'AR Aging');
         this.markViewForCheck();
       }
+    });
+  }
+
+  loadReservationContexts(): void {
+    const reservationIds = [...new Set(
+      this.allInvoices
+        .map(invoice => invoice.reservationId?.trim())
+        .filter((reservationId): reservationId is string => !!reservationId)
+    )];
+
+    if (reservationIds.length === 0) {
+      this.reservationContextByReservationId.clear();
+      if (this.drillDownView) {
+        this.refreshDetailReport();
+      }
+      return;
+    }
+
+    this.contactService.ensureContactsLoaded().pipe(
+      take(1),
+      switchMap(() => {
+        const contactsById = new Map(
+          this.contactService.getAllContactsValue().map(contact => [contact.contactId, contact])
+        );
+        return forkJoin(
+          reservationIds.map(reservationId =>
+            this.reservationService.getReservationByGuid(reservationId).pipe(
+              catchError(() => of(null as ReservationResponse | null))
+            )
+          )
+        ).pipe(map(reservations => ({ contactsById, reservations })));
+      }),
+      takeUntil(this.destroy$)
+    ).subscribe(({ contactsById, reservations }) => {
+      this.reservationContextByReservationId = new Map(
+        reservations
+          .filter((reservation): reservation is ReservationResponse => reservation != null)
+          .map(reservation => [
+            reservation.reservationId,
+            buildArAgingReservationContext(reservation, contactsById)
+          ])
+      );
+      if (this.drillDownView) {
+        this.refreshDetailReport();
+      }
+      this.markViewForCheck();
     });
   }
   //#endregion
@@ -252,7 +314,7 @@ export class ArAgingReportComponent implements OnInit, OnDestroy, OnChanges {
       this.isServiceError = false;
 
       if (this.drillDownView) {
-        this.refreshDrillDownRows();
+        this.refreshDetailReport();
       }
     } catch (error) {
       console.error('AR Aging - error building report display:', error);
@@ -264,6 +326,20 @@ export class ArAgingReportComponent implements OnInit, OnDestroy, OnChanges {
 
   formatBucketAmount(amount: number | null | undefined): string {
     return this.formatter.currency(Number(amount || 0));
+  }
+
+  formatDetailAmount(amount: number | null | undefined): string {
+    if (amount == null) {
+      return '';
+    }
+    return this.formatter.currency(amount);
+  }
+
+  formatDetailDate(value: string | null | undefined): string {
+    if (!value) {
+      return '';
+    }
+    return this.formatter.formatDateTimeOffsetAsDateOnly(value) || '';
   }
 
   hasBucketAmount(source: Record<ArAgingBucketId, number>, bucketId: ArAgingBucketId): boolean {
@@ -401,7 +477,7 @@ export class ArAgingReportComponent implements OnInit, OnDestroy, OnChanges {
       bucketId,
       invoices
     };
-    this.refreshDrillDownRows();
+    this.refreshDetailReport();
     this.drillDownActiveChange.emit(true);
     this.markViewForCheck();
   }
@@ -417,7 +493,7 @@ export class ArAgingReportComponent implements OnInit, OnDestroy, OnChanges {
 
     this.closeInvoiceDetail();
     this.drillDownView = null;
-    this.drillDownInvoices = [];
+    this.detailReport = null;
     this.drillDownActiveChange.emit(false);
     this.markViewForCheck();
   }
@@ -431,8 +507,8 @@ export class ArAgingReportComponent implements OnInit, OnDestroy, OnChanges {
     this.closeDrillDown();
   }
 
-  onDrillDownInvoiceClick(row: ArAgingDrillDownRow): void {
-    if (!row?.invoiceId) {
+  onDetailRowClick(row: ArAgingDetailRow): void {
+    if (row.kind !== 'transaction' || !row.invoiceId) {
       return;
     }
 
@@ -462,23 +538,26 @@ export class ArAgingReportComponent implements OnInit, OnDestroy, OnChanges {
     });
   }
 
-  refreshDrillDownRows(): void {
-    if (!this.drillDownView) {
-      this.drillDownInvoices = [];
+  refreshDetailReport(): void {
+    if (!this.drillDownView || !this.reportResult) {
+      this.detailReport = null;
       return;
     }
 
-    this.drillDownInvoices = this.drillDownView.invoices.map(invoice => ({
-      invoiceId: invoice.invoiceId,
-      invoiceCode: invoice.invoiceCode,
-      customerLabel: invoice.customerLabel,
-      invoiceDate: this.formatter.formatDateTimeOffsetAsDateOnly(invoice.invoiceDate) || '-',
-      dueDate: this.formatter.formatDateTimeOffsetAsDateOnly(invoice.dueDate) || '-',
-      daysPastDue: invoice.daysPastDue,
-      balanceDueDisplay: '$' + this.formatter.currency(invoice.balanceDue),
-      reservationCode: invoice.reservationCode || '-',
-      propertyCode: invoice.propertyCode || '-'
-    }));
+    const asOfDate = this.reportFilters?.asOfDate ?? this.utilityService.formatDateOnlyForApi(new Date());
+    const invoicesById = new Map(this.allInvoices.map(invoice => [invoice.invoiceId, invoice]));
+    this.detailReport = this.mappingService.buildArAgingDetailReport({
+      invoiceDetails: this.drillDownView.invoices,
+      invoicesById,
+      reservationContextByReservationId: this.reservationContextByReservationId,
+      costCodes: this.allCostCodes,
+      asOfDate,
+      bucketColumns: this.reportResult.bucketColumns,
+      bucketFilter: this.drillDownView.bucketId,
+      scopeLabel: this.drillDownView.title,
+      companyName: this.companyName,
+      officeName: this.displayOfficeName
+    });
   }
 
   closeInvoiceDetail(): void {
@@ -493,6 +572,10 @@ export class ArAgingReportComponent implements OnInit, OnDestroy, OnChanges {
     this.journalEntriesChanged.emit();
     this.loadInvoices();
   }
+
+  isDetailRowClickable(row: ArAgingDetailRow): boolean {
+    return row.kind === 'transaction' && !!row.invoiceId;
+  }
   //#endregion
 
   //#region Get Methods
@@ -503,7 +586,6 @@ export class ArAgingReportComponent implements OnInit, OnDestroy, OnChanges {
     return this.offices.find(office => office.officeId === this.officeId)?.name || '';
   }
 
-  /** Panel max-width grows with column count and caps at the viewport. */
   get panelMaxWidthCss(): string {
     const count = (this.reportResult?.bucketColumns.length ?? 0) + 1;
     if (count <= 1) {
@@ -515,6 +597,54 @@ export class ArAgingReportComponent implements OnInit, OnDestroy, OnChanges {
     const chromeRem = 3;
     const calculatedRem = labelWidthRem + (count * amountColumnWidthRem) + chromeRem;
     return `min(100%, ${Math.ceil(calculatedRem)}rem)`;
+  }
+
+  get detailPanelMaxWidthCss(): string {
+    return 'min(100%, 88rem)';
+  }
+
+  get detailColumnNames(): string[] {
+    return Object.keys(this.detailDisplayedColumns);
+  }
+
+  getDetailColumnStyle(columnKey: string): { width: string; minWidth: string; maxWidth: string } | null {
+    const maxWidth = this.detailDisplayedColumns[columnKey]?.maxWidth;
+    if (!maxWidth || maxWidth === 'auto') {
+      return null;
+    }
+    return { width: maxWidth, minWidth: maxWidth, maxWidth };
+  }
+
+  isDetailAmountColumn(columnKey: string): boolean {
+    const column = this.detailDisplayedColumns[columnKey];
+    return column?.alignment === 'right' || column?.headerAlignment === 'right';
+  }
+
+  getDetailCellDisplay(row: ArAgingDetailRow, columnKey: string): string {
+    switch (columnKey) {
+      case 'transactionType':
+        return row.transactionType || '';
+      case 'transactionDate':
+        return this.formatDetailDate(row.transactionDate);
+      case 'num':
+        return row.num || '';
+      case 'referenceNo':
+        return row.referenceNo || '-';
+      case 'name':
+        return row.name || '';
+      case 'terms':
+        return row.terms || '-';
+      case 'dueDate':
+        return this.formatDetailDate(row.dueDate);
+      case 'classLabel':
+        return row.classLabel || '-';
+      case 'aging':
+        return row.aging == null ? '' : String(row.aging);
+      case 'openBalance':
+        return this.formatDetailAmount(row.openBalance);
+      default:
+        return '';
+    }
   }
   //#endregion
 
@@ -538,11 +668,6 @@ export class ArAgingReportComponent implements OnInit, OnDestroy, OnChanges {
 
   markViewForCheck(): void {
     this.cdr.markForCheck();
-  }
-  
-  ngOnDestroy(): void {
-    this.destroy$.next();
-    this.destroy$.complete();
   }
   //#endregion
 }

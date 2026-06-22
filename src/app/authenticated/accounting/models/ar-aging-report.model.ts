@@ -1,5 +1,8 @@
 import { InvoiceResponse } from './invoice.model';
 import { CostCodesResponse } from './cost-codes.model';
+import { ContactResponse } from '../../contacts/models/contact.model';
+import { getTermType } from '../../contacts/models/contact-enum';
+import { ReservationResponse } from '../../reservations/models/reservation-model';
 
 //#region Types
 export type ArAgingBucketId = string;
@@ -159,16 +162,52 @@ export interface ArAgingDrillDownView {
   invoices: ArAgingInvoiceDetail[];
 }
 
-export interface ArAgingDrillDownRow {
-  invoiceId: string;
-  invoiceCode: string;
-  customerLabel: string;
-  invoiceDate: string;
-  dueDate: string;
-  daysPastDue: number;
-  balanceDueDisplay: string;
-  reservationCode: string;
-  propertyCode: string;
+export type ArAgingDetailRowKind = 'bucketHeader' | 'transaction' | 'bucketTotal' | 'reportTotal';
+
+export interface ArAgingReservationContext {
+  reservationId: string;
+  referenceNo: string | null;
+  termsLabel: string | null;
+}
+
+export interface ArAgingDetailBuildRequest {
+  invoiceDetails: ArAgingInvoiceDetail[];
+  invoicesById: Map<string, InvoiceResponse>;
+  reservationContextByReservationId: Map<string, ArAgingReservationContext>;
+  costCodes: CostCodesResponse[];
+  asOfDate: string;
+  bucketColumns: { id: ArAgingBucketId; label: string }[];
+  bucketFilter: ArAgingBucketId | null;
+  scopeLabel: string;
+  companyName?: string;
+  officeName?: string;
+}
+
+export interface ArAgingDetailRow {
+  rowId: string;
+  kind: ArAgingDetailRowKind;
+  label: string | null;
+  bucketId: ArAgingBucketId | null;
+  transactionType: string | null;
+  transactionDate: string | null;
+  num: string | null;
+  referenceNo: string | null;
+  name: string | null;
+  terms: string | null;
+  dueDate: string | null;
+  classLabel: string | null;
+  aging: number | null;
+  openBalance: number | null;
+  invoiceId: string | null;
+}
+
+export interface ArAgingDetailReportResult {
+  reportTitle: string;
+  periodLabel: string;
+  entityLineLabel: string | null;
+  scopeLabel: string;
+  rows: ArAgingDetailRow[];
+  reportTotal: number;
 }
 
 export interface ArAgingVisibleRow {
@@ -182,6 +221,55 @@ export interface ArAgingVisibleRow {
   depth: number;
   expandable: boolean;
   expanded: boolean;
+}
+//#endregion
+
+//#region Reservation Helpers
+export function normalizeArAgingReferenceNo(value: string | null | undefined): string | null {
+  const trimmed = value?.trim();
+  if (!trimmed) {
+    return null;
+  }
+
+  const withoutPrefix = trimmed.replace(/^PO\s*#?\s*/i, '').trim();
+  return withoutPrefix || null;
+}
+
+export function resolveArAgingTermsLabel(
+  reservation: Pick<ReservationResponse, 'companyId' | 'contactIds'>,
+  contactsById: ReadonlyMap<string, ContactResponse>
+): string | null {
+  const companyId = reservation.companyId?.trim();
+  if (companyId) {
+    const label = getTermType(contactsById.get(companyId)?.paymentTermsId);
+    if (label) {
+      return label;
+    }
+  }
+
+  for (const contactId of reservation.contactIds || []) {
+    const trimmed = String(contactId ?? '').trim();
+    if (!trimmed) {
+      continue;
+    }
+    const label = getTermType(contactsById.get(trimmed)?.paymentTermsId);
+    if (label) {
+      return label;
+    }
+  }
+
+  return null;
+}
+
+export function buildArAgingReservationContext(
+  reservation: Pick<ReservationResponse, 'reservationId' | 'referenceNo' | 'companyId' | 'contactIds'>,
+  contactsById: ReadonlyMap<string, ContactResponse>
+): ArAgingReservationContext {
+  return {
+    reservationId: reservation.reservationId,
+    referenceNo: normalizeArAgingReferenceNo(reservation.referenceNo),
+    termsLabel: resolveArAgingTermsLabel(reservation, contactsById)
+  };
 }
 //#endregion
 
