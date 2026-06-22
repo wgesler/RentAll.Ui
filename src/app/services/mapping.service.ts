@@ -1,17 +1,7 @@
 import { Injectable } from '@angular/core';
 import { AccountType, Class, SourceType, TransactionType, getAccountTypeLabel, getSourceTypeLabel, getTransactionTypeLabel, isCreditNormalAccountType, isJournalEntrySourceNavigable } from '../authenticated/accounting/models/accounting-enum';
-import {
-  FINANCIAL_REPORT_TOTAL_COLUMN_ID,
-  FINANCIAL_REPORT_UNASSIGNED_COLUMN_ID,
-  FinancialReportBuildRequest,
-  FinancialReportColumn,
-  FinancialReportColumnContext,
-  FinancialReportDrillDownContext,
-  FinancialReportDrillDownSpec,
-  FinancialReportKind,
-  FinancialReportResult,
-  FinancialReportTreeNode
-} from '../authenticated/accounting/models/financial-report.model';
+import { ArAgingBucketDefinition, ArAgingBucketId, ArAgingCustomerRow, ArAgingInvoiceDetail, ArAgingReportBuildRequest, ArAgingReportResult, ArAgingReservationRow, buildArAgingBucketDefinitions, createEmptyArAgingBucketAmounts, resolveArAgingBucketId, sortArAgingCustomerRows } from '../authenticated/accounting/models/ar-aging-report.model';
+import { FINANCIAL_REPORT_TOTAL_COLUMN_ID, FINANCIAL_REPORT_UNASSIGNED_COLUMN_ID, FinancialReportBuildRequest, FinancialReportColumn, FinancialReportColumnContext, FinancialReportDrillDownContext, FinancialReportDrillDownSpec, FinancialReportKind, FinancialReportResult, FinancialReportTreeNode } from '../authenticated/accounting/models/financial-report.model';
 import { ChartOfAccountListDisplay, ChartOfAccountRequest, ChartOfAccountResponse } from '../authenticated/accounting/models/chart-of-accounts.model';
 import { CostCodesListDisplay, CostCodesRequest, CostCodesResponse } from '../authenticated/accounting/models/cost-codes.model';
 import { InvoiceResponse, LedgerLineListDisplay, LedgerLineResponse } from '../authenticated/accounting/models/invoice.model';
@@ -46,7 +36,7 @@ import { PropertyBedDropdownCell, PropertyListDisplay, PropertyListResponse, Pro
 import { BoardProperty } from '../authenticated/reservations/models/reservation-board-model';
 import { getFrequency, getReservationStatus, ReservationStatus, ReservationType } from '../authenticated/reservations/models/reservation-enum';
 import { ExternalCalendarImportEvent } from '../authenticated/reservations/models/external-calendar-import.model';
-import { ExtraFeeLineRequest, ExtraFeeLineResponse, ReservationListDisplay, ReservationListResponse } from '../authenticated/reservations/models/reservation-model';
+import { ExtraFeeLineRequest, ExtraFeeLineResponse, ReservationCodeResponse, ReservationListDisplay, ReservationListResponse } from '../authenticated/reservations/models/reservation-model';
 import { LeadGeneralListDisplay, LeadGeneralResponse, LeadGeneralUpdateRequest } from '../authenticated/leads/models/lead-general.model';
 import { LeadOwnerRequest, LeadOwnerListDisplay, LeadOwnerResponse, LeadOwnerUpdateRequest } from '../authenticated/leads/models/lead-owner.model';
 import { UnifiedLeadRow } from '../authenticated/leads/models/lead-reports.model';
@@ -3894,6 +3884,273 @@ export class MappingService {
     return reportResult.columns.find(column => column.columnId === columnId)?.label || columnId;
   }
   //#endregion
+
+  //#region AR Aging Report Mapping
+  buildArAgingReport(request: ArAgingReportBuildRequest): ArAgingReportResult {
+    const asOfDate = request.asOfDate || this.utility.todayAsCalendarDateString();
+    const bucketDefinitions = buildArAgingBucketDefinitions(
+      request.intervalDays ?? 30,
+      request.throughDays !== undefined ? request.throughDays : 90
+    );
+    const bucketIds = bucketDefinitions.map(bucket => bucket.id);
+    const invoiceDetails = (request.invoices || [])
+      .map(invoice => {
+        try {
+          return this.buildArAgingInvoiceDetail(invoice, asOfDate, request.costCodes || [], bucketDefinitions);
+        } catch {
+          return null;
+        }
+      })
+      .filter((invoice): invoice is ArAgingInvoiceDetail => invoice != null)
+      .sort((a, b) => a.customerLabel.localeCompare(b.customerLabel, undefined, { sensitivity: 'base' })
+        || a.invoiceCode.localeCompare(b.invoiceCode, undefined, { numeric: true, sensitivity: 'base' }));
+
+    const customerRows = sortArAgingCustomerRows(
+      this.buildArAgingCustomerRows(invoiceDetails, bucketIds),
+      request.sortBy ?? 'default'
+    );
+    const totals = createEmptyArAgingBucketAmounts(bucketIds);
+    invoiceDetails.forEach(invoice => {
+      totals[invoice.bucketId] = this.roundFinancialReportAmount((totals[invoice.bucketId] || 0) + invoice.balanceDue);
+    });
+    const grandTotal = bucketIds.reduce(
+      (sum, bucketId) => this.roundFinancialReportAmount(sum + (totals[bucketId] || 0)),
+      0
+    );
+
+    const entityParts = [request.companyName?.trim(), request.officeName?.trim()].filter(part => !!part);
+    return {
+      reportTitle: 'A/R Aging Summary',
+      periodLabel: `As of ${this.buildArAgingAsOfLabel(asOfDate)}`,
+      entityLineLabel: entityParts.length > 0 ? entityParts.join(' ') : null,
+      bucketColumns: bucketDefinitions.map(bucket => ({ id: bucket.id, label: bucket.label })),
+      customerRows,
+      totals,
+      grandTotal,
+      invoiceDetails
+    };
+  }
+
+  buildArAgingCustomerRows(invoiceDetails: ArAgingInvoiceDetail[], bucketIds: ArAgingBucketId[]): ArAgingCustomerRow[] {
+    const rowsByCustomer = new Map<string, ArAgingCustomerRow>();
+    invoiceDetails.forEach(invoice => {
+      let row = rowsByCustomer.get(invoice.customerKey);
+      if (!row) {
+        row = {
+          customerKey: invoice.customerKey,
+          customerLabel: invoice.customerLabel,
+          bucketAmounts: createEmptyArAgingBucketAmounts(bucketIds),
+          total: 0,
+          reservationRows: [],
+          invoices: []
+        };
+        rowsByCustomer.set(invoice.customerKey, row);
+      }
+      row.bucketAmounts[invoice.bucketId] = this.roundFinancialReportAmount((row.bucketAmounts[invoice.bucketId] || 0) + invoice.balanceDue);
+      row.total = this.roundFinancialReportAmount(row.total + invoice.balanceDue);
+      row.invoices.push(invoice);
+    });
+
+    rowsByCustomer.forEach(row => {
+      row.reservationRows = this.buildArAgingReservationRows(row.invoices, bucketIds);
+    });
+
+    return Array.from(rowsByCustomer.values()).sort((a, b) =>
+      a.customerLabel.localeCompare(b.customerLabel, undefined, { sensitivity: 'base' })
+    );
+  }
+
+  buildArAgingReservationRows(invoices: ArAgingInvoiceDetail[], bucketIds: ArAgingBucketId[]): ArAgingReservationRow[] {
+    const rowsByReservation = new Map<string, ArAgingReservationRow>();
+    invoices.forEach(invoice => {
+      let row = rowsByReservation.get(invoice.reservationKey);
+      if (!row) {
+        row = {
+          reservationKey: invoice.reservationKey,
+          reservationId: invoice.reservationId ?? null,
+          reservationLabel: invoice.reservationLabel,
+          bucketAmounts: createEmptyArAgingBucketAmounts(bucketIds),
+          total: 0,
+          invoices: []
+        };
+        rowsByReservation.set(invoice.reservationKey, row);
+      }
+      row.bucketAmounts[invoice.bucketId] = this.roundFinancialReportAmount((row.bucketAmounts[invoice.bucketId] || 0) + invoice.balanceDue);
+      row.total = this.roundFinancialReportAmount(row.total + invoice.balanceDue);
+      row.invoices.push(invoice);
+    });
+
+    return Array.from(rowsByReservation.values()).sort((a, b) =>
+      a.reservationLabel.localeCompare(b.reservationLabel, undefined, { numeric: true, sensitivity: 'base' })
+    );
+  }
+
+  buildArAgingReservationKey(invoice: InvoiceResponse): string {
+    const reservationId = String(invoice.reservationId ?? '').trim();
+    if (reservationId) {
+      return reservationId;
+    }
+
+    const reservationCode = String(invoice.reservationCode ?? '').trim();
+    if (reservationCode) {
+      return reservationCode;
+    }
+
+    return `invoice:${invoice.invoiceId}`;
+  }
+
+  buildArAgingReservationLabel(invoice: InvoiceResponse): string {
+    try {
+      const reservationLabel = this.utility.getReservationDropdownLabel(this.buildArAgingReservationStub(invoice), null).trim();
+      if (reservationLabel) {
+        return reservationLabel;
+      }
+    } catch {
+      // Fall back to invoice fields when reservation label helpers cannot resolve a value.
+    }
+
+    const reservationCode = String(invoice.reservationCode ?? '').trim();
+    const tenantName = String(invoice.contactName || invoice.responsibleParty || '').trim();
+    if (reservationCode && tenantName) {
+      return `${reservationCode} ${tenantName}`;
+    }
+
+    return reservationCode || tenantName || invoice.invoiceCode || 'Unknown';
+  }
+
+  buildArAgingReservationStub(invoice: InvoiceResponse): ReservationCodeResponse {
+    return {
+      reservationId: String(invoice.reservationId ?? ''),
+      reservationCode: String(invoice.reservationCode ?? ''),
+      propertyId: String(invoice.propertyId ?? ''),
+      propertyCode: String(invoice.propertyCode ?? ''),
+      officeId: invoice.officeId,
+      officeName: invoice.officeName ?? '',
+      contactId: String(invoice.contactId ?? ''),
+      contactName: invoice.contactName ?? '',
+      companyName: null,
+      tenantName: invoice.contactName ?? '',
+      reservationTypeId: 0,
+      isActive: true
+    };
+  }
+
+  buildArAgingInvoiceDetail(
+    invoice: InvoiceResponse,
+    asOfDate: string,
+    costCodes: CostCodesResponse[],
+    bucketDefinitions: ArAgingBucketDefinition[]
+  ): ArAgingInvoiceDetail | null {
+    if (!invoice.isActive) {
+      return null;
+    }
+
+    const invoiceDate = this.toDateOnlyJsonString(invoice.invoiceDate);
+    if (invoiceDate && invoiceDate > asOfDate) {
+      return null;
+    }
+
+    const balanceDue = this.getArAgingInvoiceBalanceDue(invoice, asOfDate, costCodes);
+    if (balanceDue <= 0.005) {
+      return null;
+    }
+
+    const dueDate = this.toDateOnlyJsonString(invoice.dueDate) || invoiceDate || asOfDate;
+    const daysPastDue = this.getArAgingDaysPastDue(asOfDate, dueDate);
+    const customerLabel = (invoice.responsibleParty || invoice.contactName || 'Unknown').trim() || 'Unknown';
+    const customerKey = `${invoice.contactId || ''}|${customerLabel.toLowerCase()}`;
+
+    return {
+      invoiceId: invoice.invoiceId,
+      invoiceCode: invoice.invoiceCode,
+      customerKey,
+      customerLabel,
+      reservationKey: this.buildArAgingReservationKey(invoice),
+      reservationId: invoice.reservationId,
+      reservationLabel: this.buildArAgingReservationLabel(invoice),
+      invoiceDate: invoiceDate || asOfDate,
+      dueDate,
+      daysPastDue,
+      balanceDue,
+      bucketId: resolveArAgingBucketId(daysPastDue, bucketDefinitions),
+      reservationCode: invoice.reservationCode,
+      propertyCode: invoice.propertyCode,
+      officeId: invoice.officeId
+    };
+  }
+
+  getArAgingInvoiceBalanceDue(
+    invoice: InvoiceResponse,
+    asOfDate: string,
+    costCodes: CostCodesResponse[]
+  ): number {
+    const ledgerLines = Array.isArray(invoice.ledgerLines) ? invoice.ledgerLines : [];
+    const totalAmount = Number(invoice.totalAmount || 0);
+    const paidAmount = ledgerLines.length > 0
+      ? this.getArAgingPaidAmountFromLedgerLines(ledgerLines, invoice.officeId, costCodes, asOfDate)
+      : Number(invoice.paidAmount || 0);
+
+    return this.roundFinancialReportAmount(totalAmount - paidAmount);
+  }
+
+  getArAgingPaidAmountFromLedgerLines(
+    ledgerLines: LedgerLineResponse[],
+    officeId: number,
+    costCodes: CostCodesResponse[],
+    asOfDate: string
+  ): number {
+    return ledgerLines.reduce((sum, line) => {
+      const lineDate = this.toDateOnlyJsonString(line.ledgerLineDate);
+      if (lineDate && lineDate > asOfDate) {
+        return sum;
+      }
+
+      if (!this.isArAgingPaymentLine(line, officeId, costCodes)) {
+        return sum;
+      }
+
+      const amount = Number(line.amount || 0);
+      return sum + (Number.isFinite(amount) ? amount : 0);
+    }, 0);
+  }
+
+  isArAgingPaymentLine(
+    line: LedgerLineResponse,
+    officeId: number,
+    costCodes: CostCodesResponse[]
+  ): boolean {
+    if (line.transactionTypeId === TransactionType.Payment) {
+      return true;
+    }
+
+    const costCodeId = line.costCodeId;
+    if (costCodeId == null) {
+      return false;
+    }
+
+    const matchingCostCode = costCodes.find(
+      costCode => costCode.costCodeId === costCodeId && costCode.officeId === officeId
+    ) ?? costCodes.find(costCode => costCode.costCodeId === costCodeId);
+    return matchingCostCode?.transactionTypeId === TransactionType.Payment;
+  }
+
+  getArAgingDaysPastDue(asOfDate: string, dueDate: string): number {
+    const asOf = this.utility.parseDateOnlyStringToDate(asOfDate);
+    const due = this.utility.parseDateOnlyStringToDate(dueDate);
+    if (!asOf || !due) {
+      return 0;
+    }
+    const diffMs = asOf.getTime() - due.getTime();
+    return Math.floor(diffMs / 86400000);
+  }
+
+  buildArAgingAsOfLabel(asOfDate: string): string {
+    const parsed = this.utility.parseDateOnlyStringToDate(asOfDate);
+    if (!parsed) {
+      return asOfDate;
+    }
+    return parsed.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' });
+  }
   //#endregion
 
   //#region Helper/Format Functions

@@ -975,6 +975,9 @@ app-searchable-select .searchable-select-field.searchable-invalid .mat-mdc-selec
 .header-title .titlebar-field-invoice-no.mat-mdc-form-field,
 .header-title .titlebar-field-reservation.mat-mdc-form-field,
 .header-title .titlebar-field-document-type.mat-mdc-form-field,
+.header-title .titlebar-field-ar-aging-interval.mat-mdc-form-field,
+.header-title .titlebar-field-ar-aging-through.mat-mdc-form-field,
+.header-title .titlebar-field-ar-aging-sort.mat-mdc-form-field,
 .header-title .reservation-dropdown.mat-mdc-form-field,
 .header-title .field-width-18ch.mat-mdc-form-field {
   .mat-mdc-text-field-wrapper {
@@ -1081,6 +1084,9 @@ app-searchable-select .searchable-select-field.searchable-invalid .mat-mdc-selec
 .header-title .titlebar-field-invoice-no.mat-mdc-form-field .mdc-floating-label:not(.mdc-floating-label--float-above),
 .header-title .titlebar-field-reservation.mat-mdc-form-field .mdc-floating-label:not(.mdc-floating-label--float-above),
 .header-title .titlebar-field-document-type.mat-mdc-form-field .mdc-floating-label:not(.mdc-floating-label--float-above),
+.header-title .titlebar-field-ar-aging-interval.mat-mdc-form-field .mdc-floating-label:not(.mdc-floating-label--float-above),
+.header-title .titlebar-field-ar-aging-through.mat-mdc-form-field .mdc-floating-label:not(.mdc-floating-label--float-above),
+.header-title .titlebar-field-ar-aging-sort.mat-mdc-form-field .mdc-floating-label:not(.mdc-floating-label--float-above),
 .header-title .reservation-dropdown.mat-mdc-form-field .mdc-floating-label:not(.mdc-floating-label--float-above),
 .header-title .field-width-18ch.mat-mdc-form-field .mdc-floating-label:not(.mdc-floating-label--float-above) {
   top: 50% !important;
@@ -1597,13 +1603,39 @@ mat-form-field input,
   padding-right: 28px !important;
 }
 
-.mat-mdc-menu-panel .office-menu-item .office-selected-check {
+.mat-mdc-menu-panel .office-menu-item .office-selected-check,
+.mat-mdc-menu-panel.accounting-reports-tab-menu .accounting-reports-menu-check {
   position: absolute !important;
   right: 12px !important;
   top: 50% !important;
   transform: translateY(-50%) !important;
   margin: 0 !important;
   color: #2563eb !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+}
+
+/* Accounting shell Reports tab menu: match global dropdown option density. */
+.mat-mdc-menu-panel.accounting-reports-tab-menu {
+  min-width: 14rem !important;
+}
+
+.mat-mdc-menu-panel.accounting-reports-tab-menu .accounting-reports-menu-item {
+  min-height: var(--global-dropdown-option-min-height) !important;
+  padding-top: 2px !important;
+  padding-bottom: 2px !important;
+}
+
+.mat-mdc-menu-panel.accounting-reports-tab-menu .accounting-reports-menu-label {
+  padding-right: 36px !important;
+}
+
+.mat-mdc-menu-panel.accounting-reports-tab-menu .accounting-reports-menu-check {
+  right: 16px !important;
+  font-size: 20px !important;
+  width: 20px !important;
+  height: 20px !important;
 }
 
 .datatable-add-btn {

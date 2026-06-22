@@ -1,0 +1,173 @@
+@if (isPageReady) {
+  @if (activeInvoiceId) {
+    <app-invoice
+      #drillDownInvoiceEditor
+      [shellMode]="true"
+      [invoiceIdInput]="activeInvoiceId"
+      [officeIdInput]="activeInvoiceOfficeId"
+      [reservationIdInput]="activeInvoiceReservationId"
+      (savedEvent)="onInvoiceSaved()">
+    </app-invoice>
+  } @else if (drillDownView) {
+    <div class="mat list-layout-standard dbg-band-main">
+      <div class="tableDiv">
+        <app-data-table
+          [data]="drillDownInvoices"
+          [columns]="drillDownColumns"
+          [tableName]="'ar-aging-drill-down'"
+          [noDataMessage]="'No invoices match the selected aging bucket.'"
+          [hasColumnIndex]="false"
+          [hasFilter]="true"
+          [hasToggleTop]="false"
+          [hasButtonTop]="false"
+          [hasActionsSelect]="false"
+          [hasContactNameLink]="false"
+          [hasActionsRowClick]="true"
+          [itemsPerPage]="100"
+          (rowClickEvent)="onDrillDownInvoiceClick($event)">
+          <div dataTableFilterActions>
+            <div class="table-filter-actions-group form-titlebar-actions-wrap uniform-gap">
+              <span class="ar-aging-report-drill-down-context">{{ drillDownView.title }} · {{ drillDownView.subtitle }}</span>
+            </div>
+          </div>
+        </app-data-table>
+      </div>
+    </div>
+  } @else {
+    <div
+      class="mat list-layout-standard dbg-band-main financial-report-layout"
+      [style.--financial-report-panel-max-width]="panelMaxWidthCss">
+      <div class="financial-report-panel">
+        @if (isServiceError) {
+          <div class="financial-report-empty-state">
+            <p>{{ noDataMessage }}</p>
+          </div>
+        } @else {
+          <div class="financial-report-header">
+            @if (reportResult?.entityLineLabel) {
+              <p class="financial-report-entity-line">{{ reportResult?.entityLineLabel }}</p>
+            }
+            @if (reportResult) {
+              <h2 class="financial-report-title">{{ reportResult.reportTitle }}</h2>
+              @if (reportResult.periodLabel) {
+                <p class="financial-report-period">{{ reportResult.periodLabel }}</p>
+              }
+            }
+          </div>
+
+          @if (!reportResult || (reportResult.customerRows.length === 0 && visibleRows.length === 0)) {
+            <div class="financial-report-empty-state">
+              <p>{{ noDataMessage }}</p>
+            </div>
+          } @else {
+            <div class="financial-report-table-wrap">
+              <table class="financial-report-table financial-report-table--multi-column">
+                <thead>
+                  <tr>
+                    <th class="financial-report-col-label">
+                      <div class="financial-report-header-label">
+                        <button
+                          mat-icon-button
+                          type="button"
+                          class="financial-report-expand-all-btn financial-report-icon-expand-btn"
+                          [matTooltip]="isAllExpanded ? 'Collapse all' : 'Expand all'"
+                          [attr.aria-label]="isAllExpanded ? 'Collapse all' : 'Expand all'"
+                          (click)="toggleExpandAll()">
+                          <mat-icon>{{ getExpandAllIcon() }}</mat-icon>
+                        </button>
+                        <span>Customer</span>
+                      </div>
+                    </th>
+                    @for (column of reportResult.bucketColumns; track column.id) {
+                      <th class="financial-report-col-amount">{{ column.label }}</th>
+                    }
+                    <th class="financial-report-col-amount financial-report-col-total">Total</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  @for (row of visibleRows; track row.rowId) {
+                    <tr
+                      [class.financial-report-row-section]="row.kind === 'customer'"
+                      [class.financial-report-row-expandable]="row.kind === 'customer' || row.kind === 'reservation'"
+                      [class.financial-report-row-account]="row.kind === 'reservation'"
+                      [class.financial-report-row-total]="row.kind === 'customerTotal'">
+                      <td class="financial-report-col-label">
+                        <div class="financial-report-label-wrap" [style.padding-left.px]="row.depth * 18">
+                          @if (row.expandable) {
+                            <button
+                              type="button"
+                              mat-icon-button
+                              class="financial-report-expand-btn financial-report-icon-expand-btn"
+                              [attr.aria-expanded]="row.expanded"
+                              [attr.aria-label]="row.expanded ? 'Collapse ' + row.label : 'Expand ' + row.label"
+                              (click)="toggleCustomerExpansion(row.customerKey)">
+                              <mat-icon>{{ getRowExpandIcon(row) }}</mat-icon>
+                            </button>
+                          } @else {
+                            <span class="financial-report-expand-spacer"></span>
+                          }
+                          <span class="financial-report-label">{{ row.label }}</span>
+                        </div>
+                      </td>
+                      @for (column of reportResult.bucketColumns; track column.id) {
+                        <td
+                          class="financial-report-col-amount"
+                          [class.financial-report-col-amount--clickable]="hasBucketAmount(row.bucketAmounts, column.id)"
+                          [attr.role]="hasBucketAmount(row.bucketAmounts, column.id) ? 'button' : null"
+                          [attr.tabindex]="hasBucketAmount(row.bucketAmounts, column.id) ? 0 : null"
+                          (click)="openDrillDownFromRow(row, column.id)"
+                          (keydown.enter)="openDrillDownFromRow(row, column.id)"
+                          (keydown.space)="openDrillDownFromRow(row, column.id); $event.preventDefault()">
+                          {{ formatBucketAmount(row.bucketAmounts[column.id]) }}
+                        </td>
+                      }
+                      <td
+                        class="financial-report-col-amount financial-report-col-total"
+                        [class.financial-report-col-amount--clickable]="hasPositiveAmount(row.total)"
+                        [attr.role]="hasPositiveAmount(row.total) ? 'button' : null"
+                        [attr.tabindex]="hasPositiveAmount(row.total) ? 0 : null"
+                        (click)="openDrillDownFromRow(row, null)"
+                        (keydown.enter)="openDrillDownFromRow(row, null)"
+                        (keydown.space)="openDrillDownFromRow(row, null); $event.preventDefault()">
+                        {{ formatBucketAmount(row.total) }}
+                      </td>
+                    </tr>
+                  }
+                  <tr class="financial-report-row-total">
+                    <td class="financial-report-col-label">
+                      <div class="financial-report-label-wrap">
+                        <span class="financial-report-expand-spacer"></span>
+                        <span class="financial-report-label">Total</span>
+                      </div>
+                    </td>
+                    @for (column of reportResult.bucketColumns; track column.id) {
+                      <td
+                        class="financial-report-col-amount"
+                        [class.financial-report-col-amount--clickable]="hasBucketAmount(reportResult.totals, column.id)"
+                        [attr.role]="hasBucketAmount(reportResult.totals, column.id) ? 'button' : null"
+                        [attr.tabindex]="hasBucketAmount(reportResult.totals, column.id) ? 0 : null"
+                        (click)="openDrillDown(null, column.id)"
+                        (keydown.enter)="openDrillDown(null, column.id)"
+                        (keydown.space)="openDrillDown(null, column.id); $event.preventDefault()">
+                        {{ formatBucketAmount(reportResult.totals[column.id]) }}
+                      </td>
+                    }
+                    <td
+                      class="financial-report-col-amount financial-report-col-total financial-report-col-amount--clickable"
+                      role="button"
+                      tabindex="0"
+                      (click)="openDrillDown(null, null)"
+                      (keydown.enter)="openDrillDown(null, null)"
+                      (keydown.space)="openDrillDown(null, null); $event.preventDefault()">
+                      {{ formatBucketAmount(reportResult.grandTotal) }}
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          }
+        }
+      </div>
+    </div>
+  }
+}

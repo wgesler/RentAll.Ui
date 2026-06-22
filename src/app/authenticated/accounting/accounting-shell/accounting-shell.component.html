@@ -100,7 +100,7 @@
             }
             </div>
           </div>
-        } @else if (selectedTabIndex === 1 || selectedTabIndex === 2) {
+        } @else if (selectedTabIndex === tabBillsReceipts) {
           <div class="header-title form-titlebar-fields-wrap accounting-shell-titlebar-fields">
             <div class="accounting-shell-titlebar-filters">
             @if (showShellOfficeDropdown) {
@@ -121,7 +121,7 @@
             }
             </div>
           </div>
-        } @else if (hasAccountingFullAccess && (selectedTabIndex === 3 || selectedTabIndex === 4)) {
+        } @else if (hasAccountingFullAccess && (selectedTabIndex === tabDeposits || selectedTabIndex === tabPrintChecks)) {
           <div class="header-title form-titlebar-fields-wrap accounting-shell-titlebar-fields">
             <div class="accounting-shell-titlebar-filters">
             @if (showShellOfficeDropdown) {
@@ -136,6 +136,66 @@
               </app-title-bar-select>
             }
             @if (showShellDateRange) {
+              <div class="accounting-shell-titlebar-dates">
+                <ng-container [ngTemplateOutlet]="accountingShellDateFields" />
+              </div>
+            }
+            </div>
+          </div>
+        } @else if (hasAccountingFullAccess && usesArAgingTitleBarFilters()) {
+          <div class="header-title form-titlebar-fields-wrap accounting-shell-titlebar-fields">
+            <div class="accounting-shell-titlebar-filters">
+            @if (showShellOfficeDropdown) {
+              <app-title-bar-select
+                [label]="'Office'"
+                [formFieldClass]="'titlebar-field-office'"
+                [value]="selectedOfficeId"
+                [options]="shellOfficeTitleBarOptions"
+                [nullOptionLabel]="'All Offices'"
+                [noResultsText]="'No offices match your search'"
+                (valueChange)="onShellOfficeDropdownChange($event)">
+              </app-title-bar-select>
+            }
+            <app-title-bar-select
+              [label]="'Dates'"
+              [formFieldClass]="'titlebar-field-company'"
+              [value]="selectedArAgingDatePreset"
+              [options]="shellArAgingDatePresetOptions"
+              [showInstructionOption]="false"
+              [noResultsText]="'No date presets match your search'"
+              (valueChange)="onShellArAgingDatePresetChange($event)">
+            </app-title-bar-select>
+            <app-title-bar-select
+              [label]="'Interval (days)'"
+              [formFieldClass]="'titlebar-field-ar-aging-interval'"
+              [value]="selectedArAgingIntervalDays"
+              [options]="shellArAgingIntervalOptions"
+              [showSearchInput]="false"
+              [showInstructionOption]="false"
+              [noResultsText]="'No intervals match your search'"
+              (valueChange)="onShellArAgingIntervalChange($event)">
+            </app-title-bar-select>
+            <app-title-bar-select
+              [label]="'Through'"
+              [formFieldClass]="'titlebar-field-ar-aging-through'"
+              [value]="selectedArAgingThroughValue"
+              [options]="shellArAgingThroughOptions"
+              [showSearchInput]="false"
+              [showInstructionOption]="false"
+              [noResultsText]="'No values match your search'"
+              (valueChange)="onShellArAgingThroughChange($event)">
+            </app-title-bar-select>
+            <app-title-bar-select
+              [label]="'Sort By'"
+              [formFieldClass]="'titlebar-field-ar-aging-sort'"
+              [value]="selectedArAgingSortBy"
+              [options]="shellArAgingSortByOptions"
+              [showSearchInput]="false"
+              [showInstructionOption]="false"
+              [noResultsText]="'No sort options match your search'"
+              (valueChange)="onShellArAgingSortByChange($event)">
+            </app-title-bar-select>
+            @if (showShellDateRange && showArAgingCustomAsOfDate) {
               <div class="accounting-shell-titlebar-dates">
                 <ng-container [ngTemplateOutlet]="accountingShellDateFields" />
               </div>
@@ -293,7 +353,7 @@
             <mat-icon>arrow_back</mat-icon>
             Back
           </button>
-        } @else if (isFinancialReportDrillDownActive) {
+        } @else if (isFinancialReportDrillDownActive || isArAgingDrillDownActive) {
           <button mat-raised-button type="button" color="accent" (click)="onFinancialReportDrillDownBack()">
             <mat-icon>arrow_back</mat-icon>
             Back
@@ -332,48 +392,76 @@
               (journalEntriesChanged)="onJournalEntriesChanged()">
             </app-invoice-list>
           </mat-tab>
-          <mat-tab label="Bills">
-            @if (showBillsReceiptDetail) {
-              <app-receipt
-                [property]="billsReceiptProperty"
-                [receiptId]="selectedBillsReceiptId"
-                [officeId]="selectedOfficeId"
-                [shellContext]="'accounting'"
-                (backEvent)="onBillsReceiptBack()"
-                (savedEvent)="onBillsReceiptSaved()" />
-            } @else {
-              <app-receipts-list
-                [officeId]="selectedOfficeId"
-                [searchRequest]="billsSearchRequest"
-                [embeddedInMaintenance]="true"
-                [embeddedInAccounting]="true"
-                [accountingListMode]="'bills'"
-                [refreshTrigger]="billsRefreshTrigger"
-                (receiptSelect)="onBillsReceiptSelect($event)"
-                (journalEntriesChanged)="onJournalEntriesChanged()">
-              </app-receipts-list>
-            }
-          </mat-tab>
-          <mat-tab label="Receipts">
-            @if (showReceiptsReceiptDetail) {
-              <app-receipt
-                [property]="receiptsReceiptProperty"
-                [receiptId]="selectedReceiptsReceiptId"
-                [officeId]="selectedOfficeId"
-                [shellContext]="'accounting'"
-                (backEvent)="onReceiptsReceiptBack()"
-                (savedEvent)="onReceiptsReceiptSaved()" />
-            } @else {
-              <app-receipts-list
-                [officeId]="selectedOfficeId"
-                [searchRequest]="billsSearchRequest"
-                [embeddedInMaintenance]="true"
-                [embeddedInAccounting]="true"
-                [accountingListMode]="'receipts'"
-                [refreshTrigger]="receiptsRefreshTrigger"
-                (receiptSelect)="onReceiptsReceiptSelect($event)"
-                (journalEntriesChanged)="onJournalEntriesChanged()">
-              </app-receipts-list>
+          <mat-tab>
+            <ng-template mat-tab-label>
+              <span class="accounting-shell-dropdown-tab-label">
+                <span class="accounting-shell-dropdown-tab-label__text">{{ billsReceiptsTabLabel }}</span>
+                <button
+                  mat-icon-button
+                  type="button"
+                  class="accounting-shell-dropdown-tab-menu-btn"
+                  [matMenuTriggerFor]="billsReceiptsMenu"
+                  #billsReceiptsMenuTrigger="matMenuTrigger"
+                  (click)="$event.stopPropagation()"
+                  aria-label="Choose bills or receipts">
+                  <mat-icon>arrow_drop_down</mat-icon>
+                </button>
+              </span>
+              <mat-menu #billsReceiptsMenu="matMenu" panelClass="accounting-reports-tab-menu">
+                @for (option of shellBillsReceiptMenuOptions; track option.kind) {
+                  <button mat-menu-item type="button" class="office-menu-item accounting-reports-menu-item" (click)="selectBillsReceipt(option.kind)">
+                    <span class="office-menu-label accounting-reports-menu-label">{{ option.label }}</span>
+                    @if (selectedBillsReceiptKind === option.kind) {
+                      <mat-icon class="office-selected-check accounting-reports-menu-check">check</mat-icon>
+                    }
+                  </button>
+                }
+              </mat-menu>
+            </ng-template>
+            @if (selectedTabIndex === tabBillsReceipts) {
+              @if (selectedBillsReceiptKind === 'bills') {
+                @if (showBillsReceiptDetail) {
+                  <app-receipt
+                    [property]="billsReceiptProperty"
+                    [receiptId]="selectedBillsReceiptId"
+                    [officeId]="selectedOfficeId"
+                    [shellContext]="'accounting'"
+                    (backEvent)="onBillsReceiptBack()"
+                    (savedEvent)="onBillsReceiptSaved()" />
+                } @else {
+                  <app-receipts-list
+                    [officeId]="selectedOfficeId"
+                    [searchRequest]="billsSearchRequest"
+                    [embeddedInMaintenance]="true"
+                    [embeddedInAccounting]="true"
+                    [accountingListMode]="'bills'"
+                    [refreshTrigger]="billsRefreshTrigger"
+                    (receiptSelect)="onBillsReceiptSelect($event)"
+                    (journalEntriesChanged)="onJournalEntriesChanged()">
+                  </app-receipts-list>
+                }
+              } @else {
+                @if (showReceiptsReceiptDetail) {
+                  <app-receipt
+                    [property]="receiptsReceiptProperty"
+                    [receiptId]="selectedReceiptsReceiptId"
+                    [officeId]="selectedOfficeId"
+                    [shellContext]="'accounting'"
+                    (backEvent)="onReceiptsReceiptBack()"
+                    (savedEvent)="onReceiptsReceiptSaved()" />
+                } @else {
+                  <app-receipts-list
+                    [officeId]="selectedOfficeId"
+                    [searchRequest]="billsSearchRequest"
+                    [embeddedInMaintenance]="true"
+                    [embeddedInAccounting]="true"
+                    [accountingListMode]="'receipts'"
+                    [refreshTrigger]="receiptsRefreshTrigger"
+                    (receiptSelect)="onReceiptsReceiptSelect($event)"
+                    (journalEntriesChanged)="onJournalEntriesChanged()">
+                  </app-receipts-list>
+                }
+              }
             }
           </mat-tab>
           @if (hasAccountingFullAccess) {
@@ -414,36 +502,56 @@
               </app-general-ledger-list>
             }
           </mat-tab>
-          <mat-tab label="Profit & Loss">
-            @if (selectedTabIndex === tabProfitLoss) {
-              <app-financial-report
-                #profitLossReport
-                reportKind="profitLoss"
-                [officeId]="selectedOfficeId"
-                [reportClass]="selectedFinancialReportClass"
-                [searchDateRange]="invoiceSearchDateRange"
-                [refreshTrigger]="financialReportsRefreshTrigger"
-                (drillDownActiveChange)="onFinancialReportDrillDownActiveChange($event)"
-                (journalEntryDetailActiveChange)="onFinancialReportJournalEntryDetailChange($event)"
-                (shellTitleBarRefresh)="onFinancialReportShellTitleBarRefresh()"
-                (journalEntriesChanged)="onJournalEntriesChanged()">
-              </app-financial-report>
-            }
-          </mat-tab>
-          <mat-tab label="Balance Sheet">
-            @if (selectedTabIndex === tabBalanceSheet) {
-              <app-financial-report
-                #balanceSheetReport
-                reportKind="balanceSheet"
-                [officeId]="selectedOfficeId"
-                [reportClass]="selectedFinancialReportClass"
-                [searchDateRange]="invoiceSearchDateRange"
-                [refreshTrigger]="financialReportsRefreshTrigger"
-                (drillDownActiveChange)="onFinancialReportDrillDownActiveChange($event)"
-                (journalEntryDetailActiveChange)="onFinancialReportJournalEntryDetailChange($event)"
-                (shellTitleBarRefresh)="onFinancialReportShellTitleBarRefresh()"
-                (journalEntriesChanged)="onJournalEntriesChanged()">
-              </app-financial-report>
+          <mat-tab>
+            <ng-template mat-tab-label>
+              <span class="accounting-shell-dropdown-tab-label">
+                <span class="accounting-shell-dropdown-tab-label__text">Reports</span>
+                <button
+                  mat-icon-button
+                  type="button"
+                  class="accounting-shell-dropdown-tab-menu-btn"
+                  [matMenuTriggerFor]="reportsMenu"
+                  #reportsMenuTrigger="matMenuTrigger"
+                  (click)="$event.stopPropagation()"
+                  aria-label="Choose report">
+                  <mat-icon>arrow_drop_down</mat-icon>
+                </button>
+              </span>
+              <mat-menu #reportsMenu="matMenu" panelClass="accounting-reports-tab-menu">
+                @for (reportOption of shellReportMenuOptions; track reportOption.kind) {
+                  <button mat-menu-item type="button" class="office-menu-item accounting-reports-menu-item" (click)="selectReport(reportOption.kind)">
+                    <span class="office-menu-label accounting-reports-menu-label">{{ reportOption.label }}</span>
+                    @if (selectedReportKind === reportOption.kind) {
+                      <mat-icon class="office-selected-check accounting-reports-menu-check">check</mat-icon>
+                    }
+                  </button>
+                }
+              </mat-menu>
+            </ng-template>
+            @if (selectedTabIndex === tabReports) {
+              @if (selectedReportKind === 'arAging') {
+                <app-ar-aging-report
+                  #arAgingReport
+                  [officeId]="selectedOfficeId"
+                  [reportFilters]="arAgingReportFilters"
+                  [refreshTrigger]="financialReportsRefreshTrigger"
+                  (drillDownActiveChange)="onArAgingDrillDownActiveChange($event)"
+                  (journalEntriesChanged)="onArAgingJournalEntriesChanged()">
+                </app-ar-aging-report>
+              } @else {
+                <app-financial-report
+                  #financialReport
+                  [reportKind]="selectedReportKind"
+                  [officeId]="selectedOfficeId"
+                  [reportClass]="selectedFinancialReportClass"
+                  [searchDateRange]="invoiceSearchDateRange"
+                  [refreshTrigger]="financialReportsRefreshTrigger"
+                  (drillDownActiveChange)="onFinancialReportDrillDownActiveChange($event)"
+                  (journalEntryDetailActiveChange)="onFinancialReportJournalEntryDetailChange($event)"
+                  (shellTitleBarRefresh)="onFinancialReportShellTitleBarRefresh()"
+                  (journalEntriesChanged)="onJournalEntriesChanged()">
+                </app-financial-report>
+              }
             }
           </mat-tab>
           <mat-tab label="General Ledger">
