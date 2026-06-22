@@ -121,7 +121,28 @@
             }
             </div>
           </div>
-        } @else if (hasAccountingFullAccess && (selectedTabIndex === tabDeposits || selectedTabIndex === tabPrintChecks)) {
+        } @else if (hasAccountingFullAccess && selectedTabIndex === tabBankActivities) {
+          <div class="header-title form-titlebar-fields-wrap accounting-shell-titlebar-fields">
+            <div class="accounting-shell-titlebar-filters">
+            @if (showShellOfficeDropdown) {
+              <app-title-bar-select
+                [label]="'Office'"
+                [formFieldClass]="'titlebar-field-office'"
+                [value]="selectedOfficeId"
+                [options]="shellOfficeTitleBarOptions"
+                [nullOptionLabel]="'All Offices'"
+                [noResultsText]="'No offices match your search'"
+                (valueChange)="onShellOfficeDropdownChange($event)">
+              </app-title-bar-select>
+            }
+            @if (showShellDateRange) {
+              <div class="accounting-shell-titlebar-dates">
+                <ng-container [ngTemplateOutlet]="accountingShellDateFields" />
+              </div>
+            }
+            </div>
+          </div>
+        } @else if (hasAccountingFullAccess && selectedTabIndex === tabOwners) {
           <div class="header-title form-titlebar-fields-wrap accounting-shell-titlebar-fields">
             <div class="accounting-shell-titlebar-filters">
             @if (showShellOfficeDropdown) {
@@ -353,6 +374,16 @@
             <mat-icon>arrow_back</mat-icon>
             Back
           </button>
+        } @else if (isOwnersUtilityReceiptDetailActive) {
+          <button mat-raised-button type="button" color="accent" (click)="onOwnersUtilityReceiptBack()">
+            <mat-icon>arrow_back</mat-icon>
+            Back
+          </button>
+        } @else if (isOwnersWorkOrderDetailActive) {
+          <button mat-raised-button type="button" color="accent" (click)="onOwnersWorkOrderBack()">
+            <mat-icon>arrow_back</mat-icon>
+            Back
+          </button>
         } @else if (isFinancialReportDrillDownActive || isArAgingDrillDownActive) {
           <button mat-raised-button type="button" color="accent" (click)="onFinancialReportDrillDownBack()">
             <mat-icon>arrow_back</mat-icon>
@@ -465,41 +496,149 @@
             }
           </mat-tab>
           @if (hasAccountingFullAccess) {
-          <mat-tab label="Deposits">
-            @if (showGeneralLedgerDetail && activeJournalEntryId) {
-              <app-general-ledger
-                [journalEntryId]="activeJournalEntryId"
-                [selectedJournalEntryLineId]="selectedJournalEntryLineId"
-                (backEvent)="onGeneralLedgerBack()"
-                (savedEvent)="onJournalEntriesChanged()">
-              </app-general-ledger>
-            } @else {
-              <app-general-ledger-list
-                [officeId]="selectedOfficeId"
-                [undepositedFundsOnly]="true"
-                [searchDateRange]="invoiceSearchDateRange"
-                [refreshTrigger]="depositsRefreshTrigger"
-                (lineSelectEvent)="onGeneralLedgerLineSelect($event)"
-                (depositCompletedEvent)="onJournalEntriesChanged()">
-              </app-general-ledger-list>
+          <mat-tab>
+            <ng-template mat-tab-label>
+              <span class="accounting-shell-dropdown-tab-label">
+                <span class="accounting-shell-dropdown-tab-label__text">Bank</span>
+                <button
+                  mat-icon-button
+                  type="button"
+                  class="accounting-shell-dropdown-tab-menu-btn"
+                  [matMenuTriggerFor]="bankActivitiesMenu"
+                  #bankActivitiesMenuTrigger="matMenuTrigger"
+                  (click)="$event.stopPropagation()"
+                  aria-label="Choose bank view">
+                  <mat-icon>arrow_drop_down</mat-icon>
+                </button>
+              </span>
+              <mat-menu #bankActivitiesMenu="matMenu" panelClass="accounting-reports-tab-menu">
+                @for (option of shellBankActivityMenuOptions; track option.kind) {
+                  <button mat-menu-item type="button" class="office-menu-item accounting-reports-menu-item" (click)="selectBankActivity(option.kind)">
+                    <span class="office-menu-label accounting-reports-menu-label">{{ option.label }}</span>
+                    @if (selectedBankActivityKind === option.kind) {
+                      <mat-icon class="office-selected-check accounting-reports-menu-check">check</mat-icon>
+                    }
+                  </button>
+                }
+              </mat-menu>
+            </ng-template>
+            @if (selectedTabIndex === tabBankActivities) {
+              @if (selectedBankActivityKind === 'deposits') {
+                @if (showGeneralLedgerDetail && activeJournalEntryId) {
+                  <app-general-ledger
+                    [journalEntryId]="activeJournalEntryId"
+                    [selectedJournalEntryLineId]="selectedJournalEntryLineId"
+                    (backEvent)="onGeneralLedgerBack()"
+                    (savedEvent)="onJournalEntriesChanged()">
+                  </app-general-ledger>
+                } @else {
+                  <app-general-ledger-list
+                    [officeId]="selectedOfficeId"
+                    [undepositedFundsOnly]="true"
+                    [searchDateRange]="invoiceSearchDateRange"
+                    [refreshTrigger]="depositsRefreshTrigger"
+                    (lineSelectEvent)="onGeneralLedgerLineSelect($event)"
+                    (depositCompletedEvent)="onJournalEntriesChanged()">
+                  </app-general-ledger-list>
+                }
+              } @else if (selectedBankActivityKind === 'printChecks') {
+                @if (showGeneralLedgerDetail && activeJournalEntryId) {
+                  <app-general-ledger
+                    [journalEntryId]="activeJournalEntryId"
+                    [selectedJournalEntryLineId]="selectedJournalEntryLineId"
+                    (backEvent)="onGeneralLedgerBack()"
+                    (savedEvent)="onJournalEntriesChanged()">
+                  </app-general-ledger>
+                } @else {
+                  <app-general-ledger-list
+                    [officeId]="selectedOfficeId"
+                    [printChecksOnly]="true"
+                    [searchDateRange]="invoiceSearchDateRange"
+                    [refreshTrigger]="printChecksRefreshTrigger"
+                    (lineSelectEvent)="onGeneralLedgerLineSelect($event)">
+                  </app-general-ledger-list>
+                }
+              } @else {
+                <div class="accounting-shell-report-placeholder">
+                  Bank reconciliation is not available yet.
+                </div>
+              }
             }
           </mat-tab>
-          <mat-tab label="Print Checks">
-            @if (showGeneralLedgerDetail && activeJournalEntryId) {
-              <app-general-ledger
-                [journalEntryId]="activeJournalEntryId"
-                [selectedJournalEntryLineId]="selectedJournalEntryLineId"
-                (backEvent)="onGeneralLedgerBack()"
-                (savedEvent)="onJournalEntriesChanged()">
-              </app-general-ledger>
-            } @else {
-              <app-general-ledger-list
-                [officeId]="selectedOfficeId"
-                [printChecksOnly]="true"
-                [searchDateRange]="invoiceSearchDateRange"
-                [refreshTrigger]="printChecksRefreshTrigger"
-                (lineSelectEvent)="onGeneralLedgerLineSelect($event)">
-              </app-general-ledger-list>
+          <mat-tab>
+            <ng-template mat-tab-label>
+              <span class="accounting-shell-dropdown-tab-label">
+                <span class="accounting-shell-dropdown-tab-label__text">Owners</span>
+                <button
+                  mat-icon-button
+                  type="button"
+                  class="accounting-shell-dropdown-tab-menu-btn"
+                  [matMenuTriggerFor]="ownersMenu"
+                  #ownersMenuTrigger="matMenuTrigger"
+                  (click)="$event.stopPropagation()"
+                  aria-label="Choose owner view">
+                  <mat-icon>arrow_drop_down</mat-icon>
+                </button>
+              </span>
+              <mat-menu #ownersMenu="matMenu" panelClass="accounting-reports-tab-menu">
+                @for (option of shellOwnerMenuOptions; track option.kind) {
+                  <button mat-menu-item type="button" class="office-menu-item accounting-reports-menu-item" (click)="selectOwnerKind(option.kind)">
+                    <span class="office-menu-label accounting-reports-menu-label">{{ option.label }}</span>
+                    @if (selectedOwnerKind === option.kind) {
+                      <mat-icon class="office-selected-check accounting-reports-menu-check">check</mat-icon>
+                    }
+                  </button>
+                }
+              </mat-menu>
+            </ng-template>
+            @if (selectedTabIndex === tabOwners) {
+              @if (selectedOwnerKind === 'utilities') {
+                @if (showOwnersUtilityReceiptDetail) {
+                  <app-receipt
+                    [property]="ownersUtilityReceiptProperty"
+                    [receiptId]="selectedOwnersUtilityReceiptId"
+                    [officeId]="selectedOfficeId"
+                    [shellContext]="'accounting'"
+                    (backEvent)="onOwnersUtilityReceiptBack()"
+                    (savedEvent)="onOwnersUtilityReceiptSaved()" />
+                } @else {
+                  <app-receipts-list
+                    [officeId]="selectedOfficeId"
+                    [searchRequest]="billsSearchRequest"
+                    [embeddedInMaintenance]="true"
+                    [embeddedInAccounting]="true"
+                    [accountingListMode]="'utilities'"
+                    [refreshTrigger]="ownersUtilitiesRefreshTrigger"
+                    (receiptSelect)="onOwnersUtilityReceiptSelect($event)"
+                    (journalEntriesChanged)="onJournalEntriesChanged()">
+                  </app-receipts-list>
+                }
+              } @else if (selectedOwnerKind === 'workOrders') {
+                @if (showOwnersWorkOrderDetail) {
+                  @for (instance of [ownersWorkOrderDetailInstance]; track instance) {
+                    <app-work-order
+                      [property]="ownersWorkOrderProperty"
+                      [workOrderId]="selectedOwnersWorkOrderId"
+                      [officeId]="selectedOfficeId"
+                      [embeddedInMaintenance]="true"
+                      [showBackButton]="false"
+                      (backEvent)="onOwnersWorkOrderBack()"
+                      (savedEvent)="onOwnersWorkOrderSaved()" />
+                  }
+                } @else {
+                  <app-work-order-list
+                    [officeId]="selectedOfficeId"
+                    [searchRequest]="billsSearchRequest"
+                    [embeddedInMaintenance]="true"
+                    [workOrderTypeId]="ownerWorkOrderTypeId"
+                    [refreshTrigger]="ownersWorkOrdersRefreshTrigger"
+                    (workOrderSelect)="onOwnersWorkOrderSelect($event)" />
+                }
+              } @else {
+                <div class="accounting-shell-report-placeholder">
+                  Owner statements are not available yet.
+                </div>
+              }
             }
           </mat-tab>
           <mat-tab>

@@ -23,6 +23,8 @@ import { TitleBarSelectComponent } from '../../shared/titlebar-select/titlebar-s
 import { MaintenanceListSearchRequest } from '../../maintenance/models/maintenance-search.model';
 import { ReceiptSelection } from '../../maintenance/models/receipt.model';
 import { ReceiptComponent } from '../../maintenance/receipt/receipt.component';
+import { WorkOrderComponent } from '../../maintenance/work-order/work-order.component';
+import { WorkOrderListComponent, WorkOrderSelection } from '../../maintenance/work-order-list/work-order-list.component';
 import { ReceiptsListComponent } from '../../maintenance/receipts-list/receipts-list.component';
 import { PropertyCodeResponse, PropertyResponse } from '../../properties/models/property.model';
 import { PropertyService } from '../../properties/services/property.service';
@@ -36,7 +38,8 @@ import { GeneralLedgerListComponent } from '../general-ledger-list/general-ledge
 import { FinancialReportComponent } from '../financial-report/financial-report.component';
 import { ArAgingReportComponent } from '../ar-aging-report/ar-aging-report.component';
 import { AR_AGING_DATE_PRESET_OPTIONS, AR_AGING_INTERVAL_OPTIONS, AR_AGING_SORT_BY_OPTIONS, AR_AGING_THROUGH_ALL_VALUE, AR_AGING_THROUGH_OPTIONS, ArAgingDatePreset, ArAgingReportFilters, ArAgingSortBy, normalizeArAgingThroughDays, resolveArAgingAsOfDate } from '../models/ar-aging-report.model';
-import { AccountingShellBillsReceiptKind, AccountingShellReportKind } from '../models/accounting-shell.model';
+import { AccountingShellBankActivityKind, AccountingShellBillsReceiptKind, AccountingShellOwnerKind, AccountingShellReportKind } from '../models/accounting-shell.model';
+import { WorkOrderType } from '../../maintenance/models/maintenance-enums';
 import { FinancialReportKind } from '../models/financial-report.model';
 import { CostCodesService } from '../services/cost-codes.service';
 import { ChartOfAccountsService } from '../services/chart-of-accounts.service';
@@ -56,6 +59,8 @@ import { JournalEntrySyncResult } from '../models/journal-entry.model';
     InvoiceListComponent,
     ReceiptsListComponent,
     ReceiptComponent,
+    WorkOrderListComponent,
+    WorkOrderComponent,
     GeneralLedgerListComponent,
     GeneralLedgerComponent,
     FinancialReportComponent,
@@ -71,19 +76,32 @@ export class AccountingShellComponent implements OnInit, OnDestroy {
   @ViewChild('financialReport') financialReport?: FinancialReportComponent;
   @ViewChild('arAgingReport') arAgingReport?: ArAgingReportComponent;
   @ViewChild('billsReceiptsMenuTrigger') billsReceiptsMenuTrigger?: MatMenuTrigger;
+  @ViewChild('bankActivitiesMenuTrigger') bankActivitiesMenuTrigger?: MatMenuTrigger;
+  @ViewChild('ownersMenuTrigger') ownersMenuTrigger?: MatMenuTrigger;
   @ViewChild('reportsMenuTrigger') reportsMenuTrigger?: MatMenuTrigger;
 
   private readonly pinnedDateRangeStorageKeyPrefix = 'rentall-accounting-shell-pinned-dates';
   readonly tabBillsReceipts = 1;
-  readonly tabDeposits = 2;
-  readonly tabPrintChecks = 3;
+  readonly tabBankActivities = 2;
+  readonly tabOwners = 3;
   readonly tabMaxIndexLimited = 1;
   readonly tabReports = 4;
   readonly tabGeneralLedger = 5;
   readonly tabMaxIndex = 5;
+  readonly ownerWorkOrderTypeId = WorkOrderType.Owner;
   readonly shellBillsReceiptMenuOptions: { kind: AccountingShellBillsReceiptKind; label: string }[] = [
     { kind: 'bills', label: 'Bills' },
     { kind: 'receipts', label: 'Receipts' }
+  ];
+  readonly shellBankActivityMenuOptions: { kind: AccountingShellBankActivityKind; label: string }[] = [
+    { kind: 'deposits', label: 'Deposits' },
+    { kind: 'printChecks', label: 'Print Checks' },
+    { kind: 'reconcile', label: 'Reconcile' }
+  ];
+  readonly shellOwnerMenuOptions: { kind: AccountingShellOwnerKind; label: string }[] = [
+    { kind: 'utilities', label: 'Utilities' },
+    { kind: 'workOrders', label: 'Work Orders' },
+    { kind: 'statements', label: 'Statements' }
   ];
   readonly shellReportMenuOptions: { kind: AccountingShellReportKind; label: string }[] = [
     { kind: 'profitLoss', label: 'Profit & Loss' },
@@ -91,6 +109,8 @@ export class AccountingShellComponent implements OnInit, OnDestroy {
     { kind: 'arAging', label: 'AR Aging' }
   ];
   selectedBillsReceiptKind: AccountingShellBillsReceiptKind = 'bills';
+  selectedBankActivityKind: AccountingShellBankActivityKind = 'deposits';
+  selectedOwnerKind: AccountingShellOwnerKind = 'utilities';
   selectedReportKind: AccountingShellReportKind = 'profitLoss';
 
   selectedTabIndex = 0;
@@ -144,6 +164,15 @@ export class AccountingShellComponent implements OnInit, OnDestroy {
   financialReportsRefreshTrigger = 0;
   depositsRefreshTrigger = 0;
   printChecksRefreshTrigger = 0;
+  ownersUtilitiesRefreshTrigger = 0;
+  ownersWorkOrdersRefreshTrigger = 0;
+  showOwnersUtilityReceiptDetail = false;
+  selectedOwnersUtilityReceiptId: string | null = null;
+  ownersUtilityReceiptProperty: PropertyResponse | null = null;
+  showOwnersWorkOrderDetail = false;
+  selectedOwnersWorkOrderId: string | null = null;
+  ownersWorkOrderProperty: PropertyResponse | null = null;
+  ownersWorkOrderDetailInstance = 0;
   chartOfAccounts: ChartOfAccountResponse[] = [];
   isJournalEntrySyncInProgress = false;
   isFinancialReportDrillDownActive = false;
@@ -192,11 +221,11 @@ export class AccountingShellComponent implements OnInit, OnDestroy {
         if (this.selectedTabIndex === this.tabBillsReceipts) {
           this.refreshActiveBillsReceiptList();
         }
-        if (this.selectedTabIndex === this.tabDeposits) {
-          this.depositsRefreshTrigger++;
+        if (this.selectedTabIndex === this.tabBankActivities) {
+          this.refreshActiveBankActivityList();
         }
-        if (this.selectedTabIndex === this.tabPrintChecks) {
-          this.printChecksRefreshTrigger++;
+        if (this.selectedTabIndex === this.tabOwners) {
+          this.refreshActiveOwnerView();
         }
         if (this.usesReportTitleBarFilters()) {
           if (this.usesGeneralLedgerTitleBarFilters()) {
@@ -576,6 +605,7 @@ export class AccountingShellComponent implements OnInit, OnDestroy {
     this.receiptsRefreshTrigger++;
     this.depositsRefreshTrigger++;
     this.printChecksRefreshTrigger++;
+    this.ownersUtilitiesRefreshTrigger++;
     this.financialReportsRefreshTrigger++;
     this.generalLedgerRefreshTrigger++;
   }
@@ -635,6 +665,98 @@ export class AccountingShellComponent implements OnInit, OnDestroy {
       isActive: true
     } as PropertyResponse;
   }
+
+  onOwnersUtilityReceiptSelect(selection: ReceiptSelection): void {
+    const receiptId = selection?.receiptId ?? null;
+    const propertyId = (selection?.propertyId || '').trim() || null;
+    const officeId = selection?.officeId ?? this.selectedOfficeId ?? null;
+    const resolvedOfficeId = officeId != null && Number.isFinite(Number(officeId)) ? Number(officeId) : null;
+
+    if (this.selectedOfficeId !== resolvedOfficeId) {
+      this.selectedOfficeId = resolvedOfficeId;
+      this.selectedCompanyId = null;
+      this.selectedReservationId = null;
+      this.syncBillsSearchRequest();
+    }
+
+    const openReceiptDetail = (property: PropertyResponse | null) => {
+      this.selectedTabIndex = this.tabOwners;
+      this.selectedOwnerKind = 'utilities';
+      this.ownersUtilityReceiptProperty = property;
+      this.selectedOwnersUtilityReceiptId = receiptId;
+      this.showOwnersUtilityReceiptDetail = true;
+    };
+
+    if (propertyId) {
+      this.propertyService.getPropertyByGuid(propertyId).pipe(take(1)).subscribe({
+        next: (property: PropertyResponse) => openReceiptDetail(property),
+        error: () => this.toastr.error('Unable to load property for utility bill.', 'Error')
+      });
+      return;
+    }
+
+    openReceiptDetail(this.buildBillsReceiptPropertyStub(officeId));
+  }
+
+  onOwnersUtilityReceiptBack(): void {
+    this.showOwnersUtilityReceiptDetail = false;
+    this.selectedOwnersUtilityReceiptId = null;
+    this.ownersUtilityReceiptProperty = null;
+  }
+
+  onOwnersUtilityReceiptSaved(): void {
+    this.onOwnersUtilityReceiptBack();
+    this.ownersUtilitiesRefreshTrigger++;
+  }
+
+  onOwnersWorkOrderSelect(selection: WorkOrderSelection): void {
+    const workOrderId = selection?.workOrderId ?? null;
+    const propertyId = (selection?.propertyId || '').trim() || null;
+    const resolvedOfficeId = this.selectedOfficeId;
+
+    const openWorkOrderDetail = (property: PropertyResponse | null) => {
+      this.selectedTabIndex = this.tabOwners;
+      this.selectedOwnerKind = 'workOrders';
+      this.ownersWorkOrderProperty = property;
+      this.selectedOwnersWorkOrderId = workOrderId;
+      this.ownersWorkOrderDetailInstance++;
+      this.showOwnersWorkOrderDetail = true;
+      this.cdr.detectChanges();
+    };
+
+    if (propertyId) {
+      openWorkOrderDetail(this.buildOwnersWorkOrderPropertyStub(resolvedOfficeId, propertyId));
+      this.propertyService.getPropertyByGuid(propertyId).pipe(take(1)).subscribe({
+        next: (property: PropertyResponse) => {
+          this.ownersWorkOrderProperty = property;
+          this.cdr.detectChanges();
+        },
+        error: () => this.toastr.error('Unable to load property for work order.', 'Error')
+      });
+      return;
+    }
+
+    openWorkOrderDetail(this.buildBillsReceiptPropertyStub(resolvedOfficeId));
+  }
+
+  buildOwnersWorkOrderPropertyStub(officeId: number | null, propertyId: string): PropertyResponse {
+    const stub = this.buildBillsReceiptPropertyStub(officeId);
+    return {
+      ...stub,
+      propertyId
+    } as PropertyResponse;
+  }
+
+  onOwnersWorkOrderBack(): void {
+    this.showOwnersWorkOrderDetail = false;
+    this.selectedOwnersWorkOrderId = null;
+    this.ownersWorkOrderProperty = null;
+  }
+
+  onOwnersWorkOrderSaved(): void {
+    this.onOwnersWorkOrderBack();
+    this.ownersWorkOrdersRefreshTrigger++;
+  }
   //#endregion
 
   //#region Tab Selection
@@ -648,7 +770,11 @@ export class AccountingShellComponent implements OnInit, OnDestroy {
       this.onBillsReceiptBack();
       this.onReceiptsReceiptBack();
     }
-    if (event.index !== this.tabDeposits && event.index !== this.tabPrintChecks && !this.usesReportTitleBarFilters()) {
+    if (event.index !== this.tabOwners) {
+      this.onOwnersUtilityReceiptBack();
+      this.onOwnersWorkOrderBack();
+    }
+    if (event.index !== this.tabBankActivities && !this.usesReportTitleBarFilters()) {
       this.onGeneralLedgerBack();
     }
     if (event.index !== this.tabReports) {
@@ -661,11 +787,11 @@ export class AccountingShellComponent implements OnInit, OnDestroy {
     if (this.selectedTabIndex === this.tabBillsReceipts) {
       this.refreshActiveBillsReceiptList();
     }
-    if (this.selectedTabIndex === this.tabDeposits) {
-      this.depositsRefreshTrigger++;
+    if (this.selectedTabIndex === this.tabBankActivities) {
+      this.refreshActiveBankActivityList();
     }
-    if (this.selectedTabIndex === this.tabPrintChecks) {
-      this.printChecksRefreshTrigger++;
+    if (this.selectedTabIndex === this.tabOwners) {
+      this.refreshActiveOwnerView();
     }
     if (this.usesFinancialReportTitleBarFilters()) {
       this.financialReportsRefreshTrigger++;
@@ -720,6 +846,59 @@ export class AccountingShellComponent implements OnInit, OnDestroy {
     }
   }
 
+  selectBankActivity(kind: AccountingShellBankActivityKind): void {
+    this.bankActivitiesMenuTrigger?.closeMenu();
+    const previousTab = this.selectedTabIndex;
+    const kindChanged = this.selectedBankActivityKind !== kind;
+
+    if (kindChanged) {
+      this.onGeneralLedgerBack();
+    }
+
+    this.selectedBankActivityKind = kind;
+
+    if (previousTab !== this.tabBankActivities) {
+      this.onTabChange({ index: this.tabBankActivities });
+      return;
+    }
+
+    if (kindChanged) {
+      this.refreshActiveBankActivityList();
+      this.router.navigate([], {
+        relativeTo: this.route,
+        queryParams: this.buildShellQueryParams({ bankActivity: kind }),
+        queryParamsHandling: 'merge'
+      });
+    }
+  }
+
+  selectOwnerKind(kind: AccountingShellOwnerKind): void {
+    this.ownersMenuTrigger?.closeMenu();
+    const previousTab = this.selectedTabIndex;
+    const kindChanged = this.selectedOwnerKind !== kind;
+
+    if (kindChanged) {
+      this.onOwnersUtilityReceiptBack();
+      this.onOwnersWorkOrderBack();
+    }
+
+    this.selectedOwnerKind = kind;
+
+    if (previousTab !== this.tabOwners) {
+      this.onTabChange({ index: this.tabOwners });
+      return;
+    }
+
+    if (kindChanged) {
+      this.refreshActiveOwnerView();
+      this.router.navigate([], {
+        relativeTo: this.route,
+        queryParams: this.buildShellQueryParams({ ownerKind: kind }),
+        queryParamsHandling: 'merge'
+      });
+    }
+  }
+
   selectReport(kind: AccountingShellReportKind): void {
     this.reportsMenuTrigger?.closeMenu();
     const previousTab = this.selectedTabIndex;
@@ -760,6 +939,24 @@ export class AccountingShellComponent implements OnInit, OnDestroy {
     }
     this.receiptsRefreshTrigger++;
   }
+
+  refreshActiveBankActivityList(): void {
+    if (this.selectedBankActivityKind === 'printChecks') {
+      this.printChecksRefreshTrigger++;
+      return;
+    }
+    this.depositsRefreshTrigger++;
+  }
+
+  refreshActiveOwnerView(): void {
+    if (this.selectedOwnerKind === 'workOrders') {
+      this.ownersWorkOrdersRefreshTrigger++;
+      return;
+    }
+    if (this.selectedOwnerKind === 'utilities') {
+      this.ownersUtilitiesRefreshTrigger++;
+    }
+  }
   //#endregion
 
   //#region Date Range
@@ -799,11 +996,11 @@ export class AccountingShellComponent implements OnInit, OnDestroy {
     if (this.selectedTabIndex === this.tabBillsReceipts) {
       this.refreshActiveBillsReceiptList();
     }
-    if (this.selectedTabIndex === this.tabDeposits) {
-      this.depositsRefreshTrigger++;
+    if (this.selectedTabIndex === this.tabBankActivities) {
+      this.refreshActiveBankActivityList();
     }
-    if (this.selectedTabIndex === this.tabPrintChecks) {
-      this.printChecksRefreshTrigger++;
+    if (this.selectedTabIndex === this.tabOwners) {
+      this.refreshActiveOwnerView();
     }
     if (this.usesFinancialReportTitleBarFilters()) {
       this.financialReportsRefreshTrigger++;
@@ -992,6 +1189,8 @@ export class AccountingShellComponent implements OnInit, OnDestroy {
       && !this.isGeneralLedgerDetailActive
       && !this.isBillsReceiptDetailActive
       && !this.isReceiptsReceiptDetailActive
+      && !this.isOwnersUtilityReceiptDetailActive
+      && !this.isOwnersWorkOrderDetailActive
       && !this.isFinancialReportDrillDownActive
       && !this.isArAgingDrillDownActive;
   }
@@ -1123,9 +1322,21 @@ export class AccountingShellComponent implements OnInit, OnDestroy {
       && this.showReceiptsReceiptDetail;
   }
 
+  get isOwnersUtilityReceiptDetailActive(): boolean {
+    return this.selectedTabIndex === this.tabOwners
+      && this.selectedOwnerKind === 'utilities'
+      && this.showOwnersUtilityReceiptDetail;
+  }
+
+  get isOwnersWorkOrderDetailActive(): boolean {
+    return this.selectedTabIndex === this.tabOwners
+      && this.selectedOwnerKind === 'workOrders'
+      && this.showOwnersWorkOrderDetail;
+  }
+
   get isGeneralLedgerDetailActive(): boolean {
-    return (this.selectedTabIndex === this.tabDeposits
-      || this.selectedTabIndex === this.tabPrintChecks
+    return (this.selectedTabIndex === this.tabBankActivities
+      && this.selectedBankActivityKind !== 'reconcile'
       || this.selectedTabIndex === this.tabGeneralLedger)
       && this.showGeneralLedgerDetail;
   }
@@ -1219,13 +1430,14 @@ export class AccountingShellComponent implements OnInit, OnDestroy {
     if (this.selectedTabIndex === this.tabBillsReceipts) {
       this.refreshActiveBillsReceiptList();
     }
-    if (this.selectedTabIndex === this.tabDeposits) {
+    if (this.selectedTabIndex === this.tabBankActivities) {
       this.onGeneralLedgerBack();
-      this.depositsRefreshTrigger++;
+      this.refreshActiveBankActivityList();
     }
-    if (this.selectedTabIndex === this.tabPrintChecks) {
-      this.onGeneralLedgerBack();
-      this.printChecksRefreshTrigger++;
+    if (this.selectedTabIndex === this.tabOwners) {
+      this.onOwnersUtilityReceiptBack();
+      this.onOwnersWorkOrderBack();
+      this.refreshActiveOwnerView();
     }
     if (this.usesFinancialReportTitleBarFilters()) {
       this.financialReportsRefreshTrigger++;
@@ -1265,6 +1477,10 @@ export class AccountingShellComponent implements OnInit, OnDestroy {
     if (tabIndex !== null) {
       if ('report' in params) {
         tabIndex = this.tabReports;
+      } else if ('bankActivity' in params) {
+        tabIndex = this.tabBankActivities;
+      } else if ('ownerKind' in params) {
+        tabIndex = this.tabOwners;
       } else if (tabIndex === 7) {
         tabIndex = this.tabGeneralLedger;
       } else if (tabIndex === 6) {
@@ -1276,8 +1492,11 @@ export class AccountingShellComponent implements OnInit, OnDestroy {
         if ('chartOfAccountId' in params || 'propertyId' in params || 'glReservationId' in params) {
           tabIndex = this.tabGeneralLedger;
         } else {
-          tabIndex = this.tabPrintChecks;
+          tabIndex = this.tabReports;
         }
+      } else if (tabIndex === 3) {
+        tabIndex = this.tabBankActivities;
+        this.selectedBankActivityKind = 'printChecks';
       }
       tabIndex = Math.min(Math.max(tabIndex, 0), this.tabMaxIndex);
       if (this.selectedTabIndex !== tabIndex) {
@@ -1290,6 +1509,20 @@ export class AccountingShellComponent implements OnInit, OnDestroy {
       const billsReceipt = params['billsReceipt'];
       if (billsReceipt === 'bills' || billsReceipt === 'receipts') {
         this.selectedBillsReceiptKind = billsReceipt;
+      }
+    }
+
+    if ('bankActivity' in params) {
+      const bankActivity = params['bankActivity'];
+      if (bankActivity === 'deposits' || bankActivity === 'printChecks' || bankActivity === 'reconcile') {
+        this.selectedBankActivityKind = bankActivity;
+      }
+    }
+
+    if ('ownerKind' in params) {
+      const ownerKind = params['ownerKind'];
+      if (ownerKind === 'utilities' || ownerKind === 'workOrders' || ownerKind === 'statements') {
+        this.selectedOwnerKind = ownerKind;
       }
     }
 
@@ -1409,6 +1642,8 @@ export class AccountingShellComponent implements OnInit, OnDestroy {
             this.receiptsRefreshTrigger++;
             this.depositsRefreshTrigger++;
             this.printChecksRefreshTrigger++;
+            this.ownersUtilitiesRefreshTrigger++;
+            this.ownersWorkOrdersRefreshTrigger++;
             this.financialReportsRefreshTrigger++;
             this.generalLedgerRefreshTrigger++;
           });
@@ -1502,6 +1737,8 @@ export class AccountingShellComponent implements OnInit, OnDestroy {
       startDate: this.utilityService.formatDateOnlyForApi(this.startDate),
       endDate: this.utilityService.formatDateOnlyForApi(this.endDate),
       billsReceipt: this.selectedTabIndex === this.tabBillsReceipts ? this.selectedBillsReceiptKind : null,
+      bankActivity: this.selectedTabIndex === this.tabBankActivities ? this.selectedBankActivityKind : null,
+      ownerKind: this.selectedTabIndex === this.tabOwners ? this.selectedOwnerKind : null,
       report: this.selectedTabIndex === this.tabReports ? this.selectedReportKind : null,
       reportClass: this.usesFinancialReportTitleBarFilters()
         ? String(this.selectedFinancialReportClass)

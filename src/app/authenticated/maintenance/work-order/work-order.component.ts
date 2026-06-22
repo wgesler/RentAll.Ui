@@ -1,6 +1,6 @@
 import { CommonModule } from '@angular/common';
 import { HttpErrorResponse } from '@angular/common/http';
-import { Component, EventEmitter, Input, OnChanges, OnDestroy, OnInit, Output, SimpleChanges } from '@angular/core';
+import { Component, EventEmitter, Input, OnChanges, OnDestroy, OnInit, Output, SimpleChanges, ChangeDetectorRef } from '@angular/core';
 import { FormBuilder, FormControl, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
 import { ActivatedRoute, Router } from '@angular/router';
 import { ToastrService } from 'ngx-toastr';
@@ -113,7 +113,8 @@ export class WorkOrderComponent implements OnInit, OnChanges, OnDestroy {
     private workOrderAmountService: WorkOrderAmountService,
     public utilityService: UtilityService,
     private formatter: FormatterService,
-    private toastr: ToastrService
+    private toastr: ToastrService,
+    private cdr: ChangeDetectorRef
   ) {
     this.fb = fb;
     this.authService = authService;
@@ -143,6 +144,7 @@ export class WorkOrderComponent implements OnInit, OnChanges, OnDestroy {
 
     this.itemsToLoad$.pipe(takeUntil(this.destroy$)).subscribe(items => {
       this.isPageReady = items.size === 0;
+      this.cdr.detectChanges();
     });
 
     // Only Tenant types have reservations...
@@ -1302,6 +1304,7 @@ export class WorkOrderComponent implements OnInit, OnChanges, OnDestroy {
     this.workOrderService.getWorkOrderById(requestedWorkOrderId).pipe(take(1), finalize(() => {
       if (this.activeWorkOrderLoadId === loadId) {
         this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'workOrder');
+        this.cdr.detectChanges();
       }
     })).subscribe({
       next: (workOrder: WorkOrderResponse) => {
@@ -1317,12 +1320,14 @@ export class WorkOrderComponent implements OnInit, OnChanges, OnDestroy {
         this.populateForm(workOrder);
         this.applyPropertyContextFromWorkOrder(workOrder);
         this.loadAssociatedReceiptsForCurrentWorkOrder();
+        this.cdr.detectChanges();
       },
       error: (_err: HttpErrorResponse) => {
         if (this.activeWorkOrderLoadId !== loadId) {
           return;
         }
         this.toastr.error('Unable to load work order.', 'Error');
+        this.cdr.detectChanges();
       }
     });
   }

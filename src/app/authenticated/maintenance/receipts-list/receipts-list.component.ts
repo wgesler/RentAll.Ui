@@ -47,7 +47,7 @@ export class ReceiptsListComponent implements OnInit, OnChanges, OnDestroy {
   @Input() searchRequest?: MaintenanceListSearchRequest | null;
   @Input() embeddedInMaintenance = false;
   @Input() embeddedInAccounting = false;
-  @Input() accountingListMode: 'all' | 'bills' | 'receipts' = 'all';
+  @Input() accountingListMode: 'all' | 'bills' | 'receipts' | 'utilities' = 'all';
   @Input() refreshTrigger: number = 0;
   @Output() receiptSelect = new EventEmitter<ReceiptSelection>();
   @Output() payableEvent = new EventEmitter<ReceiptDisplayList>();
@@ -899,6 +899,9 @@ export class ReceiptsListComponent implements OnInit, OnChanges, OnDestroy {
     if (this.accountingListMode === 'bills') {
       return receipts.filter(receipt => this.isBillReceipt(receipt));
     }
+    if (this.accountingListMode === 'utilities') {
+      return receipts.filter(receipt => this.isBillReceipt(receipt) && receipt.isUtility === true);
+    }
     if (this.accountingListMode === 'receipts') {
       return receipts.filter(receipt => !this.isBillReceipt(receipt));
     }
@@ -973,6 +976,9 @@ export class ReceiptsListComponent implements OnInit, OnChanges, OnDestroy {
       return null;
     }
     if (this.accountingListMode === 'bills') {
+      return 1;
+    }
+    if (this.accountingListMode === 'utilities') {
       return 1;
     }
     if (this.accountingListMode === 'receipts') {

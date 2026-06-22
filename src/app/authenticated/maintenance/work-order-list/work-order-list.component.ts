@@ -44,6 +44,9 @@ export class WorkOrderListComponent implements OnInit, OnChanges, OnDestroy {
   @Input() reservationId: string | null = null;
   /** When true, selection is emitted via workOrderSelect and no navigation occurs (e.g. embedded in maintenance). */
   @Input() embeddedInMaintenance = false;
+  @Input() refreshTrigger = 0;
+  /** When set, only work orders with this type are shown. */
+  @Input() workOrderTypeId: number | null = null;
   @Output() workOrderSelect = new EventEmitter<WorkOrderSelection>();
 
   isPageReady = false;
@@ -131,6 +134,14 @@ export class WorkOrderListComponent implements OnInit, OnChanges, OnDestroy {
 
     if (changes['searchRequest'] && !changes['searchRequest'].firstChange && this.embeddedInMaintenance) {
       this.loadWorkOrdersForCurrentSearchCriteria();
+    }
+
+    if (changes['refreshTrigger'] && !changes['refreshTrigger'].firstChange) {
+      this.loadWorkOrdersForCurrentSearchCriteria(true);
+    }
+
+    if (changes['workOrderTypeId'] && !changes['workOrderTypeId'].firstChange) {
+      this.applyFilters();
     }
   }
 
@@ -398,11 +409,17 @@ export class WorkOrderListComponent implements OnInit, OnChanges, OnDestroy {
   }
 
   applyFilters(): void {
-    const activeScoped = this.usesMaintenanceSearch()
+    let activeScoped = this.usesMaintenanceSearch()
       ? [...this.allWorkOrders]
       : (this.showInactive
         ? [...this.allWorkOrders]
         : this.allWorkOrders.filter(workOrder => workOrder.isActive !== false));
+
+    const scopedWorkOrderTypeId = Number(this.workOrderTypeId);
+    if (Number.isFinite(scopedWorkOrderTypeId)) {
+      activeScoped = activeScoped.filter(workOrder => Number(workOrder.workOrderTypeId) === scopedWorkOrderTypeId);
+    }
+
     const selectedReservationId = (this.reservationId || '').trim();
     this.workOrdersDisplay = !selectedReservationId
       ? activeScoped
