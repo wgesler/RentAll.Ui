@@ -18,7 +18,7 @@
                 [required]="propertySection?.isAddMode ?? false"
                 [value]="propertySection?.isAddMode ? addModeOfficeId : displayOfficeId"
                 [options]="officeOptions"
-                [disabled]="!(propertySection?.isAddMode ?? false)"
+                [disabled]="!(propertySection?.isAddMode || isHeaderPropertyCodeEditable)"
                 [showInstructionOption]="true"
                 [nullOptionLabel]="'All Offices'"
                 [noResultsText]="'No offices match your search'"
