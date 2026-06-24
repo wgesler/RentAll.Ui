@@ -481,10 +481,7 @@ export class ReservationComponent implements OnInit, OnDestroy, CanComponentDeac
 
       const deletedReservation = this.reservation ? { ...this.reservation, isDeleted: true } : null;
       this.isSubmitting = true;
-      this.reservationService.deleteReservation(this.reservationId).pipe(
-        take(1),
-        finalize(() => this.isSubmitting = false)
-      ).subscribe({
+      this.reservationService.deleteReservation(this.reservationId).pipe(take(1),finalize(() => this.isSubmitting = false)).subscribe({
         next: () => {
           this.sendReservationChangeNotification(deletedReservation, {
             shouldNotify: true,
@@ -496,8 +493,11 @@ export class ReservationComponent implements OnInit, OnDestroy, CanComponentDeac
           this.toastr.success('Reservation deleted successfully', CommonMessage.Success, { timeOut: CommonTimeouts.Success });
           this.navigateToReservationEntryOrigin();
         },
-        error: () => {
-          this.toastr.error('Failed to delete reservation', CommonMessage.Error);
+        error: (err: HttpErrorResponse) => {
+          const message = typeof err?.error === 'string'
+            ? err.error
+            : err?.error?.message ?? 'Failed to delete reservation';
+          this.toastr.error(message, CommonMessage.Error);
         }
       });
     });

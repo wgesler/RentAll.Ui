@@ -329,12 +329,21 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
   }
 
   deleteInvoice(invoice: InvoiceResponse): void {
+    if (this.invoiceHasAppliedPayments(invoice)) {
+      this.toastr.error('Invoices with payments applied may not be deleted.', CommonMessage.Error);
+      return;
+    }
+
     this.accountingService.deleteInvoice(invoice.invoiceId).pipe(take(1)).subscribe({
       next: () => {
         this.toastr.success('Invoice deleted successfully', CommonMessage.Success);
         this.loadInvoicesForCurrentSearchCriteria(true);
       },
-      error: () => {
+      error: (err: HttpErrorResponse) => {
+        const message = typeof err?.error === 'string'
+          ? err.error
+          : err?.error?.message ?? 'Unable to delete invoice.';
+        this.toastr.error(message, CommonMessage.Error);
         this.markViewForCheck();
       }
     });
@@ -1343,6 +1352,23 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
 
       return sum;
     }, 0);
+  }
+
+  invoiceHasAppliedPayments(invoice: InvoiceResponse & { paidAmountValue?: number }): boolean {
+    return Math.abs(this.getInvoicePaidAmount(invoice)) > 0;
+  }
+
+  getInvoicePaidAmount(invoice: InvoiceResponse & { paidAmountValue?: number }): number {
+    if (invoice.paidAmountValue != null && !Number.isNaN(Number(invoice.paidAmountValue))) {
+      return Number(invoice.paidAmountValue);
+    }
+
+    const rawLedgerLines = invoice.ledgerLines ?? [];
+    if (rawLedgerLines.length > 0) {
+      return this.getPaidAmountFromLedgerLines(rawLedgerLines, invoice.officeId);
+    }
+
+    return Number(invoice.paidAmount || 0);
   }
 
   getTransactionTypeIdFromCostCode(costCodeId: number | null | undefined, officeId: number): number | null {

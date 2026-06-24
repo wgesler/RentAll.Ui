@@ -1,11 +1,11 @@
-import { CommonModule } from "@angular/common";
+import { HttpErrorResponse } from '@angular/common/http';
 import { ChangeDetectionStrategy, ChangeDetectorRef, Component, EventEmitter, HostListener, Input, OnChanges, OnDestroy, OnInit, Output, SimpleChanges } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { MatDialog } from '@angular/material/dialog';
 import { MatSlideToggleChange } from '@angular/material/slide-toggle';
 import { ActivatedRoute, NavigationEnd, Router } from '@angular/router';
 import { ToastrService } from 'ngx-toastr';
-import {BehaviorSubject, Subject, filter, finalize, firstValueFrom, map, skip, take, takeUntil} from 'rxjs';
+import {BehaviorSubject, EMPTY, Subject, filter, finalize, firstValueFrom, map, skip, switchMap, take, takeUntil} from 'rxjs';
 import { RouterUrl } from '../../../app.routes';
 import { CommonMessage } from '../../../enums/common-message.enum';
 import { MaterialModule } from '../../../material.module';
@@ -313,18 +313,60 @@ export class ReservationListComponent implements OnInit, OnDestroy, OnChanges {
         return;
       }
 
-      const deletedReservation = { ...reservation, isDeleted: true };
-      this.reservationService.deleteReservation(reservation.reservationId).pipe(take(1)).subscribe({
-        next: () => {
-          this.sendReservationDeletedNotification(deletedReservation);
-          this.toastr.success('Reservation deleted successfully', CommonMessage.Success);
-          this.allReservations = this.allReservations.filter(r => r.reservationId !== reservation.reservationId);
-          this.applyFilters();
-          this.markViewForCheck();
-        },
-        error: () => {}
-      });
+      this.executeReservationDelete(reservation);
     });
+  }
+
+  private executeReservationDelete(reservation: ReservationListDisplay): void {
+    const officeIds = this.resolveOfficeIdsForInvoiceCheck();
+    this.invoiceService.searchInvoices({
+      officeIds,
+      reservationId: reservation.reservationId,
+      includeInactive: true,
+      includePaid: true
+    }).pipe(
+      take(1),
+      switchMap(invoices => {
+        if (invoices.some(invoice => Math.abs(Number(invoice.paidAmount || 0)) > 0)) {
+          this.toastr.error(
+            'This reservation has paid invoices applied to it. It may not be deleted.',
+            CommonMessage.Error
+          );
+          return EMPTY;
+        }
+
+        const deletedReservation = { ...reservation, isDeleted: true };
+        return this.reservationService.deleteReservation(reservation.reservationId).pipe(
+          map(() => deletedReservation)
+        );
+      })
+    ).subscribe({
+      next: (deletedReservation) => {
+        this.sendReservationDeletedNotification(deletedReservation);
+        this.toastr.success('Reservation deleted successfully', CommonMessage.Success);
+        this.allReservations = this.allReservations.filter(r => r.reservationId !== reservation.reservationId);
+        this.applyFilters();
+        this.markViewForCheck();
+      },
+      error: (err: HttpErrorResponse) => {
+        const message = typeof err?.error === 'string'
+          ? err.error
+          : err?.error?.message ?? 'Unable to delete reservation.';
+        this.toastr.error(message, CommonMessage.Error);
+      }
+    });
+  }
+
+  private resolveOfficeIdsForInvoiceCheck(): number[] {
+    if (this.selectedOffice?.officeId) {
+      return [this.selectedOffice.officeId];
+    }
+
+    if (this.pageOfficeId && this.pageOfficeId > 0) {
+      return [this.pageOfficeId];
+    }
+
+    return this.offices.map(office => office.officeId).filter(id => id > 0);
   }
   //#endregion
 
