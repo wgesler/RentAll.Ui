@@ -45,9 +45,6 @@
 
 .property-agreement-lines-wrap {
   width: 100%;
-}
-
-.property-agreement-lines-wrap--vendor {
   border: 1px solid rgba(15, 79, 168, 0.2);
   border-radius: 8px;
   padding: 0.75rem;
@@ -55,7 +52,7 @@
 }
 
 .property-agreement-lines-table {
-  min-width: 1000px;
+  min-width: 1452px;
   border-collapse: collapse;
   width: 100%;
 
@@ -66,7 +63,25 @@
     border-bottom: 1px solid var(--mat-sys-outline-variant, #e0e0e0);
   }
 
+  .agreement-col-title {
+    min-width: 240px;
+    width: 240px;
+  }
+
+  .agreement-col-account {
+    min-width: 360px;
+    width: 360px;
+  }
+
+  .agreement-col-date {
+    min-width: 170px;
+    width: 170px;
+    max-width: 170px;
+  }
+
   .agreement-col-amount {
+    min-width: 100px;
+    width: 100px;
     text-align: right;
   }
 
@@ -123,11 +138,53 @@
     height: 32px;
     line-height: 32px;
     margin: 0;
+    font-size: 14px;
   }
 
   .property-agreement-line-date-field ::ng-deep .mat-datepicker-toggle-default-icon {
     width: 18px;
     height: 18px;
+  }
+
+  .property-agreement-line-amount-input {
+    font-size: 13px;
+    padding: 0 6px;
+  }
+
+  .property-agreement-line-account-select {
+    display: block;
+    width: 100%;
+    min-width: 0;
+  }
+
+  .property-agreement-line-account-select-control {
+    width: 100%;
+  }
+
+  .property-agreement-line-account-select ::ng-deep .searchable-select-control {
+    width: 100%;
+    min-width: 0;
+  }
+
+  .property-agreement-line-account-select ::ng-deep .mat-mdc-select-trigger {
+    min-height: 34px;
+    height: 34px;
+    padding: 0 6px;
+    box-sizing: border-box;
+    font-size: 14px;
+    border: 1px solid var(--mat-sys-outline, #ccc);
+    border-radius: 4px;
+    background-color: var(--mat-sys-surface, #fff);
+  }
+
+  .property-agreement-line-account-select ::ng-deep .searchable-trigger-value {
+    line-height: 34px;
+  }
+
+  .property-agreement-line-account-select ::ng-deep .mat-mdc-option:first-child input {
+    width: 100%;
+    color: var(--mat-sys-on-surface, rgba(0, 0, 0, 0.87));
+    caret-color: var(--mat-sys-primary, #1976d2);
   }
 }
 

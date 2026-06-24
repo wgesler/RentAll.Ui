@@ -5,10 +5,10 @@
   </div>
 } @else if (agreementForm) {
   <div [formGroup]="agreementForm" class="property-agreement-panel-content">
-    @if (!isPropertyManagementLease) {
-    <div class="property-agreement-lines-wrap mb-4" [class.property-agreement-lines-wrap--vendor]="!isPropertyManagementLease">
+    <ng-template #agreementLinesSection>
+    <div class="property-agreement-lines-wrap mb-4">
       <div class="flex justify-between items-center mb-2">
-        <span class="text-lg font-medium">Agreement Lines</span>
+        <h4 class="property-agreement-upload-title text-sm text-slate-600 m-0">Agreement Lines</h4>
         <button mat-raised-button type="button" color="accent" (click)="addAgreementLine()" class="scale-90 text-nowrap flex-shrink-0">
           Add Agreement
         </button>
@@ -19,13 +19,14 @@
             <thead>
               <tr class="border-b">
                 <th class="text-left" style="width: 56px;">No</th>
-                <th class="text-left" style="min-width: 220px;">Title</th>
-                <th class="text-left agreement-col-date" style="width: 170px;">Start Date</th>
-                <th class="text-left agreement-col-date" style="width: 170px;">End Date</th>
-                <th class="text-left agreement-col-amount" style="width: 150px;">Deposit</th>
-                <th class="text-left agreement-col-amount" style="width: 150px;">One Time</th>
-                <th class="text-left agreement-col-amount" style="width: 150px;">Monthly</th>
-                <th class="text-left agreement-col-amount" style="width: 150px;">Daily</th>
+                <th class="text-left agreement-col-title">Title</th>
+                <th class="text-left agreement-col-account">Chart of Account</th>
+                <th class="text-left agreement-col-date">Start Date</th>
+                <th class="text-left agreement-col-date">End Date</th>
+                <th class="text-left agreement-col-amount">Deposit</th>
+                <th class="text-left agreement-col-amount">One Time</th>
+                <th class="text-left agreement-col-amount">Monthly</th>
+                <th class="text-left agreement-col-amount">Daily</th>
                 <th class="text-right" style="width: 56px;"></th>
               </tr>
             </thead>
@@ -33,33 +34,50 @@
               @for (line of agreementLines; track (line.agreementLineId || i); let i = $index) {
                 <tr class="border-b">
                   <td style="width: 56px;">{{ i + 1 }}</td>
-                  <td style="min-width: 220px;">
+                  <td class="agreement-col-title">
                     <input type="text" class="w-full editable-input" [value]="line.title" (input)="updateAgreementLineTitle(i, $any($event.target).value || '')" placeholder="Enter title">
                   </td>
-                  <td class="agreement-col-date" style="width: 170px;">
+                  <td class="agreement-col-account">
+                    <app-searchable-select
+                      class="property-agreement-line-account-select"
+                      [renderInFormField]="false"
+                      [value]="line.chartOfAccountId"
+                      [options]="chartOfAccountOptions"
+                      [showInstructionOption]="true"
+                      [instructionOptionValue]="null"
+                      nullOptionLabel="Select Account"
+                      [showSearchInput]="true"
+                      [hideSearchHint]="false"
+                      [hideSearchText]="false"
+                      searchPlaceholder="Type to filter accounts..."
+                      noResultsText="No accounts match your search"
+                      selectClass="property-agreement-line-account-select-control"
+                      (valueChange)="updateAgreementLineChartOfAccount(i, $event)" />
+                  </td>
+                  <td class="agreement-col-date">
                     <mat-form-field appearance="outline" class="w-full m-0 property-agreement-line-date-field">
                       <input matInput [matDatepicker]="agreementStartDatePicker" [value]="line.startDate" (dateChange)="updateAgreementLineDate(i, 'startDate', $event.value)" />
                       <mat-datepicker-toggle matIconSuffix [for]="agreementStartDatePicker"></mat-datepicker-toggle>
                       <mat-datepicker #agreementStartDatePicker></mat-datepicker>
                     </mat-form-field>
                   </td>
-                  <td class="agreement-col-date" style="width: 170px;">
+                  <td class="agreement-col-date">
                     <mat-form-field appearance="outline" class="w-full m-0 property-agreement-line-date-field">
                       <input matInput [matDatepicker]="agreementEndDatePicker" [value]="line.endDate" (dateChange)="updateAgreementLineDate(i, 'endDate', $event.value)" />
                       <mat-datepicker-toggle matIconSuffix [for]="agreementEndDatePicker"></mat-datepicker-toggle>
                       <mat-datepicker #agreementEndDatePicker></mat-datepicker>
                     </mat-form-field>
                   </td>
-                  <td class="agreement-col-amount" style="width: 150px;">
+                  <td class="agreement-col-amount">
                     <input type="text" class="w-full editable-input property-agreement-line-amount-input" [value]="line.deposit" (input)="onAgreementLineAmountInput($event, i, 'deposit')" (focus)="onAgreementLineAmountFocus($event, i, 'deposit')" (blur)="onAgreementLineAmountBlur($event, i, 'deposit')" placeholder="$0.00">
                   </td>
-                  <td class="agreement-col-amount" style="width: 150px;">
+                  <td class="agreement-col-amount">
                     <input type="text" class="w-full editable-input property-agreement-line-amount-input" [value]="line.oneTime" (input)="onAgreementLineAmountInput($event, i, 'oneTime')" (focus)="onAgreementLineAmountFocus($event, i, 'oneTime')" (blur)="onAgreementLineAmountBlur($event, i, 'oneTime')" placeholder="$0.00">
                   </td>
-                  <td class="agreement-col-amount" style="width: 150px;">
+                  <td class="agreement-col-amount">
                     <input type="text" class="w-full editable-input property-agreement-line-amount-input" [value]="line.monthly" (input)="onAgreementLineAmountInput($event, i, 'monthly')" (focus)="onAgreementLineAmountFocus($event, i, 'monthly')" (blur)="onAgreementLineAmountBlur($event, i, 'monthly')" placeholder="$0.00">
                   </td>
-                  <td class="agreement-col-amount" style="width: 150px;">
+                  <td class="agreement-col-amount">
                     <input type="text" class="w-full editable-input property-agreement-line-amount-input" [value]="line.daily" (input)="onAgreementLineAmountInput($event, i, 'daily')" (focus)="onAgreementLineAmountFocus($event, i, 'daily')" (blur)="onAgreementLineAmountBlur($event, i, 'daily')" placeholder="$0.00">
                   </td>
                   <td class="text-right" style="width: 56px;">
@@ -76,6 +94,10 @@
         <p class="text-gray-500 italic">No agreement lines added. Click "Add Agreement" to add one.</p>
       }
     </div>
+    </ng-template>
+
+    @if (!isPropertyManagementLease) {
+      <ng-container *ngTemplateOutlet="agreementLinesSection" />
     }
     @if (isPropertyManagementLease) {
       <div class="property-agreement-management-section mb-6 min-w-0" [class.property-agreement-management-section--vendor]="!isPropertyManagementLease">
@@ -140,6 +162,7 @@
           <input matInput formControlName="accountNumber" />
         </mat-form-field>
       </div>
+      <ng-container *ngTemplateOutlet="agreementLinesSection" />
     }
     <div class="property-agreement-uploads-layout mb-4">
       @if (isPropertyManagementLease) {

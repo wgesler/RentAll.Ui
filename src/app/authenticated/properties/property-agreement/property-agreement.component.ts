@@ -3,7 +3,7 @@ import { Component, ElementRef, Input, OnChanges, OnDestroy, OnInit, SimpleChang
 import { FormBuilder, FormControl, FormGroup, ReactiveFormsModule } from '@angular/forms';
 import { ActivatedRoute, Router } from '@angular/router';
 import { ToastrService } from 'ngx-toastr';
-import { BehaviorSubject, Observable, Subject, catchError, finalize, map, of, take, takeUntil } from 'rxjs';
+import { BehaviorSubject, Observable, Subject, catchError, filter, finalize, map, of, take, takeUntil } from 'rxjs';
 import { RouterUrl } from '../../../app.routes';
 import { CommonMessage, CommonTimeouts } from '../../../enums/common-message.enum';
 import { MaterialModule } from '../../../material.module';
@@ -20,10 +20,13 @@ import { ContactService } from '../../contacts/services/contact.service';
 import { ContactResponse } from '../../contacts/models/contact.model';
 import { OfficeResponse } from '../../organizations/models/office.model';
 import { OfficeService } from '../../organizations/services/office.service';
+import { ChartOfAccountsService } from '../../accounting/services/chart-of-accounts.service';
+import { SearchableSelectComponent, SearchableSelectOption } from '../../shared/searchable-select/searchable-select.component';
 
 interface AgreementLineDisplay {
   agreementLineId: string | null;
   title: string;
+  chartOfAccountId: number | null;
   startDate: Date | null;
   endDate: Date | null;
   deposit: string;
@@ -35,7 +38,7 @@ interface AgreementLineDisplay {
 @Component({
   selector: 'app-property-agreement',
   standalone: true,
-  imports: [CommonModule, MaterialModule, ReactiveFormsModule],
+  imports: [CommonModule, MaterialModule, ReactiveFormsModule, SearchableSelectComponent],
   templateUrl: './property-agreement.component.html',
   styleUrl: './property-agreement.component.scss'
 })
@@ -57,6 +60,7 @@ export class PropertyAgreementComponent implements OnInit, OnChanges, OnDestroy 
   organizationId = '';
   agreementOfficeId: number | null = null;
   agreementLines: AgreementLineDisplay[] = [];
+  chartOfAccountOptions: SearchableSelectOption<number>[] = [];
 
   agreementW9FileName: string | null = null;
   agreementW9FileDataUrl: string | null = null;
@@ -117,7 +121,8 @@ export class PropertyAgreementComponent implements OnInit, OnChanges, OnDestroy 
     private pdfThumbnailService: PdfThumbnailService,
     private contactService: ContactService,
     private authService: AuthService,
-    private officeService: OfficeService
+    private officeService: OfficeService,
+    private chartOfAccountsService: ChartOfAccountsService
   ) {}
 
   //#region Property Agreement
@@ -135,6 +140,7 @@ export class PropertyAgreementComponent implements OnInit, OnChanges, OnDestroy 
     }
 
     this.loadOffices();
+    this.loadChartOfAccountOptions();
     if (this.isAddMode) {
       this.agreementExists = false;
       this.resetAgreementForm();
@@ -164,6 +170,10 @@ export class PropertyAgreementComponent implements OnInit, OnChanges, OnDestroy 
     }
     const leaseTypeChanged = !!(changes['propertyLeaseTypeId'] && !changes['propertyLeaseTypeId'].firstChange);
     const vendorChanged = !!(changes['vendorContactId'] && !changes['vendorContactId'].firstChange);
+    const officeChanged = !!(changes['officeId'] && !changes['officeId'].firstChange);
+    if (officeChanged) {
+      this.loadChartOfAccountOptions();
+    }
     if (leaseTypeChanged || vendorChanged) {
       this.loadVendorContactAttachments();
     }
@@ -337,10 +347,49 @@ export class PropertyAgreementComponent implements OnInit, OnChanges, OnDestroy 
     this.populateAgreementInsurance(data);
     this.populateAgreementDoc(data);
     this.populateAgreementLines(data);
+    this.loadChartOfAccountOptions();
   }
   //#endregion
 
   //#region Data Load Methods
+  loadChartOfAccountOptions(): void {
+    const officeId = this.resolveAgreementOfficeId();
+    if (!officeId) {
+      this.chartOfAccountOptions = [];
+      return;
+    }
+
+    this.chartOfAccountsService.ensureChartOfAccountsLoaded();
+    this.chartOfAccountsService.areChartOfAccountsLoaded().pipe(filter(loaded => loaded === true), take(1), takeUntil(this.destroy$)).subscribe(() => {
+      this.chartOfAccountOptions = (this.chartOfAccountsService.getChartOfAccountsForOffice(officeId) || [])
+        .map(account => ({
+          value: account.accountId,
+          label: this.utilityService.getChartOfAccountDropdownLabel(account)
+        }))
+        .sort((a, b) => a.label.localeCompare(b.label, undefined, { sensitivity: 'base' }));
+
+      const selectedAccountIds = (this.agreementLines || [])
+        .map(line => Number(line.chartOfAccountId ?? 0))
+        .filter(accountId => Number.isFinite(accountId) && accountId > 0);
+
+      selectedAccountIds.forEach(accountId => {
+        if (this.chartOfAccountOptions.some(option => option.value === accountId)) {
+          return;
+        }
+        this.chartOfAccountOptions = [
+          ...this.chartOfAccountOptions,
+          { value: accountId, label: this.utilityService.getChartOfAccountDropdownLabel(null, accountId) }
+        ].sort((a, b) => a.label.localeCompare(b.label, undefined, { sensitivity: 'base' }));
+      });
+    });
+  }
+
+  resolveAgreementOfficeId(): number | null {
+    const resolvedOfficeId = this.agreementOfficeId ?? this.officeId;
+    const parsedOfficeId = Number(resolvedOfficeId);
+    return Number.isFinite(parsedOfficeId) && parsedOfficeId > 0 ? parsedOfficeId : null;
+  }
+
   loadOffices(): void {
     this.officeService.ensureOfficesLoaded(this.organizationId).pipe(take(1),
       finalize(() => {this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'offices');})).subscribe(() => {
@@ -610,6 +659,7 @@ export class PropertyAgreementComponent implements OnInit, OnChanges, OnDestroy 
     this.agreementLines = sourceLines.map(line => ({
       agreementLineId: line.agreementLineId ?? null,
       title: (line.title || '').trim(),
+      chartOfAccountId: this.normalizeAgreementLineChartOfAccountId(line.chartOfAccountId),
       startDate: this.utilityService.parseCalendarDateInput(line.startDate ?? null),
       endDate: this.utilityService.parseCalendarDateInput(line.endDate ?? null),
       deposit: this.formatAgreementDecimalForDisplay(line.deposit),
@@ -623,6 +673,7 @@ export class PropertyAgreementComponent implements OnInit, OnChanges, OnDestroy 
     this.agreementLines.push({
       agreementLineId: null,
       title: '',
+      chartOfAccountId: null,
       startDate: null,
       endDate: null,
       deposit: '$0.00',
@@ -647,6 +698,19 @@ export class PropertyAgreementComponent implements OnInit, OnChanges, OnDestroy 
     }
     this.agreementLines[index].title = value || '';
     this.agreementForm?.markAsDirty();
+  }
+
+  updateAgreementLineChartOfAccount(index: number, value: string | number | null): void {
+    if (!this.agreementLines[index]) {
+      return;
+    }
+    this.agreementLines[index].chartOfAccountId = this.normalizeAgreementLineChartOfAccountId(value);
+    this.agreementForm?.markAsDirty();
+  }
+
+  normalizeAgreementLineChartOfAccountId(value: unknown): number | null {
+    const parsed = Number(value ?? 0);
+    return Number.isFinite(parsed) && parsed > 0 ? parsed : null;
   }
 
   updateAgreementLineDate(index: number, field: 'startDate' | 'endDate', value: Date | null): void {
@@ -699,6 +763,7 @@ export class PropertyAgreementComponent implements OnInit, OnChanges, OnDestroy 
       .map(line => ({
         agreementLineId: line.agreementLineId || null,
         title: (line.title || '').trim() || null,
+        chartOfAccountId: line.chartOfAccountId ?? null,
         startDate: this.utilityService.toDateOnlyJsonString(line.startDate) ?? null,
         endDate: this.utilityService.toDateOnlyJsonString(line.endDate) ?? null,
         deposit: this.parseAgreementDecimalFromForm(line.deposit),
@@ -737,7 +802,8 @@ export class PropertyAgreementComponent implements OnInit, OnChanges, OnDestroy 
     const monthly = this.parseAgreementDecimalFromForm(line.monthly) ?? 0;
     const daily = this.parseAgreementDecimalFromForm(line.daily) ?? 0;
     const hasAmounts = deposit !== 0 || oneTime !== 0 || monthly !== 0 || daily !== 0;
-    return !title && !hasDates && !hasAmounts;
+    const hasChartOfAccount = this.normalizeAgreementLineChartOfAccountId(line.chartOfAccountId) != null;
+    return !title && !hasDates && !hasAmounts && !hasChartOfAccount;
   }
   //#endregion
 
