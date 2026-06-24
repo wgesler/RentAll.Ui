@@ -26,7 +26,7 @@ import { ColumnSet } from '../../shared/data-table/models/column-data';
 import { AddAlertDialogComponent, AddAlertDialogData } from '../../shared/modals/add-alert-dialog/add-alert-dialog.component';
 import { PropertyCalendarTesterDialogComponent } from '../../shared/modals/property-calendar-tester-dialog/property-calendar-tester-dialog.component';
 import { CalendarUrlResponse } from '../models/property-calendar';
-import { PropertyLeaseType, getPropertyStatuses } from '../models/property-enums';
+import { PropertyLeaseType, getPropertyStatuses, getPropertyLeaseType } from '../models/property-enums';
 import { PropertySelectionResponse } from '../models/property-selection.model';
 import { PropertyListDisplay } from '../models/property.model';
 import { PropertyCalendarUrlDialogComponent, PropertyCalendarUrlDialogData } from '../property-calendar-url-dialog/property-calendar-url-dialog.component';
@@ -36,6 +36,7 @@ import { PropertyService } from '../services/property.service';
 
 type PropertyListDisplayRow = PropertyListDisplay & {
   propertyStatusText: string;
+  propertyLeaseType: string;
   propertyStatusDropdown: {
     value: string;
     isOverridable: boolean;
@@ -96,6 +97,7 @@ export class PropertyListComponent implements OnInit, OnDestroy, OnChanges {
     'accomodates': { displayAs: 'Accom', wrap: false , maxWidth: '10ch', alignment: 'center'},
     'unitLevel': { displayAs: 'Level', wrap: false , maxWidth: '10ch', alignment: 'center'},
     'squareFeet': { displayAs: 'Sq Ft', wrap: false, maxWidth: '15ch', alignment: 'center'},
+    'propertyLeaseType': { displayAs: 'Lease', wrap: false, maxWidth: '18ch' },
     'propertyType': { displayAs: 'Type', maxWidth: '13ch', wrap: false },
     'monthlyRate': { displayAs: 'Monthly', wrap: false, maxWidth: '15ch', alignment: 'center'},
     'isActive': { displayAs: 'IsActive', isCheckbox: true, checkboxEditable: true, sort: false, wrap: false, alignment: 'center', maxWidth: '15ch' }
@@ -209,7 +211,12 @@ export class PropertyListComponent implements OnInit, OnDestroy, OnChanges {
     this.propertyService.getPropertiesBySelectionCriteria(this.userId).pipe(take(1), finalize(() => this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'properties'))).subscribe({
       next: (properties) => {
         const mappedRows = this.mappingService.mapPropertyListRows(properties || []);
-        this.allProperties = this.applyPropertyContactDisplayNames(mappedRows);
+        this.allProperties = this.applyPropertyContactDisplayNames(
+          mappedRows.map(row => ({
+            ...row,
+            propertyLeaseType: this.getPropertyLeaseTypeListLabel(row.propertyLeaseTypeId)
+          }))
+        );
         const validPropertyIds = new Set(this.allProperties.map(property => property.propertyId));
         this.selectedPropertyIds.forEach(propertyId => {
           if (!validPropertyIds.has(propertyId)) {
@@ -479,6 +486,14 @@ export class PropertyListComponent implements OnInit, OnDestroy, OnChanges {
   //#endregion
 
   //#region Contact Display Methods
+  getPropertyLeaseTypeListLabel(propertyLeaseTypeId: number): string {
+    if (Number(propertyLeaseTypeId) === PropertyLeaseType.PropertyManagement) {
+      return 'Standard';
+    }
+
+    return getPropertyLeaseType(propertyLeaseTypeId);
+  }
+
   applyPropertyContactDisplayNames(rows: PropertyListDisplayRow[]): PropertyListDisplayRow[] {
     const vendorContactsById = new Map(
       this.contactService
