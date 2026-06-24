@@ -488,7 +488,7 @@ export class PropertyListComponent implements OnInit, OnDestroy, OnChanges {
   //#region Contact Display Methods
   getPropertyLeaseTypeListLabel(propertyLeaseTypeId: number): string {
     if (Number(propertyLeaseTypeId) === PropertyLeaseType.PropertyManagement) {
-      return 'Standard';
+      return 'Management';
     }
 
     return getPropertyLeaseType(propertyLeaseTypeId);
