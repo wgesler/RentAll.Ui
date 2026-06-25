@@ -4,6 +4,7 @@ import type { CalendarDateString } from '../../../services/utility.service';
 export interface PropertyAgreementLineRequest {
   agreementLineId?: string | null;
   title?: string | null;
+  vendorId?: string | null;
   chartOfAccountId?: number | null;
   startDate?: CalendarDateString | null;
   endDate?: CalendarDateString | null;
@@ -16,6 +17,10 @@ export interface PropertyAgreementLineRequest {
 export interface PropertyAgreementLineResponse {
   agreementLineId?: string | null;
   title?: string | null;
+  vendorId?: string | null;
+  vendorName?: string | null;
+  termsId?: number | null;
+  terms?: string | null;
   chartOfAccountId?: number | null;
   startDate?: CalendarDateString | null;
   endDate?: CalendarDateString | null;
@@ -23,6 +28,21 @@ export interface PropertyAgreementLineResponse {
   oneTime?: number | null;
   monthly?: number | null;
   daily?: number | null;
+}
+
+export interface AgreementLineDisplay {
+  agreementLineId: string | null;
+  title: string | null;
+  vendorId: string | null;
+  vendorName: string;
+  terms: string;
+  chartOfAccountId: number | null;
+  startDate: Date | null;
+  endDate: Date | null;
+  deposit: string;
+  oneTime: string;
+  monthly: string;
+  daily: string;
 }
 
 export interface PropertyAgreementRequest {

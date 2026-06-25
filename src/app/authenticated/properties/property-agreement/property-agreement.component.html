@@ -19,7 +19,8 @@
             <thead>
               <tr class="border-b">
                 <th class="text-left" style="width: 56px;">No</th>
-                <th class="text-left agreement-col-title">Title</th>
+                <th class="text-left agreement-col-vendor">Vendor</th>
+                <th class="text-left agreement-col-terms">Terms</th>
                 <th class="text-left agreement-col-account">Chart of Account</th>
                 <th class="text-left agreement-col-date">Start Date</th>
                 <th class="text-left agreement-col-date">End Date</th>
@@ -34,8 +35,25 @@
               @for (line of agreementLines; track (line.agreementLineId || i); let i = $index) {
                 <tr class="border-b">
                   <td style="width: 56px;">{{ i + 1 }}</td>
-                  <td class="agreement-col-title">
-                    <input type="text" class="w-full editable-input" [value]="line.title" (input)="updateAgreementLineTitle(i, $any($event.target).value || '')" placeholder="Enter title">
+                  <td class="agreement-col-vendor">
+                    <app-searchable-select
+                      class="property-agreement-line-vendor-select"
+                      [renderInFormField]="false"
+                      [value]="line.vendorId"
+                      [options]="vendorOptions"
+                      [showInstructionOption]="true"
+                      [instructionOptionValue]="null"
+                      nullOptionLabel="Select Vendor"
+                      [showSearchInput]="true"
+                      [hideSearchHint]="false"
+                      [hideSearchText]="false"
+                      searchPlaceholder="Type to filter vendors..."
+                      noResultsText="No vendors match your search"
+                      selectClass="property-agreement-line-vendor-select-control"
+                      (valueChange)="updateAgreementLineVendor(i, $event)" />
+                  </td>
+                  <td class="agreement-col-terms">
+                    <span class="property-agreement-line-terms">{{ line.terms }}</span>
                   </td>
                   <td class="agreement-col-account">
                     <app-searchable-select

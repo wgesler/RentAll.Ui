@@ -14,7 +14,7 @@ import { UtilityService } from '../../../services/utility.service';
 import { PdfThumbnailService } from '../../../services/pdf-thumbnail.service';
 import { FileDetails } from '../../documents/models/document.model';
 import { ManagementFeeType, PropertyLeaseType, normalizeManagementFeeTypeId, normalizePropertyLeaseTypeId } from '../models/property-enums';
-import { PropertyAgreementLineRequest, PropertyAgreementRequest, PropertyAgreementResponse } from '../models/property-agreement.model';
+import { AgreementLineDisplay, PropertyAgreementLineRequest, PropertyAgreementRequest, PropertyAgreementResponse } from '../models/property-agreement.model';
 import { PropertyAgreementService } from '../services/property-agreement.service';
 import { ContactService } from '../../contacts/services/contact.service';
 import { ContactResponse } from '../../contacts/models/contact.model';
@@ -22,18 +22,7 @@ import { OfficeResponse } from '../../organizations/models/office.model';
 import { OfficeService } from '../../organizations/services/office.service';
 import { ChartOfAccountsService } from '../../accounting/services/chart-of-accounts.service';
 import { SearchableSelectComponent, SearchableSelectOption } from '../../shared/searchable-select/searchable-select.component';
-
-interface AgreementLineDisplay {
-  agreementLineId: string | null;
-  title: string;
-  chartOfAccountId: number | null;
-  startDate: Date | null;
-  endDate: Date | null;
-  deposit: string;
-  oneTime: string;
-  monthly: string;
-  daily: string;
-}
+import { EntityType, TermType, getTermType } from '../../contacts/models/contact-enum';
 
 @Component({
   selector: 'app-property-agreement',
@@ -61,6 +50,7 @@ export class PropertyAgreementComponent implements OnInit, OnChanges, OnDestroy 
   agreementOfficeId: number | null = null;
   agreementLines: AgreementLineDisplay[] = [];
   chartOfAccountOptions: SearchableSelectOption<number>[] = [];
+  vendorOptions: SearchableSelectOption<string>[] = [];
 
   agreementW9FileName: string | null = null;
   agreementW9FileDataUrl: string | null = null;
@@ -141,6 +131,7 @@ export class PropertyAgreementComponent implements OnInit, OnChanges, OnDestroy 
 
     this.loadOffices();
     this.loadChartOfAccountOptions();
+    this.loadVendorOptions();
     if (this.isAddMode) {
       this.agreementExists = false;
       this.resetAgreementForm();
@@ -173,6 +164,7 @@ export class PropertyAgreementComponent implements OnInit, OnChanges, OnDestroy 
     const officeChanged = !!(changes['officeId'] && !changes['officeId'].firstChange);
     if (officeChanged) {
       this.loadChartOfAccountOptions();
+      this.loadVendorOptions();
     }
     if (leaseTypeChanged || vendorChanged) {
       this.loadVendorContactAttachments();
@@ -381,6 +373,52 @@ export class PropertyAgreementComponent implements OnInit, OnChanges, OnDestroy 
           { value: accountId, label: this.utilityService.getChartOfAccountDropdownLabel(null, accountId) }
         ].sort((a, b) => a.label.localeCompare(b.label, undefined, { sensitivity: 'base' }));
       });
+    });
+  }
+
+  loadVendorOptions(): void {
+    this.contactService.ensureContactsLoaded().pipe(take(1), takeUntil(this.destroy$)).subscribe({
+      next: () => {
+        this.refreshVendorOptions();
+        this.contactService.getAllContacts().pipe(takeUntil(this.destroy$)).subscribe(() => {
+          this.refreshVendorOptions();
+        });
+      },
+      error: () => {
+        this.vendorOptions = [];
+      }
+    });
+  }
+
+  refreshVendorOptions(): void {
+    const officeId = this.resolveAgreementOfficeId();
+    const contacts = (this.contactService.getAllContactsValue() || [])
+      .filter(contact => contact.entityTypeId === EntityType.Vendor)
+      .filter(contact => officeId == null || this.utilityService.contactHasOfficeAccess(contact, officeId));
+
+    const byId = new Map<string, SearchableSelectOption<string>>();
+    contacts.forEach(contact => {
+      const contactId = String(contact.contactId || '').trim();
+      if (!contactId || byId.has(contactId)) {
+        return;
+      }
+      byId.set(contactId, {
+        value: contactId,
+        label: this.utilityService.getVendorDropdownLabel(contact)
+      });
+    });
+
+    this.vendorOptions = Array.from(byId.values())
+      .sort((left, right) => left.label.localeCompare(right.label, undefined, { sensitivity: 'base' }));
+
+    (this.agreementLines || []).forEach(line => {
+      const vendorId = this.normalizeAgreementLineVendorId(line.vendorId);
+      if (!vendorId || this.vendorOptions.some(option => option.value === vendorId)) {
+        return;
+      }
+      const label = (line.vendorName || '').trim() || 'Selected vendor';
+      this.vendorOptions = [...this.vendorOptions, { value: vendorId, label }]
+        .sort((a, b) => a.label.localeCompare(b.label, undefined, { sensitivity: 'base' }));
     });
   }
 
@@ -658,7 +696,10 @@ export class PropertyAgreementComponent implements OnInit, OnChanges, OnDestroy 
     const sourceLines = data.agreementLines || [];
     this.agreementLines = sourceLines.map(line => ({
       agreementLineId: line.agreementLineId ?? null,
-      title: (line.title || '').trim(),
+      title: (line.title ?? null)?.trim() || null,
+      vendorId: this.normalizeAgreementLineVendorId(line.vendorId),
+      vendorName: (line.vendorName || '').trim(),
+      terms: (line.terms || '').trim() || 'Due on receipt',
       chartOfAccountId: this.normalizeAgreementLineChartOfAccountId(line.chartOfAccountId),
       startDate: this.utilityService.parseCalendarDateInput(line.startDate ?? null),
       endDate: this.utilityService.parseCalendarDateInput(line.endDate ?? null),
@@ -667,12 +708,16 @@ export class PropertyAgreementComponent implements OnInit, OnChanges, OnDestroy 
       monthly: this.formatAgreementDecimalForDisplay(line.monthly),
       daily: this.formatAgreementDecimalForDisplay(line.daily)
     }));
+    this.refreshVendorOptions();
   }
 
   addAgreementLine(): void {
     this.agreementLines.push({
       agreementLineId: null,
-      title: '',
+      title: null,
+      vendorId: null,
+      vendorName: '',
+      terms: 'Due on receipt',
       chartOfAccountId: null,
       startDate: null,
       endDate: null,
@@ -692,20 +737,66 @@ export class PropertyAgreementComponent implements OnInit, OnChanges, OnDestroy 
     this.agreementForm?.markAsDirty();
   }
 
-  updateAgreementLineTitle(index: number, value: string): void {
-    if (!this.agreementLines[index]) {
-      return;
-    }
-    this.agreementLines[index].title = value || '';
-    this.agreementForm?.markAsDirty();
-  }
-
   updateAgreementLineChartOfAccount(index: number, value: string | number | null): void {
     if (!this.agreementLines[index]) {
       return;
     }
     this.agreementLines[index].chartOfAccountId = this.normalizeAgreementLineChartOfAccountId(value);
     this.agreementForm?.markAsDirty();
+  }
+
+  updateAgreementLineVendor(index: number, value: string | number | null): void {
+    if (!this.agreementLines[index]) {
+      return;
+    }
+
+    const vendorId = this.normalizeAgreementLineVendorId(value);
+    const line = this.agreementLines[index];
+    line.vendorId = vendorId;
+
+    if (!vendorId) {
+      line.vendorName = '';
+      line.terms = 'Due on receipt';
+      this.agreementForm?.markAsDirty();
+      return;
+    }
+
+    this.contactService.getContactByGuid(vendorId).pipe(take(1), takeUntil(this.destroy$)).subscribe({
+      next: contact => {
+        if (!this.agreementLines[index] || this.agreementLines[index].vendorId !== vendorId) {
+          return;
+        }
+
+        this.applyVendorToAgreementLine(this.agreementLines[index], contact);
+        this.agreementForm?.markAsDirty();
+      },
+      error: () => {
+        if (!this.agreementLines[index] || this.agreementLines[index].vendorId !== vendorId) {
+          return;
+        }
+
+        line.vendorName = '';
+        line.terms = 'Due on receipt';
+        this.agreementForm?.markAsDirty();
+      }
+    });
+
+    this.agreementForm?.markAsDirty();
+  }
+
+  applyVendorToAgreementLine(line: AgreementLineDisplay, contact: ContactResponse | null | undefined): void {
+    line.vendorName = this.utilityService.getVendorDropdownLabel(contact);
+    line.terms = this.resolveTermsFromContact(contact);
+  }
+
+  resolveTermsFromContact(contact: ContactResponse | null | undefined): string {
+    const termsId = contact?.paymentTermsId ?? TermType.DueOnReceipt;
+    return getTermType(termsId) || 'Due on receipt';
+  }
+
+  normalizeAgreementLineVendorId(value: unknown): string | null {
+    const normalized = String(value ?? '').trim();
+    return normalized.length > 0 ? normalized : null;
   }
 
   normalizeAgreementLineChartOfAccountId(value: unknown): number | null {
@@ -762,7 +853,8 @@ export class PropertyAgreementComponent implements OnInit, OnChanges, OnDestroy 
       .filter(line => !this.isAgreementLineBlank(line))
       .map(line => ({
         agreementLineId: line.agreementLineId || null,
-        title: (line.title || '').trim() || null,
+        title: line.title ?? null,
+        vendorId: line.vendorId ?? null,
         chartOfAccountId: line.chartOfAccountId ?? null,
         startDate: this.utilityService.toDateOnlyJsonString(line.startDate) ?? null,
         endDate: this.utilityService.toDateOnlyJsonString(line.endDate) ?? null,
@@ -781,9 +873,6 @@ export class PropertyAgreementComponent implements OnInit, OnChanges, OnDestroy 
         continue;
       }
       const lineNumber = i + 1;
-      if (!(line.title || '').trim()) {
-        return { isValid: false, errorMessage: `Agreement Line ${lineNumber}: Title is required.` };
-      }
       if (!line.startDate) {
         return { isValid: false, errorMessage: `Agreement Line ${lineNumber}: Start Date is required.` };
       }
@@ -795,7 +884,6 @@ export class PropertyAgreementComponent implements OnInit, OnChanges, OnDestroy 
   }
 
   isAgreementLineBlank(line: AgreementLineDisplay): boolean {
-    const title = (line.title || '').trim();
     const hasDates = !!line.startDate || !!line.endDate;
     const deposit = this.parseAgreementDecimalFromForm(line.deposit) ?? 0;
     const oneTime = this.parseAgreementDecimalFromForm(line.oneTime) ?? 0;
@@ -803,7 +891,8 @@ export class PropertyAgreementComponent implements OnInit, OnChanges, OnDestroy 
     const daily = this.parseAgreementDecimalFromForm(line.daily) ?? 0;
     const hasAmounts = deposit !== 0 || oneTime !== 0 || monthly !== 0 || daily !== 0;
     const hasChartOfAccount = this.normalizeAgreementLineChartOfAccountId(line.chartOfAccountId) != null;
-    return !title && !hasDates && !hasAmounts && !hasChartOfAccount;
+    const hasVendor = this.normalizeAgreementLineVendorId(line.vendorId) != null;
+    return !hasDates && !hasAmounts && !hasChartOfAccount && !hasVendor;
   }
   //#endregion
 

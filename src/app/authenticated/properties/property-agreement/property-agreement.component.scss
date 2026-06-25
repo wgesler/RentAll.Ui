@@ -52,7 +52,7 @@
 }
 
 .property-agreement-lines-table {
-  min-width: 1452px;
+  min-width: 1540px;
   border-collapse: collapse;
   width: 100%;
 
@@ -63,14 +63,19 @@
     border-bottom: 1px solid var(--mat-sys-outline-variant, #e0e0e0);
   }
 
-  .agreement-col-title {
-    min-width: 240px;
-    width: 240px;
+  .agreement-col-vendor {
+    min-width: 300px;
+    width: 300px;
+  }
+
+  .agreement-col-terms {
+    min-width: 120px;
+    width: 120px;
   }
 
   .agreement-col-account {
-    min-width: 360px;
-    width: 360px;
+    min-width: 300px;
+    width: 300px;
   }
 
   .agreement-col-date {
