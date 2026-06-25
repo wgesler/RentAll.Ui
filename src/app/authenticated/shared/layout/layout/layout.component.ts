@@ -41,9 +41,9 @@ export class LayoutComponent implements OnInit, OnDestroy {
     private dialog: MatDialog) { 
 
     // How long the user can be inactive before considered idle, in seconds
-    idle.setIdle(10); // TEST: was 3600 (1 hour) — revert after idle/backdrop testing
+    idle.setIdle(3600); // 1 hour
     // How long the user can be idle before considered timed out, in seconds
-    idle.setTimeout(10); // TEST: was 120 (2 minutes) — revert after idle/backdrop testing
+    idle.setTimeout(120); // (120) 2 minutes
     // Sets the default interrupts, in this case, things like clicks, scrolls, touches to the document
     idle.setInterrupts(DEFAULT_INTERRUPTSOURCES);
 
