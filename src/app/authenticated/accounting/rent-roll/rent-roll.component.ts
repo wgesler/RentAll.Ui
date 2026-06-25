@@ -46,9 +46,11 @@ export class RentRollComponent implements OnInit, OnChanges, OnDestroy {
     terms: { displayAs: 'Terms', wrap: true, maxWidth: '18ch' },
     billDateDisplay: { displayAs: 'Bill Date', wrap: false, maxWidth: '14ch', alignment: 'center', headerAlignment: 'center' },
     dueDateDisplay: { displayAs: 'Due Date', wrap: false, maxWidth: '14ch', alignment: 'center', headerAlignment: 'center' },
-    monthlyAmountDisplay: { displayAs: 'Monthly', wrap: false, maxWidth: '20ch', alignment: 'right', headerAlignment: 'right', sort: false },
-    dailyAmountDisplay: { displayAs: 'Daily', wrap: false, maxWidth: '20ch', alignment: 'right', headerAlignment: 'right', sort: false },
-    totalAmountDisplay: { displayAs: 'Total', wrap: false, maxWidth: '20ch', alignment: 'right', headerAlignment: 'right', sort: false }
+    depositAmountDisplay: { displayAs: 'Deposit', wrap: false, maxWidth: '16ch', alignment: 'right', headerAlignment: 'right', sort: false },
+    oneTimeAmountDisplay: { displayAs: 'One Time', wrap: false, maxWidth: '16ch', alignment: 'right', headerAlignment: 'right', sort: false },
+    monthlyAmountDisplay: { displayAs: 'Monthly', wrap: false, maxWidth: '16ch', alignment: 'right', headerAlignment: 'right', sort: false },
+    dailyAmountDisplay: { displayAs: 'Daily', wrap: false, maxWidth: '16ch', alignment: 'right', headerAlignment: 'right', sort: false },
+    totalAmountDisplay: { displayAs: 'Total', wrap: false, maxWidth: '16ch', alignment: 'right', headerAlignment: 'right', sort: false }
   };
   rentRollRows: RentRollRow[] = [];
   rentRollRowsDisplayAll: RentRollRowDisplay[] = [];
@@ -105,7 +107,6 @@ export class RentRollComponent implements OnInit, OnChanges, OnDestroy {
     const currentLoadSequence = ++this.loadSequence;
     this.isServiceError = false;
     this.utilityService.addLoadItem(this.itemsToLoad$, 'rentRoll');
-    const daysInMonth = this.resolveDaysInMonth();
 
     this.propertyAgreementService.getPropertyAgreementRentRollByOfficeIds().pipe(
       take(1),
@@ -123,7 +124,7 @@ export class RentRollComponent implements OnInit, OnChanges, OnDestroy {
           return;
         }
         this.propertyAgreements = this.filterPropertyAgreementsByOffice(propertyAgreements || []);
-        this.rebuildRentRollRowsFromCachedAgreements(daysInMonth);
+        this.rebuildRentRollRowsFromCachedAgreements();
         this.loadExistingBillsForDateRange(currentLoadSequence);
         this.markViewForCheck();
       },
@@ -151,25 +152,20 @@ export class RentRollComponent implements OnInit, OnChanges, OnDestroy {
     return propertyAgreements.filter(propertyAgreement => propertyAgreement.officeId === this.officeId);
   }
 
-  resolveDaysInMonth(): number {
-    const referenceDate = this.utilityService.parseDateOnlyStringToDate(this.searchDateRange.endDate)
-      || this.utilityService.parseDateOnlyStringToDate(this.searchDateRange.startDate)
-      || new Date();
-    return new Date(referenceDate.getFullYear(), referenceDate.getMonth() + 1, 0).getDate();
-  }
-
-  rebuildRentRollRowsFromCachedAgreements(daysInMonthOverride?: number): void {
-    const daysInMonth = daysInMonthOverride ?? this.resolveDaysInMonth();
-    this.rentRollRows = this.mappingService.mapRentRollRowsFromAgreements(this.propertyAgreements, daysInMonth);
+  rebuildRentRollRowsFromCachedAgreements(): void {
+    this.rentRollRows = this.mappingService.mapRentRollRowsFromAgreements(this.propertyAgreements, this.searchDateRange);
     this.rentRollRowsDisplayAll = this.rentRollRows.map(row => ({
       propertyId: row.propertyId,
       agreementLineId: row.agreementLineId,
+      billDate: row.billDate,
       propertyCode: row.propertyCode || '',
       vendorName: row.vendorName || '—',
       chartOfAccountDisplay: this.getChartOfAccountDisplay(row),
       terms: row.terms || '—',
       billDateDisplay: this.getBillDateDisplayForRow(row),
       dueDateDisplay: this.getDueDateDisplayForRow(row),
+      depositAmountDisplay: this.getRentRollAmountDisplay(row.depositAmount),
+      oneTimeAmountDisplay: this.getRentRollAmountDisplay(row.oneTimeAmount),
       monthlyAmountDisplay: this.getRentRollAmountDisplay(row.monthlyAmount),
       dailyAmountDisplay: this.getRentRollAmountDisplay(row.dailyAmount),
       totalAmountDisplay: this.getRentRollAmountDisplay(row.totalAmount),
@@ -178,10 +174,6 @@ export class RentRollComponent implements OnInit, OnChanges, OnDestroy {
     }));
     this.applyCreatedBillVisibilityFilter();
     this.rentRollTotalAmount = this.mappingService.sumRentRollTotal(this.rentRollRows);
-  }
-
-  get daysInMonth(): number {
-    return this.resolveDaysInMonth();
   }
 
   get hasRentRollRows(): boolean {
@@ -195,7 +187,7 @@ export class RentRollComponent implements OnInit, OnChanges, OnDestroy {
     }
     const visibleTotalAmount = this.mappingService.sumRentRollTotal(visibleRows);
     return {
-      propertyCode: `Grand Total (${this.daysInMonth} days)`,
+      propertyCode: 'Grand Total',
       totalAmountDisplay: this.getRentRollAmountDisplay(visibleTotalAmount)
     };
   }
@@ -330,19 +322,24 @@ export class RentRollComponent implements OnInit, OnChanges, OnDestroy {
   resolveRentRollRow(rowDisplay: RentRollRowDisplay): RentRollRow | null {
     const propertyId = (rowDisplay?.propertyId || '').trim();
     const agreementLineId = rowDisplay?.agreementLineId;
+    const billDate = (rowDisplay?.billDate || '').trim() || null;
     const match = this.rentRollRows.find(row =>
       row.propertyId === propertyId
       && (row.agreementLineId ?? null) === (agreementLineId ?? null)
+      && ((row.billDate || '').trim() || null) === billDate
     );
     return match || null;
   }
 
   buildCreateBillRequest(row: RentRollRow): RentRollCreateBillRequest | null {
     const description = (row.vendorName || '').trim() || `Rent Roll - ${row.propertyCode}`;
+    const dueDate = this.resolveDueDateForRow(row);
     return {
       propertyId: row.propertyId,
       officeId: row.officeId,
       agreementLineId: row.agreementLineId,
+      billDate: row.billDate,
+      dueDate,
       vendorId: row.vendorId,
       vendorName: row.vendorName,
       chartOfAccountId: row.chartOfAccountId,
@@ -455,11 +452,15 @@ export class RentRollComponent implements OnInit, OnChanges, OnDestroy {
       (receipt.splits || []).forEach(split => {
         const chartOfAccountId = Number(split.chartOfAccountId || 0);
         const amountCents = Math.round(Number(split.amount || 0) * 100);
+        const billPeriod = this.resolveBillMatchPeriod(receipt.receiptDate);
         if (!Number.isFinite(chartOfAccountId) || chartOfAccountId <= 0 || !Number.isFinite(amountCents) || amountCents <= 0) {
           return;
         }
+        if (!billPeriod) {
+          return;
+        }
         propertyIds.forEach(propertyId => {
-          const key = this.buildBillMatchKey(propertyId, vendorId, chartOfAccountId, amountCents);
+          const key = this.buildBillMatchKey(propertyId, vendorId, chartOfAccountId, amountCents, billPeriod);
           if (!keys.has(key)) {
             keys.set(key, {
               billDate: receipt.receiptDate ?? null,
@@ -480,26 +481,27 @@ export class RentRollComponent implements OnInit, OnChanges, OnDestroy {
     const vendorId = (row.vendorId || '').trim().toLowerCase();
     const chartOfAccountId = Number(row.chartOfAccountId || 0);
     const amountCents = Math.round(Number(row.totalAmount || 0) * 100);
-    if (!propertyId || !vendorId || chartOfAccountId <= 0 || amountCents <= 0) {
+    const billPeriod = this.resolveBillMatchPeriod(row.billDate) || this.resolveBillMatchPeriod(this.resolveDefaultBillDateForDisplay());
+    if (!propertyId || !vendorId || chartOfAccountId <= 0 || amountCents <= 0 || !billPeriod) {
       return false;
     }
-    const key = this.buildBillMatchKey(propertyId, vendorId, chartOfAccountId, amountCents);
+    const key = this.buildBillMatchKey(propertyId, vendorId, chartOfAccountId, amountCents, billPeriod);
     return this.existingBillByMatchKey.has(key);
   }
 
-  buildBillMatchKey(propertyId: string, vendorId: string, chartOfAccountId: number, amountCents: number): string {
-    return `${propertyId.trim().toLowerCase()}|${vendorId.trim().toLowerCase()}|${chartOfAccountId}|${amountCents}`;
+  buildBillMatchKey(propertyId: string, vendorId: string, chartOfAccountId: number, amountCents: number, billPeriod: string): string {
+    return `${propertyId.trim().toLowerCase()}|${vendorId.trim().toLowerCase()}|${chartOfAccountId}|${amountCents}|${billPeriod.trim()}`;
   }
 
   getBillDateDisplayForRow(row: RentRollRow): string {
     const match = this.getExistingBillMatchForRow(row);
-    const rawDate = match?.billDate ?? this.resolveDefaultBillDateForDisplay();
+    const rawDate = match?.billDate ?? row.billDate ?? this.resolveDefaultBillDateForDisplay();
     return this.formatter.formatDateString(rawDate) || '—';
   }
 
   getDueDateDisplayForRow(row: RentRollRow): string {
     const match = this.getExistingBillMatchForRow(row);
-    const rawDate = match?.dueDate ?? this.resolveDefaultBillDateForDisplay();
+    const rawDate = match?.dueDate ?? this.resolveDueDateForRow(row);
     return this.formatter.formatDateString(rawDate) || '—';
   }
 
@@ -508,15 +510,72 @@ export class RentRollComponent implements OnInit, OnChanges, OnDestroy {
     const vendorId = (row.vendorId || '').trim().toLowerCase();
     const chartOfAccountId = Number(row.chartOfAccountId || 0);
     const amountCents = Math.round(Number(row.totalAmount || 0) * 100);
-    if (!propertyId || !vendorId || chartOfAccountId <= 0 || amountCents <= 0) {
+    const billPeriod = this.resolveBillMatchPeriod(row.billDate) || this.resolveBillMatchPeriod(this.resolveDefaultBillDateForDisplay());
+    if (!propertyId || !vendorId || chartOfAccountId <= 0 || amountCents <= 0 || !billPeriod) {
       return null;
     }
-    const key = this.buildBillMatchKey(propertyId, vendorId, chartOfAccountId, amountCents);
+    const key = this.buildBillMatchKey(propertyId, vendorId, chartOfAccountId, amountCents, billPeriod);
     return this.existingBillByMatchKey.get(key) || null;
   }
 
   resolveDefaultBillDateForDisplay(): string | null {
     return this.searchDateRange.endDate || this.searchDateRange.startDate || this.utilityService.formatDateOnlyForApi(new Date());
+  }
+
+  resolveDueDateForRow(row: RentRollRow): string | null {
+    const billDate = this.normalizeDateOnlyString(row.billDate) || this.normalizeDateOnlyString(this.resolveDefaultBillDateForDisplay());
+    if (!billDate) {
+      return null;
+    }
+    const netDays = this.resolveNetDaysFromTerms(row.terms);
+    if (netDays <= 0) {
+      return billDate;
+    }
+    const billDateValue = this.utilityService.parseDateOnlyStringToDate(billDate);
+    if (!billDateValue) {
+      return billDate;
+    }
+    const dueDateValue = this.utilityService.addCalendarDaysToDate(billDateValue, netDays);
+    return this.utilityService.formatDateOnlyForApi(dueDateValue || billDateValue) || billDate;
+  }
+
+  resolveNetDaysFromTerms(terms: string | null | undefined): number {
+    const normalizedTerms = String(terms || '').trim();
+    if (!normalizedTerms) {
+      return 0;
+    }
+    const netMatch = /\bnet\s*-?\s*(\d+)\b/i.exec(normalizedTerms);
+    if (!netMatch) {
+      return 0;
+    }
+    const days = Number(netMatch[1]);
+    if (!Number.isFinite(days) || days <= 0) {
+      return 0;
+    }
+    return Math.trunc(days);
+  }
+
+  normalizeDateOnlyString(value: string | null | undefined): string | null {
+    if (!value) {
+      return null;
+    }
+    const parsed = this.utilityService.parseDateOnlyStringToDate(value);
+    if (!parsed) {
+      return null;
+    }
+    return this.utilityService.formatDateOnlyForApi(parsed);
+  }
+
+  resolveBillMatchPeriod(value: string | null | undefined): string | null {
+    const normalizedDate = this.normalizeDateOnlyString(value);
+    if (!normalizedDate) {
+      return null;
+    }
+    const match = /^(\d{4})-(\d{2})-\d{2}$/.exec(normalizedDate);
+    if (!match) {
+      return null;
+    }
+    return `${match[1]}-${match[2]}`;
   }
 
   updateAgreementLine(

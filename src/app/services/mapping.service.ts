@@ -4336,43 +4336,106 @@ export class MappingService {
   //#endregion
 
   //#region Accounting Rent Roll Mapping
-  mapRentRollRowsFromAgreements(propertyAgreements: RentRollPropertyAgreement[], daysInMonth: number): RentRollRow[] {
-    const normalizedDaysInMonth = Number.isFinite(daysInMonth) && daysInMonth > 0 ? Math.trunc(daysInMonth) : 30;
+  mapRentRollRowsFromAgreements(
+    propertyAgreements: RentRollPropertyAgreement[],
+    dateRange: { startDate: string | null; endDate: string | null }
+  ): RentRollRow[] {
+    const range = this.resolveRentRollRange(dateRange);
     return (propertyAgreements || [])
-      .flatMap(propertyAgreement => this.mapRentRollRowsFromAgreement(propertyAgreement, normalizedDaysInMonth))
+      .flatMap(propertyAgreement => this.mapRentRollRowsFromAgreement(propertyAgreement, range.startDate, range.endDate))
       .sort((left, right) =>
         left.propertyCode.localeCompare(right.propertyCode, undefined, { sensitivity: 'base', numeric: true })
+        || String(left.billDate || '').localeCompare(String(right.billDate || ''), undefined, { sensitivity: 'base' })
         || left.vendorName.localeCompare(right.vendorName, undefined, { sensitivity: 'base' })
         || left.terms.localeCompare(right.terms, undefined, { sensitivity: 'base' })
       );
   }
 
-  mapRentRollRowsFromAgreement(propertyAgreement: RentRollPropertyAgreement, daysInMonth: number): RentRollRow[] {
+  mapRentRollRowsFromAgreement(propertyAgreement: RentRollPropertyAgreement, rangeStartDate: Date, rangeEndDate: Date): RentRollRow[] {
     const propertyId = String(propertyAgreement?.propertyId || '').trim();
     const propertyCode = String(propertyAgreement?.propertyCode || '').trim();
     const officeId = Number.isFinite(Number(propertyAgreement?.officeId)) ? Number(propertyAgreement?.officeId) : null;
     return (propertyAgreement?.agreementLines || [])
-      .map(line => this.mapRentRollRow(propertyId, propertyCode, officeId, line, daysInMonth))
+      .flatMap(line => this.mapRentRollRowsForLine(propertyId, propertyCode, officeId, line, rangeStartDate, rangeEndDate))
       .filter((line): line is RentRollRow => !!line);
   }
 
-  mapRentRollRow(propertyId: string, propertyCode: string, officeId: number | null, line: PropertyAgreementLineResponse | null | undefined, daysInMonth: number): RentRollRow | null {
+  mapRentRollRowsForLine(
+    propertyId: string,
+    propertyCode: string,
+    officeId: number | null,
+    line: PropertyAgreementLineResponse | null | undefined,
+    rangeStartDate: Date,
+    rangeEndDate: Date
+  ): RentRollRow[] {
     const monthlyAmount = Number(line?.monthly || 0);
     const dailyAmount = Number(line?.daily || 0);
     const depositAmount = Number(line?.deposit || 0);
     const oneTimeAmount = Number(line?.oneTime || 0);
     const hasMonthlyAmount = Number.isFinite(monthlyAmount) && monthlyAmount > 0;
     const hasDailyAmount = Number.isFinite(dailyAmount) && dailyAmount > 0;
-    if (!hasMonthlyAmount && !hasDailyAmount) {
+    const hasDepositAmount = Number.isFinite(depositAmount) && depositAmount > 0;
+    const hasOneTimeAmount = Number.isFinite(oneTimeAmount) && oneTimeAmount > 0;
+    const hasOneTimeCharges = hasDepositAmount || hasOneTimeAmount;
+    if (!hasMonthlyAmount && !hasDailyAmount && !hasOneTimeCharges) {
+      return [];
+    }
+
+    const startDateRaw = String(line?.startDate || '').trim() || null;
+    const startDate = this.utility.parseDateOnlyStringToDate(startDateRaw) || null;
+    const endDate = this.utility.parseDateOnlyStringToDate(line?.endDate) || null;
+    const billDayOfMonth = this.resolveRentRollBillDay(startDateRaw, startDate);
+    const occurrences = this.buildRentRollOccurrenceDates(rangeStartDate, rangeEndDate, billDayOfMonth);
+
+    return occurrences
+      .filter(occurrenceDate => this.shouldIncludeRentRollOccurrence(occurrenceDate, startDate, endDate, hasOneTimeCharges))
+      .map(occurrenceDate => this.mapRentRollRow(
+        propertyId,
+        propertyCode,
+        officeId,
+        line,
+        occurrenceDate,
+        hasMonthlyAmount ? monthlyAmount : 0,
+        hasDailyAmount ? dailyAmount : 0,
+        hasDepositAmount ? depositAmount : 0,
+        hasOneTimeAmount ? oneTimeAmount : 0,
+        startDate
+      ))
+      .filter((row): row is RentRollRow => !!row);
+  }
+
+  mapRentRollRow(
+    propertyId: string,
+    propertyCode: string,
+    officeId: number | null,
+    line: PropertyAgreementLineResponse | null | undefined,
+    occurrenceDate: Date,
+    monthlyAmount: number,
+    dailyAmount: number,
+    depositAmount: number,
+    oneTimeAmount: number,
+    startDate: Date | null
+  ): RentRollRow | null {
+    const daysInOccurrenceMonth = new Date(occurrenceDate.getFullYear(), occurrenceDate.getMonth() + 1, 0).getDate();
+    const recurringAmount = monthlyAmount > 0
+      ? monthlyAmount
+      : dailyAmount > 0
+        ? dailyAmount * daysInOccurrenceMonth
+        : 0;
+    const includeOneTimeCharges = this.isSameYearMonth(occurrenceDate, startDate);
+    const occurrenceDepositAmount = includeOneTimeCharges ? depositAmount : 0;
+    const occurrenceOneTimeAmount = includeOneTimeCharges ? oneTimeAmount : 0;
+    const totalAmount = recurringAmount + occurrenceDepositAmount + occurrenceOneTimeAmount;
+    if (!Number.isFinite(totalAmount) || totalAmount <= 0) {
       return null;
     }
 
-    const totalAmount = hasMonthlyAmount ? monthlyAmount : dailyAmount * daysInMonth;
     return {
       propertyId,
       propertyCode,
       officeId,
       agreementLineId: line?.agreementLineId ?? null,
+      billDate: this.utility.formatDateOnlyForApi(occurrenceDate),
       title: String(line?.title || '').trim(),
       vendorId: String(line?.vendorId || '').trim() || null,
       vendorName: String(line?.vendorName || '').trim(),
@@ -4382,12 +4445,103 @@ export class MappingService {
         : null,
       startDate: line?.startDate ?? null,
       endDate: line?.endDate ?? null,
-      depositAmount: Number.isFinite(depositAmount) ? depositAmount : 0,
-      oneTimeAmount: Number.isFinite(oneTimeAmount) ? oneTimeAmount : 0,
-      monthlyAmount: hasMonthlyAmount ? monthlyAmount : 0,
-      dailyAmount: hasDailyAmount ? dailyAmount : 0,
+      depositAmount: occurrenceDepositAmount,
+      oneTimeAmount: occurrenceOneTimeAmount,
+      monthlyAmount: Number.isFinite(monthlyAmount) && monthlyAmount > 0 ? monthlyAmount : 0,
+      dailyAmount: Number.isFinite(dailyAmount) && dailyAmount > 0 ? dailyAmount : 0,
       totalAmount: this.roundFinancialReportAmount(totalAmount)
     };
+  }
+
+  resolveRentRollRange(dateRange: { startDate: string | null; endDate: string | null }): { startDate: Date; endDate: Date } {
+    const now = new Date();
+    const fallbackStart = new Date(now.getFullYear(), now.getMonth(), 1);
+    const fallbackEnd = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+    const parsedStart = this.utility.parseDateOnlyStringToDate(dateRange?.startDate) || fallbackStart;
+    const parsedEnd = this.utility.parseDateOnlyStringToDate(dateRange?.endDate) || parsedStart || fallbackEnd;
+    const startDate = new Date(parsedStart.getFullYear(), parsedStart.getMonth(), parsedStart.getDate());
+    const endDate = new Date(parsedEnd.getFullYear(), parsedEnd.getMonth(), parsedEnd.getDate());
+    if (startDate.getTime() <= endDate.getTime()) {
+      return { startDate, endDate };
+    }
+    return { startDate: endDate, endDate: startDate };
+  }
+
+  resolveRentRollBillDay(startDateRaw: string | null, startDate: Date | null): number {
+    const dayFromString = this.extractDayOfMonthFromCalendarString(startDateRaw);
+    const dayOfMonth = dayFromString ?? startDate?.getDate() ?? 1;
+    if (!Number.isFinite(dayOfMonth) || dayOfMonth < 1) {
+      return 1;
+    }
+    if (dayOfMonth > 31) {
+      return 31;
+    }
+    return dayOfMonth;
+  }
+
+  extractDayOfMonthFromCalendarString(value: string | null): number | null {
+    const raw = String(value || '').trim();
+    if (!raw) {
+      return null;
+    }
+    const datePart = raw.split('T')[0]?.split(' ')[0] ?? '';
+    const isoMatch = /^(\d{4})-(\d{2})-(\d{2})$/.exec(datePart);
+    if (isoMatch) {
+      const day = Number(isoMatch[3]);
+      return Number.isFinite(day) && day >= 1 && day <= 31 ? day : null;
+    }
+    const usMatch = /^(\d{1,2})\/(\d{1,2})\/(\d{4})$/.exec(datePart);
+    if (usMatch) {
+      const day = Number(usMatch[2]);
+      return Number.isFinite(day) && day >= 1 && day <= 31 ? day : null;
+    }
+    return null;
+  }
+
+  buildRentRollOccurrenceDates(rangeStartDate: Date, rangeEndDate: Date, billDayOfMonth: number): Date[] {
+    const dates: Date[] = [];
+    let year = rangeStartDate.getFullYear();
+    let month = rangeStartDate.getMonth();
+    const endYear = rangeEndDate.getFullYear();
+    const endMonth = rangeEndDate.getMonth();
+
+    while (year < endYear || (year === endYear && month <= endMonth)) {
+      const daysInMonth = new Date(year, month + 1, 0).getDate();
+      const day = Math.min(billDayOfMonth, daysInMonth);
+      dates.push(new Date(year, month, day));
+      month += 1;
+      if (month > 11) {
+        month = 0;
+        year += 1;
+      }
+    }
+
+    return dates;
+  }
+
+  shouldIncludeRentRollOccurrence(
+    occurrenceDate: Date,
+    startDate: Date | null,
+    endDate: Date | null,
+    hasOneTimeCharges: boolean
+  ): boolean {
+    if (startDate && occurrenceDate.getTime() < startDate.getTime()) {
+      return false;
+    }
+    if (endDate && occurrenceDate.getTime() > endDate.getTime()) {
+      return false;
+    }
+    if (hasOneTimeCharges && !this.isSameYearMonth(occurrenceDate, startDate)) {
+      return false;
+    }
+    return true;
+  }
+
+  isSameYearMonth(left: Date | null, right: Date | null): boolean {
+    if (!left || !right) {
+      return false;
+    }
+    return left.getFullYear() === right.getFullYear() && left.getMonth() === right.getMonth();
   }
 
   sumRentRollTotal(rows: RentRollRow[]): number {

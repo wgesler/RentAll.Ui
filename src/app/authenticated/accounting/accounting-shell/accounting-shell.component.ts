@@ -614,13 +614,19 @@ export class AccountingShellComponent implements OnInit, OnDestroy {
   }
 
   onBillsReceiptSaved(): void {
+    const savedOrigin = this.billsReceiptOrigin;
     this.onBillsReceiptBack();
     this.billsRefreshTrigger++;
+    if (savedOrigin === 'rentRoll') {
+      this.rentRollRefreshTrigger++;
+    }
   }
 
   onRentRollCreateBill(request: RentRollCreateBillRequest): void {
     const propertyId = (request.propertyId || '').trim();
     const officeId = request.officeId ?? this.selectedOfficeId ?? null;
+    const billDate = request.billDate || this.utilityService.formatDateOnlyForApi(this.endDate) || this.utilityService.formatDateOnlyForApi(new Date());
+    const dueDate = request.dueDate || billDate;
     const openBillEditor = (property: PropertyResponse | null) => {
       this.selectedTabIndex = this.tabBillsReceipts;
       this.selectedBillsReceiptKind = 'bills';
@@ -631,7 +637,9 @@ export class AccountingShellComponent implements OnInit, OnDestroy {
         key: `${request.agreementLineId || 'line'}-${Date.now()}`,
         officeId,
         propertyIds: propertyId ? [propertyId] : [],
-        receiptDate: this.utilityService.formatDateOnlyForApi(this.endDate),
+        receiptDate: billDate,
+        dueDate,
+        accountingPeriod: billDate,
         description: (request.description || '').trim(),
         amount: Number(request.amount || 0),
         bankCardId: 0,
@@ -684,12 +692,6 @@ export class AccountingShellComponent implements OnInit, OnDestroy {
       return;
     }
 
-    const billDate = this.utilityService.formatDateOnlyForApi(this.endDate) || this.utilityService.formatDateOnlyForApi(new Date());
-    if (!billDate) {
-      this.toastr.error('Unable to resolve bill date.', 'Create Bills');
-      return;
-    }
-
     let createdCount = 0;
     let skippedCount = 0;
     let failedCount = 0;
@@ -702,7 +704,7 @@ export class AccountingShellComponent implements OnInit, OnDestroy {
         continue;
       }
 
-      const payload = this.buildRentRollReceiptRequest(request, organizationId, billDate);
+      const payload = this.buildRentRollReceiptRequest(request, organizationId);
       if (!payload) {
         skippedCount++;
         continue;
@@ -764,8 +766,7 @@ export class AccountingShellComponent implements OnInit, OnDestroy {
 
   buildRentRollReceiptRequest(
     request: RentRollCreateBillRequest,
-    organizationId: string,
-    billDate: string
+    organizationId: string
   ): ReceiptRequest | null {
     const propertyId = (request.propertyId || '').trim();
     const officeId = Number(request.officeId || 0);
@@ -773,6 +774,11 @@ export class AccountingShellComponent implements OnInit, OnDestroy {
     const chartOfAccountId = Number(request.chartOfAccountId || 0);
     const amount = Number(request.amount || 0);
     const description = (request.description || '').trim() || `Rent Roll - ${propertyId}`;
+    const billDate = request.billDate || this.utilityService.formatDateOnlyForApi(this.endDate) || this.utilityService.formatDateOnlyForApi(new Date());
+    const dueDate = request.dueDate || billDate;
+    if (!billDate || !dueDate) {
+      return null;
+    }
     if (!propertyId || !vendorId || officeId <= 0 || chartOfAccountId <= 0 || amount <= 0) {
       return null;
     }
@@ -781,7 +787,7 @@ export class AccountingShellComponent implements OnInit, OnDestroy {
       officeId,
       propertyIds: [propertyId],
       receiptDate: billDate,
-      dueDate: billDate,
+      dueDate,
       accountingPeriod: billDate,
       billNumber: null,
       ticketId: '',

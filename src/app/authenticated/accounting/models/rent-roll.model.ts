@@ -5,6 +5,7 @@ export interface RentRollRow {
   propertyCode: string;
   officeId: number | null;
   agreementLineId: string | null;
+  billDate: string | null;
   title: string;
   vendorId: string | null;
   vendorName: string;
@@ -22,12 +23,15 @@ export interface RentRollRow {
 export interface RentRollRowDisplay {
   propertyId: string;
   agreementLineId: string | null;
+  billDate: string | null;
   propertyCode: string;
   vendorName: string;
   chartOfAccountDisplay: string;
   terms: string;
   billDateDisplay: string;
   dueDateDisplay: string;
+  depositAmountDisplay: string;
+  oneTimeAmountDisplay: string;
   monthlyAmountDisplay: string;
   dailyAmountDisplay: string;
   totalAmountDisplay: string;
@@ -46,6 +50,8 @@ export interface RentRollCreateBillRequest {
   propertyId: string;
   officeId: number | null;
   agreementLineId: string | null;
+  billDate: string | null;
+  dueDate: string | null;
   vendorId: string | null;
   vendorName: string;
   chartOfAccountId: number | null;
