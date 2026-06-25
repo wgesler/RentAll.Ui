@@ -164,6 +164,8 @@ export class SearchableSelectComponent implements OnChanges, AfterViewInit {
   @Input() labelRequiredAsterisk = false;
   @Input() triggerValueClickable = false;
   @Input() openOnFocus = false;
+  @Input() openScrollLabelPrefix: string | null = null;
+  @Input() openScrollWhenNoSelection = false;
   /** Option values that expand the list without committing a selection (panel stays open). */
   @Input() keepPanelOpenOnValues: Array<string | number | null> = [];
   @Output() valueChange = new EventEmitter<string | number | null>();
@@ -247,6 +249,31 @@ export class SearchableSelectComponent implements OnChanges, AfterViewInit {
     if (opened && this.resetSearchOnOpen) {
       this.searchText = '';
     }
+    if (opened) {
+      this.scrollPanelToOpenAnchor();
+    }
+  }
+
+  scrollPanelToOpenAnchor(): void {
+    if (!this.openScrollWhenNoSelection || this.hasConcreteSelection) {
+      return;
+    }
+    const anchorPrefix = String(this.openScrollLabelPrefix || '').trim().toLowerCase();
+    if (!anchorPrefix) {
+      return;
+    }
+    setTimeout(() => {
+      const panelElement = this.searchableSelectRef?.panel?.nativeElement as HTMLElement | undefined;
+      if (!panelElement) {
+        return;
+      }
+      const optionElements = Array.from(panelElement.querySelectorAll('.mat-mdc-option')) as HTMLElement[];
+      const matchingOption = optionElements.find(option => {
+        const label = String(option.textContent || '').trim().toLowerCase();
+        return label.startsWith(anchorPrefix);
+      });
+      matchingOption?.scrollIntoView({ block: 'center' });
+    }, 0);
   }
 
   ngOnChanges(changes: SimpleChanges): void {

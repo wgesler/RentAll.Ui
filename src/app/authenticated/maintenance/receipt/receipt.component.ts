@@ -10,7 +10,6 @@ import { FileDetails } from '../../documents/models/document.model';
 import { FormatterService } from '../../../services/formatter-service';
 import { MaterialModule } from '../../../material.module';
 import { AuthService } from '../../../services/auth.service';
-import { AccountType } from '../../accounting/models/accounting-enum';
 import { ChartOfAccountsService } from '../../accounting/services/chart-of-accounts.service';
 import { PdfThumbnailService } from '../../../services/pdf-thumbnail.service';
 import { UtilityService } from '../../../services/utility.service';
@@ -93,11 +92,6 @@ export class ReceiptComponent implements OnInit, OnChanges, OnDestroy {
   private lastAppliedShellOfficeId: number | null | undefined;
   readonly moreBankCardsOptionValue = -1;
   expenseAccountOptions: SearchableSelectOption<number>[] = [];
-  readonly billSplitAccountTypeIds = new Set<number>([
-    AccountType.Expense,
-    AccountType.CostOfGoodsSold,
-    AccountType.OtherExpense
-  ]);
 
   readonly accountingCompanyPropertyId = ACCOUNTING_COMPANY_PROPERTY_ID;
   lastPropertyIdsValue: string[] = [];
@@ -743,7 +737,6 @@ export class ReceiptComponent implements OnInit, OnChanges, OnDestroy {
     }
 
     this.expenseAccountOptions = (this.chartOfAccountsService.getChartOfAccountsForOffice(officeId) || [])
-      .filter(account => this.getSplitAccountOptionTypeIds().has(account.accountTypeId))
       .map(account => ({
         value: account.accountId,
         label: this.utilityService.getChartOfAccountDropdownLabel(account)
@@ -1475,20 +1468,6 @@ export class ReceiptComponent implements OnInit, OnChanges, OnDestroy {
 
       this.applyDefaultSplitAccountFromReceiptType(splitIndex);
     }
-  }
-
-  getSplitAccountOptionTypeIds(): Set<number> {
-    if (this.isOverallBillBankCard()) {
-      return this.billSplitAccountTypeIds;
-    }
-
-    return new Set<number>([
-      AccountType.Income,
-      AccountType.Expense,
-      AccountType.CostOfGoodsSold,
-      AccountType.OtherExpense,
-      AccountType.OtherIncome
-    ]);
   }
 
   addSplitLine(): void {
