@@ -40,7 +40,6 @@ export class AreaListComponent implements OnInit, OnChanges, OnDestroy {
   officeScopeResolved: boolean = false;
 
   areasDisplayedColumns: ColumnSet = {
-    no: { displayAs: 'No', maxWidth: '5ch', sort: false, wrap: false },
     'officeName': { displayAs: 'Office', maxWidth: '25ch' },
     'areaCode': { displayAs: 'Code', maxWidth: '20ch' },
     'name': { displayAs: 'Name', maxWidth: '30ch' },

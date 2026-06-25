@@ -33,6 +33,7 @@ import { PropertyService } from '../services/property.service';
     styleUrl: './property-selection.component.scss'
 })
 export class PropertySelectionComponent implements OnInit, OnDestroy {
+  private readonly clearPinsEventName = 'rentall-clear-pins';
   form: FormGroup;
   isSubmitting: boolean = false;
   isServiceError: boolean = false;
@@ -75,6 +76,7 @@ export class PropertySelectionComponent implements OnInit, OnDestroy {
 
   //#region Property-Selection
   ngOnInit(): void {
+    window.addEventListener(this.clearPinsEventName, this.onClearPins);
     this.buildForm();
     this.applyStickySelectionFromStorage();
     this.propertySelectionFilterService.setDateRange(null, null);
@@ -583,9 +585,14 @@ export class PropertySelectionComponent implements OnInit, OnDestroy {
   }
 
   ngOnDestroy(): void {
+    window.removeEventListener(this.clearPinsEventName, this.onClearPins);
     this.destroy$.next();
     this.destroy$.complete();
     this.itemsToLoad$.complete();
   }
+
+  onClearPins = (): void => {
+    this.selectionSticky = false;
+  };
   //#endregion
 }

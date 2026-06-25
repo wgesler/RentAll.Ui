@@ -4342,22 +4342,25 @@ export class MappingService {
       .flatMap(propertyAgreement => this.mapRentRollRowsFromAgreement(propertyAgreement, normalizedDaysInMonth))
       .sort((left, right) =>
         left.propertyCode.localeCompare(right.propertyCode, undefined, { sensitivity: 'base', numeric: true })
-        || left.title.localeCompare(right.title, undefined, { sensitivity: 'base' })
         || left.vendorName.localeCompare(right.vendorName, undefined, { sensitivity: 'base' })
+        || left.terms.localeCompare(right.terms, undefined, { sensitivity: 'base' })
       );
   }
 
   mapRentRollRowsFromAgreement(propertyAgreement: RentRollPropertyAgreement, daysInMonth: number): RentRollRow[] {
     const propertyId = String(propertyAgreement?.propertyId || '').trim();
     const propertyCode = String(propertyAgreement?.propertyCode || '').trim();
+    const officeId = Number.isFinite(Number(propertyAgreement?.officeId)) ? Number(propertyAgreement?.officeId) : null;
     return (propertyAgreement?.agreementLines || [])
-      .map(line => this.mapRentRollRow(propertyId, propertyCode, line, daysInMonth))
+      .map(line => this.mapRentRollRow(propertyId, propertyCode, officeId, line, daysInMonth))
       .filter((line): line is RentRollRow => !!line);
   }
 
-  mapRentRollRow(propertyId: string, propertyCode: string, line: PropertyAgreementLineResponse | null | undefined, daysInMonth: number): RentRollRow | null {
+  mapRentRollRow(propertyId: string, propertyCode: string, officeId: number | null, line: PropertyAgreementLineResponse | null | undefined, daysInMonth: number): RentRollRow | null {
     const monthlyAmount = Number(line?.monthly || 0);
     const dailyAmount = Number(line?.daily || 0);
+    const depositAmount = Number(line?.deposit || 0);
+    const oneTimeAmount = Number(line?.oneTime || 0);
     const hasMonthlyAmount = Number.isFinite(monthlyAmount) && monthlyAmount > 0;
     const hasDailyAmount = Number.isFinite(dailyAmount) && dailyAmount > 0;
     if (!hasMonthlyAmount && !hasDailyAmount) {
@@ -4368,9 +4371,19 @@ export class MappingService {
     return {
       propertyId,
       propertyCode,
+      officeId,
       agreementLineId: line?.agreementLineId ?? null,
       title: String(line?.title || '').trim(),
+      vendorId: String(line?.vendorId || '').trim() || null,
       vendorName: String(line?.vendorName || '').trim(),
+      terms: String(line?.terms || '').trim(),
+      chartOfAccountId: Number.isFinite(Number(line?.chartOfAccountId)) && Number(line?.chartOfAccountId) > 0
+        ? Number(line?.chartOfAccountId)
+        : null,
+      startDate: line?.startDate ?? null,
+      endDate: line?.endDate ?? null,
+      depositAmount: Number.isFinite(depositAmount) ? depositAmount : 0,
+      oneTimeAmount: Number.isFinite(oneTimeAmount) ? oneTimeAmount : 0,
       monthlyAmount: hasMonthlyAmount ? monthlyAmount : 0,
       dailyAmount: hasDailyAmount ? dailyAmount : 0,
       totalAmount: this.roundFinancialReportAmount(totalAmount)

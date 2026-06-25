@@ -1,0 +1,107 @@
+<div class="flex flex-col">
+  <div class="flex flex-1 justify-between items-center bg-slate-200 rounded-t-lg p-3">
+    <span class="text-2xl items-center flex gap-2 ml-1">
+      <mat-icon color="primary">edit_note</mat-icon>
+      Edit Agreement Line
+    </span>
+    <button mat-mini-fab mat-dialog-close type="button" class="bg-transparent rent-roll-edit-line-close" color="none">
+      <mat-icon>close</mat-icon>
+    </button>
+  </div>
+
+  <mat-dialog-content class="rent-roll-edit-line-body p-6">
+    <form [formGroup]="form" class="rent-roll-edit-line-form">
+      <div class="rent-roll-edit-line-row rent-roll-edit-line-row--meta">
+        <mat-form-field appearance="outline">
+          <mat-label>Property</mat-label>
+          <input matInput [value]="data.propertyCode" readonly [disabled]="true" />
+        </mat-form-field>
+
+        <mat-form-field appearance="outline">
+          <mat-label>Terms</mat-label>
+          <input matInput formControlName="terms" readonly class="rent-roll-edit-line-terms-readonly" />
+        </mat-form-field>
+
+        <div class="rent-roll-edit-line-field">
+          <app-searchable-select
+            [renderInFormField]="true"
+            [formFieldLabel]="'Vendor'"
+            [formFieldClass]="'rent-roll-edit-line-form-field'"
+            [value]="form.get('vendorId')?.value ?? null"
+            [options]="vendorOptions"
+            [showInstructionOption]="true"
+            [instructionOptionValue]="null"
+            nullOptionLabel="Select Vendor"
+            [showSearchInput]="true"
+            [hideSearchHint]="false"
+            [hideSearchText]="false"
+            searchPlaceholder="Type to filter vendors..."
+            noResultsText="No vendors match your search"
+            selectClass="rent-roll-edit-line-select-control"
+            (valueChange)="onVendorChange($event)" />
+        </div>
+
+        <div class="rent-roll-edit-line-field">
+          <app-searchable-select
+            [renderInFormField]="true"
+            [formFieldLabel]="'Chart of Account'"
+            [formFieldClass]="'rent-roll-edit-line-form-field'"
+            [value]="form.get('chartOfAccountId')?.value ?? null"
+            [options]="chartOfAccountOptions"
+            [showInstructionOption]="true"
+            [instructionOptionValue]="null"
+            nullOptionLabel="Select Account"
+            [showSearchInput]="true"
+            [hideSearchHint]="false"
+            [hideSearchText]="false"
+            searchPlaceholder="Type to filter accounts..."
+            noResultsText="No accounts match your search"
+            selectClass="rent-roll-edit-line-select-control"
+            (valueChange)="form.get('chartOfAccountId')?.setValue($event)" />
+        </div>
+      </div>
+
+      <div class="rent-roll-edit-line-row rent-roll-edit-line-row--values">
+        <mat-form-field appearance="outline">
+          <mat-label>Start Date</mat-label>
+          <input matInput [matDatepicker]="rentRollStartDatePicker" formControlName="startDate" />
+          <mat-datepicker-toggle matIconSuffix [for]="rentRollStartDatePicker"></mat-datepicker-toggle>
+          <mat-datepicker #rentRollStartDatePicker></mat-datepicker>
+        </mat-form-field>
+
+        <mat-form-field appearance="outline">
+          <mat-label>End Date</mat-label>
+          <input matInput [matDatepicker]="rentRollEndDatePicker" formControlName="endDate" />
+          <mat-datepicker-toggle matIconSuffix [for]="rentRollEndDatePicker"></mat-datepicker-toggle>
+          <mat-datepicker #rentRollEndDatePicker></mat-datepicker>
+        </mat-form-field>
+
+        <mat-form-field appearance="outline">
+          <mat-label>Deposit</mat-label>
+          <input matInput type="text" formControlName="deposit" (blur)="onCurrencyBlur('deposit')" />
+        </mat-form-field>
+
+        <mat-form-field appearance="outline">
+          <mat-label>One Time</mat-label>
+          <input matInput type="text" formControlName="oneTime" (blur)="onCurrencyBlur('oneTime')" />
+        </mat-form-field>
+
+        <mat-form-field appearance="outline">
+          <mat-label>Monthly</mat-label>
+          <input matInput type="text" formControlName="monthly" (blur)="onCurrencyBlur('monthly')" />
+        </mat-form-field>
+
+        <mat-form-field appearance="outline">
+          <mat-label>Daily</mat-label>
+          <input matInput type="text" formControlName="daily" (blur)="onCurrencyBlur('daily')" />
+        </mat-form-field>
+      </div>
+    </form>
+  </mat-dialog-content>
+
+  <mat-divider class="w-full"></mat-divider>
+  <div class="flex flex-1 justify-end gap-3 p-3">
+    <button mat-raised-button type="button" color="accent" (click)="onCancel()">Cancel</button>
+    <button mat-raised-button type="button" color="primary" (click)="onSave()">Save</button>
+  </div>
+</div>

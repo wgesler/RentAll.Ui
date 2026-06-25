@@ -80,7 +80,6 @@ export class DocumentListComponent implements OnInit, OnDestroy, OnChanges {
   documentTypes: { value: number, label: string }[] = [];
 
   sidebarColumns: ColumnSet = {
-    no: { displayAs: 'No', maxWidth: '5ch', sort: false, wrap: false },
     'propertyCode': { displayAs: 'Property', maxWidth: '15ch', sortType: 'natural' },
     'documentTypeName': { displayAs: 'Document Type', maxWidth: '20ch'},
     'reservationCode': { displayAs: 'Reservation', maxWidth: '15ch', sortType: 'natural' },
@@ -89,7 +88,6 @@ export class DocumentListComponent implements OnInit, OnDestroy, OnChanges {
   };
 
   tabColumns: ColumnSet = {
-    no: { displayAs: 'No', maxWidth: '5ch', sort: false, wrap: false },
     'propertyCode': { displayAs: 'Property', maxWidth: '15ch', sortType: 'natural' },
     'documentTypeName': { displayAs: 'Document Type', maxWidth: '20ch'},
     'reservationCode': { displayAs: 'Reservation', maxWidth: '15ch', sortType: 'natural' },

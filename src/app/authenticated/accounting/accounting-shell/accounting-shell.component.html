@@ -455,6 +455,7 @@
                   <app-receipt
                     [property]="billsReceiptProperty"
                     [receiptId]="selectedBillsReceiptId"
+                    [prefill]="billsReceiptPrefill"
                     [officeId]="selectedOfficeId"
                     [shellContext]="'accounting'"
                     (backEvent)="onBillsReceiptBack()"
@@ -496,7 +497,10 @@
                 <app-rent-roll
                   [officeId]="selectedOfficeId"
                   [searchDateRange]="invoiceSearchDateRange"
-                  [refreshTrigger]="rentRollRefreshTrigger">
+                  [refreshTrigger]="rentRollRefreshTrigger"
+                  (createBill)="onRentRollCreateBill($event)"
+                  (createBills)="onRentRollCreateBills($event)"
+                  (openBill)="onRentRollOpenBill($event)">
                 </app-rent-roll>
               }
             }

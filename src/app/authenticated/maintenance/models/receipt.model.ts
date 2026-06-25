@@ -146,6 +146,27 @@ export interface ReceiptSelection {
   propertyId: string | null;
 }
 
+export interface ReceiptPrefill {
+  key: string;
+  officeId?: number | null;
+  propertyIds?: string[] | null;
+  receiptDate?: CalendarDateString | null;
+  dueDate?: CalendarDateString | null;
+  accountingPeriod?: CalendarDateString | null;
+  description?: string | null;
+  amount?: number | null;
+  bankCardId?: number | null;
+  vendorId?: string | null;
+  vendorName?: string | null;
+  billNumber?: string | null;
+  split?: {
+    amount?: number | null;
+    description?: string | null;
+    receiptTypeId?: number | null;
+    chartOfAccountId?: number | null;
+  } | null;
+}
+
 export interface BillPaymentRequest {
   paymentDate: CalendarDateString;
   chartOfAccountId: number;

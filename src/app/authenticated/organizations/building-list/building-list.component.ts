@@ -40,7 +40,6 @@ export class BuildingListComponent implements OnInit, OnChanges, OnDestroy {
   officeScopeResolved: boolean = false;
 
   buildingsDisplayedColumns: ColumnSet = {
-    no: { displayAs: 'No', maxWidth: '5ch', sort: false, wrap: false },
     'officeName': { displayAs: 'Office', maxWidth: '25ch' },
     'buildingCode': { displayAs: 'Code', maxWidth: '20ch' },
     'name': { displayAs: 'Name', maxWidth: '25ch' },

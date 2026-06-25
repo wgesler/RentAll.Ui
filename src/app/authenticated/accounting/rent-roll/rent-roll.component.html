@@ -14,19 +14,36 @@
           [data]="rentRollRowsDisplay"
           [columns]="rentRollDisplayedColumns"
           [noDataMessage]="'No rent roll lines found.'"
-          [hasColumnIndex]="false"
+          [hasColumnIndex]="true"
+          [hasActionsSelect]="true"
+          [hasButtonSelectAll]="true"
           [hasFilter]="true"
-          [hasToggleTop]="false"
-          [hasButtonTop]="false"
-          [itemsPerPage]="100">
+          [hasToggleTop]="true"
+          [buttonToggleTextTop]="'ShowCreated'"
+          [hasButtonTop]="true"
+          [buttonTextTop]="'Create Bills'"
+          [buttonIconTop]="'receipt_long'"
+          [buttonDisabledTop]="isCreateBillsTopButtonDisabled"
+          [hasActionsRowClick]="true"
+          [hasPropertyCodeLink]="true"
+          [hasActionsEdit]="true"
+          [hasActionsDelete]="true"
+          [hasActionsInvoice]="true"
+          [invoiceActionTooltip]="'Create Bill'"
+          [deleteConfirmTitle]="'Delete Agreement Line'"
+          [deleteConfirmMessage]="'Are you sure you want to delete this agreement line?'"
+          [totalsRow]="rentRollTotalsRow"
+          [itemsPerPage]="100"
+          (topToggleButtonEvent)="onToggleShowCreatedBills()"
+          (topButtonEvent)="onCreateSelectedBills()"
+          (selectionSet)="onSelectionSet($event)"
+          (rowClickEvent)="onEditAgreementLine($event)"
+          (propertyCodeClickEvent)="onPropertyCodeClick($event)"
+          (editEvent)="onEditAgreementLine($event)"
+          (deleteEvent)="onDeleteAgreementLine($event)"
+          (invoiceEvent)="onCreateBill($event)">
         </app-data-table>
       </div>
     </div>
-    @if (hasRentRollRows) {
-      <div class="rent-roll-summary">
-      <div class="rent-roll-summary-label">Grand Total ({{ daysInMonth }} days)</div>
-      <div class="rent-roll-summary-value">{{ getRentRollAmountDisplay(rentRollTotalAmount) }}</div>
-      </div>
-    }
   }
 </div>

@@ -21,11 +21,12 @@ import { UserGroups } from '../../users/models/user-enums';
 import { getNumberQueryParam, getStringQueryParam } from '../../shared/query-param.utils';
 import { TitleBarSelectComponent } from '../../shared/titlebar-select/titlebar-select.component';
 import { MaintenanceListSearchRequest } from '../../maintenance/models/maintenance-search.model';
-import { ReceiptSelection } from '../../maintenance/models/receipt.model';
+import { ReceiptPrefill, ReceiptRequest, ReceiptSelection } from '../../maintenance/models/receipt.model';
 import { ReceiptComponent } from '../../maintenance/receipt/receipt.component';
 import { WorkOrderComponent } from '../../maintenance/work-order/work-order.component';
 import { WorkOrderListComponent, WorkOrderSelection } from '../../maintenance/work-order-list/work-order-list.component';
 import { ReceiptsListComponent } from '../../maintenance/receipts-list/receipts-list.component';
+import { ReceiptService } from '../../maintenance/services/receipt.service';
 import { PropertyCodeResponse, PropertyResponse } from '../../properties/models/property.model';
 import { PropertyService } from '../../properties/services/property.service';
 import { ReservationCodeResponse } from '../../reservations/models/reservation-model';
@@ -42,6 +43,7 @@ import { RentRollComponent } from '../rent-roll/rent-roll.component';
 import { AccountingShellBankActivityKind, AccountingShellBillsReceiptKind, AccountingShellOwnerKind, AccountingShellReportKind } from '../models/accounting-shell.model';
 import { WorkOrderType } from '../../maintenance/models/maintenance-enums';
 import { FinancialReportKind } from '../models/financial-report.model';
+import { RentRollCreateBillRequest } from '../models/rent-roll.model';
 import { CostCodesService } from '../services/cost-codes.service';
 import { ChartOfAccountsService } from '../services/chart-of-accounts.service';
 import { ChartOfAccountResponse } from '../models/chart-of-accounts.model';
@@ -73,6 +75,7 @@ import { JournalEntrySyncResult } from '../models/journal-entry.model';
     styleUrls: ['./accounting-shell.component.scss']
 })
 export class AccountingShellComponent implements OnInit, OnDestroy {
+  private readonly clearPinsEventName = 'rentall-clear-pins';
   @ViewChild(InvoiceListComponent) accountingInvoiceList?: InvoiceListComponent;
   @ViewChild('accountingInvoiceEditor') accountingInvoiceEditor?: InvoiceComponent;
   @ViewChild('financialReport') financialReport?: FinancialReportComponent;
@@ -141,6 +144,8 @@ export class AccountingShellComponent implements OnInit, OnDestroy {
   showBillsReceiptDetail = false;
   selectedBillsReceiptId: string | null = null;
   billsReceiptProperty: PropertyResponse | null = null;
+  billsReceiptPrefill: ReceiptPrefill | null = null;
+  billsReceiptOrigin: 'bills' | 'rentRoll' = 'bills';
   showReceiptsReceiptDetail = false;
   selectedReceiptsReceiptId: string | null = null;
   receiptsReceiptProperty: PropertyResponse | null = null;
@@ -198,6 +203,7 @@ export class AccountingShellComponent implements OnInit, OnDestroy {
     private globalSelectionService: GlobalSelectionService,
     private propertyService: PropertyService,
     private reservationService: ReservationService,
+    private receiptService: ReceiptService,
     private toastr: ToastrService,
     private cdr: ChangeDetectorRef
   ) {
@@ -207,6 +213,7 @@ export class AccountingShellComponent implements OnInit, OnDestroy {
 
   //#region Accounting
   ngOnInit(): void {
+    window.addEventListener(this.clearPinsEventName, this.onClearPins);
     this.userId = this.authService.getUser()?.userId || '';
     this.applyPinnedDateRangeFromStorage();
     this.costCodesService.ensureCostCodesLoaded().pipe(take(1)).subscribe();
@@ -560,8 +567,8 @@ export class AccountingShellComponent implements OnInit, OnDestroy {
   //#endregion
 
   //#region Bills Receipt Detail
-  onBillsReceiptSelect(selection: ReceiptSelection): void {
-    const receiptId = selection?.receiptId ?? null;
+  onBillsReceiptSelect(selection: ReceiptSelection, origin: 'bills' | 'rentRoll' = 'bills'): void {
+    const receiptId = (selection?.receiptId || '').trim() || null;
     const propertyId = (selection?.propertyId || '').trim() || null;
     const officeId = selection?.officeId ?? this.selectedOfficeId ?? null;
     const resolvedOfficeId = officeId != null && Number.isFinite(Number(officeId)) ? Number(officeId) : null;
@@ -576,15 +583,20 @@ export class AccountingShellComponent implements OnInit, OnDestroy {
     const openReceiptDetail = (property: PropertyResponse | null) => {
       this.selectedTabIndex = this.tabBillsReceipts;
       this.selectedBillsReceiptKind = 'bills';
+      this.billsReceiptOrigin = origin;
       this.billsReceiptProperty = property;
       this.selectedBillsReceiptId = receiptId;
+      this.billsReceiptPrefill = null;
       this.showBillsReceiptDetail = true;
     };
 
     if (propertyId) {
       this.propertyService.getPropertyByGuid(propertyId).pipe(take(1)).subscribe({
         next: (property: PropertyResponse) => openReceiptDetail(property),
-        error: () => this.toastr.error('Unable to load property for receipt.', 'Error')
+        error: () => {
+          this.toastr.warning('Unable to load property details for this bill. Opening bill anyway.', 'Warning');
+          openReceiptDetail(this.buildBillsReceiptPropertyStub(officeId));
+        }
       });
       return;
     }
@@ -596,11 +608,201 @@ export class AccountingShellComponent implements OnInit, OnDestroy {
     this.showBillsReceiptDetail = false;
     this.selectedBillsReceiptId = null;
     this.billsReceiptProperty = null;
+    this.billsReceiptPrefill = null;
+    this.selectedBillsReceiptKind = this.billsReceiptOrigin === 'rentRoll' ? 'rentRoll' : 'bills';
+    this.billsReceiptOrigin = 'bills';
   }
 
   onBillsReceiptSaved(): void {
     this.onBillsReceiptBack();
     this.billsRefreshTrigger++;
+  }
+
+  onRentRollCreateBill(request: RentRollCreateBillRequest): void {
+    const propertyId = (request.propertyId || '').trim();
+    const officeId = request.officeId ?? this.selectedOfficeId ?? null;
+    const openBillEditor = (property: PropertyResponse | null) => {
+      this.selectedTabIndex = this.tabBillsReceipts;
+      this.selectedBillsReceiptKind = 'bills';
+      this.billsReceiptOrigin = 'rentRoll';
+      this.selectedBillsReceiptId = null;
+      this.billsReceiptProperty = property;
+      this.billsReceiptPrefill = {
+        key: `${request.agreementLineId || 'line'}-${Date.now()}`,
+        officeId,
+        propertyIds: propertyId ? [propertyId] : [],
+        receiptDate: this.utilityService.formatDateOnlyForApi(this.endDate),
+        description: (request.description || '').trim(),
+        amount: Number(request.amount || 0),
+        bankCardId: 0,
+        vendorId: request.vendorId,
+        vendorName: request.vendorName,
+        split: {
+          amount: Number(request.amount || 0),
+          description: (request.description || '').trim(),
+          receiptTypeId: 1,
+          chartOfAccountId: request.chartOfAccountId
+        }
+      };
+      this.showBillsReceiptDetail = true;
+      this.router.navigate([], {
+        relativeTo: this.route,
+        queryParams: this.buildShellQueryParams({ tab: String(this.tabBillsReceipts), billsReceipt: 'bills' }),
+        queryParamsHandling: 'merge'
+      });
+    };
+
+    if (propertyId) {
+      this.propertyService.getPropertyByGuid(propertyId).pipe(take(1)).subscribe({
+        next: property => openBillEditor(property),
+        error: () => openBillEditor(this.buildBillsReceiptPropertyStub(officeId))
+      });
+      return;
+    }
+
+    openBillEditor(this.buildBillsReceiptPropertyStub(officeId));
+  }
+
+  onRentRollOpenBill(selection: ReceiptSelection): void {
+    const receiptId = (selection?.receiptId || '').trim();
+    if (!receiptId) {
+      return;
+    }
+    this.onBillsReceiptSelect(selection, 'rentRoll');
+  }
+
+  async onRentRollCreateBills(requests: RentRollCreateBillRequest[]): Promise<void> {
+    const createRequests = Array.isArray(requests) ? requests : [];
+    if (createRequests.length === 0) {
+      this.toastr.warning('Select at least one rent roll row first.', 'Create Bills');
+      return;
+    }
+
+    const organizationId = (this.organizationId || this.authService.getUser()?.organizationId || '').trim();
+    if (!organizationId) {
+      this.toastr.error('Unable to resolve organization for bill creation.', 'Create Bills');
+      return;
+    }
+
+    const billDate = this.utilityService.formatDateOnlyForApi(this.endDate) || this.utilityService.formatDateOnlyForApi(new Date());
+    if (!billDate) {
+      this.toastr.error('Unable to resolve bill date.', 'Create Bills');
+      return;
+    }
+
+    let createdCount = 0;
+    let skippedCount = 0;
+    let failedCount = 0;
+
+    for (const request of createRequests) {
+      const validationMessage = this.getRentRollBillValidationMessage(request);
+      if (validationMessage) {
+        skippedCount++;
+        this.toastr.warning(validationMessage, 'Create Bills');
+        continue;
+      }
+
+      const payload = this.buildRentRollReceiptRequest(request, organizationId, billDate);
+      if (!payload) {
+        skippedCount++;
+        continue;
+      }
+
+      try {
+        await firstValueFrom(this.receiptService.createReceipt(payload));
+        createdCount++;
+      } catch (error) {
+        failedCount++;
+        const responseError = error as HttpErrorResponse;
+        const apiMessage = typeof responseError?.error === 'string'
+          ? responseError.error
+          : responseError?.error?.message || responseError?.error?.title || responseError?.message;
+        this.toastr.error(apiMessage || 'Unable to create one of the selected bills.', 'Create Bills');
+      }
+    }
+
+    if (createdCount > 0) {
+      this.toastr.success(`${createdCount} bill${createdCount === 1 ? '' : 's'} created.`, 'Create Bills');
+      this.billsRefreshTrigger++;
+      this.rentRollRefreshTrigger++;
+      this.onJournalEntriesChanged();
+    }
+
+    if (skippedCount > 0 || failedCount > 0) {
+      const parts = [
+        skippedCount > 0 ? `${skippedCount} skipped` : '',
+        failedCount > 0 ? `${failedCount} failed` : ''
+      ].filter(part => !!part);
+      this.toastr.warning(parts.join(', '), 'Create Bills');
+    }
+  }
+
+  getRentRollBillValidationMessage(request: RentRollCreateBillRequest): string | null {
+    const propertyId = (request.propertyId || '').trim();
+    const officeId = Number(request.officeId || 0);
+    const amount = Number(request.amount || 0);
+    const vendorId = (request.vendorId || '').trim();
+    const chartOfAccountId = Number(request.chartOfAccountId || 0);
+
+    if (!propertyId) {
+      return 'Skipped one row: missing property.';
+    }
+    if (!Number.isFinite(officeId) || officeId <= 0) {
+      return 'Skipped one row: missing office.';
+    }
+    if (!Number.isFinite(amount) || amount <= 0) {
+      return 'Skipped one row: amount must be greater than zero.';
+    }
+    if (!vendorId) {
+      return 'Skipped one row: vendor is required for a bill.';
+    }
+    if (!Number.isFinite(chartOfAccountId) || chartOfAccountId <= 0) {
+      return 'Skipped one row: chart of account is required.';
+    }
+    return null;
+  }
+
+  buildRentRollReceiptRequest(
+    request: RentRollCreateBillRequest,
+    organizationId: string,
+    billDate: string
+  ): ReceiptRequest | null {
+    const propertyId = (request.propertyId || '').trim();
+    const officeId = Number(request.officeId || 0);
+    const vendorId = (request.vendorId || '').trim();
+    const chartOfAccountId = Number(request.chartOfAccountId || 0);
+    const amount = Number(request.amount || 0);
+    const description = (request.description || '').trim() || `Rent Roll - ${propertyId}`;
+    if (!propertyId || !vendorId || officeId <= 0 || chartOfAccountId <= 0 || amount <= 0) {
+      return null;
+    }
+    return {
+      organizationId,
+      officeId,
+      propertyIds: [propertyId],
+      receiptDate: billDate,
+      dueDate: billDate,
+      accountingPeriod: billDate,
+      billNumber: null,
+      ticketId: '',
+      amount,
+      paidAmount: 0,
+      paidDate: null,
+      description,
+      bankCardId: null,
+      vendorId,
+      vendorName: (request.vendorName || '').trim() || null,
+      splits: [{
+        amount,
+        description,
+        receiptTypeId: 1,
+        chartOfAccountId
+      }],
+      receiptPath: null,
+      fileDetails: null,
+      isUtility: false,
+      isActive: true
+    };
   }
 
   onJournalEntriesChanged(): void {
@@ -825,6 +1027,7 @@ export class AccountingShellComponent implements OnInit, OnDestroy {
     this.billsReceiptsMenuTrigger?.closeMenu();
     const previousTab = this.selectedTabIndex;
     const kindChanged = this.selectedBillsReceiptKind !== kind;
+    const rentRollDatesChanged = kind === 'rentRoll' ? this.applyRentRollMonthDateRange() : false;
 
     if (kindChanged) {
       if (this.selectedBillsReceiptKind === 'bills') {
@@ -848,6 +1051,11 @@ export class AccountingShellComponent implements OnInit, OnDestroy {
         queryParams: this.buildShellQueryParams({ billsReceipt: kind }),
         queryParamsHandling: 'merge'
       });
+      return;
+    }
+
+    if (kind === 'rentRoll' && rentRollDatesChanged) {
+      this.publishDateRangeState();
     }
   }
 
@@ -1715,6 +1923,29 @@ export class AccountingShellComponent implements OnInit, OnDestroy {
     this.startDate = start;
   }
 
+  applyRentRollMonthDateRange(): boolean {
+    if (this.dateRangePinned) {
+      return false;
+    }
+    const previousStartDate = this.utilityService.formatDateOnlyForApi(this.startDate);
+    const previousEndDate = this.utilityService.formatDateOnlyForApi(this.endDate);
+    const today = new Date();
+    const start = new Date(today.getFullYear(), today.getMonth(), 1);
+    const end = new Date(today.getFullYear(), today.getMonth() + 1, 0);
+    start.setHours(0, 0, 0, 0);
+    end.setHours(0, 0, 0, 0);
+    this.startDate = start;
+    this.endDate = end;
+    if (this.dateRangePinned) {
+      this.persistPinnedDateRange();
+    }
+    this.syncInvoiceSearchDateRange();
+    this.syncBillsSearchRequest();
+    const nextStartDate = this.utilityService.formatDateOnlyForApi(this.startDate);
+    const nextEndDate = this.utilityService.formatDateOnlyForApi(this.endDate);
+    return previousStartDate !== nextStartDate || previousEndDate !== nextEndDate;
+  }
+
   normalizeDateRangeValues(): void {
     if (this.dateRangePinned) {
       if (this.startDate) {
@@ -1957,8 +2188,17 @@ export class AccountingShellComponent implements OnInit, OnDestroy {
 
   //#region Utility Methods
   ngOnDestroy(): void {
+    window.removeEventListener(this.clearPinsEventName, this.onClearPins);
     this.destroy$.next();
     this.destroy$.complete();
   }
+
+  onClearPins = (): void => {
+    if (!this.dateRangePinned) {
+      return;
+    }
+    this.dateRangePinned = false;
+    this.cdr.markForCheck();
+  };
   //#endregion
 }

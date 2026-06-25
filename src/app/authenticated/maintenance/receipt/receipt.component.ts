@@ -21,7 +21,7 @@ import { ContactService } from '../../contacts/services/contact.service';
 import { PropertyCodeResponse, PropertyResponse } from '../../properties/models/property.model';
 import { NewContactDialogService } from '../../shared/contacts/new-contact-dialog.service';
 import { PropertyService } from '../../properties/services/property.service';
-import { ReceiptRequest, ReceiptResponse, Split } from '../models/receipt.model';
+import { ReceiptPrefill, ReceiptRequest, ReceiptResponse, Split } from '../models/receipt.model';
 import { ReceiptService } from '../services/receipt.service';
 import { AccountingOfficeResponse } from '../../organizations/models/accounting-office.model';
 import { AccountingOfficeService } from '../../organizations/services/accounting-office.service';
@@ -46,6 +46,7 @@ export class ReceiptComponent implements OnInit, OnChanges, OnDestroy {
   @Input() officeId: number | null = null;
   @Input() property: PropertyResponse | null = null;
   @Input() receiptId: string | null = null;
+  @Input() prefill: ReceiptPrefill | null = null;
   @Input() ticketId: string | null = null;
   @Input() shellContext: 'maintenance' | 'accounting' | null = null;
   @Output() backEvent = new EventEmitter<void>();
@@ -99,6 +100,7 @@ export class ReceiptComponent implements OnInit, OnChanges, OnDestroy {
   readonly accountingCompanyPropertyId = ACCOUNTING_COMPANY_PROPERTY_ID;
   lastPropertyIdsValue: string[] = [];
   manualSplitAccountIndexes = new Set<number>();
+  appliedPrefillKey: string | null = null;
 
   itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['receipt']));
   destroy$ = new Subject<void>();
@@ -167,6 +169,7 @@ export class ReceiptComponent implements OnInit, OnChanges, OnDestroy {
     this.emitPropertySelectionRequiredState();
     if (this.isAddMode) {
       this.applyShellOfficeToReceipt();
+      this.applyPrefillIfNeeded();
     }
   }
 
@@ -191,13 +194,19 @@ export class ReceiptComponent implements OnInit, OnChanges, OnDestroy {
       this.isAddMode = this.receiptId == null;
       this.receiptOfficeInitialized = false;
       this.lastAppliedShellOfficeId = undefined;
+      this.appliedPrefillKey = null;
       this.receipt = null;
       if (this.isAddMode) {
         this.clearReceiptLoading();
         this.applyShellOfficeToReceipt();
+        this.applyPrefillIfNeeded();
       } else {
         this.loadReceipt();
       }
+    }
+
+    if (changes['prefill'] && this.isAddMode) {
+      this.applyPrefillIfNeeded();
     }
   }
 
@@ -2235,6 +2244,71 @@ export class ReceiptComponent implements OnInit, OnChanges, OnDestroy {
 
   get isEmbeddedInShell(): boolean {
     return this.shellContext === 'maintenance' || this.shellContext === 'accounting';
+  }
+
+  applyPrefillIfNeeded(): void {
+    if (!this.isAddMode || !this.prefill || !this.form) {
+      return;
+    }
+
+    const prefillKey = (this.prefill.key || '').trim();
+    if (!prefillKey || prefillKey === this.appliedPrefillKey) {
+      return;
+    }
+
+    const officeId = this.normalizeOfficeId(this.prefill.officeId);
+    if (officeId) {
+      this.setReceiptOfficeId(officeId);
+    }
+
+    const propertyIds = (this.prefill.propertyIds || [])
+      .map(propertyId => (propertyId || '').trim())
+      .filter(propertyId => propertyId.length > 0);
+    if (propertyIds.length > 0) {
+      this.form.patchValue({
+        propertyIds,
+        propertyCode: this.getPropertyCodesDisplay(propertyIds)
+      }, { emitEvent: false });
+    }
+
+    const parsedAmount = Number(this.prefill.amount ?? 0);
+    const amount = Number.isFinite(parsedAmount) && parsedAmount > 0 ? parsedAmount : 0;
+    const description = (this.prefill.description || '').trim();
+    const vendorId = (this.prefill.vendorId || '').trim() || null;
+    const vendorName = (this.prefill.vendorName || '').trim() || null;
+    const bankCardId = Number(this.prefill.bankCardId ?? 0);
+
+    this.form.patchValue({
+      receiptDate: this.getReceiptDateControlValue(this.prefill.receiptDate || null),
+      dueDate: this.getReceiptDateControlValue(this.prefill.dueDate || this.prefill.receiptDate || null),
+      accountingPeriod: this.getReceiptDateControlValue(this.prefill.accountingPeriod || this.prefill.receiptDate || null),
+      description,
+      amount: amount > 0 ? amount.toFixed(2) : '0.00',
+      bankCardId: Number.isFinite(bankCardId) ? bankCardId : 0,
+      vendorId,
+      vendorName: vendorId ? null : vendorName,
+      billNumber: (this.prefill.billNumber || '').trim() || null
+    }, { emitEvent: false });
+
+    const split = this.prefill.split || null;
+    if (split) {
+      const splitAmount = Number(split.amount ?? amount);
+      const splitChartOfAccountId = Number(split.chartOfAccountId ?? 0);
+      const splitReceiptTypeId = Number(split.receiptTypeId ?? 1);
+      this.replaceSplitLines([{
+        amount: Number.isFinite(splitAmount) ? splitAmount : amount,
+        description: (split.description || description || '').trim(),
+        receiptTypeId: Number.isFinite(splitReceiptTypeId) ? splitReceiptTypeId : 1,
+        chartOfAccountId: Number.isFinite(splitChartOfAccountId) && splitChartOfAccountId > 0 ? splitChartOfAccountId : null
+      } as Split]);
+    }
+
+    this.onOverallBankCardChange();
+    this.updatePropertyRequirementByReceiptType();
+    this.lastPropertyIdsValue = this.getFormPropertyIds();
+    this.syncSelectedPropertyIdFromForm();
+    this.appliedPrefillKey = prefillKey;
+    this.cdr.markForCheck();
   }
 
   back(): void {

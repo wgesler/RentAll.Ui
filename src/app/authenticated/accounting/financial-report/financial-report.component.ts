@@ -79,7 +79,6 @@ export class FinancialReportComponent implements OnInit, OnDestroy, OnChanges {
   drillDownReceiptProperty: PropertyResponse | null = null;
   drillDownReceiptOfficeId: number | null = null;
   drillDownColumns: ColumnSet = {
-    no: { displayAs: 'No', maxWidth: '5ch', sort: false, wrap: false },
     transactionDate: { displayAs: 'Date', maxWidth: '12ch' },
     journalEntryCode: { displayAs: 'Entry No', maxWidth: '14ch', sortType: 'natural' },
     source: { displayAs: 'Source', maxWidth: '16ch' },

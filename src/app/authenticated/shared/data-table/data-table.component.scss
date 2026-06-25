@@ -51,6 +51,9 @@ img {
     line-height: 28px !important;
     min-width: 28px !important;
     padding: 0 !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
     
     .expand-text {
         font-size: 20px !important;
@@ -58,6 +61,15 @@ img {
         line-height: 28px !important;
         display: inline-block;
     }
+}
+
+th.mat-header-cell.mat-column-expand,
+th.mat-mdc-header-cell.mat-column-expand,
+td.mat-cell.mat-column-expand,
+td.mat-mdc-cell.mat-column-expand {
+  text-align: center !important;
+  padding-left: 0 !important;
+  padding-right: 0 !important;
 }
 
 .mat-mdc-no-data-row td,

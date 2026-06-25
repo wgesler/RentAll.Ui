@@ -52,7 +52,6 @@ export class UserListComponent implements OnInit, OnDestroy, OnChanges {
   officeScopeResolved: boolean = false;
   organizationId = '';
   usersDisplayedColumns: ColumnSet = {
-    no: { displayAs: 'No', maxWidth: '5ch', sort: false, wrap: false },
     'organizationName': { displayAs: 'Organization', maxWidth: '20ch' },
     'fullName': { displayAs: 'Full Name', maxWidth: '25ch' },
     'email': { displayAs: 'Email', maxWidth: '30ch' },

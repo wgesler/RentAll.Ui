@@ -39,6 +39,7 @@ import { ReservationService } from '../services/reservation.service';
     changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class ReservationBoardComponent implements OnInit, OnChanges, OnDestroy {
+  private readonly clearPinsEventName = 'rentall-clear-pins';
   @Input() ownerUserId: string | null = null;
   @Input() ownerContactId: string | null = null;
   @Input() readOnly: boolean = false;
@@ -114,6 +115,7 @@ export class ReservationBoardComponent implements OnInit, OnChanges, OnDestroy {
 
   //#region Reservation-Board
   ngOnInit(): void {
+    window.addEventListener(this.clearPinsEventName, this.onClearPins);
     this.showReservationNames = this.showReservationNames !== false;
     this.userId = this.authService.getUser()?.userId || '';
     this.isOwner = hasOwnerRole(this.authService.getUser()?.userGroups as Array<string | number> | undefined);
@@ -1280,9 +1282,18 @@ export class ReservationBoardComponent implements OnInit, OnChanges, OnDestroy {
   }
 
   ngOnDestroy(): void {
+    window.removeEventListener(this.clearPinsEventName, this.onClearPins);
     this.destroy$.next();
     this.destroy$.complete();
     this.itemsToLoad$.complete();
   }
+
+  onClearPins = (): void => {
+    if (!this.dateRangeSticky) {
+      return;
+    }
+    this.dateRangeSticky = false;
+    this.markViewForCheck();
+  };
   //#endregion
 }

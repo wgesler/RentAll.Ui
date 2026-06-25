@@ -1,0 +1,48 @@
+.rent-roll-edit-line-close {
+  box-shadow: none !important;
+}
+
+.rent-roll-edit-line-body {
+  min-width: min(100%, 80rem);
+  box-sizing: border-box;
+  overflow-x: auto;
+}
+
+.rent-roll-edit-line-form {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  min-width: 72rem;
+}
+
+.rent-roll-edit-line-row {
+  display: grid;
+  gap: 10px;
+}
+
+.rent-roll-edit-line-row--meta {
+  grid-template-columns: 0.85fr 0.95fr 1.6fr 1.6fr;
+}
+
+.rent-roll-edit-line-row--values {
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+}
+
+.rent-roll-edit-line-field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.rent-roll-edit-line-form-field {
+  width: 100%;
+}
+
+.rent-roll-edit-line-select-control {
+  width: 100%;
+}
+
+.rent-roll-edit-line-terms-readonly {
+  color: inherit;
+}
+

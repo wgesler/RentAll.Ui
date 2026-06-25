@@ -93,6 +93,11 @@
               </button>
             }
           </mat-menu>
+
+          <button mat-menu-item (click)="clearPins()" id="clear-pins-button">
+            <mat-icon>push_pin</mat-icon>
+            <span>Clear Pins</span>
+          </button>
   
           <button mat-menu-item (click)="logout()" id="logout-button">
             <mat-icon class="rotate-180">logout</mat-icon>

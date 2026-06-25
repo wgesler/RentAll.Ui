@@ -29,6 +29,7 @@ import { SidebarStateService } from '../services/sidebar-state.service';
 })
 
 export class HeaderComponent implements OnInit, OnDestroy {
+  private readonly clearPinsEventName = 'rentall-clear-pins';
   isLoggedIn: Observable<boolean> = this.authService.getIsLoggedIn$();
   brandingLogoUrl$: Observable<string> = this.brandingService.getLogoUrl$();
   brandingCollapsedLogoUrl$: Observable<string> = this.brandingService.getCollapsedLogoUrl$();
@@ -120,6 +121,26 @@ export class HeaderComponent implements OnInit, OnDestroy {
     this.authService.logout();
   }
 
+  clearPins(): void {
+    if (typeof localStorage === 'undefined') {
+      return;
+    }
+
+    const keysToRemove: string[] = [];
+    for (let index = 0; index < localStorage.length; index++) {
+      const key = localStorage.key(index);
+      if (!key) {
+        continue;
+      }
+      if (this.isPinStorageKey(key)) {
+        keysToRemove.push(key);
+      }
+    }
+
+    keysToRemove.forEach(key => localStorage.removeItem(key));
+    window.dispatchEvent(new CustomEvent(this.clearPinsEventName));
+  }
+
   openUserDialog(): void {
     if (!this.user?.userId) {
       return;
@@ -185,5 +206,24 @@ export class HeaderComponent implements OnInit, OnDestroy {
         this.markViewForCheck();
       });
     });
+  }
+
+  isPinStorageKey(key: string): boolean {
+    const normalizedKey = (key || '').trim().toLowerCase();
+    if (!normalizedKey) {
+      return false;
+    }
+
+    if (normalizedKey.startsWith('rentall-accounting-shell-pinned-dates-')) {
+      return true;
+    }
+    if (normalizedKey.startsWith('rentall-datatable-sticky-')) {
+      return true;
+    }
+    if (normalizedKey.startsWith('rentall-reservation-board-sticky-dates-')) {
+      return true;
+    }
+
+    return /(pin|pinned|sticky)/i.test(normalizedKey);
   }
 }

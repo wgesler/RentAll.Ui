@@ -120,10 +120,7 @@
                 @if (expandAllCallback) {
                   <button mat-icon-button type="button" (click)="toggleExpandAll()"
                     [matTooltip]="isAllExpanded ? 'Collapse all' : 'Expand all'"
-                    class="expand-button"
-                    [style.width.px]="28"
-                    [style.height.px]="28"
-                    [style.min-width.px]="28">
+                    class="expand-button">
                     <span class="expand-text">{{ isAllExpanded ? '−' : '+' }}</span>
                   </button>
                 } @else {

@@ -127,7 +127,6 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
 
   baseInvoicesDisplayedColumns: ColumnSet = {
     expand: { displayAs: ' ', maxWidth: '5ch', sort: false },
-    no: { displayAs: 'No', maxWidth: '5ch', sort: false, wrap: false },
     reservationCode: { displayAs: 'Reservation', maxWidth: '15ch', sortType: 'natural' },
     propertyCode: { displayAs: 'Property', maxWidth: '15ch', sortType: 'natural', wrap: false },
     responsibleParty: { displayAs: 'Recipient',  wrap: false, maxWidth: '20ch' },

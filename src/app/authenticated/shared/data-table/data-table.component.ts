@@ -56,6 +56,7 @@ const DATA_TABLE_DATE_FORMATS: MatDateFormats = {
 })
 
 export class DataTableComponent implements OnChanges, OnInit, AfterViewInit, OnDestroy {
+  private readonly clearPinsEventName = 'rentall-clear-pins';
   // Expose Math for use in template
   Math = Math;
 
@@ -97,6 +98,7 @@ export class DataTableComponent implements OnChanges, OnInit, AfterViewInit, OnD
   @Input() hasActionsLock: boolean = false;
   @Input() hasActionsPayable: boolean = false;
   @Input() hasActionsInvoice: boolean = false;
+  @Input() invoiceActionTooltip: string = 'Invoices';
   @Input() hasActionsPrint: boolean = false;
   @Input() hasActionsQuote: boolean = false;
   @Input() hasActionsRestore: boolean = false;
@@ -348,6 +350,7 @@ export class DataTableComponent implements OnChanges, OnInit, AfterViewInit, OnD
   }
 
   ngOnInit(): void {
+    window.addEventListener(this.clearPinsEventName, this.onClearPins);
     // Use a filterPredicate to make sure the table only filters on visible columns
     this.dataSource.filterPredicate = (item: TableItem, filter: string): boolean =>
       this.displayedColumns
@@ -398,9 +401,18 @@ export class DataTableComponent implements OnChanges, OnInit, AfterViewInit, OnD
   }
 
   ngOnDestroy(): void {
+    window.removeEventListener(this.clearPinsEventName, this.onClearPins);
     this.destroy$.next();
     this.destroy$.complete();
   }
+
+  onClearPins = (): void => {
+    if (!this.filterSticky) {
+      return;
+    }
+    this.filterSticky = false;
+    this.markViewForCheck();
+  };
 
   ngAfterViewInit(): void {
     this.zone.onStable.pipe(take(1), takeUntil(this.destroy$)).subscribe(() => {
@@ -1195,7 +1207,7 @@ export class DataTableComponent implements OnChanges, OnInit, AfterViewInit, OnD
     }
     columns = { ...columns, ...leading };
     if (this.hasColumnIndex)
-      columns['no'] = { displayAs: 'No.', wrap: false, sort: false, maxWidth: '5ch' };
+      columns['no'] = { displayAs: 'No', wrap: false, sort: false, maxWidth: '5ch' };
     columns = { ...columns, ...rest };
     
     if (this.hasActionsEdit || this.hasActionsDelete || this.hasActionsSave || this.hasActionsRestore || this.hasActionsDownload || this.hasActionsView || this.hasActionsInspect || this.hasActionsCamera || this.hasActionsPayable || this.hasActionsInvoice || this.hasActionsCopy || this.hasActionsLink || this.hasActionsRental || this.hasActionsOwner || this.hasActionsCalendar || this.hasActionsQuote || this.hasActionsClearTracking || this.hasActionsCheckAll || this.hasColumnDynamicAction)
@@ -1236,7 +1248,7 @@ export class DataTableComponent implements OnChanges, OnInit, AfterViewInit, OnD
     if (this.hasActionsRental)   this.buttons.push({name: 'rental', callback: (event, rowItem) => this.emitRentalEvent(event, rowItem), color: '#1976D2', tooltip: 'Convert to Rental Lead', tooltipPosition: 'before', icon: 'home_work', suspendOnUpdate: false});
     if (this.hasActionsOwner)    this.buttons.push({name: 'owner', callback: (event, rowItem) => this.emitOwnerEvent(event, rowItem), color: '#7B1FA2', tooltip: 'Convert Lead to Owner', tooltipPosition: 'before', icon: 'person', suspendOnUpdate: false});
     if (this.hasActionsPayable)  this.buttons.push({name: 'payable', callback: (event, rowItem) => this.emitPayableEvent(event, rowItem), color: '#4CAF50', tooltip: 'Pay', tooltipPosition: 'before', icon: 'attach_money', suspendOnUpdate: false});
-    if (this.hasActionsInvoice)  this.buttons.push({name: 'invoice', callback: (event, rowItem) => this.emitInvoiceEvent(event, rowItem), color: '#2E7D32', tooltip: 'Invoices', tooltipPosition: 'before', icon: 'receipt_long', suspendOnUpdate: false});
+    if (this.hasActionsInvoice)  this.buttons.push({name: 'invoice', callback: (event, rowItem) => this.emitInvoiceEvent(event, rowItem), color: '#2E7D32', tooltip: this.invoiceActionTooltip, tooltipPosition: 'before', icon: 'receipt_long', suspendOnUpdate: false});
     if (this.hasActionsView)     this.buttons.push({name: 'view', callback: (event, rowItem) => this.emitViewEvent(event, rowItem), color: '#FF9800', tooltip: 'View', tooltipPosition: 'before', icon: 'visibility', suspendOnUpdate: false});
     if (this.hasActionsPrint)    this.buttons.push({name: 'print', callback: (event, rowItem) => this.emitPrintEvent(event, rowItem), color: '#2196F3', tooltip: 'Print', tooltipPosition: 'before', icon: 'print', suspendOnUpdate: false});
     if (this.hasActionsRestore)  this.buttons.push({name: 'restore', callback: (event, rowItem) => this.emitRestoreEvent(event, rowItem), color: '#A64D79', tooltip: 'Restore', tooltipPosition: 'before', icon: 'restore', suspendOnUpdate: false});
