@@ -172,7 +172,6 @@ export class AppComponent implements OnInit, OnDestroy {
       return true;
     }
 
-    this.toastr.error('Your organization does not have access to The RentAll Exchange. Please contact your system administrator for assistance.', CommonMessage.Unauthorized, { timeOut: CommonTimeouts.Error });
     this.authService.logout();
     return false;
   }

@@ -19,6 +19,7 @@ import { GlobalSelectionService } from '../authenticated/organizations/services/
 import { OfficeService } from '../authenticated/organizations/services/office.service';
 import { OrganizationFeatureService } from '../authenticated/organizations/services/organization-feature.service';
 import { AccountingOfficeService } from '../authenticated/organizations/services/accounting-office.service';
+import { teardownCdkOverlayState, teardownCdkOverlayStateAfterPaint } from '../shared/utils/cdk-overlay.util';
 import { ConfigService } from './config.service';
 import { StorageService } from './storage.service';
 
@@ -74,10 +75,14 @@ export class AuthService {
         this.clearSensitiveData();
         this.isLoggedIn$.next(false);
         this.dialog.closeAll();
-        this.teardownSessionOverlayState();
+        teardownCdkOverlayState();
 
-        void this.router.navigateByUrl(RouterToken.Login, { replaceUrl: true }).finally(() => {
-            this.isLoggingOut$.next(false);
+        teardownCdkOverlayStateAfterPaint(() => {
+            teardownCdkOverlayState();
+            void this.router.navigateByUrl(RouterToken.Login, { replaceUrl: true }).finally(() => {
+                teardownCdkOverlayState();
+                this.isLoggingOut$.next(false);
+            });
         });
         if (hasRefreshToken) {
             const request: RefreshTokenRequest = { refreshToken };
@@ -88,15 +93,6 @@ export class AuthService {
         }
 
         return of(true);
-    }
-
-    /** Clears Material dialog scroll lock / stray backdrops after session timeout or idle logout. */
-    private teardownSessionOverlayState(): void {
-        if (typeof document === 'undefined') {
-            return;
-        }
-        document.body.classList.remove('cdk-global-scrollblock');
-        document.querySelectorAll('.cdk-overlay-backdrop').forEach(node => node.remove());
     }
 
     refresh(): Observable<AuthResponse> {

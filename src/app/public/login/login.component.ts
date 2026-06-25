@@ -1,6 +1,6 @@
 
 import { HttpErrorResponse } from '@angular/common/http';
-import { Component, CUSTOM_ELEMENTS_SCHEMA, OnInit } from '@angular/core';
+import { AfterViewInit, Component, CUSTOM_ELEMENTS_SCHEMA, OnInit } from '@angular/core';
 import { FormBuilder, FormControl, FormGroup, FormsModule, ReactiveFormsModule, Validators } from '@angular/forms';
 import { Router } from '@angular/router';
 import { ToastrService } from 'ngx-toastr';
@@ -11,6 +11,7 @@ import { MaterialModule } from '../../material.module';
 import { GlobalSelectionService } from '../../authenticated/organizations/services/global-selection.service';
 import { emailRegex } from '../../regex/email-regex';
 import { AuthService } from '../../services/auth.service';
+import { teardownCdkOverlayState, teardownCdkOverlayStateAfterPaint } from '../../shared/utils/cdk-overlay.util';
 import { StorageService } from '../../services/storage.service';
 import { LoginRequest } from './models/login-request';
 
@@ -23,7 +24,7 @@ import { LoginRequest } from './models/login-request';
     styleUrl: './login.component.scss'
 })
 
-export class LoginComponent implements OnInit {
+export class LoginComponent implements OnInit, AfterViewInit {
   readonly headerLogoUrl = '/assets/images/RentAll_TwoHouses_NoCardinal_Transparent.png';
   readonly backdropLogoUrl = '/assets/images/login-backdrop-rentall-exchange.png';
 
@@ -63,11 +64,11 @@ export class LoginComponent implements OnInit {
   }
 
   ngOnInit(): void {
-    if (typeof document === 'undefined') {
-      return;
-    }
-    document.body.classList.remove('cdk-global-scrollblock');
-    document.querySelectorAll('.cdk-overlay-backdrop').forEach(node => node.remove());
+    teardownCdkOverlayState();
+  }
+
+  ngAfterViewInit(): void {
+    teardownCdkOverlayStateAfterPaint(() => teardownCdkOverlayState());
   }
 
   //#region Login
@@ -103,7 +104,6 @@ export class LoginComponent implements OnInit {
     ).subscribe({
       next: (allowed) => {
         if (!allowed) {
-          this.toastr.error('Your organization does not have access to The RentAll Exchange. Please contact your system administrator for assistance.', CommonMessage.Unauthorized, { timeOut: CommonTimeouts.Error });
           this.authService.logout();
           return;
         }

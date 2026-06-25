@@ -7,6 +7,7 @@ import { RouterModule } from '@angular/router';
 import { DEFAULT_INTERRUPTSOURCES, Idle } from '@ng-idle/core';
 import { Keepalive, NgIdleKeepaliveModule } from '@ng-idle/keepalive';
 import { Subject, take, takeUntil } from 'rxjs';
+import { teardownCdkOverlayState, teardownCdkOverlayStateAfterPaint } from '../../../../shared/utils/cdk-overlay.util';
 import { AuthService } from '../../../../services/auth.service';
 import { GenericModalComponent } from '../../modals/generic/generic-modal.component';
 import { HeaderComponent } from '../header/header.component';
@@ -40,9 +41,9 @@ export class LayoutComponent implements OnInit, OnDestroy {
     private dialog: MatDialog) { 
 
     // How long the user can be inactive before considered idle, in seconds
-    idle.setIdle(3600); // 1 hour
+    idle.setIdle(10); // TEST: was 3600 (1 hour) — revert after idle/backdrop testing
     // How long the user can be idle before considered timed out, in seconds
-    idle.setTimeout(120); // (120) 2 minutes
+    idle.setTimeout(10); // TEST: was 120 (2 minutes) — revert after idle/backdrop testing
     // Sets the default interrupts, in this case, things like clicks, scrolls, touches to the document
     idle.setInterrupts(DEFAULT_INTERRUPTSOURCES);
 
@@ -86,10 +87,10 @@ export class LayoutComponent implements OnInit, OnDestroy {
     this.dialogRef = this.dialog.open(GenericModalComponent, this.timeoutData);
     this.dialogRef.afterClosed().pipe(take(1)).subscribe({
       next: result => {
-        if (result)
-          LayoutComponent.isIdleModalOn = false;
-        else
+        LayoutComponent.isIdleModalOn = false;
+        if (!result) {
           this.endIdle();
+        }
       }
     });
   }
@@ -103,19 +104,22 @@ export class LayoutComponent implements OnInit, OnDestroy {
     this.endIdle();
   }
 
-  // Step three: No more chances, logout
+  // Step three: No more chances, logout — close dialog first; afterClosed drives endIdle().
   userIsTimedOut(): void {
-    this?.dialogRef && this.dialogRef?.close();
-    this.endIdle();
+    if (!LayoutComponent.isIdleModalOn) {
+      return;
+    }
+
+    this.dialogRef?.close(false);
   }
 
   endIdle(): void {
-    if (!this.idleMonitor) return;
+    if (!this.idleMonitor) {
+      return;
+    }
 
     this.stopIdleMonitoring();
-
-    // Auth service takes care of returning the user to the login page
-    this.authService.logout();
+    teardownCdkOverlayStateAfterPaint(() => this.authService.logout());
   }
 
   /** Stops ng-idle and closes the timeout dialog without logging out (used when auth already cleared). */
@@ -128,6 +132,7 @@ export class LayoutComponent implements OnInit, OnDestroy {
     this.idle.stop();
     this.keepalive.stop();
     this.dialog.closeAll();
+    teardownCdkOverlayState();
     this.idleMonitor = false;
     LayoutComponent.isIdleModalOn = false;
   }
