@@ -267,10 +267,11 @@ export class ReservationListComponent implements OnInit, OnDestroy, OnChanges {
   }
 
   deleteReservation(reservation: ReservationListDisplay): void {
+    const isPreBooking = Number(reservation?.reservationStatusId) === ReservationStatus.PreBooking;
     const now = new Date();
     now.setHours(0, 0, 0, 0);
     const arrivalDate = this.utilityService.parseCalendarDateInput(reservation.arrivalDate);
-    if (arrivalDate && !isNaN(arrivalDate.getTime())) {
+    if (!isPreBooking && arrivalDate && !isNaN(arrivalDate.getTime())) {
       arrivalDate.setHours(0, 0, 0, 0);
       if (now >= arrivalDate) {
         const dialogData: GenericModalData = {

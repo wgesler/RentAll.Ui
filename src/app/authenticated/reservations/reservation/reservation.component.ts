@@ -435,10 +435,16 @@ export class ReservationComponent implements OnInit, OnDestroy, CanComponentDeac
       return;
     }
 
+    const reservationStatusId = Number(
+      this.reservation?.reservationStatusId
+      ?? this.form.get('reservationStatusId')?.value
+      ?? 0
+    );
+    const isPreBooking = reservationStatusId === ReservationStatus.PreBooking;
     const now = new Date();
     now.setHours(0, 0, 0, 0);
     const arrivalDate = this.parseDateOnly(this.reservation?.arrivalDate ?? this.form.get('arrivalDate')?.value);
-    if (arrivalDate && now >= arrivalDate) {
+    if (!isPreBooking && arrivalDate && now >= arrivalDate) {
       const dialogData: GenericModalData = {
         title: 'Cancel Reservation',
         message: 'It is not possible to cancel a reservation that has already begun.',
