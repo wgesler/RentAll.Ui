@@ -6,6 +6,7 @@ import { ChartOfAccountListDisplay, ChartOfAccountRequest, ChartOfAccountRespons
 import { CostCodesListDisplay, CostCodesRequest, CostCodesResponse } from '../authenticated/accounting/models/cost-codes.model';
 import { InvoiceResponse, LedgerLineListDisplay, LedgerLineResponse } from '../authenticated/accounting/models/invoice.model';
 import { JournalEntryLineDetailDisplay, JournalEntryLineListDisplay, JournalEntryLineResponse, JournalEntryLineSearchResponse, JournalEntryResponse } from '../authenticated/accounting/models/journal-entry.model';
+import { RentRollPropertyAgreement, RentRollRow } from '../authenticated/accounting/models/rent-roll.model';
 import { EntityType, getEntityType } from '../authenticated/contacts/models/contact-enum';
 import { ContactListDisplay, ContactRequest, ContactResponse } from '../authenticated/contacts/models/contact.model';
 import { DocumentType, getDocumentTypeLabel } from '../authenticated/documents/models/document.enum';
@@ -32,6 +33,7 @@ import { StateFormListDisplay, StateFormResponse } from '../authenticated/organi
 import { TrackerConfigurationDefinitionResponse, TrackerDefinitionListDisplay, TrackerDefinitionResponse } from '../authenticated/organizations/models/tracker.model';
 import { getTrackerContextCode, getTrackerContextType } from '../authenticated/organizations/models/tracker-enum';
 import { ManagementFeeType, PropertyLeaseType, PropertyType, TrashDays, effectiveBedTypeIdForPropertySlot, getBedSizeType, getPropertyStatus, getPropertyStatusLetter, getPropertyType } from '../authenticated/properties/models/property-enums';
+import { PropertyAgreementLineResponse } from '../authenticated/properties/models/property-agreement.model';
 import { PropertyBedDropdownCell, PropertyListDisplay, PropertyListResponse, PropertyResponse } from '../authenticated/properties/models/property.model';
 import { BoardProperty } from '../authenticated/reservations/models/reservation-board-model';
 import { getFrequency, getReservationStatus, ReservationStatus, ReservationType } from '../authenticated/reservations/models/reservation-enum';
@@ -4330,6 +4332,53 @@ export class MappingService {
       return asOfDate;
     }
     return parsed.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' });
+  }
+  //#endregion
+
+  //#region Accounting Rent Roll Mapping
+  mapRentRollRowsFromAgreements(propertyAgreements: RentRollPropertyAgreement[], daysInMonth: number): RentRollRow[] {
+    const normalizedDaysInMonth = Number.isFinite(daysInMonth) && daysInMonth > 0 ? Math.trunc(daysInMonth) : 30;
+    return (propertyAgreements || [])
+      .flatMap(propertyAgreement => this.mapRentRollRowsFromAgreement(propertyAgreement, normalizedDaysInMonth))
+      .sort((left, right) =>
+        left.propertyCode.localeCompare(right.propertyCode, undefined, { sensitivity: 'base', numeric: true })
+        || left.title.localeCompare(right.title, undefined, { sensitivity: 'base' })
+        || left.vendorName.localeCompare(right.vendorName, undefined, { sensitivity: 'base' })
+      );
+  }
+
+  mapRentRollRowsFromAgreement(propertyAgreement: RentRollPropertyAgreement, daysInMonth: number): RentRollRow[] {
+    const propertyId = String(propertyAgreement?.propertyId || '').trim();
+    const propertyCode = String(propertyAgreement?.propertyCode || '').trim();
+    return (propertyAgreement?.agreementLines || [])
+      .map(line => this.mapRentRollRow(propertyId, propertyCode, line, daysInMonth))
+      .filter((line): line is RentRollRow => !!line);
+  }
+
+  mapRentRollRow(propertyId: string, propertyCode: string, line: PropertyAgreementLineResponse | null | undefined, daysInMonth: number): RentRollRow | null {
+    const monthlyAmount = Number(line?.monthly || 0);
+    const dailyAmount = Number(line?.daily || 0);
+    const hasMonthlyAmount = Number.isFinite(monthlyAmount) && monthlyAmount > 0;
+    const hasDailyAmount = Number.isFinite(dailyAmount) && dailyAmount > 0;
+    if (!hasMonthlyAmount && !hasDailyAmount) {
+      return null;
+    }
+
+    const totalAmount = hasMonthlyAmount ? monthlyAmount : dailyAmount * daysInMonth;
+    return {
+      propertyId,
+      propertyCode,
+      agreementLineId: line?.agreementLineId ?? null,
+      title: String(line?.title || '').trim(),
+      vendorName: String(line?.vendorName || '').trim(),
+      monthlyAmount: hasMonthlyAmount ? monthlyAmount : 0,
+      dailyAmount: hasDailyAmount ? dailyAmount : 0,
+      totalAmount: this.roundFinancialReportAmount(totalAmount)
+    };
+  }
+
+  sumRentRollTotal(rows: RentRollRow[]): number {
+    return (rows || []).reduce((sum, row) => this.roundFinancialReportAmount(sum + Number(row?.totalAmount || 0)), 0);
   }
   //#endregion
 

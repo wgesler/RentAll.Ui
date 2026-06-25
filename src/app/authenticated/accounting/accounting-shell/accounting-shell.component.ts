@@ -38,6 +38,7 @@ import { GeneralLedgerListComponent } from '../general-ledger-list/general-ledge
 import { FinancialReportComponent } from '../financial-report/financial-report.component';
 import { ArAgingReportComponent } from '../ar-aging-report/ar-aging-report.component';
 import { AR_AGING_DATE_PRESET_OPTIONS, AR_AGING_INTERVAL_OPTIONS, AR_AGING_SORT_BY_OPTIONS, AR_AGING_THROUGH_ALL_VALUE, AR_AGING_THROUGH_OPTIONS, ArAgingDatePreset, ArAgingReportFilters, ArAgingSortBy, normalizeArAgingThroughDays, resolveArAgingAsOfDate } from '../models/ar-aging-report.model';
+import { RentRollComponent } from '../rent-roll/rent-roll.component';
 import { AccountingShellBankActivityKind, AccountingShellBillsReceiptKind, AccountingShellOwnerKind, AccountingShellReportKind } from '../models/accounting-shell.model';
 import { WorkOrderType } from '../../maintenance/models/maintenance-enums';
 import { FinancialReportKind } from '../models/financial-report.model';
@@ -65,6 +66,7 @@ import { JournalEntrySyncResult } from '../models/journal-entry.model';
     GeneralLedgerComponent,
     FinancialReportComponent,
     ArAgingReportComponent,
+    RentRollComponent,
     TitleBarSelectComponent
 ],
     templateUrl: './accounting-shell.component.html',
@@ -91,7 +93,8 @@ export class AccountingShellComponent implements OnInit, OnDestroy {
   readonly ownerWorkOrderTypeId = WorkOrderType.Owner;
   readonly shellBillsReceiptMenuOptions: { kind: AccountingShellBillsReceiptKind; label: string }[] = [
     { kind: 'bills', label: 'Bills' },
-    { kind: 'receipts', label: 'Receipts' }
+    { kind: 'receipts', label: 'Receipts' },
+    { kind: 'rentRoll', label: 'Rent Roll' }
   ];
   readonly shellBankActivityMenuOptions: { kind: AccountingShellBankActivityKind; label: string }[] = [
     { kind: 'deposits', label: 'Deposits' },
@@ -134,6 +137,7 @@ export class AccountingShellComponent implements OnInit, OnDestroy {
   billsSearchRequest: MaintenanceListSearchRequest = { officeIds: [] };
   billsRefreshTrigger = 0;
   receiptsRefreshTrigger = 0;
+  rentRollRefreshTrigger = 0;
   showBillsReceiptDetail = false;
   selectedBillsReceiptId: string | null = null;
   billsReceiptProperty: PropertyResponse | null = null;
@@ -782,6 +786,7 @@ export class AccountingShellComponent implements OnInit, OnDestroy {
       this.isFinancialReportJournalEntryDetailActive = false;
       this.isArAgingDrillDownActive = false;
     }
+    this.clearInactiveDropdownSelections(event.index);
     this.selectedTabIndex = event.index;
     this.syncBillsSearchRequest();
     if (this.selectedTabIndex === this.tabBillsReceipts) {
@@ -824,7 +829,7 @@ export class AccountingShellComponent implements OnInit, OnDestroy {
     if (kindChanged) {
       if (this.selectedBillsReceiptKind === 'bills') {
         this.onBillsReceiptBack();
-      } else {
+      } else if (this.selectedBillsReceiptKind === 'receipts') {
         this.onReceiptsReceiptBack();
       }
     }
@@ -937,7 +942,11 @@ export class AccountingShellComponent implements OnInit, OnDestroy {
       this.billsRefreshTrigger++;
       return;
     }
-    this.receiptsRefreshTrigger++;
+    if (this.selectedBillsReceiptKind === 'receipts') {
+      this.receiptsRefreshTrigger++;
+      return;
+    }
+    this.rentRollRefreshTrigger++;
   }
 
   refreshActiveBankActivityList(): void {
@@ -1307,7 +1316,22 @@ export class AccountingShellComponent implements OnInit, OnDestroy {
   }
 
   get billsReceiptsTabLabel(): string {
-    return this.selectedBillsReceiptKind === 'receipts' ? 'Receipts' : 'Bills';
+    return 'Bills';
+  }
+
+  clearInactiveDropdownSelections(activeTabIndex: number): void {
+    if (activeTabIndex !== this.tabBillsReceipts) {
+      this.selectedBillsReceiptKind = 'bills';
+    }
+    if (activeTabIndex !== this.tabBankActivities) {
+      this.selectedBankActivityKind = 'deposits';
+    }
+    if (activeTabIndex !== this.tabOwners) {
+      this.selectedOwnerKind = 'utilities';
+    }
+    if (activeTabIndex !== this.tabReports) {
+      this.selectedReportKind = 'profitLoss';
+    }
   }
 
   get isBillsReceiptDetailActive(): boolean {
@@ -1507,7 +1531,7 @@ export class AccountingShellComponent implements OnInit, OnDestroy {
 
     if ('billsReceipt' in params) {
       const billsReceipt = params['billsReceipt'];
-      if (billsReceipt === 'bills' || billsReceipt === 'receipts') {
+      if (billsReceipt === 'bills' || billsReceipt === 'receipts' || billsReceipt === 'rentRoll') {
         this.selectedBillsReceiptKind = billsReceipt;
       }
     }

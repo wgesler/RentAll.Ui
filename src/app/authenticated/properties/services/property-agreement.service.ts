@@ -1,6 +1,7 @@
 import { HttpClient } from '@angular/common/http';
 import { Injectable } from '@angular/core';
 import { Observable } from 'rxjs';
+import { RentRollPropertyAgreement } from '../../accounting/models/rent-roll.model';
 import { ConfigService } from '../../../services/config.service';
 import { PropertyAgreementRequest, PropertyAgreementResponse } from '../models/property-agreement.model';
 
@@ -17,6 +18,10 @@ export class PropertyAgreementService {
 
   getPropertyAgreement(propertyId: string): Observable<PropertyAgreementResponse | null> {
     return this.http.get<PropertyAgreementResponse | null>(`${this.agreementUrl}/${propertyId}`);
+  }
+
+  getPropertyAgreementRentRollByOfficeIds(): Observable<RentRollPropertyAgreement[]> {
+    return this.http.get<RentRollPropertyAgreement[]>(`${this.agreementUrl}/rent-roll`);
   }
 
   createPropertyAgreement(agreement: PropertyAgreementRequest): Observable<PropertyAgreementResponse> {

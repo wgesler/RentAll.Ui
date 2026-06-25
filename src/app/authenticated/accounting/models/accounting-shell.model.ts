@@ -2,7 +2,7 @@ import { FinancialReportKind } from './financial-report.model';
 
 export type AccountingShellReportKind = FinancialReportKind | 'arAging';
 
-export type AccountingShellBillsReceiptKind = 'bills' | 'receipts';
+export type AccountingShellBillsReceiptKind = 'bills' | 'receipts' | 'rentRoll';
 
 export type AccountingShellBankActivityKind = 'deposits' | 'printChecks' | 'reconcile';
 

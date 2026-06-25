@@ -442,7 +442,7 @@
                 @for (option of shellBillsReceiptMenuOptions; track option.kind) {
                   <button mat-menu-item type="button" class="office-menu-item accounting-reports-menu-item" (click)="selectBillsReceipt(option.kind)">
                     <span class="office-menu-label accounting-reports-menu-label">{{ option.label }}</span>
-                    @if (selectedBillsReceiptKind === option.kind) {
+                    @if (selectedTabIndex === tabBillsReceipts && selectedBillsReceiptKind === option.kind) {
                       <mat-icon class="office-selected-check accounting-reports-menu-check">check</mat-icon>
                     }
                   </button>
@@ -471,7 +471,7 @@
                     (journalEntriesChanged)="onJournalEntriesChanged()">
                   </app-receipts-list>
                 }
-              } @else {
+              } @else if (selectedBillsReceiptKind === 'receipts') {
                 @if (showReceiptsReceiptDetail) {
                   <app-receipt
                     [property]="receiptsReceiptProperty"
@@ -492,6 +492,12 @@
                     (journalEntriesChanged)="onJournalEntriesChanged()">
                   </app-receipts-list>
                 }
+              } @else {
+                <app-rent-roll
+                  [officeId]="selectedOfficeId"
+                  [searchDateRange]="invoiceSearchDateRange"
+                  [refreshTrigger]="rentRollRefreshTrigger">
+                </app-rent-roll>
               }
             }
           </mat-tab>
@@ -515,7 +521,7 @@
                 @for (option of shellBankActivityMenuOptions; track option.kind) {
                   <button mat-menu-item type="button" class="office-menu-item accounting-reports-menu-item" (click)="selectBankActivity(option.kind)">
                     <span class="office-menu-label accounting-reports-menu-label">{{ option.label }}</span>
-                    @if (selectedBankActivityKind === option.kind) {
+                    @if (selectedTabIndex === tabBankActivities && selectedBankActivityKind === option.kind) {
                       <mat-icon class="office-selected-check accounting-reports-menu-check">check</mat-icon>
                     }
                   </button>
@@ -584,7 +590,7 @@
                 @for (option of shellOwnerMenuOptions; track option.kind) {
                   <button mat-menu-item type="button" class="office-menu-item accounting-reports-menu-item" (click)="selectOwnerKind(option.kind)">
                     <span class="office-menu-label accounting-reports-menu-label">{{ option.label }}</span>
-                    @if (selectedOwnerKind === option.kind) {
+                    @if (selectedTabIndex === tabOwners && selectedOwnerKind === option.kind) {
                       <mat-icon class="office-selected-check accounting-reports-menu-check">check</mat-icon>
                     }
                   </button>
@@ -660,7 +666,7 @@
                 @for (reportOption of shellReportMenuOptions; track reportOption.kind) {
                   <button mat-menu-item type="button" class="office-menu-item accounting-reports-menu-item" (click)="selectReport(reportOption.kind)">
                     <span class="office-menu-label accounting-reports-menu-label">{{ reportOption.label }}</span>
-                    @if (selectedReportKind === reportOption.kind) {
+                    @if (selectedTabIndex === tabReports && selectedReportKind === reportOption.kind) {
                       <mat-icon class="office-selected-check accounting-reports-menu-check">check</mat-icon>
                     }
                   </button>
