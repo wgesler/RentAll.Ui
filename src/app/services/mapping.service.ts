@@ -1869,6 +1869,13 @@ export class MappingService {
     const checkPrinted = checkPrintedRaw === true || checkPrintedRaw === 'true' || checkPrintedRaw === 1;
     const isUtilityRaw = rawRecord['isUtility'] ?? rawRecord['IsUtility'] ?? base.isUtility;
     const isUtility = isUtilityRaw === true || isUtilityRaw === 'true' || isUtilityRaw === 1;
+    const agreementLineIdRaw = rawRecord['agreementLineId'] ?? rawRecord['AgreementLineId'] ?? base.agreementLineId;
+    const parsedAgreementLineId = Number(agreementLineIdRaw);
+    const agreementLineId = Number.isFinite(parsedAgreementLineId) && parsedAgreementLineId > 0
+      ? parsedAgreementLineId
+      : null;
+    const agreementLineNotesRaw = rawRecord['agreementLineNotes'] ?? rawRecord['AgreementLineNotes'] ?? base.agreementLineNotes;
+    const agreementLineNotes = agreementLineNotesRaw == null ? null : String(agreementLineNotesRaw).trim() || null;
 
     return {
       ...base,
@@ -1884,6 +1891,8 @@ export class MappingService {
       paymentTypeId: Number.isFinite(paymentTypeId) ? paymentTypeId : 0,
       checkPrinted,
       isUtility,
+      agreementLineId,
+      agreementLineNotes,
       splits: this.mapReceiptSplitsFromApi(base.splits)
     };
   }
@@ -1985,6 +1994,7 @@ export class MappingService {
       vendorId: hasVendorId ? (updates.vendorId ?? null) : (receipt.vendorId ?? null),
       vendorName: hasVendorName ? (updates.vendorName ?? null) : (receipt.vendorName ?? null),
       splits: this.mapReceiptSplitsForRequest(receipt.splits),
+      agreementLineId: receipt.agreementLineId ?? null,
       receiptPath: receipt.receiptPath ?? null,
       isUtility: hasIsUtility ? (updates.isUtility ?? receipt.isUtility ?? false) : (receipt.isUtility ?? false),
       isActive: hasIsActive ? (updates.isActive ?? receipt.isActive) : receipt.isActive
@@ -2025,7 +2035,7 @@ export class MappingService {
       const isSplitAmountValid = splitTotalAmount <= receiptAmount;
       const paidAmountValue = Number((receipt as ReceiptResponse & { paidAmount?: number }).paidAmount ?? 0) || 0;
       const dueAmountValue = Math.max(0, receiptAmount - paidAmountValue);
-
+      const notes = String((receipt as ReceiptResponse & { notes?: string | null }).notes ?? receipt.agreementLineNotes ?? '').trim();
       return {
         receiptId: receipt.receiptId,
         receiptCode: receipt.receiptCode,
@@ -2057,6 +2067,9 @@ export class MappingService {
         bankCardId: receipt.bankCardId ?? null,
         vendorId: receipt.vendorId ?? null,
         vendorName: receipt.vendorName ?? null,
+        agreementLineId: receipt.agreementLineId ?? null,
+        notes,
+        infoHidden: false,
         bankCardDisplayName: (receipt.bankCardDisplayName || '').trim(),
         accountDisplay,
         vendorDisplay,
@@ -4417,11 +4430,18 @@ export class MappingService {
     startDate: Date | null
   ): RentRollRow | null {
     const daysInOccurrenceMonth = new Date(occurrenceDate.getFullYear(), occurrenceDate.getMonth() + 1, 0).getDate();
-    const recurringAmount = monthlyAmount > 0
-      ? monthlyAmount
-      : dailyAmount > 0
-        ? dailyAmount * daysInOccurrenceMonth
-        : 0;
+    const isRent = !!line?.isRent;
+    const serviceDaysInOccurrenceMonth = this.getServiceDaysInOccurrenceMonth(occurrenceDate, startDate, this.utility.parseDateOnlyStringToDate(line?.endDate) || null);
+    const recurringAmount = this.calculateRentRollRecurringAmount({
+      isRent,
+      monthlyAmount,
+      dailyAmount,
+      daysInOccurrenceMonth,
+      serviceDaysInOccurrenceMonth,
+      startDate,
+      endDate: this.utility.parseDateOnlyStringToDate(line?.endDate) || null,
+      occurrenceDate
+    });
     const includeOneTimeCharges = this.isSameYearMonth(occurrenceDate, startDate);
     const occurrenceDepositAmount = includeOneTimeCharges ? depositAmount : 0;
     const occurrenceOneTimeAmount = includeOneTimeCharges ? oneTimeAmount : 0;
@@ -4449,8 +4469,78 @@ export class MappingService {
       oneTimeAmount: occurrenceOneTimeAmount,
       monthlyAmount: Number.isFinite(monthlyAmount) && monthlyAmount > 0 ? monthlyAmount : 0,
       dailyAmount: Number.isFinite(dailyAmount) && dailyAmount > 0 ? dailyAmount : 0,
-      totalAmount: this.roundFinancialReportAmount(totalAmount)
+      totalAmount: this.roundFinancialReportAmount(totalAmount),
+      isRent,
+      notes: String(line?.notes || '').trim()
     };
+  }
+
+  calculateRentRollRecurringAmount(args: {
+    isRent: boolean;
+    monthlyAmount: number;
+    dailyAmount: number;
+    daysInOccurrenceMonth: number;
+    serviceDaysInOccurrenceMonth: number;
+    startDate: Date | null;
+    endDate: Date | null;
+    occurrenceDate: Date;
+  }): number {
+    const {
+      isRent,
+      monthlyAmount,
+      dailyAmount,
+      daysInOccurrenceMonth,
+      serviceDaysInOccurrenceMonth,
+      startDate,
+      endDate,
+      occurrenceDate
+    } = args;
+
+    if (monthlyAmount > 0) {
+      if (!isRent) {
+        return monthlyAmount;
+      }
+      const monthStart = this.getMonthStart(occurrenceDate);
+      const monthEnd = this.getMonthEnd(occurrenceDate);
+      const isFullMonthService = (!startDate || startDate.getTime() <= monthStart.getTime())
+        && (!endDate || endDate.getTime() >= monthEnd.getTime());
+      if (isFullMonthService) {
+        return monthlyAmount;
+      }
+      if (serviceDaysInOccurrenceMonth <= 0) {
+        return 0;
+      }
+      return monthlyAmount * (serviceDaysInOccurrenceMonth / 30);
+    }
+
+    if (dailyAmount > 0) {
+      if (!isRent) {
+        return dailyAmount * daysInOccurrenceMonth;
+      }
+      return dailyAmount * Math.max(serviceDaysInOccurrenceMonth, 0);
+    }
+
+    return 0;
+  }
+
+  getMonthStart(date: Date): Date {
+    return new Date(date.getFullYear(), date.getMonth(), 1);
+  }
+
+  getMonthEnd(date: Date): Date {
+    return new Date(date.getFullYear(), date.getMonth() + 1, 0);
+  }
+
+  getServiceDaysInOccurrenceMonth(occurrenceDate: Date, startDate: Date | null, endDate: Date | null): number {
+    const monthStart = this.getMonthStart(occurrenceDate);
+    const monthEnd = this.getMonthEnd(occurrenceDate);
+    const effectiveStart = startDate && startDate.getTime() > monthStart.getTime() ? startDate : monthStart;
+    const effectiveEnd = endDate && endDate.getTime() < monthEnd.getTime() ? endDate : monthEnd;
+    if (effectiveEnd.getTime() < effectiveStart.getTime()) {
+      return 0;
+    }
+    const msPerDay = 24 * 60 * 60 * 1000;
+    return Math.floor((effectiveEnd.getTime() - effectiveStart.getTime()) / msPerDay) + 1;
   }
 
   resolveRentRollRange(dateRange: { startDate: string | null; endDate: string | null }): { startDate: Date; endDate: Date } {

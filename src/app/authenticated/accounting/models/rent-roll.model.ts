@@ -18,6 +18,8 @@ export interface RentRollRow {
   monthlyAmount: number;
   dailyAmount: number;
   totalAmount: number;
+  isRent: boolean;
+  notes: string;
 }
 
 export interface RentRollRowDisplay {
@@ -35,6 +37,13 @@ export interface RentRollRowDisplay {
   monthlyAmountDisplay: string;
   dailyAmountDisplay: string;
   totalAmountDisplay: string;
+  isRent: boolean;
+  notes: string;
+  depositAmountValue?: number;
+  oneTimeAmountValue?: number;
+  monthlyAmountValue?: number;
+  dailyAmountValue?: number;
+  totalAmountValue?: number;
   hasExistingBill?: boolean;
   invoiceDisabled?: boolean;
 }
@@ -50,6 +59,7 @@ export interface RentRollCreateBillRequest {
   propertyId: string;
   officeId: number | null;
   agreementLineId: string | null;
+  notes?: string | null;
   billDate: string | null;
   dueDate: string | null;
   vendorId: string | null;

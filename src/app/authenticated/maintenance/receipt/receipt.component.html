@@ -13,6 +13,17 @@
               <div class="receipt-status-row">
                 <span class="text-lg font-medium">Bill Details</span>
                 <div class="flex items-center gap-2">
+                  @if (hasAgreementLineNotes) {
+                    <button
+                      mat-icon-button
+                      type="button"
+                      [matTooltip]="agreementLineNotesTooltip"
+                      matTooltipPosition="above"
+                      aria-label="Agreement line notes"
+                      class="receipt-agreement-notes-info-btn">
+                      <mat-icon class="datatable-info-icon">info</mat-icon>
+                    </button>
+                  }
                   <mat-checkbox formControlName="isUtility" color="primary">
                     IsUtility
                   </mat-checkbox>
@@ -290,6 +301,17 @@
               <div class="receipt-status-row">
                 <span class="text-lg font-medium">Receipt Details</span>
                 <div class="flex items-center gap-2">
+                  @if (hasAgreementLineNotes) {
+                    <button
+                      mat-icon-button
+                      type="button"
+                      [matTooltip]="agreementLineNotesTooltip"
+                      matTooltipPosition="above"
+                      aria-label="Agreement line notes"
+                      class="receipt-agreement-notes-info-btn">
+                      <mat-icon class="datatable-info-icon">info</mat-icon>
+                    </button>
+                  }
                   <mat-checkbox formControlName="isUtility" color="primary">
                     IsUtility
                   </mat-checkbox>

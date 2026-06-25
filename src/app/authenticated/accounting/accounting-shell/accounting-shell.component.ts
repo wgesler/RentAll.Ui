@@ -145,6 +145,8 @@ export class AccountingShellComponent implements OnInit, OnDestroy {
   selectedBillsReceiptId: string | null = null;
   billsReceiptProperty: PropertyResponse | null = null;
   billsReceiptPrefill: ReceiptPrefill | null = null;
+  billsReceiptAgreementLineId: number | null = null;
+  billsReceiptAgreementLineNotes: string | null = null;
   billsReceiptOrigin: 'bills' | 'rentRoll' = 'bills';
   showReceiptsReceiptDetail = false;
   selectedReceiptsReceiptId: string | null = null;
@@ -585,6 +587,8 @@ export class AccountingShellComponent implements OnInit, OnDestroy {
       this.selectedBillsReceiptKind = 'bills';
       this.billsReceiptOrigin = origin;
       this.billsReceiptProperty = property;
+      this.billsReceiptAgreementLineId = this.toAgreementLineId(selection?.agreementLineId);
+      this.billsReceiptAgreementLineNotes = (selection?.notes || '').trim() || null;
       this.selectedBillsReceiptId = receiptId;
       this.billsReceiptPrefill = null;
       this.showBillsReceiptDetail = true;
@@ -609,6 +613,8 @@ export class AccountingShellComponent implements OnInit, OnDestroy {
     this.selectedBillsReceiptId = null;
     this.billsReceiptProperty = null;
     this.billsReceiptPrefill = null;
+    this.billsReceiptAgreementLineId = null;
+    this.billsReceiptAgreementLineNotes = null;
     this.selectedBillsReceiptKind = this.billsReceiptOrigin === 'rentRoll' ? 'rentRoll' : 'bills';
     this.billsReceiptOrigin = 'bills';
   }
@@ -637,6 +643,8 @@ export class AccountingShellComponent implements OnInit, OnDestroy {
         key: `${request.agreementLineId || 'line'}-${Date.now()}`,
         officeId,
         propertyIds: propertyId ? [propertyId] : [],
+        agreementLineId: this.toAgreementLineId(request.agreementLineId),
+        agreementLineNotes: (request.notes || '').trim() || null,
         receiptDate: billDate,
         dueDate,
         accountingPeriod: billDate,
@@ -652,6 +660,8 @@ export class AccountingShellComponent implements OnInit, OnDestroy {
           chartOfAccountId: request.chartOfAccountId
         }
       };
+      this.billsReceiptAgreementLineId = this.toAgreementLineId(request.agreementLineId);
+      this.billsReceiptAgreementLineNotes = (request.notes || '').trim() || null;
       this.showBillsReceiptDetail = true;
       this.router.navigate([], {
         relativeTo: this.route,
@@ -671,11 +681,12 @@ export class AccountingShellComponent implements OnInit, OnDestroy {
     openBillEditor(this.buildBillsReceiptPropertyStub(officeId));
   }
 
-  onRentRollOpenBill(selection: ReceiptSelection): void {
+  async onRentRollOpenBill(selection: ReceiptSelection): Promise<void> {
     const receiptId = (selection?.receiptId || '').trim();
     if (!receiptId) {
       return;
     }
+    await this.ensureRentRollBillAgreementLineLink(selection);
     this.onBillsReceiptSelect(selection, 'rentRoll');
   }
 
@@ -786,6 +797,7 @@ export class AccountingShellComponent implements OnInit, OnDestroy {
       organizationId,
       officeId,
       propertyIds: [propertyId],
+      agreementLineId: this.toAgreementLineId(request.agreementLineId),
       receiptDate: billDate,
       dueDate,
       accountingPeriod: billDate,
@@ -809,6 +821,60 @@ export class AccountingShellComponent implements OnInit, OnDestroy {
       isUtility: false,
       isActive: true
     };
+  }
+
+  toAgreementLineId(value: string | number | null | undefined): number | null {
+    const parsed = Number(value);
+    if (!Number.isFinite(parsed) || parsed <= 0) {
+      return null;
+    }
+    return Math.trunc(parsed);
+  }
+
+  async ensureRentRollBillAgreementLineLink(selection: ReceiptSelection): Promise<void> {
+    const receiptId = (selection?.receiptId || '').trim();
+    const agreementLineId = this.toAgreementLineId(selection?.agreementLineId);
+    const notes = (selection?.notes || '').trim();
+    if (!receiptId || !agreementLineId || !notes) {
+      return;
+    }
+    try {
+      const receipt = await firstValueFrom(this.receiptService.getReceiptById(receiptId));
+      if (this.toAgreementLineId(receipt?.agreementLineId)) {
+        return;
+      }
+      const updateRequest: ReceiptRequest = {
+        receiptId: receipt.receiptId,
+        organizationId: receipt.organizationId,
+        officeId: receipt.officeId,
+        propertyIds: [...(receipt.propertyIds || [])],
+        agreementLineId,
+        receiptDate: receipt.receiptDate,
+        dueDate: receipt.dueDate,
+        accountingPeriod: receipt.accountingPeriod,
+        billNumber: receipt.billNumber ?? null,
+        ticketId: receipt.ticketId || '',
+        amount: Number(receipt.amount || 0),
+        paidAmount: Number(receipt.paidAmount || 0),
+        paidDate: receipt.paidDate ?? null,
+        description: (receipt.description || '').trim(),
+        bankCardId: receipt.bankCardId ?? null,
+        vendorId: receipt.vendorId ?? null,
+        vendorName: receipt.vendorName ?? null,
+        splits: [...(receipt.splits || [])],
+        receiptPath: receipt.receiptPath ?? null,
+        fileDetails: null,
+        paymentTypeId: Number(receipt.paymentTypeId || 0),
+        checkPrinted: !!receipt.checkPrinted,
+        isUtility: !!receipt.isUtility,
+        isActive: !!receipt.isActive
+      };
+      await firstValueFrom(this.receiptService.updateReceipt(updateRequest));
+      this.billsRefreshTrigger++;
+      this.rentRollRefreshTrigger++;
+    } catch {
+      // Do not block opening the bill editor if this background link fails.
+    }
   }
 
   onJournalEntriesChanged(): void {

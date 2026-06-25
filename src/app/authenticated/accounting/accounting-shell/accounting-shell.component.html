@@ -456,6 +456,8 @@
                     [property]="billsReceiptProperty"
                     [receiptId]="selectedBillsReceiptId"
                     [prefill]="billsReceiptPrefill"
+                    [agreementLineIdOverride]="billsReceiptAgreementLineId"
+                    [agreementLineNotesOverride]="billsReceiptAgreementLineNotes"
                     [officeId]="selectedOfficeId"
                     [shellContext]="'accounting'"
                     (backEvent)="onBillsReceiptBack()"

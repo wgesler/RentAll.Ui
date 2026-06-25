@@ -23,6 +23,8 @@
         [hasActionsEdit]="true"
         [hasActionsDelete]="true"
         [hasActionsPayable]="embeddedInAccounting && accountingListMode !== 'receipts'"
+        [hasActionsInfo]="embeddedInAccounting && accountingListMode === 'bills'"
+        [infoActionColor]="'#1E88E5'"
         [hasWorkOrderCodeLink]="!embeddedInAccounting"
         [deleteConfirmTitle]="'Delete Receipt'"
         [deleteConfirmMessage]="'Are you sure you want to delete this receipt?'"
@@ -40,6 +42,7 @@
         (dropdownChangeEvent)="onReceiptDropdownChange($event)"
         (deleteEvent)="deleteReceipt($event)"
         (payableEvent)="onPayable($event)"
+        (infoEvent)="onReceiptInfo($event)"
         (selectionSet)="onBillSelectionSet($event)"
         (checkboxChangeEvent)="onReceiptCheckboxChange($event)"
         (inlineEditChangeEvent)="onReceiptInlineEditChange($event)">

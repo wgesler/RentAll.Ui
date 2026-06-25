@@ -24,6 +24,8 @@ export interface RentRollEditLineDialogData {
   oneTimeAmount: number;
   monthlyAmount: number;
   dailyAmount: number;
+  isRent: boolean;
+  notes: string;
 }
 
 export interface RentRollEditLineDialogResult {
@@ -37,6 +39,8 @@ export interface RentRollEditLineDialogResult {
   oneTime: number | null;
   monthly: number | null;
   daily: number | null;
+  isRent: boolean;
+  notes: string | null;
 }
 
 @Component({
@@ -71,7 +75,9 @@ export class RentRollEditLineDialogComponent {
       deposit: [this.formatCurrencyInput(data.depositAmount)],
       oneTime: [this.formatCurrencyInput(data.oneTimeAmount)],
       monthly: [this.formatCurrencyInput(data.monthlyAmount)],
-      daily: [this.formatCurrencyInput(data.dailyAmount)]
+      daily: [this.formatCurrencyInput(data.dailyAmount)],
+      isRent: [!!data.isRent],
+      notes: [(data.notes || '').trim()]
     });
     this.loadVendorOptions();
     this.loadChartOfAccountOptions();
@@ -98,45 +104,18 @@ export class RentRollEditLineDialogComponent {
       deposit: this.parseNullableNumber(value.deposit),
       oneTime: this.parseNullableNumber(value.oneTime),
       monthly: this.parseNullableNumber(value.monthly),
-      daily: this.parseNullableNumber(value.daily)
+      daily: this.parseNullableNumber(value.daily),
+      isRent: !!value.isRent,
+      notes: this.normalizeOptionalText(value.notes)
     });
   }
 
   toDateControlValue(value: string | null | undefined): Date | null {
-    const raw = (value || '').toString().trim();
-    if (!raw) {
-      return null;
-    }
-    const parsed = new Date(raw);
-    if (Number.isNaN(parsed.getTime())) {
-      return null;
-    }
-    parsed.setHours(0, 0, 0, 0);
-    return parsed;
+    return this.utilityService.parseCalendarDateInput(value ?? null);
   }
 
   toDateOnlyString(value: unknown): string | null {
-    if (!value) {
-      return null;
-    }
-    if (value instanceof Date && !Number.isNaN(value.getTime())) {
-      const year = value.getFullYear();
-      const month = `${value.getMonth() + 1}`.padStart(2, '0');
-      const day = `${value.getDate()}`.padStart(2, '0');
-      return `${year}-${month}-${day}`;
-    }
-    const raw = (value || '').toString().trim();
-    if (!raw) {
-      return null;
-    }
-    const parsed = new Date(raw);
-    if (Number.isNaN(parsed.getTime())) {
-      return null;
-    }
-    const year = parsed.getFullYear();
-    const month = `${parsed.getMonth() + 1}`.padStart(2, '0');
-    const day = `${parsed.getDate()}`.padStart(2, '0');
-    return `${year}-${month}-${day}`;
+    return this.utilityService.toDateOnlyJsonString(value);
   }
 
   parseNullableNumber(value: unknown): number | null {

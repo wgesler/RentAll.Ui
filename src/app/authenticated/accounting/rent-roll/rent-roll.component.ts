@@ -7,6 +7,7 @@ import { ToastrService } from 'ngx-toastr';
 import { Router } from '@angular/router';
 import { RouterUrl } from '../../../app.routes';
 import { MaterialModule } from '../../../material.module';
+import { AuthService } from '../../../services/auth.service';
 import { FormatterService } from '../../../services/formatter-service';
 import { MappingService } from '../../../services/mapping.service';
 import { UtilityService } from '../../../services/utility.service';
@@ -38,19 +39,21 @@ export class RentRollComponent implements OnInit, OnChanges, OnDestroy {
   @Output() createBill = new EventEmitter<RentRollCreateBillRequest>();
   @Output() createBills = new EventEmitter<RentRollCreateBillRequest[]>();
   @Output() openBill = new EventEmitter<ReceiptSelection>();
+  isAdmin = false;
 
   readonly rentRollDisplayedColumns: ColumnSet = {
     propertyCode: { displayAs: 'Property', wrap: false, maxWidth: '15ch', sortType: 'natural' },
-    vendorName: { displayAs: 'Vendor', wrap: true, maxWidth: '30ch' },
-    chartOfAccountDisplay: { displayAs: 'Chart of Account', wrap: true, maxWidth: '24ch' },
-    terms: { displayAs: 'Terms', wrap: true, maxWidth: '18ch' },
+    vendorName: { displayAs: 'Vendor', wrap: true, maxWidth: '25ch' },
+    chartOfAccountDisplay: { displayAs: 'Chart of Account', wrap: true, maxWidth: '25ch' },
+    terms: { displayAs: 'Terms', wrap: true, maxWidth: '16ch' },
+    isRent: { displayAs: 'Is Rent', wrap: false, maxWidth: '10ch', alignment: 'center', headerAlignment: 'center', sort: false, isCheckbox: true, checkboxEditable: false },
     billDateDisplay: { displayAs: 'Bill Date', wrap: false, maxWidth: '14ch', alignment: 'center', headerAlignment: 'center' },
     dueDateDisplay: { displayAs: 'Due Date', wrap: false, maxWidth: '14ch', alignment: 'center', headerAlignment: 'center' },
-    depositAmountDisplay: { displayAs: 'Deposit', wrap: false, maxWidth: '16ch', alignment: 'right', headerAlignment: 'right', sort: false },
-    oneTimeAmountDisplay: { displayAs: 'One Time', wrap: false, maxWidth: '16ch', alignment: 'right', headerAlignment: 'right', sort: false },
-    monthlyAmountDisplay: { displayAs: 'Monthly', wrap: false, maxWidth: '16ch', alignment: 'right', headerAlignment: 'right', sort: false },
-    dailyAmountDisplay: { displayAs: 'Daily', wrap: false, maxWidth: '16ch', alignment: 'right', headerAlignment: 'right', sort: false },
-    totalAmountDisplay: { displayAs: 'Total', wrap: false, maxWidth: '16ch', alignment: 'right', headerAlignment: 'right', sort: false }
+    depositAmountDisplay: { displayAs: 'Deposit', wrap: false, maxWidth: '14ch', alignment: 'right', headerAlignment: 'right', sort: false },
+    oneTimeAmountDisplay: { displayAs: 'One Time', wrap: false, maxWidth: '14ch', alignment: 'right', headerAlignment: 'right', sort: false },
+    monthlyAmountDisplay: { displayAs: 'Monthly', wrap: false, maxWidth: '14ch', alignment: 'right', headerAlignment: 'right', sort: false },
+    dailyAmountDisplay: { displayAs: 'Daily', wrap: false, maxWidth: '14ch', alignment: 'right', headerAlignment: 'right', sort: false },
+    totalAmountDisplay: { displayAs: 'Total', wrap: false, maxWidth: '14ch', alignment: 'right', headerAlignment: 'right', sort: false }
   };
   rentRollRows: RentRollRow[] = [];
   rentRollRowsDisplayAll: RentRollRowDisplay[] = [];
@@ -69,6 +72,7 @@ export class RentRollComponent implements OnInit, OnChanges, OnDestroy {
   loadSequence = 0;
 
   constructor(
+    private authService: AuthService,
     private propertyAgreementService: PropertyAgreementService,
     private mappingService: MappingService,
     private utilityService: UtilityService,
@@ -83,6 +87,10 @@ export class RentRollComponent implements OnInit, OnChanges, OnDestroy {
 
   //#region Rent Roll
   ngOnInit(): void {
+    this.isAdmin = this.authService.isAdmin();
+    if (this.rentRollDisplayedColumns['isRent']) {
+      this.rentRollDisplayedColumns['isRent'].checkboxEditable = this.isAdmin;
+    }
     this.itemsToLoad$.pipe(takeUntil(this.destroy$)).subscribe(items => {
       this.isPageReady = items.size === 0;
       this.markViewForCheck();
@@ -169,6 +177,13 @@ export class RentRollComponent implements OnInit, OnChanges, OnDestroy {
       monthlyAmountDisplay: this.getRentRollAmountDisplay(row.monthlyAmount),
       dailyAmountDisplay: this.getRentRollAmountDisplay(row.dailyAmount),
       totalAmountDisplay: this.getRentRollAmountDisplay(row.totalAmount),
+      depositAmountValue: Number(row.depositAmount || 0),
+      oneTimeAmountValue: Number(row.oneTimeAmount || 0),
+      monthlyAmountValue: Number(row.monthlyAmount || 0),
+      dailyAmountValue: Number(row.dailyAmount || 0),
+      totalAmountValue: Number(row.totalAmount || 0),
+      isRent: !!row.isRent,
+      notes: row.notes || '',
       hasExistingBill: this.hasExistingBillForRow(row),
       invoiceDisabled: false
     }));
@@ -181,11 +196,11 @@ export class RentRollComponent implements OnInit, OnChanges, OnDestroy {
   }
 
   get rentRollTotalsRow(): { [columnName: string]: string } | undefined {
-    const visibleRows = this.getVisibleRentRollRows();
+    const visibleRows = this.getVisibleRentRollDisplayRows();
     if (visibleRows.length === 0) {
       return undefined;
     }
-    const visibleTotalAmount = this.mappingService.sumRentRollTotal(visibleRows);
+    const visibleTotalAmount = visibleRows.reduce((sum, row) => sum + Number(row.totalAmountValue || 0), 0);
     return {
       propertyCode: 'Grand Total',
       totalAmountDisplay: this.getRentRollAmountDisplay(visibleTotalAmount)
@@ -210,11 +225,13 @@ export class RentRollComponent implements OnInit, OnChanges, OnDestroy {
       this.openBill.emit({
         receiptId: existingBill.receiptId,
         officeId: existingBill.officeId ?? row.officeId ?? null,
-        propertyId: existingBill.propertyId || row.propertyId || null
+        propertyId: existingBill.propertyId || row.propertyId || null,
+        agreementLineId: this.toAgreementLineIdNumber(row.agreementLineId),
+        notes: (row.notes || '').trim() || null
       });
       return;
     }
-    const request = this.buildCreateBillRequest(row);
+    const request = this.buildCreateBillRequest(row, rowDisplay);
     if (!request) {
       return;
     }
@@ -231,10 +248,10 @@ export class RentRollComponent implements OnInit, OnChanges, OnDestroy {
 
   onCreateSelectedBills(): void {
     const requests = this.selectedRentRollRows
-      .map(rowDisplay => this.resolveRentRollRow(rowDisplay))
-      .filter((row): row is RentRollRow => !!row)
-      .filter(row => !this.hasExistingBillForRow(row))
-      .map(row => this.buildCreateBillRequest(row))
+      .map(rowDisplay => ({ rowDisplay, row: this.resolveRentRollRow(rowDisplay) }))
+      .filter((item): item is { rowDisplay: RentRollRowDisplay; row: RentRollRow } => !!item.row)
+      .filter(item => !this.hasExistingBillForRow(item.row))
+      .map(item => this.buildCreateBillRequest(item.row, item.rowDisplay))
       .filter((request): request is RentRollCreateBillRequest => !!request);
     if (requests.length === 0) {
       this.toastr.info('All selected rows already have bills in the selected date range.', 'No New Bills');
@@ -278,7 +295,9 @@ export class RentRollComponent implements OnInit, OnChanges, OnDestroy {
         depositAmount: row.depositAmount,
         oneTimeAmount: row.oneTimeAmount,
         monthlyAmount: row.monthlyAmount,
-        dailyAmount: row.dailyAmount
+        dailyAmount: row.dailyAmount,
+        isRent: row.isRent,
+        notes: row.notes
       }
     });
 
@@ -295,11 +314,47 @@ export class RentRollComponent implements OnInit, OnChanges, OnDestroy {
         oneTime: result.oneTime,
         monthly: result.monthly,
         daily: result.daily,
+        isRent: result.isRent,
+        notes: result.notes,
         title: null
       }, {
         vendorName: result.vendorName,
         terms: result.terms
       });
+    });
+  }
+
+  onRentRollCheckboxChange(event: RentRollRowDisplay & { __changedCheckboxColumn?: string; __checkboxValue?: boolean }): void {
+    if (!this.isAdmin) {
+      return;
+    }
+    const changedCheckboxColumn = String(event.__changedCheckboxColumn || '').trim();
+    if (changedCheckboxColumn !== 'isRent') {
+      return;
+    }
+    const row = this.resolveRentRollRow(event);
+    if (!row) {
+      return;
+    }
+    const nextIsRent = event.__checkboxValue === true;
+    if (nextIsRent === !!row.isRent) {
+      return;
+    }
+    this.updateAgreementLine(row, {
+      vendorId: row.vendorId,
+      chartOfAccountId: row.chartOfAccountId,
+      startDate: row.startDate,
+      endDate: row.endDate,
+      deposit: row.depositAmount,
+      oneTime: row.oneTimeAmount,
+      monthly: row.monthlyAmount,
+      daily: row.dailyAmount,
+      isRent: nextIsRent,
+      notes: row.notes || null,
+      title: row.title || null
+    }, {
+      vendorName: row.vendorName,
+      terms: row.terms
     });
   }
 
@@ -331,13 +386,15 @@ export class RentRollComponent implements OnInit, OnChanges, OnDestroy {
     return match || null;
   }
 
-  buildCreateBillRequest(row: RentRollRow): RentRollCreateBillRequest | null {
+  buildCreateBillRequest(row: RentRollRow, rowDisplay?: RentRollRowDisplay): RentRollCreateBillRequest | null {
     const description = (row.vendorName || '').trim() || `Rent Roll - ${row.propertyCode}`;
     const dueDate = this.resolveDueDateForRow(row);
+    const amount = Number(rowDisplay?.totalAmountValue ?? row.totalAmount ?? 0);
     return {
       propertyId: row.propertyId,
       officeId: row.officeId,
       agreementLineId: row.agreementLineId,
+      notes: row.notes || null,
       billDate: row.billDate,
       dueDate,
       vendorId: row.vendorId,
@@ -345,7 +402,7 @@ export class RentRollComponent implements OnInit, OnChanges, OnDestroy {
       chartOfAccountId: row.chartOfAccountId,
       terms: row.terms,
       description,
-      amount: row.totalAmount
+      amount: Number.isFinite(amount) ? amount : Number(row.totalAmount || 0)
     };
   }
 
@@ -380,6 +437,12 @@ export class RentRollComponent implements OnInit, OnChanges, OnDestroy {
     return this.showCreatedBills
       ? this.rentRollRows
       : this.rentRollRows.filter(row => !this.hasExistingBillForRow(row));
+  }
+
+  getVisibleRentRollDisplayRows(): RentRollRowDisplay[] {
+    return this.showCreatedBills
+      ? this.rentRollRowsDisplayAll
+      : this.rentRollRowsDisplayAll.filter(row => !row.hasExistingBill);
   }
 
   loadExistingBillsForDateRange(loadSequence: number): void {
@@ -527,6 +590,14 @@ export class RentRollComponent implements OnInit, OnChanges, OnDestroy {
     if (!billDate) {
       return null;
     }
+    if (row.isRent) {
+      const billDateValue = this.utilityService.parseDateOnlyStringToDate(billDate);
+      if (!billDateValue) {
+        return billDate;
+      }
+      const firstOfMonth = new Date(billDateValue.getFullYear(), billDateValue.getMonth(), 1);
+      return this.utilityService.formatDateOnlyForApi(firstOfMonth) || billDate;
+    }
     const netDays = this.resolveNetDaysFromTerms(row.terms);
     if (netDays <= 0) {
       return billDate;
@@ -564,6 +635,14 @@ export class RentRollComponent implements OnInit, OnChanges, OnDestroy {
       return null;
     }
     return this.utilityService.formatDateOnlyForApi(parsed);
+  }
+
+  toAgreementLineIdNumber(value: string | number | null | undefined): number | null {
+    const parsed = Number(value ?? 0);
+    if (!Number.isFinite(parsed) || parsed <= 0) {
+      return null;
+    }
+    return Math.trunc(parsed);
   }
 
   resolveBillMatchPeriod(value: string | null | undefined): string | null {
@@ -703,6 +782,8 @@ export class RentRollComponent implements OnInit, OnChanges, OnDestroy {
     line.oneTime = updates.oneTime ?? 0;
     line.monthly = updates.monthly ?? 0;
     line.daily = updates.daily ?? 0;
+    line.isRent = updates.isRent ?? false;
+    line.notes = updates.notes ?? null;
     line.title = updates.title ?? null;
     if (optimisticDisplayUpdates?.vendorName != null) {
       line.vendorName = optimisticDisplayUpdates.vendorName;

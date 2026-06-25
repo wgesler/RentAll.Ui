@@ -79,9 +79,9 @@
   }
 
   .agreement-col-date {
-    min-width: 170px;
-    width: 170px;
-    max-width: 170px;
+    min-width: 145px;
+    width: 145px;
+    max-width: 145px;
   }
 
   .agreement-col-amount {
@@ -118,37 +118,45 @@
   }
 
   .property-agreement-line-date-field ::ng-deep .mat-mdc-text-field-wrapper {
-    height: 34px;
-    min-height: 34px;
-    padding-left: 8px;
-    padding-right: 4px;
+    height: 34px !important;
+    min-height: 34px !important;
+    padding-left: 8px !important;
+    padding-right: 4px !important;
     border-radius: 4px;
     box-sizing: border-box;
   }
 
   .property-agreement-line-date-field ::ng-deep .mat-mdc-form-field-flex {
-    height: 34px;
-    align-items: center;
+    height: 34px !important;
+    min-height: 34px !important;
+    align-items: center !important;
   }
 
   .property-agreement-line-date-field ::ng-deep .mat-mdc-form-field-infix {
-    min-height: 34px;
-    padding-top: 0;
-    padding-bottom: 0;
+    min-height: 34px !important;
+    padding-top: 0 !important;
+    padding-bottom: 0 !important;
     display: flex;
-    align-items: center;
+    align-items: center !important;
   }
 
   .property-agreement-line-date-field ::ng-deep input.mat-mdc-input-element {
-    height: 32px;
-    line-height: 32px;
-    margin: 0;
+    height: 32px !important;
+    line-height: 32px !important;
+    margin: 0 !important;
     font-size: 14px;
+    padding: 0 !important;
   }
 
   .property-agreement-line-date-field ::ng-deep .mat-datepicker-toggle-default-icon {
     width: 18px;
     height: 18px;
+  }
+
+  .property-agreement-line-date-field ::ng-deep .mat-mdc-icon-button {
+    width: 32px !important;
+    height: 32px !important;
+    padding: 4px !important;
   }
 
   .property-agreement-line-amount-input {
@@ -162,8 +170,44 @@
     min-width: 0;
   }
 
+  .property-agreement-line-vendor-select {
+    display: block;
+    width: 100%;
+    min-width: 0;
+  }
+
   .property-agreement-line-account-select-control {
     width: 100%;
+  }
+
+  .property-agreement-line-vendor-select-control {
+    width: 100%;
+  }
+
+  .property-agreement-line-vendor-select ::ng-deep .searchable-select-control {
+    width: 100%;
+    min-width: 0;
+  }
+
+  .property-agreement-line-vendor-select ::ng-deep .mat-mdc-select-trigger {
+    min-height: 34px;
+    height: 34px;
+    padding: 0 6px;
+    box-sizing: border-box;
+    font-size: 14px;
+    border: 1px solid var(--mat-sys-outline, #ccc);
+    border-radius: 4px;
+    background-color: var(--mat-sys-surface, #fff);
+  }
+
+  .property-agreement-line-vendor-select ::ng-deep .searchable-trigger-value {
+    line-height: 34px;
+  }
+
+  .property-agreement-line-vendor-select ::ng-deep .mat-mdc-option:first-child input {
+    width: 100%;
+    color: var(--mat-sys-on-surface, rgba(0, 0, 0, 0.87));
+    caret-color: var(--mat-sys-primary, #1976d2);
   }
 
   .property-agreement-line-account-select ::ng-deep .searchable-select-control {
@@ -191,6 +235,74 @@
     color: var(--mat-sys-on-surface, rgba(0, 0, 0, 0.87));
     caret-color: var(--mat-sys-primary, #1976d2);
   }
+
+  .property-agreement-line-secondary-row td {
+    padding-top: 2px !important;
+    padding-bottom: 8px !important;
+    border-top: 0;
+  }
+
+  .property-agreement-line-primary-row td {
+    border-bottom: 0;
+  }
+}
+
+.property-agreement-line-secondary-wrap {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  padding-left: 0;
+  box-sizing: border-box;
+}
+
+.property-agreement-line-is-rent {
+  flex: 0 0 auto;
+  padding-top: 0;
+  margin-left: -10px;
+}
+
+.property-agreement-line-is-rent ::ng-deep .mdc-form-field {
+  margin-left: 0 !important;
+}
+
+.property-agreement-line-notes-wrap {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.property-agreement-line-notes-input {
+  width: 100%;
+  height: 34px;
+  min-height: 34px;
+  border: 1px solid var(--mat-sys-outline, #ccc);
+  border-radius: 4px;
+  padding: 6px 8px;
+  box-sizing: border-box;
+  font: inherit;
+  resize: vertical;
+}
+
+.property-agreement-line-notes-input:focus {
+  border-color: var(--mat-sys-primary, #1976d2);
+  outline: none;
+}
+
+.property-agreement-line-no-cell {
+  vertical-align: top !important;
+  padding-top: 0 !important;
+  text-align: center;
+}
+
+.property-agreement-line-no-value {
+  display: inline-block;
+  line-height: 34px;
+  margin-top: 6px;
+}
+
+.property-agreement-line-action-cell {
+  vertical-align: top !important;
+  padding-top: 6px !important;
 }
 
 .property-agreement-upload-section {

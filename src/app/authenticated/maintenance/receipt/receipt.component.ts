@@ -47,6 +47,8 @@ export class ReceiptComponent implements OnInit, OnChanges, OnDestroy {
   @Input() property: PropertyResponse | null = null;
   @Input() receiptId: string | null = null;
   @Input() prefill: ReceiptPrefill | null = null;
+  @Input() agreementLineIdOverride: number | null = null;
+  @Input() agreementLineNotesOverride: string | null = null;
   @Input() ticketId: string | null = null;
   @Input() shellContext: 'maintenance' | 'accounting' | null = null;
   @Output() backEvent = new EventEmitter<void>();
@@ -101,6 +103,8 @@ export class ReceiptComponent implements OnInit, OnChanges, OnDestroy {
   lastPropertyIdsValue: string[] = [];
   manualSplitAccountIndexes = new Set<number>();
   appliedPrefillKey: string | null = null;
+  activeAgreementLineId: number | null = null;
+  activeAgreementLineNotes: string | null = null;
 
   itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['receipt']));
   destroy$ = new Subject<void>();
@@ -195,6 +199,8 @@ export class ReceiptComponent implements OnInit, OnChanges, OnDestroy {
       this.receiptOfficeInitialized = false;
       this.lastAppliedShellOfficeId = undefined;
       this.appliedPrefillKey = null;
+      this.activeAgreementLineId = null;
+      this.activeAgreementLineNotes = null;
       this.receipt = null;
       if (this.isAddMode) {
         this.clearReceiptLoading();
@@ -207,6 +213,10 @@ export class ReceiptComponent implements OnInit, OnChanges, OnDestroy {
 
     if (changes['prefill'] && this.isAddMode) {
       this.applyPrefillIfNeeded();
+    }
+
+    if (changes['agreementLineIdOverride'] || changes['agreementLineNotesOverride']) {
+      this.applyAgreementLineOverrides();
     }
   }
 
@@ -327,6 +337,7 @@ export class ReceiptComponent implements OnInit, OnChanges, OnDestroy {
       vendorId: isBill ? vendorId : null,
       vendorName: isBill ? null : vendorName,
       splits: payloadSplits,
+      agreementLineId: this.activeAgreementLineId,
       receiptPath: sendNewReceipt ? null : receiptPathValue,
       fileDetails: sendNewReceipt ? (this.receiptFileDetails ?? null) : null,
       isUtility: !!this.form.get('isUtility')?.value,
@@ -370,6 +381,8 @@ export class ReceiptComponent implements OnInit, OnChanges, OnDestroy {
     save$.pipe(take(1), finalize(() => { this.isSubmitting = false; })).subscribe({
       next: (saved: ReceiptResponse) => {
         this.receipt = saved;
+        this.activeAgreementLineId = this.normalizeAgreementLineId(saved.agreementLineId);
+        this.activeAgreementLineNotes = this.normalizeAgreementLineNotes(saved.agreementLineNotes);
         this.isAddMode = false;
         this.form.patchValue({
           officeName: saved.officeName || this.property?.officeName || '',
@@ -552,6 +565,9 @@ export class ReceiptComponent implements OnInit, OnChanges, OnDestroy {
     this.receiptService.getReceipt(this.organizationId, this.receiptId).pipe(take(1), finalize(() => this.clearReceiptLoading())).subscribe({
       next: (receipt: ReceiptResponse) => {
         this.receipt = receipt;
+        this.activeAgreementLineId = this.normalizeAgreementLineId(receipt.agreementLineId);
+        this.activeAgreementLineNotes = this.normalizeAgreementLineNotes(receipt.agreementLineNotes);
+        this.applyAgreementLineOverrides();
         this.receiptOfficeInitialized = true;
         this.populateForm(receipt);
         this.syncSelectedPropertyIdFromForm();
@@ -842,6 +858,18 @@ export class ReceiptComponent implements OnInit, OnChanges, OnDestroy {
       return;
     }
 
+    // Show preview/thumbnail immediately from the selected file first.
+    const immediatePreviewDataUrl = await this.readSelectedFilePreviewDataUrl(file);
+    if (immediatePreviewDataUrl) {
+      this.receiptPreviewDataUrl = immediatePreviewDataUrl;
+      this.setReceiptPdfThumbnail(immediatePreviewDataUrl, file.type || '');
+      this.receiptFileName = file.name;
+      this.hasNewReceiptUpload = true;
+      this.receiptFileValidationError = false;
+      this.form.patchValue({ receiptPath: '' });
+      this.cdr.detectChanges();
+    }
+
     const payload = await this.utilityService.buildOptimizedUploadPayload(file);
     this.receiptFileDetails = payload.fileDetails;
     this.receiptPreviewDataUrl = payload.fileDetails.dataUrl;
@@ -850,6 +878,25 @@ export class ReceiptComponent implements OnInit, OnChanges, OnDestroy {
     this.hasNewReceiptUpload = true;
     this.receiptFileValidationError = false;
     this.form.patchValue({ receiptPath: '' });
+    this.cdr.detectChanges();
+
+    const inputElement = event.target as HTMLInputElement | null;
+    if (inputElement) {
+      inputElement.value = '';
+    }
+  }
+
+  readSelectedFilePreviewDataUrl(file: File): Promise<string | null> {
+    return new Promise(resolve => {
+      try {
+        const reader = new FileReader();
+        reader.onload = () => resolve(typeof reader.result === 'string' ? reader.result : null);
+        reader.onerror = () => resolve(null);
+        reader.readAsDataURL(file);
+      } catch {
+        resolve(null);
+      }
+    });
   }
 
   removeReceipt(): void {
@@ -2176,6 +2223,24 @@ export class ReceiptComponent implements OnInit, OnChanges, OnDestroy {
     return Number.isFinite(officeId) && officeId > 0 ? officeId : null;
   }
 
+  normalizeAgreementLineId(value: number | string | null | undefined): number | null {
+    const agreementLineId = Number(value ?? 0);
+    return Number.isFinite(agreementLineId) && agreementLineId > 0 ? Math.trunc(agreementLineId) : null;
+  }
+
+  normalizeAgreementLineNotes(value: string | null | undefined): string | null {
+    const notes = String(value || '').trim();
+    return notes.length > 0 ? notes : null;
+  }
+
+  get agreementLineNotesTooltip(): string {
+    return this.activeAgreementLineNotes || '';
+  }
+
+  get hasAgreementLineNotes(): boolean {
+    return !!this.activeAgreementLineNotes;
+  }
+
   createDraftReceipt(officeId: number, officeName: string): ReceiptResponse {
     return {
       receiptId: '',
@@ -2260,6 +2325,9 @@ export class ReceiptComponent implements OnInit, OnChanges, OnDestroy {
     if (officeId) {
       this.setReceiptOfficeId(officeId);
     }
+    this.activeAgreementLineId = this.normalizeAgreementLineId(this.prefill.agreementLineId);
+    this.activeAgreementLineNotes = this.normalizeAgreementLineNotes(this.prefill.agreementLineNotes);
+    this.applyAgreementLineOverrides();
 
     const propertyIds = (this.prefill.propertyIds || [])
       .map(propertyId => (propertyId || '').trim())
@@ -2309,6 +2377,17 @@ export class ReceiptComponent implements OnInit, OnChanges, OnDestroy {
     this.syncSelectedPropertyIdFromForm();
     this.appliedPrefillKey = prefillKey;
     this.cdr.markForCheck();
+  }
+
+  applyAgreementLineOverrides(): void {
+    const overrideAgreementLineId = this.normalizeAgreementLineId(this.agreementLineIdOverride);
+    const overrideAgreementLineNotes = this.normalizeAgreementLineNotes(this.agreementLineNotesOverride);
+    if (overrideAgreementLineId) {
+      this.activeAgreementLineId = overrideAgreementLineId;
+    }
+    if (overrideAgreementLineNotes) {
+      this.activeAgreementLineNotes = overrideAgreementLineNotes;
+    }
   }
 
   back(): void {

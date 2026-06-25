@@ -28,6 +28,21 @@
   grid-template-columns: repeat(6, minmax(0, 1fr));
 }
 
+.rent-roll-edit-line-row--extra {
+  grid-template-columns: 0.7fr 5.3fr;
+  align-items: center;
+}
+
+.rent-roll-edit-line-is-rent {
+  display: flex;
+  align-items: center;
+  min-height: 56px;
+}
+
+.rent-roll-edit-line-row--extra mat-form-field {
+  margin-bottom: 0;
+}
+
 .rent-roll-edit-line-field {
   display: flex;
   flex-direction: column;

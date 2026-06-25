@@ -33,8 +33,10 @@
             </thead>
             <tbody>
               @for (line of agreementLines; track (line.agreementLineId || i); let i = $index) {
-                <tr class="border-b">
-                  <td style="width: 56px;">{{ i + 1 }}</td>
+                <tr class="property-agreement-line-primary-row">
+                  <td class="property-agreement-line-no-cell" style="width: 56px;" rowspan="2">
+                    <span class="property-agreement-line-no-value">{{ i + 1 }}</span>
+                  </td>
                   <td class="agreement-col-vendor">
                     <app-searchable-select
                       class="property-agreement-line-vendor-select"
@@ -98,10 +100,30 @@
                   <td class="agreement-col-amount">
                     <input type="text" class="w-full editable-input property-agreement-line-amount-input" [value]="line.daily" (input)="onAgreementLineAmountInput($event, i, 'daily')" (focus)="onAgreementLineAmountFocus($event, i, 'daily')" (blur)="onAgreementLineAmountBlur($event, i, 'daily')" placeholder="$0.00">
                   </td>
-                  <td class="text-right" style="width: 56px;">
+                  <td class="text-right property-agreement-line-action-cell" style="width: 56px;" rowspan="2">
                     <button mat-icon-button type="button" (click)="removeAgreementLine(i)" class="delete-ledger-line-btn" style="color: #ae1f66;" tabindex="-1" matTooltip="Remove this agreement line">
                       <mat-icon style="color: #ae1f66;">close</mat-icon>
                     </button>
+                  </td>
+                </tr>
+                <tr class="border-b property-agreement-line-secondary-row">
+                  <td colspan="9">
+                    <div class="property-agreement-line-secondary-wrap">
+                      <mat-checkbox
+                        class="property-agreement-line-is-rent"
+                        [checked]="line.isRent"
+                        (change)="updateAgreementLineIsRent(i, $event.checked)">
+                        Is Rent
+                      </mat-checkbox>
+                      <div class="property-agreement-line-notes-wrap">
+                        <textarea
+                          class="property-agreement-line-notes-input"
+                          [value]="line.notes"
+                          rows="1"
+                          (input)="updateAgreementLineNotes(i, $event)"
+                          placeholder="Notes"></textarea>
+                      </div>
+                    </div>
                   </td>
                 </tr>
               }

@@ -108,8 +108,8 @@ export class ReceiptsListComponent implements OnInit, OnChanges, OnDestroy {
     amountDisplay: { displayAs: 'Amount', wrap: false, maxWidth: '12ch', alignment: 'center'  },
     descriptionDisplay: { displayAs: 'Description', wrap: true, maxWidth: '25ch' },
     createdBy: { displayAs: 'Created By', wrap: false, maxWidth: '20ch' },
-    isUtility: { displayAs: 'IsUtility', isCheckbox: true, checkboxEditable: false, sort: false, wrap: false, alignment: 'center', maxWidth: '15ch' },
-    isActive: { displayAs: 'IsActive', isCheckbox: true, checkboxEditable: false, sort: false, wrap: false, alignment: 'center', maxWidth: '15ch' }
+    isUtility: { displayAs: 'IsUtility', isCheckbox: true, checkboxEditable: false, sort: false, wrap: false, alignment: 'center', maxWidth: '12ch' },
+    isActive: { displayAs: 'IsActive', isCheckbox: true, checkboxEditable: false, sort: false, wrap: false, alignment: 'center', maxWidth: '10ch' }
   };
 
   readonly accountingReceiptDisplayedColumns: ColumnSet = {
@@ -125,8 +125,8 @@ export class ReceiptsListComponent implements OnInit, OnChanges, OnDestroy {
     paidAmount: { displayAs: 'Paid', maxWidth: '15ch', alignment: 'right', headerAlignment: 'right', sort: false },
     dueAmount: { displayAs: 'Due', maxWidth: '15ch', alignment: 'right', headerAlignment: 'right', sort: false },
     applyAmount: { displayAs: 'Apply', maxWidth: '20ch', alignment: 'right', headerAlignment: 'right', sort: false },
-    isUtility: { displayAs: 'IsUtility', isCheckbox: true, checkboxEditable: false, sort: false, wrap: false, alignment: 'center', maxWidth: '15ch' },
-    isActive: { displayAs: 'IsActive', isCheckbox: true, checkboxEditable: false, sort: false, wrap: false, alignment: 'center', maxWidth: '15ch' }
+    isUtility: { displayAs: 'IsUtility', isCheckbox: true, checkboxEditable: false, sort: false, wrap: false, alignment: 'center', maxWidth: '12ch' },
+    isActive: { displayAs: 'IsActive', isCheckbox: true, checkboxEditable: false, sort: false, wrap: false, alignment: 'center', maxWidth: '10ch' }
   };
 
   readonly accountingNonBillReceiptDisplayedColumns: ColumnSet = {
@@ -723,6 +723,11 @@ export class ReceiptsListComponent implements OnInit, OnChanges, OnDestroy {
           this.markViewForCheck();
         }
       });
+  }
+
+  onReceiptInfo(event: ReceiptDisplayList): void {
+    const notes = String(event?.notes ?? (event as ReceiptDisplayList & { agreementLineNotes?: string | null })?.agreementLineNotes ?? '').trim();
+    this.toastr.info(notes || 'No notes', 'Agreement Line Notes');
   }
 
   openReceiptDialog(item: ReceiptDisplayList): void {

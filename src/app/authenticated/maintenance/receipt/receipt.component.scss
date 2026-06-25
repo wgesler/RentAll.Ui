@@ -74,6 +74,22 @@
   align-items: center;
 }
 
+.receipt-agreement-notes-info-btn {
+  width: 28px;
+  height: 28px;
+  min-width: 28px;
+  min-height: 28px;
+  padding: 0;
+  color: #1e88e5;
+}
+
+.receipt-agreement-notes-info-btn mat-icon {
+  font-size: 16px;
+  width: 16px;
+  height: 16px;
+  line-height: 16px;
+}
+
 .receipt-form-grid {
   min-width: 0;
 }

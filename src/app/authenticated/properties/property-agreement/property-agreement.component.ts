@@ -706,7 +706,9 @@ export class PropertyAgreementComponent implements OnInit, OnChanges, OnDestroy 
       deposit: this.formatAgreementDecimalForDisplay(line.deposit),
       oneTime: this.formatAgreementDecimalForDisplay(line.oneTime),
       monthly: this.formatAgreementDecimalForDisplay(line.monthly),
-      daily: this.formatAgreementDecimalForDisplay(line.daily)
+      daily: this.formatAgreementDecimalForDisplay(line.daily),
+      isRent: !!line.isRent,
+      notes: (line.notes || '').trim()
     }));
     this.refreshVendorOptions();
   }
@@ -724,7 +726,9 @@ export class PropertyAgreementComponent implements OnInit, OnChanges, OnDestroy 
       deposit: '$0.00',
       oneTime: '$0.00',
       monthly: '$0.00',
-      daily: '$0.00'
+      daily: '$0.00',
+      isRent: false,
+      notes: ''
     });
     this.agreementForm?.markAsDirty();
   }
@@ -812,6 +816,23 @@ export class PropertyAgreementComponent implements OnInit, OnChanges, OnDestroy 
     this.agreementForm?.markAsDirty();
   }
 
+  updateAgreementLineIsRent(index: number, value: boolean): void {
+    if (!this.agreementLines[index]) {
+      return;
+    }
+    this.agreementLines[index].isRent = !!value;
+    this.agreementForm?.markAsDirty();
+  }
+
+  updateAgreementLineNotes(index: number, event: Event): void {
+    if (!this.agreementLines[index]) {
+      return;
+    }
+    const input = event.target as HTMLTextAreaElement;
+    this.agreementLines[index].notes = (input.value || '').trimStart();
+    this.agreementForm?.markAsDirty();
+  }
+
   onAgreementLineAmountInput(event: Event, index: number, field: 'deposit' | 'oneTime' | 'monthly' | 'daily'): void {
     if (!this.agreementLines[index]) {
       return;
@@ -861,7 +882,9 @@ export class PropertyAgreementComponent implements OnInit, OnChanges, OnDestroy 
         deposit: this.parseAgreementDecimalFromForm(line.deposit),
         oneTime: this.parseAgreementDecimalFromForm(line.oneTime),
         monthly: this.parseAgreementDecimalFromForm(line.monthly),
-        daily: this.parseAgreementDecimalFromForm(line.daily)
+        daily: this.parseAgreementDecimalFromForm(line.daily),
+        isRent: !!line.isRent,
+        notes: (line.notes || '').trim() || null
       }));
   }
 
@@ -892,7 +915,9 @@ export class PropertyAgreementComponent implements OnInit, OnChanges, OnDestroy 
     const hasAmounts = deposit !== 0 || oneTime !== 0 || monthly !== 0 || daily !== 0;
     const hasChartOfAccount = this.normalizeAgreementLineChartOfAccountId(line.chartOfAccountId) != null;
     const hasVendor = this.normalizeAgreementLineVendorId(line.vendorId) != null;
-    return !hasDates && !hasAmounts && !hasChartOfAccount && !hasVendor;
+    const hasRentToggle = !!line.isRent;
+    const hasNotes = (line.notes || '').trim().length > 0;
+    return !hasDates && !hasAmounts && !hasChartOfAccount && !hasVendor && !hasRentToggle && !hasNotes;
   }
   //#endregion
 

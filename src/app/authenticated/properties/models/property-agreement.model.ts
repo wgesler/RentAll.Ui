@@ -12,6 +12,8 @@ export interface PropertyAgreementLineRequest {
   oneTime?: number | null;
   monthly?: number | null;
   daily?: number | null;
+  isRent?: boolean | null;
+  notes?: string | null;
 }
 
 export interface PropertyAgreementLineResponse {
@@ -28,6 +30,8 @@ export interface PropertyAgreementLineResponse {
   oneTime?: number | null;
   monthly?: number | null;
   daily?: number | null;
+  isRent?: boolean | null;
+  notes?: string | null;
 }
 
 export interface AgreementLineDisplay {
@@ -43,6 +47,8 @@ export interface AgreementLineDisplay {
   oneTime: string;
   monthly: string;
   daily: string;
+  isRent: boolean;
+  notes: string;
 }
 
 export interface PropertyAgreementRequest {

@@ -98,7 +98,11 @@ export class DataTableComponent implements OnChanges, OnInit, AfterViewInit, OnD
   @Input() hasActionsLock: boolean = false;
   @Input() hasActionsPayable: boolean = false;
   @Input() hasActionsInvoice: boolean = false;
+  @Input() hasActionsInfo: boolean = false;
   @Input() invoiceActionTooltip: string = 'Invoices';
+  @Input() invoiceActionColor: string = '#2E7D32';
+  @Input() payableActionColor: string = '#4CAF50';
+  @Input() infoActionColor: string = '#1E88E5';
   @Input() hasActionsPrint: boolean = false;
   @Input() hasActionsQuote: boolean = false;
   @Input() hasActionsRestore: boolean = false;
@@ -187,6 +191,7 @@ export class DataTableComponent implements OnChanges, OnInit, AfterViewInit, OnD
   @Output() lockEvent = new EventEmitter<PurposefulAny>();
   @Output() payableEvent = new EventEmitter<PurposefulAny>();
   @Output() invoiceEvent = new EventEmitter<PurposefulAny>();
+  @Output() infoEvent = new EventEmitter<PurposefulAny>();
   @Output() printEvent = new EventEmitter<PurposefulAny>();
   @Output() quoteEvent = new EventEmitter<PurposefulAny>();
   @Output() restoreEvent = new EventEmitter<PurposefulAny>();
@@ -499,6 +504,25 @@ export class DataTableComponent implements OnChanges, OnInit, AfterViewInit, OnD
   emitInvoiceEvent(event: Event, rowItem: PurposefulAny): void {
     event.stopPropagation();
     this.invoiceEvent.emit(rowItem);
+  }
+
+  emitInfoEvent(event: Event, rowItem: PurposefulAny): void {
+    event.stopPropagation();
+    this.infoEvent.emit(rowItem);
+  }
+
+  getButtonTooltip(buttonName: string, buttonTooltip: string, item: PurposefulAny): string {
+    if (buttonName === 'view' && item?.canView === false) {
+      return 'This document type cannot be previewed';
+    }
+    if (buttonName === 'camera' && !item?.documentPath) {
+      return 'No document available';
+    }
+    if (buttonName === 'info') {
+      const notes = String(item?.notes ?? item?.agreementLineNotes ?? '').trim();
+      return notes || 'No notes';
+    }
+    return item?.customTooltip || buttonTooltip || buttonName;
   }
 
   emitPrintEvent(event: Event, rowItem: PurposefulAny): void {
@@ -1210,7 +1234,7 @@ export class DataTableComponent implements OnChanges, OnInit, AfterViewInit, OnD
       columns['no'] = { displayAs: 'No', wrap: false, sort: false, maxWidth: '5ch' };
     columns = { ...columns, ...rest };
     
-    if (this.hasActionsEdit || this.hasActionsDelete || this.hasActionsSave || this.hasActionsRestore || this.hasActionsDownload || this.hasActionsView || this.hasActionsInspect || this.hasActionsCamera || this.hasActionsPayable || this.hasActionsInvoice || this.hasActionsCopy || this.hasActionsLink || this.hasActionsRental || this.hasActionsOwner || this.hasActionsCalendar || this.hasActionsQuote || this.hasActionsClearTracking || this.hasActionsCheckAll || this.hasColumnDynamicAction)
+    if (this.hasActionsEdit || this.hasActionsDelete || this.hasActionsSave || this.hasActionsRestore || this.hasActionsDownload || this.hasActionsView || this.hasActionsInspect || this.hasActionsCamera || this.hasActionsPayable || this.hasActionsInvoice || this.hasActionsInfo || this.hasActionsCopy || this.hasActionsLink || this.hasActionsRental || this.hasActionsOwner || this.hasActionsCalendar || this.hasActionsQuote || this.hasActionsClearTracking || this.hasActionsCheckAll || this.hasColumnDynamicAction)
       columns['actions'] = { displayAs: 'Actions', sort: false, wrap: false };
     
     this.tableColumns = [];
@@ -1237,6 +1261,7 @@ export class DataTableComponent implements OnChanges, OnInit, AfterViewInit, OnD
 
   setActions(): void {
     this.buttons = [];
+    const placeInfoBeforeDelete = this.tableName === 'receipts-list';
     if (this.hasActionsLock)     this.buttons.push({name: 'lock', callback: (event, rowItem) => this.emitLockEvent(event, rowItem), color: 'accent', tooltip: 'Locked', tooltipPosition: 'before', icon: 'lock', suspendOnUpdate: true});
     if (this.hasActionsCamera)   this.buttons.push({name: 'camera', callback: (event, rowItem) => this.emitCameraEvent(event, rowItem), color: '#2196F3', tooltip: 'Open Document', tooltipPosition: 'before', icon: 'photo_camera', suspendOnUpdate: false});
     if (this.hasActionsEdit)     this.buttons.push({name: 'edit', callback: (event, rowItem) => this.emitEditEvent(event, rowItem), color: '#7E69B4', tooltip: 'Edit', tooltipPosition: 'before', icon: 'edit', suspendOnUpdate: false});
@@ -1247,8 +1272,9 @@ export class DataTableComponent implements OnChanges, OnInit, AfterViewInit, OnD
     if (this.hasActionsLink)     this.buttons.push({name: 'link', callback: (event, rowItem) => this.emitLinkEvent(event, rowItem), color: '#FF9800', tooltip: 'Copy Owner Link', tooltipPosition: 'before', icon: 'link', suspendOnUpdate: false});
     if (this.hasActionsRental)   this.buttons.push({name: 'rental', callback: (event, rowItem) => this.emitRentalEvent(event, rowItem), color: '#1976D2', tooltip: 'Convert to Rental Lead', tooltipPosition: 'before', icon: 'home_work', suspendOnUpdate: false});
     if (this.hasActionsOwner)    this.buttons.push({name: 'owner', callback: (event, rowItem) => this.emitOwnerEvent(event, rowItem), color: '#7B1FA2', tooltip: 'Convert Lead to Owner', tooltipPosition: 'before', icon: 'person', suspendOnUpdate: false});
-    if (this.hasActionsPayable)  this.buttons.push({name: 'payable', callback: (event, rowItem) => this.emitPayableEvent(event, rowItem), color: '#4CAF50', tooltip: 'Pay', tooltipPosition: 'before', icon: 'attach_money', suspendOnUpdate: false});
-    if (this.hasActionsInvoice)  this.buttons.push({name: 'invoice', callback: (event, rowItem) => this.emitInvoiceEvent(event, rowItem), color: '#2E7D32', tooltip: this.invoiceActionTooltip, tooltipPosition: 'before', icon: 'receipt_long', suspendOnUpdate: false});
+    if (this.hasActionsPayable)  this.buttons.push({name: 'payable', callback: (event, rowItem) => this.emitPayableEvent(event, rowItem), color: this.payableActionColor, tooltip: 'Create Bill & Pay', tooltipPosition: 'before', icon: 'attach_money', suspendOnUpdate: false});
+    if (this.hasActionsInvoice)  this.buttons.push({name: 'invoice', callback: (event, rowItem) => this.emitInvoiceEvent(event, rowItem), color: this.invoiceActionColor, tooltip: this.invoiceActionTooltip, tooltipPosition: 'before', icon: 'receipt_long', suspendOnUpdate: false});
+    if (this.hasActionsInfo && !placeInfoBeforeDelete) this.buttons.push({name: 'info', callback: (event, rowItem) => this.emitInfoEvent(event, rowItem), color: this.infoActionColor, tooltip: 'Info', tooltipPosition: 'before', icon: 'info', suspendOnUpdate: false});
     if (this.hasActionsView)     this.buttons.push({name: 'view', callback: (event, rowItem) => this.emitViewEvent(event, rowItem), color: '#FF9800', tooltip: 'View', tooltipPosition: 'before', icon: 'visibility', suspendOnUpdate: false});
     if (this.hasActionsPrint)    this.buttons.push({name: 'print', callback: (event, rowItem) => this.emitPrintEvent(event, rowItem), color: '#2196F3', tooltip: 'Print', tooltipPosition: 'before', icon: 'print', suspendOnUpdate: false});
     if (this.hasActionsRestore)  this.buttons.push({name: 'restore', callback: (event, rowItem) => this.emitRestoreEvent(event, rowItem), color: '#A64D79', tooltip: 'Restore', tooltipPosition: 'before', icon: 'restore', suspendOnUpdate: false});
@@ -1256,6 +1282,7 @@ export class DataTableComponent implements OnChanges, OnInit, AfterViewInit, OnD
     if (this.hasActionsClearTracking) this.buttons.push({name: 'clearTracking', callback: (event, rowItem) => this.emitClearTrackingEvent(event, rowItem), color: '#1E88E5', tooltip: 'Clear Tracking', tooltipPosition: 'before', icon: 'restart_alt', suspendOnUpdate: false});
     if (this.hasActionsSave)     this.buttons.push({name: 'save', callback: (event, rowItem) => this.emitSaveEvent(event, rowItem), color: '#93C47D', tooltip: 'Save', tooltipPosition: 'after', icon: 'save', suspendOnUpdate: false});
     if (this.hasActionsDownload) this.buttons.push({name: 'download', callback: (event, rowItem) => this.emitDownloadEvent(event, rowItem), color: this.downloadActionColor, tooltip: this.downloadActionTooltip, tooltipPosition: 'after', icon: 'download', suspendOnUpdate: false});
+    if (this.hasActionsInfo && placeInfoBeforeDelete) this.buttons.push({name: 'info', callback: (event, rowItem) => this.emitInfoEvent(event, rowItem), color: this.infoActionColor, tooltip: 'Info', tooltipPosition: 'before', icon: 'info', suspendOnUpdate: false});
     if (this.hasActionsDelete)   this.buttons.push({name: 'delete', callback: (event, rowItem) => this.emitDeleteEvent(event, rowItem), color: '#FA6868', tooltip: 'Delete', tooltipPosition: 'after', icon: 'delete', suspendOnUpdate: false});
     if (this.hasActionsCancel)   this.buttons.push({name: 'cancel', callback: (event, rowItem) => this.emitCancelEvent(event, rowItem), color: '#3F51B5', tooltip: 'Cancel', tooltipPosition: 'after', icon: 'cancel', suspendOnUpdate: false});
   }

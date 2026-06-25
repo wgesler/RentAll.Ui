@@ -172,8 +172,8 @@
                   } @case ('actions') {
                   <div class="flex items-center justify-start" (click)="$event.stopPropagation()" (mousedown)="$event.stopPropagation()">
                     @for (button of buttons; track button.name) {
-                      @if ((button.name === 'delete' && !item?.deleteDisabled) || button.name !== 'delete') {
-                        <span [matTooltip]="button.name === 'view' && item?.canView === false ? 'This document type cannot be previewed' : (button.name === 'camera' && !item?.documentPath ? 'No document available' : (item?.customTooltip || button.tooltip || button.name))"
+                      @if (((button.name === 'delete' && !item?.deleteDisabled) || button.name !== 'delete') && !(button.name === 'info' && item?.infoHidden === true)) {
+                        <span [matTooltip]="getButtonTooltip(button.name, button.tooltip, item)"
                           [matTooltipPosition]="button.tooltipPosition || 'above'"
                           [matTooltipDisabled]="false"
                           style="display: inline-flex;">
@@ -193,8 +193,12 @@
                                   Q
                                 </span>
                               } @else {
-                                <mat-icon id="row-{{button.name}}-btn-icon-{{templateTableId}}-{{i}}">
-                                  {{button.icon}}
+                                <mat-icon id="row-{{button.name}}-btn-icon-{{templateTableId}}-{{i}}" [ngClass]="{'datatable-info-icon': button.name === 'info'}">
+                                  @if (button.name === 'info') {
+                                    info
+                                  } @else {
+                                    {{button.icon}}
+                                  }
                                 </mat-icon>
                               }
                             }

@@ -35,6 +35,7 @@ export interface ReceiptRequest {
   vendorId?: string | null;
   vendorName?: string | null;
   splits: Split[];
+  agreementLineId?: number | null;
   receiptPath?: string | null;
   fileDetails?: FileDetails | null;
   paymentTypeId?: number;
@@ -64,6 +65,8 @@ export interface ReceiptResponse {
   vendorId?: string | null;
   vendorName?: string | null;
   splits: Split[];
+  agreementLineId?: number | null;
+  agreementLineNotes?: string | null;
   receiptPath?: string | null;
   fileDetails?: FileDetails | null;
   paymentTypeId?: number;
@@ -98,6 +101,9 @@ export interface ReceiptDisplayList {
   bankCardId?: number | null;
   vendorId?: string | null;
   vendorName?: string | null;
+  agreementLineId?: number | null;
+  notes?: string;
+  infoHidden?: boolean;
   bankCardDisplayName?: string;
   accountDisplay?: string;
   bankCardDropdown?: {
@@ -144,6 +150,8 @@ export interface ReceiptSelection {
   receiptId: string | null;
   officeId: number | null;
   propertyId: string | null;
+  agreementLineId?: number | null;
+  notes?: string | null;
 }
 
 export interface ReceiptPrefill {
@@ -153,11 +161,13 @@ export interface ReceiptPrefill {
   receiptDate?: CalendarDateString | null;
   dueDate?: CalendarDateString | null;
   accountingPeriod?: CalendarDateString | null;
+  agreementLineNotes?: string | null;
   description?: string | null;
   amount?: number | null;
   bankCardId?: number | null;
   vendorId?: string | null;
   vendorName?: string | null;
+  agreementLineId?: number | null;
   billNumber?: string | null;
   split?: {
     amount?: number | null;

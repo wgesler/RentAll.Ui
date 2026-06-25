@@ -96,6 +96,14 @@
           <input matInput type="text" formControlName="daily" (blur)="onCurrencyBlur('daily')" />
         </mat-form-field>
       </div>
+
+      <div class="rent-roll-edit-line-row rent-roll-edit-line-row--extra">
+        <mat-checkbox class="rent-roll-edit-line-is-rent" formControlName="isRent">Is Rent</mat-checkbox>
+        <mat-form-field appearance="outline">
+          <mat-label>Notes</mat-label>
+          <textarea matInput formControlName="notes" rows="1"></textarea>
+        </mat-form-field>
+      </div>
     </form>
   </mat-dialog-content>
 
