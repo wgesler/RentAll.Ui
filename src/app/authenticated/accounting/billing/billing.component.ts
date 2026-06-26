@@ -210,7 +210,9 @@ export class BillingComponent implements OnInit, OnDestroy {
 
     const formValue = this.form.getRawValue();
     const user = this.authService.getUser();
-         
+
+    this.recomputeLedgerLineNumbers();
+
     // Convert ledger lines from display format to request format
     const invoiceDateString = this.utilityService.toDateOnlyJsonString(formValue.invoiceDate) ?? this.utilityService.todayAsCalendarDateString();
     const ledgerLines: LedgerLineRequest[] = this.ledgerLines.map((line, index) => {
@@ -279,6 +281,14 @@ export class BillingComponent implements OnInit, OnDestroy {
       next: async (savedInvoice: InvoiceResponse) => {
         const message = isCreating ? 'Invoice created successfully' : 'Invoice updated successfully';
         this.toastr.success(message, CommonMessage.Success, { timeOut: CommonTimeouts.Success });
+
+        if (savedInvoice) {
+          this.invoice = {
+            ...savedInvoice,
+            ledgerLines: savedInvoice.ledgerLines ?? []
+          };
+          this.loadLedgerLines(false);
+        }
 
         const savedInvoiceAny = (savedInvoice || {}) as any;
         const resolvedInvoiceId =
@@ -611,6 +621,7 @@ export class BillingComponent implements OnInit, OnDestroy {
     }
     
     this.ledgerLines = this.mappingService.mapLedgerLines(rawLedgerLines, this.billingCostCodes, this.transactionTypes);
+    this.recomputeLedgerLineNumbers();
     this.ledgerLines.forEach(line => {
       if (line.isNew === undefined) {
         (line as any).isNew = false;
@@ -1052,6 +1063,7 @@ export class BillingComponent implements OnInit, OnDestroy {
       next: (response: BillingMonthlyDataResponse) => {
         const rawLedgerLines = response.ledgerLines || [];
         this.ledgerLines = this.mappingService.mapLedgerLines(rawLedgerLines, this.billingCostCodes, this.transactionTypes);
+        this.recomputeLedgerLineNumbers();
         this.normalizePaymentLineSigns();
         this.originalLedgerLines = JSON.parse(JSON.stringify(this.ledgerLines));
         this.updateTotalAmount();
@@ -1067,6 +1079,7 @@ export class BillingComponent implements OnInit, OnDestroy {
   }
 
   addLedgerLine(): void {
+    this.recomputeLedgerLineNumbers();
     const invoiceDateString = this.utilityService.toDateOnlyJsonString(this.form?.get('invoiceDate')?.value) ?? this.utilityService.todayAsCalendarDateString();
     const newLine: LedgerLineListDisplay = {
       ledgerLineId: null, // Temporary ID, will be assigned when saved
@@ -1088,8 +1101,15 @@ export class BillingComponent implements OnInit, OnDestroy {
   removeLedgerLine(index: number): void {
     if (index >= 0 && index < this.ledgerLines.length) {
       this.ledgerLines.splice(index, 1);
+      this.recomputeLedgerLineNumbers();
       this.updateTotalAmount();
     }
+  }
+
+  private recomputeLedgerLineNumbers(): void {
+    this.ledgerLines.forEach((line, index) => {
+      line.lineNumber = index + 1;
+    });
   }
   //#endregion
 
