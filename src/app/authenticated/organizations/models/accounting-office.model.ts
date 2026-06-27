@@ -31,6 +31,7 @@ export interface AccountingOfficeRequest {
   defaultPrePayAccountId?: number | null;
   defaultTenantExpAccountId?: number | null;
   defaultTenantIncAccountId?: number | null;
+  defaultPmUtilityIncAccountId?: number | null;
   defaultOwnerExpAccountId?: number | null;
   defaultOwnerIncAccountId?: number | null;
   defaultCompanyExpAccountId?: number | null;
@@ -72,6 +73,7 @@ export interface AccountingOfficeResponse {
   defaultPrePayAccountId?: number | null;
   defaultTenantExpAccountId?: number | null;
   defaultTenantIncAccountId?: number | null;
+  defaultPmUtilityIncAccountId?: number | null;
   defaultOwnerExpAccountId?: number | null;
   defaultOwnerIncAccountId?: number | null;
   defaultCompanyExpAccountId?: number | null;
