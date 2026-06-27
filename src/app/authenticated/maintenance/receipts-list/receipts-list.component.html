@@ -75,23 +75,35 @@
                       <mat-datepicker-toggle matIconSuffix [for]="paymentDatePickerEmbedded"></mat-datepicker-toggle>
                       <mat-datepicker #paymentDatePickerEmbedded></mat-datepicker>
                     </mat-form-field>
-                    <mat-form-field appearance="outline" class="payment-cost-code-dropdown" style="font-size: 11px !important;">
-                      <mat-label style="font-size: 11px !important;">Bank</mat-label>
-                      <mat-select [(ngModel)]="selectedPaymentChartOfAccountId" (selectionChange)="onPaymentChartOfAccountChange($event.value)" [disabled]="!resolvedPaymentOfficeId" style="font-size: 11px !important;">
-                        <mat-option [value]="null" style="font-size: 11px !important;">Select Bank Account</mat-option>
-                        @for (account of paymentChartOfAccounts; track account.value) {
-                          <mat-option [value]="account.value" style="font-size: 11px !important;">{{ account.label }}</mat-option>
-                        }
-                      </mat-select>
-                    </mat-form-field>
                     <mat-form-field appearance="outline" class="payment-type-dropdown" style="font-size: 11px !important;">
                       <mat-label style="font-size: 11px !important;">Payment Type</mat-label>
-                      <mat-select [(ngModel)]="selectedPaymentTypeId" style="font-size: 11px !important;">
+                      <mat-select [(ngModel)]="selectedPaymentTypeId" (selectionChange)="onPaymentTypeChange($event.value)" style="font-size: 11px !important;">
                         @for (type of paymentTypeOptions; track type.value) {
                           <mat-option [value]="type.value" style="font-size: 11px !important;">{{ type.label }}</mat-option>
                         }
                       </mat-select>
                     </mat-form-field>
+                    @if (isCreditCardPaymentTypeSelected) {
+                      <mat-form-field appearance="outline" class="payment-cost-code-dropdown" style="font-size: 11px !important;">
+                        <mat-label style="font-size: 11px !important;">Credit Card</mat-label>
+                        <mat-select [(ngModel)]="selectedPaymentCreditCardId" [disabled]="paymentCreditCardOptions.length === 0" style="font-size: 11px !important;">
+                          <mat-option [value]="null" style="font-size: 11px !important;">Select Credit Card</mat-option>
+                          @for (creditCard of paymentCreditCardOptions; track creditCard.value) {
+                            <mat-option [value]="creditCard.value" style="font-size: 11px !important;">{{ creditCard.label }}</mat-option>
+                          }
+                        </mat-select>
+                      </mat-form-field>
+                    } @else {
+                      <mat-form-field appearance="outline" class="payment-cost-code-dropdown" style="font-size: 11px !important;">
+                        <mat-label style="font-size: 11px !important;">Bank</mat-label>
+                        <mat-select [(ngModel)]="selectedPaymentChartOfAccountId" (selectionChange)="onPaymentChartOfAccountChange($event.value)" [disabled]="!resolvedPaymentOfficeId" style="font-size: 11px !important;">
+                          <mat-option [value]="null" style="font-size: 11px !important;">Select Bank Account</mat-option>
+                          @for (account of paymentChartOfAccounts; track account.value) {
+                            <mat-option [value]="account.value" style="font-size: 11px !important;">{{ account.label }}</mat-option>
+                          }
+                        </mat-select>
+                      </mat-form-field>
+                    }
                     <mat-form-field appearance="outline" class="payment-description-field" style="font-size: 11px !important;">
                       <mat-label style="font-size: 11px !important;">Description</mat-label>
                       <input matInput [(ngModel)]="paymentDescription" placeholder="Enter description" style="font-size: 11px !important;">

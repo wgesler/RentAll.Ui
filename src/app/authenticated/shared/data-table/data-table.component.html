@@ -1,4 +1,4 @@
-@if (hasFilter || hasToggleTop || hasToggleTop2 || hasButtonTop || filterActionsSlot()) {
+@if (hasFilter || hasToggleTop || hasToggleTop2 || hasButtonTop || hasButtonTopSecondary || filterActionsSlot()) {
   <div class="datatable-search-wrap dbg-band-actions px-4">
     <div class="datatable-search-wrap__row mobile-flex-column-reverse">
     @if (hasFilter) {
@@ -37,10 +37,10 @@
       }
       </div>
     }
-    @if (hasToggleTop2 || hasToggleTop || hasButtonTop || filterActionsSlot()) {
+    @if (hasToggleTop2 || hasToggleTop || hasButtonTop || hasButtonTopSecondary || filterActionsSlot()) {
     <div class="datatable-search-wrap__actions mobile-view-full">
       <ng-content select="[dataTableFilterActions]"></ng-content>
-      @if (hasToggleTop2 || hasToggleTop || hasButtonTop) {
+      @if (hasToggleTop2 || hasToggleTop || hasButtonTop || hasButtonTopSecondary) {
       <div class="table-filter-actions-group form-titlebar-actions-wrap uniform-gap flex-wrap">
       @if (hasToggleTop2) {
         <mat-slide-toggle [checked]="isToggle2Checked" color="primary" (change)="emitToggle2Event()" class="whitespace-nowrap text-center sm:text-inherit" [disabled]="!hasActionsTopEnabled">
@@ -58,6 +58,14 @@
           @if (buttonIconTop === 'spinner') { <mat-spinner diameter="15"/> }
             @else {<mat-icon class="text-base">{{buttonIconTop}}</mat-icon>}
             <span>{{ buttonTextTop }}</span>
+          </button>
+        }
+      @if (hasButtonTopSecondary) {
+        <button mat-raised-button id="datatable-add-secondary-btn-{{templateTableId}}" [color]="buttonColorTopSecondary" (click)="emitSecondaryAddEvent()"
+          class="mobile-view-full datatable-add-btn whitespace-nowrap items-center flex gap-1" [disabled]="buttonDisabledTopSecondary || !hasActionsTopEnabled">
+          @if (buttonIconTopSecondary === 'spinner') { <mat-spinner diameter="15"/> }
+            @else {<mat-icon class="text-base">{{buttonIconTopSecondary}}</mat-icon>}
+            <span>{{ buttonTextTopSecondary }}</span>
           </button>
         }
       </div>

@@ -467,6 +467,7 @@
                     [prefill]="billsReceiptPrefill"
                     [agreementLineIdOverride]="billsReceiptAgreementLineId"
                     [agreementLineNotesOverride]="billsReceiptAgreementLineNotes"
+                    [autoBackOnSave]="billsReceiptOrigin !== 'rentRoll'"
                     [autoSaveAttemptToken]="billsReceiptAutoSaveAttemptToken"
                     [officeId]="selectedOfficeId"
                     [shellContext]="'accounting'"

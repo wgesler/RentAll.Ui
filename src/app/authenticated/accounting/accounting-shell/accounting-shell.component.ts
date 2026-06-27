@@ -151,6 +151,7 @@ export class AccountingShellComponent implements OnInit, OnDestroy {
   rentRollCreateQueue: RentRollCreateBillRequest[] = [];
   rentRollCreateQueueIndex = -1;
   rentRollCreateQueueSavedCount = 0;
+  ignoreNextBillsReceiptBackEvent = false;
   isRentRollCreateTransitioning = false;
   rentRollTransitionUnlockTimer: ReturnType<typeof setTimeout> | null = null;
   billsReceiptOrigin: 'bills' | 'rentRoll' = 'bills';
@@ -616,6 +617,11 @@ export class AccountingShellComponent implements OnInit, OnDestroy {
   }
 
   onBillsReceiptBack(): void {
+    if (this.ignoreNextBillsReceiptBackEvent) {
+      this.ignoreNextBillsReceiptBackEvent = false;
+      return;
+    }
+
     this.releaseRentRollTransitionLock();
     if (this.hasActiveRentRollCreateQueue) {
       this.clearRentRollCreateQueue();
@@ -637,6 +643,9 @@ export class AccountingShellComponent implements OnInit, OnDestroy {
       this.onJournalEntriesChanged();
       this.rentRollCreateQueueIndex++;
       if (this.rentRollCreateQueueIndex < this.rentRollCreateQueue.length) {
+        // Receipt can still emit backEvent around savedEvent in embedded shell mode.
+        // Ignore that single back event so queue mode stays in bill detail.
+        this.ignoreNextBillsReceiptBackEvent = true;
         this.activateRentRollTransitionLock();
         this.openRentRollBillEditor(this.rentRollCreateQueue[this.rentRollCreateQueueIndex]);
         return;

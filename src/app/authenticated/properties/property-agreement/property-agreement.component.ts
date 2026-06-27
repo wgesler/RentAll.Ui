@@ -23,6 +23,7 @@ import { OfficeService } from '../../organizations/services/office.service';
 import { ChartOfAccountsService } from '../../accounting/services/chart-of-accounts.service';
 import { SearchableSelectComponent, SearchableSelectOption } from '../../shared/searchable-select/searchable-select.component';
 import { EntityType, TermType, getTermType } from '../../contacts/models/contact-enum';
+import { NewContactDialogService } from '../../shared/contacts/new-contact-dialog.service';
 
 @Component({
   selector: 'app-property-agreement',
@@ -112,7 +113,8 @@ export class PropertyAgreementComponent implements OnInit, OnChanges, OnDestroy 
     private contactService: ContactService,
     private authService: AuthService,
     private officeService: OfficeService,
-    private chartOfAccountsService: ChartOfAccountsService
+    private chartOfAccountsService: ChartOfAccountsService,
+    private newContactDialogService: NewContactDialogService
   ) {}
 
   //#region Property Agreement
@@ -408,18 +410,24 @@ export class PropertyAgreementComponent implements OnInit, OnChanges, OnDestroy 
       });
     });
 
-    this.vendorOptions = Array.from(byId.values())
+    let vendorOptions = Array.from(byId.values())
       .sort((left, right) => left.label.localeCompare(right.label, undefined, { sensitivity: 'base' }));
 
     (this.agreementLines || []).forEach(line => {
       const vendorId = this.normalizeAgreementLineVendorId(line.vendorId);
-      if (!vendorId || this.vendorOptions.some(option => option.value === vendorId)) {
+      if (!vendorId || vendorOptions.some(option => option.value === vendorId)) {
         return;
       }
       const label = (line.vendorName || '').trim() || 'Selected vendor';
-      this.vendorOptions = [...this.vendorOptions, { value: vendorId, label }]
+      vendorOptions = [...vendorOptions, { value: vendorId, label }]
         .sort((a, b) => a.label.localeCompare(b.label, undefined, { sensitivity: 'base' }));
     });
+
+    const newVendorOption = this.newContactDialogService.buildSearchableSelectOption(EntityType.Vendor);
+    this.vendorOptions = [
+      newVendorOption,
+      ...vendorOptions.filter(option => !this.newContactDialogService.isNewContactOptionValue(option.value, EntityType.Vendor))
+    ];
   }
 
   resolveAgreementOfficeId(): number | null {
@@ -754,6 +762,16 @@ export class PropertyAgreementComponent implements OnInit, OnChanges, OnDestroy 
       return;
     }
 
+    if (this.newContactDialogService.isNewContactOptionValue(value, EntityType.Vendor)) {
+      const line = this.agreementLines[index];
+      line.vendorId = null;
+      line.vendorName = '';
+      line.terms = 'Due on receipt';
+      this.agreementForm?.markAsDirty();
+      this.openNewVendorDialogForAgreementLine(index);
+      return;
+    }
+
     const vendorId = this.normalizeAgreementLineVendorId(value);
     const line = this.agreementLines[index];
     line.vendorId = vendorId;
@@ -786,6 +804,29 @@ export class PropertyAgreementComponent implements OnInit, OnChanges, OnDestroy 
     });
 
     this.agreementForm?.markAsDirty();
+  }
+
+  openNewVendorDialogForAgreementLine(index: number): void {
+    const officeId = this.resolveAgreementOfficeId();
+    this.newContactDialogService.openNewContactDialog({
+      entityTypeId: EntityType.Vendor,
+      preselectPropertyOfficeId: officeId
+    }).pipe(take(1)).subscribe(result => {
+      if (!result?.saved || !result.contactId) {
+        return;
+      }
+
+      this.contactService.refreshContacts().pipe(take(1)).subscribe({
+        next: () => {
+          this.refreshVendorOptions();
+          this.updateAgreementLineVendor(index, result.contactId ?? null);
+        },
+        error: () => {
+          this.refreshVendorOptions();
+          this.updateAgreementLineVendor(index, result.contactId ?? null);
+        }
+      });
+    });
   }
 
   applyVendorToAgreementLine(line: AgreementLineDisplay, contact: ContactResponse | null | undefined): void {

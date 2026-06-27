@@ -71,6 +71,7 @@ export class DataTableComponent implements OnChanges, OnInit, AfterViewInit, OnD
   @Input() disableSort: boolean = false;
   @Input() hasButtonSelectAll: boolean = false;
   @Input() hasButtonTop: boolean = false;
+  @Input() hasButtonTopSecondary: boolean = false;
   @Input() hasColumnDynamicAction: boolean = false;
   @Input() hasColumnIndex: boolean = false;
   @Input() hasFilter: boolean = false;
@@ -123,6 +124,10 @@ export class DataTableComponent implements OnChanges, OnInit, AfterViewInit, OnD
   @Input() buttonIconTop: string = 'add';
   @Input() buttonTextTop: string = 'Add';
   @Input() buttonColorTop: string = 'accent';
+  @Input() buttonDisabledTopSecondary: boolean = false;
+  @Input() buttonIconTopSecondary: string = 'add';
+  @Input() buttonTextTopSecondary: string = 'Add';
+  @Input() buttonColorTopSecondary: string = 'accent';
   @Input() buttonToggleTextTop: string = 'Advanced Mode';
   @Input() hasToggleTop2: boolean = false;
   @Input() buttonToggleTextTop2: string = '';
@@ -215,6 +220,7 @@ export class DataTableComponent implements OnChanges, OnInit, AfterViewInit, OnD
   @Output() workOrderCodeClickEvent = new EventEmitter<PurposefulAny>();
   @Output() inlineEditChangeEvent = new EventEmitter<PurposefulAny>();
   @Output() topButtonEvent = new EventEmitter<boolean>();
+  @Output() topSecondaryButtonEvent = new EventEmitter<boolean>();
   @Output() topToggleButtonEvent = new EventEmitter<boolean>();
   @Output() topToggle2ButtonEvent = new EventEmitter<boolean>();
   @Output() filterValChangeEvent = new EventEmitter<string>();
@@ -482,6 +488,10 @@ export class DataTableComponent implements OnChanges, OnInit, AfterViewInit, OnD
 
   emitAddEvent(): void {
     this.topButtonEvent.emit(true);
+  }
+
+  emitSecondaryAddEvent(): void {
+    this.topSecondaryButtonEvent.emit(true);
   }
 
   emitToggleEvent(): void {

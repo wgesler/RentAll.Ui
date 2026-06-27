@@ -21,8 +21,9 @@ import { ColumnSet } from '../../shared/data-table/models/column-data';
 import { PropertyAgreementLineResponse } from '../../properties/models/property-agreement.model';
 import { PropertyAgreementLineRequest, PropertyAgreementRequest } from '../../properties/models/property-agreement.model';
 import { PropertyAgreementService } from '../../properties/services/property-agreement.service';
+import { ManagementFeeType } from '../../properties/models/property-enums';
 import { RentRollCreateBillRequest, RentRollPropertyAgreement, RentRollRow, RentRollRowDisplay } from '../models/rent-roll.model';
-import { RentRollEditLineDialogComponent } from './rent-roll-edit-line-dialog.component';
+import { RentRollEditLineDialogComponent, RentRollEditLineDialogData, RentRollEditLineDialogResult } from './rent-roll-edit-line-dialog.component';
 
 @Component({
   selector: 'app-rent-roll',
@@ -219,6 +220,10 @@ export class RentRollComponent implements OnInit, OnChanges, OnDestroy {
     if (!row) {
       return;
     }
+    if (!this.hasAgreementLineIdentifier(row)) {
+      this.toastr.error('Unable to create bill: missing agreement line identifier.', 'Error');
+      return;
+    }
     const existingBill = this.getExistingBillMatchForRow(row);
     if (existingBill?.receiptId) {
       this.openBill.emit({
@@ -246,17 +251,53 @@ export class RentRollComponent implements OnInit, OnChanges, OnDestroy {
   }
 
   onCreateSelectedBills(): void {
-    const requests = this.selectedRentRollRows
+    const selectedRows = this.selectedRentRollRows
       .map(rowDisplay => ({ rowDisplay, row: this.resolveRentRollRow(rowDisplay) }))
       .filter((item): item is { rowDisplay: RentRollRowDisplay; row: RentRollRow } => !!item.row)
-      .filter(item => !this.hasExistingBillForRow(item.row))
-      .map(item => this.buildCreateBillRequest(item.row, item.rowDisplay))
-      .filter((request): request is RentRollCreateBillRequest => !!request);
+      .filter(item => !this.hasExistingBillForRow(item.row));
+
+    const uniqueAgreementLines = new Set<string>();
+    let skippedMissingAgreementLineCount = 0;
+    const requests: RentRollCreateBillRequest[] = [];
+
+    selectedRows.forEach(item => {
+      if (!this.hasAgreementLineIdentifier(item.row)) {
+        skippedMissingAgreementLineCount++;
+        return;
+      }
+      const agreementLineSelectionKey = this.buildAgreementLineSelectionKey(item.row);
+      if (uniqueAgreementLines.has(agreementLineSelectionKey)) {
+        return;
+      }
+      uniqueAgreementLines.add(agreementLineSelectionKey);
+      const request = this.buildCreateBillRequest(item.row, item.rowDisplay);
+      if (request) {
+        requests.push(request);
+      }
+    });
+
+    if (skippedMissingAgreementLineCount > 0) {
+      this.toastr.warning(
+        `Skipped ${skippedMissingAgreementLineCount} selected row${skippedMissingAgreementLineCount === 1 ? '' : 's'} with no agreement line id.`,
+        'Create Bills'
+      );
+    }
+
     if (requests.length === 0) {
       this.toastr.info('All selected rows already have bills in the selected date range.', 'No New Bills');
       return;
     }
     this.createBills.emit(requests);
+  }
+
+  onAddAgreementLineFromTop(): void {
+    const selectedRow = this.selectedRentRollRows.length > 0
+      ? this.resolveRentRollRow(this.selectedRentRollRows[0])
+      : null;
+    const fallbackRow = this.rentRollRowsDisplay.length > 0
+      ? this.resolveRentRollRow(this.rentRollRowsDisplay[0])
+      : null;
+    this.openAddAgreementLineDialog(selectedRow || fallbackRow);
   }
 
   get isCreateBillsTopButtonDisabled(): boolean {
@@ -320,6 +361,102 @@ export class RentRollComponent implements OnInit, OnChanges, OnDestroy {
         vendorName: result.vendorName,
         terms: result.terms
       });
+    });
+  }
+
+  openAddAgreementLineDialog(row: RentRollRow | null): void {
+    const dialogRef = this.dialog.open(RentRollEditLineDialogComponent, {
+      width: '88rem',
+      data: {
+        propertyId: row?.propertyId ?? null,
+        propertyCode: row?.propertyCode || '',
+        allowPropertySelection: true,
+        officeId: row?.officeId ?? this.officeId ?? null,
+        vendorId: null,
+        vendorName: '',
+        terms: 'Due on receipt',
+        chartOfAccountId: null,
+        startDate: null,
+        endDate: null,
+        depositAmount: 0,
+        oneTimeAmount: 0,
+        monthlyAmount: 0,
+        dailyAmount: 0,
+        isRent: false,
+        notes: ''
+      } as RentRollEditLineDialogData
+    });
+
+    dialogRef.afterClosed().pipe(take(1)).subscribe(result => {
+      if (!result) {
+        return;
+      }
+      this.createAgreementLine(result);
+    });
+  }
+
+  createAgreementLine(result: RentRollEditLineDialogResult): void {
+    const propertyId = (result.propertyId || '').trim();
+    if (!propertyId) {
+      this.toastr.error('Unable to add agreement line: missing property.', 'Error');
+      return;
+    }
+
+    this.propertyAgreementService.getPropertyAgreement(propertyId).pipe(take(1)).subscribe({
+      next: agreement => {
+        const newLine: PropertyAgreementLineRequest = {
+          agreementLineId: null,
+          title: null,
+          vendorId: result.vendorId ?? null,
+          chartOfAccountId: result.chartOfAccountId ?? null,
+          startDate: result.startDate ?? null,
+          endDate: result.endDate ?? null,
+          deposit: result.deposit ?? 0,
+          oneTime: result.oneTime ?? 0,
+          monthly: result.monthly ?? 0,
+          daily: result.daily ?? 0,
+          isRent: !!result.isRent,
+          notes: (result.notes || '').trim() || null
+        };
+
+        if (!agreement) {
+          const createPayload: PropertyAgreementRequest = {
+            propertyId,
+            managementFeeTypeId: ManagementFeeType.FlatRate,
+            flatRateAmount: 0,
+            agreementLines: [newLine]
+          };
+          this.propertyAgreementService.createPropertyAgreement(createPayload).pipe(take(1)).subscribe({
+            next: () => {
+              this.toastr.success('Agreement line added.', 'Success');
+              this.loadRentRoll();
+            },
+            error: () => {
+              this.toastr.error('Unable to create property agreement and add line.', 'Error');
+            }
+          });
+          return;
+        }
+
+        const existingLines = [...(agreement.agreementLines || [])];
+        const updatePayload: PropertyAgreementRequest = {
+          ...agreement,
+          agreementLines: [...existingLines, newLine]
+        };
+
+        this.propertyAgreementService.updatePropertyAgreement(updatePayload).pipe(take(1)).subscribe({
+          next: () => {
+            this.toastr.success('Agreement line added.', 'Success');
+            this.loadRentRoll();
+          },
+          error: () => {
+            this.toastr.error('Unable to add agreement line.', 'Error');
+          }
+        });
+      },
+      error: () => {
+        this.toastr.error('Unable to load property agreement.', 'Error');
+      }
     });
   }
 
@@ -649,6 +786,17 @@ export class RentRollComponent implements OnInit, OnChanges, OnDestroy {
       return null;
     }
     return Math.trunc(parsed);
+  }
+
+  hasAgreementLineIdentifier(row: RentRollRow): boolean {
+    const agreementLineId = String(row?.agreementLineId || '').trim();
+    return agreementLineId.length > 0;
+  }
+
+  buildAgreementLineSelectionKey(row: RentRollRow): string {
+    const propertyId = String(row?.propertyId || '').trim().toLowerCase();
+    const agreementLineId = String(row?.agreementLineId || '').trim().toLowerCase();
+    return `${propertyId}|${agreementLineId}`;
   }
 
   resolveBillMatchPeriod(value: string | null | undefined): string | null {

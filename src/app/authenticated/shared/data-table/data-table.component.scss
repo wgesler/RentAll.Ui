@@ -894,6 +894,9 @@ td.mat-mdc-cell.datatable-date-column {
   width: 16px !important;
   height: 16px !important;
   line-height: 16px !important;
+  display: block !important;
+  margin-left: auto !important;
+  margin-right: auto !important;
 }
 
 td.mat-cell.datatable-checkbox-td,

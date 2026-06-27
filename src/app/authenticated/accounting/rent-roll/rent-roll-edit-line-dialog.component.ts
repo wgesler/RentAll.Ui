@@ -10,9 +10,13 @@ import { ContactService } from '../../contacts/services/contact.service';
 import { ContactResponse } from '../../contacts/models/contact.model';
 import { EntityType, TermType, getTermType } from '../../contacts/models/contact-enum';
 import { UtilityService } from '../../../services/utility.service';
+import { PropertyService } from '../../properties/services/property.service';
+import { PropertyCodeResponse } from '../../properties/models/property.model';
 
 export interface RentRollEditLineDialogData {
+  propertyId?: string | null;
   propertyCode: string;
+  allowPropertySelection?: boolean;
   officeId: number | null;
   vendorId: string | null;
   vendorName: string;
@@ -29,6 +33,7 @@ export interface RentRollEditLineDialogData {
 }
 
 export interface RentRollEditLineDialogResult {
+  propertyId: string | null;
   vendorId: string | null;
   vendorName: string;
   terms: string;
@@ -53,6 +58,7 @@ export interface RentRollEditLineDialogResult {
 export class RentRollEditLineDialogComponent {
   form: FormGroup;
   vendorOptions: SearchableSelectOption<string>[] = [];
+  propertyOptions: SearchableSelectOption<string>[] = [];
   chartOfAccountOptions: SearchableSelectOption<number>[] = [];
   readonly defaultTerms = getTermType(TermType.DueOnReceipt) || 'Due on receipt';
   private vendorById = new Map<string, ContactResponse>();
@@ -63,9 +69,11 @@ export class RentRollEditLineDialogComponent {
     private fb: FormBuilder,
     private chartOfAccountsService: ChartOfAccountsService,
     private contactService: ContactService,
-    private utilityService: UtilityService
+    private utilityService: UtilityService,
+    private propertyService: PropertyService
   ) {
     this.form = this.fb.group({
+      propertyId: [this.normalizeOptionalText(data.propertyId)],
       vendorId: [(data.vendorId || '').trim()],
       vendorName: [data.vendorName || ''],
       terms: [{ value: data.terms || this.defaultTerms, disabled: true }],
@@ -79,6 +87,11 @@ export class RentRollEditLineDialogComponent {
       isRent: [!!data.isRent],
       notes: [(data.notes || '').trim()]
     });
+    if (data.allowPropertySelection) {
+      this.form.get('propertyId')?.setValidators([Validators.required]);
+      this.form.get('propertyId')?.updateValueAndValidity({ emitEvent: false });
+    }
+    this.loadPropertyOptions();
     this.loadVendorOptions();
     this.loadChartOfAccountOptions();
   }
@@ -95,6 +108,7 @@ export class RentRollEditLineDialogComponent {
 
     const value = this.form.getRawValue();
     this.dialogRef.close({
+      propertyId: this.normalizeOptionalText(value.propertyId),
       vendorId: this.normalizeOptionalText(value.vendorId),
       vendorName: (value.vendorName || '').toString().trim(),
       terms: (this.form.get('terms')?.value || '').toString().trim(),
@@ -167,6 +181,38 @@ export class RentRollEditLineDialogComponent {
       vendorName
     }, { emitEvent: false });
     this.form.get('terms')?.setValue(terms, { emitEvent: false });
+  }
+
+  onPropertyChange(value: string | number | null): void {
+    const propertyId = this.normalizeOptionalText(value);
+    this.form.patchValue({
+      propertyId
+    }, { emitEvent: false });
+  }
+
+  loadPropertyOptions(): void {
+    const officeId = Number(this.data.officeId ?? 0);
+    this.propertyService.getPropertyCodes().pipe(take(1)).subscribe({
+      next: (properties: PropertyCodeResponse[]) => {
+        const scopedProperties = (properties || [])
+          .filter(property => !officeId || Number(property.officeId) === officeId);
+        this.propertyOptions = scopedProperties
+          .map(property => ({
+            value: (property.propertyId || '').trim(),
+            label: (property.propertyCode || '').trim() || (property.shortAddress || '').trim() || 'Property'
+          }))
+          .filter(option => !!option.value)
+          .sort((a, b) => a.label.localeCompare(b.label, undefined, { sensitivity: 'base' }));
+
+        const selectedPropertyId = this.normalizeOptionalText(this.form.get('propertyId')?.value);
+        if (selectedPropertyId && !this.propertyOptions.some(option => option.value === selectedPropertyId)) {
+          this.form.patchValue({ propertyId: null }, { emitEvent: false });
+        }
+      },
+      error: () => {
+        this.propertyOptions = [];
+      }
+    });
   }
 
   loadVendorOptions(): void {

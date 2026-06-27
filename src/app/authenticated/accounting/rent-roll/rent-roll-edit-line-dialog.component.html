@@ -2,7 +2,7 @@
   <div class="flex flex-1 justify-between items-center bg-slate-200 rounded-t-lg p-3">
     <span class="text-2xl items-center flex gap-2 ml-1">
       <mat-icon color="primary">edit_note</mat-icon>
-      Edit Agreement Line
+      Add Line Agreement
     </span>
     <button mat-mini-fab mat-dialog-close type="button" class="bg-transparent rent-roll-edit-line-close" color="none">
       <mat-icon>close</mat-icon>
@@ -12,10 +12,31 @@
   <mat-dialog-content class="rent-roll-edit-line-body p-6">
     <form [formGroup]="form" class="rent-roll-edit-line-form">
       <div class="rent-roll-edit-line-row rent-roll-edit-line-row--meta">
-        <mat-form-field appearance="outline">
-          <mat-label>Property</mat-label>
-          <input matInput [value]="data.propertyCode" readonly [disabled]="true" />
-        </mat-form-field>
+        @if (data.allowPropertySelection) {
+          <div class="rent-roll-edit-line-field">
+            <app-searchable-select
+              [renderInFormField]="true"
+              [formFieldLabel]="'Property'"
+              [formFieldClass]="'rent-roll-edit-line-form-field'"
+              [value]="form.get('propertyId')?.value ?? null"
+              [options]="propertyOptions"
+              [showInstructionOption]="true"
+              [instructionOptionValue]="null"
+              nullOptionLabel="Select Property"
+              [showSearchInput]="true"
+              [hideSearchHint]="false"
+              [hideSearchText]="false"
+              searchPlaceholder="Type to filter properties..."
+              noResultsText="No properties match your search"
+              selectClass="rent-roll-edit-line-select-control"
+              (valueChange)="onPropertyChange($event)" />
+          </div>
+        } @else {
+          <mat-form-field appearance="outline">
+            <mat-label>Property</mat-label>
+            <input matInput [value]="data.propertyCode" readonly [disabled]="true" />
+          </mat-form-field>
+        }
 
         <mat-form-field appearance="outline">
           <mat-label>Terms</mat-label>

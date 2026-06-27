@@ -68,6 +68,7 @@ export class ReceiptsListComponent implements OnInit, OnChanges, OnDestroy {
   vendorOptionsByOfficeId = new Map<number, Array<{ contactId: string; label: string }>>();
   chartOfAccountsByOfficeId = new Map<number, Map<number, ChartOfAccountResponse>>();
   paymentChartOfAccounts: { value: number; label: string }[] = [];
+  paymentCreditCardOptions: { value: number; label: string; chartOfAccountId: number }[] = [];
   paymentTypeOptions = PaymentTypeLabels;
 
   showPaymentForm: boolean = false;
@@ -75,6 +76,7 @@ export class ReceiptsListComponent implements OnInit, OnChanges, OnDestroy {
   selectedBillReceiptIds = new Set<string>();
   isManualApplyMode: boolean = false;
   selectedPaymentChartOfAccountId: number | null = null;
+  selectedPaymentCreditCardId: number | null = null;
   selectedPaymentTypeId: number = PaymentType.Check;
   paymentDescription: string = '';
   paymentDate: Date | null = new Date();
@@ -1629,7 +1631,8 @@ export class ReceiptsListComponent implements OnInit, OnChanges, OnDestroy {
 
   get isPaymentFormValid(): boolean {
     const hasPaymentDate = this.utilityService.toDateOnlyJsonString(this.paymentDate) !== null;
-    const baseValid = hasPaymentDate && !!this.selectedPaymentChartOfAccountId && this.paymentAmount !== 0;
+    const hasPaymentAccount = this.resolveSelectedPaymentChartOfAccountId() != null;
+    const baseValid = hasPaymentDate && hasPaymentAccount && this.paymentAmount !== 0;
 
     if (this.isRowScopedPaymentMode) {
       return baseValid;
@@ -1673,6 +1676,10 @@ export class ReceiptsListComponent implements OnInit, OnChanges, OnDestroy {
     this.remainingAmountDisplay = '$' + this.formatter.currency(this.remainingAmount);
   }
 
+  get isCreditCardPaymentTypeSelected(): boolean {
+    return Number(this.selectedPaymentTypeId) === PaymentType.CreditCard;
+  }
+
   refreshPaymentChartOfAccountsForResolvedOffice(): void {
     const officeId = this.resolvedPaymentOfficeId;
     if (!officeId) {
@@ -1708,6 +1715,61 @@ export class ReceiptsListComponent implements OnInit, OnChanges, OnDestroy {
     } else {
       this.selectedPaymentChartOfAccountId = null;
     }
+  }
+
+  refreshPaymentCreditCardOptionsForResolvedOffice(): void {
+    const officeId = this.resolvedPaymentOfficeId;
+    const options = new Map<number, { value: number; label: string; chartOfAccountId: number }>();
+    const addOfficeCards = (targetOfficeId: number): void => {
+      const office = (this.accountingOffices || []).find(item => Number(item.officeId) === targetOfficeId) || null;
+      const mappedCards = this.mappingService.mapBankCardsFromResponse(office?.bankCards as BankCardResponse[]);
+      mappedCards.forEach(card => {
+        const bankCardId = Number(card.bankCardId ?? 0);
+        const chartOfAccountId = Number(card.chartOfAccountId ?? 0);
+        if (!Number.isFinite(bankCardId) || bankCardId <= 0 || !Number.isFinite(chartOfAccountId) || chartOfAccountId <= 0) {
+          return;
+        }
+        if (!options.has(bankCardId)) {
+          options.set(bankCardId, {
+            value: bankCardId,
+            label: this.toBankCardOptionLabel(card),
+            chartOfAccountId
+          });
+        }
+      });
+    };
+
+    if (officeId && Number.isFinite(Number(officeId)) && Number(officeId) > 0) {
+      addOfficeCards(Number(officeId));
+    } else {
+      (this.accountingOffices || []).forEach(office => addOfficeCards(Number(office.officeId)));
+    }
+
+    this.paymentCreditCardOptions = Array.from(options.values())
+      .sort((left, right) => left.label.localeCompare(right.label, undefined, { sensitivity: 'base' }));
+
+    const hasValidSelection =
+      this.selectedPaymentCreditCardId != null
+      && this.paymentCreditCardOptions.some(option => option.value === this.selectedPaymentCreditCardId);
+
+    if (!hasValidSelection) {
+      this.selectedPaymentCreditCardId = this.paymentCreditCardOptions[0]?.value ?? null;
+    }
+  }
+
+  onPaymentTypeChange(paymentTypeId: number): void {
+    this.selectedPaymentTypeId = Number(paymentTypeId);
+    if (this.isCreditCardPaymentTypeSelected) {
+      this.refreshPaymentCreditCardOptionsForResolvedOffice();
+    }
+  }
+
+  resolveSelectedPaymentChartOfAccountId(): number | null {
+    if (this.isCreditCardPaymentTypeSelected) {
+      const selectedCard = this.paymentCreditCardOptions.find(option => option.value === this.selectedPaymentCreditCardId) || null;
+      return selectedCard?.chartOfAccountId ?? null;
+    }
+    return this.selectedPaymentChartOfAccountId ?? null;
   }
 
   onPaymentChartOfAccountChange(accountId: number | null): void {
@@ -1776,6 +1838,7 @@ export class ReceiptsListComponent implements OnInit, OnChanges, OnDestroy {
     this.isManualApplyMode = true;
     this.paymentDate = this.paymentDate ?? new Date();
     this.refreshPaymentChartOfAccountsForResolvedOffice();
+    this.refreshPaymentCreditCardOptionsForResolvedOffice();
     this.updateRemainingAmount();
     this.showPaymentForm = true;
     this.applyFilters();
@@ -1807,8 +1870,8 @@ export class ReceiptsListComponent implements OnInit, OnChanges, OnDestroy {
     if (this.isSubmittingPayment) {
       return;
     }
-    if (!this.selectedPaymentChartOfAccountId) {
-      this.toastr.warning('Please select a bank account');
+    if (!this.resolveSelectedPaymentChartOfAccountId()) {
+      this.toastr.warning(this.isCreditCardPaymentTypeSelected ? 'Please select a credit card' : 'Please select a bank account');
       return;
     }
     if (!this.utilityService.toDateOnlyJsonString(this.paymentDate)) {
@@ -1817,6 +1880,12 @@ export class ReceiptsListComponent implements OnInit, OnChanges, OnDestroy {
     }
     if (this.paymentAmount === 0) {
       this.toastr.warning('Please enter an amount');
+      return;
+    }
+    if (!this.resolveSelectedPaymentChartOfAccountId()) {
+      this.toastr.warning(this.isCreditCardPaymentTypeSelected
+        ? 'Selected credit card is missing a linked chart of account.'
+        : 'Please select a bank account');
       return;
     }
     this.submitManualPayments();
@@ -1865,6 +1934,12 @@ export class ReceiptsListComponent implements OnInit, OnChanges, OnDestroy {
     }
 
     this.isSubmittingPayment = true;
+    const selectedChartOfAccountId = this.resolveSelectedPaymentChartOfAccountId();
+    if (!selectedChartOfAccountId) {
+      this.isSubmittingPayment = false;
+      this.toastr.warning('Unable to apply payment: missing payment account.');
+      return;
+    }
     let appliedPaymentCount = 0;
     from(paymentData)
       .pipe(
@@ -1872,7 +1947,7 @@ export class ReceiptsListComponent implements OnInit, OnChanges, OnDestroy {
           const paymentRequest: BillPaymentRequest = {
             paymentDate:
               this.utilityService.toDateOnlyJsonString(this.paymentDate) ?? this.utilityService.todayAsCalendarDateString(),
-            chartOfAccountId: this.selectedPaymentChartOfAccountId!,
+            chartOfAccountId: selectedChartOfAccountId,
             paymentTypeId: this.selectedPaymentTypeId,
             description: paymentDescription,
             amount: paidAmount,
@@ -1913,6 +1988,8 @@ export class ReceiptsListComponent implements OnInit, OnChanges, OnDestroy {
     this.showPaymentForm = false;
     this.isManualApplyMode = false;
     this.selectedPaymentChartOfAccountId = null;
+    this.selectedPaymentCreditCardId = null;
+    this.paymentCreditCardOptions = [];
     this.selectedPaymentTypeId = PaymentType.Check;
     this.paymentDescription = '';
     this.paymentDate = new Date();
