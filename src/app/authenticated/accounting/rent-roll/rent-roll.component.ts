@@ -45,7 +45,6 @@ export class RentRollComponent implements OnInit, OnChanges, OnDestroy {
     propertyCode: { displayAs: 'Property', wrap: false, maxWidth: '15ch', sortType: 'natural' },
     vendorName: { displayAs: 'Vendor', wrap: true, maxWidth: '25ch' },
     chartOfAccountDisplay: { displayAs: 'Chart of Account', wrap: true, maxWidth: '25ch' },
-    terms: { displayAs: 'Terms', wrap: true, maxWidth: '16ch' },
     isRent: { displayAs: 'Is Rent', wrap: false, maxWidth: '10ch', alignment: 'center', headerAlignment: 'center', sort: false, isCheckbox: true, checkboxEditable: false },
     billDateDisplay: { displayAs: 'Bill Date', wrap: false, maxWidth: '14ch', alignment: 'center', headerAlignment: 'center' },
     dueDateDisplay: { displayAs: 'Due Date', wrap: false, maxWidth: '14ch', alignment: 'center', headerAlignment: 'center' },
@@ -593,6 +592,13 @@ export class RentRollComponent implements OnInit, OnChanges, OnDestroy {
     if (row.isRent) {
       const billDateValue = this.utilityService.parseDateOnlyStringToDate(billDate);
       if (!billDateValue) {
+        return billDate;
+      }
+      const startDate = this.utilityService.parseDateOnlyStringToDate(row.startDate);
+      const isMoveInMonth = !!startDate
+        && startDate.getFullYear() === billDateValue.getFullYear()
+        && startDate.getMonth() === billDateValue.getMonth();
+      if (isMoveInMonth && startDate.getDate() > 1) {
         return billDate;
       }
       const firstOfMonth = new Date(billDateValue.getFullYear(), billDateValue.getMonth(), 1);
