@@ -50,6 +50,7 @@ export class ReceiptComponent implements OnInit, OnChanges, OnDestroy {
   @Input() agreementLineNotesOverride: string | null = null;
   @Input() ticketId: string | null = null;
   @Input() shellContext: 'maintenance' | 'accounting' | null = null;
+  @Input() autoSaveAttemptToken = 0;
   @Output() backEvent = new EventEmitter<void>();
   @Output() savedEvent = new EventEmitter<ReceiptResponse>();
   @Output() saveValidationAttempted = new EventEmitter<void>();
@@ -90,6 +91,7 @@ export class ReceiptComponent implements OnInit, OnChanges, OnDestroy {
   bankCardOptions: SearchableSelectOption<number>[] = [];
   showAllOrganizationBankCards = false;
   private lastAppliedShellOfficeId: number | null | undefined;
+  private pendingAutoSaveAttempt = false;
   readonly moreBankCardsOptionValue = -1;
   expenseAccountOptions: SearchableSelectOption<number>[] = [];
 
@@ -172,6 +174,10 @@ export class ReceiptComponent implements OnInit, OnChanges, OnDestroy {
   }
 
   ngOnChanges(changes: SimpleChanges): void {
+    if (changes['autoSaveAttemptToken'] && Number(changes['autoSaveAttemptToken'].currentValue || 0) > 0) {
+      this.pendingAutoSaveAttempt = true;
+    }
+
     if (changes['officeId'] && (this.isAddMode || this.receiptOfficeInitialized)) {
       this.applyShellOfficeToReceipt();
     }
@@ -451,22 +457,7 @@ export class ReceiptComponent implements OnInit, OnChanges, OnDestroy {
   }
 
   canChooseReceiptFile(): boolean {
-    if ((this.property?.propertyId || '').trim().length > 0) {
-      return true;
-    }
-    if (this.isAccountingCompanySelected()) {
-      return true;
-    }
-    if (this.getSelectedPropertyIds().length > 0) {
-      return true;
-    }
-    if (!this.isPropertySelectionRequired()) {
-      return true;
-    }
-    if (this.isAccountingShell && (this.getReceiptOfficeId() ?? 0) > 0) {
-      return true;
-    }
-    return false;
+    return true;
   }
   //#endregion
 
@@ -568,6 +559,7 @@ export class ReceiptComponent implements OnInit, OnChanges, OnDestroy {
         this.syncBankCardOptionsForCurrentContext();
         this.ensureEditModeBankCardVisible();
         this.cdr.markForCheck();
+        this.tryAutoSaveValidationAttempt();
       },
       error: (_err: HttpErrorResponse) => {
         this.toastr.error('Unable to load receipt.', 'Error');
@@ -1151,6 +1143,10 @@ export class ReceiptComponent implements OnInit, OnChanges, OnDestroy {
     if (!this.showAccountingBillFields) {
       return;
     }
+    // Respect an explicitly populated due date; only derive from terms when empty.
+    if (this.utilityService.toDateOnlyJsonString(this.form.get('dueDate')?.value)) {
+      return;
+    }
     const dueDate = this.calculateDueDateFromPaymentTerms(
       this.form.get('receiptDate')?.value,
       this.getSelectedVendorPaymentTermsId()
@@ -1180,8 +1176,8 @@ export class ReceiptComponent implements OnInit, OnChanges, OnDestroy {
       return false;
     }
 
-    const storedDueDate = this.normalizeReceiptDate(receipt.dueDate) ?? receiptDate;
-    if (storedDueDate !== receiptDate) {
+    const storedDueDate = this.normalizeReceiptDate(receipt.dueDate);
+    if (storedDueDate) {
       return false;
     }
 
@@ -1193,7 +1189,7 @@ export class ReceiptComponent implements OnInit, OnChanges, OnDestroy {
         )
       )
     );
-    return !!calculatedDueDate && calculatedDueDate !== storedDueDate;
+    return !!calculatedDueDate;
   }
 
   hasLegacyBillAccountingPeriod(receipt: ReceiptResponse): boolean {
@@ -2290,6 +2286,16 @@ export class ReceiptComponent implements OnInit, OnChanges, OnDestroy {
     return this.shellContext === 'maintenance' || this.shellContext === 'accounting';
   }
 
+  tryAutoSaveValidationAttempt(): void {
+    if (!this.pendingAutoSaveAttempt || this.isAddMode || !this.receipt?.receiptId) {
+      return;
+    }
+    this.pendingAutoSaveAttempt = false;
+    queueMicrotask(() => {
+      this.saveReceipt();
+    });
+  }
+
   applyPrefillIfNeeded(): void {
     if (!this.isAddMode || !this.prefill || !this.form) {
       return;
@@ -2325,10 +2331,12 @@ export class ReceiptComponent implements OnInit, OnChanges, OnDestroy {
     const vendorName = (this.prefill.vendorName || '').trim() || null;
     const bankCardId = Number(this.prefill.bankCardId ?? 0);
 
+    const prefillDueDate = this.getReceiptDateControlValue(this.prefill.dueDate || this.prefill.receiptDate || null);
+    const prefillAccountingPeriod = this.getReceiptDateControlValue(this.prefill.accountingPeriod || this.prefill.receiptDate || null);
     this.form.patchValue({
       receiptDate: this.getReceiptDateControlValue(this.prefill.receiptDate || null),
-      dueDate: this.getReceiptDateControlValue(this.prefill.dueDate || this.prefill.receiptDate || null),
-      accountingPeriod: this.getReceiptDateControlValue(this.prefill.accountingPeriod || this.prefill.receiptDate || null),
+      dueDate: prefillDueDate,
+      accountingPeriod: prefillAccountingPeriod,
       description,
       amount: amount > 0 ? amount.toFixed(2) : '0.00',
       bankCardId: Number.isFinite(bankCardId) ? bankCardId : 0,
@@ -2351,6 +2359,11 @@ export class ReceiptComponent implements OnInit, OnChanges, OnDestroy {
     }
 
     this.onOverallBankCardChange();
+    // Keep rent-roll prefilled dates authoritative for this initial load.
+    this.form.patchValue({
+      dueDate: prefillDueDate,
+      accountingPeriod: prefillAccountingPeriod
+    }, { emitEvent: false });
     this.updatePropertyRequirementByReceiptType();
     this.lastPropertyIdsValue = this.getFormPropertyIds();
     this.syncSelectedPropertyIdFromForm();

@@ -152,6 +152,7 @@ export interface ReceiptSelection {
   propertyId: string | null;
   agreementLineId?: number | null;
   notes?: string | null;
+  autoSaveValidationAttempt?: boolean;
 }
 
 export interface ReceiptPrefill {

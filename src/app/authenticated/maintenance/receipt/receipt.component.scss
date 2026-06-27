@@ -1,3 +1,10 @@
+:host {
+  display: block;
+  width: 100%;
+  max-width: 100%;
+  overflow-x: hidden;
+}
+
 .receipt-form {
   padding: 0.5rem 0;
 }
@@ -16,6 +23,7 @@
   justify-content: center;
   padding: 3rem;
   gap: 1rem;
+  min-height: 0 !important;
 
   p {
     margin-top: 1rem;
@@ -297,8 +305,9 @@
   }
 
   .split-col-actions {
-    width: 44px;
+    width: 72px;
     text-align: right;
+    padding-right: 24px !important;
   }
 
   th,
@@ -409,7 +418,7 @@ select.split-editable-input {
 }
 
 .split-col-actions .mat-mdc-icon-button {
-  margin-right: 0;
+  margin-right: 0 !important;
 }
 
 .split-total-invalid,

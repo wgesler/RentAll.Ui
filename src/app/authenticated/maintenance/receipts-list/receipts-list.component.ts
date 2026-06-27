@@ -340,6 +340,18 @@ export class ReceiptsListComponent implements OnInit, OnChanges, OnDestroy {
     if (!this.embeddedInAccounting || event?.payableDisabled) {
       return;
     }
+    if (this.isBillMissingReceiptAttachment(event)) {
+      const selectedPropertyId = (event.propertyIds || [])
+        .map(propertyId => (propertyId || '').trim())
+        .find(propertyId => propertyId.length > 0) || null;
+      this.receiptSelect.emit({
+        receiptId: event.receiptId,
+        officeId: Number.isFinite(Number(event.officeId)) ? Number(event.officeId) : null,
+        propertyId: selectedPropertyId,
+        autoSaveValidationAttempt: true
+      });
+      return;
+    }
     const receiptOfficeId = Number(event?.officeId ?? 0);
     this.paymentOfficeId = Number.isFinite(receiptOfficeId) && receiptOfficeId > 0 ? receiptOfficeId : null;
     this.pendingApplyAmountFocusReceiptId = String(event?.receiptId ?? '').trim() || null;
@@ -912,6 +924,20 @@ export class ReceiptsListComponent implements OnInit, OnChanges, OnDestroy {
 
   isBillReceipt(receipt: Pick<ReceiptDisplayList, 'bankCardId'>): boolean {
     return Number(receipt.bankCardId ?? 0) === 0;
+  }
+
+  isBillMissingReceiptAttachment(event: ReceiptDisplayList): boolean {
+    const receiptId = String(event?.receiptId || '').trim();
+    if (!receiptId) {
+      return false;
+    }
+    const receipt = this.receipts.find(item => item.receiptId === receiptId);
+    if (!receipt) {
+      return false;
+    }
+    const hasUploadedFile = !!receipt.fileDetails?.file;
+    const hasReceiptPath = String(receipt.receiptPath || '').trim().length > 0;
+    return !hasUploadedFile && !hasReceiptPath;
   }
   //#endregion
 

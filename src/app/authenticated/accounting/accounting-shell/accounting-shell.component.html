@@ -1,4 +1,4 @@
-<div class="flex content-card-wrap justify-center">
+<div class="flex content-card-wrap justify-center" [class.accounting-shell-transition-lock]="isRentRollCreateTransitioning">
   <section class="content-card">
     <div class="flex justify-between items-center gap-3 bg-slate-300 rounded-t-lg py-0 pl-8 pr-4 property-titlebar">
       <div class="flex items-center flex-wrap py-4">
@@ -450,6 +450,15 @@
               </mat-menu>
             </ng-template>
             @if (selectedTabIndex === tabBillsReceipts) {
+              <div class="accounting-shell-subview-title">
+                @if (selectedBillsReceiptKind === 'bills') {
+                  Bills
+                } @else if (selectedBillsReceiptKind === 'receipts') {
+                  Receipts
+                } @else {
+                  Rent Roll
+                }
+              </div>
               @if (selectedBillsReceiptKind === 'bills') {
                 @if (showBillsReceiptDetail) {
                   <app-receipt
@@ -458,6 +467,7 @@
                     [prefill]="billsReceiptPrefill"
                     [agreementLineIdOverride]="billsReceiptAgreementLineId"
                     [agreementLineNotesOverride]="billsReceiptAgreementLineNotes"
+                    [autoSaveAttemptToken]="billsReceiptAutoSaveAttemptToken"
                     [officeId]="selectedOfficeId"
                     [shellContext]="'accounting'"
                     (backEvent)="onBillsReceiptBack()"
@@ -535,6 +545,15 @@
               </mat-menu>
             </ng-template>
             @if (selectedTabIndex === tabBankActivities) {
+              <div class="accounting-shell-subview-title">
+                @if (selectedBankActivityKind === 'deposits') {
+                  Deposits
+                } @else if (selectedBankActivityKind === 'printChecks') {
+                  Print Checks
+                } @else {
+                  Reconcile
+                }
+              </div>
               @if (selectedBankActivityKind === 'deposits') {
                 @if (showGeneralLedgerDetail && activeJournalEntryId) {
                   <app-general-ledger
@@ -604,6 +623,15 @@
               </mat-menu>
             </ng-template>
             @if (selectedTabIndex === tabOwners) {
+              <div class="accounting-shell-subview-title">
+                @if (selectedOwnerKind === 'utilities') {
+                  Utilities
+                } @else if (selectedOwnerKind === 'workOrders') {
+                  Work Orders
+                } @else {
+                  Statements
+                }
+              </div>
               @if (selectedOwnerKind === 'utilities') {
                 @if (showOwnersUtilityReceiptDetail) {
                   <app-receipt

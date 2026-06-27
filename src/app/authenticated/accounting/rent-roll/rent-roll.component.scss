@@ -16,3 +16,12 @@
   color: #64748b;
 }
 
+/* Rent-roll should not surface internal scrollbars during Create Bills interactions. */
+:host ::ng-deep .rent-roll-wrap .tableDiv {
+  overflow: hidden !important;
+}
+
+:host ::ng-deep .rent-roll-wrap app-data-table .is-scrollable {
+  overflow: hidden !important;
+}
+

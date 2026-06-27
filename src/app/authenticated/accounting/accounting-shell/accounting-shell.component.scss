@@ -312,8 +312,26 @@ mat-card {
   color: rgba(0, 0, 0, 0.6);
 }
 
+.accounting-shell-subview-title {
+  font-size: 1.125rem;
+  font-weight: 600;
+  line-height: 1.2;
+  padding: 1.25rem 1.5rem 0;
+  text-align: center;
+  color: #000;
+}
+
+:host ::ng-deep .accounting-shell-subview-title + app-receipts-list app-data-table .datatable-search-wrap,
+:host ::ng-deep .accounting-shell-subview-title + app-rent-roll app-data-table .datatable-search-wrap {
+  margin-top: 0.25rem !important;
+}
+
 .form-titlebar-actions-wrap {
   display: flex;
   align-items: center;
   gap: 0.5rem;
+}
+
+.accounting-shell-transition-lock .tableDiv {
+  overflow: hidden !important;
 }

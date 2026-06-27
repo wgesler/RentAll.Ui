@@ -147,6 +147,12 @@ export class AccountingShellComponent implements OnInit, OnDestroy {
   billsReceiptPrefill: ReceiptPrefill | null = null;
   billsReceiptAgreementLineId: number | null = null;
   billsReceiptAgreementLineNotes: string | null = null;
+  billsReceiptAutoSaveAttemptToken = 0;
+  rentRollCreateQueue: RentRollCreateBillRequest[] = [];
+  rentRollCreateQueueIndex = -1;
+  rentRollCreateQueueSavedCount = 0;
+  isRentRollCreateTransitioning = false;
+  rentRollTransitionUnlockTimer: ReturnType<typeof setTimeout> | null = null;
   billsReceiptOrigin: 'bills' | 'rentRoll' = 'bills';
   showReceiptsReceiptDetail = false;
   selectedReceiptsReceiptId: string | null = null;
@@ -589,6 +595,7 @@ export class AccountingShellComponent implements OnInit, OnDestroy {
       this.billsReceiptProperty = property;
       this.billsReceiptAgreementLineId = this.toAgreementLineId(selection?.agreementLineId);
       this.billsReceiptAgreementLineNotes = (selection?.notes || '').trim() || null;
+      this.billsReceiptAutoSaveAttemptToken = selection?.autoSaveValidationAttempt ? Date.now() : 0;
       this.selectedBillsReceiptId = receiptId;
       this.billsReceiptPrefill = null;
       this.showBillsReceiptDetail = true;
@@ -609,17 +616,40 @@ export class AccountingShellComponent implements OnInit, OnDestroy {
   }
 
   onBillsReceiptBack(): void {
+    this.releaseRentRollTransitionLock();
+    if (this.hasActiveRentRollCreateQueue) {
+      this.clearRentRollCreateQueue();
+    }
     this.showBillsReceiptDetail = false;
     this.selectedBillsReceiptId = null;
     this.billsReceiptProperty = null;
     this.billsReceiptPrefill = null;
     this.billsReceiptAgreementLineId = null;
     this.billsReceiptAgreementLineNotes = null;
+    this.billsReceiptAutoSaveAttemptToken = 0;
     this.selectedBillsReceiptKind = this.billsReceiptOrigin === 'rentRoll' ? 'rentRoll' : 'bills';
     this.billsReceiptOrigin = 'bills';
   }
 
   onBillsReceiptSaved(): void {
+    if (this.billsReceiptOrigin === 'rentRoll' && this.hasActiveRentRollCreateQueue) {
+      this.rentRollCreateQueueSavedCount++;
+      this.onJournalEntriesChanged();
+      this.rentRollCreateQueueIndex++;
+      if (this.rentRollCreateQueueIndex < this.rentRollCreateQueue.length) {
+        this.activateRentRollTransitionLock();
+        this.openRentRollBillEditor(this.rentRollCreateQueue[this.rentRollCreateQueueIndex]);
+        return;
+      }
+
+      const totalCount = this.rentRollCreateQueue.length;
+      const createdCount = this.rentRollCreateQueueSavedCount;
+      this.clearRentRollCreateQueue();
+      this.onBillsReceiptBack();
+      this.toastr.success(`Created ${createdCount} of ${totalCount} selected bill${totalCount === 1 ? '' : 's'}.`, 'Create Bills');
+      return;
+    }
+
     const savedOrigin = this.billsReceiptOrigin;
     this.onBillsReceiptBack();
     this.billsRefreshTrigger++;
@@ -629,10 +659,15 @@ export class AccountingShellComponent implements OnInit, OnDestroy {
   }
 
   onRentRollCreateBill(request: RentRollCreateBillRequest): void {
+    this.startRentRollCreateQueue([request]);
+  }
+
+  openRentRollBillEditor(request: RentRollCreateBillRequest): void {
     const propertyId = (request.propertyId || '').trim();
     const officeId = request.officeId ?? this.selectedOfficeId ?? null;
     const billDate = request.billDate || this.utilityService.formatDateOnlyForApi(this.endDate) || this.utilityService.formatDateOnlyForApi(new Date());
     const dueDate = request.dueDate || billDate;
+    const editorPrefillKey = `${request.agreementLineId || 'line'}-${Date.now()}`;
     const openBillEditor = (property: PropertyResponse | null) => {
       this.selectedTabIndex = this.tabBillsReceipts;
       this.selectedBillsReceiptKind = 'bills';
@@ -640,7 +675,7 @@ export class AccountingShellComponent implements OnInit, OnDestroy {
       this.selectedBillsReceiptId = null;
       this.billsReceiptProperty = property;
       this.billsReceiptPrefill = {
-        key: `${request.agreementLineId || 'line'}-${Date.now()}`,
+        key: editorPrefillKey,
         officeId,
         propertyIds: propertyId ? [propertyId] : [],
         agreementLineId: this.toAgreementLineId(request.agreementLineId),
@@ -662,23 +697,31 @@ export class AccountingShellComponent implements OnInit, OnDestroy {
       };
       this.billsReceiptAgreementLineId = this.toAgreementLineId(request.agreementLineId);
       this.billsReceiptAgreementLineNotes = (request.notes || '').trim() || null;
+      this.billsReceiptAutoSaveAttemptToken = 0;
       this.showBillsReceiptDetail = true;
-      this.router.navigate([], {
-        relativeTo: this.route,
-        queryParams: this.buildShellQueryParams({ tab: String(this.tabBillsReceipts), billsReceipt: 'bills' }),
-        queryParamsHandling: 'merge'
-      });
     };
 
+    const initialProperty = this.buildBillsReceiptPropertyStub(officeId);
     if (propertyId) {
-      this.propertyService.getPropertyByGuid(propertyId).pipe(take(1)).subscribe({
-        next: property => openBillEditor(property),
-        error: () => openBillEditor(this.buildBillsReceiptPropertyStub(officeId))
-      });
+      initialProperty.propertyId = propertyId;
+    }
+    openBillEditor(initialProperty);
+
+    if (!propertyId) {
       return;
     }
 
-    openBillEditor(this.buildBillsReceiptPropertyStub(officeId));
+    this.propertyService.getPropertyByGuid(propertyId).pipe(take(1)).subscribe({
+      next: property => {
+        if (!this.showBillsReceiptDetail || this.billsReceiptPrefill?.key !== editorPrefillKey) {
+          return;
+        }
+        this.billsReceiptProperty = property;
+      },
+      error: () => {
+        // Keep the stub property in place if full property lookup fails.
+      }
+    });
   }
 
   async onRentRollOpenBill(selection: ReceiptSelection): Promise<void> {
@@ -690,63 +733,59 @@ export class AccountingShellComponent implements OnInit, OnDestroy {
     this.onBillsReceiptSelect(selection, 'rentRoll');
   }
 
-  async onRentRollCreateBills(requests: RentRollCreateBillRequest[]): Promise<void> {
+  onRentRollCreateBills(requests: RentRollCreateBillRequest[]): void {
     const createRequests = Array.isArray(requests) ? requests : [];
     if (createRequests.length === 0) {
       this.toastr.warning('Select at least one rent roll row first.', 'Create Bills');
       return;
     }
+    this.startRentRollCreateQueue(createRequests);
+  }
 
-    const organizationId = (this.organizationId || this.authService.getUser()?.organizationId || '').trim();
-    if (!organizationId) {
-      this.toastr.error('Unable to resolve organization for bill creation.', 'Create Bills');
+  get hasActiveRentRollCreateQueue(): boolean {
+    return this.rentRollCreateQueueIndex >= 0 && this.rentRollCreateQueueIndex < this.rentRollCreateQueue.length;
+  }
+
+  startRentRollCreateQueue(requests: RentRollCreateBillRequest[]): void {
+    const queue = (requests || []).filter(request => !!request);
+    if (queue.length === 0) {
+      this.toastr.warning('Select at least one rent roll row first.', 'Create Bills');
       return;
     }
+    this.rentRollCreateQueue = queue;
+    this.rentRollCreateQueueIndex = 0;
+    this.rentRollCreateQueueSavedCount = 0;
+    this.activateRentRollTransitionLock();
+    this.openRentRollBillEditor(queue[0]);
+  }
 
-    let createdCount = 0;
-    let skippedCount = 0;
-    let failedCount = 0;
+  clearRentRollCreateQueue(): void {
+    this.rentRollCreateQueue = [];
+    this.rentRollCreateQueueIndex = -1;
+    this.rentRollCreateQueueSavedCount = 0;
+  }
 
-    for (const request of createRequests) {
-      const validationMessage = this.getRentRollBillValidationMessage(request);
-      if (validationMessage) {
-        skippedCount++;
-        this.toastr.warning(validationMessage, 'Create Bills');
-        continue;
-      }
-
-      const payload = this.buildRentRollReceiptRequest(request, organizationId);
-      if (!payload) {
-        skippedCount++;
-        continue;
-      }
-
-      try {
-        await firstValueFrom(this.receiptService.createReceipt(payload));
-        createdCount++;
-      } catch (error) {
-        failedCount++;
-        const responseError = error as HttpErrorResponse;
-        const apiMessage = typeof responseError?.error === 'string'
-          ? responseError.error
-          : responseError?.error?.message || responseError?.error?.title || responseError?.message;
-        this.toastr.error(apiMessage || 'Unable to create one of the selected bills.', 'Create Bills');
-      }
+  activateRentRollTransitionLock(): void {
+    this.isRentRollCreateTransitioning = true;
+    if (typeof document !== 'undefined') {
+      document.body.classList.add('rent-roll-create-transition-lock');
     }
-
-    if (createdCount > 0) {
-      this.toastr.success(`${createdCount} bill${createdCount === 1 ? '' : 's'} created.`, 'Create Bills');
-      this.billsRefreshTrigger++;
-      this.rentRollRefreshTrigger++;
-      this.onJournalEntriesChanged();
+    if (this.rentRollTransitionUnlockTimer) {
+      clearTimeout(this.rentRollTransitionUnlockTimer);
     }
+    this.rentRollTransitionUnlockTimer = setTimeout(() => {
+      this.releaseRentRollTransitionLock();
+    }, 450);
+  }
 
-    if (skippedCount > 0 || failedCount > 0) {
-      const parts = [
-        skippedCount > 0 ? `${skippedCount} skipped` : '',
-        failedCount > 0 ? `${failedCount} failed` : ''
-      ].filter(part => !!part);
-      this.toastr.warning(parts.join(', '), 'Create Bills');
+  releaseRentRollTransitionLock(): void {
+    this.isRentRollCreateTransitioning = false;
+    if (typeof document !== 'undefined') {
+      document.body.classList.remove('rent-roll-create-transition-lock');
+    }
+    if (this.rentRollTransitionUnlockTimer) {
+      clearTimeout(this.rentRollTransitionUnlockTimer);
+      this.rentRollTransitionUnlockTimer = null;
     }
   }
 
@@ -1596,7 +1635,7 @@ export class AccountingShellComponent implements OnInit, OnDestroy {
   }
 
   get billsReceiptsTabLabel(): string {
-    return 'Bills';
+    return 'Payments';
   }
 
   clearInactiveDropdownSelections(activeTabIndex: number): void {
@@ -2260,6 +2299,7 @@ export class AccountingShellComponent implements OnInit, OnDestroy {
 
   //#region Utility Methods
   ngOnDestroy(): void {
+    this.releaseRentRollTransitionLock();
     window.removeEventListener(this.clearPinsEventName, this.onClearPins);
     this.destroy$.next();
     this.destroy$.complete();

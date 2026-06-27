@@ -96,6 +96,17 @@ mat-toolbar#header.mat-toolbar.mat-primary .mdc-button__label {
 html {
   scrollbar-gutter: stable;
   overflow-y: auto;
+  overflow-x: hidden;
+}
+
+/* Keep viewport gutter stable during fast shell view transitions (rent-roll -> bill editor). */
+body {
+  scrollbar-gutter: stable;
+  overflow-x: hidden;
+}
+
+body.rent-roll-create-transition-lock {
+  overflow: hidden !important;
 }
 
 /* Shell tab groups (mat-tab-group.shell-tabs): defer scroll to page; lock tab body width. */
@@ -1312,7 +1323,7 @@ mat-form-field.company-dropdown {
   flex-direction: column;
   align-items: center;
   height: fit-content;
-  margin-bottom:50px;
+  margin-bottom: 0;
 
   @media screen and (max-width: 959px) {
     height: unset;
@@ -1469,7 +1480,7 @@ mat-spinner {
 }
 
 mat-tab-header {
-  margin-bottom: 20px;
+  margin-bottom: 0;
 }
 
 /* Shell tab groups: size tabs as if the strip always has --shell-tab-slot-count slots. */
