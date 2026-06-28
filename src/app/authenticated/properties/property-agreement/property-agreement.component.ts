@@ -271,6 +271,7 @@ export class PropertyAgreementComponent implements OnInit, OnChanges, OnDestroy 
       revenueSplitOffice: new FormControl<string>(''),
       workingCapitalBalance: new FormControl<string>(''),
       linenAndTowelFee: new FormControl<string>(''),
+      isMonthly: new FormControl<boolean>(false),
       hourlyLaborCost: new FormControl<string>(''),
       bankName: new FormControl(''),
       routingNumber: new FormControl(''),
@@ -299,6 +300,7 @@ export class PropertyAgreementComponent implements OnInit, OnChanges, OnDestroy 
       revenueSplitOffice: '0%',
       workingCapitalBalance: '$0.00',
       linenAndTowelFee: '$0.00',
+      isMonthly: false,
       hourlyLaborCost: '$0.00',
       bankName: '',
       routingNumber: '',
@@ -326,6 +328,7 @@ export class PropertyAgreementComponent implements OnInit, OnChanges, OnDestroy 
       revenueSplitOffice: this.formatAgreementPercentForDisplay(data.revenueSplitOffice),
       workingCapitalBalance: this.formatAgreementDecimalForDisplay(data.workingCapitalBalance),
       linenAndTowelFee: this.formatAgreementDecimalForDisplay(data.linenAndTowelFee),
+      isMonthly: !!data.isMonthly,
       hourlyLaborCost: this.formatAgreementDecimalForDisplay(data.hourlyLaborCost),
       bankName: data.bankName ?? '',
       routingNumber: data.routingNumber ?? '',
@@ -337,6 +340,7 @@ export class PropertyAgreementComponent implements OnInit, OnChanges, OnDestroy 
     }, { emitEvent: false });
     this.agreementOfficeId = data.officeId ?? this.officeId ?? null;
     this.syncManagementAgreementFieldState();
+    this.applyOfficeDefaultsWhenAgreementAmountsZero();
     this.populateAgreementW9(data);
     this.populateAgreementInsurance(data);
     this.populateAgreementDoc(data);
@@ -441,6 +445,7 @@ export class PropertyAgreementComponent implements OnInit, OnChanges, OnDestroy 
       finalize(() => {this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'offices');})).subscribe(() => {
       this.officeService.getAllOffices().pipe(takeUntil(this.destroy$)).subscribe(offices => {
         this.offices = offices || [];
+        this.applyOfficeDefaultsWhenAgreementAmountsZero();
       });
     });
   }
@@ -633,6 +638,39 @@ export class PropertyAgreementComponent implements OnInit, OnChanges, OnDestroy 
     return patch;
   }
 
+  applyOfficeDefaultsWhenAgreementAmountsZero(): void {
+    if (!this.agreementForm || !this.agreementExists) {
+      return;
+    }
+
+    const office = this.getAgreementOffice();
+    if (!office) {
+      return;
+    }
+
+    const values = this.agreementForm.getRawValue();
+    const patch: Record<string, string | number | null> = {};
+
+    const markupValue = this.formatterService.parsePercentageValue(values?.markup, 0);
+    if (markupValue === 0 && office.defaultMarkup != null) {
+      patch['markup'] = this.formatterService.formatPercentageValue(office.defaultMarkup, 0);
+    }
+
+    const workingCapitalValue = this.parseAgreementDecimalFromForm(values?.workingCapitalBalance) ?? 0;
+    if (workingCapitalValue === 0 && office.defaultWorkingCapitalBalance != null) {
+      patch['workingCapitalBalance'] = this.formatAgreementDecimalForDisplay(office.defaultWorkingCapitalBalance);
+    }
+
+    const hourlyLaborValue = this.parseAgreementDecimalFromForm(values?.hourlyLaborCost) ?? 0;
+    if (hourlyLaborValue === 0 && office.defaultHourlyLaborCost != null) {
+      patch['hourlyLaborCost'] = this.formatAgreementDecimalForDisplay(office.defaultHourlyLaborCost);
+    }
+
+    if (Object.keys(patch).length > 0) {
+      this.agreementForm.patchValue(patch, { emitEvent: false });
+    }
+  }
+
   resolveLinenTowelFeeFromOffice(office: OfficeResponse, bedrooms: number | null | undefined): number | null {
     if (!this.isFurnished) {
       return 0;
@@ -684,6 +722,7 @@ export class PropertyAgreementComponent implements OnInit, OnChanges, OnDestroy 
           : null,
       workingCapitalBalance: this.parseAgreementDecimalFromForm(v?.workingCapitalBalance),
       linenAndTowelFee: this.parseAgreementDecimalFromForm(v?.linenAndTowelFee),
+      isMonthly: !!v?.isMonthly,
       hourlyLaborCost: this.parseAgreementDecimalFromForm(v?.hourlyLaborCost),
       bankName: (v?.bankName || '').trim() || null,
       routingNumber: (v?.routingNumber || '').trim() || null,

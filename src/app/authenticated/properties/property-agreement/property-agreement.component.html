@@ -178,13 +178,16 @@
           <input matInput type="text" formControlName="workingCapitalBalance" (focus)="selectAllOnFocus($event)" (keypress)="allowAgreementNumericOnly($event, true)" (blur)="formatAgreementDecimalBlur('workingCapitalBalance')" />
         </mat-form-field>
         <mat-form-field appearance="outline" class="min-w-0 property-agreement-number-field">
-          <mat-label>Linen and Towel Fee</mat-label>
-          <input matInput type="text" formControlName="linenAndTowelFee" (focus)="selectAllOnFocus($event)" (keypress)="allowAgreementNumericOnly($event, true)" (blur)="formatAgreementDecimalBlur('linenAndTowelFee')" />
-        </mat-form-field>
-        <mat-form-field appearance="outline" class="min-w-0 property-agreement-number-field">
           <mat-label>Hourly Labor Cost</mat-label>
           <input matInput type="text" formControlName="hourlyLaborCost" (focus)="selectAllOnFocus($event)" (keypress)="allowAgreementNumericOnly($event, true)" (blur)="formatAgreementDecimalBlur('hourlyLaborCost')" />
         </mat-form-field>
+        <div class="min-w-0 flex items-center gap-2 pr-[2ch]">
+          <mat-form-field appearance="outline" class="min-w-0 flex-1 property-agreement-number-field">
+            <mat-label>Linen and Towel Fee</mat-label>
+            <input matInput type="text" formControlName="linenAndTowelFee" (focus)="selectAllOnFocus($event)" (keypress)="allowAgreementNumericOnly($event, true)" (blur)="formatAgreementDecimalBlur('linenAndTowelFee')" />
+          </mat-form-field>
+          <mat-checkbox formControlName="isMonthly" class="shrink-0">Monthly</mat-checkbox>
+        </div>
       </div>
     }
     @if (isPropertyManagementLease) {
