@@ -251,6 +251,9 @@ export class UserComponent implements OnInit, OnDestroy {
     const startupPageIdValue = formValue.startupPageId !== undefined && formValue.startupPageId !== null
       ? (typeof formValue.startupPageId === 'number' ? formValue.startupPageId : parseInt(String(formValue.startupPageId), 10))
       : 0;
+    const defaultPageSizeValue = formValue.defaultPageSize !== undefined && formValue.defaultPageSize !== null
+      ? Math.max(1, Math.trunc(Number(formValue.defaultPageSize)))
+      : 10;
     const defaultOfficeIdValue = formValue.defaultOffice !== undefined && formValue.defaultOffice !== null && String(formValue.defaultOffice).trim() !== ''
       ? (typeof formValue.defaultOffice === 'number' ? formValue.defaultOffice : parseInt(String(formValue.defaultOffice), 10))
       : null;
@@ -271,6 +274,7 @@ export class UserComponent implements OnInit, OnDestroy {
       fileDetails: (this.hasNewFileUpload || (this.fileDetails && this.fileDetails.file)) ? this.fileDetails : undefined,
       profilePath: (this.hasNewFileUpload || (this.fileDetails && this.fileDetails.file)) ? undefined : this.profilePath,
       startupPageId: startupPageIdValue,
+      defaultPageSize: defaultPageSizeValue,
       defaultOfficeId: defaultOfficeIdValue,
       agentId: formValue.agentId || null,
       commissionRate: commissionRateValue !== null && !isNaN(commissionRateValue) ? commissionRateValue : null,
@@ -287,6 +291,7 @@ export class UserComponent implements OnInit, OnDestroy {
       userRequest.userGroups = this.user.userGroups || [];
       userRequest.officeAccess = this.user.officeAccess || [];
       userRequest.properties = this.user.properties || [];
+      userRequest.defaultPageSize = this.user.defaultPageSize ?? userRequest.defaultPageSize;
       userRequest.defaultOfficeId = this.user.defaultOfficeId ?? userRequest.defaultOfficeId;
       userRequest.agentId = this.user.agentId || null;
       userRequest.commissionRate = this.user.commissionRate ?? null;
@@ -331,6 +336,7 @@ export class UserComponent implements OnInit, OnDestroy {
         JSON.stringify(userRequest.userGroups) !== JSON.stringify(this.user.userGroups) ||
         JSON.stringify(userRequest.officeAccess) !== JSON.stringify(this.user.officeAccess) ||
         JSON.stringify(userRequest.properties) !== JSON.stringify(this.user.properties || []) ||
+        userRequest.defaultPageSize !== (this.user.defaultPageSize ?? 10) ||
         userRequest.defaultOfficeId !== (this.user.defaultOfficeId ?? null) ||
         userRequest.isActive !== this.user.isActive ||
         userRequest.organizationId !== this.user.organizationId ||
@@ -361,6 +367,7 @@ export class UserComponent implements OnInit, OnDestroy {
         // Execute all requests
         forkJoin(requests).pipe(take(1),finalize(() => this.isSubmitting = false)).subscribe({
           next: () => {
+            this.syncCurrentUserPagePreferences(undefined, userRequest);
             const messages = [];
             // Only show password updated message if toggle was enabled and request was made
             if (changePassword === true && passwordChangeRequest) messages.push('Password updated');
@@ -375,6 +382,7 @@ export class UserComponent implements OnInit, OnDestroy {
         // For admin, we save regardless to ensure profile picture and other changes are saved
         this.userService.updateUser(userRequest).pipe(take(1), finalize(() => this.isSubmitting = false)).subscribe({
           next: (response: UserResponse) => {
+            this.syncCurrentUserPagePreferences(response, userRequest);
             this.toastr.success('User updated successfully', CommonMessage.Success, { timeOut: CommonTimeouts.Success });
             this.handleCloseAfterSave(response.userId || this.userId);
           },
@@ -382,6 +390,32 @@ export class UserComponent implements OnInit, OnDestroy {
         });
       }
     }
+  }
+
+  private syncCurrentUserPagePreferences(response: UserResponse | null | undefined, userRequest: UserRequest): void {
+    const currentUser = this.authService.getUser();
+    const currentUserId = (currentUser?.userId || '').trim().toLowerCase();
+    const targetUserId = (response?.userId || this.userId || '').trim().toLowerCase();
+    if (!currentUserId || !targetUserId || currentUserId !== targetUserId) {
+      return;
+    }
+
+    const startupPageId = response?.startupPageId ?? userRequest.startupPageId ?? currentUser.startupPageId;
+    const defaultPageSize = response?.defaultPageSize ?? userRequest.defaultPageSize ?? currentUser.defaultPageSize;
+    const defaultOfficeId = response?.defaultOfficeId ?? userRequest.defaultOfficeId ?? currentUser.defaultOfficeId;
+
+    this.authService.updateCurrentUserProfile({
+      startupPage: startupPageId,
+      startupPageId,
+      defaultPageSize,
+      defaultOfficeId
+    });
+
+    // Force-refresh auth payload so updated user preferences apply immediately across all views.
+    this.authService.refresh().pipe(take(1)).subscribe({
+      next: () => {},
+      error: () => {}
+    });
   }
   //#endregion
 
@@ -497,6 +531,7 @@ export class UserComponent implements OnInit, OnDestroy {
       changePassword: new FormControl(this.isAddMode ? true : false), // Toggle to enable/require password fields - default to true in add mode
       fileUpload: new FormControl(null, { validators: [], asyncValidators: [fileValidator(['png', 'jpg', 'jpeg', 'jfif', 'gif', 'svg', 'heic', 'heif', 'pdf'], ['image/png', 'image/jpeg', 'image/gif', 'image/svg+xml', 'image/heic', 'image/heif', 'application/pdf'], 2000000, true)] }),
       startupPageId: new FormControl(0, [Validators.required]),
+      defaultPageSize: new FormControl(10, [Validators.required, Validators.min(1)]),
       agentId: new FormControl(null),
       commissionRate: new FormControl('0.00'),
       isActive: new FormControl(true)
@@ -729,6 +764,7 @@ export class UserComponent implements OnInit, OnDestroy {
         password: '', // Don't populate password in edit mode
         confirmPassword: '', // Don't populate confirm password in edit mode
         startupPageId: this.user.startupPageId ?? 0,
+        defaultPageSize: this.user.defaultPageSize ?? 10,
         properties: this.user.properties || [],
         defaultOffice: this.user.defaultOfficeId ?? null,
         agentId: this.user.agentId ?? null,

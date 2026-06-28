@@ -1517,6 +1517,7 @@ export class ContactComponent implements OnInit, OnChanges, OnDestroy {
       officeAccess: officeAccess.length > 0 ? officeAccess : (officeId != null ? [officeId] : []),
       properties: contactRequest.properties || [],
       startupPageId: 0,
+      defaultPageSize: 10,
       defaultOfficeId: officeId,
       contactId: savedContact.contactId,
       isActive: typeof savedContact.isActive === 'number' ? savedContact.isActive === 1 : !!savedContact.isActive
@@ -1547,6 +1548,7 @@ export class ContactComponent implements OnInit, OnChanges, OnDestroy {
       officeAccess: officeAccess.length > 0 ? officeAccess : (officeId != null ? [officeId] : []),
       properties: [],
       startupPageId: 0,
+      defaultPageSize: 10,
       defaultOfficeId: officeId,
       contactId: savedContact.contactId,
       isActive: !!savedContact?.isActive

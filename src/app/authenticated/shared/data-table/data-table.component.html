@@ -591,13 +591,16 @@
           </table>
         </div>
 
-        <mat-paginator
-          [ngClass]="{'datatable-hidden' : data.length < itemsPerPage}"
-          [pageSizeOptions]="pageSizeOptions"
-          [pageSize]="itemsPerPage"
-          showFirstLastButtons
-          aria-label="Select page"
-          (page)="hasButtonSelectAll ? onPageChange() : null">
-        </mat-paginator>
+        <div class="datatable-paginator-wrap" [ngClass]="{'datatable-hidden' : data.length < effectiveItemsPerPage}">
+          <mat-paginator
+            class="datatable-paginator"
+            [length]="(dataSource.filteredData?.length ?? dataSource.data?.length ?? 0)"
+            [pageSizeOptions]="effectivePageSizeOptions"
+            [pageSize]="effectiveItemsPerPage"
+            showFirstLastButtons
+            aria-label="Select page"
+            (page)="hasButtonSelectAll ? onPageChange() : null">
+          </mat-paginator>
+        </div>
   }
   </div>

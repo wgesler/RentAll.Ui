@@ -121,6 +121,27 @@ export class AuthService {
         return this.jwtContainer$.value?.user;
     }
 
+    updateCurrentUserProfile(patch: Partial<JwtUser>): void {
+        const currentContainer = this.jwtContainer$.value;
+        if (!currentContainer?.user) {
+            return;
+        }
+
+        const nextUser = {
+            ...currentContainer.user,
+            ...patch
+        } as JwtUser;
+
+        if (nextUser.startupPage !== undefined) {
+            nextUser.startupPageId = nextUser.startupPage;
+        } else if (nextUser.startupPageId !== undefined) {
+            nextUser.startupPage = nextUser.startupPageId;
+        }
+
+        const nextContainer = new JwtContainer(currentContainer.sub, currentContainer.exp, nextUser);
+        this.jwtContainer$.next(nextContainer);
+    }
+
     /** Whether `groups` (default: signed-in user) includes the given role (string or numeric token from JWT). */
     hasRole(role: UserGroups, groups?: Array<string | number> | undefined): boolean {
         const userGroups = groups ?? this.getUser()?.userGroups;

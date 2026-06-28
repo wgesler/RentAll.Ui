@@ -232,6 +232,8 @@ export class DataTableComponent implements OnChanges, OnInit, AfterViewInit, OnD
   isDataLoaded: boolean = false;
   filterVal: string = null;
   filterSticky = false;
+  effectiveItemsPerPage: number = 10;
+  effectivePageSizeOptions: number[] = [10, 20, 50, 100];
 
   tableColumns: ColumnData[] = [];
   private readonly stickyFilterStorageKeyPrefix = 'rentall-datatable-sticky';
@@ -361,6 +363,12 @@ export class DataTableComponent implements OnChanges, OnInit, AfterViewInit, OnD
   }
 
   ngOnInit(): void {
+    this.authService.jwtChanged$.pipe(takeUntil(this.destroy$)).subscribe(() => {
+      this.updatePageSizeState();
+      this.markViewForCheck();
+    });
+
+    this.updatePageSizeState();
     window.addEventListener(this.clearPinsEventName, this.onClearPins);
     // Use a filterPredicate to make sure the table only filters on visible columns
     this.dataSource.filterPredicate = (item: TableItem, filter: string): boolean =>
@@ -432,6 +440,10 @@ export class DataTableComponent implements OnChanges, OnInit, AfterViewInit, OnD
   }
 
   ngOnChanges(changes: SimpleChanges): void {
+    if (changes['itemsPerPage'] || changes['pageSizeOptions']) {
+      this.updatePageSizeState();
+    }
+
     let updateActions, updateTools, updateColumns, updateData, updateFilter;
     for (const key in changes) {
       if (!updateColumns && (key === 'columns' || key.startsWith('hasColumn') || key === 'hasActionsSelect' || key === 'hasButtonSelectAll')) {
@@ -1574,6 +1586,27 @@ export class DataTableComponent implements OnChanges, OnInit, AfterViewInit, OnD
       const newState = !this.isAllExpanded;
       this.isAllExpanded = newState;
       this.expandAllCallback(newState);
+    }
+  }
+
+  private updatePageSizeState(): void {
+    const userDefaultRaw = Number(this.authService.getUser()?.defaultPageSize);
+    const userDefaultPageSize = Number.isFinite(userDefaultRaw) && userDefaultRaw > 0
+      ? Math.trunc(userDefaultRaw)
+      : 10;
+
+    this.effectiveItemsPerPage = userDefaultPageSize;
+
+    const sanitizedOptions = (this.pageSizeOptions || [])
+      .map(option => Number(option))
+      .filter(option => Number.isFinite(option) && option > 0)
+      .map(option => Math.trunc(option));
+
+    const mergedOptions = [...sanitizedOptions, this.effectiveItemsPerPage];
+    this.effectivePageSizeOptions = Array.from(new Set(mergedOptions)).sort((a, b) => a - b);
+
+    if (this.paginator) {
+      this.paginator.pageSize = this.effectiveItemsPerPage;
     }
   }
 }

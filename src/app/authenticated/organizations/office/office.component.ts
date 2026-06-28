@@ -1200,6 +1200,7 @@ export class OfficeComponent implements OnInit, OnDestroy, OnChanges, AfterViewI
           officeAccess: updatedOfficeAccess,
           properties: userResponse.properties || [],
           startupPageId: userResponse.startupPageId ?? 0,
+          defaultPageSize: userResponse.defaultPageSize ?? 10,
           defaultOfficeId: nextDefaultOfficeId,
           agentId: userResponse.agentId ?? null,
           commissionRate: userResponse.commissionRate ?? null,

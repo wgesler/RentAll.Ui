@@ -43,6 +43,10 @@ export class JwtContainer {
         const startupPage = startupPageRaw !== undefined && startupPageRaw !== null
             ? (typeof startupPageRaw === 'number' ? startupPageRaw : parseInt(String(startupPageRaw), 10))
             : 0;
+        const defaultPageSizeRaw = user.defaultPageSize;
+        const defaultPageSize = defaultPageSizeRaw !== undefined && defaultPageSizeRaw !== null
+            ? (typeof defaultPageSizeRaw === 'number' ? defaultPageSizeRaw : parseInt(String(defaultPageSizeRaw), 10))
+            : 10;
         const defaultOfficeIdRaw = user.defaultOfficeId ?? user.defaultOffice;
         const defaultOfficeId = defaultOfficeIdRaw !== undefined && defaultOfficeIdRaw !== null
             ? (typeof defaultOfficeIdRaw === 'number' ? defaultOfficeIdRaw : parseInt(String(defaultOfficeIdRaw), 10))
@@ -74,6 +78,7 @@ export class JwtContainer {
             userGroups,
             officeAccess,
             startupPage,
+            defaultPageSize,
             defaultOfficeId,
             agentId,
             properties,
@@ -94,6 +99,7 @@ export class JwtUser {
     officeAccess: number[];
     startupPage: number;
     startupPageId: number;
+    defaultPageSize: number;
     defaultOfficeId: number | null;
     agentId: string | null;
     properties: string[];
@@ -111,6 +117,7 @@ export class JwtUser {
         userGroups: string[],
         officeAccess: number[],
         startupPage: number,
+        defaultPageSize: number = 10,
         defaultOfficeId: number | null = null,
         agentId: string | null = null,
         properties: string[] = [],
@@ -129,6 +136,7 @@ export class JwtUser {
         this.startupPage = startupPage;
         // Keep startupPageId for backward compatibility in existing UI code paths.
         this.startupPageId = startupPage;
+        this.defaultPageSize = defaultPageSize;
         this.defaultOfficeId = defaultOfficeId;
         this.agentId = agentId;
         this.properties = properties;

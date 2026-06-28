@@ -14,6 +14,7 @@ export interface UserRequest {
   profilePath?: string;
   fileDetails?: FileDetails;
   startupPageId: number;
+  defaultPageSize: number;
   defaultOfficeId: number | null;
   agentId?: string | null;
   commissionRate?: number | null;
@@ -36,6 +37,7 @@ export interface UserResponse {
   profilePath?: string;
   fileDetails?: FileDetails;
   startupPageId: number;
+  defaultPageSize: number;
   defaultOfficeId: number | null;
   agentId?: string | null;
   commissionRate?: number | null;

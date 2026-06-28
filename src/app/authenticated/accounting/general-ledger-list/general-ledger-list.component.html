@@ -64,7 +64,7 @@
           [hasButtonSelectAll]="showDepositTableSelections || showPrintCheckTableSelections"
           [hasContactNameLink]="false"
           [hasActionsRowClick]="!showDepositForm"
-          [itemsPerPage]="100"
+          [itemsPerPage]="10"
           (rowClickEvent)="onLineSelect($event)"
           (selectionSet)="onTableLineSelectionSet($event)">
           @if (undepositedFundsOnly) {
