@@ -417,7 +417,11 @@ export class WorkOrderListComponent implements OnInit, OnChanges, OnDestroy {
       activeScoped = activeScoped.filter(workOrder => Number(workOrder.workOrderTypeId) === scopedWorkOrderTypeId);
     }
 
-    const selectedReservationId = (this.reservationId || '').trim();
+    // Reservation filtering is only valid when the shell is scoped to a specific property.
+    // When "All Properties" is selected, a stale reservation value can otherwise hide rows.
+    const selectedReservationId = this.property
+      ? (this.reservationId || '').trim()
+      : '';
     this.workOrdersDisplay = !selectedReservationId
       ? activeScoped
       : activeScoped.filter(workOrder => (workOrder.reservationId || '').trim() === selectedReservationId);
