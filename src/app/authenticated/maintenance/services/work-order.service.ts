@@ -33,8 +33,6 @@ export class WorkOrderService {
       officeIds,
       propertyId: request.propertyId || null,
       isActive: request.isActive ?? null,
-      includeInactive: !!request.includeInactive,
-      inactiveOnly: !!request.inactiveOnly,
       startDate: request.startDate ?? null,
       endDate: request.endDate ?? null
     });

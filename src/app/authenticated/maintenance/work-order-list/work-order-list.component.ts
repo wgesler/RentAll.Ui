@@ -487,9 +487,7 @@ export class WorkOrderListComponent implements OnInit, OnChanges, OnDestroy {
     return {
       ...request,
       officeIds: this.resolveMaintenanceSearchOfficeIds(request),
-      isActive: !this.showInactive,
-      includeInactive: this.showInactive,
-      inactiveOnly: this.showInactive,
+      isActive: this.showInactive ? false : true,
       propertyId: request.propertyId ?? this.property?.propertyId ?? null
     };
   }
@@ -501,9 +499,7 @@ export class WorkOrderListComponent implements OnInit, OnChanges, OnDestroy {
       propertyId: request.propertyId ?? null,
       startDate: request.startDate ?? null,
       endDate: request.endDate ?? null,
-      isActive: request.isActive ?? null,
-      includeInactive: request.includeInactive ?? false,
-      inactiveOnly: request.inactiveOnly ?? false
+      isActive: request.isActive ?? null
     });
   }
     
