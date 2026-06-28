@@ -67,13 +67,16 @@ export class AccountingOfficeComponent implements OnInit, OnDestroy, OnChanges {
 
   costCodeOptions: { value: number; label: string }[] = [];
   chartOfAccountOptions: SearchableSelectOption<number>[] = [];
-  defaultTenantOwnerCompanyAccountFields: { controlName: string; label: string }[] = [
+  defaultTenantOwnerCompanyAccountFieldsRow1: { controlName: string; label: string }[] = [
     { controlName: 'defaultTenantIncAccountId', label: 'Tenant Income' },
     { controlName: 'defaultTenantExpAccountId', label: 'Tenant Expense' },
-    { controlName: 'defaultPmUtilityIncAccountId', label: 'PM Utility Income' },
     { controlName: 'defaultOwnerIncAccountId', label: 'Owner Income' },
-    { controlName: 'defaultOwnerExpAccountId', label: 'Owner Expense' },
-    { controlName: 'defaultCompanyExpAccountId', label: 'Company Expense' }
+    { controlName: 'defaultOwnerExpAccountId', label: 'Owner Expense' }
+  ];
+  defaultTenantOwnerCompanyAccountFieldsRow2: { controlName: string; label: string }[] = [
+    { controlName: 'defaultCompanyExpAccountId', label: 'Company Expense' },
+    { controlName: 'defaultPmUtilityIncAccountId', label: 'PM Utility Income' },
+    { controlName: 'defaultLaborIncAccountId', label: 'Labor Income' }
   ];
   defaultDepartureAccountFields: { controlName: string; label: string }[] = [
     { controlName: 'defaultDepartureIncAccountId', label: 'Departure Income' },
@@ -289,12 +292,13 @@ export class AccountingOfficeComponent implements OnInit, OnDestroy, OnChanges {
       defaultActPayableAccountId: this.parseOptionalAccountId(formValue.defaultActPayableAccountId),
       defaultOwnActPayableAccountId: this.parseOptionalAccountId(formValue.defaultOwnActPayableAccountId),
       defaultPrePayAccountId: this.parseOptionalAccountId(formValue.defaultPrePayAccountId),
-      defaultTenantExpAccountId: this.parseOptionalAccountId(formValue.defaultTenantExpAccountId),
       defaultTenantIncAccountId: this.parseOptionalAccountId(formValue.defaultTenantIncAccountId),
-      defaultPmUtilityIncAccountId: this.parseOptionalAccountId(formValue.defaultPmUtilityIncAccountId),
-      defaultOwnerExpAccountId: this.parseOptionalAccountId(formValue.defaultOwnerExpAccountId),
+      defaultTenantExpAccountId: this.parseOptionalAccountId(formValue.defaultTenantExpAccountId),
       defaultOwnerIncAccountId: this.parseOptionalAccountId(formValue.defaultOwnerIncAccountId),
+      defaultOwnerExpAccountId: this.parseOptionalAccountId(formValue.defaultOwnerExpAccountId),
       defaultCompanyExpAccountId: this.parseOptionalAccountId(formValue.defaultCompanyExpAccountId),
+      defaultPmUtilityIncAccountId: this.parseOptionalAccountId(formValue.defaultPmUtilityIncAccountId),
+      defaultLaborIncAccountId: this.parseOptionalAccountId(formValue.defaultLaborIncAccountId),
       defaultDepartureIncAccountId: this.parseOptionalAccountId(formValue.defaultDepartureIncAccountId),
       defaultDepartureExpAccountId: this.parseOptionalAccountId(formValue.defaultDepartureExpAccountId),
       email: formValue.email || '',
@@ -389,12 +393,13 @@ export class AccountingOfficeComponent implements OnInit, OnDestroy, OnChanges {
       defaultActPayableAccountId: new FormControl<number | null>(null),
       defaultOwnActPayableAccountId: new FormControl<number | null>(null),
       defaultPrePayAccountId: new FormControl<number | null>(null),
-      defaultTenantExpAccountId: new FormControl<number | null>(null),
       defaultTenantIncAccountId: new FormControl<number | null>(null),
-      defaultPmUtilityIncAccountId: new FormControl<number | null>(null),
-      defaultOwnerExpAccountId: new FormControl<number | null>(null),
+      defaultTenantExpAccountId: new FormControl<number | null>(null),
       defaultOwnerIncAccountId: new FormControl<number | null>(null),
+      defaultOwnerExpAccountId: new FormControl<number | null>(null),
       defaultCompanyExpAccountId: new FormControl<number | null>(null),
+      defaultPmUtilityIncAccountId: new FormControl<number | null>(null),
+      defaultLaborIncAccountId: new FormControl<number | null>(null),
       defaultDepartureIncAccountId: new FormControl<number | null>(null),
       defaultDepartureExpAccountId: new FormControl<number | null>(null),
       fileUpload: new FormControl('', { validators: [], asyncValidators: [fileValidator(['png', 'jpg', 'jpeg', 'jfif', 'gif', 'svg', 'heic', 'heif', 'pdf'], ['image/png', 'image/jpeg', 'image/gif', 'image/svg+xml', 'image/heic', 'image/heif', 'application/pdf'], 2000000, true)] }),
@@ -431,12 +436,13 @@ export class AccountingOfficeComponent implements OnInit, OnDestroy, OnChanges {
         defaultActPayableAccountId: this.accountingOffice.defaultActPayableAccountId ?? null,
         defaultOwnActPayableAccountId: this.accountingOffice.defaultOwnActPayableAccountId ?? null,
         defaultPrePayAccountId: this.accountingOffice.defaultPrePayAccountId ?? null,
-        defaultTenantExpAccountId: this.accountingOffice.defaultTenantExpAccountId ?? null,
         defaultTenantIncAccountId: this.accountingOffice.defaultTenantIncAccountId ?? null,
-        defaultPmUtilityIncAccountId: this.accountingOffice.defaultPmUtilityIncAccountId ?? null,
-        defaultOwnerExpAccountId: this.accountingOffice.defaultOwnerExpAccountId ?? null,
+        defaultTenantExpAccountId: this.accountingOffice.defaultTenantExpAccountId ?? null,
         defaultOwnerIncAccountId: this.accountingOffice.defaultOwnerIncAccountId ?? null,
+        defaultOwnerExpAccountId: this.accountingOffice.defaultOwnerExpAccountId ?? null,
         defaultCompanyExpAccountId: this.accountingOffice.defaultCompanyExpAccountId ?? null,
+        defaultPmUtilityIncAccountId: this.accountingOffice.defaultPmUtilityIncAccountId ?? null,
+        defaultLaborIncAccountId: this.accountingOffice.defaultLaborIncAccountId ?? null,
         defaultDepartureIncAccountId: this.accountingOffice.defaultDepartureIncAccountId ?? null,
         defaultDepartureExpAccountId: this.accountingOffice.defaultDepartureExpAccountId ?? null,
         isActive: this.accountingOffice.isActive
@@ -474,12 +480,13 @@ export class AccountingOfficeComponent implements OnInit, OnDestroy, OnChanges {
       defaultActPayableAccountId: o.defaultActPayableAccountId ?? null,
       defaultOwnActPayableAccountId: o.defaultOwnActPayableAccountId ?? null,
       defaultPrePayAccountId: o.defaultPrePayAccountId ?? null,
-      defaultTenantExpAccountId: o.defaultTenantExpAccountId ?? null,
       defaultTenantIncAccountId: o.defaultTenantIncAccountId ?? null,
-      defaultPmUtilityIncAccountId: o.defaultPmUtilityIncAccountId ?? null,
-      defaultOwnerExpAccountId: o.defaultOwnerExpAccountId ?? null,
+      defaultTenantExpAccountId: o.defaultTenantExpAccountId ?? null,
       defaultOwnerIncAccountId: o.defaultOwnerIncAccountId ?? null,
+      defaultOwnerExpAccountId: o.defaultOwnerExpAccountId ?? null,
       defaultCompanyExpAccountId: o.defaultCompanyExpAccountId ?? null,
+      defaultPmUtilityIncAccountId: o.defaultPmUtilityIncAccountId ?? null,
+      defaultLaborIncAccountId: o.defaultLaborIncAccountId ?? null,
       defaultDepartureIncAccountId: o.defaultDepartureIncAccountId ?? null,
       defaultDepartureExpAccountId: o.defaultDepartureExpAccountId ?? null,
       isActive: o.isActive
