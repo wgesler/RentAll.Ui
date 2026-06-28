@@ -169,17 +169,6 @@ export class WorkOrderListComponent implements OnInit, OnChanges, OnDestroy {
       ? this.workOrderService.searchWorkOrders(this.buildMaintenanceSearchRequest())
       : this.workOrderService.getWorkOrders(this.property?.propertyId ?? null, this.officeId ?? null);
 
-    if (this.embeddedInMaintenance) {
-      const request = this.buildMaintenanceSearchRequest();
-      console.log('[WorkOrderDebug] Search request', {
-        force,
-        officeId: this.officeId ?? null,
-        propertyIdInput: this.property?.propertyId ?? null,
-        reservationId: this.reservationId ?? null,
-        request
-      });
-    }
-
     load$.pipe(take(1), finalize(() => {
       if (this.workOrdersLoadId === loadId) {
         this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'workOrders');
@@ -198,11 +187,9 @@ export class WorkOrderListComponent implements OnInit, OnChanges, OnDestroy {
         }
         this.workOrders = workOrders || [];
         this.allWorkOrders = this.mappingService.mapWorkOrderDisplays(this.workOrders);
-        console.log('[WorkOrderDebug] API result received', {
-          apiCount: this.workOrders.length,
-          reservationId: this.reservationId ?? null,
-          selectedPropertyId: this.property?.propertyId ?? null,
-          selectedOfficeId: this.officeId ?? null
+        console.log('[WorkOrderDebug] API returned records', {
+          count: this.workOrders.length,
+          records: this.workOrders
         });
         this.applyFilters();
         this.markViewForCheck();
@@ -425,15 +412,14 @@ export class WorkOrderListComponent implements OnInit, OnChanges, OnDestroy {
   }
 
   applyFilters(): void {
-    const initialCount = this.allWorkOrders.length;
-    let activeScoped = this.showInactive
+    const activeScoped = this.showInactive
       ? this.allWorkOrders.filter(workOrder => workOrder.isActive === false)
       : this.allWorkOrders.filter(workOrder => workOrder.isActive !== false);
 
-    const scopedWorkOrderTypeId = Number(this.workOrderTypeId);
-    if (Number.isFinite(scopedWorkOrderTypeId)) {
-      activeScoped = activeScoped.filter(workOrder => Number(workOrder.workOrderTypeId) === scopedWorkOrderTypeId);
-    }
+    const shouldApplyWorkOrderTypeFilter = this.workOrderTypeId !== null && this.workOrderTypeId !== undefined;
+    const typeFiltered = shouldApplyWorkOrderTypeFilter
+      ? activeScoped.filter(workOrder => Number(workOrder.workOrderTypeId) === Number(this.workOrderTypeId))
+      : activeScoped;
 
     // Reservation filtering is only valid when the shell is scoped to a specific property.
     // When "All Properties" is selected, a stale reservation value can otherwise hide rows.
@@ -441,17 +427,8 @@ export class WorkOrderListComponent implements OnInit, OnChanges, OnDestroy {
       ? (this.reservationId || '').trim()
       : '';
     this.workOrdersDisplay = !selectedReservationId
-      ? activeScoped
-      : activeScoped.filter(workOrder => (workOrder.reservationId || '').trim() === selectedReservationId);
-
-    console.log('[WorkOrderDebug] Display counts', {
-      initialCount,
-      afterActiveFilter: activeScoped.length,
-      finalDisplayCount: this.workOrdersDisplay.length,
-      showInactive: this.showInactive,
-      reservationIdApplied: selectedReservationId || null,
-      propertyScoped: !!this.property
-    });
+      ? typeFiltered
+      : typeFiltered.filter(workOrder => (workOrder.reservationId || '').trim() === selectedReservationId);
   }
   //#endregion
 
