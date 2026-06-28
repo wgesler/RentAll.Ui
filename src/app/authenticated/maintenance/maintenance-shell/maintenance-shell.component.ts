@@ -898,11 +898,13 @@ export class MaintenanceShellComponent implements OnInit, OnDestroy, CanComponen
 
   //#region Search scope
   setDefaultDateRange(): void {
-    const end = new Date();
-    end.setHours(0, 0, 0, 0);
+    const now = new Date();
+    const start = new Date(now.getFullYear(), 0, 1);
+    start.setHours(0, 0, 0, 0);
 
-    const start = new Date(end);
-    start.setDate(start.getDate() - 30);
+    // End of current month.
+    const end = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+    end.setHours(0, 0, 0, 0);
 
     this.endDate = end;
     this.startDate = start;

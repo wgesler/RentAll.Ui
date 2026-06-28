@@ -2011,8 +2011,7 @@ export class ReceiptComponent implements OnInit, OnChanges, OnDestroy {
   }
 
   isAccountingCompanySelected(): boolean {
-    return this.showAccountingCompanyPropertyOption
-      && this.getFormPropertyIds().includes(ACCOUNTING_COMPANY_PROPERTY_ID);
+    return this.getFormPropertyIds().includes(ACCOUNTING_COMPANY_PROPERTY_ID);
   }
 
   shouldDefaultToAccountingCompany(): boolean {
@@ -2036,23 +2035,9 @@ export class ReceiptComponent implements OnInit, OnChanges, OnDestroy {
   }
 
   normalizeAccountingCompanyPropertySelection(current: string[] | null | undefined, previous: string[]): void {
-    if (!this.showAccountingCompanyPropertyOption || !Array.isArray(current)) {
-      return;
-    }
-
-    const hasCompany = current.includes(ACCOUNTING_COMPANY_PROPERTY_ID);
-    const realIds = current
-      .filter(propertyId => propertyId !== ACCOUNTING_COMPANY_PROPERTY_ID)
-      .map(propertyId => (propertyId || '').toString().trim())
-      .filter(propertyId => propertyId.length > 0);
-
-    if (!hasCompany || realIds.length === 0) {
-      return;
-    }
-
-    const companyAdded = hasCompany && !previous.includes(ACCOUNTING_COMPANY_PROPERTY_ID);
-    const next = companyAdded ? [ACCOUNTING_COMPANY_PROPERTY_ID] : realIds;
-    this.form.patchValue({ propertyIds: next }, { emitEvent: false });
+    // Company should be a normal multi-select option in accounting. Do not force exclusive selection.
+    void current;
+    void previous;
   }
 
   toFormPropertyIds(propertyIds: string[] | null | undefined): string[] {
@@ -2080,9 +2065,7 @@ export class ReceiptComponent implements OnInit, OnChanges, OnDestroy {
   }
 
   getPayloadPropertyIds(): string[] {
-    if (this.isAccountingCompanySelected()) {
-      return [];
-    }
+    // API accepts only real property ids; Company is form-only and maps to "no property ids".
     return this.getSelectedPropertyIds();
   }
 
@@ -2163,6 +2146,12 @@ export class ReceiptComponent implements OnInit, OnChanges, OnDestroy {
       .filter(option => option.value.length > 0);
   }
 
+  getSplitNullPropertyOptionLabel(): string {
+    return (this.isAccountingShell || this.isAccountingCompanySelected())
+      ? 'Company'
+      : 'Select Property';
+  }
+
   getDefaultSplitPropertyId(): string | null {
     const selectedPropertyIds = this.getSelectedPropertyIds()
       .map(propertyId => (propertyId || '').trim())
@@ -2220,21 +2209,20 @@ export class ReceiptComponent implements OnInit, OnChanges, OnDestroy {
 
   getPropertyCodesDisplay(propertyIds: string[] | null | undefined): string {
     const ids = propertyIds || [];
-    if (this.showAccountingCompanyPropertyOption && ids.includes(ACCOUNTING_COMPANY_PROPERTY_ID)) {
-      const realIds = ids.filter(propertyId => propertyId !== ACCOUNTING_COMPANY_PROPERTY_ID && (propertyId || '').trim());
-      if (realIds.length === 0) {
-        return 'Company';
-      }
-    }
+    const hasCompany = ids.includes(ACCOUNTING_COMPANY_PROPERTY_ID);
     const codeLookup = new Map(
       (this.propertyOptions || []).map(property => [property.propertyId, (property.propertyCode || '').trim()])
     );
-    return ids
+    const realPropertyLabels = ids
       .filter(propertyId => propertyId !== ACCOUNTING_COMPANY_PROPERTY_ID)
       .map(propertyId => (propertyId || '').trim())
       .filter(propertyId => propertyId.length > 0)
       .map(propertyId => codeLookup.get(propertyId) || propertyId)
       .join(', ');
+    if (!hasCompany) {
+      return realPropertyLabels;
+    }
+    return realPropertyLabels ? `Company, ${realPropertyLabels}` : 'Company';
   }
   //#endregion 
 

@@ -232,7 +232,7 @@
                               </td>
                               <td class="split-col-property">
                                 <select formControlName="propertyId" class="split-editable-input">
-                                  <option [ngValue]="null">{{ isAccountingShell ? 'Company' : 'Select Property' }}</option>
+                                  <option [ngValue]="null">{{ getSplitNullPropertyOptionLabel() }}</option>
                                   @for (option of getSplitPropertyOptions(); track option.value) {
                                     <option [ngValue]="option.value">{{ option.label }}</option>
                                   }
@@ -351,6 +351,7 @@
                     [class.mat-mdc-form-field-invalid]="shouldShowControlError(form.get('propertyIds'))">
                     <mat-label>Properties</mat-label>
                     <mat-select formControlName="propertyIds" multiple [required]="isPropertySelectionRequired()">
+                      <mat-option [value]="accountingCompanyPropertyId">Company</mat-option>
                       @for (option of propertyOptions; track option.propertyId) {
                         <mat-option [value]="option.propertyId">
                           {{ option.propertyCode }}
@@ -485,7 +486,7 @@
                               </td>
                               <td class="split-col-property">
                                 <select formControlName="propertyId" class="split-editable-input">
-                                  <option [ngValue]="null">{{ isAccountingShell ? 'Company' : 'Select Property' }}</option>
+                                  <option [ngValue]="null">{{ getSplitNullPropertyOptionLabel() }}</option>
                                   @for (option of getSplitPropertyOptions(); track option.value) {
                                     <option [ngValue]="option.value">{{ option.label }}</option>
                                   }

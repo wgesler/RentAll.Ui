@@ -99,23 +99,23 @@ export class ReceiptsListComponent implements OnInit, OnChanges, OnDestroy {
   receiptSearchInFlightKey: string | null = null;
 
   readonly maintenanceReceiptDisplayedColumns: ColumnSet = {
-    receiptCode: { displayAs: 'Code', maxWidth: '15ch', sort: false, sortType: 'natural', wrap: false },
-    propertyCode: { displayAs: 'Property', wrap: false, maxWidth: '15ch' },
-    workOrderDisplay: { displayAs: 'Work Order', wrap: true, maxWidth: '15ch' },
-    receiptTypeDisplay: { displayAs: 'Type', wrap: true, maxWidth: '12ch', alignment: 'center', headerAlignment: 'center' },
+    receiptCode: { displayAs: 'Code', maxWidth: '15ch', sortType: 'natural', wrap: false },
     receipt: { displayAs: 'Receipt', wrap: false, sort: false, maxWidth: '12ch', alignment: 'center'  },
     receiptDate: { displayAs: 'Receipt Date', wrap: false, maxWidth: '22ch', alignment: 'center', editableType: 'date', suppressRowClick: true },
+    amountDisplay: { displayAs: 'Amount', wrap: false, maxWidth: '12ch', alignment: 'center'  },
     vendorDisplay: { displayAs: 'Vendor', wrap: false, maxWidth: '25ch', editableType: 'text', suppressRowClick: true, searchableDropdown: true, dropdownSearchPlaceholder: 'Type to filter vendors...' },
     bankCardDropdown: { displayAs: 'Bank Card', wrap: true, maxWidth: '25ch', suppressRowClick: true, searchableDropdown: true, dropdownSearchPlaceholder: 'Type to filter bank cards...' },
-    amountDisplay: { displayAs: 'Amount', wrap: false, maxWidth: '12ch', alignment: 'center'  },
+    propertyCode: { displayAs: 'Property', wrap: false, maxWidth: '15ch' },
+    workOrderDisplay: { displayAs: 'Work Order', wrap: true, maxWidth: '15ch' },
     descriptionDisplay: { displayAs: 'Description', wrap: true, maxWidth: '25ch' },
+    receiptTypeDisplay: { displayAs: 'Type', wrap: true, maxWidth: '12ch', alignment: 'center', headerAlignment: 'center' },
     createdBy: { displayAs: 'Created By', wrap: false, maxWidth: '20ch' },
     isUtility: { displayAs: 'IsUtility', isCheckbox: true, checkboxEditable: false, sort: false, wrap: false, alignment: 'center', maxWidth: '12ch' },
     isActive: { displayAs: 'IsActive', isCheckbox: true, checkboxEditable: false, sort: false, wrap: false, alignment: 'center', maxWidth: '10ch' }
   };
 
   readonly accountingReceiptDisplayedColumns: ColumnSet = {
-    receiptCode: { displayAs: 'Code', maxWidth: '15ch', sort: false, sortType: 'natural', wrap: false },
+    receiptCode: { displayAs: 'Code', maxWidth: '15ch', sortType: 'natural', wrap: false },
     propertyCode: { displayAs: 'Property', wrap: false, maxWidth: '15ch' },
     workOrderDisplay: { displayAs: 'Work Order', wrap: true, maxWidth: '15ch' },
     receiptTypeDisplay: { displayAs: 'Type', wrap: true, maxWidth: '12ch', alignment: 'center', headerAlignment: 'center' },
@@ -133,7 +133,7 @@ export class ReceiptsListComponent implements OnInit, OnChanges, OnDestroy {
   };
 
   readonly accountingNonBillReceiptDisplayedColumns: ColumnSet = {
-    receiptCode: { displayAs: 'Code', maxWidth: '15ch', sort: false, sortType: 'natural', wrap: false },
+    receiptCode: { displayAs: 'Code', maxWidth: '15ch', sortType: 'natural', wrap: false },
     propertyCode: { displayAs: 'Property', wrap: false, maxWidth: '15ch' },
     workOrderDisplay: { displayAs: 'Work Order', wrap: true, maxWidth: '15ch' },
     receiptTypeDisplay: { displayAs: 'Type', wrap: true, maxWidth: '12ch', alignment: 'center', headerAlignment: 'center' },
@@ -151,17 +151,28 @@ export class ReceiptsListComponent implements OnInit, OnChanges, OnDestroy {
   };
 
   get receiptDisplayedColumns(): ColumnSet {
+    const accountingNavAccess = this.authService.hasAccountingNavAccess();
+    const hideIsUtilityColumn = !accountingNavAccess;
+
+    const stripIsUtilityColumn = (columns: ColumnSet): ColumnSet => {
+      if (!hideIsUtilityColumn) {
+        return columns;
+      }
+      const { isUtility, ...columnsWithoutIsUtility } = columns;
+      return columnsWithoutIsUtility;
+    };
+
     if (!this.embeddedInAccounting) {
-      return this.maintenanceReceiptDisplayedColumns;
+      return stripIsUtilityColumn(this.maintenanceReceiptDisplayedColumns);
     }
     const accountingColumns = this.accountingListMode === 'receipts'
       ? this.accountingNonBillReceiptDisplayedColumns
       : this.accountingReceiptDisplayedColumns;
     if (!this.isManualApplyMode) {
       const { applyAmount, ...columnsWithoutApply } = accountingColumns;
-      return columnsWithoutApply;
+      return stripIsUtilityColumn(columnsWithoutApply);
     }
-    return accountingColumns;
+    return stripIsUtilityColumn(accountingColumns);
   }
 
   get showBillsTableSelections(): boolean {
@@ -494,7 +505,7 @@ export class ReceiptsListComponent implements OnInit, OnChanges, OnDestroy {
       return;
     }
     const changedCheckboxColumn = (event as { __changedCheckboxColumn?: string }).__changedCheckboxColumn;
-    if (changedCheckboxColumn !== 'isActive') {
+    if (changedCheckboxColumn !== 'isActive' && changedCheckboxColumn !== 'isUtility') {
       return;
     }
     const previousValue = (event as { __previousCheckboxValue?: boolean }).__previousCheckboxValue === true;
@@ -503,19 +514,27 @@ export class ReceiptsListComponent implements OnInit, OnChanges, OnDestroy {
       return;
     }
 
-    this.applyReceiptIsActiveValue(event.receiptId, nextValue);
+    this.applyReceiptCheckboxValue(event.receiptId, changedCheckboxColumn, nextValue);
 
     this.receiptService
       .getReceiptById(event.receiptId)
       .pipe(
         take(1),
         switchMap(receipt => {
-          if (receipt.isActive === nextValue) {
+          const currentValue = changedCheckboxColumn === 'isUtility'
+            ? receipt.isUtility === true
+            : receipt.isActive === true;
+          if (currentValue === nextValue) {
             this.syncReceiptRowFromServer(receipt);
             return EMPTY;
           }
           return this.receiptService.updateReceipt(
-            this.mappingService.mapReceiptUpdateRequest(receipt, { isActive: nextValue })
+            this.mappingService.mapReceiptUpdateRequest(
+              receipt,
+              changedCheckboxColumn === 'isUtility'
+                ? { isUtility: nextValue }
+                : { isActive: nextValue }
+            )
           );
         }),
         finalize(() => {
@@ -533,7 +552,7 @@ export class ReceiptsListComponent implements OnInit, OnChanges, OnDestroy {
           this.toastr.success('Receipt updated.', CommonMessage.Success);
         },
         error: () => {
-          this.applyReceiptIsActiveValue(event.receiptId, previousValue);
+          this.applyReceiptCheckboxValue(event.receiptId, changedCheckboxColumn, previousValue);
           this.toastr.error('Unable to update receipt.', CommonMessage.Error);
         }
       });
@@ -873,6 +892,9 @@ export class ReceiptsListComponent implements OnInit, OnChanges, OnDestroy {
 
   applyFilters(): void {
     let filtered = this.filterAccountingReceiptsByMode(this.allReceipts);
+    if (!this.authService.hasAccountingNavAccess()) {
+      filtered = filtered.filter(receipt => receipt.isUtility !== true);
+    }
 
     if (this.showBillsTableSelections && !this.showPaid) {
       filtered = filtered.filter(receipt => Math.abs(Number(receipt.dueAmountValue ?? 0)) > 0.005);
@@ -1402,6 +1424,10 @@ export class ReceiptsListComponent implements OnInit, OnChanges, OnDestroy {
       if (isActiveColumn) {
         isActiveColumn.checkboxEditable = this.canEditIsActiveCheckbox;
       }
+      const isUtilityColumn = columns['isUtility'];
+      if (isUtilityColumn) {
+        isUtilityColumn.checkboxEditable = this.canEditIsActiveCheckbox;
+      }
     });
   }
 
@@ -1412,9 +1438,9 @@ export class ReceiptsListComponent implements OnInit, OnChanges, OnDestroy {
     this.applyFilters();
   }
 
-  applyReceiptIsActiveValue(receiptId: string, isActive: boolean): void {
-    this.allReceipts = (this.allReceipts || []).map(r => (r.receiptId === receiptId ? { ...r, isActive } : r));
-    this.receipts = (this.receipts || []).map(r => (r.receiptId === receiptId ? { ...r, isActive } : r));
+  applyReceiptCheckboxValue(receiptId: string, columnName: 'isActive' | 'isUtility', checked: boolean): void {
+    this.allReceipts = (this.allReceipts || []).map(r => (r.receiptId === receiptId ? { ...r, [columnName]: checked } : r));
+    this.receipts = (this.receipts || []).map(r => (r.receiptId === receiptId ? { ...r, [columnName]: checked } : r));
     this.applyFilters();
   }
 
