@@ -187,10 +187,6 @@ export class WorkOrderListComponent implements OnInit, OnChanges, OnDestroy {
         }
         this.workOrders = workOrders || [];
         this.allWorkOrders = this.mappingService.mapWorkOrderDisplays(this.workOrders);
-        console.log('[WorkOrderDebug] API returned records', {
-          count: this.workOrders.length,
-          records: this.workOrders
-        });
         this.applyFilters();
         this.markViewForCheck();
       },

@@ -936,13 +936,6 @@ export class MaintenanceShellComponent implements OnInit, OnDestroy, CanComponen
       startDate,
       endDate
     };
-
-    console.log('[WorkOrderDebug] Shell scope synced', {
-      selectedOfficeId: this.selectedOfficeId ?? null,
-      selectedPropertyId: this.selectedPropertyId ?? null,
-      titleBarReservationId: this.titleBarReservationId ?? null,
-      workOrderSearchRequest: this.workOrderSearchRequest
-    });
   }
 
   /** When title bar is All Offices (null), send every loaded office id — same as documents-shell. */
