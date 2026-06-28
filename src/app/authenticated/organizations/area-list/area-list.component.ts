@@ -146,8 +146,8 @@ export class AreaListComponent implements OnInit, OnChanges, OnDestroy {
       filtered = filtered.filter(area => Number(area.officeId) === this.selectedOffice!.officeId);
     }
     this.areasDisplay = this.showInactive
-      ? filtered
-      : filtered.filter(area => area.isActive);
+      ? filtered.filter(area => area.isActive === false)
+      : filtered.filter(area => area.isActive === true);
   }
 
   toggleInactive(): void {

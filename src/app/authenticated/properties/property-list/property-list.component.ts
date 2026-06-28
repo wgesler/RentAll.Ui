@@ -468,9 +468,9 @@ export class PropertyListComponent implements OnInit, OnDestroy, OnChanges {
 
     let filtered = this.allProperties;
 
-    if (!this.showInactive) {
-      filtered = filtered.filter(property => property.isActive);
-    }
+    filtered = this.showInactive
+      ? filtered.filter(property => property.isActive === false)
+      : filtered.filter(property => property.isActive === true);
 
     if (this.selectedOffice) {
       filtered = filtered.filter(property => property.officeId === this.selectedOffice.officeId);

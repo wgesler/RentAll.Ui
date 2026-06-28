@@ -9,6 +9,7 @@ interface GetAlertsApiDto {
   officeIds: number[];
   propertyId?: string | null;
   reservationId?: string | null;
+  isActive?: boolean | null;
   startDate?: string | null;
   endDate?: string | null;
 }
@@ -34,6 +35,7 @@ export class AlertService {
       officeIds,
       propertyId: request.propertyId ?? null,
       reservationId: request.reservationId ?? null,
+      isActive: request.isActive ?? null,
       startDate: request.startDate ?? null,
       endDate: request.endDate ?? null
     };

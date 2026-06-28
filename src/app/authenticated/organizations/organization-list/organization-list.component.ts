@@ -112,8 +112,8 @@ export class OrganizationListComponent implements OnInit, OnDestroy {
 
   applyFilters(): void {
     this.organizationsDisplay = this.showInactive
-      ? this.allOrganizations
-      : this.allOrganizations.filter(org => org.isActive);
+      ? this.allOrganizations.filter(org => org.isActive === false)
+      : this.allOrganizations.filter(org => org.isActive === true);
   }
   //#endregion
 

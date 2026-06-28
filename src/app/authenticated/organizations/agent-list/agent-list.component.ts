@@ -155,8 +155,8 @@ export class AgentListComponent implements OnInit, OnChanges, OnDestroy {
     }
 
     this.agentsDisplay = this.showInactive
-      ? filtered
-      : filtered.filter(agent => agent.isActive);
+      ? filtered.filter(agent => agent.isActive === false)
+      : filtered.filter(agent => agent.isActive === true);
   }
 
   toggleInactive(): void {

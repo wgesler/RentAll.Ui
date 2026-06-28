@@ -401,18 +401,16 @@ export class WorkOrderListComponent implements OnInit, OnChanges, OnDestroy {
   toggleInactive(): void {
     this.showInactive = !this.showInactive;
     if (this.usesMaintenanceSearch()) {
-      this.loadWorkOrdersForCurrentSearchCriteria();
+      this.loadWorkOrdersForCurrentSearchCriteria(true);
       return;
     }
     this.applyFilters();
   }
 
   applyFilters(): void {
-    let activeScoped = this.usesMaintenanceSearch()
-      ? [...this.allWorkOrders]
-      : (this.showInactive
-        ? [...this.allWorkOrders]
-        : this.allWorkOrders.filter(workOrder => workOrder.isActive !== false));
+    let activeScoped = this.showInactive
+      ? this.allWorkOrders.filter(workOrder => workOrder.isActive === false)
+      : this.allWorkOrders.filter(workOrder => workOrder.isActive !== false);
 
     const scopedWorkOrderTypeId = Number(this.workOrderTypeId);
     if (Number.isFinite(scopedWorkOrderTypeId)) {
@@ -458,7 +456,9 @@ export class WorkOrderListComponent implements OnInit, OnChanges, OnDestroy {
     return {
       ...request,
       officeIds: this.resolveMaintenanceSearchOfficeIds(request),
+      isActive: !this.showInactive,
       includeInactive: this.showInactive,
+      inactiveOnly: this.showInactive,
       propertyId: request.propertyId ?? this.property?.propertyId ?? null
     };
   }
@@ -470,7 +470,9 @@ export class WorkOrderListComponent implements OnInit, OnChanges, OnDestroy {
       propertyId: request.propertyId ?? null,
       startDate: request.startDate ?? null,
       endDate: request.endDate ?? null,
-      includeInactive: request.includeInactive ?? false
+      isActive: request.isActive ?? null,
+      includeInactive: request.includeInactive ?? false,
+      inactiveOnly: request.inactiveOnly ?? false
     });
   }
     

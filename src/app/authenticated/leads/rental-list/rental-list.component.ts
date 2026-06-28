@@ -445,9 +445,9 @@ export class RentalListComponent implements OnInit, OnChanges, OnDestroy {
     if (scopeOfficeId != null) {
       rows = rows.filter(r => this.rentalPassesOfficeFilter(r, scopeOfficeId));
     }
-    if (!this.showInactive) {
-      rows = rows.filter(r => r.isActive !== false);
-    }
+    rows = this.showInactive
+      ? rows.filter(r => r.isActive === false)
+      : rows.filter(r => r.isActive !== false);
     this.rentalsDisplay = rows.map(row => ({
       ...row,
       leadAttentionDot: this.getLeadAttentionDotValue(row.leadStateId)

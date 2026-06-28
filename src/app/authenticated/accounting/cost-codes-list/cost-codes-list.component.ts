@@ -425,9 +425,9 @@ export class CostCodesListComponent implements OnInit, OnDestroy, OnChanges {
     const shouldShowInactive = this.showInactiveInput !== undefined 
       ? this.showInactiveInput 
       : this.showInactive;
-    if (!shouldShowInactive) {
-      filtered = filtered.filter(costCode => costCode.isActive !== false);
-    }
+    filtered = shouldShowInactive
+      ? filtered.filter(costCode => costCode.isActive === false)
+      : filtered.filter(costCode => costCode.isActive !== false);
     // Map cost codes using mapping service to convert transactionTypeId to display string
     const mapped = this.mappingService.mapCostCodes(
       filtered,

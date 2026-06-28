@@ -317,9 +317,9 @@ export class ContactListComponent implements OnInit, OnDestroy, OnChanges {
   applyFilters(): void {
     let filtered = this.allContacts;
     
-    if (!this.showInactive) {
-      filtered = filtered.filter(contact => contact.isActive === true);
-    }
+    filtered = this.showInactive
+      ? filtered.filter(contact => contact.isActive === false)
+      : filtered.filter(contact => contact.isActive === true);
 
     if (this.entityTypeId !== undefined && this.entityTypeId !== null) {
       filtered = filtered.filter(contact => contact.entityTypeId === this.entityTypeId);

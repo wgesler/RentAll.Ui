@@ -6,6 +6,7 @@ export interface InvoiceGetRequest {
   reservationId?: string | null;
   propertyId?: string | null;
   invoiceCode?: string | null;
+  isActive?: boolean | null;
   includeInactive: boolean;
   includePaid: boolean;
   startDate?: string | null;

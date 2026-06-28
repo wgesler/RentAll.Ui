@@ -303,9 +303,9 @@ export class GeneralListComponent implements OnInit, OnChanges, OnDestroy {
     if (scopeOfficeId != null) {
       rows = rows.filter(r => this.generalPassesOfficeFilter(r, scopeOfficeId));
     }
-    if (!this.showInactive) {
-      rows = rows.filter(r => r.isActive !== false);
-    }
+    rows = this.showInactive
+      ? rows.filter(r => r.isActive === false)
+      : rows.filter(r => r.isActive !== false);
     this.generalsDisplay = rows.map(row => ({
       ...row,
       phone: this.formatterService.phoneNumber(row.phone || '') || '',

@@ -70,6 +70,8 @@ export class ReceiptService {
 
       propertyId: request.propertyId || null,
 
+      isActive: request.isActive ?? null,
+
       includeInactive: !!request.includeInactive,
 
       startDate: request.startDate ?? null,

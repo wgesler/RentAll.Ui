@@ -518,9 +518,9 @@ export class ReservationListComponent implements OnInit, OnDestroy, OnChanges {
     let filtered = this.allReservations;
 
     // Filter by active/inactive
-    if (!this.showInactive) {
-      filtered = filtered.filter(reservation => reservation.isActive === true);
-    }
+    filtered = this.showInactive
+      ? filtered.filter(reservation => reservation.isActive === false)
+      : filtered.filter(reservation => reservation.isActive === true);
 
     // Filter by office
     if (this.selectedOffice) {

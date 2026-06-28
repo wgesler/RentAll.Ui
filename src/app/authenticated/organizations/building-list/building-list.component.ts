@@ -146,8 +146,8 @@ export class BuildingListComponent implements OnInit, OnChanges, OnDestroy {
       filtered = filtered.filter(building => Number(building.officeId) === this.selectedOffice!.officeId);
     }
     this.buildingsDisplay = this.showInactive
-      ? filtered
-      : filtered.filter(building => building.isActive);
+      ? filtered.filter(building => building.isActive === false)
+      : filtered.filter(building => building.isActive === true);
   }
 
   toggleInactive(): void {

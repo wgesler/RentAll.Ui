@@ -926,7 +926,7 @@ export class ReceiptsListComponent implements OnInit, OnChanges, OnDestroy {
     }
 
     this.receiptsDisplay = this.showInactive
-      ? filtered
+      ? filtered.filter(receipt => receipt.isActive === false)
       : filtered.filter(receipt => receipt.isActive !== false);
     this.focusPendingApplyAmountInput();
     this.markViewForCheck();
@@ -1017,6 +1017,7 @@ export class ReceiptsListComponent implements OnInit, OnChanges, OnDestroy {
     return {
       ...request,
       officeIds: this.resolveMaintenanceSearchOfficeIds(request),
+      isActive: !this.showInactive,
       includeInactive: this.showInactive,
       propertyId: this.embeddedInMaintenance
         ? (request.propertyId ?? null)
@@ -1048,6 +1049,7 @@ export class ReceiptsListComponent implements OnInit, OnChanges, OnDestroy {
       propertyId: request.propertyId ?? null,
       startDate: request.startDate ?? null,
       endDate: request.endDate ?? null,
+      isActive: request.isActive ?? null,
       includeInactive: request.includeInactive ?? false,
       receiptKind: request.receiptKind ?? null
     });

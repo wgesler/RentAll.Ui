@@ -204,8 +204,8 @@ export class UserListComponent implements OnInit, OnDestroy, OnChanges {
     }
 
     let filtered = this.showInactive
-      ? this.allUsers
-      : this.allUsers.filter(user => user.isActive);
+      ? this.allUsers.filter(user => user.isActive === false)
+      : this.allUsers.filter(user => user.isActive === true);
 
     if (this.selectedOffice && !this.isSuperAdminUser) {
       filtered = filtered.filter(user => (user.officeAccess || []).includes(this.selectedOffice!.officeId));

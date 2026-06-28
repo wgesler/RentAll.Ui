@@ -514,6 +514,7 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
       reservationId: request.reservationId ?? null,
       startDate: request.startDate ?? null,
       endDate: request.endDate ?? null,
+      isActive: request.isActive ?? null,
       includeInactive: request.includeInactive,
       includePaid: request.includePaid
     });
@@ -533,7 +534,7 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
   //#region Filter methods
   onInactiveToggleChange(event: MatSlideToggleChange): void {
     this.showInactive = event.checked;
-    this.applyFilters();
+    this.loadInvoicesForCurrentSearchCriteria(true);
     this.cdr.markForCheck();
   }
 
@@ -549,9 +550,9 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
     }
 
     let filtered = this.allInvoices;
-    if (!this.showInactive) {
-      filtered = filtered.filter(invoice => invoice.isActive);
-    }
+    filtered = this.showInactive
+      ? filtered.filter(invoice => invoice.isActive === false)
+      : filtered.filter(invoice => invoice.isActive === true);
 
     if (this.source === 'accounting' && !this.showPaid) {
       filtered = filtered.filter(invoice => Math.abs(this.getInvoiceBalanceDue(invoice)) > 0.005);
@@ -2048,6 +2049,7 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
       return {
         officeIds,
         reservationId,
+        isActive: !this.showInactive,
         includeInactive: true,
         includePaid: true,
         startDate: this.invoiceSearchDateRange?.startDate ?? null,
@@ -2058,6 +2060,7 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
     return {
       officeIds,
       reservationId: reservationId || null,
+      isActive: !this.showInactive,
       includeInactive: true,
       includePaid: true
     };

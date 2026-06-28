@@ -150,6 +150,7 @@ export class InvoiceService {
       reservationId: request.reservationId || null,
       propertyId: request.propertyId || null,
       invoiceCode: request.invoiceCode || null,
+      isActive: request.isActive ?? null,
       includeInactive: request.includeInactive,
       includePaid: request.includePaid,
       startDate: request.startDate || null,

@@ -2,7 +2,10 @@
 export interface MaintenanceListSearchRequest {
   officeIds: number[];
   propertyId?: string | null;
+  isActive?: boolean | null;
   includeInactive?: boolean;
+  /** Work-order search only: when true, return only inactive records. */
+  inactiveOnly?: boolean;
   /** Calendar date (yyyy-MM-dd). */
   startDate?: string | null;
   /** Calendar date (yyyy-MM-dd). */

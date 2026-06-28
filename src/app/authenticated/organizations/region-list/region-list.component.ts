@@ -143,8 +143,8 @@ export class RegionListComponent implements OnInit, OnChanges, OnDestroy {
       filtered = filtered.filter(region => region.officeId === this.selectedOffice!.officeId);
     }
     this.regionsDisplay = this.showInactive
-      ? filtered
-      : filtered.filter(region => region.isActive);
+      ? filtered.filter(region => region.isActive === false)
+      : filtered.filter(region => region.isActive === true);
   }
 
   toggleInactive(): void {

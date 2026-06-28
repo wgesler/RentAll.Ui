@@ -144,8 +144,8 @@ export class AccountingOfficeListComponent implements OnInit, OnDestroy {
   //#region Filter methods
   applyFilters(): void {
     this.accountingOfficesDisplay = this.showInactive
-      ? this.allAccountingOffices
-      : this.allAccountingOffices.filter(office => office.isActive);
+      ? this.allAccountingOffices.filter(office => office.isActive === false)
+      : this.allAccountingOffices.filter(office => office.isActive === true);
   }
 
   toggleInactive(): void {

@@ -415,9 +415,9 @@ export class AlertListComponent implements OnInit, OnChanges, OnDestroy {
   
   applyFilters(): void {
     let filtered = [...this.allAlerts];
-    if (!this.showInactive) {
-      filtered = filtered.filter(alert => alert.isActive);
-    }
+    filtered = this.showInactive
+      ? filtered.filter(alert => alert.isActive === false)
+      : filtered.filter(alert => alert.isActive === true);
     const serverSearch = this.usesServerSearchCriteria();
     if (!serverSearch) {
       if (this.selectedOfficeId !== null && this.selectedOfficeId !== undefined) {
@@ -435,6 +435,10 @@ export class AlertListComponent implements OnInit, OnChanges, OnDestroy {
 
   toggleInactive(): void {
     this.showInactive = !this.showInactive;
+    if (this.usesServerSearchCriteria()) {
+      this.refreshAlertsForCurrentScope();
+      return;
+    }
     this.applyFilters();
   }
    //#endregion
@@ -610,6 +614,7 @@ export class AlertListComponent implements OnInit, OnChanges, OnDestroy {
       officeIds,
       propertyId: this.propertyId ?? null,
       reservationId,
+      isActive: !this.showInactive,
       startDate: range?.startDate ?? null,
       endDate: range?.endDate ?? null
     };

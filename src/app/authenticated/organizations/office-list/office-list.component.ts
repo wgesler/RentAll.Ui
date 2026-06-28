@@ -134,8 +134,8 @@ export class OfficeListComponent implements OnInit, OnChanges, OnDestroy {
   //#region Filter methods
   applyFilters(): void {
     this.officesDisplay = this.showInactive
-      ? this.allOffices
-      : this.allOffices.filter(office => office.isActive);
+      ? this.allOffices.filter(office => office.isActive === false)
+      : this.allOffices.filter(office => office.isActive === true);
   }
 
   toggleInactive(): void {

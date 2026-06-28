@@ -434,7 +434,7 @@ export class TicketListComponent implements OnInit, OnChanges, OnDestroy {
     const normalizedCurrentUserId = this.utilityService.normalizeIdOrNull(this.currentUserId);
     const normalizedCurrentUserAgentId = this.utilityService.normalizeIdOrNull(this.currentUserAgentId);
     const byInactive = this.showInactive
-      ? [...this.allTickets]
+      ? this.allTickets.filter(ticket => ticket.isActive === false)
       : this.allTickets.filter(ticket => ticket.isActive === true);
 
     const isMine = (ticket: TicketListDisplay): boolean => this.isTicketMineForListScope(ticket, normalizedCurrentUserId, normalizedCurrentUserAgentId);

@@ -32,7 +32,9 @@ export class WorkOrderService {
     return this.http.post<WorkOrderResponse[]>(`${this.controller}search`, {
       officeIds,
       propertyId: request.propertyId || null,
+      isActive: request.isActive ?? null,
       includeInactive: !!request.includeInactive,
+      inactiveOnly: !!request.inactiveOnly,
       startDate: request.startDate ?? null,
       endDate: request.endDate ?? null
     });

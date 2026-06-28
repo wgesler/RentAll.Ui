@@ -6,6 +6,7 @@ export interface AlertGetRequest {
   officeIds: number[];
   propertyId?: string | null;
   reservationId?: string | null;
+  isActive?: boolean | null;
   startDate?: string | null;
   endDate?: string | null;
 }
