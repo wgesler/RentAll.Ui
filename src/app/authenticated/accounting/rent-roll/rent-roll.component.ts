@@ -68,6 +68,7 @@ export class RentRollComponent implements OnInit, OnChanges, OnDestroy {
   propertyAgreements: RentRollPropertyAgreement[] = [];
   chartOfAccounts: ChartOfAccountResponse[] = [];
   existingBillByMatchKey = new Map<string, { billDate: string | null; dueDate: string | null; receiptId: string | null; officeId: number | null; propertyId: string | null }>();
+  existingBillByAgreementLinePeriodKey = new Map<string, { billDate: string | null; dueDate: string | null; receiptId: string | null; officeId: number | null; propertyId: string | null }>();
 
   loadSequence = 0;
 
@@ -146,6 +147,7 @@ export class RentRollComponent implements OnInit, OnChanges, OnDestroy {
         this.rentRollRowsDisplayAll = [];
         this.rentRollRowsDisplay = [];
         this.existingBillByMatchKey.clear();
+        this.existingBillByAgreementLinePeriodKey.clear();
         this.selectedRentRollRows = [];
         this.rentRollTotalAmount = 0;
         this.markViewForCheck();
@@ -585,6 +587,7 @@ export class RentRollComponent implements OnInit, OnChanges, OnDestroy {
     const request = this.buildBillSearchRequest();
     if (!request) {
       this.existingBillByMatchKey.clear();
+      this.existingBillByAgreementLinePeriodKey.clear();
       this.rebuildRentRollRowsFromCachedAgreements();
       this.markViewForCheck();
       return;
@@ -596,6 +599,7 @@ export class RentRollComponent implements OnInit, OnChanges, OnDestroy {
           return;
         }
         this.existingBillByMatchKey = this.buildExistingBillMatchKeys(receipts || []);
+        this.existingBillByAgreementLinePeriodKey = this.buildExistingBillByAgreementLinePeriodKeys(receipts || []);
         this.rebuildRentRollRowsFromCachedAgreements();
         this.markViewForCheck();
       },
@@ -604,6 +608,7 @@ export class RentRollComponent implements OnInit, OnChanges, OnDestroy {
           return;
         }
         this.existingBillByMatchKey.clear();
+        this.existingBillByAgreementLinePeriodKey.clear();
         this.rebuildRentRollRowsFromCachedAgreements();
         this.markViewForCheck();
       }
@@ -676,6 +681,11 @@ export class RentRollComponent implements OnInit, OnChanges, OnDestroy {
   }
 
   hasExistingBillForRow(row: RentRollRow): boolean {
+    const agreementLineMatch = this.getExistingBillByAgreementLineMatchForRow(row);
+    if (agreementLineMatch) {
+      return true;
+    }
+
     const propertyId = (row.propertyId || '').trim();
     const vendorId = (row.vendorId || '').trim().toLowerCase();
     const chartOfAccountId = Number(row.chartOfAccountId || 0);
@@ -705,6 +715,11 @@ export class RentRollComponent implements OnInit, OnChanges, OnDestroy {
   }
 
   getExistingBillMatchForRow(row: RentRollRow): { billDate: string | null; dueDate: string | null; receiptId: string | null; officeId: number | null; propertyId: string | null } | null {
+    const agreementLineMatch = this.getExistingBillByAgreementLineMatchForRow(row);
+    if (agreementLineMatch) {
+      return agreementLineMatch;
+    }
+
     const propertyId = (row.propertyId || '').trim();
     const vendorId = (row.vendorId || '').trim().toLowerCase();
     const chartOfAccountId = Number(row.chartOfAccountId || 0);
@@ -715,6 +730,48 @@ export class RentRollComponent implements OnInit, OnChanges, OnDestroy {
     }
     const key = this.buildBillMatchKey(propertyId, vendorId, chartOfAccountId, amountCents, billPeriod);
     return this.existingBillByMatchKey.get(key) || null;
+  }
+
+  buildExistingBillByAgreementLinePeriodKeys(receipts: ReceiptResponse[]): Map<string, { billDate: string | null; dueDate: string | null; receiptId: string | null; officeId: number | null; propertyId: string | null }> {
+    const keys = new Map<string, { billDate: string | null; dueDate: string | null; receiptId: string | null; officeId: number | null; propertyId: string | null }>();
+    (receipts || []).forEach(receipt => {
+      const agreementLineId = this.toAgreementLineIdNumber(receipt.agreementLineId);
+      const billPeriod = this.resolveBillMatchPeriod(receipt.receiptDate);
+      const propertyIds = (receipt.propertyIds || []).map(propertyId => (propertyId || '').trim()).filter(id => !!id);
+      if (!agreementLineId || !billPeriod || propertyIds.length === 0) {
+        return;
+      }
+
+      propertyIds.forEach(propertyId => {
+        const key = this.buildAgreementLinePeriodKey(propertyId, agreementLineId, billPeriod);
+        if (!keys.has(key)) {
+          keys.set(key, {
+            billDate: receipt.receiptDate ?? null,
+            dueDate: receipt.dueDate ?? null,
+            receiptId: receipt.receiptId ?? null,
+            officeId: receipt.officeId ?? null,
+            propertyId: propertyId ?? null
+          });
+        }
+      });
+    });
+    return keys;
+  }
+
+  getExistingBillByAgreementLineMatchForRow(row: RentRollRow): { billDate: string | null; dueDate: string | null; receiptId: string | null; officeId: number | null; propertyId: string | null } | null {
+    const propertyId = (row.propertyId || '').trim();
+    const agreementLineId = this.toAgreementLineIdNumber(row.agreementLineId);
+    const billPeriod = this.resolveBillMatchPeriod(row.billDate) || this.resolveBillMatchPeriod(this.resolveDefaultBillDateForDisplay());
+    if (!propertyId || !agreementLineId || !billPeriod) {
+      return null;
+    }
+
+    const key = this.buildAgreementLinePeriodKey(propertyId, agreementLineId, billPeriod);
+    return this.existingBillByAgreementLinePeriodKey.get(key) || null;
+  }
+
+  buildAgreementLinePeriodKey(propertyId: string, agreementLineId: number, billPeriod: string): string {
+    return `${propertyId.trim().toLowerCase()}|${agreementLineId}|${billPeriod.trim()}`;
   }
 
   resolveDefaultBillDateForDisplay(): string | null {

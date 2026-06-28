@@ -1377,7 +1377,8 @@ export class ReceiptComponent implements OnInit, OnChanges, OnDestroy {
   }
 
   onSplitReceiptTypeChange(splitIndex: number): void {
-    this.applyDefaultSplitAccountFromReceiptType(splitIndex);
+    this.applyDefaultSplitAccountFromReceiptType(splitIndex, true);
+    this.manualSplitAccountIndexes.delete(splitIndex);
     this.updatePropertyRequirementByReceiptType();
   }
 
@@ -1438,19 +1439,23 @@ export class ReceiptComponent implements OnInit, OnChanges, OnDestroy {
     }
   }
 
-  applyDefaultSplitAccountFromReceiptType(splitIndex: number): void {
+  applyDefaultSplitAccountFromReceiptType(splitIndex: number, force = false): void {
     const row = this.splitsFormArray.at(splitIndex);
     if (!row) {
       return;
     }
 
     const currentAccountId = Number(row.get('chartOfAccountId')?.value ?? 0);
-    if (Number.isFinite(currentAccountId) && currentAccountId > 0) {
+    if (!force && Number.isFinite(currentAccountId) && currentAccountId > 0) {
       return;
     }
 
     const accountId = this.resolveDefaultChartOfAccountIdForReceiptType(row.get('receiptTypeId')?.value);
     if (!accountId) {
+      if (force) {
+        row.get('chartOfAccountId')?.setValue(null, { emitEvent: false });
+        this.cdr.markForCheck();
+      }
       return;
     }
 
@@ -1474,6 +1479,7 @@ export class ReceiptComponent implements OnInit, OnChanges, OnDestroy {
     this.splitsFormArray.push(this.createSplitFormGroup());
     this.updateSplitLineAccountValidators();
     this.applyDefaultSplitAccountFromReceiptType(this.splitsFormArray.length - 1);
+    this.applyBillDescriptionToAllSplitLines();
   }
 
   removeSplitLine(index: number): void {
@@ -1639,6 +1645,21 @@ export class ReceiptComponent implements OnInit, OnChanges, OnDestroy {
     this.isSyncingInitialSplit = true;
     splitGroup.patchValue(patch, { emitEvent: false });
     this.isSyncingInitialSplit = false;
+  }
+
+  applyBillDescriptionToAllSplitLines(): void {
+    if (!this.isOverallBillBankCard() || !this.splitsFormArray || this.splitsFormArray.length === 0) {
+      return;
+    }
+
+    const overallDescription = (this.form.get('description')?.value || '').trim();
+    if (!overallDescription) {
+      return;
+    }
+
+    this.splitsFormArray.controls.forEach(control => {
+      control.get('description')?.setValue(overallDescription, { emitEvent: false });
+    });
   }
 
   getSplitTotalAmount(splits: Split[]): number {
