@@ -11,7 +11,7 @@
           @if (isAccountingShell) {
             <div class="receipt-shell receipt-shell--accounting">
               <div class="receipt-status-row">
-                <span class="text-lg font-medium">Bill Details</span>
+                <span class="text-lg font-medium">{{ isOverallBillBankCard() ? 'Bill Details' : 'Receipt Details' }}</span>
                 <div class="flex items-center gap-2">
                   @if (hasAgreementLineNotes) {
                     <button
@@ -102,7 +102,7 @@
                       <input matInput formControlName="billNumber" maxlength="50">
                     </mat-form-field>
                   } @else {
-                    <mat-form-field appearance="outline" class="receipt-overall-vendor-field"
+                    <mat-form-field appearance="outline" class="receipt-overall-vendor-field receipt-overall-vendor-field--wide"
                       [class.mat-form-field-invalid]="shouldShowControlError(form.get('vendorName'))"
                       [class.mat-mdc-form-field-invalid]="shouldShowControlError(form.get('vendorName'))">
                       <mat-label>Vendor</mat-label>
@@ -111,7 +111,6 @@
                         <mat-error>Vendor is required</mat-error>
                       }
                     </mat-form-field>
-                    <span class="receipt-overall-primary-spacer" aria-hidden="true"></span>
                   }
                 </div>
                 @if (isOverallBillBankCard()) {
@@ -233,7 +232,7 @@
                               </td>
                               <td class="split-col-property">
                                 <select formControlName="propertyId" class="split-editable-input">
-                                  <option [ngValue]="null">Select Property</option>
+                                  <option [ngValue]="null">{{ isAccountingShell ? 'Company' : 'Select Property' }}</option>
                                   @for (option of getSplitPropertyOptions(); track option.value) {
                                     <option [ngValue]="option.value">{{ option.label }}</option>
                                   }
@@ -486,7 +485,7 @@
                               </td>
                               <td class="split-col-property">
                                 <select formControlName="propertyId" class="split-editable-input">
-                                  <option [ngValue]="null">Select Property</option>
+                                  <option [ngValue]="null">{{ isAccountingShell ? 'Company' : 'Select Property' }}</option>
                                   @for (option of getSplitPropertyOptions(); track option.value) {
                                     <option [ngValue]="option.value">{{ option.label }}</option>
                                   }

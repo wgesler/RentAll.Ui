@@ -168,6 +168,12 @@
     grid-template-columns: repeat(3, minmax(0, 1fr)) minmax(0, 1fr) minmax(0, 3fr);
   }
 
+  .receipt-overall-vendor-field--wide {
+    grid-column: 4 / -1;
+    width: 100%;
+    min-width: 0;
+  }
+
   .split-lines-table.split-lines-table--accounting-bill {
     .split-col-description {
       width: auto;

@@ -50,6 +50,7 @@ export class ReceiptComponent implements OnInit, OnChanges, OnDestroy {
   @Input() agreementLineNotesOverride: string | null = null;
   @Input() ticketId: string | null = null;
   @Input() shellContext: 'maintenance' | 'accounting' | null = null;
+  @Input() preferReceiptModeOnAdd = false;
   @Input() autoBackOnSave = true;
   @Input() autoSaveAttemptToken = 0;
   @Output() backEvent = new EventEmitter<void>();
@@ -91,6 +92,7 @@ export class ReceiptComponent implements OnInit, OnChanges, OnDestroy {
   receiptTypeOptions = getReceiptTypes();
   bankCardOptions: SearchableSelectOption<number>[] = [];
   showAllOrganizationBankCards = false;
+  addModeBankCardPreferenceApplied = false;
   private lastAppliedShellOfficeId: number | null | undefined;
   private pendingAutoSaveAttempt = false;
   readonly moreBankCardsOptionValue = -1;
@@ -198,6 +200,7 @@ export class ReceiptComponent implements OnInit, OnChanges, OnDestroy {
     if (changes['receiptId'] && !changes['receiptId'].firstChange) {
       this.clearManualSplitAccountOverrides();
       this.isAddMode = this.receiptId == null;
+      this.addModeBankCardPreferenceApplied = false;
       this.receiptOfficeInitialized = false;
       this.lastAppliedShellOfficeId = undefined;
       this.appliedPrefillKey = null;
@@ -559,6 +562,7 @@ export class ReceiptComponent implements OnInit, OnChanges, OnDestroy {
         this.populateForm(receipt);
         this.syncSelectedPropertyIdFromForm();
         this.syncBankCardOptionsForCurrentContext();
+        this.loadSplitAccountsForCurrentOffice();
         this.ensureEditModeBankCardVisible();
         this.cdr.markForCheck();
         this.tryAutoSaveValidationAttempt();
@@ -776,6 +780,7 @@ export class ReceiptComponent implements OnInit, OnChanges, OnDestroy {
         label: this.toBankCardOptionLabel(card)
       }))
       .sort((a, b) => String(a.label).localeCompare(String(b.label), undefined, { sensitivity: 'base' }));
+    this.applyPreferredAddModeBankCardOnce();
   }
 
   loadOrganizationBankCardOptions(): void {
@@ -797,6 +802,7 @@ export class ReceiptComponent implements OnInit, OnChanges, OnDestroy {
     this.bankCardOptions = Array.from(byId.values()).sort((a, b) =>
       String(a.label).localeCompare(String(b.label), undefined, { sensitivity: 'base' })
     );
+    this.applyPreferredAddModeBankCardOnce();
   }
 
   appendOtherOfficeBankCardOptions(): void {
@@ -828,6 +834,7 @@ export class ReceiptComponent implements OnInit, OnChanges, OnDestroy {
     if (additionalOptions.length > 0) {
       this.bankCardOptions = [...this.bankCardOptions, ...additionalOptions];
     }
+    this.applyPreferredAddModeBankCardOnce();
   }
   //#endregion
 
@@ -1412,10 +1419,6 @@ export class ReceiptComponent implements OnInit, OnChanges, OnDestroy {
   }
 
   resolveDefaultChartOfAccountIdForReceiptType(receiptTypeId: number | null | undefined): number | null {
-    if (!this.isAccountingShell) {
-      return null;
-    }
-
     const accountingOffice = this.getAccountingOfficeForReceiptOffice();
     if (!accountingOffice) {
       return null;
@@ -1428,36 +1431,35 @@ export class ReceiptComponent implements OnInit, OnChanges, OnDestroy {
         return this.normalizeOptionalAccountId(accountingOffice.defaultOwnerExpAccountId);
       case ReceiptType.Organization:
         return this.normalizeOptionalAccountId(accountingOffice.defaultCompanyExpAccountId);
+      case ReceiptType.Departure:
+        return this.normalizeOptionalAccountId(accountingOffice.defaultDepartureExpAccountId);
       default:
         return null;
     }
   }
 
   applyDefaultSplitAccountFromReceiptType(splitIndex: number): void {
-    if (!this.isAccountingShell || this.isSplitAccountManuallySet(splitIndex)) {
-      return;
-    }
-
     const row = this.splitsFormArray.at(splitIndex);
     if (!row) {
       return;
     }
 
+    const currentAccountId = Number(row.get('chartOfAccountId')?.value ?? 0);
+    if (Number.isFinite(currentAccountId) && currentAccountId > 0) {
+      return;
+    }
+
     const accountId = this.resolveDefaultChartOfAccountIdForReceiptType(row.get('receiptTypeId')?.value);
+    if (!accountId) {
+      return;
+    }
+
     row.get('chartOfAccountId')?.setValue(accountId, { emitEvent: false });
     this.cdr.markForCheck();
   }
 
   applyDefaultSplitAccountsForAddMode(): void {
-    if (!this.isAddMode || !this.isAccountingShell) {
-      return;
-    }
-
     for (let splitIndex = 0; splitIndex < this.splitsFormArray.length; splitIndex++) {
-      if (this.isSplitAccountManuallySet(splitIndex)) {
-        continue;
-      }
-
       const row = this.splitsFormArray.at(splitIndex);
       const currentAccountId = Number(row?.get('chartOfAccountId')?.value ?? 0);
       if (Number.isFinite(currentAccountId) && currentAccountId > 0) {
@@ -1471,9 +1473,7 @@ export class ReceiptComponent implements OnInit, OnChanges, OnDestroy {
   addSplitLine(): void {
     this.splitsFormArray.push(this.createSplitFormGroup());
     this.updateSplitLineAccountValidators();
-    if (this.isAccountingShell) {
-      this.applyDefaultSplitAccountFromReceiptType(this.splitsFormArray.length - 1);
-    }
+    this.applyDefaultSplitAccountFromReceiptType(this.splitsFormArray.length - 1);
   }
 
   removeSplitLine(index: number): void {
@@ -1503,7 +1503,8 @@ export class ReceiptComponent implements OnInit, OnChanges, OnDestroy {
 
   createSplitFormGroup(split?: Partial<Split>): FormGroup {
     const amount = Number(split?.amount);
-    const normalizedReceiptTypeId = split?.receiptTypeId ?? 0;
+    const normalizedReceiptTypeId = split?.receiptTypeId
+      ?? (this.isAccountingShell && this.isAddMode ? ReceiptType.Organization : ReceiptType.Tenant);
     const normalizedWorkOrderCode = (split?.workOrderCode || split?.workOrder || '').trim();
     const rawSplit = split as (Partial<Split> & Record<string, unknown>) | undefined;
     const normalizedPropertyId = this.normalizeSplitPropertyId(
@@ -1511,7 +1512,10 @@ export class ReceiptComponent implements OnInit, OnChanges, OnDestroy {
       ?? (rawSplit?.['PropertyId'] as string | null | undefined)
       ?? null
     );
-    const resolvedPropertyId = normalizedPropertyId ?? this.getDefaultSplitPropertyId();
+    const isFirstSplitOnAccountingCreate = this.isAccountingShell && this.isAddMode && !split && this.splitsFormArray.length === 0;
+    const resolvedPropertyId = isFirstSplitOnAccountingCreate
+      ? null
+      : (normalizedPropertyId ?? this.getDefaultSplitPropertyId());
     const normalizedChartOfAccountId = Number(
       rawSplit?.chartOfAccountId
       ?? rawSplit?.['ChartOfAccountId']
@@ -1519,9 +1523,7 @@ export class ReceiptComponent implements OnInit, OnChanges, OnDestroy {
     );
     const resolvedChartOfAccountId = Number.isFinite(normalizedChartOfAccountId) && normalizedChartOfAccountId > 0
       ? normalizedChartOfAccountId
-      : (this.isAccountingShell
-        ? this.resolveDefaultChartOfAccountIdForReceiptType(normalizedReceiptTypeId)
-        : null);
+      : this.resolveDefaultChartOfAccountIdForReceiptType(normalizedReceiptTypeId);
     return this.fb.group({
       receiptSplitId: new FormControl(split?.receiptSplitId ?? null),
       amount: new FormControl(Number.isFinite(amount) ? amount.toFixed(2) : '', [Validators.required]),
@@ -1570,6 +1572,7 @@ export class ReceiptComponent implements OnInit, OnChanges, OnDestroy {
     this.splitsFormArray.clear();
     (splits || []).forEach(split => this.splitsFormArray.push(this.createSplitFormGroup(split)));
     this.ensureAtLeastOneSplit();
+    this.applyDefaultSplitAccountsForAddMode();
     this.updateSplitLineAccountValidators();
     this.updatePropertyRequirementByReceiptType();
   }
@@ -1790,6 +1793,29 @@ export class ReceiptComponent implements OnInit, OnChanges, OnDestroy {
   toBankCardOptionLabel(card: BankCardResponse): string {
     return (card?.displayName || '').trim() || this.mappingService.mapBankCardDisplay(card);
   }
+
+  applyPreferredAddModeBankCardOnce(): void {
+    if (this.addModeBankCardPreferenceApplied || !this.preferReceiptModeOnAdd || !this.isAccountingShell || !this.isAddMode || !this.form) {
+      return;
+    }
+
+    const currentBankCardId = Number(this.form.get('bankCardId')?.value ?? 0);
+    if (Number.isFinite(currentBankCardId) && currentBankCardId > 0) {
+      this.addModeBankCardPreferenceApplied = true;
+      return;
+    }
+
+    const preferredBankCardId = this.bankCardOptions
+      .map(option => Number(option.value ?? 0))
+      .find(bankCardId => Number.isFinite(bankCardId) && bankCardId > 0);
+    if (!preferredBankCardId) {
+      return;
+    }
+
+    this.form.patchValue({ bankCardId: preferredBankCardId }, { emitEvent: false });
+    this.onOverallBankCardChange();
+    this.addModeBankCardPreferenceApplied = true;
+  }
   //#endregion
 
   //#region Account Methods
@@ -1948,8 +1974,19 @@ export class ReceiptComponent implements OnInit, OnChanges, OnDestroy {
     if (!this.isAddMode) {
       return;
     }
-    if (this.showAccountingCompanyPropertyOption && !this.property?.propertyId) {
+    if (this.showAccountingCompanyPropertyOption && !this.property?.propertyId && this.shouldDefaultToAccountingCompany()) {
       this.applyAccountingCompanySelection();
+      return;
+    }
+    const currentFormPropertyIds = this.getFormPropertyIds();
+    const selectedPropertyIds = this.getSelectedPropertyIds();
+    if (selectedPropertyIds.length > 0) {
+      const officeName = this.getOfficeNameForOfficeId(this.getReceiptOfficeId()) || this.property?.officeName || '';
+      this.form.patchValue({
+        officeName,
+        propertyCode: this.getPropertyCodesDisplay(currentFormPropertyIds)
+      }, { emitEvent: false });
+      this.lastPropertyIdsValue = currentFormPropertyIds;
       return;
     }
     if (!this.selectedPropertyId) {

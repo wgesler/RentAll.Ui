@@ -171,6 +171,8 @@ export class AccountingShellComponent implements OnInit, OnDestroy {
   readonly shellArAgingSortByOptions = AR_AGING_SORT_BY_OPTIONS;
   selectedGlPropertyId: string | null = null;
   selectedGlReservationId: string | null = null;
+  selectedBillsPropertyId: string | null = null;
+  shellBillsPropertyTitleBarOptions: SearchableSelectOption[] = [];
   glProperties: PropertyCodeResponse[] = [];
   glReservations: ReservationCodeResponse[] = [];
   availableGlProperties: SearchableSelectOption[] = [];
@@ -586,8 +588,11 @@ export class AccountingShellComponent implements OnInit, OnDestroy {
       this.selectedOfficeId = resolvedOfficeId;
       this.selectedCompanyId = null;
       this.selectedReservationId = null;
+      this.refreshBillsPropertyOptions();
       this.syncBillsSearchRequest();
     }
+    this.selectedBillsPropertyId = propertyId;
+    this.syncBillsSearchRequest();
 
     const openReceiptDetail = (property: PropertyResponse | null) => {
       this.selectedTabIndex = this.tabBillsReceipts;
@@ -677,6 +682,8 @@ export class AccountingShellComponent implements OnInit, OnDestroy {
     const billDate = request.billDate || this.utilityService.formatDateOnlyForApi(this.endDate) || this.utilityService.formatDateOnlyForApi(new Date());
     const dueDate = request.dueDate || billDate;
     const editorPrefillKey = `${request.agreementLineId || 'line'}-${Date.now()}`;
+    this.selectedBillsPropertyId = propertyId || null;
+    this.syncBillsSearchRequest();
     const openBillEditor = (property: PropertyResponse | null) => {
       this.selectedTabIndex = this.tabBillsReceipts;
       this.selectedBillsReceiptKind = 'bills';
@@ -946,8 +953,11 @@ export class AccountingShellComponent implements OnInit, OnDestroy {
       this.selectedOfficeId = resolvedOfficeId;
       this.selectedCompanyId = null;
       this.selectedReservationId = null;
+      this.refreshBillsPropertyOptions();
       this.syncBillsSearchRequest();
     }
+    this.selectedBillsPropertyId = propertyId;
+    this.syncBillsSearchRequest();
 
     const openReceiptDetail = (property: PropertyResponse | null) => {
       this.selectedTabIndex = this.tabBillsReceipts;
@@ -1307,6 +1317,7 @@ export class AccountingShellComponent implements OnInit, OnDestroy {
   syncBillsSearchRequest(): void {
     this.billsSearchRequest = {
       officeIds: this.resolveOfficeIdsForBillsSearch(),
+      propertyId: this.selectedTabIndex === this.tabBillsReceipts ? this.selectedBillsPropertyId : null,
       startDate: this.utilityService.formatDateOnlyForApi(this.startDate),
       endDate: this.utilityService.formatDateOnlyForApi(this.endDate)
     };
@@ -2025,7 +2036,18 @@ export class AccountingShellComponent implements OnInit, OnDestroy {
 
   applyPageOfficeScope(officeId: number | null): void {
     this.selectedOfficeId = officeId;
+    this.refreshBillsPropertyOptions();
     this.syncBillsSearchRequest();
+  }
+
+  onShellBillsPropertyDropdownChange(value: string | number | null): void {
+    const propertyId = value == null || value === '' ? null : String(value);
+    if (this.selectedBillsPropertyId === propertyId) {
+      return;
+    }
+    this.selectedBillsPropertyId = propertyId;
+    this.syncBillsSearchRequest();
+    this.refreshActiveBillsReceiptList();
   }
 
   setDefaultDateRange(): void {
@@ -2233,14 +2255,30 @@ export class AccountingShellComponent implements OnInit, OnDestroy {
     this.propertyService.getPropertyCodes().pipe(take(1), takeUntil(this.destroy$)).subscribe({
       next: properties => {
         this.glProperties = properties || [];
+        this.refreshBillsPropertyOptions();
         this.refreshPropertyOptions();
       },
       error: () => {
         this.glProperties = [];
+        this.shellBillsPropertyTitleBarOptions = [];
+        this.selectedBillsPropertyId = null;
         this.availableGlProperties = [];
         this.selectedGlPropertyId = null;
       }
     });
+  }
+
+  refreshBillsPropertyOptions(): void {
+    const filteredProperties = this.selectedOfficeId == null
+      ? this.glProperties
+      : this.glProperties.filter(property => property.officeId === this.selectedOfficeId);
+    this.shellBillsPropertyTitleBarOptions = filteredProperties.map(property => ({
+      value: property.propertyId,
+      label: property.propertyCode
+    }));
+    if (this.selectedBillsPropertyId && !filteredProperties.some(property => property.propertyId === this.selectedBillsPropertyId)) {
+      this.selectedBillsPropertyId = null;
+    }
   }
 
   loadReservationCodes(): void {
