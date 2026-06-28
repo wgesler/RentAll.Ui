@@ -809,3 +809,22 @@
   margin: 0 !important;
 }
 
+/* Tighten gap specifically between IsUtility (right) and IsActive (left). */
+:host ::ng-deep th.mat-header-cell.mat-column-isUtility,
+:host ::ng-deep th.mat-mdc-header-cell.mat-column-isUtility,
+:host ::ng-deep td.mat-cell.mat-column-isUtility,
+:host ::ng-deep td.mat-mdc-cell.mat-column-isUtility,
+:host ::ng-deep th.mdc-data-table__header-cell.mat-column-isUtility,
+:host ::ng-deep td.mdc-data-table__cell.mat-column-isUtility {
+  padding-right: 2px !important;
+}
+
+:host ::ng-deep th.mat-header-cell.mat-column-isActive,
+:host ::ng-deep th.mat-mdc-header-cell.mat-column-isActive,
+:host ::ng-deep td.mat-cell.mat-column-isActive,
+:host ::ng-deep td.mat-mdc-cell.mat-column-isActive,
+:host ::ng-deep th.mdc-data-table__header-cell.mat-column-isActive,
+:host ::ng-deep td.mdc-data-table__cell.mat-column-isActive {
+  padding-left: 2px !important;
+}
+

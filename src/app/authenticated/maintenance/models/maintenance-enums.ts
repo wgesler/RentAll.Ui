@@ -41,11 +41,24 @@ export function getReceiptType(receiptTypeId: number | undefined | null): string
   const typeMap: { [key: number]: string } = {
     [ReceiptType.Tenant]: 'Tenant',
     [ReceiptType.Owner]: 'Owner',
-    [ReceiptType.Organization]: 'Organization',
-    [ReceiptType.Departure]: 'Tenant (Out of Dept)'
+    [ReceiptType.Organization]: 'Company',
+    [ReceiptType.Departure]: 'Departure'
   };
 
   return typeMap[receiptTypeId] || '';
+}
+
+export function getReceiptTypeCode(receiptTypeId: number | undefined | null): string {
+  if (receiptTypeId === undefined || receiptTypeId === null) return '';
+
+  const typeCodeMap: { [key: number]: string } = {
+    [ReceiptType.Tenant]: 'T',
+    [ReceiptType.Owner]: 'O',
+    [ReceiptType.Organization]: 'C',
+    [ReceiptType.Departure]: 'D'
+  };
+
+  return typeCodeMap[receiptTypeId] || '';
 }
 
 export function getReceiptTypes(): { value: number; label: string }[] {

@@ -1644,7 +1644,7 @@ export class AccountingShellComponent implements OnInit, OnDestroy {
   }
 
   get billsReceiptsTabLabel(): string {
-    return 'Payments';
+    return 'Vendors';
   }
 
   clearInactiveDropdownSelections(activeTabIndex: number): void {

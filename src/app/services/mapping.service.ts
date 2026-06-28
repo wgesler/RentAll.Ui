@@ -1934,6 +1934,7 @@ export class MappingService {
       receiptSplitId: (record.receiptSplitId ?? record['ReceiptSplitId'] ?? null) as number | null,
       amount: Number(record.amount ?? record['Amount'] ?? 0) || 0,
       description: String(record.description ?? record['Description'] ?? '').trim(),
+      propertyId: String(record.propertyId ?? record['PropertyId'] ?? '').trim() || null,
       workOrderId: (record.workOrderId ?? record['WorkOrderId'] ?? null) as string | null,
       workOrderCode: String(record.workOrderCode ?? record['WorkOrderCode'] ?? record.workOrder ?? record['WorkOrder'] ?? '').trim(),
       workOrder: String(record.workOrder ?? record['WorkOrder'] ?? record.workOrderCode ?? record['WorkOrderCode'] ?? '').trim(),
@@ -1952,6 +1953,7 @@ export class MappingService {
         receiptSplitId: split.receiptSplitId ?? null,
         amount: Number(split.amount) || 0,
         description: String(split.description ?? '').trim(),
+        propertyId: String(split.propertyId ?? '').trim() || null,
         workOrderId: split.workOrderId ?? null,
         workOrderCode: split.workOrderCode != null && String(split.workOrderCode).trim().length > 0
           ? String(split.workOrderCode).trim()
@@ -2022,6 +2024,7 @@ export class MappingService {
       );
       const workOrderDisplay = distinctWorkOrders.join(', ');
       const receiptTypeDisplay = distinctReceiptTypes.join(', ');
+      const receiptTypeTooltip = distinctReceiptTypes.join(', ');
       const distinctAccounts = Array.from(
         new Set(
           splits
@@ -2077,6 +2080,7 @@ export class MappingService {
         isSplitAmountValid,
         workOrderDisplay,
         receiptTypeDisplay,
+        receiptTypeTooltip,
         receiptPath: receipt.receiptPath ?? null,
         isUtility: receipt.isUtility ?? false,
         isActive: receipt.isActive,

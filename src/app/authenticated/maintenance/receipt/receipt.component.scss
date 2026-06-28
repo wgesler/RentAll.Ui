@@ -123,8 +123,12 @@
   }
 
   .split-lines-table {
+    .split-col-property {
+      width: 20ch;
+    }
+
     .split-col-type {
-      width: 28ch;
+      width: 22ch;
     }
 
     .split-col-description {
@@ -166,29 +170,37 @@
 
   .split-lines-table.split-lines-table--accounting-bill {
     .split-col-description {
-      width: 34%;
+      width: auto;
+    }
+
+    .split-col-property {
+      width: 20ch;
     }
 
     .split-col-type {
-      width: 13ch;
+      width: 22ch;
     }
 
     .split-col-account {
-      width: 193px;
+      width: 380px;
     }
   }
 
   .split-lines-table.split-lines-table--accounting-receipt {
     .split-col-description {
-      width: 28%;
+      width: auto;
+    }
+
+    .split-col-property {
+      width: 20ch;
     }
 
     .split-col-type {
-      width: 13ch;
+      width: 22ch;
     }
 
     .split-col-account {
-      width: 193px;
+      width: 380px;
     }
 
     .split-col-work-order {
@@ -298,6 +310,10 @@
 
   .split-col-type {
     width: 19.5ch;
+  }
+
+  .split-col-property {
+    width: 15ch;
   }
 
   .split-col-description {

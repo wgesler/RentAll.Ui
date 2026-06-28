@@ -206,6 +206,7 @@
                             <th class="split-col-no">No</th>
                             <th class="split-col-amount">Amount</th>
                             <th class="split-col-description">Description</th>
+                            <th class="split-col-property">Property</th>
                             <th class="split-col-type">Type</th>
                             <th class="split-col-account">Account</th>
                             @if (!isOverallBillBankCard()) {
@@ -229,6 +230,14 @@
                               <td class="split-col-description">
                                 <input type="text" formControlName="description" required class="split-editable-input"
                                   [class.split-input-invalid]="shouldShowSplitControlError(splitGroup, 'description')">
+                              </td>
+                              <td class="split-col-property">
+                                <select formControlName="propertyId" class="split-editable-input">
+                                  <option [ngValue]="null">Select Property</option>
+                                  @for (option of getSplitPropertyOptions(); track option.value) {
+                                    <option [ngValue]="option.value">{{ option.label }}</option>
+                                  }
+                                </select>
                               </td>
                               <td class="split-col-type">
                                 <select formControlName="receiptTypeId" required class="split-editable-input"
@@ -453,6 +462,7 @@
                             <th class="split-col-no">No</th>
                             <th class="split-col-amount">Amount</th>
                             <th class="split-col-description">Description</th>
+                            <th class="split-col-property">Property</th>
                             <th class="split-col-type">Type</th>
                             <th class="split-col-work-order">Work Order</th>
                             <th class="split-col-actions"></th>
@@ -473,6 +483,14 @@
                               <td class="split-col-description">
                                 <input type="text" formControlName="description" required class="split-editable-input"
                                   [class.split-input-invalid]="shouldShowSplitControlError(splitGroup, 'description')">
+                              </td>
+                              <td class="split-col-property">
+                                <select formControlName="propertyId" class="split-editable-input">
+                                  <option [ngValue]="null">Select Property</option>
+                                  @for (option of getSplitPropertyOptions(); track option.value) {
+                                    <option [ngValue]="option.value">{{ option.label }}</option>
+                                  }
+                                </select>
                               </td>
                               <td class="split-col-type">
                                 <select formControlName="receiptTypeId" required class="split-editable-input"

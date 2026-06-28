@@ -101,6 +101,7 @@ export interface ReceiptSplitOption {
   splitIndex: number;
   amount: number;
   description: string;
+  propertyId?: string | null;
   receiptTypeId: number;
   workOrderId?: string | null;
   workOrder: string;

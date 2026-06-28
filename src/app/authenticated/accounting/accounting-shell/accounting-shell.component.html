@@ -482,6 +482,7 @@
                     [accountingListMode]="'bills'"
                     [refreshTrigger]="billsRefreshTrigger"
                     (receiptSelect)="onBillsReceiptSelect($event)"
+                    (workOrderSelect)="onOwnersWorkOrderSelect($event)"
                     (journalEntriesChanged)="onJournalEntriesChanged()">
                   </app-receipts-list>
                 }
@@ -503,6 +504,7 @@
                     [accountingListMode]="'receipts'"
                     [refreshTrigger]="receiptsRefreshTrigger"
                     (receiptSelect)="onReceiptsReceiptSelect($event)"
+                    (workOrderSelect)="onOwnersWorkOrderSelect($event)"
                     (journalEntriesChanged)="onJournalEntriesChanged()">
                   </app-receipts-list>
                 }
@@ -651,6 +653,7 @@
                     [accountingListMode]="'utilities'"
                     [refreshTrigger]="ownersUtilitiesRefreshTrigger"
                     (receiptSelect)="onOwnersUtilityReceiptSelect($event)"
+                    (workOrderSelect)="onOwnersWorkOrderSelect($event)"
                     (journalEntriesChanged)="onJournalEntriesChanged()">
                   </app-receipts-list>
                 }

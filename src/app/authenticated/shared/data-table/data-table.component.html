@@ -372,6 +372,10 @@
                     @for (accountLabel of accountLabels; track accountLabel; let labelIndex = $index) {
                       <span>{{ accountLabel }}</span>@if (labelIndex < accountLabels.length - 1) {<span>, </span>}
                     }
+                  } @case ('receiptTypeDisplay') {
+                    <span [matTooltip]="item?.receiptTypeTooltip || null" matTooltipPosition="above">
+                      {{item[column.name]}}
+                    </span>
                   } @default {
                   @if (column.editableType === 'date' && item[(column.name ?? '') + 'ReadOnly'] !== true) {
                     <mat-form-field appearance="outline" subscriptSizing="dynamic" class="datatable-editable-date-field">

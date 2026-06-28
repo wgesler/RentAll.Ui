@@ -12,6 +12,7 @@ import { EntityType, TermType, getTermType } from '../../contacts/models/contact
 import { UtilityService } from '../../../services/utility.service';
 import { PropertyService } from '../../properties/services/property.service';
 import { PropertyCodeResponse } from '../../properties/models/property.model';
+import { NewContactDialogService } from '../../shared/contacts/new-contact-dialog.service';
 
 export interface RentRollEditLineDialogData {
   propertyId?: string | null;
@@ -70,7 +71,8 @@ export class RentRollEditLineDialogComponent {
     private chartOfAccountsService: ChartOfAccountsService,
     private contactService: ContactService,
     private utilityService: UtilityService,
-    private propertyService: PropertyService
+    private propertyService: PropertyService,
+    private newContactDialogService: NewContactDialogService
   ) {
     this.form = this.fb.group({
       propertyId: [this.normalizeOptionalText(data.propertyId)],
@@ -173,6 +175,15 @@ export class RentRollEditLineDialogComponent {
 
   onVendorChange(value: string | number | null): void {
     const vendorId = this.normalizeOptionalText(value);
+    if (this.newContactDialogService.isNewContactOptionValue(vendorId, EntityType.Vendor)) {
+      this.form.patchValue({
+        vendorId: null,
+        vendorName: ''
+      }, { emitEvent: false });
+      this.form.get('terms')?.setValue(this.defaultTerms, { emitEvent: false });
+      this.openNewVendorDialog();
+      return;
+    }
     const vendor = vendorId ? (this.vendorById.get(vendorId) || null) : null;
     const vendorName = vendor ? this.utilityService.getVendorDropdownLabel(vendor) : '';
     const terms = vendor ? (getTermType(vendor.paymentTermsId) || this.defaultTerms) : this.defaultTerms;
@@ -215,7 +226,7 @@ export class RentRollEditLineDialogComponent {
     });
   }
 
-  loadVendorOptions(): void {
+  loadVendorOptions(preferredVendorId?: string | null): void {
     this.contactService.ensureContactsLoaded().pipe(take(1)).subscribe({
       next: () => {
         const officeId = Number(this.data.officeId ?? 0);
@@ -223,7 +234,7 @@ export class RentRollEditLineDialogComponent {
           .filter(contact => contact.entityTypeId === EntityType.Vendor)
           .filter(contact => !officeId || this.utilityService.contactHasOfficeAccess(contact, officeId));
         this.vendorById = new Map<string, ContactResponse>();
-        this.vendorOptions = vendors
+        const vendorOptions = vendors
           .map(contact => {
             const vendorId = String(contact.contactId || '').trim();
             if (!vendorId) {
@@ -237,7 +248,30 @@ export class RentRollEditLineDialogComponent {
           })
           .filter((option): option is SearchableSelectOption<string> => !!option)
           .sort((a, b) => a.label.localeCompare(b.label, undefined, { sensitivity: 'base' }));
+        const newVendorOption = this.newContactDialogService.buildSearchableSelectOption(EntityType.Vendor);
+        this.vendorOptions = [newVendorOption, ...vendorOptions];
+        const normalizedPreferredVendorId = this.normalizeOptionalText(preferredVendorId);
+        if (normalizedPreferredVendorId && this.vendorById.has(normalizedPreferredVendorId)) {
+          this.onVendorChange(normalizedPreferredVendorId);
+        }
       }
+    });
+  }
+
+  openNewVendorDialog(): void {
+    this.newContactDialogService.openNewContactDialog({
+      entityTypeId: EntityType.Vendor,
+      preselectPropertyOfficeId: this.data.officeId ?? null
+    }).pipe(take(1)).subscribe(result => {
+      const contactId = String(result?.contactId || '').trim();
+      if (!result?.saved || !contactId) {
+        return;
+      }
+      this.contactService.ensureContactsLoaded().pipe(take(1)).subscribe({
+        next: () => {
+          this.loadVendorOptions(contactId);
+        }
+      });
     });
   }
 

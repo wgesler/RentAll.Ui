@@ -5,6 +5,7 @@ export interface Split {
   receiptSplitId?: number | null;
   amount: number;
   description: string;
+  propertyId?: string | null;
   workOrderId?: string | null;
   workOrderCode?: string | null;
   receiptTypeId: number;
@@ -119,6 +120,7 @@ export interface ReceiptDisplayList {
   isSplitAmountValid?: boolean;
   workOrderDisplay?: string;
   receiptTypeDisplay?: string;
+  receiptTypeTooltip?: string;
   descriptionDisplay?: string;
   isUtility?: boolean;
   isActive: boolean;

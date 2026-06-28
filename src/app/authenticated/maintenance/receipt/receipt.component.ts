@@ -155,6 +155,7 @@ export class ReceiptComponent implements OnInit, OnChanges, OnDestroy {
       this.syncSelectedPropertyIdFromForm();
       this.syncReceiptOfficeFromSelectedProperties();
       this.updatePropertyRequirementByReceiptType();
+      this.syncSplitPropertySelectionsToCurrentScope();
       this.form.patchValue({ propertyCode: this.getPropertyCodesDisplay(this.getFormPropertyIds()) }, { emitEvent: false });
       if (!this.isAllOfficesShellScope()) {
         this.loadBankCardsAndVendors();
@@ -1505,6 +1506,12 @@ export class ReceiptComponent implements OnInit, OnChanges, OnDestroy {
     const normalizedReceiptTypeId = split?.receiptTypeId ?? 0;
     const normalizedWorkOrderCode = (split?.workOrderCode || split?.workOrder || '').trim();
     const rawSplit = split as (Partial<Split> & Record<string, unknown>) | undefined;
+    const normalizedPropertyId = this.normalizeSplitPropertyId(
+      split?.propertyId
+      ?? (rawSplit?.['PropertyId'] as string | null | undefined)
+      ?? null
+    );
+    const resolvedPropertyId = normalizedPropertyId ?? this.getDefaultSplitPropertyId();
     const normalizedChartOfAccountId = Number(
       rawSplit?.chartOfAccountId
       ?? rawSplit?.['ChartOfAccountId']
@@ -1519,6 +1526,7 @@ export class ReceiptComponent implements OnInit, OnChanges, OnDestroy {
       receiptSplitId: new FormControl(split?.receiptSplitId ?? null),
       amount: new FormControl(Number.isFinite(amount) ? amount.toFixed(2) : '', [Validators.required]),
       description: new FormControl((split?.description || '').trim(), [Validators.required]),
+      propertyId: new FormControl<string | null>(resolvedPropertyId),
       workOrderId: new FormControl(split?.workOrderId ?? null),
       workOrderCode: new FormControl(normalizedWorkOrderCode),
       workOrder: new FormControl(normalizedWorkOrderCode),
@@ -1576,6 +1584,7 @@ export class ReceiptComponent implements OnInit, OnChanges, OnDestroy {
         receiptSplitId: control.get('receiptSplitId')?.value ?? null,
         amount: parseFloat(amountRaw) || 0,
         description: (control.get('description')?.value || '').trim(),
+        propertyId: this.normalizeSplitPropertyId(control.get('propertyId')?.value ?? null),
         workOrderId: (control.get('workOrderId')?.value || '').toString().trim() || null,
         workOrderCode: (control.get('workOrderCode')?.value || control.get('workOrder')?.value || '').trim(),
         workOrder: (control.get('workOrderCode')?.value || control.get('workOrder')?.value || '').trim(),
@@ -1648,6 +1657,7 @@ export class ReceiptComponent implements OnInit, OnChanges, OnDestroy {
         receiptSplitId: split.receiptSplitId ?? null,
         amount: Number(split.amount) || 0,
         description: (split.description || '').trim(),
+        propertyId: this.normalizeSplitPropertyId(split.propertyId ?? null),
         workOrderId: (split.workOrderId || '').toString().trim() || null,
         workOrderCode: (split.workOrderCode || split.workOrder || '').trim(),
         workOrder: (split.workOrderCode || split.workOrder || '').trim(),
@@ -2091,6 +2101,75 @@ export class ReceiptComponent implements OnInit, OnChanges, OnDestroy {
   getSelectedPropertyIds(): string[] {
     return this.getFormPropertyIds()
       .filter(propertyId => propertyId !== ACCOUNTING_COMPANY_PROPERTY_ID);
+  }
+
+  getSplitPropertyOptions(): Array<{ value: string; label: string }> {
+    const codeLookup = new Map(
+      (this.propertyOptions || []).map(property => [property.propertyId, (property.propertyCode || '').trim()])
+    );
+
+    const selectedPropertyIds = this.getSelectedPropertyIds()
+      .map(propertyId => (propertyId || '').trim())
+      .filter(propertyId => propertyId.length > 0);
+    if (selectedPropertyIds.length > 0) {
+      return selectedPropertyIds.map(propertyId => ({
+        value: propertyId,
+        label: codeLookup.get(propertyId) || propertyId
+      }));
+    }
+
+    return (this.propertyOptions || [])
+      .map(property => ({
+        value: (property.propertyId || '').trim(),
+        label: (property.propertyCode || '').trim()
+      }))
+      .filter(option => option.value.length > 0);
+  }
+
+  getDefaultSplitPropertyId(): string | null {
+    const selectedPropertyIds = this.getSelectedPropertyIds()
+      .map(propertyId => (propertyId || '').trim())
+      .filter(propertyId => propertyId.length > 0);
+    if (selectedPropertyIds.length > 0) {
+      return selectedPropertyIds[0];
+    }
+    return null;
+  }
+
+  normalizeSplitPropertyId(propertyId: string | null | undefined): string | null {
+    const normalizedPropertyId = (propertyId || '').trim();
+    if (!normalizedPropertyId || normalizedPropertyId === ACCOUNTING_COMPANY_PROPERTY_ID) {
+      return null;
+    }
+    return normalizedPropertyId;
+  }
+
+  syncSplitPropertySelectionsToCurrentScope(): void {
+    if (!this.splitsFormArray || this.splitsFormArray.length === 0) {
+      return;
+    }
+
+    const availablePropertyIds = new Set(
+      this.getSplitPropertyOptions()
+        .map(option => option.value)
+        .filter(propertyId => propertyId.length > 0)
+    );
+    const defaultPropertyId = this.getDefaultSplitPropertyId();
+
+    if (availablePropertyIds.size === 0 && !defaultPropertyId) {
+      return;
+    }
+
+    this.splitsFormArray.controls.forEach(control => {
+      const currentPropertyId = this.normalizeSplitPropertyId(control.get('propertyId')?.value ?? null);
+      if (currentPropertyId && availablePropertyIds.has(currentPropertyId)) {
+        return;
+      }
+      if (!currentPropertyId && !defaultPropertyId) {
+        return;
+      }
+      control.get('propertyId')?.setValue(defaultPropertyId, { emitEvent: false });
+    });
   }
 
   havePropertyIdsChanged(nextPropertyIds: string[], currentPropertyIds: string[]): boolean {
