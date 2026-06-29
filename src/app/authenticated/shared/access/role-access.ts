@@ -167,6 +167,11 @@ const REALTOR_ALLOWED_SEGMENTS = new Set<string>([
   ROUTER_TOKEN.Dashboard,
   ROUTER_TOKEN.ReservationBoard
 ]);
+const OWNER_REALTOR_ALLOWED_SEGMENTS = new Set<string>([
+  ROUTER_TOKEN.DashboardOwner,
+  ROUTER_TOKEN.Dashboard,
+  ROUTER_TOKEN.ReservationBoard
+]);
 
 export const COMPANY_USERS_NAV_ITEMS: NavItemDefinition[] = [
   { icon: 'dashboard', displayName: 'Dashboard', url: ROUTER_TOKEN.Dashboard, ...openToAllExceptSuperAdmin },
@@ -295,6 +300,17 @@ export function hasOwnerRole(userGroups: UserGroupInput): boolean {
   return getUserGroupNumbers(userGroups).includes(UserGroups.Owner);
 }
 
+export function hasOwnerAndRealtorRoles(userGroups: UserGroupInput): boolean {
+  return hasOwnerRole(userGroups) && hasRealtorRole(userGroups);
+}
+
+export function isOwnerOnlyUser(userGroups: UserGroupInput): boolean {
+  const groups = getUserGroupNumbers(userGroups).filter(group => group !== UserGroups.Unknown);
+  return groups.length > 0
+    && groups.includes(UserGroups.Owner)
+    && !groups.some(group => group !== UserGroups.Owner);
+}
+
 export function hasRealtorRole(userGroups: UserGroupInput): boolean {
   return getUserGroupNumbers(userGroups).includes(UserGroups.Realtor);
 }
@@ -383,7 +399,10 @@ export function getRouteRuleForUrl(url: string): AccessRule | null {
 //#region Navigation and Routing
 export function canUserAccessUrl(userGroups: UserGroupInput, url: string): boolean {
   const segment = getPrimaryAuthSegment(url);
-  if (hasOwnerRole(userGroups)) {
+  if (hasOwnerAndRealtorRoles(userGroups)) {
+    return segment !== null && OWNER_REALTOR_ALLOWED_SEGMENTS.has(segment);
+  }
+  if (isOwnerOnlyUser(userGroups)) {
     return segment === ROUTER_TOKEN.DashboardOwner;
   }
   if (hasRealtorRole(userGroups)) {
@@ -401,7 +420,15 @@ export function canUserAccessUrl(userGroups: UserGroupInput, url: string): boole
 }
 
 export function getVisibleNavItems(userGroups: UserGroupInput): NavItemDefinition[] {
-  if (hasOwnerRole(userGroups)) {
+  if (hasOwnerAndRealtorRoles(userGroups)) {
+    const ownerDashboardItem = COMPANY_USERS_NAV_ITEMS.find(item => item.url === ROUTER_TOKEN.Dashboard);
+    const realtorItems = COMPANY_USERS_NAV_ITEMS.filter(item => item.url === ROUTER_TOKEN.ReservationBoard);
+    return [
+      ...(ownerDashboardItem ? [{ ...ownerDashboardItem, url: ROUTER_TOKEN.DashboardOwner }] : []),
+      ...realtorItems
+    ];
+  }
+  if (isOwnerOnlyUser(userGroups)) {
     const dashboardItem = COMPANY_USERS_NAV_ITEMS.find(item => item.url === ROUTER_TOKEN.Dashboard);
     return dashboardItem ? [{ ...dashboardItem, url: ROUTER_TOKEN.DashboardOwner }] : [];
   }
