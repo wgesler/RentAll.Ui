@@ -44,7 +44,7 @@ export class BuildingListComponent implements OnInit, OnChanges, OnDestroy {
     'buildingCode': { displayAs: 'Code', maxWidth: '20ch' },
     'name': { displayAs: 'Name', maxWidth: '25ch' },
     'description': { displayAs: 'Description', maxWidth: '30ch' },
-    'isActive': { displayAs: 'IsActive', isCheckbox: true, sort: false, wrap: false, alignment: 'center', maxWidth: '15ch' }
+    'isActive': { displayAs: 'IsActive', isCheckbox: true, wrap: false, alignment: 'center', maxWidth: '15ch' }
   };
 
   isPageReady = false;

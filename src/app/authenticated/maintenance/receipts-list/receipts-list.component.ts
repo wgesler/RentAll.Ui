@@ -100,7 +100,7 @@ export class ReceiptsListComponent implements OnInit, OnChanges, OnDestroy {
 
   readonly maintenanceReceiptDisplayedColumns: ColumnSet = {
     receiptCode: { displayAs: 'Code', maxWidth: '15ch', sortType: 'natural', wrap: false },
-    receipt: { displayAs: 'Receipt', wrap: false, sort: false, maxWidth: '12ch', alignment: 'center'  },
+    receipt: { displayAs: 'Receipt', wrap: false, sort: false, maxWidth: '12ch', alignment: 'center' },
     receiptDate: { displayAs: 'Receipt Date', wrap: false, maxWidth: '22ch', alignment: 'center', editableType: 'date', suppressRowClick: true },
     amountDisplay: { displayAs: 'Amount', wrap: false, maxWidth: '12ch', alignment: 'center'  },
     vendorDisplay: { displayAs: 'Vendor', wrap: false, maxWidth: '25ch', editableType: 'text', suppressRowClick: true, searchableDropdown: true, dropdownSearchPlaceholder: 'Type to filter vendors...' },
@@ -110,8 +110,8 @@ export class ReceiptsListComponent implements OnInit, OnChanges, OnDestroy {
     descriptionDisplay: { displayAs: 'Description', wrap: true, maxWidth: '25ch' },
     receiptTypeDisplay: { displayAs: 'Type', wrap: true, maxWidth: '12ch', alignment: 'center', headerAlignment: 'center' },
     createdBy: { displayAs: 'Created By', wrap: false, maxWidth: '20ch' },
-    isUtility: { displayAs: 'IsUtility', isCheckbox: true, checkboxEditable: false, sort: false, wrap: false, alignment: 'center', maxWidth: '12ch' },
-    isActive: { displayAs: 'IsActive', isCheckbox: true, checkboxEditable: false, sort: false, wrap: false, alignment: 'center', maxWidth: '10ch' }
+    isUtility: { displayAs: 'IsUtility', isCheckbox: true, checkboxEditable: false, wrap: false, alignment: 'center', maxWidth: '12ch' },
+    isActive: { displayAs: 'IsActive', isCheckbox: true, checkboxEditable: false, wrap: false, alignment: 'center', maxWidth: '10ch' }
   };
 
   readonly accountingReceiptDisplayedColumns: ColumnSet = {
@@ -119,17 +119,17 @@ export class ReceiptsListComponent implements OnInit, OnChanges, OnDestroy {
     propertyCode: { displayAs: 'Property', wrap: false, maxWidth: '15ch' },
     workOrderDisplay: { displayAs: 'Work Order', wrap: true, maxWidth: '15ch' },
     receiptTypeDisplay: { displayAs: 'Type', wrap: true, maxWidth: '12ch', alignment: 'center', headerAlignment: 'center' },
-    receipt: { displayAs: 'Receipt', wrap: false, sort: false, maxWidth: '12ch', alignment: 'center' },
+    receipt: { displayAs: 'Receipt', wrap: false, maxWidth: '12ch', alignment: 'center' },
     vendorDisplay: { displayAs: 'Vendor', wrap: false, maxWidth: '25ch', editableType: 'text', suppressRowClick: true, searchableDropdown: true, dropdownSearchPlaceholder: 'Type to filter vendors...' },
     period: { displayAs: 'Period', maxWidth: '12ch', alignment: 'center' },
     receiptDate: { displayAs: 'Bill Date', wrap: false, maxWidth: '15ch', alignment: 'center' },
     dueDate: { displayAs: 'Due Date', maxWidth: '15ch', alignment: 'center' },
-    amountDisplay: { displayAs: 'Amount', maxWidth: '12ch', alignment: 'right', headerAlignment: 'right', sort: false },
-    paidAmount: { displayAs: 'Paid', maxWidth: '12ch', alignment: 'right', headerAlignment: 'right', sort: false },
-    dueAmount: { displayAs: 'Due', maxWidth: '12ch', alignment: 'right', headerAlignment: 'right', sort: false },
-    applyAmount: { displayAs: 'Apply', maxWidth: '20ch', alignment: 'right', headerAlignment: 'right', sort: false },
-    isUtility: { displayAs: 'IsUtility', isCheckbox: true, checkboxEditable: false, sort: false, wrap: false, alignment: 'center', maxWidth: '12ch' },
-    isActive: { displayAs: 'IsActive', isCheckbox: true, checkboxEditable: false, sort: false, wrap: false, alignment: 'center', maxWidth: '10ch' }
+    amountDisplay: { displayAs: 'Amount', maxWidth: '12ch', alignment: 'right', headerAlignment: 'right' },
+    paidAmount: { displayAs: 'Paid', maxWidth: '12ch', alignment: 'right', headerAlignment: 'right' },
+    dueAmount: { displayAs: 'Due', maxWidth: '12ch', alignment: 'right', headerAlignment: 'right' },
+    applyAmount: { displayAs: 'Apply', maxWidth: '20ch', alignment: 'right', headerAlignment: 'right' },
+    isUtility: { displayAs: 'IsUtility', isCheckbox: true, checkboxEditable: false, wrap: false, alignment: 'center', maxWidth: '12ch' },
+    isActive: { displayAs: 'IsActive', isCheckbox: true, checkboxEditable: false, wrap: false, alignment: 'center', maxWidth: '10ch' }
   };
 
   readonly accountingNonBillReceiptDisplayedColumns: ColumnSet = {
@@ -137,17 +137,17 @@ export class ReceiptsListComponent implements OnInit, OnChanges, OnDestroy {
     propertyCode: { displayAs: 'Property', wrap: false, maxWidth: '15ch' },
     workOrderDisplay: { displayAs: 'Work Order', wrap: true, maxWidth: '15ch' },
     receiptTypeDisplay: { displayAs: 'Type', wrap: true, maxWidth: '12ch', alignment: 'center', headerAlignment: 'center' },
-    receipt: { displayAs: 'Receipt', wrap: false, sort: false, maxWidth: '12ch', alignment: 'center' },
+    receipt: { displayAs: 'Receipt', wrap: false, maxWidth: '12ch', alignment: 'center' },
     vendorDisplay: { displayAs: 'Vendor', wrap: false, maxWidth: '25ch', editableType: 'text', suppressRowClick: true, searchableDropdown: true, dropdownSearchPlaceholder: 'Type to filter vendors...' },
     period: { displayAs: 'Period', maxWidth: '12ch', alignment: 'center' },
     receiptDate: { displayAs: 'Receipt Date', wrap: false, maxWidth: '15ch', alignment: 'center' },
     dueDate: { displayAs: 'Due Date', maxWidth: '15ch', alignment: 'center' },
-    amountDisplay: { displayAs: 'Amount', maxWidth: '12ch', alignment: 'right', headerAlignment: 'right', sort: false },
-    paidAmount: { displayAs: 'Paid', maxWidth: '12ch', alignment: 'right', headerAlignment: 'right', sort: false },
-    dueAmount: { displayAs: 'Due', maxWidth: '12ch', alignment: 'right', headerAlignment: 'right', sort: false },
-    applyAmount: { displayAs: 'Apply', maxWidth: '20ch', alignment: 'right', headerAlignment: 'right', sort: false },
-    isUtility: { displayAs: 'IsUtility', isCheckbox: true, checkboxEditable: false, sort: false, wrap: false, alignment: 'center', maxWidth: '12ch' },
-    isActive: { displayAs: 'IsActive', isCheckbox: true, checkboxEditable: false, sort: false, wrap: false, alignment: 'center', maxWidth: '10ch' }
+    amountDisplay: { displayAs: 'Amount', maxWidth: '12ch', alignment: 'right', headerAlignment: 'right' },
+    paidAmount: { displayAs: 'Paid', maxWidth: '12ch', alignment: 'right', headerAlignment: 'right' },
+    dueAmount: { displayAs: 'Due', maxWidth: '12ch', alignment: 'right', headerAlignment: 'right' },
+    applyAmount: { displayAs: 'Apply', maxWidth: '20ch', alignment: 'right', headerAlignment: 'right' },
+    isUtility: { displayAs: 'IsUtility', isCheckbox: true, checkboxEditable: false, wrap: false, alignment: 'center', maxWidth: '12ch' },
+    isActive: { displayAs: 'IsActive', isCheckbox: true, checkboxEditable: false, wrap: false, alignment: 'center', maxWidth: '10ch' }
   };
 
   get receiptDisplayedColumns(): ColumnSet {

@@ -52,8 +52,8 @@ export class GeneralLedgerComponent implements OnInit, OnDestroy, OnChanges {
     contactName: { displayAs: 'Contact', maxWidth: '20ch' },
     account: { displayAs: 'Account', maxWidth: '28ch' },
     memo: { displayAs: 'Memo', maxWidth: '28ch', wrap: true },
-    debit: { displayAs: 'Debit', maxWidth: '14ch', alignment: 'right', headerAlignment: 'right', sort: false },
-    credit: { displayAs: 'Credit', maxWidth: '14ch', alignment: 'right', headerAlignment: 'right', sort: false }
+    debit: { displayAs: 'Debit', maxWidth: '14ch', alignment: 'right', headerAlignment: 'right' },
+    credit: { displayAs: 'Credit', maxWidth: '14ch', alignment: 'right', headerAlignment: 'right' }
   };
 
   isPageReady = false;

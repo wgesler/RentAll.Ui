@@ -46,14 +46,14 @@ export class RentRollComponent implements OnInit, OnChanges, OnDestroy {
     propertyCode: { displayAs: 'Property', wrap: false, maxWidth: '15ch', sortType: 'natural' },
     vendorName: { displayAs: 'Vendor', wrap: true, maxWidth: '25ch' },
     chartOfAccountDisplay: { displayAs: 'Chart of Account', wrap: true, maxWidth: '25ch' },
-    isRent: { displayAs: 'Is Rent', wrap: false, maxWidth: '10ch', alignment: 'center', headerAlignment: 'center', sort: false, isCheckbox: true, checkboxEditable: false },
+    isRent: { displayAs: 'Is Rent', wrap: false, maxWidth: '10ch', alignment: 'center', headerAlignment: 'center', isCheckbox: true, checkboxEditable: false },
     billDateDisplay: { displayAs: 'Bill Date', wrap: false, maxWidth: '14ch', alignment: 'center', headerAlignment: 'center' },
     dueDateDisplay: { displayAs: 'Due Date', wrap: false, maxWidth: '14ch', alignment: 'center', headerAlignment: 'center' },
-    depositAmountDisplay: { displayAs: 'Deposit', wrap: false, maxWidth: '14ch', alignment: 'right', headerAlignment: 'right', sort: false },
-    oneTimeAmountDisplay: { displayAs: 'One Time', wrap: false, maxWidth: '14ch', alignment: 'right', headerAlignment: 'right', sort: false },
-    monthlyAmountDisplay: { displayAs: 'Monthly', wrap: false, maxWidth: '14ch', alignment: 'right', headerAlignment: 'right', sort: false },
-    dailyAmountDisplay: { displayAs: 'Daily', wrap: false, maxWidth: '14ch', alignment: 'right', headerAlignment: 'right', sort: false },
-    totalAmountDisplay: { displayAs: 'Total', wrap: false, maxWidth: '14ch', alignment: 'right', headerAlignment: 'right', sort: false }
+    depositAmountDisplay: { displayAs: 'Deposit', wrap: false, maxWidth: '14ch', alignment: 'right', headerAlignment: 'right' },
+    oneTimeAmountDisplay: { displayAs: 'One Time', wrap: false, maxWidth: '14ch', alignment: 'right', headerAlignment: 'right' },
+    monthlyAmountDisplay: { displayAs: 'Monthly', wrap: false, maxWidth: '14ch', alignment: 'right', headerAlignment: 'right' },
+    dailyAmountDisplay: { displayAs: 'Daily', wrap: false, maxWidth: '14ch', alignment: 'right', headerAlignment: 'right' },
+    totalAmountDisplay: { displayAs: 'Total', wrap: false, maxWidth: '14ch', alignment: 'right', headerAlignment: 'right' }
   };
   rentRollRows: RentRollRow[] = [];
   rentRollRowsDisplayAll: RentRollRowDisplay[] = [];

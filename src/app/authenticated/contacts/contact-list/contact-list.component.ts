@@ -63,7 +63,7 @@ export class ContactListComponent implements OnInit, OnDestroy, OnChanges {
     'fullName': { displayAs: 'Contact', maxWidth: '25ch' },
     'phone': { displayAs: 'Phone', maxWidth: '25ch' },
     'email': { displayAs: 'Email', maxWidth: '30ch' },
-    'isActive': { displayAs: 'IsActive', isCheckbox: true, checkboxEditable: true, sort: false, wrap: false, alignment: 'center', maxWidth: '20ch' }
+    'isActive': { displayAs: 'IsActive', isCheckbox: true, checkboxEditable: true, wrap: false, alignment: 'center', maxWidth: '20ch' }
   };
 
   private readonly ownerColumns: ColumnSet = {
@@ -72,7 +72,7 @@ export class ContactListComponent implements OnInit, OnDestroy, OnChanges {
     'phone': { displayAs: 'Phone', maxWidth: '25ch' },
     'email': { displayAs: 'Email', maxWidth: '30ch' },
     'propertyCodesDisplay': { displayAs: 'Properties', maxWidth: '20ch' },
-    'isActive': { displayAs: 'IsActive', isCheckbox: true, checkboxEditable: true, sort: false, wrap: false, alignment: 'center', maxWidth: '20ch' }
+    'isActive': { displayAs: 'IsActive', isCheckbox: true, checkboxEditable: true, wrap: false, alignment: 'center', maxWidth: '20ch' }
   };
 
   isPageReady = false;

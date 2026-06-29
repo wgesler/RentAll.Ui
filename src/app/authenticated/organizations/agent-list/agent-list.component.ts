@@ -46,7 +46,7 @@ export class AgentListComponent implements OnInit, OnChanges, OnDestroy {
     'agentCode': { displayAs: 'Code', maxWidth: '20ch' },
     'officeName': { displayAs: 'Office', maxWidth: '25ch' },
     'name': { displayAs: 'Name', maxWidth: '30ch' },
-    'isActive': { displayAs: 'IsActive', isCheckbox: true, sort: false, wrap: false, alignment: 'center', maxWidth: '15ch' }
+    'isActive': { displayAs: 'IsActive', isCheckbox: true, wrap: false, alignment: 'center', maxWidth: '15ch' }
   };
 
   isPageReady = false;

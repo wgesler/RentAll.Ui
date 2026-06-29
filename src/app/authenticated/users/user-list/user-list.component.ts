@@ -59,7 +59,7 @@ export class UserListComponent implements OnInit, OnDestroy, OnChanges {
     'startupPageDisplay': { displayAs: 'Startup Page', maxWidth: '15ch' },
     'defaultOffice': { displayAs: 'Default Office', maxWidth: '20ch' },
     'userGroupsDisplay': { displayAs: 'User Groups', maxWidth: '30ch'},
-    'isActive': { displayAs: 'IsActive', isCheckbox: true, checkboxEditable: true, sort: false, wrap: false, alignment: 'center', maxWidth: '15ch' }
+    'isActive': { displayAs: 'IsActive', isCheckbox: true, checkboxEditable: true, wrap: false, alignment: 'center', maxWidth: '15ch' }
   };
 
   isPageReady = false;

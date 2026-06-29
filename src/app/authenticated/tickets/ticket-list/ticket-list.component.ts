@@ -58,7 +58,7 @@ export class TicketListComponent implements OnInit, OnChanges, OnDestroy {
   users: UserResponse[] = [];
 
   ticketsDisplayedColumns: ColumnSet = {
-    'ticketAttentionDot': { displayAs: ' ', maxWidth: '4ch', alignment: 'center', sort: false, wrap: false },
+    'ticketAttentionDot': { displayAs: ' ', maxWidth: '4ch', alignment: 'center', wrap: false },
     'ticketCode': { displayAs: 'Ticket', maxWidth: '15ch', sortType: 'natural' },
     'propertyCode': { displayAs: 'Property', maxWidth: '15ch', sortType: 'natural' },
     'reservationCode': { displayAs: 'Reservation', maxWidth: '15ch', sortType: 'natural' },
@@ -68,7 +68,7 @@ export class TicketListComponent implements OnInit, OnChanges, OnDestroy {
     'assigneeDropdown': { displayAs: 'Assignee', maxWidth: '20ch' },
     'agentName': { displayAs: 'Agent', maxWidth: '20ch' },
     'title': { displayAs: 'Title', maxWidth: '25ch' },
-    'isActive': { displayAs: 'IsActive', isCheckbox: true, checkboxEditable: true, sort: false, wrap: false, alignment: 'center', maxWidth: '15ch' }
+    'isActive': { displayAs: 'IsActive', isCheckbox: true, checkboxEditable: true, wrap: false, alignment: 'center', maxWidth: '15ch' }
  };
 
   destroy$ = new Subject<void>();

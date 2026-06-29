@@ -79,7 +79,7 @@ export class AlertListComponent implements OnInit, OnChanges, OnDestroy {
     frequencyLabel: { displayAs: 'Frequency', maxWidth: '20ch', alignment: 'center' },
     lastNotifiedDate: { displayAs: 'Last Notified', maxWidth: '15ch', alignment: 'center' },
     createdOn: { displayAs: 'Created', maxWidth: '15ch', alignment: 'center' },
-    isActive: { displayAs: 'IsActive', isCheckbox: true, checkboxEditable: true, sort: false, wrap: false, alignment: 'center', maxWidth: '15ch' }
+    isActive: { displayAs: 'IsActive', isCheckbox: true, checkboxEditable: true, wrap: false, alignment: 'center', maxWidth: '15ch' }
   };
 
   constructor(

@@ -88,10 +88,10 @@ export class ReservationListComponent implements OnInit, OnDestroy, OnChanges {
     'companyName': { displayAs: 'Company', maxWidth: '15ch' },
     'arrivalDate': { displayAs: 'Arrival', maxWidth: '16ch', alignment: 'center'},
     'departureDate': { displayAs: 'Departure', maxWidth: '16ch', alignment: 'center'},
-    'isActive': { displayAs: 'IsActive', isCheckbox: true, checkboxEditable: true, sort: false, wrap: false, alignment: 'center', maxWidth: '20ch' }
+    'isActive': { displayAs: 'IsActive', isCheckbox: true, checkboxEditable: true, wrap: false, alignment: 'center', maxWidth: '20ch' }
   };
   private readonly compactReservationsDisplayedColumns: ColumnSet = {
-    'reservationCode': { displayAs: 'Code', maxWidth: '15ch', sort: false, sortType: 'natural' }
+    'reservationCode': { displayAs: 'Code', maxWidth: '15ch', sortType: 'natural' }
   };
   reservationsDisplayedColumns: ColumnSet = this.fullReservationsDisplayedColumns;
 

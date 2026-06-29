@@ -42,14 +42,14 @@ export class GeneralListComponent implements OnInit, OnChanges, OnDestroy {
   selectedOffice: OfficeResponse | null = null;
 
   generalsDisplayedColumns: ColumnSet = {
-    leadAttentionDot: { displayAs: ' ', maxWidth: '4ch', alignment: 'center', sort: false, wrap: false },
+    leadAttentionDot: { displayAs: ' ', maxWidth: '4ch', alignment: 'center', wrap: false },
     fullName: { displayAs: 'Name', maxWidth: '25ch', wrap: false },
     email: { displayAs: 'Email', maxWidth: '30ch', wrap: false },
     phone: { displayAs: 'Phone', maxWidth: '20ch', wrap: false },
     modifiedOn: { displayAs: 'Modified On', maxWidth: '22ch', wrap: false, alignment: 'center' },
-    leadStateDropdown: { displayAs: 'Status', wrap: false, maxWidth: '20ch', sort: false, options: LEAD_STATE_SELECT_OPTIONS.map(o => o.label) },
+    leadStateDropdown: { displayAs: 'Status', wrap: false, maxWidth: '20ch', options: LEAD_STATE_SELECT_OPTIONS.map(o => o.label) },
     messagePreview: { displayAs: 'Message', maxWidth: '25ch', wrap: false },
-    isActive: { displayAs: 'IsActive', isCheckbox: true, checkboxEditable: true, sort: false, wrap: false, alignment: 'center', maxWidth: '12ch' }
+    isActive: { displayAs: 'IsActive', isCheckbox: true, checkboxEditable: true, wrap: false, alignment: 'center', maxWidth: '12ch' }
   };
 
   itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['general-leads']));

@@ -38,7 +38,7 @@ export class OrganizationListComponent implements OnInit, OnDestroy {
     'zip': { displayAs: 'Zip' },
     'phone': { displayAs: 'Phone' },
     'website': { displayAs: 'Website' },
-    'isActive': { displayAs: 'IsActive', isCheckbox: true, sort: false, wrap: false, alignment: 'center', maxWidth: '15ch' }
+    'isActive': { displayAs: 'IsActive', isCheckbox: true, wrap: false, alignment: 'center', maxWidth: '15ch' }
   };
 
   isPageReady = false;
