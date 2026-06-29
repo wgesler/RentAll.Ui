@@ -389,13 +389,14 @@ export class ReceiptComponent implements OnInit, OnChanges, OnDestroy {
         this.activeAgreementLineId = this.normalizeAgreementLineId(saved.agreementLineId);
         this.activeAgreementLineNotes = this.normalizeAgreementLineNotes(saved.agreementLineNotes);
         this.isAddMode = false;
+        const formPropertyIds = this.toFormPropertyIds(saved.propertyIds || [], saved.splits || []);
         this.form.patchValue({
           officeName: saved.officeName || this.property?.officeName || '',
           receiptDate: this.getReceiptDateControlValue(saved.receiptDate),
           dueDate: this.getReceiptDateControlValue(saved.dueDate || saved.receiptDate),
           accountingPeriod: this.getReceiptDateControlValue(saved.accountingPeriod || saved.receiptDate),
-          propertyCode: this.getPropertyCodesDisplay(this.toFormPropertyIds(saved.propertyIds || [])) || this.property?.propertyCode || '',
-          propertyIds: this.toFormPropertyIds(saved.propertyIds || []),
+          propertyCode: this.getPropertyCodesDisplay(formPropertyIds) || this.property?.propertyCode || '',
+          propertyIds: formPropertyIds,
           description: saved.description || '',
           amount: saved.amount != null ? this.formatter.currency(saved.amount) : '0.00',
           bankCardId: saved.bankCardId ?? 0,
@@ -507,13 +508,14 @@ export class ReceiptComponent implements OnInit, OnChanges, OnDestroy {
   }
 
   populateForm(receipt: ReceiptResponse): void {
+    const formPropertyIds = this.toFormPropertyIds(receipt.propertyIds || [], receipt.splits || []);
     this.form.patchValue({
       officeName: receipt.officeName || this.property?.officeName || '',
       receiptDate: this.getReceiptDateControlValue(receipt.receiptDate),
       dueDate: this.getReceiptDateControlValue(receipt.dueDate || receipt.receiptDate),
       accountingPeriod: this.getReceiptDateControlValue(receipt.accountingPeriod || receipt.receiptDate),
-      propertyCode: this.getPropertyCodesDisplay(this.toFormPropertyIds(receipt.propertyIds || [])) || this.property?.propertyCode || '',
-      propertyIds: this.toFormPropertyIds(receipt.propertyIds || []),
+      propertyCode: this.getPropertyCodesDisplay(formPropertyIds) || this.property?.propertyCode || '',
+      propertyIds: formPropertyIds,
       description: receipt.description || '',
       amount: receipt.amount != null ? this.formatter.currency(receipt.amount) : '0.00',
       bankCardId: receipt.bankCardId ?? 0,
@@ -2095,17 +2097,15 @@ export class ReceiptComponent implements OnInit, OnChanges, OnDestroy {
     void previous;
   }
 
-  toFormPropertyIds(propertyIds: string[] | null | undefined): string[] {
+  toFormPropertyIds(propertyIds: string[] | null | undefined, splits?: Split[] | null): string[] {
     const realIds = (propertyIds || [])
       .map(propertyId => (propertyId || '').toString().trim())
       .filter(propertyId => propertyId.length > 0);
-    if (realIds.length > 0) {
-      return realIds;
+    const hasCompanySplit = (splits || []).some(split => !this.normalizeSplitPropertyId(split.propertyId ?? null));
+    if (this.showAccountingCompanyPropertyOption && (realIds.length === 0 || hasCompanySplit)) {
+      return [ACCOUNTING_COMPANY_PROPERTY_ID, ...realIds];
     }
-    if (this.showAccountingCompanyPropertyOption) {
-      return [ACCOUNTING_COMPANY_PROPERTY_ID];
-    }
-    return [];
+    return realIds;
   }
 
   getFormPropertyIds(): string[] {
@@ -2246,13 +2246,13 @@ export class ReceiptComponent implements OnInit, OnChanges, OnDestroy {
 
     this.splitsFormArray.controls.forEach(control => {
       const currentPropertyId = this.normalizeSplitPropertyId(control.get('propertyId')?.value ?? null);
-      if (currentPropertyId && availablePropertyIds.has(currentPropertyId)) {
+      if (!currentPropertyId) {
         return;
       }
-      if (!currentPropertyId && !defaultPropertyId) {
+      if (availablePropertyIds.has(currentPropertyId)) {
         return;
       }
-      control.get('propertyId')?.setValue(defaultPropertyId, { emitEvent: false });
+      control.get('propertyId')?.setValue(defaultPropertyId ?? null, { emitEvent: false });
     });
   }
 
