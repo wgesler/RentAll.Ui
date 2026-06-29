@@ -1,0 +1,27 @@
+@if (!isPageReady) {
+  <div class="loading-container">
+    <mat-spinner [diameter]="40"></mat-spinner>
+    <p>Loading owner statements...</p>
+  </div>
+} @else if (isServiceError) {
+  <p class="owner-statement-empty-msg">Unable to load owner statements.</p>
+} @else {
+  <div class="mat list-layout-standard dbg-band-main">
+    <div class="tableDiv">
+      <app-data-table
+        tableName="owner-statement-list"
+        [data]="ownerStatementsDisplay"
+        [columns]="ownerStatementDisplayedColumns"
+        [hasColumnIndex]="true"
+        [hasFilter]="true"
+        [hasToggleTop]="false"
+        [hasButtonTop]="false"
+        [hasActionsRowClick]="false"
+        [hasActionsView]="false"
+        [hasActionsEdit]="false"
+        [hasActionsDelete]="false"
+        [itemsPerPage]="25">
+      </app-data-table>
+    </div>
+  </div>
+}

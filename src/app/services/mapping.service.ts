@@ -6,6 +6,7 @@ import { ChartOfAccountListDisplay, ChartOfAccountRequest, ChartOfAccountRespons
 import { CostCodesListDisplay, CostCodesRequest, CostCodesResponse } from '../authenticated/accounting/models/cost-codes.model';
 import { InvoiceResponse, LedgerLineListDisplay, LedgerLineResponse } from '../authenticated/accounting/models/invoice.model';
 import { JournalEntryLineDetailDisplay, JournalEntryLineListDisplay, JournalEntryLineResponse, JournalEntryLineSearchResponse, JournalEntryResponse } from '../authenticated/accounting/models/journal-entry.model';
+import { OwnerStatementListDisplay, OwnerStatementResponse } from '../authenticated/accounting/models/owner-statement.model';
 import { RentRollPropertyAgreement, RentRollRow } from '../authenticated/accounting/models/rent-roll.model';
 import { EntityType, getEntityType } from '../authenticated/contacts/models/contact-enum';
 import { ContactListDisplay, ContactRequest, ContactResponse } from '../authenticated/contacts/models/contact.model';
@@ -1819,6 +1820,28 @@ export class MappingService {
         createdBy: workOrder.createdBy ?? workOrder.modifiedBy ?? ''
       };
     });
+  }
+
+  mapOwnerStatementDisplay(statement: OwnerStatementResponse): OwnerStatementListDisplay {
+    const incomeValue = Number(statement.income) || 0;
+    const expensesValue = Number(statement.expenses) || 0;
+    const balanceValue = Number(statement.balance) || 0;
+
+    return {
+      propertyId: statement.propertyId || '',
+      propertyCode: statement.propertyCode || '',
+      ownerName: statement.ownerName || '',
+      income: this.formatter.currencyUsd(incomeValue),
+      expenses: this.formatter.currencyUsd(expensesValue),
+      balance: this.formatter.currencyUsd(balanceValue),
+      incomeValue,
+      expensesValue,
+      balanceValue
+    };
+  }
+
+  mapOwnerStatementDisplays(statements: OwnerStatementResponse[]): OwnerStatementListDisplay[] {
+    return (statements || []).map(statement => this.mapOwnerStatementDisplay(statement));
   }
 
   mapReceiptResponse(raw: ReceiptResponse | Record<string, unknown>): ReceiptResponse {

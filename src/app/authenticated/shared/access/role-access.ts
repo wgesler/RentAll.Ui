@@ -22,7 +22,8 @@ const COMPANY_ROLES: UserGroups[] = [
   UserGroups.Agent,
   UserGroups.AgentAdmin,
   UserGroups.PropertyManager,
-  UserGroups.PropertyManagerAdmin
+  UserGroups.PropertyManagerAdmin,
+  UserGroups.Realtor
 ];
 
 const OUTSIDE_ROLES: UserGroups[] = [
@@ -162,6 +163,10 @@ const INSPECTOR_ALLOWED_SEGMENTS = new Set<string>([
   ROUTER_TOKEN.WorkOrderCreate,
   'receipt'
 ]);
+const REALTOR_ALLOWED_SEGMENTS = new Set<string>([
+  ROUTER_TOKEN.Dashboard,
+  ROUTER_TOKEN.ReservationBoard
+]);
 
 export const COMPANY_USERS_NAV_ITEMS: NavItemDefinition[] = [
   { icon: 'dashboard', displayName: 'Dashboard', url: ROUTER_TOKEN.Dashboard, ...openToAllExceptSuperAdmin },
@@ -290,6 +295,10 @@ export function hasOwnerRole(userGroups: UserGroupInput): boolean {
   return getUserGroupNumbers(userGroups).includes(UserGroups.Owner);
 }
 
+export function hasRealtorRole(userGroups: UserGroupInput): boolean {
+  return getUserGroupNumbers(userGroups).includes(UserGroups.Realtor);
+}
+
 export function hasInspectorRole(userGroups: UserGroupInput): boolean {
   return getUserGroupNumbers(userGroups).includes(UserGroups.Inspector);
 }
@@ -377,6 +386,9 @@ export function canUserAccessUrl(userGroups: UserGroupInput, url: string): boole
   if (hasOwnerRole(userGroups)) {
     return segment === ROUTER_TOKEN.DashboardOwner;
   }
+  if (hasRealtorRole(userGroups)) {
+    return segment !== null && REALTOR_ALLOWED_SEGMENTS.has(segment);
+  }
   if (isInspectorOnlyUser(userGroups)) {
     return segment !== null && INSPECTOR_ALLOWED_SEGMENTS.has(segment);
   }
@@ -392,6 +404,9 @@ export function getVisibleNavItems(userGroups: UserGroupInput): NavItemDefinitio
   if (hasOwnerRole(userGroups)) {
     const dashboardItem = COMPANY_USERS_NAV_ITEMS.find(item => item.url === ROUTER_TOKEN.Dashboard);
     return dashboardItem ? [{ ...dashboardItem, url: ROUTER_TOKEN.DashboardOwner }] : [];
+  }
+  if (hasRealtorRole(userGroups)) {
+    return COMPANY_USERS_NAV_ITEMS.filter(item => item.url === ROUTER_TOKEN.ReservationBoard);
   }
   if (getUserGroupNumbers(userGroups).includes(UserGroups.SuperAdmin)) {
     return SUPER_USER_NAV_ITEMS.filter(item => hasAccessByRule(userGroups, item));

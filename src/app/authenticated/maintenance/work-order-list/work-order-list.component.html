@@ -33,6 +33,11 @@
             <mat-slide-toggle [checked]="showInactive" color="primary" (change)="toggleInactive()">
               InActive
             </mat-slide-toggle>
+            @if (showOwnersOnlyToggle) {
+              <mat-slide-toggle [checked]="ownersOnly" color="primary" (change)="onOwnersOnlyToggleChange()">
+                OwnersOnly
+              </mat-slide-toggle>
+            }
             <button mat-raised-button type="button" color="primary" id="add-work-order-button" class="text-nowrap flex-shrink-0" (click)="addWorkOrder()">
               <mat-icon>add</mat-icon>
               Add

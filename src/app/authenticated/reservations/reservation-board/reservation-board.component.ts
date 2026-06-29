@@ -25,7 +25,7 @@ import { PropertySelectionResponse } from '../../properties/models/property-sele
 import { PropertyListResponse } from '../../properties/models/property.model';
 import { PropertySelectionFilterService } from '../../properties/services/property-selection-filter.service';
 import { PropertyService } from '../../properties/services/property.service';
-import { hasOwnerRole } from '../../shared/access/role-access';
+import { hasOwnerRole, hasRealtorRole } from '../../shared/access/role-access';
 import { BoardProperty, CalendarDay } from '../models/reservation-board-model';
 import { getReservationStatus, ReservationStatus } from '../models/reservation-enum';
 import { ReservationListResponse } from '../models/reservation-model';
@@ -118,7 +118,11 @@ export class ReservationBoardComponent implements OnInit, OnChanges, OnDestroy {
     window.addEventListener(this.clearPinsEventName, this.onClearPins);
     this.showReservationNames = this.showReservationNames !== false;
     this.userId = this.authService.getUser()?.userId || '';
-    this.isOwner = hasOwnerRole(this.authService.getUser()?.userGroups as Array<string | number> | undefined);
+    const userGroups = this.authService.getUser()?.userGroups as Array<string | number> | undefined;
+    this.isOwner = hasOwnerRole(userGroups);
+    if (hasRealtorRole(userGroups)) {
+      this.readOnly = true;
+    }
     this.organizationId = this.authService.getUser()?.organizationId?.trim() ?? '';
     this.applyStickyDateRangeFromStorage();
     this.generateCalendarDays();
@@ -1167,12 +1171,15 @@ export class ReservationBoardComponent implements OnInit, OnChanges, OnDestroy {
   }
 
   openBoardStatusDropdown(event: Event, dropdown: { open: () => void } | undefined): void {
+    if (this.readOnly) {
+      return;
+    }
     event.stopPropagation();
     dropdown?.open();
   }
 
   togglePropertySelection(propertyId: string): void {
-    if (!propertyId) {
+    if (this.readOnly || !propertyId) {
       return;
     }
 
@@ -1185,6 +1192,9 @@ export class ReservationBoardComponent implements OnInit, OnChanges, OnDestroy {
   }
 
   createQuoteFromSelection(): void {
+    if (this.readOnly) {
+      return;
+    }
     const selectedPropertyIds = Array.from(this.selectedPropertyIds);
     if (selectedPropertyIds.length === 0) {
       return;

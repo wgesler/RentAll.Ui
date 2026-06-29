@@ -20,6 +20,7 @@ import { ColumnSet } from '../../shared/data-table/models/column-data';
 import { UserGroups } from '../../users/models/user-enums';
 import { ReceiptRequest, ReceiptResponse } from '../models/receipt.model';
 import { MaintenanceListSearchRequest } from '../models/maintenance-search.model';
+import { WorkOrderType } from '../models/maintenance-enums';
 import { WorkOrderDisplayList, WorkOrderResponse } from '../models/work-order.model';
 import { ReceiptService } from '../services/receipt.service';
 import { WorkOrderService } from '../services/work-order.service';
@@ -47,6 +48,7 @@ export class WorkOrderListComponent implements OnInit, OnChanges, OnDestroy {
   @Input() refreshTrigger = 0;
   /** When set, only work orders with this type are shown. */
   @Input() workOrderTypeId: number | null = null;
+  @Input() showOwnersOnlyToggle = false;
   @Output() workOrderSelect = new EventEmitter<WorkOrderSelection>();
 
   isPageReady = false;
@@ -60,6 +62,8 @@ export class WorkOrderListComponent implements OnInit, OnChanges, OnDestroy {
   workOrders: WorkOrderResponse[] = [];
   workOrdersDisplay: WorkOrderDisplayList[] = [];
   allWorkOrders: WorkOrderDisplayList[] = [];
+  ownersOnly = false;
+  readonly ownerWorkOrderTypeId = WorkOrderType.Owner;
 
   selectedProperty: PropertyResponse | null = null;
   selectedPropertyId: string | null = null;
@@ -412,9 +416,10 @@ export class WorkOrderListComponent implements OnInit, OnChanges, OnDestroy {
       ? this.allWorkOrders.filter(workOrder => workOrder.isActive === false)
       : this.allWorkOrders.filter(workOrder => workOrder.isActive !== false);
 
-    const shouldApplyWorkOrderTypeFilter = this.workOrderTypeId !== null && this.workOrderTypeId !== undefined;
+    const effectiveWorkOrderTypeId = this.ownersOnly ? this.ownerWorkOrderTypeId : this.workOrderTypeId;
+    const shouldApplyWorkOrderTypeFilter = effectiveWorkOrderTypeId !== null && effectiveWorkOrderTypeId !== undefined;
     const typeFiltered = shouldApplyWorkOrderTypeFilter
-      ? activeScoped.filter(workOrder => Number(workOrder.workOrderTypeId) === Number(this.workOrderTypeId))
+      ? activeScoped.filter(workOrder => Number(workOrder.workOrderTypeId) === Number(effectiveWorkOrderTypeId))
       : activeScoped;
 
     // Reservation filtering is only valid when the shell is scoped to a specific property.
@@ -425,6 +430,11 @@ export class WorkOrderListComponent implements OnInit, OnChanges, OnDestroy {
     this.workOrdersDisplay = !selectedReservationId
       ? typeFiltered
       : typeFiltered.filter(workOrder => (workOrder.reservationId || '').trim() === selectedReservationId);
+  }
+
+  onOwnersOnlyToggleChange(): void {
+    this.ownersOnly = !this.ownersOnly;
+    this.applyFilters();
   }
   //#endregion
 

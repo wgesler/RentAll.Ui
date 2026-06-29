@@ -1,0 +1,18 @@
+.loading-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 3rem;
+  gap: 1rem;
+
+  p {
+    margin-top: 1rem;
+    color: #666;
+  }
+}
+
+.owner-statement-empty-msg {
+  margin: 1.5rem;
+  color: rgba(0, 0, 0, 0.6);
+}

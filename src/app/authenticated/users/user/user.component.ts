@@ -68,6 +68,7 @@ export class UserComponent implements OnInit, OnDestroy {
   availableAgents: { value: string, label: string }[] = [];
   isPopulatingUserForm: boolean = false;
   isPrivilegedOfficeEditor: boolean = false;
+  isCurrentUserSuperAdmin: boolean = false;
   organizationId = '';
   
   // Profile picture properties
@@ -112,6 +113,7 @@ export class UserComponent implements OnInit, OnDestroy {
   ngOnInit(): void {
     this.organizationId = this.authService.getUser()?.organizationId?.trim() ?? '';
     this.isPrivilegedOfficeEditor = this.authService.isAdmin();
+    this.isCurrentUserSuperAdmin = this.hasRole(UserGroups.SuperAdmin);
     this.initializeUserGroups();
     this.initializeStartupPages();
     this.loadOrganizations();
@@ -280,6 +282,12 @@ export class UserComponent implements OnInit, OnDestroy {
       commissionRate: commissionRateValue !== null && !isNaN(commissionRateValue) ? commissionRateValue : null,
       isActive: formValue.isActive
     };
+
+    if (!this.isCurrentUserSuperAdmin && this.isSuperAdminAssignmentAttempt(userRequest.userGroups)) {
+      this.toastr.error('Only Super Admin users can assign the Super Admin role.', CommonMessage.Error);
+      this.isSubmitting = false;
+      return;
+    }
 
     if (!this.isAddMode && this.user != null && this.user.contactId !== undefined) {
       userRequest.contactId = this.user.contactId;
@@ -848,7 +856,24 @@ export class UserComponent implements OnInit, OnDestroy {
   }
 
   initializeUserGroups(): void {
-    this.availableUserGroups = getUserGroupOptions();
+    const options = getUserGroupOptions();
+    this.availableUserGroups = this.isCurrentUserSuperAdmin
+      ? options
+      : options.filter(group => group.value !== UserGroups[UserGroups.SuperAdmin]);
+  }
+
+  isSuperAdminAssignmentAttempt(userGroups: Array<string | number> | null | undefined): boolean {
+    return (userGroups || []).some(group => {
+      if (typeof group === 'number') {
+        return group === UserGroups.SuperAdmin;
+      }
+      const normalized = String(group).trim();
+      if (normalized === UserGroups[UserGroups.SuperAdmin]) {
+        return true;
+      }
+      const parsed = Number(normalized);
+      return !isNaN(parsed) && parsed === UserGroups.SuperAdmin;
+    });
   }
 
   initializeStartupPages(): void {

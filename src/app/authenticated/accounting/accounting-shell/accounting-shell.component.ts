@@ -40,8 +40,8 @@ import { FinancialReportComponent } from '../financial-report/financial-report.c
 import { ArAgingReportComponent } from '../ar-aging-report/ar-aging-report.component';
 import { AR_AGING_DATE_PRESET_OPTIONS, AR_AGING_INTERVAL_OPTIONS, AR_AGING_SORT_BY_OPTIONS, AR_AGING_THROUGH_ALL_VALUE, AR_AGING_THROUGH_OPTIONS, ArAgingDatePreset, ArAgingReportFilters, ArAgingSortBy, normalizeArAgingThroughDays, resolveArAgingAsOfDate } from '../models/ar-aging-report.model';
 import { RentRollComponent } from '../rent-roll/rent-roll.component';
+import { OwnerStatementListComponent } from '../owner-statement-list/owner-statement-list.component';
 import { AccountingShellBankActivityKind, AccountingShellBillsReceiptKind, AccountingShellOwnerKind, AccountingShellReportKind } from '../models/accounting-shell.model';
-import { WorkOrderType } from '../../maintenance/models/maintenance-enums';
 import { FinancialReportKind } from '../models/financial-report.model';
 import { RentRollCreateBillRequest } from '../models/rent-roll.model';
 import { CostCodesService } from '../services/cost-codes.service';
@@ -69,6 +69,7 @@ import { JournalEntrySyncResult } from '../models/journal-entry.model';
     FinancialReportComponent,
     ArAgingReportComponent,
     RentRollComponent,
+    OwnerStatementListComponent,
     TitleBarSelectComponent
 ],
     templateUrl: './accounting-shell.component.html',
@@ -93,7 +94,6 @@ export class AccountingShellComponent implements OnInit, OnDestroy {
   readonly tabReports = 4;
   readonly tabGeneralLedger = 5;
   readonly tabMaxIndex = 5;
-  readonly ownerWorkOrderTypeId = WorkOrderType.Owner;
   readonly shellBillsReceiptMenuOptions: { kind: AccountingShellBillsReceiptKind; label: string }[] = [
     { kind: 'bills', label: 'Bills' },
     { kind: 'receipts', label: 'Receipts' },
@@ -105,8 +105,8 @@ export class AccountingShellComponent implements OnInit, OnDestroy {
     { kind: 'reconcile', label: 'Reconcile' }
   ];
   readonly shellOwnerMenuOptions: { kind: AccountingShellOwnerKind; label: string }[] = [
-    { kind: 'utilities', label: 'Utilities' },
     { kind: 'workOrders', label: 'Work Orders' },
+    { kind: 'utilities', label: 'Utilities' },
     { kind: 'statements', label: 'Statements' }
   ];
   readonly shellReportMenuOptions: { kind: AccountingShellReportKind; label: string }[] = [
@@ -116,7 +116,7 @@ export class AccountingShellComponent implements OnInit, OnDestroy {
   ];
   selectedBillsReceiptKind: AccountingShellBillsReceiptKind = 'bills';
   selectedBankActivityKind: AccountingShellBankActivityKind = 'deposits';
-  selectedOwnerKind: AccountingShellOwnerKind = 'utilities';
+  selectedOwnerKind: AccountingShellOwnerKind = 'workOrders';
   selectedReportKind: AccountingShellReportKind = 'profitLoss';
 
   selectedTabIndex = 0;
@@ -186,6 +186,7 @@ export class AccountingShellComponent implements OnInit, OnDestroy {
   printChecksRefreshTrigger = 0;
   ownersUtilitiesRefreshTrigger = 0;
   ownersWorkOrdersRefreshTrigger = 0;
+  ownersStatementsRefreshTrigger = 0;
   showOwnersUtilityReceiptDetail = false;
   selectedOwnersUtilityReceiptId: string | null = null;
   ownersUtilityReceiptProperty: PropertyResponse | null = null;
@@ -1302,7 +1303,9 @@ export class AccountingShellComponent implements OnInit, OnDestroy {
     }
     if (this.selectedOwnerKind === 'utilities') {
       this.ownersUtilitiesRefreshTrigger++;
+      return;
     }
+    this.ownersStatementsRefreshTrigger++;
   }
   //#endregion
 
@@ -1317,7 +1320,7 @@ export class AccountingShellComponent implements OnInit, OnDestroy {
   syncBillsSearchRequest(): void {
     this.billsSearchRequest = {
       officeIds: this.resolveOfficeIdsForBillsSearch(),
-      propertyId: this.selectedTabIndex === this.tabBillsReceipts ? this.selectedBillsPropertyId : null,
+      propertyId: (this.selectedTabIndex === this.tabBillsReceipts || this.selectedTabIndex === this.tabOwners) ? this.selectedBillsPropertyId : null,
       startDate: this.utilityService.formatDateOnlyForApi(this.startDate),
       endDate: this.utilityService.formatDateOnlyForApi(this.endDate)
     };
@@ -1666,7 +1669,7 @@ export class AccountingShellComponent implements OnInit, OnDestroy {
       this.selectedBankActivityKind = 'deposits';
     }
     if (activeTabIndex !== this.tabOwners) {
-      this.selectedOwnerKind = 'utilities';
+      this.selectedOwnerKind = 'workOrders';
     }
     if (activeTabIndex !== this.tabReports) {
       this.selectedReportKind = 'profitLoss';
@@ -2047,7 +2050,15 @@ export class AccountingShellComponent implements OnInit, OnDestroy {
     }
     this.selectedBillsPropertyId = propertyId;
     this.syncBillsSearchRequest();
-    this.refreshActiveBillsReceiptList();
+    if (this.selectedTabIndex === this.tabBillsReceipts) {
+      this.refreshActiveBillsReceiptList();
+      return;
+    }
+    if (this.selectedTabIndex === this.tabOwners) {
+      this.onOwnersUtilityReceiptBack();
+      this.onOwnersWorkOrderBack();
+      this.refreshActiveOwnerView();
+    }
   }
 
   setDefaultDateRange(): void {
