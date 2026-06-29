@@ -783,3 +783,55 @@
     </mat-card>
   </section>
 </div>
+
+@if (showSyncProgressDialog) {
+  <div class="journal-entry-sync-overlay">
+    <div class="journal-entry-sync-dialog" role="dialog" aria-label="Journal entry sync progress">
+      <div class="journal-entry-sync-dialog-header">
+        <div class="journal-entry-sync-dialog-title-wrap">
+          <span class="journal-entry-sync-dialog-title">Journal Entry Sync Progress</span>
+          <span class="journal-entry-sync-dialog-subtitle">
+            @if (isJournalEntrySyncInProgress) {
+              Sync is running...
+            } @else if (isSyncProgressComplete) {
+              Sync complete.
+            }
+          </span>
+        </div>
+        <button
+          mat-icon-button
+          type="button"
+          aria-label="Close sync progress dialog"
+          (click)="closeSyncProgressDialog()"
+          [disabled]="isJournalEntrySyncInProgress">
+          <mat-icon>close</mat-icon>
+        </button>
+      </div>
+
+      <table class="journal-entry-sync-progress-table">
+        <thead>
+          <tr>
+            <th>Type</th>
+            <th>Total</th>
+            <th>Processed</th>
+            <th>Skipped</th>
+            <th>Errors</th>
+            <th>Status</th>
+          </tr>
+        </thead>
+        <tbody>
+          @for (row of syncProgressRows; track row.key) {
+            <tr>
+              <td>{{ row.label }}</td>
+              <td>{{ row.total }}</td>
+              <td>{{ row.processed }}</td>
+              <td>{{ row.skipped }}</td>
+              <td>{{ row.errors }}</td>
+              <td>{{ row.status }}</td>
+            </tr>
+          }
+        </tbody>
+      </table>
+    </div>
+  </div>
+}

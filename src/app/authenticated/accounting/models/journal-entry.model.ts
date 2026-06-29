@@ -190,3 +190,25 @@ export interface JournalEntrySyncResult {
   journalEntriesDeleted: number;
   errors: string[];
 }
+
+export interface StartJournalEntrySyncJobResponse {
+  jobId: string;
+}
+
+export interface JournalEntrySyncJobTypeStatus {
+  type: string;
+  label: string;
+  total: number;
+  processed: number;
+  skipped: number;
+  errors: number;
+  status: string;
+}
+
+export interface JournalEntrySyncJobStatus {
+  jobId: string;
+  isRunning: boolean;
+  isCompleted: boolean;
+  message?: string | null;
+  types: JournalEntrySyncJobTypeStatus[];
+}

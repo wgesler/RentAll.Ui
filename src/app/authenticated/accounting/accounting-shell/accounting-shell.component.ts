@@ -51,6 +51,18 @@ import { Class, ClassLabels } from '../models/accounting-enum';
 import { GeneralLedgerService } from '../services/general-ledger.service';
 import { JournalEntrySyncResult } from '../models/journal-entry.model';
 
+type JournalEntrySyncProgressKey = 'invoice' | 'bill' | 'receipt' | 'workOrder';
+
+interface JournalEntrySyncProgressRow {
+  key: JournalEntrySyncProgressKey;
+  label: string;
+  total: number;
+  processed: number;
+  skipped: number;
+  errors: number;
+  status: string;
+}
+
 @Component({
     selector: 'app-accounting-shell',
     standalone: true,
@@ -196,6 +208,9 @@ export class AccountingShellComponent implements OnInit, OnDestroy {
   ownersWorkOrderDetailInstance = 0;
   chartOfAccounts: ChartOfAccountResponse[] = [];
   isJournalEntrySyncInProgress = false;
+  syncProgressRows: JournalEntrySyncProgressRow[] = [];
+  showSyncProgressDialog = false;
+  isSyncProgressComplete = false;
   isFinancialReportDrillDownActive = false;
   isFinancialReportJournalEntryDetailActive = false;
   isArAgingDrillDownActive = false;
@@ -1561,49 +1576,50 @@ export class AccountingShellComponent implements OnInit, OnDestroy {
       return;
     }
 
+    this.initializeJournalEntrySyncProgress();
+    this.showSyncProgressDialog = true;
+    this.isSyncProgressComplete = false;
     this.isJournalEntrySyncInProgress = true;
-    let anySyncSucceeded = false;
+    this.cdr.detectChanges();
+    await this.waitForUiPaint();
+    let syncCompleted = false;
 
     try {
-      try {
-        const invoiceResult = await firstValueFrom(this.generalLedgerService.syncInvoiceJournalEntries(officeIds));
-        this.showJournalEntrySyncResult('Invoice sync', invoiceResult);
-        anySyncSucceeded = true;
-      } catch (error) {
-        this.showJournalEntrySyncError('Invoice sync', error);
+      const startResponse = await firstValueFrom(this.generalLedgerService.startAllJournalEntrySyncJob(officeIds));
+      if (!startResponse.jobId) {
+        throw new Error('Sync job did not return an ID.');
       }
 
-      try {
-        const billResult = await firstValueFrom(this.generalLedgerService.syncBillJournalEntries(officeIds));
-        this.showJournalEntrySyncResult('Bill sync', billResult);
-        anySyncSucceeded = true;
-      } catch (error) {
-        this.showJournalEntrySyncError('Bill sync', error);
-      }
-
-      try {
-        const receiptResult = await firstValueFrom(this.generalLedgerService.syncReceiptJournalEntries(officeIds));
-        this.showJournalEntrySyncResult('Receipt sync', receiptResult);
-        anySyncSucceeded = true;
-      } catch (error) {
-        this.showJournalEntrySyncError('Receipt sync', error);
-      }
-
-      if (anySyncSucceeded) {
+      syncCompleted = await this.pollJournalEntrySyncJob(startResponse.jobId);
+      if (syncCompleted) {
         this.onJournalEntriesChanged();
       }
+      this.toastr.success('Journal entry sync completed.', 'Sync');
+    } catch (error) {
+      this.showJournalEntrySyncError('Sync', error);
     } finally {
       this.isJournalEntrySyncInProgress = false;
+      this.isSyncProgressComplete = true;
+      this.cdr.detectChanges();
     }
   }
 
   clearJournalEntries(): void {
-    if (!window.confirm('Delete all journal entries and journal entry lines for this organization?')) {
+    const officeIds = this.resolveOfficeIdsForJournalEntrySync();
+    if (officeIds.length === 0) {
+      this.toastr.warning('Select at least one office before clearing journal entries.', 'Clear');
+      return;
+    }
+
+    const scopeMessage = this.selectedOfficeId != null
+      ? `organization + office ${this.selectedOfficeId}`
+      : 'organization + all visible offices';
+    if (!window.confirm(`Delete all journal entries and journal entry lines for this ${scopeMessage}?`)) {
       return;
     }
 
     this.isJournalEntrySyncInProgress = true;
-    this.generalLedgerService.clearAllJournalEntries().pipe(take(1), finalize(() => {
+    this.generalLedgerService.clearAllJournalEntries(officeIds).pipe(take(1), finalize(() => {
         this.isJournalEntrySyncInProgress = false;
       })
     ).subscribe({
@@ -1647,6 +1663,75 @@ export class AccountingShellComponent implements OnInit, OnDestroy {
       ? httpError.error
       : httpError?.message ?? 'Unable to sync journal entries.';
     this.toastr.error(message, title);
+  }
+
+  initializeJournalEntrySyncProgress(): void {
+    this.syncProgressRows = [
+      { key: 'invoice', label: 'Invoices', total: 0, processed: 0, skipped: 0, errors: 0, status: 'Pending' },
+      { key: 'bill', label: 'Bills', total: 0, processed: 0, skipped: 0, errors: 0, status: 'Pending' },
+      { key: 'receipt', label: 'Receipts', total: 0, processed: 0, skipped: 0, errors: 0, status: 'Pending' },
+      { key: 'workOrder', label: 'Work Orders', total: 0, processed: 0, skipped: 0, errors: 0, status: 'Pending' }
+    ];
+  }
+
+  closeSyncProgressDialog(): void {
+    if (this.isJournalEntrySyncInProgress) {
+      return;
+    }
+    this.showSyncProgressDialog = false;
+  }
+
+  updateJournalEntrySyncProgress(
+    key: JournalEntrySyncProgressKey,
+    update: (row: JournalEntrySyncProgressRow) => void
+  ): void {
+    const row = this.syncProgressRows.find(item => item.key === key);
+    if (!row) {
+      return;
+    }
+    update(row);
+    this.syncProgressRows = [...this.syncProgressRows];
+  }
+
+  async pollJournalEntrySyncJob(jobId: string): Promise<boolean> {
+    const maxPollCount = 1800; // 15 minutes at 500ms
+    for (let pollCount = 0; pollCount < maxPollCount; pollCount++) {
+      const status = await firstValueFrom(this.generalLedgerService.getAllJournalEntrySyncJobStatus(jobId));
+      const byType = new Map((status.types || []).map(row => [row.type, row]));
+
+      this.syncProgressRows = this.syncProgressRows.map(row => {
+        const update = byType.get(row.key);
+        if (!update) {
+          return row;
+        }
+        return {
+          ...row,
+          label: update.label || row.label,
+          total: update.total,
+          processed: update.processed,
+          skipped: update.skipped,
+          errors: update.errors,
+          status: update.status || row.status
+        };
+      });
+      this.cdr.detectChanges();
+
+      if (status.isCompleted) {
+        return true;
+      }
+
+      await this.wait(500);
+    }
+
+    throw new Error('Sync progress polling timed out.');
+  }
+
+  waitForUiPaint(): Promise<void> {
+    return new Promise(resolve => requestAnimationFrame(() => resolve()));
+  }
+
+  wait(ms: number): Promise<void> {
+    return new Promise(resolve => setTimeout(resolve, ms));
   }
 
   get showShellOfficeDropdown(): boolean {

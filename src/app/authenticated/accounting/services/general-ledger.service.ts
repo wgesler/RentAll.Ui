@@ -4,7 +4,7 @@ import { map, Observable } from 'rxjs';
 import { ConfigService } from '../../../services/config.service';
 import { MappingService } from '../../../services/mapping.service';
 import { UtilityService } from '../../../services/utility.service';
-import { JournalEntryLineSearchRequest, JournalEntryLineSearchResponse, JournalEntryRequest, JournalEntryResponse, JournalEntrySyncResult, DepositRequest, DepositResponse } from '../models/journal-entry.model';
+import { JournalEntryLineSearchRequest, JournalEntryLineSearchResponse, JournalEntryRequest, JournalEntryResponse, JournalEntrySyncResult, DepositRequest, DepositResponse, StartJournalEntrySyncJobResponse, JournalEntrySyncJobStatus } from '../models/journal-entry.model';
 
 @Injectable({
   providedIn: 'root'
@@ -132,14 +132,48 @@ export class GeneralLedgerService {
     );
   }
 
+  syncWorkOrderJournalEntries(officeIds: number[]): Observable<JournalEntrySyncResult> {
+    return this.http.post<JournalEntrySyncResult>(`${this.controller}journal-entry/sync/work-orders`, { officeIds }).pipe(
+      map(result => this.mapJournalEntrySyncResult(result))
+    );
+  }
+
+  startAllJournalEntrySyncJob(officeIds: number[]): Observable<StartJournalEntrySyncJobResponse> {
+    return this.http.post<StartJournalEntrySyncJobResponse>(`${this.controller}journal-entry/sync/all/start`, { officeIds }).pipe(
+      map(response => ({
+        jobId: String(response?.jobId ?? '')
+      }))
+    );
+  }
+
+  getAllJournalEntrySyncJobStatus(jobId: string): Observable<JournalEntrySyncJobStatus> {
+    return this.http.get<JournalEntrySyncJobStatus>(`${this.controller}journal-entry/sync/all/status/${encodeURIComponent(jobId)}`).pipe(
+      map(status => ({
+        jobId: String(status?.jobId ?? ''),
+        isRunning: Boolean(status?.isRunning),
+        isCompleted: Boolean(status?.isCompleted),
+        message: status?.message ?? null,
+        types: (status?.types ?? []).map(row => ({
+          type: String(row?.type ?? ''),
+          label: String(row?.label ?? ''),
+          total: Number(row?.total ?? 0),
+          processed: Number(row?.processed ?? 0),
+          skipped: Number(row?.skipped ?? 0),
+          errors: Number(row?.errors ?? 0),
+          status: String(row?.status ?? 'Pending')
+        }))
+      }))
+    );
+  }
+
   clearReceiptJournalEntries(officeIds: number[]): Observable<JournalEntrySyncResult> {
     return this.http.post<JournalEntrySyncResult>(`${this.controller}journal-entry/clear/receipts`, { officeIds }).pipe(
       map(result => this.mapJournalEntrySyncResult(result))
     );
   }
 
-  clearAllJournalEntries(): Observable<JournalEntrySyncResult> {
-    return this.http.post<JournalEntrySyncResult>(`${this.controller}journal-entry/clear/all`, {}).pipe(
+  clearAllJournalEntries(officeIds: number[]): Observable<JournalEntrySyncResult> {
+    return this.http.post<JournalEntrySyncResult>(`${this.controller}journal-entry/clear/all`, { officeIds }).pipe(
       map(result => this.mapJournalEntrySyncResult(result))
     );
   }
