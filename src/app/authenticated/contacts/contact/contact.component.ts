@@ -1660,7 +1660,7 @@ export class ContactComponent implements OnInit, OnChanges, OnDestroy {
     });
   }
   //#endregion 
-    
+
   //#region Utility Methods
   ngOnDestroy(): void {
     this.destroy$.next();

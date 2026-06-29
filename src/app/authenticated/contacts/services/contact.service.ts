@@ -115,6 +115,14 @@ export class ContactService {
     );
   }
 
+  retriggerOwnerLogin(contactId: string): Observable<ContactResponse> {
+    return this.refreshCacheAfterMutation(
+      this.http.post<ContactResponse>(`${this.controller}${contactId}/retrigger-owner-login`, {}).pipe(
+        map(dto => this.mappingService.mapContactResponse(dto as unknown as Record<string, unknown>))
+      )
+    );
+  }
+
   matchContactToLead(ownerLead: LeadOwnerUpdateRequest): Observable<ContactResponse> {
     return this.refreshCacheAfterMutation(
       this.http.put<ContactResponse>(this.controller + 'by-lead', ownerLead).pipe(

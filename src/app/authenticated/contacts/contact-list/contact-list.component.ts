@@ -269,6 +269,22 @@ export class ContactListComponent implements OnInit, OnDestroy, OnChanges {
     });
   }
 
+  retriggerOwnerLogin(event: ContactListDisplay): void {
+    const contactId = String(event?.contactId || '').trim();
+    if (!contactId) {
+      this.toastr.error('Unable to determine owner contact.', CommonMessage.Error);
+      return;
+    }
+    this.contactService.retriggerOwnerLogin(contactId).pipe(take(1)).subscribe({
+      next: () => {
+        this.toastr.success('Owner user created or reset successfully.', CommonMessage.Success);
+      },
+      error: () => {
+        this.toastr.error('Unable to create or reset owner user.', CommonMessage.Error);
+      }
+    });
+  }
+
   onContactCheckboxChange(event: ContactListDisplay): void {
     if (!this.canEditIsActiveCheckbox) {
       return;
