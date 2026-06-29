@@ -2091,6 +2091,9 @@ export class ReceiptComponent implements OnInit, OnChanges, OnDestroy {
   }
 
   isPropertySelectionRequired(): boolean {
+    if (this.showAccountingCompanyPropertyOption) {
+      return false;
+    }
     if (this.isAccountingCompanySelected()) {
       return false;
     }

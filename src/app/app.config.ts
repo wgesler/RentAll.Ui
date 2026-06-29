@@ -21,7 +21,9 @@ export const appConfig: ApplicationConfig = {
     provideHttpClient(withInterceptors([authInterceptor])),
     provideEnvironmentNgxMask(),
     provideAnimationsAsync(),
-    provideToastr(),
+    provideToastr({
+      preventDuplicates: true
+    }),
     DecimalPipe,
     DatePipe,
     Idle,
