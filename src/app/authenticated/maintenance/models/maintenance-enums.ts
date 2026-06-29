@@ -32,7 +32,8 @@ export enum ReceiptType {
   Tenant = 0,
   Owner = 1,
   Company = 2,
-  Departure = 3
+  Departure = 3,
+  NonExpense = 4
 }
 
 export function getReceiptType(receiptTypeId: number | undefined | null): string {
@@ -42,7 +43,8 @@ export function getReceiptType(receiptTypeId: number | undefined | null): string
     [ReceiptType.Tenant]: 'Tenant',
     [ReceiptType.Owner]: 'Owner',
     [ReceiptType.Company]: 'Company',
-    [ReceiptType.Departure]: 'Departure'
+    [ReceiptType.Departure]: 'Departure',
+    [ReceiptType.NonExpense]: 'Non Expense'
   };
 
   return typeMap[receiptTypeId] || '';
@@ -55,7 +57,8 @@ export function getReceiptTypeCode(receiptTypeId: number | undefined | null): st
     [ReceiptType.Tenant]: 'T',
     [ReceiptType.Owner]: 'O',
     [ReceiptType.Company]: 'C',
-    [ReceiptType.Departure]: 'D'
+    [ReceiptType.Departure]: 'D',
+    [ReceiptType.NonExpense]: 'N'
   };
 
   return typeCodeMap[receiptTypeId] || '';

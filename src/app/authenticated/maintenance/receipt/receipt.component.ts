@@ -1370,6 +1370,13 @@ export class ReceiptComponent implements OnInit, OnChanges, OnDestroy {
     const parsed = Number(value ?? 0);
     const accountId = Number.isFinite(parsed) && parsed > 0 ? parsed : null;
     const row = this.splitsFormArray.at(splitIndex);
+    if (this.isNonExpenseReceiptType(row?.get('receiptTypeId')?.value)) {
+      row?.get('chartOfAccountId')?.setValue(null);
+      row?.get('chartOfAccountId')?.markAsTouched();
+      this.manualSplitAccountIndexes.delete(splitIndex);
+      this.cdr.markForCheck();
+      return;
+    }
     row?.get('chartOfAccountId')?.setValue(accountId);
     row?.get('chartOfAccountId')?.markAsTouched();
     this.markSplitAccountAsManual(splitIndex);
@@ -1378,7 +1385,12 @@ export class ReceiptComponent implements OnInit, OnChanges, OnDestroy {
 
   onSplitReceiptTypeChange(splitIndex: number): void {
     this.applyDefaultSplitAccountFromReceiptType(splitIndex, true);
+    const row = this.splitsFormArray.at(splitIndex);
+    if (this.isNonExpenseReceiptType(row?.get('receiptTypeId')?.value)) {
+      row?.get('chartOfAccountId')?.setValue(null, { emitEvent: false });
+    }
     this.manualSplitAccountIndexes.delete(splitIndex);
+    this.updateSplitLineAccountValidators();
     this.updatePropertyRequirementByReceiptType();
   }
 
@@ -1393,6 +1405,17 @@ export class ReceiptComponent implements OnInit, OnChanges, OnDestroy {
   normalizeOptionalAccountId(value: number | null | undefined): number | null {
     const accountId = Number(value ?? 0);
     return Number.isFinite(accountId) && accountId > 0 ? accountId : null;
+  }
+
+  isNonExpenseReceiptType(receiptTypeId: number | null | undefined): boolean {
+    return Number(receiptTypeId) === ReceiptType.NonExpense;
+  }
+
+  isNonExpenseSplit(splitGroup: AbstractControl | null | undefined): boolean {
+    if (!splitGroup) {
+      return false;
+    }
+    return this.isNonExpenseReceiptType((splitGroup as FormGroup).get('receiptTypeId')?.value);
   }
 
   clearManualSplitAccountOverrides(): void {
@@ -1426,6 +1449,8 @@ export class ReceiptComponent implements OnInit, OnChanges, OnDestroy {
     }
 
     switch (Number(receiptTypeId)) {
+      case ReceiptType.NonExpense:
+        return null;
       case ReceiptType.Tenant:
         return this.normalizeOptionalAccountId(accountingOffice.defaultTenantExpAccountId);
       case ReceiptType.Owner:
@@ -1527,9 +1552,10 @@ export class ReceiptComponent implements OnInit, OnChanges, OnDestroy {
       ?? rawSplit?.['ChartOfAccountId']
       ?? 0
     );
+    const isNonExpenseSplit = this.isNonExpenseReceiptType(normalizedReceiptTypeId);
     const resolvedChartOfAccountId = Number.isFinite(normalizedChartOfAccountId) && normalizedChartOfAccountId > 0
-      ? normalizedChartOfAccountId
-      : this.resolveDefaultChartOfAccountIdForReceiptType(normalizedReceiptTypeId);
+      ? (isNonExpenseSplit ? null : normalizedChartOfAccountId)
+      : (isNonExpenseSplit ? null : this.resolveDefaultChartOfAccountIdForReceiptType(normalizedReceiptTypeId));
     return this.fb.group({
       receiptSplitId: new FormControl(split?.receiptSplitId ?? null),
       amount: new FormControl(Number.isFinite(amount) ? amount.toFixed(2) : '', [Validators.required]),
@@ -1557,7 +1583,8 @@ export class ReceiptComponent implements OnInit, OnChanges, OnDestroy {
       if (receiptTypeId === null || receiptTypeId === undefined || receiptTypeId === '') return `Split line ${i + 1}: Type is required.`;
       if (this.showSplitAccountColumn) {
         const chartOfAccountId = Number(row.get('chartOfAccountId')?.value ?? 0);
-        if (!Number.isFinite(chartOfAccountId) || chartOfAccountId <= 0) {
+        const isNonExpense = this.isNonExpenseReceiptType(receiptTypeId);
+        if (!isNonExpense && (!Number.isFinite(chartOfAccountId) || chartOfAccountId <= 0)) {
           return `Split line ${i + 1}: Account is required.`;
         }
       }
@@ -1589,6 +1616,8 @@ export class ReceiptComponent implements OnInit, OnChanges, OnDestroy {
     return this.splitsFormArray.controls.map(control => {
       const amountRaw = this.sanitizeSignedDecimalInput(control.get('amount')?.value?.toString() ?? '');
       const chartOfAccountId = Number(control.get('chartOfAccountId')?.value ?? 0);
+      const receiptTypeId = Number(control.get('receiptTypeId')?.value ?? 0);
+      const isNonExpense = this.isNonExpenseReceiptType(receiptTypeId);
       return {
         receiptSplitId: control.get('receiptSplitId')?.value ?? null,
         amount: parseFloat(amountRaw) || 0,
@@ -1597,10 +1626,10 @@ export class ReceiptComponent implements OnInit, OnChanges, OnDestroy {
         workOrderId: (control.get('workOrderId')?.value || '').toString().trim() || null,
         workOrderCode: (control.get('workOrderCode')?.value || control.get('workOrder')?.value || '').trim(),
         workOrder: (control.get('workOrderCode')?.value || control.get('workOrder')?.value || '').trim(),
-        chartOfAccountId: includeChartOfAccount && Number.isFinite(chartOfAccountId) && chartOfAccountId > 0
+        chartOfAccountId: includeChartOfAccount && !isNonExpense && Number.isFinite(chartOfAccountId) && chartOfAccountId > 0
           ? chartOfAccountId
           : null,
-        receiptTypeId: control.get('receiptTypeId')?.value ?? 0
+        receiptTypeId: receiptTypeId
       };
     });
   }
@@ -1676,7 +1705,9 @@ export class ReceiptComponent implements OnInit, OnChanges, OnDestroy {
 
   normalizeSplits(splits: Split[]): Split[] {
     return (splits || []).map(split => {
-      const chartOfAccountId = this.mappingService.readSplitChartOfAccountId(split);
+      const chartOfAccountId = this.isNonExpenseReceiptType(split.receiptTypeId)
+        ? null
+        : this.mappingService.readSplitChartOfAccountId(split);
       return {
         receiptSplitId: split.receiptSplitId ?? null,
         amount: Number(split.amount) || 0,
@@ -1875,10 +1906,13 @@ export class ReceiptComponent implements OnInit, OnChanges, OnDestroy {
       if (!accountControl) {
         return;
       }
-      if (this.showSplitAccountColumn) {
+      if (this.showSplitAccountColumn && !this.isNonExpenseReceiptType(control.get('receiptTypeId')?.value)) {
         accountControl.setValidators([Validators.required]);
       } else {
         accountControl.clearValidators();
+        if (this.showSplitAccountColumn && this.isNonExpenseReceiptType(control.get('receiptTypeId')?.value)) {
+          accountControl.setValue(null, { emitEvent: false });
+        }
       }
       accountControl.updateValueAndValidity({ emitEvent: false });
     });

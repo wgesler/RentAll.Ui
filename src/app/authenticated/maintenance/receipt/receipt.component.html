@@ -253,7 +253,8 @@
                                   [renderInFormField]="false"
                                   [value]="splitGroup.get('chartOfAccountId')?.value ?? null"
                                   [options]="expenseAccountOptions"
-                                  [required]="true"
+                                  [required]="!isNonExpenseSplit(splitGroup)"
+                                  [disabled]="isNonExpenseSplit(splitGroup)"
                                   [showInstructionOption]="true"
                                   [instructionOptionValue]="null"
                                   nullOptionLabel="Select Account"
@@ -265,7 +266,7 @@
                                   searchPlaceholder="Type to filter accounts..."
                                   noResultsText="No accounts match your search"
                                   selectClass="split-editable-input split-account-select-control"
-                                  [showError]="shouldShowSplitControlError(splitGroup, 'chartOfAccountId')"
+                                  [showError]="!isNonExpenseSplit(splitGroup) && shouldShowSplitControlError(splitGroup, 'chartOfAccountId')"
                                   errorText="Account is required"
                                   (valueChange)="onSplitAccountSelectionChange(splitIndex, $event)" />
                               </td>
