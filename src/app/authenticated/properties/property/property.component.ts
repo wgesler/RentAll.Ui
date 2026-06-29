@@ -44,6 +44,7 @@ import { SearchableSelectComponent, SearchableSelectOption } from '../../shared/
 import { UnsavedChangesDialogService } from '../../shared/modals/unsaved-changes/unsaved-changes-dialog.service';
 import { NewContactDialogOptions, NewContactDialogService } from '../../shared/contacts/new-contact-dialog.service';
 import { OwnersService } from '../../owners/services/owners.service';
+import { UserGroups } from '../../users/models/user-enums';
 import {
   OwnerAuthorization,
   isOwnerAuthorizedAdmin,
@@ -71,6 +72,7 @@ export class PropertyComponent implements OnInit, OnChanges, AfterViewInit, OnDe
 
   isAdmin = false;
   isInAccounting = false;
+  isAgentAdmin = false;
   isServiceError: boolean = false;
   organizationId = '';
   form: FormGroup;
@@ -191,7 +193,7 @@ export class PropertyComponent implements OnInit, OnChanges, AfterViewInit, OnDe
       }
       return isOwnerAuthorizedAdmin(this.ownerAuthorization);
     }
-    return this.isInAccounting;
+    return this.isInAccounting || this.isAgentAdmin;
   }
 
   get canManagePropertyAgreement(): boolean {
@@ -204,7 +206,7 @@ export class PropertyComponent implements OnInit, OnChanges, AfterViewInit, OnDe
       }
       return isOwnerAuthorizedAdmin(this.ownerAuthorization);
     }
-    return this.isInAccounting;
+    return this.isInAccounting || this.isAgentAdmin;
   }
 
   //#region Property
@@ -216,6 +218,7 @@ export class PropertyComponent implements OnInit, OnChanges, AfterViewInit, OnDe
     
     this.isAdmin = this.authService.isAdmin();
     this.isInAccounting = this.authService.isInAccounting();
+    this.isAgentAdmin = this.authService.hasRole(UserGroups.AgentAdmin);
     this.organizationId = this.authService.getUser()?.organizationId?.trim() ?? '';
     const initialRouteId = this.route.snapshot.paramMap.get('id');
     if (initialRouteId) {
