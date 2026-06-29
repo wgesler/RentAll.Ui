@@ -19,6 +19,10 @@ export interface UserRequest {
   agentId?: string | null;
   commissionRate?: number | null;
   contactId?: string | null;
+  lastLoginOn?: string | null;
+  lastSeenOn?: string | null;
+  lastLogoutOn?: string | null;
+  isLoggedIn?: boolean;
   isActive: boolean;
 }
 
@@ -42,6 +46,10 @@ export interface UserResponse {
   agentId?: string | null;
   commissionRate?: number | null;
   contactId?: string | null;
+  lastLoginOn?: string | null;
+  lastSeenOn?: string | null;
+  lastLogoutOn?: string | null;
+  isLoggedIn?: boolean;
   isActive: boolean;
 }
 
@@ -57,6 +65,31 @@ export interface UserListDisplay {
   defaultOffice: string;
   userGroups: string[];
   userGroupsDisplay: string;
+  isLoggedInDisplay: string;
+  lastLoginOnDisplay: string;
   isActive: boolean;
+}
+
+export interface UserActivityResponse {
+  userId: string;
+  fullName: string;
+  email: string;
+  isActive: boolean;
+  isLoggedIn: boolean;
+  lastLoginOn?: string | null;
+  lastSeenOn?: string | null;
+  lastLogoutOn?: string | null;
+}
+
+export interface UserAuditListDisplay {
+  userId: string;
+  fullName: string;
+  email: string;
+  isActive: boolean;
+  isLoggedIn: boolean;
+  isLoggedInDisplay: string;
+  lastLoginOnDisplay: string;
+  lastSeenOnDisplay: string;
+  lastLogoutOnDisplay: string;
 }
 

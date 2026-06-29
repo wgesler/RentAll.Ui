@@ -1,0 +1,45 @@
+<div class="user-audit-list">
+  <div class="flex justify-between items-center gap-3 bg-slate-300 rounded-t-lg py-0 pl-8 pr-4 user-audit-titlebar">
+    <div class="flex items-center flex-wrap py-4">
+      <span class="flex flex-column items-center gap-3 flex-shrink-0">
+        <mat-icon class="flex-shrink-0">groups</mat-icon>
+        <span class="flex-shrink-0 text-xl font-medium">Who's Logged In</span>
+      </span>
+    </div>
+    <div class="form-titlebar-actions-wrap">
+      <button mat-raised-button type="button" color="accent" class="text-nowrap flex-shrink-0" (click)="closeDialog()">
+        <mat-icon>close</mat-icon>
+        Close
+      </button>
+    </div>
+  </div>
+
+  @if (!isPageReady) {
+    <div class="loading-container">
+      <mat-spinner [diameter]="40"></mat-spinner>
+      <p>Loading user activity...</p>
+    </div>
+  } @else if (isServiceError) {
+    <div class="service-error-container">
+      <mat-icon class="service-error-icon">error_outline</mat-icon>
+      <p>Unable to load user activity. Please try again.</p>
+    </div>
+  } @else {
+    <div class="tableDiv">
+      <app-data-table
+        tableName="user-audit-list"
+        [data]="userActivityDisplay"
+        [columns]="userAuditDisplayedColumns"
+        [hasColumnIndex]="false"
+        [hasFilter]="true"
+        [hasToggleTop]="false"
+        [hasButtonTop]="false"
+        [hasActionsRowClick]="false"
+        [hasActionsEdit]="false"
+        [hasActionsCopy]="false"
+        [hasActionsDelete]="false"
+        [itemsPerPage]="20">
+      </app-data-table>
+    </div>
+  }
+</div>

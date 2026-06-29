@@ -11,8 +11,10 @@ import { BrandingService } from '../../../../services/branding.service';
 import { DebugLayoutBandsService } from '../../../../services/debug-layout-bands.service';
 import { CommonService } from '../../../../services/common.service';
 import { DailyQuote } from '../../../../shared/models/daily-quote';
+import { UserGroups } from '../../../users/models/user-enums';
 import { UserResponse } from '../../../users/models/user.model';
 import { UserService } from '../../../users/services/user.service';
+import { UserAuditListComponent } from '../../../users/user-audit-list/user-audit-list.component';
 import { UserComponent } from '../../../users/user/user.component';
 import { OfficeResponse } from '../../../organizations/models/office.model';
 import { OfficeService } from '../../../organizations/services/office.service';
@@ -43,6 +45,7 @@ export class HeaderComponent implements OnInit, OnDestroy {
   offices: OfficeResponse[] = [];
   selectedGlobalOfficeId: number | null = null;
   organizationId = '';
+  canViewUserAudit = false;
 
   // Profile picture properties
   profilePictureUrl: string | null = null;
@@ -69,6 +72,7 @@ export class HeaderComponent implements OnInit, OnDestroy {
   
   ngOnInit(): void {
     this.organizationId = this.authService.getUser()?.organizationId?.trim() ?? '';
+    this.canViewUserAudit = this.authService.hasRole(UserGroups.Admin) || this.authService.hasRole(UserGroups.SuperAdmin);
     // Stay in sync with global office selection (e.g. when app initializes from user default)
     this.globalSelectionService.getSelectedOfficeId$().pipe(takeUntil(this.destroy$)).subscribe(id => {
       this.selectedGlobalOfficeId = id;
@@ -163,6 +167,18 @@ export class HeaderComponent implements OnInit, OnDestroy {
         // User saved changes, reload profile picture
         this.loadUserProfilePicture();
       }
+    });
+  }
+
+  openUserAuditDialog(): void {
+    if (!this.canViewUserAudit) {
+      return;
+    }
+
+    this.dialog.open(UserAuditListComponent, {
+      width: '95%',
+      maxWidth: '1200px',
+      maxHeight: '90vh'
     });
   }
 

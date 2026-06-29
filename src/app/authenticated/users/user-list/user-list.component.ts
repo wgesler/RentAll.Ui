@@ -59,6 +59,8 @@ export class UserListComponent implements OnInit, OnDestroy, OnChanges {
     'startupPageDisplay': { displayAs: 'Startup Page', maxWidth: '15ch' },
     'defaultOffice': { displayAs: 'Default Office', maxWidth: '20ch' },
     'userGroupsDisplay': { displayAs: 'User Groups', maxWidth: '30ch'},
+    'isLoggedInDisplay': { displayAs: 'Logged In', maxWidth: '12ch' },
+    'lastLoginOnDisplay': { displayAs: 'Last Login', maxWidth: '20ch' },
     'isActive': { displayAs: 'IsActive', isCheckbox: true, checkboxEditable: true, wrap: false, alignment: 'center', maxWidth: '15ch' }
   };
 
@@ -416,6 +418,7 @@ export class UserListComponent implements OnInit, OnDestroy, OnChanges {
       }
       const userGroups = user.userGroups || [];
       const userGroupsDisplay = userGroups.map(g => groupLabels[g] || g).join(', ');
+      const lastLoginOn = user.lastLoginOn ? new Date(user.lastLoginOn) : null;
       return {
         userId,
         fullName: user.firstName + ' ' + user.lastName,
@@ -428,6 +431,8 @@ export class UserListComponent implements OnInit, OnDestroy, OnChanges {
         defaultOffice: this.getDefaultOfficeName(user.defaultOfficeId),
         userGroups: userGroups,
         userGroupsDisplay: userGroupsDisplay,
+        isLoggedInDisplay: user.isLoggedIn ? 'Yes' : 'No',
+        lastLoginOnDisplay: lastLoginOn ? lastLoginOn.toLocaleString() : '',
         isActive: user.isActive
       };
     }).filter((user): user is UserListDisplay => user !== null);

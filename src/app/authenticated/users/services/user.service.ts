@@ -2,7 +2,7 @@ import { HttpClient } from '@angular/common/http';
 import { Injectable } from '@angular/core';
 import { map, Observable } from 'rxjs';
 import { ConfigService } from '../../../services/config.service';
-import { UserRequest, UserResponse } from '../models/user.model';
+import { UserActivityResponse, UserRequest, UserResponse } from '../models/user.model';
 
 @Injectable({
     providedIn: 'root'
@@ -26,6 +26,10 @@ export class UserService {
 
   getUserByGuid(userId: string): Observable<UserResponse> {
     return this.http.get<UserResponse>(this.controller + userId);
+  }
+
+  getUserActivity(): Observable<UserActivityResponse[]> {
+    return this.http.get<UserActivityResponse[]>(this.controller + 'activity');
   }
 
   getAgentId(userId: string): Observable<string | null> {

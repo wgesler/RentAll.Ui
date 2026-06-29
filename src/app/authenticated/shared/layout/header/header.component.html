@@ -94,6 +94,13 @@
             }
           </mat-menu>
 
+          @if (canViewUserAudit) {
+            <button mat-menu-item (click)="openUserAuditDialog()" id="who-logged-in-button">
+              <mat-icon>groups</mat-icon>
+              <span>Who's Logged In</span>
+            </button>
+          }
+
           <button mat-menu-item (click)="clearPins()" id="clear-pins-button">
             <mat-icon>push_pin</mat-icon>
             <span>Clear Pins</span>
