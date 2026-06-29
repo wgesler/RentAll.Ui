@@ -1430,7 +1430,7 @@ export class ReceiptComponent implements OnInit, OnChanges, OnDestroy {
         return this.normalizeOptionalAccountId(accountingOffice.defaultTenantExpAccountId);
       case ReceiptType.Owner:
         return this.normalizeOptionalAccountId(accountingOffice.defaultOwnerExpAccountId);
-      case ReceiptType.Organization:
+      case ReceiptType.Company:
         return this.normalizeOptionalAccountId(accountingOffice.defaultCompanyExpAccountId);
       case ReceiptType.Departure:
         return this.normalizeOptionalAccountId(accountingOffice.defaultDepartureExpAccountId);
@@ -1510,7 +1510,7 @@ export class ReceiptComponent implements OnInit, OnChanges, OnDestroy {
   createSplitFormGroup(split?: Partial<Split>): FormGroup {
     const amount = Number(split?.amount);
     const normalizedReceiptTypeId = split?.receiptTypeId
-      ?? (this.isAccountingShell && this.isAddMode ? ReceiptType.Organization : ReceiptType.Tenant);
+      ?? (this.isAccountingShell && this.isAddMode ? ReceiptType.Company : ReceiptType.Tenant);
     const normalizedWorkOrderCode = (split?.workOrderCode || split?.workOrder || '').trim();
     const rawSplit = split as (Partial<Split> & Record<string, unknown>) | undefined;
     const normalizedPropertyId = this.normalizeSplitPropertyId(
@@ -2101,7 +2101,7 @@ export class ReceiptComponent implements OnInit, OnChanges, OnDestroy {
     if (!splits || splits.length === 0) {
       return true;
     }
-    return splits.some(split => Number(split.receiptTypeId) !== ReceiptType.Organization);
+    return splits.some(split => Number(split.receiptTypeId) !== ReceiptType.Company);
   }
 
   updatePropertyRequirementByReceiptType(): void {
