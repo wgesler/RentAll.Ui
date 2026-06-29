@@ -1,5 +1,11 @@
-<div class="flex content-card-wrap justify-center reservation-board-wrapper" [class.read-only-board]="readOnly">
-  <section class="content-card reservation-board-card" [class.read-only-board]="readOnly">
+<div
+  class="flex content-card-wrap justify-center reservation-board-wrapper"
+  [class.read-only-board]="readOnly"
+  [class.read-only-owner-layout]="readOnly && readOnlyOwnerLayout">
+  <section
+    class="content-card reservation-board-card"
+    [class.read-only-board]="readOnly"
+    [class.read-only-owner-layout]="readOnly && readOnlyOwnerLayout">
     <div class="reservation-board-legend-above">
       <div class="reservation-board-titlebar-legend" aria-label="Reservation board color legend">
         @for (statusId of reservationBoardLegendStatusIds; track statusId) {
@@ -23,7 +29,7 @@
               <span class="flex-shrink-0 text-xl font-medium">Reservation Board</span>
             </span>
           }
-          @if (!isOwner || readOnly) {
+          @if (!isOwnerScopedView || readOnly) {
             <div class="header-title form-titlebar-fields-wrap header-date-controls">
               @if (showOfficeDropdown && !readOnly) {
                 <mat-form-field appearance="outline" class="titlebar-field-office">
@@ -45,8 +51,7 @@
                   [(ngModel)]="startDate"
                   [ngModelOptions]="{ standalone: true }"
                   (dateChange)="onDateRangeChange()"
-                  [max]="endDate"
-                  [disabled]="readOnly" />
+                  [max]="endDate" />
                 <mat-datepicker-toggle matIconSuffix [for]="startPicker"></mat-datepicker-toggle>
                 <mat-datepicker #startPicker></mat-datepicker>
               </mat-form-field>
@@ -59,8 +64,7 @@
                   [(ngModel)]="endDate"
                   [ngModelOptions]="{ standalone: true }"
                   (dateChange)="onDateRangeChange()"
-                  [min]="startDate"
-                  [disabled]="readOnly" />
+                  [min]="startDate" />
                 <mat-datepicker-toggle matIconSuffix [for]="endPicker"></mat-datepicker-toggle>
                 <mat-datepicker #endPicker></mat-datepicker>
               </mat-form-field>
@@ -73,14 +77,13 @@
                 [attr.aria-pressed]="dateRangeSticky"
                 aria-label="Sticky date range"
                 matTooltip="Keep this date range between visits"
-                [disabled]="readOnly"
                 (click)="onStickyDateRangeToggle()">
                 <mat-icon>push_pin</mat-icon>
               </button>
             </div>
           }
         </div>
-        @if (!isOwner && !readOnly) {
+        @if (!isOwnerScopedView && !readOnly) {
           <div class="form-titlebar-actions-wrap uniform-gap">
             <mat-slide-toggle color="primary" [checked]="furnishedPropertyToggleChecked" (change)="onUnfurnishedToggle($event)">
               Unfurnished

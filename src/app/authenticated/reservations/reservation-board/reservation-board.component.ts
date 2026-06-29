@@ -25,7 +25,7 @@ import { PropertySelectionResponse } from '../../properties/models/property-sele
 import { PropertyListResponse } from '../../properties/models/property.model';
 import { PropertySelectionFilterService } from '../../properties/services/property-selection-filter.service';
 import { PropertyService } from '../../properties/services/property.service';
-import { hasOwnerRole, hasRealtorRole } from '../../shared/access/role-access';
+import { hasRealtorRole } from '../../shared/access/role-access';
 import { BoardProperty, CalendarDay } from '../models/reservation-board-model';
 import { getReservationStatus, ReservationStatus } from '../models/reservation-enum';
 import { ReservationListResponse } from '../models/reservation-model';
@@ -43,6 +43,7 @@ export class ReservationBoardComponent implements OnInit, OnChanges, OnDestroy {
   @Input() ownerUserId: string | null = null;
   @Input() ownerContactId: string | null = null;
   @Input() readOnly: boolean = false;
+  @Input() readOnlyOwnerLayout: boolean = false;
   @Input() showReservationNames: boolean = true;
   @ViewChild('boardContextMenuTrigger') boardContextMenuTrigger?: MatMenuTrigger;
 
@@ -78,7 +79,7 @@ export class ReservationBoardComponent implements OnInit, OnChanges, OnDestroy {
   officeScopeResolved = false;
   selectedOfficeId: number | null = null;
   userId: string = '';
-  isOwner: boolean = false;
+  isOwnerScopedView: boolean = false;
   organizationId: string = '';
   propertiesFiltered = false;
   furnishedPropertyToggleChecked = false;
@@ -119,7 +120,7 @@ export class ReservationBoardComponent implements OnInit, OnChanges, OnDestroy {
     this.showReservationNames = this.showReservationNames !== false;
     this.userId = this.authService.getUser()?.userId || '';
     const userGroups = this.authService.getUser()?.userGroups as Array<string | number> | undefined;
-    this.isOwner = hasOwnerRole(userGroups);
+    this.isOwnerScopedView = this.hasOwnerScope();
     if (hasRealtorRole(userGroups)) {
       this.readOnly = true;
     }
@@ -166,7 +167,7 @@ export class ReservationBoardComponent implements OnInit, OnChanges, OnDestroy {
       return;
     }
 
-    const scopedOwnerId = (this.ownerContactId || this.ownerUserId || '').trim();
+    const scopedOwnerId = this.getScopedOwnerId();
     if (!scopedOwnerId || !this.officeScopeResolved) {
       return;
     }
@@ -309,7 +310,7 @@ export class ReservationBoardComponent implements OnInit, OnChanges, OnDestroy {
       return;
     }
 
-    const scopedOwnerId = (this.ownerContactId || this.ownerUserId || '').trim();
+    const scopedOwnerId = this.getScopedOwnerId();
     if (!scopedOwnerId) {
       this.allPropertyRows = [];
       this.propertyRows = [];
@@ -338,7 +339,7 @@ export class ReservationBoardComponent implements OnInit, OnChanges, OnDestroy {
   }
 
   loadBoardProperties(): void {
-    if (this.isOwner) {
+    if (this.hasOwnerScope()) {
       this.loadPropertiesForOwner();
       return;
     }
@@ -350,7 +351,7 @@ export class ReservationBoardComponent implements OnInit, OnChanges, OnDestroy {
     const currentOfficeId = this.selectedOfficeId ?? null;
     if (!force && (this.isLoadingReservations || this.lastLoadedOfficeId === currentOfficeId)) return;
 
-    const scopedOwnerId = (this.ownerContactId || this.ownerUserId || '').trim();
+    const scopedOwnerId = this.getScopedOwnerId();
     const reservations$ = scopedOwnerId
       ? this.reservationService.getReservationsByOwner(scopedOwnerId)
       : this.reservationService.getReservationList();
@@ -490,6 +491,14 @@ export class ReservationBoardComponent implements OnInit, OnChanges, OnDestroy {
   getStickyDateRangeStorageKey(): string {
     const userKey = this.userId?.trim() || 'anonymous';
     return `${this.stickyDateRangeStorageKeyPrefix}-${userKey}`;
+  }
+  
+  getScopedOwnerId(): string {
+    return String(this.ownerContactId || this.ownerUserId || '').trim();
+  }
+
+  hasOwnerScope(): boolean {
+    return this.getScopedOwnerId() !== '';
   }
   //#endregion
 

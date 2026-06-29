@@ -21,7 +21,7 @@
   box-sizing: border-box;
 }
 
-.reservation-board-wrapper.read-only-board {
+.reservation-board-wrapper.read-only-owner-layout {
   padding: 0;
 }
 
@@ -56,7 +56,7 @@
   }
 }
 
-.reservation-board-card.read-only-board {
+.reservation-board-card.read-only-owner-layout {
   width: 100% !important;
   max-width: 100% !important;
   height: auto;
