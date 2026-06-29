@@ -524,8 +524,8 @@ export class WorkOrderCreateComponent extends BaseDocumentComponent implements O
     result = result.replace(/\{\{invoiceName\}\}/g, this.workOrder.workOrderId || '');
      
     // Replace responsible parties block.
-    const isOrganizationWorkOrder = this.workOrder.workOrderTypeId === WorkOrderType.Organization;
-    if (isOrganizationWorkOrder || this.selectedReservation || this.selectedContact) {
+    const isCompanyWorkOrder = this.workOrder.workOrderTypeId === WorkOrderType.Company;
+    if (isCompanyWorkOrder || this.selectedReservation || this.selectedContact) {
       result = result.replace(/\{\{responsiblePartiesBlock\}\}/g, this.getResponsiblePartiesBlock() || '');
     }
 
@@ -548,12 +548,12 @@ export class WorkOrderCreateComponent extends BaseDocumentComponent implements O
     if (this.workOrder.workOrderTypeId === WorkOrderType.Owner) {
       result = result.replace(/<span class="label">Company Name:<\/span>\s*\{\{companyName\}\}<br>\s*/g, '');
     }
-    // Organization work orders should not show the Client Name row.
-    if (this.workOrder.workOrderTypeId === WorkOrderType.Organization) {
+    // Company work orders should not show the Client Name row.
+    if (this.workOrder.workOrderTypeId === WorkOrderType.Company) {
       result = result.replace(/<span class="label">Client Name:<\/span>\s*\{\{contactName\}\}<br>\s*/g, '');
     }
-    // Owner and Company/Organization work orders should not show Payment Information section.
-    if (this.workOrder.workOrderTypeId === WorkOrderType.Owner || this.workOrder.workOrderTypeId === WorkOrderType.Organization) {
+    // Owner and Company work orders should not show Payment Information section.
+    if (this.workOrder.workOrderTypeId === WorkOrderType.Owner || this.workOrder.workOrderTypeId === WorkOrderType.Company) {
       result = result.replace(
         /<tr valign="top">\s*<td colspan="2" style="padding: 5px;">\s*<div class="border">\s*<h3 style="text-align: left; padding-left: 15px;">Payment Information<\/h3>[\s\S]*?<\/div>\s*<\/td>\s*<\/tr>/i,
         ''
@@ -943,8 +943,8 @@ export class WorkOrderCreateComponent extends BaseDocumentComponent implements O
   }
 
   getResponsiblePartiesBlock(): string {
-    const isOrganizationWorkOrder = this.workOrder?.workOrderTypeId === WorkOrderType.Organization;
-    if (isOrganizationWorkOrder) {
+    const isCompanyWorkOrder = this.workOrder?.workOrderTypeId === WorkOrderType.Company;
+    if (isCompanyWorkOrder) {
       const responsibleParty = this.escapeHtml(this.organization?.name || '');
       return [
         `<span style="font-weight: bold">Client:</span> ${responsibleParty}<br>`,

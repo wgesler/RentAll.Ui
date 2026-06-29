@@ -547,7 +547,7 @@ export class WorkOrderComponent implements OnInit, OnChanges, OnDestroy {
   }
 
   isPropertySelectionRequired(): boolean {
-    return Number(this.form.get('workOrderTypeId')?.value ?? -1) !== WorkOrderType.Organization;
+    return Number(this.form.get('workOrderTypeId')?.value ?? -1) !== WorkOrderType.Company;
   }
 
   getUseDepartureFeeForSave(): boolean {

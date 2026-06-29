@@ -2,7 +2,7 @@
 export enum WorkOrderType {
   Tenant = 0,
   Owner = 1,
-  Organization = 2
+  Company = 2
 }
 
 export function getWorkOrderType(workOrderTypeId: number | undefined): string {
@@ -11,7 +11,7 @@ export function getWorkOrderType(workOrderTypeId: number | undefined): string {
   const typeMap: { [key: number]: string } = {
     [WorkOrderType.Tenant]: 'Tenant',
     [WorkOrderType.Owner]: 'Owner',
-    [WorkOrderType.Organization]: 'Organization'
+    [WorkOrderType.Company]: 'Company'
   };
 
   return typeMap[workOrderTypeId] || '';
