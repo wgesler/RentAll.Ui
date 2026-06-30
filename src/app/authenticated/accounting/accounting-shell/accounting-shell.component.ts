@@ -51,7 +51,13 @@ import { Class, ClassLabels } from '../models/accounting-enum';
 import { GeneralLedgerService } from '../services/general-ledger.service';
 import { JournalEntrySyncResult } from '../models/journal-entry.model';
 
-type JournalEntrySyncProgressKey = 'invoice' | 'bill' | 'receipt' | 'workOrder';
+type JournalEntrySyncProgressKey =
+  | 'invoice'
+  | 'bill'
+  | 'receipt'
+  | 'workOrder'
+  | 'departureFee'
+  | 'linenAndTowelFee';
 
 interface JournalEntrySyncProgressRow {
   key: JournalEntrySyncProgressKey;
@@ -1670,7 +1676,9 @@ export class AccountingShellComponent implements OnInit, OnDestroy {
       { key: 'invoice', label: 'Invoices', total: 0, processed: 0, skipped: 0, errors: 0, status: 'Pending' },
       { key: 'bill', label: 'Bills', total: 0, processed: 0, skipped: 0, errors: 0, status: 'Pending' },
       { key: 'receipt', label: 'Receipts', total: 0, processed: 0, skipped: 0, errors: 0, status: 'Pending' },
-      { key: 'workOrder', label: 'Work Orders', total: 0, processed: 0, skipped: 0, errors: 0, status: 'Pending' }
+      { key: 'workOrder', label: 'Work Orders', total: 0, processed: 0, skipped: 0, errors: 0, status: 'Pending' },
+      { key: 'departureFee', label: 'Departure Fees', total: 0, processed: 0, skipped: 0, errors: 0, status: 'Pending' },
+      { key: 'linenAndTowelFee', label: 'Linen & Towel Fees', total: 0, processed: 0, skipped: 0, errors: 0, status: 'Pending' }
     ];
   }
 
