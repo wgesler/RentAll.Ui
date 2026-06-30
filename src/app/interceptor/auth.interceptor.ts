@@ -81,17 +81,10 @@ function showErrorToast(error: HttpErrorResponse, toastrService: ToastrService, 
     toastrService.error(message, title);
     return;
   }
-  
-  // Temporary debug-friendly fallback so we can see what backend actually returned.
-  const raw = typeof error.error === 'string'
-    ? error.error
-    : (error.error ? JSON.stringify(error.error) : '');
-  const snippet = raw && raw.length > 280 ? `${raw.slice(0, 280)}...` : raw;
+
+  // Keep fallback user-facing output generic; never leak transport objects to the UI.
   const statusPart = error.status ? `HTTP ${error.status}${error.statusText ? ` ${error.statusText}` : ''}` : CommonMessage.Unexpected;
-  const composed = snippet
-    ? `${statusPart}: ${snippet}`
-    : statusPart;
-  const finalMessage = appendTryAgain ? composed + CommonMessage.TryAgain : composed;
+  const finalMessage = appendTryAgain ? statusPart + CommonMessage.TryAgain : statusPart;
   toastrService.error(finalMessage, title);
 }
 
@@ -105,6 +98,19 @@ function logoutUser(authService: AuthService): Observable<PurposefulAny> {
   return authService.logout();
 }
 
+function shouldForceLogoutForTransportError(error: HttpErrorResponse): boolean {
+  const payload = error?.error as PurposefulAny;
+  return error.status === 0
+    || payload instanceof ProgressEvent
+    || (typeof payload === 'object' && payload !== null && payload.isTrusted === true);
+}
+
+function logoutAndSuppress(authService: AuthService): Observable<HttpEvent<PurposefulAny>> {
+  return logoutUser(authService).pipe(
+    switchMap(() => EMPTY)
+  );
+}
+
 // 400 BadRequest: show API message globally when available
 function handle400Error(req: HttpRequest<PurposefulAny>, error: HttpErrorResponse, toastrService: ToastrService): Observable<HttpEvent<PurposefulAny>> {
   showErrorToast(error, toastrService, CommonMessage.Error, false);
@@ -112,7 +118,7 @@ function handle400Error(req: HttpRequest<PurposefulAny>, error: HttpErrorRespons
 }
 
 // 401 Unauthorized
-function handle401Error(req: HttpRequest<PurposefulAny>, err: HttpErrorResponse, next: HttpHandlerFn, loadingBarService: LoadingBarService, authService: AuthService, toastrService: ToastrService): Observable<HttpEvent<PurposefulAny>> {
+function handle401Error(req: HttpRequest<PurposefulAny>, err: HttpErrorResponse, next: HttpHandlerFn, loadingBarService: LoadingBarService, authService: AuthService): Observable<HttpEvent<PurposefulAny>> {
   // If user is logging out, do not attempt refresh/retry.
   if (authService.isLoggingOut()) {
     return EMPTY;
@@ -121,17 +127,7 @@ function handle401Error(req: HttpRequest<PurposefulAny>, err: HttpErrorResponse,
   // If we just refreshed and still get 401, it's an unauthorized action
   if (justRefreshed) {
     justRefreshed = false;
-    const errorData = err?.error;
-    const hasApiMessage = errorData && typeof errorData === 'object' && 
-      (('message' in errorData || 'Message' in errorData) || 
-       ('controller' in errorData && 'httpMethod' in errorData));
-    
-    if (hasApiMessage) {
-      showErrorToast(err, toastrService, CommonMessage.Unauthorized, false);
-    } else {
-      toastrService.error(CommonMessage.UnauthorizedAction, CommonMessage.Unauthorized);
-    }
-    return throwError(() => err);
+    return logoutAndSuppress(authService);
   }
   
   if (!isRefreshingToken) {
@@ -149,17 +145,7 @@ function handle401Error(req: HttpRequest<PurposefulAny>, err: HttpErrorResponse,
               // If retry after refresh still gets 401, it's unauthorized action
               if (retryError instanceof HttpErrorResponse && retryError.status === 401) {
                 justRefreshed = false;
-                // Show API message if available, otherwise show generic unauthorized message
-                const errorData = retryError?.error;
-                const hasApiMessage = errorData && typeof errorData === 'object' && 
-                  (('message' in errorData || 'Message' in errorData) || 
-                   ('controller' in errorData && 'httpMethod' in errorData));
-                
-                if (hasApiMessage) {
-                  showErrorToast(retryError, toastrService, CommonMessage.Unauthorized, false);
-                } else {
-                  toastrService.error(CommonMessage.UnauthorizedAction, CommonMessage.Unauthorized);
-                }
+                return logoutAndSuppress(authService);
               }
               return throwError(() => retryError);
             })
@@ -169,20 +155,10 @@ function handle401Error(req: HttpRequest<PurposefulAny>, err: HttpErrorResponse,
         return logoutUser(authService);
       }),
       catchError(error => {
-        // On refresh token failure, show session timeout message
-        if (error instanceof HttpErrorResponse) {
-          if (error.status === 401) {
-            // Refresh token expired/invalid - session timeout
-            toastrService.error(CommonMessage.SessionTimeout, CommonMessage.Unauthorized);
-          } else {
-            // Other error during refresh
-            showErrorToast(error, toastrService, CommonMessage.ServiceError, true);
-          }
-        }
         // Reset token subject to signal failure to waiting requests
         tokenSubject$.next(null);
         // Always logout on refresh failure to return to login screen
-        return logoutUser(authService);
+        return logoutAndSuppress(authService);
       }),
       finalize(() => {
         isRefreshingToken = false;
@@ -252,6 +228,9 @@ export const authInterceptor: HttpInterceptorFn = (req, next) => {
   return next(req).pipe(
     catchError(error => {
       if (error instanceof HttpErrorResponse) {
+        if (shouldForceLogoutForTransportError(error)) {
+          return logoutAndSuppress(authService);
+        }
         if (req.url.includes('/organization/branding')) {
           return throwError(() => error);
         }
@@ -259,7 +238,7 @@ export const authInterceptor: HttpInterceptorFn = (req, next) => {
           case 400:
             return handle400Error(req, error, toastrService);
           case 401:
-            return handle401Error(req, error, next, loadingBarService, authService, toastrService);
+            return handle401Error(req, error, next, loadingBarService, authService);
           case 404:
             return handle404Error(error);
           case 409:
