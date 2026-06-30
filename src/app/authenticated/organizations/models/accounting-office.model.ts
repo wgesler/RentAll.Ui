@@ -36,6 +36,7 @@ export interface AccountingOfficeRequest {
   defaultCompanyExpAccountId?: number | null;
   defaultPmUtilityIncAccountId?: number | null;
   defaultLaborIncAccountId?: number | null;
+  defaultLinenTowelIncAccountId?: number | null;
   defaultDepartureIncAccountId?: number | null;
   defaultDepartureExpAccountId?: number | null;
   logoPath?: string; 
@@ -79,6 +80,7 @@ export interface AccountingOfficeResponse {
   defaultCompanyExpAccountId?: number | null;
   defaultPmUtilityIncAccountId?: number | null;
   defaultLaborIncAccountId?: number | null;
+  defaultLinenTowelIncAccountId?: number | null;
   defaultDepartureIncAccountId?: number | null;
   defaultDepartureExpAccountId?: number | null;
   logoPath?: string; 

@@ -76,7 +76,8 @@ export class AccountingOfficeComponent implements OnInit, OnDestroy, OnChanges {
   defaultTenantOwnerCompanyAccountFieldsRow2: { controlName: string; label: string }[] = [
     { controlName: 'defaultCompanyExpAccountId', label: 'Company Expense' },
     { controlName: 'defaultPmUtilityIncAccountId', label: 'PM Utility Income' },
-    { controlName: 'defaultLaborIncAccountId', label: 'Labor Income' }
+    { controlName: 'defaultLaborIncAccountId', label: 'Labor Income' },
+    { controlName: 'defaultLinenTowelIncAccountId', label: 'Linen/Towel Income' }
   ];
   defaultDepartureAccountFields: { controlName: string; label: string }[] = [
     { controlName: 'defaultDepartureIncAccountId', label: 'Departure Income' },
@@ -299,6 +300,7 @@ export class AccountingOfficeComponent implements OnInit, OnDestroy, OnChanges {
       defaultCompanyExpAccountId: this.parseOptionalAccountId(formValue.defaultCompanyExpAccountId),
       defaultPmUtilityIncAccountId: this.parseOptionalAccountId(formValue.defaultPmUtilityIncAccountId),
       defaultLaborIncAccountId: this.parseOptionalAccountId(formValue.defaultLaborIncAccountId),
+      defaultLinenTowelIncAccountId: this.parseOptionalAccountId(formValue.defaultLinenTowelIncAccountId),
       defaultDepartureIncAccountId: this.parseOptionalAccountId(formValue.defaultDepartureIncAccountId),
       defaultDepartureExpAccountId: this.parseOptionalAccountId(formValue.defaultDepartureExpAccountId),
       email: formValue.email || '',
@@ -400,6 +402,7 @@ export class AccountingOfficeComponent implements OnInit, OnDestroy, OnChanges {
       defaultCompanyExpAccountId: new FormControl<number | null>(null),
       defaultPmUtilityIncAccountId: new FormControl<number | null>(null),
       defaultLaborIncAccountId: new FormControl<number | null>(null),
+      defaultLinenTowelIncAccountId: new FormControl<number | null>(null),
       defaultDepartureIncAccountId: new FormControl<number | null>(null),
       defaultDepartureExpAccountId: new FormControl<number | null>(null),
       fileUpload: new FormControl('', { validators: [], asyncValidators: [fileValidator(['png', 'jpg', 'jpeg', 'jfif', 'gif', 'svg', 'heic', 'heif', 'pdf'], ['image/png', 'image/jpeg', 'image/gif', 'image/svg+xml', 'image/heic', 'image/heif', 'application/pdf'], 2000000, true)] }),
@@ -443,6 +446,7 @@ export class AccountingOfficeComponent implements OnInit, OnDestroy, OnChanges {
         defaultCompanyExpAccountId: this.accountingOffice.defaultCompanyExpAccountId ?? null,
         defaultPmUtilityIncAccountId: this.accountingOffice.defaultPmUtilityIncAccountId ?? null,
         defaultLaborIncAccountId: this.accountingOffice.defaultLaborIncAccountId ?? null,
+        defaultLinenTowelIncAccountId: this.accountingOffice.defaultLinenTowelIncAccountId ?? null,
         defaultDepartureIncAccountId: this.accountingOffice.defaultDepartureIncAccountId ?? null,
         defaultDepartureExpAccountId: this.accountingOffice.defaultDepartureExpAccountId ?? null,
         isActive: this.accountingOffice.isActive
@@ -487,6 +491,7 @@ export class AccountingOfficeComponent implements OnInit, OnDestroy, OnChanges {
       defaultCompanyExpAccountId: o.defaultCompanyExpAccountId ?? null,
       defaultPmUtilityIncAccountId: o.defaultPmUtilityIncAccountId ?? null,
       defaultLaborIncAccountId: o.defaultLaborIncAccountId ?? null,
+      defaultLinenTowelIncAccountId: o.defaultLinenTowelIncAccountId ?? null,
       defaultDepartureIncAccountId: o.defaultDepartureIncAccountId ?? null,
       defaultDepartureExpAccountId: o.defaultDepartureExpAccountId ?? null,
       isActive: o.isActive
