@@ -281,10 +281,20 @@ export class FinancialReportComponent implements OnInit, OnDestroy, OnChanges {
 
   //#region Expand All Methods
   toggleNodeExpansion(nodeId: string): void {
+    const descendantNodeIds = this.collectDescendantNodeIds(nodeId);
+    const hasExpandedDescendants = descendantNodeIds.some(descendantId => this.expandedNodeIds.has(descendantId));
     if (this.expandedNodeIds.has(nodeId)) {
-      this.expandedNodeIds.delete(nodeId);
+      if (hasExpandedDescendants) {
+        // First click collapses descendants but keeps this node open.
+        descendantNodeIds.forEach(descendantId => this.expandedNodeIds.delete(descendantId));
+      } else {
+        // Next click toggles this node closed.
+        this.expandedNodeIds.delete(nodeId);
+      }
     } else {
       this.expandedNodeIds.add(nodeId);
+      // QuickBooks-style behavior: when opening a section, start with all descendants collapsed.
+      descendantNodeIds.forEach(descendantId => this.expandedNodeIds.delete(descendantId));
     }
     this.rebuildVisibleRows();
     this.markViewForCheck();
@@ -311,7 +321,10 @@ export class FinancialReportComponent implements OnInit, OnDestroy, OnChanges {
   }
 
   initializeExpandedNodes(sections: FinancialReportTreeNode[]): void {
-    this.expandedNodeIds = new Set(this.collectExpandableNodeIds(sections));
+    const topLevelSectionNodeIds = (sections || [])
+      .filter(node => node.rowKind === 'section' && node.childNodes.length > 0)
+      .map(node => node.nodeId);
+    this.expandedNodeIds = new Set(topLevelSectionNodeIds);
   }
 
   collectExpandableNodeIds(nodes: FinancialReportTreeNode[]): string[] {
@@ -323,6 +336,27 @@ export class FinancialReportComponent implements OnInit, OnDestroy, OnChanges {
       }
     });
     return nodeIds;
+  }
+
+  collectDescendantNodeIds(nodeId: string): string[] {
+    const rootNode = this.findFinancialReportNodeById(this.reportResult?.sections || [], nodeId);
+    if (!rootNode) {
+      return [];
+    }
+    return this.collectExpandableNodeIds(rootNode.childNodes);
+  }
+
+  findFinancialReportNodeById(nodes: FinancialReportTreeNode[], nodeId: string): FinancialReportTreeNode | null {
+    for (const node of nodes || []) {
+      if (node.nodeId === nodeId) {
+        return node;
+      }
+      const found = this.findFinancialReportNodeById(node.childNodes || [], nodeId);
+      if (found) {
+        return found;
+      }
+    }
+    return null;
   }
 
   isTitleRowExpander(row: FinancialReportVisibleRow): boolean {
