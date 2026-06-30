@@ -340,7 +340,6 @@ export class PropertyAgreementComponent implements OnInit, OnChanges, OnDestroy 
     }, { emitEvent: false });
     this.agreementOfficeId = data.officeId ?? this.officeId ?? null;
     this.syncManagementAgreementFieldState();
-    this.applyOfficeDefaultsWhenAgreementAmountsZero();
     this.populateAgreementW9(data);
     this.populateAgreementInsurance(data);
     this.populateAgreementDoc(data);
@@ -445,7 +444,6 @@ export class PropertyAgreementComponent implements OnInit, OnChanges, OnDestroy 
       finalize(() => {this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'offices');})).subscribe(() => {
       this.officeService.getAllOffices().pipe(takeUntil(this.destroy$)).subscribe(offices => {
         this.offices = offices || [];
-        this.applyOfficeDefaultsWhenAgreementAmountsZero();
       });
     });
   }
@@ -552,6 +550,11 @@ export class PropertyAgreementComponent implements OnInit, OnChanges, OnDestroy 
       return;
     }
 
+    // Existing agreement values are user-owned; do not auto-override from office defaults.
+    if (this.agreementExists) {
+      return;
+    }
+
     const office = this.getAgreementOffice();
     if (!office) {
       return;
@@ -636,39 +639,6 @@ export class PropertyAgreementComponent implements OnInit, OnChanges, OnDestroy 
       patch['linenAndTowelFee'] = this.formatAgreementDecimalForDisplay(linenFee);
     }
     return patch;
-  }
-
-  applyOfficeDefaultsWhenAgreementAmountsZero(): void {
-    if (!this.agreementForm || !this.agreementExists) {
-      return;
-    }
-
-    const office = this.getAgreementOffice();
-    if (!office) {
-      return;
-    }
-
-    const values = this.agreementForm.getRawValue();
-    const patch: Record<string, string | number | null> = {};
-
-    const markupValue = this.formatterService.parsePercentageValue(values?.markup, 0);
-    if (markupValue === 0 && office.defaultMarkup != null) {
-      patch['markup'] = this.formatterService.formatPercentageValue(office.defaultMarkup, 0);
-    }
-
-    const workingCapitalValue = this.parseAgreementDecimalFromForm(values?.workingCapitalBalance) ?? 0;
-    if (workingCapitalValue === 0 && office.defaultWorkingCapitalBalance != null) {
-      patch['workingCapitalBalance'] = this.formatAgreementDecimalForDisplay(office.defaultWorkingCapitalBalance);
-    }
-
-    const hourlyLaborValue = this.parseAgreementDecimalFromForm(values?.hourlyLaborCost) ?? 0;
-    if (hourlyLaborValue === 0 && office.defaultHourlyLaborCost != null) {
-      patch['hourlyLaborCost'] = this.formatAgreementDecimalForDisplay(office.defaultHourlyLaborCost);
-    }
-
-    if (Object.keys(patch).length > 0) {
-      this.agreementForm.patchValue(patch, { emitEvent: false });
-    }
   }
 
   resolveLinenTowelFeeFromOffice(office: OfficeResponse, bedrooms: number | null | undefined): number | null {
