@@ -1567,6 +1567,8 @@ export class MappingService {
 
   mapPropertyResponse(raw: Record<string, unknown>): PropertyResponse {
     const leaseTypeId = raw['propertyLeaseTypeId'] ?? raw['propertyLeaseId'];
+    const noticeStatusId = raw['noticeStatusId'] ?? raw['NoticeStatusId'];
+    const noticeToVacateId = raw['noticeToVacateId'] ?? raw['NoticeToVacateId'];
     const rest = { ...(raw as Record<string, unknown>) };
     delete rest['propertyLeaseTypeId'];
     delete rest['propertyLeaseId'];
@@ -1577,13 +1579,17 @@ export class MappingService {
     const amenities = raw['amenities'] ?? raw['Amenities'];
     const notes = raw['notes'] ?? raw['Notes'];
     const externalCalendar = raw['externalCalendar'] ?? raw['ExternalCalendar'];
+    const confirmationNo = raw['confirmationNo'] ?? raw['ConfirmationNo'];
     return {
       ...rest,
       propertyLeaseTypeId: Number(leaseTypeId ?? 0),
+      noticeStatusId: Number(noticeStatusId ?? 0),
+      noticeToVacateId: Number(noticeToVacateId ?? 0),
       description: description == null ? null : String(description),
       amenities: amenities == null ? null : String(amenities),
       notes: notes == null ? null : String(notes),
       externalCalendar: externalCalendar == null ? null : String(externalCalendar),
+      confirmationNo: confirmationNo == null ? null : String(confirmationNo),
       ...(bldgNo !== undefined ? { bldgNo } : {})
     } as unknown as PropertyResponse;
   }

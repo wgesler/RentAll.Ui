@@ -15,6 +15,7 @@ export interface PropertyRequest {
   // Availability section
   availableFrom?: CalendarDateString | null;
   availableUntil?: CalendarDateString | null;
+  confirmationNo?: string | null;
   checkInTimeId: number;
   checkOutTimeId: number;
   minStay: number;
@@ -23,6 +24,7 @@ export interface PropertyRequest {
   propertyTypeId: number;
   propertyStatusId: number;
   noticeToVacateId: number;
+  noticeStatusId: number;
   monthlyRate: number;
   dailyRate: number;
   departureFee: number;
@@ -159,6 +161,7 @@ export interface PropertyResponse {
   // Availability section
   availableFrom?: CalendarDateString | null;
   availableUntil?: CalendarDateString | null;
+  confirmationNo?: string | null;
   checkInTimeId: number;
   checkOutTimeId: number;
   minStay: number;
@@ -167,6 +170,7 @@ export interface PropertyResponse {
   propertyTypeId: number;
   propertyStatusId: number;
   noticeToVacateId: number;
+  noticeStatusId: number;
   monthlyRate: number;
   dailyRate: number;
   departureFee: number;

@@ -334,8 +334,16 @@
       grid-column: span 9;
     }
 
+    > .community-address-span-7 {
+      grid-column: span 7;
+    }
+
     > .community-address-span-1 {
       grid-column: span 1;
+    }
+
+    > .community-address-span-2 {
+      grid-column: span 2;
     }
   }
 
@@ -356,7 +364,30 @@
   }
 
   .address-secondary-line-grid.address-secondary-line-grid-with-notice {
-    grid-template-columns: repeat(16, minmax(0, 1fr));
+    grid-template-columns: repeat(8, minmax(0, 1fr));
+
+    > .address-secondary-span-4 {
+      grid-column: span 2;
+    }
+
+    > .address-secondary-span-half {
+      grid-column: span 1;
+      min-width: 0;
+    }
+  }
+
+  .date-picker-icon-error {
+    color: var(--mat-sys-error, #f44336);
+  }
+
+  .date-picker-icon-button-error {
+    --mdc-icon-button-icon-color: var(--mat-sys-error, #f44336);
+    color: var(--mat-sys-error, #f44336) !important;
+  }
+
+  .date-picker-icon-button-error .mat-icon,
+  .date-picker-icon-button-error .material-icons {
+    color: inherit !important;
   }
 
   /* Fees — 5 equal columns */

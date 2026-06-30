@@ -71,10 +71,19 @@
                     <mat-form-field appearance="outline" class="basic-compact min-w-0 col-span-4 date-field-with-suffix-icon">
                       <mat-label>Avail-Until</mat-label>
                       <input matInput [matDatepicker]="availableUntilPicker" formControlName="availableUntil">
-                      <button mat-icon-button matSuffix type="button" (click)="availableUntilPicker.open()" aria-label="Open calendar">
-                        <mat-icon>calendar_today</mat-icon>
+                      <button
+                        mat-icon-button
+                        matSuffix
+                        type="button"
+                        [class.date-picker-icon-button-error]="form.get('availableUntil')?.hasError('required') && form.get('availableUntil')?.touched"
+                        (click)="availableUntilPicker.open()"
+                        aria-label="Open calendar">
+                        <mat-icon [class.date-picker-icon-error]="form.get('availableUntil')?.hasError('required') && form.get('availableUntil')?.touched">calendar_today</mat-icon>
                       </button>
                       <mat-datepicker #availableUntilPicker></mat-datepicker>
+                      @if (form.get('availableUntil')?.hasError('required') && form.get('availableUntil')?.touched) {
+                        <mat-error>Required</mat-error>
+                      }
                     </mat-form-field>
                     <app-searchable-select
                       class="basic-compact min-w-0 col-span-3"
@@ -305,7 +314,11 @@
                 @if (!isOwnerView) {
                 <div class="basic-row community-address-line-grid gap-x-1.5 gap-y-1 w-full">
                   @if (!isOwnerView) {
-                    <mat-form-field appearance="outline" class="basic-compact min-w-0 community-address-span-9">
+                    <mat-form-field
+                      appearance="outline"
+                      class="basic-compact min-w-0"
+                      [class.community-address-span-9]="!showNoticeToVacateField"
+                      [class.community-address-span-7]="showNoticeToVacateField">
                       <mat-label>Community Address</mat-label>
                       <input matInput formControlName="communityAddress">
                     </mat-form-field>
@@ -336,6 +349,12 @@
                     <mat-label>Mailbox</mat-label>
                     <input matInput formControlName="mailbox">
                   </mat-form-field>
+                  @if (showNoticeToVacateField) {
+                    <mat-form-field appearance="outline" class="basic-compact min-w-0 community-address-span-2">
+                      <mat-label>Confirmation No</mat-label>
+                      <input matInput formControlName="confirmationNo" maxlength="100">
+                    </mat-form-field>
+                  }
                 </div>
                 }
                 <!-- 12-col default: Neighborhood, Cross Street, View; expands to include Notice To Vacate -->
@@ -354,7 +373,7 @@
                   </mat-form-field>
                   @if (showNoticeToVacateField) {
                     <app-searchable-select
-                      class="basic-compact min-w-0 address-secondary-span-4"
+                      class="basic-compact min-w-0 address-secondary-span-half"
                       [renderInFormField]="true"
                       [formFieldClass]="'basic-compact min-w-0'"
                       [formFieldLabel]="'Notice To Vacate'"
@@ -367,6 +386,23 @@
                       [nullOptionLabel]="''"
                       [noResultsText]="'No notice options match your search'"
                       (valueChange)="onNumericDropdownChange('noticeToVacateId', $event)">
+                    </app-searchable-select>
+                    <app-searchable-select
+                      class="basic-compact min-w-0 address-secondary-span-half"
+                      [renderInFormField]="true"
+                      [formFieldClass]="'basic-compact min-w-0'"
+                      [formFieldLabel]="'Notification Status'"
+                      [value]="form.get('noticeStatusId')?.value ?? 0"
+                      [options]="noticeStatusOptions"
+                      [showSearchInput]="true"
+                      [hideSearchHint]="true"
+                      [hideSearchText]="true"
+                      [searchPlaceholder]="'Type to filter notification statuses...'"
+                      [nullOptionLabel]="''"
+                      [noResultsText]="'No notification status options match your search'"
+                      [showError]="false"
+                      [errorText]="''"
+                      (valueChange)="onNumericDropdownChange('noticeStatusId', $event)">
                     </app-searchable-select>
                   }
                 </div>

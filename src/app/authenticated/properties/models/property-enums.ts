@@ -76,7 +76,8 @@ export enum PropertyType {
   RV = 13,
   Studio = 14,
   Townhouse = 15,
-  Villa = 16
+  Villa = 16,
+  Hotel = 17
 }
 
 export function getPropertyType(propertyTypeId: number | undefined): string {
@@ -99,7 +100,8 @@ export function getPropertyType(propertyTypeId: number | undefined): string {
     [PropertyType.RV]: 'RV',
     [PropertyType.Studio]: 'Studio',
     [PropertyType.Townhouse]: 'Townhouse',
-    [PropertyType.Villa]: 'Villa'
+    [PropertyType.Villa]: 'Villa',
+    [PropertyType.Hotel]: 'Hotel'
   };
   
   return typeMap[propertyTypeId] || '';

@@ -204,6 +204,38 @@ export function getFrequencies(): { value: number, label: string }[] {
 }
 //#endregion
 
+//#region NoticeStatusType
+export enum NoticeStatusType {
+  None = 0,
+  CurrentLease = 1,
+  MonthToMonth = 2,
+  GaveNotice = 3
+}
+
+export function getNoticeStatusType(noticeStatusTypeId: number | undefined): string {
+  if (noticeStatusTypeId === undefined || noticeStatusTypeId === null) return '';
+
+  const noticeStatusTypeMap: { [key: number]: string } = {
+    [NoticeStatusType.None]: 'None',
+    [NoticeStatusType.CurrentLease]: 'Current Lease',
+    [NoticeStatusType.MonthToMonth]: 'Month To Month',
+    [NoticeStatusType.GaveNotice]: 'Gave Notice'
+  };
+
+  return noticeStatusTypeMap[noticeStatusTypeId] || '';
+}
+
+// Gets the array of notice status type options for dropdowns
+export function getNoticeStatusTypes(): { value: number, label: string }[] {
+  return [
+    { value: NoticeStatusType.None, label: getNoticeStatusType(NoticeStatusType.None) },
+    { value: NoticeStatusType.CurrentLease, label: getNoticeStatusType(NoticeStatusType.CurrentLease) },
+    { value: NoticeStatusType.MonthToMonth, label: getNoticeStatusType(NoticeStatusType.MonthToMonth) },
+    { value: NoticeStatusType.GaveNotice, label: getNoticeStatusType(NoticeStatusType.GaveNotice) }
+  ];
+}
+//#endregion
+
 //#region ReservationNotice
 export enum ReservationNotice {
   ThirtyDays = 0,

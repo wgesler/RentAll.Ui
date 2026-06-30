@@ -29,7 +29,7 @@ import { GlobalSelectionService } from '../../organizations/services/global-sele
 import { OfficeService } from '../../organizations/services/office.service';
 import { RegionService } from '../../organizations/services/region.service';
 import { ReservationListResponse } from '../../reservations/models/reservation-model';
-import { getReservationNotices } from '../../reservations/models/reservation-enum';
+import { NoticeStatusType, getNoticeStatusTypes, getReservationNotices } from '../../reservations/models/reservation-enum';
 import { ReservationService } from '../../reservations/services/reservation.service';
 import { CheckinTimes, CheckoutTimes, PropertyLeaseType, PropertyStatus, PropertyStyle, PropertyType, TrashDays, getBedSizeTypes, getCheckInTimes, getCheckOutTimes, getPropertyLeaseTypes, getPropertyStatuses, getPropertyStyles, getPropertyTypes } from '../models/property-enums';
 import { PropertyInformationRequest, PropertyInformationResponse } from '../models/property-information.model';
@@ -128,6 +128,7 @@ export class PropertyComponent implements OnInit, OnChanges, AfterViewInit, OnDe
   checkInTimes: { value: number, label: string }[] = [];
   checkOutTimes: { value: number, label: string }[] = [];
   reservationNoticeOptions: { value: number, label: string }[] = [];
+  noticeStatusOptions: { value: number, label: string }[] = [];
 
   officesInitialized = false;
   offices: OfficeResponse[] = [];
@@ -248,6 +249,7 @@ export class PropertyComponent implements OnInit, OnChanges, AfterViewInit, OnDe
     this.initializeBedSizeTypes();
     this.initializeTimeTypes();
     this.initializeReservationNotices();
+    this.initializeNoticeStatuses();
     
     this.buildForm();
     this.applyOwnerModeDefaults();
@@ -633,10 +635,12 @@ export class PropertyComponent implements OnInit, OnChanges, AfterViewInit, OnDe
       bedroomId4: formValue['bedroomId4'] ? Number(formValue['bedroomId4']) : 0,
       availableFrom: this.utilityService.formatDateOnlyForApi(formValue['availableFrom'] as Date | null | undefined) ?? undefined,
       availableUntil: this.utilityService.formatDateOnlyForApi(formValue['availableUntil'] as Date | null | undefined) ?? undefined,
+      confirmationNo: formValue['confirmationNo'] == null ? null : String(formValue['confirmationNo']),
       propertyStyleId: (formValue['propertyStyle'] as number | undefined) ?? PropertyStyle.Standard,
       propertyTypeId: (formValue['propertyType'] as number | undefined) ?? PropertyType.Unspecified,
       propertyStatusId: (formValue['propertyStatus'] as number | undefined) ?? PropertyStatus.Vacant,
       noticeToVacateId: this.parseIdValue(formValue['noticeToVacateId'], 0),
+      noticeStatusId: this.parseIdValue(formValue['noticeStatusId'], 0),
       officeId: Number(formValue['officeId'] ?? context.existingOfficeId ?? 0),
       regionId: (formValue['regionId'] as number | null) || null,
       areaId: (formValue['areaId'] as number | null) || null,
@@ -753,6 +757,7 @@ export class PropertyComponent implements OnInit, OnChanges, AfterViewInit, OnDe
     }
 
     overrides.communityAddress = trimOrNull(formValue['communityAddress']) ?? undefined;
+    overrides.confirmationNo = trimOrNull(formValue['confirmationNo']);
     overrides.gateCode = trimOrNull(formValue['gateCode']);
     overrides.trashCode = trimOrNull(formValue['trashCode']);
     overrides.storageCode = trimOrNull(formValue['storageCode']);
@@ -774,6 +779,7 @@ export class PropertyComponent implements OnInit, OnChanges, AfterViewInit, OnDe
       propertyStatus: new FormControl<number>(PropertyStatus.Vacant, [Validators.required]),
       propertyType: new FormControl<number>(PropertyType.Unspecified, [Validators.required]),
       noticeToVacateId: new FormControl<number>(0),
+      noticeStatusId: new FormControl<number>(0),
       unitLevel: new FormControl<number>(1, [Validators.required, Validators.min(0)]),
       bldgNo: new FormControl(''),
       accomodates: new FormControl(0, [Validators.required, Validators.min(1)]),
@@ -823,6 +829,7 @@ export class PropertyComponent implements OnInit, OnChanges, AfterViewInit, OnDe
       maxStay: new FormControl<number>(0),
       availableFrom: new FormControl<Date | null>(null),
       availableUntil: new FormControl<Date | null>(null),
+      confirmationNo: new FormControl<string>(''),
       checkInTimeId: new FormControl<number | null>(null, [Validators.required]),
       checkOutTimeId: new FormControl<number | null>(null, [Validators.required]),
       
@@ -917,6 +924,7 @@ export class PropertyComponent implements OnInit, OnChanges, AfterViewInit, OnDe
       formData.propertyStatus = propertyStatusValue;
       formData.propertyType = propertyTypeValue;
       formData.noticeToVacateId = this.parseIdValue(this.property.noticeToVacateId, 0);
+      formData.noticeStatusId = this.parseIdValue(this.property.noticeStatusId, 0);
       formData.propertyLeaseTypeId = this.parseIdValue(this.property.propertyLeaseTypeId, 0);
 
       const leaseNorm = this.parseIdValue(formData.propertyLeaseTypeId, 0);
@@ -942,7 +950,7 @@ export class PropertyComponent implements OnInit, OnChanges, AfterViewInit, OnDe
       const stringFields = ['address2', 'suite', 'communityAddress', 'bldgNo', 'neighborhood', 'crossStreet', 'view',
                            'trashRemoval', 'amenities', 'alarmCode', 'unitMstrCode', 'unitTenantCode',
                            'bldgMstrCode', 'bldgTenantCode', 'mailRoomCode',
-                           'gateCode', 'trashCode', 'storageCode',
+                           'gateCode', 'trashCode', 'storageCode', 'confirmationNo',
                            'mailbox', 'description', 'notes', 'poundLimit'];
       stringFields.forEach(field => {
         formData[field] = this.property[field] || '';
@@ -1711,6 +1719,14 @@ export class PropertyComponent implements OnInit, OnChanges, AfterViewInit, OnDe
       }
     });
 
+    // Require Available-Until when notification status is Gave Notice for direct/third-party leases
+    this.form.get('noticeStatusId')?.valueChanges.pipe(takeUntil(this.destroy$)).subscribe(() => {
+      this.syncConditionalFieldState();
+    });
+    this.form.get('propertyLeaseTypeId')?.valueChanges.pipe(takeUntil(this.destroy$)).subscribe(() => {
+      this.syncConditionalFieldState();
+    });
+
     // Set initial state based on current values
     this.syncConditionalFieldState();
   }
@@ -1738,6 +1754,26 @@ export class PropertyComponent implements OnInit, OnChanges, AfterViewInit, OnDe
       this.form.get('poundLimit')?.disable({ emitEvent: false });
       this.form.get('poundLimit')?.setValue('', { emitEvent: false });
     }
+
+    const availableUntilControl = this.form.get('availableUntil');
+    if (availableUntilControl) {
+      const leaseTypeId = this.parseIdValue(this.form.get('propertyLeaseTypeId')?.value, 0);
+      const noticeStatusId = this.parseIdValue(this.form.get('noticeStatusId')?.value, NoticeStatusType.None);
+      const requiresAvailableUntil =
+        (leaseTypeId === PropertyLeaseType.Direct || leaseTypeId === PropertyLeaseType.ThirdParty) &&
+        noticeStatusId === NoticeStatusType.GaveNotice;
+
+      if (requiresAvailableUntil) {
+        availableUntilControl.setValidators([Validators.required]);
+      } else {
+        availableUntilControl.clearValidators();
+      }
+      availableUntilControl.updateValueAndValidity({ emitEvent: false });
+
+      if (requiresAvailableUntil && !availableUntilControl.value) {
+        availableUntilControl.markAsTouched();
+      }
+    }
   }
 
   initializeTrashDays(): void {
@@ -1755,7 +1791,8 @@ export class PropertyComponent implements OnInit, OnChanges, AfterViewInit, OnDe
   }
 
   initializePropertyTypes(): void {
-    this.propertyTypes = getPropertyTypes();
+    this.propertyTypes = getPropertyTypes()
+      .sort((a, b) => a.label.localeCompare(b.label));
   }
 
   initializeBedSizeTypes(): void {
@@ -1769,6 +1806,10 @@ export class PropertyComponent implements OnInit, OnChanges, AfterViewInit, OnDe
 
   initializeReservationNotices(): void {
     this.reservationNoticeOptions = getReservationNotices();
+  }
+
+  initializeNoticeStatuses(): void {
+    this.noticeStatusOptions = getNoticeStatusTypes();
   }
   //#endregion
 
@@ -2163,6 +2204,14 @@ export class PropertyComponent implements OnInit, OnChanges, AfterViewInit, OnDe
   parseIdValue(value: unknown, fallback: number = 0): number {
     const parsed = Number(value);
     return Number.isFinite(parsed) ? parsed : fallback;
+  }
+
+  parseNullableIdValue(value: unknown): number | null {
+    if (value === null || value === undefined || value === '') {
+      return null;
+    }
+    const parsed = Number(value);
+    return Number.isFinite(parsed) ? parsed : null;
   }
 
   escapeEditorHtml(value: string): string {
