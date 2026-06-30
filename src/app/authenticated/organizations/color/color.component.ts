@@ -5,12 +5,12 @@ import { MatSelect } from '@angular/material/select';
 import { FormBuilder, FormControl, FormGroup, FormsModule, ReactiveFormsModule, Validators } from '@angular/forms';
 import { ActivatedRoute, Router } from '@angular/router';
 import { ToastrService } from 'ngx-toastr';
-import { BehaviorSubject, Observable, Subject, filter, finalize, map, take, takeUntil } from 'rxjs';
+import { BehaviorSubject, Observable, Subject, filter, finalize, forkJoin, map, take, takeUntil } from 'rxjs';
 import { CommonMessage, CommonTimeouts } from '../../../enums/common-message.enum';
 import { MaterialModule } from '../../../material.module';
 import { AuthService } from '../../../services/auth.service';
 import { UtilityService } from '../../../services/utility.service';
-import { getReservationStatuses } from '../../reservations/models/reservation-enum';
+import { ReservationStatus, getReservationStatuses } from '../../reservations/models/reservation-enum';
 import { ColorRequest, ColorResponse } from '../models/color.model';
 import { ColorService } from '../services/color.service';
 
@@ -34,6 +34,14 @@ export class ColorComponent implements OnInit, OnDestroy, OnChanges {
   isSubmitting: boolean = false;
   isAddMode: boolean = false;
   reservationStatuses = getReservationStatuses();
+  noticeDays: number | null = null;
+  readonly checkedInNotice60FallbackColorId = 10;
+  readonly checkedInNotice15FallbackColorId = 11;
+  readonly checkedInNotice14FallbackColorId = 12;
+  checkedInNotice14ColorId: number | null = null;
+  checkedInNotice15ColorId: number | null = null;
+  checkedInNotice60ColorId: number | null = null;
+  showCheckedInNoticeVariants = false;
 
   itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['color']));
   isLoading$: Observable<boolean> = this.itemsToLoad$.pipe(map(items => items.size > 0));
@@ -103,8 +111,10 @@ export class ColorComponent implements OnInit, OnDestroy, OnChanges {
     this.colorService.getColorById(colorIdNum).pipe(take(1), finalize(() => { this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'color'); })).subscribe({
       next: (response: ColorResponse) => {
         this.color = response;
+        this.noticeDays = response.noticeDays ?? null;
         this.buildForm();
         this.populateForm();
+        this.loadCheckedInNoticeVariants();
       },
       error: (err: HttpErrorResponse) => {
         this.isServiceError = true;
@@ -120,11 +130,12 @@ export class ColorComponent implements OnInit, OnDestroy, OnChanges {
     }
 
     this.isSubmitting = true;
-    const formValue = this.form.value;
+    const formValue = this.form.getRawValue();
     const user = this.authService.getUser();
     const colorRequest: ColorRequest = {
       organizationId: user?.organizationId || '',
       reservationStatusId: formValue.reservationStatusId,
+      noticeDays: this.noticeDays,
       color: formValue.color
     };
 
@@ -147,13 +158,20 @@ export class ColorComponent implements OnInit, OnDestroy, OnChanges {
       colorRequest.colorId = colorIdNum;
       // Always use the current user's organizationId when updating
       colorRequest.organizationId = user?.organizationId || '';
+      if (this.showCheckedInNoticeVariants) {
+        this.saveCheckedInColorGroup(colorRequest);
+        return;
+      }
+
       this.colorService.updateColor(colorRequest).pipe(take(1), finalize(() => this.isSubmitting = false)).subscribe({
         next: (response: ColorResponse) => {
           this.toastr.success('Color updated successfully', CommonMessage.Success, { timeOut: CommonTimeouts.Success });
           this.savedEvent.emit();
           this.backEvent.emit();
         },
-        error: (_err: HttpErrorResponse) => {}
+        error: (_err: HttpErrorResponse) => {
+          this.toastr.error('Unable to update color.', CommonMessage.Error);
+        }
       });
     }
   }
@@ -163,7 +181,10 @@ export class ColorComponent implements OnInit, OnDestroy, OnChanges {
   buildForm(): void {
     this.form = this.fb.group({
       reservationStatusId: new FormControl('', [Validators.required]),
-      color: new FormControl('', [Validators.required, Validators.pattern(/^#[0-9A-Fa-f]{6}$/)])
+      color: new FormControl('', [Validators.required, Validators.pattern(/^#[0-9A-Fa-f]{6}$/)]),
+      checkedInNotice60Color: new FormControl('', [Validators.pattern(/^#[0-9A-Fa-f]{6}$/)]),
+      checkedInNotice15Color: new FormControl('', [Validators.pattern(/^#[0-9A-Fa-f]{6}$/)]),
+      checkedInNotice14Color: new FormControl('', [Validators.pattern(/^#[0-9A-Fa-f]{6}$/)])
     });
   }
 
@@ -182,6 +203,87 @@ export class ColorComponent implements OnInit, OnDestroy, OnChanges {
     const input = event.target as HTMLInputElement;
     const colorValue = input.value;
     this.form.patchValue({ color: colorValue }, { emitEvent: true });
+  }
+
+  onNoticeColorChange(controlName: 'color' | 'checkedInNotice60Color' | 'checkedInNotice15Color' | 'checkedInNotice14Color', event: Event): void {
+    const input = event.target as HTMLInputElement;
+    this.form.patchValue({ [controlName]: input.value }, { emitEvent: true });
+  }
+
+  loadCheckedInNoticeVariants(): void {
+    const isCheckedInBase = this.color?.reservationStatusId === ReservationStatus.CheckedIn && (this.color?.noticeDays === null || this.color?.noticeDays === undefined);
+    this.showCheckedInNoticeVariants = isCheckedInBase;
+    if (!isCheckedInBase) {
+      return;
+    }
+
+    this.colorService.getColors().pipe(take(1)).subscribe({
+      next: colors => {
+        const checkedInRows = (colors || []).filter(c => c.reservationStatusId === ReservationStatus.CheckedIn);
+        const notice60 = checkedInRows.find(c => c.noticeDays === 60) || checkedInRows.find(c => c.colorId === this.checkedInNotice60FallbackColorId) || null;
+        const notice15 = checkedInRows.find(c => c.noticeDays === 15) || checkedInRows.find(c => c.colorId === this.checkedInNotice15FallbackColorId) || null;
+        const notice14 = checkedInRows.find(c => c.noticeDays === 14) || checkedInRows.find(c => c.colorId === this.checkedInNotice14FallbackColorId) || null;
+
+        this.checkedInNotice60ColorId = notice60?.colorId ?? this.checkedInNotice60FallbackColorId;
+        this.checkedInNotice15ColorId = notice15?.colorId ?? this.checkedInNotice15FallbackColorId;
+        this.checkedInNotice14ColorId = notice14?.colorId ?? this.checkedInNotice14FallbackColorId;
+
+        this.form.patchValue({
+          checkedInNotice60Color: notice60?.color ?? this.color?.color ?? '',
+          checkedInNotice15Color: notice15?.color ?? this.color?.color ?? '',
+          checkedInNotice14Color: notice14?.color ?? this.color?.color ?? ''
+        });
+      }
+    });
+  }
+
+  saveCheckedInColorGroup(baseColorRequest: ColorRequest): void {
+    const organizationId = baseColorRequest.organizationId || '';
+    const updates: Observable<ColorResponse>[] = [this.colorService.updateColor(baseColorRequest).pipe(take(1))];
+    const notice60Color = String(this.form.get('checkedInNotice60Color')?.value || '').trim();
+    const notice15Color = String(this.form.get('checkedInNotice15Color')?.value || '').trim();
+    const notice14Color = String(this.form.get('checkedInNotice14Color')?.value || '').trim();
+
+    if (notice60Color) {
+      updates.push(this.colorService.updateColor({
+        colorId: this.checkedInNotice60ColorId ?? this.checkedInNotice60FallbackColorId,
+        organizationId,
+        reservationStatusId: ReservationStatus.CheckedIn,
+        noticeDays: 60,
+        color: notice60Color
+      }).pipe(take(1)));
+    }
+
+    if (notice15Color) {
+      updates.push(this.colorService.updateColor({
+        colorId: this.checkedInNotice15ColorId ?? this.checkedInNotice15FallbackColorId,
+        organizationId,
+        reservationStatusId: ReservationStatus.CheckedIn,
+        noticeDays: 15,
+        color: notice15Color
+      }).pipe(take(1)));
+    }
+
+    if (notice14Color) {
+      updates.push(this.colorService.updateColor({
+        colorId: this.checkedInNotice14ColorId ?? this.checkedInNotice14FallbackColorId,
+        organizationId,
+        reservationStatusId: ReservationStatus.CheckedIn,
+        noticeDays: 14,
+        color: notice14Color
+      }).pipe(take(1)));
+    }
+
+    forkJoin(updates).pipe(finalize(() => this.isSubmitting = false)).subscribe({
+      next: () => {
+        this.toastr.success('Checked In colors updated successfully', CommonMessage.Success, { timeOut: CommonTimeouts.Success });
+        this.savedEvent.emit();
+        this.backEvent.emit();
+      },
+      error: () => {
+        this.toastr.error('Unable to update Checked In color variants.', CommonMessage.Error);
+      }
+    });
   }
 
   focusFirstField(): void {

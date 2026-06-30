@@ -151,6 +151,7 @@ export interface ReservationListResponse {
   departureDate: CalendarDateString;
   reservationTypeId: number;
   reservationStatusId: number;
+  reservationNoticeId?: number | null;
   hasPets: boolean;
   maidUserId: string | null;
   maidStartDate: string | null;

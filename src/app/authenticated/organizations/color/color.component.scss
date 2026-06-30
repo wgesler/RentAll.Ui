@@ -32,3 +32,44 @@
     border-radius: 0;
   }
 }
+
+.checked-in-variant-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-top: 2px;
+}
+
+.checked-in-variant-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  min-height: 38px;
+}
+
+.checked-in-variant-picker {
+  width: 28px;
+  height: 28px;
+  min-width: 28px;
+  border: 1px solid #d1d5db;
+  border-radius: 4px;
+  padding: 0;
+  cursor: pointer;
+}
+
+.checked-in-variant-label {
+  min-width: 240px;
+  font-size: 13px;
+  color: #334155;
+}
+
+.checked-in-variant-hex {
+  flex: 1;
+  min-width: 140px;
+  height: 36px;
+  border: 1px solid #d1d5db;
+  border-radius: 6px;
+  padding: 0 10px;
+  font-size: 14px;
+}

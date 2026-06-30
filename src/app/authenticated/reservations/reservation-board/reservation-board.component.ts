@@ -27,7 +27,7 @@ import { PropertySelectionFilterService } from '../../properties/services/proper
 import { PropertyService } from '../../properties/services/property.service';
 import { hasRealtorRole } from '../../shared/access/role-access';
 import { BoardProperty, CalendarDay } from '../models/reservation-board-model';
-import { getReservationStatus, ReservationStatus } from '../models/reservation-enum';
+import { getReservationStatus, ReservationNotice, ReservationStatus } from '../models/reservation-enum';
 import { ReservationListResponse } from '../models/reservation-model';
 import { ReservationService } from '../services/reservation.service';
 @Component({
@@ -61,6 +61,7 @@ export class ReservationBoardComponent implements OnInit, OnChanges, OnDestroy {
   contacts: ContactResponse[] = [];
   colors: ColorResponse[] = [];
   colorMap: Map<number, string> = new Map(); // Maps reservationStatusId to color hex
+  checkedInNoticeColorMap = new Map<number, string>();
   displayTextCache = new Map<string, string>();
   reservationBoardLegendStatusIds: number[] = [
     ReservationStatus.PreBooking,
@@ -264,11 +265,13 @@ export class ReservationBoardComponent implements OnInit, OnChanges, OnDestroy {
       next: (colors: ColorResponse[]) => {
         this.colors = colors;
         this.colorMap = this.mappingService.createColorMap(colors);
+        this.checkedInNoticeColorMap = this.buildCheckedInNoticeColorMap(colors);
         this.markViewForCheck();
       },
       error: () => {
         this.colors = [];
         this.colorMap = new Map();
+        this.checkedInNoticeColorMap = new Map();
         this.markViewForCheck();
       }
     });
@@ -716,7 +719,13 @@ export class ReservationBoardComponent implements OnInit, OnChanges, OnDestroy {
     if (compareDate.getTime() === arrival.getTime() || compareDate.getTime() === departure.getTime()) {
       return this.colorMap.get(ReservationStatus.ArrivalDeparture) || null;
     }
-    
+
+    // For Checked-In reservations, derive tone from notice period while keeping DB color as the base.
+    if (reservation.reservationStatusId === ReservationStatus.CheckedIn) {
+      const checkedInBaseColor = this.colorMap.get(ReservationStatus.CheckedIn) || null;
+      return this.getCheckedInColorByNotice(reservation, checkedInBaseColor);
+    }
+
     // Get color from API based on reservation status
     const color = this.colorMap.get(reservation.reservationStatusId);
     return color || null;
@@ -1248,6 +1257,65 @@ export class ReservationBoardComponent implements OnInit, OnChanges, OnDestroy {
       return text;
     }
     return text.slice(0, this.boardAddressMaxChars) + '…';
+  }
+
+  getCheckedInColorByNotice(reservation: ReservationListResponse, baseColor: string | null): string | null {
+    if (!baseColor) {
+      return null;
+    }
+
+    const noticeDays = this.getReservationNoticeDays(reservation);
+    if (noticeDays !== null) {
+      const noticeColor = this.checkedInNoticeColorMap.get(noticeDays);
+      if (noticeColor) {
+        return noticeColor;
+      }
+    }
+
+    // Default/base tone for 30-day notice or unknown notice values.
+    return baseColor;
+  }
+
+  getReservationNoticeDays(reservation: ReservationListResponse): number | null {
+    const rawText = String(reservation.reservationNoticeId ?? '').trim();
+    if (rawText === '') {
+      return null;
+    }
+    const notice = Number(rawText);
+    if (!Number.isFinite(notice)) {
+      return null;
+    }
+
+    // Supports either day values (14/15/30/60) or enum IDs from ReservationNotice.
+    if (notice === 14 || notice === 15 || notice === 30 || notice === 60) {
+      return notice;
+    }
+    if (notice === ReservationNotice.ThirtyDays) {
+      return 30;
+    }
+    if (notice === ReservationNotice.FifteenDays) {
+      return 15;
+    }
+    if (notice === ReservationNotice.FourteenDays) {
+      return 14;
+    }
+    if (notice === ReservationNotice.SixtyDays) {
+      return 60;
+    }
+    return null;
+  }
+
+  buildCheckedInNoticeColorMap(colors: ColorResponse[]): Map<number, string> {
+    const mapByNotice = new Map<number, string>();
+    (colors || [])
+      .filter(color => color.reservationStatusId === ReservationStatus.CheckedIn && color.noticeDays !== null && color.noticeDays !== undefined)
+      .forEach(color => {
+        const noticeDays = Number(color.noticeDays);
+        if (Number.isFinite(noticeDays)) {
+          mapByNotice.set(noticeDays, color.color);
+        }
+      });
+    return mapByNotice;
   }
 
   markViewForCheck(): void {

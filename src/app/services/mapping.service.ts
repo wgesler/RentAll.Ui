@@ -122,12 +122,17 @@ export class MappingService {
   }
 
   mapColors(colors: ColorResponse[]): ColorListDisplay[] {
-    return colors.map<ColorListDisplay>((o: ColorResponse) => ({
-      colorId: o.colorId,
-      reservationStatusId: o.reservationStatusId,
-      reservationStatus: getReservationStatus(o.reservationStatusId),
-      color: o.color
-    }));
+    return (colors || [])
+      .filter(o => o.noticeDays === null || o.noticeDays === undefined)
+      .map<ColorListDisplay>((o: ColorResponse) => ({
+        colorId: o.colorId,
+        reservationStatusId: o.reservationStatusId,
+        reservationStatus: getReservationStatus(o.reservationStatusId),
+        noticeDays: null,
+        sortOrder: o.reservationStatusId,
+        color: o.color
+      }))
+      .sort((a, b) => a.sortOrder - b.sortOrder);
   }
 
   mapStateForms(stateForms: StateFormResponse[]): StateFormListDisplay[] {
@@ -240,7 +245,9 @@ export class MappingService {
   createColorMap(colors: ColorResponse[]): Map<number, string> {
     const colorMap = new Map<number, string>();
     colors.forEach(color => {
-      colorMap.set(color.reservationStatusId, color.color);
+      if (color.noticeDays === null || color.noticeDays === undefined) {
+        colorMap.set(color.reservationStatusId, color.color);
+      }
     });
     return colorMap;
   }

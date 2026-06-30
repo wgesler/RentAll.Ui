@@ -23,7 +23,7 @@
               </div>
               <mat-form-field appearance="outline" class="col-span-2">
                 <mat-label>Reservation Status</mat-label>
-                <mat-select #firstInput formControlName="reservationStatusId" required>
+                <mat-select #firstInput formControlName="reservationStatusId" [disabled]="!isAddMode" required>
                   @for (status of reservationStatuses; track status.value) {
                     <mat-option [value]="status.value">{{ status.label }}</mat-option>
                   }
@@ -32,6 +32,13 @@
                   <mat-error>Reservation Status is required</mat-error>
                 }
               </mat-form-field>
+
+              @if (noticeDays !== null) {
+                <mat-form-field appearance="outline" class="col-span-2">
+                  <mat-label>Notice Variant</mat-label>
+                  <input matInput [value]="noticeDays + ' Day Notice'" readonly>
+                </mat-form-field>
+              }
 
               <mat-form-field appearance="outline" class="col-span-2">
                 <mat-label>Color</mat-label>
@@ -54,6 +61,62 @@
                 }
                 <mat-hint>Click the color box to open color picker</mat-hint>
               </mat-form-field>
+
+              @if (showCheckedInNoticeVariants) {
+                <div class="col-span-4 checked-in-variant-stack">
+                  <div class="checked-in-variant-row">
+                    <input type="color"
+                           class="color-picker-input checked-in-variant-picker"
+                           [value]="form.get('checkedInNotice60Color')?.value || '#000000'"
+                           (input)="onNoticeColorChange('checkedInNotice60Color', $event)">
+                    <span class="checked-in-variant-label">Checked In - 60 Day Notice</span>
+                    <input
+                      class="checked-in-variant-hex"
+                      type="text"
+                      formControlName="checkedInNotice60Color"
+                      placeholder="#000000">
+                  </div>
+
+                  <div class="checked-in-variant-row">
+                    <input type="color"
+                           class="color-picker-input checked-in-variant-picker"
+                           [value]="form.get('color')?.value || '#000000'"
+                           (input)="onNoticeColorChange('color', $event)">
+                    <span class="checked-in-variant-label">Checked In - 30 Day Notice (Base)</span>
+                    <input
+                      class="checked-in-variant-hex"
+                      type="text"
+                      formControlName="color"
+                      placeholder="#000000">
+                  </div>
+
+                  <div class="checked-in-variant-row">
+                    <input type="color"
+                           class="color-picker-input checked-in-variant-picker"
+                           [value]="form.get('checkedInNotice15Color')?.value || '#000000'"
+                           (input)="onNoticeColorChange('checkedInNotice15Color', $event)">
+                    <span class="checked-in-variant-label">Checked In - 15 Day Notice</span>
+                    <input
+                      class="checked-in-variant-hex"
+                      type="text"
+                      formControlName="checkedInNotice15Color"
+                      placeholder="#000000">
+                  </div>
+
+                  <div class="checked-in-variant-row">
+                    <input type="color"
+                           class="color-picker-input checked-in-variant-picker"
+                           [value]="form.get('checkedInNotice14Color')?.value || '#000000'"
+                           (input)="onNoticeColorChange('checkedInNotice14Color', $event)">
+                    <span class="checked-in-variant-label">Checked In - 14 Day Notice</span>
+                    <input
+                      class="checked-in-variant-hex"
+                      type="text"
+                      formControlName="checkedInNotice14Color"
+                      placeholder="#000000">
+                  </div>
+                </div>
+              }
             </div>
 
           </form>
