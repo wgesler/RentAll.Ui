@@ -8,6 +8,7 @@ export interface PropertySelectionRequest {
   maxRent: number;
   propertyCode: string | null;
   propertyLeaseTypeId: number;
+  propertyTypeId: number;
   city: string | null;
   state: string | null;
   cable: boolean;
@@ -38,6 +39,7 @@ export interface PropertySelectionResponse {
   maxRent: number;
   propertyCode: string | null;
   propertyLeaseTypeId: number;
+  propertyTypeId: number;
   city: string | null;
   state: string | null;
   cable: boolean;

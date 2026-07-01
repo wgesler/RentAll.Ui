@@ -63,7 +63,7 @@
         </div>
         <form [formGroup]="form" class="info-form mb-8 pt-5">
           <div class="px-6 pb-2 flex flex-col gap-3">
-            <div class="grid grid-cols-5 gap-x-3 gap-y-3">
+            <div class="grid grid-cols-6 gap-x-3 gap-y-3">
               <mat-form-field appearance="outline">
                 <mat-label>From Unit Level</mat-label>
                 <input
@@ -128,9 +128,27 @@
                   formControlName="accomodates"
                   (keydown)="numbersOnly($event)">
               </mat-form-field>
+
+              <mat-form-field appearance="outline">
+                <mat-label>Max Rent</mat-label>
+                <input
+                  matInput
+                  type="number"
+                  class="no-spinner"
+                  inputmode="numeric"
+                  min="0"
+                  step="1"
+                  formControlName="maxRent"
+                  (keydown)="numbersOnly($event)">
+              </mat-form-field>
             </div>
 
             <div class="grid grid-cols-6 gap-x-3 gap-y-3">
+              <mat-form-field appearance="outline">
+                <mat-label>Property Code</mat-label>
+                <input matInput type="text" formControlName="propertyCode">
+              </mat-form-field>
+
               <mat-form-field appearance="outline">
                 <mat-label>Property Status</mat-label>
                 <mat-select formControlName="propertyStatusId">
@@ -142,8 +160,13 @@
               </mat-form-field>
 
               <mat-form-field appearance="outline">
-                <mat-label>Property Code</mat-label>
-                <input matInput type="text" formControlName="propertyCode">
+                <mat-label>Property Type</mat-label>
+                <mat-select formControlName="propertyTypeId">
+                  <mat-option value="">All</mat-option>
+                  @for (type of propertyTypes; track type.value) {
+                    <mat-option [value]="type.value">{{ type.label }}</mat-option>
+                  }
+                </mat-select>
               </mat-form-field>
 
               <mat-form-field appearance="outline">
@@ -169,19 +192,6 @@
                     <mat-option [value]="s">{{ s }}</mat-option>
                   }
                 </mat-select>
-              </mat-form-field>
-
-              <mat-form-field appearance="outline">
-                <mat-label>Max Rent</mat-label>
-                <input
-                  matInput
-                  type="number"
-                  class="no-spinner"
-                  inputmode="numeric"
-                  min="0"
-                  step="1"
-                  formControlName="maxRent"
-                  (keydown)="numbersOnly($event)">
               </mat-form-field>
             </div>
 

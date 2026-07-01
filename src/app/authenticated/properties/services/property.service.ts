@@ -165,6 +165,7 @@ export class PropertyService {
       maxRent: 0,
       propertyCode: null,
       propertyLeaseTypeId: 0,
+      propertyTypeId: 0,
       city: null,
       state: null,
       cable: false,

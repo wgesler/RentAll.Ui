@@ -26,6 +26,9 @@ export function isPropertySelectionFiltered(s: PropertySelectionResponse | null 
   if (s.propertyLeaseTypeId != null && Number(s.propertyLeaseTypeId) !== 0) {
     return true;
   }
+  if (s.propertyTypeId != null && Number(s.propertyTypeId) !== 0) {
+    return true;
+  }
   if (
     s.cable ||
     s.streaming ||

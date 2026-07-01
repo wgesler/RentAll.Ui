@@ -20,7 +20,7 @@ import { BuildingService } from '../../organizations/services/building.service';
 import { GlobalSelectionService } from '../../organizations/services/global-selection.service';
 import { OfficeService } from '../../organizations/services/office.service';
 import { RegionService } from '../../organizations/services/region.service';
-import { PropertyStatus, getPropertyLeaseTypes } from '../models/property-enums';
+import { PropertyStatus, getPropertyLeaseTypes, getPropertyTypes } from '../models/property-enums';
 import { PropertySelectionRequest, PropertySelectionResponse } from '../models/property-selection.model';
 import { PropertySelectionFilterService } from '../services/property-selection-filter.service';
 import { PropertyService } from '../services/property.service';
@@ -47,6 +47,7 @@ export class PropertySelectionComponent implements OnInit, OnDestroy {
   allBuildingsByOrg: BuildingResponse[] = [];
   propertyStatuses: { value: number; label: string }[] = [];
   propertyLeaseTypes: { value: number; label: string }[] = getPropertyLeaseTypes();
+  propertyTypes: { value: number; label: string }[] = getPropertyTypes();
   preloadedSelection: PropertySelectionResponse | null = null;
   returnSource: 'reservation-board' | 'property-list' | 'reservation-list' | 'maintenance-list' = 'reservation-board';
   reservationListReturnPath: string | null = null;
@@ -269,6 +270,7 @@ export class PropertySelectionComponent implements OnInit, OnDestroy {
       accomodates: new FormControl<number | null>(null),
       propertyCode: new FormControl<string>(''),
       propertyLeaseTypeId: new FormControl<number | ''>(''),
+      propertyTypeId: new FormControl<number | ''>(''),
       city: new FormControl<string>(''),
       state: new FormControl<string>(''),
       maxRent: new FormControl<number | null>(null),
@@ -306,6 +308,7 @@ export class PropertySelectionComponent implements OnInit, OnDestroy {
       maxRent: response?.maxRent ?? null,
       propertyCode: response?.propertyCode ?? '',
       propertyLeaseTypeId: response?.propertyLeaseTypeId === 0 ? '' : (response?.propertyLeaseTypeId ?? ''),
+      propertyTypeId: response?.propertyTypeId === 0 ? '' : (response?.propertyTypeId ?? ''),
       city: response?.city ?? '',
       state: response?.state ?? '',
 
@@ -350,6 +353,7 @@ export class PropertySelectionComponent implements OnInit, OnDestroy {
         maxRent: 0,
         propertyCode: null,
         propertyLeaseTypeId: 0,
+        propertyTypeId: 0,
         city: null,
         state: null,
         cable: false,
@@ -385,6 +389,7 @@ export class PropertySelectionComponent implements OnInit, OnDestroy {
       accomodates: null,
       propertyCode: '',
       propertyLeaseTypeId: '',
+      propertyTypeId: '',
       city: '',
       state: '',
       maxRent: null,
@@ -444,6 +449,7 @@ export class PropertySelectionComponent implements OnInit, OnDestroy {
       maxRent: this.toNumber(v.maxRent, 0),
       propertyCode: this.toStringOrNull(v.propertyCode),
       propertyLeaseTypeId: this.toNumber(v.propertyLeaseTypeId, 0),
+      propertyTypeId: this.toNumber(v.propertyTypeId, 0),
       city: this.toStringOrNull(v.city),
       state: this.toStringOrNull(v.state),
       cable: !!v.cable,
