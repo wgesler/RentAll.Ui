@@ -25,6 +25,8 @@ export interface OwnerStatementResponse {
 export interface OwnerStatementJournalEntryLineSearchRequest {
   officeIds: number[];
   ownerId: string;
+  propertyId?: string | null;
+  metric: OwnerStatementDrillDownMetric;
   startDate?: string | null;
   endDate?: string | null;
 }
@@ -63,6 +65,8 @@ export interface OwnerStatementPropertyActivityLineResponse {
   expectedIncome: number;
   expenses: number;
 }
+
+export type OwnerStatementDrillDownMetric = 'expected' | 'prePaid' | 'outstanding' | 'income' | 'expenses' | 'balance';
 
 export interface OwnerStatementListDisplay {
   officeId: number;

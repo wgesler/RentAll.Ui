@@ -382,6 +382,11 @@
             <mat-icon>arrow_back</mat-icon>
             Back
           </button>
+        } @else if (isOwnerStatementJournalEntryLineListActive) {
+          <button mat-raised-button type="button" color="accent" (click)="onOwnerStatementJournalEntryLinesBack()">
+            <mat-icon>arrow_back</mat-icon>
+            Back
+          </button>
         } @else if (isBillsReceiptDetailActive) {
           <button mat-raised-button type="button" color="accent" (click)="onBillsReceiptBack()">
             <mat-icon>arrow_back</mat-icon>
@@ -698,13 +703,29 @@
                     (workOrderSelect)="onOwnersWorkOrderSelect($event)" />
                 }
               } @else {
-                <app-owner-statement-list
-                  [searchRequest]="billsSearchRequest"
-                  [refreshTrigger]="ownersStatementsRefreshTrigger"
-                  [viewState]="ownersStatementViewState"
-                  (activityLinkSelect)="onOwnerStatementActivityLinkSelect($event)"
-                  (viewStateChange)="onOwnersStatementViewStateChange($event)">
-                </app-owner-statement-list>
+                @if (showGeneralLedgerDetail && activeJournalEntryId && showOwnerStatementJournalEntryLines) {
+                  <app-general-ledger
+                    [journalEntryId]="activeJournalEntryId"
+                    [selectedJournalEntryLineId]="selectedJournalEntryLineId"
+                    (backEvent)="onGeneralLedgerBack()"
+                    (savedEvent)="onJournalEntriesChanged()">
+                  </app-general-ledger>
+                } @else if (showOwnerStatementJournalEntryLines && ownerStatementJournalEntryLineRequest) {
+                  <app-owner-statement-journal-entry-line-list
+                    [request]="ownerStatementJournalEntryLineRequest"
+                    [refreshTrigger]="ownerStatementJournalEntryLinesRefreshTrigger"
+                    (lineSelectEvent)="onOwnerStatementJournalEntryLineSelect($event)">
+                  </app-owner-statement-journal-entry-line-list>
+                } @else {
+                  <app-owner-statement-list
+                    [searchRequest]="billsSearchRequest"
+                    [refreshTrigger]="ownersStatementsRefreshTrigger"
+                    [viewState]="ownersStatementViewState"
+                    (activityLinkSelect)="onOwnerStatementActivityLinkSelect($event)"
+                    (amountDrillDownSelect)="onOwnerStatementAmountDrillDownSelect($event)"
+                    (viewStateChange)="onOwnersStatementViewStateChange($event)">
+                  </app-owner-statement-list>
+                }
               }
             }
           </mat-tab>

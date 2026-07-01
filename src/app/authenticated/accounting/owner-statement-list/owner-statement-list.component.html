@@ -150,12 +150,24 @@
                   </td>
                   <td class="owner-statement-col-property">{{ row.propertyCode }}</td>
                   <td class="owner-statement-col-item-description">{{ row.itemDescription }}</td>
-                  <td class="owner-statement-col-amount">{{ row.expected }}</td>
-                  <td class="owner-statement-col-amount">{{ row.prePaid }}</td>
-                  <td class="owner-statement-col-amount">{{ row.outstanding }}</td>
-                  <td class="owner-statement-col-amount">{{ row.income }}</td>
-                  <td class="owner-statement-col-amount">{{ row.expenses }}</td>
-                  <td class="owner-statement-col-amount">{{ row.balance }}</td>
+                  <td class="owner-statement-col-amount">
+                    <button type="button" class="owner-statement-amount-link" [class.owner-statement-amount-link--active]="canDrillDownAmount(row, 'expected')" [disabled]="!canDrillDownAmount(row, 'expected')" (click)="$event.stopPropagation(); onAmountCellClick(row, 'expected')">{{ row.expected }}</button>
+                  </td>
+                  <td class="owner-statement-col-amount">
+                    <button type="button" class="owner-statement-amount-link" [class.owner-statement-amount-link--active]="canDrillDownAmount(row, 'prePaid')" [disabled]="!canDrillDownAmount(row, 'prePaid')" (click)="$event.stopPropagation(); onAmountCellClick(row, 'prePaid')">{{ row.prePaid }}</button>
+                  </td>
+                  <td class="owner-statement-col-amount">
+                    <button type="button" class="owner-statement-amount-link" [class.owner-statement-amount-link--active]="canDrillDownAmount(row, 'outstanding')" [disabled]="!canDrillDownAmount(row, 'outstanding')" (click)="$event.stopPropagation(); onAmountCellClick(row, 'outstanding')">{{ row.outstanding }}</button>
+                  </td>
+                  <td class="owner-statement-col-amount">
+                    <button type="button" class="owner-statement-amount-link" [class.owner-statement-amount-link--active]="canDrillDownAmount(row, 'income')" [disabled]="!canDrillDownAmount(row, 'income')" (click)="$event.stopPropagation(); onAmountCellClick(row, 'income')">{{ row.income }}</button>
+                  </td>
+                  <td class="owner-statement-col-amount">
+                    <button type="button" class="owner-statement-amount-link" [class.owner-statement-amount-link--active]="canDrillDownAmount(row, 'expenses')" [disabled]="!canDrillDownAmount(row, 'expenses')" (click)="$event.stopPropagation(); onAmountCellClick(row, 'expenses')">{{ row.expenses }}</button>
+                  </td>
+                  <td class="owner-statement-col-amount">
+                    <button type="button" class="owner-statement-amount-link" [class.owner-statement-amount-link--active]="canDrillDownAmount(row, 'balance')" [disabled]="!canDrillDownAmount(row, 'balance')" (click)="$event.stopPropagation(); onAmountCellClick(row, 'balance')">{{ row.balance }}</button>
+                  </td>
                   <td class="owner-statement-col-amount owner-statement-col-working-capital">{{ row.workingCapital }}</td>
                   <td class="owner-statement-col-amount owner-statement-col-working-capital">{{ row.workingCapitalBalanceDue }}</td>
                 </tr>

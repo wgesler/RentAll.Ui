@@ -7,7 +7,7 @@ import { FormatterService } from '../../../services/formatter-service';
 import { MappingService } from '../../../services/mapping.service';
 import { UtilityService } from '../../../services/utility.service';
 import { MaintenanceListSearchRequest } from '../../maintenance/models/maintenance-search.model';
-import { OwnerStatementPropertyActivityLineResponse, OwnerStatementResponse, OwnerStatementSearchRequest } from '../models/owner-statement.model';
+import { OwnerStatementDrillDownMetric, OwnerStatementPropertyActivityLineResponse, OwnerStatementResponse, OwnerStatementSearchRequest } from '../models/owner-statement.model';
 import { OwnerStatementService } from '../services/owner-statement.service';
 
 interface OwnerStatementPropertyRow {
@@ -69,13 +69,21 @@ interface OwnerStatementVisibleRow {
   itemDescription: string;
   activityCode: string;
   expected: string;
+  expectedValue: number;
   prePaid: string;
+  prePaidValue: number;
   outstanding: string;
+  outstandingValue: number;
   income: string;
+  incomeValue: number;
   expenses: string;
+  expensesValue: number;
   balance: string;
+  balanceValue: number;
   workingCapital: string;
+  workingCapitalValue: number;
   workingCapitalBalanceDue: string;
+  workingCapitalBalanceDueValue: number;
   expandable: boolean;
   expanded: boolean;
 }
@@ -99,6 +107,13 @@ export interface OwnerStatementActivityLinkSelection {
   propertyId: string;
 }
 
+export interface OwnerStatementAmountDrillDownSelection {
+  officeIds: number[];
+  ownerId: string;
+  propertyId?: string | null;
+  metric: OwnerStatementDrillDownMetric;
+}
+
 export interface OwnerStatementListViewState {
   expandedRowIds: string[];
   propertyActivityByPropertyRowId: Record<string, OwnerStatementPropertyActivityLineDisplay[]>;
@@ -117,6 +132,7 @@ export class OwnerStatementListComponent implements OnInit, OnChanges, OnDestroy
   @Input() refreshTrigger = 0;
   @Input() viewState: OwnerStatementListViewState | null = null;
   @Output() activityLinkSelect = new EventEmitter<OwnerStatementActivityLinkSelection>();
+  @Output() amountDrillDownSelect = new EventEmitter<OwnerStatementAmountDrillDownSelection>();
   @Output() viewStateChange = new EventEmitter<OwnerStatementListViewState>();
 
   isPageReady = false;
@@ -126,6 +142,7 @@ export class OwnerStatementListComponent implements OnInit, OnChanges, OnDestroy
   ownerStatementOfficeGroups: OwnerStatementOfficeGroup[] = [];
   visibleRows: OwnerStatementVisibleRow[] = [];
   expandedRowIds = new Set<string>();
+  ownerCloseOnNextToggleRowIds = new Set<string>();
   propertyActivityLinesByPropertyRowId = new Map<string, OwnerStatementPropertyActivityLineDisplay[]>();
   propertyActivityLoadingRowIds = new Set<string>();
   propertyActivityErrorRowIds = new Set<string>();
@@ -179,6 +196,7 @@ export class OwnerStatementListComponent implements OnInit, OnChanges, OnDestroy
       this.ownerStatementOfficeGroups = [];
       this.visibleRows = [];
       this.expandedRowIds.clear();
+      this.ownerCloseOnNextToggleRowIds.clear();
       this.clearPropertyActivityState();
       this.isServiceError = false;
       this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'ownerStatements');
@@ -206,6 +224,7 @@ export class OwnerStatementListComponent implements OnInit, OnChanges, OnDestroy
         this.ownerStatementOfficeGroups = [];
         this.visibleRows = [];
         this.expandedRowIds.clear();
+        this.ownerCloseOnNextToggleRowIds.clear();
         this.clearPropertyActivityState();
         this.emitViewStateChange();
         this.markViewForCheck();
@@ -319,13 +338,21 @@ export class OwnerStatementListComponent implements OnInit, OnChanges, OnDestroy
         itemDescription: '',
         activityCode: '',
         expected: this.formatter.currencyUsd(office.expected),
+        expectedValue: office.expected,
         prePaid: this.formatter.currencyUsd(office.prePaid),
+        prePaidValue: office.prePaid,
         outstanding: this.formatter.currencyUsd(office.outstanding),
+        outstandingValue: office.outstanding,
         income: this.formatter.currencyUsd(office.income),
+        incomeValue: office.income,
         expenses: this.formatter.currencyUsd(office.expenses),
+        expensesValue: office.expenses,
         balance: this.formatter.currencyUsd(office.balance),
+        balanceValue: office.balance,
         workingCapital: this.formatter.currencyUsd(office.workingCapital),
+        workingCapitalValue: office.workingCapital,
         workingCapitalBalanceDue: this.formatter.currencyUsd(office.workingCapitalBalanceDue),
+        workingCapitalBalanceDueValue: office.workingCapitalBalanceDue,
         expandable: office.owners.length > 0,
         expanded: officeExpanded
       });
@@ -347,13 +374,21 @@ export class OwnerStatementListComponent implements OnInit, OnChanges, OnDestroy
           itemDescription: '',
           activityCode: '',
           expected: this.formatter.currencyUsd(owner.expected),
+          expectedValue: owner.expected,
           prePaid: this.formatter.currencyUsd(owner.prePaid),
+          prePaidValue: owner.prePaid,
           outstanding: this.formatter.currencyUsd(owner.outstanding),
+          outstandingValue: owner.outstanding,
           income: this.formatter.currencyUsd(owner.income),
+          incomeValue: owner.income,
           expenses: this.formatter.currencyUsd(owner.expenses),
+          expensesValue: owner.expenses,
           balance: this.formatter.currencyUsd(owner.balance),
+          balanceValue: owner.balance,
           workingCapital: this.formatter.currencyUsd(owner.workingCapital),
+          workingCapitalValue: owner.workingCapital,
           workingCapitalBalanceDue: this.formatter.currencyUsd(owner.workingCapitalBalanceDue),
+          workingCapitalBalanceDueValue: owner.workingCapitalBalanceDue,
           expandable: owner.properties.length > 0,
           expanded: ownerExpanded
         });
@@ -377,13 +412,21 @@ export class OwnerStatementListComponent implements OnInit, OnChanges, OnDestroy
             itemDescription: '',
             activityCode: '',
             expected: this.formatter.currencyUsd(property.expected),
+            expectedValue: property.expected,
             prePaid: this.formatter.currencyUsd(property.prePaid),
+            prePaidValue: property.prePaid,
             outstanding: this.formatter.currencyUsd(property.outstanding),
+            outstandingValue: property.outstanding,
             income: this.formatter.currencyUsd(property.income),
+            incomeValue: property.income,
             expenses: this.formatter.currencyUsd(property.expenses),
+            expensesValue: property.expenses,
             balance: this.formatter.currencyUsd(property.balance),
+            balanceValue: property.balance,
             workingCapital: this.formatter.currencyUsd(property.workingCapital),
+            workingCapitalValue: property.workingCapital,
             workingCapitalBalanceDue: this.formatter.currencyUsd(property.workingCapitalBalanceDue),
+            workingCapitalBalanceDueValue: property.workingCapitalBalanceDue,
             expandable: !!property.propertyId,
             expanded: propertyExpanded
           });
@@ -420,13 +463,21 @@ export class OwnerStatementListComponent implements OnInit, OnChanges, OnDestroy
               itemDescription: activity.description,
               activityCode: activity.documentCode,
               expected: activity.expectedIncome,
+              expectedValue: Number(activity.expectedIncome) || 0,
               prePaid: '',
+              prePaidValue: 0,
               outstanding: '',
+              outstandingValue: 0,
               income: '',
+              incomeValue: 0,
               expenses: activity.expenses,
+              expensesValue: Number(activity.expenses) || 0,
               balance: '',
+              balanceValue: 0,
               workingCapital: '',
+              workingCapitalValue: 0,
               workingCapitalBalanceDue: '',
+              workingCapitalBalanceDueValue: 0,
               expandable: false,
               expanded: false
             });
@@ -444,6 +495,7 @@ export class OwnerStatementListComponent implements OnInit, OnChanges, OnDestroy
     }
 
     if (row.kind === 'property') {
+      this.ownerCloseOnNextToggleRowIds.delete(this.getOwnerRowIdFromPropertyRowId(row.rowId));
       const isExpanded = this.expandedRowIds.has(row.rowId);
       if (isExpanded) {
         this.expandedRowIds.delete(row.rowId);
@@ -464,6 +516,86 @@ export class OwnerStatementListComponent implements OnInit, OnChanges, OnDestroy
       return;
     }
 
+    if (row.kind === 'owner') {
+      const propertyRows = this.getPropertyRowsForOwner(row.rowId);
+      const propertyRowIds = propertyRows.map(property => property.rowId);
+      const hasExpandedProperties = propertyRowIds.some(propertyRowId => this.expandedRowIds.has(propertyRowId));
+
+      // Owner rows use a 4-step cycle:
+      // 1) closed -> open
+      // 2) open -> open + all property subordinates
+      // 3) open + subordinates -> close subordinates
+      // 4) open -> close
+      if (!this.expandedRowIds.has(row.rowId)) {
+        this.expandedRowIds.add(row.rowId);
+        this.ownerCloseOnNextToggleRowIds.delete(row.rowId);
+        this.rebuildVisibleRows();
+        this.emitViewStateChange();
+        this.markViewForCheck();
+        return;
+      }
+
+      if (hasExpandedProperties) {
+        propertyRowIds.forEach(propertyRowId => this.expandedRowIds.delete(propertyRowId));
+        this.ownerCloseOnNextToggleRowIds.add(row.rowId);
+        this.rebuildVisibleRows();
+        this.emitViewStateChange();
+        this.markViewForCheck();
+        return;
+      }
+
+      if (this.ownerCloseOnNextToggleRowIds.has(row.rowId)) {
+        this.expandedRowIds.delete(row.rowId);
+        this.ownerCloseOnNextToggleRowIds.delete(row.rowId);
+        this.rebuildVisibleRows();
+        this.emitViewStateChange();
+        this.markViewForCheck();
+        return;
+      }
+
+      propertyRows.forEach(property => this.expandedRowIds.add(property.rowId));
+      this.ownerCloseOnNextToggleRowIds.delete(row.rowId);
+      this.rebuildVisibleRows();
+      this.emitViewStateChange();
+      this.markViewForCheck();
+
+      propertyRows.forEach(property => {
+        if (!this.propertyActivityLinesByPropertyRowId.has(property.rowId) && !this.propertyActivityLoadingRowIds.has(property.rowId) && property.propertyId) {
+          this.loadPropertyActivityRows({
+            rowId: property.rowId,
+            kind: 'property',
+            depth: 2,
+            ownerId: row.ownerId,
+            officeId: property.officeId,
+            propertyId: property.propertyId,
+            primaryLabel: '',
+            propertyCode: '',
+            itemDescription: '',
+            activityCode: '',
+            expected: '',
+            expectedValue: 0,
+            prePaid: '',
+            prePaidValue: 0,
+            outstanding: '',
+            outstandingValue: 0,
+            income: '',
+            incomeValue: 0,
+            expenses: '',
+            expensesValue: 0,
+            balance: '',
+            balanceValue: 0,
+            workingCapital: '',
+            workingCapitalValue: 0,
+            workingCapitalBalanceDue: '',
+            workingCapitalBalanceDueValue: 0,
+            expandable: true,
+            expanded: true
+          });
+        }
+      });
+      return;
+    }
+
     if (row.kind === 'office') {
       const ownerRowIds = this.getOwnerRowIdsForOffice(row.rowId);
       const hasExpandedOwners = ownerRowIds.some(ownerRowId => this.expandedRowIds.has(ownerRowId));
@@ -473,6 +605,7 @@ export class OwnerStatementListComponent implements OnInit, OnChanges, OnDestroy
       // 2) If no owners are open, then toggle office open/closed.
       if (hasExpandedOwners) {
         ownerRowIds.forEach(ownerRowId => this.expandedRowIds.delete(ownerRowId));
+        ownerRowIds.forEach(ownerRowId => this.ownerCloseOnNextToggleRowIds.delete(ownerRowId));
         this.rebuildVisibleRows();
         this.emitViewStateChange();
         this.markViewForCheck();
@@ -583,16 +716,62 @@ export class OwnerStatementListComponent implements OnInit, OnChanges, OnDestroy
       itemDescription: '',
       activityCode: '',
       expected: '',
+      expectedValue: 0,
       prePaid: '',
+      prePaidValue: 0,
       outstanding: '',
+      outstandingValue: 0,
       income: '',
+      incomeValue: 0,
       expenses: '',
+      expensesValue: 0,
       balance: '',
+      balanceValue: 0,
       workingCapital: '',
+      workingCapitalValue: 0,
       workingCapitalBalanceDue: '',
+      workingCapitalBalanceDueValue: 0,
       expandable: false,
       expanded: false
     };
+  }
+
+  onAmountCellClick(row: OwnerStatementVisibleRow, metric: OwnerStatementDrillDownMetric): void {
+    if (!this.canDrillDownAmount(row, metric)) {
+      return;
+    }
+
+    this.amountDrillDownSelect.emit({
+      officeIds: [row.officeId!],
+      ownerId: row.ownerId!,
+      propertyId: row.kind === 'property' ? row.propertyId ?? null : null,
+      metric
+    });
+  }
+
+  canDrillDownAmount(row: OwnerStatementVisibleRow, metric: OwnerStatementDrillDownMetric): boolean {
+    if (row.kind !== 'owner' && row.kind !== 'property') {
+      return false;
+    }
+    if (!row.officeId || !row.ownerId) {
+      return false;
+    }
+    if (metric === 'outstanding') {
+      return row.expectedValue !== 0 || row.incomeValue !== 0;
+    }
+    if (metric === 'balance') {
+      return row.incomeValue !== 0 || row.expensesValue !== 0;
+    }
+    if (metric === 'expected') {
+      return row.expectedValue !== 0;
+    }
+    if (metric === 'prePaid') {
+      return row.prePaidValue !== 0;
+    }
+    if (metric === 'income') {
+      return row.incomeValue !== 0;
+    }
+    return row.expensesValue !== 0;
   }
 
   clearPropertyActivityState(): void {
@@ -729,6 +908,38 @@ export class OwnerStatementListComponent implements OnInit, OnChanges, OnDestroy
       return [];
     }
     return (officeGroup.owners || []).map(owner => owner.rowId);
+  }
+
+  getPropertyRowsForOwner(ownerRowId: string): { rowId: string; officeId: number; propertyId: string }[] {
+    const rows: { rowId: string; officeId: number; propertyId: string }[] = [];
+    (this.ownerStatementOfficeGroups || []).forEach(office => {
+      const owner = (office.owners || []).find(currentOwner => currentOwner.rowId === ownerRowId);
+      if (!owner) {
+        return;
+      }
+      (owner.properties || []).forEach(property => {
+        if (!property.propertyId) {
+          return;
+        }
+        rows.push({
+          rowId: `property:${office.officeId}:${owner.rowId}:${property.propertyId || property.propertyCode}`,
+          officeId: office.officeId,
+          propertyId: property.propertyId
+        });
+      });
+    });
+    return rows;
+  }
+
+  getOwnerRowIdFromPropertyRowId(propertyRowId: string): string {
+    for (const office of this.ownerStatementOfficeGroups || []) {
+      for (const owner of office.owners || []) {
+        if ((propertyRowId || '').startsWith(`property:${office.officeId}:${owner.rowId}:`)) {
+          return owner.rowId;
+        }
+      }
+    }
+    return '';
   }
   //#endregion
 

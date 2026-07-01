@@ -1,0 +1,43 @@
+@if (!isPageReady) {
+  <div class="loading-container">
+    <mat-spinner [diameter]="40"></mat-spinner>
+    <p>Loading journal entries...</p>
+  </div>
+} @else if (isServiceError) {
+  <div class="owner-statement-journal-empty">
+    <p>Unable to load owner statement journal entries.</p>
+  </div>
+} @else if (lines.length === 0) {
+  <div class="owner-statement-journal-empty">
+    <p>{{ noDataMessage }}</p>
+  </div>
+} @else {
+  <div class="owner-statement-journal-layout">
+    <table class="owner-statement-journal-table">
+      <thead>
+        <tr>
+          <th>Date</th>
+          <th>JE #</th>
+          <th>Property</th>
+          <th>Account</th>
+          <th>Description</th>
+          <th class="owner-statement-journal-col-amount">Amount</th>
+        </tr>
+      </thead>
+      <tbody>
+        @for (line of lines; track line.journalEntryLineId) {
+          <tr class="owner-statement-journal-row" (click)="onLineSelect(line)">
+            <td>{{ formatDate(line.transactionDate) }}</td>
+            <td>
+              <button type="button" class="owner-statement-journal-link" (click)="$event.stopPropagation(); onLineSelect(line)">{{ line.journalEntryCode }}</button>
+            </td>
+            <td>{{ line.propertyCode }}</td>
+            <td>{{ line.accountNo }} - {{ line.chartOfAccountName }}</td>
+            <td>{{ line.description }}</td>
+            <td class="owner-statement-journal-col-amount">{{ formatAmount(line.amount) }}</td>
+          </tr>
+        }
+      </tbody>
+    </table>
+  </div>
+}

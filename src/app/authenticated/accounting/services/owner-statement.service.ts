@@ -49,6 +49,8 @@ export class OwnerStatementService {
     return this.http.post<OwnerStatementJournalEntryLineResponse[]>(`${this.controller}owner-statement/line/search`, {
       officeIds,
       ownerId,
+      propertyId: request.propertyId ?? null,
+      metric: request.metric,
       startDate: request.startDate ?? null,
       endDate: request.endDate ?? null
     }).pipe(

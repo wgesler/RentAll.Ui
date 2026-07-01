@@ -224,6 +224,24 @@
   white-space: nowrap;
 }
 
+.owner-statement-amount-link {
+  border: 0;
+  background: transparent;
+  padding: 0;
+  margin: 0;
+  color: inherit;
+  text-align: right;
+  width: 100%;
+  font: inherit;
+}
+
+.owner-statement-amount-link--active {
+  color: #1d4ed8;
+  cursor: pointer;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
 .owner-statement-col-working-capital {
   min-width: 8rem;
 }

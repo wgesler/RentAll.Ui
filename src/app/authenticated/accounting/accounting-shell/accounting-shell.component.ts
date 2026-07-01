@@ -52,6 +52,8 @@ import { ChartOfAccountResponse } from '../models/chart-of-accounts.model';
 import { Class, ClassLabels } from '../models/accounting-enum';
 import { GeneralLedgerService } from '../services/general-ledger.service';
 import { JournalEntrySyncResult } from '../models/journal-entry.model';
+import { OwnerStatementJournalEntryLineSearchRequest } from '../models/owner-statement.model';
+import { OwnerStatementJournalEntryLineListComponent } from '../owner-statement-journal-entry-line-list/owner-statement-journal-entry-line-list.component';
 
 type JournalEntrySyncProgressKey =
   | 'invoice'
@@ -90,6 +92,7 @@ interface JournalEntrySyncProgressRow {
     ArAgingReportComponent,
     RentRollComponent,
     OwnerStatementListComponent,
+    OwnerStatementJournalEntryLineListComponent,
     TitleBarSelectComponent
 ],
     templateUrl: './accounting-shell.component.html',
@@ -210,6 +213,9 @@ export class AccountingShellComponent implements OnInit, OnDestroy {
   ownerStatementReturnAfterUtilityDetail = false;
   ownerStatementReturnAfterWorkOrderDetail = false;
   ownerStatementReturnAfterInvoiceDetail = false;
+  showOwnerStatementJournalEntryLines = false;
+  ownerStatementJournalEntryLineRequest: OwnerStatementJournalEntryLineSearchRequest | null = null;
+  ownerStatementJournalEntryLinesRefreshTrigger = 0;
   ownersStatementViewState: OwnerStatementListViewState | null = null;
   showOwnersUtilityReceiptDetail = false;
   selectedOwnersUtilityReceiptId: string | null = null;
@@ -393,6 +399,12 @@ export class AccountingShellComponent implements OnInit, OnDestroy {
     this.showGeneralLedgerDetail = false;
     this.activeJournalEntryId = null;
     this.selectedJournalEntryLineId = null;
+  }
+
+  onOwnerStatementJournalEntryLineSelect(event: { journalEntryId: string; journalEntryLineId: string }): void {
+    this.activeJournalEntryId = event.journalEntryId;
+    this.selectedJournalEntryLineId = event.journalEntryLineId;
+    this.showGeneralLedgerDetail = true;
   }
 
   onShellChartOfAccountDropdownChange(value: string | number | null): void {
@@ -1177,6 +1189,33 @@ export class AccountingShellComponent implements OnInit, OnDestroy {
     this.ownersStatementViewState = viewState;
   }
 
+  onOwnerStatementAmountDrillDownSelect(selection: OwnerStatementJournalEntryLineSearchRequest): void {
+    this.selectedTabIndex = this.tabOwners;
+    this.selectedOwnerKind = 'statements';
+    this.ownerStatementJournalEntryLineRequest = {
+      officeIds: [...(selection.officeIds || [])],
+      ownerId: selection.ownerId,
+      propertyId: selection.propertyId ?? null,
+      metric: selection.metric,
+      startDate: this.billsSearchRequest.startDate ?? null,
+      endDate: this.billsSearchRequest.endDate ?? null
+    };
+    this.showOwnerStatementJournalEntryLines = true;
+    this.showGeneralLedgerDetail = false;
+    this.activeJournalEntryId = null;
+    this.selectedJournalEntryLineId = null;
+    this.ownerStatementJournalEntryLinesRefreshTrigger++;
+  }
+
+  onOwnerStatementJournalEntryLinesBack(): void {
+    this.showOwnerStatementJournalEntryLines = false;
+    this.ownerStatementJournalEntryLineRequest = null;
+    this.ownerStatementJournalEntryLinesRefreshTrigger = 0;
+    this.showGeneralLedgerDetail = false;
+    this.activeJournalEntryId = null;
+    this.selectedJournalEntryLineId = null;
+  }
+
   private openOwnerStatementInvoice(activityId: string, invoiceCode: string, officeId: number | null): void {
     const openInvoice = (invoiceId: string) => {
       this.ownerStatementReturnAfterInvoiceDetail = true;
@@ -1284,6 +1323,7 @@ export class AccountingShellComponent implements OnInit, OnDestroy {
     if (event.index !== this.tabOwners) {
       this.onOwnersUtilityReceiptBack();
       this.onOwnersWorkOrderBack();
+      this.onOwnerStatementJournalEntryLinesBack();
     }
     if (event.index !== this.tabBankActivities && !this.usesReportTitleBarFilters()) {
       this.onGeneralLedgerBack();
@@ -1399,6 +1439,7 @@ export class AccountingShellComponent implements OnInit, OnDestroy {
     if (kindChanged) {
       this.onOwnersUtilityReceiptBack();
       this.onOwnersWorkOrderBack();
+      this.onOwnerStatementJournalEntryLinesBack();
     }
 
     this.selectedOwnerKind = kind;
@@ -1965,8 +2006,16 @@ export class AccountingShellComponent implements OnInit, OnDestroy {
   get isGeneralLedgerDetailActive(): boolean {
     return (this.selectedTabIndex === this.tabBankActivities
       && this.selectedBankActivityKind !== 'reconcile'
-      || this.selectedTabIndex === this.tabGeneralLedger)
+      || this.selectedTabIndex === this.tabGeneralLedger
+      || this.selectedTabIndex === this.tabOwners && this.selectedOwnerKind === 'statements' && this.showOwnerStatementJournalEntryLines)
       && this.showGeneralLedgerDetail;
+  }
+
+  get isOwnerStatementJournalEntryLineListActive(): boolean {
+    return this.selectedTabIndex === this.tabOwners
+      && this.selectedOwnerKind === 'statements'
+      && this.showOwnerStatementJournalEntryLines
+      && !this.showGeneralLedgerDetail;
   }
 
   usesFinancialReportTitleBarFilters(): boolean {
