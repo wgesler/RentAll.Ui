@@ -6,22 +6,164 @@
 } @else if (isServiceError) {
   <p class="owner-statement-empty-msg">Unable to load owner statements.</p>
 } @else {
-  <div class="mat list-layout-standard dbg-band-main">
-    <div class="tableDiv">
-      <app-data-table
-        tableName="owner-statement-list"
-        [data]="ownerStatementsDisplay"
-        [columns]="ownerStatementDisplayedColumns"
-        [hasColumnIndex]="true"
-        [hasFilter]="true"
-        [hasToggleTop]="false"
-        [hasButtonTop]="false"
-        [hasActionsRowClick]="false"
-        [hasActionsView]="false"
-        [hasActionsEdit]="false"
-        [hasActionsDelete]="false"
-        [itemsPerPage]="25">
-      </app-data-table>
+  <div class="mat list-layout-standard dbg-band-main owner-statement-layout">
+    <div class="owner-statement-panel">
+      @if (visibleRows.length === 0) {
+        <div class="owner-statement-empty-state">
+          <p>No owner statement activity for the selected filters.</p>
+        </div>
+      } @else {
+        <div class="owner-statement-header">
+          @if (headerEntityLine) {
+            <p class="owner-statement-entity-line">{{ headerEntityLine }}</p>
+          }
+          <p class="owner-statement-period">{{ headerPeriodLine }}</p>
+        </div>
+        <div class="owner-statement-table-wrap">
+          <table class="owner-statement-table">
+            <thead>
+              <tr>
+                <th class="owner-statement-col-label">
+                  <div class="owner-statement-header-label owner-statement-header-label--office">
+                    <button
+                      type="button"
+                      mat-icon-button
+                      class="owner-statement-expand-all-btn"
+                      [attr.aria-label]="areAllOfficeRowsExpanded ? 'Collapse all offices' : 'Expand all offices'"
+                      (click)="toggleAllOfficeRows()">
+                      <mat-icon>{{ getAllOfficeRowsExpandIcon() }}</mat-icon>
+                    </button>
+                    <div class="owner-statement-header-two-line owner-statement-header-two-line--left owner-statement-header-two-line--office">
+                      <span>Office</span>
+                      <span>Owner</span>
+                    </div>
+                  </div>
+                </th>
+                <th class="owner-statement-col-property">
+                  <div class="owner-statement-header-two-line owner-statement-header-two-line--left">
+                    <span>Property</span>
+                    <span>Code</span>
+                  </div>
+                </th>
+                <th class="owner-statement-col-item-description">
+                  <div class="owner-statement-header-two-line owner-statement-header-two-line--left">
+                    <span>Item</span>
+                    <span>Description</span>
+                  </div>
+                </th>
+                <th class="owner-statement-col-amount">
+                  <div class="owner-statement-header-two-line">
+                    <span>Expected</span>
+                    <span>Income</span>
+                  </div>
+                </th>
+                <th class="owner-statement-col-amount">
+                  <div class="owner-statement-header-two-line">
+                    <span>Prepaid</span>
+                    <span>Funds</span>
+                  </div>
+                </th>
+                <th class="owner-statement-col-amount">
+                  <div class="owner-statement-header-two-line">
+                    <span>Unpaid</span>
+                    <span>Funds</span>
+                  </div>
+                </th>
+                <th class="owner-statement-col-amount">
+                  <div class="owner-statement-header-two-line">
+                    <span>Actual</span>
+                    <span>Income</span>
+                  </div>
+                </th>
+                <th class="owner-statement-col-amount">
+                  <div class="owner-statement-header-two-line">
+                    <span>Owner</span>
+                    <span>Expenses</span>
+                  </div>
+                </th>
+                <th class="owner-statement-col-amount">
+                  <div class="owner-statement-header-two-line">
+                    <span>Current</span>
+                    <span>Balance</span>
+                  </div>
+                </th>
+                <th class="owner-statement-col-amount owner-statement-col-working-capital">
+                  <div class="owner-statement-header-two-line">
+                    <span>Working</span>
+                    <span>Capital</span>
+                  </div>
+                </th>
+                <th class="owner-statement-col-amount owner-statement-col-working-capital">
+                  <div class="owner-statement-header-two-line">
+                    <span>Balance</span>
+                    <span>Due</span>
+                  </div>
+                </th>
+              </tr>
+            </thead>
+            <tbody>
+              @for (row of visibleRows; track row.rowId) {
+                <tr
+                  [class.owner-statement-row-office]="row.kind === 'office'"
+                  [class.owner-statement-row-owner]="row.kind === 'owner'"
+                  [class.owner-statement-row-property]="row.kind === 'property'"
+                  [class.owner-statement-row-property-activity]="row.kind === 'propertyActivity'"
+                  [class.owner-statement-row-property-activity--clickable]="row.kind === 'propertyActivity' && !!row.activityCode"
+                  (click)="onActivityCodeClick(row)">
+                  <td class="owner-statement-col-label">
+                    <div class="owner-statement-label-wrap" [style.padding-left.px]="row.depth * 18">
+                      @if (row.expandable) {
+                        <button
+                          type="button"
+                          mat-icon-button
+                          class="owner-statement-expand-btn"
+                          [attr.aria-expanded]="row.expanded"
+                          [attr.aria-label]="row.expanded ? 'Collapse ' + row.primaryLabel : 'Expand ' + row.primaryLabel"
+                          (click)="toggleRowExpansion(row)">
+                          <mat-icon>{{ getRowExpandIcon(row) }}</mat-icon>
+                        </button>
+                      } @else {
+                        <span class="owner-statement-expand-spacer"></span>
+                      }
+                      @if (row.kind === 'propertyActivity') {
+                        @if (row.activityCode) {
+                          <span class="owner-statement-label owner-statement-activity-label">
+                            <span class="owner-statement-activity-date">{{ row.primaryLabel }}</span>
+                            <button
+                              type="button"
+                              class="owner-statement-activity-link"
+                              (click)="$event.stopPropagation(); onActivityCodeClick(row)">
+                              {{ row.activityCode }}
+                            </button>
+                          </span>
+                        } @else {
+                          <span class="owner-statement-label">
+                            {{ row.primaryLabel }}
+                          </span>
+                        }
+                      } @else {
+                        <span class="owner-statement-label">
+                          {{ row.primaryLabel }}
+                        </span>
+                      }
+                    </div>
+                  </td>
+                  <td class="owner-statement-col-property">{{ row.propertyCode }}</td>
+                  <td class="owner-statement-col-item-description">{{ row.itemDescription }}</td>
+                  <td class="owner-statement-col-amount">{{ row.expected }}</td>
+                  <td class="owner-statement-col-amount">{{ row.prePaid }}</td>
+                  <td class="owner-statement-col-amount">{{ row.outstanding }}</td>
+                  <td class="owner-statement-col-amount">{{ row.income }}</td>
+                  <td class="owner-statement-col-amount">{{ row.expenses }}</td>
+                  <td class="owner-statement-col-amount">{{ row.balance }}</td>
+                  <td class="owner-statement-col-amount owner-statement-col-working-capital">{{ row.workingCapital }}</td>
+                  <td class="owner-statement-col-amount owner-statement-col-working-capital">{{ row.workingCapitalBalanceDue }}</td>
+                </tr>
+              }
+            </tbody>
+          </table>
+        </div>
+      }
     </div>
   </div>
 }

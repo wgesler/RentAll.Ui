@@ -645,15 +645,15 @@
               </mat-menu>
             </ng-template>
             @if (selectedTabIndex === tabOwners) {
-              @if (selectedOwnerKind !== 'workOrders') {
-                <div class="accounting-shell-subview-title">
-                  @if (selectedOwnerKind === 'utilities') {
-                    Utilities
-                  } @else {
-                    Statements
-                  }
-                </div>
-              }
+              <div class="accounting-shell-subview-title">
+                @if (selectedOwnerKind === 'utilities') {
+                  Utilities
+                } @else if (selectedOwnerKind === 'workOrders') {
+                  Work Orders
+                } @else {
+                  Statements
+                }
+              </div>
               @if (selectedOwnerKind === 'utilities') {
                 @if (showOwnersUtilityReceiptDetail) {
                   <app-receipt
@@ -700,7 +700,10 @@
               } @else {
                 <app-owner-statement-list
                   [searchRequest]="billsSearchRequest"
-                  [refreshTrigger]="ownersStatementsRefreshTrigger">
+                  [refreshTrigger]="ownersStatementsRefreshTrigger"
+                  [viewState]="ownersStatementViewState"
+                  (activityLinkSelect)="onOwnerStatementActivityLinkSelect($event)"
+                  (viewStateChange)="onOwnersStatementViewStateChange($event)">
                 </app-owner-statement-list>
               }
             }

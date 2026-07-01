@@ -1838,20 +1838,36 @@ export class MappingService {
   }
 
   mapOwnerStatementDisplay(statement: OwnerStatementResponse): OwnerStatementListDisplay {
+    const expectedValue = Number(statement.expected) || 0;
+    const prePaidValue = Number(statement.prePaid) || 0;
+    const outstandingValue = Number(statement.outstanding) || 0;
     const incomeValue = Number(statement.income) || 0;
     const expensesValue = Number(statement.expenses) || 0;
     const balanceValue = Number(statement.balance) || 0;
+    const workingCapitalValue = Number(statement.workingCapital) || 0;
+    const workingCapitalBalanceDueValue = Number(statement.workingCapitalBalanceDue) || 0;
 
     return {
-      propertyId: statement.propertyId || '',
-      propertyCode: statement.propertyCode || '',
+      officeId: Number(statement.officeId) || 0,
+      officeName: statement.officeName || '',
       ownerName: statement.ownerName || '',
+      propertyCode: statement.propertyCode || '',
+      expected: this.formatter.currencyUsd(expectedValue),
+      prePaid: this.formatter.currencyUsd(prePaidValue),
+      outstanding: this.formatter.currencyUsd(outstandingValue),
       income: this.formatter.currencyUsd(incomeValue),
       expenses: this.formatter.currencyUsd(expensesValue),
       balance: this.formatter.currencyUsd(balanceValue),
+      workingCapital: this.formatter.currencyUsd(workingCapitalValue),
+      workingCapitalBalanceDue: this.formatter.currencyUsd(workingCapitalBalanceDueValue),
+      expectedValue,
+      prePaidValue,
+      outstandingValue,
       incomeValue,
       expensesValue,
-      balanceValue
+      balanceValue,
+      workingCapitalValue,
+      workingCapitalBalanceDueValue
     };
   }
 

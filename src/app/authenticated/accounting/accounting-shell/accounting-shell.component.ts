@@ -27,6 +27,7 @@ import { WorkOrderComponent } from '../../maintenance/work-order/work-order.comp
 import { WorkOrderListComponent, WorkOrderSelection } from '../../maintenance/work-order-list/work-order-list.component';
 import { ReceiptsListComponent } from '../../maintenance/receipts-list/receipts-list.component';
 import { ReceiptService } from '../../maintenance/services/receipt.service';
+import { WorkOrderService } from '../../maintenance/services/work-order.service';
 import { PropertyCodeResponse, PropertyResponse } from '../../properties/models/property.model';
 import { PropertyService } from '../../properties/services/property.service';
 import { ReservationCodeResponse } from '../../reservations/models/reservation-model';
@@ -34,13 +35,14 @@ import { ReservationService } from '../../reservations/services/reservation.serv
 import { SearchableSelectOption } from '../../shared/searchable-select/searchable-select.component';
 import { InvoiceComponent } from '../invoice/invoice.component';
 import { InvoiceListComponent } from '../invoice-list/invoice-list.component';
+import { InvoiceService } from '../services/invoice.service';
 import { GeneralLedgerComponent } from '../general-ledger/general-ledger.component';
 import { GeneralLedgerListComponent } from '../general-ledger-list/general-ledger-list.component';
 import { FinancialReportComponent } from '../financial-report/financial-report.component';
 import { ArAgingReportComponent } from '../ar-aging-report/ar-aging-report.component';
 import { AR_AGING_DATE_PRESET_OPTIONS, AR_AGING_INTERVAL_OPTIONS, AR_AGING_SORT_BY_OPTIONS, AR_AGING_THROUGH_ALL_VALUE, AR_AGING_THROUGH_OPTIONS, ArAgingDatePreset, ArAgingReportFilters, ArAgingSortBy, normalizeArAgingThroughDays, resolveArAgingAsOfDate } from '../models/ar-aging-report.model';
 import { RentRollComponent } from '../rent-roll/rent-roll.component';
-import { OwnerStatementListComponent } from '../owner-statement-list/owner-statement-list.component';
+import { OwnerStatementActivityLinkSelection, OwnerStatementListComponent, OwnerStatementListViewState } from '../owner-statement-list/owner-statement-list.component';
 import { AccountingShellBankActivityKind, AccountingShellBillsReceiptKind, AccountingShellOwnerKind, AccountingShellReportKind } from '../models/accounting-shell.model';
 import { FinancialReportKind } from '../models/financial-report.model';
 import { RentRollCreateBillRequest } from '../models/rent-roll.model';
@@ -205,6 +207,10 @@ export class AccountingShellComponent implements OnInit, OnDestroy {
   ownersUtilitiesRefreshTrigger = 0;
   ownersWorkOrdersRefreshTrigger = 0;
   ownersStatementsRefreshTrigger = 0;
+  ownerStatementReturnAfterUtilityDetail = false;
+  ownerStatementReturnAfterWorkOrderDetail = false;
+  ownerStatementReturnAfterInvoiceDetail = false;
+  ownersStatementViewState: OwnerStatementListViewState | null = null;
   showOwnersUtilityReceiptDetail = false;
   selectedOwnersUtilityReceiptId: string | null = null;
   ownersUtilityReceiptProperty: PropertyResponse | null = null;
@@ -237,6 +243,8 @@ export class AccountingShellComponent implements OnInit, OnDestroy {
     private propertyService: PropertyService,
     private reservationService: ReservationService,
     private receiptService: ReceiptService,
+    private workOrderService: WorkOrderService,
+    private invoiceService: InvoiceService,
     private toastr: ToastrService,
     private cdr: ChangeDetectorRef
   ) {
@@ -1060,11 +1068,23 @@ export class AccountingShellComponent implements OnInit, OnDestroy {
     this.showOwnersUtilityReceiptDetail = false;
     this.selectedOwnersUtilityReceiptId = null;
     this.ownersUtilityReceiptProperty = null;
+
+    if (this.ownerStatementReturnAfterUtilityDetail) {
+      this.ownerStatementReturnAfterUtilityDetail = false;
+      this.selectedTabIndex = this.tabOwners;
+      this.selectedOwnerKind = 'statements';
+      this.ownersStatementsRefreshTrigger++;
+    }
   }
 
   onOwnersUtilityReceiptSaved(): void {
+    const returnToStatements = this.ownerStatementReturnAfterUtilityDetail;
     this.onOwnersUtilityReceiptBack();
-    this.ownersUtilitiesRefreshTrigger++;
+    if (returnToStatements) {
+      this.ownersStatementsRefreshTrigger++;
+    } else {
+      this.ownersUtilitiesRefreshTrigger++;
+    }
   }
 
   onOwnersWorkOrderSelect(selection: WorkOrderSelection): void {
@@ -1109,11 +1129,144 @@ export class AccountingShellComponent implements OnInit, OnDestroy {
     this.showOwnersWorkOrderDetail = false;
     this.selectedOwnersWorkOrderId = null;
     this.ownersWorkOrderProperty = null;
+
+    if (this.ownerStatementReturnAfterWorkOrderDetail) {
+      this.ownerStatementReturnAfterWorkOrderDetail = false;
+      this.selectedTabIndex = this.tabOwners;
+      this.selectedOwnerKind = 'statements';
+      this.ownersStatementsRefreshTrigger++;
+    }
   }
 
   onOwnersWorkOrderSaved(): void {
+    const returnToStatements = this.ownerStatementReturnAfterWorkOrderDetail;
     this.onOwnersWorkOrderBack();
-    this.ownersWorkOrdersRefreshTrigger++;
+    if (returnToStatements) {
+      this.ownersStatementsRefreshTrigger++;
+    } else {
+      this.ownersWorkOrdersRefreshTrigger++;
+    }
+  }
+
+  onOwnerStatementActivityLinkSelect(selection: OwnerStatementActivityLinkSelection): void {
+    const activityId = (selection?.activityId || '').trim();
+    const activityCode = (selection?.activityCode || '').trim();
+    const propertyId = (selection?.propertyId || '').trim() || null;
+    const officeId = selection?.officeId ?? this.selectedOfficeId ?? null;
+    const resolvedOfficeId = officeId != null && Number.isFinite(Number(officeId)) ? Number(officeId) : null;
+    if (!activityCode) {
+      return;
+    }
+
+    if (/^WO-/i.test(activityCode)) {
+      this.openOwnerStatementWorkOrder(activityId, activityCode, propertyId);
+      return;
+    }
+
+    if (/^RC/i.test(activityCode)) {
+      this.openOwnerStatementReceipt(activityId, activityCode, resolvedOfficeId, propertyId);
+      return;
+    }
+
+    if (/^R-\d+/i.test(activityCode)) {
+      this.openOwnerStatementInvoice(activityId, activityCode, resolvedOfficeId);
+    }
+  }
+
+  onOwnersStatementViewStateChange(viewState: OwnerStatementListViewState): void {
+    this.ownersStatementViewState = viewState;
+  }
+
+  private openOwnerStatementInvoice(activityId: string, invoiceCode: string, officeId: number | null): void {
+    const openInvoice = (invoiceId: string) => {
+      this.ownerStatementReturnAfterInvoiceDetail = true;
+      this.selectedTabIndex = 0;
+      this.activeInvoiceId = invoiceId;
+      this.selectedOfficeId = officeId;
+      this.syncBillsSearchRequest();
+    };
+
+    if (activityId) {
+      openInvoice(activityId);
+      return;
+    }
+
+    const officeIds = officeId != null ? [officeId] : (this.billsSearchRequest?.officeIds || []).filter(id => id > 0);
+    if (officeIds.length === 0) {
+      this.toastr.error('Unable to resolve invoice office scope.', 'Error');
+      return;
+    }
+
+    this.invoiceService.getInvoiceByCode(invoiceCode, officeIds).pipe(take(1)).subscribe({
+      next: invoice => {
+        if (!invoice?.invoiceId) {
+          this.toastr.error('Unable to locate invoice by code.', 'Error');
+          return;
+        }
+
+        openInvoice(invoice.invoiceId);
+      },
+      error: () => this.toastr.error('Unable to locate invoice by code.', 'Error')
+    });
+  }
+
+  private openOwnerStatementReceipt(activityId: string, receiptCode: string, officeId: number | null, propertyId: string | null): void {
+    if (activityId) {
+      this.ownerStatementReturnAfterUtilityDetail = true;
+      this.onOwnersUtilityReceiptSelect({ receiptId: activityId, officeId, propertyId });
+      return;
+    }
+
+    if (!propertyId) {
+      this.toastr.error('Unable to locate receipt without property.', 'Error');
+      return;
+    }
+
+    this.receiptService.getReceiptsByPropertyId(propertyId).pipe(take(1)).subscribe({
+      next: receipts => {
+        const matched = (receipts || []).find(receipt =>
+          (receipt.receiptCode || '').trim().toLowerCase() === receiptCode.toLowerCase()
+          || (receipt.billNumber || '').trim().toLowerCase() === receiptCode.toLowerCase()
+        );
+        if (!matched?.receiptId) {
+          this.toastr.error('Unable to locate receipt by code.', 'Error');
+          return;
+        }
+
+        this.ownerStatementReturnAfterUtilityDetail = true;
+        this.onOwnersUtilityReceiptSelect({ receiptId: matched.receiptId, officeId, propertyId });
+      },
+      error: () => this.toastr.error('Unable to locate receipt by code.', 'Error')
+    });
+  }
+
+  private openOwnerStatementWorkOrder(activityId: string, workOrderCode: string, propertyId: string | null): void {
+    if (activityId) {
+      this.ownerStatementReturnAfterWorkOrderDetail = true;
+      this.onOwnersWorkOrderSelect({ workOrderId: activityId, propertyId });
+      return;
+    }
+
+    if (!propertyId) {
+      this.toastr.error('Unable to locate work order without property.', 'Error');
+      return;
+    }
+
+    this.workOrderService.getWorkOrdersByPropertyId(propertyId).pipe(take(1)).subscribe({
+      next: workOrders => {
+        const matched = (workOrders || []).find(workOrder =>
+          (workOrder.workOrderCode || '').trim().toLowerCase() === workOrderCode.toLowerCase()
+        );
+        if (!matched?.workOrderId) {
+          this.toastr.error('Unable to locate work order by code.', 'Error');
+          return;
+        }
+
+        this.ownerStatementReturnAfterWorkOrderDetail = true;
+        this.onOwnersWorkOrderSelect({ workOrderId: matched.workOrderId, propertyId });
+      },
+      error: () => this.toastr.error('Unable to locate work order by code.', 'Error')
+    });
   }
   //#endregion
 
@@ -1241,6 +1394,7 @@ export class AccountingShellComponent implements OnInit, OnDestroy {
     this.ownersMenuTrigger?.closeMenu();
     const previousTab = this.selectedTabIndex;
     const kindChanged = this.selectedOwnerKind !== kind;
+    const statementDatesChanged = kind === 'statements' ? this.applyOwnerStatementsMonthDateRange() : false;
 
     if (kindChanged) {
       this.onOwnersUtilityReceiptBack();
@@ -1255,6 +1409,16 @@ export class AccountingShellComponent implements OnInit, OnDestroy {
     }
 
     if (kindChanged) {
+      this.refreshActiveOwnerView();
+      this.router.navigate([], {
+        relativeTo: this.route,
+        queryParams: this.buildShellQueryParams({ ownerKind: kind }),
+        queryParamsHandling: 'merge'
+      });
+      return;
+    }
+
+    if (statementDatesChanged) {
       this.refreshActiveOwnerView();
       this.router.navigate([], {
         relativeTo: this.route,
@@ -2109,7 +2273,17 @@ export class AccountingShellComponent implements OnInit, OnDestroy {
         }
       }
     } else if (!this.startDate && !this.endDate && !this.dateRangePinned) {
-      this.setDefaultDateRange();
+      if (this.selectedTabIndex === this.tabOwners && this.selectedOwnerKind === 'statements') {
+        const today = new Date();
+        const start = new Date(today.getFullYear(), today.getMonth(), 1);
+        const end = new Date(today.getFullYear(), today.getMonth() + 1, 0);
+        start.setHours(0, 0, 0, 0);
+        end.setHours(0, 0, 0, 0);
+        this.startDate = start;
+        this.endDate = end;
+      } else {
+        this.setDefaultDateRange();
+      }
       this.syncInvoiceSearchDateRange();
       this.syncBillsSearchRequest();
     }
@@ -2173,6 +2347,31 @@ export class AccountingShellComponent implements OnInit, OnDestroy {
     if (this.dateRangePinned) {
       return false;
     }
+
+    const changed = this.setCurrentMonthDateRange();
+    if (this.dateRangePinned) {
+      this.persistPinnedDateRange();
+    }
+    this.syncInvoiceSearchDateRange();
+    this.syncBillsSearchRequest();
+    return changed;
+  }
+
+  applyOwnerStatementsMonthDateRange(): boolean {
+    if (this.dateRangePinned) {
+      return false;
+    }
+
+    const changed = this.setCurrentMonthDateRange();
+    if (this.dateRangePinned) {
+      this.persistPinnedDateRange();
+    }
+    this.syncInvoiceSearchDateRange();
+    this.syncBillsSearchRequest();
+    return changed;
+  }
+
+  setCurrentMonthDateRange(): boolean {
     const previousStartDate = this.utilityService.formatDateOnlyForApi(this.startDate);
     const previousEndDate = this.utilityService.formatDateOnlyForApi(this.endDate);
     const today = new Date();
@@ -2182,11 +2381,6 @@ export class AccountingShellComponent implements OnInit, OnDestroy {
     end.setHours(0, 0, 0, 0);
     this.startDate = start;
     this.endDate = end;
-    if (this.dateRangePinned) {
-      this.persistPinnedDateRange();
-    }
-    this.syncInvoiceSearchDateRange();
-    this.syncBillsSearchRequest();
     const nextStartDate = this.utilityService.formatDateOnlyForApi(this.startDate);
     const nextEndDate = this.utilityService.formatDateOnlyForApi(this.endDate);
     return previousStartDate !== nextStartDate || previousEndDate !== nextEndDate;
@@ -2269,6 +2463,23 @@ export class AccountingShellComponent implements OnInit, OnDestroy {
   }
 
   closeEmbeddedInvoiceEditor(): void {
+    if (this.ownerStatementReturnAfterInvoiceDetail) {
+      this.ownerStatementReturnAfterInvoiceDetail = false;
+      this.activeInvoiceId = null;
+      this.selectedTabIndex = this.tabOwners;
+      this.selectedOwnerKind = 'statements';
+      this.ownersStatementsRefreshTrigger++;
+      this.router.navigate([], {
+        relativeTo: this.route,
+        queryParams: this.buildShellQueryParams({
+          tab: String(this.tabOwners),
+          ownerKind: 'statements'
+        }),
+        queryParamsHandling: 'merge'
+      });
+      return;
+    }
+
     this.activeInvoiceId = null;
 
     const currentQueryParams = this.route.snapshot.queryParams || {};

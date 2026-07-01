@@ -16,3 +16,338 @@
   margin: 1.5rem;
   color: rgba(0, 0, 0, 0.6);
 }
+
+.owner-statement-layout {
+  display: flex;
+  justify-content: center;
+  width: 100%;
+  max-width: 100%;
+  padding: 0.5rem 0.75rem 1rem;
+  box-sizing: border-box;
+}
+
+.owner-statement-panel {
+  width: fit-content;
+  max-width: 100%;
+  min-width: 0;
+  margin-inline: auto;
+}
+
+.owner-statement-empty-state {
+  padding: 1.5rem 0;
+  color: rgba(15, 23, 42, 0.72);
+}
+
+.owner-statement-header {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.175rem;
+  margin-bottom: 0.75rem;
+  text-align: center;
+  width: 100%;
+}
+
+.owner-statement-entity-line,
+.owner-statement-period {
+  margin: 0;
+  font-weight: 600;
+  line-height: 1.1;
+  width: 100%;
+  text-align: center;
+}
+
+.owner-statement-entity-line {
+  font-size: 1rem;
+}
+
+.owner-statement-period {
+  font-size: 0.75rem;
+}
+
+.owner-statement-table-wrap {
+  width: fit-content;
+  max-width: 100%;
+  min-width: 0;
+  overflow: visible;
+  border: 1px solid rgba(15, 23, 42, 0.12);
+  border-radius: 0.5rem;
+  background: #fff;
+  margin-inline: auto;
+}
+
+.owner-statement-table {
+  width: auto;
+  border-collapse: collapse;
+  table-layout: auto;
+}
+
+.owner-statement-table thead th {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  text-align: left;
+  font-weight: 600;
+  padding: 0.3rem 0.75rem;
+  border-bottom: 1px solid rgba(15, 23, 42, 0.12);
+  background: rgba(241, 245, 249, 0.98);
+}
+
+.owner-statement-table thead th.owner-statement-col-amount {
+  text-align: right;
+}
+
+.owner-statement-header-label {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.15rem;
+}
+
+.owner-statement-header-label--office {
+  position: relative;
+  padding-left: 1.35rem;
+}
+
+.owner-statement-header-label--office .owner-statement-expand-all-btn {
+  position: absolute;
+  left: 0;
+  top: 50%;
+  transform: translateY(-50%);
+}
+
+.owner-statement-header-two-line--office {
+  margin-top: 0;
+}
+
+.owner-statement-header-two-line {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: flex-end;
+  line-height: 1.05;
+}
+
+.owner-statement-header-two-line--left {
+  align-items: flex-start;
+}
+
+.owner-statement-table tbody td {
+  padding: 0.2rem 0.75rem;
+  border-bottom: 1px solid rgba(15, 23, 42, 0.08);
+  vertical-align: middle;
+  background-color: #fff;
+}
+
+.owner-statement-row-office td {
+  font-weight: 600;
+  background-color: #faf6ef !important;
+  border-top: 1px solid rgba(15, 23, 42, 0.12);
+  border-bottom: 1px solid rgba(15, 23, 42, 0.12);
+}
+
+.owner-statement-row-owner td {
+  font-weight: 600;
+  background-color: #fff !important;
+}
+
+.owner-statement-row-property td {
+  font-weight: 400;
+}
+
+.owner-statement-row-property-activity td {
+  font-weight: 400;
+  background-color: #f8fafc !important;
+  color: rgba(15, 23, 42, 0.9);
+}
+
+.owner-statement-row-property-activity--clickable {
+  cursor: pointer;
+}
+
+.owner-statement-activity-label {
+  display: inline-grid;
+  grid-template-columns: 3.25rem 1fr;
+  column-gap: 0.4rem;
+  align-items: center;
+}
+
+.owner-statement-activity-date {
+  font-variant-numeric: tabular-nums;
+}
+
+.owner-statement-activity-code {
+  font-variant-numeric: tabular-nums;
+}
+
+.owner-statement-activity-link {
+  border: 0;
+  background: transparent;
+  padding: 0;
+  margin: 0;
+  color: #1d4ed8;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  cursor: pointer;
+  font: inherit;
+  font-variant-numeric: tabular-nums;
+}
+
+.owner-statement-col-label {
+  min-width: 17rem;
+}
+
+.owner-statement-col-property {
+  min-width: 7rem;
+}
+
+.owner-statement-col-item-description {
+  min-width: 12rem;
+}
+
+.owner-statement-table th.owner-statement-col-label,
+.owner-statement-table td.owner-statement-col-label {
+  padding-right: 0.35rem;
+}
+
+.owner-statement-table th.owner-statement-col-property,
+.owner-statement-table td.owner-statement-col-property {
+  padding-left: 0.35rem;
+}
+
+.owner-statement-table th.owner-statement-col-item-description,
+.owner-statement-table td.owner-statement-col-item-description {
+  padding-left: 0.35rem;
+}
+
+.owner-statement-col-amount {
+  min-width: 8rem;
+  text-align: right;
+  white-space: nowrap;
+}
+
+.owner-statement-col-working-capital {
+  min-width: 8rem;
+}
+
+.owner-statement-label-wrap {
+  display: flex;
+  align-items: center;
+  gap: 0.15rem;
+}
+
+.owner-statement-expand-btn {
+  width: 20px !important;
+  height: 20px !important;
+  line-height: 20px !important;
+  min-width: 20px !important;
+  padding: 0 !important;
+
+  .mat-icon {
+    width: 18px;
+    height: 18px;
+    font-size: 18px;
+    line-height: 18px;
+  }
+}
+
+.owner-statement-expand-all-btn {
+  width: 20px !important;
+  height: 20px !important;
+  line-height: 20px !important;
+  min-width: 20px !important;
+  padding: 0 !important;
+
+  .mat-icon {
+    width: 18px;
+    height: 18px;
+    font-size: 18px;
+    line-height: 18px;
+  }
+}
+
+.owner-statement-expand-spacer {
+  display: inline-block;
+  width: 20px;
+  flex: 0 0 auto;
+}
+
+.owner-statement-label--owner-clickable {
+  cursor: pointer;
+  text-decoration: underline;
+  text-decoration-color: rgba(15, 23, 42, 0.25);
+  text-underline-offset: 2px;
+}
+
+.owner-statement-label--owner-clickable:hover {
+  text-decoration-color: rgba(15, 23, 42, 0.6);
+}
+
+.owner-statement-label--owner-active {
+  color: #1d4ed8;
+}
+
+.owner-statement-drill-down {
+  margin-top: 0.75rem;
+  border: 1px solid rgba(15, 23, 42, 0.12);
+  border-radius: 0.5rem;
+  background: #fff;
+  padding: 0.75rem;
+}
+
+.owner-statement-drill-down-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  margin-bottom: 0.5rem;
+}
+
+.owner-statement-drill-down-title-wrap {
+  display: flex;
+  flex-direction: column;
+}
+
+.owner-statement-drill-down-title {
+  font-size: 0.95rem;
+  font-weight: 600;
+}
+
+.owner-statement-drill-down-subtitle {
+  font-size: 0.75rem;
+  color: rgba(15, 23, 42, 0.68);
+}
+
+.owner-statement-drill-down-state {
+  font-size: 0.85rem;
+  color: rgba(15, 23, 42, 0.72);
+  padding: 0.5rem 0.25rem;
+}
+
+.owner-statement-drill-down-table-wrap {
+  overflow-x: auto;
+}
+
+.owner-statement-drill-down-table {
+  width: 100%;
+  border-collapse: collapse;
+  table-layout: auto;
+}
+
+.owner-statement-drill-down-table thead th {
+  text-align: left;
+  font-weight: 600;
+  padding: 0.3rem 0.5rem;
+  border-bottom: 1px solid rgba(15, 23, 42, 0.12);
+  background: rgba(241, 245, 249, 0.98);
+  white-space: nowrap;
+}
+
+.owner-statement-drill-down-table tbody td {
+  padding: 0.2rem 0.5rem;
+  border-bottom: 1px solid rgba(15, 23, 42, 0.08);
+  vertical-align: middle;
+}
+
+.owner-statement-drill-down-col-amount {
+  text-align: right !important;
+  white-space: nowrap;
+}
