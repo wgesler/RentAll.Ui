@@ -1739,6 +1739,15 @@ export class AccountingShellComponent implements OnInit, OnDestroy {
     return (this.offices || []).map(office => office.officeId).filter(id => id > 0);
   }
 
+  resolveOfficeIdsForJournalEntryClear(): number[] {
+    if (this.selectedOfficeId != null && this.selectedOfficeId > 0) {
+      return [this.selectedOfficeId];
+    }
+
+    // Empty list means "all offices for this organization" on clear-all endpoint.
+    return [];
+  }
+
   async syncJournalEntries(): Promise<void> {
     const officeIds = this.resolveOfficeIdsForJournalEntrySync();
     if (officeIds.length === 0) {
@@ -1775,11 +1784,7 @@ export class AccountingShellComponent implements OnInit, OnDestroy {
   }
 
   clearJournalEntries(): void {
-    const officeIds = this.resolveOfficeIdsForJournalEntrySync();
-    if (officeIds.length === 0) {
-      this.toastr.warning('Select at least one office before clearing journal entries.', 'Clear');
-      return;
-    }
+    const officeIds = this.resolveOfficeIdsForJournalEntryClear();
 
     const scopeMessage = this.selectedOfficeId != null
       ? `organization + office ${this.selectedOfficeId}`
