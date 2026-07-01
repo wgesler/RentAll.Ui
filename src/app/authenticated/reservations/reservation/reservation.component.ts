@@ -37,7 +37,7 @@ import { OrganizationResponse } from '../../organizations/models/organization.mo
 import { AgentService } from '../../organizations/services/agent.service';
 import { GlobalSelectionService } from '../../organizations/services/global-selection.service';
 import { OfficeService } from '../../organizations/services/office.service';
-import { CheckinTimes, CheckoutTimes, PropertyLeaseType, getCheckInTimes, getCheckOutTimes, normalizeCheckInTimeId, normalizeCheckOutTimeId } from '../../properties/models/property-enums';
+import { CheckinTimes, CheckoutTimes, getCheckInTimes, getCheckOutTimes, normalizeCheckInTimeId, normalizeCheckOutTimeId } from '../../properties/models/property-enums';
 import { PropertyCodeResponse, PropertyResponse } from '../../properties/models/property.model';
 import { PropertyService } from '../../properties/services/property.service';
 import { SearchableSelectComponent, SearchableSelectOption } from '../../shared/searchable-select/searchable-select.component';
@@ -2882,13 +2882,7 @@ export class ReservationComponent implements OnInit, OnDestroy, CanComponentDeac
   }
 
   get showBillingPeriodFields(): boolean {
-    const formPropertyId = String(this.form?.get('propertyId')?.value ?? '').trim();
-    const leaseTypeFromSelectedProperty = this.selectedProperty?.propertyLeaseTypeId;
-    const leaseTypeFromPropertyCode = formPropertyId
-      ? this.propertyCodes.find(property => property.propertyId === formPropertyId)?.propertyLeaseTypeId
-      : null;
-    const leaseTypeId = Number(leaseTypeFromSelectedProperty ?? leaseTypeFromPropertyCode ?? 0);
-    return leaseTypeId === PropertyLeaseType.Direct || leaseTypeId === PropertyLeaseType.ThirdParty;
+    return true;
   }
 
   getExtraFeeFrequencyValue(frequencyId: number | undefined | null): number | null {

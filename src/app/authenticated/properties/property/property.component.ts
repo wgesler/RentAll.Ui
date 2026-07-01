@@ -16,7 +16,7 @@ import { MappingService } from '../../../services/mapping.service';
 import { NavigationContextService } from '../../../services/navigation-context.service';
 import { UtilityService } from '../../../services/utility.service';
 import { EntityType } from '../../contacts/models/contact-enum';
-import { ContactResponse } from '../../contacts/models/contact.model';
+import { AppendPropertyCodeToContactsResponse, ContactResponse } from '../../contacts/models/contact.model';
 import { ContactService } from '../../contacts/services/contact.service';
 import { ContactListComponent } from '../../contacts/contact-list/contact-list.component';
 import { ContactComponent } from '../../contacts/contact/contact.component';
@@ -118,6 +118,8 @@ export class PropertyComponent implements OnInit, OnChanges, AfterViewInit, OnDe
   copiedPropertyInformation: PropertyInformationResponse | null = null;
   pendingCopyFromPropertyId: string | null = null;
   appliedCopyFromPropertyId: string | null = null;
+  copiedSourcePropertyCode: string | null = null;
+  copiedSourcePropertyContactIds: string[] = [];
   codePaletteTargetControl: string | null = null;
  
   expandedSections = { basic: true, features: false, description: false, propertyContacts: false, agreement: false };
@@ -281,6 +283,9 @@ export class PropertyComponent implements OnInit, OnChanges, AfterViewInit, OnDe
       distinctUntilChanged()
     ).subscribe(copyFromPropertyId => {
       this.pendingCopyFromPropertyId = copyFromPropertyId;
+      if (!copyFromPropertyId) {
+        this.clearCopiedPropertyContactContext();
+      }
       this.tryApplyCopyFromProperty();
     });
     
@@ -369,6 +374,7 @@ export class PropertyComponent implements OnInit, OnChanges, AfterViewInit, OnDe
       next: (result: { property: PropertyResponse; propertyInformation: PropertyInformationResponse | null }) => {
          this.property = result.property;
          this.copiedPropertyInformation = result.propertyInformation;
+         this.captureCopiedPropertyContactIdsByCode(this.property.propertyCode);
         
         // Populate form with all copied values
         if (this.property && this.form) {
@@ -562,6 +568,11 @@ export class PropertyComponent implements OnInit, OnChanges, AfterViewInit, OnDe
         }),
         switchMap((response: PropertyResponse) =>
           this.persistCopiedPropertyInformationAfterPropertyCreate(response).pipe(
+            map(() => response)
+          )
+        ),
+        switchMap((response: PropertyResponse) =>
+          this.appendCopiedPropertyCodeToCopiedContactsAfterCreate(response).pipe(
             map(() => response)
           )
         ),
@@ -1043,6 +1054,93 @@ export class PropertyComponent implements OnInit, OnChanges, AfterViewInit, OnDe
         return of(void 0);
       })
     );
+  }
+
+  appendCopiedPropertyCodeToCopiedContactsAfterCreate(response: PropertyResponse): Observable<void> {
+    const newPropertyCode = String(response.propertyCode || '').trim();
+    const sourcePropertyCode = this.copiedSourcePropertyCode;
+    if (!newPropertyCode || !sourcePropertyCode) {
+      this.clearCopiedPropertyContactContext();
+      return of(void 0);
+    }
+
+    if (sourcePropertyCode.toUpperCase() === newPropertyCode.toUpperCase()) {
+      this.clearCopiedPropertyContactContext();
+      return of(void 0);
+    }
+
+    const contactIds$ = this.copiedSourcePropertyContactIds.length > 0
+      ? of(this.copiedSourcePropertyContactIds)
+      : this.getCopiedPropertyContactIdsByCode(sourcePropertyCode);
+
+    return contactIds$.pipe(
+      take(1),
+      switchMap((contactIds: string[]) => {
+        const uniqueContactIds = [...new Set((contactIds || []).map(id => String(id || '').trim()).filter(id => id.length > 0))];
+        if (uniqueContactIds.length === 0) {
+          this.clearCopiedPropertyContactContext();
+          return of(void 0);
+        }
+
+        return this.contactService.appendPropertyCodeToContacts({
+          contactIds: uniqueContactIds,
+          propertyCode: newPropertyCode
+        }).pipe(
+          map((result: AppendPropertyCodeToContactsResponse) => {
+            if (result.updatedCount > 0) {
+              this.toastr.success(`Copied property contacts linked to ${newPropertyCode}.`, CommonMessage.Success, { timeOut: CommonTimeouts.Success });
+            }
+            this.clearCopiedPropertyContactContext();
+            return void 0;
+          }),
+          catchError(() => {
+            this.toastr.error('Property created, but failed to link copied property contacts.', CommonMessage.Error);
+            return of(void 0);
+          })
+        );
+      })
+    );
+  }
+
+  captureCopiedPropertyContactIdsByCode(sourcePropertyCode: string | null | undefined): void {
+    const normalizedSourcePropertyCode = String(sourcePropertyCode || '').trim().toUpperCase();
+    if (!normalizedSourcePropertyCode) {
+      this.clearCopiedPropertyContactContext();
+      return;
+    }
+
+    this.getCopiedPropertyContactIdsByCode(normalizedSourcePropertyCode).pipe(take(1)).subscribe({
+      next: (contactIds: string[]) => {
+        this.copiedSourcePropertyCode = normalizedSourcePropertyCode;
+        this.copiedSourcePropertyContactIds = [...new Set((contactIds || []).map(contactId => String(contactId || '').trim()).filter(contactId => contactId.length > 0))];
+      },
+      error: () => {
+        this.clearCopiedPropertyContactContext();
+      }
+    });
+  }
+
+  getCopiedPropertyContactIdsByCode(sourcePropertyCode: string): Observable<string[]> {
+    const normalizedSourcePropertyCode = String(sourcePropertyCode || '').trim().toUpperCase();
+    if (!normalizedSourcePropertyCode) {
+      return of([]);
+    }
+
+    return this.contactService.getContacts().pipe(
+      take(1),
+      map((contacts: ContactResponse[]) =>
+        (contacts || [])
+          .filter(contact => (contact.properties || []).some(code => String(code || '').trim().toUpperCase() === normalizedSourcePropertyCode))
+          .map(contact => String(contact.contactId || '').trim())
+          .filter(contactId => contactId.length > 0)
+      ),
+      catchError(() => of([]))
+    );
+  }
+
+  clearCopiedPropertyContactContext(): void {
+    this.copiedSourcePropertyCode = null;
+    this.copiedSourcePropertyContactIds = [];
   }
 
   buildCopiedPropertyInformationRequest(propertyId: string, organizationId: string): PropertyInformationRequest {

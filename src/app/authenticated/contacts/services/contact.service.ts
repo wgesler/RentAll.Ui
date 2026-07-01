@@ -5,7 +5,7 @@ import { ConfigService } from '../../../services/config.service';
 import { MappingService } from '../../../services/mapping.service';
 import { LeadOwnerUpdateRequest } from '../../leads/models/lead-owner.model';
 import { EntityType } from '../models/contact-enum';
-import { ContactRequest, ContactResponse } from '../models/contact.model';
+import { AppendPropertyCodeToContactsRequest, AppendPropertyCodeToContactsResponse, ContactRequest, ContactResponse } from '../models/contact.model';
 
 @Injectable({
     providedIn: 'root'
@@ -133,6 +133,10 @@ export class ContactService {
 
   deleteContact(contactId: string): Observable<void> {
     return this.refreshCacheAfterMutation(this.http.delete<void>(this.controller + contactId));
+  }
+
+  appendPropertyCodeToContacts(request: AppendPropertyCodeToContactsRequest): Observable<AppendPropertyCodeToContactsResponse> {
+    return this.refreshCacheAfterMutation(this.http.post<AppendPropertyCodeToContactsResponse>(`${this.controller}append-property-code`, request));
   }
 }
 

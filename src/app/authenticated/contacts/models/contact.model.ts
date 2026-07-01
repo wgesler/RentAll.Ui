@@ -120,3 +120,14 @@ export interface ContactListDisplay {
   isActive: boolean;
 }
 
+export interface AppendPropertyCodeToContactsRequest {
+  contactIds: string[];
+  propertyCode: string;
+}
+
+export interface AppendPropertyCodeToContactsResponse {
+  requestedCount: number;
+  updatedCount: number;
+  skippedCount: number;
+}
+

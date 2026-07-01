@@ -1,7 +1,7 @@
 ---
 description: Keep TypeScript imports on one line
 globs: **/*.ts
-alwaysApply: false
+alwaysApply: true
 ---
 
 # One-Line Import Format

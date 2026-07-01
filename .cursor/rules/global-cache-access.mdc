@@ -1,7 +1,7 @@
 ---
 description: How feature components must read global cached data (offices, accounting offices, cost codes, contacts, office selection)
 globs: **/*.component.ts
-alwaysApply: false
+alwaysApply: true
 ---
 
 # Global Cache Access
