@@ -18,6 +18,8 @@ import { UtilityService } from '../../../services/utility.service';
 import { EntityType } from '../../contacts/models/contact-enum';
 import { ContactResponse } from '../../contacts/models/contact.model';
 import { ContactService } from '../../contacts/services/contact.service';
+import { ContactListComponent } from '../../contacts/contact-list/contact-list.component';
+import { ContactComponent } from '../../contacts/contact/contact.component';
 import { DocumentReloadService } from '../../documents/services/document-reload.service';
 import { AreaResponse } from '../../organizations/models/area.model';
 import { BuildingResponse } from '../../organizations/models/building.model';
@@ -60,13 +62,16 @@ import {
         FormsModule,
         ReactiveFormsModule,
         SearchableSelectComponent,
-        PropertyAgreementComponent
+        PropertyAgreementComponent,
+        ContactListComponent,
+        ContactComponent
     ],
     templateUrl: './property.component.html',
     styleUrls: ['./property.component.scss']
 })
 
 export class PropertyComponent implements OnInit, OnChanges, AfterViewInit, OnDestroy, CanComponentDeactivate {
+  readonly EntityType = EntityType;
   readonly propertyCodeDefaultPrompt = 'Enter Code';
   readonly propertyLeaseTypeOptions = getPropertyLeaseTypes();
 
@@ -115,7 +120,7 @@ export class PropertyComponent implements OnInit, OnChanges, AfterViewInit, OnDe
   appliedCopyFromPropertyId: string | null = null;
   codePaletteTargetControl: string | null = null;
  
-  expandedSections = { basic: true, features: true, description: true, agreement: false };
+  expandedSections = { basic: true, features: false, description: false, propertyContacts: false, agreement: false };
   savedFormState: Record<string, unknown> | null = null;
  
   states: string[] = [];
@@ -144,6 +149,11 @@ export class PropertyComponent implements OnInit, OnChanges, AfterViewInit, OnDe
   allRegionsByOrg: RegionResponse[] = [];
   allAreasByOrg: AreaResponse[] = [];
   allBuildingsByOrg: BuildingResponse[] = [];
+
+  showPropertyContactForm = false;
+  formPropertyContactId: string | null = null;
+  formPropertyContactCopyFrom: string | null = null;
+  formPropertyContactEntityTypeId: number | null = null;
 
   itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['offices', 'regions', 'areas', 'buildings', 'contacts']));
   isLoading$: Observable<boolean> = this.itemsToLoad$.pipe(map(items => items.size > 0));
@@ -221,11 +231,6 @@ export class PropertyComponent implements OnInit, OnChanges, AfterViewInit, OnDe
     this.isInAccounting = this.authService.isInAccounting();
     this.isAgentAdmin = this.authService.hasRole(UserGroups.AgentAdmin);
     this.organizationId = this.authService.getUser()?.organizationId?.trim() ?? '';
-    const initialRouteId = this.route.snapshot.paramMap.get('id');
-    if (initialRouteId) {
-      this.expandedSections.agreement = this.canShowPropertyAgreement;
-    }
-
     this.loadStates();
     this.loadContacts();
     this.loadOffices();
@@ -1410,6 +1415,28 @@ export class PropertyComponent implements OnInit, OnChanges, AfterViewInit, OnDe
     const value = this.form?.get(ownerField)?.value;
     return !!value && !this.newContactDialogService.isNewContactOptionValue(value, EntityType.Owner);
   }
+
+  onOpenPropertyContact(event: { contactId: string; copyFrom?: string; entityTypeId?: number }): void {
+    this.formPropertyContactId = event.contactId;
+    this.formPropertyContactCopyFrom = event.copyFrom ?? null;
+    this.formPropertyContactEntityTypeId = event.entityTypeId ?? EntityType.Property;
+    this.showPropertyContactForm = true;
+    this.expandedSections.propertyContacts = true;
+  }
+
+  onPropertyContactClosed(event: { saved?: boolean }): void {
+    this.showPropertyContactForm = false;
+    this.formPropertyContactId = null;
+    this.formPropertyContactCopyFrom = null;
+    this.formPropertyContactEntityTypeId = null;
+    if (event.saved) {
+      this.contactService.refreshContacts().pipe(take(1)).subscribe();
+    }
+  }
+
+  onPropertyContactFormBack(): void {
+    this.onPropertyContactClosed({});
+  }
   //#endregion
 
   //#region Title Bar context 
@@ -2227,8 +2254,6 @@ export class PropertyComponent implements OnInit, OnChanges, AfterViewInit, OnDe
     this.isServiceError = false;
     this.propertyId = id;
     this.isAddMode = id === 'new';
-    this.expandedSections.agreement = this.canShowPropertyAgreement;
-
     const codeControl = this.form.get('propertyCode');
     if (this.isAddMode) {
       codeControl?.setValidators([Validators.required, this.propertyCodeEntryValidator]);

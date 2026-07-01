@@ -52,7 +52,7 @@
         [hasActionsRowClick]="true"
         [hasActionsEdit]="true"
         [hasActionsCopy]="true"
-        [hasActionsLink]="isOwnerAdmin"
+        [hasActionsLink]="isOwnerAdmin && entityTypeId === EntityType.Owner"
         [hasActionsUser]="entityTypeId === EntityType.Owner"
         [userActionTooltip]="'Create or Reset Owner User'"
         [hasActionsDelete]="true"

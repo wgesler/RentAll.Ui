@@ -60,7 +60,7 @@
           class="info-form pt-5"
           [class.mb-8]="!(compactDialogMode && showDialogCancelButton)">
             <div class="mb-4 flex justify-end items-center gap-4 rating-controls-row">
-              @if (!isInOwnerMode) {
+              @if (!isInOwnerMode && form.get('entityTypeId')?.value !== EntityType.Property) {
                 <div class="rating-select-wrap">
                   <span class="rating-label">Rating</span>
                   <div class="rating-stars">
@@ -465,6 +465,34 @@
                       </mat-form-field>
                     </div>
                   }
+                } @else if (form.get('entityTypeId')?.value === EntityType.Property) {
+                  <div class="col-span-4 grid gap-x-1.5 gap-y-1 form-grid-eighths">
+                    <mat-form-field appearance="outline" class="field-min-0 col-span-1">
+                      <mat-label>Code</mat-label>
+                      <input matInput [value]="contact?.contactCode || publicReadOnlyContactCode || ''" readonly disabled>
+                    </mat-form-field>
+                    <mat-form-field appearance="outline" class="field-min-0 col-span-1">
+                      <mat-label>Contact Type</mat-label>
+                      <mat-select formControlName="entityTypeId">
+                        <mat-option value="">Select Contact Type</mat-option>
+                        @for (contactType of availableContactTypes; track contactType.value) {
+                          <mat-option [value]="contactType.value">{{ contactType.label }}</mat-option>
+                        }
+                      </mat-select>
+                    </mat-form-field>
+                    <mat-form-field appearance="outline" class="field-min-0 col-span-2">
+                      <mat-label>Company Name</mat-label>
+                      <input matInput formControlName="companyName" placeholder="Enter company name">
+                    </mat-form-field>
+                    <mat-form-field appearance="outline" class="field-min-0 col-span-2">
+                      <mat-label>First Name</mat-label>
+                      <input matInput formControlName="firstName">
+                    </mat-form-field>
+                    <mat-form-field appearance="outline" class="field-min-0 col-span-2">
+                      <mat-label>Last Name</mat-label>
+                      <input matInput formControlName="lastName">
+                    </mat-form-field>
+                  </div>
                 } @else {
                   @if (!isAddMode) {
                     <div class="col-span-4 grid gap-x-1.5 gap-y-1 form-grid-sixths">
@@ -513,7 +541,7 @@
                   }
                 }
 
-                @if (!isInOwnerMode && form.get('entityTypeId')?.value !== EntityType.Company && form.get('entityTypeId')?.value !== EntityType.Vendor) {
+                @if (!isInOwnerMode && form.get('entityTypeId')?.value !== EntityType.Company && form.get('entityTypeId')?.value !== EntityType.Vendor && form.get('entityTypeId')?.value !== EntityType.Property) {
                   <div class="col-span-4 grid gap-x-1.5 form-grid-four-equal">
                     <mat-form-field appearance="outline" class="field-min-0 col-span-2">
                       <mat-label>Office Access</mat-label>
@@ -534,10 +562,36 @@
                     </mat-form-field>
                   </div>
                 }
+
               }
 
               @if (form.get('entityTypeId')?.value !== EntityType.Vendor) {
-                @if (form.get('entityTypeId')?.value === EntityType.Company && !compactDialogMode) {
+                @if (form.get('entityTypeId')?.value === EntityType.Property) {
+                  <div class="col-span-4 grid gap-x-1.5 gap-y-1 form-grid-eighths">
+                    <mat-form-field appearance="outline" class="field-min-0 col-span-2">
+                      <mat-label>Property Codes</mat-label>
+                      <mat-select formControlName="propertyCodes" multiple>
+                        @for (prop of availablePropertyCodes; track prop.value) {
+                          <mat-option [value]="prop.value">{{ prop.label }}</mat-option>
+                        }
+                      </mat-select>
+                    </mat-form-field>
+                    <mat-form-field appearance="outline" class="field-min-0 col-span-3">
+                      <mat-label>Phone</mat-label>
+                      <input matInput formControlName="phone" maxlength="20" (blur)="formatPhone()" (input)="onPhoneInput($event)"
+                        [required]="needsStrictPhoneValidation(form.get('entityTypeId')?.value)"
+                        placeholder="(555) 555-5555 or +1 234 567 8900">
+                    </mat-form-field>
+                    <mat-form-field appearance="outline" class="field-min-0 col-span-1">
+                      <mat-label>Extension</mat-label>
+                      <input matInput formControlName="extension" maxlength="20">
+                    </mat-form-field>
+                    <mat-form-field appearance="outline" class="field-min-0 col-span-2">
+                      <mat-label>Email</mat-label>
+                      <input matInput type="email" formControlName="email" [required]="form.get('entityTypeId')?.value !== EntityType.Property">
+                    </mat-form-field>
+                  </div>
+                } @else if (form.get('entityTypeId')?.value === EntityType.Company && !compactDialogMode) {
                   <div class="col-span-4 grid gap-x-1.5 gap-y-1 form-grid-eighths">
                     <mat-form-field appearance="outline" class="field-min-0 col-span-3">
                       <mat-label>Phone</mat-label>
@@ -551,7 +605,7 @@
                     </mat-form-field>
                     <mat-form-field appearance="outline" class="field-min-0 col-span-2">
                       <mat-label>Email</mat-label>
-                      <input matInput type="email" formControlName="email" required>
+                      <input matInput type="email" formControlName="email" [required]="form.get('entityTypeId')?.value !== EntityType.Property">
                     </mat-form-field>
                     <mat-form-field appearance="outline" class="field-min-0 col-span-2">
                       <mat-label>Payment Terms</mat-label>
@@ -577,7 +631,7 @@
                     </mat-form-field>
                     <mat-form-field appearance="outline" class="field-min-0 col-span-3">
                       <mat-label>Email</mat-label>
-                      <input matInput type="email" formControlName="email" required>
+                      <input matInput type="email" formControlName="email" [required]="form.get('entityTypeId')?.value !== EntityType.Property">
                     </mat-form-field>
                   </div>
                 }
@@ -624,7 +678,7 @@
                 </div>
               }
 
-              @if (!compactDialogMode) {
+              @if (!compactDialogMode || form.get('entityTypeId')?.value === EntityType.Property) {
                 <mat-form-field appearance="outline" class="col-span-4">
                   <mat-label>Notes</mat-label>
                   <textarea matInput formControlName="notes" rows="3"></textarea>

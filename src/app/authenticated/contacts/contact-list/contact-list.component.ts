@@ -36,6 +36,7 @@ export class ContactListComponent implements OnInit, OnDestroy, OnChanges {
   readonly EntityType = EntityType;
   @Input() entityTypeId?: number;
   @Input() officeId: number | null = null;
+  @Input() propertyCode: string | null = null;
   @Input() showInactive: boolean = false;
   @Input() onlyOwnerNotReady: boolean = false;
   @Input() tabIndex?: number;
@@ -74,6 +75,7 @@ export class ContactListComponent implements OnInit, OnDestroy, OnChanges {
     'propertyCodesDisplay': { displayAs: 'Properties', maxWidth: '20ch' },
     'isActive': { displayAs: 'IsActive', isCheckbox: true, checkboxEditable: true, wrap: false, alignment: 'center', maxWidth: '20ch' }
   };
+
 
   isPageReady = false;
   itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['contacts']));
@@ -139,6 +141,14 @@ export class ContactListComponent implements OnInit, OnDestroy, OnChanges {
 
     if (changes['showInactive'] && !changes['showInactive'].firstChange) {
       this.applyFilters();
+    }
+
+    if (changes['propertyCode']) {
+      const newPropertyCode = changes['propertyCode'].currentValue;
+      const previousPropertyCode = changes['propertyCode'].previousValue;
+      if (previousPropertyCode === undefined || newPropertyCode !== previousPropertyCode) {
+        this.applyFilters();
+      }
     }
 
   }
@@ -353,6 +363,16 @@ export class ContactListComponent implements OnInit, OnDestroy, OnChanges {
           return officeAccess.includes(scopeOfficeId);
         }
         return Number(contact.officeId) === scopeOfficeId;
+      });
+    }
+
+    const scopedPropertyCode = String(this.propertyCode || '').trim().toUpperCase();
+    if (scopedPropertyCode.length > 0) {
+      filtered = filtered.filter(contact => {
+        const codes = (contact.properties || [])
+          .map(code => String(code || '').trim().toUpperCase())
+          .filter(code => code.length > 0);
+        return codes.includes(scopedPropertyCode);
       });
     }
 

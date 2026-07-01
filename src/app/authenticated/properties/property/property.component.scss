@@ -796,6 +796,25 @@ input.no-spinner[type='number'] {
   height: 0.5rem;
 }
 
+.property-contacts-form-header {
+  display: flex;
+  justify-content: flex-end;
+  padding-right: 1.2rem;
+  margin-bottom: 0.75rem;
+}
+
+:host ::ng-deep .property-contacts-embedded-contact .content-card-wrap {
+  justify-content: stretch !important;
+  width: 100%;
+}
+
+:host ::ng-deep .property-contacts-embedded-contact .contact-dialog-shell,
+:host ::ng-deep .property-contacts-embedded-contact section.content-card,
+:host ::ng-deep .property-contacts-embedded-contact section.content-card mat-card {
+  width: 100% !important;
+  max-width: none !important;
+}
+
 /* Owner-mode tweak: keep Bldg No + Mailbox wide enough for 5 chars. */
 .property-page-form--owner-mode .bldg-no-field,
 .property-page-form--owner-mode .mailbox-field {

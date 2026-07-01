@@ -7,7 +7,11 @@ export enum EntityType {
   Owner = 4,
   Tenant = 5,
   Vendor = 6,
-  Hoa = 7
+  Hoa = 7,
+  Ticket = 8,
+  Property = 9,
+  JournalEntry = 10,
+  Receipt = 11
 }
 
 export function getEntityType(entityTypeId: number | undefined): string {
@@ -21,7 +25,11 @@ export function getEntityType(entityTypeId: number | undefined): string {
     [EntityType.Owner]: 'Owner',
     [EntityType.Tenant]: 'Tenant',
     [EntityType.Vendor]: 'Vendor',
-    [EntityType.Hoa]: 'HOA'
+    [EntityType.Hoa]: 'HOA',
+    [EntityType.Ticket]: 'Ticket',
+    [EntityType.Property]: 'Property',
+    [EntityType.JournalEntry]: 'Journal Entry',
+    [EntityType.Receipt]: 'Receipt'
   };
   
   return typeMap[entityTypeId] || '';

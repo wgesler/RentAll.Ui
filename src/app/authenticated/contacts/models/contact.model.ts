@@ -108,6 +108,7 @@ export interface ContactListDisplay {
   contactType: string;
   entityTypeId?: number;
   ownerTypeId?: number | null;
+  properties?: string[];
   propertyCodesDisplay?: string;
   companyName?: string | null;
   companyEmail?: string | null;

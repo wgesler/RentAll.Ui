@@ -975,6 +975,40 @@
               </mat-expansion-panel>
             }
 
+            @if (!isInOwnerMode) {
+              <mat-expansion-panel [expanded]="expandedSections.propertyContacts" (opened)="onPanelOpened('propertyContacts')" (closed)="onPanelClosed('propertyContacts')" class="mb-4">
+                <mat-expansion-panel-header>
+                  <mat-panel-title>Property Contacts</mat-panel-title>
+                </mat-expansion-panel-header>
+                @if (showPropertyContactForm) {
+                  <div class="property-contacts-form-header">
+                    <button mat-raised-button type="button" color="accent" (click)="onPropertyContactFormBack()">
+                      <mat-icon>arrow_back</mat-icon>
+                      Back
+                    </button>
+                  </div>
+                  <app-contact
+                    class="property-contacts-embedded-contact"
+                    [id]="formPropertyContactId ?? 'new'"
+                    [copyFrom]="formPropertyContactCopyFrom"
+                    [presetEntityTypeId]="formPropertyContactEntityTypeId ?? EntityType.Property"
+                    [presetOfficeId]="sharedPropertyOfficeId"
+                    [preselectPropertyCodes]="sharedPropertyCode ? [sharedPropertyCode] : []"
+                    [preselectPropertyOfficeId]="sharedPropertyOfficeId"
+                    [compactDialogMode]="true"
+                    [showDialogCancelButton]="false"
+                    (closed)="onPropertyContactClosed($event)" />
+                } @else {
+                  <app-contact-list
+                    [entityTypeId]="EntityType.Property"
+                    [officeId]="sharedPropertyOfficeId"
+                  [propertyCode]="sharedPropertyCode"
+                    [showInactive]="false"
+                    (openContact)="onOpenPropertyContact($event)" />
+                }
+              </mat-expansion-panel>
+            }
+
             @if (canShowPropertyAgreement) {
             <mat-expansion-panel [expanded]="expandedSections.agreement" (opened)="onPanelOpened('agreement')" (closed)="onPanelClosed('agreement')" class="mb-4">
               <mat-expansion-panel-header>
