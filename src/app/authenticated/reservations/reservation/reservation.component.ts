@@ -37,7 +37,7 @@ import { OrganizationResponse } from '../../organizations/models/organization.mo
 import { AgentService } from '../../organizations/services/agent.service';
 import { GlobalSelectionService } from '../../organizations/services/global-selection.service';
 import { OfficeService } from '../../organizations/services/office.service';
-import { CheckinTimes, CheckoutTimes, getCheckInTimes, getCheckOutTimes, normalizeCheckInTimeId, normalizeCheckOutTimeId } from '../../properties/models/property-enums';
+import { CheckinTimes, CheckoutTimes, PropertyLeaseType, getCheckInTimes, getCheckOutTimes, normalizeCheckInTimeId, normalizeCheckOutTimeId } from '../../properties/models/property-enums';
 import { PropertyCodeResponse, PropertyResponse } from '../../properties/models/property.model';
 import { PropertyService } from '../../properties/services/property.service';
 import { SearchableSelectComponent, SearchableSelectOption } from '../../shared/searchable-select/searchable-select.component';
@@ -713,6 +713,8 @@ export class ReservationComponent implements OnInit, OnDestroy, CanComponentDeac
       reservationNoticeId: new FormControl(ReservationNotice.ThirtyDays, [Validators.required]),
       arrivalDate: new FormControl(null, [Validators.required]),
       departureDate: new FormControl(null, [Validators.required, this.departureAfterArrivalValidator]),
+      billingStartDate: new FormControl<Date | null>(null),
+      billingEndDate: new FormControl<Date | null>(null),
       numberOfStayDays: new FormControl<string | null>(null),
       checkInTimeId: new FormControl<number>(CheckinTimes.FourPM, [Validators.required]),
       checkOutTimeId: new FormControl<number>(CheckoutTimes.ElevenAM, [Validators.required]),
@@ -783,6 +785,12 @@ export class ReservationComponent implements OnInit, OnDestroy, CanComponentDeac
       departureDate:
         this.utilityService.formatDateOnlyForApi(formValue['departureDate'] as Date | null | undefined) ??
         this.utilityService.todayAsCalendarDateString(),
+      billingStartDate:
+        this.utilityService.formatDateOnlyForApi(formValue['billingStartDate'] as Date | null | undefined) ??
+        null,
+      billingEndDate:
+        this.utilityService.formatDateOnlyForApi(formValue['billingEndDate'] as Date | null | undefined) ??
+        null,
       checkInTimeId: normalizeCheckInTimeId(formValue['checkInTimeId'] as number | null | undefined),
       checkOutTimeId: normalizeCheckOutTimeId(formValue['checkOutTimeId'] as number | null | undefined),
       lockBoxCode: (formValue['lockBoxCode'] as string | null | undefined) || null,
@@ -861,6 +869,8 @@ export class ReservationComponent implements OnInit, OnDestroy, CanComponentDeac
       reservationNoticeId: this.reservation.reservationNoticeId,
       arrivalDate: this.parseDateOnly(this.reservation.arrivalDate),
       departureDate: this.parseDateOnly(this.reservation.departureDate),
+      billingStartDate: this.parseDateOnly(this.reservation.billingStartDate),
+      billingEndDate: this.parseDateOnly(this.reservation.billingEndDate),
       checkInTimeId: this.reservation.checkInTimeId,
       checkOutTimeId: this.reservation.checkOutTimeId,
       lockBoxCode: this.reservation.lockBoxCode || '',
@@ -992,6 +1002,8 @@ export class ReservationComponent implements OnInit, OnDestroy, CanComponentDeac
       reservationNoticeId: source.reservationNoticeId ?? undefined,
       arrivalDate: today,
       departureDate: departure,
+      billingStartDate: this.parseDateOnly(source.billingStartDate),
+      billingEndDate: this.parseDateOnly(source.billingEndDate),
       checkInTimeId: source.checkInTimeId,
       checkOutTimeId: source.checkOutTimeId,
       lockBoxCode: source.lockBoxCode || '',
@@ -1652,6 +1664,8 @@ export class ReservationComponent implements OnInit, OnDestroy, CanComponentDeac
       this.disableFieldWithValidation('billingMethodId');
       this.disableFieldWithValidation('prorateTypeId');
       this.disableFieldWithValidation('billingRate');
+      this.disableFieldWithValidation('billingStartDate');
+      this.disableFieldWithValidation('billingEndDate');
       this.disableFieldWithValidation('depositType');      
       this.disableFieldWithValidation('deposit');
       this.disableFieldWithValidation('departureFee');
@@ -1670,6 +1684,8 @@ export class ReservationComponent implements OnInit, OnDestroy, CanComponentDeac
       this.enableFieldWithValidation('billingMethodId', [Validators.required]);
       this.enableFieldWithValidation('prorateTypeId', [Validators.required]);
       this.enableFieldWithValidation('billingRate', [Validators.required]);
+      this.enableFieldWithValidation('billingStartDate');
+      this.enableFieldWithValidation('billingEndDate');
       this.enableFieldWithValidation('depositType', [Validators.required]);
       this.enableFieldWithValidation('deposit', [Validators.required]);
       this.enableFieldWithValidation('departureFee', [Validators.required]);
@@ -2863,6 +2879,16 @@ export class ReservationComponent implements OnInit, OnDestroy, CanComponentDeac
   get isOwnerReservationType(): boolean {
     const reservationTypeId = this.form?.get('reservationTypeId')?.value as number | null;
     return reservationTypeId === ReservationType.Owner;
+  }
+
+  get showBillingPeriodFields(): boolean {
+    const formPropertyId = String(this.form?.get('propertyId')?.value ?? '').trim();
+    const leaseTypeFromSelectedProperty = this.selectedProperty?.propertyLeaseTypeId;
+    const leaseTypeFromPropertyCode = formPropertyId
+      ? this.propertyCodes.find(property => property.propertyId === formPropertyId)?.propertyLeaseTypeId
+      : null;
+    const leaseTypeId = Number(leaseTypeFromSelectedProperty ?? leaseTypeFromPropertyCode ?? 0);
+    return leaseTypeId === PropertyLeaseType.Direct || leaseTypeId === PropertyLeaseType.ThirdParty;
   }
 
   getExtraFeeFrequencyValue(frequencyId: number | undefined | null): number | null {

@@ -20,6 +20,8 @@ export interface ReservationRequest {
   referenceNo: string;
   arrivalDate: CalendarDateString;
   departureDate: CalendarDateString;
+  billingStartDate?: CalendarDateString | null;
+  billingEndDate?: CalendarDateString | null;
   checkInTimeId: number;
   checkOutTimeId: number;
   maidUserId?: string | null;
@@ -70,6 +72,7 @@ export interface ReservationResponse {
   officeName: string;
   agentId?: string | null;
   propertyId: string;
+  noticeStatusId?: number | null;
   reservationCode: string;
   reservationTypeId: number;
   reservationStatusId: number;
@@ -83,6 +86,8 @@ export interface ReservationResponse {
   referenceNo: string;
   arrivalDate: CalendarDateString;
   departureDate: CalendarDateString;
+  billingStartDate?: CalendarDateString | null;
+  billingEndDate?: CalendarDateString | null;
   checkInTimeId: number;
   checkOutTimeId: number;
   maidUserId?: string | null;
@@ -136,6 +141,7 @@ export interface ReservationListResponse {
   reservationCode: string;
   propertyId: string;
   propertyCode: string;
+  noticeStatusId?: number | null;
   officeId: number;
   officeName: string;
   contactId: string;
@@ -196,6 +202,7 @@ export interface ReservationListDisplay {
   reservationCode: string;
   propertyId: string;
   propertyCode: string;
+  noticeStatusId?: number | null;
   officeId: number;
   officeName: string;
   office?: string | null;

@@ -297,6 +297,7 @@ export interface PropertyResponse {
 export interface PropertyListResponse{
   propertyId: string;
   propertyCode: string;
+  noticeStatusId?: number | null;
   propertyLeaseTypeId: number;
   shortAddress: string;
   officeId: number;  

@@ -860,6 +860,8 @@ export class MixedMappingService {
       referenceNo: reservation.referenceNo || '',
       arrivalDate: reservation.arrivalDate,
       departureDate: reservation.departureDate,
+      billingStartDate: reservation.billingStartDate ?? null,
+      billingEndDate: reservation.billingEndDate ?? null,
       checkInTimeId: reservation.checkInTimeId,
       checkOutTimeId: reservation.checkOutTimeId,
       maidUserId: reservation.maidUserId ?? null,

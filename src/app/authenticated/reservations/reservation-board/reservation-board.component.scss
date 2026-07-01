@@ -524,6 +524,23 @@
   }
 }
 
+.reservation-property-code-link.reservation-property-code-link--gave-notice {
+  color: #ff0000;
+
+  &:hover {
+    color: #e60000;
+  }
+}
+
+.reservation-property-code-link.reservation-property-code-link--month-to-month {
+  color: #000000;
+  font-weight: 500;
+
+  &:hover {
+    color: #000000;
+  }
+}
+
 .property-cell {
   display: table-cell;
   padding: 2px 4px;

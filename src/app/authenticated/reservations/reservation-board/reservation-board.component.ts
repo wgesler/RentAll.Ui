@@ -27,7 +27,7 @@ import { PropertySelectionFilterService } from '../../properties/services/proper
 import { PropertyService } from '../../properties/services/property.service';
 import { hasRealtorRole } from '../../shared/access/role-access';
 import { BoardProperty, CalendarDay } from '../models/reservation-board-model';
-import { getReservationStatus, ReservationNotice, ReservationStatus } from '../models/reservation-enum';
+import { getReservationStatus, NoticeStatusType, ReservationNotice, ReservationStatus } from '../models/reservation-enum';
 import { ReservationListResponse } from '../models/reservation-model';
 import { ReservationService } from '../services/reservation.service';
 @Component({
@@ -50,6 +50,7 @@ export class ReservationBoardComponent implements OnInit, OnChanges, OnDestroy {
   readonly boardAddressMaxChars = 23;
   readonly reservationPollIntervalMs = 60_000;
   getPropertyStatusLetter = getPropertyStatusLetter;  
+  readonly noticeStatusType = NoticeStatusType;
   properties: BoardProperty[] = [];
   allPropertyRows: PropertyListResponse[] = [];
   propertyRows: PropertyListResponse[] = [];
@@ -1257,6 +1258,16 @@ export class ReservationBoardComponent implements OnInit, OnChanges, OnDestroy {
       return text;
     }
     return text.slice(0, this.boardAddressMaxChars) + '…';
+  }
+
+  getPropertyCodeClass(noticeStatusId: number | null | undefined): string {
+    if (noticeStatusId === NoticeStatusType.GaveNotice) {
+      return 'reservation-property-code-link--gave-notice';
+    }
+    if (noticeStatusId === NoticeStatusType.MonthToMonth) {
+      return 'reservation-property-code-link--month-to-month';
+    }
+    return '';
   }
 
   getCheckedInColorByNotice(reservation: ReservationListResponse, baseColor: string | null): string | null {

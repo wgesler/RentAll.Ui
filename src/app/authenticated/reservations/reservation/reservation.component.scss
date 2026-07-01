@@ -261,6 +261,20 @@
       margin-bottom: 0 !important;
     }
   }
+
+  &.reservation-dates-codes-row--direct-third-party {
+    grid-template-columns:
+      minmax(0, 1fr)    // Arrival Date
+      minmax(0, 1fr)    // Departure Date
+      minmax(0, 1fr)    // Billing Start Date
+      minmax(0, 1fr)    // Billing End Date
+      minmax(0, 0.9167fr) // No of Days
+      minmax(0, 0.9167fr) // Check-In Time
+      minmax(0, 0.9167fr) // Check-Out Time
+      minmax(0, 0.9167fr) // Lock Box Code
+      minmax(0, 0.9167fr) // Unit Tenant Code
+      minmax(0, 0.9167fr); // Garage Code
+  }
 }
 
 .code-symbol-field {

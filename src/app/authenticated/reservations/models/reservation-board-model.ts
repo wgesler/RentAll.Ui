@@ -2,6 +2,7 @@ export interface BoardProperty {
   propertyId: string;
   officeId: number;
   propertyCode: string;
+  noticeStatusId?: number | null;
   address: string;
   monthlyRate: number;
   dailyRate: number;
