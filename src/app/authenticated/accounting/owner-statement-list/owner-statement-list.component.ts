@@ -99,6 +99,11 @@ interface OwnerStatementPropertyActivityLineDisplay {
   expenses: string;
 }
 
+interface OwnerStatementDescriptionSegment {
+  text: string;
+  code: string | null;
+}
+
 export type OwnerStatementReportKind = 'accrual' | 'cash';
 
 export interface OwnerStatementActivityLinkSelection {
@@ -895,27 +900,85 @@ export class OwnerStatementListComponent implements OnInit, OnChanges, OnDestroy
   }
 
   onActivityCodeClick(row: OwnerStatementVisibleRow): void {
-    if (row.kind !== 'propertyActivity' || !row.officeId || !row.propertyId) {
+    const selection = this.getActivityLinkSelection(row);
+    if (!selection) {
+      return;
+    }
+    this.activityLinkSelect.emit(selection);
+  }
+
+  onItemDescriptionCodeClick(row: OwnerStatementVisibleRow, code: string): void {
+    const selection = this.getActivityLinkSelection(row);
+    if (!selection) {
       return;
     }
 
-    const activity = this.propertyActivityLinesByPropertyRowId
-      .values();
-    const allActivityRows = Array.from(activity)
-      .reduce((acc, next) => acc.concat(next), [] as OwnerStatementPropertyActivityLineDisplay[]);
-    const matchedActivity = allActivityRows
-      .find(line => line.rowId === row.rowId);
-    if (!matchedActivity) {
+    const normalizedCode = (code || '').trim();
+    if (!normalizedCode) {
       return;
     }
 
     this.activityLinkSelect.emit({
+      ...selection,
+      activityCode: normalizedCode
+    });
+  }
+
+  getItemDescriptionSegments(row: OwnerStatementVisibleRow): OwnerStatementDescriptionSegment[] {
+    if (row.kind !== 'propertyActivity') {
+      return [{ text: row.itemDescription, code: null }];
+    }
+
+    const text = row.itemDescription || '';
+    if (!text) {
+      return [{ text: '', code: null }];
+    }
+
+    const segments: OwnerStatementDescriptionSegment[] = [];
+    const codeRegex = /\b(?:WO-[A-Za-z0-9-]+|R-\d+|RC[A-Za-z0-9-]*)\b/ig;
+    let startIndex = 0;
+    let matched = codeRegex.exec(text);
+    while (matched) {
+      const matchIndex = matched.index;
+      if (matchIndex > startIndex) {
+        segments.push({ text: text.slice(startIndex, matchIndex), code: null });
+      }
+
+      segments.push({ text: matched[0], code: matched[0] });
+      startIndex = matchIndex + matched[0].length;
+      matched = codeRegex.exec(text);
+    }
+
+    if (startIndex < text.length) {
+      segments.push({ text: text.slice(startIndex), code: null });
+    }
+
+    if (segments.length === 0) {
+      return [{ text, code: null }];
+    }
+
+    return segments;
+  }
+
+  private getActivityLinkSelection(row: OwnerStatementVisibleRow): OwnerStatementActivityLinkSelection | null {
+    if (row.kind !== 'propertyActivity' || !row.officeId || !row.propertyId) {
+      return null;
+    }
+
+    const allActivityRows = Array.from(this.propertyActivityLinesByPropertyRowId.values())
+      .reduce((acc, next) => acc.concat(next), [] as OwnerStatementPropertyActivityLineDisplay[]);
+    const matchedActivity = allActivityRows.find(line => line.rowId === row.rowId);
+    if (!matchedActivity) {
+      return null;
+    }
+
+    return {
       activityId: matchedActivity.activityId,
       activityCode: matchedActivity.documentCode,
       activityType: matchedActivity.activityType,
       officeId: row.officeId,
       propertyId: row.propertyId
-    });
+    };
   }
 
   get areAllOfficeRowsExpanded(): boolean {

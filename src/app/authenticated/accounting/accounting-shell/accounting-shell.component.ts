@@ -1164,10 +1164,26 @@ export class AccountingShellComponent implements OnInit, OnDestroy {
   onOwnerStatementActivityLinkSelect(selection: OwnerStatementActivityLinkSelection): void {
     const activityId = (selection?.activityId || '').trim();
     const activityCode = (selection?.activityCode || '').trim();
+    const activityType = (selection?.activityType || '').trim().toLowerCase();
     const propertyId = (selection?.propertyId || '').trim() || null;
     const officeId = selection?.officeId ?? this.selectedOfficeId ?? null;
     const resolvedOfficeId = officeId != null && Number.isFinite(Number(officeId)) ? Number(officeId) : null;
-    if (!activityCode) {
+    if (!activityCode && !activityType) {
+      return;
+    }
+
+    if (activityType === 'workorder') {
+      this.openOwnerStatementWorkOrder(activityId, activityCode, propertyId);
+      return;
+    }
+
+    if (activityType === 'bill' || activityType === 'receipt') {
+      this.openOwnerStatementReceipt(activityId, activityCode, resolvedOfficeId, propertyId);
+      return;
+    }
+
+    if (activityType === 'reservation' || activityType === 'invoice') {
+      this.openOwnerStatementInvoice(activityId, activityCode, resolvedOfficeId);
       return;
     }
 

@@ -163,7 +163,24 @@
                     </div>
                   </td>
                   <td class="owner-statement-col-property">{{ row.propertyCode }}</td>
-                  <td class="owner-statement-col-item-description">{{ row.itemDescription }}</td>
+                  <td class="owner-statement-col-item-description">
+                    @if (row.kind === 'propertyActivity') {
+                      @for (segment of getItemDescriptionSegments(row); track $index) {
+                        @if (segment.code) {
+                          <button
+                            type="button"
+                            class="owner-statement-activity-link owner-statement-item-description-link"
+                            (click)="$event.stopPropagation(); onItemDescriptionCodeClick(row, segment.code)">
+                            {{ segment.text }}
+                          </button>
+                        } @else {
+                          <span>{{ segment.text }}</span>
+                        }
+                      }
+                    } @else {
+                      {{ row.itemDescription }}
+                    }
+                  </td>
                   @if (reportKind === 'accrual') {
                     <td class="owner-statement-col-amount">
                       <button type="button" class="owner-statement-amount-link" [class.owner-statement-amount-link--active]="canDrillDownAmount(row, 'expected')" [disabled]="!canDrillDownAmount(row, 'expected')" (click)="$event.stopPropagation(); onAmountCellClick(row, 'expected')">{{ row.expected }}</button>

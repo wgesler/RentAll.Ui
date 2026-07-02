@@ -208,6 +208,11 @@
   font-variant-numeric: tabular-nums;
 }
 
+.owner-statement-item-description-link {
+  display: inline;
+  white-space: inherit;
+}
+
 .owner-statement-col-label {
   width: 17rem;
   min-width: 17rem;
