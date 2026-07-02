@@ -65,13 +65,7 @@
                 @if (reportKind === 'accrual') {
                   <th class="owner-statement-col-amount">
                     <div class="owner-statement-header-two-line">
-                      <span>Expected</span>
-                      <span>Income</span>
-                    </div>
-                  </th>
-                  <th class="owner-statement-col-amount">
-                    <div class="owner-statement-header-two-line">
-                      <span>Received</span>
+                      <span>Invoiced</span>
                       <span>Income</span>
                     </div>
                   </th>
@@ -190,9 +184,6 @@
                   @if (reportKind === 'accrual') {
                     <td class="owner-statement-col-amount">
                       <button type="button" class="owner-statement-amount-link" [class.owner-statement-amount-link--active]="canDrillDownAmount(row, 'expected')" [disabled]="!canDrillDownAmount(row, 'expected')" (click)="$event.stopPropagation(); onAmountCellClick(row, 'expected')">{{ row.expected }}</button>
-                    </td>
-                    <td class="owner-statement-col-amount">
-                      <button type="button" class="owner-statement-amount-link" [class.owner-statement-amount-link--active]="canDrillDownAmount(row, 'income')" [disabled]="!canDrillDownAmount(row, 'income')" (click)="$event.stopPropagation(); onAmountCellClick(row, 'income')">{{ row.income }}</button>
                     </td>
                     <td class="owner-statement-col-amount">
                       <button type="button" class="owner-statement-amount-link" [class.owner-statement-amount-link--active]="canDrillDownAmount(row, 'expenses')" [disabled]="!canDrillDownAmount(row, 'expenses')" (click)="$event.stopPropagation(); onAmountCellClick(row, 'expenses')">{{ row.expenses }}</button>

@@ -1414,6 +1414,7 @@ export class WorkOrderComponent implements OnInit, OnChanges, OnDestroy {
   loadPropertyReceipts(): void {
     if (!this.selectedPropertyId) {
       this.propertyReceipts = [];
+      this.cdr.detectChanges();
       return;
     }
     this.receiptService.getReceiptsByPropertyId(this.selectedPropertyId).pipe(take(1)).subscribe({
@@ -1425,6 +1426,7 @@ export class WorkOrderComponent implements OnInit, OnChanges, OnDestroy {
           this.syncReceiptAmounts();
         }
         this.refreshBaselineAfterDataLoad();
+        this.cdr.detectChanges();
       },
       error: () => {
         this.propertyReceipts = this.mergeAssociatedReceipts([]);
@@ -1433,6 +1435,7 @@ export class WorkOrderComponent implements OnInit, OnChanges, OnDestroy {
           this.syncReceiptAmounts();
         }
         this.refreshBaselineAfterDataLoad();
+        this.cdr.detectChanges();
       }
     });
   }
@@ -1452,6 +1455,7 @@ export class WorkOrderComponent implements OnInit, OnChanges, OnDestroy {
         this.syncReceiptAmounts();
       }
       this.refreshBaselineAfterDataLoad();
+      this.cdr.detectChanges();
       return;
     }
 
@@ -1471,6 +1475,7 @@ export class WorkOrderComponent implements OnInit, OnChanges, OnDestroy {
           this.syncReceiptAmounts();
         }
         this.refreshBaselineAfterDataLoad();
+        this.cdr.detectChanges();
       }
     });
   }
