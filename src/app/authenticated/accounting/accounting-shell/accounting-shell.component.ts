@@ -1175,6 +1175,11 @@ export class AccountingShellComponent implements OnInit, OnDestroy {
       return;
     }
 
+    if (/^JE/i.test(activityCode)) {
+      this.openOwnerStatementJournalEntryByCode(activityCode);
+      return;
+    }
+
     if (activityType === 'workorder') {
       this.openOwnerStatementWorkOrder(activityId, activityCode, propertyId);
       return;
@@ -1203,6 +1208,25 @@ export class AccountingShellComponent implements OnInit, OnDestroy {
     if (/^R-\d+/i.test(activityCode)) {
       this.openOwnerStatementInvoice(activityId, activityCode, resolvedOfficeId);
     }
+  }
+
+  private openOwnerStatementJournalEntryByCode(journalEntryCode: string): void {
+    this.generalLedgerService.getJournalEntryByCode(journalEntryCode).pipe(take(1)).subscribe({
+      next: journalEntry => {
+        if (!journalEntry?.journalEntryId) {
+          this.toastr.error('Unable to locate journal entry by code.', 'Error');
+          return;
+        }
+
+        this.selectedTabIndex = this.tabOwners;
+        this.selectedOwnerKind = 'statements';
+        this.showOwnerStatementJournalEntryLines = true;
+        this.activeJournalEntryId = journalEntry.journalEntryId;
+        this.selectedJournalEntryLineId = null;
+        this.showGeneralLedgerDetail = true;
+      },
+      error: () => this.toastr.error('Unable to locate journal entry by code.', 'Error')
+    });
   }
 
   onOwnersStatementViewStateChange(viewState: OwnerStatementListViewState): void {
