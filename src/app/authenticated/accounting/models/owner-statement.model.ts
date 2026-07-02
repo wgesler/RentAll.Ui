@@ -242,6 +242,7 @@ export interface OwnerStatementPropertyActivityLineDisplay {
   activityDate: string;
   documentCode: string;
   description: string;
+  expectedIncome: string;
   receivedIncome: string;
   expenses: string;
 }

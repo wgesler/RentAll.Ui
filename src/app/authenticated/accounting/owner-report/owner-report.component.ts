@@ -693,6 +693,7 @@ export class OwnerReportComponent implements OnInit, OnChanges, OnDestroy {
       activityDate: this.formatMonthDay(line.activityDate),
       documentCode: line.documentCode || '',
       description: line.description || '',
+      expectedIncome: this.formatter.currencyUsd(Number(line.expectedIncome) || 0),
       receivedIncome: this.formatter.currencyUsd(Number(line.receivedIncome) || 0),
       expenses: this.formatter.currencyUsd(Number(line.expenses) || 0)
     }));
