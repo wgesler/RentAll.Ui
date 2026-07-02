@@ -2349,6 +2349,10 @@ export class AccountingShellComponent implements OnInit, OnDestroy {
             this.printChecksRefreshTrigger++;
             this.ownersUtilitiesRefreshTrigger++;
             this.ownersWorkOrdersRefreshTrigger++;
+            this.ownersStatementsRefreshTrigger++;
+            if (this.selectedTabIndex === this.tabOwners && this.selectedOwnerKind === 'statements' && this.showOwnerStatementJournalEntryLines) {
+              this.ownerStatementJournalEntryLinesRefreshTrigger++;
+            }
             this.financialReportsRefreshTrigger++;
             this.generalLedgerRefreshTrigger++;
           });
