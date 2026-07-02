@@ -1,5 +1,5 @@
 import { CommonModule } from '@angular/common';
-import { ChangeDetectionStrategy, ChangeDetectorRef, Component, EventEmitter, Input, OnChanges, OnDestroy, OnInit, Output, SimpleChanges } from '@angular/core';
+import { ChangeDetectionStrategy, ChangeDetectorRef, Component, ElementRef, EventEmitter, Input, OnChanges, OnDestroy, OnInit, Output, SimpleChanges, ViewChild } from '@angular/core';
 import { BehaviorSubject, finalize, Subject, take, takeUntil } from 'rxjs';
 import { MaterialModule } from '../../../material.module';
 import { CommonService } from '../../../services/common.service';
@@ -99,6 +99,8 @@ interface OwnerStatementPropertyActivityLineDisplay {
   expenses: string;
 }
 
+export type OwnerStatementReportKind = 'accrual' | 'cash';
+
 export interface OwnerStatementActivityLinkSelection {
   activityId: string | null;
   activityCode: string;
@@ -128,11 +130,14 @@ export interface OwnerStatementListViewState {
   changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class OwnerStatementListComponent implements OnInit, OnChanges, OnDestroy {
+  @ViewChild('ownerStatementTableWrap') ownerStatementTableWrap?: ElementRef<HTMLElement>;
   @Input() searchRequest?: MaintenanceListSearchRequest | null;
   @Input() refreshTrigger = 0;
+  @Input() reportKind: OwnerStatementReportKind = 'accrual';
   @Input() viewState: OwnerStatementListViewState | null = null;
   @Output() activityLinkSelect = new EventEmitter<OwnerStatementActivityLinkSelection>();
   @Output() amountDrillDownSelect = new EventEmitter<OwnerStatementAmountDrillDownSelection>();
+  @Output() reportKindChange = new EventEmitter<OwnerStatementReportKind>();
   @Output() viewStateChange = new EventEmitter<OwnerStatementListViewState>();
 
   isPageReady = false;
@@ -143,9 +148,12 @@ export class OwnerStatementListComponent implements OnInit, OnChanges, OnDestroy
   visibleRows: OwnerStatementVisibleRow[] = [];
   expandedRowIds = new Set<string>();
   ownerCloseOnNextToggleRowIds = new Set<string>();
+  officeCloseOnNextToggleRowIds = new Set<string>();
   propertyActivityLinesByPropertyRowId = new Map<string, OwnerStatementPropertyActivityLineDisplay[]>();
   propertyActivityLoadingRowIds = new Set<string>();
   propertyActivityErrorRowIds = new Set<string>();
+  ownerStatementFixedHeightPx = 0;
+  dimensionsUpdateScheduled = false;
   itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['ownerStatements']));
   destroy$ = new Subject<void>();
 
@@ -197,6 +205,7 @@ export class OwnerStatementListComponent implements OnInit, OnChanges, OnDestroy
       this.visibleRows = [];
       this.expandedRowIds.clear();
       this.ownerCloseOnNextToggleRowIds.clear();
+      this.officeCloseOnNextToggleRowIds.clear();
       this.clearPropertyActivityState();
       this.isServiceError = false;
       this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'ownerStatements');
@@ -225,6 +234,7 @@ export class OwnerStatementListComponent implements OnInit, OnChanges, OnDestroy
         this.visibleRows = [];
         this.expandedRowIds.clear();
         this.ownerCloseOnNextToggleRowIds.clear();
+        this.officeCloseOnNextToggleRowIds.clear();
         this.clearPropertyActivityState();
         this.emitViewStateChange();
         this.markViewForCheck();
@@ -519,40 +529,21 @@ export class OwnerStatementListComponent implements OnInit, OnChanges, OnDestroy
     if (row.kind === 'owner') {
       const propertyRows = this.getPropertyRowsForOwner(row.rowId);
       const propertyRowIds = propertyRows.map(property => property.rowId);
-      const hasExpandedProperties = propertyRowIds.some(propertyRowId => this.expandedRowIds.has(propertyRowId));
+      const isExpanded = this.expandedRowIds.has(row.rowId);
 
-      // Owner rows use a 4-step cycle:
-      // 1) closed -> open
-      // 2) open -> open + all property subordinates
-      // 3) open + subordinates -> close subordinates
-      // 4) open -> close
-      if (!this.expandedRowIds.has(row.rowId)) {
-        this.expandedRowIds.add(row.rowId);
-        this.ownerCloseOnNextToggleRowIds.delete(row.rowId);
-        this.rebuildVisibleRows();
-        this.emitViewStateChange();
-        this.markViewForCheck();
-        return;
-      }
-
-      if (hasExpandedProperties) {
-        propertyRowIds.forEach(propertyRowId => this.expandedRowIds.delete(propertyRowId));
-        this.ownerCloseOnNextToggleRowIds.add(row.rowId);
-        this.rebuildVisibleRows();
-        this.emitViewStateChange();
-        this.markViewForCheck();
-        return;
-      }
-
-      if (this.ownerCloseOnNextToggleRowIds.has(row.rowId)) {
+      // Owner row toggle behaves as a single unit:
+      // closed -> open owner + all properties (+ load property activity)
+      // open -> close owner + all properties
+      if (isExpanded) {
         this.expandedRowIds.delete(row.rowId);
-        this.ownerCloseOnNextToggleRowIds.delete(row.rowId);
+        propertyRowIds.forEach(propertyRowId => this.expandedRowIds.delete(propertyRowId));
         this.rebuildVisibleRows();
         this.emitViewStateChange();
         this.markViewForCheck();
         return;
       }
 
+      this.expandedRowIds.add(row.rowId);
       propertyRows.forEach(property => this.expandedRowIds.add(property.rowId));
       this.ownerCloseOnNextToggleRowIds.delete(row.rowId);
       this.rebuildVisibleRows();
@@ -598,19 +589,88 @@ export class OwnerStatementListComponent implements OnInit, OnChanges, OnDestroy
 
     if (row.kind === 'office') {
       const ownerRowIds = this.getOwnerRowIdsForOffice(row.rowId);
-      const hasExpandedOwners = ownerRowIds.some(ownerRowId => this.expandedRowIds.has(ownerRowId));
+      const propertyRows = ownerRowIds.flatMap(ownerRowId => this.getPropertyRowsForOwner(ownerRowId));
+      const propertyRowIds = propertyRows.map(property => property.rowId);
+      const isOfficeExpanded = this.expandedRowIds.has(row.rowId);
+      const hasExpandedSubordinates = ownerRowIds.some(ownerRowId => this.expandedRowIds.has(ownerRowId))
+        || propertyRowIds.some(propertyRowId => this.expandedRowIds.has(propertyRowId));
 
-      // Triple-toggle behavior for office rows:
-      // 1) If any owners are open, close owner rows first and keep office open.
-      // 2) If no owners are open, then toggle office open/closed.
-      if (hasExpandedOwners) {
-        ownerRowIds.forEach(ownerRowId => this.expandedRowIds.delete(ownerRowId));
-        ownerRowIds.forEach(ownerRowId => this.ownerCloseOnNextToggleRowIds.delete(ownerRowId));
+      // Office row 4-step cycle:
+      // 1) closed -> open office
+      // 2) open -> open + all owner/property subordinates
+      // 3) open + subordinates -> close subordinates (office remains open)
+      // 4) open -> close office
+      if (!isOfficeExpanded) {
+        this.expandedRowIds.add(row.rowId);
+        this.officeCloseOnNextToggleRowIds.delete(row.rowId);
         this.rebuildVisibleRows();
         this.emitViewStateChange();
         this.markViewForCheck();
         return;
       }
+
+      if (hasExpandedSubordinates) {
+        ownerRowIds.forEach(ownerRowId => this.expandedRowIds.delete(ownerRowId));
+        propertyRowIds.forEach(propertyRowId => this.expandedRowIds.delete(propertyRowId));
+        ownerRowIds.forEach(ownerRowId => this.ownerCloseOnNextToggleRowIds.delete(ownerRowId));
+        this.officeCloseOnNextToggleRowIds.add(row.rowId);
+        this.rebuildVisibleRows();
+        this.emitViewStateChange();
+        this.markViewForCheck();
+        return;
+      }
+
+      if (this.officeCloseOnNextToggleRowIds.has(row.rowId)) {
+        this.expandedRowIds.delete(row.rowId);
+        this.officeCloseOnNextToggleRowIds.delete(row.rowId);
+        this.rebuildVisibleRows();
+        this.emitViewStateChange();
+        this.markViewForCheck();
+        return;
+      }
+
+      ownerRowIds.forEach(ownerRowId => this.expandedRowIds.add(ownerRowId));
+      propertyRowIds.forEach(propertyRowId => this.expandedRowIds.add(propertyRowId));
+      this.officeCloseOnNextToggleRowIds.delete(row.rowId);
+      this.rebuildVisibleRows();
+      this.emitViewStateChange();
+      this.markViewForCheck();
+
+      propertyRows.forEach(property => {
+        if (!this.propertyActivityLinesByPropertyRowId.has(property.rowId) && !this.propertyActivityLoadingRowIds.has(property.rowId) && property.propertyId) {
+          this.loadPropertyActivityRows({
+            rowId: property.rowId,
+            kind: 'property',
+            depth: 2,
+            ownerId: '',
+            officeId: property.officeId,
+            propertyId: property.propertyId,
+            primaryLabel: '',
+            propertyCode: '',
+            itemDescription: '',
+            activityCode: '',
+            expected: '',
+            expectedValue: 0,
+            prePaid: '',
+            prePaidValue: 0,
+            outstanding: '',
+            outstandingValue: 0,
+            income: '',
+            incomeValue: 0,
+            expenses: '',
+            expensesValue: 0,
+            balance: '',
+            balanceValue: 0,
+            workingCapital: '',
+            workingCapitalValue: 0,
+            workingCapitalBalanceDue: '',
+            workingCapitalBalanceDueValue: 0,
+            expandable: true,
+            expanded: true
+          });
+        }
+      });
+      return;
     }
 
     if (this.expandedRowIds.has(row.rowId)) {
@@ -631,8 +691,10 @@ export class OwnerStatementListComponent implements OnInit, OnChanges, OnDestroy
 
     if (this.areAllOfficeRowsExpanded) {
       officeRowIds.forEach(rowId => this.expandedRowIds.delete(rowId));
+      officeRowIds.forEach(rowId => this.officeCloseOnNextToggleRowIds.delete(rowId));
     } else {
       officeRowIds.forEach(rowId => this.expandedRowIds.add(rowId));
+      officeRowIds.forEach(rowId => this.officeCloseOnNextToggleRowIds.delete(rowId));
     }
 
     this.rebuildVisibleRows();
@@ -878,6 +940,21 @@ export class OwnerStatementListComponent implements OnInit, OnChanges, OnDestroy
     return [this.companyName, officeLabel].filter(label => !!label).join(' ');
   }
 
+  get reportTitle(): string {
+    return this.reportKind === 'cash'
+      ? 'Owner Cash Report'
+      : 'Owner Accual Report';
+  }
+
+  onCashReportToggleChange(isCashSelected: boolean): void {
+    const nextReportKind: OwnerStatementReportKind = isCashSelected ? 'cash' : 'accrual';
+    if (this.reportKind === nextReportKind) {
+      return;
+    }
+
+    this.reportKindChange.emit(nextReportKind);
+  }
+
   getHeaderOfficeLabel(): string {
     const officeNames = (this.ownerStatementOfficeGroups || [])
       .map(group => (group.officeName || '').trim())
@@ -946,6 +1023,27 @@ export class OwnerStatementListComponent implements OnInit, OnChanges, OnDestroy
   //#region Utility Methods
   markViewForCheck(): void {
     this.cdr.markForCheck();
+    this.scheduleOwnerStatementDimensionLockUpdate();
+  }
+
+  scheduleOwnerStatementDimensionLockUpdate(): void {
+    if (this.dimensionsUpdateScheduled) {
+      return;
+    }
+
+    this.dimensionsUpdateScheduled = true;
+    requestAnimationFrame(() => {
+      this.dimensionsUpdateScheduled = false;
+      const tableWrap = this.ownerStatementTableWrap?.nativeElement;
+      if (!tableWrap) {
+        return;
+      }
+
+      const measuredHeight = Math.ceil(tableWrap.offsetHeight);
+      if (measuredHeight > this.ownerStatementFixedHeightPx) {
+        this.ownerStatementFixedHeightPx = measuredHeight;
+      }
+    });
   }
 
   ngOnDestroy(): void {

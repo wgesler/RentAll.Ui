@@ -42,7 +42,7 @@ import { FinancialReportComponent } from '../financial-report/financial-report.c
 import { ArAgingReportComponent } from '../ar-aging-report/ar-aging-report.component';
 import { AR_AGING_DATE_PRESET_OPTIONS, AR_AGING_INTERVAL_OPTIONS, AR_AGING_SORT_BY_OPTIONS, AR_AGING_THROUGH_ALL_VALUE, AR_AGING_THROUGH_OPTIONS, ArAgingDatePreset, ArAgingReportFilters, ArAgingSortBy, normalizeArAgingThroughDays, resolveArAgingAsOfDate } from '../models/ar-aging-report.model';
 import { RentRollComponent } from '../rent-roll/rent-roll.component';
-import { OwnerStatementActivityLinkSelection, OwnerStatementListComponent, OwnerStatementListViewState } from '../owner-statement-list/owner-statement-list.component';
+import { OwnerStatementActivityLinkSelection, OwnerStatementListComponent, OwnerStatementListViewState, OwnerStatementReportKind } from '../owner-statement-list/owner-statement-list.component';
 import { AccountingShellBankActivityKind, AccountingShellBillsReceiptKind, AccountingShellOwnerKind, AccountingShellReportKind } from '../models/accounting-shell.model';
 import { FinancialReportKind } from '../models/financial-report.model';
 import { RentRollCreateBillRequest } from '../models/rent-roll.model';
@@ -130,7 +130,7 @@ export class AccountingShellComponent implements OnInit, OnDestroy {
   readonly shellOwnerMenuOptions: { kind: AccountingShellOwnerKind; label: string }[] = [
     { kind: 'workOrders', label: 'Work Orders' },
     { kind: 'utilities', label: 'Utilities' },
-    { kind: 'statements', label: 'Statements' }
+    { kind: 'statements', label: 'Owner Reports' }
   ];
   readonly shellReportMenuOptions: { kind: AccountingShellReportKind; label: string }[] = [
     { kind: 'profitLoss', label: 'Profit & Loss' },
@@ -140,6 +140,7 @@ export class AccountingShellComponent implements OnInit, OnDestroy {
   selectedBillsReceiptKind: AccountingShellBillsReceiptKind = 'bills';
   selectedBankActivityKind: AccountingShellBankActivityKind = 'deposits';
   selectedOwnerKind: AccountingShellOwnerKind = 'workOrders';
+  selectedOwnerStatementReportKind: OwnerStatementReportKind = 'accrual';
   selectedReportKind: AccountingShellReportKind = 'profitLoss';
 
   selectedTabIndex = 0;
@@ -1469,6 +1470,20 @@ export class AccountingShellComponent implements OnInit, OnDestroy {
     }
   }
 
+  onOwnerStatementReportKindChange(kind: OwnerStatementReportKind): void {
+    if (this.selectedOwnerStatementReportKind === kind) {
+      return;
+    }
+
+    this.selectedOwnerStatementReportKind = kind;
+    this.ownersStatementsRefreshTrigger++;
+    this.router.navigate([], {
+      relativeTo: this.route,
+      queryParams: this.buildShellQueryParams({ ownerReport: kind }),
+      queryParamsHandling: 'merge'
+    });
+  }
+
   selectReport(kind: AccountingShellReportKind): void {
     this.reportsMenuTrigger?.closeMenu();
     const previousTab = this.selectedTabIndex;
@@ -2018,6 +2033,12 @@ export class AccountingShellComponent implements OnInit, OnDestroy {
       && !this.showGeneralLedgerDetail;
   }
 
+  get ownerStatementSubviewTitle(): string {
+    return this.selectedOwnerStatementReportKind === 'cash'
+      ? 'Owner Cash Report'
+      : 'Owner Accual Report';
+  }
+
   usesFinancialReportTitleBarFilters(): boolean {
     return this.selectedTabIndex === this.tabReports && this.selectedReportKind !== 'arAging';
   }
@@ -2200,6 +2221,13 @@ export class AccountingShellComponent implements OnInit, OnDestroy {
       const ownerKind = params['ownerKind'];
       if (ownerKind === 'utilities' || ownerKind === 'workOrders' || ownerKind === 'statements') {
         this.selectedOwnerKind = ownerKind;
+      }
+    }
+
+    if ('ownerReport' in params) {
+      const ownerReport = params['ownerReport'];
+      if (ownerReport === 'accrual' || ownerReport === 'cash') {
+        this.selectedOwnerStatementReportKind = ownerReport;
       }
     }
 
@@ -2488,6 +2516,9 @@ export class AccountingShellComponent implements OnInit, OnDestroy {
       billsReceipt: this.selectedTabIndex === this.tabBillsReceipts ? this.selectedBillsReceiptKind : null,
       bankActivity: this.selectedTabIndex === this.tabBankActivities ? this.selectedBankActivityKind : null,
       ownerKind: this.selectedTabIndex === this.tabOwners ? this.selectedOwnerKind : null,
+      ownerReport: this.selectedTabIndex === this.tabOwners && this.selectedOwnerKind === 'statements'
+        ? this.selectedOwnerStatementReportKind
+        : null,
       report: this.selectedTabIndex === this.tabReports ? this.selectedReportKind : null,
       reportClass: this.usesFinancialReportTitleBarFilters()
         ? String(this.selectedFinancialReportClass)

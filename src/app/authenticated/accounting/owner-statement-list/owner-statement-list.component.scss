@@ -22,12 +22,12 @@
   justify-content: center;
   width: 100%;
   max-width: 100%;
-  padding: 0.5rem 0.75rem 1rem;
+  padding: 1.1rem 0.75rem 1rem;
   box-sizing: border-box;
 }
 
 .owner-statement-panel {
-  width: fit-content;
+  width: 100%;
   max-width: 100%;
   min-width: 0;
   margin-inline: auto;
@@ -48,6 +48,22 @@
   width: 100%;
 }
 
+.owner-statement-toggle-row {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  padding-right: 0.75rem;
+  margin-bottom: 0.9rem;
+}
+
+.owner-statement-report-title {
+  margin: 0;
+  font-size: 1.125rem;
+  font-weight: 600;
+  line-height: 1.2;
+}
+
 .owner-statement-entity-line,
 .owner-statement-period {
   margin: 0;
@@ -66,10 +82,11 @@
 }
 
 .owner-statement-table-wrap {
-  width: fit-content;
+  width: 100%;
   max-width: 100%;
   min-width: 0;
-  overflow: visible;
+  overflow-x: auto;
+  overflow-y: hidden;
   border: 1px solid rgba(15, 23, 42, 0.12);
   border-radius: 0.5rem;
   background: #fff;
@@ -77,9 +94,9 @@
 }
 
 .owner-statement-table {
-  width: auto;
+  width: 100%;
   border-collapse: collapse;
-  table-layout: auto;
+  table-layout: fixed;
 }
 
 .owner-statement-table thead th {
@@ -192,15 +209,27 @@
 }
 
 .owner-statement-col-label {
+  width: 17rem;
   min-width: 17rem;
+  max-width: 17rem;
 }
 
 .owner-statement-col-property {
+  width: 7rem;
   min-width: 7rem;
+  max-width: 7rem;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .owner-statement-col-item-description {
+  width: 14rem;
   min-width: 12rem;
+  max-width: 14rem;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .owner-statement-table th.owner-statement-col-label,
@@ -219,7 +248,9 @@
 }
 
 .owner-statement-col-amount {
+  width: 8rem;
   min-width: 8rem;
+  max-width: 8rem;
   text-align: right;
   white-space: nowrap;
 }
@@ -243,7 +274,9 @@
 }
 
 .owner-statement-col-working-capital {
+  width: 8rem;
   min-width: 8rem;
+  max-width: 8rem;
 }
 
 .owner-statement-label-wrap {

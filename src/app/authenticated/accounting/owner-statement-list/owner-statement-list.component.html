@@ -14,12 +14,23 @@
         </div>
       } @else {
         <div class="owner-statement-header">
+          <p class="owner-statement-report-title">{{ reportTitle }}</p>
           @if (headerEntityLine) {
             <p class="owner-statement-entity-line">{{ headerEntityLine }}</p>
           }
           <p class="owner-statement-period">{{ headerPeriodLine }}</p>
         </div>
-        <div class="owner-statement-table-wrap">
+        <div class="owner-statement-toggle-row">
+          <mat-slide-toggle
+            [checked]="reportKind === 'cash'"
+            (change)="onCashReportToggleChange($event.checked)">
+            Cash
+          </mat-slide-toggle>
+        </div>
+        <div
+          #ownerStatementTableWrap
+          class="owner-statement-table-wrap"
+          [style.min-height.px]="ownerStatementFixedHeightPx > 0 ? ownerStatementFixedHeightPx : null">
           <table class="owner-statement-table">
             <thead>
               <tr>
@@ -51,54 +62,57 @@
                     <span>Description</span>
                   </div>
                 </th>
-                <th class="owner-statement-col-amount">
-                  <div class="owner-statement-header-two-line">
-                    <span>Expected</span>
-                    <span>Income</span>
-                  </div>
-                </th>
-                <th class="owner-statement-col-amount">
-                  <div class="owner-statement-header-two-line">
-                    <span>Prepaid</span>
-                    <span>Funds</span>
-                  </div>
-                </th>
-                <th class="owner-statement-col-amount">
-                  <div class="owner-statement-header-two-line">
-                    <span>Unpaid</span>
-                    <span>Funds</span>
-                  </div>
-                </th>
-                <th class="owner-statement-col-amount">
-                  <div class="owner-statement-header-two-line">
-                    <span>Actual</span>
-                    <span>Income</span>
-                  </div>
-                </th>
-                <th class="owner-statement-col-amount">
-                  <div class="owner-statement-header-two-line">
-                    <span>Owner</span>
-                    <span>Expenses</span>
-                  </div>
-                </th>
-                <th class="owner-statement-col-amount">
-                  <div class="owner-statement-header-two-line">
-                    <span>Current</span>
-                    <span>Balance</span>
-                  </div>
-                </th>
-                <th class="owner-statement-col-amount owner-statement-col-working-capital">
-                  <div class="owner-statement-header-two-line">
-                    <span>Working</span>
-                    <span>Capital</span>
-                  </div>
-                </th>
-                <th class="owner-statement-col-amount owner-statement-col-working-capital">
-                  <div class="owner-statement-header-two-line">
-                    <span>Balance</span>
-                    <span>Due</span>
-                  </div>
-                </th>
+                @if (reportKind === 'accrual') {
+                  <th class="owner-statement-col-amount">
+                    <div class="owner-statement-header-two-line">
+                      <span>Expected</span>
+                      <span>Income</span>
+                    </div>
+                  </th>
+                  <th class="owner-statement-col-amount">
+                    <div class="owner-statement-header-two-line">
+                      <span>Received</span>
+                      <span>Income</span>
+                    </div>
+                  </th>
+                  <th class="owner-statement-col-amount">
+                    <div class="owner-statement-header-two-line">
+                      <span>Owner</span>
+                      <span>Expenses</span>
+                    </div>
+                  </th>
+                  <th class="owner-statement-col-amount owner-statement-col-working-capital">
+                    <div class="owner-statement-header-two-line">
+                      <span>Owner</span>
+                      <span>Profit</span>
+                    </div>
+                  </th>
+                } @else {
+                  <th class="owner-statement-col-amount">
+                    <div class="owner-statement-header-two-line">
+                      <span>Starting</span>
+                      <span>Balance</span>
+                    </div>
+                  </th>
+                  <th class="owner-statement-col-amount">
+                    <div class="owner-statement-header-two-line">
+                      <span>Received</span>
+                      <span>Income</span>
+                    </div>
+                  </th>
+                  <th class="owner-statement-col-amount">
+                    <div class="owner-statement-header-two-line">
+                      <span>Owner</span>
+                      <span>Expenses</span>
+                    </div>
+                  </th>
+                  <th class="owner-statement-col-amount owner-statement-col-working-capital">
+                    <div class="owner-statement-header-two-line">
+                      <span>Owner</span>
+                      <span>Payment</span>
+                    </div>
+                  </th>
+                }
               </tr>
             </thead>
             <tbody>
@@ -150,26 +164,29 @@
                   </td>
                   <td class="owner-statement-col-property">{{ row.propertyCode }}</td>
                   <td class="owner-statement-col-item-description">{{ row.itemDescription }}</td>
-                  <td class="owner-statement-col-amount">
-                    <button type="button" class="owner-statement-amount-link" [class.owner-statement-amount-link--active]="canDrillDownAmount(row, 'expected')" [disabled]="!canDrillDownAmount(row, 'expected')" (click)="$event.stopPropagation(); onAmountCellClick(row, 'expected')">{{ row.expected }}</button>
-                  </td>
-                  <td class="owner-statement-col-amount">
-                    <button type="button" class="owner-statement-amount-link" [class.owner-statement-amount-link--active]="canDrillDownAmount(row, 'prePaid')" [disabled]="!canDrillDownAmount(row, 'prePaid')" (click)="$event.stopPropagation(); onAmountCellClick(row, 'prePaid')">{{ row.prePaid }}</button>
-                  </td>
-                  <td class="owner-statement-col-amount">
-                    <button type="button" class="owner-statement-amount-link" [class.owner-statement-amount-link--active]="canDrillDownAmount(row, 'outstanding')" [disabled]="!canDrillDownAmount(row, 'outstanding')" (click)="$event.stopPropagation(); onAmountCellClick(row, 'outstanding')">{{ row.outstanding }}</button>
-                  </td>
-                  <td class="owner-statement-col-amount">
-                    <button type="button" class="owner-statement-amount-link" [class.owner-statement-amount-link--active]="canDrillDownAmount(row, 'income')" [disabled]="!canDrillDownAmount(row, 'income')" (click)="$event.stopPropagation(); onAmountCellClick(row, 'income')">{{ row.income }}</button>
-                  </td>
-                  <td class="owner-statement-col-amount">
-                    <button type="button" class="owner-statement-amount-link" [class.owner-statement-amount-link--active]="canDrillDownAmount(row, 'expenses')" [disabled]="!canDrillDownAmount(row, 'expenses')" (click)="$event.stopPropagation(); onAmountCellClick(row, 'expenses')">{{ row.expenses }}</button>
-                  </td>
-                  <td class="owner-statement-col-amount">
-                    <button type="button" class="owner-statement-amount-link" [class.owner-statement-amount-link--active]="canDrillDownAmount(row, 'balance')" [disabled]="!canDrillDownAmount(row, 'balance')" (click)="$event.stopPropagation(); onAmountCellClick(row, 'balance')">{{ row.balance }}</button>
-                  </td>
-                  <td class="owner-statement-col-amount owner-statement-col-working-capital">{{ row.workingCapital }}</td>
-                  <td class="owner-statement-col-amount owner-statement-col-working-capital">{{ row.workingCapitalBalanceDue }}</td>
+                  @if (reportKind === 'accrual') {
+                    <td class="owner-statement-col-amount">
+                      <button type="button" class="owner-statement-amount-link" [class.owner-statement-amount-link--active]="canDrillDownAmount(row, 'expected')" [disabled]="!canDrillDownAmount(row, 'expected')" (click)="$event.stopPropagation(); onAmountCellClick(row, 'expected')">{{ row.expected }}</button>
+                    </td>
+                    <td class="owner-statement-col-amount">
+                      <button type="button" class="owner-statement-amount-link" [class.owner-statement-amount-link--active]="canDrillDownAmount(row, 'income')" [disabled]="!canDrillDownAmount(row, 'income')" (click)="$event.stopPropagation(); onAmountCellClick(row, 'income')">{{ row.income }}</button>
+                    </td>
+                    <td class="owner-statement-col-amount">
+                      <button type="button" class="owner-statement-amount-link" [class.owner-statement-amount-link--active]="canDrillDownAmount(row, 'expenses')" [disabled]="!canDrillDownAmount(row, 'expenses')" (click)="$event.stopPropagation(); onAmountCellClick(row, 'expenses')">{{ row.expenses }}</button>
+                    </td>
+                    <td class="owner-statement-col-amount owner-statement-col-working-capital">{{ row.workingCapitalBalanceDue }}</td>
+                  } @else {
+                    <td class="owner-statement-col-amount">
+                      {{ row.workingCapital }}
+                    </td>
+                    <td class="owner-statement-col-amount">
+                      <button type="button" class="owner-statement-amount-link" [class.owner-statement-amount-link--active]="canDrillDownAmount(row, 'income')" [disabled]="!canDrillDownAmount(row, 'income')" (click)="$event.stopPropagation(); onAmountCellClick(row, 'income')">{{ row.income }}</button>
+                    </td>
+                    <td class="owner-statement-col-amount">
+                      <button type="button" class="owner-statement-amount-link" [class.owner-statement-amount-link--active]="canDrillDownAmount(row, 'expenses')" [disabled]="!canDrillDownAmount(row, 'expenses')" (click)="$event.stopPropagation(); onAmountCellClick(row, 'expenses')">{{ row.expenses }}</button>
+                    </td>
+                    <td class="owner-statement-col-amount owner-statement-col-working-capital">{{ row.workingCapitalBalanceDue }}</td>
+                  }
                 </tr>
               }
             </tbody>
