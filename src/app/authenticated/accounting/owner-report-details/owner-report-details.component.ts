@@ -4,8 +4,8 @@ import { BehaviorSubject, finalize, Subject, take, takeUntil } from 'rxjs';
 import { MaterialModule } from '../../../material.module';
 import { FormatterService } from '../../../services/formatter-service';
 import { UtilityService } from '../../../services/utility.service';
-import { OwnerStatementJournalEntryLineResponse, OwnerStatementJournalEntryLineSearchRequest } from '../models/owner-statement.model';
-import { OwnerStatementService } from '../services/owner-statement.service';
+import { OwnerReportJournalEntryLineResponse, OwnerReportJournalEntryLineSearchRequest, OwnerReportJournalEntryLineSelection } from '../models/owner-report.model';
+import { OwnerReportService } from '../services/owner-report.service';
 
 @Component({
   selector: 'app-owner-report-details',
@@ -16,18 +16,19 @@ import { OwnerStatementService } from '../services/owner-statement.service';
   changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class OwnerReportDetailsComponent implements OnInit, OnChanges, OnDestroy {
-  @Input() request: OwnerStatementJournalEntryLineSearchRequest | null = null;
+  @Input() request: OwnerReportJournalEntryLineSearchRequest | null = null;
   @Input() refreshTrigger = 0;
-  @Output() lineSelectEvent = new EventEmitter<{ journalEntryId: string; journalEntryLineId: string }>();
+  @Output() lineSelectEvent = new EventEmitter<OwnerReportJournalEntryLineSelection>();
 
   isPageReady = false;
   isServiceError = false;
-  lines: OwnerStatementJournalEntryLineResponse[] = [];
-  noDataMessage = 'No journal entries matched the selected owner statement value.';
-  itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['ownerStatementJournalEntryLines']));
+  lines: OwnerReportJournalEntryLineResponse[] = [];
+  noDataMessage = 'No journal entries matched the selected owner report value.';
+
+  itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['ownerReportJournalEntryLines']));
   destroy$ = new Subject<void>();
 
-  constructor(private ownerStatementService: OwnerStatementService, private formatter: FormatterService, private utilityService: UtilityService, private cdr: ChangeDetectorRef) {}
+  constructor(private ownerReportService: OwnerReportService, private formatter: FormatterService, private utilityService: UtilityService, private cdr: ChangeDetectorRef) {}
 
   //#region Owner-Report-Details
   ngOnInit(): void {
@@ -43,33 +44,10 @@ export class OwnerReportDetailsComponent implements OnInit, OnChanges, OnDestroy
       this.loadLines();
     }
   }
+  //#endregion
 
-  loadLines(): void {
-    if (!this.request || !this.request.officeIds?.length || !(this.request.ownerId || '').trim() || !this.request.metric) {
-      this.lines = [];
-      this.isServiceError = false;
-      this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'ownerStatementJournalEntryLines');
-      this.markViewForCheck();
-      return;
-    }
-
-    this.isServiceError = false;
-    this.utilityService.addLoadItem(this.itemsToLoad$, 'ownerStatementJournalEntryLines');
-    this.ownerStatementService.searchOwnerStatementJournalEntryLines(this.request).pipe(take(1), finalize(() => this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'ownerStatementJournalEntryLines'))).subscribe({
-      next: lines => {
-        this.lines = lines || [];
-        this.isServiceError = false;
-        this.markViewForCheck();
-      },
-      error: () => {
-        this.lines = [];
-        this.isServiceError = true;
-        this.markViewForCheck();
-      }
-    });
-  }
-
-  onLineSelect(line: OwnerStatementJournalEntryLineResponse): void {
+  //#region Form Response Methods
+  onLineSelect(line: OwnerReportJournalEntryLineResponse): void {
     const journalEntryId = (line?.journalEntryId || '').trim();
     const journalEntryLineId = (line?.journalEntryLineId || '').trim();
     if (!journalEntryId || !journalEntryLineId) {
@@ -84,6 +62,33 @@ export class OwnerReportDetailsComponent implements OnInit, OnChanges, OnDestroy
 
   formatAmount(amount: number): string {
     return this.formatter.currencyUsd(Number(amount) || 0);
+  }
+  //#endregion
+
+  //#region Data Loading Methods
+  loadLines(): void {
+    if (!this.request || !this.request.officeIds?.length || !(this.request.ownerId || '').trim() || !this.request.metric) {
+      this.lines = [];
+      this.isServiceError = false;
+      this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'ownerReportJournalEntryLines');
+      this.markViewForCheck();
+      return;
+    }
+
+    this.isServiceError = false;
+    this.utilityService.addLoadItem(this.itemsToLoad$, 'ownerReportJournalEntryLines');
+    this.ownerReportService.searchOwnerReportJournalEntryLines(this.request).pipe(take(1), finalize(() => this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'ownerReportJournalEntryLines'))).subscribe({
+      next: lines => {
+        this.lines = lines || [];
+        this.isServiceError = false;
+        this.markViewForCheck();
+      },
+      error: () => {
+        this.lines = [];
+        this.isServiceError = true;
+        this.markViewForCheck();
+      }
+    });
   }
   //#endregion
 

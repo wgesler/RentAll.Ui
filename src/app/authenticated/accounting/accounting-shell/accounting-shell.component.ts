@@ -42,7 +42,7 @@ import { FinancialReportComponent } from '../financial-report/financial-report.c
 import { ArAgingReportComponent } from '../ar-aging-report/ar-aging-report.component';
 import { AR_AGING_DATE_PRESET_OPTIONS, AR_AGING_INTERVAL_OPTIONS, AR_AGING_SORT_BY_OPTIONS, AR_AGING_THROUGH_ALL_VALUE, AR_AGING_THROUGH_OPTIONS, ArAgingDatePreset, ArAgingReportFilters, ArAgingSortBy, normalizeArAgingThroughDays, resolveArAgingAsOfDate } from '../models/ar-aging-report.model';
 import { RentRollComponent } from '../rent-roll/rent-roll.component';
-import { OwnerStatementActivityLinkSelection, OwnerStatementListViewState, OwnerStatementReportKind, OwnerReportComponent } from '../owner-report/owner-report.component';
+import { OwnerReportComponent } from '../owner-report/owner-report.component';
 import { AccountingShellBankActivityKind, AccountingShellBillsReceiptKind, AccountingShellOwnerKind, AccountingShellReportKind } from '../models/accounting-shell.model';
 import { FinancialReportKind } from '../models/financial-report.model';
 import { RentRollCreateBillRequest } from '../models/rent-roll.model';
@@ -52,7 +52,7 @@ import { ChartOfAccountResponse } from '../models/chart-of-accounts.model';
 import { Class, ClassLabels } from '../models/accounting-enum';
 import { GeneralLedgerService } from '../services/general-ledger.service';
 import { JournalEntrySyncResult } from '../models/journal-entry.model';
-import { OwnerStatementJournalEntryLineSearchRequest } from '../models/owner-statement.model';
+import { OwnerStatementActivityLinkSelection, OwnerStatementJournalEntryLineSearchRequest, OwnerStatementListViewState, OwnerStatementReportKind } from '../models/owner-statement.model';
 import { OwnerReportDetailsComponent } from '../owner-report-details/owner-report-details.component';
 
 type JournalEntrySyncProgressKey =

@@ -7,124 +7,8 @@ import { FormatterService } from '../../../services/formatter-service';
 import { MappingService } from '../../../services/mapping.service';
 import { UtilityService } from '../../../services/utility.service';
 import { MaintenanceListSearchRequest } from '../../maintenance/models/maintenance-search.model';
-import { OwnerStatementDrillDownMetric, OwnerStatementPropertyActivityLineResponse, OwnerStatementResponse, OwnerStatementSearchRequest } from '../models/owner-statement.model';
-import { OwnerStatementService } from '../services/owner-statement.service';
-
-interface OwnerStatementPropertyRow {
-  propertyId: string;
-  ownerName: string;
-  ownerId: string;
-  propertyCode: string;
-  expected: number;
-  prePaid: number;
-  outstanding: number;
-  income: number;
-  expenses: number;
-  balance: number;
-  workingCapital: number;
-  workingCapitalBalanceDue: number;
-}
-
-interface OwnerStatementOwnerGroup {
-  rowId: string;
-  ownerId: string;
-  ownerName: string;
-  properties: OwnerStatementPropertyRow[];
-  expected: number;
-  prePaid: number;
-  outstanding: number;
-  income: number;
-  expenses: number;
-  balance: number;
-  workingCapital: number;
-  workingCapitalBalanceDue: number;
-}
-
-interface OwnerStatementOfficeGroup {
-  rowId: string;
-  officeId: number;
-  officeName: string;
-  owners: OwnerStatementOwnerGroup[];
-  expected: number;
-  prePaid: number;
-  outstanding: number;
-  income: number;
-  expenses: number;
-  balance: number;
-  workingCapital: number;
-  workingCapitalBalanceDue: number;
-}
-
-type OwnerStatementVisibleRowKind = 'office' | 'owner' | 'property' | 'propertyActivity';
-
-interface OwnerStatementVisibleRow {
-  rowId: string;
-  kind: OwnerStatementVisibleRowKind;
-  depth: number;
-  ownerId?: string;
-  officeId?: number;
-  propertyId?: string;
-  primaryLabel: string;
-  propertyCode: string;
-  itemDescription: string;
-  activityCode: string;
-  expected: string;
-  expectedValue: number;
-  prePaid: string;
-  prePaidValue: number;
-  outstanding: string;
-  outstandingValue: number;
-  income: string;
-  incomeValue: number;
-  expenses: string;
-  expensesValue: number;
-  balance: string;
-  balanceValue: number;
-  workingCapital: string;
-  workingCapitalValue: number;
-  workingCapitalBalanceDue: string;
-  workingCapitalBalanceDueValue: number;
-  expandable: boolean;
-  expanded: boolean;
-}
-
-interface OwnerStatementPropertyActivityLineDisplay {
-  rowId: string;
-  activityId: string | null;
-  activityType: string;
-  activityDate: string;
-  documentCode: string;
-  description: string;
-  expectedIncome: string;
-  expenses: string;
-}
-
-interface OwnerStatementDescriptionSegment {
-  text: string;
-  code: string | null;
-}
-
-export type OwnerStatementReportKind = 'accrual' | 'cash';
-
-export interface OwnerStatementActivityLinkSelection {
-  activityId: string | null;
-  activityCode: string;
-  activityType: string;
-  officeId: number;
-  propertyId: string;
-}
-
-export interface OwnerStatementAmountDrillDownSelection {
-  officeIds: number[];
-  ownerId: string;
-  propertyId?: string | null;
-  metric: OwnerStatementDrillDownMetric;
-}
-
-export interface OwnerStatementListViewState {
-  expandedRowIds: string[];
-  propertyActivityByPropertyRowId: Record<string, OwnerStatementPropertyActivityLineDisplay[]>;
-}
+import { OwnerReportActivityLinkSelection, OwnerReportAmountDrillDownSelection, OwnerReportDescriptionSegment, OwnerReportDrillDownMetric, OwnerReportKind, OwnerReportListViewState, OwnerReportOfficeGroup, OwnerReportPropertyActivityLineDisplay, OwnerReportPropertyActivityLineResponse, OwnerReportPropertyRow, OwnerReportResponse, OwnerReportSearchRequest, OwnerReportVisibleRow } from '../models/owner-report.model';
+import { OwnerReportService } from '../services/owner-report.service';
 
 @Component({
   selector: 'app-owner-report',
@@ -135,35 +19,35 @@ export interface OwnerStatementListViewState {
   changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class OwnerReportComponent implements OnInit, OnChanges, OnDestroy {
-  @ViewChild('ownerStatementTableWrap') ownerStatementTableWrap?: ElementRef<HTMLElement>;
+  @ViewChild('ownerReportTableWrap') ownerReportTableWrap?: ElementRef<HTMLElement>;
   @Input() searchRequest?: MaintenanceListSearchRequest | null;
   @Input() refreshTrigger = 0;
-  @Input() reportKind: OwnerStatementReportKind = 'accrual';
-  @Input() viewState: OwnerStatementListViewState | null = null;
-  @Output() activityLinkSelect = new EventEmitter<OwnerStatementActivityLinkSelection>();
-  @Output() amountDrillDownSelect = new EventEmitter<OwnerStatementAmountDrillDownSelection>();
-  @Output() reportKindChange = new EventEmitter<OwnerStatementReportKind>();
-  @Output() viewStateChange = new EventEmitter<OwnerStatementListViewState>();
+  @Input() reportKind: OwnerReportKind = 'accrual';
+  @Input() viewState: OwnerReportListViewState | null = null;
+  @Output() activityLinkSelect = new EventEmitter<OwnerReportActivityLinkSelection>();
+  @Output() amountDrillDownSelect = new EventEmitter<OwnerReportAmountDrillDownSelection>();
+  @Output() reportKindChange = new EventEmitter<OwnerReportKind>();
+  @Output() viewStateChange = new EventEmitter<OwnerReportListViewState>();
 
   isPageReady = false;
   isServiceError = false;
   companyName = '';
-  ownerStatements: OwnerStatementResponse[] = [];
-  ownerStatementOfficeGroups: OwnerStatementOfficeGroup[] = [];
-  visibleRows: OwnerStatementVisibleRow[] = [];
+  ownerReports: OwnerReportResponse[] = [];
+  ownerReportOfficeGroups: OwnerReportOfficeGroup[] = [];
+  visibleRows: OwnerReportVisibleRow[] = [];
   expandedRowIds = new Set<string>();
   ownerCloseOnNextToggleRowIds = new Set<string>();
   officeCloseOnNextToggleRowIds = new Set<string>();
-  propertyActivityLinesByPropertyRowId = new Map<string, OwnerStatementPropertyActivityLineDisplay[]>();
+  propertyActivityLinesByPropertyRowId = new Map<string, OwnerReportPropertyActivityLineDisplay[]>();
   propertyActivityLoadingRowIds = new Set<string>();
   propertyActivityErrorRowIds = new Set<string>();
-  ownerStatementFixedHeightPx = 0;
+  ownerReportFixedHeightPx = 0;
   dimensionsUpdateScheduled = false;
-  itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['ownerStatements']));
+  itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['ownerReports']));
   destroy$ = new Subject<void>();
 
   constructor(
-    private ownerStatementService: OwnerStatementService,
+    private ownerReportService: OwnerReportService,
     private commonService: CommonService,
     private formatter: FormatterService,
     private mappingService: MappingService,
@@ -171,82 +55,28 @@ export class OwnerReportComponent implements OnInit, OnChanges, OnDestroy {
     private cdr: ChangeDetectorRef
   ) {}
 
-  //#region Owner Statement List
+  //#region Owner Report List
   ngOnInit(): void {
     this.itemsToLoad$.pipe(takeUntil(this.destroy$)).subscribe(items => {
       this.isPageReady = items.size === 0;
       this.markViewForCheck();
     });
     this.loadOrganization();
-    this.loadOwnerStatements();
+    this.loadOwnerReports();
   }
 
   ngOnChanges(changes: SimpleChanges): void {
     if (changes['searchRequest'] && !changes['searchRequest'].firstChange) {
-      this.loadOwnerStatements();
+      this.loadOwnerReports();
     }
 
     if (changes['refreshTrigger'] && !changes['refreshTrigger'].firstChange) {
-      this.loadOwnerStatements();
+      this.loadOwnerReports();
     }
   }
   //#endregion
 
-  //#region Data Load Methods
-  buildOwnerStatementSearchRequest(): OwnerStatementSearchRequest {
-    return {
-      officeIds: (this.searchRequest?.officeIds ?? []).filter(id => id > 0),
-      propertyId: this.searchRequest?.propertyId ?? null,
-      startDate: this.searchRequest?.startDate ?? null,
-      endDate: this.searchRequest?.endDate ?? null
-    };
-  }
-
-  loadOwnerStatements(): void {
-    const request = this.buildOwnerStatementSearchRequest();
-    if (request.officeIds.length === 0) {
-      this.ownerStatements = [];
-      this.ownerStatementOfficeGroups = [];
-      this.visibleRows = [];
-      this.expandedRowIds.clear();
-      this.ownerCloseOnNextToggleRowIds.clear();
-      this.officeCloseOnNextToggleRowIds.clear();
-      this.clearPropertyActivityState();
-      this.isServiceError = false;
-      this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'ownerStatements');
-      this.markViewForCheck();
-      return;
-    }
-
-    this.isServiceError = false;
-    this.utilityService.addLoadItem(this.itemsToLoad$, 'ownerStatements');
-    this.ownerStatementService.searchOwnerStatements(request).pipe(
-      take(1),
-      finalize(() => this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'ownerStatements'))
-    ).subscribe({
-      next: statements => {
-        this.ownerStatements = statements || [];
-        this.ownerStatementOfficeGroups = this.buildOwnerStatementOfficeGroups(this.ownerStatements);
-        this.restoreViewState(this.ownerStatementOfficeGroups, this.viewState);
-        this.rebuildVisibleRows();
-        this.emitViewStateChange();
-        this.markViewForCheck();
-      },
-      error: () => {
-        this.isServiceError = true;
-        this.ownerStatements = [];
-        this.ownerStatementOfficeGroups = [];
-        this.visibleRows = [];
-        this.expandedRowIds.clear();
-        this.ownerCloseOnNextToggleRowIds.clear();
-        this.officeCloseOnNextToggleRowIds.clear();
-        this.clearPropertyActivityState();
-        this.emitViewStateChange();
-        this.markViewForCheck();
-      }
-    });
-  }
-
+  //#region Data Loading Methods
   loadOrganization(): void {
     const cachedOrganization = this.commonService.getOrganizationValue();
     if (cachedOrganization?.name) {
@@ -259,19 +89,114 @@ export class OwnerReportComponent implements OnInit, OnChanges, OnDestroy {
     });
   }
 
-  buildOwnerStatementOfficeGroups(statements: OwnerStatementResponse[]): OwnerStatementOfficeGroup[] {
-    const officeMap = new Map<string, { officeId: number; officeName: string; ownerMap: Map<string, OwnerStatementPropertyRow[]> }>();
+  loadOwnerReports(): void {
+    const request = this.buildOwnerReportSearchRequest();
+    if (request.officeIds.length === 0) {
+      this.ownerReports = [];
+      this.ownerReportOfficeGroups = [];
+      this.visibleRows = [];
+      this.expandedRowIds.clear();
+      this.ownerCloseOnNextToggleRowIds.clear();
+      this.officeCloseOnNextToggleRowIds.clear();
+      this.clearPropertyActivityState();
+      this.isServiceError = false;
+      this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'ownerReports');
+      this.markViewForCheck();
+      return;
+    }
 
-    (statements || []).forEach(statement => {
-      const officeId = Number(statement.officeId) || 0;
-      const officeName = (statement.officeName || '').trim();
+    this.isServiceError = false;
+    this.utilityService.addLoadItem(this.itemsToLoad$, 'ownerReports');
+    this.ownerReportService.searchOwnerReports(request).pipe(take(1), finalize(() => this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'ownerReports'))).subscribe({
+      next: reports => {
+        this.ownerReports = reports || [];
+        this.ownerReportOfficeGroups = this.buildOwnerReportOfficeGroups(this.ownerReports);
+        this.restoreViewState(this.ownerReportOfficeGroups, this.viewState);
+        this.rebuildVisibleRows();
+        this.emitViewStateChange();
+        this.markViewForCheck();
+      },
+      error: () => {
+        this.isServiceError = true;
+        this.ownerReports = [];
+        this.ownerReportOfficeGroups = [];
+        this.visibleRows = [];
+        this.expandedRowIds.clear();
+        this.ownerCloseOnNextToggleRowIds.clear();
+        this.officeCloseOnNextToggleRowIds.clear();
+        this.clearPropertyActivityState();
+        this.emitViewStateChange();
+        this.markViewForCheck();
+      }
+    });
+  }
+
+  loadPropertyActivityRows(row: OwnerReportVisibleRow): void {
+    if (row.kind !== 'property' || !row.propertyId || !row.officeId) {
+      return;
+    }
+
+    const request = this.buildOwnerReportSearchRequest();
+    this.propertyActivityLoadingRowIds.add(row.rowId);
+    this.propertyActivityErrorRowIds.delete(row.rowId);
+    this.rebuildVisibleRows();
+    this.markViewForCheck();
+
+    this.ownerReportService.searchOwnerReportPropertyActivityLines({
+      officeIds: [row.officeId],
+      propertyId: row.propertyId,
+      startDate: request.startDate ?? null,
+      endDate: request.endDate ?? null
+    }).pipe(take(1)).subscribe({
+      next: lines => {
+        this.propertyActivityLinesByPropertyRowId.set(row.rowId, this.mapPropertyActivityDisplays(row.rowId, lines || []));
+        this.propertyActivityLoadingRowIds.delete(row.rowId);
+        this.propertyActivityErrorRowIds.delete(row.rowId);
+        this.rebuildVisibleRows();
+        this.emitViewStateChange();
+        this.markViewForCheck();
+      },
+      error: () => {
+        this.propertyActivityLinesByPropertyRowId.set(row.rowId, []);
+        this.propertyActivityLoadingRowIds.delete(row.rowId);
+        this.propertyActivityErrorRowIds.add(row.rowId);
+        this.rebuildVisibleRows();
+        this.emitViewStateChange();
+        this.markViewForCheck();
+      }
+    });
+  }
+
+  //#endregion
+
+  //#region Build Form 
+  initializeExpandedRows(officeGroups: OwnerReportOfficeGroup[]): void {
+    this.expandedRowIds.clear();
+    (officeGroups || []).forEach(office => this.expandedRowIds.add(office.rowId));
+  }
+
+  buildOwnerReportSearchRequest(): OwnerReportSearchRequest {
+    return {
+      officeIds: (this.searchRequest?.officeIds ?? []).filter(id => id > 0),
+      propertyId: this.searchRequest?.propertyId ?? null,
+      startDate: this.searchRequest?.startDate ?? null,
+      endDate: this.searchRequest?.endDate ?? null
+    };
+  }
+
+  buildOwnerReportOfficeGroups(reports: OwnerReportResponse[]): OwnerReportOfficeGroup[] {
+    const officeMap = new Map<string, { officeId: number; officeName: string; ownerMap: Map<string, OwnerReportPropertyRow[]> }>();
+
+    (reports || []).forEach(report => {
+      const officeId = Number(report.officeId) || 0;
+      const officeName = (report.officeName || '').trim();
       const officeKey = `${officeId}::${officeName.toLowerCase()}`;
-      const ownerId = (statement.ownerId || '').trim();
-      const ownerName = (statement.ownerName || '').trim() || 'Unassigned Owner';
+      const ownerId = (report.ownerId || '').trim();
+      const ownerName = (report.ownerName || '').trim() || 'Unassigned Owner';
       const ownerKey = ownerId || ownerName.toLowerCase();
 
       if (!officeMap.has(officeKey)) {
-        officeMap.set(officeKey, { officeId, officeName, ownerMap: new Map<string, OwnerStatementPropertyRow[]>() });
+        officeMap.set(officeKey, { officeId, officeName, ownerMap: new Map<string, OwnerReportPropertyRow[]>() });
       }
 
       const office = officeMap.get(officeKey)!;
@@ -280,18 +205,18 @@ export class OwnerReportComponent implements OnInit, OnChanges, OnDestroy {
       }
 
       office.ownerMap.get(ownerKey)!.push({
-        propertyId: statement.propertyId || '',
+        propertyId: report.propertyId || '',
         ownerName,
         ownerId,
-        propertyCode: statement.propertyCode || '',
-        expected: Number(statement.expected) || 0,
-        prePaid: Number(statement.prePaid) || 0,
-        outstanding: Number(statement.outstanding) || 0,
-        income: Number(statement.income) || 0,
-        expenses: Number(statement.expenses) || 0,
-        balance: Number(statement.balance) || 0,
-        workingCapital: Number(statement.workingCapital) || 0,
-        workingCapitalBalanceDue: Number(statement.workingCapitalBalanceDue) || 0
+        propertyCode: report.propertyCode || '',
+        expected: Number(report.expected) || 0,
+        prePaid: Number(report.prePaid) || 0,
+        outstanding: Number(report.outstanding) || 0,
+        income: Number(report.income) || 0,
+        expenses: Number(report.expenses) || 0,
+        balance: Number(report.balance) || 0,
+        workingCapital: Number(report.workingCapital) || 0,
+        workingCapitalBalanceDue: Number(report.workingCapitalBalanceDue) || 0
       });
     });
 
@@ -334,14 +259,9 @@ export class OwnerReportComponent implements OnInit, OnChanges, OnDestroy {
     return officeGroups.sort((a, b) => a.officeName.localeCompare(b.officeName));
   }
 
-  initializeExpandedRows(officeGroups: OwnerStatementOfficeGroup[]): void {
-    this.expandedRowIds.clear();
-    (officeGroups || []).forEach(office => this.expandedRowIds.add(office.rowId));
-  }
-
   rebuildVisibleRows(): void {
-    const rows: OwnerStatementVisibleRow[] = [];
-    (this.ownerStatementOfficeGroups || []).forEach(office => {
+    const rows: OwnerReportVisibleRow[] = [];
+    (this.ownerReportOfficeGroups || []).forEach(office => {
       const officeExpanded = this.expandedRowIds.has(office.rowId);
       rows.push({
         rowId: office.rowId,
@@ -504,7 +424,39 @@ export class OwnerReportComponent implements OnInit, OnChanges, OnDestroy {
     this.visibleRows = rows;
   }
 
-  toggleRowExpansion(row: OwnerStatementVisibleRow): void {
+  buildPropertyActivityStateRow(propertyRowId: string, message: string): OwnerReportVisibleRow {
+    return {
+      rowId: `${propertyRowId}:state`,
+      kind: 'propertyActivity',
+      depth: 3,
+      primaryLabel: message,
+      propertyCode: '',
+      itemDescription: '',
+      activityCode: '',
+      expected: '',
+      expectedValue: 0,
+      prePaid: '',
+      prePaidValue: 0,
+      outstanding: '',
+      outstandingValue: 0,
+      income: '',
+      incomeValue: 0,
+      expenses: '',
+      expensesValue: 0,
+      balance: '',
+      balanceValue: 0,
+      workingCapital: '',
+      workingCapitalValue: 0,
+      workingCapitalBalanceDue: '',
+      workingCapitalBalanceDueValue: 0,
+      expandable: false,
+      expanded: false
+    };
+  }
+  //#endregion
+
+  //#region Form Response Methods
+  toggleRowExpansion(row: OwnerReportVisibleRow): void {
     if (!row.expandable) {
       return;
     }
@@ -681,7 +633,7 @@ export class OwnerReportComponent implements OnInit, OnChanges, OnDestroy {
   }
 
   toggleAllOfficeRows(): void {
-    const officeRowIds = (this.ownerStatementOfficeGroups || []).map(group => group.rowId);
+    const officeRowIds = (this.ownerReportOfficeGroups || []).map(group => group.rowId);
     if (officeRowIds.length === 0) {
       return;
     }
@@ -699,45 +651,7 @@ export class OwnerReportComponent implements OnInit, OnChanges, OnDestroy {
     this.markViewForCheck();
   }
 
-  loadPropertyActivityRows(row: OwnerStatementVisibleRow): void {
-    if (row.kind !== 'property' || !row.propertyId || !row.officeId) {
-      return;
-    }
-
-    const request = this.buildOwnerStatementSearchRequest();
-    this.propertyActivityLoadingRowIds.add(row.rowId);
-    this.propertyActivityErrorRowIds.delete(row.rowId);
-    this.rebuildVisibleRows();
-    this.markViewForCheck();
-
-    this.ownerStatementService.searchOwnerStatementPropertyActivityLines({
-      officeIds: [row.officeId],
-      propertyId: row.propertyId,
-      startDate: request.startDate ?? null,
-      endDate: request.endDate ?? null
-    }).pipe(
-      take(1)
-    ).subscribe({
-      next: lines => {
-        this.propertyActivityLinesByPropertyRowId.set(row.rowId, this.mapPropertyActivityDisplays(row.rowId, lines || []));
-        this.propertyActivityLoadingRowIds.delete(row.rowId);
-        this.propertyActivityErrorRowIds.delete(row.rowId);
-        this.rebuildVisibleRows();
-        this.emitViewStateChange();
-        this.markViewForCheck();
-      },
-      error: () => {
-        this.propertyActivityLinesByPropertyRowId.set(row.rowId, []);
-        this.propertyActivityLoadingRowIds.delete(row.rowId);
-        this.propertyActivityErrorRowIds.add(row.rowId);
-        this.rebuildVisibleRows();
-        this.emitViewStateChange();
-        this.markViewForCheck();
-      }
-    });
-  }
-
-  mapPropertyActivityDisplays(propertyRowId: string, lines: OwnerStatementPropertyActivityLineResponse[]): OwnerStatementPropertyActivityLineDisplay[] {
+  mapPropertyActivityDisplays(propertyRowId: string, lines: OwnerReportPropertyActivityLineResponse[]): OwnerReportPropertyActivityLineDisplay[] {
     return (lines || []).map((line, index) => ({
       rowId: `${propertyRowId}:activity:${index}`,
       activityId: (line.activityId || '').trim() || null,
@@ -765,37 +679,7 @@ export class OwnerReportComponent implements OnInit, OnChanges, OnDestroy {
     return `${month}.${day}`;
   }
 
-  buildPropertyActivityStateRow(propertyRowId: string, message: string): OwnerStatementVisibleRow {
-    return {
-      rowId: `${propertyRowId}:state`,
-      kind: 'propertyActivity',
-      depth: 3,
-      primaryLabel: message,
-      propertyCode: '',
-      itemDescription: '',
-      activityCode: '',
-      expected: '',
-      expectedValue: 0,
-      prePaid: '',
-      prePaidValue: 0,
-      outstanding: '',
-      outstandingValue: 0,
-      income: '',
-      incomeValue: 0,
-      expenses: '',
-      expensesValue: 0,
-      balance: '',
-      balanceValue: 0,
-      workingCapital: '',
-      workingCapitalValue: 0,
-      workingCapitalBalanceDue: '',
-      workingCapitalBalanceDueValue: 0,
-      expandable: false,
-      expanded: false
-    };
-  }
-
-  onAmountCellClick(row: OwnerStatementVisibleRow, metric: OwnerStatementDrillDownMetric): void {
+  onAmountCellClick(row: OwnerReportVisibleRow, metric: OwnerReportDrillDownMetric): void {
     if (!this.canDrillDownAmount(row, metric)) {
       return;
     }
@@ -808,7 +692,7 @@ export class OwnerReportComponent implements OnInit, OnChanges, OnDestroy {
     });
   }
 
-  canDrillDownAmount(row: OwnerStatementVisibleRow, metric: OwnerStatementDrillDownMetric): boolean {
+  canDrillDownAmount(row: OwnerReportVisibleRow, metric: OwnerReportDrillDownMetric): boolean {
     if (row.kind !== 'owner' && row.kind !== 'property') {
       return false;
     }
@@ -839,7 +723,7 @@ export class OwnerReportComponent implements OnInit, OnChanges, OnDestroy {
     this.propertyActivityErrorRowIds.clear();
   }
 
-  restoreViewState(officeGroups: OwnerStatementOfficeGroup[], viewState: OwnerStatementListViewState | null): void {
+  restoreViewState(officeGroups: OwnerReportOfficeGroup[], viewState: OwnerReportListViewState | null): void {
     const expandableRowIds = this.collectExpandableRowIds(officeGroups);
     const nextExpanded = new Set<string>();
     (viewState?.expandedRowIds || []).forEach(rowId => {
@@ -862,7 +746,7 @@ export class OwnerReportComponent implements OnInit, OnChanges, OnDestroy {
     this.propertyActivityErrorRowIds.clear();
   }
 
-  collectExpandableRowIds(officeGroups: OwnerStatementOfficeGroup[]): Set<string> {
+  collectExpandableRowIds(officeGroups: OwnerReportOfficeGroup[]): Set<string> {
     const ids = new Set<string>();
     (officeGroups || []).forEach(office => {
       ids.add(office.rowId);
@@ -880,7 +764,7 @@ export class OwnerReportComponent implements OnInit, OnChanges, OnDestroy {
   }
 
   emitViewStateChange(): void {
-    const propertyActivityByPropertyRowId: Record<string, OwnerStatementPropertyActivityLineDisplay[]> = {};
+    const propertyActivityByPropertyRowId: Record<string, OwnerReportPropertyActivityLineDisplay[]> = {};
     this.propertyActivityLinesByPropertyRowId.forEach((lines, rowId) => {
       propertyActivityByPropertyRowId[rowId] = lines || [];
     });
@@ -891,7 +775,7 @@ export class OwnerReportComponent implements OnInit, OnChanges, OnDestroy {
     });
   }
 
-  onActivityCodeClick(row: OwnerStatementVisibleRow): void {
+  onActivityCodeClick(row: OwnerReportVisibleRow): void {
     const selection = this.getActivityLinkSelection(row);
     if (!selection) {
       return;
@@ -899,7 +783,7 @@ export class OwnerReportComponent implements OnInit, OnChanges, OnDestroy {
     this.activityLinkSelect.emit(selection);
   }
 
-  onItemDescriptionCodeClick(row: OwnerStatementVisibleRow, code: string): void {
+  onItemDescriptionCodeClick(row: OwnerReportVisibleRow, code: string): void {
     const selection = this.getActivityLinkSelection(row);
     if (!selection) {
       return;
@@ -916,7 +800,38 @@ export class OwnerReportComponent implements OnInit, OnChanges, OnDestroy {
     });
   }
 
-  getItemDescriptionSegments(row: OwnerStatementVisibleRow): OwnerStatementDescriptionSegment[] {
+  onCashReportToggleChange(isCashSelected: boolean): void {
+    const nextReportKind: OwnerReportKind = isCashSelected ? 'cash' : 'accrual';
+    if (this.reportKind === nextReportKind) {
+      return;
+    }
+
+    this.reportKindChange.emit(nextReportKind);
+  }
+
+  scheduleOwnerReportDimensionLockUpdate(): void {
+    if (this.dimensionsUpdateScheduled) {
+      return;
+    }
+
+    this.dimensionsUpdateScheduled = true;
+    requestAnimationFrame(() => {
+      this.dimensionsUpdateScheduled = false;
+      const tableWrap = this.ownerReportTableWrap?.nativeElement;
+      if (!tableWrap) {
+        return;
+      }
+
+      const measuredHeight = Math.ceil(tableWrap.offsetHeight);
+      if (measuredHeight > this.ownerReportFixedHeightPx) {
+        this.ownerReportFixedHeightPx = measuredHeight;
+      }
+    });
+  }
+  //#endregion
+
+  //#region Get Methods
+  getItemDescriptionSegments(row: OwnerReportVisibleRow): OwnerReportDescriptionSegment[] {
     if (row.kind !== 'propertyActivity') {
       return [{ text: row.itemDescription, code: null }];
     }
@@ -926,7 +841,7 @@ export class OwnerReportComponent implements OnInit, OnChanges, OnDestroy {
       return [{ text: '', code: null }];
     }
 
-    const segments: OwnerStatementDescriptionSegment[] = [];
+    const segments: OwnerReportDescriptionSegment[] = [];
     const codeRegex = /\b(?:WO-[A-Za-z0-9-]+|R-\d+(?:-\d+)*|RC[A-Za-z0-9-]*)\b/ig;
     let startIndex = 0;
     let matched = codeRegex.exec(text);
@@ -952,13 +867,13 @@ export class OwnerReportComponent implements OnInit, OnChanges, OnDestroy {
     return segments;
   }
 
-  private getActivityLinkSelection(row: OwnerStatementVisibleRow): OwnerStatementActivityLinkSelection | null {
+  getActivityLinkSelection(row: OwnerReportVisibleRow): OwnerReportActivityLinkSelection | null {
     if (row.kind !== 'propertyActivity' || !row.officeId || !row.propertyId) {
       return null;
     }
 
     const allActivityRows = Array.from(this.propertyActivityLinesByPropertyRowId.values())
-      .reduce((acc, next) => acc.concat(next), [] as OwnerStatementPropertyActivityLineDisplay[]);
+      .reduce((acc, next) => acc.concat(next), [] as OwnerReportPropertyActivityLineDisplay[]);
     const matchedActivity = allActivityRows.find(line => line.rowId === row.rowId);
     if (!matchedActivity) {
       return null;
@@ -974,7 +889,7 @@ export class OwnerReportComponent implements OnInit, OnChanges, OnDestroy {
   }
 
   get areAllOfficeRowsExpanded(): boolean {
-    const officeRowIds = (this.ownerStatementOfficeGroups || []).map(group => group.rowId);
+    const officeRowIds = (this.ownerReportOfficeGroups || []).map(group => group.rowId);
     return officeRowIds.length > 0 && officeRowIds.every(rowId => this.expandedRowIds.has(rowId));
   }
 
@@ -982,7 +897,7 @@ export class OwnerReportComponent implements OnInit, OnChanges, OnDestroy {
     return this.areAllOfficeRowsExpanded ? 'expand_less' : 'expand_more';
   }
 
-  getRowExpandIcon(row: OwnerStatementVisibleRow): string {
+  getRowExpandIcon(row: OwnerReportVisibleRow): string {
     if (row.kind !== 'office') {
       return row.expanded ? 'chevron_left' : 'chevron_right';
     }
@@ -1001,17 +916,8 @@ export class OwnerReportComponent implements OnInit, OnChanges, OnDestroy {
       : 'Owner Accual Report';
   }
 
-  onCashReportToggleChange(isCashSelected: boolean): void {
-    const nextReportKind: OwnerStatementReportKind = isCashSelected ? 'cash' : 'accrual';
-    if (this.reportKind === nextReportKind) {
-      return;
-    }
-
-    this.reportKindChange.emit(nextReportKind);
-  }
-
   getHeaderOfficeLabel(): string {
-    const officeNames = (this.ownerStatementOfficeGroups || [])
+    const officeNames = (this.ownerReportOfficeGroups || [])
       .map(group => (group.officeName || '').trim())
       .filter(name => !!name);
     if (officeNames.length === 1) {
@@ -1035,7 +941,7 @@ export class OwnerReportComponent implements OnInit, OnChanges, OnDestroy {
   }
 
   getOwnerRowIdsForOffice(officeRowId: string): string[] {
-    const officeGroup = (this.ownerStatementOfficeGroups || []).find(group => group.rowId === officeRowId);
+    const officeGroup = (this.ownerReportOfficeGroups || []).find(group => group.rowId === officeRowId);
     if (!officeGroup) {
       return [];
     }
@@ -1044,7 +950,7 @@ export class OwnerReportComponent implements OnInit, OnChanges, OnDestroy {
 
   getPropertyRowsForOwner(ownerRowId: string): { rowId: string; officeId: number; propertyId: string }[] {
     const rows: { rowId: string; officeId: number; propertyId: string }[] = [];
-    (this.ownerStatementOfficeGroups || []).forEach(office => {
+    (this.ownerReportOfficeGroups || []).forEach(office => {
       const owner = (office.owners || []).find(currentOwner => currentOwner.rowId === ownerRowId);
       if (!owner) {
         return;
@@ -1064,7 +970,7 @@ export class OwnerReportComponent implements OnInit, OnChanges, OnDestroy {
   }
 
   getOwnerRowIdFromPropertyRowId(propertyRowId: string): string {
-    for (const office of this.ownerStatementOfficeGroups || []) {
+    for (const office of this.ownerReportOfficeGroups || []) {
       for (const owner of office.owners || []) {
         if ((propertyRowId || '').startsWith(`property:${office.officeId}:${owner.rowId}:`)) {
           return owner.rowId;
@@ -1078,27 +984,7 @@ export class OwnerReportComponent implements OnInit, OnChanges, OnDestroy {
   //#region Utility Methods
   markViewForCheck(): void {
     this.cdr.markForCheck();
-    this.scheduleOwnerStatementDimensionLockUpdate();
-  }
-
-  scheduleOwnerStatementDimensionLockUpdate(): void {
-    if (this.dimensionsUpdateScheduled) {
-      return;
-    }
-
-    this.dimensionsUpdateScheduled = true;
-    requestAnimationFrame(() => {
-      this.dimensionsUpdateScheduled = false;
-      const tableWrap = this.ownerStatementTableWrap?.nativeElement;
-      if (!tableWrap) {
-        return;
-      }
-
-      const measuredHeight = Math.ceil(tableWrap.offsetHeight);
-      if (measuredHeight > this.ownerStatementFixedHeightPx) {
-        this.ownerStatementFixedHeightPx = measuredHeight;
-      }
-    });
+    this.scheduleOwnerReportDimensionLockUpdate();
   }
 
   ngOnDestroy(): void {
