@@ -3,7 +3,7 @@ import { Injector, Injectable } from '@angular/core';
 import { MatDialog } from '@angular/material/dialog';
 import { Router } from '@angular/router';
 import { JwtHelperService } from '@auth0/angular-jwt';
-import { BehaviorSubject, Observable, catchError, finalize, of, take, tap } from 'rxjs';
+import { BehaviorSubject, Observable, catchError, finalize, map, of, take, tap } from 'rxjs';
 import { RouterToken, RouterUrl } from '../app.routes';
 import { FeatureType } from '../authenticated/organizations/models/organization-enum';
 import { FeatureResponse } from '../authenticated/organizations/models/organization-feature.model';
@@ -107,6 +107,17 @@ export class AuthService {
 
     updatePassword(password: string, newPassword: string): Observable<any> {
         return this.http.put<any>(this.controller + 'password', { password, newPassword });
+    }
+
+    confirmPassword(password: string): Observable<boolean> {
+        const candidate = (password || '').trim();
+        if (!candidate) {
+            throw new Error('Password is required for confirmation.');
+        }
+
+        return this.http.post<{ isConfirmed?: boolean }>(this.controller + 'confirm-password', { password: candidate }).pipe(
+            map(response => response?.isConfirmed === true)
+        );
     }
 
     getAuthData(): AuthResponse | null {

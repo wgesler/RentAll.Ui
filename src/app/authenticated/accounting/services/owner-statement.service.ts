@@ -1,8 +1,9 @@
 import { HttpClient } from '@angular/common/http';
 import { Injectable } from '@angular/core';
-import { map, Observable } from 'rxjs';
+import { catchError, map, Observable } from 'rxjs';
 import { ConfigService } from '../../../services/config.service';
-import { OwnerStatementJournalEntryLineResponse, OwnerStatementJournalEntryLineSearchRequest, OwnerStatementMonthLineResponse, OwnerStatementMonthLineSearchRequest, OwnerStatementPropertyActivityLineResponse, OwnerStatementPropertyActivityLineSearchRequest, OwnerStatementResponse, OwnerStatementSearchRequest } from '../models/owner-statement.model';
+import { OwnerStatementJournalEntryLineResponse, OwnerStatementJournalEntryLineSearchRequest, OwnerStatementMonthLineResponse, OwnerStatementMonthLineSearchRequest, OwnerStatementPropertyActivityLineResponse, OwnerStatementPropertyActivityLineSearchRequest, OwnerStatementResponse, OwnerStatementSearchRequest, OwnerStatementStartingBalanceRequest, OwnerStatementStartingBalanceResponse } from '../models/owner-statement.model';
+import { JournalEntryResponse } from '../models/journal-entry.model';
 
 @Injectable({
   providedIn: 'root'
@@ -40,7 +41,12 @@ export class OwnerStatementService {
       startDate: request.startDate ?? null,
       endDate: request.endDate ?? null
     }).pipe(
-      map(rows => rows ?? [])
+      map(rows => rows ?? []),
+      catchError(() =>
+        this.searchOwnerStatements(request).pipe(
+          map(rows => this.mapOwnerStatementsToMonthLines(rows, request))
+        )
+      )
     );
   }
 
@@ -86,5 +92,67 @@ export class OwnerStatementService {
     }).pipe(
       map(rows => rows ?? [])
     );
+  }
+
+  createOwnerStatementStartingBalance(request: OwnerStatementStartingBalanceRequest): Observable<JournalEntryResponse> {
+    const ownerId = (request.ownerId || '').trim();
+    const propertyId = (request.propertyId || '').trim();
+    const transactionDate = (request.transactionDate || '').trim();
+    if (request.officeId <= 0 || !ownerId || !propertyId || !transactionDate || Number(request.amount) === 0) {
+      throw new Error('Office, owner, property, transaction date, and non-zero amount are required to create owner starting balance.');
+    }
+
+    return this.http.post<JournalEntryResponse>(`${this.controller}owner-statement/starting-balance`, {
+      officeId: request.officeId,
+      ownerId,
+      propertyId,
+      transactionDate,
+      amount: Number(request.amount),
+      currentPassword: (request.currentPassword || '').trim()
+    });
+  }
+
+  getOwnerStatementStartingBalance(officeId: number, ownerId: string, propertyId: string): Observable<OwnerStatementStartingBalanceResponse | null> {
+    const ownerIdTrimmed = (ownerId || '').trim();
+    const propertyIdTrimmed = (propertyId || '').trim();
+    if (officeId <= 0 || !ownerIdTrimmed || !propertyIdTrimmed) {
+      throw new Error('Office, owner, and property are required to retrieve owner starting balance.');
+    }
+
+    return this.http.post<OwnerStatementStartingBalanceResponse | null>(`${this.controller}owner-statement/starting-balance/get`, {
+      officeId,
+      ownerId: ownerIdTrimmed,
+      propertyId: propertyIdTrimmed
+    });
+  }
+
+  private mapOwnerStatementsToMonthLines(rows: OwnerStatementResponse[], request: OwnerStatementMonthLineSearchRequest): OwnerStatementMonthLineResponse[] {
+    const monthDate = request.endDate ?? request.startDate ?? '';
+    return (rows || []).map(row => {
+      const ownerId = (row.ownerId || '').trim();
+      const propertyId = (row.propertyId || '').trim();
+      const ownerStatementLineId = [row.officeId, ownerId, propertyId, monthDate].join('|');
+      return {
+        ownerStatementLineId,
+        officeId: row.officeId,
+        officeName: row.officeName,
+        ownerId,
+        ownerName: row.ownerName,
+        propertyId,
+        propertyCode: row.propertyCode,
+        monthDate,
+        expected: row.expected,
+        prePaid: row.prePaid,
+        outstanding: row.outstanding,
+        startingBalance: row.startingBalance,
+        income: row.income,
+        expenses: row.expenses,
+        balance: row.balance,
+        ownerPayment: row.ownerPayment,
+        endingBalance: row.endingBalance,
+        workingCapital: row.workingCapital,
+        workingCapitalBalanceDue: row.workingCapitalBalanceDue
+      };
+    });
   }
 }

@@ -1,17 +1,24 @@
 import { CommonModule } from '@angular/common';
 import { ChangeDetectionStrategy, ChangeDetectorRef, Component, EventEmitter, Input, OnChanges, OnDestroy, OnInit, Output, SimpleChanges } from '@angular/core';
+import { MatDialog } from '@angular/material/dialog';
 import { BehaviorSubject, finalize, Subject, take, takeUntil } from 'rxjs';
-import { MaterialModule } from '../../../material.module';
+import { ToastrService } from 'ngx-toastr';
+import { CommonMessage } from '../../../enums/common-message.enum';
+import { AuthService } from '../../../services/auth.service';
 import { FormatterService } from '../../../services/formatter-service';
 import { UtilityService } from '../../../services/utility.service';
 import { MaintenanceListSearchRequest } from '../../maintenance/models/maintenance-search.model';
+import { PropertyAgreementService } from '../../properties/services/property-agreement.service';
+import { DataTableComponent } from '../../shared/data-table/data-table.component';
+import { ColumnSet } from '../../shared/data-table/models/column-data';
 import { OwnerStatementMonthLineListDisplay, OwnerStatementMonthLineResponse, OwnerStatementMonthLineSearchRequest, OwnerStatementMonthLineSelection } from '../models/owner-statement.model';
 import { OwnerStatementService } from '../services/owner-statement.service';
+import { OwnerStatementStartingBalanceDialogComponent, OwnerStatementStartingBalanceDialogResult } from './owner-statement-starting-balance-dialog.component';
 
 @Component({
   selector: 'app-owner-statement-list',
   standalone: true,
-  imports: [CommonModule, MaterialModule],
+  imports: [CommonModule, DataTableComponent],
   templateUrl: './owner-statement-list.component.html',
   styleUrl: './owner-statement-list.component.scss',
   changeDetection: ChangeDetectionStrategy.OnPush
@@ -25,11 +32,21 @@ export class OwnerStatementListComponent implements OnInit, OnChanges, OnDestroy
   isServiceError = false;
   noDataMessage = 'No owner statement lines matched the current filters.';
   lines: OwnerStatementMonthLineListDisplay[] = [];
-  displayedColumns: string[] = ['view', 'officeName', 'ownerName', 'propertyCode', 'monthDate', 'expected', 'prePaid', 'outstanding', 'income', 'expenses', 'balance', 'workingCapital', 'workingCapitalBalanceDue'];
+  readonly ownerStatementDisplayedColumns: ColumnSet = {
+    officeName: { displayAs: 'Office', wrap: false, maxWidth: '14ch' },
+    ownerName: { displayAs: 'Owner', wrap: false, maxWidth: '20ch' },
+    propertyCode: { displayAs: 'Property', wrap: false, maxWidth: '15ch' },
+    monthDisplay: { displayAs: 'Month', wrap: false, maxWidth: '15ch', alignment: 'center' },
+    startingBalance: { displayAs: 'Starting', wrap: false, maxWidth: '14ch', alignment: 'right', headerAlignment: 'right' },
+    income: { displayAs: 'Income', wrap: false, maxWidth: '12ch', alignment: 'right', headerAlignment: 'right' },
+    expenses: { displayAs: 'Expenses', wrap: false, maxWidth: '12ch', alignment: 'right', headerAlignment: 'right' },
+    ownerPayment: { displayAs: 'Payment', wrap: false, maxWidth: '12ch', alignment: 'right', headerAlignment: 'right' },
+    endingBalance: { displayAs: 'Balance', wrap: false, maxWidth: '12ch', alignment: 'right', headerAlignment: 'right' }
+  };
   itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['ownerStatementMonthLines']));
   destroy$ = new Subject<void>();
 
-  constructor(private ownerStatementService: OwnerStatementService, private formatter: FormatterService, private utilityService: UtilityService, private cdr: ChangeDetectorRef) {}
+  constructor(private ownerStatementService: OwnerStatementService, private propertyAgreementService: PropertyAgreementService, private authService: AuthService, private formatter: FormatterService, private utilityService: UtilityService, private dialog: MatDialog, private toastr: ToastrService, private cdr: ChangeDetectorRef) {}
 
   //#region Owner-Statement-List
   ngOnInit(): void {
@@ -53,6 +70,39 @@ export class OwnerStatementListComponent implements OnInit, OnChanges, OnDestroy
       ownerId: row.ownerId,
       propertyId: row.propertyId,
       monthDate: row.monthDate
+    });
+  }
+
+  openStartingBalanceDialog(row: OwnerStatementMonthLineListDisplay): void {
+    this.ownerStatementService.getOwnerStatementStartingBalance(row.officeId, row.ownerId, row.propertyId).pipe(take(1)).subscribe({
+      next: existingStartingBalance => {
+        const hasExistingStartingBalance = !!existingStartingBalance;
+        if (hasExistingStartingBalance && !this.authService.isAdmin()) {
+          this.toastr.warning('Only Admin users can change an existing starting balance.', 'Owner Statements');
+          return;
+        }
+
+        const startingBalanceAmount = existingStartingBalance?.amount ?? this.parseCurrencyValue(row.startingBalance);
+        if (Math.abs(startingBalanceAmount) > 0.005) {
+          this.openStartingBalanceDialogWithAmount(row, existingStartingBalance?.transactionDate ?? null, existingStartingBalance?.amount ?? null, hasExistingStartingBalance, startingBalanceAmount);
+          return;
+        }
+
+        this.propertyAgreementService.getPropertyAgreement(row.propertyId).pipe(take(1)).subscribe({
+          next: agreement => {
+            const workingCapital = Number(agreement?.workingCapitalBalance);
+            const defaultAmount = Number.isFinite(workingCapital) ? workingCapital : startingBalanceAmount;
+            this.openStartingBalanceDialogWithAmount(row, existingStartingBalance?.transactionDate ?? null, existingStartingBalance?.amount ?? null, hasExistingStartingBalance, defaultAmount);
+          },
+          error: () => {
+            this.openStartingBalanceDialogWithAmount(row, existingStartingBalance?.transactionDate ?? null, existingStartingBalance?.amount ?? null, hasExistingStartingBalance, startingBalanceAmount);
+          }
+        });
+      },
+      error: () => {
+        this.toastr.error('Unable to load current starting balance.', CommonMessage.Error);
+        this.markViewForCheck();
+      }
     });
   }
   //#endregion
@@ -102,20 +152,104 @@ export class OwnerStatementListComponent implements OnInit, OnChanges, OnDestroy
       officeName: (row.officeName || '').trim(),
       ownerName: (row.ownerName || '').trim(),
       propertyCode: (row.propertyCode || '').trim(),
-      monthDate: this.formatter.formatDateString(row.monthDate),
-      expected: this.formatter.currencyUsd(Number(row.expected) || 0),
-      prePaid: this.formatter.currencyUsd(Number(row.prePaid) || 0),
-      outstanding: this.formatter.currencyUsd(Number(row.outstanding) || 0),
+      monthDate: (row.monthDate || '').trim(),
+      monthDisplay: this.formatMonthDate(row.monthDate),
+      startingBalance: this.formatter.currencyUsd(Number(row.startingBalance) || 0),
       income: this.formatter.currencyUsd(Number(row.income) || 0),
       expenses: this.formatter.currencyUsd(Number(row.expenses) || 0),
-      balance: this.formatter.currencyUsd(Number(row.balance) || 0),
-      workingCapital: this.formatter.currencyUsd(Number(row.workingCapital) || 0),
-      workingCapitalBalanceDue: this.formatter.currencyUsd(Number(row.workingCapitalBalanceDue) || 0)
+      ownerPayment: this.formatter.currencyUsd(Number(row.ownerPayment) || 0),
+      endingBalance: this.formatter.currencyUsd(Number(row.endingBalance) || 0)
     }));
   }
   //#endregion
 
   //#region Utility Methods
+  openStartingBalanceDialogWithAmount(row: OwnerStatementMonthLineListDisplay, existingTransactionDate: string | null, existingAmount: number | null, hasExistingStartingBalance: boolean, defaultAmount: number | null): void {
+    const defaultDateValue = existingTransactionDate || row.monthDate || null;
+    const defaultDate = this.utilityService.parseCalendarDateInput(defaultDateValue) ?? new Date();
+    this.dialog.open(OwnerStatementStartingBalanceDialogComponent, {
+      width: '34rem',
+      data: {
+        defaultDate,
+        defaultAmount,
+        existingAmount,
+        existingTransactionDate,
+        requiresAdminPassword: hasExistingStartingBalance
+      }
+    }).afterClosed().pipe(take(1)).subscribe((result?: OwnerStatementStartingBalanceDialogResult) => {
+      if (!result) {
+        return;
+      }
+
+      const changedExistingValue = hasExistingStartingBalance
+        && ((existingTransactionDate || '') !== result.transactionDate || Math.abs((Number(existingAmount) || 0) - (Number(result.amount) || 0)) > 0.005);
+      const currentPassword = String(result.currentPassword || '').trim();
+      const createStartingBalance = () => {
+        this.ownerStatementService.createOwnerStatementStartingBalance({
+          officeId: row.officeId,
+          ownerId: row.ownerId,
+          propertyId: row.propertyId,
+          transactionDate: result.transactionDate,
+          amount: result.amount,
+          currentPassword: changedExistingValue ? currentPassword : null
+        }).pipe(take(1)).subscribe({
+          next: () => {
+            this.toastr.success('Starting balance journal entry saved and posted.', CommonMessage.Success);
+            this.loadOwnerStatementList();
+          },
+          error: () => {
+            this.toastr.error('Unable to save starting balance journal entry.', CommonMessage.Error);
+            this.markViewForCheck();
+          }
+        });
+      };
+      if (!changedExistingValue) {
+        createStartingBalance();
+        return;
+      }
+
+      this.authService.confirmPassword(currentPassword).pipe(take(1)).subscribe({
+        next: isConfirmed => {
+          if (!isConfirmed) {
+            this.toastr.error('Password confirmation failed.', CommonMessage.Error);
+            return;
+          }
+          createStartingBalance();
+        },
+        error: () => {
+          this.toastr.error('Password confirmation failed.', CommonMessage.Error);
+          this.markViewForCheck();
+        }
+      });
+    });
+  }
+
+  parseCurrencyValue(value: string | null | undefined): number {
+    const raw = String(value || '').trim();
+    if (!raw) {
+      return 0;
+    }
+
+    const parsed = Number(raw.replace(/[^0-9.-]/g, ''));
+    return Number.isFinite(parsed) ? parsed : 0;
+  }
+
+  formatMonthDate(value: string | null | undefined): string {
+    const raw = String(value || '').trim();
+    if (!raw) {
+      return '';
+    }
+
+    const date = new Date(raw);
+    if (Number.isNaN(date.getTime())) {
+      return raw;
+    }
+
+    const month = `${date.getMonth() + 1}`.padStart(2, '0');
+    const year = `${date.getFullYear()}`.slice(-2);
+    return `${month}.${year}`;
+  }
+
   markViewForCheck(): void {
     this.cdr.markForCheck();
   }

@@ -18,6 +18,7 @@ export interface OwnerStatementResponse {
   income: number;
   expenses: number;
   balance: number;
+  startingBalance: number;
   workingCapital: number;
   workingCapitalBalanceDue: number;
   ownerPayment: number;
@@ -46,6 +47,9 @@ export interface OwnerStatementMonthLineResponse {
   income: number;
   expenses: number;
   balance: number;
+  startingBalance?: number;
+  ownerPayment?: number;
+  endingBalance?: number;
   workingCapital: number;
   workingCapitalBalanceDue: number;
 }
@@ -59,14 +63,12 @@ export interface OwnerStatementMonthLineListDisplay {
   ownerName: string;
   propertyCode: string;
   monthDate: string;
-  expected: string;
-  prePaid: string;
-  outstanding: string;
+  monthDisplay: string;
+  startingBalance: string;
   income: string;
   expenses: string;
-  balance: string;
-  workingCapital: string;
-  workingCapitalBalanceDue: string;
+  ownerPayment: string;
+  endingBalance: string;
 }
 
 export interface OwnerStatementMonthLineSelection {
@@ -75,6 +77,26 @@ export interface OwnerStatementMonthLineSelection {
   ownerId: string;
   propertyId: string;
   monthDate: string;
+}
+
+export interface OwnerStatementStartingBalanceRequest {
+  officeId: number;
+  ownerId: string;
+  propertyId: string;
+  transactionDate: string;
+  amount: number;
+  currentPassword?: string | null;
+}
+
+export interface OwnerStatementStartingBalanceResponse {
+  journalEntryId: string;
+  officeId: number;
+  ownerId: string;
+  propertyId: string;
+  transactionDate: string;
+  amount: number;
+  memo: string;
+  isPosted: boolean;
 }
 
 export interface OwnerStatementJournalEntryLineSearchRequest {
@@ -158,6 +180,7 @@ export interface OwnerStatementPropertyRow {
   income: number;
   expenses: number;
   balance: number;
+  startingBalance: number;
   workingCapital: number;
   workingCapitalBalanceDue: number;
   ownerPayment: number;
@@ -175,6 +198,7 @@ export interface OwnerStatementOwnerGroup {
   income: number;
   expenses: number;
   balance: number;
+  startingBalance: number;
   workingCapital: number;
   workingCapitalBalanceDue: number;
   ownerPayment: number;
@@ -192,6 +216,7 @@ export interface OwnerStatementOfficeGroup {
   income: number;
   expenses: number;
   balance: number;
+  startingBalance: number;
   workingCapital: number;
   workingCapitalBalanceDue: number;
   ownerPayment: number;
@@ -223,6 +248,8 @@ export interface OwnerStatementVisibleRow {
   expensesValue: number;
   balance: string;
   balanceValue: number;
+  startingBalance: string;
+  startingBalanceValue: number;
   workingCapital: string;
   workingCapitalValue: number;
   workingCapitalBalanceDue: string;

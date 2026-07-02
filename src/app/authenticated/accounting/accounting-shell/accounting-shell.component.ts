@@ -43,6 +43,7 @@ import { ArAgingReportComponent } from '../ar-aging-report/ar-aging-report.compo
 import { AR_AGING_DATE_PRESET_OPTIONS, AR_AGING_INTERVAL_OPTIONS, AR_AGING_SORT_BY_OPTIONS, AR_AGING_THROUGH_ALL_VALUE, AR_AGING_THROUGH_OPTIONS, ArAgingDatePreset, ArAgingReportFilters, ArAgingSortBy, normalizeArAgingThroughDays, resolveArAgingAsOfDate } from '../models/ar-aging-report.model';
 import { RentRollComponent } from '../rent-roll/rent-roll.component';
 import { OwnerReportComponent } from '../owner-report/owner-report.component';
+import { OwnerStatementListComponent } from '../owner-statement-list/owner-statement-list.component';
 import { AccountingShellBankActivityKind, AccountingShellBillsReceiptKind, AccountingShellOwnerKind, AccountingShellReportKind } from '../models/accounting-shell.model';
 import { FinancialReportKind } from '../models/financial-report.model';
 import { RentRollCreateBillRequest } from '../models/rent-roll.model';
@@ -92,6 +93,7 @@ interface JournalEntrySyncProgressRow {
     ArAgingReportComponent,
     RentRollComponent,
     OwnerReportComponent,
+    OwnerStatementListComponent,
     OwnerReportDetailsComponent,
     TitleBarSelectComponent
 ],
@@ -129,8 +131,9 @@ export class AccountingShellComponent implements OnInit, OnDestroy {
   ];
   readonly shellOwnerMenuOptions: { kind: AccountingShellOwnerKind; label: string }[] = [
     { kind: 'workOrders', label: 'Work Orders' },
-    { kind: 'utilities', label: 'Utilities' },
-    { kind: 'statements', label: 'Owner Reports' }
+    { kind: 'utilities', label: 'Utilities & Bills' },
+    { kind: 'statements', label: 'Accural & Cash' },
+    { kind: 'ownerStatements', label: 'Owner Statements' }
   ];
   readonly shellReportMenuOptions: { kind: AccountingShellReportKind; label: string }[] = [
     { kind: 'profitLoss', label: 'Profit & Loss' },
@@ -139,7 +142,7 @@ export class AccountingShellComponent implements OnInit, OnDestroy {
   ];
   selectedBillsReceiptKind: AccountingShellBillsReceiptKind = 'bills';
   selectedBankActivityKind: AccountingShellBankActivityKind = 'deposits';
-  selectedOwnerKind: AccountingShellOwnerKind = 'workOrders';
+  selectedOwnerKind: AccountingShellOwnerKind = 'utilities';
   selectedOwnerStatementReportKind: OwnerStatementReportKind = 'accrual';
   selectedReportKind: AccountingShellReportKind = 'profitLoss';
 
@@ -2003,7 +2006,7 @@ export class AccountingShellComponent implements OnInit, OnDestroy {
       this.selectedBankActivityKind = 'deposits';
     }
     if (activeTabIndex !== this.tabOwners) {
-      this.selectedOwnerKind = 'workOrders';
+      this.selectedOwnerKind = 'utilities';
     }
     if (activeTabIndex !== this.tabReports) {
       this.selectedReportKind = 'profitLoss';
@@ -2235,8 +2238,10 @@ export class AccountingShellComponent implements OnInit, OnDestroy {
 
     if ('ownerKind' in params) {
       const ownerKind = params['ownerKind'];
-      if (ownerKind === 'utilities' || ownerKind === 'workOrders' || ownerKind === 'statements') {
+      if (ownerKind === 'utilities' || ownerKind === 'workOrders' || ownerKind === 'statements' || ownerKind === 'ownerStatements') {
         this.selectedOwnerKind = ownerKind;
+      } else if (ownerKind === 'ownerStatement' || ownerKind === 'owner-statements' || ownerKind === 'owner-statment') {
+        this.selectedOwnerKind = 'ownerStatements';
       }
     }
 

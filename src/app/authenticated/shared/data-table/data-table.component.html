@@ -200,6 +200,10 @@
                                 <span class="datatable-quote-letter-icon" id="row-{{button.name}}-btn-icon-{{templateTableId}}-{{i}}">
                                   Q
                                 </span>
+                              } @else if (button.name === 'startingBalance') {
+                                <span class="datatable-starting-balance-letter-icon" id="row-{{button.name}}-btn-icon-{{templateTableId}}-{{i}}">
+                                  SB
+                                </span>
                               } @else {
                                 <mat-icon id="row-{{button.name}}-btn-icon-{{templateTableId}}-{{i}}" [ngClass]="{'datatable-info-icon': button.name === 'info'}">
                                   @if (button.name === 'info') {

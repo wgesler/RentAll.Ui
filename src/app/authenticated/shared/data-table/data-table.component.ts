@@ -116,6 +116,7 @@ export class DataTableComponent implements OnChanges, OnInit, AfterViewInit, OnD
   @Input() hasActionsSave: boolean = false;
   @Input() hasActionsSelect: boolean = false;
   @Input() hasActionsInspect: boolean = false;
+  @Input() hasActionsStartingBalance: boolean = false;
   @Input() hasActionsView: boolean = false;
 
   @Input() isColumnFirstActions: boolean = false;
@@ -212,6 +213,7 @@ export class DataTableComponent implements OnChanges, OnInit, AfterViewInit, OnD
   @Output() saveEvent = new EventEmitter<PurposefulAny>();
   @Output() selectEvent = new EventEmitter<PurposefulAny>();
   @Output() inspectEvent = new EventEmitter<PurposefulAny>();
+  @Output() startingBalanceEvent = new EventEmitter<PurposefulAny>();
   @Output() viewEvent = new EventEmitter<PurposefulAny>();
   @Output() attachmentClickEvent = new EventEmitter<PurposefulAny>();
   @Output() quotePathClickEvent = new EventEmitter<PurposefulAny>();
@@ -662,6 +664,11 @@ export class DataTableComponent implements OnChanges, OnInit, AfterViewInit, OnD
   emitInspectEvent(event: Event, rowItem: PurposefulAny): void {
     event.stopPropagation();
     this.inspectEvent.emit(rowItem);
+  }
+
+  emitStartingBalanceEvent(event: Event, rowItem: PurposefulAny): void {
+    event.stopPropagation();
+    this.startingBalanceEvent.emit(rowItem);
   }
 
   emitRowClickEvent(rowItem: PurposefulAny, event?: MouseEvent): void {
@@ -1265,7 +1272,7 @@ export class DataTableComponent implements OnChanges, OnInit, AfterViewInit, OnD
       columns['no'] = { displayAs: 'No', wrap: false, sort: false, maxWidth: '5ch' };
     columns = { ...columns, ...rest };
     
-    if (this.hasActionsEdit || this.hasActionsDelete || this.hasActionsSave || this.hasActionsRestore || this.hasActionsDownload || this.hasActionsView || this.hasActionsInspect || this.hasActionsCamera || this.hasActionsPayable || this.hasActionsInvoice || this.hasActionsInfo || this.hasActionsCopy || this.hasActionsLink || this.hasActionsUser || this.hasActionsRental || this.hasActionsOwner || this.hasActionsCalendar || this.hasActionsQuote || this.hasActionsClearTracking || this.hasActionsCheckAll || this.hasColumnDynamicAction)
+    if (this.hasActionsEdit || this.hasActionsDelete || this.hasActionsSave || this.hasActionsRestore || this.hasActionsDownload || this.hasActionsView || this.hasActionsInspect || this.hasActionsCamera || this.hasActionsPayable || this.hasActionsInvoice || this.hasActionsInfo || this.hasActionsCopy || this.hasActionsLink || this.hasActionsUser || this.hasActionsRental || this.hasActionsOwner || this.hasActionsCalendar || this.hasActionsQuote || this.hasActionsClearTracking || this.hasActionsCheckAll || this.hasActionsStartingBalance || this.hasColumnDynamicAction)
       columns['actions'] = { displayAs: 'Actions', sort: false, wrap: false };
     
     this.tableColumns = [];
@@ -1293,6 +1300,7 @@ export class DataTableComponent implements OnChanges, OnInit, AfterViewInit, OnD
   setActions(): void {
     this.buttons = [];
     const placeInfoBeforeDelete = this.tableName === 'receipts-list';
+    if (this.hasActionsStartingBalance) this.buttons.push({name: 'startingBalance', callback: (event, rowItem) => this.emitStartingBalanceEvent(event, rowItem), color: '#2E7D32', tooltip: 'Enter Starting Balance', tooltipPosition: 'before', icon: 'SB', suspendOnUpdate: false});
     if (this.hasActionsLock)     this.buttons.push({name: 'lock', callback: (event, rowItem) => this.emitLockEvent(event, rowItem), color: 'accent', tooltip: 'Locked', tooltipPosition: 'before', icon: 'lock', suspendOnUpdate: true});
     if (this.hasActionsCamera)   this.buttons.push({name: 'camera', callback: (event, rowItem) => this.emitCameraEvent(event, rowItem), color: '#2196F3', tooltip: 'Open Document', tooltipPosition: 'before', icon: 'photo_camera', suspendOnUpdate: false});
     if (this.hasActionsEdit)     this.buttons.push({name: 'edit', callback: (event, rowItem) => this.emitEditEvent(event, rowItem), color: '#7E69B4', tooltip: 'Edit', tooltipPosition: 'before', icon: 'edit', suspendOnUpdate: false});

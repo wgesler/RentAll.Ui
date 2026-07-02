@@ -200,7 +200,7 @@
                     <td class="owner-statement-col-amount owner-statement-col-working-capital">{{ row.workingCapitalBalanceDue }}</td>
                   } @else {
                     <td class="owner-statement-col-amount">
-                      {{ row.workingCapital }}
+                      {{ row.startingBalance }}
                     </td>
                     <td class="owner-statement-col-amount">
                       <button type="button" class="owner-statement-amount-link" [class.owner-statement-amount-link--active]="canDrillDownAmount(row, 'income')" [disabled]="!canDrillDownAmount(row, 'income')" (click)="$event.stopPropagation(); onAmountCellClick(row, 'income')">{{ row.income }}</button>

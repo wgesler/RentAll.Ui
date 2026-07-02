@@ -27,6 +27,7 @@ import { NewContactDialogService } from '../../shared/contacts/new-contact-dialo
 import { DataTableComponent } from '../../shared/data-table/data-table.component';
 import { DataTableFilterActionsDirective } from '../../shared/data-table/data-table-filter-actions.directive';
 import { ColumnSet } from '../../shared/data-table/models/column-data';
+import { ReceiptType } from '../models/maintenance-enums';
 import { MaintenanceListSearchRequest } from '../models/maintenance-search.model';
 import { BillPaymentRequest, BillPaymentResponse, ReceiptDisplayList, ReceiptResponse, ReceiptSelection, Split } from '../models/receipt.model';
 import { ReceiptService } from '../services/receipt.service';
@@ -940,7 +941,7 @@ export class ReceiptsListComponent implements OnInit, OnChanges, OnDestroy {
       return receipts.filter(receipt => this.isBillReceipt(receipt));
     }
     if (this.accountingListMode === 'utilities') {
-      return receipts.filter(receipt => this.isBillReceipt(receipt) && receipt.isUtility === true);
+      return receipts.filter(receipt => this.isBillReceipt(receipt) && (receipt.isUtility === true || this.hasOwnerSplit(receipt)));
     }
     if (this.accountingListMode === 'receipts') {
       return receipts.filter(receipt => !this.isBillReceipt(receipt));
@@ -950,6 +951,10 @@ export class ReceiptsListComponent implements OnInit, OnChanges, OnDestroy {
 
   isBillReceipt(receipt: Pick<ReceiptDisplayList, 'bankCardId'>): boolean {
     return Number(receipt.bankCardId ?? 0) === 0;
+  }
+
+  hasOwnerSplit(receipt: Pick<ReceiptDisplayList, 'splits'>): boolean {
+    return (receipt.splits || []).some(split => Number(split.receiptTypeId) === ReceiptType.Owner);
   }
 
   isBillMissingReceiptAttachment(event: ReceiptDisplayList): boolean {

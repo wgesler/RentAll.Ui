@@ -653,7 +653,7 @@
               @if (selectedOwnerKind === 'utilities' || selectedOwnerKind === 'workOrders') {
                 <div class="accounting-shell-subview-title">
                   @if (selectedOwnerKind === 'utilities') {
-                    Utilities
+                    Utilities & Bills
                   } @else {
                     Work Orders
                   }
@@ -702,7 +702,12 @@
                     [refreshTrigger]="ownersWorkOrdersRefreshTrigger"
                     (workOrderSelect)="onOwnersWorkOrderSelect($event)" />
                 }
-              } @else {
+              } @else if (selectedOwnerKind === 'ownerStatements') {
+                <app-owner-statement-list
+                  [searchRequest]="billsSearchRequest"
+                  [refreshTrigger]="ownersStatementsRefreshTrigger">
+                </app-owner-statement-list>
+              } @else if (selectedOwnerKind === 'statements') {
                 @if (showGeneralLedgerDetail && activeJournalEntryId && showOwnerStatementJournalEntryLines) {
                   <app-general-ledger
                     [journalEntryId]="activeJournalEntryId"

@@ -1,0 +1,41 @@
+.owner-statement-starting-balance-dialog {
+  display: flex;
+  flex-direction: column;
+}
+
+.owner-statement-starting-balance-dialog-header {
+  align-items: center;
+  background: #e2e8f0;
+  border-top-left-radius: 8px;
+  border-top-right-radius: 8px;
+  display: flex;
+  justify-content: space-between;
+  padding: 12px;
+}
+
+.owner-statement-starting-balance-dialog-title {
+  font-size: 1.25rem;
+  font-weight: 500;
+}
+
+.owner-statement-starting-balance-dialog-close {
+  box-shadow: none !important;
+}
+
+.owner-statement-starting-balance-dialog-content {
+  min-width: min(100%, 28rem);
+  padding: 1rem;
+}
+
+.owner-statement-starting-balance-dialog-form {
+  display: grid;
+  gap: 12px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.owner-statement-starting-balance-dialog-actions {
+  display: flex;
+  gap: 12px;
+  justify-content: flex-end;
+  padding: 12px;
+}
