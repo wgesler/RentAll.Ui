@@ -1971,6 +1971,8 @@ export class MappingService {
     return (lines || []).map((line, index) => ({
       rowId: `${propertyRowId}:activity:${index}`,
       activityId: (line.activityId || '').trim() || null,
+      sourceId: (line.sourceId || '').trim() || null,
+      journalEntryLineId: (line.journalEntryLineId || '').trim() || null,
       activityType: line.activityType || '',
       activityDate: this.formatOwnerReportMonthDay(line.activityDate),
       documentCode: line.documentCode || '',

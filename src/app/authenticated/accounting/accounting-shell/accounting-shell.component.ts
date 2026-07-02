@@ -1188,7 +1188,7 @@ export class AccountingShellComponent implements OnInit, OnDestroy {
     }
 
     if (/^JE/i.test(activityCode)) {
-      this.openOwnerStatementJournalEntryByCode(activityCode);
+      this.openOwnerStatementJournalEntryByCode(activityCode, activityId || null);
       return;
     }
 
@@ -1222,7 +1222,7 @@ export class AccountingShellComponent implements OnInit, OnDestroy {
     }
   }
 
-  private openOwnerStatementJournalEntryByCode(journalEntryCode: string): void {
+  private openOwnerStatementJournalEntryByCode(journalEntryCode: string, journalEntryLineId: string | null): void {
     this.generalLedgerService.getJournalEntryByCode(journalEntryCode).pipe(take(1)).subscribe({
       next: journalEntry => {
         if (!journalEntry?.journalEntryId) {
@@ -1234,7 +1234,7 @@ export class AccountingShellComponent implements OnInit, OnDestroy {
         this.selectedOwnerKind = 'statements';
         this.showOwnerStatementJournalEntryLines = true;
         this.activeJournalEntryId = journalEntry.journalEntryId;
-        this.selectedJournalEntryLineId = null;
+        this.selectedJournalEntryLineId = journalEntryLineId;
         this.showGeneralLedgerDetail = true;
       },
       error: () => this.toastr.error('Unable to locate journal entry by code.', 'Error')

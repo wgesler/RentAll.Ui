@@ -135,6 +135,8 @@ export interface OwnerStatementPropertyActivityLineSearchRequest {
 
 export interface OwnerStatementPropertyActivityLineResponse {
   activityId?: string | null;
+  sourceId?: string | null;
+  journalEntryLineId?: string | null;
   activityType: string;
   activityDate: string;
   documentCode: string;
@@ -265,6 +267,8 @@ export interface OwnerStatementVisibleRow {
 export interface OwnerStatementPropertyActivityLineDisplay {
   rowId: string;
   activityId: string | null;
+  sourceId: string | null;
+  journalEntryLineId: string | null;
   activityType: string;
   activityDate: string;
   documentCode: string;

@@ -671,7 +671,7 @@ export class OwnerReportComponent implements OnInit, OnChanges, OnDestroy {
   }
 
   onActivityCodeClick(row: OwnerReportVisibleRow): void {
-    const selection = this.getActivityLinkSelection(row);
+    const selection = this.getActivityLinkSelection(row, 'journal');
     if (!selection) {
       return;
     }
@@ -679,7 +679,7 @@ export class OwnerReportComponent implements OnInit, OnChanges, OnDestroy {
   }
 
   onItemDescriptionCodeClick(row: OwnerReportVisibleRow, code: string): void {
-    const selection = this.getActivityLinkSelection(row);
+    const selection = this.getActivityLinkSelection(row, 'source');
     if (!selection) {
       return;
     }
@@ -762,7 +762,7 @@ export class OwnerReportComponent implements OnInit, OnChanges, OnDestroy {
     return segments;
   }
 
-  getActivityLinkSelection(row: OwnerReportVisibleRow): OwnerReportActivityLinkSelection | null {
+  getActivityLinkSelection(row: OwnerReportVisibleRow, clickKind: 'source' | 'journal'): OwnerReportActivityLinkSelection | null {
     if (row.kind !== 'propertyActivity' || !row.officeId || !row.propertyId) {
       return null;
     }
@@ -775,7 +775,9 @@ export class OwnerReportComponent implements OnInit, OnChanges, OnDestroy {
     }
 
     return {
-      activityId: matchedActivity.activityId,
+      activityId: clickKind === 'journal'
+        ? (matchedActivity.journalEntryLineId || matchedActivity.activityId)
+        : (matchedActivity.sourceId || matchedActivity.activityId),
       activityCode: matchedActivity.documentCode,
       activityType: matchedActivity.activityType,
       officeId: row.officeId,
