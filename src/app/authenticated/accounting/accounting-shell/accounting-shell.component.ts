@@ -400,9 +400,15 @@ export class AccountingShellComponent implements OnInit, OnDestroy {
   }
 
   onGeneralLedgerBack(): void {
+    const shouldRefreshOwnerStatements = this.selectedTabIndex === this.tabOwners
+      && this.selectedOwnerKind === 'statements'
+      && this.showOwnerStatementJournalEntryLines;
     this.showGeneralLedgerDetail = false;
     this.activeJournalEntryId = null;
     this.selectedJournalEntryLineId = null;
+    if (shouldRefreshOwnerStatements) {
+      this.ownersStatementsRefreshTrigger++;
+    }
   }
 
   onOwnerStatementJournalEntryLineSelect(event: { journalEntryId: string; journalEntryLineId: string }): void {
@@ -985,6 +991,12 @@ export class AccountingShellComponent implements OnInit, OnDestroy {
     this.depositsRefreshTrigger++;
     this.printChecksRefreshTrigger++;
     this.ownersUtilitiesRefreshTrigger++;
+    if (this.selectedTabIndex === this.tabOwners && this.selectedOwnerKind === 'statements') {
+      this.ownersStatementsRefreshTrigger++;
+      if (this.showOwnerStatementJournalEntryLines) {
+        this.ownerStatementJournalEntryLinesRefreshTrigger++;
+      }
+    }
     this.financialReportsRefreshTrigger++;
     this.generalLedgerRefreshTrigger++;
   }
