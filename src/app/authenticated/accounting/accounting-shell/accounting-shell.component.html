@@ -626,7 +626,7 @@
           <mat-tab>
             <ng-template mat-tab-label>
               <span class="accounting-shell-dropdown-tab-label">
-                <span class="accounting-shell-dropdown-tab-label__text">Owner Reports</span>
+                <span class="accounting-shell-dropdown-tab-label__text">Owners</span>
                 <button
                   mat-icon-button
                   type="button"
@@ -711,13 +711,13 @@
                     (savedEvent)="onJournalEntriesChanged()">
                   </app-general-ledger>
                 } @else if (showOwnerStatementJournalEntryLines && ownerStatementJournalEntryLineRequest) {
-                  <app-owner-statement-journal-entry-line-list
+                  <app-owner-report-details
                     [request]="ownerStatementJournalEntryLineRequest"
                     [refreshTrigger]="ownerStatementJournalEntryLinesRefreshTrigger"
                     (lineSelectEvent)="onOwnerStatementJournalEntryLineSelect($event)">
-                  </app-owner-statement-journal-entry-line-list>
+                  </app-owner-report-details>
                 } @else {
-                  <app-owner-statement-list
+                  <app-owner-report
                     [searchRequest]="billsSearchRequest"
                     [refreshTrigger]="ownersStatementsRefreshTrigger"
                     [reportKind]="selectedOwnerStatementReportKind"
@@ -726,7 +726,7 @@
                     (amountDrillDownSelect)="onOwnerStatementAmountDrillDownSelect($event)"
                     (reportKindChange)="onOwnerStatementReportKindChange($event)"
                     (viewStateChange)="onOwnersStatementViewStateChange($event)">
-                  </app-owner-statement-list>
+                  </app-owner-report>
                 }
               }
             }

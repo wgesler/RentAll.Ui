@@ -8,14 +8,14 @@ import { OwnerStatementJournalEntryLineResponse, OwnerStatementJournalEntryLineS
 import { OwnerStatementService } from '../services/owner-statement.service';
 
 @Component({
-  selector: 'app-owner-statement-journal-entry-line-list',
+  selector: 'app-owner-report-details',
   standalone: true,
   imports: [CommonModule, MaterialModule],
-  templateUrl: './owner-statement-journal-entry-line-list.component.html',
-  styleUrl: './owner-statement-journal-entry-line-list.component.scss',
+  templateUrl: './owner-report-details.component.html',
+  styleUrl: './owner-report-details.component.scss',
   changeDetection: ChangeDetectionStrategy.OnPush
 })
-export class OwnerStatementJournalEntryLineListComponent implements OnInit, OnChanges, OnDestroy {
+export class OwnerReportDetailsComponent implements OnInit, OnChanges, OnDestroy {
   @Input() request: OwnerStatementJournalEntryLineSearchRequest | null = null;
   @Input() refreshTrigger = 0;
   @Output() lineSelectEvent = new EventEmitter<{ journalEntryId: string; journalEntryLineId: string }>();
@@ -29,7 +29,7 @@ export class OwnerStatementJournalEntryLineListComponent implements OnInit, OnCh
 
   constructor(private ownerStatementService: OwnerStatementService, private formatter: FormatterService, private utilityService: UtilityService, private cdr: ChangeDetectorRef) {}
 
-  //#region Owner-Statement-Journal-Entry-Lines
+  //#region Owner-Report-Details
   ngOnInit(): void {
     this.itemsToLoad$.pipe(takeUntil(this.destroy$)).subscribe(items => {
       this.isPageReady = items.size === 0;

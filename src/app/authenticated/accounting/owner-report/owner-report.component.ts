@@ -127,14 +127,14 @@ export interface OwnerStatementListViewState {
 }
 
 @Component({
-  selector: 'app-owner-statement-list',
+  selector: 'app-owner-report',
   standalone: true,
   imports: [CommonModule, MaterialModule],
-  templateUrl: './owner-statement-list.component.html',
-  styleUrl: './owner-statement-list.component.scss',
+  templateUrl: './owner-report.component.html',
+  styleUrl: './owner-report.component.scss',
   changeDetection: ChangeDetectionStrategy.OnPush
 })
-export class OwnerStatementListComponent implements OnInit, OnChanges, OnDestroy {
+export class OwnerReportComponent implements OnInit, OnChanges, OnDestroy {
   @ViewChild('ownerStatementTableWrap') ownerStatementTableWrap?: ElementRef<HTMLElement>;
   @Input() searchRequest?: MaintenanceListSearchRequest | null;
   @Input() refreshTrigger = 0;
@@ -536,9 +536,6 @@ export class OwnerStatementListComponent implements OnInit, OnChanges, OnDestroy
       const propertyRowIds = propertyRows.map(property => property.rowId);
       const isExpanded = this.expandedRowIds.has(row.rowId);
 
-      // Owner row toggle behaves as a single unit:
-      // closed -> open owner + all properties (+ load property activity)
-      // open -> close owner + all properties
       if (isExpanded) {
         this.expandedRowIds.delete(row.rowId);
         propertyRowIds.forEach(propertyRowId => this.expandedRowIds.delete(propertyRowId));
@@ -600,11 +597,6 @@ export class OwnerStatementListComponent implements OnInit, OnChanges, OnDestroy
       const hasExpandedSubordinates = ownerRowIds.some(ownerRowId => this.expandedRowIds.has(ownerRowId))
         || propertyRowIds.some(propertyRowId => this.expandedRowIds.has(propertyRowId));
 
-      // Office row 4-step cycle:
-      // 1) closed -> open office
-      // 2) open -> open + all owner/property subordinates
-      // 3) open + subordinates -> close subordinates (office remains open)
-      // 4) open -> close office
       if (!isOfficeExpanded) {
         this.expandedRowIds.add(row.rowId);
         this.officeCloseOnNextToggleRowIds.delete(row.rowId);
@@ -935,7 +927,7 @@ export class OwnerStatementListComponent implements OnInit, OnChanges, OnDestroy
     }
 
     const segments: OwnerStatementDescriptionSegment[] = [];
-    const codeRegex = /\b(?:WO-[A-Za-z0-9-]+|R-\d+|RC[A-Za-z0-9-]*)\b/ig;
+    const codeRegex = /\b(?:WO-[A-Za-z0-9-]+|R-\d+(?:-\d+)*|RC[A-Za-z0-9-]*)\b/ig;
     let startIndex = 0;
     let matched = codeRegex.exec(text);
     while (matched) {
