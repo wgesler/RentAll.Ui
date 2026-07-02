@@ -5,13 +5,13 @@ import { BehaviorSubject, finalize, Subject, take, takeUntil } from 'rxjs';
 import { ToastrService } from 'ngx-toastr';
 import { CommonMessage } from '../../../enums/common-message.enum';
 import { AuthService } from '../../../services/auth.service';
-import { FormatterService } from '../../../services/formatter-service';
+import { MappingService } from '../../../services/mapping.service';
 import { UtilityService } from '../../../services/utility.service';
 import { MaintenanceListSearchRequest } from '../../maintenance/models/maintenance-search.model';
 import { PropertyAgreementService } from '../../properties/services/property-agreement.service';
 import { DataTableComponent } from '../../shared/data-table/data-table.component';
 import { ColumnSet } from '../../shared/data-table/models/column-data';
-import { OwnerStatementMonthLineListDisplay, OwnerStatementMonthLineResponse, OwnerStatementMonthLineSearchRequest, OwnerStatementMonthLineSelection } from '../models/owner-statement.model';
+import { OwnerStatementMonthLineListDisplay, OwnerStatementMonthLineSelection } from '../models/owner-statement.model';
 import { OwnerStatementService } from '../services/owner-statement.service';
 import { OwnerStatementStartingBalanceDialogComponent, OwnerStatementStartingBalanceDialogResult } from './owner-statement-starting-balance-dialog.component';
 
@@ -46,7 +46,16 @@ export class OwnerStatementListComponent implements OnInit, OnChanges, OnDestroy
   itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['ownerStatementMonthLines']));
   destroy$ = new Subject<void>();
 
-  constructor(private ownerStatementService: OwnerStatementService, private propertyAgreementService: PropertyAgreementService, private authService: AuthService, private formatter: FormatterService, private utilityService: UtilityService, private dialog: MatDialog, private toastr: ToastrService, private cdr: ChangeDetectorRef) {}
+  constructor(
+    private ownerStatementService: OwnerStatementService, 
+    private propertyAgreementService: PropertyAgreementService, 
+    private authService: AuthService, 
+    private mappingService: MappingService,
+    private utilityService: UtilityService, 
+    private dialog: MatDialog, 
+    private toastr: ToastrService, 
+    private cdr: ChangeDetectorRef) 
+    {}
 
   //#region Owner-Statement-List
   ngOnInit(): void {
@@ -82,7 +91,7 @@ export class OwnerStatementListComponent implements OnInit, OnChanges, OnDestroy
           return;
         }
 
-        const startingBalanceAmount = existingStartingBalance?.amount ?? this.parseCurrencyValue(row.startingBalance);
+        const startingBalanceAmount = existingStartingBalance?.amount ?? this.mappingService.parseCurrencyValue(row.startingBalance);
         if (Math.abs(startingBalanceAmount) > 0.005) {
           this.openStartingBalanceDialogWithAmount(row, existingStartingBalance?.transactionDate ?? null, existingStartingBalance?.amount ?? null, hasExistingStartingBalance, startingBalanceAmount);
           return;
@@ -108,17 +117,8 @@ export class OwnerStatementListComponent implements OnInit, OnChanges, OnDestroy
   //#endregion
 
   //#region Data Loading Methods
-  buildOwnerStatementMonthLineSearchRequest(): OwnerStatementMonthLineSearchRequest {
-    return {
-      officeIds: (this.searchRequest?.officeIds ?? []).filter(id => id > 0),
-      propertyId: this.searchRequest?.propertyId ?? null,
-      startDate: this.searchRequest?.startDate ?? null,
-      endDate: this.searchRequest?.endDate ?? null
-    };
-  }
-
   loadOwnerStatementList(): void {
-    const request = this.buildOwnerStatementMonthLineSearchRequest();
+    const request = this.mappingService.mapOwnerStatementMonthLineSearchRequest(this.searchRequest);
     if (request.officeIds.length === 0) {
       this.lines = [];
       this.isServiceError = false;
@@ -131,7 +131,7 @@ export class OwnerStatementListComponent implements OnInit, OnChanges, OnDestroy
     this.utilityService.addLoadItem(this.itemsToLoad$, 'ownerStatementMonthLines');
     this.ownerStatementService.searchOwnerStatementMonthLines(request).pipe(take(1), finalize(() => this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'ownerStatementMonthLines'))).subscribe({
       next: rows => {
-        this.lines = this.mapOwnerStatementMonthLineDisplays(rows || []);
+        this.lines = this.mappingService.mapOwnerStatementMonthLineDisplays(rows || []);
         this.isServiceError = false;
         this.markViewForCheck();
       },
@@ -143,24 +143,6 @@ export class OwnerStatementListComponent implements OnInit, OnChanges, OnDestroy
     });
   }
 
-  mapOwnerStatementMonthLineDisplays(rows: OwnerStatementMonthLineResponse[]): OwnerStatementMonthLineListDisplay[] {
-    return (rows || []).map(row => ({
-      ownerStatementLineId: (row.ownerStatementLineId || '').trim(),
-      officeId: row.officeId,
-      ownerId: (row.ownerId || '').trim(),
-      propertyId: (row.propertyId || '').trim(),
-      officeName: (row.officeName || '').trim(),
-      ownerName: (row.ownerName || '').trim(),
-      propertyCode: (row.propertyCode || '').trim(),
-      monthDate: (row.monthDate || '').trim(),
-      monthDisplay: this.formatMonthDate(row.monthDate),
-      startingBalance: this.formatter.currencyUsd(Number(row.startingBalance) || 0),
-      income: this.formatter.currencyUsd(Number(row.income) || 0),
-      expenses: this.formatter.currencyUsd(Number(row.expenses) || 0),
-      ownerPayment: this.formatter.currencyUsd(Number(row.ownerPayment) || 0),
-      endingBalance: this.formatter.currencyUsd(Number(row.endingBalance) || 0)
-    }));
-  }
   //#endregion
 
   //#region Utility Methods
@@ -222,32 +204,6 @@ export class OwnerStatementListComponent implements OnInit, OnChanges, OnDestroy
         }
       });
     });
-  }
-
-  parseCurrencyValue(value: string | null | undefined): number {
-    const raw = String(value || '').trim();
-    if (!raw) {
-      return 0;
-    }
-
-    const parsed = Number(raw.replace(/[^0-9.-]/g, ''));
-    return Number.isFinite(parsed) ? parsed : 0;
-  }
-
-  formatMonthDate(value: string | null | undefined): string {
-    const raw = String(value || '').trim();
-    if (!raw) {
-      return '';
-    }
-
-    const date = new Date(raw);
-    if (Number.isNaN(date.getTime())) {
-      return raw;
-    }
-
-    const month = `${date.getMonth() + 1}`.padStart(2, '0');
-    const year = `${date.getFullYear()}`.slice(-2);
-    return `${month}.${year}`;
   }
 
   markViewForCheck(): void {

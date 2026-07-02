@@ -6,7 +6,7 @@ import { ChartOfAccountListDisplay, ChartOfAccountRequest, ChartOfAccountRespons
 import { CostCodesListDisplay, CostCodesRequest, CostCodesResponse } from '../authenticated/accounting/models/cost-codes.model';
 import { InvoiceResponse, LedgerLineListDisplay, LedgerLineResponse } from '../authenticated/accounting/models/invoice.model';
 import { JournalEntryLineDetailDisplay, JournalEntryLineListDisplay, JournalEntryLineResponse, JournalEntryLineSearchResponse, JournalEntryResponse } from '../authenticated/accounting/models/journal-entry.model';
-import { OwnerStatementListDisplay, OwnerStatementResponse } from '../authenticated/accounting/models/owner-statement.model';
+import { OwnerStatementListDisplay, OwnerStatementMonthLineListDisplay, OwnerStatementMonthLineResponse, OwnerStatementMonthLineSearchRequest, OwnerStatementOfficeGroup, OwnerStatementPropertyActivityLineDisplay, OwnerStatementPropertyActivityLineResponse, OwnerStatementPropertyRow, OwnerStatementResponse, OwnerStatementSearchRequest, OwnerStatementVisibleRow } from '../authenticated/accounting/models/owner-statement.model';
 import { RentRollPropertyAgreement, RentRollRow } from '../authenticated/accounting/models/rent-roll.model';
 import { EntityType, getEntityType } from '../authenticated/contacts/models/contact-enum';
 import { ContactListDisplay, ContactRequest, ContactResponse } from '../authenticated/contacts/models/contact.model';
@@ -17,6 +17,7 @@ import { EmailListDisplay, EmailResponse } from '../authenticated/email/models/e
 import { getEmailType } from '../authenticated/email/models/email.enum';
 import { EmailHtmlResponse } from '../authenticated/email/models/email-html.model';
 import { MaintenanceListResponse } from '../authenticated/maintenance/models/maintenance.model';
+import { MaintenanceListSearchRequest } from '../authenticated/maintenance/models/maintenance-search.model';
 import { InspectionDisplayList, InspectionResponse } from '../authenticated/maintenance/models/inspection.model';
 import { ReceiptDisplayList, ReceiptRequest, ReceiptResponse, Split } from '../authenticated/maintenance/models/receipt.model';
 import { getInspectionType, getReceiptType, getWorkOrderType } from '../authenticated/maintenance/models/maintenance-enums';
@@ -1873,6 +1874,216 @@ export class MappingService {
 
   mapOwnerStatementDisplays(statements: OwnerStatementResponse[]): OwnerStatementListDisplay[] {
     return (statements || []).map(statement => this.mapOwnerStatementDisplay(statement));
+  }
+
+  mapOwnerReportSearchRequest(searchRequest?: MaintenanceListSearchRequest | null): OwnerStatementSearchRequest {
+    return {
+      officeIds: (searchRequest?.officeIds ?? []).filter(id => id > 0),
+      propertyId: searchRequest?.propertyId ?? null,
+      startDate: searchRequest?.startDate ?? null,
+      endDate: searchRequest?.endDate ?? null
+    };
+  }
+
+  mapOwnerReportOfficeGroups(reports: OwnerStatementResponse[]): OwnerStatementOfficeGroup[] {
+    const officeMap = new Map<string, { officeId: number; officeName: string; ownerMap: Map<string, OwnerStatementPropertyRow[]> }>();
+    (reports || []).forEach(report => {
+      const officeId = Number(report.officeId) || 0;
+      const officeName = (report.officeName || '').trim();
+      const officeKey = `${officeId}::${officeName.toLowerCase()}`;
+      const ownerId = (report.ownerId || '').trim();
+      const ownerName = (report.ownerName || '').trim() || 'Unassigned Owner';
+      const ownerKey = ownerId || ownerName.toLowerCase();
+      if (!officeMap.has(officeKey)) {
+        officeMap.set(officeKey, { officeId, officeName, ownerMap: new Map<string, OwnerStatementPropertyRow[]>() });
+      }
+
+      const office = officeMap.get(officeKey)!;
+      if (!office.ownerMap.has(ownerKey)) {
+        office.ownerMap.set(ownerKey, []);
+      }
+
+      office.ownerMap.get(ownerKey)!.push({
+        propertyId: report.propertyId || '',
+        ownerName,
+        ownerId,
+        propertyCode: report.propertyCode || '',
+        expected: Number(report.expected) || 0,
+        prePaid: Number(report.prePaid) || 0,
+        outstanding: Number(report.outstanding) || 0,
+        income: Number(report.income) || 0,
+        expenses: Number(report.expenses) || 0,
+        balance: Number(report.balance) || 0,
+        startingBalance: Number(report.startingBalance) || 0,
+        workingCapital: Number(report.workingCapital) || 0,
+        workingCapitalBalanceDue: Number(report.workingCapitalBalanceDue) || 0,
+        ownerPayment: Number(report.ownerPayment) || 0,
+        endingBalance: Number(report.endingBalance) || 0
+      });
+    });
+
+    const officeGroups = Array.from(officeMap.values()).map(office => {
+      const owners = Array.from(office.ownerMap.entries()).map(([ownerKey, properties]) => {
+        const sortedProperties = [...properties].sort((a, b) => (a.propertyCode || '').localeCompare(b.propertyCode || ''));
+        return {
+          rowId: `owner:${office.officeId}:${ownerKey || 'unknown'}`,
+          ownerId: sortedProperties[0]?.ownerId || '',
+          ownerName: sortedProperties[0]?.ownerName || 'Unassigned Owner',
+          properties: sortedProperties,
+          expected: sortedProperties.reduce((sum, item) => sum + item.expected, 0),
+          prePaid: sortedProperties.reduce((sum, item) => sum + item.prePaid, 0),
+          outstanding: sortedProperties.reduce((sum, item) => sum + item.outstanding, 0),
+          income: sortedProperties.reduce((sum, item) => sum + item.income, 0),
+          expenses: sortedProperties.reduce((sum, item) => sum + item.expenses, 0),
+          balance: sortedProperties.reduce((sum, item) => sum + item.balance, 0),
+          startingBalance: sortedProperties.reduce((sum, item) => sum + item.startingBalance, 0),
+          workingCapital: sortedProperties.reduce((sum, item) => sum + item.workingCapital, 0),
+          workingCapitalBalanceDue: sortedProperties.reduce((sum, item) => sum + item.workingCapitalBalanceDue, 0),
+          ownerPayment: sortedProperties.reduce((sum, item) => sum + item.ownerPayment, 0),
+          endingBalance: sortedProperties.reduce((sum, item) => sum + item.endingBalance, 0)
+        };
+      }).sort((a, b) => a.ownerName.localeCompare(b.ownerName));
+
+      const resolvedOfficeName = office.officeName || `Office ${office.officeId}`;
+      return {
+        rowId: `office:${office.officeId}`,
+        officeId: office.officeId,
+        officeName: resolvedOfficeName,
+        owners,
+        expected: owners.reduce((sum, owner) => sum + owner.expected, 0),
+        prePaid: owners.reduce((sum, owner) => sum + owner.prePaid, 0),
+        outstanding: owners.reduce((sum, owner) => sum + owner.outstanding, 0),
+        income: owners.reduce((sum, owner) => sum + owner.income, 0),
+        expenses: owners.reduce((sum, owner) => sum + owner.expenses, 0),
+        balance: owners.reduce((sum, owner) => sum + owner.balance, 0),
+        startingBalance: owners.reduce((sum, owner) => sum + owner.startingBalance, 0),
+        workingCapital: owners.reduce((sum, owner) => sum + owner.workingCapital, 0),
+        workingCapitalBalanceDue: owners.reduce((sum, owner) => sum + owner.workingCapitalBalanceDue, 0),
+        ownerPayment: owners.reduce((sum, owner) => sum + owner.ownerPayment, 0),
+        endingBalance: owners.reduce((sum, owner) => sum + owner.endingBalance, 0)
+      };
+    });
+
+    return officeGroups.sort((a, b) => a.officeName.localeCompare(b.officeName));
+  }
+
+  mapOwnerReportPropertyActivityDisplays(propertyRowId: string, lines: OwnerStatementPropertyActivityLineResponse[]): OwnerStatementPropertyActivityLineDisplay[] {
+    return (lines || []).map((line, index) => ({
+      rowId: `${propertyRowId}:activity:${index}`,
+      activityId: (line.activityId || '').trim() || null,
+      activityType: line.activityType || '',
+      activityDate: this.formatOwnerReportMonthDay(line.activityDate),
+      documentCode: line.documentCode || '',
+      description: line.description || '',
+      expectedIncome: this.formatter.currencyUsd(Number(line.expectedIncome) || 0),
+      receivedIncome: this.formatter.currencyUsd(Number(line.receivedIncome) || 0),
+      expenses: this.formatter.currencyUsd(Number(line.expenses) || 0)
+    }));
+  }
+
+  formatOwnerReportMonthDay(inputDate: string): string {
+    if (!inputDate) {
+      return '';
+    }
+
+    const date = this.utility.parseCalendarDateInput(inputDate);
+    if (!date) {
+      return '';
+    }
+
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
+    return `${month}/${day}`;
+  }
+
+  mapOwnerReportPropertyActivityStateRow(propertyRowId: string, message: string): OwnerStatementVisibleRow {
+    return {
+      rowId: `${propertyRowId}:state`,
+      kind: 'propertyActivity',
+      depth: 3,
+      primaryLabel: message,
+      propertyCode: '',
+      itemDescription: '',
+      activityCode: '',
+      expected: '',
+      expectedValue: 0,
+      prePaid: '',
+      prePaidValue: 0,
+      outstanding: '',
+      outstandingValue: 0,
+      income: '',
+      incomeValue: 0,
+      expenses: '',
+      expensesValue: 0,
+      balance: '',
+      balanceValue: 0,
+      startingBalance: '',
+      startingBalanceValue: 0,
+      workingCapital: '',
+      workingCapitalValue: 0,
+      workingCapitalBalanceDue: '',
+      workingCapitalBalanceDueValue: 0,
+      ownerPayment: '',
+      ownerPaymentValue: 0,
+      endingBalance: '',
+      endingBalanceValue: 0,
+      expandable: false,
+      expanded: false
+    };
+  }
+
+  mapOwnerStatementMonthLineSearchRequest(searchRequest?: MaintenanceListSearchRequest | null): OwnerStatementMonthLineSearchRequest {
+    return {
+      officeIds: (searchRequest?.officeIds ?? []).filter(id => id > 0),
+      propertyId: searchRequest?.propertyId ?? null,
+      startDate: searchRequest?.startDate ?? null,
+      endDate: searchRequest?.endDate ?? null
+    };
+  }
+
+  mapOwnerStatementMonthLineDisplays(rows: OwnerStatementMonthLineResponse[]): OwnerStatementMonthLineListDisplay[] {
+    return (rows || []).map(row => ({
+      ownerStatementLineId: (row.ownerStatementLineId || '').trim(),
+      officeId: row.officeId,
+      ownerId: (row.ownerId || '').trim(),
+      propertyId: (row.propertyId || '').trim(),
+      officeName: (row.officeName || '').trim(),
+      ownerName: (row.ownerName || '').trim(),
+      propertyCode: (row.propertyCode || '').trim(),
+      monthDate: (row.monthDate || '').trim(),
+      monthDisplay: this.formatOwnerStatementMonthDate(row.monthDate),
+      startingBalance: this.formatter.currencyUsd(Number(row.startingBalance) || 0),
+      income: this.formatter.currencyUsd(Number(row.income) || 0),
+      expenses: this.formatter.currencyUsd(Number(row.expenses) || 0),
+      ownerPayment: this.formatter.currencyUsd(Number(row.ownerPayment) || 0),
+      endingBalance: this.formatter.currencyUsd(Number(row.endingBalance) || 0)
+    }));
+  }
+
+  formatOwnerStatementMonthDate(value: string | null | undefined): string {
+    const raw = String(value || '').trim();
+    if (!raw) {
+      return '';
+    }
+
+    const date = new Date(raw);
+    if (Number.isNaN(date.getTime())) {
+      return raw;
+    }
+
+    const month = `${date.getMonth() + 1}`.padStart(2, '0');
+    const year = `${date.getFullYear()}`.slice(-2);
+    return `${month}.${year}`;
+  }
+
+  parseCurrencyValue(value: string | null | undefined): number {
+    const raw = String(value || '').trim();
+    if (!raw) {
+      return 0;
+    }
+
+    const parsed = Number(raw.replace(/[^0-9.-]/g, ''));
+    return Number.isFinite(parsed) ? parsed : 0;
   }
 
   mapReceiptResponse(raw: ReceiptResponse | Record<string, unknown>): ReceiptResponse {

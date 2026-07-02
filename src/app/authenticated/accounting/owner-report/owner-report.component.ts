@@ -7,7 +7,7 @@ import { FormatterService } from '../../../services/formatter-service';
 import { MappingService } from '../../../services/mapping.service';
 import { UtilityService } from '../../../services/utility.service';
 import { MaintenanceListSearchRequest } from '../../maintenance/models/maintenance-search.model';
-import { OwnerReportActivityLinkSelection, OwnerReportAmountDrillDownSelection, OwnerReportDescriptionSegment, OwnerReportDrillDownMetric, OwnerReportKind, OwnerReportListViewState, OwnerReportOfficeGroup, OwnerReportPropertyActivityLineDisplay, OwnerReportPropertyActivityLineResponse, OwnerReportPropertyRow, OwnerReportResponse, OwnerReportSearchRequest, OwnerReportVisibleRow } from '../models/owner-report.model';
+import { OwnerReportActivityLinkSelection, OwnerReportAmountDrillDownSelection, OwnerReportDescriptionSegment, OwnerReportDrillDownMetric, OwnerReportKind, OwnerReportListViewState, OwnerReportOfficeGroup, OwnerReportPropertyActivityLineDisplay, OwnerReportResponse, OwnerReportVisibleRow } from '../models/owner-report.model';
 import { OwnerReportService } from '../services/owner-report.service';
 
 @Component({
@@ -90,7 +90,7 @@ export class OwnerReportComponent implements OnInit, OnChanges, OnDestroy {
   }
 
   loadOwnerReports(): void {
-    const request = this.buildOwnerReportSearchRequest();
+    const request = this.mappingService.mapOwnerReportSearchRequest(this.searchRequest);
     if (request.officeIds.length === 0) {
       this.ownerReports = [];
       this.ownerReportOfficeGroups = [];
@@ -110,7 +110,7 @@ export class OwnerReportComponent implements OnInit, OnChanges, OnDestroy {
     this.ownerReportService.searchOwnerReports(request).pipe(take(1), finalize(() => this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'ownerReports'))).subscribe({
       next: reports => {
         this.ownerReports = reports || [];
-        this.ownerReportOfficeGroups = this.buildOwnerReportOfficeGroups(this.ownerReports);
+        this.ownerReportOfficeGroups = this.mappingService.mapOwnerReportOfficeGroups(this.ownerReports);
         this.restoreViewState(this.ownerReportOfficeGroups, this.viewState);
         this.rebuildVisibleRows();
         this.emitViewStateChange();
@@ -136,7 +136,7 @@ export class OwnerReportComponent implements OnInit, OnChanges, OnDestroy {
       return;
     }
 
-    const request = this.buildOwnerReportSearchRequest();
+    const request = this.mappingService.mapOwnerReportSearchRequest(this.searchRequest);
     this.propertyActivityLoadingRowIds.add(row.rowId);
     this.propertyActivityErrorRowIds.delete(row.rowId);
     this.rebuildVisibleRows();
@@ -149,7 +149,7 @@ export class OwnerReportComponent implements OnInit, OnChanges, OnDestroy {
       endDate: request.endDate ?? null
     }).pipe(take(1)).subscribe({
       next: lines => {
-        this.propertyActivityLinesByPropertyRowId.set(row.rowId, this.mapPropertyActivityDisplays(row.rowId, lines || []));
+        this.propertyActivityLinesByPropertyRowId.set(row.rowId, this.mappingService.mapOwnerReportPropertyActivityDisplays(row.rowId, lines || []));
         this.propertyActivityLoadingRowIds.delete(row.rowId);
         this.propertyActivityErrorRowIds.delete(row.rowId);
         this.rebuildVisibleRows();
@@ -173,99 +173,6 @@ export class OwnerReportComponent implements OnInit, OnChanges, OnDestroy {
   initializeExpandedRows(officeGroups: OwnerReportOfficeGroup[]): void {
     this.expandedRowIds.clear();
     (officeGroups || []).forEach(office => this.expandedRowIds.add(office.rowId));
-  }
-
-  buildOwnerReportSearchRequest(): OwnerReportSearchRequest {
-    return {
-      officeIds: (this.searchRequest?.officeIds ?? []).filter(id => id > 0),
-      propertyId: this.searchRequest?.propertyId ?? null,
-      startDate: this.searchRequest?.startDate ?? null,
-      endDate: this.searchRequest?.endDate ?? null
-    };
-  }
-
-  buildOwnerReportOfficeGroups(reports: OwnerReportResponse[]): OwnerReportOfficeGroup[] {
-    const officeMap = new Map<string, { officeId: number; officeName: string; ownerMap: Map<string, OwnerReportPropertyRow[]> }>();
-
-    (reports || []).forEach(report => {
-      const officeId = Number(report.officeId) || 0;
-      const officeName = (report.officeName || '').trim();
-      const officeKey = `${officeId}::${officeName.toLowerCase()}`;
-      const ownerId = (report.ownerId || '').trim();
-      const ownerName = (report.ownerName || '').trim() || 'Unassigned Owner';
-      const ownerKey = ownerId || ownerName.toLowerCase();
-
-      if (!officeMap.has(officeKey)) {
-        officeMap.set(officeKey, { officeId, officeName, ownerMap: new Map<string, OwnerReportPropertyRow[]>() });
-      }
-
-      const office = officeMap.get(officeKey)!;
-      if (!office.ownerMap.has(ownerKey)) {
-        office.ownerMap.set(ownerKey, []);
-      }
-
-      office.ownerMap.get(ownerKey)!.push({
-        propertyId: report.propertyId || '',
-        ownerName,
-        ownerId,
-        propertyCode: report.propertyCode || '',
-        expected: Number(report.expected) || 0,
-        prePaid: Number(report.prePaid) || 0,
-        outstanding: Number(report.outstanding) || 0,
-        income: Number(report.income) || 0,
-        expenses: Number(report.expenses) || 0,
-        balance: Number(report.balance) || 0,
-        startingBalance: Number(report.startingBalance) || 0,
-        workingCapital: Number(report.workingCapital) || 0,
-        workingCapitalBalanceDue: Number(report.workingCapitalBalanceDue) || 0,
-        ownerPayment: Number(report.ownerPayment) || 0,
-        endingBalance: Number(report.endingBalance) || 0
-      });
-    });
-
-    const officeGroups = Array.from(officeMap.values()).map(office => {
-      const owners = Array.from(office.ownerMap.entries()).map(([ownerKey, properties]) => {
-        const sortedProperties = [...properties].sort((a, b) => (a.propertyCode || '').localeCompare(b.propertyCode || ''));
-        return {
-          rowId: `owner:${office.officeId}:${ownerKey || 'unknown'}`,
-          ownerId: sortedProperties[0]?.ownerId || '',
-          ownerName: sortedProperties[0]?.ownerName || 'Unassigned Owner',
-          properties: sortedProperties,
-          expected: sortedProperties.reduce((sum, item) => sum + item.expected, 0),
-          prePaid: sortedProperties.reduce((sum, item) => sum + item.prePaid, 0),
-          outstanding: sortedProperties.reduce((sum, item) => sum + item.outstanding, 0),
-          income: sortedProperties.reduce((sum, item) => sum + item.income, 0),
-          expenses: sortedProperties.reduce((sum, item) => sum + item.expenses, 0),
-          balance: sortedProperties.reduce((sum, item) => sum + item.balance, 0),
-          startingBalance: sortedProperties.reduce((sum, item) => sum + item.startingBalance, 0),
-          workingCapital: sortedProperties.reduce((sum, item) => sum + item.workingCapital, 0),
-          workingCapitalBalanceDue: sortedProperties.reduce((sum, item) => sum + item.workingCapitalBalanceDue, 0),
-          ownerPayment: sortedProperties.reduce((sum, item) => sum + item.ownerPayment, 0),
-          endingBalance: sortedProperties.reduce((sum, item) => sum + item.endingBalance, 0)
-        };
-      }).sort((a, b) => a.ownerName.localeCompare(b.ownerName));
-
-      const resolvedOfficeName = office.officeName || `Office ${office.officeId}`;
-      return {
-        rowId: `office:${office.officeId}`,
-        officeId: office.officeId,
-        officeName: resolvedOfficeName,
-        owners,
-        expected: owners.reduce((sum, owner) => sum + owner.expected, 0),
-        prePaid: owners.reduce((sum, owner) => sum + owner.prePaid, 0),
-        outstanding: owners.reduce((sum, owner) => sum + owner.outstanding, 0),
-        income: owners.reduce((sum, owner) => sum + owner.income, 0),
-        expenses: owners.reduce((sum, owner) => sum + owner.expenses, 0),
-        balance: owners.reduce((sum, owner) => sum + owner.balance, 0),
-        startingBalance: owners.reduce((sum, owner) => sum + owner.startingBalance, 0),
-        workingCapital: owners.reduce((sum, owner) => sum + owner.workingCapital, 0),
-        workingCapitalBalanceDue: owners.reduce((sum, owner) => sum + owner.workingCapitalBalanceDue, 0),
-        ownerPayment: owners.reduce((sum, owner) => sum + owner.ownerPayment, 0),
-        endingBalance: owners.reduce((sum, owner) => sum + owner.endingBalance, 0)
-      };
-    });
-
-    return officeGroups.sort((a, b) => a.officeName.localeCompare(b.officeName));
   }
 
   rebuildVisibleRows(): void {
@@ -398,18 +305,18 @@ export class OwnerReportComponent implements OnInit, OnChanges, OnDestroy {
           }
 
           if (this.propertyActivityLoadingRowIds.has(propertyRowId)) {
-            rows.push(this.buildPropertyActivityStateRow(propertyRowId, 'Loading property activity...'));
+            rows.push(this.mappingService.mapOwnerReportPropertyActivityStateRow(propertyRowId, 'Loading property activity...'));
             return;
           }
 
           if (this.propertyActivityErrorRowIds.has(propertyRowId)) {
-            rows.push(this.buildPropertyActivityStateRow(propertyRowId, 'Unable to load property activity.'));
+            rows.push(this.mappingService.mapOwnerReportPropertyActivityStateRow(propertyRowId, 'Unable to load property activity.'));
             return;
           }
 
           const activityRows = this.propertyActivityLinesByPropertyRowId.get(propertyRowId) || [];
           if (activityRows.length === 0) {
-            rows.push(this.buildPropertyActivityStateRow(propertyRowId, 'No items this period.'));
+            rows.push(this.mappingService.mapOwnerReportPropertyActivityStateRow(propertyRowId, 'No items this period.'));
             return;
           }
 
@@ -457,41 +364,6 @@ export class OwnerReportComponent implements OnInit, OnChanges, OnDestroy {
     this.visibleRows = rows;
   }
 
-  buildPropertyActivityStateRow(propertyRowId: string, message: string): OwnerReportVisibleRow {
-    return {
-      rowId: `${propertyRowId}:state`,
-      kind: 'propertyActivity',
-      depth: 3,
-      primaryLabel: message,
-      propertyCode: '',
-      itemDescription: '',
-      activityCode: '',
-      expected: '',
-      expectedValue: 0,
-      prePaid: '',
-      prePaidValue: 0,
-      outstanding: '',
-      outstandingValue: 0,
-      income: '',
-      incomeValue: 0,
-      expenses: '',
-      expensesValue: 0,
-      balance: '',
-      balanceValue: 0,
-      startingBalance: '',
-      startingBalanceValue: 0,
-      workingCapital: '',
-      workingCapitalValue: 0,
-      workingCapitalBalanceDue: '',
-      workingCapitalBalanceDueValue: 0,
-      ownerPayment: '',
-      ownerPaymentValue: 0,
-      endingBalance: '',
-      endingBalanceValue: 0,
-      expandable: false,
-      expanded: false
-    };
-  }
   //#endregion
 
   //#region Form Response Methods
@@ -700,35 +572,6 @@ export class OwnerReportComponent implements OnInit, OnChanges, OnDestroy {
     this.rebuildVisibleRows();
     this.emitViewStateChange();
     this.markViewForCheck();
-  }
-
-  mapPropertyActivityDisplays(propertyRowId: string, lines: OwnerReportPropertyActivityLineResponse[]): OwnerReportPropertyActivityLineDisplay[] {
-    return (lines || []).map((line, index) => ({
-      rowId: `${propertyRowId}:activity:${index}`,
-      activityId: (line.activityId || '').trim() || null,
-      activityType: line.activityType || '',
-      activityDate: this.formatMonthDay(line.activityDate),
-      documentCode: line.documentCode || '',
-      description: line.description || '',
-      expectedIncome: this.formatter.currencyUsd(Number(line.expectedIncome) || 0),
-      receivedIncome: this.formatter.currencyUsd(Number(line.receivedIncome) || 0),
-      expenses: this.formatter.currencyUsd(Number(line.expenses) || 0)
-    }));
-  }
-
-  formatMonthDay(inputDate: string): string {
-    if (!inputDate) {
-      return '';
-    }
-
-    const date = this.utilityService.parseCalendarDateInput(inputDate);
-    if (!date) {
-      return '';
-    }
-
-    const month = String(date.getMonth() + 1).padStart(2, '0');
-    const day = String(date.getDate()).padStart(2, '0');
-    return `${month}/${day}`;
   }
 
   onAmountCellClick(row: OwnerReportVisibleRow, metric: OwnerReportDrillDownMetric): void {
