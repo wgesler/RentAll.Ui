@@ -216,7 +216,9 @@ export class OwnerReportComponent implements OnInit, OnChanges, OnDestroy {
         expenses: Number(report.expenses) || 0,
         balance: Number(report.balance) || 0,
         workingCapital: Number(report.workingCapital) || 0,
-        workingCapitalBalanceDue: Number(report.workingCapitalBalanceDue) || 0
+        workingCapitalBalanceDue: Number(report.workingCapitalBalanceDue) || 0,
+        ownerPayment: Number(report.ownerPayment) || 0,
+        endingBalance: Number(report.endingBalance) || 0
       });
     });
 
@@ -235,7 +237,9 @@ export class OwnerReportComponent implements OnInit, OnChanges, OnDestroy {
           expenses: sortedProperties.reduce((sum, item) => sum + item.expenses, 0),
           balance: sortedProperties.reduce((sum, item) => sum + item.balance, 0),
           workingCapital: sortedProperties.reduce((sum, item) => sum + item.workingCapital, 0),
-          workingCapitalBalanceDue: sortedProperties.reduce((sum, item) => sum + item.workingCapitalBalanceDue, 0)
+          workingCapitalBalanceDue: sortedProperties.reduce((sum, item) => sum + item.workingCapitalBalanceDue, 0),
+          ownerPayment: sortedProperties.reduce((sum, item) => sum + item.ownerPayment, 0),
+          endingBalance: sortedProperties.reduce((sum, item) => sum + item.endingBalance, 0)
         };
       }).sort((a, b) => a.ownerName.localeCompare(b.ownerName));
 
@@ -252,7 +256,9 @@ export class OwnerReportComponent implements OnInit, OnChanges, OnDestroy {
         expenses: owners.reduce((sum, owner) => sum + owner.expenses, 0),
         balance: owners.reduce((sum, owner) => sum + owner.balance, 0),
         workingCapital: owners.reduce((sum, owner) => sum + owner.workingCapital, 0),
-        workingCapitalBalanceDue: owners.reduce((sum, owner) => sum + owner.workingCapitalBalanceDue, 0)
+        workingCapitalBalanceDue: owners.reduce((sum, owner) => sum + owner.workingCapitalBalanceDue, 0),
+        ownerPayment: owners.reduce((sum, owner) => sum + owner.ownerPayment, 0),
+        endingBalance: owners.reduce((sum, owner) => sum + owner.endingBalance, 0)
       };
     });
 
@@ -288,6 +294,10 @@ export class OwnerReportComponent implements OnInit, OnChanges, OnDestroy {
         workingCapitalValue: office.workingCapital,
         workingCapitalBalanceDue: this.formatter.currencyUsd(office.workingCapitalBalanceDue),
         workingCapitalBalanceDueValue: office.workingCapitalBalanceDue,
+        ownerPayment: this.formatter.currencyUsd(office.ownerPayment),
+        ownerPaymentValue: office.ownerPayment,
+        endingBalance: this.formatter.currencyUsd(office.endingBalance),
+        endingBalanceValue: office.endingBalance,
         expandable: office.owners.length > 0,
         expanded: officeExpanded
       });
@@ -324,6 +334,10 @@ export class OwnerReportComponent implements OnInit, OnChanges, OnDestroy {
           workingCapitalValue: owner.workingCapital,
           workingCapitalBalanceDue: this.formatter.currencyUsd(owner.workingCapitalBalanceDue),
           workingCapitalBalanceDueValue: owner.workingCapitalBalanceDue,
+          ownerPayment: this.formatter.currencyUsd(owner.ownerPayment),
+          ownerPaymentValue: owner.ownerPayment,
+          endingBalance: this.formatter.currencyUsd(owner.endingBalance),
+          endingBalanceValue: owner.endingBalance,
           expandable: owner.properties.length > 0,
           expanded: ownerExpanded
         });
@@ -362,6 +376,10 @@ export class OwnerReportComponent implements OnInit, OnChanges, OnDestroy {
             workingCapitalValue: property.workingCapital,
             workingCapitalBalanceDue: this.formatter.currencyUsd(property.workingCapitalBalanceDue),
             workingCapitalBalanceDueValue: property.workingCapitalBalanceDue,
+            ownerPayment: this.formatter.currencyUsd(property.ownerPayment),
+            ownerPaymentValue: property.ownerPayment,
+            endingBalance: this.formatter.currencyUsd(property.endingBalance),
+            endingBalanceValue: property.endingBalance,
             expandable: !!property.propertyId,
             expanded: propertyExpanded
           });
@@ -413,6 +431,10 @@ export class OwnerReportComponent implements OnInit, OnChanges, OnDestroy {
               workingCapitalValue: 0,
               workingCapitalBalanceDue: '',
               workingCapitalBalanceDueValue: 0,
+              ownerPayment: '',
+              ownerPaymentValue: 0,
+              endingBalance: '',
+              endingBalanceValue: 0,
               expandable: false,
               expanded: false
             });
@@ -449,6 +471,10 @@ export class OwnerReportComponent implements OnInit, OnChanges, OnDestroy {
       workingCapitalValue: 0,
       workingCapitalBalanceDue: '',
       workingCapitalBalanceDueValue: 0,
+      ownerPayment: '',
+      ownerPaymentValue: 0,
+      endingBalance: '',
+      endingBalanceValue: 0,
       expandable: false,
       expanded: false
     };
@@ -533,6 +559,10 @@ export class OwnerReportComponent implements OnInit, OnChanges, OnDestroy {
             workingCapitalValue: 0,
             workingCapitalBalanceDue: '',
             workingCapitalBalanceDueValue: 0,
+            ownerPayment: '',
+            ownerPaymentValue: 0,
+            endingBalance: '',
+            endingBalanceValue: 0,
             expandable: true,
             expanded: true
           });
@@ -614,6 +644,10 @@ export class OwnerReportComponent implements OnInit, OnChanges, OnDestroy {
             workingCapitalValue: 0,
             workingCapitalBalanceDue: '',
             workingCapitalBalanceDueValue: 0,
+            ownerPayment: '',
+            ownerPaymentValue: 0,
+            endingBalance: '',
+            endingBalanceValue: 0,
             expandable: true,
             expanded: true
           });

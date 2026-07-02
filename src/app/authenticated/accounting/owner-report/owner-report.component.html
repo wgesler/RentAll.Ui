@@ -112,6 +112,12 @@
                       <span>Payment</span>
                     </div>
                   </th>
+                  <th class="owner-statement-col-amount owner-statement-col-working-capital">
+                    <div class="owner-statement-header-two-line">
+                      <span>Ending</span>
+                      <span>Balance</span>
+                    </div>
+                  </th>
                 }
               </tr>
             </thead>
@@ -202,7 +208,8 @@
                     <td class="owner-statement-col-amount">
                       <button type="button" class="owner-statement-amount-link" [class.owner-statement-amount-link--active]="canDrillDownAmount(row, 'expenses')" [disabled]="!canDrillDownAmount(row, 'expenses')" (click)="$event.stopPropagation(); onAmountCellClick(row, 'expenses')">{{ row.expenses }}</button>
                     </td>
-                    <td class="owner-statement-col-amount owner-statement-col-working-capital">{{ row.workingCapitalBalanceDue }}</td>
+                    <td class="owner-statement-col-amount owner-statement-col-working-capital">{{ row.ownerPayment }}</td>
+                    <td class="owner-statement-col-amount owner-statement-col-working-capital">{{ row.endingBalance }}</td>
                   }
                 </tr>
               }

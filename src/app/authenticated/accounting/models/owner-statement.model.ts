@@ -20,6 +20,61 @@ export interface OwnerStatementResponse {
   balance: number;
   workingCapital: number;
   workingCapitalBalanceDue: number;
+  ownerPayment: number;
+  endingBalance: number;
+}
+
+export interface OwnerStatementMonthLineSearchRequest {
+  officeIds: number[];
+  propertyId?: string | null;
+  startDate?: string | null;
+  endDate?: string | null;
+}
+
+export interface OwnerStatementMonthLineResponse {
+  ownerStatementLineId: string;
+  officeId: number;
+  officeName: string;
+  ownerId: string;
+  ownerName: string;
+  propertyId: string;
+  propertyCode: string;
+  monthDate: string;
+  expected: number;
+  prePaid: number;
+  outstanding: number;
+  income: number;
+  expenses: number;
+  balance: number;
+  workingCapital: number;
+  workingCapitalBalanceDue: number;
+}
+
+export interface OwnerStatementMonthLineListDisplay {
+  ownerStatementLineId: string;
+  officeId: number;
+  ownerId: string;
+  propertyId: string;
+  officeName: string;
+  ownerName: string;
+  propertyCode: string;
+  monthDate: string;
+  expected: string;
+  prePaid: string;
+  outstanding: string;
+  income: string;
+  expenses: string;
+  balance: string;
+  workingCapital: string;
+  workingCapitalBalanceDue: string;
+}
+
+export interface OwnerStatementMonthLineSelection {
+  ownerStatementLineId: string;
+  officeId: number;
+  ownerId: string;
+  propertyId: string;
+  monthDate: string;
 }
 
 export interface OwnerStatementJournalEntryLineSearchRequest {
@@ -104,6 +159,8 @@ export interface OwnerStatementPropertyRow {
   balance: number;
   workingCapital: number;
   workingCapitalBalanceDue: number;
+  ownerPayment: number;
+  endingBalance: number;
 }
 
 export interface OwnerStatementOwnerGroup {
@@ -119,6 +176,8 @@ export interface OwnerStatementOwnerGroup {
   balance: number;
   workingCapital: number;
   workingCapitalBalanceDue: number;
+  ownerPayment: number;
+  endingBalance: number;
 }
 
 export interface OwnerStatementOfficeGroup {
@@ -134,6 +193,8 @@ export interface OwnerStatementOfficeGroup {
   balance: number;
   workingCapital: number;
   workingCapitalBalanceDue: number;
+  ownerPayment: number;
+  endingBalance: number;
 }
 
 export type OwnerStatementVisibleRowKind = 'office' | 'owner' | 'property' | 'propertyActivity';
@@ -165,6 +226,10 @@ export interface OwnerStatementVisibleRow {
   workingCapitalValue: number;
   workingCapitalBalanceDue: string;
   workingCapitalBalanceDueValue: number;
+  ownerPayment: string;
+  ownerPaymentValue: number;
+  endingBalance: string;
+  endingBalanceValue: number;
   expandable: boolean;
   expanded: boolean;
 }

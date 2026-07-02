@@ -2,14 +2,7 @@ import { HttpClient } from '@angular/common/http';
 import { Injectable } from '@angular/core';
 import { map, Observable } from 'rxjs';
 import { ConfigService } from '../../../services/config.service';
-import {
-  OwnerStatementJournalEntryLineResponse,
-  OwnerStatementJournalEntryLineSearchRequest,
-  OwnerStatementPropertyActivityLineResponse,
-  OwnerStatementPropertyActivityLineSearchRequest,
-  OwnerStatementResponse,
-  OwnerStatementSearchRequest
-} from '../models/owner-statement.model';
+import { OwnerStatementJournalEntryLineResponse, OwnerStatementJournalEntryLineSearchRequest, OwnerStatementMonthLineResponse, OwnerStatementMonthLineSearchRequest, OwnerStatementPropertyActivityLineResponse, OwnerStatementPropertyActivityLineSearchRequest, OwnerStatementResponse, OwnerStatementSearchRequest } from '../models/owner-statement.model';
 
 @Injectable({
   providedIn: 'root'
@@ -26,6 +19,22 @@ export class OwnerStatementService {
     }
 
     return this.http.post<OwnerStatementResponse[]>(`${this.controller}owner-statement/search`, {
+      officeIds,
+      propertyId: request.propertyId ?? null,
+      startDate: request.startDate ?? null,
+      endDate: request.endDate ?? null
+    }).pipe(
+      map(rows => rows ?? [])
+    );
+  }
+
+  searchOwnerStatementMonthLines(request: OwnerStatementMonthLineSearchRequest): Observable<OwnerStatementMonthLineResponse[]> {
+    const officeIds = (request.officeIds ?? []).filter(id => id > 0);
+    if (officeIds.length === 0) {
+      throw new Error('At least one office ID is required to search owner statement month lines.');
+    }
+
+    return this.http.post<OwnerStatementMonthLineResponse[]>(`${this.controller}owner-statement/month-line/search`, {
       officeIds,
       propertyId: request.propertyId ?? null,
       startDate: request.startDate ?? null,
