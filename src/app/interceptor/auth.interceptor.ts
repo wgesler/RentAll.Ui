@@ -13,6 +13,7 @@ import { ErrorResponseDto } from '../shared/models/error-response';
 const tokenSubject$: BehaviorSubject<PurposefulAny> = new BehaviorSubject<PurposefulAny>(null);
 let isRefreshingToken: boolean = false;
 let justRefreshed: boolean = false;
+const refreshFailedToken = '__refresh_failed__';
 
 // Helper function declarations
 function extractApiErrorMessage(error: HttpErrorResponse): string | null {
@@ -144,6 +145,7 @@ function handle401Error(req: HttpRequest<PurposefulAny>, err: HttpErrorResponse,
             catchError(retryError => {
               // If retry after refresh still gets 401, it's unauthorized action
               if (retryError instanceof HttpErrorResponse && retryError.status === 401) {
+                tokenSubject$.next(refreshFailedToken);
                 justRefreshed = false;
                 return logoutAndSuppress(authService);
               }
@@ -151,12 +153,13 @@ function handle401Error(req: HttpRequest<PurposefulAny>, err: HttpErrorResponse,
             })
           );
         }
-        // If refresh response is invalid, logout and return to login
+        // If refresh response is invalid, release waiting requests and logout.
+        tokenSubject$.next(refreshFailedToken);
         return logoutUser(authService);
       }),
       catchError(error => {
-        // Reset token subject to signal failure to waiting requests
-        tokenSubject$.next(null);
+        // Release waiting requests when refresh fails.
+        tokenSubject$.next(refreshFailedToken);
         // Always logout on refresh failure to return to login screen
         return logoutAndSuppress(authService);
       }),
@@ -170,7 +173,7 @@ function handle401Error(req: HttpRequest<PurposefulAny>, err: HttpErrorResponse,
     return tokenSubject$.pipe(
       filter(token => token !== null), 
       take(1),
-      switchMap(() => next(addToken(req, authService)))
+      switchMap(token => token === refreshFailedToken ? EMPTY : next(addToken(req, authService)))
     );
   }
 }
