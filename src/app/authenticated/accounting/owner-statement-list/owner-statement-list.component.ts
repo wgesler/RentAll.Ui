@@ -12,7 +12,7 @@ import { MaintenanceListSearchRequest } from '../../maintenance/models/maintenan
 import { PropertyAgreementService } from '../../properties/services/property-agreement.service';
 import { DataTableComponent } from '../../shared/data-table/data-table.component';
 import { ColumnSet } from '../../shared/data-table/models/column-data';
-import { OwnerStatementMonthLineListDisplay, OwnerStatementMonthLineSelection } from '../models/owner-statement.model';
+import { OwnerStatementMonthLineListDisplay } from '../models/owner-statement.model';
 import { OwnerStatementService } from '../services/owner-statement.service';
 import { OwnerStatementStartingBalanceDialogComponent, OwnerStatementStartingBalanceDialogResult } from './owner-statement-starting-balance-dialog.component';
 
@@ -27,7 +27,7 @@ import { OwnerStatementStartingBalanceDialogComponent, OwnerStatementStartingBal
 export class OwnerStatementListComponent implements OnInit, OnChanges, OnDestroy {
   @Input() searchRequest?: MaintenanceListSearchRequest | null;
   @Input() refreshTrigger = 0;
-  @Output() viewStatement = new EventEmitter<OwnerStatementMonthLineSelection>();
+  @Output() viewStatement = new EventEmitter<OwnerStatementMonthLineListDisplay>();
 
   isPageReady = false;
   isServiceError = false;
@@ -75,13 +75,7 @@ export class OwnerStatementListComponent implements OnInit, OnChanges, OnDestroy
   }
 
   onViewStatement(row: OwnerStatementMonthLineListDisplay): void {
-    this.viewStatement.emit({
-      ownerStatementLineId: row.ownerStatementLineId,
-      officeId: row.officeId,
-      ownerId: row.ownerId,
-      propertyId: row.propertyId,
-      monthDate: row.monthDate
-    });
+    this.viewStatement.emit(row);
   }
 
   openStartingBalanceDialog(row: OwnerStatementMonthLineListDisplay): void {

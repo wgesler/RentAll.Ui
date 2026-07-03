@@ -43,6 +43,7 @@ import { ArAgingReportComponent } from '../ar-aging-report/ar-aging-report.compo
 import { AR_AGING_DATE_PRESET_OPTIONS, AR_AGING_INTERVAL_OPTIONS, AR_AGING_SORT_BY_OPTIONS, AR_AGING_THROUGH_ALL_VALUE, AR_AGING_THROUGH_OPTIONS, ArAgingDatePreset, ArAgingReportFilters, ArAgingSortBy, normalizeArAgingThroughDays, resolveArAgingAsOfDate } from '../models/ar-aging-report.model';
 import { RentRollComponent } from '../rent-roll/rent-roll.component';
 import { OwnerReportComponent } from '../owner-report/owner-report.component';
+import { OwnerStatementCreateComponent } from '../owner-statement-create/owner-statement-create.component';
 import { OwnerStatementListComponent } from '../owner-statement-list/owner-statement-list.component';
 import { AccountingShellBankActivityKind, AccountingShellBillsReceiptKind, AccountingShellOwnerKind, AccountingShellReportKind } from '../models/accounting-shell.model';
 import { FinancialReportKind } from '../models/financial-report.model';
@@ -53,7 +54,7 @@ import { ChartOfAccountResponse } from '../models/chart-of-accounts.model';
 import { Class, ClassLabels } from '../models/accounting-enum';
 import { GeneralLedgerService } from '../services/general-ledger.service';
 import { JournalEntrySyncResult } from '../models/journal-entry.model';
-import { OwnerStatementActivityLinkSelection, OwnerStatementJournalEntryLineSearchRequest, OwnerStatementListViewState, OwnerStatementReportKind } from '../models/owner-statement.model';
+import { OwnerStatementActivityLinkSelection, OwnerStatementJournalEntryLineSearchRequest, OwnerStatementListViewState, OwnerStatementMonthLineListDisplay, OwnerStatementReportKind } from '../models/owner-statement.model';
 import { OwnerReportDetailsComponent } from '../owner-report-details/owner-report-details.component';
 
 type JournalEntrySyncProgressKey =
@@ -93,6 +94,7 @@ interface JournalEntrySyncProgressRow {
     ArAgingReportComponent,
     RentRollComponent,
     OwnerReportComponent,
+    OwnerStatementCreateComponent,
     OwnerStatementListComponent,
     OwnerReportDetailsComponent,
     TitleBarSelectComponent
@@ -221,6 +223,7 @@ export class AccountingShellComponent implements OnInit, OnDestroy {
   ownerStatementJournalEntryLineRequest: OwnerStatementJournalEntryLineSearchRequest | null = null;
   ownerStatementJournalEntryLinesRefreshTrigger = 0;
   ownersStatementViewState: OwnerStatementListViewState | null = null;
+  selectedOwnerStatementMonthLine: OwnerStatementMonthLineListDisplay | null = null;
   showOwnersUtilityReceiptDetail = false;
   selectedOwnersUtilityReceiptId: string | null = null;
   ownersUtilityReceiptProperty: PropertyResponse | null = null;
@@ -1245,6 +1248,14 @@ export class AccountingShellComponent implements OnInit, OnDestroy {
     this.ownersStatementViewState = viewState;
   }
 
+  onOwnerStatementMonthLineView(line: OwnerStatementMonthLineListDisplay): void {
+    this.selectedOwnerStatementMonthLine = line;
+  }
+
+  onOwnerStatementCreateBack(): void {
+    this.selectedOwnerStatementMonthLine = null;
+  }
+
   onOwnerStatementAmountDrillDownSelect(selection: OwnerStatementJournalEntryLineSearchRequest): void {
     this.selectedTabIndex = this.tabOwners;
     this.selectedOwnerKind = 'statements';
@@ -1377,6 +1388,7 @@ export class AccountingShellComponent implements OnInit, OnDestroy {
       this.onReceiptsReceiptBack();
     }
     if (event.index !== this.tabOwners) {
+      this.selectedOwnerStatementMonthLine = null;
       this.onOwnersUtilityReceiptBack();
       this.onOwnersWorkOrderBack();
       this.onOwnerStatementJournalEntryLinesBack();
@@ -1493,6 +1505,7 @@ export class AccountingShellComponent implements OnInit, OnDestroy {
     const statementDatesChanged = kind === 'statements' ? this.applyOwnerStatementsMonthDateRange() : false;
 
     if (kindChanged) {
+      this.selectedOwnerStatementMonthLine = null;
       this.onOwnersUtilityReceiptBack();
       this.onOwnersWorkOrderBack();
       this.onOwnerStatementJournalEntryLinesBack();

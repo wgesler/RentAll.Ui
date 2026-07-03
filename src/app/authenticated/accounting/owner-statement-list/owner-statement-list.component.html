@@ -15,11 +15,13 @@
           [hasColumnIndex]="true"
           [hasFilter]="true"
           [hasActionsView]="true"
+          [hasActionsRowClick]="true"
           [hasActionsStartingBalance]="true"
           [noDataMessage]="noDataMessage"
           [itemsPerPage]="10"
           [totalsRow]="totalsRow"
           [totalsLabel]="'Totals:'"
+          (rowClickEvent)="onViewStatement($event)"
           (viewEvent)="onViewStatement($event)"
           (startingBalanceEvent)="openStartingBalanceDialog($event)">
         </app-data-table>

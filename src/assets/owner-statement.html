@@ -1,7 +1,7 @@
 <!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.0 Transitional//EN">
 <html>
 <head>
-  <title>Guest Invoice</title>
+  <title>Owner Statement</title>
 
   <meta name="GENERATOR" content="MSHTML 8.00.7600.16766">
   <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -82,18 +82,18 @@
       display: block;
     }
 
-    .invoice-info-header {
+    .statement-info-header {
       display: table-cell;
       vertical-align: top;
       text-align: right;
       width: 50%;
     }
 
-    .invoice-info-header:empty {
+    .statement-info-header:empty {
       display: none;
     }
 
-    .invoice-info-header p {
+    .statement-info-header p {
       margin: 0;
       line-height: 1.6;
     }
@@ -117,13 +117,13 @@
       padding: 0 !important;
     }
 
-    .rentall-invoice-title-block {
+    .rentall-statement-title-block {
       padding: 16px 5px;
       margin-bottom: 0;
       box-sizing: border-box;
     }
 
-    .rentall-invoice-title-block h3 {
+    .rentall-statement-title-block h3 {
       margin: 0;
       padding: 8px;
     }
@@ -177,7 +177,7 @@
     }
 
     /* More than 2 ledger lines: tighter section spacing (override defaults above) */
-    .rentall-ledger-lines-many .rentall-invoice-title-block {
+    .rentall-ledger-lines-many .rentall-statement-title-block {
       padding: 8px 5px 0 5px;
     }
 
@@ -275,7 +275,7 @@
       white-space: nowrap;
     }
 
-    .charges-table .subtotal-row td.invoice-summary-cell {
+    .charges-table .subtotal-row td.statement-summary-cell {
       text-align: right;
       padding: 8px;
     }
@@ -307,6 +307,14 @@
       border-bottom: 1px solid #ddd;
     }
 
+    .statement-ledger-section {
+      padding-top: 1em;
+    }
+
+    .statement-ledger-section:first-of-type {
+      padding-top: 0;
+    }
+
     .charges-table .ledger-line-row td.amount-col {
       padding-right: 10px;
     }
@@ -324,7 +332,7 @@
     }
 
     /* Same width + right-align so colons line up across Total Charges / Total Payments / Balance Due */
-    .invoice-summary-label {
+    .statement-summary-label {
       display: inline-block;
       box-sizing: border-box;
       width: 12rem;
@@ -333,23 +341,23 @@
       white-space: nowrap;
     }
 
-    .invoice-payments-section {
+    .statement-payments-section {
       padding-top: 1em;
     }
 
-    .invoice-balance-due-bottom {
+    .statement-balance-due-bottom {
       margin-top: 28px;
       margin-right: 0;
       margin-left: 0;
     }
 
-    .invoice-balance-due-bottom table {
+    .statement-balance-due-bottom table {
       width: 100%;
       border-collapse: collapse;
       margin-bottom: 0;
     }
 
-    .invoice-balance-due-bottom .charges-table td {
+    .statement-balance-due-bottom .charges-table td {
       padding: 8px;
     }
 
@@ -418,7 +426,7 @@
       text-align: left;
     }
 
-    .accounting-office-invoice-number {
+    .accounting-office-statement-number {
       margin-top: 10px;
       text-align: left;
     }
@@ -455,38 +463,38 @@
     }
 
     /* =============================================================================
-       Invoice layout diagnostics (Layout debug: body.dbg-invoice-layout-on)
+       Statement layout diagnostics (Layout debug: body.dbg-statement-layout-on)
        ============================================================================= */
-    body.dbg-invoice-layout-on .page {
+    body.dbg-statement-layout-on .page {
       background: #eeeeee !important;
     }
 
-    body.dbg-invoice-layout-on .rentall-header-row {
+    body.dbg-statement-layout-on .rentall-header-row {
       background: #ffe0b2 !important;
       margin-bottom: 0 !important;
       padding: 4px 8px !important;
     }
 
-    body.dbg-invoice-layout-on .rentall-header-row table {
+    body.dbg-statement-layout-on .rentall-header-row table {
       margin-bottom: 0 !important;
     }
 
-    body.dbg-invoice-layout-on .rentall-zone-header-left {
+    body.dbg-statement-layout-on .rentall-zone-header-left {
       background: transparent !important;
       vertical-align: middle !important;
     }
 
-    body.dbg-invoice-layout-on .rentall-zone-office {
+    body.dbg-statement-layout-on .rentall-zone-office {
       background: #ffffff !important;
     }
 
-    body.dbg-invoice-layout-on .rentall-zone-logo {
+    body.dbg-statement-layout-on .rentall-zone-logo {
       background: transparent !important;
       padding: 0 !important;
       vertical-align: middle !important;
     }
 
-    body.dbg-invoice-layout-on .rentall-zone-logo .accounting-office-logo-wrap {
+    body.dbg-statement-layout-on .rentall-zone-logo .accounting-office-logo-wrap {
       background: #ffccbc !important;
       padding: 4px 8px !important;
       display: inline-block !important;
@@ -494,27 +502,27 @@
       box-sizing: border-box !important;
     }
 
-    body.dbg-invoice-layout-on .rentall-zone-office-info {
+    body.dbg-statement-layout-on .rentall-zone-office-info {
       background: #e8f5e9 !important;
     }
 
-    body.dbg-invoice-layout-on .rentall-zone-header-right:empty {
+    body.dbg-statement-layout-on .rentall-zone-header-right:empty {
       display: none !important;
     }
 
-    body.dbg-invoice-layout-on .rentall-invoice-title-block {
+    body.dbg-statement-layout-on .rentall-statement-title-block {
       background: #e1bee7 !important;
       padding: 16px 5px !important;
       margin-bottom: 0 !important;
     }
 
-    body.dbg-invoice-layout-on .rentall-invoice-title-block h3 {
+    body.dbg-statement-layout-on .rentall-statement-title-block h3 {
       background: #ffffff !important;
       margin: 0 !important;
       padding: 8px !important;
     }
 
-    body.dbg-invoice-layout-on table#container {
+    body.dbg-statement-layout-on table#container {
       margin-bottom: 0 !important;
       border-collapse: separate !important;
       border-spacing: 0 !important;
@@ -522,41 +530,41 @@
       padding-bottom: 0 !important;
     }
 
-    body.dbg-invoice-layout-on tr.rentall-row-client > td:first-child {
+    body.dbg-statement-layout-on tr.rentall-row-client > td:first-child {
       padding: 8px 8px 0 8px !important;
       background: #ffcdd2 !important;
       vertical-align: top;
       height: 1px !important;
     }
 
-    body.dbg-invoice-layout-on tr.rentall-row-client > td:last-child {
+    body.dbg-statement-layout-on tr.rentall-row-client > td:last-child {
       padding: 8px 8px 0 8px !important;
       background: #c8e6c9 !important;
       vertical-align: top;
       height: 1px !important;
     }
 
-    body.dbg-invoice-layout-on tr.rentall-row-client .rentall-zone-client,
-    body.dbg-invoice-layout-on tr.rentall-row-client .rentall-zone-property {
+    body.dbg-statement-layout-on tr.rentall-row-client .rentall-zone-client,
+    body.dbg-statement-layout-on tr.rentall-row-client .rentall-zone-property {
       background: #ffffff !important;
       margin: 0 !important;
       height: 100% !important;
       box-sizing: border-box !important;
     }
 
-    body.dbg-invoice-layout-on tr.rentall-row-charges > td {
+    body.dbg-statement-layout-on tr.rentall-row-charges > td {
       padding: 16px 8px 0 8px !important;
       background: #90caf9 !important;
       vertical-align: top;
     }
 
-    body.dbg-invoice-layout-on tr.rentall-row-charges .rentall-zone-charges {
+    body.dbg-statement-layout-on tr.rentall-row-charges .rentall-zone-charges {
       background: #e3f2fd !important;
       margin: 0 !important;
       padding-bottom: 0 !important;
     }
 
-    body.dbg-invoice-layout-on tr.rentall-row-charges .rentall-zone-payments {
+    body.dbg-statement-layout-on tr.rentall-row-charges .rentall-zone-payments {
       background: #fff59d !important;
       padding-top: 8px !important;
       margin-top: 0 !important;
@@ -565,7 +573,7 @@
       box-sizing: border-box !important;
     }
 
-    body.dbg-invoice-layout-on tr.rentall-row-charges .rentall-zone-balance {
+    body.dbg-statement-layout-on tr.rentall-row-charges .rentall-zone-balance {
       background: #ffcc80 !important;
       margin-top: 0 !important;
       margin-bottom: 0 !important;
@@ -575,83 +583,83 @@
       box-sizing: border-box !important;
     }
 
-    body.dbg-invoice-layout-on tr.rentall-row-payment > td {
+    body.dbg-statement-layout-on tr.rentall-row-payment > td {
       padding: 16px 8px !important;
       background: #ce93d8 !important;
       vertical-align: top;
     }
 
-    body.dbg-invoice-layout-on tr.rentall-row-payment .rentall-zone-payment {
+    body.dbg-statement-layout-on tr.rentall-row-payment .rentall-zone-payment {
       background: #f3e5f5 !important;
       margin: 0 !important;
       display: flow-root;
     }
 
-    body.dbg-invoice-layout-on tr.rentall-row-payment .rentall-zone-payment .rentall-payment-indent {
+    body.dbg-statement-layout-on tr.rentall-row-payment .rentall-zone-payment .rentall-payment-indent {
       padding-left: 15px !important;
       padding-right: 0 !important;
       text-align: left !important;
       margin-left: 0 !important;
     }
 
-    body.dbg-invoice-layout-on tr.rentall-row-payment .rentall-zone-payment > table {
+    body.dbg-statement-layout-on tr.rentall-row-payment .rentall-zone-payment > table {
       margin-top: 0 !important;
       margin-bottom: 0 !important;
     }
 
-    body.dbg-invoice-layout-on tr.rentall-row-payment .rentall-zone-bank-left {
+    body.dbg-statement-layout-on tr.rentall-row-payment .rentall-zone-bank-left {
       background: #b2ebf2 !important;
       margin-top: 10px !important;
       margin-bottom: 0 !important;
     }
 
-    body.dbg-invoice-layout-on tr.rentall-row-payment .rentall-zone-bank-right {
+    body.dbg-statement-layout-on tr.rentall-row-payment .rentall-zone-bank-right {
       background: #c5e1a5 !important;
       margin-top: 10px !important;
       margin-bottom: 0 !important;
     }
 
-    body.dbg-invoice-layout-on tr.rentall-row-payment .rentall-thank-you {
+    body.dbg-statement-layout-on tr.rentall-row-payment .rentall-thank-you {
       margin-top: 5px !important;
     }
 
-    body.dbg-invoice-layout-on table#footer.rentall-footer,
-    body.dbg-invoice-layout-on #footer.rentall-footer {
+    body.dbg-statement-layout-on table#footer.rentall-footer,
+    body.dbg-statement-layout-on #footer.rentall-footer {
       margin-top: 0 !important;
       background: #80cbc4 !important;
       padding: 8px 5px !important;
     }
 
-    body.dbg-invoice-layout-on tr.rentall-footer-row > td.rentall-zone-footer {
+    body.dbg-statement-layout-on tr.rentall-footer-row > td.rentall-zone-footer {
       background: #e0f7fa !important;
       padding: 10px 5px !important;
       text-align: center !important;
       color: #333 !important;
     }
 
-    body.dbg-invoice-layout-on table#container > tbody > tr > td > .border > h3:first-of-type {
+    body.dbg-statement-layout-on table#container > tbody > tr > td > .border > h3:first-of-type {
       margin-top: 0 !important;
     }
 
-    body.dbg-invoice-layout-on table#container table {
+    body.dbg-statement-layout-on table#container table {
       margin-top: 0 !important;
       margin-bottom: 0 !important;
     }
 
-    body.dbg-invoice-layout-on .charges-table {
+    body.dbg-statement-layout-on .charges-table {
       table-layout: fixed !important;
     }
 
-    body.dbg-invoice-layout-on .charges-table .col-date {
+    body.dbg-statement-layout-on .charges-table .col-date {
       width: 11ch !important;
     }
 
-    body.dbg-invoice-layout-on .charges-table .col-amount {
+    body.dbg-statement-layout-on .charges-table .col-amount {
       width: 12ch !important;
     }
 
-    body.dbg-invoice-layout-on .charges-table th.amount-col,
-    body.dbg-invoice-layout-on .charges-table td.amount-col {
+    body.dbg-statement-layout-on .charges-table th.amount-col,
+    body.dbg-statement-layout-on .charges-table td.amount-col {
       width: 12ch !important;
       min-width: 12ch !important;
       max-width: 12ch !important;
@@ -661,38 +669,38 @@
       white-space: nowrap !important;
     }
 
-    body.dbg-invoice-layout-on .charges-table .subtotal-row td.invoice-summary-cell {
+    body.dbg-statement-layout-on .charges-table .subtotal-row td.statement-summary-cell {
       text-align: right !important;
       padding: 8px !important;
     }
 
-    body.dbg-invoice-layout-on .charges-table .ledger-line-row td.amount-col {
+    body.dbg-statement-layout-on .charges-table .ledger-line-row td.amount-col {
       padding-right: 10px !important;
     }
 
-    body.dbg-invoice-layout-on .rentall-ledger-lines-many .rentall-invoice-title-block {
+    body.dbg-statement-layout-on .rentall-ledger-lines-many .rentall-statement-title-block {
       padding: 8px 5px 0 5px !important;
     }
 
-    body.dbg-invoice-layout-on .rentall-ledger-lines-many tr.rentall-row-client > td:first-child,
-    body.dbg-invoice-layout-on .rentall-ledger-lines-many tr.rentall-row-client > td:last-child {
+    body.dbg-statement-layout-on .rentall-ledger-lines-many tr.rentall-row-client > td:first-child,
+    body.dbg-statement-layout-on .rentall-ledger-lines-many tr.rentall-row-client > td:last-child {
       padding: 4px 8px 0 8px !important;
     }
 
-    body.dbg-invoice-layout-on .rentall-ledger-lines-many tr.rentall-row-charges > td {
+    body.dbg-statement-layout-on .rentall-ledger-lines-many tr.rentall-row-charges > td {
       padding: 8px 8px 0 8px !important;
     }
 
-    body.dbg-invoice-layout-on .rentall-ledger-lines-many tr.rentall-row-payment > td {
+    body.dbg-statement-layout-on .rentall-ledger-lines-many tr.rentall-row-payment > td {
       padding: 8px !important;
     }
 
-    body.dbg-invoice-layout-on .rentall-ledger-lines-dense .charges-table .ledger-line-row td {
+    body.dbg-statement-layout-on .rentall-ledger-lines-dense .charges-table .ledger-line-row td {
       padding: 4px 8px !important;
       line-height: 1.15 !important;
     }
 
-    body.dbg-invoice-layout-on .rentall-ledger-lines-dense .charges-table .ledger-line-row td.amount-col {
+    body.dbg-statement-layout-on .rentall-ledger-lines-dense .charges-table .ledger-line-row td.amount-col {
       padding: 4px 10px 4px 4px !important;
     }
 
@@ -722,13 +730,13 @@
         </table>
       </div>
     </div>
-    <div class="invoice-info-header rentall-zone-header-right">
+    <div class="statement-info-header rentall-zone-header-right">
     </div>
   </div>
 
   <!-- ===================== MAIN CONTENT ===================== -->
-  <div class="rentall-invoice-title-block">
-    <h3 style="text-align: center;"><span class="label">Client Invoice #:</span> {{invoiceName}}</h3>
+  <div class="rentall-statement-title-block">
+    <h3 style="text-align: center;">{{statementName}}</h3>
   </div>
   <table id="container" cellspacing="0" cellpadding="0" width="100%" align="center">
     <tbody>
@@ -753,35 +761,59 @@
       <tr valign="top" class="rentall-row-charges">
         <td colspan="2">
           <div class="border rentall-zone-charges">
-            <h3>Charges</h3>
-            <table class="charges-table">
-              <colgroup>
-                <col class="col-date">
-                <col class="col-description">
-                <col class="col-amount">
-              </colgroup>
-              <thead>
-                <tr>
-                  <th>Date</th>
-                  <th>Description</th>
-                  <th class="text-right amount-col">Amount</th>
-                </tr>
-              </thead>
-              <tbody>
-                {{chargeLedgerLineRows}}
-                <tr class="subtotal-row" style="{{totalChargesRowStyle}}">
-                  <td></td>
-                  <td class="invoice-summary-cell"><span class="label invoice-summary-label">Total Charges:</span></td>
-                  <td class="amount-col">{{totalCharges}}</td>
-                </tr>
-                <tr class="subtotal-row" style="{{balanceDueAfterChargesRowStyle}}">
-                  <td></td>
-                  <td class="invoice-summary-cell"><span class="label invoice-summary-label">Balance Due:</span></td>
-                  <td class="amount-col">{{invoiceLedgerBalanceDue}}</td>
-                </tr>
-              </tbody>
-            </table>
-            <div class="invoice-payments-section rentall-zone-payments" style="{{paymentsSectionStyle}}">
+            <div class="statement-ledger-section">
+              <table class="charges-table">
+                <colgroup>
+                  <col class="col-date">
+                  <col class="col-description">
+                  <col class="col-amount">
+                </colgroup>
+                <tbody>
+                  {{openingBalanceLedgerLineRows}}
+                </tbody>
+              </table>
+            </div>
+            <div class="statement-ledger-section rentall-zone-payments">
+              <h3 style="margin-top: 0; margin-bottom: 8px;">Income</h3>
+              <table class="charges-table">
+                <colgroup>
+                  <col class="col-date">
+                  <col class="col-description">
+                  <col class="col-amount">
+                </colgroup>
+                <thead>
+                  <tr>
+                    <th>Date</th>
+                    <th>Description</th>
+                    <th class="text-right amount-col">Amount</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {{incomeLedgerLineRows}}
+                </tbody>
+              </table>
+            </div>
+            <div class="statement-ledger-section">
+              <h3 style="margin-top: 0; margin-bottom: 8px;">Charges</h3>
+              <table class="charges-table">
+                <colgroup>
+                  <col class="col-date">
+                  <col class="col-description">
+                  <col class="col-amount">
+                </colgroup>
+                <thead>
+                  <tr>
+                    <th>Date</th>
+                    <th>Description</th>
+                    <th class="text-right amount-col">Amount</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {{chargesLedgerLineRows}}
+                </tbody>
+              </table>
+            </div>
+            <div class="statement-ledger-section">
               <h3 style="margin-top: 0; margin-bottom: 8px;">Payments</h3>
               <table class="charges-table">
                 <colgroup>
@@ -797,16 +829,11 @@
                   </tr>
                 </thead>
                 <tbody>
-                  {{paymentLedgerLineRows}}
-                  <tr class="subtotal-row" style="{{paymentsTotalRowStyle}}">
-                    <td></td>
-                    <td class="invoice-summary-cell"><span class="label invoice-summary-label">Total Payments:</span></td>
-                    <td class="amount-col">{{totalPayments}}</td>
-                  </tr>
+                  {{paymentsLedgerLineRows}}
                 </tbody>
               </table>
             </div>
-            <div class="invoice-balance-due-bottom rentall-zone-balance" style="{{balanceDueBottomSectionStyle}}">
+            <div class="statement-ledger-section rentall-zone-balance">
               <table class="charges-table">
                 <colgroup>
                   <col class="col-date">
@@ -814,11 +841,7 @@
                   <col class="col-amount">
                 </colgroup>
                 <tbody>
-                  <tr class="subtotal-row">
-                    <td></td>
-                    <td class="invoice-summary-cell"><span class="label invoice-summary-label">Balance Due:</span></td>
-                    <td class="amount-col">{{invoiceLedgerBalanceDue}}</td>
-                  </tr>
+                  {{closingBalanceLedgerLineRows}}
                 </tbody>
               </table>
             </div>
@@ -826,41 +849,6 @@
         </td>
       </tr>
 
-      <tr valign="top" class="rentall-row-payment">
-        <td colspan="2">
-          <div class="border rentall-zone-payment">
-            <h3 class="rentall-payment-indent">Payment Information</h3>
-            <p class="rentall-payment-indent">Please remit payments to:</p>
-            <p class="rentall-payment-indent"><strong>{{companyName}} {{accountingOfficeName}}<br>{{accountingOfficeAddressSingleLine}}</strong></p>
-
-            <table width="100%" cellspacing="0" cellpadding="0">
-              <tr valign="top">
-                <td width="50%" style="vertical-align: top; padding: 0; width: 50% !important;">
-                  <div class="border rentall-zone-bank-left">
-                    <p>
-                      <span class="label">Bank Name:</span> {{accountingOfficeBank}}<br>
-                      <span class="label">Bank Phone:</span> {{accountingOfficeBankPhone}}<br>
-                      <span class="label">Bank Address:</span> {{accountingOfficeBankAddress}}<br>
-                    </p>
-                  </div>
-                </td>
-
-                <td width="50%" style="vertical-align: top; padding: 0; width: 50% !important;">
-                  <div class="border rentall-zone-bank-right">
-                    <p>
-                      <span class="label">Routing #:</span> {{accountingOfficeBankRouting}}<br>
-                      <span class="label">Account #:</span> {{accountingOfficeBankAccount}}<br>
-                      <span class="label">SWIFT Code:</span> {{accountingOfficeSwithCode}}<br>
-                    </p>
-                  </div>
-                </td>
-              </tr>
-            </table>
-
-            <p class="rentall-payment-indent rentall-thank-you">Thank you for staying with {{companyName}} {{accountingOfficeName}}.</p>
-          </div>
-        </td>
-      </tr>
     </tbody>
   </table>
 

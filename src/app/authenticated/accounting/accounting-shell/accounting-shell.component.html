@@ -703,10 +703,15 @@
                     (workOrderSelect)="onOwnersWorkOrderSelect($event)" />
                 }
               } @else if (selectedOwnerKind === 'ownerStatements') {
-                <app-owner-statement-list
-                  [searchRequest]="billsSearchRequest"
-                  [refreshTrigger]="ownersStatementsRefreshTrigger">
-                </app-owner-statement-list>
+                @if (selectedOwnerStatementMonthLine) {
+                  <app-owner-statement-create [line]="selectedOwnerStatementMonthLine" (backEvent)="onOwnerStatementCreateBack()"></app-owner-statement-create>
+                } @else {
+                  <app-owner-statement-list
+                    [searchRequest]="billsSearchRequest"
+                    [refreshTrigger]="ownersStatementsRefreshTrigger"
+                    (viewStatement)="onOwnerStatementMonthLineView($event)">
+                  </app-owner-statement-list>
+                }
               } @else if (selectedOwnerKind === 'statements') {
                 @if (showGeneralLedgerDetail && activeJournalEntryId && showOwnerStatementJournalEntryLines) {
                   <app-general-ledger
