@@ -1,0 +1,30 @@
+<div class="log-detail-wrap">
+  @if (!row) {
+    <div class="logs-message">Application log record not found.</div>
+  } @else {
+    <mat-card>
+      <mat-card-content>
+        <div class="log-message-block">
+          <strong>Message</strong>
+          <pre>{{ row.message || '-' }}</pre>
+        </div>
+
+        <div class="log-message-block">
+          <strong>Exception</strong>
+          <pre>{{ row.exception || '-' }}</pre>
+        </div>
+
+        <table class="log-detail-table">
+          <tbody>
+            @for (item of row | keyvalue; track item.key) {
+              <tr>
+                <th>{{ item.key }}</th>
+                <td>{{ item.value ?? '-' }}</td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      </mat-card-content>
+    </mat-card>
+  }
+</div>

@@ -1,0 +1,38 @@
+@if (errorMessage) {
+  <div class="logs-message logs-message-error">{{ errorMessage }}</div>
+}
+
+@if (isLoading) {
+  <div class="logs-message">Loading accounting errors...</div>
+} @else {
+  <div class="mat list-layout-standard">
+    <div class="tableDiv">
+      <app-data-table
+        tableName="accounting-error-log-list"
+        [data]="rows"
+        [columns]="columns"
+        [hasColumnIndex]="true"
+        [hasFilter]="true"
+        [hasActionsRowClick]="true"
+        [hasActionsEdit]="true"
+        [hasButtonTop]="false"
+        [itemsPerPage]="10"
+        [noDataMessage]="'No accounting errors found.'"
+        (rowClickEvent)="openAccountingError($event)"
+        (editEvent)="openAccountingError($event)">
+        <div dataTableFilterActions>
+          <div class="table-filter-actions-group form-titlebar-actions-wrap uniform-gap">
+            <button mat-raised-button type="button" color="primary" class="text-nowrap flex-shrink-0" (click)="refreshAccountingErrorLogs()">
+              <mat-icon>refresh</mat-icon>
+              Refresh
+            </button>
+            <button mat-raised-button type="button" color="accent" class="text-nowrap flex-shrink-0" [disabled]="isDeleting" (click)="deleteAllAccountingErrorLogs()">
+              <mat-icon>delete_sweep</mat-icon>
+              Delete All
+            </button>
+          </div>
+        </div>
+      </app-data-table>
+    </div>
+  </div>
+}

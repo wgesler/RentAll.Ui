@@ -1,0 +1,66 @@
+<div class="flex content-card-wrap justify-center" fxLayout="row wrap">
+  <section class="content-card">
+    <div class="flex justify-between items-center gap-3 bg-slate-300 rounded-t-lg py-0 pl-8 pr-4">
+      <div class="flex items-center flex-wrap py-4">
+        <span class="flex flex-column items-center gap-3 flex-shrink-0">
+          <mat-icon class="flex-shrink-0">article</mat-icon>
+          <span class="flex-shrink-0 text-xl font-medium">Logs</span>
+        </span>
+      </div>
+      <div class="form-titlebar-actions-wrap uniform-gap">
+        <button mat-raised-button type="button" color="accent" class="text-nowrap flex-shrink-0" [disabled]="isDeletingAll" (click)="deleteAllLogs()">
+          <mat-icon>delete_sweep</mat-icon>
+          Delete All
+        </button>
+        @if (hasActiveTabDetail()) {
+          <button mat-raised-button type="button" color="accent" class="text-nowrap flex-shrink-0" (click)="backActiveTabDetail()">
+            <mat-icon>arrow_back</mat-icon>
+            Back
+          </button>
+        }
+      </div>
+    </div>
+    @if (errorMessage) {
+      <div class="logs-message logs-message-error">{{ errorMessage }}</div>
+    }
+
+    <mat-card>
+      <mat-tab-group [selectedIndex]="selectedTabIndex" class="shell-tabs dbg-band-tabs" (selectedIndexChange)="onTabIndexChange($event)">
+        <mat-tab label="Accounting Error">
+          <app-accounting-error-log-list [reloadToken]="reloadToken" [class.logs-hidden]="selectedAccountingError" (openAccountingErrorLog)="openAccountingErrorLog($event)" (listActionCompleted)="onListActionCompleted()" />
+          @if (selectedAccountingError) {
+            <app-accounting-error-log [row]="selectedAccountingError" />
+          }
+        </mat-tab>
+
+        <mat-tab label="Database Error">
+          <app-database-error-log-list [reloadToken]="reloadToken" [class.logs-hidden]="selectedDatabaseError" (openDatabaseErrorLog)="openDatabaseErrorLog($event)" (listActionCompleted)="onListActionCompleted()" />
+          @if (selectedDatabaseError) {
+            <app-database-error-log [row]="selectedDatabaseError" />
+          }
+        </mat-tab>
+
+        <mat-tab label="General Error">
+          <app-general-error-log-list [reloadToken]="reloadToken" [class.logs-hidden]="selectedGeneralError" (openGeneralErrorLog)="openGeneralErrorLog($event)" (listActionCompleted)="onListActionCompleted()" />
+          @if (selectedGeneralError) {
+            <app-general-error-log [row]="selectedGeneralError" />
+          }
+        </mat-tab>
+
+        <mat-tab label="Accounting Log">
+          <app-accounting-log-list [reloadToken]="reloadToken" [class.logs-hidden]="selectedAccountingLog" (openAccountingLog)="openAccountingLog($event)" (listActionCompleted)="onListActionCompleted()" />
+          @if (selectedAccountingLog) {
+            <app-accounting-log [row]="selectedAccountingLog" />
+          }
+        </mat-tab>
+
+        <mat-tab label="Application Log">
+          <app-application-log-list [reloadToken]="reloadToken" [class.logs-hidden]="selectedApplicationLog" (openApplicationLog)="openApplicationLog($event)" (listActionCompleted)="onListActionCompleted()" />
+          @if (selectedApplicationLog) {
+            <app-application-log [row]="selectedApplicationLog" />
+          }
+        </mat-tab>
+      </mat-tab-group>
+    </mat-card>
+  </section>
+</div>

@@ -18,6 +18,7 @@ import { EmailComponent } from './authenticated/email/email/email.component';
 import { EmailsShellComponent } from './authenticated/email/emails-shell/emails-shell.component';
 import { AlertListComponent } from './authenticated/email/alert-list/alert-list.component';
 import { AlertComponent } from './authenticated/email/alert/alert.component';
+import { LogsShellComponent } from './authenticated/logs/logs-shell/logs-shell.component';
 import { AccountingOfficeListComponent } from './authenticated/organizations/accounting-office-list/accounting-office-list.component';
 import { AccountingOfficeComponent } from './authenticated/organizations/accounting-office/accounting-office.component';
 import { AgentListComponent } from './authenticated/organizations/agent-list/agent-list.component';
@@ -118,6 +119,7 @@ export enum RouterToken {
   Color = RouterToken.ColorList + '/:id',
   Leads = 'leads',
   OwnerShell = 'owner',
+  Logs = 'logs',
   Default = RouterToken.ReservationBoard
 }
 
@@ -178,6 +180,7 @@ export enum RouterUrl {
   Color                = `${RouterToken.Auth}/${RouterToken.Color}`,
   Leads                = `${RouterToken.Auth}/${RouterToken.Leads}`,
   OwnerShell           = `${RouterToken.Auth}/${RouterToken.OwnerShell}`,
+  Logs                 = `${RouterToken.Auth}/${RouterToken.Logs}`,
 }
 
 // eslint-disable-next-line @typescript-eslint/no-namespace
@@ -245,6 +248,7 @@ export const authRoutes: Routes = [
   { path: RouterToken.Color, component: ColorComponent, canActivate: [authRouteGuard] },
   { path: RouterToken.Leads, component: LeadsShellComponent, canActivate: [authRouteGuard] },
   { path: RouterToken.OwnerShell, component: OwnerShellComponent, canActivate: [authRouteGuard] },
+  { path: RouterToken.Logs, component: LogsShellComponent, canActivate: [authRouteGuard] },
   { path: `${RouterToken.OwnerShell}/:token`, component: OwnerShellComponent, canActivate: [authRouteGuard] },
 ]
 

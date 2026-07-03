@@ -1,0 +1,46 @@
+<div class="log-detail-wrap">
+  @if (!row) {
+    <div class="logs-message">Accounting error record not found.</div>
+  } @else {
+    <mat-card>
+      <mat-card-content>
+        <div class="log-form-grid">
+          <mat-form-field appearance="outline">
+            <mat-label>Created On</mat-label>
+            <input matInput [value]="getCreatedOnDate()" readonly>
+          </mat-form-field>
+
+          <mat-form-field appearance="outline">
+            <mat-label>Source</mat-label>
+            <input matInput [value]="getSourceTypeLabel()" readonly>
+          </mat-form-field>
+
+          <mat-form-field appearance="outline">
+            <mat-label>Document Code</mat-label>
+            <input
+              matInput
+              [value]="row.documentCode || '-'"
+              readonly
+              [class.document-code-link]="canOpenSource()"
+              (click)="canOpenSource() ? openSource() : null">
+          </mat-form-field>
+
+          <mat-form-field appearance="outline">
+            <mat-label>Accounting Period</mat-label>
+            <input matInput [value]="getAccountingPeriod()" readonly>
+          </mat-form-field>
+
+          <mat-form-field appearance="outline">
+            <mat-label>Amount</mat-label>
+            <input matInput [value]="getAmount()" readonly>
+          </mat-form-field>
+        </div>
+
+        <mat-form-field appearance="outline" class="message-field">
+          <mat-label>Message</mat-label>
+          <textarea matInput [value]="row.message || '-'" readonly rows="10"></textarea>
+        </mat-form-field>
+      </mat-card-content>
+    </mat-card>
+  }
+</div>

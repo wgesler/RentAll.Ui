@@ -1,0 +1,30 @@
+.log-detail-wrap {
+  padding: 1rem;
+}
+
+.log-form-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 1rem;
+  margin-bottom: 1rem;
+}
+
+.document-code-link {
+  color: #1d4ed8 !important;
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+.message-field {
+  width: 100%;
+}
+
+.logs-message {
+  padding: 1rem 0;
+}
+
+:host ::ng-deep .message-field textarea {
+  min-height: 220px !important;
+  white-space: pre-wrap;
+  line-height: 1.4;
+}

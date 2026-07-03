@@ -68,7 +68,8 @@ const ROUTER_TOKEN = {
   RegionList: 'regions',
   ColorList: 'colors',
   UserList: 'users',
-  OrganizationList: 'organizations'
+  OrganizationList: 'organizations',
+  Logs: 'logs'
 } as const;
 //#endregion
 
@@ -187,7 +188,8 @@ export const COMPANY_USERS_NAV_ITEMS: NavItemDefinition[] = [
   { icon: 'description', displayName: 'Documents', url: ROUTER_TOKEN.DocumentList, ...openToAllExceptSuperAdmin },
   { icon: 'contacts', displayName: 'Contacts', url: ROUTER_TOKEN.Contacts, ...openToAllExceptSuperAdmin },
   { icon: 'people', displayName: 'Users', url: ROUTER_TOKEN.UserList, ...adminOnly },
-  { icon: 'settings', displayName: 'Settings', url: ROUTER_TOKEN.OrganizationConfiguration, ...settingsAccess }
+  { icon: 'settings', displayName: 'Settings', url: ROUTER_TOKEN.OrganizationConfiguration, ...settingsAccess },
+  { icon: 'article', displayName: 'Logs', url: ROUTER_TOKEN.Logs, ...orgAdminOnly }
 ];
 
 export const SUPER_USER_NAV_ITEMS: NavItemDefinition[] = [
@@ -198,7 +200,8 @@ export const SUPER_USER_NAV_ITEMS: NavItemDefinition[] = [
   { icon: 'person', displayName: 'Owners', url: ROUTER_TOKEN.Owner, ...openToAll },
   { icon: 'mail', displayName: 'Emails', url: ROUTER_TOKEN.EmailList, ...openToAll },
   { icon: 'people', displayName: 'Users', url: ROUTER_TOKEN.UserList, ...adminOnly },
-  { icon: 'settings', displayName: 'Settings', url: ROUTER_TOKEN.OrganizationConfiguration, ...settingsAccess }
+  { icon: 'settings', displayName: 'Settings', url: ROUTER_TOKEN.OrganizationConfiguration, ...settingsAccess },
+  { icon: 'article', displayName: 'Logs', url: ROUTER_TOKEN.Logs, ...orgAdminOnly }
 ];
 
 export const SERVICE_PROVIDERS_NAV_ITEMS: NavItemDefinition[] = [
@@ -245,6 +248,7 @@ const routeRulesBySegment: Record<string, AccessRule> = {
   [ROUTER_TOKEN.RegionList]: adminOnly,
   [ROUTER_TOKEN.ColorList]: orgAdminOnly,
   [ROUTER_TOKEN.UserList]: adminOnly,
+  [ROUTER_TOKEN.Logs]: orgAdminOnly,
 
   [ROUTER_TOKEN.OrganizationList]: superAdminOnly,
 

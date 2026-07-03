@@ -1,0 +1,38 @@
+.log-detail-wrap {
+  padding: 1rem;
+}
+
+.log-message-block {
+  margin-bottom: 1rem;
+}
+
+.log-message-block pre {
+  margin-top: 0.5rem;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.log-detail-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.log-detail-table th,
+.log-detail-table td {
+  padding: 0.5rem;
+  border-bottom: 1px solid #edf0f4;
+  text-align: left;
+  vertical-align: top;
+}
+
+.log-detail-table th {
+  width: 16rem;
+}
+
+.logs-message {
+  padding: 1rem 0;
+}
+
+.logs-message-error {
+  color: #b42318;
+}
