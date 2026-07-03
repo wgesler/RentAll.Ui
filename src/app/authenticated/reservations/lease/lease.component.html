@@ -66,9 +66,11 @@
         <mat-checkbox formControlName="includeLetterOfResponsibility" class="include-checkbox" (change)="onIncludeCheckboxChange('includeLetterOfResponsibility', $event)">
           Letter of Responsibility
         </mat-checkbox>
-        <mat-checkbox formControlName="includeNoticeToVacate" class="include-checkbox" (change)="onIncludeCheckboxChange('includeNoticeToVacate', $event)">
-          Notice to Vacate
-        </mat-checkbox>
+        @if (showNoticeToVacateCheckbox) {
+          <mat-checkbox formControlName="includeNoticeToVacate" class="include-checkbox" (change)="onIncludeCheckboxChange('includeNoticeToVacate', $event)">
+            Notice to Vacate
+          </mat-checkbox>
+        }
         <mat-checkbox formControlName="includeCreditCardAuthorization" class="include-checkbox" (change)="onIncludeCheckboxChange('includeCreditCardAuthorization', $event)">
           Credit Card Authorization
         </mat-checkbox>

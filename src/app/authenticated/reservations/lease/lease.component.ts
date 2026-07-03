@@ -489,6 +489,7 @@ export class LeaseComponent extends BaseDocumentComponent implements OnInit, OnD
       this.selectedReservation = null;
       this.contact = null;
       this.isCompanyRental = false;
+      this.syncNoticeToVacateAvailability();
       this.form.patchValue({ selectedReservationId: null }, { emitEvent: false });
       this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'reservation');
       this.generatePreviewIframe();
@@ -496,6 +497,7 @@ export class LeaseComponent extends BaseDocumentComponent implements OnInit, OnD
     }
 
     if (this.selectedReservation?.reservationId === reservationId) {
+      this.syncNoticeToVacateAvailability();
       this.form.patchValue({ selectedReservationId: reservationId }, { emitEvent: false });
       this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'reservation');
       this.generatePreviewIframe();
@@ -508,6 +510,7 @@ export class LeaseComponent extends BaseDocumentComponent implements OnInit, OnD
     ).subscribe({
       next: (reservation: ReservationResponse) => {
         this.selectedReservation = reservation;
+        this.syncNoticeToVacateAvailability();
         this.form.patchValue({ selectedReservationId: reservation.reservationId }, { emitEvent: false });
         this.syncSelectedOfficeFromContext();
         this.loadContact();
@@ -627,6 +630,24 @@ export class LeaseComponent extends BaseDocumentComponent implements OnInit, OnD
 
   get isOfficeSelectionLocked(): boolean {
     return this.lockOfficeSelection;
+  }
+
+  get showNoticeToVacateCheckbox(): boolean {
+    return this.selectedReservation?.reservationNoticeId !== ReservationNotice.FirmEndDate;
+  }
+
+  syncNoticeToVacateAvailability(): void {
+    if (this.showNoticeToVacateCheckbox) {
+      return;
+    }
+
+    const includeNoticeControl = this.form.get('includeNoticeToVacate');
+    if (!includeNoticeControl || !includeNoticeControl.value) {
+      return;
+    }
+
+    includeNoticeControl.setValue(false, { emitEvent: false });
+    this.syncIncludeFlagsFromForm();
   }
 
   getDocumentSelectionKey(): string {
@@ -855,6 +876,7 @@ export class LeaseComponent extends BaseDocumentComponent implements OnInit, OnD
 
   loadReservation(): void {
     if (!this.reservationId || this.reservationId === 'new') {
+      this.syncNoticeToVacateAvailability();
       this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'reservation');
       return;
     }
@@ -862,6 +884,7 @@ export class LeaseComponent extends BaseDocumentComponent implements OnInit, OnD
     this.reservationService.getReservationByGuid(this.reservationId).pipe(take(1), finalize(() => { this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'reservation'); })).subscribe({
       next: (reservation: ReservationResponse) => {
         this.selectedReservation = reservation;
+        this.syncNoticeToVacateAvailability();
         this.form.patchValue({ selectedReservationId: reservation.reservationId });
         this.syncSelectedOfficeFromContext();
         this.loadContact();
@@ -1073,7 +1096,7 @@ export class LeaseComponent extends BaseDocumentComponent implements OnInit, OnD
     } else if (this.selectedReservation.reservationNoticeId === ReservationNotice.SixtyDays) {
       return '(60 day written notice is required)';
     } else if (this.selectedReservation.reservationNoticeId === ReservationNotice.FirmEndDate) {
-      return '(Firm end date)';
+      return '';
     }
     return '';
   }
@@ -1511,14 +1534,17 @@ export class LeaseComponent extends BaseDocumentComponent implements OnInit, OnD
     let result = html;
 
     if (this.leaseInformation) {
+      const isFirmEndDateNotice = this.selectedReservation?.reservationNoticeId === ReservationNotice.FirmEndDate;
+      const departureNotificationContent = isFirmEndDateNotice ? '' : (this.leaseInformation.departureNotification || '');
+      const holdoverContent = isFirmEndDateNotice ? '' : (this.leaseInformation.holdover || '');
       result = result.replace(/\{\{rentalPayment\}\}/g, this.leaseInformation.rentalPayment || '');
       result = result.replace(/\{\{securityDeposit\}\}/g, this.leaseInformation.securityDeposit || '');
       result = result.replace(/\{\{securityDepositWaiver\}\}/g, this.leaseInformation.securityDepositWaiver || '');
       result = result.replace(/\{\{cancellationPolicy\}\}/g, this.leaseInformation.cancellationPolicy || '');
       result = result.replace(/\{\{keyPickUpDropOff\}\}/g, this.leaseInformation.keyPickUpDropOff || '');
       result = result.replace(/\{\{partialMonth\}\}/g, this.leaseInformation.partialMonth || '');
-      result = result.replace(/\{\{departureNotification\}\}/g, this.leaseInformation.departureNotification || '');
-      result = result.replace(/\{\{holdover\}\}/g, this.leaseInformation.holdover || '');
+      result = result.replace(/\{\{departureNotification\}\}/g, departureNotificationContent);
+      result = result.replace(/\{\{holdover\}\}/g, holdoverContent);
       result = result.replace(/\{\{departureServiceFee\}\}/g, this.leaseInformation.departureServiceFee || '');
       result = result.replace(/\{\{checkoutProcedure\}\}/g, this.leaseInformation.checkoutProcedure || '');
       result = result.replace(/\{\{parking\}\}/g, this.leaseInformation.parking || '');
@@ -1543,8 +1569,8 @@ export class LeaseComponent extends BaseDocumentComponent implements OnInit, OnD
       result = result.replace(/\{\{cancellationPolicySection\}\}/g, this.buildLeaseInfoSectionHtml('Cancellation Policy', this.leaseInformation.cancellationPolicy));
       result = result.replace(/\{\{keyPickUpDropOffSection\}\}/g, this.buildLeaseInfoSectionHtml('Key Pick-up and drop-off', this.leaseInformation.keyPickUpDropOff));
       result = result.replace(/\{\{partialMonthSection\}\}/g, this.buildLeaseInfoSectionHtml('Partial Month Calculation', this.leaseInformation.partialMonth));
-      result = result.replace(/\{\{departureNotificationSection\}\}/g, this.buildLeaseInfoSectionHtml('Departure Notification/Extensions', this.leaseInformation.departureNotification));
-      result = result.replace(/\{\{holdoverSection\}\}/g, this.buildLeaseInfoSectionHtml('Holdover', this.leaseInformation.holdover));
+      result = result.replace(/\{\{departureNotificationSection\}\}/g, this.buildLeaseInfoSectionHtml('Departure Notification/Extensions', departureNotificationContent));
+      result = result.replace(/\{\{holdoverSection\}\}/g, this.buildLeaseInfoSectionHtml('Holdover', holdoverContent));
       result = result.replace(/\{\{departureServiceFeeSection\}\}/g, this.buildLeaseInfoSectionHtml('Departure Service Fee', this.leaseInformation.departureServiceFee));
       result = result.replace(/\{\{checkoutProcedureSection\}\}/g, this.buildLeaseInfoSectionHtml('Checkout Procedure', this.leaseInformation.checkoutProcedure));
       result = result.replace(/\{\{parkingSection\}\}/g, this.buildLeaseInfoSectionHtml('Parking', this.leaseInformation.parking));
@@ -1667,7 +1693,7 @@ export class LeaseComponent extends BaseDocumentComponent implements OnInit, OnD
       result = result.replace(/\{\{responsibleParty\}\}/g, this.getUnderlinedFillValue(this.getResponsibleParty()));
       result = result.replace(/\{\{responsiblePartyNoun\}\}/g, this.getUnderlinedFillValue(this.getResponsibleNoun()));
       result = result.replace(/\{\{responsiblePartyAddress1\}\}/g, this.getUnderlinedFillValue(this.getResponsiblePartyAddress1()));
-      result = result.replace(/\{\{responsiblePartyAddress1\}\}/g, this.getUnderlinedFillValue(this.getResponsiblePartyAddress2()));
+      result = result.replace(/\{\{responsiblePartyAddress2\}\}/g, this.getUnderlinedFillValue(this.getResponsiblePartyAddress2()));
       result = result.replace(/\{\{responsiblePartyPhone\}\}/g, this.getUnderlinedFillValue(this.getResponsiblePartyPhone()));
       result = result.replace(/\{\{responsiblePartyEmail\}\}/g, this.getUnderlinedFillValue(this.getResponsiblePartyEmail()));
       result = result.replace(/\{\{responsiblePartiesBlock\}\}/g, this.getResponsiblePartiesBlock());
