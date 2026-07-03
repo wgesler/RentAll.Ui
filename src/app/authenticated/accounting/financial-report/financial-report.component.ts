@@ -203,14 +203,11 @@ export class FinancialReportComponent implements OnInit, OnDestroy, OnChanges {
 
   loadChartOfAccounts(): void {
     this.chartOfAccountsService.ensureChartOfAccountsLoaded();
-    this.chartOfAccountsService.areChartOfAccountsLoaded().pipe(
-      filter(loaded => loaded === true),
-      take(1),
-      takeUntil(this.destroy$),
+    this.chartOfAccountsService.areChartOfAccountsLoaded().pipe(filter(loaded => loaded === true),take(1),takeUntil(this.destroy$),
       finalize(() => this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'chartOfAccounts'))
     ).subscribe({
       next: () => {
-        this.chartOfAccountsService.getAllChartOfAccounts().pipe(take(1), takeUntil(this.destroy$)).subscribe(accounts => {
+        this.chartOfAccountsService.getAllChartOfAccounts().pipe(takeUntil(this.destroy$)).subscribe(accounts => {
           this.chartOfAccounts = accounts || [];
           this.applyReportDisplay();
           this.markViewForCheck();

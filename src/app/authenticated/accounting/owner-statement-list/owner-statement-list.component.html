@@ -10,12 +10,16 @@
           tableName="owner-statement-list"
           [data]="lines"
           [columns]="ownerStatementDisplayedColumns"
+          [totalsRow]="totalsRow"
+          [totalsLabel]="'Totals'"
           [hasColumnIndex]="true"
           [hasFilter]="true"
           [hasActionsView]="true"
           [hasActionsStartingBalance]="true"
           [noDataMessage]="noDataMessage"
           [itemsPerPage]="10"
+          [totalsRow]="totalsRow"
+          [totalsLabel]="'Totals:'"
           (viewEvent)="onViewStatement($event)"
           (startingBalanceEvent)="openStartingBalanceDialog($event)">
         </app-data-table>

@@ -5,6 +5,7 @@ import { BehaviorSubject, finalize, Subject, take, takeUntil } from 'rxjs';
 import { ToastrService } from 'ngx-toastr';
 import { CommonMessage } from '../../../enums/common-message.enum';
 import { AuthService } from '../../../services/auth.service';
+import { FormatterService } from '../../../services/formatter-service';
 import { MappingService } from '../../../services/mapping.service';
 import { UtilityService } from '../../../services/utility.service';
 import { MaintenanceListSearchRequest } from '../../maintenance/models/maintenance-search.model';
@@ -50,6 +51,7 @@ export class OwnerStatementListComponent implements OnInit, OnChanges, OnDestroy
     private ownerStatementService: OwnerStatementService, 
     private propertyAgreementService: PropertyAgreementService, 
     private authService: AuthService, 
+    private formatter: FormatterService,
     private mappingService: MappingService,
     private utilityService: UtilityService, 
     private dialog: MatDialog, 
@@ -143,6 +145,25 @@ export class OwnerStatementListComponent implements OnInit, OnChanges, OnDestroy
     });
   }
 
+  //#endregion
+
+  //#region Total Row Methods
+  get totalsRow(): { [key: string]: string } | undefined {
+    if (this.lines.length === 0) {
+      return undefined;
+    }
+    return {
+      startingBalance: this.formatter.currencyUsd(this.getOwnerStatementAmountSum('startingBalance')),
+      income: this.formatter.currencyUsd(this.getOwnerStatementAmountSum('income')),
+      expenses: this.formatter.currencyUsd(this.getOwnerStatementAmountSum('expenses')),
+      ownerPayment: this.formatter.currencyUsd(this.getOwnerStatementAmountSum('ownerPayment')),
+      endingBalance: this.formatter.currencyUsd(this.getOwnerStatementAmountSum('endingBalance'))
+    };
+  }
+
+  getOwnerStatementAmountSum(columnName: 'startingBalance' | 'income' | 'expenses' | 'ownerPayment' | 'endingBalance'): number {
+    return this.lines.reduce((sum, line) => sum + this.mappingService.parseCurrencyValue(line[columnName]), 0);
+  }
   //#endregion
 
   //#region Utility Methods
