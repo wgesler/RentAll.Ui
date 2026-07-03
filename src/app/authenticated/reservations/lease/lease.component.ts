@@ -1072,6 +1072,8 @@ export class LeaseComponent extends BaseDocumentComponent implements OnInit, OnD
       return '(14 day written notice is required)';
     } else if (this.selectedReservation.reservationNoticeId === ReservationNotice.SixtyDays) {
       return '(60 day written notice is required)';
+    } else if (this.selectedReservation.reservationNoticeId === ReservationNotice.FirmEndDate) {
+      return '(Firm end date)';
     }
     return '';
   }

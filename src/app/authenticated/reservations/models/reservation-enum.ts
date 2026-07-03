@@ -241,7 +241,8 @@ export enum ReservationNotice {
   ThirtyDays = 0,
   FifteenDays = 1,
   FourteenDays = 2,
-  SixtyDays = 3
+  SixtyDays = 3,
+  FirmEndDate = 4
 }
 
 export function getReservationNotice(reservationNoticeId: number | undefined): string {
@@ -251,7 +252,8 @@ export function getReservationNotice(reservationNoticeId: number | undefined): s
     [ReservationNotice.ThirtyDays]: '30 Days',
     [ReservationNotice.FifteenDays]: '15 Days',
     [ReservationNotice.FourteenDays]: '14 Days',
-    [ReservationNotice.SixtyDays]: '60 Days'
+    [ReservationNotice.SixtyDays]: '60 Days',
+    [ReservationNotice.FirmEndDate]: 'Firm End Date'
   };
   
   return noticeMap[reservationNoticeId] || '';
@@ -263,7 +265,8 @@ export function getReservationNotices(): { value: number, label: string }[] {
     { value: ReservationNotice.FourteenDays, label: getReservationNotice(ReservationNotice.FourteenDays) },
     { value: ReservationNotice.FifteenDays, label: getReservationNotice(ReservationNotice.FifteenDays) },
     { value: ReservationNotice.ThirtyDays, label: getReservationNotice(ReservationNotice.ThirtyDays) },
-    { value: ReservationNotice.SixtyDays, label: getReservationNotice(ReservationNotice.SixtyDays) }
+    { value: ReservationNotice.SixtyDays, label: getReservationNotice(ReservationNotice.SixtyDays) },
+    { value: ReservationNotice.FirmEndDate, label: getReservationNotice(ReservationNotice.FirmEndDate) }
   ];
 }
 //#endregion

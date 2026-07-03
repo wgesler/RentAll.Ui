@@ -1313,6 +1313,9 @@ export class ReservationBoardComponent implements OnInit, OnChanges, OnDestroy {
     if (notice === ReservationNotice.SixtyDays) {
       return 60;
     }
+    if (notice === ReservationNotice.FirmEndDate) {
+      return null;
+    }
     return null;
   }
 
