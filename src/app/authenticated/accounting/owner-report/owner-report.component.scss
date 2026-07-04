@@ -22,13 +22,13 @@
   justify-content: center;
   width: 100%;
   max-width: 100%;
-  padding: 1.1rem 0.75rem 1rem;
+  padding: 1.25rem 2rem 1.5rem;
   box-sizing: border-box;
 }
 
 .owner-statement-panel {
   width: 100%;
-  max-width: 100%;
+  max-width: var(--owner-report-panel-max-width, 68rem);
   min-width: 0;
   margin-inline: auto;
 }
@@ -53,7 +53,7 @@
   display: flex;
   align-items: center;
   justify-content: flex-end;
-  padding-right: 0.75rem;
+  padding-right: 0;
   margin-bottom: 0.9rem;
 }
 
@@ -105,7 +105,7 @@
   z-index: 1;
   text-align: left;
   font-weight: 600;
-  padding: 0.3rem 0.75rem;
+  padding: 0.3rem 0.5rem;
   border-bottom: 1px solid rgba(15, 23, 42, 0.12);
   background: rgba(241, 245, 249, 0.98);
 }
@@ -148,10 +148,20 @@
 }
 
 .owner-statement-table tbody td {
-  padding: 0.2rem 0.75rem;
+  padding: 0.2rem 0.5rem;
   border-bottom: 1px solid rgba(15, 23, 42, 0.08);
   vertical-align: middle;
   background-color: #fff;
+}
+
+.owner-statement-table thead th:first-child,
+.owner-statement-table tbody td:first-child {
+  padding-left: 1rem;
+}
+
+.owner-statement-table thead th:last-child,
+.owner-statement-table tbody td:last-child {
+  padding-right: 1rem;
 }
 
 .owner-statement-row-office td {
@@ -159,11 +169,6 @@
   background-color: #faf6ef !important;
   border-top: 1px solid rgba(15, 23, 42, 0.12);
   border-bottom: 1px solid rgba(15, 23, 42, 0.12);
-}
-
-.owner-statement-row-owner td {
-  font-weight: 600;
-  background-color: #fff !important;
 }
 
 .owner-statement-row-property td {
@@ -214,48 +219,38 @@
 }
 
 .owner-statement-col-label {
-  width: 17rem;
-  min-width: 17rem;
-  max-width: 17rem;
-}
-
-.owner-statement-col-property {
-  width: 7rem;
-  min-width: 7rem;
-  max-width: 7rem;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
+  width: 9.5rem;
+  min-width: 9.5rem;
+  max-width: 9.5rem;
 }
 
 .owner-statement-col-item-description {
-  width: 14rem;
-  min-width: 12rem;
-  max-width: 14rem;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
+  width: 9rem;
+  min-width: 9rem;
+  max-width: 9rem;
+  white-space: normal;
+  overflow: visible;
+  text-overflow: clip;
+  word-break: break-word;
 }
 
 .owner-statement-table th.owner-statement-col-label,
 .owner-statement-table td.owner-statement-col-label {
-  padding-right: 0.35rem;
-}
-
-.owner-statement-table th.owner-statement-col-property,
-.owner-statement-table td.owner-statement-col-property {
-  padding-left: 0.35rem;
+  padding-right: 0.15rem;
 }
 
 .owner-statement-table th.owner-statement-col-item-description,
 .owner-statement-table td.owner-statement-col-item-description {
-  padding-left: 0.35rem;
+  width: 9rem;
+  min-width: 9rem;
+  max-width: 9rem;
+  padding-left: 0.15rem;
 }
 
 .owner-statement-col-amount {
-  width: 8rem;
-  min-width: 8rem;
-  max-width: 8rem;
+  width: 5.25rem;
+  min-width: 5.25rem;
+  max-width: 5.25rem;
   text-align: right;
   white-space: nowrap;
 }
@@ -279,9 +274,9 @@
 }
 
 .owner-statement-col-working-capital {
-  width: 8rem;
-  min-width: 8rem;
-  max-width: 8rem;
+  width: 5.25rem;
+  min-width: 5.25rem;
+  max-width: 5.25rem;
 }
 
 .owner-statement-label-wrap {

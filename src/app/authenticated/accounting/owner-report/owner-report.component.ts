@@ -36,8 +36,8 @@ export class OwnerReportComponent implements OnInit, OnChanges, OnDestroy {
   ownerReportOfficeGroups: OwnerReportOfficeGroup[] = [];
   visibleRows: OwnerReportVisibleRow[] = [];
   expandedRowIds = new Set<string>();
-  ownerCloseOnNextToggleRowIds = new Set<string>();
-  officeCloseOnNextToggleRowIds = new Set<string>();
+  officeReadyToCloseRowIds = new Set<string>();
+  noActivityPropertyRowIds = new Set<string>();
   propertyActivityLinesByPropertyRowId = new Map<string, OwnerReportPropertyActivityLineDisplay[]>();
   propertyActivityLoadingRowIds = new Set<string>();
   propertyActivityErrorRowIds = new Set<string>();
@@ -96,8 +96,8 @@ export class OwnerReportComponent implements OnInit, OnChanges, OnDestroy {
       this.ownerReportOfficeGroups = [];
       this.visibleRows = [];
       this.expandedRowIds.clear();
-      this.ownerCloseOnNextToggleRowIds.clear();
-      this.officeCloseOnNextToggleRowIds.clear();
+      this.officeReadyToCloseRowIds.clear();
+      this.noActivityPropertyRowIds.clear();
       this.clearPropertyActivityState();
       this.isServiceError = false;
       this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'ownerReports');
@@ -122,8 +122,8 @@ export class OwnerReportComponent implements OnInit, OnChanges, OnDestroy {
         this.ownerReportOfficeGroups = [];
         this.visibleRows = [];
         this.expandedRowIds.clear();
-        this.ownerCloseOnNextToggleRowIds.clear();
-        this.officeCloseOnNextToggleRowIds.clear();
+        this.officeReadyToCloseRowIds.clear();
+        this.noActivityPropertyRowIds.clear();
         this.clearPropertyActivityState();
         this.emitViewStateChange();
         this.markViewForCheck();
@@ -131,7 +131,7 @@ export class OwnerReportComponent implements OnInit, OnChanges, OnDestroy {
     });
   }
 
-  loadPropertyActivityRows(row: OwnerReportVisibleRow): void {
+  loadPropertyActivityRows(row: OwnerReportVisibleRow, expandOnSuccess = false): void {
     if (row.kind !== 'property' || !row.propertyId || !row.officeId) {
       return;
     }
@@ -149,7 +149,24 @@ export class OwnerReportComponent implements OnInit, OnChanges, OnDestroy {
       endDate: request.endDate ?? null
     }).pipe(take(1)).subscribe({
       next: lines => {
-        this.propertyActivityLinesByPropertyRowId.set(row.rowId, this.mappingService.mapOwnerReportPropertyActivityDisplays(row.rowId, lines || []));
+        const mappedLines = this.mappingService.mapOwnerReportPropertyActivityDisplays(row.rowId, lines || []);
+        if (mappedLines.length === 0) {
+          this.noActivityPropertyRowIds.add(row.rowId);
+          this.propertyActivityLinesByPropertyRowId.delete(row.rowId);
+          this.propertyActivityLoadingRowIds.delete(row.rowId);
+          this.propertyActivityErrorRowIds.delete(row.rowId);
+          this.expandedRowIds.delete(row.rowId);
+          this.rebuildVisibleRows();
+          this.emitViewStateChange();
+          this.markViewForCheck();
+          return;
+        }
+
+        this.noActivityPropertyRowIds.delete(row.rowId);
+        this.propertyActivityLinesByPropertyRowId.set(row.rowId, mappedLines);
+        if (expandOnSuccess) {
+          this.expandedRowIds.add(row.rowId);
+        }
         this.propertyActivityLoadingRowIds.delete(row.rowId);
         this.propertyActivityErrorRowIds.delete(row.rowId);
         this.rebuildVisibleRows();
@@ -210,7 +227,7 @@ export class OwnerReportComponent implements OnInit, OnChanges, OnDestroy {
         ownerPaymentValue: office.ownerPayment,
         endingBalance: this.formatter.currencyUsd(office.endingBalance),
         endingBalanceValue: office.endingBalance,
-        expandable: office.owners.length > 0,
+        expandable: office.properties.length > 0,
         expanded: officeExpanded
       });
 
@@ -218,144 +235,100 @@ export class OwnerReportComponent implements OnInit, OnChanges, OnDestroy {
         return;
       }
 
-      office.owners.forEach(owner => {
-        const ownerExpanded = this.expandedRowIds.has(owner.rowId);
+      office.properties.forEach(property => {
+        const propertyRowId = `property:${office.officeId}:${property.propertyId || property.propertyCode}`;
+        const propertyExpanded = this.expandedRowIds.has(propertyRowId);
         rows.push({
-          rowId: owner.rowId,
-          kind: 'owner',
+          rowId: propertyRowId,
+          kind: 'property',
           depth: 1,
-          ownerId: owner.ownerId,
+          ownerId: property.ownerId,
           officeId: office.officeId,
-          primaryLabel: owner.ownerName,
-          propertyCode: '',
+          propertyId: property.propertyId,
+          primaryLabel: property.propertyCode || 'Property',
+          propertyCode: property.propertyCode || '',
           itemDescription: '',
           activityCode: '',
-          expected: this.formatter.currencyUsd(owner.expected),
-          expectedValue: owner.expected,
-          prePaid: this.formatter.currencyUsd(owner.prePaid),
-          prePaidValue: owner.prePaid,
-          outstanding: this.formatter.currencyUsd(owner.outstanding),
-          outstandingValue: owner.outstanding,
-          income: this.formatter.currencyUsd(owner.income),
-          incomeValue: owner.income,
-          expenses: this.formatter.currencyUsd(owner.expenses),
-          expensesValue: owner.expenses,
-          balance: this.formatter.currencyUsd(owner.balance),
-          balanceValue: owner.balance,
-          startingBalance: this.formatter.currencyUsd(owner.startingBalance),
-          startingBalanceValue: owner.startingBalance,
-          workingCapital: this.formatter.currencyUsd(owner.workingCapital),
-          workingCapitalValue: owner.workingCapital,
-          workingCapitalBalanceDue: this.formatter.currencyUsd(owner.workingCapitalBalanceDue),
-          workingCapitalBalanceDueValue: owner.workingCapitalBalanceDue,
-          ownerPayment: this.formatter.currencyUsd(owner.ownerPayment),
-          ownerPaymentValue: owner.ownerPayment,
-          endingBalance: this.formatter.currencyUsd(owner.endingBalance),
-          endingBalanceValue: owner.endingBalance,
-          expandable: owner.properties.length > 0,
-          expanded: ownerExpanded
+          expected: this.formatter.currencyUsd(property.expected),
+          expectedValue: property.expected,
+          prePaid: this.formatter.currencyUsd(property.prePaid),
+          prePaidValue: property.prePaid,
+          outstanding: this.formatter.currencyUsd(property.outstanding),
+          outstandingValue: property.outstanding,
+          income: this.formatter.currencyUsd(property.income),
+          incomeValue: property.income,
+          expenses: this.formatter.currencyUsd(property.expenses),
+          expensesValue: property.expenses,
+          balance: this.formatter.currencyUsd(property.balance),
+          balanceValue: property.balance,
+          startingBalance: this.formatter.currencyUsd(property.startingBalance),
+          startingBalanceValue: property.startingBalance,
+          workingCapital: this.formatter.currencyUsd(property.workingCapital),
+          workingCapitalValue: property.workingCapital,
+          workingCapitalBalanceDue: this.formatter.currencyUsd(property.workingCapitalBalanceDue),
+          workingCapitalBalanceDueValue: property.workingCapitalBalanceDue,
+          ownerPayment: this.formatter.currencyUsd(property.ownerPayment),
+          ownerPaymentValue: property.ownerPayment,
+          endingBalance: this.formatter.currencyUsd(property.endingBalance),
+          endingBalanceValue: property.endingBalance,
+          expandable: !!property.propertyId && !this.noActivityPropertyRowIds.has(propertyRowId),
+          expanded: propertyExpanded
         });
 
-        if (!ownerExpanded) {
+        if (!propertyExpanded) {
           return;
         }
 
-        owner.properties.forEach(property => {
-          const propertyRowId = `property:${office.officeId}:${owner.rowId}:${property.propertyId || property.propertyCode}`;
-          const propertyExpanded = this.expandedRowIds.has(propertyRowId);
+        if (this.propertyActivityLoadingRowIds.has(propertyRowId)) {
+          rows.push(this.mappingService.mapOwnerReportPropertyActivityStateRow(propertyRowId, 'Loading property activity...'));
+          return;
+        }
+
+        if (this.propertyActivityErrorRowIds.has(propertyRowId)) {
+          rows.push(this.mappingService.mapOwnerReportPropertyActivityStateRow(propertyRowId, 'Unable to load property activity.'));
+          return;
+        }
+
+        const activityRows = this.propertyActivityLinesByPropertyRowId.get(propertyRowId) || [];
+        if (activityRows.length === 0) {
+          return;
+        }
+
+        activityRows.forEach(activity => {
           rows.push({
-            rowId: propertyRowId,
-            kind: 'property',
+            rowId: activity.rowId,
+            kind: 'propertyActivity',
             depth: 2,
-            ownerId: property.ownerId,
             officeId: office.officeId,
             propertyId: property.propertyId,
-            primaryLabel: property.ownerName,
+            primaryLabel: activity.activityDate,
             propertyCode: property.propertyCode || '',
-            itemDescription: '',
-            activityCode: '',
-            expected: this.formatter.currencyUsd(property.expected),
-            expectedValue: property.expected,
-            prePaid: this.formatter.currencyUsd(property.prePaid),
-            prePaidValue: property.prePaid,
-            outstanding: this.formatter.currencyUsd(property.outstanding),
-            outstandingValue: property.outstanding,
-            income: this.formatter.currencyUsd(property.income),
-            incomeValue: property.income,
-            expenses: this.formatter.currencyUsd(property.expenses),
-            expensesValue: property.expenses,
-            balance: this.formatter.currencyUsd(property.balance),
-            balanceValue: property.balance,
-            startingBalance: this.formatter.currencyUsd(property.startingBalance),
-            startingBalanceValue: property.startingBalance,
-            workingCapital: this.formatter.currencyUsd(property.workingCapital),
-            workingCapitalValue: property.workingCapital,
-            workingCapitalBalanceDue: this.formatter.currencyUsd(property.workingCapitalBalanceDue),
-            workingCapitalBalanceDueValue: property.workingCapitalBalanceDue,
-            ownerPayment: this.formatter.currencyUsd(property.ownerPayment),
-            ownerPaymentValue: property.ownerPayment,
-            endingBalance: this.formatter.currencyUsd(property.endingBalance),
-            endingBalanceValue: property.endingBalance,
-            expandable: !!property.propertyId,
-            expanded: propertyExpanded
-          });
-
-          if (!propertyExpanded) {
-            return;
-          }
-
-          if (this.propertyActivityLoadingRowIds.has(propertyRowId)) {
-            rows.push(this.mappingService.mapOwnerReportPropertyActivityStateRow(propertyRowId, 'Loading property activity...'));
-            return;
-          }
-
-          if (this.propertyActivityErrorRowIds.has(propertyRowId)) {
-            rows.push(this.mappingService.mapOwnerReportPropertyActivityStateRow(propertyRowId, 'Unable to load property activity.'));
-            return;
-          }
-
-          const activityRows = this.propertyActivityLinesByPropertyRowId.get(propertyRowId) || [];
-          if (activityRows.length === 0) {
-            rows.push(this.mappingService.mapOwnerReportPropertyActivityStateRow(propertyRowId, 'No items this period.'));
-            return;
-          }
-
-          activityRows.forEach(activity => {
-            rows.push({
-              rowId: activity.rowId,
-              kind: 'propertyActivity',
-              depth: 3,
-              officeId: office.officeId,
-              propertyId: property.propertyId,
-              primaryLabel: activity.activityDate,
-              propertyCode: property.propertyCode || '',
-              itemDescription: activity.description,
-              activityCode: activity.documentCode,
-              expected: activity.expectedIncome,
-              expectedValue: Number(activity.expectedIncome) || 0,
-              prePaid: '',
-              prePaidValue: 0,
-              outstanding: '',
-              outstandingValue: 0,
-              income: activity.receivedIncome,
-              incomeValue: Number(activity.receivedIncome) || 0,
-              expenses: activity.expenses,
-              expensesValue: Number(activity.expenses) || 0,
-              balance: '',
-              balanceValue: 0,
-              startingBalance: '',
-              startingBalanceValue: 0,
-              workingCapital: '',
-              workingCapitalValue: 0,
-              workingCapitalBalanceDue: '',
-              workingCapitalBalanceDueValue: 0,
-              ownerPayment: '',
-              ownerPaymentValue: 0,
-              endingBalance: '',
-              endingBalanceValue: 0,
-              expandable: false,
-              expanded: false
-            });
+            itemDescription: activity.description,
+            activityCode: activity.documentCode,
+            expected: activity.expectedIncome,
+            expectedValue: Number(activity.expectedIncome) || 0,
+            prePaid: '',
+            prePaidValue: 0,
+            outstanding: '',
+            outstandingValue: 0,
+            income: activity.receivedIncome,
+            incomeValue: Number(activity.receivedIncome) || 0,
+            expenses: activity.expenses,
+            expensesValue: Number(activity.expenses) || 0,
+            balance: '',
+            balanceValue: 0,
+            startingBalance: '',
+            startingBalanceValue: 0,
+            workingCapital: '',
+            workingCapitalValue: 0,
+            workingCapitalBalanceDue: '',
+            workingCapitalBalanceDueValue: 0,
+            ownerPayment: '',
+            ownerPaymentValue: 0,
+            endingBalance: '',
+            endingBalanceValue: 0,
+            expandable: false,
+            expanded: false
           });
         });
       });
@@ -373,7 +346,6 @@ export class OwnerReportComponent implements OnInit, OnChanges, OnDestroy {
     }
 
     if (row.kind === 'property') {
-      this.ownerCloseOnNextToggleRowIds.delete(this.getOwnerRowIdFromPropertyRowId(row.rowId));
       const isExpanded = this.expandedRowIds.has(row.rowId);
       if (isExpanded) {
         this.expandedRowIds.delete(row.rowId);
@@ -382,93 +354,38 @@ export class OwnerReportComponent implements OnInit, OnChanges, OnDestroy {
         this.markViewForCheck();
         return;
       }
-
-      this.expandedRowIds.add(row.rowId);
-      this.rebuildVisibleRows();
-      this.emitViewStateChange();
-      this.markViewForCheck();
 
       if (!this.propertyActivityLinesByPropertyRowId.has(row.rowId) && !this.propertyActivityLoadingRowIds.has(row.rowId) && row.propertyId) {
-        this.loadPropertyActivityRows(row);
-      }
-      return;
-    }
-
-    if (row.kind === 'owner') {
-      const propertyRows = this.getPropertyRowsForOwner(row.rowId);
-      const propertyRowIds = propertyRows.map(property => property.rowId);
-      const isExpanded = this.expandedRowIds.has(row.rowId);
-
-      if (isExpanded) {
-        this.expandedRowIds.delete(row.rowId);
-        propertyRowIds.forEach(propertyRowId => this.expandedRowIds.delete(propertyRowId));
-        this.rebuildVisibleRows();
-        this.emitViewStateChange();
-        this.markViewForCheck();
+        this.loadPropertyActivityRows(row, true);
         return;
       }
 
       this.expandedRowIds.add(row.rowId);
-      propertyRows.forEach(property => this.expandedRowIds.add(property.rowId));
-      this.ownerCloseOnNextToggleRowIds.delete(row.rowId);
       this.rebuildVisibleRows();
       this.emitViewStateChange();
       this.markViewForCheck();
-
-      propertyRows.forEach(property => {
-        if (!this.propertyActivityLinesByPropertyRowId.has(property.rowId) && !this.propertyActivityLoadingRowIds.has(property.rowId) && property.propertyId) {
-          this.loadPropertyActivityRows({
-            rowId: property.rowId,
-            kind: 'property',
-            depth: 2,
-            ownerId: row.ownerId,
-            officeId: property.officeId,
-            propertyId: property.propertyId,
-            primaryLabel: '',
-            propertyCode: '',
-            itemDescription: '',
-            activityCode: '',
-            expected: '',
-            expectedValue: 0,
-            prePaid: '',
-            prePaidValue: 0,
-            outstanding: '',
-            outstandingValue: 0,
-            income: '',
-            incomeValue: 0,
-            expenses: '',
-            expensesValue: 0,
-            balance: '',
-            balanceValue: 0,
-            startingBalance: '',
-            startingBalanceValue: 0,
-            workingCapital: '',
-            workingCapitalValue: 0,
-            workingCapitalBalanceDue: '',
-            workingCapitalBalanceDueValue: 0,
-            ownerPayment: '',
-            ownerPaymentValue: 0,
-            endingBalance: '',
-            endingBalanceValue: 0,
-            expandable: true,
-            expanded: true
-          });
-        }
-      });
       return;
     }
 
     if (row.kind === 'office') {
-      const ownerRowIds = this.getOwnerRowIdsForOffice(row.rowId);
-      const propertyRows = ownerRowIds.flatMap(ownerRowId => this.getPropertyRowsForOwner(ownerRowId));
+      const propertyRows = this.getPropertyRowsForOffice(row.rowId);
       const propertyRowIds = propertyRows.map(property => property.rowId);
       const isOfficeExpanded = this.expandedRowIds.has(row.rowId);
-      const hasExpandedSubordinates = ownerRowIds.some(ownerRowId => this.expandedRowIds.has(ownerRowId))
-        || propertyRowIds.some(propertyRowId => this.expandedRowIds.has(propertyRowId));
+      const hasExpandedSubordinates = propertyRowIds.some(propertyRowId => this.expandedRowIds.has(propertyRowId));
+      const isReadyToCloseOffice = this.officeReadyToCloseRowIds.has(row.rowId);
 
       if (!isOfficeExpanded) {
         this.expandedRowIds.add(row.rowId);
-        this.officeCloseOnNextToggleRowIds.delete(row.rowId);
+        this.officeReadyToCloseRowIds.delete(row.rowId);
+        this.rebuildVisibleRows();
+        this.emitViewStateChange();
+        this.markViewForCheck();
+        return;
+      }
+
+      if (isReadyToCloseOffice && !hasExpandedSubordinates) {
+        this.expandedRowIds.delete(row.rowId);
+        this.officeReadyToCloseRowIds.delete(row.rowId);
         this.rebuildVisibleRows();
         this.emitViewStateChange();
         this.markViewForCheck();
@@ -476,28 +393,16 @@ export class OwnerReportComponent implements OnInit, OnChanges, OnDestroy {
       }
 
       if (hasExpandedSubordinates) {
-        ownerRowIds.forEach(ownerRowId => this.expandedRowIds.delete(ownerRowId));
         propertyRowIds.forEach(propertyRowId => this.expandedRowIds.delete(propertyRowId));
-        ownerRowIds.forEach(ownerRowId => this.ownerCloseOnNextToggleRowIds.delete(ownerRowId));
-        this.officeCloseOnNextToggleRowIds.add(row.rowId);
+        this.officeReadyToCloseRowIds.add(row.rowId);
         this.rebuildVisibleRows();
         this.emitViewStateChange();
         this.markViewForCheck();
         return;
       }
 
-      if (this.officeCloseOnNextToggleRowIds.has(row.rowId)) {
-        this.expandedRowIds.delete(row.rowId);
-        this.officeCloseOnNextToggleRowIds.delete(row.rowId);
-        this.rebuildVisibleRows();
-        this.emitViewStateChange();
-        this.markViewForCheck();
-        return;
-      }
-
-      ownerRowIds.forEach(ownerRowId => this.expandedRowIds.add(ownerRowId));
       propertyRowIds.forEach(propertyRowId => this.expandedRowIds.add(propertyRowId));
-      this.officeCloseOnNextToggleRowIds.delete(row.rowId);
+      this.officeReadyToCloseRowIds.delete(row.rowId);
       this.rebuildVisibleRows();
       this.emitViewStateChange();
       this.markViewForCheck();
@@ -507,7 +412,7 @@ export class OwnerReportComponent implements OnInit, OnChanges, OnDestroy {
           this.loadPropertyActivityRows({
             rowId: property.rowId,
             kind: 'property',
-            depth: 2,
+            depth: 1,
             ownerId: '',
             officeId: property.officeId,
             propertyId: property.propertyId,
@@ -563,10 +468,10 @@ export class OwnerReportComponent implements OnInit, OnChanges, OnDestroy {
 
     if (this.areAllOfficeRowsExpanded) {
       officeRowIds.forEach(rowId => this.expandedRowIds.delete(rowId));
-      officeRowIds.forEach(rowId => this.officeCloseOnNextToggleRowIds.delete(rowId));
+      officeRowIds.forEach(rowId => this.officeReadyToCloseRowIds.delete(rowId));
     } else {
       officeRowIds.forEach(rowId => this.expandedRowIds.add(rowId));
-      officeRowIds.forEach(rowId => this.officeCloseOnNextToggleRowIds.delete(rowId));
+      officeRowIds.forEach(rowId => this.officeReadyToCloseRowIds.delete(rowId));
     }
 
     this.rebuildVisibleRows();
@@ -588,7 +493,7 @@ export class OwnerReportComponent implements OnInit, OnChanges, OnDestroy {
   }
 
   canDrillDownAmount(row: OwnerReportVisibleRow, metric: OwnerReportDrillDownMetric): boolean {
-    if (row.kind !== 'owner' && row.kind !== 'property') {
+    if (row.kind !== 'property') {
       return false;
     }
     if (!row.officeId || !row.ownerId) {
@@ -637,6 +542,7 @@ export class OwnerReportComponent implements OnInit, OnChanges, OnDestroy {
     Object.entries(viewState?.propertyActivityByPropertyRowId || {}).forEach(([rowId, lines]) => {
       this.propertyActivityLinesByPropertyRowId.set(rowId, lines || []);
     });
+    this.officeReadyToCloseRowIds.clear();
     this.propertyActivityLoadingRowIds.clear();
     this.propertyActivityErrorRowIds.clear();
   }
@@ -645,13 +551,10 @@ export class OwnerReportComponent implements OnInit, OnChanges, OnDestroy {
     const ids = new Set<string>();
     (officeGroups || []).forEach(office => {
       ids.add(office.rowId);
-      (office.owners || []).forEach(owner => {
-        ids.add(owner.rowId);
-        (owner.properties || []).forEach(property => {
-          if (property.propertyId) {
-            ids.add(`property:${office.officeId}:${owner.rowId}:${property.propertyId || property.propertyCode}`);
-          }
-        });
+      (office.properties || []).forEach(property => {
+        if (property.propertyId) {
+          ids.add(`property:${office.officeId}:${property.propertyId || property.propertyCode}`);
+        }
       });
     });
 
@@ -795,11 +698,27 @@ export class OwnerReportComponent implements OnInit, OnChanges, OnDestroy {
   }
 
   getRowExpandIcon(row: OwnerReportVisibleRow): string {
-    if (row.kind !== 'office') {
+    if (row.kind === 'property') {
       return row.expanded ? 'chevron_left' : 'chevron_right';
     }
 
-    return row.expanded ? 'expand_less' : 'expand_more';
+    if (row.kind !== 'office') {
+      return 'chevron_right';
+    }
+
+    if (!row.expanded) {
+      return 'expand_more';
+    }
+
+    if (this.hasExpandedPropertyRowsForOfficeRow(row.rowId)) {
+      return 'chevron_left';
+    }
+
+    if (this.officeReadyToCloseRowIds.has(row.rowId)) {
+      return 'expand_less';
+    }
+
+    return 'chevron_right';
   }
 
   get headerEntityLine(): string {
@@ -837,44 +756,23 @@ export class OwnerReportComponent implements OnInit, OnChanges, OnDestroy {
     return periodLabel || 'All Dates';
   }
 
-  getOwnerRowIdsForOffice(officeRowId: string): string[] {
+  getPropertyRowsForOffice(officeRowId: string): { rowId: string; officeId: number; propertyId: string }[] {
     const officeGroup = (this.ownerReportOfficeGroups || []).find(group => group.rowId === officeRowId);
     if (!officeGroup) {
       return [];
     }
-    return (officeGroup.owners || []).map(owner => owner.rowId);
+    return (officeGroup.properties || [])
+      .filter(property => !!property.propertyId)
+      .map(property => ({
+        rowId: `property:${officeGroup.officeId}:${property.propertyId || property.propertyCode}`,
+        officeId: officeGroup.officeId,
+        propertyId: property.propertyId
+      }));
   }
 
-  getPropertyRowsForOwner(ownerRowId: string): { rowId: string; officeId: number; propertyId: string }[] {
-    const rows: { rowId: string; officeId: number; propertyId: string }[] = [];
-    (this.ownerReportOfficeGroups || []).forEach(office => {
-      const owner = (office.owners || []).find(currentOwner => currentOwner.rowId === ownerRowId);
-      if (!owner) {
-        return;
-      }
-      (owner.properties || []).forEach(property => {
-        if (!property.propertyId) {
-          return;
-        }
-        rows.push({
-          rowId: `property:${office.officeId}:${owner.rowId}:${property.propertyId || property.propertyCode}`,
-          officeId: office.officeId,
-          propertyId: property.propertyId
-        });
-      });
-    });
-    return rows;
-  }
-
-  getOwnerRowIdFromPropertyRowId(propertyRowId: string): string {
-    for (const office of this.ownerReportOfficeGroups || []) {
-      for (const owner of office.owners || []) {
-        if ((propertyRowId || '').startsWith(`property:${office.officeId}:${owner.rowId}:`)) {
-          return owner.rowId;
-        }
-      }
-    }
-    return '';
+  hasExpandedPropertyRowsForOfficeRow(officeRowId: string): boolean {
+    const propertyRows = this.getPropertyRowsForOffice(officeRowId);
+    return propertyRows.some(property => this.expandedRowIds.has(property.rowId));
   }
   //#endregion
 

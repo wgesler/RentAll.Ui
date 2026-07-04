@@ -1886,27 +1886,19 @@ export class MappingService {
   }
 
   mapOwnerReportOfficeGroups(reports: OwnerStatementResponse[]): OwnerStatementOfficeGroup[] {
-    const officeMap = new Map<string, { officeId: number; officeName: string; ownerMap: Map<string, OwnerStatementPropertyRow[]> }>();
+    const officeMap = new Map<string, { officeId: number; officeName: string; properties: OwnerStatementPropertyRow[] }>();
     (reports || []).forEach(report => {
       const officeId = Number(report.officeId) || 0;
       const officeName = (report.officeName || '').trim();
       const officeKey = `${officeId}::${officeName.toLowerCase()}`;
-      const ownerId = (report.ownerId || '').trim();
-      const ownerName = (report.ownerName || '').trim() || 'Unassigned Owner';
-      const ownerKey = ownerId || ownerName.toLowerCase();
       if (!officeMap.has(officeKey)) {
-        officeMap.set(officeKey, { officeId, officeName, ownerMap: new Map<string, OwnerStatementPropertyRow[]>() });
+        officeMap.set(officeKey, { officeId, officeName, properties: [] });
       }
 
-      const office = officeMap.get(officeKey)!;
-      if (!office.ownerMap.has(ownerKey)) {
-        office.ownerMap.set(ownerKey, []);
-      }
-
-      office.ownerMap.get(ownerKey)!.push({
+      officeMap.get(officeKey)!.properties.push({
         propertyId: report.propertyId || '',
-        ownerName,
-        ownerId,
+        ownerName: (report.ownerName || '').trim() || 'Unassigned Owner',
+        ownerId: (report.ownerId || '').trim(),
         propertyCode: report.propertyCode || '',
         expected: Number(report.expected) || 0,
         prePaid: Number(report.prePaid) || 0,
@@ -1923,44 +1915,24 @@ export class MappingService {
     });
 
     const officeGroups = Array.from(officeMap.values()).map(office => {
-      const owners = Array.from(office.ownerMap.entries()).map(([ownerKey, properties]) => {
-        const sortedProperties = [...properties].sort((a, b) => (a.propertyCode || '').localeCompare(b.propertyCode || ''));
-        return {
-          rowId: `owner:${office.officeId}:${ownerKey || 'unknown'}`,
-          ownerId: sortedProperties[0]?.ownerId || '',
-          ownerName: sortedProperties[0]?.ownerName || 'Unassigned Owner',
-          properties: sortedProperties,
-          expected: sortedProperties.reduce((sum, item) => sum + item.expected, 0),
-          prePaid: sortedProperties.reduce((sum, item) => sum + item.prePaid, 0),
-          outstanding: sortedProperties.reduce((sum, item) => sum + item.outstanding, 0),
-          income: sortedProperties.reduce((sum, item) => sum + item.income, 0),
-          expenses: sortedProperties.reduce((sum, item) => sum + item.expenses, 0),
-          balance: sortedProperties.reduce((sum, item) => sum + item.balance, 0),
-          startingBalance: sortedProperties.reduce((sum, item) => sum + item.startingBalance, 0),
-          workingCapital: sortedProperties.reduce((sum, item) => sum + item.workingCapital, 0),
-          workingCapitalBalanceDue: sortedProperties.reduce((sum, item) => sum + item.workingCapitalBalanceDue, 0),
-          ownerPayment: sortedProperties.reduce((sum, item) => sum + item.ownerPayment, 0),
-          endingBalance: sortedProperties.reduce((sum, item) => sum + item.endingBalance, 0)
-        };
-      }).sort((a, b) => a.ownerName.localeCompare(b.ownerName));
-
+      const properties = [...office.properties].sort((a, b) => (a.propertyCode || '').localeCompare(b.propertyCode || ''));
       const resolvedOfficeName = office.officeName || `Office ${office.officeId}`;
       return {
         rowId: `office:${office.officeId}`,
         officeId: office.officeId,
         officeName: resolvedOfficeName,
-        owners,
-        expected: owners.reduce((sum, owner) => sum + owner.expected, 0),
-        prePaid: owners.reduce((sum, owner) => sum + owner.prePaid, 0),
-        outstanding: owners.reduce((sum, owner) => sum + owner.outstanding, 0),
-        income: owners.reduce((sum, owner) => sum + owner.income, 0),
-        expenses: owners.reduce((sum, owner) => sum + owner.expenses, 0),
-        balance: owners.reduce((sum, owner) => sum + owner.balance, 0),
-        startingBalance: owners.reduce((sum, owner) => sum + owner.startingBalance, 0),
-        workingCapital: owners.reduce((sum, owner) => sum + owner.workingCapital, 0),
-        workingCapitalBalanceDue: owners.reduce((sum, owner) => sum + owner.workingCapitalBalanceDue, 0),
-        ownerPayment: owners.reduce((sum, owner) => sum + owner.ownerPayment, 0),
-        endingBalance: owners.reduce((sum, owner) => sum + owner.endingBalance, 0)
+        properties,
+        expected: properties.reduce((sum, property) => sum + property.expected, 0),
+        prePaid: properties.reduce((sum, property) => sum + property.prePaid, 0),
+        outstanding: properties.reduce((sum, property) => sum + property.outstanding, 0),
+        income: properties.reduce((sum, property) => sum + property.income, 0),
+        expenses: properties.reduce((sum, property) => sum + property.expenses, 0),
+        balance: properties.reduce((sum, property) => sum + property.balance, 0),
+        startingBalance: properties.reduce((sum, property) => sum + property.startingBalance, 0),
+        workingCapital: properties.reduce((sum, property) => sum + property.workingCapital, 0),
+        workingCapitalBalanceDue: properties.reduce((sum, property) => sum + property.workingCapitalBalanceDue, 0),
+        ownerPayment: properties.reduce((sum, property) => sum + property.ownerPayment, 0),
+        endingBalance: properties.reduce((sum, property) => sum + property.endingBalance, 0)
       };
     });
 

@@ -189,29 +189,11 @@ export interface OwnerStatementPropertyRow {
   endingBalance: number;
 }
 
-export interface OwnerStatementOwnerGroup {
-  rowId: string;
-  ownerId: string;
-  ownerName: string;
-  properties: OwnerStatementPropertyRow[];
-  expected: number;
-  prePaid: number;
-  outstanding: number;
-  income: number;
-  expenses: number;
-  balance: number;
-  startingBalance: number;
-  workingCapital: number;
-  workingCapitalBalanceDue: number;
-  ownerPayment: number;
-  endingBalance: number;
-}
-
 export interface OwnerStatementOfficeGroup {
   rowId: string;
   officeId: number;
   officeName: string;
-  owners: OwnerStatementOwnerGroup[];
+  properties: OwnerStatementPropertyRow[];
   expected: number;
   prePaid: number;
   outstanding: number;

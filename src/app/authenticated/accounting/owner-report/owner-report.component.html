@@ -46,14 +46,8 @@
                     </button>
                     <div class="owner-statement-header-two-line owner-statement-header-two-line--left owner-statement-header-two-line--office">
                       <span>Office</span>
-                      <span>Owner</span>
+                      <span>Property</span>
                     </div>
-                  </div>
-                </th>
-                <th class="owner-statement-col-property">
-                  <div class="owner-statement-header-two-line owner-statement-header-two-line--left">
-                    <span>Property</span>
-                    <span>Code</span>
                   </div>
                 </th>
                 <th class="owner-statement-col-item-description">
@@ -119,7 +113,6 @@
               @for (row of visibleRows; track row.rowId) {
                 <tr
                   [class.owner-statement-row-office]="row.kind === 'office'"
-                  [class.owner-statement-row-owner]="row.kind === 'owner'"
                   [class.owner-statement-row-property]="row.kind === 'property'"
                   [class.owner-statement-row-property-activity]="row.kind === 'propertyActivity'"
                   [class.owner-statement-row-property-activity--clickable]="row.kind === 'propertyActivity' && !!row.activityCode"
@@ -162,7 +155,6 @@
                       }
                     </div>
                   </td>
-                  <td class="owner-statement-col-property">{{ row.propertyCode }}</td>
                   <td class="owner-statement-col-item-description">
                     @if (row.kind === 'propertyActivity') {
                       @for (segment of getItemDescriptionSegments(row); track $index) {
