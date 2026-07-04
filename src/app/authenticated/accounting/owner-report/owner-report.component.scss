@@ -28,7 +28,7 @@
 
 .owner-statement-panel {
   width: 100%;
-  max-width: var(--owner-report-panel-max-width, 68rem);
+  max-width: var(--owner-report-panel-max-width, 96rem);
   min-width: 0;
   margin-inline: auto;
 }
@@ -94,7 +94,7 @@
 }
 
 .owner-statement-table {
-  width: 100%;
+  width: max(100%, 86rem);
   border-collapse: collapse;
   table-layout: fixed;
 }
@@ -105,7 +105,7 @@
   z-index: 1;
   text-align: left;
   font-weight: 600;
-  padding: 0.3rem 0.5rem;
+  padding: 0.4rem 0.75rem;
   border-bottom: 1px solid rgba(15, 23, 42, 0.12);
   background: rgba(241, 245, 249, 0.98);
 }
@@ -148,7 +148,7 @@
 }
 
 .owner-statement-table tbody td {
-  padding: 0.2rem 0.5rem;
+  padding: 0.3rem 0.75rem;
   border-bottom: 1px solid rgba(15, 23, 42, 0.08);
   vertical-align: middle;
   background-color: #fff;
@@ -156,12 +156,12 @@
 
 .owner-statement-table thead th:first-child,
 .owner-statement-table tbody td:first-child {
-  padding-left: 1rem;
+  padding-left: 1.25rem;
 }
 
 .owner-statement-table thead th:last-child,
 .owner-statement-table tbody td:last-child {
-  padding-right: 1rem;
+  padding-right: 1.25rem;
 }
 
 .owner-statement-row-office td {
@@ -219,15 +219,15 @@
 }
 
 .owner-statement-col-label {
-  width: 9.5rem;
-  min-width: 9.5rem;
-  max-width: 9.5rem;
+  width: 21rem;
+  min-width: 21rem;
+  max-width: 21rem;
 }
 
 .owner-statement-col-item-description {
-  width: 9rem;
-  min-width: 9rem;
-  max-width: 9rem;
+  width: 22rem;
+  min-width: 22rem;
+  max-width: 22rem;
   white-space: normal;
   overflow: visible;
   text-overflow: clip;
@@ -241,16 +241,16 @@
 
 .owner-statement-table th.owner-statement-col-item-description,
 .owner-statement-table td.owner-statement-col-item-description {
-  width: 9rem;
-  min-width: 9rem;
-  max-width: 9rem;
+  width: 22rem;
+  min-width: 22rem;
+  max-width: 22rem;
   padding-left: 0.15rem;
 }
 
 .owner-statement-col-amount {
-  width: 5.25rem;
-  min-width: 5.25rem;
-  max-width: 5.25rem;
+  width: 8.5rem;
+  min-width: 8.5rem;
+  max-width: 8.5rem;
   text-align: right;
   white-space: nowrap;
 }
@@ -274,9 +274,9 @@
 }
 
 .owner-statement-col-working-capital {
-  width: 5.25rem;
-  min-width: 5.25rem;
-  max-width: 5.25rem;
+  width: 8.5rem;
+  min-width: 8.5rem;
+  max-width: 8.5rem;
 }
 
 .owner-statement-label-wrap {
