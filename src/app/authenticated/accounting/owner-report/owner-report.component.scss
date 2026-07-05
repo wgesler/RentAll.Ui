@@ -180,7 +180,7 @@
   font-weight: 600;
 }
 
-.owner-statement-row-property-activity td {
+.owner-statement-table tbody tr.owner-statement-row-property-activity > td {
   font-weight: 400;
   background-color: #f8fafc !important;
   color: rgba(15, 23, 42, 0.9);
