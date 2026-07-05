@@ -448,19 +448,16 @@
           </mat-tab>
           <mat-tab>
             <ng-template mat-tab-label>
-              <span class="accounting-shell-dropdown-tab-label">
+              <button
+                type="button"
+                class="accounting-shell-dropdown-tab-label"
+                [matMenuTriggerFor]="billsReceiptsMenu"
+                #billsReceiptsMenuTrigger="matMenuTrigger"
+                (click)="onDropdownTabLabelClick($event)"
+                aria-label="Choose bills or receipts">
                 <span class="accounting-shell-dropdown-tab-label__text">{{ billsReceiptsTabLabel }}</span>
-                <button
-                  mat-icon-button
-                  type="button"
-                  class="accounting-shell-dropdown-tab-menu-btn"
-                  [matMenuTriggerFor]="billsReceiptsMenu"
-                  #billsReceiptsMenuTrigger="matMenuTrigger"
-                  (click)="$event.stopPropagation()"
-                  aria-label="Choose bills or receipts">
-                  <mat-icon>arrow_drop_down</mat-icon>
-                </button>
-              </span>
+                <mat-icon class="accounting-shell-dropdown-tab-icon" aria-hidden="true">arrow_drop_down</mat-icon>
+              </button>
               <mat-menu #billsReceiptsMenu="matMenu" panelClass="accounting-reports-tab-menu">
                 @for (option of shellBillsReceiptMenuOptions; track option.kind) {
                   <button mat-menu-item type="button" class="office-menu-item accounting-reports-menu-item" (click)="selectBillsReceipt(option.kind)">
@@ -547,19 +544,16 @@
           @if (hasAccountingFullAccess) {
           <mat-tab>
             <ng-template mat-tab-label>
-              <span class="accounting-shell-dropdown-tab-label">
+              <button
+                type="button"
+                class="accounting-shell-dropdown-tab-label"
+                [matMenuTriggerFor]="bankActivitiesMenu"
+                #bankActivitiesMenuTrigger="matMenuTrigger"
+                (click)="onDropdownTabLabelClick($event)"
+                aria-label="Choose bank view">
                 <span class="accounting-shell-dropdown-tab-label__text">Bank</span>
-                <button
-                  mat-icon-button
-                  type="button"
-                  class="accounting-shell-dropdown-tab-menu-btn"
-                  [matMenuTriggerFor]="bankActivitiesMenu"
-                  #bankActivitiesMenuTrigger="matMenuTrigger"
-                  (click)="$event.stopPropagation()"
-                  aria-label="Choose bank view">
-                  <mat-icon>arrow_drop_down</mat-icon>
-                </button>
-              </span>
+                <mat-icon class="accounting-shell-dropdown-tab-icon" aria-hidden="true">arrow_drop_down</mat-icon>
+              </button>
               <mat-menu #bankActivitiesMenu="matMenu" panelClass="accounting-reports-tab-menu">
                 @for (option of shellBankActivityMenuOptions; track option.kind) {
                   <button mat-menu-item type="button" class="office-menu-item accounting-reports-menu-item" (click)="selectBankActivity(option.kind)">
@@ -625,19 +619,16 @@
           </mat-tab>
           <mat-tab>
             <ng-template mat-tab-label>
-              <span class="accounting-shell-dropdown-tab-label">
+              <button
+                type="button"
+                class="accounting-shell-dropdown-tab-label"
+                [matMenuTriggerFor]="ownersMenu"
+                #ownersMenuTrigger="matMenuTrigger"
+                (click)="onDropdownTabLabelClick($event)"
+                aria-label="Choose owner view">
                 <span class="accounting-shell-dropdown-tab-label__text">Owners</span>
-                <button
-                  mat-icon-button
-                  type="button"
-                  class="accounting-shell-dropdown-tab-menu-btn"
-                  [matMenuTriggerFor]="ownersMenu"
-                  #ownersMenuTrigger="matMenuTrigger"
-                  (click)="$event.stopPropagation()"
-                  aria-label="Choose owner view">
-                  <mat-icon>arrow_drop_down</mat-icon>
-                </button>
-              </span>
+                <mat-icon class="accounting-shell-dropdown-tab-icon" aria-hidden="true">arrow_drop_down</mat-icon>
+              </button>
               <mat-menu #ownersMenu="matMenu" panelClass="accounting-reports-tab-menu">
                 @for (option of shellOwnerMenuOptions; track option.kind) {
                   <button mat-menu-item type="button" class="office-menu-item accounting-reports-menu-item" (click)="selectOwnerKind(option.kind)">
@@ -743,19 +734,16 @@
           </mat-tab>
           <mat-tab>
             <ng-template mat-tab-label>
-              <span class="accounting-shell-dropdown-tab-label">
+              <button
+                type="button"
+                class="accounting-shell-dropdown-tab-label"
+                [matMenuTriggerFor]="reportsMenu"
+                #reportsMenuTrigger="matMenuTrigger"
+                (click)="onDropdownTabLabelClick($event)"
+                aria-label="Choose report">
                 <span class="accounting-shell-dropdown-tab-label__text">Reports</span>
-                <button
-                  mat-icon-button
-                  type="button"
-                  class="accounting-shell-dropdown-tab-menu-btn"
-                  [matMenuTriggerFor]="reportsMenu"
-                  #reportsMenuTrigger="matMenuTrigger"
-                  (click)="$event.stopPropagation()"
-                  aria-label="Choose report">
-                  <mat-icon>arrow_drop_down</mat-icon>
-                </button>
-              </span>
+                <mat-icon class="accounting-shell-dropdown-tab-icon" aria-hidden="true">arrow_drop_down</mat-icon>
+              </button>
               <mat-menu #reportsMenu="matMenu" panelClass="accounting-reports-tab-menu">
                 @for (reportOption of shellReportMenuOptions; track reportOption.kind) {
                   <button mat-menu-item type="button" class="office-menu-item accounting-reports-menu-item" (click)="selectReport(reportOption.kind)">

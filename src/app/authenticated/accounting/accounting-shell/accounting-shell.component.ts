@@ -1377,6 +1377,10 @@ export class AccountingShellComponent implements OnInit, OnDestroy {
   //#endregion
 
   //#region Tab Selection
+  onDropdownTabLabelClick(event: Event): void {
+    event.stopPropagation();
+  }
+
   onTabChange(event: { index: number }): void {
     if (!this.hasAccountingFullAccess && event.index > this.tabMaxIndexLimited) {
       this.selectedTabIndex = 0;
