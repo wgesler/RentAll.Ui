@@ -156,22 +156,26 @@
                     </div>
                   </td>
                   <td class="owner-statement-col-item-description">
-                    @if (row.kind === 'propertyActivity') {
-                      @for (segment of getItemDescriptionSegments(row); track $index) {
-                        @if (segment.code) {
-                          <button
-                            type="button"
-                            class="owner-statement-activity-link owner-statement-item-description-link"
-                            (click)="$event.stopPropagation(); onItemDescriptionCodeClick(row, segment.code)">
-                            {{ segment.text }}
-                          </button>
-                        } @else {
-                          <span>{{ segment.text }}</span>
+                    <div
+                      class="owner-statement-item-description-wrap"
+                      [class.owner-statement-item-description-wrap--nested]="row.kind === 'propertyActivity'">
+                      @if (row.kind === 'propertyActivity') {
+                        @for (segment of getItemDescriptionSegments(row); track $index) {
+                          @if (segment.code) {
+                            <button
+                              type="button"
+                              class="owner-statement-activity-link owner-statement-item-description-link"
+                              (click)="$event.stopPropagation(); onItemDescriptionCodeClick(row, segment.code)">
+                              {{ segment.text }}
+                            </button>
+                          } @else {
+                            <span>{{ segment.text }}</span>
+                          }
                         }
+                      } @else {
+                        {{ row.itemDescription }}
                       }
-                    } @else {
-                      {{ row.itemDescription }}
-                    }
+                    </div>
                   </td>
                   @if (reportKind === 'accrual') {
                     <td class="owner-statement-col-amount">

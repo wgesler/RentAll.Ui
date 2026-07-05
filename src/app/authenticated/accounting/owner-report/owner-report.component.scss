@@ -175,6 +175,11 @@
   font-weight: 400;
 }
 
+.owner-statement-row-property .owner-statement-col-label .owner-statement-label,
+.owner-statement-row-property .owner-statement-col-item-description .owner-statement-item-description-wrap {
+  font-weight: 600;
+}
+
 .owner-statement-row-property-activity td {
   font-weight: 400;
   background-color: #f8fafc !important;
@@ -216,6 +221,14 @@
 .owner-statement-item-description-link {
   display: inline;
   white-space: inherit;
+}
+
+.owner-statement-item-description-wrap {
+  display: block;
+}
+
+.owner-statement-item-description-wrap--nested {
+  padding-left: 18px;
 }
 
 .owner-statement-col-label {
