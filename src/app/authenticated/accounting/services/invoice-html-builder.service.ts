@@ -63,23 +63,11 @@ export class InvoiceHtmlBuilderService {
     };
   }
 
-  isLegacyInvoiceTemplate(html: string): boolean {
-    return !/rentall-row-client/i.test(String(html || ''));
-  }
-
   resolveInvoiceTemplateHtml(propertyInvoiceHtml: string | null | undefined, canonicalInvoiceHtml: string): string {
     const property = String(propertyInvoiceHtml || '').trim();
     const canonical = String(canonicalInvoiceHtml || '').trim();
 
-    if (!property) {
-      return canonical;
-    }
-
-    if (this.isLegacyInvoiceTemplate(property) && canonical) {
-      return canonical;
-    }
-
-    return property;
+    return property || canonical;
   }
 
   replacePlaceholders(html: string, ctx: InvoicePrintContext): string {

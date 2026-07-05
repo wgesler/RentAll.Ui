@@ -7,7 +7,7 @@ import { FormatterService } from '../../../services/formatter-service';
 import { MappingService } from '../../../services/mapping.service';
 import { UtilityService } from '../../../services/utility.service';
 import { MaintenanceListSearchRequest } from '../../maintenance/models/maintenance-search.model';
-import { OwnerReportActivityLinkSelection, OwnerReportAmountDrillDownSelection, OwnerReportDescriptionSegment, OwnerReportDrillDownMetric, OwnerReportKind, OwnerReportListViewState, OwnerReportOfficeGroup, OwnerReportPropertyActivityLineDisplay, OwnerReportResponse, OwnerReportVisibleRow } from '../models/owner-report.model';
+import { OwnerReportActivityLinkSelection, OwnerReportAmountDrillDownSelection, OwnerReportDescriptionSegment, OwnerReportDrillDownMetric, OwnerReportKind, OwnerReportListViewState, OwnerReportOfficeGroup, OwnerReportPropertyActivityLineDisplay, OwnerReportPropertyActivityLineResponse, OwnerReportResponse, OwnerReportSearchResponse, OwnerReportVisibleRow } from '../models/owner-report.model';
 import { OwnerReportService } from '../services/owner-report.service';
 
 @Component({
@@ -39,8 +39,7 @@ export class OwnerReportComponent implements OnInit, OnChanges, OnDestroy {
   officeReadyToCloseRowIds = new Set<string>();
   noActivityPropertyRowIds = new Set<string>();
   propertyActivityLinesByPropertyRowId = new Map<string, OwnerReportPropertyActivityLineDisplay[]>();
-  propertyActivityLoadingRowIds = new Set<string>();
-  propertyActivityErrorRowIds = new Set<string>();
+  private propertyActivityLinesRaw: OwnerReportPropertyActivityLineResponse[] = [];
   ownerReportFixedHeightPx = 0;
   dimensionsUpdateScheduled = false;
   itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['ownerReports']));
@@ -72,6 +71,12 @@ export class OwnerReportComponent implements OnInit, OnChanges, OnDestroy {
 
     if (changes['refreshTrigger'] && !changes['refreshTrigger'].firstChange) {
       this.loadOwnerReports();
+    }
+
+    if (changes['reportKind'] && !changes['reportKind'].firstChange && this.propertyActivityLinesRaw.length > 0) {
+      this.applyPropertyActivityLines(this.propertyActivityLinesRaw);
+      this.rebuildVisibleRows();
+      this.markViewForCheck();
     }
   }
   //#endregion
@@ -108,9 +113,10 @@ export class OwnerReportComponent implements OnInit, OnChanges, OnDestroy {
     this.isServiceError = false;
     this.utilityService.addLoadItem(this.itemsToLoad$, 'ownerReports');
     this.ownerReportService.searchOwnerReports(request).pipe(take(1), finalize(() => this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'ownerReports'))).subscribe({
-      next: reports => {
-        this.ownerReports = reports || [];
+      next: response => {
+        this.ownerReports = response?.summaries || [];
         this.ownerReportOfficeGroups = this.mappingService.mapOwnerReportOfficeGroups(this.ownerReports);
+        this.applyPropertyActivityLines(response?.propertyActivityLines || []);
         this.restoreViewState(this.ownerReportOfficeGroups, this.viewState);
         this.rebuildVisibleRows();
         this.emitViewStateChange();
@@ -131,56 +137,20 @@ export class OwnerReportComponent implements OnInit, OnChanges, OnDestroy {
     });
   }
 
-  loadPropertyActivityRows(row: OwnerReportVisibleRow, expandOnSuccess = false): void {
-    if (row.kind !== 'property' || !row.propertyId || !row.officeId) {
-      return;
-    }
-
-    const request = this.mappingService.mapOwnerReportSearchRequest(this.searchRequest);
-    this.propertyActivityLoadingRowIds.add(row.rowId);
-    this.propertyActivityErrorRowIds.delete(row.rowId);
-    this.rebuildVisibleRows();
-    this.markViewForCheck();
-
-    this.ownerReportService.searchOwnerReportPropertyActivityLines({
-      officeIds: [row.officeId],
-      propertyId: row.propertyId,
-      startDate: request.startDate ?? null,
-      endDate: request.endDate ?? null
-    }).pipe(take(1)).subscribe({
-      next: lines => {
-        const mappedLines = this.mappingService.mapOwnerReportPropertyActivityDisplays(row.rowId, lines || []);
-        if (mappedLines.length === 0) {
-          this.noActivityPropertyRowIds.add(row.rowId);
-          this.propertyActivityLinesByPropertyRowId.delete(row.rowId);
-          this.propertyActivityLoadingRowIds.delete(row.rowId);
-          this.propertyActivityErrorRowIds.delete(row.rowId);
-          this.expandedRowIds.delete(row.rowId);
-          this.rebuildVisibleRows();
-          this.emitViewStateChange();
-          this.markViewForCheck();
+  applyPropertyActivityLines(lines: OwnerReportPropertyActivityLineResponse[]): void {
+    this.propertyActivityLinesRaw = lines || [];
+    this.propertyActivityLinesByPropertyRowId = this.mappingService.mapOwnerReportPropertyActivityByPropertyRowId(this.propertyActivityLinesRaw, this.reportKind);
+    this.noActivityPropertyRowIds.clear();
+    (this.ownerReportOfficeGroups || []).forEach(office => {
+      (office.properties || []).forEach(property => {
+        if (!property.propertyId) {
           return;
         }
-
-        this.noActivityPropertyRowIds.delete(row.rowId);
-        this.propertyActivityLinesByPropertyRowId.set(row.rowId, mappedLines);
-        if (expandOnSuccess) {
-          this.expandedRowIds.add(row.rowId);
+        const propertyRowId = `property:${office.officeId}:${property.propertyId || property.propertyCode}`;
+        if (!this.propertyActivityLinesByPropertyRowId.has(propertyRowId)) {
+          this.noActivityPropertyRowIds.add(propertyRowId);
         }
-        this.propertyActivityLoadingRowIds.delete(row.rowId);
-        this.propertyActivityErrorRowIds.delete(row.rowId);
-        this.rebuildVisibleRows();
-        this.emitViewStateChange();
-        this.markViewForCheck();
-      },
-      error: () => {
-        this.propertyActivityLinesByPropertyRowId.set(row.rowId, []);
-        this.propertyActivityLoadingRowIds.delete(row.rowId);
-        this.propertyActivityErrorRowIds.add(row.rowId);
-        this.rebuildVisibleRows();
-        this.emitViewStateChange();
-        this.markViewForCheck();
-      }
+      });
     });
   }
 
@@ -279,16 +249,6 @@ export class OwnerReportComponent implements OnInit, OnChanges, OnDestroy {
           return;
         }
 
-        if (this.propertyActivityLoadingRowIds.has(propertyRowId)) {
-          rows.push(this.mappingService.mapOwnerReportPropertyActivityStateRow(propertyRowId, 'Loading property activity...'));
-          return;
-        }
-
-        if (this.propertyActivityErrorRowIds.has(propertyRowId)) {
-          rows.push(this.mappingService.mapOwnerReportPropertyActivityStateRow(propertyRowId, 'Unable to load property activity.'));
-          return;
-        }
-
         const activityRows = this.propertyActivityLinesByPropertyRowId.get(propertyRowId) || [];
         if (activityRows.length === 0) {
           return;
@@ -346,21 +306,11 @@ export class OwnerReportComponent implements OnInit, OnChanges, OnDestroy {
     }
 
     if (row.kind === 'property') {
-      const isExpanded = this.expandedRowIds.has(row.rowId);
-      if (isExpanded) {
+      if (this.expandedRowIds.has(row.rowId)) {
         this.expandedRowIds.delete(row.rowId);
-        this.rebuildVisibleRows();
-        this.emitViewStateChange();
-        this.markViewForCheck();
-        return;
+      } else {
+        this.expandedRowIds.add(row.rowId);
       }
-
-      if (!this.propertyActivityLinesByPropertyRowId.has(row.rowId) && !this.propertyActivityLoadingRowIds.has(row.rowId) && row.propertyId) {
-        this.loadPropertyActivityRows(row, true);
-        return;
-      }
-
-      this.expandedRowIds.add(row.rowId);
       this.rebuildVisibleRows();
       this.emitViewStateChange();
       this.markViewForCheck();
@@ -406,47 +356,6 @@ export class OwnerReportComponent implements OnInit, OnChanges, OnDestroy {
       this.rebuildVisibleRows();
       this.emitViewStateChange();
       this.markViewForCheck();
-
-      propertyRows.forEach(property => {
-        if (!this.propertyActivityLinesByPropertyRowId.has(property.rowId) && !this.propertyActivityLoadingRowIds.has(property.rowId) && property.propertyId) {
-          this.loadPropertyActivityRows({
-            rowId: property.rowId,
-            kind: 'property',
-            depth: 1,
-            ownerId: '',
-            officeId: property.officeId,
-            propertyId: property.propertyId,
-            primaryLabel: '',
-            propertyCode: '',
-            itemDescription: '',
-            activityCode: '',
-            expected: '',
-            expectedValue: 0,
-            prePaid: '',
-            prePaidValue: 0,
-            outstanding: '',
-            outstandingValue: 0,
-            income: '',
-            incomeValue: 0,
-            expenses: '',
-            expensesValue: 0,
-            balance: '',
-            balanceValue: 0,
-            startingBalance: '',
-            startingBalanceValue: 0,
-            workingCapital: '',
-            workingCapitalValue: 0,
-            workingCapitalBalanceDue: '',
-            workingCapitalBalanceDueValue: 0,
-            ownerPayment: '',
-            ownerPaymentValue: 0,
-            endingBalance: '',
-            endingBalanceValue: 0,
-            expandable: true,
-            expanded: true
-          });
-        }
-      });
       return;
     }
 
@@ -519,8 +428,7 @@ export class OwnerReportComponent implements OnInit, OnChanges, OnDestroy {
 
   clearPropertyActivityState(): void {
     this.propertyActivityLinesByPropertyRowId.clear();
-    this.propertyActivityLoadingRowIds.clear();
-    this.propertyActivityErrorRowIds.clear();
+    this.propertyActivityLinesRaw = [];
   }
 
   restoreViewState(officeGroups: OwnerReportOfficeGroup[], viewState: OwnerReportListViewState | null): void {
@@ -538,13 +446,7 @@ export class OwnerReportComponent implements OnInit, OnChanges, OnDestroy {
       this.expandedRowIds = nextExpanded;
     }
 
-    this.propertyActivityLinesByPropertyRowId.clear();
-    Object.entries(viewState?.propertyActivityByPropertyRowId || {}).forEach(([rowId, lines]) => {
-      this.propertyActivityLinesByPropertyRowId.set(rowId, lines || []);
-    });
     this.officeReadyToCloseRowIds.clear();
-    this.propertyActivityLoadingRowIds.clear();
-    this.propertyActivityErrorRowIds.clear();
   }
 
   collectExpandableRowIds(officeGroups: OwnerReportOfficeGroup[]): Set<string> {
@@ -562,14 +464,8 @@ export class OwnerReportComponent implements OnInit, OnChanges, OnDestroy {
   }
 
   emitViewStateChange(): void {
-    const propertyActivityByPropertyRowId: Record<string, OwnerReportPropertyActivityLineDisplay[]> = {};
-    this.propertyActivityLinesByPropertyRowId.forEach((lines, rowId) => {
-      propertyActivityByPropertyRowId[rowId] = lines || [];
-    });
-
     this.viewStateChange.emit({
-      expandedRowIds: Array.from(this.expandedRowIds),
-      propertyActivityByPropertyRowId
+      expandedRowIds: Array.from(this.expandedRowIds)
     });
   }
 

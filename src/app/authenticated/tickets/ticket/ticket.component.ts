@@ -957,9 +957,9 @@ export class TicketComponent implements OnInit, OnChanges, AfterViewInit, OnDest
 
   extractReceiptCodeFromCommentToken(code: string): string {
     const normalized = String(code || '').trim();
-    const legacyNoMatch = normalized.match(/^No:\s*(.+)$/i);
-    if (legacyNoMatch?.[1]) {
-      return legacyNoMatch[1].trim();
+    const noPrefixMatch = normalized.match(/^No:\s*(.+)$/i);
+    if (noPrefixMatch?.[1]) {
+      return noPrefixMatch[1].trim();
     }
     return normalized;
   }

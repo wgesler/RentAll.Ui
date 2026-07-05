@@ -2,7 +2,7 @@ import { HttpClient } from '@angular/common/http';
 import { Injectable } from '@angular/core';
 import { catchError, map, Observable } from 'rxjs';
 import { ConfigService } from '../../../services/config.service';
-import { OwnerStatementJournalEntryLineResponse, OwnerStatementJournalEntryLineSearchRequest, OwnerStatementMonthLineResponse, OwnerStatementMonthLineSearchRequest, OwnerStatementPropertyActivityLineResponse, OwnerStatementPropertyActivityLineSearchRequest, OwnerStatementResponse, OwnerStatementSearchRequest, OwnerStatementStartingBalanceRequest, OwnerStatementStartingBalanceResponse } from '../models/owner-statement.model';
+import { OwnerStatementJournalEntryLineResponse, OwnerStatementJournalEntryLineSearchRequest, OwnerStatementMonthLineResponse, OwnerStatementMonthLineSearchRequest, OwnerStatementPropertyActivityLineResponse, OwnerStatementPropertyActivityLineSearchRequest, OwnerStatementResponse, OwnerStatementSearchRequest, OwnerStatementSearchResponse, OwnerStatementStartingBalanceRequest, OwnerStatementStartingBalanceResponse } from '../models/owner-statement.model';
 import { JournalEntryResponse } from '../models/journal-entry.model';
 
 @Injectable({
@@ -13,19 +13,22 @@ export class OwnerStatementService {
 
   constructor(private http: HttpClient, private configService: ConfigService) {}
 
-  searchOwnerStatements(request: OwnerStatementSearchRequest): Observable<OwnerStatementResponse[]> {
+  searchOwnerStatements(request: OwnerStatementSearchRequest): Observable<OwnerStatementSearchResponse> {
     const officeIds = (request.officeIds ?? []).filter(id => id > 0);
     if (officeIds.length === 0) {
       throw new Error('At least one office ID is required to search owner statements.');
     }
 
-    return this.http.post<OwnerStatementResponse[]>(`${this.controller}owner-statement/search`, {
+    return this.http.post<OwnerStatementSearchResponse>(`${this.controller}owner-statement/search`, {
       officeIds,
       propertyId: request.propertyId ?? null,
       startDate: request.startDate ?? null,
       endDate: request.endDate ?? null
     }).pipe(
-      map(rows => rows ?? [])
+      map(response => ({
+        summaries: response?.summaries ?? [],
+        propertyActivityLines: response?.propertyActivityLines ?? []
+      }))
     );
   }
 
@@ -44,7 +47,7 @@ export class OwnerStatementService {
       map(rows => rows ?? []),
       catchError(() =>
         this.searchOwnerStatements(request).pipe(
-          map(rows => this.mapOwnerStatementsToMonthLines(rows, request))
+          map(response => this.mapOwnerStatementsToMonthLines(response.summaries, request))
         )
       )
     );

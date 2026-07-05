@@ -1955,6 +1955,45 @@ export class MappingService {
     }));
   }
 
+  mapOwnerReportPropertyActivityByPropertyRowId(
+    lines: OwnerStatementPropertyActivityLineResponse[],
+    reportKind: 'accrual' | 'cash' = 'accrual'
+  ): Map<string, OwnerStatementPropertyActivityLineDisplay[]> {
+    const grouped = new Map<string, OwnerStatementPropertyActivityLineResponse[]>();
+    (lines || []).forEach(line => {
+      const officeId = Number(line.officeId) || 0;
+      const propertyId = (line.propertyId || '').trim();
+      if (officeId <= 0 || !propertyId) {
+        return;
+      }
+
+      const propertyRowId = `property:${officeId}:${propertyId}`;
+      const existing = grouped.get(propertyRowId) || [];
+      existing.push(line);
+      grouped.set(propertyRowId, existing);
+    });
+
+    const result = new Map<string, OwnerStatementPropertyActivityLineDisplay[]>();
+    grouped.forEach((propertyLines, propertyRowId) => {
+      const filteredLines = propertyLines.filter(line => {
+        const expectedIncome = Number(line.expectedIncome) || 0;
+        const receivedIncome = Number(line.receivedIncome) || 0;
+        const expenses = Number(line.expenses) || 0;
+        if (reportKind === 'cash') {
+          return receivedIncome !== 0 || expenses !== 0;
+        }
+        return expectedIncome !== 0 || expenses !== 0;
+      });
+      if (filteredLines.length === 0) {
+        return;
+      }
+
+      result.set(propertyRowId, this.mapOwnerReportPropertyActivityDisplays(propertyRowId, filteredLines));
+    });
+
+    return result;
+  }
+
   formatOwnerReportMonthDay(inputDate: string): string {
     if (!inputDate) {
       return '';

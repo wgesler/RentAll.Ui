@@ -192,7 +192,7 @@ body.rent-roll-create-transition-lock {
 }
 
 /*
- * app-property nests legacy .content-card-wrap > .content-card inside the tab (width 96%, margin-top 24px, centered).
+ * app-property nests .content-card-wrap > .content-card inside the tab (width 96%, margin-top 24px, centered).
  * Other tabs render full width — reset so the actions band and form align with sibling tabs.
  */
 .shell-tabs app-property .property-shell-embedded-wrap.content-card-wrap {
@@ -1207,7 +1207,7 @@ app-searchable-select .searchable-select-field.searchable-invalid .mat-mdc-selec
   max-width: 240px;
 }
 
-/* Apply the same shared widths to legacy list field classes. */
+/* Apply the same shared widths to list field classes. */
 .office-dropdown.mat-mdc-form-field,
 mat-form-field.office-dropdown {
   flex: 0 1 200px;

@@ -1007,7 +1007,7 @@ td.mat-mdc-footer-cell[data-text-align="left"] {
     background: transparent !important;
 }
 
-/* Support both legacy and MDC paginator class names. */
+/* Support both pre-MDC and MDC paginator class names. */
 :host ::ng-deep mat-paginator .mat-paginator-container,
 :host ::ng-deep mat-paginator .mat-mdc-paginator-container {
     display: inline-flex !important;

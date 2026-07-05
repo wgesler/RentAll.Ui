@@ -268,7 +268,7 @@ export class UtilityService {
       }
       return y * 10000 + mo * 100 + d;
     }
-    // Loose UI / legacy strings and `Date` pickers → normalize to `YYYY-MM-DD` then reuse the strict branch above.
+    // Loose UI strings and `Date` pickers → normalize to `YYYY-MM-DD` then reuse the strict branch above.
     const parsed = this.parseCalendarDateInput(value);
     if (!parsed) {
       return null;

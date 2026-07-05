@@ -534,7 +534,6 @@ export class ReceiptComponent implements OnInit, OnChanges, OnDestroy {
     this.splitTotalValidationError = false;
     this.updateAccountingBillFieldValidators();
     this.updateVendorFieldValidators();
-    this.applyLegacyBillAccountingDatesIfNeeded();
     if (receipt.fileDetails?.file && receipt.fileDetails?.contentType) {
       this.receiptPreviewDataUrl = receipt.fileDetails.dataUrl || `data:${receipt.fileDetails.contentType};base64,${receipt.fileDetails.file}`;
       this.receiptFileName = receipt.fileDetails.fileName || this.extractFileName(receipt.receiptPath || '');
@@ -705,7 +704,6 @@ export class ReceiptComponent implements OnInit, OnChanges, OnDestroy {
 
   loadBankCardsAndVendors(): void {
     this.syncBankCardOptionsForCurrentContext();
-    this.applyLegacyBillAccountingDatesIfNeeded();
     this.loadSplitAccountsForCurrentOffice();
     this.applyPropertyInputToForm();
     this.cdr.markForCheck();
@@ -1175,78 +1173,6 @@ export class ReceiptComponent implements OnInit, OnChanges, OnDestroy {
     }
     const match = /^(\d{4})-(\d{2})/.exec(normalizedReceiptDate);
     return match ? `${match[1]}-${match[2]}-01` : normalizedReceiptDate;
-  }
-
-  hasLegacyBillDueDate(receipt: ReceiptResponse, paymentTermsId: number | null): boolean {
-    if (Number(receipt.bankCardId ?? 0) !== 0) {
-      return false;
-    }
-
-    const receiptDate = this.normalizeReceiptDate(receipt.receiptDate);
-    if (!receiptDate) {
-      return false;
-    }
-
-    const storedDueDate = this.normalizeReceiptDate(receipt.dueDate);
-    if (storedDueDate) {
-      return false;
-    }
-
-    const calculatedDueDate = this.normalizeReceiptDate(
-      this.utilityService.toDateOnlyJsonString(
-        this.calculateDueDateFromPaymentTerms(
-          this.getReceiptDateControlValue(receipt.receiptDate),
-          paymentTermsId
-        )
-      )
-    );
-    return !!calculatedDueDate;
-  }
-
-  hasLegacyBillAccountingPeriod(receipt: ReceiptResponse): boolean {
-    if (Number(receipt.bankCardId ?? 0) !== 0) {
-      return false;
-    }
-
-    const receiptDate = this.normalizeReceiptDate(receipt.receiptDate);
-    if (!receiptDate) {
-      return false;
-    }
-
-    const storedAccountingPeriod = this.normalizeReceiptDate(receipt.accountingPeriod);
-    const defaultAccountingPeriod = this.getDefaultBillAccountingPeriodFromReceiptDate(receiptDate);
-    return !!storedAccountingPeriod
-      && !!defaultAccountingPeriod
-      && storedAccountingPeriod === defaultAccountingPeriod
-      && storedAccountingPeriod !== receiptDate;
-  }
-
-  applyLegacyBillAccountingDatesIfNeeded(): void {
-    if (this.isAddMode || !this.receipt || !this.isOverallBillBankCard()) {
-      return;
-    }
-
-    const paymentTermsId = this.getSelectedVendorPaymentTermsId();
-    const receiptDateControl = this.getReceiptDateControlValue(this.receipt.receiptDate);
-    receiptDateControl.setHours(0, 0, 0, 0);
-    let updated = false;
-
-    if (this.hasLegacyBillDueDate(this.receipt, paymentTermsId)) {
-      const dueDate = this.calculateDueDateFromPaymentTerms(receiptDateControl, paymentTermsId);
-      if (dueDate) {
-        this.form.get('dueDate')?.setValue(dueDate, { emitEvent: false });
-        updated = true;
-      }
-    }
-
-    if (this.hasLegacyBillAccountingPeriod(this.receipt)) {
-      this.form.get('accountingPeriod')?.setValue(new Date(receiptDateControl.getTime()), { emitEvent: false });
-      updated = true;
-    }
-
-    if (updated) {
-      this.cdr.markForCheck();
-    }
   }
 
   normalizeReceiptDate(value: string | null | undefined): string | null {

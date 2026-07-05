@@ -168,9 +168,9 @@ function resolveSectionOneItemFourParagraph(
     return configured;
   }
 
-  const legacyParagraph = extractLegacySectionOneItemFourParagraph(sectionOneEmploymentShell);
-  if (legacyParagraph.trim()) {
-    return legacyParagraph;
+  const shellParagraph = extractSectionOneItemFourFromShellList(sectionOneEmploymentShell);
+  if (shellParagraph.trim()) {
+    return shellParagraph;
   }
 
   if (mode === ManagementFeeType.FlatRate) {
@@ -207,7 +207,7 @@ function injectSectionOneItemFourIntoEmploymentShell(shell: string, sectionOneIt
     return trimmedShell.replace(/\{\{\s*sectionOneItemFourLi\s*\}\}/gi, sectionOneItemFourLi);
   }
 
-  const replacedFourthLi = replaceLegacySectionOneFourthListItem(trimmedShell, sectionOneItemFourLi);
+  const replacedFourthLi = replaceSectionOneFourthListItem(trimmedShell, sectionOneItemFourLi);
   if (replacedFourthLi !== trimmedShell) {
     return replacedFourthLi;
   }
@@ -215,7 +215,7 @@ function injectSectionOneItemFourIntoEmploymentShell(shell: string, sectionOneIt
   return trimmedShell.replace(/<\/ol>/i, `${sectionOneItemFourLi}</ol>`);
 }
 
-function replaceLegacySectionOneFourthListItem(shell: string, sectionOneItemFourLi: string): string {
+function replaceSectionOneFourthListItem(shell: string, sectionOneItemFourLi: string): string {
   const listMatch = shell.match(/<ol\b[^>]*>[\s\S]*?<\/ol>/i);
   if (!listMatch || listMatch.index == null) {
     return shell;
@@ -231,7 +231,7 @@ function replaceLegacySectionOneFourthListItem(shell: string, sectionOneItemFour
   return `${shell.slice(0, listMatch.index)}${updatedListHtml}${shell.slice(listMatch.index + listHtml.length)}`;
 }
 
-function extractLegacySectionOneItemFourParagraph(shell: string): string {
+function extractSectionOneItemFourFromShellList(shell: string): string {
   if (SECTION_ONE_ITEM_FOUR_PLACEHOLDER.test(shell)) {
     return '';
   }

@@ -5,6 +5,11 @@ export interface OwnerStatementSearchRequest {
   endDate?: string | null;
 }
 
+export interface OwnerStatementSearchResponse {
+  summaries: OwnerStatementResponse[];
+  propertyActivityLines: OwnerStatementPropertyActivityLineResponse[];
+}
+
 export interface OwnerStatementResponse {
   officeId: number;
   officeName: string;
@@ -134,6 +139,8 @@ export interface OwnerStatementPropertyActivityLineSearchRequest {
 }
 
 export interface OwnerStatementPropertyActivityLineResponse {
+  propertyId: string;
+  officeId: number;
   activityId?: string | null;
   sourceId?: string | null;
   journalEntryLineId?: string | null;
@@ -284,7 +291,6 @@ export interface OwnerStatementAmountDrillDownSelection {
 
 export interface OwnerStatementListViewState {
   expandedRowIds: string[];
-  propertyActivityByPropertyRowId: Record<string, OwnerStatementPropertyActivityLineDisplay[]>;
 }
 
 export interface OwnerStatementJournalEntryLineSelection {
