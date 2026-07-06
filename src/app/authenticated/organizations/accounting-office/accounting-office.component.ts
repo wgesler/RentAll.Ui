@@ -91,11 +91,11 @@ export class AccountingOfficeComponent implements OnInit, OnDestroy, OnChanges {
   ];
   defaultAccountFieldsEscrow: { controlName: string; label: string }[] = [
     { controlName: 'defaultEscrowDepositAccountId', label: 'Escrow Deposits' },
-    { controlName: 'defaultEscrowOwnersAccountId', label: 'Escrow Owners' },
     { controlName: 'defaultEscrowSecDepAccountId', label: 'Escrow Security Deposit' },
     { controlName: 'defaultEscrowSdwAccountId', label: 'Escrow Security Deposit Waiver' }
   ];
   defaultAccountFieldsRow3: { controlName: string; label: string }[] = [
+    { controlName: 'defaultEscrowOwnersAccountId', label: 'Escrow Owners' },
     { controlName: 'defaultOwnActPayableAccountId', label: 'Owner A/P' },
     { controlName: 'defaultPrePayAccountId', label: 'Pre-Payment' }
   ];
