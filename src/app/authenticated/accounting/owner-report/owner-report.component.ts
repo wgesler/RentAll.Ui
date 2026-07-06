@@ -409,7 +409,7 @@ export class OwnerReportComponent implements OnInit, OnChanges, OnDestroy {
       return false;
     }
     if (metric === 'outstanding') {
-      return row.outstandingValue !== 0 || row.expectedValue !== 0 || row.incomeValue !== 0;
+      return row.outstandingValue > 0;
     }
     if (metric === 'balance') {
       return row.incomeValue !== 0 || row.expensesValue !== 0;

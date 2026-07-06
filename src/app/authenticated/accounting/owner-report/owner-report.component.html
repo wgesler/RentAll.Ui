@@ -197,7 +197,19 @@
                       <button type="button" class="owner-statement-amount-link" [class.owner-statement-amount-link--active]="canDrillDownAmount(row, 'prePaid')" [disabled]="!canDrillDownAmount(row, 'prePaid')" (click)="$event.stopPropagation(); onAmountCellClick(row, 'prePaid')">{{ row.prePaid }}</button>
                     </td>
                     <td class="owner-statement-col-amount">
-                      <button type="button" class="owner-statement-amount-link" [class.owner-statement-amount-link--active]="canDrillDownAmount(row, 'outstanding')" [disabled]="!canDrillDownAmount(row, 'outstanding')" (click)="$event.stopPropagation(); onAmountCellClick(row, 'outstanding')">{{ row.outstanding }}</button>
+                      @if (row.kind === 'propertyActivity') {
+                        {{ row.outstanding }}
+                      } @else {
+                        <button
+                          type="button"
+                          class="owner-statement-amount-link"
+                          [class.owner-statement-amount-link--active]="canDrillDownAmount(row, 'outstanding')"
+                          [class.owner-statement-amount-link--unpaid-due]="row.outstandingValue > 0"
+                          [disabled]="!canDrillDownAmount(row, 'outstanding')"
+                          (click)="$event.stopPropagation(); onAmountCellClick(row, 'outstanding')">
+                          {{ row.outstanding }}
+                        </button>
+                      }
                     </td>
                     <td class="owner-statement-col-amount">
                       <button type="button" class="owner-statement-amount-link" [class.owner-statement-amount-link--active]="canDrillDownAmount(row, 'expenses')" [disabled]="!canDrillDownAmount(row, 'expenses')" (click)="$event.stopPropagation(); onAmountCellClick(row, 'expenses')">{{ row.expenses }}</button>

@@ -287,6 +287,14 @@
   text-underline-offset: 2px;
 }
 
+.owner-statement-amount-link--unpaid-due {
+  color: #dc2626;
+}
+
+.owner-statement-amount-link--unpaid-due.owner-statement-amount-link--active {
+  color: #dc2626;
+}
+
 .owner-statement-col-working-capital {
   width: 8.5rem;
   min-width: 8.5rem;
