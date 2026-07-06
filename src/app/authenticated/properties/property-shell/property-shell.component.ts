@@ -128,7 +128,16 @@ export class PropertyShellComponent implements OnInit, AfterViewInit, OnDestroy,
   }
 
   get isHeaderPropertyCodeEditable(): boolean {
-    return this.isAdminUser && this.selectedTabIndex === 0;
+    if (this.selectedTabIndex !== 0) {
+      return false;
+    }
+
+    const isAddOrCopyMode = this.propertySection?.isAddMode ?? this.isAddMode;
+    if (isAddOrCopyMode) {
+      return true;
+    }
+
+    return this.isAdminUser;
   }
 
   get officeOptions(): SearchableSelectOption[] {

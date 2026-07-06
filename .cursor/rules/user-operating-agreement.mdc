@@ -33,3 +33,11 @@ alwaysApply: true
 - Keep prompts concise and infrequent.
 - If scope is obvious, execute directly.
 - If scope changes, confirm once and continue.
+
+## Response length (strict)
+
+- Default to **one page or less** (~400 words, or one small table plus a few bullets).
+- Lead with the direct answer or outcome; skip preamble and recap.
+- Do not add extra sections, footnotes, edge-case essays, or "follow-up" suggestions unless the user asks.
+- If more detail is needed, stop and ask: "Want the full breakdown?"
+- Expand only when the user explicitly asks for more detail, a deep dive, or step-by-step walkthrough.
