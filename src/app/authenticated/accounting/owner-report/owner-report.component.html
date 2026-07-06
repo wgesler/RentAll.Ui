@@ -65,6 +65,18 @@
                   </th>
                   <th class="owner-statement-col-amount">
                     <div class="owner-statement-header-two-line">
+                      <span>Prepaid</span>
+                      <span>Income</span>
+                    </div>
+                  </th>
+                  <th class="owner-statement-col-amount">
+                    <div class="owner-statement-header-two-line">
+                      <span>Unpaid</span>
+                      <span>Income</span>
+                    </div>
+                  </th>
+                  <th class="owner-statement-col-amount">
+                    <div class="owner-statement-header-two-line">
                       <span>Owner</span>
                       <span>Expenses</span>
                     </div>
@@ -180,6 +192,12 @@
                   @if (reportKind === 'accrual') {
                     <td class="owner-statement-col-amount">
                       <button type="button" class="owner-statement-amount-link" [class.owner-statement-amount-link--active]="canDrillDownAmount(row, 'expected')" [disabled]="!canDrillDownAmount(row, 'expected')" (click)="$event.stopPropagation(); onAmountCellClick(row, 'expected')">{{ row.expected }}</button>
+                    </td>
+                    <td class="owner-statement-col-amount">
+                      <button type="button" class="owner-statement-amount-link" [class.owner-statement-amount-link--active]="canDrillDownAmount(row, 'prePaid')" [disabled]="!canDrillDownAmount(row, 'prePaid')" (click)="$event.stopPropagation(); onAmountCellClick(row, 'prePaid')">{{ row.prePaid }}</button>
+                    </td>
+                    <td class="owner-statement-col-amount">
+                      <button type="button" class="owner-statement-amount-link" [class.owner-statement-amount-link--active]="canDrillDownAmount(row, 'outstanding')" [disabled]="!canDrillDownAmount(row, 'outstanding')" (click)="$event.stopPropagation(); onAmountCellClick(row, 'outstanding')">{{ row.outstanding }}</button>
                     </td>
                     <td class="owner-statement-col-amount">
                       <button type="button" class="owner-statement-amount-link" [class.owner-statement-amount-link--active]="canDrillDownAmount(row, 'expenses')" [disabled]="!canDrillDownAmount(row, 'expenses')" (click)="$event.stopPropagation(); onAmountCellClick(row, 'expenses')">{{ row.expenses }}</button>
