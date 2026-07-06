@@ -179,6 +179,8 @@ export class OwnerReportComponent implements OnInit, OnChanges, OnDestroy {
         expectedValue: office.expected,
         prePaid: this.formatter.currencyUsd(office.prePaid),
         prePaidValue: office.prePaid,
+        paidIncome: this.formatter.currencyUsd(office.paidIncome),
+        paidIncomeValue: office.paidIncome,
         outstanding: this.formatter.currencyUsd(office.outstanding),
         outstandingValue: office.outstanding,
         income: this.formatter.currencyUsd(office.income),
@@ -223,6 +225,8 @@ export class OwnerReportComponent implements OnInit, OnChanges, OnDestroy {
           expectedValue: property.expected,
           prePaid: this.formatter.currencyUsd(property.prePaid),
           prePaidValue: property.prePaid,
+          paidIncome: this.formatter.currencyUsd(property.paidIncome),
+          paidIncomeValue: property.paidIncome,
           outstanding: this.formatter.currencyUsd(property.outstanding),
           outstandingValue: property.outstanding,
           income: this.formatter.currencyUsd(property.income),
@@ -269,6 +273,8 @@ export class OwnerReportComponent implements OnInit, OnChanges, OnDestroy {
             expectedValue: Number(activity.expectedIncome) || 0,
             prePaid: '',
             prePaidValue: 0,
+            paidIncome: '',
+            paidIncomeValue: 0,
             outstanding: '',
             outstandingValue: 0,
             income: activity.receivedIncome,
@@ -419,6 +425,9 @@ export class OwnerReportComponent implements OnInit, OnChanges, OnDestroy {
     }
     if (metric === 'prePaid') {
       return row.prePaidValue !== 0;
+    }
+    if (metric === 'paidIncome') {
+      return row.paidIncomeValue !== 0;
     }
     if (metric === 'income') {
       return row.incomeValue !== 0;

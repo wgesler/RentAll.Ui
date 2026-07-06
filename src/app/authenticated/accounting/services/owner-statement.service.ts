@@ -146,6 +146,7 @@ export class OwnerStatementService {
         monthDate,
         expected: row.expected,
         prePaid: row.prePaid,
+        paidIncome: row.paidIncome,
         outstanding: row.outstanding,
         startingBalance: row.startingBalance,
         income: row.income,

@@ -1841,6 +1841,7 @@ export class MappingService {
   mapOwnerStatementDisplay(statement: OwnerStatementResponse): OwnerStatementListDisplay {
     const expectedValue = Number(statement.expected) || 0;
     const prePaidValue = Number(statement.prePaid) || 0;
+    const paidIncomeValue = Number(statement.paidIncome) || 0;
     const outstandingValue = Number(statement.outstanding) || 0;
     const incomeValue = Number(statement.income) || 0;
     const expensesValue = Number(statement.expenses) || 0;
@@ -1855,6 +1856,7 @@ export class MappingService {
       propertyCode: statement.propertyCode || '',
       expected: this.formatter.currencyUsd(expectedValue),
       prePaid: this.formatter.currencyUsd(prePaidValue),
+      paidIncome: this.formatter.currencyUsd(paidIncomeValue),
       outstanding: this.formatter.currencyUsd(outstandingValue),
       income: this.formatter.currencyUsd(incomeValue),
       expenses: this.formatter.currencyUsd(expensesValue),
@@ -1863,6 +1865,7 @@ export class MappingService {
       workingCapitalBalanceDue: this.formatter.currencyUsd(workingCapitalBalanceDueValue),
       expectedValue,
       prePaidValue,
+      paidIncomeValue,
       outstandingValue,
       incomeValue,
       expensesValue,
@@ -1902,6 +1905,7 @@ export class MappingService {
         propertyCode: report.propertyCode || '',
         expected: Number(report.expected) || 0,
         prePaid: Number(report.prePaid) || 0,
+        paidIncome: Number(report.paidIncome) || 0,
         outstanding: Number(report.outstanding) || 0,
         income: Number(report.income) || 0,
         expenses: Number(report.expenses) || 0,
@@ -1924,6 +1928,7 @@ export class MappingService {
         properties,
         expected: properties.reduce((sum, property) => sum + property.expected, 0),
         prePaid: properties.reduce((sum, property) => sum + property.prePaid, 0),
+        paidIncome: properties.reduce((sum, property) => sum + property.paidIncome, 0),
         outstanding: properties.reduce((sum, property) => sum + property.outstanding, 0),
         income: properties.reduce((sum, property) => sum + property.income, 0),
         expenses: properties.reduce((sum, property) => sum + property.expenses, 0),
@@ -2022,6 +2027,8 @@ export class MappingService {
       expectedValue: 0,
       prePaid: '',
       prePaidValue: 0,
+      paidIncome: '',
+      paidIncomeValue: 0,
       outstanding: '',
       outstandingValue: 0,
       income: '',

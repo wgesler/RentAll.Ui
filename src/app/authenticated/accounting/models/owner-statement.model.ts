@@ -19,6 +19,7 @@ export interface OwnerStatementResponse {
   ownerName: string;
   expected: number;
   prePaid: number;
+  paidIncome: number;
   outstanding: number;
   income: number;
   expenses: number;
@@ -48,6 +49,7 @@ export interface OwnerStatementMonthLineResponse {
   monthDate: string;
   expected: number;
   prePaid: number;
+  paidIncome: number;
   outstanding: number;
   income: number;
   expenses: number;
@@ -153,7 +155,7 @@ export interface OwnerStatementPropertyActivityLineResponse {
   expenses: number;
 }
 
-export type OwnerStatementDrillDownMetric = 'expected' | 'prePaid' | 'outstanding' | 'income' | 'expenses' | 'balance';
+export type OwnerStatementDrillDownMetric = 'expected' | 'prePaid' | 'paidIncome' | 'outstanding' | 'income' | 'expenses' | 'balance';
 
 export interface OwnerStatementListDisplay {
   officeId: number;
@@ -162,6 +164,7 @@ export interface OwnerStatementListDisplay {
   propertyCode: string;
   expected: string;
   prePaid: string;
+  paidIncome: string;
   outstanding: string;
   income: string;
   expenses: string;
@@ -170,6 +173,7 @@ export interface OwnerStatementListDisplay {
   workingCapitalBalanceDue: string;
   expectedValue: number;
   prePaidValue: number;
+  paidIncomeValue: number;
   outstandingValue: number;
   incomeValue: number;
   expensesValue: number;
@@ -185,6 +189,7 @@ export interface OwnerStatementPropertyRow {
   propertyCode: string;
   expected: number;
   prePaid: number;
+  paidIncome: number;
   outstanding: number;
   income: number;
   expenses: number;
@@ -203,6 +208,7 @@ export interface OwnerStatementOfficeGroup {
   properties: OwnerStatementPropertyRow[];
   expected: number;
   prePaid: number;
+  paidIncome: number;
   outstanding: number;
   income: number;
   expenses: number;
@@ -231,6 +237,8 @@ export interface OwnerStatementVisibleRow {
   expectedValue: number;
   prePaid: string;
   prePaidValue: number;
+  paidIncome: string;
+  paidIncomeValue: number;
   outstanding: string;
   outstandingValue: number;
   income: string;

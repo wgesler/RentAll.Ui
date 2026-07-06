@@ -71,6 +71,12 @@
                   </th>
                   <th class="owner-statement-col-amount">
                     <div class="owner-statement-header-two-line">
+                      <span>Paid</span>
+                      <span>Income</span>
+                    </div>
+                  </th>
+                  <th class="owner-statement-col-amount">
+                    <div class="owner-statement-header-two-line">
                       <span>Unpaid</span>
                       <span>Income</span>
                     </div>
@@ -195,6 +201,9 @@
                     </td>
                     <td class="owner-statement-col-amount">
                       <button type="button" class="owner-statement-amount-link" [class.owner-statement-amount-link--active]="canDrillDownAmount(row, 'prePaid')" [disabled]="!canDrillDownAmount(row, 'prePaid')" (click)="$event.stopPropagation(); onAmountCellClick(row, 'prePaid')">{{ row.prePaid }}</button>
+                    </td>
+                    <td class="owner-statement-col-amount">
+                      <button type="button" class="owner-statement-amount-link" [class.owner-statement-amount-link--active]="canDrillDownAmount(row, 'paidIncome')" [disabled]="!canDrillDownAmount(row, 'paidIncome')" (click)="$event.stopPropagation(); onAmountCellClick(row, 'paidIncome')">{{ row.paidIncome }}</button>
                     </td>
                     <td class="owner-statement-col-amount">
                       @if (row.kind === 'propertyActivity') {
