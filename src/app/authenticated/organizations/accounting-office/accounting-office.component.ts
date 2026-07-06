@@ -90,12 +90,12 @@ export class AccountingOfficeComponent implements OnInit, OnDestroy, OnChanges {
     { controlName: 'defaultUndepFundsAccountId', label: 'Undeposited' }
   ];
   defaultAccountFieldsEscrow: { controlName: string; label: string }[] = [
-    { controlName: 'defaultEscrowAccountId', label: 'Deposits' },
-    { controlName: 'defaultEscrowSecDepAccountId', label: 'Escrow Sec Dep' },
-    { controlName: 'defaultEscrowSdwAccountId', label: 'Escrow SDW' }
+    { controlName: 'defaultEscrowDepositAccountId', label: 'Escrow Deposits' },
+    { controlName: 'defaultEscrowOwnersAccountId', label: 'Escrow Owners' },
+    { controlName: 'defaultEscrowSecDepAccountId', label: 'Escrow Security Deposit' },
+    { controlName: 'defaultEscrowSdwAccountId', label: 'Escrow Security Deposit Waiver' }
   ];
   defaultAccountFieldsRow3: { controlName: string; label: string }[] = [
-    { controlName: 'defaultBusinessAccountId', label: 'Business' },
     { controlName: 'defaultOwnActPayableAccountId', label: 'Owner A/P' },
     { controlName: 'defaultPrePayAccountId', label: 'Pre-Payment' }
   ];
@@ -305,10 +305,10 @@ export class AccountingOfficeComponent implements OnInit, OnDestroy, OnChanges {
       defaultActRcvableAccountId: this.parseOptionalAccountId(formValue.defaultActRcvableAccountId),
       defaultActPayableAccountId: this.parseOptionalAccountId(formValue.defaultActPayableAccountId),
       defaultUndepFundsAccountId: this.parseOptionalAccountId(formValue.defaultUndepFundsAccountId),
-      defaultEscrowAccountId: this.parseOptionalAccountId(formValue.defaultEscrowAccountId),
+      defaultEscrowDepositAccountId: this.parseOptionalAccountId(formValue.defaultEscrowDepositAccountId),
+      defaultEscrowOwnersAccountId: this.parseOptionalAccountId(formValue.defaultEscrowOwnersAccountId),
       defaultEscrowSecDepAccountId: this.parseOptionalAccountId(formValue.defaultEscrowSecDepAccountId),
       defaultEscrowSdwAccountId: this.parseOptionalAccountId(formValue.defaultEscrowSdwAccountId),
-      defaultBusinessAccountId: this.parseOptionalAccountId(formValue.defaultBusinessAccountId),
       defaultOwnActPayableAccountId: this.parseOptionalAccountId(formValue.defaultOwnActPayableAccountId),
       defaultPrePayAccountId: this.parseOptionalAccountId(formValue.defaultPrePayAccountId),
       email: formValue.email || '',
@@ -410,10 +410,10 @@ export class AccountingOfficeComponent implements OnInit, OnDestroy, OnChanges {
       defaultActRcvableAccountId: new FormControl<number | null>(null),
       defaultActPayableAccountId: new FormControl<number | null>(null),
       defaultUndepFundsAccountId: new FormControl<number | null>(null),
-      defaultEscrowAccountId: new FormControl<number | null>(null),
+      defaultEscrowDepositAccountId: new FormControl<number | null>(null),
+      defaultEscrowOwnersAccountId: new FormControl<number | null>(null),
       defaultEscrowSecDepAccountId: new FormControl<number | null>(null),
       defaultEscrowSdwAccountId: new FormControl<number | null>(null),
-      defaultBusinessAccountId: new FormControl<number | null>(null),
       defaultOwnActPayableAccountId: new FormControl<number | null>(null),
       defaultPrePayAccountId: new FormControl<number | null>(null),
       fileUpload: new FormControl('', { validators: [], asyncValidators: [fileValidator(['png', 'jpg', 'jpeg', 'jfif', 'gif', 'svg', 'heic', 'heif', 'pdf'], ['image/png', 'image/jpeg', 'image/gif', 'image/svg+xml', 'image/heic', 'image/heif', 'application/pdf'], 2000000, true)] }),
@@ -457,10 +457,10 @@ export class AccountingOfficeComponent implements OnInit, OnDestroy, OnChanges {
         defaultActRcvableAccountId: this.accountingOffice.defaultActRcvableAccountId ?? null,
         defaultActPayableAccountId: this.accountingOffice.defaultActPayableAccountId ?? null,
         defaultUndepFundsAccountId: this.accountingOffice.defaultUndepFundsAccountId ?? null,
-        defaultEscrowAccountId: this.accountingOffice.defaultEscrowAccountId ?? null,
+        defaultEscrowDepositAccountId: this.accountingOffice.defaultEscrowDepositAccountId ?? null,
+        defaultEscrowOwnersAccountId: this.accountingOffice.defaultEscrowOwnersAccountId ?? null,
         defaultEscrowSecDepAccountId: this.accountingOffice.defaultEscrowSecDepAccountId ?? null,
         defaultEscrowSdwAccountId: this.accountingOffice.defaultEscrowSdwAccountId ?? null,
-        defaultBusinessAccountId: this.accountingOffice.defaultBusinessAccountId ?? null,
         defaultOwnActPayableAccountId: this.accountingOffice.defaultOwnActPayableAccountId ?? null,
         defaultPrePayAccountId: this.accountingOffice.defaultPrePayAccountId ?? null,
         isActive: this.accountingOffice.isActive
@@ -505,10 +505,10 @@ export class AccountingOfficeComponent implements OnInit, OnDestroy, OnChanges {
       defaultActRcvableAccountId: o.defaultActRcvableAccountId ?? null,
       defaultActPayableAccountId: o.defaultActPayableAccountId ?? null,
       defaultUndepFundsAccountId: o.defaultUndepFundsAccountId ?? null,
-      defaultEscrowAccountId: o.defaultEscrowAccountId ?? null,
+      defaultEscrowDepositAccountId: o.defaultEscrowDepositAccountId ?? null,
+      defaultEscrowOwnersAccountId: o.defaultEscrowOwnersAccountId ?? null,
       defaultEscrowSecDepAccountId: o.defaultEscrowSecDepAccountId ?? null,
       defaultEscrowSdwAccountId: o.defaultEscrowSdwAccountId ?? null,
-      defaultBusinessAccountId: o.defaultBusinessAccountId ?? null,
       defaultOwnActPayableAccountId: o.defaultOwnActPayableAccountId ?? null,
       defaultPrePayAccountId: o.defaultPrePayAccountId ?? null,
       isActive: o.isActive

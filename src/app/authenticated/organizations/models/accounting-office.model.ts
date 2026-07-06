@@ -36,10 +36,10 @@ export interface AccountingOfficeRequest {
   defaultActRcvableAccountId?: number | null;
   defaultActPayableAccountId?: number | null;
   defaultUndepFundsAccountId?: number | null;
-  defaultEscrowAccountId?: number | null;
+  defaultEscrowDepositAccountId?: number | null;
+  defaultEscrowOwnersAccountId?: number | null;
   defaultEscrowSecDepAccountId?: number | null;
   defaultEscrowSdwAccountId?: number | null;
-  defaultBusinessAccountId?: number | null;
   defaultOwnActPayableAccountId?: number | null;
   defaultPrePayAccountId?: number | null;
   logoPath?: string; 
@@ -83,10 +83,10 @@ export interface AccountingOfficeResponse {
   defaultActRcvableAccountId?: number | null;
   defaultActPayableAccountId?: number | null;
   defaultUndepFundsAccountId?: number | null;
-  defaultEscrowAccountId?: number | null;
+  defaultEscrowDepositAccountId?: number | null;
+  defaultEscrowOwnersAccountId?: number | null;
   defaultEscrowSecDepAccountId?: number | null;
   defaultEscrowSdwAccountId?: number | null;
-  defaultBusinessAccountId?: number | null;
   defaultOwnActPayableAccountId?: number | null;
   defaultPrePayAccountId?: number | null;
   logoPath?: string; 
