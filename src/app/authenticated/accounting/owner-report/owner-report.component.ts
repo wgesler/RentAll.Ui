@@ -1,6 +1,6 @@
 import { CommonModule } from '@angular/common';
 import { ChangeDetectionStrategy, ChangeDetectorRef, Component, ElementRef, EventEmitter, Input, OnChanges, OnDestroy, OnInit, Output, SimpleChanges, ViewChild } from '@angular/core';
-import { BehaviorSubject, finalize, Subject, take, takeUntil } from 'rxjs';
+import { BehaviorSubject, finalize, map, Subject, take, takeUntil } from 'rxjs';
 import { MaterialModule } from '../../../material.module';
 import { CommonService } from '../../../services/common.service';
 import { FormatterService } from '../../../services/formatter-service';
@@ -9,6 +9,7 @@ import { UtilityService } from '../../../services/utility.service';
 import { MaintenanceListSearchRequest } from '../../maintenance/models/maintenance-search.model';
 import { OwnerReportActivityLinkSelection, OwnerReportAmountDrillDownSelection, OwnerReportDescriptionSegment, OwnerReportDrillDownMetric, OwnerReportKind, OwnerReportListViewState, OwnerReportOfficeGroup, OwnerReportPropertyActivityLineDisplay, OwnerReportPropertyActivityLineResponse, OwnerReportResponse, OwnerReportSearchResponse, OwnerReportVisibleRow } from '../models/owner-report.model';
 import { OwnerReportService } from '../services/owner-report.service';
+import { ReportService } from '../services/report.service';
 
 @Component({
   selector: 'app-owner-report',
@@ -26,7 +27,6 @@ export class OwnerReportComponent implements OnInit, OnChanges, OnDestroy {
   @Input() viewState: OwnerReportListViewState | null = null;
   @Output() activityLinkSelect = new EventEmitter<OwnerReportActivityLinkSelection>();
   @Output() amountDrillDownSelect = new EventEmitter<OwnerReportAmountDrillDownSelection>();
-  @Output() reportKindChange = new EventEmitter<OwnerReportKind>();
   @Output() viewStateChange = new EventEmitter<OwnerReportListViewState>();
 
   isPageReady = false;
@@ -47,6 +47,7 @@ export class OwnerReportComponent implements OnInit, OnChanges, OnDestroy {
 
   constructor(
     private ownerReportService: OwnerReportService,
+    private reportService: ReportService,
     private commonService: CommonService,
     private formatter: FormatterService,
     private mappingService: MappingService,
@@ -73,10 +74,9 @@ export class OwnerReportComponent implements OnInit, OnChanges, OnDestroy {
       this.loadOwnerReports();
     }
 
-    if (changes['reportKind'] && !changes['reportKind'].firstChange && this.propertyActivityLinesRaw.length > 0) {
-      this.applyPropertyActivityLines(this.propertyActivityLinesRaw);
-      this.rebuildVisibleRows();
-      this.markViewForCheck();
+    if (changes['reportKind'] && !changes['reportKind'].firstChange) {
+      this.loadOwnerReports();
+      return;
     }
   }
   //#endregion
@@ -112,7 +112,13 @@ export class OwnerReportComponent implements OnInit, OnChanges, OnDestroy {
 
     this.isServiceError = false;
     this.utilityService.addLoadItem(this.itemsToLoad$, 'ownerReports');
-    this.ownerReportService.searchOwnerReports(request).pipe(take(1), finalize(() => this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'ownerReports'))).subscribe({
+    const search$ = this.reportKind === 'cash'
+      ? this.reportService.searchOwnerCashReport(request).pipe(
+          map(report => this.mappingService.mapOwnerCashReportToOwnerReportSearchResponse(report))
+        )
+      : this.ownerReportService.searchOwnerReports(request);
+
+    search$.pipe(take(1), finalize(() => this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'ownerReports'))).subscribe({
       next: response => {
         this.ownerReports = response?.summaries || [];
         this.ownerReportOfficeGroups = this.mappingService.mapOwnerReportOfficeGroups(this.ownerReports);
@@ -289,8 +295,8 @@ export class OwnerReportComponent implements OnInit, OnChanges, OnDestroy {
             workingCapitalValue: 0,
             workingCapitalBalanceDue: '',
             workingCapitalBalanceDueValue: 0,
-            ownerPayment: '',
-            ownerPaymentValue: 0,
+            ownerPayment: activity.ownerPayment || '',
+            ownerPaymentValue: Number(activity.ownerPayment) || 0,
             endingBalance: '',
             endingBalanceValue: 0,
             expandable: false,
@@ -503,15 +509,6 @@ export class OwnerReportComponent implements OnInit, OnChanges, OnDestroy {
     });
   }
 
-  onCashReportToggleChange(isCashSelected: boolean): void {
-    const nextReportKind: OwnerReportKind = isCashSelected ? 'cash' : 'accrual';
-    if (this.reportKind === nextReportKind) {
-      return;
-    }
-
-    this.reportKindChange.emit(nextReportKind);
-  }
-
   scheduleOwnerReportDimensionLockUpdate(): void {
     if (this.dimensionsUpdateScheduled) {
       return;
@@ -545,17 +542,19 @@ export class OwnerReportComponent implements OnInit, OnChanges, OnDestroy {
     }
 
     const segments: OwnerReportDescriptionSegment[] = [];
-    const codeRegex = /\b(?:WO-[A-Za-z0-9-]+|R-\d+(?:-\d+)*|RC[A-Za-z0-9-]*)\b/ig;
+    const codeRegex = /\b(?:WO-[A-Za-z0-9-]+|R-\d+(?:-\d+)*|RC[A-Za-z0-9-]*)\b|(?:Owner|Invoice|Payment|Prepayment|Bill|Receipt)\s*:\s*([A-Za-z0-9]+(?:-[A-Za-z0-9]+)*)/ig;
     let startIndex = 0;
     let matched = codeRegex.exec(text);
     while (matched) {
       const matchIndex = matched.index;
+      const matchedCode = (matched[1] ?? matched[0]).trim();
+      const matchedLength = matched[0].length;
       if (matchIndex > startIndex) {
         segments.push({ text: text.slice(startIndex, matchIndex), code: null });
       }
 
-      segments.push({ text: matched[0], code: matched[0] });
-      startIndex = matchIndex + matched[0].length;
+      segments.push({ text: matchedCode, code: matchedCode });
+      startIndex = matchIndex + matchedLength;
       matched = codeRegex.exec(text);
     }
 
@@ -582,11 +581,12 @@ export class OwnerReportComponent implements OnInit, OnChanges, OnDestroy {
       return null;
     }
 
+    const journalEntryCode = (matchedActivity.documentCode || '').trim();
     return {
       activityId: clickKind === 'journal'
         ? (matchedActivity.journalEntryLineId || matchedActivity.activityId)
         : (matchedActivity.sourceId || matchedActivity.activityId),
-      activityCode: matchedActivity.documentCode,
+      activityCode: journalEntryCode,
       activityType: matchedActivity.activityType,
       officeId: row.officeId,
       propertyId: row.propertyId
@@ -604,7 +604,7 @@ export class OwnerReportComponent implements OnInit, OnChanges, OnDestroy {
 
   getRowExpandIcon(row: OwnerReportVisibleRow): string {
     if (row.kind === 'property') {
-      return row.expanded ? 'chevron_left' : 'chevron_right';
+      return row.expanded ? 'expand_more' : 'expand_less';
     }
 
     if (row.kind !== 'office') {

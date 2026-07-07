@@ -6,6 +6,11 @@ export type AccountingShellBillsReceiptKind = 'bills' | 'receipts' | 'rentRoll';
 
 export type AccountingShellBankActivityKind = 'deposits' | 'printChecks' | 'reconcile';
 
-export type AccountingShellOwnerKind = 'utilities' | 'workOrders' | 'statements' | 'ownerStatements';
+export type AccountingShellOwnerKind =
+  | 'utilities'
+  | 'workOrders'
+  | 'ownerAccrualReport'
+  | 'ownerCashReport'
+  | 'ownerStatements';
 
 export type AccountingShellGeneralLedgerKind = 'ledger' | 'recap';

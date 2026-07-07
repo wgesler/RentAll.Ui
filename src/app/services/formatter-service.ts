@@ -148,22 +148,6 @@ export class FormatterService {
         return this.datePipe.transform(fromCalendar, 'MM/yyyy') || '';
     }
 
-    /** Journal Entry Recap: accounting period calendar date as `MM.yy`, or em dash when empty. */
-    formatJournalEntryRecapAccountingPeriod(accountingPeriod?: string | null): string {
-        if (!accountingPeriod) {
-            return '—';
-        }
-
-        const fromCalendar = this.parseCalendarPrefixToLocalDate(accountingPeriod);
-        if (!fromCalendar) {
-            return '—';
-        }
-
-        const month = String(fromCalendar.getMonth() + 1).padStart(2, '0');
-        const year = String(fromCalendar.getFullYear() % 100).padStart(2, '0');
-        return `${month}.${year}`;
-    }
-
     //#endregion
 
     /** Calendar / SQL **DATE** string (`YYYY-MM-DD` or ISO with that prefix) → `MM/dd/yyyy`. */

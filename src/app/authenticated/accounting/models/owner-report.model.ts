@@ -18,3 +18,26 @@ export type OwnerReportListViewState = OwnerStatementListViewState;
 export type OwnerReportJournalEntryLineSearchRequest = OwnerStatementJournalEntryLineSearchRequest;
 export type OwnerReportJournalEntryLineResponse = OwnerStatementJournalEntryLineResponse;
 export type OwnerReportJournalEntryLineSelection = OwnerStatementJournalEntryLineSelection;
+
+/** Body for POST report/owner-cash/search — matches API GetOwnerCashReportDto. */
+export type OwnerCashReportSearchRequest = OwnerStatementSearchRequest;
+
+export interface OwnerCashReportRowResponse {
+  propertyId: string;
+  officeId: number;
+  officeName: string;
+  ownerId?: string | null;
+  propertyCode: string;
+  ownerName: string;
+  startingBalance: number;
+  receivedIncome: number;
+  ownerExpenses: number;
+  ownerPayment: number;
+  endingBalance: number;
+  workingCapital: number;
+}
+
+export interface OwnerCashReportResponse {
+  rows: OwnerCashReportRowResponse[];
+  propertyActivityLines: OwnerReportPropertyActivityLineResponse[];
+}

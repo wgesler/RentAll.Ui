@@ -137,7 +137,8 @@ export class AccountingShellComponent implements OnInit, OnDestroy {
   readonly shellOwnerMenuOptions: { kind: AccountingShellOwnerKind; label: string }[] = [
     { kind: 'workOrders', label: 'Work Orders' },
     { kind: 'utilities', label: 'Utilities & Bills' },
-    { kind: 'statements', label: 'Accural & Cash' },
+    { kind: 'ownerAccrualReport', label: 'Owner Accrual Report' },
+    { kind: 'ownerCashReport', label: 'Owner Cash Report' },
     { kind: 'ownerStatements', label: 'Owner Statements' }
   ];
   readonly shellReportMenuOptions: { kind: AccountingShellReportKind; label: string }[] = [
@@ -152,7 +153,6 @@ export class AccountingShellComponent implements OnInit, OnDestroy {
   selectedBillsReceiptKind: AccountingShellBillsReceiptKind = 'bills';
   selectedBankActivityKind: AccountingShellBankActivityKind = 'deposits';
   selectedOwnerKind: AccountingShellOwnerKind = 'utilities';
-  selectedOwnerStatementReportKind: OwnerStatementReportKind = 'accrual';
   selectedReportKind: AccountingShellReportKind = 'profitLoss';
   selectedGeneralLedgerKind: AccountingShellGeneralLedgerKind = 'ledger';
 
@@ -227,6 +227,7 @@ export class AccountingShellComponent implements OnInit, OnDestroy {
   ownerStatementReturnAfterUtilityDetail = false;
   ownerStatementReturnAfterWorkOrderDetail = false;
   ownerStatementReturnAfterInvoiceDetail = false;
+  ownerStatementReturnOwnerKind: AccountingShellOwnerKind = 'ownerAccrualReport';
   showOwnerStatementJournalEntryLines = false;
   ownerStatementJournalEntryLineRequest: OwnerStatementJournalEntryLineSearchRequest | null = null;
   ownerStatementJournalEntryLinesRefreshTrigger = 0;
@@ -412,7 +413,7 @@ export class AccountingShellComponent implements OnInit, OnDestroy {
 
   onGeneralLedgerBack(): void {
     const shouldRefreshOwnerStatements = this.selectedTabIndex === this.tabOwners
-      && this.selectedOwnerKind === 'statements'
+      && this.isOwnerReportView(this.selectedOwnerKind)
       && this.showOwnerStatementJournalEntryLines;
     this.showGeneralLedgerDetail = false;
     this.activeJournalEntryId = null;
@@ -1002,7 +1003,7 @@ export class AccountingShellComponent implements OnInit, OnDestroy {
     this.depositsRefreshTrigger++;
     this.printChecksRefreshTrigger++;
     this.ownersUtilitiesRefreshTrigger++;
-    if (this.selectedTabIndex === this.tabOwners && this.selectedOwnerKind === 'statements') {
+    if (this.selectedTabIndex === this.tabOwners && this.isOwnerReportView(this.selectedOwnerKind)) {
       this.ownersStatementsRefreshTrigger++;
       if (this.showOwnerStatementJournalEntryLines) {
         this.ownerStatementJournalEntryLinesRefreshTrigger++;
@@ -1111,7 +1112,7 @@ export class AccountingShellComponent implements OnInit, OnDestroy {
     if (this.ownerStatementReturnAfterUtilityDetail) {
       this.ownerStatementReturnAfterUtilityDetail = false;
       this.selectedTabIndex = this.tabOwners;
-      this.selectedOwnerKind = 'statements';
+      this.selectedOwnerKind = this.ownerStatementReturnOwnerKind;
       this.ownersStatementsRefreshTrigger++;
     }
   }
@@ -1172,7 +1173,7 @@ export class AccountingShellComponent implements OnInit, OnDestroy {
     if (this.ownerStatementReturnAfterWorkOrderDetail) {
       this.ownerStatementReturnAfterWorkOrderDetail = false;
       this.selectedTabIndex = this.tabOwners;
-      this.selectedOwnerKind = 'statements';
+      this.selectedOwnerKind = this.ownerStatementReturnOwnerKind;
       this.ownersStatementsRefreshTrigger++;
     }
   }
@@ -1242,7 +1243,6 @@ export class AccountingShellComponent implements OnInit, OnDestroy {
         }
 
         this.selectedTabIndex = this.tabOwners;
-        this.selectedOwnerKind = 'statements';
         this.showOwnerStatementJournalEntryLines = true;
         this.activeJournalEntryId = journalEntry.journalEntryId;
         this.selectedJournalEntryLineId = journalEntryLineId;
@@ -1266,7 +1266,6 @@ export class AccountingShellComponent implements OnInit, OnDestroy {
 
   onOwnerStatementAmountDrillDownSelect(selection: OwnerStatementJournalEntryLineSearchRequest): void {
     this.selectedTabIndex = this.tabOwners;
-    this.selectedOwnerKind = 'statements';
     this.ownerStatementJournalEntryLineRequest = {
       officeIds: [...(selection.officeIds || [])],
       ownerId: selection.ownerId,
@@ -1293,6 +1292,7 @@ export class AccountingShellComponent implements OnInit, OnDestroy {
 
   private openOwnerStatementInvoice(activityId: string, invoiceCode: string, officeId: number | null): void {
     const openInvoice = (invoiceId: string) => {
+      this.captureOwnerStatementReturnContext();
       this.ownerStatementReturnAfterInvoiceDetail = true;
       this.selectedTabIndex = 0;
       this.activeInvoiceId = invoiceId;
@@ -1326,6 +1326,7 @@ export class AccountingShellComponent implements OnInit, OnDestroy {
 
   private openOwnerStatementReceipt(activityId: string, receiptCode: string, officeId: number | null, propertyId: string | null): void {
     if (activityId) {
+      this.captureOwnerStatementReturnContext();
       this.ownerStatementReturnAfterUtilityDetail = true;
       this.onOwnersUtilityReceiptSelect({ receiptId: activityId, officeId, propertyId });
       return;
@@ -1347,6 +1348,7 @@ export class AccountingShellComponent implements OnInit, OnDestroy {
           return;
         }
 
+        this.captureOwnerStatementReturnContext();
         this.ownerStatementReturnAfterUtilityDetail = true;
         this.onOwnersUtilityReceiptSelect({ receiptId: matched.receiptId, officeId, propertyId });
       },
@@ -1356,6 +1358,7 @@ export class AccountingShellComponent implements OnInit, OnDestroy {
 
   private openOwnerStatementWorkOrder(activityId: string, workOrderCode: string, propertyId: string | null): void {
     if (activityId) {
+      this.captureOwnerStatementReturnContext();
       this.ownerStatementReturnAfterWorkOrderDetail = true;
       this.onOwnersWorkOrderSelect({ workOrderId: activityId, propertyId });
       return;
@@ -1376,6 +1379,7 @@ export class AccountingShellComponent implements OnInit, OnDestroy {
           return;
         }
 
+        this.captureOwnerStatementReturnContext();
         this.ownerStatementReturnAfterWorkOrderDetail = true;
         this.onOwnersWorkOrderSelect({ workOrderId: matched.workOrderId, propertyId });
       },
@@ -1514,7 +1518,7 @@ export class AccountingShellComponent implements OnInit, OnDestroy {
     this.ownersMenuTrigger?.closeMenu();
     const previousTab = this.selectedTabIndex;
     const kindChanged = this.selectedOwnerKind !== kind;
-    const statementDatesChanged = kind === 'statements' ? this.applyOwnerStatementsMonthDateRange() : false;
+    const statementDatesChanged = this.isOwnerReportView(kind) ? this.applyOwnerStatementsMonthDateRange() : false;
 
     if (kindChanged) {
       this.selectedOwnerStatementMonthLine = null;
@@ -1548,20 +1552,6 @@ export class AccountingShellComponent implements OnInit, OnDestroy {
         queryParamsHandling: 'merge'
       });
     }
-  }
-
-  onOwnerStatementReportKindChange(kind: OwnerStatementReportKind): void {
-    if (this.selectedOwnerStatementReportKind === kind) {
-      return;
-    }
-
-    this.selectedOwnerStatementReportKind = kind;
-    this.ownersStatementsRefreshTrigger++;
-    this.router.navigate([], {
-      relativeTo: this.route,
-      queryParams: this.buildShellQueryParams({ ownerReport: kind }),
-      queryParamsHandling: 'merge'
-    });
   }
 
   selectGeneralLedgerKind(kind: AccountingShellGeneralLedgerKind): void {
@@ -1951,13 +1941,6 @@ export class AccountingShellComponent implements OnInit, OnDestroy {
   clearJournalEntries(): void {
     const officeIds = this.resolveOfficeIdsForJournalEntryClear();
 
-    const scopeMessage = this.selectedOfficeId != null
-      ? `organization + office ${this.selectedOfficeId}`
-      : 'organization + all visible offices';
-    if (!window.confirm(`Delete all journal entries and journal entry lines for this ${scopeMessage}?`)) {
-      return;
-    }
-
     this.isJournalEntrySyncInProgress = true;
     this.generalLedgerService.clearAllJournalEntries(officeIds).pipe(take(1), finalize(() => {
         this.isJournalEntrySyncInProgress = false;
@@ -2134,21 +2117,39 @@ export class AccountingShellComponent implements OnInit, OnDestroy {
     return (this.selectedTabIndex === this.tabBankActivities
       && this.selectedBankActivityKind !== 'reconcile'
       || this.selectedTabIndex === this.tabGeneralLedger
-      || this.selectedTabIndex === this.tabOwners && this.selectedOwnerKind === 'statements' && this.showOwnerStatementJournalEntryLines)
+      || this.selectedTabIndex === this.tabOwners && this.isOwnerReportView(this.selectedOwnerKind) && this.showOwnerStatementJournalEntryLines)
       && this.showGeneralLedgerDetail;
   }
 
   get isOwnerStatementJournalEntryLineListActive(): boolean {
     return this.selectedTabIndex === this.tabOwners
-      && this.selectedOwnerKind === 'statements'
+      && this.isOwnerReportView(this.selectedOwnerKind)
       && this.showOwnerStatementJournalEntryLines
       && !this.showGeneralLedgerDetail;
   }
 
   get ownerStatementSubviewTitle(): string {
-    return this.selectedOwnerStatementReportKind === 'cash'
+    return this.selectedOwnerKind === 'ownerCashReport'
       ? 'Owner Cash Report'
       : 'Owner Accual Report';
+  }
+
+  get selectedOwnerReportKind(): OwnerStatementReportKind {
+    return this.selectedOwnerKind === 'ownerCashReport' ? 'cash' : 'accrual';
+  }
+
+  get isOwnerReportViewActive(): boolean {
+    return this.isOwnerReportView(this.selectedOwnerKind);
+  }
+
+  isOwnerReportView(kind: AccountingShellOwnerKind): boolean {
+    return kind === 'ownerAccrualReport' || kind === 'ownerCashReport';
+  }
+
+  private captureOwnerStatementReturnContext(): void {
+    if (this.isOwnerReportView(this.selectedOwnerKind)) {
+      this.ownerStatementReturnOwnerKind = this.selectedOwnerKind;
+    }
   }
 
   usesFinancialReportTitleBarFilters(): boolean {
@@ -2337,17 +2338,26 @@ export class AccountingShellComponent implements OnInit, OnDestroy {
 
     if ('ownerKind' in params) {
       const ownerKind = params['ownerKind'];
-      if (ownerKind === 'utilities' || ownerKind === 'workOrders' || ownerKind === 'statements' || ownerKind === 'ownerStatements') {
+      if (
+        ownerKind === 'utilities'
+        || ownerKind === 'workOrders'
+        || ownerKind === 'ownerAccrualReport'
+        || ownerKind === 'ownerCashReport'
+        || ownerKind === 'ownerStatements'
+      ) {
         this.selectedOwnerKind = ownerKind;
+      } else if (ownerKind === 'statements') {
+        const ownerReport = params['ownerReport'];
+        this.selectedOwnerKind = ownerReport === 'cash' ? 'ownerCashReport' : 'ownerAccrualReport';
       } else if (ownerKind === 'ownerStatement' || ownerKind === 'owner-statements' || ownerKind === 'owner-statment') {
         this.selectedOwnerKind = 'ownerStatements';
       }
-    }
-
-    if ('ownerReport' in params) {
+    } else if ('ownerReport' in params) {
       const ownerReport = params['ownerReport'];
-      if (ownerReport === 'accrual' || ownerReport === 'cash') {
-        this.selectedOwnerStatementReportKind = ownerReport;
+      if (ownerReport === 'cash') {
+        this.selectedOwnerKind = 'ownerCashReport';
+      } else if (ownerReport === 'accrual') {
+        this.selectedOwnerKind = 'ownerAccrualReport';
       }
     }
 
@@ -2477,7 +2487,7 @@ export class AccountingShellComponent implements OnInit, OnDestroy {
             this.ownersUtilitiesRefreshTrigger++;
             this.ownersWorkOrdersRefreshTrigger++;
             this.ownersStatementsRefreshTrigger++;
-            if (this.selectedTabIndex === this.tabOwners && this.selectedOwnerKind === 'statements' && this.showOwnerStatementJournalEntryLines) {
+            if (this.selectedTabIndex === this.tabOwners && this.isOwnerReportView(this.selectedOwnerKind) && this.showOwnerStatementJournalEntryLines) {
               this.ownerStatementJournalEntryLinesRefreshTrigger++;
             }
             this.financialReportsRefreshTrigger++;
@@ -2486,7 +2496,7 @@ export class AccountingShellComponent implements OnInit, OnDestroy {
         }
       }
     } else if (!this.startDate && !this.endDate && !this.dateRangePinned) {
-      if (this.selectedTabIndex === this.tabOwners && this.selectedOwnerKind === 'statements') {
+      if (this.selectedTabIndex === this.tabOwners && this.isOwnerReportView(this.selectedOwnerKind)) {
         const today = new Date();
         const start = new Date(today.getFullYear(), today.getMonth(), 1);
         const end = new Date(today.getFullYear(), today.getMonth() + 1, 0);
@@ -2647,9 +2657,6 @@ export class AccountingShellComponent implements OnInit, OnDestroy {
       billsReceipt: this.selectedTabIndex === this.tabBillsReceipts ? this.selectedBillsReceiptKind : null,
       bankActivity: this.selectedTabIndex === this.tabBankActivities ? this.selectedBankActivityKind : null,
       ownerKind: this.selectedTabIndex === this.tabOwners ? this.selectedOwnerKind : null,
-      ownerReport: this.selectedTabIndex === this.tabOwners && this.selectedOwnerKind === 'statements'
-        ? this.selectedOwnerStatementReportKind
-        : null,
       report: this.selectedTabIndex === this.tabReports ? this.selectedReportKind : null,
       glView: this.selectedTabIndex === this.tabGeneralLedger ? this.selectedGeneralLedgerKind : null,
       reportClass: this.usesFinancialReportTitleBarFilters()
@@ -2684,13 +2691,13 @@ export class AccountingShellComponent implements OnInit, OnDestroy {
       this.ownerStatementReturnAfterInvoiceDetail = false;
       this.activeInvoiceId = null;
       this.selectedTabIndex = this.tabOwners;
-      this.selectedOwnerKind = 'statements';
+      this.selectedOwnerKind = this.ownerStatementReturnOwnerKind;
       this.ownersStatementsRefreshTrigger++;
       this.router.navigate([], {
         relativeTo: this.route,
         queryParams: this.buildShellQueryParams({
           tab: String(this.tabOwners),
-          ownerKind: 'statements'
+          ownerKind: this.ownerStatementReturnOwnerKind
         }),
         queryParamsHandling: 'merge'
       });

@@ -153,6 +153,7 @@ export interface OwnerStatementPropertyActivityLineResponse {
   expectedIncome: number;
   receivedIncome: number;
   expenses: number;
+  ownerPayment?: number;
 }
 
 export type OwnerStatementDrillDownMetric = 'expected' | 'prePaid' | 'paidIncome' | 'outstanding' | 'income' | 'expenses' | 'balance';
@@ -273,6 +274,7 @@ export interface OwnerStatementPropertyActivityLineDisplay {
   expectedIncome: string;
   receivedIncome: string;
   expenses: string;
+  ownerPayment?: string;
 }
 
 export interface OwnerStatementDescriptionSegment {

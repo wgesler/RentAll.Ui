@@ -18,17 +18,32 @@
 }
 
 .owner-statement-layout {
+  --owner-report-label-col-width: 8.75rem;
+  --owner-report-description-col-width: 10.5rem;
+  --owner-report-amount-col-width: 5.75rem;
   display: flex;
   justify-content: center;
   width: 100%;
   max-width: 100%;
-  padding: 1.25rem 2rem 1.5rem;
+  padding: 0.75rem 0.5rem 1rem;
   box-sizing: border-box;
+}
+
+.owner-statement-layout--accrual {
+  --owner-report-label-col-width: 8rem;
+  --owner-report-description-col-width: 9.5rem;
+  --owner-report-amount-col-width: 5.35rem;
+}
+
+.owner-statement-layout--cash {
+  --owner-report-label-col-width: 9rem;
+  --owner-report-description-col-width: 11rem;
+  --owner-report-amount-col-width: 6rem;
 }
 
 .owner-statement-panel {
   width: 100%;
-  max-width: var(--owner-report-panel-max-width, 96rem);
+  max-width: 100%;
   min-width: 0;
   margin-inline: auto;
 }
@@ -43,7 +58,7 @@
   flex-direction: column;
   align-items: center;
   gap: 0.175rem;
-  margin-bottom: 0.75rem;
+  margin-bottom: 0.5rem;
   text-align: center;
   width: 100%;
 }
@@ -59,7 +74,7 @@
 
 .owner-statement-report-title {
   margin: 0;
-  font-size: 1.125rem;
+  font-size: 1.05rem;
   font-weight: 600;
   line-height: 1.2;
 }
@@ -74,11 +89,11 @@
 }
 
 .owner-statement-entity-line {
-  font-size: 1rem;
+  font-size: 0.95rem;
 }
 
 .owner-statement-period {
-  font-size: 0.75rem;
+  font-size: 0.72rem;
 }
 
 .owner-statement-table-wrap {
@@ -94,9 +109,11 @@
 }
 
 .owner-statement-table {
-  width: max(100%, 111.5rem);
+  width: 100%;
+  min-width: 0;
   border-collapse: collapse;
   table-layout: fixed;
+  font-size: 0.8125rem;
 }
 
 .owner-statement-table thead th {
@@ -105,7 +122,7 @@
   z-index: 1;
   text-align: left;
   font-weight: 600;
-  padding: 0.4rem 0.75rem;
+  padding: 0.3rem 0.35rem;
   border-bottom: 1px solid rgba(15, 23, 42, 0.12);
   background: rgba(241, 245, 249, 0.98);
 }
@@ -140,7 +157,8 @@
   display: inline-flex;
   flex-direction: column;
   align-items: flex-end;
-  line-height: 1.05;
+  line-height: 1.02;
+  font-size: 0.72rem;
 }
 
 .owner-statement-header-two-line--left {
@@ -148,7 +166,7 @@
 }
 
 .owner-statement-table tbody td {
-  padding: 0.3rem 0.75rem;
+  padding: 0.22rem 0.35rem;
   border-bottom: 1px solid rgba(15, 23, 42, 0.08);
   vertical-align: middle;
   background-color: #fff;
@@ -156,12 +174,12 @@
 
 .owner-statement-table thead th:first-child,
 .owner-statement-table tbody td:first-child {
-  padding-left: 1.25rem;
+  padding-left: 0.65rem;
 }
 
 .owner-statement-table thead th:last-child,
 .owner-statement-table tbody td:last-child {
-  padding-right: 1.25rem;
+  padding-right: 0.65rem;
 }
 
 .owner-statement-row-office td {
@@ -193,8 +211,8 @@
 
 .owner-statement-activity-label {
   display: inline-grid;
-  grid-template-columns: 3.25rem 1fr;
-  column-gap: 0.4rem;
+  grid-template-columns: 2.75rem 1fr;
+  column-gap: 0.25rem;
   align-items: start;
 }
 
@@ -217,6 +235,7 @@
   cursor: pointer;
   font: inherit;
   font-variant-numeric: tabular-nums;
+  word-break: break-word;
 }
 
 .owner-statement-item-description-link {
@@ -226,25 +245,26 @@
 
 .owner-statement-item-description-wrap {
   display: block;
+  line-height: 1.25;
 }
 
 .owner-statement-item-description-wrap--nested {
-  padding-left: 18px;
+  padding-left: 12px;
 }
 
 .owner-statement-col-label {
-  width: 21rem;
-  min-width: 21rem;
-  max-width: 21rem;
+  width: var(--owner-report-label-col-width);
+  min-width: var(--owner-report-label-col-width);
+  max-width: var(--owner-report-label-col-width);
 }
 
 .owner-statement-col-item-description {
-  width: 22rem;
-  min-width: 22rem;
-  max-width: 22rem;
+  width: var(--owner-report-description-col-width);
+  min-width: var(--owner-report-description-col-width);
+  max-width: var(--owner-report-description-col-width);
   white-space: normal;
-  overflow: visible;
-  text-overflow: clip;
+  overflow: hidden;
+  text-overflow: ellipsis;
   word-break: break-word;
 }
 
@@ -255,18 +275,19 @@
 
 .owner-statement-table th.owner-statement-col-item-description,
 .owner-statement-table td.owner-statement-col-item-description {
-  width: 22rem;
-  min-width: 22rem;
-  max-width: 22rem;
+  width: var(--owner-report-description-col-width);
+  min-width: var(--owner-report-description-col-width);
+  max-width: var(--owner-report-description-col-width);
   padding-left: 0.15rem;
 }
 
 .owner-statement-col-amount {
-  width: 8.5rem;
-  min-width: 8.5rem;
-  max-width: 8.5rem;
+  width: var(--owner-report-amount-col-width);
+  min-width: var(--owner-report-amount-col-width);
+  max-width: var(--owner-report-amount-col-width);
   text-align: right;
   white-space: nowrap;
+  font-variant-numeric: tabular-nums;
 }
 
 .owner-statement-amount-link {
@@ -296,15 +317,22 @@
 }
 
 .owner-statement-col-working-capital {
-  width: 8.5rem;
-  min-width: 8.5rem;
-  max-width: 8.5rem;
+  width: var(--owner-report-amount-col-width);
+  min-width: var(--owner-report-amount-col-width);
+  max-width: var(--owner-report-amount-col-width);
 }
 
 .owner-statement-label-wrap {
   display: flex;
   align-items: flex-start;
   gap: 0.15rem;
+  min-width: 0;
+}
+
+.owner-statement-label {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .owner-statement-expand-btn {

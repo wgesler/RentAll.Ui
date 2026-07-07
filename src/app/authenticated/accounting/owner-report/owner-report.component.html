@@ -6,7 +6,10 @@
 } @else if (isServiceError) {
   <p class="owner-statement-empty-msg">Unable to load owner statements.</p>
 } @else {
-  <div class="mat list-layout-standard dbg-band-main owner-statement-layout">
+  <div
+    class="mat list-layout-standard dbg-band-main owner-statement-layout"
+    [class.owner-statement-layout--accrual]="reportKind === 'accrual'"
+    [class.owner-statement-layout--cash]="reportKind === 'cash'">
     <div class="owner-statement-panel">
       @if (visibleRows.length === 0) {
         <div class="owner-statement-empty-state">
@@ -19,13 +22,6 @@
             <p class="owner-statement-entity-line">{{ headerEntityLine }}</p>
           }
           <p class="owner-statement-period">{{ headerPeriodLine }}</p>
-        </div>
-        <div class="owner-statement-toggle-row">
-          <mat-slide-toggle
-            [checked]="reportKind === 'cash'"
-            (change)="onCashReportToggleChange($event.checked)">
-            Cash
-          </mat-slide-toggle>
         </div>
         <div
           #ownerReportTableWrap

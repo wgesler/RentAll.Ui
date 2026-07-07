@@ -164,7 +164,7 @@ export interface DepositResponse {
   journalEntry: JournalEntryResponse;
 }
 
-/** Body for POST accounting/journal-entry-recap/search — matches API GetJournalEntryRecapDto. */
+/** Body for POST report/journal-entry-recap/search — matches API GetRecapReportDto. */
 export interface JournalEntryRecapSearchRequest {
   officeIds: number[];
   propertyId?: string | null;
@@ -176,30 +176,8 @@ export interface JournalEntryRecapSearchRequest {
   recapCategory?: string | null;
 }
 
-export interface JournalEntryRecapLineResponse {
-  journalEntryLineId: string;
-  journalEntryId: string;
-  journalEntryCode: string;
-  transactionDate: CalendarDateString;
-  accountingPeriod: CalendarDateString;
-  officeId: number;
-  propertyId?: string | null;
-  propertyCode?: string | null;
-  reservationId?: string | null;
-  reservationCode?: string | null;
-  sourceTypeId?: number | null;
-  sourceId?: string | null;
-  sourceTypeCode: string;
-  sourceDocumentCode: string;
-  chartOfAccountId: number;
-  accountNo: string;
-  chartOfAccountName: string;
-  description: string;
-  debit: number;
-  credit: number;
-  activity: string;
-  recapCategory: string;
-  amount: number;
+export interface RecapReportResponse {
+  rows: JournalEntryRecapRowDisplay[];
 }
 
 export interface JournalEntryRecapRowDisplay {

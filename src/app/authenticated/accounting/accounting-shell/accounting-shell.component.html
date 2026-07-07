@@ -705,7 +705,7 @@
                     (viewStatement)="onOwnerStatementMonthLineView($event)">
                   </app-owner-statement-list>
                 }
-              } @else if (selectedOwnerKind === 'statements') {
+              } @else if (isOwnerReportViewActive) {
                 @if (showGeneralLedgerDetail && activeJournalEntryId && showOwnerStatementJournalEntryLines) {
                   <app-general-ledger
                     [journalEntryId]="activeJournalEntryId"
@@ -723,11 +723,10 @@
                   <app-owner-report
                     [searchRequest]="billsSearchRequest"
                     [refreshTrigger]="ownersStatementsRefreshTrigger"
-                    [reportKind]="selectedOwnerStatementReportKind"
+                    [reportKind]="selectedOwnerReportKind"
                     [viewState]="ownersStatementViewState"
                     (activityLinkSelect)="onOwnerStatementActivityLinkSelect($event)"
                     (amountDrillDownSelect)="onOwnerStatementAmountDrillDownSelect($event)"
-                    (reportKindChange)="onOwnerStatementReportKindChange($event)"
                     (viewStateChange)="onOwnersStatementViewStateChange($event)">
                   </app-owner-report>
                 }

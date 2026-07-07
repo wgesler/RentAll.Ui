@@ -5,8 +5,9 @@ import { FINANCIAL_REPORT_TOTAL_COLUMN_ID, FINANCIAL_REPORT_UNASSIGNED_COLUMN_ID
 import { ChartOfAccountListDisplay, ChartOfAccountRequest, ChartOfAccountResponse } from '../authenticated/accounting/models/chart-of-accounts.model';
 import { CostCodesListDisplay, CostCodesRequest, CostCodesResponse } from '../authenticated/accounting/models/cost-codes.model';
 import { InvoiceResponse, LedgerLineListDisplay, LedgerLineResponse } from '../authenticated/accounting/models/invoice.model';
-import { JournalEntryLineDetailDisplay, JournalEntryLineListDisplay, JournalEntryLineResponse, JournalEntryLineSearchResponse, JournalEntryRecapLineResponse, JournalEntryRecapRowDisplay, JournalEntryResponse } from '../authenticated/accounting/models/journal-entry.model';
-import { OwnerStatementListDisplay, OwnerStatementMonthLineListDisplay, OwnerStatementMonthLineResponse, OwnerStatementMonthLineSearchRequest, OwnerStatementOfficeGroup, OwnerStatementPropertyActivityLineDisplay, OwnerStatementPropertyActivityLineResponse, OwnerStatementPropertyRow, OwnerStatementResponse, OwnerStatementSearchRequest, OwnerStatementVisibleRow } from '../authenticated/accounting/models/owner-statement.model';
+import { JournalEntryLineDetailDisplay, JournalEntryLineListDisplay, JournalEntryLineResponse, JournalEntryLineSearchResponse, JournalEntryRecapRowDisplay, JournalEntryResponse, RecapReportResponse } from '../authenticated/accounting/models/journal-entry.model';
+import { OwnerStatementListDisplay, OwnerStatementMonthLineListDisplay, OwnerStatementMonthLineResponse, OwnerStatementMonthLineSearchRequest, OwnerStatementOfficeGroup, OwnerStatementPropertyActivityLineDisplay, OwnerStatementPropertyActivityLineResponse, OwnerStatementPropertyRow, OwnerStatementResponse, OwnerStatementSearchRequest, OwnerStatementSearchResponse, OwnerStatementVisibleRow } from '../authenticated/accounting/models/owner-statement.model';
+import { OwnerCashReportResponse, OwnerCashReportRowResponse } from '../authenticated/accounting/models/owner-report.model';
 import { RentRollPropertyAgreement, RentRollRow } from '../authenticated/accounting/models/rent-roll.model';
 import { EntityType, getEntityType } from '../authenticated/contacts/models/contact-enum';
 import { ContactListDisplay, ContactRequest, ContactResponse } from '../authenticated/contacts/models/contact.model';
@@ -656,452 +657,56 @@ export class MappingService {
     };
   }
 
-  mapJournalEntryRecapLineResponse(raw: Record<string, unknown>): JournalEntryRecapLineResponse {
-    const base = raw as unknown as JournalEntryRecapLineResponse;
-    const sourceTypeRaw = raw['sourceTypeId'] ?? raw['SourceTypeId'] ?? base.sourceTypeId;
-    const parsedSourceTypeId = sourceTypeRaw == null || sourceTypeRaw === '' ? null : Number(sourceTypeRaw);
-    const sourceTypeId = parsedSourceTypeId != null && Number.isFinite(parsedSourceTypeId) ? parsedSourceTypeId : null;
-    return {
-      ...base,
-      journalEntryCode: String(raw['journalEntryCode'] ?? raw['JournalEntryCode'] ?? base.journalEntryCode ?? ''),
-      propertyCode: String(raw['propertyCode'] ?? raw['PropertyCode'] ?? base.propertyCode ?? '').trim() || null,
-      reservationCode: String(raw['reservationCode'] ?? raw['ReservationCode'] ?? base.reservationCode ?? '').trim() || null,
-      accountNo: String(raw['accountNo'] ?? raw['AccountNo'] ?? base.accountNo ?? ''),
-      chartOfAccountName: String(raw['chartOfAccountName'] ?? raw['ChartOfAccountName'] ?? base.chartOfAccountName ?? ''),
-      description: String(raw['description'] ?? raw['Description'] ?? base.description ?? ''),
-      activity: String(raw['activity'] ?? raw['Activity'] ?? base.activity ?? ''),
-      recapCategory: String(raw['recapCategory'] ?? raw['RecapCategory'] ?? base.recapCategory ?? ''),
-      sourceTypeId,
-      sourceId: String(raw['sourceId'] ?? raw['SourceId'] ?? base.sourceId ?? '').trim() || null,
-      sourceTypeCode: String(raw['sourceTypeCode'] ?? raw['SourceTypeCode'] ?? base.sourceTypeCode ?? ''),
-      sourceDocumentCode: String(raw['sourceDocumentCode'] ?? raw['SourceDocumentCode'] ?? base.sourceDocumentCode ?? ''),
-      transactionDate: this.utility.coerceCalendarDateStringFromApi(raw['transactionDate'] ?? raw['TransactionDate'] ?? base.transactionDate) ?? base.transactionDate ?? '',
-      accountingPeriod: this.utility.coerceCalendarDateStringFromApi(raw['accountingPeriod'] ?? raw['AccountingPeriod'] ?? base.accountingPeriod) ?? base.accountingPeriod ?? '',
-      amount: Number(raw['amount'] ?? raw['Amount'] ?? base.amount ?? 0),
-      debit: Number(raw['debit'] ?? raw['Debit'] ?? base.debit ?? 0),
-      credit: Number(raw['credit'] ?? raw['Credit'] ?? base.credit ?? 0)
-    };
+  mapRecapReportResponse(raw: Record<string, unknown>): RecapReportResponse {
+    const rowsRaw = raw['rows'] ?? raw['Rows'] ?? [];
+    const rows = Array.isArray(rowsRaw)
+      ? rowsRaw.map(row => this.mapRecapReportRow(row as Record<string, unknown>))
+      : [];
+
+    return { rows };
   }
 
-  mapJournalEntryRecapRowDisplay(lines: JournalEntryRecapLineResponse[]): JournalEntryRecapRowDisplay[] {
-    type GroupAccumulator = {
-      propertyCode: string;
-      reservationCode: string;
-      reservationKey: string;
-      propertyKey: string;
-      propertyId: string;
-      reservationId: string;
-      officeId: number;
-      accountingPeriod: string;
-      sourceTypeId?: number | null;
-      sourceId?: string | null;
-      sourceDocumentCode: string;
-      journalEntryCode: string;
-      sourcePriority: number;
-      journalEntryPriority: number;
-      transactionDate: string;
-      sortDateValue: number;
-      journalEntryId?: string;
-      journalEntryLineId?: string;
-      expectedIncomeValue: number;
-      rentPlus4000Value: number;
-      sdwValue: number;
-      feeValue: number;
-      paymentValue: number;
-      prePaymentValue: number;
-      ownerRentValue: number;
-      ownerExpenseValue: number;
-      ownerPaymentValue: number;
+  mapRecapReportRow(raw: Record<string, unknown>): JournalEntryRecapRowDisplay {
+    const sourceTypeRaw = raw['sourceTypeId'] ?? raw['SourceTypeId'];
+    const parsedSourceTypeId = sourceTypeRaw == null || sourceTypeRaw === '' ? null : Number(sourceTypeRaw);
+    const sourceTypeId = parsedSourceTypeId != null && Number.isFinite(parsedSourceTypeId) ? parsedSourceTypeId : null;
+
+    return {
+      propertyCode: String(raw['propertyCode'] ?? raw['PropertyCode'] ?? ''),
+      reservationCode: String(raw['reservationCode'] ?? raw['ReservationCode'] ?? ''),
+      accountingPeriod: String(raw['accountingPeriod'] ?? raw['AccountingPeriod'] ?? ''),
+      source: String(raw['source'] ?? raw['Source'] ?? ''),
+      journalEntryCode: String(raw['journalEntryCode'] ?? raw['JournalEntryCode'] ?? ''),
+      sourceTypeId,
+      sourceId: String(raw['sourceId'] ?? raw['SourceId'] ?? '').trim() || null,
+      sourceLinkable: Boolean(raw['sourceLinkable'] ?? raw['SourceLinkable'] ?? false),
+      activityType: String(raw['activityType'] ?? raw['ActivityType'] ?? ''),
+      officeId: Number(raw['officeId'] ?? raw['OfficeId'] ?? 0) || null,
+      propertyId: String(raw['propertyId'] ?? raw['PropertyId'] ?? '').trim() || null,
+      reservationId: String(raw['reservationId'] ?? raw['ReservationId'] ?? '').trim() || null,
+      transactionDate: String(raw['transactionDate'] ?? raw['TransactionDate'] ?? ''),
+      expectedIncome: String(raw['expectedIncome'] ?? raw['ExpectedIncome'] ?? ''),
+      rentPlus4000: String(raw['rentPlus4000'] ?? raw['RentPlus4000'] ?? ''),
+      sdw: String(raw['sdw'] ?? raw['Sdw'] ?? raw['SDW'] ?? ''),
+      fee: String(raw['fee'] ?? raw['Fee'] ?? ''),
+      payment: String(raw['payment'] ?? raw['Payment'] ?? ''),
+      prePayment: String(raw['prePayment'] ?? raw['PrePayment'] ?? ''),
+      ownerRent: String(raw['ownerRent'] ?? raw['OwnerRent'] ?? ''),
+      ownerExpense: String(raw['ownerExpense'] ?? raw['OwnerExpense'] ?? ''),
+      ownerPayment: String(raw['ownerPayment'] ?? raw['OwnerPayment'] ?? ''),
+      expectedIncomeValue: Number(raw['expectedIncomeValue'] ?? raw['ExpectedIncomeValue'] ?? 0),
+      rentPlus4000Value: Number(raw['rentPlus4000Value'] ?? raw['RentPlus4000Value'] ?? 0),
+      sdwValue: Number(raw['sdwValue'] ?? raw['SdwValue'] ?? raw['SDWValue'] ?? 0),
+      feeValue: Number(raw['feeValue'] ?? raw['FeeValue'] ?? 0),
+      paymentValue: Number(raw['paymentValue'] ?? raw['PaymentValue'] ?? 0),
+      prePaymentValue: Number(raw['prePaymentValue'] ?? raw['PrePaymentValue'] ?? 0),
+      ownerRentValue: Number(raw['ownerRentValue'] ?? raw['OwnerRentValue'] ?? 0),
+      ownerExpenseValue: Number(raw['ownerExpenseValue'] ?? raw['OwnerExpenseValue'] ?? 0),
+      ownerPaymentValue: Number(raw['ownerPaymentValue'] ?? raw['OwnerPaymentValue'] ?? 0),
+      sortDateValue: Number(raw['sortDateValue'] ?? raw['SortDateValue'] ?? 0),
+      journalEntryId: String(raw['journalEntryId'] ?? raw['JournalEntryId'] ?? '').trim() || undefined,
+      journalEntryLineId: String(raw['journalEntryLineId'] ?? raw['JournalEntryLineId'] ?? '').trim() || undefined
     };
-
-    const groups = new Map<string, GroupAccumulator>();
-    const prePayAppliedByPeriod = new Map<string, number>();
-    const prePayReceivedByPeriod = new Map<string, number>();
-
-    const sourcePriorityByCategory: Record<string, number> = {
-      ExpectedIncome: 100,
-      PrePayment: 90,
-      OwnerRent: 80,
-      OwnerPayment: 75,
-      Payment: 60,
-      RentPlus4000: 55,
-      Expense: 50
-    };
-
-    const buildPropertyKey = (line: JournalEntryRecapLineResponse): string =>
-      (line.propertyCode || line.propertyId || '').trim();
-
-    const buildReservationKey = (line: JournalEntryRecapLineResponse): string =>
-      (line.reservationCode || line.reservationId || '').trim();
-
-    const buildGroupKey = (propertyKey: string, reservationKey: string, periodKey: string): string =>
-      `${propertyKey}|${reservationKey}|${periodKey}`;
-
-    const recapSourceCodePattern = /\b(?:WO-[A-Za-z0-9-]+|R-\d+(?:-\d+)*|RC[A-Za-z0-9-]*)\b/i;
-    const recapMemoSourceCodePattern = /(?:Payment|Prepayment|Invoice)\s*:\s*([A-Za-z0-9-]+)/i;
-
-    const resolveRecapSourceDocumentCode = (line: JournalEntryRecapLineResponse): string => {
-      const fromProc = (line.sourceDocumentCode || '').trim();
-      if (fromProc) {
-        return fromProc;
-      }
-
-      const description = (line.description || '').trim();
-      const memoMatch = description.match(recapMemoSourceCodePattern);
-      if (memoMatch?.[1]) {
-        return memoMatch[1].trim();
-      }
-
-      const codeMatch = description.match(recapSourceCodePattern);
-      if (codeMatch?.[0]) {
-        return codeMatch[0].trim();
-      }
-
-      if (
-        line.sourceTypeId === SourceType.Invoice
-        || line.sourceTypeId === SourceType.InvoicePayment
-        || line.recapCategory === 'ExpectedIncome'
-        || line.recapCategory === 'Payment'
-        || line.recapCategory === 'PrePayment'
-      ) {
-        const reservationCode = (line.reservationCode || '').trim();
-        if (/^R-\d+/i.test(reservationCode)) {
-          return reservationCode;
-        }
-      }
-
-      return '';
-    };
-
-    const getRecapActivityType = (sourceTypeId?: number | null, documentCode?: string): string => {
-      switch (sourceTypeId) {
-        case SourceType.WorkOrder:
-          return 'workorder';
-        case SourceType.Bill:
-        case SourceType.BillPayment:
-          return 'bill';
-        case SourceType.Receipt:
-          return 'receipt';
-        case SourceType.Invoice:
-        case SourceType.InvoicePayment:
-          return 'invoice';
-        default:
-          break;
-      }
-
-      const normalizedCode = (documentCode || '').trim();
-      if (/^WO-/i.test(normalizedCode)) {
-        return 'workorder';
-      }
-
-      if (/^RC/i.test(normalizedCode)) {
-        return 'receipt';
-      }
-
-      if (/^R-\d+/i.test(normalizedCode)) {
-        return 'reservation';
-      }
-
-      return '';
-    };
-
-    const isRecapSourceLinkable = (
-      sourceTypeId: number | null | undefined,
-      sourceId: string | null | undefined,
-      documentCode: string
-    ): boolean => {
-      const normalizedCode = (documentCode || '').trim();
-      if (!normalizedCode) {
-        return false;
-      }
-
-      if (/^(?:WO-|RC|R-\d+)/i.test(normalizedCode)) {
-        return true;
-      }
-
-      if (sourceTypeId === SourceType.WorkOrder) {
-        return true;
-      }
-
-      return isJournalEntrySourceNavigable(sourceTypeId) && !!(sourceId || '').trim();
-    };
-
-    const getOrCreateGroup = (line: JournalEntryRecapLineResponse): GroupAccumulator => {
-      const propertyKey = buildPropertyKey(line);
-      const reservationKey = buildReservationKey(line);
-      const periodKey = line.accountingPeriod || '';
-      const groupKey = buildGroupKey(propertyKey, reservationKey, periodKey);
-      let group = groups.get(groupKey);
-      if (!group) {
-        group = {
-          propertyCode: (line.propertyCode || '').trim(),
-          reservationCode: (line.reservationCode || '').trim(),
-          reservationKey,
-          propertyKey,
-          propertyId: (line.propertyId || '').trim(),
-          reservationId: (line.reservationId || '').trim(),
-          officeId: line.officeId,
-          accountingPeriod: periodKey,
-          sourceTypeId: null,
-          sourceId: null,
-          sourceDocumentCode: '',
-          journalEntryCode: '',
-          sourcePriority: -1,
-          journalEntryPriority: -1,
-          transactionDate: line.transactionDate || '',
-          sortDateValue: line.transactionDate ? Date.parse(`${line.transactionDate}T00:00:00`) : 0,
-          expectedIncomeValue: 0,
-          rentPlus4000Value: 0,
-          sdwValue: 0,
-          feeValue: 0,
-          paymentValue: 0,
-          prePaymentValue: 0,
-          ownerRentValue: 0,
-          ownerExpenseValue: 0,
-          ownerPaymentValue: 0
-        };
-        groups.set(groupKey, group);
-      }
-
-      return group;
-    };
-
-    const applyCategoryAmount = (group: GroupAccumulator, category: string, amount: number): void => {
-      switch (category) {
-        case 'ExpectedIncome':
-          group.expectedIncomeValue += amount;
-          break;
-        case 'RentPlus4000':
-          group.rentPlus4000Value += amount;
-          break;
-        case 'SDW':
-          group.sdwValue += amount;
-          break;
-        case 'Fee':
-          group.feeValue += amount;
-          break;
-        case 'Payment':
-          group.paymentValue += amount;
-          break;
-        case 'OwnerRent':
-          group.ownerRentValue += amount;
-          break;
-        case 'OwnerPayment':
-          group.ownerPaymentValue += amount;
-          break;
-        case 'Expense':
-          group.ownerExpenseValue += amount;
-          break;
-        default:
-          break;
-      }
-    };
-
-    const setPrimaryJournalEntry = (group: GroupAccumulator, line: JournalEntryRecapLineResponse, category: string): void => {
-      const priority = sourcePriorityByCategory[category] ?? 0;
-      const journalEntryCode = (line.journalEntryCode || '').trim();
-      if (!journalEntryCode || priority < group.journalEntryPriority) {
-        return;
-      }
-
-      group.journalEntryPriority = priority;
-      group.journalEntryCode = journalEntryCode;
-      group.journalEntryId = line.journalEntryId;
-      group.journalEntryLineId = line.journalEntryLineId;
-      group.officeId = line.officeId;
-      group.propertyId = (line.propertyId || group.propertyId || '').trim();
-      group.reservationId = (line.reservationId || group.reservationId || '').trim();
-    };
-
-    const enrichGroupSource = (group: GroupAccumulator, line: JournalEntryRecapLineResponse, category: string): void => {
-      const sourceDocumentCode = resolveRecapSourceDocumentCode(line);
-      if (!sourceDocumentCode) {
-        return;
-      }
-
-      const priority = sourcePriorityByCategory[category] ?? 0;
-      if (group.sourceDocumentCode && priority < group.sourcePriority) {
-        return;
-      }
-
-      group.sourcePriority = priority;
-      group.sourceDocumentCode = sourceDocumentCode;
-      group.sourceTypeId = line.sourceTypeId ?? group.sourceTypeId ?? null;
-      group.sourceId = (line.sourceId || '').trim() || group.sourceId || null;
-      group.officeId = line.officeId || group.officeId;
-      group.propertyId = (line.propertyId || group.propertyId || '').trim();
-      group.reservationId = (line.reservationId || group.reservationId || '').trim();
-    };
-
-    const touchGroupMetadata = (group: GroupAccumulator, line: JournalEntryRecapLineResponse): void => {
-      if ((line.transactionDate || '') && (!group.transactionDate || line.transactionDate < group.transactionDate)) {
-        group.transactionDate = line.transactionDate;
-        group.sortDateValue = Date.parse(`${line.transactionDate}T00:00:00`);
-      }
-    };
-
-    const hasMeaningfulAmount = (group: GroupAccumulator): boolean =>
-      group.expectedIncomeValue !== 0
-      || group.rentPlus4000Value !== 0
-      || group.sdwValue !== 0
-      || group.feeValue !== 0
-      || group.paymentValue !== 0
-      || group.prePaymentValue !== 0
-      || group.ownerRentValue !== 0
-      || group.ownerExpenseValue !== 0
-      || group.ownerPaymentValue !== 0;
-
-    for (const line of lines ?? []) {
-      const category = (line.recapCategory || '').trim();
-      const amount = Number(line.amount) || 0;
-      const reservationKey = buildReservationKey(line);
-      const periodKey = line.accountingPeriod || '';
-
-      if (category === 'PrePayment') {
-        if (amount > 0 && reservationKey && periodKey) {
-          const applyKey = `${reservationKey}|${periodKey}`;
-          prePayReceivedByPeriod.set(applyKey, (prePayReceivedByPeriod.get(applyKey) || 0) + amount);
-          const group = getOrCreateGroup(line);
-          setPrimaryJournalEntry(group, line, category);
-          enrichGroupSource(group, line, category);
-          touchGroupMetadata(group, line);
-        } else if (amount < 0 && reservationKey && periodKey) {
-          const applyKey = `${reservationKey}|${periodKey}`;
-          prePayAppliedByPeriod.set(applyKey, (prePayAppliedByPeriod.get(applyKey) || 0) + Math.abs(amount));
-        }
-        continue;
-      }
-
-      const group = getOrCreateGroup(line);
-      applyCategoryAmount(group, category, amount);
-      setPrimaryJournalEntry(group, line, category);
-      enrichGroupSource(group, line, category);
-      touchGroupMetadata(group, line);
-    }
-
-    const reservationPeriodKeys = new Set<string>();
-    for (const group of groups.values()) {
-      if (group.reservationKey && group.accountingPeriod) {
-        reservationPeriodKeys.add(`${group.reservationKey}|${group.accountingPeriod}`);
-      }
-    }
-    for (const key of prePayReceivedByPeriod.keys()) {
-      reservationPeriodKeys.add(key);
-    }
-    for (const key of prePayAppliedByPeriod.keys()) {
-      reservationPeriodKeys.add(key);
-    }
-
-    const reservationKeys = new Set<string>();
-    for (const key of reservationPeriodKeys) {
-      reservationKeys.add(key.split('|')[0]);
-    }
-
-    for (const reservationKey of reservationKeys) {
-      const sortedPeriods = [...reservationPeriodKeys]
-        .filter(key => key.startsWith(`${reservationKey}|`))
-        .map(key => key.slice(reservationKey.length + 1))
-        .sort((left, right) => left.localeCompare(right));
-
-      let runningPrePayBalance = 0;
-      for (const period of sortedPeriods) {
-        const group = [...groups.values()].find(item =>
-          item.reservationKey === reservationKey && item.accountingPeriod === period
-        );
-        if (!group) {
-          continue;
-        }
-
-        const receivedAmount = prePayReceivedByPeriod.get(`${reservationKey}|${period}`) || 0;
-        const appliedAmount = prePayAppliedByPeriod.get(`${reservationKey}|${period}`) || 0;
-        runningPrePayBalance += receivedAmount;
-
-        if (appliedAmount > 0) {
-          group.paymentValue = appliedAmount;
-          runningPrePayBalance -= appliedAmount;
-          group.prePaymentValue = runningPrePayBalance;
-        } else if (receivedAmount > 0) {
-          group.paymentValue = receivedAmount;
-          group.prePaymentValue = runningPrePayBalance;
-        }
-      }
-    }
-
-    const formatAmount = (value: number): string => this.formatter.currencyUsd(Number(value) || 0);
-
-    for (const group of groups.values()) {
-      if ((group.sourceDocumentCode || '').trim()) {
-        continue;
-      }
-
-      const reservationCode = (group.reservationCode || '').trim();
-      if (
-        /^R-\d+/i.test(reservationCode)
-        && (group.expectedIncomeValue !== 0 || group.paymentValue !== 0 || group.prePaymentValue !== 0)
-      ) {
-        group.sourceDocumentCode = reservationCode;
-      }
-    }
-
-    return [...groups.values()]
-      .filter(hasMeaningfulAmount)
-      .sort((left, right) => {
-        const propertyCompare = (left.propertyCode || '').localeCompare(right.propertyCode || '');
-        if (propertyCompare !== 0) {
-          return propertyCompare;
-        }
-
-        const reservationCompare = (left.reservationCode || '').localeCompare(right.reservationCode || '');
-        if (reservationCompare !== 0) {
-          return reservationCompare;
-        }
-
-        const periodCompare = (left.accountingPeriod || '').localeCompare(right.accountingPeriod || '');
-        if (periodCompare !== 0) {
-          return periodCompare;
-        }
-
-        return left.sortDateValue - right.sortDateValue;
-      })
-      .map(group => {
-        const sourceDocumentCode = (group.sourceDocumentCode || '').trim();
-        return {
-        propertyCode: group.propertyCode,
-        reservationCode: group.reservationCode,
-        accountingPeriod: this.formatter.formatJournalEntryRecapAccountingPeriod(group.accountingPeriod),
-        source: sourceDocumentCode,
-        journalEntryCode: group.journalEntryCode,
-        sourceTypeId: group.sourceTypeId ?? null,
-        sourceId: group.sourceId ?? null,
-        sourceLinkable: isRecapSourceLinkable(group.sourceTypeId, group.sourceId, sourceDocumentCode),
-        activityType: getRecapActivityType(group.sourceTypeId, sourceDocumentCode),
-        officeId: group.officeId,
-        propertyId: group.propertyId || null,
-        reservationId: group.reservationId || null,
-        transactionDate: this.formatter.formatDateString(group.transactionDate),
-        expectedIncome: formatAmount(group.expectedIncomeValue),
-        rentPlus4000: formatAmount(group.rentPlus4000Value),
-        sdw: formatAmount(group.sdwValue),
-        fee: formatAmount(group.feeValue),
-        payment: formatAmount(group.paymentValue),
-        prePayment: formatAmount(group.prePaymentValue),
-        ownerRent: formatAmount(group.ownerRentValue),
-        ownerExpense: formatAmount(group.ownerExpenseValue),
-        ownerPayment: formatAmount(group.ownerPaymentValue),
-        expectedIncomeValue: group.expectedIncomeValue,
-        rentPlus4000Value: group.rentPlus4000Value,
-        sdwValue: group.sdwValue,
-        feeValue: group.feeValue,
-        paymentValue: group.paymentValue,
-        prePaymentValue: group.prePaymentValue,
-        ownerRentValue: group.ownerRentValue,
-        ownerExpenseValue: group.ownerExpenseValue,
-        ownerPaymentValue: group.ownerPaymentValue,
-        sortDateValue: group.sortDateValue,
-        journalEntryId: group.journalEntryId,
-        journalEntryLineId: group.journalEntryLineId
-      };
-      });
   }
 
   mapJournalEntryLineListDisplay(
@@ -2336,6 +1941,80 @@ export class MappingService {
     };
   }
 
+  mapOwnerCashReportResponse(raw: Record<string, unknown>): OwnerCashReportResponse {
+    const rowsRaw = raw['rows'] ?? raw['Rows'] ?? [];
+    const activityLinesRaw = raw['propertyActivityLines'] ?? raw['PropertyActivityLines'] ?? [];
+    const rows = Array.isArray(rowsRaw)
+      ? rowsRaw.map(row => this.mapOwnerCashReportRow(row as Record<string, unknown>))
+      : [];
+    const propertyActivityLines = Array.isArray(activityLinesRaw)
+      ? activityLinesRaw.map(line => this.mapOwnerCashReportPropertyActivityLine(line as Record<string, unknown>))
+      : [];
+
+    return { rows, propertyActivityLines };
+  }
+
+  mapOwnerCashReportRow(raw: Record<string, unknown>): OwnerCashReportRowResponse {
+    return {
+      propertyId: String(raw['propertyId'] ?? raw['PropertyId'] ?? '').trim(),
+      officeId: Number(raw['officeId'] ?? raw['OfficeId'] ?? 0),
+      officeName: String(raw['officeName'] ?? raw['OfficeName'] ?? ''),
+      ownerId: String(raw['ownerId'] ?? raw['OwnerId'] ?? '').trim() || null,
+      propertyCode: String(raw['propertyCode'] ?? raw['PropertyCode'] ?? ''),
+      ownerName: String(raw['ownerName'] ?? raw['OwnerName'] ?? ''),
+      startingBalance: Number(raw['startingBalance'] ?? raw['StartingBalance'] ?? 0),
+      receivedIncome: Number(raw['receivedIncome'] ?? raw['ReceivedIncome'] ?? 0),
+      ownerExpenses: Number(raw['ownerExpenses'] ?? raw['OwnerExpenses'] ?? 0),
+      ownerPayment: Number(raw['ownerPayment'] ?? raw['OwnerPayment'] ?? 0),
+      endingBalance: Number(raw['endingBalance'] ?? raw['EndingBalance'] ?? 0),
+      workingCapital: Number(raw['workingCapital'] ?? raw['WorkingCapital'] ?? 0)
+    };
+  }
+
+  mapOwnerCashReportPropertyActivityLine(raw: Record<string, unknown>): OwnerStatementPropertyActivityLineResponse {
+    return {
+      propertyId: String(raw['propertyId'] ?? raw['PropertyId'] ?? '').trim(),
+      officeId: Number(raw['officeId'] ?? raw['OfficeId'] ?? 0),
+      activityId: String(raw['activityId'] ?? raw['ActivityId'] ?? '').trim() || null,
+      sourceId: String(raw['sourceId'] ?? raw['SourceId'] ?? '').trim() || null,
+      journalEntryLineId: String(raw['journalEntryLineId'] ?? raw['JournalEntryLineId'] ?? '').trim() || null,
+      activityType: String(raw['activityType'] ?? raw['ActivityType'] ?? ''),
+      activityDate: this.utility.coerceCalendarDateStringFromApi(raw['activityDate'] ?? raw['ActivityDate']) ?? '',
+      documentCode: String(raw['documentCode'] ?? raw['DocumentCode'] ?? ''),
+      description: String(raw['description'] ?? raw['Description'] ?? ''),
+      expectedIncome: Number(raw['expectedIncome'] ?? raw['ExpectedIncome'] ?? 0),
+      receivedIncome: Number(raw['receivedIncome'] ?? raw['ReceivedIncome'] ?? 0),
+      expenses: Number(raw['expenses'] ?? raw['Expenses'] ?? 0),
+      ownerPayment: Number(raw['ownerPayment'] ?? raw['OwnerPayment'] ?? 0)
+    };
+  }
+
+  mapOwnerCashReportToOwnerReportSearchResponse(report: OwnerCashReportResponse): OwnerStatementSearchResponse {
+    return {
+      summaries: (report.rows ?? []).map(row => ({
+        officeId: row.officeId,
+        officeName: row.officeName,
+        ownerId: row.ownerId ?? null,
+        propertyId: row.propertyId,
+        propertyCode: row.propertyCode,
+        ownerName: row.ownerName,
+        expected: 0,
+        prePaid: 0,
+        paidIncome: 0,
+        outstanding: 0,
+        income: row.receivedIncome,
+        expenses: row.ownerExpenses,
+        balance: row.receivedIncome - row.ownerExpenses,
+        startingBalance: row.startingBalance,
+        workingCapital: row.workingCapital,
+        workingCapitalBalanceDue: row.receivedIncome - row.ownerExpenses,
+        ownerPayment: row.ownerPayment,
+        endingBalance: row.endingBalance
+      })),
+      propertyActivityLines: report.propertyActivityLines ?? []
+    };
+  }
+
   mapOwnerReportOfficeGroups(reports: OwnerStatementResponse[]): OwnerStatementOfficeGroup[] {
     const officeMap = new Map<string, { officeId: number; officeName: string; properties: OwnerStatementPropertyRow[] }>();
     (reports || []).forEach(report => {
@@ -2404,7 +2083,8 @@ export class MappingService {
       description: line.description || '',
       expectedIncome: this.formatter.currencyUsd(Number(line.expectedIncome) || 0),
       receivedIncome: this.formatter.currencyUsd(Number(line.receivedIncome) || 0),
-      expenses: this.formatter.currencyUsd(Number(line.expenses) || 0)
+      expenses: this.formatter.currencyUsd(Number(line.expenses) || 0),
+      ownerPayment: this.formatter.currencyUsd(Number(line.ownerPayment) || 0)
     }));
   }
 
@@ -2431,9 +2111,10 @@ export class MappingService {
       const filteredLines = propertyLines.filter(line => {
         const expectedIncome = Number(line.expectedIncome) || 0;
         const receivedIncome = Number(line.receivedIncome) || 0;
+        const ownerPayment = Number(line.ownerPayment) || 0;
         const expenses = Number(line.expenses) || 0;
         if (reportKind === 'cash') {
-          return receivedIncome !== 0 || expenses !== 0;
+          return receivedIncome !== 0 || ownerPayment !== 0 || expenses !== 0;
         }
         return expectedIncome !== 0 || expenses !== 0;
       });
@@ -2458,8 +2139,8 @@ export class MappingService {
     }
 
     const month = String(date.getMonth() + 1).padStart(2, '0');
-    const day = String(date.getDate()).padStart(2, '0');
-    return `${month}/${day}`;
+    const year = String(date.getFullYear()).slice(-2);
+    return `${month}.${year}`;
   }
 
   mapOwnerReportPropertyActivityStateRow(propertyRowId: string, message: string): OwnerStatementVisibleRow {
