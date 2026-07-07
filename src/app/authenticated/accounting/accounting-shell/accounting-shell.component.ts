@@ -47,6 +47,7 @@ import { OwnerStatementCreateComponent } from '../owner-statement-create/owner-s
 import { OwnerStatementListComponent } from '../owner-statement-list/owner-statement-list.component';
 import { AccountingShellBankActivityKind, AccountingShellBillsReceiptKind, AccountingShellGeneralLedgerKind, AccountingShellOwnerKind, AccountingShellReportKind } from '../models/accounting-shell.model';
 import { JournalEntryRecapComponent } from '../journal-entry-recap/journal-entry-recap.component';
+import { TransferReportComponent } from '../transfer-report/transfer-report.component';
 import { FinancialReportKind } from '../models/financial-report.model';
 import { RentRollCreateBillRequest } from '../models/rent-roll.model';
 import { CostCodesService } from '../services/cost-codes.service';
@@ -91,6 +92,7 @@ interface JournalEntrySyncProgressRow {
     WorkOrderComponent,
     GeneralLedgerListComponent,
     JournalEntryRecapComponent,
+    TransferReportComponent,
     GeneralLedgerComponent,
     FinancialReportComponent,
     ArAgingReportComponent,
@@ -130,6 +132,7 @@ export class AccountingShellComponent implements OnInit, OnDestroy {
     { kind: 'rentRoll', label: 'Rent Roll' }
   ];
   readonly shellBankActivityMenuOptions: { kind: AccountingShellBankActivityKind; label: string }[] = [
+    { kind: 'transferReport', label: 'Transfer Report' },
     { kind: 'deposits', label: 'Deposits' },
     { kind: 'printChecks', label: 'Print Checks' },
     { kind: 'reconcile', label: 'Reconcile' }
@@ -221,6 +224,7 @@ export class AccountingShellComponent implements OnInit, OnDestroy {
   financialReportsRefreshTrigger = 0;
   depositsRefreshTrigger = 0;
   printChecksRefreshTrigger = 0;
+  transferReportRefreshTrigger = 0;
   ownersUtilitiesRefreshTrigger = 0;
   ownersWorkOrdersRefreshTrigger = 0;
   ownersStatementsRefreshTrigger = 0;
@@ -1002,6 +1006,7 @@ export class AccountingShellComponent implements OnInit, OnDestroy {
     this.receiptsRefreshTrigger++;
     this.depositsRefreshTrigger++;
     this.printChecksRefreshTrigger++;
+    this.transferReportRefreshTrigger++;
     this.ownersUtilitiesRefreshTrigger++;
     if (this.selectedTabIndex === this.tabOwners && this.isOwnerReportView(this.selectedOwnerKind)) {
       this.ownersStatementsRefreshTrigger++;
@@ -1631,6 +1636,10 @@ export class AccountingShellComponent implements OnInit, OnDestroy {
   refreshActiveBankActivityList(): void {
     if (this.selectedBankActivityKind === 'printChecks') {
       this.printChecksRefreshTrigger++;
+      return;
+    }
+    if (this.selectedBankActivityKind === 'transferReport') {
+      this.transferReportRefreshTrigger++;
       return;
     }
     this.depositsRefreshTrigger++;
@@ -2331,7 +2340,7 @@ export class AccountingShellComponent implements OnInit, OnDestroy {
 
     if ('bankActivity' in params) {
       const bankActivity = params['bankActivity'];
-      if (bankActivity === 'deposits' || bankActivity === 'printChecks' || bankActivity === 'reconcile') {
+      if (bankActivity === 'transferReport' || bankActivity === 'deposits' || bankActivity === 'printChecks' || bankActivity === 'reconcile') {
         this.selectedBankActivityKind = bankActivity;
       }
     }
@@ -2484,6 +2493,7 @@ export class AccountingShellComponent implements OnInit, OnDestroy {
             this.receiptsRefreshTrigger++;
             this.depositsRefreshTrigger++;
             this.printChecksRefreshTrigger++;
+            this.transferReportRefreshTrigger++;
             this.ownersUtilitiesRefreshTrigger++;
             this.ownersWorkOrdersRefreshTrigger++;
             this.ownersStatementsRefreshTrigger++;

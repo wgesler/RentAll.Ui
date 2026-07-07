@@ -264,6 +264,16 @@ export class DataTableComponent implements OnChanges, OnInit, AfterViewInit, OnD
     return column.headerAlignment || this.getColumnAlignment(column);
   }
 
+  getColumnMobileLabel(column: ColumnData): string {
+    const top = (column.displayAs || '').trim();
+    const bottom = (column.headerLine2 || '').trim();
+    if (!bottom) {
+      return top;
+    }
+
+    return `${top} ${bottom}`.trim();
+  }
+
   getFooterAlignment(column: ColumnData): string {
     if (column.alignment) {
       return column.alignment;

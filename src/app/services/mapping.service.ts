@@ -5,7 +5,7 @@ import { FINANCIAL_REPORT_TOTAL_COLUMN_ID, FINANCIAL_REPORT_UNASSIGNED_COLUMN_ID
 import { ChartOfAccountListDisplay, ChartOfAccountRequest, ChartOfAccountResponse } from '../authenticated/accounting/models/chart-of-accounts.model';
 import { CostCodesListDisplay, CostCodesRequest, CostCodesResponse } from '../authenticated/accounting/models/cost-codes.model';
 import { InvoiceResponse, LedgerLineListDisplay, LedgerLineResponse } from '../authenticated/accounting/models/invoice.model';
-import { JournalEntryLineDetailDisplay, JournalEntryLineListDisplay, JournalEntryLineResponse, JournalEntryLineSearchResponse, JournalEntryRecapRowDisplay, JournalEntryResponse, RecapReportResponse } from '../authenticated/accounting/models/journal-entry.model';
+import { JournalEntryLineDetailDisplay, JournalEntryLineListDisplay, JournalEntryLineResponse, JournalEntryLineSearchResponse, JournalEntryRecapRowDisplay, JournalEntryResponse, RecapReportResponse, TransferReportResponse, TransferReportRowDisplay } from '../authenticated/accounting/models/journal-entry.model';
 import { OwnerStatementListDisplay, OwnerStatementMonthLineListDisplay, OwnerStatementMonthLineResponse, OwnerStatementMonthLineSearchRequest, OwnerStatementOfficeGroup, OwnerStatementPropertyActivityLineDisplay, OwnerStatementPropertyActivityLineResponse, OwnerStatementPropertyRow, OwnerStatementResponse, OwnerStatementSearchRequest, OwnerStatementSearchResponse, OwnerStatementVisibleRow } from '../authenticated/accounting/models/owner-statement.model';
 import { OwnerAccrualReportResponse, OwnerAccrualReportRowResponse, OwnerCashReportResponse, OwnerCashReportRowResponse } from '../authenticated/accounting/models/owner-report.model';
 import { RentRollPropertyAgreement, RentRollRow } from '../authenticated/accounting/models/rent-roll.model';
@@ -670,6 +670,7 @@ export class MappingService {
     const sourceTypeRaw = raw['sourceTypeId'] ?? raw['SourceTypeId'];
     const parsedSourceTypeId = sourceTypeRaw == null || sourceTypeRaw === '' ? null : Number(sourceTypeRaw);
     const sourceTypeId = parsedSourceTypeId != null && Number.isFinite(parsedSourceTypeId) ? parsedSourceTypeId : null;
+    const ownerPaymentValue = Math.max(0, Number(raw['ownerPaymentValue'] ?? raw['OwnerPaymentValue'] ?? 0));
 
     return {
       propertyCode: String(raw['propertyCode'] ?? raw['PropertyCode'] ?? ''),
@@ -687,22 +688,78 @@ export class MappingService {
       transactionDate: String(raw['transactionDate'] ?? raw['TransactionDate'] ?? ''),
       expectedIncome: String(raw['expectedIncome'] ?? raw['ExpectedIncome'] ?? ''),
       rentPlus4000: String(raw['rentPlus4000'] ?? raw['RentPlus4000'] ?? ''),
+      securityDeposit: String(raw['securityDeposit'] ?? raw['SecurityDeposit'] ?? ''),
       sdw: String(raw['sdw'] ?? raw['Sdw'] ?? raw['SDW'] ?? ''),
       fee: String(raw['fee'] ?? raw['Fee'] ?? ''),
       payment: String(raw['payment'] ?? raw['Payment'] ?? ''),
       prePayment: String(raw['prePayment'] ?? raw['PrePayment'] ?? ''),
       ownerRent: String(raw['ownerRent'] ?? raw['OwnerRent'] ?? ''),
       ownerExpense: String(raw['ownerExpense'] ?? raw['OwnerExpense'] ?? ''),
-      ownerPayment: String(raw['ownerPayment'] ?? raw['OwnerPayment'] ?? ''),
+      ownerPayment: this.formatter.currencyUsd(ownerPaymentValue),
       expectedIncomeValue: Number(raw['expectedIncomeValue'] ?? raw['ExpectedIncomeValue'] ?? 0),
       rentPlus4000Value: Number(raw['rentPlus4000Value'] ?? raw['RentPlus4000Value'] ?? 0),
+      securityDepositValue: Number(raw['securityDepositValue'] ?? raw['SecurityDepositValue'] ?? 0),
       sdwValue: Number(raw['sdwValue'] ?? raw['SdwValue'] ?? raw['SDWValue'] ?? 0),
       feeValue: Number(raw['feeValue'] ?? raw['FeeValue'] ?? 0),
       paymentValue: Number(raw['paymentValue'] ?? raw['PaymentValue'] ?? 0),
       prePaymentValue: Number(raw['prePaymentValue'] ?? raw['PrePaymentValue'] ?? 0),
       ownerRentValue: Number(raw['ownerRentValue'] ?? raw['OwnerRentValue'] ?? 0),
       ownerExpenseValue: Number(raw['ownerExpenseValue'] ?? raw['OwnerExpenseValue'] ?? 0),
-      ownerPaymentValue: Number(raw['ownerPaymentValue'] ?? raw['OwnerPaymentValue'] ?? 0),
+      ownerPaymentValue,
+      sortDateValue: Number(raw['sortDateValue'] ?? raw['SortDateValue'] ?? 0),
+      journalEntryId: String(raw['journalEntryId'] ?? raw['JournalEntryId'] ?? '').trim() || undefined,
+      journalEntryLineId: String(raw['journalEntryLineId'] ?? raw['JournalEntryLineId'] ?? '').trim() || undefined
+    };
+  }
+
+  mapTransferReportResponse(raw: Record<string, unknown>): TransferReportResponse {
+    const rowsRaw = raw['rows'] ?? raw['Rows'] ?? [];
+    const rows = Array.isArray(rowsRaw)
+      ? rowsRaw.map(row => this.mapTransferReportRow(row as Record<string, unknown>))
+      : [];
+
+    return { rows };
+  }
+
+  mapTransferReportRow(raw: Record<string, unknown>): TransferReportRowDisplay {
+    const sourceTypeRaw = raw['sourceTypeId'] ?? raw['SourceTypeId'];
+    const parsedSourceTypeId = sourceTypeRaw == null || sourceTypeRaw === '' ? null : Number(sourceTypeRaw);
+    const sourceTypeId = parsedSourceTypeId != null && Number.isFinite(parsedSourceTypeId) ? parsedSourceTypeId : null;
+    const rentPlus4000Value = Number(raw['rentPlus4000Value'] ?? raw['RentPlus4000Value'] ?? 0);
+    const ownerRentValue = Number(raw['ownerRentValue'] ?? raw['OwnerRentValue'] ?? 0);
+    const businessValue = Number(raw['businessValue'] ?? raw['BusinessValue'] ?? (rentPlus4000Value - ownerRentValue));
+    const runningTotalUnpostedValue = Number(raw['runningTotalUnpostedValue'] ?? raw['RunningTotalUnpostedValue'] ?? 0);
+
+    return {
+      propertyCode: String(raw['propertyCode'] ?? raw['PropertyCode'] ?? ''),
+      reservationCode: String(raw['reservationCode'] ?? raw['ReservationCode'] ?? ''),
+      accountingPeriod: String(raw['accountingPeriod'] ?? raw['AccountingPeriod'] ?? ''),
+      source: String(raw['source'] ?? raw['Source'] ?? ''),
+      journalEntryCode: String(raw['journalEntryCode'] ?? raw['JournalEntryCode'] ?? ''),
+      sourceTypeId,
+      sourceId: String(raw['sourceId'] ?? raw['SourceId'] ?? '').trim() || null,
+      sourceLinkable: Boolean(raw['sourceLinkable'] ?? raw['SourceLinkable'] ?? false),
+      activityType: String(raw['activityType'] ?? raw['ActivityType'] ?? ''),
+      officeId: Number(raw['officeId'] ?? raw['OfficeId'] ?? 0) || null,
+      propertyId: String(raw['propertyId'] ?? raw['PropertyId'] ?? '').trim() || null,
+      reservationId: String(raw['reservationId'] ?? raw['ReservationId'] ?? '').trim() || null,
+      transactionDate: String(raw['transactionDate'] ?? raw['TransactionDate'] ?? ''),
+      expectedIncome: String(raw['expectedIncome'] ?? raw['ExpectedIncome'] ?? ''),
+      rentPlus4000: String(raw['rentPlus4000'] ?? raw['RentPlus4000'] ?? ''),
+      ownerRent: String(raw['ownerRent'] ?? raw['OwnerRent'] ?? ''),
+      business: String(raw['business'] ?? raw['Business'] ?? this.formatter.currencyUsd(businessValue)),
+      securityDeposit: String(raw['securityDeposit'] ?? raw['SecurityDeposit'] ?? ''),
+      sdw: String(raw['sdw'] ?? raw['Sdw'] ?? raw['SDW'] ?? ''),
+      fee: String(raw['fee'] ?? raw['Fee'] ?? ''),
+      runningTotalUnposted: String(raw['runningTotalUnposted'] ?? raw['RunningTotalUnposted'] ?? this.formatter.currencyUsd(runningTotalUnpostedValue)),
+      expectedIncomeValue: Number(raw['expectedIncomeValue'] ?? raw['ExpectedIncomeValue'] ?? 0),
+      rentPlus4000Value,
+      ownerRentValue,
+      businessValue,
+      securityDepositValue: Number(raw['securityDepositValue'] ?? raw['SecurityDepositValue'] ?? 0),
+      sdwValue: Number(raw['sdwValue'] ?? raw['SdwValue'] ?? raw['SDWValue'] ?? 0),
+      feeValue: Number(raw['feeValue'] ?? raw['FeeValue'] ?? 0),
+      runningTotalUnpostedValue,
       sortDateValue: Number(raw['sortDateValue'] ?? raw['SortDateValue'] ?? 0),
       journalEntryId: String(raw['journalEntryId'] ?? raw['JournalEntryId'] ?? '').trim() || undefined,
       journalEntryLineId: String(raw['journalEntryLineId'] ?? raw['JournalEntryLineId'] ?? '').trim() || undefined

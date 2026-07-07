@@ -553,6 +553,39 @@ th.mat-mdc-header-cell {
   
 }
 
+.datatable-header-two-line {
+  display: inline-flex;
+  flex-direction: column;
+  line-height: 1.1;
+  white-space: normal;
+}
+
+th.mat-header-cell:has(.datatable-header-two-line),
+th.mat-mdc-header-cell:has(.datatable-header-two-line) {
+  height: auto !important;
+  min-height: 44px;
+  padding-top: 4px;
+  padding-bottom: 4px;
+  white-space: normal !important;
+  vertical-align: middle;
+}
+
+th.mat-header-cell[data-alignment="right"] .datatable-header-two-line,
+th.mat-mdc-header-cell[data-alignment="right"] .datatable-header-two-line {
+  align-items: flex-end;
+  text-align: right;
+}
+
+th.mat-header-cell[data-alignment="center"] .datatable-header-two-line,
+th.mat-mdc-header-cell[data-alignment="center"] .datatable-header-two-line {
+  align-items: center;
+  text-align: center;
+}
+
+.datatable-header-two-line__bottom {
+  font-weight: 600;
+}
+
 th.mat-header-cell[data-alignment="right"],
 th.mat-mdc-header-cell[data-alignment="right"] {
   text-align: right !important;

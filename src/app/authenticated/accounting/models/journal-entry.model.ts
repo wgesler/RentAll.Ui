@@ -180,6 +180,54 @@ export interface RecapReportResponse {
   rows: JournalEntryRecapRowDisplay[];
 }
 
+/** Body for POST report/transfer/search — matches API GetTransferReportDto. */
+export interface TransferReportSearchRequest {
+  officeIds: number[];
+  propertyId?: string | null;
+  reservationId?: string | null;
+  startDate?: string | null;
+  endDate?: string | null;
+}
+
+export interface TransferReportResponse {
+  rows: TransferReportRowDisplay[];
+}
+
+export interface TransferReportRowDisplay {
+  propertyCode: string;
+  reservationCode: string;
+  accountingPeriod: string;
+  source: string;
+  journalEntryCode: string;
+  sourceTypeId?: number | null;
+  sourceId?: string | null;
+  sourceLinkable?: boolean;
+  activityType: string;
+  officeId?: number | null;
+  propertyId?: string | null;
+  reservationId?: string | null;
+  transactionDate: string;
+  expectedIncome: string;
+  rentPlus4000: string;
+  ownerRent: string;
+  business: string;
+  securityDeposit: string;
+  sdw: string;
+  fee: string;
+  runningTotalUnposted: string;
+  expectedIncomeValue: number;
+  rentPlus4000Value: number;
+  ownerRentValue: number;
+  businessValue: number;
+  securityDepositValue: number;
+  sdwValue: number;
+  feeValue: number;
+  runningTotalUnpostedValue: number;
+  sortDateValue: number;
+  journalEntryId?: string;
+  journalEntryLineId?: string;
+}
+
 export interface JournalEntryRecapRowDisplay {
   propertyCode: string;
   reservationCode: string;
@@ -196,6 +244,7 @@ export interface JournalEntryRecapRowDisplay {
   transactionDate: string;
   expectedIncome: string;
   rentPlus4000: string;
+  securityDeposit: string;
   sdw: string;
   fee: string;
   payment: string;
@@ -205,6 +254,7 @@ export interface JournalEntryRecapRowDisplay {
   ownerPayment: string;
   expectedIncomeValue: number;
   rentPlus4000Value: number;
+  securityDepositValue: number;
   sdwValue: number;
   feeValue: number;
   paymentValue: number;

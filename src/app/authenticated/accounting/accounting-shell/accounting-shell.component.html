@@ -569,7 +569,9 @@
             </ng-template>
             @if (selectedTabIndex === tabBankActivities) {
               <div class="accounting-shell-subview-title">
-                @if (selectedBankActivityKind === 'deposits') {
+                @if (selectedBankActivityKind === 'transferReport') {
+                  Transfer Report
+                } @else if (selectedBankActivityKind === 'deposits') {
                   Deposits
                 } @else if (selectedBankActivityKind === 'printChecks') {
                   Print Checks
@@ -577,7 +579,24 @@
                   Reconcile
                 }
               </div>
-              @if (selectedBankActivityKind === 'deposits') {
+              @if (selectedBankActivityKind === 'transferReport') {
+                @if (showGeneralLedgerDetail && activeJournalEntryId) {
+                  <app-general-ledger
+                    [journalEntryId]="activeJournalEntryId"
+                    [selectedJournalEntryLineId]="selectedJournalEntryLineId"
+                    (backEvent)="onGeneralLedgerBack()"
+                    (savedEvent)="onJournalEntriesChanged()">
+                  </app-general-ledger>
+                } @else {
+                  <app-transfer-report
+                    [officeId]="selectedOfficeId"
+                    [searchDateRange]="invoiceSearchDateRange"
+                    [refreshTrigger]="transferReportRefreshTrigger"
+                    (lineSelectEvent)="onGeneralLedgerLineSelect($event)"
+                    (sourceLinkSelect)="onOwnerStatementActivityLinkSelect($event)">
+                  </app-transfer-report>
+                }
+              } @else if (selectedBankActivityKind === 'deposits') {
                 @if (showGeneralLedgerDetail && activeJournalEntryId) {
                   <app-general-ledger
                     [journalEntryId]="activeJournalEntryId"

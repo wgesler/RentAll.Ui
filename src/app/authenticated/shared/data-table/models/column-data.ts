@@ -3,6 +3,7 @@ export type ColumnSet = { [name: string]: ColumnData };
 export interface ColumnData {
     name?: string;
     displayAs?: string;
+    headerLine2?: string;
     wrap?: boolean;
     sort?: boolean;
     maxWidth?: string;

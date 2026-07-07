@@ -7,23 +7,21 @@ import { UtilityService } from '../../../services/utility.service';
 import { DataTableComponent } from '../../shared/data-table/data-table.component';
 import { ColumnSet } from '../../shared/data-table/models/column-data';
 import { SourceType, isJournalEntrySourceNavigable } from '../models/accounting-enum';
-import { JournalEntryLineListDisplay, JournalEntryRecapRowDisplay } from '../models/journal-entry.model';
+import { JournalEntryLineListDisplay, TransferReportRowDisplay } from '../models/journal-entry.model';
 import { OwnerStatementActivityLinkSelection } from '../models/owner-statement.model';
 import { ReportService } from '../services/report.service';
 import { JournalEntrySourceService } from '../services/journal-entry-source.service';
 
 @Component({
-  selector: 'app-journal-entry-recap',
+  selector: 'app-transfer-report',
   standalone: true,
   imports: [CommonModule, MaterialModule, DataTableComponent],
-  templateUrl: './journal-entry-recap.component.html',
-  styleUrls: ['./journal-entry-recap.component.scss'],
+  templateUrl: './transfer-report.component.html',
+  styleUrls: ['./transfer-report.component.scss'],
   changeDetection: ChangeDetectionStrategy.OnPush
 })
-export class JournalEntryRecapComponent implements OnInit, OnChanges, OnDestroy {
+export class TransferReportComponent implements OnInit, OnChanges, OnDestroy {
   @Input() officeId: number | null = null;
-  @Input() propertyId: string | null = null;
-  @Input() reservationId: string | null = null;
   @Input() searchDateRange: { startDate: string | null; endDate: string | null } | null = null;
   @Input() refreshTrigger = 0;
   @Output() lineSelectEvent = new EventEmitter<{ journalEntryId: string; journalEntryLineId: string }>();
@@ -31,8 +29,8 @@ export class JournalEntryRecapComponent implements OnInit, OnChanges, OnDestroy 
 
   isPageReady = false;
   isServiceError = false;
-  rowsDisplay: JournalEntryRecapRowDisplay[] = [];
-  noActivityMessage = 'No journal entry recap activity for the selected filters and date range.';
+  rowsDisplay: TransferReportRowDisplay[] = [];
+  noActivityMessage = 'No unposted transfer report activity for the selected filters and date range.';
 
   displayedColumns: ColumnSet = {
     no: { displayAs: 'No', maxWidth: '5ch', sort: false, wrap: false, alignment: 'center' },
@@ -44,17 +42,15 @@ export class JournalEntryRecapComponent implements OnInit, OnChanges, OnDestroy 
     transactionDate: { displayAs: 'Date', maxWidth: '12ch' },
     expectedIncome: { displayAs: 'Invoiced', maxWidth: '12ch', alignment: 'right', sort: false },
     rentPlus4000: { displayAs: 'Rent/4000', maxWidth: '12ch', alignment: 'right', sort: false },
+    ownerRent: { displayAs: 'OwnRent', maxWidth: '12ch', alignment: 'right', sort: false },
+    business: { displayAs: 'Business', maxWidth: '12ch', alignment: 'right', sort: false },
     securityDeposit: { displayAs: 'SecDep', maxWidth: '10ch', alignment: 'right', sort: false },
     sdw: { displayAs: 'SDW', maxWidth: '10ch', alignment: 'right', sort: false },
     fee: { displayAs: 'Fees', maxWidth: '10ch', alignment: 'right', sort: false },
-    payment: { displayAs: 'Payment', maxWidth: '12ch', alignment: 'right', sort: false },
-    prePayment: { displayAs: 'PrePay', maxWidth: '12ch', alignment: 'right', sort: false },
-    ownerRent: { displayAs: 'OwnRent', maxWidth: '12ch', alignment: 'right', sort: false },
-    ownerExpense: { displayAs: 'OwnExp', maxWidth: '12ch', alignment: 'right', sort: false },
-    ownerPayment: { displayAs: 'OwnPay', maxWidth: '12ch', alignment: 'right', sort: false }
+    runningTotalUnposted: { displayAs: 'RunTot', maxWidth: '12ch', alignment: 'right', sort: false }
   };
 
-  itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['recapLines']));
+  itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['transferLines']));
   destroy$ = new Subject<void>();
 
   constructor(
@@ -64,38 +60,30 @@ export class JournalEntryRecapComponent implements OnInit, OnChanges, OnDestroy 
     private cdr: ChangeDetectorRef
   ) {}
 
-  //#region Journal Entry Recap
+  //#region Transfer Report
   ngOnInit(): void {
     this.itemsToLoad$.pipe(takeUntil(this.destroy$)).subscribe(items => {
       this.isPageReady = items.size === 0;
       this.markViewForCheck();
     });
-    this.loadRecapLines();
+    this.loadTransferLines();
   }
 
   ngOnChanges(changes: SimpleChanges): void {
     if (changes['officeId'] && !changes['officeId'].firstChange) {
-      this.loadRecapLines();
-    }
-
-    if (changes['propertyId'] && !changes['propertyId'].firstChange) {
-      this.loadRecapLines();
-    }
-
-    if (changes['reservationId'] && !changes['reservationId'].firstChange) {
-      this.loadRecapLines();
+      this.loadTransferLines();
     }
 
     if (changes['searchDateRange'] && !changes['searchDateRange'].firstChange) {
-      this.loadRecapLines();
+      this.loadTransferLines();
     }
 
     if (changes['refreshTrigger'] && !changes['refreshTrigger'].firstChange) {
-      this.loadRecapLines();
+      this.loadTransferLines();
     }
   }
 
-  onRowSelect(row: JournalEntryRecapRowDisplay): void {
+  onRowSelect(row: TransferReportRowDisplay): void {
     if (!row?.journalEntryId) {
       return;
     }
@@ -106,11 +94,11 @@ export class JournalEntryRecapComponent implements OnInit, OnChanges, OnDestroy 
     });
   }
 
-  onJournalEntryCodeClick(row: JournalEntryRecapRowDisplay): void {
+  onJournalEntryCodeClick(row: TransferReportRowDisplay): void {
     this.onRowSelect(row);
   }
 
-  onSourceClick(row: JournalEntryRecapRowDisplay): void {
+  onSourceClick(row: TransferReportRowDisplay): void {
     if (!row?.sourceLinkable || row.officeId == null) {
       return;
     }
@@ -147,7 +135,7 @@ export class JournalEntryRecapComponent implements OnInit, OnChanges, OnDestroy 
     navigate(row.sourceId || null);
   }
 
-  private toJournalEntryLineListDisplay(row: JournalEntryRecapRowDisplay): JournalEntryLineListDisplay {
+  private toJournalEntryLineListDisplay(row: TransferReportRowDisplay): JournalEntryLineListDisplay {
     return {
       journalEntryLineId: row.journalEntryLineId || '',
       journalEntryId: row.journalEntryId || '',
@@ -172,7 +160,7 @@ export class JournalEntryRecapComponent implements OnInit, OnChanges, OnDestroy 
       debitValue: 0,
       creditValue: 0,
       balanceValue: 0,
-      isPosted: true,
+      isPosted: false,
       isVoided: false,
       sortDateValue: row.sortDateValue
     };
@@ -180,41 +168,37 @@ export class JournalEntryRecapComponent implements OnInit, OnChanges, OnDestroy 
   //#endregion
 
   //#region Data Loading Methods
-  loadRecapLines(): void {
+  loadTransferLines(): void {
     const officeIds = this.officeId != null && this.officeId > 0 ? [this.officeId] : [];
     if (officeIds.length === 0) {
       this.rowsDisplay = [];
       this.isServiceError = false;
-      this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'recapLines');
+      this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'transferLines');
       this.markViewForCheck();
       return;
     }
 
     this.isServiceError = false;
-    this.utilityService.addLoadItem(this.itemsToLoad$, 'recapLines');
-    this.reportService.searchJournalEntryRecap({
+    this.utilityService.addLoadItem(this.itemsToLoad$, 'transferLines');
+    this.reportService.searchTransferReport({
       officeIds,
-      propertyId: this.propertyId?.trim() || null,
-      reservationId: this.reservationId?.trim() || null,
-      includeVoided: false,
-      includeUnposted: true,
       startDate: this.searchDateRange?.startDate ?? null,
       endDate: this.searchDateRange?.endDate ?? null
-    }).pipe(take(1), finalize(() => this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'recapLines'))).subscribe({
+    }).pipe(take(1), finalize(() => this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'transferLines'))).subscribe({
       next: report => {
         this.rowsDisplay = report?.rows || [];
         this.markViewForCheck();
       },
       error: (error: HttpErrorResponse) => {
-        console.error('Journal Entry Recap - error loading recap lines:', error);
+        console.error('Transfer Report - error loading transfer lines:', error);
         this.isServiceError = true;
         this.rowsDisplay = [];
         const apiMessage = typeof error.error === 'string'
           ? error.error
           : error.error?.title || error.error?.message || error.message;
         this.noActivityMessage = apiMessage
-          ? `Unable to load journal entry recap: ${apiMessage}`
-          : 'Unable to load journal entry recap.';
+          ? `Unable to load transfer report: ${apiMessage}`
+          : 'Unable to load transfer report.';
         this.markViewForCheck();
       }
     });

@@ -3,7 +3,7 @@ import { Injectable } from '@angular/core';
 import { map, Observable } from 'rxjs';
 import { ConfigService } from '../../../services/config.service';
 import { MappingService } from '../../../services/mapping.service';
-import { JournalEntryRecapSearchRequest, RecapReportResponse } from '../models/journal-entry.model';
+import { JournalEntryRecapSearchRequest, RecapReportResponse, TransferReportResponse, TransferReportSearchRequest } from '../models/journal-entry.model';
 import { OwnerAccrualReportResponse, OwnerAccrualReportSearchRequest, OwnerCashReportResponse, OwnerCashReportSearchRequest, OwnerReportJournalEntryLineResponse, OwnerReportJournalEntryLineSearchRequest } from '../models/owner-report.model';
 
 @Injectable({
@@ -37,6 +37,25 @@ export class ReportService {
 
     return this.http.post<RecapReportResponse>(`${this.controller}journal-entry-recap/search`, body).pipe(
       map(report => this.mappingService.mapRecapReportResponse(report as unknown as Record<string, unknown>))
+    );
+  }
+
+  searchTransferReport(request: TransferReportSearchRequest): Observable<TransferReportResponse> {
+    const officeIds = (request.officeIds ?? []).filter(id => id > 0);
+    if (officeIds.length === 0) {
+      throw new Error('At least one office ID is required to search transfer report.');
+    }
+
+    const body: Record<string, unknown> = {
+      officeIds,
+      propertyId: request.propertyId ?? null,
+      reservationId: request.reservationId ?? null,
+      startDate: request.startDate || null,
+      endDate: request.endDate || null
+    };
+
+    return this.http.post<TransferReportResponse>(`${this.controller}transfer/search`, body).pipe(
+      map(report => this.mappingService.mapTransferReportResponse(report as unknown as Record<string, unknown>))
     );
   }
 
