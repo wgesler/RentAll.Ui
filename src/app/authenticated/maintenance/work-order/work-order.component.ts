@@ -54,6 +54,7 @@ export class WorkOrderComponent implements OnInit, OnChanges, OnDestroy {
   @Output() savedEvent = new EventEmitter<WorkOrderResponse>();
   @Output() saveValidationAttempted = new EventEmitter<void>();
   @Output() propertySelectionRequiredChange = new EventEmitter<boolean>();
+  @Output() shellLocationSync = new EventEmitter<{ officeId: number | null; propertyId: string | null }>();
   @Output() receiptSelect = new EventEmitter<ReceiptSelection>();
   
   readonly parseInt = parseInt;
@@ -221,13 +222,29 @@ export class WorkOrderComponent implements OnInit, OnChanges, OnDestroy {
     this.form.markAllAsTouched();
 
     const requiresPropertySelection = this.isPropertySelectionRequired();
-    const resolvedOrganizationId = (this.property?.organizationId || this.organizationId || '').trim();
-    const resolvedOfficeId = Number(this.property?.officeId ?? this.getShellOfficeId() ?? 0);
+    const resolvedOrganizationId = (
+      this.property?.organizationId
+      || this.organizationId
+      || this.workOrder?.organizationId
+      || ''
+    ).trim();
+    const resolvedOfficeId = Number(
+      this.property?.officeId
+      ?? this.workOrder?.officeId
+      ?? this.getShellOfficeId()
+      ?? 0
+    );
     const hasValidOfficeId = Number.isFinite(resolvedOfficeId) && resolvedOfficeId > 0;
-    const resolvedPropertyId = (this.property?.propertyId || this.selectedPropertyId || '').trim();
+    const resolvedPropertyId = this.resolvePropertyIdForSave(requiresPropertySelection);
 
     if (!resolvedOrganizationId || !hasValidOfficeId || (requiresPropertySelection && !resolvedPropertyId)) {
-      this.toastr.error('Please correct the highlighted fields before saving.', 'Error');
+      if (!hasValidOfficeId) {
+        this.toastr.error('Office is required. Select an office in the title bar.', 'Error');
+      } else if (requiresPropertySelection && !resolvedPropertyId) {
+        this.toastr.error('Property is required. Select a property in the title bar.', 'Error');
+      } else {
+        this.toastr.error('Please correct the highlighted fields before saving.', 'Error');
+      }
       return;
     }
     if (this.form.invalid) {
@@ -265,6 +282,7 @@ export class WorkOrderComponent implements OnInit, OnChanges, OnDestroy {
       reservationCode: this.isTenantTypeSelected() ? this.getSelectedReservationCode() : null,
       useDepartureFee: this.getUseDepartureFeeForSave(),
       enteredInQb: this.form.get('enteredInQb')?.value === true,
+      title: (this.form.get('title')?.value ?? '').trim(),
       description: (this.form.get('description')?.value ?? '').trim(),
       workOrderItems: workOrderItemsForSave,
       isActive: this.form.get('isActive')?.value ?? true
@@ -320,6 +338,7 @@ export class WorkOrderComponent implements OnInit, OnChanges, OnDestroy {
           reservationId: saved.reservationId ?? null,
           useDepartureFee: saved.useDepartureFee === true,
           enteredInQb: saved.enteredInQb === true,
+          title: saved.title ?? '',
           description: saved.description ?? '',
           isActive: saved.isActive
         }, { emitEvent: false });
@@ -370,12 +389,9 @@ export class WorkOrderComponent implements OnInit, OnChanges, OnDestroy {
         }
 
         if (saved.workOrderId) {
-          const propertyId = this.property?.propertyId ?? this.selectedPropertyId ?? '';
+          const propertyId = this.resolvePropertyIdForSave() ?? ((saved.propertyId || '').trim() || null);
           const reservationId = (saved.reservationId || this.form.get('reservationId')?.value || '').toString().trim();
-          const reservationParam = reservationId ? `&reservationId=${encodeURIComponent(reservationId)}` : '';
-          this.router.navigateByUrl(
-            `${RouterUrl.WorkOrderCreate}?workOrderId=${encodeURIComponent(saved.workOrderId)}&propertyId=${encodeURIComponent(propertyId)}${reservationParam}&returnTo=work-order`
-          );
+          this.router.navigateByUrl(this.buildWorkOrderPreviewUrl(saved.workOrderId, propertyId, reservationId, 'work-order'));
           return;
         }
 
@@ -482,6 +498,7 @@ export class WorkOrderComponent implements OnInit, OnChanges, OnDestroy {
       reservationId: new FormControl<string | null>(null),
       useDepartureFee: new FormControl(false),
       enteredInQb: new FormControl(false),
+      title: new FormControl('', [Validators.required]),
       description: new FormControl('', [Validators.required]),
       isActive: new FormControl(true)
     });
@@ -499,6 +516,7 @@ export class WorkOrderComponent implements OnInit, OnChanges, OnDestroy {
       reservationId: workOrder.reservationId ?? null,
       useDepartureFee: workOrder.useDepartureFee === true,
       enteredInQb: workOrder.enteredInQb === true,
+      title: workOrder.title ?? '',
       description: workOrder.description ?? '',
       isActive: workOrder.isActive
     }, { emitEvent: false });
@@ -548,6 +566,14 @@ export class WorkOrderComponent implements OnInit, OnChanges, OnDestroy {
 
   isPropertySelectionRequired(): boolean {
     return Number(this.form.get('workOrderTypeId')?.value ?? -1) !== WorkOrderType.Company;
+  }
+
+  resolvePropertyIdForSave(requiresPropertySelection: boolean = this.isPropertySelectionRequired()): string | null {
+    if (!requiresPropertySelection) {
+      return null;
+    }
+    const resolvedPropertyId = (this.property?.propertyId || this.selectedPropertyId || '').trim();
+    return resolvedPropertyId || null;
   }
 
   getUseDepartureFeeForSave(): boolean {
@@ -1057,7 +1083,7 @@ export class WorkOrderComponent implements OnInit, OnChanges, OnDestroy {
     const payload: WorkOrderRequest = {
       organizationId: this.property?.organizationId ?? this.workOrder.organizationId,
       officeId: this.property?.officeId ?? this.workOrder.officeId,
-      propertyId: this.property?.propertyId ?? this.workOrder.propertyId,
+      propertyId: this.resolvePropertyIdForSave(),
       workOrderDate: this.getWorkOrderDateForApi(),
       workOrderTypeId: this.form.get('workOrderTypeId')?.value ?? 0,
       applyMarkup: this.isOwnerTypeSelected() ? (this.form.get('applyMarkup')?.value === true) : false,
@@ -1065,6 +1091,7 @@ export class WorkOrderComponent implements OnInit, OnChanges, OnDestroy {
       reservationCode: this.isTenantTypeSelected() ? this.getSelectedReservationCode() : null,
       useDepartureFee: this.getUseDepartureFeeForSave(),
       enteredInQb: this.form.get('enteredInQb')?.value === true,
+      title: (this.form.get('title')?.value ?? '').trim(),
       description: (this.form.get('description')?.value ?? '').trim(),
       workOrderItems: this.mapWorkOrderItemsForSave(false),
       isActive: this.form.get('isActive')?.value ?? true,
@@ -1145,6 +1172,8 @@ export class WorkOrderComponent implements OnInit, OnChanges, OnDestroy {
     const workOrderReservationId = this.normalizeComparableString(this.workOrder.reservationId);
     const payloadReservationCode = this.normalizeComparableString(payload.reservationCode);
     const workOrderReservationCode = this.normalizeComparableString(this.workOrder.reservationCode);
+    const payloadTitle = this.normalizeComparableString(payload.title) ?? '';
+    const workOrderTitle = this.normalizeComparableString(this.workOrder.title) ?? '';
     const payloadDescription = this.normalizeComparableString(payload.description) ?? '';
     const workOrderDescription = this.normalizeComparableString(this.workOrder.description) ?? '';
     const payloadWorkOrderDate = this.normalizeComparableString(payload.workOrderDate) ?? '';
@@ -1159,6 +1188,7 @@ export class WorkOrderComponent implements OnInit, OnChanges, OnDestroy {
       payloadReservationCode !== workOrderReservationCode ||
       useDepartureFeeMismatch ||
       payload.enteredInQb !== (this.workOrder.enteredInQb === true) ||
+      payloadTitle !== workOrderTitle ||
       payloadDescription !== workOrderDescription ||
       payload.isActive !== this.workOrder.isActive ||
       this.hasWorkOrderItemsChanged()
@@ -1319,6 +1349,7 @@ export class WorkOrderComponent implements OnInit, OnChanges, OnDestroy {
         );
         this.populateForm(workOrder);
         this.applyPropertyContextFromWorkOrder(workOrder);
+        this.syncShellLocationFromWorkOrder(workOrder);
         this.loadAssociatedReceiptsForCurrentWorkOrder();
         this.cdr.detectChanges();
       },
@@ -1361,6 +1392,18 @@ export class WorkOrderComponent implements OnInit, OnChanges, OnDestroy {
       error: () => {
         this.toastr.error('Unable to load property for this work order.', 'Error');
       }
+    });
+  }
+
+  private syncShellLocationFromWorkOrder(workOrder: WorkOrderResponse): void {
+    if (!this.embeddedInMaintenance) {
+      return;
+    }
+
+    const officeId = Number(workOrder.officeId ?? 0);
+    this.shellLocationSync.emit({
+      officeId: Number.isFinite(officeId) && officeId > 0 ? officeId : null,
+      propertyId: (workOrder.propertyId || '').trim() || null
     });
   }
 
@@ -1855,12 +1898,31 @@ export class WorkOrderComponent implements OnInit, OnChanges, OnDestroy {
   }
 
   navigateToWorkOrderView(workOrderId: string): void {
-    const propertyId = (this.property?.propertyId ?? this.selectedPropertyId ?? '').toString().trim();
+    const propertyId = this.resolvePropertyIdForSave() ?? ((this.workOrder?.propertyId || '').trim() || null);
     const reservationId = (this.workOrder?.reservationId || this.form.get('reservationId')?.value || '').toString().trim();
-    const reservationParam = reservationId ? `&reservationId=${encodeURIComponent(reservationId)}` : '';
-    this.router.navigateByUrl(
-      `${RouterUrl.WorkOrderCreate}?workOrderId=${encodeURIComponent(workOrderId)}&propertyId=${encodeURIComponent(propertyId)}${reservationParam}&returnTo=work-order`
-    );
+    this.router.navigateByUrl(this.buildWorkOrderPreviewUrl(workOrderId, propertyId, reservationId, 'work-order'));
+  }
+
+  buildWorkOrderPreviewUrl(
+    workOrderId: string,
+    propertyId?: string | null,
+    reservationId?: string | null,
+    returnTo?: string | null
+  ): string {
+    const params = new URLSearchParams();
+    params.set('workOrderId', workOrderId);
+    const trimmedPropertyId = (propertyId || '').trim();
+    if (trimmedPropertyId) {
+      params.set('propertyId', trimmedPropertyId);
+    }
+    const trimmedReservationId = (reservationId || '').trim();
+    if (trimmedReservationId) {
+      params.set('reservationId', trimmedReservationId);
+    }
+    if (returnTo) {
+      params.set('returnTo', returnTo);
+    }
+    return `${RouterUrl.WorkOrderCreate}?${params.toString()}`;
   }
 
   setUserEdited(_source: string): void {

@@ -3,6 +3,7 @@ import { HttpErrorResponse } from '@angular/common/http';
 import { ChangeDetectionStrategy, ChangeDetectorRef, Component, EventEmitter, Input, OnChanges, OnDestroy, OnInit, Output, SimpleChanges } from '@angular/core';
 import { BehaviorSubject, finalize, Subject, take, takeUntil } from 'rxjs';
 import { MaterialModule } from '../../../material.module';
+import { FormatterService } from '../../../services/formatter-service';
 import { UtilityService } from '../../../services/utility.service';
 import { DataTableComponent } from '../../shared/data-table/data-table.component';
 import { ColumnSet } from '../../shared/data-table/models/column-data';
@@ -46,8 +47,7 @@ export class TransferReportComponent implements OnInit, OnChanges, OnDestroy {
     business: { displayAs: 'Business', maxWidth: '12ch', alignment: 'right', sort: false },
     securityDeposit: { displayAs: 'SecDep', maxWidth: '10ch', alignment: 'right', sort: false },
     sdw: { displayAs: 'SDW', maxWidth: '10ch', alignment: 'right', sort: false },
-    fee: { displayAs: 'Fees', maxWidth: '10ch', alignment: 'right', sort: false },
-    runningTotalUnposted: { displayAs: 'RunTot', maxWidth: '12ch', alignment: 'right', sort: false }
+    fee: { displayAs: 'Fees', maxWidth: '10ch', alignment: 'right', sort: false }
   };
 
   itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['transferLines']));
@@ -57,6 +57,7 @@ export class TransferReportComponent implements OnInit, OnChanges, OnDestroy {
     private reportService: ReportService,
     private journalEntrySourceService: JournalEntrySourceService,
     private utilityService: UtilityService,
+    private formatter: FormatterService,
     private cdr: ChangeDetectorRef
   ) {}
 
@@ -92,6 +93,10 @@ export class TransferReportComponent implements OnInit, OnChanges, OnDestroy {
       journalEntryId: row.journalEntryId,
       journalEntryLineId: row.journalEntryLineId || ''
     });
+  }
+
+  onTransfer(): void {
+    // TODO: implement transfer workflow
   }
 
   onJournalEntryCodeClick(row: TransferReportRowDisplay): void {
@@ -202,6 +207,29 @@ export class TransferReportComponent implements OnInit, OnChanges, OnDestroy {
         this.markViewForCheck();
       }
     });
+  }
+  //#endregion
+
+  //#region Total Row Methods
+  get totalsRow(): { [key: string]: string } | undefined {
+    if (this.rowsDisplay.length === 0) {
+      return undefined;
+    }
+
+    return {
+      propertyCode: 'Totals:',
+      expectedIncome: this.formatter.currencyUsd(this.sumColumn('expectedIncomeValue')),
+      rentPlus4000: this.formatter.currencyUsd(this.sumColumn('rentPlus4000Value')),
+      ownerRent: this.formatter.currencyUsd(this.sumColumn('ownerRentValue')),
+      business: this.formatter.currencyUsd(this.sumColumn('businessValue')),
+      securityDeposit: this.formatter.currencyUsd(this.sumColumn('securityDepositValue')),
+      sdw: this.formatter.currencyUsd(this.sumColumn('sdwValue')),
+      fee: this.formatter.currencyUsd(this.sumColumn('feeValue'))
+    };
+  }
+
+  private sumColumn(columnName: keyof TransferReportRowDisplay): number {
+    return this.rowsDisplay.reduce((sum, row) => sum + Number(row[columnName] || 0), 0);
   }
   //#endregion
 

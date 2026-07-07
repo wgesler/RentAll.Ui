@@ -127,8 +127,8 @@ export class WorkOrderCreateComponent extends BaseDocumentComponent implements O
 
     this.applyRouteParams(this.route.snapshot.queryParamMap);
 
-    if (!this.workOrderId || !this.propertyId) {
-      this.toastr.error('workOrderId and propertyId are required.', 'Missing Parameters');
+    if (!this.workOrderId) {
+      this.toastr.error('workOrderId is required.', 'Missing Parameters');
       this.itemsToLoad$.next(new Set());
       return;
     }
@@ -317,6 +317,12 @@ export class WorkOrderCreateComponent extends BaseDocumentComponent implements O
   }
 
   applyLoadedWorkOrder(wo: WorkOrderResponse): void {
+    const woPropertyId = (wo.propertyId || '').trim();
+    if (!this.propertyId && woPropertyId) {
+      this.propertyId = woPropertyId;
+      this.loadProperty();
+    }
+
     const woReservationId = wo.reservationId?.trim() || '';
     if (woReservationId) {
       if (!this.selectedReservation || this.selectedReservation.reservationId !== woReservationId) {
@@ -535,6 +541,7 @@ export class WorkOrderCreateComponent extends BaseDocumentComponent implements O
     }
    
     result = result.replace(/\{\{workOrderCode\}\}/g, this.workOrder.workOrderCode ?? '');
+    result = result.replace(/\{\{workOrderTitle\}\}/g, (this.workOrder.title ?? '').replace(/</g, '&lt;').replace(/>/g, '&gt;'));
     result = result.replace(/\{\{workOrderDateDisplay\}\}/g, workOrderDateDisplay);
     result = result.replace(/\{\{workOrderDescription\}\}/g, (this.workOrder.description ?? '').replace(/</g, '&lt;').replace(/>/g, '&gt;'));
     result = result.replace(/\{\{workOrderChargeSections\}\}/g, chargeSections);
@@ -1175,7 +1182,7 @@ export class WorkOrderCreateComponent extends BaseDocumentComponent implements O
   //#region Utility Methods
   goBack(): void {
     const workOrderId = this.workOrder?.workOrderId ?? this.workOrderId;
-    const propertyId = this.property?.propertyId || this.workOrder?.propertyId || this.propertyId;
+    const propertyId = (this.property?.propertyId || this.workOrder?.propertyId || this.propertyId || '').trim() || null;
     if ((this.returnTo === 'work-order' || this.returnTo === 'work-order-list') && propertyId) {
       const path = '/' + RouterUrl.replaceTokens(RouterUrl.Maintenance, [propertyId]);
       this.router.navigate([path], { queryParams: { tab: 3, clearProperty: 1 } });
@@ -1184,6 +1191,15 @@ export class WorkOrderCreateComponent extends BaseDocumentComponent implements O
     if (workOrderId && propertyId) {
       const path = '/' + RouterUrl.replaceTokens(RouterUrl.Maintenance, [propertyId]);
       this.router.navigate([path], {
+        queryParams: {
+          tab: 3,
+          workOrderId
+        }
+      });
+      return;
+    }
+    if (workOrderId) {
+      this.router.navigate(['/' + RouterUrl.MaintenanceList], {
         queryParams: {
           tab: 3,
           workOrderId

@@ -728,7 +728,6 @@ export class MappingService {
     const rentPlus4000Value = Number(raw['rentPlus4000Value'] ?? raw['RentPlus4000Value'] ?? 0);
     const ownerRentValue = Number(raw['ownerRentValue'] ?? raw['OwnerRentValue'] ?? 0);
     const businessValue = Number(raw['businessValue'] ?? raw['BusinessValue'] ?? (rentPlus4000Value - ownerRentValue));
-    const runningTotalUnpostedValue = Number(raw['runningTotalUnpostedValue'] ?? raw['RunningTotalUnpostedValue'] ?? 0);
 
     return {
       propertyCode: String(raw['propertyCode'] ?? raw['PropertyCode'] ?? ''),
@@ -751,7 +750,6 @@ export class MappingService {
       securityDeposit: String(raw['securityDeposit'] ?? raw['SecurityDeposit'] ?? ''),
       sdw: String(raw['sdw'] ?? raw['Sdw'] ?? raw['SDW'] ?? ''),
       fee: String(raw['fee'] ?? raw['Fee'] ?? ''),
-      runningTotalUnposted: String(raw['runningTotalUnposted'] ?? raw['RunningTotalUnposted'] ?? this.formatter.currencyUsd(runningTotalUnpostedValue)),
       expectedIncomeValue: Number(raw['expectedIncomeValue'] ?? raw['ExpectedIncomeValue'] ?? 0),
       rentPlus4000Value,
       ownerRentValue,
@@ -759,7 +757,6 @@ export class MappingService {
       securityDepositValue: Number(raw['securityDepositValue'] ?? raw['SecurityDepositValue'] ?? 0),
       sdwValue: Number(raw['sdwValue'] ?? raw['SdwValue'] ?? raw['SDWValue'] ?? 0),
       feeValue: Number(raw['feeValue'] ?? raw['FeeValue'] ?? 0),
-      runningTotalUnpostedValue,
       sortDateValue: Number(raw['sortDateValue'] ?? raw['SortDateValue'] ?? 0),
       journalEntryId: String(raw['journalEntryId'] ?? raw['JournalEntryId'] ?? '').trim() || undefined,
       journalEntryLineId: String(raw['journalEntryLineId'] ?? raw['JournalEntryLineId'] ?? '').trim() || undefined
@@ -1890,20 +1887,49 @@ export class MappingService {
     });
   }
 
-  mapWorkOrderUpdateRequest(
+  mergeWorkOrderForQuickSave(
     sourceWorkOrder: WorkOrderResponse,
-    changedCheckboxColumn: 'isActive' | 'enteredInQb',
-    nextValue: boolean
+    cachedWorkOrder?: WorkOrderResponse | null,
+    displayRow?: WorkOrderDisplayList | null
+  ): WorkOrderResponse {
+    return {
+      ...sourceWorkOrder,
+      propertyId: sourceWorkOrder.propertyId ?? cachedWorkOrder?.propertyId ?? displayRow?.propertyId ?? null,
+      reservationId: sourceWorkOrder.reservationId ?? cachedWorkOrder?.reservationId ?? displayRow?.reservationId ?? null,
+      reservationCode: sourceWorkOrder.reservationCode ?? cachedWorkOrder?.reservationCode ?? displayRow?.reservationCode ?? null,
+      title: this.resolveWorkOrderTitle(sourceWorkOrder, cachedWorkOrder, displayRow),
+      description: String(
+        sourceWorkOrder.description
+        ?? cachedWorkOrder?.description
+        ?? displayRow?.description
+        ?? ''
+      ).trim()
+    };
+  }
+
+  mapWorkOrderSaveRequest(
+    sourceWorkOrder: WorkOrderResponse,
+    updates: Partial<Pick<WorkOrderRequest, 'isActive' | 'enteredInQb' | 'title' | 'description'>> = {}
   ): WorkOrderRequest {
+    const hasIsActive = Object.prototype.hasOwnProperty.call(updates, 'isActive');
+    const hasEnteredInQb = Object.prototype.hasOwnProperty.call(updates, 'enteredInQb');
+    const hasTitle = Object.prototype.hasOwnProperty.call(updates, 'title');
+    const hasDescription = Object.prototype.hasOwnProperty.call(updates, 'description');
+
     return {
       workOrderId: sourceWorkOrder.workOrderId,
       workOrderCode: sourceWorkOrder.workOrderCode,
       organizationId: sourceWorkOrder.organizationId,
       officeId: sourceWorkOrder.officeId,
-      propertyId: sourceWorkOrder.propertyId,
+      propertyId: sourceWorkOrder.propertyId ?? null,
       reservationId: sourceWorkOrder.reservationId ?? null,
       reservationCode: sourceWorkOrder.reservationCode ?? null,
-      description: sourceWorkOrder.description ?? '',
+      title: hasTitle
+        ? String(updates.title ?? '').trim()
+        : this.resolveWorkOrderTitle(sourceWorkOrder),
+      description: hasDescription
+        ? String(updates.description ?? '').trim()
+        : String(sourceWorkOrder.description ?? '').trim(),
       workOrderTypeId: sourceWorkOrder.workOrderTypeId,
       applyMarkup: sourceWorkOrder.applyMarkup === true,
       workOrderDate: sourceWorkOrder.workOrderDate,
@@ -1917,9 +1943,54 @@ export class MappingService {
         laborCost: item.laborCost ?? 0,
         itemAmount: item.itemAmount ?? 0
       })),
-      isActive: changedCheckboxColumn === 'isActive' ? nextValue : sourceWorkOrder.isActive,
-      enteredInQb: changedCheckboxColumn === 'enteredInQb' ? nextValue : sourceWorkOrder.enteredInQb
+      isActive: hasIsActive ? (updates.isActive === true) : sourceWorkOrder.isActive,
+      enteredInQb: hasEnteredInQb ? (updates.enteredInQb === true) : (sourceWorkOrder.enteredInQb === true)
     };
+  }
+
+  mapWorkOrderUpdateRequest(
+    sourceWorkOrder: WorkOrderResponse,
+    changedCheckboxColumn: 'isActive' | 'enteredInQb',
+    nextValue: boolean
+  ): WorkOrderRequest {
+    return this.mapWorkOrderSaveRequest(
+      sourceWorkOrder,
+      changedCheckboxColumn === 'isActive'
+        ? { isActive: nextValue }
+        : { enteredInQb: nextValue }
+    );
+  }
+
+  private resolveWorkOrderTitle(
+    sourceWorkOrder: WorkOrderResponse,
+    cachedWorkOrder?: WorkOrderResponse | null,
+    displayRow?: WorkOrderDisplayList | null
+  ): string {
+    const candidates = [
+      sourceWorkOrder.title,
+      cachedWorkOrder?.title,
+      displayRow?.title
+    ];
+
+    for (const candidate of candidates) {
+      const trimmed = String(candidate ?? '').trim();
+      if (trimmed) {
+        return trimmed;
+      }
+    }
+
+    const description = String(
+      sourceWorkOrder.description
+      ?? cachedWorkOrder?.description
+      ?? displayRow?.description
+      ?? ''
+    ).trim();
+    if (!description) {
+      return '';
+    }
+
+    const firstSentence = description.split(/[.!?](?:\s|$)/)[0]?.trim() ?? '';
+    return (firstSentence || description).slice(0, 1000);
   }
 
   mapWorkOrderDisplays(workOrders: WorkOrderResponse[]): WorkOrderDisplayList[] {
@@ -1936,6 +2007,7 @@ export class MappingService {
         propertyCode: workOrder.propertyCode,
         reservationId: workOrder.reservationId ?? null,
         reservationCode: workOrder.reservationCode ?? '',
+        title: this.resolveWorkOrderTitle(workOrder),
         description: workOrder.description ?? '',
         workOrderTypeId: workOrder.workOrderTypeId,
         workOrderType: getWorkOrderType(workOrder.workOrderTypeId),

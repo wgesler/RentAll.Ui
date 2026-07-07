@@ -28,6 +28,7 @@ import { WorkOrderService } from '../services/work-order.service';
 export interface WorkOrderSelection {
   workOrderId: string | null;
   propertyId: string | null;
+  officeId?: number | null;
 }
 
 @Component({
@@ -73,6 +74,7 @@ export class WorkOrderListComponent implements OnInit, OnChanges, OnDestroy {
 
   workOrderDisplayedColumns: ColumnSet = {
     workOrderCode: { displayAs: 'Code', wrap: false, maxWidth: '15ch' },
+    title: { displayAs: 'Title', wrap: false, maxWidth: '25ch' },
     propertyCode: { displayAs: 'Property', wrap: false, maxWidth: '15ch' },
     workOrderType: { displayAs: 'Type', wrap: false, maxWidth: '15ch' },
     reservationCode: { displayAs: 'Reservation', wrap: false, maxWidth: '20ch' },
@@ -211,7 +213,8 @@ export class WorkOrderListComponent implements OnInit, OnChanges, OnDestroy {
     if (this.embeddedInMaintenance) {
       this.workOrderSelect.emit({
         workOrderId: null,
-        propertyId: (this.property?.propertyId || '').trim() || null
+        propertyId: (this.property?.propertyId || '').trim() || null,
+        officeId: this.officeId ?? this.property?.officeId ?? null
       });
       return;
     }
@@ -265,17 +268,18 @@ export class WorkOrderListComponent implements OnInit, OnChanges, OnDestroy {
     if (this.embeddedInMaintenance) {
       this.workOrderSelect.emit({
         workOrderId,
-        propertyId: resolvedPropertyId
+        propertyId: resolvedPropertyId,
+        officeId: event.officeId ?? this.officeId ?? this.property?.officeId ?? null
       });
       return;
     }
-    if (!resolvedPropertyId) {
+    if (!resolvedPropertyId && Number(event.workOrderTypeId) !== WorkOrderType.Company) {
       this.toastr.error('Unable to open work order: property was not provided.', 'Missing Property');
       return;
     }
     const url = '/' + RouterUrl.replaceTokens(RouterUrl.MaintenanceWorkOrder, [workOrderId]);
     this.router.navigate([url], {
-      queryParams: { propertyId: resolvedPropertyId },
+      queryParams: resolvedPropertyId ? { propertyId: resolvedPropertyId } : {},
       state: { property: this.property }
     });
   }
@@ -284,15 +288,12 @@ export class WorkOrderListComponent implements OnInit, OnChanges, OnDestroy {
     const workOrderId = (event?.workOrderId || '').toString().trim();
     if (!workOrderId) return;
     const propertyId = this.resolvePropertyIdForWorkOrder(event);
-    if (!propertyId) {
+    if (!propertyId && Number(event.workOrderTypeId) !== WorkOrderType.Company) {
       this.toastr.error('Unable to view work order: property was not provided.', 'Missing Property');
       return;
     }
     const reservationId = (event.reservationId || '').toString().trim();
-    const reservationParam = reservationId ? `&reservationId=${encodeURIComponent(reservationId)}` : '';
-    this.router.navigateByUrl(
-      `${RouterUrl.WorkOrderCreate}?workOrderId=${encodeURIComponent(workOrderId)}&propertyId=${encodeURIComponent(propertyId)}${reservationParam}&returnTo=work-order-list`
-    );
+    this.router.navigateByUrl(this.buildWorkOrderPreviewUrl(workOrderId, propertyId, reservationId, 'work-order-list'));
   }
   //#endregion
 
@@ -504,9 +505,6 @@ export class WorkOrderListComponent implements OnInit, OnChanges, OnDestroy {
     });
   }
 
-  //#endregion
-
-  //#region Form Response Methods
   resolvePropertyIdForWorkOrder(event: WorkOrderDisplayList): string | null {
     const fromRow = (event?.propertyId || '').toString().trim();
     if (fromRow) {
@@ -533,6 +531,31 @@ export class WorkOrderListComponent implements OnInit, OnChanges, OnDestroy {
     return fromSelectedPropertyId || null;
   }
 
+  buildWorkOrderPreviewUrl(
+    workOrderId: string,
+    propertyId?: string | null,
+    reservationId?: string | null,
+    returnTo?: string | null
+  ): string {
+    const params = new URLSearchParams();
+    params.set('workOrderId', workOrderId);
+    const trimmedPropertyId = (propertyId || '').trim();
+    if (trimmedPropertyId) {
+      params.set('propertyId', trimmedPropertyId);
+    }
+    const trimmedReservationId = (reservationId || '').trim();
+    if (trimmedReservationId) {
+      params.set('reservationId', trimmedReservationId);
+    }
+    if (returnTo) {
+      params.set('returnTo', returnTo);
+    }
+    return `${RouterUrl.WorkOrderCreate}?${params.toString()}`;
+  }
+
+  //#endregion
+
+  //#region Form Response Methods
   onWorkOrderCheckboxChange(event: WorkOrderDisplayList): void {
     const changedCheckboxColumn = (event as unknown as { __changedCheckboxColumn?: string }).__changedCheckboxColumn;
     if (changedCheckboxColumn !== 'isActive' && changedCheckboxColumn !== 'enteredInQb') {
@@ -555,8 +578,13 @@ export class WorkOrderListComponent implements OnInit, OnChanges, OnDestroy {
 
     this.applyWorkOrderCheckboxValue(workOrderId, changedCheckboxColumn, nextValue);
 
+    const cachedWorkOrder = this.workOrders.find(wo => String(wo.workOrderId || '').trim() === workOrderId) ?? null;
+
     this.workOrderService.getWorkOrderById(workOrderId).pipe(take(1),
-      map((sourceWorkOrder: WorkOrderResponse) => this.mappingService.mapWorkOrderUpdateRequest(sourceWorkOrder, changedCheckboxColumn, nextValue)),
+      map((sourceWorkOrder: WorkOrderResponse) => {
+        const mergedWorkOrder = this.mappingService.mergeWorkOrderForQuickSave(sourceWorkOrder, cachedWorkOrder, event);
+        return this.mappingService.mapWorkOrderUpdateRequest(mergedWorkOrder, changedCheckboxColumn, nextValue);
+      }),
       switchMap(updateRequest => this.workOrderService.updateWorkOrder(updateRequest))
     ).subscribe({
       next: (updatedWorkOrder: WorkOrderResponse) => {

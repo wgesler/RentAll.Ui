@@ -360,7 +360,7 @@ export class MaintenanceShellComponent implements OnInit, OnDestroy, CanComponen
   }
 
   get shouldShowWorkOrderLocationRequiredState(): boolean {
-    return this.isWorkOrderAddMode && this.workOrderSaveValidationAttempted;
+    return this.isWorkOrderDetailActive && this.workOrderSaveValidationAttempted;
   }
 
   get showOfficeRequiredErrorForWorkOrder(): boolean {
@@ -734,6 +734,15 @@ export class MaintenanceShellComponent implements OnInit, OnDestroy, CanComponen
   onWorkOrderSelect(selection: WorkOrderSelection): void {
     const workOrderId = selection?.workOrderId ?? null;
     const targetPropertyId = (selection?.propertyId || '').trim() || null;
+    const selectedOfficeId = this.normalizeOfficeId(selection?.officeId ?? null);
+    this.workOrderSaveValidationAttempted = false;
+
+    if (selectedOfficeId !== this.selectedOfficeId) {
+      this.skipNextOfficeChange = true;
+      this.applyPageOfficeScope(selectedOfficeId);
+      this.updateAvailableProperties();
+    }
+
     const openWorkOrderDetail = () => {
       this.selectedTabIndex = this.workOrdersTabIndex;
       this.showReceiptDetail = false;
@@ -750,7 +759,34 @@ export class MaintenanceShellComponent implements OnInit, OnDestroy, CanComponen
       this.loadProperty(targetPropertyId, null, null);
       return;
     }
+
+    if (!targetPropertyId && !this.selectedPropertyId) {
+      this.property = null;
+      this.shellReservations = [];
+      this.titleBarReservationId = null;
+    }
+
+    this.selectedPropertyId = targetPropertyId ?? this.selectedPropertyId;
+    this.updateAvailableProperties();
     openWorkOrderDetail();
+  }
+
+  onWorkOrderShellLocationSync(event: { officeId: number | null; propertyId: string | null }): void {
+    const selectedOfficeId = this.normalizeOfficeId(event?.officeId ?? null);
+    if (selectedOfficeId && selectedOfficeId !== this.selectedOfficeId) {
+      this.skipNextOfficeChange = true;
+      this.applyPageOfficeScope(selectedOfficeId);
+      this.updateAvailableProperties();
+    }
+
+    const targetPropertyId = (event?.propertyId || '').trim() || null;
+    if (!targetPropertyId || targetPropertyId === this.selectedPropertyId) {
+      return;
+    }
+
+    this.skipNextPropertyCodeChange = true;
+    this.selectedPropertyId = targetPropertyId;
+    this.loadProperty(targetPropertyId, null, null);
   }
 
   onWorkOrderBack(): void {

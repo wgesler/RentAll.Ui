@@ -114,10 +114,17 @@
               }
             </div>
 
+            <div class="col-span-4 work-order-title-row">
+              <mat-form-field appearance="outline" class="work-order-title-field">
+                <mat-label>Title</mat-label>
+                <input matInput formControlName="title" maxlength="1000" required>
+              </mat-form-field>
+            </div>
+
             <div class="col-span-4 work-order-description-row">
               <mat-form-field appearance="outline" class="work-order-description-field">
                 <mat-label>Description</mat-label>
-                <textarea matInput formControlName="description" rows="3" maxlength="250" required></textarea>
+                <textarea matInput formControlName="description" rows="3" maxlength="2048" required></textarea>
               </mat-form-field>
             </div>
 
