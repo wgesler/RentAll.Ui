@@ -52,6 +52,7 @@ export interface OwnerAccrualReportRowResponse {
   ownerId?: string | null;
   propertyCode: string;
   ownerName: string;
+  startingBalance: number;
   invoicedIncome: number;
   prepaidIncome: number;
   paidIncome: number;

@@ -2166,6 +2166,7 @@ export class MappingService {
       ownerId: String(raw['ownerId'] ?? raw['OwnerId'] ?? '').trim() || null,
       propertyCode: String(raw['propertyCode'] ?? raw['PropertyCode'] ?? ''),
       ownerName: String(raw['ownerName'] ?? raw['OwnerName'] ?? ''),
+      startingBalance: Number(raw['startingBalance'] ?? raw['StartingBalance'] ?? 0),
       invoicedIncome: Number(raw['invoicedIncome'] ?? raw['InvoicedIncome'] ?? 0),
       prepaidIncome: Number(raw['prepaidIncome'] ?? raw['PrepaidIncome'] ?? 0),
       paidIncome: Number(raw['paidIncome'] ?? raw['PaidIncome'] ?? 0),
@@ -2191,7 +2192,7 @@ export class MappingService {
         income: row.paidIncome,
         expenses: row.ownerExpenses,
         balance: row.ownerProfit,
-        startingBalance: 0,
+        startingBalance: row.startingBalance,
         workingCapital: 0,
         workingCapitalBalanceDue: row.ownerProfit,
         ownerPayment: 0,
@@ -2319,7 +2320,7 @@ export class MappingService {
           return receivedIncome !== 0 || ownerPayment !== 0 || expenses !== 0;
         }
 
-        return true;
+        return expectedIncome !== 0 || receivedIncome !== 0 || expenses !== 0;
       });
       if (filteredLines.length === 0) {
         return;

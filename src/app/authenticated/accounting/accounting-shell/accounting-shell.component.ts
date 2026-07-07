@@ -140,8 +140,8 @@ export class AccountingShellComponent implements OnInit, OnDestroy {
   readonly shellOwnerMenuOptions: { kind: AccountingShellOwnerKind; label: string }[] = [
     { kind: 'workOrders', label: 'Work Orders' },
     { kind: 'utilities', label: 'Utilities & Bills' },
-    { kind: 'ownerAccrualReport', label: 'Owner Accrual Report' },
-    { kind: 'ownerCashReport', label: 'Owner Cash Report' },
+    { kind: 'ownerAccrualReport', label: 'Owner Accrual' },
+    { kind: 'ownerCashReport', label: 'Owner Cash' },
     { kind: 'ownerStatements', label: 'Owner Statements' }
   ];
   readonly shellReportMenuOptions: { kind: AccountingShellReportKind; label: string }[] = [
@@ -1922,8 +1922,7 @@ export class AccountingShellComponent implements OnInit, OnDestroy {
     this.initializeJournalEntrySyncProgress();
     this.showSyncProgressDialog = true;
     this.isSyncProgressComplete = false;
-    this.isJournalEntrySyncInProgress = true;
-    this.cdr.detectChanges();
+    this.beginJournalEntrySyncTools();
     await this.waitForUiPaint();
     let syncCompleted = false;
 
@@ -1941,28 +1940,45 @@ export class AccountingShellComponent implements OnInit, OnDestroy {
     } catch (error) {
       this.showJournalEntrySyncError('Sync', error);
     } finally {
-      this.isJournalEntrySyncInProgress = false;
-      this.isSyncProgressComplete = true;
-      this.cdr.detectChanges();
+      this.finishJournalEntrySyncTools(true);
     }
   }
 
   clearJournalEntries(): void {
     const officeIds = this.resolveOfficeIdsForJournalEntryClear();
+    let clearSucceeded = false;
 
-    this.isJournalEntrySyncInProgress = true;
-    this.generalLedgerService.clearAllJournalEntries(officeIds).pipe(take(1), finalize(() => {
-        this.isJournalEntrySyncInProgress = false;
+    this.beginJournalEntrySyncTools();
+    this.generalLedgerService.clearAllJournalEntries(officeIds).pipe(
+      take(1),
+      finalize(() => {
+        this.finishJournalEntrySyncTools();
+        if (clearSucceeded) {
+          this.onJournalEntriesChanged();
+        }
       })
     ).subscribe({
       next: (result) => {
+        clearSucceeded = true;
         this.showJournalEntrySyncResult('Journal entries cleared', result, true);
-        this.onJournalEntriesChanged();
       },
       error: (error: HttpErrorResponse) => {
         this.toastr.error(error?.error ?? 'Unable to clear journal entries.', CommonMessage.Error);
       }
     });
+  }
+
+  private beginJournalEntrySyncTools(): void {
+    this.isJournalEntrySyncInProgress = true;
+    this.cdr.detectChanges();
+  }
+
+  private finishJournalEntrySyncTools(markSyncProgressComplete: boolean = false): void {
+    this.isJournalEntrySyncInProgress = false;
+    if (markSyncProgressComplete) {
+      this.isSyncProgressComplete = true;
+    }
+    this.cdr.detectChanges();
   }
 
   showJournalEntrySyncResult(title: string, result: JournalEntrySyncResult, isClear: boolean = false): void {
