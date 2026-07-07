@@ -10,6 +10,8 @@ export interface TicketWorkOrderDialogData {
   property: PropertyResponse;
   maintenanceId: string | null;
   workOrderId?: string | null;
+  initialTitle?: string | null;
+  initialDescription?: string | null;
 }
 
 export interface TicketWorkOrderDialogResult {

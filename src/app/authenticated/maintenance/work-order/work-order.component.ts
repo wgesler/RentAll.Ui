@@ -47,6 +47,8 @@ export class WorkOrderComponent implements OnInit, OnChanges, OnDestroy {
   @Input() workOrderId: string | null = null;
   @Input() officeId: number | null = null;
   @Input() maintenanceId: string | null = null;
+  @Input() initialTitle: string | null = null;
+  @Input() initialDescription: string | null = null;
   @Input() showBackButton: boolean = true;
   @Input() embeddedInMaintenance = false;
   @Input() navigateToPreviewOnSave: boolean = true;
@@ -163,6 +165,7 @@ export class WorkOrderComponent implements OnInit, OnChanges, OnDestroy {
         officeName: this.property?.officeName || '',
         propertyCode: this.property?.propertyCode || ''
       }, { emitEvent: false });
+      this.applyInitialWorkOrderPrefill();
     }
 
     this.loadOffices();
@@ -202,6 +205,10 @@ export class WorkOrderComponent implements OnInit, OnChanges, OnDestroy {
 
     if (changes['officeId'] && this.embeddedInMaintenance && this.isAddMode && !this.property?.officeId) {
       this.loadAccountingOfficeForWorkOrderCode();
+    }
+
+    if ((changes['initialTitle'] || changes['initialDescription']) && this.isAddMode) {
+      this.applyInitialWorkOrderPrefill();
     }
   }
 
@@ -503,6 +510,30 @@ export class WorkOrderComponent implements OnInit, OnChanges, OnDestroy {
       isActive: new FormControl(true)
     });
     this.lastMarkupFactor = this.getMarkupFactor();
+  }
+
+  applyInitialWorkOrderPrefill(): void {
+    if (!this.isAddMode) {
+      return;
+    }
+
+    const title = (this.initialTitle || '').trim();
+    const description = (this.initialDescription || '').trim();
+    if (!title && !description) {
+      return;
+    }
+
+    const patch: { title?: string; description?: string } = {};
+    if (title && !(this.form.get('title')?.value ?? '').toString().trim()) {
+      patch.title = title.slice(0, 1000);
+    }
+    if (description && !(this.form.get('description')?.value ?? '').toString().trim()) {
+      patch.description = description.slice(0, 2048);
+    }
+
+    if (Object.keys(patch).length > 0) {
+      this.form.patchValue(patch, { emitEvent: false });
+    }
   }
 
   populateForm(workOrder: WorkOrderResponse): void {

@@ -987,7 +987,9 @@ export class TicketComponent implements OnInit, OnChanges, AfterViewInit, OnDest
           panelClass: 'ticket-work-order-dialog-panel',
           data: {
             property,
-            maintenanceId: this.ticket?.ticketId ?? null
+            maintenanceId: this.ticket?.ticketId ?? null,
+            initialTitle: this.getTicketTitleForWorkOrder(),
+            initialDescription: this.getTicketDescriptionForWorkOrder()
           }
         });
         dialogRef.afterClosed().pipe(take(1)).subscribe((result?: TicketWorkOrderDialogResult) => {
@@ -1010,6 +1012,31 @@ export class TicketComponent implements OnInit, OnChanges, AfterViewInit, OnDest
       return workOrderCode;
     }
     return String(workOrder.workOrderId || '').trim() || 'Unknown';
+  }
+
+  getTicketTitleForWorkOrder(): string {
+    return String(this.form.get('title')?.value ?? this.ticket?.title ?? '').trim();
+  }
+
+  getTicketDescriptionForWorkOrder(): string {
+    const rawDescription = String(this.form.get('description')?.value ?? this.ticket?.description ?? '').trim();
+    return this.htmlToPlainText(rawDescription).slice(0, 2048);
+  }
+
+  htmlToPlainText(html: string): string {
+    const value = (html || '').trim();
+    if (!value) {
+      return '';
+    }
+    if (!/<[a-z][\s\S]*>/i.test(value)) {
+      return value;
+    }
+
+    const doc = new DOMParser().parseFromString(value, 'text/html');
+    return (doc.body.textContent || doc.body.innerText || '')
+      .replace(/\u00a0/g, ' ')
+      .replace(/\r\n/g, '\n')
+      .trim();
   }
 
   openWorkOrderFromComment(code: string): void {
