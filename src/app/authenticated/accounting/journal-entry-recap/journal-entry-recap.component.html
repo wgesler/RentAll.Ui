@@ -1,0 +1,35 @@
+@if (!isPageReady) {
+  <div class="loading-container">
+    <mat-spinner [diameter]="40"></mat-spinner>
+    <p>Loading journal entry recap...</p>
+  </div>
+} @else if (isServiceError) {
+  <div class="general-ledger-empty-state">
+    <p>{{ noActivityMessage }}</p>
+  </div>
+} @else if (rowsDisplay.length === 0) {
+  <div class="general-ledger-empty-state">
+    <p>{{ noActivityMessage }}</p>
+  </div>
+} @else {
+  <div class="mat list-layout-standard dbg-band-main">
+    <div class="tableDiv">
+      <app-data-table
+        [data]="rowsDisplay"
+        [columns]="displayedColumns"
+        [hasColumnIndex]="true"
+        [hasFilter]="true"
+        [hasToggleTop]="false"
+        [hasButtonTop]="false"
+        [hasActionsSelect]="false"
+        [hasActionsRowClick]="true"
+        [hasSourceLink]="true"
+        [hasJournalEntryCodeLink]="true"
+        [itemsPerPage]="10"
+        (rowClickEvent)="onRowSelect($event)"
+        (sourceClickEvent)="onSourceClick($event)"
+        (journalEntryCodeClickEvent)="onJournalEntryCodeClick($event)">
+      </app-data-table>
+    </div>
+  </div>
+}

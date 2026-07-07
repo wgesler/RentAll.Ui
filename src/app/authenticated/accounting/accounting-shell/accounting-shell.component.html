@@ -302,6 +302,7 @@
               [noResultsText]="'No reservations match your search'"
               (valueChange)="onShellGlReservationDropdownChange($event)">
             </app-title-bar-select>
+            @if (showGeneralLedgerChartOfAccountFilter) {
             <app-title-bar-select
               [label]="'Account'"
               [formFieldClass]="'titlebar-field-chart-of-account'"
@@ -313,6 +314,7 @@
               [searchPlaceholder]="'Search accounts...'"
               (valueChange)="onShellChartOfAccountDropdownChange($event)">
             </app-title-bar-select>
+            }
             @if (showShellDateRange) {
               <div class="accounting-shell-titlebar-dates">
                 <ng-container [ngTemplateOutlet]="accountingShellDateFields" />
@@ -781,24 +783,67 @@
               }
             }
           </mat-tab>
-          <mat-tab label="General Ledger">
-            @if (showGeneralLedgerDetail && activeJournalEntryId) {
-              <app-general-ledger
-                [journalEntryId]="activeJournalEntryId"
-                [selectedJournalEntryLineId]="selectedJournalEntryLineId"
-                (backEvent)="onGeneralLedgerBack()"
-                (savedEvent)="onJournalEntriesChanged()">
-              </app-general-ledger>
-            } @else {
-              <app-general-ledger-list
-                [officeId]="selectedOfficeId"
-                [propertyId]="selectedGlPropertyId"
-                [reservationId]="selectedGlReservationId"
-                [chartOfAccountId]="selectedChartOfAccountId"
-                [searchDateRange]="invoiceSearchDateRange"
-                [refreshTrigger]="generalLedgerRefreshTrigger"
-                (lineSelectEvent)="onGeneralLedgerLineSelect($event)">
-              </app-general-ledger-list>
+          <mat-tab>
+            <ng-template mat-tab-label>
+              <button
+                type="button"
+                class="accounting-shell-dropdown-tab-label"
+                [matMenuTriggerFor]="generalLedgerMenu"
+                #generalLedgerMenuTrigger="matMenuTrigger"
+                (click)="onDropdownTabLabelClick($event)"
+                aria-label="Choose general ledger view">
+                <span class="accounting-shell-dropdown-tab-label__text">General Ledger</span>
+                <mat-icon class="accounting-shell-dropdown-tab-icon" aria-hidden="true">arrow_drop_down</mat-icon>
+              </button>
+              <mat-menu #generalLedgerMenu="matMenu" panelClass="accounting-reports-tab-menu">
+                @for (option of shellGeneralLedgerMenuOptions; track option.kind) {
+                  <button mat-menu-item type="button" class="office-menu-item accounting-reports-menu-item" (click)="selectGeneralLedgerKind(option.kind)">
+                    <span class="office-menu-label accounting-reports-menu-label">{{ option.label }}</span>
+                    @if (selectedTabIndex === tabGeneralLedger && selectedGeneralLedgerKind === option.kind) {
+                      <mat-icon class="office-selected-check accounting-reports-menu-check">check</mat-icon>
+                    }
+                  </button>
+                }
+              </mat-menu>
+            </ng-template>
+            @if (selectedTabIndex === tabGeneralLedger) {
+              <div class="accounting-shell-subview-title" [class.accounting-shell-subview-title--stacked]="selectedGeneralLedgerKind === 'recap'">
+                @if (selectedGeneralLedgerKind === 'recap') {
+                  <span>Reservation Income</span>
+                  <span>&</span>
+                  <span>Owner Settlement Recap</span>
+                } @else {
+                  General Ledger
+                }
+              </div>
+              @if (showGeneralLedgerDetail && activeJournalEntryId) {
+                <app-general-ledger
+                  [journalEntryId]="activeJournalEntryId"
+                  [selectedJournalEntryLineId]="selectedJournalEntryLineId"
+                  (backEvent)="onGeneralLedgerBack()"
+                  (savedEvent)="onJournalEntriesChanged()">
+                </app-general-ledger>
+              } @else if (selectedGeneralLedgerKind === 'recap') {
+                <app-journal-entry-recap
+                  [officeId]="selectedOfficeId"
+                  [propertyId]="selectedGlPropertyId"
+                  [reservationId]="selectedGlReservationId"
+                  [searchDateRange]="invoiceSearchDateRange"
+                  [refreshTrigger]="generalLedgerRefreshTrigger"
+                  (lineSelectEvent)="onGeneralLedgerLineSelect($event)"
+                  (sourceLinkSelect)="onOwnerStatementActivityLinkSelect($event)">
+                </app-journal-entry-recap>
+              } @else {
+                <app-general-ledger-list
+                  [officeId]="selectedOfficeId"
+                  [propertyId]="selectedGlPropertyId"
+                  [reservationId]="selectedGlReservationId"
+                  [chartOfAccountId]="selectedChartOfAccountId"
+                  [searchDateRange]="invoiceSearchDateRange"
+                  [refreshTrigger]="generalLedgerRefreshTrigger"
+                  (lineSelectEvent)="onGeneralLedgerLineSelect($event)">
+                </app-general-ledger-list>
+              }
             }
           </mat-tab>
           }

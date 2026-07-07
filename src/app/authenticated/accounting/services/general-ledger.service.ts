@@ -4,7 +4,7 @@ import { map, Observable } from 'rxjs';
 import { ConfigService } from '../../../services/config.service';
 import { MappingService } from '../../../services/mapping.service';
 import { UtilityService } from '../../../services/utility.service';
-import { JournalEntryLineSearchRequest, JournalEntryLineSearchResponse, JournalEntryRequest, JournalEntryResponse, JournalEntrySyncResult, DepositRequest, DepositResponse, StartJournalEntrySyncJobResponse, JournalEntrySyncJobStatus } from '../models/journal-entry.model';
+import { JournalEntryLineSearchRequest, JournalEntryLineSearchResponse, JournalEntryRecapLineResponse, JournalEntryRecapSearchRequest, JournalEntryRequest, JournalEntryResponse, JournalEntrySyncResult, DepositRequest, DepositResponse, StartJournalEntrySyncJobResponse, JournalEntrySyncJobStatus } from '../models/journal-entry.model';
 
 @Injectable({
   providedIn: 'root'
@@ -17,6 +17,28 @@ export class GeneralLedgerService {
     private configService: ConfigService,
     private mappingService: MappingService,
     private utilityService: UtilityService) {
+  }
+
+  searchJournalEntryRecap(request: JournalEntryRecapSearchRequest): Observable<JournalEntryRecapLineResponse[]> {
+    const officeIds = (request.officeIds ?? []).filter(id => id > 0);
+    if (officeIds.length === 0) {
+      throw new Error('At least one office ID is required to search journal entry recap lines.');
+    }
+
+    const body: Record<string, unknown> = {
+      officeIds,
+      propertyId: request.propertyId ?? null,
+      reservationId: request.reservationId ?? null,
+      includeVoided: request.includeVoided,
+      includeUnposted: request.includeUnposted,
+      startDate: request.startDate || null,
+      endDate: request.endDate || null,
+      recapCategory: (request.recapCategory ?? '').trim() || ''
+    };
+
+    return this.http.post<JournalEntryRecapLineResponse[]>(`${this.controller}journal-entry-recap/search`, body).pipe(
+      map(lines => (lines ?? []).map(line => this.mappingService.mapJournalEntryRecapLineResponse(line as unknown as Record<string, unknown>)))
+    );
   }
 
   searchJournalEntryLines(request: JournalEntryLineSearchRequest): Observable<JournalEntryLineSearchResponse[]> {

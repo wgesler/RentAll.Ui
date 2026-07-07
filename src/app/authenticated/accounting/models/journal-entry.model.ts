@@ -164,6 +164,81 @@ export interface DepositResponse {
   journalEntry: JournalEntryResponse;
 }
 
+/** Body for POST accounting/journal-entry-recap/search — matches API GetJournalEntryRecapDto. */
+export interface JournalEntryRecapSearchRequest {
+  officeIds: number[];
+  propertyId?: string | null;
+  reservationId?: string | null;
+  includeVoided: boolean;
+  includeUnposted: boolean;
+  startDate?: string | null;
+  endDate?: string | null;
+  recapCategory?: string | null;
+}
+
+export interface JournalEntryRecapLineResponse {
+  journalEntryLineId: string;
+  journalEntryId: string;
+  journalEntryCode: string;
+  transactionDate: CalendarDateString;
+  accountingPeriod: CalendarDateString;
+  officeId: number;
+  propertyId?: string | null;
+  propertyCode?: string | null;
+  reservationId?: string | null;
+  reservationCode?: string | null;
+  sourceTypeId?: number | null;
+  sourceId?: string | null;
+  sourceTypeCode: string;
+  sourceDocumentCode: string;
+  chartOfAccountId: number;
+  accountNo: string;
+  chartOfAccountName: string;
+  description: string;
+  debit: number;
+  credit: number;
+  activity: string;
+  recapCategory: string;
+  amount: number;
+}
+
+export interface JournalEntryRecapRowDisplay {
+  propertyCode: string;
+  reservationCode: string;
+  accountingPeriod: string;
+  source: string;
+  journalEntryCode: string;
+  sourceTypeId?: number | null;
+  sourceId?: string | null;
+  sourceLinkable?: boolean;
+  activityType: string;
+  officeId?: number | null;
+  propertyId?: string | null;
+  reservationId?: string | null;
+  transactionDate: string;
+  expectedIncome: string;
+  rentPlus4000: string;
+  sdw: string;
+  fee: string;
+  payment: string;
+  prePayment: string;
+  ownerRent: string;
+  ownerExpense: string;
+  ownerPayment: string;
+  expectedIncomeValue: number;
+  rentPlus4000Value: number;
+  sdwValue: number;
+  feeValue: number;
+  paymentValue: number;
+  prePaymentValue: number;
+  ownerRentValue: number;
+  ownerExpenseValue: number;
+  ownerPaymentValue: number;
+  sortDateValue: number;
+  journalEntryId?: string;
+  journalEntryLineId?: string;
+}
+
 export interface JournalEntryLineDetailDisplay {
   lineNo: number;
   journalEntryLineId: string;

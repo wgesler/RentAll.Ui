@@ -45,7 +45,8 @@ import { RentRollComponent } from '../rent-roll/rent-roll.component';
 import { OwnerReportComponent } from '../owner-report/owner-report.component';
 import { OwnerStatementCreateComponent } from '../owner-statement-create/owner-statement-create.component';
 import { OwnerStatementListComponent } from '../owner-statement-list/owner-statement-list.component';
-import { AccountingShellBankActivityKind, AccountingShellBillsReceiptKind, AccountingShellOwnerKind, AccountingShellReportKind } from '../models/accounting-shell.model';
+import { AccountingShellBankActivityKind, AccountingShellBillsReceiptKind, AccountingShellGeneralLedgerKind, AccountingShellOwnerKind, AccountingShellReportKind } from '../models/accounting-shell.model';
+import { JournalEntryRecapComponent } from '../journal-entry-recap/journal-entry-recap.component';
 import { FinancialReportKind } from '../models/financial-report.model';
 import { RentRollCreateBillRequest } from '../models/rent-roll.model';
 import { CostCodesService } from '../services/cost-codes.service';
@@ -89,6 +90,7 @@ interface JournalEntrySyncProgressRow {
     WorkOrderListComponent,
     WorkOrderComponent,
     GeneralLedgerListComponent,
+    JournalEntryRecapComponent,
     GeneralLedgerComponent,
     FinancialReportComponent,
     ArAgingReportComponent,
@@ -112,6 +114,7 @@ export class AccountingShellComponent implements OnInit, OnDestroy {
   @ViewChild('bankActivitiesMenuTrigger') bankActivitiesMenuTrigger?: MatMenuTrigger;
   @ViewChild('ownersMenuTrigger') ownersMenuTrigger?: MatMenuTrigger;
   @ViewChild('reportsMenuTrigger') reportsMenuTrigger?: MatMenuTrigger;
+  @ViewChild('generalLedgerMenuTrigger') generalLedgerMenuTrigger?: MatMenuTrigger;
 
   private readonly pinnedDateRangeStorageKeyPrefix = 'rentall-accounting-shell-pinned-dates';
   readonly tabBillsReceipts = 1;
@@ -142,11 +145,16 @@ export class AccountingShellComponent implements OnInit, OnDestroy {
     { kind: 'balanceSheet', label: 'Balance Sheet' },
     { kind: 'arAging', label: 'AR Aging' }
   ];
+  readonly shellGeneralLedgerMenuOptions: { kind: AccountingShellGeneralLedgerKind; label: string }[] = [
+    { kind: 'ledger', label: 'General Ledger' },
+    { kind: 'recap', label: 'Journal Entry Recap' }
+  ];
   selectedBillsReceiptKind: AccountingShellBillsReceiptKind = 'bills';
   selectedBankActivityKind: AccountingShellBankActivityKind = 'deposits';
   selectedOwnerKind: AccountingShellOwnerKind = 'utilities';
   selectedOwnerStatementReportKind: OwnerStatementReportKind = 'accrual';
   selectedReportKind: AccountingShellReportKind = 'profitLoss';
+  selectedGeneralLedgerKind: AccountingShellGeneralLedgerKind = 'ledger';
 
   selectedTabIndex = 0;
   isSuperAdmin: boolean = false;
@@ -1556,6 +1564,35 @@ export class AccountingShellComponent implements OnInit, OnDestroy {
     });
   }
 
+  selectGeneralLedgerKind(kind: AccountingShellGeneralLedgerKind): void {
+    this.generalLedgerMenuTrigger?.closeMenu();
+    const previousTab = this.selectedTabIndex;
+    const kindChanged = this.selectedGeneralLedgerKind !== kind;
+
+    if (kindChanged) {
+      this.onGeneralLedgerBack();
+      if (kind === 'recap') {
+        this.selectedChartOfAccountId = null;
+      }
+    }
+
+    this.selectedGeneralLedgerKind = kind;
+
+    if (previousTab !== this.tabGeneralLedger) {
+      this.onTabChange({ index: this.tabGeneralLedger });
+      return;
+    }
+
+    if (kindChanged) {
+      this.generalLedgerRefreshTrigger++;
+      this.router.navigate([], {
+        relativeTo: this.route,
+        queryParams: this.buildShellQueryParams({ glView: kind }),
+        queryParamsHandling: 'merge'
+      });
+    }
+  }
+
   selectReport(kind: AccountingShellReportKind): void {
     this.reportsMenuTrigger?.closeMenu();
     const previousTab = this.selectedTabIndex;
@@ -2064,6 +2101,9 @@ export class AccountingShellComponent implements OnInit, OnDestroy {
     if (activeTabIndex !== this.tabReports) {
       this.selectedReportKind = 'profitLoss';
     }
+    if (activeTabIndex !== this.tabGeneralLedger) {
+      this.selectedGeneralLedgerKind = 'ledger';
+    }
   }
 
   get isBillsReceiptDetailActive(): boolean {
@@ -2127,6 +2167,10 @@ export class AccountingShellComponent implements OnInit, OnDestroy {
 
   usesGeneralLedgerTitleBarFilters(): boolean {
     return this.selectedTabIndex === this.tabGeneralLedger;
+  }
+
+  get showGeneralLedgerChartOfAccountFilter(): boolean {
+    return this.usesGeneralLedgerTitleBarFilters() && this.selectedGeneralLedgerKind === 'ledger';
   }
 
   usesReportTitleBarFilters(): boolean {
@@ -2251,6 +2295,8 @@ export class AccountingShellComponent implements OnInit, OnDestroy {
         tabIndex = this.tabBankActivities;
       } else if ('ownerKind' in params) {
         tabIndex = this.tabOwners;
+      } else if ('glView' in params) {
+        tabIndex = this.tabGeneralLedger;
       } else if (tabIndex === 7) {
         tabIndex = this.tabGeneralLedger;
       } else if (tabIndex === 6) {
@@ -2309,6 +2355,13 @@ export class AccountingShellComponent implements OnInit, OnDestroy {
       const report = params['report'];
       if (report === 'profitLoss' || report === 'balanceSheet' || report === 'arAging') {
         this.selectedReportKind = report;
+      }
+    }
+
+    if ('glView' in params) {
+      const glView = params['glView'];
+      if (glView === 'ledger' || glView === 'recap') {
+        this.selectedGeneralLedgerKind = glView;
       }
     }
 
@@ -2598,6 +2651,7 @@ export class AccountingShellComponent implements OnInit, OnDestroy {
         ? this.selectedOwnerStatementReportKind
         : null,
       report: this.selectedTabIndex === this.tabReports ? this.selectedReportKind : null,
+      glView: this.selectedTabIndex === this.tabGeneralLedger ? this.selectedGeneralLedgerKind : null,
       reportClass: this.usesFinancialReportTitleBarFilters()
         ? String(this.selectedFinancialReportClass)
         : null,
