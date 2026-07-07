@@ -22,6 +22,9 @@ export type OwnerReportJournalEntryLineSelection = OwnerStatementJournalEntryLin
 /** Body for POST report/owner-cash/search — matches API GetOwnerCashReportDto. */
 export type OwnerCashReportSearchRequest = OwnerStatementSearchRequest;
 
+/** Body for POST report/owner-accrual/search — matches API GetOwnerAccrualReportDto. */
+export type OwnerAccrualReportSearchRequest = OwnerStatementSearchRequest;
+
 export interface OwnerCashReportRowResponse {
   propertyId: string;
   officeId: number;
@@ -39,5 +42,25 @@ export interface OwnerCashReportRowResponse {
 
 export interface OwnerCashReportResponse {
   rows: OwnerCashReportRowResponse[];
+  propertyActivityLines: OwnerReportPropertyActivityLineResponse[];
+}
+
+export interface OwnerAccrualReportRowResponse {
+  propertyId: string;
+  officeId: number;
+  officeName: string;
+  ownerId?: string | null;
+  propertyCode: string;
+  ownerName: string;
+  invoicedIncome: number;
+  prepaidIncome: number;
+  paidIncome: number;
+  unpaidIncome: number;
+  ownerExpenses: number;
+  ownerProfit: number;
+}
+
+export interface OwnerAccrualReportResponse {
+  rows: OwnerAccrualReportRowResponse[];
   propertyActivityLines: OwnerReportPropertyActivityLineResponse[];
 }

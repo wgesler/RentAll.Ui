@@ -116,7 +116,9 @@ export class OwnerReportComponent implements OnInit, OnChanges, OnDestroy {
       ? this.reportService.searchOwnerCashReport(request).pipe(
           map(report => this.mappingService.mapOwnerCashReportToOwnerReportSearchResponse(report))
         )
-      : this.ownerReportService.searchOwnerReports(request);
+      : this.reportService.searchOwnerAccrualReport(request).pipe(
+          map(report => this.mappingService.mapOwnerAccrualReportToOwnerReportSearchResponse(report))
+        );
 
     search$.pipe(take(1), finalize(() => this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'ownerReports'))).subscribe({
       next: response => {
@@ -265,6 +267,47 @@ export class OwnerReportComponent implements OnInit, OnChanges, OnDestroy {
         }
 
         activityRows.forEach(activity => {
+          if (this.reportKind === 'accrual') {
+            rows.push({
+              rowId: activity.rowId,
+              kind: 'propertyActivity',
+              depth: 2,
+              officeId: office.officeId,
+              propertyId: property.propertyId,
+              primaryLabel: activity.accountingPeriod || activity.activityDate,
+              propertyCode: property.propertyCode || '',
+              itemDescription: activity.description,
+              activityCode: activity.documentCode,
+              expected: activity.expectedIncome,
+              expectedValue: activity.expectedIncomeValue,
+              prePaid: activity.ownerPayment || '',
+              prePaidValue: activity.prePaidValue,
+              paidIncome: activity.receivedIncome,
+              paidIncomeValue: activity.paidIncomeValue,
+              outstanding: this.formatter.currencyUsd(activity.unpaidValue),
+              outstandingValue: activity.unpaidValue,
+              income: activity.receivedIncome,
+              incomeValue: activity.paidIncomeValue,
+              expenses: activity.expenses,
+              expensesValue: activity.expensesValue,
+              balance: this.formatter.currencyUsd(activity.ownerProfitValue),
+              balanceValue: activity.ownerProfitValue,
+              startingBalance: '',
+              startingBalanceValue: 0,
+              workingCapital: '',
+              workingCapitalValue: 0,
+              workingCapitalBalanceDue: this.formatter.currencyUsd(activity.ownerProfitValue),
+              workingCapitalBalanceDueValue: activity.ownerProfitValue,
+              ownerPayment: '',
+              ownerPaymentValue: 0,
+              endingBalance: '',
+              endingBalanceValue: 0,
+              expandable: false,
+              expanded: false
+            });
+            return;
+          }
+
           rows.push({
             rowId: activity.rowId,
             kind: 'propertyActivity',
@@ -599,12 +642,12 @@ export class OwnerReportComponent implements OnInit, OnChanges, OnDestroy {
   }
 
   getAllOfficeRowsExpandIcon(): string {
-    return this.areAllOfficeRowsExpanded ? 'expand_less' : 'expand_more';
+    return this.areAllOfficeRowsExpanded ? 'expand_more' : 'expand_less';
   }
 
   getRowExpandIcon(row: OwnerReportVisibleRow): string {
     if (row.kind === 'property') {
-      return row.expanded ? 'expand_more' : 'expand_less';
+      return row.expanded ? 'expand_less' : 'expand_more';
     }
 
     if (row.kind !== 'office') {
@@ -612,7 +655,7 @@ export class OwnerReportComponent implements OnInit, OnChanges, OnDestroy {
     }
 
     if (!row.expanded) {
-      return 'expand_more';
+      return 'expand_less';
     }
 
     if (this.hasExpandedPropertyRowsForOfficeRow(row.rowId)) {
@@ -620,7 +663,7 @@ export class OwnerReportComponent implements OnInit, OnChanges, OnDestroy {
     }
 
     if (this.officeReadyToCloseRowIds.has(row.rowId)) {
-      return 'expand_less';
+      return 'expand_more';
     }
 
     return 'chevron_right';

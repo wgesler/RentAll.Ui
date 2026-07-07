@@ -148,6 +148,7 @@ export interface OwnerStatementPropertyActivityLineResponse {
   journalEntryLineId?: string | null;
   activityType: string;
   activityDate: string;
+  accountingPeriod?: string;
   documentCode: string;
   description: string;
   expectedIncome: number;
@@ -269,12 +270,19 @@ export interface OwnerStatementPropertyActivityLineDisplay {
   journalEntryLineId: string | null;
   activityType: string;
   activityDate: string;
+  accountingPeriod: string;
   documentCode: string;
   description: string;
   expectedIncome: string;
   receivedIncome: string;
   expenses: string;
   ownerPayment?: string;
+  expectedIncomeValue: number;
+  paidIncomeValue: number;
+  prePaidValue: number;
+  expensesValue: number;
+  unpaidValue: number;
+  ownerProfitValue: number;
 }
 
 export interface OwnerStatementDescriptionSegment {

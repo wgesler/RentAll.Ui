@@ -7,7 +7,7 @@ import { CostCodesListDisplay, CostCodesRequest, CostCodesResponse } from '../au
 import { InvoiceResponse, LedgerLineListDisplay, LedgerLineResponse } from '../authenticated/accounting/models/invoice.model';
 import { JournalEntryLineDetailDisplay, JournalEntryLineListDisplay, JournalEntryLineResponse, JournalEntryLineSearchResponse, JournalEntryRecapRowDisplay, JournalEntryResponse, RecapReportResponse } from '../authenticated/accounting/models/journal-entry.model';
 import { OwnerStatementListDisplay, OwnerStatementMonthLineListDisplay, OwnerStatementMonthLineResponse, OwnerStatementMonthLineSearchRequest, OwnerStatementOfficeGroup, OwnerStatementPropertyActivityLineDisplay, OwnerStatementPropertyActivityLineResponse, OwnerStatementPropertyRow, OwnerStatementResponse, OwnerStatementSearchRequest, OwnerStatementSearchResponse, OwnerStatementVisibleRow } from '../authenticated/accounting/models/owner-statement.model';
-import { OwnerCashReportResponse, OwnerCashReportRowResponse } from '../authenticated/accounting/models/owner-report.model';
+import { OwnerAccrualReportResponse, OwnerAccrualReportRowResponse, OwnerCashReportResponse, OwnerCashReportRowResponse } from '../authenticated/accounting/models/owner-report.model';
 import { RentRollPropertyAgreement, RentRollRow } from '../authenticated/accounting/models/rent-roll.model';
 import { EntityType, getEntityType } from '../authenticated/contacts/models/contact-enum';
 import { ContactListDisplay, ContactRequest, ContactResponse } from '../authenticated/contacts/models/contact.model';
@@ -1980,6 +1980,7 @@ export class MappingService {
       journalEntryLineId: String(raw['journalEntryLineId'] ?? raw['JournalEntryLineId'] ?? '').trim() || null,
       activityType: String(raw['activityType'] ?? raw['ActivityType'] ?? ''),
       activityDate: this.utility.coerceCalendarDateStringFromApi(raw['activityDate'] ?? raw['ActivityDate']) ?? '',
+      accountingPeriod: String(raw['accountingPeriod'] ?? raw['AccountingPeriod'] ?? '').trim(),
       documentCode: String(raw['documentCode'] ?? raw['DocumentCode'] ?? ''),
       description: String(raw['description'] ?? raw['Description'] ?? ''),
       expectedIncome: Number(raw['expectedIncome'] ?? raw['ExpectedIncome'] ?? 0),
@@ -2010,6 +2011,62 @@ export class MappingService {
         workingCapitalBalanceDue: row.receivedIncome - row.ownerExpenses,
         ownerPayment: row.ownerPayment,
         endingBalance: row.endingBalance
+      })),
+      propertyActivityLines: report.propertyActivityLines ?? []
+    };
+  }
+
+  mapOwnerAccrualReportResponse(raw: Record<string, unknown>): OwnerAccrualReportResponse {
+    const rowsRaw = raw['rows'] ?? raw['Rows'] ?? [];
+    const activityLinesRaw = raw['propertyActivityLines'] ?? raw['PropertyActivityLines'] ?? [];
+    const rows = Array.isArray(rowsRaw)
+      ? rowsRaw.map(row => this.mapOwnerAccrualReportRow(row as Record<string, unknown>))
+      : [];
+    const propertyActivityLines = Array.isArray(activityLinesRaw)
+      ? activityLinesRaw.map(line => this.mapOwnerCashReportPropertyActivityLine(line as Record<string, unknown>))
+      : [];
+
+    return { rows, propertyActivityLines };
+  }
+
+  mapOwnerAccrualReportRow(raw: Record<string, unknown>): OwnerAccrualReportRowResponse {
+    return {
+      propertyId: String(raw['propertyId'] ?? raw['PropertyId'] ?? '').trim(),
+      officeId: Number(raw['officeId'] ?? raw['OfficeId'] ?? 0),
+      officeName: String(raw['officeName'] ?? raw['OfficeName'] ?? ''),
+      ownerId: String(raw['ownerId'] ?? raw['OwnerId'] ?? '').trim() || null,
+      propertyCode: String(raw['propertyCode'] ?? raw['PropertyCode'] ?? ''),
+      ownerName: String(raw['ownerName'] ?? raw['OwnerName'] ?? ''),
+      invoicedIncome: Number(raw['invoicedIncome'] ?? raw['InvoicedIncome'] ?? 0),
+      prepaidIncome: Number(raw['prepaidIncome'] ?? raw['PrepaidIncome'] ?? 0),
+      paidIncome: Number(raw['paidIncome'] ?? raw['PaidIncome'] ?? 0),
+      unpaidIncome: Number(raw['unpaidIncome'] ?? raw['UnpaidIncome'] ?? 0),
+      ownerExpenses: Number(raw['ownerExpenses'] ?? raw['OwnerExpenses'] ?? 0),
+      ownerProfit: Number(raw['ownerProfit'] ?? raw['OwnerProfit'] ?? 0)
+    };
+  }
+
+  mapOwnerAccrualReportToOwnerReportSearchResponse(report: OwnerAccrualReportResponse): OwnerStatementSearchResponse {
+    return {
+      summaries: (report.rows ?? []).map(row => ({
+        officeId: row.officeId,
+        officeName: row.officeName,
+        ownerId: row.ownerId ?? null,
+        propertyId: row.propertyId,
+        propertyCode: row.propertyCode,
+        ownerName: row.ownerName,
+        expected: row.invoicedIncome,
+        prePaid: row.prepaidIncome,
+        paidIncome: row.paidIncome,
+        outstanding: row.unpaidIncome,
+        income: row.paidIncome,
+        expenses: row.ownerExpenses,
+        balance: row.ownerProfit,
+        startingBalance: 0,
+        workingCapital: 0,
+        workingCapitalBalanceDue: row.ownerProfit,
+        ownerPayment: 0,
+        endingBalance: 0
       })),
       propertyActivityLines: report.propertyActivityLines ?? []
     };
@@ -2072,20 +2129,36 @@ export class MappingService {
   }
 
   mapOwnerReportPropertyActivityDisplays(propertyRowId: string, lines: OwnerStatementPropertyActivityLineResponse[]): OwnerStatementPropertyActivityLineDisplay[] {
-    return (lines || []).map((line, index) => ({
-      rowId: `${propertyRowId}:activity:${index}`,
-      activityId: (line.activityId || '').trim() || null,
-      sourceId: (line.sourceId || '').trim() || null,
-      journalEntryLineId: (line.journalEntryLineId || '').trim() || null,
-      activityType: line.activityType || '',
-      activityDate: this.formatOwnerReportMonthDay(line.activityDate),
-      documentCode: line.documentCode || '',
-      description: line.description || '',
-      expectedIncome: this.formatter.currencyUsd(Number(line.expectedIncome) || 0),
-      receivedIncome: this.formatter.currencyUsd(Number(line.receivedIncome) || 0),
-      expenses: this.formatter.currencyUsd(Number(line.expenses) || 0),
-      ownerPayment: this.formatter.currencyUsd(Number(line.ownerPayment) || 0)
-    }));
+    return (lines || []).map((line, index) => {
+      const expectedIncomeValue = Number(line.expectedIncome) || 0;
+      const paidIncomeValue = Number(line.receivedIncome) || 0;
+      const prePaidValue = Number(line.ownerPayment) || 0;
+      const expensesValue = Number(line.expenses) || 0;
+      const unpaidValue = expectedIncomeValue - paidIncomeValue;
+      const ownerProfitValue = paidIncomeValue - expensesValue;
+
+      return {
+        rowId: `${propertyRowId}:activity:${index}`,
+        activityId: (line.activityId || '').trim() || null,
+        sourceId: (line.sourceId || '').trim() || null,
+        journalEntryLineId: (line.journalEntryLineId || '').trim() || null,
+        activityType: line.activityType || '',
+        activityDate: this.formatOwnerReportMonthDay(line.activityDate),
+        accountingPeriod: (line.accountingPeriod || '').trim() || this.formatOwnerReportMonthDay(line.activityDate),
+        documentCode: line.documentCode || '',
+        description: line.description || '',
+        expectedIncome: this.formatter.currencyUsd(expectedIncomeValue),
+        receivedIncome: this.formatter.currencyUsd(paidIncomeValue),
+        expenses: this.formatter.currencyUsd(expensesValue),
+        ownerPayment: this.formatter.currencyUsd(prePaidValue),
+        expectedIncomeValue,
+        paidIncomeValue,
+        prePaidValue,
+        expensesValue,
+        unpaidValue,
+        ownerProfitValue
+      };
+    });
   }
 
   mapOwnerReportPropertyActivityByPropertyRowId(
@@ -2116,7 +2189,8 @@ export class MappingService {
         if (reportKind === 'cash') {
           return receivedIncome !== 0 || ownerPayment !== 0 || expenses !== 0;
         }
-        return expectedIncome !== 0 || expenses !== 0;
+
+        return true;
       });
       if (filteredLines.length === 0) {
         return;
@@ -2188,6 +2262,37 @@ export class MappingService {
       startDate: searchRequest?.startDate ?? null,
       endDate: searchRequest?.endDate ?? null
     };
+  }
+
+  mapOwnerCashReportToMonthLines(report: OwnerCashReportResponse, request: OwnerStatementMonthLineSearchRequest): OwnerStatementMonthLineResponse[] {
+    const monthDate = request.endDate ?? request.startDate ?? '';
+    return (report.rows ?? []).map(row => {
+      const ownerId = (row.ownerId || '').trim();
+      const propertyId = (row.propertyId || '').trim();
+      const ownerStatementLineId = [row.officeId, ownerId, propertyId, monthDate].join('|');
+      return {
+        ownerStatementLineId,
+        officeId: row.officeId,
+        officeName: row.officeName,
+        ownerId,
+        ownerName: row.ownerName,
+        propertyId,
+        propertyCode: row.propertyCode,
+        monthDate,
+        expected: 0,
+        prePaid: 0,
+        paidIncome: 0,
+        outstanding: 0,
+        startingBalance: row.startingBalance,
+        income: row.receivedIncome,
+        expenses: row.ownerExpenses,
+        balance: row.receivedIncome - row.ownerExpenses,
+        ownerPayment: row.ownerPayment,
+        endingBalance: row.endingBalance,
+        workingCapital: row.workingCapital,
+        workingCapitalBalanceDue: row.receivedIncome - row.ownerExpenses
+      };
+    });
   }
 
   mapOwnerStatementMonthLineDisplays(rows: OwnerStatementMonthLineResponse[]): OwnerStatementMonthLineListDisplay[] {

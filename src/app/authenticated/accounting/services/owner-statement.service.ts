@@ -1,9 +1,11 @@
 import { HttpClient } from '@angular/common/http';
 import { Injectable } from '@angular/core';
-import { catchError, map, Observable } from 'rxjs';
+import { map, Observable } from 'rxjs';
 import { ConfigService } from '../../../services/config.service';
-import { OwnerStatementJournalEntryLineResponse, OwnerStatementJournalEntryLineSearchRequest, OwnerStatementMonthLineResponse, OwnerStatementMonthLineSearchRequest, OwnerStatementPropertyActivityLineResponse, OwnerStatementPropertyActivityLineSearchRequest, OwnerStatementResponse, OwnerStatementSearchRequest, OwnerStatementSearchResponse, OwnerStatementStartingBalanceRequest, OwnerStatementStartingBalanceResponse } from '../models/owner-statement.model';
+import { MappingService } from '../../../services/mapping.service';
+import { OwnerStatementJournalEntryLineResponse, OwnerStatementJournalEntryLineSearchRequest, OwnerStatementMonthLineResponse, OwnerStatementMonthLineSearchRequest, OwnerStatementPropertyActivityLineResponse, OwnerStatementPropertyActivityLineSearchRequest, OwnerStatementStartingBalanceRequest, OwnerStatementStartingBalanceResponse } from '../models/owner-statement.model';
 import { JournalEntryResponse } from '../models/journal-entry.model';
+import { ReportService } from './report.service';
 
 @Injectable({
   providedIn: 'root'
@@ -11,26 +13,12 @@ import { JournalEntryResponse } from '../models/journal-entry.model';
 export class OwnerStatementService {
   private readonly controller = this.configService.config().apiUrl + 'accounting/';
 
-  constructor(private http: HttpClient, private configService: ConfigService) {}
-
-  searchOwnerStatements(request: OwnerStatementSearchRequest): Observable<OwnerStatementSearchResponse> {
-    const officeIds = (request.officeIds ?? []).filter(id => id > 0);
-    if (officeIds.length === 0) {
-      throw new Error('At least one office ID is required to search owner statements.');
-    }
-
-    return this.http.post<OwnerStatementSearchResponse>(`${this.controller}owner-statement/search`, {
-      officeIds,
-      propertyId: request.propertyId ?? null,
-      startDate: request.startDate ?? null,
-      endDate: request.endDate ?? null
-    }).pipe(
-      map(response => ({
-        summaries: response?.summaries ?? [],
-        propertyActivityLines: response?.propertyActivityLines ?? []
-      }))
-    );
-  }
+  constructor(
+    private http: HttpClient,
+    private configService: ConfigService,
+    private reportService: ReportService,
+    private mappingService: MappingService
+  ) {}
 
   searchOwnerStatementMonthLines(request: OwnerStatementMonthLineSearchRequest): Observable<OwnerStatementMonthLineResponse[]> {
     const officeIds = (request.officeIds ?? []).filter(id => id > 0);
@@ -38,41 +26,13 @@ export class OwnerStatementService {
       throw new Error('At least one office ID is required to search owner statement month lines.');
     }
 
-    return this.http.post<OwnerStatementMonthLineResponse[]>(`${this.controller}owner-statement/month-line/search`, {
+    return this.reportService.searchOwnerCashReport({
       officeIds,
       propertyId: request.propertyId ?? null,
       startDate: request.startDate ?? null,
       endDate: request.endDate ?? null
     }).pipe(
-      map(rows => rows ?? []),
-      catchError(() =>
-        this.searchOwnerStatements(request).pipe(
-          map(response => this.mapOwnerStatementsToMonthLines(response.summaries, request))
-        )
-      )
-    );
-  }
-
-  searchOwnerStatementJournalEntryLines(request: OwnerStatementJournalEntryLineSearchRequest): Observable<OwnerStatementJournalEntryLineResponse[]> {
-    const officeIds = (request.officeIds ?? []).filter(id => id > 0);
-    if (officeIds.length === 0) {
-      throw new Error('At least one office ID is required to search owner statement journal entry lines.');
-    }
-
-    const ownerId = (request.ownerId || '').trim();
-    if (!ownerId) {
-      throw new Error('OwnerId is required to search owner statement journal entry lines.');
-    }
-
-    return this.http.post<OwnerStatementJournalEntryLineResponse[]>(`${this.controller}owner-statement/line/search`, {
-      officeIds,
-      ownerId,
-      propertyId: request.propertyId ?? null,
-      metric: request.metric,
-      startDate: request.startDate ?? null,
-      endDate: request.endDate ?? null
-    }).pipe(
-      map(rows => rows ?? [])
+      map(report => this.mappingService.mapOwnerCashReportToMonthLines(report, request))
     );
   }
 
@@ -87,13 +47,13 @@ export class OwnerStatementService {
       throw new Error('PropertyId is required to search owner statement property activity lines.');
     }
 
-    return this.http.post<OwnerStatementPropertyActivityLineResponse[]>(`${this.controller}owner-statement/property-line/search`, {
+    return this.reportService.searchOwnerCashReport({
       officeIds,
       propertyId,
       startDate: request.startDate ?? null,
       endDate: request.endDate ?? null
     }).pipe(
-      map(rows => rows ?? [])
+      map(report => (report.propertyActivityLines ?? []).filter(line => (line.propertyId || '').trim() === propertyId))
     );
   }
 
@@ -126,37 +86,6 @@ export class OwnerStatementService {
       officeId,
       ownerId: ownerIdTrimmed,
       propertyId: propertyIdTrimmed
-    });
-  }
-
-  private mapOwnerStatementsToMonthLines(rows: OwnerStatementResponse[], request: OwnerStatementMonthLineSearchRequest): OwnerStatementMonthLineResponse[] {
-    const monthDate = request.endDate ?? request.startDate ?? '';
-    return (rows || []).map(row => {
-      const ownerId = (row.ownerId || '').trim();
-      const propertyId = (row.propertyId || '').trim();
-      const ownerStatementLineId = [row.officeId, ownerId, propertyId, monthDate].join('|');
-      return {
-        ownerStatementLineId,
-        officeId: row.officeId,
-        officeName: row.officeName,
-        ownerId,
-        ownerName: row.ownerName,
-        propertyId,
-        propertyCode: row.propertyCode,
-        monthDate,
-        expected: row.expected,
-        prePaid: row.prePaid,
-        paidIncome: row.paidIncome,
-        outstanding: row.outstanding,
-        startingBalance: row.startingBalance,
-        income: row.income,
-        expenses: row.expenses,
-        balance: row.balance,
-        ownerPayment: row.ownerPayment,
-        endingBalance: row.endingBalance,
-        workingCapital: row.workingCapital,
-        workingCapitalBalanceDue: row.workingCapitalBalanceDue
-      };
     });
   }
 }
