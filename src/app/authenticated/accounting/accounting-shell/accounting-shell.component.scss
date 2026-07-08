@@ -204,6 +204,38 @@ mat-card {
   }
 }
 
+.accounting-shell-owner-report-go-btn {
+  margin-top: -4px;
+  flex-shrink: 0;
+  width: 40px;
+  height: 40px;
+  line-height: 40px;
+}
+
+.accounting-shell-owner-report-go-content {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  line-height: 1;
+  transform: translateY(-4px);
+}
+
+.accounting-shell-owner-report-go-label {
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  transform: translateY(-1px);
+}
+
+.accounting-shell-owner-report-go-arrow {
+  width: 0.95rem;
+  height: 0.95rem;
+  font-size: 0.95rem;
+  font-weight: 700;
+  margin-top: -1px;
+}
+
 .accounting-shell-titlebar-filters .accounting-shell-titlebar-dates {
   margin-left: 0;
   padding-left: 0;

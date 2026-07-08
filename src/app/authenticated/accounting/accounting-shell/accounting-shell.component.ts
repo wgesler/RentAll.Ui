@@ -1008,9 +1008,11 @@ export class AccountingShellComponent implements OnInit, OnDestroy {
     this.printChecksRefreshTrigger++;
     this.transferReportRefreshTrigger++;
     this.ownersUtilitiesRefreshTrigger++;
-    if (this.selectedTabIndex === this.tabOwners && this.isOwnerReportView(this.selectedOwnerKind)) {
-      this.ownersStatementsRefreshTrigger++;
-      if (this.showOwnerStatementJournalEntryLines) {
+    if (this.selectedTabIndex === this.tabOwners) {
+      if (this.selectedOwnerKind === 'ownerStatements') {
+        this.ownersStatementsRefreshTrigger++;
+      }
+      if (this.isOwnerReportView(this.selectedOwnerKind) && this.showOwnerStatementJournalEntryLines) {
         this.ownerStatementJournalEntryLinesRefreshTrigger++;
       }
     }
@@ -1118,7 +1120,9 @@ export class AccountingShellComponent implements OnInit, OnDestroy {
       this.ownerStatementReturnAfterUtilityDetail = false;
       this.selectedTabIndex = this.tabOwners;
       this.selectedOwnerKind = this.ownerStatementReturnOwnerKind;
-      this.ownersStatementsRefreshTrigger++;
+      if (this.selectedOwnerKind === 'ownerStatements') {
+        this.ownersStatementsRefreshTrigger++;
+      }
     }
   }
 
@@ -1126,7 +1130,9 @@ export class AccountingShellComponent implements OnInit, OnDestroy {
     const returnToStatements = this.ownerStatementReturnAfterUtilityDetail;
     this.onOwnersUtilityReceiptBack();
     if (returnToStatements) {
-      this.ownersStatementsRefreshTrigger++;
+      if (this.selectedOwnerKind === 'ownerStatements') {
+        this.ownersStatementsRefreshTrigger++;
+      }
     } else {
       this.ownersUtilitiesRefreshTrigger++;
     }
@@ -1179,7 +1185,9 @@ export class AccountingShellComponent implements OnInit, OnDestroy {
       this.ownerStatementReturnAfterWorkOrderDetail = false;
       this.selectedTabIndex = this.tabOwners;
       this.selectedOwnerKind = this.ownerStatementReturnOwnerKind;
-      this.ownersStatementsRefreshTrigger++;
+      if (this.selectedOwnerKind === 'ownerStatements') {
+        this.ownersStatementsRefreshTrigger++;
+      }
     }
   }
 
@@ -1187,7 +1195,9 @@ export class AccountingShellComponent implements OnInit, OnDestroy {
     const returnToStatements = this.ownerStatementReturnAfterWorkOrderDetail;
     this.onOwnersWorkOrderBack();
     if (returnToStatements) {
-      this.ownersStatementsRefreshTrigger++;
+      if (this.selectedOwnerKind === 'ownerStatements') {
+        this.ownersStatementsRefreshTrigger++;
+      }
     } else {
       this.ownersWorkOrdersRefreshTrigger++;
     }
@@ -1654,6 +1664,17 @@ export class AccountingShellComponent implements OnInit, OnDestroy {
       this.ownersUtilitiesRefreshTrigger++;
       return;
     }
+    if (this.isOwnerReportView(this.selectedOwnerKind)) {
+      return;
+    }
+    this.ownersStatementsRefreshTrigger++;
+  }
+
+  onOwnerReportGoClick(): void {
+    if (!this.showOwnerReportGoButton) {
+      return;
+    }
+    this.syncBillsSearchRequest();
     this.ownersStatementsRefreshTrigger++;
   }
   //#endregion
@@ -2171,6 +2192,10 @@ export class AccountingShellComponent implements OnInit, OnDestroy {
     return this.isOwnerReportView(this.selectedOwnerKind);
   }
 
+  get showOwnerReportGoButton(): boolean {
+    return this.selectedTabIndex === this.tabOwners && this.isOwnerReportView(this.selectedOwnerKind);
+  }
+
   isOwnerReportView(kind: AccountingShellOwnerKind): boolean {
     return kind === 'ownerAccrualReport' || kind === 'ownerCashReport';
   }
@@ -2516,7 +2541,9 @@ export class AccountingShellComponent implements OnInit, OnDestroy {
             this.transferReportRefreshTrigger++;
             this.ownersUtilitiesRefreshTrigger++;
             this.ownersWorkOrdersRefreshTrigger++;
-            this.ownersStatementsRefreshTrigger++;
+            if (this.selectedTabIndex === this.tabOwners && this.selectedOwnerKind === 'ownerStatements') {
+              this.ownersStatementsRefreshTrigger++;
+            }
             if (this.selectedTabIndex === this.tabOwners && this.isOwnerReportView(this.selectedOwnerKind) && this.showOwnerStatementJournalEntryLines) {
               this.ownerStatementJournalEntryLinesRefreshTrigger++;
             }
@@ -2722,7 +2749,9 @@ export class AccountingShellComponent implements OnInit, OnDestroy {
       this.activeInvoiceId = null;
       this.selectedTabIndex = this.tabOwners;
       this.selectedOwnerKind = this.ownerStatementReturnOwnerKind;
-      this.ownersStatementsRefreshTrigger++;
+      if (this.selectedOwnerKind === 'ownerStatements') {
+        this.ownersStatementsRefreshTrigger++;
+      }
       this.router.navigate([], {
         relativeTo: this.route,
         queryParams: this.buildShellQueryParams({

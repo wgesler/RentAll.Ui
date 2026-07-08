@@ -362,6 +362,21 @@
               (click)="toggleDateRangePin()">
               <mat-icon>push_pin</mat-icon>
             </button>
+            @if (showOwnerReportGoButton) {
+              <button
+                mat-mini-fab
+                type="button"
+                color="primary"
+                class="accounting-shell-owner-report-go-btn"
+                (click)="onOwnerReportGoClick()"
+                aria-label="Run owner report"
+                matTooltip="Run report">
+                <span class="accounting-shell-owner-report-go-content">
+                  <span class="accounting-shell-owner-report-go-label">Go</span>
+                  <mat-icon class="accounting-shell-owner-report-go-arrow">arrow_forward</mat-icon>
+                </span>
+              </button>
+            }
           </div>
         </ng-template>
       </div>

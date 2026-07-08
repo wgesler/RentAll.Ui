@@ -11,6 +11,17 @@ import { OwnerReportActivityLinkSelection, OwnerReportAmountDrillDownSelection, 
 import { OwnerReportService } from '../services/owner-report.service';
 import { ReportService } from '../services/report.service';
 
+interface OwnerReportKindCache {
+  ownerReports: OwnerReportResponse[];
+  propertyActivityLinesRaw: OwnerReportPropertyActivityLineResponse[];
+  expandedRowIds: string[];
+  officeReadyToCloseRowIds: string[];
+  isServiceError: boolean;
+  viewState: OwnerReportListViewState | null;
+}
+
+const ownerReportKindCache = new Map<OwnerReportKind, OwnerReportKindCache>();
+
 @Component({
   selector: 'app-owner-report',
   standalone: true,
@@ -42,7 +53,7 @@ export class OwnerReportComponent implements OnInit, OnChanges, OnDestroy {
   private propertyActivityLinesRaw: OwnerReportPropertyActivityLineResponse[] = [];
   ownerReportFixedHeightPx = 0;
   dimensionsUpdateScheduled = false;
-  itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['ownerReports']));
+  itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set());
   destroy$ = new Subject<void>();
 
   constructor(
@@ -62,26 +73,78 @@ export class OwnerReportComponent implements OnInit, OnChanges, OnDestroy {
       this.markViewForCheck();
     });
     this.loadOrganization();
-    this.loadOwnerReports();
+    this.restoreOwnerReportCache(this.reportKind);
   }
 
   ngOnChanges(changes: SimpleChanges): void {
-    if (changes['searchRequest'] && !changes['searchRequest'].firstChange) {
-      this.loadOwnerReports();
-    }
-
     if (changes['refreshTrigger'] && !changes['refreshTrigger'].firstChange) {
       this.loadOwnerReports();
     }
 
     if (changes['reportKind'] && !changes['reportKind'].firstChange) {
-      this.loadOwnerReports();
-      return;
+      const previousKind = changes['reportKind'].previousValue as OwnerReportKind;
+      this.persistOwnerReportCache(previousKind);
+      this.restoreOwnerReportCache(this.reportKind);
     }
   }
   //#endregion
 
   //#region Data Loading Methods
+  clearOwnerReportData(): void {
+    this.ownerReports = [];
+    this.ownerReportOfficeGroups = [];
+    this.visibleRows = [];
+    this.expandedRowIds.clear();
+    this.officeReadyToCloseRowIds.clear();
+    this.noActivityPropertyRowIds.clear();
+    this.clearPropertyActivityState();
+    this.isServiceError = false;
+    this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'ownerReports');
+    this.markViewForCheck();
+  }
+
+  persistOwnerReportCache(kind: OwnerReportKind): void {
+    if (!ownerReportKindCache.has(kind)) {
+      return;
+    }
+
+    this.writeOwnerReportCache(kind);
+  }
+
+  writeOwnerReportCache(kind: OwnerReportKind): void {
+    ownerReportKindCache.set(kind, {
+      ownerReports: [...this.ownerReports],
+      propertyActivityLinesRaw: [...this.propertyActivityLinesRaw],
+      expandedRowIds: Array.from(this.expandedRowIds),
+      officeReadyToCloseRowIds: Array.from(this.officeReadyToCloseRowIds),
+      isServiceError: this.isServiceError,
+      viewState: {
+        expandedRowIds: Array.from(this.expandedRowIds)
+      }
+    });
+  }
+
+  restoreOwnerReportCache(kind: OwnerReportKind): void {
+    const cached = ownerReportKindCache.get(kind);
+    if (!cached) {
+      this.clearOwnerReportData();
+      return;
+    }
+
+    this.ownerReports = [...cached.ownerReports];
+    this.ownerReportOfficeGroups = this.mappingService.mapOwnerReportOfficeGroups(this.ownerReports);
+    this.propertyActivityLinesRaw = [...cached.propertyActivityLinesRaw];
+    this.applyPropertyActivityLines(this.propertyActivityLinesRaw);
+    this.expandedRowIds = new Set(cached.expandedRowIds);
+    this.officeReadyToCloseRowIds = new Set(cached.officeReadyToCloseRowIds);
+    this.isServiceError = cached.isServiceError;
+    this.restoreViewState(this.ownerReportOfficeGroups, cached.viewState);
+    this.rebuildVisibleRows();
+    this.emitViewStateChange();
+    this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'ownerReports');
+    this.markViewForCheck();
+  }
+
   loadOrganization(): void {
     const cachedOrganization = this.commonService.getOrganizationValue();
     if (cachedOrganization?.name) {
@@ -127,6 +190,7 @@ export class OwnerReportComponent implements OnInit, OnChanges, OnDestroy {
         this.applyPropertyActivityLines(response?.propertyActivityLines || []);
         this.restoreViewState(this.ownerReportOfficeGroups, this.viewState);
         this.rebuildVisibleRows();
+        this.writeOwnerReportCache(this.reportKind);
         this.emitViewStateChange();
         this.markViewForCheck();
       },
@@ -139,6 +203,7 @@ export class OwnerReportComponent implements OnInit, OnChanges, OnDestroy {
         this.officeReadyToCloseRowIds.clear();
         this.noActivityPropertyRowIds.clear();
         this.clearPropertyActivityState();
+        this.writeOwnerReportCache(this.reportKind);
         this.emitViewStateChange();
         this.markViewForCheck();
       }
@@ -731,6 +796,7 @@ export class OwnerReportComponent implements OnInit, OnChanges, OnDestroy {
   }
 
   ngOnDestroy(): void {
+    this.persistOwnerReportCache(this.reportKind);
     this.destroy$.next();
     this.destroy$.complete();
     this.itemsToLoad$.complete();
