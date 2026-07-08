@@ -19,7 +19,9 @@
 
 .owner-statement-layout {
   --owner-report-label-col-width: 8.75rem;
+  --owner-report-description-col-width: 10.5rem;
   --owner-report-amount-col-width: 5.75rem;
+  --owner-report-amount-col-count: 5;
   display: flex;
   justify-content: center;
   width: 100%;
@@ -29,13 +31,16 @@
 }
 
 .owner-statement-layout--accrual {
-  --owner-report-label-col-width: 7.5rem;
-  --owner-report-amount-col-width: 4.15rem;
+  --owner-report-label-col-width: 8rem;
+  --owner-report-description-col-width: 9.5rem;
+  --owner-report-amount-col-width: 5.35rem;
+  --owner-report-amount-col-count: 6;
 }
 
 .owner-statement-layout--cash {
   --owner-report-label-col-width: 9rem;
-  --owner-report-amount-col-width: 5.1rem;
+  --owner-report-description-col-width: 11rem;
+  --owner-report-amount-col-width: 6rem;
 }
 
 .owner-statement-panel {
@@ -106,10 +111,10 @@
 }
 
 .owner-statement-table {
-  width: max-content;
-  min-width: 100%;
+  width: 100%;
+  min-width: 0;
   border-collapse: collapse;
-  table-layout: auto;
+  table-layout: fixed;
   font-size: 0.8125rem;
 }
 
@@ -232,7 +237,7 @@
   cursor: pointer;
   font: inherit;
   font-variant-numeric: tabular-nums;
-  white-space: nowrap;
+  word-break: break-word;
 }
 
 .owner-statement-item-description-link {
@@ -257,9 +262,15 @@
 }
 
 .owner-statement-col-item-description {
-  width: auto;
-  min-width: 0;
+  width: calc(
+    100%
+    - var(--owner-report-label-col-width)
+    - (var(--owner-report-amount-col-width) * var(--owner-report-amount-col-count))
+  );
+  min-width: var(--owner-report-description-col-width);
   white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .owner-statement-table th.owner-statement-col-label,
@@ -269,15 +280,13 @@
 
 .owner-statement-table th.owner-statement-col-item-description,
 .owner-statement-table td.owner-statement-col-item-description {
-  width: auto;
-  min-width: 0;
+  width: calc(
+    100%
+    - var(--owner-report-label-col-width)
+    - (var(--owner-report-amount-col-width) * var(--owner-report-amount-col-count))
+  );
+  min-width: var(--owner-report-description-col-width);
   padding-left: 0.15rem;
-  padding-right: 0.5rem;
-  white-space: nowrap;
-}
-
-.owner-statement-table col.owner-statement-col-item-description {
-  width: auto;
 }
 
 .owner-statement-col-amount {

@@ -28,15 +28,6 @@
           class="owner-statement-table-wrap"
           [style.min-height.px]="ownerReportFixedHeightPx > 0 ? ownerReportFixedHeightPx : null">
           <table class="owner-statement-table">
-            <colgroup>
-              <col class="owner-statement-col-label" />
-              <col class="owner-statement-col-item-description" />
-              @if (reportKind === 'accrual') {
-                <col span="6" class="owner-statement-col-amount" />
-              } @else {
-                <col span="5" class="owner-statement-col-amount" />
-              }
-            </colgroup>
             <thead>
               <tr>
                 <th class="owner-statement-col-label">
