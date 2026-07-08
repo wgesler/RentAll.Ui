@@ -2276,7 +2276,7 @@ export class MappingService {
       const paidIncomeValue = Number(line.receivedIncome) || 0;
       const prePaidValue = Number(line.ownerPayment) || 0;
       const expensesValue = Number(line.expenses) || 0;
-      const unpaidValue = expectedIncomeValue - paidIncomeValue;
+      const unpaidValue = Math.max(0, expectedIncomeValue - paidIncomeValue);
       const ownerProfitValue = paidIncomeValue - expensesValue;
 
       return {
@@ -4326,9 +4326,9 @@ export class MappingService {
       const endMonth = end.toLocaleDateString('en-US', { month: 'long' });
       const endYear = end.getFullYear();
       if (start.getFullYear() !== endYear) {
-        return `${startMonth} ${start.getFullYear()} through ${endMonth} ${endYear}`;
+        return `${startMonth} ${start.getFullYear()} - ${endMonth} ${endYear}`;
       }
-      return `${startMonth} through ${endMonth} ${endYear}`;
+      return `${startMonth} - ${endMonth} ${endYear}`;
     }
     if (end) {
       const endMonth = end.toLocaleDateString('en-US', { month: 'long' });
