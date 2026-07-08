@@ -16,7 +16,9 @@ export interface OwnerStatementResponse {
   ownerId?: string | null;
   propertyId: string;
   propertyCode: string;
-  ownerName: string;
+  companyName?: string | null;
+  ownerNames: string;
+  ownerNameLine: string;
   expected: number;
   prePaid: number;
   paidIncome: number;
@@ -186,7 +188,9 @@ export interface OwnerStatementListDisplay {
 
 export interface OwnerStatementPropertyRow {
   propertyId: string;
-  ownerName: string;
+  companyName?: string | null;
+  ownerNames: string;
+  ownerNameLine: string;
   ownerId: string;
   propertyCode: string;
   expected: number;

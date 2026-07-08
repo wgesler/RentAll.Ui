@@ -227,7 +227,7 @@ export class OwnerReportComponent implements OnInit, OnChanges, OnDestroy {
           propertyId: property.propertyId,
           primaryLabel: property.propertyCode || 'Property',
           propertyCode: property.propertyCode || '',
-          itemDescription: property.ownerName || '',
+          itemDescription: property.ownerNameLine,
           activityCode: '',
           expected: this.formatter.currencyUsd(property.expected),
           expectedValue: property.expected,

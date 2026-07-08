@@ -31,7 +31,9 @@ export interface OwnerCashReportRowResponse {
   officeName: string;
   ownerId?: string | null;
   propertyCode: string;
-  ownerName: string;
+  companyName?: string | null;
+  ownerNames: string;
+  ownerNameLine: string;
   startingBalance: number;
   receivedIncome: number;
   ownerExpenses: number;
@@ -51,7 +53,9 @@ export interface OwnerAccrualReportRowResponse {
   officeName: string;
   ownerId?: string | null;
   propertyCode: string;
-  ownerName: string;
+  companyName?: string | null;
+  ownerNames: string;
+  ownerNameLine: string;
   startingBalance: number;
   invoicedIncome: number;
   prepaidIncome: number;

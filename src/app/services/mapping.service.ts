@@ -2034,7 +2034,7 @@ export class MappingService {
     return {
       officeId: Number(statement.officeId) || 0,
       officeName: statement.officeName || '',
-      ownerName: statement.ownerName || '',
+      ownerName: statement.ownerNameLine,
       propertyCode: statement.propertyCode || '',
       expected: this.formatter.currencyUsd(expectedValue),
       prePaid: this.formatter.currencyUsd(prePaidValue),
@@ -2084,13 +2084,16 @@ export class MappingService {
   }
 
   mapOwnerCashReportRow(raw: Record<string, unknown>): OwnerCashReportRowResponse {
+    const companyNameRaw = raw['companyName'] ?? raw['CompanyName'];
     return {
       propertyId: String(raw['propertyId'] ?? raw['PropertyId'] ?? '').trim(),
       officeId: Number(raw['officeId'] ?? raw['OfficeId'] ?? 0),
       officeName: String(raw['officeName'] ?? raw['OfficeName'] ?? ''),
       ownerId: String(raw['ownerId'] ?? raw['OwnerId'] ?? '').trim() || null,
       propertyCode: String(raw['propertyCode'] ?? raw['PropertyCode'] ?? ''),
-      ownerName: String(raw['ownerName'] ?? raw['OwnerName'] ?? ''),
+      companyName: companyNameRaw == null || String(companyNameRaw).trim() === '' ? null : String(companyNameRaw).trim(),
+      ownerNames: String(raw['ownerNames'] ?? raw['OwnerNames'] ?? ''),
+      ownerNameLine: String(raw['ownerNameLine'] ?? raw['OwnerNameLine'] ?? ''),
       startingBalance: Number(raw['startingBalance'] ?? raw['StartingBalance'] ?? 0),
       receivedIncome: Number(raw['receivedIncome'] ?? raw['ReceivedIncome'] ?? 0),
       ownerExpenses: Number(raw['ownerExpenses'] ?? raw['OwnerExpenses'] ?? 0),
@@ -2127,7 +2130,9 @@ export class MappingService {
         ownerId: row.ownerId ?? null,
         propertyId: row.propertyId,
         propertyCode: row.propertyCode,
-        ownerName: row.ownerName,
+        companyName: row.companyName ?? null,
+        ownerNames: row.ownerNames,
+        ownerNameLine: row.ownerNameLine,
         expected: 0,
         prePaid: 0,
         paidIncome: 0,
@@ -2159,13 +2164,16 @@ export class MappingService {
   }
 
   mapOwnerAccrualReportRow(raw: Record<string, unknown>): OwnerAccrualReportRowResponse {
+    const companyNameRaw = raw['companyName'] ?? raw['CompanyName'];
     return {
       propertyId: String(raw['propertyId'] ?? raw['PropertyId'] ?? '').trim(),
       officeId: Number(raw['officeId'] ?? raw['OfficeId'] ?? 0),
       officeName: String(raw['officeName'] ?? raw['OfficeName'] ?? ''),
       ownerId: String(raw['ownerId'] ?? raw['OwnerId'] ?? '').trim() || null,
       propertyCode: String(raw['propertyCode'] ?? raw['PropertyCode'] ?? ''),
-      ownerName: String(raw['ownerName'] ?? raw['OwnerName'] ?? ''),
+      companyName: companyNameRaw == null || String(companyNameRaw).trim() === '' ? null : String(companyNameRaw).trim(),
+      ownerNames: String(raw['ownerNames'] ?? raw['OwnerNames'] ?? ''),
+      ownerNameLine: String(raw['ownerNameLine'] ?? raw['OwnerNameLine'] ?? ''),
       startingBalance: Number(raw['startingBalance'] ?? raw['StartingBalance'] ?? 0),
       invoicedIncome: Number(raw['invoicedIncome'] ?? raw['InvoicedIncome'] ?? 0),
       prepaidIncome: Number(raw['prepaidIncome'] ?? raw['PrepaidIncome'] ?? 0),
@@ -2184,7 +2192,9 @@ export class MappingService {
         ownerId: row.ownerId ?? null,
         propertyId: row.propertyId,
         propertyCode: row.propertyCode,
-        ownerName: row.ownerName,
+        companyName: row.companyName ?? null,
+        ownerNames: row.ownerNames,
+        ownerNameLine: row.ownerNameLine,
         expected: row.invoicedIncome,
         prePaid: row.prepaidIncome,
         paidIncome: row.paidIncome,
@@ -2214,7 +2224,9 @@ export class MappingService {
 
       officeMap.get(officeKey)!.properties.push({
         propertyId: report.propertyId || '',
-        ownerName: (report.ownerName || '').trim() || 'Unassigned Owner',
+        companyName: report.companyName ?? null,
+        ownerNames: report.ownerNames,
+        ownerNameLine: report.ownerNameLine,
         ownerId: (report.ownerId || '').trim(),
         propertyCode: report.propertyCode || '',
         expected: Number(report.expected) || 0,
@@ -2405,7 +2417,7 @@ export class MappingService {
         officeId: row.officeId,
         officeName: row.officeName,
         ownerId,
-        ownerName: row.ownerName,
+        ownerName: row.ownerNameLine,
         propertyId,
         propertyCode: row.propertyCode,
         monthDate,
