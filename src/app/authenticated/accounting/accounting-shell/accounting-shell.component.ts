@@ -1927,7 +1927,11 @@ export class AccountingShellComponent implements OnInit, OnDestroy {
     let syncCompleted = false;
 
     try {
-      const startResponse = await firstValueFrom(this.generalLedgerService.startAllJournalEntrySyncJob(officeIds));
+      const startResponse = await firstValueFrom(this.generalLedgerService.startAllJournalEntrySyncJob({
+        officeIds,
+        startDate: this.utilityService.formatDateOnlyForApi(this.startDate),
+        endDate: this.utilityService.formatDateOnlyForApi(this.endDate)
+      }));
       if (!startResponse.jobId) {
         throw new Error('Sync job did not return an ID.');
       }

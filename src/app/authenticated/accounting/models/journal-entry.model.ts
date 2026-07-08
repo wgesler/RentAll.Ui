@@ -282,6 +282,8 @@ export interface JournalEntryLineDetailDisplay {
 
 export interface JournalEntrySyncRequest {
   officeIds: number[];
+  startDate?: string | null;
+  endDate?: string | null;
 }
 
 export interface JournalEntrySyncResult {

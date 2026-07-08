@@ -4,7 +4,7 @@ import { map, Observable } from 'rxjs';
 import { ConfigService } from '../../../services/config.service';
 import { MappingService } from '../../../services/mapping.service';
 import { UtilityService } from '../../../services/utility.service';
-import { JournalEntryLineSearchRequest, JournalEntryLineSearchResponse, JournalEntryRequest, JournalEntryResponse, JournalEntrySyncResult, DepositRequest, DepositResponse, StartJournalEntrySyncJobResponse, JournalEntrySyncJobStatus } from '../models/journal-entry.model';
+import { JournalEntryLineSearchRequest, JournalEntryLineSearchResponse, JournalEntryRequest, JournalEntryResponse, JournalEntrySyncRequest, JournalEntrySyncResult, DepositRequest, DepositResponse, StartJournalEntrySyncJobResponse, JournalEntrySyncJobStatus } from '../models/journal-entry.model';
 
 @Injectable({
   providedIn: 'root'
@@ -138,8 +138,12 @@ export class GeneralLedgerService {
     );
   }
 
-  startAllJournalEntrySyncJob(officeIds: number[]): Observable<StartJournalEntrySyncJobResponse> {
-    return this.http.post<StartJournalEntrySyncJobResponse>(`${this.controller}journal-entry/sync/all/start`, { officeIds }).pipe(
+  startAllJournalEntrySyncJob(request: JournalEntrySyncRequest): Observable<StartJournalEntrySyncJobResponse> {
+    return this.http.post<StartJournalEntrySyncJobResponse>(`${this.controller}journal-entry/sync/all/start`, {
+      officeIds: request.officeIds ?? [],
+      startDate: request.startDate ?? null,
+      endDate: request.endDate ?? null
+    }).pipe(
       map(response => ({
         jobId: String(response?.jobId ?? '')
       }))
