@@ -155,6 +155,7 @@ export interface OwnerStatementPropertyActivityLineResponse {
   description: string;
   expectedIncome: number;
   receivedIncome: number;
+  prepaidIncome?: number;
   expenses: number;
   ownerPayment?: number;
 }

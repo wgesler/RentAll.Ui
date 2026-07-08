@@ -2117,6 +2117,7 @@ export class MappingService {
       description: String(raw['description'] ?? raw['Description'] ?? ''),
       expectedIncome: Number(raw['expectedIncome'] ?? raw['ExpectedIncome'] ?? 0),
       receivedIncome: Number(raw['receivedIncome'] ?? raw['ReceivedIncome'] ?? 0),
+      prepaidIncome: Number(raw['prepaidIncome'] ?? raw['PrepaidIncome'] ?? 0),
       expenses: Number(raw['expenses'] ?? raw['Expenses'] ?? 0),
       ownerPayment: Number(raw['ownerPayment'] ?? raw['OwnerPayment'] ?? 0)
     };
@@ -2274,7 +2275,7 @@ export class MappingService {
     return (lines || []).map((line, index) => {
       const expectedIncomeValue = Number(line.expectedIncome) || 0;
       const paidIncomeValue = Number(line.receivedIncome) || 0;
-      const prePaidValue = Number(line.ownerPayment) || 0;
+      const prePaidValue = Number(line.prepaidIncome) || 0;
       const expensesValue = Number(line.expenses) || 0;
       const unpaidValue = Math.max(0, expectedIncomeValue - paidIncomeValue);
       const ownerProfitValue = paidIncomeValue - expensesValue;
@@ -2326,13 +2327,14 @@ export class MappingService {
       const filteredLines = propertyLines.filter(line => {
         const expectedIncome = Number(line.expectedIncome) || 0;
         const receivedIncome = Number(line.receivedIncome) || 0;
+        const prepaidIncome = Number(line.prepaidIncome) || 0;
         const ownerPayment = Number(line.ownerPayment) || 0;
         const expenses = Number(line.expenses) || 0;
         if (reportKind === 'cash') {
           return receivedIncome !== 0 || ownerPayment !== 0 || expenses !== 0;
         }
 
-        return expectedIncome !== 0 || receivedIncome !== 0 || expenses !== 0;
+        return expectedIncome !== 0 || receivedIncome !== 0 || prepaidIncome !== 0 || expenses !== 0;
       });
       if (filteredLines.length === 0) {
         return;

@@ -345,7 +345,7 @@ export class OwnerReportComponent implements OnInit, OnChanges, OnDestroy {
               activityCode: activity.documentCode,
               expected: activity.expectedIncome,
               expectedValue: activity.expectedIncomeValue,
-              prePaid: activity.ownerPayment || '',
+              prePaid: this.formatter.currencyUsd(activity.prePaidValue),
               prePaidValue: activity.prePaidValue,
               paidIncome: activity.receivedIncome,
               paidIncomeValue: activity.paidIncomeValue,
