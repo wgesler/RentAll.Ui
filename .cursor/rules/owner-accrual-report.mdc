@@ -1,0 +1,25 @@
+---
+description: Owner accrual UI mapping and display rules (API rules are source of truth)
+globs: RentAll.Ui/**/owner-report/**,RentAll.Ui/**/mapping.service.ts
+alwaysApply: false
+---
+
+# Owner Accrual UI — Rules
+
+Business logic lives in `RentAll.Api/.cursor/rules/owner-accrual-report.mdc`. Read that first.
+
+## Display mapping
+
+- Property summary **Paid Income** = API `paidIncome` (sum of activity `receivedIncome`).
+- Activity **Invoiced** = `expectedIncome`; **Paid** = `receivedIncome`; **Unpaid** = `max(0, expected − paid)` in `mapOwnerReportPropertyActivityDisplays` — never negative unpaid on payment-only lines.
+- Accrual activity primary label = `accountingPeriod` (not cash, which uses `activityDate`).
+- Preserve API activity line order — do not re-sort in UI unless the API sort rules in the Api rule file change.
+
+## Do not break
+
+- Cash report branch in `owner-report.component.ts` (`reportKind === 'cash'`) — separate columns and filters.
+- Accrual drill-down metrics map to recap categories in `ReportManager.OwnerReportJournalEntryLines.cs` (`paidincome` → `OwnerPayment` category for JE drill-down).
+
+## Before UI tweaks
+
+Confirm the API already returns correct `propertyActivityLines`; fix data in `ReportManager.OwnerAccrual.cs` before adjusting UI numbers.
