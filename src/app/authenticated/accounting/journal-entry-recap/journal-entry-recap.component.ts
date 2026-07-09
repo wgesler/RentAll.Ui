@@ -49,6 +49,7 @@ export class JournalEntryRecapComponent implements OnInit, OnChanges, OnDestroy 
     fee: { displayAs: 'Fees', maxWidth: '10ch', alignment: 'right', sort: false },
     payment: { displayAs: 'Payment', maxWidth: '12ch', alignment: 'right', sort: false },
     prePayment: { displayAs: 'PrePay', maxWidth: '12ch', alignment: 'right', sort: false },
+    unPaid: { displayAs: 'UnPaid', maxWidth: '12ch', alignment: 'right', sort: false },
     ownerRent: { displayAs: 'OwnRent', maxWidth: '12ch', alignment: 'right', sort: false },
     ownerExpense: { displayAs: 'OwnExp', maxWidth: '12ch', alignment: 'right', sort: false },
     ownerPayment: { displayAs: 'OwnPay', maxWidth: '12ch', alignment: 'right', sort: false }

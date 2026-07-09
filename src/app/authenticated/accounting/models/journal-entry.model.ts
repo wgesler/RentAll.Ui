@@ -247,6 +247,7 @@ export interface JournalEntryRecapRowDisplay {
   fee: string;
   payment: string;
   prePayment: string;
+  unPaid: string;
   ownerRent: string;
   ownerExpense: string;
   ownerPayment: string;
@@ -257,6 +258,7 @@ export interface JournalEntryRecapRowDisplay {
   feeValue: number;
   paymentValue: number;
   prePaymentValue: number;
+  unPaidValue: number;
   ownerRentValue: number;
   ownerExpenseValue: number;
   ownerPaymentValue: number;

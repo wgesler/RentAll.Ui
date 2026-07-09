@@ -18,8 +18,8 @@ Business logic lives in `RentAll.Api/.cursor/rules/owner-accrual-report.mdc`. Re
 ## Do not break
 
 - Cash report branch in `owner-report.component.ts` (`reportKind === 'cash'`) — separate columns and filters.
-- Accrual drill-down metrics map to recap categories in `ReportManager.OwnerReportJournalEntryLines.cs` (`paidincome` → `OwnerPayment` category for JE drill-down).
+- Accrual drill-down metrics map to recap categories in `ReportManager.cs` (`#region JournalEntryDrilldown`; `paidincome` → `OwnerPayment` category for JE drill-down).
 
 ## Before UI tweaks
 
-Confirm the API already returns correct `propertyActivityLines`; fix data in `ReportManager.OwnerAccrual.cs` before adjusting UI numbers.
+Confirm the API already returns correct `propertyActivityLines`; fix data in `ReportManager.ReportOwnerAccrual.cs` before adjusting UI numbers.
