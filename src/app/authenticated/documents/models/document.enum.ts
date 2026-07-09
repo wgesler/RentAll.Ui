@@ -7,7 +7,8 @@ export enum DocumentType {
   Inspection = 5,
   WorkOrder = 6,
   OwnerAgreement = 7,
-  Quote = 8
+  Quote = 8,
+  OwnerStatement = 9
 }
 
 export function getDocumentType(documentTypeId: number | undefined): string {
@@ -22,7 +23,8 @@ export function getDocumentType(documentTypeId: number | undefined): string {
     [DocumentType.Inspection]: 'Inspection',
     [DocumentType.WorkOrder]: 'Work Order',
     [DocumentType.OwnerAgreement]: 'Owner Agreement',
-    [DocumentType.Quote]: 'Quote'
+    [DocumentType.Quote]: 'Quote',
+    [DocumentType.OwnerStatement]: 'Owner Statement'
   };
   
   return typeMap[documentTypeId] || '';
@@ -42,6 +44,7 @@ export function getDocumentTypes(): { value: DocumentType, label: string }[] {
     { value: DocumentType.Inspection, label: getDocumentType(DocumentType.Inspection) },
     { value: DocumentType.WorkOrder, label: getDocumentType(DocumentType.WorkOrder) },
     { value: DocumentType.OwnerAgreement, label: getDocumentType(DocumentType.OwnerAgreement) },
-    { value: DocumentType.Quote, label: getDocumentType(DocumentType.Quote) }
+    { value: DocumentType.Quote, label: getDocumentType(DocumentType.Quote) },
+    { value: DocumentType.OwnerStatement, label: getDocumentType(DocumentType.OwnerStatement) }
   ];
 }

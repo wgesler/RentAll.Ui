@@ -78,6 +78,8 @@ export interface OwnerStatementMonthLineListDisplay {
   expenses: string;
   ownerPayment: string;
   endingBalance: string;
+  workingCapital: string;
+  notes?: string;
 }
 
 export interface OwnerStatementMonthLineSelection {
@@ -152,6 +154,7 @@ export interface OwnerStatementPropertyActivityLineResponse {
   activityDate: string;
   accountingPeriod?: string;
   documentCode: string;
+  sourceDocumentCode: string;
   description: string;
   expectedIncome: number;
   receivedIncome: number;

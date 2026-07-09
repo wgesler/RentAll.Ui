@@ -6,9 +6,11 @@ export interface EmailHtmlResponse {
   corporateLease: string;
   invoice: string;
   corporateInvoice: string;
+  ownerStatement: string;
   letterSubject: string;
   leaseSubject: string;
   invoiceSubject: string;
+  ownerStatementSubject: string;
   createdOn: string;
   modifiedOn?: string;
 }

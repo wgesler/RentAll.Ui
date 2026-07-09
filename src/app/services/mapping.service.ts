@@ -995,9 +995,11 @@ export class MappingService {
       corporateLease: emailHtml?.corporateLease ?? '',
       invoice: emailHtml?.invoice ?? '',
       corporateInvoice: emailHtml?.corporateInvoice ?? '',
+      ownerStatement: emailHtml?.ownerStatement ?? '',
       letterSubject: emailHtml?.letterSubject ?? '',
       leaseSubject: emailHtml?.leaseSubject ?? '',
       invoiceSubject: emailHtml?.invoiceSubject ?? '',
+      ownerStatementSubject: emailHtml?.ownerStatementSubject ?? '',
       createdOn: emailHtml?.createdOn ?? '',
       modifiedOn: emailHtml?.modifiedOn
     };
@@ -2116,6 +2118,7 @@ export class MappingService {
       activityDate: this.utility.coerceCalendarDateStringFromApi(raw['activityDate'] ?? raw['ActivityDate']) ?? '',
       accountingPeriod: String(raw['accountingPeriod'] ?? raw['AccountingPeriod'] ?? '').trim(),
       documentCode: String(raw['documentCode'] ?? raw['DocumentCode'] ?? ''),
+      sourceDocumentCode: String(raw['sourceDocumentCode'] ?? raw['SourceDocumentCode'] ?? ''),
       description: String(raw['description'] ?? raw['Description'] ?? ''),
       expectedIncome: Number(raw['expectedIncome'] ?? raw['ExpectedIncome'] ?? 0),
       receivedIncome: Number(raw['receivedIncome'] ?? raw['ReceivedIncome'] ?? 0),
@@ -2456,7 +2459,8 @@ export class MappingService {
       income: this.formatter.currencyUsd(Number(row.income) || 0),
       expenses: this.formatter.currencyUsd(Number(row.expenses) || 0),
       ownerPayment: this.formatter.currencyUsd(Number(row.ownerPayment) || 0),
-      endingBalance: this.formatter.currencyUsd(Number(row.endingBalance) || 0)
+      endingBalance: this.formatter.currencyUsd(Number(row.endingBalance) || 0),
+      workingCapital: this.formatter.currencyUsd(Number(row.workingCapital) || 0)
     }));
   }
 

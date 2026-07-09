@@ -4,7 +4,9 @@ import { ChangeDetectionStrategy, ChangeDetectorRef, Component, ElementRef, Even
 import { FormBuilder, FormControl, FormGroup, FormsModule, ReactiveFormsModule } from '@angular/forms';
 import { DomSanitizer, SafeHtml } from '@angular/platform-browser';
 import { ToastrService } from 'ngx-toastr';
-import { BehaviorSubject, Subject, filter, finalize, take, takeUntil } from 'rxjs';
+import { Router } from '@angular/router';
+import { BehaviorSubject, Subject, catchError, filter, finalize, firstValueFrom, forkJoin, of, take, takeUntil } from 'rxjs';
+import { RouterUrl } from '../../../app.routes';
 import { MaterialModule } from '../../../material.module';
 import { CommonService } from '../../../services/common.service';
 import { DocumentExportService } from '../../../services/document-export.service';
@@ -15,19 +17,30 @@ import { UtilityService } from '../../../services/utility.service';
 import { ContactResponse } from '../../contacts/models/contact.model';
 import { ContactService } from '../../contacts/services/contact.service';
 import { DocumentType } from '../../documents/models/document.enum';
+import { GenerateDocumentFromHtmlDto } from '../../documents/models/document.model';
+import { DocumentReloadService } from '../../documents/services/document-reload.service';
+import { EntityType } from '../../contacts/models/contact-enum';
+import { EmailType } from '../../email/models/email.enum';
+import { EmailHtmlResponse } from '../../email/models/email-html.model';
+import { EmailCreateDraftService } from '../../email/services/email-create-draft.service';
+import { EmailHtmlService } from '../../email/services/email-html.service';
 import { AccountingOfficeResponse } from '../../organizations/models/accounting-office.model';
 import { OfficeResponse } from '../../organizations/models/office.model';
 import { OrganizationResponse } from '../../organizations/models/organization.model';
 import { AccountingOfficeService } from '../../organizations/services/accounting-office.service';
 import { OfficeService } from '../../organizations/services/office.service';
 import { PropertyResponse } from '../../properties/models/property.model';
+import { PropertyHtmlResponse } from '../../properties/models/property-html.model';
 import { PropertyService } from '../../properties/services/property.service';
-import { BaseDocumentComponent, DocumentConfig, DownloadConfig } from '../../shared/base-document.component';
+import { PropertyHtmlService } from '../../properties/services/property-html.service';
+import { BaseDocumentComponent, DocumentConfig, DownloadConfig, EmailConfig } from '../../shared/base-document.component';
 import { TitleBarSelectComponent } from '../../shared/titlebar-select/titlebar-select.component';
 import { OwnerStatementMonthLineListDisplay, OwnerStatementPropertyActivityLineResponse } from '../models/owner-statement.model';
 import { OwnerStatementService } from '../services/owner-statement.service';
+import { ReportService } from '../services/report.service';
 import { DocumentService } from '../../documents/services/document.service';
 import { EmailService } from '../../email/services/email.service';
+import { environment } from '../../../../environments/environment';
 
 @Component({
   selector: 'app-owner-statement-create',
@@ -52,12 +65,17 @@ export class OwnerStatementCreateComponent extends BaseDocumentComponent impleme
   selectedAccountingOffice: AccountingOfficeResponse | null = null;
   ownerContact: ContactResponse | null = null;
   property: PropertyResponse | null = null;
+  propertyHtml: PropertyHtmlResponse | null = null;
   statementActivityLines: OwnerStatementPropertyActivityLineResponse[] = [];
+  statementAccrualActivityLines: OwnerStatementPropertyActivityLineResponse[] = [];
   previewIframeHtml = '';
   previewIframeStyles = '';
   safePreviewIframeHtml: SafeHtml = '';
   iframeKey = 0;
   isDownloading = false;
+  isSubmitting = false;
+  debuggingHtml = environment.local || environment.dev;
+  emailHtml: EmailHtmlResponse | null = null;
   isPageReady = false;
   itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['offices', 'accountingOffices', 'contacts', 'property', 'previewHtml']));
   destroy$ = new Subject<void>();
@@ -71,7 +89,9 @@ export class OwnerStatementCreateComponent extends BaseDocumentComponent impleme
     private commonService: CommonService,
     private contactService: ContactService,
     private propertyService: PropertyService,
+    private propertyHtmlService: PropertyHtmlService,
     private ownerStatementService: OwnerStatementService,
+    private reportService: ReportService,
     private officeService: OfficeService,
     private accountingOfficeService: AccountingOfficeService,
     private sanitizer: DomSanitizer,
@@ -80,6 +100,10 @@ export class OwnerStatementCreateComponent extends BaseDocumentComponent impleme
     documentHtmlService: DocumentHtmlService,
     documentService: DocumentService,
     emailService: EmailService,
+    private documentReloadService: DocumentReloadService,
+    private emailHtmlService: EmailHtmlService,
+    private emailCreateDraftService: EmailCreateDraftService,
+    private router: Router,
     private cdr: ChangeDetectorRef
   ) {
     super(documentService, documentExportService, documentHtmlService, toastr, emailService);
@@ -97,6 +121,68 @@ export class OwnerStatementCreateComponent extends BaseDocumentComponent impleme
     this.loadAccountingOffices();
     this.loadContacts();
     this.loadOrganization();
+    this.loadEmailHtml();
+  }
+
+  loadEmailHtml(): void {
+    this.emailHtmlService.getEmailHtml().pipe(take(1)).subscribe({
+      next: html => {
+        this.emailHtml = html;
+        this.cdr.markForCheck();
+      },
+      error: () => {
+        this.emailHtml = null;
+      }
+    });
+  }
+
+  async saveOwnerStatement(): Promise<void> {
+    if (!this.previewIframeHtml || !this.line) {
+      this.toastr.warning('No owner statement preview is available to save.', 'No Preview');
+      return;
+    }
+
+    this.isSubmitting = true;
+    this.cdr.markForCheck();
+    try {
+      const config = this.getDocumentConfig();
+      if (!config.organizationId || !config.selectedOfficeId) {
+        this.toastr.warning('Office or organization is not available.', 'Missing Data');
+        return;
+      }
+
+      const htmlWithStyles = this.documentHtmlService.getPdfHtmlWithStyles(
+        config.previewIframeHtml,
+        config.previewIframeStyles
+      );
+
+      const generateDto: GenerateDocumentFromHtmlDto = {
+        htmlContent: htmlWithStyles,
+        organizationId: config.organizationId,
+        officeId: config.selectedOfficeId,
+        officeName: config.selectedOfficeName || '',
+        propertyId: config.propertyId || null,
+        reservationId: null,
+        documentTypeId: DocumentType.OwnerStatement,
+        fileName: this.getOwnerStatementFileName(),
+        generatePdf: true
+      };
+
+      await firstValueFrom(this.documentService.generate(generateDto).pipe(take(1)));
+      this.toastr.success('Document generated successfully', 'Success');
+      this.documentReloadService.triggerReload();
+      this.iframeKey++;
+    } catch (error) {
+      const detail = this.utilityService.extractApiErrorMessage(error);
+      this.toastr.error(
+        detail ? `Document generation failed. ${detail}` : 'Document generation failed. Please try again.',
+        'Error'
+      );
+      this.iframeKey++;
+    } finally {
+      this.isSubmitting = false;
+      this.cdr.markForCheck();
+    }
   }
 
   ngOnChanges(changes: SimpleChanges): void {
@@ -106,6 +192,7 @@ export class OwnerStatementCreateComponent extends BaseDocumentComponent impleme
 
     if (!this.line) {
       this.statementActivityLines = [];
+      this.statementAccrualActivityLines = [];
       this.clearPreview();
       return;
     }
@@ -169,19 +256,28 @@ export class OwnerStatementCreateComponent extends BaseDocumentComponent impleme
   loadProperty(propertyId: string): void {
     if (!propertyId) {
       this.property = null;
+      this.propertyHtml = null;
       this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'property');
       this.tryGeneratePreview();
       return;
     }
 
     this.utilityService.addLoadItem(this.itemsToLoad$, 'property');
-    this.propertyService.getPropertyByGuid(propertyId).pipe(take(1), finalize(() => this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'property'))).subscribe({
-      next: row => {
-        this.property = row;
+    forkJoin({
+      property: this.propertyService.getPropertyByGuid(propertyId).pipe(take(1)),
+      propertyHtml: this.propertyHtmlService.getPropertyHtmlByPropertyId(propertyId).pipe(
+        take(1),
+        catchError(() => of(null))
+      )
+    }).pipe(finalize(() => this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'property'))).subscribe({
+      next: ({ property, propertyHtml }) => {
+        this.property = property;
+        this.propertyHtml = propertyHtml;
         this.tryGeneratePreview();
       },
       error: () => {
         this.property = null;
+        this.propertyHtml = null;
         this.tryGeneratePreview();
       }
     });
@@ -190,23 +286,33 @@ export class OwnerStatementCreateComponent extends BaseDocumentComponent impleme
   loadPropertyActivityLines(): void {
     if (!this.line?.propertyId || !this.line?.officeId) {
       this.statementActivityLines = [];
+      this.statementAccrualActivityLines = [];
       this.tryGeneratePreview();
       return;
     }
 
     const monthRange = this.resolveMonthRange(this.line.monthDate);
-    this.ownerStatementService.searchOwnerStatementPropertyActivityLines({
+    const propertyId = this.line.propertyId;
+    const searchRequest = {
       officeIds: [this.line.officeId],
-      propertyId: this.line.propertyId,
+      propertyId,
       startDate: monthRange.startDate,
       endDate: monthRange.endDate
+    };
+
+    forkJoin({
+      cashLines: this.ownerStatementService.searchOwnerStatementPropertyActivityLines(searchRequest),
+      accrualReport: this.reportService.searchOwnerAccrualReport(searchRequest)
     }).pipe(take(1)).subscribe({
-      next: rows => {
-        this.statementActivityLines = rows || [];
+      next: ({ cashLines, accrualReport }) => {
+        this.statementActivityLines = cashLines || [];
+        this.statementAccrualActivityLines = (accrualReport.propertyActivityLines ?? [])
+          .filter(line => (line.propertyId || '').trim() === propertyId);
         this.tryGeneratePreview();
       },
       error: () => {
         this.statementActivityLines = [];
+        this.statementAccrualActivityLines = [];
         this.tryGeneratePreview();
       }
     });
@@ -244,15 +350,31 @@ export class OwnerStatementCreateComponent extends BaseDocumentComponent impleme
 
   loadOwnerStatementHtml(): void {
     this.utilityService.addLoadItem(this.itemsToLoad$, 'previewHtml');
-    this.http.get(`assets/owner-statement.html?ts=${Date.now()}`, { responseType: 'text' }).pipe(take(1), finalize(() => this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'previewHtml'))).subscribe({
-      next: html => {
-        const processedHtml = this.replacePlaceholders(html || '');
-        this.processAndSetHtml(processedHtml);
-      },
-      error: () => {
-        this.clearPreview();
-      }
-    });
+
+    if (this.debuggingHtml) {
+      this.http.get(`assets/owner-statement.html?ts=${Date.now()}`, { responseType: 'text' }).pipe(take(1), finalize(() => this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'previewHtml'))).subscribe({
+        next: html => {
+          const processedHtml = this.replacePlaceholders(html || '');
+          this.processAndSetHtml(processedHtml);
+        },
+        error: () => {
+          this.clearPreview();
+        }
+      });
+      return;
+    }
+
+    const templateHtml = (this.propertyHtml?.ownerStatement || '').trim();
+    if (!templateHtml) {
+      this.clearPreview();
+      this.toastr.warning('No owner statement HTML template found for this property.', 'No Template');
+      this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'previewHtml');
+      return;
+    }
+
+    const processedHtml = this.replacePlaceholders(templateHtml);
+    this.processAndSetHtml(processedHtml);
+    this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'previewHtml');
   }
 
   processAndSetHtml(html: string): void {
@@ -287,35 +409,105 @@ export class OwnerStatementCreateComponent extends BaseDocumentComponent impleme
     const monthDate = this.utilityService.parseCalendarDateInput(this.line.monthDate);
     const monthYearDisplay = this.formatMonthYear(monthDate);
     const monthDateDisplay = monthYearDisplay || this.line.monthDisplay;
-    const lineDateDisplay = monthYearDisplay || this.line.monthDisplay;
+    const reportingMonthEndDate = this.formatReportingMonthEndDate(this.line.monthDate);
+    const previousMonthEndDate = this.formatPreviousMonthEndDate(this.line.monthDate);
+    const statementDateDisplay = reportingMonthEndDate || monthDateDisplay;
     const startingBalance = this.mappingService.parseCurrencyValue(this.line.startingBalance);
     const income = this.mappingService.parseCurrencyValue(this.line.income);
     const expenses = this.mappingService.parseCurrencyValue(this.line.expenses);
     const ownerPayment = this.mappingService.parseCurrencyValue(this.line.ownerPayment);
     const endingBalance = this.mappingService.parseCurrencyValue(this.line.endingBalance);
-    const incomeActivityRows = (this.statementActivityLines || [])
+    const incomeActivities = (this.statementActivityLines || [])
       .filter(activity => Number(activity.receivedIncome) !== 0)
-      .sort((a, b) => this.utilityService.compareCalendarDateStrings(a.activityDate, b.activityDate))
-      .map(activity => this.buildChargeRow(this.formatMonthDay(activity.activityDate) || lineDateDisplay, this.buildActivityDescription(activity, 'Income'), Number(activity.receivedIncome) || 0));
-    const expenseActivityRows = (this.statementActivityLines || [])
+      .sort((a, b) => this.utilityService.compareCalendarDateStrings(a.activityDate, b.activityDate));
+    const expenseActivities = (this.statementActivityLines || [])
       .filter(activity => Number(activity.expenses) !== 0)
-      .sort((a, b) => this.utilityService.compareCalendarDateStrings(a.activityDate, b.activityDate))
-      .map(activity => this.buildChargeRow(this.formatMonthDay(activity.activityDate) || lineDateDisplay, this.buildActivityDescription(activity, 'Expense'), Number(activity.expenses) || 0));
+      .sort((a, b) => this.utilityService.compareCalendarDateStrings(a.activityDate, b.activityDate));
 
+    let runningTotal = startingBalance;
     const openingBalanceRows = [
-      this.buildChargeRow(lineDateDisplay, 'Starting Balance', startingBalance)
+      this.buildSummaryBalanceRow('Starting Balance', previousMonthEndDate, runningTotal, false)
     ].join('\n');
-    const incomeRows = [
-      ...(incomeActivityRows.length > 0 ? incomeActivityRows : [this.buildChargeRow(lineDateDisplay, 'Income', income)])
-    ].join('\n');
-    const chargesRows = [
-      ...(expenseActivityRows.length > 0 ? expenseActivityRows : [this.buildChargeRow(lineDateDisplay, 'Expenses', expenses)])
-    ].join('\n');
-    const paymentsRows = [
-      ...(ownerPayment !== 0 ? [this.buildChargeRow(lineDateDisplay, 'Owner Payment', ownerPayment)] : [])
-    ].join('\n');
+
+    let incomeRows = '';
+    const unpaidIncomeEntries = this.getUnpaidAccrualEntries();
+    const incomeLineRows: { sortDate: string; html: string }[] = [];
+
+    if (incomeActivities.length > 0) {
+      incomeActivities.forEach(activity => {
+        const amount = Number(activity.receivedIncome) || 0;
+        runningTotal += amount;
+        const { refNo, description } = this.parseActivityRefAndDescription(activity, 'Income');
+        incomeLineRows.push({
+          sortDate: activity.activityDate,
+          html: this.buildChargeRow(
+            this.formatActivityDateForStatement(activity, statementDateDisplay),
+            refNo,
+            description,
+            amount,
+            runningTotal)
+        });
+      });
+    } else if (income !== 0) {
+      runningTotal += income;
+      incomeLineRows.push({
+        sortDate: this.line.monthDate,
+        html: this.buildChargeRow(statementDateDisplay, '', 'Income', income, runningTotal)
+      });
+    }
+
+    unpaidIncomeEntries.forEach(entry => {
+      const { refNo, description } = this.parseActivityRefAndDescription(entry.line, 'Income');
+      incomeLineRows.push({
+        sortDate: entry.line.activityDate,
+        html: this.buildChargeRow(
+          this.formatActivityDateForStatement(entry.line, statementDateDisplay),
+          refNo,
+          description,
+          entry.unpaidAmount,
+          runningTotal,
+          true)
+      });
+    });
+
+    incomeLineRows.sort((a, b) => this.utilityService.compareCalendarDateStrings(a.sortDate, b.sortDate));
+    incomeRows = incomeLineRows.map(row => row.html).join('\n');
+    if (!incomeRows) {
+      incomeRows = this.buildBlankLedgerRow();
+    }
+
+    let chargesRows = '';
+    if (expenseActivities.length > 0) {
+      chargesRows = expenseActivities.map(activity => {
+        const amount = Number(activity.expenses) || 0;
+        runningTotal -= amount;
+        const { refNo, description } = this.parseActivityRefAndDescription(activity, 'Expense');
+        return this.buildChargeRow(
+          this.formatActivityDateForStatement(activity, statementDateDisplay),
+          refNo,
+          description,
+          amount,
+          runningTotal);
+      }).join('\n');
+    } else if (expenses !== 0) {
+      runningTotal -= expenses;
+      chargesRows = this.buildChargeRow(statementDateDisplay, '', 'Expenses', expenses, runningTotal);
+    }
+    if (!chargesRows) {
+      chargesRows = this.buildBlankLedgerRow();
+    }
+
+    let paymentsRows = '';
+    if (ownerPayment !== 0) {
+      runningTotal -= ownerPayment;
+      paymentsRows = this.buildChargeRow(statementDateDisplay, '', 'Owner Payment', ownerPayment, runningTotal);
+    }
+    if (!paymentsRows) {
+      paymentsRows = this.buildBlankLedgerRow();
+    }
+
     const closingBalanceRows = [
-      this.buildChargeRow(lineDateDisplay, 'Ending Balance', endingBalance)
+      this.buildSummaryBalanceRow('Ending Balance', reportingMonthEndDate, endingBalance, true)
     ].join('\n');
 
     const companyName = this.escapeHtml(this.organization?.name || '');
@@ -335,10 +527,10 @@ export class OwnerStatementCreateComponent extends BaseDocumentComponent impleme
     const officeLogoBase64 = this.resolveOfficeLogo();
     const responsiblePartiesBlock = this.buildResponsiblePartiesBlock();
     const propertySideBlock = this.buildPropertySideBlock();
-    const statementName = this.escapeHtml(`Owner Statement ${this.line.propertyCode} - ${monthDateDisplay}`);
+    const statementSubtitle = this.escapeHtml(`${this.line.propertyCode} - ${monthDateDisplay}`);
 
     let result = html;
-    result = result.replace(/\{\{statementName\}\}/g, statementName);
+    result = result.replace(/\{\{statementSubtitle\}\}/g, statementSubtitle);
     result = result.replace(/\{\{responsiblePartiesBlock\}\}/g, responsiblePartiesBlock);
     result = result.replace(/\{\{propertySideBlock\}\}/g, propertySideBlock);
     result = result.replace(/\{\{openingBalanceLedgerLineRows\}\}/g, openingBalanceRows);
@@ -346,10 +538,11 @@ export class OwnerStatementCreateComponent extends BaseDocumentComponent impleme
     result = result.replace(/\{\{chargesLedgerLineRows\}\}/g, chargesRows);
     result = result.replace(/\{\{paymentsLedgerLineRows\}\}/g, paymentsRows);
     result = result.replace(/\{\{closingBalanceLedgerLineRows\}\}/g, closingBalanceRows);
+    result = result.replace(/\{\{statementNotes\}\}/g, this.buildStatementNotesContent());
     result = result.replace(/\{\{paymentLedgerLineRows\}\}/g, '');
-    result = result.replace(/\{\{totalCharges\}\}/g, this.formatterService.currency(endingBalance));
-    result = result.replace(/\{\{totalPayments\}\}/g, this.formatterService.currency(0));
-    result = result.replace(/\{\{statementBalanceDue\}\}/g, this.formatterService.currency(endingBalance));
+    result = result.replace(/\{\{totalCharges\}\}/g, this.formatterService.currencyUsd(endingBalance));
+    result = result.replace(/\{\{totalPayments\}\}/g, this.formatterService.currencyUsd(0));
+    result = result.replace(/\{\{statementBalanceDue\}\}/g, this.formatterService.currencyUsd(endingBalance));
     result = result.replace(/\{\{totalChargesRowStyle\}\}/g, 'display: none;');
     result = result.replace(/\{\{balanceDueAfterChargesRowStyle\}\}/g, '');
     result = result.replace(/\{\{paymentsSectionStyle\}\}/g, 'display: none;');
@@ -374,28 +567,140 @@ export class OwnerStatementCreateComponent extends BaseDocumentComponent impleme
     result = result.replace(/\{\{startDate\}\}/g, monthDateDisplay || '');
     result = result.replace(/\{\{endDate\}\}/g, monthDateDisplay || '');
     result = result.replace(/\{\{statementDate\}\}/g, this.utilityService.todayAsCalendarDateString());
-    result = result.replace(/\{\{paidAmount\}\}/g, this.formatterService.currency(0));
-    result = result.replace(/\{\{totalDue\}\}/g, this.formatterService.currency(endingBalance));
+    result = result.replace(/\{\{paidAmount\}\}/g, this.formatterService.currencyUsd(0));
+    result = result.replace(/\{\{totalDue\}\}/g, this.formatterService.currencyUsd(endingBalance));
     return result.replace(/\{\{[^}]+\}\}/g, '');
   }
 
-  buildChargeRow(date: string, description: string, amount: number): string {
-    return `              <tr class="ledger-line-row"><td>${this.escapeHtml(date)}</td><td>${this.escapeHtml(description)}</td><td class="amount-col">${this.formatterService.currency(amount)}</td></tr>`;
+  buildStatementNotesContent(): string {
+    const unpaidEntries = this.getUnpaidAccrualEntries();
+    const blocks: string[] = [];
+
+    if (unpaidEntries.length > 0) {
+      const lines = unpaidEntries.map(({ line, unpaidAmount }, index) => {
+        const { description } = this.parseActivityRefAndDescription(line, 'Income');
+        const amount = this.formatterService.currencyUsd(unpaidAmount);
+        const intro = index === 0 ? `${this.escapeHtml('* Funds not yet collected:')}\t` : '';
+        return `<div class="statement-notes-unpaid-line">${intro}${this.escapeHtml(description)}\t${this.escapeHtml(amount)}</div>`;
+      }).join('\n');
+
+      blocks.push(`<div class="statement-notes-unpaid-block">${lines}</div>`);
+    }
+
+    const manualNotes = (this.line?.notes || '').trim();
+    if (manualNotes) {
+      blocks.push(`<div class="statement-notes-manual">${this.escapeHtml(manualNotes)}</div>`);
+    }
+
+    return blocks.join('\n');
   }
 
-  buildActivityDescription(activity: OwnerStatementPropertyActivityLineResponse, fallbackLabel: string): string {
-    const documentCode = (activity.documentCode || '').trim();
-    const description = (activity.description || '').trim();
-    if (documentCode && description) {
-      return `${documentCode} - ${description}`;
+  getUnpaidAccrualEntries(): { line: OwnerStatementPropertyActivityLineResponse; unpaidAmount: number }[] {
+    return (this.statementAccrualActivityLines || [])
+      .map(line => ({
+        line,
+        unpaidAmount: Math.max(0, (Number(line.expectedIncome) || 0) - (Number(line.receivedIncome) || 0))
+      }))
+      .filter(entry => entry.unpaidAmount > 0)
+      .sort((a, b) => this.utilityService.compareCalendarDateStrings(a.line.activityDate, b.line.activityDate));
+  }
+
+  buildChargeRow(
+    date: string,
+    refNo: string,
+    description: string,
+    amount: number | null,
+    total: number | null,
+    isUnpaidAmount = false
+  ): string {
+    const amountCell = amount == null ? '' : this.formatStatementAmount(amount, isUnpaidAmount);
+    const totalCell = total == null ? '' : this.formatterService.currencyUsd(total);
+    return `              <tr class="ledger-line-row"><td>${this.escapeHtml(date)}</td><td>${this.escapeHtml(refNo)}</td><td>${this.escapeHtml(description)}</td><td class="amount-col">${amountCell}</td><td class="amount-col">${totalCell}</td></tr>`;
+  }
+
+  formatStatementAmount(amount: number, isUnpaid = false): string {
+    const formatted = this.formatterService.currencyUsd(amount);
+    return isUnpaid ? `${formatted} *` : formatted;
+  }
+
+  buildBlankLedgerRow(): string {
+    return '              <tr class="ledger-line-row"><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td><td class="amount-col">&nbsp;</td><td class="amount-col">&nbsp;</td></tr>';
+  }
+
+  buildSummaryBalanceRow(label: string, date: string, total: number, isEnding: boolean): string {
+    const totalCell = this.formatterService.currencyUsd(total);
+    const rowClass = isEnding
+      ? 'ledger-line-row ledger-summary-balance-row ledger-summary-balance-row--ending'
+      : 'ledger-line-row ledger-summary-balance-row ledger-summary-balance-row--opening';
+    return `              <tr class="${rowClass}"><td>${this.escapeHtml(date)}</td><td></td><td>${this.escapeHtml(`${label}:`)}</td><td class="amount-col"></td><td class="amount-col">${totalCell}</td></tr>`;
+  }
+
+  parseActivityRefAndDescription(
+    activity: OwnerStatementPropertyActivityLineResponse,
+    fallbackLabel: string
+  ): { refNo: string; description: string } {
+    const sourceRef = (activity.sourceDocumentCode || '').trim();
+    const rawDescription = (activity.description || '').trim();
+
+    if (sourceRef) {
+      const prefixPattern = new RegExp(`^${this.escapeRegExp(sourceRef)}\\s*:\\s*`, 'i');
+      const description = prefixPattern.test(rawDescription)
+        ? rawDescription.replace(prefixPattern, '').trim() || fallbackLabel
+        : rawDescription || fallbackLabel;
+
+      return { refNo: sourceRef, description };
     }
-    if (description) {
-      return description;
+
+    const colonSplitMatch = rawDescription.match(
+      /^((?:WO-[A-Za-z0-9-]+|R-\d+(?:-\d+)*|RC[A-Za-z0-9-]*))\s*:\s*(.+)$/i
+    );
+    if (colonSplitMatch) {
+      return {
+        refNo: colonSplitMatch[1].trim(),
+        description: colonSplitMatch[2].trim()
+      };
     }
-    if (documentCode) {
-      return documentCode;
+
+    return {
+      refNo: '',
+      description: rawDescription || fallbackLabel
+    };
+  }
+
+  formatActivityDateForStatement(
+    activity: OwnerStatementPropertyActivityLineResponse,
+    fallbackDate: string
+  ): string {
+    const activityDate = this.formatFullDate(activity.activityDate);
+    if (activityDate) {
+      return activityDate;
     }
-    return fallbackLabel;
+
+    const accountingPeriodDate = this.formatAccountingPeriodAsFullDate(activity.accountingPeriod);
+    if (accountingPeriodDate) {
+      return accountingPeriodDate;
+    }
+
+    return fallbackDate;
+  }
+
+  formatAccountingPeriodAsFullDate(accountingPeriod: string | undefined): string {
+    const trimmed = (accountingPeriod || '').trim();
+    if (!trimmed) {
+      return '';
+    }
+
+    const monthYearMatch = trimmed.match(/^(\d{2})\.(\d{2})$/);
+    if (monthYearMatch) {
+      const month = Number(monthYearMatch[1]);
+      const year = 2000 + Number(monthYearMatch[2]);
+      if (month >= 1 && month <= 12) {
+        const lastDay = new Date(year, month, 0);
+        return this.formatFullDateFromDate(lastDay);
+      }
+    }
+
+    return this.formatFullDate(trimmed);
   }
 
   buildResponsiblePartiesBlock(): string {
@@ -420,7 +725,7 @@ export class OwnerStatementCreateComponent extends BaseDocumentComponent impleme
       `<span style="font-weight: bold">Property Code:</span> ${propertyCode}`,
       propertyAddress1 ? `<span style="font-weight: bold">Property Address:</span> ${propertyAddress1}` : '',
       propertyAddress2 ? `&nbsp;&nbsp;&nbsp;&nbsp;${propertyAddress2}` : '',
-      `<span style="font-weight: bold">Office:</span> ${this.escapeHtml(this.selectedOffice?.name || this.line?.officeName || '')}`
+      `<span style="font-weight: bold">Working Capital:</span> ${this.escapeHtml(this.line?.workingCapital || this.formatterService.currencyUsd(0))}`
     ].filter(Boolean).join('<br>');
   }
   //#endregion
@@ -445,20 +750,100 @@ export class OwnerStatementCreateComponent extends BaseDocumentComponent impleme
   }
 
   override async onDownload(): Promise<void> {
-    const propertyCode = (this.line?.propertyCode || 'OwnerStatement').replace(/[^a-zA-Z0-9-]/g, '');
-    const month = (this.line?.monthDisplay || '').replace(/[^a-zA-Z0-9-]/g, '');
-    const fileName = `OwnerStatement_${propertyCode}_${month || this.utilityService.todayAsCalendarDateString()}.pdf`;
     const config: DownloadConfig = {
-      fileName,
-      documentType: DocumentType.Other,
+      fileName: this.getOwnerStatementFileName(),
+      documentType: DocumentType.OwnerStatement,
       noPreviewMessage: 'Please select an owner statement line first.',
       noSelectionMessage: 'Office or organization is missing.'
     };
     await super.onDownload(config);
   }
 
+  override async onEmail(): Promise<void> {
+    if (!this.line || !this.previewIframeHtml) {
+      this.toastr.warning('Please select an owner statement line first.', 'No Statement');
+      return;
+    }
+
+    const toEmail = this.getOwnerEmail();
+    const toName = this.getOwnerName();
+    if (!toEmail || !toName) {
+      this.toastr.warning('Owner email information is missing.', 'No Email');
+      return;
+    }
+
+    const salutationName = `${this.ownerContact?.firstName || ''}`.trim() || toName.trim().split(/\s+/)[0] || '';
+    const currentUser = this.authService.getUser();
+    const fromEmail = currentUser?.email || '';
+    const fromName = `${currentUser?.firstName || ''} ${currentUser?.lastName || ''}`.trim();
+    const accountingName = this.selectedAccountingOffice?.name || this.selectedOffice?.name || '';
+    const accountingPhone = this.formatterService.phoneNumber(this.selectedAccountingOffice?.phone) || '';
+    const propertyCode = (this.line.propertyCode || 'OwnerStatement').replace(/[^a-zA-Z0-9-]/g, '');
+    const monthDisplay = (this.line.monthDisplay || '').trim();
+    const subject = (this.emailHtml?.ownerStatementSubject || 'Owner Statement: {{propertyCode}}')
+      .replace(/\{\{propertyCode\}\}/g, propertyCode)
+      .replace(/\{\{statementMonth\}\}/g, monthDisplay);
+    const body = (this.emailHtml?.ownerStatement || '<p>Please find your owner statement attached.</p>')
+      .replace(/\{\{salutationName\}\}/g, salutationName)
+      .replace(/\{\{toName\}\}/g, salutationName)
+      .replace(/\{\{fromName\}\}/g, fromName)
+      .replace(/\{\{fromEmail\}\}/g, fromEmail)
+      .replace(/\{\{companyName\}\}/g, this.organization?.name || '')
+      .replace(/\{\{accountingName\}\}/g, accountingName)
+      .replace(/\{\{accountingPhone\}\}/g, accountingPhone)
+      .replace(/\{\{statementMonth\}\}/g, monthDisplay);
+
+    const emailConfig: EmailConfig = {
+      subject,
+      toEmail,
+      toName,
+      fromEmail,
+      fromName,
+      documentType: DocumentType.OwnerStatement,
+      emailType: EmailType.Other,
+      plainTextContent: '',
+      htmlContent: body,
+      fileDetails: {
+        fileName: this.getOwnerStatementFileName(),
+        contentType: 'application/pdf',
+        file: ''
+      }
+    };
+
+    this.emailCreateDraftService.setDraft({
+      emailConfig,
+      documentConfig: this.getDocumentConfig(),
+      returnUrl: this.router.url
+    });
+    this.router.navigateByUrl(RouterUrl.EmailCreate);
+  }
+
   override onPrint(): void {
     super.onPrint('Please select an owner statement line first.');
+  }
+
+  getOwnerStatementFileName(): string {
+    const propertyCode = (this.line?.propertyCode || 'OwnerStatement').replace(/[^a-zA-Z0-9-]/g, '');
+    const month = (this.line?.monthDisplay || '').replace(/[^a-zA-Z0-9-]/g, '');
+    return `OwnerStatement_${propertyCode}_${month || this.utilityService.todayAsCalendarDateString()}.pdf`;
+  }
+
+  getOwnerEmail(): string {
+    if (!this.ownerContact) {
+      return '';
+    }
+    return (this.ownerContact.entityTypeId === EntityType.Company
+      ? this.ownerContact.companyEmail
+      : this.ownerContact.email) || '';
+  }
+
+  getOwnerName(): string {
+    if (!this.ownerContact) {
+      return (this.line?.ownerName || '').trim();
+    }
+    return (this.ownerContact.entityTypeId === EntityType.Company
+      ? this.ownerContact.companyName
+      : this.ownerContact.fullName || `${this.ownerContact.firstName || ''} ${this.ownerContact.lastName || ''}`.trim()) || (this.line?.ownerName || '').trim();
   }
   //#endregion
 
@@ -495,6 +880,46 @@ export class OwnerStatementCreateComponent extends BaseDocumentComponent impleme
       return '';
     }
     return date.toLocaleString('en-US', { month: 'long', year: 'numeric' });
+  }
+
+  formatFullDate(value: string): string {
+    const date = this.utilityService.parseCalendarDateInput(value);
+    if (!date) {
+      return '';
+    }
+
+    return this.formatFullDateFromDate(date);
+  }
+
+  formatFullDateFromDate(date: Date): string {
+    if (!date || Number.isNaN(date.getTime())) {
+      return '';
+    }
+
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
+    const year = date.getFullYear();
+    return `${month}/${day}/${year}`;
+  }
+
+  formatReportingMonthEndDate(value: string): string {
+    const parsed = this.utilityService.parseCalendarDateInput(value);
+    if (!parsed) {
+      return '';
+    }
+
+    const lastDay = new Date(parsed.getFullYear(), parsed.getMonth() + 1, 0);
+    return this.formatFullDateFromDate(lastDay);
+  }
+
+  formatPreviousMonthEndDate(value: string): string {
+    const parsed = this.utilityService.parseCalendarDateInput(value);
+    if (!parsed) {
+      return '';
+    }
+
+    const lastDay = new Date(parsed.getFullYear(), parsed.getMonth(), 0);
+    return this.formatFullDateFromDate(lastDay);
   }
 
   formatMonthDay(value: string): string {
@@ -565,6 +990,10 @@ export class OwnerStatementCreateComponent extends BaseDocumentComponent impleme
       return `data:${details.contentType};base64,${details.file}`;
     }
     return '';
+  }
+
+  escapeRegExp(value: string): string {
+    return String(value || '').replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
   }
 
   escapeHtml(value: string): string {

@@ -72,9 +72,20 @@
               <mat-icon>print</mat-icon>
               Print
             </button>
+            <button mat-raised-button type="button" color="accent" (click)="onEmail()"
+              [disabled]="!line || !previewIframeHtml || !getOwnerEmail()">
+              <mat-icon>email</mat-icon>
+              Email
+            </button>
             <button mat-raised-button type="button" color="accent" (click)="onDownload()" [disabled]="!previewIframeHtml || isDownloading">
               <mat-icon>download</mat-icon>
               {{ isDownloading ? 'Downloading...' : 'Download' }}
+            </button>
+            <button mat-raised-button type="button" color="primary" id="save-button"
+              (click)="saveOwnerStatement()"
+              class="text-nowrap flex-shrink-0" [disabled]="!previewIframeHtml || isSubmitting">
+              <mat-icon>save</mat-icon>
+              Save
             </button>
           </div>
           <div class="editor-section">
