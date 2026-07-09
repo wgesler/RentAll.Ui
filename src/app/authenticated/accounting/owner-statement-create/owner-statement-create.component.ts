@@ -364,16 +364,22 @@ export class OwnerStatementCreateComponent extends BaseDocumentComponent impleme
       return;
     }
 
-    const templateHtml = (this.propertyHtml?.ownerStatement || '').trim();
-    if (!templateHtml) {
+    if (!this.property?.propertyId) {
       this.clearPreview();
-      this.toastr.warning('No owner statement HTML template found for this property.', 'No Template');
       this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'previewHtml');
       return;
     }
 
-    const processedHtml = this.replacePlaceholders(templateHtml);
-    this.processAndSetHtml(processedHtml);
+    const templateHtml = (this.propertyHtml?.ownerStatement || '').trim();
+    if (templateHtml) {
+      const processedHtml = this.replacePlaceholders(templateHtml);
+      this.processAndSetHtml(processedHtml);
+      this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'previewHtml');
+      return;
+    }
+
+    this.clearPreview();
+    this.toastr.warning('No owner statement HTML template found for this property.', 'No Template');
     this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'previewHtml');
   }
 
