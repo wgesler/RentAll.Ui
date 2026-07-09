@@ -645,8 +645,16 @@ export class OwnerStatementCreateComponent extends BaseDocumentComponent impleme
     activity: OwnerStatementPropertyActivityLineResponse,
     fallbackLabel: string
   ): { refNo: string; description: string } {
-    const sourceRef = (activity.sourceDocumentCode || '').trim();
     const rawDescription = (activity.description || '').trim();
+
+    if (this.isLinenAndTowelActivity(activity)) {
+      return {
+        refNo: this.formatTransactionDateAsMonthYear(activity.activityDate),
+        description: rawDescription || fallbackLabel
+      };
+    }
+
+    const sourceRef = (activity.sourceDocumentCode || '').trim();
 
     if (sourceRef) {
       const prefixPattern = new RegExp(`^${this.escapeRegExp(sourceRef)}\\s*:\\s*`, 'i');
@@ -671,6 +679,25 @@ export class OwnerStatementCreateComponent extends BaseDocumentComponent impleme
       refNo: '',
       description: rawDescription || fallbackLabel
     };
+  }
+
+  isLinenAndTowelActivity(activity: OwnerStatementPropertyActivityLineResponse): boolean {
+    if ((activity.activityType || '').trim().toLowerCase() === 'linensandtowels') {
+      return true;
+    }
+
+    return /(Monthly|Annual).*Linen\s*&\s*Towe/i.test((activity.description || '').trim());
+  }
+
+  formatTransactionDateAsMonthYear(value: string): string {
+    const date = this.utilityService.parseCalendarDateInput(value);
+    if (!date) {
+      return '';
+    }
+
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const year = String(date.getFullYear() % 100).padStart(2, '0');
+    return `${month}.${year}`;
   }
 
   formatActivityDateForStatement(
