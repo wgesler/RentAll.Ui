@@ -2521,24 +2521,9 @@ export class MappingService {
     return `${startMonth} ${startYear} - ${endMonth} ${endYear}`;
   }
 
-  /** Month name(s) only for owner statement labels, e.g. "May" or "May - June". */
+  /** Owner statement month label in MM.YY form, e.g. "05.26" or "05.26 - 06.26". */
   formatOwnerStatementPeriodMonthLabel(startDate: string | null | undefined, endDate: string | null | undefined): string {
-    const start = this.utility.parseCalendarDateInput(startDate);
-    const end = this.utility.parseCalendarDateInput(endDate ?? startDate);
-    if (!start && !end) {
-      return '';
-    }
-    if (!start || !end) {
-      const date = start ?? end!;
-      return date.toLocaleString('en-US', { month: 'long' });
-    }
-
-    const startMonth = start.toLocaleString('en-US', { month: 'long' });
-    const endMonth = end.toLocaleString('en-US', { month: 'long' });
-    if (startMonth === endMonth) {
-      return startMonth;
-    }
-    return `${startMonth} - ${endMonth}`;
+    return this.formatOwnerStatementPeriodDisplay(startDate, endDate);
   }
 
   formatOwnerStatementMonthDate(value: string | null | undefined): string {
