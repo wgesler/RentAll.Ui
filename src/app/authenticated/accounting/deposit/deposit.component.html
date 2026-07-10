@@ -1,0 +1,194 @@
+@if (!isPageReady && depositId) {
+  <div class="loading-container">
+    <mat-spinner [diameter]="40"></mat-spinner>
+    <p>Loading deposit...</p>
+  </div>
+} @else {
+  <div class="flex content-card-wrap justify-center">
+    <section class="content-card">
+      <mat-card>
+        <form [formGroup]="form" (ngSubmit)="saveDeposit()" class="info-form pt-5 deposit-embedded-form">
+          <div class="deposit-shell deposit-shell--accounting">
+            <div class="deposit-status-row">
+              <span class="text-lg font-medium">Deposit Details</span>
+              <div class="flex items-center gap-2">
+                <mat-checkbox formControlName="isActive" color="primary">
+                  IsActive
+                </mat-checkbox>
+                <button
+                  mat-raised-button
+                  type="button"
+                  color="primary"
+                  (click)="saveDeposit()"
+                  [disabled]="isSubmitting"
+                  class="text-nowrap flex-shrink-0">
+                  <mat-icon>save</mat-icon>
+                  Save
+                </button>
+              </div>
+            </div>
+            <div class="grid grid-cols-4 form-standard-grid deposit-form-grid">
+              <div class="col-span-4 deposit-overall-row deposit-overall-primary-row">
+                <mat-form-field appearance="outline" class="deposit-overall-no-field">
+                  <mat-label>Deposit Code</mat-label>
+                  <input matInput [value]="isAddMode ? '' : (deposit?.depositCode || '')" readonly disabled>
+                </mat-form-field>
+                <app-searchable-select
+                  class="deposit-overall-bank-account-field"
+                  [renderInFormField]="true"
+                  [formFieldClass]="'deposit-overall-bank-account-field'"
+                  [formFieldLabel]="'Bank Account'"
+                  [value]="form.get('bankAccountId')?.value ?? 0"
+                  [options]="bankAccountOptions"
+                  [required]="true"
+                  [showSearchInput]="true"
+                  [hideSearchHint]="true"
+                  [hideSearchText]="true"
+                  [searchPlaceholder]="'Type to filter bank accounts...'"
+                  [showInstructionOption]="false"
+                  [noResultsText]="'No bank accounts match your search'"
+                  [showError]="shouldShowControlError(form.get('bankAccountId'))"
+                  errorText="Bank account is required"
+                  (valueChange)="onOverallBankAccountSelectionChange($event)">
+                </app-searchable-select>
+              </div>
+              <div class="col-span-4 deposit-overall-row deposit-overall-secondary-row">
+                <mat-form-field appearance="outline" class="deposit-overall-date-field">
+                  <mat-label>Deposit Date</mat-label>
+                  <input matInput [matDatepicker]="depositDatePicker" formControlName="depositDate" required>
+                  <mat-datepicker-toggle matIconSuffix [for]="depositDatePicker"></mat-datepicker-toggle>
+                  <mat-datepicker #depositDatePicker></mat-datepicker>
+                </mat-form-field>
+                <mat-form-field appearance="outline" class="deposit-overall-date-field">
+                  <mat-label>Accounting Period</mat-label>
+                  <input matInput [matDatepicker]="accountingPeriodPicker" formControlName="accountingPeriod" required>
+                  <mat-datepicker-toggle matIconSuffix [for]="accountingPeriodPicker"></mat-datepicker-toggle>
+                  <mat-datepicker #accountingPeriodPicker></mat-datepicker>
+                </mat-form-field>
+                <mat-form-field appearance="outline" class="deposit-overall-amount-field"
+                  [class.mat-form-field-invalid]="shouldShowControlError(form.get('amount'))"
+                  [class.mat-mdc-form-field-invalid]="shouldShowControlError(form.get('amount'))">
+                  <mat-label>Amount</mat-label>
+                  <input #overallAmountInput matInput type="text" inputmode="decimal" [value]="getAmountDisplay()" required
+                    [class.split-input-invalid]="shouldShowControlError(form.get('amount'))"
+                    (focus)="onAmountFocus($event)"
+                    (click)="onAmountClick($event)"
+                    (blur)="onAmountBlur($event)"
+                    (input)="onAmountInput($event)"
+                    (keydown.enter)="onAmountKeydown($event)">
+                  @if (shouldShowControlError(form.get('amount'))) {
+                    <mat-error>Amount must be greater than zero</mat-error>
+                  }
+                </mat-form-field>
+                <mat-form-field appearance="outline" class="deposit-overall-description-field">
+                  <mat-label>Description</mat-label>
+                  <input matInput formControlName="description" required (blur)="onOverallDescriptionBlur()">
+                </mat-form-field>
+              </div>
+            </div>
+
+            <div class="deposit-overall-summary-row">
+              <div class="deposit-overall-summary">
+                <span class="deposit-overall-summary-label">Split Total:</span>
+                <span class="deposit-overall-summary-value" [class.split-total-invalid]="isDisplayedSplitTotalInvalid() || splitTotalValidationError">
+                  ${{ formatter.currency(getDisplayedSplitTotal()) }} / Deposit: ${{ formatter.currency(getDepositAmountValue()) }}
+                </span>
+              </div>
+            </div>
+
+            <div class="deposit-splits-section">
+              <div class="deposit-splits-header">
+                <span class="text-lg font-medium">Split Lines</span>
+                <button type="button" mat-raised-button color="primary" (click)="addSplitLine()">
+                  <mat-icon>add</mat-icon>
+                  Add Split
+                </button>
+              </div>
+              <div class="deposit-splits-list" formArrayName="splits">
+                <div class="deposit-splits-table-wrap">
+                  <table class="split-lines-table split-lines-table--deposit">
+                    <thead>
+                      <tr>
+                        <th class="split-col-no">No</th>
+                        <th class="split-col-amount">Amount</th>
+                        <th class="split-col-description">Description</th>
+                        <th class="split-col-property">Property</th>
+                        <th class="split-col-account">Account</th>
+                        <th class="split-col-actions"></th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      @for (splitGroup of splitsFormArray.controls; track splitIndex; let splitIndex = $index) {
+                        <tr [formGroupName]="splitIndex">
+                          <td class="split-col-no">{{ splitIndex + 1 }}</td>
+                          <td class="split-col-amount">
+                            <input type="text" inputmode="decimal" [value]="getSplitAmountDisplay(splitIndex)" required class="split-editable-input"
+                              (focus)="onSplitAmountFocus($event, splitIndex)"
+                              (blur)="onSplitAmountBlur($event, splitIndex)"
+                              (input)="onSplitAmountInput($event, splitIndex)"
+                              (keydown.enter)="onSplitAmountKeydown($event, splitIndex)"
+                              [class.split-input-invalid]="shouldShowSplitControlError(splitGroup, 'amount')">
+                          </td>
+                          <td class="split-col-description">
+                            <input type="text" formControlName="description" required class="split-editable-input"
+                              [class.split-input-invalid]="shouldShowSplitControlError(splitGroup, 'description')">
+                          </td>
+                          <td class="split-col-property">
+                            <select formControlName="propertyId" class="split-editable-input">
+                              <option [ngValue]="null">{{ getSplitNullPropertyOptionLabel() }}</option>
+                              @for (option of getSplitPropertyOptions(); track option.value) {
+                                <option [ngValue]="option.value">{{ option.label }}</option>
+                              }
+                            </select>
+                          </td>
+                          <td class="split-col-account">
+                            <app-searchable-select
+                              class="split-account-select"
+                              [renderInFormField]="false"
+                              [value]="splitGroup.get('chartOfAccountId')?.value ?? null"
+                              [options]="splitAccountOptions"
+                              [required]="true"
+                              [showInstructionOption]="true"
+                              [instructionOptionValue]="null"
+                              nullOptionLabel="Select Account"
+                              [showSearchInput]="true"
+                              [hideSearchHint]="false"
+                              [hideSearchText]="false"
+                              [openScrollWhenNoSelection]="true"
+                              [openScrollLabelPrefix]="'5000'"
+                              searchPlaceholder="Type to filter accounts..."
+                              noResultsText="No accounts match your search"
+                              [selectClass]="getSplitAccountSelectClass(splitGroup)"
+                              [showError]="shouldShowSplitControlError(splitGroup, 'chartOfAccountId')"
+                              errorText="Account is required"
+                              (valueChange)="onSplitAccountSelectionChange(splitIndex, $event)" />
+                          </td>
+                          <td class="split-col-actions">
+                            <button
+                              type="button"
+                              mat-icon-button
+                              color="accent"
+                              [disabled]="splitsFormArray.length <= 1"
+                              (click)="removeSplitLine(splitIndex)"
+                              matTooltip="Remove this split line">
+                              <mat-icon>close</mat-icon>
+                            </button>
+                          </td>
+                        </tr>
+                      }
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+              @if (isDisplayedSplitTotalInvalid() || splitTotalValidationError) {
+                <div class="split-total-error">
+                  Split total cannot be greater than the deposit amount.
+                </div>
+              }
+            </div>
+          </div>
+        </form>
+      </mat-card>
+    </section>
+  </div>
+}

@@ -1,6 +1,6 @@
 import { HttpClient, HttpErrorResponse } from '@angular/common/http';
 import { Injectable } from '@angular/core';
-import { BehaviorSubject, Observable, tap } from 'rxjs';
+import { BehaviorSubject, Observable, filter, switchMap, take, tap } from 'rxjs';
 import { ConfigService } from '../../../services/config.service';
 import { ChartOfAccountRequest, ChartOfAccountResponse } from '../models/chart-of-accounts.model';
 
@@ -78,6 +78,22 @@ export class ChartOfAccountsService {
       return;
     }
     this.loadAllChartOfAccounts();
+  }
+
+  ensureChartOfAccountsLoaded$(): Observable<ChartOfAccountResponse[]> {
+    if (this.chartOfAccountsLoaded$.value) {
+      return this.getAllChartOfAccounts().pipe(take(1));
+    }
+
+    if (!this.isChartOfAccountsLoading) {
+      this.fetchAllChartOfAccounts();
+    }
+
+    return this.areChartOfAccountsLoaded().pipe(
+      filter(loaded => loaded),
+      take(1),
+      switchMap(() => this.getAllChartOfAccounts().pipe(take(1)))
+    );
   }
 
   areChartOfAccountsLoaded(): Observable<boolean> {

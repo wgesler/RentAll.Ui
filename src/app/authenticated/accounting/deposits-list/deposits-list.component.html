@@ -3,8 +3,6 @@
     <mat-spinner [diameter]="40"></mat-spinner>
     <p>Loading deposits...</p>
   </div>
-} @else if (isServiceError) {
-  <p class="empty-msg">Unable to load deposits.</p>
 } @else {
   <div class="mat list-layout-standard dbg-band-main">
     <div class="tableDiv">
@@ -25,7 +23,8 @@
         [itemsPerPage]="10"
         (editEvent)="goToDeposit($event)"
         (rowClickEvent)="goToDeposit($event)"
-        (deleteEvent)="deleteDeposit($event)">
+        (deleteEvent)="deleteDeposit($event)"
+        (checkboxChangeEvent)="onDepositCheckboxChange($event)">
         <div dataTableFilterActions>
           <div class="table-filter-actions-group form-titlebar-actions-wrap uniform-gap">
             <mat-slide-toggle [checked]="showInactive" color="primary" (change)="toggleInactive()">

@@ -141,29 +141,6 @@ export interface JournalEntryLineListDisplay {
   disabled?: boolean;
 }
 
-export interface MakeDepositRequest {
-  officeId: number;
-  depositDate: string;
-  bankChartOfAccountId: number;
-  description: string;
-  amount: number;
-  journalEntryLineIds: string[];
-  lines: JournalEntryLineListDisplay[];
-}
-
-export interface DepositRequest {
-  officeId: number;
-  depositDate: string;
-  chartOfAccountId: number;
-  description: string;
-  amount: number;
-  journalEntryLineIds: string[];
-}
-
-export interface DepositResponse {
-  journalEntry: JournalEntryResponse;
-}
-
 /** Body for POST report/journal-entry-recap/search — matches API GetRecapReportDto. */
 export interface JournalEntryRecapSearchRequest {
   officeIds: number[];

@@ -4,7 +4,7 @@ import { map, Observable } from 'rxjs';
 import { ConfigService } from '../../../services/config.service';
 import { MappingService } from '../../../services/mapping.service';
 import { UtilityService } from '../../../services/utility.service';
-import { JournalEntryLineSearchRequest, JournalEntryLineSearchResponse, JournalEntryRequest, JournalEntryResponse, JournalEntrySyncRequest, JournalEntrySyncResult, DepositRequest, DepositResponse, StartJournalEntrySyncJobResponse, JournalEntrySyncJobStatus } from '../models/journal-entry.model';
+import { JournalEntryLineSearchRequest, JournalEntryLineSearchResponse, JournalEntryRequest, JournalEntryResponse, JournalEntrySyncRequest, JournalEntrySyncResult, StartJournalEntrySyncJobResponse, JournalEntrySyncJobStatus } from '../models/journal-entry.model';
 
 @Injectable({
   providedIn: 'root'
@@ -179,21 +179,6 @@ export class GeneralLedgerService {
   clearAllJournalEntries(officeIds: number[]): Observable<JournalEntrySyncResult> {
     return this.http.post<JournalEntrySyncResult>(`${this.controller}journal-entry/clear/all`, { officeIds }).pipe(
       map(result => this.mapJournalEntrySyncResult(result))
-    );
-  }
-
-  makeDeposit(request: DepositRequest): Observable<DepositResponse> {
-    return this.http.put<DepositResponse>(`${this.controller}deposit`, {
-      officeId: request.officeId,
-      depositDate: request.depositDate,
-      chartOfAccountId: request.chartOfAccountId,
-      description: request.description?.trim() || '',
-      amount: request.amount,
-      journalEntryLineIds: request.journalEntryLineIds
-    }).pipe(
-      map(response => ({
-        journalEntry: this.mappingService.mapJournalEntryResponse(response?.journalEntry as unknown as Record<string, unknown>)
-      }))
     );
   }
 

@@ -6,8 +6,18 @@ export interface DepositSplit {
   description: string;
   propertyId?: string | null;
   propertyCode?: string | null;
+  journalEntryLineId?: string | null;
   chartOfAccountId?: number | null;
   chartOfAccountDisplayName?: string | null;
+}
+
+export interface DepositSearchRequest {
+  officeIds: number[];
+  propertyId?: string | null;
+  isActive?: boolean | null;
+  includeInactive?: boolean;
+  startDate?: CalendarDateString | null;
+  endDate?: CalendarDateString | null;
 }
 
 export interface DepositRequest {
@@ -15,7 +25,7 @@ export interface DepositRequest {
   organizationId: string;
   officeId: number;
   depositDate: string;
-  accountingPeriod?: string;
+  accountingPeriod: string;
   amount: number;
   description: string;
   propertyId?: string | null;

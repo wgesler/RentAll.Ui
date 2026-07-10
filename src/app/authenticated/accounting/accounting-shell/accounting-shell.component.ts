@@ -28,9 +28,9 @@ import { WorkOrderCreateComponent } from '../../maintenance/work-order-create/wo
 import { WorkOrderListComponent, WorkOrderSelection } from '../../maintenance/work-order-list/work-order-list.component';
 import { WorkOrderPreviewSelection } from '../../maintenance/models/work-order.model';
 import { ReceiptsListComponent } from '../../maintenance/receipts-list/receipts-list.component';
-import { DepositsListComponent } from '../../maintenance/deposits-list/deposits-list.component';
-import { DepositComponent } from '../../maintenance/deposit/deposit.component';
-import { DepositSelection } from '../../maintenance/models/deposit.model';
+import { DepositsListComponent } from '../deposits-list/deposits-list.component';
+import { DepositComponent } from '../deposit/deposit.component';
+import { DepositSelection } from '../models/deposit.model';
 import { ReceiptService } from '../../maintenance/services/receipt.service';
 import { WorkOrderService } from '../../maintenance/services/work-order.service';
 import { PropertyCodeResponse, PropertyResponse } from '../../properties/models/property.model';
@@ -1604,6 +1604,7 @@ export class AccountingShellComponent implements OnInit, OnDestroy {
     }
     if (event.index !== this.tabBankActivities && !this.usesReportTitleBarFilters()) {
       this.onGeneralLedgerBack();
+      this.onDepositBack();
     }
     if (event.index !== this.tabReports) {
       this.isFinancialReportDrillDownActive = false;
@@ -1695,6 +1696,7 @@ export class AccountingShellComponent implements OnInit, OnDestroy {
 
     if (kindChanged) {
       this.onGeneralLedgerBack();
+      this.onDepositBack();
     }
 
     this.selectedBankActivityKind = kind;
@@ -1705,6 +1707,7 @@ export class AccountingShellComponent implements OnInit, OnDestroy {
     }
 
     if (kindChanged) {
+      this.syncBillsSearchRequest();
       this.refreshActiveBankActivityList();
       this.router.navigate([], {
         relativeTo: this.route,
@@ -2153,6 +2156,7 @@ export class AccountingShellComponent implements OnInit, OnDestroy {
       && !this.isGeneralLedgerDetailActive
       && !this.isBillsReceiptDetailActive
       && !this.isReceiptsReceiptDetailActive
+      && !this.isDepositDetailActive
       && !this.isOwnersUtilityReceiptDetailActive
       && !this.isOwnersWorkOrderDetailActive
       && !this.isWorkOrderCreateActive
@@ -2393,6 +2397,12 @@ export class AccountingShellComponent implements OnInit, OnDestroy {
     return this.selectedTabIndex === this.tabBillsReceipts
       && this.selectedBillsReceiptKind === 'receipts'
       && this.showReceiptsReceiptDetail;
+  }
+
+  get isDepositDetailActive(): boolean {
+    return this.selectedTabIndex === this.tabBankActivities
+      && this.selectedBankActivityKind === 'deposits'
+      && this.showDepositsDetail;
   }
 
   get isOwnersUtilityReceiptDetailActive(): boolean {
@@ -3234,6 +3244,9 @@ export class AccountingShellComponent implements OnInit, OnDestroy {
               );
             }
             this.syncBillsSearchRequest();
+            if (this.selectedTabIndex === this.tabBankActivities && this.selectedBankActivityKind === 'deposits') {
+              this.depositsRefreshTrigger++;
+            }
           }
         });
       },

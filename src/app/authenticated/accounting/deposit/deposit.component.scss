@@ -1,0 +1,290 @@
+:host {
+  display: block;
+  width: 100%;
+  max-width: 100%;
+  overflow-x: hidden;
+}
+
+.loading-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 3rem;
+  gap: 1rem;
+  min-height: 0 !important;
+
+  p {
+    margin-top: 1rem;
+    color: #666;
+  }
+}
+
+.deposit-status-row {
+  margin-bottom: 0.375rem;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+
+.deposit-form-grid {
+  min-width: 0;
+}
+
+.deposit-overall-row {
+  display: grid;
+  align-items: center;
+  gap: var(--global-form-field-gap-x);
+  min-width: 0;
+  width: 100%;
+}
+
+.deposit-shell--accounting {
+  .deposit-overall-primary-row {
+    grid-template-columns: minmax(0, 0.33fr) auto minmax(0, 1fr);
+    width: 100%;
+    max-width: 100%;
+    justify-items: start;
+  }
+
+  .deposit-overall-secondary-row {
+    grid-template-columns: repeat(3, minmax(0, 0.67fr)) minmax(0, 2fr);
+    width: 100%;
+    max-width: 100%;
+    margin-top: var(--global-form-field-gap-x);
+  }
+
+  .deposit-overall-no-field ::ng-deep {
+    .mat-mdc-form-field-input-control input.mat-mdc-input-element,
+    .mat-mdc-form-field-input-control input.mdc-text-field__input {
+      font-size: 15px !important;
+      font-weight: 600 !important;
+    }
+
+    .mdc-floating-label,
+    .mat-mdc-form-field-label,
+    .mat-mdc-form-field .mdc-floating-label--float-above {
+      font-size: 14px !important;
+      font-weight: 500 !important;
+    }
+  }
+}
+
+.deposit-overall-amount-field {
+  width: 100%;
+  min-width: 0;
+  max-width: none;
+}
+
+.deposit-overall-amount-field.mat-mdc-form-field-invalid ::ng-deep .mdc-notched-outline .mdc-notched-outline__leading,
+.deposit-overall-amount-field.mat-mdc-form-field-invalid ::ng-deep .mdc-notched-outline .mdc-notched-outline__notch,
+.deposit-overall-amount-field.mat-mdc-form-field-invalid ::ng-deep .mdc-notched-outline .mdc-notched-outline__trailing,
+.deposit-overall-amount-field.mat-form-field-invalid ::ng-deep .mdc-notched-outline .mdc-notched-outline__leading,
+.deposit-overall-amount-field.mat-form-field-invalid ::ng-deep .mdc-notched-outline .mdc-notched-outline__notch,
+.deposit-overall-amount-field.mat-form-field-invalid ::ng-deep .mdc-notched-outline .mdc-notched-outline__trailing {
+  border-color: #dc2626 !important;
+}
+
+.deposit-overall-no-field,
+.deposit-overall-date-field,
+.deposit-overall-description-field {
+  width: 100%;
+  min-width: 0;
+  max-width: none;
+}
+
+.deposit-overall-bank-account-field {
+  width: 20rem;
+  max-width: 20rem;
+  min-width: 0;
+}
+
+.deposit-overall-summary {
+  display: flex;
+  align-items: center;
+  gap: 0.375rem;
+  white-space: nowrap;
+  font-size: 14px;
+}
+
+.deposit-overall-summary-row {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 0.75rem;
+}
+
+.deposit-overall-summary-label {
+  font-weight: 500;
+}
+
+.deposit-splits-section {
+  margin-top: 2rem;
+  margin-bottom: 0.75rem;
+}
+
+.deposit-splits-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 0.5rem;
+}
+
+.deposit-splits-list {
+  border: 1px solid var(--mat-sys-outline-variant, #e0e0e0);
+  border-radius: 0.375rem;
+  overflow: hidden;
+}
+
+.deposit-splits-table-wrap {
+  overflow-x: hidden;
+}
+
+.split-lines-table {
+  font-size: 14px;
+  line-height: 1.25;
+  border-collapse: collapse;
+  width: 100%;
+  table-layout: fixed;
+
+  .split-col-no {
+    width: 44px;
+  }
+
+  .split-col-amount {
+    width: 120px;
+  }
+
+  .split-col-account {
+    width: 400px;
+  }
+
+  .split-col-property {
+    width: 30ch;
+  }
+
+  .split-col-description {
+    width: auto;
+  }
+
+  .split-col-actions {
+    width: 72px;
+    text-align: right;
+    padding-right: 24px !important;
+  }
+
+  th,
+  td {
+    text-align: left;
+    border-bottom: 1px solid var(--mat-sys-outline-variant, #e0e0e0);
+    padding: 5px 10px;
+    vertical-align: middle;
+  }
+
+  th {
+    background-color: var(--mat-sys-surface-container-low, #f5f5f5);
+    font-weight: 500;
+  }
+
+  tr:hover {
+    background-color: var(--mat-sys-surface-container, #fafafa);
+  }
+
+  tbody tr:last-child td {
+    border-bottom: none;
+  }
+}
+
+.split-lines-table--deposit {
+  .split-col-description {
+    width: auto;
+    min-width: 0;
+  }
+
+  .split-col-property {
+    width: 30ch;
+  }
+
+  .split-col-account {
+    width: 400px;
+  }
+}
+
+.split-editable-input {
+  width: 100%;
+  min-width: 0;
+  height: 28px;
+  line-height: 28px;
+  padding: 0 6px;
+  box-sizing: border-box;
+  font-size: 14px;
+  border-radius: 4px;
+  border: 1px solid var(--mat-sys-outline, #ccc);
+  background-color: var(--mat-sys-surface, #fff);
+}
+
+.split-editable-input:focus {
+  outline: none;
+  border-color: var(--mat-sys-primary, #1976d2);
+}
+
+select.split-editable-input {
+  display: block;
+  width: 100%;
+  appearance: auto;
+  cursor: pointer;
+}
+
+.split-account-select {
+  display: block;
+  width: 100%;
+  min-width: 0;
+}
+
+.split-account-select-control {
+  width: 100%;
+}
+
+.split-account-select ::ng-deep .searchable-select-control {
+  width: 100%;
+  min-width: 0;
+}
+
+.split-account-select ::ng-deep .mat-mdc-select-trigger {
+  min-height: 28px;
+  height: 28px;
+  padding: 0 6px;
+  box-sizing: border-box;
+  font-size: 14px;
+  border: 1px solid var(--mat-sys-outline, #ccc);
+  border-radius: 4px;
+  background-color: var(--mat-sys-surface, #fff);
+}
+
+.split-account-select ::ng-deep .searchable-trigger-value {
+  line-height: 28px;
+}
+
+.split-account-select ::ng-deep .searchable-select-control.split-input-invalid .mat-mdc-select-trigger,
+.split-account-select ::ng-deep .searchable-select-control[aria-invalid="true"] .mat-mdc-select-trigger {
+  border-color: #dc2626 !important;
+}
+
+.split-input-invalid,
+.split-input-invalid:focus {
+  border-color: #dc2626 !important;
+}
+
+.split-col-actions .mat-mdc-icon-button {
+  margin-right: 0 !important;
+}
+
+.split-total-invalid,
+.split-total-error {
+  color: #b91c1c;
+}
+
+.split-total-error {
+  margin-top: 0.25rem;
+  font-size: 0.8125rem;
+}

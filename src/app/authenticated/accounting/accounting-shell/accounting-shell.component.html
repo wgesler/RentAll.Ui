@@ -526,6 +526,11 @@
             <mat-icon>arrow_back</mat-icon>
             Back
           </button>
+        } @else if (isDepositDetailActive) {
+          <button mat-raised-button type="button" color="accent" (click)="onDepositBack()">
+            <mat-icon>arrow_back</mat-icon>
+            Back
+          </button>
         } @else if (isOwnersUtilityReceiptDetailActive) {
           <button mat-raised-button type="button" color="accent" (click)="onOwnersUtilityReceiptBack()">
             <mat-icon>arrow_back</mat-icon>
@@ -770,7 +775,6 @@
                     [property]="depositsProperty"
                     [depositId]="selectedDepositId"
                     [officeId]="selectedOfficeId"
-                    [shellContext]="'accounting'"
                     (backEvent)="onDepositBack()"
                     (savedEvent)="onDepositSaved()" />
                 } @else {

@@ -25,6 +25,8 @@ import { JournalEntryLineListDisplay, JournalEntryLineSearchResponse } from '../
 import { ChartOfAccountsService } from '../services/chart-of-accounts.service';
 import { CheckHtmlService } from '../services/check-html.service';
 import { CheckPrintService } from '../services/check-print.service';
+import { DepositRequest, DepositResponse, DepositSplit } from '../models/deposit.model';
+import { DepositService } from '../services/deposit.service';
 import { GeneralLedgerService } from '../services/general-ledger.service';
 
 @Component({
@@ -106,6 +108,7 @@ export class GeneralLedgerListComponent implements OnInit, OnDestroy, OnChanges 
     private documentHtmlService: DocumentHtmlService,
     private sanitizer: DomSanitizer,
     private authService: AuthService,
+    private depositService: DepositService,
     private utilityService: UtilityService,
     private toastr: ToastrService,
     private cdr: ChangeDetectorRef) {
@@ -118,13 +121,20 @@ export class GeneralLedgerListComponent implements OnInit, OnDestroy, OnChanges 
       this.markViewForCheck();
     });
 
+    this.itemsToLoad$.pipe(
+      filter(items => items.size === 0),
+      take(1),
+      takeUntil(this.destroy$)
+    ).subscribe(() => {
+      this.loadJournalEntryLines();
+    });
+
     this.organizationId = this.authService.getUser()?.organizationId?.trim() ?? '';
     if (this.printChecksOnly) {
       this.displayedColumns['contactName'].displayAs = 'Vendor';
     }
     this.loadOffices();
     this.loadChartOfAccounts();
-    this.loadJournalEntryLines();
   }
 
   ngOnChanges(changes: SimpleChanges): void {
@@ -186,6 +196,7 @@ export class GeneralLedgerListComponent implements OnInit, OnDestroy, OnChanges 
     return hasDepositDate
       && !!this.selectedDepositBankChartOfAccountId
       && this.depositAmount !== 0
+      && (this.depositDescription || '').trim().length > 0
       && this.selectedJournalEntryLineIds.size > 0;
   }
 
@@ -235,16 +246,49 @@ export class GeneralLedgerListComponent implements OnInit, OnDestroy, OnChanges 
 
     const depositDate = this.utilityService.toDateOnlyJsonString(this.depositDate)
       ?? this.utilityService.todayAsCalendarDateString();
+    const description = (this.depositDescription || '').trim();
+    if (!description) {
+      this.toastr.warning('Description is required.');
+      return;
+    }
 
-    this.isSubmittingDeposit = true;
-    this.generalLedgerService.makeDeposit({
+    if (!this.organizationId) {
+      this.toastr.warning('Organization is required.');
+      return;
+    }
+
+    const undepositedFundsAccountIds = this.resolveUndepositedFundsAccountIds([officeId]);
+    const undepositedFundsAccountId = undepositedFundsAccountIds.length === 1
+      ? undepositedFundsAccountIds[0]
+      : null;
+    if (!undepositedFundsAccountId) {
+      this.toastr.error('Undeposited Funds account is not configured for this office.', CommonMessage.Error);
+      return;
+    }
+
+    const splits: DepositSplit[] = selectedLines.map(line => ({
+      amount: this.getLineNetAmount(line),
+      description: (line.description || '').trim(),
+      propertyId: (line.propertyId || '').trim() || null,
+      journalEntryLineId: line.journalEntryLineId,
+      chartOfAccountId: undepositedFundsAccountId
+    }));
+
+    const payload: DepositRequest = {
+      organizationId: this.organizationId,
       officeId,
       depositDate,
-      chartOfAccountId: this.selectedDepositBankChartOfAccountId!,
-      description: (this.depositDescription || '').trim(),
+      accountingPeriod: depositDate,
       amount: this.depositAmount,
-      journalEntryLineIds: selectedLines.map(line => line.journalEntryLineId)
-    }).pipe(
+      description,
+      bankAccountId: this.selectedDepositBankChartOfAccountId,
+      propertyId: splits.find(split => (split.propertyId || '').trim().length > 0)?.propertyId ?? null,
+      splits,
+      isActive: true
+    };
+
+    this.isSubmittingDeposit = true;
+    this.depositService.createDeposit(payload).pipe(
       finalize(() => {
         this.isSubmittingDeposit = false;
         this.markViewForCheck();
@@ -252,7 +296,7 @@ export class GeneralLedgerListComponent implements OnInit, OnDestroy, OnChanges 
       takeUntil(this.destroy$)
     ).subscribe({
       next: () => {
-        this.toastr.success('Deposit journal entry created.', CommonMessage.Success);
+        this.toastr.success('Deposit created and funds moved to bank.', CommonMessage.Success);
         this.cancelDepositForm();
         this.loadJournalEntryLines();
         this.depositCompletedEvent.emit();
@@ -422,17 +466,13 @@ export class GeneralLedgerListComponent implements OnInit, OnDestroy, OnChanges 
   }
 
   loadChartOfAccounts(): void {
-    this.chartOfAccountsService.ensureChartOfAccountsLoaded();
-    this.chartOfAccountsService.areChartOfAccountsLoaded().pipe(
-      filter(loaded => loaded === true),
+    this.chartOfAccountsService.ensureChartOfAccountsLoaded$().pipe(
       take(1),
       finalize(() => this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'chartOfAccounts'))
     ).subscribe({
-      next: () => {
-        this.chartOfAccountsService.getAllChartOfAccounts().pipe(takeUntil(this.destroy$)).subscribe(accounts => {
-          this.chartOfAccounts = accounts || [];
-          this.markViewForCheck();
-        });
+      next: accounts => {
+        this.chartOfAccounts = accounts || [];
+        this.markViewForCheck();
       },
       error: () => {
         this.chartOfAccounts = [];
@@ -511,7 +551,7 @@ export class GeneralLedgerListComponent implements OnInit, OnDestroy, OnChanges 
       ? (filteredAccountIds.length === 1 ? filteredAccountIds[0] : null)
       : (this.chartOfAccountId != null && this.chartOfAccountId > 0 ? this.chartOfAccountId : null);
 
-    this.generalLedgerService.searchJournalEntryLines({
+    const journalEntryLinesRequest = this.generalLedgerService.searchJournalEntryLines({
       officeIds,
       chartOfAccountId,
       sourceTypeId: this.printChecksOnly
@@ -525,8 +565,20 @@ export class GeneralLedgerListComponent implements OnInit, OnDestroy, OnChanges 
       includeUnposted: true,
       startDate: this.searchDateRange?.startDate ?? null,
       endDate: this.searchDateRange?.endDate ?? null
+    });
+    const depositsRequest = this.undepositedFundsOnly
+      ? this.depositService.searchDeposits({
+        officeIds,
+        isActive: true,
+        includeInactive: false
+      })
+      : of([] as DepositResponse[]);
+
+    forkJoin({
+      lines: journalEntryLinesRequest,
+      deposits: depositsRequest
     }).pipe(takeUntil(this.destroy$)).subscribe({
-      next: lines => {
+      next: ({ lines, deposits }) => {
         let resolvedLines = lines || [];
         if (usesFixedAccountFilter && filteredAccountIds.length > 1) {
           const accountIdSet = new Set(filteredAccountIds);
@@ -545,6 +597,10 @@ export class GeneralLedgerListComponent implements OnInit, OnDestroy, OnChanges 
             Number(line.sourceTypeId) === SourceType.Deposit
             && bankAccountIdSet.has(line.chartOfAccountId)
             && Number(line.debit || 0) > 0);
+        }
+        if (this.undepositedFundsOnly) {
+          const depositedLineIds = this.buildDepositedJournalEntryLineIds(deposits);
+          resolvedLines = this.filterUndepositedFundsOpenLines(resolvedLines, depositedLineIds);
         }
         this.allLines = resolvedLines;
         this.noActivityMessage = this.undepositedFundsOnly
@@ -753,6 +809,141 @@ export class GeneralLedgerListComponent implements OnInit, OnDestroy, OnChanges 
 
   getLineNetAmount(line: Pick<JournalEntryLineListDisplay, 'debitValue' | 'creditValue'>): number {
     return this.roundCurrencyValue(Number(line.debitValue || 0) - Number(line.creditValue || 0));
+  }
+
+  private getLineNetAmountFromSearchLine(line: Pick<JournalEntryLineSearchResponse, 'debit' | 'credit'>): number {
+    return this.roundCurrencyValue(Number(line.debit || 0) - Number(line.credit || 0));
+  }
+
+  private filterUndepositedFundsOpenLines(
+    lines: JournalEntryLineSearchResponse[],
+    depositedLineIds: Set<string> = new Set()
+  ): JournalEntryLineSearchResponse[] {
+    const openDebits = lines
+      .filter(line => this.getLineNetAmountFromSearchLine(line) > 0)
+      .sort((left, right) => this.compareUndepositedFundsLines(left, right));
+    const credits = lines
+      .filter(line => this.getLineNetAmountFromSearchLine(line) < 0)
+      .filter(line => Number(line.sourceTypeId) === SourceType.Deposit)
+      .sort((left, right) => this.compareUndepositedFundsLines(left, right));
+
+    const settledDebitIds = new Set<string>();
+
+    for (const creditLine of credits) {
+      let remainingCredit = Math.abs(this.getLineNetAmountFromSearchLine(creditLine));
+
+      for (const debitLine of openDebits) {
+        if (settledDebitIds.has(debitLine.journalEntryLineId)) {
+          continue;
+        }
+
+        const debitAmount = this.getLineNetAmountFromSearchLine(debitLine);
+        if (debitAmount <= 0 || !this.undepositedFundsLinesBalance(debitLine, creditLine)) {
+          continue;
+        }
+
+        if (Math.abs(debitAmount - remainingCredit) <= 0.005) {
+          settledDebitIds.add(debitLine.journalEntryLineId);
+          remainingCredit = 0;
+          break;
+        }
+      }
+    }
+
+    return openDebits.filter(line =>
+      !settledDebitIds.has(line.journalEntryLineId)
+      && !depositedLineIds.has(line.journalEntryLineId)
+    );
+  }
+
+  private buildDepositedJournalEntryLineIds(deposits: DepositResponse[]): Set<string> {
+    const depositedLineIds = new Set<string>();
+
+    for (const deposit of deposits || []) {
+      for (const split of deposit.splits || []) {
+        const journalEntryLineId = String(split.journalEntryLineId || '').trim();
+        if (journalEntryLineId) {
+          depositedLineIds.add(journalEntryLineId);
+        }
+      }
+    }
+
+    return depositedLineIds;
+  }
+
+  private compareUndepositedFundsLines(
+    left: JournalEntryLineSearchResponse,
+    right: JournalEntryLineSearchResponse
+  ): number {
+    const leftDate = String(left.transactionDate || '');
+    const rightDate = String(right.transactionDate || '');
+    if (leftDate !== rightDate) {
+      return leftDate.localeCompare(rightDate);
+    }
+
+    const leftCode = String(left.journalEntryCode || '');
+    const rightCode = String(right.journalEntryCode || '');
+    if (leftCode !== rightCode) {
+      return leftCode.localeCompare(rightCode, undefined, { sensitivity: 'base' });
+    }
+
+    return String(left.journalEntryLineId || '').localeCompare(String(right.journalEntryLineId || ''));
+  }
+
+  private undepositedFundsLinesBalance(
+    debitLine: JournalEntryLineSearchResponse,
+    creditLine: JournalEntryLineSearchResponse
+  ): boolean {
+    const debitAmount = this.getLineNetAmountFromSearchLine(debitLine);
+    const creditAmount = Math.abs(this.getLineNetAmountFromSearchLine(creditLine));
+    if (Math.abs(debitAmount - creditAmount) > 0.005) {
+      return false;
+    }
+
+    if (!this.undepositedFundsLinesShareProperty(debitLine, creditLine)) {
+      return false;
+    }
+
+    const debitDescription = this.normalizeUndepositedFundsDescription(debitLine);
+    const creditDescription = this.normalizeUndepositedFundsDescription(creditLine);
+    if (debitDescription && creditDescription && debitDescription !== creditDescription) {
+      return false;
+    }
+
+    const debitReservationId = this.normalizeUndepositedFundsId(debitLine.reservationId);
+    const creditReservationId = this.normalizeUndepositedFundsId(creditLine.reservationId);
+    if (debitReservationId && creditReservationId && debitReservationId !== creditReservationId) {
+      return false;
+    }
+
+    return true;
+  }
+
+  private undepositedFundsLinesShareProperty(
+    debitLine: JournalEntryLineSearchResponse,
+    creditLine: JournalEntryLineSearchResponse
+  ): boolean {
+    const debitPropertyId = this.normalizeUndepositedFundsId(debitLine.propertyId);
+    const creditPropertyId = this.normalizeUndepositedFundsId(creditLine.propertyId);
+    if (debitPropertyId && creditPropertyId) {
+      return debitPropertyId === creditPropertyId;
+    }
+
+    const debitPropertyCode = this.normalizeUndepositedFundsId(debitLine.propertyCode);
+    const creditPropertyCode = this.normalizeUndepositedFundsId(creditLine.propertyCode);
+    if (debitPropertyCode && creditPropertyCode) {
+      return debitPropertyCode === creditPropertyCode;
+    }
+
+    return !debitPropertyId && !creditPropertyId && !debitPropertyCode && !creditPropertyCode;
+  }
+
+  private normalizeUndepositedFundsDescription(line: JournalEntryLineSearchResponse): string {
+    return String(line.memo || line.journalEntryMemo || '').trim().toLowerCase();
+  }
+
+  private normalizeUndepositedFundsId(value?: string | null): string {
+    return String(value ?? '').trim().toLowerCase();
   }
 
   roundCurrencyValue(amount: number): number {

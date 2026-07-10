@@ -4,8 +4,7 @@ import { Observable, of } from 'rxjs';
 import { map } from 'rxjs/operators';
 import { ConfigService } from '../../../services/config.service';
 import { MappingService } from '../../../services/mapping.service';
-import { MaintenanceListSearchRequest } from '../models/maintenance-search.model';
-import { DepositRequest, DepositResponse } from '../models/deposit.model';
+import { DepositRequest, DepositResponse, DepositSearchRequest } from '../models/deposit.model';
 
 @Injectable({
   providedIn: 'root'
@@ -18,10 +17,10 @@ export class DepositService {
     private configService: ConfigService,
     private mappingService: MappingService
   ) {
-    this.controller = this.configService.config().apiUrl + 'accounting/bank-deposit/';
+    this.controller = this.configService.config().apiUrl + 'accounting/deposit/';
   }
 
-  searchDeposits(request: MaintenanceListSearchRequest): Observable<DepositResponse[]> {
+  searchDeposits(request: DepositSearchRequest): Observable<DepositResponse[]> {
     const officeIds = (request.officeIds ?? []).filter(id => id > 0);
     if (officeIds.length === 0) {
       return of([]);
@@ -34,7 +33,10 @@ export class DepositService {
       includeInactive: !!request.includeInactive,
       startDate: request.startDate ?? null,
       endDate: request.endDate ?? null
-    }).pipe(map(deposits => (deposits || []).map(deposit => this.mappingService.mapDepositResponse(deposit))));
+    }).pipe(map(response => {
+      const deposits = Array.isArray(response) ? response : [];
+      return deposits.map(deposit => this.mappingService.mapDepositResponse(deposit));
+    }));
   }
 
   getDeposits(propertyId?: string | null, officeId?: number | null): Observable<DepositResponse[]> {

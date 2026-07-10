@@ -21,7 +21,7 @@ import { MaintenanceListResponse } from '../authenticated/maintenance/models/mai
 import { MaintenanceListSearchRequest } from '../authenticated/maintenance/models/maintenance-search.model';
 import { InspectionDisplayList, InspectionResponse } from '../authenticated/maintenance/models/inspection.model';
 import { ReceiptDisplayList, ReceiptRequest, ReceiptResponse, Split } from '../authenticated/maintenance/models/receipt.model';
-import { DepositDisplayList, DepositResponse, DepositSplit } from '../authenticated/maintenance/models/deposit.model';
+import { DepositDisplayList, DepositRequest, DepositResponse, DepositSplit } from '../authenticated/accounting/models/deposit.model';
 import { getInspectionType, getReceiptType, getWorkOrderType } from '../authenticated/maintenance/models/maintenance-enums';
 import { WorkOrderDisplayList, WorkOrderRequest, WorkOrderResponse } from '../authenticated/maintenance/models/work-order.model';
 import { AccountingOfficeListDisplay, AccountingOfficeResponse } from '../authenticated/organizations/models/accounting-office.model';
@@ -2892,19 +2892,62 @@ export class MappingService {
     const propertyId = propertyIdRaw == null || String(propertyIdRaw).trim().length === 0
       ? null
       : String(propertyIdRaw).trim();
+    const modifiedOn =
+      this.utility.coerceDateTimeOffsetStringFromApi(
+        rawRecord['modifiedOn'] ?? rawRecord['ModifiedOn'] ?? base.modifiedOn
+      ) ??
+      base.modifiedOn ??
+      '';
+    const bankAccountIdRaw = rawRecord['bankAccountId'] ?? rawRecord['BankAccountId'] ?? base.bankAccountId;
+    const parsedBankAccountId = Number(bankAccountIdRaw ?? 0);
+    const bankAccountId = Number.isFinite(parsedBankAccountId) && parsedBankAccountId > 0
+      ? parsedBankAccountId
+      : null;
+    const createdBy = String(rawRecord['createdBy'] ?? rawRecord['CreatedBy'] ?? base.createdBy ?? base.createdByName ?? '').trim();
+    const createdByName = String(rawRecord['createdByName'] ?? rawRecord['CreatedByName'] ?? base.createdByName ?? createdBy).trim();
+    const modifiedBy = String(rawRecord['modifiedBy'] ?? rawRecord['ModifiedBy'] ?? base.modifiedBy ?? '').trim();
+    const isActiveRaw = rawRecord['isActive'] ?? rawRecord['IsActive'] ?? base.isActive;
+    const isActive = isActiveRaw === true || isActiveRaw === 'true' || isActiveRaw === 1;
+    const mappedSplits = this.mapDepositSplitsFromApi(
+      (rawRecord['splits'] ?? rawRecord['Splits'] ?? base.splits) as DepositSplit[] | undefined | null
+    );
+    const mappedPropertyIds = this.normalizeDepositPropertyIds(
+      rawRecord['propertyIds'] ?? rawRecord['PropertyIds'] ?? base.propertyIds
+    );
 
     return {
       ...base,
       depositDate,
       accountingPeriod,
       createdOn,
+      modifiedOn,
       depositCode,
       depositId,
       journalEntryId,
       propertyId,
-      splits: this.mapDepositSplitsFromApi(base.splits),
-      propertyIds: this.resolveDepositPropertyIds(base.splits, base.propertyIds, propertyId)
+      organizationId: String(rawRecord['organizationId'] ?? rawRecord['OrganizationId'] ?? base.organizationId ?? '').trim(),
+      officeId: Number(rawRecord['officeId'] ?? rawRecord['OfficeId'] ?? base.officeId ?? 0) || 0,
+      officeName: String(rawRecord['officeName'] ?? rawRecord['OfficeName'] ?? base.officeName ?? '').trim(),
+      description: String(rawRecord['description'] ?? rawRecord['Description'] ?? base.description ?? '').trim(),
+      amount: Number(rawRecord['amount'] ?? rawRecord['Amount'] ?? base.amount ?? 0) || 0,
+      bankAccountId,
+      bankAccountDisplayName: String(rawRecord['bankAccountDisplayName'] ?? rawRecord['BankAccountDisplayName'] ?? base.bankAccountDisplayName ?? '').trim(),
+      isActive,
+      createdBy: createdBy || createdByName,
+      createdByName: createdByName || createdBy,
+      modifiedBy,
+      splits: mappedSplits,
+      propertyIds: this.resolveDepositPropertyIds(mappedSplits, mappedPropertyIds, propertyId)
     };
+  }
+
+  private normalizeDepositPropertyIds(value: unknown): string[] {
+    if (!Array.isArray(value)) {
+      return [];
+    }
+    return value
+      .map(propertyId => String(propertyId ?? '').trim())
+      .filter(propertyId => propertyId.length > 0);
   }
 
   private resolveDepositPropertyIds(
@@ -2912,8 +2955,9 @@ export class MappingService {
     existing: string[] | undefined | null,
     headerPropertyId?: string | null
   ): string[] {
-    if ((existing || []).length > 0) {
-      return existing || [];
+    const normalizedExisting = this.normalizeDepositPropertyIds(existing);
+    if (normalizedExisting.length > 0) {
+      return normalizedExisting;
     }
     const propertyIds = new Set<string>();
     const normalizedHeaderPropertyId = (headerPropertyId || '').trim();
@@ -2952,6 +2996,7 @@ export class MappingService {
       description: String(record.description ?? record['Description'] ?? '').trim(),
       propertyId: String(record.propertyId ?? record['PropertyId'] ?? '').trim() || null,
       propertyCode: String(record.propertyCode ?? record['PropertyCode'] ?? '').trim() || null,
+      journalEntryLineId: String(record.journalEntryLineId ?? record['JournalEntryLineId'] ?? '').trim() || null,
       chartOfAccountId: Number.isFinite(chartOfAccountId) && chartOfAccountId > 0 ? chartOfAccountId : null,
       chartOfAccountDisplayName: String(record.chartOfAccountDisplayName ?? record['ChartOfAccountDisplayName'] ?? '').trim() || null
     };
@@ -3012,6 +3057,31 @@ export class MappingService {
         }
       });
     return Array.from(codes).join(', ');
+  }
+
+  mapDepositUpdateRequest(deposit: DepositResponse, isActive: boolean): DepositRequest {
+    const splits = this.mapDepositSplitsFromApi(deposit.splits).map(split => ({
+      depositSplitId: split.depositSplitId ?? null,
+      amount: Number(split.amount) || 0,
+      description: (split.description || '').trim(),
+      propertyId: split.propertyId ?? null,
+      chartOfAccountId: split.chartOfAccountId ?? null
+    }));
+
+    return {
+      depositId: deposit.depositId,
+      organizationId: deposit.organizationId,
+      officeId: deposit.officeId,
+      depositDate: deposit.depositDate,
+      accountingPeriod: deposit.accountingPeriod,
+      amount: Number(deposit.amount) || 0,
+      description: (deposit.description || '').trim(),
+      propertyId: deposit.propertyId ?? null,
+      bankAccountId: deposit.bankAccountId ?? null,
+      splits,
+      journalEntryId: deposit.journalEntryId ?? null,
+      isActive
+    };
   }
   //#endregion
 
