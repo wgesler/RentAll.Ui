@@ -58,6 +58,7 @@ import { GeneralLedgerService } from '../services/general-ledger.service';
 import { JournalEntrySyncResult } from '../models/journal-entry.model';
 import { OwnerStatementActivityLinkSelection, OwnerStatementJournalEntryLineSearchRequest, OwnerStatementListViewState, OwnerStatementMonthLineListDisplay, OwnerStatementReportKind } from '../models/owner-statement.model';
 import { OwnerReportDetailsComponent } from '../owner-report-details/owner-report-details.component';
+import { OwnerReportsCacheService } from '../services/owner-reports-cache.service';
 
 type JournalEntrySyncProgressKey =
   | 'invoice'
@@ -140,8 +141,7 @@ export class AccountingShellComponent implements OnInit, OnDestroy {
   readonly shellOwnerMenuOptions: { kind: AccountingShellOwnerKind; label: string }[] = [
     { kind: 'workOrders', label: 'Work Orders' },
     { kind: 'utilities', label: 'Utilities & Bills' },
-    { kind: 'ownerAccrualReport', label: 'Owner Accrual' },
-    { kind: 'ownerCashReport', label: 'Owner Cash' },
+    { kind: 'statements', label: 'Accrual & Cash' },
     { kind: 'ownerStatements', label: 'Owner Statements' }
   ];
   readonly shellReportMenuOptions: { kind: AccountingShellReportKind; label: string }[] = [
@@ -231,7 +231,9 @@ export class AccountingShellComponent implements OnInit, OnDestroy {
   ownerStatementReturnAfterUtilityDetail = false;
   ownerStatementReturnAfterWorkOrderDetail = false;
   ownerStatementReturnAfterInvoiceDetail = false;
-  ownerStatementReturnOwnerKind: AccountingShellOwnerKind = 'ownerAccrualReport';
+  ownerStatementReturnOwnerKind: AccountingShellOwnerKind = 'statements';
+  ownerStatementReturnReportKind: OwnerStatementReportKind = 'accrual';
+  selectedOwnerStatementReportKind: OwnerStatementReportKind = 'accrual';
   showOwnerStatementJournalEntryLines = false;
   ownerStatementJournalEntryLineRequest: OwnerStatementJournalEntryLineSearchRequest | null = null;
   ownerStatementJournalEntryLinesRefreshTrigger = 0;
@@ -271,6 +273,7 @@ export class AccountingShellComponent implements OnInit, OnDestroy {
     private receiptService: ReceiptService,
     private workOrderService: WorkOrderService,
     private invoiceService: InvoiceService,
+    private ownerReportsCacheService: OwnerReportsCacheService,
     private toastr: ToastrService,
     private cdr: ChangeDetectorRef
   ) {
@@ -1120,6 +1123,9 @@ export class AccountingShellComponent implements OnInit, OnDestroy {
       this.ownerStatementReturnAfterUtilityDetail = false;
       this.selectedTabIndex = this.tabOwners;
       this.selectedOwnerKind = this.ownerStatementReturnOwnerKind;
+      if (this.isOwnerReportView(this.selectedOwnerKind)) {
+        this.selectedOwnerStatementReportKind = this.ownerStatementReturnReportKind;
+      }
       if (this.selectedOwnerKind === 'ownerStatements') {
         this.ownersStatementsRefreshTrigger++;
       }
@@ -1185,6 +1191,9 @@ export class AccountingShellComponent implements OnInit, OnDestroy {
       this.ownerStatementReturnAfterWorkOrderDetail = false;
       this.selectedTabIndex = this.tabOwners;
       this.selectedOwnerKind = this.ownerStatementReturnOwnerKind;
+      if (this.isOwnerReportView(this.selectedOwnerKind)) {
+        this.selectedOwnerStatementReportKind = this.ownerStatementReturnReportKind;
+      }
       if (this.selectedOwnerKind === 'ownerStatements') {
         this.ownersStatementsRefreshTrigger++;
       }
@@ -1544,6 +1553,10 @@ export class AccountingShellComponent implements OnInit, OnDestroy {
 
     this.selectedOwnerKind = kind;
 
+    if (kindChanged && kind === 'statements') {
+      this.selectedOwnerStatementReportKind = 'accrual';
+    }
+
     if (previousTab !== this.tabOwners) {
       this.onTabChange({ index: this.tabOwners });
       return;
@@ -1670,12 +1683,35 @@ export class AccountingShellComponent implements OnInit, OnDestroy {
     this.ownersStatementsRefreshTrigger++;
   }
 
+  onOwnerStatementReportKindChange(kind: OwnerStatementReportKind): void {
+    if (this.selectedOwnerStatementReportKind === kind) {
+      return;
+    }
+
+    this.selectedOwnerStatementReportKind = kind;
+    this.router.navigate([], {
+      relativeTo: this.route,
+      queryParams: this.buildShellQueryParams({ ownerReport: kind }),
+      queryParamsHandling: 'merge'
+    });
+  }
+
   onOwnerReportGoClick(): void {
     if (!this.showOwnerReportGoButton) {
       return;
     }
     this.syncBillsSearchRequest();
-    this.ownersStatementsRefreshTrigger++;
+    this.ownerReportsCacheService.load(this.billsSearchRequest).pipe(take(1)).subscribe({
+      next: () => {
+        this.ownersStatementsRefreshTrigger++;
+        this.cdr.markForCheck();
+      },
+      error: () => {
+        this.ownerReportsCacheService.clear();
+        this.ownersStatementsRefreshTrigger++;
+        this.cdr.markForCheck();
+      }
+    });
   }
   //#endregion
 
@@ -2179,13 +2215,13 @@ export class AccountingShellComponent implements OnInit, OnDestroy {
   }
 
   get ownerStatementSubviewTitle(): string {
-    return this.selectedOwnerKind === 'ownerCashReport'
+    return this.selectedOwnerStatementReportKind === 'cash'
       ? 'Owner Cash Report'
-      : 'Owner Accual Report';
+      : 'Owner Accrual Report';
   }
 
   get selectedOwnerReportKind(): OwnerStatementReportKind {
-    return this.selectedOwnerKind === 'ownerCashReport' ? 'cash' : 'accrual';
+    return this.selectedOwnerStatementReportKind;
   }
 
   get isOwnerReportViewActive(): boolean {
@@ -2197,12 +2233,13 @@ export class AccountingShellComponent implements OnInit, OnDestroy {
   }
 
   isOwnerReportView(kind: AccountingShellOwnerKind): boolean {
-    return kind === 'ownerAccrualReport' || kind === 'ownerCashReport';
+    return kind === 'statements';
   }
 
   private captureOwnerStatementReturnContext(): void {
     if (this.isOwnerReportView(this.selectedOwnerKind)) {
       this.ownerStatementReturnOwnerKind = this.selectedOwnerKind;
+      this.ownerStatementReturnReportKind = this.selectedOwnerStatementReportKind;
     }
   }
 
@@ -2395,24 +2432,25 @@ export class AccountingShellComponent implements OnInit, OnDestroy {
       if (
         ownerKind === 'utilities'
         || ownerKind === 'workOrders'
-        || ownerKind === 'ownerAccrualReport'
-        || ownerKind === 'ownerCashReport'
+        || ownerKind === 'statements'
         || ownerKind === 'ownerStatements'
       ) {
         this.selectedOwnerKind = ownerKind;
-      } else if (ownerKind === 'statements') {
-        const ownerReport = params['ownerReport'];
-        this.selectedOwnerKind = ownerReport === 'cash' ? 'ownerCashReport' : 'ownerAccrualReport';
+        if (ownerKind === 'statements') {
+          this.selectedOwnerStatementReportKind = params['ownerReport'] === 'cash' ? 'cash' : 'accrual';
+        }
+      } else if (ownerKind === 'ownerAccrualReport') {
+        this.selectedOwnerKind = 'statements';
+        this.selectedOwnerStatementReportKind = 'accrual';
+      } else if (ownerKind === 'ownerCashReport') {
+        this.selectedOwnerKind = 'statements';
+        this.selectedOwnerStatementReportKind = 'cash';
       } else if (ownerKind === 'ownerStatement' || ownerKind === 'owner-statements' || ownerKind === 'owner-statment') {
         this.selectedOwnerKind = 'ownerStatements';
       }
     } else if ('ownerReport' in params) {
-      const ownerReport = params['ownerReport'];
-      if (ownerReport === 'cash') {
-        this.selectedOwnerKind = 'ownerCashReport';
-      } else if (ownerReport === 'accrual') {
-        this.selectedOwnerKind = 'ownerAccrualReport';
-      }
+      this.selectedOwnerKind = 'statements';
+      this.selectedOwnerStatementReportKind = params['ownerReport'] === 'cash' ? 'cash' : 'accrual';
     }
 
     if ('report' in params) {
@@ -2714,6 +2752,9 @@ export class AccountingShellComponent implements OnInit, OnDestroy {
       billsReceipt: this.selectedTabIndex === this.tabBillsReceipts ? this.selectedBillsReceiptKind : null,
       bankActivity: this.selectedTabIndex === this.tabBankActivities ? this.selectedBankActivityKind : null,
       ownerKind: this.selectedTabIndex === this.tabOwners ? this.selectedOwnerKind : null,
+      ownerReport: this.selectedTabIndex === this.tabOwners && this.isOwnerReportView(this.selectedOwnerKind)
+        ? this.selectedOwnerStatementReportKind
+        : null,
       report: this.selectedTabIndex === this.tabReports ? this.selectedReportKind : null,
       glView: this.selectedTabIndex === this.tabGeneralLedger ? this.selectedGeneralLedgerKind : null,
       reportClass: this.usesFinancialReportTitleBarFilters()
@@ -2749,6 +2790,9 @@ export class AccountingShellComponent implements OnInit, OnDestroy {
       this.activeInvoiceId = null;
       this.selectedTabIndex = this.tabOwners;
       this.selectedOwnerKind = this.ownerStatementReturnOwnerKind;
+      if (this.isOwnerReportView(this.selectedOwnerKind)) {
+        this.selectedOwnerStatementReportKind = this.ownerStatementReturnReportKind;
+      }
       if (this.selectedOwnerKind === 'ownerStatements') {
         this.ownersStatementsRefreshTrigger++;
       }

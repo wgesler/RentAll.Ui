@@ -7,7 +7,7 @@ import { CostCodesListDisplay, CostCodesRequest, CostCodesResponse } from '../au
 import { InvoiceResponse, LedgerLineListDisplay, LedgerLineResponse } from '../authenticated/accounting/models/invoice.model';
 import { JournalEntryLineDetailDisplay, JournalEntryLineListDisplay, JournalEntryLineResponse, JournalEntryLineSearchResponse, JournalEntryRecapRowDisplay, JournalEntryResponse, RecapReportResponse, TransferReportResponse, TransferReportRowDisplay } from '../authenticated/accounting/models/journal-entry.model';
 import { OwnerStatementListDisplay, OwnerStatementMonthLineListDisplay, OwnerStatementMonthLineResponse, OwnerStatementMonthLineSearchRequest, OwnerStatementOfficeGroup, OwnerStatementPropertyActivityLineDisplay, OwnerStatementPropertyActivityLineResponse, OwnerStatementPropertyRow, OwnerStatementResponse, OwnerStatementSearchRequest, OwnerStatementSearchResponse, OwnerStatementVisibleRow } from '../authenticated/accounting/models/owner-statement.model';
-import { OwnerAccrualReportResponse, OwnerAccrualReportRowResponse, OwnerCashReportResponse, OwnerCashReportRowResponse } from '../authenticated/accounting/models/owner-report.model';
+import { OwnerAccrualReportResponse, OwnerAccrualReportRowResponse, OwnerCashReportResponse, OwnerCashReportRowResponse, OwnerReportsBundleResponse } from '../authenticated/accounting/models/owner-report.model';
 import { RentRollPropertyAgreement, RentRollRow } from '../authenticated/accounting/models/rent-roll.model';
 import { EntityType, getEntityType } from '../authenticated/contacts/models/contact-enum';
 import { ContactListDisplay, ContactRequest, ContactResponse } from '../authenticated/contacts/models/contact.model';
@@ -2167,6 +2167,15 @@ export class MappingService {
       : [];
 
     return { rows, propertyActivityLines };
+  }
+
+  mapOwnerReportsBundleResponse(raw: Record<string, unknown>): OwnerReportsBundleResponse {
+    const cashRaw = (raw['cash'] ?? raw['Cash'] ?? {}) as Record<string, unknown>;
+    const accrualRaw = (raw['accrual'] ?? raw['Accrual'] ?? {}) as Record<string, unknown>;
+    return {
+      cash: this.mapOwnerCashReportResponse(cashRaw),
+      accrual: this.mapOwnerAccrualReportResponse(accrualRaw)
+    };
   }
 
   mapOwnerAccrualReportRow(raw: Record<string, unknown>): OwnerAccrualReportRowResponse {

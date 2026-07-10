@@ -1,15 +1,15 @@
 import { CommonModule } from '@angular/common';
 import { ChangeDetectionStrategy, ChangeDetectorRef, Component, ElementRef, EventEmitter, Input, OnChanges, OnDestroy, OnInit, Output, SimpleChanges, ViewChild } from '@angular/core';
-import { BehaviorSubject, finalize, map, Subject, take, takeUntil } from 'rxjs';
+import { BehaviorSubject, Subject, takeUntil } from 'rxjs';
 import { MaterialModule } from '../../../material.module';
 import { CommonService } from '../../../services/common.service';
 import { FormatterService } from '../../../services/formatter-service';
 import { MappingService } from '../../../services/mapping.service';
 import { UtilityService } from '../../../services/utility.service';
 import { MaintenanceListSearchRequest } from '../../maintenance/models/maintenance-search.model';
-import { OwnerReportActivityLinkSelection, OwnerReportAmountDrillDownSelection, OwnerReportDescriptionSegment, OwnerReportDrillDownMetric, OwnerReportKind, OwnerReportListViewState, OwnerReportOfficeGroup, OwnerReportPropertyActivityLineDisplay, OwnerReportPropertyActivityLineResponse, OwnerReportResponse, OwnerReportSearchResponse, OwnerReportVisibleRow } from '../models/owner-report.model';
+import { OwnerAccrualReportResponse, OwnerReportActivityLinkSelection, OwnerReportAmountDrillDownSelection, OwnerReportDescriptionSegment, OwnerReportDrillDownMetric, OwnerReportKind, OwnerReportListViewState, OwnerReportOfficeGroup, OwnerReportPropertyActivityLineDisplay, OwnerReportPropertyActivityLineResponse, OwnerReportResponse, OwnerReportSearchResponse, OwnerReportVisibleRow, OwnerCashReportResponse } from '../models/owner-report.model';
 import { OwnerReportService } from '../services/owner-report.service';
-import { ReportService } from '../services/report.service';
+import { OwnerReportsCacheService } from '../services/owner-reports-cache.service';
 
 interface OwnerReportKindCache {
   ownerReports: OwnerReportResponse[];
@@ -39,6 +39,7 @@ export class OwnerReportComponent implements OnInit, OnChanges, OnDestroy {
   @Output() activityLinkSelect = new EventEmitter<OwnerReportActivityLinkSelection>();
   @Output() amountDrillDownSelect = new EventEmitter<OwnerReportAmountDrillDownSelection>();
   @Output() viewStateChange = new EventEmitter<OwnerReportListViewState>();
+  @Output() reportKindChange = new EventEmitter<OwnerReportKind>();
 
   isPageReady = false;
   isServiceError = false;
@@ -58,7 +59,7 @@ export class OwnerReportComponent implements OnInit, OnChanges, OnDestroy {
 
   constructor(
     private ownerReportService: OwnerReportService,
-    private reportService: ReportService,
+    private ownerReportsCacheService: OwnerReportsCacheService,
     private commonService: CommonService,
     private formatter: FormatterService,
     private mappingService: MappingService,
@@ -175,38 +176,40 @@ export class OwnerReportComponent implements OnInit, OnChanges, OnDestroy {
 
     this.isServiceError = false;
     this.utilityService.addLoadItem(this.itemsToLoad$, 'ownerReports');
-    const search$ = this.reportKind === 'cash'
-      ? this.reportService.searchOwnerCashReport(request).pipe(
-          map(report => this.mappingService.mapOwnerCashReportToOwnerReportSearchResponse(report))
-        )
-      : this.reportService.searchOwnerAccrualReport(request).pipe(
-          map(report => this.mappingService.mapOwnerAccrualReportToOwnerReportSearchResponse(report))
-        );
 
-    search$.pipe(take(1), finalize(() => this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'ownerReports'))).subscribe({
-      next: response => {
-        this.ownerReports = response?.summaries || [];
-        this.ownerReportOfficeGroups = this.mappingService.mapOwnerReportOfficeGroups(this.ownerReports);
-        this.applyPropertyActivityLines(response?.propertyActivityLines || []);
-        this.restoreViewState(this.ownerReportOfficeGroups, this.viewState);
-        this.rebuildVisibleRows();
-        this.writeOwnerReportCache(this.reportKind);
-        this.emitViewStateChange();
-        this.markViewForCheck();
-      },
-      error: () => {
-        this.isServiceError = true;
-        this.ownerReports = [];
-        this.ownerReportOfficeGroups = [];
-        this.visibleRows = [];
-        this.expandedRowIds.clear();
-        this.officeReadyToCloseRowIds.clear();
-        this.noActivityPropertyRowIds.clear();
-        this.clearPropertyActivityState();
-        this.writeOwnerReportCache(this.reportKind);
-        this.emitViewStateChange();
-        this.markViewForCheck();
-      }
+    const cashReport = this.ownerReportsCacheService.getCashReport();
+    const accrualReport = this.ownerReportsCacheService.getAccrualReport();
+    if (!cashReport && !accrualReport) {
+      this.clearOwnerReportData();
+      this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'ownerReports');
+      this.markViewForCheck();
+      return;
+    }
+
+    if (cashReport) {
+      this.seedOwnerReportKindCache('cash', cashReport);
+    }
+    if (accrualReport) {
+      this.seedOwnerReportKindCache('accrual', accrualReport);
+    }
+
+    this.restoreOwnerReportCache(this.reportKind);
+    this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'ownerReports');
+    this.markViewForCheck();
+  }
+
+  private seedOwnerReportKindCache(kind: OwnerReportKind, report: OwnerCashReportResponse | OwnerAccrualReportResponse): void {
+    const response: OwnerReportSearchResponse = kind === 'cash'
+      ? this.mappingService.mapOwnerCashReportToOwnerReportSearchResponse(report as OwnerCashReportResponse)
+      : this.mappingService.mapOwnerAccrualReportToOwnerReportSearchResponse(report as OwnerAccrualReportResponse);
+
+    ownerReportKindCache.set(kind, {
+      ownerReports: response?.summaries || [],
+      propertyActivityLinesRaw: response?.propertyActivityLines || [],
+      expandedRowIds: kind === this.reportKind ? Array.from(this.expandedRowIds) : [],
+      officeReadyToCloseRowIds: kind === this.reportKind ? Array.from(this.officeReadyToCloseRowIds) : [],
+      isServiceError: false,
+      viewState: kind === this.reportKind ? this.viewState : null
     });
   }
 
@@ -742,7 +745,11 @@ export class OwnerReportComponent implements OnInit, OnChanges, OnDestroy {
   get reportTitle(): string {
     return this.reportKind === 'cash'
       ? 'Owner Cash Report'
-      : 'Owner Accual Report';
+      : 'Owner Accrual Report';
+  }
+
+  onCashReportToggleChange(checked: boolean): void {
+    this.reportKindChange.emit(checked ? 'cash' : 'accrual');
   }
 
   getHeaderOfficeLabel(): string {

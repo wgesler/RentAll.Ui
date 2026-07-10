@@ -9,8 +9,7 @@ export type AccountingShellBankActivityKind = 'transferReport' | 'deposits' | 'p
 export type AccountingShellOwnerKind =
   | 'utilities'
   | 'workOrders'
-  | 'ownerAccrualReport'
-  | 'ownerCashReport'
+  | 'statements'
   | 'ownerStatements';
 
 export type AccountingShellGeneralLedgerKind = 'ledger' | 'recap';

@@ -69,3 +69,8 @@ export interface OwnerAccrualReportResponse {
   rows: OwnerAccrualReportRowResponse[];
   propertyActivityLines: OwnerReportPropertyActivityLineResponse[];
 }
+
+export interface OwnerReportsBundleResponse {
+  cash: OwnerCashReportResponse;
+  accrual: OwnerAccrualReportResponse;
+}

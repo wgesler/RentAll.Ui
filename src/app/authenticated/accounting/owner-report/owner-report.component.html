@@ -23,6 +23,14 @@
           }
           <p class="owner-statement-period">{{ headerPeriodLine }}</p>
         </div>
+        <div class="owner-statement-toggle-row">
+          <mat-slide-toggle
+            [checked]="reportKind === 'cash'"
+            color="primary"
+            (change)="onCashReportToggleChange($event.checked)">
+            Cash
+          </mat-slide-toggle>
+        </div>
         <div
           #ownerReportTableWrap
           class="owner-statement-table-wrap"

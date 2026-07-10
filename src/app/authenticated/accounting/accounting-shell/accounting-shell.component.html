@@ -759,6 +759,7 @@
                     [refreshTrigger]="ownersStatementsRefreshTrigger"
                     [reportKind]="selectedOwnerReportKind"
                     [viewState]="ownersStatementViewState"
+                    (reportKindChange)="onOwnerStatementReportKindChange($event)"
                     (activityLinkSelect)="onOwnerStatementActivityLinkSelect($event)"
                     (amountDrillDownSelect)="onOwnerStatementAmountDrillDownSelect($event)"
                     (viewStateChange)="onOwnersStatementViewStateChange($event)">
