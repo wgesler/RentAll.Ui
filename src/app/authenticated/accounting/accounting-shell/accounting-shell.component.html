@@ -186,7 +186,41 @@
             </div>
           </div>
         } @else if (hasAccountingFullAccess && selectedTabIndex === tabOwners) {
-          @if (isOwnerStatementCreateActive) {
+          @if (isWorkOrderCreateActive && workOrderCreateContext) {
+            <div class="header-title form-titlebar-fields-wrap accounting-shell-titlebar-fields">
+              <div class="accounting-shell-titlebar-filters">
+                @if (showShellOfficeDropdown || workOrderCreateContext.officeId != null) {
+                  <app-title-bar-select
+                    [label]="'Office'"
+                    [formFieldClass]="'titlebar-field-office'"
+                    [value]="workOrderCreateContext.officeId"
+                    [options]="workOrderCreateOfficeTitleBarOptions"
+                    [disabled]="true"
+                    [nullOptionLabel]="'Office'"
+                    [noResultsText]="'No offices match your search'">
+                  </app-title-bar-select>
+                }
+                <app-title-bar-select
+                  [label]="'Property Code'"
+                  [formFieldClass]="'titlebar-field-property-code'"
+                  [value]="workOrderCreateContext.propertyId"
+                  [options]="workOrderCreatePropertyTitleBarOptions"
+                  [disabled]="true"
+                  [nullOptionLabel]="'Property'"
+                  [noResultsText]="'No properties match your search'">
+                </app-title-bar-select>
+                <app-title-bar-select
+                  [label]="'Reservation'"
+                  [formFieldClass]="'titlebar-field-reservation'"
+                  [value]="workOrderCreateContext.reservationId"
+                  [options]="workOrderCreateReservationTitleBarOptions"
+                  [disabled]="true"
+                  [nullOptionLabel]="'Reservation'"
+                  [noResultsText]="'No reservations match your search'">
+                </app-title-bar-select>
+              </div>
+            </div>
+          } @else if (isOwnerStatementCreateActive) {
             <div class="header-title form-titlebar-fields-wrap accounting-shell-titlebar-fields">
               <div class="accounting-shell-titlebar-filters">
                 <app-title-bar-select
@@ -494,6 +528,11 @@
           </button>
         } @else if (isOwnersUtilityReceiptDetailActive) {
           <button mat-raised-button type="button" color="accent" (click)="onOwnersUtilityReceiptBack()">
+            <mat-icon>arrow_back</mat-icon>
+            Back
+          </button>
+        } @else if (isWorkOrderCreateActive) {
+          <button mat-raised-button type="button" color="accent" (click)="onWorkOrderCreateBack()">
             <mat-icon>arrow_back</mat-icon>
             Back
           </button>
@@ -814,14 +853,26 @@
                   </app-receipts-list>
                 }
               } @else if (selectedOwnerKind === 'workOrders') {
-                @if (showOwnersWorkOrderDetail) {
+                @if (showWorkOrderCreate && workOrderCreateContext) {
+                  @for (instance of [workOrderCreateInstance]; track instance) {
+                    <app-work-order-create
+                      [shellMode]="true"
+                      [workOrderIdInput]="workOrderCreateContext.workOrderId"
+                      [propertyIdInput]="workOrderCreateContext.propertyId"
+                      [reservationIdInput]="workOrderCreateContext.reservationId"
+                      (backEvent)="onWorkOrderCreateBack()">
+                    </app-work-order-create>
+                  }
+                } @else if (showOwnersWorkOrderDetail) {
                   @for (instance of [ownersWorkOrderDetailInstance]; track instance) {
                     <app-work-order
                       [property]="ownersWorkOrderProperty"
                       [workOrderId]="selectedOwnersWorkOrderId"
                       [officeId]="selectedOfficeId"
                       [embeddedInMaintenance]="true"
+                      [embedDocumentPreviewInShell]="true"
                       [showBackButton]="false"
+                      (previewEvent)="onWorkOrderPreviewOpen($event)"
                       (backEvent)="onOwnersWorkOrderBack()"
                       (savedEvent)="onOwnersWorkOrderSaved()" />
                   }
@@ -830,9 +881,11 @@
                     [officeId]="selectedOfficeId"
                     [searchRequest]="billsSearchRequest"
                     [embeddedInMaintenance]="true"
+                    [embedDocumentPreviewInShell]="true"
                     [showOwnersOnlyToggle]="true"
                     [refreshTrigger]="ownersWorkOrdersRefreshTrigger"
-                    (workOrderSelect)="onOwnersWorkOrderSelect($event)" />
+                    (workOrderSelect)="onOwnersWorkOrderSelect($event)"
+                    (previewEvent)="onWorkOrderPreviewOpen($event)" />
                 }
               } @else if (selectedOwnerKind === 'ownerStatements') {
                 @if (selectedOwnerStatementMonthLine) {

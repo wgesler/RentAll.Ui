@@ -24,7 +24,9 @@ import { MaintenanceListSearchRequest } from '../../maintenance/models/maintenan
 import { ReceiptPrefill, ReceiptRequest, ReceiptSelection } from '../../maintenance/models/receipt.model';
 import { ReceiptComponent } from '../../maintenance/receipt/receipt.component';
 import { WorkOrderComponent } from '../../maintenance/work-order/work-order.component';
+import { WorkOrderCreateComponent } from '../../maintenance/work-order-create/work-order-create.component';
 import { WorkOrderListComponent, WorkOrderSelection } from '../../maintenance/work-order-list/work-order-list.component';
+import { WorkOrderPreviewSelection } from '../../maintenance/models/work-order.model';
 import { ReceiptsListComponent } from '../../maintenance/receipts-list/receipts-list.component';
 import { ReceiptService } from '../../maintenance/services/receipt.service';
 import { WorkOrderService } from '../../maintenance/services/work-order.service';
@@ -94,6 +96,7 @@ interface JournalEntrySyncProgressRow {
     ReceiptComponent,
     WorkOrderListComponent,
     WorkOrderComponent,
+    WorkOrderCreateComponent,
     GeneralLedgerListComponent,
     JournalEntryRecapComponent,
     TransferReportComponent,
@@ -253,6 +256,10 @@ export class AccountingShellComponent implements OnInit, OnDestroy {
   selectedOwnersWorkOrderId: string | null = null;
   ownersWorkOrderProperty: PropertyResponse | null = null;
   ownersWorkOrderDetailInstance = 0;
+  showWorkOrderCreate = false;
+  workOrderCreateContext: WorkOrderPreviewSelection | null = null;
+  workOrderCreateInstance = 0;
+  workOrderCreateReturnToDetail = false;
   chartOfAccounts: ChartOfAccountResponse[] = [];
   isJournalEntrySyncInProgress = false;
   syncProgressRows: JournalEntrySyncProgressRow[] = [];
@@ -1152,6 +1159,8 @@ export class AccountingShellComponent implements OnInit, OnDestroy {
   }
 
   onOwnersWorkOrderSelect(selection: WorkOrderSelection): void {
+    this.clearWorkOrderCreateState();
+
     const workOrderId = selection?.workOrderId ?? null;
     const propertyId = (selection?.propertyId || '').trim() || null;
     const resolvedOfficeId = this.selectedOfficeId;
@@ -1217,6 +1226,52 @@ export class AccountingShellComponent implements OnInit, OnDestroy {
     } else {
       this.ownersWorkOrdersRefreshTrigger++;
     }
+  }
+
+  onWorkOrderPreviewOpen(selection: WorkOrderPreviewSelection): void {
+    const workOrderId = (selection?.workOrderId || '').trim();
+    if (!workOrderId) {
+      return;
+    }
+
+    this.workOrderCreateReturnToDetail = !!selection.returnToDetail || this.showOwnersWorkOrderDetail;
+    this.workOrderCreateContext = {
+      workOrderId,
+      propertyId: selection.propertyId ?? null,
+      reservationId: selection.reservationId ?? null,
+      officeId: selection.officeId ?? this.selectedOfficeId ?? null,
+      propertyCode: (selection.propertyCode || '').trim()
+    };
+    this.showWorkOrderCreate = true;
+    this.workOrderCreateInstance++;
+    this.showOwnersWorkOrderDetail = false;
+    this.selectedOwnersWorkOrderId = null;
+    this.ownersWorkOrderProperty = null;
+    this.selectedTabIndex = this.tabOwners;
+    this.selectedOwnerKind = 'workOrders';
+    this.cdr.markForCheck();
+  }
+
+  onWorkOrderCreateBack(): void {
+    const returnToDetail = this.workOrderCreateReturnToDetail;
+    const workOrderId = this.workOrderCreateContext?.workOrderId ?? null;
+    const propertyId = this.workOrderCreateContext?.propertyId ?? null;
+
+    this.clearWorkOrderCreateState();
+
+    if (returnToDetail && workOrderId) {
+      this.onOwnersWorkOrderSelect({
+        workOrderId,
+        propertyId,
+        officeId: this.selectedOfficeId
+      });
+    }
+  }
+
+  private clearWorkOrderCreateState(): void {
+    this.showWorkOrderCreate = false;
+    this.workOrderCreateContext = null;
+    this.workOrderCreateReturnToDetail = false;
   }
 
   onOwnerStatementActivityLinkSelect(selection: OwnerStatementActivityLinkSelection): void {
@@ -1489,6 +1544,7 @@ export class AccountingShellComponent implements OnInit, OnDestroy {
       this.onOwnersUtilityReceiptBack();
       this.onOwnersWorkOrderBack();
       this.onOwnerStatementJournalEntryLinesBack();
+      this.clearWorkOrderCreateState();
     }
     if (event.index !== this.tabBankActivities && !this.usesReportTitleBarFilters()) {
       this.onGeneralLedgerBack();
@@ -1613,6 +1669,7 @@ export class AccountingShellComponent implements OnInit, OnDestroy {
       this.onOwnersUtilityReceiptBack();
       this.onOwnersWorkOrderBack();
       this.onOwnerStatementJournalEntryLinesBack();
+      this.clearWorkOrderCreateState();
     }
 
     this.selectedOwnerKind = kind;
@@ -2012,6 +2069,7 @@ export class AccountingShellComponent implements OnInit, OnDestroy {
       && !this.isReceiptsReceiptDetailActive
       && !this.isOwnersUtilityReceiptDetailActive
       && !this.isOwnersWorkOrderDetailActive
+      && !this.isWorkOrderCreateActive
       && !this.isFinancialReportDrillDownActive
       && !this.isArAgingDrillDownActive;
   }
@@ -2261,6 +2319,44 @@ export class AccountingShellComponent implements OnInit, OnDestroy {
     return this.selectedTabIndex === this.tabOwners
       && this.selectedOwnerKind === 'workOrders'
       && this.showOwnersWorkOrderDetail;
+  }
+
+  get isWorkOrderCreateActive(): boolean {
+    return this.selectedTabIndex === this.tabOwners
+      && this.selectedOwnerKind === 'workOrders'
+      && this.showWorkOrderCreate
+      && !!this.workOrderCreateContext;
+  }
+
+  get workOrderCreateOfficeTitleBarOptions(): { value: number; label: string }[] {
+    const officeId = this.workOrderCreateContext?.officeId;
+    if (officeId == null) {
+      return [];
+    }
+
+    const office = this.offices.find(item => item.officeId === officeId);
+    return [{ value: officeId, label: office?.name || office?.officeCode || String(officeId) }];
+  }
+
+  get workOrderCreatePropertyTitleBarOptions(): SearchableSelectOption[] {
+    const propertyId = (this.workOrderCreateContext?.propertyId || '').trim();
+    if (!propertyId) {
+      return [];
+    }
+
+    return [{
+      value: propertyId,
+      label: (this.workOrderCreateContext?.propertyCode || '').trim() || propertyId
+    }];
+  }
+
+  get workOrderCreateReservationTitleBarOptions(): SearchableSelectOption[] {
+    const reservationId = (this.workOrderCreateContext?.reservationId || '').trim();
+    if (!reservationId) {
+      return [];
+    }
+
+    return [{ value: reservationId, label: reservationId }];
   }
 
   get isGeneralLedgerDetailActive(): boolean {
