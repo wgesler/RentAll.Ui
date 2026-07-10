@@ -9,26 +9,30 @@
       (savedEvent)="onInvoiceSaved()">
     </app-invoice>
   } @else if (detailReport && drillDownView) {
-    <div
-      class="mat list-layout-standard dbg-band-main financial-report-layout ar-aging-detail-layout"
-      [style.--financial-report-panel-max-width]="detailPanelMaxWidthCss">
-      <div class="financial-report-panel">
-        <div class="financial-report-header">
-          @if (detailReport.entityLineLabel) {
-            <p class="financial-report-entity-line">{{ detailReport.entityLineLabel }}</p>
-          }
-          <h2 class="financial-report-title">{{ detailReport.reportTitle }}</h2>
-          @if (detailReport.periodLabel) {
-            <p class="financial-report-period">{{ detailReport.periodLabel }}</p>
-          }
-        </div>
-
-        @if (detailReport.rows.length === 0) {
-          <div class="financial-report-empty-state">
-            <p>No transactions match the selected aging bucket.</p>
+    <div class="mat list-layout-standard financial-report-layout ar-aging-detail-layout">
+      <div class="financial-report-context-band property-tab-actions-band dbg-band-actions">
+        <div class="property-tab-actions-band__row financial-report-context-band__row">
+          <div class="financial-report-context-band__titles">
+            <p class="financial-report-report-title">{{ detailReport.reportTitle }}</p>
+            <button type="button" class="financial-report-context-btn">
+              @if (detailReport.entityLineLabel) {
+                <span class="financial-report-context-btn__entity">{{ detailReport.entityLineLabel }}</span>
+              }
+              @if (detailReport.periodLabel) {
+                <span class="financial-report-context-btn__period">{{ detailReport.periodLabel }}</span>
+              }
+            </button>
           </div>
-        } @else {
-          <div class="financial-report-table-wrap">
+        </div>
+      </div>
+      <div class="financial-report-panel dbg-band-main">
+        <div class="financial-report-panel-inner">
+          @if (detailReport.rows.length === 0) {
+            <div class="financial-report-empty-state">
+              <p>No transactions match the selected aging bucket.</p>
+            </div>
+          } @else {
+            <div class="financial-report-table-wrap">
             <table class="financial-report-table ar-aging-detail-table">
               <thead>
                 <tr>
@@ -82,32 +86,34 @@
               </tbody>
             </table>
           </div>
-        }
+          }
+        </div>
       </div>
     </div>
   } @else {
-    <div
-      class="mat list-layout-standard dbg-band-main financial-report-layout"
-      [style.--financial-report-panel-max-width]="panelMaxWidthCss">
-      <div class="financial-report-panel">
-        @if (isServiceError) {
-          <div class="financial-report-empty-state">
-            <p>{{ noDataMessage }}</p>
-          </div>
-        } @else {
-          <div class="financial-report-header">
-            @if (reportResult?.entityLineLabel) {
-              <p class="financial-report-entity-line">{{ reportResult?.entityLineLabel }}</p>
-            }
-            @if (reportResult) {
-              <h2 class="financial-report-title">{{ reportResult.reportTitle }}</h2>
-              @if (reportResult.periodLabel) {
-                <p class="financial-report-period">{{ reportResult.periodLabel }}</p>
+    <div class="mat list-layout-standard financial-report-layout">
+      <div class="financial-report-context-band property-tab-actions-band dbg-band-actions">
+        <div class="property-tab-actions-band__row financial-report-context-band__row">
+          <div class="financial-report-context-band__titles">
+            <p class="financial-report-report-title">{{ shellReportTitle }}</p>
+            <button type="button" class="financial-report-context-btn">
+              @if (shellReportEntityLine) {
+                <span class="financial-report-context-btn__entity">{{ shellReportEntityLine }}</span>
               }
-            }
+              @if (shellReportPeriodLine) {
+                <span class="financial-report-context-btn__period">{{ shellReportPeriodLine }}</span>
+              }
+            </button>
           </div>
-
-          @if (!reportResult || (reportResult.customerRows.length === 0 && visibleRows.length === 0)) {
+        </div>
+      </div>
+      <div class="financial-report-panel dbg-band-main">
+        <div class="financial-report-panel-inner">
+          @if (isServiceError) {
+            <div class="financial-report-empty-state">
+              <p>{{ noDataMessage }}</p>
+            </div>
+          } @else if (!reportResult || (reportResult.customerRows.length === 0 && visibleRows.length === 0)) {
             <div class="financial-report-empty-state">
               <p>{{ noDataMessage }}</p>
             </div>
@@ -218,7 +224,7 @@
               </table>
             </div>
           }
-        }
+        </div>
       </div>
     </div>
   }

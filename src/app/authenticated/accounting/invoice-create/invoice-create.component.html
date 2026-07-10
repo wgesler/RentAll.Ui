@@ -1,76 +1,107 @@
+<ng-template #invoiceActionButtons>
+  <button mat-raised-button type="button" color="accent" (click)="onPrint()"
+    [disabled]="!selectedOffice || !selectedReservation || !selectedInvoice || !previewIframeHtml">
+    <mat-icon>print</mat-icon>
+    Print
+  </button>
+  <button mat-raised-button type="button" color="accent" (click)="onEmail()"
+    [disabled]="!selectedOffice || !selectedReservation || !selectedInvoice || !previewIframeHtml || !getPrimaryReservationContactId(selectedReservation)">
+    <mat-icon>email</mat-icon>
+    Email
+  </button>
+  <button mat-raised-button type="button" color="accent" (click)="onDownload()"
+    [disabled]="!selectedOffice || !selectedReservation || !selectedInvoice || !previewIframeHtml || isDownloading">
+    <mat-icon>download</mat-icon>
+    {{ isDownloading ? 'Downloading...' : 'Download' }}
+  </button>
+  <button mat-raised-button type="button" color="primary" id="save-button"
+    (click)="saveInvoice()"
+    class="text-nowrap flex-shrink-0" [disabled]="isSubmitting">
+    <mat-icon>save</mat-icon>
+    Document
+  </button>
+</ng-template>
+
+<ng-template #invoiceEditorField>
+  <mat-form-field appearance="outline" class="full-width">
+    <mat-label>Invoice (HTML)</mat-label>
+    <textarea
+      matInput
+      formControlName="invoice"
+      rows="20"
+      [placeholder]="'Enter your invoice HTML here. Use {{invoiceName}} and other placeholders in double curly brackets for dynamic content.'">
+    </textarea>
+    <mat-hint>
+      Use placeholders like {{ '{' }}{{ '{' }}invoiceName{{ '}' }}{{ '}' }}, {{ '{' }}{{ '{' }}tenantName{{ '}' }}{{ '}' }}, etc. These will be replaced with actual values when generating the invoice. Select an Office, Reservation, and Invoice to see a preview.
+    </mat-hint>
+  </mat-form-field>
+</ng-template>
+
 <ng-template #documentPreviewContent>
-  <form [formGroup]="form" class="document-preview-form">
-    <div class="document-preview-editor">
-      @if (selectedOffice && selectedReservation && selectedInvoice) {
-        @if (previewIframeHtml) {
-          <div class="document-preview-actions form-titlebar-actions-wrap uniform-gap">
-            <button mat-raised-button type="button" color="accent" (click)="onPrint()" 
-              [disabled]="!selectedOffice || !selectedReservation || !selectedInvoice || !previewIframeHtml">
-              <mat-icon>print</mat-icon>
-              Print
-            </button>
-            <button mat-raised-button type="button" color="accent" (click)="onEmail()"
-              [disabled]="!selectedOffice || !selectedReservation || !selectedInvoice || !previewIframeHtml || !getPrimaryReservationContactId(selectedReservation)">
-              <mat-icon>email</mat-icon>
-              Email
-            </button>
-            <button mat-raised-button type="button" color="accent" (click)="onDownload()" 
-              [disabled]="!selectedOffice || !selectedReservation || !selectedInvoice || !previewIframeHtml || isDownloading">
-              <mat-icon>download</mat-icon>
-              {{ isDownloading ? 'Downloading...' : 'Download' }}
-            </button>
-            <button mat-raised-button type="button" color="primary" id="save-button" 
-              (click)="saveInvoice()"
-              class="text-nowrap flex-shrink-0" [disabled]="isSubmitting">
-              <mat-icon>save</mat-icon>
-              Document
-            </button>
+  <form [formGroup]="form" class="invoice-create-form" [class.invoice-create-form--shell-bands]="shellMode">
+    @if (selectedOffice && selectedReservation && selectedInvoice) {
+      @if (previewIframeHtml) {
+        @if (shellMode) {
+          <div class="property-tab-actions-band">
+            <div class="property-tab-actions-band__row">
+              <div class="table-filter-actions-group form-titlebar-actions-wrap uniform-gap">
+                <ng-container *ngTemplateOutlet="invoiceActionButtons"></ng-container>
+              </div>
+            </div>
           </div>
-          <div class="document-preview-frame">
-            <iframe 
-              [srcdoc]="safePreviewIframeHtml" 
-              class="document-preview-iframe preview-iframe"
-              #previewIframe
-              [attr.key]="iframeKey"
-              (load)="onPreviewIframeLoad()"
-              frameborder="0">
-            </iframe>
+          <div class="property-tab-main-area">
+            <div class="document-preview-frame">
+              <iframe
+                [srcdoc]="safePreviewIframeHtml"
+                class="document-preview-iframe preview-iframe"
+                #previewIframe
+                [attr.key]="iframeKey"
+                (load)="onPreviewIframeLoad()"
+                frameborder="0">
+              </iframe>
+            </div>
           </div>
         } @else {
-          <mat-form-field appearance="outline" class="full-width">
-            <mat-label>Invoice (HTML)</mat-label>
-            <textarea 
-              matInput 
-              formControlName="invoice" 
-              rows="20"
-              [placeholder]="'Enter your invoice HTML here. Use {{invoiceName}} and other placeholders in double curly brackets for dynamic content.'">
-            </textarea>
-            <mat-hint>
-              Use placeholders like {{ '{' }}{{ '{' }}invoiceName{{ '}' }}{{ '}' }}, {{ '{' }}{{ '{' }}tenantName{{ '}' }}{{ '}' }}, etc. These will be replaced with actual values when generating the invoice. Select an Office, Reservation, and Invoice to see a preview.
-            </mat-hint>
-          </mat-form-field>
+          <div class="document-preview-editor">
+            <div class="document-preview-actions form-titlebar-actions-wrap uniform-gap">
+              <ng-container *ngTemplateOutlet="invoiceActionButtons"></ng-container>
+            </div>
+            <div class="document-preview-frame">
+              <iframe
+                [srcdoc]="safePreviewIframeHtml"
+                class="document-preview-iframe preview-iframe"
+                #previewIframe
+                [attr.key]="iframeKey"
+                (load)="onPreviewIframeLoad()"
+                frameborder="0">
+              </iframe>
+            </div>
+          </div>
         }
+      } @else if (shellMode) {
+        <div class="property-tab-main-area">
+          <ng-container *ngTemplateOutlet="invoiceEditorField"></ng-container>
+        </div>
       } @else {
-        <mat-form-field appearance="outline" class="full-width">
-          <mat-label>Invoice (HTML)</mat-label>
-          <textarea 
-            matInput 
-            formControlName="invoice" 
-            rows="20"
-            [placeholder]="'Enter your invoice HTML here. Use {{invoiceName}} and other placeholders in double curly brackets for dynamic content.'">
-          </textarea>
-          <mat-hint>
-            Use placeholders like {{ '{' }}{{ '{' }}invoiceName{{ '}' }}{{ '}' }}, {{ '{' }}{{ '{' }}tenantName{{ '}' }}{{ '}' }}, etc. These will be replaced with actual values when generating the invoice. Select an Office, Reservation, and Invoice to see a preview.
-          </mat-hint>
-        </mat-form-field>
+        <div class="document-preview-editor">
+          <ng-container *ngTemplateOutlet="invoiceEditorField"></ng-container>
+        </div>
       }
-    </div>
+    } @else if (shellMode) {
+      <div class="property-tab-main-area">
+        <ng-container *ngTemplateOutlet="invoiceEditorField"></ng-container>
+      </div>
+    } @else {
+      <div class="document-preview-editor">
+        <ng-container *ngTemplateOutlet="invoiceEditorField"></ng-container>
+      </div>
+    }
   </form>
 </ng-template>
 
 @if (!isPageReady) {
   @if (shellMode) {
-    <div class="document-preview-shell">
+    <div class="invoice-create-container invoice-shell-mode">
       <div class="document-preview-loading">
         <mat-spinner [diameter]="40"></mat-spinner>
         <p>Loading invoice...</p>
@@ -135,7 +166,7 @@
     </div>
   }
 } @else if (shellMode) {
-  <div class="document-preview-shell">
+  <div class="invoice-create-container invoice-shell-mode">
     <ng-container *ngTemplateOutlet="documentPreviewContent"></ng-container>
   </div>
 } @else {

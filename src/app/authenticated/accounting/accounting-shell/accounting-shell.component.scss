@@ -3,6 +3,13 @@
   box-sizing: border-box;
 
   ::ng-deep {
+    .mat-mdc-tab-header {
+      width: 100%;
+      max-width: 100%;
+      min-width: 0;
+      box-sizing: border-box;
+    }
+
     .mat-mdc-tab-body-wrapper {
       width: 100%;
       max-width: 100%;
@@ -26,8 +33,12 @@
 
     app-invoice-list,
     app-invoice,
+    app-invoice-create,
+    app-owner-statement-list,
+    app-owner-statement-create,
     app-receipts-list,
     app-receipt,
+    app-rent-roll,
     app-cost-codes-list,
     app-general-ledger-list,
     app-journal-entry-recap,
@@ -50,24 +61,18 @@
     }
 
     /*
-     * Invoices use .list-layout-standard; Documents use .list-layout-tabbed — global rules differ
-     * (margin-top, action gaps, add-button size) so the purple filter band jumps between tabs. Force one set.
+     * Shell tab lists: global styles.scss aligns filter row + table with reservation bands.
+     * Keep action gap/button height consistent across accounting tabs.
      */
-    app-data-table .datatable-search-wrap {
-      margin-top: 1.125rem !important;
+    .list-layout-standard app-data-table .datatable-search-wrap__actions .table-filter-actions-group {
+      gap: 0.75rem !important;
     }
 
-    .list-layout-standard.dbg-band-main app-data-table .datatable-search-wrap {
-      margin-top: 0 !important;
-    }
-
-    app-data-table .datatable-search-wrap__actions .table-filter-actions-group {
-      gap: 0.5rem !important;
-    }
-
-    app-data-table .datatable-add-btn {
-      min-height: 34px !important;
-      border-radius: 4px !important;
+    .list-layout-standard app-data-table .datatable-add-btn {
+      min-height: var(--global-action-button-height) !important;
+      height: var(--global-action-button-height) !important;
+      border-radius: var(--global-action-button-radius) !important;
+      padding: 0 var(--global-action-button-padding-x) !important;
     }
 
     // Remove slide animation for Print Invoice tab (index 3)
@@ -398,8 +403,59 @@ mat-card {
 }
 
 .accounting-shell-report-placeholder {
-  padding: 2rem 1.5rem;
+  padding: 2rem 0;
   color: rgba(0, 0, 0, 0.6);
+  text-align: center;
+}
+
+.accounting-shell-reconcile-layout {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+.accounting-shell-reconcile-context-band {
+  margin-bottom: var(--datatable-search-wrap-margin-bottom);
+}
+
+.accounting-shell-reconcile-context-band__row {
+  display: grid;
+  grid-template-columns: 1fr;
+  align-items: center;
+  justify-items: center;
+  width: 100%;
+  min-height: var(--property-tab-actions-band-height);
+}
+
+.accounting-shell-reconcile-context-band__titles {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.175rem;
+}
+
+.accounting-shell-reconcile-title {
+  margin: 0;
+  font-size: 1.125rem;
+  font-weight: 600;
+  line-height: 1.2;
+  text-align: center;
+  color: #000;
+}
+
+.accounting-shell-reconcile-panel {
+  display: flex;
+  justify-content: center;
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
 }
 
 .accounting-shell-subview-title {
@@ -410,8 +466,8 @@ mat-card {
   font-weight: 600;
   line-height: 1.2;
   min-height: 3rem;
-  padding: 0.25rem 1.5rem 0.2rem;
-  transform: translateY(0.5rem);
+  padding-top: 0.25rem;
+  padding-bottom: 0.2rem;
   text-align: center;
   color: #000;
 }
@@ -424,8 +480,9 @@ mat-card {
   min-height: 3.75rem;
 }
 
-:host ::ng-deep .accounting-shell-subview-title + app-receipts-list app-data-table .datatable-search-wrap,
-:host ::ng-deep .accounting-shell-subview-title + app-rent-roll app-data-table .datatable-search-wrap {
+:host ::ng-deep .accounting-shell-subview-title + app-receipts-list .list-layout-standard app-data-table .datatable-search-wrap,
+:host ::ng-deep .accounting-shell-subview-title + app-rent-roll .list-layout-standard app-data-table .datatable-search-wrap,
+:host ::ng-deep .accounting-shell-subview-title + app-owner-statement-list .list-layout-standard app-data-table .datatable-search-wrap {
   margin-top: 0 !important;
 }
 

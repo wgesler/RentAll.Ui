@@ -68,6 +68,16 @@
 
 .dbg-band-tabs .mat-mdc-tab-header {
   @include dbg-band-tabs-header-spacing;
+  width: 100%;
+  max-width: 100%;
+  box-sizing: border-box;
+}
+
+.dbg-band-tabs.mat-mdc-tab-group,
+.shell-tabs.mat-mdc-tab-group {
+  width: 100%;
+  max-width: 100%;
+  box-sizing: border-box;
 }
 
 .dbg-band-actions {
@@ -82,6 +92,7 @@
 body.dbg-page-debug-on {
   .dbg-band-tabs .mat-mdc-tab-header {
     @include dbg-band-tabs-header-visual;
+    overflow: visible;
   }
 
   .dbg-band-actions {
@@ -142,5 +153,63 @@ body.dbg-page-debug-on {
     border: none;
     background: transparent;
     border-radius: 0;
+  }
+
+  .shell-tabs .mat-mdc-tab-body-content:has(.list-layout-standard) {
+    border: none;
+    background: transparent;
+    border-radius: 0;
+  }
+
+  .shell-tabs .mat-mdc-tab-body-content .list-layout-standard app-data-table .datatable-search-wrap.dbg-band-actions {
+    width: 100%;
+    max-width: 100%;
+    box-sizing: border-box;
+    overflow-x: visible;
+  }
+
+  .shell-tabs .mat-mdc-tab-body-content .owner-statement-layout .owner-statement-context-band.dbg-band-actions {
+    @include dbg-band-actions-visual;
+    @include dbg-band-actions-spacing;
+    width: 100%;
+    max-width: 100%;
+    box-sizing: border-box;
+  }
+
+  .shell-tabs .mat-mdc-tab-body-content .financial-report-layout .financial-report-context-band.dbg-band-actions {
+    @include dbg-band-actions-visual;
+    @include dbg-band-actions-spacing;
+    width: 100%;
+    max-width: 100%;
+    box-sizing: border-box;
+  }
+
+  .shell-tabs .mat-mdc-tab-body-content .accounting-shell-reconcile-layout .accounting-shell-reconcile-context-band.dbg-band-actions {
+    @include dbg-band-actions-visual;
+    @include dbg-band-actions-spacing;
+    width: 100%;
+    max-width: 100%;
+    box-sizing: border-box;
+  }
+
+  .shell-tabs .mat-mdc-tab-body-content .list-layout-standard app-data-table .datatable-main-block,
+  .shell-tabs .mat-mdc-tab-body-content .list-layout-standard .owner-statement-panel,
+  .shell-tabs .mat-mdc-tab-body-content .list-layout-standard .financial-report-panel,
+  .shell-tabs .mat-mdc-tab-body-content .list-layout-standard .accounting-shell-reconcile-panel {
+    @include dbg-band-main-visual;
+    width: 100%;
+    max-width: 100%;
+    box-sizing: border-box;
+    overflow-x: auto;
+    overflow-y: visible;
+  }
+
+  .shell-tabs .mat-mdc-tab-body-content .accounting-shell-subview-title,
+  .shell-tabs .accounting-shell-subview-title {
+    @include dbg-band-actions-visual;
+    @include dbg-band-actions-spacing;
+    width: 100%;
+    max-width: 100%;
+    box-sizing: border-box;
   }
 }

@@ -1,31 +1,27 @@
-<div class="owner-statement-list-shell">
-  @if (!isPageReady) {
-    <p>Loading owner statement list...</p>
-  } @else if (isServiceError) {
-    <p>Unable to load owner statement list.</p>
-  } @else {
-    <div class="mat list-layout-standard dbg-band-main">
-      <div class="tableDiv">
-        <app-data-table
-          tableName="owner-statement-list"
-          [data]="lines"
-          [columns]="ownerStatementDisplayedColumns"
-          [totalsRow]="totalsRow"
-          [totalsLabel]="'Totals'"
-          [hasColumnIndex]="true"
-          [hasFilter]="true"
-          [hasActionsView]="true"
-          [hasActionsRowClick]="true"
-          [hasActionsStartingBalance]="true"
-          [noDataMessage]="noDataMessage"
-          [itemsPerPage]="10"
-          [totalsRow]="totalsRow"
-          [totalsLabel]="'Totals:'"
-          (rowClickEvent)="onViewStatement($event)"
-          (viewEvent)="onViewStatement($event)"
-          (startingBalanceEvent)="openStartingBalanceDialog($event)">
-        </app-data-table>
-      </div>
+@if (!isPageReady) {
+  <p class="owner-statement-list-loading">Loading owner statement list...</p>
+} @else if (isServiceError) {
+  <p class="owner-statement-list-error">Unable to load owner statement list.</p>
+} @else {
+  <div class="mat list-layout-standard dbg-band-main">
+    <div class="tableDiv">
+      <app-data-table
+        tableName="owner-statement-list"
+        [data]="lines"
+        [columns]="ownerStatementDisplayedColumns"
+        [totalsRow]="totalsRow"
+        [totalsLabel]="'Totals:'"
+        [hasColumnIndex]="true"
+        [hasFilter]="true"
+        [hasActionsView]="true"
+        [hasActionsRowClick]="true"
+        [hasActionsStartingBalance]="true"
+        [noDataMessage]="noDataMessage"
+        [itemsPerPage]="10"
+        (rowClickEvent)="onViewStatement($event)"
+        (viewEvent)="onViewStatement($event)"
+        (startingBalanceEvent)="openStartingBalanceDialog($event)">
+      </app-data-table>
     </div>
-  }
-</div>
+  </div>
+}

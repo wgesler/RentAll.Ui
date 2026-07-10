@@ -7,18 +7,93 @@
 
 .financial-report-layout {
   display: flex;
-  justify-content: center;
+  flex-direction: column;
+  align-items: stretch;
   width: 100%;
   max-width: 100%;
-  padding: 1.25rem 1rem 1.5rem;
+  min-width: 0;
+  padding: 0;
   box-sizing: border-box;
 }
 
-.financial-report-panel {
+.financial-report-context-band {
+  margin-bottom: var(--datatable-search-wrap-margin-bottom);
+}
+
+.financial-report-context-band__row {
+  display: grid;
+  grid-template-columns: 1fr;
+  align-items: stretch;
   width: 100%;
-  max-width: var(--financial-report-panel-max-width, 100%);
+  gap: 0;
+  min-height: var(--property-tab-actions-band-height);
+}
+
+.financial-report-context-band__titles {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  align-self: center;
+  gap: 0.175rem;
+}
+
+.financial-report-report-title {
+  margin: 0;
+  font-size: 1.125rem;
+  font-weight: 600;
+  line-height: 1.2;
+  text-align: center;
+  color: #000;
+}
+
+.financial-report-context-btn {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.175rem;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  text-align: center;
+  cursor: default;
+  box-sizing: border-box;
+}
+
+.financial-report-context-btn__entity,
+.financial-report-context-btn__period {
+  display: block;
+  font-size: 0.75rem;
+  font-weight: 600;
+  line-height: 1.1;
+  text-align: center;
+}
+
+.financial-report-context-btn__entity {
+  font-size: 1rem;
+}
+
+.financial-report-panel {
+  display: flex;
+  justify-content: center;
+  width: 100%;
+  max-width: 100%;
   min-width: 0;
   margin-inline: auto;
+  box-sizing: border-box;
+}
+
+.financial-report-panel-inner {
+  width: 50%;
+  max-width: 50%;
+  min-width: 0;
+  margin-inline: auto;
+  box-sizing: border-box;
 }
 
 .financial-report-empty-state {
@@ -254,6 +329,10 @@
 
 :host .list-layout-standard.dbg-band-main {
   padding-top: 1.25rem;
+}
+
+:host .list-layout-standard.financial-report-layout {
+  padding-top: 0;
 }
 
 :host ::ng-deep .datatable-search-wrap__row:has(.financial-report-drill-down-filter-actions) {

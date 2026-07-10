@@ -1,1 +1,34 @@
-// Document preview layout uses shared classes from styles.scss.
+.owner-statement-create-container {
+  padding: 1.5rem;
+}
+
+.owner-statement-create-form {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+.owner-statement-create-form--shell-bands {
+  gap: 0;
+}
+
+:host-context(.shell-tabs) .owner-statement-create-container.owner-statement-shell-mode {
+  padding: 0;
+  width: 100%;
+  max-width: 100%;
+  box-sizing: border-box;
+}
+
+.document-preview-loading {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 3rem;
+  gap: 1rem;
+
+  p {
+    margin-top: 1rem;
+    color: #666;
+  }
+}

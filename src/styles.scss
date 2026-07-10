@@ -346,6 +346,18 @@ app-owner-shell .shell-tabs .owner-shell-property-info-form .owner-shell-accordi
   box-sizing: border-box;
 }
 
+.shell-tabs app-invoice-create .invoice-create-container.invoice-shell-mode > .invoice-create-form > .property-tab-actions-band:first-child,
+.shell-tabs app-invoice-create .invoice-create-container.invoice-shell-mode > .invoice-create-form > .property-tab-main-area,
+.shell-tabs app-work-order-create .work-order-create-container.work-order-shell-mode > .work-order-create-form > .property-tab-actions-band:first-child,
+.shell-tabs app-work-order-create .work-order-create-container.work-order-shell-mode > .work-order-create-form > .property-tab-main-area,
+.shell-tabs app-owner-statement-create .owner-statement-create-container.owner-statement-shell-mode > .owner-statement-create-form > .property-tab-actions-band:first-child,
+.shell-tabs app-owner-statement-create .owner-statement-create-container.owner-statement-shell-mode > .owner-statement-create-form > .property-tab-main-area {
+  margin-inline: 0;
+  width: 100%;
+  max-width: 100%;
+  box-sizing: border-box;
+}
+
 /* Compact actions row when not in reservation shell (same DOM as shell band; lighter spacing). */
 .shell-tabs .property-tab-actions-band.reservation-inline-actions,
 .shell-tabs .property-tab-actions-band.lease-inline-actions {
@@ -354,6 +366,179 @@ app-owner-shell .shell-tabs .owner-shell-property-info-form .owner-shell-accordi
   padding-top: 0;
   padding-bottom: 0;
   padding-inline: 0;
+}
+
+/*
+ * Shell tab lists (accounting, maintenance, etc.): purple filter row + orange table/content
+ * stay tab-body width (same as blue tab strip). Bleed is only used inside .info-form shells.
+ */
+.shell-tabs .mat-mdc-tab-body-content .list-layout-standard {
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  margin-inline: 0;
+  box-sizing: border-box;
+  padding-top: 0 !important;
+  overflow-x: visible;
+}
+
+.shell-tabs .mat-mdc-tab-body-content .list-layout-standard > .tableDiv,
+.shell-tabs .mat-mdc-tab-body-content .list-layout-standard > .general-ledger-container > .tableDiv {
+  padding: 0;
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
+}
+
+.shell-tabs .mat-mdc-tab-body-content .list-layout-standard app-data-table {
+  display: block;
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
+}
+
+.shell-tabs .mat-mdc-tab-body-content .list-layout-standard app-data-table .datatable-search-wrap {
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  margin-top: 0 !important;
+  margin-bottom: var(--datatable-search-wrap-margin-bottom) !important;
+  padding-left: var(--global-page-inner-padding) !important;
+  padding-right: calc(2 * var(--global-page-inner-padding)) !important;
+  padding-top: var(--property-tab-actions-band-inner-padding-block) !important;
+  padding-bottom: var(--property-tab-actions-band-inner-padding-block) !important;
+  min-height: var(--property-tab-actions-band-height);
+  box-sizing: border-box;
+  overflow-x: clip;
+}
+
+.shell-tabs .mat-mdc-tab-body-content .list-layout-standard app-data-table .datatable-main-block {
+  display: block;
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  padding-left: var(--global-page-inner-padding);
+  padding-right: var(--global-page-inner-padding);
+  padding-bottom: var(--global-page-inner-padding);
+  box-sizing: border-box;
+  overflow-x: auto;
+  overflow-y: visible;
+}
+
+.shell-tabs .mat-mdc-tab-body-content .list-layout-standard .owner-statement-panel,
+.shell-tabs .mat-mdc-tab-body-content .list-layout-standard .financial-report-panel {
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  padding-left: var(--global-page-inner-padding);
+  padding-right: var(--global-page-inner-padding);
+  padding-bottom: var(--global-page-inner-padding);
+  box-sizing: border-box;
+  overflow-x: auto;
+  overflow-y: visible;
+}
+
+.shell-tabs .mat-mdc-tab-body-content .financial-report-layout .financial-report-panel-inner {
+  width: 50%;
+  max-width: 50%;
+  min-width: 0;
+  margin-inline: auto;
+  box-sizing: border-box;
+}
+
+.shell-tabs .mat-mdc-tab-body-content .accounting-shell-subview-title,
+.shell-tabs .accounting-shell-subview-title {
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  margin-inline: 0;
+  margin-bottom: 0;
+  box-sizing: border-box;
+  padding-left: var(--global-page-inner-padding);
+  padding-right: calc(2 * var(--global-page-inner-padding));
+  transform: none;
+}
+
+/*
+ * Shell tab bodies: drop per-component page padding so blue/purple/orange bands share one width.
+ * Bills (receipts-list) has no wrapper padding — match that everywhere in accounting shell.
+ */
+.shell-tabs .mat-mdc-tab-body-content .rent-roll-wrap,
+.shell-tabs .mat-mdc-tab-body-content app-invoice-create .invoice-create-container.invoice-shell-mode,
+.shell-tabs .mat-mdc-tab-body-content app-owner-statement-create .owner-statement-create-container.owner-statement-shell-mode {
+  padding: 0;
+  width: 100%;
+  max-width: 100%;
+  box-sizing: border-box;
+}
+
+.shell-tabs .mat-mdc-tab-body-content .financial-report-layout {
+  padding-left: 0;
+  padding-right: 0;
+  padding-top: 0;
+  width: 100%;
+  max-width: 100%;
+  box-sizing: border-box;
+}
+
+.shell-tabs .mat-mdc-tab-body-content .owner-statement-layout {
+  padding: 0;
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
+}
+
+.shell-tabs .mat-mdc-tab-body-content .owner-statement-layout .owner-statement-context-band {
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  margin-inline: 0;
+  box-sizing: border-box;
+}
+
+.shell-tabs .mat-mdc-tab-body-content .financial-report-layout .financial-report-context-band {
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  margin-inline: 0;
+  box-sizing: border-box;
+}
+
+.shell-tabs .mat-mdc-tab-body-content .accounting-shell-reconcile-layout {
+  padding: 0;
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
+}
+
+.shell-tabs .mat-mdc-tab-body-content .accounting-shell-reconcile-layout .accounting-shell-reconcile-context-band {
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  margin-inline: 0;
+  box-sizing: border-box;
+}
+
+.shell-tabs .mat-mdc-tab-body-content .list-layout-standard .accounting-shell-reconcile-panel {
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  padding-left: var(--global-page-inner-padding);
+  padding-right: var(--global-page-inner-padding);
+  padding-bottom: var(--global-page-inner-padding);
+  box-sizing: border-box;
+  overflow-x: auto;
+  overflow-y: visible;
+}
+
+.shell-tabs .mat-mdc-tab-body-content app-general-ledger-list .list-layout-standard.dbg-band-main,
+.shell-tabs .mat-mdc-tab-body-content app-financial-report .list-layout-standard.dbg-band-main,
+.shell-tabs .mat-mdc-tab-body-content app-ar-aging-report .list-layout-standard.dbg-band-main {
+  padding-top: 0;
 }
 
 /* Reservation dropdown: wider to accommodate "ReservationCode: displayName" labels */
@@ -1394,6 +1579,10 @@ mat-form-field.company-dropdown {
 			padding:16px 20px;
 		}
 
+    .content-card > mat-card:has(> .shell-tabs) {
+      padding-inline: 0 !important;
+    }
+
     .content-card.reservation-board-card > mat-card {
       padding: 0 !important;
       margin: 0 !important;
@@ -1540,7 +1729,28 @@ mat-tab-header {
 /* Shell tab groups: size tabs as if the strip always has --shell-tab-slot-count slots. */
 .shell-tabs {
   .mat-mdc-tab-header {
+    display: flex;
+    width: 100%;
+    max-width: 100%;
+    min-width: 0;
+    box-sizing: border-box;
     min-height: var(--shell-tab-min-height);
+
+    .mat-mdc-tab-label-container {
+      flex: 1 1 auto;
+      width: 100%;
+      max-width: 100%;
+      min-width: 0;
+      box-sizing: border-box;
+    }
+
+    .mat-mdc-tab-list,
+    .mdc-tab__scroll-content {
+      width: 100%;
+      max-width: 100%;
+      min-width: 0;
+      box-sizing: border-box;
+    }
 
     .mat-mdc-tab,
     .mdc-tab {
@@ -1566,6 +1776,19 @@ mat-tab-header {
       max-width: 100%;
     }
   }
+}
+
+/* Per-shell tab counts (default --shell-tab-slot-count: 5 in :root). */
+.shell-tabs--4-slots {
+  --shell-tab-slot-count: 4;
+}
+
+.shell-tabs--6-slots {
+  --shell-tab-slot-count: 6;
+}
+
+.shell-tabs--3-slots {
+  --shell-tab-slot-count: 3;
 }
 
 .mat-mdc-tab {

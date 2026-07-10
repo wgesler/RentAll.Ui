@@ -50,6 +50,7 @@ import { environment } from '../../../../environments/environment';
 })
 export class OwnerStatementCreateComponent extends BaseDocumentComponent implements OnInit, OnChanges, OnDestroy {
   @Input() line: OwnerStatementMonthLineListDisplay | null = null;
+  @Input() shellMode = true;
   @Output() backEvent = new EventEmitter<void>();
   @ViewChild('previewIframe') previewIframe?: ElementRef<HTMLIFrameElement>;
 

@@ -34,8 +34,10 @@ import { ReservationCodeResponse } from '../../reservations/models/reservation-m
 import { ReservationService } from '../../reservations/services/reservation.service';
 import { SearchableSelectOption } from '../../shared/searchable-select/searchable-select.component';
 import { InvoiceComponent } from '../invoice/invoice.component';
+import { InvoiceCreateComponent } from '../invoice-create/invoice-create.component';
 import { InvoiceListComponent } from '../invoice-list/invoice-list.component';
 import { InvoiceService } from '../services/invoice.service';
+import { InvoicePreviewSelection } from '../models/invoice.model';
 import { GeneralLedgerComponent } from '../general-ledger/general-ledger.component';
 import { GeneralLedgerListComponent } from '../general-ledger-list/general-ledger-list.component';
 import { FinancialReportComponent } from '../financial-report/financial-report.component';
@@ -86,6 +88,7 @@ interface JournalEntrySyncProgressRow {
     MaterialModule,
     FormsModule,
     InvoiceComponent,
+    InvoiceCreateComponent,
     InvoiceListComponent,
     ReceiptsListComponent,
     ReceiptComponent,
@@ -239,6 +242,10 @@ export class AccountingShellComponent implements OnInit, OnDestroy {
   ownerStatementJournalEntryLinesRefreshTrigger = 0;
   ownersStatementViewState: OwnerStatementListViewState | null = null;
   selectedOwnerStatementMonthLine: OwnerStatementMonthLineListDisplay | null = null;
+  showInvoiceCreate = false;
+  invoiceCreateContext: InvoicePreviewSelection | null = null;
+  invoiceCreateInstance = 0;
+  invoiceCreateReturnToEditor = false;
   showOwnersUtilityReceiptDetail = false;
   selectedOwnersUtilityReceiptId: string | null = null;
   ownersUtilityReceiptProperty: PropertyResponse | null = null;
@@ -525,7 +532,7 @@ export class AccountingShellComponent implements OnInit, OnDestroy {
   }
 
   get shellInvoiceEditor(): InvoiceComponent | undefined {
-    if (this.activeInvoiceId) {
+    if (this.selectedTabIndex === 0 && this.activeInvoiceId) {
       return this.accountingInvoiceEditor;
     }
 
@@ -1288,6 +1295,47 @@ export class AccountingShellComponent implements OnInit, OnDestroy {
     this.selectedOwnerStatementMonthLine = null;
   }
 
+  onInvoicePreviewOpen(selection: InvoicePreviewSelection): void {
+    const invoiceId = (selection?.invoiceId || '').trim();
+    if (!invoiceId) {
+      return;
+    }
+
+    this.invoiceCreateReturnToEditor = !!selection.returnToEditor || !!this.activeInvoiceId;
+    this.invoiceCreateContext = {
+      invoiceId,
+      invoiceCode: selection.invoiceCode ?? null,
+      officeId: selection.officeId ?? this.selectedOfficeId,
+      reservationId: selection.reservationId ?? this.selectedReservationId,
+      companyId: selection.companyId ?? this.selectedCompanyId,
+      returnToEditor: this.invoiceCreateReturnToEditor
+    };
+    this.showInvoiceCreate = true;
+    this.invoiceCreateInstance++;
+    this.selectedTabIndex = 0;
+    this.cdr.markForCheck();
+  }
+
+  onInvoiceCreateBack(): void {
+    const returnToEditor = this.invoiceCreateReturnToEditor;
+    const invoiceId = this.invoiceCreateContext?.invoiceId ?? this.activeInvoiceId;
+
+    this.showInvoiceCreate = false;
+    this.invoiceCreateContext = null;
+    this.invoiceCreateReturnToEditor = false;
+
+    if (returnToEditor && invoiceId) {
+      this.activeInvoiceId = invoiceId;
+      this.router.navigate([], {
+        relativeTo: this.route,
+        queryParams: { invoiceId, tab: 'invoices' },
+        queryParamsHandling: 'merge'
+      });
+    }
+
+    this.cdr.markForCheck();
+  }
+
   onOwnerStatementAmountDrillDownSelect(selection: OwnerStatementJournalEntryLineSearchRequest): void {
     this.selectedTabIndex = this.tabOwners;
     this.ownerStatementJournalEntryLineRequest = {
@@ -1423,6 +1471,15 @@ export class AccountingShellComponent implements OnInit, OnDestroy {
       return;
     }
 
+    const leavingInvoicesTab = event.index !== 0;
+    const hadInvoiceDetail = !!this.activeInvoiceId
+      || this.showInvoiceCreate
+      || !!this.route.snapshot.paramMap.get('id');
+
+    if (leavingInvoicesTab) {
+      this.clearInvoiceShellDetailState();
+    }
+
     if (event.index !== this.tabBillsReceipts) {
       this.onBillsReceiptBack();
       this.onReceiptsReceiptBack();
@@ -1469,9 +1526,16 @@ export class AccountingShellComponent implements OnInit, OnDestroy {
       this.refreshReservationOptions();
       this.generalLedgerRefreshTrigger++;
     }
+
+    const shellQueryParams = this.buildShellQueryParams({ tab: String(event.index) });
+    if (leavingInvoicesTab && hadInvoiceDetail) {
+      this.navigateAccountingShellListUrl(shellQueryParams);
+      return;
+    }
+
     this.router.navigate([], {
       relativeTo: this.route,
-      queryParams: this.buildShellQueryParams({ tab: String(event.index) }),
+      queryParams: shellQueryParams,
       queryParamsHandling: 'merge'
     });
   }
@@ -2267,6 +2331,48 @@ export class AccountingShellComponent implements OnInit, OnDestroy {
       && !!this.selectedOwnerStatementMonthLine;
   }
 
+  get isInvoiceCreateActive(): boolean {
+    return this.selectedTabIndex === 0 && this.showInvoiceCreate && !!this.invoiceCreateContext;
+  }
+
+  get invoiceCreateOfficeTitleBarOptions(): { value: number; label: string }[] {
+    const officeId = this.invoiceCreateContext?.officeId;
+    if (officeId == null) {
+      return [];
+    }
+
+    const office = this.offices.find(item => item.officeId === officeId);
+    return [{ value: officeId, label: office?.name || String(officeId) }];
+  }
+
+  get invoiceCreateReservationTitleBarOptions(): { value: string; label: string }[] {
+    const reservationId = (this.invoiceCreateContext?.reservationId || '').trim();
+    if (!reservationId) {
+      return [];
+    }
+
+    const reservationEntry = this.accountingInvoiceList?.availableReservations?.find(
+      item => item.value.reservationId === reservationId
+    );
+
+    return [{
+      value: reservationId,
+      label: reservationEntry?.label?.trim() || reservationId
+    }];
+  }
+
+  get invoiceCreateInvoiceTitleBarOptions(): { value: string; label: string }[] {
+    const invoiceId = (this.invoiceCreateContext?.invoiceId || '').trim();
+    if (!invoiceId) {
+      return [];
+    }
+
+    return [{
+      value: invoiceId,
+      label: (this.invoiceCreateContext?.invoiceCode || '').trim() || invoiceId
+    }];
+  }
+
   isOwnerReportView(kind: AccountingShellOwnerKind): boolean {
     return kind === 'statements';
   }
@@ -2817,6 +2923,25 @@ export class AccountingShellComponent implements OnInit, OnDestroy {
     if (!isValid) {
       this.selectedChartOfAccountId = null;
     }
+  }
+
+  private clearInvoiceShellDetailState(): void {
+    this.activeInvoiceId = null;
+    this.showInvoiceCreate = false;
+    this.invoiceCreateContext = null;
+    this.invoiceCreateReturnToEditor = false;
+    this.ownerStatementReturnAfterInvoiceDetail = false;
+    this.cdr.markForCheck();
+  }
+
+  private navigateAccountingShellListUrl(queryParams: Record<string, string | null> = {}): void {
+    const params = Object.entries(queryParams)
+      .filter(([, value]) => value != null && value !== '')
+      .map(([key, value]) => `${key}=${encodeURIComponent(String(value))}`);
+    const url = params.length > 0
+      ? `${RouterUrl.AccountingList}?${params.join('&')}`
+      : RouterUrl.AccountingList;
+    this.router.navigateByUrl(url);
   }
 
   closeEmbeddedInvoiceEditor(): void {

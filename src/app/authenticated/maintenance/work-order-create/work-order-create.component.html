@@ -1,44 +1,75 @@
+<ng-template #workOrderActionButtons>
+  <button mat-raised-button type="button" color="accent" (click)="onPrint()" [disabled]="!previewIframeHtml">
+    <mat-icon>print</mat-icon>
+    Print
+  </button>
+  <button mat-raised-button type="button" color="accent" (click)="onEmail()" [disabled]="!previewIframeHtml">
+    <mat-icon>email</mat-icon>
+    Email
+  </button>
+  <button mat-raised-button type="button" color="accent" (click)="onDownload()" [disabled]="!previewIframeHtml || isDownloading">
+    <mat-icon>download</mat-icon>
+    {{ isDownloading ? 'Downloading...' : 'Download' }}
+  </button>
+  <button mat-raised-button type="button" color="primary" (click)="saveWorkOrder()" [disabled]="!previewIframeHtml || isSubmitting">
+    <mat-icon>save</mat-icon>
+    {{ isSubmitting ? 'Saving...' : 'Document' }}
+  </button>
+</ng-template>
+
 <ng-template #documentPreviewContent>
-  <form class="document-preview-form">
-    <div class="document-preview-editor">
-      <div class="document-preview-actions form-titlebar-actions-wrap uniform-gap">
-        <button mat-raised-button type="button" color="accent" (click)="onPrint()" [disabled]="!previewIframeHtml">
-          <mat-icon>print</mat-icon>
-          Print
-        </button>
-        <button mat-raised-button type="button" color="accent" (click)="onEmail()" [disabled]="!previewIframeHtml">
-          <mat-icon>email</mat-icon>
-          Email
-        </button>
-        <button mat-raised-button type="button" color="accent" (click)="onDownload()" [disabled]="!previewIframeHtml || isDownloading">
-          <mat-icon>download</mat-icon>
-          {{ isDownloading ? 'Downloading...' : 'Download' }}
-        </button>
-        <button mat-raised-button type="button" color="primary" (click)="saveWorkOrder()" [disabled]="!previewIframeHtml || isSubmitting">
-          <mat-icon>save</mat-icon>
-          {{ isSubmitting ? 'Saving...' : 'Document' }}
-        </button>
-      </div>
-      @if (previewIframeHtml) {
-        <div class="document-preview-frame">
-          <iframe
-            [srcdoc]="safePreviewIframeHtml"
-            class="document-preview-iframe preview-iframe"
-            [attr.key]="iframeKey"
-            (load)="injectStylesIntoIframe()"
-            frameborder="0">
-          </iframe>
+  <form class="work-order-create-form" [class.work-order-create-form--shell-bands]="shellMode">
+    @if (previewIframeHtml) {
+      @if (shellMode) {
+        <div class="property-tab-actions-band">
+          <div class="property-tab-actions-band__row">
+            <div class="table-filter-actions-group form-titlebar-actions-wrap uniform-gap">
+              <ng-container *ngTemplateOutlet="workOrderActionButtons"></ng-container>
+            </div>
+          </div>
+        </div>
+        <div class="property-tab-main-area">
+          <div class="document-preview-frame">
+            <iframe
+              [srcdoc]="safePreviewIframeHtml"
+              class="document-preview-iframe preview-iframe"
+              [attr.key]="iframeKey"
+              (load)="injectStylesIntoIframe()"
+              frameborder="0">
+            </iframe>
+          </div>
         </div>
       } @else {
-        <div class="document-preview-empty">No preview is available for this work order.</div>
+        <div class="document-preview-editor">
+          <div class="document-preview-actions form-titlebar-actions-wrap uniform-gap">
+            <ng-container *ngTemplateOutlet="workOrderActionButtons"></ng-container>
+          </div>
+          <div class="document-preview-frame">
+            <iframe
+              [srcdoc]="safePreviewIframeHtml"
+              class="document-preview-iframe preview-iframe"
+              [attr.key]="iframeKey"
+              (load)="injectStylesIntoIframe()"
+              frameborder="0">
+            </iframe>
+          </div>
+        </div>
       }
-    </div>
+    } @else if (shellMode) {
+      <div class="property-tab-main-area">
+        <div class="document-preview-empty">No preview is available for this work order.</div>
+      </div>
+    } @else {
+      <div class="document-preview-editor">
+        <div class="document-preview-empty">No preview is available for this work order.</div>
+      </div>
+    }
   </form>
 </ng-template>
 
 @if (!isPageReady) {
   @if (shellMode) {
-    <div class="document-preview-shell">
+    <div class="work-order-create-container work-order-shell-mode">
       <div class="document-preview-loading">
         <mat-spinner [diameter]="40"></mat-spinner>
         <p>Loading work order preview...</p>
@@ -69,7 +100,7 @@
     </div>
   }
 } @else if (shellMode) {
-  <div class="document-preview-shell">
+  <div class="work-order-create-container work-order-shell-mode">
     <ng-container *ngTemplateOutlet="documentPreviewContent"></ng-container>
   </div>
 } @else {

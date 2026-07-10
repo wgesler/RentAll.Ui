@@ -7,7 +7,7 @@
   <div class="lease-container" [class.lease-shell-mode]="shellMode">
     <form [formGroup]="form" class="lease-form" [class.lease-form--shell-bands]="shellMode">
       <div class="property-tab-actions-band" [class.lease-inline-actions]="!shellMode">
-        <div class="property-tab-actions-band__row flex justify-end gap-2 uniform-gap">
+        <div class="property-tab-actions-band__row">
           <div class="table-filter-actions-group form-titlebar-actions-wrap uniform-gap">
             @if (isEditMode) {
               <button mat-raised-button type="button" color="accent" (click)="saveDraft()">

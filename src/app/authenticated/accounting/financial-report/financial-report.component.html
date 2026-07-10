@@ -62,36 +62,29 @@
     </div>
     }
   } @else {
-    <div
-      class="mat list-layout-standard dbg-band-main financial-report-layout"
-      [style.--financial-report-panel-max-width]="panelMaxWidthCss">
-      <div class="financial-report-panel">
-        @if (isServiceError) {
-          <div class="financial-report-empty-state">
-            <p>{{ noActivityMessage }}</p>
-          </div>
-        } @else {
-          <div class="financial-report-header">
-            @if (entityLineLabel) {
-              <p class="financial-report-entity-line">
-                @if (companyName && displayOfficeName) {
-                  {{ companyName }} {{ displayOfficeName }}
-                } @else if (companyName) {
-                  {{ companyName }}
-                } @else {
-                  {{ displayOfficeName }}
-                }
-              </p>
-            }
-            @if (reportResult) {
-              <h2 class="financial-report-title">{{ reportResult.reportTitle }}</h2>
-              @if (reportResult.periodLabel) {
-                <p class="financial-report-period">{{ reportResult.periodLabel }}</p>
+    <div class="mat list-layout-standard financial-report-layout">
+      <div class="financial-report-context-band property-tab-actions-band dbg-band-actions">
+        <div class="property-tab-actions-band__row financial-report-context-band__row">
+          <div class="financial-report-context-band__titles">
+            <p class="financial-report-report-title">{{ shellReportTitle }}</p>
+            <button type="button" class="financial-report-context-btn">
+              @if (shellReportEntityLine) {
+                <span class="financial-report-context-btn__entity">{{ shellReportEntityLine }}</span>
               }
-            }
+              @if (shellReportPeriodLine) {
+                <span class="financial-report-context-btn__period">{{ shellReportPeriodLine }}</span>
+              }
+            </button>
           </div>
-
-          @if (!reportResult || visibleRows.length === 0) {
+        </div>
+      </div>
+      <div class="financial-report-panel dbg-band-main">
+        <div class="financial-report-panel-inner">
+          @if (isServiceError) {
+            <div class="financial-report-empty-state">
+              <p>{{ noActivityMessage }}</p>
+            </div>
+          } @else if (!reportResult || visibleRows.length === 0) {
             <div class="financial-report-empty-state">
               <p>{{ noActivityMessage }}</p>
             </div>
@@ -167,9 +160,9 @@
                 }
               </tbody>
             </table>
-          </div>
+            </div>
           }
-        }
+        </div>
       </div>
     </div>
   }

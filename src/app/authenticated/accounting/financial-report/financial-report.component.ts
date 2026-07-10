@@ -805,6 +805,22 @@ export class FinancialReportComponent implements OnInit, OnDestroy, OnChanges {
     return [this.companyName, this.displayOfficeName].filter(label => !!label).join(' ');
   }
 
+  get shellReportTitle(): string {
+    if (this.reportResult?.reportTitle) {
+      return this.reportResult.reportTitle;
+    }
+
+    return this.reportKind === 'balanceSheet' ? 'Balance Sheet' : 'Profit & Loss';
+  }
+
+  get shellReportEntityLine(): string {
+    return this.entityLineLabel;
+  }
+
+  get shellReportPeriodLine(): string {
+    return this.reportResult?.periodLabel?.trim() || '';
+  }
+
   getChartOfAccountsForOfficeIds(officeIds: number[]): ChartOfAccountResponse[] {
     if (officeIds.length === 1) {
       return this.chartOfAccountsService.getChartOfAccountsForOffice(officeIds[0]) || [];

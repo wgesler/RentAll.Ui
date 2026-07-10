@@ -1,1 +1,31 @@
-// Document preview layout uses shared classes from styles.scss.
+.work-order-create-container {
+  padding: 1.5rem;
+}
+
+.work-order-create-form {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+.work-order-create-form--shell-bands {
+  gap: 0;
+}
+
+:host-context(.shell-tabs) .work-order-create-container.work-order-shell-mode {
+  padding-top: 0;
+}
+
+.document-preview-loading {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 3rem;
+  gap: 1rem;
+
+  p {
+    margin-top: 1rem;
+    color: #666;
+  }
+}

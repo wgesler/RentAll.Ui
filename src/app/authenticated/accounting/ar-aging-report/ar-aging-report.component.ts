@@ -586,6 +586,22 @@ export class ArAgingReportComponent implements OnInit, OnDestroy, OnChanges {
     return this.offices.find(office => office.officeId === this.officeId)?.name || '';
   }
 
+  get entityLineLabel(): string {
+    return [this.companyName, this.displayOfficeName].filter(label => !!label).join(' ');
+  }
+
+  get shellReportTitle(): string {
+    return this.reportResult?.reportTitle?.trim() || 'AR Aging';
+  }
+
+  get shellReportEntityLine(): string {
+    return this.reportResult?.entityLineLabel?.trim() || this.entityLineLabel;
+  }
+
+  get shellReportPeriodLine(): string {
+    return this.reportResult?.periodLabel?.trim() || '';
+  }
+
   get panelMaxWidthCss(): string {
     const count = (this.reportResult?.bucketColumns.length ?? 0) + 1;
     if (count <= 1) {

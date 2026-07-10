@@ -498,6 +498,17 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
       return;
     }
 
+    if (this.source === 'accounting' && this.embedDocumentPreviewInShell) {
+      this.previewEvent.emit({
+        invoiceId: invoiceIdToUse!,
+        invoiceCode: event?.invoiceCode ?? null,
+        officeId: officeIdToUse,
+        reservationId: reservationIdToUse,
+        companyId: companyIdToUse
+      });
+      return;
+    }
+
     if (this.source === 'reservation') {
       params.push(`returnTo=reservation`);
     } else {

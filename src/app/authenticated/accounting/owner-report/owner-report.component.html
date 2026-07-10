@@ -10,20 +10,18 @@
     class="mat list-layout-standard dbg-band-main owner-statement-layout"
     [class.owner-statement-layout--accrual]="reportKind === 'accrual'"
     [class.owner-statement-layout--cash]="reportKind === 'cash'">
-    <div class="owner-statement-panel">
-      @if (visibleRows.length === 0) {
-        <div class="owner-statement-empty-state">
-          <p>No owner statement activity for the selected filters.</p>
-        </div>
-      } @else {
-        <div class="owner-statement-header">
+    <div class="owner-statement-context-band property-tab-actions-band dbg-band-actions">
+      <div class="property-tab-actions-band__row owner-statement-context-band__row">
+        <div class="owner-statement-context-band__titles">
           <p class="owner-statement-report-title">{{ reportTitle }}</p>
-          @if (headerEntityLine) {
-            <p class="owner-statement-entity-line">{{ headerEntityLine }}</p>
-          }
-          <p class="owner-statement-period">{{ headerPeriodLine }}</p>
+          <button type="button" class="owner-statement-context-btn">
+            @if (headerEntityLine) {
+              <span class="owner-statement-context-btn__entity">{{ headerEntityLine }}</span>
+            }
+            <span class="owner-statement-context-btn__period">{{ headerPeriodLine }}</span>
+          </button>
         </div>
-        <div class="owner-statement-toggle-row">
+        <div class="owner-statement-cash-toggle-wrap">
           <mat-slide-toggle
             [checked]="reportKind === 'cash'"
             color="primary"
@@ -31,6 +29,14 @@
             Cash
           </mat-slide-toggle>
         </div>
+      </div>
+    </div>
+    <div class="owner-statement-panel">
+      @if (visibleRows.length === 0) {
+        <div class="owner-statement-empty-state">
+          <p>No owner statement activity for the selected filters.</p>
+        </div>
+      } @else {
         <div
           #ownerReportTableWrap
           class="owner-statement-table-wrap"

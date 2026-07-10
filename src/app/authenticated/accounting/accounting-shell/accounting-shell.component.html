@@ -6,7 +6,41 @@
           <mat-icon class="flex-shrink-0">account_balance</mat-icon>
           <span class="flex-shrink-0 text-xl font-medium">Accounting</span>
         </span>
-        @if (isShellInvoiceTitleBarActive) {
+        @if (isInvoiceCreateActive && invoiceCreateContext) {
+          <div class="header-title form-titlebar-fields-wrap accounting-shell-titlebar-fields">
+            <div class="accounting-shell-titlebar-filters">
+              @if (showShellOfficeDropdown || invoiceCreateContext.officeId != null) {
+                <app-title-bar-select
+                  [label]="'Office'"
+                  [formFieldClass]="'titlebar-field-office'"
+                  [value]="invoiceCreateContext.officeId"
+                  [options]="invoiceCreateOfficeTitleBarOptions"
+                  [disabled]="true"
+                  [nullOptionLabel]="'Office'"
+                  [noResultsText]="'No offices match your search'">
+                </app-title-bar-select>
+              }
+              <app-title-bar-select
+                [label]="'Reservation'"
+                [formFieldClass]="'titlebar-field-reservation'"
+                [value]="invoiceCreateContext.reservationId"
+                [options]="invoiceCreateReservationTitleBarOptions"
+                [disabled]="true"
+                [nullOptionLabel]="'Reservation'"
+                [noResultsText]="'No reservations match your search'">
+              </app-title-bar-select>
+              <app-title-bar-select
+                [label]="'Invoice No'"
+                [formFieldClass]="'titlebar-field-invoice-no'"
+                [value]="invoiceCreateContext.invoiceId"
+                [options]="invoiceCreateInvoiceTitleBarOptions"
+                [disabled]="true"
+                [nullOptionLabel]="'Invoice'"
+                [noResultsText]="'No invoices match your search'">
+              </app-title-bar-select>
+            </div>
+          </div>
+        } @else if (isShellInvoiceTitleBarActive) {
           <div class="header-title form-titlebar-fields-wrap accounting-shell-titlebar-fields">
             <div class="accounting-shell-titlebar-filters">
             <app-title-bar-select
@@ -423,7 +457,12 @@
             C
           </button>
         }
-        @if (activeInvoiceId) {
+        @if (isInvoiceCreateActive) {
+          <button mat-raised-button type="button" color="accent" (click)="onInvoiceCreateBack()">
+            <mat-icon>arrow_back</mat-icon>
+            Back
+          </button>
+        } @else if (activeInvoiceId && selectedTabIndex === 0) {
           <button mat-raised-button type="button" color="accent" (click)="closeEmbeddedInvoiceEditor()">
             <mat-icon>arrow_back</mat-icon>
             Back
@@ -472,20 +511,33 @@
       </div>
     </div>
     <mat-card>
-      @if (activeInvoiceId) {
-        @for (invoiceEditorKey of [activeInvoiceId]; track invoiceEditorKey) {
-          <app-invoice
-            #accountingInvoiceEditor
-            [shellMode]="true"
-            [invoiceIdInput]="activeInvoiceId"
-            [officeIdInput]="selectedOfficeId"
-            [reservationIdInput]="selectedReservationId"
-            [companyIdInput]="selectedCompanyId">
-          </app-invoice>
-        }
-      } @else {
-        <mat-tab-group [selectedIndex]="effectiveSelectedTabIndex" class="shell-tabs dbg-band-tabs" (selectedTabChange)="onTabChange($event)">
+        <mat-tab-group [selectedIndex]="effectiveSelectedTabIndex" class="shell-tabs shell-tabs--6-slots dbg-band-tabs" (selectedTabChange)="onTabChange($event)">
           <mat-tab label="Invoices">
+            @if (showInvoiceCreate && invoiceCreateContext) {
+              @for (instance of [invoiceCreateInstance]; track instance) {
+                <app-invoice-create
+                  [shellMode]="true"
+                  [invoiceIdInput]="invoiceCreateContext.invoiceId"
+                  [officeIdInput]="invoiceCreateContext.officeId"
+                  [reservationIdInput]="invoiceCreateContext.reservationId"
+                  [companyIdInput]="invoiceCreateContext.companyId ?? null"
+                  (backEvent)="onInvoiceCreateBack()">
+                </app-invoice-create>
+              }
+            } @else if (activeInvoiceId) {
+              @for (invoiceEditorKey of [activeInvoiceId]; track invoiceEditorKey) {
+                <app-invoice
+                  #accountingInvoiceEditor
+                  [shellMode]="true"
+                  [embedDocumentPreviewInShell]="true"
+                  [invoiceIdInput]="activeInvoiceId"
+                  [officeIdInput]="selectedOfficeId"
+                  [reservationIdInput]="selectedReservationId"
+                  [companyIdInput]="selectedCompanyId"
+                  (previewEvent)="onInvoicePreviewOpen($event)">
+                </app-invoice>
+              }
+            } @else {
             <app-invoice-list
               [invoiceSearchDateRange]="invoiceSearchDateRange"
               [officeId]="selectedOfficeId"
@@ -495,12 +547,15 @@
               [organizationName]="selectedOrganizationName"
               [organizationOptions]="organizationTitleBarOptions"
               [source]="'accounting'"
+              [embedDocumentPreviewInShell]="true"
               (organizationIdChange)="onInvoiceOrganizationChange($event)"
               (officeIdChange)="onInvoiceOfficeChange($event)"
               (reservationIdChange)="onInvoiceReservationChange($event)"
               (companyIdChange)="onInvoiceCompanyChange($event)"
+              (previewEvent)="onInvoicePreviewOpen($event)"
               (journalEntriesChanged)="onJournalEntriesChanged()">
             </app-invoice-list>
+            }
           </mat-tab>
           <mat-tab>
             <ng-template mat-tab-label>
@@ -622,17 +677,17 @@
               </mat-menu>
             </ng-template>
             @if (selectedTabIndex === tabBankActivities) {
-              <div class="accounting-shell-subview-title">
-                @if (selectedBankActivityKind === 'transferReport') {
-                  Transfer Report
-                } @else if (selectedBankActivityKind === 'deposits') {
-                  Deposits
-                } @else if (selectedBankActivityKind === 'printChecks') {
-                  Print Checks
-                } @else {
-                  Reconcile
-                }
-              </div>
+              @if (selectedBankActivityKind !== 'reconcile') {
+                <div class="accounting-shell-subview-title">
+                  @if (selectedBankActivityKind === 'transferReport') {
+                    Transfer Report
+                  } @else if (selectedBankActivityKind === 'deposits') {
+                    Deposits
+                  } @else {
+                    Print Checks
+                  }
+                </div>
+              }
               @if (selectedBankActivityKind === 'transferReport') {
                 @if (showGeneralLedgerDetail && activeJournalEntryId) {
                   <app-general-ledger
@@ -686,8 +741,19 @@
                   </app-general-ledger-list>
                 }
               } @else {
-                <div class="accounting-shell-report-placeholder">
-                  Bank reconciliation is not available yet.
+                <div class="mat list-layout-standard accounting-shell-reconcile-layout">
+                  <div class="accounting-shell-reconcile-context-band property-tab-actions-band dbg-band-actions">
+                    <div class="property-tab-actions-band__row accounting-shell-reconcile-context-band__row">
+                      <div class="accounting-shell-reconcile-context-band__titles">
+                        <p class="accounting-shell-reconcile-title">Reconcile</p>
+                      </div>
+                    </div>
+                  </div>
+                  <div class="accounting-shell-reconcile-panel dbg-band-main">
+                    <div class="accounting-shell-report-placeholder">
+                      Bank reconciliation is not available yet.
+                    </div>
+                  </div>
                 </div>
               }
             }
@@ -770,8 +836,14 @@
                 }
               } @else if (selectedOwnerKind === 'ownerStatements') {
                 @if (selectedOwnerStatementMonthLine) {
-                  <app-owner-statement-create [line]="selectedOwnerStatementMonthLine"></app-owner-statement-create>
+                  <app-owner-statement-create
+                    [line]="selectedOwnerStatementMonthLine"
+                    [shellMode]="true">
+                  </app-owner-statement-create>
                 } @else {
+                  <div class="accounting-shell-subview-title">
+                    Owner Statements
+                  </div>
                   <app-owner-statement-list
                     [searchRequest]="billsSearchRequest"
                     [refreshTrigger]="ownersStatementsRefreshTrigger"
@@ -921,7 +993,6 @@
           </mat-tab>
           }
         </mat-tab-group>
-      }
     </mat-card>
   </section>
 </div>
