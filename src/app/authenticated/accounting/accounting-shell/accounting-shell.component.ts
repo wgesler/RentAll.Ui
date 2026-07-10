@@ -327,7 +327,7 @@ export class AccountingShellComponent implements OnInit, OnDestroy {
             this.refreshPropertyOptions();
             this.refreshReservationOptions();
             this.clearInvalidChartOfAccountSelection();
-            this.generalLedgerRefreshTrigger++;
+            this.refreshGeneralLedgerListView();
           }
           if (this.usesFinancialReportTitleBarFilters()) {
             this.financialReportsRefreshTrigger++;
@@ -458,7 +458,7 @@ export class AccountingShellComponent implements OnInit, OnDestroy {
     this.selectedChartOfAccountId = chartOfAccountId;
     this.onGeneralLedgerBack();
     this.financialReportsRefreshTrigger++;
-    this.generalLedgerRefreshTrigger++;
+    this.refreshGeneralLedgerListView();
     this.router.navigate([], {
       relativeTo: this.route,
       queryParams: this.buildShellQueryParams(),
@@ -475,7 +475,7 @@ export class AccountingShellComponent implements OnInit, OnDestroy {
     this.refreshReservationOptions();
     this.onGeneralLedgerBack();
     this.financialReportsRefreshTrigger++;
-    this.generalLedgerRefreshTrigger++;
+    this.refreshGeneralLedgerListView();
     this.router.navigate([], {
       relativeTo: this.route,
       queryParams: this.buildShellQueryParams(),
@@ -496,7 +496,7 @@ export class AccountingShellComponent implements OnInit, OnDestroy {
     }
     this.onGeneralLedgerBack();
     this.financialReportsRefreshTrigger++;
-    this.generalLedgerRefreshTrigger++;
+    this.refreshGeneralLedgerListView();
     this.router.navigate([], {
       relativeTo: this.route,
       queryParams: this.buildShellQueryParams(),
@@ -1580,7 +1580,7 @@ export class AccountingShellComponent implements OnInit, OnDestroy {
       this.syncGlFiltersFromInvoiceContext();
       this.refreshPropertyOptions();
       this.refreshReservationOptions();
-      this.generalLedgerRefreshTrigger++;
+      this.refreshGeneralLedgerListView();
     }
 
     const shellQueryParams = this.buildShellQueryParams({ tab: String(event.index) });
@@ -1723,7 +1723,9 @@ export class AccountingShellComponent implements OnInit, OnDestroy {
     }
 
     if (kindChanged) {
-      this.generalLedgerRefreshTrigger++;
+      if (kind !== 'recap') {
+        this.refreshGeneralLedgerListView();
+      }
       this.router.navigate([], {
         relativeTo: this.route,
         queryParams: this.buildShellQueryParams({ glView: kind }),
@@ -1821,18 +1823,40 @@ export class AccountingShellComponent implements OnInit, OnDestroy {
     if (!this.showOwnerReportGoButton) {
       return;
     }
-    this.syncBillsSearchRequest();
+    this.syncOwnerReportsBundleSearchRequest();
     this.ownerReportsCacheService.load(this.billsSearchRequest).pipe(take(1)).subscribe({
       next: () => {
         this.ownersStatementsRefreshTrigger++;
+        this.generalLedgerRefreshTrigger++;
         this.cdr.markForCheck();
       },
       error: () => {
         this.ownerReportsCacheService.clear();
         this.ownersStatementsRefreshTrigger++;
+        this.generalLedgerRefreshTrigger++;
         this.cdr.markForCheck();
       }
     });
+  }
+
+  syncOwnerReportsBundleSearchRequest(): void {
+    this.syncInvoiceSearchDateRange();
+    const propertyId = this.selectedTabIndex === this.tabGeneralLedger && this.selectedGeneralLedgerKind === 'recap'
+      ? this.selectedGlPropertyId
+      : this.selectedBillsPropertyId;
+    this.billsSearchRequest = {
+      officeIds: this.resolveOfficeIdsForBillsSearch(),
+      propertyId: propertyId || null,
+      startDate: this.utilityService.formatDateOnlyForApi(this.startDate),
+      endDate: this.utilityService.formatDateOnlyForApi(this.endDate)
+    };
+  }
+
+  private refreshGeneralLedgerListView(): void {
+    if (this.selectedTabIndex !== this.tabGeneralLedger || this.selectedGeneralLedgerKind !== 'ledger') {
+      return;
+    }
+    this.generalLedgerRefreshTrigger++;
   }
   //#endregion
 
@@ -1888,7 +1912,7 @@ export class AccountingShellComponent implements OnInit, OnDestroy {
       this.financialReportsRefreshTrigger++;
     }
     if (this.usesGeneralLedgerTitleBarFilters()) {
-      this.generalLedgerRefreshTrigger++;
+      this.refreshGeneralLedgerListView();
     }
     this.router.navigate([], {
       relativeTo: this.route,
@@ -2389,9 +2413,18 @@ export class AccountingShellComponent implements OnInit, OnDestroy {
   }
 
   get showOwnerReportGoButton(): boolean {
-    return this.selectedTabIndex === this.tabOwners
-      && (this.isOwnerReportView(this.selectedOwnerKind) || this.selectedOwnerKind === 'ownerStatements')
-      && !this.isOwnerStatementCreateActive;
+    if (this.isOwnerStatementCreateActive) {
+      return false;
+    }
+
+    if (this.selectedTabIndex === this.tabOwners
+      && (this.isOwnerReportView(this.selectedOwnerKind) || this.selectedOwnerKind === 'ownerStatements')) {
+      return true;
+    }
+
+    return this.selectedTabIndex === this.tabGeneralLedger
+      && this.selectedGeneralLedgerKind === 'recap'
+      && !this.isGeneralLedgerDetailActive;
   }
 
   get ownerStatementCreateOfficeTitleBarOptions(): { value: number; label: string }[] {
@@ -2593,7 +2626,7 @@ export class AccountingShellComponent implements OnInit, OnDestroy {
       this.refreshReservationOptions();
       this.clearInvalidChartOfAccountSelection();
       this.onGeneralLedgerBack();
-      this.generalLedgerRefreshTrigger++;
+      this.refreshGeneralLedgerListView();
     }
   }
 

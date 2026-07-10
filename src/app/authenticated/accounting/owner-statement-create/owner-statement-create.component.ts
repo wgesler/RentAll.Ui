@@ -331,7 +331,7 @@ export class OwnerStatementCreateComponent extends BaseDocumentComponent impleme
       selectedOfficeId: this.line.officeId,
       ownerName: this.line.ownerName,
       propertyCode: this.line.propertyCode,
-      statementMonth: this.line.monthDisplay
+      statementMonth: this.getStatementMonthLabel()
     }, { emitEvent: false });
 
     this.tryGeneratePreview();
@@ -757,7 +757,7 @@ export class OwnerStatementCreateComponent extends BaseDocumentComponent impleme
       address1 ? `<span style="font-weight: bold">Address:</span> ${address1}` : '',
       address2 ? `&nbsp;&nbsp;&nbsp;&nbsp;${address2}` : '',
       cityStateZip ? `&nbsp;&nbsp;&nbsp;&nbsp;${cityStateZip}` : '',
-      `<span style="font-weight: bold">Statement Month:</span> ${this.escapeHtml(this.line?.monthDisplay || '')}`
+      `<span style="font-weight: bold">Statement Month:</span> ${this.escapeHtml(this.getStatementMonthLabel())}`
     ].filter(Boolean).join('<br>');
   }
 
@@ -823,7 +823,7 @@ export class OwnerStatementCreateComponent extends BaseDocumentComponent impleme
     const accountingName = this.selectedAccountingOffice?.name || this.selectedOffice?.name || '';
     const accountingPhone = this.formatterService.phoneNumber(this.selectedAccountingOffice?.phone) || '';
     const propertyCode = (this.line.propertyCode || 'OwnerStatement').replace(/[^a-zA-Z0-9-]/g, '');
-    const monthDisplay = (this.line.monthDisplay || '').trim();
+    const monthDisplay = this.getStatementMonthLabel();
     const subject = (this.emailHtml?.ownerStatementSubject || 'Owner Statement: {{propertyCode}}')
       .replace(/\{\{propertyCode\}\}/g, propertyCode)
       .replace(/\{\{statementMonth\}\}/g, monthDisplay);
@@ -892,6 +892,17 @@ export class OwnerStatementCreateComponent extends BaseDocumentComponent impleme
   //#endregion
 
   //#region Utility
+  getStatementMonthLabel(): string {
+    if (!this.line) {
+      return '';
+    }
+
+    const periodStartDate = (this.line.periodStartDate || this.line.monthDate || '').trim();
+    const periodEndDate = (this.line.periodEndDate || this.line.monthDate || periodStartDate).trim();
+    return this.mappingService.formatOwnerStatementPeriodMonthLabel(periodStartDate, periodEndDate)
+      || (this.line.monthDisplay || '').trim();
+  }
+
   buildForm(): FormGroup {
     return this.fb.group({
       selectedOfficeId: new FormControl(null),

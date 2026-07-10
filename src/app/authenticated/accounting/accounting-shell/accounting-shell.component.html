@@ -471,8 +471,8 @@
                 color="primary"
                 class="accounting-shell-owner-report-go-btn"
                 (click)="onOwnerReportGoClick()"
-                aria-label="Run owner report"
-                matTooltip="Run report">
+                aria-label="Run reports"
+                matTooltip="Run reports">
                 <span class="accounting-shell-owner-report-go-content">
                   <span class="accounting-shell-owner-report-go-label">Go</span>
                   <mat-icon class="accounting-shell-owner-report-go-arrow">arrow_forward</mat-icon>
@@ -894,9 +894,6 @@
                     [shellMode]="true">
                   </app-owner-statement-create>
                 } @else {
-                  <div class="accounting-shell-subview-title">
-                    Owner Statements
-                  </div>
                   <app-owner-statement-list
                     [searchRequest]="billsSearchRequest"
                     [refreshTrigger]="ownersStatementsRefreshTrigger"
@@ -1005,11 +1002,9 @@
               </mat-menu>
             </ng-template>
             @if (selectedTabIndex === tabGeneralLedger) {
-              <div class="accounting-shell-subview-title" [class.accounting-shell-subview-title--stacked]="selectedGeneralLedgerKind === 'recap'">
+              <div class="accounting-shell-subview-title">
                 @if (selectedGeneralLedgerKind === 'recap') {
-                  <span>Reservation Income</span>
-                  <span>&</span>
-                  <span>Owner Settlement Recap</span>
+                  Journal Entry Recap
                 } @else {
                   General Ledger
                 }

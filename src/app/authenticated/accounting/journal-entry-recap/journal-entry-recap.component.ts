@@ -1,7 +1,6 @@
 import { CommonModule } from '@angular/common';
-import { HttpErrorResponse } from '@angular/common/http';
 import { ChangeDetectionStrategy, ChangeDetectorRef, Component, EventEmitter, Input, OnChanges, OnDestroy, OnInit, Output, SimpleChanges } from '@angular/core';
-import { BehaviorSubject, finalize, Subject, take, takeUntil } from 'rxjs';
+import { BehaviorSubject, Subject, take, takeUntil } from 'rxjs';
 import { MaterialModule } from '../../../material.module';
 import { UtilityService } from '../../../services/utility.service';
 import { DataTableComponent } from '../../shared/data-table/data-table.component';
@@ -9,7 +8,7 @@ import { ColumnSet } from '../../shared/data-table/models/column-data';
 import { SourceType, isJournalEntrySourceNavigable } from '../models/accounting-enum';
 import { JournalEntryLineListDisplay, JournalEntryRecapRowDisplay } from '../models/journal-entry.model';
 import { OwnerStatementActivityLinkSelection } from '../models/owner-statement.model';
-import { ReportService } from '../services/report.service';
+import { OwnerReportsCacheService } from '../services/owner-reports-cache.service';
 import { JournalEntrySourceService } from '../services/journal-entry-source.service';
 
 @Component({
@@ -32,7 +31,8 @@ export class JournalEntryRecapComponent implements OnInit, OnChanges, OnDestroy 
   isPageReady = false;
   isServiceError = false;
   rowsDisplay: JournalEntryRecapRowDisplay[] = [];
-  noActivityMessage = 'No journal entry recap activity for the selected filters and date range.';
+  noActivityMessage = 'Press Go to run the report.';
+  private readonly noDataMessage = 'No journal entry recap activity for the selected filters and date range.';
 
   displayedColumns: ColumnSet = {
     no: { displayAs: 'No', maxWidth: '5ch', sort: false, wrap: false, alignment: 'center' },
@@ -55,11 +55,11 @@ export class JournalEntryRecapComponent implements OnInit, OnChanges, OnDestroy 
     ownerPayment: { displayAs: 'OwnPay', maxWidth: '12ch', alignment: 'right', sort: false }
   };
 
-  itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['recapLines']));
+  itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set());
   destroy$ = new Subject<void>();
 
   constructor(
-    private reportService: ReportService,
+    private ownerReportsCacheService: OwnerReportsCacheService,
     private journalEntrySourceService: JournalEntrySourceService,
     private utilityService: UtilityService,
     private cdr: ChangeDetectorRef
@@ -75,22 +75,6 @@ export class JournalEntryRecapComponent implements OnInit, OnChanges, OnDestroy 
   }
 
   ngOnChanges(changes: SimpleChanges): void {
-    if (changes['officeId'] && !changes['officeId'].firstChange) {
-      this.loadRecapLines();
-    }
-
-    if (changes['propertyId'] && !changes['propertyId'].firstChange) {
-      this.loadRecapLines();
-    }
-
-    if (changes['reservationId'] && !changes['reservationId'].firstChange) {
-      this.loadRecapLines();
-    }
-
-    if (changes['searchDateRange'] && !changes['searchDateRange'].firstChange) {
-      this.loadRecapLines();
-    }
-
     if (changes['refreshTrigger'] && !changes['refreshTrigger'].firstChange) {
       this.loadRecapLines();
     }
@@ -186,14 +170,12 @@ export class JournalEntryRecapComponent implements OnInit, OnChanges, OnDestroy 
     if (officeIds.length === 0) {
       this.rowsDisplay = [];
       this.isServiceError = false;
-      this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'recapLines');
+      this.noActivityMessage = 'Select an office, then press Go to run the report.';
       this.markViewForCheck();
       return;
     }
 
-    this.isServiceError = false;
-    this.utilityService.addLoadItem(this.itemsToLoad$, 'recapLines');
-    this.reportService.searchJournalEntryRecap({
+    const recapRequest = {
       officeIds,
       propertyId: this.propertyId?.trim() || null,
       reservationId: this.reservationId?.trim() || null,
@@ -201,24 +183,44 @@ export class JournalEntryRecapComponent implements OnInit, OnChanges, OnDestroy 
       includeUnposted: true,
       startDate: this.searchDateRange?.startDate ?? null,
       endDate: this.searchDateRange?.endDate ?? null
-    }).pipe(take(1), finalize(() => this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'recapLines'))).subscribe({
-      next: report => {
-        this.rowsDisplay = report?.rows || [];
-        this.markViewForCheck();
-      },
-      error: (error: HttpErrorResponse) => {
-        console.error('Journal Entry Recap - error loading recap lines:', error);
-        this.isServiceError = true;
-        this.rowsDisplay = [];
-        const apiMessage = typeof error.error === 'string'
-          ? error.error
-          : error.error?.title || error.error?.message || error.message;
-        this.noActivityMessage = apiMessage
-          ? `Unable to load journal entry recap: ${apiMessage}`
-          : 'Unable to load journal entry recap.';
-        this.markViewForCheck();
-      }
-    });
+    };
+
+    if (!this.ownerReportsCacheService.matchesRecapSearchRequest(recapRequest)) {
+      this.isServiceError = false;
+      this.rowsDisplay = [];
+      this.noActivityMessage = 'Press Go to run the report.';
+      this.markViewForCheck();
+      return;
+    }
+
+    const cachedReport = this.ownerReportsCacheService.getRecapReport();
+    if (!cachedReport) {
+      this.isServiceError = false;
+      this.rowsDisplay = [];
+      this.noActivityMessage = 'Press Go to run the report.';
+      this.markViewForCheck();
+      return;
+    }
+
+    this.isServiceError = false;
+    this.rowsDisplay = this.applyRecapRowFilters(cachedReport.rows || []);
+    this.noActivityMessage = this.noDataMessage;
+    this.markViewForCheck();
+  }
+
+  private applyRecapRowFilters(rows: JournalEntryRecapRowDisplay[]): JournalEntryRecapRowDisplay[] {
+    let filtered = rows;
+
+    if (this.officeId != null && this.officeId > 0) {
+      filtered = filtered.filter(row => row.officeId === this.officeId);
+    }
+
+    const reservationId = (this.reservationId || '').trim();
+    if (reservationId) {
+      filtered = filtered.filter(row => (row.reservationId || '').trim() === reservationId);
+    }
+
+    return filtered;
   }
   //#endregion
 

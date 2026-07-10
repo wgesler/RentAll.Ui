@@ -1,3 +1,4 @@
+import { RecapReportResponse } from './journal-entry.model';
 import { OwnerStatementActivityLinkSelection, OwnerStatementAmountDrillDownSelection, OwnerStatementDescriptionSegment, OwnerStatementDrillDownMetric, OwnerStatementJournalEntryLineResponse, OwnerStatementJournalEntryLineSearchRequest, OwnerStatementJournalEntryLineSelection, OwnerStatementListViewState, OwnerStatementOfficeGroup, OwnerStatementPropertyActivityLineDisplay, OwnerStatementPropertyActivityLineResponse, OwnerStatementPropertyActivityLineSearchRequest, OwnerStatementPropertyRow, OwnerStatementReportKind, OwnerStatementResponse, OwnerStatementSearchRequest, OwnerStatementSearchResponse, OwnerStatementVisibleRow } from './owner-statement.model';
 
 export type OwnerReportSearchRequest = OwnerStatementSearchRequest;
@@ -73,4 +74,5 @@ export interface OwnerAccrualReportResponse {
 export interface OwnerReportsBundleResponse {
   cash: OwnerCashReportResponse;
   accrual: OwnerAccrualReportResponse;
+  recap: RecapReportResponse;
 }

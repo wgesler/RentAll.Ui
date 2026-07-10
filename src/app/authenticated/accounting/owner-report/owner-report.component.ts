@@ -74,7 +74,7 @@ export class OwnerReportComponent implements OnInit, OnChanges, OnDestroy {
       this.markViewForCheck();
     });
     this.loadOrganization();
-    this.restoreOwnerReportCache(this.reportKind);
+    this.loadOwnerReports();
   }
 
   ngOnChanges(changes: SimpleChanges): void {

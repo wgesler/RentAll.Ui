@@ -2172,9 +2172,11 @@ export class MappingService {
   mapOwnerReportsBundleResponse(raw: Record<string, unknown>): OwnerReportsBundleResponse {
     const cashRaw = (raw['cash'] ?? raw['Cash'] ?? {}) as Record<string, unknown>;
     const accrualRaw = (raw['accrual'] ?? raw['Accrual'] ?? {}) as Record<string, unknown>;
+    const recapRaw = (raw['recap'] ?? raw['Recap'] ?? {}) as Record<string, unknown>;
     return {
       cash: this.mapOwnerCashReportResponse(cashRaw),
-      accrual: this.mapOwnerAccrualReportResponse(accrualRaw)
+      accrual: this.mapOwnerAccrualReportResponse(accrualRaw),
+      recap: this.mapRecapReportResponse(recapRaw)
     };
   }
 
@@ -2517,6 +2519,26 @@ export class MappingService {
       return `${startMonth} - ${endMonth} ${endYear}`;
     }
     return `${startMonth} ${startYear} - ${endMonth} ${endYear}`;
+  }
+
+  /** Month name(s) only for owner statement labels, e.g. "May" or "May - June". */
+  formatOwnerStatementPeriodMonthLabel(startDate: string | null | undefined, endDate: string | null | undefined): string {
+    const start = this.utility.parseCalendarDateInput(startDate);
+    const end = this.utility.parseCalendarDateInput(endDate ?? startDate);
+    if (!start && !end) {
+      return '';
+    }
+    if (!start || !end) {
+      const date = start ?? end!;
+      return date.toLocaleString('en-US', { month: 'long' });
+    }
+
+    const startMonth = start.toLocaleString('en-US', { month: 'long' });
+    const endMonth = end.toLocaleString('en-US', { month: 'long' });
+    if (startMonth === endMonth) {
+      return startMonth;
+    }
+    return `${startMonth} - ${endMonth}`;
   }
 
   formatOwnerStatementMonthDate(value: string | null | undefined): string {

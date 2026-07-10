@@ -3,9 +3,23 @@
 } @else if (isServiceError) {
   <p class="owner-statement-list-error">Unable to load owner statement list.</p>
 } @else {
-  <div class="mat list-layout-standard dbg-band-main">
-    <div class="tableDiv">
-      <app-data-table
+  <div class="mat list-layout-standard owner-statement-layout owner-statement-layout--accrual">
+    <div class="owner-statement-context-band property-tab-actions-band dbg-band-actions">
+      <div class="property-tab-actions-band__row owner-statement-context-band__row">
+        <div class="owner-statement-context-band__titles">
+          <p class="owner-statement-report-title">{{ reportTitle }}</p>
+          <button type="button" class="owner-statement-context-btn">
+            @if (headerEntityLine) {
+              <span class="owner-statement-context-btn__entity">{{ headerEntityLine }}</span>
+            }
+            <span class="owner-statement-context-btn__period">{{ headerPeriodLine }}</span>
+          </button>
+        </div>
+      </div>
+    </div>
+    <div class="owner-statement-panel dbg-band-main">
+      <div class="tableDiv">
+        <app-data-table
         tableName="owner-statement-list"
         [data]="lines"
         [columns]="ownerStatementDisplayedColumns"
@@ -21,7 +35,8 @@
         (rowClickEvent)="onViewStatement($event)"
         (viewEvent)="onViewStatement($event)"
         (startingBalanceEvent)="openStartingBalanceDialog($event)">
-      </app-data-table>
+        </app-data-table>
+      </div>
     </div>
   </div>
 }

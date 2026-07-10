@@ -5,6 +5,7 @@ import { BehaviorSubject, Subject, take, takeUntil } from 'rxjs';
 import { ToastrService } from 'ngx-toastr';
 import { CommonMessage } from '../../../enums/common-message.enum';
 import { AuthService } from '../../../services/auth.service';
+import { CommonService } from '../../../services/common.service';
 import { FormatterService } from '../../../services/formatter-service';
 import { MappingService } from '../../../services/mapping.service';
 import { UtilityService } from '../../../services/utility.service';
@@ -22,7 +23,7 @@ import { OwnerStatementStartingBalanceDialogComponent, OwnerStatementStartingBal
   standalone: true,
   imports: [CommonModule, DataTableComponent],
   templateUrl: './owner-statement-list.component.html',
-  styleUrl: './owner-statement-list.component.scss',
+  styleUrls: ['./owner-statement-list.component.scss', '../owner-report/owner-report.component.scss'],
   changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class OwnerStatementListComponent implements OnInit, OnChanges, OnDestroy {
@@ -32,6 +33,7 @@ export class OwnerStatementListComponent implements OnInit, OnChanges, OnDestroy
 
   isPageReady = false;
   isServiceError = false;
+  companyName = '';
   noDataMessage = 'No owner statement lines matched the current filters.';
   lines: OwnerStatementMonthLineListDisplay[] = [];
   readonly ownerStatementDisplayedColumns: ColumnSet = {
@@ -39,16 +41,17 @@ export class OwnerStatementListComponent implements OnInit, OnChanges, OnDestroy
     ownerName: { displayAs: 'Owner', wrap: false, maxWidth: '20ch' },
     propertyCode: { displayAs: 'Property', wrap: false, maxWidth: '15ch' },
     monthDisplay: { displayAs: 'Period', wrap: false, maxWidth: '18ch', alignment: 'center' },
-    startingBalance: { displayAs: 'Starting', wrap: false, maxWidth: '14ch', alignment: 'right', headerAlignment: 'right' },
-    income: { displayAs: 'Income', wrap: false, maxWidth: '12ch', alignment: 'right', headerAlignment: 'right' },
-    expenses: { displayAs: 'Expenses', wrap: false, maxWidth: '12ch', alignment: 'right', headerAlignment: 'right' },
-    ownerPayment: { displayAs: 'Payment', wrap: false, maxWidth: '12ch', alignment: 'right', headerAlignment: 'right' },
-    endingBalance: { displayAs: 'Balance', wrap: false, maxWidth: '12ch', alignment: 'right', headerAlignment: 'right' }
+    startingBalance: { displayAs: 'Starting', wrap: false, maxWidth: '16ch', alignment: 'right', headerAlignment: 'right' },
+    income: { displayAs: 'Income', wrap: false, maxWidth: '16ch', alignment: 'right', headerAlignment: 'right' },
+    expenses: { displayAs: 'Expenses', wrap: false, maxWidth: '16ch', alignment: 'right', headerAlignment: 'right' },
+    ownerPayment: { displayAs: 'Payment', wrap: false, maxWidth: '16ch', alignment: 'right', headerAlignment: 'right' },
+    endingBalance: { displayAs: 'Balance', wrap: false, maxWidth: '16ch', alignment: 'right', headerAlignment: 'right' }
   };
-  itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['ownerStatementMonthLines']));
+  itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set());
   destroy$ = new Subject<void>();
 
   constructor(
+    private commonService: CommonService,
     private ownerStatementService: OwnerStatementService,
     private ownerReportsCacheService: OwnerReportsCacheService,
     private propertyAgreementService: PropertyAgreementService, 
@@ -67,11 +70,12 @@ export class OwnerStatementListComponent implements OnInit, OnChanges, OnDestroy
       this.isPageReady = items.size === 0;
       this.markViewForCheck();
     });
+    this.loadOrganization();
     this.loadOwnerStatementList();
   }
 
   ngOnChanges(changes: SimpleChanges): void {
-    if ((changes['searchRequest'] && !changes['searchRequest'].firstChange) || (changes['refreshTrigger'] && !changes['refreshTrigger'].firstChange)) {
+    if (changes['refreshTrigger'] && !changes['refreshTrigger'].firstChange) {
       this.loadOwnerStatementList();
     }
   }
@@ -115,6 +119,18 @@ export class OwnerStatementListComponent implements OnInit, OnChanges, OnDestroy
   //#endregion
 
   //#region Data Loading Methods
+  loadOrganization(): void {
+    const cachedOrganization = this.commonService.getOrganizationValue();
+    if (cachedOrganization?.name) {
+      this.companyName = cachedOrganization.name.trim();
+    }
+
+    this.commonService.getOrganization().pipe(takeUntil(this.destroy$)).subscribe(organization => {
+      this.companyName = organization?.name?.trim() || '';
+      this.markViewForCheck();
+    });
+  }
+
   loadOwnerStatementList(): void {
     const request = this.mappingService.mapOwnerStatementMonthLineSearchRequest(this.searchRequest);
     if (request.officeIds.length === 0) {
@@ -143,6 +159,41 @@ export class OwnerStatementListComponent implements OnInit, OnChanges, OnDestroy
   }
 
   //#endregion
+
+  get reportTitle(): string {
+    return 'Owner Statements';
+  }
+
+  get headerEntityLine(): string {
+    const officeLabel = this.getHeaderOfficeLabel();
+    return [this.companyName, officeLabel].filter(label => !!label).join(' ');
+  }
+
+  get headerPeriodLine(): string {
+    const startDate = this.searchRequest?.startDate ?? null;
+    const endDate = this.searchRequest?.endDate ?? null;
+    const periodLabel = this.mappingService.buildFinancialReportPeriodLabel(startDate, endDate, false);
+    return periodLabel || 'All Dates';
+  }
+
+  getHeaderOfficeLabel(): string {
+    const officeNames = [...new Set(
+      this.lines
+        .map(line => (line.officeName || '').trim())
+        .filter(name => !!name)
+    )];
+    if (officeNames.length === 1) {
+      return officeNames[0];
+    }
+    if (officeNames.length > 1) {
+      return 'All Offices';
+    }
+    const requestedOfficeCount = (this.searchRequest?.officeIds || []).filter(id => id > 0).length;
+    if (requestedOfficeCount > 1) {
+      return 'All Offices';
+    }
+    return '';
+  }
 
   //#region Total Row Methods
   get totalsRow(): { [key: string]: string } | undefined {

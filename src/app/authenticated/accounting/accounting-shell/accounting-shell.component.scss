@@ -482,8 +482,7 @@ mat-card {
 }
 
 :host ::ng-deep .accounting-shell-subview-title + app-receipts-list .list-layout-standard app-data-table .datatable-search-wrap,
-:host ::ng-deep .accounting-shell-subview-title + app-rent-roll .list-layout-standard app-data-table .datatable-search-wrap,
-:host ::ng-deep .accounting-shell-subview-title + app-owner-statement-list .list-layout-standard app-data-table .datatable-search-wrap {
+:host ::ng-deep .accounting-shell-subview-title + app-rent-roll .list-layout-standard app-data-table .datatable-search-wrap {
   margin-top: 0 !important;
 }
 
