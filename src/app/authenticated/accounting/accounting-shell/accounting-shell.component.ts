@@ -28,6 +28,9 @@ import { WorkOrderCreateComponent } from '../../maintenance/work-order-create/wo
 import { WorkOrderListComponent, WorkOrderSelection } from '../../maintenance/work-order-list/work-order-list.component';
 import { WorkOrderPreviewSelection } from '../../maintenance/models/work-order.model';
 import { ReceiptsListComponent } from '../../maintenance/receipts-list/receipts-list.component';
+import { DepositsListComponent } from '../../maintenance/deposits-list/deposits-list.component';
+import { DepositComponent } from '../../maintenance/deposit/deposit.component';
+import { DepositSelection } from '../../maintenance/models/deposit.model';
 import { ReceiptService } from '../../maintenance/services/receipt.service';
 import { WorkOrderService } from '../../maintenance/services/work-order.service';
 import { PropertyCodeResponse, PropertyResponse } from '../../properties/models/property.model';
@@ -94,6 +97,8 @@ interface JournalEntrySyncProgressRow {
     InvoiceListComponent,
     ReceiptsListComponent,
     ReceiptComponent,
+    DepositsListComponent,
+    DepositComponent,
     WorkOrderListComponent,
     WorkOrderComponent,
     WorkOrderCreateComponent,
@@ -139,8 +144,9 @@ export class AccountingShellComponent implements OnInit, OnDestroy {
     { kind: 'rentRoll', label: 'Rent Roll' }
   ];
   readonly shellBankActivityMenuOptions: { kind: AccountingShellBankActivityKind; label: string }[] = [
-    { kind: 'transferReport', label: 'Transfer Report' },
+    { kind: 'undepositedFunds', label: 'Undeposited Funds' },
     { kind: 'deposits', label: 'Deposits' },
+    { kind: 'transferReport', label: 'Transfer Report' },
     { kind: 'printChecks', label: 'Print Checks' },
     { kind: 'reconcile', label: 'Reconcile' }
   ];
@@ -160,7 +166,7 @@ export class AccountingShellComponent implements OnInit, OnDestroy {
     { kind: 'recap', label: 'Journal Entry Recap' }
   ];
   selectedBillsReceiptKind: AccountingShellBillsReceiptKind = 'bills';
-  selectedBankActivityKind: AccountingShellBankActivityKind = 'deposits';
+  selectedBankActivityKind: AccountingShellBankActivityKind = 'undepositedFunds';
   selectedOwnerKind: AccountingShellOwnerKind = 'utilities';
   selectedReportKind: AccountingShellReportKind = 'profitLoss';
   selectedGeneralLedgerKind: AccountingShellGeneralLedgerKind = 'ledger';
@@ -204,6 +210,9 @@ export class AccountingShellComponent implements OnInit, OnDestroy {
   showReceiptsReceiptDetail = false;
   selectedReceiptsReceiptId: string | null = null;
   receiptsReceiptProperty: PropertyResponse | null = null;
+  showDepositsDetail = false;
+  selectedDepositId: string | null = null;
+  depositsProperty: PropertyResponse | null = null;
   selectedChartOfAccountId: number | null = null;
   selectedFinancialReportClass: Class = Class.TotalOnly;
   selectedArAgingDatePreset: ArAgingDatePreset = 'today';
@@ -228,6 +237,7 @@ export class AccountingShellComponent implements OnInit, OnDestroy {
   selectedJournalEntryLineId: string | null = null;
   generalLedgerRefreshTrigger = 0;
   financialReportsRefreshTrigger = 0;
+  undepositedFundsRefreshTrigger = 0;
   depositsRefreshTrigger = 0;
   printChecksRefreshTrigger = 0;
   transferReportRefreshTrigger = 0;
@@ -1021,6 +1031,7 @@ export class AccountingShellComponent implements OnInit, OnDestroy {
     this.syncGlFiltersFromInvoiceContext();
     this.billsRefreshTrigger++;
     this.receiptsRefreshTrigger++;
+    this.undepositedFundsRefreshTrigger++;
     this.depositsRefreshTrigger++;
     this.printChecksRefreshTrigger++;
     this.transferReportRefreshTrigger++;
@@ -1081,6 +1092,51 @@ export class AccountingShellComponent implements OnInit, OnDestroy {
   onReceiptsReceiptSaved(): void {
     this.onReceiptsReceiptBack();
     this.receiptsRefreshTrigger++;
+  }
+
+  onDepositSelect(selection: DepositSelection): void {
+    const depositId = selection?.depositId ?? null;
+    const propertyId = (selection?.propertyId || '').trim() || null;
+    const officeId = selection?.officeId ?? this.selectedOfficeId ?? null;
+    const resolvedOfficeId = officeId != null && Number.isFinite(Number(officeId)) ? Number(officeId) : null;
+
+    if (this.selectedOfficeId !== resolvedOfficeId) {
+      this.selectedOfficeId = resolvedOfficeId;
+      this.selectedCompanyId = null;
+      this.selectedReservationId = null;
+      this.syncBillsSearchRequest();
+    }
+    this.syncBillsSearchRequest();
+
+    const openDepositDetail = (property: PropertyResponse | null) => {
+      this.selectedTabIndex = this.tabBankActivities;
+      this.selectedBankActivityKind = 'deposits';
+      this.depositsProperty = property;
+      this.selectedDepositId = depositId;
+      this.showDepositsDetail = true;
+    };
+
+    if (propertyId) {
+      this.propertyService.getPropertyByGuid(propertyId).pipe(take(1)).subscribe({
+        next: (property: PropertyResponse) => openDepositDetail(property),
+        error: () => this.toastr.error('Unable to load property for deposit.', 'Error')
+      });
+      return;
+    }
+
+    openDepositDetail(this.buildBillsReceiptPropertyStub(officeId));
+  }
+
+  onDepositBack(): void {
+    this.showDepositsDetail = false;
+    this.selectedDepositId = null;
+    this.depositsProperty = null;
+  }
+
+  onDepositSaved(): void {
+    this.onDepositBack();
+    this.depositsRefreshTrigger++;
+    this.onJournalEntriesChanged();
   }
 
   buildBillsReceiptPropertyStub(officeId: number | null): PropertyResponse {
@@ -1788,7 +1844,13 @@ export class AccountingShellComponent implements OnInit, OnDestroy {
       this.transferReportRefreshTrigger++;
       return;
     }
-    this.depositsRefreshTrigger++;
+    if (this.selectedBankActivityKind === 'deposits') {
+      this.depositsRefreshTrigger++;
+      return;
+    }
+    if (this.selectedBankActivityKind === 'undepositedFunds') {
+      this.undepositedFundsRefreshTrigger++;
+    }
   }
 
   refreshActiveOwnerView(): void {
@@ -2308,7 +2370,7 @@ export class AccountingShellComponent implements OnInit, OnDestroy {
       this.selectedBillsReceiptKind = 'bills';
     }
     if (activeTabIndex !== this.tabBankActivities) {
-      this.selectedBankActivityKind = 'deposits';
+      this.selectedBankActivityKind = 'undepositedFunds';
     }
     if (activeTabIndex !== this.tabOwners) {
       this.selectedOwnerKind = 'utilities';
@@ -2692,7 +2754,13 @@ export class AccountingShellComponent implements OnInit, OnDestroy {
 
     if ('bankActivity' in params) {
       const bankActivity = params['bankActivity'];
-      if (bankActivity === 'transferReport' || bankActivity === 'deposits' || bankActivity === 'printChecks' || bankActivity === 'reconcile') {
+      if (
+        bankActivity === 'undepositedFunds'
+        || bankActivity === 'deposits'
+        || bankActivity === 'transferReport'
+        || bankActivity === 'printChecks'
+        || bankActivity === 'reconcile'
+      ) {
         this.selectedBankActivityKind = bankActivity;
       }
     }
@@ -2844,6 +2912,7 @@ export class AccountingShellComponent implements OnInit, OnDestroy {
           queueMicrotask(() => {
             this.billsRefreshTrigger++;
             this.receiptsRefreshTrigger++;
+            this.undepositedFundsRefreshTrigger++;
             this.depositsRefreshTrigger++;
             this.printChecksRefreshTrigger++;
             this.transferReportRefreshTrigger++;

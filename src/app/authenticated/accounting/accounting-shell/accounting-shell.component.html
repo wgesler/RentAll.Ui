@@ -720,6 +720,8 @@
                 <div class="accounting-shell-subview-title">
                   @if (selectedBankActivityKind === 'transferReport') {
                     Transfer Report
+                  } @else if (selectedBankActivityKind === 'undepositedFunds') {
+                    Undeposited Funds
                   } @else if (selectedBankActivityKind === 'deposits') {
                     Deposits
                   } @else {
@@ -744,7 +746,7 @@
                     (sourceLinkSelect)="onOwnerStatementActivityLinkSelect($event)">
                   </app-transfer-report>
                 }
-              } @else if (selectedBankActivityKind === 'deposits') {
+              } @else if (selectedBankActivityKind === 'undepositedFunds') {
                 @if (showGeneralLedgerDetail && activeJournalEntryId) {
                   <app-general-ledger
                     [journalEntryId]="activeJournalEntryId"
@@ -757,10 +759,29 @@
                     [officeId]="selectedOfficeId"
                     [undepositedFundsOnly]="true"
                     [searchDateRange]="invoiceSearchDateRange"
-                    [refreshTrigger]="depositsRefreshTrigger"
+                    [refreshTrigger]="undepositedFundsRefreshTrigger"
                     (lineSelectEvent)="onGeneralLedgerLineSelect($event)"
                     (depositCompletedEvent)="onJournalEntriesChanged()">
                   </app-general-ledger-list>
+                }
+              } @else if (selectedBankActivityKind === 'deposits') {
+                @if (showDepositsDetail) {
+                  <app-deposit
+                    [property]="depositsProperty"
+                    [depositId]="selectedDepositId"
+                    [officeId]="selectedOfficeId"
+                    [shellContext]="'accounting'"
+                    (backEvent)="onDepositBack()"
+                    (savedEvent)="onDepositSaved()" />
+                } @else {
+                  <app-deposits-list
+                    [officeId]="selectedOfficeId"
+                    [searchRequest]="billsSearchRequest"
+                    [embeddedInAccounting]="true"
+                    [refreshTrigger]="depositsRefreshTrigger"
+                    (depositSelect)="onDepositSelect($event)"
+                    (journalEntriesChanged)="onJournalEntriesChanged()">
+                  </app-deposits-list>
                 }
               } @else if (selectedBankActivityKind === 'printChecks') {
                 @if (showGeneralLedgerDetail && activeJournalEntryId) {

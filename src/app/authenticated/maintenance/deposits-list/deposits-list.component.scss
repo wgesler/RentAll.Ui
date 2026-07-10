@@ -1,0 +1,23 @@
+.tableDiv {
+  width: 100%;
+}
+
+.loading-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 3rem;
+  gap: 1rem;
+  min-height: 50vh;
+
+  p {
+    margin-top: 1rem;
+    color: #666;
+  }
+}
+
+.empty-msg {
+  color: #64748b;
+  margin-bottom: 0.75rem;
+}

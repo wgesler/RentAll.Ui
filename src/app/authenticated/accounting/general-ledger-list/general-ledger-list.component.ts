@@ -41,6 +41,7 @@ export class GeneralLedgerListComponent implements OnInit, OnDestroy, OnChanges 
   @Input() reservationId: string | null = null;
   @Input() chartOfAccountId: number | null = null;
   @Input() undepositedFundsOnly = false;
+  @Input() depositsOnly = false;
   @Input() printChecksOnly = false;
   @Input() searchDateRange: { startDate: string | null; endDate: string | null } | null = null;
   @Input() refreshTrigger = 0;
@@ -140,6 +141,7 @@ export class GeneralLedgerListComponent implements OnInit, OnDestroy, OnChanges 
     const shouldReloadLines =
       (changes['chartOfAccountId'] && !changes['chartOfAccountId'].firstChange)
       || (changes['undepositedFundsOnly'] && !changes['undepositedFundsOnly'].firstChange)
+      || (changes['depositsOnly'] && !changes['depositsOnly'].firstChange)
       || (changes['printChecksOnly'] && !changes['printChecksOnly'].firstChange)
       || (changes['propertyId'] && !changes['propertyId'].firstChange)
       || (changes['reservationId'] && !changes['reservationId'].firstChange)
@@ -465,11 +467,16 @@ export class GeneralLedgerListComponent implements OnInit, OnDestroy, OnChanges 
     const printChecksBankAccountIds = this.printChecksOnly
       ? this.resolveBankAccountIds(officeIds)
       : [];
+    const depositsBankAccountIds = this.depositsOnly
+      ? this.resolveBankAccountIds(officeIds)
+      : [];
     const filteredAccountIds = undepositedFundsAccountIds.length > 0
       ? undepositedFundsAccountIds
-      : printChecksBankAccountIds;
+      : depositsBankAccountIds.length > 0
+        ? depositsBankAccountIds
+        : printChecksBankAccountIds;
 
-    if ((this.undepositedFundsOnly || this.printChecksOnly) && filteredAccountIds.length === 0) {
+    if ((this.undepositedFundsOnly || this.depositsOnly || this.printChecksOnly) && filteredAccountIds.length === 0) {
       this.allLines = [];
       this.linesDisplay = [];
       this.isServiceError = false;
@@ -482,7 +489,9 @@ export class GeneralLedgerListComponent implements OnInit, OnDestroy, OnChanges 
       }
       this.noActivityMessage = this.undepositedFundsOnly
         ? 'No Undeposited Funds account is configured for the selected office.'
-        : 'No Bank account is configured for the selected office.';
+        : this.depositsOnly
+          ? 'No Bank account is configured for the selected office.'
+          : 'No Bank account is configured for the selected office.';
       this.markViewForCheck();
       return;
     }
@@ -497,7 +506,7 @@ export class GeneralLedgerListComponent implements OnInit, OnDestroy, OnChanges 
 
     this.isServiceError = false;
 
-    const usesFixedAccountFilter = this.undepositedFundsOnly || this.printChecksOnly;
+    const usesFixedAccountFilter = this.undepositedFundsOnly || this.depositsOnly || this.printChecksOnly;
     const chartOfAccountId = usesFixedAccountFilter
       ? (filteredAccountIds.length === 1 ? filteredAccountIds[0] : null)
       : (this.chartOfAccountId != null && this.chartOfAccountId > 0 ? this.chartOfAccountId : null);
@@ -505,7 +514,11 @@ export class GeneralLedgerListComponent implements OnInit, OnDestroy, OnChanges 
     this.generalLedgerService.searchJournalEntryLines({
       officeIds,
       chartOfAccountId,
-      sourceTypeId: this.printChecksOnly ? SourceType.BillPayment : null,
+      sourceTypeId: this.printChecksOnly
+        ? SourceType.BillPayment
+        : this.depositsOnly
+          ? SourceType.Deposit
+          : null,
       propertyId: usesFixedAccountFilter ? null : (this.propertyId?.trim() || null),
       reservationId: usesFixedAccountFilter ? null : (this.reservationId?.trim() || null),
       includeVoided: false,
@@ -526,12 +539,21 @@ export class GeneralLedgerListComponent implements OnInit, OnDestroy, OnChanges 
             && bankAccountIdSet.has(line.chartOfAccountId)
             && Number(line.credit || 0) > 0);
         }
+        if (this.depositsOnly) {
+          const bankAccountIdSet = new Set(filteredAccountIds);
+          resolvedLines = resolvedLines.filter(line =>
+            Number(line.sourceTypeId) === SourceType.Deposit
+            && bankAccountIdSet.has(line.chartOfAccountId)
+            && Number(line.debit || 0) > 0);
+        }
         this.allLines = resolvedLines;
         this.noActivityMessage = this.undepositedFundsOnly
           ? 'No Undeposited Funds activity for the selected office and date range.'
-          : this.printChecksOnly
-            ? 'No bill payment bank credits for the selected office and date range.'
-            : 'No general ledger activity for the selected filters and date range.';
+          : this.depositsOnly
+            ? 'No bank deposit activity for the selected office and date range.'
+            : this.printChecksOnly
+              ? 'No bill payment bank credits for the selected office and date range.'
+              : 'No general ledger activity for the selected filters and date range.';
         this.applyLinesDisplay();
         this.markViewForCheck();
       },

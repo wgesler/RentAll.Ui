@@ -21,6 +21,7 @@ import { MaintenanceListResponse } from '../authenticated/maintenance/models/mai
 import { MaintenanceListSearchRequest } from '../authenticated/maintenance/models/maintenance-search.model';
 import { InspectionDisplayList, InspectionResponse } from '../authenticated/maintenance/models/inspection.model';
 import { ReceiptDisplayList, ReceiptRequest, ReceiptResponse, Split } from '../authenticated/maintenance/models/receipt.model';
+import { DepositDisplayList, DepositResponse, DepositSplit } from '../authenticated/maintenance/models/deposit.model';
 import { getInspectionType, getReceiptType, getWorkOrderType } from '../authenticated/maintenance/models/maintenance-enums';
 import { WorkOrderDisplayList, WorkOrderRequest, WorkOrderResponse } from '../authenticated/maintenance/models/work-order.model';
 import { AccountingOfficeListDisplay, AccountingOfficeResponse } from '../authenticated/organizations/models/accounting-office.model';
@@ -2854,6 +2855,163 @@ export class MappingService {
         modifiedBy: receipt.modifiedBy
       };
     });
+  }
+  //#endregion
+
+  //#region Deposit Mapping
+  mapDepositResponse(raw: DepositResponse | Record<string, unknown>): DepositResponse {
+    const base = raw as DepositResponse;
+    const rawRecord = raw as Record<string, unknown>;
+    const depositDate =
+      this.utility.coerceCalendarDateStringFromApi(
+        rawRecord['depositDate'] ?? rawRecord['DepositDate'] ?? base.depositDate
+      ) ??
+      base.depositDate ??
+      '';
+    const accountingPeriod =
+      this.utility.coerceCalendarDateStringFromApi(
+        rawRecord['accountingPeriod'] ?? rawRecord['AccountingPeriod'] ?? base.accountingPeriod
+      ) ??
+      depositDate;
+    const createdOn =
+      this.utility.coerceDateTimeOffsetStringFromApi(
+        rawRecord['createdOn'] ?? rawRecord['CreatedOn'] ?? base.createdOn
+      ) ??
+      base.createdOn ??
+      '';
+    const depositCodeRaw = rawRecord['depositCode'] ?? rawRecord['DepositCode'] ?? base.depositCode;
+    const depositCode = String(depositCodeRaw ?? base.depositCode ?? '').trim();
+    const depositIdRaw = rawRecord['depositId'] ?? rawRecord['DepositId'] ?? base.depositId;
+    const depositId = String(depositIdRaw ?? '').trim();
+    const journalEntryIdRaw = rawRecord['journalEntryId'] ?? rawRecord['JournalEntryId'] ?? base.journalEntryId;
+    const journalEntryId = journalEntryIdRaw == null || String(journalEntryIdRaw).trim().length === 0
+      ? null
+      : String(journalEntryIdRaw).trim();
+
+    const propertyIdRaw = rawRecord['propertyId'] ?? rawRecord['PropertyId'] ?? base.propertyId;
+    const propertyId = propertyIdRaw == null || String(propertyIdRaw).trim().length === 0
+      ? null
+      : String(propertyIdRaw).trim();
+
+    return {
+      ...base,
+      depositDate,
+      accountingPeriod,
+      createdOn,
+      depositCode,
+      depositId,
+      journalEntryId,
+      propertyId,
+      splits: this.mapDepositSplitsFromApi(base.splits),
+      propertyIds: this.resolveDepositPropertyIds(base.splits, base.propertyIds, propertyId)
+    };
+  }
+
+  private resolveDepositPropertyIds(
+    splits: DepositSplit[] | undefined | null,
+    existing: string[] | undefined | null,
+    headerPropertyId?: string | null
+  ): string[] {
+    if ((existing || []).length > 0) {
+      return existing || [];
+    }
+    const propertyIds = new Set<string>();
+    const normalizedHeaderPropertyId = (headerPropertyId || '').trim();
+    if (normalizedHeaderPropertyId.length > 0) {
+      propertyIds.add(normalizedHeaderPropertyId);
+    }
+    (splits || [])
+      .map(split => (split.propertyId || '').trim())
+      .filter(propertyId => propertyId.length > 0)
+      .forEach(propertyId => propertyIds.add(propertyId));
+    return Array.from(propertyIds);
+  }
+
+  mapDepositSplitsFromApi(splits: DepositSplit[] | undefined | null): DepositSplit[] {
+    const mapped = (splits || []).map(split => this.mapDepositSplitFromApi(split));
+    const seenSplitIds = new Set<number>();
+    return mapped.filter(split => {
+      const splitId = Number(split.depositSplitId ?? 0);
+      if (!Number.isFinite(splitId) || splitId <= 0) {
+        return true;
+      }
+      if (seenSplitIds.has(splitId)) {
+        return false;
+      }
+      seenSplitIds.add(splitId);
+      return true;
+    });
+  }
+
+  mapDepositSplitFromApi(raw: DepositSplit | Record<string, unknown>): DepositSplit {
+    const record = raw as DepositSplit & Record<string, unknown>;
+    const chartOfAccountId = Number(record.chartOfAccountId ?? record['ChartOfAccountId'] ?? 0);
+    return {
+      depositSplitId: (record.depositSplitId ?? record['DepositSplitId'] ?? null) as number | null,
+      amount: Number(record.amount ?? record['Amount'] ?? 0) || 0,
+      description: String(record.description ?? record['Description'] ?? '').trim(),
+      propertyId: String(record.propertyId ?? record['PropertyId'] ?? '').trim() || null,
+      propertyCode: String(record.propertyCode ?? record['PropertyCode'] ?? '').trim() || null,
+      chartOfAccountId: Number.isFinite(chartOfAccountId) && chartOfAccountId > 0 ? chartOfAccountId : null,
+      chartOfAccountDisplayName: String(record.chartOfAccountDisplayName ?? record['ChartOfAccountDisplayName'] ?? '').trim() || null
+    };
+  }
+
+  mapDepositDisplays(deposits: DepositResponse[]): DepositDisplayList[] {
+    return (deposits || []).map((deposit: DepositResponse): DepositDisplayList => {
+      const splits = this.mapDepositSplitsFromApi(deposit.splits);
+      const splitTotalAmount = splits.reduce((sum, split) => sum + (Number(split.amount) || 0), 0);
+      const depositAmount = Number(deposit.amount) || 0;
+      const distinctAccounts = Array.from(
+        new Set(
+          splits
+            .map(split => (split.chartOfAccountDisplayName || '').trim())
+            .filter(label => label.length > 0)
+        )
+      );
+      const propertyIds = this.resolveDepositPropertyIds(splits, deposit.propertyIds, deposit.propertyId);
+      return {
+        depositId: deposit.depositId,
+        depositCode: deposit.depositCode,
+        officeId: deposit.officeId,
+        officeName: deposit.officeName,
+        propertyIds,
+        depositDate: this.formatter.formatDateString(deposit.depositDate),
+        period: this.formatter.formatInvoiceListAccountingPeriod(deposit.accountingPeriod),
+        propertyCode: this.buildDepositPropertyCodesDisplay(propertyIds, splits),
+        descriptionDisplay: deposit.description || '',
+        amount: depositAmount,
+        amountDisplay: this.formatter.currencyUsd(depositAmount),
+        splits,
+        splitTotalAmount,
+        splitTotalDisplay: this.formatter.currencyUsd(splitTotalAmount),
+        splitSummaryDisplay: `${splits.length} split${splits.length === 1 ? '' : 's'}`,
+        bankAccountId: deposit.bankAccountId ?? null,
+        bankAccountDisplay: (deposit.bankAccountDisplayName || '').trim(),
+        accountDisplay: distinctAccounts.join(', '),
+        isSplitAmountValid: splitTotalAmount <= depositAmount,
+        isActive: deposit.isActive,
+        createdBy: deposit.createdBy ?? deposit.createdByName ?? '',
+        createdByName: deposit.createdByName ?? deposit.createdBy ?? '',
+        modifiedOn: this.formatter.formatDateString(deposit.modifiedOn),
+        modifiedBy: deposit.modifiedBy
+      };
+    });
+  }
+
+  private buildDepositPropertyCodesDisplay(propertyIds: string[], splits: DepositSplit[]): string {
+    const codes = new Set<string>();
+    (propertyIds || [])
+      .map(propertyId => (propertyId || '').trim())
+      .filter(propertyId => propertyId.length > 0)
+      .forEach(propertyId => {
+        const splitCode = (splits || [])
+          .find(split => (split.propertyId || '').trim() === propertyId)?.propertyCode;
+        if ((splitCode || '').trim().length > 0) {
+          codes.add((splitCode || '').trim());
+        }
+      });
+    return Array.from(codes).join(', ');
   }
   //#endregion
 
