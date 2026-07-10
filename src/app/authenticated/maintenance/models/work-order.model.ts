@@ -121,3 +121,12 @@ export interface WorkOrderItemSnapshot {
   laborCost: number;
   itemAmount: number;
 }
+
+export interface WorkOrderPreviewSelection {
+  workOrderId: string;
+  propertyId: string | null;
+  reservationId: string | null;
+  officeId: number | null;
+  propertyCode: string;
+  returnToDetail?: boolean;
+}

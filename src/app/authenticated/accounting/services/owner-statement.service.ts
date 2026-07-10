@@ -1,10 +1,11 @@
 import { HttpClient } from '@angular/common/http';
 import { Injectable } from '@angular/core';
-import { map, Observable } from 'rxjs';
+import { map, Observable, of } from 'rxjs';
 import { ConfigService } from '../../../services/config.service';
 import { MappingService } from '../../../services/mapping.service';
 import { OwnerStatementJournalEntryLineResponse, OwnerStatementJournalEntryLineSearchRequest, OwnerStatementMonthLineResponse, OwnerStatementMonthLineSearchRequest, OwnerStatementPropertyActivityLineResponse, OwnerStatementPropertyActivityLineSearchRequest, OwnerStatementStartingBalanceRequest, OwnerStatementStartingBalanceResponse } from '../models/owner-statement.model';
 import { JournalEntryResponse } from '../models/journal-entry.model';
+import { OwnerReportsCacheService } from './owner-reports-cache.service';
 import { ReportService } from './report.service';
 
 @Injectable({
@@ -17,7 +18,8 @@ export class OwnerStatementService {
     private http: HttpClient,
     private configService: ConfigService,
     private reportService: ReportService,
-    private mappingService: MappingService
+    private mappingService: MappingService,
+    private ownerReportsCacheService: OwnerReportsCacheService
   ) {}
 
   searchOwnerStatementMonthLines(request: OwnerStatementMonthLineSearchRequest): Observable<OwnerStatementMonthLineResponse[]> {
@@ -26,13 +28,18 @@ export class OwnerStatementService {
       throw new Error('At least one office ID is required to search owner statement month lines.');
     }
 
-    return this.reportService.searchOwnerCashReport({
+    const cachedCashReport = this.ownerReportsCacheService.getCashReport();
+    if (cachedCashReport) {
+      return of(this.mappingService.mapOwnerCashReportToMonthLines(cachedCashReport, request));
+    }
+
+    return this.reportService.searchOwnerReports({
       officeIds,
       propertyId: request.propertyId ?? null,
       startDate: request.startDate ?? null,
       endDate: request.endDate ?? null
     }).pipe(
-      map(report => this.mappingService.mapOwnerCashReportToMonthLines(report, request))
+      map(bundle => this.mappingService.mapOwnerCashReportToMonthLines(bundle.cash, request))
     );
   }
 
@@ -47,13 +54,44 @@ export class OwnerStatementService {
       throw new Error('PropertyId is required to search owner statement property activity lines.');
     }
 
-    return this.reportService.searchOwnerCashReport({
+    const cachedCashReport = this.ownerReportsCacheService.getCashReport();
+    if (cachedCashReport) {
+      return of(this.mappingService.filterOwnerStatementPropertyActivityLines(cachedCashReport.propertyActivityLines ?? [], request));
+    }
+
+    return this.reportService.searchOwnerReports({
       officeIds,
       propertyId,
       startDate: request.startDate ?? null,
       endDate: request.endDate ?? null
     }).pipe(
-      map(report => (report.propertyActivityLines ?? []).filter(line => (line.propertyId || '').trim() === propertyId))
+      map(bundle => this.mappingService.filterOwnerStatementPropertyActivityLines(bundle.cash.propertyActivityLines ?? [], request))
+    );
+  }
+
+  searchOwnerStatementAccrualPropertyActivityLines(request: OwnerStatementPropertyActivityLineSearchRequest): Observable<OwnerStatementPropertyActivityLineResponse[]> {
+    const officeIds = (request.officeIds ?? []).filter(id => id > 0);
+    if (officeIds.length === 0) {
+      throw new Error('At least one office ID is required to search owner statement accrual property activity lines.');
+    }
+
+    const propertyId = (request.propertyId || '').trim();
+    if (!propertyId) {
+      throw new Error('PropertyId is required to search owner statement accrual property activity lines.');
+    }
+
+    const cachedAccrualReport = this.ownerReportsCacheService.getAccrualReport();
+    if (cachedAccrualReport) {
+      return of(this.mappingService.filterOwnerStatementPropertyActivityLines(cachedAccrualReport.propertyActivityLines ?? [], request));
+    }
+
+    return this.reportService.searchOwnerReports({
+      officeIds,
+      propertyId,
+      startDate: request.startDate ?? null,
+      endDate: request.endDate ?? null
+    }).pipe(
+      map(bundle => this.mappingService.filterOwnerStatementPropertyActivityLines(bundle.accrual.propertyActivityLines ?? [], request))
     );
   }
 

@@ -1677,7 +1677,7 @@ export class AccountingShellComponent implements OnInit, OnDestroy {
       this.ownersUtilitiesRefreshTrigger++;
       return;
     }
-    if (this.isOwnerReportView(this.selectedOwnerKind)) {
+    if (this.isOwnerReportView(this.selectedOwnerKind) || this.selectedOwnerKind === 'ownerStatements') {
       return;
     }
     this.ownersStatementsRefreshTrigger++;
@@ -2229,7 +2229,42 @@ export class AccountingShellComponent implements OnInit, OnDestroy {
   }
 
   get showOwnerReportGoButton(): boolean {
-    return this.selectedTabIndex === this.tabOwners && this.isOwnerReportView(this.selectedOwnerKind);
+    return this.selectedTabIndex === this.tabOwners
+      && (this.isOwnerReportView(this.selectedOwnerKind) || this.selectedOwnerKind === 'ownerStatements')
+      && !this.isOwnerStatementCreateActive;
+  }
+
+  get ownerStatementCreateOfficeTitleBarOptions(): { value: number; label: string }[] {
+    const line = this.selectedOwnerStatementMonthLine;
+    if (!line) {
+      return [];
+    }
+
+    return [{ value: line.officeId, label: line.officeName || '' }];
+  }
+
+  get ownerStatementCreatePropertyTitleBarOptions(): { value: string; label: string }[] {
+    const line = this.selectedOwnerStatementMonthLine;
+    if (!line) {
+      return [];
+    }
+
+    return [{ value: line.propertyId, label: line.propertyCode || '' }];
+  }
+
+  get ownerStatementCreateOwnerTitleBarOptions(): { value: string; label: string }[] {
+    const line = this.selectedOwnerStatementMonthLine;
+    if (!line) {
+      return [];
+    }
+
+    return [{ value: line.ownerId, label: line.ownerName || '' }];
+  }
+
+  get isOwnerStatementCreateActive(): boolean {
+    return this.selectedTabIndex === this.tabOwners
+      && this.selectedOwnerKind === 'ownerStatements'
+      && !!this.selectedOwnerStatementMonthLine;
   }
 
   isOwnerReportView(kind: AccountingShellOwnerKind): boolean {

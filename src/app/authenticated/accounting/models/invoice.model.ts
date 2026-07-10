@@ -162,3 +162,12 @@ export interface InvoiceIifExportOptions {
   classByInvoiceId?: Record<string, string>;
   nameByInvoiceId?: Record<string, string>;
 }
+
+export interface InvoicePreviewSelection {
+  invoiceId: string;
+  invoiceCode?: string | null;
+  officeId: number | null;
+  reservationId: string | null;
+  companyId?: string | null;
+  returnToEditor?: boolean;
+}

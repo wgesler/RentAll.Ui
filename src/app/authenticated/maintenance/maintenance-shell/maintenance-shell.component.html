@@ -20,6 +20,37 @@
           </span>
 
           <div class="header-title form-titlebar-fields-wrap">
+            @if (isWorkOrderCreateActive && workOrderCreateContext) {
+              @if (showOfficeDropdown) {
+                <app-title-bar-select
+                  [label]="'Office'"
+                  [formFieldClass]="'titlebar-field-office'"
+                  [value]="workOrderCreateContext.officeId"
+                  [options]="workOrderCreateOfficeTitleBarOptions"
+                  [disabled]="true"
+                  [nullOptionLabel]="'Office'"
+                  [noResultsText]="'No offices match your search'">
+                </app-title-bar-select>
+              }
+              <app-title-bar-select
+                [label]="'Property Code'"
+                [formFieldClass]="'titlebar-field-property-code'"
+                [value]="workOrderCreateContext.propertyId"
+                [options]="workOrderCreatePropertyTitleBarOptions"
+                [disabled]="true"
+                [nullOptionLabel]="'Property'"
+                [noResultsText]="'No properties match your search'">
+              </app-title-bar-select>
+              <app-title-bar-select
+                [label]="'Reservation'"
+                [formFieldClass]="'titlebar-field-reservation'"
+                [value]="workOrderCreateContext.reservationId"
+                [options]="workOrderCreateReservationTitleBarOptions"
+                [disabled]="true"
+                [nullOptionLabel]="'Reservation'"
+                [noResultsText]="'No reservations match your search'">
+              </app-title-bar-select>
+            } @else {
             @if (showOfficeDropdown) {
               <app-title-bar-select
                 [label]="'Office'"
@@ -91,6 +122,7 @@
                 <mat-datepicker #maintenanceShellEndPicker></mat-datepicker>
               </mat-form-field>
             </div>
+            }
           </div>
         </div>
 
@@ -157,17 +189,29 @@
           </mat-tab>
           @if (showWorkOrdersTab) {
             <mat-tab label="Work Orders">
-              @if (showWorkOrderDetail) {
+              @if (showWorkOrderCreate && workOrderCreateContext) {
+                @for (instance of [workOrderCreateInstance]; track instance) {
+                  <app-work-order-create
+                    [shellMode]="true"
+                    [workOrderIdInput]="workOrderCreateContext.workOrderId"
+                    [propertyIdInput]="workOrderCreateContext.propertyId"
+                    [reservationIdInput]="workOrderCreateContext.reservationId"
+                    (backEvent)="onWorkOrderCreateBack()">
+                  </app-work-order-create>
+                }
+              } @else if (showWorkOrderDetail) {
                 @for (instance of [workOrderDetailInstance]; track instance) {
                   <app-work-order
                     [property]="property"
                     [workOrderId]="selectedWorkOrderId"
                     [officeId]="selectedOfficeId"
                     [embeddedInMaintenance]="true"
+                    [embedDocumentPreviewInShell]="true"
                     (saveValidationAttempted)="onWorkOrderSaveValidationAttempted()"
                     (propertySelectionRequiredChange)="onWorkOrderPropertySelectionRequiredChange($event)"
                     (shellLocationSync)="onWorkOrderShellLocationSync($event)"
                     (receiptSelect)="onReceiptSelect($event)"
+                    (previewEvent)="onWorkOrderPreviewOpen($event)"
                     (backEvent)="onWorkOrderBack()"
                     (savedEvent)="onWorkOrderSaved()" />
                 }
@@ -178,7 +222,9 @@
                   [searchRequest]="workOrderSearchRequest"
                   [reservationId]="titleBarReservationId"
                   [embeddedInMaintenance]="true"
-                  (workOrderSelect)="onWorkOrderSelect($event)" />
+                  [embedDocumentPreviewInShell]="true"
+                  (workOrderSelect)="onWorkOrderSelect($event)"
+                  (previewEvent)="onWorkOrderPreviewOpen($event)" />
               }
             </mat-tab>
           }

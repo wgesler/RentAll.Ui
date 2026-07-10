@@ -28,7 +28,7 @@ import { UserGroups } from '../../users/models/user-enums';
 import { TransactionType, TransactionTypeLabels } from '../models/accounting-enum';
 import { ChartOfAccountResponse } from '../models/chart-of-accounts.model';
 import { CostCodesResponse } from '../models/cost-codes.model';
-import { InvoiceGetRequest, InvoicePaymentRequest, InvoicePaymentResponse, InvoiceResponse } from '../models/invoice.model';
+import { InvoiceGetRequest, InvoicePaymentRequest, InvoicePaymentResponse, InvoicePreviewSelection, InvoiceResponse } from '../models/invoice.model';
 import { InvoiceService } from '../services/invoice.service';
 import { ChartOfAccountsService } from '../services/chart-of-accounts.service';
 import { CostCodesService } from '../services/cost-codes.service';
@@ -56,11 +56,14 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
   @Input() companyId: string | null = null; // Input to accept companyId from parent
   @Input() reservationId: string | null = null; // Input to accept reservationId from parent
   @Input() invoiceSearchDateRange: { startDate: string | null; endDate: string | null } | null = null;
+  /** When true with source=reservation, document preview opens in the host shell instead of routing away. */
+  @Input() embedDocumentPreviewInShell = false;
   @Output() organizationIdChange = new EventEmitter<string | null>(); // Emit organization changes to parent
   @Output() officeIdChange = new EventEmitter<number | null>(); // Emit office changes to parent
   @Output() companyIdChange = new EventEmitter<string | null>(); // Emit company changes to parent
   @Output() reservationIdChange = new EventEmitter<string | null>(); // Emit reservation changes to parent
   @Output() journalEntriesChanged = new EventEmitter<void>();
+  @Output() previewEvent = new EventEmitter<InvoicePreviewSelection>();
   
   panelOpenState: boolean = true;
   isServiceError: boolean = false;
@@ -482,6 +485,17 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
     }
     if (companyIdToUse !== null && companyIdToUse !== undefined && companyIdToUse !== '') {
       params.push(`companyId=${companyIdToUse}`);
+    }
+
+    if (this.source === 'reservation' && this.embedDocumentPreviewInShell) {
+      this.previewEvent.emit({
+        invoiceId: invoiceIdToUse!,
+        invoiceCode: event?.invoiceCode ?? null,
+        officeId: officeIdToUse,
+        reservationId: reservationIdToUse,
+        companyId: companyIdToUse
+      });
+      return;
     }
 
     if (this.source === 'reservation') {

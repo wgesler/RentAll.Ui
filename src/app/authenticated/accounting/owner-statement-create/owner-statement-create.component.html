@@ -1,114 +1,53 @@
 @if (!isPageReady) {
-  <div class="flex content-card-wrap justify-center">
-    <section class="content-card">
-      <div class="flex justify-between items-center gap-3 bg-slate-300 rounded-t-lg py-0 pl-8 pr-4">
-        <div class="flex items-center flex-wrap py-4">
-          <span class="flex flex-column items-center gap-3 flex-shrink-0">
-            <mat-icon class="flex-shrink-0">account_balance</mat-icon>
-            <span class="flex-shrink-0 text-xl font-medium">Owner Statement</span>
-          </span>
-        </div>
-        <div class="flex gap-2">
-          <button mat-raised-button type="button" color="accent" (click)="onBack()" class="text-nowrap flex-shrink-0">
-            <mat-icon>arrow_back</mat-icon>
-            Back
-          </button>
-        </div>
-      </div>
-      <mat-card>
-        <div class="loading-container">
-          <mat-spinner [diameter]="40"></mat-spinner>
-          <p>Loading owner statement...</p>
-        </div>
-      </mat-card>
-    </section>
+  <div class="document-preview-shell">
+    <div class="document-preview-loading">
+      <mat-spinner [diameter]="40"></mat-spinner>
+      <p>Loading owner statement...</p>
+    </div>
   </div>
 } @else {
-  <div class="flex content-card-wrap justify-center">
-    <section class="content-card">
-      <div class="flex justify-between items-center gap-3 bg-slate-300 rounded-t-lg py-0 pl-8 pr-4">
-        <div class="flex items-center flex-wrap py-4">
-          <span class="flex flex-column items-center gap-3 flex-shrink-0">
-            <mat-icon class="flex-shrink-0">description</mat-icon>
-            <span class="flex-shrink-0 text-xl font-medium">Owner Statement</span>
-          </span>
-          @if (form) {
-            <div class="header-title form-titlebar-fields-wrap">
-              <app-title-bar-select
-                [label]="'Office'"
-                [formFieldClass]="'titlebar-field-office'"
-                [value]="form.get('selectedOfficeId')?.value ?? null"
-                [options]="selectedOffice ? [{ value: selectedOffice.officeId, label: selectedOffice.name }] : []"
-                [disabled]="true"
-                [nullOptionLabel]="'Office'"
-                [noResultsText]="'No office selected'">
-              </app-title-bar-select>
-              <mat-form-field appearance="outline" class="titlebar-field-property-code">
-                <mat-label>Owner</mat-label>
-                <input matInput [value]="form.get('ownerName')?.value || ''" readonly>
-              </mat-form-field>
-              <mat-form-field appearance="outline" class="titlebar-field-property-code">
-                <mat-label>Property</mat-label>
-                <input matInput [value]="form.get('propertyCode')?.value || ''" readonly>
-              </mat-form-field>
-              <mat-form-field appearance="outline" class="titlebar-field-property-code">
-                <mat-label>Month</mat-label>
-                <input matInput [value]="form.get('statementMonth')?.value || ''" readonly>
-              </mat-form-field>
-            </div>
-          }
-        </div>
-        <div class="flex gap-2">
-          <button mat-raised-button type="button" color="accent" (click)="onBack()" class="text-nowrap flex-shrink-0">
-            <mat-icon>arrow_back</mat-icon>
-            Back
+  <div class="document-preview-shell">
+    <form class="document-preview-form">
+      <div class="document-preview-editor">
+        <div class="document-preview-actions form-titlebar-actions-wrap uniform-gap">
+          <button mat-raised-button type="button" color="accent" (click)="onPrint()" [disabled]="!previewIframeHtml">
+            <mat-icon>print</mat-icon>
+            Print
+          </button>
+          <button mat-raised-button type="button" color="accent" (click)="onEmail()"
+            [disabled]="!line || !previewIframeHtml || !getOwnerEmail()">
+            <mat-icon>email</mat-icon>
+            Email
+          </button>
+          <button mat-raised-button type="button" color="accent" (click)="onDownload()" [disabled]="!previewIframeHtml || isDownloading">
+            <mat-icon>download</mat-icon>
+            {{ isDownloading ? 'Downloading...' : 'Download' }}
+          </button>
+          <button mat-raised-button type="button" color="primary" id="save-button"
+            (click)="saveOwnerStatement()"
+            class="text-nowrap flex-shrink-0" [disabled]="!previewIframeHtml || isSubmitting">
+            <mat-icon>save</mat-icon>
+            Document
           </button>
         </div>
+        @if (previewIframeHtml) {
+          <div class="document-preview-frame">
+            <iframe
+              [srcdoc]="safePreviewIframeHtml"
+              class="document-preview-iframe preview-iframe"
+              #previewIframe
+              [attr.key]="iframeKey"
+              (load)="onPreviewIframeLoad()"
+              frameborder="0">
+            </iframe>
+          </div>
+        } @else {
+          <div class="document-preview-loading">
+            <mat-spinner [diameter]="40"></mat-spinner>
+            <p>Rendering owner statement...</p>
+          </div>
+        }
       </div>
-      <mat-card>
-        <div class="mat">
-          <div class="form-titlebar-actions-wrap uniform-gap mt-8 px-4 justify-end">
-            <button mat-raised-button type="button" color="accent" (click)="onPrint()" [disabled]="!previewIframeHtml">
-              <mat-icon>print</mat-icon>
-              Print
-            </button>
-            <button mat-raised-button type="button" color="accent" (click)="onEmail()"
-              [disabled]="!line || !previewIframeHtml || !getOwnerEmail()">
-              <mat-icon>email</mat-icon>
-              Email
-            </button>
-            <button mat-raised-button type="button" color="accent" (click)="onDownload()" [disabled]="!previewIframeHtml || isDownloading">
-              <mat-icon>download</mat-icon>
-              {{ isDownloading ? 'Downloading...' : 'Download' }}
-            </button>
-            <button mat-raised-button type="button" color="primary" id="save-button"
-              (click)="saveOwnerStatement()"
-              class="text-nowrap flex-shrink-0" [disabled]="!previewIframeHtml || isSubmitting">
-              <mat-icon>save</mat-icon>
-              Save
-            </button>
-          </div>
-          <div class="editor-section">
-            @if (previewIframeHtml) {
-              <div class="preview-section">
-                <iframe
-                  [srcdoc]="safePreviewIframeHtml"
-                  class="preview-iframe"
-                  #previewIframe
-                  [attr.key]="iframeKey"
-                  (load)="onPreviewIframeLoad()"
-                  frameborder="0">
-                </iframe>
-              </div>
-            } @else {
-              <div class="loading-container">
-                <mat-spinner [diameter]="40"></mat-spinner>
-                <p>Rendering owner statement...</p>
-              </div>
-            }
-          </div>
-        </div>
-      </mat-card>
-    </section>
+    </form>
   </div>
 }

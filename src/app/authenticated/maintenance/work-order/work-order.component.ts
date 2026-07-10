@@ -29,7 +29,7 @@ import { InvoiceService } from '../../accounting/services/invoice.service';
 import { PropertyAgreementResponse } from '../../properties/models/property-agreement.model';
 import { getWorkOrderTypes, ReceiptType, WorkOrderType } from '../models/maintenance-enums';
 import { ReceiptRequest, ReceiptResponse, ReceiptSelection, Split } from '../models/receipt.model';
-import { ReceiptSplitOption, WorkOrderItemEditable, WorkOrderItemRequest, WorkOrderItemResponse, WorkOrderItemSnapshot, WorkOrderRequest, WorkOrderResponse } from '../models/work-order.model';
+import { ReceiptSplitOption, WorkOrderItemEditable, WorkOrderItemRequest, WorkOrderItemResponse, WorkOrderItemSnapshot, WorkOrderPreviewSelection, WorkOrderRequest, WorkOrderResponse } from '../models/work-order.model';
 import { WorkOrderAmountService } from '../services/work-order-amount.service';
 import { ReceiptService } from '../services/receipt.service';
 import { WorkOrderService } from '../services/work-order.service';
@@ -51,6 +51,7 @@ export class WorkOrderComponent implements OnInit, OnChanges, OnDestroy {
   @Input() initialDescription: string | null = null;
   @Input() showBackButton: boolean = true;
   @Input() embeddedInMaintenance = false;
+  @Input() embedDocumentPreviewInShell = false;
   @Input() navigateToPreviewOnSave: boolean = true;
   @Output() backEvent = new EventEmitter<void>();
   @Output() savedEvent = new EventEmitter<WorkOrderResponse>();
@@ -58,6 +59,7 @@ export class WorkOrderComponent implements OnInit, OnChanges, OnDestroy {
   @Output() propertySelectionRequiredChange = new EventEmitter<boolean>();
   @Output() shellLocationSync = new EventEmitter<{ officeId: number | null; propertyId: string | null }>();
   @Output() receiptSelect = new EventEmitter<ReceiptSelection>();
+  @Output() previewEvent = new EventEmitter<WorkOrderPreviewSelection>();
   
   readonly parseInt = parseInt;
   readonly noReceiptOptionValue = 0;
@@ -398,6 +400,17 @@ export class WorkOrderComponent implements OnInit, OnChanges, OnDestroy {
         if (saved.workOrderId) {
           const propertyId = this.resolvePropertyIdForSave() ?? ((saved.propertyId || '').trim() || null);
           const reservationId = (saved.reservationId || this.form.get('reservationId')?.value || '').toString().trim();
+          if (this.embeddedInMaintenance && this.embedDocumentPreviewInShell) {
+            this.previewEvent.emit({
+              workOrderId: saved.workOrderId,
+              propertyId,
+              reservationId: reservationId || null,
+              officeId: this.getShellOfficeId(),
+              propertyCode: (this.property?.propertyCode || saved.propertyCode || '').trim(),
+              returnToDetail: true
+            });
+            return;
+          }
           this.router.navigateByUrl(this.buildWorkOrderPreviewUrl(saved.workOrderId, propertyId, reservationId, 'work-order'));
           return;
         }
@@ -1931,6 +1944,17 @@ export class WorkOrderComponent implements OnInit, OnChanges, OnDestroy {
   navigateToWorkOrderView(workOrderId: string): void {
     const propertyId = this.resolvePropertyIdForSave() ?? ((this.workOrder?.propertyId || '').trim() || null);
     const reservationId = (this.workOrder?.reservationId || this.form.get('reservationId')?.value || '').toString().trim();
+    if (this.embeddedInMaintenance && this.embedDocumentPreviewInShell) {
+      this.previewEvent.emit({
+        workOrderId,
+        propertyId,
+        reservationId: reservationId || null,
+        officeId: this.getShellOfficeId(),
+        propertyCode: (this.property?.propertyCode || this.workOrder?.propertyCode || '').trim(),
+        returnToDetail: true
+      });
+      return;
+    }
     this.router.navigateByUrl(this.buildWorkOrderPreviewUrl(workOrderId, propertyId, reservationId, 'work-order'));
   }
 

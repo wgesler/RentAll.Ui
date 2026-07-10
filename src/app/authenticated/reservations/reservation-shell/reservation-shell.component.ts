@@ -10,6 +10,8 @@ import { MappingService } from '../../../services/mapping.service';
 import { UtilityService } from '../../../services/utility.service';
 import { InvoiceListComponent } from '../../accounting/invoice-list/invoice-list.component';
 import { InvoiceComponent } from '../../accounting/invoice/invoice.component';
+import { InvoiceCreateComponent } from '../../accounting/invoice-create/invoice-create.component';
+import { InvoicePreviewSelection } from '../../accounting/models/invoice.model';
 import { DocumentListComponent } from '../../documents/document-list/document-list.component';
 import { DocumentType } from '../../documents/models/document.enum';
 import { OfficeResponse } from '../../organizations/models/office.model';
@@ -35,6 +37,7 @@ import { ReservationService } from '../services/reservation.service';
     LeaseComponent,
     LeaseInformationComponent,
     InvoiceComponent,
+    InvoiceCreateComponent,
     InvoiceListComponent,
     DocumentListComponent
   ],
@@ -62,6 +65,10 @@ export class ReservationShellComponent implements OnInit, AfterViewInit, OnDestr
   isAdmin: boolean = false;
   isHandlingTabGuard: boolean = false;
   activeInvoiceId: string | null = null;
+  showInvoiceCreate = false;
+  invoiceCreateContext: InvoicePreviewSelection | null = null;
+  invoiceCreateInstance = 0;
+  invoiceCreateReturnToEditor = false;
   activeOfficeId: number | null = null;
   activePropertyId: string | null = null;
 
@@ -405,7 +412,56 @@ export class ReservationShellComponent implements OnInit, AfterViewInit, OnDestr
   }
 
   get showTopbarReservationInfoIcon(): boolean {
-    return this.selectedTabIndex === this.getInvoicesTabIndex() && !!this.selectedHeaderReservationId;
+    return !this.isInvoiceCreateActive
+      && this.selectedTabIndex === this.getInvoicesTabIndex()
+      && !!this.selectedHeaderReservationId;
+  }
+
+  get isInvoiceCreateActive(): boolean {
+    return this.selectedTabIndex === this.getInvoicesTabIndex()
+      && this.showInvoiceCreate
+      && !!this.invoiceCreateContext;
+  }
+
+  get isInvoiceEditorActive(): boolean {
+    return this.selectedTabIndex === this.getInvoicesTabIndex()
+      && !!this.activeInvoiceId
+      && !this.showInvoiceCreate;
+  }
+
+  get invoiceCreateOfficeTitleBarOptions(): SearchableSelectOption[] {
+    const officeId = this.invoiceCreateContext?.officeId;
+    if (officeId == null) {
+      return [];
+    }
+
+    const office = this.offices.find(item => item.officeId === officeId);
+    return [{ value: officeId, label: office?.name || office?.officeCode || this.selectedOfficeName || '' }];
+  }
+
+  get invoiceCreateReservationTitleBarOptions(): SearchableSelectOption[] {
+    const reservationId = (this.invoiceCreateContext?.reservationId || '').trim();
+    if (!reservationId) {
+      return [];
+    }
+
+    const reservation = this.reservationList.find(item => item.reservationId === reservationId);
+    const label = reservation
+      ? this.getReservationDropdownLabel(reservation)
+      : reservationId;
+    return [{ value: reservationId, label }];
+  }
+
+  get invoiceCreateInvoiceTitleBarOptions(): SearchableSelectOption[] {
+    const invoiceId = (this.invoiceCreateContext?.invoiceId || '').trim();
+    if (!invoiceId) {
+      return [];
+    }
+
+    return [{
+      value: invoiceId,
+      label: (this.invoiceCreateContext?.invoiceCode || '').trim() || invoiceId
+    }];
   }
 
   get topbarReservationInfoTooltip(): string {
@@ -643,7 +699,53 @@ export class ReservationShellComponent implements OnInit, AfterViewInit, OnDestr
     });
   }
 
+  onInvoicePreviewOpen(selection: InvoicePreviewSelection): void {
+    const invoiceId = (selection?.invoiceId || '').trim();
+    if (!invoiceId) {
+      return;
+    }
+
+    this.invoiceCreateReturnToEditor = !!selection.returnToEditor || !!this.activeInvoiceId;
+    this.invoiceCreateContext = {
+      invoiceId,
+      invoiceCode: selection.invoiceCode ?? null,
+      officeId: selection.officeId ?? this.displayOfficeId,
+      reservationId: selection.reservationId ?? this.activeReservationId,
+      companyId: selection.companyId ?? null,
+      returnToEditor: this.invoiceCreateReturnToEditor
+    };
+    this.showInvoiceCreate = true;
+    this.invoiceCreateInstance++;
+    this.selectedTabIndex = this.getInvoicesTabIndex();
+  }
+
+  onInvoiceCreateBack(): void {
+    const returnToEditor = this.invoiceCreateReturnToEditor;
+    const invoiceId = this.invoiceCreateContext?.invoiceId ?? this.activeInvoiceId;
+
+    this.showInvoiceCreate = false;
+    this.invoiceCreateContext = null;
+    this.invoiceCreateReturnToEditor = false;
+
+    if (returnToEditor && invoiceId) {
+      this.activeInvoiceId = invoiceId;
+      this.router.navigate([], {
+        relativeTo: this.route,
+        queryParams: { invoiceId, tab: 'invoices' },
+        queryParamsHandling: 'merge'
+      });
+      return;
+    }
+
+    this.closeEmbeddedInvoiceEditor();
+  }
+
   onShellBack(): void {
+    if (this.isInvoiceCreateActive) {
+      this.onInvoiceCreateBack();
+      return;
+    }
+
     if (this.activeInvoiceId) {
       this.closeEmbeddedInvoiceEditor();
       return;

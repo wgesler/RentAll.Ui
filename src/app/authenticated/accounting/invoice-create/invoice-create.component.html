@@ -1,61 +1,142 @@
+<ng-template #documentPreviewContent>
+  <form [formGroup]="form" class="document-preview-form">
+    <div class="document-preview-editor">
+      @if (selectedOffice && selectedReservation && selectedInvoice) {
+        @if (previewIframeHtml) {
+          <div class="document-preview-actions form-titlebar-actions-wrap uniform-gap">
+            <button mat-raised-button type="button" color="accent" (click)="onPrint()" 
+              [disabled]="!selectedOffice || !selectedReservation || !selectedInvoice || !previewIframeHtml">
+              <mat-icon>print</mat-icon>
+              Print
+            </button>
+            <button mat-raised-button type="button" color="accent" (click)="onEmail()"
+              [disabled]="!selectedOffice || !selectedReservation || !selectedInvoice || !previewIframeHtml || !getPrimaryReservationContactId(selectedReservation)">
+              <mat-icon>email</mat-icon>
+              Email
+            </button>
+            <button mat-raised-button type="button" color="accent" (click)="onDownload()" 
+              [disabled]="!selectedOffice || !selectedReservation || !selectedInvoice || !previewIframeHtml || isDownloading">
+              <mat-icon>download</mat-icon>
+              {{ isDownloading ? 'Downloading...' : 'Download' }}
+            </button>
+            <button mat-raised-button type="button" color="primary" id="save-button" 
+              (click)="saveInvoice()"
+              class="text-nowrap flex-shrink-0" [disabled]="isSubmitting">
+              <mat-icon>save</mat-icon>
+              Document
+            </button>
+          </div>
+          <div class="document-preview-frame">
+            <iframe 
+              [srcdoc]="safePreviewIframeHtml" 
+              class="document-preview-iframe preview-iframe"
+              #previewIframe
+              [attr.key]="iframeKey"
+              (load)="onPreviewIframeLoad()"
+              frameborder="0">
+            </iframe>
+          </div>
+        } @else {
+          <mat-form-field appearance="outline" class="full-width">
+            <mat-label>Invoice (HTML)</mat-label>
+            <textarea 
+              matInput 
+              formControlName="invoice" 
+              rows="20"
+              [placeholder]="'Enter your invoice HTML here. Use {{invoiceName}} and other placeholders in double curly brackets for dynamic content.'">
+            </textarea>
+            <mat-hint>
+              Use placeholders like {{ '{' }}{{ '{' }}invoiceName{{ '}' }}{{ '}' }}, {{ '{' }}{{ '{' }}tenantName{{ '}' }}{{ '}' }}, etc. These will be replaced with actual values when generating the invoice. Select an Office, Reservation, and Invoice to see a preview.
+            </mat-hint>
+          </mat-form-field>
+        }
+      } @else {
+        <mat-form-field appearance="outline" class="full-width">
+          <mat-label>Invoice (HTML)</mat-label>
+          <textarea 
+            matInput 
+            formControlName="invoice" 
+            rows="20"
+            [placeholder]="'Enter your invoice HTML here. Use {{invoiceName}} and other placeholders in double curly brackets for dynamic content.'">
+          </textarea>
+          <mat-hint>
+            Use placeholders like {{ '{' }}{{ '{' }}invoiceName{{ '}' }}{{ '}' }}, {{ '{' }}{{ '{' }}tenantName{{ '}' }}{{ '}' }}, etc. These will be replaced with actual values when generating the invoice. Select an Office, Reservation, and Invoice to see a preview.
+          </mat-hint>
+        </mat-form-field>
+      }
+    </div>
+  </form>
+</ng-template>
+
 @if (!isPageReady) {
-  <div class="flex content-card-wrap justify-center">
-    <section class="content-card">
-      <div class="flex justify-between items-center gap-3 bg-slate-300 rounded-t-lg py-0 pl-8 pr-4">
-        <div class="flex items-center flex-wrap py-4">
-          <span class="flex flex-column items-center gap-3 flex-shrink-0">
-            <mat-icon class="flex-shrink-0">account_balance</mat-icon>
-            <span class="flex-shrink-0 text-xl font-medium">Accounting</span>
-          </span>
-          @if (form) {
-            <div class="header-title form-titlebar-fields-wrap">
-              <app-title-bar-select
-                [label]="'Office'"
-                [formFieldClass]="'titlebar-field-office'"
-                [value]="form.get('selectedOfficeId')?.value ?? null"
-                [options]="officeTitleBarOptions"
-                [disabled]="true"
-                [nullOptionLabel]="'Offices'"
-                [noResultsText]="'No offices match your search'">
-              </app-title-bar-select>
-
-              <app-title-bar-select
-                [label]="'Reservation'"
-                [formFieldClass]="'titlebar-field-reservation'"
-                [value]="form.get('selectedReservationId')?.value ?? null"
-                [options]="reservationTitleBarOptions"
-                [disabled]="true"
-                [nullOptionLabel]="'All Reservations'"
-                [noResultsText]="'No reservations match your search'">
-              </app-title-bar-select>
-
-              <app-title-bar-select
-                [label]="'Invoice No'"
-                [formFieldClass]="'titlebar-field-invoice-no'"
-                [value]="form.get('selectedInvoiceId')?.value ?? null"
-                [options]="invoiceTitleBarOptions"
-                [disabled]="true"
-                [nullOptionLabel]="'Select Invoice'"
-                [noResultsText]="'No invoices match your search'">
-              </app-title-bar-select>
-            </div>
-          }
-        </div>
-        <div class="flex gap-2">
-          <button mat-raised-button type="button" color="accent" id="back-button" (click)="goBack()"
-            class="text-nowrap flex-shrink-0">
-            <mat-icon>arrow_back</mat-icon>
-            Back
-          </button>
-        </div>
+  @if (shellMode) {
+    <div class="document-preview-shell">
+      <div class="document-preview-loading">
+        <mat-spinner [diameter]="40"></mat-spinner>
+        <p>Loading invoice...</p>
       </div>
-      <mat-card>
-        <div class="loading-container">
-          <mat-spinner [diameter]="40"></mat-spinner>
-          <p>Loading invoice...</p>
+    </div>
+  } @else {
+    <div class="flex content-card-wrap justify-center">
+      <section class="content-card">
+        <div class="flex justify-between items-center gap-3 bg-slate-300 rounded-t-lg py-0 pl-8 pr-4">
+          <div class="flex items-center flex-wrap py-4">
+            <span class="flex flex-column items-center gap-3 flex-shrink-0">
+              <mat-icon class="flex-shrink-0">account_balance</mat-icon>
+              <span class="flex-shrink-0 text-xl font-medium">Accounting</span>
+            </span>
+            @if (form) {
+              <div class="header-title form-titlebar-fields-wrap">
+                <app-title-bar-select
+                  [label]="'Office'"
+                  [formFieldClass]="'titlebar-field-office'"
+                  [value]="form.get('selectedOfficeId')?.value ?? null"
+                  [options]="officeTitleBarOptions"
+                  [disabled]="true"
+                  [nullOptionLabel]="'Offices'"
+                  [noResultsText]="'No offices match your search'">
+                </app-title-bar-select>
+                <app-title-bar-select
+                  [label]="'Reservation'"
+                  [formFieldClass]="'titlebar-field-reservation'"
+                  [value]="form.get('selectedReservationId')?.value ?? null"
+                  [options]="reservationTitleBarOptions"
+                  [disabled]="true"
+                  [nullOptionLabel]="'All Reservations'"
+                  [noResultsText]="'No reservations match your search'">
+                </app-title-bar-select>
+                <app-title-bar-select
+                  [label]="'Invoice No'"
+                  [formFieldClass]="'titlebar-field-invoice-no'"
+                  [value]="form.get('selectedInvoiceId')?.value ?? null"
+                  [options]="invoiceTitleBarOptions"
+                  [disabled]="true"
+                  [nullOptionLabel]="'Select Invoice'"
+                  [noResultsText]="'No invoices match your search'">
+                </app-title-bar-select>
+              </div>
+            }
+          </div>
+          <div class="flex gap-2">
+            <button mat-raised-button type="button" color="accent" id="back-button" (click)="goBack()"
+              class="text-nowrap flex-shrink-0">
+              <mat-icon>arrow_back</mat-icon>
+              Back
+            </button>
+          </div>
         </div>
-      </mat-card>
-    </section>
+        <mat-card>
+          <div class="document-preview-loading">
+            <mat-spinner [diameter]="40"></mat-spinner>
+            <p>Loading invoice...</p>
+          </div>
+        </mat-card>
+      </section>
+    </div>
+  }
+} @else if (shellMode) {
+  <div class="document-preview-shell">
+    <ng-container *ngTemplateOutlet="documentPreviewContent"></ng-container>
   </div>
 } @else {
   <div class="flex content-card-wrap justify-center">
@@ -77,7 +158,6 @@
                 [nullOptionLabel]="'Offices'"
                 [noResultsText]="'No offices match your search'">
               </app-title-bar-select>
-
               <app-title-bar-select
                 [label]="'Reservation'"
                 [formFieldClass]="'titlebar-field-reservation'"
@@ -87,7 +167,6 @@
                 [nullOptionLabel]="'All Reservations'"
                 [noResultsText]="'No reservations match your search'">
               </app-title-bar-select>
-
               <app-title-bar-select
                 [label]="'Invoice No'"
                 [formFieldClass]="'titlebar-field-invoice-no'"
@@ -110,80 +189,7 @@
       </div>
       <mat-card>
         <div class="mat">
-          <form [formGroup]="form" class="invoice-create-form">
-            
-            <!-- Action Buttons Section - First Row -->
-            <div class="form-titlebar-actions-wrap uniform-gap mt-8 px-4 justify-end">
-              <button mat-raised-button type="button" color="accent" (click)="onPrint()" 
-                [disabled]="!selectedOffice || !selectedReservation || !selectedInvoice || !previewIframeHtml">
-                <mat-icon>print</mat-icon>
-                Print
-              </button>
-              <button mat-raised-button type="button" color="accent" (click)="onEmail()"
-                [disabled]="!selectedOffice || !selectedReservation || !selectedInvoice || !previewIframeHtml || !getPrimaryReservationContactId(selectedReservation)">
-                <mat-icon>email</mat-icon>
-                Email
-              </button>
-              <button mat-raised-button type="button" color="accent" (click)="onDownload()" 
-                [disabled]="!selectedOffice || !selectedReservation || !selectedInvoice || !previewIframeHtml || isDownloading">
-                <mat-icon>download</mat-icon>
-                {{ isDownloading ? 'Downloading...' : 'Download' }}
-              </button>
-              <button mat-raised-button type="button" color="primary" id="save-button" 
-                (click)="saveInvoice()"
-                class="text-nowrap flex-shrink-0" [disabled]="isSubmitting">
-                <mat-icon>save</mat-icon>
-                Document
-              </button>
-            </div>
-
-            <!-- Invoice Editor or Preview -->
-            <div class="editor-section">
-              @if (selectedOffice && selectedReservation && selectedInvoice) {
-                @if (previewIframeHtml) {
-                  <!-- Preview iframe when all three are selected -->
-                  <div class="preview-section">
-                    <iframe 
-                      [srcdoc]="safePreviewIframeHtml" 
-                      class="preview-iframe"
-                      #previewIframe
-                      [attr.key]="iframeKey"
-                      (load)="onPreviewIframeLoad()"
-                      frameborder="0">
-                    </iframe>
-                  </div>
-                } @else {
-                  <mat-form-field appearance="outline" class="full-width">
-                    <mat-label>Invoice (HTML)</mat-label>
-                    <textarea 
-                      matInput 
-                      formControlName="invoice" 
-                      rows="20"
-                      [placeholder]="'Enter your invoice HTML here. Use {{invoiceName}} and other placeholders in double curly brackets for dynamic content.'">
-                    </textarea>
-                    <mat-hint>
-                      Use placeholders like {{ '{' }}{{ '{' }}invoiceName{{ '}' }}{{ '}' }}, {{ '{' }}{{ '{' }}tenantName{{ '}' }}{{ '}' }}, etc. These will be replaced with actual values when generating the invoice. Select an Office, Reservation, and Invoice to see a preview.
-                    </mat-hint>
-                  </mat-form-field>
-                }
-              } @else {
-                <!-- Editor textarea when preview is not available -->
-                <mat-form-field appearance="outline" class="full-width">
-                  <mat-label>Invoice (HTML)</mat-label>
-                  <textarea 
-                    matInput 
-                    formControlName="invoice" 
-                    rows="20"
-                    [placeholder]="'Enter your invoice HTML here. Use {{invoiceName}} and other placeholders in double curly brackets for dynamic content.'">
-                  </textarea>
-                  <mat-hint>
-                    Use placeholders like {{ '{' }}{{ '{' }}invoiceName{{ '}' }}{{ '}' }}, {{ '{' }}{{ '{' }}tenantName{{ '}' }}{{ '}' }}, etc. These will be replaced with actual values when generating the invoice. Select an Office, Reservation, and Invoice to see a preview.
-                  </mat-hint>
-                </mat-form-field>
-              }
-            </div>
-
-          </form>
+          <ng-container *ngTemplateOutlet="documentPreviewContent"></ng-container>
         </div>
       </mat-card>
     </section>

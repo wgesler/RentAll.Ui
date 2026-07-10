@@ -1,6 +1,6 @@
 import { CommonModule } from '@angular/common';
 import { HttpClient } from '@angular/common/http';
-import { ChangeDetectorRef, Component, OnDestroy, OnInit } from '@angular/core';
+import { ChangeDetectorRef, Component, EventEmitter, Input, OnChanges, OnDestroy, OnInit, Output, SimpleChanges } from '@angular/core';
 import { DomSanitizer, SafeHtml } from '@angular/platform-browser';
 import { ActivatedRoute, Router } from '@angular/router';
 import { ToastrService } from 'ngx-toastr';
@@ -45,7 +45,13 @@ import { getBillingMethod } from '../../reservations/models/reservation-enum';
   templateUrl: './work-order-create.component.html',
   styleUrl: './work-order-create.component.scss'
 })
-export class WorkOrderCreateComponent extends BaseDocumentComponent implements OnInit, OnDestroy {
+export class WorkOrderCreateComponent extends BaseDocumentComponent implements OnInit, OnChanges, OnDestroy {
+  @Input() shellMode = false;
+  @Input() workOrderIdInput: string | null = null;
+  @Input() propertyIdInput: string | null = null;
+  @Input() reservationIdInput: string | null = null;
+  @Output() backEvent = new EventEmitter<void>();
+
   workOrderId: string | null = null;
   propertyId: string | null = null;
   reservationId: string | null = null;
@@ -125,8 +131,36 @@ export class WorkOrderCreateComponent extends BaseDocumentComponent implements O
       this.tryGeneratePreview();
     });
 
-    this.applyRouteParams(this.route.snapshot.queryParamMap);
+    if (this.shellMode) {
+      this.applyShellInputs();
+    } else {
+      this.applyRouteParams(this.route.snapshot.queryParamMap);
+    }
 
+    this.initializeWorkOrderPreview();
+  }
+
+  ngOnChanges(changes: SimpleChanges): void {
+    if (!this.shellMode) {
+      return;
+    }
+
+    if (changes['workOrderIdInput'] || changes['propertyIdInput'] || changes['reservationIdInput']) {
+      this.applyShellInputs();
+      if (this.workOrderId) {
+        this.initializeWorkOrderPreview();
+      }
+    }
+  }
+
+  private applyShellInputs(): void {
+    this.workOrderId = (this.workOrderIdInput || '').trim() || null;
+    this.propertyId = (this.propertyIdInput || '').trim() || null;
+    this.reservationId = (this.reservationIdInput || '').trim() || null;
+    this.returnTo = 'work-order';
+  }
+
+  private initializeWorkOrderPreview(): void {
     if (!this.workOrderId) {
       this.toastr.error('workOrderId is required.', 'Missing Parameters');
       this.itemsToLoad$.next(new Set());
@@ -471,7 +505,11 @@ export class WorkOrderCreateComponent extends BaseDocumentComponent implements O
     const processed = this.documentHtmlService.processHtml(processedHtml, true);
     this.previewIframeHtml = processed.processedHtml;
     this.previewIframeStyles = processed.extractedStyles;
-    this.safePreviewIframeHtml = this.sanitizer.bypassSecurityTrustHtml(processed.processedHtml);
+    const htmlWithStyles = this.documentHtmlService.getPreviewHtmlWithStyles(
+      processed.processedHtml,
+      processed.extractedStyles
+    );
+    this.safePreviewIframeHtml = this.sanitizer.bypassSecurityTrustHtml(htmlWithStyles);
     this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'previewHtml');
     this.iframeKey++;
     this.cdr.markForCheck();
@@ -1181,6 +1219,11 @@ export class WorkOrderCreateComponent extends BaseDocumentComponent implements O
 
   //#region Utility Methods
   goBack(): void {
+    if (this.shellMode) {
+      this.backEvent.emit();
+      return;
+    }
+
     const workOrderId = this.workOrder?.workOrderId ?? this.workOrderId;
     const propertyId = (this.property?.propertyId || this.workOrder?.propertyId || this.propertyId || '').trim() || null;
     if ((this.returnTo === 'work-order' || this.returnTo === 'work-order-list') && propertyId) {

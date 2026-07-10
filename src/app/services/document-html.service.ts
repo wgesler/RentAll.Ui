@@ -207,8 +207,8 @@ export class DocumentHtmlService {
       return;
     }
 
-    // Find the iframe element
-    const iframe = document.querySelector('iframe.preview-iframe') as HTMLIFrameElement;
+    // Find the iframe element (support legacy and shared document-preview class names)
+    const iframe = document.querySelector('iframe.document-preview-iframe, iframe.preview-iframe') as HTMLIFrameElement;
     if (!iframe || !iframe.contentDocument || !iframe.contentWindow) {
       // Retry after a short delay if iframe isn't ready yet
       setTimeout(() => this.injectStylesIntoIframe(previewIframeStyles), 50);

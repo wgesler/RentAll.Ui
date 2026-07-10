@@ -1,6 +1,6 @@
 import { CommonModule } from '@angular/common';
 import { HttpErrorResponse } from '@angular/common/http';
-import { ChangeDetectorRef, Component, Input, OnChanges, OnDestroy, OnInit, SimpleChanges } from '@angular/core';
+import { ChangeDetectorRef, Component, EventEmitter, Input, OnChanges, OnDestroy, OnInit, Output, SimpleChanges } from '@angular/core';
 import { FormBuilder, FormControl, FormGroup, FormsModule, ReactiveFormsModule, Validators } from '@angular/forms';
 import { ActivatedRoute, ParamMap, Router } from '@angular/router';
 import { ToastrService } from 'ngx-toastr';
@@ -21,7 +21,7 @@ import { SearchableSelectComponent } from '../../shared/searchable-select/search
 import { TitleBarSelectComponent } from '../../shared/titlebar-select/titlebar-select.component';
 import { TransactionType, TransactionTypeLabels } from '../models/accounting-enum';
 import { CostCodesResponse } from '../models/cost-codes.model';
-import { InvoiceMonthlyDataRequest, InvoiceMonthlyDataResponse, InvoiceRequest, InvoiceResponse, LedgerLineListDisplay, LedgerLineRequest } from '../models/invoice.model';
+import { InvoiceMonthlyDataRequest, InvoiceMonthlyDataResponse, InvoicePreviewSelection, InvoiceRequest, InvoiceResponse, LedgerLineListDisplay, LedgerLineRequest } from '../models/invoice.model';
 import { InvoiceService } from '../services/invoice.service';
 import { CostCodesService } from '../services/cost-codes.service';
 
@@ -35,10 +35,12 @@ import { CostCodesService } from '../services/cost-codes.service';
 
 export class InvoiceComponent implements OnInit, OnDestroy, OnChanges {
   @Input() shellMode: boolean = false;
+  @Input() embedDocumentPreviewInShell = false;
   @Input() invoiceIdInput: string | null = null;
   @Input() officeIdInput: number | null = null;
   @Input() reservationIdInput: string | null = null;
   @Input() companyIdInput: string | null = null;
+  @Output() previewEvent = new EventEmitter<InvoicePreviewSelection>();
 
   isServiceError: boolean = false;
   invoiceId: string;
@@ -389,6 +391,21 @@ export class InvoiceComponent implements OnInit, OnDestroy, OnChanges {
       return;
     }
 
+    const officeIdToUse = this.selectedOffice?.officeId || invoiceToUse.officeId || formValue?.officeId;
+    const reservationIdToUse = this.selectedReservation?.reservationId || invoiceToUse.reservationId || formValue?.reservationId;
+
+    if (this.shellMode && this.embedDocumentPreviewInShell) {
+      this.previewEvent.emit({
+        invoiceId: invoiceToUse.invoiceId,
+        invoiceCode: invoiceToUse.invoiceCode ?? null,
+        officeId: officeIdToUse ?? null,
+        reservationId: reservationIdToUse ?? null,
+        companyId: this.companyId,
+        returnToEditor: true
+      });
+      return;
+    }
+
     const queryParams = this.route.snapshot.queryParams;
     const originReturnTo = this.shellMode
       ? 'reservation'
@@ -397,9 +414,6 @@ export class InvoiceComponent implements OnInit, OnDestroy, OnChanges {
       'returnTo=invoice-edit',
       `originReturnTo=${encodeURIComponent(originReturnTo)}`
     ];
-
-    const officeIdToUse = this.selectedOffice?.officeId || invoiceToUse.officeId || formValue?.officeId;
-    const reservationIdToUse = this.selectedReservation?.reservationId || invoiceToUse.reservationId || formValue?.reservationId;
 
     if (officeIdToUse) {
       params.push(`officeId=${officeIdToUse}`);

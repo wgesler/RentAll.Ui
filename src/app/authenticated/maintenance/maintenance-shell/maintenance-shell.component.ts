@@ -21,10 +21,12 @@ import { ReceiptsListComponent } from '../receipts-list/receipts-list.component'
 import { ReceiptSelection } from '../models/receipt.model';
 import { ReceiptComponent } from '../receipt/receipt.component';
 import { WorkOrderComponent } from '../work-order/work-order.component';
+import { WorkOrderCreateComponent } from '../work-order-create/work-order-create.component';
 import { DocumentListComponent } from '../../documents/document-list/document-list.component';
 import { DocumentType } from '../../documents/models/document.enum';
 import { DocumentGetRequest } from '../../documents/models/document.model';
 import { MaintenanceListSearchRequest } from '../models/maintenance-search.model';
+import { WorkOrderPreviewSelection } from '../models/work-order.model';
 import { isInspectorOnlyUser } from '../../shared/access/role-access';
 import { MaintenanceComponent } from '../maintenance/maintenance.component';
 import { UnsavedChangesDialogService } from '../../shared/modals/unsaved-changes/unsaved-changes-dialog.service';
@@ -44,6 +46,7 @@ import { TitleBarSelectComponent } from '../../shared/titlebar-select/titlebar-s
     ReceiptsListComponent,
     ReceiptComponent,
     WorkOrderComponent,
+    WorkOrderCreateComponent,
     DocumentListComponent,
     MaintenanceComponent
   ],
@@ -86,7 +89,11 @@ export class MaintenanceShellComponent implements OnInit, OnDestroy, CanComponen
 
   showWorkOrderDetail = false;
   selectedWorkOrderId: string | null = null;
-   workOrderDetailInstance = 0;
+  workOrderDetailInstance = 0;
+  showWorkOrderCreate = false;
+  workOrderCreateContext: WorkOrderPreviewSelection | null = null;
+  workOrderCreateInstance = 0;
+  workOrderCreateReturnToDetail = false;
   showWorkOrdersTab = true;
   workOrderSaveValidationAttempted = false;
   workOrderPropertySelectionRequired = true;
@@ -345,6 +352,48 @@ export class MaintenanceShellComponent implements OnInit, OnDestroy, CanComponen
 
   get isWorkOrderDetailActive(): boolean {
     return this.showWorkOrdersTab && this.selectedTabIndex === this.workOrdersTabIndex && this.showWorkOrderDetail;
+  }
+
+  get isWorkOrderCreateActive(): boolean {
+    return this.showWorkOrdersTab
+      && this.selectedTabIndex === this.workOrdersTabIndex
+      && this.showWorkOrderCreate
+      && !!this.workOrderCreateContext;
+  }
+
+  get workOrderCreateOfficeTitleBarOptions(): { value: number; label: string }[] {
+    const officeId = this.workOrderCreateContext?.officeId;
+    if (officeId == null) {
+      return [];
+    }
+
+    const office = this.offices.find(item => item.officeId === officeId);
+    return [{ value: officeId, label: office?.name || office?.officeCode || '' }];
+  }
+
+  get workOrderCreatePropertyTitleBarOptions(): SearchableSelectOption[] {
+    const propertyId = (this.workOrderCreateContext?.propertyId || '').trim();
+    if (!propertyId) {
+      return [];
+    }
+
+    return [{
+      value: propertyId,
+      label: (this.workOrderCreateContext?.propertyCode || this.property?.propertyCode || '').trim()
+    }];
+  }
+
+  get workOrderCreateReservationTitleBarOptions(): SearchableSelectOption[] {
+    const reservationId = (this.workOrderCreateContext?.reservationId || '').trim();
+    if (!reservationId) {
+      return [];
+    }
+
+    const reservation = (this.shellReservations || []).find(item => String(item.reservationId ?? '').trim() === reservationId);
+    const label = reservation
+      ? this.utilityService.getReservationDropdownLabel(reservation, null).trim()
+      : reservationId;
+    return [{ value: reservationId, label }];
   }
 
   get isReceiptDetailActive(): boolean {
@@ -802,6 +851,59 @@ export class MaintenanceShellComponent implements OnInit, OnDestroy, CanComponen
     this.isServiceError = false;
   }
 
+  onWorkOrderPreviewOpen(selection: WorkOrderPreviewSelection): void {
+    const workOrderId = (selection?.workOrderId || '').trim();
+    if (!workOrderId) {
+      return;
+    }
+
+    this.workOrderCreateReturnToDetail = !!selection.returnToDetail;
+    this.workOrderCreateContext = {
+      workOrderId,
+      propertyId: selection.propertyId ?? null,
+      reservationId: selection.reservationId ?? null,
+      officeId: selection.officeId ?? this.selectedOfficeId ?? this.property?.officeId ?? null,
+      propertyCode: (selection.propertyCode || this.property?.propertyCode || '').trim()
+    };
+    this.showWorkOrderCreate = true;
+    this.workOrderCreateInstance++;
+    this.showWorkOrderDetail = false;
+    this.selectedTabIndex = this.workOrdersTabIndex;
+
+    const propertyId = (this.workOrderCreateContext.propertyId || '').trim();
+    if (propertyId && propertyId !== this.property?.propertyId) {
+      this.selectedPropertyId = propertyId;
+      this.loadProperty(propertyId, null, this.workOrderCreateContext.reservationId);
+    } else if (this.workOrderCreateContext.reservationId) {
+      this.titleBarReservationId = this.workOrderCreateContext.reservationId;
+    }
+  }
+
+  onWorkOrderCreateBack(): void {
+    const returnToDetail = this.workOrderCreateReturnToDetail;
+    const workOrderId = this.workOrderCreateContext?.workOrderId ?? null;
+    const propertyId = this.workOrderCreateContext?.propertyId ?? null;
+    const reservationId = this.workOrderCreateContext?.reservationId ?? null;
+
+    this.showWorkOrderCreate = false;
+    this.workOrderCreateContext = null;
+    this.workOrderCreateReturnToDetail = false;
+
+    if (returnToDetail && workOrderId) {
+      this.showWorkOrderDetail = true;
+      this.selectedWorkOrderId = workOrderId;
+      this.workOrderDetailInstance++;
+      if (propertyId) {
+        this.selectedPropertyId = propertyId;
+        if (propertyId !== this.property?.propertyId) {
+          this.loadProperty(propertyId, null, reservationId);
+        } else if (reservationId) {
+          this.titleBarReservationId = reservationId;
+        }
+      }
+    }
+  }
+
   onWorkOrderSaved(): void {
     this.showWorkOrderDetail = false;
     this.selectedWorkOrderId = null;
@@ -819,6 +921,10 @@ export class MaintenanceShellComponent implements OnInit, OnDestroy, CanComponen
   }
 
   onTopBarBackClick(): void {
+    if (this.isWorkOrderCreateActive) {
+      this.onWorkOrderCreateBack();
+      return;
+    }
     if (this.isReceiptDetailActive) {
       this.onReceiptBack();
       return;

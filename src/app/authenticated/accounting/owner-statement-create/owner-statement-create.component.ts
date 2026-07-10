@@ -34,10 +34,8 @@ import { PropertyHtmlResponse } from '../../properties/models/property-html.mode
 import { PropertyService } from '../../properties/services/property.service';
 import { PropertyHtmlService } from '../../properties/services/property-html.service';
 import { BaseDocumentComponent, DocumentConfig, DownloadConfig, EmailConfig } from '../../shared/base-document.component';
-import { TitleBarSelectComponent } from '../../shared/titlebar-select/titlebar-select.component';
 import { OwnerStatementMonthLineListDisplay, OwnerStatementPropertyActivityLineResponse } from '../models/owner-statement.model';
 import { OwnerStatementService } from '../services/owner-statement.service';
-import { ReportService } from '../services/report.service';
 import { DocumentService } from '../../documents/services/document.service';
 import { EmailService } from '../../email/services/email.service';
 import { environment } from '../../../../environments/environment';
@@ -45,7 +43,7 @@ import { environment } from '../../../../environments/environment';
 @Component({
   selector: 'app-owner-statement-create',
   standalone: true,
-  imports: [CommonModule, MaterialModule, FormsModule, ReactiveFormsModule, TitleBarSelectComponent],
+  imports: [CommonModule, MaterialModule, FormsModule, ReactiveFormsModule],
   templateUrl: './owner-statement-create.component.html',
   styleUrl: './owner-statement-create.component.scss',
   changeDetection: ChangeDetectionStrategy.OnPush
@@ -91,7 +89,6 @@ export class OwnerStatementCreateComponent extends BaseDocumentComponent impleme
     private propertyService: PropertyService,
     private propertyHtmlService: PropertyHtmlService,
     private ownerStatementService: OwnerStatementService,
-    private reportService: ReportService,
     private officeService: OfficeService,
     private accountingOfficeService: AccountingOfficeService,
     private sanitizer: DomSanitizer,
@@ -291,23 +288,23 @@ export class OwnerStatementCreateComponent extends BaseDocumentComponent impleme
       return;
     }
 
-    const monthRange = this.resolveMonthRange(this.line.monthDate);
+    const periodStartDate = (this.line.periodStartDate || this.line.monthDate || '').trim();
+    const periodEndDate = (this.line.periodEndDate || this.line.monthDate || periodStartDate).trim();
     const propertyId = this.line.propertyId;
     const searchRequest = {
       officeIds: [this.line.officeId],
       propertyId,
-      startDate: monthRange.startDate,
-      endDate: monthRange.endDate
+      startDate: periodStartDate || null,
+      endDate: periodEndDate || null
     };
 
     forkJoin({
       cashLines: this.ownerStatementService.searchOwnerStatementPropertyActivityLines(searchRequest),
-      accrualReport: this.reportService.searchOwnerAccrualReport(searchRequest)
+      accrualLines: this.ownerStatementService.searchOwnerStatementAccrualPropertyActivityLines(searchRequest)
     }).pipe(take(1)).subscribe({
-      next: ({ cashLines, accrualReport }) => {
+      next: ({ cashLines, accrualLines }) => {
         this.statementActivityLines = cashLines || [];
-        this.statementAccrualActivityLines = (accrualReport.propertyActivityLines ?? [])
-          .filter(line => (line.propertyId || '').trim() === propertyId);
+        this.statementAccrualActivityLines = accrualLines || [];
         this.tryGeneratePreview();
       },
       error: () => {
@@ -412,12 +409,12 @@ export class OwnerStatementCreateComponent extends BaseDocumentComponent impleme
       return html;
     }
 
-    const monthDate = this.utilityService.parseCalendarDateInput(this.line.monthDate);
-    const monthYearDisplay = this.formatMonthYear(monthDate);
-    const monthDateDisplay = monthYearDisplay || this.line.monthDisplay;
-    const reportingMonthEndDate = this.formatReportingMonthEndDate(this.line.monthDate);
-    const previousMonthEndDate = this.formatPreviousMonthEndDate(this.line.monthDate);
-    const statementDateDisplay = reportingMonthEndDate || monthDateDisplay;
+    const periodStartDate = (this.line.periodStartDate || this.line.monthDate || '').trim();
+    const periodEndDate = (this.line.periodEndDate || this.line.monthDate || '').trim();
+    const periodDisplay = this.line.monthDisplay || '';
+    const periodTitle = this.mappingService.formatOwnerStatementPeriodTitle(periodStartDate, periodEndDate) || periodDisplay;
+    const openingBalanceDate = this.formatPreviousMonthEndDate(periodStartDate);
+    const closingBalanceDate = this.formatReportingMonthEndDate(periodEndDate) || this.formatFullDate(periodEndDate);
     const startingBalance = this.mappingService.parseCurrencyValue(this.line.startingBalance);
     const income = this.mappingService.parseCurrencyValue(this.line.income);
     const expenses = this.mappingService.parseCurrencyValue(this.line.expenses);
@@ -432,7 +429,7 @@ export class OwnerStatementCreateComponent extends BaseDocumentComponent impleme
 
     let runningTotal = startingBalance;
     const openingBalanceRows = [
-      this.buildSummaryBalanceRow('Starting Balance', previousMonthEndDate, runningTotal, false)
+      this.buildSummaryBalanceRow('Starting Balance', openingBalanceDate, runningTotal, false)
     ].join('\n');
 
     let incomeRows = '';
@@ -447,7 +444,7 @@ export class OwnerStatementCreateComponent extends BaseDocumentComponent impleme
         incomeLineRows.push({
           sortDate: activity.activityDate,
           html: this.buildChargeRow(
-            this.formatActivityDateForStatement(activity, statementDateDisplay),
+            this.formatActivityDateForStatement(activity, closingBalanceDate),
             refNo,
             description,
             amount,
@@ -457,8 +454,8 @@ export class OwnerStatementCreateComponent extends BaseDocumentComponent impleme
     } else if (income !== 0) {
       runningTotal += income;
       incomeLineRows.push({
-        sortDate: this.line.monthDate,
-        html: this.buildChargeRow(statementDateDisplay, '', 'Income', income, runningTotal)
+        sortDate: periodEndDate,
+        html: this.buildChargeRow(closingBalanceDate, '', 'Income', income, runningTotal)
       });
     }
 
@@ -467,7 +464,7 @@ export class OwnerStatementCreateComponent extends BaseDocumentComponent impleme
       incomeLineRows.push({
         sortDate: entry.line.activityDate,
         html: this.buildChargeRow(
-          this.formatActivityDateForStatement(entry.line, statementDateDisplay),
+          this.formatActivityDateForStatement(entry.line, closingBalanceDate),
           refNo,
           description,
           entry.unpaidAmount,
@@ -489,7 +486,7 @@ export class OwnerStatementCreateComponent extends BaseDocumentComponent impleme
         runningTotal -= amount;
         const { refNo, description } = this.parseActivityRefAndDescription(activity, 'Expense');
         return this.buildChargeRow(
-          this.formatActivityDateForStatement(activity, statementDateDisplay),
+          this.formatActivityDateForStatement(activity, closingBalanceDate),
           refNo,
           description,
           amount,
@@ -497,7 +494,7 @@ export class OwnerStatementCreateComponent extends BaseDocumentComponent impleme
       }).join('\n');
     } else if (expenses !== 0) {
       runningTotal -= expenses;
-      chargesRows = this.buildChargeRow(statementDateDisplay, '', 'Expenses', expenses, runningTotal);
+      chargesRows = this.buildChargeRow(closingBalanceDate, '', 'Expenses', expenses, runningTotal);
     }
     if (!chargesRows) {
       chargesRows = this.buildBlankLedgerRow();
@@ -506,14 +503,14 @@ export class OwnerStatementCreateComponent extends BaseDocumentComponent impleme
     let paymentsRows = '';
     if (ownerPayment !== 0) {
       runningTotal -= ownerPayment;
-      paymentsRows = this.buildChargeRow(statementDateDisplay, '', 'Owner Payment', ownerPayment, runningTotal);
+      paymentsRows = this.buildChargeRow(closingBalanceDate, '', 'Owner Payment', ownerPayment, runningTotal);
     }
     if (!paymentsRows) {
       paymentsRows = this.buildBlankLedgerRow();
     }
 
     const closingBalanceRows = [
-      this.buildSummaryBalanceRow('Ending Balance', reportingMonthEndDate, endingBalance, true)
+      this.buildSummaryBalanceRow('Ending Balance', closingBalanceDate, endingBalance, true)
     ].join('\n');
 
     const companyName = this.escapeHtml(this.organization?.name || '');
@@ -533,10 +530,11 @@ export class OwnerStatementCreateComponent extends BaseDocumentComponent impleme
     const officeLogoBase64 = this.resolveOfficeLogo();
     const responsiblePartiesBlock = this.buildResponsiblePartiesBlock();
     const propertySideBlock = this.buildPropertySideBlock();
-    const statementSubtitle = this.escapeHtml(`${this.line.propertyCode} - ${monthDateDisplay}`);
+    const statementSubtitle = this.escapeHtml(periodTitle);
 
     let result = html;
     result = result.replace(/\{\{statementSubtitle\}\}/g, statementSubtitle);
+    result = result.replace(/\{\{statementPeriodTitle\}\}/g, this.escapeHtml(periodTitle));
     result = result.replace(/\{\{responsiblePartiesBlock\}\}/g, responsiblePartiesBlock);
     result = result.replace(/\{\{propertySideBlock\}\}/g, propertySideBlock);
     result = result.replace(/\{\{openingBalanceLedgerLineRows\}\}/g, openingBalanceRows);
@@ -570,8 +568,8 @@ export class OwnerStatementCreateComponent extends BaseDocumentComponent impleme
     result = result.replace(/\{\{accountingOfficeBankPhone\}\}/g, accountingOfficeBankPhone);
     result = result.replace(/\{\{officeLogoBase64\}\}/g, officeLogoBase64);
     result = result.replace(/\{\{orgLogoBase64\}\}/g, officeLogoBase64);
-    result = result.replace(/\{\{startDate\}\}/g, monthDateDisplay || '');
-    result = result.replace(/\{\{endDate\}\}/g, monthDateDisplay || '');
+    result = result.replace(/\{\{startDate\}\}/g, this.escapeHtml(periodTitle) || '');
+    result = result.replace(/\{\{endDate\}\}/g, this.escapeHtml(periodTitle) || '');
     result = result.replace(/\{\{statementDate\}\}/g, this.utilityService.todayAsCalendarDateString());
     result = result.replace(/\{\{paidAmount\}\}/g, this.formatterService.currencyUsd(0));
     result = result.replace(/\{\{totalDue\}\}/g, this.formatterService.currencyUsd(endingBalance));
@@ -737,12 +735,24 @@ export class OwnerStatementCreateComponent extends BaseDocumentComponent impleme
   }
 
   buildResponsiblePartiesBlock(): string {
-    const ownerName = this.escapeHtml(this.line?.ownerName || '');
+    const companyName = (this.line?.companyName || '').trim();
+    const ownerNames = (this.line?.ownerNames || this.line?.ownerName || '').trim();
     const address1 = this.escapeHtml(this.ownerContact?.address1 || '');
     const address2 = this.escapeHtml(this.ownerContact?.address2 || '');
     const cityStateZip = this.escapeHtml(this.formatAddress2(this.ownerContact));
+
+    const clientLines: string[] = [];
+    if (companyName) {
+      clientLines.push(`<span style="font-weight: bold">Client:</span> ${this.escapeHtml(companyName)}`);
+      if (ownerNames) {
+        clientLines.push(`&nbsp;&nbsp;&nbsp;&nbsp;${this.escapeHtml(ownerNames)}`);
+      }
+    } else if (ownerNames) {
+      clientLines.push(`<span style="font-weight: bold">Client:</span> ${this.escapeHtml(ownerNames)}`);
+    }
+
     return [
-      `<span style="font-weight: bold">Client:</span> ${ownerName}`,
+      ...clientLines,
       address1 ? `<span style="font-weight: bold">Address:</span> ${address1}` : '',
       address2 ? `&nbsp;&nbsp;&nbsp;&nbsp;${address2}` : '',
       cityStateZip ? `&nbsp;&nbsp;&nbsp;&nbsp;${cityStateZip}` : '',
@@ -891,10 +901,6 @@ export class OwnerStatementCreateComponent extends BaseDocumentComponent impleme
     });
   }
 
-  onBack(): void {
-    this.backEvent.emit();
-  }
-
   formatAddress2(contact: ContactResponse | null): string {
     if (!contact) {
       return '';
@@ -906,13 +912,6 @@ export class OwnerStatementCreateComponent extends BaseDocumentComponent impleme
       return `${city}, ${state}${zip ? ` ${zip}` : ''}`;
     }
     return [city, state, zip].filter(part => !!part).join(' ');
-  }
-
-  formatMonthYear(date: Date | null): string {
-    if (!date || Number.isNaN(date.getTime())) {
-      return '';
-    }
-    return date.toLocaleString('en-US', { month: 'long', year: 'numeric' });
   }
 
   formatFullDate(value: string): string {
@@ -963,19 +962,6 @@ export class OwnerStatementCreateComponent extends BaseDocumentComponent impleme
     const month = String(date.getMonth() + 1).padStart(2, '0');
     const day = String(date.getDate()).padStart(2, '0');
     return `${month}/${day}`;
-  }
-
-  resolveMonthRange(monthDate: string): { startDate: string | null; endDate: string | null } {
-    const parsed = this.utilityService.parseCalendarDateInput(monthDate);
-    if (!parsed) {
-      return { startDate: monthDate || null, endDate: monthDate || null };
-    }
-    const firstDay = new Date(parsed.getFullYear(), parsed.getMonth(), 1);
-    const lastDay = new Date(parsed.getFullYear(), parsed.getMonth() + 1, 0);
-    return {
-      startDate: this.utilityService.formatDateOnlyForApi(firstDay),
-      endDate: this.utilityService.formatDateOnlyForApi(lastDay)
-    };
   }
 
   formatPropertyAddress2(): string {

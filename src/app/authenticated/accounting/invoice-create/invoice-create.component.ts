@@ -1,6 +1,6 @@
 import { CommonModule } from '@angular/common';
 import { HttpClient } from '@angular/common/http';
-import { ChangeDetectorRef, Component, ElementRef, OnDestroy, OnInit, ViewChild } from '@angular/core';
+import { ChangeDetectorRef, Component, ElementRef, EventEmitter, Input, OnDestroy, OnInit, Output, ViewChild } from '@angular/core';
 import { FormBuilder, FormControl, FormGroup, FormsModule, ReactiveFormsModule } from '@angular/forms';
 import { DomSanitizer, SafeHtml } from '@angular/platform-browser';
 import { ActivatedRoute, Router } from '@angular/router';
@@ -56,6 +56,13 @@ import { InvoiceService } from '../services/invoice.service';
     styleUrls: ['./invoice-create.component.scss']
 })
 export class InvoiceCreateComponent extends BaseDocumentComponent implements OnInit, OnDestroy {
+  @Input() shellMode = false;
+  @Input() invoiceIdInput: string | null = null;
+  @Input() officeIdInput: number | null = null;
+  @Input() reservationIdInput: string | null = null;
+  @Input() companyIdInput: string | null = null;
+  @Output() backEvent = new EventEmitter<void>();
+
   officeId: number | null = null;
   reservationId: string | null = null;
   invoiceId: string | null = null;
@@ -171,8 +178,23 @@ export class InvoiceCreateComponent extends BaseDocumentComponent implements OnI
       this.tryGeneratePreview();
     });
 
-    this.applyRouteParams(this.route.snapshot.queryParamMap);
+    if (this.shellMode) {
+      this.applyShellInputs();
+    } else {
+      this.applyRouteParams(this.route.snapshot.queryParamMap);
+    }
 
+    this.initializeInvoicePreview();
+  }
+
+  private applyShellInputs(): void {
+    this.invoiceId = (this.invoiceIdInput || '').trim() || null;
+    this.reservationId = (this.reservationIdInput || '').trim() || null;
+    this.officeId = this.officeIdInput ?? null;
+    this.companyId = (this.companyIdInput || '').trim() || null;
+  }
+
+  private initializeInvoicePreview(): void {
     if (this.officeId == null || !this.reservationId?.trim() || !this.invoiceId?.trim()) {
       this.toastr.error('officeId, reservationId, and invoiceId are required.', 'Missing Parameters');
       this.itemsToLoad$.next(new Set());
@@ -930,6 +952,11 @@ export class InvoiceCreateComponent extends BaseDocumentComponent implements OnI
 
   //#region Utility Methods
   goBack(): void {
+    if (this.shellMode) {
+      this.backEvent.emit();
+      return;
+    }
+
     const queryParams = this.route.snapshot.queryParams;
     const returnTo = queryParams['returnTo'];
     const originReturnTo = queryParams['originReturnTo'] || 'accounting';

@@ -1,7 +1,7 @@
 import { CommonModule } from '@angular/common';
 import { ChangeDetectionStrategy, ChangeDetectorRef, Component, EventEmitter, Input, OnChanges, OnDestroy, OnInit, Output, SimpleChanges } from '@angular/core';
 import { MatDialog } from '@angular/material/dialog';
-import { BehaviorSubject, finalize, Subject, take, takeUntil } from 'rxjs';
+import { BehaviorSubject, Subject, take, takeUntil } from 'rxjs';
 import { ToastrService } from 'ngx-toastr';
 import { CommonMessage } from '../../../enums/common-message.enum';
 import { AuthService } from '../../../services/auth.service';
@@ -14,6 +14,7 @@ import { DataTableComponent } from '../../shared/data-table/data-table.component
 import { ColumnSet } from '../../shared/data-table/models/column-data';
 import { OwnerStatementMonthLineListDisplay } from '../models/owner-statement.model';
 import { OwnerStatementService } from '../services/owner-statement.service';
+import { OwnerReportsCacheService } from '../services/owner-reports-cache.service';
 import { OwnerStatementStartingBalanceDialogComponent, OwnerStatementStartingBalanceDialogResult } from './owner-statement-starting-balance-dialog.component';
 
 @Component({
@@ -37,7 +38,7 @@ export class OwnerStatementListComponent implements OnInit, OnChanges, OnDestroy
     officeName: { displayAs: 'Office', wrap: false, maxWidth: '14ch' },
     ownerName: { displayAs: 'Owner', wrap: false, maxWidth: '20ch' },
     propertyCode: { displayAs: 'Property', wrap: false, maxWidth: '15ch' },
-    monthDisplay: { displayAs: 'Month', wrap: false, maxWidth: '15ch', alignment: 'center' },
+    monthDisplay: { displayAs: 'Period', wrap: false, maxWidth: '18ch', alignment: 'center' },
     startingBalance: { displayAs: 'Starting', wrap: false, maxWidth: '14ch', alignment: 'right', headerAlignment: 'right' },
     income: { displayAs: 'Income', wrap: false, maxWidth: '12ch', alignment: 'right', headerAlignment: 'right' },
     expenses: { displayAs: 'Expenses', wrap: false, maxWidth: '12ch', alignment: 'right', headerAlignment: 'right' },
@@ -48,7 +49,8 @@ export class OwnerStatementListComponent implements OnInit, OnChanges, OnDestroy
   destroy$ = new Subject<void>();
 
   constructor(
-    private ownerStatementService: OwnerStatementService, 
+    private ownerStatementService: OwnerStatementService,
+    private ownerReportsCacheService: OwnerReportsCacheService,
     private propertyAgreementService: PropertyAgreementService, 
     private authService: AuthService, 
     private formatter: FormatterService,
@@ -123,20 +125,21 @@ export class OwnerStatementListComponent implements OnInit, OnChanges, OnDestroy
       return;
     }
 
+    const cashReport = this.ownerReportsCacheService.getCashReport();
+    if (!cashReport) {
+      this.lines = [];
+      this.isServiceError = false;
+      this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'ownerStatementMonthLines');
+      this.markViewForCheck();
+      return;
+    }
+
     this.isServiceError = false;
-    this.utilityService.addLoadItem(this.itemsToLoad$, 'ownerStatementMonthLines');
-    this.ownerStatementService.searchOwnerStatementMonthLines(request).pipe(take(1), finalize(() => this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'ownerStatementMonthLines'))).subscribe({
-      next: rows => {
-        this.lines = this.mappingService.mapOwnerStatementMonthLineDisplays(rows || []);
-        this.isServiceError = false;
-        this.markViewForCheck();
-      },
-      error: () => {
-        this.lines = [];
-        this.isServiceError = true;
-        this.markViewForCheck();
-      }
-    });
+    this.lines = this.mappingService.mapOwnerStatementMonthLineDisplays(
+      this.mappingService.mapOwnerCashReportToMonthLines(cashReport, request)
+    );
+    this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'ownerStatementMonthLines');
+    this.markViewForCheck();
   }
 
   //#endregion

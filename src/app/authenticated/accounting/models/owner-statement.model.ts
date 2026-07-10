@@ -48,7 +48,11 @@ export interface OwnerStatementMonthLineResponse {
   ownerName: string;
   propertyId: string;
   propertyCode: string;
+  companyName?: string | null;
+  ownerNames: string;
   monthDate: string;
+  periodStartDate?: string;
+  periodEndDate?: string;
   expected: number;
   prePaid: number;
   paidIncome: number;
@@ -71,7 +75,11 @@ export interface OwnerStatementMonthLineListDisplay {
   officeName: string;
   ownerName: string;
   propertyCode: string;
+  companyName?: string | null;
+  ownerNames: string;
   monthDate: string;
+  periodStartDate: string;
+  periodEndDate: string;
   monthDisplay: string;
   startingBalance: string;
   income: string;

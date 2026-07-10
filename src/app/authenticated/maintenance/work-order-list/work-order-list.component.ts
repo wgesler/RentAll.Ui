@@ -21,7 +21,7 @@ import { UserGroups } from '../../users/models/user-enums';
 import { ReceiptRequest, ReceiptResponse } from '../models/receipt.model';
 import { MaintenanceListSearchRequest } from '../models/maintenance-search.model';
 import { WorkOrderType } from '../models/maintenance-enums';
-import { WorkOrderDisplayList, WorkOrderResponse } from '../models/work-order.model';
+import { WorkOrderDisplayList, WorkOrderPreviewSelection, WorkOrderResponse } from '../models/work-order.model';
 import { ReceiptService } from '../services/receipt.service';
 import { WorkOrderService } from '../services/work-order.service';
 
@@ -46,11 +46,14 @@ export class WorkOrderListComponent implements OnInit, OnChanges, OnDestroy {
   @Input() reservationId: string | null = null;
   /** When true, selection is emitted via workOrderSelect and no navigation occurs (e.g. embedded in maintenance). */
   @Input() embeddedInMaintenance = false;
+  /** When true with embeddedInMaintenance, document preview opens in the host shell instead of routing away. */
+  @Input() embedDocumentPreviewInShell = false;
   @Input() refreshTrigger = 0;
   /** When set, only work orders with this type are shown. */
   @Input() workOrderTypeId: number | null = null;
   @Input() showOwnersOnlyToggle = false;
   @Output() workOrderSelect = new EventEmitter<WorkOrderSelection>();
+  @Output() previewEvent = new EventEmitter<WorkOrderPreviewSelection>();
 
   isPageReady = false;
   isServiceError: boolean = false;
@@ -293,6 +296,16 @@ export class WorkOrderListComponent implements OnInit, OnChanges, OnDestroy {
       return;
     }
     const reservationId = (event.reservationId || '').toString().trim();
+    if (this.embeddedInMaintenance && this.embedDocumentPreviewInShell) {
+      this.previewEvent.emit({
+        workOrderId,
+        propertyId,
+        reservationId: reservationId || null,
+        officeId: event.officeId ?? this.officeId ?? this.property?.officeId ?? null,
+        propertyCode: (event.propertyCode || this.property?.propertyCode || '').trim()
+      });
+      return;
+    }
     this.router.navigateByUrl(this.buildWorkOrderPreviewUrl(workOrderId, propertyId, reservationId, 'work-order-list'));
   }
   //#endregion

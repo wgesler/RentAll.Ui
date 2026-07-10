@@ -6,7 +6,7 @@ import { ChartOfAccountListDisplay, ChartOfAccountRequest, ChartOfAccountRespons
 import { CostCodesListDisplay, CostCodesRequest, CostCodesResponse } from '../authenticated/accounting/models/cost-codes.model';
 import { InvoiceResponse, LedgerLineListDisplay, LedgerLineResponse } from '../authenticated/accounting/models/invoice.model';
 import { JournalEntryLineDetailDisplay, JournalEntryLineListDisplay, JournalEntryLineResponse, JournalEntryLineSearchResponse, JournalEntryRecapRowDisplay, JournalEntryResponse, RecapReportResponse, TransferReportResponse, TransferReportRowDisplay } from '../authenticated/accounting/models/journal-entry.model';
-import { OwnerStatementListDisplay, OwnerStatementMonthLineListDisplay, OwnerStatementMonthLineResponse, OwnerStatementMonthLineSearchRequest, OwnerStatementOfficeGroup, OwnerStatementPropertyActivityLineDisplay, OwnerStatementPropertyActivityLineResponse, OwnerStatementPropertyRow, OwnerStatementResponse, OwnerStatementSearchRequest, OwnerStatementSearchResponse, OwnerStatementVisibleRow } from '../authenticated/accounting/models/owner-statement.model';
+import { OwnerStatementListDisplay, OwnerStatementMonthLineListDisplay, OwnerStatementMonthLineResponse, OwnerStatementMonthLineSearchRequest, OwnerStatementOfficeGroup, OwnerStatementPropertyActivityLineDisplay, OwnerStatementPropertyActivityLineResponse, OwnerStatementPropertyActivityLineSearchRequest, OwnerStatementPropertyRow, OwnerStatementResponse, OwnerStatementSearchRequest, OwnerStatementSearchResponse, OwnerStatementVisibleRow } from '../authenticated/accounting/models/owner-statement.model';
 import { OwnerAccrualReportResponse, OwnerAccrualReportRowResponse, OwnerCashReportResponse, OwnerCashReportRowResponse, OwnerReportsBundleResponse } from '../authenticated/accounting/models/owner-report.model';
 import { RentRollPropertyAgreement, RentRollRow } from '../authenticated/accounting/models/rent-roll.model';
 import { EntityType, getEntityType } from '../authenticated/contacts/models/contact-enum';
@@ -2423,20 +2423,26 @@ export class MappingService {
   }
 
   mapOwnerCashReportToMonthLines(report: OwnerCashReportResponse, request: OwnerStatementMonthLineSearchRequest): OwnerStatementMonthLineResponse[] {
-    const monthDate = request.endDate ?? request.startDate ?? '';
+    const periodStartDate = (request.startDate ?? '').trim();
+    const periodEndDate = (request.endDate ?? request.startDate ?? '').trim();
+    const monthDate = periodEndDate || periodStartDate;
+
     return (report.rows ?? []).map(row => {
       const ownerId = (row.ownerId || '').trim();
       const propertyId = (row.propertyId || '').trim();
-      const ownerStatementLineId = [row.officeId, ownerId, propertyId, monthDate].join('|');
       return {
-        ownerStatementLineId,
+        ownerStatementLineId: [row.officeId, ownerId, propertyId].join('|'),
         officeId: row.officeId,
         officeName: row.officeName,
         ownerId,
         ownerName: row.ownerNameLine,
         propertyId,
         propertyCode: row.propertyCode,
+        companyName: row.companyName ?? null,
+        ownerNames: row.ownerNames,
         monthDate,
+        periodStartDate,
+        periodEndDate: periodEndDate || periodStartDate,
         expected: 0,
         prePaid: 0,
         paidIncome: 0,
@@ -2462,8 +2468,12 @@ export class MappingService {
       officeName: (row.officeName || '').trim(),
       ownerName: (row.ownerName || '').trim(),
       propertyCode: (row.propertyCode || '').trim(),
+      companyName: row.companyName ?? null,
+      ownerNames: (row.ownerNames || row.ownerName || '').trim(),
       monthDate: (row.monthDate || '').trim(),
-      monthDisplay: this.formatOwnerStatementMonthDate(row.monthDate),
+      periodStartDate: (row.periodStartDate || row.monthDate || '').trim(),
+      periodEndDate: (row.periodEndDate || row.monthDate || '').trim(),
+      monthDisplay: this.formatOwnerStatementPeriodDisplay(row.periodStartDate ?? row.monthDate, row.periodEndDate ?? row.monthDate),
       startingBalance: this.formatter.currencyUsd(Number(row.startingBalance) || 0),
       income: this.formatter.currencyUsd(Number(row.income) || 0),
       expenses: this.formatter.currencyUsd(Number(row.expenses) || 0),
@@ -2471,6 +2481,42 @@ export class MappingService {
       endingBalance: this.formatter.currencyUsd(Number(row.endingBalance) || 0),
       workingCapital: this.formatter.currencyUsd(Number(row.workingCapital) || 0)
     }));
+  }
+
+  formatOwnerStatementPeriodDisplay(startDate: string | null | undefined, endDate: string | null | undefined): string {
+    const start = this.formatOwnerStatementMonthDate(startDate);
+    const end = this.formatOwnerStatementMonthDate(endDate);
+    if (!start && !end) {
+      return '';
+    }
+    if (!start || start === end) {
+      return end || start;
+    }
+    return `${start} - ${end}`;
+  }
+
+  formatOwnerStatementPeriodTitle(startDate: string | null | undefined, endDate: string | null | undefined): string {
+    const start = this.utility.parseCalendarDateInput(startDate);
+    const end = this.utility.parseCalendarDateInput(endDate ?? startDate);
+    if (!start && !end) {
+      return '';
+    }
+    if (!start || !end) {
+      const date = start ?? end!;
+      return date.toLocaleString('en-US', { month: 'long', year: 'numeric' });
+    }
+
+    const startMonth = start.toLocaleString('en-US', { month: 'long' });
+    const endMonth = end.toLocaleString('en-US', { month: 'long' });
+    const startYear = start.getFullYear();
+    const endYear = end.getFullYear();
+    if (startMonth === endMonth && startYear === endYear) {
+      return `${startMonth} ${startYear}`;
+    }
+    if (startYear === endYear) {
+      return `${startMonth} - ${endMonth} ${endYear}`;
+    }
+    return `${startMonth} ${startYear} - ${endMonth} ${endYear}`;
   }
 
   formatOwnerStatementMonthDate(value: string | null | undefined): string {
@@ -2487,6 +2533,39 @@ export class MappingService {
     const month = `${date.getMonth() + 1}`.padStart(2, '0');
     const year = `${date.getFullYear()}`.slice(-2);
     return `${month}.${year}`;
+  }
+
+  filterOwnerStatementPropertyActivityLines(
+    lines: OwnerStatementPropertyActivityLineResponse[],
+    request: OwnerStatementPropertyActivityLineSearchRequest
+  ): OwnerStatementPropertyActivityLineResponse[] {
+    const propertyId = (request.propertyId || '').trim();
+    const rangeStart = this.utility.parseCalendarDateInput(request.startDate);
+    const rangeEnd = this.utility.parseCalendarDateInput(request.endDate ?? request.startDate);
+
+    return (lines ?? [])
+      .filter(line => {
+        if ((line.propertyId || '').trim() !== propertyId) {
+          return false;
+        }
+
+        const activityDate = this.utility.parseCalendarDateInput(line.activityDate);
+        if (!activityDate) {
+          return false;
+        }
+
+        const activity = this.utility.formatDateOnlyForApi(activityDate);
+        const start = rangeStart ? this.utility.formatDateOnlyForApi(rangeStart) : null;
+        const end = rangeEnd ? this.utility.formatDateOnlyForApi(rangeEnd) : start;
+        if (start && activity < start) {
+          return false;
+        }
+        if (end && activity > end) {
+          return false;
+        }
+        return true;
+      })
+      .sort((a, b) => this.utility.compareCalendarDateStrings(a.activityDate, b.activityDate));
   }
 
   parseCurrencyValue(value: string | null | undefined): number {
