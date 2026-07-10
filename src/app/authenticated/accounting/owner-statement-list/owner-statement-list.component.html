@@ -1,4 +1,9 @@
-@if (!isPageReady) {
+@if (isLoading) {
+  <div class="loading-container">
+    <mat-spinner [diameter]="40"></mat-spinner>
+    <p>Loading owner statements...</p>
+  </div>
+} @else if (!isPageReady) {
   <p class="owner-statement-list-loading">Loading owner statement list...</p>
 } @else if (isServiceError) {
   <p class="owner-statement-list-error">Unable to load owner statement list.</p>

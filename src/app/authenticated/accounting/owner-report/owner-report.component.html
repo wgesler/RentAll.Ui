@@ -1,4 +1,9 @@
-@if (!isPageReady) {
+@if (isLoading) {
+  <div class="loading-container">
+    <mat-spinner [diameter]="40"></mat-spinner>
+    <p>Loading owner report...</p>
+  </div>
+} @else if (!isPageReady) {
   <div class="loading-container">
     <mat-spinner [diameter]="40"></mat-spinner>
     <p>Loading owner statements...</p>

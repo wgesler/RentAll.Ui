@@ -2357,7 +2357,8 @@ export class MappingService {
         return;
       }
 
-      result.set(propertyRowId, this.mapOwnerReportPropertyActivityDisplays(propertyRowId, filteredLines));
+      const sortedLines = this.sortOwnerReportPropertyActivityLines(filteredLines, reportKind);
+      result.set(propertyRowId, this.mapOwnerReportPropertyActivityDisplays(propertyRowId, sortedLines));
     });
 
     return result;
@@ -2573,7 +2574,106 @@ export class MappingService {
         }
         return true;
       })
-      .sort((a, b) => this.utility.compareCalendarDateStrings(a.activityDate, b.activityDate));
+      .sort((a, b) => this.compareOwnerReportPropertyActivityLines(a, b, 'accrual'));
+  }
+
+  private sortOwnerReportPropertyActivityLines(
+    lines: OwnerStatementPropertyActivityLineResponse[],
+    reportKind: 'accrual' | 'cash'
+  ): OwnerStatementPropertyActivityLineResponse[] {
+    return [...(lines || [])].sort((a, b) => this.compareOwnerReportPropertyActivityLines(a, b, reportKind));
+  }
+
+  private compareOwnerReportPropertyActivityLines(
+    a: OwnerStatementPropertyActivityLineResponse,
+    b: OwnerStatementPropertyActivityLineResponse,
+    reportKind: 'accrual' | 'cash'
+  ): number {
+    if (reportKind === 'cash') {
+      const dateCompare = this.utility.compareCalendarDateStrings(a.activityDate, b.activityDate);
+      if (dateCompare !== 0) {
+        return dateCompare;
+      }
+
+      const periodCompare = this.compareOwnerReportAccountingPeriods(a.accountingPeriod, b.accountingPeriod);
+      if (periodCompare !== 0) {
+        return periodCompare;
+      }
+    } else {
+      const periodCompare = this.compareOwnerReportAccountingPeriods(a.accountingPeriod, b.accountingPeriod);
+      if (periodCompare !== 0) {
+        return periodCompare;
+      }
+
+      const dateCompare = this.utility.compareCalendarDateStrings(a.activityDate, b.activityDate);
+      if (dateCompare !== 0) {
+        return dateCompare;
+      }
+    }
+
+    const sortOrderCompare = this.getOwnerReportActivityLineSortOrder(a) - this.getOwnerReportActivityLineSortOrder(b);
+    if (sortOrderCompare !== 0) {
+      return sortOrderCompare;
+    }
+
+    return (a.documentCode || '').localeCompare(b.documentCode || '', undefined, { sensitivity: 'base' });
+  }
+
+  private compareOwnerReportAccountingPeriods(
+    a: string | null | undefined,
+    b: string | null | undefined
+  ): number {
+    const toOrdinal = (value: string | null | undefined): number | null => {
+      const trimmed = (value || '').trim();
+      if (!trimmed) {
+        return null;
+      }
+
+      const monthYearMatch = /^(\d{2})\.(\d{2})$/.exec(trimmed);
+      if (monthYearMatch) {
+        const month = Number(monthYearMatch[1]);
+        const year = 2000 + Number(monthYearMatch[2]);
+        if (Number.isFinite(month) && Number.isFinite(year) && month >= 1 && month <= 12) {
+          return year * 100 + month;
+        }
+      }
+
+      return this.utility.parseCalendarDateToOrdinal(trimmed);
+    };
+
+    const left = toOrdinal(a);
+    const right = toOrdinal(b);
+    if (left === null && right === null) {
+      return 0;
+    }
+    if (left === null) {
+      return -1;
+    }
+    if (right === null) {
+      return 1;
+    }
+    return left - right;
+  }
+
+  private getOwnerReportActivityLineSortOrder(line: OwnerStatementPropertyActivityLineResponse): number {
+    const expectedIncome = Number(line.expectedIncome) || 0;
+    const receivedIncome = Number(line.receivedIncome) || 0;
+    const prepaidIncome = Number(line.prepaidIncome) || 0;
+    const expenses = Number(line.expenses) || 0;
+
+    if (expenses !== 0 && expectedIncome === 0 && receivedIncome === 0 && prepaidIncome === 0) {
+      return 3;
+    }
+    if (expectedIncome > receivedIncome) {
+      return 0;
+    }
+    if (prepaidIncome !== 0 && expectedIncome === 0 && receivedIncome === 0) {
+      return 2;
+    }
+    if (expectedIncome === 0 && receivedIncome !== 0) {
+      return 2;
+    }
+    return 1;
   }
 
   parseCurrencyValue(value: string | null | undefined): number {

@@ -5,6 +5,7 @@ import { BehaviorSubject, Subject, take, takeUntil } from 'rxjs';
 import { ToastrService } from 'ngx-toastr';
 import { CommonMessage } from '../../../enums/common-message.enum';
 import { AuthService } from '../../../services/auth.service';
+import { MaterialModule } from '../../../material.module';
 import { CommonService } from '../../../services/common.service';
 import { FormatterService } from '../../../services/formatter-service';
 import { MappingService } from '../../../services/mapping.service';
@@ -21,7 +22,7 @@ import { OwnerStatementStartingBalanceDialogComponent, OwnerStatementStartingBal
 @Component({
   selector: 'app-owner-statement-list',
   standalone: true,
-  imports: [CommonModule, DataTableComponent],
+  imports: [CommonModule, MaterialModule, DataTableComponent],
   templateUrl: './owner-statement-list.component.html',
   styleUrls: ['./owner-statement-list.component.scss', '../owner-report/owner-report.component.scss'],
   changeDetection: ChangeDetectionStrategy.OnPush
@@ -29,6 +30,7 @@ import { OwnerStatementStartingBalanceDialogComponent, OwnerStatementStartingBal
 export class OwnerStatementListComponent implements OnInit, OnChanges, OnDestroy {
   @Input() searchRequest?: MaintenanceListSearchRequest | null;
   @Input() refreshTrigger = 0;
+  @Input() isLoading = false;
   @Output() viewStatement = new EventEmitter<OwnerStatementMonthLineListDisplay>();
 
   isPageReady = false;
@@ -75,7 +77,7 @@ export class OwnerStatementListComponent implements OnInit, OnChanges, OnDestroy
   }
 
   ngOnChanges(changes: SimpleChanges): void {
-    if (changes['refreshTrigger'] && !changes['refreshTrigger'].firstChange) {
+    if (changes['isLoading'] || (changes['refreshTrigger'] && !changes['refreshTrigger'].firstChange)) {
       this.loadOwnerStatementList();
     }
   }
@@ -119,6 +121,12 @@ export class OwnerStatementListComponent implements OnInit, OnChanges, OnDestroy
   //#endregion
 
   //#region Data Loading Methods
+  clearOwnerStatementDisplay(): void {
+    this.lines = [];
+    this.isServiceError = false;
+    this.markViewForCheck();
+  }
+
   loadOrganization(): void {
     const cachedOrganization = this.commonService.getOrganizationValue();
     if (cachedOrganization?.name) {
@@ -132,6 +140,11 @@ export class OwnerStatementListComponent implements OnInit, OnChanges, OnDestroy
   }
 
   loadOwnerStatementList(): void {
+    if (this.isLoading) {
+      this.clearOwnerStatementDisplay();
+      return;
+    }
+
     const request = this.mappingService.mapOwnerStatementMonthLineSearchRequest(this.searchRequest);
     if (request.officeIds.length === 0) {
       this.lines = [];

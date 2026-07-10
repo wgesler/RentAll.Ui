@@ -244,6 +244,14 @@ mat-card {
   margin-top: -1px;
 }
 
+.accounting-shell-owner-report-go-spinner {
+  margin: 0 auto;
+}
+
+.accounting-shell-owner-report-go-spinner ::ng-deep circle {
+  stroke: #fff;
+}
+
 .accounting-shell-titlebar-filters .accounting-shell-titlebar-dates {
   margin-left: 0;
   padding-left: 0;

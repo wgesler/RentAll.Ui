@@ -25,6 +25,7 @@ export class JournalEntryRecapComponent implements OnInit, OnChanges, OnDestroy 
   @Input() reservationId: string | null = null;
   @Input() searchDateRange: { startDate: string | null; endDate: string | null } | null = null;
   @Input() refreshTrigger = 0;
+  @Input() isLoading = false;
   @Output() lineSelectEvent = new EventEmitter<{ journalEntryId: string; journalEntryLineId: string }>();
   @Output() sourceLinkSelect = new EventEmitter<OwnerStatementActivityLinkSelection>();
 
@@ -75,7 +76,7 @@ export class JournalEntryRecapComponent implements OnInit, OnChanges, OnDestroy 
   }
 
   ngOnChanges(changes: SimpleChanges): void {
-    if (changes['refreshTrigger'] && !changes['refreshTrigger'].firstChange) {
+    if (changes['isLoading'] || (changes['refreshTrigger'] && !changes['refreshTrigger'].firstChange)) {
       this.loadRecapLines();
     }
   }
@@ -165,7 +166,19 @@ export class JournalEntryRecapComponent implements OnInit, OnChanges, OnDestroy 
   //#endregion
 
   //#region Data Loading Methods
+  clearRecapDisplay(): void {
+    this.rowsDisplay = [];
+    this.isServiceError = false;
+    this.noActivityMessage = 'Loading journal entry recap...';
+    this.markViewForCheck();
+  }
+
   loadRecapLines(): void {
+    if (this.isLoading) {
+      this.clearRecapDisplay();
+      return;
+    }
+
     const officeIds = this.officeId != null && this.officeId > 0 ? [this.officeId] : [];
     if (officeIds.length === 0) {
       this.rowsDisplay = [];

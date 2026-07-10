@@ -278,6 +278,7 @@ export class AccountingShellComponent implements OnInit, OnDestroy {
   isFinancialReportDrillDownActive = false;
   isFinancialReportJournalEntryDetailActive = false;
   isArAgingDrillDownActive = false;
+  isOwnerReportsLoading = false;
 
   destroy$ = new Subject<void>();
 
@@ -1885,21 +1886,26 @@ export class AccountingShellComponent implements OnInit, OnDestroy {
   }
 
   onOwnerReportGoClick(): void {
-    if (!this.showOwnerReportGoButton) {
+    if (!this.showOwnerReportGoButton || this.isOwnerReportsLoading) {
       return;
     }
     this.syncOwnerReportsBundleSearchRequest();
-    this.ownerReportsCacheService.load(this.billsSearchRequest).pipe(take(1)).subscribe({
-      next: () => {
+    this.ownerReportsCacheService.clear();
+    this.isOwnerReportsLoading = true;
+    this.ownersStatementsRefreshTrigger++;
+    this.generalLedgerRefreshTrigger++;
+    this.cdr.markForCheck();
+    this.ownerReportsCacheService.load(this.billsSearchRequest).pipe(
+      take(1),
+      finalize(() => {
+        this.isOwnerReportsLoading = false;
         this.ownersStatementsRefreshTrigger++;
         this.generalLedgerRefreshTrigger++;
         this.cdr.markForCheck();
-      },
+      })
+    ).subscribe({
       error: () => {
         this.ownerReportsCacheService.clear();
-        this.ownersStatementsRefreshTrigger++;
-        this.generalLedgerRefreshTrigger++;
-        this.cdr.markForCheck();
       }
     });
   }

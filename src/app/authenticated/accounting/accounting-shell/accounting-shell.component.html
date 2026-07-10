@@ -471,12 +471,17 @@
                 color="primary"
                 class="accounting-shell-owner-report-go-btn"
                 (click)="onOwnerReportGoClick()"
+                [disabled]="isOwnerReportsLoading"
                 aria-label="Run reports"
                 matTooltip="Run reports">
-                <span class="accounting-shell-owner-report-go-content">
-                  <span class="accounting-shell-owner-report-go-label">Go</span>
-                  <mat-icon class="accounting-shell-owner-report-go-arrow">arrow_forward</mat-icon>
-                </span>
+                @if (isOwnerReportsLoading) {
+                  <mat-spinner class="accounting-shell-owner-report-go-spinner" [diameter]="20"></mat-spinner>
+                } @else {
+                  <span class="accounting-shell-owner-report-go-content">
+                    <span class="accounting-shell-owner-report-go-label">Go</span>
+                    <mat-icon class="accounting-shell-owner-report-go-arrow">arrow_forward</mat-icon>
+                  </span>
+                }
               </button>
             }
           </div>
@@ -922,6 +927,7 @@
                   <app-owner-statement-list
                     [searchRequest]="billsSearchRequest"
                     [refreshTrigger]="ownersStatementsRefreshTrigger"
+                    [isLoading]="isOwnerReportsLoading"
                     (viewStatement)="onOwnerStatementMonthLineView($event)">
                   </app-owner-statement-list>
                 }
@@ -943,6 +949,7 @@
                   <app-owner-report
                     [searchRequest]="billsSearchRequest"
                     [refreshTrigger]="ownersStatementsRefreshTrigger"
+                    [isLoading]="isOwnerReportsLoading"
                     [reportKind]="selectedOwnerReportKind"
                     [viewState]="ownersStatementViewState"
                     (reportKindChange)="onOwnerStatementReportKindChange($event)"
@@ -1048,6 +1055,7 @@
                   [reservationId]="selectedGlReservationId"
                   [searchDateRange]="invoiceSearchDateRange"
                   [refreshTrigger]="generalLedgerRefreshTrigger"
+                  [isLoading]="isOwnerReportsLoading"
                   (lineSelectEvent)="onGeneralLedgerLineSelect($event)"
                   (sourceLinkSelect)="onOwnerStatementActivityLinkSelect($event)">
                 </app-journal-entry-recap>

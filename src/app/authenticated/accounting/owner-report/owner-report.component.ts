@@ -34,6 +34,7 @@ export class OwnerReportComponent implements OnInit, OnChanges, OnDestroy {
   @ViewChild('ownerReportTableWrap') ownerReportTableWrap?: ElementRef<HTMLElement>;
   @Input() searchRequest?: MaintenanceListSearchRequest | null;
   @Input() refreshTrigger = 0;
+  @Input() isLoading = false;
   @Input() reportKind: OwnerReportKind = 'accrual';
   @Input() viewState: OwnerReportListViewState | null = null;
   @Output() activityLinkSelect = new EventEmitter<OwnerReportActivityLinkSelection>();
@@ -78,7 +79,7 @@ export class OwnerReportComponent implements OnInit, OnChanges, OnDestroy {
   }
 
   ngOnChanges(changes: SimpleChanges): void {
-    if (changes['refreshTrigger'] && !changes['refreshTrigger'].firstChange) {
+    if (changes['isLoading'] || (changes['refreshTrigger'] && !changes['refreshTrigger'].firstChange)) {
       this.loadOwnerReports();
     }
 
@@ -159,6 +160,12 @@ export class OwnerReportComponent implements OnInit, OnChanges, OnDestroy {
   }
 
   loadOwnerReports(): void {
+    if (this.isLoading) {
+      ownerReportKindCache.clear();
+      this.clearOwnerReportData();
+      return;
+    }
+
     const request = this.mappingService.mapOwnerReportSearchRequest(this.searchRequest);
     if (request.officeIds.length === 0) {
       this.ownerReports = [];
