@@ -72,6 +72,7 @@ type JournalEntrySyncProgressKey =
   | 'bill'
   | 'receipt'
   | 'workOrder'
+  | 'deposit'
   | 'departureFee'
   | 'linenAndTowelFee';
 
@@ -2298,6 +2299,7 @@ export class AccountingShellComponent implements OnInit, OnDestroy {
       { key: 'bill', label: 'Bills', total: 0, processed: 0, skipped: 0, errors: 0, status: 'Pending' },
       { key: 'receipt', label: 'Receipts', total: 0, processed: 0, skipped: 0, errors: 0, status: 'Pending' },
       { key: 'workOrder', label: 'Work Orders', total: 0, processed: 0, skipped: 0, errors: 0, status: 'Pending' },
+      { key: 'deposit', label: 'Deposits', total: 0, processed: 0, skipped: 0, errors: 0, status: 'Pending' },
       { key: 'departureFee', label: 'Departure Fees', total: 0, processed: 0, skipped: 0, errors: 0, status: 'Pending' },
       { key: 'linenAndTowelFee', label: 'Linen & Towel Fees', total: 0, processed: 0, skipped: 0, errors: 0, status: 'Pending' }
     ];
