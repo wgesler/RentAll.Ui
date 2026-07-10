@@ -127,15 +127,6 @@ export class DepositComponent implements OnInit, OnChanges, OnDestroy, AfterView
     }
   }
 
-  ngOnDestroy(): void {
-    this.destroy$.next();
-    this.destroy$.complete();
-  }
-
-  get splitsFormArray(): FormArray {
-    return this.form.get('splits') as FormArray;
-  }
-
   saveDeposit(): void {
     this.saveValidationHighlightActive = true;
     this.form.markAllAsTouched();
@@ -200,9 +191,7 @@ export class DepositComponent implements OnInit, OnChanges, OnDestroy, AfterView
       ? this.depositService.createDeposit(payload)
       : this.depositService.updateDeposit(payload);
 
-    save$.pipe(
-      take(1),
-      finalize(() => {
+    save$.pipe(take(1), finalize(() => {
         this.isSubmitting = false;
         this.cdr.markForCheck();
       })
@@ -220,29 +209,9 @@ export class DepositComponent implements OnInit, OnChanges, OnDestroy, AfterView
       error: () => this.toastr.error('Unable to save deposit.', 'Error')
     });
   }
+  //#endregion
 
-  onOverallBankAccountSelectionChange(value: number | string): void {
-    this.form.patchValue({ bankAccountId: Number(value) || 0 });
-  }
-
-  showValidationErrorToast(): void {
-    this.cdr.markForCheck();
-    this.toastr.error('Please correct the highlighted fields before saving.', 'Error');
-    this.focusOverallAmountFieldIfInvalid();
-  }
-
-  focusOverallAmountFieldIfInvalid(): void {
-    if (!this.shouldShowControlError(this.form.get('amount'))) {
-      return;
-    }
-    const input = this.overallAmountInput?.nativeElement;
-    if (!input) {
-      return;
-    }
-    input.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
-    this.onAmountFocus({ target: input } as unknown as FocusEvent);
-  }
-
+  //#region Build Form
   buildForm(): void {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
@@ -271,6 +240,91 @@ export class DepositComponent implements OnInit, OnChanges, OnDestroy, AfterView
     });
     this.replaceSplitLines(deposit.splits || []);
     this.splitTotalValidationError = false;
+  }  
+  //#endregion
+
+  //#region Data Load Methods
+  loadDeposit(): void {
+    if (this.isAddMode || !this.depositId) {
+      this.clearDepositLoading();
+      return;
+    }
+
+    this.utilityService.addLoadItem(this.itemsToLoad$, 'deposit');
+    this.depositService.getDepositById(this.depositId).pipe(take(1), finalize(() => this.clearDepositLoading())).subscribe({
+      next: (deposit: DepositResponse) => {
+        this.deposit = deposit;
+        this.populateForm(deposit);
+        this.loadChartOfAccounts();
+        this.cdr.markForCheck();
+      },
+      error: (_err: HttpErrorResponse) => {
+        this.toastr.error('Unable to load deposit.', 'Error');
+      }
+    });
+  }
+
+  loadPropertyCodes(): void {
+    this.utilityService.addLoadItem(this.itemsToLoad$, 'properties');
+    this.propertyService.getPropertyCodes().pipe(take(1), finalize(() => this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'properties'))).subscribe({
+      next: (properties) => {
+        this.propertyOptions = properties || [];
+        this.cdr.markForCheck();
+      },
+      error: () => {
+        this.propertyOptions = [];
+        this.cdr.markForCheck();
+      }
+    });
+  }
+
+  loadOffices(): void {
+    this.utilityService.addLoadItem(this.itemsToLoad$, 'offices');
+    this.officeService.getOffices(this.organizationId).pipe(take(1), finalize(() => this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'offices'))).subscribe({
+      next: (offices) => {
+        this.offices = offices || [];
+        this.cdr.markForCheck();
+      },
+      error: () => {
+        this.offices = [];
+        this.cdr.markForCheck();
+      }
+    });
+  }
+
+  loadChartOfAccounts(): void {
+    const officeId = this.getDepositOfficeId();
+    if (!officeId) {
+      this.bankAccountOptions = [];
+      this.splitAccountOptions = [];
+      this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'accounts');
+      return;
+    }
+
+    this.utilityService.addLoadItem(this.itemsToLoad$, 'accounts');
+    this.chartOfAccountsService.getChartOfAccountsByOfficeId(officeId).pipe(take(1), finalize(() => this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'accounts')) ).subscribe({
+      next: (accounts) => {
+        const bankAccounts = (accounts || []).filter(account => Number(account.accountTypeId) === AccountType.Bank);
+        this.bankAccountOptions = bankAccounts.map(account => ({
+          value: account.accountId,
+          label: this.utilityService.getChartOfAccountDropdownLabel(account)
+        }));
+        this.splitAccountOptions = this.buildSplitAccountOptions(accounts || [], officeId);
+        this.applyDefaultSplitAccountIfNeeded();
+        this.cdr.markForCheck();
+      },
+      error: () => {
+        this.bankAccountOptions = [];
+        this.splitAccountOptions = [];
+        this.cdr.markForCheck();
+      }
+    });
+  }
+  //#endregion
+
+  //#region Split Methods
+  get splitsFormArray(): FormArray {
+    return this.form.get('splits') as FormArray;
   }
 
   addSplitLine(): void {
@@ -338,75 +392,6 @@ export class DepositComponent implements OnInit, OnChanges, OnDestroy, AfterView
     });
   }
 
-  getDepositAmountValue(): number {
-    const raw = this.sanitizeSignedDecimalInput(this.form.get('amount')?.value?.toString() ?? '');
-    return parseFloat(raw) || 0;
-  }
-
-  getAmountDisplay(): string {
-    if (this.amountFocused) {
-      return this.amountEditValue;
-    }
-    const raw = this.sanitizeSignedDecimalInput(this.form.get('amount')?.value?.toString() ?? '');
-    const num = parseFloat(raw) || 0;
-    return '$' + this.formatter.currency(num);
-  }
-
-  onAmountFocus(event: Event): void {
-    const input = event.target as HTMLInputElement;
-    const control = this.form.get('amount');
-    const current = this.sanitizeSignedDecimalInput(control?.value?.toString() ?? '');
-    this.amountEditValue = current || '';
-    this.amountFocused = true;
-    this.cdr.detectChanges();
-    this.selectAmountInputContents(input);
-  }
-
-  onAmountClick(event: Event): void {
-    if (!this.amountFocused) {
-      return;
-    }
-    this.selectAmountInputContents(event.target as HTMLInputElement);
-  }
-
-  private selectAmountInputContents(input: HTMLInputElement | null | undefined): void {
-    if (!input) {
-      return;
-    }
-    requestAnimationFrame(() => {
-      input.focus({ preventScroll: true });
-      input.setSelectionRange(0, input.value.length);
-    });
-  }
-
-  onAmountInput(event: Event): void {
-    const input = event.target as HTMLInputElement;
-    const value = input?.value ?? '';
-    this.amountEditValue = this.sanitizeSignedDecimalInput(value);
-    this.form.get('amount')?.setValue(this.amountEditValue, { emitEvent: false });
-  }
-
-  onAmountBlur(event: Event): void {
-    const input = event.target as HTMLInputElement;
-    const raw = this.sanitizeSignedDecimalInput(input?.value ?? '');
-    const num = parseFloat(raw) || 0;
-    const formatted = num.toFixed(2);
-    const control = this.form.get('amount');
-    control?.setValue(formatted, { emitEvent: false });
-    control?.markAsTouched();
-    control?.updateValueAndValidity({ emitEvent: false });
-    this.syncInitialSplitWithOverallIfNeeded();
-    this.amountFocused = false;
-    this.amountEditValue = '';
-  }
-
-  onOverallDescriptionBlur(): void {
-    if (this.amountFocused) {
-      return;
-    }
-    this.syncInitialSplitWithOverallIfNeeded();
-  }
-
   syncInitialSplitWithOverallIfNeeded(): void {
     if (this.isSyncingInitialSplit || this.splitsFormArray.length !== 1) {
       return;
@@ -455,10 +440,6 @@ export class DepositComponent implements OnInit, OnChanges, OnDestroy, AfterView
     this.splitsFormArray.controls.forEach(control => {
       control.get('description')?.setValue(overallDescription, { emitEvent: false });
     });
-  }
-
-  onAmountKeydown(event: Event): void {
-    this.formatter.formatDecimalOnEnter(event as KeyboardEvent, this.form.get('amount'));
   }
 
   getDisplayedSplitTotal(): number {
@@ -569,7 +550,7 @@ export class DepositComponent implements OnInit, OnChanges, OnDestroy, AfterView
     this.cdr.markForCheck();
   }
 
-  private createSplitGroup(split?: Partial<DepositSplit>): FormGroup {
+  createSplitGroup(split?: Partial<DepositSplit>): FormGroup {
     const amount = Number(split?.amount);
     return this.fb.group({
       depositSplitId: new FormControl(split?.depositSplitId ?? null),
@@ -580,104 +561,7 @@ export class DepositComponent implements OnInit, OnChanges, OnDestroy, AfterView
     });
   }
 
-  sanitizeSignedDecimalInput(value: string): string {
-    if (!value) {
-      return '';
-    }
-    const cleaned = value.replace(/[^0-9.-]/g, '');
-    const isNegative = cleaned.startsWith('-');
-    const unsigned = cleaned.replace(/-/g, '');
-    const parts = unsigned.split('.');
-    const numericPortion = parts.length > 1 ? `${parts[0]}.${parts.slice(1).join('')}` : parts[0];
-    return `${isNegative ? '-' : ''}${numericPortion}`;
-  }
-  //#endregion
-
-  //#region Data Load Methods
-  loadDeposit(): void {
-    if (this.isAddMode || !this.depositId) {
-      this.clearDepositLoading();
-      return;
-    }
-
-    this.utilityService.addLoadItem(this.itemsToLoad$, 'deposit');
-    this.depositService.getDepositById(this.depositId).pipe(
-      take(1),
-      finalize(() => this.clearDepositLoading())
-    ).subscribe({
-      next: (deposit: DepositResponse) => {
-        this.deposit = deposit;
-        this.populateForm(deposit);
-        this.loadChartOfAccounts();
-        this.cdr.markForCheck();
-      },
-      error: (_err: HttpErrorResponse) => {
-        this.toastr.error('Unable to load deposit.', 'Error');
-      }
-    });
-  }
-
-  loadPropertyCodes(): void {
-    this.utilityService.addLoadItem(this.itemsToLoad$, 'properties');
-    this.propertyService.getPropertyCodes().pipe(take(1), finalize(() => this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'properties'))).subscribe({
-      next: (properties) => {
-        this.propertyOptions = properties || [];
-        this.cdr.markForCheck();
-      },
-      error: () => {
-        this.propertyOptions = [];
-        this.cdr.markForCheck();
-      }
-    });
-  }
-
-  loadOffices(): void {
-    this.utilityService.addLoadItem(this.itemsToLoad$, 'offices');
-    this.officeService.getOffices(this.organizationId).pipe(take(1), finalize(() => this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'offices'))).subscribe({
-      next: (offices) => {
-        this.offices = offices || [];
-        this.cdr.markForCheck();
-      },
-      error: () => {
-        this.offices = [];
-        this.cdr.markForCheck();
-      }
-    });
-  }
-
-  loadChartOfAccounts(): void {
-    const officeId = this.getDepositOfficeId();
-    if (!officeId) {
-      this.bankAccountOptions = [];
-      this.splitAccountOptions = [];
-      this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'accounts');
-      return;
-    }
-
-    this.utilityService.addLoadItem(this.itemsToLoad$, 'accounts');
-    this.chartOfAccountsService.getChartOfAccountsByOfficeId(officeId).pipe(
-      take(1),
-      finalize(() => this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'accounts'))
-    ).subscribe({
-      next: (accounts) => {
-        const bankAccounts = (accounts || []).filter(account => Number(account.accountTypeId) === AccountType.Bank);
-        this.bankAccountOptions = bankAccounts.map(account => ({
-          value: account.accountId,
-          label: this.utilityService.getChartOfAccountDropdownLabel(account)
-        }));
-        this.splitAccountOptions = this.buildSplitAccountOptions(accounts || [], officeId);
-        this.applyDefaultSplitAccountIfNeeded();
-        this.cdr.markForCheck();
-      },
-      error: () => {
-        this.bankAccountOptions = [];
-        this.splitAccountOptions = [];
-        this.cdr.markForCheck();
-      }
-    });
-  }
-
-  private buildSplitAccountOptions(accounts: ChartOfAccountResponse[], officeId: number): SearchableSelectOption<number>[] {
+  buildSplitAccountOptions(accounts: ChartOfAccountResponse[], officeId: number): SearchableSelectOption<number>[] {
     const undepositedAccounts = this.resolveUndepositedFundsAccounts(accounts, officeId);
     const options = undepositedAccounts.map(account => ({
       value: account.accountId,
@@ -705,7 +589,149 @@ export class DepositComponent implements OnInit, OnChanges, OnDestroy, AfterView
     return options.sort((left, right) => left.label.localeCompare(right.label, undefined, { sensitivity: 'base' }));
   }
 
-  private resolveUndepositedFundsAccounts(accounts: ChartOfAccountResponse[], officeId: number): ChartOfAccountResponse[] {
+  getDefaultSplitAccountId(): number | null {
+    if (this.splitAccountOptions.length === 1) {
+      return this.splitAccountOptions[0].value;
+    }
+
+    const officeId = this.getDepositOfficeId();
+    if (!officeId) {
+      return null;
+    }
+
+    const configuredDefaultAccountId = this.getDefaultUndepositedFundsAccountId(officeId);
+    if (configuredDefaultAccountId != null
+      && this.splitAccountOptions.some(option => option.value === configuredDefaultAccountId)) {
+      return configuredDefaultAccountId;
+    }
+
+    return null;
+  }
+
+  applyDefaultSplitAccountIfNeeded(): void {
+    const defaultAccountId = this.getDefaultSplitAccountId();
+    if (!defaultAccountId) {
+      return;
+    }
+
+    this.splitsFormArray.controls.forEach(control => {
+      const currentAccountId = Number(control.get('chartOfAccountId')?.value ?? 0);
+      if (!(currentAccountId > 0)) {
+        control.patchValue({ chartOfAccountId: defaultAccountId }, { emitEvent: false });
+      }
+    });
+  }
+  //#endregion
+
+  //#region Form Response Methods
+  onOverallBankAccountSelectionChange(value: number | string): void {
+    this.form.patchValue({ bankAccountId: Number(value) || 0 });
+  }
+
+  showValidationErrorToast(): void {
+    this.cdr.markForCheck();
+    this.toastr.error('Please correct the highlighted fields before saving.', 'Error');
+    this.focusOverallAmountFieldIfInvalid();
+  }
+
+  focusOverallAmountFieldIfInvalid(): void {
+    if (!this.shouldShowControlError(this.form.get('amount'))) {
+      return;
+    }
+    const input = this.overallAmountInput?.nativeElement;
+    if (!input) {
+      return;
+    }
+    input.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+    this.onAmountFocus({ target: input } as unknown as FocusEvent);
+  }
+ 
+  getDepositAmountValue(): number {
+    const raw = this.sanitizeSignedDecimalInput(this.form.get('amount')?.value?.toString() ?? '');
+    return parseFloat(raw) || 0;
+  }
+
+  getAmountDisplay(): string {
+    if (this.amountFocused) {
+      return this.amountEditValue;
+    }
+    const raw = this.sanitizeSignedDecimalInput(this.form.get('amount')?.value?.toString() ?? '');
+    const num = parseFloat(raw) || 0;
+    return '$' + this.formatter.currency(num);
+  }
+
+  onAmountFocus(event: Event): void {
+    const input = event.target as HTMLInputElement;
+    const control = this.form.get('amount');
+    const current = this.sanitizeSignedDecimalInput(control?.value?.toString() ?? '');
+    this.amountEditValue = current || '';
+    this.amountFocused = true;
+    this.cdr.detectChanges();
+    this.selectAmountInputContents(input);
+  }
+
+  onAmountClick(event: Event): void {
+    if (!this.amountFocused) {
+      return;
+    }
+    this.selectAmountInputContents(event.target as HTMLInputElement);
+  }
+
+  selectAmountInputContents(input: HTMLInputElement | null | undefined): void {
+    if (!input) {
+      return;
+    }
+    requestAnimationFrame(() => {
+      input.focus({ preventScroll: true });
+      input.setSelectionRange(0, input.value.length);
+    });
+  }
+
+  onAmountInput(event: Event): void {
+    const input = event.target as HTMLInputElement;
+    const value = input?.value ?? '';
+    this.amountEditValue = this.sanitizeSignedDecimalInput(value);
+    this.form.get('amount')?.setValue(this.amountEditValue, { emitEvent: false });
+  }
+
+  onAmountBlur(event: Event): void {
+    const input = event.target as HTMLInputElement;
+    const raw = this.sanitizeSignedDecimalInput(input?.value ?? '');
+    const num = parseFloat(raw) || 0;
+    const formatted = num.toFixed(2);
+    const control = this.form.get('amount');
+    control?.setValue(formatted, { emitEvent: false });
+    control?.markAsTouched();
+    control?.updateValueAndValidity({ emitEvent: false });
+    this.syncInitialSplitWithOverallIfNeeded();
+    this.amountFocused = false;
+    this.amountEditValue = '';
+  }
+
+  onOverallDescriptionBlur(): void {
+    if (this.amountFocused) {
+      return;
+    }
+    this.syncInitialSplitWithOverallIfNeeded();
+  }
+  
+  onAmountKeydown(event: Event): void {
+    this.formatter.formatDecimalOnEnter(event as KeyboardEvent, this.form.get('amount'));
+  }
+ 
+  sanitizeSignedDecimalInput(value: string): string {
+    if (!value) {
+      return '';
+    }
+    const cleaned = value.replace(/[^0-9.-]/g, '');
+    const isNegative = cleaned.startsWith('-');
+    const unsigned = cleaned.replace(/-/g, '');
+    const parts = unsigned.split('.');
+    const numericPortion = parts.length > 1 ? `${parts[0]}.${parts.slice(1).join('')}` : parts[0];
+    return `${isNegative ? '-' : ''}${numericPortion}`;
+  }
+ 
+  resolveUndepositedFundsAccounts(accounts: ChartOfAccountResponse[], officeId: number): ChartOfAccountResponse[] {
     const undepositedByName = (accounts || []).filter(account =>
       Number(account.accountTypeId) === AccountType.OtherCurrentAsset
       && this.isUndepositedFundsAccount(account)
@@ -728,55 +754,20 @@ export class DepositComponent implements OnInit, OnChanges, OnDestroy, AfterView
     return [defaultAccount, ...undepositedByName];
   }
 
-  private isUndepositedFundsAccount(account: ChartOfAccountResponse): boolean {
+  isUndepositedFundsAccount(account: ChartOfAccountResponse): boolean {
     const name = (account.name || '').toLowerCase();
     const accountNo = (account.accountNo || '').toLowerCase();
     return name.includes('undeposited') || accountNo.includes('undeposited');
   }
 
-  private getDefaultUndepositedFundsAccountId(officeId: number): number | null {
+  getDefaultUndepositedFundsAccountId(officeId: number): number | null {
     const accountingOffice = this.accountingOfficeService.getAllAccountingOfficesValue()
       .find(office => Number(office.officeId) === officeId);
     const accountId = Number(accountingOffice?.defaultUndepFundsAccountId ?? 0);
     return accountId > 0 ? accountId : null;
   }
 
-  private getDefaultSplitAccountId(): number | null {
-    if (this.splitAccountOptions.length === 1) {
-      return this.splitAccountOptions[0].value;
-    }
-
-    const officeId = this.getDepositOfficeId();
-    if (!officeId) {
-      return null;
-    }
-
-    const configuredDefaultAccountId = this.getDefaultUndepositedFundsAccountId(officeId);
-    if (configuredDefaultAccountId != null
-      && this.splitAccountOptions.some(option => option.value === configuredDefaultAccountId)) {
-      return configuredDefaultAccountId;
-    }
-
-    return null;
-  }
-
-  private applyDefaultSplitAccountIfNeeded(): void {
-    const defaultAccountId = this.getDefaultSplitAccountId();
-    if (!defaultAccountId) {
-      return;
-    }
-
-    this.splitsFormArray.controls.forEach(control => {
-      const currentAccountId = Number(control.get('chartOfAccountId')?.value ?? 0);
-      if (!(currentAccountId > 0)) {
-        control.patchValue({ chartOfAccountId: defaultAccountId }, { emitEvent: false });
-      }
-    });
-  }
-  //#endregion
-
-  //#region Private Methods
-  private getDepositOfficeId(): number | null {
+  getDepositOfficeId(): number | null {
     if (this.deposit?.officeId) {
       return this.deposit.officeId;
     }
@@ -798,7 +789,7 @@ export class DepositComponent implements OnInit, OnChanges, OnDestroy, AfterView
     return null;
   }
 
-  private applyShellOfficeToDeposit(): void {
+  applyShellOfficeToDeposit(): void {
     const officeId = this.getDepositOfficeId();
     if (!officeId) {
       return;
@@ -808,7 +799,7 @@ export class DepositComponent implements OnInit, OnChanges, OnDestroy, AfterView
     this.loadChartOfAccounts();
   }
 
-  private applyPropertyInputToForm(): void {
+  applyPropertyInputToForm(): void {
     const propertyId = (this.property?.propertyId || '').trim();
     if (!propertyId || !this.isAddMode) {
       return;
@@ -820,19 +811,26 @@ export class DepositComponent implements OnInit, OnChanges, OnDestroy, AfterView
     this.loadChartOfAccounts();
   }
 
-  private getDateControlValue(value: string | null | undefined): Date | null {
+  getDateControlValue(value: string | null | undefined): Date | null {
     const parsed = this.utilityService.parseCalendarDateInput(value);
     return parsed ?? null;
   }
 
-  private clearDepositLoading(): void {
+  clearDepositLoading(): void {
     this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'deposit');
     this.cdr.markForCheck();
   }
 
-  private syncPageReadyFromLoadItems(): void {
+  syncPageReadyFromLoadItems(): void {
     this.isPageReady = this.itemsToLoad$.value.size === 0;
     this.cdr.markForCheck();
+  }
+  //#endregion
+
+  //#region Utility Methods
+  ngOnDestroy(): void {
+    this.destroy$.next();
+    this.destroy$.complete();
   }
   //#endregion
 }

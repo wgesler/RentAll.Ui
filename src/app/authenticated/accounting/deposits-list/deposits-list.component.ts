@@ -100,29 +100,6 @@ export class DepositsListComponent implements OnInit, OnChanges, OnDestroy {
     }
   }
 
-  ngOnDestroy(): void {
-    this.destroy$.next();
-    this.destroy$.complete();
-  }
-
-  loadDepositsForCurrentSearchCriteria(force = false): void {
-    if (!this.embeddedInAccounting) {
-      this.getDeposits(force);
-      return;
-    }
-
-    queueMicrotask(() => {
-      if (!this.canRunAccountingSearch(this.searchRequest)) {
-        this.lastDepositSearchKey = null;
-        this.depositSearchInFlightKey = null;
-        this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'deposits');
-        this.markViewForCheck();
-        return;
-      }
-      this.getDeposits(force);
-    });
-  }
-
   getDeposits(force = false): void {
     if (this.embeddedInAccounting && !this.canRunAccountingSearch(this.searchRequest)) {
       this.lastDepositSearchKey = null;
@@ -226,6 +203,70 @@ export class DepositsListComponent implements OnInit, OnChanges, OnDestroy {
       propertyId: selectedPropertyId
     });
   }
+  //#endregion
+
+  //#region Data Load Methods
+  loadDepositsForCurrentSearchCriteria(force = false): void {
+    if (!this.embeddedInAccounting) {
+      this.getDeposits(force);
+      return;
+    }
+
+    queueMicrotask(() => {
+      if (!this.canRunAccountingSearch(this.searchRequest)) {
+        this.lastDepositSearchKey = null;
+        this.depositSearchInFlightKey = null;
+        this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'deposits');
+        this.markViewForCheck();
+        return;
+      }
+      this.getDeposits(force);
+    });
+  }
+  
+  loadPropertyLookup(): void {
+    this.propertyService.getPropertyCodes().pipe(take(1), takeUntil(this.destroy$)).subscribe({
+      next: (properties) => {
+        this.propertyCodeLookup = new Map(
+          (properties || []).map(property => [property.propertyId, property.propertyCode])
+        );
+        this.applyDepositDisplayMappings();
+        this.applyFilters();
+        this.markViewForCheck();
+      },
+      error: () => {
+        this.propertyCodeLookup = new Map();
+        this.markViewForCheck();
+      }
+    });
+  }
+  //#endregion
+
+  //#region Form Response Methods
+  buildSearchRequest(): DepositSearchRequest {
+    const request = this.searchRequest ?? { officeIds: [] };
+    return {
+      ...request,
+      officeIds: this.resolveAccountingSearchOfficeIds(request),
+      propertyId: request.propertyId ?? this.property?.propertyId ?? null,
+      isActive: this.showInactive ? false : true,
+      includeInactive: false,
+      startDate: request.startDate ?? null,
+      endDate: request.endDate ?? null
+    };
+  }
+
+  buildDepositSearchKey(): string {
+    const request = this.buildSearchRequest();
+    return JSON.stringify({
+      officeIds: request.officeIds,
+      propertyId: request.propertyId,
+      isActive: request.isActive,
+      includeInactive: request.includeInactive,
+      startDate: request.startDate,
+      endDate: request.endDate
+    });
+  }
 
   onDepositCheckboxChange(event: DepositDisplayList): void {
     if (!this.canEditIsActiveCheckbox) {
@@ -280,7 +321,7 @@ export class DepositsListComponent implements OnInit, OnChanges, OnDestroy {
     this.markViewForCheck();
   }
 
-  private canRunAccountingSearch(request?: DepositSearchRequest | null): boolean {
+  canRunAccountingSearch(request?: DepositSearchRequest | null): boolean {
     if (!this.embeddedInAccounting || request == null) {
       return false;
     }
@@ -292,7 +333,7 @@ export class DepositsListComponent implements OnInit, OnChanges, OnDestroy {
     );
   }
 
-  private resolveAccountingSearchOfficeIds(request?: DepositSearchRequest | null): number[] {
+  resolveAccountingSearchOfficeIds(request?: DepositSearchRequest | null): number[] {
     const fromShell = (request?.officeIds ?? this.searchRequest?.officeIds ?? []).filter(id => id > 0);
     if (fromShell.length > 0) {
       return fromShell;
@@ -306,74 +347,32 @@ export class DepositsListComponent implements OnInit, OnChanges, OnDestroy {
     return [];
   }
 
-  private buildSearchRequest(): DepositSearchRequest {
-    const request = this.searchRequest ?? { officeIds: [] };
-    return {
-      ...request,
-      officeIds: this.resolveAccountingSearchOfficeIds(request),
-      propertyId: request.propertyId ?? this.property?.propertyId ?? null,
-      isActive: this.showInactive ? false : true,
-      includeInactive: false,
-      startDate: request.startDate ?? null,
-      endDate: request.endDate ?? null
-    };
-  }
-
-  private buildDepositSearchKey(): string {
-    const request = this.buildSearchRequest();
-    return JSON.stringify({
-      officeIds: request.officeIds,
-      propertyId: request.propertyId,
-      isActive: request.isActive,
-      includeInactive: request.includeInactive,
-      startDate: request.startDate,
-      endDate: request.endDate
-    });
-  }
-
-  private loadPropertyLookup(): void {
-    this.propertyService.getPropertyCodes().pipe(take(1), takeUntil(this.destroy$)).subscribe({
-      next: (properties) => {
-        this.propertyCodeLookup = new Map(
-          (properties || []).map(property => [property.propertyId, property.propertyCode])
-        );
-        this.applyDepositDisplayMappings();
-        this.applyFilters();
-        this.markViewForCheck();
-      },
-      error: () => {
-        this.propertyCodeLookup = new Map();
-        this.markViewForCheck();
-      }
-    });
-  }
-
-  private applyDepositDisplayMappings(): void {
+  applyDepositDisplayMappings(): void {
     this.allDeposits = this.allDeposits.map(row => ({
       ...row,
       propertyCode: this.formatPropertyCodes(row.propertyIds)
     }));
   }
 
-  private applyFilters(): void {
+  applyFilters(): void {
     this.depositsDisplay = this.showInactive
       ? this.allDeposits.filter(row => row.isActive === false)
       : this.allDeposits.filter(row => row.isActive !== false);
   }
 
-  private formatPropertyCodes(propertyIds: string[] | undefined | null): string {
+  formatPropertyCodes(propertyIds: string[] | undefined | null): string {
     const codes = (propertyIds || [])
       .map(propertyId => this.propertyCodeLookup.get(propertyId) || '')
       .filter(code => code.length > 0);
     return codes.join(', ');
   }
 
-  private setIsActiveCheckboxEditability(): void {
+  setIsActiveCheckboxEditability(): void {
     this.canEditIsActiveCheckbox = this.isAdmin;
     this.depositDisplayedColumns['isActive'].checkboxEditable = this.canEditIsActiveCheckbox;
   }
 
-  private applyDepositIsActiveValue(depositId: string, isActive: boolean): void {
+  applyDepositIsActiveValue(depositId: string, isActive: boolean): void {
     const updateRow = (row: { depositId: string; isActive: boolean }) => {
       if (row.depositId === depositId) {
         row.isActive = isActive;
@@ -384,7 +383,7 @@ export class DepositsListComponent implements OnInit, OnChanges, OnDestroy {
     this.applyFilters();
   }
 
-  private replaceDepositInCollections(saved: DepositResponse): void {
+  replaceDepositInCollections(saved: DepositResponse): void {
     const savedId = (saved.depositId || '').trim();
     if (!savedId) {
       return;
@@ -399,9 +398,16 @@ export class DepositsListComponent implements OnInit, OnChanges, OnDestroy {
     }
     this.allDeposits = this.mappingService.mapDepositDisplays(this.deposits);
   }
+  //#endregion
 
-  private markViewForCheck(): void {
+  //#region Utility Methods
+  markViewForCheck(): void {
     this.cdr.markForCheck();
+  }
+
+  ngOnDestroy(): void {
+    this.destroy$.next();
+    this.destroy$.complete();
   }
   //#endregion
 }
