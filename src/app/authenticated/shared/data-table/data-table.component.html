@@ -523,9 +523,11 @@
                       </button>
                     } @else {
                       @if (getColumnAlignment(column) === 'center') {
-                        <span class="datatable-cell-center">{{item[column.name] === 'NONE' ? '' : (item[column.name] ?? '')}}</span>
+                        <span class="datatable-cell-center" [style.color]="item[column.name + 'IsAlert'] ? '#d32f2f' : null">{{item[column.name] === 'NONE' ? '' : (item[column.name] ?? '')}}</span>
                       } @else {
-                        @if (item[column.name] !== 'NONE') { {{item[column.name]}} }
+                        @if (item[column.name] !== 'NONE') {
+                          <span [style.color]="item[column.name + 'IsAlert'] ? '#d32f2f' : null">{{item[column.name]}}</span>
+                        }
                       }
                     }
                   }
@@ -543,7 +545,7 @@
                   [style.padding-bottom]="'0'"
                   [style.border-bottom]="'none'"
                   [style.font-weight]="totalsRow && data.length > 0 ? '600' : '400'"
-                  [style.color]="totalsRow && data.length > 0 ? '#333' : null"
+                  [style.color]="getTotalsCellColor(column)"
                   [style.font-size]="'12px'"
                   [style.white-space]="totalsRow && data.length > 0 && totalsRow[column.name] ? 'nowrap' : null"
                   [style.text-overflow]="totalsRow && data.length > 0 && totalsRow[column.name] ? 'clip' : null"

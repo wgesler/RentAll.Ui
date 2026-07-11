@@ -33,6 +33,7 @@ import { DepositComponent } from '../deposit/deposit.component';
 import { DepositSelection } from '../models/deposit.model';
 import { TransfersListComponent } from '../transfers-list/transfers-list.component';
 import { TransferComponent } from '../transfer/transfer.component';
+import { TransferReportComponent } from '../transfer-report/transfer-report.component';
 import { TransferSelection } from '../models/transfer.model';
 import { ReceiptService } from '../../maintenance/services/receipt.service';
 import { WorkOrderService } from '../../maintenance/services/work-order.service';
@@ -75,6 +76,7 @@ type JournalEntrySyncProgressKey =
   | 'receipt'
   | 'workOrder'
   | 'deposit'
+  | 'transfer'
   | 'departureFee'
   | 'linenAndTowelFee';
 
@@ -104,6 +106,7 @@ interface JournalEntrySyncProgressRow {
     DepositComponent,
     TransfersListComponent,
     TransferComponent,
+    TransferReportComponent,
     WorkOrderListComponent,
     WorkOrderComponent,
     WorkOrderCreateComponent,
@@ -153,6 +156,7 @@ export class AccountingShellComponent implements OnInit, OnDestroy {
     { kind: 'deposits', label: 'Deposits' },
     { kind: 'untransferredFunds', label: 'Untransferred Funds' },
     { kind: 'transfers', label: 'Transfers' },
+    { kind: 'transferReport', label: 'Transfer Report' },
     { kind: 'printChecks', label: 'Print Checks' },
     { kind: 'reconcile', label: 'Reconcile' }
   ];
@@ -250,6 +254,7 @@ export class AccountingShellComponent implements OnInit, OnDestroy {
   untransferredFundsRefreshTrigger = 0;
   depositsRefreshTrigger = 0;
   transfersRefreshTrigger = 0;
+  transferReportRefreshTrigger = 0;
   printChecksRefreshTrigger = 0;
   ownersUtilitiesRefreshTrigger = 0;
   ownersWorkOrdersRefreshTrigger = 0;
@@ -1044,6 +1049,7 @@ export class AccountingShellComponent implements OnInit, OnDestroy {
     this.untransferredFundsRefreshTrigger++;
     this.depositsRefreshTrigger++;
     this.transfersRefreshTrigger++;
+    this.transferReportRefreshTrigger++;
     this.printChecksRefreshTrigger++;
     this.ownersUtilitiesRefreshTrigger++;
     if (this.selectedTabIndex === this.tabOwners) {
@@ -1958,6 +1964,10 @@ export class AccountingShellComponent implements OnInit, OnDestroy {
       this.transfersRefreshTrigger++;
       return;
     }
+    if (this.selectedBankActivityKind === 'transferReport') {
+      this.transferReportRefreshTrigger++;
+      return;
+    }
     if (this.selectedBankActivityKind === 'undepositedFunds') {
       this.undepositedFundsRefreshTrigger++;
       return;
@@ -2410,6 +2420,7 @@ export class AccountingShellComponent implements OnInit, OnDestroy {
       { key: 'receipt', label: 'Receipts', total: 0, processed: 0, skipped: 0, errors: 0, status: 'Pending' },
       { key: 'workOrder', label: 'Work Orders', total: 0, processed: 0, skipped: 0, errors: 0, status: 'Pending' },
       { key: 'deposit', label: 'Deposits', total: 0, processed: 0, skipped: 0, errors: 0, status: 'Pending' },
+      { key: 'transfer', label: 'Transfers', total: 0, processed: 0, skipped: 0, errors: 0, status: 'Pending' },
       { key: 'departureFee', label: 'Departure Fees', total: 0, processed: 0, skipped: 0, errors: 0, status: 'Pending' },
       { key: 'linenAndTowelFee', label: 'Linen & Towel Fees', total: 0, processed: 0, skipped: 0, errors: 0, status: 'Pending' }
     ];
@@ -2897,7 +2908,7 @@ export class AccountingShellComponent implements OnInit, OnDestroy {
         || bankActivity === 'printChecks'
         || bankActivity === 'reconcile'
       ) {
-        this.selectedBankActivityKind = bankActivity === 'transferReport' ? 'untransferredFunds' : bankActivity;
+        this.selectedBankActivityKind = bankActivity;
       }
     }
 
@@ -3052,6 +3063,7 @@ export class AccountingShellComponent implements OnInit, OnDestroy {
             this.untransferredFundsRefreshTrigger++;
             this.depositsRefreshTrigger++;
             this.transfersRefreshTrigger++;
+            this.transferReportRefreshTrigger++;
             this.printChecksRefreshTrigger++;
             this.ownersUtilitiesRefreshTrigger++;
             this.ownersWorkOrdersRefreshTrigger++;

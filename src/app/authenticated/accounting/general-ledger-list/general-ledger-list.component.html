@@ -46,7 +46,7 @@
       <div class="general-ledger-empty-state">
         <p>{{ noActivityMessage }}</p>
       </div>
-    } @else if (!undepositedFundsOnly && !untransferredFundsOnly && !depositsOnly && !printChecksOnly && linesDisplay.length === 0) {
+    } @else if (!undepositedFundsOnly && !untransferredFundsOnly && !transferReportOnly && !depositsOnly && !printChecksOnly && linesDisplay.length === 0) {
       <div class="general-ledger-empty-state">
         <p>{{ noActivityMessage }}</p>
       </div>
@@ -55,7 +55,7 @@
         <app-data-table
           [data]="linesDisplay"
           [columns]="displayedColumns"
-          [noDataMessage]="undepositedFundsOnly || untransferredFundsOnly || depositsOnly || printChecksOnly ? noActivityMessage : null"
+          [noDataMessage]="undepositedFundsOnly || untransferredFundsOnly || transferReportOnly || depositsOnly || printChecksOnly ? noActivityMessage : null"
           [hasColumnIndex]="true"
           [hasFilter]="true"
           [hasToggleTop]="false"
@@ -63,9 +63,11 @@
           [hasActionsSelect]="showDepositTableSelections || showTransferTableSelections || showPrintCheckTableSelections"
           [hasButtonSelectAll]="showDepositTableSelections || showTransferTableSelections || showPrintCheckTableSelections"
           [hasContactNameLink]="false"
+          [hasSourceLink]="transferReportOnly"
           [hasActionsRowClick]="!showDepositForm && !showTransferForm"
           [itemsPerPage]="10"
           (rowClickEvent)="onLineSelect($event)"
+          (sourceClickEvent)="onSourceClick($event)"
           (selectionSet)="onTableLineSelectionSet($event)">
           @if (undepositedFundsOnly) {
             <div dataTableFilterActions>

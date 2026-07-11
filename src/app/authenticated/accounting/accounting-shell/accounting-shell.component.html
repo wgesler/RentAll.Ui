@@ -749,7 +749,9 @@
                     Deposits
                   } @else if (selectedBankActivityKind === 'transfers') {
                     Transfers
-                  } @else {
+                  } @else if (selectedBankActivityKind === 'transferReport') {
+                    Transfer Report
+                  } @else if (selectedBankActivityKind === 'printChecks') {
                     Print Checks
                   }
                 </div>
@@ -825,6 +827,23 @@
                     (transferSelect)="onTransferSelect($event)"
                     (journalEntriesChanged)="onJournalEntriesChanged()">
                   </app-transfers-list>
+                }
+              } @else if (selectedBankActivityKind === 'transferReport') {
+                @if (showGeneralLedgerDetail && activeJournalEntryId) {
+                  <app-general-ledger
+                    [journalEntryId]="activeJournalEntryId"
+                    [selectedJournalEntryLineId]="selectedJournalEntryLineId"
+                    (backEvent)="onGeneralLedgerBack()"
+                    (savedEvent)="onJournalEntriesChanged()">
+                  </app-general-ledger>
+                } @else {
+                  <app-transfer-report
+                    [officeId]="selectedOfficeId"
+                    [searchDateRange]="invoiceSearchDateRange"
+                    [refreshTrigger]="transferReportRefreshTrigger"
+                    (lineSelectEvent)="onGeneralLedgerLineSelect($event)"
+                    (sourceLinkSelect)="onOwnerStatementActivityLinkSelect($event)">
+                  </app-transfer-report>
                 }
               } @else if (selectedBankActivityKind === 'printChecks') {
                 @if (showGeneralLedgerDetail && activeJournalEntryId) {

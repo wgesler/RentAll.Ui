@@ -191,6 +191,8 @@ export interface TransferReportRowDisplay {
   securityDeposit: string;
   sdw: string;
   fee: string;
+  balance: string;
+  balanceIsAlert?: boolean;
   expectedIncomeValue: number;
   rentPlus4000Value: number;
   ownerRentValue: number;
@@ -198,6 +200,7 @@ export interface TransferReportRowDisplay {
   securityDepositValue: number;
   sdwValue: number;
   feeValue: number;
+  balanceValue: number;
   sortDateValue: number;
   journalEntryId?: string;
   journalEntryLineId?: string;

@@ -167,6 +167,7 @@ export class DataTableComponent implements OnChanges, OnInit, AfterViewInit, OnD
   @Input() applyAmountEnterCallback?: (item: PurposefulAny, event: Event) => void; // Callback for apply amount enter key
   @Input() selectionRowChangedCallback?: (item: PurposefulAny, checked: boolean) => void; // Checkbox toggle in manual apply mode
   @Input() totalsRow?: { [columnName: string]: string }; // Totals data for each column
+  @Input() totalsRowAlerts?: Record<string, boolean>;
   @Input() totalsLabel?: string = 'Total'; // Label for the totals row
   @Input() noDataMessage: string = 'No data found...'; // Message when table has no rows
   @Input() initialFilterVal: string = '';
@@ -280,6 +281,19 @@ export class DataTableComponent implements OnChanges, OnInit, AfterViewInit, OnD
     }
     // Keep previous footer behavior (default right), except date columns should center.
     return this.isDateColumn(column) ? 'center' : 'right';
+  }
+
+  getTotalsCellColor(column: ColumnData): string | null {
+    if (!this.totalsRow || !this.data?.length) {
+      return null;
+    }
+
+    const columnName = column.name || '';
+    if (this.totalsRowAlerts?.[columnName]) {
+      return '#d32f2f';
+    }
+
+    return '#333';
   }
 
   isApplyAmountOverDue(item: PurposefulAny): boolean {

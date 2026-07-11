@@ -71,6 +71,8 @@ export interface TransferDisplayList {
   propertyIds: string[];
   transferDate: string;
   propertyCode?: string;
+  reservationCode?: string;
+  contactName?: string;
   amount: number;
   amountDisplay?: string;
   splits: TransferSplit[];

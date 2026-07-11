@@ -50,14 +50,15 @@ export class TransfersListComponent implements OnInit, OnChanges, OnDestroy {
   private cancelTransfersLoad$ = new Subject<void>();
 
   readonly transferDisplayedColumns: ColumnSet = {
-    transferCode: { displayAs: 'Code', maxWidth: '15ch', sortType: 'natural', wrap: false },
     transferDate: { displayAs: 'Transfer Date', wrap: false, maxWidth: '15ch', alignment: 'center' },
-    amountDisplay: { displayAs: 'Amount', wrap: false, maxWidth: '12ch', alignment: 'right', headerAlignment: 'right' },
-    bankAccountDisplay: { displayAs: 'Bank Account', wrap: true, maxWidth: '25ch' },
+    transferCode: { displayAs: 'Code', maxWidth: '15ch', sortType: 'natural', wrap: false },
     propertyCode: { displayAs: 'Property', wrap: false, maxWidth: '15ch' },
-    accountDisplay: { displayAs: 'Account', wrap: true, maxWidth: '20ch' },
-    descriptionDisplay: { displayAs: 'Description', wrap: true, maxWidth: '25ch' },
+    reservationCode: { displayAs: 'Reservation', wrap: false, maxWidth: '15ch', sortType: 'natural' },
+    contactName: { displayAs: 'Contact', wrap: false, maxWidth: '20ch' },
     period: { displayAs: 'Period', maxWidth: '12ch', alignment: 'center' },
+    bankAccountDisplay: { displayAs: 'Bank Account', wrap: true, maxWidth: '25ch' },
+    descriptionDisplay: { displayAs: 'Description', wrap: true, maxWidth: '20ch' },
+    amountDisplay: { displayAs: 'Amount', wrap: false, maxWidth: '18ch', alignment: 'right', headerAlignment: 'right' },
     createdBy: { displayAs: 'Created By', wrap: false, maxWidth: '20ch' },
     isActive: { displayAs: 'IsActive', isCheckbox: true, checkboxEditable: false, wrap: false, alignment: 'center', maxWidth: '10ch' }
   };

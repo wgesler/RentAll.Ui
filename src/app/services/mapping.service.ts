@@ -732,6 +732,13 @@ export class MappingService {
     const rentPlus4000Value = Number(raw['rentPlus4000Value'] ?? raw['RentPlus4000Value'] ?? 0);
     const ownerRentValue = Number(raw['ownerRentValue'] ?? raw['OwnerRentValue'] ?? 0);
     const businessValue = Number(raw['businessValue'] ?? raw['BusinessValue'] ?? (rentPlus4000Value - ownerRentValue));
+    const expectedIncomeValue = Number(raw['expectedIncomeValue'] ?? raw['ExpectedIncomeValue'] ?? 0);
+    const securityDepositValue = Number(raw['securityDepositValue'] ?? raw['SecurityDepositValue'] ?? 0);
+    const sdwValue = Number(raw['sdwValue'] ?? raw['SdwValue'] ?? raw['SDWValue'] ?? 0);
+    const balanceValue = Math.round((
+      expectedIncomeValue - rentPlus4000Value - securityDepositValue - sdwValue - businessValue
+      + Number.EPSILON
+    ) * 100) / 100;
 
     return {
       propertyCode: String(raw['propertyCode'] ?? raw['PropertyCode'] ?? ''),
@@ -754,13 +761,16 @@ export class MappingService {
       securityDeposit: String(raw['securityDeposit'] ?? raw['SecurityDeposit'] ?? ''),
       sdw: String(raw['sdw'] ?? raw['Sdw'] ?? raw['SDW'] ?? ''),
       fee: String(raw['fee'] ?? raw['Fee'] ?? ''),
-      expectedIncomeValue: Number(raw['expectedIncomeValue'] ?? raw['ExpectedIncomeValue'] ?? 0),
+      balance: this.formatter.currencyUsd(balanceValue),
+      balanceIsAlert: balanceValue !== 0,
+      expectedIncomeValue,
       rentPlus4000Value,
       ownerRentValue,
       businessValue,
-      securityDepositValue: Number(raw['securityDepositValue'] ?? raw['SecurityDepositValue'] ?? 0),
-      sdwValue: Number(raw['sdwValue'] ?? raw['SdwValue'] ?? raw['SDWValue'] ?? 0),
+      securityDepositValue,
+      sdwValue,
       feeValue: Number(raw['feeValue'] ?? raw['FeeValue'] ?? 0),
+      balanceValue,
       sortDateValue: Number(raw['sortDateValue'] ?? raw['SortDateValue'] ?? 0),
       journalEntryId: String(raw['journalEntryId'] ?? raw['JournalEntryId'] ?? '').trim() || undefined,
       journalEntryLineId: String(raw['journalEntryLineId'] ?? raw['JournalEntryLineId'] ?? '').trim() || undefined
@@ -3385,8 +3395,10 @@ export class MappingService {
         officeName: transfer.officeName,
         propertyIds,
         transferDate: this.formatter.formatDateString(transfer.transferDate),
-        period: this.formatter.formatInvoiceListAccountingPeriod(transfer.accountingPeriod),
+        period: this.formatter.formatListAccountingPeriodDot(transfer.accountingPeriod),
         propertyCode: this.buildTransferPropertyCodesDisplay(propertyIds, splits),
+        reservationCode: this.buildTransferReservationCodesDisplay(splits),
+        contactName: this.buildTransferContactNamesDisplay(splits),
         descriptionDisplay: transfer.description || '',
         amount: transferAmount,
         amountDisplay: this.formatter.currencyUsd(transferAmount),
@@ -3420,6 +3432,28 @@ export class MappingService {
         }
       });
     return Array.from(codes).join(', ');
+  }
+
+  private buildTransferReservationCodesDisplay(splits: TransferSplit[]): string {
+    const codes = Array.from(
+      new Set(
+        (splits || [])
+          .map(split => (split.reservationCode || '').trim())
+          .filter(code => code.length > 0)
+      )
+    );
+    return codes.join(', ');
+  }
+
+  private buildTransferContactNamesDisplay(splits: TransferSplit[]): string {
+    const names = Array.from(
+      new Set(
+        (splits || [])
+          .map(split => (split.contactName || '').trim())
+          .filter(name => name.length > 0)
+      )
+    );
+    return names.join(', ');
   }
 
   mapTransferUpdateRequest(transfer: TransferResponse, isActive: boolean): TransferRequest {
