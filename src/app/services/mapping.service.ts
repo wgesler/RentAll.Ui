@@ -629,6 +629,7 @@ export class MappingService {
     return {
       ...base,
       journalEntryCode: String(raw['journalEntryCode'] ?? raw['JournalEntryCode'] ?? base.journalEntryCode ?? ''),
+      sourceCode: String(raw['sourceCode'] ?? raw['SourceCode'] ?? base.sourceCode ?? '').trim() || null,
       propertyCode: String(raw['propertyCode'] ?? raw['PropertyCode'] ?? base.propertyCode ?? '').trim() || null,
       reservationCode: String(raw['reservationCode'] ?? raw['ReservationCode'] ?? base.reservationCode ?? '').trim() || null,
       contactName: String(raw['contactName'] ?? raw['ContactName'] ?? base.contactName ?? '').trim() || null,
@@ -643,6 +644,7 @@ export class MappingService {
     return {
       ...base,
       journalEntryCode: String(raw['journalEntryCode'] ?? raw['JournalEntryCode'] ?? base.journalEntryCode ?? ''),
+      sourceCode: String(raw['sourceCode'] ?? raw['SourceCode'] ?? base.sourceCode ?? '').trim() || null,
       transactionDate: this.utility.coerceCalendarDateStringFromApi(raw['transactionDate'] ?? raw['TransactionDate'] ?? base.transactionDate) ?? base.transactionDate ?? '',
       postingDate: this.utility.coerceCalendarDateStringFromApi(raw['postingDate'] ?? raw['PostingDate'] ?? base.postingDate) ?? base.postingDate ?? '',
       journalEntryLines: rawLines.map(line => this.mapJournalEntryLineResponse(line))
@@ -777,6 +779,25 @@ export class MappingService {
     };
   }
 
+  private resolveJournalEntryLineSourceDisplay(
+    line: JournalEntryLineSearchResponse,
+    sourceTypes?: { value: number; label: string }[]
+  ): string {
+    const sourceCode = (line.sourceCode || '').trim();
+    if (sourceCode) {
+      return sourceCode;
+    }
+
+    if (line.sourceTypeId === SourceType.Reservation) {
+      const reservationCode = (line.reservationCode || '').trim();
+      if (reservationCode) {
+        return reservationCode;
+      }
+    }
+
+    return getSourceTypeLabel(line.sourceTypeId, sourceTypes);
+  }
+
   mapJournalEntryLineListDisplay(
     lines: JournalEntryLineSearchResponse[],
     chartOfAccounts?: ChartOfAccountResponse[],
@@ -821,7 +842,7 @@ export class MappingService {
         officeId: line.officeId,
         transactionDate: this.formatter.formatDateString(transactionDate),
         journalEntryCode: (line.journalEntryCode || '').trim(),
-        source: getSourceTypeLabel(line.sourceTypeId, sourceTypes),
+        source: this.resolveJournalEntryLineSourceDisplay(line, sourceTypes),
         sourceTypeId: line.sourceTypeId ?? null,
         sourceId: line.sourceId ?? null,
         sourceLinkable: isJournalEntrySourceNavigable(line.sourceTypeId) && !!(line.sourceId || '').trim(),

@@ -35,6 +35,7 @@ export interface JournalEntryLineSearchResponse {
   postingDate: CalendarDateString;
   sourceTypeId?: number | null;
   sourceId?: string | null;
+  sourceCode?: string | null;
   journalEntryMemo?: string | null;
   isPosted: boolean;
   isVoided: boolean;
@@ -65,6 +66,7 @@ export interface JournalEntryRequest {
   postingDate: CalendarDateString;
   sourceTypeId?: number | null;
   sourceId?: string | null;
+  sourceCode?: string | null;
   memo?: string | null;
   isPosted: boolean;
   isVoided: boolean;
@@ -100,6 +102,7 @@ export interface JournalEntryResponse {
   postingDate: CalendarDateString;
   sourceTypeId?: number | null;
   sourceId?: string | null;
+  sourceCode?: string | null;
   memo?: string | null;
   isPosted: boolean;
   isVoided: boolean;

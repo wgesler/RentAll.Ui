@@ -1309,47 +1309,18 @@ export class GeneralLedgerListComponent implements OnInit, OnDestroy, OnChanges 
     deposits: DepositResponse[] = [],
     escrowDepositAccountIds: number[] = []
   ): JournalEntryLineSearchResponse[] {
-    const openDebits = lines
-      .filter(line => this.getLineNetAmountFromSearchLine(line) > 0)
-      .sort((left, right) => this.compareUndepositedFundsLines(left, right));
-    const credits = lines
-      .filter(line => this.getLineNetAmountFromSearchLine(line) < 0)
-      .filter(line => Number(line.sourceTypeId) === SourceType.Transfer)
+    const openLines = lines
+      .filter(line => Math.abs(this.getLineNetAmountFromSearchLine(line)) > 0.005)
       .sort((left, right) => this.compareUndepositedFundsLines(left, right));
 
-    const settledDebitIds = new Set<string>();
-
-    for (const creditLine of credits) {
-      const creditAmount = Math.abs(this.getLineNetAmountFromSearchLine(creditLine));
-
-      for (const debitLine of openDebits) {
-        if (settledDebitIds.has(debitLine.journalEntryLineId)) {
-          continue;
-        }
-
-        const debitAmount = this.getLineNetAmountFromSearchLine(debitLine);
-        if (debitAmount <= 0 || !this.undepositedFundsLinesBalance(debitLine, creditLine, true)) {
-          continue;
-        }
-
-        if (Math.abs(debitAmount - creditAmount) <= 0.005) {
-          settledDebitIds.add(debitLine.journalEntryLineId);
-          break;
-        }
-      }
-    }
-
-    const transferSettledLineIds = this.buildTransferSettledDebitLineIds(
+    const transferSettledLineIds = this.buildTransferSettledLineIds(
       transfers,
       deposits,
-      openDebits,
+      openLines,
       escrowDepositAccountIds
     );
 
-    return openDebits.filter(line =>
-      !settledDebitIds.has(line.journalEntryLineId)
-      && !transferSettledLineIds.has(line.journalEntryLineId)
-    );
+    return openLines.filter(line => !transferSettledLineIds.has(line.journalEntryLineId));
   }
 
   private enrichUntransferredFundsLinesFromDeposits(
@@ -1447,10 +1418,10 @@ export class GeneralLedgerListComponent implements OnInit, OnDestroy, OnChanges 
     return String(lineId || '').trim().toLowerCase();
   }
 
-  private buildTransferSettledDebitLineIds(
+  private buildTransferSettledLineIds(
     transfers: TransferResponse[],
     deposits: DepositResponse[],
-    openDebitLines: JournalEntryLineSearchResponse[],
+    openLines: JournalEntryLineSearchResponse[],
     escrowDepositAccountIds: number[]
   ): Set<string> {
     const settledLineIds = new Set<string>();
@@ -1464,16 +1435,16 @@ export class GeneralLedgerListComponent implements OnInit, OnDestroy, OnChanges 
       }
     }
 
-    for (const debitLine of openDebitLines) {
-      const debitLineId = String(debitLine.journalEntryLineId || '').trim();
-      const debitAmount = this.getLineNetAmountFromSearchLine(debitLine);
-      if (!debitLineId || debitAmount <= 0) {
+    for (const line of openLines) {
+      const lineId = String(line.journalEntryLineId || '').trim();
+      const lineNet = this.getLineNetAmountFromSearchLine(line);
+      if (!lineId || Math.abs(lineNet) <= 0.005) {
         continue;
       }
 
-      const linkedLineIds = this.buildLinkedLineIdsForDebitLine(debitLine, depositById);
-      const openDebitsWithSameAmount = openDebitLines.filter(line =>
-        Math.abs(this.getLineNetAmountFromSearchLine(line) - debitAmount) <= 0.005
+      const linkedLineIds = this.buildLinkedLineIdsForOpenLine(line, depositById);
+      const openLinesWithSameNet = openLines.filter(openLine =>
+        Math.abs(this.getLineNetAmountFromSearchLine(openLine) - lineNet) <= 0.005
       );
 
       for (const transfer of transfers || []) {
@@ -1482,7 +1453,7 @@ export class GeneralLedgerListComponent implements OnInit, OnDestroy, OnChanges 
         }
 
         const transferAmount = Number(transfer.amount || 0);
-        if (Math.abs(transferAmount - debitAmount) > 0.005) {
+        if (Math.abs(transferAmount - lineNet) > 0.005) {
           continue;
         }
 
@@ -1506,18 +1477,18 @@ export class GeneralLedgerListComponent implements OnInit, OnDestroy, OnChanges 
 
         const splitLineIds = splits
           .map(split => this.normalizeJournalEntryLineId(split.journalEntryLineId))
-          .filter(lineId => lineId.length > 0);
-        const hasLineLink = splitLineIds.some(lineId => linkedLineIds.has(lineId));
-        if (hasLineLink || openDebitsWithSameAmount.length === 1) {
-          settledLineIds.add(debitLineId);
+          .filter(splitLineId => splitLineId.length > 0);
+        const hasLineLink = splitLineIds.some(splitLineId => linkedLineIds.has(splitLineId));
+        if (hasLineLink || openLinesWithSameNet.length === 1) {
+          settledLineIds.add(lineId);
           break;
         }
 
-        if (Number(debitLine.sourceTypeId) === SourceType.Deposit) {
-          const depositId = String(debitLine.sourceId || '').trim().toLowerCase();
+        if (Number(line.sourceTypeId) === SourceType.Deposit) {
+          const depositId = String(line.sourceId || '').trim().toLowerCase();
           const deposit = depositById.get(depositId);
           if (deposit && this.transferOverlapsDeposit(transfer, deposit)) {
-            settledLineIds.add(debitLineId);
+            settledLineIds.add(lineId);
             break;
           }
         }
@@ -1527,18 +1498,18 @@ export class GeneralLedgerListComponent implements OnInit, OnDestroy, OnChanges 
     return settledLineIds;
   }
 
-  private buildLinkedLineIdsForDebitLine(
-    debitLine: JournalEntryLineSearchResponse,
+  private buildLinkedLineIdsForOpenLine(
+    line: JournalEntryLineSearchResponse,
     depositById: Map<string, DepositResponse>
   ): Set<string> {
     const linkedLineIds = new Set<string>();
-    const debitLineId = this.normalizeJournalEntryLineId(debitLine.journalEntryLineId);
-    if (debitLineId) {
-      linkedLineIds.add(debitLineId);
+    const lineId = this.normalizeJournalEntryLineId(line.journalEntryLineId);
+    if (lineId) {
+      linkedLineIds.add(lineId);
     }
 
-    if (Number(debitLine.sourceTypeId) === SourceType.Deposit) {
-      const depositId = String(debitLine.sourceId || '').trim().toLowerCase();
+    if (Number(line.sourceTypeId) === SourceType.Deposit) {
+      const depositId = String(line.sourceId || '').trim().toLowerCase();
       const deposit = depositById.get(depositId);
       for (const split of deposit?.splits || []) {
         const splitLineId = this.normalizeJournalEntryLineId(split.journalEntryLineId);
@@ -1974,7 +1945,7 @@ export class GeneralLedgerListComponent implements OnInit, OnDestroy, OnChanges 
     depositSplit?: DepositSplit
   ): TransferSplit[] {
     const expectedIncome = Number(recapRow.expectedIncomeValue || 0);
-    const rent = this.scaleTransferAllocationAmount(recapRow.rentPlus4000Value, baseAmount, expectedIncome);
+    const ownerEscrow = this.scaleTransferAllocationAmount(recapRow.ownerRentValue, baseAmount, expectedIncome);
     const secDep = this.scaleTransferAllocationAmount(recapRow.securityDepositValue, baseAmount, expectedIncome);
     const sdw = this.scaleTransferAllocationAmount(recapRow.sdwValue, baseAmount, expectedIncome);
     const fees = this.scaleTransferAllocationAmount(recapRow.feeValue, baseAmount, expectedIncome);
@@ -1989,7 +1960,7 @@ export class GeneralLedgerListComponent implements OnInit, OnDestroy, OnChanges 
     );
     let bank = this.roundCurrencyValue(businessEarnings + fees);
 
-    const drift = this.roundCurrencyValue(baseAmount - (rent + secDep + sdw + bank));
+    const drift = this.roundCurrencyValue(baseAmount - (ownerEscrow + secDep + sdw + bank));
     if (drift !== 0) {
       bank = this.roundCurrencyValue(bank + drift);
     }
@@ -2002,7 +1973,7 @@ export class GeneralLedgerListComponent implements OnInit, OnDestroy, OnChanges 
     const description = source ? `Transfer ${source}` : 'Transfer';
 
     const allocations: Array<{ amount: number; accountId: number | null }> = [
-      { amount: rent, accountId: accountIds.owners },
+      { amount: ownerEscrow, accountId: accountIds.owners },
       { amount: secDep, accountId: accountIds.secDep },
       { amount: sdw, accountId: accountIds.sdw },
       { amount: bank, accountId: accountIds.bank }

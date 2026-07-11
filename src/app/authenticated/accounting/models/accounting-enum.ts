@@ -66,7 +66,9 @@ export enum SourceType {
   YtdAdjustment = 19,
   LiabilityAdjustment = 20,
   Transfer = 21,
-  WorkOrder = 22
+  WorkOrder = 22,
+  Reservation = 23,
+  LinensAndTowels = 24
 }
 
 export const SourceTypeCodes: Record<SourceType, string> = {
@@ -93,6 +95,8 @@ export const SourceTypeCodes: Record<SourceType, string> = {
   [SourceType.LiabilityAdjustment]: 'LADJ',
   [SourceType.Transfer]: 'TRAN',
   [SourceType.WorkOrder]: 'WO',
+  [SourceType.Reservation]: 'RES',
+  [SourceType.LinensAndTowels]: 'LIN',
 };
 
 export const SourceTypeLabels: { value: SourceType, label: string }[] = [
@@ -119,6 +123,8 @@ export const SourceTypeLabels: { value: SourceType, label: string }[] = [
   { value: SourceType.LiabilityAdjustment, label: 'Liability Adjustment' },
   { value: SourceType.Transfer, label: 'Transfer' },
   { value: SourceType.WorkOrder, label: 'Work Order' },
+  { value: SourceType.Reservation, label: 'Reservation' },
+  { value: SourceType.LinensAndTowels, label: 'Linens & Towels' },
 ];
 
 export function getSourceTypeCode(sourceTypeId: number | undefined | null): string {

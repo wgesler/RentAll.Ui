@@ -100,6 +100,11 @@ export class GeneralLedgerComponent implements OnInit, OnDestroy, OnChanges {
 
   //#region Get Methods
   getSourceTypeLabel(): string {
+    const sourceCode = (this.journalEntry?.sourceCode || '').trim();
+    if (sourceCode) {
+      return sourceCode;
+    }
+
     return getSourceTypeLabel(this.journalEntry?.sourceTypeId, SourceTypeLabels);
   }
 
