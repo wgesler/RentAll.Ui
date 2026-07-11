@@ -25,6 +25,7 @@ import { BankCardService } from '../services/bank-card.service';
 import { OfficeService } from '../services/office.service';
 import { CostCodesService } from '../../accounting/services/cost-codes.service';
 import { ChartOfAccountsService } from '../../accounting/services/chart-of-accounts.service';
+import { ChartOfAccountResponse } from '../../accounting/models/chart-of-accounts.model';
 import { SearchableSelectComponent, SearchableSelectOption } from '../../shared/searchable-select/searchable-select.component';
 
 @Component({
@@ -67,6 +68,7 @@ export class AccountingOfficeComponent implements OnInit, OnDestroy, OnChanges {
 
   costCodeOptions: { value: number; label: string }[] = [];
   chartOfAccountOptions: SearchableSelectOption<number>[] = [];
+  allChartOfAccounts: ChartOfAccountResponse[] = [];
   defaultTenantOwnerCompanyAccountFieldsRow1: { controlName: string; label: string }[] = [
     { controlName: 'defaultTenantIncAccountId', label: 'Tenant Income' },
     { controlName: 'defaultTenantExpAccountId', label: 'Tenant Expense' },
@@ -129,6 +131,15 @@ export class AccountingOfficeComponent implements OnInit, OnDestroy, OnChanges {
     this.organizationId = this.authService.getUser()?.organizationId?.trim() ?? '';
     this.loadStates();
     this.loadOffices();
+    this.chartOfAccountsService.ensureChartOfAccountsLoaded().pipe(take(1)).subscribe(() => {
+      this.chartOfAccountsService.getAllChartOfAccounts().pipe(takeUntil(this.destroy$)).subscribe(accounts => {
+        this.allChartOfAccounts = accounts || [];
+        const officeId = Number(this.form?.get('officeId')?.value ?? this.accountingOffice?.officeId ?? 0);
+        if (officeId > 0) {
+          this.loadChartOfAccountsForOffice(officeId);
+        }
+      });
+    });
 
     this.officeService.areOfficesLoaded().pipe(filter(loaded => loaded === true), take(1)).subscribe(() => {
       if (!this.id) {
@@ -576,27 +587,18 @@ export class AccountingOfficeComponent implements OnInit, OnDestroy, OnChanges {
       return;
     }
 
-    this.chartOfAccountsService.getChartOfAccountsByOfficeId(parsedOfficeId).pipe(take(1)).subscribe({
-      next: accounts => {
-        const sortedAccounts = (accounts || [])
-          .map(account => ({
-            value: account.accountId,
-            label: this.utilityService.getChartOfAccountDropdownLabel(account),
-            accountTypeId: account.accountTypeId
-          }))
-          .sort((a, b) => a.label.localeCompare(b.label, undefined, { sensitivity: 'base' }));
-        this.chartOfAccountOptions = sortedAccounts.map(({ value, label }) => ({ value, label }));
-        this.setBankCardChartOfAccountOptions(sortedAccounts);
-        onLoaded?.();
-        this.cdr.markForCheck();
-      },
-      error: () => {
-        this.chartOfAccountOptions = [];
-        this.setBankCardChartOfAccountOptions([]);
-        onLoaded?.();
-        this.cdr.markForCheck();
-      }
-    });
+    const accounts = this.allChartOfAccounts.filter(account => account.officeId === parsedOfficeId);
+    const sortedAccounts = accounts
+      .map(account => ({
+        value: account.accountId,
+        label: this.utilityService.getChartOfAccountDropdownLabel(account),
+        accountTypeId: account.accountTypeId
+      }))
+      .sort((a, b) => a.label.localeCompare(b.label, undefined, { sensitivity: 'base' }));
+    this.chartOfAccountOptions = sortedAccounts.map(({ value, label }) => ({ value, label }));
+    this.setBankCardChartOfAccountOptions(sortedAccounts);
+    onLoaded?.();
+    this.cdr.markForCheck();
   }
 
   parseOptionalAccountId(value: unknown): number | null {

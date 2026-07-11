@@ -11,6 +11,7 @@ import { UtilityService } from '../../../services/utility.service';
 import { PropertyCodeResponse, PropertyResponse } from '../../properties/models/property.model';
 import { PropertyService } from '../../properties/services/property.service';
 import { OfficeResponse } from '../../organizations/models/office.model';
+import { AccountingOfficeResponse } from '../../organizations/models/accounting-office.model';
 import { OfficeService } from '../../organizations/services/office.service';
 import { SearchableSelectComponent, SearchableSelectOption } from '../../shared/searchable-select/searchable-select.component';
 import { AccountType } from '../models/accounting-enum';
@@ -42,8 +43,10 @@ export class DepositComponent implements OnInit, OnChanges, OnDestroy, AfterView
   isPageReady = false;
   organizationId = '';
   deposit: DepositResponse | null = null;
+  chartOfAccounts: ChartOfAccountResponse[] = [];
   propertyOptions: PropertyCodeResponse[] = [];
   offices: OfficeResponse[] = [];
+  accountingOffices: AccountingOfficeResponse[] = [];
   bankAccountOptions: SearchableSelectOption<number>[] = [];
   splitAccountOptions: SearchableSelectOption<number>[] = [];
   splitTotalValidationError = false;
@@ -95,7 +98,7 @@ export class DepositComponent implements OnInit, OnChanges, OnDestroy, AfterView
     this.isAddMode = this.depositId == null;
     this.loadOffices();
     this.loadPropertyCodes();
-    this.accountingOfficeService.ensureAccountingOfficesLoaded().pipe(take(1)).subscribe();
+    this.loadAccountingOffices();
     this.loadChartOfAccounts();
     if (this.isAddMode) {
       this.clearDepositLoading();
@@ -116,7 +119,7 @@ export class DepositComponent implements OnInit, OnChanges, OnDestroy, AfterView
   ngOnChanges(changes: SimpleChanges): void {
     if (changes['officeId'] && !changes['officeId'].firstChange) {
       this.applyShellOfficeToDeposit();
-      this.loadChartOfAccounts();
+      this.applyChartOfAccountsForOffice();
     }
     if (changes['property']) {
       this.applyPropertyInputToForm();
@@ -255,7 +258,7 @@ export class DepositComponent implements OnInit, OnChanges, OnDestroy, AfterView
       next: (deposit: DepositResponse) => {
         this.deposit = deposit;
         this.populateForm(deposit);
-        this.loadChartOfAccounts();
+        this.applyChartOfAccountsForOffice();
         this.cdr.markForCheck();
       },
       error: (_err: HttpErrorResponse) => {
@@ -293,32 +296,41 @@ export class DepositComponent implements OnInit, OnChanges, OnDestroy, AfterView
   }
 
   loadChartOfAccounts(): void {
+    this.chartOfAccountsService.ensureChartOfAccountsLoaded().pipe(take(1)).subscribe(() => {
+      this.chartOfAccountsService.getAllChartOfAccounts().pipe(takeUntil(this.destroy$)).subscribe(accounts => {
+        this.chartOfAccounts = accounts || [];
+        this.applyChartOfAccountsForOffice();
+      });
+    });
+  }
+
+  loadAccountingOffices(): void {
+    this.accountingOfficeService.ensureAccountingOfficesLoaded().pipe(take(1)).subscribe(() => {
+      this.accountingOfficeService.getAllAccountingOffices().pipe(takeUntil(this.destroy$)).subscribe(accountingOffices => {
+        this.accountingOffices = accountingOffices || [];
+        this.applyChartOfAccountsForOffice();
+        this.cdr.markForCheck();
+      });
+    });
+  }
+
+  applyChartOfAccountsForOffice(): void {
     const officeId = this.getDepositOfficeId();
     if (!officeId) {
       this.bankAccountOptions = [];
       this.splitAccountOptions = [];
-      this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'accounts');
       return;
     }
 
-    this.utilityService.addLoadItem(this.itemsToLoad$, 'accounts');
-    this.chartOfAccountsService.getChartOfAccountsByOfficeId(officeId).pipe(take(1), finalize(() => this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'accounts')) ).subscribe({
-      next: (accounts) => {
-        const bankAccounts = (accounts || []).filter(account => Number(account.accountTypeId) === AccountType.Bank);
-        this.bankAccountOptions = bankAccounts.map(account => ({
-          value: account.accountId,
-          label: this.utilityService.getChartOfAccountDropdownLabel(account)
-        }));
-        this.splitAccountOptions = this.buildSplitAccountOptions(accounts || [], officeId);
-        this.applyDefaultSplitAccountIfNeeded();
-        this.cdr.markForCheck();
-      },
-      error: () => {
-        this.bankAccountOptions = [];
-        this.splitAccountOptions = [];
-        this.cdr.markForCheck();
-      }
-    });
+    const accounts = this.chartOfAccounts.filter(account => account.officeId === officeId);
+    const bankAccounts = accounts.filter(account => Number(account.accountTypeId) === AccountType.Bank);
+    this.bankAccountOptions = bankAccounts.map(account => ({
+      value: account.accountId,
+      label: this.utilityService.getChartOfAccountDropdownLabel(account)
+    }));
+    this.splitAccountOptions = this.buildSplitAccountOptions(accounts, officeId);
+    this.applyDefaultSplitAccountIfNeeded();
+    this.cdr.markForCheck();
   }
   //#endregion
 
@@ -767,8 +779,7 @@ export class DepositComponent implements OnInit, OnChanges, OnDestroy, AfterView
   }
 
   getDefaultUndepositedFundsAccountId(officeId: number): number | null {
-    const accountingOffice = this.accountingOfficeService.getAllAccountingOfficesValue()
-      .find(office => Number(office.officeId) === officeId);
+    const accountingOffice = this.accountingOffices.find(office => Number(office.officeId) === officeId);
     const accountId = Number(accountingOffice?.defaultUndepFundsAccountId ?? 0);
     return accountId > 0 ? accountId : null;
   }
@@ -802,7 +813,7 @@ export class DepositComponent implements OnInit, OnChanges, OnDestroy, AfterView
     }
     const office = this.offices.find(item => item.officeId === officeId);
     this.form.patchValue({ officeName: office?.name || '' }, { emitEvent: false });
-    this.loadChartOfAccounts();
+    this.applyChartOfAccountsForOffice();
   }
 
   applyPropertyInputToForm(): void {
@@ -814,7 +825,7 @@ export class DepositComponent implements OnInit, OnChanges, OnDestroy, AfterView
       officeName: this.property?.officeName || ''
     });
     this.applyDefaultPropertyId(propertyId);
-    this.loadChartOfAccounts();
+    this.applyChartOfAccountsForOffice();
   }
 
   getDateControlValue(value: string | null | undefined): Date | null {

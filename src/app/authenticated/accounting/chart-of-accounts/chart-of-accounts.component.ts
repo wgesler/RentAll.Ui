@@ -42,6 +42,7 @@ export class ChartOfAccountComponent implements OnInit, OnDestroy, OnChanges {
   saveAttempted = false;
   accountTypes = AccountTypeLabels.map(({ value, label }) => ({ value, label }));
   parentAccountOptions: { value: number; label: string }[] = [];
+  allChartOfAccounts: ChartOfAccountResponse[] = [];
 
   organizationId = '';
   offices: OfficeResponse[] = [];
@@ -68,6 +69,12 @@ export class ChartOfAccountComponent implements OnInit, OnDestroy, OnChanges {
     this.organizationId = this.authService.getUser()?.organizationId?.trim() ?? '';
     this.buildForm();
     this.loadOffices();
+    this.chartOfAccountsService.ensureChartOfAccountsLoaded().pipe(take(1)).subscribe(() => {
+      this.chartOfAccountsService.getAllChartOfAccounts().pipe(takeUntil(this.destroy$)).subscribe(accounts => {
+        this.allChartOfAccounts = accounts || [];
+        this.refreshParentAccountOptions();
+      });
+    });
 
     this.officeService.areOfficesLoaded().pipe(filter(loaded => loaded === true), take(1)).subscribe(() => {
       this.syncSelectedOfficeFromInput();
@@ -206,7 +213,7 @@ export class ChartOfAccountComponent implements OnInit, OnDestroy, OnChanges {
           CommonMessage.Success,
           { timeOut: CommonTimeouts.Success }
         );
-        this.chartOfAccountsService.refreshAllChartOfAccounts();
+        this.chartOfAccountsService.notifyChartOfAccountsChanged();
         if (this.isAddMode) {
           this.resetFormForNewEntry();
         } else {
@@ -309,7 +316,8 @@ export class ChartOfAccountComponent implements OnInit, OnDestroy, OnChanges {
       return;
     }
     const currentAccountId = this.isAddMode ? null : this.accountId;
-    this.parentAccountOptions = this.chartOfAccountsService.getChartOfAccountsForOffice(officeId)
+    this.parentAccountOptions = this.allChartOfAccounts
+      .filter(account => account.officeId === officeId)
       .filter(account => account.accountId !== currentAccountId)
       .map(account => ({
         value: account.accountId,
@@ -384,9 +392,6 @@ export class ChartOfAccountComponent implements OnInit, OnDestroy, OnChanges {
 
   //#region Utility Methods
   back(): void {
-    if (this.selectedOffice) {
-      this.chartOfAccountsService.refreshChartOfAccountsForOffice(this.selectedOffice.officeId).pipe(take(1)).subscribe();
-    }
     this.backEvent.emit();
   }
 

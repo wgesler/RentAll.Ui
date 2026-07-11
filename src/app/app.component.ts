@@ -1,7 +1,7 @@
 import { Component, OnDestroy, OnInit } from '@angular/core';
 import { NavigationStart, Router, RouterOutlet } from '@angular/router';
 import { ToastrService } from 'ngx-toastr';
-import { BehaviorSubject, Observable, Subject, catchError, filter, finalize, map, of, take, takeUntil } from 'rxjs';
+import { BehaviorSubject, Observable, Subject, catchError, filter, finalize, forkJoin, map, of, take, takeUntil } from 'rxjs';
 import { ChartOfAccountsService } from './authenticated/accounting/services/chart-of-accounts.service';
 import { CostCodesService } from './authenticated/accounting/services/cost-codes.service';
 import { ContactService } from './authenticated/contacts/services/contact.service';
@@ -32,7 +32,7 @@ export class AppComponent implements OnInit, OnDestroy {
   title = 'RentAll.Ui';
   organizationId: string = '';
   isLoggedIn: Observable<boolean> = this.authService.getIsLoggedIn$();
-  itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['states', 'dailyQuote', 'organizations', 'branding', 'contacts', 'offices', 'features', 'accountingOffices', 'costCodes']));
+  itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['states', 'dailyQuote', 'organizations', 'branding', 'contacts', 'offices', 'features', 'accountingOffices', 'costCodes', 'chartOfAccounts']));
   isLoading$: Observable<boolean> = this.itemsToLoad$.pipe(map(items => items.size > 0));
   destroy$ = new Subject<void>();
   private readonly propertySelectionDomains: Array<{ name: string; prefixes: string[] }> = [
@@ -177,13 +177,20 @@ export class AppComponent implements OnInit, OnDestroy {
   }
 
   loadCostCodes(): void {
-    this.costCodesService.ensureCostCodesLoaded().pipe(
+    forkJoin({
+      costCodes: this.costCodesService.ensureCostCodesLoaded().pipe(take(1)),
+      chartOfAccounts: this.chartOfAccountsService.ensureChartOfAccountsLoaded().pipe(take(1))
+    }).pipe(
       take(1),
-      finalize(() => { this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'costCodes'); })
+      finalize(() => {
+        this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'costCodes');
+        this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'chartOfAccounts');
+      })
     ).subscribe({
       next: () => {},
       error: () => {
         this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'costCodes');
+        this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'chartOfAccounts');
       }
     });
   }

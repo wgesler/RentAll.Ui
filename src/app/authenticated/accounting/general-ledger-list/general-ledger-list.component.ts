@@ -4,7 +4,7 @@ import { ChangeDetectionStrategy, ChangeDetectorRef, Component, ElementRef, Even
 import { FormsModule } from '@angular/forms';
 import { HttpErrorResponse } from '@angular/common/http';
 import { DomSanitizer, SafeHtml } from '@angular/platform-browser';
-import { BehaviorSubject, Subject, catchError, filter, finalize, forkJoin, merge, of, take, takeUntil } from 'rxjs';
+import { BehaviorSubject, Subject, catchError, filter, finalize, forkJoin, merge, of, switchMap, take, takeUntil, throwError } from 'rxjs';
 import { ToastrService } from 'ngx-toastr';
 import { CommonMessage } from '../../../enums/common-message.enum';
 import { AuthService } from '../../../services/auth.service';
@@ -16,20 +16,22 @@ import { DocumentHtmlService } from '../../../services/document-html.service';
 import { OfficeResponse } from '../../organizations/models/office.model';
 import { OfficeService } from '../../organizations/services/office.service';
 import { AccountingOfficeService } from '../../organizations/services/accounting-office.service';
+import { AccountingOfficeResponse } from '../../organizations/models/accounting-office.model';
 import { DataTableComponent } from '../../shared/data-table/data-table.component';
 import { DataTableFilterActionsDirective } from '../../shared/data-table/data-table-filter-actions.directive';
 import { ColumnSet } from '../../shared/data-table/models/column-data';
 import { AccountType, SourceType, SourceTypeLabels } from '../models/accounting-enum';
 import { ChartOfAccountResponse } from '../models/chart-of-accounts.model';
-import { JournalEntryLineListDisplay, JournalEntryLineSearchResponse } from '../models/journal-entry.model';
+import { JournalEntryLineListDisplay, JournalEntryLineSearchResponse, TransferReportRowDisplay } from '../models/journal-entry.model';
 import { ChartOfAccountsService } from '../services/chart-of-accounts.service';
 import { CheckHtmlService } from '../services/check-html.service';
 import { CheckPrintService } from '../services/check-print.service';
 import { DepositRequest, DepositResponse, DepositSplit } from '../models/deposit.model';
 import { DepositService } from '../services/deposit.service';
-import { TransferResponse } from '../models/transfer.model';
+import { TransferRequest, TransferResponse, TransferSplit } from '../models/transfer.model';
 import { TransferService } from '../services/transfer.service';
 import { GeneralLedgerService } from '../services/general-ledger.service';
+import { ReportService } from '../services/report.service';
 
 @Component({
   selector: 'app-general-ledger-list',
@@ -52,10 +54,13 @@ export class GeneralLedgerListComponent implements OnInit, OnDestroy, OnChanges 
   @Input() refreshTrigger = 0;
   @Output() lineSelectEvent = new EventEmitter<{ journalEntryId: string; journalEntryLineId: string }>();
   @Output() depositCompletedEvent = new EventEmitter<void>();
+  @Output() transferCompletedEvent = new EventEmitter<void>();
 
   selectedJournalEntryLineIds = new Set<string>();
   showDepositSelections = false;
   showDepositForm = false;
+  showTransferSelections = false;
+  showTransferForm = false;
   showCheckPreview = false;
   isLoadingCheckPreview = false;
   checkPreviewTitle = 'Check Preview';
@@ -73,9 +78,16 @@ export class GeneralLedgerListComponent implements OnInit, OnDestroy, OnChanges 
   depositAmount = 0;
   depositAmountDisplay = '$0.00';
 
+  isSubmittingTransfer = false;
+  transferOfficeId: number | null = null;
+  transferDate: Date | null = new Date();
+  transferAmount = 0;
+  transferAmountDisplay = '$0.00';
+
   isServiceError = false;
   organizationId = '';
   offices: OfficeResponse[] = [];
+  accountingOffices: AccountingOfficeResponse[] = [];
   chartOfAccounts: ChartOfAccountResponse[] = [];
   allLines: JournalEntryLineSearchResponse[] = [];
   linesDisplay: JournalEntryLineListDisplay[] = [];
@@ -115,6 +127,7 @@ export class GeneralLedgerListComponent implements OnInit, OnDestroy, OnChanges 
     private authService: AuthService,
     private depositService: DepositService,
     private transferService: TransferService,
+    private reportService: ReportService,
     private utilityService: UtilityService,
     private toastr: ToastrService,
     private cdr: ChangeDetectorRef) {
@@ -141,13 +154,16 @@ export class GeneralLedgerListComponent implements OnInit, OnDestroy, OnChanges 
     }
     this.loadOffices();
     this.loadChartOfAccounts();
-    this.accountingOfficeService.ensureAccountingOfficesLoaded().pipe(take(1)).subscribe();
+    this.loadAccountingOffices();
   }
 
   ngOnChanges(changes: SimpleChanges): void {
     if (changes['officeId'] && !changes['officeId'].firstChange) {
       if (this.showDepositForm) {
         this.cancelDepositForm();
+      }
+      if (this.showTransferForm) {
+        this.cancelTransferForm();
       }
       if (this.showCheckPreview) {
         this.closeCheckPreview();
@@ -172,6 +188,8 @@ export class GeneralLedgerListComponent implements OnInit, OnDestroy, OnChanges 
         this.cancelDepositForm();
       } else if (this.undepositedFundsOnly) {
         this.clearDepositLineSelection();
+      } else if (this.untransferredFundsOnly && this.showTransferForm) {
+        this.cancelTransferForm();
       } else if (this.untransferredFundsOnly) {
         this.clearUntransferredFundsLineSelection();
       } else if (this.printChecksOnly) {
@@ -183,6 +201,10 @@ export class GeneralLedgerListComponent implements OnInit, OnDestroy, OnChanges 
 
   get showDepositTableSelections(): boolean {
     return this.undepositedFundsOnly && this.showDepositSelections;
+  }
+
+  get showTransferTableSelections(): boolean {
+    return this.untransferredFundsOnly && this.showTransferSelections;
   }
 
   get showPrintCheckTableSelections(): boolean {
@@ -197,6 +219,10 @@ export class GeneralLedgerListComponent implements OnInit, OnDestroy, OnChanges 
     return this.depositOfficeId ?? this.officeId ?? null;
   }
 
+  get resolvedTransferOfficeId(): number | null {
+    return this.transferOfficeId ?? this.officeId ?? null;
+  }
+
   get isDepositSelectionMode(): boolean {
     return this.showDepositForm && this.showDepositTableSelections;
   }
@@ -208,6 +234,15 @@ export class GeneralLedgerListComponent implements OnInit, OnDestroy, OnChanges 
       && this.depositAmount !== 0
       && (this.depositDescription || '').trim().length > 0
       && this.selectedJournalEntryLineIds.size > 0;
+  }
+
+  get isTransferSelectionMode(): boolean {
+    return this.showTransferForm && this.showTransferTableSelections;
+  }
+
+  get isTransferFormValid(): boolean {
+    const hasTransferDate = this.utilityService.toDateOnlyJsonString(this.transferDate) !== null;
+    return hasTransferDate && this.transferAmount !== 0;
   }
 
   openMakeDepositDialog(): void {
@@ -322,6 +357,136 @@ export class GeneralLedgerListComponent implements OnInit, OnDestroy, OnChanges 
     });
   }
 
+  openMakeTransferDialog(): void {
+    if (!this.officeId) {
+      this.toastr.warning('Please select an office first');
+      return;
+    }
+
+    this.transferOfficeId = this.officeId;
+    this.showTransferSelections = true;
+    this.transferDate = this.transferDate ?? new Date();
+    this.showTransferForm = true;
+    this.applyLinesDisplay();
+    this.markViewForCheck();
+  }
+
+  cancelTransferForm(): void {
+    this.showTransferForm = false;
+    this.showTransferSelections = false;
+    this.clearTransferForm();
+    this.applyLinesDisplay();
+    this.markViewForCheck();
+  }
+
+  submitTransfer(): void {
+    if (this.isSubmittingTransfer || !this.isTransferFormValid) {
+      return;
+    }
+
+    const officeId = this.resolvedTransferOfficeId;
+    if (!officeId) {
+      this.toastr.warning('Please select an office first');
+      return;
+    }
+
+    const selectedLines = this.linesDisplay.filter(line =>
+      this.selectedJournalEntryLineIds.has(line.journalEntryLineId)
+    );
+    if (selectedLines.length === 0) {
+      this.toastr.warning('Select one or more untransferred funds lines to transfer.');
+      return;
+    }
+
+    const transferDate = this.utilityService.toDateOnlyJsonString(this.transferDate)
+      ?? this.utilityService.todayAsCalendarDateString();
+
+    if (!this.organizationId) {
+      this.toastr.warning('Organization is required.');
+      return;
+    }
+
+    const escrowDepositAccountId = this.getDefaultEscrowDepositAccountId(officeId);
+    if (!escrowDepositAccountId) {
+      this.toastr.error('Escrow Deposits account is not configured for this office.', CommonMessage.Error);
+      return;
+    }
+
+    const allocationAccountIds = this.resolveTransferAllocationAccountIds(officeId);
+    if (!allocationAccountIds.owners || !allocationAccountIds.bank) {
+      this.toastr.error('Owner escrow and bank accounts must be configured for this office.', CommonMessage.Error);
+      return;
+    }
+
+    const officeIds = [officeId];
+    const startDate = this.searchDateRange?.startDate ?? null;
+    const endDate = this.searchDateRange?.endDate ?? null;
+
+    this.isSubmittingTransfer = true;
+    forkJoin({
+      transferReport: this.reportService.searchTransferReport({ officeIds, startDate, endDate }),
+      deposits: this.depositService.searchDeposits({
+        officeIds,
+        isActive: true,
+        includeInactive: false
+      })
+    }).pipe(
+      switchMap(({ transferReport, deposits }) => {
+        const splits = this.buildTransferSplitsFromRecap(
+          selectedLines,
+          transferReport.rows || [],
+          deposits || [],
+          officeId
+        );
+        const validationMessage = this.validateBuiltTransferSplits(splits, allocationAccountIds);
+        if (validationMessage) {
+          return throwError(() => new Error(validationMessage));
+        }
+
+        const splitTotal = splits.reduce(
+          (sum, split) => this.roundCurrencyValue(sum + Number(split.amount || 0)),
+          0
+        );
+        const scaledSplits = this.scaleTransferSplitsToAmount(splits, this.transferAmount, splitTotal);
+
+        const payload: TransferRequest = {
+          organizationId: this.organizationId,
+          officeId,
+          transferDate,
+          accountingPeriod: transferDate,
+          amount: this.transferAmount,
+          description: 'Transfer',
+          bankAccountId: escrowDepositAccountId,
+          propertyId: scaledSplits.find(split => (split.propertyId || '').trim().length > 0)?.propertyId ?? null,
+          splits: scaledSplits,
+          isActive: true
+        };
+
+        return this.transferService.createTransfer(payload);
+      }),
+      finalize(() => {
+        this.isSubmittingTransfer = false;
+        this.markViewForCheck();
+      }),
+      takeUntil(this.destroy$)
+    ).subscribe({
+      next: () => {
+        this.toastr.success('Transfer created and funds moved to destination accounts.', CommonMessage.Success);
+        this.cancelTransferForm();
+        this.loadJournalEntryLines();
+        this.transferCompletedEvent.emit();
+      },
+      error: (error: HttpErrorResponse | Error) => {
+        const apiMessage = error instanceof HttpErrorResponse
+          ? (typeof error.error === 'string'
+            ? error.error
+            : error.error?.title || error.error?.message || error.message)
+          : error.message;
+        this.toastr.error(apiMessage || 'Unable to create transfer.', CommonMessage.Error);
+      }
+    });
+  }
+
   onDepositLineSelectionSet(selection: SelectionModel<unknown>): void {
     if (!this.showDepositTableSelections) {
       return;
@@ -331,6 +496,20 @@ export class GeneralLedgerListComponent implements OnInit, OnDestroy, OnChanges 
 
     if (this.isDepositSelectionMode) {
       this.syncDepositAmountFromLineSelection();
+    }
+
+    this.markViewForCheck();
+  }
+
+  onTransferLineSelectionSet(selection: SelectionModel<unknown>): void {
+    if (!this.showTransferTableSelections) {
+      return;
+    }
+
+    this.applyLineSelectionSet(selection, line => this.getLineNetAmount(line) > 0);
+
+    if (this.isTransferSelectionMode) {
+      this.syncTransferAmountFromLineSelection();
     }
 
     this.markViewForCheck();
@@ -356,6 +535,8 @@ export class GeneralLedgerListComponent implements OnInit, OnDestroy, OnChanges 
   onTableLineSelectionSet(selection: SelectionModel<unknown>): void {
     if (this.showDepositTableSelections) {
       this.onDepositLineSelectionSet(selection);
+    } else if (this.showTransferTableSelections) {
+      this.onTransferLineSelectionSet(selection);
     } else if (this.showPrintCheckTableSelections) {
       this.onPrintCheckLineSelectionSet(selection);
     }
@@ -444,7 +625,7 @@ export class GeneralLedgerListComponent implements OnInit, OnDestroy, OnChanges 
   }
 
   onLineSelect(row: JournalEntryLineListDisplay): void {
-    if (this.showDepositForm || this.showCheckPreview || !row?.journalEntryId) {
+    if (this.showDepositForm || this.showTransferForm || this.showCheckPreview || !row?.journalEntryId) {
       return;
     }
     this.lineSelectEvent.emit({
@@ -477,19 +658,24 @@ export class GeneralLedgerListComponent implements OnInit, OnDestroy, OnChanges 
     });
   }
 
+  loadAccountingOffices(): void {
+    this.accountingOfficeService.ensureAccountingOfficesLoaded().pipe(take(1)).subscribe(() => {
+      this.accountingOfficeService.getAllAccountingOffices().pipe(takeUntil(this.destroy$)).subscribe(accountingOffices => {
+        this.accountingOffices = accountingOffices || [];
+        this.markViewForCheck();
+      });
+    });
+  }
+
   loadChartOfAccounts(): void {
-    this.chartOfAccountsService.ensureChartOfAccountsLoaded$().pipe(
+    this.chartOfAccountsService.ensureChartOfAccountsLoaded().pipe(
       take(1),
       finalize(() => this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'chartOfAccounts'))
-    ).subscribe({
-      next: accounts => {
+    ).subscribe(() => {
+      this.chartOfAccountsService.getAllChartOfAccounts().pipe(takeUntil(this.destroy$)).subscribe(accounts => {
         this.chartOfAccounts = accounts || [];
         this.markViewForCheck();
-      },
-      error: () => {
-        this.chartOfAccounts = [];
-        this.markViewForCheck();
-      }
+      });
     });
   }
 
@@ -507,7 +693,11 @@ export class GeneralLedgerListComponent implements OnInit, OnDestroy, OnChanges 
           this.clearDepositLineSelection();
         }
       } else if (this.untransferredFundsOnly) {
-        this.clearUntransferredFundsLineSelection();
+        if (this.showTransferForm) {
+          this.cancelTransferForm();
+        } else {
+          this.clearUntransferredFundsLineSelection();
+        }
       } else if (this.printChecksOnly) {
         this.clearPrintCheckLineSelection();
       }
@@ -541,6 +731,8 @@ export class GeneralLedgerListComponent implements OnInit, OnDestroy, OnChanges 
       this.isServiceError = false;
       if (this.showDepositForm) {
         this.cancelDepositForm();
+      } else if (this.showTransferForm) {
+        this.cancelTransferForm();
       } else if (this.undepositedFundsOnly) {
         this.clearDepositLineSelection();
       } else if (this.untransferredFundsOnly) {
@@ -566,7 +758,11 @@ export class GeneralLedgerListComponent implements OnInit, OnDestroy, OnChanges 
         this.clearDepositLineSelection();
       }
     } else if (this.untransferredFundsOnly) {
-      this.clearUntransferredFundsLineSelection();
+      if (this.showTransferForm) {
+        this.cancelTransferForm();
+      } else {
+        this.clearUntransferredFundsLineSelection();
+      }
     }
 
     this.isServiceError = false;
@@ -601,6 +797,53 @@ export class GeneralLedgerListComponent implements OnInit, OnDestroy, OnChanges 
           return;
         }
 
+        if (this.untransferredFundsOnly) {
+          forkJoin({
+            transfers: this.transferService.searchTransfers({
+              officeIds,
+              isActive: true,
+              includeInactive: false
+            }),
+            deposits: this.depositService.searchDeposits({
+              officeIds,
+              isActive: true,
+              includeInactive: false
+            })
+          }).pipe(takeUntil(loadUntil)).subscribe({
+            next: ({ transfers, deposits }) => {
+              if (this.journalEntryLinesLoadId !== loadId) {
+                return;
+              }
+
+              const refinedLines = this.filterJournalEntryLinesByMode(
+                lines || [],
+                filteredAccountIds,
+                usesFixedAccountFilter,
+                deposits,
+                transfers
+              );
+              this.applyLoadedJournalEntryLines(refinedLines, loadId);
+              this.finishJournalEntryLinesLoad(loadId);
+            },
+            error: () => {
+              if (this.journalEntryLinesLoadId !== loadId) {
+                return;
+              }
+
+              const refinedLines = this.filterJournalEntryLinesByMode(
+                lines || [],
+                filteredAccountIds,
+                usesFixedAccountFilter,
+                [],
+                []
+              );
+              this.applyLoadedJournalEntryLines(refinedLines, loadId);
+              this.finishJournalEntryLinesLoad(loadId);
+            }
+          });
+          return;
+        }
+
         const resolvedLines = this.filterJournalEntryLinesByMode(
           lines || [],
           filteredAccountIds,
@@ -628,36 +871,6 @@ export class GeneralLedgerListComponent implements OnInit, OnDestroy, OnChanges 
                 usesFixedAccountFilter,
                 deposits,
                 null
-              );
-              this.applyLoadedJournalEntryLines(refinedLines, loadId);
-            }
-          });
-        }
-
-        if (this.untransferredFundsOnly) {
-          forkJoin({
-            transfers: this.transferService.searchTransfers({
-              officeIds,
-              isActive: true,
-              includeInactive: false
-            }),
-            deposits: this.depositService.searchDeposits({
-              officeIds,
-              isActive: true,
-              includeInactive: false
-            })
-          }).pipe(takeUntil(loadUntil)).subscribe({
-            next: ({ transfers, deposits }) => {
-              if (this.journalEntryLinesLoadId !== loadId) {
-                return;
-              }
-
-              const refinedLines = this.filterJournalEntryLinesByMode(
-                lines || [],
-                filteredAccountIds,
-                usesFixedAccountFilter,
-                deposits,
-                transfers
               );
               this.applyLoadedJournalEntryLines(refinedLines, loadId);
             }
@@ -717,9 +930,13 @@ export class GeneralLedgerListComponent implements OnInit, OnDestroy, OnChanges 
       resolvedLines = this.filterUndepositedFundsOpenLines(resolvedLines, depositedLineIds);
     }
     if (this.untransferredFundsOnly) {
-      const transferredLineIds = this.buildTransferredJournalEntryLineIds(transfers || []);
-      const openLines = this.filterUntransferredFundsOpenLines(resolvedLines, transferredLineIds);
-      resolvedLines = this.enrichUntransferredFundsLinesFromDeposits(openLines, deposits || []);
+      const enrichedLines = this.enrichUntransferredFundsLinesFromDeposits(resolvedLines, deposits || []);
+      resolvedLines = this.filterUntransferredFundsOpenLines(
+        enrichedLines,
+        transfers || [],
+        deposits || [],
+        filteredAccountIds
+      );
     }
     return resolvedLines;
   }
@@ -761,9 +978,10 @@ export class GeneralLedgerListComponent implements OnInit, OnDestroy, OnChanges 
       SourceTypeLabels
     ).map(line => ({
       ...line,
-      selected: (this.showDepositTableSelections || this.showPrintCheckTableSelections)
+      selected: (this.showDepositTableSelections || this.showTransferTableSelections || this.showPrintCheckTableSelections)
         && this.selectedJournalEntryLineIds.has(line.journalEntryLineId),
       disabled: (this.showDepositTableSelections && this.getLineNetAmount(line) <= 0)
+        || (this.showTransferTableSelections && this.getLineNetAmount(line) <= 0)
         || (this.showPrintCheckTableSelections && !this.isPrintCheckLineSelectable(line))
     }));
   }
@@ -871,6 +1089,10 @@ export class GeneralLedgerListComponent implements OnInit, OnDestroy, OnChanges 
     this.selectedJournalEntryLineIds.clear();
   }
 
+  clearTransferLineSelection(): void {
+    this.selectedJournalEntryLineIds.clear();
+  }
+
   clearDepositForm(): void {
     this.selectedDepositBankChartOfAccountId = null;
     this.depositTransactionType = '';
@@ -880,6 +1102,14 @@ export class GeneralLedgerListComponent implements OnInit, OnDestroy, OnChanges 
     this.depositAmountDisplay = this.formatDepositAmountDisplay(0);
     this.depositOfficeId = null;
     this.clearDepositLineSelection();
+  }
+
+  clearTransferForm(): void {
+    this.transferDate = new Date();
+    this.transferAmount = 0;
+    this.transferAmountDisplay = this.formatTransferAmountDisplay(0);
+    this.transferOfficeId = null;
+    this.clearTransferLineSelection();
   }
 
   refreshDepositBankChartOfAccounts(): void {
@@ -893,7 +1123,8 @@ export class GeneralLedgerListComponent implements OnInit, OnDestroy, OnChanges 
       return;
     }
 
-    this.depositBankChartOfAccounts = (this.chartOfAccountsService.getChartOfAccountsForOffice(officeId) || [])
+    this.depositBankChartOfAccounts = this.chartOfAccounts
+      .filter(account => account.officeId === officeId)
       .filter(account => Number(account.accountTypeId) === AccountType.Bank)
       .sort((left, right) => {
         const leftLabel = `${left.accountNo || ''} ${left.name || ''}`.trim();
@@ -932,6 +1163,19 @@ export class GeneralLedgerListComponent implements OnInit, OnDestroy, OnChanges 
 
     this.depositAmount = totalAmount;
     this.depositAmountDisplay = this.formatDepositAmountDisplay(totalAmount);
+  }
+
+  syncTransferAmountFromLineSelection(): void {
+    let totalAmount = 0;
+    for (const lineId of this.selectedJournalEntryLineIds) {
+      const row = this.linesDisplay.find(line => line.journalEntryLineId === lineId);
+      if (row) {
+        totalAmount = this.roundCurrencyValue(totalAmount + this.getLineNetAmount(row));
+      }
+    }
+
+    this.transferAmount = totalAmount;
+    this.transferAmountDisplay = this.formatTransferAmountDisplay(totalAmount);
   }
 
   getLineNetAmount(line: Pick<JournalEntryLineListDisplay, 'debitValue' | 'creditValue'>): number {
@@ -985,7 +1229,9 @@ export class GeneralLedgerListComponent implements OnInit, OnDestroy, OnChanges 
 
   private filterUntransferredFundsOpenLines(
     lines: JournalEntryLineSearchResponse[],
-    transferredLineIds: Set<string> = new Set()
+    transfers: TransferResponse[] = [],
+    deposits: DepositResponse[] = [],
+    escrowDepositAccountIds: number[] = []
   ): JournalEntryLineSearchResponse[] {
     const openDebits = lines
       .filter(line => this.getLineNetAmountFromSearchLine(line) > 0)
@@ -998,7 +1244,7 @@ export class GeneralLedgerListComponent implements OnInit, OnDestroy, OnChanges 
     const settledDebitIds = new Set<string>();
 
     for (const creditLine of credits) {
-      let remainingCredit = Math.abs(this.getLineNetAmountFromSearchLine(creditLine));
+      const creditAmount = Math.abs(this.getLineNetAmountFromSearchLine(creditLine));
 
       for (const debitLine of openDebits) {
         if (settledDebitIds.has(debitLine.journalEntryLineId)) {
@@ -1006,21 +1252,27 @@ export class GeneralLedgerListComponent implements OnInit, OnDestroy, OnChanges 
         }
 
         const debitAmount = this.getLineNetAmountFromSearchLine(debitLine);
-        if (debitAmount <= 0 || !this.undepositedFundsLinesBalance(debitLine, creditLine)) {
+        if (debitAmount <= 0 || !this.undepositedFundsLinesBalance(debitLine, creditLine, true)) {
           continue;
         }
 
-        if (Math.abs(debitAmount - remainingCredit) <= 0.005) {
+        if (Math.abs(debitAmount - creditAmount) <= 0.005) {
           settledDebitIds.add(debitLine.journalEntryLineId);
-          remainingCredit = 0;
           break;
         }
       }
     }
 
+    const transferSettledLineIds = this.buildTransferSettledDebitLineIds(
+      transfers,
+      deposits,
+      openDebits,
+      escrowDepositAccountIds
+    );
+
     return openDebits.filter(line =>
       !settledDebitIds.has(line.journalEntryLineId)
-      && !transferredLineIds.has(line.journalEntryLineId)
+      && !transferSettledLineIds.has(line.journalEntryLineId)
     );
   }
 
@@ -1115,19 +1367,131 @@ export class GeneralLedgerListComponent implements OnInit, OnDestroy, OnChanges 
     return depositedLineIds;
   }
 
-  private buildTransferredJournalEntryLineIds(transfers: TransferResponse[]): Set<string> {
-    const transferredLineIds = new Set<string>();
+  private normalizeJournalEntryLineId(lineId?: string | null): string {
+    return String(lineId || '').trim().toLowerCase();
+  }
 
-    for (const transfer of transfers || []) {
-      for (const split of transfer.splits || []) {
-        const journalEntryLineId = String(split.journalEntryLineId || '').trim();
-        if (journalEntryLineId) {
-          transferredLineIds.add(journalEntryLineId);
+  private buildTransferSettledDebitLineIds(
+    transfers: TransferResponse[],
+    deposits: DepositResponse[],
+    openDebitLines: JournalEntryLineSearchResponse[],
+    escrowDepositAccountIds: number[]
+  ): Set<string> {
+    const settledLineIds = new Set<string>();
+    const escrowAccountIdSet = new Set(escrowDepositAccountIds);
+    const depositById = new Map<string, DepositResponse>();
+
+    for (const deposit of deposits || []) {
+      const depositId = String(deposit.depositId || '').trim().toLowerCase();
+      if (depositId) {
+        depositById.set(depositId, deposit);
+      }
+    }
+
+    for (const debitLine of openDebitLines) {
+      const debitLineId = String(debitLine.journalEntryLineId || '').trim();
+      const debitAmount = this.getLineNetAmountFromSearchLine(debitLine);
+      if (!debitLineId || debitAmount <= 0) {
+        continue;
+      }
+
+      const linkedLineIds = this.buildLinkedLineIdsForDebitLine(debitLine, depositById);
+      const openDebitsWithSameAmount = openDebitLines.filter(line =>
+        Math.abs(this.getLineNetAmountFromSearchLine(line) - debitAmount) <= 0.005
+      );
+
+      for (const transfer of transfers || []) {
+        if (transfer.isActive === false) {
+          continue;
+        }
+
+        const transferAmount = Number(transfer.amount || 0);
+        if (Math.abs(transferAmount - debitAmount) > 0.005) {
+          continue;
+        }
+
+        const bankAccountId = Number(transfer.bankAccountId || 0);
+        if (escrowAccountIdSet.size > 0 && bankAccountId > 0 && !escrowAccountIdSet.has(bankAccountId)) {
+          continue;
+        }
+
+        const splits = transfer.splits || [];
+        if (splits.length === 0) {
+          continue;
+        }
+
+        const splitTotal = splits.reduce(
+          (sum, split) => this.roundCurrencyValue(sum + Number(split.amount || 0)),
+          0
+        );
+        if (Math.abs(splitTotal - transferAmount) > 0.005) {
+          continue;
+        }
+
+        const splitLineIds = splits
+          .map(split => this.normalizeJournalEntryLineId(split.journalEntryLineId))
+          .filter(lineId => lineId.length > 0);
+        const hasLineLink = splitLineIds.some(lineId => linkedLineIds.has(lineId));
+        if (hasLineLink || openDebitsWithSameAmount.length === 1) {
+          settledLineIds.add(debitLineId);
+          break;
+        }
+
+        if (Number(debitLine.sourceTypeId) === SourceType.Deposit) {
+          const depositId = String(debitLine.sourceId || '').trim().toLowerCase();
+          const deposit = depositById.get(depositId);
+          if (deposit && this.transferOverlapsDeposit(transfer, deposit)) {
+            settledLineIds.add(debitLineId);
+            break;
+          }
         }
       }
     }
 
-    return transferredLineIds;
+    return settledLineIds;
+  }
+
+  private buildLinkedLineIdsForDebitLine(
+    debitLine: JournalEntryLineSearchResponse,
+    depositById: Map<string, DepositResponse>
+  ): Set<string> {
+    const linkedLineIds = new Set<string>();
+    const debitLineId = this.normalizeJournalEntryLineId(debitLine.journalEntryLineId);
+    if (debitLineId) {
+      linkedLineIds.add(debitLineId);
+    }
+
+    if (Number(debitLine.sourceTypeId) === SourceType.Deposit) {
+      const depositId = String(debitLine.sourceId || '').trim().toLowerCase();
+      const deposit = depositById.get(depositId);
+      for (const split of deposit?.splits || []) {
+        const splitLineId = this.normalizeJournalEntryLineId(split.journalEntryLineId);
+        if (splitLineId) {
+          linkedLineIds.add(splitLineId);
+        }
+      }
+    }
+
+    return linkedLineIds;
+  }
+
+  private transferOverlapsDeposit(transfer: TransferResponse, deposit: DepositResponse): boolean {
+    const transferPropertyIds = new Set(
+      (transfer.splits || [])
+        .map(split => this.normalizeUndepositedFundsId(split.propertyId))
+        .filter(propertyId => propertyId.length > 0)
+    );
+    const depositPropertyIds = new Set(
+      (deposit.splits || [])
+        .map(split => this.normalizeUndepositedFundsId(split.propertyId))
+        .filter(propertyId => propertyId.length > 0)
+    );
+
+    if (transferPropertyIds.size === 0 || depositPropertyIds.size === 0) {
+      return true;
+    }
+
+    return [...transferPropertyIds].some(propertyId => depositPropertyIds.has(propertyId));
   }
 
   private compareUndepositedFundsLines(
@@ -1151,12 +1515,17 @@ export class GeneralLedgerListComponent implements OnInit, OnDestroy, OnChanges 
 
   private undepositedFundsLinesBalance(
     debitLine: JournalEntryLineSearchResponse,
-    creditLine: JournalEntryLineSearchResponse
+    creditLine: JournalEntryLineSearchResponse,
+    transferCreditMatch = false
   ): boolean {
     const debitAmount = this.getLineNetAmountFromSearchLine(debitLine);
     const creditAmount = Math.abs(this.getLineNetAmountFromSearchLine(creditLine));
     if (Math.abs(debitAmount - creditAmount) > 0.005) {
       return false;
+    }
+
+    if (transferCreditMatch) {
+      return true;
     }
 
     if (!this.undepositedFundsLinesShareProperty(debitLine, creditLine)) {
@@ -1249,6 +1618,41 @@ export class GeneralLedgerListComponent implements OnInit, OnDestroy, OnChanges 
     input.blur();
   }
 
+  formatTransferAmountDisplay(amount: number): string {
+    return this.formatDepositAmountDisplay(amount);
+  }
+
+  onTransferAmountInput(event: Event): void {
+    const input = event.target as HTMLInputElement;
+    let value = input.value.replace(/[^0-9.-]/g, '');
+    const hasLeadingMinus = value.startsWith('-');
+    const unsignedValue = value.replace(/-/g, '');
+    const normalizedValue = hasLeadingMinus ? `-${unsignedValue}` : unsignedValue;
+    const parts = normalizedValue.split('.');
+    input.value = parts.length > 2 ? `${parts[0]}.${parts.slice(1).join('')}` : normalizedValue;
+    this.transferAmountDisplay = input.value;
+  }
+
+  onTransferAmountBlur(event: Event): void {
+    const input = event.target as HTMLInputElement;
+    const rawValue = input.value.replace(/[^0-9.-]/g, '').trim();
+    const parsed = rawValue ? parseFloat(rawValue) : NaN;
+    this.transferAmount = isNaN(parsed) ? 0 : parsed;
+    this.transferAmountDisplay = this.formatTransferAmountDisplay(this.transferAmount);
+    input.value = this.transferAmountDisplay;
+  }
+
+  onTransferAmountFocus(event: Event): void {
+    const input = event.target as HTMLInputElement;
+    input.value = this.transferAmount.toString();
+    input.select();
+  }
+
+  onTransferAmountEnter(event: Event): void {
+    const input = event.target as HTMLInputElement;
+    input.blur();
+  }
+
   resolveOfficeIds(): number[] {
     if (this.officeId != null && this.officeId > 0) {
       return [this.officeId];
@@ -1292,18 +1696,359 @@ export class GeneralLedgerListComponent implements OnInit, OnDestroy, OnChanges 
   }
 
   getDefaultEscrowDepositAccountId(officeId: number): number | null {
-    const accountingOffice = this.accountingOfficeService.getAllAccountingOfficesValue()
-      .find(office => Number(office.officeId) === officeId);
+    const accountingOffice = this.accountingOffices.find(office => Number(office.officeId) === officeId);
     const accountId = Number(accountingOffice?.defaultEscrowDepositAccountId ?? 0);
     return accountId > 0 ? accountId : null;
   }
 
-  getChartOfAccountsForOfficeIds(officeIds: number[]): ChartOfAccountResponse[] {
-    if (officeIds.length === 1) {
-      return this.chartOfAccountsService.getChartOfAccountsForOffice(officeIds[0]) || [];
+  private resolveTransferAllocationAccountIds(officeId: number): {
+    owners: number | null;
+    secDep: number | null;
+    sdw: number | null;
+    bank: number | null;
+  } {
+    const accountingOffice = this.accountingOffices.find(office => Number(office.officeId) === officeId);
+    const toAccountId = (value: number | null | undefined): number | null => {
+      const accountId = Number(value ?? 0);
+      return accountId > 0 ? accountId : null;
+    };
+
+    return {
+      owners: toAccountId(accountingOffice?.defaultEscrowOwnersAccountId),
+      secDep: toAccountId(accountingOffice?.defaultEscrowSecDepAccountId),
+      sdw: toAccountId(accountingOffice?.defaultEscrowSdwAccountId),
+      bank: toAccountId(accountingOffice?.defaultBankAccountId)
+    };
+  }
+
+  private normalizeTransferSourceKey(value: string | null | undefined): string {
+    return (value || '').trim().toUpperCase();
+  }
+
+  private findTransferReportRowForLine(
+    line: JournalEntryLineListDisplay,
+    rows: TransferReportRowDisplay[]
+  ): TransferReportRowDisplay | null {
+    const lineId = String(line.journalEntryLineId || '').trim();
+    if (lineId) {
+      const byLineId = rows.find(row => String(row.journalEntryLineId || '').trim() === lineId);
+      if (byLineId) {
+        return byLineId;
+      }
     }
 
-    const allAccounts = this.chartOfAccountsService.getAllChartOfAccountsValue() || [];
+    const journalEntryCode = (line.journalEntryCode || '').trim();
+    if (journalEntryCode) {
+      const byJournalEntryCode = rows.find(row =>
+        this.normalizeTransferSourceKey(row.source) === this.normalizeTransferSourceKey(journalEntryCode)
+        || this.normalizeTransferSourceKey(row.journalEntryCode) === this.normalizeTransferSourceKey(journalEntryCode)
+      );
+      if (byJournalEntryCode) {
+        return byJournalEntryCode;
+      }
+    }
+
+    const sourceKey = this.normalizeTransferSourceKey(line.source);
+    if (sourceKey) {
+      const bySource = rows.find(row => this.normalizeTransferSourceKey(row.source) === sourceKey);
+      if (bySource) {
+        return bySource;
+      }
+    }
+
+    const propertyId = (line.propertyId || '').trim();
+    const reservationId = (line.reservationId || '').trim();
+    if (propertyId || reservationId) {
+      const candidates = rows.filter(row =>
+        (!propertyId || (row.propertyId || '').trim() === propertyId)
+        && (!reservationId || (row.reservationId || '').trim() === reservationId)
+      );
+      if (candidates.length === 1) {
+        return candidates[0];
+      }
+    }
+
+    return null;
+  }
+
+  private findTransferReportRowForDepositSplit(
+    split: DepositSplit,
+    rows: TransferReportRowDisplay[],
+    journalEntryLines: JournalEntryLineSearchResponse[]
+  ): TransferReportRowDisplay | null {
+    const splitLineId = String(split.journalEntryLineId || '').trim();
+    if (splitLineId) {
+      const byLineId = rows.find(row => String(row.journalEntryLineId || '').trim() === splitLineId);
+      if (byLineId) {
+        return byLineId;
+      }
+
+      const sourceLine = journalEntryLines.find(line =>
+        String(line.journalEntryLineId || '').trim() === splitLineId
+      );
+      if (sourceLine) {
+        const journalEntryCode = (sourceLine.journalEntryCode || '').trim();
+        if (journalEntryCode) {
+          const byJournalEntryCode = rows.find(row =>
+            this.normalizeTransferSourceKey(row.source) === this.normalizeTransferSourceKey(journalEntryCode)
+            || this.normalizeTransferSourceKey(row.journalEntryCode) === this.normalizeTransferSourceKey(journalEntryCode)
+          );
+          if (byJournalEntryCode) {
+            return byJournalEntryCode;
+          }
+        }
+      }
+    }
+
+    const propertyId = (split.propertyId || '').trim();
+    const reservationId = (split.reservationId || '').trim();
+    if (propertyId || reservationId) {
+      const candidates = rows.filter(row =>
+        (!propertyId || (row.propertyId || '').trim() === propertyId)
+        && (!reservationId || (row.reservationId || '').trim() === reservationId)
+      );
+      if (candidates.length === 1) {
+        return candidates[0];
+      }
+    }
+
+    return null;
+  }
+
+  private buildTransferSplitsFromRecap(
+    selectedLines: JournalEntryLineListDisplay[],
+    transferReportRows: TransferReportRowDisplay[],
+    deposits: DepositResponse[],
+    officeId: number
+  ): TransferSplit[] {
+    const accountIds = this.resolveTransferAllocationAccountIds(officeId);
+    const splits: TransferSplit[] = [];
+    const processedDepositIds = new Set<string>();
+
+    for (const line of selectedLines) {
+      if (Number(line.sourceTypeId) === SourceType.Deposit) {
+        const depositId = String(line.sourceId || '').trim();
+        if (!depositId || processedDepositIds.has(depositId)) {
+          continue;
+        }
+        processedDepositIds.add(depositId);
+
+        const deposit = deposits.find(item => String(item.depositId || '').trim() === depositId);
+        const depositSplits = (deposit?.splits || []).filter(split => Number(split.amount || 0) !== 0);
+        if (depositSplits.length === 0) {
+          const recapRow = this.findTransferReportRowForLine(line, transferReportRows);
+          if (recapRow) {
+            splits.push(...this.buildTransferSplitsFromRecapRow(
+              recapRow,
+              this.getLineNetAmount(line),
+              line,
+              accountIds
+            ));
+          }
+          continue;
+        }
+
+        for (const depositSplit of depositSplits) {
+          const recapRow = this.findTransferReportRowForDepositSplit(
+            depositSplit,
+            transferReportRows,
+            this.allLines
+          );
+          if (!recapRow) {
+            continue;
+          }
+
+          splits.push(...this.buildTransferSplitsFromRecapRow(
+            recapRow,
+            Number(depositSplit.amount || 0),
+            line,
+            accountIds,
+            depositSplit
+          ));
+        }
+        continue;
+      }
+
+      const recapRow = this.findTransferReportRowForLine(line, transferReportRows);
+      if (!recapRow) {
+        continue;
+      }
+
+      splits.push(...this.buildTransferSplitsFromRecapRow(
+        recapRow,
+        this.getLineNetAmount(line),
+        line,
+        accountIds
+      ));
+    }
+
+    return splits;
+  }
+
+  private buildTransferSplitsFromRecapRow(
+    recapRow: TransferReportRowDisplay,
+    baseAmount: number,
+    contextLine: JournalEntryLineListDisplay,
+    accountIds: {
+      owners: number | null;
+      secDep: number | null;
+      sdw: number | null;
+      bank: number | null;
+    },
+    depositSplit?: DepositSplit
+  ): TransferSplit[] {
+    const expectedIncome = Number(recapRow.expectedIncomeValue || 0);
+    const rent = this.scaleTransferAllocationAmount(recapRow.rentPlus4000Value, baseAmount, expectedIncome);
+    const secDep = this.scaleTransferAllocationAmount(recapRow.securityDepositValue, baseAmount, expectedIncome);
+    const sdw = this.scaleTransferAllocationAmount(recapRow.sdwValue, baseAmount, expectedIncome);
+    const fees = this.scaleTransferAllocationAmount(recapRow.feeValue, baseAmount, expectedIncome);
+    const businessEarnings = this.scaleTransferAllocationAmount(
+      expectedIncome
+        - recapRow.ownerRentValue
+        - recapRow.securityDepositValue
+        - recapRow.sdwValue
+        - recapRow.feeValue,
+      baseAmount,
+      expectedIncome
+    );
+    let bank = this.roundCurrencyValue(businessEarnings + fees);
+
+    const drift = this.roundCurrencyValue(baseAmount - (rent + secDep + sdw + bank));
+    if (drift !== 0) {
+      bank = this.roundCurrencyValue(bank + drift);
+    }
+
+    const propertyId = (depositSplit?.propertyId || recapRow.propertyId || contextLine.propertyId || '').trim() || null;
+    const reservationId = (depositSplit?.reservationId || recapRow.reservationId || contextLine.reservationId || '').trim() || null;
+    const contactId = (depositSplit?.contactId || contextLine.contactId || '').trim() || null;
+    const journalEntryLineId = (contextLine.journalEntryLineId || depositSplit?.journalEntryLineId || '').trim() || null;
+    const source = (recapRow.source || contextLine.source || '').trim();
+    const description = source ? `Transfer ${source}` : 'Transfer';
+
+    const allocations: Array<{ amount: number; accountId: number | null }> = [
+      { amount: rent, accountId: accountIds.owners },
+      { amount: secDep, accountId: accountIds.secDep },
+      { amount: sdw, accountId: accountIds.sdw },
+      { amount: bank, accountId: accountIds.bank }
+    ];
+
+    const splits: TransferSplit[] = [];
+    for (const allocation of allocations) {
+      const amount = this.roundCurrencyValue(allocation.amount);
+      if (amount === 0 || !allocation.accountId) {
+        continue;
+      }
+
+      splits.push({
+        amount,
+        description,
+        propertyId,
+        reservationId,
+        contactId,
+        journalEntryLineId,
+        chartOfAccountId: allocation.accountId
+      });
+    }
+
+    return splits;
+  }
+
+  private scaleTransferAllocationAmount(value: number, baseAmount: number, expectedIncome: number): number {
+    const amount = Number(value || 0);
+    if (!Number.isFinite(amount) || amount === 0) {
+      return 0;
+    }
+
+    if (expectedIncome <= 0) {
+      return this.roundCurrencyValue(amount);
+    }
+
+    return this.roundCurrencyValue(amount * (baseAmount / expectedIncome));
+  }
+
+  private scaleTransferSplitsToAmount(
+    splits: TransferSplit[],
+    targetAmount: number,
+    currentTotal: number
+  ): TransferSplit[] {
+    const target = this.roundCurrencyValue(targetAmount);
+    const current = this.roundCurrencyValue(currentTotal);
+    if (current === 0 || target === current) {
+      return splits;
+    }
+
+    const ratio = target / current;
+    const scaled = splits.map(split => ({
+      ...split,
+      amount: this.roundCurrencyValue(Number(split.amount || 0) * ratio)
+    }));
+    const scaledTotal = scaled.reduce(
+      (sum, split) => this.roundCurrencyValue(sum + Number(split.amount || 0)),
+      0
+    );
+    const drift = this.roundCurrencyValue(target - scaledTotal);
+    if (drift !== 0 && scaled.length > 0) {
+      const lastSplit = scaled[scaled.length - 1];
+      lastSplit.amount = this.roundCurrencyValue(Number(lastSplit.amount || 0) + drift);
+    }
+
+    return scaled;
+  }
+
+  private validateBuiltTransferSplits(
+    splits: TransferSplit[],
+    accountIds: {
+      owners: number | null;
+      secDep: number | null;
+      sdw: number | null;
+      bank: number | null;
+    }
+  ): string | null {
+    if (splits.length === 0) {
+      return 'Unable to resolve transfer allocations from the Journal Entry Recap for the selected lines.';
+    }
+
+    const totals = splits.reduce((acc, split) => {
+      const amount = Number(split.amount || 0);
+      const accountId = Number(split.chartOfAccountId || 0);
+      if (accountId === accountIds.owners) {
+        acc.owners += amount;
+      } else if (accountId === accountIds.secDep) {
+        acc.secDep += amount;
+      } else if (accountId === accountIds.sdw) {
+        acc.sdw += amount;
+      } else if (accountId === accountIds.bank) {
+        acc.bank += amount;
+      }
+      return acc;
+    }, { owners: 0, secDep: 0, sdw: 0, bank: 0 });
+
+    if (totals.secDep !== 0 && !accountIds.secDep) {
+      return 'Security deposit escrow account is not configured for this office.';
+    }
+    if (totals.sdw !== 0 && !accountIds.sdw) {
+      return 'SDW escrow account is not configured for this office.';
+    }
+
+    return null;
+  }
+
+  getTransferDestinationAccountIds(officeId: number): number[] {
+    const accountingOffice = this.accountingOffices.find(office => Number(office.officeId) === officeId);
+    return [
+      Number(accountingOffice?.defaultEscrowSecDepAccountId ?? 0),
+      Number(accountingOffice?.defaultEscrowSdwAccountId ?? 0),
+      Number(accountingOffice?.defaultEscrowOwnersAccountId ?? 0),
+      Number(accountingOffice?.defaultBankAccountId ?? 0)
+    ].filter(accountId => accountId > 0);
+  }
+
+  getChartOfAccountsForOfficeIds(officeIds: number[]): ChartOfAccountResponse[] {
+    if (officeIds.length === 1) {
+      return this.chartOfAccounts.filter(account => account.officeId === officeIds[0]);
+    }
+
+    const allAccounts = this.chartOfAccounts;
     return allAccounts.filter(account => officeIds.includes(account.officeId));
   }
 

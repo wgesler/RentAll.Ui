@@ -18,7 +18,7 @@ Do not change how these are consumed.
 
 ## Group B — one sanctioned pattern, no exceptions
 
-Offices, Accounting offices, Cost codes, Contacts, Features, and the office-selection stream.
+Offices, Accounting offices, Cost codes, Chart of accounts, Contacts, Features, and the office-selection stream.
 
 ### The pattern: `ensure...Loaded()` → live `getAll...()`
 
@@ -64,7 +64,7 @@ this.officeService
 - **One-shot only** — `ensureOfficesLoaded().pipe(take(1))` with no follow-on
   live `getAll...()` subscription. You must subscribe and stay subscribed.
 - **Sync snapshot as a load** — `getAllOfficesValue()`, `getAllAccountingOfficesValue()`,
-  `getAllCostCodesValue()`, `getAllContactsValue()`, `getSelectedOfficeIdValue()`
+  `getAllCostCodesValue()`, `getAllChartOfAccountsValue()`, `getAllContactsValue()`, `getSelectedOfficeIdValue()`
   used to populate component data.
 - **Raw HTTP** — `getOffices()`, `getOfficesByOrganization()`, `loadAllOffices()`,
   `getAccountingOffices()`, `loadAllAccountingOffices()`, `loadAllCostCodes()`,

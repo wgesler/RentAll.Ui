@@ -282,16 +282,16 @@ export class RentRollEditLineDialogComponent {
       return;
     }
 
-    this.chartOfAccountsService.ensureChartOfAccountsLoaded();
-    this.chartOfAccountsService.areChartOfAccountsLoaded().pipe(take(1)).subscribe({
-      next: () => {
-        this.chartOfAccountOptions = (this.chartOfAccountsService.getChartOfAccountsForOffice(officeId) || [])
+    this.chartOfAccountsService.ensureChartOfAccountsLoaded().pipe(take(1)).subscribe(() => {
+      this.chartOfAccountsService.getAllChartOfAccounts().pipe(take(1)).subscribe(accounts => {
+        this.chartOfAccountOptions = (accounts || [])
+          .filter(account => account.officeId === officeId)
           .map(account => ({
             value: account.accountId,
             label: this.utilityService.getChartOfAccountDropdownLabel(account)
           }))
           .sort((a, b) => a.label.localeCompare(b.label, undefined, { sensitivity: 'base' }));
-      }
+      });
     });
   }
 }

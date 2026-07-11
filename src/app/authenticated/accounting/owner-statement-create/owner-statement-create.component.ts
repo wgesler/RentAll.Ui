@@ -202,26 +202,20 @@ export class OwnerStatementCreateComponent extends BaseDocumentComponent impleme
 
   //#region Data Load Methods
   loadOffices(): void {
-    this.officeService.ensureOfficesLoaded(this.organizationId).pipe(take(1), finalize(() => this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'offices'))).subscribe({
-      next: () => {
-        this.offices = this.officeService.getAllOfficesValue() || [];
+    this.officeService.ensureOfficesLoaded(this.organizationId).pipe(take(1), finalize(() => this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'offices'))).subscribe(() => {
+      this.officeService.getAllOffices().pipe(takeUntil(this.destroy$)).subscribe(offices => {
+        this.offices = offices || [];
         this.applyLineSelections();
-      },
-      error: () => {
-        this.offices = [];
-      }
+      });
     });
   }
 
   loadAccountingOffices(): void {
-    this.accountingOfficeService.ensureAccountingOfficesLoaded().pipe(take(1), finalize(() => this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'accountingOffices'))).subscribe({
-      next: rows => {
-        this.accountingOffices = rows || [];
+    this.accountingOfficeService.ensureAccountingOfficesLoaded().pipe(take(1), finalize(() => this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'accountingOffices'))).subscribe(() => {
+      this.accountingOfficeService.getAllAccountingOffices().pipe(takeUntil(this.destroy$)).subscribe(accountingOffices => {
+        this.accountingOffices = accountingOffices || [];
         this.applyLineSelections();
-      },
-      error: () => {
-        this.accountingOffices = [];
-      }
+      });
     });
   }
 

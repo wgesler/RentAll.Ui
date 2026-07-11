@@ -590,16 +590,11 @@ export class BillingComponent implements OnInit, OnDestroy {
   }
 
   loadCostCodes(): void {
-    this.costCodesService.ensureCostCodesLoaded().pipe(take(1)).subscribe({
-      next: () => {
-        this.costCodesService.getAllCostCodes().pipe(takeUntil(this.destroy$)).subscribe(() => {
-          this.billingCostCodes = this.costCodesService.getAllCostCodesValue();
-          this.filterCostCodes();
-        });
-      },
-      error: () => {
-        this.billingCostCodes = [];
-      }
+    this.costCodesService.ensureCostCodesLoaded().pipe(take(1)).subscribe(() => {
+      this.costCodesService.getAllCostCodes().pipe(takeUntil(this.destroy$)).subscribe(costCodes => {
+        this.billingCostCodes = costCodes || [];
+        this.filterCostCodes();
+      });
     });
   }
 

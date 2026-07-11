@@ -11,6 +11,7 @@ import { FormatterService } from '../../../services/formatter-service';
 import { MaterialModule } from '../../../material.module';
 import { AuthService } from '../../../services/auth.service';
 import { ChartOfAccountsService } from '../../accounting/services/chart-of-accounts.service';
+import { ChartOfAccountResponse } from '../../accounting/models/chart-of-accounts.model';
 import { PdfThumbnailService } from '../../../services/pdf-thumbnail.service';
 import { UtilityService } from '../../../services/utility.service';
 import { getReceiptTypes, ReceiptType } from '../models/maintenance-enums';
@@ -97,6 +98,7 @@ export class ReceiptComponent implements OnInit, OnChanges, OnDestroy {
   private pendingAutoSaveAttempt = false;
   readonly moreBankCardsOptionValue = -1;
   expenseAccountOptions: SearchableSelectOption<number>[] = [];
+  chartOfAccounts: ChartOfAccountResponse[] = [];
 
   readonly accountingCompanyPropertyId = ACCOUNTING_COMPANY_PROPERTY_ID;
   lastPropertyIdsValue: string[] = [];
@@ -715,10 +717,12 @@ export class ReceiptComponent implements OnInit, OnChanges, OnDestroy {
       return;
     }
 
-    this.chartOfAccountsService.ensureChartOfAccountsLoaded();
-    this.chartOfAccountsService.areChartOfAccountsLoaded().pipe(filter(loaded => loaded === true), take(1)).subscribe(() => {
-      this.loadSplitAccountsForCurrentOffice();
-      this.cdr.markForCheck();
+    this.chartOfAccountsService.ensureChartOfAccountsLoaded().pipe(take(1)).subscribe(() => {
+      this.chartOfAccountsService.getAllChartOfAccounts().pipe(takeUntil(this.destroy$)).subscribe(accounts => {
+        this.chartOfAccounts = accounts || [];
+        this.loadSplitAccountsForCurrentOffice();
+        this.cdr.markForCheck();
+      });
     });
   }
 
@@ -734,7 +738,8 @@ export class ReceiptComponent implements OnInit, OnChanges, OnDestroy {
       return;
     }
 
-    this.expenseAccountOptions = (this.chartOfAccountsService.getChartOfAccountsForOffice(officeId) || [])
+    this.expenseAccountOptions = this.chartOfAccounts
+      .filter(account => account.officeId === officeId)
       .map(account => ({
         value: account.accountId,
         label: this.utilityService.getChartOfAccountDropdownLabel(account)

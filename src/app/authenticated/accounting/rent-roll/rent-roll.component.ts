@@ -545,11 +545,12 @@ export class RentRollComponent implements OnInit, OnChanges, OnDestroy {
   }
 
   initializeChartOfAccounts(): void {
-    this.chartOfAccountsService.ensureChartOfAccountsLoaded();
-    this.chartOfAccountsService.getAllChartOfAccounts().pipe(takeUntil(this.destroy$)).subscribe(accounts => {
-      this.chartOfAccounts = accounts || [];
-      this.rebuildRentRollRowsFromCachedAgreements();
-      this.markViewForCheck();
+    this.chartOfAccountsService.ensureChartOfAccountsLoaded().pipe(take(1)).subscribe(() => {
+      this.chartOfAccountsService.getAllChartOfAccounts().pipe(takeUntil(this.destroy$)).subscribe(accounts => {
+        this.chartOfAccounts = accounts || [];
+        this.rebuildRentRollRowsFromCachedAgreements();
+        this.markViewForCheck();
+      });
     });
   }
 

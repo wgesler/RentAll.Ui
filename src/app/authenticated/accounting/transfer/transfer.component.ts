@@ -11,6 +11,7 @@ import { UtilityService } from '../../../services/utility.service';
 import { PropertyCodeResponse, PropertyResponse } from '../../properties/models/property.model';
 import { PropertyService } from '../../properties/services/property.service';
 import { OfficeResponse } from '../../organizations/models/office.model';
+import { AccountingOfficeResponse } from '../../organizations/models/accounting-office.model';
 import { OfficeService } from '../../organizations/services/office.service';
 import { SearchableSelectComponent, SearchableSelectOption } from '../../shared/searchable-select/searchable-select.component';
 import { TransferRequest, TransferResponse, TransferSplit } from '../models/transfer.model';
@@ -41,8 +42,10 @@ export class TransferComponent implements OnInit, OnChanges, OnDestroy, AfterVie
   isPageReady = false;
   organizationId = '';
   transfer: TransferResponse | null = null;
+  chartOfAccounts: ChartOfAccountResponse[] = [];
   propertyOptions: PropertyCodeResponse[] = [];
   offices: OfficeResponse[] = [];
+  accountingOffices: AccountingOfficeResponse[] = [];
   bankAccountOptions: SearchableSelectOption<number>[] = [];
   splitAccountOptions: SearchableSelectOption<number>[] = [];
   splitTotalValidationError = false;
@@ -94,7 +97,7 @@ export class TransferComponent implements OnInit, OnChanges, OnDestroy, AfterVie
     this.isAddMode = this.transferId == null;
     this.loadOffices();
     this.loadPropertyCodes();
-    this.accountingOfficeService.ensureAccountingOfficesLoaded().pipe(take(1)).subscribe();
+    this.loadAccountingOffices();
     this.loadChartOfAccounts();
     if (this.isAddMode) {
       this.clearTransferLoading();
@@ -115,7 +118,7 @@ export class TransferComponent implements OnInit, OnChanges, OnDestroy, AfterVie
   ngOnChanges(changes: SimpleChanges): void {
     if (changes['officeId'] && !changes['officeId'].firstChange) {
       this.applyShellOfficeToTransfer();
-      this.loadChartOfAccounts();
+      this.applyChartOfAccountsForOffice();
     }
     if (changes['property']) {
       this.applyPropertyInputToForm();
@@ -256,7 +259,7 @@ export class TransferComponent implements OnInit, OnChanges, OnDestroy, AfterVie
       next: (transfer: TransferResponse) => {
         this.transfer = transfer;
         this.populateForm(transfer);
-        this.loadChartOfAccounts();
+        this.applyChartOfAccountsForOffice();
         this.cdr.markForCheck();
       },
       error: (_err: HttpErrorResponse) => {
@@ -294,42 +297,46 @@ export class TransferComponent implements OnInit, OnChanges, OnDestroy, AfterVie
   }
 
   loadChartOfAccounts(): void {
+    this.chartOfAccountsService.ensureChartOfAccountsLoaded().pipe(take(1)).subscribe(() => {
+      this.chartOfAccountsService.getAllChartOfAccounts().pipe(takeUntil(this.destroy$)).subscribe(accounts => {
+        this.chartOfAccounts = accounts || [];
+        this.applyChartOfAccountsForOffice();
+      });
+    });
+  }
+
+  loadAccountingOffices(): void {
+    this.accountingOfficeService.ensureAccountingOfficesLoaded().pipe(take(1)).subscribe(() => {
+      this.accountingOfficeService.getAllAccountingOffices().pipe(takeUntil(this.destroy$)).subscribe(accountingOffices => {
+        this.accountingOffices = accountingOffices || [];
+        this.applyChartOfAccountsForOffice();
+        this.cdr.markForCheck();
+      });
+    });
+  }
+
+  applyChartOfAccountsForOffice(): void {
     const officeId = this.getTransferOfficeId();
     if (!officeId) {
       this.bankAccountOptions = [];
       this.splitAccountOptions = [];
-      this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'accounts');
       return;
     }
 
-    this.utilityService.addLoadItem(this.itemsToLoad$, 'accounts');
-    this.chartOfAccountsService.getChartOfAccountsByOfficeId(officeId).pipe(take(1), finalize(() => this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'accounts')) ).subscribe({
-      next: (accounts) => {
-        const officeId = this.getTransferOfficeId();
-        const escrowDepositAccount = officeId != null
-          ? this.resolveEscrowDepositAccount(accounts || [], officeId)
-          : null;
-        this.bankAccountOptions = escrowDepositAccount
-          ? [{
-              value: escrowDepositAccount.accountId,
-              label: this.utilityService.getChartOfAccountDropdownLabel(escrowDepositAccount)
-            }]
-          : [];
-        if (escrowDepositAccount) {
-          this.form.patchValue({ bankAccountId: escrowDepositAccount.accountId }, { emitEvent: false });
-        }
-        this.splitAccountOptions = officeId != null
-          ? this.buildSplitAccountOptions(accounts || [], officeId)
-          : [];
-        this.applyDefaultSplitAccountIfNeeded();
-        this.cdr.markForCheck();
-      },
-      error: () => {
-        this.bankAccountOptions = [];
-        this.splitAccountOptions = [];
-        this.cdr.markForCheck();
-      }
-    });
+    const accounts = this.chartOfAccounts.filter(account => account.officeId === officeId);
+    const escrowDepositAccount = this.resolveEscrowDepositAccount(accounts, officeId);
+    this.bankAccountOptions = escrowDepositAccount
+      ? [{
+          value: escrowDepositAccount.accountId,
+          label: this.utilityService.getChartOfAccountDropdownLabel(escrowDepositAccount)
+        }]
+      : [];
+    if (escrowDepositAccount) {
+      this.form.patchValue({ bankAccountId: escrowDepositAccount.accountId }, { emitEvent: false });
+    }
+    this.splitAccountOptions = this.buildSplitAccountOptions(accounts, officeId);
+    this.applyDefaultSplitAccountIfNeeded();
+    this.cdr.markForCheck();
   }
   //#endregion
 
@@ -763,8 +770,7 @@ export class TransferComponent implements OnInit, OnChanges, OnDestroy, AfterVie
   }
 
   getTransferDestinationAccountIds(officeId: number): number[] {
-    const accountingOffice = this.accountingOfficeService.getAllAccountingOfficesValue()
-      .find(office => Number(office.officeId) === officeId);
+    const accountingOffice = this.accountingOffices.find(office => Number(office.officeId) === officeId);
     return [
       Number(accountingOffice?.defaultEscrowSecDepAccountId ?? 0),
       Number(accountingOffice?.defaultEscrowSdwAccountId ?? 0),
@@ -774,15 +780,13 @@ export class TransferComponent implements OnInit, OnChanges, OnDestroy, AfterVie
   }
 
   getDefaultEscrowDepositAccountId(officeId: number): number | null {
-    const accountingOffice = this.accountingOfficeService.getAllAccountingOfficesValue()
-      .find(office => Number(office.officeId) === officeId);
+    const accountingOffice = this.accountingOffices.find(office => Number(office.officeId) === officeId);
     const accountId = Number(accountingOffice?.defaultEscrowDepositAccountId ?? 0);
     return accountId > 0 ? accountId : null;
   }
 
   getDefaultEscrowOwnersAccountId(officeId: number): number | null {
-    const accountingOffice = this.accountingOfficeService.getAllAccountingOfficesValue()
-      .find(office => Number(office.officeId) === officeId);
+    const accountingOffice = this.accountingOffices.find(office => Number(office.officeId) === officeId);
     const accountId = Number(accountingOffice?.defaultEscrowOwnersAccountId ?? 0);
     return accountId > 0 ? accountId : null;
   }
@@ -816,7 +820,7 @@ export class TransferComponent implements OnInit, OnChanges, OnDestroy, AfterVie
     }
     const office = this.offices.find(item => item.officeId === officeId);
     this.form.patchValue({ officeName: office?.name || '' }, { emitEvent: false });
-    this.loadChartOfAccounts();
+    this.applyChartOfAccountsForOffice();
   }
 
   applyPropertyInputToForm(): void {
@@ -828,7 +832,7 @@ export class TransferComponent implements OnInit, OnChanges, OnDestroy, AfterVie
       officeName: this.property?.officeName || ''
     });
     this.applyDefaultPropertyId(propertyId);
-    this.loadChartOfAccounts();
+    this.applyChartOfAccountsForOffice();
   }
 
   getDateControlValue(value: string | null | undefined): Date | null {

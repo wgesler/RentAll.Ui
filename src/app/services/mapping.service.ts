@@ -3127,8 +3127,10 @@ export class MappingService {
         officeName: deposit.officeName,
         propertyIds,
         depositDate: this.formatter.formatDateString(deposit.depositDate),
-        period: this.formatter.formatInvoiceListAccountingPeriod(deposit.accountingPeriod),
+        period: this.formatter.formatListAccountingPeriodDot(deposit.accountingPeriod),
         propertyCode: this.buildDepositPropertyCodesDisplay(propertyIds, splits),
+        reservationCode: this.buildDepositReservationCodesDisplay(splits),
+        contactName: this.buildDepositContactNamesDisplay(splits),
         descriptionDisplay: deposit.description || '',
         amount: depositAmount,
         amountDisplay: this.formatter.currencyUsd(depositAmount),
@@ -3162,6 +3164,28 @@ export class MappingService {
         }
       });
     return Array.from(codes).join(', ');
+  }
+
+  private buildDepositReservationCodesDisplay(splits: DepositSplit[]): string {
+    const codes = Array.from(
+      new Set(
+        (splits || [])
+          .map(split => (split.reservationCode || '').trim())
+          .filter(code => code.length > 0)
+      )
+    );
+    return codes.join(', ');
+  }
+
+  private buildDepositContactNamesDisplay(splits: DepositSplit[]): string {
+    const names = Array.from(
+      new Set(
+        (splits || [])
+          .map(split => (split.contactName || '').trim())
+          .filter(name => name.length > 0)
+      )
+    );
+    return names.join(', ');
   }
 
   mapDepositUpdateRequest(deposit: DepositResponse, isActive: boolean): DepositRequest {
@@ -3242,7 +3266,7 @@ export class MappingService {
     const createdByName = String(rawRecord['createdByName'] ?? rawRecord['CreatedByName'] ?? base.createdByName ?? createdBy).trim();
     const modifiedBy = String(rawRecord['modifiedBy'] ?? rawRecord['ModifiedBy'] ?? base.modifiedBy ?? '').trim();
     const isActiveRaw = rawRecord['isActive'] ?? rawRecord['IsActive'] ?? base.isActive;
-    const isActive = isActiveRaw === true || isActiveRaw === 'true' || isActiveRaw === 1;
+    const isActive = isActiveRaw === false || isActiveRaw === 'false' || isActiveRaw === 0 ? false : true;
     const mappedSplits = this.mapTransferSplitsFromApi(
       (rawRecord['splits'] ?? rawRecord['Splits'] ?? base.splits) as TransferSplit[] | undefined | null
     );

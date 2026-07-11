@@ -321,8 +321,6 @@ export class AccountingShellComponent implements OnInit, OnDestroy {
     window.addEventListener(this.clearPinsEventName, this.onClearPins);
     this.userId = this.authService.getUser()?.userId || '';
     this.applyPinnedDateRangeFromStorage();
-    this.costCodesService.ensureCostCodesLoaded().pipe(take(1)).subscribe();
-    this.chartOfAccountsService.ensureChartOfAccountsLoaded();
     this.loadChartOfAccounts();
     this.loadPropertyCodes();
     this.loadReservationCodes();
@@ -3388,7 +3386,7 @@ export class AccountingShellComponent implements OnInit, OnDestroy {
     });
   }
   loadChartOfAccounts(): void {
-    this.chartOfAccountsService.areChartOfAccountsLoaded().pipe(filter(loaded => loaded === true), take(1), takeUntil(this.destroy$)).subscribe(() => {
+    this.chartOfAccountsService.ensureChartOfAccountsLoaded().pipe(take(1)).subscribe(() => {
       this.chartOfAccountsService.getAllChartOfAccounts().pipe(takeUntil(this.destroy$)).subscribe(accounts => {
         this.chartOfAccounts = accounts || [];
         this.clearInvalidChartOfAccountSelection();

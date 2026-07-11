@@ -24,6 +24,7 @@ import { ReservationService } from '../../reservations/services/reservation.serv
 import { TransactionType } from '../../accounting/models/accounting-enum';
 import { InvoiceRequest, LedgerLineRequest } from '../../accounting/models/invoice.model';
 import { ChartOfAccountsService } from '../../accounting/services/chart-of-accounts.service';
+import { ChartOfAccountResponse } from '../../accounting/models/chart-of-accounts.model';
 import { CostCodesService } from '../../accounting/services/cost-codes.service';
 import { InvoiceService } from '../../accounting/services/invoice.service';
 import { PropertyAgreementResponse } from '../../properties/models/property-agreement.model';
@@ -79,6 +80,7 @@ export class WorkOrderComponent implements OnInit, OnChanges, OnDestroy {
   workOrderItems: WorkOrderItemEditable[] = [];
   offices: OfficeResponse[] = [];
   accountingOffices: AccountingOfficeResponse[] = [];
+  chartOfAccounts: ChartOfAccountResponse[] = [];
   propertyReceipts: ReceiptResponse[] = [];
   associatedWorkOrderReceiptIds = new Set<string>();
   accountingOffice: AccountingOfficeResponse | null = null;
@@ -172,6 +174,7 @@ export class WorkOrderComponent implements OnInit, OnChanges, OnDestroy {
 
     this.loadOffices();
     this.loadAccountingOffices();
+    this.loadChartOfAccounts();
     this.loadCostCodes();
     this.loadVendors();
     this.loadProperty();
@@ -1333,6 +1336,17 @@ export class WorkOrderComponent implements OnInit, OnChanges, OnDestroy {
     });
   }
 
+  loadChartOfAccounts(): void {
+    this.chartOfAccountsService.ensureChartOfAccountsLoaded().pipe(take(1)).subscribe(() => {
+      this.chartOfAccountsService.getAllChartOfAccounts().pipe(takeUntil(this.destroy$)).subscribe(accounts => {
+        this.chartOfAccounts = accounts || [];
+        if (this.property?.officeId) {
+          this.setTenantDamagesCcId(this.property.officeId);
+        }
+      });
+    });
+  }
+
   loadVendors(): void {
     this.contactService.ensureContactsLoaded().pipe(take(1)).subscribe({
       error: () => {}
@@ -1346,7 +1360,8 @@ export class WorkOrderComponent implements OnInit, OnChanges, OnDestroy {
       return;
     }
 
-    const cachedAccountNo = this.chartOfAccountsService.getChartOfAccountsForOffice(officeId)
+    const cachedAccountNo = this.chartOfAccounts
+      .filter(account => account.officeId === officeId)
       .find(account => account.accountId === accountId)?.accountNo;
     if (cachedAccountNo) {
       this.tenantDamagesCcId = this.costCodesService.getCostCodeIdByOfficeAndAccountNo(officeId, cachedAccountNo);

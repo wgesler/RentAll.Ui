@@ -68,6 +68,7 @@ export class ReceiptsListComponent implements OnInit, OnChanges, OnDestroy {
   bankCardOptionsByOfficeId = new Map<number, Array<{ bankCardId: number; label: string }>>();
   vendorOptionsByOfficeId = new Map<number, Array<{ contactId: string; label: string }>>();
   chartOfAccountsByOfficeId = new Map<number, Map<number, ChartOfAccountResponse>>();
+  allChartOfAccounts: ChartOfAccountResponse[] = [];
   paymentChartOfAccounts: { value: number; label: string }[] = [];
   paymentCreditCardOptions: { value: number; label: string; chartOfAccountId: number }[] = [];
   paymentTypeOptions = PaymentTypeLabels;
@@ -1334,17 +1335,15 @@ export class ReceiptsListComponent implements OnInit, OnChanges, OnDestroy {
       return;
     }
 
-    this.chartOfAccountsService.ensureChartOfAccountsLoaded();
-    this.chartOfAccountsService.areChartOfAccountsLoaded().pipe(
-      filter(loaded => loaded === true),
-      take(1),
-      takeUntil(this.destroy$)
-    ).subscribe(() => {
-      this.refreshChartOfAccountsLookups();
-      this.refreshPaymentChartOfAccountsForResolvedOffice();
-      this.applyAccountDisplayToDisplays();
-      this.applyFilters();
-      this.markViewForCheck();
+    this.chartOfAccountsService.ensureChartOfAccountsLoaded().pipe(take(1)).subscribe(() => {
+      this.chartOfAccountsService.getAllChartOfAccounts().pipe(takeUntil(this.destroy$)).subscribe(accounts => {
+        this.allChartOfAccounts = accounts || [];
+        this.refreshChartOfAccountsLookups();
+        this.refreshPaymentChartOfAccountsForResolvedOffice();
+        this.applyAccountDisplayToDisplays();
+        this.applyFilters();
+        this.markViewForCheck();
+      });
     });
   }
 
@@ -1364,7 +1363,7 @@ export class ReceiptsListComponent implements OnInit, OnChanges, OnDestroy {
 
     this.chartOfAccountsByOfficeId.clear();
     officeIds.forEach(officeId => {
-      const accounts = this.chartOfAccountsService.getChartOfAccountsForOffice(officeId) || [];
+      const accounts = this.allChartOfAccounts.filter(account => account.officeId === officeId);
       this.chartOfAccountsByOfficeId.set(
         officeId,
         new Map(accounts.map(account => [Number(account.accountId), account]))
@@ -1714,7 +1713,8 @@ export class ReceiptsListComponent implements OnInit, OnChanges, OnDestroy {
       return;
     }
 
-    this.paymentChartOfAccounts = (this.chartOfAccountsService.getChartOfAccountsForOffice(officeId) || [])
+    this.paymentChartOfAccounts = this.allChartOfAccounts
+      .filter(account => account.officeId === officeId)
       .filter(account => Number(account.accountTypeId) === AccountType.Bank)
       .sort((left, right) =>
         this.utilityService.getChartOfAccountDropdownLabel(left).localeCompare(

@@ -5,7 +5,7 @@ import { FormBuilder, FormControl, FormGroup, FormsModule, ReactiveFormsModule }
 import { DomSanitizer, SafeHtml } from '@angular/platform-browser';
 import { ActivatedRoute, Router } from '@angular/router';
 import { ToastrService } from 'ngx-toastr';
-import { BehaviorSubject, Subject, Subscription, filter, finalize, firstValueFrom, take, takeUntil } from 'rxjs';
+import { BehaviorSubject, Subject, filter, finalize, firstValueFrom, skip, switchMap, take, takeUntil } from 'rxjs';
 import { RouterUrl } from '../../../app.routes';
 import { MaterialModule } from '../../../material.module';
 import { CommonService } from '../../../services/common.service';
@@ -92,8 +92,7 @@ export class InvoiceCreateComponent extends BaseDocumentComponent implements OnI
   allCostCodes: CostCodesResponse[] = [];
   officeCostCodes: CostCodesResponse[] = [];
   paymentCostCodeIds: Set<number> = new Set<number>();
-  costCodesSubscription?: Subscription;
-  
+
   property: PropertyResponse | null = null;
   propertyHtml: PropertyHtmlResponse | null = null;
   emailHtml: EmailHtmlResponse | null = null;
@@ -378,24 +377,18 @@ export class InvoiceCreateComponent extends BaseDocumentComponent implements OnI
 
   //#region Data Load Methods
   loadOffices(): void {
-    this.officeService.ensureOfficesLoaded(this.organizationId).pipe(take(1), finalize(() => {this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'offices');})).subscribe({
-      next: () => {
-        this.offices = this.officeService.getAllOfficesValue() || [];
-      },
-      error: () => {
-        this.offices = [];
-      }
+    this.officeService.ensureOfficesLoaded(this.organizationId).pipe(take(1), finalize(() => {this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'offices');})).subscribe(() => {
+      this.officeService.getAllOffices().pipe(takeUntil(this.destroy$)).subscribe(offices => {
+        this.offices = offices || [];
+      });
     });
   }
 
   loadAccountingOffices(): void {
-    this.accountingOfficeService.ensureAccountingOfficesLoaded().pipe(take(1), finalize(() => {this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'accountingOffices');})).subscribe({
-      next: (list) => {
-        this.accountingOffices = list || [];
-      },
-      error: () => {
-        this.accountingOffices = [];
-      }
+    this.accountingOfficeService.ensureAccountingOfficesLoaded().pipe(take(1), finalize(() => {this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'accountingOffices');})).subscribe(() => {
+      this.accountingOfficeService.getAllAccountingOffices().pipe(takeUntil(this.destroy$)).subscribe(accountingOffices => {
+        this.accountingOffices = accountingOffices || [];
+      });
     });
   }
 
@@ -448,26 +441,11 @@ export class InvoiceCreateComponent extends BaseDocumentComponent implements OnI
   }
 
   loadCostCodes(): void {
-    this.costCodesService.ensureCostCodesLoaded().pipe(take(1)).subscribe({
-      next: () => {
-        this.costCodesSubscription?.unsubscribe();
-        this.costCodesSubscription = this.costCodesService.getAllCostCodes().subscribe({
-          next: () => {
-            this.allCostCodes = this.costCodesService.getAllCostCodesValue();
-            this.filterCostCodes();
-          },
-          error: () => {
-            this.allCostCodes = [];
-            this.officeCostCodes = [];
-            this.paymentCostCodeIds.clear();
-          }
-        });
-      },
-      error: () => {
-        this.allCostCodes = [];
-        this.officeCostCodes = [];
-        this.paymentCostCodeIds.clear();
-      }
+    this.costCodesService.ensureCostCodesLoaded().pipe(take(1)).subscribe(() => {
+      this.costCodesService.getAllCostCodes().pipe(takeUntil(this.destroy$)).subscribe(costCodes => {
+        this.allCostCodes = costCodes || [];
+        this.filterCostCodes();
+      });
     });
   }
 
@@ -1036,7 +1014,6 @@ export class InvoiceCreateComponent extends BaseDocumentComponent implements OnI
   }
   
   ngOnDestroy(): void {
-    this.costCodesSubscription?.unsubscribe();
     this.destroy$.next();
     this.destroy$.complete();
   }

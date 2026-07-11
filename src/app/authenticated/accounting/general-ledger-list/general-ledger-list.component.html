@@ -60,10 +60,10 @@
           [hasFilter]="true"
           [hasToggleTop]="false"
           [hasButtonTop]="false"
-          [hasActionsSelect]="showDepositTableSelections || showPrintCheckTableSelections"
-          [hasButtonSelectAll]="showDepositTableSelections || showPrintCheckTableSelections"
+          [hasActionsSelect]="showDepositTableSelections || showTransferTableSelections || showPrintCheckTableSelections"
+          [hasButtonSelectAll]="showDepositTableSelections || showTransferTableSelections || showPrintCheckTableSelections"
           [hasContactNameLink]="false"
-          [hasActionsRowClick]="!showDepositForm"
+          [hasActionsRowClick]="!showDepositForm && !showTransferForm"
           [itemsPerPage]="10"
           (rowClickEvent)="onLineSelect($event)"
           (selectionSet)="onTableLineSelectionSet($event)">
@@ -139,6 +139,65 @@
                       type="button"
                       color="accent"
                       (click)="cancelDepositForm()"
+                      class="whitespace-nowrap items-center flex gap-1">
+                      Cancel
+                    </button>
+                  </div>
+                }
+              </div>
+            </div>
+          }
+          @if (untransferredFundsOnly) {
+            <div dataTableFilterActions>
+              <div class="table-filter-actions-group form-titlebar-actions-wrap uniform-gap payment-actions-anchor">
+                <button
+                  mat-raised-button
+                  type="button"
+                  color="accent"
+                  id="make-transfer-button"
+                  class="text-nowrap flex-shrink-0 whitespace-nowrap items-center flex gap-1"
+                  (click)="openMakeTransferDialog()">
+                  Make Transfer
+                </button>
+                @if (showTransferForm) {
+                  <div class="payment-dialog-overlay transfer-dialog">
+                    <div class="payment-form-box" style="font-size: 11px !important;">
+                      <div class="flex gap-2 items-center payment-inline-row">
+                        <mat-form-field appearance="outline" class="payment-date-field" style="font-size: 11px !important;">
+                          <mat-label style="font-size: 11px !important;">Date</mat-label>
+                          <input matInput [matDatepicker]="transferDatePickerEmbedded" [(ngModel)]="transferDate" style="font-size: 11px !important;">
+                          <mat-datepicker-toggle matIconSuffix [for]="transferDatePickerEmbedded"></mat-datepicker-toggle>
+                          <mat-datepicker #transferDatePickerEmbedded></mat-datepicker>
+                        </mat-form-field>
+                        <mat-form-field appearance="outline" class="payment-amount-field" style="font-size: 11px !important;">
+                          <mat-label style="font-size: 11px !important;">Amount</mat-label>
+                          <input
+                            matInput
+                            type="text"
+                            [value]="transferAmountDisplay"
+                            (input)="onTransferAmountInput($event)"
+                            (focus)="onTransferAmountFocus($event)"
+                            (blur)="onTransferAmountBlur($event)"
+                            (keydown.enter)="onTransferAmountEnter($event)"
+                            placeholder="0.00"
+                            style="font-size: 11px !important;">
+                        </mat-form-field>
+                      </div>
+                    </div>
+                    <button
+                      mat-raised-button
+                      type="button"
+                      color="primary"
+                      (click)="submitTransfer()"
+                      [disabled]="!isTransferFormValid || isSubmittingTransfer"
+                      class="whitespace-nowrap items-center flex gap-1">
+                      Submit
+                    </button>
+                    <button
+                      mat-raised-button
+                      type="button"
+                      color="accent"
+                      (click)="cancelTransferForm()"
                       class="whitespace-nowrap items-center flex gap-1">
                       Cancel
                     </button>

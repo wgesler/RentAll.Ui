@@ -206,8 +206,7 @@ export class GeneralLedgerComponent implements OnInit, OnDestroy, OnChanges {
 
     this.utilityService.addLoadItem(this.itemsToLoad$, 'referenceData');
 
-    this.chartOfAccountsService.ensureChartOfAccountsLoaded();
-    this.chartOfAccountsService.areChartOfAccountsLoaded().pipe(filter(loaded => loaded === true), take(1), takeUntil(this.destroy$)).subscribe(() => {
+    this.chartOfAccountsService.ensureChartOfAccountsLoaded().pipe(take(1)).subscribe(() => {
       this.chartOfAccountsService.getAllChartOfAccounts().pipe(takeUntil(this.destroy$)).subscribe(accounts => {
         this.chartOfAccounts = accounts || [];
         this.applyLineDisplay();

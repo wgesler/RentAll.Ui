@@ -202,22 +202,15 @@ export class FinancialReportComponent implements OnInit, OnDestroy, OnChanges {
   }
 
   loadChartOfAccounts(): void {
-    this.chartOfAccountsService.ensureChartOfAccountsLoaded();
-    this.chartOfAccountsService.areChartOfAccountsLoaded().pipe(filter(loaded => loaded === true),take(1),takeUntil(this.destroy$),
+    this.chartOfAccountsService.ensureChartOfAccountsLoaded().pipe(
+      take(1),
       finalize(() => this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'chartOfAccounts'))
-    ).subscribe({
-      next: () => {
-        this.chartOfAccountsService.getAllChartOfAccounts().pipe(takeUntil(this.destroy$)).subscribe(accounts => {
-          this.chartOfAccounts = accounts || [];
-          this.applyReportDisplay();
-          this.markViewForCheck();
-        });
-      },
-      error: () => {
-        this.chartOfAccounts = [];
+    ).subscribe(() => {
+      this.chartOfAccountsService.getAllChartOfAccounts().pipe(takeUntil(this.destroy$)).subscribe(accounts => {
+        this.chartOfAccounts = accounts || [];
         this.applyReportDisplay();
         this.markViewForCheck();
-      }
+      });
     });
   }
 
@@ -823,12 +816,12 @@ export class FinancialReportComponent implements OnInit, OnDestroy, OnChanges {
 
   getChartOfAccountsForOfficeIds(officeIds: number[]): ChartOfAccountResponse[] {
     if (officeIds.length === 1) {
-      return this.chartOfAccountsService.getChartOfAccountsForOffice(officeIds[0]) || [];
+      return this.chartOfAccounts.filter(account => account.officeId === officeIds[0]);
     }
 
     const allAccounts = this.chartOfAccounts.length > 0
       ? this.chartOfAccounts
-      : (this.chartOfAccountsService.getAllChartOfAccountsValue() || []);
+      : this.chartOfAccounts;
     return allAccounts.filter(account => officeIds.includes(account.officeId));
   }
 

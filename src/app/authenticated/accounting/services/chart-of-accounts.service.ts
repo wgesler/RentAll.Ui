@@ -1,6 +1,6 @@
 import { HttpClient, HttpErrorResponse } from '@angular/common/http';
 import { Injectable } from '@angular/core';
-import { BehaviorSubject, Observable, filter, switchMap, take, tap } from 'rxjs';
+import { BehaviorSubject, Observable, catchError, of, switchMap, take, tap } from 'rxjs';
 import { ConfigService } from '../../../services/config.service';
 import { ChartOfAccountRequest, ChartOfAccountResponse } from '../models/chart-of-accounts.model';
 
@@ -11,7 +11,6 @@ export class ChartOfAccountsService {
   private readonly controller = this.configService.config().apiUrl + 'accounting/chart-of-account/';
   private allChartOfAccounts$ = new BehaviorSubject<ChartOfAccountResponse[]>([]);
   private chartOfAccountsLoaded$ = new BehaviorSubject<boolean>(false);
-  private isChartOfAccountsLoading = false;
 
   constructor(
     private http: HttpClient,
@@ -42,58 +41,46 @@ export class ChartOfAccountsService {
     return this.http.delete<void>(this.controller + 'office/' + officeId + '/accountId/' + accountId);
   }
 
-  loadAllChartOfAccounts(): void {
-    if (this.chartOfAccountsLoaded$.value || this.isChartOfAccountsLoading) {
-      return;
-    }
-    this.fetchAllChartOfAccounts();
-  }
-
-  refreshAllChartOfAccounts(): void {
-    if (this.isChartOfAccountsLoading) {
-      return;
-    }
-    this.fetchAllChartOfAccounts();
-  }
-
-  fetchAllChartOfAccounts(): void {
-    this.isChartOfAccountsLoading = true;
-    this.getChartOfAccountsForAllOffices().subscribe({
-      next: accounts => {
+  loadAllChartOfAccounts(): Observable<ChartOfAccountResponse[]> {
+    return this.getChartOfAccountsForAllOffices().pipe(
+      tap((accounts) => {
         this.allChartOfAccounts$.next(accounts || []);
         this.chartOfAccountsLoaded$.next(true);
-        this.isChartOfAccountsLoading = false;
-      },
-      error: (err: HttpErrorResponse) => {
+      }),
+      catchError((err: HttpErrorResponse) => {
         console.error('Chart of Accounts Service - Error loading all accounts:', err);
         this.allChartOfAccounts$.next([]);
         this.chartOfAccountsLoaded$.next(true);
-        this.isChartOfAccountsLoading = false;
-      }
-    });
+        return of([]);
+      })
+    );
   }
 
-  ensureChartOfAccountsLoaded(): void {
-    if (this.chartOfAccountsLoaded$.value || this.isChartOfAccountsLoading) {
-      return;
-    }
-    this.loadAllChartOfAccounts();
-  }
-
-  ensureChartOfAccountsLoaded$(): Observable<ChartOfAccountResponse[]> {
+  ensureChartOfAccountsLoaded(): Observable<ChartOfAccountResponse[]> {
     if (this.chartOfAccountsLoaded$.value) {
       return this.getAllChartOfAccounts().pipe(take(1));
     }
+    return this.loadAllChartOfAccounts().pipe(take(1), switchMap(() => this.getAllChartOfAccounts().pipe(take(1))));
+  }
 
-    if (!this.isChartOfAccountsLoading) {
-      this.fetchAllChartOfAccounts();
-    }
+  /** @deprecated Use ensureChartOfAccountsLoaded() */
+  ensureChartOfAccountsLoaded$(): Observable<ChartOfAccountResponse[]> {
+    return this.ensureChartOfAccountsLoaded();
+  }
 
-    return this.areChartOfAccountsLoaded().pipe(
-      filter(loaded => loaded),
-      take(1),
-      switchMap(() => this.getAllChartOfAccounts().pipe(take(1)))
-    );
+  refreshChartOfAccounts(): Observable<ChartOfAccountResponse[]> {
+    this.chartOfAccountsLoaded$.next(false);
+    return this.loadAllChartOfAccounts().pipe(take(1), switchMap(() => this.getAllChartOfAccounts().pipe(take(1))));
+  }
+
+  /** Reload the global chart-of-accounts cache and push to all getAllChartOfAccounts() subscribers. */
+  notifyChartOfAccountsChanged(): void {
+    this.refreshChartOfAccounts().pipe(take(1)).subscribe();
+  }
+
+  /** @deprecated Use notifyChartOfAccountsChanged() */
+  refreshAllChartOfAccounts(): void {
+    this.notifyChartOfAccountsChanged();
   }
 
   areChartOfAccountsLoaded(): Observable<boolean> {
@@ -103,7 +90,6 @@ export class ChartOfAccountsService {
   clearChartOfAccounts(): void {
     this.allChartOfAccounts$.next([]);
     this.chartOfAccountsLoaded$.next(false);
-    this.isChartOfAccountsLoading = false;
   }
 
   getAllChartOfAccounts(): Observable<ChartOfAccountResponse[]> {
@@ -119,11 +105,9 @@ export class ChartOfAccountsService {
   }
 
   refreshChartOfAccountsForOffice(officeId: number): Observable<ChartOfAccountResponse[]> {
-    return this.getChartOfAccountsByOfficeId(officeId).pipe(
-      tap(accounts => {
-        const filtered = this.allChartOfAccounts$.value.filter(account => account.officeId !== officeId);
-        this.allChartOfAccounts$.next([...filtered, ...(accounts || [])]);
-      })
+    return this.refreshChartOfAccounts().pipe(
+      take(1),
+      switchMap(() => of(this.getChartOfAccountsForOffice(officeId)))
     );
   }
 }

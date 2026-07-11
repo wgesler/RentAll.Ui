@@ -786,7 +786,8 @@
                     [untransferredFundsOnly]="true"
                     [searchDateRange]="invoiceSearchDateRange"
                     [refreshTrigger]="untransferredFundsRefreshTrigger"
-                    (lineSelectEvent)="onGeneralLedgerLineSelect($event)">
+                    (lineSelectEvent)="onGeneralLedgerLineSelect($event)"
+                    (transferCompletedEvent)="onJournalEntriesChanged()">
                   </app-general-ledger-list>
                 }
               } @else if (selectedBankActivityKind === 'deposits') {

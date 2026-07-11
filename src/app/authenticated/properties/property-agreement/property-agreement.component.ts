@@ -21,6 +21,7 @@ import { ContactResponse } from '../../contacts/models/contact.model';
 import { OfficeResponse } from '../../organizations/models/office.model';
 import { OfficeService } from '../../organizations/services/office.service';
 import { ChartOfAccountsService } from '../../accounting/services/chart-of-accounts.service';
+import { ChartOfAccountResponse } from '../../accounting/models/chart-of-accounts.model';
 import { SearchableSelectComponent, SearchableSelectOption } from '../../shared/searchable-select/searchable-select.component';
 import { EntityType, TermType, getTermType } from '../../contacts/models/contact-enum';
 import { NewContactDialogService } from '../../shared/contacts/new-contact-dialog.service';
@@ -51,6 +52,7 @@ export class PropertyAgreementComponent implements OnInit, OnChanges, OnDestroy 
   agreementOfficeId: number | null = null;
   agreementLines: AgreementLineDisplay[] = [];
   chartOfAccountOptions: SearchableSelectOption<number>[] = [];
+  chartOfAccounts: ChartOfAccountResponse[] = [];
   vendorOptions: SearchableSelectOption<string>[] = [];
 
   agreementW9FileName: string | null = null;
@@ -132,7 +134,12 @@ export class PropertyAgreementComponent implements OnInit, OnChanges, OnDestroy 
     }
 
     this.loadOffices();
-    this.loadChartOfAccountOptions();
+    this.chartOfAccountsService.ensureChartOfAccountsLoaded().pipe(take(1)).subscribe(() => {
+      this.chartOfAccountsService.getAllChartOfAccounts().pipe(takeUntil(this.destroy$)).subscribe(accounts => {
+        this.chartOfAccounts = accounts || [];
+        this.applyChartOfAccountOptions();
+      });
+    });
     this.loadVendorOptions();
     if (this.isAddMode) {
       this.agreementExists = false;
@@ -165,7 +172,7 @@ export class PropertyAgreementComponent implements OnInit, OnChanges, OnDestroy 
     const vendorChanged = !!(changes['vendorContactId'] && !changes['vendorContactId'].firstChange);
     const officeChanged = !!(changes['officeId'] && !changes['officeId'].firstChange);
     if (officeChanged) {
-      this.loadChartOfAccountOptions();
+      this.applyChartOfAccountOptions();
       this.loadVendorOptions();
     }
     if (leaseTypeChanged || vendorChanged) {
@@ -344,40 +351,42 @@ export class PropertyAgreementComponent implements OnInit, OnChanges, OnDestroy 
     this.populateAgreementInsurance(data);
     this.populateAgreementDoc(data);
     this.populateAgreementLines(data);
-    this.loadChartOfAccountOptions();
+    this.applyChartOfAccountOptions();
   }
   //#endregion
 
   //#region Data Load Methods
   loadChartOfAccountOptions(): void {
+    this.applyChartOfAccountOptions();
+  }
+
+  applyChartOfAccountOptions(): void {
     const officeId = this.resolveAgreementOfficeId();
     if (!officeId) {
       this.chartOfAccountOptions = [];
       return;
     }
 
-    this.chartOfAccountsService.ensureChartOfAccountsLoaded();
-    this.chartOfAccountsService.areChartOfAccountsLoaded().pipe(filter(loaded => loaded === true), take(1), takeUntil(this.destroy$)).subscribe(() => {
-      this.chartOfAccountOptions = (this.chartOfAccountsService.getChartOfAccountsForOffice(officeId) || [])
-        .map(account => ({
-          value: account.accountId,
-          label: this.utilityService.getChartOfAccountDropdownLabel(account)
-        }))
-        .sort((a, b) => a.label.localeCompare(b.label, undefined, { sensitivity: 'base' }));
+    this.chartOfAccountOptions = this.chartOfAccounts
+      .filter(account => account.officeId === officeId)
+      .map(account => ({
+        value: account.accountId,
+        label: this.utilityService.getChartOfAccountDropdownLabel(account)
+      }))
+      .sort((a, b) => a.label.localeCompare(b.label, undefined, { sensitivity: 'base' }));
 
-      const selectedAccountIds = (this.agreementLines || [])
-        .map(line => Number(line.chartOfAccountId ?? 0))
-        .filter(accountId => Number.isFinite(accountId) && accountId > 0);
+    const selectedAccountIds = (this.agreementLines || [])
+      .map(line => Number(line.chartOfAccountId ?? 0))
+      .filter(accountId => Number.isFinite(accountId) && accountId > 0);
 
-      selectedAccountIds.forEach(accountId => {
-        if (this.chartOfAccountOptions.some(option => option.value === accountId)) {
-          return;
-        }
-        this.chartOfAccountOptions = [
-          ...this.chartOfAccountOptions,
-          { value: accountId, label: this.utilityService.getChartOfAccountDropdownLabel(null, accountId) }
-        ].sort((a, b) => a.label.localeCompare(b.label, undefined, { sensitivity: 'base' }));
-      });
+    selectedAccountIds.forEach(accountId => {
+      if (this.chartOfAccountOptions.some(option => option.value === accountId)) {
+        return;
+      }
+      this.chartOfAccountOptions = [
+        ...this.chartOfAccountOptions,
+        { value: accountId, label: this.utilityService.getChartOfAccountDropdownLabel(null, accountId) }
+      ].sort((a, b) => a.label.localeCompare(b.label, undefined, { sensitivity: 'base' }));
     });
   }
 

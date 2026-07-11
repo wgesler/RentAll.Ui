@@ -35,6 +35,7 @@ export class ChartOfAccountsListComponent implements OnInit, OnDestroy, OnChange
   @Output() officeIdChange = new EventEmitter<number | null>();
 
   isServiceError = false;
+  cachedChartOfAccounts: ChartOfAccountResponse[] = [];
   allChartOfAccounts: ChartOfAccountResponse[] = [];
   chartOfAccountsDisplay: ChartOfAccountListDisplay[] = [];
 
@@ -216,7 +217,7 @@ export class ChartOfAccountsListComponent implements OnInit, OnDestroy, OnChange
   }
 
   onChartOfAccountSaved(): void {
-    this.chartOfAccountsService.refreshAllChartOfAccounts();
+    this.chartOfAccountsService.notifyChartOfAccountsChanged();
     this.filterChartOfAccounts();
   }
   //#endregion
@@ -240,14 +241,13 @@ export class ChartOfAccountsListComponent implements OnInit, OnDestroy, OnChange
   }
 
   loadChartOfAccounts(): void {
-    this.chartOfAccountsService.ensureChartOfAccountsLoaded();
-    this.chartOfAccountsService.areChartOfAccountsLoaded().pipe(filter(loaded => loaded === true), take(1)).subscribe(() => {
-      this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'chartOfAccounts');
-      this.chartOfAccountsService.getAllChartOfAccounts().pipe(takeUntil(this.destroy$)).subscribe(() => {
+    this.chartOfAccountsService.ensureChartOfAccountsLoaded().pipe(take(1)).subscribe(() => {
+      this.chartOfAccountsService.getAllChartOfAccounts().pipe(takeUntil(this.destroy$)).subscribe(accounts => {
+        this.cachedChartOfAccounts = accounts || [];
+        this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'chartOfAccounts');
         this.filterChartOfAccounts();
         this.markViewForCheck();
       });
-      this.markViewForCheck();
     });
   }
   //#endregion
@@ -271,15 +271,13 @@ export class ChartOfAccountsListComponent implements OnInit, OnDestroy, OnChange
 
   filterChartOfAccounts(): void {
     if (!this.selectedOffice) {
-      this.chartOfAccountsService.getAllChartOfAccounts().pipe(take(1)).subscribe(allAccounts => {
-        this.allChartOfAccounts = allAccounts || [];
-        this.applyFilters();
-        this.markViewForCheck();
-      });
+      this.allChartOfAccounts = this.cachedChartOfAccounts;
+      this.applyFilters();
+      this.markViewForCheck();
       return;
     }
 
-    this.allChartOfAccounts = this.chartOfAccountsService.getChartOfAccountsForOffice(this.selectedOffice.officeId);
+    this.allChartOfAccounts = this.cachedChartOfAccounts.filter(account => account.officeId === this.selectedOffice!.officeId);
     this.applyFilters();
   }
 
@@ -316,7 +314,8 @@ export class ChartOfAccountsListComponent implements OnInit, OnDestroy, OnChange
   }
 
   getParentAccountOptionLabels(officeId: number, accountId: number): string[] {
-    return this.chartOfAccountsService.getChartOfAccountsForOffice(officeId)
+    return this.cachedChartOfAccounts
+      .filter(account => account.officeId === officeId)
       .filter(account => !account.isSubaccount && account.accountId !== accountId)
       .map(account => this.formatParentAccountLabel(account));
   }
@@ -326,7 +325,8 @@ export class ChartOfAccountsListComponent implements OnInit, OnDestroy, OnChange
       return '';
     }
 
-    const parentAccount = this.chartOfAccountsService.getChartOfAccountsForOffice(officeId)
+    const parentAccount = this.cachedChartOfAccounts
+      .filter(account => account.officeId === officeId)
       .find(account => account.accountId === subAccountId);
     return parentAccount ? this.formatParentAccountLabel(parentAccount) : '';
   }
@@ -337,7 +337,8 @@ export class ChartOfAccountsListComponent implements OnInit, OnDestroy, OnChange
       return null;
     }
 
-    const matchedAccount = this.chartOfAccountsService.getChartOfAccountsForOffice(officeId)
+    const matchedAccount = this.cachedChartOfAccounts
+      .filter(account => account.officeId === officeId)
       .find(account => !account.isSubaccount && account.accountId !== accountId && this.formatParentAccountLabel(account).toLowerCase() === normalizedLabel);
     return matchedAccount?.accountId ?? null;
   }

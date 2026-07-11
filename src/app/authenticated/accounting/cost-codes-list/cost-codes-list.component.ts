@@ -24,6 +24,7 @@ import { CostCodesComponent } from '../cost-codes/cost-codes.component';
 import { CostCodesListDisplay, CostCodesRequest, CostCodesResponse } from '../models/cost-codes.model';
 import { CostCodesService } from '../services/cost-codes.service';
 import { ChartOfAccountsService } from '../services/chart-of-accounts.service';
+import { ChartOfAccountResponse } from '../models/chart-of-accounts.model';
 import { CostCodeCopyOfficesDialogComponent } from './cost-code-copy-offices-dialog.component';
 
 @Component({
@@ -46,6 +47,7 @@ export class CostCodesListComponent implements OnInit, OnDestroy, OnChanges {
   isServiceError: boolean = false;
   showInactive: boolean = false;
   allCostCodes: CostCodesResponse[] = [];
+  cachedCostCodes: CostCodesResponse[] = [];
   costCodesDisplay: any[] = [];
   selectedCostCodes: CostCodesListDisplay[] = [];
   isAdmin = false;
@@ -62,6 +64,7 @@ export class CostCodesListComponent implements OnInit, OnDestroy, OnChanges {
   costCodesOfficeId: number | null = null;
 
   costCodes: CostCodesResponse[] = [];
+  allChartOfAccounts: ChartOfAccountResponse[] = [];
   availableCostCodes: { value: number, label: string }[] = [];
   transactionTypes: { value: number, label: string }[] = TransactionTypeLabels;
  
@@ -364,30 +367,24 @@ export class CostCodesListComponent implements OnInit, OnDestroy, OnChanges {
   }
 
   loadCostCodes(): void {
-    this.costCodesService.ensureCostCodesLoaded().pipe(take(1)).subscribe({
-      next: () => {
+    this.costCodesService.ensureCostCodesLoaded().pipe(take(1)).subscribe(() => {
+      this.costCodesService.getAllCostCodes().pipe(takeUntil(this.destroy$)).subscribe(costCodes => {
+        this.cachedCostCodes = costCodes || [];
         this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'costCodes');
-        this.costCodesService.getAllCostCodes().pipe(takeUntil(this.destroy$)).subscribe(() => {
-          this.filterCostCodes();
-          this.markViewForCheck();
-        });
+        this.filterCostCodes();
         this.markViewForCheck();
-      },
-      error: () => {
-        this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'costCodes');
-      }
+      });
     });
   }
 
   loadChartOfAccounts(): void {
-    this.chartOfAccountsService.ensureChartOfAccountsLoaded();
-    this.chartOfAccountsService.areChartOfAccountsLoaded().pipe(filter(loaded => loaded === true), take(1), takeUntil(this.destroy$)).subscribe(() => {
-      this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'chartOfAccounts');
-      this.chartOfAccountsService.getAllChartOfAccounts().pipe(takeUntil(this.destroy$)).subscribe(() => {
+    this.chartOfAccountsService.ensureChartOfAccountsLoaded().pipe(take(1)).subscribe(() => {
+      this.chartOfAccountsService.getAllChartOfAccounts().pipe(takeUntil(this.destroy$)).subscribe(accounts => {
+        this.allChartOfAccounts = accounts || [];
+        this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'chartOfAccounts');
         this.applyFilters();
         this.markViewForCheck();
       });
-      this.markViewForCheck();
     });
   }
   //#endregion
@@ -433,29 +430,25 @@ export class CostCodesListComponent implements OnInit, OnDestroy, OnChanges {
       filtered,
       this.offices,
       this.transactionTypes,
-      this.chartOfAccountsService.getAllChartOfAccountsValue()
+      this.allChartOfAccounts
     );
     this.costCodesDisplay = mapped;
   }
 
   filterCostCodes(): void {
     if (!this.selectedOffice) {
-      // Show all cost codes across all offices when "All Offices" is selected
-      this.costCodesService.getAllCostCodes().pipe(take(1)).subscribe(allCostCodes => {
-        this.costCodes = allCostCodes || [];
-        this.availableCostCodes = this.costCodes.filter(c => c.isActive).map(c => ({
-          value: c.costCodeId,
-          label: `${c.costCode}: ${c.description}`
-        }));
-        this.allCostCodes = this.costCodes;
-        this.applyFilters();
-        this.markViewForCheck();
-      });
+      this.costCodes = this.cachedCostCodes;
+      this.availableCostCodes = this.costCodes.filter(c => c.isActive).map(c => ({
+        value: c.costCodeId,
+        label: `${c.costCode}: ${c.description}`
+      }));
+      this.allCostCodes = this.costCodes;
+      this.applyFilters();
+      this.markViewForCheck();
       return;
     }
-    
-    // Get cost codes for the selected office from the observable data
-    this.costCodes = this.costCodesService.getCostCodesForOffice(this.selectedOffice.officeId);
+
+    this.costCodes = this.cachedCostCodes.filter(costCode => costCode.officeId === this.selectedOffice!.officeId);
     this.availableCostCodes = this.costCodes.filter(c => c.isActive).map(c => ({
       value: c.costCodeId,
       label: `${c.costCode}: ${c.description}`

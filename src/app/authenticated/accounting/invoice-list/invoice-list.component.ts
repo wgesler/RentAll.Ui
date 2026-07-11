@@ -780,7 +780,7 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
       return;
     }
 
-    this.chartOfAccounts = this.chartOfAccountsService.getChartOfAccountsForOffice(this.selectedOffice.officeId);
+    this.chartOfAccounts = this.allChartOfAccounts.filter(account => account.officeId === this.selectedOffice!.officeId);
   }
 
   filterCostCodes(): void {
@@ -1160,8 +1160,7 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
   }
 
   loadChartOfAccounts(): void {
-    this.chartOfAccountsService.ensureChartOfAccountsLoaded();
-    this.chartOfAccountsService.areChartOfAccountsLoaded().pipe(filter(loaded => loaded === true), take(1)).subscribe(() => {
+    this.chartOfAccountsService.ensureChartOfAccountsLoaded().pipe(take(1)).subscribe(() => {
       this.chartOfAccountsService.getAllChartOfAccounts().pipe(takeUntil(this.destroy$)).subscribe(accounts => {
         this.allChartOfAccounts = accounts || [];
         this.filterChartOfAccounts();
@@ -2000,9 +1999,6 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
     this.filterReservations();
     this.filterCostCodes();
     this.filterChartOfAccounts();
-    if (nextOfficeId != null) {
-      this.chartOfAccountsService.refreshChartOfAccountsForOffice(nextOfficeId).pipe(take(1)).subscribe();
-    }
     this.loadInvoicesForCurrentSearchCriteria();
   }
 

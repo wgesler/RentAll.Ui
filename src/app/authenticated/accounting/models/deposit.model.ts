@@ -71,6 +71,8 @@ export interface DepositDisplayList {
   propertyIds: string[];
   depositDate: string;
   propertyCode?: string;
+  reservationCode?: string;
+  contactName?: string;
   amount: number;
   amountDisplay?: string;
   splits: DepositSplit[];

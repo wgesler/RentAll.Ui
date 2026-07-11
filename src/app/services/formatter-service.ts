@@ -119,6 +119,25 @@ export class FormatterService {
         return this.formatAccountingPeriodMonthYear(accountingPeriod) || '—';
     }
 
+    /** Deposit/transfer list: accounting period as `MM.yy`, or em dash when empty. */
+    formatListAccountingPeriodDot(accountingPeriod?: string | null): string {
+        return this.formatAccountingPeriodMonthYearDot(accountingPeriod) || '—';
+    }
+
+    /** Calendar **DATE** (`YYYY-MM-DD`) → `MM.yy` for compact period display. */
+    formatAccountingPeriodMonthYearDot(calendarDate?: string | null): string {
+        if (!calendarDate) {
+            return '';
+        }
+        const fromCalendar = this.parseCalendarPrefixToLocalDate(calendarDate);
+        if (!fromCalendar) {
+            return '';
+        }
+        const month = `${fromCalendar.getMonth() + 1}`.padStart(2, '0');
+        const year = `${fromCalendar.getFullYear()}`.slice(-2);
+        return `${month}.${year}`;
+    }
+
     /** Invoice list: created-on `DateTimeOffset` as calendar date `MM/dd/yyyy`, or em dash when empty. */
     formatInvoiceListCreatedOn(createdOn?: string | null): string {
         return this.formatDateTimeOffsetAsDateOnly(createdOn) || '—';
