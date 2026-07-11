@@ -579,9 +579,8 @@ export class DepositComponent implements OnInit, OnChanges, OnDestroy, AfterView
     });
   }
 
-  buildSplitAccountOptions(accounts: ChartOfAccountResponse[], officeId: number): SearchableSelectOption<number>[] {
-    const undepositedAccounts = this.resolveUndepositedFundsAccounts(accounts, officeId);
-    const options = undepositedAccounts.map(account => ({
+  buildSplitAccountOptions(accounts: ChartOfAccountResponse[], _officeId: number): SearchableSelectOption<number>[] {
+    const options = (accounts || []).map(account => ({
       value: account.accountId,
       label: this.utilityService.getChartOfAccountDropdownLabel(account)
     }));
@@ -749,35 +748,6 @@ export class DepositComponent implements OnInit, OnChanges, OnDestroy, AfterView
     return `${isNegative ? '-' : ''}${numericPortion}`;
   }
  
-  resolveUndepositedFundsAccounts(accounts: ChartOfAccountResponse[], officeId: number): ChartOfAccountResponse[] {
-    const undepositedByName = (accounts || []).filter(account =>
-      Number(account.accountTypeId) === AccountType.OtherCurrentAsset
-      && this.isUndepositedFundsAccount(account)
-    );
-
-    const defaultAccountId = this.getDefaultUndepositedFundsAccountId(officeId);
-    if (defaultAccountId == null) {
-      return undepositedByName;
-    }
-
-    const defaultAccount = accounts.find(account => account.accountId === defaultAccountId);
-    if (!defaultAccount) {
-      return undepositedByName;
-    }
-
-    if (undepositedByName.some(account => account.accountId === defaultAccountId)) {
-      return undepositedByName;
-    }
-
-    return [defaultAccount, ...undepositedByName];
-  }
-
-  isUndepositedFundsAccount(account: ChartOfAccountResponse): boolean {
-    const name = (account.name || '').toLowerCase();
-    const accountNo = (account.accountNo || '').toLowerCase();
-    return name.includes('undeposited') || accountNo.includes('undeposited');
-  }
-
   getDefaultUndepositedFundsAccountId(officeId: number): number | null {
     const accountingOffice = this.accountingOffices.find(office => Number(office.officeId) === officeId);
     const accountId = Number(accountingOffice?.defaultUndepFundsAccountId ?? 0);
